@@ -3,7 +3,7 @@
   "listing": {
     "id": "dead-rising-2-case-west-recomp",
     "name": "Dead Rising 2 Case West Xenon Recomp",
-    "summary": "Register an independently permitted, prepared Case West native Windows player for your own XBLA game. Fresh acquisition remains held on the linked libxlive permission condition.",
+    "summary": "Add a prepared Case West native Windows player you already have, for your own XBLA game. Portcove downloads are paused because the package includes shader data recorded from the game.",
     "project_url": "https://github.com/wivi514/Dead_Rising_2_Case_West_Xenon_Recomp",
     "issue_number": 1122,
     "listed_at": "2026-10-23",
@@ -26,8 +26,8 @@
       "help_url": "https://github.com/wivi514/Dead_Rising_2_Case_West_Xenon_Recomp/releases/tag/v1.1.2",
       "steps": [
         {
-          "title": "Keep an independently permitted completed copy",
-          "instruction": "Continue only with an actual player and components you are independently permitted to use. The package defers compiled-in libxlive’s licence to XenonLive, and that specific component grant is not established in the retained evidence. The title’s own noncommercial grant does not settle this separately named scope; offline use does not remove the linked bytes. Fresh acquisition remains held."
+          "title": "Use a completed copy you already have",
+          "instruction": "Continue with a complete player you already have. Portcove downloads are paused because the package includes shader pre-warm data recorded from the game and recipes for patching the game’s own shaders. The package also includes compiled-in libxlive, whose licence it defers to XenonLive; offline use does not remove it."
         },
         {
           "title": "Complete Case West preparation through its own player",
@@ -52,6 +52,6 @@
         }
       ]
     },
-    "download_block_reason": "The selected Case West Windows package explicitly identifies compiled-in libxlive and refers its licence to the separate XenonLive repository. An applicable grant for that linked component is not established by the retained evidence; the title’s own PolyForm grant preserves separate component licences. Fresh acquisition stays held until attributable applicable permission or a reviewed released replacement resolves this exact scope. Offline mode does not remove a compiled-in component. This condition grants no permission to use an existing copy."
+    "download_block_reason": "Portcove downloads are paused because the package includes shader pre-warm data recorded from the game and recipes for patching the game’s own shaders. They can resume when upstream publishes a package that creates them from your own game files."
   }
 }

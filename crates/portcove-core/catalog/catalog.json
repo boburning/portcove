@@ -47978,7 +47978,7 @@
             },
             {
               "title": "Prepare the shared launcher and this game",
-              "instruction": "Extract the complete official CPS2Recomp-windows-x64.zip Preview package. Keep cps2recomp-launcher.exe, every game program and all packaged companions together inside CPS2Recomp. Run the upstream launcher deliberately, choose your ROM folder or this game’s exact set, then finish its settings before registering the player. Register cps2recomp-launcher.exe with the CPS2Recomp folder as working directory. Enter two literal argument lines: --play then avsp. The launcher owns this game’s configuration and child programs; do not register a source archive, update manifest or arbitrary other game executable."
+              "instruction": "Extract the complete official Preview package for your system: CPS2Recomp-windows-x64.zip, CPS2Recomp-linux-x86_64.tar.gz, or the universal CPS2Recomp-macos.zip with CPS-2 Recomp.app. Keep cps2recomp-launcher (cps2recomp-launcher.exe on Windows), every game program and all packaged companions together. Run the upstream launcher deliberately, choose your ROM folder or this game’s exact set, then finish its settings before registering the player. Register cps2recomp-launcher.exe with the CPS2Recomp folder as working directory. Enter two literal argument lines: --play then avsp. The launcher owns this game’s configuration and child programs; do not register a source archive, update manifest or arbitrary other game executable."
             },
             {
               "title": "Add the game and manage updates",
@@ -48045,7 +48045,7 @@
             },
             {
               "title": "Prepare the shared launcher and this game",
-              "instruction": "Extract the complete official CPS2Recomp-windows-x64.zip Preview package. Keep cps2recomp-launcher.exe, every game program and all packaged companions together inside CPS2Recomp. Run the upstream launcher deliberately, choose your ROM folder or this game’s exact set, then finish its settings before registering the player. Register cps2recomp-launcher.exe with the CPS2Recomp folder as working directory. Enter two literal argument lines: --play then dino. The launcher owns this game’s configuration and child programs; do not register a source archive, update manifest or arbitrary other game executable."
+              "instruction": "Extract the complete official Preview package for your system: CPS2Recomp-windows-x64.zip, CPS2Recomp-linux-x86_64.tar.gz, or the universal CPS2Recomp-macos.zip with CPS-2 Recomp.app. Keep cps2recomp-launcher (cps2recomp-launcher.exe on Windows), every game program and all packaged companions together. Run the upstream launcher deliberately, choose your ROM folder or this game’s exact set, then finish its settings before registering the player. Register cps2recomp-launcher.exe with the CPS2Recomp folder as working directory. Enter two literal argument lines: --play then dino. The launcher owns this game’s configuration and child programs; do not register a source archive, update manifest or arbitrary other game executable."
             },
             {
               "title": "Add the game and manage updates",
@@ -48120,7 +48120,7 @@
             },
             {
               "title": "Prepare the shared launcher and this game",
-              "instruction": "Extract the complete official CPS2Recomp-windows-x64.zip Preview package. Keep cps2recomp-launcher.exe, every game program and all packaged companions together inside CPS2Recomp. Run the upstream launcher deliberately, choose your ROM folder or this game’s exact set, then finish its settings before registering the player. Register cps2recomp-launcher.exe with the CPS2Recomp folder as working directory. Enter two literal argument lines: --play then msh. The launcher owns this game’s configuration and child programs; do not register a source archive, update manifest or arbitrary other game executable."
+              "instruction": "Extract the complete official Preview package for your system: CPS2Recomp-windows-x64.zip, CPS2Recomp-linux-x86_64.tar.gz, or the universal CPS2Recomp-macos.zip with CPS-2 Recomp.app. Keep cps2recomp-launcher (cps2recomp-launcher.exe on Windows), every game program and all packaged companions together. Run the upstream launcher deliberately, choose your ROM folder or this game’s exact set, then finish its settings before registering the player. Register cps2recomp-launcher.exe with the CPS2Recomp folder as working directory. Enter two literal argument lines: --play then msh. The launcher owns this game’s configuration and child programs; do not register a source archive, update manifest or arbitrary other game executable."
             },
             {
               "title": "Add the game and manage updates",
@@ -48195,7 +48195,7 @@
             },
             {
               "title": "Prepare the shared launcher and this game",
-              "instruction": "Extract the complete official CPS2Recomp-windows-x64.zip Preview package. Keep cps2recomp-launcher.exe, every game program and all packaged companions together inside CPS2Recomp. Run the upstream launcher deliberately, choose your ROM folder or this game’s exact set, then finish its settings before registering the player. Register cps2recomp-launcher.exe with the CPS2Recomp folder as working directory. Enter two literal argument lines: --play then sfa. The launcher owns this game’s configuration and child programs; do not register a source archive, update manifest or arbitrary other game executable."
+              "instruction": "Extract the complete official Preview package for your system: CPS2Recomp-windows-x64.zip, CPS2Recomp-linux-x86_64.tar.gz, or the universal CPS2Recomp-macos.zip with CPS-2 Recomp.app. Keep cps2recomp-launcher (cps2recomp-launcher.exe on Windows), every game program and all packaged companions together. Run the upstream launcher deliberately, choose your ROM folder or this game’s exact set, then finish its settings before registering the player. Register cps2recomp-launcher.exe with the CPS2Recomp folder as working directory. Enter two literal argument lines: --play then sfa. The launcher owns this game’s configuration and child programs; do not register a source archive, update manifest or arbitrary other game executable."
             },
             {
               "title": "Add the game and manage updates",
@@ -48262,7 +48262,7 @@
             },
             {
               "title": "Prepare the shared launcher and this game",
-              "instruction": "Extract the complete official CPS2Recomp-windows-x64.zip Preview package. Keep cps2recomp-launcher.exe, every game program and all packaged companions together inside CPS2Recomp. Run the upstream launcher deliberately, choose your ROM folder or this game’s exact set, then finish its settings before registering the player. Register cps2recomp-launcher.exe with the CPS2Recomp folder as working directory. Enter two literal argument lines: --play then sfa2. The launcher owns this game’s configuration and child programs; do not register a source archive, update manifest or arbitrary other game executable."
+              "instruction": "Extract the complete official Preview package for your system: CPS2Recomp-windows-x64.zip, CPS2Recomp-linux-x86_64.tar.gz, or the universal CPS2Recomp-macos.zip with CPS-2 Recomp.app. Keep cps2recomp-launcher (cps2recomp-launcher.exe on Windows), every game program and all packaged companions together. Run the upstream launcher deliberately, choose your ROM folder or this game’s exact set, then finish its settings before registering the player. Register cps2recomp-launcher.exe with the CPS2Recomp folder as working directory. Enter two literal argument lines: --play then sfa2. The launcher owns this game’s configuration and child programs; do not register a source archive, update manifest or arbitrary other game executable."
             },
             {
               "title": "Add the game and manage updates",
@@ -48329,7 +48329,7 @@
             },
             {
               "title": "Prepare the shared launcher and this game",
-              "instruction": "Extract the complete official CPS2Recomp-windows-x64.zip Preview package. Keep cps2recomp-launcher.exe, every game program and all packaged companions together inside CPS2Recomp. Run the upstream launcher deliberately, choose your ROM folder or this game’s exact set, then finish its settings before registering the player. Register cps2recomp-launcher.exe with the CPS2Recomp folder as working directory. Enter two literal argument lines: --play then pocket_fighter. The launcher owns this game’s configuration and child programs; do not register a source archive, update manifest or arbitrary other game executable."
+              "instruction": "Extract the complete official Preview package for your system: CPS2Recomp-windows-x64.zip, CPS2Recomp-linux-x86_64.tar.gz, or the universal CPS2Recomp-macos.zip with CPS-2 Recomp.app. Keep cps2recomp-launcher (cps2recomp-launcher.exe on Windows), every game program and all packaged companions together. Run the upstream launcher deliberately, choose your ROM folder or this game’s exact set, then finish its settings before registering the player. Register cps2recomp-launcher.exe with the CPS2Recomp folder as working directory. Enter two literal argument lines: --play then pocket_fighter. The launcher owns this game’s configuration and child programs; do not register a source archive, update manifest or arbitrary other game executable."
             },
             {
               "title": "Add the game and manage updates",
@@ -48396,7 +48396,7 @@
             },
             {
               "title": "Prepare the shared launcher and this game",
-              "instruction": "Extract the complete official CPS2Recomp-windows-x64.zip Preview package. Keep cps2recomp-launcher.exe, every game program and all packaged companions together inside CPS2Recomp. Run the upstream launcher deliberately, choose your ROM folder or this game’s exact set, then finish its settings before registering the player. Register cps2recomp-launcher.exe with the CPS2Recomp folder as working directory. Enter two literal argument lines: --play then puzzle_fighter. The launcher owns this game’s configuration and child programs; do not register a source archive, update manifest or arbitrary other game executable."
+              "instruction": "Extract the complete official Preview package for your system: CPS2Recomp-windows-x64.zip, CPS2Recomp-linux-x86_64.tar.gz, or the universal CPS2Recomp-macos.zip with CPS-2 Recomp.app. Keep cps2recomp-launcher (cps2recomp-launcher.exe on Windows), every game program and all packaged companions together. Run the upstream launcher deliberately, choose your ROM folder or this game’s exact set, then finish its settings before registering the player. Register cps2recomp-launcher.exe with the CPS2Recomp folder as working directory. Enter two literal argument lines: --play then puzzle_fighter. The launcher owns this game’s configuration and child programs; do not register a source archive, update manifest or arbitrary other game executable."
             },
             {
               "title": "Add the game and manage updates",
@@ -48463,7 +48463,7 @@
             },
             {
               "title": "Prepare the shared launcher and this game",
-              "instruction": "Extract the complete official CPS2Recomp-windows-x64.zip Preview package. Keep cps2recomp-launcher.exe, every game program and all packaged companions together inside CPS2Recomp. Run the upstream launcher deliberately, choose your ROM folder or this game’s exact set, then finish its settings before registering the player. Register cps2recomp-launcher.exe with the CPS2Recomp folder as working directory. Enter two literal argument lines: --play then vhunt2. The launcher owns this game’s configuration and child programs; do not register a source archive, update manifest or arbitrary other game executable."
+              "instruction": "Extract the complete official Preview package for your system: CPS2Recomp-windows-x64.zip, CPS2Recomp-linux-x86_64.tar.gz, or the universal CPS2Recomp-macos.zip with CPS-2 Recomp.app. Keep cps2recomp-launcher (cps2recomp-launcher.exe on Windows), every game program and all packaged companions together. Run the upstream launcher deliberately, choose your ROM folder or this game’s exact set, then finish its settings before registering the player. Register cps2recomp-launcher.exe with the CPS2Recomp folder as working directory. Enter two literal argument lines: --play then vhunt2. The launcher owns this game’s configuration and child programs; do not register a source archive, update manifest or arbitrary other game executable."
             },
             {
               "title": "Add the game and manage updates",
@@ -48530,7 +48530,7 @@
             },
             {
               "title": "Prepare the shared launcher and this game",
-              "instruction": "Extract the complete official CPS2Recomp-windows-x64.zip Preview package. Keep cps2recomp-launcher.exe, every game program and all packaged companions together inside CPS2Recomp. Run the upstream launcher deliberately, choose your ROM folder or this game’s exact set, then finish its settings before registering the player. Register cps2recomp-launcher.exe with the CPS2Recomp folder as working directory. Enter two literal argument lines: --play then vampire_savior. The launcher owns this game’s configuration and child programs; do not register a source archive, update manifest or arbitrary other game executable."
+              "instruction": "Extract the complete official Preview package for your system: CPS2Recomp-windows-x64.zip, CPS2Recomp-linux-x86_64.tar.gz, or the universal CPS2Recomp-macos.zip with CPS-2 Recomp.app. Keep cps2recomp-launcher (cps2recomp-launcher.exe on Windows), every game program and all packaged companions together. Run the upstream launcher deliberately, choose your ROM folder or this game’s exact set, then finish its settings before registering the player. Register cps2recomp-launcher.exe with the CPS2Recomp folder as working directory. Enter two literal argument lines: --play then vampire_savior. The launcher owns this game’s configuration and child programs; do not register a source archive, update manifest or arbitrary other game executable."
             },
             {
               "title": "Add the game and manage updates",
@@ -48597,7 +48597,7 @@
             },
             {
               "title": "Prepare the shared launcher and this game",
-              "instruction": "Extract the complete official CPS2Recomp-windows-x64.zip Preview package. Keep cps2recomp-launcher.exe, every game program and all packaged companions together inside CPS2Recomp. Run the upstream launcher deliberately, choose your ROM folder or this game’s exact set, then finish its settings before registering the player. Register cps2recomp-launcher.exe with the CPS2Recomp folder as working directory. Enter two literal argument lines: --play then vsav2. The launcher owns this game’s configuration and child programs; do not register a source archive, update manifest or arbitrary other game executable."
+              "instruction": "Extract the complete official Preview package for your system: CPS2Recomp-windows-x64.zip, CPS2Recomp-linux-x86_64.tar.gz, or the universal CPS2Recomp-macos.zip with CPS-2 Recomp.app. Keep cps2recomp-launcher (cps2recomp-launcher.exe on Windows), every game program and all packaged companions together. Run the upstream launcher deliberately, choose your ROM folder or this game’s exact set, then finish its settings before registering the player. Register cps2recomp-launcher.exe with the CPS2Recomp folder as working directory. Enter two literal argument lines: --play then vsav2. The launcher owns this game’s configuration and child programs; do not register a source archive, update manifest or arbitrary other game executable."
             },
             {
               "title": "Add the game and manage updates",
@@ -48664,7 +48664,7 @@
             },
             {
               "title": "Prepare the shared launcher and this game",
-              "instruction": "Extract the complete official CPS2Recomp-windows-x64.zip Preview package. Keep cps2recomp-launcher.exe, every game program and all packaged companions together inside CPS2Recomp. Run the upstream launcher deliberately, choose your ROM folder or this game’s exact set, then finish its settings before registering the player. Register cps2recomp-launcher.exe with the CPS2Recomp folder as working directory. Enter two literal argument lines: --play then vsav_definitive. The launcher owns this game’s configuration and child programs; do not register a source archive, update manifest or arbitrary other game executable."
+              "instruction": "Extract the complete official Preview package for your system: CPS2Recomp-windows-x64.zip, CPS2Recomp-linux-x86_64.tar.gz, or the universal CPS2Recomp-macos.zip with CPS-2 Recomp.app. Keep cps2recomp-launcher (cps2recomp-launcher.exe on Windows), every game program and all packaged companions together. Run the upstream launcher deliberately, choose your ROM folder or this game’s exact set, then finish its settings before registering the player. Register cps2recomp-launcher.exe with the CPS2Recomp folder as working directory. Enter two literal argument lines: --play then vsav_definitive. The launcher owns this game’s configuration and child programs; do not register a source archive, update manifest or arbitrary other game executable."
             },
             {
               "title": "Add the game and manage updates",
@@ -48731,7 +48731,7 @@
             },
             {
               "title": "Prepare the shared launcher and this game",
-              "instruction": "Extract the complete official CPS2Recomp-windows-x64.zip Preview package. Keep cps2recomp-launcher.exe, every game program and all packaged companions together inside CPS2Recomp. Run the upstream launcher deliberately, choose your ROM folder or this game’s exact set, then finish its settings before registering the player. Register cps2recomp-launcher.exe with the CPS2Recomp folder as working directory. Enter two literal argument lines: --play then xmvsf. The launcher owns this game’s configuration and child programs; do not register a source archive, update manifest or arbitrary other game executable."
+              "instruction": "Extract the complete official Preview package for your system: CPS2Recomp-windows-x64.zip, CPS2Recomp-linux-x86_64.tar.gz, or the universal CPS2Recomp-macos.zip with CPS-2 Recomp.app. Keep cps2recomp-launcher (cps2recomp-launcher.exe on Windows), every game program and all packaged companions together. Run the upstream launcher deliberately, choose your ROM folder or this game’s exact set, then finish its settings before registering the player. Register cps2recomp-launcher.exe with the CPS2Recomp folder as working directory. Enter two literal argument lines: --play then xmvsf. The launcher owns this game’s configuration and child programs; do not register a source archive, update manifest or arbitrary other game executable."
             },
             {
               "title": "Add the game and manage updates",
@@ -53527,7 +53527,7 @@
           "steps": [
             {
               "title": "Use a separate Augustus copy",
-              "instruction": "Use the native package for your system in a separate folder; the Windows player is augustus.exe. On first Play, select your writable Caesar III game folder, patched to version 1.0.1.0."
+              "instruction": "Use the native package for your system in a separate folder; the Windows player is augustus.exe, Linux uses the AppImage and macOS uses augustus.app. On first Play, select your writable Caesar III game folder, patched to version 1.0.1.0."
             },
             {
               "title": "Add the game and manage your files",
@@ -53537,7 +53537,7 @@
           "warnings": [
             "Augustus can read Caesar III and Julius saves, but Augustus saves cannot be loaded by Caesar III or Julius. Keep your original saves separate.",
             "Keep both when replacing the upstream runtime.",
-            "Portcove offers registration for Windows in this entry; Linux operation through Portcove has not been confirmed."
+            "Portcove offers registration for Windows in this entry. It downloads the Linux and macOS packages from upstream but has not run them."
           ],
           "help_url": "https://github.com/Keriew/augustus#running-the-game",
           "references": [
@@ -53841,7 +53841,7 @@
           ],
           "warnings": [
             "Rigel Engine imports existing saves, high scores and settings into its own user profile. Keep that profile and your mod files backed up when updating the upstream installation.",
-            "Portcove offers Windows registration in this entry; Linux and macOS operation through Portcove has not been confirmed."
+            "Portcove offers Windows registration in this entry. It downloads the Intel macOS application from upstream but has not run it; Linux operation through Portcove has not been confirmed."
           ],
           "help_url": "https://github.com/lethal-guitar/RigelEngine#running-rigelengine",
           "references": [

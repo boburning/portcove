@@ -3,20 +3,20 @@
   "listing": {
     "id": "def-jam-vendetta-playstation-2-def-jam-vendetta-recompiled",
     "name": "Def Jam Vendetta (PlayStation 2) (Def Jam Vendetta Recompiled)",
-    "summary": "Windows x64 Def Jam Vendetta player prepared upstream from your own USA SLUS-20639 disc. Complete the official settings/setup build before registering files/Def Jam Vendetta Recompiled.exe with its matching game data. Upstream owns updates, rebuilds and saves. Preserve the complete installation, settings and game/mc0 memory-card folders. Packaged game-derived branding has separate rights; use an independently permitted complete copy.",
+    "summary": "Windows x64 Def Jam Vendetta player prepared upstream from your own USA SLUS-20639 disc. Complete the official settings/setup build before registering files/Def Jam Vendetta Recompiled.exe with its matching game data. Upstream owns updates, rebuilds and saves. Preserve the complete installation, settings and game/mc0 memory-card folders.",
     "original_game_title": "Def Jam Vendetta (PlayStation 2)",
     "project_url": "https://github.com/jcsix694/def-jam-vendetta-recomp",
     "issue_number": 2561,
     "listed_at": "2026-10-25",
-    "platforms": [],
-    "availability": "unknown",
+    "platforms": ["windows-x86-64"],
+    "availability": "packages",
     "setup_url": "https://github.com/jcsix694/def-jam-vendetta-recomp",
     "manual_setup": {
       "help_url": "https://github.com/jcsix694/def-jam-vendetta-recomp/blob/d3d857b436beceebf1c77b0141c46bb7f13ee1fe/README.md",
       "steps": [
         {
-          "title": "Use the exact owned USA disc and permitted kit",
-          "instruction": "Use a complete upstream v0.4.4 Windows copy and components you are independently permitted to use, with your own Def Jam Vendetta USA SLUS-20639 ISO or supported CHD. The preparation tool checks for SLUS_206.39 and prepares a plain sector ISO and extracted files; that serial/member check is not a whole-disc cryptographic or entitlement certificate. Project GPL and dependency terms do not grant the named settings-app artwork/logo excluded by THIRD-PARTY-NOTICES.txt."
+          "title": "Use your own USA disc and the complete kit",
+          "instruction": "Use the complete upstream v0.4.4 Windows package with your own Def Jam Vendetta USA SLUS-20639 ISO or supported CHD. The preparation tool checks for SLUS_206.39 and prepares a plain sector ISO and extracted files; that serial/member check is not a whole-disc cryptographic or entitlement certificate."
         },
         {
           "title": "Finish upstream preparation first",
@@ -36,11 +36,11 @@
         },
         {
           "title": "Keep required notices and check this guide’s limits",
-          "instruction": "Retain GPL PS2Recomp/title notices, paraLLEl-GS LGPL and all other individual component notices. The title's name/logo and settings-app artwork are explicitly outside its project licence; fresh acquisition of a whole package needs applicable permission for those components. An independently permitted prepared copy does not establish broader distribution rights, source/output byte correspondence or save compatibility."
+          "instruction": "Retain GPL PS2Recomp/title notices, paraLLEl-GS LGPL and all other individual component notices. The title's name/logo and settings-app artwork are explicitly outside its project licence. This guide does not establish source/output byte correspondence or save compatibility."
         }
       ],
       "warnings": [
-        "Only an independently permitted completed copy is offered; fresh package acquisition has a separate named-branding permission condition.",
+        "The package includes the game’s logo and settings-app artwork that the project license does not cover. Portcove downloads it only from the project’s own releases. You need your own original game files.",
         "The optional upstream update/rebuild handoff ends the registered player session; Portcove does not follow or control it.",
         "With the game closed, keep a separate complete prior installation plus current files/settings.toml, files/game/mc0, sibling card-port roots, extracted game data, original disc and logs. Cards are filesystem folders derived from the selected ELF directory; ordinary guest operations can create, overwrite, delete or format their files. VENDETTA_SETTINGS can select another settings file; preserve it if configured, and preserve any external roots from your own installation. Startup can rewrite legacy fullscreen settings to borderless through a temporary replacement; logs are recreated.",
         "Do not assume save compatibility or restore older player data with an old runtime."
@@ -52,7 +52,11 @@
         }
       ]
     },
-    "download_block_reason": "Fresh acquisition of the selected Def Jam Vendetta Recompiled Windows kit is held while the applicable permission or authorized-source basis for its settings-app game-logo and artwork assets remains unresolved. THIRD-PARTY-NOTICES explicitly excludes those components from the project GPL grant. Resume with an attributable applicable basis or a reviewed supported kit excluding/replacing those assets; independently permitted completed copies remain separate."
+    "release_url": "https://github.com/jcsix694/def-jam-vendetta-recomp/releases",
+    "download_asset_hints": {
+      "windows-x86-64": ["Def-Jam-Vendetta-Recompiled-", "Windows.zip"]
+    },
+    "recommended_download_channel": "stable"
   },
   "upstream_lineage": {
     "format_version": 1,

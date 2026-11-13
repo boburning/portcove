@@ -11250,7 +11250,9 @@
       "listed_at": "2026-10-23",
       "platforms": [
         "windows-x86-64",
-        "linux-x86-64"
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
       ],
       "availability": "packages",
       "setup_url": "https://github.com/alexbeavs-ps1-ports/valkyrie-profile-recomp#readme",
@@ -11266,7 +11268,7 @@
         "steps": [
           {
             "title": "Finish the upstream setup package first",
-            "instruction": "Use the complete official v0.1.3 Windows x64 setup package in a separate writable folder. Its root executable is a setup host, not the completed player. Deliberately finish upstream Generate & Build with your own matching originals and its required tools before adding the player. The existing Linux setup download remains separate: use the complete Linux package and this version’s prerequisites, including CMake, Ninja, Python 3 and a C/C++ compiler where required; bundled Windows tools do not supply Linux tools. The Windows completed-player steps here do not qualify a Linux player. The standalone flow is supported; RetComM is an optional upstream manager. Portcove does not start a compiler, helper or installer while discovering a launch target."
+            "instruction": "Use the complete official setup package for your system (Windows x64, Linux x64, or macOS on Apple Silicon or Intel) in a separate writable folder. Its root executable is a setup host, not the completed player. Deliberately finish upstream Generate & Build with your own matching originals and its required tools before adding the player. The existing Linux setup download remains separate: use the complete Linux package and this version’s prerequisites, including CMake, Ninja, Python 3 and a C/C++ compiler where required; bundled Windows tools do not supply Linux tools. The Windows completed-player steps here do not qualify a Linux player. The standalone flow is supported; RetComM is an optional upstream manager. Portcove does not start a compiler, helper or installer while discovering a launch target."
           },
           {
             "title": "Keep both USA discs and your BIOS",
@@ -11274,7 +11276,7 @@
           },
           {
             "title": "Add the completed native player",
-            "instruction": "Select build-release/Valkyrie_Profile_Recompiled.exe, or the actual completed product in your upstream-configured build directory. Use its containing directory as the normal working folder, preserving a different established working directory if your actual working launch requires it. A normally prepared product needs no extra arguments; retain any actual supported --game plus absolute configuration path, disc, BIOS or memory-card arguments used by your working copy as separate literal arguments. Do not select the root setup host, which can forward to another executable and exit. Save launch details, then choose Play separately."
+            "instruction": "Select build-release/Valkyrie_Profile_Recompiled.exe (Valkyrie_Profile_Recompiled on Linux and macOS), or the actual completed product in your upstream-configured build directory. Use its containing directory as the normal working folder, preserving a different established working directory if your actual working launch requires it. A normally prepared product needs no extra arguments; retain any actual supported --game plus absolute configuration path, disc, BIOS or memory-card arguments used by your working copy as separate literal arguments. Do not select the root setup host, which can forward to another executable and exit. Save launch details, then choose Play separately."
           },
           {
             "title": "Preserve the complete creating project and profiles",
@@ -11295,6 +11297,14 @@
         "linux-x86-64": [
           "valkyrie-profile-recomp-",
           "-linux-x64.zip"
+        ],
+        "macos-aarch64": [
+          "valkyrie-profile-recomp-",
+          "-macos-arm64.zip"
+        ],
+        "macos-x86-64": [
+          "valkyrie-profile-recomp-",
+          "-macos-x64.zip"
         ]
       },
       "recommended_download_channel": "stable"
@@ -13869,7 +13879,10 @@
       "issue_number": 1844,
       "listed_at": "2026-10-23",
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
       ],
       "availability": "packages",
       "setup_url": "https://github.com/BlackLabelHQ/MediEvilRecomp/blob/b9e46db34db40d6e5c8e19b538e4d517299a4012/README.md",
@@ -13884,8 +13897,8 @@
       "manual_setup": {
         "steps": [
           {
-            "title": "Prepare the Windows player",
-            "instruction": "Extract the official Windows x64 ZIP into a separate folder. The reviewed v0.2b package uses the .NET 10 runtime and OpenAL; follow upstream prerequisite instructions if either is missing. Choose medievil.exe in that folder when saving launch details. Registration does not start the game."
+            "title": "Prepare the player",
+            "instruction": "Extract the official package for your system (Windows x64 ZIP, Linux x64 TAR.GZ, or macOS Apple Silicon or Intel ZIP) into a separate folder. The reviewed v0.2b package uses the .NET 10 runtime and OpenAL; follow upstream prerequisite instructions if either is missing. Choose medievil.exe (medievil on Linux and macOS) in that folder when saving launch details. Registration does not start the game."
           },
           {
             "title": "Choose your original disc in the game",
@@ -13907,6 +13920,18 @@
         "windows-x86-64": [
           "MediEvilRecomp-",
           "-windows-x64.zip"
+        ],
+        "linux-x86-64": [
+          "MediEvilRecomp-",
+          "-linux-x64.tar.gz"
+        ],
+        "macos-aarch64": [
+          "MediEvilRecomp-",
+          "-macos-arm64.zip"
+        ],
+        "macos-x86-64": [
+          "MediEvilRecomp-",
+          "-macos-x64.zip"
         ]
       },
       "original_game_title": "MediEvil",
@@ -14056,7 +14081,7 @@
     {
       "id": "blast-corps-blastcorps-recompiled",
       "name": "Blast Corps (BlastCorps: Recompiled)",
-      "summary": "A native Blast Corps player for an owned North American revision 1.1 dump. Keep an existing copy you are permitted to use; fresh acquisition is held on the separate packaged font permission condition.",
+      "summary": "A native Blast Corps player for your own North American revision 1.1 dump.",
       "original_game_title": "Blast Corps",
       "project_url": "https://github.com/SlaveOfIDO/blastcorps-recomp",
       "issue_number": 2558,
@@ -14074,13 +14099,12 @@
         "game_slug": "blast-corps",
         "match_kind": "underlying-game"
       },
-      "release_url": "https://github.com/SlaveOfIDO/blastcorps-recomp/releases/tag/1.1.1",
-      "download_block_reason": "The selected 1.1.1 Windows package includes Suplexmentary Comic NC.ttf, the exact separate font retained in the Banjo-Tooie font permission condition. Its applicable distribution grant remains unestablished; the official RecompFrontend GPLv3 grant does not license this font. Keep an existing copy you are permitted to use. Reconsider fresh acquisition with attributable compatible font permission or a reviewed released package removing or replacing the affected font.",
+      "release_url": "https://github.com/SlaveOfIDO/blastcorps-recomp/releases",
       "manual_setup": {
         "steps": [
           {
-            "title": "Keep a complete permitted Windows player",
-            "instruction": "Use an already completed BlastCorps Recompiled 1.1.1 Windows copy and components you are permitted to use. Keep BlastCorpsRecompiled.exe, assets, matching DLLs and notices together. The ordinary published player does not need a game compiler or separate installer. Fresh acquisition remains held on the packaged font condition."
+            "title": "Keep the complete Windows player",
+            "instruction": "Keep the BlastCorps Recompiled 1.1.1 Windows package files together: BlastCorpsRecompiled.exe, assets, matching DLLs and notices. The ordinary published player does not need a game compiler or separate installer."
           },
           {
             "title": "Select your own supported original",
@@ -14088,11 +14112,11 @@
           },
           {
             "title": "Review launch details, then choose Play",
-            "instruction": "For a completed permitted copy, select BlastCorpsRecompiled.exe, its established package directory and supported literal arguments. Review the launch details, add the game, then choose Play. Preparation and runtime replacement stay with the player/upstream. Removing the registration preserves every external file; Core supplies no external engine update, backup, rollback, conversion, migration or deletion."
+            "instruction": "Select BlastCorpsRecompiled.exe, its established package directory and supported literal arguments. Review the launch details, add the game, then choose Play. Preparation and runtime replacement stay with the player/upstream. Removing the registration preserves every external file; Core supplies no external engine update, backup, rollback, conversion, migration or deletion."
           }
         ],
         "warnings": [
-          "The font condition stays open. Conditional permitted-copy guidance does not grant acquisition or component permission, gameplay, real-save, installed-app or protected-publication acceptance.",
+          "The package includes the Suplexmentary Comic NC font that the project license does not cover. Portcove downloads it only from the project’s own releases. You need your own original game files.",
           "Keep a complete separate backup and compatible creating engine; runtime replacement does not rewind saves or certify mods. A custom profile remains external. Close the actual player before deliberate replacement and review/relink a changed executable."
         ],
         "help_url": "https://github.com/SlaveOfIDO/blastcorps-recomp/blob/b5510451aabc2373079cd01e8c0ec2a8d01eb742/README.md",
@@ -14102,7 +14126,14 @@
             "instruction": "The normal Windows profile is %LOCALAPPDATA%/BlastCorpsRecompiled. A portable.txt marker chooses the working directory; failed known-folder lookup can also fall back to a relative folder. Preserve the actual selected location, including cached bc.n64.us.z64 original, saves, settings/config JSON and backups/temporary files, mods and mod configuration. Keep a complete separate backup and compatible creating engine; runtime replacement does not rewind saves or certify mods. A custom profile remains external. Close the actual player before deliberate replacement and review/relink a changed executable."
           }
         ]
-      }
+      },
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "BlastCorpsRecompiled-",
+          "-Windows-RelWithDebInfo.zip"
+        ]
+      },
+      "recommended_download_channel": "stable"
     },
     {
       "id": "blast-corps-power-dozer",
@@ -15017,7 +15048,7 @@
           "-Linux.tar.gz"
         ]
       },
-      "download_block_reason": "Portcove downloads are paused while permission for this package's game-derived launcher art and title-font resources remains unresolved. Keep an existing permitted copy. Reconsider when upstream supplies compatible resource grants or a package that obtains those resources from your own disc.",
+      "download_block_reason": "Portcove downloads are paused because the launcher embeds fighter portraits and the title font extracted from the game disc. They can resume when upstream publishes a package that creates them from your own disc.",
       "manual_setup": {
         "help_url": "https://github.com/josiahg2502-glitch/BrawlRecompiled/blob/7f3ac07b7d17dda048ef3a9421fd8fd4996a088c/README.md",
         "warnings": [
@@ -16461,7 +16492,7 @@
     {
       "id": "cdlewis-snowboardkids-recomp",
       "name": "Snowboard Kids / Snowboard Kids: Recompiled (cdlewis)",
-      "summary": "Use a permitted Snowboard Kids player and select your own North American cartridge dump on first Play.",
+      "summary": "Use the Snowboard Kids player package and select your own North American cartridge dump on first Play.",
       "project_url": "https://github.com/cdlewis/snowboardkids-recomp",
       "issue_number": 1886,
       "listed_at": "2026-10-23",
@@ -16492,13 +16523,21 @@
         "linux-x86-64": [
           "SnowboardKidsRecompiled-",
           "Linux-X64.tar.gz"
+        ],
+        "macos-aarch64": [
+          "SnowboardKidsRecompiled-",
+          "macOS.zip"
+        ],
+        "macos-x86-64": [
+          "SnowboardKidsRecompiled-",
+          "macOS.zip"
         ]
       },
       "manual_setup": {
         "steps": [
           {
-            "title": "Keep your complete permitted player",
-            "instruction": "For an existing Windows copy you are permitted to use, select SnowboardKidsRecompiled.exe and its supplied folder. Keep the entire player folder and companions together. On Linux, use the matching native player and supplied working folder; Flatpak and macOS application bundles retain their upstream installation and launchers."
+            "title": "Keep the complete player package",
+            "instruction": "On Windows, select SnowboardKidsRecompiled.exe and its supplied folder. Keep the entire player folder and companions together. On Linux, use the matching native player and supplied working folder; Flatpak and macOS application bundles retain their upstream installation and launchers."
           },
           {
             "title": "Select your original game on first Play",
@@ -16508,7 +16547,8 @@
         "warnings": [
           "Upstream lists graphics/CPU requirements and Windows runtime prerequisites. Separately published native builds are not Portcove native or gameplay qualification.",
           "Preserve the selected location, original ROM, saves, settings and mods; they are outside Portcove backup and rollback.",
-          "Keep both the app data and actual profile when updating; Portcove does not back up or remove them."
+          "Keep both the app data and actual profile when updating; Portcove does not back up or remove them.",
+          "The package includes a modified RecompFrontend fork by cdlewis that the project license does not cover. Portcove downloads it only from the project’s own releases. You need your own original game files."
         ],
         "help_url": "https://github.com/cdlewis/snowboardkids-recomp/blob/2ac83a8af625acf7da92d5610b25f2693bff7c91/README.md",
         "references": [
@@ -16521,8 +16561,7 @@
             "instruction": "For Flatpak, also preserve the complete ~/.var/app/io.github.snowboardkidsrecomp.snowboardkidsrecomp folder. This build keeps additional writable mod data in its Flatpak data area, while the profile resolver still uses HOME/.config/SnowboardKidsRecompiled unless APP_FOLDER_PATH or portable mode selects another folder. Keep both the app data and actual profile when updating; Portcove does not back up or remove them."
           }
         ]
-      },
-      "download_block_reason": "The official RecompFrontend base now has a GPLv3 grant, but selected cdlewis/RecompFrontend fa4f0ca42ba2efaca631203ef1e0753f2be78985 contains separately modified input/theme/frontend code beyond that licensed official tree. An attributable applicable grant for that fork-specific scope remains unestablished; the parent game-project license does not settle it. Keep an existing copy you are permitted to use. Reconsider fresh acquisition with applicable permission for the exact selected fork or a reviewed appropriately licensed replacement package."
+      }
     },
     {
       "id": "celosia-henrykun55-shadow-of-the-colossus",
@@ -17417,7 +17456,7 @@
     {
       "id": "condemned-2-bloodshot-condemned2recomp",
       "name": "Condemned 2: Bloodshot / Condemned2Recomp",
-      "summary": "Register an independently permitted, upstream-prepared Condemned 2: Bloodshot / Condemned2Recomp native Windows player. Keep original data, preparation and runtime replacement upstream.",
+      "summary": "Add an upstream-prepared Condemned 2: Bloodshot / Condemned2Recomp native Windows player you already have. Keep original data, preparation and runtime replacement upstream.",
       "project_url": "https://github.com/psxrestore/Condemned2Recomp",
       "issue_number": 361,
       "listed_at": "2026-10-23",
@@ -17445,8 +17484,8 @@
         "help_url": "https://github.com/psxrestore/Condemned2Recomp/releases",
         "steps": [
           {
-            "title": "Use an independently permitted completed copy",
-            "instruction": "Attach only a complete existing copy and components you are independently permitted to use. Fresh acquisition of the selected package remains held for the named ZT Nature font components; the BSD project grant does not resolve their separate application-bundling permission."
+            "title": "Use a completed copy you already have",
+            "instruction": "Add only a complete copy you already have. Portcove downloads are paused because the package includes a shader cache built from the game’s own shaders."
           },
           {
             "title": "Prepare your own supported original upstream",
@@ -17463,7 +17502,7 @@
         ],
         "warnings": [
           "Use only a copy and components you are permitted to use. Before changing versions, keep a copy of the complete working game, original files and every profile, save, cache, mod, backup, temporary file and custom data location. Another executable may use the same data. Portcove does not offer updates, backups, rollback, data migration or deletion for these external files.",
-          "BSD-3-Clause project shell; THIRD-PARTY-NOTICES describes separate dependencies. No original game assets are provided. Package contains ZTNature fonts; no independent font grant was identified in this bounded notice read, and project grant is not a whole-package IP certificate.",
+          "BSD-3-Clause project shell; THIRD-PARTY-NOTICES describes separate dependencies. The package also includes ZT Nature fonts that the project license does not cover.",
           "Work in progress; upstream reports possible bugs and crashes. No native gameplay/save observation here.",
           "Accepting one starts condemned2recomp_updater.exe and ends the old player. Perform deliberate updates and any successor launch as upstream maintenance outside the attached session; no successor is adopted automatically."
         ],
@@ -17478,7 +17517,7 @@
           }
         ]
       },
-      "download_block_reason": "Fresh acquisition of the selected Condemned 2 package remains held for its bundled ZT Nature Black/Medium fonts: the captured project/dependency notices do not establish an applicable bundled-application redistribution grant for those exact font bytes. Resume with attributable permission for that operation or a reviewed compatible package resolving the component. Later source replacement fonts do not qualify this older package. Independently permitted existing-copy registration does not clear this acquisition hold."
+      "download_block_reason": "Portcove downloads are paused because the package includes a shader cache built from the game’s own shaders. They can resume when upstream publishes a package that builds the cache from your own game files."
     },
     {
       "id": "conker64-recompiled",
@@ -17714,6 +17753,15 @@
       "download_asset_hints": {
         "windows-x86-64": [
           "CPS2Recomp-windows-x64.zip"
+        ],
+        "linux-x86-64": [
+          "CPS2Recomp-linux-x86_64.tar.gz"
+        ],
+        "macos-aarch64": [
+          "CPS2Recomp-macos.zip"
+        ],
+        "macos-x86-64": [
+          "CPS2Recomp-macos.zip"
         ]
       },
       "manual_setup": {
@@ -17724,7 +17772,7 @@
           },
           {
             "title": "Prepare the shared launcher and this game",
-            "instruction": "Extract the complete official CPS2Recomp-windows-x64.zip Preview package. Keep cps2recomp-launcher.exe, every game program and all packaged companions together inside CPS2Recomp. Run the upstream launcher deliberately, choose your ROM folder or this game’s exact set, then finish its settings before registering the player. Register cps2recomp-launcher.exe with the CPS2Recomp folder as working directory. Enter two literal argument lines: --play then avsp. The launcher owns this game’s configuration and child programs; do not register a source archive, update manifest or arbitrary other game executable."
+            "instruction": "Extract the complete official Preview package for your system: CPS2Recomp-windows-x64.zip, CPS2Recomp-linux-x86_64.tar.gz, or the universal CPS2Recomp-macos.zip with CPS-2 Recomp.app. Keep cps2recomp-launcher (cps2recomp-launcher.exe on Windows), every game program and all packaged companions together. Run the upstream launcher deliberately, choose your ROM folder or this game’s exact set, then finish its settings before registering the player. Register cps2recomp-launcher.exe with the CPS2Recomp folder as working directory. Enter two literal argument lines: --play then avsp. The launcher owns this game’s configuration and child programs; do not register a source archive, update manifest or arbitrary other game executable."
           },
           {
             "title": "Add the game and manage updates",
@@ -17771,6 +17819,15 @@
       "download_asset_hints": {
         "windows-x86-64": [
           "CPS2Recomp-windows-x64.zip"
+        ],
+        "linux-x86-64": [
+          "CPS2Recomp-linux-x86_64.tar.gz"
+        ],
+        "macos-aarch64": [
+          "CPS2Recomp-macos.zip"
+        ],
+        "macos-x86-64": [
+          "CPS2Recomp-macos.zip"
         ]
       },
       "manual_setup": {
@@ -17781,7 +17838,7 @@
           },
           {
             "title": "Prepare the shared launcher and this game",
-            "instruction": "Extract the complete official CPS2Recomp-windows-x64.zip Preview package. Keep cps2recomp-launcher.exe, every game program and all packaged companions together inside CPS2Recomp. Run the upstream launcher deliberately, choose your ROM folder or this game’s exact set, then finish its settings before registering the player. Register cps2recomp-launcher.exe with the CPS2Recomp folder as working directory. Enter two literal argument lines: --play then dino. The launcher owns this game’s configuration and child programs; do not register a source archive, update manifest or arbitrary other game executable."
+            "instruction": "Extract the complete official Preview package for your system: CPS2Recomp-windows-x64.zip, CPS2Recomp-linux-x86_64.tar.gz, or the universal CPS2Recomp-macos.zip with CPS-2 Recomp.app. Keep cps2recomp-launcher (cps2recomp-launcher.exe on Windows), every game program and all packaged companions together. Run the upstream launcher deliberately, choose your ROM folder or this game’s exact set, then finish its settings before registering the player. Register cps2recomp-launcher.exe with the CPS2Recomp folder as working directory. Enter two literal argument lines: --play then dino. The launcher owns this game’s configuration and child programs; do not register a source archive, update manifest or arbitrary other game executable."
           },
           {
             "title": "Add the game and manage updates",
@@ -17828,6 +17885,15 @@
       "download_asset_hints": {
         "windows-x86-64": [
           "CPS2Recomp-windows-x64.zip"
+        ],
+        "linux-x86-64": [
+          "CPS2Recomp-linux-x86_64.tar.gz"
+        ],
+        "macos-aarch64": [
+          "CPS2Recomp-macos.zip"
+        ],
+        "macos-x86-64": [
+          "CPS2Recomp-macos.zip"
         ]
       },
       "manual_setup": {
@@ -17838,7 +17904,7 @@
           },
           {
             "title": "Prepare the shared launcher and this game",
-            "instruction": "Extract the complete official CPS2Recomp-windows-x64.zip Preview package. Keep cps2recomp-launcher.exe, every game program and all packaged companions together inside CPS2Recomp. Run the upstream launcher deliberately, choose your ROM folder or this game’s exact set, then finish its settings before registering the player. Register cps2recomp-launcher.exe with the CPS2Recomp folder as working directory. Enter two literal argument lines: --play then msh. The launcher owns this game’s configuration and child programs; do not register a source archive, update manifest or arbitrary other game executable."
+            "instruction": "Extract the complete official Preview package for your system: CPS2Recomp-windows-x64.zip, CPS2Recomp-linux-x86_64.tar.gz, or the universal CPS2Recomp-macos.zip with CPS-2 Recomp.app. Keep cps2recomp-launcher (cps2recomp-launcher.exe on Windows), every game program and all packaged companions together. Run the upstream launcher deliberately, choose your ROM folder or this game’s exact set, then finish its settings before registering the player. Register cps2recomp-launcher.exe with the CPS2Recomp folder as working directory. Enter two literal argument lines: --play then msh. The launcher owns this game’s configuration and child programs; do not register a source archive, update manifest or arbitrary other game executable."
           },
           {
             "title": "Add the game and manage updates",
@@ -17877,6 +17943,15 @@
       "download_asset_hints": {
         "windows-x86-64": [
           "CPS2Recomp-windows-x64.zip"
+        ],
+        "linux-x86-64": [
+          "CPS2Recomp-linux-x86_64.tar.gz"
+        ],
+        "macos-aarch64": [
+          "CPS2Recomp-macos.zip"
+        ],
+        "macos-x86-64": [
+          "CPS2Recomp-macos.zip"
         ]
       },
       "manual_setup": {
@@ -17887,7 +17962,7 @@
           },
           {
             "title": "Prepare the shared launcher and this game",
-            "instruction": "Extract the complete official CPS2Recomp-windows-x64.zip Preview package. Keep cps2recomp-launcher.exe, every game program and all packaged companions together inside CPS2Recomp. Run the upstream launcher deliberately, choose your ROM folder or this game’s exact set, then finish its settings before registering the player. Register cps2recomp-launcher.exe with the CPS2Recomp folder as working directory. Enter two literal argument lines: --play then sfa. The launcher owns this game’s configuration and child programs; do not register a source archive, update manifest or arbitrary other game executable."
+            "instruction": "Extract the complete official Preview package for your system: CPS2Recomp-windows-x64.zip, CPS2Recomp-linux-x86_64.tar.gz, or the universal CPS2Recomp-macos.zip with CPS-2 Recomp.app. Keep cps2recomp-launcher (cps2recomp-launcher.exe on Windows), every game program and all packaged companions together. Run the upstream launcher deliberately, choose your ROM folder or this game’s exact set, then finish its settings before registering the player. Register cps2recomp-launcher.exe with the CPS2Recomp folder as working directory. Enter two literal argument lines: --play then sfa. The launcher owns this game’s configuration and child programs; do not register a source archive, update manifest or arbitrary other game executable."
           },
           {
             "title": "Add the game and manage updates",
@@ -17926,6 +18001,15 @@
       "download_asset_hints": {
         "windows-x86-64": [
           "CPS2Recomp-windows-x64.zip"
+        ],
+        "linux-x86-64": [
+          "CPS2Recomp-linux-x86_64.tar.gz"
+        ],
+        "macos-aarch64": [
+          "CPS2Recomp-macos.zip"
+        ],
+        "macos-x86-64": [
+          "CPS2Recomp-macos.zip"
         ]
       },
       "manual_setup": {
@@ -17936,7 +18020,7 @@
           },
           {
             "title": "Prepare the shared launcher and this game",
-            "instruction": "Extract the complete official CPS2Recomp-windows-x64.zip Preview package. Keep cps2recomp-launcher.exe, every game program and all packaged companions together inside CPS2Recomp. Run the upstream launcher deliberately, choose your ROM folder or this game’s exact set, then finish its settings before registering the player. Register cps2recomp-launcher.exe with the CPS2Recomp folder as working directory. Enter two literal argument lines: --play then sfa2. The launcher owns this game’s configuration and child programs; do not register a source archive, update manifest or arbitrary other game executable."
+            "instruction": "Extract the complete official Preview package for your system: CPS2Recomp-windows-x64.zip, CPS2Recomp-linux-x86_64.tar.gz, or the universal CPS2Recomp-macos.zip with CPS-2 Recomp.app. Keep cps2recomp-launcher (cps2recomp-launcher.exe on Windows), every game program and all packaged companions together. Run the upstream launcher deliberately, choose your ROM folder or this game’s exact set, then finish its settings before registering the player. Register cps2recomp-launcher.exe with the CPS2Recomp folder as working directory. Enter two literal argument lines: --play then sfa2. The launcher owns this game’s configuration and child programs; do not register a source archive, update manifest or arbitrary other game executable."
           },
           {
             "title": "Add the game and manage updates",
@@ -17975,6 +18059,15 @@
       "download_asset_hints": {
         "windows-x86-64": [
           "CPS2Recomp-windows-x64.zip"
+        ],
+        "linux-x86-64": [
+          "CPS2Recomp-linux-x86_64.tar.gz"
+        ],
+        "macos-aarch64": [
+          "CPS2Recomp-macos.zip"
+        ],
+        "macos-x86-64": [
+          "CPS2Recomp-macos.zip"
         ]
       },
       "manual_setup": {
@@ -17985,7 +18078,7 @@
           },
           {
             "title": "Prepare the shared launcher and this game",
-            "instruction": "Extract the complete official CPS2Recomp-windows-x64.zip Preview package. Keep cps2recomp-launcher.exe, every game program and all packaged companions together inside CPS2Recomp. Run the upstream launcher deliberately, choose your ROM folder or this game’s exact set, then finish its settings before registering the player. Register cps2recomp-launcher.exe with the CPS2Recomp folder as working directory. Enter two literal argument lines: --play then pocket_fighter. The launcher owns this game’s configuration and child programs; do not register a source archive, update manifest or arbitrary other game executable."
+            "instruction": "Extract the complete official Preview package for your system: CPS2Recomp-windows-x64.zip, CPS2Recomp-linux-x86_64.tar.gz, or the universal CPS2Recomp-macos.zip with CPS-2 Recomp.app. Keep cps2recomp-launcher (cps2recomp-launcher.exe on Windows), every game program and all packaged companions together. Run the upstream launcher deliberately, choose your ROM folder or this game’s exact set, then finish its settings before registering the player. Register cps2recomp-launcher.exe with the CPS2Recomp folder as working directory. Enter two literal argument lines: --play then pocket_fighter. The launcher owns this game’s configuration and child programs; do not register a source archive, update manifest or arbitrary other game executable."
           },
           {
             "title": "Add the game and manage updates",
@@ -18024,6 +18117,15 @@
       "download_asset_hints": {
         "windows-x86-64": [
           "CPS2Recomp-windows-x64.zip"
+        ],
+        "linux-x86-64": [
+          "CPS2Recomp-linux-x86_64.tar.gz"
+        ],
+        "macos-aarch64": [
+          "CPS2Recomp-macos.zip"
+        ],
+        "macos-x86-64": [
+          "CPS2Recomp-macos.zip"
         ]
       },
       "manual_setup": {
@@ -18034,7 +18136,7 @@
           },
           {
             "title": "Prepare the shared launcher and this game",
-            "instruction": "Extract the complete official CPS2Recomp-windows-x64.zip Preview package. Keep cps2recomp-launcher.exe, every game program and all packaged companions together inside CPS2Recomp. Run the upstream launcher deliberately, choose your ROM folder or this game’s exact set, then finish its settings before registering the player. Register cps2recomp-launcher.exe with the CPS2Recomp folder as working directory. Enter two literal argument lines: --play then puzzle_fighter. The launcher owns this game’s configuration and child programs; do not register a source archive, update manifest or arbitrary other game executable."
+            "instruction": "Extract the complete official Preview package for your system: CPS2Recomp-windows-x64.zip, CPS2Recomp-linux-x86_64.tar.gz, or the universal CPS2Recomp-macos.zip with CPS-2 Recomp.app. Keep cps2recomp-launcher (cps2recomp-launcher.exe on Windows), every game program and all packaged companions together. Run the upstream launcher deliberately, choose your ROM folder or this game’s exact set, then finish its settings before registering the player. Register cps2recomp-launcher.exe with the CPS2Recomp folder as working directory. Enter two literal argument lines: --play then puzzle_fighter. The launcher owns this game’s configuration and child programs; do not register a source archive, update manifest or arbitrary other game executable."
           },
           {
             "title": "Add the game and manage updates",
@@ -18073,6 +18175,15 @@
       "download_asset_hints": {
         "windows-x86-64": [
           "CPS2Recomp-windows-x64.zip"
+        ],
+        "linux-x86-64": [
+          "CPS2Recomp-linux-x86_64.tar.gz"
+        ],
+        "macos-aarch64": [
+          "CPS2Recomp-macos.zip"
+        ],
+        "macos-x86-64": [
+          "CPS2Recomp-macos.zip"
         ]
       },
       "manual_setup": {
@@ -18083,7 +18194,7 @@
           },
           {
             "title": "Prepare the shared launcher and this game",
-            "instruction": "Extract the complete official CPS2Recomp-windows-x64.zip Preview package. Keep cps2recomp-launcher.exe, every game program and all packaged companions together inside CPS2Recomp. Run the upstream launcher deliberately, choose your ROM folder or this game’s exact set, then finish its settings before registering the player. Register cps2recomp-launcher.exe with the CPS2Recomp folder as working directory. Enter two literal argument lines: --play then vhunt2. The launcher owns this game’s configuration and child programs; do not register a source archive, update manifest or arbitrary other game executable."
+            "instruction": "Extract the complete official Preview package for your system: CPS2Recomp-windows-x64.zip, CPS2Recomp-linux-x86_64.tar.gz, or the universal CPS2Recomp-macos.zip with CPS-2 Recomp.app. Keep cps2recomp-launcher (cps2recomp-launcher.exe on Windows), every game program and all packaged companions together. Run the upstream launcher deliberately, choose your ROM folder or this game’s exact set, then finish its settings before registering the player. Register cps2recomp-launcher.exe with the CPS2Recomp folder as working directory. Enter two literal argument lines: --play then vhunt2. The launcher owns this game’s configuration and child programs; do not register a source archive, update manifest or arbitrary other game executable."
           },
           {
             "title": "Add the game and manage updates",
@@ -18122,6 +18233,15 @@
       "download_asset_hints": {
         "windows-x86-64": [
           "CPS2Recomp-windows-x64.zip"
+        ],
+        "linux-x86-64": [
+          "CPS2Recomp-linux-x86_64.tar.gz"
+        ],
+        "macos-aarch64": [
+          "CPS2Recomp-macos.zip"
+        ],
+        "macos-x86-64": [
+          "CPS2Recomp-macos.zip"
         ]
       },
       "manual_setup": {
@@ -18132,7 +18252,7 @@
           },
           {
             "title": "Prepare the shared launcher and this game",
-            "instruction": "Extract the complete official CPS2Recomp-windows-x64.zip Preview package. Keep cps2recomp-launcher.exe, every game program and all packaged companions together inside CPS2Recomp. Run the upstream launcher deliberately, choose your ROM folder or this game’s exact set, then finish its settings before registering the player. Register cps2recomp-launcher.exe with the CPS2Recomp folder as working directory. Enter two literal argument lines: --play then vampire_savior. The launcher owns this game’s configuration and child programs; do not register a source archive, update manifest or arbitrary other game executable."
+            "instruction": "Extract the complete official Preview package for your system: CPS2Recomp-windows-x64.zip, CPS2Recomp-linux-x86_64.tar.gz, or the universal CPS2Recomp-macos.zip with CPS-2 Recomp.app. Keep cps2recomp-launcher (cps2recomp-launcher.exe on Windows), every game program and all packaged companions together. Run the upstream launcher deliberately, choose your ROM folder or this game’s exact set, then finish its settings before registering the player. Register cps2recomp-launcher.exe with the CPS2Recomp folder as working directory. Enter two literal argument lines: --play then vampire_savior. The launcher owns this game’s configuration and child programs; do not register a source archive, update manifest or arbitrary other game executable."
           },
           {
             "title": "Add the game and manage updates",
@@ -18171,6 +18291,15 @@
       "download_asset_hints": {
         "windows-x86-64": [
           "CPS2Recomp-windows-x64.zip"
+        ],
+        "linux-x86-64": [
+          "CPS2Recomp-linux-x86_64.tar.gz"
+        ],
+        "macos-aarch64": [
+          "CPS2Recomp-macos.zip"
+        ],
+        "macos-x86-64": [
+          "CPS2Recomp-macos.zip"
         ]
       },
       "manual_setup": {
@@ -18181,7 +18310,7 @@
           },
           {
             "title": "Prepare the shared launcher and this game",
-            "instruction": "Extract the complete official CPS2Recomp-windows-x64.zip Preview package. Keep cps2recomp-launcher.exe, every game program and all packaged companions together inside CPS2Recomp. Run the upstream launcher deliberately, choose your ROM folder or this game’s exact set, then finish its settings before registering the player. Register cps2recomp-launcher.exe with the CPS2Recomp folder as working directory. Enter two literal argument lines: --play then vsav2. The launcher owns this game’s configuration and child programs; do not register a source archive, update manifest or arbitrary other game executable."
+            "instruction": "Extract the complete official Preview package for your system: CPS2Recomp-windows-x64.zip, CPS2Recomp-linux-x86_64.tar.gz, or the universal CPS2Recomp-macos.zip with CPS-2 Recomp.app. Keep cps2recomp-launcher (cps2recomp-launcher.exe on Windows), every game program and all packaged companions together. Run the upstream launcher deliberately, choose your ROM folder or this game’s exact set, then finish its settings before registering the player. Register cps2recomp-launcher.exe with the CPS2Recomp folder as working directory. Enter two literal argument lines: --play then vsav2. The launcher owns this game’s configuration and child programs; do not register a source archive, update manifest or arbitrary other game executable."
           },
           {
             "title": "Add the game and manage updates",
@@ -18220,6 +18349,15 @@
       "download_asset_hints": {
         "windows-x86-64": [
           "CPS2Recomp-windows-x64.zip"
+        ],
+        "linux-x86-64": [
+          "CPS2Recomp-linux-x86_64.tar.gz"
+        ],
+        "macos-aarch64": [
+          "CPS2Recomp-macos.zip"
+        ],
+        "macos-x86-64": [
+          "CPS2Recomp-macos.zip"
         ]
       },
       "manual_setup": {
@@ -18230,7 +18368,7 @@
           },
           {
             "title": "Prepare the shared launcher and this game",
-            "instruction": "Extract the complete official CPS2Recomp-windows-x64.zip Preview package. Keep cps2recomp-launcher.exe, every game program and all packaged companions together inside CPS2Recomp. Run the upstream launcher deliberately, choose your ROM folder or this game’s exact set, then finish its settings before registering the player. Register cps2recomp-launcher.exe with the CPS2Recomp folder as working directory. Enter two literal argument lines: --play then vsav_definitive. The launcher owns this game’s configuration and child programs; do not register a source archive, update manifest or arbitrary other game executable."
+            "instruction": "Extract the complete official Preview package for your system: CPS2Recomp-windows-x64.zip, CPS2Recomp-linux-x86_64.tar.gz, or the universal CPS2Recomp-macos.zip with CPS-2 Recomp.app. Keep cps2recomp-launcher (cps2recomp-launcher.exe on Windows), every game program and all packaged companions together. Run the upstream launcher deliberately, choose your ROM folder or this game’s exact set, then finish its settings before registering the player. Register cps2recomp-launcher.exe with the CPS2Recomp folder as working directory. Enter two literal argument lines: --play then vsav_definitive. The launcher owns this game’s configuration and child programs; do not register a source archive, update manifest or arbitrary other game executable."
           },
           {
             "title": "Add the game and manage updates",
@@ -18277,6 +18415,15 @@
       "download_asset_hints": {
         "windows-x86-64": [
           "CPS2Recomp-windows-x64.zip"
+        ],
+        "linux-x86-64": [
+          "CPS2Recomp-linux-x86_64.tar.gz"
+        ],
+        "macos-aarch64": [
+          "CPS2Recomp-macos.zip"
+        ],
+        "macos-x86-64": [
+          "CPS2Recomp-macos.zip"
         ]
       },
       "manual_setup": {
@@ -18287,7 +18434,7 @@
           },
           {
             "title": "Prepare the shared launcher and this game",
-            "instruction": "Extract the complete official CPS2Recomp-windows-x64.zip Preview package. Keep cps2recomp-launcher.exe, every game program and all packaged companions together inside CPS2Recomp. Run the upstream launcher deliberately, choose your ROM folder or this game’s exact set, then finish its settings before registering the player. Register cps2recomp-launcher.exe with the CPS2Recomp folder as working directory. Enter two literal argument lines: --play then xmvsf. The launcher owns this game’s configuration and child programs; do not register a source archive, update manifest or arbitrary other game executable."
+            "instruction": "Extract the complete official Preview package for your system: CPS2Recomp-windows-x64.zip, CPS2Recomp-linux-x86_64.tar.gz, or the universal CPS2Recomp-macos.zip with CPS-2 Recomp.app. Keep cps2recomp-launcher (cps2recomp-launcher.exe on Windows), every game program and all packaged companions together. Run the upstream launcher deliberately, choose your ROM folder or this game’s exact set, then finish its settings before registering the player. Register cps2recomp-launcher.exe with the CPS2Recomp folder as working directory. Enter two literal argument lines: --play then xmvsf. The launcher owns this game’s configuration and child programs; do not register a source archive, update manifest or arbitrary other game executable."
           },
           {
             "title": "Add the game and manage updates",
@@ -18314,20 +18461,23 @@
     {
       "id": "crackdown-crackdown-recompiled",
       "name": "Crackdown (Crackdown Recompiled)",
-      "summary": "Attach an independently permitted prepared Crackdown Windows copy, preserving its exact original-data requirements, upstream-owned updates and separate base/TU6 save generations.",
+      "summary": "Add a prepared Crackdown Windows copy, preserving its exact original-data requirements, upstream-owned updates and separate base/TU6 save generations.",
       "original_game_title": "Crackdown",
       "project_url": "https://github.com/saulob/crackdown-xbox360-recompiled",
       "issue_number": 2559,
       "listed_at": "2026-10-25",
-      "platforms": [],
-      "availability": "unknown",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
+      "availability": "packages",
       "setup_url": "https://github.com/saulob/crackdown-xbox360-recompiled",
       "manual_setup": {
         "help_url": "https://github.com/saulob/crackdown-xbox360-recompiled/blob/757ad47070719c4cdb6405bc0047fd6d64bbe108/README.md",
         "steps": [
           {
             "title": "Finish exact original-disc setup upstream",
-            "instruction": "Use a complete Windows copy/components you are independently permitted to use and your own original, unupdated Crackdown Xbox360 retail disc: title4D5307DC, Default.xex14,270,464bytes, SHA-256 7AAA7A8920D1C3C737E58CF583DEBAFE6013BE0A96BEC3EC136E5DE7E3377E5A. Complete upstream ISO/extracted-folder validation and installation until Ready to play; game/ is adjacent and $SystemUpdate is unnecessary. No disc extraction, original acquisition, compilation or installer is invoked by this registration."
+            "instruction": "Use the complete Windows package and your own original, unupdated Crackdown Xbox360 retail disc: title4D5307DC, Default.xex14,270,464bytes, SHA-256 7AAA7A8920D1C3C737E58CF583DEBAFE6013BE0A96BEC3EC136E5DE7E3377E5A. Complete upstream ISO/extracted-folder validation and installation until Ready to play; game/ is adjacent and $SystemUpdate is unnecessary. No disc extraction, original acquisition, compilation or installer is invoked by this registration."
           },
           {
             "title": "Select the prepared native game entry",
@@ -18342,8 +18492,8 @@
             "instruction": "Normal startup selects base or the separately installed TU6 guest and can recover an interrupted save switch, snapshot/swap live profile and campaign/header slots, then remove completed .switch-* staging under save-versions. These are upstream-owned writes, not Portcove migration or cross-version compatibility promises. TU6 and Four-Play/Free-for-All DLC are optional separately owned inputs with their own exact source checks; Free-for-All requires TU6. Do not remove/update content through this guide. The updater constructor may remove %TEMP%/trg-update-* directories older than24hours; ordinary exit may remove non-crash session logs unless detailed logging is enabled. Preserve recovery/diagnostic copies separately before startup/maintenance."
           },
           {
-            "title": "Use permitted files and manage this copy yourself",
-            "instruction": "Project GPL and ReXGlue/component terms do not grant the original game/TU/DLC or every bundled launcher component. This title identifies TRG revisionb384a28c712c9320eea8f9d50639dec49981b6c1 and expressly says it has no explicit license: fresh package acquisition/distribution needs its own attributable applicable permission or reviewed alternative; this conditional guide only attaches an independently permitted complete copy. Removing registration preserves external files; no external backup/restore, deletion, save conversion or managed maintenance is offered."
+            "title": "Manage this copy yourself",
+            "instruction": "Removing registration preserves external files; no external backup/restore, deletion, save conversion or managed maintenance is offered."
           }
         ],
         "warnings": [
@@ -18351,7 +18501,8 @@
           "No actual player/helper/installer/game, native session, real save, installed-client, Supported or protected acceptance was performed. Own hard-exit/renderer/save/updater claims retain source scope, not observed safety or playability.",
           "Keep a separate complete recovery copy outside upstream transaction/workspace directories.",
           "Normal startup selects base or the separately installed TU6 guest and can recover an interrupted save switch, snapshot/swap live profile and campaign/header slots, then remove completed .switch-* staging under save-versions. These are upstream-owned writes, not Portcove migration or cross-version compatibility promises.",
-          "The updater constructor may remove %TEMP%/trg-update-* directories older than24hours; ordinary exit may remove non-crash session logs unless detailed logging is enabled. Preserve recovery/diagnostic copies separately before startup/maintenance."
+          "The updater constructor may remove %TEMP%/trg-update-* directories older than24hours; ordinary exit may remove non-crash session logs unless detailed logging is enabled. Preserve recovery/diagnostic copies separately before startup/maintenance.",
+          "The package includes an unlicensed TRG launcher (revision b384a28c712c9320eea8f9d50639dec49981b6c1) that the project license does not cover. Portcove downloads it only from the project’s own releases. You need your own original game files."
         ],
         "references": [
           {
@@ -18360,7 +18511,18 @@
           }
         ]
       },
-      "download_block_reason": "Fresh acquisition of this Crackdown Windows package is held: its own v0.6.2 source requires and bundles the TRG launcher at b384a28c712c9320eea8f9d50639dec49981b6c1, for which upstream explicitly defers an applicable license grant. Resume with attributable permission covering that selected component/package operation or a separately reviewed supported route excluding it. This condition does not prohibit independently permitted completed-copy registration or establish a title-wide rights ruling."
+      "release_url": "https://github.com/saulob/crackdown-xbox360-recompiled/releases",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "Crackdown-",
+          "-windows-x64.zip"
+        ],
+        "linux-x86-64": [
+          "CrackdownRecompiled-",
+          "-x86_64.AppImage"
+        ]
+      },
+      "recommended_download_channel": "stable"
     },
     {
       "id": "craigshaw-fzerorecomp",
@@ -18853,11 +19015,14 @@
     {
       "id": "dabdavis-perfect-dark-dabs-mod",
       "name": "Perfect Dark / Perfect Dark Dab's Mod (DabDavis)",
-      "summary": "Use the complete Dab’s Mod Windows player with your own Perfect Dark USA Rev 1 original. Preserve its actual save root and expanded formats; upstream owns updates and any restarted game.",
+      "summary": "Use the complete Dab’s Mod Windows or Linux player with your own Perfect Dark USA Rev 1 original. Preserve its actual save root and expanded formats; upstream owns updates and any restarted game.",
       "project_url": "https://github.com/DabDavis/perfect-dark-dabs-mod",
       "issue_number": 1866,
       "listed_at": "2026-10-23",
-      "platforms": [],
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
       "availability": "packages",
       "setup_url": "https://github.com/DabDavis/perfect-dark-dabs-mod/blob/a8c2ab2d7b1c99f6a96a2d9addee1fdf9630e379/README.md",
       "artwork": {
@@ -18873,11 +19038,11 @@
         "steps": [
           {
             "title": "Prepare this fork’s original and complete player",
-            "instruction": "Use a complete permitted Dab’s Mod Windows copy. The individually inspected v3.15.1 ZIP contains x64 pd.x86_64.exe, SDL2.dll, zlib1.dll and a data folder; keep them together. Supply your own Perfect Dark USA Rev 1 / NTSC-final / US v1.1 big-endian ROM as data/pd.ntsc-final.z64. Upstream identifies MD5 e03b088b6ac9e0080440efed07c1e40f; PAL and Japanese originals are not this fork’s supported input. The ZIP does not supply the ROM. Keep this fork distinct from the stock managed Perfect Dark port."
+            "instruction": "Use a complete Dab’s Mod copy for your system. The inspected v3.15.1 Windows ZIP contains x64 pd.x86_64.exe, SDL2.dll, zlib1.dll and a data folder, and the Linux TAR.GZ contains pd.x86_64; keep each package together. Supply your own Perfect Dark USA Rev 1 / NTSC-final / US v1.1 big-endian ROM as data/pd.ntsc-final.z64. Upstream identifies MD5 e03b088b6ac9e0080440efed07c1e40f; PAL and Japanese originals are not this fork’s supported input. The ZIP does not supply the ROM. Keep this fork distinct from the stock managed Perfect Dark port."
           },
           {
             "title": "Select normal native play",
-            "instruction": "After upstream preparation, select pd.x86_64.exe, use its complete containing folder as working directory and leave arguments empty for the documented normal route. Preserve an already established --basedir, --savedir, --portable or mod-directory choice as separate literal arguments instead of changing its data roots during attachment. Do not attach an updater, standalone replacement download or another fork’s executable."
+            "instruction": "After upstream preparation, select pd.x86_64.exe (pd.x86_64 on Linux), use its complete containing folder as working directory and leave arguments empty for the documented normal route. Preserve an already established --basedir, --savedir, --portable or mod-directory choice as separate literal arguments instead of changing its data roots during attachment. Do not attach an updater, standalone replacement download or another fork’s executable."
           },
           {
             "title": "Finish upstream updates outside the attached session",
@@ -18908,6 +19073,10 @@
         "windows-x86-64": [
           "pd-dabs-mod-",
           "x86_64-windows.zip"
+        ],
+        "linux-x86-64": [
+          "pd-dabs-mod-",
+          "x86_64-Linux.tar.gz"
         ]
       },
       "original_game_title": "Perfect Dark",
@@ -19279,16 +19448,16 @@
         "windows-x86-64",
         "linux-x86-64"
       ],
-      "availability": "unknown",
+      "availability": "packages",
       "manual_setup": {
         "steps": [
           {
             "title": "Prepare the Windows player",
-            "instruction": "For an already permitted Windows x64 copy, keep its DLLs beside chocobo.exe. Place your own NTSC-U R7FEGD ISO or CISO in that folder, or supply the matching extracted sys and files under extracted. Start chocobo.exe and allow the upstream extraction to finish."
+            "instruction": "Keep the Windows x64 package files together, with its DLLs beside chocobo.exe. Place your own NTSC-U R7FEGD ISO or CISO in that folder, or supply the matching extracted sys and files under extracted. Start chocobo.exe and allow the upstream extraction to finish."
           },
           {
             "title": "Build the windowed Linux player from your original",
-            "instruction": "Follow the tagged upstream build instructions in a source tree you are permitted to use. Obtain sys/main.dol from your own matching extracted disc and run the documented Python recompilation into a clean gen directory. Build the windowed USE_SDL=ON target with CMake, Ninja, a C++17 compiler, SDL2 and OpenGL development libraries."
+            "instruction": "Follow the tagged upstream build instructions. Obtain sys/main.dol from your own matching extracted disc and run the documented Python recompilation into a clean gen directory. Build the windowed USE_SDL=ON target with CMake, Ninja, a C++17 compiler, SDL2 and OpenGL development libraries."
           },
           {
             "title": "Keep each profile with its actual root",
@@ -19296,13 +19465,20 @@
           }
         ],
         "warnings": [
-          "Use an already permitted copy. The published license for the upstream project has its own scope, and the package contains translated title code. Fresh acquisition needs attributable permission for that code or a separately reviewed preparation route.",
+          "The package includes recompiled game code that the project license does not cover. Portcove downloads it only from the project’s own releases. You need your own original game files.",
           "Keep the upstream folder outside the Portcove library. Close the game and its helpers before backing up or replacing the creating runtime and its data.",
           "The Linux instructions cover the windowed source route. The upstream headless EGL test build is a separate target."
         ],
         "help_url": "https://github.com/darkuni/chocobo-dungeon-recomp/blob/e5991f44fac38579c349418eb0dff6028d27ca67/README.md"
       },
-      "download_block_reason": "Fresh Portcove downloads are held because the selected Final Fantasy Fables: Chocobo’s Dungeon executable contains translated title code and the published project license does not establish permission for that separate component. Resume with an attributable applicable grant or a reviewed package or preparation route that resolves it. Independently permitted copies retain their own setup route."
+      "release_url": "https://github.com/darkuni/chocobo-dungeon-recomp/releases",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "ChocoboDungeon-",
+          "-win64.zip"
+        ]
+      },
+      "recommended_download_channel": "stable"
     },
     {
       "id": "darkuni-lode-runner-2009-xbla-rexglue",
@@ -19362,12 +19538,12 @@
       "platforms": [
         "windows-x86-64"
       ],
-      "availability": "unknown",
+      "availability": "packages",
       "manual_setup": {
         "steps": [
           {
             "title": "Prepare the WiiWare originals",
-            "instruction": "For an already permitted Windows x64 copy, keep the runtime and its DLLs together in a writable folder. Put your own NTSC-U My Life as a Darklord base WAD (WF2E) there. Add the matching optional DLC WAD only if you have it."
+            "instruction": "Keep the Windows x64 runtime and its DLLs together in a writable folder. Put your own NTSC-U My Life as a Darklord base WAD (WF2E) there. Add the matching optional DLC WAD only if you have it."
           },
           {
             "title": "Let the upstream player import the WADs",
@@ -19383,12 +19559,19 @@
           }
         ],
         "warnings": [
-          "Use an already permitted copy. The published license for the upstream project has its own scope, and the package contains translated title code. Fresh acquisition needs attributable permission for that code or a separately reviewed preparation route.",
+          "The package includes recompiled game code that the project license does not cover. Portcove downloads it only from the project’s own releases. You need your own original game files.",
           "Keep the upstream folder outside the Portcove library. Close the game and its helpers before backing up or replacing the creating runtime and its data."
         ],
         "help_url": "https://github.com/darkuni/mylifedarklord-recomp/blob/f9581ce34708a63b3da5608f02d7cd1201d2d1c7/README.md"
       },
-      "download_block_reason": "Fresh Portcove downloads are held because the selected Final Fantasy Crystal Chronicles: My Life as a Darklord executable contains translated title code and the published project license does not establish permission for that separate component. Resume with an attributable applicable grant or a reviewed package or preparation route that resolves it. Independently permitted copies retain their own setup route."
+      "release_url": "https://github.com/darkuni/mylifedarklord-recomp/releases",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "MyLifeAsADarklord-",
+          "-win64.zip"
+        ]
+      },
+      "recommended_download_channel": "stable"
     },
     {
       "id": "darkuni-mylifeking-recomp",
@@ -19401,12 +19584,12 @@
       "platforms": [
         "windows-x86-64"
       ],
-      "availability": "unknown",
+      "availability": "packages",
       "manual_setup": {
         "steps": [
           {
             "title": "Prepare the WiiWare originals",
-            "instruction": "For an already permitted Windows x64 copy, keep the runtime and its DLLs together in a writable folder. Put your own NTSC-U My Life as a King base WAD (WFCE) there. Add the matching optional DLC WAD only if you have it."
+            "instruction": "Keep the Windows x64 runtime and its DLLs together in a writable folder. Put your own NTSC-U My Life as a King base WAD (WFCE) there. Add the matching optional DLC WAD only if you have it."
           },
           {
             "title": "Let the upstream player import the WADs",
@@ -19418,12 +19601,19 @@
           }
         ],
         "warnings": [
-          "Use an already permitted copy. The published license for the upstream project has its own scope, and the package contains translated title code. Fresh acquisition needs attributable permission for that code or a separately reviewed preparation route.",
+          "The package includes recompiled game code that the project license does not cover. Portcove downloads it only from the project’s own releases. You need your own original game files.",
           "Keep the upstream folder outside the Portcove library. Close the game and its helpers before backing up or replacing the creating runtime and its data."
         ],
         "help_url": "https://github.com/darkuni/mylifeking-recomp/blob/e7f038a121f6b55622516b1c9cf7cd7518c258e9/README.md"
       },
-      "download_block_reason": "Fresh Portcove downloads are held because the selected Final Fantasy Crystal Chronicles: My Life as a King executable contains translated title code and the published project license does not establish permission for that separate component. Resume with an attributable applicable grant or a reviewed package or preparation route that resolves it. Independently permitted copies retain their own setup route."
+      "release_url": "https://github.com/darkuni/mylifeking-recomp/releases",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "MyLifeAsAKing-",
+          "-win64.zip"
+        ]
+      },
+      "recommended_download_channel": "stable"
     },
     {
       "id": "darkuni-outrun-arcade-recomp",
@@ -19528,12 +19718,12 @@
       "platforms": [
         "windows-x86-64"
       ],
-      "availability": "unknown",
+      "availability": "packages",
       "manual_setup": {
         "steps": [
           {
             "title": "Prepare your Wii disc image",
-            "instruction": "In an already permitted Windows x64 copy, keep the runtime DLLs beside targetterror.exe. Supply your own NTSC-U RGDEA4 ISO or CISO in that writable folder."
+            "instruction": "Keep the Windows x64 package files together, with the runtime DLLs beside targetterror.exe. Supply your own NTSC-U RGDEA4 ISO or CISO in that writable folder."
           },
           {
             "title": "Allow space for the upstream import",
@@ -19545,12 +19735,19 @@
           }
         ],
         "warnings": [
-          "Use an already permitted copy. The published license for the upstream project has its own scope, and the package contains translated title code. Fresh acquisition needs attributable permission for that code or a separately reviewed preparation route.",
+          "The package includes recompiled game code that the project license does not cover. Portcove downloads it only from the project’s own releases. You need your own original game files.",
           "Keep the upstream folder outside the Portcove library. Close the game and its helpers before backing up or replacing the creating runtime and its data."
         ],
         "help_url": "https://github.com/darkuni/target-terror-wii-recomp/blob/51bf36f469fe502ca6aeeab20f07ca42fca3671e/README.md"
       },
-      "download_block_reason": "Fresh Portcove downloads are held because the selected TARGET: Terror executable contains translated title code and the published project license does not establish permission for that separate component. Resume with an attributable applicable grant or a reviewed package or preparation route that resolves it. Independently permitted copies retain their own setup route."
+      "release_url": "https://github.com/darkuni/target-terror-wii-recomp/releases",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "TargetTerror-",
+          "-win64.zip"
+        ]
+      },
+      "recommended_download_channel": "stable"
     },
     {
       "id": "daxter-recompiled-anthonyhfm-daxter",
@@ -19910,7 +20107,7 @@
     {
       "id": "dead-rising-2-case-west-recomp",
       "name": "Dead Rising 2 Case West Xenon Recomp",
-      "summary": "Register an independently permitted, prepared Case West native Windows player for your own XBLA game. Fresh acquisition remains held on the linked libxlive permission condition.",
+      "summary": "Add a prepared Case West native Windows player you already have, for your own XBLA game. Portcove downloads are paused because the package includes shader data recorded from the game.",
       "project_url": "https://github.com/wivi514/Dead_Rising_2_Case_West_Xenon_Recomp",
       "issue_number": 1122,
       "listed_at": "2026-10-23",
@@ -19938,8 +20135,8 @@
         "help_url": "https://github.com/wivi514/Dead_Rising_2_Case_West_Xenon_Recomp/releases/tag/v1.1.2",
         "steps": [
           {
-            "title": "Keep an independently permitted completed copy",
-            "instruction": "Continue only with an actual player and components you are independently permitted to use. The package defers compiled-in libxlive’s licence to XenonLive, and that specific component grant is not established in the retained evidence. The title’s own noncommercial grant does not settle this separately named scope; offline use does not remove the linked bytes. Fresh acquisition remains held."
+            "title": "Use a completed copy you already have",
+            "instruction": "Continue with a complete player you already have. Portcove downloads are paused because the package includes shader pre-warm data recorded from the game and recipes for patching the game’s own shaders. The package also includes compiled-in libxlive, whose licence it defers to XenonLive; offline use does not remove it."
           },
           {
             "title": "Complete Case West preparation through its own player",
@@ -19964,12 +20161,12 @@
           }
         ]
       },
-      "download_block_reason": "The selected Case West Windows package explicitly identifies compiled-in libxlive and refers its licence to the separate XenonLive repository. An applicable grant for that linked component is not established by the retained evidence; the title’s own PolyForm grant preserves separate component licences. Fresh acquisition stays held until attributable applicable permission or a reviewed released replacement resolves this exact scope. Offline mode does not remove a compiled-in component. This condition grants no permission to use an existing copy."
+      "download_block_reason": "Portcove downloads are paused because the package includes shader pre-warm data recorded from the game and recipes for patching the game’s own shaders. They can resume when upstream publishes a package that creates them from your own game files."
     },
     {
       "id": "dead-rising-2-case-zero-recomp",
       "name": "Dead Rising 2 Case Zero Xenon Recomp",
-      "summary": "Register an independently permitted, prepared Case Zero native Windows player for your own XBLA game. Fresh acquisition remains held on the linked libxlive permission condition.",
+      "summary": "Add a prepared Case Zero native Windows player you already have, for your own XBLA game. Portcove downloads are paused because the package includes shader data recorded from the game.",
       "project_url": "https://github.com/wivi514/Dead_Rising_2_Case_Zero_Xenon_Recomp",
       "issue_number": 1121,
       "listed_at": "2026-10-23",
@@ -19988,8 +20185,8 @@
         "help_url": "https://github.com/wivi514/Dead_Rising_2_Case_Zero_Xenon_Recomp/tree/b3895adbe68fdc8fb56bf5c195b9e82028fbbd82",
         "steps": [
           {
-            "title": "Keep an independently permitted completed copy",
-            "instruction": "Continue only with an actual player and components you are independently permitted to use. The reviewed v1.1.3 package defers compiled-in libxlive’s licence to XenonLive, and that specific grant is not established by the retained evidence. The title’s own noncommercial grant does not settle this expressly separate scope; offline use does not remove the linked bytes. Fresh acquisition stays held. The previously delivered non-owning preparation and data-preservation guidance below remains applicable to an independently permitted copy."
+            "title": "Use a completed copy you already have",
+            "instruction": "Continue with a complete player you already have. Portcove downloads are paused because the package includes shader pre-warm data recorded from the game and recipes for patching the game’s own shaders. The reviewed v1.1.3 package also includes compiled-in libxlive, whose licence it defers to XenonLive; offline use does not remove it. The preparation and data-preservation guidance below applies to that copy."
           },
           {
             "title": "Prepare the own-game offline Windows copy upstream",
@@ -20016,7 +20213,7 @@
           }
         ]
       },
-      "download_block_reason": "The inspected Case Zero v1.1.3 Windows package explicitly identifies compiled-in libxlive and refers its licence to the separate XenonLive repository. An applicable grant for that linked component is not established by the retained evidence; the title’s own PolyForm grant preserves separate component licences. Fresh acquisition stays held until attributable applicable permission or a reviewed released replacement resolves this exact scope. Offline mode does not remove the linked component. This condition grants no permission to use an existing copy."
+      "download_block_reason": "Portcove downloads are paused because the package includes shader pre-warm data recorded from the game and recipes for patching the game’s own shaders. They can resume when upstream publishes a package that creates them from your own game files."
     },
     {
       "id": "dead-space-2-recomp-bifftannen1-dead-space-2-xbox-360",
@@ -20278,20 +20475,22 @@
     {
       "id": "def-jam-vendetta-playstation-2-def-jam-vendetta-recompiled",
       "name": "Def Jam Vendetta (PlayStation 2) (Def Jam Vendetta Recompiled)",
-      "summary": "Windows x64 Def Jam Vendetta player prepared upstream from your own USA SLUS-20639 disc. Complete the official settings/setup build before registering files/Def Jam Vendetta Recompiled.exe with its matching game data. Upstream owns updates, rebuilds and saves. Preserve the complete installation, settings and game/mc0 memory-card folders. Packaged game-derived branding has separate rights; use an independently permitted complete copy.",
+      "summary": "Windows x64 Def Jam Vendetta player prepared upstream from your own USA SLUS-20639 disc. Complete the official settings/setup build before registering files/Def Jam Vendetta Recompiled.exe with its matching game data. Upstream owns updates, rebuilds and saves. Preserve the complete installation, settings and game/mc0 memory-card folders.",
       "original_game_title": "Def Jam Vendetta (PlayStation 2)",
       "project_url": "https://github.com/jcsix694/def-jam-vendetta-recomp",
       "issue_number": 2561,
       "listed_at": "2026-10-25",
-      "platforms": [],
-      "availability": "unknown",
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "availability": "packages",
       "setup_url": "https://github.com/jcsix694/def-jam-vendetta-recomp",
       "manual_setup": {
         "help_url": "https://github.com/jcsix694/def-jam-vendetta-recomp/blob/d3d857b436beceebf1c77b0141c46bb7f13ee1fe/README.md",
         "steps": [
           {
-            "title": "Use the exact owned USA disc and permitted kit",
-            "instruction": "Use a complete upstream v0.4.4 Windows copy and components you are independently permitted to use, with your own Def Jam Vendetta USA SLUS-20639 ISO or supported CHD. The preparation tool checks for SLUS_206.39 and prepares a plain sector ISO and extracted files; that serial/member check is not a whole-disc cryptographic or entitlement certificate. Project GPL and dependency terms do not grant the named settings-app artwork/logo excluded by THIRD-PARTY-NOTICES.txt."
+            "title": "Use your own USA disc and the complete kit",
+            "instruction": "Use the complete upstream v0.4.4 Windows package with your own Def Jam Vendetta USA SLUS-20639 ISO or supported CHD. The preparation tool checks for SLUS_206.39 and prepares a plain sector ISO and extracted files; that serial/member check is not a whole-disc cryptographic or entitlement certificate."
           },
           {
             "title": "Finish upstream preparation first",
@@ -20311,11 +20510,11 @@
           },
           {
             "title": "Keep required notices and check this guide’s limits",
-            "instruction": "Retain GPL PS2Recomp/title notices, paraLLEl-GS LGPL and all other individual component notices. The title's name/logo and settings-app artwork are explicitly outside its project licence; fresh acquisition of a whole package needs applicable permission for those components. An independently permitted prepared copy does not establish broader distribution rights, source/output byte correspondence or save compatibility."
+            "instruction": "Retain GPL PS2Recomp/title notices, paraLLEl-GS LGPL and all other individual component notices. The title's name/logo and settings-app artwork are explicitly outside its project licence. This guide does not establish source/output byte correspondence or save compatibility."
           }
         ],
         "warnings": [
-          "Only an independently permitted completed copy is offered; fresh package acquisition has a separate named-branding permission condition.",
+          "The package includes the game’s logo and settings-app artwork that the project license does not cover. Portcove downloads it only from the project’s own releases. You need your own original game files.",
           "The optional upstream update/rebuild handoff ends the registered player session; Portcove does not follow or control it.",
           "With the game closed, keep a separate complete prior installation plus current files/settings.toml, files/game/mc0, sibling card-port roots, extracted game data, original disc and logs. Cards are filesystem folders derived from the selected ELF directory; ordinary guest operations can create, overwrite, delete or format their files. VENDETTA_SETTINGS can select another settings file; preserve it if configured, and preserve any external roots from your own installation. Startup can rewrite legacy fullscreen settings to borderless through a temporary replacement; logs are recreated.",
           "Do not assume save compatibility or restore older player data with an old runtime."
@@ -20327,7 +20526,14 @@
           }
         ]
       },
-      "download_block_reason": "Fresh acquisition of the selected Def Jam Vendetta Recompiled Windows kit is held while the applicable permission or authorized-source basis for its settings-app game-logo and artwork assets remains unresolved. THIRD-PARTY-NOTICES explicitly excludes those components from the project GPL grant. Resume with an attributable applicable basis or a reviewed supported kit excluding/replacing those assets; independently permitted completed copies remain separate."
+      "release_url": "https://github.com/jcsix694/def-jam-vendetta-recomp/releases",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "Def-Jam-Vendetta-Recompiled-",
+          "Windows.zip"
+        ]
+      },
+      "recommended_download_channel": "stable"
     },
     {
       "id": "defjam-gamecube-recomp-nakamizake-nakamizake-def-jam-fight-for-ny",
@@ -21347,7 +21553,7 @@
     {
       "id": "djultra64-clayfighter64",
       "name": "ClayFighter63andOneThird: ClayFighter64 fusion edition (djultra64 ClayFighter64)",
-      "summary": "Windows x64 ClayFighter 64 fused product: 63⅓ gameplay with Sculptor's Cut donor characters, requiring both exact USA ROMs. Complete upstream asset installation first, then register clayfighter64.exe with its documented ROM and fused-asset arguments. Keep local/, probe-output/ and complete runtime dependencies. Packaged branding and title audio have separate rights; use only a complete copy and components you are independently permitted to use.",
+      "summary": "Windows x64 ClayFighter 64 fused product: 63⅓ gameplay with Sculptor's Cut donor characters, requiring both exact USA ROMs. Complete upstream asset installation first, then register clayfighter64.exe with its documented ROM and fused-asset arguments. Keep local/, probe-output/ and complete runtime dependencies. The title announcement’s source is unknown; use a complete copy you already have.",
       "original_game_title": "ClayFighter63andOneThird: ClayFighter64 fusion edition",
       "project_url": "https://github.com/djultra64/ClayFighter64",
       "platforms": [],
@@ -21363,8 +21569,8 @@
             "instruction": "This combines ClayFighter63⅓ gameplay with Sculptor's Cut donor characters; it does not recreate all of Sculptor's Cut. Supply your own ClayFighter63⅓ USA and ClayFighter:Sculptor's Cut USA ROMs. After normalization to big-endian z64, their SHA256 values must be 357f26c6cd72559c5c05e8c2df46369624630dbcb1c02b3b6f3338f6ac79af07 and 9ccebc317b7ee892be3bdc0d1c8ae46687995908ed51ebd58d6855e5e25abd7f, respectively. Keep both originals separately. Other regions, revisions and modified ROMs are unsupported. Upstream preparation handles supported byte orders or a single-ROM ZIP."
           },
           {
-            "title": "Complete permitted upstream asset installation",
-            "instruction": "Use a complete v2.1.1 Windows x86-64 copy and components you are independently permitted to use. The GPL licence for authored port code does not grant rights to packaged branding, depicted original characters or the separately supplied title announcement. On Windows 10/11 x64 with an SSSE3/SSE4.1 CPU and current Vulkan drivers, run Install Assets.vbs outside Portcove and finish asset installation. The included Python runtime checks both inputs and creates local imported files. Keep all supplied DLLs, configuration, notices and assets together."
+            "title": "Complete upstream asset installation",
+            "instruction": "Use a complete v2.1.1 Windows x86-64 copy you already have. The GPL licence for authored port code does not cover packaged branding, depicted original characters or the title announcement, whose source is unknown. On Windows 10/11 x64 with an SSSE3/SSE4.1 CPU and current Vulkan drivers, run Install Assets.vbs outside Portcove and finish asset installation. The included Python runtime checks both inputs and creates local imported files. Keep all supplied DLLs, configuration, notices and assets together."
           },
           {
             "title": "Select the prepared native player",
@@ -21376,8 +21582,8 @@
           }
         ],
         "warnings": [
-          "Fresh acquisition of packaged branding/title media remains conditional on its own applicable permission; original-game rights are separate.",
-          "Only an already prepared independently permitted complete copy is offered; extraction, updates and recovery remain upstream-owned.",
+          "Portcove downloads are paused because the title announcement audio is of unknown origin. You need your own original game files.",
+          "You can add a prepared complete copy you already have; extraction, updates and recovery remain upstream-owned.",
           "Before first prepared startup, moves or updates, close the game and keep a separate complete recovery copy of local/, probe-output/, config and all original ROMs."
         ],
         "references": [
@@ -21395,7 +21601,7 @@
           }
         ]
       },
-      "download_block_reason": "Fresh acquisition of the selected ClayFighter64 package is held while the applicable permission or authorized-source basis for its named bundled character-branding images and replacement title-announcement media remains unresolved. NOTICE places those media outside the port-code licence; publisher attribution is not a grant of all underlying depicted-character or media rights. Resume on an attributable applicable inclusion/use basis or a reviewed supported replacement/exclusion package; independently permitted completed copies remain separate."
+      "download_block_reason": "Portcove downloads are paused because the package’s in-game title announcement comes from an audio file of unknown origin, possibly another ClayFighter game. They can resume when upstream identifies that audio’s source or publishes a package without it."
     },
     {
       "id": "dkc1-recomp",
@@ -23469,12 +23675,15 @@
     {
       "id": "eandis-sdoj-recomp",
       "name": "DoDonPachi SaiDaiOuJou / SDOJ-Recomp (eandis)",
-      "summary": "Windows DoDonPachi SaiDaiOuJou guidance for an independently permitted completed native player with its verified own disc/GoD and TU1 data. Upstream owns first-run extraction, title-update preparation, runtime replacement and player data.",
+      "summary": "DoDonPachi SaiDaiOuJou native player for your own verified disc or Games-on-Demand copy and its TU1 data. Upstream owns first-run extraction, title-update preparation, runtime replacement and player data.",
       "project_url": "https://github.com/eandis/SDOJ-Recomp",
       "issue_number": 1880,
       "listed_at": "2026-10-23",
-      "platforms": [],
-      "availability": "unknown",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
+      "availability": "packages",
       "setup_url": "https://github.com/eandis/SDOJ-Recomp",
       "artwork": {
         "game_id": 1673,
@@ -23487,8 +23696,8 @@
       "manual_setup": {
         "steps": [
           {
-            "title": "Keep an independently permitted complete Windows player",
-            "instruction": "Use a completed Windows player and components you are independently permitted to use. The official Windows ZIPs include a statically recompiled game player; the SDK licence or possession of original data does not itself establish permission for every translated game-code component. Fresh acquisition remains conditional on applicable permission or authorized source for that named component; an independently permitted existing copy can be retained. Keep its complete package, runtime DLLs, extractor and notices. Standard and Vulkan ZIP variants are separate packages, not mix-and-match files."
+            "title": "Keep the complete package for your system",
+            "instruction": "Keep the complete package for your system together, including its runtime libraries, extractor and notices. Standard and Vulkan ZIP variants are separate packages, not mix-and-match files."
           },
           {
             "title": "Complete exact own data preparation outside Portcove",
@@ -23506,7 +23715,8 @@
         "warnings": [
           "Disc and Games-on-Demand use different original/TU checks; wrong or incomplete data is not an interchangeable source. Keep the complete chosen renderer variant and meet its upstream GPU/runtime requirements. Altered input/render-lag options require a restart; no actual gameplay, performance or save-compatibility assurance is supplied by this guide.",
           "Back up the complete creating package, saidaioujou_recomp_tu1.toml, game_data/, user_data/ (including saves/content, caches and updater metadata) and logs before upstream startup, repair or replacement.",
-          "Upstream refuses incomplete or unsupported nonempty game_data rather than merging it; keep staged originals/recovery data outside disposable setup destinations. No cross-edition or cross-version save/mod compatibility is promised."
+          "Upstream refuses incomplete or unsupported nonempty game_data rather than merging it; keep staged originals/recovery data outside disposable setup destinations. No cross-edition or cross-version save/mod compatibility is promised.",
+          "The package includes statically recompiled game code that the project license does not cover. Portcove downloads it only from the project’s own releases. You need your own original game files."
         ],
         "help_url": "https://github.com/eandis/SDOJ-Recomp/blob/cf0afe107d02fa16980e8c8f90a5969aafac81a7/README.md",
         "references": [
@@ -23516,7 +23726,18 @@
           }
         ]
       },
-      "download_block_reason": "Fresh acquisition of the selected Windows SDOJ-Recomp player is held while an attributable permission or authorized-source basis for its bundled statically translated DoDonPachi SaiDaiOuJou game-code modules remains unresolved. The ReXGlue/Xenia runtime licence does not establish that separate component’s permission. Resume on an applicable reviewed basis or a supported route excluding the unresolved component; independently permitted existing copies remain distinct."
+      "release_url": "https://github.com/eandis/SDOJ-Recomp/releases",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "sdoj.recomp.",
+          ".win-amd64.zip"
+        ],
+        "linux-x86-64": [
+          "sdoj.recomp.",
+          ".linux-amd64.tar.gz"
+        ]
+      },
+      "recommended_download_channel": "stable"
     },
     {
       "id": "earthworm-jim-hd-pc-port-devex780-earthworm-jim-hd",
@@ -24723,11 +24944,11 @@
         ]
       },
       "recommended_download_channel": "beta",
-      "download_block_reason": "Portcove downloads are paused while the selected package’s embedded Adobe CenturyOldStyleStd-Regular font has no established attributable acquisition/distribution grant. Its name table identifies Adobe copyright and All rights reserved; the project’s AGPL does not establish that separate font’s grant. Keep an existing permitted copy. Reconsider when upstream supplies the applicable resource permission or removes/replaces that font.",
+      "download_block_reason": "Portcove downloads are paused because the package includes the game’s English subtitle text and font textures exported from the game. They can resume when upstream publishes a package that creates them from your own game files.",
       "manual_setup": {
         "help_url": "https://github.com/Mikompilation/MikuPan/blob/ec204d75441e98d8bd43ddd95cae744eb683f00c/README.md",
         "warnings": [
-          "Portcove downloads are paused while the selected package’s embedded Adobe CenturyOldStyleStd-Regular font has no established attributable acquisition/distribution grant. Its name table identifies Adobe copyright and All rights reserved; the project’s AGPL does not establish that separate font’s grant. Keep an existing permitted copy. Reconsider when upstream supplies the applicable resource permission or removes/replaces that font.",
+          "Portcove downloads are paused because the package includes the game’s English subtitle text and font textures exported from the game. They can resume when upstream publishes a package that creates them from your own game files.",
           "Close the game, keep the working folder, and extract a new permitted player separately.",
           "Back up the SDL profile for Mikompilation/MikuPan, including mikupan.ini, memory-card saves, albums and PNG captures; on Windows this is normally under AppData/Roaming.",
           "Preserve the original-data folder separately. External registration leaves every file untouched and provides no managed Update, Backup or Rollback. Runtime replacement does not rewind saves or establish older-version readability."
@@ -26592,8 +26813,11 @@
       "summary": "Prepared Windows Geometry Wars 2 copy using your own matching XBLA package. Upstream owns setup, runtime replacement and portable player data; Portcove can record the ordinary native player separately from Play.",
       "original_game_title": "Geometry Wars: Retro Evolved 2",
       "project_url": "https://github.com/saulob/geometry-wars-retro-evolved-2-recompiled",
-      "platforms": [],
-      "availability": "unknown",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
+      "availability": "packages",
       "setup_url": "https://github.com/saulob/geometry-wars-retro-evolved-2-recompiled",
       "artwork": {
         "game_id": 4887,
@@ -26608,8 +26832,8 @@
       "manual_setup": {
         "steps": [
           {
-            "title": "Prepare an authorized upstream copy",
-            "instruction": "Use an independently obtained, authorized Windows copy and the selected upstream guide. The GPL license of the project does not cover the original game or automatically cover every bundled component: the pinned TRG launcher revision has no explicit license file. Automated acquisition needs a separate rights decision. Preserve the complete package, runtime libraries, configuration and notices in a writable folder; do not register an updater or installer. Before the first upstream startup, make separate backups of any existing Documents/geometry_wars_retro_evolved_2 profile and portable user_data/ profile; a successful upstream migration removes the legacy folder."
+            "title": "Keep the complete package together",
+            "instruction": "Follow the upstream guide. Preserve the complete package, runtime libraries, configuration and notices in a writable folder; do not register an updater or installer. Before the first upstream startup, make separate backups of any existing Documents/geometry_wars_retro_evolved_2 profile and portable user_data/ profile; a successful upstream migration removes the legacy folder."
           },
           {
             "title": "Install your own matching Xbox 360 original",
@@ -26622,7 +26846,8 @@
         ],
         "warnings": [
           "This guidance follows upstream source and release descriptions. Portcove has not inspected the package or tested launch, gameplay, saving or updates. Experimental Linux AppImages are a separate route.",
-          "Before the first upstream startup, back up the legacy Documents/geometry_wars_retro_evolved_2 profile and any portable user_data/ profile separately. When upstream migrates legacy data, it moves the legacy folder by rename, or uses a staged verified copy and then removes the legacy folder after activation; successful migration does not leave the old profile in place. A failed migration falls back to the legacy root for that run and retries on the next startup. If only legacy cleanup fails after activation, portable user_data/ stays active and the legacy folder may remain. An unwritable portable root can also fall back to the system root. --user_data_root=<folder> selects that root without migration; --cache_root can select a separate cache. Preserve every active root and the separate backups. Portcove does not own these external files or promise backup, rollback, save compatibility or deletion."
+          "Before the first upstream startup, back up the legacy Documents/geometry_wars_retro_evolved_2 profile and any portable user_data/ profile separately. When upstream migrates legacy data, it moves the legacy folder by rename, or uses a staged verified copy and then removes the legacy folder after activation; successful migration does not leave the old profile in place. A failed migration falls back to the legacy root for that run and retries on the next startup. If only legacy cleanup fails after activation, portable user_data/ stays active and the legacy folder may remain. An unwritable portable root can also fall back to the system root. --user_data_root=<folder> selects that root without migration; --cache_root can select a separate cache. Preserve every active root and the separate backups. Portcove does not own these external files or promise backup, rollback, save compatibility or deletion.",
+          "The package includes an unlicensed TRG launcher that the project license does not cover. Portcove downloads it only from the project’s own releases. You need your own original game files."
         ],
         "help_url": "https://github.com/saulob/geometry-wars-retro-evolved-2-recompiled#readme",
         "references": [
@@ -26632,7 +26857,18 @@
           }
         ]
       },
-      "download_block_reason": "New downloads are waiting for attributable distribution permission covering this title’s selected package and bundled TRG launcher. The title’s own documentation identifies TRG launcher revision b384a28c712c9320eea8f9d50639dec49981b6c1 and acknowledges that it has no explicit license; a different component’s or title’s license is not a grant for that bundled launcher. Reconsider on an attributable applicable grant or a separately reviewed supported package/preparation route that excludes the unresolved component."
+      "release_url": "https://github.com/saulob/geometry-wars-retro-evolved-2-recompiled/releases",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "GeometryWarsRetroEvolved2-",
+          "-windows-x64.zip"
+        ],
+        "linux-x86-64": [
+          "GeometryWarsRetroEvolved2Recompiled-",
+          "-x86_64.AppImage"
+        ]
+      },
+      "recommended_download_channel": "stable"
     },
     {
       "id": "getlostin-ctr-nitrofueled-pc",
@@ -27119,6 +27355,10 @@
         "windows-x86-64": [
           "goldeneye-pc-port-",
           "-win64.zip"
+        ],
+        "linux-x86-64": [
+          "goldeneye-pc-port-",
+          "-linux-x86_64.tar.gz"
         ]
       },
       "recommended_download_channel": "stable",
@@ -27635,11 +27875,13 @@
     {
       "id": "gran-turismo-4-playstation-2-gt4recomp",
       "name": "Gran Turismo 4 (PlayStation 2) (GT4Recomp)",
-      "summary": "Windows x64 GT4Recomp official launcher for an upstream-prepared Gran Turismo 4 USA v2.00 installation. Register GT4Recomp.exe; its normal owned session supplies renderer configuration, launches and watches the game, then returns to the launcher. Preserve installation data, AppData save libraries and legacy roots before its automatic migrations/cleanup. Branded artwork grants remain separate from the code licence; use an independently permitted complete copy.",
+      "summary": "Windows x64 GT4Recomp official launcher for an upstream-prepared Gran Turismo 4 USA v2.00 installation. Register GT4Recomp.exe; its normal owned session supplies renderer configuration, launches and watches the game, then returns to the launcher. Preserve installation data, AppData save libraries and legacy roots before its automatic migrations/cleanup.",
       "original_game_title": "Gran Turismo 4 (PlayStation 2)",
       "project_url": "https://github.com/moesuito/gt4-staticrecomp",
-      "platforms": [],
-      "availability": "unknown",
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "availability": "packages",
       "setup_url": "https://github.com/moesuito/gt4-staticrecomp",
       "artwork": {
         "game_id": 1601,
@@ -27655,8 +27897,8 @@
         "help_url": "https://github.com/moesuito/gt4-staticrecomp/blob/5d7a669bdecf5e60c0782ca449f48aacac3c7a32/README.md",
         "steps": [
           {
-            "title": "Use a permitted installation and exact owned disc",
-            "instruction": "Use an independently permitted complete GT4Recomp v1.2.5 Windows installation and your own Gran Turismo 4 USA v2.00 SCUS-97328 plain ISO. Upstream pins the 5314478080-byte ISO with SHA-256 67b6c0075837f3ae1132d608acf2858bf13b2dd62d6eae83dff76df02e4e824f and verifies prepared CORE/ELF identities separately. Keep the original separately; identity checks do not grant game-data rights. NOTICE defers the bundled cover and brand-art licence to its owner; the MIT code licence does not grant those components."
+            "title": "Use the complete installation and your own disc",
+            "instruction": "Use the complete GT4Recomp v1.2.5 Windows installation and your own Gran Turismo 4 USA v2.00 SCUS-97328 plain ISO. Upstream pins the 5314478080-byte ISO with SHA-256 67b6c0075837f3ae1132d608acf2858bf13b2dd62d6eae83dff76df02e4e824f and verifies prepared CORE/ELF identities separately. Keep the original separately."
           },
           {
             "title": "Finish official upstream setup",
@@ -27680,11 +27922,11 @@
           },
           {
             "title": "Retain component terms and known limits",
-            "instruction": "Keep MIT code notices, the separately GPL-licensed GSdx/PCSX2 renderer notices and source, and all other component notices. NOTICE leaves branded cover and artwork permission unresolved; new downloads of the complete package require the applicable permission or an independently permitted complete copy. Check upstream’s limits for licence demos, menu backgrounds, wheels, long sessions and hardware. Portcove has not confirmed game execution or save compatibility with this launcher route."
+            "instruction": "Keep MIT code notices, the separately GPL-licensed GSdx/PCSX2 renderer notices and source, and all other component notices. Check upstream’s limits for licence demos, menu backgrounds, wheels, long sessions and hardware. Portcove has not confirmed game execution or save compatibility with this launcher route."
           }
         ],
         "warnings": [
-          "Use an independently permitted complete installation; bundled brand/cover artwork permission is a separate acquisition condition.",
+          "The package includes Gran Turismo 4 cover art and derived brand artwork that the project license does not cover. Portcove downloads it only from the project’s own releases. You need your own original game files.",
           "Track the official launcher session and let it own preparation, renderer environment, card handling and ordinary game launch. Optional installer/WebView restarts are not followed.",
           "Keep the backups outside old installation cleanup targets. Startup can move user and large data, flatten textures and remove the old per-user program/game folder, fixed shortcuts and registry entries. The running installation and its data-folder layout are excluded from that legacy cleanup; do not rely on an old executable folder as your recovery copy.",
           "Before Play the launcher builds the runtime card from its library, then harvests after exit; do not edit card/library files concurrently. It prunes older session folders to 20 and may rewrite corrupt update metadata to .json.bad. Preserve all current/fallback/legacy roots before maintenance; do not assume cross-version save compatibility."
@@ -27696,7 +27938,14 @@
           }
         ]
       },
-      "download_block_reason": "Fresh acquisition of the selected branded GT4Recomp Windows package is held while the applicable permission or authorized-source basis for its bundled cover-front artwork and derived brand assets remains unresolved. NOTICE leaves the cover-art licence for owner confirmation; the MIT code grant does not resolve it. Resume on an attributable applicable basis or a reviewed supported de-branded package/preparation; independently permitted complete installations remain separate."
+      "release_url": "https://github.com/moesuito/gt4-staticrecomp/releases",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "GT4Recomp-Setup-",
+          ".exe"
+        ]
+      },
+      "recommended_download_channel": "stable"
     },
     {
       "id": "granturismo2recomp-vulob1-gran-turismo-2-arcade-mode-v1-0",
@@ -28764,8 +29013,11 @@
       "summary": "Prepared Windows Hard Corps: Uprising copy using your own matching XBLA package. Keep upstream setup, optional DLC, runtime replacement and player data outside Portcove management.",
       "original_game_title": "Hard Corps: Uprising",
       "project_url": "https://github.com/saulob/hard-corps-uprising-recompiled",
-      "platforms": [],
-      "availability": "unknown",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
+      "availability": "packages",
       "setup_url": "https://github.com/saulob/hard-corps-uprising-recompiled",
       "artwork": {
         "game_id": 21174,
@@ -28780,12 +29032,12 @@
       "manual_setup": {
         "steps": [
           {
-            "title": "Prepare an authorized upstream copy",
-            "instruction": "Use an independently obtained, authorized Windows copy and its upstream guide. Project GPL terms do not grant original-game/DLC rights or automatically cover every bundled component: the pinned TRG launcher has no explicit license file. Automated acquisition needs a separate rights decision. Keep the complete package, runtime libraries, configuration and notices in a writable folder. Do not select an installer or updater as the game. Before the first upstream startup, make separate backups of any existing Documents/hard_corps_uprising profile and portable user_data/ profile; a successful upstream migration removes the legacy folder."
+            "title": "Keep the complete package together",
+            "instruction": "Follow the upstream guide. Keep the complete package, runtime libraries, configuration and notices in a writable folder. Do not select an installer or updater as the game. Before the first upstream startup, make separate backups of any existing Documents/hard_corps_uprising profile and portable user_data/ profile; a successful upstream migration removes the legacy folder."
           },
           {
             "title": "Install this title and any separately owned DLC",
-            "instruction": "Deliberately finish upstream setup outside Portcove using your own Hard Corps: Uprising XBLA LIVE package, title 58410A18 and content type 000D0000. Its extracted default.xex must be 12,955,648 bytes with SHA-256 530EDE8ED5271051A2AB19C077A97FB167E4F30B094C292E8F59D37D0D2069DC. Package container hashes can vary. Optional character DLC requires separately owned Marketplace packages for this title, content type 00000002; it is not required by or authorized through the base-game route."
+            "instruction": "Deliberately finish upstream setup outside Portcove using your own Hard Corps: Uprising XBLA LIVE package, title 58410A18 and content type 000D0000. Its extracted default.xex must be 12,955,648 bytes with SHA-256 530EDE8ED5271051A2AB19C077A97FB167E4F30B094C292E8F59D37D0D2069DC. Package container hashes can vary. Optional character DLC requires separately owned Marketplace packages for this title, content type 00000002; it is not required for the base game."
           },
           {
             "title": "Add the prepared native player",
@@ -28797,11 +29049,23 @@
           }
         ],
         "warnings": [
-          "This guidance follows upstream release descriptions and source. Portcove has not inspected the archive or tested gameplay, saving or updates. The experimental native Linux AppImage is a separate route."
+          "This guidance follows upstream release descriptions and source. Portcove has not inspected the archive or tested gameplay, saving or updates. The experimental native Linux AppImage is a separate route.",
+          "The package includes an unlicensed TRG launcher that the project license does not cover. Portcove downloads it only from the project’s own releases. You need your own original game files."
         ],
         "help_url": "https://github.com/saulob/hard-corps-uprising-recompiled#readme"
       },
-      "download_block_reason": "New downloads are waiting for attributable distribution permission covering this title’s selected package and bundled TRG launcher. The title’s own documentation identifies TRG launcher revision b384a28c712c9320eea8f9d50639dec49981b6c1 and acknowledges that it has no explicit license; a different component’s or title’s license is not a grant for that bundled launcher. Reconsider on an attributable applicable grant or a separately reviewed supported package/preparation route that excludes the unresolved component."
+      "release_url": "https://github.com/saulob/hard-corps-uprising-recompiled/releases",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "HardCorpsUprising-",
+          "-windows-x64.zip"
+        ],
+        "linux-x86-64": [
+          "HardCorpsUprisingRecompiled-",
+          "-x86_64.AppImage"
+        ]
+      },
+      "recommended_download_channel": "stable"
     },
     {
       "id": "harmonyrecomp-dojutsu-castlevania-harmony-of-despair",
@@ -29617,7 +29881,7 @@
     {
       "id": "hybrid-heaven-ogdanimal",
       "name": "Hybrid Heaven: Recompiled (ogdanimal)",
-      "summary": "Hybrid Heaven on Windows, Linux and Android, using your own USA cartridge dump. Upstream performs first-launch setup; existing permitted copies keep their own updates and player data.",
+      "summary": "Hybrid Heaven on Windows, Linux and Android, using your own USA cartridge dump. Upstream performs first-launch setup; updates and player data stay with your copy.",
       "original_game_title": "Hybrid Heaven",
       "project_url": "https://github.com/ogdanimal/HybridHeaven-Recomp",
       "issue_number": 2546,
@@ -29629,7 +29893,6 @@
       ],
       "release_url": "https://github.com/ogdanimal/HybridHeaven-Recomp/releases",
       "setup_url": "https://github.com/ogdanimal/HybridHeaven-Recomp/blob/431720eac60bb0508ea5c4b4aec88d47fa7bc79e/README.md",
-      "download_block_reason": "Portcove downloads are paused until redistribution permission for the included Chiaro fonts is established. The reviewed package identifies Fontworks Japan as their owner; the project code license does not establish that separate font grant. Keep an existing permitted copy. Reconsider when upstream supplies the applicable grant or publishes a package using appropriately licensed replacement fonts.",
       "download_asset_hints": {
         "windows-x86-64": [
           "HybridHeaven-",
@@ -29644,11 +29907,11 @@
       "manual_setup": {
         "help_url": "https://github.com/ogdanimal/HybridHeaven-Recomp/blob/431720eac60bb0508ea5c4b4aec88d47fa7bc79e/README.md",
         "warnings": [
-          "Portcove downloads are paused until redistribution permission for the included Chiaro fonts is established. The reviewed package identifies Fontworks Japan as their owner; the project code license does not establish that separate font grant. Keep an existing permitted copy. Reconsider when upstream supplies the applicable grant or publishes a package using appropriately licensed replacement fonts."
+          "The package includes Chiaro fonts by Fontworks that the project license does not cover. Portcove downloads it only from the project’s own releases. You need your own original game files."
         ],
         "steps": [
           {
-            "title": "Keep a permitted complete copy",
+            "title": "Keep the complete package",
             "instruction": "Keep the complete upstream package in a folder you control. The reviewed Windows player is HybridHeavenRecompiled.exe; on Linux it is HybridHeavenRecompiled and needs Vulkan, SDL2 and GTK 3. Keep assets beside the player and use that folder as its working directory. Android APK installation remains an upstream device setup route."
           },
           {
@@ -31010,11 +31273,12 @@
     {
       "id": "james2doyle-ffta-recomp",
       "name": "Final Fantasy Tactics Advance (FFTA Recomp)",
-      "summary": "Register an independently permitted prepared FFTA Recomp Windows copy for your own supported USA GBA ROM. Fresh package acquisition remains held for its disclosed box-art component.",
+      "summary": "Add a prepared FFTA Recomp copy for your own supported USA GBA ROM.",
       "original_game_title": "Final Fantasy Tactics Advance",
       "project_url": "https://github.com/james2doyle/ffta-recomp",
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ],
       "availability": "packages",
       "setup_url": "https://github.com/james2doyle/ffta-recomp",
@@ -31032,16 +31296,19 @@
       "download_asset_hints": {
         "windows-x86-64": [
           "FFTARecomp-",
-          "windows-x64.zip"
+          "-windows-x64.zip"
+        ],
+        "linux-x86-64": [
+          "FFTARecomp-",
+          "-linux-x86_64.AppImage"
         ]
       },
-      "download_block_reason": "Fresh acquisition of the selected FFTA Recomp bundled player remains held for its launch-screen box art: packaged THIRD_PARTY_ATTRIBUTION.md explicitly says the image has unknown provenance and no assertable license. Resume with applicable permission for that exact image or a reviewed compatible upstream package/route resolving its inclusion. Independently permitted completed-copy registration does not clear this acquisition hold.",
       "manual_setup": {
         "help_url": "https://github.com/james2doyle/ffta-recomp",
         "steps": [
           {
-            "title": "Start with an independently permitted completed copy",
-            "instruction": "Attach only a complete existing Windows player and components you are independently permitted to use. The selected package discloses unlicensed-provenance retail box art; the project’s PolyForm Noncommercial grant does not grant that image’s rights. Fresh acquisition remains held for that named component. Observe the project’s applicable noncommercial terms."
+            "title": "Start with the complete package",
+            "instruction": "Keep the complete package for your system together. Observe the project’s applicable noncommercial terms."
           },
           {
             "title": "Use your own supported USA original",
@@ -31057,10 +31324,11 @@
           }
         ],
         "warnings": [
-          "Use only components and original inputs you are permitted to use; keep every effective external file and custom root with its creating runtime. Portcove offers no external update, backup, rollback, migration or deletion.",
+          "Keep every effective external file and custom root with its creating runtime. Portcove offers no external update, backup, rollback, migration or deletion.",
           "This upstream preview is experimental. Source and package descriptions and static checks do not confirm that the package matches the source or that gameplay, normal shutdown, saves or installed Desktop behavior work. Other platforms have separate requirements.",
           "Do not assume all states live beside the player or in states/.",
-          "No cross-version state/save compatibility or managed backup is claimed."
+          "No cross-version state/save compatibility or managed backup is claimed.",
+          "The package includes retail box art of unknown provenance that the project license does not cover. Portcove downloads it only from the project’s own releases. You need your own original game files."
         ],
         "references": [
           {
@@ -31068,7 +31336,8 @@
             "instruction": "The inspected game.toml uses saves/ffta_us.sav relative to its own directory for the 64KiB battery save. Existing --save or --save-path overrides can point elsewhere. Save-state slots normally live beside the actual selected ROM with .stateN names; --state-dir moves those basenames to the chosen directory. Do not assume all states live beside the player or in states/. Preserve your ROM directory and its state/sidecar files, actual custom save/state directories, the complete creating runtime, saves/, rom.cfg, bios.cfg, skip_launcher_on_boot, config.ini, keybinds.ini, game.toml, config overlays, mods, screenshots, logs, backups and temporary files. No cross-version state/save compatibility or managed backup is claimed."
           }
         ]
-      }
+      },
+      "recommended_download_channel": "stable"
     },
     {
       "id": "jazz-jackrabbit-2-jazz2-resurrection",
@@ -32030,13 +32299,25 @@
         "windows-x86-64": [
           "augustus-",
           "-windows.zip"
+        ],
+        "linux-x86-64": [
+          "augustus-",
+          "-Linux.AppImage"
+        ],
+        "macos-aarch64": [
+          "augustus-",
+          "-mac.dmg"
+        ],
+        "macos-x86-64": [
+          "augustus-",
+          "-mac.dmg"
         ]
       },
       "manual_setup": {
         "steps": [
           {
             "title": "Use a separate Augustus copy",
-            "instruction": "Use the native package for your system in a separate folder; the Windows player is augustus.exe. On first Play, select your writable Caesar III game folder, patched to version 1.0.1.0."
+            "instruction": "Use the native package for your system in a separate folder; the Windows player is augustus.exe, Linux uses the AppImage and macOS uses augustus.app. On first Play, select your writable Caesar III game folder, patched to version 1.0.1.0."
           },
           {
             "title": "Add the game and manage your files",
@@ -32046,7 +32327,7 @@
         "warnings": [
           "Augustus can read Caesar III and Julius saves, but Augustus saves cannot be loaded by Caesar III or Julius. Keep your original saves separate.",
           "Keep both when replacing the upstream runtime.",
-          "Portcove offers registration for Windows in this entry; Linux operation through Portcove has not been confirmed."
+          "Portcove offers registration for Windows in this entry. It downloads the Linux and macOS packages from upstream but has not run them."
         ],
         "help_url": "https://github.com/Keriew/augustus#running-the-game",
         "references": [
@@ -32525,7 +32806,7 @@
           }
         ]
       },
-      "download_block_reason": "Fresh bundled-package acquisition remains held for the separately excluded launcher artwork scope in assets/NOTICE.md: boxart.jpg, logo.png and rekhcom.ico belong to Square Enix/Disney and the source-code licence explicitly does not apply. Use only an independently permitted existing copy. Resume fresh acquisition with applicable permission for these exact components or a reviewed compatible package resolving that scope; CC0 source terms do not clear them."
+      "download_block_reason": "Portcove downloads are paused because the package includes scene images captured from the game. They can resume when upstream publishes a package that creates them from your own game files."
     },
     {
       "id": "kirby-64-recompiled",
@@ -32644,12 +32925,15 @@
     {
       "id": "kirby1237-parappatherapperrecomp",
       "name": "PaRappa The Rapper / PaRappaTheRapper Recomp (kirby1237)",
-      "summary": "Attach an independently permitted completed PaRappaTheRapper Windows native copy for your own USA disc, retaining its noncommercial framework terms, player profiles and upstream preparation ownership. The named bundled-box-art acquisition condition remains unresolved; no Core-managed runtime creation or maintenance is offered.",
+      "summary": "Add a completed PaRappaTheRapper native copy for your own USA disc, keeping its noncommercial framework terms, player profiles and upstream preparation ownership. Portcove does not create or maintain the runtime.",
       "project_url": "https://github.com/kirby1237/PaRappaTheRapperRecomp",
       "issue_number": 1864,
       "listed_at": "2026-10-23",
-      "platforms": [],
-      "availability": "unknown",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
+      "availability": "packages",
       "setup_url": "https://github.com/kirby1237/PaRappaTheRapperRecomp",
       "artwork": {
         "game_id": 6080,
@@ -32663,8 +32947,8 @@
         "help_url": "https://github.com/kirby1237/PaRappaTheRapperRecomp/blob/cff6e6908e7f44032b6fa0edf6136cf360bfea8b/README.md",
         "steps": [
           {
-            "title": "Use only a completed independently permitted copy",
-            "instruction": "Use a complete Windows copy and components you are independently permitted to use, for noncommercial use under the actual framework terms. This guide does not authorize fresh acquisition of the selected package’s libretro-sourced PaRappa box art: its specific applicable permission/authorized-source condition remains unresolved. The title CMake embeds the named launcher TGA and its source notice supplies attribution, not an original-art grant. An independently permitted existing copy remains distinct; do not remove mandatory companions or use a private payload bypass."
+            "title": "Keep the complete package together",
+            "instruction": "Keep the complete package for your system and its components together, for noncommercial use under the actual framework terms. The title CMake embeds the named launcher TGA and its source notice supplies attribution, not an original-art grant. Do not remove mandatory companions or use a private payload bypass."
           },
           {
             "title": "Prepare the exact owned USA disc outside Portcove",
@@ -32692,10 +32976,22 @@
           }
         ],
         "warnings": [
-          "Use only an independently permitted completed copy while the named bundled-art acquisition condition is unresolved. Preserve separate profile backups before upstream legacy-state migration or rebuild/replacement."
+          "Preserve separate profile backups before upstream legacy-state migration or rebuild/replacement.",
+          "The package includes libretro-sourced PaRappa box art that the project license does not cover. Portcove downloads it only from the project’s own releases. You need your own original game files."
         ]
       },
-      "download_block_reason": "Fresh acquisition of the selected PaRappaTheRapper package is held while the applicable permission or authorized-source basis for its embedded libretro-sourced PaRappa box art remains unresolved. BOXART_SOURCE attribution and the framework/UI licences do not supply that artwork grant. Resume with an attributable applicable basis or a reviewed supported package/preparation excluding the unresolved artwork. Independently permitted existing-copy use remains separate."
+      "release_url": "https://github.com/kirby1237/PaRappaTheRapperRecomp/releases",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "prtr-",
+          "-windows-x64.zip"
+        ],
+        "linux-x86-64": [
+          "prtr-",
+          "-linux-x64.zip"
+        ]
+      },
+      "recommended_download_channel": "stable"
     },
     {
       "id": "kirbys-return-to-dream-land-kirby-wii-recomp",
@@ -33297,6 +33593,9 @@
       "download_asset_hints": {
         "windows-x86-64": [
           "rigelengine_win_x64.zip"
+        ],
+        "macos-x86-64": [
+          "rigelengine_mac_x64.dmg"
         ]
       },
       "manual_setup": {
@@ -33316,7 +33615,7 @@
         ],
         "warnings": [
           "Rigel Engine imports existing saves, high scores and settings into its own user profile. Keep that profile and your mod files backed up when updating the upstream installation.",
-          "Portcove offers Windows registration in this entry; Linux and macOS operation through Portcove has not been confirmed."
+          "Portcove offers Windows registration in this entry. It downloads the Intel macOS application from upstream but has not run it; Linux operation through Portcove has not been confirmed."
         ],
         "help_url": "https://github.com/lethal-guitar/RigelEngine#running-rigelengine",
         "references": [
@@ -33593,7 +33892,7 @@
       "platforms": [
         "windows-x86-64"
       ],
-      "download_block_reason": "Fresh acquisition remains held pending clarification or a clean official package for the embedded commercial Darklight icon. Upstream THIRD_PARTY_NOTICE.md explicitly excludes it from the MIT grant and supplies no redistribution permission. This does not classify the interpreted player as unsupported or transfer rights to an existing copy.",
+      "download_block_reason": "Portcove downloads are paused because the executable embeds cockpit art derived from the game’s own artwork. They can resume when upstream publishes a package without that art or one that creates it from your own game files.",
       "artwork": {
         "game_id": 18998,
         "cover_id": 137555,
@@ -34271,7 +34570,7 @@
     {
       "id": "mario-kart-64-mariokart64recomp",
       "name": "Mario Kart 64 / MarioKart64Recomp",
-      "summary": "Conditional existing-copy route for Mario Kart 64 / MarioKart64Recomp. Keep the complete permitted Windows runtime and its existing profile; downloads remain paused until the bundled Chiaro font grant is established. Registration does not grant acquisition or managed replacement.",
+      "summary": "Mario Kart 64 / MarioKart64Recomp for your own North American original. Keep the complete Windows runtime and its profile together. Portcove does not manage replacing it.",
       "project_url": "https://gitlab.com/sonicdcer/MarioKart64Recomp",
       "issue_number": 332,
       "listed_at": "2026-10-23",
@@ -34289,17 +34588,16 @@
         "match_kind": "underlying-game"
       },
       "release_url": "https://gitlab.com/sonicdcer/MarioKart64Recomp/-/releases",
-      "download_block_reason": "Portcove downloads are paused until the applicable grant for the included Chiaro fonts is established. The font notices identify Fontworks Japan; the project code license does not settle that separate grant. Keep an existing permitted copy. Reconsider when upstream provides the applicable grant or an appropriately licensed replacement package.",
       "manual_setup": {
         "help_url": "https://gitlab.com/sonicdcer/MarioKart64Recomp/-/blob/3885e86a4b2088188ddb3914aa26ad4f147bb5df/README.md",
         "warnings": [
-          "Portcove downloads are paused until the applicable grant for the included Chiaro fonts is established. The font notices identify Fontworks Japan; the project code license does not settle that separate grant. Keep an existing permitted copy. Reconsider when upstream provides the applicable grant or an appropriately licensed replacement package.",
+          "The package includes Chiaro fonts by Fontworks that the project license does not cover. Portcove downloads it only from the project’s own releases. You need your own original game files.",
           "The reviewed v0.9.2 release currently supports single-player modes."
         ],
         "steps": [
           {
-            "title": "Keep a complete permitted copy",
-            "instruction": "Keep the complete upstream Windows runtime together with its assets and DLLs. The player is MarioKart64Recompiled.exe; select that existing executable and use its containing folder as the working directory. Retain any existing portable.txt choice. Registration preserves external ownership and does not execute setup or the game."
+            "title": "Keep the complete runtime together",
+            "instruction": "Keep the complete upstream Windows runtime together with its assets and DLLs. The player is MarioKart64Recompiled.exe; select that executable and use its containing folder as the working directory. Retain any existing portable.txt choice. Registration preserves external ownership and does not execute setup or the game."
           },
           {
             "title": "Supply your original when you choose Play",
@@ -34314,7 +34612,14 @@
             "instruction": "The reviewed Linux ZIP contains MarioKart64Recompiled.tar.gz: unpack both layers yourself before registering the existing player. Keep the complete upstream macOS application bundle and follow its setup instructions. Normal data roots are ~/.config/MarioKart64Recompiled/ on Linux and ~/Library/Application Support/MarioKart64Recompiled/ on macOS; portable mode instead uses the working folder or bundle-parent folder containing portable.txt. Preserve that actual location separately."
           }
         ]
-      }
+      },
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "MarioKart64Recompiled-",
+          "-Windows-RelWithDebInfo"
+        ]
+      },
+      "recommended_download_channel": "stable"
     },
     {
       "id": "mario-kart-8-deluxe-mk8-recomp",
@@ -35453,7 +35758,7 @@
         "game_slug": "mercenaries-playground-of-destruction",
         "match_kind": "underlying-game"
       },
-      "download_block_reason": "Fresh acquisition of the selected Mercenaries Recompiled Windows launcher/package is held while applicable app-bundling permission or an authorized-source basis for its embedded AgencyFB-Regular.ttf remains unresolved. Its Font Bureau copyright notice and the project MIT or inactive OFL font notices do not supply that grant. Resume with an attributable applicable basis or a reviewed supported package excluding or replacing that font. Independently permitted existing copies remain separate; this does not resolve the launcher lifetime hold."
+      "download_block_reason": "Portcove downloads are paused because its current release package could not be identified for review. They can resume once that package is identified and reviewed."
     },
     {
       "id": "meta-k-bannedpenta01-super-smash-bros-brawl",
@@ -37944,19 +38249,22 @@
       "id": "n64hub-rayman-2-recomp-n64-usa",
       "project_url": "https://github.com/n64hub/rayman-2-recomp",
       "name": "Rayman 2: The Great Escape (n64hub)",
-      "summary": "A Windows port of Rayman 2: The Great Escape. Set it up with your original US Nintendo 64 game file.",
+      "summary": "A Windows and Linux port of Rayman 2: The Great Escape. Set it up with your original US Nintendo 64 game file.",
       "issue_number": 4335,
       "listed_at": "2026-11-05",
       "original_game_title": "Rayman 2: The Great Escape",
-      "availability": "unknown",
-      "platforms": [],
+      "availability": "packages",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
       "setup_url": "https://github.com/n64hub/rayman-2-recomp/blob/4cd56ce325977de3d9014af3e682596fcd664ea9/README.md",
       "manual_setup": {
         "help_url": "https://github.com/n64hub/rayman-2-recomp/blob/4cd56ce325977de3d9014af3e682596fcd664ea9/README.md",
         "steps": [
           {
-            "title": "Prepare your Windows copy",
-            "instruction": "Use a complete Windows x64 copy that you are permitted to use. Install the Microsoft Visual C++ 2015–2022 Redistributable (x64) if needed. Open Rayman2Recompiled.exe, choose Load ROM and select your own 32 MiB, big-endian Rayman 2 USA .z64 (SHA-1 50558356b059ad3fbaf5fe95380512b9dceaaf52). Choose Start Game."
+            "title": "Prepare the game",
+            "instruction": "Keep the complete package for your system together. On Windows, install the Microsoft Visual C++ 2015–2022 Redistributable (x64) if needed. Open the player (Rayman2Recompiled.exe on Windows), choose Load ROM and select your own 32 MiB, big-endian Rayman 2 USA .z64 (SHA-1 50558356b059ad3fbaf5fe95380512b9dceaaf52). Choose Start Game."
           },
           {
             "title": "Select the prepared player",
@@ -37964,7 +38272,8 @@
           }
         ],
         "warnings": [
-          "Keep your current profile and Controller Pak files when replacing the program. The project reports early-game progress. Later levels and save compatibility across releases are unverified."
+          "Keep your current profile and Controller Pak files when replacing the program. The project reports early-game progress. Later levels and save compatibility across releases are unverified.",
+          "The package includes Chiaro fonts by Fontworks that the project license does not cover. Portcove downloads it only from the project’s own releases. You need your own original game files."
         ],
         "references": [
           {
@@ -37981,7 +38290,18 @@
           }
         ]
       },
-      "download_block_reason": "Portcove downloads are paused until the applicable permission for the bundled Fontworks Chiaro fonts is established or upstream publishes a package with appropriately licensed replacements. You can add a complete copy you are permitted to use."
+      "release_url": "https://github.com/n64hub/rayman-2-recomp/releases",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "Rayman2Recompiled-",
+          "-windows-x64.zip"
+        ],
+        "linux-x86-64": [
+          "Rayman2Recompiled-",
+          "-linux-x64.tar.gz"
+        ]
+      },
+      "recommended_download_channel": "stable"
     },
     {
       "id": "n64hub-rush-2049-recomp",
@@ -38073,19 +38393,22 @@
       "id": "n64hub-super-smash-bros-n64-usa-recomp",
       "project_url": "https://github.com/n64hub/super-smash-bros-recomp",
       "name": "Super Smash Bros. (Smash Bros. Recompiled)",
-      "summary": "A Windows port of the original Super Smash Bros. Set it up with your own US Nintendo 64 game file.",
+      "summary": "A Windows and Linux port of the original Super Smash Bros. Set it up with your own US Nintendo 64 game file.",
       "issue_number": 4337,
       "listed_at": "2026-11-05",
       "original_game_title": "Super Smash Bros.",
-      "availability": "unknown",
-      "platforms": [],
+      "availability": "packages",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
       "setup_url": "https://github.com/n64hub/super-smash-bros-recomp/blob/89f7644a08ac705a03db9a61fad77828645797b0/README.md",
       "manual_setup": {
         "help_url": "https://github.com/n64hub/super-smash-bros-recomp/blob/89f7644a08ac705a03db9a61fad77828645797b0/README.md",
         "steps": [
           {
-            "title": "Prepare your Windows copy",
-            "instruction": "Use a complete Windows x64 copy that you are permitted to use. Install the Microsoft Visual C++ 2015–2022 Redistributable (x64) if needed. Open SmashBrosRecompiled.exe, choose Load ROM and select your own 16 MiB, big-endian Super Smash Bros. USA .z64 (SHA-1 e2929e10fccc0aa84e5776227e798abc07cedabf). Choose Start Game."
+            "title": "Prepare the game",
+            "instruction": "Keep the complete package for your system together. On Windows, install the Microsoft Visual C++ 2015–2022 Redistributable (x64) if needed. Open the player (SmashBrosRecompiled.exe on Windows), choose Load ROM and select your own 16 MiB, big-endian Super Smash Bros. USA .z64 (SHA-1 e2929e10fccc0aa84e5776227e798abc07cedabf). Choose Start Game."
           },
           {
             "title": "Select the prepared player",
@@ -38093,7 +38416,8 @@
           }
         ],
         "warnings": [
-          "Keep the profile that contains your SRAM and settings. Changing portable mode does not move existing data."
+          "Keep the profile that contains your SRAM and settings. Changing portable mode does not move existing data.",
+          "The package includes Chiaro fonts by Fontworks that the project license does not cover. Portcove downloads it only from the project’s own releases. You need your own original game files."
         ],
         "references": [
           {
@@ -38110,7 +38434,18 @@
           }
         ]
       },
-      "download_block_reason": "Portcove downloads are paused until the applicable permission for the bundled Fontworks Chiaro fonts is established or upstream publishes a package with appropriately licensed replacements. You can add a complete copy you are permitted to use."
+      "release_url": "https://github.com/n64hub/super-smash-bros-recomp/releases",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "SmashBrosRecompiled-",
+          "-windows-x64.zip"
+        ],
+        "linux-x86-64": [
+          "SmashBrosRecompiled-",
+          "-linux-x64.tar.gz"
+        ]
+      },
+      "recommended_download_channel": "stable"
     },
     {
       "id": "nakagawa-recomp-jstar269-hot-shots-tennis-get-a-grip",
@@ -40210,7 +40545,8 @@
       "issue_number": 1849,
       "listed_at": "2026-10-23",
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ],
       "availability": "packages",
       "setup_url": "https://github.com/OpenCommunityEdition/OpenCE#readme",
@@ -40226,16 +40562,16 @@
       "manual_setup": {
         "steps": [
           {
-            "title": "Keep the Windows package together",
-            "instruction": "Extract halo-windows-release.zip into a separate upstream-owned folder. Finish setup with halo.exe and that folder."
+            "title": "Keep the player package together",
+            "instruction": "Extract halo-windows-release.zip or, on Linux, halo-Linux-release.zip into a separate upstream-owned folder. Finish setup with halo.exe (halo on Linux) and that folder."
           },
           {
             "title": "Choose your original Xbox disc image on Play",
             "instruction": "On first Play, select your own Halo: Combat Evolved Xbox .iso or .xiso. OpenCE extracts its maps beside the player. Halo PC or Custom Edition maps do not replace these Xbox maps."
           },
           {
-            "title": "Select the ordinary Windows player",
-            "instruction": "Keep the complete Windows release package together and select halo.exe with its containing folder as working directory. Leave arguments empty for the normal player. The release package is for playing; debug builds stop at failed assertions, and symbol archives are not players. Use your own supported Xbox disc image for the upstream first-Play picker; Portcove does not import or authenticate it. Finish any deliberate upstream update or repair separately before starting the registered Play session."
+            "title": "Select the ordinary player",
+            "instruction": "Keep the complete release package together and select halo.exe (halo on Linux) with its containing folder as working directory. Leave arguments empty for the normal player. The release package is for playing; debug builds stop at failed assertions, and symbol archives are not players. Use your own supported Xbox disc image for the upstream first-Play picker; Portcove does not import or authenticate it. Finish any deliberate upstream update or repair separately before starting the registered Play session."
           }
         ],
         "warnings": [
@@ -40262,6 +40598,9 @@
       "download_asset_hints": {
         "windows-x86-64": [
           "halo-windows-release.zip"
+        ],
+        "linux-x86-64": [
+          "halo-Linux-release.zip"
         ]
       }
     },
@@ -43256,7 +43595,8 @@
             "instruction": "Upstream and you own preparation and runtime replacement. Close the actual game and companions, keep the entire old creating runtime and data, then review/relink changed selected bytes. WiFi/multiplayer, renderer quality and first-to-last gameplay are upstream goals/claims, not Portcove acceptance or authorization for accounts, uploads or network configuration."
           }
         ]
-      }
+      },
+      "download_block_reason": "Portcove downloads are paused because the release packages include header.bin, a copy of the original Pokémon Platinum cartridge header with the Nintendo logo data. Reconsider when upstream publishes a package that creates it from your own original. You can add a complete copy you are permitted to use."
     },
     {
       "id": "pokemon-ruby-gen1recomp",
@@ -49204,8 +49544,11 @@
       "project_url": "https://github.com/HikariLucy/SnowboardKids-Recomp",
       "issue_number": 1354,
       "listed_at": "2026-10-23",
-      "platforms": [],
-      "availability": "unknown",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
+      "availability": "packages",
       "setup_url": "https://github.com/HikariLucy/SnowboardKids-Recomp",
       "artwork": {
         "game_id": 3342,
@@ -49215,13 +49558,12 @@
         "game_slug": "snowboard-kids",
         "match_kind": "underlying-game"
       },
-      "download_block_reason": "The official RecompFrontend base now has a GPLv3 grant, but selected cdlewis/RecompFrontend e85b912d9df677b04f9358867dd010c8af27ea05 contains separately modified input/theme/frontend code beyond that licensed official tree. An attributable applicable grant for that fork-specific scope remains unestablished; the parent game-project license does not settle it. Keep an existing copy you are permitted to use. Reconsider fresh acquisition with applicable permission for the exact selected fork or a reviewed appropriately licensed replacement package.",
       "manual_setup": {
         "help_url": "https://github.com/HikariLucy/SnowboardKids-Recomp/blob/4a7f9613114d308a31ad629584a9638c21a29a3b/LAUNCHER-INTEGRATION.md",
         "steps": [
           {
-            "title": "Keep a complete permitted Windows player",
-            "instruction": "Use an already completed Snowboard Kids (HikariLucy) Windows copy you are permitted to use. Keep SnowboardKidsEngine.exe, the matching modules/snowboardkids-us/SnowboardKidsGame.dll, assets and runtime DLLs together. The published beta has a precompiled module; normal players do not compile anything. If your copy instead requires module generation or repair, finish that supported preparation upstream before attachment."
+            "title": "Keep the complete package for your system",
+            "instruction": "Keep the Snowboard Kids (HikariLucy) package files together. On Windows, that is SnowboardKidsEngine.exe, the matching modules/snowboardkids-us/SnowboardKidsGame.dll, assets and runtime DLLs together. The published beta has a precompiled module; normal players do not compile anything. If your copy instead requires module generation or repair, finish that supported preparation upstream before attachment."
           },
           {
             "title": "Select your own supported original on Play",
@@ -49233,7 +49575,7 @@
           }
         ],
         "warnings": [
-          "Use only an actual copy and components you are permitted to use. The official base frontend GPLv3 resolution does not establish the separate modified cdlewis fork grant; fresh acquisition stays held. Source/first-party checks are not gameplay, real-save, installed or protected acceptance.",
+          "The package includes a modified RecompFrontend fork by cdlewis that the project license does not cover. Portcove downloads it only from the project’s own releases. You need your own original game files. Source and first-party checks do not confirm gameplay, real saves or installed behavior.",
           "Loading a savestate does not rewind Controller Pak storage. An explicit --module or SBK_GAME_MODULE and modules in the user-data directory take priority over the bundled module: review and preserve the actual selected module and compatible creating engine together. Package integrity does not certify an external override. Stop actual players before deliberate upstream replacement and review/relink a changed executable.",
           "An explicit --module or SBK_GAME_MODULE and modules in the user-data directory take priority over the bundled module: review and preserve the actual selected module and compatible creating engine together. Package integrity does not certify an external override."
         ],
@@ -49243,7 +49585,19 @@
             "instruction": "Keep the complete creating package, original and effective profile before maintenance. The normal Windows profile is %APPDATA%/SnowboardKids; SBK_USER_DATA_DIR can select another root, and resolver fallbacks must be preserved in their actual locations. Retain all configuration, remembered source paths, Controller Pak .mpk files, .sbks states, modules, logs and custom paths. Loading a savestate does not rewind Controller Pak storage. An explicit --module or SBK_GAME_MODULE and modules in the user-data directory take priority over the bundled module: review and preserve the actual selected module and compatible creating engine together. Package integrity does not certify an external override. Stop actual players before deliberate upstream replacement and review/relink a changed executable."
           }
         ]
-      }
+      },
+      "release_url": "https://github.com/HikariLucy/SnowboardKids-Recomp/releases",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "SnowboardKidsRecompiled-",
+          "-Windows-x86_64.zip"
+        ],
+        "linux-x86-64": [
+          "SnowboardKidsRecompiled-",
+          "-Linux-x86_64.zip"
+        ]
+      },
+      "recommended_download_channel": "beta"
     },
     {
       "id": "snprecomp-wootbeer-sin-and-punishment",
@@ -51034,7 +51388,7 @@
     {
       "id": "star-fox-64-starfox64recomp",
       "name": "Star Fox 64 / Starfox64Recomp",
-      "summary": "Conditional existing-copy route for Star Fox 64 / Starfox64Recomp. Keep the complete permitted Windows runtime and its existing profile; downloads remain paused until the bundled Chiaro font grant is established. Registration does not grant acquisition or managed replacement.",
+      "summary": "Star Fox 64 / Starfox64Recomp for your own North American revision 1.1 original. Keep the complete Windows runtime and its profile together. Portcove does not manage replacing it.",
       "project_url": "https://gitlab.com/sonicdcer/Starfox64Recomp",
       "issue_number": 333,
       "listed_at": "2026-10-23",
@@ -51052,18 +51406,17 @@
         "match_kind": "underlying-game"
       },
       "release_url": "https://gitlab.com/sonicdcer/Starfox64Recomp/-/releases",
-      "download_block_reason": "Portcove downloads are paused until the applicable grant for the included Chiaro fonts is established. The font notices identify Fontworks Japan; the project code license does not settle that separate grant. Keep an existing permitted copy. Reconsider when upstream provides the applicable grant or an appropriately licensed replacement package.",
       "manual_setup": {
         "help_url": "https://gitlab.com/sonicdcer/Starfox64Recomp/-/blob/061d4c8050c07bcac09a4074657ec4e49a1504b9/README.md",
         "warnings": [
-          "Portcove downloads are paused until the applicable grant for the included Chiaro fonts is established. The font notices identify Fontworks Japan; the project code license does not settle that separate grant. Keep an existing permitted copy. Reconsider when upstream provides the applicable grant or an appropriately licensed replacement package.",
+          "The package includes Chiaro fonts by Fontworks that the project license does not cover. Portcove downloads it only from the project’s own releases. You need your own original game files.",
           "Close the game and preserve its original, saves, settings and mods at the actual current profile location.",
           "Keep the old working copy until the successor can read your data. Removing registration preserves every external file. External registration does not provide managed Update, Backup or Rollback."
         ],
         "steps": [
           {
-            "title": "Keep a complete permitted copy",
-            "instruction": "Keep the complete upstream Windows runtime together with its assets and DLLs. The player is Starfox64Recompiled.exe; select that existing executable and use its containing folder as the working directory. Retain any existing portable.txt choice. Registration preserves external ownership and does not execute setup or the game."
+            "title": "Keep the complete runtime together",
+            "instruction": "Keep the complete upstream Windows runtime together with its assets and DLLs. The player is Starfox64Recompiled.exe; select that executable and use its containing folder as the working directory. Retain any existing portable.txt choice. Registration preserves external ownership and does not execute setup or the game."
           },
           {
             "title": "Supply your original when you choose Play",
@@ -51076,7 +51429,14 @@
             "instruction": "You or upstream replace this external runtime. Close the game and preserve its original, saves, settings and mods at the actual current profile location. Windows normally uses %LOCALAPPDATA%/Starfox64Recompiled/; portable.txt mode instead uses the working folder beside the runtime. Keep the old working copy until the successor can read your data. Removing registration preserves every external file. External registration does not provide managed Update, Backup or Rollback."
           }
         ]
-      }
+      },
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "Starfox64Recompiled-",
+          "-Windows-RelWithDebInfo"
+        ]
+      },
+      "recommended_download_channel": "stable"
     },
     {
       "id": "star-fox-adventures-foxhollow",
@@ -54136,19 +54496,22 @@
       "id": "tekrantgaming-muppet-racemania-recompiled",
       "project_url": "https://github.com/TekRantGaming/muppet-racemania-recompiled",
       "name": "Muppet RaceMania (TekRantGaming)",
-      "summary": "A Windows port of Muppet RaceMania. Set it up with your own original PlayStation disc image.",
+      "summary": "A Windows and Linux port of Muppet RaceMania. Set it up with your own original PlayStation disc image.",
       "issue_number": 4130,
       "listed_at": "2026-11-05",
       "original_game_title": "Muppet RaceMania",
-      "availability": "unknown",
-      "platforms": [],
+      "availability": "packages",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
       "setup_url": "https://github.com/TekRantGaming/muppet-racemania-recompiled/blob/63caf5cfafe22a76cbcce5c91b055cbde861c957/README.md",
       "manual_setup": {
         "help_url": "https://github.com/TekRantGaming/muppet-racemania-recompiled/blob/63caf5cfafe22a76cbcce5c91b055cbde861c957/README.md",
         "steps": [
           {
-            "title": "Prepare your Windows copy",
-            "instruction": "Use a complete prepared copy you are permitted to use on Windows 10 or 11 (x64) with OpenGL 3.3 or newer. Optional upscalers require OpenGL 4.3. Use your own USA (SLUS-01237) or Europe (SCES-02008) PlayStation CUE/BIN with the matching regional game build. Open MuppetRaceMania.exe and choose Play to select your disc. Finish that setup before adding the launcher to Portcove. The launcher starts the player for the selected region."
+            "title": "Prepare the game",
+            "instruction": "Keep the complete package for your system together. On Windows it needs Windows 10 or 11 (x64) with OpenGL 3.3 or newer. Optional upscalers require OpenGL 4.3. Use your own USA (SLUS-01237) or Europe (SCES-02008) PlayStation CUE/BIN with the matching regional game build. Open the launcher (MuppetRaceMania.exe on Windows) and choose Play to select your disc. Finish that setup before adding the launcher to Portcove. The launcher starts the player for the selected region."
           },
           {
             "title": "Select the prepared player",
@@ -54157,7 +54520,8 @@
         ],
         "warnings": [
           "Keep the launcher and its matching regional game files together. When Play returns you to the launcher, close the launcher to end the Portcove session.",
-          "Portcove opens the launcher without startup updates. To update, close the Portcove Play session, then open the upstream launcher separately. Use a copy you are permitted to use."
+          "Portcove opens the launcher without startup updates. To update, close the Portcove Play session, then open the upstream launcher separately.",
+          "The package includes recompiled game code that the project license does not cover. Portcove downloads it only from the project’s own releases. You need your own original game files."
         ],
         "references": [
           {
@@ -54170,7 +54534,18 @@
           }
         ]
       },
-      "download_block_reason": "Portcove downloads are paused until the applicable permission for the bundled translated game code is established or upstream supplies an appropriately licensed replacement package. You can add a complete copy you are permitted to use."
+      "release_url": "https://github.com/TekRantGaming/muppet-racemania-recompiled/releases",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "MuppetRaceManiaRecompiled-",
+          "-windows-x64.zip"
+        ],
+        "linux-x86-64": [
+          "MuppetRaceManiaRecompiled-",
+          "-linux-x86_64.AppImage"
+        ]
+      },
+      "recommended_download_channel": "stable"
     },
     {
       "id": "tekrantgaming-outpost-kaloki-x-recompiled",
@@ -54315,7 +54690,7 @@
     {
       "id": "tenchu-stealth-assassins-tenchu-sa-recomp",
       "name": "Tenchu: Stealth Assassins / Tenchu-SA-Recomp",
-      "summary": "Keep an independently permitted, prepared Linux Tenchu SA Recomp player for your own USA disc. Project/fork permission and actual runtime maturity remain unresolved; no Windows package is established.",
+      "summary": "A prepared Linux Tenchu SA Recomp player for your own USA disc. Runtime maturity is unresolved, and no Windows package is established.",
       "project_url": "https://github.com/Heromachine/Tenchu-SA-Recomp",
       "issue_number": 353,
       "listed_at": "2026-10-23",
@@ -54332,12 +54707,12 @@
         "game_slug": "tenchu-stealth-assassins",
         "match_kind": "underlying-game"
       },
-      "release_url": "https://github.com/Heromachine/Tenchu-SA-Recomp/releases/tag/v0.1.0",
+      "release_url": "https://github.com/Heromachine/Tenchu-SA-Recomp/releases",
       "manual_setup": {
         "steps": [
           {
             "title": "Finish the supported owned-disc preparation upstream",
-            "instruction": "Use your own USA Tenchu: Stealth Assassins SLUS-00706 CUE with every referenced track; the disc stays required during play. Complete the upstream first-Play generation and local cache preparation before registration; an optional BIOS must be your own permitted copy, otherwise upstream offers HLE."
+            "instruction": "Use your own USA Tenchu: Stealth Assassins SLUS-00706 CUE with every referenced track; the disc stays required during play. Complete the upstream first-Play generation and local cache preparation before registration; an optional BIOS must be your own copy, otherwise upstream offers HLE."
           },
           {
             "title": "Select the completed Linux player",
@@ -54349,10 +54724,11 @@
           }
         ],
         "warnings": [
-          "Use only a copy and components you are permitted to use. Before changing versions, keep the complete working game, original files and every profile, mod, generated-code cache and custom data location. Another executable may use the same saved data.",
-          "The published v0.1.0 Linux x64 ZIP contains the native TenchuSARecomp apphost. No Windows player package was observed. Fresh acquisition remains held on the actual title/runtime-fork grant condition: the separate RecompOne-fork and title modifications do not inherit the parent engine’s MIT grant automatically. The missing developer fork URL alone does not prohibit a separately permitted self-contained copy.",
+          "Before changing versions, keep the complete working game, original files and every profile, mod, generated-code cache and custom data location. Another executable may use the same saved data.",
+          "The published v0.1.0 Linux x64 ZIP contains the native TenchuSARecomp apphost. No Windows player package was observed.",
           "Before changing versions, close the game and its companion programs and keep the working copy and its data.",
-          "This is an early upstream runtime, not a completed-game qualification. Upstream reports incomplete boot/intro control timing, autosave disabled, sound unknown and later missions untested. The canonical runtime-maturity acceptance remains open. This guide supplies neither a gameplay/save observation nor Windows support and does not change the approved scheduling."
+          "This is an early upstream runtime, not a completed-game qualification. Upstream reports incomplete boot/intro control timing, autosave disabled, sound unknown and later missions untested. The canonical runtime-maturity acceptance remains open. This guide supplies neither a gameplay/save observation nor Windows support and does not change the approved scheduling.",
+          "The package includes unlicensed title changes and a modified RecompOne fork that the project license does not cover. Portcove downloads it only from the project’s own releases. You need your own original game files."
         ],
         "references": [
           {
@@ -54366,7 +54742,13 @@
         ],
         "help_url": "https://github.com/Heromachine/Tenchu-SA-Recomp/releases/tag/v0.1.0"
       },
-      "download_block_reason": "The selected Tenchu title source and published Linux ZIP provide no applicable grant for separately authored title and RecompOne-fork modifications; the project references that separate fork without a public pinned source/grant. The original engine’s MIT licence does not settle this scope. Fresh acquisition stays held until attributable applicable permission/source correspondence or a reviewed permitted replacement resolves it. A separately permitted self-contained copy remains a distinct case; no permission is granted by this guide."
+      "download_asset_hints": {
+        "linux-x86-64": [
+          "TenchuSARecomp-",
+          "-x86_64.AppImage"
+        ]
+      },
+      "recommended_download_channel": "stable"
     },
     {
       "id": "tenchu-z-recomp-8bitninja64-tenchu-z",
@@ -59721,12 +60103,13 @@
     {
       "id": "vibecodekun-shantaerecomp",
       "name": "Shantae / shantaerecomp (vibecodekun)",
-      "summary": "Register an independently permitted Shantae Recomp Windows copy for your own exact USA ROM and retained portable state.",
+      "summary": "Add Shantae Recomp for your own exact USA ROM and keep its portable state.",
       "project_url": "https://github.com/vibecodekun/shantaerecomp",
       "issue_number": 1881,
       "listed_at": "2026-10-23",
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ],
       "availability": "packages",
       "setup_url": "https://github.com/vibecodekun/shantaerecomp",
@@ -59743,7 +60126,7 @@
         "steps": [
           {
             "title": "Complete supported preparation upstream",
-            "instruction": "Use an independently permitted complete shantae-recomp Windows copy and preserve the matching runtime DLLs, assets, shaders, notices and any selected patches. Normal players use shantae.exe and the supported first-run ROM chooser; upstream owns preparation and replacement. The title’s PolyForm Noncommercial grant does not replace separately named engine, UI, shader, font or original-game terms."
+            "instruction": "Keep the complete shantae-recomp package for your system with its matching runtime libraries, assets, shaders, notices and any selected patches. On Windows, normal players use shantae.exe and the supported first-run ROM chooser; upstream owns preparation and replacement. The title’s PolyForm Noncommercial grant does not replace separately named engine, UI, shader, font or original-game terms."
           },
           {
             "title": "Keep your matching original",
@@ -59763,9 +60146,10 @@
           }
         ],
         "warnings": [
-          "Use only a copy and components you are independently permitted to use. No acquired-source-to-binary, gameplay, real-save, installed-client, Supported or protected acceptance is established. Preserve every original, runtime, save, setting, mod, cache, backup and custom root; another executable can share data.",
+          "No acquired-source-to-binary, gameplay, real-save, installed-client, Supported or protected acceptance is established. Preserve every original, runtime, save, setting, mod, cache, backup and custom root; another executable can share data.",
           "Keep the whole creating package, original ROM and every effective external root.",
-          "Patch/native state compatibility is build-specific; do not infer save compatibility from another gbrecompiled game. Preserve per-shader licences and complete component notices."
+          "Patch/native state compatibility is build-specific; do not infer save compatibility from another gbrecompiled game. Preserve per-shader licences and complete component notices.",
+          "The package includes an unlicensed gbrecompiled engine fork that the project license does not cover. Portcove downloads it only from the project’s own releases. You need your own original game files."
         ],
         "references": [
           {
@@ -59774,12 +60158,23 @@
           }
         ]
       },
-      "download_block_reason": "Fresh acquisition of the selected bundled engine-fork scope remains held: THIRD-PARTY-LICENSES.md explicitly names the gbrecompiled fork as stating no licence of its own, separately from the parent gb-recompiled MIT and title PolyForm Noncommercial grants. The pinned build uses vibecodekun/gbrecompiled 314fce0895f66a3a7b41734a01040352e47a5b0b; do not inherit a grant for its separately authored changes. Use only an independently permitted existing copy. Resume with an attributable applicable grant for this exact fork scope or a reviewed compatible replacement package. Original game code/data and other named components retain their own rights."
+      "release_url": "https://github.com/vibecodekun/shantaerecomp/releases",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "shantae-recomp-",
+          "-windows-x64.zip"
+        ],
+        "linux-x86-64": [
+          "shantae-recomp-",
+          "-linux-x86_64.tar.gz"
+        ]
+      },
+      "recommended_download_channel": "stable"
     },
     {
       "id": "vidanox-banjotooierecompiled",
       "name": "Banjo-Tooie / Banjo-Tooie: Recompiled (Vidanox)",
-      "summary": "Use a permitted Banjo-Tooie player and select your own USA big-endian cartridge dump.",
+      "summary": "Use the Banjo-Tooie player package and select your own USA big-endian cartridge dump.",
       "project_url": "https://github.com/Vidanox/BanjoTooieRecompiled",
       "issue_number": 1795,
       "listed_at": "2026-10-23",
@@ -59813,8 +60208,8 @@
       "manual_setup": {
         "steps": [
           {
-            "title": "Keep the complete permitted player",
-            "instruction": "On Windows, select BanjoTooieRecompiled.exe in your existing permitted copy and keep assets plus the supplied SDL2/DXC libraries together in its working folder. On Linux, retain run.sh for upstream launch, or select the native BanjoTooieRecompiled with that extracted folder as its working directory. The wrapper supplies that folder; the native build still needs its documented Vulkan, shared-library and file-dialog portal prerequisites."
+            "title": "Keep the complete player package",
+            "instruction": "On Windows, select BanjoTooieRecompiled.exe in the package folder and keep assets plus the supplied SDL2/DXC libraries together in its working folder. On Linux, retain run.sh for upstream launch, or select the native BanjoTooieRecompiled with that extracted folder as its working directory. The wrapper supplies that folder; the native build still needs its documented Vulkan, shared-library and file-dialog portal prerequisites."
           },
           {
             "title": "Choose your original cartridge dump on first Play",
@@ -59823,7 +60218,8 @@
         ],
         "warnings": [
           "Upstream calls Linux less exercised than Windows. Published packages and source claims do not establish Portcove native gameplay or real-save acceptance.",
-          "Keep settings and saves together and retain a working copy before replacing it. Portcove does not adopt or back up these files, rewind saves or guarantee older-runtime readability."
+          "Keep settings and saves together and retain a working copy before replacing it. Portcove does not adopt or back up these files, rewind saves or guarantee older-runtime readability.",
+          "The package includes the Suplexmentary Comic NC font that the project license does not cover. Portcove downloads it only from the project’s own releases. You need your own original game files."
         ],
         "help_url": "https://github.com/Vidanox/BanjoTooieRecompiled/blob/9e5852541ba1436417e2c4468960e8c6de6deda5/README.md",
         "references": [
@@ -59832,8 +60228,7 @@
             "instruction": "You or upstream own runtime updates. Preserve the complete player folder, original game and actual profile: normally %LOCALAPPDATA%\\BanjoTooieRecompiled on Windows or ~/.config/BanjoTooieRecompiled on Linux. For Flatpak, also keep the complete ~/.var/app/io.github.Vidanox.BanjoTooieRecompiled folder; preserve any APP_FOLDER_PATH, portable or customized profile actually used. Keep settings and saves together and retain a working copy before replacing it. Portcove does not adopt or back up these files, rewind saves or guarantee older-runtime readability."
           }
         ]
-      },
-      "download_block_reason": "The selected v1.0.1 source/package recipe includes Suplexmentary Comic NC.ttf, which upstream identifies without a license and with an all-rights-reserved notice. The official RecompFrontend base now has a GPLv3 grant; that does not license this separate font. Keep an existing copy you are permitted to use. Reconsider fresh acquisition with attributable compatible font permission or a reviewed released package removing or replacing the affected font."
+      }
     },
     {
       "id": "viewtiful-joe-2-recompiled-goldilocks00-viewtiful-joe-2",

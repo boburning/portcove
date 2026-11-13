@@ -13,7 +13,10 @@
     "release_url": "https://github.com/tmcleroy/cps2recomp/releases",
     "recommended_download_channel": "beta",
     "download_asset_hints": {
-      "windows-x86-64": ["CPS2Recomp-windows-x64.zip"]
+      "windows-x86-64": ["CPS2Recomp-windows-x64.zip"],
+      "linux-x86-64": ["CPS2Recomp-linux-x86_64.tar.gz"],
+      "macos-aarch64": ["CPS2Recomp-macos.zip"],
+      "macos-x86-64": ["CPS2Recomp-macos.zip"]
     },
     "manual_setup": {
       "steps": [
@@ -23,7 +26,7 @@
         },
         {
           "title": "Prepare the shared launcher and this game",
-          "instruction": "Extract the complete official CPS2Recomp-windows-x64.zip Preview package. Keep cps2recomp-launcher.exe, every game program and all packaged companions together inside CPS2Recomp. Run the upstream launcher deliberately, choose your ROM folder or this game’s exact set, then finish its settings before registering the player. Register cps2recomp-launcher.exe with the CPS2Recomp folder as working directory. Enter two literal argument lines: --play then avsp. The launcher owns this game’s configuration and child programs; do not register a source archive, update manifest or arbitrary other game executable."
+          "instruction": "Extract the complete official Preview package for your system: CPS2Recomp-windows-x64.zip, CPS2Recomp-linux-x86_64.tar.gz, or the universal CPS2Recomp-macos.zip with CPS-2 Recomp.app. Keep cps2recomp-launcher (cps2recomp-launcher.exe on Windows), every game program and all packaged companions together. Run the upstream launcher deliberately, choose your ROM folder or this game’s exact set, then finish its settings before registering the player. Register cps2recomp-launcher.exe with the CPS2Recomp folder as working directory. Enter two literal argument lines: --play then avsp. The launcher owns this game’s configuration and child programs; do not register a source archive, update manifest or arbitrary other game executable."
         },
         {
           "title": "Add the game and manage updates",

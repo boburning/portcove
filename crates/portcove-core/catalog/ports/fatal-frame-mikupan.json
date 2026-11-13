@@ -25,11 +25,11 @@
       "linux-x86-64": ["MikuPan_linux_", ".zip"]
     },
     "recommended_download_channel": "beta",
-    "download_block_reason": "Portcove downloads are paused while the selected package’s embedded Adobe CenturyOldStyleStd-Regular font has no established attributable acquisition/distribution grant. Its name table identifies Adobe copyright and All rights reserved; the project’s AGPL does not establish that separate font’s grant. Keep an existing permitted copy. Reconsider when upstream supplies the applicable resource permission or removes/replaces that font.",
+    "download_block_reason": "Portcove downloads are paused because the package includes the game’s English subtitle text and font textures exported from the game. They can resume when upstream publishes a package that creates them from your own game files.",
     "manual_setup": {
       "help_url": "https://github.com/Mikompilation/MikuPan/blob/ec204d75441e98d8bd43ddd95cae744eb683f00c/README.md",
       "warnings": [
-        "Portcove downloads are paused while the selected package’s embedded Adobe CenturyOldStyleStd-Regular font has no established attributable acquisition/distribution grant. Its name table identifies Adobe copyright and All rights reserved; the project’s AGPL does not establish that separate font’s grant. Keep an existing permitted copy. Reconsider when upstream supplies the applicable resource permission or removes/replaces that font.",
+        "Portcove downloads are paused because the package includes the game’s English subtitle text and font textures exported from the game. They can resume when upstream publishes a package that creates them from your own game files.",
         "Close the game, keep the working folder, and extract a new permitted player separately.",
         "Back up the SDL profile for Mikompilation/MikuPan, including mikupan.ini, memory-card saves, albums and PNG captures; on Windows this is normally under AppData/Roaming.",
         "Preserve the original-data folder separately. External registration leaves every file untouched and provides no managed Update, Backup or Rollback. Runtime replacement does not rewind saves or establish older-version readability."

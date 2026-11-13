@@ -54,6 +54,7 @@
           "instruction": "Upstream and you own preparation and runtime replacement. Close the actual game and companions, keep the entire old creating runtime and data, then review/relink changed selected bytes. WiFi/multiplayer, renderer quality and first-to-last gameplay are upstream goals/claims, not Portcove acceptance or authorization for accounts, uploads or network configuration."
         }
       ]
-    }
+    },
+    "download_block_reason": "Portcove downloads are paused because the release packages include header.bin, a copy of the original Pokémon Platinum cartridge header with the Nintendo logo data. Reconsider when upstream publishes a package that creates it from your own original. You can add a complete copy you are permitted to use."
   }
 }

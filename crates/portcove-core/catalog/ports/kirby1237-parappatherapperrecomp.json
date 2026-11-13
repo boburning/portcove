@@ -3,12 +3,12 @@
   "listing": {
     "id": "kirby1237-parappatherapperrecomp",
     "name": "PaRappa The Rapper / PaRappaTheRapper Recomp (kirby1237)",
-    "summary": "Attach an independently permitted completed PaRappaTheRapper Windows native copy for your own USA disc, retaining its noncommercial framework terms, player profiles and upstream preparation ownership. The named bundled-box-art acquisition condition remains unresolved; no Core-managed runtime creation or maintenance is offered.",
+    "summary": "Add a completed PaRappaTheRapper native copy for your own USA disc, keeping its noncommercial framework terms, player profiles and upstream preparation ownership. Portcove does not create or maintain the runtime.",
     "project_url": "https://github.com/kirby1237/PaRappaTheRapperRecomp",
     "issue_number": 1864,
     "listed_at": "2026-10-23",
-    "platforms": [],
-    "availability": "unknown",
+    "platforms": ["windows-x86-64", "linux-x86-64"],
+    "availability": "packages",
     "setup_url": "https://github.com/kirby1237/PaRappaTheRapperRecomp",
     "artwork": {
       "game_id": 6080,
@@ -22,8 +22,8 @@
       "help_url": "https://github.com/kirby1237/PaRappaTheRapperRecomp/blob/cff6e6908e7f44032b6fa0edf6136cf360bfea8b/README.md",
       "steps": [
         {
-          "title": "Use only a completed independently permitted copy",
-          "instruction": "Use a complete Windows copy and components you are independently permitted to use, for noncommercial use under the actual framework terms. This guide does not authorize fresh acquisition of the selected package’s libretro-sourced PaRappa box art: its specific applicable permission/authorized-source condition remains unresolved. The title CMake embeds the named launcher TGA and its source notice supplies attribution, not an original-art grant. An independently permitted existing copy remains distinct; do not remove mandatory companions or use a private payload bypass."
+          "title": "Keep the complete package together",
+          "instruction": "Keep the complete package for your system and its components together, for noncommercial use under the actual framework terms. The title CMake embeds the named launcher TGA and its source notice supplies attribution, not an original-art grant. Do not remove mandatory companions or use a private payload bypass."
         },
         {
           "title": "Prepare the exact owned USA disc outside Portcove",
@@ -51,9 +51,15 @@
         }
       ],
       "warnings": [
-        "Use only an independently permitted completed copy while the named bundled-art acquisition condition is unresolved. Preserve separate profile backups before upstream legacy-state migration or rebuild/replacement."
+        "Preserve separate profile backups before upstream legacy-state migration or rebuild/replacement.",
+        "The package includes libretro-sourced PaRappa box art that the project license does not cover. Portcove downloads it only from the project’s own releases. You need your own original game files."
       ]
     },
-    "download_block_reason": "Fresh acquisition of the selected PaRappaTheRapper package is held while the applicable permission or authorized-source basis for its embedded libretro-sourced PaRappa box art remains unresolved. BOXART_SOURCE attribution and the framework/UI licences do not supply that artwork grant. Resume with an attributable applicable basis or a reviewed supported package/preparation excluding the unresolved artwork. Independently permitted existing-copy use remains separate."
+    "release_url": "https://github.com/kirby1237/PaRappaTheRapperRecomp/releases",
+    "download_asset_hints": {
+      "windows-x86-64": ["prtr-", "-windows-x64.zip"],
+      "linux-x86-64": ["prtr-", "-linux-x64.zip"]
+    },
+    "recommended_download_channel": "stable"
   }
 }

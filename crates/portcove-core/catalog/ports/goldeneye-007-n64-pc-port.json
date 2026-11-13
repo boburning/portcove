@@ -46,7 +46,8 @@
       ]
     },
     "download_asset_hints": {
-      "windows-x86-64": ["goldeneye-pc-port-", "-win64.zip"]
+      "windows-x86-64": ["goldeneye-pc-port-", "-win64.zip"],
+      "linux-x86-64": ["goldeneye-pc-port-", "-linux-x86_64.tar.gz"]
     },
     "recommended_download_channel": "stable"
   },

@@ -3,11 +3,11 @@
   "listing": {
     "id": "dabdavis-perfect-dark-dabs-mod",
     "name": "Perfect Dark / Perfect Dark Dab's Mod (DabDavis)",
-    "summary": "Use the complete Dab’s Mod Windows player with your own Perfect Dark USA Rev 1 original. Preserve its actual save root and expanded formats; upstream owns updates and any restarted game.",
+    "summary": "Use the complete Dab’s Mod Windows or Linux player with your own Perfect Dark USA Rev 1 original. Preserve its actual save root and expanded formats; upstream owns updates and any restarted game.",
     "project_url": "https://github.com/DabDavis/perfect-dark-dabs-mod",
     "issue_number": 1866,
     "listed_at": "2026-10-23",
-    "platforms": [],
+    "platforms": ["windows-x86-64", "linux-x86-64"],
     "availability": "packages",
     "setup_url": "https://github.com/DabDavis/perfect-dark-dabs-mod/blob/a8c2ab2d7b1c99f6a96a2d9addee1fdf9630e379/README.md",
     "artwork": {
@@ -23,11 +23,11 @@
       "steps": [
         {
           "title": "Prepare this fork’s original and complete player",
-          "instruction": "Use a complete permitted Dab’s Mod Windows copy. The individually inspected v3.15.1 ZIP contains x64 pd.x86_64.exe, SDL2.dll, zlib1.dll and a data folder; keep them together. Supply your own Perfect Dark USA Rev 1 / NTSC-final / US v1.1 big-endian ROM as data/pd.ntsc-final.z64. Upstream identifies MD5 e03b088b6ac9e0080440efed07c1e40f; PAL and Japanese originals are not this fork’s supported input. The ZIP does not supply the ROM. Keep this fork distinct from the stock managed Perfect Dark port."
+          "instruction": "Use a complete Dab’s Mod copy for your system. The inspected v3.15.1 Windows ZIP contains x64 pd.x86_64.exe, SDL2.dll, zlib1.dll and a data folder, and the Linux TAR.GZ contains pd.x86_64; keep each package together. Supply your own Perfect Dark USA Rev 1 / NTSC-final / US v1.1 big-endian ROM as data/pd.ntsc-final.z64. Upstream identifies MD5 e03b088b6ac9e0080440efed07c1e40f; PAL and Japanese originals are not this fork’s supported input. The ZIP does not supply the ROM. Keep this fork distinct from the stock managed Perfect Dark port."
         },
         {
           "title": "Select normal native play",
-          "instruction": "After upstream preparation, select pd.x86_64.exe, use its complete containing folder as working directory and leave arguments empty for the documented normal route. Preserve an already established --basedir, --savedir, --portable or mod-directory choice as separate literal arguments instead of changing its data roots during attachment. Do not attach an updater, standalone replacement download or another fork’s executable."
+          "instruction": "After upstream preparation, select pd.x86_64.exe (pd.x86_64 on Linux), use its complete containing folder as working directory and leave arguments empty for the documented normal route. Preserve an already established --basedir, --savedir, --portable or mod-directory choice as separate literal arguments instead of changing its data roots during attachment. Do not attach an updater, standalone replacement download or another fork’s executable."
         },
         {
           "title": "Finish upstream updates outside the attached session",
@@ -55,7 +55,8 @@
       ]
     },
     "download_asset_hints": {
-      "windows-x86-64": ["pd-dabs-mod-", "x86_64-windows.zip"]
+      "windows-x86-64": ["pd-dabs-mod-", "x86_64-windows.zip"],
+      "linux-x86-64": ["pd-dabs-mod-", "x86_64-Linux.tar.gz"]
     },
     "original_game_title": "Perfect Dark",
     "release_url": "https://github.com/DabDavis/perfect-dark-dabs-mod/releases",

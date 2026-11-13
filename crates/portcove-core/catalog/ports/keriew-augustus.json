@@ -19,13 +19,16 @@
     },
     "release_url": "https://github.com/Keriew/augustus/releases",
     "download_asset_hints": {
-      "windows-x86-64": ["augustus-", "-windows.zip"]
+      "windows-x86-64": ["augustus-", "-windows.zip"],
+      "linux-x86-64": ["augustus-", "-Linux.AppImage"],
+      "macos-aarch64": ["augustus-", "-mac.dmg"],
+      "macos-x86-64": ["augustus-", "-mac.dmg"]
     },
     "manual_setup": {
       "steps": [
         {
           "title": "Use a separate Augustus copy",
-          "instruction": "Use the native package for your system in a separate folder; the Windows player is augustus.exe. On first Play, select your writable Caesar III game folder, patched to version 1.0.1.0."
+          "instruction": "Use the native package for your system in a separate folder; the Windows player is augustus.exe, Linux uses the AppImage and macOS uses augustus.app. On first Play, select your writable Caesar III game folder, patched to version 1.0.1.0."
         },
         {
           "title": "Add the game and manage your files",
@@ -35,7 +38,7 @@
       "warnings": [
         "Augustus can read Caesar III and Julius saves, but Augustus saves cannot be loaded by Caesar III or Julius. Keep your original saves separate.",
         "Keep both when replacing the upstream runtime.",
-        "Portcove offers registration for Windows in this entry; Linux operation through Portcove has not been confirmed."
+        "Portcove offers registration for Windows in this entry. It downloads the Linux and macOS packages from upstream but has not run them."
       ],
       "help_url": "https://github.com/Keriew/augustus#running-the-game",
       "references": [

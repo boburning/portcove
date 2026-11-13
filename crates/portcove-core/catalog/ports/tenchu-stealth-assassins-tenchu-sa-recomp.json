@@ -3,7 +3,7 @@
   "listing": {
     "id": "tenchu-stealth-assassins-tenchu-sa-recomp",
     "name": "Tenchu: Stealth Assassins / Tenchu-SA-Recomp",
-    "summary": "Keep an independently permitted, prepared Linux Tenchu SA Recomp player for your own USA disc. Project/fork permission and actual runtime maturity remain unresolved; no Windows package is established.",
+    "summary": "A prepared Linux Tenchu SA Recomp player for your own USA disc. Runtime maturity is unresolved, and no Windows package is established.",
     "project_url": "https://github.com/Heromachine/Tenchu-SA-Recomp",
     "issue_number": 353,
     "listed_at": "2026-10-23",
@@ -18,12 +18,12 @@
       "game_slug": "tenchu-stealth-assassins",
       "match_kind": "underlying-game"
     },
-    "release_url": "https://github.com/Heromachine/Tenchu-SA-Recomp/releases/tag/v0.1.0",
+    "release_url": "https://github.com/Heromachine/Tenchu-SA-Recomp/releases",
     "manual_setup": {
       "steps": [
         {
           "title": "Finish the supported owned-disc preparation upstream",
-          "instruction": "Use your own USA Tenchu: Stealth Assassins SLUS-00706 CUE with every referenced track; the disc stays required during play. Complete the upstream first-Play generation and local cache preparation before registration; an optional BIOS must be your own permitted copy, otherwise upstream offers HLE."
+          "instruction": "Use your own USA Tenchu: Stealth Assassins SLUS-00706 CUE with every referenced track; the disc stays required during play. Complete the upstream first-Play generation and local cache preparation before registration; an optional BIOS must be your own copy, otherwise upstream offers HLE."
         },
         {
           "title": "Select the completed Linux player",
@@ -35,10 +35,11 @@
         }
       ],
       "warnings": [
-        "Use only a copy and components you are permitted to use. Before changing versions, keep the complete working game, original files and every profile, mod, generated-code cache and custom data location. Another executable may use the same saved data.",
-        "The published v0.1.0 Linux x64 ZIP contains the native TenchuSARecomp apphost. No Windows player package was observed. Fresh acquisition remains held on the actual title/runtime-fork grant condition: the separate RecompOne-fork and title modifications do not inherit the parent engine’s MIT grant automatically. The missing developer fork URL alone does not prohibit a separately permitted self-contained copy.",
+        "Before changing versions, keep the complete working game, original files and every profile, mod, generated-code cache and custom data location. Another executable may use the same saved data.",
+        "The published v0.1.0 Linux x64 ZIP contains the native TenchuSARecomp apphost. No Windows player package was observed.",
         "Before changing versions, close the game and its companion programs and keep the working copy and its data.",
-        "This is an early upstream runtime, not a completed-game qualification. Upstream reports incomplete boot/intro control timing, autosave disabled, sound unknown and later missions untested. The canonical runtime-maturity acceptance remains open. This guide supplies neither a gameplay/save observation nor Windows support and does not change the approved scheduling."
+        "This is an early upstream runtime, not a completed-game qualification. Upstream reports incomplete boot/intro control timing, autosave disabled, sound unknown and later missions untested. The canonical runtime-maturity acceptance remains open. This guide supplies neither a gameplay/save observation nor Windows support and does not change the approved scheduling.",
+        "The package includes unlicensed title changes and a modified RecompOne fork that the project license does not cover. Portcove downloads it only from the project’s own releases. You need your own original game files."
       ],
       "references": [
         {
@@ -52,6 +53,9 @@
       ],
       "help_url": "https://github.com/Heromachine/Tenchu-SA-Recomp/releases/tag/v0.1.0"
     },
-    "download_block_reason": "The selected Tenchu title source and published Linux ZIP provide no applicable grant for separately authored title and RecompOne-fork modifications; the project references that separate fork without a public pinned source/grant. The original engine’s MIT licence does not settle this scope. Fresh acquisition stays held until attributable applicable permission/source correspondence or a reviewed permitted replacement resolves it. A separately permitted self-contained copy remains a distinct case; no permission is granted by this guide."
+    "download_asset_hints": {
+      "linux-x86-64": ["TenchuSARecomp-", "-x86_64.AppImage"]
+    },
+    "recommended_download_channel": "stable"
   }
 }

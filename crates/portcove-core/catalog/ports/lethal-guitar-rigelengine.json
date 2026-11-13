@@ -19,7 +19,8 @@
     },
     "release_url": "https://github.com/lethal-guitar/RigelEngine/releases",
     "download_asset_hints": {
-      "windows-x86-64": ["rigelengine_win_x64.zip"]
+      "windows-x86-64": ["rigelengine_win_x64.zip"],
+      "macos-x86-64": ["rigelengine_mac_x64.dmg"]
     },
     "manual_setup": {
       "steps": [
@@ -38,7 +39,7 @@
       ],
       "warnings": [
         "Rigel Engine imports existing saves, high scores and settings into its own user profile. Keep that profile and your mod files backed up when updating the upstream installation.",
-        "Portcove offers Windows registration in this entry; Linux and macOS operation through Portcove has not been confirmed."
+        "Portcove offers Windows registration in this entry. It downloads the Intel macOS application from upstream but has not run it; Linux operation through Portcove has not been confirmed."
       ],
       "help_url": "https://github.com/lethal-guitar/RigelEngine#running-rigelengine",
       "references": [

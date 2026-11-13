@@ -3,20 +3,20 @@
   "listing": {
     "id": "crackdown-crackdown-recompiled",
     "name": "Crackdown (Crackdown Recompiled)",
-    "summary": "Attach an independently permitted prepared Crackdown Windows copy, preserving its exact original-data requirements, upstream-owned updates and separate base/TU6 save generations.",
+    "summary": "Add a prepared Crackdown Windows copy, preserving its exact original-data requirements, upstream-owned updates and separate base/TU6 save generations.",
     "original_game_title": "Crackdown",
     "project_url": "https://github.com/saulob/crackdown-xbox360-recompiled",
     "issue_number": 2559,
     "listed_at": "2026-10-25",
-    "platforms": [],
-    "availability": "unknown",
+    "platforms": ["windows-x86-64", "linux-x86-64"],
+    "availability": "packages",
     "setup_url": "https://github.com/saulob/crackdown-xbox360-recompiled",
     "manual_setup": {
       "help_url": "https://github.com/saulob/crackdown-xbox360-recompiled/blob/757ad47070719c4cdb6405bc0047fd6d64bbe108/README.md",
       "steps": [
         {
           "title": "Finish exact original-disc setup upstream",
-          "instruction": "Use a complete Windows copy/components you are independently permitted to use and your own original, unupdated Crackdown Xbox360 retail disc: title4D5307DC, Default.xex14,270,464bytes, SHA-256 7AAA7A8920D1C3C737E58CF583DEBAFE6013BE0A96BEC3EC136E5DE7E3377E5A. Complete upstream ISO/extracted-folder validation and installation until Ready to play; game/ is adjacent and $SystemUpdate is unnecessary. No disc extraction, original acquisition, compilation or installer is invoked by this registration."
+          "instruction": "Use the complete Windows package and your own original, unupdated Crackdown Xbox360 retail disc: title4D5307DC, Default.xex14,270,464bytes, SHA-256 7AAA7A8920D1C3C737E58CF583DEBAFE6013BE0A96BEC3EC136E5DE7E3377E5A. Complete upstream ISO/extracted-folder validation and installation until Ready to play; game/ is adjacent and $SystemUpdate is unnecessary. No disc extraction, original acquisition, compilation or installer is invoked by this registration."
         },
         {
           "title": "Select the prepared native game entry",
@@ -31,8 +31,8 @@
           "instruction": "Normal startup selects base or the separately installed TU6 guest and can recover an interrupted save switch, snapshot/swap live profile and campaign/header slots, then remove completed .switch-* staging under save-versions. These are upstream-owned writes, not Portcove migration or cross-version compatibility promises. TU6 and Four-Play/Free-for-All DLC are optional separately owned inputs with their own exact source checks; Free-for-All requires TU6. Do not remove/update content through this guide. The updater constructor may remove %TEMP%/trg-update-* directories older than24hours; ordinary exit may remove non-crash session logs unless detailed logging is enabled. Preserve recovery/diagnostic copies separately before startup/maintenance."
         },
         {
-          "title": "Use permitted files and manage this copy yourself",
-          "instruction": "Project GPL and ReXGlue/component terms do not grant the original game/TU/DLC or every bundled launcher component. This title identifies TRG revisionb384a28c712c9320eea8f9d50639dec49981b6c1 and expressly says it has no explicit license: fresh package acquisition/distribution needs its own attributable applicable permission or reviewed alternative; this conditional guide only attaches an independently permitted complete copy. Removing registration preserves external files; no external backup/restore, deletion, save conversion or managed maintenance is offered."
+          "title": "Manage this copy yourself",
+          "instruction": "Removing registration preserves external files; no external backup/restore, deletion, save conversion or managed maintenance is offered."
         }
       ],
       "warnings": [
@@ -40,7 +40,8 @@
         "No actual player/helper/installer/game, native session, real save, installed-client, Supported or protected acceptance was performed. Own hard-exit/renderer/save/updater claims retain source scope, not observed safety or playability.",
         "Keep a separate complete recovery copy outside upstream transaction/workspace directories.",
         "Normal startup selects base or the separately installed TU6 guest and can recover an interrupted save switch, snapshot/swap live profile and campaign/header slots, then remove completed .switch-* staging under save-versions. These are upstream-owned writes, not Portcove migration or cross-version compatibility promises.",
-        "The updater constructor may remove %TEMP%/trg-update-* directories older than24hours; ordinary exit may remove non-crash session logs unless detailed logging is enabled. Preserve recovery/diagnostic copies separately before startup/maintenance."
+        "The updater constructor may remove %TEMP%/trg-update-* directories older than24hours; ordinary exit may remove non-crash session logs unless detailed logging is enabled. Preserve recovery/diagnostic copies separately before startup/maintenance.",
+        "The package includes an unlicensed TRG launcher (revision b384a28c712c9320eea8f9d50639dec49981b6c1) that the project license does not cover. Portcove downloads it only from the project’s own releases. You need your own original game files."
       ],
       "references": [
         {
@@ -49,7 +50,12 @@
         }
       ]
     },
-    "download_block_reason": "Fresh acquisition of this Crackdown Windows package is held: its own v0.6.2 source requires and bundles the TRG launcher at b384a28c712c9320eea8f9d50639dec49981b6c1, for which upstream explicitly defers an applicable license grant. Resume with attributable permission covering that selected component/package operation or a separately reviewed supported route excluding it. This condition does not prohibit independently permitted completed-copy registration or establish a title-wide rights ruling."
+    "release_url": "https://github.com/saulob/crackdown-xbox360-recompiled/releases",
+    "download_asset_hints": {
+      "windows-x86-64": ["Crackdown-", "-windows-x64.zip"],
+      "linux-x86-64": ["CrackdownRecompiled-", "-x86_64.AppImage"]
+    },
+    "recommended_download_channel": "stable"
   },
   "upstream_lineage": {
     "format_version": 1,

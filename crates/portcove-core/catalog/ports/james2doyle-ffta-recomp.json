@@ -3,10 +3,10 @@
   "listing": {
     "id": "james2doyle-ffta-recomp",
     "name": "Final Fantasy Tactics Advance (FFTA Recomp)",
-    "summary": "Register an independently permitted prepared FFTA Recomp Windows copy for your own supported USA GBA ROM. Fresh package acquisition remains held for its disclosed box-art component.",
+    "summary": "Add a prepared FFTA Recomp copy for your own supported USA GBA ROM.",
     "original_game_title": "Final Fantasy Tactics Advance",
     "project_url": "https://github.com/james2doyle/ffta-recomp",
-    "platforms": ["windows-x86-64"],
+    "platforms": ["windows-x86-64", "linux-x86-64"],
     "availability": "packages",
     "setup_url": "https://github.com/james2doyle/ffta-recomp",
     "artwork": {
@@ -21,15 +21,15 @@
     "listed_at": "2026-10-25",
     "release_url": "https://github.com/james2doyle/ffta-recomp/releases",
     "download_asset_hints": {
-      "windows-x86-64": ["FFTARecomp-", "windows-x64.zip"]
+      "windows-x86-64": ["FFTARecomp-", "-windows-x64.zip"],
+      "linux-x86-64": ["FFTARecomp-", "-linux-x86_64.AppImage"]
     },
-    "download_block_reason": "Fresh acquisition of the selected FFTA Recomp bundled player remains held for its launch-screen box art: packaged THIRD_PARTY_ATTRIBUTION.md explicitly says the image has unknown provenance and no assertable license. Resume with applicable permission for that exact image or a reviewed compatible upstream package/route resolving its inclusion. Independently permitted completed-copy registration does not clear this acquisition hold.",
     "manual_setup": {
       "help_url": "https://github.com/james2doyle/ffta-recomp",
       "steps": [
         {
-          "title": "Start with an independently permitted completed copy",
-          "instruction": "Attach only a complete existing Windows player and components you are independently permitted to use. The selected package discloses unlicensed-provenance retail box art; the project’s PolyForm Noncommercial grant does not grant that image’s rights. Fresh acquisition remains held for that named component. Observe the project’s applicable noncommercial terms."
+          "title": "Start with the complete package",
+          "instruction": "Keep the complete package for your system together. Observe the project’s applicable noncommercial terms."
         },
         {
           "title": "Use your own supported USA original",
@@ -45,10 +45,11 @@
         }
       ],
       "warnings": [
-        "Use only components and original inputs you are permitted to use; keep every effective external file and custom root with its creating runtime. Portcove offers no external update, backup, rollback, migration or deletion.",
+        "Keep every effective external file and custom root with its creating runtime. Portcove offers no external update, backup, rollback, migration or deletion.",
         "This upstream preview is experimental. Source and package descriptions and static checks do not confirm that the package matches the source or that gameplay, normal shutdown, saves or installed Desktop behavior work. Other platforms have separate requirements.",
         "Do not assume all states live beside the player or in states/.",
-        "No cross-version state/save compatibility or managed backup is claimed."
+        "No cross-version state/save compatibility or managed backup is claimed.",
+        "The package includes retail box art of unknown provenance that the project license does not cover. Portcove downloads it only from the project’s own releases. You need your own original game files."
       ],
       "references": [
         {
@@ -56,7 +57,8 @@
           "instruction": "The inspected game.toml uses saves/ffta_us.sav relative to its own directory for the 64KiB battery save. Existing --save or --save-path overrides can point elsewhere. Save-state slots normally live beside the actual selected ROM with .stateN names; --state-dir moves those basenames to the chosen directory. Do not assume all states live beside the player or in states/. Preserve your ROM directory and its state/sidecar files, actual custom save/state directories, the complete creating runtime, saves/, rom.cfg, bios.cfg, skip_launcher_on_boot, config.ini, keybinds.ini, game.toml, config overlays, mods, screenshots, logs, backups and temporary files. No cross-version state/save compatibility or managed backup is claimed."
         }
       ]
-    }
+    },
+    "recommended_download_channel": "stable"
   },
   "upstream_lineage": {
     "format_version": 1,

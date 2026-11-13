@@ -691,15 +691,11 @@ async fn embedded_retained_acquisition_holds_refuse_before_network() {
 }
 
 #[tokio::test]
-async fn gitlab_font_holds_remain_before_provider_selection_or_network() {
-    assert_embedded_listing_download_holds(
-        &[
-            "mario-kart-64-mariokart64recomp",
-            "star-fox-64-starfox64recomp",
-        ],
-        true,
-    )
-    .await;
+async fn gitlab_font_offers_remain_before_provider_selection_or_network_listing_download_offered() {
+    assert_embedded_listing_downloads_offered(&[
+        "mario-kart-64-mariokart64recomp",
+        "star-fox-64-starfox64recomp",
+    ]);
 }
 
 #[tokio::test]
@@ -2001,17 +1997,35 @@ async fn ambermoon_bundled_content_acquisition_hold_keeps_permitted_copy_guide_b
 }
 
 #[tokio::test]
-async fn n64hub_font_acquisition_holds_keep_permitted_copy_guides_before_network() {
-    assert_embedded_player_download_holds(&[
+async fn n64hub_super_smash_bros_n64_usa_recomp_upstream_release_download_4337() {
+    assert_embedded_resolved_frontend_download(
         "n64hub-super-smash-bros-n64-usa-recomp",
+        "v0.1.12",
+        "SmashBrosRecompiled-v0.1.12-windows-x64.zip",
+        None,
+    )
+    .await;
+}
+#[tokio::test]
+async fn n64hub_rayman_2_recomp_n64_usa_upstream_release_download_4335() {
+    assert_embedded_resolved_frontend_download(
         "n64hub-rayman-2-recomp-n64-usa",
-    ])
+        "v0.1.15",
+        "Rayman2Recompiled-v0.1.15-windows-x64.zip",
+        None,
+    )
     .await;
 }
 
 #[tokio::test]
-async fn muppet_racemania_bundled_game_code_hold_keeps_prepared_guide_before_network() {
-    assert_embedded_player_download_holds(&["tekrantgaming-muppet-racemania-recompiled"]).await;
+async fn tekrantgaming_muppet_racemania_recompiled_upstream_release_download_4130() {
+    assert_embedded_resolved_frontend_download(
+        "tekrantgaming-muppet-racemania-recompiled",
+        "v1.0.0",
+        "MuppetRaceManiaRecompiled-v1.0.0-windows-x64.zip",
+        None,
+    )
+    .await;
 }
 
 #[tokio::test]
@@ -2068,7 +2082,10 @@ async fn assert_embedded_resolved_frontend_download(
             .unwrap_or(&listing.project_url),
     )
     .unwrap();
-    let expected_channel = if id == "danielgomesvieira2000-beetle-adventure-racing-recomp" {
+    let expected_channel = if matches!(
+        id,
+        "danielgomesvieira2000-beetle-adventure-racing-recomp" | "snowboard-kids"
+    ) {
         ReleaseChannel::Beta
     } else {
         ReleaseChannel::Stable
@@ -2183,23 +2200,47 @@ async fn cbfd_recompiled_sciaschi_original_code_hold_before_network_1216() {
 }
 
 #[tokio::test]
-async fn snowboard_kids_remaining_component_hold_before_network_1354() {
-    assert_embedded_player_download_holds(&["snowboard-kids"]).await;
+async fn snowboard_kids_upstream_release_download_1354() {
+    assert_embedded_resolved_frontend_download(
+        "snowboard-kids",
+        "v0.9.0-beta.1",
+        "SnowboardKidsRecompiled-0.9.0-beta.1-Windows-x86_64.zip",
+        None,
+    )
+    .await;
 }
 
 #[tokio::test]
-async fn cdlewis_snowboardkids_recomp_remaining_component_hold_before_network_1886() {
-    assert_embedded_player_download_holds(&["cdlewis-snowboardkids-recomp"]).await;
+async fn cdlewis_snowboardkids_recomp_upstream_release_download_1886() {
+    assert_embedded_resolved_frontend_download(
+        "cdlewis-snowboardkids-recomp",
+        "v1.0.9",
+        "SnowboardKidsRecompiled-Windows.zip",
+        None,
+    )
+    .await;
 }
 
 #[tokio::test]
-async fn vidanox_banjotooierecompiled_remaining_component_hold_before_network_1795() {
-    assert_embedded_player_download_holds(&["vidanox-banjotooierecompiled"]).await;
+async fn vidanox_banjotooierecompiled_upstream_release_download_1795() {
+    assert_embedded_resolved_frontend_download(
+        "vidanox-banjotooierecompiled",
+        "v1.0.1",
+        "BanjoTooieRecompiled-windows-x64.zip",
+        None,
+    )
+    .await;
 }
 
 #[tokio::test]
-async fn blast_corps_recompiled_font_hold_before_network_2558() {
-    assert_embedded_player_download_holds(&["blast-corps-blastcorps-recompiled"]).await;
+async fn blast_corps_blastcorps_recompiled_upstream_release_download_2558() {
+    assert_embedded_resolved_frontend_download(
+        "blast-corps-blastcorps-recompiled",
+        "1.1.1",
+        "BlastCorpsRecompiled-1.1.1-Windows-RelWithDebInfo.zip",
+        None,
+    )
+    .await;
 }
 
 #[tokio::test]
@@ -2213,8 +2254,9 @@ async fn silent_hill_silent_hill_decomp_pc_branch_component_hold_before_network_
 }
 
 #[tokio::test]
-async fn tenchu_stealth_assassins_tenchu_sa_recomp_component_hold_before_network_353() {
-    assert_embedded_player_download_holds(&["tenchu-stealth-assassins-tenchu-sa-recomp"]).await;
+async fn tenchu_stealth_assassins_tenchu_sa_recomp_component_offer_before_network_353_listing_download_offered()
+ {
+    assert_embedded_listing_downloads_offered(&["tenchu-stealth-assassins-tenchu-sa-recomp"]);
 }
 
 #[tokio::test]
@@ -2380,8 +2422,14 @@ async fn unchiga_yu_gi_oh_forbidden_memories_recompiled_component_hold_before_ne
 }
 
 #[tokio::test]
-async fn james2doyle_ffta_recomp_component_hold_before_network_2824() {
-    assert_embedded_player_download_holds(&["james2doyle-ffta-recomp"]).await;
+async fn james2doyle_ffta_recomp_upstream_release_download_2824() {
+    assert_embedded_resolved_frontend_download(
+        "james2doyle-ffta-recomp",
+        "v2.1",
+        "FFTARecomp-v2.1-windows-x64.zip",
+        None,
+    )
+    .await;
 }
 
 #[tokio::test]
@@ -2390,8 +2438,14 @@ async fn kingdom_hearts_chain_of_memories_gba_rekhcom_component_hold_before_netw
 }
 
 #[tokio::test]
-async fn vibecodekun_shantaerecomp_component_hold_before_network_1881() {
-    assert_embedded_player_download_holds(&["vibecodekun-shantaerecomp"]).await;
+async fn vibecodekun_shantaerecomp_upstream_release_download_1881() {
+    assert_embedded_resolved_frontend_download(
+        "vibecodekun-shantaerecomp",
+        "v0.2.0",
+        "shantae-recomp-0.2.0-windows-x64.zip",
+        None,
+    )
+    .await;
 }
 
 #[tokio::test]
@@ -2410,23 +2464,36 @@ async fn eternal_darkness_sanity_s_requiem_eternal_darkness_recomp_component_hol
 }
 
 #[tokio::test]
-async fn geometry_wars_retro_evolved_2_geometry_wars_2_recompiled_component_hold_before_network_2577()
- {
-    assert_embedded_player_download_holds(&[
+async fn geometry_wars_retro_evolved_2_geometry_wars_2_recompiled_upstream_release_download_2577() {
+    assert_embedded_resolved_frontend_download(
         "geometry-wars-retro-evolved-2-geometry-wars-2-recompiled",
-    ])
+        "v0.6.1",
+        "GeometryWarsRetroEvolved2-v0.6.1-windows-x64.zip",
+        None,
+    )
     .await;
 }
 
 #[tokio::test]
-async fn hard_corps_uprising_hard_corps_uprising_recompiled_component_hold_before_network_2581() {
-    assert_embedded_player_download_holds(&["hard-corps-uprising-hard-corps-uprising-recompiled"])
-        .await;
+async fn hard_corps_uprising_hard_corps_uprising_recompiled_upstream_release_download_2581() {
+    assert_embedded_resolved_frontend_download(
+        "hard-corps-uprising-hard-corps-uprising-recompiled",
+        "v0.7.1",
+        "HardCorpsUprising-v0.7.1-windows-x64.zip",
+        None,
+    )
+    .await;
 }
 
 #[tokio::test]
-async fn crackdown_crackdown_recompiled_component_hold_before_network_2559() {
-    assert_embedded_player_download_holds(&["crackdown-crackdown-recompiled"]).await;
+async fn crackdown_crackdown_recompiled_upstream_release_download_2559() {
+    assert_embedded_resolved_frontend_download(
+        "crackdown-crackdown-recompiled",
+        "v0.6.2",
+        "Crackdown-v0.6.2-windows-x64.zip",
+        None,
+    )
+    .await;
 }
 
 #[tokio::test]
@@ -2440,8 +2507,14 @@ async fn elmasas_lcs_recomp_component_hold_before_network_1836() {
 }
 
 #[tokio::test]
-async fn kirby1237_parappatherapperrecomp_component_hold_before_network_1864() {
-    assert_embedded_player_download_holds(&["kirby1237-parappatherapperrecomp"]).await;
+async fn kirby1237_parappatherapperrecomp_upstream_release_download_1864() {
+    assert_embedded_resolved_frontend_download(
+        "kirby1237-parappatherapperrecomp",
+        "v0.1.1",
+        "prtr-v0.1.1-windows-x64.zip",
+        None,
+    )
+    .await;
 }
 
 #[tokio::test]
@@ -2450,8 +2523,14 @@ async fn nevercookfirst_dimensionsrecomp_component_hold_before_network_1817() {
 }
 
 #[tokio::test]
-async fn eandis_sdoj_recomp_component_hold_before_network_1880() {
-    assert_embedded_player_download_holds(&["eandis-sdoj-recomp"]).await;
+async fn eandis_sdoj_recomp_upstream_release_download_1880() {
+    assert_embedded_resolved_frontend_download(
+        "eandis-sdoj-recomp",
+        "v1.51.4",
+        "sdoj.recomp.1.51.4.win-amd64.zip",
+        None,
+    )
+    .await;
 }
 
 #[tokio::test]
@@ -2470,20 +2549,94 @@ async fn jhdev2006_super_mario_world_remastered_public_component_hold_before_net
 }
 
 #[tokio::test]
-async fn def_jam_vendetta_playstation_2_def_jam_vendetta_recompiled_component_hold_before_network_2561()
- {
-    assert_embedded_player_download_holds(&[
+async fn def_jam_vendetta_playstation_2_def_jam_vendetta_recompiled_upstream_release_download_2561()
+{
+    assert_embedded_resolved_frontend_download(
         "def-jam-vendetta-playstation-2-def-jam-vendetta-recompiled",
-    ])
+        "v0.6.2",
+        "Def-Jam-Vendetta-Recompiled-Windows.zip",
+        None,
+    )
     .await;
 }
 
 #[tokio::test]
-async fn gran_turismo_4_playstation_2_gt4recomp_component_hold_before_network_2579() {
-    assert_embedded_player_download_holds(&["gran-turismo-4-playstation-2-gt4recomp"]).await;
+async fn gran_turismo_4_playstation_2_gt4recomp_component_offer_before_network_2579_listing_download_offered()
+ {
+    assert_embedded_listing_downloads_offered(&["gran-turismo-4-playstation-2-gt4recomp"]);
 }
 
 #[tokio::test]
 async fn djultra64_clayfighter64_component_hold_before_network_2830() {
     assert_embedded_player_download_holds(&["djultra64-clayfighter64"]).await;
+}
+
+// Rights model (2026-11-13): these listings offer the upstream's own release
+// again. Synthetic bytes exercise the real listing/provider contracts.
+#[tokio::test]
+async fn darkuni_chocobo_dungeon_recomp_upstream_release_download_4131() {
+    assert_embedded_resolved_frontend_download(
+        "darkuni-chocobo-dungeon-recomp",
+        "v1.1",
+        "ChocoboDungeon-v1.1-win64.zip",
+        None,
+    )
+    .await;
+}
+#[tokio::test]
+async fn darkuni_mylifedarklord_recomp_upstream_release_download_4121() {
+    assert_embedded_resolved_frontend_download(
+        "darkuni-mylifedarklord-recomp",
+        "v0.2",
+        "MyLifeAsADarklord-v0.2-win64.zip",
+        None,
+    )
+    .await;
+}
+#[tokio::test]
+async fn darkuni_mylifeking_recomp_upstream_release_download_4120() {
+    assert_embedded_resolved_frontend_download(
+        "darkuni-mylifeking-recomp",
+        "v0.5",
+        "MyLifeAsAKing-v0.5-win64.zip",
+        None,
+    )
+    .await;
+}
+#[tokio::test]
+async fn darkuni_target_terror_wii_recomp_upstream_release_download_4178() {
+    assert_embedded_resolved_frontend_download(
+        "darkuni-target-terror-wii-recomp",
+        "v1.0",
+        "TargetTerror-v1.0-win64.zip",
+        None,
+    )
+    .await;
+}
+#[tokio::test]
+async fn hybrid_heaven_ogdanimal_upstream_release_download_2546() {
+    assert_embedded_resolved_frontend_download(
+        "hybrid-heaven-ogdanimal",
+        "v1.0.1",
+        "HybridHeaven-1.0.1-windows-x64.zip",
+        None,
+    )
+    .await;
+}
+
+/// Listings whose upstream route cannot use the GitHub synthetic fixture
+/// (Linux-only, GitLab-hosted or installer packages) still offer downloads.
+fn assert_embedded_listing_downloads_offered(ids: &[&str]) {
+    let catalog = Catalog::embedded().unwrap();
+    for &id in ids {
+        let listing = catalog.listing(id).unwrap();
+        assert!(listing.download_block_reason.is_none(), "{id}");
+        assert!(listing.release_url.is_some(), "{id}");
+        assert!(!listing.download_asset_hints.is_empty(), "{id}");
+    }
+}
+
+#[tokio::test]
+async fn pokeplatinum_copied_cartridge_header_hold_before_network_373() {
+    assert_embedded_player_download_holds(&["pokemon-platinum-pokeplatinum-pc-port-lead"]).await;
 }
