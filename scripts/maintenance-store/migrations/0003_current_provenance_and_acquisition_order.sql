@@ -235,6 +235,26 @@ BEGIN
 END
 $$;
 
+-- A run that verified current state cannot then finish failed, so "verified"
+-- never names a failed run, even one still in progress when it verified.
+CREATE INDEX subject_transitions_verified_run
+  ON portcove_maintenance.subject_transitions (verified_run_id);
+
+CREATE FUNCTION portcove_maintenance.guard_failed_verifier() RETURNS trigger
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog, pg_temp AS $$
+BEGIN
+  IF NEW.coverage = 'failed' AND OLD.coverage = 'in_progress' AND (
+       EXISTS (SELECT 1 FROM portcove_maintenance.subject_current WHERE verified_run_id = OLD.run_id)
+       OR EXISTS (SELECT 1 FROM portcove_maintenance.subject_transitions WHERE verified_run_id = OLD.run_id)) THEN
+    RAISE EXCEPTION 'collection run % verified maintenance state and cannot finish failed', OLD.run_id;
+  END IF;
+  RETURN NEW;
+END
+$$;
+
+CREATE TRIGGER collection_runs_failed_verifier BEFORE UPDATE ON portcove_maintenance.collection_runs
+  FOR EACH ROW EXECUTE FUNCTION portcove_maintenance.guard_failed_verifier();
+
 -- An assessment with the current result refreshes current provenance and
 -- verification. It is not a transition and creates no notification.
 CREATE FUNCTION portcove_maintenance.verify_current(target_assessment bigint, verifying_run text) RETURNS void

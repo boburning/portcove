@@ -205,8 +205,10 @@ export const identityPart = (value: string) => value.replace(/[^A-Za-z0-9._:-]/g
 
 /**
  * `handoff.<kind>.<source>.<fence>[.a<assessment>]`, hashed only when it would
- * exceed the store's 200 characters. The applicable assessment is part of the
- * identity, so a plan replaced at the same fence gets a new operation.
+ * exceed the store's 200 characters (less room for the planner's `.<n>` suffix
+ * when the assessment is named). The applicable assessment is part of the
+ * identity; the planner adds `.<n>` for the n-th plan of one fence and
+ * assessment, so a plan replaced and later needed again gets a new operation.
  */
 export function handoffOperationId(
   kind: string,
@@ -216,7 +218,7 @@ export function handoffOperationId(
 ) {
   const suffix = assessment === undefined ? `${fence}` : `${fence}.a${assessment}`;
   const id = `handoff.${kind}.${identityPart(source)}.${suffix}`;
-  return id.length <= 200
+  return id.length <= (assessment === undefined ? 200 : 190)
     ? id
     : `handoff.${kind}.sha256-${createHash("sha256").update(source).digest("hex").slice(0, 40)}.${suffix}`;
 }
@@ -549,7 +551,7 @@ export function handoffGuidance(entry: HandoffEntry, condition: unknown) {
 export function nextAction(handoff: OpenHandoff) {
   const entry = handoff.registry;
   const operation = handoff.operation
-    ? `operation ${handoff.operation.operation_id} ${handoff.operation.state} at fence ${handoff.operation.fence_sequence}${handoff.operation.fence_sequence === handoff.sequence && handoff.operation.fence_assessment_id === handoff.assessment_id ? "" : ` (stale; current ${handoff.sequence})`}`
+    ? `operation ${handoff.operation.operation_id} ${handoff.operation.state} at fence ${handoff.operation.fence_sequence}${handoff.operation.fence_sequence === handoff.sequence && handoff.operation.fence_assessment_id === handoff.assessment_id ? "" : ` (stale; current ${handoff.sequence} on assessment ${handoff.assessment_id})`}`
     : `no operation recorded (fence ${handoff.sequence})`;
   if (!entry) return `Unregistered handoff kind ${handoff.kind}; dispatch disabled. ${operation}.`;
   const guidance = handoffGuidance(entry, handoff.condition);
@@ -584,15 +586,23 @@ ${
   rows.length
     ? `WITH planned AS (
   INSERT INTO portcove_maintenance.operations (operation_id, kind, subject_key, fence_sequence, fence_assessment_id, executor, created_at, updated_at)
-    SELECT v.operation_id, v.kind, v.subject_key, v.fence, v.assessment, v.executor, clock_timestamp(), clock_timestamp()
+    SELECT v.operation_id || CASE WHEN earlier.plans = 0 THEN '' ELSE '.' || (earlier.plans + 1) END,
+           v.kind, v.subject_key, v.fence, v.assessment, v.executor, clock_timestamp(), clock_timestamp()
       FROM (VALUES ${rows.join(",\n      ")}) AS v (operation_id, kind, subject_key, fence, assessment, executor)
       JOIN portcove_maintenance.subject_current c
         ON c.subject_key = v.subject_key AND c.sequence = v.fence AND c.applicable_assessment_id = v.assessment
-     -- A plan recorded before migration 0003 under the older identity still counts.
+      -- Earlier plans of the same fence and assessment, so a later one gets its own identity.
+      CROSS JOIN LATERAL (SELECT count(*) AS plans FROM portcove_maintenance.operations o
+                           WHERE o.operation_id = v.operation_id
+                              OR starts_with(o.operation_id, v.operation_id || '.')) earlier
+     -- One open operation per handoff: a current plan (including one recorded before
+     -- migration 0003 under the older identity) or any dispatched or ambiguous
+     -- operation, which resolves only through its original executor's receipt.
      WHERE NOT EXISTS (SELECT 1 FROM portcove_maintenance.operations o
-                        WHERE o.subject_key = v.subject_key AND o.fence_sequence = v.fence
-                          AND o.fence_assessment_id = v.assessment
-                          AND o.state IN ('planned', 'dispatched', 'ambiguous'))
+                        WHERE o.subject_key = v.subject_key
+                          AND (o.state IN ('dispatched', 'ambiguous')
+                               OR (o.state = 'planned' AND o.fence_sequence = v.fence
+                                   AND o.fence_assessment_id = v.assessment)))
   ON CONFLICT (operation_id) DO NOTHING
   RETURNING 1)
 SELECT count(*) FROM planned;`

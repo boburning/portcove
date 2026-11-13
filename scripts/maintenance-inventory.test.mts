@@ -1965,10 +1965,19 @@ void test(
     assert.equal(open?.assessment_id, 2);
     assert.equal(open?.operation?.operation_id, replacement);
     assert.equal(open?.operation?.fence_assessment_id, 2);
-    // A failed run cannot verify anything.
+    // A failed run cannot verify anything, before or after it finishes.
+    assert.throws(
+      () =>
+        runSql(
+          store.owner,
+          `UPDATE portcove_maintenance.collection_runs SET coverage = 'failed', completed_at = clock_timestamp(),
+             source_revision = 'r2' WHERE run_id = 'upstream-2';`,
+        ),
+      /verified maintenance state and cannot finish failed/u,
+    );
     runSql(
       store.owner,
-      `UPDATE portcove_maintenance.collection_runs SET coverage = 'failed', completed_at = clock_timestamp(),
+      `UPDATE portcove_maintenance.collection_runs SET coverage = 'partial', completed_at = clock_timestamp(),
          source_revision = 'r2' WHERE run_id = 'upstream-2';
        INSERT INTO portcove_maintenance.collection_runs (run_id, source, runner, started_at)
          VALUES ('upstream-3', 'upstream-observations', 'fixture', now());
@@ -1979,5 +1988,37 @@ void test(
       () => runSql(store.owner, "SELECT portcove_maintenance.verify_current(2, 'upstream-3');"),
       /does not exist or failed/u,
     );
+
+    // The applicable assessment moving X -> Y -> X at one fence replans each time under
+    // a new identity, and a dispatched operation keeps the handoff from a second plan.
+    let verifier = 3;
+    const verifyAs = (assessment: number) => {
+      verifier += 1;
+      runSql(
+        store.owner,
+        `INSERT INTO portcove_maintenance.collection_runs (run_id, source, runner, started_at)
+           VALUES ('upstream-${verifier}', 'upstream-observations', 'fixture', now());
+         SELECT portcove_maintenance.verify_current(${assessment}, 'upstream-${verifier}');
+         UPDATE portcove_maintenance.collection_runs SET coverage = 'partial', completed_at = clock_timestamp(),
+           source_revision = 'r${verifier}' WHERE run_id = 'upstream-${verifier}';`,
+      );
+    };
+    verifyAs(1);
+    assert.deepEqual(recordHandoffOperations(executor), { abandoned: 1, planned: 1, open: 1 });
+    verifyAs(2);
+    assert.deepEqual(recordHandoffOperations(executor), { abandoned: 1, planned: 1, open: 1 });
+    const again = `${replacement}.2`;
+    assert.equal(
+      operations(),
+      `${legacyId}=abandoned ${handoffOperationId(kind, source, 1, 1)}=abandoned ${replacement}=abandoned ${again}=planned`,
+    );
+    runSql(
+      executor,
+      `UPDATE portcove_maintenance.operations SET state = 'dispatched', revision = 2, updated_at = clock_timestamp()
+         WHERE operation_id = '${again}';`,
+    );
+    verifyAs(1);
+    assert.deepEqual(recordHandoffOperations(executor), { abandoned: 0, planned: 0, open: 1 });
+    assert.match(operations(), new RegExp(`${again.replaceAll(".", "\\.")}=dispatched$`, "u"));
   },
 );

@@ -126,7 +126,8 @@ in this section runs unchanged against any PostgreSQL host and generic runner.
   An assessment with the current result but new policy or inputs moves the
   latter two through `verify_current`, quietly, without a transition or
   notification. Assessment rows and their original timestamps stay immutable.
-  A verifying run must exist and must not have failed. A verification or
+  A verifying run must exist and must not have failed, and a run that has
+  verified state cannot later finish `failed`. A verification or
   transition that names its verifying run (as every collector write does) never
   moves to an older acquisition. A legacy writer that names none binds the
   assessment's own run and is not freshness-checked; the same applies to a run
@@ -674,9 +675,14 @@ node scripts/maintenance-inventory.mts handoffs --record
 - `handoffs --record` runs with the executor role against the local store only.
   - It plans one operation `handoff.<kind>.<source>.<fence>.a<assessment>` of
     kind `handoff.<kind>` per open handoff. The fence is the handoff's current
-    sequence and its applicable assessment. A replay inserts nothing, and an
-    open plan from before migration 0003 (`handoff.<kind>.<source>.<fence>`,
-    bound by the migration) still counts. Characters
+    sequence and its applicable assessment. A later plan for the same fence
+    and assessment (after the assessment moved away and back) gets a `.<n>`
+    suffix, so it never collides with an abandoned one. A replay inserts
+    nothing, and an open plan from before migration 0003
+    (`handoff.<kind>.<source>.<fence>`, bound by the migration) still counts.
+    No plan is added while any operation of the handoff is `dispatched` or
+    `ambiguous`; that one resolves only through its original executor's
+    receipt. Characters
     the identity check refuses (such as `@`) map to `.`. An ID over 200
     characters replaces the source with a SHA-256 prefix.
   - It moves each planned handoff operation whose subject has moved on (cleared,

@@ -307,12 +307,14 @@ void test("open handoffs project onto the registry with their disabled dispatch 
     {
       subject_key: "handoff:hosted-intake-holds:intake:40",
       sequence: 2,
+      assessment_id: 9,
       updated_at: "2026-11-11T00:00:00Z",
       explanation: { condition: { request_comment: 40 } },
       operation: {
         operation_id: "handoff.hosted-intake-holds.intake:40.1",
         state: "planned",
         fence_sequence: 1,
+        fence_assessment_id: 4,
         revision: 1,
         executor: "hosted-discovery-intake.yml",
       },
@@ -320,6 +322,7 @@ void test("open handoffs project onto the registry with their disabled dispatch 
     {
       subject_key: "handoff:retired-kind:port:x",
       sequence: 1,
+      assessment_id: 5,
       updated_at: "2026-11-11T00:00:00Z",
       explanation: {},
       operation: null,
@@ -333,7 +336,7 @@ void test("open handoffs project onto the registry with their disabled dispatch 
   assert.match(text, /Resume: The owner delegates process dispatch/u);
   assert.match(
     text,
-    /operation handoff\.hosted-intake-holds\.intake:40\.1 planned at fence 1 \(stale; current 2\)/u,
+    /operation handoff\.hosted-intake-holds\.intake:40\.1 planned at fence 1 \(stale; current 2 on assessment 9\)/u,
   );
   assert.equal(unknown!.registry, null);
   assert.match(nextAction(unknown!), /Unregistered handoff kind retired-kind; dispatch disabled/u);
