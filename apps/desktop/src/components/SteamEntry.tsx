@@ -310,45 +310,13 @@ export function SteamEntryDialog({
         )}
         {pending === "review" && <p role="status">Inspecting the selected Steam profile…</p>}
         {!reviewing && (
-          <Fieldset legend="Steam artwork" disabled={Boolean(pending)} className="mt-6 grid gap-3">
-            <p>
-              Add this game's selected Portcove cover to its Portcove shortcut. Artwork already in
-              Steam is kept unless you choose to replace it.
-            </p>
-            <label
-              htmlFor="steam-artwork-replace"
-              className="flex min-h-10 cursor-pointer items-center gap-3 py-2"
-            >
-              <Checkbox
-                data-focusable
-                id="steam-artwork-replace"
-                data-steam-artwork-replace
-                checked={replaceArtwork}
-                onCheckedChange={(checked) => setReplaceArtwork(checked === true)}
-              />
-              Replace artwork already in Steam
-            </label>
-            <ActionRow>
-              <Button
-                data-focusable
-                variant="outline"
-                disabled={!selected || Boolean(pending)}
-                onClick={() =>
-                  void loadArtworkReview({ kind: "update", replace_existing: replaceArtwork })
-                }
-              >
-                Review artwork update
-              </Button>
-              <Button
-                data-focusable
-                variant="outline"
-                disabled={!selected || Boolean(pending)}
-                onClick={() => void loadArtworkReview({ kind: "remove_owned" })}
-              >
-                Review artwork removal
-              </Button>
-            </ActionRow>
-          </Fieldset>
+          <SteamArtworkActions
+            pending={Boolean(pending)}
+            selected={Boolean(selected)}
+            replaceArtwork={replaceArtwork}
+            setReplaceArtwork={setReplaceArtwork}
+            loadArtworkReview={loadArtworkReview}
+          />
         )}
         {review && <SteamEntryReviewDetails review={review} />}
         {result && <SteamEntryResult result={result} batch={false} />}
@@ -441,6 +409,62 @@ export function SteamEntryDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+function SteamArtworkActions({
+  pending,
+  selected,
+  replaceArtwork,
+  setReplaceArtwork,
+  loadArtworkReview,
+}: {
+  pending: boolean;
+  selected: boolean;
+  replaceArtwork: boolean;
+  setReplaceArtwork: (replace: boolean) => void;
+  loadArtworkReview: (operation: SteamArtworkOperation) => Promise<void>;
+}) {
+  return (
+    <Fieldset legend="Steam artwork" disabled={pending} className="mt-6 grid gap-3">
+      <p>
+        Add this game's selected Portcove cover to its Portcove shortcut. Artwork already in Steam
+        is kept unless you choose to replace it.
+      </p>
+      <label
+        htmlFor="steam-artwork-replace"
+        className="flex min-h-10 cursor-pointer items-center gap-3 py-2"
+      >
+        <Checkbox
+          data-focusable
+          id="steam-artwork-replace"
+          data-steam-artwork-replace
+          checked={replaceArtwork}
+          onCheckedChange={(checked) => setReplaceArtwork(checked === true)}
+        />
+        Replace artwork already in Steam
+      </label>
+      <ActionRow>
+        <Button
+          data-focusable
+          variant="outline"
+          disabled={!selected || pending}
+          onClick={() =>
+            void loadArtworkReview({ kind: "update", replace_existing: replaceArtwork })
+          }
+        >
+          Review artwork update
+        </Button>
+        <Button
+          data-focusable
+          variant="outline"
+          disabled={!selected || pending}
+          onClick={() => void loadArtworkReview({ kind: "remove_owned" })}
+        >
+          Review artwork removal
+        </Button>
+      </ActionRow>
+    </Fieldset>
   );
 }
 
