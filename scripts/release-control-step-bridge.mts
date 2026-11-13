@@ -17,6 +17,7 @@ import { controlHandshakeArtifactName, inspectControlRound } from "./release-con
 import { productionControllerWorkflow } from "./production-controller-admission.mts";
 import { isRecord } from "./runtime-values.mts";
 import { releaseControlPhaseProfile } from "./release-control-phases.mts";
+import { assertTrustedDirectNode } from "./release-direct-node-transport.mts";
 import { fixedReleaseReaderToken } from "./release-readonly-child-environment.mts";
 
 const catalogRefusalStages = {
@@ -258,6 +259,7 @@ export function controlBridgeOriginalDeadline(
 export async function readControlBridgeOriginalJob(
   rawPhase: unknown,
   environment: NodeJS.ProcessEnv = process.env,
+  receiverDeadline?: number,
 ) {
   const phase = inspectReleaseControlPhase(rawPhase);
   const original = {
@@ -277,9 +279,20 @@ export async function readControlBridgeOriginalJob(
   )
     throw new Error("fixed readiness current source/run/ref required");
   const token = fixedReleaseReaderToken();
-  const deadline = performance.now() + 15000;
+  const deadline = Math.min(performance.now() + 15000, receiverDeadline ?? Infinity);
   const { createReleaseCustodyProvider } = await import("./release-custody-provider.mts");
-  const provider = await createReleaseCustodyProvider({ token, deadline });
+  const provider = await createReleaseCustodyProvider({
+    token,
+    deadline,
+    ...(receiverDeadline === undefined
+      ? {}
+      : {
+          fetch(input, init) {
+            assertTrustedDirectNode("controller tool live receiver");
+            return globalThis.fetch(input, init);
+          },
+        }),
+  });
   const response = await provider.jobs(run, 1, 1);
   if (
     performance.now() >= deadline ||

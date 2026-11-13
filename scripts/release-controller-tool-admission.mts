@@ -138,7 +138,11 @@ function artifact(
     throw new Error("controller tool artifact provider identity differs");
   return { id, bytes: raw.size_in_bytes, sha256 };
 }
-function runIdentity(raw: unknown, expected: ControllerToolArtifactExpected) {
+function inspectControllerToolRunIdentity(
+  raw: unknown,
+  expected: ControllerToolArtifactExpected,
+  liveCoordinator = false,
+) {
   if (
     !isRecord(raw) ||
     raw.id !== Number(expected.run_id) ||
@@ -146,7 +150,8 @@ function runIdentity(raw: unknown, expected: ControllerToolArtifactExpected) {
     raw.head_sha !== expected.controller_revision ||
     raw.path !== productionControllerWorkflow ||
     raw.event !== "workflow_dispatch" ||
-    !["in_progress", "completed"].includes(String(raw.status)) ||
+    (!(raw.status === "queued" && raw.conclusion === null && liveCoordinator) &&
+      !["in_progress", "completed"].includes(String(raw.status))) ||
     (raw.conclusion !== null && raw.conclusion !== "success") ||
     !isRecord(raw.repository) ||
     raw.repository.id !== 1354613114 ||
@@ -424,10 +429,18 @@ export async function receiveControllerTools(
     spawn?: RetainedGitHubSpawn;
     fetch?: typeof globalThis.fetch;
     deadline?: number;
+    liveCoordinator?: { id: number; started_at: string };
   } = {},
 ) {
-  const { metadata: injectedMetadata, download: injectedDownload, spawn, fetch } = options;
+  const {
+    liveCoordinator: rawLiveCoordinator,
+    metadata: injectedMetadata,
+    download: injectedDownload,
+    spawn,
+    fetch,
+  } = options;
   const { deadline: requestedDeadline } = options;
+  const liveCoordinator = rawLiveCoordinator && structuredClone(rawLiveCoordinator);
   if (
     requestedDeadline !== undefined &&
     (!Number.isFinite(requestedDeadline) ||
@@ -494,9 +507,11 @@ export async function receiveControllerTools(
     }
     const metadata = provider;
     let requests = 0;
+    // Only coordinator custody can need one extra active-job read per snapshot.
+    const requestLimit = liveCoordinator ? 16 : 14;
     const get = async (read: () => Promise<unknown>) => {
       remaining(15000);
-      if (++requests > 14) throw new Error("bootstrap provider request bound exhausted");
+      if (++requests > requestLimit) throw new Error("bootstrap provider request bound exhausted");
       const body = await read();
       remaining(15000);
       if (Buffer.byteLength(JSON.stringify(body)) > 128 * 1024)
@@ -514,33 +529,61 @@ export async function receiveControllerTools(
         throw new Error("bootstrap source tree differs from provider commit");
       return { commit: commit.sha, tree: commit.tree.sha };
     };
-    const snapshot = async (initial = false) => ({
-      source: await sourceIdentity(),
-      run: runIdentity(await get(() => metadata.run(expected.run_id)), expected),
-      attempt: runIdentity(
-        await get(() => metadata.attempt(expected.run_id, expected.run_attempt)),
+    let requiresLiveConfirmation = false;
+    const snapshot = async (initial = false) => {
+      const source = await sourceIdentity();
+      const rawRun = await get(() => metadata.run(expected.run_id));
+      const rawAttempt = await get(() => metadata.attempt(expected.run_id, expected.run_attempt));
+      const run = inspectControllerToolRunIdentity(rawRun, expected, liveCoordinator !== undefined);
+      const attempt = inspectControllerToolRunIdentity(
+        rawAttempt,
         expected,
-      ),
-      tools: artifact(
-        await get(() => metadata.artifact(expected.artifact_id)),
-        expected,
-        expected.artifact_id,
-        expected.sha256,
-      ),
-      bundle: artifact(
-        await (initial
-          ? readVisibleUpload(
-              () => get(() => metadata.artifact(bundle.artifact_id)),
-              Math.min(deadline ?? Infinity, performance.now() + 15000),
-              [500, 1500],
-            )
-          : get(() => metadata.artifact(bundle.artifact_id))),
-        expected,
-        bundle.artifact_id,
-        bundle.sha256,
-        true,
-      ),
-    });
+        liveCoordinator !== undefined,
+      );
+      requiresLiveConfirmation ||=
+        (isRecord(rawRun) && rawRun.status === "queued") ||
+        (isRecord(rawAttempt) && rawAttempt.status === "queued");
+      if (liveCoordinator && requiresLiveConfirmation) {
+        if (
+          process.env.GITHUB_RUN_ID !== expected.run_id ||
+          process.env.GITHUB_RUN_ATTEMPT !== String(expected.run_attempt) ||
+          process.env.GITHUB_SHA !== expected.controller_revision ||
+          process.env.GITHUB_REF !== expected.controller_ref
+        )
+          throw new Error("queued tool run is not the live fixed coordinator attempt");
+        if (++requests > requestLimit)
+          throw new Error("bootstrap provider request bound exhausted");
+        const { readControlBridgeOriginalJob } = await import("./release-control-step-bridge.mts");
+        const { job } = await readControlBridgeOriginalJob("coordinator", process.env, deadline);
+        if (job.id !== liveCoordinator.id || job.started_at !== liveCoordinator.started_at)
+          throw new Error("exact active coordinator job changed during tool custody");
+        remaining(15000);
+      }
+      return {
+        source,
+        run,
+        attempt,
+        tools: artifact(
+          await get(() => metadata.artifact(expected.artifact_id)),
+          expected,
+          expected.artifact_id,
+          expected.sha256,
+        ),
+        bundle: artifact(
+          await (initial
+            ? readVisibleUpload(
+                () => get(() => metadata.artifact(bundle.artifact_id)),
+                Math.min(deadline ?? Infinity, performance.now() + 15000),
+                [500, 1500],
+              )
+            : get(() => metadata.artifact(bundle.artifact_id))),
+          expected,
+          bundle.artifact_id,
+          bundle.sha256,
+          true,
+        ),
+      };
+    };
     const before = await snapshot(true);
     await writeFile(path.join(directory, "provider-before.json"), JSON.stringify(before), {
       flag: "wx",
