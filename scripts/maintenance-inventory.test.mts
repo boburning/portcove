@@ -14,6 +14,7 @@ import { postgresFixture, postgresServer } from "./fixtures/postgres-cluster.mts
 import {
   publicationFacts,
   acquireCollection,
+  targetSummary,
   assessmentSubject,
   hostPlatform,
   acknowledgeDigest,
@@ -327,6 +328,14 @@ function stubCli(root: string) {
   const reply = (envelope) => { console.log(JSON.stringify({ schema_version: 88, ...envelope })); process.exitCode = envelope.ok ? 0 : 1; };
   if (args.includes("capabilities")) {
     reply({ ok: true, data: { schema_version: 88, port_capability_schema: 1 }, error: null });
+  } else if (args.includes("inspect-targets")) {
+    const ids = args.flatMap((value, index) => (args[index - 1] === "--port" ? [value] : []));
+    reply({ ok: true, error: null, data: { format_version: 1, scope: "fixture", platforms: ["linux-x86-64"],
+      ports: ids.map((id) => ({ port_id: id, presence: responses["targets:" + id] ?? "operational",
+        declared_platforms: ["linux-x86-64"], acquisition_hold: null, download_restriction: null,
+        targets: (responses["targets:" + id] ?? "operational") === "operational" ? [{ platform: "linux-x86-64",
+          routes: [{ action: "install", offered: true, reason: null }, { action: "register_external", offered: false, reason: "route_not_offered" }],
+          provider_resolution_required: false, definition_eligibility: "unknown", readiness: "unknown" }] : [] })) } });
   } else {
     const id = args.at(-1);
     const data = responses[id];
@@ -2043,5 +2052,77 @@ void test(
     verifyAs(1);
     assert.deepEqual(recordHandoffOperations(executor), { abandoned: 0, planned: 0, open: 1 });
     assert.match(operations(), new RegExp(`${again.replaceAll(".", "\\.")}=dispatched$`, "u"));
+  },
+);
+
+void test(
+  "Core per-target route offering is stored per port, reported and fails alone",
+  { skip: server.skip ?? false, timeout: 240_000 },
+  async (context) => {
+    const fixture = postgresFixture(context, server.directory!);
+    const store = fixture.start("targets");
+    migrate(store.owner);
+    const { cli, responses } = stubCli(fixture.root);
+    writeFileSync(
+      responses,
+      JSON.stringify({
+        "2ship2harkinian": report("automatic"),
+        "targets:not-a-catalog-port": "not_found",
+      }),
+    );
+    const ports = ["2ship2harkinian", "not-a-catalog-port"];
+    const all = (targets: Parameters<typeof collect>[0]["targets"]) =>
+      collect({ cli, all: true, ports, targets, environment: store.owner, runner: "fixture" });
+    await all(true);
+    await all(true);
+    const runs = JSON.parse(
+      runSql(
+        store.owner,
+        `SELECT json_agg(json_build_object('coverage', coverage, 'expected', expected_count,
+           'rows', (SELECT count(*) FROM portcove_maintenance.observations o WHERE o.run_id = r.run_id),
+           'revision', source_revision) ORDER BY acquisition)
+           FROM portcove_maintenance.collection_runs r WHERE source = 'core-target-routes';`,
+      ),
+    ) as { coverage: string; expected: number; rows: number; revision: string }[];
+    assert.deepEqual(
+      runs.map(({ coverage, expected, rows }) => [coverage, expected, rows]),
+      [
+        ["complete", 2, 2],
+        ["complete", 2, 0],
+      ],
+      "an unchanged inspection is quiet",
+    );
+    assert.match(
+      runs[0]!.revision,
+      /^cli-sha256:[0-9a-f]{64}$/u,
+      "bound to the assessing Core binary",
+    );
+    const inventory = buildReport(store.owner);
+    const ship = (inventory.subjects as { port_key: string; target_routes: unknown }[]).find(
+      ({ port_key }) => port_key === "port:2ship2harkinian",
+    );
+    assert.match(
+      targetSummary(ship?.target_routes as never) ?? "",
+      /^managed install on linux-x86-64; trust eligibility and readiness not assessed$/u,
+    );
+    assert.match(renderHtml(inventory), /Offered for a fresh library/u);
+    assert.equal(
+      targetSummary({
+        presence: "not_found",
+        declared_platforms: [],
+        acquisition_hold: null,
+        download_restriction: null,
+        targets: [],
+      }),
+      "not found; no managed route",
+    );
+    // A failed inspection is its own failed run; the earlier facts stay current.
+    const failed = await all(() => Promise.reject(new Error("inspection refused")));
+    assert.deepEqual(failed.failed_sources, ["core-target-routes"]);
+    assert.ok(
+      (buildReport(store.owner).subjects as { port_key: string; target_routes: unknown }[]).find(
+        ({ port_key }) => port_key === "port:2ship2harkinian",
+      )?.target_routes,
+    );
   },
 );

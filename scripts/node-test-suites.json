@@ -1416,7 +1416,8 @@
             "hosted intake records requests, quiet recurrence, attention, gaps and failed reads",
             "handoffs plan once, stay quiet, clear and abandon only after complete runs, and refuse stale fences",
             "current provenance refreshes quietly, stale collections replace nothing and sources fail alone",
-            "migration 0003 binds existing state and handoff plans follow the applicable assessment"
+            "migration 0003 binds existing state and handoff plans follow the applicable assessment",
+            "Core per-target route offering is stored per port, reported and fails alone"
           ],
           "skip_reason_prefix": "PostgreSQL server prerequisite unavailable"
         }

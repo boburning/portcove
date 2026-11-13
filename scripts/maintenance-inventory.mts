@@ -548,6 +548,50 @@ export function publicationFacts(observation: PublicationObservation) {
   return { facts, gaps: [], expected: definitions.length };
 }
 
+/** One port's Core-owned route offering per target platform, for a fresh library. */
+export interface TargetRoutesFact {
+  presence: string;
+  declared_platforms: string[];
+  acquisition_hold: string | null;
+  download_restriction: string | null;
+  targets: {
+    platform: string;
+    routes: { action: string; offered: boolean; reason: string | null }[];
+    provider_resolution_required: boolean;
+    definition_eligibility: string;
+    readiness: string;
+  }[];
+}
+
+/**
+ * Core's library-free per-target inspection (`catalog inspect-targets`) for
+ * exactly the collected ports. Core decides every route; this only keys the
+ * result by `port:<id>` and keeps Core's own unknowns.
+ */
+export async function readTargetRoutes(cli: string, ids: readonly string[]) {
+  const envelope = await isolatedCli(cli, [
+    "catalog",
+    "inspect-targets",
+    ...ids.flatMap((id) => ["--port", id]),
+  ]);
+  const data = envelope.data as
+    | { format_version?: unknown; ports?: ({ port_id?: unknown } & TargetRoutesFact)[] }
+    | undefined;
+  if (!envelope.ok || data?.format_version !== 1 || !Array.isArray(data.ports))
+    throw new MaintenanceStoreError(
+      "Core target inspection is unavailable or uses an unsupported format",
+    );
+  const facts = new Map<string, TargetRoutesFact>();
+  for (const { port_id, ...fact } of data.ports) {
+    if (typeof port_id !== "string" || !portIdPattern.test(port_id))
+      throw new MaintenanceStoreError("Core target inspection returned an unsupported port ID");
+    facts.set(`port:${port_id}`, fact);
+  }
+  if (facts.size !== new Set(ids).size)
+    throw new MaintenanceStoreError("Core target inspection did not cover every collected port");
+  return facts;
+}
+
 /** Inspect the bundle exactly as committed at the revision, and probe the appointed location. */
 export async function readPublication(
   cli: string,
@@ -685,6 +729,7 @@ export function collectionSql(input: {
     upstream?: ReadonlyMap<string, string>;
     hostedIntake?: ReadonlyMap<string, string>;
     publication?: ReadonlyMap<string, string>;
+    targets?: ReadonlyMap<string, string>;
   };
   /**
    * The latest finished run of each source when `latest` was read. The store
@@ -708,6 +753,12 @@ export function collectionSql(input: {
   };
   upstream?: UpstreamObservation;
   hostedIntake?: HostedIntakeObservation;
+  /** Core's per-target route offering, bound to the same Core binary as the assessments. */
+  targets?: {
+    facts: ReadonlyMap<string, unknown>;
+    expected: number;
+    failure?: SourceGap;
+  };
   issues?: {
     repository: string;
     observedAt: string;
@@ -741,6 +792,7 @@ export function collectionSql(input: {
            ...(input.upstream ? ["upstream-observations"] : []),
            ...(input.hostedIntake ? ["hosted-intake"] : []),
            ...(input.publication ? ["definition-publication"] : []),
+           ...(input.targets ? ["core-target-routes"] : []),
          ]),
        ]
          .sort()
@@ -1003,7 +1055,34 @@ export function collectionSql(input: {
       input.publication.expected,
     ]);
   }
+  const targetsRun = `core-target-routes:${input.cliSha256.slice(0, 12)}:${token}`;
+  if (input.targets) {
+    if (input.mode !== "all")
+      throw new MaintenanceStoreError("Target-route collection requires --all");
+    lines.push(
+      `INSERT INTO portcove_maintenance.collection_runs (run_id, source, runner, source_revision, started_at, acquisition) VALUES
+        (${literal(targetsRun)}, 'core-target-routes', ${literal(input.runner)}, ${literal(coreRevision)}, ${literal(input.startedAt)}, ${acquisition});`,
+    );
+    const targetFacts = new Map<string, Fact>();
+    for (const [key, payload] of input.targets.facts)
+      targetFacts.set(key, {
+        digest: sha256(canonicalJson(payload)),
+        scope: { source: "core-target-routes", policy, isolation: "fresh-library" },
+        revision: coreRevision,
+        payload,
+      });
+    runs.push([
+      targetsRun,
+      coreRevision,
+      input.targets.failure ? "failed" : "complete",
+      input.targets.failure ? [input.targets.failure] : [],
+      targetFacts,
+      input.latest?.targets,
+      input.targets.failure ? null : input.targets.expected,
+    ]);
+  }
   const sourceOf = new Map([
+    [targetsRun, "core-target-routes"],
     [publicationRun, "definition-publication"],
     [catalogRun, "catalog-records"],
     [coreRun, coreSource],
@@ -1158,6 +1237,11 @@ export async function collect(options: {
     | boolean
     | ((cli: string, revision: string) => Promise<PublicationObservation>)
     | undefined;
+  /** With `all`, also collect Core's per-target route offering for the collected ports. */
+  targets?:
+    | boolean
+    | ((cli: string, ids: readonly string[]) => Promise<ReadonlyMap<string, unknown>>)
+    | undefined;
   /** With `all`, also collect the latest scheduled release-health report. */
   releaseHealth?: (() => Promise<ReleaseHealthInput>) | undefined;
   /** With `all`, also collect the newest retained upstream observer checkpoint. */
@@ -1223,6 +1307,16 @@ export async function collect(options: {
   const hostedIntake = options.hostedIntake
     ? await hostedIntakeObservation(options.hostedIntake)
     : undefined;
+  if (options.targets && !options.all)
+    throw new MaintenanceStoreError("Target-route collection requires --all");
+  const targetsRead = options.targets
+    ? await sourceOutcome(() =>
+        (typeof options.targets === "function" ? options.targets : readTargetRoutes)(
+          options.cli,
+          ids,
+        ),
+      )
+    : undefined;
   if (options.publication && !options.all)
     throw new MaintenanceStoreError("Publication collection requires --all");
   const publicationRead = options.publication
@@ -1276,6 +1370,17 @@ export async function collect(options: {
         : {}),
       ...(upstream ? { upstream } : {}),
       ...(hostedIntake ? { hostedIntake } : {}),
+      ...(targetsRead
+        ? {
+            targets: targetsRead.ok
+              ? { facts: targetsRead.value, expected: targetsRead.value.size }
+              : {
+                  facts: new Map(),
+                  expected: 0,
+                  failure: failedSource("source:core-target-routes", targetsRead.message),
+                },
+          }
+        : {}),
       ...(publicationRead
         ? {
             publication: publicationRead.ok
@@ -1302,6 +1407,7 @@ export async function collect(options: {
               ...(upstream ? { upstream: members("upstream-observations") } : {}),
               ...(hostedIntake ? { hostedIntake: members("hosted-intake") } : {}),
               ...(publicationRead ? { publication: members("definition-publication") } : {}),
+              ...(targetsRead ? { targets: members("core-target-routes") } : {}),
             },
           }
         : {}),
@@ -1315,6 +1421,7 @@ export async function collect(options: {
     ...(upstream ? ["upstream-observations"] : []),
     ...(hostedIntake ? ["hosted-intake"] : []),
     ...(publicationRead ? ["definition-publication"] : []),
+    ...(targetsRead ? ["core-target-routes"] : []),
   ];
   // A changes-only diff is exact only against the baseline the store still holds;
   // if another run finished meanwhile, reread it. External reads are not repeated.
@@ -1349,6 +1456,7 @@ export async function collect(options: {
       ...(upstream?.failed ? ["upstream-observations"] : []),
       ...(hostedIntake?.failed ? ["hosted-intake"] : []),
       ...(publicationRead && !publicationRead.ok ? ["definition-publication"] : []),
+      ...(targetsRead && !targetsRead.ok ? ["core-target-routes"] : []),
     ],
     upstream: upstream
       ? {
@@ -1398,6 +1506,12 @@ const reportQuery = `WITH latest_issue AS (
       FROM portcove_maintenance.observations o
       JOIN portcove_maintenance.collection_runs r ON r.run_id = o.run_id
       WHERE r.source = 'upstream-observations' AND r.coverage <> 'in_progress'
+      ORDER BY o.subject_key, r.acquisition DESC, o.observation_id DESC
+  ), latest_targets AS (
+    SELECT DISTINCT ON (o.subject_key) o.subject_key, o.payload
+      FROM portcove_maintenance.observations o
+      JOIN portcove_maintenance.collection_runs r ON r.run_id = o.run_id
+      WHERE r.source = 'core-target-routes' AND r.coverage <> 'in_progress'
       ORDER BY o.subject_key, r.acquisition DESC, o.observation_id DESC
   ), latest_hosted AS (
     SELECT DISTINCT ON (o.subject_key) o.subject_key, o.payload
@@ -1513,6 +1627,8 @@ SELECT json_build_object(
            WHERE g ->> 'subject_key' = c.port_key LIMIT 1) AS latest_health_gap,
         (SELECT CASE WHEN u.payload = portcove_maintenance.absent_payload() THEN NULL ELSE u.payload END
            FROM latest_upstream u WHERE u.subject_key = c.port_key) AS upstream,
+        (SELECT CASE WHEN t.payload = portcove_maintenance.absent_payload() THEN NULL ELSE t.payload END
+           FROM latest_targets t WHERE t.subject_key = c.port_key) AS target_routes,
         (SELECT g FROM (
             SELECT gaps FROM portcove_maintenance.collection_runs
               WHERE source = 'upstream-observations' AND coverage NOT IN ('in_progress', 'failed')
@@ -1767,6 +1883,32 @@ ${report.hosted_intake
 </tbody></table>`;
 }
 
+/**
+ * Core's per-target offering in words: the managed or external route per
+ * platform, the reviewed hold or restriction, and Core's own unknowns.
+ */
+export function targetSummary(fact: TargetRoutesFact | null | undefined) {
+  if (!fact) return null;
+  if (fact.presence !== "operational")
+    return `${fact.presence.replaceAll("_", " ")}; no managed route`;
+  const offered = fact.targets.flatMap(({ platform, routes }) =>
+    routes
+      .filter(({ offered: yes }) => yes)
+      .map(
+        ({ action }) =>
+          `${action === "install" ? "managed install" : "external registration"} on ${platform}`,
+      ),
+  );
+  return [
+    offered.length ? offered.join(", ") : "no route offered on any inspected platform",
+    fact.acquisition_hold ? `held: ${fact.acquisition_hold}` : "",
+    fact.download_restriction ? `download restricted: ${fact.download_restriction}` : "",
+    "trust eligibility and readiness not assessed",
+  ]
+    .filter(Boolean)
+    .join("; ");
+}
+
 /** A self-contained, searchable page; data is embedded as escaped JSON, never as markup. */
 export function renderHtml(report: InventoryReport) {
   // The page embeds only what it renders; inventory.json keeps every explanation.
@@ -1790,7 +1932,9 @@ export function renderHtml(report: InventoryReport) {
         latest_health_gap,
         upstream,
         latest_upstream_gap,
+        target_routes,
       }) => ({
+        offered: targetSummary(target_routes as TargetRoutesFact | null | undefined),
         attention: [
           ...(attentionConditions(release_health) as { rule?: string; operation?: string }[]).map(
             ({ rule, operation }) => `${rule ?? "unknown"} (${operation ?? "unknown"})`,
@@ -1894,7 +2038,7 @@ ${hostedIntakeSection(report)}
 <h2>Subjects</h2>
 <label for="search">Search</label>
 <input id="search" type="search" placeholder="Port ID or state">
-<table><thead><tr><th>Subject</th><th>Name and game</th><th>Alternatives</th><th>Core assessment</th><th>Changes</th><th>Last verified</th><th>Last changed</th><th>Latest Core run</th><th>Work</th><th>Upstream</th><th>Needs attention</th><th>Next action</th></tr></thead><tbody id="subjects"></tbody></table>
+<table><thead><tr><th>Subject</th><th>Name and game</th><th>Alternatives</th><th>Core assessment</th><th>Changes</th><th>Last verified</th><th>Last changed</th><th>Latest Core run</th><th>Work</th><th>Upstream</th><th>Offered for a fresh library</th><th>Needs attention</th><th>Next action</th></tr></thead><tbody id="subjects"></tbody></table>
 <script id="inventory" type="application/json">${embedded}</script>
 <script>
 const report = JSON.parse(document.getElementById("inventory").textContent);
@@ -1909,7 +2053,7 @@ function render(filter) {
       ? "not assessed: " + subject.latest_core_gap.code
       : subject.latest_core_run === "assessed" ? "assessed"
       : subject.latest_core_run === "removed" ? "removed from the catalog" : "not in latest run";
-    for (const value of [subject.subject_key, [subject.name, subject.game].filter(Boolean).join(" — "), (subject.alternatives ?? []).join(", "), subject.state, String(subject.sequence), subject.verified_at, subject.changed_at, gap, (subject.work ?? []).join("; ") || "no linked issue observed", subject.upstream || "not observed", [subject.latest_health_gap ? "health not fresh: " + subject.latest_health_gap : "", ...(subject.attention ?? [])].filter(Boolean).join("; "), (subject.next_actions ?? []).join("; ")])
+    for (const value of [subject.subject_key, [subject.name, subject.game].filter(Boolean).join(" — "), (subject.alternatives ?? []).join(", "), subject.state, String(subject.sequence), subject.verified_at, subject.changed_at, gap, (subject.work ?? []).join("; ") || "no linked issue observed", subject.upstream || "not observed", subject.offered || "not observed", [subject.latest_health_gap ? "health not fresh: " + subject.latest_health_gap : "", ...(subject.attention ?? [])].filter(Boolean).join("; "), (subject.next_actions ?? []).join("; ")])
       row.insertCell().textContent = value;
   }
 }
@@ -2086,6 +2230,8 @@ commands:
                                        inventory through the maintained read-only roadmap collector;
                                        --issues-token-env NAME (with --issues) reads that collector's
                                        credential from NAME instead of GH_TOKEN, never falling back;
+                                       --targets (with --all) adds Core's per-target route
+                                       offering for a fresh library (catalog inspect-targets);
                                        --release-health (with --all) adds the latest scheduled
                                        main upstream-health report, bound by run and digest;
                                        --upstream (with --all) adds the newest retained upstream
@@ -2133,6 +2279,9 @@ export async function main(argv = process.argv.slice(2)) {
   const allIndex = args.indexOf("--all");
   const all = allIndex >= 0;
   if (all) args.splice(allIndex, 1);
+  const targetsIndex = args.indexOf("--targets");
+  const targets = targetsIndex >= 0;
+  if (targets) args.splice(targetsIndex, 1);
   const publicationIndex = args.indexOf("--publication");
   const publication = publicationIndex >= 0;
   if (publication) args.splice(publicationIndex, 1);
@@ -2184,6 +2333,7 @@ export async function main(argv = process.argv.slice(2)) {
           upstream: upstreamSource ? () => readUpstreamObservations(committedBytes) : undefined,
           hostedIntake: hostedSource ? readHostedIntake : undefined,
           publication: publication || undefined,
+          targets: targets || undefined,
           environment,
         }),
         null,

@@ -528,6 +528,29 @@ The owner-approved November 11 fresh baseline restored that chain on 2026-11-12:
 scheduled run 43152316761 initialized it and retained a checkpoint snapshot, so
 later collections read that snapshot.
 
+### Core target routes
+
+```bash
+node scripts/maintenance-inventory.mts collect --cli target/release/portcove --all --targets
+```
+
+- **Input:** Core's library-free `catalog inspect-targets` for exactly the
+  collected ports ([CLI](CLI.md#catalog-target-inspection)). It is bound to the
+  same Core binary digest as the host assessments (`cli-sha256:<digest>`).
+- **Stored facts:** each port's presence, declared platforms, reviewed
+  acquisition hold, download restriction, and per target platform whether the
+  managed install and the external registration are offered to a fresh library,
+  with Core's reason. The facts are stored changes-only as `port:<id>`.
+- **Unknowns:** definition trust eligibility and readiness stay Core's
+  `unknown`. Collecting on one host never relabels that host's own assessment as
+  another platform's offering. Platforms Core does not represent, such as
+  Android, are not inspected.
+- **Failure:** a failed inspection is a `failed` run of its own, and the earlier
+  facts stay current.
+- **Report:** the subjects table adds "Offered for a fresh library", for
+  example "managed install on windows-x86-64, managed install on
+  linux-x86-64; trust eligibility and readiness not assessed".
+
 ### Hosted intake
 
 `--hosted-intake` (with `--all`) adds the `hosted-intake` source.
@@ -779,7 +802,7 @@ checkpoint 5 and is recorded there.
   1. Build the debug Core CLI, sharing the observer's Rust cache.
   2. `migrate`.
   3. `collect --all` with `--issues`, `--release-health`, `--publication`,
-     `--upstream` and `--hosted-intake`. The collection transaction reaches the
+     `--upstream`, `--hosted-intake` and `--targets`. The collection transaction reaches the
      server as one batched query (psql `\;`), so a remote host costs one round
      trip rather than one per statement. The isolation and quoting settings
      run first as their own statements, because a batched query is parsed whole
