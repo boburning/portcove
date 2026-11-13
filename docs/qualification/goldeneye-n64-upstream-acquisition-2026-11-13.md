@@ -52,3 +52,29 @@ October 25, 2026 against the same `v0.5.0` artifact.
 The source contract binds only the `v0.5.0` artifact. When upstream publishes
 the `v0.6.0` release, or any later one, its Windows package must be verified and
 added to the contract's applicability; this delivery makes no claim about it.
+
+## Settings restart and managed launch custody
+
+The exact [v0.5.0 source](https://github.com/jkdansereau/goldeneye-pc-port/tree/5c43e69b23f76d1ba30d1120dab427d09968a8c8)
+offers a restart from the settings menu. It saves configuration and EEPROM
+data before calling `sysRelaunchSelf`. On Windows this starts the same
+`ge007.x86_64.exe` with the original command line, inherited working folder
+and ordinary process flags. It closes its child handles and exits. The
+publisher ZIP matches the digest above, and the Windows executable imports
+`CreateProcessA` and contains the restart path's diagnostic strings.
+
+The managed Windows route opts into the existing job-based handoff.
+New managed installs using this definition hold their session while the
+replacement player runs within the install. Definitions delivered to clients
+need the existing native capability 28 in addition to staged-source portable.
+Existing installs use their creating definition. External registration
+remains player-owned. The bundled first-run converter is a separate,
+synchronously waited helper.
+
+The Linux archive also matches the provider SHA-256
+`011ee5acdd75028fa3af8cbad2aaade1f362aee89f17b43a15d1d1836e98ab92`
+at 11,527,864 bytes. Its restart forks and execs the player in a separate
+process and lets the original exit. Linux remains upstream setup until the
+runtime keeps its PID across restart or a qualified Linux handoff can track it.
+No GoldenEye executable, ROM or restart was exercised. The existing Windows
+handoff fixture exercises process and session behavior with an inert player.
