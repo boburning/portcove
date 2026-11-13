@@ -598,6 +598,13 @@ impl PortcoveService {
         }
         self.library().game_file_scan_match_page(query)
     }
+
+    /// The source profiles matched inside one saved folder by the current
+    /// scan, so every choice the folder needs can be offered. Evidence only:
+    /// nothing is registered or set up.
+    pub fn game_file_root_match_profiles(&self, root_id: &str) -> Result<Vec<String>> {
+        self.library().game_file_root_match_profiles(root_id)
+    }
 }
 
 fn discovery_exclusions(

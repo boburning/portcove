@@ -908,6 +908,10 @@ start from the first match each pass until the folders are scanned again.
 Turning automatic
 setup off takes effect before the next file is registered or installed, even
 during a pass. An unavailable folder waits and keeps its setting. Removing a folder ends its automatic setup.
+`source roots profiles --root ROOT_ID` lists the game-file profiles the last
+scan matched anywhere in that saved folder, including matches beyond the
+report preview, and marks the ones several games can use so you can choose one
+with `games folder-setup-choose`. It reads only.
 `games folder-setups` lists folders with automatic setup turned on, their
 implementation choices, local-copy choice and recent failures, and changes nothing.
 

@@ -734,6 +734,10 @@ export function installInteractiveTransport(journey: Journey, refuse: (message: 
         next_offset: null,
       };
     },
+    get_game_file_root_match_profiles: (args) => {
+      requireArgs("get_game_file_root_match_profiles", args, { generation, rootId: args?.rootId });
+      return [];
+    },
     get_backups: (args) => {
       if (!workspace(journey).catalog.ports.some((port) => port.id === args?.portId))
         return unsupported("get_backups");

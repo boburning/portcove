@@ -1287,6 +1287,43 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn a_folder_lists_every_matched_profile_beyond_the_preview() {
+        let folder = folder();
+        let file = folder.file("game.z64", 'a');
+        let elsewhere = folder.root.parent().unwrap().join("elsewhere");
+        // Matches elsewhere fill the preview; this folder's match is in the rows.
+        let mut candidates = (0..600)
+            .map(|index| SourceRecord {
+                profile_id: "elsewhere".into(),
+                path: elsewhere.join(format!("other-{index:03}.z64")),
+                ..file.clone()
+            })
+            .collect::<Vec<_>>();
+        candidates.push(file.clone());
+        let snapshot = crate::source_discovery::publish_test_game_file_scan_rows(
+            folder.service.catalog(),
+            folder.service.library(),
+            candidates,
+        );
+        assert!(!snapshot.matches.unwrap().preview_complete);
+        let profiles = |service: &PortcoveService| {
+            service
+                .game_file_root_match_profiles(&folder.root_id)
+                .unwrap()
+        };
+        assert_eq!(profiles(&folder.service), vec![folder.profile.clone()]);
+        // Older inline reports are read the same way.
+        folder.scanned(vec![file]);
+        assert_eq!(profiles(&folder.service), vec![folder.profile.clone()]);
+        assert!(
+            folder
+                .service
+                .game_file_root_match_profiles(&uuid::Uuid::new_v4().to_string())
+                .is_err()
+        );
+    }
+
+    #[tokio::test]
     async fn keeping_a_local_copy_is_an_explicit_lasting_folder_choice() {
         let folder = folder();
         assert!(

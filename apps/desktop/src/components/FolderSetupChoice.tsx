@@ -56,13 +56,15 @@ export function FolderSetupChoice({
   root: GameFileRoot;
   generation: number;
   ports: PortDefinition[];
-  /** Matched files from the last scan, used to offer implementation choices. */
+  /** Matched files from the last scan that the view has shown. Core also
+   * reports every profile matched in this folder, beyond what was shown. */
   candidates: SourceRecord[];
   disabled?: boolean | undefined;
 }) {
   const name = useId();
   const { t } = useAppTranslation("gameFiles");
   const [consent, setConsent] = useState<RootSetupConsent | null>();
+  const [matched, setMatched] = useState<{ rootId: string; profiles: string[] }>();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>();
   const owner = useRef(generation);
@@ -87,6 +89,22 @@ export function FolderSetupChoice({
     return onStandingSetupPass(() => void load());
   }, [generation, root.id]);
 
+  // A new scan changes which games this folder's files match.
+  const shownProfiles = [...new Set(candidates.map((candidate) => candidate.profile_id))]
+    .sort()
+    .join("\n");
+  useEffect(() => {
+    const expected = generation;
+    desktopApi
+      .gameFileRootMatchProfiles(root.id, expected)
+      .then((profiles) => {
+        if (owner.current === expected) setMatched({ rootId: root.id, profiles });
+      })
+      .catch((value: unknown) => {
+        if (owner.current === expected) setError(errorText(value));
+      });
+  }, [generation, root.id, shownProfiles]);
+
   const save = async (change: () => Promise<RootSetupConsent | null>) => {
     const expected = generation;
     setBusy(true);
@@ -104,7 +122,13 @@ export function FolderSetupChoice({
 
   const current: Choice = consent?.enrollment ?? "off";
   // Files here that more than one game can use need an explicit choice.
-  const shared = [...new Set(candidates.map((candidate) => candidate.profile_id))]
+  const shared = [
+    ...new Set([
+      ...candidates.map((candidate) => candidate.profile_id),
+      ...(matched?.rootId === root.id ? matched.profiles : []),
+    ]),
+  ]
+    .sort()
     .map((profileId) => ({
       profileId,
       games: ports.filter((port) => port.source_profile === profileId),
