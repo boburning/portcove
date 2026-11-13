@@ -24,6 +24,7 @@ import {
   retainedCatalogBootstrapClaim,
   retainedCatalogForwardAdoptionClaim,
   retainedCatalogNativeAdoptionClaim,
+  retainedCatalogV13AdoptionClaim,
 } from "./release-coordinator-checkpoint-authentication.mts";
 import type { CatalogCoordinatorRefusalStage } from "./release-control-step-bridge.mts";
 import {
@@ -48,6 +49,7 @@ const catalogBootstrapClaims = [
   { mode: false, claim: retainedCatalogBootstrapClaim },
   { mode: true, claim: retainedCatalogForwardAdoptionClaim },
   { mode: "native", claim: retainedCatalogNativeAdoptionClaim },
+  { mode: "native", claim: retainedCatalogV13AdoptionClaim },
 ] as const;
 
 export function isCatalogBootstrapRecoveryRef(executionRef: string) {

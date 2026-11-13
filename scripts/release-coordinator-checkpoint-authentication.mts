@@ -82,6 +82,20 @@ export const retainedCatalogNativeAdoptionClaim = {
   successor_ref: "refs/tags/portcove-production-controller-catalog-adoption-settle-20261111",
 } as const;
 
+/** The failed v13 adoption reserved this exact unsigned child before signing. */
+export const retainedCatalogV13AdoptionClaim = {
+  previous: "d23b4f108b03ecd81c1696a407c740ca24e5d705",
+  child: "7b7388fe8eeb04fe11f4afd336f4ddb0359ef1b4",
+  tree: "25833904b3e147808bb25fb9b7568d9ed94290e6",
+  state_sha256: "ad063814109d9b7da32334afe02530a403e11afcf0bc49f33fd04ef0e1d4628b",
+  clock: "2026-11-13T06:56:26.026Z",
+  original_source: "eb1e59a29c70ab1548eb2ffb6c126d9252fb9dd1",
+  original_ref: "portcove-production-controller-catalog-adoption-v13-proof",
+  original_run: "43381386061",
+  original_job: 131741624813,
+  successor_ref: "refs/tags/portcove-production-controller-catalog-adoption-v13-settle",
+} as const;
+
 /** The r52 application claim already exists, so r53 may only settle these bytes. */
 export const retainedApplicationReviewClaim = {
   previous: "565eb5b3ccf58d6f0654e99b8d3e0214987cd003",

@@ -49,9 +49,19 @@ import {
   retainedCatalogBootstrapClaim,
   retainedCatalogForwardAdoptionClaim,
   retainedCatalogNativeAdoptionClaim,
+  retainedCatalogV13AdoptionClaim,
 } from "./release-coordinator-checkpoint-authentication.mts";
 
 void test("catalog recovery distinguishes exact renewal claims from historical bootstrap", () => {
+  const v13 = retainedCatalogV13AdoptionClaim;
+  assert.equal(selectCatalogBootstrapRecovery(v13.successor_ref, 1, v13.previous, "native"), v13);
+  assert.equal(
+    selectCatalogBootstrapRecovery(`refs/tags/${v13.original_ref}`, 1, v13.previous, "native"),
+    undefined,
+  );
+  assert.throws(() => selectCatalogBootstrapRecovery(v13.successor_ref, 2, v13.previous, "native"));
+  assert.throws(() => selectCatalogBootstrapRecovery(v13.successor_ref, 1, v13.child, "native"));
+  assert.throws(() => selectCatalogBootstrapRecovery(v13.successor_ref, 1, v13.previous, true));
   const old = retainedCatalogBootstrapClaim;
   const forward = retainedCatalogForwardAdoptionClaim;
   const native = retainedCatalogNativeAdoptionClaim;
