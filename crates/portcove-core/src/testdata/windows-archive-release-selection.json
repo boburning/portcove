@@ -480,7 +480,8 @@
         "serial": "SCUS-94424",
         "track_count": 1,
         "track_sha1": "75a13364ae026fe555e9c666c7c3434e5b403cc8",
-        "generated_executable": "Bloody_Roar_II__Recompiled.exe"
+        "generated_executable": "Bloody_Roar_II__Recompiled.exe",
+        "split_mod_paths": true
       },
       "linux_selected_assets": [
         "bloody-roar-ii-recomp-0.1.2-linux-x64.zip",
@@ -519,7 +520,8 @@
         "serial": "SLUS-00912",
         "track_count": 13,
         "track_sha1": "131463c47379b9a38888f548a44f43dcc6e7f959",
-        "generated_executable": "Destruction_Derby_Raw.exe"
+        "generated_executable": "Destruction_Derby_Raw.exe",
+        "split_mod_paths": true
       }
     },
     "alexbeav-armored-core-recomp": {

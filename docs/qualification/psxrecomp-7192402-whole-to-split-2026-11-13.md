@@ -11,8 +11,12 @@ program was executed.
 
 ## Why the layout changes
 
-Earlier kits on these routes kept every mod package in one flat
-`mods/packages`, so the routes persisted all of `mods`. The new kits stage
+Earlier kits on most of these routes (frameworks `40ce4789`, `a839474e` and,
+not rechecked here, `f7672e53`) kept every mod package in one flat
+`mods/packages`, so the routes persisted all of `mods`. Destruction Derby Raw
+v0.1.0 already used the split framework `5420458a`, so an existing whole copy
+of it may hold a stale `mods/bundled` in canonical data. The split scope never
+reads or writes it. The new kits stage
 their own defaults in `mods/bundled` at build time and keep player packages
 in `mods/installed`. Each start runs `ModPackageManager::migrate_legacy_root`
 (`runtime/src/mod_packages.cpp`), which handles each older flat
@@ -24,6 +28,13 @@ in `mods/installed`. Each start runs `ModPackageManager::migrate_legacy_root`
 - **Left in place:** anything that cannot be moved, with the whole legacy
   folder.
 
+The deletion does not compare contents. A player-edited package with the same
+id and version as a build-staged default is therefore dropped from the new copy
+and, after the next collection, from canonical data. It survives in the older
+copy and in the automatic snapshot taken before the update. Under the whole
+scope the same case was held as a conflict. Upstream owns this migration, as
+for the earlier split routes.
+
 Under a whole-`mods` scope, each version's build-staged `mods/bundled` would
 be collected as player data. The routes therefore now use the split mod
 paths, including `mods/texture-packs`:
@@ -31,6 +42,15 @@ paths, including `mods/texture-packs`:
 - **Authoring-form routes:** `psx_managed_windows_v1` changes from `true` to
   `"split-mods"`.
 - **Explicit integrations:** `mods` is replaced by the same six paths.
+
+## Old kits under the split definition
+
+Source applicability only grows, so the older flat-layout kits stay
+installable under the new definition. Such a kit would place its own default
+packages in `build-portcove/mods/packages`, which is now player data. Core
+therefore refuses any managed PS1 build for a split-scope route that leaves a
+file in `mods/packages`, before anything is installed. Kits on the reviewed
+split frameworks stage their defaults in `mods/bundled` and pass.
 
 ## Existing installations
 

@@ -23,6 +23,8 @@ pub struct PsxManagedPreparation {
     pub runtime_source_directory: Option<PathBuf>,
     pub toolchain_root: PathBuf,
     pub executable_basename: String,
+    /// The route persists split player mod paths rather than all of `mods`.
+    pub split_mod_packages: bool,
 }
 
 struct PreparationConfiguration<'a> {
@@ -651,6 +653,9 @@ fn prepare_install_inner(
         quiesced,
     )?;
     require_no_fetched_overlay_toolchain(root, &build_dir)?;
+    if preparation.split_mod_packages {
+        require_no_build_staged_player_packages(&build_dir)?;
+    }
     let executable = platform_executable(&build_dir, configuration.executable_basename);
     if !executable.is_file() {
         return Err(PortcoveError::install(format!(
@@ -1651,29 +1656,51 @@ fn require_no_fetched_overlay_toolchain(root: &Path, build_dir: &Path) -> Result
         build_dir.join("overlay_toolchain"),
         root.join(".cache").join("overlay-toolchain"),
     ] {
-        crate::path::refuse_symlink_ancestors(&folder)?;
-        let mut pending = vec![folder.clone()];
-        while let Some(directory) = pending.pop() {
-            let entries = match fs::read_dir(&directory) {
-                Ok(entries) => entries,
-                Err(error) if error.kind() == std::io::ErrorKind::NotFound => continue,
-                Err(error) => return Err(error.into()),
-            };
-            for entry in entries {
-                let entry = entry?;
-                let kind = entry.file_type()?;
-                if kind.is_dir() {
-                    pending.push(entry.path());
-                } else {
-                    return Err(PortcoveError::install(
-                        "PS1 build obtained an unverified overlay toolchain, so nothing was installed or changed",
-                    )
-                    .detail("path", entry.path().display().to_string()));
-                }
-            }
+        if let Some(path) = first_entry_below(&folder)? {
+            return Err(PortcoveError::install(
+                "PS1 build obtained an unverified overlay toolchain, so nothing was installed or changed",
+            )
+            .detail("path", path.display().to_string()));
         }
     }
     Ok(())
+}
+
+/// A split-scope route keeps player packages in `mods/packages`. A build that
+/// already put its own default packages there would have them collected as
+/// player data and later removed with it, so it is refused before anything is
+/// installed. Kits on the reviewed split frameworks stage defaults in
+/// `mods/bundled` instead.
+fn require_no_build_staged_player_packages(build_dir: &Path) -> Result<()> {
+    if let Some(path) = first_entry_below(&build_dir.join("mods").join("packages"))? {
+        return Err(PortcoveError::install(
+            "this PS1 kit puts its own mod packages where Portcove keeps your installed mods, so nothing was installed or changed",
+        )
+        .detail("path", path.display().to_string()));
+    }
+    Ok(())
+}
+
+/// The first file, link or other non-directory entry below `folder`, if any.
+fn first_entry_below(folder: &Path) -> Result<Option<PathBuf>> {
+    crate::path::refuse_symlink_ancestors(folder)?;
+    let mut pending = vec![folder.to_path_buf()];
+    while let Some(directory) = pending.pop() {
+        let entries = match fs::read_dir(&directory) {
+            Ok(entries) => entries,
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => continue,
+            Err(error) => return Err(error.into()),
+        };
+        for entry in entries {
+            let entry = entry?;
+            if entry.file_type()?.is_dir() {
+                pending.push(entry.path());
+            } else {
+                return Ok(Some(entry.path()));
+            }
+        }
+    }
+    Ok(None)
 }
 
 fn macos_toolchain_sdk(
@@ -2462,6 +2489,7 @@ mod tests {
             runtime_source_directory: None,
             toolchain_root: root.join("absent-owned-toolchain"),
             executable_basename: "owned-game".into(),
+            split_mod_packages: false,
         }
     }
 
@@ -2788,6 +2816,34 @@ mod tests {
         for name in ["NO_PROXY", "no_proxy", "https_proxy", "http_proxy"] {
             assert_eq!(value(name), None, "{name}");
         }
+    }
+
+    #[test]
+    fn split_scope_build_refuses_its_own_packages_in_the_player_folder() {
+        let temporary = tempfile::tempdir().unwrap();
+        let build = temporary.path().join("build-portcove");
+        require_no_build_staged_player_packages(&build).unwrap();
+        fs::create_dir_all(build.join("mods").join("packages").join("default")).unwrap();
+        fs::create_dir_all(build.join("mods").join("bundled").join("default")).unwrap();
+        fs::write(
+            build
+                .join("mods")
+                .join("bundled")
+                .join("default")
+                .join("manifest.toml"),
+            b"build-staged default",
+        )
+        .unwrap();
+        require_no_build_staged_player_packages(&build).unwrap();
+        let file = build
+            .join("mods")
+            .join("packages")
+            .join("default")
+            .join("manifest.toml");
+        fs::write(&file, b"kit default in the player folder").unwrap();
+        let error = require_no_build_staged_player_packages(&build).unwrap_err();
+        assert_eq!(error.code, crate::ErrorCode::Install);
+        assert_eq!(error.details["path"], file.display().to_string());
     }
 
     #[test]
