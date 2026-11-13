@@ -599,7 +599,11 @@ may omit archive state; the report then records `archived: null`. Direct artifac
 and other project locations use credential-free HEAD requests. Matching declared
 size establishes endpoint reachability only. Historical release metadata retains
 exact refs and provider digest claims, with incomplete or contradictory asset
-collections remaining unknown. Metadata and HEAD never verify accepted bytes.
+collections remaining unknown. A reviewed GitHub pin can supply the publisher tag
+for a different retained install version when port, platform, repository, version
+and artifact digest all match. The observation requires the reviewed release ID
+and provider-reported digest, and keeps the original qualification scope.
+Metadata and HEAD never verify accepted bytes.
 
 The report separates two outcomes. `collection_status: complete` means the
 selected observations completed; a collected 404, redirect or identity change can
