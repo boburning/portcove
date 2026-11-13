@@ -1,8 +1,18 @@
 # One canonical Windows application path. Production remains held until its
 # separately appointed fixed source and private authority are reconciled.
 name: Windows application release
-run-name: ${{ inputs.mode == 'diagnose-protection' && format('Paused protection diagnostic {0}', github.sha) || inputs.mode == 'qualify' && format('Windows qualification {0}', github.sha) || (inputs.wake_run_id != '' && format('Application {0} wake {1}', inputs.opportunity, inputs.wake_run_id)) || format('Application {0}', inputs.opportunity) }}
+run-name: >-
+  ${{ inputs.mode == 'diagnose-protection' && format('Paused protection diagnostic {0}', github.sha) ||
+  (inputs.mode == 'qualify' || (github.event_name == 'schedule' &&
+  vars.PORTCOVE_APPLICATION_RELEASE_ACTIVE == 'true' && vars.PORTCOVE_CONTROLLER_WAKE != '' &&
+  vars.PORTCOVE_CATALOG_CONTROLLER_WAKE == '' && vars.PORTCOVE_CATALOG_CONTROLLER_ADMISSION == '')) &&
+  format('Windows qualification {0}', github.sha) ||
+  github.event_name == 'schedule' && 'Windows qualification held' ||
+  (inputs.wake_run_id != '' && format('Application {0} wake {1}', inputs.opportunity, inputs.wake_run_id)) ||
+  format('Application {0}', inputs.opportunity) }}
 on:
+  schedule:
+    - cron: "17 4 * * *"
   workflow_dispatch:
     inputs:
       mode:
@@ -44,7 +54,8 @@ on:
 permissions:
   contents: read
 concurrency:
-  group: application-update-production-controller
+  # GitHub can replace a pending run in a group even with cancellation disabled.
+  group: ${{ github.event_name == 'schedule' && 'application-release-scheduled-qualification' || 'application-update-production-controller' }}
   cancel-in-progress: false
 jobs:
   protection_diagnosis:
@@ -105,7 +116,12 @@ jobs:
           PORTCOVE_OBSERVER_INSTALLATION_ID: ${{ steps.observer.outputs.installation-id }}
         run: node scripts/application-release-protection-diagnosis.mts observe
   selection:
-    if: ${{ inputs.mode == 'qualify' && github.repository == 'boburning/portcove' && github.ref == 'refs/heads/main' }}
+    if: >-
+      ${{ github.repository == 'boburning/portcove' && github.ref == 'refs/heads/main' &&
+      ((github.event_name == 'workflow_dispatch' && inputs.mode == 'qualify') ||
+      (github.event_name == 'schedule' && vars.PORTCOVE_APPLICATION_RELEASE_ACTIVE == 'true' &&
+      vars.PORTCOVE_CONTROLLER_WAKE != '' && vars.PORTCOVE_CATALOG_CONTROLLER_WAKE == '' &&
+      vars.PORTCOVE_CATALOG_CONTROLLER_ADMISSION == '')) }}
     runs-on: ubuntu-22.04
     timeout-minutes: 2
     outputs:
@@ -131,7 +147,6 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: node scripts/application-release-source.mts select
   qualify:
-    if: inputs.mode == 'qualify'
     needs: selection
     permissions:
       contents: read
@@ -145,7 +160,6 @@ jobs:
       caller_workflow: application-release.yml
       provenance_scope: qualification
   dependency-review:
-    if: inputs.mode == 'qualify'
     needs: selection
     runs-on: ubuntu-22.04
     timeout-minutes: 2
@@ -307,7 +321,6 @@ jobs:
       protection_artifact: ${{ needs.protection_payload.outputs.artifact }}
       protection_attempt: ${{ needs.protection_payload.outputs.attempt }}
   package_qualification:
-    if: inputs.mode == 'qualify'
     needs: [selection, qualify, dependency-review]
     permissions:
       contents: read

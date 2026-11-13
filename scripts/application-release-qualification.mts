@@ -119,7 +119,6 @@ export function inspectWindowsApplicationQualification(
   }
   const requiredJobs = sharedAndWindowsJobs.map((name) => `qualify / ${name}`);
   if (run.path === ".github/workflows/application-release.yml") {
-    assert.equal(run.event, "workflow_dispatch");
     assert.equal(run.display_title, `Windows qualification ${source}`);
     assert.equal(plan.release_profile, "initial-beta-windows-x86_64-v1");
     assert.equal(run.conclusion, "success", "canonical Windows qualification did not succeed");
@@ -182,7 +181,7 @@ export function selectWindowsApplicationQualificationRun(raw: unknown, source: s
     assert.equal(run.head_sha, source);
     assert.equal(run.head_branch, "main");
     assert.equal(run.path, ".github/workflows/application-release.yml");
-    assert.equal(run.event, "workflow_dispatch");
+    assert.ok(run.event === "schedule" || run.event === "workflow_dispatch");
     assert.ok(isRecord(run.head_repository) && run.head_repository.id === 1354613114);
     assert.ok(isRecord(run.repository) && run.repository.id === 1354613114);
     const { id, run_attempt, created_at } = run;

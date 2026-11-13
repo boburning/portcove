@@ -1692,10 +1692,7 @@ function nativeFixture(jobToken: boolean, native: boolean) {
           : actualRun(prior.length ? "41" : "42");
       else if (endpoint.includes("actions/workflows/application-update-wake.yml/runs?"))
         result = { total_count: 1 + prior.length, workflow_runs: [ownRun, ...prior] };
-      else if (
-        native &&
-        endpoint.includes("application-release.yml/runs?branch=main&event=workflow_dispatch")
-      ) {
+      else if (native && endpoint.includes("application-release.yml/runs?branch=main&head_sha=")) {
         const runs = qualificationAttempt === 0 ? [] : [qualificationRun()];
         result = { total_count: runs.length, workflow_runs: runs };
       } else if (native && endpoint === `${base}/actions/runs/23`) result = qualificationRun();
