@@ -737,9 +737,11 @@ bootstrap. Failed reads are not retried within the same logical job.
 The standalone full collector, which the release workflow runs, is bounded by its
 own validated forecast instead of the 352-request ceiling: every request is
 admitted against that conservative plan, the provider quota reserve, the
-three-minute limit and the byte limits. Catalog growth therefore never refuses the
-whole inventory. It still refuses before network work when the selected inventory
-exceeds the 512-location observation ceiling, which bounds one report. The maintained
+three-minute limit and the byte limits, so a larger request forecast never refuses
+the inventory. It still refuses before network work when the selected inventory
+exceeds the 512-location observation ceiling, which bounds one report. Release runs
+have completed this collection in under 20 seconds, well inside the three-minute
+limit. Without provider quota headers, the forecast is the only request bound. The maintained
 workflow uses incremental admission instead: completed locations are checkpointed
 atomically after each operation, under the existing lock and 16 MiB envelope.
 Continuation binds the accounting policy and exact per-owner health contracts.
@@ -882,7 +884,7 @@ inventory, accepted artifact or exception to required hosted validation.
 ### Growing monitoring inventories
 
 The monitor retains fair oldest-attempt rotation across bounded collector runs.
-The collector's 352-request and 512-new-location envelopes bound one operation,
+The collector's 352-request and 512-new-location envelopes bound one monitor operation,
 not the logical catalog or retained cross-run history. Checkpoints use their
 existing 16 MiB physical envelope rather than separate 4,096-port, 8,192-record
 or 512-incident historical count ceilings. Input catalogs are bounded to 4 MiB,

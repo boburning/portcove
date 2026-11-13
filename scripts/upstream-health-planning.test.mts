@@ -224,6 +224,24 @@ void test("validated forecasts bound full collections, and the batch ceiling nev
   }
 });
 
+void test("incremental operations still stop at the 352-request batch ceiling", async () => {
+  const catalog = {
+    ports: Array.from({ length: 353 }, (_, i) => capacityPort(`batch-${i}`)),
+  };
+  const calls: { url: string; options: HealthRequestOptions }[] = [];
+  const report = await collectRepositoryHealth(catalog, {
+    fetch: capacityFetch(calls),
+    now: () => 0,
+    incremental: true,
+  });
+  assert.equal(report.request_plan.conservative_requests, 353);
+  assert.equal(report.limits.requests, 352);
+  assert.equal(calls.length, 352);
+  assert.equal(report.consumed.requests, 352);
+  assert.equal(report.observations.filter((r) => r.attempted).length, 352);
+  assert.equal(report.observations.filter((r) => r.reason === "budget").length, 1);
+});
+
 void test("only the observation ceiling refuses a full collection before any network I/O", async () => {
   for (const count of [512, 513]) {
     const catalog = {
@@ -393,6 +411,7 @@ void test("reuse opportunities require the pin read to precede a shared hosted s
 
 void test("source archive conditional reads participate in the full collection forecast", async () => {
   const fixture = sourceArchiveFixture();
+  const archiveCalls: { url: string; options: HealthRequestOptions }[] = [];
   const report = await collectRepositoryHealthWithPolicy(
     {
       ports: [
@@ -403,7 +422,7 @@ void test("source archive conditional reads participate in the full collection f
     {
       reviewedAccounting: sourceArchivePolicy(fixture),
       now: () => 0,
-      fetch: capacityFetch([]),
+      fetch: capacityFetch(archiveCalls),
     },
   );
   assert.equal(report.request_plan.conservative_requests, 353);
@@ -411,6 +430,8 @@ void test("source archive conditional reads participate in the full collection f
   assert.equal(report.request_plan.status, "admitted");
   // The archive reads raise the full collection's own bound past the batch ceiling.
   assert.equal(report.limits.requests, 353);
-  assert.ok(report.consumed.requests <= 353);
+  // Conditional reads count against the bound but are spent only when needed.
+  assert.equal(report.consumed.requests, archiveCalls.length);
+  assert.ok(archiveCalls.length <= 353);
   assert.equal(report.observations.length, 351);
 });

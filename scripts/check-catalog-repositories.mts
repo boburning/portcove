@@ -312,7 +312,11 @@ export interface HealthOptions {
   portIds?: string[] | null;
   reviewedAccounting?: unknown;
   lineageRecords?: unknown[];
-  /** Trusted monitor continuation; legacy one-shot collection keeps strict preflight. */
+  /**
+   * Trusted monitor continuation: each operation stops at the 352-request batch
+   * ceiling. A one-shot collection is bounded by its own forecast and refuses
+   * only beyond the observation ceiling.
+   */
   incremental?: boolean;
   resumeObservations?: unknown[];
   operationDeadline?: number;
@@ -1875,7 +1879,7 @@ export async function collectRepositoryHealth(
       if (overflow && !incremental) {
         fail("budget");
         result.resume_condition =
-          "The selected inventory exceeds the per-report observation ceiling; narrow the scope or use incremental collection. Partial collections do not establish full health.";
+          "The selected inventory exceeds the per-report observation ceiling; narrow the scope with --port-ids or let the scheduled monitor collect it in batches. Partial collections do not establish full health.";
         continue;
       }
       const operationRequests =

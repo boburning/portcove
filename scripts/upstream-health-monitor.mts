@@ -943,7 +943,7 @@ export function renderHealthMonitorSummary(report: MonitorReport): string {
     "",
     `Inventory history: ${inventory.fresh_complete_port_ids.length} recent complete collections; ${inventory.fresh_partial_port_ids.length} recent partial attempts; ${inventory.stale_port_ids.length} stale; ${inventory.unmonitored_port_ids.length} without applicable observations. Freshness window: 24 hours.`,
     "",
-    `Requests: ${collection.consumed.requests}/${collection.request_plan.conservative_requests} planned; hard ceiling ${collection.request_plan.hard_ceiling}. Logical observation records: ${collection.request_plan.observation_records}; new-location operation ceiling ${collection.request_plan.observation_ceiling}. ${report.previous_checkpoint}.`,
+    `Requests: ${collection.consumed.requests}/${collection.request_plan.conservative_requests} planned; batch ceiling ${collection.request_plan.hard_ceiling}. Logical observation records: ${collection.request_plan.observation_records}; new-location operation ceiling ${collection.request_plan.observation_ceiling}. ${report.previous_checkpoint}.`,
   ];
   if (report.session)
     lines.push(
