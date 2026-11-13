@@ -52891,6 +52891,17 @@
           "game_slug": "battletanx-global-assault",
           "match_kind": "underlying-game"
         }
+      },
+      "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [],
+          "executables": [
+            "battletanxga.exe",
+            "launch battletanx ga.cmd",
+            "run dedicated server.cmd",
+            "run-dedicated-server.ps1"
+          ]
+        }
       }
     },
     {
@@ -53647,6 +53658,27 @@
           "image_sha256": "1ec211e7b4b84301a702907c5bb9f70a42f9c2d99db35c5d90886983b62e58e5",
           "game_slug": "blast-corps",
           "match_kind": "underlying-game"
+        }
+      },
+      "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [
+            "licenses"
+          ],
+          "executables": [
+            "power-dozer.exe",
+            "run power dozer.cmd"
+          ]
+        },
+        "linux-x86-64": {
+          "directories": [
+            "lib",
+            "licenses"
+          ],
+          "executables": [
+            "power-dozer",
+            "run power dozer.sh"
+          ]
         }
       }
     },
@@ -58496,6 +58528,14 @@
           "game_slug": "sopwith",
           "match_kind": "underlying-game"
         }
+      },
+      "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [],
+          "executables": [
+            "sopwith.exe"
+          ]
+        }
       }
     },
     {
@@ -63105,7 +63145,18 @@
           "match_kind": "underlying-game"
         }
       },
-      "linux_portable_data_directory": "data"
+      "linux_portable_data_directory": "data",
+      "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [
+            "data",
+            "licenses"
+          ],
+          "executables": [
+            "opensc2k.exe"
+          ]
+        }
+      }
     },
     {
       "id": "njh-1001-wipeout2k97xl",
@@ -66190,6 +66241,26 @@
           "game_slug": "rise-of-the-triad-dark-war",
           "match_kind": "underlying-game"
         }
+      },
+      "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [],
+          "executables": [
+            "barrett.exe"
+          ]
+        },
+        "linux-x86-64": {
+          "directories": [],
+          "executables": [
+            "barrett"
+          ]
+        },
+        "macos-aarch64": {
+          "directories": [],
+          "executables": [
+            "barrett"
+          ]
+        }
       }
     },
     {
@@ -66276,6 +66347,18 @@
           "image_sha256": "0f3878dfa9cba869d0e0f8a57358c084bab20e44b14deaa0e6865f81337e0bae",
           "game_slug": "rocket-robot-on-wheels",
           "match_kind": "underlying-game"
+        }
+      },
+      "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [
+            "assets",
+            "docs",
+            "licenses"
+          ],
+          "executables": [
+            "rocket-r.exe"
+          ]
         }
       }
     },
@@ -69261,6 +69344,18 @@
           "image_sha256": "a0742a26cb550661366365fee043c0b2be423de9c2e2928aa1aa63455f98da77",
           "game_slug": "glover",
           "match_kind": "underlying-game"
+        }
+      },
+      "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [
+            "assets",
+            "docs",
+            "licenses"
+          ],
+          "executables": [
+            "glover-r.exe"
+          ]
         }
       }
     },

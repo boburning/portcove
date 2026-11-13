@@ -58,6 +58,12 @@
       "source_requirements": [],
       "saves_and_settings": "external-user-owned",
       "manual_preparation": "No original game data is required. Portcove installs and updates the portable runtime. SDL Sopwith normally stores settings and high scores in its upstream preference folder, outside Portcove backups. Declared in-folder fallback files are preserved. Runtime rollback does not roll back those settings."
+    },
+    "reviewed_package_layouts": {
+      "windows-x86-64": {
+        "directories": [],
+        "executables": ["sopwith.exe"]
+      }
     }
   }
 }

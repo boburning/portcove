@@ -50,6 +50,12 @@
       "source_requirements": [],
       "saves_and_settings": "portcove-managed",
       "manual_preparation": "Choose Play, then select your own BattleTanx: Global Assault USA Rev 0 big-endian .z64 dump when the game asks. This portable player validates that file, remembers its location and keeps a copy in its own data folder. No build tool or installer is needed. The official portable package includes portable.txt and keeps settings, Controller Pak data, logs and texture packs in userdata beside the player. That directory is declared for compatible updates and backups. Release v0.2.5 also writes a validated copy of your selected original ROM into userdata, so that copy is carried with compatible updates and included in Portcove backups; your original file also stays in its own location. A deliberate BTGA_DATA_DIR override also remains outside that backup. Portcove replaces the managed runtime; existing external copies keep their files and update owner. Runtime rollback carries current declared data rather than rewinding saves; older-runtime and mod compatibility is not guaranteed."
+    },
+    "reviewed_package_layouts": {
+      "windows-x86-64": {
+        "directories": [],
+        "executables": ["battletanxga.exe", "launch battletanx ga.cmd", "run dedicated server.cmd", "run-dedicated-server.ps1"]
+      }
     }
   }
 }

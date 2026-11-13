@@ -135,8 +135,9 @@ fn openrct2_mac_bundle_requires_native11_for_fresh_and_retained_reads() {
 fn recomp_appimage_entries_require_native12_for_fresh_and_retained_reads() {
     let catalog = crate::Catalog::embedded().unwrap();
     for id in ["thatguymcd-glover-r", "rocket-robot-on-wheels-rocket-r"] {
-        let port = catalog.port(id).unwrap();
-        let mut entry = entry_for_port(port);
+        let mut port = catalog.port(id).unwrap().clone();
+        port.reviewed_package_layouts.clear();
+        let mut entry = entry_for_port(&port);
         entry["required_capabilities"][0]["maximum_version"] = json!(12);
         for minimum in [11, 12] {
             entry["required_capabilities"][0]["minimum_version"] = json!(minimum);

@@ -61,6 +61,12 @@
       "source_requirements": [],
       "saves_and_settings": "external-user-owned",
       "manual_preparation": "Choose Play, then select your own unmodified Glover USA revision 0 ROM when the game asks. The launcher accepts .z64, .n64 and .v64 byte order for this 8 MiB NGVE cartridge (canonical SHA-1 270be17b3c8da9b88a7b99c2a545b0bce16837f4). The published player needs no game build or separate installer. Configure controls in the launcher or press F1/Escape while playing; use its Mods page for compatible mods and separate mod profiles. Default Windows saves, settings, mod profiles, mod-specific saves, logs and crash reports use %APPDATA%/Glover-R. Keep a separate backup of that profile before changing versions; an older runtime may not read newer data. Optional custom configuration and developer paths need their own backup. Keep customized existing copies registered with their own launch details. Portcove replaces the separate managed Windows runtime and preserves glover-r-data if the game uses that in-folder fallback. Its normal AppData profile stays outside Portcove backups and runtime rollback; rollback carries current declared data and does not rewind saves. Keep each release’s engine and bundled mod resources together. Existing external copies retain their files and update owner. Managed Linux uses the direct x86-64 AppImage. Keep the Linux profile under $XDG_CONFIG_HOME/glover-r or ~/.config/glover-r outside the runtime and backed up separately. Use a separate copy for an adjacent AppImage profile or a custom launch."
+    },
+    "reviewed_package_layouts": {
+      "windows-x86-64": {
+        "directories": ["assets", "docs", "licenses"],
+        "executables": ["glover-r.exe"]
+      }
     }
   }
 }
