@@ -5542,7 +5542,7 @@
           },
           {
             "title": "Set up the managed Windows or Linux player",
-            "instruction": "In Portcove, select the complete matching CHD for every disc in order, and the BIOS. Keep the original files in place. Portcove builds the player with its registered toolchain. Choose the disc when you choose Play. To change discs, use the game's own disc change where your kit version offers one, or quit and choose Play with the next disc."
+            "instruction": "In Portcove, select the complete matching CHD for every disc in order, and the BIOS. Keep the original files in place. Portcove builds the player with its registered toolchain. Choose the disc when you choose Play; to change discs, quit the game and choose Play with the next disc."
           },
           {
             "title": "Prepare a separate Mac copy",
@@ -5555,7 +5555,7 @@
         ],
         "warnings": [
           "Portcove checks each disc's data track and track count. Keep every disc intact.",
-          "Kit v0.1.0 cannot change discs during play; later kits offer an in-game disc change. Mac setup, replacement and backups belong to you and the upstream kit. Native setup, gameplay and populated-save behavior remain unverified."
+          "The kit cannot swap discs during play. Mac setup, replacement and backups belong to you and the upstream kit. Native setup, gameplay and populated-save behavior remain unverified."
         ],
         "help_url": "https://github.com/alexbeavs-ps1-ports/armored-core-master-of-arena-recomp#readme",
         "references": [
@@ -6650,7 +6650,7 @@
           },
           {
             "title": "Set up the managed Windows or Linux player",
-            "instruction": "In Portcove, select the complete matching CHD for every disc in order, and the BIOS. Keep the original files in place. Portcove builds the player with its registered toolchain. Choose the disc when you choose Play. To change discs, use the game's own disc change where your kit version offers one, or quit and choose Play with the next disc."
+            "instruction": "In Portcove, select the complete matching CHD for every disc in order, and the BIOS. Keep the original files in place. Portcove builds the player with its registered toolchain. Choose the disc when you choose Play; to change discs, quit the game and choose Play with the next disc."
           },
           {
             "title": "Prepare a separate Mac copy",
@@ -6663,7 +6663,7 @@
         ],
         "warnings": [
           "Portcove checks each disc's data track and track count. Keep every disc intact.",
-          "Kit v0.1.0 cannot change discs during play; later kits offer an in-game disc change. Mac setup, replacement and backups belong to you and the upstream kit. Native setup, gameplay and populated-save behavior remain unverified."
+          "The kit cannot swap discs during play. Mac setup, replacement and backups belong to you and the upstream kit. Native setup, gameplay and populated-save behavior remain unverified."
         ],
         "help_url": "https://github.com/alexbeavs-ps1-ports/fear-effect-2-retro-helix-recomp#readme",
         "references": [

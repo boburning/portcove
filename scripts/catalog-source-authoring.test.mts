@@ -853,7 +853,6 @@ void test("PSX split mods retain player data with explicit dual-platform and ret
         "mods/.staging",
         "mods/state.toml",
         "mods/state.toml.tmp",
-        "mods/texture-packs",
       ],
     );
   }
@@ -892,14 +891,7 @@ void test("PSX split mods retain player data with explicit dual-platform and ret
     (projected.persistent_paths as string[]).filter(
       (path) => path === "mods" || path.startsWith("mods/"),
     ),
-    [
-      "mods/installed",
-      "mods/packages",
-      "mods/.staging",
-      "mods/state.toml",
-      "mods/state.toml.tmp",
-      "mods/texture-packs",
-    ],
+    ["mods/installed", "mods/packages", "mods/.staging", "mods/state.toml", "mods/state.toml.tmp"],
   );
   const openBiosWindowsOnly = structuredClone(openBios);
   openBiosWindowsOnly.integration!.platforms = ["windows-x86-64"];

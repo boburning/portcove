@@ -705,7 +705,6 @@ mod lifecycle {
             "mods/.staging",
             "mods/state.toml",
             "mods/state.toml.tmp",
-            "mods/texture-packs",
         ]);
         let old = register_with_bundle(&service, &catalog, "v1", true, None, Some(b"old bundle"));
         let new = register_with_bundle(&service, &catalog, "v2", false, None, Some(b"new bundle"));
@@ -720,14 +719,7 @@ mod lifecycle {
         );
         write(&old_runtime, "mods/state.toml", b"old selection");
         write(&old_runtime, "saves/player.mcd", b"saved before update");
-        // PSXRecomp 7192402 keeps player texture replacements and dumps here.
-        let texture = "mods/texture-packs/SLUS-00000/replacements/tex.png";
-        write(&old_runtime, texture, b"player texture");
         assert_eq!(service.activate_staged(ID).unwrap().id, new.id);
-        assert_eq!(
-            fs::read(new_runtime.join(texture)).unwrap(),
-            b"player texture"
-        );
         assert_eq!(
             fs::read(new_runtime.join("mods/installed/player/1.0/manifest.toml")).unwrap(),
             b"user mod"
@@ -745,22 +737,12 @@ mod lifecycle {
                 .is_file()
         );
         assert!(!backup.path.join("data/mods/bundled").exists());
-        assert!(backup.path.join("data").join(texture).is_file());
 
         write(&new.path, LAUNCH_MARKER, b"1");
         fs::remove_dir_all(new_runtime.join("mods/installed/player")).unwrap();
         write(&new_runtime, "mods/state.toml", b"new selection");
         write(&new_runtime, "saves/player.mcd", b"latest save");
-        write(
-            &new_runtime,
-            "mods/texture-packs/SLUS-00000/dumps/tex-1.png",
-            b"dumped after update",
-        );
         service.rollback(ID).unwrap();
-        assert_eq!(
-            fs::read(old_runtime.join("mods/texture-packs/SLUS-00000/dumps/tex-1.png")).unwrap(),
-            b"dumped after update"
-        );
         assert_eq!(service.status(ID).unwrap().active.unwrap().id, old.id);
         assert!(!old_runtime.join("mods/installed/player").exists());
         assert_eq!(

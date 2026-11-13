@@ -2858,7 +2858,6 @@ impl ManagedPsxArchiveExpectation {
                     "mods/packages",
                     "mods/state.toml",
                     "mods/state.toml.tmp",
-                    "mods/texture-packs",
                 ]),
                 "{id}: split player mod paths"
             );
