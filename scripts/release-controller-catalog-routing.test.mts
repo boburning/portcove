@@ -40,6 +40,7 @@ import {
 } from "./release-input-protections.mts";
 import { catalogEnvironmentFixture } from "./fixtures/release-live-control-fixture.mts";
 import { capacityDigest, slice4CapacityResources } from "./release-capacity.mts";
+import { retainedCatalogReviewRecoveryResources } from "./release-retained-catalog-review-resources.mts";
 import { maximumProductionControllerWorkflowBytes } from "./production-controller-admission.mts";
 import {
   isCatalogBootstrapRecoveryRef,
@@ -851,8 +852,7 @@ void test("installed two-purpose workflow remains mutually exclusive under the e
     hash(Buffer.from(appointed)),
     "a57e277b51e00fd20b42f4e61a712c468cae523dd523930bc37cfc248b418aa4",
   );
-  assert.equal(hash(bytes), slice4CapacityResources.aggregate_workflow_sha256);
-  assert.equal(hash(bytes), slice4CapacityResources.input_workflow_sha256);
+  assert.equal(hash(bytes), retainedCatalogReviewRecoveryResources.workflow_sha256);
   assert.ok(isRecord(jobs.coordinator));
   assert.deepEqual(jobs.coordinator.permissions, {
     contents: "write",

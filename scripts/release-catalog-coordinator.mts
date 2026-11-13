@@ -281,7 +281,8 @@ export async function runFixedCatalogCoordinatorConfiguration(
         reader.admitted.execution_ref,
         reader.admitted.run_attempt,
       );
-      const earlyRecovery = reader.admitted.execution_ref === reviewClaim?.early_recovery_ref;
+      const earlyRecovery =
+        reviewClaim && reader.admitted.execution_ref !== reviewClaim.recovery_ref;
       const reviewClaimSubject = reviewClaim
         ? capacityDigest({
             checkpoint: reviewClaim.previous,

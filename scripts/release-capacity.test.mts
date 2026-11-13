@@ -15,6 +15,7 @@ import {
   inspectSitePublicationExpectation,
   assertPublicationResultDestination,
 } from "./release-capacity.mts";
+import { retainedCatalogReviewRecoveryResources } from "./release-retained-catalog-review-resources.mts";
 import { metadataFixture, metadataBootstrapFixture } from "./fixtures/release-metadata-fixture.mts";
 import {
   inspectMetadataRenewalDescriptor,
@@ -540,15 +541,11 @@ void test("changed account, stop, budget, visibility, runner or resource policy 
   changed.boundary.configuration_generation = "changed";
   assert.equal(assessBoundedCapacity(changed).eligibility, "ineligible");
 });
-void test("delivered controller policy replaces historical pins without appointing capacity authority", async () => {
+void test("delivered recovery workflow is pinned separately from ordinary capacity policy", async () => {
   for (const [file, expected] of [
     [
       ".github/workflows/application-update-production.yml",
-      slice4CapacityResources.aggregate_workflow_sha256,
-    ],
-    [
-      ".github/workflows/application-update-production.yml",
-      slice4CapacityResources.input_workflow_sha256,
+      retainedCatalogReviewRecoveryResources.workflow_sha256,
     ],
     [".github/workflows/application-update-wake.yml", slice4CapacityResources.wake_workflow_sha256],
   ] as const) {
@@ -556,6 +553,10 @@ void test("delivered controller policy replaces historical pins without appointi
     const current = createHash("sha256").update(bytes).digest("hex");
     assert.equal(current, expected);
   }
+  assert.notEqual(
+    retainedCatalogReviewRecoveryResources.workflow_sha256,
+    slice4CapacityResources.aggregate_workflow_sha256,
+  );
   assert.equal(
     [
       ...slice4CapacityResources.aggregate_job_minutes,

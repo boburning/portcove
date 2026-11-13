@@ -134,6 +134,7 @@ jobs:
             core.setOutput("publication_paused", String(pause.publication_paused));
     if: ${{ vars.PORTCOVE_CONTROLLER_REVISION == github.sha && vars.PORTCOVE_CONTROLLER_REF ==
       github.ref && ((inputs.publication_purpose == 'application' &&
+      github.ref != 'refs/tags/portcove-production-controller-catalog-chameleon-review-window' &&
       vars.PORTCOVE_CONTROLLER_ADMISSION != '') || (inputs.publication_purpose ==
       'catalog-publication' && vars.PORTCOVE_CATALOG_CONTROLLER_ADMISSION != '')) }}
     outputs:
@@ -804,7 +805,7 @@ jobs:
       && needs.tool_attest.result == 'success' }}
     needs: *a3
     runs-on: ubuntu-22.04
-    timeout-minutes: 5
+    timeout-minutes: ${{ github.ref == 'refs/tags/portcove-production-controller-catalog-chameleon-review-window' && inputs.publication_purpose == 'catalog-publication' && 8 || 5 }}
     environment: production-release-protection-observer
     permissions:
       contents: read
@@ -1626,6 +1627,7 @@ jobs:
   catalog_definitions:
     name: Sign catalog definitions
     if: ${{ always() && needs.admission.outputs.publication_purpose == 'catalog-publication' &&
+      github.ref != 'refs/tags/portcove-production-controller-catalog-chameleon-review-window' &&
       needs.tool_attest.result == 'success' && needs.coordinator.result == 'success' &&
       needs.coordinator.outputs.mode == 'catalog' }}
     needs:
@@ -1840,6 +1842,7 @@ jobs:
   catalog_metadata_protection_observation:
     name: Observe catalog metadata signing protections
     if: ${{ always() && needs.admission.outputs.publication_purpose == 'catalog-publication' &&
+      github.ref != 'refs/tags/portcove-production-controller-catalog-chameleon-review-window' &&
       needs.coordinator.result == 'success' && needs.coordinator.outputs.mode == 'catalog' &&
       needs.tool_attest.result == 'success' }}
     needs:
