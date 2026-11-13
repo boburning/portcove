@@ -224,12 +224,12 @@ package files at registration and launch; game-owned output remains outside
 Portcove backup and restore. Source files, when required, are registered
 separately through the accepted source profile.
 
-For Wave Race 64: Recompiled on Windows, extract the official v1.0.2 ZIP and
-create an **empty `portable.txt`** beside `WaveRace64Recomp.exe` before
-`external preview`. The marker is a player-created preparation step, not a file
-in the upstream ZIP. It is part of the exact accepted tree; without it, review
-fails. Portable mode keeps game-owned settings, the copied source, and saves
-beside the executable. Portcove does not back up, remove, or restore those files.
+Wave Race 64: Recompiled offered this route on Windows until November 13, 2026;
+its catalog now installs the same v1.0.2 package through `portcove install`,
+and Core creates its `portable.txt`. A copy registered earlier keeps its
+retained exact-tree contract, including the player-created empty `portable.txt`
+beside `WaveRace64Recomp.exe`, and continues to launch in place. Portcove does
+not back up, remove, or restore that copy's files.
 
 Human results lead with the task and its actual outcome, followed by relevant
 review fingerprints, retained locations and the next supported action. Ports

@@ -3229,7 +3229,7 @@ fn catalog_detail_shows_accepted_runtime_and_return_command_without_changing_mac
     let player_file = root.path().join("synthetic-player-file.bin");
     let player_bytes = b"synthetic player bytes outside the selected library";
     std::fs::write(&player_file, player_bytes).unwrap();
-    let id = "wave-race-64-recomp";
+    let id = "dkc2-recomp";
     let catalog = portcove_core::Catalog::embedded().unwrap();
     let port = catalog.port(id).unwrap();
     let expected = serde_json::to_value(port).unwrap();
@@ -3282,12 +3282,11 @@ fn catalog_detail_shows_accepted_runtime_and_return_command_without_changing_mac
         human
             .contains("Maintenance: user-owned; Portcove does not download or update this runtime")
     );
-    assert!(human.contains("Preparation: Extract the official v1.0.2 Windows ZIP"));
-    assert!(human.contains("create an empty portable.txt"));
+    assert!(human.contains("Preparation: Prepare the exact official v0.0.2 Windows runtime"));
     assert!(human.contains("Saves and settings: user-owned"));
     assert!(!human.contains("Accepted runtime (Linux"));
     assert!(!human.contains("Accepted runtime (macOS"));
-    assert!(!human.contains("n64-recomp-portable"));
+    assert!(!human.contains("staged-source-portable"));
     assert_eq!(std::fs::read(&player_file).unwrap(), player_bytes);
 }
 

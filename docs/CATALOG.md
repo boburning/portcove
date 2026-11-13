@@ -1508,8 +1508,10 @@ Only catalog entries that declare and qualify this route offer it. [#1169](https
 owns the first real-port qualification and its remaining end-to-end evidence.
 An optional `presentation.manual_preparation` gives the exact player-created
 steps for a user-prepared runtime; the short port summary remains an outcome
-description. The Wave Race pilot requires an empty `portable.txt` beside its
-executable, in addition to the extracted upstream ZIP files.
+description. Wave Race registrations made under the retired pilot keep their
+requirement for an empty `portable.txt` beside the executable, in addition to
+the extracted upstream ZIP files; its current catalog installs the same package
+as a managed route ([record](qualification/wave-race-64-recomp-managed-acquisition-2026-11-13.md)).
 Optional `presentation.manual_setup` supplies authored `steps` (one to eight
 objects with nonempty `title` and `instruction`), up to eight essential `warnings`,
 and an optional HTTPS `help_url` without credentials. Include `warnings: []`

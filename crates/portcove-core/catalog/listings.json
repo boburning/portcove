@@ -2508,39 +2508,36 @@
     {
       "id": "wave-race-64-recomp",
       "name": "Wave Race 64: Recompiled",
-      "summary": "Native Wave Race 64 recompilation.",
+      "summary": "Native Wave Race 64 recompilation. Portcove installs the official Windows package; on Linux, download the upstream package and maintain it yourself.",
       "project_url": "https://github.com/danielgomesvieira2000/wave-race-64-recomp",
       "original_game_title": "Wave Race 64",
       "manual_setup": {
         "steps": [
           {
-            "title": "Extract the port",
-            "instruction": "Use an already permitted copy of the complete official v1.0.2 Windows ZIP. Extract it into a writable folder outside your Portcove library."
+            "title": "Set up the Linux package",
+            "instruction": "Download the official package ending in -linux-x86_64.tar.gz and extract the whole folder somewhere writable. Install the SDL2, GTK 3, FreeType and Vulkan packages named in its README-LINUX.txt. The inspected v1.0.2 program needs glibc 2.43 and libstdc++ with GLIBCXX_3.4.32."
           },
           {
-            "title": "Keep saves beside the game",
-            "instruction": "Create an empty file named portable.txt beside WaveRace64Recomp.exe. It is not included in the download."
+            "title": "Choose your original game",
+            "instruction": "Run WaveRace64Recomp.sh, choose Load ROM and select your own Wave Race 64 (USA) (Rev A) original. You maintain this copy: replace it yourself when upstream publishes a new version."
           },
           {
-            "title": "Select your original game file",
-            "instruction": "Choose and check your own supported Wave Race 64 original in Portcove, then choose the extracted port folder for review."
+            "title": "Use a Windows copy you already prepared",
+            "instruction": "On Windows, Install is the normal route. To keep using a copy you extracted yourself, select WaveRace64Recomp.exe with its folder as the working directory and leave arguments empty. You and upstream maintain that copy."
           }
         ],
         "warnings": [
-          "Keep portable.txt when updating this folder so the game continues to use its local saves and settings."
+          "The package contains recompiled game code; some bundled components have their own notices. Use only your own original game."
         ],
+        "help_url": "https://github.com/danielgomesvieira2000/wave-race-64-recomp/blob/ac2a296530f957f128388a6fc18028529c7f2b40/README.md",
         "references": [
           {
-            "title": "Prepare a separate upstream Linux copy",
-            "instruction": "For an already permitted Linux x64 package, keep the files together in a writable folder. Install the system SDL2, GTK 3, FreeType and Vulkan dependencies named in its README. Run WaveRace64Recomp.sh and select your own Wave Race 64 USA Rev A original. The inspected Linux executable requires glibc 2.43 and libstdc++ with GLIBCXX_3.4.32."
+            "title": "Find your saves and settings",
+            "instruction": "On Linux, saves and settings are in $XDG_DATA_HOME/WaveRace64Recomp, usually ~/.local/share/WaveRace64Recomp. An empty portable.txt beside the program keeps them in its own folder instead. On Windows, a copy without portable.txt uses %LOCALAPPDATA%\\WaveRace64Recomp. Back these folders up before replacing a copy you maintain."
           },
           {
-            "title": "Preserve the Linux profile",
-            "instruction": "Keep the creating runtime, original and actual profile. Linux uses XDG_DATA_HOME/WaveRace64Recomp, usually ~/.local/share/WaveRace64Recomp. A portable.txt beside the player instead keeps data there. This Linux setup stays under upstream and player ownership."
-          },
-          {
-            "title": "Keep upstream permission and registration separate",
-            "instruction": "The official frontend has since published a GPLv3 grant for the same code. The selected releases still have separate translated title code and component conditions. Use an independently permitted copy. Portcove’s Windows review accepts the existing player-owned folder."
+            "title": "Keep an existing Windows registration",
+            "instruction": "A Windows v1.0.2 folder already added to Portcove keeps working where it is. To switch to the managed copy, back up its saves, remove the registration (your files stay in place), then choose Install."
           }
         ]
       },
@@ -2558,7 +2555,14 @@
         "windows-x86-64",
         "linux-x86-64"
       ],
-      "download_block_reason": "Fresh Portcove downloads are held for the selected packages while the applicable basis for translated title code and the component conditions in the bundled notices remain unresolved. The later GPLv3 grant covers the official frontend code; it does not resolve those separate conditions. Independently permitted copies retain their own setup route.",
+      "release_url": "https://github.com/danielgomesvieira2000/wave-race-64-recomp/releases",
+      "setup_url": "https://github.com/danielgomesvieira2000/wave-race-64-recomp/blob/ac2a296530f957f128388a6fc18028529c7f2b40/README.md",
+      "download_asset_hints": {
+        "linux-x86-64": [
+          "WaveRace64Recomp-",
+          "-linux-x86_64.tar.gz"
+        ]
+      },
       "availability": "unknown"
     },
     {
