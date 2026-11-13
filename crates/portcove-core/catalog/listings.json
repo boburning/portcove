@@ -61505,12 +61505,18 @@
       "setup_url": "https://github.com/neuromancer/wc1-re",
       "issue_number": 2909,
       "listed_at": "2026-10-25",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-aarch64",
+        "macos-x86-64"
+      ],
       "manual_setup": {
         "help_url": "https://github.com/neuromancer/wc1-re/tree/4462524b5ecb8a42f19b74ff141cc4240466ace8",
         "steps": [
           {
             "title": "Use the modern SDL2 player and your own Kilrathi Saga data",
-            "instruction": "Use the official modern SDL2 package for Windows x64, Linux x86-64 or an Apple silicon Mac with all companion libraries, or an already permitted working copy of that same route. Select normal wc1-modern.exe (wc1-modern on Linux or a Mac) for an attached copy. The separate win32-msvc420 reconstruction package is not this player. Use your own full Wing Commander Kilrathi Saga installation: GAMEDAT plus STREAMS/PREFLITE.STR, POSFLITE.STR and MISSION.STR. DOS support is partial and does not inherit this offer."
+            "instruction": "Use the official modern SDL2 package for Windows x64, Linux x86-64 or an Apple silicon Mac with all companion libraries, or an already permitted working copy of that same route. Select normal wc1-modern.exe (wc1-modern on Linux or a Mac) for an attached copy. On an Intel Mac, the official Intel ZIP needs macOS 15 and a compatible Intel SDL3 library supplied separately for its SDL2 compatibility library. The separate win32-msvc420 reconstruction package is not this player. Use your own full Wing Commander Kilrathi Saga installation: GAMEDAT plus STREAMS/PREFLITE.STR, POSFLITE.STR and MISSION.STR. DOS support is partial and does not inherit this offer."
           },
           {
             "title": "Choose the actual writable original directory in upstream setup",
@@ -61534,11 +61540,6 @@
           "External and shared player-data locations remain outside Portcove backups and removal. Preserve the creating runtime, every actual state root and unknown files before changes."
         ]
       },
-      "platforms": [
-        "windows-x86-64",
-        "linux-x86-64",
-        "macos-aarch64"
-      ],
       "availability": "unknown"
     },
     {
