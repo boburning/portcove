@@ -184,6 +184,20 @@ impl DefinitionContentIndex {
         for port in catalog.ports() {
             crate::definition_entry::require_indexed_persistence(port)?;
         }
+        // Track counts live in the source profile, so only the projection can
+        // tell that the entry's disc set needs a reader that keeps every track.
+        if catalog.requires_psx_multi_track_set(catalog.port(stable_id)?)
+            && !entry.capabilities().checks.iter().any(|check| {
+                check.requirement.template == "psx-recomp-managed"
+                    && check.requirement.minimum_version
+                        >= crate::adapter::PSX_MULTI_TRACK_SET_CAPABILITY
+            })
+        {
+            return Err(PortcoveError::verification(format!(
+                "managed PS1 disc sets with more than one track per disc require capability version {}",
+                crate::adapter::PSX_MULTI_TRACK_SET_CAPABILITY
+            )));
+        }
         if serde_json::to_value(catalog.authoritative_document())? != document.catalog {
             return Err(PortcoveError::verification(
                 "catalog projection contains unsupported or incomplete semantics",

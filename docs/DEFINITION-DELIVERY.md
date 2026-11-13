@@ -290,6 +290,13 @@ format-1 signed catalog built from a catalog with the folder changes those
 ports' persistent paths, so an older reader refuses the whole catalog and asks
 for a Portcove update, as for earlier persistent-path changes.
 
+Managed PS1 version 4 installs a `psx-raw-set` disc set whose discs carry more
+than one track, keeping every track beside the data track. The track counts
+live in the source profile, so the catalog projection, not the entry alone,
+requires minimum version 4 for an indexed entry whose set has such a disc. An
+older reader would refuse the catalog only generically, because its validation
+admits a managed set only when every disc has one track.
+
 Staged-source version 22 covers ready managed archives without a source, build,
 setup-helper, initialization or shared-account contract. New indexed entries of
 that shape now require version 23. They stage and restore declared data before

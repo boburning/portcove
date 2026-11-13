@@ -127,6 +127,10 @@ impl EngineTemplateCapability {
             contract_version: crate::persistence::PSX_RETAINED_SCOPE_CAPABILITY,
         });
         supported.push(Self {
+            template: AdapterKind::PsxRecompManaged,
+            contract_version: crate::adapter::PSX_MULTI_TRACK_SET_CAPABILITY,
+        });
+        supported.push(Self {
             template: AdapterKind::StagedSourcePortable,
             contract_version: 2,
         });
@@ -905,7 +909,9 @@ mod tests {
             (1, 2, true, 2),
             (3, 3, true, 3),
             (1, 3, true, 3),
-            (4, 4, false, 3),
+            (4, 4, true, 4),
+            (3, 4, true, 4),
+            (5, 5, false, 4),
         ] {
             let report =
                 check_definition_capabilities(&request("psx-recomp-managed", minimum, maximum))
@@ -921,6 +927,29 @@ mod tests {
             .collect();
         assert!(
             !check_with_inventory(&request("psx-recomp-managed", 2, 2), &old)
+                .unwrap()
+                .compatible
+        );
+        // A retained-scope reader cannot keep a multi-track disc set.
+        let retained_scope_only: Vec<_> = EngineTemplateCapability::current()
+            .into_iter()
+            .filter(|entry| {
+                entry.template != AdapterKind::PsxRecompManaged
+                    || entry.contract_version < crate::adapter::PSX_MULTI_TRACK_SET_CAPABILITY
+            })
+            .collect();
+        let multi_track = request(
+            "psx-recomp-managed",
+            crate::adapter::PSX_MULTI_TRACK_SET_CAPABILITY,
+            crate::adapter::PSX_MULTI_TRACK_SET_CAPABILITY,
+        );
+        assert!(
+            !check_with_inventory(&multi_track, &retained_scope_only)
+                .unwrap()
+                .compatible
+        );
+        assert!(
+            check_definition_capabilities(&multi_track)
                 .unwrap()
                 .compatible
         );

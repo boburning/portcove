@@ -3123,6 +3123,36 @@
         "claim": "Redump Final Fantasy IX (USA, Canada) (Disc 4) (Rev 1), SLUS-01297, has one data track: 688413936 bytes, SHA-1 ce78c21e3793e04e594429133b05ddf24ed3fc6b, MD5 5796b286ddd0335db2d9631701153a42 and CRC32 a4c892a4, which agree with the kit. Redump lists the Greatest Hits serial SLUS-01297GH for this Rev 1 dump. A Redump search for that SHA-1 resolves only to this disc."
       },
       {
+        "id": "alexbeav-alone-in-the-dark-the-new-nightmare-recomp-v037-static-contract",
+        "role": "upstream_support",
+        "authority": "alexbeavs-ps1-ports/alone-in-the-dark-the-new-nightmare-recomp",
+        "authority_ref": "673a0d5f2598ee7d08d2f828cf61854f10e698ca",
+        "reviewed_at": "2026-11-13",
+        "immutable_url": "https://github.com/alexbeavs-ps1-ports/alone-in-the-dark-the-new-nightmare-recomp/blob/673a0d5f2598ee7d08d2f828cf61854f10e698ca/game.toml",
+        "live_url": null,
+        "claim": "Exact v0.3.7 Windows (47935917 bytes, SHA-256 c4567cc8a293c07fd91ae604c94bb4afd030b01ad2dc1795a496df3e366ab666) and Linux x64 (45743277 bytes, SHA-256 3ab2be5cbd868184a10cd090f8489565f4b6be25f083e968e2a975d39a5f40a2) setup kits gave the same SHA-256 on two separate downloads; the provider digest was not read. Their listings show no link, absolute or parent entry, and the Linux kit has no case-colliding paths. Both carry the same game.toml and CMakeLists.txt as this commit apart from Windows line endings: SLES-02801, a 2-disc discs roster whose known_sha1 lists each disc's data-track SHA-1 (270c9d9977a859e0f59e82cf9f3acd9de457f453, ab2cadfb095ee5980d99740ca584487e469668ba) plus a third value that matches no Redump track, the SCPH5552 BIOS configuration and a netplay gate requiring 2 tracks; README-SETUP requires a retail SCPH-5552 (Europe) BIOS. The kits pin PSXRecomp 7192402c283880e318c97732c9b733c4d1b144d0, ship mods/bundled, mods/preloaded and mods/texture-packs and set no EXE_NAME, so the player is named Alone_in_the_Dark__The_New_Nightmare from the CMake WINDOW_TITLE. The runtime mounts the disc named by the 1-based [disc] selected setting and uses it for the save-state disc scope; its in-game menu can also change discs. Native generation, gameplay, music and saves remain unobserved."
+      },
+      {
+        "id": "alexbeav-alone-in-the-dark-the-new-nightmare-recomp-disc-1-redump-892",
+        "role": "byte_identity",
+        "authority": "Redump disc database",
+        "authority_ref": "disc/892",
+        "reviewed_at": "2026-11-13",
+        "immutable_url": "https://redump.info/disc/892",
+        "live_url": null,
+        "claim": "Redump Alone in the Dark: The New Nightmare (Europe) (Disc 1), SLES-02801, has two tracks. Data track 1: 605317776 bytes, SHA-1 270c9d9977a859e0f59e82cf9f3acd9de457f453, MD5 e1e8961f76647d00ea5ba93aa0951b6c and CRC32 4ad56e6a, which agree with the kit. Audio track 2 has a 2-second pregap and 39701760 bytes, SHA-1 16772899aa261f293cac0eb42dda924837f48a87, identical on both discs. A Redump search for the data-track SHA-1 resolves only to this disc."
+      },
+      {
+        "id": "alexbeav-alone-in-the-dark-the-new-nightmare-recomp-disc-2-redump-893",
+        "role": "byte_identity",
+        "authority": "Redump disc database",
+        "authority_ref": "disc/893",
+        "reviewed_at": "2026-11-13",
+        "immutable_url": "https://redump.info/disc/893",
+        "live_url": null,
+        "claim": "Redump Alone in the Dark: The New Nightmare (Europe) (Disc 2), SLES-12801, has two tracks. Data track 1: 638403360 bytes, SHA-1 ab2cadfb095ee5980d99740ca584487e469668ba, MD5 81aeedeac7e806d878b4c9444026604f and CRC32 ff74942e, which agree with the kit. Audio track 2 has a 2-second pregap and 39701760 bytes, SHA-1 16772899aa261f293cac0eb42dda924837f48a87, identical on both discs. A Redump search for the data-track SHA-1 resolves only to this disc."
+      },
+      {
         "id": "goldeneye-007-source-sha1-5c43e69b",
         "role": "upstream_support",
         "authority": "jkdansereau/goldeneye-pc-port",
@@ -14154,6 +14184,79 @@
         "evidence_gap": null
       },
       {
+        "id": "alexbeav-alone-in-the-dark-the-new-nightmare-recomp-europe-psx",
+        "label": "Alone in the Dark: The New Nightmare (Europe) two-disc set",
+        "kind": "optical-disc",
+        "variants": [
+          {
+            "id": "europe",
+            "title": "Alone in the Dark: The New Nightmare (Europe) two-disc set",
+            "region": "Europe",
+            "revision": null,
+            "product_codes": [
+              "SLES-02801",
+              "SLES-12801"
+            ],
+            "representations": [
+              {
+                "id": "disc-set",
+                "extensions": [
+                  "chd"
+                ],
+                "kind": "multi-disc-set",
+                "discs": [
+                  {
+                    "id": "disc-1",
+                    "label": "Alone in the Dark: The New Nightmare Disc 1",
+                    "track_counts": [
+                      2
+                    ],
+                    "volume_ids": [],
+                    "identities": [
+                      {
+                        "scope": "disc-set-member",
+                        "sha1": "270c9d9977a859e0f59e82cf9f3acd9de457f453",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "disc-2",
+                    "label": "Alone in the Dark: The New Nightmare Disc 2",
+                    "track_counts": [
+                      2
+                    ],
+                    "volume_ids": [],
+                    "identities": [
+                      {
+                        "scope": "disc-set-member",
+                        "sha1": "ab2cadfb095ee5980d99740ca584487e469668ba",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  }
+                ],
+                "evidence_ids": [
+                  "alexbeav-alone-in-the-dark-the-new-nightmare-recomp-v037-static-contract",
+                  "alexbeav-alone-in-the-dark-the-new-nightmare-recomp-disc-1-redump-892",
+                  "alexbeav-alone-in-the-dark-the-new-nightmare-recomp-disc-2-redump-893"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "alexbeav-alone-in-the-dark-the-new-nightmare-recomp-v037-static-contract",
+              "alexbeav-alone-in-the-dark-the-new-nightmare-recomp-disc-1-redump-892",
+              "alexbeav-alone-in-the-dark-the-new-nightmare-recomp-disc-2-redump-893"
+            ]
+          }
+        ],
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null
+      },
+      {
         "id": "goldeneye-007-ntsc-u-big-endian",
         "label": "GoldenEye 007 NTSC-U USA big-endian original",
         "kind": "file",
@@ -22784,6 +22887,70 @@
           {
             "upstream_ref": "v0.1.2",
             "artifact_sha256": "eedac0d09e8655bb376385ffe800e22531cca65132c3cdefc8cf61ba79431c65"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-alone-in-the-dark-the-new-nightmare-recomp-game-source",
+        "port_id": "alexbeav-alone-in-the-dark-the-new-nightmare-recomp",
+        "role": "game",
+        "profile_id": "alexbeav-alone-in-the-dark-the-new-nightmare-recomp-europe-psx",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "europe"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-alone-in-the-dark-the-new-nightmare-recomp-v037-static-contract",
+          "alexbeav-alone-in-the-dark-the-new-nightmare-recomp-disc-1-redump-892",
+          "alexbeav-alone-in-the-dark-the-new-nightmare-recomp-disc-2-redump-893"
+        ],
+        "authority_ref": "673a0d5f2598ee7d08d2f828cf61854f10e698ca",
+        "reviewed_at": "2026-11-13",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/alone-in-the-dark-the-new-nightmare-recomp/blob/673a0d5f2598ee7d08d2f828cf61854f10e698ca/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.3.7",
+            "artifact_sha256": "c4567cc8a293c07fd91ae604c94bb4afd030b01ad2dc1795a496df3e366ab666"
+          },
+          {
+            "upstream_ref": "v0.3.7",
+            "artifact_sha256": "3ab2be5cbd868184a10cd090f8489565f4b6be25f083e968e2a975d39a5f40a2"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-alone-in-the-dark-the-new-nightmare-recomp-bios-source",
+        "port_id": "alexbeav-alone-in-the-dark-the-new-nightmare-recomp",
+        "role": "bios",
+        "profile_id": "psx-scph-5552-bios",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "europe-v3-0"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-alone-in-the-dark-the-new-nightmare-recomp-v037-static-contract"
+        ],
+        "authority_ref": "673a0d5f2598ee7d08d2f828cf61854f10e698ca",
+        "reviewed_at": "2026-11-13",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/alone-in-the-dark-the-new-nightmare-recomp/blob/673a0d5f2598ee7d08d2f828cf61854f10e698ca/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.3.7",
+            "artifact_sha256": "c4567cc8a293c07fd91ae604c94bb4afd030b01ad2dc1795a496df3e366ab666"
+          },
+          {
+            "upstream_ref": "v0.3.7",
+            "artifact_sha256": "3ab2be5cbd868184a10cd090f8489565f4b6be25f083e968e2a975d39a5f40a2"
           }
         ],
         "aliases": [],
@@ -36064,6 +36231,155 @@
           "match_kind": "underlying-game"
         }
       }
+    },
+    {
+      "id": "alexbeav-alone-in-the-dark-the-new-nightmare-recomp",
+      "name": "Alone in the Dark: The New Nightmare / Alexbeav PSXRecomp",
+      "summary": "Build and play Alone in the Dark: The New Nightmare on Windows or Linux with your own matching European two-disc set and retail SCPH-5552 BIOS. You can also use a separately prepared upstream copy.",
+      "project_url": "https://github.com/alexbeavs-ps1-ports/alone-in-the-dark-the-new-nightmare-recomp",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "adapter": "psx-recomp-managed",
+      "release": {
+        "provider": "github",
+        "repository": "alexbeavs-ps1-ports/alone-in-the-dark-the-new-nightmare-recomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "Alone-in-the-Dark-The-New-Nightmare-Recompiled-",
+            "-windows-x64.zip"
+          ],
+          "linux-x86-64": [
+            "Alone-in-the-Dark-The-New-Nightmare-Recompiled-",
+            "-linux-x64.zip"
+          ]
+        }
+      },
+      "source_profile": "alexbeav-alone-in-the-dark-the-new-nightmare-recomp-europe-psx",
+      "executable_hints": {
+        "windows-x86-64": [
+          "Alone_in_the_Dark__The_New_Nightmare.exe"
+        ],
+        "linux-x86-64": [
+          "Alone_in_the_Dark__The_New_Nightmare"
+        ]
+      },
+      "persistent_paths": [
+        "saves",
+        "settings.toml",
+        "settings.toml.bad",
+        "input.ini",
+        "keybinds.ini",
+        "config.ini",
+        "disc.cfg",
+        "bios.cfg",
+        "mods/installed",
+        "mods/packages",
+        "mods/.staging",
+        "mods/state.toml",
+        "mods/state.toml.tmp",
+        "mods/texture-packs",
+        "overlay-captures",
+        "overlay_captures.json",
+        "overlay_captures.json.d",
+        "overlay_captures.addendum.jsonl"
+      ],
+      "runtime_mutable_paths": [
+        "cache",
+        "psx_freeze_heartbeat.json",
+        "psx_freeze_heartbeat.json.tmp",
+        "psx_last_run_report.json",
+        "psx_cps_exit_trace.json",
+        "netplay_lan_lobby.txt",
+        "psx_crash.txt"
+      ],
+      "runtime_mutable_file_patterns": [
+        {
+          "prefix": "psx_freeze_dump_psx-runtime_",
+          "suffix": ".json"
+        },
+        {
+          "prefix": "overlay_captures.json.",
+          "suffix": ".tmp"
+        }
+      ],
+      "launch_environment": {
+        "PSX_OVERLAY_CAPTURES": "build-portcove/overlay-captures/overlay_captures.json"
+      },
+      "launch_arguments": [
+        "--no-launcher"
+      ],
+      "runtime_subdirectory": "build-portcove",
+      "presentation": {
+        "installation_method": "managed-recompilation",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "alexbeav-alone-in-the-dark-the-new-nightmare-recomp-europe-psx",
+            "label": "Alone in the Dark: The New Nightmare (Europe) two-disc set",
+            "verification": "catalog-identity"
+          },
+          {
+            "role": "bios",
+            "profile_id": "psx-scph-5552-bios",
+            "label": "PlayStation SCPH-5552 BIOS (Europe)",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "Provide your own two-track CHDs for SLES-02801 and SLES-12801 in disc order and your retail SCPH-5552 BIOS. Portcove verifies each disc's data track and track count, keeps both tracks of every disc and builds a private player with its registered toolchain, retaining its declared saves, settings and installed mods. Choose the disc when you choose Play. To change discs, use the game's own disc change if it offers one, or quit and choose Play with the next disc. Bundled mods belong to the runtime version. Windows and Linux package and source fit were statically inspected. Native build, disc switching, music playback, gameplay and save compatibility remain unobserved.",
+        "original_game_title": "Alone in the Dark: The New Nightmare",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Use the exact original files",
+              "instruction": "Use your own Alone in the Dark: The New Nightmare (Europe) two-disc set (SLES-02801, SLES-12801), each disc with its data track and its audio track, and your own retail SCPH-5552 BIOS."
+            },
+            {
+              "title": "Set up the managed Windows or Linux player",
+              "instruction": "In Portcove, select the complete matching CHD for every disc in order, and the BIOS. Keep the original files in place. Portcove builds the player with its registered toolchain. Choose the disc when you choose Play. To change discs, use the game's own disc change if it offers one, or quit and choose Play with the next disc."
+            },
+            {
+              "title": "Prepare a separate Mac copy",
+              "instruction": "Choose the official Mac ZIP from the upstream releases: -macos-x64.zip for Intel or -macos-arm64.zip for Apple silicon, and extract it. Put Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. The Mac setup host requires macOS 11 or newer."
+            },
+            {
+              "title": "Build and add the completed Mac player",
+              "instruction": "Run Alone_in_the_Dark__The_New_Nightmare from the kit folder, provide the discs as the kit's README-SETUP.txt describes and choose Generate & rebuild. In Portcove, select build-release/Alone_in_the_Dark__The_New_Nightmare as the player and build-release as its start folder."
+            }
+          ],
+          "warnings": [
+            "Portcove checks each disc's data track and track count. Keep every disc intact, with both of its tracks.",
+            "Mac setup, replacement and backups belong to you and the upstream kit. Native setup, gameplay and populated-save behavior remain unverified."
+          ],
+          "help_url": "https://github.com/alexbeavs-ps1-ports/alone-in-the-dark-the-new-nightmare-recomp#readme",
+          "references": [
+            {
+              "title": "Keep the original files and your data",
+              "instruction": "Keep your discs and BIOS separately. For a Mac copy, close the game and back up the complete working folder and its saves, settings and installed mods before replacing the kit."
+            }
+          ]
+        },
+        "artwork": {
+          "game_id": 1960,
+          "cover_id": 88564,
+          "image_id": "co1wc4",
+          "image_sha256": "7a15bca139bc9bf733b45f019188df176908dc82c0ab7250a4ca4f75242ccf9f",
+          "game_slug": "alone-in-the-dark-the-new-nightmare",
+          "match_kind": "underlying-game"
+        }
+      },
+      "bios_source_profile": "psx-scph-5552-bios",
+      "runtime_source_filename": "runtime-discs",
+      "launch_disc_choice": "psx-settings-selected",
+      "runtime_source_materialization": "psx-raw-set"
     },
     {
       "id": "alexbeav-armored-core-master-of-arena-recomp",

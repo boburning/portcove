@@ -116,6 +116,7 @@
     "alexbeav-final-fantasy-viii-recomp-usa-psx",
     "alexbeav-final-fantasy-ix-recomp-usa-canada-rev-1-psx",
     "alexbeav-medievil-ii-recomp-usa-psx",
+    "alexbeav-alone-in-the-dark-the-new-nightmare-recomp-europe-psx",
     "goldeneye-007-ntsc-u-big-endian"
   ],
   "port_ids": [
@@ -424,6 +425,7 @@
     "alexbeav-final-fantasy-viii-recomp",
     "alexbeav-final-fantasy-ix-recomp",
     "alexbeav-medievil-ii-recomp-setup-kit",
+    "alexbeav-alone-in-the-dark-the-new-nightmare-recomp",
     "goldeneye-007-n64-pc-port"
   ]
 }

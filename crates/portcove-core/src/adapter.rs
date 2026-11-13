@@ -1001,7 +1001,7 @@ fn prepare_runtime_source_input(
         RuntimeSourceMaterialization::PsxRawSet => materialize_psx_set(
             source,
             destination,
-            false,
+            None,
             pinned_host_tool,
             checkpoint,
             observer,
@@ -1593,8 +1593,10 @@ fn managed_psx_materialized_discs(
 ///
 /// The count comes from the given (retained, verified) catalog's source
 /// profile, never from the install directory: the catalog admits a
-/// `psx-raw-set` managed route only with at least two single-track discs, and
-/// installation materializes exactly one `disc-NN` pair per profile disc.
+/// `psx-raw-set` managed route only with at least two discs of one exact track
+/// count each, and installation materializes exactly one `disc-NN` cue and
+/// data-track pair per profile disc, with any further tracks as
+/// `disc-NN-tTT.bin`.
 /// Only definitions with a reviewed `launch_disc_choice` offer a choice.
 pub(crate) fn managed_psx_selectable_discs(
     catalog: &crate::Catalog,
@@ -1829,6 +1831,10 @@ mod source_conversion_tests;
 #[cfg(test)]
 #[path = "disc_materialization_tests.rs"]
 mod disc_materialization_tests;
+
+#[cfg(test)]
+#[path = "psx_cue_set_tests.rs"]
+mod psx_cue_set_tests;
 
 fn materialize_ps2_iso(
     source: &Path,
@@ -2272,21 +2278,33 @@ fn materialize_psx_bin_cue(
     replace_directory_transactional(&temporary, destination)
 }
 
-pub(crate) fn materialize_psx_cue_set(source: &Path, destination: &Path) -> Result<()> {
+/// Managed PS1 readers that keep every track of a multi-track disc set.
+pub(crate) const PSX_MULTI_TRACK_SET_CAPABILITY: u32 = 4;
+
+/// Extracts a managed disc set with a rewritten cue per disc. `track_counts`
+/// holds each disc's exact catalog track count, in disc order.
+pub(crate) fn materialize_psx_cue_set(
+    source: &Path,
+    destination: &Path,
+    track_counts: &[u32],
+    pinned_tool: Option<&Path>,
+) -> Result<()> {
     materialize_psx_set(
         source,
         destination,
-        true,
-        None,
+        Some(track_counts),
+        pinned_tool,
         &|| Ok(()),
         crate::tool_process::ToolProcessObserver::default(),
     )
 }
 
+/// `retained_tracks` is `None` for a staged set, which keeps only each disc's
+/// data track, and each disc's exact track count for a managed cue set.
 fn materialize_psx_set(
     source: &Path,
     destination: &Path,
-    retain_cues: bool,
+    retained_tracks: Option<&[u32]>,
     pinned_tool: Option<&Path>,
     checkpoint: &dyn Fn() -> Result<()>,
     mut observer: crate::tool_process::ToolProcessObserver<'_>,
@@ -2304,6 +2322,11 @@ fn materialize_psx_set(
             "multi-disc PS1 runtime extraction requires at least two CHDs: {}",
             source.display()
         )));
+    }
+    if retained_tracks.is_some_and(|counts| counts.len() != sources.len()) {
+        return Err(PortcoveError::verification(
+            "managed PS1 disc set does not match its catalog disc count",
+        ));
     }
     let parent = destination
         .parent()
@@ -2339,40 +2362,14 @@ fn materialize_psx_set(
             // A later command cannot erase an earlier uncertain process owner.
             all_tools_quiesced &= command_quiesced;
             let cue = cue?;
-            let (track_count, data_track) = inspect_psx_cue(&cue)?;
-            let bin_name = format!("disc-{:02}.bin", index + 1);
-            let bin_destination = temporary.join(&bin_name);
-            std::fs::rename(&data_track, &bin_destination)?;
-            if retain_cues {
-                if track_count != 1 {
-                    return Err(PortcoveError::source(format!(
-                        "managed PS1 runtime source requires one data track per disc; {} has {track_count}",
-                        source.display()
-                    )));
-                }
-                let cue_body = std::fs::read_to_string(&cue)?;
-                let mut file_lines = 0_u32;
-                let rewritten = cue_body
-                    .lines()
-                    .map(|line| {
-                        if line.trim_start().starts_with("FILE ") {
-                            file_lines += 1;
-                            format!("FILE \"{bin_name}\" BINARY")
-                        } else {
-                            line.to_string()
-                        }
-                    })
-                    .collect::<Vec<_>>()
-                    .join("\n");
-                if file_lines != 1 {
-                    return Err(PortcoveError::source(format!(
-                        "managed PS1 cue sheet must contain exactly one FILE entry: {}",
-                        cue.display()
-                    )));
-                }
-                std::fs::write(
-                    temporary.join(format!("disc-{:02}.cue", index + 1)),
-                    format!("{rewritten}\n"),
+            if let Some(track_counts) = retained_tracks {
+                place_psx_cue_disc(&cue, &temporary, index + 1, track_counts[index])
+                    .map_err(|error| error.detail("disc", (index + 1).to_string()))?;
+            } else {
+                let (_, data_track) = inspect_psx_cue(&cue)?;
+                std::fs::rename(
+                    &data_track,
+                    temporary.join(format!("disc-{:02}.bin", index + 1)),
                 )?;
             }
             std::fs::remove_dir_all(&extracted)?;
@@ -3810,7 +3807,7 @@ fn resolve_host_tool_path(
     crate::host_tools::require_path(&status, &candidates)
 }
 
-pub(crate) fn inspect_psx_cue(cue: &Path) -> Result<(u32, PathBuf)> {
+fn read_psx_cue(cue: &Path) -> Result<String> {
     let mut body = String::new();
     File::open(cue)?
         .take(64 * 1024 + 1)
@@ -3820,6 +3817,128 @@ pub(crate) fn inspect_psx_cue(cue: &Path) -> Result<(u32, PathBuf)> {
             "cue sheet exceeds its bounded metadata size",
         ));
     }
+    Ok(body)
+}
+
+/// One track file of a managed disc: its extracted name and its runtime name.
+#[derive(Debug, PartialEq, Eq)]
+pub(crate) struct PsxTrackFile {
+    pub extracted: String,
+    pub runtime: String,
+}
+
+/// Rewrites an extracted cue sheet for disc `disc` of a managed set.
+///
+/// Every FILE entry must name a distinct single-component file and carry
+/// exactly one TRACK, and the sheet must hold exactly `expected_tracks`
+/// tracks. The data track becomes `disc-NN.bin` and track TT becomes
+/// `disc-NN-tTT.bin`; every other line, including INDEX, PREGAP and POSTGAP,
+/// is kept in order.
+pub(crate) fn rewrite_psx_cue(
+    body: &str,
+    disc: usize,
+    expected_tracks: u32,
+) -> Result<(String, Vec<PsxTrackFile>)> {
+    let mut files: Vec<PsxTrackFile> = Vec::new();
+    let mut tracks_per_file = Vec::new();
+    let mut tracks = 0_u32;
+    let mut lines = Vec::new();
+    for line in body.lines() {
+        let trimmed = line.trim_start();
+        if let Some(value) = trimmed.strip_prefix("FILE ") {
+            let extracted = value
+                .trim_start()
+                .strip_prefix('"')
+                .and_then(|value| value.split_once('"'))
+                .map(|(name, _)| name)
+                .ok_or_else(|| PortcoveError::source("cue sheet FILE entry is not quoted"))?;
+            if extracted.is_empty()
+                || extracted.contains(['/', '\\', ':'])
+                || matches!(extracted, "." | "..")
+            {
+                return Err(PortcoveError::source(
+                    "cue sheet contains an unsafe FILE path",
+                ));
+            }
+            // Windows names are case-insensitive, so compare ASCII case-free.
+            if files
+                .iter()
+                .any(|file| file.extracted.eq_ignore_ascii_case(extracted))
+            {
+                return Err(PortcoveError::source(
+                    "cue sheet names one track file twice",
+                ));
+            }
+            let runtime = if files.is_empty() {
+                format!("disc-{disc:02}.bin")
+            } else {
+                format!("disc-{disc:02}-t{:02}.bin", files.len() + 1)
+            };
+            lines.push(format!("FILE \"{runtime}\" BINARY"));
+            files.push(PsxTrackFile {
+                extracted: extracted.to_owned(),
+                runtime,
+            });
+            tracks_per_file.push(0_u32);
+            continue;
+        }
+        if trimmed.starts_with("TRACK ") {
+            tracks += 1;
+            match tracks_per_file.last_mut() {
+                Some(count) => *count += 1,
+                None => {
+                    return Err(PortcoveError::source(
+                        "cue sheet has a TRACK before its FILE entry",
+                    ));
+                }
+            }
+        }
+        lines.push(line.to_owned());
+    }
+    if tracks != expected_tracks {
+        return Err(PortcoveError::source(format!(
+            "disc {disc} has {tracks} tracks; the catalog expects {expected_tracks}"
+        )));
+    }
+    if files.is_empty() || tracks_per_file.iter().any(|count| *count != 1) {
+        return Err(PortcoveError::source(
+            "managed PS1 cue sheet must name one file per track",
+        ));
+    }
+    Ok((format!("{}\n", lines.join("\n")), files))
+}
+
+/// Moves one extracted disc's track files into the staged set beside its
+/// rewritten `disc-NN.cue`.
+fn place_psx_cue_disc(
+    cue: &Path,
+    destination: &Path,
+    disc: usize,
+    expected_tracks: u32,
+) -> Result<()> {
+    let (rewritten, files) = rewrite_psx_cue(&read_psx_cue(cue)?, disc, expected_tracks)?;
+    let extracted = cue.parent().unwrap_or_else(|| Path::new(""));
+    for file in &files {
+        let path = extracted.join(&file.extracted);
+        if !std::fs::symlink_metadata(&path).is_ok_and(|metadata| metadata.is_file()) {
+            return Err(PortcoveError::source(format!(
+                "cue track file does not exist: {}",
+                path.display()
+            )));
+        }
+    }
+    for file in &files {
+        std::fs::rename(
+            extracted.join(&file.extracted),
+            destination.join(&file.runtime),
+        )?;
+    }
+    std::fs::write(destination.join(format!("disc-{disc:02}.cue")), rewritten)?;
+    Ok(())
+}
+
+pub(crate) fn inspect_psx_cue(cue: &Path) -> Result<(u32, PathBuf)> {
+    let body = read_psx_cue(cue)?;
     let track_count = body
         .lines()
         .filter(|line| line.trim_start().starts_with("TRACK "))
