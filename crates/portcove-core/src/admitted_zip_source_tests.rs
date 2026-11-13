@@ -70,6 +70,7 @@ fn prepare(
         None,
         checkpoint,
         crate::tool_process::ToolProcessObserver::default(),
+        None,
     )
 }
 

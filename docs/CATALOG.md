@@ -952,6 +952,71 @@ bounded quick filter observations are distinct: the latter returns `NotChecked`
 for this shape. See [managed Dark Forces setup and recovery](reference/managed-tfe.md)
 for player workflow, persistence boundaries and the removal recovery hold.
 
+## STFS package extraction
+
+`stfs-directory` extracts a player's original Xbox 360 STFS package (an Xbox Live
+Arcade download) into the runtime directory named by `runtime_source_filename`.
+It is valid only on `staged-source-portable` ports whose destination has no
+extension and is listed in `runtime_mutable_paths`, with at least one
+`runtime_source_hashes` anchor such as `default.xex`. NocturneRecomp (#101) is the
+first route.
+
+The reader accepts `LIVE` and `PIRS` packages in the single-table (read-only) STFS
+layout. Console-signed `CON` packages, two-table packages and SVOD volumes are
+refused, each with its own reason. Before any extracted byte is trusted, Core verifies:
+
+- the header SHA-1 at `0x32C`, which covers `0x344` up to the first hash table;
+- the top hash in the volume descriptor against the highest hash table;
+- each level-1 (and level-2) table against its parent;
+- each level-0 table, and each data block it reads, against its recorded SHA-1.
+
+The licence entries and the signature lie outside the header hash, so two owners'
+copies of one game can differ there while their verified content is identical. The
+RSA signature is not checked. A file entry with the contiguous flag reads sequential
+blocks; a recorded next pointer must then name the following block or be empty. The
+existing bounds remain: block numbers inside the allocated range, cycle detection for
+block and parent chains, at most 16,384 entries and depth 64, ASCII names, the shared
+traversal, reserved-name and case-collision checks, expanded bytes at most the package
+size and 16 GiB, and free space before writing.
+
+A port may declare `runtime_stfs_package`, which requires staged-source capability
+**32**:
+
+| Field               | Meaning                                                                                                  |
+| ------------------- | -------------------------------------------------------------------------------------------------------- |
+| `content_types`     | Accepted header content types as eight uppercase hex digits. Only `000D0000` (arcade title) is reviewed. |
+| `title_ids`         | One to sixteen accepted header title IDs as eight uppercase hex digits.                                  |
+| `max_package_bytes` | Explicit bound on the selected package, at most 16 GiB.                                                  |
+
+Core compares the header with this binding before reuse or extraction, so another
+game, a title update or downloadable content is refused first with
+`stfs_package_mismatch`. A binding without `stfs-directory` is invalid.
+
+### Package identity
+
+The `source_profile` of an `stfs-directory` port identifies the package in one of
+two ways, which may coexist as separate variants:
+
+- **Whole package.** A `compound` representation with format `stfs-live` and an
+  exact whole-file digest. NocturneRecomp uses this form, and it keeps working
+  unchanged.
+- **Content.** An `stfs-content` representation that lists `package_types`
+  (`live`, `pirs`), `title_ids`, `content_types` (`000D0000`) and 1 to 16
+  `members`, each a safe relative `path` with its extracted `sha256`. A package
+  matches only when its complete hash tree verifies, its header values are listed
+  and every member digest is equal. The port must declare `runtime_stfs_package`
+  covering the same titles and content types.
+
+A content identity projects no whole-file digest into the schema-1 compatibility
+profile and never falls back to structural admission. Registration still records
+the owner's exact file bytes, so a later change to that file is detected as before.
+Launch-time reassessment does not reconstruct a content match from stored digests
+and reports it as not evaluated. Folder search probes `PIRS` files only when a
+selected profile declares a content identity. Title IDs, member digests and size
+bounds must come from owner-provided or upstream-published evidence; never infer
+them. No shipped port declares a binding or content identity yet. See the
+[2026-11-13 record](qualification/stfs-importer-pirs-hash-chain-2026-11-13.md).
+
 ## Disc-image unpacking
 
 `xdvdfs-directory` (Xbox and Xbox 360) and `iso9660-directory` (PlayStation 2 and

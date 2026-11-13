@@ -356,6 +356,21 @@ pub struct DiscImageProfile {
     pub product_codes: Vec<String>,
 }
 
+/// Port binding for an Xbox 360 STFS package that `stfs-directory` extracts. The
+/// header facts are compared before anything is extracted, so another game, a title
+/// update or downloadable content is refused first. Requires staged-source capability 32.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct StfsPackageProfile {
+    /// Accepted header content types as eight uppercase hex digits; currently only
+    /// `000D0000` (Xbox Live Arcade title).
+    pub content_types: Vec<String>,
+    /// Accepted header title IDs as eight uppercase hex digits. At least one is required.
+    pub title_ids: Vec<String>,
+    /// Explicit bound on the selected package in bytes; at most 16 GiB.
+    pub max_package_bytes: u64,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema, Default)]
 #[serde(rename_all = "kebab-case")]
 pub enum SourceKind {
@@ -882,6 +897,10 @@ pub struct PortDefinition {
     /// materializations: image kind, size bound and accepted game identifiers.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub runtime_disc_image: Option<DiscImageProfile>,
+    /// Only valid with the `stfs-directory` materialization: accepted header title IDs
+    /// and content types and a size bound, checked before extraction.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub runtime_stfs_package: Option<StfsPackageProfile>,
     /// A disc-image source that is offered but not required: with none registered the
     /// game is not blocked and the runtime and its persistent files are left as they are;
     /// when one is registered it is unpacked as for a required source. Only valid with a
