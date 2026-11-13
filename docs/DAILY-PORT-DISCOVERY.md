@@ -160,8 +160,13 @@ ordered receipt and its logical-batch full-doctor obligation. Scoped receipts re
 The existing Actions job owns bounded continuation; the hosted chat need not
 notice and rerun ordinary temporary holds. It runs up to twelve joined worker
 passes under one 90-minute wall deadline inside the existing 100-minute job,
-each with the existing cold quota/byte/time envelope and fresh queue,
-primary and inventory reads. A worker is joined before another can start and its
+each with a 128 MiB hosted byte envelope, a 30-minute operation deadline and
+fresh queue, primary and inventory reads. The hosted envelope gives growing
+Project inventories room for preflight and final validation in one pass. The
+local runner retains its ordinary and cold profiles. Hosted request capacity
+still follows fresh GitHub quota and observed costs after bootstrap. Admission
+failures retain the requested and available requests and bytes and the time left.
+A worker is joined before another can start and its
 timeout is capped by the remaining wall deadline. Only typed inventory movement, successful-but-stale quota observation or budget admission
 holds with no unconfirmed mutation can continue. Each pass preserves its own
 diagnostics. Eligible requests at an exhausted queue tail run first next pass;
