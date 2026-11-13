@@ -377,3 +377,39 @@ pub(crate) fn sfo(disc_id: &str) -> Vec<u8> {
     bytes[0x40..0x40 + disc_id.len()].copy_from_slice(disc_id.as_bytes());
     bytes
 }
+
+/// Build a CSO of `plain`. `mode(block)` is 0 for a stored block, 1 for a deflated one.
+pub(crate) fn cso_bytes(plain: &[u8], block_size: usize, mode: impl Fn(usize) -> u8) -> Vec<u8> {
+    let blocks = plain.len().div_ceil(block_size);
+    let mut data = Vec::new();
+    let mut offsets = Vec::new();
+    let base = 24 + (blocks + 1) * 4;
+    for number in 0..blocks {
+        let chunk = &plain[number * block_size..((number + 1) * block_size).min(plain.len())];
+        let mut padded = chunk.to_vec();
+        padded.resize(block_size, 0);
+        let offset = (base + data.len()) as u32;
+        if mode(number) == 0 {
+            offsets.push(offset | 0x8000_0000);
+            data.extend_from_slice(&padded);
+        } else {
+            offsets.push(offset);
+            let mut encoder =
+                flate2::write::DeflateEncoder::new(Vec::new(), flate2::Compression::default());
+            std::io::Write::write_all(&mut encoder, &padded).unwrap();
+            data.extend_from_slice(&encoder.finish().unwrap());
+        }
+    }
+    offsets.push((base + data.len()) as u32);
+    let mut out = Vec::new();
+    out.extend_from_slice(b"CISO");
+    out.extend_from_slice(&24_u32.to_le_bytes());
+    out.extend_from_slice(&(plain.len() as u64).to_le_bytes());
+    out.extend_from_slice(&(block_size as u32).to_le_bytes());
+    out.extend_from_slice(&[1, 0, 0, 0]);
+    for offset in offsets {
+        out.extend_from_slice(&offset.to_le_bytes());
+    }
+    out.extend_from_slice(&data);
+    out
+}

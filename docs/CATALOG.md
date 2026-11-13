@@ -876,7 +876,7 @@ for player workflow, persistence boundaries and the removal recovery hold.
 ## Disc-image unpacking
 
 `xdvdfs-directory` (Xbox and Xbox 360) and `iso9660-directory` (PlayStation 2 and
-PSP, ISO or CHD) unpack a player's original disc image into the runtime directory
+PSP: plain ISO, CSO, or CHD) unpack a player's original disc image into the runtime directory
 named by `runtime_source_filename`, following the same staged-source pattern as
 `stfs-directory`. They are valid only on `staged-source-portable` ports whose
 destination has no extension and is declared either in `persistent_paths` (kept
@@ -915,6 +915,20 @@ state re-extracts and never reuses output by size. A re-extract replaces the who
 destination folder, so anything the game wrote into it is lost. Destination drift
 outside the declared anchors is not detected, so declare every file the runtime
 cannot do without. Total directory-table bytes read while planning are bounded.
+
+Compressed PlayStation 2 and PSP inputs are expanded to a private ISO beside the
+destination, which is removed on every path and is never the registered source; the
+unpack then reads that ISO. A `CISO` CSO (version 0 or 1, 2048 to 64 KiB blocks, stored
+or raw-deflate) is recognised by its header rather than its extension and expanded by
+Portcove itself; the header size, block size, version, index (monotonic, inside the
+file) and every block's inflated size are checked, and a `ZISO` (LZ4) image is refused.
+A CHD is expanded with the local `chdman`: a DVD-type CHD with `extractdvd`, and a
+CD-type CHD (track metadata) by extracting the CD and converting its first data track
+(`MODE1/2048`, `MODE1/2352` or `MODE2/2352` form 1) to a plain ISO. A CHD with both or
+neither kind of metadata, a first track of another kind, or a sector that is not
+exactly convertible is refused. The image bound, free space for the private ISO plus
+the unpacked tree, cancellation and cleanup are the same as for a plain ISO. Neither
+route applies to Xbox or Xbox 360 images.
 
 ISO 9660 records may carry a system-use area. Well-formed CD-XA or Rock Ridge/SUSP
 data and plain zero padding (as Sony PS2 mastering writes) are accepted but not
