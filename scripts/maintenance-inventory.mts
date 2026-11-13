@@ -569,27 +569,65 @@ export interface TargetRoutesFact {
  * result by `port:<id>` and keeps Core's own unknowns.
  */
 export async function readTargetRoutes(cli: string, ids: readonly string[]) {
-  const envelope = await isolatedCli(cli, [
-    "catalog",
-    "inspect-targets",
-    ...ids.flatMap((id) => ["--port", id]),
-  ]);
-  const data = envelope.data as
-    | { format_version?: unknown; ports?: ({ port_id?: unknown } & TargetRoutesFact)[] }
-    | undefined;
-  if (!envelope.ok || data?.format_version !== 1 || !Array.isArray(data.ports))
-    throw new MaintenanceStoreError(
-      "Core target inspection is unavailable or uses an unsupported format",
-    );
+  const requested = [...new Set(ids)];
+  const wanted = new Set(requested);
   const facts = new Map<string, TargetRoutesFact>();
-  for (const { port_id, ...fact } of data.ports) {
-    if (typeof port_id !== "string" || !portIdPattern.test(port_id))
-      throw new MaintenanceStoreError("Core target inspection returned an unsupported port ID");
-    facts.set(`port:${port_id}`, fact);
+  // Bounded batches keep every command line far below Windows' 32,767-character limit.
+  for (let start = 0; start < requested.length; start += targetBatchSize) {
+    const batch = requested.slice(start, start + targetBatchSize);
+    const envelope = await isolatedCli(cli, [
+      "catalog",
+      "inspect-targets",
+      ...batch.flatMap((id) => ["--port", id]),
+    ]);
+    const data = envelope.data as { format_version?: unknown; ports?: unknown } | undefined;
+    if (!envelope.ok || data?.format_version !== 1 || !Array.isArray(data.ports))
+      throw new MaintenanceStoreError(
+        "Core target inspection is unavailable or uses an unsupported format",
+      );
+    for (const entry of data.ports as unknown[]) {
+      const { port_id, ...fact } = (entry ?? {}) as { port_id?: unknown };
+      if (typeof port_id !== "string" || !wanted.has(port_id) || facts.has(`port:${port_id}`))
+        throw new MaintenanceStoreError(
+          "Core target inspection returned a port that was not requested or was repeated",
+        );
+      if (!isTargetRoutesFact(fact))
+        throw new MaintenanceStoreError(
+          `Core target inspection returned an unsupported entry for ${port_id}`,
+        );
+      facts.set(`port:${port_id}`, fact);
+    }
   }
-  if (facts.size !== new Set(ids).size)
+  if (facts.size !== wanted.size)
     throw new MaintenanceStoreError("Core target inspection did not cover every collected port");
   return facts;
+}
+
+/** Ports per Core call: at most ~200 short IDs, far below any platform's command-line limit. */
+const targetBatchSize = 200;
+
+function isTargetRoutesFact(value: unknown): value is TargetRoutesFact {
+  const fact = value as Partial<TargetRoutesFact>;
+  const text = (item: unknown) => item === null || typeof item === "string";
+  return (
+    typeof fact.presence === "string" &&
+    Array.isArray(fact.declared_platforms) &&
+    fact.declared_platforms.every((platform) => typeof platform === "string") &&
+    text(fact.acquisition_hold) &&
+    text(fact.download_restriction) &&
+    Array.isArray(fact.targets) &&
+    fact.targets.every(
+      (target) =>
+        typeof target?.platform === "string" &&
+        Array.isArray(target.routes) &&
+        target.routes.every(
+          (route) =>
+            typeof route?.action === "string" &&
+            typeof route.offered === "boolean" &&
+            text(route.reason),
+        ),
+    )
+  );
 }
 
 /** Inspect the bundle exactly as committed at the revision, and probe the appointed location. */
@@ -1890,7 +1928,7 @@ ${report.hosted_intake
 export function targetSummary(fact: TargetRoutesFact | null | undefined) {
   if (!fact) return null;
   if (fact.presence !== "operational")
-    return `${fact.presence.replaceAll("_", " ")}; no managed route`;
+    return `${fact.presence.replaceAll("_", " ")}; no route offered`;
   const offered = fact.targets.flatMap(({ platform, routes }) =>
     routes
       .filter(({ offered: yes }) => yes)

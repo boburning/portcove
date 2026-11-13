@@ -2,11 +2,14 @@ import assert from "node:assert/strict";
 import {
   chmodSync,
   existsSync,
+  mkdtempSync,
   mkdirSync,
   readFileSync,
+  rmSync,
   symlinkSync,
   writeFileSync,
 } from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 import { parse } from "yaml";
@@ -14,6 +17,7 @@ import { postgresFixture, postgresServer } from "./fixtures/postgres-cluster.mts
 import {
   publicationFacts,
   acquireCollection,
+  readTargetRoutes,
   targetSummary,
   assessmentSubject,
   hostPlatform,
@@ -225,6 +229,7 @@ void test("the hosted workflow runs daily on main with least privilege and a rea
     "--publication",
     "--upstream",
     "--hosted-intake",
+    "--targets",
   ])
     assert.ok(collection.run!.includes(flag), flag);
 
@@ -2114,7 +2119,7 @@ void test(
         download_restriction: null,
         targets: [],
       }),
-      "not found; no managed route",
+      "not found; no route offered",
     );
     // A failed inspection is its own failed run; the earlier facts stay current.
     const failed = await all(() => Promise.reject(new Error("inspection refused")));
@@ -2126,3 +2131,17 @@ void test(
     );
   },
 );
+
+void test("target routes are read in bounded batches and malformed entries are refused", async (context) => {
+  const root = mkdtempSync(path.join(os.tmpdir(), "portcove-targets-"));
+  context.after(() => rmSync(root, { recursive: true, force: true }));
+  const { cli, responses } = stubCli(root);
+  const ids = Array.from({ length: 450 }, (_, index) => `port-${index}`);
+  writeFileSync(responses, JSON.stringify({}));
+  const facts = await readTargetRoutes(cli, [...ids, ids[0]!]);
+  assert.equal(facts.size, 450, "every requested port once, across three Core calls");
+  const calls = readFileSync(path.join(root, "isolation.log"), "utf8").trim().split("\n");
+  assert.equal(calls.length, 3);
+  writeFileSync(responses, JSON.stringify({ "targets:port-7": 5 }));
+  await assert.rejects(readTargetRoutes(cli, ids.slice(0, 10)), /unsupported entry for port-7/u);
+});
