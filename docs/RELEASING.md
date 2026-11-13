@@ -154,6 +154,13 @@ and authenticated public bytes are separate evidence.
   [owner-controlled pause](qualification/slice4-production-authorization-packet-2026-10-18.md#recommended-input-authorities-decision-d1).
   The owner sets `publication_paused` to `true` to pause or `false` to resume
   against the current preimage, then verifies the resulting ref and value.
+  The coordinator rebuilds the pause commit object from the provider record.
+  Write it through the web editor, which produces a signed commit, or through
+  the Git Data API with UTC `author` and `committer` dates and a fast-forward
+  ref update. A contents-API commit from a non-UTC client carries an offset
+  that the provider record omits, so every coordinator read refuses it,
+  including while paused. Check a new tip with `inspectRemoteCommitObject`
+  before dispatch.
   Keep the admitted request, allocation and attempts intact. Before resuming,
   verify the live appointment, protection, freshness, candidate or renewal
   basis, and authority for the exact operation. Eligible work continues
