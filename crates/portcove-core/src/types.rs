@@ -2410,6 +2410,7 @@ impl CapabilityDocument {
                 "artwork.steamgriddb.search".into(),
                 "artwork.steamgriddb.candidates".into(),
                 "artwork.steamgriddb.choose".into(),
+                "artwork.steamgriddb.check-listings".into(),
                 "catalog".into(),
                 "catalog.listings".into(),
                 "catalog.listing-refresh".into(),

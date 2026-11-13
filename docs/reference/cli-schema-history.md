@@ -26,6 +26,13 @@ renaming; this history does not deliver future commands or migrate stored data.
 
 ## Documented API changes
 
+API91 adds the report-only `artwork steamgriddb check-listings` command and its
+`steamgriddb_listing_report` result: for each stored SteamGridDB image, whether a
+verified listing still includes it (`listed`, `not_listed` or `unknown` with a
+reason) and, when it is absent, what the image server answers for its stored URL.
+The command changes no library, file, export or Steam state; the Library writer,
+metadata and destination handoff schemas are unchanged.
+
 API90 adds the `landscape` artwork slot: `artwork_state.choice.slot` and the CLI
 `--slot` gain the value, and `artwork steamgriddb choose --slot landscape` uses wide
 grid images. The optional destination artwork handoff moves to schema 4: the

@@ -580,6 +580,11 @@ pub(crate) enum SteamGridDbCommand {
         #[arg(long)]
         expected_revision: Option<u64>,
     },
+    /// Report whether SteamGridDB still lists each SteamGridDB image in your library.
+    #[command(
+        after_help = "Uses your own API key. The check only reports: it keeps every image, credit and choice, and changes nothing in Steam. An image counts as no longer listed only when SteamGridDB returns a complete listing for its game, role, size and format that leaves it out; anything less is reported as not confirmed."
+    )]
+    CheckListings,
     /// List proposed static images for one SteamGridDB game and destination role.
     Candidates {
         /// SteamGridDB game ID from `artwork steamgriddb search`.
@@ -599,6 +604,7 @@ impl SteamGridDbCommand {
             Self::Search { .. } => "artwork.steamgriddb.search",
             Self::Candidates { .. } => "artwork.steamgriddb.candidates",
             Self::Choose { .. } => "artwork.steamgriddb.choose",
+            Self::CheckListings => "artwork.steamgriddb.check-listings",
         }
     }
 }

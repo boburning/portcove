@@ -327,6 +327,15 @@ pub(crate) fn search_games(
         .collect())
 }
 
+/// The provider collection and the documented sizes Portcove offers for a role.
+fn role_listing(role: DestinationArtworkRole) -> (&'static str, &'static str) {
+    match role {
+        DestinationArtworkRole::PortraitCover => ("grids", "600x900,342x482,660x930"),
+        DestinationArtworkRole::LandscapeCover => ("grids", "460x215,920x430"),
+        DestinationArtworkRole::HeroBanner => ("heroes", "1920x620,3840x1240,1600x650"),
+    }
+}
+
 pub(crate) fn role_candidates(
     transport: &impl SteamGridDbTransport,
     key: &str,
@@ -336,11 +345,7 @@ pub(crate) fn role_candidates(
     if game_id == 0 {
         return Err(PortcoveError::usage("choose a SteamGridDB game first"));
     }
-    let (collection, dimensions) = match role {
-        DestinationArtworkRole::PortraitCover => ("grids", "600x900,342x482,660x930"),
-        DestinationArtworkRole::LandscapeCover => ("grids", "460x215,920x430"),
-        DestinationArtworkRole::HeroBanner => ("heroes", "1920x620,3840x1240,1600x650"),
-    };
+    let (collection, dimensions) = role_listing(role);
     let path = format!(
         "/{collection}/game/{game_id}?dimensions={dimensions}&mimes=image/png,image/jpeg\
          &types=static&nsfw=false&humor=false&epilepsy=false&limit={MAX_RESULTS}&page=0"
@@ -611,6 +616,14 @@ fn http_client() -> Result<&'static reqwest::blocking::Client> {
         .as_ref()
         .map_err(|error| PortcoveError::network(format!("SteamGridDB client unavailable: {error}")))
 }
+
+#[path = "steamgriddb_check.rs"]
+mod check;
+pub use check::{
+    SteamGridDbCheckStop, SteamGridDbImageCheck, SteamGridDbListingReport,
+    SteamGridDbListingStatus, SteamGridDbSourceStatus, SteamGridDbUnknownReason,
+};
+pub(crate) use check::{check_stored_listings, check_subjects};
 
 #[cfg(test)]
 #[path = "steamgriddb_tests.rs"]

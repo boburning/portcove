@@ -65594,6 +65594,283 @@
     "title": "SteamGridDbKeyStatus",
     "type": "object"
   },
+  "steamgriddb_listing_report": {
+    "$defs": {
+      "ArtworkAttribution": {
+        "additionalProperties": false,
+        "description": "Where a provider image came from and who made it. Recorded per origin, never\nreplaced by a later identical import, and shown wherever the image is credited.",
+        "properties": {
+          "asset_id": {
+            "description": "The provider's identity for this image.",
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "author_name": {
+            "type": "string"
+          },
+          "author_steam64": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "fetched_at": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "game_id": {
+            "description": "The provider's game the image was listed under; a proposal, not port identity.",
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "provider": {
+            "$ref": "#/$defs/ArtworkProvider"
+          },
+          "role": {
+            "$ref": "#/$defs/DestinationArtworkRole"
+          },
+          "source_url": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "provider",
+          "asset_id",
+          "game_id",
+          "role",
+          "author_name",
+          "author_steam64",
+          "source_url",
+          "fetched_at"
+        ],
+        "type": "object"
+      },
+      "ArtworkProvider": {
+        "description": "A remote provider an image was chosen from; a local import has none.",
+        "enum": [
+          "steamgriddb"
+        ],
+        "type": "string"
+      },
+      "DestinationArtworkRole": {
+        "enum": [
+          "portrait_cover",
+          "landscape_cover",
+          "hero_banner"
+        ],
+        "type": "string"
+      },
+      "SteamGridDbCheckStop": {
+        "description": "Why a check ended before every group was read.",
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "description": "SteamGridDB asked Portcove to slow down.",
+            "properties": {
+              "reason": {
+                "const": "rate_limited",
+                "type": "string"
+              },
+              "retry_after_seconds": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "reason",
+              "retry_after_seconds"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "description": "SteamGridDB rejected the player's saved key.",
+            "properties": {
+              "reason": {
+                "const": "key_rejected",
+                "type": "string"
+              }
+            },
+            "required": [
+              "reason"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "description": "SteamGridDB was unreachable for consecutive listings.",
+            "properties": {
+              "reason": {
+                "const": "unavailable",
+                "type": "string"
+              }
+            },
+            "required": [
+              "reason"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "SteamGridDbImageCheck": {
+        "additionalProperties": false,
+        "properties": {
+          "asset_sha256": {
+            "type": "string"
+          },
+          "attribution": {
+            "$ref": "#/$defs/ArtworkAttribution"
+          },
+          "listing": {
+            "$ref": "#/$defs/SteamGridDbListingStatus"
+          },
+          "source": {
+            "$ref": "#/$defs/SteamGridDbSourceStatus"
+          },
+          "unknown_reason": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/SteamGridDbUnknownReason"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "asset_sha256",
+          "attribution",
+          "listing",
+          "unknown_reason",
+          "source"
+        ],
+        "type": "object"
+      },
+      "SteamGridDbListingStatus": {
+        "description": "Whether SteamGridDB's own listing still includes a stored image.",
+        "oneOf": [
+          {
+            "const": "listed",
+            "description": "The image is in a complete, verified listing.",
+            "type": "string"
+          },
+          {
+            "const": "not_listed",
+            "description": "A complete, verified listing does not include the image.",
+            "type": "string"
+          },
+          {
+            "const": "unknown",
+            "description": "No complete listing could be verified; see `unknown_reason`.",
+            "type": "string"
+          }
+        ]
+      },
+      "SteamGridDbSourceStatus": {
+        "description": "What SteamGridDB's image server answered for the stored source URL, without the key.",
+        "oneOf": [
+          {
+            "const": "not_checked",
+            "description": "Not asked, because the image is listed or the check stopped.",
+            "type": "string"
+          },
+          {
+            "const": "served",
+            "description": "The image server still returns the file.",
+            "type": "string"
+          },
+          {
+            "const": "gone",
+            "description": "The image server answered 404 or 410.",
+            "type": "string"
+          },
+          {
+            "const": "unknown",
+            "description": "The probe failed, was refused, or exceeded the check's budget.",
+            "type": "string"
+          }
+        ]
+      },
+      "SteamGridDbUnknownReason": {
+        "oneOf": [
+          {
+            "const": "incomplete_listing",
+            "description": "Pages disagreed, an entry had no readable ID, or the IDs seen did not match `total`.",
+            "type": "string"
+          },
+          {
+            "const": "too_many_images",
+            "description": "The listing is longer than one check reads.",
+            "type": "string"
+          },
+          {
+            "const": "game_not_found",
+            "description": "SteamGridDB answered that the game was not found; not treated as a withdrawal.",
+            "type": "string"
+          },
+          {
+            "const": "request_limit",
+            "description": "The check's request budget ran out before this listing.",
+            "type": "string"
+          },
+          {
+            "const": "check_stopped",
+            "description": "The check stopped early; see `stopped`.",
+            "type": "string"
+          },
+          {
+            "const": "unavailable",
+            "description": "SteamGridDB could not be reached or answered with a server error.",
+            "type": "string"
+          },
+          {
+            "const": "invalid_response",
+            "description": "SteamGridDB's answer did not have the expected listing shape.",
+            "type": "string"
+          }
+        ]
+      }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "description": "Report only: nothing in the library, its files or Steam changes.",
+    "properties": {
+      "checked_at": {
+        "format": "int64",
+        "type": "integer"
+      },
+      "images": {
+        "items": {
+          "$ref": "#/$defs/SteamGridDbImageCheck"
+        },
+        "type": "array"
+      },
+      "stopped": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/SteamGridDbCheckStop"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      }
+    },
+    "required": [
+      "checked_at",
+      "images",
+      "stopped"
+    ],
+    "title": "SteamGridDbListingReport",
+    "type": "object"
+  },
   "storage": {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "properties": {

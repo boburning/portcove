@@ -3,7 +3,9 @@
 //! reads a key without placing it in argv, and renders.
 use crate::*;
 use portcove_core::{
-    SteamGridDbCandidate, SteamGridDbGame, SteamGridDbKeyStatus, clear_steamgriddb_key,
+    SteamGridDbCandidate, SteamGridDbCheckStop, SteamGridDbGame, SteamGridDbImageCheck,
+    SteamGridDbKeyStatus, SteamGridDbListingReport, SteamGridDbListingStatus,
+    SteamGridDbSourceStatus, SteamGridDbUnknownReason, clear_steamgriddb_key,
     search_steamgriddb_games, set_steamgriddb_key, steamgriddb_candidates, steamgriddb_key_status,
 };
 
@@ -72,6 +74,11 @@ pub(crate) async fn execute(
             render_read_success(mode, name, state, |state| {
                 human_adapters::artwork_state(state, service.catalog())
             })
+        }
+        SteamGridDbCommand::CheckListings => {
+            // Report only; the borrowed service runs the bounded network check in place.
+            let report = tokio::task::block_in_place(|| service.check_steamgriddb_listings())?;
+            render_read_success(mode, name, report, listing_report)
         }
         SteamGridDbCommand::Candidates { game_id, role } => render_read_success(
             mode,
@@ -154,6 +161,92 @@ pub(crate) fn candidate_results(candidates: &[SteamGridDbCandidate]) -> String {
     )
 }
 
+fn role_name(role: portcove_core::DestinationArtworkRole) -> &'static str {
+    match role {
+        portcove_core::DestinationArtworkRole::PortraitCover => "cover",
+        portcove_core::DestinationArtworkRole::HeroBanner => "detail image",
+        portcove_core::DestinationArtworkRole::LandscapeCover => "landscape image",
+    }
+}
+
+fn image_finding(image: &SteamGridDbImageCheck) -> String {
+    use SteamGridDbListingStatus as Listing;
+    use SteamGridDbSourceStatus as Source;
+    let found = match (image.listing, image.source) {
+        (Listing::Listed, _) => "still listed".to_owned(),
+        (Listing::NotListed, Source::Gone) => {
+            "no longer listed, and SteamGridDB no longer serves the file".to_owned()
+        }
+        (Listing::NotListed, Source::Served) => {
+            "no longer listed, but SteamGridDB still serves the file".to_owned()
+        }
+        (Listing::NotListed, _) => "no longer listed".to_owned(),
+        (Listing::Unknown, _) => {
+            let reason = match image.unknown_reason {
+                Some(SteamGridDbUnknownReason::GameNotFound) => "SteamGridDB did not find the game",
+                Some(SteamGridDbUnknownReason::TooManyImages) => {
+                    "the game has more images than one check reads"
+                }
+                Some(SteamGridDbUnknownReason::RequestLimit) => {
+                    "this check reached its request limit"
+                }
+                Some(SteamGridDbUnknownReason::CheckStopped) => "the check stopped first",
+                Some(SteamGridDbUnknownReason::Unavailable) => "SteamGridDB could not be reached",
+                Some(SteamGridDbUnknownReason::IncompleteListing)
+                | Some(SteamGridDbUnknownReason::InvalidResponse)
+                | None => "SteamGridDB did not return a complete listing",
+            };
+            format!("not confirmed ({reason})")
+        }
+    };
+    format!(
+        "{}  {} by {} (game {}): {found}",
+        image.attribution.asset_id,
+        role_name(image.attribution.role),
+        human::clean(&image.attribution.author_name),
+        image.attribution.game_id
+    )
+}
+
+pub(crate) fn listing_report(report: &SteamGridDbListingReport) -> String {
+    if report.images.is_empty() {
+        return "Your library has no SteamGridDB images to check. Nothing was changed.".into();
+    }
+    let lines = report
+        .images
+        .iter()
+        .map(image_finding)
+        .collect::<Vec<_>>()
+        .join("\n");
+    let stopped = match &report.stopped {
+        Some(SteamGridDbCheckStop::RateLimited {
+            retry_after_seconds: Some(seconds),
+        }) => format!(
+            "\n\nSteamGridDB asked Portcove to slow down, so the check stopped early.\nNext step: Run the check again in {}.",
+            wait_text(*seconds)
+        ),
+        Some(SteamGridDbCheckStop::RateLimited { .. }) => "\n\nSteamGridDB asked Portcove to slow down, so the check stopped early.\nNext step: Run the check again later.".into(),
+        Some(SteamGridDbCheckStop::KeyRejected) => "\n\nSteamGridDB rejected your saved API key, so the check stopped early.\nNext step: Replace it with `portcove artwork steamgriddb set-key`.".into(),
+        Some(SteamGridDbCheckStop::Unavailable) => "\n\nSteamGridDB could not be reached, so the check stopped early.\nNext step: Run the check again later.".into(),
+        None => String::new(),
+    };
+    let count = report.images.len();
+    format!(
+        "SteamGridDB listing check: {count} {}\n\n{lines}\n\nThis check only reports. Every image, credit and choice was kept, and nothing changed in Steam.{stopped}",
+        if count == 1 { "image" } else { "images" }
+    )
+}
+
+/// A Retry-After wait in the largest whole unit a player would read.
+fn wait_text(seconds: u64) -> String {
+    let (amount, unit) = match seconds {
+        0..=119 => (seconds.max(1), "second"),
+        120..=7199 => (seconds.div_ceil(60), "minute"),
+        _ => (seconds.div_ceil(3600), "hour"),
+    };
+    format!("{amount} {unit}{}", if amount == 1 { "" } else { "s" })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -190,6 +283,11 @@ mod tests {
             (
                 "artwork steamgriddb candidates 42 --role hero-banner",
                 "artwork.steamgriddb.candidates",
+                crate::startup::StartupMode::ReadOnly,
+            ),
+            (
+                "artwork steamgriddb check-listings",
+                "artwork.steamgriddb.check-listings",
                 crate::startup::StartupMode::ReadOnly,
             ),
         ] {
@@ -259,5 +357,108 @@ mod tests {
         }]);
         assert!(images.contains("1920x620") && images.contains("by Artist"));
         assert!(images.contains("nothing has been chosen or downloaded"));
+    }
+
+    #[test]
+    fn listing_report_explains_each_outcome_and_that_nothing_changed() {
+        use portcove_core::{ArtworkAttribution, ArtworkProvider};
+        assert!(
+            listing_report(&SteamGridDbListingReport {
+                checked_at: 0,
+                images: Vec::new(),
+                stopped: None,
+            })
+            .contains("no SteamGridDB images")
+        );
+        let image = |asset_id, listing, unknown_reason, source| SteamGridDbImageCheck {
+            asset_sha256: "a".repeat(64),
+            attribution: ArtworkAttribution {
+                provider: ArtworkProvider::Steamgriddb,
+                asset_id,
+                game_id: 7,
+                role: DestinationArtworkRole::PortraitCover,
+                author_name: "Art\u{1b}[31mist".into(),
+                author_steam64: None,
+                source_url: "https://cdn2.steamgriddb.com/grid/1.png".into(),
+                fetched_at: 0,
+            },
+            listing,
+            unknown_reason,
+            source,
+        };
+        let text = listing_report(&SteamGridDbListingReport {
+            checked_at: 0,
+            images: vec![
+                image(
+                    1,
+                    SteamGridDbListingStatus::Listed,
+                    None,
+                    SteamGridDbSourceStatus::NotChecked,
+                ),
+                image(
+                    2,
+                    SteamGridDbListingStatus::NotListed,
+                    None,
+                    SteamGridDbSourceStatus::Gone,
+                ),
+                image(
+                    3,
+                    SteamGridDbListingStatus::NotListed,
+                    None,
+                    SteamGridDbSourceStatus::Served,
+                ),
+                image(
+                    4,
+                    SteamGridDbListingStatus::Unknown,
+                    Some(SteamGridDbUnknownReason::GameNotFound),
+                    SteamGridDbSourceStatus::Served,
+                ),
+            ],
+            stopped: Some(SteamGridDbCheckStop::RateLimited {
+                retry_after_seconds: Some(30),
+            }),
+        });
+        assert!(text.contains("1  cover by Art"));
+        assert!(!text.contains('\u{1b}'));
+        assert!(text.contains("still listed"));
+        assert!(text.contains("no longer listed, and SteamGridDB no longer serves the file"));
+        assert!(text.contains("no longer listed, but SteamGridDB still serves the file"));
+        assert!(text.contains("not confirmed (SteamGridDB did not find the game)"));
+        assert!(text.contains("Every image, credit and choice was kept"));
+        assert!(text.contains("again in 30 seconds"));
+        assert!(text.starts_with("SteamGridDB listing check: 4 images"));
+        let one = |stopped| {
+            listing_report(&SteamGridDbListingReport {
+                checked_at: 0,
+                images: vec![image(
+                    5,
+                    SteamGridDbListingStatus::Unknown,
+                    Some(SteamGridDbUnknownReason::CheckStopped),
+                    SteamGridDbSourceStatus::NotChecked,
+                )],
+                stopped,
+            })
+        };
+        assert!(one(None).starts_with("SteamGridDB listing check: 1 image\n"));
+        assert!(one(Some(SteamGridDbCheckStop::KeyRejected)).contains("set-key"));
+        assert!(one(Some(SteamGridDbCheckStop::Unavailable)).contains("could not be reached"));
+        assert!(
+            one(Some(SteamGridDbCheckStop::RateLimited {
+                retry_after_seconds: None
+            }))
+            .contains("again later")
+        );
+        assert!(one(None).contains("not confirmed (the check stopped first)"));
+        for (seconds, text) in [
+            (0, "1 second"),
+            (1, "1 second"),
+            (90, "90 seconds"),
+            (120, "2 minutes"),
+            (3600, "60 minutes"),
+            (7200, "2 hours"),
+            (86_400, "24 hours"),
+        ] {
+            assert_eq!(wait_text(seconds), text);
+        }
     }
 }

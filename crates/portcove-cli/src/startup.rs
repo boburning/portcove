@@ -65,7 +65,8 @@ pub(super) fn startup_mode(command: &Commands) -> StartupMode {
             ArtworkCommand::Steamgriddb { command } => match command {
                 SteamGridDbCommand::Status
                 | SteamGridDbCommand::Search { .. }
-                | SteamGridDbCommand::Candidates { .. } => ReadOnly,
+                | SteamGridDbCommand::Candidates { .. }
+                | SteamGridDbCommand::CheckListings => ReadOnly,
                 SteamGridDbCommand::SetKey { .. }
                 | SteamGridDbCommand::ClearKey
                 | SteamGridDbCommand::Choose { .. } => Recovering,
