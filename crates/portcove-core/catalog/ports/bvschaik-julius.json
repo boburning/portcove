@@ -23,12 +23,27 @@
         {
           "title": "Choose your Caesar III folder on first Play",
           "instruction": "Choose Play, then point Julius to your own writable Caesar III installation patched to 1.0.1.0 when asked. GOG, Steam and original CD installations are supported upstream. Keep that original game folder separate from this runtime. No compiler or installer is required for the published player. Julius saves and settings stay in the selected game folder; Augustus saves are not interchangeable with Julius saves."
+        },
+        {
+          "title": "Open Julius on Mac",
+          "instruction": "Open the official Mac DMG and copy the complete julius.app to a writable folder. Start Julius and select a writable copy of your own Caesar III 1.0.1.0 game folder. Keep the app’s bundled frameworks together."
+        },
+        {
+          "title": "Open Julius on Android",
+          "instruction": "Install Julius from Google Play or use the upstream Android APK. When Julius opens the Android folder picker, grant it access to a writable copy of your own Caesar III 1.0.1.0 game folder. Back up that folder with Julius closed. Keep using the same distribution channel for updates."
         }
       ],
-      "warnings": [],
-      "help_url": "https://github.com/bvschaik/julius/blob/v1.8.0/README.md"
+      "warnings": [
+        "On Mac and Android, use the upstream app. You manage its runtime updates and back up the game data it uses."
+      ],
+      "help_url": "https://github.com/bvschaik/julius#readme"
     },
-    "original_game_title": "Caesar III"
+    "original_game_title": "Caesar III",
+    "platforms": ["macos-x86-64", "macos-aarch64"],
+    "download_asset_hints": {
+      "macos-x86-64": ["-mac.dmg"],
+      "macos-aarch64": ["-mac.dmg"]
+    }
   },
   "integration": {
     "support_tier": "beta",
