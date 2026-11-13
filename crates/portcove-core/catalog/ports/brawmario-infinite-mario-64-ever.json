@@ -44,6 +44,16 @@
       "source_requirements": [],
       "saves_and_settings": "external-user-owned",
       "manual_preparation": "Choose Play, then select your own Super Mario 64 USA .z64 dump in the game’s ROM picker. The player verifies the original before loading it; the published Windows and Linux archives already contain the Godot player and its required companions. The Linux player and its bundled libraries need glibc 2.38 or later and GCC 13’s libstdc++. The game writes saves and backup saves through Godot user storage, normally AppData/Godot/app_userdata/Infinite Mario 64 on Windows or ~/.local/share/godot/app_userdata/Infinite Mario 64 on Linux. This is outside the package and outside Portcove backup. The transparency option can write project.godot beside the player; that exact configuration file is declared for compatible replacement and backup. The user-profile saves remain outside it. Keep a separate copy of that user folder; a customized data location can use external registration. Portcove replaces the managed runtime; existing external copies keep their files and update owner. Runtime rollback carries current declared data rather than rewinding saves; older-runtime and mod compatibility is not guaranteed."
+    },
+    "reviewed_package_layouts": {
+      "windows-x86-64": {
+        "directories": [],
+        "executables": ["infinite mario 64.exe"]
+      },
+      "linux-x86-64": {
+        "directories": [],
+        "executables": ["infinite-mario-64.x86_64"]
+      }
     }
   }
 }
