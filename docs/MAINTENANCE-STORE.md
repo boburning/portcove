@@ -293,6 +293,13 @@ node scripts/maintenance-inventory.mts report --output work/maintenance-report/2
     shows how many subjects match. Filtering only selects rows; it never
     changes a value. The filter is one plain-JavaScript function that the page
     embeds and the tests run unchanged.
+  - Freshness: for each source the report records its latest attempt and its
+    latest complete or partial read (`freshness`). A failed read is an attempt,
+    never a refresh. The age of the last good read is measured against the
+    report's own generation time; over 36 hours (the schedule is daily) or never
+    read is flagged stale. The page states the oldest data age, names stale
+    sources, and shows each source's age; stale facts stay current and visible,
+    never treated as absent.
 
 Listing-only records are marked `listing_only`. A listing establishes neither an
 install nor a launch route, and the report adds no support, admission or

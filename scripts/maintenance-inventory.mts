@@ -1951,6 +1951,13 @@ SELECT json_build_object(
                     resolved_at, resolution
                FROM portcove_maintenance.reconsiderations
               WHERE status <> 'pending' ORDER BY resolved_at DESC LIMIT 200)) x),
+  -- Per source: the latest attempt and the latest read that did not fail.
+  'freshness', (SELECT coalesce(json_agg(json_build_object('source', f.source, 'attempted_at', f.attempted_at,
+        'last_good_at', f.last_good_at) ORDER BY f.source), '[]')
+      FROM (SELECT source, max(completed_at) AS attempted_at,
+                   max(completed_at) FILTER (WHERE coverage IN ('complete', 'partial')) AS last_good_at
+              FROM portcove_maintenance.collection_runs
+             WHERE coverage <> 'in_progress' GROUP BY source) f),
   'generation', (SELECT coalesce(max(acquisition), 0) FROM portcove_maintenance.collection_runs
       WHERE coverage <> 'in_progress'),
   'runs', (SELECT coalesce(json_agg(r ORDER BY r.source, r.acquisition DESC), '[]') FROM (
@@ -2057,6 +2064,8 @@ export interface InventoryReport {
   };
   unsupported_sources: { source: string; reason: string }[];
   runs: unknown[];
+  /** Per source: when it was last attempted and last read successfully, aged against this report. */
+  freshness?: SourceFreshness[];
   subjects: unknown[];
   unassessed_gaps?: { subject_key: string; code: string; message: string }[];
   /** Latest facts per `intake:<request>`, with linked issues joined to issue facts. */
@@ -2112,6 +2121,39 @@ export function deferralChanges(
           state: state ?? "unknown",
           changed_at: changed_at!,
         })),
+    };
+  });
+}
+
+/** A source older than this, relative to the report, is flagged stale (the schedule is daily). */
+export const staleSourceHours = 36;
+
+export interface SourceFreshness {
+  source: string;
+  attempted_at: string | null;
+  /** The latest complete or partial read; failed reads never refresh it. */
+  last_good_at: string | null;
+  /** Hours from the last good read to this report's generation; null when never read. */
+  age_hours: number | null;
+  stale: boolean;
+}
+
+/** Ages each source's last good read against the report's own generation time. */
+export function sourceFreshness(
+  rows: readonly { source: string; attempted_at: string | null; last_good_at: string | null }[],
+  generatedAt: Date,
+): SourceFreshness[] {
+  return rows.map(({ source, attempted_at, last_good_at }) => {
+    const good = last_good_at === null ? Number.NaN : Date.parse(last_good_at);
+    const age_hours = Number.isFinite(good)
+      ? Math.max(0, Math.round(((generatedAt.getTime() - good) / 3_600_000) * 10) / 10)
+      : null;
+    return {
+      source,
+      attempted_at,
+      last_good_at,
+      age_hours,
+      stale: age_hours === null || age_hours > staleSourceHours,
     };
   });
 }
@@ -2199,6 +2241,7 @@ export function buildReport(environment: NodeJS.ProcessEnv, now = new Date()): I
       intake: Record<string, unknown>;
     };
     runs: unknown[];
+    freshness: { source: string; attempted_at: string | null; last_good_at: string | null }[];
     subjects: unknown[];
     unassessed_gaps: { subject_key: string; code: string; message: string }[];
     publication: { definition: string; facts: unknown }[];
@@ -2327,6 +2370,7 @@ export function buildReport(environment: NodeJS.ProcessEnv, now = new Date()): I
       .filter(([source]) => !(serving && source === "definition-delivery"))
       .map(([source, reason]) => ({ source, reason })),
     runs: data.runs,
+    freshness: sourceFreshness(data.freshness, now),
     subjects: subjects.map((subject) => {
       const target = subject.identity?.target_key;
       return {
@@ -2379,6 +2423,30 @@ function failedAttempt(report: InventoryReport, name: string) {
 }
 
 /** Hosted-intake requests with their linked work and the executor's own attention conditions. */
+function sourceAge(report: InventoryReport, source: string) {
+  const entry = report.freshness?.find((value) => value.source === source);
+  if (!entry) return "";
+  if (entry.age_hours === null) return '<span class="unknown">never read successfully</span>';
+  const age = `${entry.age_hours} h`;
+  return entry.stale ? `<span class="unknown">${escapeHtml(age)} (stale)</span>` : escapeHtml(age);
+}
+
+/** Report and data age: when this report was made, and the oldest last good source read. */
+function freshnessSummary(report: InventoryReport) {
+  const entries = report.freshness ?? [];
+  if (!entries.length) return "";
+  const stale = entries.filter(({ stale: value }) => value).map(({ source }) => source);
+  const ages = entries.flatMap(({ age_hours }) => (age_hours === null ? [] : [age_hours]));
+  const oldest = ages.length ? Math.max(...ages) : null;
+  return `<p>Data age: the oldest last good source read is ${
+    oldest === null ? "unknown" : escapeHtml(`${oldest} h`)
+  } before this report. ${
+    stale.length
+      ? `<span class="unknown">Stale (over ${staleSourceHours} h, or never read): ${escapeHtml(stale.join(", "))}.</span> Their last known facts stay current.`
+      : `Every source was read within ${staleSourceHours} h.`
+  }</p>`;
+}
+
 function publicationSection(report: InventoryReport) {
   const serving = report.publication.serving;
   const definitions = report.publication.definitions ?? [];
@@ -2679,19 +2747,20 @@ input { width: 100%; padding: .5rem; font: inherit; }
 <h1>Portcove maintenance inventory</h1>
 <p>Generated ${escapeHtml(report.generated_at)}. Scope: ${escapeHtml(report.scope)} (not the complete inventory).
 Published delivery: <span class="unknown">${escapeHtml(report.publication.status)}</span> — ${escapeHtml(report.publication.reason)}</p>
-<p>Core assessments come from a fully isolated CLI run on the collecting host; the CLI binary is bound by digest and its build source is <span class="unknown">unverified</span>.</p>
+<p>Core assessments come from a fully isolated CLI run on the collecting host; the CLI binary is bound by digest, and each Core run's revision states whether its build source is verified (<code>binding=verified</code>) or only claimed.</p>
+${freshnessSummary(report)}
 <h2>Sources</h2>
-<table><thead><tr><th>Source</th><th>Coverage</th><th>Revision</th><th>Observed</th><th>Completed</th><th>Gaps</th></tr></thead><tbody>
+<table><thead><tr><th>Source</th><th>Coverage</th><th>Revision</th><th>Observed</th><th>Completed</th><th>Age of last good read</th><th>Gaps</th></tr></thead><tbody>
 ${(report.runs as Record<string, unknown>[])
   .map(
     (run) =>
-      `<tr><td>${escapeHtml(run.source)}</td><td>${escapeHtml(run.coverage)}</td><td><code>${escapeHtml(run.source_revision)}</code></td><td>${escapeHtml(run.observed_count)} of ${escapeHtml(run.expected_count ?? "unknown")} declared</td><td>${escapeHtml(run.completed_at)}</td><td>${(Array.isArray(run.gaps) ? (run.gaps as { subject_key: string; code: string }[]) : []).map((gap) => `${escapeHtml(gap.subject_key)}: ${escapeHtml(gap.code)}`).join("<br>")}</td></tr>`,
+      `<tr><td>${escapeHtml(run.source)}</td><td>${escapeHtml(run.coverage)}</td><td><code>${escapeHtml(run.source_revision)}</code></td><td>${escapeHtml(run.observed_count)} of ${escapeHtml(run.expected_count ?? "unknown")} declared</td><td>${escapeHtml(run.completed_at)}</td><td>${sourceAge(report, String(run.source))}</td><td>${(Array.isArray(run.gaps) ? (run.gaps as { subject_key: string; code: string }[]) : []).map((gap) => `${escapeHtml(gap.subject_key)}: ${escapeHtml(gap.code)}`).join("<br>")}</td></tr>`,
   )
   .join("\n")}
 ${report.unsupported_sources
   .map(
     (source) =>
-      `<tr><td>${escapeHtml(source.source)}</td><td class="unknown">unknown</td><td colspan="4">${escapeHtml(source.reason)}</td></tr>`,
+      `<tr><td>${escapeHtml(source.source)}</td><td class="unknown">unknown</td><td colspan="5">${escapeHtml(source.reason)}</td></tr>`,
   )
   .join("\n")}
 </tbody></table>

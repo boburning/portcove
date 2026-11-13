@@ -19,6 +19,7 @@ import { postgresFixture, postgresServer } from "./fixtures/postgres-cluster.mts
 import {
   deferralChanges,
   deliveryFacts,
+  sourceFreshness,
   subjectFilterSource,
   qualificationSummary,
   publicationEntries,
@@ -1183,6 +1184,13 @@ void test(
     );
     await collectWith(() => Promise.reject(new Error("artifact download refused")));
     const afterHealthFailure = buildReport(store.owner);
+    // A failed read is an attempt, never a refresh of the last good read.
+    const healthAge = afterHealthFailure.freshness?.find(
+      ({ source }) => source === "release-health",
+    );
+    assert.ok(healthAge?.attempted_at && healthAge.last_good_at);
+    assert.ok(Date.parse(healthAge.attempted_at) > Date.parse(healthAge.last_good_at));
+    assert.match(renderHtml(afterHealthFailure), /Data age: the oldest last good source read is/u);
     const shipHealth = (
       afterHealthFailure.subjects as { port_key: string; latest_health_gap: string | null }[]
     ).find(({ port_key }) => port_key === "port:2ship2harkinian");
@@ -2878,5 +2886,33 @@ void test("the report page filters subjects by text, platform, state, attention 
       subjectMatches(subject, { changedWithinDays: 30 }, generated),
     ).length,
     0,
+  );
+});
+
+void test("source freshness ages the last good read against the report and flags stale sources", () => {
+  const now = new Date("2026-11-13T12:00:00.000Z");
+  assert.deepEqual(
+    sourceFreshness(
+      [
+        {
+          source: "fresh",
+          attempted_at: "2026-11-13T06:00:00.000Z",
+          last_good_at: "2026-11-13T06:00:00.000Z",
+        },
+        // A later failed attempt does not make the facts fresh.
+        {
+          source: "failing",
+          attempted_at: "2026-11-13T06:00:00.000Z",
+          last_good_at: "2026-11-11T00:00:00.000Z",
+        },
+        { source: "never", attempted_at: "2026-11-13T06:00:00.000Z", last_good_at: null },
+      ],
+      now,
+    ).map(({ source, age_hours, stale }) => [source, age_hours, stale]),
+    [
+      ["fresh", 6, false],
+      ["failing", 60, true],
+      ["never", null, true],
+    ],
   );
 });
