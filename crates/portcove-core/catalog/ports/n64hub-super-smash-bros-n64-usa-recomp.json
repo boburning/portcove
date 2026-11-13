@@ -4,19 +4,19 @@
     "id": "n64hub-super-smash-bros-n64-usa-recomp",
     "project_url": "https://github.com/n64hub/super-smash-bros-recomp",
     "name": "Super Smash Bros. (Smash Bros. Recompiled)",
-    "summary": "A Windows and Linux port of the original Super Smash Bros. Set it up with your own US Nintendo 64 game file.",
+    "summary": "A Windows port of the original Super Smash Bros. Set it up with your own US Nintendo 64 game file.",
     "issue_number": 4337,
     "listed_at": "2026-11-05",
     "original_game_title": "Super Smash Bros.",
     "availability": "packages",
-    "platforms": ["windows-x86-64", "linux-x86-64"],
+    "platforms": ["windows-x86-64"],
     "setup_url": "https://github.com/n64hub/super-smash-bros-recomp/blob/89f7644a08ac705a03db9a61fad77828645797b0/README.md",
     "manual_setup": {
       "help_url": "https://github.com/n64hub/super-smash-bros-recomp/blob/89f7644a08ac705a03db9a61fad77828645797b0/README.md",
       "steps": [
         {
           "title": "Prepare the game",
-          "instruction": "Keep the complete package for your system together. On Windows, install the Microsoft Visual C++ 2015–2022 Redistributable (x64) if needed. Open the player (SmashBrosRecompiled.exe on Windows or SmashBrosRecompiled on Linux), choose Load ROM and select your own 16 MiB, big-endian Super Smash Bros. USA .z64 (SHA-1 e2929e10fccc0aa84e5776227e798abc07cedabf). Choose Start Game."
+          "instruction": "Keep the complete Windows x64 package together. Install the Microsoft Visual C++ 2015–2022 Redistributable (x64) if needed. Open SmashBrosRecompiled.exe, choose Load ROM and select your own 16 MiB, big-endian Super Smash Bros. USA .z64 (SHA-1 e2929e10fccc0aa84e5776227e798abc07cedabf). Choose Start Game."
         }
       ],
       "warnings": [
@@ -32,8 +32,7 @@
     },
     "release_url": "https://github.com/n64hub/super-smash-bros-recomp/releases",
     "download_asset_hints": {
-      "windows-x86-64": ["SmashBrosRecompiled-", "-windows-x64.zip"],
-      "linux-x86-64": ["SmashBrosRecompiled-", "-linux-x64.tar.gz"]
+      "windows-x86-64": ["SmashBrosRecompiled-", "-windows-x64.zip"]
     },
     "recommended_download_channel": "stable"
   },

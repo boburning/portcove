@@ -29,7 +29,7 @@ recorded component in its player warning.
 | `darkuni-mylifedarklord-recomp` (#4121)                              | v0.2          | Windows               | Recompiled game code; launcher icon                   |
 | `darkuni-mylifeking-recomp` (#4120)                                  | v0.5          | Windows               | Recompiled game code; launcher icon                   |
 | `darkuni-target-terror-wii-recomp` (#4178)                           | v1.0          | Windows               | Recompiled game code; launcher icon                   |
-| `tekrantgaming-muppet-racemania-recompiled` (#4130)                  | v1.0.0        | Windows, Linux        | Recompiled game code; game logo; unlicensed own layer |
+| `tekrantgaming-muppet-racemania-recompiled` (#4130)                  | v1.0.0        | Windows               | Recompiled game code; game logo; unlicensed own layer |
 | `eandis-sdoj-recomp` (#1880)                                         | v1.51.4       | Windows, Linux        | Recompiled game code; icon art; unlicensed own layer  |
 | `vidanox-banjotooierecompiled` (#1795)                               | v1.0.1        | Windows, Linux        | Suplexmentary Comic NC font                           |
 | `cdlewis-snowboardkids-recomp` (#1886)                               | v1.0.9        | Windows, Linux, macOS | Modified RecompFrontend fork                          |
@@ -40,8 +40,8 @@ recorded component in its player warning.
 | `blast-corps-blastcorps-recompiled` (#2558)                          | 1.1.1         | Windows               | Suplexmentary Comic NC font                           |
 | `hybrid-heaven-ogdanimal` (#2546)                                    | v1.0.1        | Windows, Linux        | Chiaro fonts by Fontworks                             |
 | `mario-kart-64-mariokart64recomp` (#332)                             | v0.9.2        | Windows               | Chiaro fonts by Fontworks                             |
-| `n64hub-rayman-2-recomp-n64-usa` (#4335)                             | v0.1.15       | Windows, Linux        | Chiaro fonts by Fontworks                             |
-| `n64hub-super-smash-bros-n64-usa-recomp` (#4337)                     | v0.1.12       | Windows, Linux        | Chiaro fonts by Fontworks                             |
+| `n64hub-rayman-2-recomp-n64-usa` (#4335)                             | v0.1.15       | Windows               | Chiaro fonts by Fontworks                             |
+| `n64hub-super-smash-bros-n64-usa-recomp` (#4337)                     | v0.1.12       | Windows               | Chiaro fonts by Fontworks                             |
 | `star-fox-64-starfox64recomp` (#333)                                 | v1.0.3        | Windows               | Chiaro fonts by Fontworks                             |
 | `tenchu-stealth-assassins-tenchu-sa-recomp` (#353)                   | v0.1.0        | Linux                 | Modified RecompOne fork; unlicensed own layer         |
 | `vibecodekun-shantaerecomp` (#1881)                                  | v0.2.0        | Windows, Linux        | Unlicensed gbrecompiled fork                          |
@@ -84,6 +84,9 @@ Notes:
 - Blast Corps, Mario Kart 64 and Star Fox 64 also publish Linux and macOS
   packages, but those wrap a second archive or a Flatpak; they are left for a
   separate decision. Mario Kart 64 and Star Fox 64 are GitLab-hosted.
+- Muppet RaceMania, Rayman 2 and Super Smash Bros. also publish Linux packages
+  (hashes above), but their generated launch facts name only the Windows
+  executable; their Linux route is left for a per-platform launch record.
 - Snowboard Kids (HikariLucy) has published only a prerelease, so its listing
   recommends the beta channel.
 

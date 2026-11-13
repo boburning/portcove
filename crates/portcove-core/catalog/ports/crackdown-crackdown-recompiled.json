@@ -20,7 +20,7 @@
         },
         {
           "title": "Select the prepared native game entry",
-          "instruction": "Select crackdown.exe, its complete containing writable package directory and no arguments for ordinary Play. Keep the matching SDK/runtime/GPU DLLs, launcher resources, game data, configuration and notices together. The embedded launcher calls the native ReXApp game path in-process. Review and consent to the exact executable/CWD/arguments, then request Play separately. Windows10/11 x64, Direct3D12 and the applicable VC++ x64 runtime remain upstream prerequisites. The Linux AppImage needs no Windows runtime."
+          "instruction": "Select crackdown.exe, its complete containing writable package directory and no arguments for ordinary Play. Keep the matching SDK/runtime/GPU DLLs, launcher resources, game data, configuration and notices together. The embedded launcher calls the native ReXApp game path in-process. Review and consent to the exact executable/CWD/arguments, then request Play separately. Windows10/11 x64, Direct3D12 and the applicable VC++ x64 runtime remain upstream prerequisites. On Linux, select the CrackdownRecompiled AppImage itself, with its folder as the working folder and no arguments; it needs no Windows runtime."
         },
         {
           "title": "Complete restarts and updates outside attachment",

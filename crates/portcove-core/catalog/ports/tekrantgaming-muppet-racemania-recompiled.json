@@ -4,19 +4,19 @@
     "id": "tekrantgaming-muppet-racemania-recompiled",
     "project_url": "https://github.com/TekRantGaming/muppet-racemania-recompiled",
     "name": "Muppet RaceMania (TekRantGaming)",
-    "summary": "A Windows and Linux port of Muppet RaceMania. Set it up with your own original PlayStation disc image.",
+    "summary": "A Windows port of Muppet RaceMania. Set it up with your own original PlayStation disc image.",
     "issue_number": 4130,
     "listed_at": "2026-11-05",
     "original_game_title": "Muppet RaceMania",
     "availability": "packages",
-    "platforms": ["windows-x86-64", "linux-x86-64"],
+    "platforms": ["windows-x86-64"],
     "setup_url": "https://github.com/TekRantGaming/muppet-racemania-recompiled/blob/63caf5cfafe22a76cbcce5c91b055cbde861c957/README.md",
     "manual_setup": {
       "help_url": "https://github.com/TekRantGaming/muppet-racemania-recompiled/blob/63caf5cfafe22a76cbcce5c91b055cbde861c957/README.md",
       "steps": [
         {
           "title": "Prepare the game",
-          "instruction": "Keep the complete package for your system together. On Windows it needs Windows 10 or 11 (x64) with OpenGL 3.3 or newer. Optional upscalers require OpenGL 4.3. Use your own USA (SLUS-01237) or Europe (SCES-02008) PlayStation CUE/BIN with the matching regional game build. Open the launcher (MuppetRaceMania.exe on Windows or the MuppetRaceManiaRecompiled AppImage on Linux) and choose Play to select your disc. Finish that setup before adding the launcher to Portcove. The launcher starts the player for the selected region."
+          "instruction": "Keep the complete Windows x64 package together. It needs Windows 10 or 11 (x64) with OpenGL 3.3 or newer. Optional upscalers require OpenGL 4.3. Use your own USA (SLUS-01237) or Europe (SCES-02008) PlayStation CUE/BIN with the matching regional game build. Open MuppetRaceMania.exe and choose Play to select your disc. Finish that setup before adding the launcher to Portcove. The launcher starts the player for the selected region."
         }
       ],
       "warnings": [
@@ -27,8 +27,7 @@
     },
     "release_url": "https://github.com/TekRantGaming/muppet-racemania-recompiled/releases",
     "download_asset_hints": {
-      "windows-x86-64": ["MuppetRaceManiaRecompiled-", "-windows-x64.zip"],
-      "linux-x86-64": ["MuppetRaceManiaRecompiled-", "-linux-x86_64.AppImage"]
+      "windows-x86-64": ["MuppetRaceManiaRecompiled-", "-windows-x64.zip"]
     },
     "recommended_download_channel": "stable"
   },
