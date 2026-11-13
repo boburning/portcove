@@ -475,9 +475,20 @@ function requiredFixture<T>(value: T | null | undefined): T {
     );
     assert.equal(atCeiling.consumed.requests, 352);
     assert.equal(atCeiling.request_plan.status, "admitted");
+    // The batch ceiling never refuses a full collection; the forecast bounds it.
+    const beyondBatch = await collect(
+      catalog(...Array.from({ length: 353 }, (_, i) => port(`beyond-${i}`))),
+    );
+    assert.equal(beyondBatch.request_plan.status, "admitted");
+    assert.equal(beyondBatch.request_plan.hard_ceiling, 352);
+    assert.equal(beyondBatch.limits.requests, 353);
+    assert.equal(beyondBatch.consumed.requests, 353);
+    assert.equal(beyondBatch.collection_status, "complete");
+    assert.ok(beyondBatch.observations.every((record) => record.attempted));
+    // Only the per-report observation ceiling refuses before network.
     let overflowCalls = 0;
     const overflow = await collect(
-      catalog(...Array.from({ length: 353 }, (_, i) => port(`overflow-${i}`))),
+      catalog(...Array.from({ length: 513 }, (_, i) => port(`overflow-${i}`))),
       async () => {
         overflowCalls += 1;
         assert.fail("overflow must refuse before network");
@@ -486,7 +497,7 @@ function requiredFixture<T>(value: T | null | undefined): T {
     assert.equal(overflow.request_plan.status, "overflow");
     assert.equal(overflow.consumed.requests, 0);
     assert.equal(overflowCalls, 0);
-    assert.equal(overflow.observations.length, 353);
+    assert.equal(overflow.observations.length, 513);
     assert.ok(
       overflow.observations.every(
         (record) => record.reason === "budget" && record.attempted === false,
