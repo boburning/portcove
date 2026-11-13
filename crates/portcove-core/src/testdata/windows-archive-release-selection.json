@@ -1681,7 +1681,8 @@
         "track_count": 1,
         "bios_profile": "psx-scph-1001-bios",
         "crash_diagnostic": true,
-        "split_mod_paths": true
+        "split_mod_paths": true,
+        "retail_bios_from_later_release": true
       },
       "linux_selected_assets": [
         "suikoden-0.1.1-linux-x64.zip",
@@ -1724,7 +1725,8 @@
         "track_count": 30,
         "bios_profile": "psx-scph-1001-bios",
         "crash_diagnostic": true,
-        "split_mod_paths": true
+        "split_mod_paths": true,
+        "retail_bios_from_later_release": true
       },
       "linux_selected_assets": [
         "mortal-kombat-trilogy-0.1.1-linux-x64.zip",

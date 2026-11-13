@@ -5966,23 +5966,29 @@ mod tests {
             assert_eq!(contracts.len(), 2);
             for contract in contracts {
                 assert_eq!(contract["admission_mode"], "enforced");
-                // The reviewed v0.1.1 kits stay first. The v0.1.2 kits that
-                // replaced SCPH-5552 with SCPH-1001 are appended after them,
-                // and the BIOS binding is now reviewed at that later commit.
+                // The game contract keeps the reviewed v0.1.1 kits first and
+                // appends the v0.1.2 kits. The BIOS contract now names
+                // SCPH-1001, which only the v0.1.2 kits select, so it binds
+                // those kits alone.
                 let applicability = contract["applicability"].as_array().unwrap();
-                assert_eq!(applicability.len(), 4, "{id}");
-                assert_eq!(applicability[2]["upstream_ref"], "v0.1.2");
-                assert_eq!(applicability[3]["upstream_ref"], "v0.1.2");
-                assert_eq!(
-                    serde_json::json!(applicability[..2]),
-                    serde_json::json!([
-                        { "upstream_ref": "v0.1.1", "artifact_sha256": sha256 },
-                        {
-                            "upstream_ref": "v0.1.1",
-                            "artifact_sha256": linux_sha256
-                        }
-                    ])
-                );
+                if contract["role"] == "game" {
+                    assert_eq!(applicability.len(), 4, "{id}");
+                    assert_eq!(
+                        serde_json::json!(applicability[..2]),
+                        serde_json::json!([
+                            { "upstream_ref": "v0.1.1", "artifact_sha256": sha256 },
+                            {
+                                "upstream_ref": "v0.1.1",
+                                "artifact_sha256": linux_sha256
+                            }
+                        ])
+                    );
+                } else {
+                    assert_eq!(applicability.len(), 2, "{id}");
+                }
+                for binding in &applicability[applicability.len() - 2..] {
+                    assert_eq!(binding["upstream_ref"], "v0.1.2");
+                }
                 if contract["role"] == "game" {
                     assert_eq!(contract["authority_ref"], commit);
                     assert_eq!(contract["profile_id"], profile_id);
@@ -6347,6 +6353,12 @@ mod tests {
                         applicability[3]["upstream_ref"]
                     );
                     assert_ne!(applicability[2]["upstream_ref"], version);
+                }
+                if contract["role"] == "bios" && applicability[0]["upstream_ref"] != version {
+                    // A BIOS contract retargeted to a later kit's retail BIOS
+                    // binds only that later pair (see the Dino Crisis test).
+                    assert_eq!(applicability.len(), 2, "{id}");
+                    continue;
                 }
                 assert_eq!(contract["applicability"][1]["artifact_sha256"], sha256);
                 assert!(

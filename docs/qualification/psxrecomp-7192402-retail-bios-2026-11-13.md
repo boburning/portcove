@@ -61,10 +61,13 @@ For each route:
   checking it against the generation marker, as for other retail routes.
 - **Source contracts:** the game contract also applies to the new Windows and
   Linux kits. The 20 former OpenBIOS routes get a new BIOS contract bound
-  only to the new kits. For the four former SCPH-5552 routes:
-  - the existing BIOS contract now names `psx-scph-1001-bios`;
+  only to the new kits. For the four former SCPH-5552 routes, Core allows one
+  BIOS contract per port, so the existing BIOS contract changes:
+  - it now names `psx-scph-1001-bios`;
   - its review authority moves to the new kit commit;
-  - the new kits are appended.
+  - it binds only the new v0.1.2 kits and cites only their evidence. The
+    v0.1.1 kits select SCPH-5552, so they are no longer bound there. Their
+    game contract keeps them.
 - **Evidence:** each route has one new upstream evidence record. The provider
   release digests were not read, because this session's proxy blocks the
   release API.
@@ -76,13 +79,12 @@ For each route:
   profile and the split paths. For the 20 former OpenBIOS routes, all
   enrolled there, the observed v0.3.6 release is not bound to the BIOS contract. The
   corpus marks this with `retail_bios_from_later_release`, and its game
-  evidence stays exact. Dino Crisis and Dino Crisis 2 have no corpus entry. No
-  provider release data was added.
+  evidence stays exact. The same mark applies to Suikoden and Mortal Kombat
+  Trilogy, whose observed v0.1.1 release selects SCPH-5552. Dino Crisis and
+  Dino Crisis 2 have no corpus entry. No provider release data was added.
 
-Source applicability only grows, so the four adjusted BIOS contracts keep
-their v0.1.1 entries. Those entries and their evidence record the earlier
-SCPH-5552 review. They don't claim that the v0.1.1 kits work with SCPH-1001.
-Release selection takes the newest release. If an older kit were built under
+The game contracts keep their older entries, so older kits stay listed as
+reviewed games. Release selection takes the newest release. If an older kit were built under
 the new definition anyway, two things could happen:
 
 - **Wrong BIOS staged:** Core would stage the registered SCPH-1001 BIOS at
