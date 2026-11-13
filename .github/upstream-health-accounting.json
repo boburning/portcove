@@ -522,6 +522,7 @@
       "sha256": "30ee44b296f18273842c50c2db5d5e5dccb2bba278d4909881273737f90c4eac",
       "repository": "TheForceEngine/TheForceEngine",
       "tag": "v1.22.420",
+      "historical_version": "1.22.420",
       "name": "TheForceEngine-v1.22.420.zip",
       "repository_id": 242802212,
       "archived": false,
