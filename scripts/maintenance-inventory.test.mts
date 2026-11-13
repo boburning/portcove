@@ -13,6 +13,7 @@ import { parse } from "yaml";
 import { postgresFixture, postgresServer } from "./fixtures/postgres-cluster.mts";
 import {
   publicationFacts,
+  acquireCollection,
   assessmentSubject,
   hostPlatform,
   acknowledgeDigest,
@@ -32,8 +33,14 @@ import {
 import type { UpstreamInput } from "./maintenance-upstream.mts";
 import type { HostedRequestStatus, HostedStatusAll } from "./hosted-discovery-intake.mts";
 import { GitHubApiError } from "./github-operation.mts";
-import { migrate, runSql } from "./maintenance-store.mts";
-import { readOpenHandoffs, recordHandoffOperations } from "./maintenance-handoffs.mts";
+import { migrate, migrationTransaction, readMigrations, runSql } from "./maintenance-store.mts";
+import {
+  handoffOperationId,
+  handoffPolicyVersion,
+  handoffSubject,
+  readOpenHandoffs,
+  recordHandoffOperations,
+} from "./maintenance-handoffs.mts";
 import {
   catalog as catalogFixture,
   checkpoint,
@@ -269,6 +276,7 @@ void test("the static report escapes untrusted text and states unknown publicati
     format: "portcove-maintenance-inventory",
     format_version: 1,
     generated_at: "2026-11-11T00:00:00.000Z",
+    generation: 1,
     scope: "declared-sample",
     publication: { status: "unknown", reason: "<b>none</b>" },
     unsupported_sources: [{ source: "issues", reason: "</script><script>alert(1)</script>" }],
@@ -282,7 +290,15 @@ void test("the static report escapes untrusted text and states unknown publicati
         completed_at: "t",
       },
     ],
-    subjects: [{ subject_key: "port:</script>", state: "s", sequence: 1, assessed_at: "t" }],
+    subjects: [
+      {
+        subject_key: "port:</script>",
+        state: "s",
+        sequence: 1,
+        verified_at: "t",
+        changed_at: "t",
+      },
+    ],
   } satisfies InventoryReport);
   assert.equal(page.match(/<\/script>/gu)?.length, 2, "only the page's own two scripts close");
   assert.doesNotMatch(page, /<b>none<\/b>|<i>x<\/i>/u);
@@ -540,6 +556,19 @@ void test(
     );
     assert.ok(existsSync(path.join(output, "index.html")));
     assert.throws(() => writeReport(inventory, output), /already exists/u);
+    // A late producer of an older generation never replaces a newer accepted report.
+    assert.ok(inventory.generation > 0);
+    writeReport(inventory, path.join(fixture.root, "same"), output);
+    assert.throws(
+      () =>
+        writeReport(
+          { ...inventory, generation: inventory.generation - 1 },
+          path.join(fixture.root, "late"),
+          output,
+        ),
+      /reflects newer collections/u,
+    );
+    assert.ok(!existsSync(path.join(fixture.root, "late")));
     assert.throws(
       () => runSql(reader, "DELETE FROM portcove_maintenance.collection_runs;"),
       /permission denied/u,
@@ -912,6 +941,56 @@ void test(
       /failed:http-503/u,
     );
     assert.match(renderHtml(inventory), /provider-redirect \(observe-availability\)/u);
+
+    // A failed health read keeps the previous read's per-port gap and says it failed.
+    await collectWith(() =>
+      Promise.resolve({
+        revision: "upstream-health-run:4",
+        report: {
+          format_version: 1,
+          authority:
+            "upstream-monitoring-only; no acquisition, artifact, lineage or publication authority",
+          inventory: {
+            total_ports: 1,
+            fresh_complete_port_ids: [],
+            fresh_partial_port_ids: [],
+            stale_port_ids: ["2ship2harkinian"],
+            unmonitored_port_ids: [],
+          },
+          known_conditions: [],
+        },
+      }),
+    );
+    await collectWith(() => Promise.reject(new Error("artifact download refused")));
+    const afterHealthFailure = buildReport(store.owner);
+    const shipHealth = (
+      afterHealthFailure.subjects as { port_key: string; latest_health_gap: string | null }[]
+    ).find(({ port_key }) => port_key === "port:2ship2harkinian");
+    assert.equal(shipHealth?.latest_health_gap, "stale");
+    assert.match(
+      renderHtml(afterHealthFailure),
+      /latest read failed: unavailable; previous read: stale/u,
+    );
+
+    // A failed publication-bundle inspection is a failed run; the last facts stay current.
+    const bundleFailure = await collect({
+      cli,
+      all: true,
+      ports: ["2ship2harkinian"],
+      publication: () => Promise.reject(new Error("bundle export failed")),
+      environment: store.owner,
+      runner: "fixture",
+    });
+    assert.deepEqual(bundleFailure.failed_sources, ["definition-publication"]);
+    assert.match(buildReport(store.owner).publication.reason, /published: not-published/u);
+    assert.equal(
+      runSql(
+        store.owner,
+        `SELECT coverage || ':' || (gaps -> 0 ->> 'subject_key') FROM portcove_maintenance.collection_runs
+          WHERE run_id = portcove_maintenance.latest_run('definition-publication');`,
+      ).trim(),
+      "failed:source:definition-publication",
+    );
   },
 );
 
@@ -1372,6 +1451,24 @@ void test(
       ).trim();
     const blockedKey = "handoff:hosted-intake-blocked:intake:20";
     const heldKey = "handoff:hosted-intake-holds:intake:40";
+    // A handoff plan's identity names its fence and the assessment recorded at that fence.
+    const plan = (
+      kind: "hosted-intake-blocked" | "hosted-intake-holds",
+      request: number,
+      fence: number,
+    ) =>
+      handoffOperationId(
+        kind,
+        `intake:${request}`,
+        fence,
+        Number(
+          runSql(
+            store.owner,
+            `SELECT assessment_id FROM portcove_maintenance.subject_transitions
+              WHERE subject_key = 'handoff:${kind}:intake:${request}' AND sequence = ${fence};`,
+          ).trim(),
+        ),
+      );
 
     // A handoff appears: one needs-attention transition and notification; one planned operation.
     respond(report("automatic"));
@@ -1400,7 +1497,7 @@ void test(
       ]),
       [
         [
-          "handoff.hosted-intake-blocked.intake:20.1",
+          plan("hosted-intake-blocked", 20, 1),
           "handoff.hosted-intake-blocked",
           "planned",
           1,
@@ -1409,7 +1506,7 @@ void test(
           null,
         ],
         [
-          "handoff.hosted-intake-holds.intake:40.1",
+          plan("hosted-intake-holds", 40, 1),
           "handoff.hosted-intake-holds",
           "planned",
           1,
@@ -1453,9 +1550,7 @@ void test(
       ],
     );
     assert.deepEqual(recordHandoffOperations(executor), { abandoned: 1, planned: 0, open: 1 });
-    const abandoned = operations().find(
-      ({ id }) => id === "handoff.hosted-intake-blocked.intake:20.1",
-    )!;
+    const abandoned = operations().find(({ id }) => id === plan("hosted-intake-blocked", 20, 1))!;
     assert.deepEqual(
       [abandoned.state, abandoned.revision, abandoned.receipt, abandoned.receipt_sha256],
       ["abandoned", 2, null, null],
@@ -1477,10 +1572,10 @@ void test(
     assert.deepEqual(
       operations().map(({ id, state, fence }) => [id, state, fence]),
       [
-        ["handoff.hosted-intake-blocked.intake:20.1", "abandoned", 1],
-        ["handoff.hosted-intake-blocked.intake:20.3", "planned", 3],
-        ["handoff.hosted-intake-holds.intake:40.1", "abandoned", 1],
-        ["handoff.hosted-intake-holds.intake:40.2", "planned", 2],
+        [plan("hosted-intake-blocked", 20, 1), "abandoned", 1],
+        [plan("hosted-intake-blocked", 20, 3), "planned", 3],
+        [plan("hosted-intake-holds", 40, 1), "abandoned", 1],
+        [plan("hosted-intake-holds", 40, 2), "planned", 2],
       ],
     );
 
@@ -1500,7 +1595,7 @@ void test(
         runSql(
           executor,
           `UPDATE portcove_maintenance.operations SET state = 'planned', revision = revision + 1
-             WHERE operation_id = 'handoff.hosted-intake-holds.intake:40.1';`,
+             WHERE operation_id = '${plan("hosted-intake-holds", 40, 1)}';`,
         ),
       /cannot move from abandoned to planned/u,
     );
@@ -1563,8 +1658,8 @@ void test(
         operation?.operation_id ?? null,
       ]),
       [
-        [blockedKey, "handoff.hosted-intake-blocked.intake:20.3"],
-        [heldKey, "handoff.hosted-intake-holds.intake:40.2"],
+        [blockedKey, plan("hosted-intake-blocked", 20, 3)],
+        [heldKey, plan("hosted-intake-holds", 40, 2)],
       ],
     );
     const page = renderHtml(inventory);
@@ -1573,7 +1668,7 @@ void test(
       page,
       /gh workflow run hosted-discovery-intake\.yml --ref main -f mode=process\. Authority: owner-only\. Dispatch disabled: /u,
     );
-    assert.match(page, /operation handoff\.hosted-intake-holds\.intake:40\.2 planned at fence 2/u);
+    assert.ok(page.includes(`operation ${plan("hosted-intake-holds", 40, 2)} planned at fence 2`));
     assert.match(page, /"next_actions":\[\]/u);
     // The changes-only digest carries handoff transitions with the registry action.
     const digest = buildDigest(reader);
@@ -1586,5 +1681,361 @@ void test(
       readOpenHandoffs(reader).map(({ subject_key }) => subject_key),
       [blockedKey, heldKey],
     );
+  },
+);
+
+void test(
+  "current provenance refreshes quietly, stale collections replace nothing and sources fail alone",
+  { skip: server.skip ?? false, timeout: 240_000 },
+  async (context) => {
+    const fixture = postgresFixture(context, server.directory!);
+    const store = fixture.start("store");
+    migrate(store.owner);
+    runSql(
+      store.owner,
+      "CREATE ROLE collector_login LOGIN IN ROLE portcove_maintenance_collector;",
+    );
+    const collector = store.as("collector_login");
+    const { cli, responses } = stubCli(fixture.root);
+    const respond = (data: unknown) =>
+      writeFileSync(responses, JSON.stringify({ "2ship2harkinian": data }));
+    const subject = assessmentSubject("2ship2harkinian", hostPlatform());
+    const current = () =>
+      JSON.parse(
+        runSql(
+          store.owner,
+          `SELECT json_build_object('sequence', c.sequence, 'transition', c.assessment_id,
+             'applicable', c.applicable_assessment_id, 'policy', a.policy_version, 'input', a.input_digest,
+             'verified_run', c.verified_run_id, 'changed_at', c.updated_at, 'verified_at', c.verified_at,
+             'transitions', (SELECT count(*) FROM portcove_maintenance.subject_transitions t WHERE t.subject_key = c.subject_key),
+             'notifications', (SELECT count(*) FROM portcove_maintenance.notifications n WHERE n.subject_key = c.subject_key))
+             FROM portcove_maintenance.subject_current c
+             JOIN portcove_maintenance.assessments a ON a.assessment_id = c.applicable_assessment_id
+            WHERE c.subject_key = '${subject}';`,
+        ),
+      ) as {
+        sequence: number;
+        transition: number;
+        applicable: number;
+        policy: string;
+        input: string;
+        verified_run: string;
+        changed_at: string;
+        verified_at: string;
+        transitions: number;
+        notifications: number;
+      };
+    const ports = ["2ship2harkinian"];
+    let issuesFail = false;
+    const issues = () =>
+      issuesFail
+        ? Promise.reject(new Error("Project read refused"))
+        : Promise.resolve({
+            repository: "boburning/portcove",
+            observed_at: "2026-11-11T00:00:00Z",
+            total: 1,
+            issues: [
+              {
+                id: "I1",
+                number: 1,
+                title: "Ship",
+                state: "OPEN",
+                body: "<!-- portcove-catalog-id: 2ship2harkinian -->",
+              },
+            ],
+            memberships: [],
+          });
+    const all = (extra: Partial<Parameters<typeof collect>[0]> = {}) =>
+      collect({ cli, all: true, ports, environment: collector, runner: "fixture", ...extra });
+
+    respond(report("automatic"));
+    await all();
+    const first = current();
+    assert.equal(first.sequence, 1);
+
+    // Same result, new inputs: provenance and verification move, history and notifications do not.
+    respond({ ...report("automatic"), port_id: "changed-input" });
+    await all();
+    const newInput = current();
+    assert.equal(newInput.sequence, 1);
+    assert.equal(newInput.transition, first.transition, "the last material transition is kept");
+    assert.notEqual(newInput.applicable, first.applicable);
+    assert.notEqual(newInput.input, first.input);
+    assert.notEqual(newInput.verified_run, first.verified_run);
+    assert.equal(newInput.changed_at, first.changed_at);
+    assert.ok(newInput.verified_at > first.verified_at);
+    assert.deepEqual([newInput.transitions, newInput.notifications], [1, 0]);
+
+    // Same result, new policy (another Core binary): the same, without churn.
+    writeFileSync(cli, `${readFileSync(cli, "utf8")}\n// rebuilt\n`);
+    await all();
+    const newPolicy = current();
+    assert.notEqual(newPolicy.policy, newInput.policy);
+    assert.notEqual(newPolicy.applicable, newInput.applicable);
+    assert.deepEqual(
+      [newPolicy.sequence, newPolicy.transitions, newPolicy.notifications],
+      [1, 1, 0],
+    );
+
+    // An unchanged pass verifies again and records nothing else.
+    await all();
+    const again = current();
+    assert.equal(again.applicable, newPolicy.applicable);
+    assert.notEqual(again.verified_run, newPolicy.verified_run);
+    assert.deepEqual([again.sequence, again.transitions, again.notifications], [1, 1, 0]);
+
+    // Reversed completion: an older collection that finishes after a newer one is refused whole.
+    respond(report("manual"));
+    let entered!: () => void;
+    let release!: () => void;
+    const reading = new Promise<void>((resolve) => (entered = resolve));
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    const slow = all({
+      issues: async () => {
+        entered();
+        await gate;
+        return issues();
+      },
+    });
+    await reading;
+    respond(report("automatic"));
+    await all({ issues });
+    const newer = current();
+    release();
+    await assert.rejects(
+      slow,
+      /newer maintenance collection finished first; this one replaced nothing/u,
+    );
+    assert.deepEqual(current(), newer, "the late, older result never becomes current");
+    assert.equal(
+      runSql(
+        store.owner,
+        "SELECT count(*) FROM portcove_maintenance.subject_transitions WHERE state = 'managed-setup.manual';",
+      ).trim(),
+      "0",
+      "no false A -> B -> A history",
+    );
+
+    // Runner clocks are not freshness: a newer ticket with an older clock is the latest run,
+    // and a replayed or restored worker's older ticket is refused.
+    const stale = acquireCollection(collector);
+    const fresh = acquireCollection(collector);
+    runSql(
+      collector,
+      `INSERT INTO portcove_maintenance.collection_runs (run_id, source, runner, started_at, acquisition)
+         VALUES ('skewed', 'catalog-records', 'fixture', '2000-01-01T00:00:00Z', ${fresh});
+       UPDATE portcove_maintenance.collection_runs SET coverage = 'failed', completed_at = clock_timestamp(),
+         source_revision = 'skewed' WHERE run_id = 'skewed';`,
+    );
+    assert.equal(
+      runSql(store.owner, "SELECT portcove_maintenance.latest_run('catalog-records');").trim(),
+      "skewed",
+    );
+    assert.throws(
+      () =>
+        runSql(
+          collector,
+          `INSERT INTO portcove_maintenance.collection_runs (run_id, source, runner, started_at, acquisition)
+             VALUES ('replayed', 'catalog-records', 'fixture', '2099-01-01T00:00:00Z', ${stale});`,
+        ),
+      /stale maintenance collection for catalog-records/u,
+    );
+    assert.throws(
+      () =>
+        runSql(
+          collector,
+          `INSERT INTO portcove_maintenance.collection_runs (run_id, source, runner, started_at, acquisition)
+             VALUES ('forged', 'other-source', 'fixture', now(), ${fresh + 1000});`,
+        ),
+      /unissued acquisition/u,
+    );
+    assert.throws(
+      () =>
+        runSql(collector, "SELECT portcove_maintenance.expect_baseline('catalog-records', 'old');"),
+      /maintenance baseline changed for catalog-records: expected old, found skewed/u,
+    );
+
+    // One failing source keeps its earlier facts and does not discard the others.
+    issuesFail = true;
+    const outcome = await all({
+      issues,
+      releaseHealth: () => Promise.reject(new Error("no report")),
+    });
+    assert.deepEqual(outcome.failed_sources, ["issues-project", "release-health"]);
+    const latest = JSON.parse(
+      runSql(
+        store.owner,
+        `SELECT json_object_agg(source, json_build_object('coverage', coverage, 'gap', gaps -> 0 ->> 'subject_key'))
+           FROM portcove_maintenance.collection_runs
+          WHERE run_id IN (SELECT portcove_maintenance.latest_run(s)
+                             FROM unnest(ARRAY['catalog-records', 'issues-project', 'release-health', 'core-port-capabilities-${hostPlatform()}']) s);`,
+      ),
+    ) as Record<string, { coverage: string; gap: string | null }>;
+    assert.deepEqual(latest, {
+      "catalog-records": { coverage: "complete", gap: null },
+      [`core-port-capabilities-${hostPlatform()}`]: { coverage: "complete", gap: null },
+      "issues-project": { coverage: "failed", gap: "source:issues-project" },
+      "release-health": { coverage: "failed", gap: "source:release-health-report" },
+    });
+    const work = (
+      buildReport(store.owner).subjects as { subject_key: string; work: { number: number }[] }[]
+    ).find((entry) => entry.subject_key === subject)?.work;
+    assert.deepEqual(
+      work?.map(({ number }) => number),
+      [1],
+      "the earlier verified issue facts stay current",
+    );
+
+    // Quoting never depends on server or role settings, even though the collection is batched.
+    runSql(
+      store.owner,
+      `DO $$ BEGIN EXECUTE format('ALTER DATABASE %I SET standard_conforming_strings = off', current_database()); END $$;`,
+    );
+    issuesFail = false;
+    respond({ ...report("automatic"), port_id: String.raw`back\slash "quoted" \n` });
+    await all({ issues });
+    assert.equal(
+      runSql(
+        store.owner,
+        `SELECT o.payload #>> '{report,port_id}' FROM portcove_maintenance.observations o
+           WHERE o.run_id = portcove_maintenance.latest_run('core-port-capabilities-${hostPlatform()}');`,
+      ).trim(),
+      String.raw`back\slash "quoted" \n`,
+    );
+  },
+);
+
+void test(
+  "migration 0003 binds existing state and handoff plans follow the applicable assessment",
+  { skip: server.skip ?? false, timeout: 240_000 },
+  async (context) => {
+    const fixture = postgresFixture(context, server.directory!);
+    const store = fixture.start("upgrade");
+    // A populated store at migration 0002, as deployed before this change.
+    for (const migration of readMigrations().filter(({ version }) => version <= 2))
+      runSql(store.owner, migrationTransaction(migration));
+    const kind = "upstream-observer-exception";
+    const source = "port:alpha@linux-x86-64";
+    const subject = handoffSubject(kind, source);
+    const legacyId = handoffOperationId(kind, source, 1);
+    const digest = (character: string) => character.repeat(64);
+    runSql(
+      store.owner,
+      `INSERT INTO portcove_maintenance.collection_runs (run_id, source, runner, started_at)
+         VALUES ('upstream-1', 'upstream-observations', 'fixture', '2026-11-12T00:00:00Z');
+       UPDATE portcove_maintenance.collection_runs SET coverage = 'partial', completed_at = '2026-11-12T00:01:00Z',
+         source_revision = 'r1' WHERE run_id = 'upstream-1';
+       INSERT INTO portcove_maintenance.assessments (subject_key, policy_version, input_digest, state, result_digest, explanation, assessed_at, run_id)
+         VALUES ('${subject}', '${handoffPolicyVersion}', '${digest("1")}', 'needs-attention', '${digest("2")}',
+           '{"handoff":"${kind}","source_subject":"${source}","condition":{"exceptions":[]}}', '2026-11-12T00:01:00Z', 'upstream-1');
+       INSERT INTO portcove_maintenance.subject_transitions (subject_key, sequence, assessment_id) VALUES ('${subject}', 1, 1);
+       INSERT INTO portcove_maintenance.operations (operation_id, kind, subject_key, fence_sequence, executor, created_at, updated_at)
+         VALUES ('${legacyId}', 'handoff.${kind}', '${subject}', 1, 'upstream-observer', now(), now());`,
+    );
+    assert.deepEqual(migrate(store.owner).newly_applied, [3]);
+    assert.equal(
+      runSql(
+        store.owner,
+        `SELECT c.applicable_assessment_id || ':' || c.verified_run_id || ':' || (c.verified_acquisition IS NOT NULL)
+             || ':' || o.fence_assessment_id || ':' || r.acquisition
+           FROM portcove_maintenance.subject_current c
+           JOIN portcove_maintenance.operations o ON o.subject_key = c.subject_key
+           JOIN portcove_maintenance.collection_runs r ON r.run_id = 'upstream-1';`,
+      ).trim(),
+      "1:upstream-1:true:1:1",
+      "existing current state, runs and plans are bound by the migration",
+    );
+    runSql(store.owner, "CREATE ROLE executor_login LOGIN IN ROLE portcove_maintenance_executor;");
+    const executor = store.as("executor_login");
+    const operations = () =>
+      runSql(
+        store.owner,
+        `SELECT string_agg(operation_id || '=' || state, ' ' ORDER BY operation_id COLLATE "C")
+           FROM portcove_maintenance.operations;`,
+      ).trim();
+    // The legacy plan stays the one open plan: nothing is abandoned or duplicated.
+    assert.deepEqual(recordHandoffOperations(executor), { abandoned: 0, planned: 0, open: 1 });
+    assert.equal(operations(), `${legacyId}=planned`);
+    assert.doesNotMatch(
+      readOpenHandoffs(store.owner)
+        .map(({ operation }) => JSON.stringify(operation))
+        .join(),
+      /stale/u,
+    );
+
+    // The same result under a new policy moves the applicable assessment at the same fence:
+    // the old plan is abandoned and replaced in one pass, and a replay changes nothing.
+    runSql(
+      store.owner,
+      `INSERT INTO portcove_maintenance.collection_runs (run_id, source, runner, started_at)
+         VALUES ('upstream-2', 'upstream-observations', 'fixture', now());
+       INSERT INTO portcove_maintenance.assessments (subject_key, policy_version, input_digest, state, result_digest, explanation, assessed_at, run_id)
+         VALUES ('${subject}', 'maintenance-handoffs/next', '${digest("1")}', 'needs-attention', '${digest("2")}',
+           '{"handoff":"${kind}","source_subject":"${source}","condition":{"exceptions":[]}}', now(), 'upstream-2');
+       SELECT portcove_maintenance.verify_current(2, 'upstream-2');`,
+    );
+    assert.deepEqual(recordHandoffOperations(executor), { abandoned: 1, planned: 1, open: 1 });
+    const replacement = handoffOperationId(kind, source, 1, 2);
+    assert.equal(operations(), `${legacyId}=abandoned ${replacement}=planned`);
+    assert.deepEqual(recordHandoffOperations(executor), { abandoned: 0, planned: 0, open: 1 });
+    const [open] = readOpenHandoffs(store.owner);
+    assert.equal(open?.assessment_id, 2);
+    assert.equal(open?.operation?.operation_id, replacement);
+    assert.equal(open?.operation?.fence_assessment_id, 2);
+    // A failed run cannot verify anything, before or after it finishes.
+    assert.throws(
+      () =>
+        runSql(
+          store.owner,
+          `UPDATE portcove_maintenance.collection_runs SET coverage = 'failed', completed_at = clock_timestamp(),
+             source_revision = 'r2' WHERE run_id = 'upstream-2';`,
+        ),
+      /verified maintenance state and cannot finish failed/u,
+    );
+    runSql(
+      store.owner,
+      `UPDATE portcove_maintenance.collection_runs SET coverage = 'partial', completed_at = clock_timestamp(),
+         source_revision = 'r2' WHERE run_id = 'upstream-2';
+       INSERT INTO portcove_maintenance.collection_runs (run_id, source, runner, started_at)
+         VALUES ('upstream-3', 'upstream-observations', 'fixture', now());
+       UPDATE portcove_maintenance.collection_runs SET coverage = 'failed', completed_at = clock_timestamp(),
+         source_revision = 'r3' WHERE run_id = 'upstream-3';`,
+    );
+    assert.throws(
+      () => runSql(store.owner, "SELECT portcove_maintenance.verify_current(2, 'upstream-3');"),
+      /does not exist or failed/u,
+    );
+
+    // The applicable assessment moving X -> Y -> X at one fence replans each time under
+    // a new identity, and a dispatched operation keeps the handoff from a second plan.
+    let verifier = 3;
+    const verifyAs = (assessment: number) => {
+      verifier += 1;
+      runSql(
+        store.owner,
+        `INSERT INTO portcove_maintenance.collection_runs (run_id, source, runner, started_at)
+           VALUES ('upstream-${verifier}', 'upstream-observations', 'fixture', now());
+         SELECT portcove_maintenance.verify_current(${assessment}, 'upstream-${verifier}');
+         UPDATE portcove_maintenance.collection_runs SET coverage = 'partial', completed_at = clock_timestamp(),
+           source_revision = 'r${verifier}' WHERE run_id = 'upstream-${verifier}';`,
+      );
+    };
+    verifyAs(1);
+    assert.deepEqual(recordHandoffOperations(executor), { abandoned: 1, planned: 1, open: 1 });
+    verifyAs(2);
+    assert.deepEqual(recordHandoffOperations(executor), { abandoned: 1, planned: 1, open: 1 });
+    const again = `${replacement}.2`;
+    assert.equal(
+      operations(),
+      `${legacyId}=abandoned ${handoffOperationId(kind, source, 1, 1)}=abandoned ${replacement}=abandoned ${again}=planned`,
+    );
+    runSql(
+      executor,
+      `UPDATE portcove_maintenance.operations SET state = 'dispatched', revision = 2, updated_at = clock_timestamp()
+         WHERE operation_id = '${again}';`,
+    );
+    verifyAs(1);
+    assert.deepEqual(recordHandoffOperations(executor), { abandoned: 0, planned: 0, open: 1 });
+    assert.match(operations(), new RegExp(`${again.replaceAll(".", "\\.")}=dispatched$`, "u"));
   },
 );

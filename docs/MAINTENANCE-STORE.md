@@ -101,10 +101,40 @@ in this section runs unchanged against any PostgreSQL host and generic runner.
   including against `TRUNCATE`. Observations join only an in-progress run, and a
   finished run is immutable. Identical subject, policy version and input digest
   resolve to one assessment, so full and incremental passes converge.
+- **Acquisition order.** Migration 0003 orders collection runs by a
+  database-issued acquisition ticket, never by runner clocks or Git SHA order.
+  A collector takes its ticket (`acquire_collection()`) before any external
+  read. A run is admitted only if its ticket was issued and no run of the same
+  source has an equal or newer ticket. An older collection that finishes after
+  a newer one is therefore refused whole. It replaces no current state, clears
+  no attention and creates no false A to B to A history. Under its source
+  locks, the collection also checks that each source's latest finished run is
+  still the baseline its changes-only diff was computed against
+  (`expect_baseline`). If not, the collector rereads the baseline and retries
+  without repeating its external reads. Network reads stay outside every
+  database transaction. A restored store keeps issuing newer tickets.
 - **Transitions.** A writer names the sequence it creates. The guard accepts only
   the next sequence, so a stale or restored worker cannot overwrite newer state.
   An unchanged result is not a transition. A return to an earlier result is a new
   transition marked `returns_to_earlier_result`.
+- **Current provenance.** Current state keeps three facts apart:
+  - the last material transition (`assessment_id`, `sequence`, `updated_at`);
+  - the latest applicable assessment (`applicable_assessment_id`, with its
+    policy and input digest);
+  - the latest accepted verification (`verified_run_id`, `verified_at`).
+
+  An assessment with the current result but new policy or inputs moves the
+  latter two through `verify_current`, quietly, without a transition or
+  notification. Assessment rows and their original timestamps stay immutable.
+  A verifying run must exist and must not have failed, and a run that has
+  verified state cannot later finish `failed`. A verification or
+  transition that names its verifying run (as every collector write does) never
+  moves to an older acquisition. A legacy writer that names none binds the
+  assessment's own run and is not freshness-checked; the same applies to a run
+  inserted without a ticket, which is admitted at insert time. The collection
+  transaction runs at `READ COMMITTED`, so its checks see every run committed
+  while it waited for its locks.
+
 - **Reconsiderations.** Typed as `technical_hold`, `intentional_deferral`,
   `upstream_change` or `evidence_refresh`, each with the owner or policy reference
   required to revisit it. Conditions are immutable, and an intentional deferral is
@@ -112,9 +142,11 @@ in this section runs unchanged against any PostgreSQL host and generic runner.
   store records that reference; it does not authenticate who supplied it.
 - **Notifications.** Each notification binds one recorded transition, so an
   unchanged observation cannot create one. Delivery requires a delivery receipt.
-- **Operations.** Deterministic operation IDs fenced to the subject sequence they
-  were planned against. Every update increments the revision by exactly one.
-  Dispatch revalidates that the subject has not advanced. An ambiguous operation
+- **Operations.** Deterministic operation IDs fenced to the subject sequence and
+  the applicable assessment they were planned against
+  (`fence_sequence`, `fence_assessment_id`). Every update increments the
+  revision by exactly one. Planning and dispatch revalidate both, so changed
+  inputs invalidate an old plan even when the displayed result is unchanged. An ambiguous operation
   resolves only with the original executor's receipt reference, which is
   immutable once recorded. Rows are never deleted.
 
@@ -268,7 +300,12 @@ node scripts/maintenance-inventory.mts collect --cli target/release/portcove --a
   - The report takes each subject's latest-run status and gaps from its own
     platform's latest Core run.
   - Collectors of the same source are serialized by a transaction-scoped
-    advisory lock.
+    advisory lock, and freshness follows the acquisition ticket taken before
+    any external read ([storage contract](#storage-contract)).
+  - Each source is read as a typed outcome and fails alone. A failed issue and
+    Project, release-health or publication-bundle read records a `failed` run
+    with its gap. Prior facts stay current, and every other source still lands.
+    `collect` lists such sources in `failed_sources`.
   - A truncated Project field page fails the issue collection rather than
     dropping fields.
 - `--issues` adds the `issues-project` source.
@@ -302,6 +339,16 @@ node scripts/maintenance-inventory.mts collect --cli target/release/portcove --a
   - whether the latest Core run assessed it.
 - Search covers subject, name, game, target key and state. The page embeds only
   the fields it renders; `inventory.json` keeps every explanation.
+- Each subject shows when it was last verified separately from when it last
+  materially changed. Its policy, input digest and explanation come from the
+  latest applicable assessment.
+- `inventory.json` records `generation`, the newest finished acquisition it
+  reflects. The report destination is always new, and a failed write leaves the
+  previous report in place. `report --previous DIR` refuses to supersede a
+  report of a greater generation. That check is the precondition for the later
+  static-publication stage, which must compare generations again at its own
+  guarded replacement. Hosted runs today keep each report as its own run
+  artifact, so no report replaces another.
 
 Observed cost (2026-11-11, cloud session, debug CLI, Linux x86-64, PostgreSQL 16):
 
@@ -333,7 +380,9 @@ Observed cost (2026-11-11, cloud session, debug CLI, Linux x86-64, PostgreSQL 16
 - **Report:** the "Needs attention" column applies the monitor's own maintained
   triage (`isRoutineProviderCondition`). Only accounted, routine
   `provider-reported-*` conditions are hidden. A port whose latest health run
-  recorded a gap is marked "health not fresh". A port the monitor permanently
+  that did not fail recorded a gap is marked "health not fresh". A failed
+  latest read is shown with that port's previous gap, so prior facts stay
+  visibly dated. A port the monitor permanently
   leaves unmonitored keeps every health run `partial`, which never records
   absences.
 - **Credentials:** downloading an artifact needs a credential with the GitHub
@@ -624,13 +673,22 @@ node scripts/maintenance-inventory.mts handoffs --record
 - `handoffs` is read-only (report role). It lists each open handoff with its
   registry entry, condition and newest open operation.
 - `handoffs --record` runs with the executor role against the local store only.
-  - It plans one operation `handoff.<kind>.<source>.<fence>` of kind
-    `handoff.<kind>` per open handoff. The fence is the handoff's current
-    sequence, and a replay inserts nothing (`ON CONFLICT DO NOTHING`). Characters
-    the identity check refuses (such as `@`) map to `.`. An ID over 200
-    characters replaces the source with a SHA-256 prefix.
-  - It moves each planned handoff operation whose subject has moved on (cleared
-    or a newer condition) from `planned` to `abandoned` at revision + 1.
+  - It plans one operation `handoff.<kind>.<source>.<fence>.a<assessment>` of
+    kind `handoff.<kind>` per open handoff. The fence is the handoff's current
+    sequence and its applicable assessment. A later plan for the same fence
+    and assessment (after the assessment moved away and back) gets a `.<n>`
+    suffix, so it never collides with an abandoned one. A replay inserts
+    nothing, and an open plan from before migration 0003
+    (`handoff.<kind>.<source>.<fence>`, bound by the migration) still counts.
+    No plan is added while any operation of the handoff is `dispatched` or
+    `ambiguous`; that one resolves only through its original executor's
+    receipt. Characters
+    the identity check refuses (such as `@`) map to `.`. An ID that would
+    exceed 200 characters (190 when it names the assessment, leaving room for
+    the suffix) replaces the source with a SHA-256 prefix.
+  - It moves each planned handoff operation whose subject has moved on (cleared,
+    a newer condition, or a newer applicable assessment) from `planned` to
+    `abandoned` at revision + 1, and plans its replacement in the same pass.
   - It never dispatches or completes an operation, and receipt columns stay
     empty. The guard refuses a plan at a stale fence and any revival of an
     abandoned plan, so a restored or stale worker cannot replay side effects or
@@ -640,7 +698,7 @@ node scripts/maintenance-inventory.mts handoffs --record
 **Report.** "Next action" columns in the subjects and hosted-intake tables show
 the action, invocation, authority, `dispatch disabled: <reason>; resume:
 <condition>`, the receipt, and the open operation with its fence (marked stale
-when it predates the current sequence). Handoffs are not listed as inventory
+when it predates the current sequence or applicable assessment). Handoffs are not listed as inventory
 subjects. The changes-only digest includes handoff transitions with their
 recorded condition (`handoff_condition`) and names the same action as the
 report.
@@ -699,7 +757,12 @@ checkpoint 5 and is recorded there.
   1. Build the debug Core CLI, sharing the observer's Rust cache.
   2. `migrate`.
   3. `collect --all` with `--issues`, `--release-health`, `--publication`,
-     `--upstream` and `--hosted-intake`.
+     `--upstream` and `--hosted-intake`. The collection transaction reaches the
+     server as one batched query (psql `\;`), so a remote host costs one round
+     trip rather than one per statement. The isolation and quoting settings
+     run first as their own statements, because a batched query is parsed whole
+     before any setting inside it takes effect. That one call has a 15-minute
+     budget; other store calls keep two minutes.
   4. `handoffs --record`, which plans and never dispatches.
   5. `report`, `digest` and `backup`.
 - **Artifacts.** These are GitHub Actions artifacts kept for 30 days. Nothing is
@@ -718,7 +781,11 @@ checkpoint 5 and is recorded there.
   only through a private Unix socket. It then runs `restore`, which verifies the
   dump digest and every table's count and digest in its own transaction. The job
   also compares the restored digests with the manifest and fails on any
-  difference.
+  difference. Restore drops exactly the provider's own column-version
+  statements (`ALTER TABLE ONLY … ALTER COLUMN … SET (pg_attver=N)`), which
+  Neon adds to every column and standard PostgreSQL refuses. The store sets no
+  column options, so nothing of the store is lost, and `COPY` data is never
+  filtered.
 - **Evidence.** `evidence.json` (`portcove-maintenance-hosted-evidence`, format 1)
   and the step summary record these fields:
   - the run ID, attempt, event and head commit;
@@ -733,6 +800,15 @@ checkpoint 5 and is recorded there.
 
   The restore evidence records both server versions, the restore duration and
   the verification result.
+
+**First hosted run (2026-11-13, run 43351437599, `workflow_dispatch` on
+f7d26628).** Neon PostgreSQL 18 was detected, and the matching client was
+installed and migrated. The first complete collection then exceeded the
+client's former two-minute limit (`psql ETIMEDOUT`), and its transaction
+committed nothing. Restoring the backup (schema and migration ledger only) onto standard PostgreSQL 18
+failed on Neon's `pg_attver` column options. Both failures are addressed by the batching, the collection budget and the restore filter above; a successful hosted rerun is recorded separately. The run was
+operationally useful: the store kept no partial state, and the independent
+restore found the portability gap before any history depended on it.
 
 **Interruption and provider failure.** Each mutation is atomic. A failed or
 interrupted run therefore leaves the last committed state, and the next
@@ -795,7 +871,8 @@ node scripts/maintenance-inventory.mts acknowledge --digest work/maintenance-dig
 `scripts/maintenance-store.test.mts` creates two disposable PostgreSQL clusters,
 migrates one, records representative A to B to A history, a pending deferral,
 delivered and pending notifications and an ambiguous operation, and exercises
-every guard and role boundary. It then backs up, restores to the second cluster,
+every guard and role boundary, including refusal of a plan whose applicable
+assessment has moved. It then backs up, restores to the second cluster,
 verifies identical digests and confirms that guards, identity sequences and roles
 work on the restored store. A separate case interrupts a migration and proves
 that no partial schema remains and that resume and drift detection work.
@@ -810,6 +887,10 @@ retained snapshot.
 stub Core CLI, using the collector and report roles. It checks:
 
 - repeated-pass convergence and A to B to A history;
+- quiet provenance refresh for the same result under new inputs and new policy,
+  refusal of an older collection that finishes after a newer one, ticket rather
+  than clock order, replayed, unissued and baseline-changed refusals, and
+  failed issue and release-health reads that keep earlier facts;
 - host-failure gaps (`partial` and `failed` runs with no transition);
 - changes-only storage, verified membership and forged-membership refusal;
 - absence recorded only by complete runs, and a single in-progress run per source;
