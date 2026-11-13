@@ -75,6 +75,12 @@
       "source_requirements": [],
       "saves_and_settings": "external-user-owned",
       "manual_preparation": "On first Play, choose your own supported Rocket: Robot on Wheels US ROM in the upstream launcher. It verifies the game and remembers the chosen path. Use the upstream menus for controls and compatible mods; no game compilation or separate installer is needed for the published player. Default Windows saves, settings, mod profiles, mod-specific saves, logs and crash reports use %APPDATA%/Rocket-R. Keep a separate backup of the actual profile before changing versions; older versions may not read newer saves. Portcove preserves only the declared rocket-r-data in-folder fallback for its managed Windows copy. Its external profile is outside Portcove backup and runtime rollback; rollback does not rewind saves. Keep each release’s own bundled engine/mod resources together, and keep custom --config or developer paths backed up separately. Existing external copies retain their files and runtime update owner. Managed Linux uses the direct x86-64 AppImage. Keep the Linux profile under $XDG_CONFIG_HOME/rocket-r or ~/.config/rocket-r outside the runtime and backed up separately. Use a separate copy for an adjacent AppImage profile or a custom launch."
+    },
+    "reviewed_package_layouts": {
+      "windows-x86-64": {
+        "directories": ["assets", "docs", "licenses"],
+        "executables": ["rocket-r.exe"]
+      }
     }
   }
 }

@@ -7310,8 +7310,17 @@ mod tests {
         let server = Server::new();
         let release = |version: &str, revision| {
             let folder = format!("power-dozer-{version}-windows-x86_64/");
-            let mut release =
-                server.release_in_folder(version, revision, &folder, "power-dozer.exe");
+            let mut release = server.release_with_payload(
+                version,
+                revision,
+                &folder,
+                "power-dozer.exe",
+                &[
+                    ("licenses/fixture.txt", b"fixture"),
+                    ("Run Power Dozer.cmd", b"fixture"),
+                ],
+                false,
+            );
             release.asset.name = format!("power-dozer-{version}-windows-x86_64.zip");
             release
         };

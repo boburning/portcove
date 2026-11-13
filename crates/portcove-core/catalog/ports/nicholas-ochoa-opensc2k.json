@@ -134,6 +134,12 @@
       "saves_and_settings": "portcove-managed",
       "manual_preparation": "On first Play, select SIMCITY.EXE from your SimCity 2000 Special Edition for Windows 95 (1996), with its companion files. Keep those originals for later pack re-import prompts. Portcove updates this portable runtime and preserves its data folder on Windows and Linux: imported packs, settings and ordinary saved cities, scenarios, scripts and SCURK files. Temporary autosaves in the system temporary folder, custom save/export/pack/SoundFont locations, Godot logs and the original installation remain external and outside these backups. Save cities normally before backup. Runtime rollback keeps current declared data; it does not rewind cities or guarantee older-version compatibility. On Linux, Portcove prepares that directory beside the managed player before Play. Existing external copies keep their own ownership and profiles."
     },
-    "linux_portable_data_directory": "data"
+    "linux_portable_data_directory": "data",
+    "reviewed_package_layouts": {
+      "windows-x86-64": {
+        "directories": ["data", "licenses"],
+        "executables": ["opensc2k.exe"]
+      }
+    }
   }
 }
