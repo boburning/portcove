@@ -739,9 +739,10 @@ own validated forecast instead of the 352-request ceiling: every request is
 admitted against that conservative plan, the provider quota reserve, the
 three-minute limit and the byte limits, so a larger request forecast never refuses
 the inventory. It still refuses before network work when the selected inventory
-exceeds the 512-location observation ceiling, which bounds one report. Release runs
-have completed this collection in under 20 seconds, well inside the three-minute
-limit. Without provider quota headers, the forecast is the only request bound. The maintained
+exceeds the 512-location observation ceiling, which bounds one report. In observed release
+runs 34761853116, 34769169958, 34847939207 and 35158181486 (2026-09-13 to
+2026-09-16), the "Verify active catalog upstreams" step took 14–17 seconds; this is
+an observation of a smaller catalog, not a guarantee. Without provider quota headers, the forecast is the only request bound. The maintained
 workflow uses incremental admission instead: completed locations are checkpointed
 atomically after each operation, under the existing lock and 16 MiB envelope.
 Continuation binds the accounting policy and exact per-owner health contracts.
