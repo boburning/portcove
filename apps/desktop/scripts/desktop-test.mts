@@ -812,7 +812,7 @@ async function verifySettingsRows() {
   await browser
     .findElement(
       By.xpath(
-        '//*[@data-settings-group="advanced"]//button[normalize-space(.)="Create support bundle"]',
+        '//*[@data-settings-group="advanced"]//button[normalize-space(.)="Create a support report"]',
       ),
     )
     .click();
@@ -3283,7 +3283,7 @@ try {
         true,
         `Add games route is missing: ${name}`,
       );
-    await browser.findElement(By.xpath('//button[normalize-space(.)="Back to library"]')).click();
+    await browser.findElement(By.xpath('//button[normalize-space(.)="Back to Library"]')).click();
     await browser
       .findElement(By.xpath('//button[normalize-space(.)="Connect game-file folder"]'))
       .click();
