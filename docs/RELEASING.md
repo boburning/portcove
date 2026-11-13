@@ -2079,7 +2079,12 @@ CLI. Desktop runtime and installed-package qualification remain separate.
 
 The held `application-release.yml` workflow qualifies the Windows x86-64
 application and stages the replacement production path. Qualification binds
-the exact workflow, source, run attempt and Windows packaging evidence.
+the exact workflow, source, run attempt and Windows packaging evidence. The
+canonical workflow schedules one Windows qualification per day on main when the
+existing application wake is active and the catalog appointment is idle. A
+manual qualification can still prepare an initial or recovery specimen. The
+automatic wake reads the newest exact-main qualification, and the source job
+independently rechecks its identity and the exact semantic decision.
 Production requires a separately appointed protected control ref, active
 configuration, spending appointment and unpaused publication. The existing
 `release.yml` tag and report-repair entry points stay in service through

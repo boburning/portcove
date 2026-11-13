@@ -1221,7 +1221,6 @@ export async function wakeRatifiedController(
           "application-release.yml",
           {
             branch: "main",
-            event: "workflow_dispatch",
             head_sha: source,
           },
           1,

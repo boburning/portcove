@@ -97,6 +97,7 @@ import {
   selectWindowsApplicationQualificationRun,
 } from "./application-release-qualification.mts";
 import {
+  inspectApplicationQualificationExecution,
   inspectApplicationReleaseExecution,
   applicationSourcePacketMaximumBytes,
   applicationReleaseMaximumMinutes,
@@ -234,11 +235,7 @@ export async function readCurrentApplicationWakeQualification() {
   const source = await main();
   const observe = async () =>
     selectWindowsApplicationQualificationRun(
-      await reader.runs(
-        "application-release.yml",
-        { branch: "main", event: "workflow_dispatch", head_sha: source },
-        1,
-      ),
+      await reader.runs("application-release.yml", { branch: "main", head_sha: source }, 1),
       source,
     );
   const selected = await observe();
@@ -274,12 +271,7 @@ function openApplicationSourcePublicationInventory(token = fixedReleaseReaderTok
 }
 
 async function selectForQualification() {
-  assert.equal(process.env.GITHUB_REPOSITORY, "boburning/portcove");
-  assert.equal(process.env.GITHUB_REPOSITORY_ID, "1354613114");
-  assert.equal(process.env.GITHUB_EVENT_NAME, "workflow_dispatch");
-  assert.equal(process.env.GITHUB_REF, "refs/heads/main");
-  const source = process.env.GITHUB_SHA ?? "";
-  assert.match(source, /^[a-f0-9]{40}$/u);
+  const { source } = inspectApplicationQualificationExecution(process.env);
   const token = fixedReleaseReaderToken();
   const commit = await (await openApplicationSourceMetadata(token)).commit(source);
   assert.ok(isRecord(commit) && isRecord(commit.tree) && typeof commit.tree.sha === "string");
