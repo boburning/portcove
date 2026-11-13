@@ -72,7 +72,7 @@ async function main() {
   const coordinatorObserver =
     environment.GITHUB_JOB === "coordinator_protection_observation" && phase === "coordinator";
   const phaseDeadline = coordinatorObserver
-    ? await currentCoordinatorProtectionJobDeadline(identity)
+    ? await currentCoordinatorProtectionJobDeadline(identity, admitted)
     : isSharedApplicationProtectionObserverSource(admitted)
       ? await currentSharedProtectionJobDeadline(identity, performance.now() + 570000)
       : undefined;

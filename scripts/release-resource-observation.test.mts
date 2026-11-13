@@ -77,7 +77,9 @@ void test("resource observations reconcile current purposes and keep provider, b
   assert.equal(result.accounting.application, 145);
   assert.equal(result.accounting.catalog_alternative, 48);
   assert.equal(result.accounting.policy_envelope, 145);
-  assert.equal(result.policy_matches_workflow, true);
+  assert.equal(result.policy_matches_workflow, false);
+  assert.equal(result.retained_catalog_review_recovery_matches_workflow, true);
+  assert.equal(result.accounting.retained_catalog_review_recovery, 25);
   assert.equal(result.ratification_required_for_policy_change, true);
   const appointedWake = await readFile(
     new URL("../docs/qualification/application-update-wake.held.yml", import.meta.url),
@@ -127,6 +129,8 @@ void test("resource observations reconcile current purposes and keep provider, b
   const next = observeReleaseResources(Buffer.from(stringify(changed)), wake, candidate);
   assert.equal(next.accounting.application, 122);
   assert.equal(next.policy_matches_workflow, false);
+  assert.equal(next.retained_catalog_review_recovery_matches_workflow, false);
+  assert.equal(next.accounting.retained_catalog_review_recovery, null);
   assert.equal(next.ratification_required_for_policy_change, true);
   assert.equal(next.accounting.provider_availability, "Unknown");
   assert.equal(capacityDigest(slice4CapacityResources), slice4CapacityResourceDigest);

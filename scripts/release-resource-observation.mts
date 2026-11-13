@@ -5,7 +5,11 @@ import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { parseDocument } from "yaml";
-import { slice4CapacityResources, slice4CapacityResourceDigest } from "./release-capacity.mts";
+import {
+  retainedCatalogReviewRecoveryResources,
+  slice4CapacityResources,
+  slice4CapacityResourceDigest,
+} from "./release-capacity.mts";
 import { isRecord } from "./runtime-values.mts";
 
 export const catalogReaders = [
@@ -53,11 +57,19 @@ function rows(workflow: string, bytes: Buffer) {
             timeout,
           )
         : null;
+    const recovery = retainedCatalogReviewRecoveryResources;
+    const recoveryTimeout =
+      workflow === "application-update-production.yml" &&
+      key === "coordinator_protection_observation" &&
+      timeout ===
+        `\${{ github.ref == '${recovery.execution_ref}' && inputs.publication_purpose == 'catalog-publication' && ${recovery.observer_job_minutes} || 5 }}`;
     const values = alternatives
       ? [Number(alternatives[1]), Number(alternatives[2])]
       : purposeAlternatives
         ? [Number(purposeAlternatives[1]), Number(purposeAlternatives[2])]
-        : null;
+        : recoveryTimeout
+          ? [recovery.observer_job_minutes, 5]
+          : null;
     if (values) assert.ok(values.every((value) => Number.isSafeInteger(value) && value <= 360));
     // GitHub's documented job default is360; reusable jobs retain their own declarations.
     const maximum =
@@ -76,7 +88,10 @@ function rows(workflow: string, bytes: Buffer) {
       timeout_alternatives: values,
       purpose_maximum_job_minutes: purposeAlternatives
         ? { application: values![0]!, "catalog-publication": values![1]! }
-        : null,
+        : recoveryTimeout
+          ? { application: 5, "catalog-publication": 5 }
+          : null,
+      retained_catalog_review_job_minutes: recoveryTimeout ? recovery.observer_job_minutes : null,
       timeout_origin:
         timeout === undefined
           ? typeof raw.uses === "string"
@@ -86,7 +101,9 @@ function rows(workflow: string, bytes: Buffer) {
             ? "explicit"
             : purposeAlternatives
               ? "explicit-purpose-branches"
-              : "expression-branch-not-selected",
+              : recoveryTimeout
+                ? "explicit-retained-catalog-review"
+                : "expression-branch-not-selected",
       timeout_expression: typeof timeout === "string" ? timeout : null,
       reusable: typeof raw.uses === "string" ? raw.uses : null,
       runners: raw["runs-on"] ?? null,
@@ -144,10 +161,34 @@ export function observeReleaseResources(production: Buffer, wake: Buffer, candid
   const digest = createHash("sha256").update(production).digest("hex"),
     matches = (actual: unknown, expected: unknown) =>
       JSON.stringify(actual) === JSON.stringify(expected);
+  const recovery = retainedCatalogReviewRecoveryResources,
+    recoveryJobs = [...catalogReaders.slice(0, 4), catalogObservers[0]],
+    scopedReview = catalog.filter(({ key }) => recoveryJobs.some((job) => job === key)),
+    recoveryMinutes =
+      !unaccountedCatalog.length &&
+      scopedReview.length === recoveryJobs.length &&
+      scopedReview.some((row) => row.retained_catalog_review_job_minutes !== null) &&
+      digest === recovery.workflow_sha256
+        ? addWake(
+            sum(
+              scopedReview.map((row) => ({
+                ...row,
+                maximum_job_minutes:
+                  row.retained_catalog_review_job_minutes ?? row.maximum_job_minutes,
+              })),
+            ),
+          )
+        : null;
+  const wakeMatches =
+    createHash("sha256").update(wake).digest("hex") === policy.wake_workflow_sha256;
+  const retainedReviewMatches =
+    wakeMatches &&
+    recoveryMinutes === recovery.declared_job_minutes &&
+    recoveryMinutes <= policy.catalog_declared_job_minutes;
   const policyMatches =
     digest === policy.aggregate_workflow_sha256 &&
     digest === policy.input_workflow_sha256 &&
-    createHash("sha256").update(wake).digest("hex") === policy.wake_workflow_sha256 &&
+    wakeMatches &&
     matches(
       application.filter((row) => !inputs(row.key)).map((row) => row.maximum_job_minutes),
       policy.aggregate_job_minutes,
@@ -173,11 +214,13 @@ export function observeReleaseResources(production: Buffer, wake: Buffer, candid
     policy_digest: slice4CapacityResourceDigest,
     production_workflow_sha256: digest,
     policy_matches_workflow: policyMatches,
+    retained_catalog_review_recovery_matches_workflow: retainedReviewMatches,
     ratification_required_for_policy_change: true,
     accounting: {
       unit: "aggregate declared runner-minute ceilings; not wall time or billable minutes",
       application: applicationMinutes,
       catalog_alternative: catalogMinutes,
+      retained_catalog_review_recovery: recoveryMinutes,
       allocation_completeness: {
         application: applicationMinutes !== null,
         catalog: catalogMinutes !== null,

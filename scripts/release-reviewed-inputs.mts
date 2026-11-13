@@ -816,12 +816,15 @@ async function main() {
               workflow,
               "coordinator",
             );
-      const deadline = await currentCoordinatorProtectionJobDeadline({
-        run_id: String(source.run_id),
-        run_attempt: 1,
-        controller_revision: source.revision,
-        controller_ref: source.execution_ref,
-      });
+      const deadline = await currentCoordinatorProtectionJobDeadline(
+        {
+          run_id: String(source.run_id),
+          run_attempt: 1,
+          controller_revision: source.revision,
+          controller_ref: source.execution_ref,
+        },
+        source,
+      );
       return withCoordinatorDeadline(deadline, () =>
         runOperation(undefined, { environment, deadline, source }),
       );

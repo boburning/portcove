@@ -1,3 +1,4 @@
+import { retainedCatalogReviewRecoveryResources } from "./release-capacity.mts";
 import { parseControllerWitnessedTime } from "./github-controller-attestation.mts";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -1298,6 +1299,29 @@ void test("the Chameleon coordinator can carry only the exact signed v13 withdra
       ),
       false,
     );
+  const recovery = retainedCatalogReviewRecoveryResources;
+  assert.equal(
+    matchesRetainedChameleonWithdrawalHandoff(checkpoint, producer, recovery, purpose),
+    true,
+  );
+  assert.equal(
+    matchesRetainedChameleonWithdrawalHandoff(
+      checkpoint,
+      producer,
+      { ...recovery, workflow_sha256: workflow },
+      purpose,
+    ),
+    false,
+  );
+  assert.equal(
+    matchesRetainedChameleonWithdrawalHandoff(
+      checkpoint,
+      producer,
+      { ...source, workflow_sha256: recovery.workflow_sha256 },
+      purpose,
+    ),
+    false,
+  );
   for (const other of ["application", undefined] as const)
     assert.equal(
       matchesRetainedChameleonWithdrawalHandoff(checkpoint, producer, source, other),
@@ -1310,6 +1334,9 @@ void test("Chameleon review settlement selects only the appointed refs and first
   assert.equal(selectRetainedChameleonReviewClaim(claim.original_ref, 1), undefined);
   assert.equal(selectRetainedChameleonReviewClaim(claim.recovery_ref, 1), claim);
   assert.equal(selectRetainedChameleonReviewClaim(claim.early_recovery_ref, 1), claim);
+  const ref = retainedCatalogReviewRecoveryResources.execution_ref;
+  assert.equal(selectRetainedChameleonReviewClaim(ref, 1), claim);
+  assert.throws(() => selectRetainedChameleonReviewClaim(ref, 2));
   assert.throws(() => selectRetainedChameleonReviewClaim(claim.recovery_ref, 2));
   assert.throws(() => selectRetainedChameleonReviewClaim(claim.early_recovery_ref, 2));
 });

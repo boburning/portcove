@@ -5,7 +5,10 @@ import { readFile } from "node:fs/promises";
 import { spawnSync, type SpawnSyncReturns } from "node:child_process";
 import { runInNewContext } from "node:vm";
 import { parse } from "yaml";
-import { slice4CapacityResources } from "./release-capacity.mts";
+import {
+  retainedCatalogReviewRecoveryResources,
+  slice4CapacityResources,
+} from "./release-capacity.mts";
 import { maximumProductionControllerWorkflowBytes } from "./production-controller-admission.mts";
 import { sharedProtectionOriginalJobDeadline } from "./release-signing-job-budget.mts";
 import { applicationProtectionObserver } from "./release-control-phases.mts";
@@ -508,6 +511,7 @@ void test("actual held job conditions route retained custody without repeating s
     purpose = "application",
     transport = "fixed-job",
     profile = "initial-beta-windows-x86_64-v1",
+    ref = "refs/tags/portcove-production-controller-fixture",
   ) => {
     const needs = Object.fromEntries(
       Object.keys(workflow.jobs).map((name) => [
@@ -545,7 +549,11 @@ void test("actual held job conditions route retained custody without repeating s
     );
     const condition = workflow.jobs[job]?.if;
     assert.ok(condition);
-    return runInNewContext(condition.slice(3, -2), { needs, always: () => true }) as boolean;
+    return runInNewContext(condition.slice(3, -2), {
+      needs,
+      github: { ref },
+      always: () => true,
+    }) as boolean;
   };
   for (const name of [
     "payload_signing",
@@ -646,6 +654,22 @@ void test("actual held job conditions route retained custody without repeating s
     "catalog_timestamp",
     "catalog_metadata_protection_observation",
   ];
+  for (const name of ["catalog_definitions", "catalog_metadata_protection_observation"])
+    assert.equal(
+      permitted(
+        name,
+        "catalog",
+        false,
+        undefined,
+        false,
+        "catalog-publication",
+        "fixed-job",
+        "initial-beta-windows-x86_64-v1",
+        retainedCatalogReviewRecoveryResources.execution_ref,
+      ),
+      false,
+      name,
+    );
   for (const name of catalogJobs) {
     assert.equal(
       permitted(name, "catalog", false, undefined, false, "catalog-publication"),
@@ -767,6 +791,14 @@ void test("complete held DAG keeps bounded resource and credential ownership acr
       );
       return purpose === "application" ? 12 : 8;
     }
+    if (name === "coordinator_protection_observation") {
+      const recovery = retainedCatalogReviewRecoveryResources;
+      assert.equal(
+        job["timeout-minutes"],
+        `\${{ github.ref == '${recovery.execution_ref}' && inputs.publication_purpose == 'catalog-publication' && ${recovery.observer_job_minutes} || 5 }}`,
+      );
+      return purpose === "retained-catalog-review" ? recovery.observer_job_minutes : 5;
+    }
     const value = job["timeout-minutes"];
     assert.ok(typeof value === "number" && Number.isSafeInteger(value) && value > 0, name);
     return value;
@@ -842,7 +874,25 @@ void test("complete held DAG keeps bounded resource and credential ownership acr
   );
   assert.equal(slice4CapacityResources.total_job_minutes, 145);
   assert.equal(requiredJob("coordinator")["timeout-minutes"], 5);
-  assert.equal(requiredJob("coordinator_protection_observation")["timeout-minutes"], 5);
+  const recovery = retainedCatalogReviewRecoveryResources;
+  for (const name of [
+    "admission",
+    "catalog_definitions",
+    "catalog_metadata_protection_observation",
+  ]) {
+    assert.ok(requiredJob(name).if?.includes(`github.ref != '${recovery.execution_ref}'`), name);
+  }
+  assert.equal(
+    catalogReaders
+      .slice(0, 4)
+      .reduce(
+        (total, name) => total + minutes(name, requiredJob(name), "catalog-publication"),
+        wakeMinutes,
+      ) +
+      minutes(catalogObservers[0]!, requiredJob(catalogObservers[0]!), "retained-catalog-review"),
+    recovery.declared_job_minutes,
+  );
+  assert.ok(recovery.declared_job_minutes < slice4CapacityResources.catalog_declared_job_minutes);
   assert.equal(requiredJob("independent_admission")["timeout-minutes"], 9);
   assert.equal(requiredJob("protection_observation")["timeout-minutes"], 10);
   assert.equal(requiredJob("attest")["timeout-minutes"], 2);

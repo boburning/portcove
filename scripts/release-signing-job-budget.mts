@@ -15,6 +15,10 @@ import type { TufSigningRole } from "./release-control-phases.mts";
 import type { CatalogControlPhase } from "./release-control-phases.mts";
 import { applicationProtectionObserver } from "./release-control-phases.mts";
 import { isRecord } from "./runtime-values.mts";
+import {
+  matchesRetainedCatalogReviewRecoverySource,
+  retainedCatalogReviewRecoveryResources,
+} from "./release-capacity.mts";
 import { hostedNativeJobProfile } from "./assembler-job-identity.mts";
 import { assertTrustedDirectNode } from "./release-direct-node-transport.mts";
 import { fixedReleaseReaderToken } from "./release-readonly-child-environment.mts";
@@ -52,7 +56,7 @@ function signingOriginalJobDeadline(
   identity: { run_id: string; controller_revision: string },
   now = Date.now(),
   monotonic = performance.now(),
-  admittedNativeMaximum?: number,
+  admittedRoleMaximum?: number,
 ) {
   if (
     ![
@@ -81,8 +85,9 @@ function signingOriginalJobDeadline(
     throw new Error("fixed online signing role required");
   const role = rawRole as ClockRole;
   const maximum =
-    (role === "native-windows" || role === "native-linux") && admittedNativeMaximum !== undefined
-      ? admittedNativeMaximum
+    admittedRoleMaximum !== undefined &&
+    (role === "native-windows" || role === "native-linux" || role === "coordinator-protection")
+      ? admittedRoleMaximum
       : role === "coordinator" || role === "coordinator-protection"
         ? coordinatorJobBudgetMilliseconds
         : role === "payload" ||
@@ -189,7 +194,7 @@ function currentSigningJobDeadline(
   },
   root: string,
   processDeadline: number,
-  admittedNativeMaximum?: number,
+  admittedRoleMaximum?: number,
 ) {
   requireOriginalJobIdentity(identity);
   const remaining = () => {
@@ -218,7 +223,7 @@ function currentSigningJobDeadline(
       identity,
       Date.now(),
       performance.now(),
-      admittedNativeMaximum,
+      admittedRoleMaximum,
     ),
   );
 }
@@ -363,11 +368,31 @@ export function currentSharedProtectionJobDeadline(identity: JobIdentity, proces
 export function coordinatorProtectionOriginalJobDeadline(...args: BudgetArguments) {
   return signingOriginalJobDeadline("coordinator-protection", ...args);
 }
-export function currentCoordinatorProtectionJobDeadline(identity: JobIdentity) {
+export function currentCoordinatorProtectionJobDeadline(
+  identity: JobIdentity,
+  source: { execution_ref: string; workflow_sha256: string },
+) {
+  let maximum = coordinatorJobBudgetMilliseconds;
+  if (matchesRetainedCatalogReviewRecoverySource(source)) {
+    requireAdmittedProductionSource(
+      source,
+      releaseControlPhaseProfile("coordinator").observer_job,
+      "catalog-publication",
+    );
+    if (
+      source.revision !== identity.controller_revision ||
+      source.execution_ref !== identity.controller_ref ||
+      String(source.run_id) !== identity.run_id ||
+      source.run_attempt !== identity.run_attempt
+    )
+      throw new Error("original catalog recovery observer source/clock identity differs");
+    maximum = retainedCatalogReviewRecoveryResources.observer_job_minutes * 60000 - 10000;
+  }
   return currentSdkJobDeadline(
     "coordinator-protection",
     identity,
-    performance.now() + coordinatorJobBudgetMilliseconds,
+    performance.now() + maximum,
+    maximum,
   );
 }
 function catalogClockRole(raw: unknown): CatalogControlPhase {
@@ -452,7 +477,7 @@ async function currentSdkJobDeadline(
   role: ClockRole,
   identity: JobIdentity,
   processDeadline: number,
-  admittedNativeMaximum?: number,
+  admittedRoleMaximum?: number,
   transport?: { token: string; fetch: typeof globalThis.fetch },
 ) {
   requireOriginalJobIdentity(identity);
@@ -478,7 +503,7 @@ async function currentSdkJobDeadline(
       identity,
       Date.now(),
       performance.now(),
-      admittedNativeMaximum,
+      admittedRoleMaximum,
     ),
   );
 }

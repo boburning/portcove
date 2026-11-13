@@ -33,7 +33,12 @@ import {
 } from "./assembler-job-identity.mts";
 import { inspectFixedJobJournalAuthorities } from "./release-authority-configuration.mts";
 import { releaseCanonicalDigest } from "./release-canonical.mts";
-import { assessBoundedCapacity, retainedRenewalCapacityRebind } from "./release-capacity.mts";
+import {
+  assessBoundedCapacity,
+  matchesRetainedCatalogReviewRecoverySource,
+  retainedCatalogReviewRecoveryResources,
+  retainedRenewalCapacityRebind,
+} from "./release-capacity.mts";
 import { inspectReleaseReviewWithdrawal } from "./release-review-withdrawal.mts";
 
 // The original immutable r45 child survives its interrupted publication. A
@@ -255,7 +260,11 @@ export const retainedChameleonReviewClaim = {
 
 export function selectRetainedChameleonReviewClaim(executionRef: string, runAttempt: number) {
   const claim = retainedChameleonReviewClaim;
-  if (executionRef !== claim.recovery_ref && executionRef !== claim.early_recovery_ref)
+  if (
+    executionRef !== claim.recovery_ref &&
+    executionRef !== claim.early_recovery_ref &&
+    executionRef !== retainedCatalogReviewRecoveryResources.execution_ref
+  )
     return undefined;
   if (runAttempt !== 1)
     throw new Error("Chameleon review recovery requires its appointed first attempt");
@@ -273,12 +282,13 @@ export function matchesRetainedChameleonWithdrawalHandoff(
   const workflow = "ae780affa5cff58dd88250b3575d6948ed6608a47b3175492cf56fff3a5d90fb";
   return (
     purpose === "catalog-publication" &&
-    [
-      retainedChameleonReviewClaim.original_ref,
-      retainedChameleonReviewClaim.recovery_ref,
-      retainedChameleonReviewClaim.early_recovery_ref,
-    ].some((ref) => ref === source.execution_ref) &&
-    source.workflow_sha256 === workflow &&
+    (matchesRetainedCatalogReviewRecoverySource(source) ||
+      (source.workflow_sha256 === workflow &&
+        [
+          retainedChameleonReviewClaim.original_ref,
+          retainedChameleonReviewClaim.recovery_ref,
+          retainedChameleonReviewClaim.early_recovery_ref,
+        ].some((ref) => ref === source.execution_ref))) &&
     checkpoint.checkpoint === retainedChameleonReviewClaim.previous &&
     checkpoint.previous === retainedCatalogV13AdoptionClaim.child &&
     producer.controller_revision === "4cd5a0d9f9e3f3184bb680a298489a9db5dc18ba" &&

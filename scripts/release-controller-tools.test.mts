@@ -45,7 +45,7 @@ import {
   type ControllerToolPlatform,
 } from "./release-controller-tools.mts";
 import { isRecord } from "./runtime-values.mts";
-import { slice4CapacityResources } from "./release-capacity.mts";
+import { retainedCatalogReviewRecoveryResources } from "./release-capacity.mts";
 import {
   compilerProducerPaths,
   inspectReleaseCompilerSourceClosure,
@@ -1956,8 +1956,7 @@ void test("installed bootstrap clears inherited GitHub credentials only for comp
     "${{ inputs.publication_purpose == 'application' && 12 || 8 }}",
   );
   const workflowSha = createHash("sha256").update(text).digest("hex");
-  assert.equal(slice4CapacityResources.aggregate_workflow_sha256, workflowSha);
-  assert.equal(slice4CapacityResources.input_workflow_sha256, workflowSha);
+  assert.equal(retainedCatalogReviewRecoveryResources.workflow_sha256, workflowSha);
   const historicalText = await readFile(
     new URL(
       "../docs/qualification/application-update-production.windows-20261103.proposed.yml",
