@@ -232,9 +232,11 @@ bootstrapper, requires a valid Microsoft Authenticode signature before running i
 records its digest and the before/after runtime versions, and refuses to continue
 below the floor. Evergreen installs Microsoft's newest runtime, and driver
 bootstrap still requires the exactly matching `msedgedriver`. After Microsoft
-services WebView2 and before it publishes that driver, groups correctly refuse to
-start (run 43338537697: runtime 157.0.4341.57, driver 404); re-run once it is
-published. On the elevated runner
+services WebView2 and before it publishes that driver, the exact match cannot be
+met (run 43338537697: runtime 157.0.4341.57, driver 404). The step after
+provisioning checks for that driver once a minute for at most 20 minutes, records
+`webview2-driver-availability.json` when it is available, and otherwise stops the
+group before bootstrap with the runtime version and a re-run instruction. On the elevated runner
 WebView2 ignores the driver's `WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS`, so the
 step also sets the WebView2 `AdditionalBrowserArguments` machine policy for
 `portcove-desktop.exe` to `--remote-debugging-port=0`; without it no session can
