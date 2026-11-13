@@ -3734,9 +3734,16 @@ impl PortcoveService {
                         error
                     }
                 }),
-            // A registered optional source that changed or cannot be read is not used.
+            // A registered optional source that changed or cannot be read (an I/O failure
+            // is a state error) is not used; cancellation and conflicts still end setup.
             Err(error)
-                if port.optional_game_source && error.code != crate::ErrorCode::Cancelled =>
+                if port.optional_game_source
+                    && matches!(
+                        error.code,
+                        crate::ErrorCode::Verification
+                            | crate::ErrorCode::SourceInvalid
+                            | crate::ErrorCode::State
+                    ) =>
             {
                 Ok(None)
             }

@@ -117,11 +117,16 @@ impl PortcoveService {
                         &checkpoint,
                     ) {
                         Ok(record) => Some(record),
-                        // A cancelled launch stays cancelled; any other failure of an
-                        // optional source (changed, unreadable) only means it is not used.
+                        // A changed or unreadable optional source is not used; cancellation
+                        // and conflicts still end the launch (an I/O failure is a state error).
                         Err(error)
                             if port.optional_game_source
-                                && error.code != crate::ErrorCode::Cancelled =>
+                                && matches!(
+                                    error.code,
+                                    crate::ErrorCode::Verification
+                                        | crate::ErrorCode::SourceInvalid
+                                        | crate::ErrorCode::State
+                                ) =>
                         {
                             optional_source_skipped = true;
                             None
