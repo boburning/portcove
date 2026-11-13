@@ -1297,7 +1297,17 @@ export async function installScenarios({
       assert.equal(plan.activate, false);
       assert.equal(plan.plan.release.asset.sha256, release.sha256);
       await reviewGameUpdateDisposition(browser, "download");
-      await browser.wait(until.elementLocated(By.css("[data-game-update-review]")), 15_000);
+      // Calibrated from 15 s: on hosted Windows (debug build) the v3 download review
+      // after a real rollback opened after 15 s; it shares the acquisition budget.
+      const reviewWaitStarted = Date.now();
+      await browser.wait(
+        until.elementLocated(By.css("[data-game-update-review]")),
+        acquisitionScriptBudgetMs,
+      );
+      observations.slowest_download_review_ms = Math.max(
+        Number(observations.slowest_download_review_ms ?? 0),
+        Date.now() - reviewWaitStarted,
+      );
       await click("Download archive for later");
       const pathname = new URL(release.url).pathname;
       const transferWaitStarted = Date.now();

@@ -287,7 +287,10 @@ export async function backupReviewScenario({
       async () =>
         (await browser.findElements(By.css('[aria-labelledby="backup-review-title"]'))).length ===
         0,
-      15_000,
+      // Calibrated from 15 s: on hosted Windows (debug build) the confirmed restore was
+      // still running, with its safety backup already written, when 15 s expired.
+      60_000,
+      "Confirmed backup restore did not finish and close its review",
     );
     assert.equal(await readFile(save, "utf8"), "selected snapshot data");
     const afterRestore = list();
