@@ -121,6 +121,9 @@ pub(crate) enum CatalogCommand {
         /// Expected 64-digit archive SHA-256 from the publisher's release metadata.
         #[arg(long)]
         sha256: String,
+        /// Exclude verified shared libraries from the macOS program inventory.
+        #[arg(long)]
+        ignore_verified_macos_libraries: bool,
     },
     /// Probe inert settings samples through Core's document editor without library writes.
     InspectSettingsQualification {

@@ -331,6 +331,7 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
                 platform,
                 size,
                 sha256,
+                ignore_verified_macos_libraries,
             },
     } = &cli.command
     {
@@ -339,7 +340,13 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
         render_read_success(
             mode,
             "catalog.inspect-package-layout",
-            portcove_core::inspect_package_archive(archive, platform, *size, sha256)?,
+            portcove_core::inspect_package_archive_with_program_filter(
+                archive,
+                platform,
+                *size,
+                sha256,
+                *ignore_verified_macos_libraries,
+            )?,
             |layout| {
                 format!(
                     "Observed {} directories and {} program paths.",

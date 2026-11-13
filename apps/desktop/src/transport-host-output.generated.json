@@ -22350,6 +22350,10 @@
               "type": "string"
             },
             "type": "array"
+          },
+          "ignore_verified_macos_libraries": {
+            "description": "Exclude verified macOS shared libraries from this fingerprint.",
+            "type": "boolean"
           }
         },
         "required": [

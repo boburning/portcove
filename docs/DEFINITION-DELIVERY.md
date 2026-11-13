@@ -175,6 +175,11 @@ declared program in private staging before comparing the executable inventory.
 Retained entries and Windows-only layout declarations can still use the
 earlier grant capability.
 
+Native portable version 30 recognizes `ignore_verified_macos_libraries` in
+reviewed macOS package layouts. Fresh and retained entries using that option
+require version 30. Core still fingerprints launcher paths and any executable
+whose file kind cannot be established as a matching shared library.
+
 Native portable version 18 binds `reviewed_package_layouts` in new
 independent entries. A reader without version 18 cannot accept a new
 entry that relies on the package-layout gate. Previously admitted

@@ -562,12 +562,35 @@ fn reviewed_unix_layout_with_executable_grant_requires_version_29() {
 }
 
 #[test]
+fn macos_library_filter_requires_native_30_for_fresh_and_retained_reads() {
+    let catalog = crate::Catalog::embedded().unwrap();
+    let port = catalog.port("openrct2-openrct2").unwrap();
+    let mut entry = entry_for_port(port);
+    entry["required_capabilities"][0]["maximum_version"] = json!(30);
+    for minimum in [29, 30] {
+        entry["required_capabilities"][0]["minimum_version"] = json!(minimum);
+        let bytes = serde_json::to_vec(&entry).unwrap();
+        for result in [
+            inspect(&entry),
+            index(&bytes, &port.id).inspect_retained_entry("official", &port.id, &bytes),
+        ] {
+            if minimum == 30 {
+                assert!(result.unwrap().capabilities().compatible);
+            } else {
+                assert!(result.unwrap_err().message.contains("version 30"));
+            }
+        }
+    }
+}
+
+#[test]
 fn reviewed_package_layouts_require_a_capable_native_reader() {
     let mut port = fixture_catalog().ports()[0].clone();
     port.adapter = crate::AdapterKind::NativePortable;
     port.reviewed_package_layouts.insert(
         port.platforms[0],
         crate::ReviewedPackageLayout {
+            ignore_verified_macos_libraries: false,
             directories: vec![],
             executables: vec!["fixture.exe".to_owned()],
         },
@@ -1517,6 +1540,10 @@ fn every_existing_official_projection_keeps_its_complete_fields() {
             // directly after the optional-source one (version 31) and before every other chain:
             // a later chain that matched first would silently skip the requirement.
             30
+        } else if crate::package_layout::layout_capability(port)
+            == crate::package_layout::MACOS_LIBRARY_FILTER_CAPABILITY
+        {
+            crate::package_layout::MACOS_LIBRARY_FILTER_CAPABILITY
         } else if port.linux_portable_data_directory.is_some() {
             crate::native_portable_data::NATIVE_CAPABILITY
         } else if !port.release.tar_xz_platforms.is_empty() {

@@ -290,6 +290,10 @@ impl EngineTemplateCapability {
             template: AdapterKind::NativePortable,
             contract_version: crate::package_layout::EXECUTABLE_GRANT_CAPABILITY,
         });
+        supported.push(Self {
+            template: AdapterKind::NativePortable,
+            contract_version: crate::package_layout::MACOS_LIBRARY_FILTER_CAPABILITY,
+        });
         supported
     }
 }

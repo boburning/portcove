@@ -520,6 +520,7 @@ mod tests {
         let port_id = "open-nectar-pikmin";
         let platform = crate::Platform::WindowsX86_64;
         let layout = |name: &str| crate::ReviewedPackageLayout {
+            ignore_verified_macos_libraries: false,
             directories: vec![],
             executables: vec![name.to_owned()],
         };

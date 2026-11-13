@@ -2560,6 +2560,10 @@ export interface ReviewedPackageLayout {
    * any depth, sorted.
    */
   executables: string[];
+  /**
+   * Exclude verified macOS shared libraries from this fingerprint.
+   */
+  ignore_verified_macos_libraries?: boolean;
 }
 /**
  * Port declaration for a disc image that Portcove unpacks into a runtime

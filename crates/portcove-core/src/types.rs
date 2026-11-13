@@ -943,6 +943,9 @@ impl PortDefinition {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct ReviewedPackageLayout {
+    /// Exclude verified macOS shared libraries from this fingerprint.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub ignore_verified_macos_libraries: bool,
     /// Lowercase top-level directory names of the package root, sorted.
     pub directories: Vec<String>,
     /// Lowercase package-relative paths (with `/`) of every program or script at

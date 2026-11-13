@@ -56506,6 +56506,24 @@
             "openrct2",
             "openrct2-cli"
           ]
+        },
+        "macos-x86-64": {
+          "ignore_verified_macos_libraries": true,
+          "directories": [
+            "contents"
+          ],
+          "executables": [
+            "contents/macos/openrct2"
+          ]
+        },
+        "macos-aarch64": {
+          "ignore_verified_macos_libraries": true,
+          "directories": [
+            "contents"
+          ],
+          "executables": [
+            "contents/macos/openrct2"
+          ]
         }
       }
     },

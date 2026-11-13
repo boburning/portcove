@@ -338,6 +338,10 @@ impl<'a> IndexedCatalogFixture<'a> {
             // directly after the optional-source one (version 31) and before every other chain:
             // a later chain that matched first would silently skip the requirement.
             30
+        } else if crate::package_layout::layout_capability(port)
+            == crate::package_layout::MACOS_LIBRARY_FILTER_CAPABILITY
+        {
+            crate::package_layout::MACOS_LIBRARY_FILTER_CAPABILITY
         } else if port.linux_portable_data_directory.is_some() {
             crate::native_portable_data::NATIVE_CAPABILITY
         } else if !port.release.tar_xz_platforms.is_empty() {
