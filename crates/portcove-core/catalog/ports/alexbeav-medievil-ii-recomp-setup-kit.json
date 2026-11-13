@@ -6,6 +6,7 @@
     "summary": "Portcove builds MediEvil II on Windows or Linux from the upstream setup kit with your own USA PlayStation disc and retail SCPH-1001 BIOS. The prebuilt player’s MediEvil II mods aren’t included. The Mac setup kit uses upstream preparation.",
     "original_game_title": "MediEvil II",
     "project_url": "https://github.com/alexbeavs-ps1-ports/medievil-ii-recomp",
+    "issue_number": 5299,
     "listed_at": "2026-11-13",
     "platforms": ["macos-x86-64", "macos-aarch64"],
     "availability": "packages",

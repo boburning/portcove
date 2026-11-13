@@ -35,8 +35,7 @@ following the catalog's parenthesised qualifier for a second listing of the
 same title. Both records keep `original_game_title` "MediEvil II" and reuse
 the accepted cover. Catalog generation refuses two port identities with one
 canonical issue (`checkLineageIdentities`), so the new record cannot carry
-#459. It has no `issue_number` until its own canonical issue is created
-through the Roadmap route.
+#459. Its own canonical issue is #5299.
 
 ## v0.2.6 kits
 
