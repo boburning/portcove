@@ -1025,3 +1025,28 @@ observed headers trigger a bounded reconsideration report with its reason and
 resume condition. They establish neither package compatibility nor an accepted
 managed replacement. Marathon's archive-root/shared-profile contract and Super
 Metroid's build-specific quickstates retain their pins.
+
+## Release content scan
+
+The [`release-content-scan.yml`](../.github/workflows/release-content-scan.yml)
+workflow applies the automated half of the
+[rights basis for upstream-hosted packages](CATALOG.md#rights-basis-for-upstream-hosted-packages)
+([#5353](https://github.com/boburning/portcove/issues/5353)). Once a day it reads
+every unheld listing that offers a download, finds the newest release in the
+listing's recommended channel and the single asset each platform's hints select,
+and downloads each asset it has not scanned before. `scripts/release-content-scan.mts`
+lists the package with `7z`, `tar` or `unsquashfs` and reads only a small byte
+head of candidate files; nothing is extracted to run, executed or installed.
+
+`scripts/release-content-signals.mts` flags concrete game-data signals: ROM, disc
+and original executable files by name; copied cartridge headers by Nintendo's
+boot logo bytes; Nintendo 64 ROM magic, ISO 9660, XEX and Xenia shader storage
+by content; and PlayStation BIOS images that are not OpenBIOS. Fonts, icons,
+launcher art and code are not signals. A finding is review evidence: a person
+confirms it and sets the listing's `download_block_reason` in a reviewed change.
+
+Each scanned asset is remembered by provider, repository, tag, name and digest
+in a cached checkpoint, so a release is downloaded once. Byte, asset and time
+budgets leave the rest for a later run and report them as not scanned; an
+unreadable or ambiguous asset is reported rather than judged. The job summary
+lists findings first, and the report artifact keeps every record for 30 days.

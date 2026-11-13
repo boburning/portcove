@@ -2436,6 +2436,20 @@
       ]
     },
     {
+      "file": "scripts/release-content-scan.test.mts",
+      "memberships": [
+        ["catalog-full", 1280],
+        ["repository-tools", 415]
+      ]
+    },
+    {
+      "file": "scripts/release-content-signals.test.mts",
+      "memberships": [
+        ["catalog-full", 1281],
+        ["repository-tools", 416]
+      ]
+    },
+    {
       "file": "scripts/release-controller-tools.test.mts",
       "desktop_dependencies": true,
       "memberships": [
