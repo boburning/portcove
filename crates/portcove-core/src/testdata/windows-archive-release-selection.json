@@ -1408,11 +1408,11 @@
     "alexbeav-medievil-recomp": {
       "inventory": "alexbeav-medievil-recomp",
       "selected_assets": [
-        "medievil-recomp-0.1.4-windows-x64.zip",
+        "medievil-recomp-0.1.5-windows-x64.zip",
         "medievil-recomp-999.123.456-windows-x64.zip"
       ],
       "linux_selected_assets": [
-        "medievil-recomp-0.1.4-linux-x64.zip",
+        "medievil-recomp-0.1.5-linux-x64.zip",
         "medievil-recomp-999.123.456-linux-x64.zip"
       ],
       "managed_psx": {
@@ -8100,53 +8100,53 @@
     ],
     "alexbeav-medievil-recomp": [
       {
-        "id": 416119794,
-        "tag_name": "v0.1.4",
-        "published_at": "2026-10-17T23:02:13Z",
+        "id": 442157651,
+        "tag_name": "v0.1.5",
         "draft": false,
         "prerelease": false,
+        "published_at": "2026-11-11T20:05:27Z",
         "assets": [
           {
-            "id": 651837885,
-            "name": "medievil-recomp-0.1.4-linux-x64.zip",
-            "size": 44267824,
-            "digest": "sha256:26097ec363f6850fbb7575ce2155c7841913f4317b844dca0683ecabc6864d2e",
-            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/medievil-recomp/releases/download/v0.1.4/medievil-recomp-0.1.4-linux-x64.zip"
+            "id": 736832110,
+            "name": "RELEASE-MANIFEST.json",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/medievil-recomp/releases/download/v0.1.5/RELEASE-MANIFEST.json",
+            "size": 2908,
+            "digest": "sha256:ee07a4683f5b0c796ff59e69898fe025ea612d93100e3c1810d002a5c1a57850"
           },
           {
-            "id": 651837886,
-            "name": "medievil-recomp-0.1.4-macos-arm64.zip",
-            "size": 41571960,
-            "digest": "sha256:e7a59fbf44d2aa4bfd198ed6c8390e0877a83234cd1557e3d286d2ebb75308d9",
-            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/medievil-recomp/releases/download/v0.1.4/medievil-recomp-0.1.4-macos-arm64.zip"
-          },
-          {
-            "id": 651837887,
-            "name": "medievil-recomp-0.1.4-macos-x64.zip",
-            "size": 42023338,
-            "digest": "sha256:4c06e0dff6fb83b58867bf498268d049faefd370cafe1285c039a81823751d27",
-            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/medievil-recomp/releases/download/v0.1.4/medievil-recomp-0.1.4-macos-x64.zip"
-          },
-          {
-            "id": 651837888,
-            "name": "medievil-recomp-0.1.4-windows-x64.zip",
-            "size": 46418375,
-            "digest": "sha256:9ce3874f2bdd1ee92b6d91defcf86a35eeccebcb15c5b5fa2e121b22942ef4e2",
-            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/medievil-recomp/releases/download/v0.1.4/medievil-recomp-0.1.4-windows-x64.zip"
-          },
-          {
-            "id": 651837912,
-            "name": "release-manifest.json",
-            "size": 1266,
-            "digest": "sha256:3d716cbfffd23ef865f8455fe848a5bd68d7ade57a8bee8f22faf5d41194285d",
-            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/medievil-recomp/releases/download/v0.1.4/release-manifest.json"
-          },
-          {
-            "id": 651837883,
+            "id": 736832111,
             "name": "SHA256SUMS.txt",
-            "size": 416,
-            "digest": "sha256:a4332727a9e580e70e936e06247c8d968b59c0cec61616fd9f2bd1718f326403",
-            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/medievil-recomp/releases/download/v0.1.4/SHA256SUMS.txt"
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/medievil-recomp/releases/download/v0.1.5/SHA256SUMS.txt",
+            "size": 412,
+            "digest": "sha256:1d4dcfd62dce37e8be0927b894393475b34e2a4fa86e08238071e5213cab2602"
+          },
+          {
+            "id": 736802646,
+            "name": "medievil-recomp-0.1.5-linux-x64.zip",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/medievil-recomp/releases/download/v0.1.5/medievil-recomp-0.1.5-linux-x64.zip",
+            "size": 45590347,
+            "digest": "sha256:ffaaf9076c1dd5cb0b38e869dffbf439ec51cd4b09c5e8127c138919fa936774"
+          },
+          {
+            "id": 736802643,
+            "name": "medievil-recomp-0.1.5-macos-arm64.zip",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/medievil-recomp/releases/download/v0.1.5/medievil-recomp-0.1.5-macos-arm64.zip",
+            "size": 42870854,
+            "digest": "sha256:ba12efa15fb971d30f003124789793617af1a3ecd197cc9d843e45de77abb15e"
+          },
+          {
+            "id": 736802641,
+            "name": "medievil-recomp-0.1.5-macos-x64.zip",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/medievil-recomp/releases/download/v0.1.5/medievil-recomp-0.1.5-macos-x64.zip",
+            "size": 43377063,
+            "digest": "sha256:33bcb0d895e1ed8fba8655807888a0d4100dc7bf8eb0a5f3d6b74b820279c59a"
+          },
+          {
+            "id": 736802645,
+            "name": "medievil-recomp-0.1.5-windows-x64.zip",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/medievil-recomp/releases/download/v0.1.5/medievil-recomp-0.1.5-windows-x64.zip",
+            "size": 47782240,
+            "digest": "sha256:052e33fed7814bdc0c322865b6f1b2e0507c4c5b74dd7f28886097cb7a8d5e7b"
           }
         ]
       },
@@ -11258,7 +11258,7 @@
     {
       "inventory": "alexbeav-medievil-recomp",
       "release_index": 0,
-      "asset": "medievil-recomp-0.1.4-macos-x64.zip"
+      "asset": "medievil-recomp-0.1.5-macos-x64.zip"
     },
     {
       "inventory": "alexbeav-medievil-recomp",
@@ -11268,7 +11268,7 @@
     {
       "inventory": "alexbeav-medievil-recomp",
       "release_index": 0,
-      "asset": "medievil-recomp-0.1.4-macos-arm64.zip"
+      "asset": "medievil-recomp-0.1.5-macos-arm64.zip"
     },
     {
       "inventory": "alexbeav-medievil-recomp",

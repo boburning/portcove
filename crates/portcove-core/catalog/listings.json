@@ -8332,7 +8332,7 @@
           },
           {
             "title": "Prepare a separate Mac copy",
-            "instruction": "The current Intel and Apple Silicon generators require macOS 15 or later. Extract the matching official ZIP into a writable folder. Make the Xcode Command Line Tools, CMake, Ninja and Python 3 available for your architecture. Open the upstream MediEvil_Recompiled setup host and choose Generate & rebuild with the matching CUE, both BIN files and your retail BIOS."
+            "instruction": "Extract the official ZIP for your Mac into a writable folder. Check the release notes for its macOS minimum, Python version and Homebrew dependencies. The v0.1.5 setup host requires openssl@3, sdl3, freetype and harfbuzz. Make the Xcode Command Line Tools, CMake, Ninja and Python 3 available, then choose Generate & rebuild in the upstream setup host with your matching CUE, both BIN files and retail BIOS."
           },
           {
             "title": "Add the completed Mac player",
@@ -8341,7 +8341,7 @@
         ],
         "warnings": [
           "Portcove checks the first data track and track count. Keep the complete disc intact.",
-          "The game records offline diagnostics by default, including starting memory cards, settings and inputs. Turn off Input Recording to stop new recordings. Review diagnostic contents before sharing."
+          "The v0.1.4 playtest build records offline diagnostics by default, including starting memory cards, settings and inputs. Turn off Input Recording in that build to stop new recordings. The v0.1.5 standard kit omits the title's playtest diagnostics package. Review any capture or replay before sharing."
         ],
         "help_url": "https://github.com/alexbeavs-ps1-ports/medievil-recomp#readme",
         "references": [
