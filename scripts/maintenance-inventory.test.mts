@@ -1089,6 +1089,18 @@ void test(
       });
       assert.deepEqual(outcome.delivery, { serving, published: 0 });
       const afterOutage = buildReport(store.owner);
+      // A typed "not served" read observes the location; an outage does not.
+      const deliveryAge = afterOutage.freshness?.find(
+        ({ source }) => source === "definition-delivery",
+      );
+      const latestDelivery = runSql(
+        store.owner,
+        `SELECT completed_at FROM portcove_maintenance.collection_runs
+          WHERE run_id = portcove_maintenance.latest_run('definition-delivery');`,
+      ).trim();
+      if (serving === "not_served")
+        assert.equal(Date.parse(deliveryAge!.observed_at!), Date.parse(latestDelivery));
+      else assert.ok(Date.parse(deliveryAge!.observed_at!) < Date.parse(latestDelivery));
       assert.equal(afterOutage.publication.serving?.status, serving);
       assert.equal(
         afterOutage.publication.serving?.last_verified_at,
