@@ -3,11 +3,12 @@
   "listing": {
     "id": "alexbeav-wipeout-xl-recomp",
     "name": "Wipeout XL / Alexbeav PSXRecomp",
-    "summary": "PlayStation port prepared with your own matching disc and any required BIOS. Complete setup with the project’s launcher; you manage this copy, its updates and your saved data.",
+    "summary": "PlayStation port of Wipeout XL. Portcove can build and update the Windows x64 and Linux x86-64 player with your own disc and BIOS. Mac setup uses the upstream kit.",
+    "original_game_title": "Wipeout XL",
     "project_url": "https://github.com/alexbeavs-ps1-ports/wipeout-xl-recomp",
     "issue_number": 497,
     "listed_at": "2026-10-23",
-    "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
+    "platforms": ["macos-x86-64", "macos-aarch64"],
     "availability": "packages",
     "setup_url": "https://github.com/alexbeavs-ps1-ports/wipeout-xl-recomp#readme",
     "artwork": {
@@ -30,7 +31,7 @@
         },
         {
           "title": "Supply the matching original files",
-          "instruction": "Select your own Wipeout XL (USA).cue (SCUS-94351) with all 12 referenced BIN tracks. The v0.1.2 kit requires your own 524,288-byte SCPH-1001 (USA) retail BIOS with SHA-256 71af94d1e47a68c11e8fdb9f8368040601514a42a5a399cda48c7d3bff1e99d3."
+          "instruction": "Select your own Wipeout XL (USA).cue (SCUS-94351) with all 12 referenced BIN tracks. The v0.1.3 kit requires your own 524,288-byte SCPH-1001 (USA) retail BIOS with SHA-256 71af94d1e47a68c11e8fdb9f8368040601514a42a5a399cda48c7d3bff1e99d3."
         },
         {
           "title": "Build and add the completed player",
@@ -45,7 +46,7 @@
       "references": [
         {
           "title": "Check Linux and Mac prerequisites",
-          "instruction": "Check the release notes for the kit’s Python version, macOS minimum and required libraries before starting setup. The v0.1.2 kits need Python 3.10 or newer on Linux and Mac. The Mac setup uses Apple clang 15 and needs Homebrew’s OpenSSL, FreeType and HarfBuzz libraries."
+          "instruction": "Check the release notes for the kit’s Python version, macOS minimum and required libraries before starting setup. The v0.1.3 kits need Python 3.10 or newer on Linux and Mac. The Mac setup uses Apple clang 15 and needs Homebrew’s OpenSSL, FreeType and HarfBuzz libraries."
         },
         {
           "title": "Keep your working copy and data",
@@ -61,5 +62,47 @@
       "macos-aarch64": ["wipeout-xl-", "-macos-arm64.zip"]
     },
     "recommended_download_channel": "stable"
+  },
+  "psx_managed_windows_v1": "split-mods",
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64", "linux-x86-64"],
+    "automated_tested_platforms": [],
+    "manually_validated_platforms": [],
+    "adapter": "psx-recomp-managed",
+    "release": {
+      "provider": "github",
+      "repository": "alexbeavs-ps1-ports/wipeout-xl-recomp",
+      "asset_hints": {
+        "windows-x86-64": ["wipeout-xl-", "-windows-x64.zip"],
+        "linux-x86-64": ["wipeout-xl-", "-linux-x64.zip"]
+      }
+    },
+    "source_profile": "alexbeav-wipeout-xl-recomp-usa-psx",
+    "executable_hints": {
+      "windows-x86-64": ["Wipeout_XL_Recompiled.exe"],
+      "linux-x86-64": ["Wipeout_XL_Recompiled"]
+    },
+    "presentation": {
+      "installation_method": "managed-recompilation",
+      "source_requirements": [
+        {
+          "role": "game",
+          "profile_id": "alexbeav-wipeout-xl-recomp-usa-psx",
+          "label": "Wipeout XL (USA) disc",
+          "verification": "catalog-identity"
+        },
+        {
+          "role": "bios",
+          "profile_id": "psx-scph-1001-bios",
+          "label": "PlayStation SCPH-1001 BIOS",
+          "verification": "catalog-identity"
+        }
+      ],
+      "saves_and_settings": "portcove-managed",
+      "manual_preparation": "Select your own complete 12-track CHD for Wipeout XL (USA, SCUS-94351) and your retail SCPH-1001 BIOS. Portcove verifies the first data track and the track count, then builds a private player. The game mounts the complete CHD. Portcove retains the declared saves, replays, settings and installed mods. Bundled mods belong to the runtime version. Runtime rollback carries current player data. Intel and Apple silicon Macs use upstream setup. Native setup, audio playback and gameplay remain unobserved."
+    },
+    "bios_source_profile": "psx-scph-1001-bios"
   }
 }

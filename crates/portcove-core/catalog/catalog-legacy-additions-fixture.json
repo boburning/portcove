@@ -1,5 +1,7 @@
 {
   "source_profile_ids": [
+    "alexbeav-vib-ribbon-recomp-europe-psx",
+    "alexbeav-wipeout-xl-recomp-usa-psx",
     "pokemon-snap",
     "castlevania-legacy-of-darkness",
     "diddy-kong-racing-golden-balloon",
@@ -120,6 +122,8 @@
     "goldeneye-007-ntsc-u-big-endian"
   ],
   "port_ids": [
+    "alexbeav-vib-ribbon-recomp",
+    "alexbeav-wipeout-xl-recomp",
     "snap64-recomp",
     "cvlod-recomp",
     "diddy-kong-racing-golden-balloon",

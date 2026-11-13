@@ -3161,6 +3161,26 @@
         "claim": "Pinned upstream README, ge007.u.sha1 and converter agree on the exact NTSC-U USA big-endian GoldenEye 007 SHA-1. No other byte order, region, modified image, size or gameplay observation is asserted.",
         "immutable_url": "https://github.com/jkdansereau/goldeneye-pc-port/blob/5c43e69b23f76d1ba30d1120dab427d09968a8c8/ge007.u.sha1",
         "live_url": "https://github.com/jkdansereau/goldeneye-pc-port/blob/main/ge007.u.sha1"
+      },
+      {
+        "id": "alexbeav-vib-ribbon-recomp-v013-static-contract",
+        "role": "upstream_support",
+        "authority": "alexbeavs-ps1-ports/vib-ribbon-recomp",
+        "authority_ref": "2c59c02f2914b537675a7d5b2e8bb8c7c0be2bf9",
+        "reviewed_at": "2026-11-13",
+        "claim": "Publisher-verified v0.1.3 Windows and Linux kits name SCES-02873, 8 tracks, data-track SHA-1 a2ba376167bda9ed03ab89a11ade12410d75ede7, required retail SCPH-5552, the generated Vib_Ribbon_Recompiled target and split mod ownership. Native preparation, playback, saves and gameplay were not run.",
+        "immutable_url": "https://github.com/alexbeavs-ps1-ports/vib-ribbon-recomp/blob/2c59c02f2914b537675a7d5b2e8bb8c7c0be2bf9/game.toml",
+        "live_url": null
+      },
+      {
+        "id": "alexbeav-wipeout-xl-recomp-v013-static-contract",
+        "role": "upstream_support",
+        "authority": "alexbeavs-ps1-ports/wipeout-xl-recomp",
+        "authority_ref": "d3f2c63068728829eb9e4a6393f08f60f591af34",
+        "reviewed_at": "2026-11-13",
+        "claim": "Publisher-verified v0.1.3 Windows and Linux kits name SCUS-94351, 12 tracks, data-track SHA-1 5694008c30fa9896d17afdd6281e4bebb9f63953, required retail SCPH-1001, the generated Wipeout_XL_Recompiled target and split mod ownership. Native preparation, playback, saves and gameplay were not run.",
+        "immutable_url": "https://github.com/alexbeavs-ps1-ports/wipeout-xl-recomp/blob/d3f2c63068728829eb9e4a6393f08f60f591af34/game.toml",
+        "live_url": null
       }
     ],
     "identities": [
@@ -14295,6 +14315,96 @@
         "aliases": [],
         "tombstones": [],
         "evidence_gap": null
+      },
+      {
+        "id": "alexbeav-vib-ribbon-recomp-europe-psx",
+        "label": "Vib-Ribbon (Europe) disc",
+        "kind": "optical-disc",
+        "variants": [
+          {
+            "id": "europe",
+            "title": "Vib-Ribbon (Europe) disc",
+            "region": "Europe",
+            "revision": null,
+            "product_codes": [
+              "SCES-02873"
+            ],
+            "representations": [
+              {
+                "id": "normalized-track-set",
+                "extensions": [
+                  "chd"
+                ],
+                "kind": "optical-track-set",
+                "track_counts": [
+                  8
+                ],
+                "identities": [
+                  {
+                    "scope": "psx-normalized-track-set",
+                    "sha1": "a2ba376167bda9ed03ab89a11ade12410d75ede7",
+                    "sha256": null,
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "alexbeav-vib-ribbon-recomp-v013-static-contract"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "alexbeav-vib-ribbon-recomp-v013-static-contract"
+            ]
+          }
+        ],
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null
+      },
+      {
+        "id": "alexbeav-wipeout-xl-recomp-usa-psx",
+        "label": "Wipeout XL (USA) disc",
+        "kind": "optical-disc",
+        "variants": [
+          {
+            "id": "usa",
+            "title": "Wipeout XL (USA) disc",
+            "region": "USA",
+            "revision": null,
+            "product_codes": [
+              "SCUS-94351"
+            ],
+            "representations": [
+              {
+                "id": "normalized-track-set",
+                "extensions": [
+                  "chd"
+                ],
+                "kind": "optical-track-set",
+                "track_counts": [
+                  12
+                ],
+                "identities": [
+                  {
+                    "scope": "psx-normalized-track-set",
+                    "sha1": "5694008c30fa9896d17afdd6281e4bebb9f63953",
+                    "sha256": null,
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "alexbeav-wipeout-xl-recomp-v013-static-contract"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "alexbeav-wipeout-xl-recomp-v013-static-contract"
+            ]
+          }
+        ],
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null
       }
     ],
     "contracts": [
@@ -22978,6 +23088,130 @@
           {
             "upstream_ref": "v0.5.0",
             "artifact_sha256": "b49bfb826566367a4d1af16466530f0fadd85e522b33859521d849c143a005ef"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-vib-ribbon-recomp-game-source",
+        "port_id": "alexbeav-vib-ribbon-recomp",
+        "role": "game",
+        "profile_id": "alexbeav-vib-ribbon-recomp-europe-psx",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "europe"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-vib-ribbon-recomp-v013-static-contract"
+        ],
+        "authority_ref": "2c59c02f2914b537675a7d5b2e8bb8c7c0be2bf9",
+        "reviewed_at": "2026-11-13",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/vib-ribbon-recomp/blob/2c59c02f2914b537675a7d5b2e8bb8c7c0be2bf9/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.1.3",
+            "artifact_sha256": "592127d16136d4566011b0dc4b9fdcfcf154d36209f9f4ee02c4738c416c11d1"
+          },
+          {
+            "upstream_ref": "v0.1.3",
+            "artifact_sha256": "e094bb10827603989dc4144fdea3a8c98e6b46168a94ba934eaaaa9e93204c34"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-vib-ribbon-recomp-bios-source",
+        "port_id": "alexbeav-vib-ribbon-recomp",
+        "role": "bios",
+        "profile_id": "psx-scph-5552-bios",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "europe-v3-0"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-vib-ribbon-recomp-v013-static-contract"
+        ],
+        "authority_ref": "2c59c02f2914b537675a7d5b2e8bb8c7c0be2bf9",
+        "reviewed_at": "2026-11-13",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/vib-ribbon-recomp/blob/2c59c02f2914b537675a7d5b2e8bb8c7c0be2bf9/project-manifest.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.1.3",
+            "artifact_sha256": "592127d16136d4566011b0dc4b9fdcfcf154d36209f9f4ee02c4738c416c11d1"
+          },
+          {
+            "upstream_ref": "v0.1.3",
+            "artifact_sha256": "e094bb10827603989dc4144fdea3a8c98e6b46168a94ba934eaaaa9e93204c34"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-wipeout-xl-recomp-game-source",
+        "port_id": "alexbeav-wipeout-xl-recomp",
+        "role": "game",
+        "profile_id": "alexbeav-wipeout-xl-recomp-usa-psx",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "usa"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-wipeout-xl-recomp-v013-static-contract"
+        ],
+        "authority_ref": "d3f2c63068728829eb9e4a6393f08f60f591af34",
+        "reviewed_at": "2026-11-13",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/wipeout-xl-recomp/blob/d3f2c63068728829eb9e4a6393f08f60f591af34/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.1.3",
+            "artifact_sha256": "ea1d16a1269007b189c3684d107ab6568e70637b36b17a9764af75ac6f4a4e53"
+          },
+          {
+            "upstream_ref": "v0.1.3",
+            "artifact_sha256": "24f566068202d31f2cee7f7068ba8de636168e39cdcf1b95cb7dac43d9c62625"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-wipeout-xl-recomp-bios-source",
+        "port_id": "alexbeav-wipeout-xl-recomp",
+        "role": "bios",
+        "profile_id": "psx-scph-1001-bios",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "legacy-accepted"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-wipeout-xl-recomp-v013-static-contract"
+        ],
+        "authority_ref": "d3f2c63068728829eb9e4a6393f08f60f591af34",
+        "reviewed_at": "2026-11-13",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/wipeout-xl-recomp/blob/d3f2c63068728829eb9e4a6393f08f60f591af34/project-manifest.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.1.3",
+            "artifact_sha256": "ea1d16a1269007b189c3684d107ab6568e70637b36b17a9764af75ac6f4a4e53"
+          },
+          {
+            "upstream_ref": "v0.1.3",
+            "artifact_sha256": "24f566068202d31f2cee7f7068ba8de636168e39cdcf1b95cb7dac43d9c62625"
           }
         ],
         "aliases": [],

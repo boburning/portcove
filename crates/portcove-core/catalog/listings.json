@@ -11374,7 +11374,8 @@
     {
       "id": "alexbeav-vib-ribbon-recomp",
       "name": "Vib-Ribbon / Alexbeav PSXRecomp",
-      "summary": "PlayStation port prepared with your own matching disc and any required BIOS. Complete setup with the project’s launcher; you manage this copy, its updates and your saved data.",
+      "summary": "PlayStation port of Vib-Ribbon. Portcove can build and update the Windows x64 and Linux x86-64 player with your own disc and BIOS. Mac setup uses the upstream kit.",
+      "original_game_title": "Vib-Ribbon",
       "project_url": "https://github.com/alexbeavs-ps1-ports/vib-ribbon-recomp",
       "issue_number": 495,
       "listed_at": "2026-10-23",
@@ -11406,7 +11407,7 @@
           },
           {
             "title": "Supply the matching original files",
-            "instruction": "Select your own Vib-Ribbon (Europe) (En,Fr,De,Es,It).cue (SCES-02873) with all 8 referenced BIN tracks. The v0.1.2 kit requires your own 524,288-byte SCPH-5552 (Europe) retail BIOS with SHA-256 1faaa18fa820a0225e488d9f086296b8e6c46df739666093987ff7d8fd352c09."
+            "instruction": "Select your own Vib-Ribbon (Europe) (En,Fr,De,Es,It).cue (SCES-02873) with all 8 referenced BIN tracks. The v0.1.3 kit requires your own 524,288-byte SCPH-5552 (Europe) retail BIOS with SHA-256 1faaa18fa820a0225e488d9f086296b8e6c46df739666093987ff7d8fd352c09."
           },
           {
             "title": "Build and add the completed player",
@@ -11421,7 +11422,7 @@
         "references": [
           {
             "title": "Check Linux and Mac prerequisites",
-            "instruction": "Check the release notes for the kit’s Python version, macOS minimum and required libraries before starting setup. The v0.1.2 kits need Python 3.10 or newer on Linux and Mac. The Mac setup uses Apple clang 15 and needs Homebrew’s OpenSSL, FreeType and HarfBuzz libraries."
+            "instruction": "Check the release notes for the kit’s Python version, macOS minimum and required libraries before starting setup. The v0.1.3 kits need Python 3.10 or newer on Linux and Mac. The Mac setup uses Apple clang 15 and needs Homebrew’s OpenSSL, FreeType and HarfBuzz libraries."
           },
           {
             "title": "Keep your working copy and data",
@@ -11683,7 +11684,8 @@
     {
       "id": "alexbeav-wipeout-xl-recomp",
       "name": "Wipeout XL / Alexbeav PSXRecomp",
-      "summary": "PlayStation port prepared with your own matching disc and any required BIOS. Complete setup with the project’s launcher; you manage this copy, its updates and your saved data.",
+      "summary": "PlayStation port of Wipeout XL. Portcove can build and update the Windows x64 and Linux x86-64 player with your own disc and BIOS. Mac setup uses the upstream kit.",
+      "original_game_title": "Wipeout XL",
       "project_url": "https://github.com/alexbeavs-ps1-ports/wipeout-xl-recomp",
       "issue_number": 497,
       "listed_at": "2026-10-23",
@@ -11715,7 +11717,7 @@
           },
           {
             "title": "Supply the matching original files",
-            "instruction": "Select your own Wipeout XL (USA).cue (SCUS-94351) with all 12 referenced BIN tracks. The v0.1.2 kit requires your own 524,288-byte SCPH-1001 (USA) retail BIOS with SHA-256 71af94d1e47a68c11e8fdb9f8368040601514a42a5a399cda48c7d3bff1e99d3."
+            "instruction": "Select your own Wipeout XL (USA).cue (SCUS-94351) with all 12 referenced BIN tracks. The v0.1.3 kit requires your own 524,288-byte SCPH-1001 (USA) retail BIOS with SHA-256 71af94d1e47a68c11e8fdb9f8368040601514a42a5a399cda48c7d3bff1e99d3."
           },
           {
             "title": "Build and add the completed player",
@@ -11730,7 +11732,7 @@
         "references": [
           {
             "title": "Check Linux and Mac prerequisites",
-            "instruction": "Check the release notes for the kit’s Python version, macOS minimum and required libraries before starting setup. The v0.1.2 kits need Python 3.10 or newer on Linux and Mac. The Mac setup uses Apple clang 15 and needs Homebrew’s OpenSSL, FreeType and HarfBuzz libraries."
+            "instruction": "Check the release notes for the kit’s Python version, macOS minimum and required libraries before starting setup. The v0.1.3 kits need Python 3.10 or newer on Linux and Mac. The Mac setup uses Apple clang 15 and needs Homebrew’s OpenSSL, FreeType and HarfBuzz libraries."
           },
           {
             "title": "Keep your working copy and data",
