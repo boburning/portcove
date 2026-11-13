@@ -725,6 +725,7 @@ fn prepare_install_inner(
             &preparation.source,
             configuration.source_paths,
             configuration.runtime_track_counts,
+            None,
         )?
     } else {
         configuration.source_paths.to_vec()
@@ -1391,12 +1392,13 @@ fn materialize_runtime_raw_set(
     source: &SourceRecord,
     source_paths: &[PathBuf],
     track_counts: &[u32],
+    pinned_tool: Option<&Path>,
 ) -> Result<Vec<PathBuf>> {
     let relative_text = crate::path::unicode(relative, "managed PS1 runtime source")?;
     let normalized_relative = relative_text.replace('\\', "/");
     crate::archive::validate_relative_path(&normalized_relative, false)?;
     let destination = build_dir.join(relative);
-    crate::adapter::materialize_psx_cue_set(&source.path, &destination, track_counts)?;
+    crate::adapter::materialize_psx_cue_set(&source.path, &destination, track_counts, pinned_tool)?;
 
     let mut runtime_sources = Vec::with_capacity(source_paths.len());
     let mut hashes = Vec::with_capacity(source_paths.len());
@@ -2678,6 +2680,169 @@ mod tests {
                 "runtime_source_directory",
             );
         }
+    }
+
+    /// A pinned stand-in for `chdman extractcd -sb`: one quoted FILE per track,
+    /// named `discTT.bin` beside the cue, with data bytes naming the input.
+    #[cfg(unix)]
+    fn split_track_chdman(root: &Path, tracks: u32) -> PathBuf {
+        use std::os::unix::fs::PermissionsExt;
+        let script = root.join("chdman-split-tracks");
+        let audio = if tracks == 2 {
+            "printf 'audio' > \"$dir/disc02.bin\"\nprintf 'FILE \"disc02.bin\" BINARY\\n  TRACK 02 AUDIO\\n    INDEX 00 00:00:00\\n    INDEX 01 00:02:00\\n' >> \"$cue\"\n"
+        } else {
+            ""
+        };
+        fs::write(
+            &script,
+            format!(
+                "#!/bin/sh\nwhile [ $# -gt 0 ]; do\n  case \"$1\" in\n    -i) input=\"$2\"; shift 2;;\n    -o) cue=\"$2\"; shift 2;;\n    *) shift;;\n  esac\ndone\ndir=\"${{cue%/*}}\"\nprintf 'data %s' \"${{input##*/}}\" > \"$dir/disc01.bin\"\nprintf 'FILE \"disc01.bin\" BINARY\\n  TRACK 01 MODE2/2352\\n    INDEX 01 00:00:00\\n' > \"$cue\"\n{audio}"
+            ),
+        )
+        .unwrap();
+        fs::set_permissions(&script, fs::Permissions::from_mode(0o755)).unwrap();
+        script
+    }
+
+    #[cfg(unix)]
+    fn owned_chd_set(root: &Path) -> (SourceRecord, Vec<PathBuf>) {
+        use sha2::Digest as _;
+        let source = root.join("owned-chds");
+        fs::create_dir(&source).unwrap();
+        for disc in 1..=2 {
+            fs::write(source.join(format!("disc-{disc:02}.chd")), b"inert chd").unwrap();
+        }
+        let source_paths = crate::adapter::psx_source_paths(&source, 2).unwrap();
+        // The verified identity covers only each disc's data track.
+        let data = source_paths
+            .iter()
+            .map(|path| {
+                let name = path.file_name().unwrap().to_str().unwrap();
+                format!("data {name}").into_bytes()
+            })
+            .collect::<Vec<_>>();
+        let hashes = data
+            .iter()
+            .map(|bytes| hex::encode(sha2::Sha256::digest(bytes)))
+            .collect::<Vec<_>>();
+        let (storage_sha256, storage_size) =
+            crate::adapter::source_storage_identity(&source).unwrap();
+        let record = SourceRecord {
+            profile_id: "owned-ps1-set".into(),
+            path: source,
+            sha256: crate::adapter::aggregate_sha256(&hashes),
+            size: data.iter().map(|bytes| bytes.len() as u64).sum(),
+            storage_sha256,
+            storage_size,
+            updated_at: Library::now(),
+            observed_identity: None,
+        };
+        (record, source_paths)
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn runtime_raw_sets_keep_every_track_and_hash_only_data_tracks() {
+        for tracks in [1_u32, 2] {
+            let temporary = tempfile::tempdir().unwrap();
+            let root = temporary.path();
+            let tool = split_track_chdman(root, tracks);
+            let (record, source_paths) = owned_chd_set(root);
+            let build = root.join("build-portcove");
+            fs::create_dir(&build).unwrap();
+            let sources = materialize_runtime_raw_set(
+                &build,
+                Path::new("runtime-discs"),
+                &record,
+                &source_paths,
+                &[tracks, tracks],
+                Some(&tool),
+            )
+            .unwrap();
+            assert_eq!(
+                sources,
+                [
+                    PathBuf::from("runtime-discs/disc-01.cue"),
+                    PathBuf::from("runtime-discs/disc-02.cue"),
+                ]
+            );
+            let set = build.join("runtime-discs");
+            let mut names = fs::read_dir(&set)
+                .unwrap()
+                .map(|entry| entry.unwrap().file_name().into_string().unwrap())
+                .collect::<Vec<_>>();
+            names.sort();
+            let mut expected = vec!["disc-01.bin", "disc-01.cue", "disc-02.bin", "disc-02.cue"];
+            if tracks == 2 {
+                expected.extend(["disc-01-t02.bin", "disc-02-t02.bin"]);
+                expected.sort();
+            }
+            assert_eq!(names, expected, "{tracks} tracks");
+            assert_eq!(
+                fs::read(set.join("disc-02.bin")).unwrap(),
+                b"data disc-02.chd"
+            );
+            if tracks == 2 {
+                assert_eq!(fs::read(set.join("disc-01-t02.bin")).unwrap(), b"audio");
+                assert_eq!(
+                    fs::read_to_string(set.join("disc-01.cue")).unwrap(),
+                    "FILE \"disc-01.bin\" BINARY\n  TRACK 01 MODE2/2352\n    INDEX 01 00:00:00\nFILE \"disc-01-t02.bin\" BINARY\n  TRACK 02 AUDIO\n    INDEX 00 00:00:00\n    INDEX 01 00:02:00\n"
+                );
+            }
+        }
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn runtime_raw_sets_refuse_a_track_count_or_data_identity_mismatch() {
+        let temporary = tempfile::tempdir().unwrap();
+        let root = temporary.path();
+        let (record, source_paths) = owned_chd_set(root);
+        let build = root.join("build-portcove");
+        let set = build.join("runtime-discs");
+        fs::create_dir_all(&set).unwrap();
+        fs::write(set.join("previous"), b"previous set").unwrap();
+        let staged_runtime_files = || {
+            fs::read_dir(&build)
+                .unwrap()
+                .map(|entry| entry.unwrap().path())
+                .filter(|path| path != &set)
+                .flat_map(|staging| fs::read_dir(staging).unwrap())
+                .map(|entry| entry.unwrap().file_name().into_string().unwrap())
+                .filter(|name| name.starts_with("disc-"))
+                .count()
+        };
+
+        // Two tracks against a catalog count of one fails before anything is
+        // staged, and the previous set is untouched.
+        let tool = split_track_chdman(root, 2);
+        let error = materialize_runtime_raw_set(
+            &build,
+            Path::new("runtime-discs"),
+            &record,
+            &source_paths,
+            &[1, 1],
+            Some(&tool),
+        )
+        .unwrap_err();
+        assert_eq!(error.code, crate::ErrorCode::SourceInvalid);
+        assert!(error.message.contains("the catalog expects 1"), "{error:?}");
+        assert_eq!(fs::read(set.join("previous")).unwrap(), b"previous set");
+        assert_eq!(staged_runtime_files(), 0);
+
+        // An audio track counted into the identity would no longer match.
+        let mut widened = record.clone();
+        widened.size += 2 * b"audio".len() as u64;
+        let error = materialize_runtime_raw_set(
+            &build,
+            Path::new("runtime-discs"),
+            &widened,
+            &source_paths,
+            &[2, 2],
+            Some(&tool),
+        )
+        .unwrap_err();
+        assert_eq!(error.code, crate::ErrorCode::Verification);
     }
 
     #[test]

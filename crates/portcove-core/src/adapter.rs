@@ -2287,12 +2287,13 @@ pub(crate) fn materialize_psx_cue_set(
     source: &Path,
     destination: &Path,
     track_counts: &[u32],
+    pinned_tool: Option<&Path>,
 ) -> Result<()> {
     materialize_psx_set(
         source,
         destination,
         Some(track_counts),
-        None,
+        pinned_tool,
         &|| Ok(()),
         crate::tool_process::ToolProcessObserver::default(),
     )
@@ -3859,7 +3860,11 @@ pub(crate) fn rewrite_psx_cue(
                     "cue sheet contains an unsafe FILE path",
                 ));
             }
-            if files.iter().any(|file| file.extracted == extracted) {
+            // Windows names are case-insensitive, so compare ASCII case-free.
+            if files
+                .iter()
+                .any(|file| file.extracted.eq_ignore_ascii_case(extracted))
+            {
                 return Err(PortcoveError::source(
                     "cue sheet names one track file twice",
                 ));

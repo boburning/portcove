@@ -140,7 +140,7 @@
         }
       ],
       "saves_and_settings": "portcove-managed",
-      "manual_preparation": "Provide your own two-track CHDs for SLES-02801, SLES-12801 in disc order and retail SCPH-5552 BIOS. Portcove verifies each disc's data track and track count, keeps both tracks of every disc and builds a private player with its registered toolchain, retaining its declared saves, settings and installed mods. Choose the disc when you choose Play. To change discs, use the game's own disc change if it offers one, or quit and choose Play with the next disc. Bundled mods belong to the runtime version. Windows and Linux package and source fit were statically inspected. Native build, disc switching, music playback, gameplay and save compatibility remain unobserved."
+      "manual_preparation": "Provide your own two-track CHDs for SLES-02801 and SLES-12801 in disc order and your retail SCPH-5552 BIOS. Portcove verifies each disc's data track and track count, keeps both tracks of every disc and builds a private player with its registered toolchain, retaining its declared saves, settings and installed mods. Choose the disc when you choose Play. To change discs, use the game's own disc change if it offers one, or quit and choose Play with the next disc. Bundled mods belong to the runtime version. Windows and Linux package and source fit were statically inspected. Native build, disc switching, music playback, gameplay and save compatibility remain unobserved."
     },
     "bios_source_profile": "psx-scph-5552-bios",
     "runtime_source_filename": "runtime-discs",

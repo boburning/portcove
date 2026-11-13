@@ -82,14 +82,19 @@ fn unsafe_or_repeated_track_names_are_refused() {
     }
     let unquoted = "FILE disc.bin BINARY\n  TRACK 01 MODE2/2352\n";
     assert!(rewrite_psx_cue(unquoted, 1, 1).is_err());
-    let repeated =
-        "FILE \"a.bin\" BINARY\n  TRACK 01 MODE2/2352\nFILE \"a.bin\" BINARY\n  TRACK 02 AUDIO\n";
-    assert!(
-        rewrite_psx_cue(repeated, 1, 2)
-            .unwrap_err()
-            .message
-            .contains("twice")
-    );
+    // Windows names differ only in case, so ASCII case does not separate them.
+    for second in ["a.bin", "A.BIN"] {
+        let repeated = format!(
+            "FILE \"a.bin\" BINARY\n  TRACK 01 MODE2/2352\nFILE \"{second}\" BINARY\n  TRACK 02 AUDIO\n"
+        );
+        assert!(
+            rewrite_psx_cue(&repeated, 1, 2)
+                .unwrap_err()
+                .message
+                .contains("twice"),
+            "{second}"
+        );
+    }
 }
 
 fn extracted_disc(root: &Path, cue: &str, files: &[&str]) -> PathBuf {
