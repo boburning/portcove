@@ -285,6 +285,14 @@ node scripts/maintenance-inventory.mts report --output work/maintenance-report/2
   current Core assessment, history and latest observations, and whether the
   latest Core run assessed it, recorded a gap or did not include it. Unsupported sources
   and published delivery are shown as unknown with their reasons.
+  - The subjects table searches every column: each word must appear somewhere
+    in the row, including linked work, upstream, offering, qualification,
+    attention and next action. Filters narrow it by host platform, Core
+    assessment, last change within 1, 7 or 30 days of the report's own
+    generation time, and "needs attention or has a next action". The page
+    shows how many subjects match. Filtering only selects rows; it never
+    changes a value. The filter is one plain-JavaScript function that the page
+    embeds and the tests run unchanged.
 
 Listing-only records are marked `listing_only`. A listing establishes neither an
 install nor a launch route, and the report adds no support, admission or

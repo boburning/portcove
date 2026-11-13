@@ -2542,6 +2542,38 @@ export function qualificationSummary(fact: TargetRoutesFact | null | undefined) 
   return parts.length ? parts.join("; ") : "no recorded qualification";
 }
 
+/**
+ * The report page's subject filter, as plain JavaScript source: the page embeds
+ * exactly this text, and tests evaluate the same text. It decides only what is
+ * shown; every value comes from the report.
+ */
+export const subjectFilterSource = `function subjectRowText(subject) {
+  return [subject.subject_key, subject.name, subject.game, subject.target_key,
+    ...(subject.alternatives || []), subject.state, subject.verified_at, subject.changed_at,
+    ...(subject.work || []), subject.upstream, subject.offered, subject.qualified,
+    subject.latest_health_gap, ...(subject.attention || []), ...(subject.next_actions || []),
+    subject.latest_core_gap ? subject.latest_core_gap.code : ""]
+    .filter((value) => typeof value === "string" && value).join(" ").toLowerCase();
+}
+function subjectNeedsAttention(subject) {
+  return Boolean((subject.attention || []).length || subject.latest_health_gap ||
+    (subject.next_actions || []).length || subject.latest_core_gap);
+}
+function subjectMatches(subject, filters, generatedAt) {
+  const text = subjectRowText(subject);
+  for (const token of (filters.text || "").toLowerCase().split(/\\s+/u).filter(Boolean))
+    if (!text.includes(token)) return false;
+  if (filters.platform && !String(subject.subject_key).endsWith("@" + filters.platform)) return false;
+  if (filters.state && subject.state !== filters.state) return false;
+  if (filters.attention && !subjectNeedsAttention(subject)) return false;
+  if (filters.changedWithinDays) {
+    const changed = Date.parse(subject.changed_at);
+    const since = Date.parse(generatedAt) - filters.changedWithinDays * 86400000;
+    if (!(changed >= since)) return false;
+  }
+  return true;
+}`;
+
 /** A self-contained, searchable page; data is embedded as escaped JSON, never as markup. */
 export function renderHtml(report: InventoryReport) {
   // The page embeds only what it renders; inventory.json keeps every explanation.
@@ -2613,6 +2645,7 @@ export function renderHtml(report: InventoryReport) {
           : [],
       }),
     ),
+    generated_at: report.generated_at,
     unassessed_gaps: report.unassessed_gaps ?? [],
     universe: (report.universe ?? []).map(
       ({ key, kind, name, game, target_key, port_keys, relations, identity_gap }) => ({
@@ -2672,18 +2705,48 @@ ${hostedIntakeSection(report)}
 <input id="universe-search" type="search" placeholder="Name, game, port key or identity">
 <table><thead><tr><th>Identity</th><th>Kind</th><th>Name and game</th><th>Port keys</th><th>Related</th></tr></thead><tbody id="universe"></tbody></table>
 <h2>Subjects</h2>
-<label for="search">Search</label>
-<input id="search" type="search" placeholder="Port ID or state">
+<form id="filters" role="search" onsubmit="return false">
+<label for="search">Search every column</label>
+<input id="search" type="search" placeholder="Port, game, issue, upstream, offering, attention or action">
+<label for="platform">Platform</label>
+<select id="platform"><option value="">All platforms</option></select>
+<label for="state">Core assessment</label>
+<select id="state"><option value="">All states</option></select>
+<label for="changed">Last changed</label>
+<select id="changed"><option value="">Any time</option><option value="1">Within a day of this report</option><option value="7">Within 7 days</option><option value="30">Within 30 days</option></select>
+<label><input id="attention" type="checkbox"> Needs attention or has a next action</label>
+</form>
+<p id="shown" aria-live="polite"></p>
 <table><thead><tr><th>Subject</th><th>Name and game</th><th>Alternatives</th><th>Core assessment</th><th>Changes</th><th>Last verified</th><th>Last changed</th><th>Latest Core run</th><th>Work</th><th>Upstream</th><th>Offered for a fresh library</th><th>Qualification for the offered artifact (Core)</th><th>Needs attention</th><th>Next action</th></tr></thead><tbody id="subjects"></tbody></table>
 <script id="inventory" type="application/json">${embedded}</script>
 <script>
 const report = JSON.parse(document.getElementById("inventory").textContent);
 const body = document.getElementById("subjects");
-function render(filter) {
+${subjectFilterSource}
+const allSubjects = [...report.subjects, ...(report.unassessed_gaps ?? []).map((gap) => ({ subject_key: gap.subject_key, state: "unknown", sequence: 0, verified_at: "never", changed_at: "never", latest_core_gap: gap }))];
+for (const [id, values] of [
+  ["platform", [...new Set(allSubjects.map((subject) => String(subject.subject_key).split("@")[1]).filter(Boolean))].sort()],
+  ["state", [...new Set(allSubjects.map((subject) => subject.state).filter(Boolean))].sort()],
+]) {
+  const select = document.getElementById(id);
+  for (const value of values) select.add(new Option(value, value));
+}
+function currentFilters() {
+  return {
+    text: document.getElementById("search").value.trim(),
+    platform: document.getElementById("platform").value,
+    state: document.getElementById("state").value,
+    changedWithinDays: Number(document.getElementById("changed").value) || 0,
+    attention: document.getElementById("attention").checked,
+  };
+}
+function render() {
   body.replaceChildren();
-  for (const subject of [...report.subjects, ...(report.unassessed_gaps ?? []).map((gap) => ({ subject_key: gap.subject_key, state: "unknown", sequence: 0, verified_at: "never", changed_at: "never", latest_core_gap: gap }))]) {
-    const text = [subject.subject_key, subject.state, subject.name, subject.game, subject.target_key].join(" ").toLowerCase();
-    if (filter && !text.includes(filter)) continue;
+  const filters = currentFilters();
+  let shown = 0;
+  for (const subject of allSubjects) {
+    if (!subjectMatches(subject, filters, report.generated_at)) continue;
+    shown += 1;
     const row = body.insertRow();
     const gap = subject.latest_core_gap
       ? "not assessed: " + subject.latest_core_gap.code
@@ -2692,9 +2755,11 @@ function render(filter) {
     for (const value of [subject.subject_key, [subject.name, subject.game].filter(Boolean).join(" — "), (subject.alternatives ?? []).join(", "), subject.state, String(subject.sequence), subject.verified_at, subject.changed_at, gap, (subject.work ?? []).join("; ") || "no linked issue observed", subject.upstream || "not observed", subject.offered || "not observed", subject.qualified || "not observed", [subject.latest_health_gap ? "health not fresh: " + subject.latest_health_gap : "", ...(subject.attention ?? [])].filter(Boolean).join("; "), (subject.next_actions ?? []).join("; ")])
       row.insertCell().textContent = value;
   }
+  document.getElementById("shown").textContent = shown + " of " + allSubjects.length + " subjects shown.";
 }
-document.getElementById("search").addEventListener("input", (event) => render(event.target.value.trim().toLowerCase()));
-render("");
+document.getElementById("filters").addEventListener("input", render);
+document.getElementById("filters").addEventListener("change", render);
+render();
 const universe = document.getElementById("universe");
 function renderUniverse(filter) {
   universe.replaceChildren();

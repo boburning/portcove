@@ -13,11 +13,13 @@ import {
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
+import vm from "node:vm";
 import { parse } from "yaml";
 import { postgresFixture, postgresServer } from "./fixtures/postgres-cluster.mts";
 import {
   deferralChanges,
   deliveryFacts,
+  subjectFilterSource,
   qualificationSummary,
   publicationEntries,
   publicationFacts,
@@ -417,6 +419,12 @@ void test("the static report escapes untrusted text and states unknown publicati
   assert.equal(page.match(/<\/script>/gu)?.length, 2, "only the page's own two scripts close");
   assert.doesNotMatch(page, /<b>none<\/b>|<i>x<\/i>/u);
   assert.match(page, /unknown/u);
+  // The page's own script is valid JavaScript and embeds the tested filter.
+  const script = /<script>\n([\s\S]*?)<\/script>/u.exec(page)?.[1] ?? "";
+  assert.ok(script.includes(subjectFilterSource));
+  assert.doesNotThrow(() => new vm.Script(script));
+  for (const id of ["search", "platform", "state", "changed", "attention", "shown"])
+    assert.match(page, new RegExp(`id="${id}"`, "u"));
 });
 
 const server = postgresServer();
@@ -2824,5 +2832,51 @@ void test("qualification is worded from Core's states without deciding applicabi
   assert.equal(
     qualificationSummary(target({ state: "structural_only" }) as never),
     "structural checks only on windows-x86-64; evidence does not record which route it exercised",
+  );
+});
+
+void test("the report page filters subjects by text, platform, state, attention and recency", () => {
+  const { subjectMatches } = vm.runInNewContext(`${subjectFilterSource}; ({ subjectMatches })`) as {
+    subjectMatches: (subject: unknown, filters: unknown, generatedAt: string) => boolean;
+  };
+  const generated = "2026-11-13T00:00:00.000Z";
+  const quiet = {
+    subject_key: "port:alpha@linux-x86-64",
+    name: "Alpha",
+    game: "Shared Game",
+    state: "managed-setup.automatic",
+    changed_at: "2026-10-01T00:00:00.000Z",
+    work: ["#10 (canonical) OPEN · Ready"],
+    offered: "managed install on linux-x86-64",
+    attention: [],
+    next_actions: [],
+  };
+  const busy = {
+    ...quiet,
+    subject_key: "port:beta@windows-x86-64",
+    name: "Beta",
+    state: "external.registration",
+    changed_at: "2026-11-12T12:00:00.000Z",
+    attention: ["provider-redirect (observe-availability)"],
+  };
+  const shown = (filters: Record<string, unknown>) =>
+    [quiet, busy]
+      .filter((subject) => subjectMatches(subject, filters, generated))
+      .map(({ name }) => name);
+  assert.deepEqual(shown({}), ["Alpha", "Beta"]);
+  // Every token must match somewhere in the row, including linked work and offerings.
+  assert.deepEqual(shown({ text: "shared #10 READY" }), ["Alpha", "Beta"]);
+  assert.deepEqual(shown({ text: "provider-redirect" }), ["Beta"]);
+  assert.deepEqual(shown({ text: "alpha missing-token" }), []);
+  assert.deepEqual(shown({ platform: "windows-x86-64" }), ["Beta"]);
+  assert.deepEqual(shown({ state: "managed-setup.automatic" }), ["Alpha"]);
+  assert.deepEqual(shown({ attention: true }), ["Beta"]);
+  assert.deepEqual(shown({ changedWithinDays: 7 }), ["Beta"]);
+  // An unparseable change time never counts as recent.
+  assert.deepEqual(
+    [{ ...busy, changed_at: "never" }].filter((subject) =>
+      subjectMatches(subject, { changedWithinDays: 30 }, generated),
+    ).length,
+    0,
   );
 });
