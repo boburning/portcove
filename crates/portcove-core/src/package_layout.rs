@@ -34,7 +34,8 @@ pub(crate) fn native_executable_grant_capability(port: &PortDefinition) -> u32 {
 }
 
 pub(crate) fn grant_precedes_layout_check(port: &PortDefinition, platform: Platform) -> bool {
-    port.release.grant_declared_executable
+    port.adapter == crate::AdapterKind::NativePortable
+        && port.release.grant_declared_executable
         && crate::permissions::platform_requires_executable(platform)
         && port.reviewed_package_layouts.contains_key(&platform)
 }

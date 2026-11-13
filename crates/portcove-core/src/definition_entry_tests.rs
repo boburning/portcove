@@ -542,18 +542,20 @@ fn reviewed_unix_layout_with_executable_grant_requires_version_29() {
     let port = catalog.port("alistert-openjazz").unwrap();
     let mut entry = entry_for_port(port);
     entry["required_capabilities"][0]["maximum_version"] = json!(29);
-    for minimum in [28, 29] {
+    for minimum in [21, 28, 29] {
         entry["required_capabilities"][0]["minimum_version"] = json!(minimum);
         let bytes = serde_json::to_vec(&entry).unwrap();
-        for result in [
-            inspect(&entry),
-            index(&bytes, &port.id).inspect_retained_entry("official", &port.id, &bytes),
-        ] {
-            if minimum == 29 {
-                assert!(result.unwrap().capabilities().compatible);
-            } else {
-                assert!(result.unwrap_err().message.contains("version 29"));
-            }
+        let fresh = inspect(&entry);
+        if minimum == 29 {
+            assert!(fresh.unwrap().capabilities().compatible);
+        } else {
+            assert!(fresh.unwrap_err().message.contains("version 29"));
+        }
+        let retained = index(&bytes, &port.id).inspect_retained_entry("official", &port.id, &bytes);
+        if minimum >= 22 {
+            assert!(retained.unwrap().capabilities().compatible);
+        } else {
+            assert!(retained.unwrap_err().message.contains("version 22"));
         }
     }
 }

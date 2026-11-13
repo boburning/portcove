@@ -519,7 +519,9 @@ async fn openjazz_linux_checks_the_layout_after_granting_the_declared_player() {
     compatible_server.join().unwrap();
     let updated = apply_update(&service, ID).await.unwrap();
     assert_eq!(updated.version, "2.0.0");
-    let _ = service.discard_game_update_acquisition(ID, &acquired);
+    service
+        .discard_game_update_acquisition(ID, &acquired)
+        .unwrap();
 
     let (drifted, drifted_server) = openjazz_zip("3.0.0", true);
     *provider.0.lock().unwrap() = drifted;
