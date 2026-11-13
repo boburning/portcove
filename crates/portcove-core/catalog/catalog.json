@@ -40059,10 +40059,16 @@
             {
               "title": "Start the game",
               "instruction": "Before first Play, copy the files from your own original Jazz Jackrabbit game into a game-data folder beside the OpenJazz player. Keep the original source copy. The managed route selects this folder automatically. For external registration, use Change launch details to add game-data as a launch argument, or follow upstream instructions for your existing game folder. No compiler or installer is needed."
+            },
+            {
+              "title": "Set up OpenJazz on Android",
+              "instruction": "Unpack openjazz-android-debug.zip and install the enclosed APK on a compatible Android device. Copy the data files from your own Jazz Jackrabbit copy into OpenJazz’s app-specific external files folder. The package ID is eu.alister.openjazz. If your device does not give you access to that folder, this build has no verified folder picker or alternate import route. Keep a separate copy of your original game data."
             }
           ],
-          "warnings": [],
-          "help_url": "https://github.com/AlisterT/openjazz/blob/20260301/README.md"
+          "warnings": [
+            "On Android, use the upstream app. You manage its runtime updates and back up the game data it uses."
+          ],
+          "help_url": "https://github.com/AlisterT/openjazz#readme"
         },
         "artwork": {
           "game_id": 3167,
@@ -41632,10 +41638,20 @@
             {
               "title": "Choose your Caesar III folder on first Play",
               "instruction": "Choose Play, then point Julius to your own writable Caesar III installation patched to 1.0.1.0 when asked. GOG, Steam and original CD installations are supported upstream. Keep that original game folder separate from this runtime. No compiler or installer is required for the published player. Julius saves and settings stay in the selected game folder; Augustus saves are not interchangeable with Julius saves."
+            },
+            {
+              "title": "Open Julius on Mac",
+              "instruction": "Open the official Mac DMG and copy the complete julius.app to a writable folder. Start Julius and select a writable copy of your own Caesar III 1.0.1.0 game folder. Keep the app’s bundled frameworks together."
+            },
+            {
+              "title": "Open Julius on Android",
+              "instruction": "Install Julius from Google Play or use the upstream Android APK. When Julius opens the Android folder picker, grant it access to a writable copy of your own Caesar III 1.0.1.0 game folder. Back up that folder with Julius closed. Keep using the same distribution channel for updates."
             }
           ],
-          "warnings": [],
-          "help_url": "https://github.com/bvschaik/julius/blob/v1.8.0/README.md"
+          "warnings": [
+            "On Mac and Android, use the upstream app. You manage its runtime updates and back up the game data it uses."
+          ],
+          "help_url": "https://github.com/bvschaik/julius#readme"
         },
         "artwork": {
           "game_id": 6332,
@@ -43761,10 +43777,16 @@
             {
               "title": "Start the game",
               "instruction": "Before first Play, copy DATA from your own supported Carmageddon installation beside the dethrace player, including GENERAL.TXT. Copy the optional GOG MUSIC folder there for CD audio. Keep the original installation; do not replace the player executable or SDL2.dll with old runtime files. An existing customized game folder can instead use the non-owning route."
+            },
+            {
+              "title": "Open Dethrace on Mac",
+              "instruction": "Open the official universal Mac DMG and copy the complete Deth Race.app into a writable folder. The inspected app requires macOS 15 or later on Intel and Apple silicon. Put a copy of your own supported Carmageddon DATA folder, including GENERAL.TXT, in ~/Library/Application Support/dethrace. Keep optional GOG MUSIC there for CD audio. If you configure a different game folder, back up the folder Dethrace actually uses."
             }
           ],
-          "warnings": [],
-          "help_url": "https://github.com/dethrace-labs/dethrace/blob/v0.10.1/README.md"
+          "warnings": [
+            "On Mac, use the upstream app. You manage its runtime updates and back up the game data it uses."
+          ],
+          "help_url": "https://github.com/dethrace-labs/dethrace#readme"
         },
         "artwork": {
           "game_id": 626,
