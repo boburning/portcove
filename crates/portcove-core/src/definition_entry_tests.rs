@@ -112,8 +112,9 @@ fn executable_grants_refuse_other_adapters_and_windows_only_declarations() {
 #[test]
 fn openrct2_mac_bundle_requires_native11_for_fresh_and_retained_reads() {
     let catalog = crate::Catalog::embedded().unwrap();
-    let port = catalog.port("openrct2-openrct2").unwrap();
-    let mut entry = entry_for_port(port);
+    let mut port = catalog.port("openrct2-openrct2").unwrap().clone();
+    port.reviewed_package_layouts.clear();
+    let mut entry = entry_for_port(&port);
     entry["required_capabilities"][0]["maximum_version"] = json!(11);
     for minimum in [10, 11] {
         entry["required_capabilities"][0]["minimum_version"] = json!(minimum);
