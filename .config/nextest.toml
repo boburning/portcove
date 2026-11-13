@@ -206,7 +206,10 @@ success-output = "immediate"
 [[profile.default.overrides]]
 platform = 'x86_64-unknown-linux-gnu'
 filter = 'package(portcove-core) & test(/^catalog::tests::upstream_maintenance_status_does_not_reinterpret_existing_port_contracts$/)'
-slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
+# Restored four-CPU Cloud setup: the growing full-catalog matrix continued
+# through Active/Retired/Superseded at 36/45/54s when idle, then hit 60s.
+# Allow this exact Linux harness 120s; retain assertions, cleanup and no retries.
+slow-timeout = { period = "5s", terminate-after = 24, grace-period = "0s" }
 success-output = "immediate"
 
 [[profile.default.overrides]]

@@ -398,7 +398,7 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
       platform: "x86_64-unknown-linux-gnu",
       filter:
         "package(portcove-core) & test(/^catalog::tests::upstream_maintenance_status_does_not_reinterpret_existing_port_contracts$/)",
-      periods: 12,
+      periods: 24,
     },
     {
       platform: "x86_64-unknown-linux-gnu",
