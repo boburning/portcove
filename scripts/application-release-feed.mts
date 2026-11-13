@@ -27,6 +27,9 @@ import {
   recoveredApplicationBootstrap,
   retainedR55Renewal,
   retainedR56FeedRecovery,
+  retainedV13FeedRecovery,
+  retainedV8RenewalDraft,
+  retainedV8ServedRenewal,
 } from "./application-release-run.mts";
 import type { ApplicationRunCustody } from "./application-release-run.mts";
 import type { ApplicationReleaseReference } from "./application-release-run.mts";
@@ -62,7 +65,7 @@ export async function discoverPublishedApplicationCohort(
     releaseNotes: () => Promise<Record<string, unknown>[]>;
   },
   pending?: PendingCohort | readonly PendingCohort[],
-  recoverR56Feed = false,
+  retainedFeedRecovery: boolean | "v13" = false,
 ) {
   const exclusions: readonly PendingCohort[] = structuredClone(
     pending === undefined ? [] : "release_id" in pending ? [pending] : pending,
@@ -71,27 +74,31 @@ export async function discoverPublishedApplicationCohort(
     exclusions.length <= 3 &&
       new Set(exclusions.map((value) => value.release_id)).size === exclusions.length,
   );
-  if (recoverR56Feed) {
+  if (retainedFeedRecovery) {
+    const v13 = retainedFeedRecovery === "v13";
+    const recovery = v13 ? retainedV13FeedRecovery : retainedR56FeedRecovery;
+    const cohort = v13 ? retainedV8RenewalDraft : retainedR55Renewal;
     assert.equal(exclusions.length, 1);
-    assert.equal(exclusions[0]?.release_id, retainedR55Renewal.release_id);
-    assert.equal(exclusions[0]?.custody.opportunity, retainedR55Renewal.opportunity);
+    assert.equal(exclusions[0]?.release_id, cohort.release_id);
+    assert.equal(exclusions[0]?.custody.opportunity, cohort.opportunity);
     assert.ok(
       exclusions[0]?.custody.runs.some(
         (run) =>
-          run.id === retainedR56FeedRecovery.run_id &&
-          run.control_commit === retainedR56FeedRecovery.control_commit &&
-          run.control_ref === retainedR55Renewal.next_ref,
+          run.id === recovery.run_id &&
+          run.control_commit === recovery.control_commit &&
+          run.control_ref ===
+            (v13 ? retainedV8ServedRenewal.next_ref : retainedR55Renewal.next_ref),
       ),
     );
   }
   const readServing = () =>
-    readApplicationPagesStateAsync(transport.read, undefined, false, recoverR56Feed);
+    readApplicationPagesStateAsync(transport.read, undefined, false, retainedFeedRecovery);
   const state = await readServing();
   const execution = await readApplicationPagesExecution(
     transport.read,
     state,
     undefined,
-    recoverR56Feed,
+    retainedFeedRecovery,
   );
   const cohorts = (await transport.releaseNotes()).flatMap((release) => {
     // Draft custody belongs to preparation and recovery. A newer draft schema
@@ -186,7 +193,7 @@ export async function discoverPublishedApplicationCohort(
 
 export async function discoverActualPublishedApplicationCohort(
   pending?: PendingCohort | readonly PendingCohort[],
-  recoverR56Feed = false,
+  retainedFeedRecovery: boolean | "v13" = false,
 ) {
   const token = fixedReleaseReaderToken();
   const deadline = Math.min(coordinatorCommandDeadline() ?? Infinity, performance.now() + 120000);
@@ -198,7 +205,7 @@ export async function discoverActualPublishedApplicationCohort(
       releaseNotes: () => readReleaseNotesWithSdk({ token, deadline, guard }),
     },
     pending,
-    recoverR56Feed,
+    retainedFeedRecovery,
   );
 }
 
@@ -857,16 +864,16 @@ export async function readApplicationPriorPublication(
   scratch: string,
   pending?: Parameters<typeof discoverPublishedApplicationCohort>[1],
   intent?: "renew-served-metadata",
-  recoverR56Feed = false,
+  retainedFeedRecovery: boolean | "v13" = false,
 ) {
-  const discovered = await discoverActualPublishedApplicationCohort(pending, recoverR56Feed);
+  const discovered = await discoverActualPublishedApplicationCohort(pending, retainedFeedRecovery);
   const transport = await applicationMetadataTransport(discovered, scratch);
   const prior = await readImmutableApplicationMetadata(
     discovered,
     {
       ...transport,
       readPages: () =>
-        readActualApplicationPagesState(transport.deadline, undefined, false, recoverR56Feed),
+        readActualApplicationPagesState(transport.deadline, undefined, false, retainedFeedRecovery),
     },
     intent,
   );

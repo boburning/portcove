@@ -552,8 +552,67 @@ export const retainedR56FeedRecovery = {
   },
 } as const;
 
-export function requireRetainedR56PreNativeEvidence(raw: unknown) {
-  const prior = retainedR56FeedRecovery;
+/** The exact immutable v13 assembly and its settled pre-create Pages refusal. */
+export const retainedV13FeedRecovery = {
+  next_ref: "refs/tags/portcove-production-controller-windows-20261113r87",
+  notes_sha256: "ccd27521f3fb4376eefb4bfcc1a2e05341e5caccb53f1b2686ff4c240020ad63",
+  generation: "deff5ba394373775c3f19d5ee9c44222484be8e2a58397826e6bd45c8bb40fc6",
+  run_id: "43339289023",
+  control_commit: "fee39289eeb01283f3dbdc709746f8ba90409f1a",
+  feed_job_id: 131609823364,
+  failed_admission_id: 7754019097,
+  failed_admission_status_id: 22084621805,
+  serving_admission_id: 7710303598,
+  serving_admission_status_id: 21945772960,
+  pages_artifact_id: 13999077623,
+  evidence_artifact_id: 14000055962,
+  evidence_archive_bytes: 419,
+  evidence_archive_sha256: "5b5abc818e8d35aa2bf66fdbaf7c48a7df48d22d8ef8c208b29ed44c28b7c74e",
+  evidence_sha256: "41d3248fc9f338193b199d0d16116a4ccc406cb88c9b9a5f5a64a169cbea27fc",
+  context_sha256: "3edb79c0c4973b8ba2b7da8de7ddda92df68225abd7c5163c82541bb1bbab8da",
+  predecessor: {
+    id: "43339289023",
+    control_commit: "fee39289eeb01283f3dbdc709746f8ba90409f1a",
+    control_ref: retainedV8ServedRenewal.next_ref,
+    conclusion: "failure",
+    milliseconds: 867_000,
+  },
+  executed_jobs: [
+    [131603277831, "source", "success"],
+    [131603684095, "tools", "success"],
+    [131604720428, "context / execute", "success"],
+    [131605377188, "preview / execute", "success"],
+    [131605377214, "releases / execute", "success"],
+    [131605377248, "stable / execute", "success"],
+    [131605690038, "snapshot / execute", "success"],
+    [131606008019, "timestamp / execute", "success"],
+    [131606282458, "assemble / execute", "success"],
+    [131606883032, "draft_recovery", "success"],
+    [131607171010, "publication_prepare", "success"],
+    [131608027593, "protection_publication / execute", "success"],
+    [131608390445, "publication", "success"],
+    [131608737583, "feed_prepare", "success"],
+    [131609416440, "protection_feed / execute", "success"],
+    [131609823364, "feed", "failure"],
+  ],
+  assets: {
+    "application-site.zip": {
+      id: 741708232,
+      bytes: 26547,
+      sha256: "357f12ad99d496e54bf2475ad6f1f9a25ea591e3b4efbe1b9ab2626aa8bf211a",
+    },
+    "application-metadata.json": {
+      id: 741708747,
+      bytes: 8189,
+      sha256: "6541e6e38b6fb8627b513efa7e813660ec1735a577a3f62ef9b9715796680415",
+    },
+  },
+} as const;
+
+export function requireRetainedR56PreNativeEvidence(
+  raw: unknown,
+  prior: typeof retainedR56FeedRecovery | typeof retainedV13FeedRecovery = retainedR56FeedRecovery,
+) {
   assert.deepEqual(
     raw,
     {
@@ -571,7 +630,7 @@ export function requireRetainedR56PreNativeEvidence(raw: unknown) {
       prior_effect: null,
       requests: [],
     },
-    "r56 has no qualified pre-native evidence",
+    "retained Pages operation has no qualified pre-native evidence",
   );
 }
 
@@ -729,7 +788,7 @@ export function inspectApplicationRunCustody(raw: unknown): ApplicationRunCustod
     raw.preparation === null &&
     !Object.hasOwn(raw, "budget") &&
     Array.isArray(raw.runs) &&
-    (raw.runs.length === 4 || raw.runs.length === 5);
+    [4, 5, 6].includes(raw.runs.length);
   assert.ok(
     Array.isArray(raw.runs) &&
       raw.runs.length >= 1 &&
@@ -760,10 +819,23 @@ export function inspectApplicationRunCustody(raw: unknown): ApplicationRunCustod
     const prior = [
       ...retainedV8RenewalDraft.predecessors.slice(0, 2),
       retainedV8RenewalContinuation.predecessor,
-      ...(runs.length === 5 ? [retainedV8ServedRenewal.predecessor] : []),
+      ...(runs.length >= 5 ? [retainedV8ServedRenewal.predecessor] : []),
+      ...(runs.length === 6
+        ? [
+            {
+              id: retainedV13FeedRecovery.run_id,
+              control_commit: retainedV13FeedRecovery.control_commit,
+              control_ref: retainedV8ServedRenewal.next_ref,
+            },
+          ]
+        : []),
     ];
     const next_ref =
-      runs.length === 5 ? retainedV8ServedRenewal.next_ref : retainedV8RenewalContinuation.next_ref;
+      runs.length === 6
+        ? retainedV13FeedRecovery.next_ref
+        : runs.length === 5
+          ? retainedV8ServedRenewal.next_ref
+          : retainedV8RenewalContinuation.next_ref;
     assert.deepEqual(
       runs.slice(0, -1),
       prior.map(({ id, control_commit, control_ref }) => ({ id, control_commit, control_ref })),
@@ -850,9 +922,11 @@ export function inspectApplicationRunCustody(raw: unknown): ApplicationRunCustod
     }
   }
   const retainedV8Contexts =
-    runs.length === 5
-      ? retainedV8ServedRenewal.context_sha256
-      : retainedV8RenewalContinuation.context_sha256;
+    runs.length === 6
+      ? [...retainedV8ServedRenewal.context_sha256, retainedV13FeedRecovery.context_sha256]
+      : runs.length === 5
+        ? retainedV8ServedRenewal.context_sha256
+        : retainedV8RenewalContinuation.context_sha256;
   const metadata =
     raw.schema_version === 3
       ? inspectMetadataContextReservations(
@@ -861,7 +935,7 @@ export function inspectApplicationRunCustody(raw: unknown): ApplicationRunCustod
           renewalContinuation || feedContinuation
             ? retainedServedRenewal.contexts.length + 1
             : v8Continuation
-              ? retainedV8Contexts.length + 1
+              ? retainedV8Contexts.length + (runs.length === 6 ? 0 : 1)
               : 3,
         )
       : undefined;

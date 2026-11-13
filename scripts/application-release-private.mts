@@ -173,6 +173,7 @@ import {
   retainedServedRenewalFeed,
   failedBootstrapRecovery,
   retainedR56FeedRecovery,
+  retainedV13FeedRecovery,
   retainedV8ServedRenewal,
   requireRetainedR56PreNativeEvidence,
   isEmptyApplicationBootstrapCustody,
@@ -525,7 +526,9 @@ async function guard(
       typeof observation?.observed_at === "string" ? observation.observed_at : undefined;
     const recoveryFeedHandoff =
       phase === "feed" &&
-      current.ref === retainedR56FeedRecovery.next_ref &&
+      [retainedR56FeedRecovery.next_ref, retainedV13FeedRecovery.next_ref].some(
+        (ref) => current.ref === ref,
+      ) &&
       source.purpose === "metadata-renewal" &&
       source.execution_path === "metadata-recovery";
     const preparingApplication =
@@ -2032,8 +2035,9 @@ async function writeFeedInput(
   await applicationOutput("feed_directory", output);
 }
 
-async function verifyRetainedR56FeedArtifact() {
-  const prior = retainedR56FeedRecovery;
+async function verifyRetainedFeedArtifact(
+  prior: typeof retainedR56FeedRecovery | typeof retainedV13FeedRecovery,
+) {
   const evidence = path.resolve("work/previous-r56-feed-effect");
   const archive = await receiveApplicationData(evidence, {
     id: prior.evidence_artifact_id,
@@ -2048,7 +2052,7 @@ async function verifyRetainedR56FeedArtifact() {
   assert.equal(archive.sha256, prior.evidence_archive_sha256);
   const file = path.join(evidence, "pages-evidence.json");
   assert.equal((await applicationFileIdentity(file)).sha256, prior.evidence_sha256);
-  requireRetainedR56PreNativeEvidence(await readApplicationJson(file, 4096));
+  requireRetainedR56PreNativeEvidence(await readApplicationJson(file, 4096), prior);
 }
 
 async function prepareBootstrapFeed() {
@@ -2058,13 +2062,17 @@ async function prepareBootstrapFeed() {
   await guard(source, false);
   const current = execution();
   const recoverInitialBootstrap = source.execution_path === "bootstrap-recovery";
-  const recoverR56 = current.ref === retainedR56FeedRecovery.next_ref;
-  if (recoverR56) {
+  const retainedRecovery =
+    current.ref === retainedV13FeedRecovery.next_ref
+      ? ("v13" as const)
+      : current.ref === retainedR56FeedRecovery.next_ref;
+  const recovery = retainedRecovery === "v13" ? retainedV13FeedRecovery : retainedR56FeedRecovery;
+  if (retainedRecovery) {
     assert.equal(source.execution_path, "metadata-recovery");
-    await verifyRetainedR56FeedArtifact();
+    await verifyRetainedFeedArtifact(recovery);
   }
   const readServing = () =>
-    readActualApplicationPagesState(undefined, undefined, false, recoverR56);
+    readActualApplicationPagesState(undefined, undefined, false, retainedRecovery);
   const attempt =
     source.purpose === "metadata-bootstrap" && !recoverInitialBootstrap
       ? Number(process.env.PORTCOVE_PUBLICATION_INPUT_ATTEMPT)
@@ -2150,7 +2158,7 @@ async function prepareBootstrapFeed() {
         verifier,
         lineage,
         source.renewal_parent === undefined ? "renew-served-metadata" : undefined,
-        recoverR56,
+        retainedRecovery,
       );
       const basis = inspectApplicationRenewalSource(source);
       assert.equal(prior.receipt.site.generation, basis.site_generation);
@@ -2280,17 +2288,26 @@ async function preflightBootstrapSite() {
           site.generation,
         )
       : undefined;
-  const recoverR56 = current.ref === retainedR56FeedRecovery.next_ref;
-  if (recoverR56) {
-    const prior = retainedR56FeedRecovery;
+  const retainedRecovery =
+    current.ref === retainedV13FeedRecovery.next_ref
+      ? ("v13" as const)
+      : current.ref === retainedR56FeedRecovery.next_ref;
+  const recovery = retainedRecovery === "v13" ? retainedV13FeedRecovery : retainedR56FeedRecovery;
+  if (retainedRecovery) {
+    const prior = recovery;
     assert.equal(source.execution_path, "metadata-recovery");
     assert.equal(site.generation, prior.generation);
     const file = path.resolve("work/previous-r56-feed-effect/pages-evidence.json");
     assert.equal((await applicationFileIdentity(file)).sha256, prior.evidence_sha256);
-    requireRetainedR56PreNativeEvidence(await readApplicationJson(file, 4096));
+    requireRetainedR56PreNativeEvidence(await readApplicationJson(file, 4096), prior);
   }
   const readServing = () =>
-    readActualApplicationPagesState(undefined, undefined, recoverInitialBootstrap, recoverR56);
+    readActualApplicationPagesState(
+      undefined,
+      undefined,
+      recoverInitialBootstrap,
+      retainedRecovery,
+    );
   let preimage;
   try {
     const before = await readServing();
@@ -2332,7 +2349,7 @@ async function preflightBootstrapSite() {
       preimage = { kind: "initial", provider };
     }
   }
-  if (recoverR56) assert.equal(preimage.kind, "prior");
+  if (retainedRecovery) assert.equal(preimage.kind, "prior");
   const admissionBudget = await guard(source, false);
   const firstControllerBuild =
     hasPrior &&
@@ -2340,8 +2357,7 @@ async function preflightBootstrapSite() {
     current.run_attempt === 1 &&
     admissionBudget.budget.runs.every(
       (run) =>
-        run.feed_executions.length === 0 ||
-        (recoverR56 && run.run_id === retainedR56FeedRecovery.run_id),
+        run.feed_executions.length === 0 || (retainedRecovery && run.run_id === recovery.run_id),
     ) &&
     (await readApplicationControllerPagesAdmissions(current.source)).length === 0;
   await writeApplicationJson("work/application-site-preflight/plan.json", {
@@ -2367,7 +2383,7 @@ async function preflightBootstrapSite() {
     ...(recoverInitialBootstrap
       ? { previous_precreate_sha256: failedBootstrapRecovery.evidence_sha256 }
       : {}),
-    ...(recoverR56 ? { previous_precreate_sha256: retainedR56FeedRecovery.evidence_sha256 } : {}),
+    ...(retainedRecovery ? { previous_precreate_sha256: recovery.evidence_sha256 } : {}),
     preimage,
     ...(windowsCandidate ? { windows_candidate: windowsCandidate } : {}),
   });
@@ -2427,11 +2443,15 @@ async function deployBootstrapSite(readOnly = false) {
   const site = inspectSiteGeneration(plan.site, plan.site.generation);
   if (recoverInitialBootstrap)
     assert.equal(plan.previous_precreate_sha256, failedBootstrapRecovery.evidence_sha256);
-  const recoverR56 = current.ref === retainedR56FeedRecovery.next_ref;
-  if (recoverR56) {
+  const retainedRecovery =
+    current.ref === retainedV13FeedRecovery.next_ref
+      ? ("v13" as const)
+      : current.ref === retainedR56FeedRecovery.next_ref;
+  const recovery = retainedRecovery === "v13" ? retainedV13FeedRecovery : retainedR56FeedRecovery;
+  if (retainedRecovery) {
     assert.equal(source.execution_path, "metadata-recovery");
-    assert.equal(site.generation, retainedR56FeedRecovery.generation);
-    assert.equal(plan.previous_precreate_sha256, retainedR56FeedRecovery.evidence_sha256);
+    assert.equal(site.generation, recovery.generation);
+    assert.equal(plan.previous_precreate_sha256, recovery.evidence_sha256);
   }
   assert.equal(site.application_root_sha256, applicationReleaseTrust.root.sha256);
   if (source.purpose === "metadata-bootstrap") {
@@ -2489,12 +2509,16 @@ async function deployBootstrapSite(readOnly = false) {
           site.generation,
         )
       : undefined;
-  if (recoverR56) assert.ok(firstControllerBuild, "r57 requires exact new controller admission");
+  if (retainedRecovery)
+    assert.ok(
+      firstControllerBuild,
+      "retained feed recovery requires exact new controller admission",
+    );
   const priorRuns = (facts: Awaited<ReturnType<typeof guard>>) =>
     facts.budget.runs.filter(
       (run) =>
         (!recoverInitialBootstrap || run.run_id !== current.run_id) &&
-        (!recoverR56 || run.run_id !== retainedR56FeedRecovery.run_id) &&
+        (!retainedRecovery || run.run_id !== recovery.run_id) &&
         run.feed_executions.length > 0,
     );
   // The scoped create paths perform their complete live budget read after
@@ -2613,7 +2637,7 @@ async function deployBootstrapSite(readOnly = false) {
         ...(admissionId === undefined ? {} : { deployment_id: admissionId }),
       },
       recoverInitialBootstrap,
-      recoverR56,
+      retainedRecovery,
     );
     assert.ok(admission_id !== undefined);
     assert.deepEqual(serving, preimage.provider, "public deployment changed after preflight");
