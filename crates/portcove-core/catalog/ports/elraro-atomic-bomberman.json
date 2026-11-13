@@ -74,6 +74,16 @@
       "source_requirements": [],
       "saves_and_settings": "external-user-owned",
       "manual_preparation": "Start atomic.exe on Windows or atomic on Linux. The dedicated server is a separate program. No original game files are required for the code-generated free asset set. An OpenGL 3.3 graphics driver is required. The Linux x86-64 package needs glibc 2.38 or later and libstdc++ with GLIBCXX_3.4.31. Optional original Atomic Bomberman (1997) data and --import-assets preparation remain upstream/player-owned; do not treat an engine install as permission to acquire that content. The normal writable SDL profile for atomic-bomberman-modern/atomic holds options.ini, schemes, anims.lst and imported/generated assets under the current account’s AppData on Windows or data home on Linux; copies share it and Core does not back it up, migrate or delete it. If preference lookup fails, free assets fall back to free-assets beside the creating player; Core retains this declared local directory, including unknown/custom files during its maintenance. Upstream rewrites its known generated files when the free-assets version changes; its free-assets.txt marker is internal, not a Core completion or save-compatibility certificate. Failed profile lookup disables normal settings persistence and can send editor scheme saves to a root-relative /name.sch path outside the engine. Stop editor saving and repair the profile upstream if that occurs; preserve any actual external outputs. This managed offer requires the normal writable profile, does not sandbox the player and does not claim free-assets captures every fault output. Preserve the whole creating runtime, all effective profiles, custom files and originals before changes. No actual game, editor, import or network behavior is qualified."
+    },
+    "reviewed_package_layouts": {
+      "windows-x86-64": {
+        "directories": [],
+        "executables": ["atomic.exe", "atomic_server.exe"]
+      },
+      "linux-x86-64": {
+        "directories": [],
+        "executables": ["atomic", "atomic_server"]
+      }
     }
   }
 }
