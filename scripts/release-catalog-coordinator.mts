@@ -4,6 +4,7 @@ import {
   authenticateCapacityExecutor,
   authenticateOwnedCheckpointJournalHistory,
   ensureOwnedCheckpointJournalHistory,
+  inspectSelectedJournalRequirement,
   publishOwnedSignedCoordinatorCheckpoint,
 } from "./release-capacity-executor.mts";
 import { controllerOidcSubject } from "./assembler-job-identity.mts";
@@ -988,8 +989,9 @@ export async function runFixedCatalogCoordinatorConfiguration(
         // The signing exchange owns and verifies this predecessor's intent.
         // Its creation must not invalidate the separate publication inventory.
         const ownIntent = `${authorities.namespace}-checkpoint-intent/${recovered.checkpoint}`;
+        const signedJournal = inspectSelectedJournalRequirement(process.env);
         const publicationTags = (inventory: typeof tags) =>
-          inventory.filter(({ name }) => name !== ownIntent);
+          signedJournal ? inventory.filter(({ name }) => name !== ownIntent) : inventory;
         if (
           capacityDigest({
             tags: publicationTags(currentTags),
