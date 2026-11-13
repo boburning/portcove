@@ -190,8 +190,10 @@ export function matchesRetainedV13ReviewWithdrawalHandoff(
   const workflow = "ae780affa5cff58dd88250b3575d6948ed6608a47b3175492cf56fff3a5d90fb";
   return (
     purpose === "application" &&
-    source.execution_ref ===
-      "refs/tags/portcove-production-controller-windows-20261113-withdraw-29f33f57" &&
+    [
+      "refs/tags/portcove-production-controller-windows-20261113-withdraw-29f33f57",
+      "refs/tags/portcove-production-controller-windows-20261113-withdraw-29f33f57-r2",
+    ].includes(source.execution_ref) &&
     source.workflow_sha256 === workflow &&
     withdrawal !== null &&
     withdrawal.request_checkpoint === adoption.child &&
