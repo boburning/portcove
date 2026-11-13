@@ -745,7 +745,7 @@ pub(crate) fn rewrite_game_discs(config: &Path, sources: &[PathBuf]) -> Result<(
     }
     let body = fs::read_to_string(config)?;
     let (tokens, comments) = config_tokens(&body)?;
-    let (header_end, field) = config_disc_field(&body, &tokens)?;
+    let (header_end, field, companion) = config_disc_field(&body, &tokens)?;
     let newline = if body.contains("\r\n") { "\r\n" } else { "\n" };
     let sources = sources
         .iter()
@@ -758,7 +758,12 @@ pub(crate) fn rewrite_game_discs(config: &Path, sources: &[PathBuf]) -> Result<(
             )
         })
         .collect::<Result<Vec<_>>>()?;
-    let key = if sources.len() == 1 { "disc" } else { "discs" };
+    // A kit declaring both forms keeps both: the roster and its first disc.
+    let key = if sources.len() == 1 && companion.is_none() {
+        "disc"
+    } else {
+        "discs"
+    };
     let retained_comments = field
         .as_ref()
         .map(|(_, value)| {
@@ -769,12 +774,12 @@ pub(crate) fn rewrite_game_discs(config: &Path, sources: &[PathBuf]) -> Result<(
                 .collect::<Vec<_>>()
         })
         .unwrap_or_default();
-    let mut value = if sources.len() == 1 {
+    let mut value = if key == "disc" {
         sources[0].clone()
     } else {
         format!("[{newline}")
     };
-    if sources.len() > 1 {
+    if key == "discs" {
         for source in &sources {
             value.push_str(&format!("    {source},{newline}"));
         }
@@ -797,7 +802,18 @@ pub(crate) fn rewrite_game_discs(config: &Path, sources: &[PathBuf]) -> Result<(
     // the final newline are retained; comments within old values remain in order.
     // This is an editor for the fixed game/disc contract, not a TOML validator.
     let mut output = body.clone();
-    if let Some((old_key, old_value)) = field {
+    if let Some((_, companion_value)) = &companion {
+        // Replace the later span first so earlier offsets stay valid.
+        let (_, old_value) = field.as_ref().expect("a companion has a roster");
+        let mut spans = [
+            (old_value.clone(), value.as_str()),
+            (companion_value.clone(), sources[0].as_str()),
+        ];
+        spans.sort_by_key(|(range, _)| std::cmp::Reverse(range.start));
+        for (range, text) in spans {
+            output.replace_range(range, text);
+        }
+    } else if let Some((old_key, old_value)) = field {
         output.replace_range(old_value, &value);
         if config_key(&body, tokens_for_range(&tokens, &old_key))? != [key] {
             let replacement = match body.as_bytes()[old_key.start] {
@@ -1205,16 +1221,17 @@ fn config_key(body: &str, tokens: &[ConfigToken]) -> Result<Vec<String>> {
     Ok(parts)
 }
 
-type ConfigDiscField = (
-    usize,
-    Option<(std::ops::Range<usize>, std::ops::Range<usize>)>,
-);
+type ConfigDiscEntry = (std::ops::Range<usize>, std::ops::Range<usize>);
+/// The `[game]` header end, the disc field, and for PSXRecomp `7192402` kits
+/// that declare both forms, the singular `disc` beside the `discs` roster.
+type ConfigDiscField = (usize, Option<ConfigDiscEntry>, Option<ConfigDiscEntry>);
 
 fn config_disc_field(body: &str, tokens: &[ConfigToken]) -> Result<ConfigDiscField> {
     let mut cursor = 0;
     let mut in_game = false;
     let mut header_end = None;
-    let mut field = None;
+    let mut singular: Option<ConfigDiscEntry> = None;
+    let mut plural: Option<ConfigDiscEntry> = None;
     while cursor < tokens.len() {
         if tokens[cursor].kind == ConfigTokenKind::Newline {
             cursor += 1;
@@ -1294,20 +1311,28 @@ fn config_disc_field(body: &str, tokens: &[ConfigToken]) -> Result<ConfigDiscFie
                 .first()
                 .is_some_and(|key| matches!(key.as_str(), "disc" | "discs"))
         {
-            if key.len() != 1 || field.is_some() {
+            let is_plural = key[0] == "discs";
+            let slot = if is_plural {
+                &mut plural
+            } else {
+                &mut singular
+            };
+            if key.len() != 1 || slot.is_some() {
                 return Err(config_error("ambiguous disc field"));
             }
-            validate_disc_tokens(&tokens[value_start..cursor], key[0] == "discs")?;
-            field = Some((
+            validate_disc_tokens(&tokens[value_start..cursor], is_plural)?;
+            *slot = Some((
                 tokens[start].span.start..tokens[equals - 1].span.end,
                 tokens[value_start].span.start..tokens[cursor - 1].span.end,
             ));
         }
     }
-    Ok((
-        header_end.ok_or_else(|| config_error("missing game table"))?,
-        field,
-    ))
+    let header_end = header_end.ok_or_else(|| config_error("missing game table"))?;
+    Ok(match (singular, plural) {
+        // PSXRecomp reads `discs` when present; `disc` names disc 1.
+        (Some(singular), Some(plural)) => (header_end, Some(plural), Some(singular)),
+        (field, None) | (None, field) => (header_end, field, None),
+    })
 }
 
 fn validate_disc_tokens(tokens: &[ConfigToken], plural: bool) -> Result<()> {
@@ -3776,12 +3801,35 @@ mod tests {
     }
 
     #[test]
+    fn runtime_config_rewrite_keeps_both_fields_of_a_7192402_kit() {
+        // PSXRecomp 7192402 kits name disc 1 and the roster; the framework
+        // reads `discs` when present. Both are rewritten from verified sources.
+        let kit = "[game]\nname = \"Fixture\"\ndisc = \"disc/Fixture (Disc 1).cue\"\n# roster\ndiscs = [\n    \"disc/Fixture (Disc 1).cue\",\n    \"disc/Fixture (Disc 2).cue\",\n]\ndisc_serials = [\"A\", \"B\"]\n";
+        assert_eq!(
+            rewrite_config_fixture(kit, &["one.cue", "two.cue", "three.cue"]),
+            "[game]\nname = \"Fixture\"\ndisc = \"one.cue\"\n# roster\ndiscs = [\n    \"one.cue\",\n    \"two.cue\",\n    \"three.cue\",\n]\ndisc_serials = [\"A\", \"B\"]\n"
+        );
+        let single = "[game]\ndisc = \"disc/Azure.cue\"\ndiscs = [\"disc/Azure.cue\"]\n";
+        assert_eq!(
+            rewrite_config_fixture(single, &["only.cue"]),
+            "[game]\ndisc = \"only.cue\"\ndiscs = [\n    \"only.cue\",\n]\n"
+        );
+        // Either order works.
+        let reversed = "[game]\ndiscs = ['a.cue']\ndisc = 'a.cue'\n";
+        assert_eq!(
+            rewrite_config_fixture(reversed, &["x.cue", "y.cue"]),
+            "[game]\ndiscs = [\n    \"x.cue\",\n    \"y.cue\",\n]\ndisc = \"x.cue\"\n"
+        );
+    }
+
+    #[test]
     fn runtime_config_rewrite_rejects_ambiguous_or_unbounded_fields_without_writing() {
         let temporary = tempfile::tempdir().unwrap();
         let config = temporary.path().join("game.toml");
         for body in [
             "[runtime]\ndisc='old.cue'\n",
-            "[game]\ndisc='one.cue'\ndiscs=['two.cue']\n",
+            "[game]\ndisc='one.cue'\ndiscs=['two.cue']\ndisc='three.cue'\n",
+            "[game]\ndiscs=['one.cue']\ndisc='two.cue'\ndiscs=['three.cue']\n",
             "[game]\ndisc='one.cue'\n[ 'game' ]\ndisc='two.cue'\n",
             "[game]\ndisc = 42\n",
             "[game]\ndiscs = ['one.cue' 'two.cue']\n",

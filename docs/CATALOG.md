@@ -2280,6 +2280,10 @@ historical retained authority, with no current-catalog-only ownership grant.
 
 Managed PS1 launches regenerate `.portcove-psx-runtime.toml` from the verified
 `game.toml` template and current verified disc paths for both source modes.
+Core rewrites the `[game]` disc field from the verified sources. PSXRecomp
+`7192402` kits declare both `disc` (disc 1) and the `discs` roster, which the
+framework reads first; both are rewritten, `discs` with every verified disc and
+`disc` with the first. A repeated key, or a field outside `[game]`, is refused.
 Upstream launcher writes therefore affect a disposable copy; the template and
 source identities remain checked. An edited generated copy is replaced before
 it can become the next launch's source authority. This also accommodates
