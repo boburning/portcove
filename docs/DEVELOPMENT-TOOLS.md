@@ -1863,7 +1863,7 @@ read-only reviewer sandbox, and neither was observed here; the post-review
 personal `CLAUDE.local.md` or ancestor-directory `CLAUDE.md` suppresses it, as do
 instruction settings that select only `CLAUDE.md`. A Portcove `CLAUDE.md` or
 `CLAUDE.local.md` must import `@AGENTS.md` rather than copy the contract; check
-that an ancestor or user-level file does not displace it. Add native configuration only for a demonstrated gap that
+that an ancestor-directory file does not displace it. Add native configuration only for a demonstrated gap that
 Markdown cannot close, and record that gap with the change.
 
 ### Keeping recommendations current
