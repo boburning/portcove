@@ -6975,6 +6975,7 @@ mod tests {
                 ("resources/fixture.txt", b"fixture"),
                 ("shaders/fixture.txt", b"fixture"),
             ],
+            "elraro-atomic-bomberman" => &[("atomic_server.exe", b"MZ")],
             "jagged-alliance-2-ja2-stracciatella" => &[
                 ("externalized/fixture.txt", b"fixture"),
                 ("mods/fixture.txt", b"fixture"),
@@ -6996,7 +6997,12 @@ mod tests {
                 &folder,
                 executable,
                 package_files,
-                package_files.is_empty() && id != "gunstar-heroes-gunstars",
+                package_files.is_empty()
+                    && !matches!(
+                        id,
+                        "gunstar-heroes-gunstars"
+                            | "vyruz-destruction-of-the-untel-empire-openvyruz"
+                    ),
             );
             release.asset.name = asset_name.to_string();
             release

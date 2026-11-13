@@ -46818,6 +46818,34 @@
           "game_slug": "colin-mcrae-rally-2-0",
           "match_kind": "underlying-game"
         }
+      },
+      "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [
+            "licenses"
+          ],
+          "executables": [
+            "opencmr2.exe"
+          ]
+        },
+        "linux-x86-64": {
+          "directories": [
+            "licenses"
+          ],
+          "executables": [
+            "libsdl3.so.0",
+            "opencmr2"
+          ]
+        },
+        "macos-aarch64": {
+          "directories": [
+            "licenses"
+          ],
+          "executables": [
+            "libsdl3.0.dylib",
+            "opencmr2"
+          ]
+        }
       }
     },
     {
@@ -50245,6 +50273,22 @@
           "image_sha256": "4ebc44a0b86464bf4db64cc3cb23d4b7c1c05d3e9928f2106be0652eb2d86cc5",
           "game_slug": "atomic-bomberman",
           "match_kind": "underlying-game"
+        }
+      },
+      "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [],
+          "executables": [
+            "atomic.exe",
+            "atomic_server.exe"
+          ]
+        },
+        "linux-x86-64": {
+          "directories": [],
+          "executables": [
+            "atomic",
+            "atomic_server"
+          ]
         }
       }
     },
@@ -53910,6 +53954,33 @@
           "image_sha256": "40957c6438e7f6979f6ddf943d3be24beea35badb7d88d751236eb2537cc4446",
           "game_slug": "stunts",
           "match_kind": "underlying-game"
+        }
+      },
+      "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [
+            "locales",
+            "resources"
+          ],
+          "executables": [
+            "stunts hd.exe"
+          ]
+        },
+        "linux-x86-64": {
+          "directories": [
+            "locales",
+            "resources"
+          ],
+          "executables": [
+            "chrome-sandbox",
+            "chrome_crashpad_handler",
+            "libegl.so",
+            "libffmpeg.so",
+            "libglesv2.so",
+            "libvk_swiftshader.so",
+            "libvulkan.so.1",
+            "stunts-hd"
+          ]
         }
       }
     },
@@ -62387,6 +62458,20 @@
           "image_sha256": "59575e65a4aa51b62901ee362317de0999082530001f8ffd920166dc898b02be",
           "game_slug": "vyruz-destruction-of-the-untel-empire",
           "match_kind": "underlying-game"
+        }
+      },
+      "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [],
+          "executables": [
+            "vyruz.exe"
+          ]
+        },
+        "linux-x86-64": {
+          "directories": [],
+          "executables": [
+            "vyruz"
+          ]
         }
       }
     },
