@@ -1,0 +1,307 @@
+/**
+ * Release-content source for the #4129 maintenance inventory (#5353).
+ *
+ * Consumes the retained report of the latest successful scheduled `main` run of
+ * the release-content scan, bound by run identity and artifact digest. The scan
+ * keeps its authority: a finding is review evidence for a reviewed catalog
+ * hold, never a hold. This projection keeps only stable finding facts, so a
+ * reused package stays quiet in changes-only storage.
+ */
+import { createHash } from "node:crypto";
+import { MaintenanceStoreError } from "./maintenance-store.mts";
+import { zipJsonEntry } from "./maintenance-release-health.mts";
+
+const repository = "boburning/portcove";
+// The maintained in-memory artifact transfer accepts archives up to 8 MiB.
+const reportLimit = 8 * 1024 * 1024;
+const portIdPattern = /^[a-z0-9][a-z0-9-]{0,127}$/u;
+
+export interface ReleaseContentInput {
+  revision: string;
+  report: unknown;
+}
+
+/**
+ * The scan's not-scanned codes (`scripts/release-content-scan.mts`). Deferred
+ * targets are retried by a later run, so their port is a coverage gap; a
+ * persistent code means no run under the current limits scans the target, so
+ * it is a stored fact of the port.
+ */
+export const deferredCodes: readonly string[] = [
+  "time-budget",
+  "asset-budget",
+  "time-cut",
+  "release-read-failed",
+  "scan-failed",
+];
+export const persistentCodes: readonly string[] = [
+  "no-release",
+  "no-single-asset",
+  "asset-too-large",
+];
+
+export interface ContentSignalFact {
+  path: string;
+  kind: string;
+  reason: string;
+}
+
+/** One flagged package, by the fields that identify it and its evidence. */
+export interface ContentFinding {
+  platform: string;
+  repository: string;
+  tag: string;
+  asset: string;
+  sha256: string;
+  rules: number;
+  signals: ContentSignalFact[];
+}
+
+/** A stored `port:<id>` fact. */
+export interface ReleaseContentFact {
+  findings: ContentFinding[];
+  /** Targets no run scans under the current limits, with the scan's code. */
+  unscannable: { platform: string; code: string }[];
+}
+
+/** A port some of whose targets a later run scans; carries what this report found. */
+export interface ReleaseContentGap {
+  subject_key: string;
+  code: "release-content-deferred";
+  message: string;
+  deferred: { platform: string; code: string }[];
+  findings: ContentFinding[];
+}
+
+const text = (value: unknown): value is string => typeof value === "string" && value.length > 0;
+const unsupported = (detail: string) =>
+  new MaintenanceStoreError(`Unsupported release-content report: ${detail}`);
+const byText = (left: string, right: string) => (left < right ? -1 : left > right ? 1 : 0);
+const targetOf = (value: Record<string, unknown>, field: string) => {
+  if (!text(value.id) || !portIdPattern.test(value.id) || !text(value.platform))
+    throw unsupported(`${field} entry has no valid id and platform`);
+  return { id: value.id, platform: value.platform };
+};
+const records = (value: unknown, field: string) => {
+  if (!Array.isArray(value) || !value.every((item) => item && typeof item === "object"))
+    throw unsupported(`${field} is not a list of records`);
+  return value as Record<string, unknown>[];
+};
+
+function finding(record: Record<string, unknown>): ContentFinding {
+  const signals = records(record.signals, "findings[].signals");
+  if (
+    !text(record.repository) ||
+    !text(record.tag) ||
+    !text(record.asset) ||
+    typeof record.sha256 !== "string" ||
+    !/^[0-9a-f]{64}$/u.test(record.sha256) ||
+    !Number.isSafeInteger(record.rules) ||
+    !signals.length ||
+    !signals.every(
+      (signal) => text(signal.path) && text(signal.kind) && typeof signal.reason === "string",
+    )
+  )
+    throw unsupported("a finding lacks its package identity or signals");
+  return {
+    platform: String(record.platform),
+    repository: record.repository,
+    tag: record.tag,
+    asset: record.asset,
+    sha256: record.sha256,
+    rules: record.rules as number,
+    signals: signals
+      .map(({ path, kind, reason }) => ({
+        path: String(path),
+        kind: String(kind),
+        reason: String(reason),
+      }))
+      .sort((left, right) => byText(left.path, right.path) || byText(left.kind, right.kind)),
+  };
+}
+
+const findingOrder = (left: ContentFinding, right: ContentFinding) =>
+  byText(left.platform, right.platform) ||
+  byText(left.asset, right.asset) ||
+  byText(left.sha256, right.sha256);
+
+/** Per-port release-content facts and coverage from one scan report. */
+export function releaseContentFacts(report: unknown) {
+  const value = (report ?? {}) as Record<string, unknown>;
+  if (value.format_version !== 1 || !Number.isSafeInteger(value.reused))
+    throw unsupported("format_version or reused count");
+  const scanned = records(value.scanned, "scanned");
+  const reused = records(value.reused_targets, "reused_targets");
+  const unscanned = records(value.unscanned, "unscanned");
+  const flagged = records(value.findings, "findings");
+  if (reused.length !== value.reused) throw unsupported("reused_targets do not match reused");
+  // Every target the scan considered is exactly one of scanned, reused or not scanned.
+  const ports = new Map<string, Set<string>>();
+  const account = (target: { id: string; platform: string }) => {
+    const platforms = ports.get(target.id) ?? new Set<string>();
+    if (platforms.has(target.platform))
+      throw unsupported(`target ${target.id} (${target.platform}) is listed twice`);
+    ports.set(target.id, platforms.add(target.platform));
+  };
+  const covered = new Set<string>();
+  for (const record of [...scanned, ...reused]) {
+    const target = targetOf(record, "scanned or reused_targets");
+    account(target);
+    covered.add(`${target.id}\t${target.platform}`);
+  }
+  const deferred = new Map<string, { platform: string; code: string }[]>();
+  const unscannable = new Map<string, { platform: string; code: string }[]>();
+  for (const entry of unscanned) {
+    const target = targetOf(entry, "unscanned");
+    account(target);
+    const code = String(entry.code);
+    const into = deferredCodes.includes(code)
+      ? deferred
+      : persistentCodes.includes(code)
+        ? unscannable
+        : null;
+    if (!into) throw unsupported(`unknown not-scanned code ${code}`);
+    into.set(target.id, [...(into.get(target.id) ?? []), { platform: target.platform, code }]);
+  }
+  const findings = new Map<string, ContentFinding[]>();
+  for (const record of flagged) {
+    const target = targetOf(record, "findings");
+    if (!covered.has(`${target.id}\t${target.platform}`))
+      throw unsupported(`finding for ${target.id} (${target.platform}) has no scanned target`);
+    findings.set(target.id, [...(findings.get(target.id) ?? []), finding(record)]);
+  }
+  const ordered = (list: { platform: string; code: string }[] = []) =>
+    list
+      .map(({ platform, code }) => ({ platform, code }))
+      .sort((left, right) => byText(left.platform, right.platform));
+  const facts = new Map<string, ReleaseContentFact>();
+  const gaps: ReleaseContentGap[] = [];
+  for (const id of [...ports.keys()].sort(byText)) {
+    const found = (findings.get(id) ?? []).sort(findingOrder);
+    const pending = ordered(deferred.get(id));
+    if (pending.length)
+      // A finding stays visible from the gap; the port's stored fact waits for every target.
+      gaps.push({
+        subject_key: `port:${id}`,
+        code: "release-content-deferred",
+        message: `Not every release target was scanned in this report (${pending
+          .map(({ platform, code }) => `${platform}: ${code}`)
+          .join(", ")}); prior facts stay current.`,
+        deferred: pending,
+        findings: found,
+      });
+    else facts.set(`port:${id}`, { findings: found, unscannable: ordered(unscannable.get(id)) });
+  }
+  return { expected: ports.size, facts, gaps };
+}
+
+/** The latest successful scheduled main scan report, read-only. */
+export async function readReleaseContent(): Promise<ReleaseContentInput> {
+  const { createGitHubClient } = await import("./github-client.mts");
+  const { localDeveloperCredential } = await import("./github-cli.mts");
+  const { downloadGitHubArtifactArchive } = await import("./github-artifact-download.mts");
+  const deadline = performance.now() + 120_000;
+  const credential = localDeveloperCredential({
+    deadline,
+    command: process.env.PORTCOVE_ROADMAP_GH,
+  });
+  const prefix = `/repos/${repository}`;
+  let requests = 0;
+  const sdk = await createGitHubClient({
+    credential,
+    deadline,
+    maxBytes: 2 * 1024 * 1024,
+    headers: { accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28" },
+    allowRequest: (method, url) =>
+      method === "GET" &&
+      url.pathname.startsWith(`${prefix}/actions/`) &&
+      !url.pathname.endsWith("/zip"),
+    reserve() {
+      if (++requests > 8)
+        throw new MaintenanceStoreError("Release-content lookup exceeded its request budget");
+      return { consumeBytes() {}, settle() {} };
+    },
+  });
+  const get = async (endpoint: string) =>
+    (await sdk.request({ method: "GET", url: `https://api.github.com${prefix}/${endpoint}` }))
+      .data as Record<string, unknown>;
+  const runs = (
+    await get(
+      "actions/workflows/release-content-scan.yml/runs?event=schedule&branch=main&status=success&per_page=5",
+    )
+  ).workflow_runs as {
+    id: number;
+    run_attempt: number;
+    head_sha: string;
+    head_branch: string;
+    event: string;
+  }[];
+  // A dispatched run never counts, so it can never stand in as a receipt.
+  const run = runs.find(
+    (candidate) => candidate.head_branch === "main" && candidate.event === "schedule",
+  );
+  if (!run)
+    throw new MaintenanceStoreError("No successful scheduled main release-content scan was found");
+  const artifacts = (await get(`actions/runs/${run.id}/artifacts?per_page=10`)).artifacts as {
+    id: number;
+    name: string;
+    expired: boolean;
+    size_in_bytes: number;
+    digest?: string;
+  }[];
+  const artifact = artifacts.find(
+    (candidate) =>
+      candidate.name === `release-content-scan-${run.id}-${run.run_attempt}` && !candidate.expired,
+  );
+  if (!artifact?.digest?.startsWith("sha256:") || artifact.size_in_bytes > reportLimit)
+    throw new MaintenanceStoreError(
+      "The release-content report artifact is unavailable or unbound",
+    );
+  const archive = await downloadGitHubArtifactArchive(
+    `repos/${repository}/actions/artifacts/${artifact.id}/zip`,
+    {
+      credential,
+      deadline: performance.now() + 110_000,
+      maxBytes: Math.max(22, artifact.size_in_bytes),
+    },
+  );
+  const digest = createHash("sha256").update(archive).digest("hex");
+  if (`sha256:${digest}` !== artifact.digest)
+    throw new MaintenanceStoreError(
+      "The release-content artifact does not match its recorded digest",
+    );
+  return {
+    revision: `release-content-scan-run:${run.id}-${run.run_attempt}@${run.head_sha}#sha256:${digest}`,
+    report: zipJsonEntry(archive, "report.json"),
+  };
+}
+
+const storedFindings = (value: unknown) => {
+  const list = (value as { findings?: unknown } | null | undefined)?.findings;
+  return Array.isArray(list) ? (list as ContentFinding[]) : [];
+};
+
+/**
+ * The flagged packages the report shows for a port: its stored facts, and the
+ * findings the latest scan that did not fail carried on the port's deferral
+ * gap, so a finding is visible before every target of its port is scanned.
+ */
+export function releaseContentFindings(payload: unknown, gap?: unknown): ContentFinding[] {
+  const seen = new Set<string>();
+  return [...storedFindings(payload), ...storedFindings(gap)].filter((entry) => {
+    const key = `${entry.platform}\t${entry.asset}\t${entry.sha256}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+/** "Needs attention" text for each flagged package. */
+export function releaseContentAttention(payload: unknown, gap?: unknown) {
+  return releaseContentFindings(payload, gap).map(
+    (entry) =>
+      `release content: ${entry.platform} ${entry.tag} ${entry.asset} (${entry.signals
+        .map(({ path, reason }) => `${path}: ${reason}`)
+        .join("; ")})`,
+  );
+}

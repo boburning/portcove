@@ -73,6 +73,7 @@ requires a known denominator equal to that count with no gaps. `partial`,
 | Scoped qualification                | `catalog.json` `source_catalog.qualification[]` and `evidence[]`                                     | Exact scope per record; no catalog-wide denominator           |
 | Upstream observations               | `configured-upstream-observer.yml` checkpoint recovery snapshot (`observer-checkpoint-artifact.mts`) | Per port: every serving source completed with its policy      |
 | Release health                      | `scripts/upstream-health-monitor.mts` report and `work/upstream-health/checkpoint.json`              | Fresh complete, partial, stale and unmonitored port IDs       |
+| Release content                     | `scripts/release-content-scan.mts` report from `release-content-scan.yml`                            | Every target scanned, reused or not scanned with a typed code |
 | Hosted intake receipts              | `node scripts/hosted-discovery-intake.mts status --all --json` over the receipt comments on #177     | Every marker-bearing owner request in one drift-checked read  |
 | Definition publication              | `portcove --json catalog inspect-definition-publication DIR`                                         | Index digest and per-target digests on `main`                 |
 | Definition delivery                 | `portcove --json catalog inspect-definition-delivery`                                                | Serving status; verified published identities and targets     |
@@ -504,6 +505,56 @@ A digest-verified report from scheduled run 43066038874 (2026-11-11) covered
 - 3 ports have reviewed, accounted endpoint conditions that the triage keeps
   visible.
 
+### Release content
+
+`--release-content` (with `--all`) adds the `release-content` source
+([#5353](https://github.com/boburning/portcove/issues/5353)).
+
+- **Input:** the report from the latest successful scheduled `main` run of
+  [`release-content-scan.yml`](UPSTREAM-OBSERVATIONS.md#release-content-scan),
+  read like release health: through the maintained GitHub client and artifact
+  transfer, from the unexpired `release-content-scan-<run>-<attempt>` artifact
+  whose SHA-256 must match GitHub's recorded digest, with `report.json` read
+  through the bounded, CRC-checked ZIP reader. A dispatched scan never counts.
+  The run revision is
+  `release-content-scan-run:<run>-<attempt>@<head_sha>#sha256:<artifact digest>`.
+- **Report shape:** every target the scan considered (one per unheld listing
+  and hinted platform) must be exactly one of `scanned`, `reused_targets` or
+  `unscanned`, and every finding must belong to a scanned or reused target.
+  Each not-scanned target carries a stable `code`. Deferred codes are retried
+  by a later run: `time-budget`, `asset-budget`, `time-cut`,
+  `release-read-failed` and `scan-failed`. Persistent codes are not:
+  `no-release` and `no-single-asset` (nothing to download) and
+  `asset-too-large` (over the per-asset limit, so no run under the current
+  limits scans it). Any other shape or code is unsupported and fails the read.
+- **Stored facts:** a port is a `port:<id>` fact only when none of its targets
+  is deferred. The fact keeps each finding's platform, repository, tag, asset,
+  SHA-256, rules version and signals (path, kind and reason), sorted, plus each
+  persistent not-scanned target's platform and code. Entry counts, partial-read
+  counts, checkpoint keys and free-text reasons are dropped, so a package
+  reused from the scan's checkpoint stays quiet.
+- **Gaps:** a port with any deferred target is a `release-content-deferred` gap
+  that names each deferred platform and code, and makes the run `partial`. The
+  gap also carries the findings this report already has for the port. Runs
+  stay `partial` until the scan's checkpoint covers every target, which takes
+  many runs at its 40-asset budget.
+- **Failures:** an unavailable, unbound or unsupported report makes the run
+  `failed` with one `unavailable` gap; the last known facts stay current.
+- **Report:** "Needs attention" and the "Release content findings" section list
+  each flagged package with its listing, package identity and signals. They
+  read the port's stored facts and, from the latest run that did not fail, the
+  findings on its deferral gap. A finding is therefore visible from a `partial`
+  run, marked as not yet covering every target of the listing. A failed latest
+  read is named while the stored findings stay visible.
+- **Authority:** a finding is review evidence and never writes a hold. A person
+  confirms it, and a reviewed catalog change sets the listing's
+  `download_block_reason` under the
+  [rights basis](CATALOG.md#rights-basis-for-upstream-hosted-packages). A held
+  listing leaves the scan targets, so the next `complete` run records its
+  absence.
+- **Credentials:** as for release health, the artifact download needs the
+  GitHub `actions` scope.
+
 ### Definition publication
 
 Two sources keep three facts apart: what `main` holds, the content last
@@ -811,6 +862,7 @@ kind in code; it is never stored. Each entry names:
 | `upstream-observer-exception` | The observer's recorded rule and resume condition and a fix PR; `gh workflow run configured-upstream-observer.yml --ref main`                                     | Routine    | The next completed checkpoint snapshot                              |
 | `hosted-intake-blocked`       | `status --request <id> --json`; an owner reconciliation only when primary evidence changed, otherwise owner `process` dispatch ([route](DAILY-PORT-DISCOVERY.md)) | Owner only | A new bot receipt on #177                                           |
 | `hosted-intake-holds`         | `gh workflow run hosted-discovery-intake.yml --ref main -f mode=process`                                                                                          | Owner only | A new bot receipt on #177                                           |
+| `release-content-finding`     | A person confirms the flagged files, then a reviewed catalog PR sets `download_block_reason` when it is game data; no dispatch is offered                         | Routine    | The next scheduled main release-content scan no longer reports it   |
 
 A test parses every referenced workflow and checks its name, trigger and input
 names against the registry.
@@ -845,8 +897,8 @@ names against the registry.
 
 **Recording.** `collect --all` records handoffs in the collection transaction,
 and only after a `complete` run of the deciding source: the release-health,
-upstream-observation or hosted-intake run. While that run is `partial` or
-`failed`, no handoff of its kinds is recorded, changed or cleared, even for
+upstream-observation, hosted-intake or release-content run. While that run is
+`partial` or `failed`, no handoff of its kinds is recorded, changed or cleared, even for
 subjects it did observe.
 
 - Each attention subject gets an assessment `handoff:<kind>:<source subject>`
@@ -860,6 +912,10 @@ subjects it did observe.
     Partial-progress stops are excluded.
   - Hosted intake: the receipt comment, reconciliation and blocker code, or each
     held candidate's index, port key, repository ID, HTTP status and resume.
+  - Release content: each stored finding's platform, repository, tag, asset,
+    SHA-256, rules version and signals. Only the stored facts of a `complete`
+    run decide it, so a finding opens no handoff while any target is
+    deferred; a held listing leaves the scan and its handoff clears.
 - The assessment, transition and notification statements are the store's
   ordinary ones, so the existing guards apply. An unchanged condition resolves to
   the same assessment and records nothing. A changed condition is a new
@@ -958,8 +1014,8 @@ checkpoint 5 and is recorded there.
   script configures that repository.
 - **Credentials.** The collect job has `contents: read`, `actions: read` and
   `issues: read`.
-  - Release health, upstream observer snapshots and hosted intake read through
-    that job's `GITHUB_TOKEN`, passed as `GH_TOKEN`.
+  - Release health, release content, upstream observer snapshots and hosted
+    intake read through that job's `GITHUB_TOKEN`, passed as `GH_TOKEN`.
   - Only the issue and Project source reads the existing
     `PORTCOVE_ROADMAP_TOKEN`, read-only, as the Roadmap health workflow does. The
     token is passed as `PORTCOVE_ROADMAP_GH_TOKEN` and read through
@@ -970,8 +1026,9 @@ checkpoint 5 and is recorded there.
 - **Collect job.** It runs these steps in order:
   1. Build the debug Core CLI, sharing the observer's Rust cache.
   2. `migrate`.
-  3. `collect --all` with `--issues`, `--release-health`, `--publication`,
-     `--delivery`, `--upstream`, `--hosted-intake` and `--targets`. The collection transaction reaches the
+  3. `collect --all` with `--issues`, `--release-health`, `--release-content`,
+     `--publication`, `--delivery`, `--upstream`, `--hosted-intake` and
+     `--targets`. The collection transaction reaches the
      server as one batched query (psql `\;`), so a remote host costs one round
      trip rather than one per statement. The isolation and quoting settings
      run first as their own statements, because a batched query is parsed whole
@@ -1114,9 +1171,10 @@ stub Core CLI, using the collector and report roles. It checks:
 - full-versus-incremental parity;
 - per-call isolation and its removal, including under a symlinked `TMPDIR`;
 - coverage, listing and absence facts;
-- release-health, upstream-observation and hosted-intake coverage, quiet
-  recurrence, needs-attention and failed reads, with per-subject gaps from the
-  latest run that did not fail;
+- release-health, upstream-observation, hosted-intake and release-content
+  coverage, quiet recurrence, needs-attention and failed reads, with
+  per-subject gaps from the latest run that did not fail, including a
+  release-content finding shown from a `partial` run;
 - executor handoffs: one planned operation per appearance, quiet unchanged reruns
   and replays, no clearing by partial or failed runs, `clear` and
   `planned` to `abandoned` after a complete run, supersession and return

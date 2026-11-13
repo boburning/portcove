@@ -1426,6 +1426,8 @@
             "complete collection stores changes only, verifies membership and records absence",
             "each host platform keeps its own assessment history, gaps and latest run",
             "release health records coverage, quiet recurrence and needs-attention conditions",
+            "release content shows findings from partial runs and opens handoffs only after complete runs",
+            "a finding on a port with deferred targets is visible from the latest scan's gap",
             "upstream observations record coverage, quiet recurrence, attention and failed reads",
             "hosted intake records requests, quiet recurrence, attention, gaps and failed reads",
             "handoffs plan once, stay quiet, clear and abandon only after complete runs, and refuse stale fences",
@@ -1444,6 +1446,13 @@
       "memberships": [
         ["catalog-full", 1272],
         ["repository-tools", 407]
+      ]
+    },
+    {
+      "file": "scripts/maintenance-release-content.test.mts",
+      "memberships": [
+        ["catalog-full", 1277],
+        ["repository-tools", 412]
       ]
     },
     {

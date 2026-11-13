@@ -17,6 +17,7 @@ import {
   nextAction,
   openHandoffs,
   parseHandoffSubject,
+  releaseContentHandoffs,
   releaseHealthHandoffs,
   renderHandoffs,
   upstreamHandoffs,
@@ -39,6 +40,7 @@ void test("every attention kind has one disabled registry entry with an exact re
       "upstream-observer-exception",
       "hosted-intake-blocked",
       "hosted-intake-holds",
+      "release-content-finding",
     ],
   );
   for (const entry of handoffRegistry) {
@@ -300,6 +302,61 @@ void test("upstream exceptions and hosted intake requests become handoffs by the
       },
     },
   ]);
+});
+
+void test("release-content findings become routine handoffs that never write a hold", () => {
+  const finding = (platform: string) => ({
+    platform,
+    repository: "up/alpha",
+    tag: "v1",
+    asset: `alpha-${platform}.zip`,
+    sha256: "a".repeat(64),
+    rules: 2,
+    signals: [{ path: "data/x.bin", kind: "cartridge-header", reason: "synthetic header" }],
+  });
+  const handoffs = releaseContentHandoffs(
+    new Map<string, unknown>([
+      ["port:alpha", { findings: [finding("linux-x86-64")], unscannable: [] }],
+      // A clean port and an unscannable target are facts, not attention.
+      [
+        "port:beta",
+        { findings: [], unscannable: [{ platform: "linux-x86-64", code: "no-release" }] },
+      ],
+    ]),
+  );
+  assert.deepEqual(handoffs, [
+    {
+      kind: "release-content-finding",
+      source: "port:alpha",
+      condition: { findings: [finding("linux-x86-64")] },
+    },
+  ]);
+  const entry = handoffEntry("release-content-finding")!;
+  assert.equal(entry.source, "release-content");
+  assert.equal(entry.authority, "routine");
+  assert.equal(entry.workflow?.trigger, "schedule");
+  assert.match(entry.action, /download_block_reason/u);
+  assert.match(entry.action, /never writes a hold/u);
+  assert.match(
+    entry.receipt,
+    /no longer reports the finding; a held listing leaves the scan targets/u,
+  );
+  const text = nextAction({
+    subject_key: handoffSubject("release-content-finding", "port:alpha"),
+    kind: "release-content-finding",
+    source_subject: "port:alpha",
+    sequence: 1,
+    assessment_id: 3,
+    updated_at: "2026-11-13T00:00:00Z",
+    condition: handoffs[0]!.condition,
+    registry: entry,
+    operation: null,
+  });
+  assert.match(
+    text,
+    /Authority: routine\. Dispatch disabled: Confirming game data needs a person/u,
+  );
+  assert.match(text, /no operation recorded \(fence 1\)/u);
 });
 
 void test("open handoffs project onto the registry with their disabled dispatch and operation fence", () => {

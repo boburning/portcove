@@ -65,12 +65,32 @@ export interface ScanRecord {
   signals: ContentSignal[];
 }
 
+/**
+ * Why a target was not scanned. Deferred codes are retried by a later run;
+ * the terminal codes mean the target offers nothing to scan, and
+ * `asset-too-large` means the asset exceeds the per-asset limit, so no run
+ * under the current limits scans it.
+ */
+export const DEFERRED_UNSCANNED = [
+  "time-budget",
+  "asset-budget",
+  "time-cut",
+  "release-read-failed",
+  "scan-failed",
+] as const;
+export const PERSISTENT_UNSCANNED = ["no-release", "no-single-asset", "asset-too-large"] as const;
+export type UnscannedCode =
+  | (typeof DEFERRED_UNSCANNED)[number]
+  | (typeof PERSISTENT_UNSCANNED)[number];
+
 export interface ScanReport {
   format_version: 1;
   scanned: ScanRecord[];
+  /** Targets satisfied from the checkpoint; `reused` is their count. */
   reused: number;
+  reused_targets: { id: string; platform: string; key: string }[];
   findings: ScanRecord[];
-  unscanned: { id: string; platform: string; reason: string }[];
+  unscanned: { id: string; platform: string; code: UnscannedCode; reason: string }[];
 }
 
 const SKIPPED_ASSET = /(debug|symbols|pdb|source|src)[-_.]|\.(sha256|sig|asc|txt|json)$/i;
@@ -160,6 +180,7 @@ export async function scan(
     format_version: 1,
     scanned: [],
     reused: 0,
+    reused_targets: [],
     findings: [],
     unscanned: [],
   };
@@ -167,10 +188,10 @@ export async function scan(
   let budget = maxTotalBytes;
   let attempts = 0;
   for (const target of targets) {
-    const skip = (reason: string) =>
-      report.unscanned.push({ id: target.id, platform: target.platform, reason });
+    const skip = (code: UnscannedCode, reason: string) =>
+      report.unscanned.push({ id: target.id, platform: target.platform, code, reason });
     if (clock() >= deadline) {
-      skip("time budget reached; scanned in a later run");
+      skip("time-budget", "time budget reached; scanned in a later run");
       continue;
     }
     let releases: UpstreamRelease[];
@@ -179,33 +200,44 @@ export async function scan(
       if (!releaseCache.has(cacheKey)) releaseCache.set(cacheKey, deps.releases(target));
       releases = await releaseCache.get(cacheKey)!;
     } catch (error) {
-      skip(`release read failed: ${(error as Error).message}`);
+      skip("release-read-failed", `release read failed: ${(error as Error).message}`);
       continue;
     }
     const release = channelRelease(releases, target.channel);
     if (!release) {
-      skip("no published release in the channel");
+      skip("no-release", "no published release in the channel");
       continue;
     }
     const asset = hintedAsset(release.assets, target.hints);
     if (!asset) {
-      skip(`hints select no single asset in ${release.tag}`);
+      skip("no-single-asset", `hints select no single asset in ${release.tag}`);
       continue;
     }
     const key = assetKey(target, release.tag, asset);
     const known = next.get(key);
     if (known) {
       report.reused++;
+      report.reused_targets.push({ id: target.id, platform: target.platform, key });
       if (known.signals.length)
         report.findings.push({ ...known, id: target.id, platform: target.platform });
       continue;
     }
     if (attempts >= maxAssets || budget <= 0) {
-      skip("asset or byte budget reached; scanned in a later run");
+      skip("asset-budget", "asset or byte budget reached; scanned in a later run");
       continue;
     }
-    if (asset.size !== null && (asset.size > maxAssetBytes || asset.size > budget)) {
-      skip(`asset ${asset.name} exceeds the byte budget; retried when the budget allows`);
+    if (asset.size !== null && asset.size > maxAssetBytes) {
+      skip(
+        "asset-too-large",
+        `asset ${asset.name} exceeds the per-asset byte limit; not scanned under the current limits`,
+      );
+      continue;
+    }
+    if (asset.size !== null && asset.size > budget) {
+      skip(
+        "asset-budget",
+        `asset ${asset.name} exceeds the byte budget; retried when the budget allows`,
+      );
       continue;
     }
     attempts++;
@@ -237,14 +269,14 @@ export async function scan(
       };
       if (record.heads_unread && !record.signals.length && clock() >= deadline) {
         // A read cut by the clock says nothing about the package: retry it later.
-        skip(`asset ${asset.name} was cut by the time budget; scanned in a later run`);
+        skip("time-cut", `asset ${asset.name} was cut by the time budget; scanned in a later run`);
         continue;
       }
       next.set(key, record);
       report.scanned.push(record);
       if (record.signals.length) report.findings.push(record);
     } catch (error) {
-      skip(`asset ${asset.name} could not be scanned: ${(error as Error).message}`);
+      skip("scan-failed", `asset ${asset.name} could not be scanned: ${(error as Error).message}`);
     } finally {
       // Failed transfers spend the byte budget too, so a bad asset cannot repeat unbounded.
       budget -= await stat(file).then(

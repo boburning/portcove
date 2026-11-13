@@ -18,6 +18,7 @@ import { MaintenanceStoreError, runSql } from "./maintenance-store.mts";
 import { attentionConditions } from "./maintenance-release-health.mts";
 import { upstreamExceptions } from "./maintenance-upstream.mts";
 import { hostedIntakeAttention, type HostedIntakeFact } from "./maintenance-hosted-intake.mts";
+import { releaseContentFindings } from "./maintenance-release-content.mts";
 import { originalLocationReasons } from "./upstream-location-reasons.mts";
 import { isRecord } from "./runtime-values.mts";
 
@@ -29,10 +30,15 @@ export type HandoffKind =
   | "release-health-condition"
   | "upstream-observer-exception"
   | "hosted-intake-blocked"
-  | "hosted-intake-holds";
+  | "hosted-intake-holds"
+  | "release-content-finding";
 
 /** The collection source whose complete run decides a kind. */
-export type HandoffSource = "release-health" | "upstream-observations" | "hosted-intake";
+export type HandoffSource =
+  | "release-health"
+  | "upstream-observations"
+  | "hosted-intake"
+  | "release-content";
 
 export interface HandoffEntry {
   kind: HandoffKind;
@@ -165,6 +171,29 @@ export const handoffRegistry: readonly HandoffEntry[] = [
       "Process dispatch spends the dedicated Project credential and is owner-only; no delegated dispatch credential exists.",
     resume_condition:
       "The owner delegates process dispatch to a named executor that revalidates each hold's resume condition and records the new bot receipt.",
+  },
+  {
+    kind: "release-content-finding",
+    source: "release-content",
+    action:
+      "A person confirms the flagged files against the package. If it bundles original game data, a reviewed catalog change sets the listing's download_block_reason (docs/CATALOG.md#rights-basis-for-upstream-hosted-packages); the finding itself never writes a hold.",
+    invocation:
+      "Review the finding's package entries in the scan report, then a reviewed catalog PR setting download_block_reason when it is game data; the next scheduled run of release-content-scan.yml on main reports the result",
+    authority: "routine",
+    executor: "release-content-scan.yml",
+    workflow: {
+      file: ".github/workflows/release-content-scan.yml",
+      name: "Release content scan",
+      trigger: "schedule",
+      inputs: [],
+    },
+    receipt:
+      "The next scheduled main release-content scan report no longer reports the finding; a held listing leaves the scan targets.",
+    dispatch: "disabled",
+    disabled_reason:
+      "Confirming game data needs a person to review the package, the hold is a reviewed catalog change, and only a scheduled main report counts (a dispatched scan is never read as the receipt); no executor is authorized to open or merge that change unattended.",
+    resume_condition:
+      "A named executor is authorized to deliver reviewed hold PRs through the normal guarded merge route after a person confirms the finding, with the next scheduled main scan report as its receipt.",
   },
 ];
 
@@ -335,6 +364,33 @@ export function hostedIntakeHandoffs(facts: ReadonlyMap<string, unknown>): Hando
                   },
                 ]
               : [],
+          ),
+        },
+      });
+  }
+  return result;
+}
+
+/** Flagged release packages per port, from stored facts only. */
+export function releaseContentHandoffs(facts: ReadonlyMap<string, unknown>): HandoffCondition[] {
+  const result: HandoffCondition[] = [];
+  for (const [source, payload] of facts) {
+    const findings = releaseContentFindings(payload);
+    if (findings.length)
+      result.push({
+        kind: "release-content-finding",
+        source,
+        condition: {
+          findings: findings.map(
+            ({ platform, repository, tag, asset, sha256, rules, signals }) => ({
+              platform,
+              repository,
+              tag,
+              asset,
+              sha256,
+              rules,
+              signals: signals.map(({ path, kind, reason }) => ({ path, kind, reason })),
+            }),
           ),
         },
       });

@@ -156,12 +156,30 @@ void test("a scan flags copied headers, records coverage and reuses its checkpoi
     ["header"],
   );
   assert.deepEqual(first.report.unscanned, [
-    { id: "gitlab", platform: "windows-x86-64", reason: "hints select no single asset in v9" },
+    {
+      id: "gitlab",
+      platform: "windows-x86-64",
+      code: "no-single-asset",
+      reason: "hints select no single asset in v9",
+    },
   ]);
+  assert.deepEqual(first.report.reused_targets, []);
   const again: string[] = [];
   const second = await scan(targets, first.checkpoint, fakes(again));
   assert.equal(second.report.scanned.length, 0);
   assert.equal(second.report.reused, 2);
+  // Every reused target is named, so a consumer can account for each target.
+  assert.deepEqual(
+    second.report.reused_targets.map(({ id, platform, key }) => [
+      id,
+      platform,
+      key === first.report.scanned.find((record) => record.id === id)?.key,
+    ]),
+    [
+      ["code-only", "windows-x86-64", true],
+      ["header", "linux-x86-64", true],
+    ],
+  );
   assert.deepEqual(
     second.report.findings.map((record) => record.id),
     ["header"],
@@ -173,12 +191,24 @@ void test("budgets leave assets for a later run without guessing their contents"
   const limited = await scan(scanTargets(listings), new Map(), fakes([]), { maxAssets: 1 });
   assert.equal(limited.report.scanned.length, 1);
   assert.ok(limited.report.unscanned.some((entry) => entry.reason.includes("budget reached")));
+  assert.deepEqual(
+    limited.report.unscanned.map(({ id, code }) => [id, code]),
+    [
+      ["header", "asset-budget"],
+      ["gitlab", "no-single-asset"],
+    ],
+  );
   const small = await scan(scanTargets(listings), new Map(), fakes([]), { maxAssetBytes: 5 });
   assert.equal(small.report.scanned.length, 0);
   assert.ok(
     small.report.unscanned.every(
       (entry) => !entry.reason.includes("budget") || entry.reason.includes("exceeds"),
     ),
+  );
+  // An asset over the per-asset limit is never scanned under these limits, unlike a spent budget.
+  assert.deepEqual(
+    small.report.unscanned.map(({ code }) => code),
+    ["asset-too-large", "asset-too-large", "no-single-asset"],
   );
 });
 
@@ -256,6 +286,10 @@ void test("failed downloads spend the asset and byte budgets and the deadline st
     bytes.report.unscanned.map((entry) => entry.reason.includes("budget")),
     [false, true, false],
   );
+  assert.deepEqual(
+    bytes.report.unscanned.map(({ code }) => code),
+    ["scan-failed", "asset-budget", "no-single-asset"],
+  );
   let now = 0;
   const late = await scan(scanTargets(listings), new Map(), fakes([]), {
     deadline: 1,
@@ -263,6 +297,7 @@ void test("failed downloads spend the asset and byte budgets and the deadline st
   });
   assert.equal(late.report.scanned.length, 1);
   assert.ok(late.report.unscanned.every((entry) => entry.reason.startsWith("time budget")));
+  assert.ok(late.report.unscanned.every(({ code }) => code === "time-budget"));
 });
 
 void test("a published digest that differs from the bytes is not scanned", async () => {
@@ -320,4 +355,5 @@ void test("a package whose reads the deadline cut is retried instead of recorded
   assert.equal(report.scanned.length, 0);
   assert.equal(checkpoint.size, 0);
   assert.ok(report.unscanned.some((entry) => entry.reason.includes("cut by the time budget")));
+  assert.ok(report.unscanned.some(({ code }) => code === "time-cut"));
 });

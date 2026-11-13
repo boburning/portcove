@@ -1064,3 +1064,6 @@ continues in a later run. Each record notes candidate files it could not read
 or did not reach. The job summary lists findings first, each finding is also a
 workflow warning, and the report artifact keeps every record for 30 days.
 Nested archives and installers are listed only at their outer level.
+Findings from the latest scheduled `main` report reach the
+[maintenance inventory](MAINTENANCE-STORE.md#release-content) with their
+listing and evidence, and a `complete` report opens a routine handoff for each.

@@ -44,6 +44,13 @@ import {
   type ReleaseHealthInput,
 } from "./maintenance-release-health.mts";
 import {
+  readReleaseContent,
+  releaseContentAttention,
+  releaseContentFacts,
+  releaseContentFindings,
+  type ReleaseContentInput,
+} from "./maintenance-release-content.mts";
+import {
   readUpstreamObservations,
   upstreamAttention,
   upstreamObservation,
@@ -73,6 +80,7 @@ import {
   parseHandoffSubject,
   readOpenHandoffs,
   recordHandoffOperations,
+  releaseContentHandoffs,
   releaseHealthHandoffs,
   renderHandoffs,
   upstreamHandoffs,
@@ -98,6 +106,10 @@ export const unsupportedSources = [
   ["project", "No maintained export of Project item field values."],
   ["upstream-observations", "Observer checkpoints are cache-only and not yet joined."],
   ["release-health", "Monitor history is cache-only and not yet joined."],
+  [
+    "release-content",
+    "Not collected; collect --all --release-content reads the latest scheduled main release-content scan report.",
+  ],
   [
     "hosted-intake",
     "Not collected; collect --all --hosted-intake reads #177 through the executor's read-only status.",
@@ -1122,6 +1134,7 @@ export function collectionSql(input: {
     core: ReadonlyMap<string, string>;
     issues?: ReadonlyMap<string, string>;
     releaseHealth?: ReadonlyMap<string, string>;
+    releaseContent?: ReadonlyMap<string, string>;
     upstream?: ReadonlyMap<string, string>;
     hostedIntake?: ReadonlyMap<string, string>;
     publication?: ReadonlyMap<string, string>;
@@ -1163,6 +1176,15 @@ export function collectionSql(input: {
     expected: number | null;
     facts: ReadonlyMap<string, unknown>;
     gaps: { subject_key: string; code: string; message: string }[];
+  };
+  releaseContent?: {
+    revision: string;
+    /** The report could not be read: a failed run, prior facts stay current. */
+    failed?: boolean;
+    expected: number | null;
+    facts: ReadonlyMap<string, unknown>;
+    /** Deferred ports; each carries the findings this report already has for it. */
+    gaps: SourceGap[];
   };
   upstream?: UpstreamObservation;
   hostedIntake?: HostedIntakeObservation;
@@ -1218,6 +1240,7 @@ export function collectionSql(input: {
            coreSource,
            ...(input.issues ? ["issues-project"] : []),
            ...(input.releaseHealth ? ["release-health"] : []),
+           ...(input.releaseContent ? ["release-content"] : []),
            ...(input.upstream ? ["upstream-observations"] : []),
            ...(input.hostedIntake ? ["hosted-intake"] : []),
            ...(input.publication ? ["definition-publication"] : []),
@@ -1385,6 +1408,23 @@ export function collectionSql(input: {
         payload,
       });
   }
+  const contentFacts = new Map<string, Fact>();
+  const contentRun = `release-content:${token}`;
+  if (input.releaseContent) {
+    if (input.mode !== "all")
+      throw new MaintenanceStoreError("Release-content collection requires --all");
+    lines.push(
+      `INSERT INTO portcove_maintenance.collection_runs (run_id, source, runner, source_revision, started_at, acquisition) VALUES
+        (${literal(contentRun)}, 'release-content', ${literal(input.runner)}, ${literal(input.releaseContent.revision)}, ${literal(input.startedAt)}, ${acquisition});`,
+    );
+    for (const [key, payload] of input.releaseContent.facts)
+      contentFacts.set(key, {
+        digest: sha256(canonicalJson(payload)),
+        scope: { source: "release-content" },
+        revision: input.releaseContent.revision,
+        payload,
+      });
+  }
   const upstreamFactsByKey = new Map<string, Fact>();
   const upstreamRun = `upstream-observations:${token}`;
   if (input.upstream) {
@@ -1456,6 +1496,20 @@ export function collectionSql(input: {
       healthFacts,
       input.latest?.releaseHealth,
       input.releaseHealth.expected,
+    ]);
+  if (input.releaseContent)
+    runs.push([
+      contentRun,
+      input.releaseContent.revision,
+      input.releaseContent.failed
+        ? "failed"
+        : input.releaseContent.gaps.length
+          ? "partial"
+          : "complete",
+      input.releaseContent.gaps,
+      contentFacts,
+      input.latest?.releaseContent,
+      input.releaseContent.expected,
     ]);
   if (input.upstream)
     runs.push([
@@ -1569,6 +1623,7 @@ export function collectionSql(input: {
     [coreRun, coreSource],
     [issueRun, "issues-project"],
     [healthRun, "release-health"],
+    [contentRun, "release-content"],
     [upstreamRun, "upstream-observations"],
     [hostedRun, "hosted-intake"],
   ]);
@@ -1604,6 +1659,11 @@ export function collectionSql(input: {
       complete.set("release-health", {
         run: healthRun,
         conditions: releaseHealthHandoffs(input.releaseHealth.facts),
+      });
+    if (input.releaseContent && !input.releaseContent.gaps.length)
+      complete.set("release-content", {
+        run: contentRun,
+        conditions: releaseContentHandoffs(input.releaseContent.facts),
       });
     if (input.upstream && !input.upstream.failed && !input.upstream.gaps.length)
       complete.set("upstream-observations", {
@@ -1753,6 +1813,8 @@ export async function collect(options: {
     | undefined;
   /** With `all`, also collect the latest scheduled release-health report. */
   releaseHealth?: (() => Promise<ReleaseHealthInput>) | undefined;
+  /** With `all`, also collect the latest scheduled release-content scan report. */
+  releaseContent?: (() => Promise<ReleaseContentInput>) | undefined;
   /** With `all`, also collect the newest retained upstream observer checkpoint. */
   upstream?: (() => Promise<UpstreamInput>) | undefined;
   /** With `all`, also collect every #177 hosted-intake request through the executor's status. */
@@ -1886,6 +1948,14 @@ export async function collect(options: {
         return { revision: report.revision, ...releaseHealthFacts(report.report) };
       })
     : undefined;
+  if (options.releaseContent && !options.all)
+    throw new MaintenanceStoreError("Release-content collection requires --all");
+  const contentRead = options.releaseContent
+    ? await sourceOutcome(async () => {
+        const report = await options.releaseContent!();
+        return { revision: report.revision, ...releaseContentFacts(report.report) };
+      })
+    : undefined;
   if (options.upstream && !options.all)
     throw new MaintenanceStoreError("Upstream-observation collection requires --all");
   const upstream = options.upstream ? await upstreamObservation(options.upstream) : undefined;
@@ -1957,6 +2027,19 @@ export async function collect(options: {
                 },
           }
         : {}),
+      ...(contentRead
+        ? {
+            releaseContent: contentRead.ok
+              ? contentRead.value
+              : {
+                  revision: "release-content:unavailable",
+                  failed: true,
+                  expected: null,
+                  facts: new Map(),
+                  gaps: [failedSource("source:release-content-report", contentRead.message)],
+                },
+          }
+        : {}),
       ...(upstream ? { upstream } : {}),
       ...(hostedIntake ? { hostedIntake } : {}),
       ...(targetsRead?.ok ? { producer: targetsRead.value.producer, coreSourceClean } : {}),
@@ -2007,6 +2090,7 @@ export async function collect(options: {
               core: members(coreSourceName(platform)),
               ...(issueRead ? { issues: members("issues-project") } : {}),
               ...(healthRead ? { releaseHealth: members("release-health") } : {}),
+              ...(contentRead ? { releaseContent: members("release-content") } : {}),
               ...(upstream ? { upstream: members("upstream-observations") } : {}),
               ...(hostedIntake ? { hostedIntake: members("hosted-intake") } : {}),
               ...(publicationRead ? { publication: members("definition-publication") } : {}),
@@ -2022,6 +2106,7 @@ export async function collect(options: {
     coreSourceName(platform),
     ...(issueRead ? ["issues-project"] : []),
     ...(healthRead ? ["release-health"] : []),
+    ...(contentRead ? ["release-content"] : []),
     ...(upstream ? ["upstream-observations"] : []),
     ...(hostedIntake ? ["hosted-intake"] : []),
     ...(publicationRead ? ["definition-publication"] : []),
@@ -2074,6 +2159,7 @@ export async function collect(options: {
     failed_sources: [
       ...(issueRead && !issueRead.ok ? ["issues-project"] : []),
       ...(healthRead && !healthRead.ok ? ["release-health"] : []),
+      ...(contentRead && !contentRead.ok ? ["release-content"] : []),
       ...(upstream?.failed ? ["upstream-observations"] : []),
       ...(hostedIntake?.failed ? ["hosted-intake"] : []),
       ...(publicationRead && !publicationRead.ok ? ["definition-publication"] : []),
@@ -2089,6 +2175,16 @@ export async function collect(options: {
       : deliveryRead
         ? { serving: "inspection-unavailable", published: 0 }
         : null,
+    release_content: contentRead
+      ? contentRead.ok
+        ? {
+            revision: contentRead.value.revision,
+            coverage: contentRead.value.gaps.length ? "partial" : "complete",
+            facts: contentRead.value.facts.size,
+            gaps: contentRead.value.gaps.length,
+          }
+        : { revision: "release-content:unavailable", coverage: "failed", facts: 0, gaps: 1 }
+      : null,
     upstream: upstream
       ? {
           revision: upstream.revision,
@@ -2132,6 +2228,12 @@ const reportQuery = `WITH latest_issue AS (
       FROM portcove_maintenance.observations o
       JOIN portcove_maintenance.collection_runs r ON r.run_id = o.run_id
       WHERE r.source = 'release-health' AND r.coverage <> 'in_progress'
+      ORDER BY o.subject_key, r.acquisition DESC, o.observation_id DESC
+  ), latest_content AS (
+    SELECT DISTINCT ON (o.subject_key) o.subject_key, o.payload
+      FROM portcove_maintenance.observations o
+      JOIN portcove_maintenance.collection_runs r ON r.run_id = o.run_id
+      WHERE r.source = 'release-content' AND r.coverage <> 'in_progress'
       ORDER BY o.subject_key, r.acquisition DESC, o.observation_id DESC
   ), latest_upstream AS (
     SELECT DISTINCT ON (o.subject_key) o.subject_key, o.payload
@@ -2298,6 +2400,14 @@ SELECT json_build_object(
               ORDER BY acquisition DESC LIMIT 1) hr
            CROSS JOIN LATERAL jsonb_array_elements(hr.gaps) g
            WHERE g ->> 'subject_key' = c.port_key LIMIT 1) AS latest_health_gap,
+        (SELECT CASE WHEN rc.payload = portcove_maintenance.absent_payload() THEN NULL ELSE rc.payload END
+           FROM latest_content rc WHERE rc.subject_key = c.port_key) AS release_content,
+        (SELECT g FROM (
+            SELECT gaps FROM portcove_maintenance.collection_runs
+              WHERE source = 'release-content' AND coverage NOT IN ('in_progress', 'failed')
+              ORDER BY acquisition DESC LIMIT 1) cr
+           CROSS JOIN LATERAL jsonb_array_elements(cr.gaps) g
+           WHERE g ->> 'subject_key' = c.port_key LIMIT 1) AS latest_content_gap,
         (SELECT CASE WHEN u.payload = portcove_maintenance.absent_payload() THEN NULL ELSE u.payload END
            FROM latest_upstream u WHERE u.subject_key = c.port_key) AS upstream,
         (SELECT CASE WHEN t.payload = portcove_maintenance.absent_payload() THEN NULL ELSE t.payload END
@@ -2702,6 +2812,9 @@ export function buildReport(environment: NodeJS.ProcessEnv, now = new Date()): I
   const healthObserved = (data.runs as { source: string }[]).some(
     ({ source }) => source === "release-health",
   );
+  const contentObserved = (data.runs as { source: string }[]).some(
+    ({ source }) => source === "release-content",
+  );
   const upstreamObserved = (data.runs as { source: string }[]).some(
     ({ source }) => source === "upstream-observations",
   );
@@ -2749,6 +2862,7 @@ export function buildReport(environment: NodeJS.ProcessEnv, now = new Date()): I
     unsupported_sources: unsupportedSources
       .filter(([source]) => !(issuesObserved && (source === "issues" || source === "project")))
       .filter(([source]) => !(healthObserved && source === "release-health"))
+      .filter(([source]) => !(contentObserved && source === "release-content"))
       .filter(([source]) => !(upstreamObserved && source === "upstream-observations"))
       .filter(([source]) => !(hostedObserved && source === "hosted-intake"))
       .filter(([source]) => !(mainObserved && source === "definition-publication"))
@@ -2940,6 +3054,58 @@ ${report.hosted_intake
 }
 
 /**
+ * Flagged release packages per listing: from its stored release-content facts,
+ * and from the latest scan that did not fail while that scan has not yet
+ * covered every target of the port. Each package names its evidence.
+ */
+function releaseContentSection(report: InventoryReport) {
+  const observed = (report.runs as { source: string }[]).some(
+    ({ source }) => source === "release-content",
+  );
+  if (!observed) return "";
+  const attempt = failedAttempt(report, "release-content");
+  const seen = new Set<string>();
+  const rows: string[] = [];
+  for (const subject of report.subjects as Record<string, unknown>[]) {
+    const port = String(subject.port_key);
+    if (seen.has(port)) continue;
+    seen.add(port);
+    const stored = new Set(
+      releaseContentFindings(subject.release_content).map(
+        ({ platform, asset, sha256: digest }) => `${platform}\t${asset}\t${digest}`,
+      ),
+    );
+    const name = (subject.identity as { name?: string } | undefined)?.name;
+    for (const entry of releaseContentFindings(subject.release_content, subject.latest_content_gap))
+      rows.push(
+        `<tr><td>${escapeHtml(port)}${name ? `<br>${escapeHtml(name)}` : ""}</td><td>${escapeHtml(entry.platform)}: ${escapeHtml(entry.repository)} ${escapeHtml(entry.tag)}<br><code>${escapeHtml(entry.asset)}</code><br>sha256 <code>${escapeHtml(entry.sha256)}</code> · rules ${escapeHtml(entry.rules)}</td><td>${entry.signals
+          .map(
+            (signal) =>
+              `<code>${escapeHtml(signal.path)}</code>: ${escapeHtml(signal.reason)} (${escapeHtml(signal.kind)})`,
+          )
+          .join("<br>")}</td><td>${
+          stored.has(`${entry.platform}\t${entry.asset}\t${entry.sha256}`)
+            ? "stored fact"
+            : '<span class="unknown">latest scan; not every target of the listing scanned yet</span>'
+        }</td><td>${escapeHtml(nextActions(report, port, subject.subject_key).join("; "))}</td></tr>`,
+      );
+  }
+  return `<h2>Release content findings</h2>
+<p>Game-data signals the scheduled release-content scan found in upstream release packages. A finding is review evidence: a person confirms it, and only a reviewed catalog change sets the listing's download hold.${
+    attempt
+      ? ` <span class="unknown">Latest read failed: ${escapeHtml(attempt)}; earlier facts stay current.</span>`
+      : ""
+  }</p>
+${
+  rows.length
+    ? `<table><thead><tr><th>Listing</th><th>Package</th><th>Evidence</th><th>Basis</th><th>Next action</th></tr></thead><tbody>
+${rows.join("\n")}
+</tbody></table>`
+    : "<p>No flagged release packages.</p>"
+}`;
+}
+
+/**
  * Core's per-target offering in words: the managed or external route per
  * platform, the reviewed hold or restriction, and Core's own unknowns.
  */
@@ -3061,6 +3227,8 @@ export function renderHtml(report: InventoryReport) {
         alternatives,
         release_health,
         latest_health_gap,
+        release_content,
+        latest_content_gap,
         upstream,
         latest_upstream_gap,
         target_routes,
@@ -3082,6 +3250,7 @@ export function renderHtml(report: InventoryReport) {
             ({ rule, operation }) => `${rule ?? "unknown"} (${operation ?? "unknown"})`,
           ),
           ...upstreamAttention(upstream, latest_upstream_gap),
+          ...releaseContentAttention(release_content, latest_content_gap),
         ],
         // A failed latest read is visible; per-port gaps come from the latest read that did not fail.
         latest_health_gap:
@@ -3181,6 +3350,7 @@ ${report.unsupported_sources
 ${publicationSection(report)}
 ${reconsiderationSection(report)}
 ${hostedIntakeSection(report)}
+${releaseContentSection(report)}
 <p>Next actions are executor handoffs. Disabled: ${escapeHtml(disabledCapabilities.join("; "))}.</p>
 <h2>Games and implementations</h2>
 <p>Every known port, implementation identity, issue-only implementation, intake request and definition. Related entries are linked, never merged; names are labels, not identity.</p>
@@ -3419,6 +3589,8 @@ commands:
                                        offering for a fresh library (catalog inspect-targets);
                                        --release-health (with --all) adds the latest scheduled
                                        main upstream-health report, bound by run and digest;
+                                       --release-content (with --all) adds the latest scheduled
+                                       main release-content scan report, bound by run and digest;
                                        --upstream (with --all) adds the newest retained upstream
                                        observer checkpoint snapshot from a completed schedule or
                                        push main run, bound by run, source and artifact digest;
@@ -3486,6 +3658,9 @@ export async function main(argv = process.argv.slice(2)) {
   const healthIndex = args.indexOf("--release-health");
   const releaseHealth = healthIndex >= 0;
   if (releaseHealth) args.splice(healthIndex, 1);
+  const contentIndex = args.indexOf("--release-content");
+  const releaseContent = contentIndex >= 0;
+  if (releaseContent) args.splice(contentIndex, 1);
   const upstreamIndex = args.indexOf("--upstream");
   const upstreamSource = upstreamIndex >= 0;
   if (upstreamSource) args.splice(upstreamIndex, 1);
@@ -3528,6 +3703,7 @@ export async function main(argv = process.argv.slice(2)) {
           concurrency: concurrency === undefined ? undefined : Number(concurrency),
           issues: issues ? () => readIssueInventory(issueCredential) : undefined,
           releaseHealth: releaseHealth ? readReleaseHealth : undefined,
+          releaseContent: releaseContent ? readReleaseContent : undefined,
           upstream: upstreamSource ? () => readUpstreamObservations(committedBytes) : undefined,
           hostedIntake: hostedSource ? readHostedIntake : undefined,
           publication: publication || undefined,
