@@ -75,6 +75,9 @@ jobs:
           cache-on-failure: true
       - name: Build the Core CLI that assesses every port
         timeout-minutes: 40
+        env:
+          # Core reports this revision, so assessments bind the exact source.
+          PORTCOVE_SOURCE_REVISION: ${{ github.sha }}
         run: |
           mkdir -p "$(dirname "$PORTCOVE_STEP_TIMES")"
           started=$EPOCHSECONDS

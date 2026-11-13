@@ -518,6 +518,10 @@ since can differ.
   `not_found`), declared platforms, the reviewed acquisition hold, the download
   restriction, and whether the managed route must resolve a provider release on
   that target.
+- The report names its `producer`: the source revision recorded at build time
+  (`PORTCOVE_SOURCE_REVISION`, or `null` when the build recorded none), the
+  compiled Cargo features that can change catalog or archive behavior, and the
+  SHA-256 of the embedded catalog. Maintenance binds results to it.
 - Definition trust eligibility and readiness are always `unknown`: a library
   and an installation decide them. Another host's result is never relabelled as
   this target's. The format-1 report is maintenance evidence (#4129), not an

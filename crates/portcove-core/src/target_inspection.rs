@@ -24,9 +24,40 @@ pub const INSPECTABLE_PLATFORMS: [Platform; 4] = [
 /// At most this many ports per request; a caller batches beyond it.
 pub const MAX_INSPECTED_PORTS: usize = 4096;
 
+/// The Core that produced a report, so maintenance binds results to exact inputs.
+#[derive(Debug, Clone, Serialize, JsonSchema)]
+pub struct CoreProducer {
+    /// Source revision recorded at build time (`PORTCOVE_SOURCE_REVISION`); absent
+    /// when the build did not record one, which leaves the binding unverified.
+    pub source_revision: Option<&'static str>,
+    /// Cargo features compiled into Core that can change catalog or archive behavior.
+    pub features: Vec<&'static str>,
+    /// SHA-256 of the catalog compiled into this binary.
+    pub embedded_catalog_sha256: String,
+}
+
+impl CoreProducer {
+    pub fn current() -> Self {
+        let mut features = Vec::new();
+        if cfg!(feature = "qualification-fixtures") {
+            features.push("qualification-fixtures");
+        }
+        if cfg!(feature = "archive-fuzzing") {
+            features.push("archive-fuzzing");
+        }
+        Self {
+            source_revision: option_env!("PORTCOVE_SOURCE_REVISION")
+                .filter(|revision| !revision.is_empty()),
+            features,
+            embedded_catalog_sha256: crate::catalog::embedded_catalog_sha256(),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, JsonSchema)]
 pub struct TargetInspection {
     pub format_version: u32,
+    pub producer: CoreProducer,
     /// What this report decides and what it leaves to a host and library.
     pub scope: &'static str,
     pub platforms: Vec<Platform>,
@@ -136,6 +167,7 @@ pub fn inspect_targets(
         .collect();
     Ok(TargetInspection {
         format_version: 1,
+        producer: CoreProducer::current(),
         scope: "catalog route offering per target for a fresh library; definition trust, installed state, readiness and native evidence are not assessed",
         platforms,
         ports,
@@ -299,6 +331,25 @@ mod tests {
             assert!(!install.offered);
             assert_eq!(install.reason, Some(PortActionReason::RouteNotOffered));
         }
+    }
+
+    #[test]
+    fn the_report_names_the_producing_core() {
+        let catalog = Catalog::embedded().unwrap();
+        let producer = inspect_targets(&catalog, &["x".into()], &[])
+            .unwrap()
+            .producer;
+        assert_eq!(producer.embedded_catalog_sha256.len(), 64);
+        assert!(
+            producer
+                .embedded_catalog_sha256
+                .bytes()
+                .all(|byte| byte.is_ascii_hexdigit())
+        );
+        assert_eq!(
+            producer.features.contains(&"qualification-fixtures"),
+            cfg!(feature = "qualification-fixtures")
+        );
     }
 
     #[test]

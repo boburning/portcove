@@ -420,8 +420,8 @@ pub use support_bundle_export::{
     prepare_support_log_directory,
 };
 pub use target_inspection::{
-    CatalogPresence, INSPECTABLE_PLATFORMS, MAX_INSPECTED_PORTS, PortTargetInspection,
-    TargetInspection, TargetRoute, TargetRoutes, Unassessed, inspect_targets,
+    CatalogPresence, CoreProducer, INSPECTABLE_PLATFORMS, MAX_INSPECTED_PORTS,
+    PortTargetInspection, TargetInspection, TargetRoute, TargetRoutes, Unassessed, inspect_targets,
 };
 pub use thunderstore::ThunderstoreClient;
 pub use types::*;
