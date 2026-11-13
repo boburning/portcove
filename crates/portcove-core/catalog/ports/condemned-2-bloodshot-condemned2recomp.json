@@ -3,7 +3,7 @@
   "listing": {
     "id": "condemned-2-bloodshot-condemned2recomp",
     "name": "Condemned 2: Bloodshot / Condemned2Recomp",
-    "summary": "Register an independently permitted, upstream-prepared Condemned 2: Bloodshot / Condemned2Recomp native Windows player. Keep original data, preparation and runtime replacement upstream.",
+    "summary": "Add an upstream-prepared Condemned 2: Bloodshot / Condemned2Recomp native Windows player you already have. Keep original data, preparation and runtime replacement upstream.",
     "project_url": "https://github.com/psxrestore/Condemned2Recomp",
     "issue_number": 361,
     "listed_at": "2026-10-23",
@@ -26,8 +26,8 @@
       "help_url": "https://github.com/psxrestore/Condemned2Recomp/releases",
       "steps": [
         {
-          "title": "Use an independently permitted completed copy",
-          "instruction": "Attach only a complete existing copy and components you are independently permitted to use. Fresh acquisition of the selected package remains held for the named ZT Nature font components; the BSD project grant does not resolve their separate application-bundling permission."
+          "title": "Use a completed copy you already have",
+          "instruction": "Add only a complete copy you already have. Portcove downloads are paused because the package includes a shader cache built from the game’s own shaders."
         },
         {
           "title": "Prepare your own supported original upstream",
@@ -44,7 +44,7 @@
       ],
       "warnings": [
         "Use only a copy and components you are permitted to use. Before changing versions, keep a copy of the complete working game, original files and every profile, save, cache, mod, backup, temporary file and custom data location. Another executable may use the same data. Portcove does not offer updates, backups, rollback, data migration or deletion for these external files.",
-        "BSD-3-Clause project shell; THIRD-PARTY-NOTICES describes separate dependencies. No original game assets are provided. Package contains ZTNature fonts; no independent font grant was identified in this bounded notice read, and project grant is not a whole-package IP certificate.",
+        "BSD-3-Clause project shell; THIRD-PARTY-NOTICES describes separate dependencies. The package also includes ZT Nature fonts that the project license does not cover.",
         "Work in progress; upstream reports possible bugs and crashes. No native gameplay/save observation here.",
         "Accepting one starts condemned2recomp_updater.exe and ends the old player. Perform deliberate updates and any successor launch as upstream maintenance outside the attached session; no successor is adopted automatically."
       ],
@@ -59,6 +59,6 @@
         }
       ]
     },
-    "download_block_reason": "Fresh acquisition of the selected Condemned 2 package remains held for its bundled ZT Nature Black/Medium fonts: the captured project/dependency notices do not establish an applicable bundled-application redistribution grant for those exact font bytes. Resume with attributable permission for that operation or a reviewed compatible package resolving the component. Later source replacement fonts do not qualify this older package. Independently permitted existing-copy registration does not clear this acquisition hold."
+    "download_block_reason": "Portcove downloads are paused because the package includes a shader cache built from the game’s own shaders. They can resume when upstream publishes a package that builds the cache from your own game files."
   }
 }

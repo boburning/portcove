@@ -7,7 +7,7 @@
     "project_url": "https://github.com/OpenCommunityEdition/OpenCE",
     "issue_number": 1849,
     "listed_at": "2026-10-23",
-    "platforms": ["windows-x86-64"],
+    "platforms": ["windows-x86-64", "linux-x86-64"],
     "availability": "packages",
     "setup_url": "https://github.com/OpenCommunityEdition/OpenCE#readme",
     "artwork": {
@@ -22,16 +22,16 @@
     "manual_setup": {
       "steps": [
         {
-          "title": "Keep the Windows package together",
-          "instruction": "Extract halo-windows-release.zip into a separate upstream-owned folder. Finish setup with halo.exe and that folder."
+          "title": "Keep the player package together",
+          "instruction": "Extract halo-windows-release.zip or, on Linux, halo-Linux-release.zip into a separate upstream-owned folder. Finish setup with halo.exe (halo on Linux) and that folder."
         },
         {
           "title": "Choose your original Xbox disc image on Play",
           "instruction": "On first Play, select your own Halo: Combat Evolved Xbox .iso or .xiso. OpenCE extracts its maps beside the player. Halo PC or Custom Edition maps do not replace these Xbox maps."
         },
         {
-          "title": "Select the ordinary Windows player",
-          "instruction": "Keep the complete Windows release package together and select halo.exe with its containing folder as working directory. Leave arguments empty for the normal player. The release package is for playing; debug builds stop at failed assertions, and symbol archives are not players. Use your own supported Xbox disc image for the upstream first-Play picker; Portcove does not import or authenticate it. Finish any deliberate upstream update or repair separately before starting the registered Play session."
+          "title": "Select the ordinary player",
+          "instruction": "Keep the complete release package together and select halo.exe (halo on Linux) with its containing folder as working directory. Leave arguments empty for the normal player. The release package is for playing; debug builds stop at failed assertions, and symbol archives are not players. Use your own supported Xbox disc image for the upstream first-Play picker; Portcove does not import or authenticate it. Finish any deliberate upstream update or repair separately before starting the registered Play session."
         }
       ],
       "warnings": [
@@ -56,7 +56,8 @@
       ]
     },
     "download_asset_hints": {
-      "windows-x86-64": ["halo-windows-release.zip"]
+      "windows-x86-64": ["halo-windows-release.zip"],
+      "linux-x86-64": ["halo-Linux-release.zip"]
     }
   }
 }

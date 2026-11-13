@@ -33,7 +33,7 @@
       ]
     },
     "platforms": ["windows-x86-64"],
-    "download_block_reason": "Fresh acquisition remains held pending clarification or a clean official package for the embedded commercial Darklight icon. Upstream THIRD_PARTY_NOTICE.md explicitly excludes it from the MIT grant and supplies no redistribution permission. This does not classify the interpreted player as unsupported or transfer rights to an existing copy.",
+    "download_block_reason": "Portcove downloads are paused because the executable embeds cockpit art derived from the game’s own artwork. They can resume when upstream publishes a package without that art or one that creates it from your own game files.",
     "artwork": {
       "game_id": 18998,
       "cover_id": 137555,

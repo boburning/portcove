@@ -50,6 +50,11 @@ export type OrganizationChange = Requests.TransportInputs["desktop_organization_
 export type ArtworkState = Generated.TransportOutputs["artwork_state"];
 export type ArtworkThumbnail = Generated.TransportOutputs["artwork_thumbnail"];
 export type ArtworkSlot = ArtworkState["choice"]["slot"];
+export type ArtworkAttribution = ArtworkState["attribution"][number];
+export type SteamGridDbKeyStatus = Generated.TransportOutputs["steamgriddb_key_status"];
+export type SteamGridDbGame = Generated.TransportOutputs["steamgriddb_games"][number];
+export type SteamGridDbCandidate = Generated.TransportOutputs["steamgriddb_candidates"][number];
+export type DestinationArtworkRole = SteamGridDbCandidate["role"];
 
 export type { InstallRecord } from "./transport-types.generated";
 

@@ -3,7 +3,7 @@
   "listing": {
     "id": "djultra64-clayfighter64",
     "name": "ClayFighter63andOneThird: ClayFighter64 fusion edition (djultra64 ClayFighter64)",
-    "summary": "Windows x64 ClayFighter 64 fused product: 63⅓ gameplay with Sculptor's Cut donor characters, requiring both exact USA ROMs. Complete upstream asset installation first, then register clayfighter64.exe with its documented ROM and fused-asset arguments. Keep local/, probe-output/ and complete runtime dependencies. Packaged branding and title audio have separate rights; use only a complete copy and components you are independently permitted to use.",
+    "summary": "Windows x64 ClayFighter 64 fused product: 63⅓ gameplay with Sculptor's Cut donor characters, requiring both exact USA ROMs. Complete upstream asset installation first, then register clayfighter64.exe with its documented ROM and fused-asset arguments. Keep local/, probe-output/ and complete runtime dependencies. The title announcement’s source is unknown; use a complete copy you already have.",
     "original_game_title": "ClayFighter63andOneThird: ClayFighter64 fusion edition",
     "project_url": "https://github.com/djultra64/ClayFighter64",
     "platforms": [],
@@ -19,8 +19,8 @@
           "instruction": "This combines ClayFighter63⅓ gameplay with Sculptor's Cut donor characters; it does not recreate all of Sculptor's Cut. Supply your own ClayFighter63⅓ USA and ClayFighter:Sculptor's Cut USA ROMs. After normalization to big-endian z64, their SHA256 values must be 357f26c6cd72559c5c05e8c2df46369624630dbcb1c02b3b6f3338f6ac79af07 and 9ccebc317b7ee892be3bdc0d1c8ae46687995908ed51ebd58d6855e5e25abd7f, respectively. Keep both originals separately. Other regions, revisions and modified ROMs are unsupported. Upstream preparation handles supported byte orders or a single-ROM ZIP."
         },
         {
-          "title": "Complete permitted upstream asset installation",
-          "instruction": "Use a complete v2.1.1 Windows x86-64 copy and components you are independently permitted to use. The GPL licence for authored port code does not grant rights to packaged branding, depicted original characters or the separately supplied title announcement. On Windows 10/11 x64 with an SSSE3/SSE4.1 CPU and current Vulkan drivers, run Install Assets.vbs outside Portcove and finish asset installation. The included Python runtime checks both inputs and creates local imported files. Keep all supplied DLLs, configuration, notices and assets together."
+          "title": "Complete upstream asset installation",
+          "instruction": "Use a complete v2.1.1 Windows x86-64 copy you already have. The GPL licence for authored port code does not cover packaged branding, depicted original characters or the title announcement, whose source is unknown. On Windows 10/11 x64 with an SSSE3/SSE4.1 CPU and current Vulkan drivers, run Install Assets.vbs outside Portcove and finish asset installation. The included Python runtime checks both inputs and creates local imported files. Keep all supplied DLLs, configuration, notices and assets together."
         },
         {
           "title": "Select the prepared native player",
@@ -32,8 +32,8 @@
         }
       ],
       "warnings": [
-        "Fresh acquisition of packaged branding/title media remains conditional on its own applicable permission; original-game rights are separate.",
-        "Only an already prepared independently permitted complete copy is offered; extraction, updates and recovery remain upstream-owned.",
+        "Portcove downloads are paused because the title announcement audio is of unknown origin. You need your own original game files.",
+        "You can add a prepared complete copy you already have; extraction, updates and recovery remain upstream-owned.",
         "Before first prepared startup, moves or updates, close the game and keep a separate complete recovery copy of local/, probe-output/, config and all original ROMs."
       ],
       "references": [
@@ -51,7 +51,7 @@
         }
       ]
     },
-    "download_block_reason": "Fresh acquisition of the selected ClayFighter64 package is held while the applicable permission or authorized-source basis for its named bundled character-branding images and replacement title-announcement media remains unresolved. NOTICE places those media outside the port-code licence; publisher attribution is not a grant of all underlying depicted-character or media rights. Resume on an attributable applicable inclusion/use basis or a reviewed supported replacement/exclusion package; independently permitted completed copies remain separate."
+    "download_block_reason": "Portcove downloads are paused because the package’s in-game title announcement comes from an audio file of unknown origin, possibly another ClayFighter game. They can resume when upstream identifies that audio’s source or publishes a package without it."
   },
   "upstream_lineage": {
     "format_version": 1,

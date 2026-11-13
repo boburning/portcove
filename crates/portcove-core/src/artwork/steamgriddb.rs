@@ -15,6 +15,22 @@ use serde::{Deserialize, Serialize};
 use super::DestinationArtworkRole;
 use crate::{PortcoveError, Result};
 
+/// Where a player creates their own key; the only fixed SteamGridDB page Desktop opens.
+pub const STEAMGRIDDB_KEY_PREFERENCES_URL: &str =
+    "https://www.steamgriddb.com/profile/preferences/api";
+
+/// The public SteamGridDB page that credits a stored provider image.
+pub fn steamgriddb_credit_url(attribution: &crate::ArtworkAttribution) -> String {
+    let collection = match attribution.role {
+        DestinationArtworkRole::HeroBanner => "hero",
+        DestinationArtworkRole::PortraitCover | DestinationArtworkRole::LandscapeCover => "grid",
+    };
+    format!(
+        "https://www.steamgriddb.com/{collection}/{}",
+        attribution.asset_id
+    )
+}
+
 /// The only origin that ever receives the player's key.
 pub const STEAMGRIDDB_API_ORIGIN: &str = "https://www.steamgriddb.com/api/v2";
 /// Image and thumbnail URLs are accepted only from this HTTPS host.
@@ -107,7 +123,8 @@ impl From<SteamGridDbFailure> for PortcoveError {
 /// can never reach the image host.
 pub(crate) trait SteamGridDbTransport {
     fn get(&self, path_and_query: &str, key: &str) -> Result<TransportResponse>;
-    fn fetch_image(&self, url: &str) -> Result<TransportResponse>;
+    /// `max_bytes` is enforced while reading; one extra byte reveals overflow.
+    fn fetch_image(&self, url: &str, max_bytes: u64) -> Result<TransportResponse>;
 }
 
 /// A chosen image re-resolved from the provider, with its bounded bytes.
@@ -139,7 +156,8 @@ pub(crate) fn fetch_candidate(
     if !is_image_url(&candidate.url) {
         return Err(SteamGridDbFailure::InvalidResponse.into());
     }
-    let response = transport.fetch_image(&candidate.url)?;
+    let response =
+        transport.fetch_image(&candidate.url, crate::artwork_image::MAX_ORIGINAL_BYTES)?;
     match response.status {
         200 => {}
         404 => {
@@ -177,6 +195,47 @@ pub(crate) fn fetch_chosen_candidate(
     candidate_id: u64,
 ) -> Result<FetchedCandidate> {
     with_key(|key| fetch_candidate(&HttpTransport, key, game_id, role, candidate_id))
+}
+
+/// Largest thumbnail Portcove downloads to show a candidate before it is chosen.
+const MAX_PREVIEW_BYTES: usize = 4 * 1024 * 1024;
+
+/// A bounded local preview of a candidate thumbnail: fetched from the CDN
+/// without the key, decoded with the shared limits (refusing animation) and
+/// re-encoded as a small PNG, so the renderer never loads a remote image.
+pub fn steamgriddb_preview(thumb_url: &str) -> Result<Vec<u8>> {
+    preview(&HttpTransport, thumb_url)
+}
+
+pub(crate) fn preview(transport: &impl SteamGridDbTransport, thumb_url: &str) -> Result<Vec<u8>> {
+    if !is_image_url(thumb_url) {
+        return Err(PortcoveError::usage(
+            "previews come only from SteamGridDB's image server",
+        ));
+    }
+    let response = transport.fetch_image(thumb_url, MAX_PREVIEW_BYTES as u64)?;
+    match response.status {
+        200 => {}
+        404 => {
+            return Err(PortcoveError::not_found(
+                "this preview is no longer available",
+            ));
+        }
+        429 => {
+            return Err(SteamGridDbFailure::RateLimited {
+                retry_after_seconds: retry_after_seconds(response.retry_after.as_deref()),
+            }
+            .into());
+        }
+        500..=599 => return Err(SteamGridDbFailure::Unavailable.into()),
+        _ => return Err(SteamGridDbFailure::InvalidResponse.into()),
+    }
+    if response.body.is_empty() || response.body.len() > MAX_PREVIEW_BYTES {
+        return Err(PortcoveError::verification(
+            "the SteamGridDB preview is empty or too large",
+        ));
+    }
+    Ok(crate::artwork_image::decode_with_thumbnail_bounds(&response.body, 240, 360)?.thumbnail)
 }
 
 fn retry_after_seconds(value: Option<&str>) -> Option<u64> {
@@ -492,20 +551,26 @@ impl SteamGridDbTransport for HttpTransport {
         })
     }
 
-    fn fetch_image(&self, url: &str) -> Result<TransportResponse> {
-        self.fetch(url)
+    fn fetch_image(&self, url: &str, max_bytes: u64) -> Result<TransportResponse> {
+        self.fetch(url, max_bytes)
     }
 }
 
 impl HttpTransport {
-    fn fetch(&self, url: &str) -> Result<TransportResponse> {
+    fn fetch(&self, url: &str, max_bytes: u64) -> Result<TransportResponse> {
         if !is_image_url(url) {
             return Err(SteamGridDbFailure::InvalidResponse.into());
         }
         // No `bearer_auth`: the image host never receives the player's key.
         let response = http_client()?
             .get(url)
-            .timeout(Duration::from_secs(60))
+            // Previews are small and share capacity with catalog covers, so a
+            // stalled CDN gives them up sooner than a chosen original.
+            .timeout(if max_bytes <= MAX_PREVIEW_BYTES as u64 {
+                Duration::from_secs(15)
+            } else {
+                Duration::from_secs(60)
+            })
             .send()
             .map_err(|_| PortcoveError::from(SteamGridDbFailure::Unavailable))?;
         let status = response.status().as_u16();
@@ -518,7 +583,7 @@ impl HttpTransport {
         use std::io::Read;
         // The cap is enforced while reading; one extra byte detects overflow.
         response
-            .take(crate::artwork_image::MAX_ORIGINAL_BYTES + 1)
+            .take(max_bytes.saturating_add(1))
             .read_to_end(&mut body)
             .map_err(|_| PortcoveError::from(SteamGridDbFailure::Unavailable))?;
         Ok(TransportResponse {

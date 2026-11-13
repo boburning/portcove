@@ -18,6 +18,11 @@ impl PortcoveService {
         {
             return Ok(false);
         }
+        if url == crate::STEAMGRIDDB_KEY_PREFERENCES_URL
+            || self.is_stored_steamgriddb_credit(url)?
+        {
+            return Ok(true);
+        }
         // Retain strict project/artwork links even if a separate directory corrects its own display.
         if self.catalog.ports().iter().any(|port| {
             port.project_url == url
@@ -47,6 +52,27 @@ impl PortcoveService {
             .listings()
             .iter()
             .any(|listing| listing_resource_url(listing, url)))
+    }
+
+    /// A SteamGridDB credit link opens only when it is exactly the page Core
+    /// derives from an attribution stored in this library.
+    fn is_stored_steamgriddb_credit(&self, url: &str) -> Result<bool> {
+        let Some(id) = url
+            .strip_prefix("https://www.steamgriddb.com/grid/")
+            .or_else(|| url.strip_prefix("https://www.steamgriddb.com/hero/"))
+            .and_then(|id| id.parse::<u64>().ok())
+            .filter(|id| *id > 0)
+        else {
+            return Ok(false);
+        };
+        let connection = self.library.connection()?;
+        Ok(crate::artwork_store::provider_image_attributions(
+            &connection,
+            crate::ArtworkProvider::Steamgriddb,
+            id,
+        )?
+        .iter()
+        .any(|attribution| crate::steamgriddb_credit_url(attribution) == url))
     }
 
     pub fn listing_status(&self, port_id: &str) -> Result<crate::PortListingStatus> {

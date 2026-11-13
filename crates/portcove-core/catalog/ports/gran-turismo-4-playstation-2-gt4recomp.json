@@ -3,11 +3,11 @@
   "listing": {
     "id": "gran-turismo-4-playstation-2-gt4recomp",
     "name": "Gran Turismo 4 (PlayStation 2) (GT4Recomp)",
-    "summary": "Windows x64 GT4Recomp official launcher for an upstream-prepared Gran Turismo 4 USA v2.00 installation. Register GT4Recomp.exe; its normal owned session supplies renderer configuration, launches and watches the game, then returns to the launcher. Preserve installation data, AppData save libraries and legacy roots before its automatic migrations/cleanup. Branded artwork grants remain separate from the code licence; use an independently permitted complete copy.",
+    "summary": "Windows x64 GT4Recomp official launcher for an upstream-prepared Gran Turismo 4 USA v2.00 installation. Register GT4Recomp.exe; its normal owned session supplies renderer configuration, launches and watches the game, then returns to the launcher. Preserve installation data, AppData save libraries and legacy roots before its automatic migrations/cleanup.",
     "original_game_title": "Gran Turismo 4 (PlayStation 2)",
     "project_url": "https://github.com/moesuito/gt4-staticrecomp",
-    "platforms": [],
-    "availability": "unknown",
+    "platforms": ["windows-x86-64"],
+    "availability": "packages",
     "setup_url": "https://github.com/moesuito/gt4-staticrecomp",
     "artwork": {
       "game_id": 1601,
@@ -23,8 +23,8 @@
       "help_url": "https://github.com/moesuito/gt4-staticrecomp/blob/5d7a669bdecf5e60c0782ca449f48aacac3c7a32/README.md",
       "steps": [
         {
-          "title": "Use a permitted installation and exact owned disc",
-          "instruction": "Use an independently permitted complete GT4Recomp v1.2.5 Windows installation and your own Gran Turismo 4 USA v2.00 SCUS-97328 plain ISO. Upstream pins the 5314478080-byte ISO with SHA-256 67b6c0075837f3ae1132d608acf2858bf13b2dd62d6eae83dff76df02e4e824f and verifies prepared CORE/ELF identities separately. Keep the original separately; identity checks do not grant game-data rights. NOTICE defers the bundled cover and brand-art licence to its owner; the MIT code licence does not grant those components."
+          "title": "Use the complete installation and your own disc",
+          "instruction": "Use the complete GT4Recomp v1.2.5 Windows installation and your own Gran Turismo 4 USA v2.00 SCUS-97328 plain ISO. Upstream pins the 5314478080-byte ISO with SHA-256 67b6c0075837f3ae1132d608acf2858bf13b2dd62d6eae83dff76df02e4e824f and verifies prepared CORE/ELF identities separately. Keep the original separately."
         },
         {
           "title": "Finish official upstream setup",
@@ -48,11 +48,11 @@
         },
         {
           "title": "Retain component terms and known limits",
-          "instruction": "Keep MIT code notices, the separately GPL-licensed GSdx/PCSX2 renderer notices and source, and all other component notices. NOTICE leaves branded cover and artwork permission unresolved; new downloads of the complete package require the applicable permission or an independently permitted complete copy. Check upstream’s limits for licence demos, menu backgrounds, wheels, long sessions and hardware. Portcove has not confirmed game execution or save compatibility with this launcher route."
+          "instruction": "Keep MIT code notices, the separately GPL-licensed GSdx/PCSX2 renderer notices and source, and all other component notices. Check upstream’s limits for licence demos, menu backgrounds, wheels, long sessions and hardware. Portcove has not confirmed game execution or save compatibility with this launcher route."
         }
       ],
       "warnings": [
-        "Use an independently permitted complete installation; bundled brand/cover artwork permission is a separate acquisition condition.",
+        "The package includes Gran Turismo 4 cover art and derived brand artwork that the project license does not cover. Portcove downloads it only from the project’s own releases. You need your own original game files.",
         "Track the official launcher session and let it own preparation, renderer environment, card handling and ordinary game launch. Optional installer/WebView restarts are not followed.",
         "Keep the backups outside old installation cleanup targets. Startup can move user and large data, flatten textures and remove the old per-user program/game folder, fixed shortcuts and registry entries. The running installation and its data-folder layout are excluded from that legacy cleanup; do not rely on an old executable folder as your recovery copy.",
         "Before Play the launcher builds the runtime card from its library, then harvests after exit; do not edit card/library files concurrently. It prunes older session folders to 20 and may rewrite corrupt update metadata to .json.bad. Preserve all current/fallback/legacy roots before maintenance; do not assume cross-version save compatibility."
@@ -64,7 +64,11 @@
         }
       ]
     },
-    "download_block_reason": "Fresh acquisition of the selected branded GT4Recomp Windows package is held while the applicable permission or authorized-source basis for its bundled cover-front artwork and derived brand assets remains unresolved. NOTICE leaves the cover-art licence for owner confirmation; the MIT code grant does not resolve it. Resume on an attributable applicable basis or a reviewed supported de-branded package/preparation; independently permitted complete installations remain separate."
+    "release_url": "https://github.com/moesuito/gt4-staticrecomp/releases",
+    "download_asset_hints": {
+      "windows-x86-64": ["GT4Recomp-Setup-", ".exe"]
+    },
+    "recommended_download_channel": "stable"
   },
   "upstream_lineage": {
     "format_version": 1,

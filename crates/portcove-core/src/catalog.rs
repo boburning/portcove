@@ -2071,7 +2071,10 @@ mod tests {
                 .filter(|port| port.windows_tracked_handoff)
                 .map(|port| port.id.as_str())
                 .collect::<Vec<_>>(),
-            ["monster-hunter-portable-3rd-hd-yakumo"]
+            [
+                "goldeneye-007-n64-pc-port",
+                "monster-hunter-portable-3rd-hd-yakumo"
+            ]
         );
         let parse = |edit: &dyn Fn(&mut PortDefinition)| {
             let mut document = catalog.authoritative_document();

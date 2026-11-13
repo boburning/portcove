@@ -1,0 +1,75 @@
+name: Release content scan
+
+# #5353: list each new upstream release package a listing offers and flag
+# concrete game-data signals for review. Nothing is executed, installed,
+# published or written to the catalog; a finding is evidence for a reviewed
+# download hold. See docs/CATALOG.md#rights-basis-for-upstream-hosted-packages.
+
+on:
+  schedule:
+    - cron: "19 7 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-content-scan
+  cancel-in-progress: false
+
+jobs:
+  scan:
+    if: github.repository == 'boburning/portcove' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+      - name: Install archive listers
+        run: |
+          if ! command -v 7z >/dev/null || ! command -v unsquashfs >/dev/null; then
+            sudo DEBIAN_FRONTEND=noninteractive apt-get -o DPkg::Lock::Timeout=60 update -q
+            sudo DEBIAN_FRONTEND=noninteractive apt-get -o DPkg::Lock::Timeout=60 install -y \
+              --no-install-recommends p7zip-full squashfs-tools
+          fi
+      - name: Restore scanned-asset checkpoint
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: work/release-content-scan/checkpoint.json
+          key: release-content-scan-v1-main-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: release-content-scan-v1-main-
+      - name: Scan new release packages within budgets
+        id: scan
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mkdir -p work/release-content-scan
+          node scripts/release-content-scan.mts scan \
+            --listings crates/portcove-core/catalog/listings.json \
+            --checkpoint work/release-content-scan/checkpoint.json \
+            --checkpoint-out work/release-content-scan/checkpoint.next.json \
+            --output work/release-content-scan/report.json \
+            --minutes 75
+          mv work/release-content-scan/checkpoint.next.json work/release-content-scan/checkpoint.json
+          node scripts/release-content-scan.mts summary \
+            --report work/release-content-scan/report.json >> "$GITHUB_STEP_SUMMARY"
+          node scripts/release-content-scan.mts annotations \
+            --report work/release-content-scan/report.json
+      - name: Preserve scanned-asset checkpoint
+        if: ${{ !cancelled() && steps.scan.outcome == 'success' }}
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: work/release-content-scan/checkpoint.json
+          key: release-content-scan-v1-main-${{ github.run_id }}-${{ github.run_attempt }}
+      - name: Retain scan report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release-content-scan-${{ github.run_id }}-${{ github.run_attempt }}
+          path: work/release-content-scan/report.json
+          if-no-files-found: warn
+          retention-days: 30

@@ -3,7 +3,7 @@
   "listing": {
     "id": "vidanox-banjotooierecompiled",
     "name": "Banjo-Tooie / Banjo-Tooie: Recompiled (Vidanox)",
-    "summary": "Use a permitted Banjo-Tooie player and select your own USA big-endian cartridge dump.",
+    "summary": "Use the Banjo-Tooie player package and select your own USA big-endian cartridge dump.",
     "project_url": "https://github.com/Vidanox/BanjoTooieRecompiled",
     "issue_number": 1795,
     "listed_at": "2026-10-23",
@@ -28,8 +28,8 @@
     "manual_setup": {
       "steps": [
         {
-          "title": "Keep the complete permitted player",
-          "instruction": "On Windows, select BanjoTooieRecompiled.exe in your existing permitted copy and keep assets plus the supplied SDL2/DXC libraries together in its working folder. On Linux, retain run.sh for upstream launch, or select the native BanjoTooieRecompiled with that extracted folder as its working directory. The wrapper supplies that folder; the native build still needs its documented Vulkan, shared-library and file-dialog portal prerequisites."
+          "title": "Keep the complete player package",
+          "instruction": "On Windows, select BanjoTooieRecompiled.exe in the package folder and keep assets plus the supplied SDL2/DXC libraries together in its working folder. On Linux, retain run.sh for upstream launch, or select the native BanjoTooieRecompiled with that extracted folder as its working directory. The wrapper supplies that folder; the native build still needs its documented Vulkan, shared-library and file-dialog portal prerequisites."
         },
         {
           "title": "Choose your original cartridge dump on first Play",
@@ -38,7 +38,8 @@
       ],
       "warnings": [
         "Upstream calls Linux less exercised than Windows. Published packages and source claims do not establish Portcove native gameplay or real-save acceptance.",
-        "Keep settings and saves together and retain a working copy before replacing it. Portcove does not adopt or back up these files, rewind saves or guarantee older-runtime readability."
+        "Keep settings and saves together and retain a working copy before replacing it. Portcove does not adopt or back up these files, rewind saves or guarantee older-runtime readability.",
+        "The package includes the Suplexmentary Comic NC font that the project license does not cover. Portcove downloads it only from the project’s own releases. You need your own original game files."
       ],
       "help_url": "https://github.com/Vidanox/BanjoTooieRecompiled/blob/9e5852541ba1436417e2c4468960e8c6de6deda5/README.md",
       "references": [
@@ -47,7 +48,6 @@
           "instruction": "You or upstream own runtime updates. Preserve the complete player folder, original game and actual profile: normally %LOCALAPPDATA%\\BanjoTooieRecompiled on Windows or ~/.config/BanjoTooieRecompiled on Linux. For Flatpak, also keep the complete ~/.var/app/io.github.Vidanox.BanjoTooieRecompiled folder; preserve any APP_FOLDER_PATH, portable or customized profile actually used. Keep settings and saves together and retain a working copy before replacing it. Portcove does not adopt or back up these files, rewind saves or guarantee older-runtime readability."
         }
       ]
-    },
-    "download_block_reason": "The selected v1.0.1 source/package recipe includes Suplexmentary Comic NC.ttf, which upstream identifies without a license and with an all-rights-reserved notice. The official RecompFrontend base now has a GPLv3 grant; that does not license this separate font. Keep an existing copy you are permitted to use. Reconsider fresh acquisition with attributable compatible font permission or a reviewed released package removing or replacing the affected font."
+    }
   }
 }

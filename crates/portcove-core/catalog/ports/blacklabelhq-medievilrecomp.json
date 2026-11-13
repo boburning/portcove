@@ -7,7 +7,7 @@
     "project_url": "https://github.com/BlackLabelHQ/MediEvilRecomp",
     "issue_number": 1844,
     "listed_at": "2026-10-23",
-    "platforms": ["windows-x86-64"],
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
     "availability": "packages",
     "setup_url": "https://github.com/BlackLabelHQ/MediEvilRecomp/blob/b9e46db34db40d6e5c8e19b538e4d517299a4012/README.md",
     "artwork": {
@@ -21,8 +21,8 @@
     "manual_setup": {
       "steps": [
         {
-          "title": "Prepare the Windows player",
-          "instruction": "Extract the official Windows x64 ZIP into a separate folder. The reviewed v0.2b package uses the .NET 10 runtime and OpenAL; follow upstream prerequisite instructions if either is missing. Choose medievil.exe in that folder when saving launch details. Registration does not start the game."
+          "title": "Prepare the player",
+          "instruction": "Extract the official package for your system (Windows x64 ZIP, Linux x64 TAR.GZ, or macOS Apple Silicon or Intel ZIP) into a separate folder. The reviewed v0.2b package uses the .NET 10 runtime and OpenAL; follow upstream prerequisite instructions if either is missing. Choose medievil.exe (medievil on Linux and macOS) in that folder when saving launch details. Registration does not start the game."
         },
         {
           "title": "Choose your original disc in the game",
@@ -41,7 +41,10 @@
       ]
     },
     "download_asset_hints": {
-      "windows-x86-64": ["MediEvilRecomp-", "-windows-x64.zip"]
+      "windows-x86-64": ["MediEvilRecomp-", "-windows-x64.zip"],
+      "linux-x86-64": ["MediEvilRecomp-", "-linux-x64.tar.gz"],
+      "macos-aarch64": ["MediEvilRecomp-", "-macos-arm64.zip"],
+      "macos-x86-64": ["MediEvilRecomp-", "-macos-x64.zip"]
     },
     "original_game_title": "MediEvil",
     "release_url": "https://github.com/BlackLabelHQ/MediEvilRecomp/releases",

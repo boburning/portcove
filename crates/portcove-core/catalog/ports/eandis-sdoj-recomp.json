@@ -3,12 +3,12 @@
   "listing": {
     "id": "eandis-sdoj-recomp",
     "name": "DoDonPachi SaiDaiOuJou / SDOJ-Recomp (eandis)",
-    "summary": "Windows DoDonPachi SaiDaiOuJou guidance for an independently permitted completed native player with its verified own disc/GoD and TU1 data. Upstream owns first-run extraction, title-update preparation, runtime replacement and player data.",
+    "summary": "DoDonPachi SaiDaiOuJou native player for your own verified disc or Games-on-Demand copy and its TU1 data. Upstream owns first-run extraction, title-update preparation, runtime replacement and player data.",
     "project_url": "https://github.com/eandis/SDOJ-Recomp",
     "issue_number": 1880,
     "listed_at": "2026-10-23",
-    "platforms": [],
-    "availability": "unknown",
+    "platforms": ["windows-x86-64", "linux-x86-64"],
+    "availability": "packages",
     "setup_url": "https://github.com/eandis/SDOJ-Recomp",
     "artwork": {
       "game_id": 1673,
@@ -21,8 +21,8 @@
     "manual_setup": {
       "steps": [
         {
-          "title": "Keep an independently permitted complete Windows player",
-          "instruction": "Use a completed Windows player and components you are independently permitted to use. The official Windows ZIPs include a statically recompiled game player; the SDK licence or possession of original data does not itself establish permission for every translated game-code component. Fresh acquisition remains conditional on applicable permission or authorized source for that named component; an independently permitted existing copy can be retained. Keep its complete package, runtime DLLs, extractor and notices. Standard and Vulkan ZIP variants are separate packages, not mix-and-match files."
+          "title": "Keep the complete package for your system",
+          "instruction": "Keep the complete package for your system together, including its runtime libraries, extractor and notices. Standard and Vulkan ZIP variants are separate packages, not mix-and-match files."
         },
         {
           "title": "Complete exact own data preparation outside Portcove",
@@ -30,7 +30,7 @@
         },
         {
           "title": "Select the completed normal player",
-          "instruction": "Select DoDonPachi SaiDaiOuJou.exe, use its complete containing package directory as working directory and leave arguments empty. Keep the successful game_data/ tree, matching runtime companions and settings together. Do not select extract-xiso or a setup/build script. The native app owns its ordinary window/game loop; saving launch details and Play are separate actions. First-run setup, extraction and any optional settings-restart successor remain outside this completed-player route; close actual successors before maintenance or another attachment."
+          "instruction": "Select DoDonPachi SaiDaiOuJou.exe (DoDonPachi SaiDaiOuJou on Linux), use its complete containing package directory as working directory and leave arguments empty. Keep the successful game_data/ tree, matching runtime companions and settings together. Do not select extract-xiso or a setup/build script. The native app owns its ordinary window/game loop; saving launch details and Play are separate actions. First-run setup, extraction and any optional settings-restart successor remain outside this completed-player route; close actual successors before maintenance or another attachment."
         },
         {
           "title": "Leave notifications and runtime replacement with upstream",
@@ -40,7 +40,8 @@
       "warnings": [
         "Disc and Games-on-Demand use different original/TU checks; wrong or incomplete data is not an interchangeable source. Keep the complete chosen renderer variant and meet its upstream GPU/runtime requirements. Altered input/render-lag options require a restart; no actual gameplay, performance or save-compatibility assurance is supplied by this guide.",
         "Back up the complete creating package, saidaioujou_recomp_tu1.toml, game_data/, user_data/ (including saves/content, caches and updater metadata) and logs before upstream startup, repair or replacement.",
-        "Upstream refuses incomplete or unsupported nonempty game_data rather than merging it; keep staged originals/recovery data outside disposable setup destinations. No cross-edition or cross-version save/mod compatibility is promised."
+        "Upstream refuses incomplete or unsupported nonempty game_data rather than merging it; keep staged originals/recovery data outside disposable setup destinations. No cross-edition or cross-version save/mod compatibility is promised.",
+        "The package includes statically recompiled game code, icon art and an unlicensed project layer that the project license does not cover. Portcove downloads it only from the project’s own releases. You need your own original game files."
       ],
       "help_url": "https://github.com/eandis/SDOJ-Recomp/blob/cf0afe107d02fa16980e8c8f90a5969aafac81a7/README.md",
       "references": [
@@ -50,6 +51,11 @@
         }
       ]
     },
-    "download_block_reason": "Fresh acquisition of the selected Windows SDOJ-Recomp player is held while an attributable permission or authorized-source basis for its bundled statically translated DoDonPachi SaiDaiOuJou game-code modules remains unresolved. The ReXGlue/Xenia runtime licence does not establish that separate component’s permission. Resume on an applicable reviewed basis or a supported route excluding the unresolved component; independently permitted existing copies remain distinct."
+    "release_url": "https://github.com/eandis/SDOJ-Recomp/releases",
+    "download_asset_hints": {
+      "windows-x86-64": ["sdoj.recomp.", ".win-amd64.zip"],
+      "linux-x86-64": ["sdoj.recomp.", ".linux-amd64.tar.gz"]
+    },
+    "recommended_download_channel": "stable"
   }
 }

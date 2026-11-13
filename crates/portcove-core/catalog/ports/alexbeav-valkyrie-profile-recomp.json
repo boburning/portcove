@@ -8,6 +8,48 @@
     "project_url": "https://github.com/alexbeavs-ps1-ports/valkyrie-profile-recomp",
     "issue_number": 491,
     "listed_at": "2026-10-23",
+    "platforms": ["macos-x86-64", "macos-aarch64"],
+    "availability": "packages",
+    "setup_url": "https://github.com/alexbeavs-ps1-ports/valkyrie-profile-recomp#readme",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Use the exact original files",
+          "instruction": "Use your own Valkyrie Profile (USA) two-disc set (SLUS-01156, SLUS-01179), each disc with its single data track, and your own retail SCPH-1001 BIOS."
+        },
+        {
+          "title": "Set up the managed Windows or Linux player",
+          "instruction": "In Portcove, select the complete matching CHD for both discs in order, and the BIOS. Keep the original files in place. Portcove builds the player with its registered toolchain. Choose the disc when you choose Play. To change discs, use the game's own disc change if it offers one, or quit and choose Play with the next disc."
+        },
+        {
+          "title": "Prepare a separate Mac copy",
+          "instruction": "Choose the official Mac ZIP from the upstream releases: -macos-x64.zip for Intel or -macos-arm64.zip for Apple silicon, and extract it into a writable folder. Install the tools its README-SETUP lists for your Mac before you build."
+        },
+        {
+          "title": "Build and add the completed Mac player",
+          "instruction": "Run Valkyrie_Profile_Recompiled from the kit folder, assign both discs and your BIOS and choose Generate & rebuild. In Portcove, select build-release/Valkyrie_Profile_Recompiled as the player and build-release as its start folder. Do not select the setup host if it forwards to another program and exits."
+        }
+      ],
+      "warnings": [
+        "Portcove checks each disc's data track and track count. Keep every disc intact.",
+        "Mac setup, replacement and backups belong to you and the upstream kit. The Mac kits were not inspected; native setup, gameplay and populated-save behavior remain unverified."
+      ],
+      "help_url": "https://github.com/alexbeavs-ps1-ports/valkyrie-profile-recomp#readme",
+      "references": [
+        {
+          "title": "Keep the original files and your data",
+          "instruction": "Keep your discs and BIOS separately. For a Mac copy, close the game and back up the complete working folder and its saves, settings and installed mods before replacing the kit."
+        }
+      ]
+    },
+    "release_url": "https://github.com/alexbeavs-ps1-ports/valkyrie-profile-recomp/releases",
+    "recommended_download_channel": "stable",
+    "download_asset_hints": {
+      "windows-x86-64": ["valkyrie-profile-recomp-", "-windows-x64.zip"],
+      "linux-x86-64": ["valkyrie-profile-recomp-", "-linux-x64.zip"],
+      "macos-aarch64": ["valkyrie-profile-recomp-", "-macos-arm64.zip"],
+      "macos-x86-64": ["valkyrie-profile-recomp-", "-macos-x64.zip"]
+    },
     "artwork": {
       "game_id": 3998,
       "cover_id": 85749,

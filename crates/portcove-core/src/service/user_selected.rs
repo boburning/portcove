@@ -3003,17 +3003,17 @@ mod tests {
 
     #[test]
     fn snowboard_kids_frontend_license_player_route_1354() {
-        assert_listing_only_player_route("snowboard-kids", Some(true));
+        assert_listing_only_player_route("snowboard-kids", Some(false));
     }
 
     #[test]
     fn cdlewis_snowboardkids_recomp_frontend_license_player_route_1886() {
-        assert_listing_only_player_route("cdlewis-snowboardkids-recomp", Some(true));
+        assert_listing_only_player_route("cdlewis-snowboardkids-recomp", Some(false));
     }
 
     #[test]
     fn vidanox_banjotooierecompiled_frontend_license_player_route_1795() {
-        assert_listing_only_player_route("vidanox-banjotooierecompiled", Some(true));
+        assert_listing_only_player_route("vidanox-banjotooierecompiled", Some(false));
     }
 
     #[test]
@@ -3036,7 +3036,7 @@ mod tests {
 
     #[test]
     fn blast_corps_recompiled_permitted_player_route_2558() {
-        assert_listing_only_player_route("blast-corps-blastcorps-recompiled", Some(true));
+        assert_listing_only_player_route("blast-corps-blastcorps-recompiled", Some(false));
     }
     #[test]
     fn final_fantasy_tactics_finfantacrecomp_prepared_player_route_327() {
@@ -3060,7 +3060,7 @@ mod tests {
 
     #[test]
     fn tenchu_stealth_assassins_tenchu_sa_recomp_prepared_player_route_353() {
-        assert_listing_only_player_route("tenchu-stealth-assassins-tenchu-sa-recomp", Some(true));
+        assert_listing_only_player_route("tenchu-stealth-assassins-tenchu-sa-recomp", Some(false));
     }
 
     #[test]
@@ -3171,7 +3171,7 @@ mod tests {
 
     #[test]
     fn james2doyle_ffta_recomp_prepared_player_route_2824() {
-        assert_listing_only_player_route("james2doyle-ffta-recomp", Some(true));
+        assert_listing_only_player_route("james2doyle-ffta-recomp", Some(false));
     }
 
     #[test]
@@ -3189,7 +3189,7 @@ mod tests {
 
     #[test]
     fn vibecodekun_shantaerecomp_prepared_player_route_1881() {
-        assert_listing_only_player_route("vibecodekun-shantaerecomp", Some(true));
+        assert_listing_only_player_route("vibecodekun-shantaerecomp", Some(false));
     }
 
     #[test]
@@ -3220,7 +3220,7 @@ mod tests {
 
     #[test]
     fn pokemon_platinum_pokeplatinum_pc_port_lead_prepared_player_route_373() {
-        assert_listing_only_player_route("pokemon-platinum-pokeplatinum-pc-port-lead", Some(false));
+        assert_listing_only_player_route("pokemon-platinum-pokeplatinum-pc-port-lead", Some(true));
     }
 
     #[test]
@@ -3339,7 +3339,7 @@ mod tests {
     fn geometry_wars_retro_evolved_2_geometry_wars_2_recompiled_prepared_player_route_2577() {
         assert_listing_only_player_route(
             "geometry-wars-retro-evolved-2-geometry-wars-2-recompiled",
-            Some(true),
+            Some(false),
         );
     }
 
@@ -3347,7 +3347,7 @@ mod tests {
     fn hard_corps_uprising_hard_corps_uprising_recompiled_prepared_player_route_2581() {
         assert_listing_only_player_route(
             "hard-corps-uprising-hard-corps-uprising-recompiled",
-            Some(true),
+            Some(false),
         );
     }
 
@@ -3383,7 +3383,7 @@ mod tests {
 
     #[test]
     fn crackdown_crackdown_recompiled_prepared_player_route_2559() {
-        assert_listing_only_player_route("crackdown-crackdown-recompiled", Some(true));
+        assert_listing_only_player_route("crackdown-crackdown-recompiled", Some(false));
     }
 
     #[test]
@@ -3427,7 +3427,7 @@ mod tests {
 
     #[test]
     fn kirby1237_parappatherapperrecomp_prepared_player_route_1864() {
-        assert_listing_only_player_route("kirby1237-parappatherapperrecomp", Some(true));
+        assert_listing_only_player_route("kirby1237-parappatherapperrecomp", Some(false));
     }
 
     #[test]
@@ -3452,7 +3452,7 @@ mod tests {
 
     #[test]
     fn eandis_sdoj_recomp_prepared_player_route_1880() {
-        assert_listing_only_player_route("eandis-sdoj-recomp", Some(true));
+        assert_listing_only_player_route("eandis-sdoj-recomp", Some(false));
     }
 
     #[test]
@@ -3484,13 +3484,13 @@ mod tests {
     fn def_jam_vendetta_playstation_2_def_jam_vendetta_recompiled_prepared_player_route_2561() {
         assert_listing_only_player_route(
             "def-jam-vendetta-playstation-2-def-jam-vendetta-recompiled",
-            Some(true),
+            Some(false),
         );
     }
 
     #[test]
     fn gran_turismo_4_playstation_2_gt4recomp_prepared_player_route_2579() {
-        assert_listing_only_player_route("gran-turismo-4-playstation-2-gt4recomp", Some(true));
+        assert_listing_only_player_route("gran-turismo-4-playstation-2-gt4recomp", Some(false));
     }
 
     #[test]

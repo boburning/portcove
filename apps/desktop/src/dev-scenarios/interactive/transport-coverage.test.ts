@@ -18,6 +18,7 @@ const transportPath = fileURLToPath(new URL("./transport.ts", import.meta.url));
 const unsupportedByReason: Record<string, string[]> = {
   "mutation or native action the fixtures do not model; they never change the host": `
     apply_provider_install discard_provider_install
+    choose_steamgriddb_artwork set_steamgriddb_key clear_steamgriddb_key
     export_portable_saves import_portable_saves
     acquire_game_update activate_port add_game_file_root add_games_to_library add_mod_package
     add_source adopt_batch adopt_port
@@ -77,6 +78,7 @@ const unsupportedByReason: Record<string, string[]> = {
     get_engine_capabilities get_game_settings get_install_batch get_library_identity
     get_library_memberships get_runtime_diagnostic_health get_sources get_statuses
     list_steam_profiles
+    search_steamgriddb_games get_steamgriddb_candidates get_steamgriddb_preview
   `.split(/\s+/),
 };
 const intentionallyUnsupported: Record<string, string> = Object.fromEntries(
