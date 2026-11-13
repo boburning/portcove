@@ -108,13 +108,10 @@ the tree it covered. An unrelated advance can keep the existing review and
 checks. A relevant dependency, schema, generated contract, patch or policy
 interaction requires focused reconciliation before merge.
 Review may begin on an exact local commit and complete before expensive final
-qualification. Blocking findings identify a concrete correctness, security,
-data-loss, compatibility, or acceptance defect; a promised safety hole remains
-substantive even when current configuration does not exercise it. Cosmetic
-preferences, speculative generalization, and unrelated cleanup are nonblocking
-unless acceptance says otherwise. Repairs return to the same reviewer for the
-delta and affected interactions where practical. A new substantive finding still
-blocks; there is no cycle count that creates approval.
+qualification. [QUALITY](QUALITY.md#review-and-repair-loop) owns the reviewer,
+packet, finding classes, repair and escalation loop; a promised safety hole
+remains substantive even when current configuration does not exercise it, and
+there is no cycle count that creates approval.
 
 Keep a pull request in draft while review or repairs can still change its head.
 A draft run defers the eight Windows Rust test partitions

@@ -497,7 +497,7 @@ Being Planned is never a reason. For comparably valuable executable candidates, 
 waiting work over repeatedly selecting new small tasks; use existing comments
 and queue order to record repeated deferrals, without a new scheduler or ledger.
 
-Preserve actual host/resource guards, applicable review, acceptance and spending boundaries. Choose a suitable model for the task within existing spending authority.
+Preserve actual host/resource guards, applicable review, acceptance and spending boundaries. Choose models by responsibility from [agent model selection](DEVELOPMENT-TOOLS.md#agent-model-selection) within existing spending authority.
 
 The existing nightly development report leads with accepted beta outcomes advanced,
 delivered port integrations and maintenance, and actual blockers or
@@ -620,9 +620,9 @@ reported once with its effect; it does not suspend safe independent work.
 Preserve [applicable review](QUALITY.md#review-scope), required exact-head hosted
 CI and explicit acceptance. Local validation is optional under
 [QUALITY](QUALITY.md#required-hosted-baseline). Reuse evidence only at permitted matching
-inputs and scope. A bounded reviewer receives the exact diff/head, relevant
-acceptance/contracts, risks and existing evidence; implementers handle findings
-directly. Where independent review is required, its absence leaves a candidate
+inputs and scope. Reviewers receive the packet defined by the
+[review and repair loop](QUALITY.md#review-and-repair-loop); implementers handle
+findings directly. Where independent review is required, its absence leaves a candidate
 awaiting review, never self-approved. Existing narrow dependency exceptions remain unchanged.
 
 Use existing canonical owners for discoveries and narrow blockers. Record fact

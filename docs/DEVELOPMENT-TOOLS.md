@@ -1789,6 +1789,87 @@ The separate `browser-locale` project assigns only `locale-input.browser.test.ts
 The static scenario page remains inert. Browser results are not native Tauri,
 WebView, controller, operating-system, or package qualification.
 
+## Agent model selection
+
+[AGENTS](../AGENTS.md#delegation-review-and-escalation) names the delegation
+responsibilities and [QUALITY](QUALITY.md#review-and-repair-loop) owns the review
+loop. This section is the single place for concrete model recommendations.
+
+### Current recommendations
+
+Recommendations as of 2026-11-13. They are starting assignments by
+responsibility, not claims of equivalent performance or compute across
+providers; Terra and Sonnet in particular are evaluated independently.
+
+| Responsibility                      | Codex                   | Claude                      |
+| ----------------------------------- | ----------------------- | --------------------------- |
+| Implementation owner                | `gpt-6.1-sol`, medium   | `claude-opus-5-5`, medium   |
+| Independent reviewer                | `gpt-6.1-sol`, high     | `claude-opus-5-5`, high     |
+| Critical reviewer                   | `gpt-6-astra`, high     | `claude-fable-5-2`, high    |
+| Specialist (difficult problem)      | `gpt-6-astra`, high     | `claude-fable-5-2`, high    |
+| Research scout (bounded extraction) | `gpt-6-luna`, medium    | `claude-haiku-5-5`, medium  |
+| Visual helper (optional)            | `gpt-6.1-terra`, medium | `claude-sonnet-5-5`, medium |
+
+Documented availability, checked 2026-11-13: all eight models appear on
+the official [OpenAI models](https://developers.openai.com/api/docs/models) and
+[Claude models](https://platform.claude.com/docs/en/about-claude/models/overview)
+pages, none is on a listed retirement, and every listed model documents both
+`medium` and `high` effort. Observed access is narrower: the local Codex CLI
+0.164.0 model list cached 2026-10-25 offered `gpt-6.1-sol`, `gpt-6-astra` and
+`gpt-6-luna` but not `gpt-6.1-terra`; Claude Code 2.1.323 accepted and ran a
+delegated research scout requested as `haiku` at `medium` effort, without
+separately reporting the served model. A model the client does
+not offer falls back to the nearest listed model for that responsibility, and
+the owner records the substitution.
+
+Default to the provider and environment selected for the session. Request each
+delegated assignment's model and effort through the client's native delegation
+where it supports them: Claude Code's Agent tool takes a model family alias
+(`opus`, `fable`, `sonnet`, `haiku`) and an `effort`; this table is the
+repository instruction that asks for that effort. When a client cannot select a
+model or effort for a subagent, the subagent runs on what it inherits; say so
+rather than claiming the recommended setting. Delegate only when the assignment
+is bounded and worth the coordination cost. Updated defaults apply to new
+assignments; ongoing work keeps its models unless the owner deliberately
+escalates or must transition.
+
+### What instructions control
+
+Repository Markdown guides model choice, delegation, review behavior, escalation
+and completion. It does not change the model of the already-running main session,
+create account access or spending authority, or enforce a filesystem sandbox. A
+documented model, effort or permission has taken effect only when the client
+reports it.
+
+A reviewer told not to write is _instructed_ non-writing. A _technically
+restricted_ reviewer lacks write tools or runs in a read-only sandbox. Claude
+Code's read-only agent types (for example `Explore`) omit edit and write tools
+but keep a shell, so they are restricted from editing tools, not sandboxed.
+Codex documentation describes custom agents as inheriting the parent session's
+sandbox; that was not observed here. Portcove's review policy
+requires a non-writing reviewer, not a particular enforcement mechanism: prefer a
+restricted agent type where one exists, and in every case confirm the reviewed
+head and `git status` are unchanged after review.
+
+No native agent configuration is checked in. Both clients load `AGENTS.md` and
+their native delegation already accepts the needed model, effort and tool
+restrictions. Claude Code reads `AGENTS.md` only when no `CLAUDE.md` exists, so
+any future `CLAUDE.md` must be the single line `@AGENTS.md` rather than a second
+copy of the contract. Add native configuration only for a demonstrated gap that
+Markdown cannot close, and record that gap with the change.
+
+### Keeping recommendations current
+
+During existing maintenance, not per issue, check official model releases,
+retirements and client capabilities. When a newer model may improve a
+responsibility, try it on a few representative Portcove tasks: a clean change and
+a known-defect example for reviewers, a bounded question for research. Compare
+correctness, missed substantive findings, false blockers, repair effort, time and
+actual usage where available. When the evidence supports a change, update the
+table, its date and the availability note in one commit whose message gives the
+rationale; version history retains the previous recommendation. No benchmark
+platform, scheduler or registry is maintained.
+
 ## Skills
 
 Repository-local skills under `.agents/skills` progressively load task-specific
