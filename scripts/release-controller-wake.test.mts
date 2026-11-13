@@ -851,6 +851,60 @@ void test("post-ack title settlement retains each original readback and never re
   assert.equal(retained[1]!.evidence.body.display_title, "Portcove application release wake 42");
 });
 
+void test("a newly acknowledged run becomes visible after a retained 404 without a second dispatch", async (context) => {
+  context.mock.timers.enable({ apis: ["setTimeout"] });
+  const f = fixture(true);
+  const original = f.api.run;
+  let reads = 0;
+  f.api.run = async (id, retain) => {
+    if (id === "900" && ++reads === 1) {
+      await retain?.({ status: 404, body: { message: "Not Found" } });
+      throw new Error("wake provider readback unavailable");
+    }
+    return original(id, retain);
+  };
+  await f.prepare();
+  const pending = f.dispatch();
+  await new Promise((resolve) => setImmediate(resolve));
+  context.mock.timers.tick(5000);
+  assert.equal((await pending).decision, "dispatch-acknowledged-only");
+  assert.equal(reads, 2);
+  assert.equal(f.calls.filter((call) => call.method === "POST").length, 1);
+  const statuses = f.records
+    .filter((row) => row.phase === "dispatch-run-readback")
+    .map((row) => (isRecord(row.evidence) ? row.evidence.status : undefined));
+  assert.deepEqual(statuses, [404, 200]);
+});
+
+void test("an unretained 404 cannot authorize a readback retry", async () => {
+  const f = fixture(true);
+  let reads = 0;
+  await assert.rejects(
+    observeJobTokenDispatchRun(
+      {
+        async run(id, retain) {
+          assert.equal(id, "900");
+          reads++;
+          await retain?.({ status: 404, body: { message: "Not Found" } });
+          throw new Error("wake provider readback unavailable");
+        },
+      },
+      {
+        run_id: "900",
+        revision: f.config.revision,
+        workflow: ".github/workflows/application-update-production.yml",
+        display_title: "Portcove application release wake 42",
+      },
+      async (phase) => {
+        if (phase === "dispatch-run-readback") throw new Error("receipt persistence failed");
+      },
+      performance.now() + 20000,
+    ),
+    /readback unavailable/,
+  );
+  assert.equal(reads, 1);
+});
+
 void test("unsettled correlation exhausts four GETs inside the original budget without a POST", async (context) => {
   context.mock.timers.enable({ apis: ["setTimeout"] });
   const f = fixture(true),
