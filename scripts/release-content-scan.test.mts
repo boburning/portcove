@@ -98,7 +98,7 @@ function fakes(calls: string[]): ScanDependencies {
         tag: "v1",
         draft: false,
         prerelease: false,
-        assets: [{ name: "Code-1-windows-x64.zip", url: "u1", size: 10, digest: "sha256:aa" }],
+        assets: [{ name: "Code-1-windows-x64.zip", url: "u1", size: 10, digest: null }],
       },
     ],
     "up/header": [
@@ -106,7 +106,7 @@ function fakes(calls: string[]): ScanDependencies {
         tag: "v0.2",
         draft: false,
         prerelease: true,
-        assets: [{ name: "release_Linux.zip", url: "u2", size: 10, digest: "sha256:bb" }],
+        assets: [{ name: "release_Linux.zip", url: "u2", size: 10, digest: null }],
       },
     ],
     "group/Project": [{ tag: "v9", draft: false, prerelease: false, assets: [] }],
@@ -172,7 +172,7 @@ void test("a scan flags copied headers, records coverage and reuses its checkpoi
 void test("budgets leave assets for a later run without guessing their contents", async () => {
   const limited = await scan(scanTargets(listings), new Map(), fakes([]), { maxAssets: 1 });
   assert.equal(limited.report.scanned.length, 1);
-  assert.ok(limited.report.unscanned.some((entry) => entry.reason.includes("asset budget")));
+  assert.ok(limited.report.unscanned.some((entry) => entry.reason.includes("budget reached")));
   const small = await scan(scanTargets(listings), new Map(), fakes([]), { maxAssetBytes: 5 });
   assert.equal(small.report.scanned.length, 0);
   assert.ok(
@@ -191,7 +191,7 @@ void test("listers' output parses into entries with sizes", () => {
     parseTarVerbose(
       "-rw-r--r-- user/group 1584 2026-11-07 18:37 ./dir/firmware.bin\ndrwxr-xr-x user/group 0 2026-11-07 18:37 ./dir/\n",
     ),
-    [{ path: "dir/firmware.bin", size: 1584 }],
+    [{ path: "dir/firmware.bin", size: 1584, member: "./dir/firmware.bin" }],
   );
   assert.deepEqual(
     parseUnsquashfs(
@@ -211,4 +211,83 @@ void test("the job summary leads with findings and lists unscanned targets", asy
     /`header` \(linux-x86-64\) v0\.2 `release_Linux\.zip`: header\.bin \(contains Nintendo's cartridge boot logo\)/,
   );
   assert.match(text, /`gitlab` \(windows-x86-64\): hints select no single asset in v9/);
+});
+
+void test("member names that look like options, list files or wildcards are never passed to a lister", async () => {
+  const { safeMember } = await import("./release-content-scan.mts");
+  assert.ok(safeMember("dir/header.bin"));
+  for (const name of [
+    "--use-compress-program=sh",
+    "-ao",
+    "@list.txt",
+    "a*.bin",
+    "b?.bin",
+    "c[1].bin",
+  ])
+    assert.equal(safeMember(name), false, name);
+});
+
+void test("tar listings keep the raw member name for extraction", () => {
+  assert.deepEqual(parseTarVerbose("-rw-r--r-- u/g 352 2026-11-07 18:37 ./d/header.bin\n"), [
+    { path: "d/header.bin", size: 352, member: "./d/header.bin" },
+  ]);
+});
+
+void test("failed downloads spend the asset and byte budgets and the deadline stops the run", async () => {
+  const failing: ScanDependencies = {
+    ...fakes([]),
+    async download(asset, file) {
+      await writeFile(file, Buffer.alloc(8));
+      throw new Error(`transfer of ${asset.name} failed`);
+    },
+  };
+  const spent = await scan(scanTargets(listings), new Map(), failing, { maxAssets: 1 });
+  assert.equal(spent.report.scanned.length, 0);
+  assert.deepEqual(
+    spent.report.unscanned.map((entry) => entry.reason.split(":")[0]),
+    [
+      "asset Code-1-windows-x64.zip could not be scanned",
+      "asset or byte budget reached; scanned in a later run",
+      "hints select no single asset in v9",
+    ],
+  );
+  const bytes = await scan(scanTargets(listings), new Map(), failing, { maxTotalBytes: 12 });
+  assert.deepEqual(
+    bytes.report.unscanned.map((entry) => entry.reason.includes("budget")),
+    [false, true, false],
+  );
+  let now = 0;
+  const late = await scan(scanTargets(listings), new Map(), fakes([]), {
+    deadline: 1,
+    clock: () => now++,
+  });
+  assert.equal(late.report.scanned.length, 1);
+  assert.ok(late.report.unscanned.every((entry) => entry.reason.startsWith("time budget")));
+});
+
+void test("a published digest that differs from the bytes is not scanned", async () => {
+  const deps = fakes([]);
+  const mismatched: ScanDependencies = {
+    ...deps,
+    async releases(target) {
+      return (await deps.releases(target)).map((release) => ({
+        ...release,
+        assets: release.assets.map((asset) => ({ ...asset, digest: `sha256:${"0".repeat(64)}` })),
+      }));
+    },
+  };
+  const result = await scan(scanTargets(listings), new Map(), mismatched);
+  assert.equal(result.report.scanned.length, 0);
+  assert.ok(result.report.unscanned.some((entry) => entry.reason.includes("published digest")));
+});
+
+void test("records carry the rules version and partial reads", async () => {
+  const { RULES_VERSION } = await import("./release-content-signals.mts");
+  const { report } = await scan(scanTargets(listings), new Map(), fakes([]));
+  for (const record of report.scanned) {
+    assert.equal(record.rules, RULES_VERSION);
+    assert.ok(record.key.startsWith(`r${RULES_VERSION}|`));
+    assert.equal(record.heads_truncated, false);
+  }
+  assert.equal(report.scanned.find((record) => record.id === "code-only")?.heads_unread, 0);
 });

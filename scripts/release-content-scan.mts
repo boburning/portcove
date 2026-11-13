@@ -11,14 +11,16 @@
  */
 import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, open, readFile, rm, stat, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 import {
   HEAD_BYTES,
   type ContentSignal,
   type PackageEntry,
+  RULES_VERSION,
   headCandidates,
   packageSignals,
 } from "./release-content-signals.mts";
@@ -55,6 +57,10 @@ export interface ScanRecord {
   asset: string;
   sha256: string;
   entries: number;
+  /** Candidate files whose bytes could not be read, and whether the candidate list was cut. */
+  heads_unread: number;
+  heads_truncated: boolean;
+  rules: number;
   signals: ContentSignal[];
 }
 
@@ -115,6 +121,7 @@ export function hintedAsset(assets: readonly ReleaseAsset[], hints: readonly str
 
 export const assetKey = (target: ScanTarget, tag: string, asset: ReleaseAsset) =>
   [
+    `r${RULES_VERSION}`,
     target.provider,
     target.repository.toLowerCase(),
     tag,
@@ -133,7 +140,13 @@ export async function scan(
   targets: readonly ScanTarget[],
   checkpoint: ReadonlyMap<string, ScanRecord>,
   deps: ScanDependencies,
-  { maxAssets = 40, maxAssetBytes = 1_500_000_000, maxTotalBytes = 12_000_000_000 } = {},
+  {
+    maxAssets = 40,
+    maxAssetBytes = 1_500_000_000,
+    maxTotalBytes = 12_000_000_000,
+    deadline = Number.POSITIVE_INFINITY,
+    clock = Date.now,
+  } = {},
 ): Promise<{ report: ScanReport; checkpoint: Map<string, ScanRecord> }> {
   const next = new Map(checkpoint);
   const report: ScanReport = {
@@ -145,9 +158,14 @@ export async function scan(
   };
   const releaseCache = new Map<string, Promise<UpstreamRelease[]>>();
   let budget = maxTotalBytes;
+  let attempts = 0;
   for (const target of targets) {
     const skip = (reason: string) =>
       report.unscanned.push({ id: target.id, platform: target.platform, reason });
+    if (clock() >= deadline) {
+      skip("time budget reached; scanned in a later run");
+      continue;
+    }
     let releases: UpstreamRelease[];
     try {
       const cacheKey = `${target.provider}|${target.repository.toLowerCase()}`;
@@ -175,22 +193,27 @@ export async function scan(
         report.findings.push({ ...known, id: target.id, platform: target.platform });
       continue;
     }
-    if (report.scanned.length >= maxAssets) {
-      skip("asset budget reached; scanned in a later run");
+    if (attempts >= maxAssets || budget <= 0) {
+      skip("asset or byte budget reached; scanned in a later run");
       continue;
     }
     if (asset.size !== null && (asset.size > maxAssetBytes || asset.size > budget)) {
       skip(`asset ${asset.name} exceeds the byte budget`);
       continue;
     }
+    attempts++;
     const dir = await mkdtemp(path.join(os.tmpdir(), "release-scan-"));
+    const file = path.join(dir, "package");
     try {
-      const file = path.join(dir, "package");
-      await deps.download(asset, file, Math.min(maxAssetBytes, budget));
+      await deps.download(asset, file, Math.max(1, Math.min(maxAssetBytes, budget)));
       const bytes = await readFile(file);
-      budget -= bytes.length;
+      const sha256 = createHash("sha256").update(bytes).digest("hex");
+      if (asset.digest?.startsWith("sha256:") && asset.digest !== `sha256:${sha256}`)
+        throw new Error("downloaded bytes differ from the provider's published digest");
       const entries = await deps.list(file, asset.name);
-      const heads = await deps.heads(file, asset.name, headCandidates(entries).slice(0, 64));
+      const candidates = headCandidates(entries);
+      const read = candidates.slice(0, 64);
+      const heads = await deps.heads(file, asset.name, read);
       const record: ScanRecord = {
         key,
         id: target.id,
@@ -198,8 +221,11 @@ export async function scan(
         repository: target.repository,
         tag: release.tag,
         asset: asset.name,
-        sha256: createHash("sha256").update(bytes).digest("hex"),
+        sha256,
         entries: entries.length,
+        heads_unread: read.length - heads.size,
+        heads_truncated: candidates.length > read.length,
+        rules: RULES_VERSION,
         signals: packageSignals(entries, heads),
       };
       next.set(key, record);
@@ -208,6 +234,11 @@ export async function scan(
     } catch (error) {
       skip(`asset ${asset.name} could not be scanned: ${(error as Error).message}`);
     } finally {
+      // Failed transfers spend the byte budget too, so a bad asset cannot repeat unbounded.
+      budget -= await stat(file).then(
+        (info) => info.size,
+        () => 0,
+      );
       await rm(dir, { recursive: true, force: true });
     }
   }
@@ -216,7 +247,19 @@ export async function scan(
 
 // ---- Hosted implementations -------------------------------------------------
 
-const run = promisify(execFile);
+const execute = promisify(execFile);
+const TOOL_TIMEOUT_MS = 5 * 60_000;
+type RunOptions = { maxBuffer?: number; timeout?: number; encoding?: "buffer" };
+const run = (file: string, args: string[], options: RunOptions = {}) =>
+  execute(file, args, {
+    timeout: TOOL_TIMEOUT_MS,
+    killSignal: "SIGKILL",
+    maxBuffer: 64 << 20,
+    ...options,
+  });
+
+/** Member names a lister could read as an option, list file or wildcard are not opened. */
+export const safeMember = (name: string) => !/^[-@]/.test(name) && !/[*?[\]]/.test(name);
 
 async function json(url: string, token?: string) {
   const response = await fetch(url, {
@@ -270,37 +313,47 @@ export const hostedDependencies = (token?: string): ScanDependencies => ({
   async download(asset, file, maxBytes) {
     await run(
       "curl",
-      ["-fsSL", "--proto", "=https", "--max-filesize", String(maxBytes), "-o", file, asset.url],
-      {
-        timeout: 15 * 60_000,
-      },
+      [
+        "-fsSL",
+        "--proto",
+        "=https",
+        "--proto-redir",
+        "=https",
+        "--max-filesize",
+        String(maxBytes),
+        "-o",
+        file,
+        asset.url,
+      ],
+      { timeout: 15 * 60_000 },
     );
   },
   async list(file, name) {
     const lower = name.toLowerCase();
     if (lower.endsWith(".appimage")) {
       const offset = await squashfsOffset(file);
-      const { stdout } = await run("unsquashfs", ["-o", String(offset), "-lls", file], {
-        maxBuffer: 64 << 20,
-      });
-      return parseUnsquashfs(stdout);
+      const { stdout } = await run("unsquashfs", ["-o", String(offset), "-lls", file]);
+      return parseUnsquashfs(String(stdout));
     }
     if (/\.(tar\.gz|tgz|tar\.xz|txz)$/.test(lower)) {
-      const { stdout } = await run("tar", ["-tvf", file], { maxBuffer: 64 << 20 });
-      return parseTarVerbose(stdout);
+      const { stdout } = await run("tar", ["-tvf", file]);
+      return parseTarVerbose(String(stdout));
     }
-    const { stdout } = await run("7z", ["l", "-ba", "-slt", file], { maxBuffer: 64 << 20 });
-    return parse7zTechnical(stdout);
+    // A dummy password makes encrypted archives fail instead of waiting for input.
+    const { stdout } = await run("7z", ["l", "-ba", "-slt", "-pportcove-scan", "--", file]);
+    return parse7zTechnical(String(stdout));
   },
   async heads(file, name, entries) {
     const lower = name.toLowerCase();
     const heads = new Map<string, Buffer>();
+    const offset = lower.endsWith(".appimage") ? String(await squashfsOffset(file)) : "";
     for (const entry of entries) {
+      const member = entry.member ?? entry.path;
+      if (!safeMember(member)) continue;
       let args: [string, string[]];
-      if (/\.(tar\.gz|tgz|tar\.xz|txz)$/.test(lower)) args = ["tar", ["-xOf", file, entry.path]];
-      else if (lower.endsWith(".appimage"))
-        args = ["unsquashfs", ["-o", String(await squashfsOffset(file)), "-cat", file, entry.path]];
-      else args = ["7z", ["e", "-so", file, entry.path]];
+      if (/\.(tar\.gz|tgz|tar\.xz|txz)$/.test(lower)) args = ["tar", ["-xOf", file, "--", member]];
+      else if (offset) args = ["unsquashfs", ["-o", offset, "-cat", file, member]];
+      else args = ["7z", ["e", "-so", "-pportcove-scan", "--", file, member]];
       try {
         const { stdout } = await run(args[0], args[1], {
           encoding: "buffer",
@@ -317,13 +370,21 @@ export const hostedDependencies = (token?: string): ScanDependencies => ({
 
 /** The SquashFS image of an AppImage starts where its ELF section headers end. */
 export async function squashfsOffset(file: string) {
-  const elf = await readFile(file);
-  if (elf.readUInt32BE(0) !== 0x7f454c46) throw new Error("not an ELF AppImage");
-  const offset =
-    Number(elf.readBigUInt64LE(0x28)) + elf.readUInt16LE(0x3a) * elf.readUInt16LE(0x3c);
-  if (elf.subarray(offset, offset + 4).toString("latin1") !== "hsqs")
-    throw new Error("no SquashFS image");
-  return offset;
+  const handle = await open(file, "r");
+  try {
+    const elf = Buffer.alloc(64);
+    await handle.read(elf, 0, 64, 0);
+    if (elf.readUInt32BE(0) !== 0x7f454c46 || elf[4] !== 2)
+      throw new Error("not a 64-bit ELF AppImage");
+    const offset =
+      Number(elf.readBigUInt64LE(0x28)) + elf.readUInt16LE(0x3a) * elf.readUInt16LE(0x3c);
+    const magic = Buffer.alloc(4);
+    await handle.read(magic, 0, 4, offset);
+    if (magic.toString("latin1") !== "hsqs") throw new Error("no SquashFS image");
+    return offset;
+  } finally {
+    await handle.close();
+  }
 }
 
 export function parse7zTechnical(text: string): PackageEntry[] {
@@ -347,7 +408,9 @@ export function parseTarVerbose(text: string): PackageEntry[] {
     .split(/\r?\n/)
     .map((line) => /^-\S+\s+\S+\s+(\d+)\s+\S+\s+\S+\s+(.+)$/.exec(line))
     .flatMap((match) =>
-      match?.[2] ? [{ path: match[2].replace(/^\.\//, ""), size: Number(match[1]) }] : [],
+      match?.[2]
+        ? [{ path: match[2].replace(/^\.\//, ""), size: Number(match[1]), member: match[2] }]
+        : [],
     );
 }
 
@@ -375,6 +438,15 @@ export function summaryMarkdown(report: ScanReport) {
       );
     lines.push("");
   } else lines.push("No game-data signals.", "");
+  const partial = report.scanned.filter((record) => record.heads_unread || record.heads_truncated);
+  if (partial.length) {
+    lines.push("### Partly read packages", "");
+    for (const record of partial)
+      lines.push(
+        `- \`${record.id}\` (${record.platform}) \`${record.asset}\`: ${record.heads_unread} candidate file(s) unread${record.heads_truncated ? "; candidate list cut at 64" : ""}`,
+      );
+    lines.push("");
+  }
   if (report.unscanned.length) {
     lines.push("### Not scanned", "");
     for (const entry of report.unscanned)
@@ -396,6 +468,14 @@ async function main(argv: string[]) {
     process.stdout.write(summaryMarkdown(report));
     return;
   }
+  if (argv[0] === "annotations" && option("--report")) {
+    const report = JSON.parse(await readFile(option("--report")!, "utf8")) as ScanReport;
+    for (const finding of report.findings)
+      process.stdout.write(
+        `::warning title=Release content scan::${finding.id} ${finding.tag} ${finding.asset}: ${finding.signals.map((signal) => signal.reason).join("; ")}\n`,
+      );
+    return;
+  }
   if (argv[0] !== "scan" || !option("--listings") || !option("--output")) {
     process.stderr.write(
       "Usage: node scripts/release-content-scan.mts scan --listings <listings.json> --checkpoint <file|-> --output <report.json>\n",
@@ -410,7 +490,8 @@ async function main(argv: string[]) {
       const stored = JSON.parse(await readFile(checkpointPath, "utf8")) as {
         records?: ScanRecord[];
       };
-      for (const record of stored.records ?? []) previous.set(record.key, record);
+      for (const record of stored.records ?? [])
+        if (record.rules === RULES_VERSION) previous.set(record.key, record);
     } catch {
       // A missing or unreadable checkpoint scans from scratch.
     }
@@ -424,6 +505,8 @@ async function main(argv: string[]) {
       maxAssets: numeric("--max-assets"),
       maxAssetBytes: numeric("--max-asset-bytes"),
       maxTotalBytes: numeric("--max-total-bytes"),
+      // Leave time to write the report and checkpoint before the job timeout.
+      deadline: Date.now() + (numeric("--minutes") ?? 90) * 60_000,
     },
   );
   await writeFile(option("--output")!, `${JSON.stringify(report, null, 2)}\n`);
@@ -437,4 +520,5 @@ async function main(argv: string[]) {
   );
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) await main(process.argv.slice(2));
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url))
+  await main(process.argv.slice(2));

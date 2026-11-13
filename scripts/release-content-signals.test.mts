@@ -36,6 +36,8 @@ void test("ROM, disc and original executable files are flagged by name", () => {
     { path: "disc/Game.ISO", size: 700_000_000 },
     { path: "game/default.xex", size: 6_000_000 },
     { path: "patch/default.xexp", size: 100_000 },
+    { path: "disc/game.cue", size: 200 },
+    { path: "tools/default.xbe", size: 1_000_000 },
     { path: "empty.nds", size: 0 },
   ]);
   assert.deepEqual(
@@ -45,6 +47,7 @@ void test("ROM, disc and original executable files are flagged by name", () => {
       ["disc/Game.ISO", "rom-or-disc-image"],
       ["game/default.xex", "original-executable"],
       ["patch/default.xexp", "original-executable"],
+      ["tools/default.xbe", "original-executable"],
     ],
   );
 });
@@ -58,6 +61,8 @@ void test("copied cartridge headers, ROM magic, shader caches and BIOS images ar
     { path: "cache/534507EF.xsh", size: 127_448 },
     { path: "scph.bin", size: 512 * 1024 },
     { path: "disc.img", size: 1_000_000 },
+    { path: "raw.bin", size: 2_000_000 },
+    { path: "game.dat", size: 40_976 },
   ];
   const heads = new Map([
     ["header.bin", head(0xc0, "24ffae51699aa2213d84820a84e409ad", 352)],
@@ -70,6 +75,8 @@ void test("copied cartridge headers, ROM magic, shader caches and BIOS images ar
       Buffer.concat([Buffer.alloc(0x108), Buffer.from("Sony Computer Entertainment Inc.")]),
     ],
     ["disc.img", head(0x8001, Buffer.from("CD001").toString("hex"))],
+    ["raw.bin", head(0x9319, Buffer.from("CD001").toString("hex"))],
+    ["game.dat", head(0, "4e45531a")],
   ]);
   assert.deepEqual(
     packageSignals(entries, heads).map((signal) => [signal.path, signal.kind]),
@@ -81,6 +88,8 @@ void test("copied cartridge headers, ROM magic, shader caches and BIOS images ar
       ["cache/534507EF.xsh", "shader-cache"],
       ["scph.bin", "console-bios"],
       ["disc.img", "rom-or-disc-image"],
+      ["raw.bin", "rom-or-disc-image"],
+      ["game.dat", "rom-or-disc-image"],
     ],
   );
 });

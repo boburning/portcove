@@ -13,6 +13,8 @@ export interface PackageEntry {
   /** Archive-relative path using `/` separators. */
   path: string;
   size: number;
+  /** Exact member name for extraction when it differs from `path`. */
+  member?: string;
 }
 
 export interface ContentSignal {
@@ -27,7 +29,10 @@ export interface ContentSignal {
 }
 
 /** Bytes of each candidate entry the caller should read for magic checks. */
-export const HEAD_BYTES = 0x8010;
+export const HEAD_BYTES = 0x9400;
+
+/** Bump when a rule changes, so cached verdicts are recomputed. */
+export const RULES_VERSION = 2;
 
 const ROM_EXTENSIONS = new Map<string, string>([
   [".z64", "Nintendo 64 ROM image"],
@@ -41,19 +46,28 @@ const ROM_EXTENSIONS = new Map<string, string>([
   [".smc", "SNES ROM image"],
   [".nes", "NES ROM image"],
   [".iso", "disc image"],
-  [".cue", "disc image cue sheet"],
   [".chd", "compressed disc image"],
   [".cso", "compressed disc image"],
   [".wbfs", "Wii disc image"],
   [".rvz", "GameCube or Wii disc image"],
   [".xiso", "Xbox disc image"],
   [".pbp", "PSP or PlayStation package"],
+  [".gdi", "Dreamcast disc image"],
+  [".cdi", "Dreamcast disc image"],
+  [".gcm", "GameCube disc image"],
+  [".gcz", "GameCube or Wii disc image"],
+  [".wia", "GameCube or Wii disc image"],
+  [".3ds", "Nintendo 3DS ROM image"],
+  [".cia", "Nintendo 3DS package"],
+  [".nsp", "Nintendo Switch package"],
+  [".xci", "Nintendo Switch cartridge image"],
 ]);
 
 const ORIGINAL_EXECUTABLE_EXTENSIONS = new Map<string, string>([
   [".xex", "Xbox 360 title executable"],
   [".xexp", "Xbox 360 title-update patch"],
   [".dol", "GameCube or Wii main executable"],
+  [".xbe", "original Xbox executable"],
 ]);
 
 // The 16-byte start of Nintendo's boot logo, shared by GBA and NDS cartridge
@@ -132,7 +146,12 @@ export function packageSignals(
         kind: "rom-or-disc-image",
         reason: "Nintendo 64 ROM header",
       });
-    else if (startsWithAt(head, 0x8001, Buffer.from("CD001")))
+    else if (startsWithAt(head, 0, Buffer.from("4e45531a", "hex")))
+      signals.push({ path: entry.path, kind: "rom-or-disc-image", reason: "iNES ROM header" });
+    else if (
+      startsWithAt(head, 0x8001, Buffer.from("CD001")) ||
+      startsWithAt(head, 0x9319, Buffer.from("CD001"))
+    )
       signals.push({ path: entry.path, kind: "rom-or-disc-image", reason: "ISO 9660 disc image" });
     else if (startsWithAt(head, 0, Buffer.from("XEX2")))
       signals.push({
