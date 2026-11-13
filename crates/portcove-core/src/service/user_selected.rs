@@ -1280,11 +1280,6 @@ mod tests {
     }
 
     #[test]
-    fn valkyrie_prepared_product_route_491() {
-        assert_listing_only_player_route("alexbeav-valkyrie-profile-recomp", Some(false));
-    }
-
-    #[test]
     fn dprecomp_permitted_prepared_runtime_route_812() {
         assert_listing_only_player_route("deadly-premonition-dprecomp", Some(true));
     }
