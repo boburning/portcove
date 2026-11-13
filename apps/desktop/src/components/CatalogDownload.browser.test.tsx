@@ -206,43 +206,32 @@ it("shows Core's acquisition restriction without offering a download mutation", 
   expect(desktopApi.downloadCatalogPackage).not.toHaveBeenCalled();
 });
 
-it.each([
-  [
-    "managed-route",
-    "Portcove installs and updates this game on your system. Use Install instead of downloading the upstream package.",
-    false,
-  ],
-  [
-    "platform-not-listed",
-    "The project doesn't list a package for your system. Check the project page for other ways to play.",
-    true,
-  ],
-] as const)(
-  "explains a %s refusal instead of offering another check",
-  async (refusal, reason, link) => {
-    vi.mocked(desktopApi.catalogDownloadCandidates).mockResolvedValue({
-      ...candidates,
-      allowed: false,
-      reason,
-      refusal,
-      candidates: [],
-      recommended_asset_id: null,
-      packages: [],
-      coverage: null,
-    });
-    await click("Check upstream downloads");
-    await expect.element(page.getByText(reason, { exact: true })).toBeVisible();
-    await expect
-      .element(page.getByRole("button", { name: "Check downloads again", exact: true }))
-      .not.toBeInTheDocument();
-    await expect
-      .element(page.getByRole("button", { name: "Review download", exact: true }))
-      .not.toBeInTheDocument();
-    // Only an unlisted platform keeps the upstream page as a next step.
-    expect(Boolean(page.getByRole("link", { name: "View upstream releases" }).query())).toBe(link);
-    expect(desktopApi.previewCatalogDownload).not.toHaveBeenCalled();
-  },
-);
+it("explains a managed-route refusal instead of offering another check", async () => {
+  const reason =
+    "Portcove installs and updates this game on your system. Use Install instead of downloading the upstream package.";
+  vi.mocked(desktopApi.catalogDownloadCandidates).mockResolvedValue({
+    ...candidates,
+    allowed: false,
+    reason,
+    refusal: "managed-route",
+    candidates: [],
+    recommended_asset_id: null,
+    packages: [],
+    coverage: null,
+  });
+  await click("Check upstream downloads");
+  await expect.element(page.getByText(reason, { exact: true })).toBeVisible();
+  await expect
+    .element(page.getByRole("button", { name: "Check downloads again", exact: true }))
+    .not.toBeInTheDocument();
+  await expect
+    .element(page.getByRole("button", { name: "Review download", exact: true }))
+    .not.toBeInTheDocument();
+  await expect
+    .element(page.getByRole("link", { name: "View upstream releases" }))
+    .not.toBeInTheDocument();
+  expect(desktopApi.previewCatalogDownload).not.toHaveBeenCalled();
+});
 
 it("accepts Core's recommended package and location together without a folder decision", async () => {
   await click("Check upstream downloads");

@@ -267,13 +267,6 @@ function DownloadChoicesView({
         data-download-refusal={refusal}
       >
         <p role="status">{model.result.reason}</p>
-        {refusal === "platform-not-listed" && (
-          <ActionRow>
-            <ExternalLink href={model.updates.url}>
-              {model.updates.releases ? "View upstream releases" : "Project website"}
-            </ExternalLink>
-          </ActionRow>
-        )}
       </section>
     );
   }

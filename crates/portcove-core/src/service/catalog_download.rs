@@ -115,8 +115,6 @@ impl CatalogDownloadCoverage {
 pub enum CatalogDownloadRefusal {
     /// Portcove's managed integration offers Install for this host.
     ManagedRoute,
-    /// The listing names its platforms, and this host is not one of them.
-    PlatformNotListed,
 }
 
 impl CatalogDownloadRefusal {
@@ -124,9 +122,6 @@ impl CatalogDownloadRefusal {
         match self {
             Self::ManagedRoute => {
                 "Portcove installs and updates this game on your system. Use Install instead of downloading the upstream package."
-            }
-            Self::PlatformNotListed => {
-                "The project doesn't list a package for your system. Check the project page for other ways to play."
             }
         }
     }
@@ -491,8 +486,8 @@ impl PortcoveService {
     }
 
     /// One fresh route per host: a managed Install that the current definition
-    /// offers here replaces the upstream download, and a listing that names its
-    /// platforms offers no download for another one. Empty platforms are unknown.
+    /// offers here replaces the upstream download. Descriptive listing platforms
+    /// never refuse a host, so a newly published upstream package stays reachable.
     pub(crate) fn listing_download_refusal(
         &self,
         port_id: &str,
@@ -510,10 +505,7 @@ impl PortcoveService {
         {
             return Ok(Some(CatalogDownloadRefusal::ManagedRoute));
         }
-        let listing = self.catalog.listing(port_id)?;
-        if !listing.platforms.is_empty() && !listing.platforms.contains(&platform) {
-            return Ok(Some(CatalogDownloadRefusal::PlatformNotListed));
-        }
+        self.catalog.listing(port_id)?;
         Ok(None)
     }
 

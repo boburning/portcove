@@ -145,11 +145,12 @@ upstream itself publishes and holds a package only for concrete reasons.
   existing non-owning integration, still needs a separate decision. The owner
   confirmed this on November 13, 2026. Core enforces one fresh route per host:
   it refuses the listing download (`managed-route`) where the current
-  definition offers managed Install, and (`platform-not-listed`) where the
-  projected listing names its platforms without the host. Empty platforms stay
-  unknown and keep the download. A `user-prepared` integration offers no
-  Install, so its download stays available for preparing the reviewed copy.
-  Registering an existing installation remains available either way.
+  definition offers managed Install. Descriptive listing platforms never refuse
+  a host, so a newly published upstream package stays reachable before the
+  listing names it; registration still requires a native program. A
+  `user-prepared` integration offers no Install, so its download stays
+  available for preparing the reviewed copy. Registering an existing
+  installation remains available either way.
 - **Availability.** Tier 3 never copies or retains a package for others. When
   the upstream release disappears, moves or is withdrawn, Portcove stops
   offering fresh acquisition through the existing release resolution and

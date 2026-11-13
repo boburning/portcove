@@ -2105,7 +2105,7 @@ async fn assert_embedded_resolved_frontend_download(
         .catalog_download_options_with_provider(id, None, None, Some(&github.provider))
         .await
         .unwrap();
-    // A managed Install or an unlisted host is not this listing's download route.
+    // A managed Install on this host replaces the listing download route.
     if let Some(refusal) = service
         .listing_download_refusal(id, Platform::current().unwrap())
         .unwrap()
@@ -2665,20 +2665,17 @@ fn embedded_service() -> (tempfile::TempDir, PortcoveService, CatalogDownloadReq
 
 #[test]
 fn managed_install_hosts_refuse_the_listing_download_and_others_keep_it() {
-    use CatalogDownloadRefusal::{ManagedRoute, PlatformNotListed};
+    use CatalogDownloadRefusal::ManagedRoute;
     use Platform::{LinuxX86_64, MacosAarch64, MacosX86_64, WindowsX86_64};
     let (_temporary, service, _) = embedded_service();
     let refusal = |id: &str, platform| service.listing_download_refusal(id, platform).unwrap();
-    // Managed Windows route; Linux is listed for the player-maintained package.
+    // Managed Windows route; every other host keeps the upstream download, listed or not.
     assert_eq!(
         refusal("wave-race-64-recomp", WindowsX86_64),
         Some(ManagedRoute)
     );
     assert_eq!(refusal("wave-race-64-recomp", LinuxX86_64), None);
-    assert_eq!(
-        refusal("wave-race-64-recomp", MacosAarch64),
-        Some(PlatformNotListed)
-    );
+    assert_eq!(refusal("wave-race-64-recomp", MacosAarch64), None);
     assert_eq!(
         refusal("diddy-kong-racing-golden-balloon", WindowsX86_64),
         Some(ManagedRoute)
@@ -2693,16 +2690,13 @@ fn managed_install_hosts_refuse_the_listing_download_and_others_keep_it() {
     );
     assert_eq!(
         refusal("diddy-kong-racing-golden-balloon", MacosX86_64),
-        Some(PlatformNotListed)
+        None
     );
     assert_eq!(
         refusal("road-rash-64-recompiled", WindowsX86_64),
         Some(ManagedRoute)
     );
-    assert_eq!(
-        refusal("road-rash-64-recompiled", LinuxX86_64),
-        Some(PlatformNotListed)
-    );
+    assert_eq!(refusal("road-rash-64-recompiled", LinuxX86_64), None);
     // A prepared-player integration needs the upstream package, so it keeps the download.
     assert_eq!(refusal("dkc2-recomp", WindowsX86_64), None);
     // A held managed route offers no Install; its own hold explains the download.
@@ -2738,13 +2732,14 @@ fn listings_with_unknown_platforms_keep_the_download_on_every_host() {
 }
 
 #[tokio::test]
-async fn unlisted_host_refuses_options_preview_and_mutation_before_network() {
+async fn unlisted_host_keeps_the_upstream_download_for_a_newly_published_package() {
     let (_temporary, mut service, request) = fixture();
     let host = Platform::current().unwrap();
     let other = [Platform::WindowsX86_64, Platform::LinuxX86_64]
         .into_iter()
         .find(|platform| *platform != host)
         .unwrap();
+    // Descriptive platforms can lag behind upstream; they never refuse a host.
     let mut document = service.catalog.listing_document().clone();
     document.listings[0].platforms = vec![other];
     service.catalog = service
@@ -2752,8 +2747,13 @@ async fn unlisted_host_refuses_options_preview_and_mutation_before_network() {
         .clone()
         .with_listing_document(document)
         .unwrap();
+    assert_eq!(
+        service
+            .listing_download_refusal(&request.port_id, host)
+            .unwrap(),
+        None
+    );
     let upstream = GithubFixture::new(archive(), None, None);
-    let message = CatalogDownloadRefusal::PlatformNotListed.message();
     let options = service
         .catalog_download_options_with_provider(
             &request.port_id,
@@ -2763,34 +2763,14 @@ async fn unlisted_host_refuses_options_preview_and_mutation_before_network() {
         )
         .await
         .unwrap();
-    assert!(!options.allowed);
-    assert_eq!(
-        options.refusal,
-        Some(CatalogDownloadRefusal::PlatformNotListed)
-    );
-    assert_eq!(options.reason.as_deref(), Some(message));
-    assert!(options.candidates.is_empty() && options.coverage.is_none());
-    let error = service
+    assert!(options.allowed);
+    assert_eq!(options.refusal, None);
+    assert_eq!(options.candidates.len(), 1);
+    let preview = service
         .catalog_download_preview_with_provider(&request, &upstream.provider)
         .await
-        .unwrap_err();
-    assert_eq!(error.message, message);
-    assert_eq!(error.details["refusal"], "platform-not-listed");
-    let error = service
-        .download_catalog_package_with_provider(
-            &request,
-            &"a".repeat(64),
-            |_| {},
-            &upstream.provider,
-        )
-        .await
-        .unwrap_err();
-    assert_eq!(error.message, message);
-    assert_eq!(upstream.requests.load(Ordering::SeqCst), 0);
-    assert_eq!(
-        fs::read_dir(&request.destination_parent).unwrap().count(),
-        0
-    );
+        .unwrap();
+    assert_eq!(preview.artifact.asset_id, request.asset_id);
     assert!(service.pending_setups().unwrap().is_empty());
 }
 

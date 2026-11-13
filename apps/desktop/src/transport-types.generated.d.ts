@@ -539,7 +539,7 @@ export type CatalogForeignReleaseId = {
  * Why the upstream listing download is not this host's route. Each one leaves
  * existing-installation registration and every installed copy unchanged.
  */
-export type CatalogDownloadRefusal = "managed-route" | "platform-not-listed";
+export type CatalogDownloadRefusal = "managed-route";
 export type ListingObservationStatus = "complete" | "incomplete" | "unavailable" | "failed";
 export type CatalogOrigin = "embedded" | "signed_active" | "signed_previous" | "definition_selected";
 export type CatalogUpdateSource =

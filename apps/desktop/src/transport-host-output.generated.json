@@ -1922,11 +1922,6 @@
             "const": "managed-route",
             "description": "Portcove's managed integration offers Install for this host.",
             "type": "string"
-          },
-          {
-            "const": "platform-not-listed",
-            "description": "The listing names its platforms, and this host is not one of them.",
-            "type": "string"
           }
         ]
       },

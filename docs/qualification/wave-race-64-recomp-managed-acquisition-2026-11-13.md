@@ -83,11 +83,12 @@ registration (external files stay untouched) before choosing Install.
 
 ## Known limits
 
-- Core now refuses the listing download where managed Install is offered and
-  on hosts the listing does not name (see the listing-download rule in
+- Core now refuses the listing download where managed Install is offered (see
+  the listing-download rule in
   [CATALOG](../CATALOG.md#rights-basis-for-upstream-hosted-packages)). Windows
-  therefore shows only Install, Linux only the upstream download, and macOS
-  neither; registering an existing copy stays available on each.
+  therefore shows only Install and Linux the upstream download. Other hosts keep
+  the listing download, which currently finds no package for them upstream;
+  registering an existing copy stays available on each.
 - No Portcove install, launch, clean-exit or gameplay run of the managed route
   was performed. Windows and Linux remain without tested-platform claims.
 - The Linux program needs glibc 2.43 and libstdc++ with `GLIBCXX_3.4.32`, as
