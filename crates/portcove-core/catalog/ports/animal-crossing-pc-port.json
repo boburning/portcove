@@ -70,7 +70,7 @@
     "automated_tested_platforms": ["windows-x86-64"],
     "manually_validated_platforms": ["windows-x86-64"],
     "release": {
-      "repository": "flyngmt/ACGC-PC-Port",
+      "repository": "flyngmt/Nookery",
       "asset_hints": {
         "windows-x86-64": ["ACGC-PC-Port"]
       }
