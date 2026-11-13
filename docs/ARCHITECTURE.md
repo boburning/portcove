@@ -733,8 +733,8 @@ image; the shared decode refuses animated PNGs. Candidates are proposals with au
 attribution; they establish no game identity or Steam write. No project key exists.
 
 Choosing a SteamGridDB image goes through the same artwork store and ingestion path
-as a local import. Cover takes the portrait role and Detail the hero role; landscape
-has no slot. Core re-lists the game's first candidate page with the player's key and
+as a local import. Cover takes the portrait role, Detail the hero role and Landscape the
+landscape role. Core re-lists the game's first candidate page with the player's key and
 selects the requested image, so a client-supplied URL or author is never trusted, and
 an image that has left that page is reported as no longer listed. The image is then
 fetched from the CDN through a transport method that takes no key, with no redirects,

@@ -581,7 +581,7 @@ fn landscape_capsule_is_published_under_the_bare_app_id_and_kept_separate() {
     let mut request = fixture.update(false, b"portrait");
     request.roles[1].1 = available(b"landscape capsule");
     let plan = plan_steam_artwork(&request).unwrap();
-    assert_ne!(plan.roles[1].action, SteamArtworkRoleAction::Write);
+    assert_eq!(plan.roles[1].action, SteamArtworkRoleAction::Preserve);
     apply(&plan, &request);
     assert_eq!(fs::read(&capsule).unwrap(), b"player capsule");
 

@@ -945,7 +945,7 @@ describe("SteamGridDB picker", () => {
     await render();
     await open();
     expect(container.querySelector('[aria-label="Landscape image"]')?.textContent).toContain(
-      "Steam's library capsule",
+      "Steam uses it for the game's library capsule",
     );
     await click("landscape", "Find on SteamGridDB");
     await vi.waitFor(() =>

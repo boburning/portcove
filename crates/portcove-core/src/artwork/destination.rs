@@ -32,11 +32,12 @@ pub enum DestinationArtworkSource {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum DestinationArtworkUnavailableReason {
+    /// Retired in handoff schema 4: no role reports it, and readers refuse it.
     RoleNotProvided,
     NoLocalOriginal,
     SelectedOriginalUnavailable,
-    /// The selected detail import is not displayed wider than tall (including
-    /// after its embedded rotation), so it is not offered as a wide role; it is
+    /// The selected detail or landscape import is not displayed wider than tall
+    /// (including after its embedded rotation), so it is not offered as a wide role; it is
     /// never cropped, rotated or stretched to fit.
     SelectedImageNotWide,
 }
@@ -53,9 +54,9 @@ pub enum DestinationArtworkContent {
 }
 
 /// An observation, never provider permission, destination ownership or write consent.
-/// Portrait exposes the validated local cover original; hero banner exposes the
-/// validated local detail original only when it is wider than tall. Catalog
-/// defaults and the landscape role remain explicit unavailable states; nothing is
+/// Portrait exposes the validated local cover original; hero banner and landscape
+/// cover expose the validated local detail or landscape original only when it is
+/// wider than tall. Catalog defaults remain explicit unavailable states; nothing is
 /// synthesized, cropped or resized from another role or cache.
 #[derive(Debug, Clone, Serialize, JsonSchema)]
 #[serde(deny_unknown_fields)]

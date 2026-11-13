@@ -559,7 +559,7 @@ export type DestinationArtworkContent =
       reason: DestinationArtworkUnavailableReason;
     };
 export type DestinationArtworkUnavailableReason =
-  ("role_not_provided" | "no_local_original" | "selected_original_unavailable") | "selected_image_not_wide";
+  ("no_local_original" | "selected_original_unavailable") | "role_not_provided" | "selected_image_not_wide";
 export type DestinationArtworkSource =
   | {
       asset: LocalArtworkAsset;
@@ -3065,9 +3065,9 @@ export interface OutputDestinationArtworkBytes {
 }
 /**
  * An observation, never provider permission, destination ownership or write consent.
- * Portrait exposes the validated local cover original; hero banner exposes the
- * validated local detail original only when it is wider than tall. Catalog
- * defaults and the landscape role remain explicit unavailable states; nothing is
+ * Portrait exposes the validated local cover original; hero banner and landscape
+ * cover expose the validated local detail or landscape original only when it is
+ * wider than tall. Catalog defaults remain explicit unavailable states; nothing is
  * synthesized, cropped or resized from another role or cache.
  */
 export interface DestinationArtworkHandoff {
@@ -4089,7 +4089,7 @@ export interface LibraryMetadata {
   exported_at: number;
   launch_history: LibraryLaunchHistory[];
   /**
-   * Explicit add-only Library entries; present only under metadata schema 7 or 8,
+   * Explicit add-only Library entries; present only under metadata schema 7 or later,
    * so an older reader refuses the export instead of silently dropping them.
    */
   library_memberships?: LibraryMembership[];

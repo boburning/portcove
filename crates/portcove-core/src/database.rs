@@ -3170,6 +3170,40 @@ mod tests {
     }
 
     #[test]
+    fn interrupted_landscape_slot_migration_rolls_back_to_schema_56() {
+        let temporary = tempdir().unwrap();
+        let root = temporary.path();
+        prepare_root(root);
+        migrate_to(root, 56).unwrap();
+        let connection = connect(root).unwrap();
+        connection
+            .execute_batch(
+                "INSERT INTO artwork_choices(port_id,slot,revision) VALUES ('shipwright','detail',4);
+                 CREATE TABLE artwork_choices_v56 (blocker INTEGER);",
+            )
+            .unwrap();
+        drop(connection);
+        // The pre-existing name makes the rename fail inside the migration.
+        assert!(migrate_to(root, 57).is_err());
+        let connection = connect(root).unwrap();
+        let version: i64 = connection
+            .query_row("SELECT MAX(version) FROM schema_migrations", [], |row| {
+                row.get(0)
+            })
+            .unwrap();
+        assert_eq!(version, 56);
+        let kept: (String, i64) = connection
+            .query_row(
+                "SELECT slot,revision FROM artwork_choices WHERE port_id='shipwright'",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .unwrap();
+        assert_eq!(kept, ("detail".to_owned(), 4));
+        assert!(crate::artwork_store::verify_landscape_slot(&connection).is_err());
+    }
+
+    #[test]
     fn landscape_slot_migration_keeps_every_choice_and_constraint() {
         let temporary = tempdir().unwrap();
         let root = temporary.path();
@@ -3184,6 +3218,8 @@ mod tests {
                      VALUES ('shipwright','cover',3,'{asset}'),('shipwright','detail',5,NULL);
                  INSERT INTO artwork_thumbnails(asset_sha256,format_version,sha256,byte_size)
                      VALUES ('{asset}',2,'{asset}',4);
+                 INSERT INTO artwork_asset_providers(asset_sha256,provider,asset_id,record_json)
+                     VALUES ('{asset}','steamgriddb',7,'{{}}');
                  INSERT INTO artwork_provider_only_assets(asset_sha256) VALUES ('{asset}');"
             ))
             .unwrap();
@@ -3256,6 +3292,12 @@ mod tests {
             )
             .unwrap();
         assert_eq!(leftover, 0);
+        let providers: i64 = connection
+            .query_row("SELECT COUNT(*) FROM artwork_asset_providers", [], |row| {
+                row.get(0)
+            })
+            .unwrap();
+        assert_eq!(providers, 1);
         let violations: i64 = connection
             .query_row("SELECT COUNT(*) FROM pragma_foreign_key_check", [], |row| {
                 row.get(0)

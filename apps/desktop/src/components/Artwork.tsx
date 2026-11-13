@@ -140,7 +140,7 @@ const slotCopy: Record<ArtworkSlot, { label: string; description: string }> = {
   landscape: {
     label: "Landscape image",
     description:
-      "Optional wide cover for landscape views, including Steam's library capsule. Separate from the detail image.",
+      "Optional wide cover. Steam uses it for the game's library capsule. Separate from the detail image.",
   },
 };
 

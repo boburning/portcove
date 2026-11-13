@@ -381,7 +381,7 @@ The CLI API schema version is independent of the Portcove release version.
 
 `port-capabilities PORT_ID` returns a format-1 read-only feature report for a
 current or retained listing. `capabilities` advertises `port_capability_schema`
-and `listing_formats` independently from API schema 89 and event schema 3.
+and `listing_formats` independently from API schema 90 and event schema 3.
 Clients may ignore these additive descriptive fields; missing reports never
 override operation assessments. Cheap reports on workspace `PortListingStatus` use
 already loaded status/action facts. The focused command additionally reads the
@@ -1374,7 +1374,7 @@ key or a rejected key is a usage error, and a missing game is not-found. Rate
 limiting reports `retry_after_seconds` when SteamGridDB provides it, and an
 unavailable service is a network error. Malformed responses fail verification.
 `choose` copies one listed image into your library for a port's `cover` (portrait
-images) or `detail` (hero images) slot and returns `artwork_state`. Core looks the image
+images), `detail` (hero images) or `landscape` (wide grid images) slot and returns `artwork_state`. Core looks the image
 up again with your key, downloads it from SteamGridDB's image server without your key,
 and keeps it only if it decodes as a static PNG or JPEG matching its listed type and
 size. The artist credit is stored with the copy and shown in `artwork_state.attribution`

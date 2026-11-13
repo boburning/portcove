@@ -437,7 +437,7 @@ impl PortcoveService {
     }
 
     /// Choose one SteamGridDB image for a port's slot. Cover takes the portrait
-    /// role and Detail the hero role. The candidate is re-resolved with the
+    /// role, Detail the hero role and Landscape the landscape role. The candidate is re-resolved with the
     /// player's key and fetched before the artwork lock or any transaction is
     /// taken; the revision checks during ingestion then reject a stale choice.
     pub fn choose_steamgriddb_artwork(
