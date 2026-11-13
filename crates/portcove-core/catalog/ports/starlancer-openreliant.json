@@ -56,6 +56,24 @@
       "source_requirements": [],
       "saves_and_settings": "portcove-managed",
       "manual_preparation": "Follow the linked installation guide to run openreliant.exe install StarLancer (./openreliant install StarLancer on Linux or a Mac) yourself from the player folder, supplying your own StarLancer discs, images or extracted folders. Use --from for each disc image as the guide describes. Keep the resulting StarLancer folder beside the player; Play then finds it automatically. Portcove does not run the installer command during discovery or registration. The Mac players need macOS 15 or later. The declared StarLancer folder contains original game assets, campaign saves, starlancer.ini and openreliant.log. It is retained during compatible runtime replacement and backup. Keep another copy of the original media. A game installed elsewhere or custom launch arguments can use external registration; such external data is outside Portcove backups. Runtime rollback carries current declared data without rewinding saves. Existing external installations keep their files and runtime update owner. Gameplay, platform minimums and packaged Desktop acceptance remain separate observations. sltool is a helper, not the player. Core extraction and published SHA-256 comparison passed for each managed package. Native execution, minimum-environment and gameplay observations remain Not run on every platform."
+    },
+    "reviewed_package_layouts": {
+      "windows-x86-64": {
+        "directories": [],
+        "executables": ["openreliant.exe", "sltool.exe"]
+      },
+      "linux-x86-64": {
+        "directories": [],
+        "executables": ["openreliant", "sltool"]
+      },
+      "macos-x86-64": {
+        "directories": [],
+        "executables": ["openreliant", "sltool"]
+      },
+      "macos-aarch64": {
+        "directories": [],
+        "executables": ["openreliant", "sltool"]
+      }
     }
   }
 }

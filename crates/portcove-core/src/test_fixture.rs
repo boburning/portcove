@@ -483,7 +483,7 @@ impl<'a> IndexedCatalogFixture<'a> {
 fn indexed_policy_fixtures_keep_delivered_reader_floors() {
     let catalog = crate::Catalog::embedded().unwrap();
     for (id, version) in [
-        ("re-rac-rerac", 2),
+        ("re-rac-rerac", crate::package_layout::NATIVE_CAPABILITY),
         ("resident-evil-gaiden-recomp", 21),
         ("wave-race-64-racewave46", 21),
         ("render96ex", 20),

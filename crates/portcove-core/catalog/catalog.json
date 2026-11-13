@@ -50951,6 +50951,26 @@
           "game_slug": "gearhead-garage",
           "match_kind": "underlying-game"
         }
+      },
+      "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [
+            "opengg"
+          ],
+          "executables": [
+            "opengg/data_opengg_windows_x86_64/createdump.exe",
+            "opengg/opengg.exe"
+          ]
+        },
+        "linux-x86-64": {
+          "directories": [
+            "data",
+            "data_opengg_linuxbsd_x86_64"
+          ],
+          "executables": [
+            "opengg.x86_64"
+          ]
+        }
       }
     },
     {
@@ -53633,6 +53653,28 @@
           "image_sha256": "1419a475923b58ac1c10e48944b6dff9744b2afb9825a095d42426113fbcd61b",
           "game_slug": "mdk",
           "match_kind": "underlying-game"
+        }
+      },
+      "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [],
+          "executables": [
+            "mdk_sdl.exe"
+          ]
+        },
+        "linux-x86-64": {
+          "directories": [],
+          "executables": [
+            "libsdl3.so",
+            "mdk_sdl"
+          ]
+        },
+        "macos-aarch64": {
+          "directories": [],
+          "executables": [
+            "libsdl3.dylib",
+            "mdk_sdl"
+          ]
         }
       }
     },
@@ -57876,7 +57918,36 @@
           "match_kind": "underlying-game"
         }
       },
-      "setup_marker": "game-data/extract-info.json"
+      "setup_marker": "game-data/extract-info.json",
+      "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [
+            "assets"
+          ],
+          "executables": [
+            "rerac-extract.exe",
+            "rerac.exe"
+          ]
+        },
+        "linux-x86-64": {
+          "directories": [
+            "assets"
+          ],
+          "executables": [
+            "rerac",
+            "rerac-extract"
+          ]
+        },
+        "macos-aarch64": {
+          "directories": [
+            "assets"
+          ],
+          "executables": [
+            "rerac",
+            "rerac-extract"
+          ]
+        }
+      }
     },
     {
       "id": "redneck-rampage-raze",
@@ -60251,6 +60322,36 @@
           "game_slug": "starlancer",
           "match_kind": "underlying-game"
         }
+      },
+      "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [],
+          "executables": [
+            "openreliant.exe",
+            "sltool.exe"
+          ]
+        },
+        "linux-x86-64": {
+          "directories": [],
+          "executables": [
+            "openreliant",
+            "sltool"
+          ]
+        },
+        "macos-x86-64": {
+          "directories": [],
+          "executables": [
+            "openreliant",
+            "sltool"
+          ]
+        },
+        "macos-aarch64": {
+          "directories": [],
+          "executables": [
+            "openreliant",
+            "sltool"
+          ]
+        }
       }
     },
     {
@@ -60303,6 +60404,28 @@
           "image_sha256": "0c24051e22899da1b44f3730cf39b1f319aac6e773ce22c5733e63c9f295dc33",
           "game_slug": "street-fighter-iii-3rd-strike--2",
           "match_kind": "underlying-game"
+        }
+      },
+      "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [
+            "assets",
+            "licenses",
+            "shaders"
+          ],
+          "executables": [
+            "3sx.exe"
+          ]
+        },
+        "linux-x86-64": {
+          "directories": [
+            "bin",
+            "lib",
+            "share"
+          ],
+          "executables": [
+            "bin/3sx"
+          ]
         }
       }
     },

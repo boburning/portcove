@@ -943,7 +943,9 @@ fn n64_executable_parent_requires_a_new_reader_and_nonconflicting_root() {
 fn native_manual_progress_requires_its_reader_and_owned_data_boundary() {
     let catalog = crate::Catalog::embedded().unwrap();
     let port = catalog.port("re-rac-rerac").unwrap();
-    let mut entry = entry_for_port(port);
+    let mut prior_port = port.clone();
+    prior_port.reviewed_package_layouts.clear();
+    let mut entry = entry_for_port(&prior_port);
     entry["required_capabilities"][0]["minimum_version"] = json!(1);
     entry["required_capabilities"][0]["maximum_version"] = json!(2);
     assert!(inspect(&entry).unwrap_err().message.contains("version 2"));
