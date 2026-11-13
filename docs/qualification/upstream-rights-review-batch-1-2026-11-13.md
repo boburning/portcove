@@ -35,6 +35,10 @@ data, and none of the upstreams forbids redistribution.
   SHA-256 `5a3b56e239b97e5dea724b1f94b7f3e3f34d4a6bb20129ce940215c57c774a43`.
 - `tony-hawks-project-8-recomp` (#1125): release v0.3.0, `Project8Recomp-v0.3.0-windows-x86_64.zip`,
   SHA-256 `f255842b916a98c8188259fa3da5931bcea639b6c656e82d26f8b274b69be436`.
+- `tony-hawks-project-8-recomp` (#1125), Linux: release v0.3.0, `Project8Recomp-v0.3.0-linux-x86_64.zip`,
+  SHA-256 `dd091bc239f4d734a80b4f317e69bd2bf626404bfb2a3ab6c87c8fe2e6cb4886`.
+- `tony-hawks-project-8-recomp` (#1125), macOS Apple Silicon: release v0.3.0, `Project8Recomp-v0.3.0-macos-arm64.zip`,
+  SHA-256 `7627edb69fa8246bb2484e9f4dc59ac1024cc1978633d9de7f603a700bccd41b`.
 - `pilotwings-64-dgv-recomp` (#1275), Windows: release v0.1.1, `Pilotwings64Recomp-0.1.1-windows-x64.zip`,
   SHA-256 `94453fb09ca4ef2a98f5f5addfa03385c3de96d89d2cecb21591f44c741b31e8`.
 - `pilotwings-64-dgv-recomp` (#1275), Linux: release v0.1.1, `Pilotwings64Recomp-0.1.1-linux-x86_64.tar.gz`,
@@ -62,6 +66,17 @@ Notes recorded with these packages:
   generated sources or game files; it does not restrict the publisher's own
   release archive.
 - Wave Race 64's Windows route stays its existing prepared-player integration.
+
+## Platforms
+
+Each offered listing names every desktop platform its upstream publishes a
+package for. Tony Hawk's Project 8 publishes Linux, macOS Apple Silicon and
+Windows packages with the same contents; upstream verifies Linux first and
+calls Windows experimental. Pilotwings 64 publishes Windows and Linux packages.
+Wave Race 64 supports macOS only as a source build. The four darkuni players
+and Fable II Pub Games publish Windows packages only. None of the eight release
+workflows or readmes publishes an Android package; Portcove's Android host
+remains [#410](https://github.com/boburning/portcove/issues/410).
 
 ## Still held
 
