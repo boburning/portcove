@@ -24,6 +24,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   MaintenanceStoreError,
+  batchedStatements,
   connectionFromEnvironment,
   defaultDatabaseEnvironment,
   runSql,
@@ -638,6 +639,12 @@ function latestMembers(environment: NodeJS.ProcessEnv, source: string): SourceBa
   };
 }
 
+/**
+ * The budget for the one collection transaction. A first complete collection
+ * against a remote host writes every subject; later changes-only runs are small.
+ */
+const collectionTimeoutMs = 15 * 60_000;
+
 /** A database-ordered ticket, taken before any external read of a collection. */
 export function acquireCollection(environment: NodeJS.ProcessEnv) {
   const ticket = Number(
@@ -1062,7 +1069,8 @@ export function collectionSql(input: {
     const first = [...complete.values()][0];
     if (first) lines.push(...handoffCollectionSql({ retired: true, run: first.run }));
   }
-  return lines.join("\n");
+  // One query for the whole transaction: a remote host costs one round trip, not one per statement.
+  return batchedStatements(lines);
 }
 
 export const coreSourceName = (platform: string) => `${corePrefix}${platform}`;
@@ -1312,7 +1320,7 @@ export async function collect(options: {
         ? new Map(sources.map((source) => [source, latestMembers(options.environment, source)]))
         : undefined;
     try {
-      runSql(options.environment, record(baseline));
+      runSql(options.environment, record(baseline), { timeoutMs: collectionTimeoutMs });
       break;
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);

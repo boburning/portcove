@@ -5,6 +5,7 @@ import test from "node:test";
 import { postgresFixture, postgresServer } from "./fixtures/postgres-cluster.mts";
 import {
   backup,
+  batchedStatements,
   clientEnvironment,
   connectionFromEnvironment,
   defaultMigrationDirectory,
@@ -13,6 +14,7 @@ import {
   migrationStatus,
   migrationTransaction,
   planMigrations,
+  portableRestoreSql,
   readMigrations,
   restore,
   runSql,
@@ -52,6 +54,31 @@ void test("connection URLs become libpq environment without exposing secrets in 
   assert.equal(environment.PGTZ, "UTC");
   assert.throws(() => connectionFromEnvironment("lower", {}), /invalid/u);
   assert.throws(() => connectionFromEnvironment("MISSING_URL", {}), /Set MISSING_URL/u);
+});
+
+void test("a large transaction is one query, and provider column options do not restore", () => {
+  assert.equal(
+    batchedStatements(["SELECT 1;", "SELECT ';\n';  ", "INSERT INTO t VALUES (1)"]),
+    "SELECT 1\\;\nSELECT ';\n'\\;\nINSERT INTO t VALUES (1);",
+  );
+  const rendered = [
+    "CREATE TABLE portcove_maintenance.assessments (assessment_id bigint);",
+    "ALTER TABLE ONLY portcove_maintenance.assessments ALTER COLUMN assessment_id SET (pg_attver=29006896);",
+    "ALTER TABLE ONLY portcove_maintenance.assessments ALTER COLUMN assessment_id SET (n_distinct=1);",
+    "COPY portcove_maintenance.assessments (assessment_id) FROM stdin;",
+    "ALTER TABLE ONLY portcove_maintenance.assessments ALTER COLUMN assessment_id SET (pg_attver=29006896);",
+    "\\.",
+  ].join("\n");
+  assert.equal(
+    portableRestoreSql(rendered),
+    [
+      "CREATE TABLE portcove_maintenance.assessments (assessment_id bigint);",
+      "ALTER TABLE ONLY portcove_maintenance.assessments ALTER COLUMN assessment_id SET (n_distinct=1);",
+      "COPY portcove_maintenance.assessments (assessment_id) FROM stdin;",
+      "\\.",
+    ].join("\n"),
+    "only the provider's exact column-version statements are dropped",
+  );
 });
 
 void test("repository migrations are contiguous and the plan refuses drift or unknown versions", () => {

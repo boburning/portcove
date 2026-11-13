@@ -168,15 +168,45 @@ function runTool(
 const psqlBase = ["-X", "-q", "-v", "ON_ERROR_STOP=1"] as const;
 
 /** Run SQL in one transaction and return unaligned tuples-only output. */
-export function runSql(environment: NodeJS.ProcessEnv, sql: string) {
+export function runSql(
+  environment: NodeJS.ProcessEnv,
+  sql: string,
+  /** A longer budget for one known-large transaction; the default suits ordinary queries. */
+  options: { timeoutMs?: number } = {},
+) {
   return runTool(
     "psql",
     [...psqlBase, "-A", "-t", "--single-transaction", "-f", "-"],
     environment,
     {
       input: sql,
+      ...(options.timeoutMs === undefined ? {} : { timeoutMs: options.timeoutMs }),
     },
   );
+}
+
+/**
+ * Join statements with psql's `\;` so the whole list reaches the server as one
+ * query: one network round trip instead of one per statement. Each statement
+ * must be complete; the transaction still stops at the first error.
+ */
+export function batchedStatements(statements: readonly string[]) {
+  return `${statements.map((statement) => statement.trimEnd().replace(/;$/u, "")).join("\\;\n")};`;
+}
+
+/**
+ * Column attribute options that a managed provider adds to its own catalog and
+ * that standard PostgreSQL refuses (Neon's `pg_attver`). The store sets no
+ * column options, so the restore drops exactly these statements.
+ */
+const providerColumnOption =
+  /^ALTER TABLE ONLY [a-z_][a-z0-9_]*\.[a-z_][a-z0-9_]* ALTER COLUMN [a-z_][a-z0-9_]* SET \(pg_attver=[0-9]+\);$/u;
+
+export function portableRestoreSql(sql: string) {
+  return sql
+    .split("\n")
+    .filter((line) => !providerColumnOption.test(line))
+    .join("\n");
 }
 
 function queryJson(environment: NodeJS.ProcessEnv, sql: string): unknown {
@@ -612,6 +642,8 @@ export function restore(
       environment,
       { timeoutMs: dumpTimeoutMs },
     );
+    // A provider's own column options are not part of the store and do not restore elsewhere.
+    writeFileSync(script, portableRestoreSql(readFileSync(script, "utf8")));
     writeFileSync(roles, roleContract());
     writeFileSync(verification, restoreVerification(manifest.tables));
     // Verify against the backup's own schema, then bring it to this checkout's schema.

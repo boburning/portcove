@@ -757,7 +757,10 @@ checkpoint 5 and is recorded there.
   1. Build the debug Core CLI, sharing the observer's Rust cache.
   2. `migrate`.
   3. `collect --all` with `--issues`, `--release-health`, `--publication`,
-     `--upstream` and `--hosted-intake`.
+     `--upstream` and `--hosted-intake`. The collection transaction reaches the
+     server as one batched query (psql `\;`), so a remote host costs one round
+     trip rather than one per statement. That one call has a 15-minute budget;
+     other store calls keep two minutes.
   4. `handoffs --record`, which plans and never dispatches.
   5. `report`, `digest` and `backup`.
 - **Artifacts.** These are GitHub Actions artifacts kept for 30 days. Nothing is
@@ -776,7 +779,10 @@ checkpoint 5 and is recorded there.
   only through a private Unix socket. It then runs `restore`, which verifies the
   dump digest and every table's count and digest in its own transaction. The job
   also compares the restored digests with the manifest and fails on any
-  difference.
+  difference. Restore drops exactly the provider's own column-version
+  statements (`ALTER TABLE ONLY … ALTER COLUMN … SET (pg_attver=N)`), which
+  Neon adds to every column and standard PostgreSQL refuses. The store sets no
+  column options, so nothing of the store is lost.
 - **Evidence.** `evidence.json` (`portcove-maintenance-hosted-evidence`, format 1)
   and the step summary record these fields:
   - the run ID, attempt, event and head commit;
@@ -791,6 +797,16 @@ checkpoint 5 and is recorded there.
 
   The restore evidence records both server versions, the restore duration and
   the verification result.
+
+**First hosted run (2026-11-13, run 43351437599, `workflow_dispatch` on
+f7d26628).** Neon PostgreSQL 18 was detected, and the matching client was
+installed and migrated. The first complete collection then exceeded the
+client's former two-minute limit (`psql ETIMEDOUT`), and its transaction
+committed nothing. Restoring the (empty) backup onto standard PostgreSQL 18
+failed on Neon's `pg_attver` column options. Both failures are fixed by the
+batching, the collection budget and the restore filter above. The run was
+operationally useful: the store kept no partial state, and the independent
+restore found the portability gap before any history depended on it.
 
 **Interruption and provider failure.** Each mutation is atomic. A failed or
 interrupted run therefore leaves the last committed state, and the next
