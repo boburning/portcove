@@ -96,6 +96,10 @@
       "detail": "Portcove recuerda ahora todos los archivos de esta carpeta y deja esos juegos tal cual, aunque los reconozca después.",
       "label": "Configurar solo los juegos que se añadan después"
     },
+    "keepLocalCopy": {
+      "detail": "Úsalo para una unidad de red o extraíble. Se aplica a los juegos que se configuren a partir de ahora. Solo se copian los archivos que necesita cada juego; no se mueve ni se elimina nada de esta carpeta.",
+      "label": "Guardar una copia de los archivos de cada juego en este equipo"
+    },
     "legend": "Configuración automática desde esta carpeta",
     "off": {
       "detail": "Portcove solo muestra lo que encuentra aquí.",

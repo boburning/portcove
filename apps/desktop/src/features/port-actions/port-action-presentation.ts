@@ -1,4 +1,5 @@
 import type { PortStatus } from "../../types";
+import { withoutVerbatimPrefix } from "../app-shell/use-library-browsing-context";
 
 type PresentedAction = "install" | "launch" | "rollback";
 type ActionPresentation = { blocked: false; reason?: never } | { blocked: true; reason: string };
@@ -213,6 +214,17 @@ function presentAssessment(
     };
   if (action === "launch" && reason === "incompatible_source" && definition == null)
     return { blocked: true, reason: sourceFormatReason(status) };
+  // Core names the saved folder when it is disconnected; nothing was deleted.
+  const disconnected = status?.readiness?.source_folder_unavailable;
+  if (
+    action === "launch" &&
+    disconnected &&
+    (reason === "missing_source" || reason === "unreadable_source")
+  )
+    return {
+      blocked: true,
+      reason: `Connect ${withoutVerbatimPrefix(disconnected)} to play.`,
+    };
   const explanation = Object.hasOwn(actionReasons, reason) ? actionReasons[reason] : undefined;
   if (explanation !== undefined) return { blocked: true, reason: explanation };
   return unavailable(action);
@@ -374,7 +386,11 @@ export function installedCardInputPresentation(status: PortStatus | undefined) {
     (reason): reason is keyof typeof installedInputLabels =>
       typeof reason === "string" && Object.hasOwn(installedInputLabels, reason),
   );
+  const disconnected = readiness.source_folder_unavailable;
+  const folderReason = (reason: string) =>
+    disconnected && (reason === "missing_source" || reason === "unreadable_source");
   const reasons = inputs.map((reason) => {
+    if (folderReason(reason)) return `Connect ${withoutVerbatimPrefix(disconnected!)} to play.`;
     const recovery = reason.startsWith("unreadable_")
       ? "View details to restore access or choose the required files again."
       : "View details to select and review the required files.";
@@ -406,7 +422,9 @@ export function installedCardInputPresentation(status: PortStatus | undefined) {
     : incompatible
       ? "Game-file format needs review"
       : inputs.length === 1 && singleInput !== undefined
-        ? installedInputLabels[singleInput]
+        ? folderReason(singleInput)
+          ? "Game-file folder disconnected"
+          : installedInputLabels[singleInput]
         : game && bios
           ? "Game files and BIOS need review"
           : bios

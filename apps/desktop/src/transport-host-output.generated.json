@@ -9818,6 +9818,10 @@
             },
             "type": "array"
           },
+          "keep_local_copy": {
+            "description": "Copy each matched game's required files into Portcove's game-file\nfolder instead of using them in place, so games that read their\noriginals at launch don't need this folder connected. The originals\nare never moved. Off by default.",
+            "type": "boolean"
+          },
           "root_id": {
             "type": "string"
           },
@@ -9940,6 +9944,10 @@
               "$ref": "#/$defs/RootSetupImplementation"
             },
             "type": "array"
+          },
+          "keep_local_copy": {
+            "description": "Copy each matched game's required files into Portcove's game-file\nfolder instead of using them in place, so games that read their\noriginals at launch don't need this folder connected. The originals\nare never moved. Off by default.",
+            "type": "boolean"
           },
           "root_id": {
             "type": "string"
@@ -18744,6 +18752,13 @@
               }
             ],
             "description": "Descriptive input evidence for this retained installed release. Missing\nlegacy fields and unreviewed contracts never establish compatibility."
+          },
+          "source_folder_unavailable": {
+            "description": "The saved game-file folder holding this game's missing or unreadable\noriginal, when that folder is currently unavailable: reconnecting it is\nthe fix, and nothing was deleted.",
+            "type": [
+              "string",
+              "null"
+            ]
           }
         },
         "required": [

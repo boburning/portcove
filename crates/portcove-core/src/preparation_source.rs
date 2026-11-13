@@ -416,14 +416,15 @@ fn same_source(left: &SourceRecord, right: &SourceRecord) -> bool {
         && left.storage_size == right.storage_size
 }
 
-pub(crate) fn validate(
+pub(crate) fn validate<'a>(
     library: &Library,
     catalog: &Catalog,
     port: &PortDefinition,
     install: &InstallRecord,
-    source: Option<&SourceRecord>,
+    source: impl Into<super::ReceiptSource<'a>>,
     expected_plan: Option<&super::PreparationPlan>,
 ) -> Result<()> {
+    let source = source.into();
     let installer = Installer::new(library.clone())?;
     if installer.retained_preparation_mode(install)? != Some(PreparationMode::SourceOnly) {
         return Err(PortcoveError::conflict(
@@ -435,7 +436,7 @@ pub(crate) fn validate(
     if receipt.format_version != 1
         || receipt.host != Platform::current()?
         || receipt.definition_sha256 != definition(catalog, port)?
-        || !source.is_some_and(|source| same_source(source, &receipt.source))
+        || !source.matches(|source| same_source(source, &receipt.source))
     {
         return Err(PortcoveError::conflict(
             "runtime source inputs changed; review and prepare game data again",

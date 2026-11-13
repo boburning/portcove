@@ -147,6 +147,29 @@ export function FolderSetupChoice({
             </span>
           </label>
         ))}
+      {consent && (
+        <label
+          className="flex cursor-pointer items-start gap-3"
+          aria-label={t("folderSetup.keepLocalCopy.label")}
+        >
+          <input
+            type="checkbox"
+            aria-describedby={`${name}-copy`}
+            checked={consent.keep_local_copy ?? false}
+            disabled={busy || disabled}
+            onChange={(event) => {
+              const keep = event.target.checked;
+              void save(() => desktopApi.setRootSetupLocalCopy(root.id, keep, generation));
+            }}
+          />
+          <span>
+            <strong>{t("folderSetup.keepLocalCopy.label")}</strong>
+            <span id={`${name}-copy`} className="block text-pc-muted-foreground">
+              {t("folderSetup.keepLocalCopy.detail")}
+            </span>
+          </span>
+        </label>
+      )}
       {consent &&
         shared.map(({ profileId, games }) => {
           const chosen = consent.implementations?.find(

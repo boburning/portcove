@@ -784,8 +784,23 @@ pub(crate) enum GamesCommand {
         #[arg(long = "game", value_name = "PORT_ID")]
         port_id: String,
     },
+    /// Choose whether automatic setup from a folder copies each game's required
+    /// files into Portcove's game-file folder (originals are never moved).
+    FolderSetupCopy {
+        /// Folder ID from `source roots`.
+        root_id: String,
+        /// on: register a local copy; off: use files where they are.
+        #[arg(value_enum)]
+        copy: FolderSetupCopy,
+    },
     /// List folders with automatic setup turned on; changes nothing.
     FolderSetups,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
+pub(crate) enum FolderSetupCopy {
+    On,
+    Off,
 }
 
 #[derive(Debug, Clone, Copy, ValueEnum)]

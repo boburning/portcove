@@ -880,8 +880,13 @@ continue. For each matched file in the folder, Portcove:
   until you run `games folder-setup-choose ROOT_ID --files PROFILE_ID --game PORT_ID`.
   It never sets up every fork or switches implementations on its own;
 - registers a file that is not yet registered where it is, after checking its
-  current bytes, and only inside the folder. It never replaces a different copy
-  you already use;
+  current bytes, and only inside the folder. With `games folder-setup-copy
+  ROOT_ID on`, it instead copies only that game's required files (the exact
+  file, ZIP or file set the source contract admits) into Portcove's game-file
+  folder and registers the copy, so games that read their originals at launch
+  don't need this folder connected. Originals are never moved or deleted; the
+  choice is off by default, survives boundary changes and applies to later
+  registrations. It never replaces a different copy you already use;
 - then installs the game with an ordinary one-game batch that re-plans and
   freshly authorizes it. It never launches a game.
 
@@ -893,7 +898,26 @@ changes. Each pass checks or plans at most 32 folder files. Turning automatic
 setup off takes effect before the next file is registered or installed, even
 during a pass. An unavailable folder waits and keeps its setting. Removing a folder ends its automatic setup.
 `games folder-setups` lists folders with automatic setup turned on, their
-implementation choices and recent failures, and changes nothing.
+implementation choices, local-copy choice and recent failures, and changes nothing.
+
+Automatic setup never writes to Steam or Playnite. Playnite shows a newly
+prepared game on its own next library refresh; adding it to Steam remains the
+separate per-game review described in
+[integrations](INTEGRATIONS.md#automatic-setup-and-frontend-handoff).
+
+A self-contained installation launches from its verified installed data
+without its registered original, which is then needed only to repair, rebuild
+or prepare again. Portcove decides this by what launch would still hand the
+game: an installation is never self-contained when launch exports the original
+(`source_environment`), copies it again (managed initialization, or a runtime
+source file or set that is not sealed or prepared) or passes it as an argument.
+In practice this covers sealed source-only preparations, prepared
+upstream/Libultraship installations with a prepared runtime input, managed PS1
+raw sets (the BIOS is still read at launch) and retained cartridge builds whose
+launch reads only installed files. Other games still need their original
+present and unchanged. When it is missing because its saved game-file folder
+is disconnected, readiness names that folder (`source_folder_unavailable`) and
+says to connect it.
 
 ### Register and inspect
 
@@ -1825,7 +1849,7 @@ For `exec`, a successfully started game returns its exit code when it fits the p
 - `PORTCOVE_GITHUB_CLIENT_ID`: public GitHub App client ID used by device login. It may be embedded at build time or provided at runtime; it is not a client secret.
 - `PORTCOVE_PORT_ID`: supplied to launched ports.
 - `PORTCOVE_USER_DATA`: stable per-port mutable-data directory.
-- `PORTCOVE_SOURCE`: registered source path when the port needs one.
+- `PORTCOVE_SOURCE`: registered source path when the port needs one; not supplied when a self-contained installation launches without its original.
 - `PORTCOVE_CACHE`: generated-cache location for applicable adapters.
 - `PORTCOVE_CHDMAN`: optional full path to `chdman`; an invalid explicit path fails closed instead of falling back to another copy.
 - `PORTCOVE_DOLPHIN_TOOL`: optional full path to `DolphinTool`; an invalid explicit path fails closed instead of falling back to another copy.

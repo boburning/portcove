@@ -1206,6 +1206,12 @@ pub(crate) fn root_setup_consent(value: Option<&portcove_core::RootSetupConsent>
         "Automatic setup is on for folder {}: {scope}. Run `portcove games setup-ready` to set up what is ready now; no game is launched.",
         clean(&consent.root_id)
     )];
+    if consent.keep_local_copy {
+        lines.push(
+            "Each game's required files are copied into Portcove's game-file folder; originals stay in this folder."
+                .to_owned(),
+        );
+    }
     for choice in &consent.implementations {
         lines.push(format!(
             "{} files set up {}",
@@ -2761,6 +2767,13 @@ fn readiness(status: &PortStatus) -> String {
         })
         .collect::<Vec<_>>()
         .join(", ");
+    let blockers = match &readiness.source_folder_unavailable {
+        Some(folder) => format!(
+            "{blockers}; connect {} to play",
+            clean(&folder.display().to_string())
+        ),
+        None => blockers,
+    };
     match readiness.required_source_extension.as_deref() {
         Some(extension) => format!("{blockers}; requires uncompressed .{extension} original file"),
         None => blockers,
@@ -4688,5 +4701,22 @@ mod catalog_detail_tests {
         assert_eq!(super::format_bytes(0), "0 B");
         assert_eq!(super::format_bytes(1), "1 B");
         assert_eq!(super::format_bytes(1024), "1.0 KiB");
+    }
+
+    #[test]
+    fn folder_setup_states_a_kept_local_copy() {
+        let consent = portcove_core::RootSetupConsent {
+            format_version: 1,
+            root_id: "root".into(),
+            enrollment: portcove_core::RootSetupEnrollment::ExistingAndFuture,
+            enabled_at: 1,
+            updated_at: 1,
+            existing_files: 0,
+            implementations: Vec::new(),
+            failures: Vec::new(),
+            keep_local_copy: true,
+        };
+        let text = super::root_setup_consent(Some(&consent));
+        assert!(text.contains("copied into Portcove's game-file folder; originals stay"));
     }
 }

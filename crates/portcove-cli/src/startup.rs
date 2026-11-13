@@ -226,7 +226,8 @@ pub(super) fn startup_mode(command: &Commands) -> StartupMode {
             | GamesCommand::IntentsAcknowledge { .. }
             | GamesCommand::SetupReady
             | GamesCommand::FolderSetup { .. }
-            | GamesCommand::FolderSetupChoose { .. } => Recovering,
+            | GamesCommand::FolderSetupChoose { .. }
+            | GamesCommand::FolderSetupCopy { .. } => Recovering,
         },
         // These commands return before shared service construction. Preserve the
         // historical policy bit without moving their own dispatch/constructors.

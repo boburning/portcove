@@ -77,6 +77,7 @@ impl PortcoveService {
         };
         crate::runtime_path_policy::check_executable(port, Platform::current()?, &executable)?;
         checkpoint()?;
+        let self_contained = crate::preparation::self_contained_launch(&self.library, port, active);
         let source = if let Some(path) = source_override {
             let profile_id = port.source_profile.as_deref().ok_or_else(|| {
                 PortcoveError::usage(format!("{} does not accept a source override", port.name))
@@ -92,6 +93,10 @@ impl PortcoveService {
             );
             checkpoint()?;
             source
+        } else if self_contained {
+            // The installed data holds every game input; the original is
+            // needed only to repair, rebuild or prepare again.
+            None
         } else if let Some(profile) = &port.source_profile {
             match self.library.source(profile)? {
                 // An optional source whose file has gone is treated as absent: nothing is
@@ -140,7 +145,12 @@ impl PortcoveService {
             self.managed_launch_context(catalog.definition_selection(&port.id), active)?,
         )?;
         if crate::preparation::managed_install(port, active) {
-            self.validate_preparation_receipt(port, active, source.as_ref())?;
+            let receipt_source = if source_override.is_none() && self_contained {
+                crate::preparation::ReceiptSource::NotConsulted
+            } else {
+                source.as_ref().into()
+            };
+            self.validate_preparation_receipt(port, active, receipt_source)?;
             if !Installer::new(self.library.clone())?
                 .verify_managed(active, &qualification)?
                 .valid
