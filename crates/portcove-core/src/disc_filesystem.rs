@@ -659,6 +659,337 @@ pub(crate) fn chd_logical_bytes(source: &Path) -> Result<u64> {
     ))
 }
 
+/// A compressed container Portcove can turn into a plain disc image itself.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum DiscContainer {
+    /// Not a known container: read as the declared file-system format.
+    Plain,
+    /// PSP CSO (`CISO`), inflated by `expand_cso`.
+    Cso,
+}
+
+/// Identify a CSO by its magic, regardless of extension. A `ZISO` (LZ4) image is a
+/// recognised but unsupported container, refused rather than misread as plain.
+pub(crate) fn sniff_container(source: &Path) -> Result<DiscContainer> {
+    let mut magic = [0_u8; 4];
+    let mut input = File::open(source)?;
+    match input.read_exact(&mut magic) {
+        Ok(()) => {}
+        Err(error) if error.kind() == std::io::ErrorKind::UnexpectedEof => {
+            return Ok(DiscContainer::Plain);
+        }
+        Err(error) => return Err(error.into()),
+    }
+    match &magic {
+        b"CISO" => Ok(DiscContainer::Cso),
+        b"ZISO" => Err(invalid(
+            "LZ4-compressed ZSO disc images are not supported; use a CSO or a plain ISO",
+        )),
+        _ => Ok(DiscContainer::Plain),
+    }
+}
+
+const CSO_HEADER_BYTES: u64 = 24;
+const CSO_MAX_INDEX_SHIFT: u8 = 8;
+
+/// Header facts of a CSO, validated against the file it came from.
+pub(crate) struct CsoHeader {
+    pub(crate) total_bytes: u64,
+    block_size: u64,
+    index_shift: u8,
+    blocks: u64,
+    file_bytes: u64,
+}
+
+/// Read and validate a version 0/1 CSO header before anything is written, so an
+/// oversized or hostile image is refused up front.
+pub(crate) fn cso_header(source: &Path) -> Result<CsoHeader> {
+    let mut input = File::open(source)?;
+    let file_bytes = input.metadata()?.len();
+    let mut header = [0_u8; CSO_HEADER_BYTES as usize];
+    input.read_exact(&mut header).map_err(read_error)?;
+    if &header[..4] != b"CISO" || le32(&header, 4) as u64 != CSO_HEADER_BYTES {
+        return Err(invalid("the CSO header is not recognised"));
+    }
+    let total_bytes = u64::from_le_bytes(header[8..16].try_into().expect("eight bytes"));
+    let block_size = u64::from(le32(&header, 16));
+    let version = header[20];
+    let index_shift = header[21];
+    if version > 1 || index_shift > CSO_MAX_INDEX_SHIFT {
+        return Err(invalid("the CSO version is not supported"));
+    }
+    if !(SECTOR..=65_536).contains(&block_size) || !block_size.is_power_of_two() {
+        return Err(invalid("the CSO block size is not supported"));
+    }
+    if total_bytes == 0 || total_bytes % SECTOR != 0 {
+        return Err(invalid("the CSO declares an invalid size"));
+    }
+    if total_bytes > MAX_IMAGE_BYTES {
+        return Err(limit("the disc image is larger than this port allows"));
+    }
+    Ok(CsoHeader {
+        total_bytes,
+        block_size,
+        index_shift,
+        blocks: total_bytes.div_ceil(block_size),
+        file_bytes,
+    })
+}
+
+/// Inflate a CSO into a new plain image at `target` (which must not exist) and
+/// return its size. Every block is bounds-checked against the index and the file;
+/// a block that inflates to less than its size (only the final block may be padded past the
+/// image end), an index that runs backwards or past
+/// the file, or a truncated file is an error, never silently padded.
+pub(crate) fn expand_cso(
+    source: &Path,
+    header: &CsoHeader,
+    target: &Path,
+    checkpoint: &dyn Fn() -> Result<()>,
+) -> Result<u64> {
+    let mut input = File::open(source)?;
+    if input.metadata()?.len() != header.file_bytes {
+        return Err(
+            PortcoveError::conflict("the disc image changed while it was being read")
+                .with_known_cause(KnownFailureCause::SourceChanged),
+        );
+    }
+    let entries = header.blocks + 1;
+    let index_bytes = entries * 4;
+    if CSO_HEADER_BYTES + index_bytes > header.file_bytes {
+        return Err(invalid("the CSO index is truncated"));
+    }
+    let mut raw_index = vec![0_u8; index_bytes as usize];
+    read_exact_at(&mut input, CSO_HEADER_BYTES, &mut raw_index)?;
+    let index: Vec<u32> = raw_index
+        .chunks_exact(4)
+        .map(|chunk| u32::from_le_bytes(chunk.try_into().expect("four bytes")))
+        .collect();
+    drop(raw_index);
+    let offset_of = |entry: u32| u64::from(entry & 0x7FFF_FFFF) << header.index_shift;
+    let data_start = CSO_HEADER_BYTES + index_bytes;
+    let mut output = File::create_new(target)?;
+    let mut compressed = Vec::new();
+    // One spare byte so a block that inflates past its size is detected.
+    let mut block = vec![0_u8; header.block_size as usize + 1];
+    let mut remaining = header.total_bytes;
+    input.seek(SeekFrom::Start(data_start))?;
+    for number in 0..header.blocks as usize {
+        if number % 64 == 0 {
+            checkpoint()?;
+        }
+        let (start, end) = (offset_of(index[number]), offset_of(index[number + 1]));
+        if start < data_start || end <= start || end > header.file_bytes {
+            return Err(invalid("the CSO index is invalid"));
+        }
+        let length = end - start;
+        if length > header.block_size.saturating_mul(2) {
+            return Err(invalid("a CSO block is larger than its block size allows"));
+        }
+        compressed.resize(length as usize, 0);
+        read_exact_at(&mut input, start, &mut compressed)?;
+        let want = remaining.min(header.block_size) as usize;
+        let plain = index[number] & 0x8000_0000 != 0;
+        let produced = if plain {
+            // A stored block holds exactly one block of data (the last may be padded).
+            if length < want as u64 || length > header.block_size {
+                return Err(invalid("a stored CSO block has the wrong size"));
+            }
+            block[..want].copy_from_slice(&compressed[..want]);
+            want
+        } else {
+            let mut decoder = flate2::read::DeflateDecoder::new(compressed.as_slice())
+                .take(header.block_size + 1);
+            let mut produced = 0_usize;
+            loop {
+                let read = decoder
+                    .read(&mut block[produced..])
+                    .map_err(|_| invalid("a CSO block is not valid compressed data"))?;
+                if read == 0 {
+                    break;
+                }
+                produced += read;
+                if produced > header.block_size as usize {
+                    break;
+                }
+            }
+            if produced < want || produced > header.block_size as usize {
+                return Err(invalid("a CSO block inflated to the wrong size"));
+            }
+            want
+        };
+        output.write_all(&block[..produced])?;
+        remaining -= produced as u64;
+    }
+    if remaining != 0 {
+        return Err(invalid("the CSO ended before its declared size"));
+    }
+    checkpoint()?;
+    Ok(header.total_bytes)
+}
+
+/// Whether a version 5 CHD holds a CD (track metadata) rather than a DVD, read from
+/// its bounded metadata chain. A CHD with neither kind of metadata is refused, because
+/// `chdman` would still expand it into something that is not an ISO.
+pub(crate) fn chd_is_cd(source: &Path) -> Result<bool> {
+    let mut input = File::open(source)?;
+    let file_bytes = input.metadata()?.len();
+    let mut header = [0_u8; 56];
+    input.read_exact(&mut header).map_err(read_error)?;
+    if &header[..8] != b"MComprHD" || be32(&header, 12) != 5 {
+        return Err(invalid("the CHD is not a version 5 compressed disc image"));
+    }
+    let mut next = u64::from_be_bytes(header[48..56].try_into().expect("eight bytes"));
+    let (mut cd, mut dvd) = (false, false);
+    let mut ended = false;
+    for _ in 0..64 {
+        if next == 0 {
+            ended = true;
+            break;
+        }
+        if next.saturating_add(16) > file_bytes {
+            return Err(invalid("the CHD metadata is truncated"));
+        }
+        let mut entry = [0_u8; 16];
+        read_exact_at(&mut input, next, &mut entry)?;
+        match &entry[..4] {
+            b"CHT2" | b"CHTR" | b"CHCD" | b"CHGT" | b"CHGD" => cd = true,
+            b"DVD " => dvd = true,
+            _ => {}
+        }
+        let following = u64::from_be_bytes(entry[8..16].try_into().expect("eight bytes"));
+        next = following;
+    }
+    if !ended && next != 0 {
+        return Err(invalid("the CHD has too much metadata to classify"));
+    }
+    match (cd, dvd) {
+        (true, false) => Ok(true),
+        (false, true) => Ok(false),
+        _ => Err(invalid("the CHD is not a single CD or DVD image")),
+    }
+}
+
+/// How the first data track of a CD image stores its 2048-byte sectors.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum CdTrackMode {
+    /// `MODE1/2048`: the sectors are already the ISO.
+    Mode1Cooked,
+    /// `MODE1/2352`: user data after a 16-byte header.
+    Mode1Raw,
+    /// `MODE2/2352`, form 1: user data after a 24-byte header and subheader.
+    Mode2Form1Raw,
+}
+
+/// The data file and mode of track 1 from a `chdman`-written cue sheet.
+pub(crate) fn first_cd_track(cue: &str) -> Result<(String, CdTrackMode)> {
+    let mut file = None;
+    for line in cue.lines().map(str::trim) {
+        if let Some(rest) = line.strip_prefix("FILE ") {
+            if file.is_some() {
+                break;
+            }
+            let name = rest
+                .strip_prefix('"')
+                .and_then(|rest| rest.split_once('"'))
+                .map(|(name, kind)| (name, kind.trim()));
+            match name {
+                Some((name, "BINARY")) if !name.is_empty() => file = Some(name.to_owned()),
+                _ => return Err(invalid("the CD image's cue sheet is not recognised")),
+            }
+        } else if let Some(rest) = line.strip_prefix("TRACK ") {
+            let mut parts = rest.split_whitespace();
+            let (number, mode) = (parts.next(), parts.next());
+            if number != Some("01") {
+                return Err(invalid("the CD image does not start with track 1"));
+            }
+            let mode = match mode {
+                Some("MODE1/2048") => CdTrackMode::Mode1Cooked,
+                Some("MODE1/2352") => CdTrackMode::Mode1Raw,
+                Some("MODE2/2352") => CdTrackMode::Mode2Form1Raw,
+                _ => {
+                    return Err(invalid(
+                        "the CD image's first track is not a data track Portcove can read",
+                    ));
+                }
+            };
+            let file = file.ok_or_else(|| invalid("the CD image's cue sheet is not recognised"))?;
+            if file.contains(['/', '\\', ':']) || file == ".." || file == "." {
+                return Err(invalid("the CD image's cue sheet names an unsafe file"));
+            }
+            return Ok((file, mode));
+        }
+    }
+    Err(invalid("the CD image's cue sheet has no data track"))
+}
+
+/// Convert a CD data track into a plain 2048-byte-sector image at `target` (which must
+/// not exist) and return its size. Raw sectors are checked for the sync pattern, the
+/// expected mode and (MODE2) form 1: nothing is guessed or padded.
+pub(crate) fn cd_track_to_iso(
+    track: &Path,
+    mode: CdTrackMode,
+    target: &Path,
+    max_bytes: u64,
+    checkpoint: &dyn Fn() -> Result<()>,
+) -> Result<u64> {
+    const RAW: usize = 2352;
+    let mut input = File::open(track)?;
+    let bytes = input.metadata()?.len();
+    let stride = if mode == CdTrackMode::Mode1Cooked {
+        SECTOR as usize
+    } else {
+        RAW
+    };
+    if bytes == 0 || bytes % stride as u64 != 0 {
+        return Err(invalid("the CD track is not a whole number of sectors"));
+    }
+    let sectors = bytes / stride as u64;
+    if sectors * SECTOR > max_bytes.min(MAX_IMAGE_BYTES) {
+        return Err(limit("the disc image is larger than this port allows"));
+    }
+    let mut output = File::create_new(target)?;
+    let mut buffer = vec![0_u8; stride * 256];
+    let mut done = 0_u64;
+    while done < sectors {
+        checkpoint()?;
+        let count = (sectors - done).min(256) as usize;
+        input
+            .read_exact(&mut buffer[..count * stride])
+            .map_err(read_error)?;
+        for sector in buffer[..count * stride].chunks_exact(stride) {
+            let user = match mode {
+                CdTrackMode::Mode1Cooked => sector,
+                CdTrackMode::Mode1Raw | CdTrackMode::Mode2Form1Raw => {
+                    if sector[..12] != [0, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 0] {
+                        return Err(invalid("a CD sector is missing its sync pattern"));
+                    }
+                    if mode == CdTrackMode::Mode1Raw {
+                        if sector[15] != 1 {
+                            return Err(invalid("a CD sector is not MODE1"));
+                        }
+                        &sector[16..16 + SECTOR as usize]
+                    } else {
+                        // Subheader: file, channel, submode, coding, repeated; form 2 is
+                        // 2324 data bytes and cannot be a 2048-byte sector.
+                        if sector[15] != 2
+                            || sector[16..20] != sector[20..24]
+                            || sector[18] & 0x20 != 0
+                        {
+                            return Err(invalid("a CD sector is not MODE2 form 1"));
+                        }
+                        &sector[24..24 + SECTOR as usize]
+                    }
+                }
+            };
+            output.write_all(user)?;
+        }
+        done += count as u64;
+    }
+    checkpoint()?;
+    Ok(sectors * SECTOR)
+}
+
 /// Bytes that must be free on the destination volume to unpack `expanded_bytes`.
 pub(crate) fn required_free_bytes(expanded_bytes: u64) -> u64 {
     expanded_bytes.saturating_add(FREE_SPACE_FLOOR_BYTES.max(expanded_bytes / 32))

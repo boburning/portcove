@@ -1310,6 +1310,7 @@ fn materialize_disc_directory(
     // A CHD is first turned into a private ISO beside the destination; it is
     // removed on every path, and is never the registered source.
     let mut staged_iso = None;
+    let mut staged_cd = None;
     let is_chd = source
         .extension()
         .and_then(|value| value.to_str())
@@ -1319,11 +1320,24 @@ fn materialize_disc_directory(
             "only PlayStation 2 and PSP images can be read from a CHD",
         ));
     }
+    let container = if is_chd {
+        crate::disc_filesystem::DiscContainer::Plain
+    } else {
+        crate::disc_filesystem::sniff_container(source)?
+    };
+    let is_cso = container == crate::disc_filesystem::DiscContainer::Cso;
+    if is_cso && format != crate::DiscImageFormat::Iso9660 {
+        return Err(PortcoveError::source(
+            "only PlayStation 2 and PSP images can be read from a CSO",
+        ));
+    }
     let temporary = parent.join(format!(".portcove-disc-{}", Uuid::new_v4()));
     let outcome = (|| -> Result<()> {
-        let image_path = if is_chd {
-            let logical = crate::disc_filesystem::chd_logical_bytes(source)?;
-            if logical
+        let image_path = if is_cso {
+            // A CSO is inflated to a private ISO beside the destination, removed on every
+            // path and never the registered source; the unpack then reads that ISO.
+            let header = crate::disc_filesystem::cso_header(source)?;
+            if header.total_bytes
                 > disc
                     .profile
                     .max_image_bytes
@@ -1334,11 +1348,59 @@ fn materialize_disc_directory(
                 )
                 .with_known_cause(crate::failure::KnownFailureCause::DiscImageLimit));
             }
+            ensure_free_space(parent, header.total_bytes.saturating_mul(2))?;
+            let iso = parent.join(format!(".portcove-disc-{}.iso", Uuid::new_v4()));
+            staged_iso = Some(iso.clone());
+            crate::disc_filesystem::expand_cso(source, &header, &iso, checkpoint)?;
+            iso
+        } else if is_chd {
+            let logical = crate::disc_filesystem::chd_logical_bytes(source)?;
+            let cd = crate::disc_filesystem::chd_is_cd(source)?;
+            // A CD's logical size counts 2448-byte frames; its ISO (2048 per sector) is
+            // bounded exactly when the track is converted, so only a DVD is checked here.
+            if !cd
+                && logical
+                    > disc
+                        .profile
+                        .max_image_bytes
+                        .min(crate::disc_filesystem::MAX_IMAGE_BYTES)
+            {
+                return Err(PortcoveError::source(
+                    "the disc image is larger than this port allows",
+                )
+                .with_known_cause(crate::failure::KnownFailureCause::DiscImageLimit));
+            }
             // The private ISO and the unpacked tree coexist until the ISO is removed.
             ensure_free_space(parent, logical.saturating_mul(2))?;
             let iso = parent.join(format!(".portcove-disc-{}.iso", Uuid::new_v4()));
             staged_iso = Some(iso.clone());
-            extract_chd_dvd(source, &iso, pinned_host_tool, checkpoint, observer)?;
+            if cd {
+                // A CD-type CHD (many PS2 CDs): extract the CD privately, then convert its
+                // first data track to a plain ISO. Both are removed on every path.
+                let scratch = parent.join(format!(".portcove-disc-{}-cd", Uuid::new_v4()));
+                staged_cd = Some(scratch.clone());
+                let cue = materialize_psx_chd_with_tool(
+                    source,
+                    &scratch,
+                    pinned_host_tool,
+                    checkpoint,
+                    observer,
+                )?;
+                let (name, mode) = crate::disc_filesystem::first_cd_track(
+                    &std::fs::read_to_string(&cue).map_err(|_| {
+                        PortcoveError::source("the CD image's cue sheet is not readable")
+                    })?,
+                )?;
+                crate::disc_filesystem::cd_track_to_iso(
+                    &scratch.join(name),
+                    mode,
+                    &iso,
+                    disc.profile.max_image_bytes,
+                    checkpoint,
+                )?;
+            } else {
+                extract_chd_dvd(source, &iso, pinned_host_tool, checkpoint, observer)?;
+            }
             iso
         } else {
             source.to_path_buf()
@@ -1372,6 +1434,9 @@ fn materialize_disc_directory(
     })();
     if let Some(iso) = staged_iso {
         let _ = std::fs::remove_file(iso);
+    }
+    if let Some(scratch) = staged_cd {
+        let _ = std::fs::remove_dir_all(scratch);
     }
     if outcome.is_err() {
         let _ = std::fs::remove_dir_all(&temporary);

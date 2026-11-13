@@ -622,3 +622,316 @@ fn iso9660_refuses_a_record_that_is_missing_its_pad_byte() {
     assert!(parse_iso_record(&build(42)).is_ok());
     assert!(parse_iso_record(&build(41)).is_err());
 }
+
+mod cso {
+    use std::io::Write;
+
+    use super::*;
+    use crate::disc_filesystem::{DiscContainer, cso_header, expand_cso, sniff_container};
+
+    fn expand(bytes: &[u8]) -> Result<Vec<u8>> {
+        let temporary = tempfile::tempdir().unwrap();
+        let source = temporary.path().join("image.cso");
+        std::fs::write(&source, bytes).unwrap();
+        let header = cso_header(&source)?;
+        let target = temporary.path().join("out.iso");
+        expand_cso(&source, &header, &target, &ok)?;
+        Ok(std::fs::read(target).unwrap())
+    }
+
+    fn sample_iso() -> Vec<u8> {
+        let temporary = tempfile::tempdir().unwrap();
+        let path = temporary.path().join("a.iso");
+        iso(sample()).write_to(&path);
+        std::fs::read(path).unwrap()
+    }
+
+    #[test]
+    fn a_cso_inflates_to_the_same_bytes_as_the_iso() {
+        let plain = sample_iso();
+        for (name, mode) in [
+            ("deflated", (|_| 1) as fn(usize) -> u8),
+            ("stored", |_| 0),
+            ("mixed", |block| (block % 3 == 0) as u8),
+        ] {
+            assert_eq!(
+                expand(&cso_bytes(&plain, 2048, mode)).unwrap(),
+                plain,
+                "{name}"
+            );
+        }
+        // The inflated image reads as the same file system.
+        let temporary = tempfile::tempdir().unwrap();
+        let path = temporary.path().join("a.iso");
+        std::fs::write(&path, expand(&cso_bytes(&plain, 2048, |_| 1)).unwrap()).unwrap();
+        let mut image = DiscImage::open(&path, DiscImageFormat::Iso9660, MAX_IMAGE_BYTES).unwrap();
+        let plan = image.plan(&ok).unwrap();
+        assert!(plan.entries.iter().any(|entry| !entry.directory));
+    }
+
+    #[test]
+    fn a_larger_block_size_is_accepted() {
+        let plain = sample_iso();
+        assert_eq!(expand(&cso_bytes(&plain, 8192, |_| 1)).unwrap(), plain);
+    }
+
+    #[test]
+    fn hostile_cso_images_are_refused() {
+        let plain = sample_iso();
+        let good = cso_bytes(&plain, 2048, |_| 1);
+        let refused = |bytes: Vec<u8>, why: &str| {
+            let error = expand(&bytes).expect_err(why);
+            assert_eq!(error.code, ErrorCode::SourceInvalid, "{why}");
+        };
+        let patched = |at: usize, value: &[u8]| {
+            let mut bytes = good.clone();
+            bytes[at..at + value.len()].copy_from_slice(value);
+            bytes
+        };
+        refused(patched(0, b"CISX"), "magic");
+        refused(patched(4, &20_u32.to_le_bytes()), "header size");
+        refused(patched(20, &[2]), "version");
+        refused(patched(21, &[9]), "index shift");
+        refused(patched(16, &1000_u32.to_le_bytes()), "block size");
+        refused(patched(16, &1_048_576_u32.to_le_bytes()), "huge block size");
+        refused(
+            patched(8, &1_u64.to_le_bytes()),
+            "size not a sector multiple",
+        );
+        refused(patched(8, &0_u64.to_le_bytes()), "zero size");
+        refused(good[..good.len() - 40].to_vec(), "truncated data");
+        refused(good[..40].to_vec(), "truncated index");
+        // An index entry pointing backwards, and one pointing past the file.
+        refused(patched(28, &30_u32.to_le_bytes()), "backwards index");
+        refused(patched(28, &u32::MAX.to_le_bytes()), "index past the file");
+        // The size claims one more block than the file holds.
+        refused(
+            patched(8, &((plain.len() as u64) + 2048).to_le_bytes()),
+            "size larger than the data",
+        );
+    }
+
+    #[test]
+    fn a_block_that_inflates_to_the_wrong_size_is_refused() {
+        // A deflated block of 4096 bytes in a 2048-byte block, and one of 1024 bytes.
+        for wrong in [4096_usize, 1024] {
+            let mut encoder =
+                flate2::write::DeflateEncoder::new(Vec::new(), flate2::Compression::default());
+            encoder.write_all(&vec![5_u8; wrong]).unwrap();
+            let block = encoder.finish().unwrap();
+            let base = 24 + 2 * 4;
+            let mut bytes = Vec::new();
+            bytes.extend_from_slice(b"CISO");
+            bytes.extend_from_slice(&24_u32.to_le_bytes());
+            bytes.extend_from_slice(&2048_u64.to_le_bytes());
+            bytes.extend_from_slice(&2048_u32.to_le_bytes());
+            bytes.extend_from_slice(&[1, 0, 0, 0]);
+            bytes.extend_from_slice(&(base as u32).to_le_bytes());
+            bytes.extend_from_slice(&((base + block.len()) as u32).to_le_bytes());
+            bytes.extend_from_slice(&block);
+            let error = expand(&bytes).expect_err("wrong inflated size");
+            assert_eq!(error.code, ErrorCode::SourceInvalid, "{wrong}");
+        }
+    }
+
+    #[test]
+    fn expansion_stops_when_cancelled() {
+        let temporary = tempfile::tempdir().unwrap();
+        let source = temporary.path().join("image.cso");
+        std::fs::write(&source, cso_bytes(&sample_iso(), 2048, |_| 1)).unwrap();
+        let header = cso_header(&source).unwrap();
+        let error = expand_cso(&source, &header, &temporary.path().join("out.iso"), &|| {
+            Err(cancelled())
+        })
+        .expect_err("cancelled");
+        assert_eq!(error.code, ErrorCode::Cancelled);
+    }
+
+    #[test]
+    fn containers_are_recognised_by_magic() {
+        let temporary = tempfile::tempdir().unwrap();
+        let check = |bytes: &[u8]| {
+            let path = temporary.path().join("x");
+            std::fs::write(&path, bytes).unwrap();
+            sniff_container(&path)
+        };
+        assert_eq!(check(b"CISO....").unwrap(), DiscContainer::Cso);
+        assert_eq!(check(b"\0\0\0\0").unwrap(), DiscContainer::Plain);
+        assert_eq!(check(b"").unwrap(), DiscContainer::Plain);
+        assert!(check(b"ZISO....").is_err());
+    }
+}
+
+mod cd {
+    use super::*;
+    use crate::disc_filesystem::{CdTrackMode, cd_track_to_iso, chd_is_cd, first_cd_track};
+
+    fn chd_with(tags: &[&[u8; 4]]) -> Vec<u8> {
+        let mut bytes = vec![0_u8; 124];
+        bytes[..8].copy_from_slice(b"MComprHD");
+        bytes[8..12].copy_from_slice(&124_u32.to_be_bytes());
+        bytes[12..16].copy_from_slice(&5_u32.to_be_bytes());
+        let first = bytes.len() as u64;
+        bytes[48..56].copy_from_slice(&(if tags.is_empty() { 0 } else { first }).to_be_bytes());
+        for (number, tag) in tags.iter().enumerate() {
+            let here = bytes.len() as u64;
+            let next = if number + 1 == tags.len() {
+                0
+            } else {
+                here + 16 + 4
+            };
+            bytes.extend_from_slice(*tag);
+            bytes.extend_from_slice(&[1, 0, 0, 4]);
+            bytes.extend_from_slice(&next.to_be_bytes());
+            bytes.extend_from_slice(b"data");
+        }
+        bytes
+    }
+
+    #[test]
+    fn a_chd_is_classified_as_cd_or_dvd_from_its_metadata() {
+        let temporary = tempfile::tempdir().unwrap();
+        let check = |bytes: Vec<u8>| {
+            let path = temporary.path().join("x.chd");
+            std::fs::write(&path, bytes).unwrap();
+            chd_is_cd(&path)
+        };
+        assert!(check(chd_with(&[b"CHT2"])).unwrap());
+        assert!(check(chd_with(&[b"CHT2", b"CHT2"])).unwrap());
+        assert!(!check(chd_with(&[b"DVD "])).unwrap());
+        assert!(check(chd_with(&[])).is_err(), "no metadata");
+        assert!(check(chd_with(&[b"DVD ", b"CHT2"])).is_err(), "both");
+        let mut bad = chd_with(&[b"CHT2"]);
+        bad[48..56].copy_from_slice(&u64::MAX.to_be_bytes());
+        assert!(check(bad).is_err(), "pointer past the file");
+        let mut cyclic = chd_with(&[b"CHT2"]);
+        cyclic[124 + 8..124 + 16].copy_from_slice(&124_u64.to_be_bytes());
+        assert!(check(cyclic).is_err(), "a cycle is refused at the bound");
+        assert!(check(b"MComprHD".to_vec()).is_err(), "short header");
+        assert!(
+            check(chd_with(&[b"CHT2"; 65])).is_err(),
+            "more metadata than can be classified"
+        );
+    }
+
+    #[test]
+    fn the_first_data_track_comes_from_the_cue_sheet() {
+        let cue = |text: &str| first_cd_track(text);
+        assert_eq!(
+            cue("FILE \"disc1.bin\" BINARY\n  TRACK 01 MODE1/2048\n    INDEX 01 00:00:00\n")
+                .unwrap(),
+            ("disc1.bin".to_owned(), CdTrackMode::Mode1Cooked)
+        );
+        assert_eq!(
+            cue("FILE \"d.bin\" BINARY\n TRACK 01 MODE2/2352\n")
+                .unwrap()
+                .1,
+            CdTrackMode::Mode2Form1Raw
+        );
+        assert_eq!(
+            cue("FILE \"d.bin\" BINARY\n TRACK 01 MODE1/2352\n")
+                .unwrap()
+                .1,
+            CdTrackMode::Mode1Raw
+        );
+        for bad in [
+            "",
+            "TRACK 01 MODE1/2048\n",
+            "FILE \"a.bin\" BINARY\n TRACK 01 AUDIO\n",
+            "FILE \"a.bin\" BINARY\n TRACK 02 MODE1/2048\n",
+            "FILE \"a.bin\" BINARY\n TRACK 01 MODE2/2336\n",
+            "FILE \"../a.bin\" BINARY\n TRACK 01 MODE1/2048\n",
+            "FILE \"x/a.bin\" BINARY\n TRACK 01 MODE1/2048\n",
+            "FILE \"\" BINARY\n TRACK 01 MODE1/2048\n",
+            "FILE a.bin BINARY\n TRACK 01 MODE1/2048\n",
+            "FILE \"C:a.bin\" BINARY\n TRACK 01 MODE1/2048\n",
+            "FILE \"a.bin:s\" BINARY\n TRACK 01 MODE1/2048\n",
+        ] {
+            assert!(cue(bad).is_err(), "{bad:?}");
+        }
+    }
+
+    fn raw_sector(mode: u8, form2: bool, payload: &[u8]) -> Vec<u8> {
+        let mut sector = vec![0_u8; 2352];
+        sector[1..11].fill(255);
+        sector[15] = mode;
+        let at = if mode == 1 {
+            16
+        } else {
+            let submode = if form2 { 0x20 } else { 0x08 };
+            sector[16..24].copy_from_slice(&[0, 0, submode, 0, 0, 0, submode, 0]);
+            24
+        };
+        sector[at..at + payload.len()].copy_from_slice(payload);
+        sector
+    }
+
+    #[test]
+    fn cd_tracks_convert_to_the_same_iso_and_unsupported_sectors_are_refused() {
+        let temporary = tempfile::tempdir().unwrap();
+        let plain = {
+            let path = temporary.path().join("a.iso");
+            iso(sample()).write_to(&path);
+            std::fs::read(path).unwrap()
+        };
+        let convert = |name: &str, mode, bytes: &[u8]| {
+            let track = temporary.path().join(format!("{name}.bin"));
+            std::fs::write(&track, bytes).unwrap();
+            let target = temporary.path().join(format!("{name}.iso"));
+            cd_track_to_iso(&track, mode, &target, MAX_IMAGE_BYTES, &ok)
+                .map(|_| std::fs::read(target).unwrap())
+        };
+        assert_eq!(
+            convert("cooked", CdTrackMode::Mode1Cooked, &plain).unwrap(),
+            plain
+        );
+        for (mode, number, name) in [
+            (CdTrackMode::Mode1Raw, 1, "mode1"),
+            (CdTrackMode::Mode2Form1Raw, 2, "mode2"),
+        ] {
+            let raw: Vec<u8> = plain
+                .chunks(2048)
+                .flat_map(|chunk| raw_sector(number, false, chunk))
+                .collect();
+            assert_eq!(convert(name, mode, &raw).unwrap(), plain, "{name}");
+            // A form 2 sector, a wrong mode byte, a missing sync and a partial sector.
+            let mut form2 = raw.clone();
+            form2[2352..2352 * 2].copy_from_slice(&raw_sector(number, true, b""));
+            let mut wrong_mode = raw.clone();
+            wrong_mode[15] = 3;
+            let mut no_sync = raw.clone();
+            no_sync[0] = 1;
+            for (case, bytes) in [
+                ("form2", form2),
+                ("mode", wrong_mode),
+                ("sync", no_sync),
+                ("partial", raw[..raw.len() - 1].to_vec()),
+                ("empty", Vec::new()),
+            ] {
+                let expect_error = !(mode == CdTrackMode::Mode1Raw && case == "form2");
+                assert_eq!(
+                    convert(&format!("{name}-{case}"), mode, &bytes).is_err(),
+                    expect_error,
+                    "{name} {case}"
+                );
+            }
+        }
+        // The size bound is enforced before anything is written.
+        let track = temporary.path().join("big.bin");
+        std::fs::write(&track, &plain).unwrap();
+        let target = temporary.path().join("big.iso");
+        let error =
+            cd_track_to_iso(&track, CdTrackMode::Mode1Cooked, &target, 2048, &ok).unwrap_err();
+        assert_eq!(error.code, ErrorCode::SourceInvalid);
+        assert!(!target.exists());
+        let error = cd_track_to_iso(
+            &track,
+            CdTrackMode::Mode1Cooked,
+            &target,
+            MAX_IMAGE_BYTES,
+            &|| Err(cancelled()),
+        )
+        .unwrap_err();
+        assert_eq!(error.code, ErrorCode::Cancelled);
+    }
+}

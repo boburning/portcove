@@ -6,7 +6,7 @@ use sha2::{Digest, Sha256};
 use super::*;
 use crate::{
     DiscImageFormat, DiscImageProfile, ErrorCode,
-    disc_filesystem::fixtures::{Item, dir, file, iso, xex, xiso},
+    disc_filesystem::fixtures::{Item, cso_bytes, dir, file, iso, xex, xiso},
 };
 
 const TITLE: u32 = 0x4D53_07E6;
@@ -460,4 +460,75 @@ fn extract_progress_is_coalesced_to_whole_percent_changes() {
     let empty = ExtractProgressCoalescer::default();
     assert!(empty.admit(0, 0));
     assert!(!empty.admit(0, 0));
+}
+
+#[test]
+fn a_cso_unpacks_like_its_iso_and_leaves_no_private_image_behind() {
+    let temporary = tempfile::tempdir().unwrap();
+    let plain = temporary.path().join("game.iso");
+    let cnf = b"BOOT2 = cdrom0:\\SLUS_200.62;1\r\n";
+    iso(vec![file("SYSTEM.CNF", cnf), file("SLUS_200.62", b"elf")]).write_to(&plain);
+    let source = temporary.path().join("game.cso");
+    std::fs::write(
+        &source,
+        cso_bytes(&std::fs::read(&plain).unwrap(), 2048, |block| {
+            (block % 2) as u8
+        }),
+    )
+    .unwrap();
+    let required = BTreeMap::from([("SYSTEM.CNF".to_owned(), hex::encode(Sha256::digest(cnf)))]);
+    let image = DiscImageProfile {
+        format: DiscImageFormat::Iso9660,
+        max_image_bytes: 1024 * 1024,
+        product_codes: vec!["SLUS-20062".into()],
+    };
+    let report = |_, _, _| {};
+    let unpack_cso = |image: &DiscImageProfile, materialization, destination: &Path| {
+        prepare_disc_runtime_source(
+            &source,
+            destination,
+            materialization,
+            &required,
+            None,
+            &DiscUnpack {
+                profile: image,
+                report: &report,
+            },
+            &|| Ok(()),
+        )
+    };
+    let destination = temporary.path().join("assets");
+    unpack_cso(
+        &image,
+        RuntimeSourceMaterialization::Iso9660Directory,
+        &destination,
+    )
+    .unwrap();
+    assert_eq!(
+        std::fs::read(destination.join("SLUS_200.62")).unwrap(),
+        b"elf"
+    );
+    assert!(!staging_left(temporary.path()));
+
+    // A CSO is only for PlayStation 2 and PSP images, and honours the size bound.
+    let xbox = temporary.path().join("assets-xbox");
+    let error = unpack_cso(
+        &profile(&["4D5307E6"]),
+        RuntimeSourceMaterialization::XdvdfsDirectory,
+        &xbox,
+    )
+    .unwrap_err();
+    assert_eq!(error.code, ErrorCode::SourceInvalid);
+    let small = DiscImageProfile {
+        max_image_bytes: 4096,
+        ..image.clone()
+    };
+    let error = unpack_cso(
+        &small,
+        RuntimeSourceMaterialization::Iso9660Directory,
+        &temporary.path().join("assets-small"),
+    )
+    .unwrap_err();
+    assert_eq!(error.code, ErrorCode::SourceInvalid);
+    assert!(!staging_left(temporary.path()));
 }
