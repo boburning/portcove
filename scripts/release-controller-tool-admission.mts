@@ -261,9 +261,11 @@ export async function prepareControllerToolPredicate(
       return artifact(data, expected, expected.artifact_id, expected.sha256);
     };
     const visibilityDeadline = deadline(15000);
-    const before = await readVisibleUpload(() => read(visibilityDeadline), visibilityDeadline, [
-      500, 1500, 3000,
-    ]);
+    const before = await readVisibleUpload(
+      () => read(visibilityDeadline),
+      visibilityDeadline,
+      [500, 1500, 3000],
+    );
     await writeFile(path.join(attempt, "provider-before.json"), JSON.stringify(before), {
       flag: "wx",
       mode: 0o600,
