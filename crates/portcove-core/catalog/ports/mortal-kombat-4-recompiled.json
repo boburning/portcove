@@ -4,7 +4,7 @@
   "listing": {
     "id": "mortal-kombat-4-recompiled",
     "name": "Mortal Kombat 4: Recompiled",
-    "summary": "Native Mortal Kombat 4 recompilation.",
+    "summary": "Play Mortal Kombat 4 with a native player built from your matching original disc and BIOS.",
     "project_url": "https://github.com/alexbeavs-ps1-ports/mortal-kombat-4-recomp",
     "listed_at": "2026-10-23",
     "original_game_title": "Mortal Kombat 4",
@@ -109,14 +109,48 @@
     },
     "persistent_paths": [
       "saves",
-      "config",
-      "mods",
       "settings.toml",
-      "game_options.json",
-      "graphics.json",
-      "input.json",
-      "sound.json"
+      "settings.toml.bad",
+      "input.ini",
+      "keybinds.ini",
+      "config.ini",
+      "disc.cfg",
+      "bios.cfg",
+      "mods/installed",
+      "mods/packages",
+      "mods/.staging",
+      "mods/state.toml",
+      "mods/state.toml.tmp",
+      "mods/texture-packs",
+      "overlay-captures",
+      "overlay_captures.json",
+      "overlay_captures.json.d",
+      "overlay_captures.addendum.jsonl",
+      "diagnostics-location.txt"
     ],
+    "runtime_mutable_paths": [
+      "cache",
+      "psx_freeze_heartbeat.json",
+      "psx_freeze_heartbeat.json.tmp",
+      "psx_last_run_report.json",
+      "psx_cps_exit_trace.json",
+      "netplay_lan_lobby.txt",
+      "psx_crash.txt"
+    ],
+    "runtime_mutable_file_patterns": [
+      {
+        "prefix": "psx_freeze_dump_psx-runtime_",
+        "suffix": ".json"
+      },
+      {
+        "prefix": "overlay_captures.json.",
+        "suffix": ".tmp"
+      }
+    ],
+    "launch_environment": {
+      "PSX_OVERLAY_CAPTURES": "build-portcove/overlay-captures/overlay_captures.json"
+    },
+    "launch_arguments": ["--no-launcher"],
     "runtime_subdirectory": "build-portcove",
     "presentation": {
       "installation_method": "managed-recompilation",
@@ -134,7 +168,8 @@
           "verification": "catalog-identity"
         }
       ],
-      "saves_and_settings": "portcove-managed"
+      "saves_and_settings": "portcove-managed",
+      "manual_preparation": "Select your own complete Mortal Kombat 4 (USA) CHD (SLUS-00605, 1 track) and retail SCPH-1001 BIOS. Portcove builds a private player on Windows, Linux or Mac and skips the kit’s setup launcher when you play. On Mac, select Apple Command Line Tools or Xcode with the macOS SDK first. Portcove preserves your saves, settings, installed mods, texture packs and overlay captures; bundled mods belong to each runtime version. A copy installed before this change keeps its earlier saves-and-settings scope until you update. Generation, runtime, lifecycle and gameplay are untested on every platform."
     }
   }
 }

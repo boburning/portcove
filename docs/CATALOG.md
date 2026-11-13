@@ -788,6 +788,9 @@ and any bundled README. Those files belong to the verified runtime version.
 Core carries declared player paths through normal retained collection, restore
 and rollback. Upstream owns any legacy package migration within those paths.
 The existing whole-tree contract continues to apply to older definitions.
+Explicit integrations use the same paths on every declared platform, including
+Mac for Mortal Kombat 4
+([record](qualification/mortal-kombat-4-psxrecomp-031868cc-2026-11-13.md)).
 
 PS1 installs publish inactive and run player-data preflight before activation.
 Older interrupted install journals use the same order; an already committed

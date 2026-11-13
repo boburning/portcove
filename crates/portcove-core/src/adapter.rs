@@ -5227,8 +5227,10 @@ mod tests {
             .launch_spec_with_executable(request, &|| Ok(()))
             .unwrap();
         assert_eq!(launch_fixture_inventory(temporary.path()), before);
+        // The fixture's Mortal Kombat 4 route skips the setup launcher.
+        assert_eq!(planned.arguments[0], "--no-launcher");
         assert_eq!(
-            &planned.arguments[4..],
+            &planned.arguments[5..],
             &["--bios", psx_launch_path(&bios.path).unwrap().as_str()]
         );
         for _ in 0..2 {

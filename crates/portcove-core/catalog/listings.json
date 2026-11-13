@@ -1013,7 +1013,7 @@
     {
       "id": "mortal-kombat-4-recompiled",
       "name": "Mortal Kombat 4: Recompiled",
-      "summary": "Native Mortal Kombat 4 recompilation.",
+      "summary": "Play Mortal Kombat 4 with a native player built from your matching original disc and BIOS.",
       "project_url": "https://github.com/alexbeavs-ps1-ports/mortal-kombat-4-recomp",
       "listed_at": "2026-10-23",
       "original_game_title": "Mortal Kombat 4",
