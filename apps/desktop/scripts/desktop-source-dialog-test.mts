@@ -1975,7 +1975,7 @@ async function hashResumeScenario(context: SelectedSetupContext) {
           : "Selected setup inert BIOS";
       assert.ok(report.observations.review_text.includes(`File requirement: ${expectedLabel}`));
       assert.ok(report.observations.review_text.includes("Use current location"));
-      assert.ok(report.observations.review_text.includes("Source check: Exact identity."));
+      assert.ok(report.observations.review_text.includes("File check: Edition identified"));
       const displayedPath = await review
         .findElement(By.xpath('.//p[contains(.,"Selected location:")]/code'))
         .getText();
