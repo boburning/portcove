@@ -606,7 +606,7 @@ export async function workspaceRefreshScenario({
       await executeBrowserScript(browser, installReconciliationSupportGate);
       try {
         await browser
-          .findElement(By.xpath('//button[normalize-space(.)="Create support bundle"]'))
+          .findElement(By.xpath('//button[normalize-space(.)="Create a support report"]'))
           .click();
         await browser.wait(
           async () =>
