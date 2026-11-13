@@ -6,6 +6,7 @@ import { SaveGameButton } from "../features/organization/OrganizationControls";
 import { ListingMaintenanceFacts } from "../features/browsing/ListingMaintenanceFacts";
 import type { CatalogEntry } from "../features/browsing/catalog-entry";
 import {
+  availablePlatforms,
   listingActionAssessment,
   listingAvailabilityLabel,
 } from "../features/browsing/catalog-entry";
@@ -89,8 +90,8 @@ function renderListingRequirements(entry: CatalogEntry) {
       <div>
         <dt>Runs on</dt>
         <dd>
-          {entry.platforms.length
-            ? entry.platforms.map(platformLabel).join(" · ")
+          {availablePlatforms(entry).length
+            ? availablePlatforms(entry).map(platformLabel).join(" · ")
             : "Platforms not yet confirmed"}
         </dd>
       </div>

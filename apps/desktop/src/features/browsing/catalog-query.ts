@@ -9,6 +9,7 @@ import type {
 import { originalSystems, gameGroupId, groupCatalog } from "./original-game";
 import { observedUpdateCandidate } from "./update-query-context";
 import type { GameFileFilterContext } from "./game-file-query-context";
+import { availablePlatforms } from "./catalog-entry";
 import type { CatalogEntry } from "./catalog-entry";
 
 // These identifiers describe declared port facts, not installation eligibility.
@@ -79,7 +80,7 @@ export function filterOptionsFor(
   const selected = supportedQuery(query) ? (query[group] ?? []) : [];
   const observed = new Set<string>(
     ports.flatMap<string>((port) => {
-      if (group === "platforms") return port.platforms;
+      if (group === "platforms") return availablePlatforms(port);
       if (group === "channels") return port.channels ?? [];
       const method = port.presentation?.installation_method;
       return method ? [method] : [];
@@ -217,7 +218,7 @@ function matches(
         : candidate?.matchingStaged === true;
     }
     case "platforms":
-      return port.platforms.some(
+      return availablePlatforms(port).some(
         (platform) => platform === (value === "this-device" ? context.devicePlatform : value),
       );
     case "channels":
@@ -328,7 +329,9 @@ function listingPlatformMatch(
   if (port.pendingSetup && !status?.external_runtime) return undefined;
   // A selected installation has one observed platform. Declared project
   // platforms must not make that installation appear compatible elsewhere.
-  const platforms = status?.external_runtime ? [status.external_runtime.platform] : port.platforms;
+  const platforms = status?.external_runtime
+    ? [status.external_runtime.platform]
+    : availablePlatforms(port);
   return platforms.length
     ? platforms.some(
         (platform) => platform === (value === "this-device" ? context.devicePlatform : value),

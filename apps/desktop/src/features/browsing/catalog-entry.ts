@@ -29,6 +29,19 @@ export type CatalogEntry = Pick<PortDefinition, "id" | "name" | "summary" | "pla
     pendingSetup?: PendingSetupRecord;
   };
 
+/**
+ * Platforms a player can get this entry on: the managed definition's platforms
+ * plus any the accepted listing offers as an upstream download. Browsing,
+ * filtering and labels use this; managed actions keep `entry.platforms`.
+ */
+export function availablePlatforms(
+  entry: Pick<CatalogEntry, "platforms" | "listing">,
+): PortDefinition["platforms"] {
+  const extra = entry.listing?.platforms ?? [];
+  if (!extra.some((platform) => !entry.platforms.includes(platform))) return entry.platforms;
+  return [...new Set([...entry.platforms, ...extra])];
+}
+
 function definitionDescriptiveFallback(
   definition: PortDefinition,
   listing: PortListing | undefined,

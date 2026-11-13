@@ -5,6 +5,7 @@ import {
   type CatalogQuery,
   type CatalogQueryContext,
 } from "./features/browsing/catalog-query";
+import { availablePlatforms } from "./features/browsing/catalog-entry";
 import type { CatalogEntry } from "./features/browsing/catalog-entry";
 import type {
   ActivityRecord,
@@ -528,8 +529,9 @@ function catalogRank(port: CatalogEntry, status: PortStatus | undefined, platfor
   if (port.release && !portActionPresentation(status, "install").blocked) return 1;
   if (port.listing?.availability === "unavailable" || port.listing?.availability === "source-only")
     return 5;
-  if (port.platforms.some((candidate) => candidate === platform)) return 2;
-  return port.platforms.length ? 4 : 3;
+  const platforms = availablePlatforms(port);
+  if (platforms.some((candidate) => candidate === platform)) return 2;
+  return platforms.length ? 4 : 3;
 }
 
 function visibleInView(port: CatalogEntry, statuses: ReadonlyMap<string, PortStatus>, view: View) {
