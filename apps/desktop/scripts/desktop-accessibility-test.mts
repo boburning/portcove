@@ -264,12 +264,18 @@ export async function accessibleNavigationScenario({
     } catch (error) {
       // A render crash replaces the page with the app's recovery screen, which
       // turns every later lookup into "no such element". Keep the original cause.
-      const renderError = await executeBrowserScript(
-        browser,
-        () =>
-          document.querySelector<HTMLTextAreaElement>(".bootstrap-recovery-details textarea")
-            ?.value ?? null,
-      ).catch(() => null);
+      const renderError = await (async () => {
+        try {
+          return await executeBrowserScript(
+            browser,
+            () =>
+              document.querySelector<HTMLTextAreaElement>(".bootstrap-recovery-details textarea")
+                ?.value ?? null,
+          );
+        } catch {
+          return null;
+        }
+      })();
       failure = {
         error: renderError
           ? new Error(
