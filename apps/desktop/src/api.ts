@@ -2,6 +2,10 @@ import type { GameComparison, GameComparisonRequest } from "./types";
 import type {
   ArtworkSlot,
   ArtworkState,
+  DestinationArtworkRole,
+  SteamGridDbCandidate,
+  SteamGridDbGame,
+  SteamGridDbKeyStatus,
   ArtworkThumbnail,
   CliCommandContext,
   BackupAction,
@@ -284,6 +288,32 @@ export const desktopApi = {
       portId,
       mediaId,
       expectedSha256,
+      generation,
+    }),
+  steamGridDbKeyStatus: () => invoke<SteamGridDbKeyStatus>("get_steamgriddb_key_status"),
+  /** Saves the player's own key in the OS secure store; it is never read back. */
+  setSteamGridDbKey: (key: string) => invoke<SteamGridDbKeyStatus>("set_steamgriddb_key", { key }),
+  clearSteamGridDbKey: () => invoke<SteamGridDbKeyStatus>("clear_steamgriddb_key"),
+  searchSteamGridDbGames: (term: string) =>
+    invoke<SteamGridDbGame[]>("search_steamgriddb_games", { term }),
+  steamGridDbCandidates: (gameId: number, role: DestinationArtworkRole) =>
+    invoke<SteamGridDbCandidate[]>("get_steamgriddb_candidates", { gameId, role }),
+  steamGridDbPreview: (url: string) =>
+    invoke<{ png_base64: string }>("get_steamgriddb_preview", { url }),
+  chooseSteamGridDbArtwork: (
+    portId: string,
+    slot: ArtworkSlot,
+    gameId: number,
+    candidateId: number,
+    expectedRevision: number,
+    generation: number,
+  ) =>
+    invoke<ArtworkState>("choose_steamgriddb_artwork", {
+      portId,
+      slot,
+      gameId,
+      candidateId,
+      expectedRevision,
       generation,
     }),
   importArtwork: (

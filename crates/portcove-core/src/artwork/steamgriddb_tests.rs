@@ -42,7 +42,7 @@ impl SteamGridDbTransport for Fixture {
         })
     }
 
-    fn fetch_image(&self, url: &str) -> Result<TransportResponse> {
+    fn fetch_image(&self, url: &str, _max_bytes: u64) -> Result<TransportResponse> {
         self.images.borrow_mut().push(url.to_owned());
         Ok(TransportResponse {
             status: self.image.0,
@@ -303,6 +303,56 @@ fn image_host_failures_map_to_explicit_outcomes() {
 }
 
 #[test]
+fn previews_are_cdn_only_key_free_and_reencoded_locally() {
+    let png = {
+        let image = image::DynamicImage::ImageRgb8(image::RgbImage::from_pixel(
+            60,
+            90,
+            image::Rgb([1, 2, 3]),
+        ));
+        let mut bytes = std::io::Cursor::new(Vec::new());
+        image
+            .write_to(&mut bytes, image::ImageFormat::Jpeg)
+            .unwrap();
+        bytes.into_inner()
+    };
+    let mut fixture = Fixture::status(500, String::new());
+    fixture.image = (200, None, png);
+    let preview = preview(&fixture, "https://cdn2.steamgriddb.com/thumb/1.jpg").unwrap();
+    assert!(preview.starts_with(b"\x89PNG"));
+    assert!(
+        fixture.requests.borrow().is_empty(),
+        "no API request or key"
+    );
+    assert_eq!(
+        preview_error(&fixture, "https://evil.example/1.png"),
+        crate::ErrorCode::Usage
+    );
+    for (status, body, code) in [
+        (404, vec![1], crate::ErrorCode::NotFound),
+        (429, vec![], crate::ErrorCode::Network),
+        (
+            200,
+            vec![0; MAX_PREVIEW_BYTES + 1],
+            crate::ErrorCode::Verification,
+        ),
+        (200, vec![0; 16], crate::ErrorCode::Unsupported),
+    ] {
+        let mut fixture = Fixture::status(500, String::new());
+        fixture.image = (status, None, body);
+        let code_seen = preview_error(&fixture, "https://cdn2.steamgriddb.com/thumb/2.png");
+        assert!(
+            code_seen == code || (status == 200 && code_seen == crate::ErrorCode::Verification),
+            "status {status}: {code_seen:?}"
+        );
+    }
+}
+
+fn preview_error(fixture: &Fixture, url: &str) -> crate::ErrorCode {
+    preview(fixture, url).unwrap_err().code
+}
+
+#[test]
 fn author_names_are_bounded_clean_and_never_empty() {
     assert_eq!(author_name("  Name\n  "), "Name");
     assert_eq!(author_name("\u{1b}\u{7}  "), UNKNOWN_AUTHOR);
@@ -368,5 +418,8 @@ fn steamgriddb_live_fetch_matches_listing() {
             (decoded.width, decoded.height),
             (fetched.candidate.width, fetched.candidate.height)
         );
+        let local = preview(&HttpTransport, &first.thumb).unwrap();
+        eprintln!("live preview {role:?}: {} PNG bytes", local.len());
+        assert!(local.starts_with(b"\x89PNG"));
     }
 }

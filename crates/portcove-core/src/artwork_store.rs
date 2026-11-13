@@ -308,6 +308,31 @@ pub(crate) fn attributions(connection: &Connection, id: &str) -> Result<Vec<Artw
         .collect()
 }
 
+/// Stored credits for one provider image, whichever asset holds them.
+pub(crate) fn provider_image_attributions(
+    connection: &Connection,
+    provider: crate::ArtworkProvider,
+    asset_id: u64,
+) -> Result<Vec<ArtworkAttribution>> {
+    let mut statement = connection.prepare(
+        "SELECT record_json FROM artwork_asset_providers WHERE provider=?1 AND asset_id=?2 LIMIT 65",
+    )?;
+    let records = statement
+        .query_map(params![provider.key(), asset_id], |row| {
+            row.get::<_, String>(0)
+        })?
+        .collect::<std::result::Result<Vec<_>, _>>()?;
+    records
+        .iter()
+        .take(MAX_PROVIDER_RECORDS_PER_ASSET)
+        .map(|json| {
+            let attribution: ArtworkAttribution = serde_json::from_str(json)?;
+            validate_attribution(&attribution)?;
+            Ok(attribution)
+        })
+        .collect()
+}
+
 pub(crate) fn remove_asset_provenance(connection: &Connection, id: &str) -> Result<()> {
     connection.execute(
         "DELETE FROM artwork_asset_providers WHERE asset_sha256=?1",
