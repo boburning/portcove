@@ -663,7 +663,9 @@ checkpoint 5 and is recorded there.
   Both jobs run only on `main` of this repository. One concurrency group
   serializes store writers, and a queued run never cancels a running one.
 - **Database.** A standard PostgreSQL 16 or newer database; the owner chose
-  Neon. Its URL is the repository secret `PORTCOVE_MAINTENANCE_DATABASE_URL`.
+  Neon (database `portcove`). Its URL is the repository secret
+  `PORTCOVE_DATABASE_URL`, passed to the store commands as
+  `PORTCOVE_MAINTENANCE_DATABASE_URL`.
   - Use the direct (unpooled) connection string. Backup holds an exported
     snapshot across two sessions, and migration and collection use advisory
     locks. Transaction-mode poolers preserve neither.
@@ -672,7 +674,7 @@ checkpoint 5 and is recorded there.
   - The hosted store runs as the URL's own role, which owns the schema. The
     limited roles stay available to operators who grant separate logins.
 - **Configuration errors.** The first step checks that
-  `PORTCOVE_MAINTENANCE_DATABASE_URL` and `PORTCOVE_ROADMAP_TOKEN` are set.
+  `PORTCOVE_DATABASE_URL` and `PORTCOVE_ROADMAP_TOKEN` are set.
   - When either is empty, the job fails before checkout and nothing is read or
     written.
   - Its step summary and error annotation name only the missing secrets.

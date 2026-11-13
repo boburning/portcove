@@ -36,11 +36,11 @@ jobs:
     steps:
       - name: Require hosted configuration without exposing credentials
         env:
-          DATABASE_URL: ${{ secrets.PORTCOVE_MAINTENANCE_DATABASE_URL }}
+          DATABASE_URL: ${{ secrets.PORTCOVE_DATABASE_URL }}
           PROJECT_TOKEN: ${{ secrets.PORTCOVE_ROADMAP_TOKEN }}
         run: |
           missing=()
-          [[ -n "$DATABASE_URL" ]] || missing+=(PORTCOVE_MAINTENANCE_DATABASE_URL)
+          [[ -n "$DATABASE_URL" ]] || missing+=(PORTCOVE_DATABASE_URL)
           [[ -n "$PROJECT_TOKEN" ]] || missing+=(PORTCOVE_ROADMAP_TOKEN)
           if ((${#missing[@]})); then
             {
@@ -84,7 +84,7 @@ jobs:
         id: postgres
         timeout-minutes: 10
         env:
-          PORTCOVE_MAINTENANCE_DATABASE_URL: ${{ secrets.PORTCOVE_MAINTENANCE_DATABASE_URL }}
+          PORTCOVE_MAINTENANCE_DATABASE_URL: ${{ secrets.PORTCOVE_DATABASE_URL }}
         run: |
           started=$EPOCHSECONDS
           major=$(node scripts/maintenance-store.mts server | jq -er '.server_major')
@@ -107,7 +107,7 @@ jobs:
         id: migrate
         timeout-minutes: 10
         env:
-          PORTCOVE_MAINTENANCE_DATABASE_URL: ${{ secrets.PORTCOVE_MAINTENANCE_DATABASE_URL }}
+          PORTCOVE_MAINTENANCE_DATABASE_URL: ${{ secrets.PORTCOVE_DATABASE_URL }}
         run: |
           started=$EPOCHSECONDS
           node scripts/maintenance-store.mts migrate > work/maintenance-evidence/migrate.json
@@ -116,7 +116,7 @@ jobs:
         id: collect
         timeout-minutes: 40
         env:
-          PORTCOVE_MAINTENANCE_DATABASE_URL: ${{ secrets.PORTCOVE_MAINTENANCE_DATABASE_URL }}
+          PORTCOVE_MAINTENANCE_DATABASE_URL: ${{ secrets.PORTCOVE_DATABASE_URL }}
           # Release health, upstream snapshots and hosted intake: this job's read-only token.
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # Issues and Project only, read-only, through --issues-token-env.
@@ -134,7 +134,7 @@ jobs:
         if: ${{ !cancelled() && steps.migrate.outcome == 'success' }}
         timeout-minutes: 5
         env:
-          PORTCOVE_MAINTENANCE_DATABASE_URL: ${{ secrets.PORTCOVE_MAINTENANCE_DATABASE_URL }}
+          PORTCOVE_MAINTENANCE_DATABASE_URL: ${{ secrets.PORTCOVE_DATABASE_URL }}
         run: |
           started=$EPOCHSECONDS
           node scripts/maintenance-inventory.mts handoffs --record > work/maintenance-evidence/handoffs.json
@@ -144,7 +144,7 @@ jobs:
         if: ${{ !cancelled() && steps.migrate.outcome == 'success' }}
         timeout-minutes: 10
         env:
-          PORTCOVE_MAINTENANCE_DATABASE_URL: ${{ secrets.PORTCOVE_MAINTENANCE_DATABASE_URL }}
+          PORTCOVE_MAINTENANCE_DATABASE_URL: ${{ secrets.PORTCOVE_DATABASE_URL }}
         run: |
           started=$EPOCHSECONDS
           node scripts/maintenance-inventory.mts report --output work/maintenance-report/report
@@ -155,7 +155,7 @@ jobs:
         if: ${{ !cancelled() && steps.migrate.outcome == 'success' }}
         timeout-minutes: 15
         env:
-          PORTCOVE_MAINTENANCE_DATABASE_URL: ${{ secrets.PORTCOVE_MAINTENANCE_DATABASE_URL }}
+          PORTCOVE_MAINTENANCE_DATABASE_URL: ${{ secrets.PORTCOVE_DATABASE_URL }}
           ARTIFACT: maintenance-backup-${{ github.run_id }}-${{ github.run_attempt }}
         run: |
           started=$EPOCHSECONDS

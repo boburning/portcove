@@ -193,7 +193,13 @@ void test("the hosted workflow runs daily on main with least privilege and a rea
     "Require hosted configuration without exposing credentials",
     "Collect every declared source in one transaction",
   ]);
-  assert.ok(using("PORTCOVE_MAINTENANCE_DATABASE_URL").length > 1);
+  assert.ok(using("PORTCOVE_DATABASE_URL").length > 1);
+  // The secret is exposed to the store commands under their default variable name.
+  assert.ok(
+    steps.some((step) =>
+      (step.env?.PORTCOVE_MAINTENANCE_DATABASE_URL ?? "").includes("secrets.PORTCOVE_DATABASE_URL"),
+    ),
+  );
   assert.equal(
     restoreProof!.steps.some((step) => step.env),
     false,
