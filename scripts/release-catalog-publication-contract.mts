@@ -167,7 +167,7 @@ export function inspectCatalogSitePublicationExpectation(raw: unknown) {
     catalog_repository_sha256: raw.catalog_repository_sha256,
     catalog_root_sha256: raw.catalog_root_sha256,
     prior_site_generation_sha256: raw.prior_site_generation_sha256,
-    site_generation_sha256: raw.site_generation_sha256,
+    site_generation_sha256: String(raw.site_generation_sha256),
   };
 }
 export function assertCatalogSitePublicationBinding(
@@ -183,6 +183,19 @@ export function assertCatalogSitePublicationBinding(
   )
     throw new Error("catalog site expectation changed admitted prior/root");
   return expected;
+}
+
+/** A settled operation can retain the original Pages acknowledgement ID or
+ * the generation used by GET-only recovery when the acknowledgement was lost. */
+export function catalogPagesReadbackId(
+  expectation: ReturnType<typeof inspectCatalogSitePublicationExpectation>,
+  remoteIdentity: string,
+  settled: boolean,
+) {
+  const match = /^github-pages:boburning\/portcove:([A-Za-z0-9_-]{1,128})$/u.exec(remoteIdentity);
+  if (!match || (!settled && match[1] !== expectation.site_generation_sha256))
+    throw new Error("retained catalog Pages effect differs from original deployment");
+  return match[1]!;
 }
 
 const catalogFileHash = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");

@@ -29,7 +29,7 @@ import { downloadGitHubArtifactArchiveFile } from "./github-artifact-download.mt
 import { inspectBoundedZip } from "./bounded-zip.mts";
 import { crc32, inflateRawSync } from "node:zlib";
 import { isRecord } from "./runtime-values.mts";
-import { capacityDigest } from "./release-capacity.mts";
+import { capacityDigest, inspectCapacityExecutorIdentity } from "./release-capacity.mts";
 import { recoverReleaseOpportunity } from "./release-coordinator-state.mts";
 import {
   recordPublishedApplicationSiteMetadata,
@@ -42,6 +42,7 @@ import {
   inspectCatalogTufPublicationFacts,
 } from "./release-catalog-metadata-contract.mts";
 import {
+  catalogPagesReadbackId,
   inspectCatalogCapacitySubject,
   inspectCatalogPublicationDescriptor,
   inspectCatalogInitialization,
@@ -998,14 +999,27 @@ export async function recoverPublishedCatalogSiteHandoff(
       if (
         !isRecord(effect) ||
         typeof operation.id !== "string" ||
-        effect.remote_identity !==
-          `github-pages:boburning/portcove:${prepared.generation.generation}` ||
+        typeof effect.remote_identity !== "string" ||
         expected.site_generation_sha256 !== prepared.generation.generation ||
         capacityDigest(inspectCatalogCapacitySubject(operation.catalog_publication).descriptor) !==
           capacityDigest(catalog.subject)
       )
         throw new Error("catalog handoff differs from original exact Pages settlement");
+      const identity = {
+        id: catalogPagesReadbackId(expected, effect.remote_identity, true),
+        artifact_id: expected.artifact_id,
+        controller_revision: inspectCapacityExecutorIdentity(operation.executor_identity)
+          .controller_revision,
+        generation: expected.site_generation_sha256,
+      };
+      const provider = createPagesProviderTransport({}, prepared.deadline);
+      const before = await provider.observe(identity);
+      if (before.status !== "succeed")
+        throw new Error("original catalog Pages deployment is not observed successful");
       const readback = await readBackSiteDeployment(session);
+      const after = await provider.observe(identity);
+      if (capacityDigest(after) !== capacityDigest(before))
+        throw new Error("original catalog Pages deployment changed during handoff readback");
       await recheckCatalogDeployment(prepared);
       const directory = await mkdtemp(path.join(prepared.directory, "catalog-handoff-readback-"));
       await writeFile(
@@ -1013,6 +1027,7 @@ export async function recoverPublishedCatalogSiteHandoff(
         JSON.stringify({
           operation_id: operation.id,
           original_effect: effect,
+          provider: after,
           public_readback: readback,
           provider_mutations: 0,
           authority: "none",
