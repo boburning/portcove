@@ -399,15 +399,17 @@ work for that head, so nothing is lost; the failure lands on a commit that is no
 longer that pull request's head and cannot satisfy a required context. CI health
 excludes such an attempt from the first-attempt pass rate, as it does a cancelled one.
 
-A push run on `main` is not cancelled by a later merge. It is the only run that saves
-the shared Rust build caches, and a cancelled run validates nothing; while merges
-arrived faster than a run could finish, most `main` runs were cancelled and no Rust
-partition completed there. One later merge waits as the pending run and replaces any
-older pending one, so `main` validates the newest merged state it can reach, not
-every merge. Pull request runs keep their own per-run groups.
 An unreadable or missing head keeps the job running. Push, qualification and release
 callers have no pull request and never stop. `windows-helper-contracts` keeps its
 fixed admitted step list and is left to the supersede workflow.
+
+A push run on `main` is not cancelled by a later merge. Shared Rust build caches are
+saved only from `main`, and a cancelled run validates nothing; while merges arrived
+faster than a run could finish, most `main` runs were cancelled and no Rust partition
+completed there. One later merge waits as the pending run and replaces any older
+pending one. Each `main` run still plans only its own push range, so a replaced
+pending run's changes are not planned on `main`, as when such runs were cancelled.
+Pull request runs keep their own per-run groups.
 
 Retain failures, diagnose the smallest useful reproduction, and repeat only
 invalidated obligations. Preserve assertions, coverage, cleanup and finite
@@ -530,8 +532,9 @@ The payload replaces its shell with `exec` so runner cancellation reaches the
 supervised controller. GitHub may report the deadline as `cancelled`; the verifier
 requires its exact timeout annotation as well as the owned-process drain receipt.
 Main CI bounds metadata/aggregate jobs at 15 minutes, ordinary producers at
-45 minutes, and exhaustive producers at 120 minutes. Windows helpers retain
-10 minutes. The macOS no-global frontend route allows
+45 minutes, and exhaustive producers at 120 minutes. Windows helpers have
+15 minutes: run 43296962076 attempt 1 reached the earlier 10-minute limit in its last
+step on a slow runner and passed its one re-run in 8 minutes. The macOS no-global frontend route allows
 25 minutes for cold provider setup, its full browser stages and evidence retention;
 other portability probes retain 15 minutes. These generous outer
 envelopes include cold setup and evidence upload above the audit's sampled
