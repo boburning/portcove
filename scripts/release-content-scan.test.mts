@@ -1,10 +1,22 @@
 import assert from "node:assert/strict";
-import { writeFile } from "node:fs/promises";
+import { existsSync } from "node:fs";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
 import test from "node:test";
 import {
+  type Runner,
   type ScanDependencies,
   type UpstreamRelease,
+  RECORDED_FAILURES,
+  ScanError,
+  hostedDependencies,
+  main,
+  readCheckpoint,
   channelRelease,
+  listerFailure,
+  permanentRelease,
+  targetsDigest,
   hintedAsset,
   parse7zTechnical,
   parseTarVerbose,
@@ -156,12 +168,30 @@ void test("a scan flags copied headers, records coverage and reuses its checkpoi
     ["header"],
   );
   assert.deepEqual(first.report.unscanned, [
-    { id: "gitlab", platform: "windows-x86-64", reason: "hints select no single asset in v9" },
+    {
+      id: "gitlab",
+      platform: "windows-x86-64",
+      code: "no-single-asset",
+      reason: "hints select no single asset in v9",
+    },
   ]);
+  assert.deepEqual(first.report.reused_targets, []);
   const again: string[] = [];
   const second = await scan(targets, first.checkpoint, fakes(again));
   assert.equal(second.report.scanned.length, 0);
   assert.equal(second.report.reused, 2);
+  // Every reused target is named, so a consumer can account for each target.
+  assert.deepEqual(
+    second.report.reused_targets.map(({ id, platform, key }) => [
+      id,
+      platform,
+      key === first.report.scanned.find((record) => record.id === id)?.key,
+    ]),
+    [
+      ["code-only", "windows-x86-64", true],
+      ["header", "linux-x86-64", true],
+    ],
+  );
   assert.deepEqual(
     second.report.findings.map((record) => record.id),
     ["header"],
@@ -173,12 +203,24 @@ void test("budgets leave assets for a later run without guessing their contents"
   const limited = await scan(scanTargets(listings), new Map(), fakes([]), { maxAssets: 1 });
   assert.equal(limited.report.scanned.length, 1);
   assert.ok(limited.report.unscanned.some((entry) => entry.reason.includes("budget reached")));
+  assert.deepEqual(
+    limited.report.unscanned.map(({ id, code }) => [id, code]),
+    [
+      ["header", "asset-budget"],
+      ["gitlab", "no-single-asset"],
+    ],
+  );
   const small = await scan(scanTargets(listings), new Map(), fakes([]), { maxAssetBytes: 5 });
   assert.equal(small.report.scanned.length, 0);
   assert.ok(
     small.report.unscanned.every(
       (entry) => !entry.reason.includes("budget") || entry.reason.includes("exceeds"),
     ),
+  );
+  // An asset over the per-asset limit is never scanned under these limits, unlike a spent budget.
+  assert.deepEqual(
+    small.report.unscanned.map(({ code }) => code),
+    ["asset-too-large", "asset-too-large", "no-single-asset"],
   );
 });
 
@@ -256,6 +298,10 @@ void test("failed downloads spend the asset and byte budgets and the deadline st
     bytes.report.unscanned.map((entry) => entry.reason.includes("budget")),
     [false, true, false],
   );
+  assert.deepEqual(
+    bytes.report.unscanned.map(({ code }) => code),
+    ["scan-failed", "asset-budget", "no-single-asset"],
+  );
   let now = 0;
   const late = await scan(scanTargets(listings), new Map(), fakes([]), {
     deadline: 1,
@@ -263,6 +309,7 @@ void test("failed downloads spend the asset and byte budgets and the deadline st
   });
   assert.equal(late.report.scanned.length, 1);
   assert.ok(late.report.unscanned.every((entry) => entry.reason.startsWith("time budget")));
+  assert.ok(late.report.unscanned.every(({ code }) => code === "time-budget"));
 });
 
 void test("a published digest that differs from the bytes is not scanned", async () => {
@@ -279,6 +326,203 @@ void test("a published digest that differs from the bytes is not scanned", async
   const result = await scan(scanTargets(listings), new Map(), mismatched);
   assert.equal(result.report.scanned.length, 0);
   assert.ok(result.report.unscanned.some((entry) => entry.reason.includes("published digest")));
+  // The same bytes would differ again: not retried.
+  assert.ok(result.report.unscanned.some(({ code }) => code === "digest-mismatch"));
+});
+
+void test("the report counts every target and binds the list by digest", async () => {
+  const targets = scanTargets(listings);
+  const { report } = await scan(targets, new Map(), fakes([]));
+  assert.equal(report.format_version, 2);
+  assert.equal(report.targets, 3);
+  assert.equal(report.targets_sha256, targetsDigest([...targets].reverse()));
+  assert.notEqual(report.targets_sha256, targetsDigest(targets.slice(1)));
+  assert.equal(
+    report.scanned.length + report.reused_targets.length + report.unscanned.length,
+    report.targets,
+  );
+  const empty = await scan([], new Map(), fakes([]));
+  assert.equal(empty.report.targets, 0);
+});
+
+void test("deterministic failures are persistent codes; transient ones stay deferred", async () => {
+  const deps = fakes([]);
+  const failing = (overrides: Partial<ScanDependencies>, options = {}) =>
+    scan(scanTargets(listings), new Map(), { ...deps, ...overrides }, options).then(({ report }) =>
+      report.unscanned.map(({ id, code }) => [id, code]),
+    );
+  // A redirect, 404 or 410 is the provider's answer for this release; 5xx and 403 may pass.
+  assert.deepEqual([301, 302, 404, 410].map(permanentRelease), [true, true, true, true]);
+  assert.deepEqual([200, 403, 429, 500, 503].map(permanentRelease), [
+    false,
+    false,
+    false,
+    false,
+    false,
+  ]);
+  assert.deepEqual(
+    await failing({
+      async releases(target) {
+        if (target.repository === "up/code")
+          throw new ScanError("release-unavailable", "301 from api.github.com");
+        if (target.repository === "up/header") throw new Error("fetch failed");
+        return deps.releases(target);
+      },
+    }),
+    [
+      ["code-only", "release-unavailable"],
+      ["header", "release-read-failed"],
+      ["gitlab", "no-single-asset"],
+    ],
+  );
+  // A transfer over the per-asset cap is final; one cut by a smaller remaining budget is retried.
+  const tooLarge: Partial<ScanDependencies> = {
+    async download(_asset, file, maxBytes) {
+      await writeFile(file, "x");
+      throw new ScanError("asset-too-large", `the transfer exceeds ${maxBytes} bytes`);
+    },
+  };
+  assert.deepEqual(await failing(tooLarge), [
+    ["code-only", "asset-too-large"],
+    ["header", "asset-too-large"],
+    ["gitlab", "no-single-asset"],
+  ]);
+  assert.deepEqual(
+    (await failing(tooLarge, { maxTotalBytes: 50, maxAssetBytes: 1000 })).map(([, code]) => code),
+    ["asset-budget", "asset-budget", "no-single-asset"],
+  );
+  for (const code of ["encrypted-archive", "unlistable"] as const)
+    assert.deepEqual(
+      await failing({
+        async list() {
+          throw new ScanError(code, "lister refused");
+        },
+      }),
+      [
+        ["code-only", code],
+        ["header", code],
+        ["gitlab", "no-single-asset"],
+      ],
+    );
+  assert.deepEqual(
+    (
+      await failing({
+        async list() {
+          throw new Error("unexpected");
+        },
+      })
+    ).map(([, code]) => code),
+    ["scan-failed", "scan-failed", "no-single-asset"],
+  );
+});
+
+void test("a persistent download failure is remembered and not fetched again for the same release", async () => {
+  const calls: string[] = [];
+  const deps = fakes(calls);
+  const encrypted: ScanDependencies = {
+    ...deps,
+    async list(file, name, stopAt) {
+      if (name === "release_Linux.zip") throw new ScanError("encrypted-archive", "password");
+      return deps.list(file, name, stopAt);
+    },
+  };
+  const targets = scanTargets(listings);
+  const first = await scan(targets, new Map(), encrypted);
+  assert.deepEqual(
+    [...first.failures.values()].map(({ code }) => code),
+    ["encrypted-archive"],
+  );
+  calls.length = 0;
+  const second = await scan(targets, first.checkpoint, encrypted, { failures: first.failures });
+  assert.ok(!calls.includes("download release_Linux.zip"), "not downloaded again");
+  assert.deepEqual(
+    second.report.unscanned.map(({ id, code }) => [id, code]),
+    [
+      ["header", "encrypted-archive"],
+      ["gitlab", "no-single-asset"],
+    ],
+  );
+  // An unlistable package is persistent for coverage but re-checked each run, since a
+  // lister or environment fault can cause it; each retry still spends the budgets.
+  assert.deepEqual(
+    [...RECORDED_FAILURES],
+    ["asset-too-large", "digest-mismatch", "encrypted-archive"],
+  );
+  const unlistable: ScanDependencies = {
+    ...deps,
+    async list() {
+      throw new ScanError("unlistable", "lister exited with status 2");
+    },
+  };
+  const firstUnlistable = await scan(targets, new Map(), unlistable);
+  assert.equal(firstUnlistable.failures.size, 0);
+  calls.length = 0;
+  const again = await scan(targets, firstUnlistable.checkpoint, unlistable, {
+    failures: firstUnlistable.failures,
+    maxAssets: 1,
+  });
+  assert.ok(calls.includes("download Code-1-windows-x64.zip"), "downloaded again");
+  assert.deepEqual(
+    again.report.unscanned.map(({ id, code }) => [id, code]),
+    [
+      ["code-only", "unlistable"],
+      ["header", "asset-budget"],
+      ["gitlab", "no-single-asset"],
+    ],
+  );
+  // A transient failure is never remembered.
+  const transient = await scan(targets, new Map(), {
+    ...deps,
+    async list() {
+      throw new Error("lister timed out");
+    },
+  });
+  assert.equal(transient.failures.size, 0);
+  // An asset over the per-asset limit is retried once the limit is raised.
+  const tooLarge = await scan(
+    targets,
+    new Map(),
+    {
+      ...deps,
+      async download(_asset, file) {
+        await writeFile(file, "x");
+        throw new ScanError("asset-too-large", "over the limit");
+      },
+    },
+    { maxAssetBytes: 100 },
+  );
+  calls.length = 0;
+  await scan(targets, new Map(), deps, { failures: tooLarge.failures, maxAssetBytes: 100 });
+  assert.ok(!calls.some((call) => call.startsWith("download")));
+  await scan(targets, new Map(), deps, { failures: tooLarge.failures, maxAssetBytes: 200 });
+  assert.ok(calls.some((call) => call.startsWith("download")));
+});
+
+void test("a lister that exits non-zero cannot read the archive; a timeout or missing tool is retried", () => {
+  const exited = (code: unknown, extra: Record<string, unknown> = {}) =>
+    Object.assign(new Error("Command failed"), { code, killed: false, signal: null, ...extra });
+  const codeOf = (error: unknown) => (error instanceof ScanError ? error.code : "deferred");
+  assert.equal(codeOf(listerFailure(exited(2))), "unlistable");
+  assert.equal(
+    codeOf(
+      listerFailure(
+        exited(2, { stderr: "ERROR: a.7z : Cannot open encrypted archive. Wrong password?" }),
+        true,
+      ),
+    ),
+    "encrypted-archive",
+  );
+  // Only 7z's own password message marks an archive encrypted.
+  assert.equal(
+    codeOf(listerFailure(exited(2, { stderr: "encrypted member" }), false)),
+    "unlistable",
+  );
+  assert.equal(
+    codeOf(listerFailure(exited(null, { killed: true, signal: "SIGKILL" }))),
+    "deferred",
+  );
+  assert.equal(codeOf(listerFailure(exited("ENOENT"))), "deferred");
+  assert.equal(codeOf(listerFailure(new Error("time budget reached"))), "deferred");
 });
 
 void test("records carry the rules version and partial reads", async () => {
@@ -320,4 +564,104 @@ void test("a package whose reads the deadline cut is retried instead of recorded
   assert.equal(report.scanned.length, 0);
   assert.equal(checkpoint.size, 0);
   assert.ok(report.unscanned.some((entry) => entry.reason.includes("cut by the time budget")));
+  assert.ok(report.unscanned.some(({ code }) => code === "time-cut"));
+});
+
+void test("the hosted release read reports a redirect, 404 or 410 as unavailable without following it", async (context) => {
+  const seen: (RequestInit | undefined)[] = [];
+  let status = 301;
+  context.mock.method(globalThis, "fetch", async (_url: unknown, init?: RequestInit) => {
+    seen.push(init);
+    return new Response(status === 200 ? "[]" : null, { status });
+  });
+  const github = scanTargets(listings)[0]!;
+  const gitlab = scanTargets(listings)[2]!;
+  const outcome = async (target: typeof github) => {
+    try {
+      await hostedDependencies("token").releases(target);
+      return "ok";
+    } catch (error) {
+      return error instanceof ScanError ? error.code : "deferred";
+    }
+  };
+  for (const [code, expected] of [
+    [301, "release-unavailable"],
+    [404, "release-unavailable"],
+    [410, "release-unavailable"],
+    [500, "release-read-failed"],
+    [403, "release-read-failed"],
+    [200, "ok"],
+  ] as const) {
+    status = code;
+    assert.equal(await outcome(github), expected, String(code));
+  }
+  status = 404;
+  assert.equal(await outcome(gitlab), "release-unavailable");
+  assert.ok(seen.every((init) => init?.redirect === "manual"));
+});
+
+void test("a transfer that curl stops at --max-filesize is too large; other transfer failures are retried", async () => {
+  const failing = (fields: Record<string, unknown>): Runner =>
+    (async () => {
+      throw Object.assign(new Error("Command failed: curl"), fields);
+    }) as unknown as Runner;
+  const asset = { name: "a.zip", url: "https://example.invalid/a.zip", size: null, digest: null };
+  const outcome = async (fields: Record<string, unknown>) => {
+    try {
+      await hostedDependencies(undefined, failing(fields)).download(
+        asset,
+        "unused",
+        10,
+        Date.now() + 60_000,
+      );
+      return "ok";
+    } catch (error) {
+      return error instanceof ScanError ? error.code : "deferred";
+    }
+  };
+  assert.equal(await outcome({ code: 63, killed: false, signal: null }), "asset-too-large");
+  assert.equal(await outcome({ code: 22, killed: false, signal: null }), "deferred");
+  assert.equal(await outcome({ code: null, killed: true, signal: "SIGKILL" }), "deferred");
+});
+
+void test("the CLI keeps only current, remembered failures and refuses a scan with no targets", async (context) => {
+  const { RULES_VERSION } = await import("./release-content-signals.mts");
+  const dir = await mkdtemp(path.join(os.tmpdir(), "release-scan-cli-"));
+  context.after(() => rm(dir, { recursive: true, force: true }));
+  const checkpoint = path.join(dir, "checkpoint.json");
+  const current = `r${RULES_VERSION}|github|up/a|v1|a.zip|10`;
+  await writeFile(
+    checkpoint,
+    JSON.stringify({
+      format_version: 1,
+      records: [
+        { key: current, rules: RULES_VERSION, signals: [] },
+        { key: "r0|github|up/a|v1|a.zip|10", rules: 0, signals: [] },
+      ],
+      failures: [
+        { key: current, code: "encrypted-archive", max_asset_bytes: 100 },
+        { key: `${current}|b`, code: "unlistable", max_asset_bytes: 100 },
+        { key: "r0|github|up/a|v1|a.zip|10", code: "digest-mismatch", max_asset_bytes: 100 },
+        { key: `${current}|c`, code: "asset-too-large", max_asset_bytes: "big" },
+      ],
+    }),
+  );
+  const loaded = await readCheckpoint(checkpoint);
+  assert.deepEqual([...loaded.records.keys()], [current]);
+  assert.deepEqual(
+    [...loaded.failures.values()].map(({ key, code }) => [key, code]),
+    [[current, "encrypted-archive"]],
+  );
+  const missing = await readCheckpoint(path.join(dir, "absent.json"));
+  assert.equal(missing.records.size + missing.failures.size, 0);
+  assert.equal((await readCheckpoint("-")).records.size, 0);
+
+  const empty = path.join(dir, "listings.json");
+  await writeFile(empty, "{}");
+  const output = path.join(dir, "report.json");
+  await assert.rejects(
+    main(["scan", "--listings", empty, "--checkpoint", "-", "--output", output]),
+    /The listings offer no scan targets/u,
+  );
+  assert.equal(existsSync(output), false, "no report is written");
 });
