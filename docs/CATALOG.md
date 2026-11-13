@@ -2520,8 +2520,8 @@ Core's managed PS1 builder runs with `--no-toolchain-download` and with
 (and building tcc on Linux) whatever that flag says. Core admits no executable
 it has not verified, so those requests are refused, the kit logs the failure
 and finishes the build, and the player interprets overlays. A build that still
-leaves any file in `overlay_toolchain` or `.cache/overlay-toolchain` fails and
-keeps the previous version.
+leaves any file in `overlay_toolchain` or `.cache/overlay-toolchain` fails
+before anything is installed or changed.
 [Framework review](qualification/psxrecomp-7192402-builder-downloads-2026-11-13.md).
 
 A `psx-raw-set` integration may declare `launch_disc_choice:

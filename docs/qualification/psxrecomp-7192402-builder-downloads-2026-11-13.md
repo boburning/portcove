@@ -47,8 +47,10 @@ therefore now:
   14 seconds.
 - **checks the result:** after `rebuild`, any file under
   `build-portcove/overlay_toolchain` or `.cache/overlay-toolchain` fails the
-  preparation and keeps the previous version. That covers a pre-filled cache
-  as well as a request that got through.
+  preparation before anything is installed or activated. That covers a
+  pre-filled cache as well as a request that got through. Upstream's
+  diagnostic build stages another toolchain beside its diagnostic folder
+  (CLI:3274). Core never passes a diagnostic flag, so it is not checked.
 
 A host with a listener on 127.0.0.1:9, such as a discard service, gets no
 reply. Each attempt then waits its 120-second timeout, so the build is

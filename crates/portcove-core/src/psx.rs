@@ -1666,7 +1666,7 @@ fn require_no_fetched_overlay_toolchain(root: &Path, build_dir: &Path) -> Result
                     pending.push(entry.path());
                 } else {
                     return Err(PortcoveError::install(
-                        "PS1 build obtained an unverified overlay toolchain; Portcove kept the previous version",
+                        "PS1 build obtained an unverified overlay toolchain, so nothing was installed or changed",
                     )
                     .detail("path", entry.path().display().to_string()));
                 }
