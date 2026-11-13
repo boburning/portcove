@@ -1788,12 +1788,24 @@ void test(
     assert.ok(newInput.verified_at > first.verified_at);
     assert.deepEqual([newInput.transitions, newInput.notifications], [1, 0]);
 
-    // Same result, new policy (another Core binary): the same, without churn.
+    // A rebuilt Core binary with identical behavior writes no new assessment: the same
+    // projection of the same Core output is the same assessment, now verified by the
+    // new binary's run, which records its digest.
+    const assessmentsBefore = runSql(
+      store.owner,
+      "SELECT count(*) FROM portcove_maintenance.assessments;",
+    ).trim();
     writeFileSync(cli, `${readFileSync(cli, "utf8")}\n// rebuilt\n`);
     await all();
     const newPolicy = current();
-    assert.notEqual(newPolicy.policy, newInput.policy);
-    assert.notEqual(newPolicy.applicable, newInput.applicable);
+    assert.equal(newPolicy.policy, newInput.policy);
+    assert.equal(newPolicy.applicable, newInput.applicable);
+    assert.notEqual(newPolicy.verified_run, newInput.verified_run);
+    assert.equal(
+      runSql(store.owner, "SELECT count(*) FROM portcove_maintenance.assessments;").trim(),
+      assessmentsBefore,
+      "a rebuild with identical behavior adds no rows",
+    );
     assert.deepEqual(
       [newPolicy.sequence, newPolicy.transitions, newPolicy.notifications],
       [1, 1, 0],
@@ -2101,7 +2113,7 @@ void test(
     );
     assert.match(
       runs[0]!.revision,
-      /^cli-sha256:[0-9a-f]{64};source=unrecorded$/u,
+      /^cli-sha256:[0-9a-f]{64};source=unrecorded;producer-sha256=[0-9a-f]{16}$/u,
       "bound to the assessing Core binary, with its unrecorded source visible",
     );
     const inventory = buildReport(store.owner);
@@ -2150,7 +2162,8 @@ void test(
            JOIN portcove_maintenance.assessments a ON a.assessment_id = c.applicable_assessment_id
           WHERE c.subject_key LIKE 'port:2ship2harkinian@%';`,
       ).trim(),
-      /;producer-sha256=[0-9a-f]{64}$/u,
+      /^port-capabilities;api=[0-9]+;projection=[0-9]+$/u,
+      "the policy names the projection, never the binary or its build",
     );
     assert.match(
       runSql(
@@ -2158,7 +2171,7 @@ void test(
         `SELECT source_revision FROM portcove_maintenance.collection_runs
           WHERE run_id = portcove_maintenance.latest_run('core-port-capabilities-${hostPlatform()}');`,
       ).trim(),
-      new RegExp(`^cli-sha256:[0-9a-f]{64};source=${head}$`, "u"),
+      new RegExp(`^cli-sha256:[0-9a-f]{64};source=${head};producer-sha256=[0-9a-f]{16}$`, "u"),
     );
     assert.equal(transitions(), transitionsBefore, "a new binding is not a material change");
     // The source binding is verified only for a clean checkout's own revision, the
@@ -2203,7 +2216,11 @@ void test(
     );
     const malformed = await binding({ source_revision: "x".repeat(150) }, "d");
     assert.equal(malformed.binding, "unverified");
-    assert.match(malformed.revision, /;source=unrecorded$/u, "an invalid revision is never stored");
+    assert.match(
+      malformed.revision,
+      /;source=unrecorded;producer-sha256=[0-9a-f]{16}$/u,
+      "an invalid revision is never stored",
+    );
     // A failed inspection is its own failed run; the earlier facts stay current.
     const failed = await all(() => Promise.reject(new Error("inspection refused")));
     assert.deepEqual(failed.failed_sources, ["core-target-routes"]);

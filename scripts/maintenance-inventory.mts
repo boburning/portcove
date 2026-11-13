@@ -305,6 +305,9 @@ interface Route {
 }
 
 /** Project Core's report without reinterpreting it: routes, features, modes and Core's own words. */
+/** Bump when `capabilityResult` changes how a Core report becomes a state or explanation. */
+export const capabilityProjectionVersion = 1;
+
 export function capabilityResult(observation: CapabilityObservation) {
   if (!observation.ok)
     return {
@@ -860,14 +863,16 @@ export function collectionSql(input: {
   const coreSource = coreSourceName(input.platform);
   const catalogRun = `catalog-records:${input.revision.slice(0, 12)}:${token}`;
   const coreRun = `${coreSource}:${input.cliSha256.slice(0, 12)}:${token}`;
-  // The run records the readable source binding; the policy binds the whole producer
-  // identity (source, compiled catalog, features) by digest, within the store's limits.
+  // The binary and its recorded source bind through the verifying run's revision.
+  // The policy names only this projection of Core's report: the assessment input is
+  // Core's own output, so any change in Core behavior is a new input and a new
+  // assessment, while a rebuild with identical behavior writes no new rows.
   const coreRevision = `cli-sha256:${input.cliSha256}${
-    input.producer ? `;source=${input.producer.source_revision ?? "unrecorded"}` : ""
+    input.producer
+      ? `;source=${input.producer.source_revision ?? "unrecorded"};producer-sha256=${sha256(canonicalJson(input.producer)).slice(0, 16)}`
+      : ""
   }`;
-  const policy = `port-capabilities;api=${input.apiSchema};cli-sha256=${input.cliSha256}${
-    input.producer ? `;producer-sha256=${sha256(canonicalJson(input.producer))}` : ""
-  }`;
+  const policy = `port-capabilities;api=${input.apiSchema};projection=${capabilityProjectionVersion}`;
   const lines = [
     // Freshness checks below must see runs committed while this transaction waited
     // for its locks, whatever the server or role default isolation is.

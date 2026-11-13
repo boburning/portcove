@@ -544,10 +544,17 @@ node scripts/maintenance-inventory.mts collect --cli target/release/portcove --a
 - **Producer binding:** the inspection names the producing Core: the source
   revision its build recorded, compiled features, the compiled catalog and
   listings digests, and whether a qualification override replaced the catalog.
-  With it, every Core assessment's policy binds that identity by digest
-  (`;producer-sha256=<digest>`), and the Core run's revision records the source
-  (`cli-sha256:<digest>;source=<revision|unrecorded>`). A recorded revision
-  that is not a Git object ID is stored as `unrecorded`.
+  The Core run's revision records the binary, the source and a short producer
+  digest (`cli-sha256:<digest>;source=<revision|unrecorded>;producer-sha256=<16>`).
+  Each subject's current verification names that run, so every assessment is
+  bound to the exact binary and build that last verified it. A recorded
+  revision that is not a Git object ID is stored as `unrecorded`.
+  - The assessment policy names only how a Core report becomes a state
+    (`port-capabilities;api=<n>;projection=<n>`). The assessment input is Core's
+    own output, so any change in Core behavior is a new input and a new
+    assessment. A rebuild with identical behavior writes no rows: the hosted
+    store measured 1,441 rows per rebuild when the binary digest was in the
+    policy.
   - A host assessment's `cli_source_binding` is `verified` only when the
     recorded revision is the collected checkout, that checkout's Core sources
     (`crates`, `Cargo.toml`, `Cargo.lock`) are clean, no catalog override is
