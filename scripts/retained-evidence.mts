@@ -10,6 +10,7 @@ import {
   lstat,
   mkdir,
   open,
+  readdir,
   readFile,
   statfs,
   unlink,
@@ -72,6 +73,43 @@ foreach($rule in $observed.GetAccessRules($true,$true,[Security.Principal.Securi
 }
 `;
 
+const MARKER_NAME = "retained-evidence.json";
+const MAX_ADOPTION_ENTRIES = 256;
+const MAX_ADOPTION_DEPTH = 4;
+
+/**
+ * True only when a directory without its own marker is empty or contains only
+ * subdirectories and Portcove's own valid sub-store markers. Any other file,
+ * link, or a tree beyond the bound is treated as unknown content.
+ */
+async function holdsOnlyOwnedEvidence(root: string): Promise<boolean> {
+  let seen = 0;
+  const walk = async (directory: string, depth: number): Promise<boolean> => {
+    if (depth > MAX_ADOPTION_DEPTH) return false;
+    for (const entry of await readdir(directory, { withFileTypes: true })) {
+      if (++seen > MAX_ADOPTION_ENTRIES) return false;
+      const full = path.join(directory, entry.name);
+      if (entry.isDirectory()) {
+        if (!(await walk(full, depth + 1))) return false;
+      } else if (entry.isFile() && entry.name === MARKER_NAME && depth > 0) {
+        try {
+          const record: unknown = JSON.parse(await readFile(full, "utf8"));
+          if (
+            !isRecord(record) ||
+            record.format_version !== 1 ||
+            record.kind !== "retained-evidence"
+          )
+            return false;
+        } catch {
+          return false;
+        }
+      } else return false;
+    }
+    return true;
+  };
+  return walk(root, 0);
+}
+
 export async function ensureRetainedEvidenceStore(root: string) {
   root = path.resolve(root);
   const existing = initializing.get(root);
@@ -95,9 +133,26 @@ export async function ensureRetainedEvidenceStore(root: string) {
     }
     const marker = path.join(root, "retained-evidence.json");
     if (!created) {
-      const record: unknown = JSON.parse(await readFile(marker, "utf8"));
-      if (!isRecord(record) || record.format_version !== 1 || record.kind !== "retained-evidence")
-        throw new Error("Unknown evidence directory; refusing initialization");
+      let text: string | undefined;
+      try {
+        text = await readFile(marker, "utf8");
+      } catch (error) {
+        if (errorCode(error) !== "ENOENT") throw error;
+      }
+      if (text === undefined) {
+        // The marker is written last. An interrupted first initialization, or a
+        // namespaced store whose ancestor was created recursively, leaves a
+        // directory without it. Adopt only a tree that holds no foreign files.
+        if (!(await holdsOnlyOwnedEvidence(root)))
+          throw new Error(
+            "Unknown evidence directory has no retained-evidence marker and contains other files; refusing initialization",
+          );
+        created = true;
+      } else {
+        const record: unknown = JSON.parse(text);
+        if (!isRecord(record) || record.format_version !== 1 || record.kind !== "retained-evidence")
+          throw new Error("Unknown evidence directory; refusing initialization");
+      }
     }
     if (!verifiedPrivateRoots.has(root)) {
       if (process.platform === "win32") {
