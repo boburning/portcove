@@ -52,6 +52,29 @@ async function selectLocalProfile(
   assert.equal(await browser.findElement(By.id(fieldId)).getAttribute("value"), profileId);
 }
 
+// Opens a review dialog's collapsed "Technical details" through its own summary control,
+// so assertions read the exact paths a player can reveal there.
+async function expandTechnicalDetails(browser: WebDriver, dialog: By) {
+  const summaries = await browser
+    .findElement(dialog)
+    .findElements(
+      By.xpath('.//details[not(@open)]/summary[normalize-space(.)="Technical details"]'),
+    );
+  for (const summary of summaries) await summary.click();
+  await browser.wait(
+    async () =>
+      (
+        await browser
+          .findElement(dialog)
+          .findElements(
+            By.xpath('.//details[not(@open)]/summary[normalize-space(.)="Technical details"]'),
+          )
+      ).length === 0,
+    5_000,
+    "Technical details did not open",
+  );
+}
+
 export async function steamEntryScenario(context: SteamEntryContext) {
   assertSteamEntryContext(context);
   const {
@@ -157,6 +180,8 @@ export async function steamEntryScenario(context: SteamEntryContext) {
       await browser.findElement(button("Add or repair shortcut")),
       await browser.findElement(button("Check shortcuts again")),
     );
+    // The exact shortcut file is listed under the review's collapsed "Technical details".
+    await expandTechnicalDetails(browser, dialog);
     const reviewed = await browser.findElement(dialog).getText();
     assert.ok(reviewed.includes(shortcuts));
     assert.ok(reviewed.includes("Add or repair shortcut"));
@@ -490,6 +515,7 @@ export async function steamEntryScenario(context: SteamEntryContext) {
     await selectLocalProfile(browser, click, steamUserId, "steam-batch-profile");
     await click(button("Review selected shortcuts"));
     await browser.wait(until.elementLocated(button("Add or repair selected shortcuts")), 15_000);
+    await expandTechnicalDetails(browser, dialog);
     const reviewText = await browser.findElement(dialog).getText();
     for (const { port } of [first, second]) assert.ok(reviewText.includes(port.name));
     assert.ok(reviewText.includes(shortcuts));
