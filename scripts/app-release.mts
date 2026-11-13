@@ -96,7 +96,7 @@ const platformAssets: { platform: string; suffix: string }[] = [
   { platform: "darwin-x86_64", suffix: "_universal.app.tar.gz" },
 ];
 
-/** Tauri static updater feed from the signed assets of one release. */
+/** Tauri static updater feed from the published `.sig` files of one release. */
 export function buildFeed(options: {
   version: string;
   notes: string;
@@ -108,8 +108,8 @@ export function buildFeed(options: {
   const platforms: Record<string, { signature: string; url: string }> = {};
   for (const { platform, suffix } of platformAssets) {
     const name = `Portcove_${options.version}${suffix}`;
-    if (!files.has(name) || !files.has(`${name}.sig`))
-      throw new Error(`missing signed updater asset ${name}`);
+    // The published release's asset set is verified separately; the feed needs its signatures.
+    if (!files.has(`${name}.sig`)) throw new Error(`missing signed updater asset ${name}`);
     platforms[platform] = {
       signature: readFileSync(path.join(options.assetsDir, `${name}.sig`), "utf8").trim(),
       url: `${options.downloadBase}/${name}`,

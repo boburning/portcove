@@ -185,7 +185,13 @@ jobs:
         run: |
           set -euo pipefail
           expected=$(cd dist && ls -1 | sort)
-          state=$(gh release view "$GITHUB_REF_NAME" --json isDraft --jq 'if .isDraft then "draft" else "published" end' 2>/dev/null || echo missing)
+          if view=$(gh release view "$GITHUB_REF_NAME" --json isDraft --jq 'if .isDraft then "draft" else "published" end' 2>&1); then
+            state=$view
+          elif grep -q "release not found" <<<"$view"; then
+            state=missing
+          else
+            echo "::error::Could not read the release state: $view"; exit 1
+          fi
           if [ "$state" = missing ]; then
             flags=()
             [ "${{ needs.plan.outputs.prerelease }}" = true ] && flags+=(--prerelease)
@@ -204,10 +210,12 @@ jobs:
             [ "${{ needs.plan.outputs.prerelease }}" = true ] || latest=true
             gh release edit "$GITHUB_REF_NAME" --draft=false --latest="$latest"
           fi
-      - name: Write the updater feed
+      - name: Write the updater feed from the published signatures
+        # The feed must match the immutable published bytes, even when this run rebuilt them.
         run: >-
+          gh release download "$GITHUB_REF_NAME" --pattern '*.sig' --dir published --clobber &&
           node scripts/app-release.mts feed --version "$VERSION" --notes-file notes.md
-          --pub-date "$(date -u +%Y-%m-%dT%H:%M:%SZ)" --assets-dir dist
+          --pub-date "$(date -u +%Y-%m-%dT%H:%M:%SZ)" --assets-dir published
           --download-base "https://github.com/$GITHUB_REPOSITORY/releases/download/$GITHUB_REF_NAME"
           > latest.json
       - name: Publish the feed to the Pages branch
