@@ -176,6 +176,42 @@ export function matchesRetainedReviewWithdrawalHandoff(
   );
 }
 
+/** The separately appointed withdrawal may authenticate the exact signed v13
+ * adoption. The provider job, signature and current mutation controls still apply. */
+export function matchesRetainedV13ReviewWithdrawalHandoff(
+  checkpoint: { checkpoint: string; previous: string | null },
+  producer: Record<string, unknown>,
+  source: { execution_ref: string; workflow_sha256: string },
+  rawWithdrawal: unknown,
+  purpose: "application" | "catalog-publication" | undefined,
+) {
+  const withdrawal = inspectReleaseReviewWithdrawal(rawWithdrawal);
+  const adoption = retainedCatalogV13AdoptionClaim;
+  const workflow = "ae780affa5cff58dd88250b3575d6948ed6608a47b3175492cf56fff3a5d90fb";
+  return (
+    purpose === "application" &&
+    source.execution_ref ===
+      "refs/tags/portcove-production-controller-windows-20261113-withdraw-29f33f57" &&
+    source.workflow_sha256 === workflow &&
+    withdrawal !== null &&
+    withdrawal.request_checkpoint === adoption.child &&
+    withdrawal.request_id === "87a32458456f8b24bfe545a89a98c93a2315af9e9e15f37e0c1e4b821f480176" &&
+    withdrawal.source_commit === "29f33f577dd08888daa308f6534e1ba2e0d10eaf" &&
+    withdrawal.source_tree === "e5f44b9f1c2b541fb2c932d6d203198c33ca2d57" &&
+    withdrawal.technical_stop_sha256 ===
+      "73704d29b23be7aeffcddf2776ce1598dbf3a1d2c76efac0e11fbc10d36d4be0" &&
+    checkpoint.checkpoint === adoption.child &&
+    checkpoint.previous === adoption.previous &&
+    producer.controller_revision === "dc5aee2e8cb67c92e36f1507a09b2a2b6a391372" &&
+    producer.controller_ref === adoption.successor_ref &&
+    producer.workflow_sha256 === workflow &&
+    producer.run_id === "43388566615" &&
+    producer.run_attempt === 1 &&
+    producer.job_id === "131764663738" &&
+    producer.check_run_id === "131764663738"
+  );
+}
+
 /** Only catalog-purpose admission can carry the settled fd4 withdrawal into
  * forward adoption. It still has to verify the original coordinator signature. */
 export function matchesRetainedCatalogAdoptionWithdrawal(
@@ -465,6 +501,13 @@ export async function authenticateFixedJobCoordinatorHistory(
     producer !== null &&
     (matchesRetainedCatalogBootstrapHandoff(checkpoint, producer, source) ||
       matchesRetainedReviewWithdrawalHandoff(checkpoint, producer, withdrawal) ||
+      matchesRetainedV13ReviewWithdrawalHandoff(
+        checkpoint,
+        producer,
+        source,
+        withdrawal,
+        purpose,
+      ) ||
       matchesRetainedCatalogAdoptionWithdrawal(checkpoint, producer, purpose) ||
       matchesRetainedCatalogForwardAdoptionHandoff(checkpoint, producer, source, purpose) ||
       matchesRetainedApplicationRenewalHandoff(checkpoint, producer, source, purpose) ||

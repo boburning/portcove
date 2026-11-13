@@ -1863,6 +1863,10 @@ void test("paused withdrawal rechecks the same controls and refreshes aging obse
       },
       recheck() {},
     }),
+    appendRetainedReviewWithdrawal: (prior: unknown, receipt: unknown) => {
+      assert.equal(prior, undefined);
+      return receipt;
+    },
     matchesRetainedReviewWithdrawal: () => false,
     matchesWithdrawnReviewRequest: () => true,
     inspectReleaseReviewRequest: () => ({}),

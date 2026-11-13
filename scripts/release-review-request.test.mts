@@ -140,8 +140,11 @@ void test("paused safety withdrawal clears only the exact request and refuses it
     approval_sha256: "1".repeat(64),
     technical_stop_sha256: "2".repeat(64),
   };
-  const { inspectReleaseReviewWithdrawal, matchesRetainedReviewWithdrawal } =
-    await import("./release-review-withdrawal.mts");
+  const {
+    appendRetainedReviewWithdrawal,
+    inspectReleaseReviewWithdrawal,
+    matchesRetainedReviewWithdrawal,
+  } = await import("./release-review-withdrawal.mts");
   const inspected = inspectReleaseReviewWithdrawal(withdrawal);
   assert.ok(inspected);
   assert.equal(matchesRetainedReviewWithdrawal(inspected, state), false);
@@ -224,6 +227,58 @@ void test("paused safety withdrawal clears only the exact request and refuses it
   const accepted = await recoverReleaseOpportunity(f.repository, followup.checkpoint);
   assert.deepEqual(accepted.input.review_withdrawal, withdrawal);
   assert.deepEqual(accepted.input.review_request, successor);
+  const second = inspectReleaseReviewWithdrawal({
+    ...withdrawal,
+    request_id: successor.request_id,
+    source_commit: successor.source_commit,
+    source_tree: successor.source_tree,
+    request_checkpoint: followup.checkpoint,
+    approval_sha256: "3".repeat(64),
+  });
+  assert.ok(second);
+  const secondWithdrawal = {
+    ...accepted.input,
+    review_request: null,
+    review_withdrawal: appendRetainedReviewWithdrawal(accepted.input.review_withdrawal, second),
+  };
+  for (const changed of [
+    second,
+    [second, withdrawal],
+    [{ ...withdrawal, approval_sha256: "4".repeat(64) }, second],
+    [withdrawal, second, second],
+  ])
+    await assert.rejects(
+      checkpointReleaseOpportunity(f.repository, followup.checkpoint, {
+        ...secondWithdrawal,
+        review_withdrawal: changed,
+      }),
+      /withdrawal/,
+    );
+  const settled = await checkpointReleaseOpportunity(
+    f.repository,
+    followup.checkpoint,
+    secondWithdrawal,
+  );
+  const retained = await recoverReleaseOpportunity(f.repository, settled.checkpoint);
+  assert.deepEqual(retained.input.review_withdrawal, [withdrawal, second]);
+  assert.equal(matchesRetainedReviewWithdrawal(second, retained.input), true);
+  assert.equal(matchesRetainedReviewWithdrawal(inspected, retained.input), true);
+  for (const withdrawn of [f.request, successor])
+    await assert.rejects(
+      checkpointReleaseOpportunity(f.repository, settled.checkpoint, {
+        ...retained.input,
+        review_request: createReleaseReviewRequest({
+          base_commit: withdrawn.base_commit,
+          base_version: withdrawn.base_version,
+          source_commit: withdrawn.source_commit,
+          source_tree: withdrawn.source_tree,
+          change_set_sha256: withdrawn.change_set_sha256,
+          before_checkpoint: settled.checkpoint,
+          requested_at: String(f.input.now),
+        }),
+      }),
+      /withdrawn application source/,
+    );
 });
 
 void test(
