@@ -9,6 +9,7 @@ import {
   inspectReleaseReviewRequest,
   inspectReleaseReviewDisposition,
   advanceReleaseReviewRecovery,
+  validateReleaseReviewRequestTransition,
 } from "./release-review-request.mts";
 import { negativeSemanticDispositionFixture } from "./fixtures/release-semantic-disposition-fixture.mts";
 import {
@@ -123,6 +124,24 @@ function negativeReceipt(
   );
   return createReleaseReviewDispositionReceipt(observed, checkpoint, previous);
 }
+
+void test("a new application review cannot overlap or replace catalog work", async (t) => {
+  const { input, request, first } = await fixture(t);
+  const next = { ...input, review_request: request };
+  assert.doesNotThrow(() => validateReleaseReviewRequestTransition(input, next, first.checkpoint));
+  for (const field of ["catalog_review_request", "catalog_publication"]) {
+    assert.throws(
+      () =>
+        validateReleaseReviewRequestTransition({ ...input, [field]: {} }, next, first.checkpoint),
+      /existing catalog operation to settle/u,
+    );
+    assert.throws(
+      () =>
+        validateReleaseReviewRequestTransition(input, { ...next, [field]: {} }, first.checkpoint),
+      /existing catalog operation to settle/u,
+    );
+  }
+});
 
 void test("paused safety withdrawal clears only the exact request and refuses its reuse", async (t) => {
   const f = await fixture(t);

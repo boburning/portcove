@@ -333,6 +333,13 @@ export function validateReleaseReviewRequestTransition(
   if (capacityDigest(previous.active_candidate) !== capacityDigest(next.active_candidate))
     throw new Error("review request transition cannot allocate or change active candidate");
   if (!before && after) {
+    if (
+      previous.catalog_review_request != null ||
+      previous.catalog_publication != null ||
+      next.catalog_review_request != null ||
+      next.catalog_publication != null
+    )
+      throw new Error("application review requires the existing catalog operation to settle");
     if (after.before_checkpoint !== checkpoint || after.requested_at !== next.now)
       throw new Error("review request requires its exact preceding checkpoint and frozen clock");
     if (
