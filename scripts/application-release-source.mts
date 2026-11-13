@@ -41,6 +41,7 @@ import {
   retainedServedRenewalFeed,
   retainedR55Renewal,
   retainedV8RenewalContinuation,
+  retainedV8ServedRenewal,
   retainedV8RenewalDraft,
   retainedR56FeedRecovery,
   immutableApplicationBootstrap,
@@ -813,7 +814,9 @@ async function renewPublishedMetadata() {
     const retained =
       execution.ref === retainedV8RenewalContinuation.next_ref
         ? retainedV8RenewalContinuation
-        : retainedV8RenewalDraft;
+        : execution.ref === retainedV8ServedRenewal.next_ref
+          ? retainedV8ServedRenewal
+          : retainedV8RenewalDraft;
     registration = await resumeApplicationMetadataDraft(
       provider,
       execution,

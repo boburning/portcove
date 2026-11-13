@@ -173,6 +173,7 @@ import {
   retainedServedRenewalFeed,
   failedBootstrapRecovery,
   retainedR56FeedRecovery,
+  retainedV8ServedRenewal,
   requireRetainedR56PreNativeEvidence,
   isEmptyApplicationBootstrapCustody,
   createApplicationRunRegistrationProvider,
@@ -3984,8 +3985,21 @@ async function signMetadata(role: (typeof onlineRoles)[number]) {
     );
     if (source.purpose === "metadata-bootstrap") assert.equal(inspected.records, 0);
   }
+  // The fixed role environment admits the immutable controller tag.
+  // Served renewal signs unchanged records into a private attempt artifact.
+  // Publication and Pages still require fresh independent protection receipts.
+  const servedRenewal = process.env.PORTCOVE_PROTECTION_PHASE === "served-renewal";
+  if (servedRenewal) {
+    assert.equal(source.purpose, "metadata-renewal");
+    assert.equal(source.execution_path, "metadata-maintenance");
+    assert.equal(source.renewal_parent, undefined);
+    assert.equal(current.ref, retainedV8ServedRenewal.next_ref);
+    assert.ok(role !== "targets");
+    assert.equal(process.env.PORTCOVE_PROTECTION_ARTIFACT ?? "", "");
+    assert.ok(inspected.records_unchanged);
+  }
   signingStage = "release-guard";
-  await guard(source, true, {
+  await guard(source, !servedRenewal, {
     useVerifiedSourceCustody: true,
     markStage(next) {
       signingStage = next;
@@ -3993,7 +4007,7 @@ async function signMetadata(role: (typeof onlineRoles)[number]) {
   });
   signingStage = "reservation-recheck";
   await assertReservedApplicationContext(source, receivedContext, "verified-context");
-  assertProtectionWriteWindow();
+  if (!servedRenewal) assertProtectionWriteWindow();
   signingStage = "isolated-signing";
   const output = path.resolve(`work/application-role-${role}`);
   await mkdir(output);

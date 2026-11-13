@@ -17,6 +17,7 @@ import {
   retainedServedRenewal,
   retainedServedRenewalFeed,
   retainedV8RenewalContinuation,
+  retainedV8ServedRenewal,
   retainedV8RenewalDraft,
   retainedR55Renewal,
   retainedR56FeedRecovery,
@@ -56,10 +57,15 @@ export function inspectApplicationJobBudget(
   reserveTail = true,
   purpose: unknown = "application-release",
   executionPath: unknown = "ordinary",
+  servedRenewal = false,
 ) {
   const maximumMinutes = applicationReleaseMaximumMinutes(purpose, executionPath);
   const ceilings = applicationReleaseBudgetMinutes(purpose);
-  const remainingCeilings = applicationReleaseRemainingMinutes(purpose, executionPath);
+  const remainingCeilings = applicationReleaseRemainingMinutes(
+    purpose,
+    executionPath,
+    servedRenewal,
+  );
   assert.match(source, /^[a-f0-9]{40}$/u);
   assert.match(runId, /^[1-9][0-9]{0,15}$/u);
   assert.ok(attempts.length >= 1 && attempts.length <= 3);
@@ -535,15 +541,19 @@ export function permitsRetainedV8SourceRefusalContinuation(
   const retained = retainedV8RenewalDraft;
   const successor =
     execution.ref === retainedV8RenewalContinuation.next_ref ? retainedV8RenewalContinuation : null;
-  const predecessors = successor
-    ? [...retained.predecessors, successor.predecessor]
-    : retained.predecessors;
+  const served = execution.ref === retainedV8ServedRenewal.next_ref;
+  const additional = served
+    ? [retainedV8RenewalContinuation, retainedV8ServedRenewal]
+    : successor
+      ? [successor]
+      : [];
+  const predecessors = [...retained.predecessors, ...additional.map((row) => row.predecessor)];
   const custody = owner?.custody;
   if (
     opportunity !== retained.opportunity ||
     purpose !== "metadata-renewal" ||
     executionPath !== "metadata-maintenance" ||
-    (execution.ref !== retained.next_ref && !successor) ||
+    (execution.ref !== retained.next_ref && additional.length === 0) ||
     execution.run_attempt !== 1 ||
     owner?.release_id !== retained.release_id ||
     custody?.opportunity !== opportunity ||
@@ -562,8 +572,8 @@ export function permitsRetainedV8SourceRefusalContinuation(
   };
   const observed = new Map(runs.map((row) => [row.id, row]));
   const prior = retained.predecessors.slice(0, 2);
-  const registered = successor ? [...prior, successor.predecessor] : prior;
-  const contextSha256 = successor?.context_sha256 ?? retained.context_sha256;
+  const registered = [...prior, ...additional.map((row) => row.predecessor)];
+  const contextSha256 = additional.at(-1)?.context_sha256 ?? retained.context_sha256;
   const contexts = custody.metadata_contexts ?? [];
   const next = contexts[registered.length];
   const matches = (
@@ -993,10 +1003,12 @@ export async function readApplicationJobBudget(
   );
   const v8Successor =
     sourceRefusalContinuation && execution.ref === retainedV8RenewalContinuation.next_ref;
+  const v8Served = sourceRefusalContinuation && execution.ref === retainedV8ServedRenewal.next_ref;
   assert.ok(
     Array.isArray(known) &&
       (known.length <= 3 ||
         (v8Successor && known.length === 4) ||
+        (v8Served && known.length <= 5) ||
         budgetedBootstrap ||
         (servedRenewalContinuation && known.length <= servedRenewalPredecessors.length)) &&
       new Set(known).size === known.length,
@@ -1026,11 +1038,13 @@ export async function readApplicationJobBudget(
   );
   const maximumAttempts = servedRenewalContinuation
     ? servedRenewalPredecessors.length + 1
-    : v8Successor
-      ? 5
-      : continuation || sourceRefusalContinuation
-        ? 4
-        : 3;
+    : v8Served
+      ? 6
+      : v8Successor
+        ? 5
+        : continuation || sourceRefusalContinuation
+          ? 4
+          : 3;
   const retainedDiagnostics =
     executionPath === "bootstrap-recovery" ? bootstrapDiagnosticCharges : [];
   const recoveryObservations =
@@ -1082,8 +1096,13 @@ export async function readApplicationJobBudget(
             jobs: await provider.jobs(Number(run.id), attempt),
           },
         );
-    const previousMaintenance =
-      v8Successor && String(run.id) === retainedV8RenewalContinuation.predecessor.id;
+    const previousMaintenance = (
+      v8Served
+        ? [retainedV8RenewalContinuation, retainedV8ServedRenewal]
+        : v8Successor
+          ? [retainedV8RenewalContinuation]
+          : []
+    ).find(({ predecessor }) => predecessor.id === String(run.id));
     const result = inspectApplicationJobBudget(
       observations,
       String(run.head_sha),
@@ -1091,10 +1110,11 @@ export async function readApplicationJobBudget(
       current,
       current || budgetedBootstrap || previousMaintenance ? purpose : "application-release",
       current || previousMaintenance ? executionPath : "ordinary",
+      current && v8Served,
     );
     if (sourceRefusalContinuation && !current) {
       const prior = previousMaintenance
-        ? retainedV8RenewalContinuation.predecessor
+        ? previousMaintenance.predecessor
         : retainedV8RenewalDraft.predecessors.find((actor) => actor.id === String(run.id));
       assert.ok(prior);
       assert.equal(result.actual_milliseconds, prior.milliseconds, "retained renewal cost changed");
@@ -1110,7 +1130,7 @@ export async function readApplicationJobBudget(
         });
         assert.deepEqual(
           executed.sort(([left], [right]) => Number(left) - Number(right)),
-          retainedV8RenewalContinuation.executed_jobs,
+          previousMaintenance.executed_jobs,
           "retained renewal job inventory changed",
         );
       }

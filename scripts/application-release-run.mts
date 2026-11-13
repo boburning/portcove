@@ -420,6 +420,33 @@ export const retainedV8RenewalContinuation = {
   ],
 } as const;
 
+export const retainedV8ServedRenewal = {
+  next_ref: "refs/tags/portcove-production-controller-windows-20261112r86",
+  notes_sha256: "7a5a2278b240ad86b7b5e1d7245b89f0109afec68c34be3a2b4f7e736a7e616a",
+  predecessor: {
+    id: "43319177498",
+    control_commit: "f014333f89863e10d8481e43e1f81560c40c294e",
+    control_ref: retainedV8RenewalContinuation.next_ref,
+    conclusion: "failure",
+    milliseconds: 1_449_000,
+  },
+  context_sha256: [
+    ...retainedV8RenewalContinuation.context_sha256,
+    "395907a9e7a607dc131e633fee95e572a7178dd9f5f72c590ae6342951483957",
+  ],
+  executed_jobs: [
+    [131535040719, "source", "success"],
+    [131544461206, "tools", "success"],
+    [131547878294, "context / execute", "success"],
+    [131548763452, "renewal_protection_releases / execute", "failure"],
+    [131548763497, "renewal_protection_preview / execute", "failure"],
+    [131548763657, "renewal_protection_stable / execute", "success"],
+    [131548764243, "releases / execute", "failure"],
+    [131548764372, "preview / execute", "failure"],
+    [131548764495, "stable / execute", "success"],
+  ],
+} as const;
+
 export const retainedServedRenewal = {
   opportunity: "c4cb09d9e84f80cc4a4c1bb8468ae074a80eeefb46e9cb72fb202b625cb826f3",
   release_id: 437990696,
@@ -702,7 +729,7 @@ export function inspectApplicationRunCustody(raw: unknown): ApplicationRunCustod
     raw.preparation === null &&
     !Object.hasOwn(raw, "budget") &&
     Array.isArray(raw.runs) &&
-    raw.runs.length === 4;
+    (raw.runs.length === 4 || raw.runs.length === 5);
   assert.ok(
     Array.isArray(raw.runs) &&
       raw.runs.length >= 1 &&
@@ -730,8 +757,13 @@ export function inspectApplicationRunCustody(raw: unknown): ApplicationRunCustod
     return { id: value.id, control_commit: value.control_commit, control_ref: value.control_ref };
   });
   if (v8Continuation) {
-    const { predecessor, next_ref } = retainedV8RenewalContinuation;
-    const prior = [...retainedV8RenewalDraft.predecessors.slice(0, 2), predecessor];
+    const prior = [
+      ...retainedV8RenewalDraft.predecessors.slice(0, 2),
+      retainedV8RenewalContinuation.predecessor,
+      ...(runs.length === 5 ? [retainedV8ServedRenewal.predecessor] : []),
+    ];
+    const next_ref =
+      runs.length === 5 ? retainedV8ServedRenewal.next_ref : retainedV8RenewalContinuation.next_ref;
     assert.deepEqual(
       runs.slice(0, -1),
       prior.map(({ id, control_commit, control_ref }) => ({ id, control_commit, control_ref })),
@@ -817,6 +849,10 @@ export function inspectApplicationRunCustody(raw: unknown): ApplicationRunCustod
       };
     }
   }
+  const retainedV8Contexts =
+    runs.length === 5
+      ? retainedV8ServedRenewal.context_sha256
+      : retainedV8RenewalContinuation.context_sha256;
   const metadata =
     raw.schema_version === 3
       ? inspectMetadataContextReservations(
@@ -825,16 +861,16 @@ export function inspectApplicationRunCustody(raw: unknown): ApplicationRunCustod
           renewalContinuation || feedContinuation
             ? retainedServedRenewal.contexts.length + 1
             : v8Continuation
-              ? retainedV8RenewalContinuation.context_sha256.length + 1
+              ? retainedV8Contexts.length + 1
               : 3,
         )
       : undefined;
   if (v8Continuation)
     assert.deepEqual(
-      metadata?.slice(0, 3).map(({ context_sha256 }) => context_sha256),
-      retainedV8RenewalContinuation.context_sha256,
+      metadata?.slice(0, retainedV8Contexts.length).map(({ context_sha256 }) => context_sha256),
+      retainedV8Contexts,
     );
-  if (metadata && metadata.length > 3) {
+  if (metadata && metadata.length > (v8Continuation ? retainedV8Contexts.length : 3)) {
     const latest = metadata.at(-1)!;
     // The reservation parser already binds the commit and ref to this run ID.
     assert.ok(
