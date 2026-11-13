@@ -326,6 +326,7 @@ mod tests {
         BackupDeletionBinding {
             format_version: 1,
             backup: BackupRecord {
+                automatic: None,
                 id: uuid::Uuid::new_v4().to_string(),
                 port_id: "ghostship".into(),
                 path: root.into(),

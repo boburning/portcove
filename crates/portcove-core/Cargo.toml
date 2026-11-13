@@ -7,8 +7,20 @@ license.workspace = true
 repository.workspace = true
 rust-version.workspace = true
 
+# The service test modules include these generated wrappers with include!().
+# Keep their existing test names and inventory while Shear scans normal modules.
+[package.metadata.cargo-shear]
+ignored-paths = [
+  "src/testdata/managed-route-tests.generated.rs",
+  "src/testdata/prepared-route-tests.generated.rs",
+  "src/testdata/retained-prepared-tests.generated.rs",
+]
+
 [features]
 qualification-fixtures = []
+# Exposes the hidden archive extraction entry used only by the out-of-workspace
+# cargo-fuzz crate in `fuzz/`. Production builds never enable it.
+archive-fuzzing = []
 
 [[example]]
 name = "forbidden-memories-producer"
@@ -25,18 +37,20 @@ ed25519-dalek.workspace = true
 crc32fast.workspace = true
 flate2.workspace = true
 futures-util.workspace = true
-fs2.workspace = true
+fs4.workspace = true
 hex.workspace = true
 icu_casemap.workspace = true
 icu_properties.workspace = true
 image.workspace = true
 keyring.workspace = true
+lzma-turbo.workspace = true
 reqwest.workspace = true
 rusqlite.workspace = true
 schemars.workspace = true
 same-file.workspace = true
 serde.workspace = true
 serde_json.workspace = true
+sevenz-turbo.workspace = true
 sha1.workspace = true
 sha2.workspace = true
 tar.workspace = true
@@ -58,8 +72,13 @@ rustix.workspace = true
 windows-sys.workspace = true
 
 [dev-dependencies]
-aws-lc-rs = "1.18.2"
-jiff = "0.2.38"
+sevenz-turbo = { workspace = true, features = ["compress"] }
+aws-lc-rs = "1.19.0"
+jiff = "0.2.39"
 proptest = { version = "=1.12.0", default-features = false, features = ["std"] }
 filetime.workspace = true
 tempfile.workspace = true
+
+[[example]]
+name = "portable_lifecycle"
+test = true

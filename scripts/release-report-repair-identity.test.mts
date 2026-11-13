@@ -1,8 +1,46 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { readFile } from "node:fs/promises";
+import { readFile, mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import { publicationReportRepairStateFixture } from "./fixtures/publication-report-repair-fixture.mts";
-import { inspectReportRepairIdentity } from "./release-report-repair-identity.mts";
+import {
+  acknowledgeReportRepairIdentity,
+  inspectReportRepairIdentity,
+} from "./release-report-repair-identity.mts";
+import { selectedPublicationAuthoritiesFixture } from "./fixtures/checkpoint-proof-fixture.mts";
+
+void test("Windows report-only identity uses the selected authority profile and exact original dispatch actor", () => {
+  const f = fixture();
+  const broad = selectedPublicationAuthoritiesFixture("application");
+  assert.ok(broad.purpose === "application");
+  const selected = {
+    ...broad,
+    release_profile: "initial-beta-windows-x86_64-v1",
+    public_build_inputs: {
+      release_profile: "initial-beta-windows-x86_64-v1",
+      configuration_revision: "c".repeat(40),
+      manifest_sha256: "d".repeat(64),
+    },
+    hosted_native: { "windows-x86_64": broad.hosted_native["windows-x86_64"] },
+  };
+  const environment = {
+    ...f.environment,
+    PORTCOVE_RELEASE_PROFILE: "initial-beta-windows-x86_64-v1",
+    PORTCOVE_RELEASE_AUTHORITIES: JSON.stringify(selected),
+  };
+  f.input.controller.capacity_attempt.operation.executor_identity.actor_id = "1234";
+  assert.equal(inspectReportRepairIdentity(f.input, environment, f.run).authority, "none");
+  assert.throws(() =>
+    inspectReportRepairIdentity(
+      f.input,
+      { ...environment, PORTCOVE_RELEASE_PROFILE: "initial-beta-win-linux" },
+      f.run,
+    ),
+  );
+  f.input.controller.capacity_attempt.operation.executor_identity.actor_id = "9999";
+  assert.throws(() => inspectReportRepairIdentity(f.input, environment, f.run));
+});
 import { reportRepairDispatchDestination } from "./release-report-repair-contract.mts";
 import { releaseCanonicalDigest as digest } from "./release-canonical.mts";
 import { slice4CapacityResources } from "./release-capacity.mts";
@@ -119,6 +157,15 @@ void test("report-only workflow suppresses all candidate build and publication j
     if (job === "identity") {
       assert.match(block, /timeout-minutes: \$\{\{ inputs\.report_only_repair && 2 \|\| 360 \}\}/u);
       assert.match(block, /report-repair-identity\.mts/u);
+      const install = block.indexOf("Install frozen report reader dependencies");
+      const bind = block.indexOf("Bind report-only invocation");
+      assert.ok(install > block.indexOf("persist-credentials: false") && bind > install);
+      assert.match(block.slice(install, bind), /if: inputs\.report_only_repair/u);
+      assert.match(block.slice(install, bind), /GH_TOKEN: ""/u);
+      assert.match(
+        block.slice(install, bind),
+        /--prod --frozen-lockfile --ignore-scripts --ignore-pnpmfile/u,
+      );
       assert.match(block, /actions: read/u);
       assert.doesNotMatch(block, /actions: write|contents: write/u);
     } else if (!["publish", "authorize_publication"].includes(job))
@@ -129,5 +176,49 @@ void test("report-only workflow suppresses all candidate build and publication j
   assert.equal(slice4CapacityResources.report_repair_job_minutes, 2);
   assert.equal(slice4CapacityResources.report_repair_attempts_per_candidate, 2);
   assert.equal(slice4CapacityResources.report_repair_maximum_job_minutes_per_candidate, 4);
-  assert.equal(slice4CapacityResources.declared_job_minutes, 89);
+  assert.equal(slice4CapacityResources.declared_job_minutes, 145);
+});
+
+void test("report-only acknowledgement awaits matching snapshots around the actual SDK run", async (t) => {
+  const directory = await mkdtemp(path.join(tmpdir(), "report-only-sdk-"));
+  t.after(() => rm(directory, { force: true, recursive: true }));
+  const f = fixture();
+  const environment = {
+    ...f.environment,
+    GH_TOKEN: "inert-report-reader",
+    GITHUB_TOKEN: "inert-ambient-reader",
+    GITHUB_OUTPUT: path.join(directory, "output"),
+  };
+  const events: string[] = [];
+  t.mock.method(globalThis, "fetch", async (input: string | URL | Request, init?: RequestInit) => {
+    const url = new URL(input instanceof Request ? input.url : input);
+    assert.equal(url.href, "https://api.github.com/repos/boburning/portcove/actions/runs/1111");
+    assert.equal(init?.redirect, "manual");
+    assert.equal(new Headers(init?.headers).get("authorization"), "token inert-report-reader");
+    events.push("run");
+    return Response.json(f.run);
+  });
+  let drift = false;
+  const snapshot: NonNullable<Parameters<typeof acknowledgeReportRepairIdentity>[1]> = async (
+    _directory,
+    configuration,
+    options,
+  ) => {
+    assert.deepEqual(configuration, { namespace: "portcove-fixture", schema_version: 1 });
+    assert.ok(options?.transport?.deadline && options.transport.deadline > performance.now());
+    assert.equal(options.transport.credential?.token, environment.GH_TOKEN);
+    events.push("snapshot");
+    return { checkpoint: drift && events.length === 3 ? "changed" : "original", input: f.input };
+  };
+  await acknowledgeReportRepairIdentity(environment, snapshot);
+  assert.deepEqual(events, ["snapshot", "run", "snapshot"]);
+  assert.equal(await readFile(environment.GITHUB_OUTPUT, "utf8"), "report_only_repair=true\n");
+  events.length = 0;
+  drift = true;
+  await assert.rejects(acknowledgeReportRepairIdentity(environment, snapshot));
+  assert.deepEqual(events, ["snapshot", "run", "snapshot"]);
+  assert.equal(await readFile(environment.GITHUB_OUTPUT, "utf8"), "report_only_repair=true\n");
+  events.length = 0;
+  await assert.rejects(acknowledgeReportRepairIdentity({ ...environment, GH_TOKEN: "" }, snapshot));
+  assert.deepEqual(events, []);
 });

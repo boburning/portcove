@@ -40,8 +40,8 @@ it("explains the selected catalog observation with its exact route, target, chan
 });
 
 it.each([
-  ["files_missing", "no_connected_registration", "No game-file registration"],
-  ["needs_checking", "storage_absence_unconfirmed", "files are not confirmed missing"],
+  ["files_missing", "no_connected_registration", "No saved game-file location is connected"],
+  ["needs_checking", "storage_absence_unconfirmed", "They are not confirmed missing"],
   ["no_files_required", "explicit_empty_requirements", "No files to add in Portcove"],
   ["unavailable_context", "route_not_offered", "selected route is not offered"],
 ] as const)(

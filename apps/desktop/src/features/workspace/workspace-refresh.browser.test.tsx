@@ -1,4 +1,4 @@
-import { controlledAct as act } from "../../../test/controlled-react-act";
+import { controlledAct } from "../../../test/controlled-react-act";
 import { render as renderComponent, cleanup, type RenderResult } from "vitest-browser-react";
 import { fixtureValue } from "../../test-fixtures";
 import { StrictMode, useMemo } from "react";
@@ -12,6 +12,18 @@ import { failureReport, portDefinition, portStatus } from "../../test-fixtures";
 import type { DoctorReport, OperationEvent, WorkspaceSnapshot } from "../../types";
 import { WorkspaceRefreshNotice } from "./WorkspaceRefreshNotice";
 import { indexStatuses } from "../../view-model";
+
+// Flush the existing fake clock's zero-delay notifications inside the controlled React batch.
+async function act<T>(callback: () => T | Promise<T>) {
+  await controlledAct(async () => {
+    await callback();
+    await vi.advanceTimersByTimeAsync(0);
+  });
+  // Query can notify after React commits an effect that coordinates recovery.
+  await controlledAct(async () => {
+    await vi.advanceTimersByTimeAsync(1);
+  });
+}
 
 vi.mock("@tauri-apps/api/event", () => ({ listen: vi.fn() }));
 
@@ -54,6 +66,20 @@ function deferred<T>() {
     reject = decline;
   });
   return { promise, resolve, reject };
+}
+
+// Cross a browser task boundary so rejected promises reach the browser's
+// unhandled-rejection reporting checkpoint, independently of the fake clock.
+function nextBrowserTask() {
+  return new Promise<void>((resolve) => {
+    const channel = new MessageChannel();
+    channel.port1.onmessage = () => {
+      channel.port1.close();
+      channel.port2.close();
+      resolve();
+    };
+    channel.port2.postMessage(null);
+  });
 }
 
 let root: RenderResult;
@@ -149,7 +175,6 @@ beforeEach(async () => {
   });
   vi.spyOn(desktopApi, "workspaceSnapshot").mockResolvedValue(snapshot);
   vi.spyOn(desktopApi, "workspaceChanged").mockResolvedValue(false);
-  vi.spyOn(desktopApi, "workspaceChanged").mockResolvedValue(false);
   vi.spyOn(desktopApi, "discoverOrphanedOperations").mockResolvedValue(undefined);
   vi.spyOn(desktopApi, "activities").mockResolvedValue(emptyActivityFeed());
   vi.spyOn(desktopApi, "doctor").mockResolvedValue(doctor);
@@ -165,9 +190,310 @@ afterEach(async () => {
 });
 
 describe("workspace refresh recovery", () => {
+  it("does not miss a library event while registration settles or duplicate the initial read", async () => {
+    const registration = deferred<() => void>();
+    const fresh = structuredClone(snapshot);
+    fresh.statuses[0]!.successful_launches += 1;
+    vi.mocked(listen).mockImplementationOnce((event, handler) => {
+      eventHandlers.set(event, handler as (event: { payload: unknown }) => void);
+      return registration.promise;
+    });
+    vi.mocked(desktopApi.workspaceSnapshot).mockResolvedValue(fresh);
+    await render();
+    await act(async () => {
+      eventHandlers.get("portcove://library-changed")!({ payload: "during registration" });
+      await nextBrowserTask();
+    });
+    expect(desktopApi.workspaceSnapshot).not.toHaveBeenCalled();
+    registration.resolve(() => eventHandlers.delete("portcove://library-changed"));
+    await act(async () => registration.promise);
+    expect(desktopApi.workspaceSnapshot).toHaveBeenCalledOnce();
+    expect(data.statuses[0]?.successful_launches).toBe(fresh.statuses[0]?.successful_launches);
+  });
+
+  it("queues another genuinely fresh read for a change during the trailing read", async () => {
+    await render();
+    const first = deferred<WorkspaceSnapshot>(),
+      second = deferred<WorkspaceSnapshot>();
+    const fresh = structuredClone(snapshot);
+    fresh.statuses[0]!.successful_launches += 2;
+    vi.mocked(desktopApi.workspaceSnapshot).mockClear();
+    vi.mocked(desktopApi.workspaceSnapshot)
+      .mockReturnValueOnce(first.promise)
+      .mockReturnValueOnce(second.promise)
+      .mockResolvedValueOnce(fresh);
+    let initial!: ReturnType<typeof data.refresh>;
+    let trailing!: ReturnType<typeof data.refreshAfterMutation>;
+    let latest!: ReturnType<typeof data.refreshAfterMutation>;
+    await act(async () => {
+      initial = data.refresh();
+      await Promise.resolve();
+      trailing = data.refreshAfterMutation();
+    });
+    expect(desktopApi.workspaceSnapshot).toHaveBeenCalledOnce();
+    first.resolve(snapshot);
+    await act(async () => {
+      await initial;
+    });
+    expect(desktopApi.workspaceSnapshot).toHaveBeenCalledTimes(2);
+    await act(async () => {
+      latest = data.refreshAfterMutation();
+    });
+    expect(desktopApi.workspaceSnapshot).toHaveBeenCalledTimes(2);
+    second.resolve(snapshot);
+    await act(async () => Promise.all([trailing, latest]));
+    expect(desktopApi.workspaceSnapshot).toHaveBeenCalledTimes(3);
+    expect(data.statuses[0]?.successful_launches).toBe(fresh.statuses[0]?.successful_launches);
+  });
+
+  it("keeps invalidations during IPC serialized and accepts a genuinely fresh trailing snapshot", async () => {
+    await render();
+    const first = deferred<WorkspaceSnapshot>();
+    const fresh = structuredClone(snapshot);
+    fresh.statuses[0]!.successful_launches += 1;
+    let active = 0,
+      maximum = 0;
+    vi.mocked(desktopApi.workspaceSnapshot).mockClear();
+    vi.mocked(desktopApi.workspaceSnapshot)
+      .mockImplementationOnce(() => {
+        maximum = Math.max(maximum, ++active);
+        return first.promise.finally(() => {
+          active--;
+        });
+      })
+      .mockImplementationOnce(async () => {
+        maximum = Math.max(maximum, ++active);
+        try {
+          return fresh;
+        } finally {
+          active--;
+        }
+      });
+    let initial!: ReturnType<typeof data.refresh>;
+    let changes!: ReturnType<typeof data.refreshAfterMutation>[];
+    await act(async () => {
+      initial = data.refresh();
+      await Promise.resolve();
+      changes = [data.refreshAfterMutation(), data.refreshAfterMutation()];
+    });
+    expect(desktopApi.workspaceSnapshot).toHaveBeenCalledOnce();
+    first.resolve(snapshot);
+    await act(async () => Promise.all([initial, ...changes]));
+    expect(desktopApi.workspaceSnapshot).toHaveBeenCalledTimes(2);
+    expect(maximum).toBe(1);
+    expect(data.statuses[0]?.successful_launches).toBe(fresh.statuses[0]?.successful_launches);
+  });
+
+  it("does not replace a newer activity-only result when an automatic activity read fails", async () => {
+    await render();
+    const newer: WorkspaceSnapshot["activities"] = {
+      ...emptyActivityFeed(),
+      terminal_history_count: 1,
+      records: [
+        {
+          id: "newer-terminal",
+          operation: "install",
+          target_kind: "port",
+          target_id: "fixture",
+          status: "succeeded",
+          message: null,
+          failure: null,
+          started_at: 1,
+          finished_at: 2,
+          cancellation: null,
+        },
+      ],
+    };
+    vi.mocked(desktopApi.activities).mockResolvedValueOnce(newer);
+    await act(async () => data.refreshActivities());
+    expect(data.activityFeed).toBe(newer);
+    vi.mocked(desktopApi.activities).mockRejectedValueOnce(failureReport());
+    await act(async () => vi.advanceTimersByTimeAsync(10_000));
+    expect(data.activityFeed).toBe(newer);
+    expect(data.refreshFailure).toBeUndefined();
+  });
+
+  it("does not let a clean probe erase a detected change before observer delivery", async () => {
+    await render();
+    const fresh = structuredClone(snapshot);
+    fresh.statuses[0]!.successful_launches += 1;
+    vi.mocked(desktopApi.workspaceSnapshot).mockResolvedValue(fresh);
+    vi.mocked(desktopApi.workspaceChanged).mockResolvedValueOnce(true).mockResolvedValue(false);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(10_000);
+      window.dispatchEvent(new Event("focus"));
+      await Promise.resolve();
+    });
+    await act(nextBrowserTask);
+    expect(desktopApi.discoverOrphanedOperations).toHaveBeenCalledWith(7);
+    expect(data.statuses[0]?.successful_launches).toBe(fresh.statuses[0]?.successful_launches);
+  });
+
+  it("does not re-latch settled recovery from a previously started cheap read", async () => {
+    await render();
+    const recovery = deferred<void>();
+    vi.mocked(desktopApi.discoverOrphanedOperations).mockReturnValueOnce(recovery.promise);
+    vi.mocked(desktopApi.workspaceChanged).mockResolvedValueOnce(true).mockResolvedValue(false);
+    await act(async () => vi.advanceTimersByTimeAsync(10_000));
+    await act(nextBrowserTask);
+    expect(desktopApi.discoverOrphanedOperations).toHaveBeenCalledOnce();
+
+    const activities = deferred<WorkspaceSnapshot["activities"]>();
+    vi.mocked(desktopApi.activities).mockReturnValueOnce(activities.promise);
+    window.dispatchEvent(new Event("focus"));
+    await act(nextBrowserTask);
+    const reads = vi.mocked(desktopApi.workspaceSnapshot).mock.calls.length;
+    recovery.resolve();
+    await act(async () => recovery.promise);
+    expect(desktopApi.workspaceSnapshot).toHaveBeenCalledTimes(reads);
+
+    const fresh = structuredClone(snapshot);
+    fresh.statuses[0]!.successful_launches += 1;
+    vi.mocked(desktopApi.workspaceSnapshot).mockResolvedValueOnce(fresh);
+    activities.resolve(emptyActivityFeed());
+    await act(async () => activities.promise);
+    await act(nextBrowserTask);
+    expect(desktopApi.discoverOrphanedOperations).toHaveBeenCalledOnce();
+    expect(desktopApi.workspaceSnapshot).toHaveBeenCalledTimes(reads + 1);
+    expect(data.statuses[0]?.successful_launches).toBe(fresh.statuses[0]?.successful_launches);
+  });
+
+  it("re-reads a change that coincides with this window's own mutation without recovery", async () => {
+    await render();
+    const fresh = structuredClone(snapshot);
+    fresh.statuses[0]!.successful_launches += 1;
+    vi.mocked(desktopApi.workspaceSnapshot).mockClear();
+    vi.mocked(desktopApi.workspaceSnapshot).mockResolvedValue(fresh);
+    await act(async () => data.refreshAfterMutation());
+    expect(desktopApi.workspaceSnapshot).toHaveBeenCalledOnce();
+    vi.mocked(desktopApi.workspaceChanged).mockResolvedValueOnce(true).mockResolvedValue(false);
+    await act(async () => vi.advanceTimersByTimeAsync(10_000));
+    await act(nextBrowserTask);
+    expect(desktopApi.workspaceChanged).toHaveBeenCalled();
+    expect(desktopApi.discoverOrphanedOperations).not.toHaveBeenCalled();
+    expect(desktopApi.workspaceSnapshot).toHaveBeenCalledTimes(2);
+    expect(data.statuses[0]?.successful_launches).toBe(fresh.statuses[0]?.successful_launches);
+
+    // A later commit with no intervening local write is external again.
+    vi.mocked(desktopApi.workspaceChanged).mockResolvedValueOnce(true).mockResolvedValue(false);
+    await act(async () => vi.advanceTimersByTimeAsync(10_000));
+    await act(nextBrowserTask);
+    expect(desktopApi.discoverOrphanedOperations).toHaveBeenCalledWith(7);
+  });
+
+  it("runs one deferred discovery after a change hidden by this window's own writes", async () => {
+    await render();
+    await act(async () => data.refreshAfterMutation());
+    vi.mocked(desktopApi.workspaceChanged).mockResolvedValueOnce(true).mockResolvedValue(false);
+    await act(async () => vi.advanceTimersByTimeAsync(10_000));
+    await act(nextBrowserTask);
+    expect(desktopApi.discoverOrphanedOperations).not.toHaveBeenCalled();
+
+    // No further local writes: the next quiet probe covers an external commit
+    // that the observer reported together with the local one.
+    await act(async () => vi.advanceTimersByTimeAsync(10_000));
+    await act(nextBrowserTask);
+    expect(desktopApi.discoverOrphanedOperations).toHaveBeenCalledOnce();
+    expect(desktopApi.discoverOrphanedOperations).toHaveBeenCalledWith(7);
+
+    await act(async () => vi.advanceTimersByTimeAsync(10_000));
+    await act(nextBrowserTask);
+    expect(desktopApi.discoverOrphanedOperations).toHaveBeenCalledOnce();
+  });
+
+  it("uses a quiet focus hint only for cheap detection and activity reads", async () => {
+    await render();
+    vi.mocked(desktopApi.workspaceSnapshot).mockClear();
+    vi.mocked(desktopApi.workspaceChanged).mockClear();
+    window.dispatchEvent(new Event("focus"));
+    await act(nextBrowserTask);
+    expect(desktopApi.workspaceChanged).toHaveBeenCalledWith(7);
+    expect(desktopApi.workspaceSnapshot).not.toHaveBeenCalled();
+    expect(desktopApi.discoverOrphanedOperations).not.toHaveBeenCalled();
+  });
+
+  it("mounts a fresh scoped client after disposal without retaining old focus listeners", async () => {
+    await render();
+    await root.rerender(null);
+    vi.mocked(desktopApi.workspaceSnapshot).mockClear();
+    await render();
+    expect(desktopApi.workspaceSnapshot).toHaveBeenCalledOnce();
+    vi.mocked(desktopApi.workspaceChanged).mockClear();
+    window.dispatchEvent(new Event("focus"));
+    await act(nextBrowserTask);
+    expect(desktopApi.workspaceChanged).toHaveBeenCalledOnce();
+  });
+
+  it("reads the coherent workspace through local IPC while offline without running recovery", async () => {
+    vi.spyOn(window.navigator, "onLine", "get").mockReturnValue(false);
+    window.dispatchEvent(new Event("offline"));
+    await render();
+    expect(data.catalog).toEqual(snapshot.catalog);
+    await act(async () => data.refresh());
+    expect(desktopApi.workspaceSnapshot).toHaveBeenCalledTimes(2);
+    expect(desktopApi.discoverOrphanedOperations).not.toHaveBeenCalled();
+  });
+
+  it("offers the held catalog digest and reuses an unchanged catalog by reference", async () => {
+    const listings = {
+      format_version: 1,
+      listings: [
+        {
+          id: "listing-held",
+          name: "Held Listing",
+          summary: "An upstream project.",
+          project_url: "https://example.com/project",
+          platforms: [],
+          availability: "unknown" as const,
+        },
+      ],
+    };
+    vi.mocked(desktopApi.workspaceSnapshot).mockResolvedValue({
+      ...structuredClone(snapshot),
+      listing_catalog: listings,
+      catalog_digest: "digest-1",
+    });
+    await render();
+    const heldCatalog = data.catalog;
+    const heldListings = data.listingCatalog;
+    expect(heldListings?.listings[0]?.id).toBe("listing-held");
+    const {
+      catalog: _omitted,
+      listing_catalog: _omittedListings,
+      ...withoutCatalog
+    } = structuredClone(snapshot);
+    const fresh = {
+      ...withoutCatalog,
+      statuses: [{ ...snapshot.statuses[0]!, successful_launches: 42 }],
+      catalog_digest: "digest-1",
+      catalog_unchanged: true,
+    };
+    vi.mocked(desktopApi.workspaceSnapshot).mockClear();
+    vi.mocked(desktopApi.workspaceSnapshot).mockResolvedValue(fresh);
+    await act(async () => data.refresh());
+    expect(desktopApi.workspaceSnapshot).toHaveBeenCalledWith(7, "digest-1");
+    expect(data.catalog).toBe(heldCatalog);
+    expect(data.listingCatalog).toBe(heldListings);
+    expect(data.statuses[0]?.successful_launches).toBe(42);
+
+    // A changed digest within the same generation delivers new documents.
+    const changed = structuredClone(snapshot);
+    changed.catalog.ports = [];
+    vi.mocked(desktopApi.workspaceSnapshot).mockResolvedValue({
+      ...changed,
+      catalog_digest: "digest-2",
+    });
+    await act(async () => data.refresh());
+    expect(desktopApi.workspaceSnapshot).toHaveBeenLastCalledWith(7, "digest-1");
+    expect(data.catalog).not.toBe(heldCatalog);
+    expect(data.catalog?.ports).toEqual([]);
+    expect(data.listingCatalog).toBeUndefined();
+  });
+
   it("accepts listing-only changes atomically without replacing strict catalog state", async () => {
     await render();
     const strictCatalog = data.catalog;
+    const previousListings = data.listingStatuses;
     const listedStatus = { ...portStatus(), port_id: "listing-only" };
     const next = {
       ...structuredClone(snapshot),
@@ -196,7 +522,8 @@ describe("workspace refresh recovery", () => {
     await act(async () => data.refresh());
     expect(data.catalog).toBe(strictCatalog);
     expect(data.listingCatalog).toBe(next.listing_catalog);
-    expect(data.listingStatuses).toBe(next.listing_statuses);
+    expect(data.listingStatuses).not.toBe(previousListings);
+    expect(data.listingStatuses).toEqual(next.listing_statuses);
     const accepted = data.listingStatuses;
     vi.mocked(desktopApi.workspaceSnapshot).mockResolvedValue(structuredClone(next));
     await act(async () => data.refresh());
@@ -287,7 +614,7 @@ describe("workspace refresh recovery", () => {
 
   it("updates only a changed catalog reference", async () => {
     await render();
-    const before = { statuses: data.statuses, sources: data.sources };
+    const before = { catalog: data.catalog, statuses: data.statuses, sources: data.sources };
     const changed = structuredClone(snapshot);
     fixtureValue(changed.catalog.ports[0], "changed.catalog.ports[0]").name =
       "Changed by an external client";
@@ -295,14 +622,15 @@ describe("workspace refresh recovery", () => {
 
     await act(async () => data.refresh());
 
-    expect(data.catalog).toBe(changed.catalog);
+    expect(data.catalog).not.toBe(before.catalog);
+    expect(data.catalog).toEqual(changed.catalog);
     expect(data.statuses).toBe(before.statuses);
     expect(data.sources).toBe(before.sources);
   });
 
   it("updates only a changed source reference", async () => {
     await render();
-    const before = { catalog: data.catalog, statuses: data.statuses };
+    const before = { catalog: data.catalog, statuses: data.statuses, sources: data.sources };
     const changed = structuredClone(snapshot);
     changed.sources = [
       {
@@ -321,7 +649,8 @@ describe("workspace refresh recovery", () => {
 
     expect(data.catalog).toBe(before.catalog);
     expect(data.statuses).toBe(before.statuses);
-    expect(data.sources).toBe(changed.sources);
+    expect(data.sources).not.toBe(before.sources);
+    expect(data.sources).toEqual(changed.sources);
   });
 
   it("keeps retained status records correct across removal and reordering", async () => {
@@ -431,7 +760,7 @@ describe("workspace refresh recovery", () => {
     expect(data.catalog).toEqual(snapshot.catalog);
     expect(data.diagnosticRefreshing).toBe(true);
     expect(desktopApi.workspaceSnapshot).toHaveBeenCalledOnce();
-    expect(desktopApi.workspaceSnapshot).toHaveBeenCalledWith(7);
+    expect(desktopApi.workspaceSnapshot).toHaveBeenCalledWith(7, null);
     diagnostics.resolve(doctor);
     await act(async () => diagnostics.promise);
     expect(data.doctor).toEqual(doctor);
@@ -444,14 +773,14 @@ describe("workspace refresh recovery", () => {
       .mockReturnValueOnce(previous.promise)
       .mockResolvedValueOnce(current);
     await render();
-    expect(desktopApi.workspaceSnapshot).toHaveBeenCalledWith(7);
+    expect(desktopApi.workspaceSnapshot).toHaveBeenCalledWith(7, null);
 
     await root.rerender(<Fixture generation={8} />);
     await act(async () => {
       await Promise.resolve();
       await Promise.resolve();
     });
-    expect(desktopApi.workspaceSnapshot).toHaveBeenCalledWith(8);
+    expect(desktopApi.workspaceSnapshot).toHaveBeenCalledWith(8, null);
     expect(data.statuses).toEqual([]);
 
     previous.resolve(snapshot);
@@ -561,12 +890,108 @@ describe("workspace refresh recovery", () => {
     expect(data.diagnosticsStale).toBe(true);
   });
 
+  it("owns a failed library-event refresh and recovers on a later event", async () => {
+    await render();
+    const previousCatalog = data.catalog;
+    const error = failureReport();
+    const failed = deferred<WorkspaceSnapshot>();
+    vi.mocked(desktopApi.workspaceSnapshot).mockReturnValueOnce(failed.promise);
+    const unhandled: unknown[] = [];
+    const onUnhandled = (event: PromiseRejectionEvent) => unhandled.push(event.reason);
+    window.addEventListener("unhandledrejection", onUnhandled);
+    try {
+      await act(async () => {
+        eventHandlers.get("portcove://library-changed")!({ payload: "external mutation" });
+        await nextBrowserTask();
+      });
+      expect(data.refreshing).toBe(true);
+      await act(async () => {
+        failed.reject(error);
+        await nextBrowserTask();
+      });
+      expect(data.refreshFailure?.error).toBe(error);
+      expect(data.refreshing).toBe(false);
+      expect(data.catalog).toBe(previousCatalog);
+      expect(data.recoveryFailure).toBeUndefined();
+      expect(data.subscriptionFailure).toBeUndefined();
+      expect(data.diagnosticsStale).toBe(true);
+      expect(host.textContent).toContain("Library information could not be refreshed");
+      expect(host.querySelectorAll('[role="alert"]')).toHaveLength(1);
+      expect(unhandled).toEqual([]);
+
+      const recovered = { ...snapshot, statuses: [] };
+      vi.mocked(desktopApi.workspaceSnapshot).mockResolvedValueOnce(recovered);
+      await act(async () => {
+        eventHandlers.get("portcove://library-changed")!({ payload: "later mutation" });
+        await nextBrowserTask();
+      });
+      expect(data.statuses).toEqual([]);
+      expect(data.refreshFailure).toBeUndefined();
+      expect(host.textContent).not.toContain("Library information could not be refreshed");
+      expect(unhandled).toEqual([]);
+    } finally {
+      window.removeEventListener("unhandledrejection", onUnhandled);
+    }
+  });
+
+  it("ignores a retained library-event callback after subscription disposal", async () => {
+    await render();
+    const onEvent = eventHandlers.get("portcove://library-changed")!;
+    await root.rerender(null);
+    vi.mocked(desktopApi.workspaceChanged).mockClear();
+    vi.mocked(desktopApi.discoverOrphanedOperations).mockClear();
+    vi.mocked(desktopApi.workspaceSnapshot).mockClear();
+
+    await act(async () => {
+      onEvent({ payload: "late mutation" });
+      await nextBrowserTask();
+    });
+
+    expect(desktopApi.workspaceChanged).not.toHaveBeenCalled();
+    expect(desktopApi.discoverOrphanedOperations).not.toHaveBeenCalled();
+    expect(desktopApi.workspaceSnapshot).not.toHaveBeenCalled();
+  });
+
+  it.each(["success", "failure"] as const)(
+    "discards a library-event refresh %s from an obsolete library generation",
+    async (outcome) => {
+      await render();
+      const onPreviousEvent = eventHandlers.get("portcove://library-changed")!;
+      const previous = deferred<WorkspaceSnapshot>();
+      vi.mocked(desktopApi.workspaceSnapshot).mockReturnValueOnce(previous.promise);
+      await act(async () => {
+        onPreviousEvent({ payload: "previous library mutation" });
+        await nextBrowserTask();
+      });
+      expect(data.refreshing).toBe(true);
+      const current = { ...snapshot, statuses: [] };
+      vi.mocked(desktopApi.workspaceSnapshot).mockResolvedValueOnce(current);
+      await root.rerender(<Fixture generation={8} />);
+      await act(nextBrowserTask);
+      expect(desktopApi.workspaceSnapshot).toHaveBeenLastCalledWith(8, null);
+      const currentStatuses = data.statuses;
+      vi.mocked(desktopApi.workspaceSnapshot).mockClear();
+      await act(async () => {
+        onPreviousEvent({ payload: "disposed previous callback" });
+        if (outcome === "success") previous.resolve(snapshot);
+        else previous.reject(failureReport());
+        await nextBrowserTask();
+      });
+      expect(desktopApi.workspaceSnapshot).not.toHaveBeenCalled();
+      expect(data.statuses).toBe(currentStatuses);
+      expect(data.statuses).toEqual([]);
+      expect(data.refreshFailure).toBeUndefined();
+      expect(data.refreshing).toBe(false);
+    },
+  );
+
   it("observes an external durable change while idle without a desktop event", async () => {
     await render();
     vi.mocked(desktopApi.workspaceSnapshot).mockClear();
     vi.mocked(desktopApi.workspaceChanged).mockResolvedValueOnce(true);
 
     await act(async () => vi.advanceTimersByTimeAsync(10_000));
+    await act(nextBrowserTask);
 
     expect(desktopApi.workspaceChanged).toHaveBeenCalledWith(7);
     expect(desktopApi.discoverOrphanedOperations).toHaveBeenCalledWith(7);
@@ -580,6 +1005,7 @@ describe("workspace refresh recovery", () => {
     vi.mocked(desktopApi.discoverOrphanedOperations).mockRejectedValueOnce(failureReport());
 
     await act(async () => vi.advanceTimersByTimeAsync(10_000));
+    await act(nextBrowserTask);
     expect(desktopApi.workspaceSnapshot).toHaveBeenCalledTimes(2);
     expect(data.refreshFailure).toBeUndefined();
     expect(data.recoveryFailure).toBeDefined();
@@ -604,6 +1030,7 @@ describe("workspace refresh recovery", () => {
     vi.mocked(desktopApi.workspaceChanged).mockResolvedValueOnce(true);
     vi.mocked(desktopApi.discoverOrphanedOperations).mockRejectedValueOnce(failureReport());
     await act(async () => vi.advanceTimersByTimeAsync(10_000));
+    await act(nextBrowserTask);
 
     vi.mocked(desktopApi.discoverOrphanedOperations).mockRejectedValueOnce(failureReport());
     let retryButton = [...host.querySelectorAll<HTMLButtonElement>("button")].find(
@@ -755,6 +1182,34 @@ describe("workspace refresh recovery", () => {
     },
   );
 
+  it("renders recovery notice copy in the current language and keeps Core's text verbatim", async () => {
+    const { initializeLocalization } = await import("../../localization");
+    const localization = initializeLocalization(["en-US"]);
+    await root.rerender(
+      <WorkspaceRefreshNotice
+        recoveryFailure={{ error: new Error("unstructured recovery failure") }}
+        hasSnapshot={false}
+        refreshing={false}
+        retry={vi.fn().mockResolvedValue(undefined)}
+        retryRecovery={vi.fn().mockResolvedValue(undefined)}
+      />,
+    );
+    expect(host.textContent).toContain("Library recovery could not finish");
+    try {
+      await act(async () => {
+        await localization.changeLanguage("ar-XB");
+      });
+      expect(host.textContent).toContain("تعذر إكمال استرداد المكتبة");
+      expect(host.textContent).toContain("لم يحمّل Portcove معلومات المكتبة بعد.");
+      expect(host.textContent).toContain("unstructured recovery failure");
+    } finally {
+      await act(async () => {
+        await localization.changeLanguage("en");
+      });
+    }
+    expect(host.textContent).toContain("Retry recovery");
+  });
+
   it("retains the last essential snapshot and exposes a failed refresh", async () => {
     await render();
     vi.mocked(desktopApi.workspaceSnapshot).mockRejectedValueOnce(failureReport());
@@ -847,12 +1302,12 @@ describe("workspace refresh recovery", () => {
     vi.mocked(desktopApi.activities).mockClear();
     vi.mocked(desktopApi.workspaceSnapshot).mockClear();
     await act(async () => vi.advanceTimersByTimeAsync(60_000));
-    expect(desktopApi.activities).toHaveBeenCalledTimes(6);
+    expect(desktopApi.activities).toHaveBeenCalledTimes(5);
     expect(desktopApi.workspaceSnapshot).toHaveBeenCalledOnce();
-    expect(desktopApi.discoverOrphanedOperations).toHaveBeenCalledOnce();
+    expect(desktopApi.discoverOrphanedOperations).not.toHaveBeenCalled();
     window.dispatchEvent(new Event("focus"));
     await act(async () => Promise.resolve());
-    expect(desktopApi.activities).toHaveBeenCalledTimes(7);
+    expect(desktopApi.activities).toHaveBeenCalledTimes(6);
   });
 
   it("coalesces same-turn focus and visibility reconciliation hints", async () => {
@@ -864,20 +1319,76 @@ describe("workspace refresh recovery", () => {
     expect(desktopApi.activities).toHaveBeenCalledOnce();
   });
 
-  it("backs hidden idle polling off and reconciles when visibility returns", async () => {
+  it("stops hidden idle polling and reconciles when visibility returns", async () => {
     let hidden = true;
     vi.spyOn(document, "hidden", "get").mockImplementation(() => hidden);
     await render();
     vi.mocked(desktopApi.activities).mockClear();
+    vi.mocked(desktopApi.workspaceChanged).mockClear();
     await act(async () => vi.advanceTimersByTimeAsync(60_000));
-    expect(desktopApi.activities).toHaveBeenCalledTimes(2);
+    expect(desktopApi.workspaceChanged).not.toHaveBeenCalled();
+    expect(desktopApi.activities).not.toHaveBeenCalled();
     window.dispatchEvent(new Event("focus"));
     await act(async () => Promise.resolve());
-    expect(desktopApi.activities).toHaveBeenCalledTimes(2);
+    expect(desktopApi.activities).not.toHaveBeenCalled();
     hidden = false;
     document.dispatchEvent(new Event("visibilitychange"));
     await act(async () => Promise.resolve());
-    expect(desktopApi.activities).toHaveBeenCalledTimes(3);
+    expect(desktopApi.activities).not.toHaveBeenCalled();
+    expect(desktopApi.workspaceSnapshot).toHaveBeenCalledTimes(2);
+    vi.mocked(desktopApi.workspaceChanged).mockClear();
+    await act(async () => vi.advanceTimersByTimeAsync(10_000));
+    expect(desktopApi.workspaceChanged).toHaveBeenCalledOnce();
+  });
+
+  it("relaxes running-work probes while this window's operation events arrive", async () => {
+    const running = {
+      ...emptyActivityFeed(),
+      current_activity_ids: ["operation"],
+      records: [
+        {
+          id: "operation",
+          operation: "install" as const,
+          target_kind: "port" as const,
+          target_id: "fixture",
+          status: "running" as const,
+          message: null,
+          failure: null,
+          started_at: 1,
+          finished_at: null,
+          cancellation: null,
+        },
+      ],
+    };
+    vi.mocked(desktopApi.workspaceSnapshot).mockResolvedValue({ ...snapshot, activities: running });
+    vi.mocked(desktopApi.activities).mockResolvedValue(running);
+    await render();
+    vi.mocked(desktopApi.workspaceChanged).mockClear();
+    await act(async () => vi.advanceTimersByTimeAsync(3_000));
+    const unownedProbes = vi.mocked(desktopApi.workspaceChanged).mock.calls.length;
+    expect(unownedProbes).toBeGreaterThanOrEqual(2);
+    vi.mocked(desktopApi.workspaceChanged).mockClear();
+    for (let sequence = 1; sequence <= 9; sequence++)
+      await act(async () => {
+        eventHandlers.get("portcove://operation")?.({
+          payload: {
+            schema_version: 2,
+            operation_id: "operation",
+            parent_operation_id: null,
+            sequence,
+            timestamp_ms: sequence,
+            target: null,
+            operation: "install",
+            type: "progress",
+            phase: "running",
+            completed: sequence,
+            total: 10,
+          } satisfies OperationEvent,
+        });
+        await vi.advanceTimersByTimeAsync(1_000);
+      });
+    expect(vi.mocked(desktopApi.workspaceChanged).mock.calls.length).toBeLessThanOrEqual(4);
+    expect(vi.mocked(desktopApi.workspaceChanged).mock.calls.length).toBeGreaterThanOrEqual(2);
   });
 
   it("polls active operations every second without overlapping requests", async () => {
@@ -1062,7 +1573,7 @@ describe("workspace refresh recovery", () => {
     await render();
     vi.mocked(desktopApi.workspaceSnapshot).mockClear();
     await act(async () =>
-      operations.perform("support bundle", () => Promise.resolve("bundle.zip"), {
+      operations.perform("support report", () => Promise.resolve("bundle.zip"), {
         refresh: "none",
         invalidateDiagnostics: false,
       }),

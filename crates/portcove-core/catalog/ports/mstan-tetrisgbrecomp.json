@@ -3,13 +3,32 @@
   "listing": {
     "id": "mstan-tetrisgbrecomp",
     "name": "Tetris (TetrisGBRecomp)",
-    "summary": "Upstream route: Upstream runtime package for TetrisGBRecomp; use own game files per documented setup, with upstream/player owning installation and runtime replacement. Observed release artifacts are evidence, not operational package selection or Portcove support. Limits: Upstream only: Upstream believes all modes fully playable with zero fallback. v0.0.2 rejected correct ROMs; corrected v0.0.3 gate is required. Upstream believes all modes playable with zero fallback. v0.0.2 rejected all ROMs; use corrected v0.0.3 package and precise ROM gate. Upstream platforms: Native PC release/source route documented. Exact OS/CPU coverage beyond selected release documentation remains Unknown. Original data: Game Boy Tetris World v1.0, CRC32 63F9407D; not v1.1. Exact source revision/hash and BIOS/firmware requirements not stated above remain Unknown in this review. Portcove setup/gameplay not verified.",
+    "summary": "A native Tetris Game Boy player for your own matching World v1.0 original. Includes a separate in-process launcher; the corrected upstream route and original requirements are described below.",
     "original_game_title": "Tetris",
     "project_url": "https://github.com/mstan/TetrisGBRecomp",
     "platforms": [],
     "availability": "unknown",
     "setup_url": "https://github.com/mstan/TetrisGBRecomp",
-    "issue_number": 2738
+    "issue_number": 2738,
+    "listed_at": "2026-10-25",
+    "manual_setup": {
+      "help_url": "https://github.com/mstan/TetrisGBRecomp/blob/cf67e43b032dd505716715ebd9eab9d5bf0e25c8/README.md",
+      "steps": [
+        {
+          "title": "Keep a complete permitted Windows copy",
+          "instruction": "Use your independently permitted completed TetrisGBRecomp Windows copy. The reviewed upstream v0.0.3 route corrects the earlier v0.0.2 ROM-gate failure. Keep the player, assets and its matching runtime DLLs together; SDL2 and the dynamically loaded EGL/GLES companions are not optional just because a dependency listing omits them. Finish upstream generation/build outside Portcove if using source. Portcove does not compile this game, redistribute originals or authenticate an arbitrary external package."
+        },
+        {
+          "title": "Keep the exact original",
+          "instruction": "At the separate Play step, use upstream's picker for your own 32,768-byte Tetris World V1.0 original: CRC32 63F9407D and documented SHA-1 3f2a6407c9900ad5817ee1cfb3609c5ee17400fc. V1.1 is a different program image. The upstream runtime checks its own CRC gate; Portcove registration does not import or authenticate that original."
+        }
+      ],
+      "warnings": [
+        "The v0.0.2 rejection is a known upstream failure; use the separately corrected v0.0.3 route rather than treating any old build as equivalent. Upstream gameplay claims are not Portcove qualification. Only use software and original data you are permitted to use.",
+        "Preserve separately selected or absolute output paths too. Moving the original may require correcting the upstream ROM selection; registration does not migrate paths or certify cross-version state compatibility."
+      ],
+      "references": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,
@@ -22,5 +41,18 @@
       }
     },
     "decisions": []
+  },
+  "route_facts_v1": {
+    "format_version": 1,
+    "prepared_player": {
+      "executable": "Tetris.exe",
+      "working_directory": "executable-parent",
+      "arguments": [],
+      "data_locations": [
+        "rom.cfg and runtime_prefs.ini beside the executable, keybinds.ini in the working folder",
+        "creating-runtime save/state/RTC, mods, captures and diagnostics",
+        "any separately selected or absolute output paths"
+      ]
+    }
   }
 }

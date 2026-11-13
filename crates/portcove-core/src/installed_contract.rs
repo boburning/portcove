@@ -74,6 +74,15 @@ impl InstalledContract {
             contract.original_format = Some(contract.format);
             contract.format = 5;
             contract.external_trust = Some(crate::ExternalRuntimeTrust::UserSelected);
+        } else if catalog
+            .port(port_id)?
+            .archive_data_compatibility_v1
+            .is_some()
+        {
+            // Partitioned coordinates must never reach an older ready-archive
+            // reader, including embedded/unscoped installation contracts.
+            contract.original_format = Some(contract.format);
+            contract.format = 10;
         } else if catalog.port(port_id)?.n64_runtime_at_executable_parent {
             // Fence older readers without rewriting existing installed contracts.
             contract.original_format = Some(contract.format);
@@ -107,7 +116,7 @@ impl InstalledContract {
             (5, Some(format @ 1..=3), None, Some(crate::ExternalRuntimeTrust::UserSelected)) => {
                 format
             }
-            (6..=8, Some(format @ 1..=3), None, None) => format,
+            (6..=8 | 10, Some(format @ 1..=3), None, None) => format,
             (9, Some(format @ 1..=3), Some(crate::PreparationMode::SourceOnly), None) => format,
             _ => {
                 return Err(PortcoveError::verification(
@@ -147,7 +156,7 @@ impl InstalledContract {
             }
             None => self.catalog_json.clone(),
         };
-        if matches!(self.format, 4..=9) {
+        if matches!(self.format, 4..=10) {
             cache_key = serde_json::to_string(&(
                 self.original_format,
                 self.preparation_mode,
@@ -211,6 +220,16 @@ impl InstalledContract {
     }
 
     fn require_metadata_semantics(&self, catalog: &Catalog) -> Result<()> {
+        if (self.format == 10)
+            != catalog
+                .port(&self.port_id)?
+                .archive_data_compatibility_v1
+                .is_some()
+        {
+            return Err(PortcoveError::verification(
+                "partitioned archive data requires its retained interpretation envelope",
+            ));
+        }
         if self.format == 9 && !crate::preparation::source::eligible(catalog.port(&self.port_id)?) {
             return Err(PortcoveError::verification(
                 "source-only retained interpretation has no matching source owner",
@@ -294,6 +313,124 @@ impl InstalledContract {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn optional_game_settings_retain_exact_legacy_indexed_and_admitted_semantics() {
+        let mut document = Catalog::embedded().unwrap().authoritative_document();
+        let port = document
+            .ports
+            .iter_mut()
+            .find(|port| port.id == "shipwright")
+            .unwrap();
+        port.game_settings = None;
+        let basic = Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap();
+        let old = InstalledContract::capture(&basic, "shipwright").unwrap();
+        assert!(
+            old.catalog("shipwright")
+                .unwrap()
+                .port("shipwright")
+                .unwrap()
+                .game_settings
+                .is_none()
+        );
+        assert!(
+            serde_json::to_value(basic.port("shipwright").unwrap())
+                .unwrap()
+                .get("game_settings")
+                .is_none()
+        );
+
+        let authored: serde_json::Value =
+            serde_json::from_str(include_str!("../catalog/ports/shipwright.json")).unwrap();
+        let expected = authored["integration"]["game_settings"].clone();
+        let port = document
+            .ports
+            .iter_mut()
+            .find(|port| port.id == "shipwright")
+            .unwrap();
+        port.game_settings = Some(serde_json::from_value(expected.clone()).unwrap());
+        let configured = Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap();
+        for catalog in [
+            configured.clone(),
+            crate::test_fixture::indexed_catalog(&configured, "shipwright"),
+            crate::test_fixture::admitted_indexed_catalog(&configured, "shipwright"),
+        ] {
+            let retained = InstalledContract::capture(&catalog, "shipwright").unwrap();
+            let bytes = serde_json::to_vec(&retained).unwrap();
+            let restored: InstalledContract = serde_json::from_slice(&bytes).unwrap();
+            let retained_catalog = restored.catalog("shipwright").unwrap();
+            let actual = retained_catalog
+                .port("shipwright")
+                .unwrap()
+                .game_settings
+                .as_ref()
+                .unwrap();
+            assert_eq!(serde_json::to_value(actual).unwrap(), expected);
+            assert_eq!(
+                actual.files[0].settings[0].value.default_value(),
+                serde_json::json!(40)
+            );
+            assert_eq!(
+                serde_json::to_vec(
+                    &InstalledContract::capture(&retained_catalog, "shipwright").unwrap()
+                )
+                .unwrap(),
+                bytes
+            );
+        }
+        // Advertising settings today never changes the already retained basic
+        // contract, even when the port and offered release have the same names.
+        assert!(
+            old.catalog("shipwright")
+                .unwrap()
+                .port("shipwright")
+                .unwrap()
+                .game_settings
+                .is_none()
+        );
+    }
+
+    #[test]
+    fn partitioned_archive_envelope_preserves_origins_and_refuses_downgraded_readers() {
+        let embedded = Catalog::embedded().unwrap();
+        for id in [
+            "mega-man-x2-snes-recomp",
+            "sonic-the-hedgehog-recomp",
+            "super-metroid-recomp",
+        ] {
+            for catalog in [
+                embedded.clone(),
+                crate::test_fixture::indexed_catalog(&embedded, id),
+                crate::test_fixture::admitted_indexed_catalog(&embedded, id),
+            ] {
+                let captured = InstalledContract::capture(&catalog, id).unwrap();
+                assert_eq!(captured.format, 10);
+                let bytes = serde_json::to_vec(&captured).unwrap();
+                let decoded: InstalledContract = serde_json::from_slice(&bytes).unwrap();
+                assert_eq!(
+                    serde_json::to_vec(
+                        &InstalledContract::capture(&decoded.catalog(id).unwrap(), id).unwrap()
+                    )
+                    .unwrap(),
+                    bytes
+                );
+                for format in 1..=9 {
+                    let mut downgraded = decoded.clone();
+                    downgraded.format = format;
+                    if format < 4 {
+                        downgraded.original_format = None;
+                    }
+                    assert!(downgraded.catalog(id).is_err(), "{id} format {format}");
+                    decoded.catalog(id).unwrap(); // failed downgrade cannot poison the cache
+                }
+            }
+        }
+        let id = "alariq-mc2";
+        let mut unrelated = InstalledContract::capture(&embedded, id).unwrap();
+        assert_eq!(unrelated.format, 6);
+        unrelated.format = 10;
+        assert!(unrelated.catalog(id).is_err());
+    }
 
     #[test]
     fn versioned_mod_envelope_preserves_all_origins_and_refuses_downgrades() {
@@ -569,7 +706,7 @@ mod tests {
         let restored = decoded.catalog("zelda64-recomp").unwrap();
         assert_eq!(
             serde_json::to_value(restored.authoritative_document()).unwrap(),
-            serde_json::to_value(original.authoritative_document()).unwrap()
+            serde_json::to_value(crate::test_fixture::indexed_fixture_document(&original)).unwrap()
         );
         assert_eq!(
             serde_json::to_vec(&InstalledContract::capture(&restored, "zelda64-recomp").unwrap())

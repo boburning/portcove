@@ -8,6 +8,7 @@ import type { ScenarioContext, ScenarioInvoke } from "./desktop-scenario-context
 import type { FixtureCommand } from "./desktop-scenario-state.mts";
 import type { nativeConfirmation } from "./desktop-native-confirmation.mts";
 import { transportValue, transportValues } from "./transport-values.mts";
+import { gameIdentityLabel } from "../src/port-identity.ts";
 function installObservation(value: unknown) {
   const item = object(value);
   assert.ok(typeof item.id === "string" && typeof item.path === "string");
@@ -119,8 +120,10 @@ export async function adoptionReviewScenario({
     await ambiguousInput.clear();
     await ambiguousInput.sendKeys(ambiguous);
     await click(button("Review copy plan"));
-    const chosenPort = button(`Review ${port.name} — Catalog ID: ${port.id}`);
-    const otherChoice = button(`Review ${otherPort.name} — Catalog ID: ${otherPort.id}`);
+    const chosenPort = button(`Review ${gameIdentityLabel(port)} — Catalog ID: ${port.id}`);
+    const otherChoice = button(
+      `Review ${gameIdentityLabel(otherPort)} — Catalog ID: ${otherPort.id}`,
+    );
     await browser.wait(until.elementLocated(chosenPort), 15_000);
     await browser.wait(until.elementLocated(otherChoice), 15_000);
     assert.equal(

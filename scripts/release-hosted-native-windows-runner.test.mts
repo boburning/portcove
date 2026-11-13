@@ -6,10 +6,13 @@ import { disposableDirectory } from "./fixtures/disposable-directory.mts";
 import os from "node:os";
 import path from "node:path";
 
-void test("Windows connected runner orders both original stages and recovers once on failed or late prerequisite and upload effects", (t) => {
-  const root = disposableDirectory(t, path.join(os.tmpdir(), "windows-connected-runner-"));
-  const entry = new URL("./release-hosted-native-runner.mts", import.meta.url).href;
-  const code = String.raw`
+void test(
+  "Windows connected runner orders both original stages and recovers once on failed or late prerequisite and upload effects",
+  { timeout: 90000 },
+  (t) => {
+    const root = disposableDirectory(t, path.join(os.tmpdir(), "windows-connected-runner-"));
+    const entry = new URL("./release-hosted-native-runner.mts", import.meta.url).href;
+    const code = String.raw`
 import assert from 'node:assert/strict';import {registerHooks} from 'node:module';import {readFileSync} from 'node:fs';import {mkdir,writeFile,readFile} from 'node:fs/promises';import {createHash} from 'node:crypto';import {setTimeout as pause} from 'node:timers/promises';import path from 'node:path';
 const entry=${JSON.stringify(entry)},root=process.argv[1],session={},installation={},parent={},pre={},post={},hash=b=>createHash('sha256').update(b).digest('hex');
 let clock=1000,directory,scenario,order,recoveries,tasks,api;
@@ -37,31 +40,40 @@ globalThis.f={performance:{now:()=>clock},
   return {receipt:token,ready_file,deadline};
  },
  readback:async(token,ack)=>{assert.equal(ack.artifact_id,token===pre?1:2);order.push('readback-'+(token===pre?'pre':'post'));if(scenario==='provider'&&token===post)throw Error('ambiguous upload');return {provider_bytes_match:true,authority:'none'}},
- Client:class {request(method,url){assert.equal(method,'GET');assert.match(url,/runs\/123\/attempts\/1\/jobs\?per_page=100$/);order.push('GET');if(scenario==='late-prerequisite')clock=deadline;return {status:200,headers:new Headers(scenario==='partial-prerequisite'?{link:'next'}:{}),body:{total_count:2,jobs:['Sign admitted updater payloads','Sign authenticated Timestamp metadata'].map((name,i)=>({id:i+1,run_id:123,head_sha:'a'.repeat(40),name,status:'completed',conclusion:scenario==='failed-prerequisite'?'failure':'success'}))}}}},
+
 };
 const routes={
  'node:perf_hooks':{performance:'performance'},
  './release-hosted-native-windows-session.mts':{startActualHostedWindowsSession:'start',prepareActualHostedWindowsPreSignStage:'pre',prepareActualHostedWindowsPostSignStage:'post',finishActualHostedWindowsSession:'finish',refuseActualHostedWindowsSession:'refuse',requireActualHostedWindowsStage:'stage'},
  './release-hosted-native-parent.mts':{requireActualHostedNativeParentSource:'parent'},
  './release-hosted-native-job.mts':{prepareActualHostedWindowsStageJob:'prepareJob',readBackActualHostedWindowsPreSignUpload:'readback',readBackActualHostedWindowsPostSignUpload:'readback'},
- './github-api.mts':{GitHubApiClient:'Client',createGitHubRunner:'unused'},
 };
 registerHooks({resolve(s,c,next){if(c.parentURL===entry&&routes[s])return {url:'connected:'+s,shortCircuit:true};return next(s,c)},load(u,c,next){if(u===entry){let source=readFileSync(new URL(u),'utf8');const boundary=source.indexOf('/** Preparation completes in one original bundle realm and under its job clock. */');assert.ok(boundary>0);source=source.slice(0,boundary)+'export const prepareConfiguredHostedWindowsInstallation=(...args)=>globalThis.f.prepare(...args);';source=source.replace('export const hostedWindowsNativeJobExecutionAuthorized = false;','export const hostedWindowsNativeJobExecutionAuthorized = true;');return {format:'module-typescript',source,shortCircuit:true}}if(u.startsWith('connected:'))return {format:'module',source:Object.entries(routes[u.slice('connected:'.length)]).map(([name,key])=>'export const '+name+'=globalThis.f.'+key+';').join('\n'),shortCircuit:true};return next(u,c)}});
+process.env.GH_TOKEN='ghs_windows_prerequisite_fixture';
+globalThis.fetch=async(input,init)=>{
+ const url=new URL(input instanceof Request?input.url:input);assert.equal(url.href,'https://api.github.com/repos/boburning/portcove/actions/runs/123/attempts/1/jobs?per_page=100');assert.equal(init.method,'GET');assert.equal(new Headers(init.headers).get('authorization'),'token ghs_windows_prerequisite_fixture');
+ order.push('GET');if(scenario==='late-prerequisite')clock=deadline;
+ if(scenario==='refused-prerequisite')return Response.json({message:'temporary outage'},{status:503});
+ return Response.json({total_count:2,jobs:['Sign admitted updater payloads','Sign authenticated Timestamp metadata'].map((name,i)=>({id:i+1,run_id:123,head_sha:'a'.repeat(40),name,status:'completed',conclusion:scenario==='failed-prerequisite'?'failure':'success'}))},{headers:scenario==='partial-prerequisite'?{link:'next'}:{}});
+};
 api=await import(entry);
-for(const name of ['success','short-issuer','late-finish','failed-prerequisite','late-prerequisite','partial-prerequisite','corrupt-ack','late-ack','provider']){
+for(const name of ['success','short-issuer','late-finish','failed-prerequisite','late-prerequisite','partial-prerequisite','refused-prerequisite','corrupt-ack','late-ack','provider']){
  scenario=name;clock=1000;order=[];recoveries=0;tasks=[];directory=path.join(root,name);await mkdir(directory,{mode:0o700});for(const leaf of ['payload-signing','release-publication'])await mkdir(path.join(directory,'hosted-native-parent-ABCDEF','windows-session',leaf,'capture'),{mode:0o700,recursive:true});
  const running=api.runConfiguredHostedWindowsNativeJob({},directory,deadline,'fixed.bundle');
  if(name==='success'||name==='short-issuer'){const settlement=await running;assert.equal(settlement.authority,'none');assert.equal(settlement.deadline,name==='short-issuer'?5000:deadline);assert.equal(recoveries,0);assert.deepEqual(order,['installation','session','pre','prepare-pre','readback-pre','GET','post','prepare-post','readback-post','finish'])}
- else {await assert.rejects(running);assert.equal(recoveries,1);assert.equal(order.includes('finish'),name==='late-finish');if(!['provider','late-finish'].includes(name))assert.equal(order.includes('post'),false)}
+ else {await assert.rejects(running);assert.equal(recoveries,1);assert.equal(order.includes('finish'),name==='late-finish');if(!['provider','late-finish'].includes(name))assert.equal(order.includes('post'),false);if(name==='refused-prerequisite')assert.equal(order.filter(x=>x==='GET').length,1)}
  await Promise.all(tasks);
 }
 console.log('controlled connected Windows runner passed; native and provider peers inert');
 `;
-  const result = spawnSync(process.execPath, ["--input-type=module", "--eval", code, root], {
-    encoding: "utf8",
-    timeout: 15000,
-    maxBuffer: 65536,
-  });
-  assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
-  assert.match(result.stdout, /controlled connected Windows runner passed/u);
-});
+    const result = spawnSync(process.execPath, ["--input-type=module", "--eval", code, root], {
+      encoding: "utf8",
+      // Ten controlled file rendezvous scenarios share this child; retain finite
+      // headroom under the complete selected suite without changing their clocks.
+      timeout: 60000,
+      maxBuffer: 65536,
+    });
+    assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
+    assert.match(result.stdout, /controlled connected Windows runner passed/u);
+  },
+);

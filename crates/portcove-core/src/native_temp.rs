@@ -1,9 +1,18 @@
 //! Native5 Windows temporary files remain inside the existing owned data scope.
+//! Native10 sibling platforms reuse the owned directory without Windows environment.
 //! No independent scratch lifetime or cleanup authority is introduced. Relative
 //! TEMP/TMP values require upstream to preserve the reviewed working directory.
 use std::{collections::BTreeMap, fs, path::Path};
 
 use crate::{AdapterKind, LaunchSpec, Platform, PortDefinition, PortcoveError, Result};
+
+pub(crate) fn has_sibling_platforms(port: &PortDefinition) -> bool {
+    port.windows_temp_directory.is_some()
+        && port.release.provider == crate::ReleaseSource::Github
+        && crate::preparation::source::native(port)
+        && port.platforms.len() > 1
+        && port.platforms.contains(&Platform::WindowsX86_64)
+}
 
 pub(crate) fn validate(port: &PortDefinition) -> Result<()> {
     let Some(directory) = &port.windows_temp_directory else {
@@ -11,7 +20,7 @@ pub(crate) fn validate(port: &PortDefinition) -> Result<()> {
     };
     crate::archive::validate_relative_path(directory, true)?;
     if port.adapter != AdapterKind::NativePortable
-        || port.platforms != [Platform::WindowsX86_64]
+        || (port.platforms != [Platform::WindowsX86_64] && !has_sibling_platforms(port))
         || port.windows_runtime_path_policy
             != Some(crate::WindowsRuntimePathPolicy::RelativeFileMaxPath)
         || directory.len() > 64
@@ -57,6 +66,9 @@ pub(crate) fn environment(
     validate(port)?;
     if let Some(directory) = &port.windows_temp_directory {
         if platform != Platform::WindowsX86_64 {
+            if has_sibling_platforms(port) && port.platforms.contains(&platform) {
+                return Ok(());
+            }
             return Err(PortcoveError::unsupported(
                 "entry-owned Windows temporary data requires Windows",
             ));
@@ -106,6 +118,7 @@ pub(crate) fn require_canonical_data(
 
 fn check_directory(
     port: &PortDefinition,
+    platform: Platform,
     install: &Path,
     working: &Path,
     executable: &Path,
@@ -116,44 +129,45 @@ fn check_directory(
         return Ok(());
     };
     if !working.starts_with(install)
-        || working != crate::runtime::working_root_for_executable(port, install, executable)
+        || working
+            != crate::runtime::working_root_for_executable(port, install, executable, platform)
     {
         return Err(PortcoveError::verification(
-            "Windows temporary data lost its owned runtime/data namespace",
+            "the managed profile lost its owned runtime/data namespace",
         ));
     }
     let target = working.join(directory);
-    crate::runtime_path_policy::check_prepared_path(port, Platform::WindowsX86_64, &target)?;
+    crate::runtime_path_policy::check_prepared_path(port, platform, &target)?;
     crate::install::require_staged_path(install, &target)?;
     let mut found = false;
     for (index, entry) in fs::read_dir(working)?.enumerate() {
         if index >= 100_000 {
             return Err(PortcoveError::verification(
-                "Windows temporary namespace inspection exceeds its entry bound",
+                "managed profile namespace inspection exceeds its entry bound",
             ));
         }
         let entry = entry?;
         let name = entry.file_name();
         let name = name.to_str().ok_or_else(|| {
-            PortcoveError::verification("Windows temporary namespace has a non-Unicode member")
+            PortcoveError::verification("managed profile namespace has a non-Unicode member")
         })?;
         if name.eq_ignore_ascii_case(directory) {
             if name != directory || found {
                 return Err(PortcoveError::conflict(
-                    "Windows temporary directory has a case alias",
+                    "the managed profile directory has a case alias",
                 ));
             }
             found = true;
             if !fs::symlink_metadata(entry.path())?.is_dir() {
                 return Err(PortcoveError::conflict(
-                    "Windows temporary path is not an owned directory",
+                    "the managed profile path is not an owned directory",
                 ));
             }
         }
     }
     if require_present && !found {
         return Err(PortcoveError::verification(
-            "Windows temporary directory disappeared before launch",
+            "the managed profile directory disappeared before launch",
         ));
     }
     Ok(())
@@ -161,18 +175,19 @@ fn check_directory(
 
 pub(crate) fn require_pristine_package(
     port: &PortDefinition,
+    platform: Platform,
     install: &Path,
     executable: &Path,
 ) -> Result<()> {
     let Some(directory) = &port.windows_temp_directory else {
         return Ok(());
     };
-    let working = crate::runtime::working_root_for_executable(port, install, executable);
-    check_directory(port, install, &working, executable, false)?;
+    let working = crate::runtime::working_root_for_executable(port, install, executable, platform);
+    check_directory(port, platform, install, &working, executable, false)?;
     match fs::symlink_metadata(working.join(directory)) {
         Ok(_) => {
             return Err(PortcoveError::verification(
-                "publisher package occupies the dedicated Windows temporary namespace",
+                "publisher package occupies the managed profile namespace",
             ));
         }
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
@@ -183,6 +198,7 @@ pub(crate) fn require_pristine_package(
 
 pub(crate) fn prepare(
     port: &PortDefinition,
+    platform: Platform,
     install: &Path,
     working: &Path,
     executable: &Path,
@@ -192,7 +208,7 @@ pub(crate) fn prepare(
         return Ok(());
     };
     checkpoint()?;
-    check_directory(port, install, working, executable, false)?;
+    check_directory(port, platform, install, working, executable, false)?;
     match fs::create_dir(working.join(directory)) {
         Ok(()) => {}
         Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => {}
@@ -201,26 +217,41 @@ pub(crate) fn prepare(
     // Interrupted preparation may leave only declared data. Nothing is deleted;
     // the existing data collection/recovery authority retains these bytes.
     checkpoint()?;
-    check_directory(port, install, working, executable, true)
+    check_directory(port, platform, install, working, executable, true)
 }
 
-pub(crate) fn recheck(port: &PortDefinition, spec: &LaunchSpec) -> Result<()> {
+pub(crate) fn recheck(
+    port: &PortDefinition,
+    platform: Platform,
+    spec: &LaunchSpec,
+    checkpoint: &dyn Fn() -> Result<()>,
+) -> Result<()> {
     let Some(directory) = &port.windows_temp_directory else {
         return Ok(());
     };
     check_directory(
         port,
+        platform,
         &spec.install_root,
         &spec.working_directory,
         &spec.executable,
         true,
     )?;
-    for key in ["TEMP", "TMP"] {
-        if spec.environment.get(key) != Some(directory) {
-            return Err(PortcoveError::verification(
-                "Windows temporary launch environment changed before spawn",
-            ));
+    if platform == Platform::WindowsX86_64 {
+        for key in ["TEMP", "TMP"] {
+            if spec.environment.get(key) != Some(directory) {
+                return Err(PortcoveError::verification(
+                    "Windows temporary launch environment changed before spawn",
+                ));
+            }
         }
+    }
+    if platform != Platform::WindowsX86_64 {
+        crate::external_runtime::shared_preferences::check_bounded_tree(
+            &spec.working_directory.join(directory),
+            "managed profile",
+            |_, _| checkpoint(),
+        )?;
     }
     Ok(())
 }
@@ -229,6 +260,8 @@ pub(crate) fn recheck(port: &PortDefinition, spec: &LaunchSpec) -> Result<()> {
 pub(crate) mod tests {
     use super::*;
     use crate::{Adapter, LaunchSpecRequest, Library};
+
+    const WINDOWS: Platform = Platform::WindowsX86_64;
 
     pub(crate) fn port() -> PortDefinition {
         serde_json::from_value(serde_json::json!({
@@ -245,7 +278,7 @@ pub(crate) mod tests {
     #[cfg(unix)]
     fn spec(root: &Path) -> LaunchSpec {
         let mut environment = BTreeMap::new();
-        super::environment(&port(), Platform::WindowsX86_64, &mut environment).unwrap();
+        super::environment(&port(), WINDOWS, &mut environment).unwrap();
         LaunchSpec {
             executable: root.join("player.exe"),
             install_root: root.into(),
@@ -326,12 +359,9 @@ pub(crate) mod tests {
             .to_string(),
         )
         .unwrap();
-        let qualification = crate::install::InstallQualification::from_catalog(
-            &catalog,
-            &port.id,
-            Platform::WindowsX86_64,
-        )
-        .unwrap();
+        let qualification =
+            crate::install::InstallQualification::from_catalog(&catalog, &port.id, WINDOWS)
+                .unwrap();
         let library = Library::open(temporary.path().join("library")).unwrap();
         let installer = crate::install::Installer::new(library.clone()).unwrap();
         let artifact = crate::ArtifactIdentity {
@@ -386,11 +416,12 @@ pub(crate) mod tests {
         let request = LaunchSpecRequest {
             library: &library,
             port: &port,
-            platform: Platform::WindowsX86_64,
+            platform: WINDOWS,
             install_root: &root,
             selected_executable: &executable,
             source: None,
             source_record: None,
+            disc_progress: None,
         };
         let readonly = crate::adapter::standard(AdapterKind::NativePortable)
             .launch_spec_with_executable(request, &|| Ok(()))
@@ -398,17 +429,17 @@ pub(crate) mod tests {
         assert_eq!(readonly.environment["TEMP"], "temp");
         assert_eq!(readonly.environment["TMP"], "temp");
         assert!(!root.join("temp").exists());
-        assert!(recheck(&port, &readonly).is_err());
-        require_pristine_package(&port, &root, &executable).unwrap();
-        prepare(&port, &root, &root, &executable, &|| Ok(())).unwrap();
-        recheck(&port, &readonly).unwrap();
+        assert!(recheck(&port, WINDOWS, &readonly, &|| Ok(())).is_err());
+        require_pristine_package(&port, WINDOWS, &root, &executable).unwrap();
+        prepare(&port, WINDOWS, &root, &root, &executable, &|| Ok(())).unwrap();
+        recheck(&port, WINDOWS, &readonly, &|| Ok(())).unwrap();
         assert!(root.join("temp").is_dir());
-        assert!(require_pristine_package(&port, &root, &executable).is_err());
+        assert!(require_pristine_package(&port, WINDOWS, &root, &executable).is_err());
         let mut changed = readonly;
         changed
             .environment
             .insert("TEMP".into(), "../foreign".into());
-        assert!(recheck(&port, &changed).is_err());
+        assert!(recheck(&port, WINDOWS, &changed, &|| Ok(())).is_err());
     }
 
     #[test]
@@ -426,17 +457,17 @@ pub(crate) mod tests {
                 Ok(())
             }
         };
-        assert!(prepare(&port(), root, root, &executable, &checkpoint).is_err());
+        assert!(prepare(&port(), WINDOWS, root, root, &executable, &checkpoint).is_err());
         assert!(root.join("temp").is_dir());
         let witness = root.join("temp/witness.bin");
         fs::write(&witness, b"retained temporary bytes").unwrap();
-        prepare(&port(), root, root, &executable, &|| Ok(())).unwrap();
+        prepare(&port(), WINDOWS, root, root, &executable, &|| Ok(())).unwrap();
         assert_eq!(fs::read(&witness).unwrap(), b"retained temporary bytes");
-        assert!(require_pristine_package(&port(), root, &executable).is_err());
+        assert!(require_pristine_package(&port(), WINDOWS, root, &executable).is_err());
         fs::remove_file(&witness).unwrap();
         fs::remove_dir(root.join("temp")).unwrap();
         fs::write(root.join("temp"), b"foreign occupied file").unwrap();
-        assert!(prepare(&port(), root, root, &executable, &|| Ok(())).is_err());
+        assert!(prepare(&port(), WINDOWS, root, root, &executable, &|| Ok(())).is_err());
         assert_eq!(
             fs::read(root.join("temp")).unwrap(),
             b"foreign occupied file"
@@ -450,17 +481,25 @@ pub(crate) mod tests {
         let executable = root.join("player.exe");
         fs::write(&executable, b"inert").unwrap();
         fs::create_dir(root.join("TEMP")).unwrap();
-        assert!(prepare(&port(), root, root, &executable, &|| Ok(())).is_err());
+        assert!(prepare(&port(), WINDOWS, root, root, &executable, &|| Ok(())).is_err());
         fs::remove_dir(root.join("TEMP")).unwrap();
         let mut wrapped = port();
         wrapped.runtime_subdirectory = Some("wrapper".into());
         fs::create_dir(root.join("wrapper")).unwrap();
         let player = root.join("wrapper/player.exe");
         fs::write(&player, b"inert").unwrap();
-        prepare(&wrapped, root, &root.join("wrapper"), &player, &|| Ok(())).unwrap();
+        prepare(
+            &wrapped,
+            WINDOWS,
+            root,
+            &root.join("wrapper"),
+            &player,
+            &|| Ok(()),
+        )
+        .unwrap();
         assert!(root.join("wrapper/temp").is_dir());
         assert!(!root.join("temp").exists());
-        assert!(prepare(&wrapped, root, root, &player, &|| Ok(())).is_err());
+        assert!(prepare(&wrapped, WINDOWS, root, root, &player, &|| Ok(())).is_err());
         let mut old = port();
         old.windows_temp_directory = None;
         assert!(
@@ -474,6 +513,7 @@ pub(crate) mod tests {
         assert_eq!(inherited.len(), 1);
         prepare(
             &old,
+            WINDOWS,
             Path::new("absent"),
             Path::new("absent"),
             Path::new("absent"),
@@ -531,7 +571,7 @@ pub(crate) mod tests {
         )
         .unwrap();
         assert!(result.status.success(), "{}", result.output);
-        assert!(prepare(&port(), &root, &root, &executable, &|| Ok(())).is_err());
+        assert!(prepare(&port(), WINDOWS, &root, &root, &executable, &|| Ok(())).is_err());
         assert_eq!(fs::read(foreign.join("witness")).unwrap(), b"foreign bytes");
         assert_eq!(fs::read_dir(&foreign).unwrap().count(), 1);
         fs::remove_dir(target).unwrap();
@@ -545,11 +585,11 @@ pub(crate) mod tests {
         fs::create_dir(&root).unwrap();
         let executable = root.join("player.exe");
         fs::write(&executable, b"inert").unwrap();
-        prepare(&port(), &root, &root, &executable, &|| Ok(())).unwrap();
+        prepare(&port(), WINDOWS, &root, &root, &executable, &|| Ok(())).unwrap();
         let inherited = std::env::var_os("TEMP");
         assert_ne!(inherited.as_deref(), Some(std::ffi::OsStr::new("temp")));
         let mut environment = BTreeMap::new();
-        super::environment(&port(), Platform::WindowsX86_64, &mut environment).unwrap();
+        super::environment(&port(), WINDOWS, &mut environment).unwrap();
         environment.insert("PORTCOVE_NATIVE_TEMP_CHILD".into(), "1".into());
         let specification = crate::GameProcessSpec {
             executable: std::env::current_exe().unwrap(),
@@ -610,8 +650,8 @@ pub(crate) mod tests {
         let executable = root.join("player.exe");
         fs::write(&executable, b"inert").unwrap();
         symlink(&foreign, root.join("temp")).unwrap();
-        assert!(prepare(&port(), &root, &root, &executable, &|| Ok(())).is_err());
-        assert!(recheck(&port(), &spec(&root)).is_err());
+        assert!(prepare(&port(), WINDOWS, &root, &root, &executable, &|| Ok(())).is_err());
+        assert!(recheck(&port(), WINDOWS, &spec(&root), &|| Ok(())).is_err());
         assert_eq!(fs::read(foreign.join("witness")).unwrap(), b"unrelated");
     }
 }

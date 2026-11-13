@@ -53,6 +53,7 @@ const principals = new WeakMap<
     identity: unknown;
     snapshot: string;
     producer: ReturnType<typeof inspectFixedClassificationProducer>;
+    storage_writer: { app_id: number; installation_id: number } | null;
   }
 >();
 
@@ -86,6 +87,8 @@ export function establishFixedClassificationPrincipal(
   )
     throw new Error("fixed classification source/job binding differs");
   const producer = prepareFixedClassificationProducer(raw, source);
+  const selected = inspectBoundSelectedPublicationAuthorities(raw, source, "application");
+  const storage_writer = selected.configuration.journal.apps.storage_writer ?? null;
   const result = Object.freeze({
     producer: structuredClone(producer),
     evidence_scope: identity.evidence_scope,
@@ -97,6 +100,7 @@ export function establishFixedClassificationPrincipal(
     identity,
     snapshot: releaseCanonicalDigest(result),
     producer,
+    storage_writer: storage_writer === null ? null : Object.freeze({ ...storage_writer }),
   });
   return result;
 }
@@ -123,6 +127,7 @@ export function requireFixedClassificationPrincipal(
   requireVerifiedClassificationPrincipalIdentity(saved.identity, saved.role, now);
   return {
     producer: structuredClone(saved.producer),
+    storage_writer: saved.storage_writer === null ? null : { ...saved.storage_writer },
     source: saved.source,
     role: saved.role,
     identity: saved.identity,

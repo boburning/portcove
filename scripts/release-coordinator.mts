@@ -1,3 +1,4 @@
+import { inspectRetainedReviewWithdrawals } from "./release-review-withdrawal.mts";
 import { inspectCatalogReviewDisposition } from "./release-catalog-review-disposition.mts";
 import {
   inspectCatalogReviewRequest,
@@ -21,7 +22,8 @@ import {
   inspectMetadataBootstrapDescriptor,
 } from "./release-metadata-contract.mts";
 import { isRecord } from "./runtime-values.mts";
-import { inspectPreviewWithdrawals } from "./release-preview-withdrawals.mts";
+import { boolean, exactKeys, object, sha, validateOpportunity } from "./release-opportunity.mts";
+export { validateOpportunity } from "./release-opportunity.mts";
 import { inspectCandidateStageEvidence } from "./release-candidate-progress-contract.mts";
 import {
   inspectReleaseReviewRequest,
@@ -44,32 +46,6 @@ const publicationFreshnessMilliseconds = 15 * 60 * 1000;
 const phases = new Set(["prepared", "qualifying", "building", "publishing", "promoting"]);
 const failureKinds = new Set(["transient", "substantive", "authority"]);
 
-function object(value: unknown, label: string): asserts value is Record<string, unknown> {
-  if (!value || typeof value !== "object" || Array.isArray(value))
-    throw new Error(`${label} must be an object`);
-}
-
-function exactKeys(
-  value: unknown,
-  required: readonly string[],
-  optional: readonly string[],
-  label: string,
-): asserts value is Record<string, unknown> {
-  object(value, label);
-  const keys = new Set(Object.keys(value));
-  for (const key of required) {
-    if (!keys.delete(key)) throw new Error(`${label} is missing ${key}`);
-  }
-  for (const key of optional) keys.delete(key);
-  if (keys.size) throw new Error(`${label} has unknown field ${[...keys].sort()[0]}`);
-}
-
-function sha(value: unknown, label: string) {
-  if (typeof value !== "string" || !/^[a-f0-9]{40}$/u.test(value))
-    throw new Error(`${label} must be an exact lowercase commit identity`);
-  return value;
-}
-
 function text(value: unknown, label: string, maximum = 128) {
   const containsControlCharacter =
     typeof value === "string" &&
@@ -84,11 +60,6 @@ function text(value: unknown, label: string, maximum = 128) {
     containsControlCharacter
   )
     throw new Error(`${label} is invalid`);
-  return value;
-}
-
-function boolean(value: unknown, label: string) {
-  if (typeof value !== "boolean") throw new Error(`${label} must be boolean`);
   return value;
 }
 
@@ -204,68 +175,6 @@ function validateController(controller: unknown, schema: number) {
       controller.free_capacity_available,
       "free capacity availability",
     ),
-  };
-}
-
-export function validateOpportunity(opportunity: unknown) {
-  exactKeys(
-    opportunity,
-    [
-      "source_commit",
-      "source_tree",
-      "base_commit",
-      "change_set_sha256",
-      "complete_change_set",
-      "meaningful",
-      "documentation_only",
-      "urgency",
-      "requested_channel",
-      "classification",
-    ],
-    [],
-    "release opportunity",
-  );
-  sha(opportunity.source_commit, "opportunity source commit");
-  sha(opportunity.source_tree, "opportunity source tree");
-  sha(opportunity.base_commit, "opportunity base commit");
-  if (
-    typeof opportunity.change_set_sha256 !== "string" ||
-    !/^[a-f0-9]{64}$/u.test(opportunity.change_set_sha256)
-  )
-    throw new Error("opportunity change-set digest is invalid");
-  boolean(opportunity.complete_change_set, "complete change set");
-  boolean(opportunity.meaningful, "meaningful change");
-  boolean(opportunity.documentation_only, "documentation-only change");
-  boolean(opportunity.urgency, "urgency");
-  if (!opportunity.complete_change_set)
-    throw new Error("release opportunity requires a complete accumulated change set");
-  if (opportunity.requested_channel !== "preview" && opportunity.requested_channel !== "stable")
-    throw new Error("requested channel must be preview or stable");
-  object(opportunity.classification, "reviewed classification");
-  if (opportunity.classification.preview_withdrawals !== undefined) {
-    inspectPreviewWithdrawals(opportunity.classification.preview_withdrawals);
-    if (opportunity.requested_channel !== "preview")
-      throw new Error("Preview withdrawals cannot appoint Stable eligibility");
-  }
-  if (
-    opportunity.classification.source_commit !== opportunity.source_commit ||
-    opportunity.classification.reviewed_commit !== opportunity.source_commit ||
-    opportunity.classification.source_tree !== opportunity.source_tree ||
-    opportunity.classification.reviewed_tree !== opportunity.source_tree ||
-    opportunity.classification.change_set_sha256 !== opportunity.change_set_sha256
-  )
-    throw new Error("reviewed classification is stale for the candidate identity");
-  return {
-    source_commit: sha(opportunity.source_commit, "opportunity source commit"),
-    source_tree: sha(opportunity.source_tree, "opportunity source tree"),
-    base_commit: sha(opportunity.base_commit, "opportunity base commit"),
-    change_set_sha256: opportunity.change_set_sha256,
-    complete_change_set: boolean(opportunity.complete_change_set, "complete change set"),
-    meaningful: boolean(opportunity.meaningful, "meaningful change"),
-    documentation_only: boolean(opportunity.documentation_only, "documentation-only change"),
-    urgency: boolean(opportunity.urgency, "urgency"),
-    requested_channel: opportunity.requested_channel,
-    classification: opportunity.classification,
   };
 }
 
@@ -504,6 +413,7 @@ export function planReleaseOpportunity(input: unknown) {
       "metadata_bootstrap",
       "review_request",
       "review_disposition",
+      "review_withdrawal",
       "catalog_publication",
       "catalog_initialization",
       "catalog_review_request",
@@ -530,7 +440,8 @@ export function planReleaseOpportunity(input: unknown) {
     Object.hasOwn(input, "metadata_renewal") ||
     Object.hasOwn(input, "metadata_bootstrap") ||
     Object.hasOwn(input, "review_request") ||
-    Object.hasOwn(input, "review_disposition");
+    Object.hasOwn(input, "review_disposition") ||
+    Object.hasOwn(input, "review_withdrawal");
   if (
     hasMetadata &&
     (input.schema_version !== 2 ||
@@ -561,6 +472,13 @@ export function planReleaseOpportunity(input: unknown) {
   );
   const reviewRequest = inspectReleaseReviewRequest(input.review_request);
   const reviewDisposition = inspectReleaseReviewDisposition(input.review_disposition);
+  const reviewWithdrawals = inspectRetainedReviewWithdrawals(input.review_withdrawal);
+  if (
+    reviewWithdrawals.some(
+      (withdrawal) => reviewRequest?.source_commit === withdrawal.source_commit,
+    )
+  )
+    throw new Error("withdrawn application source cannot be requested again");
   const metadataRenewal =
     input.metadata_renewal === undefined || input.metadata_renewal === null
       ? null
@@ -687,7 +605,10 @@ export function planReleaseOpportunity(input: unknown) {
   }
   if (input.opportunity === null) {
     if (
-      (!metadataBootstrap && !publishedSite && !catalogInitialization) ||
+      (!metadataBootstrap &&
+        !publishedSite &&
+        !catalogInitialization &&
+        reviewWithdrawals.length === 0) ||
       active ||
       publication.reserved_versions.length !== 0
     )
@@ -769,6 +690,11 @@ export function planReleaseOpportunity(input: unknown) {
       .update(JSON.stringify(stable(opportunity.classification)))
       .digest("hex"),
   };
+
+  if (
+    reviewWithdrawals.some((withdrawal) => withdrawal.source_commit === opportunity.source_commit)
+  )
+    return plan("pause", "application source was withdrawn for safety", authority);
 
   if (
     controller.capacity &&

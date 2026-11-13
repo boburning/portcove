@@ -1,3 +1,4 @@
+import { readControllerNodeFile } from "./release-controller-tools.mts";
 /** Dependency-free fixed bootstrap launcher. No install, imported authority,
  * arbitrary entry selection, role key or candidate program is accepted. */
 import path from "node:path";
@@ -49,8 +50,8 @@ export async function launchFixedPayloadController(raw: unknown, parent: string)
   );
   const tools = await verifiedControllerToolPaths(receipt);
   if (
-    sha(await readControllerToolFile(process.execPath)) !==
-    sha(await readControllerToolFile(tools.node))
+    sha(await readControllerNodeFile(process.execPath)) !==
+    sha(await readControllerNodeFile(tools.node))
   )
     throw new Error("running Node differs from authenticated controller executable");
   active();

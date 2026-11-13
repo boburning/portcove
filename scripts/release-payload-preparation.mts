@@ -1,3 +1,10 @@
+import { controllerNodeMaximumBytes } from "./controller-node-runtime.mts";
+import { applicationPublicBuildInputs } from "./release-authority-configuration-contract.mts";
+import {
+  isInitialBetaReleaseProfile,
+  nativePlatformsForReleaseProfile,
+} from "./release-package-policy.mts";
+import { applicationReleaseProfile } from "./release-authority-configuration-contract.mts";
 import { inspectControllerAggregateLocator } from "./release-aggregate-locator.mts";
 export { inspectControllerAggregateLocator } from "./release-aggregate-locator.mts";
 /** Read-only controller integration. Acquires existing authority observations;
@@ -43,10 +50,12 @@ import {
 import type { ControllerToolArtifactExpected } from "./release-controller-tool-admission.mts";
 import { receiveIsolatedRoleKey } from "./release-role-key-channel.mts";
 import { authenticateReleaseControlRound } from "./release-live-control-admission.mts";
-import { createGitHubRunner, GitHubApiClient } from "./github-api.mts";
-import { releaseControlRefQuery } from "./release-control-inputs.mts";
 import { orderedJsonValue } from "./json-values.mts";
 import { isRecord } from "./runtime-values.mts";
+import {
+  fixedReleaseReaderToken,
+  readOnlyReleaseChildEnvironment,
+} from "./release-readonly-child-environment.mts";
 import {
   requestAssemblerToken,
   inspectAssemblerIdentityExpectation,
@@ -183,7 +192,7 @@ export async function stageAggregateSigningInputs(
   if (archive.length > 512 * 1024 ** 2 || hash(archive) !== binding.aggregate_archive_sha256)
     throw new Error("verified aggregate archive binding differs");
   const { accepted, policy } = await inspectTrustedAssemblyInput(rawAssembly);
-  if (accepted.schema_version === 1 || accepted.release_profile !== "initial-beta-win-linux")
+  if (accepted.schema_version === 1 || !isInitialBetaReleaseProfile(accepted.release_profile))
     throw new Error("payload preparation requires the exact initial beta profile");
   const files = policy.packages
     .map((entry) => {
@@ -252,7 +261,8 @@ export async function stageAggregateSigningInputs(
       payloads.push({ filename: entry.name, bytes, request });
     }
   }
-  if (payloads.length !== 2) throw new Error("both beta updater payloads are required");
+  if (payloads.length !== nativePlatformsForReleaseProfile(accepted.release_profile).length)
+    throw new Error("both beta updater payloads are required");
   await mkdir(directory, { mode: 0o700 });
   for (const payload of payloads)
     await writeFile(path.join(directory, payload.filename), payload.bytes, {
@@ -365,6 +375,7 @@ async function preparePayloadSigning(
     directory: string,
   ) => Promise<void>,
   prerequisites?: {
+    deadline: number;
     compiler: NonNullable<Parameters<typeof acquireReleaseAdmissionWithControlHandshake>[5]>;
     establishNative: NonNullable<Parameters<typeof acquireReleaseAdmissionWithControlHandshake>[6]>;
   },
@@ -409,8 +420,11 @@ async function preparePayloadSigning(
           archives: facts.archives,
           evidence: {},
         });
+        const transport = prerequisites
+          ? { credential: { token: fixedReleaseReaderToken() }, deadline: prerequisites.deadline }
+          : { cwd: directory };
         const readReservation = () =>
-          readRemoteCoordinatorSnapshot(directory, coordinator, { transport: { cwd: directory } });
+          readRemoteCoordinatorSnapshot(directory, coordinator, { transport });
         const retainReservation = async (name: string) => {
           await requireReservedAggregate(descriptor, await readReservation());
           await writeFile(
@@ -519,6 +533,7 @@ async function preparePayloadSigning(
       },
       prerequisites?.compiler,
       prerequisites?.establishNative,
+      prerequisites?.deadline,
     );
     const admissionBytes = JSON.stringify(admission);
     if (Buffer.byteLength(admissionBytes) > 2 * 1024 ** 2)
@@ -587,8 +602,20 @@ export async function runPayloadSigningController(
     throw new Error("payload signer and verified fixed tools differ");
   const selected = inspectPayloadPreparationConfiguration(config);
   const authorities = await requireControllerApplicationJobAuthorities("payload");
-  if (authorities.namespace !== selected.admission_configuration.namespace)
+  if (
+    authorities.namespace !== selected.admission_configuration.namespace ||
+    (selected.admission_configuration.release_profile ?? "initial-beta-win-linux") !==
+      applicationReleaseProfile(authorities.configuration)
+  )
     throw new Error("payload authority and actual coordinator namespace differ");
+  if (
+    applicationReleaseProfile(authorities.configuration) === "initial-beta-windows-x86_64-v1" &&
+    JSON.stringify(orderedJsonValue(selected.admission_configuration.public_build_inputs)) !==
+      JSON.stringify(orderedJsonValue(applicationPublicBuildInputs(authorities.configuration)))
+  )
+    throw new Error(
+      "payload public input configuration differs from ratified application authority",
+    );
   if (
     selected.projectRoot !== tools.root ||
     selected.aggregate.controller_revision !== tools.identity.controller_revision ||
@@ -602,10 +629,17 @@ export async function runPayloadSigningController(
   );
   if (closure.source_commit !== tools.identity.controller_revision)
     throw new Error("compiler closure differs from authenticated fixed controller source");
-  if (!Array.isArray(capturedNativeLocators) || capturedNativeLocators.length !== 2)
+  if (
+    !Array.isArray(capturedNativeLocators) ||
+    capturedNativeLocators.length !==
+      nativePlatformsForReleaseProfile(applicationReleaseProfile(authorities.configuration)).length
+  )
     throw new Error("fixed controller requires exactly two native invocation locators");
   const pinned = {
-    node: { path: tools.node, sha256: hash(await readBounded(tools.node, 128 * 1024 ** 2)) },
+    node: {
+      path: tools.node,
+      sha256: hash(await readBounded(tools.node, controllerNodeMaximumBytes)),
+    },
     tauriAddon: {
       path: tools.tauriAddon,
       sha256: hash(await readBounded(tools.tauriAddon, 128 * 1024 ** 2)),
@@ -619,6 +653,8 @@ export async function runPayloadSigningController(
     {},
     async (context, prepared, directory) => {
       requireActualReleaseAdmissionContext(context, "payload-signing");
+      const reader = { token: fixedReleaseReaderToken() };
+      const requireDirect = readOnlyReleaseChildEnvironment() !== undefined;
       const risk = await (
         await import("./linux-beta-risk-706-controller.mts")
       ).authorizeActualLinuxRisk706(context, undefined, context.checkpoint, deadline);
@@ -629,7 +665,7 @@ export async function runPayloadSigningController(
         deadline,
       );
       const identity = await verifyPayloadSignerJobIdentity(token, identityExpected, {
-        transport: { cwd: directory, deadline },
+        transport: { sdkToken: reader.token, requireDirect, deadline },
       });
       if (identity.evidence_scope !== "github.com")
         throw new Error("actual payload signer required");
@@ -670,43 +706,9 @@ export async function runPayloadSigningController(
           factsDigest,
           "payload",
           round,
-          { deadline },
+          { deadline, controlReader: "payload" },
         );
-        const api = new GitHubApiClient((args, input) => {
-          withinBudget();
-          const response = createGitHubRunner({
-            cwd: directory,
-            maxBuffer: 2 * 1024 ** 2,
-            timeoutMs: Math.max(1, Math.floor(Math.min(15000, deadline - performance.now()))),
-          })([...args, "--hostname", "github.com"], input);
-          withinBudget();
-          return response;
-        });
-        let requests = 0;
-        const bound = () => {
-          if (++requests > 32) throw new Error("payload control read bound exhausted");
-        };
-        const current = source.read(
-          {
-            request(method, endpoint, body) {
-              bound();
-              if (
-                method !== "GET" ||
-                body !== undefined ||
-                !endpoint.startsWith("repos/boburning/portcove/")
-              )
-                throw new Error("payload controls permit only fixed repository reads");
-              return api.request(method, endpoint);
-            },
-            graphql(query, variables) {
-              bound();
-              if (query !== releaseControlRefQuery)
-                throw new Error("payload control query differs");
-              return api.graphql(query, variables);
-            },
-          },
-          context.facts.opportunity,
-        );
+        const current = await source.readSdkApplicationControls(context.facts.opportunity);
         if (
           current.pause.publication_paused ||
           !current.resource_policy_matches_controller ||
@@ -731,7 +733,7 @@ export async function runPayloadSigningController(
         await requireVerifiedReleaseSbomDocument(context.sbom_receipt);
         const coordinator = { schema_version: 1, namespace: authorities.namespace };
         const snapshot = await readRemoteCoordinatorSnapshot(directory, coordinator, {
-          transport: { cwd: directory, deadline },
+          transport: { credential: reader, deadline },
         });
         await requireReservedAggregate(
           JSON.stringify({
@@ -848,6 +850,9 @@ export async function runPayloadSigningController(
             evidence_sha256: hash(JSON.stringify(orderedJsonValue(handoff))),
           };
         },
+        async () => {
+          await freshControls();
+        },
       );
       if (!handoff) throw new Error("actual immutable payload output custody missing");
       currentCheckpoint = settlement.checkpoint;
@@ -862,6 +867,7 @@ export async function runPayloadSigningController(
       };
     },
     {
+      deadline,
       compiler: {
         controller_tools: toolsReceipt,
         controller_source: {

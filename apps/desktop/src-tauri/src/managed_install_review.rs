@@ -50,6 +50,7 @@ mod tests {
             source: Some(replacement),
             bios: None,
             stage: false,
+            source_reference: None,
         };
         assert!(require_matching_input(&input, ReleaseChannel::Stable, Some(&registered)).is_err());
         input.source = Some(root.path().join(".").join("registered.gbc"));

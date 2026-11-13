@@ -35,6 +35,12 @@ export const isSafeSitePath = (name: string) =>
           /^[A-Za-z0-9][A-Za-z0-9._+-]*$/u.test(segment) && segment !== "." && segment !== "..",
       ));
 
+/** Opaque bytes from the already published r2/r3 delivery proof. Retaining this
+ * one namespace appoints neither its disposable Root nor any new rehearsal. */
+export const isRetainedApplicationRehearsalPath = (name: string) =>
+  isSafeSitePath(name) &&
+  /^rehearsal\/41788540335-1\/application\/(?:metadata|targets)\//u.test(name);
+
 export function inspectSiteGeneration(raw: unknown, expected: string): SiteGeneration {
   if (!isRecord(raw) || !digest(expected)) throw new Error("site generation unavailable");
   const two = raw.schema_version === 2;
@@ -64,7 +70,8 @@ export function inspectSiteGeneration(raw: unknown, expected: string): SiteGener
       Object.keys(file).sort().join(",") !== "bytes,path,sha256" ||
       typeof file.path !== "string" ||
       !isSafeSitePath(file.path) ||
-      !/^(?:\.nojekyll$|(?:application\/(?:metadata|targets)|catalog)\/)/u.test(file.path) ||
+      (!/^(?:\.nojekyll$|(?:application\/(?:metadata|targets)|catalog)\/)/u.test(file.path) &&
+        !isRetainedApplicationRehearsalPath(file.path)) ||
       seen.has(file.path) ||
       !digest(file.sha256) ||
       typeof file.bytes !== "number" ||

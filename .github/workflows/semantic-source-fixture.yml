@@ -6,6 +6,8 @@ on:
       - scripts/release-semantic-source*
       - scripts/semantic-source-git*
       - scripts/qualify-semantic-source.mts
+      - scripts/github-client.mts
+      - scripts/github-operation.mts
       - scripts/release-source-changes.mts
       - scripts/resource-*.mts
       - scripts/run-rust-tests.mts
@@ -22,10 +24,19 @@ on:
       - scripts/release-semantic-source*
       - scripts/semantic-source-git*
       - scripts/qualify-semantic-source.mts
+      - scripts/github-client.mts
+      - scripts/github-operation.mts
       - scripts/rust-support-cache.mts
       - scripts/fixtures/linux-process-tree-reaper.rs.txt
       - .github/actions/setup-rust/**
       - rust-toolchain.toml
+      - package.json
+      - pnpm-lock.yaml
+# Superseded pull request runs are cancelled; every other run has its own
+# group, so pushes and dispatches always finish.
+concurrency:
+  group: semantic-source-fixture-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 permissions:
   contents: read
 jobs:

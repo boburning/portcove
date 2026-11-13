@@ -1,3 +1,4 @@
+import { countMessage } from "../localization";
 import { useRef, useState } from "react";
 import { desktopApi } from "../api";
 import { pickInstallFolder } from "../file-picker";
@@ -11,7 +12,7 @@ import type {
   SourceProfile,
   SourceRecord,
 } from "../types";
-import { errorText, formatBytes, formatCountMessage, isCancellation } from "../view-model";
+import { errorText, formatBytes, isCancellation } from "../view-model";
 import { OperationCancellation } from "./OperationCancellation";
 import { PreliminarySourceSelections } from "./PreliminarySourceSelections";
 import { sourceAdmissionPresentation } from "./SourceIdentity";
@@ -51,19 +52,11 @@ export function sourceDiscoveryResultSummary(
   entriesExamined: number,
   hashBytes: number,
 ) {
-  const matches = formatCountMessage(exactMatches, {
-    zero: "Found no exact matches.",
-    one: "Found 1 exact match.",
-    other: "Found {count} exact matches.",
-    unknown: "Exact match count is unavailable.",
+  const matches = countMessage(exactMatches, "exactMatches");
+  const entries = countMessage(entriesExamined, "examinedEntries", {
+    bytes: formatBytes(hashBytes),
   });
-  const entries = formatCountMessage(entriesExamined, {
-    zero: "Checked no files or folders",
-    one: "Checked 1 file or folder",
-    other: "Checked {count} files and folders",
-    unknown: "File and folder count is unavailable",
-  });
-  return `${matches} ${entries} (${formatBytes(hashBytes)} of verification data).`;
+  return `${matches} ${entries}`;
 }
 
 export function sourceDiscoveryLimitLabel(limit: string, source: "folder" | "inbox" = "folder") {
@@ -123,15 +116,17 @@ export function sourceImportModePresentation(mode: string) {
 }
 
 export function SourceDiscoveryButton({
+  generation,
   profiles,
   disabled,
   onAdded,
 }: {
+  generation: number;
   profiles: SourceProfile[];
   disabled: boolean;
   onAdded?: (() => Promise<unknown>) | undefined;
 }) {
-  const [open, setOpen] = useState(false);
+  const [openGeneration, setOpenGeneration] = useState<number>();
   return (
     <>
       <Button
@@ -139,12 +134,17 @@ export function SourceDiscoveryButton({
         data-settings-control="discover-sources"
         variant="outline"
         disabled={disabled || profiles.length === 0}
-        onClick={() => setOpen(true)}
+        onClick={() => setOpenGeneration(generation)}
       >
         Find required files
       </Button>
-      {open && (
-        <SourceDiscoveryDialog profiles={profiles} onAdded={onAdded} close={() => setOpen(false)} />
+      {openGeneration === generation && (
+        <SourceDiscoveryDialog
+          generation={generation}
+          profiles={profiles}
+          onAdded={onAdded}
+          close={() => setOpenGeneration(undefined)}
+        />
       )}
     </>
   );
@@ -181,7 +181,7 @@ export function sourceImportRefreshNotice(result: SourceImportResult) {
   return `${sourceImportNotice(result)} The view couldn't refresh. Use Retry refresh to check the current state; the files were already added.`;
 }
 
-function useSourceDiscoveryWorkflow(onAdded?: () => Promise<unknown>) {
+function useSourceDiscoveryWorkflow(generation: number, onAdded?: () => Promise<unknown>) {
   const [root, setRoot] = useState("");
   const [profile, setProfile] = useState("");
   const [report, setReport] = useState<SourceDiscoveryReport>();
@@ -274,6 +274,7 @@ function useSourceDiscoveryWorkflow(onAdded?: () => Promise<unknown>) {
         plan.source.path,
         plan.mode,
         plan.plan_sha256,
+        generation,
         trackStart,
       );
       if (!result) {
@@ -355,7 +356,7 @@ function DiscoveryResults({
       )}
       {candidates.map((candidate) => (
         <div
-          className="source-health-row grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1 rounded-pc-md border border-pc-border bg-[var(--color-bg-inset)] p-3"
+          className="source-health-row grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1 border-b border-pc-border py-4 max-[55rem]:grid-cols-[minmax(0,1fr)]"
           key={`${candidate.profile_id}:${candidate.path}`}
         >
           <div className="min-w-0">
@@ -364,7 +365,7 @@ function DiscoveryResults({
             </code>
             <span>{formatBytes(candidate.size)}</span>
           </div>
-          <div className="actions mt-[24px] flex flex-wrap gap-[8px] [&.compact]:mt-[14px]">
+          <div className="actions flex flex-wrap gap-2">
             <Button
               data-focusable
               variant="outline"
@@ -393,7 +394,7 @@ function DiscoveryResults({
                 void reviewImport(candidate, "use_current_location");
               }}
             >
-              Review current location
+              Use files here…
             </Button>
           </div>
         </div>
@@ -439,14 +440,14 @@ export function SourceImportReview({
   const admission = sourceAdmissionPresentation(plan.admission_mode);
   const profile = profiles.find((candidate) => candidate.id === plan.profile_id);
   return (
-    <section className="source-discovery-results" aria-label="Source import review">
+    <section className="source-discovery-results mt-6 grid gap-3" aria-label="Source import review">
       <h3>{presentation.label}</h3>
       <p>{presentation.explanation}</p>
       <p>
         File requirement: <strong>{profile?.label ?? plan.profile_id}</strong>
       </p>
       <p role={admission.known ? undefined : "alert"}>
-        <strong>Source check: {admission.label}.</strong> {admission.explanation}
+        <strong>File check: {admission.label}.</strong> {admission.explanation}
       </p>
       <p>
         Selected location:{" "}
@@ -463,7 +464,7 @@ export function SourceImportReview({
               An existing Portcove copy will be checked and reused. No new file copy is planned.
             </p>
           )}
-          <p>Additional file data planned: {formatBytes(plan.required_bytes)}.</p>
+          <p>Additional space needed: {formatBytes(plan.required_bytes)}.</p>
         </>
       )}
       {plan.existing_registration && (
@@ -477,7 +478,7 @@ export function SourceImportReview({
           <p>This updates the saved location after Portcove checks the expected files again.</p>
         </>
       )}
-      <div className="actions mt-[24px] flex flex-wrap gap-[8px] [&.compact]:mt-[14px]">
+      <div className="actions flex flex-wrap gap-2">
         <Button data-focusable variant="outline" disabled={busy} onClick={onCancel}>
           Cancel review
         </Button>
@@ -499,16 +500,18 @@ export function SourceImportReview({
 }
 
 function SourceDiscoveryDialog({
+  generation,
   profiles,
   onAdded,
   close,
 }: {
+  generation: number;
   profiles: SourceProfile[];
   onAdded?: (() => Promise<unknown>) | undefined;
   close: () => void;
 }) {
   const heading = useRef<HTMLHeadingElement>(null);
-  const workflow = useSourceDiscoveryWorkflow(onAdded);
+  const workflow = useSourceDiscoveryWorkflow(generation, onAdded);
   const [profileSelectOpen, setProfileSelectOpen] = useState(false);
   const profileSelectOpenRef = useRef(false);
   const profileSelectDismissal = useRef(false);
@@ -595,7 +598,7 @@ function SourceDiscoveryDialog({
             }
           }}
         />
-        <div className="actions source-inbox-actions mt-[24px] flex flex-wrap gap-[8px] [&.compact]:mt-[14px]">
+        <div className="actions source-inbox-actions flex flex-wrap gap-2">
           <Button
             data-focusable
             variant="outline"
@@ -661,13 +664,9 @@ function SourceDiscoveryDialog({
           <section aria-label="Game-file folder search result">
             <p>
               {inboxStateMessage(inbox.state)}{" "}
-              {formatCountMessage(inbox.stats.entries_examined, {
-                zero: "Checked no files or folders",
-                one: "Checked 1 file or folder",
-                other: "Checked {count} files and folders",
-                unknown: "File and folder count is unavailable",
-              })}{" "}
-              ({formatBytes(inbox.stats.hash_bytes)} of verification data).
+              {countMessage(inbox.stats.entries_examined, "examinedEntries", {
+                bytes: formatBytes(inbox.stats.hash_bytes),
+              })}
             </p>
             {inbox.selected && (
               <p>

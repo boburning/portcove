@@ -1,3 +1,4 @@
+import { countMessage } from "../localization";
 import { ActionRow, MetadataGrid } from "./ui/patterns";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { AlertTriangle, FolderOpen, HardDrive, RotateCcw, ShieldCheck } from "lucide-react";
@@ -10,7 +11,7 @@ import type {
   OutputRelocationStatus,
   PortOutputLocation,
 } from "../types";
-import { errorText, formatBytes, formatCountMessage } from "../view-model";
+import { errorText, formatBytes } from "../view-model";
 import { Icon } from "./ui";
 import { Button } from "./ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle } from "./ui/dialog";
@@ -427,7 +428,7 @@ function CurrentOutputDestination({
     <div
       className={`${outputReviewClass} current-output-destination ${stateClass} ${safe ? "border-[var(--color-success-border)]" : blocked ? "border-[var(--color-warning-border)] bg-pc-warning-subtle" : ""}`}
       role="group"
-      aria-label="Current output destination"
+      aria-label="Current install folder"
     >
       <div className={outputReviewTitleClass} aria-live="polite">
         <strong>Current destination</strong>
@@ -435,7 +436,7 @@ function CurrentOutputDestination({
           {pending
             ? "Checking availability…"
             : preview
-              ? outputAvailabilityLabel(preview.availability)
+              ? outputDestinationCheckLabel(preview.availability, safe)
               : "Availability not checked"}
         </span>
       </div>
@@ -491,8 +492,8 @@ function OutputLocationStatus({
         >
           <Icon glyph={ShieldCheck} size="sm" />
           {result.cleanup_pending
-            ? formatCountMessage(result.old_paths_retained.length, retainedFolderMessages)
-            : formatCountMessage(result.relocated_installs.length, movedVersionMessages)}
+            ? countMessage(result.old_paths_retained.length, "retainedFolders")
+            : countMessage(result.relocated_installs.length, "movedVersions")}
         </p>
       )}
       {result && result.old_paths_retained.length > 0 && (
@@ -507,7 +508,7 @@ function OutputLocationStatus({
       {status && (
         <p className={outputProblemClass} role="status">
           <Icon glyph={AlertTriangle} size="sm" />
-          {formatCountMessage(status.cleanup_pending_paths.length, pendingCleanupMessages)}
+          {countMessage(status.cleanup_pending_paths.length, "pendingCleanup")}
         </p>
       )}
       {status && status.cleanup_pending_paths.length > 0 && (
@@ -528,27 +529,6 @@ function OutputLocationStatus({
     </>
   );
 }
-
-const retainedFolderMessages = {
-  zero: "Move completed. Cleanup remains pending.",
-  one: "Move completed. {count} old folder contains changed files and remains for safe cleanup.",
-  other: "Move completed. {count} old folders contain changed files and remain for safe cleanup.",
-  unknown: "Move completed. The number of old folders needing cleanup is unavailable.",
-};
-const movedVersionMessages = {
-  zero: "Move completed. No recorded versions needed relocation.",
-  one: "Moved {count} recorded version and verified the new location.",
-  other: "Moved {count} recorded versions and verified the new location.",
-  unknown: "Move completed. The number of relocated versions is unavailable.",
-};
-const pendingCleanupMessages = {
-  zero: "Relocation cleanup is pending. Portcove will retry only when the reviewed contents are unchanged.",
-  one: "Relocation cleanup is pending for {count} old folder. Portcove will retry only when its reviewed contents are unchanged.",
-  other:
-    "Relocation cleanup is pending for {count} old folders. Portcove will retry only when their reviewed contents are unchanged.",
-  unknown:
-    "Relocation cleanup is pending. The number of old folders is unavailable. Portcove will retry only when the reviewed contents are unchanged.",
-};
 
 function OutputLocationReview({
   gameName,
@@ -576,7 +556,7 @@ function OutputLocationReview({
     preview.availability === "available" &&
     preview.validation_errors.length === 0 &&
     ["library_default", "unclaimed", "owned_by_port"].includes(preview.ownership);
-  const availability = outputAvailabilityLabel(preview.availability);
+  const availability = outputDestinationCheckLabel(preview.availability, safe);
   const capacity = outputCapacityLabel(preview);
   const ownership = outputOwnershipLabel(preview.ownership);
   const action = preview.reset_to_default
@@ -630,7 +610,7 @@ function OutputLocationReview({
         </DialogDescription>
         <div
           className={`${outputReviewClass} ${safe ? "safe border-[var(--color-success-border)]" : "blocked border-[var(--color-warning-border)] bg-pc-warning-subtle"}`}
-          aria-label="Output destination review"
+          aria-label="Install folder review"
         >
           <div className={outputReviewTitleClass} aria-live="polite">
             <strong>Destination checks</strong>
@@ -699,13 +679,18 @@ function OutputLocationReview({
   );
 }
 
-function outputAvailabilityLabel(value: OutputDestinationPreview["availability"]) {
+function outputDestinationCheckLabel(
+  value: OutputDestinationPreview["availability"],
+  safe: boolean,
+) {
   const labels: Record<OutputDestinationPreview["availability"], string> = {
     full: "Full · no free space",
-    available: "Available",
+    available: safe ? "Checks passed" : "Needs attention",
     unavailable: "Unavailable",
   };
-  return Object.hasOwn(labels, value) ? labels[value] : "Availability result unavailable";
+  return Object.hasOwn(labels, value)
+    ? labels[value]
+    : "Folder availability could not be confirmed";
 }
 
 function outputCapacityLabel(preview: OutputDestinationPreview) {
@@ -762,7 +747,7 @@ function OutputRelocationReview({
       </DialogDescription>
       <div
         className={`${outputReviewClass} ${safe ? "safe border-[var(--color-success-border)]" : "blocked border-[var(--color-warning-border)] bg-pc-warning-subtle"}`}
-        aria-label="Existing version relocation review"
+        aria-label="Review moving installed versions"
       >
         <div className={outputReviewTitleClass} aria-live="polite">
           <strong>Versions and preserved data</strong>
@@ -857,7 +842,7 @@ function outputOwnershipLabel(value: OutputDestinationPreview["ownership"]) {
     invalid: "Invalid destination",
     unknown: "Unknown",
   };
-  return Object.hasOwn(labels, value) ? labels[value] : "Ownership result unavailable";
+  return Object.hasOwn(labels, value) ? labels[value] : "Folder ownership could not be confirmed";
 }
 
 function outputSourceLabel(value: OutputDestinationPreview["proposed"]["selection_source"]) {
@@ -865,5 +850,5 @@ function outputSourceLabel(value: OutputDestinationPreview["proposed"]["selectio
   if (value === "port_setting") return "Custom for this game";
   return value === "library_default"
     ? "Inherited from the Portcove library"
-    : "Location origin unavailable";
+    : "Folder preference source unavailable";
 }

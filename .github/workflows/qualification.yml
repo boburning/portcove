@@ -24,9 +24,6 @@ on:
       plan_digest:
         description: Exact digest of the qualification plan.
         value: ${{ jobs.qualify.outputs.plan_digest }}
-      plan_json:
-        description: Exact qualification plan.
-        value: ${{ jobs.qualify.outputs.plan_json }}
       plan_gzip_base64:
         description: Bounded compressed transport of the executed qualification plan.
         value: ${{ jobs.qualify.outputs.plan_gzip_base64 }}

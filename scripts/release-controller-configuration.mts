@@ -1,3 +1,5 @@
+import { inspectReleaseReviewWithdrawal } from "./release-review-withdrawal.mts";
+import { nativePlatformsForReleaseProfile } from "./release-package-policy.mts";
 /** Closed fixed-DAG locator serialization. Every result is inert routing data;
  * existing consumers independently authenticate artifacts, jobs and authority. */
 import { isRecord } from "./runtime-values.mts";
@@ -17,6 +19,7 @@ import {
 import { inspectCatalogRoleArtifactExpected } from "./release-tuf-role-artifact.mts";
 import { inspectTufRoleArtifactExpected } from "./release-tuf-role-artifact.mts";
 import { inspectControllerAggregateLocator } from "./release-aggregate-locator.mts";
+import { inspectQualifiedApplicationReview } from "./release-authority-configuration-contract.mts";
 
 type Fixed = {
   controller_revision: string;
@@ -98,11 +101,12 @@ function contextLocator(raw: unknown, fixed: Fixed) {
     throw new Error("distinct context attestation required");
   return value;
 }
-function nativeLocators(raw: unknown) {
+function nativeLocators(raw: unknown, profile: unknown) {
+  const platforms = nativePlatformsForReleaseProfile(profile);
   // The named actual consumers resolve this automatic marker from their
   // authenticated source tuple; it never imports a positive native result.
   if (raw === null) return null;
-  if (!Array.isArray(raw) || raw.length !== 2)
+  if (!Array.isArray(raw) || raw.length !== platforms.length)
     throw new Error("two fixed native locators required");
   const values: unknown[] = raw;
   const seen = new Set<string>(),
@@ -111,7 +115,7 @@ function nativeLocators(raw: unknown) {
     if (
       !isRecord(entry) ||
       Object.keys(entry).sort().join(",") !== "check_id,invocation_id,platform_label" ||
-      !["windows-x86_64", "linux-x86_64"].includes(String(entry.platform_label)) ||
+      !platforms.some((platform) => platform === entry.platform_label) ||
       typeof entry.check_id !== "number" ||
       !Number.isSafeInteger(entry.check_id) ||
       entry.check_id < 1 ||
@@ -133,6 +137,8 @@ export function prepareFixedControllerConfiguration(input: {
   fixed: Fixed;
   needs: unknown;
   admission_configuration: unknown;
+  appointed_qualified_application?: unknown;
+  appointed_review_withdrawal?: unknown;
   native_locators?: unknown;
   payload_public_key_sha256?: unknown;
 }) {
@@ -199,6 +205,44 @@ export function prepareFixedControllerConfiguration(input: {
     !(typeof operation === "string" && operation.startsWith("catalog-"))
   )
     throw new Error("catalog cannot select application operation");
+  if (
+    Object.hasOwn(admission, "qualified_application") ||
+    Object.hasOwn(admission, "review_withdrawal")
+  )
+    throw new Error("qualified neutral selection is not accepted from coordinator configuration");
+  const hasWithdrawal = Object.hasOwn(input, "appointed_review_withdrawal");
+  const hasQualification = Object.hasOwn(input, "appointed_qualified_application");
+  if (hasWithdrawal || hasQualification) {
+    if (
+      (hasWithdrawal && hasQualification) ||
+      purpose !== "application" ||
+      operation !== "coordinator" ||
+      admission.schema_version !== 3 ||
+      admission.release_profile !== "initial-beta-windows-x86_64-v1" ||
+      !isRecord(admission.public_build_inputs) ||
+      Object.keys(admission).sort().join(",") !==
+        "namespace,public_build_inputs,release_profile,schema_version"
+    )
+      throw new Error(
+        "qualified neutral selection requires the fixed Windows application coordinator",
+      );
+    if (hasWithdrawal) {
+      const withdrawal = inspectReleaseReviewWithdrawal(input.appointed_review_withdrawal);
+      if (!withdrawal) throw new Error("appointed review withdrawal absent");
+      return {
+        remote_configuration: { schema_version: 1, namespace: admission.namespace },
+        tools,
+        review_withdrawal: withdrawal,
+      };
+    }
+    return {
+      remote_configuration: { schema_version: 1, namespace: admission.namespace },
+      tools,
+      qualified_application: inspectQualifiedApplicationReview(
+        input.appointed_qualified_application,
+      ),
+    };
+  }
   if (operation === "coordinator")
     return { remote_configuration: { schema_version: 1, namespace: admission.namespace }, tools };
   if (purpose === "catalog-publication") {
@@ -258,7 +302,10 @@ export function prepareFixedControllerConfiguration(input: {
     return {
       configuration: admission,
       tools,
-      native_locators: nativeLocators(input.native_locators),
+      native_locators: nativeLocators(
+        input.native_locators,
+        admission.release_profile ?? "initial-beta-win-linux",
+      ),
     };
   const phase = operation === "payload" ? "payload" : operation;
   const profile = releaseControlPhaseProfile(phase);
@@ -318,7 +365,10 @@ export function prepareFixedControllerConfiguration(input: {
       },
       signer_identity: identity,
       tools,
-      native_locators: nativeLocators(input.native_locators),
+      native_locators: nativeLocators(
+        input.native_locators,
+        admission.release_profile ?? "initial-beta-win-linux",
+      ),
     };
   if (coordinated.mode !== "release" && coordinated.mode !== "metadata")
     throw new Error("fixed coordinator mode unavailable");
@@ -382,7 +432,10 @@ export function prepareFixedControllerConfiguration(input: {
       configuration: {
         admission_configuration: admission,
         aggregate: aggregate(),
-        native_locators: nativeLocators(input.native_locators),
+        native_locators: nativeLocators(
+          input.native_locators,
+          admission.release_profile ?? "initial-beta-win-linux",
+        ),
       },
       context,
       identity,

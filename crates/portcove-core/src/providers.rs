@@ -24,6 +24,10 @@ impl CompositeReleaseProvider {
     pub fn github(&self) -> Arc<GithubReleaseProvider> {
         self.github.clone()
     }
+
+    pub(crate) fn gitlab(&self) -> GitlabReleaseProvider {
+        self.gitlab.clone()
+    }
 }
 
 #[async_trait]
@@ -39,9 +43,9 @@ impl ReleaseProvider for CompositeReleaseProvider {
             return Err(crate::cartridge_build::retired_creation());
         }
         match scope {
-            Some(scope) if port.release.provider == ReleaseSource::Github => {
+            scope if port.release.provider == ReleaseSource::Github => {
                 self.github
-                    .resolve_scoped(port, channel, platform, Some(scope))
+                    .resolve_scoped(port, channel, platform, scope)
                     .await
             }
             Some(_) => Err(PortcoveError::unsupported(
@@ -156,6 +160,10 @@ mod tests {
                 repository: String::new(),
                 rolling_tag: None,
                 asset_hints: BTreeMap::new(),
+                linux_tar_xz: false,
+                tar_xz_platforms: Vec::new(),
+                archive_file_links: false,
+                grant_declared_executable: false,
                 direct,
                 user_prepared: BTreeMap::new(),
             },
@@ -165,16 +173,24 @@ mod tests {
             executable_hints: BTreeMap::new(),
             persistent_paths: vec![],
             persistent_file_patterns: vec![],
+            archive_data_compatibility_v1: None,
+            archive_data_transition_v1: None,
             runtime_mutable_paths: vec![],
             runtime_mutable_file_patterns: vec![],
             windows_runtime_path_policy: None,
             windows_temp_directory: None,
             portable_marker: false,
+            portable_marker_file: None,
+            linux_portable_data_directory: None,
             n64_windows_initial_d3d12: false,
             n64_runtime_at_executable_parent: false,
             managed_initialization: None,
             runtime_data_policy: None,
+            external_profile_policy: None,
             mod_package_policy: None,
+            game_settings: None,
+            windows_shipwright_persistence: false,
+            windows_tracked_handoff: false,
             managed_shared_preferences: None,
             managed_shared_preferences_save_id: None,
             source_environment: None,
@@ -182,9 +198,13 @@ mod tests {
             launch_environment: BTreeMap::new(),
             launch_arguments: vec![],
             runtime_subdirectory: None,
+            runtime_subdirectory_by_platform: BTreeMap::new(),
             runtime_source_filename: None,
             runtime_source_materialization: None,
+            launch_disc_choice: None,
             runtime_source_hashes: BTreeMap::new(),
+            runtime_disc_image: None,
+            optional_game_source: false,
             runtime_source_set: Vec::new(),
             launch_from_install_root: false,
             setup_executable_hints: BTreeMap::new(),
@@ -192,6 +212,8 @@ mod tests {
             setup_marker: None,
             setup_output_paths: vec![],
             upstream_status: UpstreamStatus::Retired,
+            managed_acquisition_hold: None,
+            reviewed_package_layouts: BTreeMap::new(),
             presentation: None,
         };
         let release =

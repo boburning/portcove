@@ -8,10 +8,15 @@ import { performance } from "node:perf_hooks";
 // fresh execution deadline or another thirty seconds.
 const deadlines = new AsyncLocalStorage<{ execution: number; command: number }>();
 
+/** Absolute command ceiling for asynchronous provider calls. */
+export function coordinatorCommandDeadline() {
+  return deadlines.getStore()?.command;
+}
+
 export function coordinatorCommandTimeout(maximum = 30000) {
   if (!Number.isSafeInteger(maximum) || maximum < 1)
     throw new Error("coordinator command timeout is invalid");
-  const deadline = deadlines.getStore()?.command;
+  const deadline = coordinatorCommandDeadline();
   const remaining =
     deadline === undefined ? maximum : Math.floor(Math.min(maximum, deadline - performance.now()));
   if (remaining < 1) throw new Error("coordinator role phase deadline exhausted");
@@ -38,9 +43,9 @@ export async function withCoordinatorDeadline<T>(
   });
 }
 
-/** Synchronous collection ONLY in the fixed transport's already-attempted CAS
+/** Collection only in the fixed transport's already-attempted CAS
  * tuple query. That transport independently refuses every mutation and other
- * route after execution expiry. This is the existing absolute30s allowance,
+ * route after execution expiry. This is the existing absolute 30s allowance,
  * never a retry, execution extension or renewable/nestable clock. */
 export function withCoordinatorReadback<T>(original: number, read: () => T): T {
   const inherited = deadlines.getStore()?.execution;

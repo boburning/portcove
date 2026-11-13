@@ -1,6 +1,9 @@
 /** Original result upload custody only. No key, upload or attestation operation. */
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
+import { downloadGitHubArtifactArchive } from "./github-artifact-download.mts";
+import { coordinatorCommandDeadline } from "./release-coordinator-deadline.mts";
+import { assertTrustedDirectNode } from "./release-direct-node-transport.mts";
 import { isRecord } from "./runtime-values.mts";
 import { inspectCapacityOperation, capacityDigest as digest } from "./release-capacity.mts";
 import { inspectCompleteRunArtifactInventory } from "./release-run-artifact-inventory.mts";
@@ -195,6 +198,48 @@ export function inspectPendingResultAssociation(
 
 /** Actual private context remains mandatory. This association returns only
  * data; the existing coordinator executor owns any journal settlement. */
+export async function acquirePendingResultArchive(
+  provider: ReturnType<typeof inspectPendingResultProvider>,
+  token: string,
+  deadline: number,
+  charge: () => () => void,
+) {
+  const { id, bytes, sha256 } = provider.artifact;
+  const limit = Math.min(
+    deadline,
+    coordinatorCommandDeadline() ?? Infinity,
+    performance.now() + 30000,
+  );
+  const archive = await downloadGitHubArtifactArchive(
+    `repos/boburning/portcove/actions/artifacts/${id}/zip`,
+    {
+      credential: { kind: "explicit", token },
+      deadline: limit,
+      maxBytes: bytes,
+      fetch(input, init) {
+        assertTrustedDirectNode("pending publication result archive");
+        return globalThis.fetch(input, init);
+      },
+      lookup: {
+        reserve() {
+          const release = charge();
+          return {
+            consumeBytes() {},
+            settle(observation) {
+              if (!observation.dispatched) release();
+            },
+          };
+        },
+      },
+    },
+  );
+  if (performance.now() >= limit)
+    throw new Error("pending publication result archive deadline exhausted");
+  assert.equal(archive.length, bytes);
+  assert.equal(hash(archive), sha256);
+  return archive;
+}
+
 export async function readPendingResultArchive(
   archive: Buffer,
   provider: ReturnType<typeof inspectPendingResultProvider>,

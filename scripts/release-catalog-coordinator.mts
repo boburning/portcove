@@ -1,3 +1,13 @@
+import { createHash } from "node:crypto";
+import { coordinatorJobBudgetMilliseconds } from "./release-control-phases.mts";
+import {
+  authenticateCapacityExecutor,
+  authenticateOwnedCheckpointJournalHistory,
+  ensureOwnedCheckpointJournalHistory,
+  inspectSelectedJournalRequirement,
+  publishOwnedSignedCoordinatorCheckpoint,
+} from "./release-capacity-executor.mts";
+import { controllerOidcSubject } from "./assembler-job-identity.mts";
 import {
   inspectCatalogReviewDisposition,
   advanceCatalogReviewRecovery,
@@ -5,22 +15,23 @@ import {
   requireActualCatalogReviewDisposition,
   prepareActualCatalogReviewRetirement,
 } from "./release-catalog-review-disposition.mts";
-import { discoverIndependentCatalogSemanticDisposition } from "./release-semantic-disposition-reader.mts";
 /** Actual catalog coordinator entry. Candidate Git/JSON is inert; only existing
  * actual configuration, controls, tool/Core and semantic factories release keys. */
 import { mkdtemp, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { performance } from "node:perf_hooks";
-import { createGitHubRunner, GitHubApiClient } from "./github-api.mts";
+import { createReleaseCustodyProvider } from "./release-custody-provider.mts";
+import { assertTrustedDirectNode } from "./release-direct-node-transport.mts";
+import { fixedReleaseReaderToken } from "./release-readonly-child-environment.mts";
 import { isRecord } from "./runtime-values.mts";
 import { capacityDigest, inspectCapacityOperation } from "./release-capacity.mts";
 import {
   withCoordinatorDeadline,
-  coordinatorCommandTimeout,
+  coordinatorCommandDeadline,
 } from "./release-coordinator-deadline.mts";
 import {
-  coordinatorOriginalJobDeadline,
+  readOriginalCoordinatorJobDeadline,
   catalogCoordinatorMaintenanceIdentity,
   deriveCoordinatorPublication,
   prepareActualCoordinatorCatalogSigning,
@@ -33,6 +44,7 @@ import {
 } from "./release-authority-configuration.mts";
 import {
   authenticateCatalogControlReaderJob,
+  authenticateCatalogReleaseControlRound,
   authenticateCatalogReleaseControlSource,
   requireAuthenticatedCatalogControlSource,
 } from "./release-live-control-admission.mts";
@@ -41,10 +53,11 @@ import {
   receiveControllerTools,
   verifiedControllerToolPaths,
 } from "./release-controller-tool-admission.mts";
+import { readControllerToolFile } from "./release-controller-tools.mts";
 import type { ControllerToolArtifactExpected } from "./release-controller-tool-admission.mts";
 import {
   materializeCatalogPublicationSource,
-  readCatalogPublicationSourceBytes,
+  readCatalogPublicationSourceBytesAsync,
 } from "./release-catalog-source.mts";
 import {
   inspectActualCatalogPublication,
@@ -53,6 +66,19 @@ import {
 } from "./release-catalog-inspection.mts";
 import { inspectCatalogSemanticOpportunity } from "./release-catalog-semantic.mts";
 import { inspectCatalogInitialization } from "./release-catalog-publication-contract.mts";
+import {
+  assertStandaloneBootstrapAdoptionCapacity,
+  authenticateStandaloneBootstrapAdoption,
+  isCatalogBootstrapRecoveryRef,
+  selectCatalogBootstrapRecovery,
+} from "./release-catalog-bootstrap-adoption.mts";
+import {
+  inspectPublishedMetadata,
+  isServedNativeBootstrapRenewalPreimage,
+  servedV13BootstrapRenewal,
+  isStandaloneBootstrapForwardPreimage,
+  standaloneBootstrapAdoption,
+} from "./release-metadata-contract.mts";
 import {
   currentPublishedSite,
   inspectPublishedCatalogMetadata,
@@ -66,25 +92,45 @@ import {
   recoverRemoteCoordinator,
   readRemoteCoordinatorSnapshot,
   inspectRemoteCommitObject,
+  hydrateRetainedCoordinatorCheckpoint,
 } from "./release-coordinator-recovery.mts";
 import {
   inspectCoordinatorRemoteNamespace,
   publishCoordinatorCheckpoint,
 } from "./release-coordinator-remote.mts";
-import { checkpointReleaseOpportunity } from "./release-coordinator-state.mts";
+import { CoordinatorRemoteError } from "./release-coordinator-errors.mts";
+import {
+  retainedCatalogForwardAdoptionClaim,
+  retainedCatalogNativeAdoptionClaim,
+  retainedCatalogV13AdoptionClaim,
+  selectRetainedChameleonReviewClaim,
+} from "./release-coordinator-checkpoint-authentication.mts";
+import {
+  checkpointReleaseOpportunity,
+  exportCoordinatorCheckpoint,
+  exportRetainedCoordinatorCheckpoint,
+  stageRetainedCoordinatorClaim,
+} from "./release-coordinator-state.mts";
 import { planReleaseOpportunity } from "./release-coordinator.mts";
-import { collectReleaseSourceChanges } from "./release-source-changes.mts";
-import { createReleasePublicationReader } from "./release-publication-inventory.mts";
+import { collectReleaseSourceChangesWithSdk } from "./release-source-changes.mts";
+import { createPublicationInventoryWithSdk } from "./release-publication-inventory.mts";
 import { createCoordinatorJournalApi } from "./release-coordinator-journal-api.mts";
 import {
-  readIndependentCatalogSemanticCheckInventory,
+  readIndependentCatalogSemanticCheckInventoryWithSdk,
+  discoverIndependentCatalogSemanticDispositionWithSdk,
   inspectCatalogSemanticRequestCheckMatches,
 } from "./release-semantic-disposition-reader.mts";
 import { prepareControlReadiness, waitForControlArtifact } from "./release-control-handshake.mts";
-import { retainControlStepLocator } from "./release-control-step-bridge.mts";
+import {
+  retainControlStepLocator,
+  retainCatalogCoordinatorRefusal,
+  inspectCatalogCheckpointRefusal,
+  inspectCheckpointSigningProgress,
+  type CatalogCoordinatorRefusalStage,
+} from "./release-control-step-bridge.mts";
 import { assertOwnedUnlinkedPath } from "./release-path-safety.mts";
-const project = fileURLToPath(new URL("..", import.meta.url)),
-  repository = "repos/boburning/portcove";
+import { isApplicationReviewReleaseTag } from "./release-review-request.mts";
+const project = fileURLToPath(new URL("..", import.meta.url));
 function exact(raw: unknown, keys: string): asserts raw is Record<string, unknown> {
   if (!isRecord(raw) || Object.keys(raw).sort().join(",") !== keys)
     throw new Error("fixed catalog coordinator invocation fields differ");
@@ -196,64 +242,34 @@ export async function runFixedCatalogCoordinatorConfiguration(
     (phaseDeadline !== undefined && (!Number.isFinite(phaseDeadline) || phaseDeadline <= start))
   )
     throw new Error("catalog coordinator original deadline/private parent unavailable");
-  let deadline = Math.min(start + 170000, phaseDeadline ?? Infinity);
+  let deadline = Math.min(
+    start + coordinatorJobBudgetMilliseconds,
+    phaseDeadline ?? Infinity,
+    coordinatorCommandDeadline() ?? Infinity,
+  );
   const check = () => {
     if (performance.now() >= deadline)
       throw new Error("catalog coordinator original job budget exhausted");
   };
   await assertOwnedUnlinkedPath(project, parent, "catalog coordinator private parent");
   const directory = await mkdtemp(path.join(parent, "catalog-coordinator-"));
-  const client = new GitHubApiClient((args, body) => {
-    check();
-    const result = createGitHubRunner({
-      cwd: directory,
-      maxBuffer: 16 * 1024 ** 2,
-      timeoutMs: Math.max(
-        1,
-        Math.floor(Math.min(coordinatorCommandTimeout(15000), deadline - performance.now())),
-      ),
-    })([...args, "--hostname", "github.com"], body);
-    check();
-    return result;
-  });
-  const api = {
-    request(method: string, route: string, body?: unknown) {
-      if (method !== "GET" || body != null)
-        throw new Error("catalog source/Check transport is GET-only");
-      return client.request(method, route);
-    },
-    graphql(query: string, variables?: Record<string, unknown>) {
-      if (!/^\s*query\b/u.test(query))
-        throw new Error("catalog source transport admits queries only");
-      return client.graphql(query, variables);
-    },
-  };
-  const run = process.env.GITHUB_RUN_ID,
-    revision = process.env.GITHUB_SHA;
-  if (
-    !run ||
-    !/^[1-9][0-9]{0,15}$/u.test(run) ||
-    !revision ||
-    !/^[a-f0-9]{40}$/u.test(revision) ||
-    process.env.GITHUB_RUN_ATTEMPT !== "1"
-  )
-    throw new Error("actual first coordinator job identity required");
-  const jobs = api.request(
-    "GET",
-    `${repository}/actions/runs/${run}/jobs?filter=all&per_page=100&page=1`,
-  );
-  if (jobs.status !== 200) throw new Error("catalog coordinator original job unavailable");
+  const readerToken = fixedReleaseReaderToken();
   deadline = Math.min(
     deadline,
-    coordinatorOriginalJobDeadline(jobs.body, { run_id: run, controller_revision: revision }),
+    await readOriginalCoordinatorJobDeadline(
+      Math.min(deadline, performance.now() + 15000),
+      16 * 1024 ** 2,
+    ),
   );
+  const journalTransport = { credential: { token: readerToken }, deadline };
   check();
   return withCoordinatorDeadline(deadline, async () => {
-    let stage = "actual-catalog-admission";
+    let stage: CatalogCoordinatorRefusalStage<"operation"> = "actual-catalog-admission";
     try {
       const authorities = await requireControllerCatalogCoordinatorAuthorities();
       if (authorities.namespace !== selected.remote_configuration.namespace)
         throw new Error("catalog authority namespace differs");
+      stage = "catalog-reader-identity";
       const workflow = await readProductionControllerWorkflowBytes(),
         reader = await authenticateCatalogControlReaderJob(process.env, workflow, {
           phase: "coordinator",
@@ -261,6 +277,110 @@ export async function runFixedCatalogCoordinatorConfiguration(
         });
       if (reader.identity.evidence_scope !== "github.com")
         throw new Error("actual catalog coordinator reader required");
+      const reviewClaim = selectRetainedChameleonReviewClaim(
+        reader.admitted.execution_ref,
+        reader.admitted.run_attempt,
+      );
+      const earlyRecovery =
+        reviewClaim && reader.admitted.execution_ref !== reviewClaim.recovery_ref;
+      const reviewClaimSubject = reviewClaim
+        ? capacityDigest({
+            checkpoint: reviewClaim.previous,
+            child: reviewClaim.child,
+            request_id: reviewClaim.request_id,
+          })
+        : undefined;
+      const announceControlReadiness = async (subjectSha256: string) => {
+        const runId = reader.admitted.run_id;
+        if (!runId) throw new Error("catalog coordinator run identity unavailable");
+        const ready = path.join(directory, "ready-coordinator.json");
+        await writeFile(
+          ready,
+          `${JSON.stringify(prepareControlReadiness(reader.identity, subjectSha256, "coordinator"))}\n`,
+          { flag: "wx", mode: 0o600 },
+        );
+        await retainControlStepLocator(ready, "coordinator", 0);
+      };
+      const observeControls = async (subjectSha256: string, refreshBeforeUse = false) => {
+        const runId = reader.admitted.run_id;
+        if (!runId) throw new Error("catalog coordinator run identity unavailable");
+        await announceControlReadiness(subjectSha256);
+        const observation = await waitForControlArtifact(
+          directory,
+          "observation",
+          {
+            phase: "coordinator",
+            controller_revision: reader.admitted.revision,
+            controller_ref: reader.admitted.execution_ref,
+            run_id: runId,
+            run_attempt: reader.admitted.run_attempt,
+          },
+          {
+            deadline: Date.now() + Math.min(240000, Math.floor(deadline - performance.now())),
+            phaseDeadline: deadline,
+          },
+        );
+        let controls = await authenticateCatalogReleaseControlSource(
+          { ...process.env, GH_TOKEN: readerToken },
+          workflow,
+          {
+            phase: "coordinator",
+            deadline,
+            observedArtifact: observation,
+            controlReader: "catalog-maintenance",
+          },
+        );
+        requireAuthenticatedCatalogControlSource(controls, "coordinator");
+        if (controls.evidence_scope !== "github.com")
+          throw new Error("actual catalog controls required");
+        const read = () =>
+          controls.readSdkMaintenance(undefined, { deadline, maxBytes: 16 * 1024 ** 2 });
+        const observed = await read(),
+          stable = catalogCoordinatorMaintenanceIdentity(observed);
+        let current = observed,
+          round = 0;
+        const readMaintenance = async () => {
+          check();
+          if (Date.now() - Date.parse(current.protection.observed_at) >= 30000) {
+            if (++round > 14) throw new Error("catalog coordinator control rounds exhausted");
+            controls = await authenticateCatalogReleaseControlRound(
+              path.join(directory, `catalog-bootstrap-control-${round}`),
+              subjectSha256,
+              "coordinator",
+              round,
+              { deadline, controlReader: "catalog-maintenance" },
+            );
+          }
+          current = await read();
+          if (
+            controls.evidence_scope !== "github.com" ||
+            current.reader.job_id !== reader.identity.job_id ||
+            current.reader.check_run_id !== reader.identity.check_run_id ||
+            catalogCoordinatorMaintenanceIdentity(current) !== stable
+          )
+            throw new Error("catalog coordinator maintenance identity changed");
+          check();
+          return current;
+        };
+        if (
+          observed.reader.job_id !== reader.identity.job_id ||
+          observed.reader.check_run_id !== reader.identity.check_run_id
+        )
+          throw new Error("catalog controls came from another job");
+        return {
+          async currentControls() {
+            if (refreshBeforeUse) await readMaintenance();
+            return { controls, readMaintenance, observed: current, stable };
+          },
+        };
+      };
+      // Observe the exact claim while the coordinator reads its independent inputs.
+      // The observation is authenticated within its own freshness window. The
+      // consumer refreshes it under the same job deadline before use if needed.
+      const earlyObservation =
+        earlyRecovery && reviewClaimSubject ? observeControls(reviewClaimSubject, true) : undefined;
+      void earlyObservation?.catch(() => {});
+      stage = "catalog-tool-custody";
       const tools = await receiveControllerTools(
           directory,
           selected.tools.artifact,
@@ -275,10 +395,286 @@ export async function runFixedCatalogCoordinatorConfiguration(
         paths.identity.run_attempt !== reader.admitted.run_attempt
       )
         throw new Error("catalog tools/actual job association differs");
+      stage = "catalog-journal-recovery";
       const recovered = await recoverRemoteCoordinator(directory, selected.remote_configuration, {
-          transport: { cwd: directory, deadline },
+          transport: journalTransport,
         }),
         input = recovered.input;
+      const checkDirectSource = () => {
+        check();
+        assertTrustedDirectNode("fixed catalog authoring source");
+      };
+      const openPublicationReader = () =>
+        createPublicationInventoryWithSdk({
+          token: readerToken,
+          deadline,
+          maxBytes: 16 * 1024 ** 2,
+          recheck: async () => check(),
+          beforeDispatch: checkDirectSource,
+        });
+      const authenticateCoordinatorExecutor = () =>
+        authenticateCapacityExecutor(
+          "coordinator",
+          {
+            audience: "portcove-capacity-executor",
+            subject: controllerOidcSubject(
+              reader.admitted.execution_ref,
+              "production-release-coordinator",
+            ),
+            controller_revision: reader.admitted.revision,
+            controller_ref: reader.admitted.execution_ref,
+            actor_id: reader.admitted.actor_id,
+            run_id: reader.admitted.run_id,
+            run_attempt: reader.admitted.run_attempt,
+          },
+          directory,
+          deadline,
+        );
+      const publishCheckpoint = async (
+        next: Record<string, unknown>,
+        checkpointControls: () => Promise<void>,
+        claimedChild?: string,
+      ) => {
+        const executor = await authenticateCoordinatorExecutor();
+        if (claimedChild !== undefined)
+          await authenticateOwnedCheckpointJournalHistory(
+            executor,
+            recovered.repository,
+            recovered.checkpoint,
+            claimedChild,
+          );
+        const signedJournal =
+          claimedChild !== undefined ||
+          (await ensureOwnedCheckpointJournalHistory(
+            executor,
+            recovered.repository,
+            recovered.checkpoint,
+            checkpointControls,
+          ));
+        const publishLegacy = async (checkpoint: string) => {
+          const journal = createCoordinatorJournalApi(directory, deadline),
+            guarded = {
+              request: async (...args: Parameters<typeof journal.request>) => {
+                check();
+                if (args[0] !== "GET") await checkpointControls();
+                const result = await journal.request(...args);
+                check();
+                return result;
+              },
+              graphql: async (...args: Parameters<typeof journal.graphql>) => {
+                check();
+                if (/^\s*mutation\b/u.test(args[0])) await checkpointControls();
+                const result = await journal.graphql(...args);
+                check();
+                return result;
+              },
+            };
+          return publishCoordinatorCheckpoint(
+            recovered.repository,
+            checkpoint,
+            selected.remote_configuration,
+            { api: guarded },
+          );
+        };
+        const persisted = await checkpointReleaseOpportunity(
+          recovered.repository,
+          recovered.checkpoint,
+          next,
+        );
+        if (claimedChild !== undefined && persisted.checkpoint !== claimedChild)
+          throw new Error("reconstructed adoption differs from the retained claimed child");
+        const statePin = [
+          retainedCatalogForwardAdoptionClaim,
+          retainedCatalogNativeAdoptionClaim,
+          retainedCatalogV13AdoptionClaim,
+        ].find(({ child }) => child === claimedChild);
+        if (statePin) {
+          const exact = await exportCoordinatorCheckpoint(recovered.repository, statePin.child);
+          if (
+            createHash("sha256").update(exact.blob.contents).digest("hex") !== statePin.state_sha256
+          )
+            throw new Error("adoption recovery state bytes differ");
+        }
+        if (signedJournal)
+          await publishOwnedSignedCoordinatorCheckpoint(
+            executor,
+            recovered.repository,
+            persisted.checkpoint,
+            checkpointControls,
+          );
+        else await publishLegacy(persisted.checkpoint);
+        if (stage === "standalone-application-bootstrap-CAS")
+          stage = "standalone-application-bootstrap-journal-readback";
+        const readback = await readRemoteCoordinatorSnapshot(
+          directory,
+          selected.remote_configuration,
+          { transport: journalTransport },
+        );
+        if (readback.checkpoint !== persisted.checkpoint)
+          throw new Error("catalog journal CAS readback differs; retain original");
+        return readback;
+      };
+      if (reviewClaim && recovered.checkpoint !== reviewClaim.previous)
+        throw new Error("Chameleon review recovery requires the original predecessor");
+      const adoptForward =
+        isStandaloneBootstrapForwardPreimage(inspectPublishedMetadata(input.published_metadata)) &&
+        !Object.hasOwn(input, "published_site") &&
+        input.review_request == null &&
+        input.review_disposition == null &&
+        input.metadata_renewal == null &&
+        input.published_catalog_metadata == null &&
+        input.catalog_initialization == null &&
+        input.catalog_publication == null &&
+        input.catalog_review_request == null &&
+        input.catalog_review_disposition == null;
+      const adoptNative =
+        isServedNativeBootstrapRenewalPreimage(input) ||
+        isServedNativeBootstrapRenewalPreimage(input, servedV13BootstrapRenewal);
+      if (
+        (input.published_metadata == null || adoptForward || adoptNative) &&
+        input.metadata_bootstrap != null &&
+        capacityDigest(input.metadata_bootstrap) ===
+          standaloneBootstrapAdoption.abandoned_descriptor_sha256 &&
+        input.active_candidate === null &&
+        !unresolved(input)
+      ) {
+        const claim = selectCatalogBootstrapRecovery(
+          reader.admitted.execution_ref,
+          reader.admitted.run_attempt,
+          recovered.checkpoint,
+          adoptNative ? "native" : adoptForward,
+        );
+        if (reviewClaim)
+          throw new Error("Chameleon review recovery cannot adopt application metadata");
+        if (claim) {
+          const provider = await createReleaseCustodyProvider({
+            token: readerToken,
+            deadline,
+            maxBytes: 2 * 1024 ** 2,
+            beforeDispatch: checkDirectSource,
+          });
+          const [run, job, child] = await Promise.all([
+            provider.attempt(claim.original_run, 1),
+            provider.job(claim.original_job),
+            provider.commit(claim.child),
+          ]);
+          if (
+            !isRecord(run) ||
+            run.id !== Number(claim.original_run) ||
+            run.run_attempt !== 1 ||
+            run.event !== "workflow_dispatch" ||
+            run.path !== ".github/workflows/application-update-production.yml" ||
+            run.head_sha !== claim.original_source ||
+            run.head_branch !== claim.original_ref ||
+            run.status !== "completed" ||
+            run.conclusion !== "failure" ||
+            !isRecord(run.actor) ||
+            run.actor.id !== 41898282 ||
+            !isRecord(run.triggering_actor) ||
+            run.triggering_actor.id !== 41898282 ||
+            !isRecord(job) ||
+            job.id !== claim.original_job ||
+            job.run_id !== Number(claim.original_run) ||
+            job.run_attempt !== 1 ||
+            job.name !== "Coordinate application release" ||
+            job.head_sha !== claim.original_source ||
+            job.status !== "completed" ||
+            job.conclusion !== "failure"
+          )
+            throw new Error("retained claimed bootstrap producer identity differs");
+          const exact = inspectRemoteCommitObject(child, claim.child);
+          if (
+            exact.tree !== claim.tree ||
+            exact.parents.length !== 1 ||
+            exact.parents[0] !== claim.previous
+          )
+            throw new Error("retained claimed bootstrap child or parent differs");
+        }
+        stage = "standalone-application-bootstrap-readback";
+        const { metadata, assertCurrent } = await authenticateStandaloneBootstrapAdoption(
+          directory,
+          tools,
+          deadline,
+          (next) => (stage = next),
+          adoptNative ? "native" : adoptForward,
+        );
+        stage = "standalone-application-bootstrap-observer";
+        const initialControls = await observeControls(
+          capacityDigest({ checkpoint: recovered.checkpoint, standalone_bootstrap: metadata }),
+        );
+        const { readMaintenance, observed, stable } = await initialControls.currentControls();
+        assertStandaloneBootstrapAdoptionCapacity(observed);
+        stage = "standalone-application-bootstrap-inventory";
+        // The original native claim already froze the version inventory.
+        // Exact child reconstruction below verifies those bytes before signing.
+        const publicationReader = adoptNative && claim ? undefined : await openPublicationReader();
+        const readInventory = async (reader: NonNullable<typeof publicationReader>) => {
+          const tags = await reader.tags();
+          const releases = await reader.releases();
+          const { allocations } = await reader.readAllocations(tags, authorities.namespace);
+          return { tags, releases, allocations };
+        };
+        const inventory = publicationReader && (await readInventory(publicationReader));
+        const inventorySha256 = inventory && capacityDigest(inventory);
+        const checkpointControls = async () => {
+          check();
+          const current = await readMaintenance();
+          assertStandaloneBootstrapAdoptionCapacity(current);
+          if (
+            current.pause.publication_paused ||
+            catalogCoordinatorMaintenanceIdentity(current) !== stable ||
+            (await requireControllerCatalogCoordinatorAuthorities()).configuration_sha256 !==
+              authorities.configuration_sha256
+          )
+            throw new Error(
+              "catalog controls changed before standalone bootstrap journal adoption",
+            );
+          if (
+            publicationReader &&
+            capacityDigest(await readInventory(publicationReader)) !== inventorySha256
+          )
+            throw new Error(
+              "publication inventory changed before standalone bootstrap journal adoption",
+            );
+          await assertCurrent();
+          check();
+        };
+        const now = claim?.clock ?? new Date().toISOString();
+        const retainedPublication = isRecord(input.publication) ? input.publication : null;
+        if (!inventory && !retainedPublication)
+          throw new Error("original native adoption publication inventory unavailable");
+        const next = {
+          ...input,
+          now,
+          publication: inventory
+            ? deriveCoordinatorPublication(
+                inventory.tags,
+                inventory.releases.filter((release) =>
+                  isApplicationReviewReleaseTag(release.tag_name),
+                ),
+                inventory.allocations,
+                now,
+              )
+            : { ...retainedPublication, observed_at: now },
+          published_metadata: metadata,
+          ...(adoptNative ? { metadata_renewal: null } : {}),
+        };
+        stage = "standalone-application-bootstrap-CAS";
+        const readback = await publishCheckpoint(next, checkpointControls, claim?.child);
+        if (capacityDigest(readback.input.published_metadata) !== capacityDigest(metadata))
+          throw new Error("standalone bootstrap journal adoption readback differs");
+        return held(
+          directory,
+          readback.checkpoint,
+          adoptNative
+            ? "authenticated native application metadata adopted"
+            : adoptForward
+              ? "exact standalone application renewal adopted; next wake can review catalog"
+              : "exact standalone application bootstrap adopted; next wake can review catalog",
+        );
+      }
+      if (isCatalogBootstrapRecoveryRef(reader.admitted.execution_ref))
+        throw new Error("claimed bootstrap recovery ref has no further operation authority");
       const pending = inspectCatalogReviewRequest(input.catalog_review_request),
         history = inspectCatalogReviewDisposition(input.catalog_review_disposition),
         replacement = !pending && history !== null;
@@ -287,13 +683,15 @@ export async function runFixedCatalogCoordinatorConfiguration(
         input.review_request != null ||
         input.review_disposition != null ||
         input.metadata_renewal != null ||
-        input.metadata_bootstrap != null
+        (input.metadata_bootstrap != null && input.published_metadata == null)
       )
         return held(
           directory,
           recovered.checkpoint,
           "existing application reservation or unresolved effect requires its existing recovery",
         );
+      if (reviewClaim && (pending || history || input.catalog_publication != null))
+        throw new Error("Chameleon review recovery requires the original idle catalog predecessor");
       if (input.catalog_publication != null)
         return continueActualCatalogPublication(
           tools,
@@ -307,34 +705,45 @@ export async function runFixedCatalogCoordinatorConfiguration(
           recovered.checkpoint,
           "unresolved effect requires its existing recovery",
         );
-      const mainHead = () => {
-        const repo = api.request("GET", repository),
-          ref = api.request("GET", `${repository}/git/ref/heads/main`);
+      const requireMainSource = (repo: unknown, ref: unknown) => {
         if (
-          repo.status !== 200 ||
-          !isRecord(repo.body) ||
-          repo.body.id !== 1354613114 ||
-          repo.body.full_name !== "boburning/portcove" ||
-          repo.body.default_branch !== "main" ||
-          ref.status !== 200 ||
-          !isRecord(ref.body) ||
-          ref.body.ref !== "refs/heads/main" ||
-          !isRecord(ref.body.object) ||
-          ref.body.object.type !== "commit" ||
-          typeof ref.body.object.sha !== "string" ||
-          !/^[a-f0-9]{40}$/u.test(ref.body.object.sha)
+          !isRecord(repo) ||
+          repo.id !== 1354613114 ||
+          repo.full_name !== "boburning/portcove" ||
+          repo.default_branch !== "main" ||
+          !isRecord(ref) ||
+          ref.ref !== "refs/heads/main" ||
+          !isRecord(ref.object) ||
+          ref.object.type !== "commit" ||
+          typeof ref.object.sha !== "string" ||
+          !/^[a-f0-9]{40}$/u.test(ref.object.sha)
         )
           throw new Error("fixed default-main catalog source unavailable");
-        return ref.body.object.sha;
+        return ref.object.sha;
       };
-      const sourceCommit = pending?.opportunity.source_commit ?? mainHead();
+      const sourceProvider = await createReleaseCustodyProvider({
+        token: readerToken,
+        deadline,
+        maxBytes: 16 * 1024 ** 2,
+        beforeDispatch: checkDirectSource,
+        afterRead: check,
+      });
+      const mainHead = async () =>
+        requireMainSource(
+          await sourceProvider.repository(deadline),
+          await sourceProvider.mainRef(),
+        );
+      const sourceCommit =
+        reviewClaim?.source ?? pending?.opportunity.source_commit ?? (await mainHead());
       stage = "fixed-inert-source-and-Core";
       const source = await materializeCatalogPublicationSource(
-        api,
+        sourceProvider,
         sourceCommit,
         directory,
         deadline,
       );
+      if (reviewClaim && (!source.request || source.source.tree !== reviewClaim.source_tree))
+        throw new Error("Chameleon review claim authoring source differs");
       if (!source.request)
         return held(
           directory,
@@ -343,7 +752,11 @@ export async function runFixedCatalogCoordinatorConfiguration(
         );
       const published = inspectPublishedCatalogMetadata(input.published_catalog_metadata);
       if (!pending && published) {
-        const previous = readCatalogPublicationSourceBytes(api, published.source_commit, deadline);
+        const previous = await readCatalogPublicationSourceBytesAsync(
+          sourceProvider,
+          published.source_commit,
+          deadline,
+        );
         if (!previous.request || previous.source.tree !== published.source_tree)
           return held(
             directory,
@@ -375,11 +788,11 @@ export async function runFixedCatalogCoordinatorConfiguration(
         inspection.inspection,
         files,
       );
-      const pins = authorities.catalog.public_source,
-        initialRaw = api.request("GET", `${repository}/git/commits/${pins.commit}`);
-      if (initialRaw.status !== 200)
-        throw new Error("appointed initial catalog source unavailable");
-      const initialCommit = inspectRemoteCommitObject(initialRaw.body, pins.commit),
+      const pins = authorities.catalog.public_source;
+      const initialCommit = inspectRemoteCommitObject(
+          await sourceProvider.commit(pins.commit),
+          pins.commit,
+        ),
         initial = { commit: pins.commit, tree: initialCommit.tree, root_sha256: pins.root.sha256 },
         initialization = inspectCatalogInitialization(input.catalog_initialization),
         seed = inspectPublishedCatalogMetadata(input.published_catalog_metadata);
@@ -394,11 +807,21 @@ export async function runFixedCatalogCoordinatorConfiguration(
             initialization.initial_site_preimage_sha256 !== pins.initial_site_preimage?.sha256))
       )
         throw new Error("catalog initialization differs from actual protected setup/source");
-      const changes = collectReleaseSourceChanges(api, {
-        base_commit: seed?.source_commit ?? initial.commit,
-        source_commit: source.source.commit,
-        source_tree: source.source.tree,
-      });
+      const changes = await collectReleaseSourceChangesWithSdk(
+        {
+          token: readerToken,
+          deadline,
+          maxBytes: 16 * 1024 ** 2,
+          requestTimeoutMs: 15000,
+          guard: checkDirectSource,
+          catalogComparison: true,
+        },
+        {
+          base_commit: seed?.source_commit ?? initial.commit,
+          source_commit: source.source.commit,
+          source_tree: source.source.tree,
+        },
+      );
       if (changes.base_tree !== (seed?.source_tree ?? initial.tree))
         throw new Error("catalog baseline raw Git tree differs");
       const opportunity = deriveCatalogCoordinatorOpportunity(
@@ -426,19 +849,31 @@ export async function runFixedCatalogCoordinatorConfiguration(
         pending ??
         createCatalogReviewRequest({
           before_checkpoint: recovered.checkpoint,
-          requested_at: new Date().toISOString(),
+          requested_at: reviewClaim?.clock ?? new Date().toISOString(),
           opportunity,
           core_inspection: core,
         });
-      const inventory = readIndependentCatalogSemanticCheckInventory(api, producer, sourceCommit),
+      const semanticReader = {
+        token: readerToken,
+        deadline,
+        guard: checkDirectSource,
+        maxBytes: 16 * 1024 ** 2,
+      };
+      const inventory = await readIndependentCatalogSemanticCheckInventoryWithSdk(
+          semanticReader,
+          producer,
+          sourceCommit,
+        ),
         matches = inspectCatalogSemanticRequestCheckMatches(inventory.records, request);
-      inventory.assertUnchanged();
+      await inventory.assertUnchanged();
       if (matches.negative.length && !pending)
         return held(
           directory,
           recovered.checkpoint,
           "exact catalog negative result awaits authenticated retirement",
         );
+      if (reviewClaim && (matches.accepted.length || matches.negative.length))
+        throw new Error("unsettled Chameleon claim cannot consume an independent decision");
       if (matches.accepted.length === 1 && !replacement) {
         const preparation = await prepareActualCoordinatorCatalogSigning(
           parent,
@@ -459,48 +894,15 @@ export async function runFixedCatalogCoordinatorConfiguration(
           "frozen catalog request awaits automatic independent semantic worker",
         );
       stage = "neutral-request-control-and-CAS";
-      const ready = path.join(directory, "ready-coordinator.json");
-      await writeFile(
-        ready,
-        `${JSON.stringify(prepareControlReadiness(reader.identity, capacityDigest({ checkpoint: recovered.checkpoint, request }), "coordinator"))}\n`,
-        { flag: "wx", mode: 0o600 },
-      );
-      await retainControlStepLocator(ready, "coordinator", 0);
-      const observation = await waitForControlArtifact(
-        directory,
-        "observation",
-        {
-          phase: "coordinator",
-          controller_revision: reader.admitted.revision,
-          controller_ref: reader.admitted.execution_ref,
-          run_id: reader.admitted.run_id,
-          run_attempt: reader.admitted.run_attempt,
-        },
-        {
-          deadline: Date.now() + Math.floor(deadline - performance.now()),
-          phaseDeadline: deadline,
-        },
-      );
-      const controls = await authenticateCatalogReleaseControlSource(process.env, workflow, {
-        phase: "coordinator",
-        deadline,
-        observedArtifact: observation,
-      });
-      requireAuthenticatedCatalogControlSource(controls, "coordinator");
-      if (controls.evidence_scope !== "github.com")
-        throw new Error("actual catalog controls required");
-      const observed = controls.readMaintenance(api),
-        stable = catalogCoordinatorMaintenanceIdentity(observed);
-      if (
-        observed.reader.job_id !== reader.identity.job_id ||
-        observed.reader.check_run_id !== reader.identity.check_run_id
-      )
-        throw new Error("catalog controls came from another job");
-      const publicationReader = createReleasePublicationReader(api),
-        tags = publicationReader.tags(),
-        releases = publicationReader.releases(),
-        allocations = publicationReader.readAllocations(tags, authorities.namespace).allocations;
-      const now = new Date().toISOString(),
+      const initialControls = await (earlyObservation ??
+        observeControls(capacityDigest({ checkpoint: recovered.checkpoint, request })));
+      const { controls, readMaintenance, observed, stable } =
+        await initialControls.currentControls();
+      const publicationReader = await openPublicationReader();
+      const tags = await publicationReader.tags();
+      const releases = await publicationReader.releases();
+      const { allocations } = await publicationReader.readAllocations(tags, authorities.namespace);
+      const now = reviewClaim?.clock ?? new Date().toISOString(),
         publication = deriveCoordinatorPublication(tags, releases, allocations, now);
       let frozen: NonNullable<ReturnType<typeof inspectCatalogReviewRequest>> | null = null,
         negativeReceipt: object | null = null,
@@ -527,12 +929,14 @@ export async function runFixedCatalogCoordinatorConfiguration(
           throw new Error("catalog negative checkpoint differs");
         next = retirement.input;
       } else {
-        frozen = createCatalogReviewRequest({
-          before_checkpoint: recovered.checkpoint,
-          requested_at: now,
-          opportunity,
-          core_inspection: core,
-        });
+        frozen = reviewClaim
+          ? request
+          : createCatalogReviewRequest({
+              before_checkpoint: recovered.checkpoint,
+              requested_at: now,
+              opportunity,
+              core_inspection: core,
+            });
         if (
           !isRecord(input.controller) ||
           !isRecord(input.controller.capacity_attempt) ||
@@ -552,7 +956,7 @@ export async function runFixedCatalogCoordinatorConfiguration(
             ? structuredClone(input.controller)
             : {
                 workflow: ".github/workflows/application-update-production.yml",
-                revision: reader.admitted.revision,
+                revision: reviewClaim?.original_revision ?? reader.admitted.revision,
                 publication_paused: observed.pause.publication_paused,
                 capacity_attempt: {
                   ...observed.capacity_source.capacity,
@@ -564,7 +968,14 @@ export async function runFixedCatalogCoordinatorConfiguration(
                 },
               },
         };
-        if (planReleaseOpportunity(next).action !== "catalog-review-request")
+        const planningClock = new Date().toISOString();
+        if (
+          planReleaseOpportunity({
+            ...next,
+            now: planningClock,
+            publication: { ...publication, observed_at: planningClock },
+          }).action !== "catalog-review-request"
+        )
           return held(
             directory,
             recovered.checkpoint,
@@ -572,7 +983,7 @@ export async function runFixedCatalogCoordinatorConfiguration(
           );
       }
       const fresh = await readRemoteCoordinatorSnapshot(directory, selected.remote_configuration, {
-        transport: { cwd: directory, deadline },
+        transport: journalTransport,
       });
       if (fresh.checkpoint !== recovered.checkpoint)
         throw new Error("catalog journal advanced before neutral request CAS");
@@ -585,26 +996,36 @@ export async function runFixedCatalogCoordinatorConfiguration(
         authority: process.env.PORTCOVE_CATALOG_AUTHORITIES,
         admission: process.env.PORTCOVE_CATALOG_CONTROLLER_ADMISSION,
       };
-      const beforeMutation = () => {
-        check();
+      const requireSelectedEnvironment = () => {
         if (
           process.env.PORTCOVE_CATALOG_AUTHORITIES !== environment.authority ||
-          process.env.PORTCOVE_CATALOG_CONTROLLER_ADMISSION !== environment.admission ||
-          (!pending && mainHead() !== sourceCommit)
+          process.env.PORTCOVE_CATALOG_CONTROLLER_ADMISSION !== environment.admission
         )
           throw new Error("catalog source/configuration changed before mutation");
-        const currentTags = publicationReader.tags(),
-          currentReleases = publicationReader.releases(),
-          currentAllocations = publicationReader.readAllocations(
+      };
+      const beforeMutation = async () => {
+        check();
+        requireSelectedEnvironment();
+        if (!pending && !reviewClaim && (await mainHead()) !== sourceCommit)
+          throw new Error("catalog source/configuration changed before mutation");
+        const currentTags = await publicationReader.tags(),
+          currentReleases = await publicationReader.releases(),
+          { allocations: currentAllocations } = await publicationReader.readAllocations(
             currentTags,
             authorities.namespace,
-          ).allocations;
+          );
+        // The signing exchange owns and verifies this predecessor's intent.
+        // Its creation must not invalidate the separate publication inventory.
+        const ownIntent = `${authorities.namespace}-checkpoint-intent/${recovered.checkpoint}`;
+        const signedJournal = inspectSelectedJournalRequirement(process.env);
+        const publicationTags = (inventory: typeof tags) =>
+          signedJournal ? inventory.filter(({ name }) => name !== ownIntent) : inventory;
         if (
           capacityDigest({
-            tags: currentTags,
+            tags: publicationTags(currentTags),
             releases: currentReleases,
             allocations: currentAllocations,
-          }) !== capacityDigest({ tags, releases, allocations })
+          }) !== capacityDigest({ tags: publicationTags(tags), releases, allocations })
         )
           throw new Error(
             "publication inventory/allocations changed before catalog semantic mutation",
@@ -613,51 +1034,133 @@ export async function runFixedCatalogCoordinatorConfiguration(
           if (
             !pending ||
             capacityDigest(
-              discoverIndependentCatalogSemanticDisposition(api, producer, pending),
+              await discoverIndependentCatalogSemanticDispositionWithSdk(
+                semanticReader,
+                producer,
+                pending,
+              ),
             ) !== negativeProof
           )
             throw new Error("catalog negative selected proof changed before mutation");
         }
-        if (catalogCoordinatorMaintenanceIdentity(controls.readMaintenance(api)) !== stable)
+        if (reviewClaim) {
+          const currentClock = new Date().toISOString();
+          const currentPublication = deriveCoordinatorPublication(
+            currentTags,
+            currentReleases,
+            currentAllocations,
+            currentClock,
+          );
+          if (
+            planReleaseOpportunity({ ...next, now: currentClock, publication: currentPublication })
+              .action !== "catalog-review-request"
+          )
+            throw new Error(
+              "retained Chameleon review request no longer has current scheduling eligibility",
+            );
+        }
+        if (catalogCoordinatorMaintenanceIdentity(await readMaintenance()) !== stable)
           throw new Error("catalog maintenance changed before neutral request mutation");
+        requireSelectedEnvironment();
         check();
       };
-      const journal = createCoordinatorJournalApi(directory, deadline),
-        guarded = {
-          request: (...args: Parameters<typeof journal.request>) => {
-            check();
-            if (args[0] !== "GET") beforeMutation();
-            const result = journal.request(...args);
-            check();
-            return result;
-          },
-          graphql: (...args: Parameters<typeof journal.graphql>) => {
-            check();
-            if (/^\s*mutation\b/u.test(args[0])) beforeMutation();
-            const result = journal.graphql(...args);
-            check();
-            return result;
-          },
-        };
+      const checkpointControls = async () => {
+        await beforeMutation();
+      };
       if (negativeReceipt) await requireActualCatalogReviewDisposition(negativeReceipt, deadline);
-      const persisted = await checkpointReleaseOpportunity(
-        recovered.repository,
-        recovered.checkpoint,
-        next,
-      );
-      await publishCoordinatorCheckpoint(
-        recovered.repository,
-        persisted.checkpoint,
-        selected.remote_configuration,
-        { api: guarded },
-      );
-      const readback = await readRemoteCoordinatorSnapshot(
-        directory,
-        selected.remote_configuration,
-        { transport: { cwd: directory, deadline } },
-      );
+      let readback;
+      if (reviewClaim) {
+        stage = "retained-chameleon-review-claim";
+        const assertOriginalCustody = async () => {
+          const [intent, proof] = await Promise.all([
+            sourceProvider.versionTag(
+              `portcove-production-checkpoint-intent/${reviewClaim.previous}`,
+            ),
+            sourceProvider.versionTag(`portcove-production-checkpoint-proof/${reviewClaim.child}`),
+          ]);
+          if (
+            intent.kind !== "present" ||
+            !isRecord(intent.data) ||
+            intent.data.ref !==
+              `refs/tags/portcove-production-checkpoint-intent/${reviewClaim.previous}` ||
+            !isRecord(intent.data.object) ||
+            intent.data.object.type !== "commit" ||
+            intent.data.object.sha !== reviewClaim.child ||
+            proof.kind !== "absent"
+          )
+            throw new Error("retained Chameleon review intent or proof changed");
+        };
+        const [run, job] = await Promise.all([
+          sourceProvider.attempt(reviewClaim.original_run, 1),
+          sourceProvider.job(reviewClaim.original_job),
+        ]);
+        if (
+          !isRecord(run) ||
+          run.id !== Number(reviewClaim.original_run) ||
+          run.run_attempt !== 1 ||
+          run.event !== "workflow_dispatch" ||
+          run.path !== ".github/workflows/application-update-production.yml" ||
+          run.head_sha !== reviewClaim.original_revision ||
+          run.head_branch !== reviewClaim.original_ref.slice("refs/tags/".length) ||
+          run.status !== "completed" ||
+          run.conclusion !== "failure" ||
+          !isRecord(run.actor) ||
+          run.actor.id !== 41898282 ||
+          !isRecord(run.triggering_actor) ||
+          run.triggering_actor.id !== 41898282 ||
+          !isRecord(job) ||
+          job.id !== reviewClaim.original_job ||
+          job.run_id !== Number(reviewClaim.original_run) ||
+          job.run_attempt !== 1 ||
+          job.name !== "Coordinate application release" ||
+          job.head_sha !== reviewClaim.original_revision ||
+          job.status !== "completed" ||
+          job.conclusion !== "failure"
+        )
+          throw new Error("retained Chameleon review producer differs");
+        await assertOriginalCustody();
+        const retained = await hydrateRetainedCoordinatorCheckpoint(
+          recovered.repository,
+          reviewClaim.child,
+          { provider: sourceProvider },
+        );
+        const object = exportRetainedCoordinatorCheckpoint(recovered.repository, reviewClaim.child);
+        if (
+          object.previous !== reviewClaim.previous ||
+          object.tree.oid !== reviewClaim.tree ||
+          createHash("sha256").update(object.blob.contents).digest("hex") !==
+            reviewClaim.state_sha256 ||
+          frozen?.request_id !== reviewClaim.request_id ||
+          capacityDigest(retained.input) !== capacityDigest(next)
+        )
+          throw new Error("retained Chameleon review exact state or request differs");
+        const executor = await authenticateCoordinatorExecutor();
+        await authenticateOwnedCheckpointJournalHistory(
+          executor,
+          recovered.repository,
+          reviewClaim.previous,
+          reviewClaim.child,
+        );
+        await stageRetainedCoordinatorClaim(
+          recovered.repository,
+          reviewClaim.previous,
+          reviewClaim.child,
+        );
+        await publishOwnedSignedCoordinatorCheckpoint(
+          executor,
+          recovered.repository,
+          reviewClaim.child,
+          checkpointControls,
+        );
+        readback = await readRemoteCoordinatorSnapshot(directory, selected.remote_configuration, {
+          transport: journalTransport,
+        });
+        if (readback.checkpoint !== reviewClaim.child)
+          throw new Error("retained Chameleon review journal readback differs");
+      } else {
+        readback = await publishCheckpoint(next, checkpointControls);
+      }
       if (
-        readback.checkpoint !== persisted.checkpoint ||
         capacityDigest(inspectCatalogReviewRequest(readback.input.catalog_review_request)) !==
           capacityDigest(frozen) ||
         (negativeReceipt &&
@@ -686,6 +1189,52 @@ export async function runFixedCatalogCoordinatorConfiguration(
         automatic_retry: false,
       };
     } catch (error) {
+      let exchange;
+      if (
+        [
+          "standalone-application-bootstrap-CAS",
+          "retained-chameleon-review-claim",
+          "neutral-request-control-and-CAS",
+        ].includes(stage) &&
+        error instanceof CoordinatorRemoteError &&
+        isRecord(error.evidence)
+      ) {
+        exchange = inspectCatalogCheckpointRefusal(error.evidence);
+        const child = error.evidence.checkpoint;
+        if (exchange && typeof child === "string" && /^[a-f0-9]{40}$/u.test(child)) {
+          try {
+            const bytes = await readControllerToolFile(
+              path.join(directory, `checkpoint-signing-${child}`, "signing-failure.json"),
+              1024,
+            );
+            const failure: unknown = JSON.parse(bytes.toString("utf8"));
+            if (
+              isRecord(failure) &&
+              failure.schema_version === 1 &&
+              failure.completed === false &&
+              failure.automatic_retry === false &&
+              failure.recovery_required === true &&
+              failure.provider_error_text_retained === false
+            ) {
+              if (failure.phase === "identity" && failure.remote_effect === "not-attempted")
+                exchange.signer = "identity-not-attempted";
+              if (failure.phase === "signing" && failure.remote_effect === "unknown") {
+                exchange.signer = "signing-effect-unknown";
+                const progress = inspectCheckpointSigningProgress(failure.transport);
+                if (progress) exchange.signer_progress = progress;
+              }
+            }
+          } catch {
+            // The exchange phase remains available when signer custody was never created.
+          }
+        }
+      }
+      await retainCatalogCoordinatorRefusal(
+        process.env.RUNNER_TEMP ?? "",
+        "operation",
+        stage,
+        exchange,
+      ).catch(() => {});
       await writeFile(
         path.join(directory, "refusal.json"),
         JSON.stringify({ stage, authority: "none", automatic_retry: false }),

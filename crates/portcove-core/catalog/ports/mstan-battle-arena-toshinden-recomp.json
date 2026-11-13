@@ -6,6 +6,7 @@
     "summary": "Register your permitted noncommercial prepared Battle Arena Toshinden Windows player with your own USA original and preserved external data.",
     "project_url": "https://github.com/mstan/BattleArenaToshindenRecomp",
     "issue_number": 826,
+    "listed_at": "2026-10-23",
     "platforms": [],
     "availability": "unknown",
     "setup_url": "https://github.com/mstan/BattleArenaToshindenRecomp",
@@ -34,12 +35,12 @@
           "instruction": "Choose build-release/BattleArenaToshinden_Recompiled.exe, with its containing completed product folder as the working directory. Do not choose the zip-root/setup-host executable: setup-host forwarding runs before argument parsing, so --no-launcher alone does not bypass it."
         },
         {
-          "title": "Preserve your established source and save coordinates",
+          "title": "Keep your existing original-file and save paths",
           "instruction": "For the ordinary direct route use three literal argument tokens: --no-launcher, --disc, and the absolute path to your supported USA CUE. Keep spaces inside the CUE path token. Preserve the working copy's existing BIOS choice, card/state/settings and custom locations. Do not add a new --memcard-dir merely to register: it clears explicit custom slot paths. Retain that override only if it was already part of your established working invocation, with its exact existing directory."
         },
         {
           "title": "Review, consent, Play and preserve ownership",
-          "instruction": "Review the exact executable, working directory and literal arguments and consent to that execution intent. Registration does not start the game; choose Play separately. Portcove retains registration/relink across restart and observes the selected process. Upstream/player own preparation, repair and runtime replacement. Close every actual player and preserve all files before upstream changes. Removing the registration removes only Portcove metadata and preserves every external file."
+          "instruction": "Review the game program, start folder and launch arguments. Add the game, then choose Play. Portcove retains registration/relink across restart and observes the selected process. Upstream/player own preparation, repair and runtime replacement. Close every actual player and preserve all files before upstream changes. Removing the registration removes only Portcove metadata and preserves every external file."
         }
       ],
       "warnings": [

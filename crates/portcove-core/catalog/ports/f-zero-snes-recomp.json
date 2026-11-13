@@ -5,7 +5,8 @@
     "id": "f-zero-snes-recomp",
     "name": "F-Zero SNES Recomp",
     "summary": "Native F-Zero recompilation.",
-    "project_url": "https://github.com/mstan/FZeroSNESRecomp",
+    "project_url": "https://github.com/RetroPortingToolKit/FZeroSNESRecomp",
+    "listed_at": "2026-10-23",
     "original_game_title": "F-Zero",
     "variant_label": "SNES",
     "artwork": {
@@ -27,7 +28,7 @@
     "manually_validated_platforms": [],
     "release": {
       "provider": "github",
-      "repository": "mstan/FZeroSNESRecomp",
+      "repository": "RetroPortingToolKit/FZeroSNESRecomp",
       "asset_hints": {
         "windows-x86-64": ["FZeroSNESRecomp-", "-windows-x64.zip"]
       }
@@ -76,5 +77,64 @@
       }
     ],
     "windows_runtime_path_policy": "printable-ascii-max-path"
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "f-zero-snes",
+    "origin": {
+      "project_url": "https://github.com/mstan/FZeroSNESRecomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1348026644"
+      }
+    },
+    "decisions": [
+      {
+        "from": {
+          "project_url": "https://github.com/mstan/FZeroSNESRecomp",
+          "repository": {
+            "host": "github.com",
+            "id": "1348026644"
+          }
+        },
+        "to": {
+          "project_url": "https://github.com/RetroPortingToolKit/FZeroSNESRecomp",
+          "repository": {
+            "host": "github.com",
+            "id": "1348026644"
+          }
+        },
+        "relationship": "relocation",
+        "outcome": "accepted",
+        "rationale": "The former path returns HTTP 301 to numeric repository ID 1348026644, which is the repository identity the reviewed v1.8.3 release pin already binds, and the current RetroPortingToolKit path resolves to that same identity. The reviewed release 393440319 and Windows asset 580473673 keep their identities, size and SHA-256 at the new path. Every commit reachable from the repository's published branches and tags records the same author email, including the v1.8.3 release commit and the earliest recorded merge from a RetroPortingToolKit branch on 2026-10-30.",
+        "evidence": [
+          {
+            "kind": "supporting",
+            "reference": "https://github.com/boburning/portcove/actions/runs/42721674877",
+            "note": "Read-only relocation evidence at RetroPortingToolKit/FZeroSNESRecomp: repository ID 1348026644; release 393440319 for v1.8.3 with unchanged release facts; asset 580473673 FZeroSNESRecomp-1.8.3-windows-x64.zip with size 8247843 and SHA-256 4a97edf9478501ad15d5f66403298e5c983d69558b1839017acbba5c58efe658."
+          },
+          {
+            "kind": "supporting",
+            "reference": "https://github.com/boburning/portcove/actions/runs/42664975992",
+            "note": "Observer relocation candidates recorded the former path's HTTP 301 to repository ID 1348026644 and the current name without following the redirect."
+          },
+          {
+            "kind": "supporting",
+            "reference": "https://github.com/RetroPortingToolKit/FZeroSNESRecomp/commit/c70e790e222600a3c4e79081f3f6371732746815",
+            "note": "Merge of pull request #18, the earliest recorded merge from a RetroPortingToolKit branch, records the same author email as all earlier history, including v1.8.3 at 1686df46d4fc7c22b5dc8fdfaa5282ca4bd78562."
+          },
+          {
+            "kind": "context",
+            "reference": "https://github.com/RetroPortingToolKit/FZeroSNESRecomp/releases/tag/v0.14.1",
+            "note": "A later release, v0.14.1, publishes a differently named F-Zero Forever product line whose assets do not match the reviewed selector; this relocation does not review or adopt that line."
+          }
+        ],
+        "reconsider_when": "Reassess if either path resolves to a different provider identity, the reviewed v1.8.3 release or asset identity changes, or attributable contradictory continuity evidence appears.",
+        "review": {
+          "reference": "https://github.com/boburning/portcove/issues/4784#issuecomment-6754694074",
+          "decision_sha256": "860cdffb940734ac808631f6083c6c7e846961c626ba8b76500cf6200a7936e6"
+        }
+      }
+    ]
   }
 }

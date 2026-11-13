@@ -25,7 +25,7 @@ successful test receipts. See [development storage](../DEVELOPMENT-STORAGE.md#bo
 for portable defaults and the private strict Windows profile.
 
 `just audit` executes the canonical frontend static group, Rust, the frontend runtime group, script-lint, repository-tooling, Roadmap,
-development-tool, dependency-policy, rscheck, release-unit, and applicable
+development-tool, dependency-policy, Rust path portability, release-unit, and applicable
 Windows-qualification stages. It continues independent stages after a failure
 and returns one aggregate failure so a late problem does not hide remaining
 results. `just audit --plan` reports each run/reuse decision without executing a
@@ -132,7 +132,7 @@ Deterministic failures block: rustfmt, Cargo compilation, Clippy, tests,
 type-aware Oxlint, Oxfmt, Stylelint, Ruff, ShellCheck, actionlint,
 PSScriptAnalyzer, cargo-shear, cargo-deny security/license/source policy, the
 Cargo-metadata architecture checker, the retained whole-Desktop Fallow policy
-when selected, and rscheck's absolute-path rule outside reviewed exceptions.
+when selected, and the Rust path-portability rule outside reviewed exceptions.
 
 Oxlint uses one root configuration for the desktop TypeScript/TSX and the
 repository's maintained TypeScript tooling, tests and configuration files. Its explicit plugin list includes ESLint,
@@ -221,6 +221,27 @@ need their owner-layer presentation tests and review; this static check is not a
 proof of all rendered wording or of translation quality.
 
 Structural heuristics advise: dependency duplication, unmaintained transitive dependencies, complexity, responsibility splits, god objects, duplicate logic, dead public APIs, semantic duplication, and mutation survivors. Do not refactor simply to make an advisory number green.
+
+## Rust path portability
+
+`just rust-portability` runs the regression tests and syntax-based check over
+Git-enumerated Rust source under `crates/` and `apps/desktop/src-tauri/`. It
+reports unreviewed absolute Unix, Windows drive, and UNC string literals with
+their locations. Keep existing legitimate host paths and exact fixture values
+in the checker's policy module. The check covers string literals in parsed Rust
+syntax and preserves the previous exclusions for comments, opaque macro tokens,
+and recognized route or pattern literals. Failed source inventory or syntax
+parsing fails the gate. Required Rust quality runs the scan for Rust changes
+and both the scan and its regressions during qualification.
+
+The archived scanner's only effective blocking rule was absolute paths. Its
+complexity, duplicate-logic, responsibility-split, and god-object advisories
+are retired. They produced 180 heuristic findings in the reviewed November 11
+run and had no required response. Module qualification was informational.
+Dependency, API, and layer rules supplied no configured blocking policy.
+Existing Cargo architecture, dependency-security, Clippy, and optional
+investigation routes retain their independent roles. The replacement builds
+with the normal Cargo lockfile and adds no registry package.
 
 ## Focused Rust properties and mutation experiments
 
@@ -672,16 +693,14 @@ resolution. Repository signatures, package checksums, bounded acquisition and
 every required test remain enforced.
 
 CI installs the small prebuilt Rust tool set through the commit-pinned installer
-action, restores source-built rscheck from an exact-version cache when available,
-and verifies every exact version before running a gate. An rscheck cache miss
-falls back to the same pinned installer. Required Linux CI obtains the pinned
+action and verifies exact versions before running a gate. Required Linux CI obtains the pinned
 aqua release from its commit-pinned official action, then uses the same bootstrap
 and checksum enforcement as local development. Windows CI installs the pinned
 PSScriptAnalyzer resource through PSResourceGet. The local bootstrap scripts use
 cargo-binstall when available and exact, locked Cargo installs otherwise;
 optional deep tools remain outside required PR CI.
 
-Required CI cancels an older in-progress run when a newer commit reaches the same branch or pull request. This keeps obsolete Windows builds from occupying the queue while preserving a complete run for the newest commit.
+Required CI cancels an older in-progress run when a newer commit reaches the same branch. A pull request run has its own concurrency group so a replacement starts at once instead of waiting for the superseded run's gate jobs to drain; the separate `Cancel superseded CI runs` workflow cancels the runs of that pull request that are older than the run for the new head, so a late event or two close pushes can never cancel the newest run. That cancellation is best effort: a fork pull request's read-only token cannot cancel, so its superseded runs finish. This keeps obsolete Windows builds from occupying the queue while preserving a complete run for the newest commit.
 
 Routine Renovate traffic is bounded to six concurrent branches and pull requests.
 This provides proposal headroom for blocked updates while the maintenance route
@@ -1138,8 +1157,9 @@ and explicit readback remain authoritative after every event.
 
 The `intel-rust-tests-<attempt>` archive transfers compiled tests from the Apple
 Silicon producer to both Intel test partitions. It is not a release artifact.
-`Cleanup consumed Intel transfers` runs trusted default-branch code after CI,
-qualification or release completion and hourly. Completion events inspect the
+`Cleanup consumed Intel transfers` runs trusted default-branch code after
+qualification or release completion and hourly. Direct pull request and push CI runs
+execute fast mode and produce no Intel transfers, so they do not trigger it. Completion events inspect the
 triggering run's artifacts only; hourly cleanup and manual dispatch without a run
 ID sweep exact names `intel-rust-tests-1` through `intel-rust-tests-4`. That is
 bounded recovery, not an exhaustive repository artifact inventory. A later
@@ -1357,8 +1377,8 @@ Schema validation supplements the repository's rule/extraction/classifier tests;
 it does not prove effective inherited grouping or hosted proposal uptake. Inspect
 resolved presets and rule precedence with the matching official engine, then read
 back actual hosted proposals after delivery. The validator pin is a validation
-client, not a new runtime dependency or tool manager. Deliberately excluded Aqua
-registry and rusqlite authorities retain their existing reviewed resume conditions.
+client, not a new runtime dependency or tool manager. The deliberately excluded
+Aqua registry authority retains its existing reviewed resume condition.
 Renovate proposes repository dependency changes; it cannot accept game releases,
 successor repositories, catalog artifacts or changed trust policy.
 

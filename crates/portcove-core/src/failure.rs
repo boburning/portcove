@@ -91,11 +91,69 @@ pub(crate) struct FailureContext {
     preparation_cause: Option<PreparationFailureCause>,
     preparation_target: Option<PreparationTarget>,
     known_cause: Option<KnownFailureCause>,
+    upstream: Option<UpstreamObservation>,
+}
+
+/// Transport facts recorded where an upstream request failed. They classify
+/// acquisition failover (#1306) and never change presentation.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum UpstreamObservation {
+    /// The connection could not be established or a timeout budget expired.
+    Transport { timed_out: bool },
+    /// The upstream answered with this non-success HTTP status.
+    Status(u16),
+}
+
+/// How an upstream acquisition failure relates to preserved-location failover.
+/// Only `Unavailable` permits it; every other class keeps today's behavior.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum UpstreamFailure {
+    /// The upstream or its asset is gone or unreachable.
+    Unavailable,
+    /// Authentication, authorization or rate limiting refused the request.
+    Forbidden,
+    /// The upstream answered with identity that differs from the accepted record.
+    Disagreement,
+    Other,
+}
+
+impl UpstreamObservation {
+    /// Timeouts, and connect failures with a concrete socket-level cause.
+    /// Proxy-tunnel and TLS failures also surface as connect errors but carry
+    /// no such cause, so they never count as upstream disappearance.
+    pub(crate) fn from_reqwest(error: &reqwest::Error) -> Option<Self> {
+        if error.is_timeout() {
+            return Some(Self::Transport { timed_out: true });
+        }
+        (error.is_connect() && socket_unreachable(error))
+            .then_some(Self::Transport { timed_out: false })
+    }
+}
+
+fn socket_unreachable(error: &(dyn std::error::Error + 'static)) -> bool {
+    use std::io::ErrorKind;
+    std::iter::successors(Some(error), |error| error.source()).any(|error| {
+        error.downcast_ref::<std::io::Error>().is_some_and(|io| {
+            matches!(
+                io.kind(),
+                ErrorKind::ConnectionRefused
+                    | ErrorKind::ConnectionReset
+                    | ErrorKind::ConnectionAborted
+                    | ErrorKind::TimedOut
+                    | ErrorKind::HostUnreachable
+                    | ErrorKind::NetworkUnreachable
+            )
+        })
+    })
 }
 
 /// Facts attached at the refusing domain branch, never recovered from diagnostics.
 #[derive(Debug)]
 pub(crate) enum KnownFailureCause {
+    /// No operating-system secure credential store is available on this host.
+    CredentialStoreUnavailable,
+    /// The secure credential store exists but is locked or refused access.
+    CredentialStoreLocked,
     HostLocalCredential {
         path: std::path::PathBuf,
     },
@@ -105,6 +163,7 @@ pub(crate) enum KnownFailureCause {
     IncompleteLibrary,
     Busy,
     CancellationUnavailable,
+    OperationInterrupted,
     RequiredRuntimeUnverified,
     SourceChanged,
     AmbiguousAdoption,
@@ -125,10 +184,26 @@ pub(crate) enum KnownFailureCause {
         directory: std::path::PathBuf,
     },
     DestinationCapacity,
+    MetadataExportExists,
     ArchiveLimit,
     UnicodePath,
     RuntimePathRequirement,
     UnsupportedStfs,
+    /// The selected file is not a disc image the read-only readers accept.
+    UnsupportedDiscImage,
+    /// A disc image exceeded a fixed unpacking safety limit.
+    DiscImageLimit,
+    /// The disc is a different game or region than the port requires.
+    DiscProductMismatch {
+        found: String,
+        expected: Vec<String>,
+    },
+    /// Unpacking would not fit on the destination volume.
+    DiscSpace {
+        required_bytes: u64,
+        available_bytes: u64,
+        volume: String,
+    },
     DeviceLoginUnavailable,
     ProviderRequest {
         provider: FailureProvider,
@@ -144,6 +219,11 @@ pub(crate) enum FailureProvider {
     Gitlab,
 }
 
+fn decimal_gigabytes(bytes: u64) -> String {
+    let tenths = bytes.saturating_add(50_000_000) / 100_000_000;
+    format!("{}.{} GB", tenths / 10, tenths % 10)
+}
+
 impl KnownFailureCause {
     fn presentation(&self) -> (&'static str, String) {
         let (key, summary) = match self {
@@ -151,11 +231,19 @@ impl KnownFailureCause {
                 return (
                     "host_local_credential_transfer_refused",
                     format!(
-                        "Portcove cannot transfer this file because its name is reserved for RetroAchievements sign-in. Sign out in that installed version and close it before retrying. If it cannot run, preserve the listed file privately on this Windows host and remove it manually from the listed transfer or recovery tree. Temporary credential files can remain after sign-out and need the same treatment. Do not upload these files.\nFile to preserve or remove: {}",
+                        "Portcove stopped the transfer because this file may contain RetroAchievements sign-in information. Do not upload it.\n1. If possible, sign out in the affected game version, then close it.\n2. If the file remains, keep a private copy on this Windows computer outside the Portcove folders.\n3. Remove only the listed file from the transfer or recovery folder. Review the transfer again.\nFile: {}",
                         path.display()
                     ),
                 );
             }
+            Self::CredentialStoreUnavailable => (
+                "credential_store_unavailable",
+                "This device has no secure credential storage that Portcove can use, so Portcove can't read or save the credential this task needs. On Linux, sign in to a desktop session where a keyring service such as GNOME Keyring or KWallet is running, then try again.",
+            ),
+            Self::CredentialStoreLocked => (
+                "credential_store_locked",
+                "Secure credential storage on this device is locked or refused access, so Portcove can't read or save the credential this task needs. Unlock it or allow access, for example to your login keyring or keychain, then try again.",
+            ),
             Self::CatalogValidity => (
                 "catalog_validity_rejected",
                 "The signed catalog sequence or validity period was not accepted. Check the system clock and obtain a current catalog from its configured source.",
@@ -174,15 +262,19 @@ impl KnownFailureCause {
             ),
             Self::Busy => (
                 "target_busy",
-                "Another Portcove operation or process is using this target. Wait for it to finish, then review the current state before trying again.",
+                "Another task or program is using these files. Check Activity in Portcove and close the game if it’s open. Review the action again when the other task has finished.",
             ),
             Self::SourceChanged => (
                 "registered_source_changed",
-                "The game files have changed since registration. Review and verify the current files, then register the accepted source again before using it.",
+                "These files have changed since you added them. To use the changed files, add them again so Portcove can check them.",
             ),
             Self::CancellationUnavailable => (
                 "cancellation_unavailable",
                 "Cancellation is unavailable for this operation's current state. Review its current activity and result before taking another action.",
+            ),
+            Self::OperationInterrupted => (
+                "operation_interrupted",
+                "Portcove stopped before this task finished. Review the current state before trying again.",
             ),
             Self::RequiredRuntimeUnverified => (
                 "required_runtime_unverified",
@@ -194,7 +286,7 @@ impl KnownFailureCause {
             ),
             Self::StaleRemoval => (
                 "removal_review_stale",
-                "The managed installations changed after removal was reviewed. Review the current removal plan and provide fresh consent.",
+                "The installations changed after the removal review. Check the updated removal details before confirming again.",
             ),
             Self::PortableRuntimeModified {
                 directory,
@@ -247,11 +339,11 @@ impl KnownFailureCause {
             }
             Self::RestoreRecovery => (
                 "restore_recovery_required",
-                "A backup restore is unfinished. Restart Portcove to reconcile it, then review recovery before launching or collecting saves. Preserve the backup and safety copy.",
+                "A backup restore is unfinished. Keep the backup and any safety copy. Reopen Portcove and check the recovery result before playing or backing up saves again.",
             ),
             Self::BackupDeletionRecovery => (
                 "backup_deletion_recovery_required",
-                "A backup deletion is unfinished. Restart Portcove to retry recovery; if it remains held, review doctor output before further changes.",
+                "A backup deletion is unfinished. Reopening Portcove may finish deleting that backup. If it remains unfinished, check the recovery instructions in portcove doctor before changing other files.",
             ),
             Self::TfePreparationRecovery { directory } => {
                 return (
@@ -262,6 +354,10 @@ impl KnownFailureCause {
                     ),
                 );
             }
+            Self::MetadataExportExists => (
+                "metadata_export_exists",
+                "Portcove kept the existing file. Choose a new filename to export library information.",
+            ),
             Self::DestinationCapacity => (
                 "destination_space_insufficient",
                 "The prepared files cannot fit in the available destination space. Free space or select a suitable destination, then review the operation again.",
@@ -272,7 +368,7 @@ impl KnownFailureCause {
             ),
             Self::UnicodePath => (
                 "path_not_representable",
-                "This path cannot be represented by Portcove's Unicode path contract. Select a path with a valid Unicode name; a lossy replacement cannot identify the original files safely.",
+                "Portcove can’t read this file or folder name correctly. Choose a location with a valid Unicode name so Portcove can identify the exact files.",
             ),
             Self::RuntimePathRequirement => (
                 "runtime_path_requirement",
@@ -282,6 +378,37 @@ impl KnownFailureCause {
                 "stfs_format_unsupported",
                 "This source is not a supported read-only Xbox LIVE STFS package. Select the required original package format and review the source again.",
             ),
+            Self::UnsupportedDiscImage => (
+                "disc_image_unsupported",
+                "Portcove can’t read this disc image safely. Select an unmodified original image in a supported format, then review the source again.",
+            ),
+            Self::DiscImageLimit => (
+                "disc_image_limit",
+                "This disc image is larger or more complex than Portcove will unpack safely. Select an unmodified original image; do not use partly unpacked files.",
+            ),
+            Self::DiscProductMismatch { found, expected } => {
+                return (
+                    "disc_product_mismatch",
+                    format!(
+                        "This disc is a different game or region (found {found}, needs {}). Select the matching disc image.",
+                        expected.join(" or ")
+                    ),
+                );
+            }
+            Self::DiscSpace {
+                required_bytes,
+                available_bytes,
+                volume,
+            } => {
+                return (
+                    "disc_space_insufficient",
+                    format!(
+                        "Unpacking needs {} free on {volume} ({} free). Free some space or choose another location, then try again.",
+                        decimal_gigabytes(*required_bytes),
+                        decimal_gigabytes(*available_bytes)
+                    ),
+                );
+            }
             Self::DeviceLoginUnavailable => (
                 "device_login_unavailable",
                 "GitHub device sign-in is unavailable in this build. Use the offered token sign-in, or continue anonymously where supported.",
@@ -382,6 +509,41 @@ impl PortcoveError {
     pub(crate) fn with_known_cause(mut self, cause: KnownFailureCause) -> Self {
         self.failure.known_cause = Some(cause);
         self
+    }
+
+    pub(crate) fn with_upstream(mut self, observation: Option<UpstreamObservation>) -> Self {
+        if observation.is_some() {
+            self.failure.upstream = observation;
+        }
+        self
+    }
+
+    /// Classify this failure for preserved-location failover from recorded facts
+    /// only, never from message text.
+    pub(crate) fn upstream_failure(&self) -> UpstreamFailure {
+        let (status, rate_limited) = match (&self.failure.known_cause, self.failure.upstream) {
+            (
+                Some(KnownFailureCause::ProviderRequest {
+                    status,
+                    rate_limited,
+                    ..
+                }),
+                _,
+            ) => (Some(*status), *rate_limited),
+            (_, Some(UpstreamObservation::Status(status))) => (Some(status), false),
+            (_, Some(UpstreamObservation::Transport { .. })) => {
+                return UpstreamFailure::Unavailable;
+            }
+            _ => (None, false),
+        };
+        match status {
+            _ if rate_limited => UpstreamFailure::Forbidden,
+            Some(401 | 403 | 407 | 429) => UpstreamFailure::Forbidden,
+            Some(404 | 410) => UpstreamFailure::Unavailable,
+            Some(_) => UpstreamFailure::Other,
+            None if self.code == crate::ErrorCode::Verification => UpstreamFailure::Disagreement,
+            None => UpstreamFailure::Other,
+        }
     }
 
     /// The publication owner supplies its observed successful metadata commit.
@@ -506,10 +668,23 @@ impl PortcoveError {
             _ => None,
         };
         let mut recovery_actions = self.failure.recovery_actions.clone();
+        // A credential store that could not be used before anything changed has
+        // a device step in its summary; there is no operation state to review.
+        let nothing_to_review = self.failure.mutation_state == MutationState::NoChanges
+            && matches!(
+                self.failure.known_cause,
+                Some(
+                    KnownFailureCause::CredentialStoreUnavailable
+                        | KnownFailureCause::CredentialStoreLocked
+                )
+            );
         for action in [
             RecoveryAction::ReviewCurrentState,
             RecoveryAction::ViewTechnicalDetails,
         ] {
+            if action == RecoveryAction::ReviewCurrentState && nothing_to_review {
+                continue;
+            }
             if !recovery_actions.contains(&action) {
                 recovery_actions.push(action);
             }
@@ -681,3 +856,94 @@ fn diagnostic_secret_length(after: &str) -> usize {
 #[cfg(test)]
 #[path = "failure_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+mod upstream_classification_tests {
+    use super::*;
+
+    fn provider(status: u16, rate_limited: bool) -> PortcoveError {
+        PortcoveError::network("provider").with_known_cause(KnownFailureCause::ProviderRequest {
+            provider: FailureProvider::Github,
+            status,
+            rate_limited,
+            resets_at: None,
+        })
+    }
+
+    #[test]
+    fn only_recorded_unavailability_permits_preserved_failover() {
+        let transport = |timed_out| {
+            PortcoveError::network("no connection")
+                .with_upstream(Some(UpstreamObservation::Transport { timed_out }))
+        };
+        let bytes = |status| {
+            PortcoveError::network("bytes").with_upstream(Some(UpstreamObservation::Status(status)))
+        };
+        for (error, expected) in [
+            (provider(404, false), UpstreamFailure::Unavailable),
+            (provider(410, false), UpstreamFailure::Unavailable),
+            (bytes(404), UpstreamFailure::Unavailable),
+            (bytes(410), UpstreamFailure::Unavailable),
+            (transport(false), UpstreamFailure::Unavailable),
+            (transport(true), UpstreamFailure::Unavailable),
+            (provider(401, false), UpstreamFailure::Forbidden),
+            (provider(403, false), UpstreamFailure::Forbidden),
+            (provider(403, true), UpstreamFailure::Forbidden),
+            (provider(429, false), UpstreamFailure::Forbidden),
+            // A rate-limited answer is never treated as disappearance.
+            (provider(404, true), UpstreamFailure::Forbidden),
+            (bytes(407), UpstreamFailure::Forbidden),
+            (provider(500, false), UpstreamFailure::Other),
+            (bytes(502), UpstreamFailure::Other),
+            (
+                PortcoveError::verification("identity differs"),
+                UpstreamFailure::Disagreement,
+            ),
+            // Message text never classifies a failure.
+            (
+                PortcoveError::network("HTTP status client error (404 Not Found)"),
+                UpstreamFailure::Other,
+            ),
+            (PortcoveError::conflict("held"), UpstreamFailure::Other),
+            (
+                PortcoveError::new(crate::ErrorCode::Cancelled, "stopped"),
+                UpstreamFailure::Other,
+            ),
+        ] {
+            assert_eq!(error.upstream_failure(), expected, "{error:?}");
+        }
+        // Only concrete socket-level causes classify a connect failure.
+        #[derive(Debug)]
+        struct Wrapped(std::io::Error);
+        impl std::fmt::Display for Wrapped {
+            fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                formatter.write_str("wrapped")
+            }
+        }
+        impl std::error::Error for Wrapped {
+            fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+                Some(&self.0)
+            }
+        }
+        for (kind, expected) in [
+            (std::io::ErrorKind::ConnectionRefused, true),
+            (std::io::ErrorKind::NetworkUnreachable, true),
+            (std::io::ErrorKind::TimedOut, true),
+            // Proxy tunnel and TLS failures surface without a socket cause.
+            (std::io::ErrorKind::Other, false),
+            (std::io::ErrorKind::InvalidData, false),
+            (std::io::ErrorKind::PermissionDenied, false),
+        ] {
+            assert_eq!(
+                super::socket_unreachable(&Wrapped(std::io::Error::from(kind))),
+                expected,
+                "{kind:?}"
+            );
+        }
+        // `None` observations leave an existing fact untouched.
+        assert_eq!(
+            bytes(404).with_upstream(None).upstream_failure(),
+            UpstreamFailure::Unavailable
+        );
+    }
+}

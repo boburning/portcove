@@ -63,7 +63,7 @@ public static class PortcoveNativeWindows {
         return GetFolderActionButton(window, process, action, "Select Folder");
     }
     public static IntPtr GetFolderActionButton(IntPtr window, int process, string action, string title) {
-        if ((title != "Select Folder" && title != "Choose game-file folder") || !Matches(window, process, title) || Class(window) != "#32770" || !IsWindowEnabled(window) ||
+        if ((title != "Select Folder" && title != "Choose game files folder") || !Matches(window, process, title) || Class(window) != "#32770" || !IsWindowEnabled(window) ||
             !MatchesFolderEdit(window, GetDlgItem(window, 1152), process) ||
             !MatchesFolderButton(window, GetDlgItem(window, 1), process))
             throw new InvalidOperationException("Exact owned folder controls changed.");

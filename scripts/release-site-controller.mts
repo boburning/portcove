@@ -53,22 +53,32 @@ import { readControllerToolFile } from "./release-controller-tools.mts";
 import { authenticateReleaseControlRound } from "./release-live-control-admission.mts";
 import {
   authenticateCapacityExecutor,
+  ensureOwnedCheckpointJournalHistory,
+  publishOwnedSignedCoordinatorCheckpoint,
   capacityExecutorIdentity,
   executeOwnedCapacityEffect,
   refreshCapacityExecutor,
 } from "./release-capacity-executor.mts";
-import { GitHubApiClient, createGitHubRunner } from "./github-api.mts";
 import { withCoordinatorDeadline } from "./release-coordinator-deadline.mts";
 import {
   publishCoordinatorCheckpoint,
   inspectCoordinatorRemoteNamespace,
 } from "./release-coordinator-remote.mts";
-import { createCoordinatorJournalApi } from "./release-coordinator-journal-api.mts";
-import { createReleasePublicationReader } from "./release-publication-inventory.mts";
+import {
+  createCoordinatorJournalApi,
+  guardCoordinatorJournalWrites,
+} from "./release-coordinator-journal-api.mts";
+import { createPublicationInventoryWithSdk } from "./release-publication-inventory.mts";
 import { isRecord } from "./runtime-values.mts";
 import { candidateProgressIdentity } from "./release-candidate-progress-contract.mts";
 
 import { currentSiteJobDeadline } from "./release-site-job-budget.mts";
+import {
+  fixedReleaseReaderToken,
+  readOnlyReleaseChildEnvironment,
+} from "./release-readonly-child-environment.mts";
+import { assertTrustedDirectNode } from "./release-direct-node-transport.mts";
+import { currentControllerJobDeadline } from "./release-signing-job-budget.mts";
 const started = performance.now();
 function remaining(deadline: number, maximum = 15000) {
   const left = Math.floor(Math.min(maximum, deadline - performance.now()));
@@ -114,7 +124,7 @@ export async function runFixedSiteConfiguration(
     throw new Error("site invocation is not its original fixed job");
   const provisional = Math.min(started + 290000, phaseDeadline ?? Infinity);
   remaining(provisional);
-  const deadline = currentSiteJobDeadline(identity, parent, provisional);
+  const deadline = await currentControllerJobDeadline("site-publication", identity, provisional);
   return withCoordinatorDeadline(deadline, async () => {
     const directory = await mkdtemp(path.join(parent, "site-controller-bootstrap-"));
     const tools = await receiveControllerTools(
@@ -151,14 +161,13 @@ export async function runFixedSiteConfiguration(
 async function siteUploadBridge(mode: "--ready" | "--uploaded") {
   const parent = process.env.RUNNER_TEMP;
   if (!parent || !path.isAbsolute(parent)) throw new Error("site runner root unavailable");
-  const deadline = currentSiteJobDeadline(
+  const deadline = await currentSiteJobDeadline(
     {
       controller_revision: process.env.GITHUB_SHA ?? "",
       controller_ref: process.env.GITHUB_REF ?? "",
       run_id: process.env.GITHUB_RUN_ID ?? "",
       run_attempt: Number(process.env.GITHUB_RUN_ATTEMPT),
     },
-    parent,
     started + 290000,
   );
   let pointer: unknown;
@@ -315,8 +324,10 @@ export async function runSitePublicationController(
     const directory = await mkdtemp(path.join(outputParent, "site-controller-"));
     let stage = "current-journal-and-whole-site";
     try {
+      const readerToken = fixedReleaseReaderToken();
+      const transport = { credential: { token: readerToken }, deadline };
       const recovered = await recoverRemoteCoordinator(directory, remote, {
-        transport: { cwd: directory, deadline },
+        transport,
       });
       let checkpoint = recovered.checkpoint;
       inspectSitePublicationReservation(
@@ -365,16 +376,6 @@ export async function runSitePublicationController(
         deadline,
       );
       const executorIdentity = capacityExecutorIdentity(executor);
-      const api = new GitHubApiClient((args, input) => {
-        remaining(deadline);
-        const result = createGitHubRunner({
-          cwd: directory,
-          timeoutMs: remaining(deadline),
-          maxBuffer: 2 * 1024 ** 2,
-        })([...args, "--hostname", "github.com"], input);
-        remaining(deadline);
-        return result;
-      });
       let round = 0;
       const fresh = async () => {
         if (++round > 5) throw new Error("fixed whole-site control round budget exhausted");
@@ -389,26 +390,30 @@ export async function runSitePublicationController(
           }),
           "site-publication",
           round,
-          { deadline },
+          { deadline, controlReader: "site-application" },
         );
         if (source.evidence_scope !== "github.com")
           throw new Error("actual site controls required");
         return source;
       };
       let controls = await fresh();
-      const currentBoundary = () => {
+      const currentBoundary = async () => {
         remaining(deadline);
         const facts = publication.context.manifest.facts;
         if (!isRecord(facts)) throw new Error("actual complete opportunity missing");
-        const observed = controls.read(api, facts.opportunity);
+        const observed = await controls.readSdkApplicationControls(facts.opportunity);
+        remaining(deadline);
         if (observed.pause.publication_paused || !observed.resource_policy_matches_controller)
           throw new Error("fresh site controls hold this attempt");
         return observed.capacity_source.capacity.boundary;
       };
+      const checkpointControls = async () => {
+        await currentBoundary();
+      };
       const boundary = async () => {
         remaining(deadline);
         const state = await readRemoteCoordinatorSnapshot(directory, remote, {
-          transport: { cwd: directory, deadline },
+          transport,
         });
         inspectSitePublicationReservation(
           state.input,
@@ -490,10 +495,11 @@ export async function runSitePublicationController(
             evidence_sha256: digest(upload),
           };
         },
+        checkpointControls,
       );
       checkpoint = uploaded.checkpoint;
       const snapshot = await readRemoteCoordinatorSnapshot(directory, remote, {
-        transport: { cwd: directory, deadline },
+        transport,
       });
       if (snapshot.checkpoint !== checkpoint)
         throw new Error("site upload settlement changed; retain original artifact");
@@ -522,7 +528,7 @@ export async function runSitePublicationController(
       remaining(deadline);
       stage = "durable-candidate-completion";
       const completionSnapshot = await readRemoteCoordinatorSnapshot(directory, remote, {
-        transport: { cwd: directory, deadline },
+        transport,
       });
       if (completionSnapshot.checkpoint !== result.checkpoint)
         throw new Error("site metadata handoff changed before candidate completion");
@@ -547,10 +553,21 @@ export async function runSitePublicationController(
       // Complete inventory reuses the existing provider reader and allocation
       // associations. Observing one Release cannot refresh account-wide facts.
       const { deriveCoordinatorPublication } = await import("./release-coordinator-driver.mts");
-      const inventory = createReleasePublicationReader(api),
-        tags = inventory.tags(),
-        releases = inventory.releases();
-      const { allocations } = inventory.readAllocations(
+      const inventory = await createPublicationInventoryWithSdk({
+        token: readerToken,
+        deadline,
+        requestTimeoutMs: 15000,
+        async recheck() {
+          remaining(deadline);
+        },
+        beforeDispatch() {
+          if (readOnlyReleaseChildEnvironment() !== undefined)
+            assertTrustedDirectNode("whole-site publication inventory");
+        },
+      });
+      const tags = await inventory.tags();
+      const releases = await inventory.releases();
+      const { allocations } = await inventory.readAllocations(
         tags,
         inspectCoordinatorRemoteNamespace(remote),
       );
@@ -562,7 +579,7 @@ export async function runSitePublicationController(
       );
       if (
         digest({ tags, releases }) !==
-        digest({ tags: inventory.tags(), releases: inventory.releases() })
+        digest({ tags: await inventory.tags(), releases: await inventory.releases() })
       )
         throw new Error("publication inventory changed during candidate completion");
       if (!isRecord(publication.record.candidate))
@@ -582,29 +599,32 @@ export async function runSitePublicationController(
       next.active_candidate = null;
       next.publication = nextPublication;
       next.now = new Date().toISOString();
+      const signedJournal = await ensureOwnedCheckpointJournalHistory(
+        executor,
+        recovered.repository,
+        result.checkpoint,
+        checkpointControls,
+      );
       const saved = await checkpointReleaseOpportunity(
         recovered.repository,
         result.checkpoint,
         next,
       );
-      const journal = createCoordinatorJournalApi(directory, deadline);
-      const completionRemote = await publishCoordinatorCheckpoint(
-        recovered.repository,
-        saved.checkpoint,
-        remote,
-        {
-          api: {
-            request: journal.request.bind(journal),
-            graphql(query, variables) {
-              if (/^\s*mutation\b/u.test(query)) currentBoundary();
-              return journal.graphql(query, variables);
-            },
-          },
-        },
-      );
+      const completionRemote = signedJournal
+        ? await publishOwnedSignedCoordinatorCheckpoint(
+            executor,
+            recovered.repository,
+            saved.checkpoint,
+            checkpointControls,
+          )
+        : await publishCoordinatorCheckpoint(recovered.repository, saved.checkpoint, remote, {
+            api: guardCoordinatorJournalWrites(createCoordinatorJournalApi(directory, deadline), {
+              readCurrent: checkpointControls,
+            }),
+          });
       remaining(deadline);
       const completed = await readRemoteCoordinatorSnapshot(directory, remote, {
-        transport: { cwd: directory, deadline },
+        transport,
       });
       if (completed.checkpoint !== saved.checkpoint || completed.input.active_candidate !== null)
         throw new Error("candidate completion readback ambiguous; preserve published effects");

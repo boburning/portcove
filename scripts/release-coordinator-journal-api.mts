@@ -1,36 +1,226 @@
-import { spawnSync } from "node:child_process";
-import { lstatSync, mkdtempSync, realpathSync } from "node:fs";
+import { assertTrustedDirectNode } from "./release-direct-node-transport.mts";
+import type { GitHubAttemptObservation, GitHubRequestPolicy } from "./github-client.mts";
+import { GitHubApiError } from "./github-operation.mts";
+import { requireStorageAppToken } from "./release-storage-credential.mts";
+import { fixedReleaseReaderToken } from "./release-readonly-child-environment.mts";
+import { lstatSync, realpathSync } from "node:fs";
 import path from "node:path";
-import { createGitHubRunner, GitHubApiClient } from "./github-api.mts";
-import type { CoordinatorRemoteApi } from "./release-coordinator-remote.mts";
+import type {
+  CoordinatorCheckpointApi,
+  CoordinatorSigningApi,
+} from "./release-coordinator-remote.mts";
 import { performance } from "node:perf_hooks";
 import { createHash } from "node:crypto";
 import { isDeepStrictEqual } from "node:util";
 import { isRecord } from "./runtime-values.mts";
 import { inspectCoordinatorRemoteNamespace } from "./release-coordinator-namespace.mts";
-import { coordinatorCheckpointUpdates } from "./release-coordinator-checkpoint-evidence.mts";
+import {
+  checkpointEvidenceRefQuery,
+  coordinatorCheckpointUpdates,
+} from "./release-coordinator-checkpoint-evidence.mts";
 import type { exportCoordinatorCheckpoint } from "./release-coordinator-state.mts";
-import { withCoordinatorReadback } from "./release-coordinator-deadline.mts";
+import {
+  coordinatorCommandDeadline,
+  withCoordinatorReadback,
+} from "./release-coordinator-deadline.mts";
 
 /** Credential transport only. The existing remote verifier owns repository,
  * namespace, object and CAS checks; this API grants no caller/job authority.
  * Journal credentials are never borrowed from the provider GH_TOKEN/config. */
-export function createCoordinatorJournalApi(
+export function createCoordinatorJournalApi(directory: string, deadline?: number) {
+  return createFixedJournalApi(
+    directory,
+    deadline,
+    () => process.env.PORTCOVE_COORDINATOR_JOURNAL_TOKEN,
+  );
+}
+
+/** Legacy Pages handoff retains the fixed site job credential it used before
+ * the SDK migration. Selected signed publication never constructs this route. */
+export function createLegacySiteCheckpointApi(directory: string, deadline: number) {
+  return createFixedJournalApi(directory, deadline, fixedReleaseReaderToken);
+}
+
+function createFixedJournalApi(
   directory: string,
-  deadline?: number,
-): CoordinatorRemoteApi {
+  deadline: number | undefined,
+  readToken: () => string | undefined,
+) {
   if (deadline !== undefined && !Number.isFinite(deadline))
     throw new Error("journal role phase deadline must be finite");
   const remaining = () => {
-    const timeout =
-      deadline === undefined ? 15000 : Math.floor(Math.min(15000, deadline - performance.now()));
-    if (!Number.isFinite(timeout) || timeout < 1)
-      throw new Error("journal role phase deadline exhausted");
+    const end = Math.min(deadline ?? Infinity, coordinatorCommandDeadline() ?? Infinity);
+    const timeout = Math.floor(Math.min(15000, end - performance.now()));
+    if (timeout < 1) throw new Error("journal role phase deadline exhausted");
     return timeout;
   };
   remaining();
-  const token = process.env.PORTCOVE_COORDINATOR_JOURNAL_TOKEN;
-  return isolatedJournalClient(directory, token, remaining, remaining);
+  return createJournalSdk(
+    directory,
+    journalCredential(readToken()),
+    Math.min(deadline ?? performance.now() + 240000, coordinatorCommandDeadline() ?? Infinity),
+    remaining,
+  );
+}
+
+/** Current controls gate every legacy object write and ref CAS. Recovery
+ * snapshots remain readable after a control refusal or ambiguous write. */
+export function guardCoordinatorJournalWrites(
+  api: CoordinatorCheckpointApi,
+  controls: { readCurrent: () => Promise<void> },
+): CoordinatorCheckpointApi {
+  return {
+    async request(method, endpoint, body) {
+      if (method !== "GET") await controls.readCurrent();
+      return api.request(method, endpoint, body);
+    },
+    async graphql(query, variables) {
+      if (!/^\s*query\b/u.test(query)) await controls.readCurrent();
+      return api.graphql(query, variables);
+    },
+  };
+}
+
+function createJournalSdk(
+  directory: string,
+  token: string,
+  clientDeadline: number,
+  remaining?: () => void,
+  policy?: { preserveLateObjectEvidence?: true; allowHistoricalJobRead?: true },
+) {
+  assertOwnedJournalDirectory(directory);
+  assertTrustedDirectNode("journal");
+  let client:
+    | Promise<Awaited<ReturnType<typeof import("./github-client.mts").createGitHubClient>>>
+    | undefined;
+  const configured = () =>
+    (client ??= import("./github-client.mts").then(({ createGitHubClient }) =>
+      createGitHubClient({
+        credential: { kind: "explicit", token },
+        deadline: clientDeadline,
+        maxBytes: 2 * 1024 * 1024,
+        requestTimeoutMs: 15000,
+        allowRequest() {
+          assertTrustedDirectNode("journal");
+          return true;
+        },
+        headers: { accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28" },
+      }),
+    ));
+  const requestDeadline = (deadline = Infinity) =>
+    Math.min(clientDeadline, deadline, coordinatorCommandDeadline() ?? Infinity);
+  const assertPublicResponse = (data: unknown) => {
+    JSON.stringify(data, (key, value: unknown) => {
+      if (key.includes(token) || (typeof value === "string" && value.includes(token)))
+        throw new Error("journal response contained credential material");
+      return typeof value === "bigint" ? null : value;
+    });
+  };
+  return {
+    async request(method: string, endpoint: string, body?: unknown, deadline?: number) {
+      assertJournalRoute(method, endpoint, policy?.allowHistoricalJobRead);
+      remaining?.();
+      const sdk = await configured();
+      let retained: { status: number; body: unknown } | undefined;
+      try {
+        const response = await sdk.request(`${method} /${endpoint}`, {
+          ...(body === undefined ? {} : { data: body }),
+          request: {
+            portcove: {
+              replay: "once",
+              attempts: 0,
+              deadline: requestDeadline(deadline),
+              ...(policy?.preserveLateObjectEvidence && method === "POST"
+                ? {
+                    async retainResponse(
+                      value: Parameters<NonNullable<GitHubRequestPolicy["retainResponse"]>>[0],
+                    ) {
+                      assertPublicResponse(value.data);
+                      retained = { status: value.status, body: value.data };
+                    },
+                  }
+                : {}),
+            },
+          },
+        });
+        if (!retained) remaining?.();
+        assertPublicResponse(response.data);
+        return { status: response.status, body: response.data as unknown };
+      } catch (error) {
+        if (error instanceof GitHubApiError) {
+          if (retained && error.code === "deadline_exceeded") return retained;
+          if (method === "GET" && error.status === 404) {
+            remaining?.();
+            return { status: 404, body: undefined };
+          }
+        }
+        throw error;
+      }
+    },
+    async graphql(
+      query: string,
+      variables: Readonly<Record<string, unknown>>,
+      options?: { deadline?: number; onDispatched?: () => void },
+    ) {
+      remaining?.();
+      const sdk = await configured();
+      const response = await sdk.request("POST /graphql", {
+        query,
+        variables,
+        request: {
+          portcove: {
+            replay: "once",
+            attempts: 0,
+            deadline: requestDeadline(options?.deadline),
+            ...(options?.onDispatched
+              ? {
+                  observe(attempt: GitHubAttemptObservation) {
+                    if (attempt.dispatched) options.onDispatched?.();
+                  },
+                }
+              : {}),
+          },
+        },
+      });
+      remaining?.();
+      const envelope: unknown = response.data;
+      if (
+        response.status !== 200 ||
+        !isRecord(envelope) ||
+        !("data" in envelope) ||
+        ("errors" in envelope && (!Array.isArray(envelope.errors) || envelope.errors.length > 0))
+      )
+        throw new Error("journal GraphQL response unavailable");
+      assertPublicResponse(envelope.data);
+      return { data: envelope.data };
+    },
+  };
+}
+
+/** Inert prepared-source Git object custody only. Source/object identities
+ * remain checked by publishPreparedCoordinatorCheckpoint; this client cannot
+ * mutate refs. Selected journal publication uses its separate signed exchange. */
+export function createPreparedCheckpointObjectApi(
+  directory: string,
+  deadline: number,
+  storageWriter?: { app_id: number; installation_id: number },
+) {
+  const remaining = () => {
+    const left = Math.floor(Math.min(15000, deadline - performance.now()));
+    if (!Number.isFinite(deadline) || left < 1)
+      throw new Error("prepared storage original deadline exhausted");
+    return left;
+  };
+  remaining();
+  const token =
+    storageWriter === undefined ? process.env.GH_TOKEN : requireStorageAppToken(storageWriter);
+  const api = createJournalSdk(directory, journalCredential(token), deadline, remaining);
+  return {
+    request: api.request.bind(api),
+    graphql(_query: string, _variables: Readonly<Record<string, unknown>>) {
+      throw new Error("prepared source object transport cannot mutate or query refs");
+    },
+  };
 }
 
 /** Transport preparation for the selected fixed-job path. This grants no job,
@@ -42,11 +232,14 @@ export function createCheckpointJobTokenApi(
   checkpoint: Awaited<ReturnType<typeof exportCoordinatorCheckpoint>>,
   configuration: unknown,
   deadline: number,
-): CoordinatorRemoteApi {
+  storageWriter?: { app_id: number; installation_id: number },
+  resumeClaim = false,
+) {
   const started = performance.now();
   if (!Number.isFinite(deadline) || deadline <= started || deadline - started > 120000)
     throw new Error("job journal requires the original bounded deadline");
-  const token = process.env.GH_TOKEN;
+  const token =
+    storageWriter === undefined ? process.env.GH_TOKEN : requireStorageAppToken(storageWriter);
   if (
     typeof token !== "string" ||
     token.length < 1 ||
@@ -79,24 +272,16 @@ export function createCheckpointJobTokenApi(
   let nodeId: string | null = null,
     requests = 0,
     casAttempted = false;
-  let requestCollecting = false;
-  const remaining = () => {
-    const end = deadline + (requestCollecting && casAttempted ? 30000 : 0);
-    const timeout = Math.floor(Math.min(15000, end - performance.now()));
-    if (timeout < 1) throw new Error("job journal original deadline exhausted");
-    return timeout;
-  };
-  const admit = (collecting: boolean) => {
-    requestCollecting = collecting;
-    remaining();
+  const admit = (end: number) => {
+    if (performance.now() >= Math.min(end, coordinatorCommandDeadline() ?? Infinity))
+      throw new Error("job journal original deadline exhausted");
     if (++requests > 16) throw new Error("job journal request bound exhausted");
   };
-  // Do not discard a late acknowledgment. The exchange records it, refuses
-  // execution after its original deadline and decides whether readback resolves
-  // the effect. Only its exact tuple query may use collection time.
-  const api = isolatedJournalClient(directory, token, remaining);
+  const api = createJournalSdk(directory, token, deadline + 30000, undefined, {
+    preserveLateObjectEvidence: true,
+  });
   return {
-    request(method, endpoint, body) {
+    async request(method: string, endpoint: string, body?: unknown, inherited?: number) {
       const read =
         method === "GET" &&
         body === undefined &&
@@ -112,22 +297,33 @@ export function createCheckpointJobTokenApi(
         if (typeof encoded !== "string" || Buffer.byteLength(encoded) > 2 * 1024 * 1024)
           throw new Error("job journal object request exceeds bounded encoding");
       }
-      admit(false);
-      return api.request(method, endpoint, body);
+      const end = Math.min(deadline, inherited ?? Infinity);
+      admit(end);
+      return api.request(method, endpoint, body, end);
     },
-    graphql(query, variables) {
+    async graphql(
+      query: string,
+      variables: Readonly<Record<string, unknown>>,
+      policy?: { deadline: number; collecting?: boolean },
+    ) {
+      const original = Math.min(deadline, policy?.deadline ?? Infinity);
+
       const initial =
         query === initialQuery && nodeId === null && isDeepStrictEqual(variables, refs);
       const snapshot =
         query === nextQuery &&
         nodeId !== null &&
         isDeepStrictEqual(variables, { id: nodeId, ...refs });
+      if (policy?.collecting && (!snapshot || !casAttempted))
+        throw new Error("job journal collection requires an attempted CAS and exact tuple");
       if (initial || snapshot) {
-        admit(snapshot);
-        const result =
-          snapshot && casAttempted
-            ? withCoordinatorReadback(deadline, () => api.graphql(query, variables))
-            : api.graphql(query, variables);
+        const read = (end: number) => {
+          admit(end);
+          return api.graphql(query, variables, { deadline: end });
+        };
+        const result = await (policy?.collecting
+          ? withCoordinatorReadback(original, () => read(original + 30000))
+          : read(original));
         const node = isRecord(result.data) ? result.data[initial ? "repository" : "node"] : null;
         if (
           !isRecord(node) ||
@@ -171,7 +367,7 @@ export function createCheckpointJobTokenApi(
             ]
           : null;
       if (
-        (!isDeepStrictEqual(input.refUpdates, claimUpdates) &&
+        ((resumeClaim || !isDeepStrictEqual(input.refUpdates, claimUpdates)) &&
           !isDeepStrictEqual(input.refUpdates, finalUpdates)) ||
         input.clientMutationId !==
           createHash("sha256")
@@ -181,11 +377,15 @@ export function createCheckpointJobTokenApi(
         throw new Error(
           "job journal CAS must preserve exact state, preparation, intent and proof tuple",
         );
-      admit(false);
-      casAttempted = true;
-      return api.graphql(query, variables);
+      admit(original);
+      return api.graphql(query, variables, {
+        deadline: original,
+        onDispatched() {
+          casAttempted = true;
+        },
+      });
     },
-  };
+  } satisfies CoordinatorSigningApi;
 }
 
 /** Separate read-only history collection. Its nine requests cover two current
@@ -213,9 +413,9 @@ export function createCheckpointHistoryReader(
   };
   const token = process.env.GH_TOKEN;
   if (!token) throw new Error("fixed-job history credential unavailable");
-  const transport = isolatedJournalClient(directory, token, remaining, remaining, true);
-  const proofQuery =
-    'query($name:String!){repository(owner:"boburning",name:"portcove"){databaseId nameWithOwner ref(qualifiedName:$name){name prefix target{__typename oid}}}}';
+  const transport = createJournalSdk(directory, journalCredential(token), deadline, remaining, {
+    allowHistoricalJobRead: true,
+  });
   const headQuery =
     'query($state:String!,$intent:String!){repository(owner:"boburning",name:"portcove"){databaseId nameWithOwner state:ref(qualifiedName:$state){name prefix target{__typename oid}} intent:ref(qualifiedName:$intent){name prefix target{__typename oid}}}}';
   const names = {
@@ -227,8 +427,8 @@ export function createCheckpointHistoryReader(
     remaining();
     if (++requests > 9) throw new Error("history reader request bound exhausted");
   };
-  const api: CoordinatorRemoteApi = {
-    request(method, endpoint, body) {
+  const api = {
+    async request(method: string, endpoint: string, body?: unknown) {
       if (
         method !== "GET" ||
         body !== undefined ||
@@ -240,11 +440,11 @@ export function createCheckpointHistoryReader(
       admit();
       return transport.request(method, endpoint);
     },
-    graphql(query, variables) {
+    async graphql(query: string, variables: Readonly<Record<string, unknown>>) {
       if (
         !(
           (query === headQuery && isDeepStrictEqual(variables, names)) ||
-          (query === proofQuery &&
+          (query === checkpointEvidenceRefQuery &&
             isDeepStrictEqual(variables, {
               name: `refs/tags/${scope}-checkpoint-proof/${expected}`,
             }))
@@ -254,14 +454,29 @@ export function createCheckpointHistoryReader(
       admit();
       return transport.graphql(query, variables);
     },
-  };
+  } satisfies CoordinatorCheckpointApi;
   return {
     api,
-    assertCurrentUnclaimedHead() {
-      const result = api.graphql(headQuery, names);
+    async assertCurrentHead(claimedChild?: string) {
+      if (
+        claimedChild !== undefined &&
+        (!/^[a-f0-9]{40}$/u.test(claimedChild) || claimedChild === expected)
+      )
+        throw new Error("history reader requires exact different claimed child");
+
+      const result = await api.graphql(headQuery, names);
       const repository =
         isRecord(result.data) && isRecord(result.data.repository) ? result.data.repository : null;
       const state = repository && isRecord(repository.state) ? repository.state : null;
+      const intent = repository && isRecord(repository.intent) ? repository.intent : null;
+      const expectedIntent =
+        claimedChild === undefined
+          ? repository?.intent === null
+          : intent !== null &&
+            `${String(intent.prefix)}${String(intent.name)}` === names.intent &&
+            isRecord(intent.target) &&
+            intent.target.__typename === "Commit" &&
+            intent.target.oid === claimedChild;
       if (
         !repository ||
         repository.databaseId !== 1354613114 ||
@@ -271,7 +486,7 @@ export function createCheckpointHistoryReader(
         !isRecord(state.target) ||
         state.target.__typename !== "Commit" ||
         state.target.oid !== expected ||
-        repository.intent !== null
+        !expectedIntent
       )
         throw new Error(
           "current journal head or pending intent changed; explicit readback/recovery required",
@@ -281,13 +496,7 @@ export function createCheckpointHistoryReader(
   };
 }
 
-function isolatedJournalClient(
-  directory: string,
-  token: unknown,
-  remaining: () => number,
-  afterCall?: () => number,
-  allowHistoricalJobRead = false,
-): CoordinatorRemoteApi {
+function journalCredential(token: unknown): string {
   if (
     typeof token !== "string" ||
     token.length < 1 ||
@@ -297,6 +506,10 @@ function isolatedJournalClient(
     )
   )
     throw new Error("dedicated coordinator journal credential unavailable");
+  return token;
+}
+
+function assertOwnedJournalDirectory(directory: string) {
   if (
     !path.isAbsolute(directory) ||
     !lstatSync(directory).isDirectory() ||
@@ -304,86 +517,21 @@ function isolatedJournalClient(
     realpathSync(directory) !== path.resolve(directory)
   )
     throw new Error("journal transport requires a private owned directory");
-  const home = mkdtempSync(path.join(directory, "journal-api-"));
-  const environment: NodeJS.ProcessEnv = {};
-  for (const key of [
-    "PATH",
-    "Path",
-    "SystemRoot",
-    "SYSTEMROOT",
-    "WINDIR",
-    "windir",
-    "COMSPEC",
-    "PATHEXT",
-  ])
-    if (process.env[key] !== undefined) environment[key] = process.env[key];
-  Object.assign(environment, {
-    GH_TOKEN: token,
-    GH_HOST: "github.com",
-    GH_CONFIG_DIR: home,
-    HOME: home,
-    USERPROFILE: home,
-    XDG_CONFIG_HOME: home,
-    APPDATA: home,
-    LOCALAPPDATA: home,
-    GH_PROMPT_DISABLED: "1",
-    GH_NO_UPDATE_NOTIFIER: "1",
-    GH_NO_EXTENSION_UPDATE_NOTIFIER: "1",
-    NO_COLOR: "1",
-  });
-  const redact = (value: string) => value.replaceAll(token, "[redacted]");
-  const runner = createGitHubRunner({
-    cwd: directory,
-    timeoutMs: 15000,
-    maxBuffer: 2 * 1024 * 1024,
-    spawn(command, args, options) {
-      const result = spawnSync(command, args, {
-        ...options,
-        timeout: remaining(),
-        env: environment,
-      });
-      const error = result.error
-        ? Object.assign(new Error("journal subprocess failed"), {
-            code:
-              "code" in result.error && result.error.code === "ETIMEDOUT"
-                ? "ETIMEDOUT"
-                : "JOURNAL_PROCESS_FAILED",
-          })
-        : null;
-      return {
-        status: result.status,
-        stdout: redact(String(result.stdout ?? "")),
-        stderr: redact(String(result.stderr ?? "")),
-        error,
-      };
-    },
-  });
-  const api = new GitHubApiClient((args, body) => {
-    remaining();
-    const result = runner([...args, "--hostname", "github.com"], body);
-    afterCall?.();
-    return result;
-  });
-  return {
-    request(method, endpoint, body) {
-      if (
-        (!/^repos\/boburning\/portcove(?:\/git\/(?:blobs|trees|commits)(?:\/[a-f0-9]{40})?)?$/u.test(
-          endpoint,
-        ) &&
-          !(
-            allowHistoricalJobRead &&
-            method === "GET" &&
-            /^repos\/boburning\/portcove\/actions\/jobs\/[1-9][0-9]{0,15}$/u.test(endpoint)
-          )) ||
-        !["GET", "POST"].includes(method) ||
-        (method === "POST" &&
-          !/^repos\/boburning\/portcove\/git\/(?:blobs|trees|commits)$/u.test(endpoint))
-      )
-        throw new Error("journal transport route is outside the fixed repository/object endpoints");
-      return api.request(method, endpoint, body);
-    },
-    graphql(query, variables) {
-      return api.graphql(query, variables);
-    },
-  };
+}
+
+function assertJournalRoute(method: string, endpoint: string, allowHistoricalJobRead = false) {
+  if (
+    (!/^repos\/boburning\/portcove(?:\/git\/(?:blobs|trees|commits)(?:\/[a-f0-9]{40})?)?$/u.test(
+      endpoint,
+    ) &&
+      !(
+        allowHistoricalJobRead &&
+        method === "GET" &&
+        /^repos\/boburning\/portcove\/actions\/jobs\/[1-9][0-9]{0,15}$/u.test(endpoint)
+      )) ||
+    !["GET", "POST"].includes(method) ||
+    (method === "POST" &&
+      !/^repos\/boburning\/portcove\/git\/(?:blobs|trees|commits)$/u.test(endpoint))
+  )
+    throw new Error("journal transport route is outside the fixed repository/object endpoints");
 }

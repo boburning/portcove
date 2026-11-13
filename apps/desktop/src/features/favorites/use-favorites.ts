@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { desktopApi } from "../../api";
 
 export function useFavorites(generation: number) {
@@ -89,13 +89,12 @@ export function useFavorites(generation: number) {
     },
     [generation, ids],
   );
-  return {
-    ids,
-    only: snapshot.generation === generation && only,
-    setOnly,
-    toggle,
-    refresh,
-    busy: snapshot.generation !== generation || snapshot.busy,
-    failure: snapshot.generation === generation ? snapshot.failure : undefined,
-  };
+  const visibleOnly = snapshot.generation === generation && only;
+  const busy = snapshot.generation !== generation || snapshot.busy;
+  const failure = snapshot.generation === generation ? snapshot.failure : undefined;
+  // A stable value lets memoized collection cards skip unrelated workspace renders.
+  return useMemo(
+    () => ({ ids, only: visibleOnly, setOnly, toggle, refresh, busy, failure }),
+    [ids, visibleOnly, toggle, refresh, busy, failure],
+  );
 }

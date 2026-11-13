@@ -1,3 +1,10 @@
+import {
+  hasCatalogAuthoringEquivalence,
+  hasCatalogGuideCopy,
+  hasDiscoveryPlatformProof,
+  isDiscoveryEvidencePath,
+  readGuideCopyBlob,
+} from "./catalog-guide-copy-impact.mts";
 import { errorMessage, isRecord } from "./runtime-values.mts";
 import type { SpawnSyncOptions } from "node:child_process";
 import type { ValidationPlan, ValidationChangeInput } from "./validation-plan.mts";
@@ -424,6 +431,7 @@ export const rustPackagePrefixes = new Map([
   ["crates/portcove-cli/", "portcove-cli"],
   ["crates/portcove-diagnostics/", "portcove-diagnostics"],
   ["crates/portcove-release-tools/", "portcove-release-tools"],
+  ["tools/rust-portability/", "portcove-rust-portability"],
   ["apps/desktop/src-tauri/", "portcove-desktop"],
 ]);
 
@@ -434,6 +442,7 @@ function definitionImplementation(file: string) {
 export function selectWorkspaceRustImpact(
   plan: ValidationPlan,
   map: RustImpactMap | null = readRustTestImpactMap(),
+  readCheckout = (file: string) => readGuideCopyBlob(path.join(projectRoot, file)),
 ): WorkspaceImpactGroup[] {
   validateValidationPlan(plan);
   if (plan.mode === "blocked" || !plan.groups.includes("rust"))
@@ -467,6 +476,69 @@ export function selectWorkspaceRustImpact(
         id: "workspace",
         filter: "all()",
         reason: "shared or unknown inputs require the complete workspace",
+      },
+    ];
+  if (
+    map &&
+    plan.mode === "fast" &&
+    plan.groups.includes("catalog") &&
+    hasCatalogAuthoringEquivalence(plan.changes, readCheckout)
+  )
+    return [
+      {
+        id: "portcove-core:catalog-authoring-equivalence",
+        packageName: "portcove-core",
+        filter:
+          "package(=portcove-core) & test(/^catalog::tests::embedded_catalog_is_valid_and_contains_lighthouse$/)",
+        reason:
+          "Authoring layout conversion preserves generated definitions; catalog generation and embedded validation remain required",
+      },
+    ];
+  if (
+    map &&
+    plan.mode === "fast" &&
+    plan.groups.includes("catalog") &&
+    plan.paths.every(
+      (entry) =>
+        !entry.unknown && (!isDiscoveryEvidencePath(entry.path) || !entry.groups.includes("rust")),
+    ) &&
+    hasDiscoveryPlatformProof(plan.changes, readCheckout)
+  )
+    return [
+      {
+        id: "portcove-core:catalog-discovery-platforms",
+        packageName: "portcove-core",
+        filter:
+          "package(=portcove-core) & test(/^(catalog(::|_)|artwork|definition_|game_file_query|game_recommendations|library|listing_delivery|official_catalog_setup|port_recommendation|release::tests::unchanged_definition|service::(capabilities|catalog_download|listings|native_portable|package_selection|tests::channel_recommendations|user_selected)|signed_catalog)/)",
+        reason: "Additive discovery platform facts retain Core directory and package consumers",
+      },
+      {
+        id: "portcove-cli:catalog-discovery-platforms",
+        packageName: "portcove-cli",
+        filter: "package(=portcove-cli)",
+        reason: "Discovery platform facts feed CLI machine and human output",
+      },
+      {
+        id: "portcove-desktop:catalog-discovery-platforms",
+        packageName: "portcove-desktop",
+        filter: "package(=portcove-desktop)",
+        reason: "Discovery platform facts feed desktop catalog projections",
+      },
+    ];
+  if (map && plan.mode === "fast" && hasCatalogGuideCopy(plan.changes, readCheckout))
+    return [
+      {
+        id: "portcove-core:catalog-guide-copy",
+        packageName: "portcove-core",
+        filter:
+          "package(=portcove-core) & (test(/^catalog::/) | test(/::prepared_guide_adoption_/))",
+        reason: "Guide copy changes retain catalog invariants and prepared guide consumers",
+      },
+      {
+        id: "portcove-cli:catalog-guide-copy",
+        packageName: "portcove-cli",
+        filter: "package(=portcove-cli) & test(/^human_presentation::/)",
+        reason: "Guide copy changes retain CLI presentation consumers",
       },
     ];
   const changesByPackage = new Map<string, RustImpactChange[]>();
@@ -518,11 +590,9 @@ export function selectWorkspaceRustImpact(
   // Preserve the explicitly maintained public artwork consumer, rather than inventing a dependency graph.
   if (
     plan.changed_files.some((file) =>
-      [
-        "crates/portcove-core/src/artwork.rs",
-        "crates/portcove-core/catalog/catalog.json",
-        "crates/portcove-core/catalog/catalog-current-authoring.json",
-      ].includes(file),
+      ["crates/portcove-core/src/artwork.rs", "crates/portcove-core/catalog/catalog.json"].includes(
+        file,
+      ),
     ) &&
     !selected.some(
       (group) => group.packageName === "portcove-cli" && group.filter === "package(=portcove-cli)",

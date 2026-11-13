@@ -46,7 +46,7 @@ describe("catalog and capacity presentation", () => {
           loading={false}
         />,
       );
-      expect(html).toContain("Setup status unknown");
+      expect(html).toContain("Can&#x27;t check right now");
       expect(discoverAction(html, port.id)).toContain("View port");
       expect(html).not.toContain("Available");
       expect(html).not.toContain("Unsupported");
@@ -362,39 +362,51 @@ it.each(["catalog", "library"] as const)(
     const html = renderCard();
     expect(html).toContain("Setup needed");
     const action = view === "catalog" ? discoverAction(html, port.id) : html;
-    expect(action).toContain(view === "library" ? "Set up" : "View installation");
+    expect(action).toContain(view === "library" ? "Finish setup" : "View installation");
     expect(html).not.toContain("Launch needs review");
     status.port_actions = [
       { action: "launch", availability: "held", reason: "definition_ineligible", definition: null },
     ];
     expect(renderCard()).toContain("Launch needs review");
-    expect(renderCard()).not.toContain("Set up");
+    expect(renderCard()).not.toContain("Finish setup");
   },
 );
 
-it.each(["stable", "beta", "rolling"] as const)(
-  "labels the declared Catalog release channel %s independently of support and the selected update stream",
-  (channel) => {
-    const port = { ...portDefinition(), channels: [channel], support_tier: "rolling" as const };
-    const status = { ...portStatus(), active: cardInstall, channel };
-    const html = renderToStaticMarkup(
-      <PortBrowser
-        view="catalog"
-        ports={[port]}
-        statuses={new Map([[port.id, status]])}
-        overview={{ installed: 0, ready: 0, needsSetup: 0, staged: 0 }}
-        filter="all"
-        setFilter={vi.fn()}
-        onSelect={vi.fn()}
-        loading={false}
-      />,
-    );
-    const label = channel === "beta" ? "Preview" : channel === "stable" ? "Stable" : "Rolling";
+function renderDeclaredChannel(channel: "stable" | "beta" | "rolling") {
+  const port = { ...portDefinition(), channels: [channel], support_tier: "rolling" as const };
+  const status = { ...portStatus(), active: cardInstall, channel };
+  const html = renderToStaticMarkup(
+    <PortBrowser
+      view="catalog"
+      ports={[port]}
+      statuses={new Map([[port.id, status]])}
+      overview={{ installed: 0, ready: 0, needsSetup: 0, staged: 0 }}
+      filter="all"
+      setFilter={vi.fn()}
+      onSelect={vi.fn()}
+      loading={false}
+    />,
+  );
+  return { html, port };
+}
+
+it.each([
+  ["beta", "Preview"],
+  ["rolling", "Rolling"],
+] as const)(
+  "labels the declared Catalog update channel %s independently of support and the selected update stream",
+  (channel, label) => {
+    const { html, port } = renderDeclaredChannel(channel);
     expect(html).toContain(`${label}</span>`);
-    expect(html.includes("Selected update channel:")).toBe(channel !== "stable");
-    expect(html).toContain(
-      channel === "stable" ? `${label}</span>` : `Selected update channel: ${label}`,
-    );
+    expect(html).toContain(`Selected update channel: ${label}`);
     expect(discoverAction(html, port.id)).toContain("View installation");
   },
 );
+
+it("omits the routine Stable chip without presenting the rolling support tier as a channel", () => {
+  const { html, port } = renderDeclaredChannel("stable");
+  expect(html).not.toContain("Selected update channel:");
+  expect(html).not.toContain("Stable</span>");
+  expect(html).not.toContain("Rolling</span>");
+  expect(discoverAction(html, port.id)).toContain("View installation");
+});

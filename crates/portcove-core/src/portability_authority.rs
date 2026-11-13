@@ -6,7 +6,6 @@
 
 use std::{fs, path::Path};
 
-use fs2::FileExt;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -64,26 +63,35 @@ impl PortabilityAuthority {
     }
 }
 
+/// Oldest reader contract that can carry this metadata without dropping state.
+fn exported_schema(metadata: &LibraryMetadata, base: u32) -> u32 {
+    if metadata.artwork.as_ref().is_some_and(|artwork| {
+        !artwork.providers.is_empty() || !artwork.provider_only_assets.is_empty()
+    }) {
+        8
+    } else if !metadata.library_memberships.is_empty() {
+        7
+    } else if !metadata.profiles.is_empty() {
+        6
+    } else if !metadata.retained_build_references.is_empty() {
+        5
+    } else {
+        base
+    }
+}
+
 pub(crate) fn seal(
     metadata: &mut LibraryMetadata,
     entries: Vec<PortabilityAdmission>,
 ) -> Result<()> {
     if entries.is_empty() {
         metadata.portability_authority = None;
-        metadata.schema_version = if metadata.retained_build_references.is_empty() {
-            3
-        } else {
-            5
-        };
+        metadata.schema_version = exported_schema(metadata, 3);
         return Ok(());
     }
     let entries = canonical_entries(entries)?;
     let key = load_or_create_key()?;
-    metadata.schema_version = if metadata.retained_build_references.is_empty() {
-        4
-    } else {
-        5
-    };
+    metadata.schema_version = exported_schema(metadata, 4);
     metadata.portability_authority = Some(PortabilityAuthority {
         format: 1,
         mac_sha256: hmac_sha256(&key, &serde_json::to_vec(&entries)?),
@@ -95,8 +103,8 @@ pub(crate) fn seal(
 pub(crate) fn verify(metadata: &LibraryMetadata, entries: Vec<PortabilityAdmission>) -> Result<()> {
     let entries = canonical_entries(entries)?;
     match (&metadata.portability_authority, entries.is_empty()) {
-        (None, true) if matches!(metadata.schema_version, 1..=3 | 5) => return Ok(()),
-        (Some(authority), false) if matches!(metadata.schema_version, 4 | 5) => {
+        (None, true) if matches!(metadata.schema_version, 1..=3 | 5..=8) => return Ok(()),
+        (Some(authority), false) if matches!(metadata.schema_version, 4..=8) => {
             if authority.format != 1 || authority.entries != entries {
                 return Err(PortcoveError::verification(
                     "portability authority does not match the retained installations",
@@ -247,7 +255,7 @@ fn load_or_create_key_at(
         .read(true)
         .write(true)
         .open(lock_path)?;
-    FileExt::lock_exclusive(&file)?;
+    file.lock()?;
     let result = (|| {
         if let Some(key) = load()? {
             return Ok(key);
@@ -264,7 +272,7 @@ fn load_or_create_key_at(
         }
         Ok(stored)
     })();
-    let unlock = FileExt::unlock(&file).map_err(PortcoveError::from);
+    let unlock = file.unlock().map_err(PortcoveError::from);
     match (result, unlock) {
         (Err(error), _) | (Ok(_), Err(error)) => Err(error),
         (Ok(key), Ok(())) => Ok(key),
@@ -279,9 +287,9 @@ fn credential_entry() -> Result<keyring::Entry> {
 
 #[cfg(not(test))]
 fn credential_error(action: &str, error: keyring::Error) -> PortcoveError {
-    PortcoveError::state(format!(
-        "could not {action} the portability authority in operating-system secure storage: {error}"
-    ))
+    // Import and move reach this key after copying files, so the transfer
+    // journal keeps owning the mutation state.
+    crate::credential_store::store_error("portability authority", action, error, false)
 }
 
 #[cfg(test)]

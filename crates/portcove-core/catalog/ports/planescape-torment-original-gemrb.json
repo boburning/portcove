@@ -6,7 +6,7 @@
     "summary": "Set up Planescape: Torment (original) through its upstream gemrb player using your own original files. Setup, profiles and updates stay upstream-owned.",
     "original_game_title": "Planescape: Torment (original)",
     "project_url": "https://github.com/gemrb/gemrb",
-    "availability": "unknown",
+    "availability": "packages",
     "setup_url": "https://github.com/gemrb/gemrb/blob/b33f0e7275ea1fc8a82459b418f6a7b5f1b40108/gemrb/GemRB.cfg.sample.in",
     "artwork": {
       "game_id": 832,
@@ -17,6 +17,7 @@
       "match_kind": "underlying-game"
     },
     "issue_number": 2632,
+    "listed_at": "2026-10-25",
     "manual_setup": {
       "steps": [
         {
@@ -28,19 +29,36 @@
           "instruction": "Use a complete upstream GemRB build with its plugins, scripts and supplied configuration, not just a loose executable. GitHub release metadata has no binary asset to recommend. Give this game its own configuration: GamePath points to a separate complete working copy of the installed original; GameType=pst. Use the configuration supplied with your actual build rather than leaving @...@ development-template placeholders. Register gemrb.exe with the complete GemRB installation as working directory and two literal argument lines, -c then the absolute path to this game’s configuration."
         },
         {
-          "title": "Keep the actual original and player data",
-          "instruction": "Choose a dedicated empty private CachePath for this game: GemRB clears that directory, so it must never be your originals, saves or profile root. SavePath is the parent containing save/, not save/ itself. Keep a separate SavePath per game. GemRB can also write gem-*.ini into GamePath before trying SavePath, so preserve and use a working data copy; SavePath alone does not isolate original installation writes. Preserve that working copy, actual save/config locations and mods with GemRB closed before updates. Do not move saves between different games or editions."
+          "title": "Keep your originals and game data",
+          "instruction": "Choose a dedicated empty private CachePath for this game: GemRB clears that directory, so it must never be your originals, saves or profile root. SavePath is the parent containing save/, not save/ itself. Keep a separate SavePath per game."
         },
         {
-          "title": "Keep external ownership and deliberate Play",
-          "instruction": "Finish upstream setup first. Registration saves your selected executable, working directory and literal arguments; Play is a separate explicit action. You and upstream own this external runtime, original files and profile. Registration-only removal preserves them. Managed Update, Backup, Rollback, migration and deletion are not offered for these external files. Preserve a working copy and its data before upstream replacement. Other platforms require their own supported upstream application/native flow."
+          "title": "Choose the upstream Linux build",
+          "instruction": "Use the official GemRB Linux AppImage or install org.gemrb.gemrb from Flathub. The Flatpak creates GemRB.cfg in ~/.var/app/org.gemrb.gemrb/config/gemrb on first start. For that package, copy this title’s complete original working copy to ~/.var/app/org.gemrb.gemrb/data/planescape-torment, and use that absolute GamePath in a separate planescape-torment.cfg. Use a writable SavePath parent and an empty, dedicated CachePath under the same app’s data and cache directories. Start with flatpak run org.gemrb.gemrb -c followed by the absolute path to that config. Back up the sandbox config and actual saves separately."
+        },
+        {
+          "title": "Choose the upstream Mac build",
+          "instruction": "Use the Intel Mac bundle from GemRB’s download page or follow its Mac Source Ports link for a build matching your architecture. Keep the bundle complete. Use this game’s own configuration and point GamePath to the prepared original game folder. Keep this title’s saves, config and working data together when replacing the bundle."
+        },
+        {
+          "title": "Add the game and manage your files",
+          "instruction": "Finish setup with the project’s tools before adding the game. Portcove saves your selected executable, working folder and launch arguments; choose Play separately when you are ready. You manage this game’s files, original files and profile. Removing its registration leaves those files in place. Portcove does not offer updates, backups, rollback, data migration or file deletion for this external copy. Keep a working copy and its data before changing versions. Other platforms need their own supported application and setup instructions."
         }
       ],
       "warnings": [
-        "GemRB clears its cache directory. Use a dedicated private CachePath, separate from original files, saves and profile roots."
+        "GemRB clears its cache directory. Use a dedicated private CachePath, separate from original files, saves and profile roots.",
+        "GemRB can also write gem-*.ini into GamePath before trying SavePath, so preserve and use a working data copy; SavePath alone does not isolate original installation writes. Preserve that working copy, actual save/config locations and mods with GemRB closed before updates. Do not move saves between different games or editions.",
+        "These sibling routes use upstream setup, launch and replacement. Keep the creating runtime and actual player files recoverable before changing versions."
       ],
-      "help_url": "https://gemrb.org/Install.html"
-    }
+      "help_url": "https://gemrb.org/Install.html",
+      "references": [
+        {
+          "title": "Preserve working data across updates",
+          "instruction": "GemRB can also write gem-*.ini into GamePath before trying SavePath, so preserve and use a working data copy; SavePath alone does not isolate original installation writes. Preserve that working copy, actual save/config locations and mods with GemRB closed before updates. Do not move saves between different games or editions."
+        }
+      ]
+    },
+    "platforms": ["linux-x86-64", "macos-x86-64", "macos-aarch64"]
   },
   "upstream_lineage": {
     "format_version": 1,

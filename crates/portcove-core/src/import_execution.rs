@@ -313,6 +313,8 @@ fn restore_metadata(target: &Library, metadata: &LibraryMetadata) -> Result<()> 
         Library::write_install(&transaction, &install, install.staged)?;
     }
     crate::retained_build::restore_references(&transaction, &metadata.retained_build_references)?;
+    crate::profile::restore(&transaction, &metadata.profiles)?;
+    crate::library_membership::restore(&transaction, &metadata.library_memberships)?;
     for settings in &metadata.port_settings {
         transaction.execute("INSERT INTO port_settings(port_id, channel, update_policy, active_install_id, previous_install_id, output_directory) VALUES (?1, ?2, ?3, ?4, ?5, ?6)", rusqlite::params![settings.port_id, settings.channel.to_string(), settings.update_policy.to_string(), settings.active_install_id, settings.previous_install_id, settings.output_directory.as_deref().map(|path| crate::path::unicode(path, "port output directory")).transpose()?])?;
     }

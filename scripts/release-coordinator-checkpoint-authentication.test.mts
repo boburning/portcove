@@ -1,3 +1,5 @@
+import { retainedCatalogReviewRecoveryResources } from "./release-retained-catalog-review-resources.mts";
+import { parseControllerWitnessedTime } from "./github-controller-attestation.mts";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { mkdtemp, readdir, readFile, rm } from "node:fs/promises";
@@ -10,6 +12,7 @@ import { syncBuiltinESMExports } from "node:module";
 import type { SpawnSyncOptionsWithStringEncoding } from "node:child_process";
 import {
   checkpointProofFixture,
+  releaseCustodyFetch,
   fixedJobJournalAuthoritiesFixture,
 } from "./fixtures/checkpoint-proof-fixture.mts";
 import {
@@ -22,11 +25,29 @@ import {
   authenticateCoordinatorCheckpointEvidence,
   requireAuthenticatedCheckpointEvidence,
   authenticateFixedJobCoordinatorHistory,
+  matchesRetainedCatalogBootstrapHandoff,
+  matchesRetainedCatalogAdoptionWithdrawal,
+  matchesRetainedChameleonWithdrawalHandoff,
+  retainedChameleonReviewClaim,
+  selectRetainedChameleonReviewClaim,
+  matchesRetainedCatalogForwardAdoptionHandoff,
+  matchesRetainedApplicationRenewalHandoff,
+  matchesRetainedNativeAdoptionPredecessor,
+  retainedCatalogForwardAdoptionClaim,
+  matchesRetainedReviewWithdrawalHandoff,
+  matchesRetainedV13ReviewWithdrawalHandoff,
+  retainedCatalogBootstrapClaim,
+  retainedApplicationReviewClaim,
+  isRetainedApplicationReviewClaimScope,
+  isRetainedApplicationRenewalClaimScope,
+  retainedApplicationRenewalClaim,
+  retainedApplicationContextUpload,
+  retainedApplicationContextSettlement,
 } from "./release-coordinator-checkpoint-authentication.mts";
 import { withReadOnlyReleaseChildren } from "./release-readonly-child-environment.mts";
 import { inspectCoordinatorCheckpointEvidence } from "./release-coordinator-checkpoint-evidence.mts";
 import type { CoordinatorRemoteApi } from "./release-coordinator-remote.mts";
-import type { GitHubRestReader } from "./github-api.mts";
+import type { HistoricalJobProvider } from "./release-custody-provider.mts";
 import { releaseCanonicalDigest } from "./release-canonical.mts";
 import { capacityFixture } from "./fixtures/release-capacity-fixture.mts";
 import { createHash } from "node:crypto";
@@ -43,9 +64,59 @@ function historical(f: ReturnType<typeof checkpointProofFixture>) {
 }
 const witnessed = Date.parse("2026-10-23T12:00:30.123Z");
 
+void test("actual historical SDK refuses incomplete metadata in one attempt with the explicit reader credential", async (t) => {
+  const f = checkpointProofFixture();
+  const now = performance.now.bind(performance);
+  let shift = 0;
+  t.mock.method(performance, "now", () => now() + shift);
+  for (const fault of ["non-200", "transient", "stream", "redirect", "late"] as const) {
+    let sends = 0;
+    const fetch = t.mock.method(
+      globalThis,
+      "fetch",
+      releaseCustodyFetch(f.provider, (_url, init) => {
+        sends++;
+        assert.equal(new Headers(init?.headers).get("authorization"), "token inert-checkpoint-sdk");
+        assert.equal(new Headers(init?.headers).get("x-github-api-version"), "2022-11-28");
+        assert.equal(init?.redirect, "manual");
+        if (fault === "non-200") return Response.json(f.attempt, { status: 201 });
+        if (fault === "transient")
+          return Response.json({ message: "unavailable" }, { status: 503 });
+        if (fault === "stream")
+          return new Response(
+            new ReadableStream({
+              start(controller) {
+                controller.error(new Error("incomplete body"));
+              },
+            }),
+          );
+        if (fault === "redirect")
+          return new Response(null, {
+            status: 302,
+            headers: { location: "https://foreign.invalid" },
+          });
+        shift = 60001;
+        return Response.json(f.attempt);
+      }),
+    );
+    try {
+      await assert.rejects(
+        verifyHistoricalCheckpointJob("coordinator", historical(f), witnessed, {
+          deadline: performance.now() + 60000,
+          token: "inert-checkpoint-sdk",
+        }),
+      );
+      assert.equal(sends, 1);
+    } finally {
+      shift = 0;
+      fetch.mock.restore();
+    }
+  }
+});
+
 for (const platform of ["windows-x86_64", "linux-x86_64"] as const) {
   for (const state of ["live", "success", "failure", "contradictory", "future"] as const) {
-    void test(`${platform} signed-stage custody is separate from terminal native history: ${state}`, () => {
+    void test(`${platform} signed-stage custody is separate from terminal native history: ${state}`, async () => {
       const f = checkpointProofFixture();
       Object.assign(f.job, {
         name: hostedNativeJobProfile(platform).job,
@@ -64,17 +135,16 @@ for (const platform of ["windows-x86_64", "linux-x86_64"] as const) {
           historical(f),
           state === "future" ? Date.now() + 60000 : witnessed,
           {
-            cwd: process.cwd(),
             deadline: performance.now() + 60000,
-            api: f.api,
+            provider: f.provider,
           },
         );
       if (["failure", "contradictory", "future"].includes(state)) {
-        assert.throws(observe, /native phase|timestamp/);
+        await assert.rejects(observe, /native phase|timestamp/);
         return;
       }
-      const first = observe();
-      const second = observe();
+      const first = await observe();
+      const second = await observe();
       assert.deepEqual(first.witnessed_interval, {
         start: Date.parse(f.job.started_at),
         end: witnessed,
@@ -85,12 +155,11 @@ for (const platform of ["windows-x86_64", "linux-x86_64"] as const) {
       assert.equal(first.native_acceptance, "not-established");
       assert.equal(first.authority, "none");
       if (state === "live")
-        assert.throws(
+        await assert.rejects(
           () =>
             verifyHistoricalHostedNativeJob(platform, historical(f), witnessed, {
-              cwd: process.cwd(),
               deadline: performance.now() + 60000,
-              api: f.api,
+              provider: f.provider,
             }),
           /must complete successfully/,
         );
@@ -100,34 +169,30 @@ for (const platform of ["windows-x86_64", "linux-x86_64"] as const) {
 
 for (const platform of ["windows-x86_64", "linux-x86_64"] as const) {
   for (const attemptState of ["in_progress", "completed-success", "completed-failure"] as const) {
-    void test(`historical ${platform} completed-job custody remains usable in ${attemptState} attempt without native acceptance`, () => {
+    void test(`historical ${platform} completed-job custody remains usable in ${attemptState} attempt without native acceptance`, async () => {
       const f = checkpointProofFixture();
       f.job.name = hostedNativeJobProfile(platform).job;
       f.job.conclusion = "success";
-      const api: GitHubRestReader = {
-        request(method, route) {
-          const result = f.api.request(method, route);
-          return route.endsWith(`/attempts/${f.producer.run_attempt}`)
-            ? {
-                ...result,
-                body: {
-                  ...f.attempt,
-                  status: attemptState === "in_progress" ? "in_progress" : "completed",
-                  conclusion:
-                    attemptState === "completed-success"
-                      ? "success"
-                      : attemptState === "completed-failure"
-                        ? "failure"
-                        : null,
-                },
-              }
-            : result;
+      const provider: HistoricalJobProvider = {
+        ...f.provider,
+        async attempt(run, selectedAttempt) {
+          const result = await f.provider.attempt(run, selectedAttempt);
+          assert.ok(isRecord(result));
+          return {
+            ...result,
+            status: attemptState === "in_progress" ? "in_progress" : "completed",
+            conclusion:
+              attemptState === "completed-success"
+                ? "success"
+                : attemptState === "completed-failure"
+                  ? "failure"
+                  : null,
+          };
         },
       };
-      const result = verifyHistoricalHostedNativeJob(platform, historical(f), witnessed, {
-        cwd: process.cwd(),
+      const result = await verifyHistoricalHostedNativeJob(platform, historical(f), witnessed, {
         deadline: performance.now() + 60000,
-        api,
+        provider,
       });
       assert.equal(result.requests, 4);
       assert.equal(result.platform_label, platform);
@@ -150,7 +215,7 @@ for (const platform of ["windows-x86_64", "linux-x86_64"] as const) {
     "wrong-source",
     "wrong-actor",
   ] as const) {
-    void test(`historical ${platform} native custody refuses ${fault}`, () => {
+    void test(`historical ${platform} native custody refuses ${fault}`, async () => {
       const f = checkpointProofFixture();
       f.job.name = hostedNativeJobProfile(platform).job;
       f.job.conclusion = fault === "failed-job" ? "failure" : "success";
@@ -160,27 +225,19 @@ for (const platform of ["windows-x86_64", "linux-x86_64"] as const) {
       if (fault === "wrong-source") f.attempt.head_sha = "9".repeat(40);
       if (fault === "wrong-actor") f.attempt.actor.id = 99;
       f.faults.value = fault;
-      const api: GitHubRestReader = {
-        request(method, route) {
-          const result = f.api.request(method, route);
-          return route.endsWith(`/attempts/${f.producer.run_attempt}`)
-            ? {
-                ...result,
-                body: {
-                  ...(isRecord(result.body) ? result.body : {}),
-                  status: "in_progress",
-                  conclusion: null,
-                },
-              }
-            : result;
+      const provider: HistoricalJobProvider = {
+        ...f.provider,
+        async attempt(run, selectedAttempt) {
+          const result = await f.provider.attempt(run, selectedAttempt);
+          assert.ok(isRecord(result));
+          return { ...result, status: "in_progress", conclusion: null };
         },
       };
-      assert.throws(
+      await assert.rejects(
         () =>
           verifyHistoricalHostedNativeJob(platform, historical(f), witnessed, {
-            cwd: process.cwd(),
             deadline: performance.now() + 60000,
-            api,
+            provider,
           }),
         /historical|original/,
       );
@@ -204,18 +261,17 @@ function options(f: ReturnType<typeof checkpointProofFixture>) {
         };
       },
     },
-    job: { api: f.api },
+    job: { provider: f.provider },
   };
 }
 
 for (const conclusion of ["success", "failure", "cancelled", "timed_out"]) {
-  void test(`historical ${conclusion} job authenticates partial-effect provenance without successful-effect credit`, () => {
+  void test(`historical ${conclusion} job authenticates partial-effect provenance without successful-effect credit`, async () => {
     const f = checkpointProofFixture();
     f.job.conclusion = conclusion;
-    const result = verifyHistoricalCheckpointJob("coordinator", historical(f), witnessed, {
-      cwd: process.cwd(),
+    const result = await verifyHistoricalCheckpointJob("coordinator", historical(f), witnessed, {
       deadline: performance.now() + 60000,
-      api: f.api,
+      provider: f.provider,
     });
     assert.equal(result.requests, 4);
     assert.equal(result.effect_outcome, "not-established");
@@ -242,7 +298,7 @@ for (const fault of [
   "wrong-ref",
   "wrong-attempt",
 ]) {
-  void test(`historical checkpoint refuses ${fault} with bounded GET-only collection`, () => {
+  void test(`historical checkpoint refuses ${fault} with bounded GET-only collection`, async () => {
     const f = checkpointProofFixture();
     f.faults.value = fault;
     if (fault === "wrong-name") f.job.name = "Trusted package assembly";
@@ -253,44 +309,56 @@ for (const fault of [
     if (fault === "foreign-repository") f.attempt.repository.id = 99;
     if (fault === "wrong-ref") f.attempt.head_branch = "main";
     if (fault === "wrong-attempt") f.attempt.run_attempt = 3;
-    assert.throws(
+    await assert.rejects(
       () =>
         verifyHistoricalCheckpointJob("coordinator", historical(f), witnessed, {
-          cwd: process.cwd(),
           deadline: performance.now() + 60000,
-          api: f.api,
+          provider: f.provider,
         }),
       /historical|original/,
     );
     assert.ok(f.calls.length <= 4);
   });
 }
-void test("witnessed time must belong to the started original job, including its reported final-second precision", () => {
+void test("witnessed time must belong to the started original job, including its reported final-second precision", async () => {
   for (const time of ["2026-10-23T11:59:59.999Z", "2026-10-23T12:01:01Z"]) {
     const f = checkpointProofFixture();
-    assert.throws(
+    await assert.rejects(
       () =>
         verifyHistoricalCheckpointJob("coordinator", historical(f), Date.parse(time), {
-          cwd: process.cwd(),
           deadline: performance.now() + 60000,
-          api: f.api,
+          provider: f.provider,
         }),
       /outside the original/,
     );
   }
   const f = checkpointProofFixture();
-  assert.doesNotThrow(() =>
-    verifyHistoricalCheckpointJob(
-      "coordinator",
-      historical(f),
-      Date.parse("2026-10-23T12:01:00.999Z"),
-      { cwd: process.cwd(), deadline: performance.now() + 60000, api: f.api },
-    ),
+  await verifyHistoricalCheckpointJob(
+    "coordinator",
+    historical(f),
+    Date.parse("2026-10-23T12:01:00.999Z"),
+    { deadline: performance.now() + 60000, provider: f.provider },
   );
+});
+void test("GitHub CLI witnessed offsets normalize to the same instant and reject malformed civil time", () => {
+  const entry = { type: "Tlog", uri: "https://rekor.sigstore.dev" };
+  const expected = Date.parse("2026-11-08T13:59:07Z");
+  for (const timestamp of ["2026-11-08T08:59:07-05:00", "2026-11-08T19:29:07+05:30"])
+    assert.equal(parseControllerWitnessedTime({ ...entry, timestamp }), expected);
+  for (const timestamp of [
+    "2026-11-08T08:59:07",
+    "2026-11-08T08:59:07-0500",
+    "2026-11-08T08:59:07-05:60",
+    "2026-11-08T08:59:07-24:00",
+    "2026-11-31T08:59:07-05:00",
+    "2026-11-08T24:00:00-05:00",
+  ])
+    assert.throws(() => parseControllerWitnessedTime({ ...entry, timestamp }), /witnessed time/u);
 });
 void test("injected signature/job verification retains original bytes but cannot mint actual-provider custody", async (t) => {
   const directory = await root(t),
     f = checkpointProofFixture();
+  f.verification.verifiedTimestamps[0]!.timestamp = "2026-10-23T07:00:30.123-05:00";
   const receipt = await authenticateCoordinatorCheckpointEvidence(
     directory,
     f.checkpoint,
@@ -335,7 +403,7 @@ for (const fault of ["issuer", "statement", "timestamp", "late-timestamp"]) {
       f.verification.verifiedTimestamps.push({
         type: "tlog",
         uri: "https://rekor.sigstore.dev",
-        timestamp: "2026-10-23T12:02:00Z",
+        timestamp: "2026-10-23T07:02:00-05:00",
       });
     await assert.rejects(
       authenticateCoordinatorCheckpointEvidence(
@@ -411,16 +479,18 @@ void test("default isolated verification mints only same-process evidence and re
       assert.equal(settings.env?.PORTCOVE_COORDINATOR_JOURNAL_TOKEN, undefined);
       assert.equal(settings.env?.ACTIONS_ID_TOKEN_REQUEST_TOKEN, undefined);
       assert.equal(settings.env?.NODE_OPTIONS, undefined);
-      if (args[0] === "attestation") return options(f).attestation.spawn(command, args);
-      const response = f.api.request("GET", args[2]!);
-      return {
-        status: 0,
-        stdout: `HTTP/2.0 200 OK\r\n\r\n${JSON.stringify(response.body)}`,
-        stderr: "",
-      };
+      assert.equal(args[0], "attestation");
+      return options(f).attestation.spawn(command, args);
     },
   );
   syncBuiltinESMExports();
+  t.mock.method(
+    globalThis,
+    "fetch",
+    releaseCustodyFetch(f.provider, (_url, init) => {
+      assert.equal(new Headers(init?.headers).get("authorization"), "token inert-read-only-token");
+    }),
+  );
   await withReadOnlyReleaseChildren(directory, async () => {
     const receipt = await authenticateCoordinatorCheckpointEvidence(
       directory,
@@ -513,7 +583,7 @@ for (const fault of [
   "cap",
   "over-cap",
 ]) {
-  void test(`historical checkpoint pagination ${fault} never substitutes a partial inventory`, () => {
+  void test(`historical checkpoint pagination ${fault} never substitutes a partial inventory`, async () => {
     const f = checkpointProofFixture();
     const count =
       fault === "cap" ? 1600 : fault === "over-cap" ? 1601 : fault === "empty" ? 0 : 101;
@@ -524,29 +594,19 @@ for (const fault of [
       check_run_url: `https://api.github.com/repos/boburning/portcove/check-runs/${index === count - 1 ? 777 : index + 10000}`,
     }));
     let pages = 0;
-    const api = {
-      request(method: string, endpoint: string) {
-        if (!endpoint.includes("/jobs?")) return f.api.request(method, endpoint);
-        assert.equal(method, "GET");
+    const provider: HistoricalJobProvider = {
+      ...f.provider,
+      async jobs(run, attempt, page) {
         pages++;
-        const page = Number(new URL(`https://api.github.com/${endpoint}`).searchParams.get("page"));
         const values = jobs.slice((page - 1) * 100, page * 100);
         if (fault === "duplicate-page" && page === 2) values[0] = jobs[0]!;
         const hasNext = page * 100 < count || fault === "terminal-link";
         const nextPage = fault === "stalled-link" ? page : page + 1;
         const host = fault === "foreign-link" ? "foreign.invalid" : "api.github.com";
         return {
-          status: 200,
-          headers: new Map(
-            hasNext
-              ? [
-                  [
-                    "link",
-                    `<https://${host}/repositories/1354613114/actions/runs/9988/attempts/2/jobs?per_page=100&page=${nextPage}>; rel="next"`,
-                  ],
-                ]
-              : [],
-          ),
+          next: hasNext
+            ? `https://${host}/repositories/1354613114/actions/runs/${run}/attempts/${attempt}/jobs?per_page=100&page=${nextPage}`
+            : null,
           body: {
             total_count: fault === "total-drift" && page === 2 ? count + 1 : count,
             jobs: values,
@@ -556,14 +616,13 @@ for (const fault of [
     };
     const run = () =>
       verifyHistoricalCheckpointJob("coordinator", historical(f), witnessed, {
-        cwd: process.cwd(),
         deadline: performance.now() + 60000,
-        api,
+        provider,
       });
     if (fault === "complete" || fault === "cap") {
-      const result = run();
+      const result = await run();
       assert.equal(result.requests, fault === "cap" ? 19 : 5);
-    } else assert.throws(run, /historical checkpoint/);
+    } else await assert.rejects(run, /historical checkpoint/);
     assert.ok(pages <= 16);
   });
 }
@@ -612,6 +671,24 @@ void test("selected empty seed requires exact setup bytes, modern capacity contr
     api,
   );
   assert.equal(result.kind, "ratified-initial-seed");
+  const storageAuthorities = {
+    ...authorities,
+    kind: "three-app-fixed-jobs-v1",
+    storage_setup_plan_sha256: "7".repeat(64),
+    apps: { ...authorities.apps, storage_writer: { app_id: 90001, installation_id: 90002 } },
+  };
+  const upgraded = await authenticateFixedJobCoordinatorHistory(
+    directory,
+    checkpoint,
+    storageAuthorities,
+    source,
+    performance.now() + 60000,
+    api,
+  );
+  assert.equal(upgraded.kind, "ratified-initial-seed");
+  assert.equal(upgraded.checkpoint, result.checkpoint);
+  assert.deepEqual(storageAuthorities.journal_seed, authorities.journal_seed);
+  assert.equal(storageAuthorities.setup_plan_sha256, authorities.setup_plan_sha256);
   const changed = [
     { ...checkpoint, previous: "a".repeat(40) },
     { ...checkpoint, blob: { ...checkpoint.blob, contents: checkpoint.blob.contents + " " } },
@@ -784,31 +861,44 @@ for (const fault of [
           verifies++;
           return options(f).attestation.spawn(command, args);
         }
-        if (settings.env?.GH_CONFIG_DIR?.startsWith(path.join(directory, "journal-api-"))) {
-          let body: unknown;
-          if (args[1] === "graphql") {
-            assert.ok(typeof settings.input === "string");
-            const input: unknown = JSON.parse(settings.input);
-            assert.ok(
-              isRecord(input) && typeof input.query === "string" && isRecord(input.variables),
-            );
-            body = api.graphql(input.query, input.variables);
-          } else body = api.request("GET", args[2]!).body;
-          return {
-            status: 0,
-            stdout: `HTTP/2.0 200 Fixture\r\n\r\n${JSON.stringify(body)}`,
-            stderr: "",
-          };
-        }
-        const response = f.api.request("GET", args[2]!);
-        return {
-          status: 0,
-          stdout: `HTTP/2.0 200 Fixture\r\n\r\n${JSON.stringify(response.body)}`,
-          stderr: "",
-        };
+        assert.fail("unexpected retained CLI route");
       },
     );
     syncBuiltinESMExports();
+    const custodyFetch = releaseCustodyFetch(f.provider, (_url, init) => {
+      assert.equal(
+        new Headers(init?.headers).get("authorization"),
+        "token inert-history-job-token",
+      );
+    });
+    t.mock.method(
+      globalThis,
+      "fetch",
+      async (raw: Parameters<typeof fetch>[0], init?: RequestInit) => {
+        const url = new URL(raw instanceof Request ? raw.url : raw);
+        if (
+          url.href === "https://api.github.com/graphql" ||
+          url.pathname.startsWith("/repos/boburning/portcove/git/") ||
+          (url.pathname === `/repos/boburning/portcove/actions/jobs/${f.producer.job_id}` &&
+            reads === 4)
+        ) {
+          assert.equal(
+            new Headers(init?.headers).get("authorization"),
+            "token inert-history-job-token",
+          );
+          if (url.pathname === "/graphql") {
+            assert.ok(typeof init?.body === "string");
+            const input: unknown = JSON.parse(init.body);
+            assert.ok(
+              isRecord(input) && typeof input.query === "string" && isRecord(input.variables),
+            );
+            return Response.json(api.graphql(input.query, input.variables));
+          }
+          return Response.json(api.request("GET", url.pathname.slice(1)).body);
+        }
+        return custodyFetch(raw, init);
+      },
+    );
     await withReadOnlyReleaseChildren(directory, async () => {
       const deadline = performance.now() + 60000;
       const reader = createCheckpointHistoryReader(
@@ -817,7 +907,7 @@ for (const fault of [
         f.configuration,
         deadline,
       );
-      reader.assertCurrentUnclaimedHead();
+      await reader.assertCurrentHead();
       const run = () =>
         authenticateFixedJobCoordinatorHistory(
           directory,
@@ -841,10 +931,734 @@ for (const fault of [
           f.evidence,
         );
         assert.equal(verifies, 1);
-        reader.assertCurrentUnclaimedHead();
+        await reader.assertCurrentHead();
         assert.equal(reads + snapshots, 9);
       }
       if (["source", "setup", "role", "changed-proof"].includes(fault)) assert.equal(verifies, 0);
     });
+  });
+}
+
+void test("the exact historical r51 adoption can hand off to only the r52 application source", () => {
+  const retained = retainedCatalogBootstrapClaim;
+  const checkpoint = { checkpoint: retained.child, previous: retained.previous };
+  const source = { revision: "a".repeat(40), execution_ref: retained.application_ref };
+  const producer = {
+    controller_revision: retained.successor_revision,
+    controller_ref: retained.successor_ref,
+    workflow_sha256: retained.successor_workflow_sha256,
+  };
+  assert.equal(matchesRetainedCatalogBootstrapHandoff(checkpoint, producer, source), true);
+  assert.equal(
+    matchesRetainedCatalogBootstrapHandoff(checkpoint, producer, {
+      ...source,
+      execution_ref: retainedApplicationReviewClaim.successor_ref,
+    }),
+    true,
+  );
+
+  assert.equal(
+    matchesRetainedCatalogBootstrapHandoff(checkpoint, producer, {
+      ...source,
+      execution_ref: "refs/tags/portcove-production-controller-windows-20261105r46",
+    }),
+    false,
+  );
+  assert.equal(
+    matchesRetainedCatalogBootstrapHandoff(
+      checkpoint,
+      { ...producer, workflow_sha256: "a".repeat(64) },
+      source,
+    ),
+    false,
+  );
+  assert.equal(
+    matchesRetainedCatalogBootstrapHandoff(
+      { ...checkpoint, checkpoint: "b".repeat(40) },
+      producer,
+      source,
+    ),
+    false,
+  );
+  assert.equal(
+    matchesRetainedCatalogBootstrapHandoff(
+      { ...checkpoint, previous: "b".repeat(40) },
+      producer,
+      source,
+    ),
+    false,
+  );
+  assert.equal(
+    matchesRetainedCatalogBootstrapHandoff(
+      checkpoint,
+      { ...producer, controller_ref: retained.original_ref },
+      source,
+    ),
+    false,
+  );
+  assert.equal(
+    matchesRetainedCatalogBootstrapHandoff(
+      checkpoint,
+      { ...producer, controller_revision: source.revision },
+      source,
+    ),
+    false,
+  );
+  assert.equal(
+    matchesRetainedCatalogBootstrapHandoff(checkpoint, producer, {
+      ...source,
+      execution_ref: "refs/tags/another",
+    }),
+    false,
+  );
+});
+
+void test("appointed withdrawal authenticates only the exact retained r53 producer", () => {
+  const retained = retainedApplicationReviewClaim;
+  const checkpoint = { checkpoint: retained.child, previous: retained.previous };
+  const producer = {
+    controller_revision: retained.successor_revision,
+    controller_ref: retained.successor_ref,
+    workflow_sha256: retained.successor_workflow_sha256,
+    run_id: retained.successor_run,
+    job_id: retained.successor_job,
+  };
+  const withdrawal = {
+    schema_version: 1,
+    kind: "application-review-safety-withdrawal",
+    request_id: retained.request_id,
+    source_commit: retained.source,
+    source_tree: retained.source_tree,
+    request_checkpoint: retained.child,
+    approval_sha256: "a".repeat(64),
+    technical_stop_sha256: "b".repeat(64),
+  };
+  assert.ok(matchesRetainedReviewWithdrawalHandoff(checkpoint, producer, withdrawal));
+  assert.ok(!matchesRetainedReviewWithdrawalHandoff(checkpoint, producer, undefined));
+  assert.ok(
+    !matchesRetainedReviewWithdrawalHandoff(
+      { ...checkpoint, previous: null },
+      producer,
+      withdrawal,
+    ),
+  );
+  assert.ok(
+    !matchesRetainedReviewWithdrawalHandoff(checkpoint, { ...producer, run_id: "1" }, withdrawal),
+  );
+  assert.ok(
+    !matchesRetainedReviewWithdrawalHandoff(checkpoint, { ...producer, job_id: "1" }, withdrawal),
+  );
+  assert.ok(
+    !matchesRetainedReviewWithdrawalHandoff(checkpoint, producer, {
+      ...withdrawal,
+      request_id: "a".repeat(64),
+    }),
+  );
+  assert.ok(
+    !matchesRetainedReviewWithdrawalHandoff(checkpoint, producer, {
+      ...withdrawal,
+      source_tree: "a".repeat(40),
+    }),
+  );
+});
+
+void test("v13 withdrawal authenticates only the appointed request and signed adoption producer", () => {
+  const checkpoint = {
+    checkpoint: "7b7388fe8eeb04fe11f4afd336f4ddb0359ef1b4",
+    previous: "d23b4f108b03ecd81c1696a407c740ca24e5d705",
+  };
+  const producer = {
+    controller_revision: "dc5aee2e8cb67c92e36f1507a09b2a2b6a391372",
+    controller_ref: "refs/tags/portcove-production-controller-catalog-adoption-v13-settle",
+    workflow_sha256: "ae780affa5cff58dd88250b3575d6948ed6608a47b3175492cf56fff3a5d90fb",
+    run_id: "43388566615",
+    run_attempt: 1,
+    job_id: "131764663738",
+    check_run_id: "131764663738",
+  };
+  const source = {
+    execution_ref: "refs/tags/portcove-production-controller-windows-20261113-withdraw-29f33f57",
+    workflow_sha256: producer.workflow_sha256,
+  };
+  const withdrawal = {
+    schema_version: 1,
+    kind: "application-review-safety-withdrawal",
+    request_id: "87a32458456f8b24bfe545a89a98c93a2315af9e9e15f37e0c1e4b821f480176",
+    source_commit: "29f33f577dd08888daa308f6534e1ba2e0d10eaf",
+    source_tree: "e5f44b9f1c2b541fb2c932d6d203198c33ca2d57",
+    request_checkpoint: checkpoint.checkpoint,
+    approval_sha256: "a".repeat(64),
+    technical_stop_sha256: "73704d29b23be7aeffcddf2776ce1598dbf3a1d2c76efac0e11fbc10d36d4be0",
+  };
+  assert.ok(
+    matchesRetainedV13ReviewWithdrawalHandoff(
+      checkpoint,
+      producer,
+      source,
+      withdrawal,
+      "application",
+    ),
+  );
+  const retry = {
+    ...source,
+    execution_ref: "refs/tags/portcove-production-controller-windows-20261113-withdraw-29f33f57-r2",
+  };
+  assert.ok(
+    matchesRetainedV13ReviewWithdrawalHandoff(
+      checkpoint,
+      producer,
+      retry,
+      withdrawal,
+      "application",
+    ),
+  );
+  assert.ok(
+    matchesRetainedV13ReviewWithdrawalHandoff(
+      checkpoint,
+      producer,
+      { ...retry, execution_ref: retry.execution_ref.replace(/r2$/u, "r3") },
+      withdrawal,
+      "application",
+    ),
+  );
+  assert.ok(
+    !matchesRetainedV13ReviewWithdrawalHandoff(
+      checkpoint,
+      producer,
+      { ...retry, execution_ref: retry.execution_ref.replace(/r2$/u, "r4") },
+      withdrawal,
+      "application",
+    ),
+  );
+  for (const purpose of ["catalog-publication", undefined] as const)
+    assert.ok(
+      !matchesRetainedV13ReviewWithdrawalHandoff(checkpoint, producer, source, withdrawal, purpose),
+    );
+  assert.ok(
+    !matchesRetainedV13ReviewWithdrawalHandoff(checkpoint, producer, source, null, "application"),
+  );
+  for (const key of Object.keys(checkpoint))
+    assert.ok(
+      !matchesRetainedV13ReviewWithdrawalHandoff(
+        { ...checkpoint, [key]: "a".repeat(40) },
+        producer,
+        source,
+        withdrawal,
+        "application",
+      ),
+    );
+  for (const [key, value] of Object.entries(producer))
+    assert.ok(
+      !matchesRetainedV13ReviewWithdrawalHandoff(
+        checkpoint,
+        { ...producer, [key]: typeof value === "number" ? 2 : "wrong" },
+        source,
+        withdrawal,
+        "application",
+      ),
+    );
+  for (const key of Object.keys(source))
+    assert.ok(
+      !matchesRetainedV13ReviewWithdrawalHandoff(
+        checkpoint,
+        producer,
+        { ...source, [key]: "wrong" },
+        withdrawal,
+        "application",
+      ),
+    );
+  for (const [key, value] of Object.entries(withdrawal)) {
+    if (key === "kind" || key === "schema_version" || key === "approval_sha256") continue;
+    assert.equal(typeof value, "string");
+    assert.ok(
+      !matchesRetainedV13ReviewWithdrawalHandoff(
+        checkpoint,
+        producer,
+        source,
+        { ...withdrawal, [key]: "b".repeat(String(value).length) },
+        "application",
+      ),
+    );
+  }
+});
+
+void test("retained application claim admits only its exact successor and original child", () => {
+  const claim = retainedApplicationReviewClaim;
+  assert.equal(
+    isRetainedApplicationReviewClaimScope(claim.previous, claim.child, claim.successor_ref, 1),
+    true,
+  );
+  assert.equal(
+    isRetainedApplicationReviewClaimScope(claim.previous, claim.child, claim.original_ref, 1),
+    false,
+  );
+  assert.equal(
+    isRetainedApplicationReviewClaimScope(claim.previous, claim.child, claim.successor_ref, 2),
+    false,
+  );
+  assert.equal(
+    isRetainedApplicationReviewClaimScope(claim.previous, claim.previous, claim.successor_ref, 1),
+    false,
+  );
+  assert.equal(
+    isRetainedApplicationReviewClaimScope(claim.child, claim.child, claim.successor_ref, 1),
+    false,
+  );
+});
+
+void test("catalog adoption can authenticate only the exact settled r63 withdrawal predecessor", () => {
+  const checkpoint = {
+    checkpoint: "da80188916dfc40f5d46c1eb4123bc00b9d68a8b",
+    previous: retainedApplicationReviewClaim.child,
+  };
+  const producer = {
+    controller_revision: "5a572c20064f5c7bfc9fadb86996b9f1bef7c812",
+    controller_ref: "refs/tags/portcove-production-controller-20261110r63",
+    workflow_sha256: "9a126152d549d913b57689404ca51bf755d88e2b0aa3d76631c4bb7e487ea136",
+    run_id: "42755307254",
+    job_id: "129631097635",
+  };
+  assert.equal(
+    matchesRetainedCatalogAdoptionWithdrawal(checkpoint, producer, "catalog-publication"),
+    true,
+  );
+  for (const purpose of ["application", undefined] as const)
+    assert.equal(matchesRetainedCatalogAdoptionWithdrawal(checkpoint, producer, purpose), false);
+  for (const field of Object.keys(checkpoint))
+    assert.equal(
+      matchesRetainedCatalogAdoptionWithdrawal(
+        { ...checkpoint, [field]: "0".repeat(40) },
+        producer,
+        "catalog-publication",
+      ),
+      false,
+    );
+  for (const field of Object.keys(producer))
+    assert.equal(
+      matchesRetainedCatalogAdoptionWithdrawal(
+        checkpoint,
+        { ...producer, [field]: "0" },
+        "catalog-publication",
+      ),
+      false,
+    );
+});
+
+void test("the Chameleon coordinator can carry only the exact signed v13 withdrawal predecessor", () => {
+  const workflow = "ae780affa5cff58dd88250b3575d6948ed6608a47b3175492cf56fff3a5d90fb";
+  const checkpoint = {
+    checkpoint: "9d687629c60fc85c9a150a38eaf1dd8081934a87",
+    previous: "7b7388fe8eeb04fe11f4afd336f4ddb0359ef1b4",
+  };
+  const producer = {
+    controller_revision: "4cd5a0d9f9e3f3184bb680a298489a9db5dc18ba",
+    controller_ref:
+      "refs/tags/portcove-production-controller-windows-20261113-withdraw-29f33f57-r3",
+    workflow_sha256: workflow,
+    run_id: "43441976472",
+    run_attempt: 1,
+    job_id: "131944380144",
+    check_run_id: "131944380144",
+  };
+  const source = {
+    execution_ref: "refs/tags/portcove-production-controller-catalog-chameleon-canary",
+    workflow_sha256: workflow,
+  };
+  const purpose = "catalog-publication";
+  assert.equal(
+    matchesRetainedChameleonWithdrawalHandoff(checkpoint, producer, source, purpose),
+    true,
+  );
+  for (const key of Object.keys(checkpoint))
+    assert.equal(
+      matchesRetainedChameleonWithdrawalHandoff(
+        { ...checkpoint, [key]: "0".repeat(40) },
+        producer,
+        source,
+        purpose,
+      ),
+      false,
+    );
+  for (const key of Object.keys(producer))
+    assert.equal(
+      matchesRetainedChameleonWithdrawalHandoff(
+        checkpoint,
+        { ...producer, [key]: "0" },
+        source,
+        purpose,
+      ),
+      false,
+    );
+  for (const key of Object.keys(source))
+    assert.equal(
+      matchesRetainedChameleonWithdrawalHandoff(
+        checkpoint,
+        producer,
+        { ...source, [key]: "0" },
+        purpose,
+      ),
+      false,
+    );
+  const recovery = retainedCatalogReviewRecoveryResources;
+  assert.equal(
+    matchesRetainedChameleonWithdrawalHandoff(checkpoint, producer, recovery, purpose),
+    true,
+  );
+  assert.equal(
+    matchesRetainedChameleonWithdrawalHandoff(
+      checkpoint,
+      producer,
+      { ...recovery, workflow_sha256: workflow },
+      purpose,
+    ),
+    false,
+  );
+  assert.equal(
+    matchesRetainedChameleonWithdrawalHandoff(
+      checkpoint,
+      producer,
+      { ...source, workflow_sha256: recovery.workflow_sha256 },
+      purpose,
+    ),
+    false,
+  );
+  for (const other of ["application", undefined] as const)
+    assert.equal(
+      matchesRetainedChameleonWithdrawalHandoff(checkpoint, producer, source, other),
+      false,
+    );
+});
+
+void test("Chameleon review settlement selects only the appointed refs and first attempts", () => {
+  const claim = retainedChameleonReviewClaim;
+  assert.equal(selectRetainedChameleonReviewClaim(claim.original_ref, 1), undefined);
+  assert.equal(selectRetainedChameleonReviewClaim(claim.recovery_ref, 1), claim);
+  assert.equal(selectRetainedChameleonReviewClaim(claim.early_recovery_ref, 1), claim);
+  const ref = retainedCatalogReviewRecoveryResources.execution_ref;
+  assert.equal(selectRetainedChameleonReviewClaim(ref, 1), claim);
+  assert.throws(() => selectRetainedChameleonReviewClaim(ref, 2));
+  assert.throws(() => selectRetainedChameleonReviewClaim(claim.recovery_ref, 2));
+  assert.throws(() => selectRetainedChameleonReviewClaim(claim.early_recovery_ref, 2));
+});
+
+void test("only the appointed successor and exact r66 adoption producer can carry the shared journal", () => {
+  const claim = retainedCatalogForwardAdoptionClaim;
+  const checkpoint = { checkpoint: claim.child, previous: claim.previous };
+  const source = { execution_ref: "refs/tags/portcove-production-controller-20261110r67" };
+  const producer = {
+    controller_revision: "d6918c546f8080bf3cb033ddb065ce9a65a4d7f2",
+    controller_ref: claim.successor_ref,
+    workflow_sha256: "9a126152d549d913b57689404ca51bf755d88e2b0aa3d76631c4bb7e487ea136",
+    run_id: "42774078033",
+    run_attempt: 1,
+    job_id: "129690072424",
+    check_run_id: "129690072424",
+  };
+  for (const purpose of ["application", "catalog-publication"] as const)
+    for (const execution_ref of [
+      source.execution_ref,
+      "refs/tags/portcove-production-controller-20261110r68",
+    ])
+      assert.equal(
+        matchesRetainedCatalogForwardAdoptionHandoff(
+          checkpoint,
+          producer,
+          { execution_ref },
+          purpose,
+        ),
+        true,
+      );
+  assert.equal(
+    matchesRetainedCatalogForwardAdoptionHandoff(checkpoint, producer, source, undefined),
+    false,
+  );
+  assert.equal(
+    matchesRetainedCatalogForwardAdoptionHandoff(
+      checkpoint,
+      producer,
+      { execution_ref: claim.successor_ref },
+      "application",
+    ),
+    false,
+  );
+  for (const [key, value] of Object.entries(producer))
+    assert.equal(
+      matchesRetainedCatalogForwardAdoptionHandoff(
+        checkpoint,
+        { ...producer, [key]: typeof value === "number" ? 2 : value + "0" },
+        source,
+        "catalog-publication",
+      ),
+      false,
+      key,
+    );
+  for (const key of ["checkpoint", "previous"] as const)
+    assert.equal(
+      matchesRetainedCatalogForwardAdoptionHandoff(
+        { ...checkpoint, [key]: "0".repeat(40) },
+        producer,
+        source,
+        "catalog-publication",
+      ),
+      false,
+      key,
+    );
+});
+
+void test("only the catalog coordinator can read the exact signed application review predecessor", () => {
+  const checkpoint = {
+    checkpoint: "006439a83c66cc3c1fa3fa142d7e4a6ed27f8553",
+    previous: "e6160a6b2c8b7784ef83e1f0c36bec0804acf2e3",
+  };
+  const source = {
+    workflow_sha256: "ae780affa5cff58dd88250b3575d6948ed6608a47b3175492cf56fff3a5d90fb",
+  };
+  const producer = {
+    controller_revision: "ddf7e1ff74ced4ae988b089bf2ba9951d4de9964",
+    controller_ref: "refs/tags/portcove-production-controller-20261111r80",
+    workflow_sha256: source.workflow_sha256,
+    run_id: "43061111295",
+    run_attempt: 1,
+    job_id: "130666640318",
+    check_run_id: "130666640318",
+  };
+  assert.ok(
+    matchesRetainedNativeAdoptionPredecessor(checkpoint, producer, source, "catalog-publication"),
+  );
+  assert.equal(
+    matchesRetainedNativeAdoptionPredecessor(checkpoint, producer, source, "application"),
+    false,
+  );
+  for (const [key, value] of Object.entries(producer))
+    assert.equal(
+      matchesRetainedNativeAdoptionPredecessor(
+        checkpoint,
+        { ...producer, [key]: typeof value === "number" ? 2 : value + "0" },
+        source,
+        "catalog-publication",
+      ),
+      false,
+      key,
+    );
+});
+
+void test("catalog adoption authenticates the settled native predecessor's exact proof producer", () => {
+  const checkpoint = {
+    checkpoint: "d23b4f108b03ecd81c1696a407c740ca24e5d705",
+    previous: "006439a83c66cc3c1fa3fa142d7e4a6ed27f8553",
+  };
+  const source = {
+    workflow_sha256: "ae780affa5cff58dd88250b3575d6948ed6608a47b3175492cf56fff3a5d90fb",
+  };
+  const producer = {
+    controller_revision: "d7f5e10b7644e9d2b8c8823c39c6175a9b3efdb3",
+    controller_ref: "refs/tags/portcove-production-controller-catalog-adoption-settle-20261111",
+    workflow_sha256: source.workflow_sha256,
+    run_id: "43127719974",
+    run_attempt: 1,
+    job_id: "130886155058",
+    check_run_id: "130886155058",
+  };
+  assert.ok(
+    matchesRetainedNativeAdoptionPredecessor(checkpoint, producer, source, "catalog-publication"),
+  );
+  assert.ok(!matchesRetainedNativeAdoptionPredecessor(checkpoint, producer, source, "application"));
+  assert.ok(
+    !matchesRetainedNativeAdoptionPredecessor(
+      checkpoint,
+      { ...producer, run_id: "43069742240" },
+      source,
+      "catalog-publication",
+    ),
+  );
+});
+
+void test("r69 can resume only the signed r68 application renewal descriptor", () => {
+  const checkpoint = {
+    checkpoint: "86407ae8bca924200aba304340f33076e635b6e7",
+    previous: retainedCatalogForwardAdoptionClaim.child,
+  };
+  const producer = {
+    controller_revision: "9c5e7f0e33282115235fffa19d073e5cb084ffa0",
+    controller_ref: "refs/tags/portcove-production-controller-20261110r68",
+    workflow_sha256: "9a126152d549d913b57689404ca51bf755d88e2b0aa3d76631c4bb7e487ea136",
+    run_id: "42786277008",
+    run_attempt: 1,
+    job_id: "129733085853",
+    check_run_id: "129733085853",
+  };
+  const source = { execution_ref: "refs/tags/portcove-production-controller-20261110r69" };
+  assert.ok(matchesRetainedApplicationRenewalHandoff(checkpoint, producer, source, "application"));
+  assert.equal(
+    matchesRetainedApplicationRenewalHandoff(checkpoint, producer, source, "catalog-publication"),
+    false,
+  );
+  assert.equal(
+    matchesRetainedApplicationRenewalHandoff(
+      checkpoint,
+      producer,
+      { execution_ref: producer.controller_ref },
+      "application",
+    ),
+    false,
+  );
+  for (const [key, value] of Object.entries(producer))
+    assert.equal(
+      matchesRetainedApplicationRenewalHandoff(
+        checkpoint,
+        { ...producer, [key]: typeof value === "number" ? 2 : value + "0" },
+        source,
+        "application",
+      ),
+      false,
+      key,
+    );
+  assert.equal(
+    matchesRetainedApplicationRenewalHandoff(
+      { ...checkpoint, previous: null },
+      producer,
+      source,
+      "application",
+    ),
+    false,
+  );
+});
+
+void test("only the exact r70 attempt may resume the retained r69 renewal claim", () => {
+  const pin = retainedApplicationRenewalClaim;
+  assert.ok(isRetainedApplicationRenewalClaimScope(pin.previous, pin.child, pin.successor_ref, 1));
+  assert.equal(
+    isRetainedApplicationRenewalClaimScope(pin.previous, pin.child, pin.original_ref, 1),
+    false,
+  );
+  assert.equal(
+    isRetainedApplicationRenewalClaimScope(pin.previous, pin.child, pin.successor_ref, 2),
+    false,
+  );
+  assert.equal(
+    isRetainedApplicationRenewalClaimScope(pin.previous, pin.previous, pin.successor_ref, 1),
+    false,
+  );
+});
+
+void test("the repaired application controller accepts only the settled renewal producer", () => {
+  const pin = retainedApplicationRenewalClaim;
+  const checkpoint = { checkpoint: pin.child, previous: pin.previous };
+  const producer = {
+    controller_revision: "b03b3ed7e9e661a57328489583cedcafef4c7004",
+    controller_ref: pin.successor_ref,
+    workflow_sha256: "9a126152d549d913b57689404ca51bf755d88e2b0aa3d76631c4bb7e487ea136",
+    run_id: "42827180124",
+    run_attempt: 1,
+    job_id: "129885597891",
+    check_run_id: "129885597891",
+  };
+  for (const source of [
+    { execution_ref: pin.settled_successor_ref },
+    { execution_ref: pin.latency_successor_ref },
+    {
+      execution_ref: pin.native_split_successor_ref,
+      workflow_sha256: pin.native_split_workflow_sha256,
+    },
+    {
+      execution_ref: pin.capacity_rebind_successor_ref,
+      workflow_sha256: pin.native_split_workflow_sha256,
+    },
+  ]) {
+    assert.equal(
+      matchesRetainedApplicationRenewalHandoff(checkpoint, producer, source, "application"),
+      true,
+    );
+    assert.equal(
+      matchesRetainedApplicationRenewalHandoff(checkpoint, producer, source, "catalog-publication"),
+      false,
+    );
+    assert.equal(
+      matchesRetainedApplicationRenewalHandoff(
+        { ...checkpoint, checkpoint: pin.previous },
+        producer,
+        source,
+        "application",
+      ),
+      false,
+    );
+    for (const [key, value] of Object.entries(producer)) {
+      const changed = { ...producer, [key]: typeof value === "number" ? 2 : value + "0" };
+      assert.equal(
+        matchesRetainedApplicationRenewalHandoff(checkpoint, changed, source, "application"),
+        false,
+        key,
+      );
+    }
+  }
+  for (const source of [
+    { execution_ref: pin.native_split_successor_ref },
+    { execution_ref: pin.native_split_successor_ref, workflow_sha256: producer.workflow_sha256 },
+    { execution_ref: pin.capacity_rebind_successor_ref },
+    { execution_ref: pin.capacity_rebind_successor_ref, workflow_sha256: producer.workflow_sha256 },
+  ]) {
+    assert.equal(
+      matchesRetainedApplicationRenewalHandoff(checkpoint, producer, source, "application"),
+      false,
+    );
+  }
+});
+
+for (const pin of [retainedApplicationContextUpload, retainedApplicationContextSettlement]) {
+  void test(`only ${pin.successor_ref} can consume application context proof ${pin.checkpoint}`, () => {
+    const checkpoint = { checkpoint: pin.checkpoint, previous: pin.previous };
+    const source = { execution_ref: pin.successor_ref, workflow_sha256: pin.workflow_sha256 };
+    const producer = {
+      controller_revision: pin.revision,
+      controller_ref: pin.ref,
+      workflow_sha256: pin.workflow_sha256,
+      run_id: pin.run_id,
+      run_attempt: 1,
+      job_id: String(pin.job_id),
+      check_run_id: String(pin.job_id),
+    };
+    assert.equal(
+      matchesRetainedApplicationRenewalHandoff(checkpoint, producer, source, "application"),
+      true,
+    );
+    assert.equal(
+      matchesRetainedApplicationRenewalHandoff(checkpoint, producer, source, "catalog-publication"),
+      false,
+    );
+    assert.equal(
+      matchesRetainedApplicationRenewalHandoff(
+        checkpoint,
+        producer,
+        { ...source, workflow_sha256: "f".repeat(64) },
+        "application",
+      ),
+      false,
+    );
+    assert.equal(
+      matchesRetainedApplicationRenewalHandoff(
+        { ...checkpoint, previous: null },
+        producer,
+        source,
+        "application",
+      ),
+      false,
+    );
+    assert.equal(
+      matchesRetainedApplicationRenewalHandoff(
+        { ...checkpoint, checkpoint: pin.previous },
+        producer,
+        source,
+        "application",
+      ),
+      false,
+    );
+    for (const [key, value] of Object.entries(producer)) {
+      const changed = { ...producer, [key]: typeof value === "number" ? 2 : `${value}0` };
+      assert.equal(
+        matchesRetainedApplicationRenewalHandoff(checkpoint, changed, source, "application"),
+        false,
+        key,
+      );
+    }
   });
 }

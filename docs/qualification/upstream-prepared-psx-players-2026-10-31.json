@@ -1,0 +1,2112 @@
+{
+  "format_version": 1,
+  "kind": "dated primary-source/static-package and existing-capability prepared-player batch",
+  "source_base": "2e8f28d039e24da6a8fe273bfa3db596f51ebb9c",
+  "owning_issues": [2510, 2926, 1422],
+  "counts": {
+    "guides_added": 5,
+    "conditional_guides": 3,
+    "managed_added": 0,
+    "strict_definitions": 286,
+    "listings": 1424,
+    "source_bindings": 114,
+    "unique_source_contents": 96,
+    "complete_tree_contexts": 15
+  },
+  "routes": [
+    {
+      "issue": 327,
+      "id": "final-fantasy-tactics-finfantacrecomp",
+      "path": "crates/portcove-core/catalog/ports/final-fantasy-tactics-finfantacrecomp.json",
+      "preimage_sha256": "259b5125d82a706dc2eb3f4a7d467aa665500ee1e557d997e435922ac1526d0b",
+      "postimage_sha256": "3cf1f0032bbd49d529d5957b13be27e5602a2c8c698665b74118091adb00ca5b",
+      "route": "nonowning-user-selected-completed-player",
+      "fresh_acquisition_held": true
+    },
+    {
+      "issue": 350,
+      "id": "einhander-einhander-recompiled",
+      "path": "crates/portcove-core/catalog/ports/einhander-einhander-recompiled.json",
+      "preimage_sha256": "eb5968e7485f1af8b9057786328bad9ff28d974c06be4027dcc06dad4ed11b58",
+      "postimage_sha256": "40104b339e2461c6498e0c0ec96f8921556af8a0ac36f64f5022f0e436de8cf7",
+      "route": "nonowning-user-selected-completed-player",
+      "fresh_acquisition_held": false
+    },
+    {
+      "issue": 344,
+      "id": "syphon-filter-sf-pc-port",
+      "path": "crates/portcove-core/catalog/ports/syphon-filter-sf-pc-port.json",
+      "preimage_sha256": "d2dc07107cb0554d755a853a3178ba3f37e38647e880580d4b8741e60dca7c9d",
+      "postimage_sha256": "dc3e0eb12aa64bd61a85e66f321202e85204b30aaccd9f19f353c1f7be0cfef9",
+      "route": "nonowning-user-selected-completed-player",
+      "fresh_acquisition_held": false
+    },
+    {
+      "issue": 351,
+      "id": "silent-hill-silent-hill-decomp-pc-branch",
+      "path": "crates/portcove-core/catalog/ports/silent-hill-silent-hill-decomp-pc-branch.json",
+      "preimage_sha256": "b39a82ade0507fbf22bdf172f55831b210600eb47811ac2f1ea02a82b2fd2185",
+      "postimage_sha256": "99f0c5fabd19fdf764aa6b1c04bd1839dc1217bd8e893f65659304cefba0db6b",
+      "route": "nonowning-user-selected-completed-player",
+      "fresh_acquisition_held": true
+    },
+    {
+      "issue": 353,
+      "id": "tenchu-stealth-assassins-tenchu-sa-recomp",
+      "path": "crates/portcove-core/catalog/ports/tenchu-stealth-assassins-tenchu-sa-recomp.json",
+      "preimage_sha256": "da2e7698086100533ae6e7bd8bccee3a3e7ed6b6200ef2dac280b2a3dba96a64",
+      "postimage_sha256": "c10ecb88b3790aba54bd376b3d86d10162c2f97699311677f4bfb9f07a39e489",
+      "route": "nonowning-user-selected-completed-player",
+      "fresh_acquisition_held": true
+    }
+  ],
+  "unchanged_observer": {
+    "issue": 354,
+    "id": "tekken-3-tekken3recomp",
+    "record_sha256": "c8a61c5cb84413f8f481c1f179b07f0bc5c7f24623f981f922deb4444519c7dd",
+    "condition": "named fabioap-cpu/Tekken3Recomp HTTP404 only; identity/artwork/body/planning retained; resume attributable restored source or reviewed successor, no inferred whole-family impossibility/private access"
+  },
+  "decisions": {
+    "327": "OPEN: actual own-code/no-separate-grant acquisition condition plus stronger pinned local build/source/OpenBIOS acceptance NotRun. Conditional permitted completed copy only.",
+    "344": "Useful selected public-test16 native Windows route; newer empty release rows are not runnable updates. Manual upstream selection/replacement, no managed pin or guard relaxation. Closure contingent on final delivery/canonical review.",
+    "350": "Useful completed Windows product after ownSCUS94243CUE/upstream Generate and rebuild. Configured wrapper matches PolyForm-covered pinned framework template; absence of root licence alone is not an invented barrier. No whole IP/compliance or preparation execution claim. Closure contingent on final delivery/canonical review.",
+    "351": "OPEN: four actual package/source-matched sounds explicitly excluded from own GPL grant. Positive origin GPL is separate attributable scope, not absent solely from metadata/exclusion. No claim of complete source-to-binary identity or whole package licence certification.",
+    "353": "OPEN: applicable title/fork modification grant plus actual runtime maturity; preserve October14 approved Unscheduled/Planned/Low/Later deferral. Linux only; no Windows package/qualification inferred."
+  },
+  "process_and_data": {
+    "327_350": "Initial setup root forwards via unawaited CreateProcess/ExitProcess; finished generated dispatch defines PSX_HAS_GAME_DISPATCH and returns before that automatic forward. Supported staged-config native product/parentCWD/--launcher. Deliberate Generate/Rebuild remains upstream action outside active attachment, no feature disabling/Core successor adoption. Whole project/build/actual source/BIOS/settings/mods/cards/states/custom/cache/backup/temp remain unowned. config_loader root resolution can find ancestor marker; defaults/overrides do not authorize Core movement.",
+    "344": "Native zero-argument picker runs in process. OwnUSA1.1 SCUS94240CUE/allBIN; executableSHA256bac292061ad5bc718ce137ef5b43d3d7e9b1b65248fb0d52229f328ccfe4ab4e is publisher-supported-input metadata, not newly acquired original. No separateBIOS import offered. Exact oldlauncher.ini LocalAppData/module/CWDfallback differs save userrootLocalAppData/APPDATA/temp; SyphonFilterPC/Saves/sanitizedserial.sav/bak/tmp and legacyCUEneighborSyphonFilterPC.sav migration remain upstream.",
+    "351": "Completed SilentHillPC.exe/established package or build CWD/zeroargs is explicitly supported direct path; .NETlauncher starts player then closes unawaited. Root executableAMD64/mapsDLLs inspected. Sourcecardshim uses gamedata/save/{0,1}.MCD CWD/config.cfg; actual package build commit unknown, preserve complete actual working copy/customroots rather than universal path claim. OwnUSA SLUS00707BIN documented; other-region claims not an input qualification.",
+    "353": "Native Linux ELF64AMD64 apphost/parentCWD/zeroargs, actual source Roslyn Assembly.Load andEntry.Run in sameprocess. OwnUSA SLUS00706CUE disc neededatplay, optional ownBIOS/HLE; buildroot separatelyselected/defaultUserData.Dir/game stores Recompiled/Tenchu.dll/.stamp; savepath separatelyselected/.srm/.srm2 fromdiscname; settings.json/profilefont/config/customroots all unowned. Runtimefork internals not publicly pinned; documented normal~/.local/share/Tenchu is not target-native observation."
+  },
+  "maintenance": "Upstream/player owns preparation, runtime replacement and recovery for all five. Retain complete old copy/data; no Core external update/backup/rollback/delete/migration. Compatible upstream progression needs no per-version application/definition edit here. Changed entry/process/data/known permission facts require scoped review; actual integrity/intent/stale guards do not automatically discover arbitrary semantic changes. Generic download restrictions are operation-scoped and never grant existing copy execution.",
+  "permission_scope": "Only attributable selected component grants/exclusions reviewed: PSX PolyFormNoncommercial, OpenBIOS MIT, Syphon packagedMIT/notices, ownSilentHillGPL/namedoriginGPL/pinnedPsyCrossMIT with explicit separateaudiohold, Tenchu separatefork/title unresolved. Unknown optional attribution not converted into known mandatory failure; no whole copyright/compliance/original-data licence certification.",
+  "static_packages": [
+    {
+      "release_id": 382018027,
+      "tag": "v0.1.0",
+      "asset_id": 542772545,
+      "asset": "FinFanTacRecomp-setup-0.1.0-windows-x64.zip",
+      "expected_sha256_source": "official GitHub API digest; distinct from locally computed hash",
+      "expected_sha256": "24abba72fb9eeb74ab7b96c3b16ef66af528c8751cd8766a4693585a3bf4c4ce",
+      "observed_sha256": "24abba72fb9eeb74ab7b96c3b16ef66af528c8751cd8766a4693585a3bf4c4ce",
+      "bytes": 77271972,
+      "raw_preparser_bounds": {
+        "records": 2150,
+        "central_bytes": 252397,
+        "declared_expanded_bytes": 209962265
+      },
+      "policy": {
+        "max_archive_bytes": 134217728,
+        "max_central_metadata": 4194304,
+        "max_physical_records": 8192,
+        "max_name_bytes": 512,
+        "max_member_bytes": 536870912,
+        "max_aggregate_expanded_bytes": 1073741824,
+        "ZIP64_multidisk_encryption_links_unsupported": true
+      },
+      "parser": "Python3.14.4 zipfile after physical central-index checks",
+      "boundary_fixtures": [
+        "valid near512-byte name",
+        "oversized declared index refused before ZipFile",
+        "oversized raw name refused before ZipFile"
+      ],
+      "extraction_writes": 0,
+      "upstream_code_or_game_execution": false,
+      "bounded_native_headers": [
+        {
+          "path": "Final_Fantasy_Tactics_Recompiled.exe",
+          "machine": "0x8664",
+          "sections": 21,
+          "header_bytes_read": 152,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "libgcc_s_seh-1.dll",
+          "machine": "0x8664",
+          "sections": 9,
+          "header_bytes_read": 152,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "libstdc++-6.dll",
+          "machine": "0x8664",
+          "sections": 10,
+          "header_bytes_read": 152,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "libwinpthread-1.dll",
+          "machine": "0x8664",
+          "sections": 11,
+          "header_bytes_read": 152,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "psxrecomp/recompiler/build/libgcc_s_seh-1.dll",
+          "machine": "0x8664",
+          "sections": 9,
+          "header_bytes_read": 152,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "psxrecomp/recompiler/build/libstdc++-6.dll",
+          "machine": "0x8664",
+          "sections": 10,
+          "header_bytes_read": 152,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "psxrecomp/recompiler/build/libwinpthread-1.dll",
+          "machine": "0x8664",
+          "sections": 11,
+          "header_bytes_read": 152,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "psxrecomp/recompiler/build/psxrecomp-bios.exe",
+          "machine": "0x8664",
+          "sections": 18,
+          "header_bytes_read": 152,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "psxrecomp/recompiler/build/psxrecomp-game.exe",
+          "machine": "0x8664",
+          "sections": 18,
+          "header_bytes_read": 152,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        }
+      ],
+      "inventory_sha256": "5ab9291fe5ae0f18d90ab03340c763aab71c3e570aff96d25d4b15345e9246e7",
+      "scope": "public package bounded static index/docs/native prefix only, not execution, complete ABI/dependency or reproducible build proof"
+    },
+    {
+      "release_id": 378968139,
+      "tag": "v0.1.3",
+      "asset_id": 535153921,
+      "asset": "einhander-0.1.3-windows-x64.zip",
+      "expected_sha256_source": "official GitHub API digest; distinct from locally computed hash",
+      "expected_sha256": "fdcb40a3e926ceb9c3b68507d3ef0cf3b51a454e1b8a438dd91f4108f08241bc",
+      "observed_sha256": "fdcb40a3e926ceb9c3b68507d3ef0cf3b51a454e1b8a438dd91f4108f08241bc",
+      "bytes": 30154902,
+      "raw_preparser_bounds": {
+        "records": 2181,
+        "central_bytes": 257610,
+        "declared_expanded_bytes": 77932062
+      },
+      "policy": {
+        "max_archive_bytes": 134217728,
+        "max_central_metadata": 4194304,
+        "max_physical_records": 8192,
+        "max_name_bytes": 512,
+        "max_member_bytes": 536870912,
+        "max_aggregate_expanded_bytes": 1073741824,
+        "ZIP64_multidisk_encryption_links_unsupported": true
+      },
+      "parser": "Python3.14.4 zipfile after physical central-index checks",
+      "boundary_fixtures": [
+        "valid near512-byte name",
+        "oversized declared index refused before ZipFile",
+        "oversized raw name refused before ZipFile"
+      ],
+      "extraction_writes": 0,
+      "upstream_code_or_game_execution": false,
+      "bounded_native_headers": [
+        {
+          "path": "Einhander_Recompiled.exe",
+          "machine": "0x8664",
+          "sections": 19,
+          "header_bytes_read": 152,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "psxrecomp/recompiler/build/psxrecomp-bios.exe",
+          "machine": "0x8664",
+          "sections": 14,
+          "header_bytes_read": 144,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "psxrecomp/recompiler/build/psxrecomp-game.exe",
+          "machine": "0x8664",
+          "sections": 14,
+          "header_bytes_read": 144,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        }
+      ],
+      "inventory_sha256": "6e73b7904ae77de535115ec7164deece3b5d3feeb6a043fbef681161bb7c1613",
+      "scope": "public package bounded static index/docs/native prefix only, not execution, complete ABI/dependency or reproducible build proof"
+    },
+    {
+      "release_id": 363768562,
+      "tag": "v0.1.0-public-test.16",
+      "asset_id": 498836383,
+      "asset": "SyphonFilterPC-0.1.0-public-test.16-win64.zip",
+      "expected_sha256_source": "official GitHub API digest; distinct from locally computed hash",
+      "expected_sha256": "f024c650267583f36a9931682e2541244001ff348c68e925ed6faa3f4831610e",
+      "observed_sha256": "f024c650267583f36a9931682e2541244001ff348c68e925ed6faa3f4831610e",
+      "bytes": 12455493,
+      "raw_preparser_bounds": {
+        "records": 65,
+        "central_bytes": 7283,
+        "declared_expanded_bytes": 27498368
+      },
+      "policy": {
+        "max_archive_bytes": 134217728,
+        "max_central_metadata": 4194304,
+        "max_physical_records": 8192,
+        "max_name_bytes": 512,
+        "max_member_bytes": 536870912,
+        "max_aggregate_expanded_bytes": 1073741824,
+        "ZIP64_multidisk_encryption_links_unsupported": true
+      },
+      "parser": "Python3.14.4 zipfile after physical central-index checks",
+      "boundary_fixtures": [
+        "valid near512-byte name",
+        "oversized declared index refused before ZipFile",
+        "oversized raw name refused before ZipFile"
+      ],
+      "extraction_writes": 0,
+      "upstream_code_or_game_execution": false,
+      "bounded_native_headers": [
+        {
+          "path": "SyphonFilterPC-0.1.0-public-test.16-win64/avcodec-62.dll",
+          "machine": "0x8664",
+          "sections": 5,
+          "header_bytes_read": 296,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "SyphonFilterPC-0.1.0-public-test.16-win64/avformat-62.dll",
+          "machine": "0x8664",
+          "sections": 5,
+          "header_bytes_read": 288,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "SyphonFilterPC-0.1.0-public-test.16-win64/avutil-60.dll",
+          "machine": "0x8664",
+          "sections": 5,
+          "header_bytes_read": 288,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "SyphonFilterPC-0.1.0-public-test.16-win64/fmt.dll",
+          "machine": "0x8664",
+          "sections": 6,
+          "header_bytes_read": 288,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "SyphonFilterPC-0.1.0-public-test.16-win64/msvcp140.dll",
+          "machine": "0x8664",
+          "sections": 6,
+          "header_bytes_read": 264,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "SyphonFilterPC-0.1.0-public-test.16-win64/msvcp140_2.dll",
+          "machine": "0x8664",
+          "sections": 6,
+          "header_bytes_read": 280,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "SyphonFilterPC-0.1.0-public-test.16-win64/msvcp140_atomic_wait.dll",
+          "machine": "0x8664",
+          "sections": 6,
+          "header_bytes_read": 264,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "SyphonFilterPC-0.1.0-public-test.16-win64/OpenAL32.dll",
+          "machine": "0x8664",
+          "sections": 6,
+          "header_bytes_read": 296,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "SyphonFilterPC-0.1.0-public-test.16-win64/SDL2.dll",
+          "machine": "0x8664",
+          "sections": 6,
+          "header_bytes_read": 304,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "SyphonFilterPC-0.1.0-public-test.16-win64/swresample-6.dll",
+          "machine": "0x8664",
+          "sections": 5,
+          "header_bytes_read": 280,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "SyphonFilterPC-0.1.0-public-test.16-win64/swscale-9.dll",
+          "machine": "0x8664",
+          "sections": 5,
+          "header_bytes_read": 296,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "SyphonFilterPC-0.1.0-public-test.16-win64/syphon_filter.exe",
+          "machine": "0x8664",
+          "sections": 6,
+          "header_bytes_read": 296,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "SyphonFilterPC-0.1.0-public-test.16-win64/vcruntime140.dll",
+          "machine": "0x8664",
+          "sections": 8,
+          "header_bytes_read": 272,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "SyphonFilterPC-0.1.0-public-test.16-win64/vcruntime140_1.dll",
+          "machine": "0x8664",
+          "sections": 6,
+          "header_bytes_read": 272,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        }
+      ],
+      "inventory_sha256": "9d6bf074896538969af0cbbec011dab9abb03bc85a630b6c3edf7abab0b977eb",
+      "scope": "public package bounded static index/docs/native prefix only, not execution, complete ABI/dependency or reproducible build proof"
+    },
+    {
+      "release_id": 382488407,
+      "tag": "crossplatform-beta",
+      "asset_id": 632708581,
+      "asset": "SHPC_beta-2026.10.12.1.zip",
+      "expected_sha256_source": "official GitHub API digest; distinct from locally computed hash",
+      "expected_sha256": "b22a1c93e5a9537bfa9c676071a2d7f1c8df6069fc44f7419fb73379d8cec81d",
+      "observed_sha256": "b22a1c93e5a9537bfa9c676071a2d7f1c8df6069fc44f7419fb73379d8cec81d",
+      "bytes": 83061493,
+      "raw_preparser_bounds": {
+        "records": 93,
+        "central_bytes": 6007,
+        "declared_expanded_bytes": 204583804
+      },
+      "policy": {
+        "max_archive_bytes": 134217728,
+        "max_central_metadata": 4194304,
+        "max_physical_records": 8192,
+        "max_name_bytes": 512,
+        "max_member_bytes": 536870912,
+        "max_aggregate_expanded_bytes": 1073741824,
+        "ZIP64_multidisk_encryption_links_unsupported": true
+      },
+      "parser": "Python3.14.4 zipfile after physical central-index checks",
+      "boundary_fixtures": [
+        "valid near512-byte name",
+        "oversized declared index refused before ZipFile",
+        "oversized raw name refused before ZipFile"
+      ],
+      "extraction_writes": 0,
+      "upstream_code_or_game_execution": false,
+      "bounded_native_headers": [
+        {
+          "path": "avcodec-62.dll",
+          "machine": "0x8664",
+          "sections": 12,
+          "header_bytes_read": 152,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "avformat-62.dll",
+          "machine": "0x8664",
+          "sections": 12,
+          "header_bytes_read": 152,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "avutil-60.dll",
+          "machine": "0x8664",
+          "sections": 11,
+          "header_bytes_read": 152,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "d3dcompiler_47.dll",
+          "machine": "0x8664",
+          "sections": 8,
+          "header_bytes_read": 304,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "libEGL.dll",
+          "machine": "0x8664",
+          "sections": 10,
+          "header_bytes_read": 144,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "libgcc_s_seh-1.dll",
+          "machine": "0x8664",
+          "sections": 11,
+          "header_bytes_read": 152,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "libGLESv2.dll",
+          "machine": "0x8664",
+          "sections": 10,
+          "header_bytes_read": 144,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "libjpeg-8.dll",
+          "machine": "0x8664",
+          "sections": 11,
+          "header_bytes_read": 152,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "libopenal-1.dll",
+          "machine": "0x8664",
+          "sections": 12,
+          "header_bytes_read": 152,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "libstdc++-6.dll",
+          "machine": "0x8664",
+          "sections": 11,
+          "header_bytes_read": 152,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "libwinpthread-1.dll",
+          "machine": "0x8664",
+          "sections": 12,
+          "header_bytes_read": 152,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "SDL2.dll",
+          "machine": "0x8664",
+          "sections": 12,
+          "header_bytes_read": 152,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "SilentHillPC.exe",
+          "machine": "0x8664",
+          "sections": 21,
+          "header_bytes_read": 152,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "SilentHillPC_Launcher.exe",
+          "machine": "0x14c",
+          "sections": 3,
+          "header_bytes_read": 152,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "swresample-6.dll",
+          "machine": "0x8664",
+          "sections": 11,
+          "header_bytes_read": 152,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "swscale-9.dll",
+          "machine": "0x8664",
+          "sections": 11,
+          "header_bytes_read": 152,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "UnRAR.dll",
+          "machine": "0x8664",
+          "sections": 7,
+          "header_bytes_read": 296,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "vk_swiftshader.dll",
+          "machine": "0x8664",
+          "sections": 9,
+          "header_bytes_read": 144,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "vulkan-1.dll",
+          "machine": "0x8664",
+          "sections": 9,
+          "header_bytes_read": 144,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "maps/chara_global.dll",
+          "machine": "0x8664",
+          "sections": 20,
+          "header_bytes_read": 152,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "maps/map0_s01.dll",
+          "machine": "0x8664",
+          "sections": 20,
+          "header_bytes_read": 152,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "maps/map0_s02.dll",
+          "machine": "0x8664",
+          "sections": 20,
+          "header_bytes_read": 152,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "maps/map1_s00.dll",
+          "machine": "0x8664",
+          "sections": 20,
+          "header_bytes_read": 152,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "maps/map1_s01.dll",
+          "machine": "0x8664",
+          "sections": 20,
+          "header_bytes_read": 152,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "maps/map1_s02.dll",
+          "machine": "0x8664",
+          "sections": 20,
+          "header_bytes_read": 152,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "maps/map1_s03.dll",
+          "machine": "0x8664",
+          "sections": 20,
+          "header_bytes_read": 152,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "maps/map1_s04.dll",
+          "machine": "0x8664",
+          "sections": 20,
+          "header_bytes_read": 152,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "maps/map1_s05.dll",
+          "machine": "0x8664",
+          "sections": 20,
+          "header_bytes_read": 152,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "maps/map1_s06.dll",
+          "machine": "0x8664",
+          "sections": 20,
+          "header_bytes_read": 152,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "maps/map2_s00.dll",
+          "machine": "0x8664",
+          "sections": 20,
+          "header_bytes_read": 152,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "maps/map2_s01.dll",
+          "machine": "0x8664",
+          "sections": 20,
+          "header_bytes_read": 152,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "maps/map2_s02.dll",
+          "machine": "0x8664",
+          "sections": 20,
+          "header_bytes_read": 152,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "maps/map2_s03.dll",
+          "machine": "0x8664",
+          "sections": 20,
+          "header_bytes_read": 152,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "maps/map2_s04.dll",
+          "machine": "0x8664",
+          "sections": 20,
+          "header_bytes_read": 152,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "maps/map3_s00.dll",
+          "machine": "0x8664",
+          "sections": 20,
+          "header_bytes_read": 152,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "maps/map3_s01.dll",
+          "machine": "0x8664",
+          "sections": 20,
+          "header_bytes_read": 152,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "maps/map3_s02.dll",
+          "machine": "0x8664",
+          "sections": 20,
+          "header_bytes_read": 152,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "maps/map3_s03.dll",
+          "machine": "0x8664",
+          "sections": 20,
+          "header_bytes_read": 152,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "maps/map3_s04.dll",
+          "machine": "0x8664",
+          "sections": 20,
+          "header_bytes_read": 152,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "maps/map3_s05.dll",
+          "machine": "0x8664",
+          "sections": 20,
+          "header_bytes_read": 152,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "maps/map3_s06.dll",
+          "machine": "0x8664",
+          "sections": 20,
+          "header_bytes_read": 152,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "maps/map4_s00.dll",
+          "machine": "0x8664",
+          "sections": 20,
+          "header_bytes_read": 152,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "maps/map4_s01.dll",
+          "machine": "0x8664",
+          "sections": 20,
+          "header_bytes_read": 152,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "maps/map4_s02.dll",
+          "machine": "0x8664",
+          "sections": 20,
+          "header_bytes_read": 152,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "maps/map4_s03.dll",
+          "machine": "0x8664",
+          "sections": 20,
+          "header_bytes_read": 152,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "maps/map4_s04.dll",
+          "machine": "0x8664",
+          "sections": 20,
+          "header_bytes_read": 152,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "maps/map4_s05.dll",
+          "machine": "0x8664",
+          "sections": 20,
+          "header_bytes_read": 152,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "maps/map4_s06.dll",
+          "machine": "0x8664",
+          "sections": 20,
+          "header_bytes_read": 152,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "maps/map5_s00.dll",
+          "machine": "0x8664",
+          "sections": 20,
+          "header_bytes_read": 152,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "maps/map5_s01.dll",
+          "machine": "0x8664",
+          "sections": 20,
+          "header_bytes_read": 152,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "maps/map5_s02.dll",
+          "machine": "0x8664",
+          "sections": 20,
+          "header_bytes_read": 152,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "maps/map5_s03.dll",
+          "machine": "0x8664",
+          "sections": 20,
+          "header_bytes_read": 152,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "maps/map6_s00.dll",
+          "machine": "0x8664",
+          "sections": 20,
+          "header_bytes_read": 152,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "maps/map6_s01.dll",
+          "machine": "0x8664",
+          "sections": 20,
+          "header_bytes_read": 152,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "maps/map6_s02.dll",
+          "machine": "0x8664",
+          "sections": 20,
+          "header_bytes_read": 152,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "maps/map6_s03.dll",
+          "machine": "0x8664",
+          "sections": 20,
+          "header_bytes_read": 152,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "maps/map6_s04.dll",
+          "machine": "0x8664",
+          "sections": 20,
+          "header_bytes_read": 152,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "maps/map6_s05.dll",
+          "machine": "0x8664",
+          "sections": 20,
+          "header_bytes_read": 152,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "maps/map7_s00.dll",
+          "machine": "0x8664",
+          "sections": 20,
+          "header_bytes_read": 152,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "maps/map7_s01.dll",
+          "machine": "0x8664",
+          "sections": 20,
+          "header_bytes_read": 152,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "maps/map7_s02.dll",
+          "machine": "0x8664",
+          "sections": 20,
+          "header_bytes_read": 152,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "maps/map7_s03.dll",
+          "machine": "0x8664",
+          "sections": 20,
+          "header_bytes_read": 152,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        }
+      ],
+      "inventory_sha256": "dcb56dea53df55914258ee773ea19b7e1689d645521bb4608cf3100cdd18cee5",
+      "scope": "public package bounded static index/docs/native prefix only, not execution, complete ABI/dependency or reproducible build proof"
+    },
+    {
+      "release_id": 375432195,
+      "tag": "v0.1.0",
+      "asset_id": 527033656,
+      "asset": "TenchuSARecomp-v0.1.0-linux-x64.zip",
+      "expected_sha256_source": "official GitHub API digest; distinct from locally computed hash",
+      "expected_sha256": "c223d58a0104d11dae3692d1dcab4264db1c2fc62416c73a3dac9b395eea7576",
+      "observed_sha256": "c223d58a0104d11dae3692d1dcab4264db1c2fc62416c73a3dac9b395eea7576",
+      "bytes": 48326837,
+      "raw_preparser_bounds": {
+        "records": 264,
+        "central_bytes": 28028,
+        "declared_expanded_bytes": 117834560
+      },
+      "policy": {
+        "max_archive_bytes": 134217728,
+        "max_central_metadata": 4194304,
+        "max_physical_records": 8192,
+        "max_name_bytes": 512,
+        "max_member_bytes": 536870912,
+        "max_aggregate_expanded_bytes": 1073741824,
+        "ZIP64_multidisk_encryption_links_unsupported": true
+      },
+      "parser": "Python3.14.4 zipfile after physical central-index checks",
+      "boundary_fixtures": [
+        "valid near512-byte name",
+        "oversized declared index refused before ZipFile",
+        "oversized raw name refused before ZipFile"
+      ],
+      "extraction_writes": 0,
+      "upstream_code_or_game_execution": false,
+      "bounded_native_headers": [
+        {
+          "path": "TenchuSARecomp-v0.1.0-linux-x64/TenchuSARecomp",
+          "format": "ELF64 little endian",
+          "machine": 62,
+          "header_bytes_read": 64,
+          "scope": "bounded prefix only; no execution/ABI or dependency qualification"
+        }
+      ],
+      "inventory_sha256": "803477269d5bdb6f308cee14bce457ae3a970dc514c51607316febfeaf9b1529",
+      "scope": "public package bounded static index/docs/native prefix only, not execution, complete ABI/dependency or reproducible build proof"
+    }
+  ],
+  "packaged_sdk_scope": "34 bounded explicitly selected source materializations (19FFT/15Einhander), no archive-directed extraction/upstream execution. Runtime/source raw hashes distinct; documented CRLF-only correspondence except actualFFTmain9lineSDLhintpatch and ownwidescreen. Configuredsetup wrappers compare with four title substitutions; FFT additionally differs one trailing blank line.",
+  "configured_setup_comparison": [
+    {
+      "title": "327",
+      "member": "codegen_setup.c",
+      "actual_sha256": "7a29f5388694c690d64738ead4d74e462daf31a4f02180ede672b810adb1c7ad",
+      "template_sha256": "4a71ea0da22a530db6fcb10dcfcbe1870605cf6b6f76d6a46c36c3cdc1c3f9f1",
+      "comparison": "explicit four title substitutions and CRLF-to-LF normalization; not raw identity",
+      "matches": false
+    },
+    {
+      "title": "327",
+      "member": "codegen_setup.h",
+      "actual_sha256": "1414bc59c2b1f93105ad89bab2464736ada244717ff4d22dd93c2f24701311ed",
+      "template_sha256": "1414bc59c2b1f93105ad89bab2464736ada244717ff4d22dd93c2f24701311ed",
+      "comparison": "explicit four title substitutions and CRLF-to-LF normalization; not raw identity",
+      "matches": true
+    },
+    {
+      "title": "350",
+      "member": "codegen_setup.c",
+      "actual_sha256": "8f35c909ab641dfbdd473832125abf7792c99410156c1a0e2bd424ec509e5bbb",
+      "template_sha256": "4a71ea0da22a530db6fcb10dcfcbe1870605cf6b6f76d6a46c36c3cdc1c3f9f1",
+      "comparison": "explicit four title substitutions and CRLF-to-LF normalization; not raw identity",
+      "matches": true
+    },
+    {
+      "title": "350",
+      "member": "codegen_setup.h",
+      "actual_sha256": "1414bc59c2b1f93105ad89bab2464736ada244717ff4d22dd93c2f24701311ed",
+      "template_sha256": "1414bc59c2b1f93105ad89bab2464736ada244717ff4d22dd93c2f24701311ed",
+      "comparison": "explicit four title substitutions and CRLF-to-LF normalization; not raw identity",
+      "matches": true
+    }
+  ],
+  "silent_hill_audio": {
+    "asset_id": 632708581,
+    "archive_sha256": "b22a1c93e5a9537bfa9c676071a2d7f1c8df6069fc44f7419fb73379d8cec81d",
+    "physical_preflight": {
+      "records": 93,
+      "central_bytes": 6007,
+      "declared_expanded_bytes": 204583804
+    },
+    "members": [
+      {
+        "member": "gamedata/sound/achievement.wav",
+        "source_path": "pc_port/assets/gamedata/sound/achievement.wav",
+        "bytes": 168960,
+        "git_blob": "ff0f9c944a2cffcfb860c43ffa6d5480ab711973",
+        "sha256": "e90c3e0c1e1ca877fac5049981188fb438e74c1f332f6147709f2e956cac8b1c",
+        "source_commit": "5c9a639c03f90c3cfa7d343aebe8eb5848769010"
+      },
+      {
+        "member": "gamedata/sound/steam.wav",
+        "source_path": "pc_port/assets/gamedata/sound/steam.wav",
+        "bytes": 114830,
+        "git_blob": "8452a2704821c92b7b251b57009a9a19bca06270",
+        "sha256": "277e17237dd1db18aca5a3ed1a537fa41e8f6fddd249308e4e4c006a29abf451",
+        "source_commit": "5c9a639c03f90c3cfa7d343aebe8eb5848769010"
+      },
+      {
+        "member": "gamedata/sound/trophy.wav",
+        "source_path": "pc_port/assets/gamedata/sound/trophy.wav",
+        "bytes": 192556,
+        "git_blob": "ae4589971bb98e229ea2ef7a16508daf421f0e06",
+        "sha256": "dd6d51acbe66c59244c5a1b38678a3cf9fee65be714247015841765d9f09d55c",
+        "source_commit": "5c9a639c03f90c3cfa7d343aebe8eb5848769010"
+      },
+      {
+        "member": "gamedata/sound/swish.wav",
+        "source_path": "pc_port/assets/gamedata/sound/swish.wav",
+        "bytes": 469070,
+        "git_blob": "622adbc710409756eb5188b0dfa0614fc5505ff5",
+        "sha256": "d1cfd5483a1aeca584308b5697d27ae7a54f0d9d5c5ad2ce567edee1a95e4a63",
+        "source_commit": "5c9a639c03f90c3cfa7d343aebe8eb5848769010"
+      }
+    ],
+    "writes": "only this metadata receipt; no audio file materialization",
+    "upstream_execution": false,
+    "meaning": "bytes equal selected source assets explicitly excluded from own GPL grant in COPYRIGHT.md section4; not a whole package copyright judgement"
+  },
+  "source_bindings": [
+    {
+      "repository": "NJH-1001/FinFanTacRecomp",
+      "commit": "ec6a28e8669b6dc1dbf40ebb80ba8db2cff9e0b5",
+      "path": ".gitmodules",
+      "blob": "e65d6357cae4e20c0cdb49f517eeef8265d395f2",
+      "bytes": 176,
+      "sha256": "cf4d0d2dc2f68cd2e1b5a28f4077597dd8b10875fa7bc0f72f814be9b2da88a4"
+    },
+    {
+      "repository": "NJH-1001/FinFanTacRecomp",
+      "commit": "ec6a28e8669b6dc1dbf40ebb80ba8db2cff9e0b5",
+      "path": "CMakeLists.txt",
+      "blob": "0bc0027c9480fd51ad951815b14f5bf9f7edf42f",
+      "bytes": 3217,
+      "sha256": "35d68af93f64f456fc98181b7c15320f6a0b6cc426caf9024fb60dfbede0917d"
+    },
+    {
+      "repository": "NJH-1001/FinFanTacRecomp",
+      "commit": "ec6a28e8669b6dc1dbf40ebb80ba8db2cff9e0b5",
+      "path": "README.md",
+      "blob": "d830a584aef41166c70add9b485b21bbab93864f",
+      "bytes": 7422,
+      "sha256": "1e4490f5eb77f6a79cbd591abc0b742b485bba9f4e96ca3352cee894ed355c9b"
+    },
+    {
+      "repository": "NJH-1001/FinFanTacRecomp",
+      "commit": "ec87907ad6672927088d9e790fd0aa395303128d",
+      "path": ".gitmodules",
+      "blob": "e65d6357cae4e20c0cdb49f517eeef8265d395f2",
+      "bytes": 176,
+      "sha256": "cf4d0d2dc2f68cd2e1b5a28f4077597dd8b10875fa7bc0f72f814be9b2da88a4"
+    },
+    {
+      "repository": "NJH-1001/FinFanTacRecomp",
+      "commit": "ec87907ad6672927088d9e790fd0aa395303128d",
+      "path": "CMakeLists.txt",
+      "blob": "0bc0027c9480fd51ad951815b14f5bf9f7edf42f",
+      "bytes": 3217,
+      "sha256": "35d68af93f64f456fc98181b7c15320f6a0b6cc426caf9024fb60dfbede0917d"
+    },
+    {
+      "repository": "NJH-1001/FinFanTacRecomp",
+      "commit": "ec87907ad6672927088d9e790fd0aa395303128d",
+      "path": "README.md",
+      "blob": "b89d3e90d8f1c6340fd5e02905e9ff5cfb9eb6e8",
+      "bytes": 6991,
+      "sha256": "037bb5308b0c976e910bc774ef23461443af2e79b4d90e2c02143b31ad5cc0f9"
+    },
+    {
+      "repository": "NJH-1001/FinFanTacRecomp",
+      "commit": "ec87907ad6672927088d9e790fd0aa395303128d",
+      "path": "game.toml",
+      "blob": "1e7a8406b2620fed8d8d2ba98450342d50afa29e",
+      "bytes": 1551,
+      "sha256": "4c87f954d43d0deb55be367e5f50dbec91297b88116d3b605659f7d4c8981175"
+    },
+    {
+      "repository": "NJH-1001/FinFanTacRecomp",
+      "commit": "ec87907ad6672927088d9e790fd0aa395303128d",
+      "path": "disc_probe.json",
+      "blob": "8ec31c2d8379350b028fd0c8b024b9e2e201b6e1",
+      "bytes": 1524,
+      "sha256": "08549857fe7b55dcdd98577358738f45c245bcef28eac66c226fad04f5b2ea34"
+    },
+    {
+      "repository": "NJH-1001/FinFanTacRecomp",
+      "commit": "ec87907ad6672927088d9e790fd0aa395303128d",
+      "path": "scripts/package_setup_release.sh",
+      "blob": "f621ec67fe27f33ebde736db3ee5cf13212dd450",
+      "bytes": 3822,
+      "sha256": "4b90c141ec8cbc7291469cab5aa97492cc262119531261440dc56a125f18e6e0"
+    },
+    {
+      "repository": "NJH-1001/FinFanTacRecomp",
+      "commit": "ec87907ad6672927088d9e790fd0aa395303128d",
+      "path": "tools/package_windows.py",
+      "blob": "a20e6b38345a7f5e35c6fe9a569bccaeb2d421a8",
+      "bytes": 4849,
+      "sha256": "885cf520176ab2f8bbad630b6aa1b62731d7c93d9e46f52536d6f08ed981e9fe"
+    },
+    {
+      "repository": "NJH-1001/FinFanTacRecomp",
+      "commit": "ec87907ad6672927088d9e790fd0aa395303128d",
+      "path": "RELEASE_NOTES.md",
+      "blob": "42d5fcb7b9283e8e4a24acf5412e9d3999fd5e68",
+      "bytes": 2965,
+      "sha256": "91c56acd0bab44514e19e466c450b417fc06df78dead7ff7cceee022406a8e73"
+    },
+    {
+      "repository": "NJH-1001/FinFanTacRecomp",
+      "commit": "ec6a28e8669b6dc1dbf40ebb80ba8db2cff9e0b5",
+      "path": "game.toml",
+      "blob": "1e7a8406b2620fed8d8d2ba98450342d50afa29e",
+      "bytes": 1551,
+      "sha256": "4c87f954d43d0deb55be367e5f50dbec91297b88116d3b605659f7d4c8981175"
+    },
+    {
+      "repository": "NJH-1001/FinFanTacRecomp",
+      "commit": "ec6a28e8669b6dc1dbf40ebb80ba8db2cff9e0b5",
+      "path": "disc_probe.json",
+      "blob": "8ec31c2d8379350b028fd0c8b024b9e2e201b6e1",
+      "bytes": 1524,
+      "sha256": "08549857fe7b55dcdd98577358738f45c245bcef28eac66c226fad04f5b2ea34"
+    },
+    {
+      "repository": "NJH-1001/FinFanTacRecomp",
+      "commit": "ec6a28e8669b6dc1dbf40ebb80ba8db2cff9e0b5",
+      "path": "scripts/package_setup_release.sh",
+      "blob": "f621ec67fe27f33ebde736db3ee5cf13212dd450",
+      "bytes": 3822,
+      "sha256": "4b90c141ec8cbc7291469cab5aa97492cc262119531261440dc56a125f18e6e0"
+    },
+    {
+      "repository": "NJH-1001/FinFanTacRecomp",
+      "commit": "ec6a28e8669b6dc1dbf40ebb80ba8db2cff9e0b5",
+      "path": "tools/package_windows.py",
+      "blob": "a20e6b38345a7f5e35c6fe9a569bccaeb2d421a8",
+      "bytes": 4849,
+      "sha256": "885cf520176ab2f8bbad630b6aa1b62731d7c93d9e46f52536d6f08ed981e9fe"
+    },
+    {
+      "repository": "NJH-1001/FinFanTacRecomp",
+      "commit": "ec6a28e8669b6dc1dbf40ebb80ba8db2cff9e0b5",
+      "path": "RELEASE_NOTES.md",
+      "blob": "81bbafe1c108bda373f92ca285772a296c721321",
+      "bytes": 3948,
+      "sha256": "6d4429fe58650c207935fb9cf98f1cbae4e651c9dd14b2808b33e29a359c7f14"
+    },
+    {
+      "repository": "NJH-1001/FinFanTacRecomp",
+      "commit": "ec87907ad6672927088d9e790fd0aa395303128d",
+      "path": "PUBLICATION.md",
+      "blob": "08f66db00357ca3f48e59d9b723c4b3ad40da663",
+      "bytes": 1722,
+      "sha256": "e7d8ce6f4f56ea9856734062d52504b022bc15ce9ba1997e817f10e78544c95d"
+    },
+    {
+      "repository": "NJH-1001/FinFanTacRecomp",
+      "commit": "ec87907ad6672927088d9e790fd0aa395303128d",
+      "path": "THIRD_PARTY.md",
+      "blob": "7498974bc1906786d632e88bdd996b063b3602bc",
+      "bytes": 1186,
+      "sha256": "c90d6b5664c216da5202417a01c9054718e37eb2cf85423f30cb34739cec9c92"
+    },
+    {
+      "repository": "NJH-1001/FinFanTacRecomp",
+      "commit": "ec87907ad6672927088d9e790fd0aa395303128d",
+      "path": "src/fft_widescreen.c",
+      "blob": "16fd552c18fc9ff3c0bc0a6a2214afeeb77ed9fc",
+      "bytes": 428,
+      "sha256": "9ff0ae5435781b8c3fba03f2ae8e790dc8117cffd88ce6bf8d22cda777cb798d"
+    },
+    {
+      "repository": "NJH-1001/FinFanTacRecomp",
+      "commit": "ec87907ad6672927088d9e790fd0aa395303128d",
+      "path": "codegen_setup.c",
+      "blob": "22355b9cf0c345210820f464f22dd53fea4a7490",
+      "bytes": 1887,
+      "sha256": "7ba54ab68af0b669e0e5ae9bcb2aefb392ad81417114445a923e132fd5d1a0f7"
+    },
+    {
+      "repository": "NJH-1001/FinFanTacRecomp",
+      "commit": "ec87907ad6672927088d9e790fd0aa395303128d",
+      "path": "codegen_setup.h",
+      "blob": "f643fca97cabadac4074b4b9fecb8b097a3e7a0a",
+      "bytes": 346,
+      "sha256": "adc1f1bcbc9295307fb5d4b8ac57629a9c168f913ffc5a5e3939a9703be15bd4"
+    },
+    {
+      "repository": "Madxbio97/SF-pc-port",
+      "commit": "a11020bbf8ea136e1685edfe29217e7c965b49c9",
+      "path": "CMakeLists.txt",
+      "blob": "9b461ccec7830c4376b03fa8a0e936c79deddca5",
+      "bytes": 12723,
+      "sha256": "2452a845904b5b8eb7456015aa5045547b555282d06135fcd129827b8ffbc95e"
+    },
+    {
+      "repository": "Madxbio97/SF-pc-port",
+      "commit": "a11020bbf8ea136e1685edfe29217e7c965b49c9",
+      "path": "LICENSE",
+      "blob": "b25d6c9ea92523868090e6cd54a0c79c8dba49ef",
+      "bytes": 1084,
+      "sha256": "6826bcd5c772486f8adc91c57dfefaebe375d914e0e64c0c99a2270e15f0058e"
+    },
+    {
+      "repository": "Madxbio97/SF-pc-port",
+      "commit": "a11020bbf8ea136e1685edfe29217e7c965b49c9",
+      "path": "README.md",
+      "blob": "033f8ea9177c72aebe796f0434c1c007cdd03e6e",
+      "bytes": 9433,
+      "sha256": "0c86d91b8f5a70be70cd865cb356be2eaa2b56551f2b01fed1618adab8ed97d1"
+    },
+    {
+      "repository": "Madxbio97/SF-pc-port",
+      "commit": "a11020bbf8ea136e1685edfe29217e7c965b49c9",
+      "path": "apps/syphon_filter/main.cpp",
+      "blob": "d1ded680f0693cc405ad2f7a99a050f28b5c2956",
+      "bytes": 15488,
+      "sha256": "6a1f2c5b52df2a8427517a48e122c459e3dde6ece66c95808cdb776b720a99b9"
+    },
+    {
+      "repository": "Madxbio97/SF-pc-port",
+      "commit": "a11020bbf8ea136e1685edfe29217e7c965b49c9",
+      "path": "apps/syphon_filter/launcher/settings.cpp",
+      "blob": "0c911184985e90fe6a947739da40a41e7f4e7e76",
+      "bytes": 18274,
+      "sha256": "887303fca9b43148cdeaf45d1254600fc6a0b2d87e954dd42a73edbfadabf264"
+    },
+    {
+      "repository": "Madxbio97/SF-pc-port",
+      "commit": "a11020bbf8ea136e1685edfe29217e7c965b49c9",
+      "path": "apps/syphon_filter/launcher/settings.hpp",
+      "blob": "e40e530eb1bd0088ce32e84b262af4316ad31584",
+      "bytes": 916,
+      "sha256": "edf9e4e8cd773e71d3ea18cb27dde99e57760fe93d1507071ac7d029336aae5e"
+    },
+    {
+      "repository": "Madxbio97/SF-pc-port",
+      "commit": "a11020bbf8ea136e1685edfe29217e7c965b49c9",
+      "path": "apps/syphon_filter/launcher/shell.cpp",
+      "blob": "8a23abbc9723d5d407393936fa7afe1027fdba30",
+      "bytes": 26153,
+      "sha256": "49adcfccbf4720a7c6e38a9058e1ddcd4212e3f60f4892b1719690904c06e178"
+    },
+    {
+      "repository": "Madxbio97/SF-pc-port",
+      "commit": "a11020bbf8ea136e1685edfe29217e7c965b49c9",
+      "path": "src/game/game_disc.cpp",
+      "blob": "ed23f515d95bb04db9a5c0b5a14aaceef4e8259c",
+      "bytes": 3713,
+      "sha256": "dd89cbef59ab9260a15a304819b851b089573a735e6f48de0b7c189bd78a7ed5"
+    },
+    {
+      "repository": "Madxbio97/SF-pc-port",
+      "commit": "a11020bbf8ea136e1685edfe29217e7c965b49c9",
+      "path": "docs/BUILDING.md",
+      "blob": "b2a3047db83c0139171d2701435acc731988fb66",
+      "bytes": 6487,
+      "sha256": "496277c6e41b6c8b301c418acc06683367ddd9a7d4796212b68353ac51e87a45"
+    },
+    {
+      "repository": "Madxbio97/SF-pc-port",
+      "commit": "a11020bbf8ea136e1685edfe29217e7c965b49c9",
+      "path": "tools/package_windows_release.ps1",
+      "blob": "2000d5e5917d4a29f623133ee8a211761d412d41",
+      "bytes": 11948,
+      "sha256": "bab7be5acb43ebfd29cc6eabe4a60b3ffa7b1fe3c78e9f1ad1af4b22ed9047ff"
+    },
+    {
+      "repository": "Madxbio97/SF-pc-port",
+      "commit": "7519dc0b8b194098371c690553e3b4c9545e6ef7",
+      "path": "README.md",
+      "blob": "2a2b285a0983b8e84569ff19f1800e4a43083f40",
+      "bytes": 9104,
+      "sha256": "9266e08ad41d886b6d6a315a74e768db2817cded18b0033de72304226ecc4435"
+    },
+    {
+      "repository": "Madxbio97/SF-pc-port",
+      "commit": "7519dc0b8b194098371c690553e3b4c9545e6ef7",
+      "path": "LICENSE",
+      "blob": "b25d6c9ea92523868090e6cd54a0c79c8dba49ef",
+      "bytes": 1084,
+      "sha256": "6826bcd5c772486f8adc91c57dfefaebe375d914e0e64c0c99a2270e15f0058e"
+    },
+    {
+      "repository": "Madxbio97/SF-pc-port",
+      "commit": "7519dc0b8b194098371c690553e3b4c9545e6ef7",
+      "path": "CMakeLists.txt",
+      "blob": "b92acb9b45b37352e9a90db181df9b8749a79245",
+      "bytes": 10349,
+      "sha256": "9656feafa9ee9973b06769eedcdada2468accf018674ac6a67df217b6e63c9b7"
+    },
+    {
+      "repository": "Madxbio97/SF-pc-port",
+      "commit": "7519dc0b8b194098371c690553e3b4c9545e6ef7",
+      "path": "apps/syphon_filter/main.cpp",
+      "blob": "e06c95875f39f8dcfb2b4ea70b3fecb9d07e4c96",
+      "bytes": 13149,
+      "sha256": "a39f2b19b12d67afcb6cfffe291b51e8531d2ced8aa3b978cdce093168932f11"
+    },
+    {
+      "repository": "Madxbio97/SF-pc-port",
+      "commit": "7519dc0b8b194098371c690553e3b4c9545e6ef7",
+      "path": "src/game/game_disc.cpp",
+      "blob": "ed23f515d95bb04db9a5c0b5a14aaceef4e8259c",
+      "bytes": 3713,
+      "sha256": "dd89cbef59ab9260a15a304819b851b089573a735e6f48de0b7c189bd78a7ed5"
+    },
+    {
+      "repository": "Madxbio97/SF-pc-port",
+      "commit": "7519dc0b8b194098371c690553e3b4c9545e6ef7",
+      "path": "docs/BUILDING.md",
+      "blob": "41d065bd0c5f84866beba6f6c93ac72990b64514",
+      "bytes": 6201,
+      "sha256": "1faa26ca40adc7350685d4732aee39f41dede6492426849ace5322494edc96b9"
+    },
+    {
+      "repository": "Madxbio97/SF-pc-port",
+      "commit": "7519dc0b8b194098371c690553e3b4c9545e6ef7",
+      "path": "tools/package_windows_release.ps1",
+      "blob": "b3e43f24523ecc00d962967b74709ff7df86bb38",
+      "bytes": 13173,
+      "sha256": "8fa44aceee6de9a6a746670b33d576503fcfa4809c3ddea77a41251b164e7cf7"
+    },
+    {
+      "repository": "Madxbio97/SF-pc-port",
+      "commit": "7519dc0b8b194098371c690553e3b4c9545e6ef7",
+      "path": "apps/syphon_filter/launcher.cpp",
+      "blob": "ee00c8d96097ebe657ffc615494a593bd729c73a",
+      "bytes": 83400,
+      "sha256": "3aa8ccee32a8a91aa6fee173bbd0381334e93b7bc7533d8b2f1712e15fb8a2ab"
+    },
+    {
+      "repository": "Madxbio97/SF-pc-port",
+      "commit": "7519dc0b8b194098371c690553e3b4c9545e6ef7",
+      "path": "apps/syphon_filter/launcher.hpp",
+      "blob": "485a67b32adbe3a6a7ab29383f20e042f1676c81",
+      "bytes": 660,
+      "sha256": "a7746293250c7616343e068c4dc53a582d79887f99c4a3c5ffeba0394cadc8c1"
+    },
+    {
+      "repository": "Madxbio97/SF-pc-port",
+      "commit": "7519dc0b8b194098371c690553e3b4c9545e6ef7",
+      "path": "src/platform/psycross_host.cpp",
+      "blob": "f7af61a83633ebf5fe9172000fb691fdbc361f34",
+      "bytes": 41437,
+      "sha256": "29cfcdd1a2622a63da79c5d185c1cd3308b122c44d69c0d712cf001ab254bdd2"
+    },
+    {
+      "repository": "Madxbio97/SF-pc-port",
+      "commit": "7519dc0b8b194098371c690553e3b4c9545e6ef7",
+      "path": "src/game/title.cpp",
+      "blob": "abbc18064705bce0d4ce612e0a704a4e2288aced",
+      "bytes": 25064,
+      "sha256": "4fe06787b7ba21a5c1493f68d0219bf92544a1ed483f560233ab7c6f10f0126f"
+    },
+    {
+      "repository": "strider973/Einhander-Recompiled",
+      "commit": "607c5c827caf3bc2a2fd7cd2ec00ba8e825eb9f8",
+      "path": ".gitmodules",
+      "blob": "f2bdb82e426ecb81f22510e878303fec098bd38c",
+      "bytes": 210,
+      "sha256": "1151108b4de00f737586ec0ec580da00fc624071d6cdfa777e223cb3054fb23f"
+    },
+    {
+      "repository": "strider973/Einhander-Recompiled",
+      "commit": "607c5c827caf3bc2a2fd7cd2ec00ba8e825eb9f8",
+      "path": "CMakeLists.txt",
+      "blob": "75bb5a3bf1ecf0ecee4f30785bbaada6bc0df6b3",
+      "bytes": 2092,
+      "sha256": "2c8681f163eb5679cc40c5a19b83c138f0bf24f41e9747b2f75686cc1aa5697a"
+    },
+    {
+      "repository": "strider973/Einhander-Recompiled",
+      "commit": "607c5c827caf3bc2a2fd7cd2ec00ba8e825eb9f8",
+      "path": "README.md",
+      "blob": "0aa4ffc0f889d8f3de5dbd865edc2aaf3d624664",
+      "bytes": 1854,
+      "sha256": "569019e1e3c350106b426e855841928617d175c99416ab41fc721a385abe5735"
+    },
+    {
+      "repository": "strider973/Einhander-Recompiled",
+      "commit": "607c5c827caf3bc2a2fd7cd2ec00ba8e825eb9f8",
+      "path": "game.toml",
+      "blob": "06e6c3d6f735f1de8726c81acc00cbb5f72798a8",
+      "bytes": 1846,
+      "sha256": "9537716365c3c744399f3d8d995fa580c16a74f988270dd0c6245eb573c7a284"
+    },
+    {
+      "repository": "strider973/Einhander-Recompiled",
+      "commit": "607c5c827caf3bc2a2fd7cd2ec00ba8e825eb9f8",
+      "path": "disc_probe.json",
+      "blob": "e4992880f504c87957fb554ecebc932c8a66c741",
+      "bytes": 1134,
+      "sha256": "2352c767aec476761c85424cf584f2b7c00333841fdb2e9bb3ce5fb0da6c7d6a"
+    },
+    {
+      "repository": "strider973/Einhander-Recompiled",
+      "commit": "607c5c827caf3bc2a2fd7cd2ec00ba8e825eb9f8",
+      "path": "scripts/package_setup_release.sh",
+      "blob": "46106c34889a92b4a3428262ceb307fc6942aad2",
+      "bytes": 2137,
+      "sha256": "3369133d731057adca483e8cd1811bf993eef0f1548ec5d076eb8ed87cadf263"
+    },
+    {
+      "repository": "strider973/Einhander-Recompiled",
+      "commit": "607c5c827caf3bc2a2fd7cd2ec00ba8e825eb9f8",
+      "path": ".github/workflows/release.yml",
+      "blob": "81e9278d9a03d87b1f945341612b7c1ec067233e",
+      "bytes": 25200,
+      "sha256": "cf87e9fa7a7460107ca8086689324b0c3e728f6b131f8e643243ff444bed2ad1"
+    },
+    {
+      "repository": "strider973/Einhander-Recompiled",
+      "commit": "607c5c827caf3bc2a2fd7cd2ec00ba8e825eb9f8",
+      "path": "codegen_setup.c",
+      "blob": "abdaeeeba388d7cc5398955f67b761522d8edd4d",
+      "bytes": 1864,
+      "sha256": "728fb2ef05f3be975ffc6165f8ae3a084af6f7b144147da42c11fbeb31a20f74"
+    },
+    {
+      "repository": "strider973/Einhander-Recompiled",
+      "commit": "607c5c827caf3bc2a2fd7cd2ec00ba8e825eb9f8",
+      "path": "codegen_setup.h",
+      "blob": "f643fca97cabadac4074b4b9fecb8b097a3e7a0a",
+      "bytes": 346,
+      "sha256": "adc1f1bcbc9295307fb5d4b8ac57629a9c168f913ffc5a5e3939a9703be15bd4"
+    },
+    {
+      "repository": "SlickAmogus/silent-hill-decomp",
+      "commit": "488b518e356697cd253c6608e89afed7abbe3b05",
+      "path": ".gitmodules",
+      "blob": "f9983f09cef4ddd8f42a32633ab49cf550b9e5c3",
+      "bytes": 681,
+      "sha256": "a45784144b0cb0f9c544923059d0f915bed4389d1598b597a3f4162b04af930d"
+    },
+    {
+      "repository": "SlickAmogus/silent-hill-decomp",
+      "commit": "488b518e356697cd253c6608e89afed7abbe3b05",
+      "path": "COPYRIGHT.md",
+      "blob": "4015d9c69785fb726ee713ef6e009cac54b11448",
+      "bytes": 6198,
+      "sha256": "51a8534519f87620165876f2355da65487e5e4f5df1ad9e106cb5db3c9057cf2"
+    },
+    {
+      "repository": "SlickAmogus/silent-hill-decomp",
+      "commit": "488b518e356697cd253c6608e89afed7abbe3b05",
+      "path": "LICENSE",
+      "blob": "94a9ed024d3859793618152ea559a168bbcbb5e2",
+      "bytes": 35147,
+      "sha256": "8ceb4b9ee5adedde47b31e975c1d90c73ad27b6b165a1dcd80c7c545eb65b903"
+    },
+    {
+      "repository": "SlickAmogus/silent-hill-decomp",
+      "commit": "488b518e356697cd253c6608e89afed7abbe3b05",
+      "path": "README.md",
+      "blob": "a3e45f9d189391b77a42fbdb346b055889502d31",
+      "bytes": 18477,
+      "sha256": "19dff786cc2f4c45c500a5f8394de33db742f0153838d71b46619ab85783ac80"
+    },
+    {
+      "repository": "SlickAmogus/silent-hill-decomp",
+      "commit": "5c9a639c03f90c3cfa7d343aebe8eb5848769010",
+      "path": ".gitmodules",
+      "blob": "f9983f09cef4ddd8f42a32633ab49cf550b9e5c3",
+      "bytes": 681,
+      "sha256": "a45784144b0cb0f9c544923059d0f915bed4389d1598b597a3f4162b04af930d"
+    },
+    {
+      "repository": "SlickAmogus/silent-hill-decomp",
+      "commit": "5c9a639c03f90c3cfa7d343aebe8eb5848769010",
+      "path": "COPYRIGHT.md",
+      "blob": "4015d9c69785fb726ee713ef6e009cac54b11448",
+      "bytes": 6198,
+      "sha256": "51a8534519f87620165876f2355da65487e5e4f5df1ad9e106cb5db3c9057cf2"
+    },
+    {
+      "repository": "SlickAmogus/silent-hill-decomp",
+      "commit": "5c9a639c03f90c3cfa7d343aebe8eb5848769010",
+      "path": "LICENSE",
+      "blob": "94a9ed024d3859793618152ea559a168bbcbb5e2",
+      "bytes": 35147,
+      "sha256": "8ceb4b9ee5adedde47b31e975c1d90c73ad27b6b165a1dcd80c7c545eb65b903"
+    },
+    {
+      "repository": "SlickAmogus/silent-hill-decomp",
+      "commit": "5c9a639c03f90c3cfa7d343aebe8eb5848769010",
+      "path": "README.md",
+      "blob": "8e5c7c39817fe33f0e6f6b2eaa9a273e2d6f09ae",
+      "bytes": 16585,
+      "sha256": "1a9e215d2a7ae8e096e5e103e5302b998710d548823183d7c463dfb3d9b346a9"
+    },
+    {
+      "repository": "SlickAmogus/silent-hill-decomp",
+      "commit": "5c9a639c03f90c3cfa7d343aebe8eb5848769010",
+      "path": "pc_port/launcher/SilentHillPC_Launcher/Program.cs",
+      "blob": "d91be95b11b52c010add95fff033769e94a82b5c",
+      "bytes": 903,
+      "sha256": "b061222905738a2652a68709292e3bc9a27a56b99644688ee77b3c317d3cd216"
+    },
+    {
+      "repository": "SlickAmogus/silent-hill-decomp",
+      "commit": "5c9a639c03f90c3cfa7d343aebe8eb5848769010",
+      "path": "pc_port/launcher/SilentHillPC_Launcher/Form1.cs",
+      "blob": "1dd1f0496895b32cb813df68045cf0dfd5617122",
+      "bytes": 100663,
+      "sha256": "3b8de03650a60f98e6914262c0669b7eefd76148671d8ffc9b63ccc8e6c9632b"
+    },
+    {
+      "repository": "SlickAmogus/silent-hill-decomp",
+      "commit": "5c9a639c03f90c3cfa7d343aebe8eb5848769010",
+      "path": "pc_port/launcher/SilentHillPC_Launcher/ConfigManager.cs",
+      "blob": "c267f4378c1a1707a256f6a6cb4cae3767d95c4d",
+      "bytes": 6068,
+      "sha256": "64c8a081cb9b6a12dc0d404d8eb25fe7e0a1ba65202e810aa017f5812721d33b"
+    },
+    {
+      "repository": "SlickAmogus/silent-hill-decomp",
+      "commit": "5c9a639c03f90c3cfa7d343aebe8eb5848769010",
+      "path": "pc_port/launcher/SilentHillPC_Launcher/LauncherSettings.cs",
+      "blob": "34fcdad0a1518f06c892809ad5b3d6ab6d74c335",
+      "bytes": 9441,
+      "sha256": "6c41e6a65788dd4c7b698ff0077062e63be16464d06a2c87db1c033c9dcf3462"
+    },
+    {
+      "repository": "SlickAmogus/silent-hill-decomp",
+      "commit": "5c9a639c03f90c3cfa7d343aebe8eb5848769010",
+      "path": "pc_port/src/pc_config.c",
+      "blob": "5995b2e80ec478f934672dd8693bfa62ed9e8f6e",
+      "bytes": 60864,
+      "sha256": "1447ebb8f5e7f4b15977412f23af1b1a63e38baba6633c48c210005c7e2343c4"
+    },
+    {
+      "repository": "SlickAmogus/silent-hill-decomp",
+      "commit": "488b518e356697cd253c6608e89afed7abbe3b05",
+      "path": "pc_port/launcher/SilentHillPC_Launcher/Program.cs",
+      "blob": "4b9abb03c6b50a4a64379ebd3510552fd5f38d76",
+      "bytes": 1201,
+      "sha256": "0454f5dbc804ee8995484584f7129ee70de5920f463d3839cb01ecfc276548b7"
+    },
+    {
+      "repository": "SlickAmogus/silent-hill-decomp",
+      "commit": "488b518e356697cd253c6608e89afed7abbe3b05",
+      "path": "pc_port/launcher/SilentHillPC_Launcher/Form1.cs",
+      "blob": "24b2f9033831486f38ab83b14499e3256f604e35",
+      "bytes": 121764,
+      "sha256": "07d40e7994a82e84416ee0c05a2e2295367a47ab0860eb57c39829ebd0168f2a"
+    },
+    {
+      "repository": "SlickAmogus/silent-hill-decomp",
+      "commit": "488b518e356697cd253c6608e89afed7abbe3b05",
+      "path": "pc_port/launcher/SilentHillPC_Launcher/ConfigManager.cs",
+      "blob": "2f9d77d32dcf1639572964259faecfadabae1fc1",
+      "bytes": 6990,
+      "sha256": "48a42ce4783237d3b5dda24e88b53bfdbfc96a89c568d5a40d5c74f048f17dc2"
+    },
+    {
+      "repository": "SlickAmogus/silent-hill-decomp",
+      "commit": "488b518e356697cd253c6608e89afed7abbe3b05",
+      "path": "pc_port/launcher/SilentHillPC_Launcher/LauncherSettings.cs",
+      "blob": "1925f625b59edbdcc445ad390b0fbb1917057ca2",
+      "bytes": 11419,
+      "sha256": "c57512d98a500459f3d1ddb37f0273c9663066c8ce7ab7cb3a521af01cae4313"
+    },
+    {
+      "repository": "SlickAmogus/silent-hill-decomp",
+      "commit": "488b518e356697cd253c6608e89afed7abbe3b05",
+      "path": "pc_port/src/pc_config.c",
+      "blob": "a05b29eb858e6cff2eb7a4a0fdff2abb5cc8803b",
+      "bytes": 83274,
+      "sha256": "e9c75d5782446f8cee44d201b1ba51d8899ce0fecfc91f3769c7d17e51911729"
+    },
+    {
+      "repository": "SlickAmogus/silent-hill-decomp",
+      "commit": "488b518e356697cd253c6608e89afed7abbe3b05",
+      "path": "pc_port/docs/Save_Format_And_Converter.md",
+      "blob": "e48288ff857d518ef84ec9fa49f77fcb909d16b3",
+      "bytes": 10021,
+      "sha256": "03e1c51d9c457119419605c706c62dbfbaa3bbd822f98ad6ecf50f52074d366b"
+    },
+    {
+      "repository": "SlickAmogus/silent-hill-decomp",
+      "commit": "5c9a639c03f90c3cfa7d343aebe8eb5848769010",
+      "path": "pc_port/src/main_pc.c",
+      "blob": "e514316ccee9a463f93eaf6b8c688dfe0d7ebaae",
+      "bytes": 66573,
+      "sha256": "1a2784e5c505579ee1b8088fce8763197ca83f1f8d8e010171dac81e012194b5"
+    },
+    {
+      "repository": "SlickAmogus/silent-hill-decomp",
+      "commit": "5c9a639c03f90c3cfa7d343aebe8eb5848769010",
+      "path": "pc_port/build.bat",
+      "blob": "664f87575f49fca225733ec24a4e16c8aeb2775f",
+      "bytes": 7434,
+      "sha256": "be857ff7a42b463a8e2ebf2d3115c681be1072097318b25c3b606e884dd9bcb1"
+    },
+    {
+      "repository": "SlickAmogus/silent-hill-decomp",
+      "commit": "5c9a639c03f90c3cfa7d343aebe8eb5848769010",
+      "path": "pc_port/CMakeLists.txt",
+      "blob": "3376c6c5dcb1a2a442d3da8fe01db52d2ab1013e",
+      "bytes": 39576,
+      "sha256": "f6c87814202e04106885ac41a1fc0d478bc5d65e7da9934b90a0a17a5cb6c870"
+    },
+    {
+      "repository": "SlickAmogus/silent-hill-decomp",
+      "commit": "5c9a639c03f90c3cfa7d343aebe8eb5848769010",
+      "path": "pc_port/include/pc_config.h",
+      "blob": "62d785486dd9d54531c211d60ce56436ba21ba0b",
+      "bytes": 34302,
+      "sha256": "d4e516c0e2b4fa519687fbfafa8ad727eba7c30205ce168c01549f948e4ec746"
+    },
+    {
+      "repository": "SlickAmogus/silent-hill-decomp",
+      "commit": "5c9a639c03f90c3cfa7d343aebe8eb5848769010",
+      "path": "pc_port/src/pc_quicksave.c",
+      "blob": "b47aca03df22a3b7143519a690465964d15a9b4e",
+      "bytes": 4557,
+      "sha256": "b5fe90e596d79f13067ac1ecc5631aee56cdd78133bb9331c329b840c6f8d845"
+    },
+    {
+      "repository": "SlickAmogus/silent-hill-decomp",
+      "commit": "5c9a639c03f90c3cfa7d343aebe8eb5848769010",
+      "path": "src/screens/saveload/saveload.c",
+      "blob": "317ece724555078eaf71e54a38c2453ac287a6fd",
+      "bytes": 94964,
+      "sha256": "2e6075dfa322cd390fac6ba291d5c734915f40732cda9d1eb5818ca941ee2535"
+    },
+    {
+      "repository": "SlickAmogus/silent-hill-decomp",
+      "commit": "5c9a639c03f90c3cfa7d343aebe8eb5848769010",
+      "path": "pc_port/src/stubs/libapi_stub.c",
+      "blob": "c53c2bd193af24938a1b2af26cfdfd7ff7ced834",
+      "bytes": 838,
+      "sha256": "20820a09ffe11aaae052a10f1b7fc29bdb1b50ca2b9545beb6c7432e44cc538b"
+    },
+    {
+      "repository": "SlickAmogus/silent-hill-decomp",
+      "commit": "5c9a639c03f90c3cfa7d343aebe8eb5848769010",
+      "path": "pc_port/src/fs_pc.c",
+      "blob": "ff12c386ea69ed7b7183eada51716bd4261310b4",
+      "bytes": 1721,
+      "sha256": "7b2c2c598ec6d49d3b4fbd3df33f835f88ac0579394e2900aa8a9bc104f50c83"
+    },
+    {
+      "repository": "SlickAmogus/silent-hill-decomp",
+      "commit": "5c9a639c03f90c3cfa7d343aebe8eb5848769010",
+      "path": "pc_port/src/fs_pc.h",
+      "blob": "97f85783204a95f8cbb3341dc14ccf261c84243f",
+      "bytes": 802,
+      "sha256": "b44557163f97002766bad287202160d46e4ed383ea68767a01fdaa913b580261"
+    },
+    {
+      "repository": "Heromachine/Tenchu-SA-Recomp",
+      "commit": "818853516b37457bac7b9149039ab95b360fc5a2",
+      "path": "README.md",
+      "blob": "ac1e04d6a68a3c7620e29f633d2ff7849c6b2a1d",
+      "bytes": 4621,
+      "sha256": "50fd0c0358ed8a228642df91fcad65edeefaa86273372d371b317a55e79bc26b"
+    },
+    {
+      "repository": "Heromachine/Tenchu-SA-Recomp",
+      "commit": "818853516b37457bac7b9149039ab95b360fc5a2",
+      "path": "Program.cs",
+      "blob": "e0475471afa6c958a3a02282857bb7b3212723ff",
+      "bytes": 25518,
+      "sha256": "b728beeb415d21dbd0dbf289d87269911ce99406df1a17fdfa32816264e2fad5"
+    },
+    {
+      "repository": "Heromachine/Tenchu-SA-Recomp",
+      "commit": "818853516b37457bac7b9149039ab95b360fc5a2",
+      "path": "TenchuSARecomp.csproj",
+      "blob": "f5eb6a3b13508d6bb25d1c346a9c2234e75e28cd",
+      "bytes": 3068,
+      "sha256": "5f38044c926e4a017091cb76e6dd96be66bb346d4d8a98bb6d3694f312ba126c"
+    },
+    {
+      "repository": "Heromachine/Tenchu-SA-Recomp",
+      "commit": "818853516b37457bac7b9149039ab95b360fc5a2",
+      "path": "BuildPickerPopup.cs",
+      "blob": "f520b2f51518f8587325f50e050c526773a75878",
+      "bytes": 7266,
+      "sha256": "39335df730db9627b21eb614383d9a24460db501dbab38a6f3a7e221d86ec45e"
+    },
+    {
+      "repository": "Heromachine/Tenchu-SA-Recomp",
+      "commit": "818853516b37457bac7b9149039ab95b360fc5a2",
+      "path": "BuildScreen.cs",
+      "blob": "93d0e16d25585fcd1151e7d6b885d35adde1ec53",
+      "bytes": 6569,
+      "sha256": "21de67f7e5efb200eea1772abc033b364544e8ecdaab5566972aaf454eec4000"
+    },
+    {
+      "repository": "Heromachine/Tenchu-SA-Recomp",
+      "commit": "818853516b37457bac7b9149039ab95b360fc5a2",
+      "path": "DiscCheck.cs",
+      "blob": "1e5037350ee249c630bebbde225208f5cdb6b8d1",
+      "bytes": 2557,
+      "sha256": "c072ab9eccba9266e672a9b64a07b57aa04b159256f28cb7e1e984538c765065"
+    },
+    {
+      "repository": "Heromachine/Tenchu-SA-Recomp",
+      "commit": "818853516b37457bac7b9149039ab95b360fc5a2",
+      "path": "DISC.md",
+      "blob": "e305f0bf38e84eb64f381e27e89b512a98004395",
+      "bytes": 1126,
+      "sha256": "8e8b7d4d0292b1273099eed048cead14ef397bd10efd9917b1c2ee848370e38c"
+    },
+    {
+      "repository": "Heromachine/Tenchu-SA-Recomp",
+      "commit": "818853516b37457bac7b9149039ab95b360fc5a2",
+      "path": "assets/config.json",
+      "blob": "bd96971b0d16c08f02406a768d84037b08d4d0e8",
+      "bytes": 9381,
+      "sha256": "4e6338a91ee31a0dd4fa8cfea49fd78a9a20def459a0cce1195a7d5d61939580"
+    },
+    {
+      "repository": "Heromachine/Tenchu-SA-Recomp",
+      "commit": "818853516b37457bac7b9149039ab95b360fc5a2",
+      "path": "publish_release.py",
+      "blob": "f5986c0a8dbc54b6526a5a19ac3240b726419f8a",
+      "bytes": 5020,
+      "sha256": "96c284d4d70973a0a0ff7a3aa5d72d64b1dc4c039dd34eaae084af9e7b94f8bc"
+    },
+    {
+      "repository": "RetroPortingToolKit/psxrecomp",
+      "requested_repository": "mstan/psxrecomp",
+      "repository_id": 1172059725,
+      "commit": "a7459cddbe2a869477b0cd5530da8963cf9b5d7d",
+      "path": "LICENSE",
+      "blob": "4b510c2b281245524bbe8df725b7f3d73e8b1f9d",
+      "bytes": 3852,
+      "sha256": "03912c9ba1b055f2364b5adf318f4ca8a66c640e991f16e9ff5b2a516d3f24e2"
+    },
+    {
+      "repository": "RetroPortingToolKit/psxrecomp",
+      "requested_repository": "mstan/psxrecomp",
+      "repository_id": 1172059725,
+      "commit": "a7459cddbe2a869477b0cd5530da8963cf9b5d7d",
+      "path": "runtime/src/main.cpp",
+      "blob": "f1380ff67970dce565d586e5a0bfcd4209b6ad16",
+      "bytes": 700229,
+      "sha256": "baa5168e491a9af760b877e9d7f2c662e86049b7b9f09c7353eca95d32717196"
+    },
+    {
+      "repository": "RetroPortingToolKit/psxrecomp",
+      "commit": "a7459cddbe2a869477b0cd5530da8963cf9b5d7d",
+      "path": "host/psxrecomp_codegen_host.c",
+      "blob": "b24d28a868cfe6472efa261f423d05f03fb177df",
+      "bytes": 162469,
+      "sha256": "87b1492fdbb8df4769e2592ebc9e476c422ffa9c765d2e489dc64c5e665eff3a"
+    },
+    {
+      "repository": "RetroPortingToolKit/psxrecomp",
+      "commit": "a7459cddbe2a869477b0cd5530da8963cf9b5d7d",
+      "path": "host/psxrecomp_codegen_host.h",
+      "blob": "03aae3eb380bb0166d9e62c9971e48a2b828ebe8",
+      "bytes": 2345,
+      "sha256": "80edf27f923b665c1c9e809c9d199e19c281227df9fa97ea77c716d07474064c"
+    },
+    {
+      "repository": "RetroPortingToolKit/psxrecomp",
+      "commit": "a7459cddbe2a869477b0cd5530da8963cf9b5d7d",
+      "path": "runtime/runtime.cmake",
+      "blob": "113ce39a9bdf9ef655f2e3da6239594c5ffcfbf1",
+      "bytes": 119606,
+      "sha256": "46b344849f719bfc24c41c148f2c918c287ff6825b01330ab7724559b70d4ee4"
+    },
+    {
+      "repository": "RetroPortingToolKit/psxrecomp",
+      "commit": "a7459cddbe2a869477b0cd5530da8963cf9b5d7d",
+      "path": "runtime/src/memcard.c",
+      "blob": "215f17fcab8032e78850fa8eff1e1110acab4970",
+      "bytes": 10877,
+      "sha256": "7ac56ef4ad56ac480900e09fb330226df45d8cfc9b75e6d12105621b57d04452"
+    },
+    {
+      "repository": "RetroPortingToolKit/psxrecomp",
+      "commit": "a7459cddbe2a869477b0cd5530da8963cf9b5d7d",
+      "path": "recompiler/src/config_loader.cpp",
+      "blob": "6ddffea9a04ec51dde26503f498f50973320c36c",
+      "bytes": 135588,
+      "sha256": "f283864db428a9f70fc9e663406861802b5c6be385609e471bb5487715b126c7"
+    },
+    {
+      "repository": "RetroPortingToolKit/psxrecomp",
+      "commit": "a7459cddbe2a869477b0cd5530da8963cf9b5d7d",
+      "path": "recompiler/src/config_loader.h",
+      "blob": "d979d59d3f579993078d4110721871456aba596c",
+      "bytes": 83000,
+      "sha256": "2cabb7f5d2cae9706ec30190e8dd8bfd0deee6e6d22863f360d04f0f17739354"
+    },
+    {
+      "repository": "RetroPortingToolKit/psxrecomp",
+      "commit": "a7459cddbe2a869477b0cd5530da8963cf9b5d7d",
+      "path": "tools/package_setup_host.sh",
+      "blob": "977802e3a2dce045b9826c54f32c6d71a7d99993",
+      "bytes": 23522,
+      "sha256": "e33d69df4686f98f407c80ac39ea29860c62482d92b3bc2e4ba4c60b295e181d"
+    },
+    {
+      "repository": "RetroPortingToolKit/psxrecomp",
+      "commit": "a7459cddbe2a869477b0cd5530da8963cf9b5d7d",
+      "path": "tools/new_project_layout/templates/codegen_setup.c.in",
+      "blob": "df215314494a62238b934365a532c48f118c655e",
+      "bytes": 1850,
+      "sha256": "6a781798eff81fcf0875247f978d90a9b5520a37746a90ebfff0b19942013267"
+    },
+    {
+      "repository": "RetroPortingToolKit/psxrecomp",
+      "commit": "a7459cddbe2a869477b0cd5530da8963cf9b5d7d",
+      "path": "tools/new_project_layout/templates/codegen_setup.h.in",
+      "blob": "f643fca97cabadac4074b4b9fecb8b097a3e7a0a",
+      "bytes": 346,
+      "sha256": "adc1f1bcbc9295307fb5d4b8ac57629a9c168f913ffc5a5e3939a9703be15bd4"
+    },
+    {
+      "repository": "RetroPortingToolKit/psxrecomp",
+      "requested_repository": "mstan/psxrecomp",
+      "repository_id": 1172059725,
+      "commit": "847d76f0fa45274056775cd2cc7031d5a0bd1682",
+      "path": "LICENSE",
+      "blob": "4b510c2b281245524bbe8df725b7f3d73e8b1f9d",
+      "bytes": 3852,
+      "sha256": "03912c9ba1b055f2364b5adf318f4ca8a66c640e991f16e9ff5b2a516d3f24e2"
+    },
+    {
+      "repository": "RetroPortingToolKit/psxrecomp",
+      "requested_repository": "mstan/psxrecomp",
+      "repository_id": 1172059725,
+      "commit": "847d76f0fa45274056775cd2cc7031d5a0bd1682",
+      "path": "runtime/src/main.cpp",
+      "blob": "ab4ff79837645ea57257240ed88c9b43bff5c52e",
+      "bytes": 670527,
+      "sha256": "681cb3e14eb4331eb4a3c0543610e470a76a7df9959569b2a77eafa0c85651e7"
+    },
+    {
+      "repository": "RetroPortingToolKit/psxrecomp",
+      "commit": "847d76f0fa45274056775cd2cc7031d5a0bd1682",
+      "path": "host/psxrecomp_codegen_host.c",
+      "blob": "23aff86d35f46f4dbdd1aafcde6ba83f7e04efe2",
+      "bytes": 141122,
+      "sha256": "170cc041ea986141708b526e486322cc6f3ef423735a53a340b65b7e88aae7e6"
+    },
+    {
+      "repository": "RetroPortingToolKit/psxrecomp",
+      "commit": "847d76f0fa45274056775cd2cc7031d5a0bd1682",
+      "path": "host/psxrecomp_codegen_host.h",
+      "blob": "03aae3eb380bb0166d9e62c9971e48a2b828ebe8",
+      "bytes": 2345,
+      "sha256": "80edf27f923b665c1c9e809c9d199e19c281227df9fa97ea77c716d07474064c"
+    },
+    {
+      "repository": "RetroPortingToolKit/psxrecomp",
+      "commit": "847d76f0fa45274056775cd2cc7031d5a0bd1682",
+      "path": "runtime/runtime.cmake",
+      "blob": "cc46b149e0db758c4dfcacaa19554f44f245955d",
+      "bytes": 96354,
+      "sha256": "10d82919c4ab8b7a49bcc1efb191fbee7085c6ce24fbaf58f878c2e72f143a50"
+    },
+    {
+      "repository": "RetroPortingToolKit/psxrecomp",
+      "commit": "847d76f0fa45274056775cd2cc7031d5a0bd1682",
+      "path": "runtime/src/memcard.c",
+      "blob": "215f17fcab8032e78850fa8eff1e1110acab4970",
+      "bytes": 10877,
+      "sha256": "7ac56ef4ad56ac480900e09fb330226df45d8cfc9b75e6d12105621b57d04452"
+    },
+    {
+      "repository": "RetroPortingToolKit/psxrecomp",
+      "commit": "847d76f0fa45274056775cd2cc7031d5a0bd1682",
+      "path": "recompiler/src/config_loader.cpp",
+      "blob": "9e3e6dedb728d481eb0faaafb1621c97b2a2ef1b",
+      "bytes": 132666,
+      "sha256": "2ab95afb2caf5af15d1de64270362538511805ac71b6f4a11fbe84a42915dfc7"
+    },
+    {
+      "repository": "RetroPortingToolKit/psxrecomp",
+      "commit": "847d76f0fa45274056775cd2cc7031d5a0bd1682",
+      "path": "recompiler/src/config_loader.h",
+      "blob": "63c489049437c7e36a2a6796c069d32f117c8ecc",
+      "bytes": 79992,
+      "sha256": "dc024cafc09e20813786f94c53e739500240e4f8de90bd7fa3da3a4cb7342207"
+    },
+    {
+      "repository": "RetroPortingToolKit/psxrecomp",
+      "commit": "847d76f0fa45274056775cd2cc7031d5a0bd1682",
+      "path": "tools/package_setup_host.sh",
+      "blob": "92e3572e8248459de9760236d4889208dacdeecf",
+      "bytes": 13831,
+      "sha256": "57b7c152feb4692589b0dc63510e43cc3c56a548e7c6fbecc1211a8fdd0870c1"
+    },
+    {
+      "repository": "RetroPortingToolKit/psxrecomp",
+      "commit": "847d76f0fa45274056775cd2cc7031d5a0bd1682",
+      "path": "tools/new_project_layout/templates/codegen_setup.c.in",
+      "blob": "df215314494a62238b934365a532c48f118c655e",
+      "bytes": 1850,
+      "sha256": "6a781798eff81fcf0875247f978d90a9b5520a37746a90ebfff0b19942013267"
+    },
+    {
+      "repository": "RetroPortingToolKit/psxrecomp",
+      "commit": "847d76f0fa45274056775cd2cc7031d5a0bd1682",
+      "path": "tools/new_project_layout/templates/codegen_setup.h.in",
+      "blob": "f643fca97cabadac4074b4b9fecb8b097a3e7a0a",
+      "bytes": 346,
+      "sha256": "adc1f1bcbc9295307fb5d4b8ac57629a9c168f913ffc5a5e3939a9703be15bd4"
+    },
+    {
+      "repository": "SlickAmogus/PsyCross",
+      "requested_repository": "SlickAmogus/PsyCross",
+      "repository_id": 1182750325,
+      "commit": "2008b79d30d8495db98031ef2b099a303067754e",
+      "path": "LICENSE",
+      "blob": "6e1ca2632fbcd08e96eeccc4ce7653551b93e4f6",
+      "bytes": 1074,
+      "sha256": "fa03bfe5810413a38d363e003472bd9e7b36384ac5f82ad8d7c902fd83b51539"
+    },
+    {
+      "repository": "SlickAmogus/PsyCross",
+      "requested_repository": "SlickAmogus/PsyCross",
+      "repository_id": 1182750325,
+      "commit": "2008b79d30d8495db98031ef2b099a303067754e",
+      "path": "src/psx/libapi.c",
+      "blob": "e602c4fb384d1d7fd8cfa63b65131c68add4f268",
+      "bytes": 24887,
+      "sha256": "8ae7d3c8ed958918b0a94c8faf48cdcacbdc4e1025e1359b7c72abf0d859f445"
+    },
+    {
+      "repository": "shdecompilations/silent-hill-decomp",
+      "commit": "04735047c6816a75d46b4a17f920a41bc208d95f",
+      "path": "LICENSE",
+      "blob": "8338c9fdf1e4e33da03197df093db50e8fcb09b9",
+      "bytes": 32919,
+      "sha256": "b6332f2362eeffec3f46e9a1cbb285319d7e29b03fe2ee77e787f62207fa9654"
+    },
+    {
+      "repository": "shdecompilations/silent-hill-decomp",
+      "commit": "04735047c6816a75d46b4a17f920a41bc208d95f",
+      "path": "README.md",
+      "blob": "bfaf39e7f86bf26f2970019a43d74aabdf6aa61a",
+      "bytes": 29512,
+      "sha256": "07aacb1d904eac6197caaabaef4f71d9b652e1c9f625b07d5f9d0c5110136780"
+    }
+  ],
+  "source_contexts": [
+    {
+      "context": "upstream/327/current-tree.json",
+      "tree": "d9b8f228578346c33c3095b6444b8b562c131058",
+      "entries": 64,
+      "sha256": "77f97aa76ccc212e688b0308877989b2f067b3ab29f5c6ca29aa639e91a1f081",
+      "complete": true
+    },
+    {
+      "context": "upstream/327/tag-tree.json",
+      "tree": "ceabea003569be97d4770b9ccae51b520211e78a",
+      "entries": 63,
+      "sha256": "e2b83583cc7bbb8f478bdcc0cd64535c7ee37c38d2af0df6adb8086e7ddad058",
+      "complete": true
+    },
+    {
+      "context": "upstream/344/current-tree.json",
+      "tree": "8fb08cc69c821721c2bb36650fea88904f149324",
+      "entries": 561,
+      "sha256": "14b16624eb6e32f01e0037b2d668c3190540a0f98555916c2429e8c08fcb00f7",
+      "complete": true
+    },
+    {
+      "context": "upstream/344/tag-tree.json",
+      "tree": "8fb08cc69c821721c2bb36650fea88904f149324",
+      "entries": 561,
+      "sha256": "14b16624eb6e32f01e0037b2d668c3190540a0f98555916c2429e8c08fcb00f7",
+      "complete": true
+    },
+    {
+      "context": "upstream/344-public-test16/tag-tree.json",
+      "tree": "e696dcf1af2cf257138a5754f3cdb42208199c30",
+      "entries": 458,
+      "sha256": "17e4a450fba97f0aa0c784f9bcd16e26a36ad2cab5bbb4b6d779acf15732523e",
+      "complete": true
+    },
+    {
+      "context": "upstream/350/current-tree.json",
+      "tree": "24386356a6ce64516109b1ba365b89608e87782b",
+      "entries": 39,
+      "sha256": "10b90d0a78ac5f72a5314eba7b120b20842ca391ff6f55c7da0591079d12e484",
+      "complete": true
+    },
+    {
+      "context": "upstream/350/tag-tree.json",
+      "tree": "24386356a6ce64516109b1ba365b89608e87782b",
+      "entries": 39,
+      "sha256": "10b90d0a78ac5f72a5314eba7b120b20842ca391ff6f55c7da0591079d12e484",
+      "complete": true
+    },
+    {
+      "context": "upstream/351/current-tree.json",
+      "tree": "f903e12bc21c4f9754962f9497ba33f4b19a2653",
+      "entries": 2749,
+      "sha256": "948d7b8792743a9282badc2e79286d2398bff7216790bde0944292a105d43ec6",
+      "complete": true
+    },
+    {
+      "context": "upstream/351/tag-tree.json",
+      "tree": "8c12e8711acb36b36c817fddd2e8bf64b43af916",
+      "entries": 2571,
+      "sha256": "40fe8eb305e40ef75d57b59072c72ae8f04b7505b4aedae697da2f408c411bab",
+      "complete": true
+    },
+    {
+      "context": "upstream/353/current-tree.json",
+      "tree": "60a896c9f146d0b8ee8bf5d62222e46c0ec13387",
+      "entries": 19,
+      "sha256": "f2b8cc9146683d876d012bfbccb9a036663f7ad05ecf923b62647ce0747387f9",
+      "complete": true
+    },
+    {
+      "context": "upstream/353/tag-tree.json",
+      "tree": "60a896c9f146d0b8ee8bf5d62222e46c0ec13387",
+      "entries": 19,
+      "sha256": "f2b8cc9146683d876d012bfbccb9a036663f7ad05ecf923b62647ce0747387f9",
+      "complete": true
+    },
+    {
+      "context": "frameworks/327/pinned-tree.json",
+      "tree": "97434304a9a6c7eb56fb709561d380bf92919219",
+      "entries": 1867,
+      "sha256": "10e5955eaff20c6d447e1c6885db292abe6a3ee41134abbff48ec0d62ee0965e",
+      "complete": true
+    },
+    {
+      "context": "frameworks/350/pinned-tree.json",
+      "tree": "2471da14e79b182a8f57ce0938bbda983895430c",
+      "entries": 1834,
+      "sha256": "8016ba4bea15c6399e617aa3db37f65970d589a2a83e0c32dfdebc60f76ae0ce",
+      "complete": true
+    },
+    {
+      "context": "frameworks/351/pinned-tree.json",
+      "tree": "25ab2fa84bcad81e0c491a379c00c3a3b7839e7f",
+      "entries": 124,
+      "sha256": "293f55c3e6ba891ed7bc683d6fdc6aa3acabb0bf890b40d0ef46215fc0081424",
+      "complete": true
+    },
+    {
+      "context": "frameworks/silent-hill-origin/current-tree.json",
+      "tree": "9262bc9eab43a601daacc7fe28232df497636ce3",
+      "entries": 1939,
+      "sha256": "05e59517c31ed17b9868b3475bbdc80a7391cb7d58483c67cf801982022b980b",
+      "complete": true
+    }
+  ],
+  "core_inspection": {
+    "ports": 286,
+    "listings": 1424,
+    "port_input_sha256": "e037d5beabd6977664448ab8e9ea522e548b49c63425eb13785585e32ef1863d",
+    "listing_input_sha256": "4a769eabad54d80e465910d3298dce6740af8ba1f6c098596b4598d0d17280b6",
+    "validator_artifact_sha256": "06dd083d7b3cc124867527cd0e7f32c0cb12893f76268f69aad63589f70a11c4",
+    "compatibility": {
+      "status": "matched",
+      "fixture": "crates/portcove-core/catalog/catalog-legacy-additions-fixture.json",
+      "fixture_sha256": "b739f29e10fd4bcb7b808a3cf7b272a89420562407171c8232e3c75365336f3d",
+      "collections": {
+        "source_profile_ids": {
+          "expected_count": 116,
+          "unreviewed_ids": [],
+          "missing_expected_ids": []
+        },
+        "port_ids": {
+          "expected_count": 286,
+          "unreviewed_ids": [],
+          "missing_expected_ids": []
+        }
+      },
+      "scope": "Identity bookkeeping only; manually review expectations. Full frozen equality, source contracts and qualification remain separate Rust checks."
+    }
+  },
+  "preservation": {
+    "crates/portcove-core/catalog/catalog.json": "e037d5beabd6977664448ab8e9ea522e548b49c63425eb13785585e32ef1863d",
+    "crates/portcove-core/catalog/catalog-current-authoring.json": "e037d5beabd6977664448ab8e9ea522e548b49c63425eb13785585e32ef1863d",
+    "crates/portcove-core/catalog/catalog-schema1-fixture.json": "6007d4962a722751bfbb789d08b23b6c0f5eba3b09ef28eedd5c480d417529b0",
+    "crates/portcove-core/catalog/catalog-legacy-additions-fixture.json": "b739f29e10fd4bcb7b808a3cf7b272a89420562407171c8232e3c75365336f3d"
+  },
+  "first_party_cases": [
+    "service::user_selected::tests::final_fantasy_tactics_finfantacrecomp_prepared_player_route_327",
+    "service::catalog_download::tests::final_fantasy_tactics_finfantacrecomp_component_hold_before_network_327",
+    "service::user_selected::tests::einhander_einhander_recompiled_prepared_player_route_350",
+    "service::user_selected::tests::syphon_filter_sf_pc_port_prepared_player_route_344",
+    "service::user_selected::tests::silent_hill_silent_hill_decomp_pc_branch_prepared_player_route_351",
+    "service::catalog_download::tests::silent_hill_silent_hill_decomp_pc_branch_component_hold_before_network_351",
+    "service::user_selected::tests::tenchu_stealth_assassins_tenchu_sa_recomp_prepared_player_route_353",
+    "service::catalog_download::tests::tenchu_stealth_assassins_tenchu_sa_recomp_component_hold_before_network_353"
+  ],
+  "preparation": [
+    {
+      "issue": 327,
+      "report_sha256": "6b55fd8af4569f1cb98f608e1ccc523f9a3d72eb0577015bb99a739b6c94eaba",
+      "operational_changed": false,
+      "listing_validation": {
+        "input_sha256": "a020858d2c09e64394d8a8306c29022a2046356f198fa2cd1f458977c4db466f",
+        "validator_artifact_sha256": "06dd083d7b3cc124867527cd0e7f32c0cb12893f76268f69aad63589f70a11c4"
+      },
+      "compatibility": {
+        "status": "matched"
+      },
+      "scope": "maintained first-party preparation succeeded; not title/runtime/installed qualification"
+    },
+    {
+      "issue": 350,
+      "report_sha256": "6b8bbdf2d931430af9cb10a4873ad4bd7b6adc78d571390ab7296f5b873ba065",
+      "operational_changed": false,
+      "listing_validation": {
+        "input_sha256": "866bf924ab4f050dd41ad7221cde40ebb10147e0686e368598e661253b941915",
+        "validator_artifact_sha256": "06dd083d7b3cc124867527cd0e7f32c0cb12893f76268f69aad63589f70a11c4"
+      },
+      "compatibility": {
+        "status": "matched"
+      },
+      "scope": "maintained first-party preparation succeeded; not title/runtime/installed qualification"
+    },
+    {
+      "issue": 344,
+      "report_sha256": "553e5984a9af1eb7bc16d80f265713382064ba74490488da032ea8cbdfca8bb3",
+      "operational_changed": false,
+      "listing_validation": {
+        "input_sha256": "e9a8e7d509e0c06a412576d2628f99c076cf23392d44a89590d50b926429c398",
+        "validator_artifact_sha256": "06dd083d7b3cc124867527cd0e7f32c0cb12893f76268f69aad63589f70a11c4"
+      },
+      "compatibility": {
+        "status": "matched"
+      },
+      "scope": "maintained first-party preparation succeeded; not title/runtime/installed qualification"
+    },
+    {
+      "issue": 351,
+      "report_sha256": "77478643138f9d25444dabccf10e856e60611b22f7b9cc7eb2fff4327309a084",
+      "operational_changed": false,
+      "listing_validation": {
+        "input_sha256": "8709019aade3aef60c4f9043a14226ce9368b22b96afee2356072415c3f0f046",
+        "validator_artifact_sha256": "06dd083d7b3cc124867527cd0e7f32c0cb12893f76268f69aad63589f70a11c4"
+      },
+      "compatibility": {
+        "status": "matched"
+      },
+      "scope": "maintained first-party preparation succeeded; not title/runtime/installed qualification"
+    },
+    {
+      "issue": 353,
+      "report_sha256": "3f6d1bbb9e20bb5cc057d107d800d544410b0311648d09e906556bcb5a6d46b7",
+      "operational_changed": false,
+      "listing_validation": {
+        "input_sha256": "1f24935e8ee8190b576f4c5781f0831240b9d15713f63af6746ca52739b8202d",
+        "validator_artifact_sha256": "06dd083d7b3cc124867527cd0e7f32c0cb12893f76268f69aad63589f70a11c4"
+      },
+      "compatibility": {
+        "status": "matched"
+      },
+      "scope": "maintained first-party preparation succeeded; not title/runtime/installed qualification"
+    }
+  ],
+  "scope": "Five authored guides and three new fresh-acquisition conditions use existing capabilities only. No new strict integration/source profile/family adapter/SDK/Core builder/pin/signing/publication/protected activation. No ROM/private-save acquisition, upstream helper/compiler/installer/player/game/GUI execution or actual save/device/installed acceptance. Core inspection and future synthetic fixtures are not such observations. Full frozen858 and Required scope remain; B1 GUI stop preserved; overall B1 incomplete."
+}

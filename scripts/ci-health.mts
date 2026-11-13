@@ -169,13 +169,15 @@ function pagedItems<T>(
   if (items.length !== expected) throw new Error(incomplete);
   return items;
 }
-import { execFile } from "node:child_process";
+import { createGitHubClient, iterateGitHubPages } from "./github-client.mts";
+import type { GitHubCredential } from "./github-client.mts";
+import { localDeveloperCredential } from "./github-cli.mts";
+import { GitHubApiError } from "./github-operation.mts";
+import { downloadGitHubArtifactArchive } from "./github-artifact-download.mts";
 import { createHash } from "node:crypto";
-import { parseArgs, promisify } from "node:util";
+import { parseArgs } from "node:util";
 import { pathToFileURL } from "node:url";
 import { parseProvenanceArchive, validateWorkflowProvenance } from "./workflow-provenance.mts";
-
-const execute = promisify(execFile);
 
 function secondsBetween(start: unknown, end: unknown) {
   if (typeof start !== "string" || typeof end !== "string") return null;
@@ -344,6 +346,9 @@ function sampleCounts<T>(values: readonly T[], key: (value: T) => string): Recor
   }
   return Object.fromEntries(counts);
 }
+/** The ci.yml step that fails a job when its pull request moved to a newer head. */
+export const supersededStopStep = "Stop when a newer head superseded this run";
+
 export function summarizeHistory(attempts: readonly ReturnType<typeof summarizeAttempt>[]) {
   const successful = attempts.filter(
     (attempt) => attempt.status === "completed" && attempt.conclusion === "success",
@@ -451,6 +456,25 @@ export function summarizeHistory(attempts: readonly ReturnType<typeof summarizeA
     successfulReruns: distribution(
       successful.filter((attempt) => attempt.attempt > 1).map((attempt) => attempt.seconds),
     ),
+    firstAttemptPass: (() => {
+      // Cancelled attempts are superseded work, not evidence about correctness. So is an attempt
+      // one of whose jobs stopped itself because the pull request already had a newer head.
+      const decided = attempts.filter(
+        (attempt) =>
+          attempt.attempt === 1 &&
+          !attempt.failures.some((failure) => failure.steps.includes(supersededStopStep)) &&
+          attempt.status === "completed" &&
+          (attempt.conclusion === "success" ||
+            attempt.conclusion === "failure" ||
+            attempt.conclusion === "timed_out"),
+      );
+      const passed = decided.filter((attempt) => attempt.conclusion === "success").length;
+      return {
+        decided: decided.length,
+        passed,
+        rate: decided.length ? Math.round((passed / decided.length) * 1000) / 1000 : null,
+      };
+    })(),
     missingCompletedTimings: attempts.filter(
       (attempt) => attempt.status === "completed" && attempt.seconds === null,
     ).length,
@@ -683,6 +707,11 @@ export function renderReport(
         .map(([name, count]) => `${name}=${count}`)
         .join(", ") || "none"
     }.`,
+    `First-attempt pass rate: ${
+      summary.firstAttemptPass.rate === null
+        ? "unknown (no decided first attempts)"
+        : `${Math.round(summary.firstAttemptPass.rate * 100)}% (${summary.firstAttemptPass.passed} of ${summary.firstAttemptPass.decided}; cancelled attempts excluded)`
+    }.`,
     `Completed attempts with missing timing: ${summary.missingCompletedTimings}. Cancelled, failed and incomplete attempts are not included in successful-duration percentiles.`,
     `Cancelled work: ${summary.canceledWork.attempts} attempts; ${summary.canceledWork.observedRunnerSeconds}s observed summed runner execution (not billing), ${summary.canceledWork.missingRunnerTimings} attempts without runner timing and ${summary.canceledWork.unmeasuredJobs} unmeasured non-skipped jobs, ${summary.canceledWork.failedJobAttempts} containing failed jobs. Cancellation cause is unclassified; workflow p50 ${duration(summary.canceledWork.workflow.p50Seconds)}.`,
     "",
@@ -774,6 +803,96 @@ export function renderReport(
   return `${lines.join("\n")}\n`;
 }
 
+const ciRequestTimeout = 30_000;
+const ciTransferLimit = 20 * 1024 * 1024;
+
+export async function createCiHistoryRequest({
+  repository,
+  deadline,
+  credential,
+  fetch,
+}: {
+  repository: string;
+  deadline: number;
+  credential: GitHubCredential;
+  fetch?: typeof globalThis.fetch;
+}): Promise<CiRequest> {
+  const client = await createGitHubClient({
+    credential,
+    ...(fetch ? { fetch } : {}),
+    deadline,
+    requestTimeoutMs: ciRequestTimeout,
+    maxBytes: ciTransferLimit,
+    allowRequest: (method, url) =>
+      method === "GET" && url.pathname.startsWith(`/repos/${repository}/`),
+  });
+  // Metadata keeps the report's existing parallelism. The previous blocking
+  // archive transport admitted one transfer at a time.
+  let transfers = Promise.resolve();
+  const requestDeadline = () => {
+    const now = performance.now();
+    if (now >= deadline)
+      throw new GitHubApiError("deadline_exceeded", "CI report deadline exhausted");
+    return Math.min(deadline, now + ciRequestTimeout);
+  };
+  return async (route, paginate = false, responseType = "json") => {
+    const currentDeadline = requestDeadline();
+    if (responseType === "buffer") {
+      if (!route.startsWith(`repos/${repository}/actions/artifacts/`))
+        throw new GitHubApiError("request_refused", "CI artifact route is outside the repository");
+      const download = transfers.then(() =>
+        downloadGitHubArtifactArchive(route, {
+          credential,
+          deadline: requestDeadline(),
+          maxBytes: ciTransferLimit,
+          bufferAllowance: "ci-provenance",
+          lookup: { requestTimeoutMs: ciRequestTimeout },
+          ...(fetch ? { fetch } : {}),
+        }),
+      );
+      transfers = download.then(
+        () => {},
+        () => {},
+      );
+      return download;
+    }
+    const pages: unknown[] = [];
+    let received = 0;
+    const reserve = () => ({
+      consumeBytes: (bytes: number) => {
+        received += bytes;
+        if (received > ciTransferLimit)
+          throw new GitHubApiError(
+            "budget_exhausted",
+            "CI metadata collection exceeded its byte budget",
+          );
+      },
+      settle() {},
+    });
+    const url = new URL(route, "https://api.github.com/").href;
+    const headers = { accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28" };
+    if (!paginate)
+      return (
+        await client.request({
+          method: "GET",
+          url,
+          headers,
+          request: {
+            portcove: { replay: "safe-read", attempts: 0, reserve, deadline: currentDeadline },
+          },
+        })
+      ).data as unknown;
+    for await (const response of iterateGitHubPages(client, {
+      url,
+      headers,
+      reserve,
+      deadline: currentDeadline,
+    }))
+      pages.push(response.data as unknown);
+    return pages;
+  };
+}
+
 async function main() {
   const { values } = parseArgs({
     options: {
@@ -788,7 +907,7 @@ async function main() {
   });
   if (values.help) {
     console.log(
-      "Usage: node scripts/ci-health.mts [--workflow ci.yml] [--branch main] [--event push] [--runs 20] [--since ISO-date] [--json]\nRead-only GitHub CLI access is required. Push reports default to main; other events cover all branches unless --branch is supplied. All attempts of the selected runs are inspected.",
+      "Usage: node scripts/ci-health.mts [--workflow ci.yml] [--branch main] [--event push] [--runs 20] [--since ISO-date] [--json]\nRead-only GitHub access is required. Push reports default to main; other events cover all branches unless --branch is supplied. All attempts of the selected runs are inspected.",
     );
     return;
   }
@@ -801,21 +920,12 @@ async function main() {
     throw new Error("--since must be a valid ISO date");
   const branch = values.branch ?? (values.event === "push" ? "main" : undefined);
   const { repository } = roadmapConfig;
-  const request: CiRequest = async (route, paginate = false, responseType = "json") => {
-    const args = ["api", "--method", "GET", route];
-    if (paginate) args.push("--paginate", "--slurp");
-    const { stdout } = await execute("gh", args, {
-      encoding: responseType === "buffer" ? "buffer" : "utf8",
-      windowsHide: true,
-      timeout: 30_000,
-      maxBuffer: 20 * 1024 * 1024,
-    });
-    if (responseType === "buffer") return stdout;
-    const parsed: unknown = JSON.parse(
-      typeof stdout === "string" ? stdout : stdout.toString("utf8"),
-    );
-    return parsed;
-  };
+  const deadline = performance.now() + 10 * 60_000;
+  const request = await createCiHistoryRequest({
+    repository,
+    deadline,
+    credential: localDeveloperCredential({ deadline }),
+  });
   const report = await collectHistory(request, {
     repository,
     workflow: values.workflow,

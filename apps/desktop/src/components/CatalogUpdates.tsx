@@ -16,6 +16,70 @@ import { NavigationHints } from "./ui";
 import { Button } from "./ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle } from "./ui/dialog";
 import { Input } from "./ui/input";
+import type { TFunction } from "i18next";
+import { useAppTranslation } from "../localization";
+
+type CatalogBusy =
+  | ""
+  | "loading"
+  | "removingPublisher"
+  | "confirmingPublisher"
+  | "choosingCatalog"
+  | "verifyingCatalog"
+  | "applyingUpdate"
+  | "restoringPrevious"
+  | "selectingCached"
+  | "selectingBuiltIn";
+type CatalogNotice =
+  | "cancelled"
+  | "publisherRemoved"
+  | "publisherTrusted"
+  | "updateApplied"
+  | "previousRestored"
+  | "cachedSelected"
+  | "builtInSelected";
+
+function busyCopy(t: TFunction<"catalogUpdates">, busy: Exclude<CatalogBusy, "">) {
+  switch (busy) {
+    case "loading":
+      return t("custom.busyLoading");
+    case "removingPublisher":
+      return t("custom.busyRemovingPublisher");
+    case "confirmingPublisher":
+      return t("custom.busyConfirmingPublisher");
+    case "choosingCatalog":
+      return t("custom.busyChoosingCatalog");
+    case "verifyingCatalog":
+      return t("custom.busyVerifyingCatalog");
+    case "applyingUpdate":
+      return t("custom.busyApplyingUpdate");
+    case "restoringPrevious":
+      return t("custom.busyRestoringPrevious");
+    case "selectingCached":
+      return t("custom.busySelectingCached");
+    case "selectingBuiltIn":
+      return t("custom.busySelectingBuiltIn");
+  }
+}
+
+function noticeCopy(t: TFunction<"catalogUpdates">, notice: CatalogNotice) {
+  switch (notice) {
+    case "cancelled":
+      return t("custom.noticeCancelled");
+    case "publisherRemoved":
+      return t("custom.noticePublisherRemoved");
+    case "publisherTrusted":
+      return t("custom.noticePublisherTrusted");
+    case "updateApplied":
+      return t("custom.noticeUpdateApplied");
+    case "previousRestored":
+      return t("custom.noticePreviousRestored");
+    case "cachedSelected":
+      return t("custom.noticeCachedSelected");
+    case "builtInSelected":
+      return t("custom.noticeBuiltInSelected");
+  }
+}
 
 export function CatalogSettings({
   provenance,
@@ -26,16 +90,13 @@ export function CatalogSettings({
   disabled: boolean;
   onChanged?: (() => Promise<unknown>) | undefined;
 }) {
+  const { t } = useAppTranslation("catalogUpdates");
   const [open, setOpen] = useState(false);
   return (
     <SettingsRow className="" data-focus-group>
-      <h2>Custom catalog sources</h2>
+      <h2>{t("custom.title")}</h2>
       <CatalogOrigin provenance={provenance} />
-      <p>
-        Install a signed catalog from a publisher you trust and review each update. This is
-        optional; ordinary catalog changes can arrive with Portcove updates. The built-in catalog
-        remains available offline.
-      </p>
+      <p>{t("custom.description")}</p>
       <Button
         data-focusable
         data-settings-control="catalog-updates"
@@ -45,7 +106,7 @@ export function CatalogSettings({
         disabled={disabled}
         onClick={() => setOpen(true)}
       >
-        Manage catalog updates
+        {t("custom.manage")}
       </Button>
       <ListingDeliveryControls disabled={disabled} onChanged={onChanged} />
       {open && <CatalogUpdatesDialog close={() => setOpen(false)} onChanged={onChanged} />}
@@ -54,17 +115,24 @@ export function CatalogSettings({
 }
 
 export function CatalogOrigin({ provenance }: { provenance?: CatalogProvenance | undefined }) {
-  if (!provenance) return <p>Loading catalog information…</p>;
+  const { t } = useAppTranslation("catalogUpdates");
+  if (!provenance) return <p>{t("custom.loadingInformation")}</p>;
   return (
     <>
       <p>
         {provenance.origin === "embedded"
-          ? "Built-in catalog"
-          : `Signed catalog · version ${provenance.sequence}`}
-        {provenance.origin === "signed_previous" && " · using the previous valid update"}
+          ? t("custom.originBuiltIn")
+          : provenance.origin === "signed_previous"
+            ? t("custom.originSignedPrevious", { version: String(provenance.sequence) })
+            : t("custom.originSigned", { version: String(provenance.sequence) })}
       </p>
       {provenance.expires_at && (
-        <p>Valid until {new Date(provenance.expires_at * 1000).toLocaleString()}.</p>
+        <p>
+          {/* Dates follow the system's regional format, separate from message language. */}
+          {t("custom.validUntil", {
+            time: new Date(provenance.expires_at * 1000).toLocaleString(),
+          })}
+        </p>
       )}
       {provenance.fallback_reasons.map((reason, index) => (
         <CatalogFallbackReason
@@ -87,15 +155,16 @@ function CatalogFallbackReason({
   position: number;
   count: number;
 }) {
+  const { t } = useAppTranslation("catalogUpdates");
   return (
     <div className="catalog-fallback-reason">
-      <p>{catalogFallbackSummary(reason)}</p>
+      <p>{catalogFallbackSummary(t, reason)}</p>
       <details>
         <summary
           data-focusable
-          aria-label={`Technical details for catalog fallback ${position} of ${count}`}
+          aria-label={t("custom.fallbackDetailsLabel", { position, total: count })}
         >
-          Technical details
+          {t("custom.technicalDetails")}
         </summary>
         <code className="[overflow-wrap:anywhere]">{reason}</code>
       </details>
@@ -103,18 +172,16 @@ function CatalogFallbackReason({
   );
 }
 
-function catalogFallbackSummary(reason: string) {
-  if (reason.includes("selected definition was not loaded"))
-    return "The selected catalog definition could not be loaded. Portcove continued with the available catalog information.";
-  if (reason.includes("replay floor"))
-    return "A saved catalog did not match the accepted update sequence. Portcove continued with the available catalog information.";
-  if (reason.includes("signing key is not trusted"))
-    return "A saved catalog was signed by a publisher that is no longer trusted. Portcove continued with the available catalog information.";
-  if (reason.includes("signature verification failed"))
-    return "A saved catalog did not pass signature verification. Portcove continued with the available catalog information.";
-  if (reason.includes("validity interval"))
-    return "A saved catalog was expired or had invalid dates. Portcove continued with the available catalog information.";
-  return "A saved catalog could not be used. Portcove continued with the available catalog information.";
+// Known limitation: Core reports fallback reasons as English diagnostics without
+// stable codes, so this classifier still matches their text. Unknown reasons use
+// the generic message; the original diagnostic stays visible verbatim.
+function catalogFallbackSummary(t: TFunction<"catalogUpdates">, reason: string) {
+  if (reason.includes("selected definition was not loaded")) return t("custom.fallbackNotLoaded");
+  if (reason.includes("replay floor")) return t("custom.fallbackReplay");
+  if (reason.includes("signing key is not trusted")) return t("custom.fallbackUntrusted");
+  if (reason.includes("signature verification failed")) return t("custom.fallbackSignature");
+  if (reason.includes("validity interval")) return t("custom.fallbackExpired");
+  return t("custom.fallbackGeneric");
 }
 
 function CatalogUpdatesDialog({
@@ -124,11 +191,13 @@ function CatalogUpdatesDialog({
   close: () => void;
   onChanged?: (() => Promise<unknown>) | undefined;
 }) {
+  const { t } = useAppTranslation("catalogUpdates");
   const heading = useRef<HTMLHeadingElement>(null);
   const [status, setStatus] = useState<CatalogStatus>();
-  const [busy, setBusy] = useState("Loading catalog settings…");
+  const [busy, setBusy] = useState<CatalogBusy>("loading");
+  // Errors keep Core's diagnostic text verbatim.
   const [error, setError] = useState<string>();
-  const [notice, setNotice] = useState<string>();
+  const [notice, setNotice] = useState<CatalogNotice>();
   const [operationId, setOperationId] = useState<string>();
   const [sourceSelectOpen, setSourceSelectOpen] = useState(false);
   const sourceSelectOpenRef = useRef(false);
@@ -150,21 +219,21 @@ function CatalogUpdatesDialog({
       current = false;
     };
   }, []);
-  const run = async (label: string, task: () => Promise<void>) => {
+  const run = async (label: Exclude<CatalogBusy, "">, task: () => Promise<void>) => {
     setBusy(label);
     setError(undefined);
     setNotice(undefined);
     try {
       await task();
     } catch (value) {
-      if (isCancellation(value)) setNotice("Catalog action cancelled.");
+      if (isCancellation(value)) setNotice("cancelled");
       else setError(errorText(value));
     } finally {
       setBusy("");
       setOperationId(undefined);
     }
   };
-  const changed = async (next: CatalogStatus | null, message: string) => {
+  const changed = async (next: CatalogStatus | null, message: CatalogNotice) => {
     if (!next) return;
     setStatus(next);
     setNotice(message);
@@ -201,14 +270,13 @@ function CatalogUpdatesDialog({
         aria-describedby="catalog-update-description"
       >
         <p className="eyebrow mb-[6px] text-[length:var(--text-xs)] font-bold tracking-[0.16em] text-[var(--color-primary-text)]">
-          CATALOG
+          {t("custom.eyebrow")}
         </p>
         <DialogTitle ref={heading} tabIndex={-1} id="catalog-update-title" className="mb-2 text-xl">
-          Manage catalog updates
+          {t("custom.manage")}
         </DialogTitle>
         <DialogDescription id="catalog-update-description" className="mb-4 leading-relaxed">
-          Trust a publisher, review a signed update, and choose which verified catalog Portcove
-          uses. The built-in catalog remains available offline.
+          {t("custom.dialogDescription")}
         </DialogDescription>
         <NavigationHints />
         <CatalogOrigin provenance={status?.provenance} />
@@ -237,19 +305,19 @@ function CatalogUpdatesDialog({
             <CatalogSelection status={status} {...actions} />
           </>
         )}
-        {busy && <p role="status">{busy}</p>}
+        {busy && <p role="status">{busyCopy(t, busy)}</p>}
         {operationId && (
           <OperationCancellation
             key={operationId}
             operationId={operationId}
-            label="Cancel update"
+            label={t("custom.cancelUpdate")}
           />
         )}
-        {notice && <p role="status">{notice}</p>}
+        {notice && <p role="status">{noticeCopy(t, notice)}</p>}
         {error && <p role="alert">{error}</p>}
         <DialogFooter className="mt-4 border-t border-pc-border pt-4">
           <Button data-focusable variant="outline" disabled={Boolean(busy)} onClick={close}>
-            Close
+            {t("custom.close")}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -260,27 +328,25 @@ function CatalogUpdatesDialog({
 interface CatalogActions {
   status: CatalogStatus;
   busy: boolean;
-  run: (label: string, task: () => Promise<void>) => Promise<void>;
-  changed: (status: CatalogStatus | null, message: string) => Promise<void>;
+  run: (label: Exclude<CatalogBusy, "">, task: () => Promise<void>) => Promise<void>;
+  changed: (status: CatalogStatus | null, message: CatalogNotice) => Promise<void>;
 }
 
 function PublisherTrust({ status, busy, run, changed }: CatalogActions) {
+  const { t } = useAppTranslation("catalogUpdates");
   const [publicKey, setPublicKey] = useState("");
   return (
-    <>
-      <h3>Trusted publishers</h3>
-      <p>
-        Verify the publisher key through a trusted channel. Trust allows that publisher to change
-        release download locations.
-      </p>
-      {status.trusted_keys.length === 0 && <p>No trusted publishers.</p>}
+    <section className="catalog-publisher-trust mt-6 grid gap-3">
+      <h3>{t("custom.trustedTitle")}</h3>
+      <p>{t("custom.trustedDescription")}</p>
+      {status.trusted_keys.length === 0 && <p>{t("custom.noTrusted")}</p>}
       {status.trusted_keys.map((key) => (
         <div
           className="source-health-row grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1 rounded-pc-md border border-pc-border bg-[var(--color-bg-inset)] p-3"
           key={key.key_id}
         >
           <div className="min-w-0">
-            <span>Publisher fingerprint</span>
+            <span>{t("custom.fingerprint")}</span>
             <code className="mt-1 block overflow-hidden bg-transparent p-0 text-ellipsis whitespace-nowrap text-pc-muted-foreground">
               {key.key_id}
             </code>
@@ -290,15 +356,15 @@ function PublisherTrust({ status, busy, run, changed }: CatalogActions) {
             variant="destructive"
             disabled={Boolean(busy)}
             onClick={() => {
-              void run("Removing publisher…", async () =>
+              void run("removingPublisher", async () =>
                 changed(
                   await desktopApi.revokeCatalogKey(key.key_id, status.state_sha256),
-                  "Publisher trust removed.",
+                  "publisherRemoved",
                 ),
               );
             }}
           >
-            Stop trusting
+            {t("custom.stopTrusting")}
           </Button>
         </div>
       ))}
@@ -306,7 +372,7 @@ function PublisherTrust({ status, busy, run, changed }: CatalogActions) {
         className="mb-2 block text-xs font-bold text-pc-muted-foreground"
         htmlFor="catalog-public-key"
       >
-        Publisher public key (64 hex characters)
+        {t("custom.publicKeyLabel")}
       </label>
       <div className="flex items-stretch gap-2 [&_input]:min-w-0">
         <Input
@@ -322,18 +388,15 @@ function PublisherTrust({ status, busy, run, changed }: CatalogActions) {
           variant="primary"
           disabled={Boolean(busy) || !publicKey.trim()}
           onClick={() => {
-            void run("Confirming publisher…", async () => {
-              await changed(
-                await desktopApi.trustCatalogKey(publicKey.trim()),
-                "Publisher trusted.",
-              );
+            void run("confirmingPublisher", async () => {
+              await changed(await desktopApi.trustCatalogKey(publicKey.trim()), "publisherTrusted");
             });
           }}
         >
-          Trust publisher
+          {t("custom.trustPublisher")}
         </Button>
       </div>
-    </>
+    </section>
   );
 }
 
@@ -352,6 +415,7 @@ function CatalogReview({
   onSourceSelectOpenChange: (open: boolean, reason: string) => void;
   onSourceSelectOpenChangeComplete: (open: boolean) => void;
 }) {
+  const { t } = useAppTranslation("catalogUpdates");
   const [kind, setKind] = useState<CatalogUpdateSource["kind"]>("file");
   const [location, setLocation] = useState("");
   const [planState, setPlanState] = useState<{
@@ -362,15 +426,15 @@ function CatalogReview({
   const setPlan = (value?: CatalogUpdatePlan) =>
     setPlanState({ baseline: status.state_sha256, value });
   return (
-    <>
-      <h3>Review an update</h3>
+    <section className="catalog-update-source-review mt-6 grid gap-3">
+      <h3>{t("custom.reviewTitle")}</h3>
       <ChoiceSelect
         triggerId="catalog-update-source"
-        label="Update source"
+        label={t("custom.sourceLabel")}
         value={kind}
         options={[
-          { value: "file", label: "Local file" },
-          { value: "https", label: "HTTPS address" },
+          { value: "file", label: t("custom.sourceFile") },
+          { value: "https", label: t("custom.sourceHttps") },
         ]}
         disabled={Boolean(busy)}
         open={sourceSelectOpen}
@@ -386,7 +450,7 @@ function CatalogReview({
         className="mb-2 block text-xs font-bold text-pc-muted-foreground"
         htmlFor="catalog-update-location"
       >
-        {kind === "file" ? "Signed catalog file" : "Signed catalog HTTPS address"}
+        {kind === "file" ? t("custom.locationFile") : t("custom.locationHttps")}
       </label>
       <div className="flex items-stretch gap-2 [&_input]:min-w-0">
         <Input
@@ -405,7 +469,7 @@ function CatalogReview({
             variant="outline"
             disabled={Boolean(busy)}
             onClick={() => {
-              void run("Choosing a catalog…", async () => {
+              void run("choosingCatalog", async () => {
                 const path = await pickSignedCatalogPath();
                 if (path) {
                   setLocation(path);
@@ -414,7 +478,7 @@ function CatalogReview({
               });
             }}
           >
-            Choose file
+            {t("custom.chooseFile")}
           </Button>
         )}
       </div>
@@ -423,7 +487,7 @@ function CatalogReview({
         variant="outline"
         disabled={Boolean(busy) || !location.trim()}
         onClick={() => {
-          void run("Verifying catalog…", async () => {
+          void run("verifyingCatalog", async () => {
             setPlan(
               await desktopApi.planCatalogUpdate({
                 kind,
@@ -433,49 +497,49 @@ function CatalogReview({
           });
         }}
       >
-        Review update
+        {t("custom.reviewUpdate")}
       </Button>
       {plan && (
-        <section aria-label="Catalog update review">
-          <h3>Review catalog information</h3>
-          <p>Signature verified with a trusted publisher key.</p>
-          <p>{catalogChangeSummary(plan.changed_ports.length)}</p>
+        <section className="mt-3 grid gap-3" aria-label={t("custom.reviewSection")}>
+          <h3>{t("custom.reviewInformation")}</h3>
+          <p>{t("custom.signatureVerified")}</p>
+          <p>{t("custom.changes", { count: plan.changed_ports.length })}</p>
           {plan.changed_ports.length > 0 && (
-            <ul aria-label="Affected ports">
+            <ul aria-label={t("custom.affectedPorts")}>
               {plan.changed_ports.map((port) => (
                 <li key={port.id}>{port.name}</li>
               ))}
             </ul>
           )}
-          <p>This does not install game updates.</p>
-          <p>Trusting a publisher allows changes to release download locations.</p>
+          <p>{t("custom.noGameUpdates")}</p>
+          <p>{t("custom.trustLocations")}</p>
           <details>
             <summary
               data-focusable
-              aria-label={`Technical details for catalog update sequence ${plan.sequence}`}
+              aria-label={t("custom.planDetailsLabel", { sequence: plan.sequence })}
             >
-              Technical details
+              {t("custom.technicalDetails")}
             </summary>
             <dl>
-              <dt>Signature</dt>
-              <dd>Valid</dd>
-              <dt>Publisher key</dt>
+              <dt>{t("custom.detailSignature")}</dt>
+              <dd>{t("custom.detailValid")}</dd>
+              <dt>{t("custom.detailPublisherKey")}</dt>
               <dd>
                 <code className="[overflow-wrap:anywhere]">{plan.key_id}</code>
               </dd>
-              <dt>Publisher trust</dt>
-              <dd>Trusted</dd>
-              <dt>Sequence</dt>
-              <dd>{plan.sequence} accepted</dd>
-              <dt>Valid until</dt>
+              <dt>{t("custom.detailPublisherTrust")}</dt>
+              <dd>{t("custom.detailTrusted")}</dd>
+              <dt>{t("custom.detailSequence")}</dt>
+              <dd>{t("custom.detailSequenceAccepted", { sequence: plan.sequence })}</dd>
+              <dt>{t("custom.detailValidUntil")}</dt>
               <dd>{new Date(plan.expires_at * 1000).toLocaleString()}</dd>
-              <dt>Changed port IDs</dt>
+              <dt>{t("custom.detailChangedIds")}</dt>
               <dd>
                 <code className="[overflow-wrap:anywhere]">
-                  {plan.changed_ports.map((port) => port.id).join(", ") || "None"}
+                  {plan.changed_ports.map((port) => port.id).join(", ") || t("custom.detailNone")}
                 </code>
               </dd>
-              <dt>Envelope SHA-256</dt>
+              <dt>{t("custom.detailEnvelope")}</dt>
               <dd>
                 <code className="[overflow-wrap:anywhere]">{plan.envelope_sha256}</code>
               </dd>
@@ -488,7 +552,7 @@ function CatalogReview({
             onClick={() => {
               const reviewed = plan;
               setPlan(undefined);
-              void run("Applying catalog update…", async () => {
+              void run("applyingUpdate", async () => {
                 await changed(
                   await desktopApi.applyCatalogUpdate(
                     reviewed.source,
@@ -497,25 +561,21 @@ function CatalogReview({
                       if (event.type === "started") started(event.operation_id);
                     },
                   ),
-                  "Catalog update applied.",
+                  "updateApplied",
                 );
               });
             }}
           >
-            Apply catalog update
+            {t("custom.applyUpdate")}
           </Button>
         </section>
       )}
-    </>
+    </section>
   );
 }
 
-function catalogChangeSummary(count: number) {
-  if (count === 0) return "No port information will change.";
-  return `Catalog information will change for ${count.toLocaleString()} ${count === 1 ? "port" : "ports"}.`;
-}
-
 function CatalogSelection({ status, busy, run, changed }: CatalogActions) {
+  const { t } = useAppTranslation("catalogUpdates");
   return (
     <div className="actions compact mt-[24px] flex flex-wrap gap-[8px] [&.compact]:mt-[14px]">
       <Button
@@ -523,45 +583,36 @@ function CatalogSelection({ status, busy, run, changed }: CatalogActions) {
         variant="outline"
         disabled={Boolean(busy) || !status.can_rollback}
         onClick={() => {
-          void run("Restoring previous catalog…", async () =>
-            changed(
-              await desktopApi.rollbackCatalog(status.state_sha256),
-              "Previous catalog restored.",
-            ),
+          void run("restoringPrevious", async () =>
+            changed(await desktopApi.rollbackCatalog(status.state_sha256), "previousRestored"),
           );
         }}
       >
-        Restore previous catalog
+        {t("custom.restorePrevious")}
       </Button>
       <Button
         data-focusable
         variant="outline"
         disabled={Boolean(busy) || status.updates_enabled || !status.can_use_cached}
         onClick={() => {
-          void run("Selecting cached catalog…", async () =>
-            changed(
-              await desktopApi.useCachedCatalog(status.state_sha256),
-              "Cached signed catalog selected.",
-            ),
+          void run("selectingCached", async () =>
+            changed(await desktopApi.useCachedCatalog(status.state_sha256), "cachedSelected"),
           );
         }}
       >
-        Use cached signed catalog
+        {t("custom.useCached")}
       </Button>
       <Button
         data-focusable
         variant="outline"
         disabled={Boolean(busy) || !status.updates_enabled}
         onClick={() => {
-          void run("Selecting built-in catalog…", async () =>
-            changed(
-              await desktopApi.useEmbeddedCatalog(status.state_sha256),
-              "Built-in catalog selected.",
-            ),
+          void run("selectingBuiltIn", async () =>
+            changed(await desktopApi.useEmbeddedCatalog(status.state_sha256), "builtInSelected"),
           );
         }}
       >
-        Use built-in catalog
+        {t("custom.useBuiltIn")}
       </Button>
     </div>
   );
@@ -574,6 +625,7 @@ function ListingDeliveryControls({
   disabled: boolean;
   onChanged?: (() => Promise<unknown>) | undefined;
 }) {
+  const { t } = useAppTranslation("catalogUpdates");
   const metadataId = useId();
   const targetsId = useId();
   const [status, setStatus] = useState<ListingDeliveryStatus>();
@@ -609,36 +661,36 @@ function ListingDeliveryControls({
   };
   return (
     <details>
-      <summary>Directory updates</summary>
-      <p>
-        Refresh port listings, artwork and setup information from the configured official publisher.
-        Game installations keep their existing permissions and files.
-      </p>
+      <summary>{t("listings.title")}</summary>
+      <p>{t("listings.description")}</p>
       {status && (
         <p>
           {status.selected
-            ? `Directory revision ${status.revision} · ${status.listing_count} published listings`
-            : "Using the built-in directory"}
+            ? t("listings.revision", {
+                revision: String(status.revision),
+                count: status.listing_count,
+              })
+            : t("listings.builtIn")}
         </p>
       )}
       {status?.fallback_reason && <p>{status.fallback_reason}</p>}
       <label htmlFor={metadataId}>
-        Catalog metadata address
+        {t("listings.metadataAddress")}
         <Input
           id={metadataId}
           value={metadata}
           onChange={(event) => setMetadata(event.target.value)}
-          placeholder="https://"
+          placeholder={t("listings.addressPlaceholder")}
           disabled={disabled || busy}
         />
       </label>
       <label htmlFor={targetsId}>
-        Catalog content address
+        {t("listings.contentAddress")}
         <Input
           id={targetsId}
           value={targets}
           onChange={(event) => setTargets(event.target.value)}
-          placeholder="https://"
+          placeholder={t("listings.addressPlaceholder")}
           disabled={disabled || busy}
         />
       </label>
@@ -648,7 +700,7 @@ function ListingDeliveryControls({
           void refresh();
         }}
       >
-        {busy ? "Refreshing directory…" : "Refresh directory"}
+        {busy ? t("listings.refreshing") : t("listings.refresh")}
       </Button>
       {error && <p role="alert">{error}</p>}
     </details>

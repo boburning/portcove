@@ -1,3 +1,4 @@
+import { nativePlatformsForReleaseProfile } from "./release-package-policy.mts";
 /** Integrity of native bytes carried by the existing signed checkpoint. This
  * parser grants neither native acceptance nor signing/publication authority. */
 import type { exportCoordinatorCheckpoint } from "./release-coordinator-state.mts";
@@ -23,7 +24,9 @@ type Checkpoint = Awaited<ReturnType<typeof exportCoordinatorCheckpoint>>;
 export function nativeCheckpointLocatorFromBuilding(
   retained: { checkpoint: string; input: Record<string, unknown> },
   expectedCandidate: Record<string, unknown>,
+  profile: unknown = "initial-beta-win-linux",
 ) {
+  const platforms = nativePlatformsForReleaseProfile(profile);
   const candidate = retained.input.active_candidate;
   if (
     !isRecord(candidate) ||
@@ -56,9 +59,9 @@ export function nativeCheckpointLocatorFromBuilding(
   const marker: unknown = markers[0];
   if (
     markers.length !== 1 ||
-    native.length !== 3 ||
+    native.length !== platforms.length + 1 ||
     locators.filter((value: unknown) => isRecord(value) && value.kind === "artifact").length !==
-      2 ||
+      platforms.length ||
     !isRecord(marker) ||
     typeof marker.id !== "string" ||
     locators.some((value: unknown) => isRecord(value) && value.kind === "native-check")
@@ -126,8 +129,8 @@ export function inspectNativeCheckpointCustody(
     markers.length !== 1 ||
     markers[0]!.id !== `${bundle.sha256}:${bundle.bytes.length}` ||
     markers[0]!.sha256 !== bundle.sha256 ||
-    jobs.length !== 2 ||
-    artifacts.length !== 2 ||
+    jobs.length !== bundle.proofs.length ||
+    artifacts.length !== bundle.proofs.length ||
     inspectCoordinatorRemoteNamespace(configuration) !== bundle.configuration.journal.namespace ||
     locators.some((locator) => locator.kind === "native-check") ||
     producer.configuration_sha256 !== digest(bundle.configuration.journal)

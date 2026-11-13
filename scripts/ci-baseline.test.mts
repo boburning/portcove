@@ -1,4 +1,5 @@
 import { isRecord } from "./runtime-values.mts";
+import vitePlusMatcher from "../.github/viteplus-problem-matcher.json" with { type: "json" };
 import assert from "node:assert/strict";
 import test from "node:test";
 import { readFileSync } from "node:fs";
@@ -20,7 +21,83 @@ import {
   baselineRequiresPython,
   baselineRequiresRust,
   baselineRequiresDesktopDependencies,
+  baselineBrowserShardsRequired,
+  baselineBrowserShardPlan,
+  browserShardProjects,
+  parseBrowserShard,
 } from "./ci-baseline.mts";
+
+void test("Vite+ matcher exposes source locations and rule identities without private diagnostic text", () => {
+  const matcher = vitePlusMatcher.problemMatcher[0]?.pattern[0];
+  assert.ok(matcher);
+  assert.equal(matcher.message, 5);
+  const expression = new RegExp(matcher.regexp, "u");
+  const line =
+    "scripts/release-controller-tools.test.mts:2332:9: error typescript(no-unsafe-assignment): PRIVATE /secret/token";
+  assert.deepEqual(expression.exec(line)?.slice(1), [
+    "scripts/release-controller-tools.test.mts",
+    "2332",
+    "9",
+    "error",
+    "typescript(no-unsafe-assignment)",
+  ]);
+  assert.ok(
+    expression.test(
+      "apps/desktop/scripts/desktop-test.mts:123:4: error typescript(TS7022): PRIVATE",
+    ),
+  );
+  for (const privateLine of [
+    "/private/source/scripts/test.mts:123:4: error typescript(TS7022): PRIVATE",
+    "scripts/../../private.mts:123:4: error typescript(TS7022): PRIVATE",
+    "scripts/test.mts:123:4: error PRIVATE: secret",
+    "scripts/test.mts:123:4: error typescript(PRIVATE_DATA): secret",
+  ])
+    assert.equal(expression.test(privateLine), false);
+});
+
+// Official Vite+1.4 check_lint_fail_typecheck snapshot uses this two-line format;
+// standalone `vp lint` uses the separate Unix format above.
+void test("integrated Vite+ graphical diagnostics expose only a bounded rule and source location", () => {
+  const matcher = vitePlusMatcher.problemMatcher[1];
+  assert.ok(matcher);
+  const first = matcher.pattern[0],
+    second = matcher.pattern[1];
+  assert.ok(first && second);
+  assert.equal(first.message, 1);
+  const rule = new RegExp(first.regexp, "u"),
+    source = new RegExp(second.regexp, "u");
+  assert.deepEqual(rule.exec("× typescript(TS2322): PRIVATE /secret/token")?.slice(1), [
+    "typescript(TS2322)",
+  ]);
+  for (const prefix of ["", "/home/runner/work/portcove/portcove/"])
+    assert.deepEqual(source.exec(`   ╭─[${prefix}scripts/check.mts:123:9]`)?.slice(1), [
+      "scripts/check.mts",
+      "123",
+      "9",
+    ]);
+  for (const line of [
+    "   ╭─[/private/source/scripts/check.mts:123:9]",
+    "   ╭─[scripts/../../private.mts:123:9]",
+    "   ╭─[scripts/check.mts:1234567:9]",
+  ])
+    assert.equal(source.test(line), false);
+  // Captured from the pinned checker through the normal staged entry point.
+  // Vite Task's command-scoped FORCE_COLOR produces SGR even on CI pipes.
+  const red = "\u001b[38;2;225;80;80;1m",
+    reset = "\u001b[0m",
+    blue = "\u001b[38;2;92;157;255;1m";
+  assert.deepEqual(
+    rule.exec(`${red}×${reset} ${red}typescript(TS2322): PRIVATE${reset}`)?.slice(1),
+    ["typescript(TS2322)"],
+  );
+  assert.deepEqual(
+    source.exec(`      ╭─[${blue}scripts/ci-baseline.test.mts${reset}:1045:7]`)?.slice(1),
+    ["scripts/ci-baseline.test.mts", "1045", "7"],
+  );
+  assert.equal(source.test(`      ╭─[${blue}/private/scripts/check.mts${reset}:1045:7]`), false);
+  assert.equal(rule.test(`\u001b[${"1".repeat(33)}m× typescript(TS2322): PRIVATE`), false);
+  assert.equal(rule.test("× typescript(PRIVATE_DATA): secret"), false);
+});
 
 void test("workflow Python provisioning follows its actual relocated consumer and declared renames", () => {
   const consumer = "scripts/nextest-equivalence.test.mts";
@@ -217,6 +294,18 @@ void test("selected actual transport schema contracts provision their Desktop AJ
     baselineRequiresDesktopDependencies(make(["scripts/repository-settings.test.mts"])),
     false,
   );
+});
+
+void test("publication source preparation provisions its Desktop semver dependency", () => {
+  const consumer = "scripts/release-publication-source.test.mts";
+  const upgrade = make(["pnpm-lock.yaml", "tools/containers/build/Dockerfile"]);
+  assert.equal(upgrade.fallback?.kind, "all-fast-groups");
+  for (const plan of [make([consumer]), upgrade]) {
+    assert.ok(baselineContractTests(plan).includes(consumer));
+    assert.equal(plan.mode, "fast");
+    assert.equal(plan.qualification_required, false);
+    assert.equal(baselineRequiresDesktopDependencies(plan), true);
+  }
 });
 
 void test("native source declarations start their cheap hosted consumer without release qualification", () => {
@@ -515,6 +604,16 @@ void test("payload signer and held caller changes preserve release security and 
     assert.ok(local.nodeTests.has("scripts/release-payload-preparation.test.mts"), file);
   }
 });
+void test("browser shard balance inputs have known ownership and select the sharded suite", () => {
+  for (const file of ["scripts/browser-shard-balance.mts", ".config/browser-test-weights.json"]) {
+    const local = classifyChanges([{ status: "M", path: file }]);
+    assert.equal(local.unknown.size, 0, file);
+    assert.ok(local.uiFullTests, file);
+    const plan = make([file]);
+    assert.ok(plan.groups.includes("frontend"), file);
+    assert.ok(baselineBrowserShardsRequired(plan), file);
+  }
+});
 void test("shared and unknown frontend inputs use full units; sources use the related graph", () => {
   const related = baselineFrontendPlan(make(["apps/desktop/src/App.tsx"]));
   assert.ok(
@@ -531,6 +630,61 @@ void test("shared and unknown frontend inputs use full units; sources use the re
     assert.ok(!full.some((entry) => entry.id === "ui-related-tests"));
   }
   assert.throws(() => baselineFrontendPlan(make(["docs/QUALITY.md"])));
+});
+
+void test("sharded browser execution splits only the complete suite and cannot drift from the frontend:tests task", () => {
+  const full = make(["apps/desktop/tsconfig.json"]);
+  const related = make(["apps/desktop/src/App.tsx"]);
+  assert.equal(baselineBrowserShardsRequired(full), true);
+  assert.equal(baselineBrowserShardsRequired(related), false);
+  assert.equal(baselineBrowserShardsRequired(make(["docs/QUALITY.md"])), false);
+
+  // The main job swaps the combined test task for its unit half, in place and nothing else.
+  const sharded = baselineFrontendPlan(full, {}, true);
+  assert.deepEqual(
+    sharded.map((entry) => entry.id),
+    baselineFrontendPlan(full).map((entry) =>
+      entry.id === "ui-tests" ? "ui-unit-tests" : entry.id,
+    ),
+  );
+  const unit = sharded.find((entry) => entry.id === "ui-unit-tests");
+  assert.ok(unit);
+  assert.deepEqual(unit.args, ["scripts/run-viteplus.mts", "run", "frontend:unit"]);
+  // A related-test plan must never silently lose its browser coverage.
+  assert.throws(() => baselineFrontendPlan(related, {}, true), /complete frontend test plan/u);
+
+  const [shard, ...rest] = baselineBrowserShardPlan(full, { index: 2, total: 3 });
+  assert.ok(shard && rest.length === 0);
+  assert.equal(shard.id, "ui-browser-shard");
+  assert.deepEqual(shard.args, [
+    "scripts/run-viteplus.mts",
+    "test",
+    ...browserShardProjects.flatMap((project) => ["--project", project]),
+    "--shard=2/3",
+  ]);
+  assert.throws(() => baselineBrowserShardPlan(related, { index: 1, total: 3 }));
+
+  // Unit plus the sharded browser projects must be exactly what frontend:tests runs today.
+  const config = readFileSync(new URL("../vite.config.ts", import.meta.url), "utf8");
+  assert.match(
+    config,
+    /"frontend:tests": \{\s*command: \["vp run frontend:unit", "vp run frontend:browser"\]/u,
+  );
+  const browserTask = /"frontend:browser": \{\s*command:\s*"([^"]+)"/u.exec(config)?.[1];
+  assert.ok(browserTask);
+  assert.deepEqual(
+    [...browserTask.matchAll(/--project (\S+)/gu)].map((match) => match[1]),
+    [...browserShardProjects],
+  );
+  assert.match(
+    config,
+    /"frontend:unit": \{\s*command: "node scripts\/run-viteplus\.mts test --project unit"/u,
+  );
+
+  assert.deepEqual(parseBrowserShard("1/3"), { index: 1, total: 3 });
+  assert.deepEqual(parseBrowserShard("16/16"), { index: 16, total: 16 });
+  for (const bad of [undefined, "", "0/3", "4/3", "1/0", "1/17", "a/b", "1/3/5", "01/3", " 1/3"])
+    assert.throws(() => parseBrowserShard(bad), /PORTCOVE_BROWSER_SHARD/u, String(bad));
 });
 
 void test("selected contract tests retain cheap actual-checkout integrity", () => {

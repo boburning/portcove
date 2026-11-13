@@ -23,7 +23,7 @@ describe("source identity presentation", () => {
         "Result unavailable",
         "Admission result unavailable",
         "Requirement result unavailable",
-        "Release applicability unavailable",
+        "The game version for these checks is unknown",
       ])
         expect(html).toContain(label);
       expect(html).not.toContain("Game-file check result: Exact match");
@@ -54,7 +54,7 @@ describe("source identity presentation", () => {
     ["check_failed", "File checks failed"],
     ["recognized_exact", "Exact match"],
     ["accepted_identity_unknown", "Edition unknown · review check details"],
-    ["ambiguous_identity", "More checks needed · edition unclear"],
+    ["ambiguous_identity", "More checks needed · match unclear"],
     ["selected_needs_checking", "More checks needed"],
     ["not_evaluated", "Not evaluated"],
     ["known_mismatch", "Files don't match reviewed requirements"],
@@ -71,7 +71,7 @@ describe("source identity presentation", () => {
   });
 
   it.each([
-    ["recognized_not_listed", "Recognized · not listed"],
+    ["recognized_not_listed", "Edition identified, but unlisted for this port"],
     ["release_inapplicable", "Not reviewed for this release"],
   ])("keeps %s as an application result without claiming a global match", (state, expected) => {
     const html = renderToStaticMarkup(<SourceIdentityPanel report={report(state)} />);
@@ -81,11 +81,11 @@ describe("source identity presentation", () => {
   });
 
   it.each([
-    ["supported", "Matches evaluated source requirements"],
+    ["supported", "Matches the listed file requirements"],
     ["unreviewed_for_release", "Not reviewed for this release"],
     ["not_evaluated", "Not evaluated"],
-    ["recognized_not_listed", "Recognized · not listed"],
-    ["known_incompatible", "Known mismatch · refused"],
+    ["recognized_not_listed", "Edition identified, but unlisted for this port"],
+    ["known_incompatible", "Files don’t match this port’s requirements"],
   ] as const)("scopes the %s application result to source requirements", (state, expected) => {
     const value = report(state === "known_incompatible" ? "known_mismatch" : "recognized_exact");
     value.applications[0].contract_result =
@@ -251,7 +251,24 @@ it("keeps partial multi-disc digests neutral while retaining Core's overall resu
   expect(html).toContain("Expected CRC32");
   expect(html).toContain("12345678");
   expect(html).toContain("Observed member evidence");
-  expect(html).toContain("More checks needed · edition unclear");
+  expect(html).toContain("More checks needed · match unclear");
   expect(html).not.toContain("Exact member match");
   expect(html).not.toContain("Member doesn&#x27;t match");
+});
+
+it("does not count two formats of one edition as two editions", () => {
+  const value = report("ambiguous_identity");
+  const inspection = fixtureValue(value.inspection, "inspection");
+  inspection.assessment.classification = {
+    state: "ambiguous",
+    candidates: [
+      { game_id: "same-game", variant_id: "same-edition", representation_id: "raw" },
+      { game_id: "same-game", variant_id: "same-edition", representation_id: "normalized" },
+    ],
+  };
+  const html = renderToStaticMarkup(<SourceIdentityPanel report={value} />);
+  expect(html).toContain("2 possible matches");
+  expect(html).toContain("Matches");
+  expect(html).not.toContain("2 possible editions");
+  expect(html).not.toContain("edition unclear");
 });

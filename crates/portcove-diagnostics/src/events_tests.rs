@@ -38,6 +38,33 @@ impl fmt::Display for RefusesFormatting {
 impl std::error::Error for RefusesFormatting {}
 
 #[test]
+fn navigation_diagnostics_keep_only_the_main_webview_classification() {
+    let (records, _) = capture(|| {
+        for main in [true, false] {
+            tracing::warn!(
+                operation_id = "webview-navigation",
+                main_webview = main,
+                webview_label = "private-label",
+                scheme = "private-scheme"
+            );
+        }
+        tracing::warn!(operation_id = "webview-navigation", main_webview = "true");
+    });
+    let fields: Vec<Value> = records
+        .iter()
+        .map(|record| serde_json::from_slice::<Value>(record).unwrap()["fields"].clone())
+        .collect();
+    assert_eq!(
+        fields,
+        [
+            json!({"operation_id": "webview-navigation", "main_webview": true}),
+            json!({"operation_id": "webview-navigation", "main_webview": false}),
+            json!({"operation_id": "webview-navigation"}),
+        ]
+    );
+}
+
+#[test]
 fn typed_envelope_golden_retains_approved_nested_context() {
     let (records, health) = capture(|| {
         let parent = tracing::info_span!(

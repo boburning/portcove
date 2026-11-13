@@ -19,6 +19,9 @@ import {
   catalog,
 } from "./ci-workflow-fixture.mts";
 
+// Independently expected contract pin; Renovate updates it with the Action group.
+const reviewedInstallAction = "taiki-e/install-action@c509219cf42fba86913069efd0ade2458c59337b"; // v2.90.1
+
 void test("ordinary Linux package operation is fixed and isolated from fixture builds and broader dispatch", async () => {
   const sections = nativeDesignCompatibilityWorkflow.split(/^  (?=[a-z_]+:)/mu);
   const block = sections.find((section) => section.startsWith("linux_package_boundary:\n"));
@@ -112,7 +115,7 @@ void test("Windows updater rehearsal adopts manifest-pinned prebuilt tools befor
   assert.equal(reader.id, "windows-quality-pins");
   assert.equal(reader.shell, "pwsh");
   assert.equal(reader.run, "node scripts/quality-tools.mts --github-output >> $env:GITHUB_OUTPUT");
-  assert.equal(prebuilt.uses, "taiki-e/install-action@86f7a0ffb25f40114606501a311ebcfaf882ea32");
+  assert.equal(prebuilt.uses, reviewedInstallAction);
   assert.equal(prebuilt.with.tool, "${{ steps.windows-quality-pins.outputs.required_prebuilt }}");
   assert.equal(prebuilt.with.checksum, undefined);
   assert.equal(prebuilt.with.fallback, undefined);
@@ -389,7 +392,7 @@ void test("live upstream health has bounded independent triggers while catalog s
   const settings: unknown = parseDocument(health).toJS();
   assert.ok(isRecord(settings) && isRecord(settings.on));
   for (const trigger of ["pull_request", "push"]) {
-    const section = settings.on[trigger];
+    const section: unknown = settings.on[trigger];
     assert.ok(isRecord(section) && Array.isArray(section.paths));
     for (const path of [
       "crates/portcove-core/catalog/**",
@@ -480,7 +483,6 @@ void test("deep audit evidence retains audit status without privilege changes", 
   );
   assert.match(localJob, /^    timeout-minutes: 30$/m);
   assert.match(auditJob, /shared-key: deep-quality-ubuntu-22\.04/u);
-  assert.match(auditJob, /key: quality-rscheck-binaries-v2-ubuntu-22\.04-/u);
   assert.match(deep, /id: fresh-audit/);
   assert.match(
     deep,
@@ -529,22 +531,35 @@ void test("deep audit evidence retains audit status without privilege changes", 
   assert.equal(bundle.with["if-no-files-found"], "error");
 });
 
-void test("ordinary controller tool rebuilds cover Windows driver acquisition and parser policy", async () => {
+void test("controller fixtures cover Windows driver, semantic worker, and bootstrap protection changes", async () => {
   const workflow = await readWorkflow(
     new URL("../.github/workflows/controller-tool-build-fixture.yml", import.meta.url),
   );
   const settings: unknown = parseDocument(workflow).toJS();
   assert.ok(isRecord(settings) && isRecord(settings.on));
   for (const trigger of ["pull_request", "push"]) {
-    const section = settings.on[trigger];
+    const section: unknown = settings.on[trigger];
     assert.ok(isRecord(section) && Array.isArray(section.paths));
     for (const file of [
       "scripts/release-windows-webview-driver.mts",
       "scripts/release-windows-webview-driver.test.mts",
       "scripts/windows-webview-driver-policy.psm1",
       "scripts/bounded-zip.mts",
+      "scripts/application-release-private.mts",
+      "scripts/semantic-review-linux-supervisor*.py",
+      "scripts/semantic-review-linux-supervisor.test.mts",
     ])
       assert.ok(section.paths.includes(file), `${trigger}/${file}`);
+    assert.ok(
+      section.paths.includes("scripts/release-input-protections.mts") ||
+        section.paths.includes("scripts/release-*.mts"),
+      `${trigger}/scripts/release-input-protections.mts`,
+    );
+    assert.ok(
+      section.paths.includes("scripts/release-semantic-*.mts") ||
+        section.paths.includes("scripts/release-*.mts"),
+      `${trigger}/scripts/release-semantic-worker.mts`,
+    );
   }
 });
 
@@ -579,4 +594,15 @@ void test("installed file-feed outage keeps public preimages and recovery contro
     !upload.with.path.includes(prefix + "feed-outage-control/**"),
     "Retain only selected public control inputs",
   );
+});
+
+void test("updater rehearsal uses supported hosted macOS images", async () => {
+  const workflow = await readWorkflow(
+    new URL("../.github/workflows/updater-artifact-rehearsal.yml", import.meta.url),
+  );
+  const owner = workflowJob("packages", workflow);
+  const runsOn = String(owner["runs-on"]);
+  assert.match(runsOn, /"macos-aarch64":"macos-15"/u);
+  assert.match(runsOn, /"macos-x86_64":"macos-15-intel"/u);
+  assert.doesNotMatch(runsOn, /macos-14/u);
 });

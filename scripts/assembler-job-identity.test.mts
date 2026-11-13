@@ -3,9 +3,16 @@ import { generateKeyPairSync } from "node:crypto";
 import childProcess from "node:child_process";
 import { syncBuiltinESMExports } from "node:module";
 import test from "node:test";
+import { mkdtemp, rm } from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
+import { withReadOnlyReleaseChildren } from "./release-readonly-child-environment.mts";
 import { performance } from "node:perf_hooks";
 import {
   verifyAssemblerJobIdentity,
+  jobIdentityRefusalCode,
+  controllerToolBootstrapProfile,
+  verifyControllerToolBootstrapJobIdentity,
   verifyHostedNativeJobIdentity,
   verifyHostedNativeAttestationIdentity,
   requireVerifiedHostedNativeJobIdentity,
@@ -702,6 +709,48 @@ void test("production observer and reader profiles cannot reuse each other's job
   await assert.rejects(verifyProtectionObserverJobIdentity(observer.token, expected, observer));
 });
 
+void test("direct workflow identity accepts only a complete exact mirror of executing claims", async () => {
+  const mirror = {
+    job_workflow_ref: `boburning/portcove/${productionControllerWorkflow}@${expected.controller_ref}`,
+    job_workflow_sha: expected.controller_revision,
+  };
+  const direct = fixture(mirror);
+  assert.equal((await verifyAssemblerJobIdentity(direct.token, expected, direct)).job_id, 501);
+  for (const patch of [
+    { job_workflow_ref: mirror.job_workflow_ref },
+    { job_workflow_sha: mirror.job_workflow_sha },
+    { ...mirror, job_workflow_ref: mirror.job_workflow_ref + "-other" },
+    { ...mirror, job_workflow_sha: "b".repeat(40) },
+    { ...mirror, job_workflow_sha: null },
+  ]) {
+    const other = fixture(patch);
+    await assert.rejects(verifyAssemblerJobIdentity(other.token, expected, other), (error) => {
+      assert.equal(jobIdentityRefusalCode(error), "claim-reusable-workflow");
+      return true;
+    });
+    assert.equal(other.counts().requests, 0);
+  }
+});
+
+void test("signed identity refusals expose only verifier-selected codes", async () => {
+  for (const [patch, code] of [
+    [{ sub: "private wrong subject" }, "claim-sub"],
+    [{ check_run_id: 501 }, "claim-check_run_id"],
+    [{ job_workflow_ref: "private reusable workflow" }, "claim-reusable-workflow"],
+  ] as const) {
+    const bad = fixture(patch);
+    await assert.rejects(verifyAssemblerJobIdentity(bad.token, expected, bad), (error) => {
+      assert.equal(jobIdentityRefusalCode(error), code);
+      return true;
+    });
+    assert.equal(bad.counts().requests, 0);
+  }
+  assert.equal(
+    jobIdentityRefusalCode(Object.assign(new Error("private"), { code: "claim-sub" })),
+    undefined,
+  );
+});
+
 void test("immutable owner/repository subjects and exact environment profiles refuse legacy and cross-role claims", async () => {
   const workflow = productionControllerWorkflow;
   const profile = { workflow, job: "Publish authenticated application site" };
@@ -903,4 +952,298 @@ void test("classification signed identity cannot outlive its original job deadli
     /deadline/,
   );
   assert.equal(good.counts().requests, 0);
+});
+
+void test("fixed identity provider receives only the reader token when the worker holds a storage token", async (t) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "controller-identity-reader-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  for (const [key, value] of Object.entries({
+    GH_TOKEN: "inert-reader",
+    PORTCOVE_STORAGE_APP_TOKEN: "inert-storage-writer",
+  })) {
+    const before = process.env[key];
+    process.env[key] = value;
+    t.after(() => {
+      if (before === undefined) delete process.env[key];
+      else process.env[key] = before;
+    });
+  }
+  const f = fixture();
+  const transport = {
+    ...f.transport,
+    spawn: (...args: Parameters<typeof f.transport.spawn>) => {
+      assert.equal(args[2]?.env?.GH_TOKEN, "inert-reader");
+      assert.equal(args[2]?.env?.PORTCOVE_STORAGE_APP_TOKEN, undefined);
+      return f.transport.spawn(...args);
+    },
+  };
+  const result = await withReadOnlyReleaseChildren(root, () =>
+    verifyAssemblerJobIdentity(f.token, expected, { ...f, transport }),
+  );
+  assert.equal(result.job_id, 501);
+  assert.ok(f.counts().requests > 0);
+});
+
+void test("fixed Windows runtime verifiers use the configured SDK and preserve original job custody", async (t) => {
+  const token = "inert-windows-runtime-reader";
+  let routes: string[] = [];
+  let activeFixture: ReturnType<typeof fixture>;
+  t.mock.method(globalThis, "fetch", async (input: string | URL | Request, init?: RequestInit) => {
+    const url = new URL(input instanceof Request ? input.url : input);
+    const headers = new Headers(init?.headers);
+    if (url.origin === "https://token.actions.githubusercontent.com") {
+      assert.equal(url.pathname, "/.well-known/jwks");
+      assert.equal(headers.has("authorization"), false);
+      routes.push("jwks");
+      return Response.json({ keys: [jwk] });
+    }
+    assert.equal(url.origin, "https://api.github.com");
+    assert.equal(init?.redirect, "manual");
+    assert.equal(headers.get("authorization"), `token ${token}`);
+    const page = url.searchParams.get("page");
+    if (page) assert.equal(url.searchParams.get("per_page"), "100");
+    const route = page ? `${url.pathname}?per_page=100&page=${page}` : url.pathname;
+    routes.push(route);
+    return Response.json(activeFixture.metadata(route));
+  });
+  for (const role of ["bootstrap", "native"] as const) {
+    const native = role === "native";
+    const profile = native
+      ? {
+          audience: "portcove-hosted-native-windows-v1",
+          job: "Qualify hosted Windows installed continuity",
+        }
+      : controllerToolBootstrapProfile("windows-x86_64");
+    const environment = native ? "production-native-windows" : undefined;
+    const wanted = {
+      ...expected,
+      run_attempt: 1,
+      audience: profile.audience,
+      subject: controllerOidcSubject(expected.controller_ref, environment),
+    };
+    activeFixture = fixture(
+      {
+        aud: wanted.audience,
+        sub: wanted.subject,
+        ...(environment ? { environment } : {}),
+      },
+      {},
+      {
+        workflow: productionControllerWorkflow,
+        job: profile.job,
+        runAttempt: 1,
+        ...(!native ? { labels: ["windows-2022"] } : {}),
+      },
+    );
+    routes = [];
+    const transport = { sdkToken: token, deadline: performance.now() + 10000 };
+    const actual = native
+      ? await verifyHostedNativeJobIdentity("windows-x86_64", activeFixture.token, wanted, {
+          transport,
+        })
+      : await verifyControllerToolBootstrapJobIdentity(
+          activeFixture.token,
+          wanted,
+          { transport },
+          "windows-x86_64",
+        );
+    assert.equal(actual.evidence_scope, "github.com");
+    assert.equal(actual.authority, "none");
+    assert.equal(actual.job_id, 501);
+    assert.equal(actual.check_run_id, "777");
+    assert.equal(actual.api_requests, 5);
+    const run = "/repos/boburning/portcove/actions/runs/9988";
+    assert.deepEqual(routes, [
+      "jwks",
+      run,
+      `${run}/attempts/1/jobs?per_page=100&page=1`,
+      `${run}/attempts/1/jobs?per_page=100&page=2`,
+      "/repos/boburning/portcove/actions/jobs/501",
+      run,
+    ]);
+  }
+});
+
+void test("async identity operations refuse incomplete pages, contradictory Check identity and changed readback", async () => {
+  const profile = controllerToolBootstrapProfile("windows-x86_64");
+  const wanted = { ...expected, run_attempt: 1, audience: profile.audience };
+  for (const fault of ["", "missing", "count", "name-only", "job-completed", "drift"]) {
+    const f = fixture(
+      { aud: wanted.audience },
+      {},
+      {
+        workflow: productionControllerWorkflow,
+        job: profile.job,
+        runAttempt: 1,
+        labels: ["windows-2022"],
+      },
+    );
+    f.faults.value = fault;
+    const deadline = performance.now() + 10000;
+    const pending = verifyControllerToolBootstrapJobIdentity(
+      f.token,
+      wanted,
+      {
+        readKeys: f.readKeys,
+        transport: {
+          sdkToken: "inert-windows-runtime-reader",
+          deadline,
+          async read(route, bound) {
+            assert.equal(bound, deadline);
+            return f.metadata(route);
+          },
+        },
+      },
+      "windows-x86_64",
+    );
+    if (fault) await assert.rejects(pending);
+    else {
+      const result = await pending;
+      assert.equal(result.evidence_scope, "injected-provider");
+      assert.equal(result.api_requests, 5);
+    }
+  }
+});
+
+void test("Windows SDK collection cancels a stalled body at issuer expiry", async (t) => {
+  const profile = controllerToolBootstrapProfile("windows-x86_64");
+  const wanted = { ...expected, run_attempt: 1, audience: profile.audience };
+  const now = Math.floor(Date.now() / 1000);
+  t.mock.method(Date, "now", () => now * 1000);
+  const f = fixture(
+    { aud: wanted.audience, exp: now + 1 },
+    {},
+    {
+      workflow: productionControllerWorkflow,
+      job: profile.job,
+      runAttempt: 1,
+      labels: ["windows-2022"],
+    },
+  );
+  let dispatched = 0;
+  let cancelled = false;
+  t.mock.method(globalThis, "fetch", async () => {
+    dispatched++;
+    return new Response(
+      new ReadableStream({
+        cancel() {
+          cancelled = true;
+        },
+      }),
+      {
+        headers: { "content-type": "application/json" },
+      },
+    );
+  });
+  const keepAlive = setTimeout(() => {}, 1500);
+  t.after(() => clearTimeout(keepAlive));
+  await assert.rejects(
+    verifyControllerToolBootstrapJobIdentity(
+      f.token,
+      wanted,
+      {
+        readKeys: f.readKeys,
+        transport: {
+          sdkToken: "inert-windows-runtime-reader",
+          deadline: performance.now() + 10000,
+        },
+      },
+      "windows-x86_64",
+    ),
+  );
+  assert.equal(dispatched, 1);
+  assert.equal(cancelled, true);
+  await assert.rejects(
+    verifyControllerToolBootstrapJobIdentity(
+      f.token,
+      wanted,
+      {
+        readKeys: f.readKeys,
+        transport: { sdkToken: "", deadline: performance.now() + 10000 },
+      },
+      "windows-x86_64",
+    ),
+  );
+  assert.equal(dispatched, 1);
+});
+
+void test("aggregate queue status cannot substitute for the signed exact active job", async () => {
+  const profile = releaseControlPhaseProfile("coordinator");
+  const wanted = {
+    ...expected,
+    run_attempt: 1,
+    audience: profile.reader_audience,
+    subject: controllerOidcSubject(expected.controller_ref, profile.reader_environment),
+  };
+  const cases = [
+    { before: "queued", after: "queued" },
+    { before: "queued", after: "in_progress" },
+    { before: "in_progress", after: "queued" },
+    {
+      before: "queued",
+      after: "queued",
+      jobFault: "job-completed",
+      refusal: /selected assembler job changed/,
+    },
+    {
+      before: "queued",
+      after: "queued",
+      jobFault: "name-only",
+      refusal: /does not identify one active/,
+    },
+    {
+      before: "queued",
+      after: "queued",
+      jobFault: "job-inventory-terminal",
+      refusal: /does not identify one active/,
+    },
+    {
+      before: "queued",
+      after: "queued",
+      jobFault: "job-reread-terminal",
+      refusal: /selected assembler job changed/,
+    },
+    { before: "queued", after: "completed", refusal: /attempt is not active/ },
+    { before: "waiting", after: "in_progress", refusal: /attempt is not active/ },
+    {
+      before: "queued",
+      after: "queued",
+      conclusion: "cancelled",
+      refusal: /attempt is not active/,
+    },
+    { before: "queued", after: "queued", jobFault: "drift", refusal: /run identity differs/ },
+  ];
+  for (const scenario of cases) {
+    const f = fixture(
+      { aud: wanted.audience, sub: wanted.subject, environment: profile.reader_environment },
+      {},
+      { workflow: productionControllerWorkflow, job: profile.reader_name, runAttempt: 1 },
+    );
+    f.faults.value = scenario.jobFault ?? "";
+    let parentReads = 0;
+    const result = verifyReleaseControlReaderJobIdentity("coordinator", f.token, wanted, {
+      readKeys: f.readKeys,
+      transport: {
+        sdkToken: "inert-coordinator-reader",
+        deadline: performance.now() + 10000,
+        async read(route) {
+          const response = f.metadata(route);
+          if (!route.endsWith("/actions/runs/9988")) return response;
+          return {
+            ...(response as object),
+            status: parentReads++ === 0 ? scenario.before : scenario.after,
+            conclusion: scenario.conclusion ?? null,
+          };
+        },
+      },
+    });
+    if (scenario.refusal) await assert.rejects(result, scenario.refusal);
+    else {
+      const verified = await result;
+      assert.equal(verified.job_id, 501);
+      assert.equal(verified.api_requests, 5);
+      assert.equal(verified.authority, "none");
+      assert.equal(parentReads, 2);
+    }
+  }
 });

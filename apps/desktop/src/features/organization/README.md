@@ -7,6 +7,27 @@ statements. Missing catalog identities remain stored. These choices never create
 an installation, authorize a task, change Core readiness or establish gameplay
 testing. Favorites retain their existing owner.
 
+`preferred_port_by_game` remembers a deliberate implementation choice by explicit
+`original_game.id` and stable port ID. The default empty map may be omitted from
+the response. `set_preferred_implementation` sets one choice or clears it with a
+null port ID through the same revision-checked Core store. Unknown/absent IDs stay
+stored; a catalog correction never migrates saved data, changes a release or
+removes an installation. Source editions and source-registration choices remain
+independent.
+
+Discover and Library group only authored game identities. A saved choice outside
+the current group asks for deliberate reselection; a filtered-out choice stays
+saved while the actual matching implementations remain reachable. Without an
+explicit choice, one installed implementation has a direct normal action; several
+installed alternatives ask. Unreadable preferences never hide that established
+single-installed offline path. Existing Core readiness and exact port/install
+references still govern every setup, launch, update and recovery action.
+
+The shared implementation control waits for acknowledged persistence. Failed or
+stale writes keep the prior choice and offer refresh. Async completion can restore
+focus or navigate only while its stable group/dialog still owns that interaction;
+dismissing the dialog or moving focus elsewhere cancels the UI continuation.
+
 `commit(change)` sends one typed change with the last acknowledged revision.
 HostPreferenceStore compares that revision under its existing process/file lock
 and publishes atomically within the existing 64 KiB host preference limit.

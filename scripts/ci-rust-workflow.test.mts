@@ -7,6 +7,10 @@ import { isRecord } from "./runtime-values.mts";
 import { readFile, mkdtemp, rm } from "node:fs/promises";
 import test from "node:test";
 import { discoverCiPlan, qualificationMatrices, writeGithubOutputs } from "./select-ci-plan.mts";
+import {
+  runtimeDiagnosticsSource,
+  runtimeDiagnosticsSourceFiles,
+} from "./runtime-diagnostics-source.mts";
 import { parseDocument } from "yaml";
 
 import os from "node:os";
@@ -30,6 +34,9 @@ import {
   rust,
   rustQuality,
 } from "./ci-workflow-fixture.mts";
+
+// Independently expected contract pin; Renovate updates it with the Action group.
+const reviewedInstallAction = "taiki-e/install-action@c509219cf42fba86913069efd0ade2458c59337b"; // v2.90.1
 
 void test("standalone Linux environment tests retain native selection and bounded outcomes", () => {
   const step: Record<string, unknown> & { run: string } = workflowStep(
@@ -58,6 +65,18 @@ void test("standalone Linux environment tests retain native selection and bounde
   assert.ok(isRecord(retained.with));
   assert.equal(retained.with.path, "work/standalone-rust-tests");
   assert.equal(retained.with["if-no-files-found"], "error");
+});
+
+void test("fast Linux script quality uses the pinned Aqua API bootstrap without skipping lint", () => {
+  const bootstrap = workflowStep("fast_rust_quality", "Read pinned script tool manager");
+  const lint = workflowStep("fast_rust_quality", "Lint affected repository inputs");
+  assert.equal(bootstrap.if, "needs.classify.outputs.script_tools == 'true'");
+  assert.equal(bootstrap.run, "bash scripts/bootstrap-ci-aqua-linux.sh");
+  assert.deepEqual(bootstrap.env, { GH_TOKEN: "${{ github.token }}" });
+  assert.match(fastRustQuality, /skip_install_aqua: "true"/u);
+  assert.match(fastRustQuality, /aqua_version: \$\{\{ steps\.aqua-version\.outputs\.version \}\}/u);
+  assert.equal(lint.run, "node scripts/ci-baseline.mts lint");
+  assert.doesNotMatch(rustQuality, /bootstrap-ci-aqua-linux|skip_install_aqua/u);
 });
 
 void test("runtime diagnostics retain complete Windows and Linux typed fixture evidence", () => {
@@ -104,13 +123,12 @@ void test("runtime diagnostics retain complete Windows and Linux typed fixture e
   assert.equal(diagnosticCommands.length, 3);
   for (const command of diagnosticCommands) {
     assert.match(command, /--locked -p portcove-(?:diagnostics|cli|core)/u);
-    assert.match(
-      command,
-      /--test-threads=1 --success-output immediate --failure-output immediate 2>&1 \| tee/u,
-    );
+    // Nextest test groups serialize the contending CLI lifecycle cases; a
+    // global single slot would also serialize independent diagnostics cases.
+    assert.match(command, / --success-output immediate --failure-output immediate 2>&1 \| tee/u);
     assert.doesNotMatch(
       command,
-      /--guard-command|cargo test|--workspace|--nocapture|continue-on-error/u,
+      /--test-threads|--guard-command|cargo test|--workspace|--nocapture|continue-on-error/u,
     );
   }
   assert.ok(
@@ -149,7 +167,7 @@ void test("runtime diagnostics retain complete Windows and Linux typed fixture e
   );
   assert.ok(isRecord(installer));
   assert.equal(installer.if, linuxFixture.if);
-  assert.equal(installer.uses, "taiki-e/install-action@86f7a0ffb25f40114606501a311ebcfaf882ea32");
+  assert.equal(installer.uses, reviewedInstallAction);
   assert.deepEqual(installer.with, {
     tool: "${{ steps.linux-diagnostic-test-runner.outputs.spec }}",
   });
@@ -166,7 +184,12 @@ void test("runtime diagnostics retain complete Windows and Linux typed fixture e
   for (const lane of [fastRustTests, fastRustQuality]) {
     assert.match(lane, /checked-git\.mts rev-parse HEAD/u);
     assert.match(lane, /rustc --version --verbose/u);
-    assert.match(lane, /source_sha256:hashes/u);
+    // Both lanes record one shared source manifest instead of inline copies.
+    assert.equal(lane.match(/node scripts\/runtime-diagnostics-source\.mts/gu)?.length, 1);
+    assert.doesNotMatch(lane, /source_sha256|crypto\.createHash/u);
+  }
+  assert.equal(new Set(runtimeDiagnosticsSourceFiles).size, runtimeDiagnosticsSourceFiles.length);
+  {
     for (const source of [
       "crates/portcove-diagnostics/src/lib.rs",
       "crates/portcove-diagnostics/src/sessions.rs",
@@ -186,7 +209,9 @@ void test("runtime diagnostics retain complete Windows and Linux typed fixture e
       "crates/portcove-core/src/tool_process.rs",
       "crates/portcove-cli/tests/runtime_diagnostics.rs",
     ])
-      assert.ok(lane.includes(source), source);
+      assert.ok(runtimeDiagnosticsSourceFiles.includes(source), source);
+  }
+  for (const lane of [fastRustTests, fastRustQuality]) {
     assert.match(lane, /name: runtime-diagnostics-(?:windows|linux)-/u);
     assert.match(lane, /path:\s*(?:\|\s*)?work\/runtime-diagnostics\/(?:windows|linux)\//u);
   }
@@ -225,11 +250,14 @@ void test("Windows diagnostics serialize file workers without changing coverage 
   assert.deepEqual(command.slice(9), [
     "scripts/desktop-scenarios.test.mts",
     "scripts/native-compatibility.test.mts",
+    "scripts/desktop-runtime-exit-observation.test.mts",
+    "scripts/desktop-game-first-installed-inputs.test.mts",
     "scripts/desktop-execution-plan.test.mts",
     "scripts/native-qualification-inventory.test.mts",
     "scripts/desktop-staged-layout.test.mts",
     "scripts/desktop-execution-baseline.test.mts",
     "scripts/desktop-real-runtime.test.mts",
+    "scripts/desktop-source-reuse.test.mts",
     "scripts/desktop-linux-native-session.test.mts",
     "scripts/desktop-linux-stop.test.mts",
     "scripts/desktop-listener-probe.test.mts",
@@ -275,7 +303,7 @@ void test("Windows storage installs pinned root dependencies after native-only c
       step.name === "Test native compiler and shell integrations without frontend dependencies",
   );
   const setup = steps.findIndex(
-    (step) => step.uses === "pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413",
+    (step) => step.uses === "pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115",
   );
   const install = steps.findIndex(
     (step) =>
@@ -329,7 +357,7 @@ void test("Linux Rust quality keeps its platform-specific and policy gates witho
   assert.match(rustQuality, /node scripts\/dependency-security\.mts/);
   assert.doesNotMatch(rustQuality, /GH_TOKEN: \$\{\{ github.token \}\}/);
   assert.match(rustQuality, /check-rust-architecture\.mts/);
-  assert.match(rustQuality, /run-rscheck\.mts/);
+  assert.match(rustQuality, /cargo run --locked -p portcove-rust-portability/);
   const bootstrap = rustQuality.indexOf("./scripts/bootstrap-quality-tools.sh");
   for (const lint of ["aqua exec -- ruff", "aqua exec -- shellcheck", "run-actionlint.mts"]) {
     assert.ok(
@@ -400,4 +428,29 @@ void test("Rust documentation coverage and pinned runners remain connected", asy
   assert.doesNotMatch(rustQuality, /cargo nextest run/);
   assert.match(workflow, /CARGO_PROFILE_TEST_DEBUG: line-tables-only/);
   assert.match(workflow, /CARGO_PROFILE_DEV_DEBUG: line-tables-only/);
+});
+
+void test("the shared runtime diagnostics source manifest keeps its existing format", () => {
+  const root = new URL("../", import.meta.url).pathname;
+  const manifest = runtimeDiagnosticsSource(process.platform === "win32" ? root.slice(1) : root, {
+    PORTCOVE_DIAGNOSTICS_SOURCE_REVISION: "a".repeat(40),
+    RUNNER_OS: "Linux",
+    RUNNER_ARCH: "X64",
+    GITHUB_RUN_ID: "1",
+    GITHUB_RUN_ATTEMPT: "2",
+  });
+  assert.deepEqual(Object.keys(manifest), [
+    "format_version",
+    "source_revision",
+    "runner_os",
+    "runner_arch",
+    "run_id",
+    "run_attempt",
+    "source_sha256",
+  ]);
+  assert.equal(manifest.format_version, 1);
+  assert.equal(manifest.source_revision, "a".repeat(40));
+  assert.deepEqual(Object.keys(manifest.source_sha256), [...runtimeDiagnosticsSourceFiles]);
+  for (const digest of Object.values(manifest.source_sha256))
+    assert.match(digest, /^[a-f0-9]{64}$/u);
 });

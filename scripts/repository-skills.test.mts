@@ -164,6 +164,43 @@ void test("repository skills have discoverable triggers, checkout anchoring, and
   }
 });
 
+void test("Claude Code skill entry points mirror and route to every repository skill", async () => {
+  const canonical = (await readdir(skillsRoot, { withFileTypes: true }))
+    .filter((entry) => entry.isDirectory())
+    .map((entry) => entry.name)
+    .sort();
+  const claudeRoot = new URL("../.claude/skills/", import.meta.url);
+  const mirrored = (await readdir(claudeRoot, { withFileTypes: true }))
+    .map((entry) => {
+      assert.ok(entry.isDirectory(), `.claude/skills/${entry.name} must be a directory`);
+      return entry.name;
+    })
+    .sort();
+  assert.deepEqual(mirrored, canonical, ".claude/skills must mirror .agents/skills exactly");
+  for (const name of canonical) {
+    const pointer = new URL(`${name}/SKILL.md`, claudeRoot);
+    const source = await readFile(pointer, "utf8");
+    assert.deepEqual(
+      frontmatter(source, `.claude/skills/${name}`),
+      frontmatter(await readFile(new URL(`${name}/SKILL.md`, skillsRoot), "utf8"), name),
+      `.claude/skills/${name} trigger must equal the canonical skill`,
+    );
+    assert.match(source, /git rev-parse --show-toplevel/u);
+    assert.deepEqual(
+      localMarkdownLinks(source),
+      [`../../../.agents/skills/${name}/SKILL.md`],
+      `.claude/skills/${name} must only route to its canonical skill`,
+    );
+    assert.ok(
+      source
+        .split(/\r?\n---\r?\n/u, 2)[1]!
+        .split(/\r?\n/u)
+        .filter(Boolean).length <= 6,
+      `.claude/skills/${name} must stay a pointer, not a copied contract`,
+    );
+  }
+});
+
 void test("the documentation index routes development tooling and repository skills", () => {
   assert.ok(
     localMarkdownLinks(documentationIndex).some(

@@ -12,13 +12,29 @@ const ROOT_COMMAND_GROUPS: &[(&str, &[&str])] = &[
     (
         "Everyday commands",
         &[
-            "setup", "install", "update", "exec", "verify", "remove", "status",
+            "setup",
+            "install",
+            "update",
+            "profile",
+            "exec",
+            "verify",
+            "remove",
+            "status",
+            "port-capabilities",
         ],
     ),
     (
         "Game files and library",
         &[
-            "source", "backup", "library", "storage", "artwork", "output",
+            "source",
+            "backup",
+            "saves",
+            "game-settings",
+            "library",
+            "games",
+            "storage",
+            "artwork",
+            "output",
         ],
     ),
     (
@@ -43,6 +59,7 @@ const ROOT_COMMAND_GROUPS: &[(&str, &[&str])] = &[
             "installation",
             "external",
             "adopt",
+            "launcher-library",
             "ensure",
             "reconcile",
             "channel",
@@ -172,6 +189,16 @@ pub(crate) enum Commands {
         #[command(subcommand)]
         command: BackupCommand,
     },
+    /// Review, export, or import portable saves for a qualified game version.
+    Saves {
+        #[command(subcommand)]
+        command: SavesCommand,
+    },
+    /// Read, review, or apply one retained installation's declared game setting.
+    GameSettings {
+        #[command(subcommand)]
+        command: GameSettingsCommand,
+    },
     /// Browse ports and inspect or update the trusted catalog.
     Catalog {
         #[command(subcommand)]
@@ -187,6 +214,11 @@ pub(crate) enum Commands {
         #[command(subcommand)]
         command: ExternalCommand,
     },
+    /// Manage stable local profiles and their immutable revisions.
+    Profile {
+        #[command(subcommand)]
+        command: crate::profile::ProfileCommand,
+    },
     /// Download an upstream package and continue setup in a user-owned folder.
     Setup {
         #[command(subcommand)]
@@ -197,7 +229,12 @@ pub(crate) enum Commands {
         #[command(subcommand)]
         command: ToolCommand,
     },
-    /// Show installation, source, launch, and update readiness.
+    /// Show setup routes, feature availability, and scoped known issues.
+    PortCapabilities {
+        /// Stable catalog or retained listing identity.
+        port_id: String,
+    },
+    /// Show installation, game-file, launch, and update readiness.
     Status {
         /// Catalog port ID; run `portcove catalog list` to find it.
         port_id: Option<String>,
@@ -214,6 +251,11 @@ pub(crate) enum Commands {
     Cancel {
         /// Operation ID from `portcove activity`; inspect its current state before recovery or cancellation.
         operation_id: String,
+    },
+    /// Save games to the Library without installing, registering files or launching.
+    Games {
+        #[command(subcommand)]
+        command: GamesCommand,
     },
     /// Read a caller-known durable launch request without starting or recovering a game.
     Launch {
@@ -260,6 +302,11 @@ pub(crate) enum Commands {
     Install(InstallArgs),
     /// Review and register an existing managed port installation.
     Adopt(AdoptArgs),
+    /// Inventory another launcher's library before copying its games with `adopt`.
+    LauncherLibrary {
+        #[command(subcommand)]
+        command: LauncherLibraryCommand,
+    },
     /// Reuse the current installation when its required runtime is present, or install a selected release.
     Ensure(EnsureArgs),
     /// Install or stage available game updates for installed ports.
@@ -410,6 +457,30 @@ pub(crate) enum InstallationCommand {
         #[arg(long)]
         yes: bool,
     },
+    /// Review ending the offer to recover one superseded build; its files and player data stay in place.
+    ReferenceRetirePlan {
+        /// Catalog port ID owning the setup reference; run `portcove catalog list` to find it.
+        port_id: String,
+        /// Stable setup identity whose offered recovery revision should be retired.
+        setup_id: String,
+        /// Revision number from `history[].revision` in `installation reference`.
+        revision: u64,
+    },
+    /// Retire only the reviewed recovery revision; later cleanup still respects other protections.
+    ReferenceRetire {
+        /// Catalog port ID used in the preceding `installation reference-retire-plan` review.
+        port_id: String,
+        /// Stable setup identity from the retirement review.
+        setup_id: String,
+        /// Revision number from the retirement review.
+        revision: u64,
+        /// Review SHA-256 from `installation reference-retire-plan`; changed inputs refuse retirement.
+        #[arg(long)]
+        expected_preview: String,
+        /// Confirm the reviewed retirement without prompting; no build files are deleted.
+        #[arg(long)]
+        yes: bool,
+    },
     #[cfg(feature = "qualification-fixtures")]
     #[command(hide = true)]
     QualificationUpdatePlan {
@@ -461,6 +532,71 @@ impl From<DestinationArtworkRoleArg> for portcove_core::DestinationArtworkRole {
             DestinationArtworkRoleArg::PortraitCover => Self::PortraitCover,
             DestinationArtworkRoleArg::LandscapeCover => Self::LandscapeCover,
             DestinationArtworkRoleArg::HeroBanner => Self::HeroBanner,
+        }
+    }
+}
+
+#[derive(Debug, Subcommand)]
+pub(crate) enum SteamGridDbCommand {
+    /// Show whether a SteamGridDB API key is saved; the key itself is never shown.
+    Status,
+    /// Save your SteamGridDB API key in this host's secure credential store.
+    #[command(
+        after_help = "With --non-interactive, artwork steamgriddb set-key requires --stdin. Never place a key in command-line arguments."
+    )]
+    SetKey {
+        #[arg(
+            long,
+            help = "Read the key from standard input without placing it in argv"
+        )]
+        stdin: bool,
+    },
+    /// Remove the saved SteamGridDB API key from this host.
+    ClearKey,
+    /// Search SteamGridDB games by name; matches are proposals, not identities.
+    Search {
+        /// Game name to search for, up to 120 characters.
+        term: String,
+    },
+    /// Choose one SteamGridDB image for a port's cover or detail image.
+    #[command(
+        after_help = "Cover uses portrait images and detail uses hero images. Portcove looks the image up again with your key, downloads it without sending your key, and keeps the artist credit with the copy in your library. The previous choice is replaced only if the image is valid and the choice revision has not changed."
+    )]
+    Choose {
+        /// Catalog port ID; run `portcove catalog list` to find it.
+        port_id: String,
+        /// Artwork slot to change; cover is the library image and detail is the detail view image.
+        #[arg(long, value_enum, default_value = "cover")]
+        slot: ArtworkSlotArg,
+        /// SteamGridDB game ID from `artwork steamgriddb search`.
+        #[arg(long)]
+        game: u64,
+        /// SteamGridDB image ID from `artwork steamgriddb candidates`.
+        #[arg(long)]
+        candidate: u64,
+        /// Require the artwork revision to match the value previously read.
+        #[arg(long)]
+        expected_revision: Option<u64>,
+    },
+    /// List proposed static images for one SteamGridDB game and destination role.
+    Candidates {
+        /// SteamGridDB game ID from `artwork steamgriddb search`.
+        game_id: u64,
+        /// Destination image role to propose images for.
+        #[arg(long, value_enum)]
+        role: DestinationArtworkRoleArg,
+    },
+}
+
+impl SteamGridDbCommand {
+    pub(crate) fn name(&self) -> &'static str {
+        match self {
+            Self::Status => "artwork.steamgriddb.status",
+            Self::SetKey { .. } => "artwork.steamgriddb.set-key",
+            Self::ClearKey => "artwork.steamgriddb.clear-key",
+            Self::Search { .. } => "artwork.steamgriddb.search",
+            Self::Candidates { .. } => "artwork.steamgriddb.candidates",
+            Self::Choose { .. } => "artwork.steamgriddb.choose",
         }
     }
 }
@@ -528,6 +664,14 @@ pub(crate) enum ArtworkCommand {
     ClearCache,
     /// List imported artwork assets no longer referenced by a port.
     Unused,
+    /// Look up proposed artwork on SteamGridDB with your own API key.
+    #[command(
+        after_help = "SteamGridDB lookups use only your own API key from steamgriddb.com/profile/preferences/api. Portcove never ships a key. Results are proposals with author attribution; they choose no artwork and write nothing to Steam."
+    )]
+    Steamgriddb {
+        #[command(subcommand)]
+        command: SteamGridDbCommand,
+    },
     /// Delete one unreferenced imported asset after confirmation.
     RemoveUnused {
         /// Full SHA-256 of an unused imported asset from `artwork unused`; referenced assets cannot be removed.
@@ -546,9 +690,154 @@ impl ArtworkCommand {
             Self::Show { .. } => "artwork.show",
             Self::Import { .. } => "artwork.import",
             Self::Reset { .. } => "artwork.reset",
+            Self::Steamgriddb { command } => command.name(),
             Self::ClearCache => "artwork.clear-cache",
             Self::Unused => "artwork.unused",
             Self::RemoveUnused { .. } => "artwork.remove-unused",
+        }
+    }
+}
+
+#[derive(Debug, Subcommand)]
+pub(crate) enum GamesCommand {
+    /// List explicitly saved Library entries, independent of installation state.
+    List,
+    /// Save catalog games to the Library; nothing is downloaded, installed or registered.
+    Add {
+        /// Catalog port IDs to save; repeating an ID is idempotent. At most 512 per command.
+        #[arg(required = true, num_args = 1..)]
+        port_ids: Vec<String>,
+    },
+    /// Forget one saved entry without changing installations, registrations or game files.
+    Remove {
+        /// Catalog port ID of the saved entry.
+        port_id: String,
+    },
+    /// Review first installs for several games at once; nothing changes.
+    BatchPlan {
+        /// Catalog port IDs to review together. At most 512 per batch.
+        #[arg(required = true, num_args = 1..)]
+        port_ids: Vec<String>,
+    },
+    /// Save the reviewed games to the Library and install each one whose plan is unchanged.
+    BatchRun {
+        /// Reviewed game and plan digest from `games batch-plan`, as PORT_ID=PLAN_SHA256. Repeat per game.
+        #[arg(long = "item", value_name = "PORT_ID=PLAN_SHA256", required = true)]
+        items: Vec<String>,
+        /// Confirm this reviewed batch without a prompt; each plan is still checked before it runs.
+        #[arg(long)]
+        yes: bool,
+    },
+    /// Continue an interrupted batch. Finished games are never repeated.
+    BatchResume {
+        /// Batch ID returned by `games batch-run`.
+        batch_id: String,
+        /// Confirm continuing without a prompt; each plan is still checked before it runs.
+        #[arg(long)]
+        yes: bool,
+    },
+    /// Stop games in a batch that have not started. A running install finishes or cleans up normally.
+    BatchCancel {
+        /// Batch ID returned by `games batch-run`.
+        batch_id: String,
+    },
+    /// Show each game's state in a batch without changing anything.
+    BatchShow {
+        /// Batch ID returned by `games batch-run`.
+        batch_id: String,
+    },
+    /// Choose what Portcove does about one game over time. Discover-only is the default.
+    Intent {
+        /// Catalog port ID.
+        port_id: String,
+        /// discover-only, notify, set-up-when-ready or ignored.
+        #[arg(value_enum)]
+        mode: GameIntentMode,
+    },
+    /// Reassess remembered choices against current files, catalog and tools; changes nothing.
+    Intents,
+    /// Show or change whether ready notices are shown. Never changes a game's choice or
+    /// automatic setup.
+    Notices {
+        /// on or off. Omit to show the current setting without changing it.
+        #[arg(value_enum)]
+        state: Option<NoticeState>,
+    },
+    /// Mark ready games as seen so the same opportunity is not reported again.
+    IntentsAcknowledge {
+        /// Ready game and plan digest from `games intents`, as PORT_ID=PLAN_SHA256. Repeat per game.
+        #[arg(long = "item", value_name = "PORT_ID=PLAN_SHA256", required = true)]
+        items: Vec<String>,
+    },
+    /// Install every set-up-when-ready game that is ready now, and eligible games in
+    /// folders with automatic setup turned on. Never launches a game.
+    SetupReady,
+    /// Turn automatic setup for one saved game-file folder on or off. Off by default.
+    FolderSetup {
+        /// Folder ID from `source roots`.
+        root_id: String,
+        /// existing-and-future, future-only (needs a complete current scan) or off.
+        #[arg(value_enum)]
+        mode: FolderSetupMode,
+    },
+    /// Choose which game to set up from a folder for files several games can use.
+    FolderSetupChoose {
+        /// Folder ID from `source roots`.
+        root_id: String,
+        /// Source profile of the files, as shown by `games setup-ready`.
+        #[arg(long = "files", value_name = "PROFILE_ID")]
+        profile_id: String,
+        /// Catalog port ID to set up for those files.
+        #[arg(long = "game", value_name = "PORT_ID")]
+        port_id: String,
+    },
+    /// Choose whether automatic setup from a folder copies each game's required
+    /// files into Portcove's game-file folder (originals are never moved).
+    FolderSetupCopy {
+        /// Folder ID from `source roots`.
+        root_id: String,
+        /// on: register a local copy; off: use files where they are.
+        #[arg(value_enum)]
+        copy: FolderSetupCopy,
+    },
+    /// List folders with automatic setup turned on; changes nothing.
+    FolderSetups,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
+pub(crate) enum FolderSetupCopy {
+    On,
+    Off,
+}
+
+#[derive(Debug, Clone, Copy, ValueEnum)]
+pub(crate) enum FolderSetupMode {
+    ExistingAndFuture,
+    FutureOnly,
+    Off,
+}
+
+#[derive(Debug, Clone, Copy, ValueEnum)]
+pub(crate) enum NoticeState {
+    On,
+    Off,
+}
+
+#[derive(Debug, Clone, Copy, ValueEnum)]
+pub(crate) enum GameIntentMode {
+    DiscoverOnly,
+    Notify,
+    SetUpWhenReady,
+    Ignored,
+}
+
+impl From<GameIntentMode> for portcove_core::PortIntentMode {
+    fn from(mode: GameIntentMode) -> Self {
+        match mode {
+            GameIntentMode::DiscoverOnly => Self::DiscoverOnly,
+            GameIntentMode::Notify => Self::Notify,
+            GameIntentMode::SetUpWhenReady => Self::SetUpWhenReady,
+            GameIntentMode::Ignored => Self::Ignored,
         }
     }
 }
@@ -657,7 +946,7 @@ pub(crate) enum ExternalCommand {
         /// Exact select-preview SHA-256; changed executable, directory or arguments refuse registration.
         #[arg(long)]
         expected_preview: String,
-        /// Confirm execution of the reviewed user-selected executable without prompting.
+        /// Confirm saving the reviewed launch details without prompting; launching is a separate command.
         #[arg(long)]
         yes: bool,
     },
@@ -799,6 +1088,124 @@ pub(crate) enum BackupCommand {
     },
 }
 
+#[derive(Debug, clap::Args)]
+pub(crate) struct SaveImportChoiceArgs {
+    /// Remove save slots that exist only on this device and not in the file.
+    #[arg(long)]
+    pub(crate) remove_local_only_saves: bool,
+    /// Replace this device's progress when both devices have new progress.
+    /// It stays in a safety backup either way.
+    #[arg(long)]
+    pub(crate) replace_diverged_progress: bool,
+}
+
+#[derive(Debug, Subcommand)]
+pub(crate) enum SavesCommand {
+    /// Show which files an export would contain and which stay on this device.
+    ExportPreview {
+        /// Catalog port ID; run `portcove catalog list` to find it.
+        port_id: String,
+    },
+    /// Write the reviewed saves to a new file. Never replaces an existing file.
+    Export {
+        /// Catalog port ID; run `portcove catalog list` to find it.
+        port_id: String,
+        /// New file to create.
+        #[arg(long)]
+        output: PathBuf,
+        /// `content_sha256` from `saves export-preview`; changed saves refuse.
+        #[arg(long)]
+        expected_content: String,
+    },
+    /// Review what importing a portable save file would change.
+    ImportPreview {
+        /// Catalog port ID; run `portcove catalog list` to find it.
+        port_id: String,
+        /// Portable save file made by `saves export`.
+        file: PathBuf,
+        #[command(flatten)]
+        choices: SaveImportChoiceArgs,
+    },
+    /// Show this game's saves in a folder you chose for moving saves between devices.
+    FolderStatus {
+        /// Catalog port ID; run `portcove catalog list` to find it.
+        port_id: String,
+        /// Existing folder you chose (removable drive, share or synced folder).
+        #[arg(long)]
+        folder: PathBuf,
+    },
+    /// Copy this device's reviewed saves into the folder. Never replaces files there.
+    FolderPush {
+        /// Catalog port ID; run `portcove catalog list` to find it.
+        port_id: String,
+        /// Existing folder you chose (removable drive, share or synced folder).
+        #[arg(long)]
+        folder: PathBuf,
+        /// `content_sha256` from `saves export-preview`; changed saves refuse.
+        #[arg(long)]
+        expected_content: String,
+    },
+    /// Review using one set of saves from the folder on this device.
+    FolderPullPreview {
+        /// Catalog port ID; run `portcove catalog list` to find it.
+        port_id: String,
+        /// Existing folder you chose (removable drive, share or synced folder).
+        #[arg(long)]
+        folder: PathBuf,
+        /// `content_sha256` of the saves, from `saves folder-status`.
+        #[arg(long)]
+        content: String,
+        #[command(flatten)]
+        choices: SaveImportChoiceArgs,
+    },
+    /// Use one reviewed set of saves from the folder after confirmation.
+    FolderPull {
+        /// Catalog port ID; run `portcove catalog list` to find it.
+        port_id: String,
+        /// Existing folder you chose (removable drive, share or synced folder).
+        #[arg(long)]
+        folder: PathBuf,
+        /// `content_sha256` of the saves, from `saves folder-status`.
+        #[arg(long)]
+        content: String,
+        #[command(flatten)]
+        choices: SaveImportChoiceArgs,
+        /// `preview_sha256` from `saves folder-pull-preview`; changed inputs refuse.
+        #[arg(long)]
+        expected_preview: String,
+        /// Confirm without prompting.
+        #[arg(long)]
+        yes: bool,
+    },
+    /// Keep this device's progress and stop offering another set of saves.
+    /// The other saves stay in the folder and can still be used later.
+    FolderSetAside {
+        /// Catalog port ID; run `portcove catalog list` to find it.
+        port_id: String,
+        /// Existing folder you chose (removable drive, share or synced folder).
+        #[arg(long)]
+        folder: PathBuf,
+        /// `content_sha256` of the saves, from `saves folder-status`.
+        #[arg(long)]
+        content: String,
+    },
+    /// Import a reviewed portable save file after confirmation.
+    Import {
+        /// Catalog port ID; run `portcove catalog list` to find it.
+        port_id: String,
+        /// Portable save file made by `saves export`.
+        file: PathBuf,
+        #[command(flatten)]
+        choices: SaveImportChoiceArgs,
+        /// `preview_sha256` from `saves import-preview`; changed inputs refuse.
+        #[arg(long)]
+        expected_preview: String,
+        /// Confirm the reviewed import without prompting.
+        #[arg(long)]
+        yes: bool,
+    },
+}
+
 #[derive(Debug, Subcommand)]
 pub(crate) enum LibraryCommand {
     /// Show the effective library and whether it came from --library, saved preferences, or default.
@@ -929,7 +1336,7 @@ pub(crate) enum SourceCommand {
         after_help = "Review first: portcove source relink PROFILE_ID PATH. Repeat those inputs with --apply --expected-plan <plan-sha256> to save only the reviewed new location. The original and replacement game files are not moved or deleted; changed inputs require a fresh review."
     )]
     Relink {
-        /// Registered source whose location is changing.
+        /// Game-file profile ID whose saved location is changing.
         profile_id: String,
         /// Replacement game-file path to review.
         path: PathBuf,
@@ -942,19 +1349,24 @@ pub(crate) enum SourceCommand {
     },
     /// List registered game-file locations and their profile IDs.
     List,
-    /// Inspect a registered source without changing its bytes or saved baseline.
+    /// Inspect saved game files without changing their bytes or saved baseline.
     Inspect {
         /// Game-file profile ID from `catalog show PORT_ID`; saved profiles appear in `source list`.
+        profile_id: String,
+    },
+    /// Recheck a saved registration and review each integration's distinct source requirements.
+    Reuse {
+        /// Registered game-file profile from `source list`; checks its existing baseline without changing files.
         profile_id: String,
     },
     /// Explicitly refresh route-bound game-file observations for one port on this host.
     Query(SourceQueryArgs),
     /// Recheck registered game files against their saved baselines.
     #[command(
-        after_help = "Provide PROFILE_ID or pass --all. Run source list for registered profile IDs. Verification checks the saved source; it does not replace it or accept changed bytes."
+        after_help = "Provide PROFILE_ID or pass --all. Run source list for registered profile IDs. Verification checks the saved game files; it does not replace them or accept changed bytes."
     )]
     Verify(SourceVerifyArgs),
-    /// Forget a source registration without deleting its file.
+    /// Remove a saved game-file location without deleting the original files.
     Remove {
         /// Game-file profile ID from `catalog show PORT_ID`; saved profiles appear in `source list`.
         profile_id: String,
@@ -1015,6 +1427,14 @@ pub(crate) enum GameFileRootCommand {
     Scan(GameFileRootScanArgs),
     /// Read the last completed scan and whether its inputs still match.
     Snapshot,
+    /// Read the last scan's recorded matches one page at a time.
+    Matches(GameFileRootMatchesArgs),
+    /// List the game-file profiles the last scan matched inside one saved folder.
+    Profiles {
+        /// Saved folder ID from `source roots list`.
+        #[arg(long = "root")]
+        root_id: String,
+    },
     /// Save one available folder; adding the same folder again is idempotent.
     Add {
         /// Available folder to remember for future scans; adding it does not register its files.
@@ -1032,6 +1452,48 @@ pub(crate) enum GameFileRootCommand {
         /// Saved folder ID from `source roots list`; paths alone are not folder identities.
         root_id: String,
     },
+}
+
+#[derive(Debug, Clone, Copy, ValueEnum)]
+pub(crate) enum GameFileScanMatchKindArg {
+    Exact,
+    Preliminary,
+}
+
+#[derive(Debug, Args)]
+pub(crate) struct GameFileRootMatchesArgs {
+    /// Exact candidates, or preliminary selections whose validator has not run.
+    #[arg(long, value_enum, default_value = "exact")]
+    pub(crate) kind: GameFileScanMatchKindArg,
+    /// Matches to skip, from an earlier page's next offset.
+    #[arg(long, default_value_t = 0)]
+    pub(crate) offset: u32,
+    /// Matches on this page, 1 to 512.
+    #[arg(long, default_value_t = 64)]
+    pub(crate) limit: u32,
+    /// Only matches inside this saved folder ID from `source roots list`.
+    #[arg(long = "root")]
+    pub(crate) root_id: Option<String>,
+    /// Scan ID from an earlier page; a scan replaced since then is refused.
+    #[arg(long)]
+    pub(crate) scan_id: Option<String>,
+}
+
+impl GameFileRootMatchesArgs {
+    pub(crate) fn query(self) -> portcove_core::GameFileScanMatchQuery {
+        portcove_core::GameFileScanMatchQuery {
+            scan_id: self.scan_id,
+            kind: match self.kind {
+                GameFileScanMatchKindArg::Exact => portcove_core::GameFileScanMatchKind::Exact,
+                GameFileScanMatchKindArg::Preliminary => {
+                    portcove_core::GameFileScanMatchKind::Preliminary
+                }
+            },
+            offset: self.offset,
+            limit: self.limit,
+            root_id: self.root_id,
+        }
+    }
 }
 
 #[derive(Debug, Args)]
@@ -1372,6 +1834,55 @@ pub(crate) struct AdoptArgs {
     pub(crate) yes: bool,
 }
 
+#[derive(Debug, Subcommand)]
+pub(crate) enum LauncherLibraryCommand {
+    /// List each app, its matching catalog port and its `adopt` command without changing anything.
+    Inspect {
+        /// Launcher whose library format to read.
+        #[arg(long, value_enum)]
+        launcher: LauncherLibraryKind,
+        /// Launcher data folder holding apps.json (or legacy games.json) and settings.json.
+        data_root: PathBuf,
+        /// Use this apps folder instead of the one in settings.json, for example after a move.
+        #[arg(long)]
+        apps_root: Option<PathBuf>,
+    },
+    /// Review and copy several matched apps after one confirmation; originals stay unchanged.
+    Adopt {
+        /// Launcher whose library format to read.
+        #[arg(long, value_enum)]
+        launcher: LauncherLibraryKind,
+        /// Launcher data folder holding apps.json (or legacy games.json) and settings.json.
+        data_root: PathBuf,
+        /// Use this apps folder instead of the one in settings.json, for example after a move.
+        #[arg(long)]
+        apps_root: Option<PathBuf>,
+        /// Copy only this app, by its launcher name or folder name; repeat for more. Default: every app ready to review.
+        #[arg(long = "app")]
+        apps: Vec<String>,
+        /// Confirm the reviewed batch without prompting; changed apps are held, not copied.
+        #[arg(long)]
+        yes: bool,
+    },
+}
+
+#[derive(Debug, Clone, Copy, ValueEnum)]
+pub(crate) enum LauncherLibraryKind {
+    /// GitHub Launcher (SirDiabo/GithubLauncher).
+    GithubLauncher,
+    /// Quiver (tgeorgiadis/quiver-launcher).
+    Quiver,
+}
+
+impl From<LauncherLibraryKind> for portcove_core::LauncherKind {
+    fn from(kind: LauncherLibraryKind) -> Self {
+        match kind {
+            LauncherLibraryKind::GithubLauncher => Self::GithubLauncher,
+            LauncherLibraryKind::Quiver => Self::Quiver,
+        }
+    }
+}
+
 #[derive(Debug, Args)]
 pub(crate) struct ExecArgs {
     /// Installed PORT_ID to launch; inspect `status PORT_ID` for readiness.
@@ -1382,6 +1893,9 @@ pub(crate) struct ExecArgs {
     /// Caller-known UUID for durable launch observation; a fresh UUID is generated by default.
     #[arg(long)]
     pub(crate) request_id: Option<Uuid>,
+    /// Start this disc (1, 2, ...) of a managed multi-disc game and keep it as the game's saved disc; see `status PORT_ID` readiness `selectable_discs`.
+    #[arg(long, value_name = "N", value_parser = clap::value_parser!(u32).range(1..))]
+    pub(crate) disc: Option<u32>,
     /// Arguments after -- pass unchanged to native games; batch launchers reject caller arguments.
     #[arg(last = true, allow_hyphen_values = true)]
     pub(crate) game_args: Vec<String>,
@@ -1401,11 +1915,11 @@ pub(crate) enum ChannelCommand {
 
 #[derive(Debug, Subcommand)]
 pub(crate) enum PolicyCommand {
-    /// Save notify, stage, or automatic handling for future game updates.
+    /// Save how to handle game updates when you run update reconciliation.
     Set {
         /// Catalog port ID; run `portcove catalog list` to find it.
         port_id: String,
-        /// Future update behavior: notify only, download/check and stage, or automatically activate eligible updates.
+        /// When you run update reconciliation: notify only, keep a checked update for later, or install eligible updates.
         #[arg(value_enum)]
         policy: PolicyArg,
     },
@@ -1668,4 +2182,42 @@ mod tests {
         );
         assert!(Cli::try_parse_from(["portcove", "--json", "--jsonl", "status"]).is_err());
     }
+}
+
+#[derive(Debug, Subcommand)]
+pub(crate) enum GameSettingsCommand {
+    /// Inspect retained file locations for an isolated qualification probe.
+    #[cfg(feature = "qualification-fixtures")]
+    QualificationScope { port_id: String },
+    /// Read available settings without changing game configuration.
+    List {
+        /// Port ID from catalog list for the active managed installation.
+        port_id: String,
+    },
+    /// Review a single typed value or the declared default before applying it.
+    Review(GameSettingIntentArgs),
+    /// Apply the exact preceding review; stale inputs refuse the change.
+    Apply {
+        #[command(flatten)]
+        intent: GameSettingIntentArgs,
+        /// Exact review SHA-256 returned by game-settings review.
+        #[arg(long)]
+        expected_review: String,
+    },
+}
+
+#[derive(Debug, Args)]
+pub(crate) struct GameSettingIntentArgs {
+    /// Port ID for the installation whose settings were read.
+    pub(crate) port_id: String,
+    /// Configuration file ID returned by game-settings list.
+    pub(crate) file_id: String,
+    /// Declared setting ID returned by game-settings list.
+    pub(crate) setting_id: String,
+    /// One JSON scalar, such as 70, true, or a quoted enum choice.
+    #[arg(long, conflicts_with = "reset", required_unless_present = "reset")]
+    pub(crate) value: Option<String>,
+    /// Replace only this key with its retained declared default.
+    #[arg(long)]
+    pub(crate) reset: bool,
 }

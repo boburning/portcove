@@ -1,5 +1,7 @@
-import { useEffect, useRef } from "react";
+import { type ReactNode, useEffect, useRef } from "react";
 import { FolderInput, FolderOpen, ShieldCheck, X } from "lucide-react";
+import { Trans } from "react-i18next";
+import { useAppTranslation } from "../localization";
 import { formatBytes } from "../view-model";
 import { gameIdentityLabel } from "../port-identity";
 import { Icon, NavigationHints } from "./ui";
@@ -20,6 +22,7 @@ export function AdoptionModal({
   adopt,
   pickFolder,
   ports = [],
+  launcherImport,
 }: {
   path: string;
   setPath: (path: string) => void;
@@ -32,7 +35,10 @@ export function AdoptionModal({
   adopt: () => void;
   pickFolder?: () => void;
   ports?: readonly PortDefinition[];
+  /** Optional read-only list of another launcher's apps that fills `path`. */
+  launcherImport?: ReactNode;
 }) {
+  const { t } = useAppTranslation("installation");
   const dismiss = () => {
     if (!applying) close();
   };
@@ -72,7 +78,7 @@ export function AdoptionModal({
           variant="ghost"
           size="icon-sm"
           className="absolute top-2 right-2"
-          aria-label="Close copy installation dialog"
+          aria-label={t("adoption.closeLabel")}
           onClick={dismiss}
           disabled={applying}
         >
@@ -82,17 +88,17 @@ export function AdoptionModal({
           <Icon glyph={FolderInput} size="lg" />
         </span>
         <DialogTitle ref={titleRef} tabIndex={-1} id="adopt-title" className="mb-2 text-xl">
-          Copy an existing installation
+          {t("adoption.title")}
         </DialogTitle>
         <DialogDescription id="adopt-description" className="mb-4 leading-relaxed">
-          Copy this installation and any supported saved data into Portcove. The original folder
-          will stay unchanged. Review the detected port and destination before copying.
+          {t("adoption.description")}
         </DialogDescription>
         <p className="inline-assurance mb-5 flex items-center gap-2 text-[length:var(--text-xs)] text-[var(--color-success-text)]">
-          <Icon glyph={ShieldCheck} /> Review first, then confirm before copying.
+          <Icon glyph={ShieldCheck} /> {t("adoption.assurance")}
         </p>
         <NavigationHints />
-        <label htmlFor="adopt-path">Existing installation folder</label>
+        {launcherImport}
+        <label htmlFor="adopt-path">{t("adoption.folder")}</label>
         <div className="flex items-stretch gap-2 [&_input]:min-w-0">
           <Input
             ref={pathInput}
@@ -101,7 +107,7 @@ export function AdoptionModal({
             value={path}
             disabled={Boolean(busy) || applying}
             onChange={(event) => setPath(event.target.value)}
-            placeholder="Choose or paste the full folder path"
+            placeholder={t("adoption.folderPlaceholder")}
           />
           {pickFolder && (
             <Button
@@ -112,14 +118,14 @@ export function AdoptionModal({
               onClick={pickFolder}
             >
               <Icon glyph={FolderOpen} />
-              Browse
+              {t("adoption.browse")}
             </Button>
           )}
         </div>
         {preview && (
           <section
             className="adoption-plan adoption-review m-[var(--space-4)_0] max-h-[none] overflow-visible rounded-pc-md border border-[var(--color-border)] bg-[var(--color-bg-inset)] p-4 [overflow-wrap:anywhere]"
-            aria-label="Existing installation copy plan"
+            aria-label={t("adoption.plan")}
           >
             <p
               ref={portIdentityRef}
@@ -129,16 +135,20 @@ export function AdoptionModal({
             >
               <strong>
                 {portIdentity?.kind === "selected"
-                  ? (portIdentity.ports[0]?.name ?? "Unknown catalog port")
+                  ? (portIdentity.ports[0]?.name ?? t("adoption.unknownPort"))
                   : portIdentity?.kind === "ambiguous"
-                    ? "Multiple supported ports detected"
-                    : "No supported port detected"}
+                    ? t("adoption.multiple")
+                    : t("adoption.none")}
               </strong>
               {portIdentity?.kind === "selected" && portIdentity.ports[0]?.id && (
                 <>
                   <br />
                   <small>
-                    Catalog ID: <code>{portIdentity.ports[0].id}</code>
+                    <Trans
+                      t={t}
+                      i18nKey="adoption.catalogId"
+                      components={{ id: <code dir="ltr">{portIdentity.ports[0].id}</code> }}
+                    />
                   </small>
                 </>
               )}
@@ -146,10 +156,9 @@ export function AdoptionModal({
             {portIdentity?.kind === "ambiguous" && (
               <>
                 <p className="m-[0_0_var(--space-2)] text-[var(--color-text-secondary)]">
-                  This folder matches more than one supported port. Choose the correct game to
-                  review its destination and saved-data changes before copying.
+                  {t("adoption.ambiguous")}
                 </p>
-                <ul className="ps-5" aria-label="Detected ports">
+                <ul className="ps-5" aria-label={t("adoption.detected")}>
                   {portIdentity.ports.map((port) => (
                     <li key={port.id}>
                       <Button
@@ -164,7 +173,14 @@ export function AdoptionModal({
                           review(port.id);
                         }}
                       >
-                        Review {port.name ?? "Unknown catalog port"} — Catalog ID: {port.id}
+                        <Trans
+                          t={t}
+                          i18nKey="adoption.reviewPort"
+                          components={{
+                            name: <bdi>{port.name ?? t("adoption.unknownPort")}</bdi>,
+                            id: <code dir="ltr">{port.id}</code>,
+                          }}
+                        />
                       </Button>
                     </li>
                   ))}
@@ -172,54 +188,57 @@ export function AdoptionModal({
               </>
             )}
             <p className="m-[0_0_var(--space-2)] text-[var(--color-text-secondary)]">
-              {preview.copy_plan.files.length.toLocaleString()}{" "}
-              {preview.copy_plan.files.length === 1 ? "file" : "files"} ·{" "}
-              {formatBytes(preview.copy_plan.total_bytes)}{" "}
               {preview.selected_port_id
-                ? "will be copied into the managed library."
-                : "found. Choose a port to review the exact destination before copying."}
+                ? t("adoption.copyCount", {
+                    count: preview.copy_plan.files.length,
+                    size: formatBytes(preview.copy_plan.total_bytes),
+                  })
+                : t("adoption.foundCount", {
+                    count: preview.copy_plan.files.length,
+                    size: formatBytes(preview.copy_plan.total_bytes),
+                  })}
             </p>
             {preview.copy_plan.skipped_entries.length > 0 && (
               <details>
                 <summary className="cursor-pointer text-[var(--color-warning-text)]">
-                  {preview.copy_plan.skipped_entries.length} unsupported{" "}
-                  {preview.copy_plan.skipped_entries.length === 1 ? "item" : "items"} will remain
-                  only in the original folder
+                  {t("adoption.skipped", { count: preview.copy_plan.skipped_entries.length })}
                 </summary>
                 <ul className="ps-5">
                   {preview.copy_plan.skipped_entries.map((entry) => (
                     <li key={entry.relative_path}>
-                      <code>{entry.relative_path}</code> — {entry.reason}
+                      <Trans
+                        t={t}
+                        i18nKey="adoption.skippedEntry"
+                        components={{
+                          path: <code dir="ltr">{entry.relative_path}</code>,
+                          reason: <bdi>{entry.reason}</bdi>,
+                        }}
+                      />
                     </li>
                   ))}
                 </ul>
               </details>
             )}
             <p className="m-[0_0_var(--space-2)] text-[var(--color-text-secondary)]">
-              <strong>Original folder:</strong> {preview.source}
+              <Trans
+                t={t}
+                i18nKey="adoption.original"
+                components={{ strong: <strong />, path: <bdi dir="ltr">{preview.source}</bdi> }}
+              />
             </p>
             {preview.destination && <AdoptionConsequences destination={preview.destination} />}
             <p className="m-[0_0_var(--space-2)] text-[var(--color-text-secondary)]">
-              The original folder, saved file locations, existing backups and other games remain
-              unchanged.
+              {t("adoption.unchanged")}
             </p>
             <p className="m-[0_0_var(--space-2)] text-[var(--color-text-secondary)]">
-              There is no single undo action. Removing the managed copy later does not restore
-              overwritten saved files. Create a backup first if you need those files.
+              {t("adoption.noUndo")}
             </p>
             <p className="m-[0_0_var(--space-2)] mb-0 text-[var(--color-text-secondary)]">
-              Stop the game before copying. Once copying starts, this dialog cannot cancel it. If
-              interrupted, recovery may finish a verified copy; check the library and saved data
-              before retrying.
+              {t("adoption.stopFirst")}
             </p>
           </section>
         )}
-        {copyFailed && (
-          <p role="alert">
-            The copy could not be confirmed. Check the library and activity history before retrying,
-            then review the current copy plan.
-          </p>
-        )}
+        {copyFailed && <p role="alert">{t("adoption.copyFailed")}</p>}
         <AdoptionActions
           path={path}
           preview={preview}
@@ -251,10 +270,11 @@ function AdoptionActions({
   review: () => void;
   adopt: () => void;
 }) {
+  const { t } = useAppTranslation("installation");
   return (
     <DialogFooter className="mt-4">
       <Button data-focusable variant="outline" onClick={dismiss} disabled={applying}>
-        Cancel
+        {t("adoption.cancel")}
       </Button>
       {preview ? (
         <Button
@@ -267,7 +287,7 @@ function AdoptionActions({
           onClick={adopt}
         >
           <Icon glyph={FolderInput} />
-          {applying ? "Copying…" : "Continue to copy confirmation"}
+          {applying ? t("adoption.copying") : t("adoption.continue")}
         </Button>
       ) : (
         <Button
@@ -277,7 +297,11 @@ function AdoptionActions({
           onClick={() => review()}
         >
           <Icon glyph={FolderInput} />
-          {applying ? "Copying…" : busy === "preview adoption" ? "Reviewing…" : "Review copy plan"}
+          {applying
+            ? t("adoption.copying")
+            : busy === "preview adoption"
+              ? t("adoption.reviewing")
+              : t("adoption.review")}
         </Button>
       )}
     </DialogFooter>
@@ -301,25 +325,45 @@ function AdoptionConsequences({
 }: {
   destination: NonNullable<AdoptionPreview["destination"]>;
 }) {
+  const { t } = useAppTranslation("installation");
   return (
     <>
       <p>
-        <strong>Application destination:</strong>{" "}
-        {destination.output_location.effective_output_directory}
-        <br />A new version folder is created here and becomes active. Existing versions remain.
+        <Trans
+          t={t}
+          i18nKey="adoption.appDestination"
+          components={{
+            strong: <strong />,
+            br: <br />,
+            path: <bdi dir="ltr">{destination.output_location.effective_output_directory}</bdi>,
+          }}
+        />
       </p>
       {destination.active_install && (
         <p>
-          <strong>Current active version:</strong> {destination.active_install.version}
-          <br />
-          {destination.active_install.path}
+          <Trans
+            t={t}
+            i18nKey="adoption.activeVersion"
+            components={{
+              strong: <strong />,
+              br: <br />,
+              version: <bdi>{destination.active_install.version}</bdi>,
+              path: <bdi dir="ltr">{destination.active_install.path}</bdi>,
+            }}
+          />
         </p>
       )}
       <p>
-        <strong>Saved-data destination:</strong> {destination.output_location.user_data_root}
-        <br />
-        {destination.current_user_data_files} existing{" "}
-        {destination.current_user_data_files === 1 ? "file" : "files"}.
+        <Trans
+          t={t}
+          i18nKey="adoption.savedDestination"
+          count={destination.current_user_data_files}
+          components={{
+            strong: <strong />,
+            br: <br />,
+            path: <bdi dir="ltr">{destination.output_location.user_data_root}</bdi>,
+          }}
+        />
       </p>
       {destination.imported_user_data_paths.length > 0 ? (
         <div
@@ -327,20 +371,19 @@ function AdoptionConsequences({
           className="adoption-save-warning m-[var(--space-2)_0] rounded-pc-md border border-[var(--color-warning-border)] bg-[var(--color-warning-subtle)] p-3 text-[var(--color-warning-text)]"
           role="note"
         >
-          <strong>Saved-file replacement — no backup before copying</strong>
-          <p>
-            Matching saved files in Portcove will be replaced. Portcove does not create a backup
-            before this copy. Other saved files remain.
-          </p>
-          <p>Affected saved-data paths from the original folder:</p>
-          <ul aria-label="Saved-data paths to import">
+          <strong>{t("adoption.replace.heading")}</strong>
+          <p>{t("adoption.replace.text")}</p>
+          <p>{t("adoption.replace.paths")}</p>
+          <ul aria-label={t("adoption.replace.pathsLabel")}>
             {destination.imported_user_data_paths.map((path) => (
-              <li key={path}>{path}</li>
+              <li key={path}>
+                <bdi dir="ltr">{path}</bdi>
+              </li>
             ))}
           </ul>
         </div>
       ) : (
-        <p>No catalog-selected saved-data paths will be imported from this folder.</p>
+        <p>{t("adoption.noSavedPaths")}</p>
       )}
     </>
   );

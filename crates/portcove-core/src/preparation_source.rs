@@ -210,6 +210,14 @@ pub(crate) fn require_fresh_canonical_data(port: &PortDefinition, library: &Libr
                 PortcoveError::conflict("native originals require their active creating contract")
             })?;
         let retained = catalog.port(&port.id)?;
+        let executable_changed = if crate::native_temp::has_sibling_platforms(retained)
+            || crate::native_temp::has_sibling_platforms(port)
+        {
+            let host = Platform::current()?;
+            retained.executable_hints.get(&host) != port.executable_hints.get(&host)
+        } else {
+            retained.executable_hints != port.executable_hints
+        };
         if !native(retained)
             || retained.source_profile != port.source_profile
             || retained.runtime_source_set != port.runtime_source_set
@@ -218,7 +226,7 @@ pub(crate) fn require_fresh_canonical_data(port: &PortDefinition, library: &Libr
             || retained.windows_temp_directory != port.windows_temp_directory
             || retained.runtime_subdirectory != port.runtime_subdirectory
             || retained.launch_from_install_root != port.launch_from_install_root
-            || retained.executable_hints != port.executable_hints
+            || executable_changed
         {
             return Err(PortcoveError::conflict(
                 "native original or player-data scope changed; preserve the existing installation and data",
@@ -247,7 +255,8 @@ pub(crate) fn require_pristine_adoption(
         return Ok(());
     }
     require_pristine_package(port, payload, selected)?;
-    let working = crate::adapter::launch_working_directory(port.adapter, port, payload, selected)?;
+    let working =
+        crate::adapter::launch_working_directory(port, payload, selected, Platform::current()?)?;
     require_absent_player_data(port, &working)
 }
 
@@ -259,13 +268,14 @@ pub(crate) fn require_pristine_package(
     if !native(port) {
         return Ok(());
     }
-    let qualification = crate::InstallQualification::from_port(port, Platform::current()?)?;
+    let platform = Platform::current()?;
+    let qualification = crate::InstallQualification::from_port(port, platform)?;
     if crate::install::resolve_declared_executable(payload, &qualification)? != selected {
         return Err(PortcoveError::verification(
             "native package executable selection changed",
         ));
     }
-    let working = crate::adapter::launch_working_directory(port.adapter, port, payload, selected)?;
+    let working = crate::adapter::launch_working_directory(port, payload, selected, platform)?;
     require_vacant_outputs(
         port,
         payload,
@@ -406,14 +416,15 @@ fn same_source(left: &SourceRecord, right: &SourceRecord) -> bool {
         && left.storage_size == right.storage_size
 }
 
-pub(crate) fn validate(
+pub(crate) fn validate<'a>(
     library: &Library,
     catalog: &Catalog,
     port: &PortDefinition,
     install: &InstallRecord,
-    source: Option<&SourceRecord>,
+    source: impl Into<super::ReceiptSource<'a>>,
     expected_plan: Option<&super::PreparationPlan>,
 ) -> Result<()> {
+    let source = source.into();
     let installer = Installer::new(library.clone())?;
     if installer.retained_preparation_mode(install)? != Some(PreparationMode::SourceOnly) {
         return Err(PortcoveError::conflict(
@@ -425,7 +436,7 @@ pub(crate) fn validate(
     if receipt.format_version != 1
         || receipt.host != Platform::current()?
         || receipt.definition_sha256 != definition(catalog, port)?
-        || !source.is_some_and(|source| same_source(source, &receipt.source))
+        || !source.matches(|source| same_source(source, &receipt.source))
     {
         return Err(PortcoveError::conflict(
             "runtime source inputs changed; review and prepare game data again",
@@ -541,7 +552,7 @@ pub(crate) fn materialize(
             crate::InstallQualification::from_catalog(catalog, &port.id, inputs.host)?;
         let selected = crate::install::resolve_declared_executable(payload, &qualification)?;
         let expected =
-            crate::adapter::launch_working_directory(port.adapter, port, payload, &selected)?;
+            crate::adapter::launch_working_directory(port, payload, &selected, inputs.host)?;
         if working != expected {
             return Err(PortcoveError::verification(
                 "native originals differ from the selected executable coordinates",

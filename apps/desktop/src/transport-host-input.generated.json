@@ -1,4 +1,31 @@
 {
+  "adoption_batch_items": {
+    "$defs": {
+      "AdoptionBatchItem": {
+        "properties": {
+          "port_id": {
+            "description": "Catalog port this folder is reviewed for.",
+            "type": "string"
+          },
+          "source": {
+            "description": "Existing installation folder to copy; it is never modified.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "source",
+          "port_id"
+        ],
+        "type": "object"
+      }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "items": {
+      "$ref": "#/$defs/AdoptionBatchItem"
+    },
+    "title": "Array_of_AdoptionBatchItem",
+    "type": "array"
+  },
   "application_update_choice": {
     "$defs": {
       "ApplicationChannel": {
@@ -135,14 +162,125 @@
     "title": "ApplicationUpdateRecoveryArea",
     "type": "string"
   },
+  "bug_report_field": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "properties": {
+      "id": {
+        "type": "string"
+      },
+      "label": {
+        "type": "string"
+      },
+      "value": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "id",
+      "label",
+      "value"
+    ],
+    "title": "BugReportField",
+    "type": "object"
+  },
   "catalog_download_request": {
+    "$defs": {
+      "CatalogDownloadAssetId": {
+        "anyOf": [
+          {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          {
+            "$ref": "#/$defs/CatalogForeignAssetId"
+          }
+        ]
+      },
+      "CatalogDownloadReleaseId": {
+        "anyOf": [
+          {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          {
+            "$ref": "#/$defs/CatalogForeignReleaseId"
+          }
+        ]
+      },
+      "CatalogForeignAssetId": {
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "file_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "link_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "project_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "provider": {
+                "const": "gitlab",
+                "type": "string"
+              },
+              "tag": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "provider",
+              "project_id",
+              "tag",
+              "link_id",
+              "file_id"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "CatalogForeignReleaseId": {
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "project_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "provider": {
+                "const": "gitlab",
+                "type": "string"
+              },
+              "tag": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "provider",
+              "project_id",
+              "tag"
+            ],
+            "type": "object"
+          }
+        ]
+      }
+    },
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "additionalProperties": false,
     "properties": {
       "asset_id": {
-        "format": "uint64",
-        "minimum": 0,
-        "type": "integer"
+        "$ref": "#/$defs/CatalogDownloadAssetId"
       },
       "destination_parent": {
         "type": "string"
@@ -154,9 +292,7 @@
         "type": "string"
       },
       "release_id": {
-        "format": "uint64",
-        "minimum": 0,
-        "type": "integer"
+        "$ref": "#/$defs/CatalogDownloadReleaseId"
       }
     },
     "required": [
@@ -363,6 +499,83 @@
     "title": "GameFileQueryRefreshRequest",
     "type": "object"
   },
+  "game_file_scan_match_query": {
+    "$defs": {
+      "GameFileScanMatchKind": {
+        "enum": [
+          "exact",
+          "preliminary"
+        ],
+        "type": "string"
+      }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "description": "One page of the current saved-folder scan's retained matches.",
+    "properties": {
+      "kind": {
+        "$ref": "#/$defs/GameFileScanMatchKind"
+      },
+      "limit": {
+        "description": "1 to 512 matches.",
+        "format": "uint32",
+        "minimum": 0,
+        "type": "integer"
+      },
+      "offset": {
+        "default": 0,
+        "format": "uint32",
+        "minimum": 0,
+        "type": "integer"
+      },
+      "root_id": {
+        "description": "Only matches inside this saved folder.",
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "scan_id": {
+        "description": "The scan the caller is paging; a different current scan is a conflict.",
+        "type": [
+          "string",
+          "null"
+        ]
+      }
+    },
+    "required": [
+      "kind",
+      "limit"
+    ],
+    "title": "GameFileScanMatchQuery",
+    "type": "object"
+  },
+  "install_batch_request_items": {
+    "$defs": {
+      "InstallBatchRequestItem": {
+        "additionalProperties": false,
+        "properties": {
+          "expected_plan_sha256": {
+            "description": "Digest of the plan the player reviewed for this game.",
+            "type": "string"
+          },
+          "port_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "port_id",
+          "expected_plan_sha256"
+        ],
+        "type": "object"
+      }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "items": {
+      "$ref": "#/$defs/InstallBatchRequestItem"
+    },
+    "title": "Array_of_InstallBatchRequestItem",
+    "type": "array"
+  },
   "install_input": {
     "$defs": {
       "ReleaseChannel": {
@@ -372,9 +585,26 @@
           "rolling"
         ],
         "type": "string"
+      },
+      "SourceRegistrationReference": {
+        "additionalProperties": false,
+        "properties": {
+          "profile_id": {
+            "type": "string"
+          },
+          "reference_sha256": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "profile_id",
+          "reference_sha256"
+        ],
+        "type": "object"
       }
     },
     "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
     "properties": {
       "bios": {
         "type": [
@@ -401,6 +631,16 @@
           "null"
         ]
       },
+      "sourceReference": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/SourceRegistrationReference"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
       "stage": {
         "type": "boolean"
       }
@@ -411,6 +651,69 @@
     ],
     "title": "InstallInput",
     "type": "object"
+  },
+  "library_membership_requests": {
+    "$defs": {
+      "LibraryMembershipOrigin": {
+        "oneOf": [
+          {
+            "const": "game_file_discovery",
+            "description": "Selected from reviewed game-file discovery results.",
+            "type": "string"
+          },
+          {
+            "const": "manual",
+            "description": "Added directly by the player.",
+            "type": "string"
+          }
+        ]
+      },
+      "LibraryMembershipRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "origin": {
+            "$ref": "#/$defs/LibraryMembershipOrigin"
+          },
+          "port_id": {
+            "type": "string"
+          },
+          "sources": {
+            "items": {
+              "$ref": "#/$defs/LibraryMembershipSource"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "port_id",
+          "origin"
+        ],
+        "type": "object"
+      },
+      "LibraryMembershipSource": {
+        "additionalProperties": false,
+        "description": "A reviewed original the player associated with the saved entry. This is a\nhint for explaining requirements; reinspection remains the authority.",
+        "properties": {
+          "profile_id": {
+            "type": "string"
+          },
+          "sha256": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "profile_id",
+          "sha256"
+        ],
+        "type": "object"
+      }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "items": {
+      "$ref": "#/$defs/LibraryMembershipRequest"
+    },
+    "title": "Array_of_LibraryMembershipRequest",
+    "type": "array"
   },
   "organization_change": {
     "$defs": {
@@ -510,6 +813,29 @@
     },
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "oneOf": [
+      {
+        "additionalProperties": false,
+        "properties": {
+          "game_id": {
+            "type": "string"
+          },
+          "kind": {
+            "const": "set_preferred_implementation",
+            "type": "string"
+          },
+          "port_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "kind",
+          "game_id"
+        ],
+        "type": "object"
+      },
       {
         "additionalProperties": false,
         "properties": {
@@ -737,9 +1063,173 @@
     ],
     "title": "OrganizationChange"
   },
+  "port_intent_mode": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "oneOf": [
+      {
+        "const": "discover_only",
+        "description": "Portcove may show the game in discovery results. Nothing else happens.",
+        "type": "string"
+      },
+      {
+        "const": "notify",
+        "description": "Tell the player when the game becomes ready to install, again only if\nits ready plan changes.",
+        "type": "string"
+      },
+      {
+        "const": "set_up_when_ready",
+        "description": "Install the game when it is ready, without another confirmation, as\nlong as this choice stands. Never launches it.",
+        "type": "string"
+      },
+      {
+        "const": "ignored",
+        "description": "Do not suggest or set up this game.",
+        "type": "string"
+      }
+    ],
+    "title": "PortIntentMode"
+  },
+  "port_readiness_acknowledgements": {
+    "$defs": {
+      "PortReadinessAcknowledgement": {
+        "additionalProperties": false,
+        "properties": {
+          "plan_sha256": {
+            "type": "string"
+          },
+          "port_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "port_id",
+          "plan_sha256"
+        ],
+        "type": "object"
+      }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "items": {
+      "$ref": "#/$defs/PortReadinessAcknowledgement"
+    },
+    "title": "Array_of_PortReadinessAcknowledgement",
+    "type": "array"
+  },
+  "report_kind": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "description": "Which issue form a report fills.",
+    "oneOf": [
+      {
+        "const": "problem",
+        "description": "Something broke or behaved incorrectly (`bug-report.yml`).",
+        "type": "string"
+      },
+      {
+        "const": "feedback",
+        "description": "Something worked but was hard, slow or confusing, or an idea (`feedback.yml`).",
+        "type": "string"
+      }
+    ],
+    "title": "ReportKind"
+  },
+  "root_setup_enrollment": {
+    "$defs": {
+      "RootSetupEnrollment": {
+        "oneOf": [
+          {
+            "const": "existing_and_future",
+            "description": "Eligible games already in the folder and any found later.",
+            "type": "string"
+          },
+          {
+            "const": "future_only",
+            "description": "Only games whose files were not in the folder when consent was given.",
+            "type": "string"
+          }
+        ]
+      }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "anyOf": [
+      {
+        "$ref": "#/$defs/RootSetupEnrollment"
+      },
+      {
+        "type": "null"
+      }
+    ],
+    "title": "Nullable_RootSetupEnrollment"
+  },
+  "steam_artwork_selection": {
+    "$defs": {
+      "SteamArtworkOperation": {
+        "description": "Separate reviewed Steam artwork action for one owned shortcut.",
+        "oneOf": [
+          {
+            "description": "Fill missing roles; replace existing art only when explicitly requested.",
+            "properties": {
+              "kind": {
+                "const": "update",
+                "type": "string"
+              },
+              "replace_existing": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "kind",
+              "replace_existing"
+            ],
+            "type": "object"
+          },
+          {
+            "description": "Remove only recorded, unchanged Portcove-written art for this entry.",
+            "properties": {
+              "kind": {
+                "const": "remove_owned",
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind"
+            ],
+            "type": "object"
+          }
+        ]
+      }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "properties": {
+      "operation": {
+        "$ref": "#/$defs/SteamArtworkOperation"
+      },
+      "portId": {
+        "type": "string"
+      },
+      "steamRoot": {
+        "type": "string"
+      },
+      "steamUserId": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "portId",
+      "steamRoot",
+      "steamUserId",
+      "operation"
+    ],
+    "title": "SteamArtworkSelection",
+    "type": "object"
+  },
   "steam_batch_selection": {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "properties": {
+      "includeArtwork": {
+        "default": false,
+        "description": "Also fill missing Steam artwork for each newly added shortcut.",
+        "type": "boolean"
+      },
       "portIds": {
         "items": {
           "type": "string"
@@ -773,6 +1263,11 @@
     },
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "properties": {
+      "includeArtwork": {
+        "default": false,
+        "description": "Also fill missing Steam artwork for a newly added shortcut.",
+        "type": "boolean"
+      },
       "operation": {
         "$ref": "#/$defs/SteamEntryOperation"
       },

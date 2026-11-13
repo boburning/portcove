@@ -1,9 +1,12 @@
+import type { TFunction } from "i18next";
 import { useEffect, useState } from "react";
 import { Clipboard, ClipboardCheck } from "lucide-react";
+import { Trans } from "react-i18next";
 import { desktopApi } from "../api";
 import { primaryCliCommand } from "../cli-command";
 import { usesUserSelectedRuntime } from "../shared/external-runtime-trust";
 import { copyText } from "../clipboard";
+import { useAppTranslation } from "../localization";
 import type { CliCommandContext, PortDefinition, PortStatus, ReleaseChannel } from "../types";
 import { errorText } from "../view-model";
 import { Icon } from "./ui";
@@ -58,9 +61,19 @@ export function CliContinuity(props: Parameters<typeof useCliContinuity>[0]) {
   return <CliContinuityView {...useCliContinuity(props)} />;
 }
 
+/** Command placeholder tokens stay literal inside translated guidance. */
+const tokens = {
+  arg: <code>--arg</code>,
+  review: <code>review-sha256</code>,
+  executable: <code>game-executable</code>,
+  workdir: <code>working-directory</code>,
+  folder: <code>game-folder</code>,
+};
+
 function CliContinuityView(model: ReturnType<typeof useCliContinuity>) {
+  const { t } = useAppTranslation("cli");
   const { installed, stagedOnly, useInPlace, userSelected, title, copyLabel, disclosure } =
-    cliPresentation(model.port, model.status);
+    cliPresentation(t, model.port, model.status);
   if (!model.context)
     return (
       <section
@@ -76,11 +89,11 @@ function CliContinuityView(model: ReturnType<typeof useCliContinuity>) {
               variant="outline"
               onClick={() => model.setAttempt((value) => value + 1)}
             >
-              Retry command details
+              {t("retry")}
             </Button>
           </>
         ) : (
-          <p role="status">Finding the command-line app…</p>
+          <p role="status">{t("finding")}</p>
         )}
       </section>
     );
@@ -101,9 +114,7 @@ function CliContinuityView(model: ReturnType<typeof useCliContinuity>) {
         aria-label={title}
       >
         <strong>{title}</strong>
-        <p role="alert">
-          Remove invalid characters from the selected paths before copying a command.
-        </p>
+        <p role="alert">{t("invalidPaths")}</p>
       </section>
     );
   }
@@ -115,45 +126,49 @@ function CliContinuityView(model: ReturnType<typeof useCliContinuity>) {
       <div className="grid gap-1 [overflow-wrap:anywhere]">
         <strong>{title}</strong>
         <span>
-          Uses this library: <code>{model.context.library_root}</code>
+          <Trans
+            t={t}
+            i18nKey="library"
+            components={{ path: <code>{model.context.library_root}</code> }}
+          />
         </span>
       </div>
       <p>
-        {command.interpreter === "powershell" ? "PowerShell 7" : "sh / bash"}
-        {command.missing.length ? " template" : " command"}
+        {command.interpreter === "powershell"
+          ? command.missing.length
+            ? t("interpreter.powershellTemplate")
+            : t("interpreter.powershellCommand")
+          : command.missing.length
+            ? t("interpreter.shTemplate")
+            : t("interpreter.shCommand")}
       </p>
       {command.missing.length > 0 && (
         <p>
-          Template — replace: {command.missing.join(", ")}.
-          {!model.context.executable &&
-            " Install the standalone Portcove CLI or locate its executable first."}
+          <Trans
+            t={t}
+            i18nKey={model.context.executable ? "template.replace" : "template.replaceAndInstall"}
+            components={{ names: <bdi>{command.missing.join(", ")}</bdi> }}
+          />
         </p>
       )}
       <CopyField
         key={command.shell}
         value={command.shell}
-        label={command.missing.length ? "Copy command template" : copyLabel}
+        label={command.missing.length ? t("copy.template") : copyLabel}
       />
       {<CliFollowUp {...{ userSelected, command }} />}
       <p>{disclosure}</p>
       {!installed && !stagedOnly && !useInPlace && model.channel === "beta" && (
-        <p>
-          This command uses the compatible beta spelling: beta selects Preview. The selected CLI's
-          preview input support has not been verified, so the copied command retains beta for
-          compatibility.
-        </p>
+        <p>{t("previewBeta")}</p>
       )}
       <details>
-        <summary data-focusable>Separate program and arguments</summary>
-        <p>
-          For integrations that accept a program path and an argument array. The shell command above
-          is for a terminal.
-        </p>
-        <CopyField key={command.executable} value={command.executable} label="Copy program path" />
+        <summary data-focusable>{t("separate.summary")}</summary>
+        <p>{t("separate.explanation")}</p>
+        <CopyField key={command.executable} value={command.executable} label={t("copy.program")} />
         <CopyField
           key={JSON.stringify(command.args)}
           value={JSON.stringify(command.args)}
-          label="Copy argument array"
+          label={t("copy.arguments")}
         />
       </details>
     </section>
@@ -161,6 +176,7 @@ function CliContinuityView(model: ReturnType<typeof useCliContinuity>) {
 }
 
 function CopyField({ value, label }: { value: string; label: string }) {
+  const { t } = useAppTranslation("cli");
   const [copied, setCopied] = useState(false);
   const [failed, setFailed] = useState(false);
   const copy = async () => {
@@ -191,8 +207,8 @@ function CopyField({ value, label }: { value: string; label: string }) {
           <Icon glyph={copied ? ClipboardCheck : Clipboard} />
         </Button>
       </div>
-      {copied && <small role="status">Copied</small>}
-      {failed && <small role="alert">Clipboard unavailable. Select and copy the text above.</small>}
+      {copied && <small role="status">{t("copy.copied")}</small>}
+      {failed && <small role="alert">{t("copy.unavailable")}</small>}
     </>
   );
 }
@@ -207,51 +223,62 @@ function CliFollowUp({
   },
   "userSelected" | "command"
 >) {
+  const { t } = useAppTranslation("cli");
   return (
     command.followUp && (
       <>
         <p>
-          {userSelected
-            ? "After reviewing the executable, working directory and any --arg values, replace review-sha256 with the returned review fingerprint and save the same launch details. All external files stay where they are."
-            : "After the folder check passes, review and save this installation. Its files stay where they are."}
+          {userSelected ? (
+            <Trans t={t} i18nKey="followUp.userSelected" components={tokens} />
+          ) : (
+            t("followUp.folder")
+          )}
         </p>
         <CopyField
           key={command.followUp.shell}
           value={command.followUp.shell}
-          label="Copy use-in-place command template"
+          label={t("copy.useInPlace")}
         />
       </>
     )
   );
 }
 
-function cliPresentation(port: PortDefinition, status: PortStatus | undefined) {
+function cliPresentation(
+  t: TFunction<"cli">,
+  port: PortDefinition,
+  status: PortStatus | undefined,
+) {
   const installed = Boolean(status?.active || status?.external_runtime);
   const stagedOnly = !installed && Boolean(status?.staged);
   const useInPlace = !installed && !stagedOnly && port.release.provider === "user-prepared";
   const userSelected = usesUserSelectedRuntime(port, status);
   const title = installed
-    ? "Launch from another app"
+    ? t("title.installed")
     : stagedOnly
-      ? "Activate staged version"
-      : "Set up from the command line";
+      ? t("title.staged")
+      : t("title.setup");
   const copyLabel = installed
-    ? "Copy launch command"
+    ? t("copy.launch")
     : stagedOnly
-      ? "Copy activation command"
+      ? t("copy.activation")
       : useInPlace
         ? userSelected
-          ? "Copy launch-review command"
-          : "Copy folder-check command"
-        : "Copy setup command";
-  const disclosure = installed
-    ? "The CLI checks this installation before launching it. This does not install or update the game."
-    : stagedOnly
-      ? "The CLI checks the retained staged version before making it active. This does not download a new release or register an external installation."
-      : useInPlace
-        ? userSelected
-          ? "Complete upstream setup, then replace game-executable and working-directory with your selected paths. Add documented arguments with one --arg per argument to both commands. You or the upstream launcher manage setup and updates; Portcove has not authenticated the selected bytes as an official package."
-          : "Prepare the required version yourself. Replace game-folder with its folder path, check it, then save the location after review. Portcove does not download, copy, update, back up, or delete these files."
-        : "Running this command can download and install the selected release. Required game files are checked before use.";
+          ? t("copy.launchReview")
+          : t("copy.folderCheck")
+        : t("copy.setup");
+  const disclosure = installed ? (
+    t("disclosure.installed")
+  ) : stagedOnly ? (
+    t("disclosure.staged")
+  ) : useInPlace ? (
+    userSelected ? (
+      <Trans t={t} i18nKey="disclosure.userSelected" components={tokens} />
+    ) : (
+      <Trans t={t} i18nKey="disclosure.folder" components={tokens} />
+    )
+  ) : (
+    t("disclosure.setup")
+  );
   return { installed, stagedOnly, useInPlace, userSelected, title, copyLabel, disclosure };
 }

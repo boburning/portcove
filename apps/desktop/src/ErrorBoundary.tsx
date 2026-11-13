@@ -1,4 +1,5 @@
 import { Component, type ErrorInfo, type ReactNode } from "react";
+import { useAppTranslation } from "./localization";
 import { Button } from "./components/ui/button";
 
 interface ErrorBoundaryProps {
@@ -37,23 +38,22 @@ export class AppErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundar
 }
 
 function RenderRecovery({ error }: { error: Error }) {
+  const { t } = useAppTranslation("shell");
   return (
     <main className="bootstrap-recovery" aria-labelledby="display-error-title">
       <section className="bootstrap-recovery-content">
-        <h1 id="display-error-title">Display error</h1>
-        <p role="alert">
-          The Portcove window encountered an error. Reload it to reconnect and check the status of
-          any active task.
-        </p>
+        <h1 id="display-error-title">{t("renderRecovery.title")}</h1>
+        <p role="alert">{t("renderRecovery.instruction")}</p>
         <Button type="button" variant="primary" onClick={() => window.location.reload()}>
-          Reload Portcove
+          {t("renderRecovery.reload")}
         </Button>
         <details className="bootstrap-recovery-details">
-          <summary>Display error details</summary>
+          <summary>{t("renderRecovery.details")}</summary>
+          {/* The original diagnostic stays untranslated; only the fallback is localized. */}
           <textarea
             readOnly
-            aria-label="Display error diagnostics"
-            value={error.message || "Unknown display error"}
+            aria-label={t("renderRecovery.detailsLabel")}
+            value={error.message || t("renderRecovery.unknownError")}
           />
         </details>
       </section>

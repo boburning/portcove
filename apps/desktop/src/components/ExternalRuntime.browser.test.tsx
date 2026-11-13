@@ -1,9 +1,11 @@
+import { captureParityState } from "../../test/parity-capture";
 import { controlledAct as act } from "../../test/controlled-react-act";
 import { render as renderComponent, cleanup, type RenderResult } from "vitest-browser-react";
 
 import { afterEach, beforeEach, expect, it, vi } from "vite-plus/test";
 import { page } from "vite-plus/test/browser";
 import { desktopApi } from "../api";
+import { currentCatalogPort } from "../catalog-test-fixtures";
 import { pickInstallFolder, pickHostToolExecutable } from "../file-picker";
 import { failureReport, portDefinition, portStatus } from "../test-fixtures";
 import type {
@@ -16,10 +18,24 @@ import type {
 // Source-bound proposed metadata exercises retained presentation independently
 // of live catalog adoption. See #2926 for the remaining production rollout.
 import proposals from "../../../../crates/portcove-core/tests/fixtures/installation-rollout-proposals-20261025.json";
-import { ExternalRuntimeControl, UserSelectedRuntimeControl } from "./ExternalRuntime";
+import listingsDirectory from "../../../../crates/portcove-core/catalog/listings.json";
+import {
+  AuthoredPreparationGuidance,
+  ExternalRuntimeControl,
+  UserSelectedRuntimeControl,
+} from "./ExternalRuntime";
+
+// The real directory is a 1,441-entry JSON literal. Inferring its shape yields a union
+// that becomes unusably large as optional listing fields vary (the first-listed date is
+// present on some listings and absent on others), so name only what this test reads.
+type ListingGuide = NonNullable<NonNullable<PortDefinition["presentation"]>["manual_setup"]>;
+const listings = listingsDirectory as unknown as {
+  listings: { id: string; manual_setup?: ListingGuide }[];
+};
 import { catalogEntries } from "../features/browsing/catalog-entry";
 import { ActionReviewFailure } from "./ActionReviewFailure";
 import { DetailLayout } from "./DetailLayout";
+import { SelfServiceSetup } from "./SelfServiceSetup";
 
 vi.mock("../file-picker", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../file-picker")>()),
@@ -145,12 +161,12 @@ it("retains external launch drafts across detail tabs and reviews the same targe
   );
   await click("Choose game executable…");
   await page
-    .getByRole("textbox", { name: "Working directory", exact: true })
+    .getByRole("textbox", { name: "Start in folder", exact: true })
     .fill("C:/Player/Retained directory");
   await page.getByRole("tab", { name: "Versions & updates", exact: true }).click();
   await page.getByRole("tab", { name: "Game files", exact: true }).click();
   await expect
-    .element(page.getByRole("textbox", { name: "Working directory", exact: true }))
+    .element(page.getByRole("textbox", { name: "Start in folder", exact: true }))
     .toHaveValue("C:/Player/Retained directory");
   await click("Review launch details");
   expect(preview).toHaveBeenCalledExactlyOnceWith(
@@ -208,7 +224,7 @@ it("registers a listing-only identity only when Core offers the action", async (
   );
   await expect.element(page.getByRole("button", { name: "Choose game executable…" })).toBeEnabled();
   await expect
-    .element(page.getByRole("textbox", { name: "Working directory" }))
+    .element(page.getByRole("textbox", { name: "Start in folder" }))
     .toHaveValue("C:\\Player\\Downloaded game");
   expect(entry.release).toBeUndefined();
   await root.rerender(
@@ -389,7 +405,9 @@ it("reviews explicit user launch details without accepted-package or file-manage
   expect(document.body.textContent).toContain(
     "Portcove has not authenticated it as an official package",
   );
-  expect(document.body.textContent).toContain("You or upstream own setup and updates");
+  expect(document.body.textContent).toContain(
+    "You’ll handle setup and updates yourself, or through the game’s own launcher.",
+  );
   expect(document.body.textContent).not.toContain("Checked files");
   expect(apply).not.toHaveBeenCalled();
   expect(oldPreview).not.toHaveBeenCalled();
@@ -404,6 +422,108 @@ it("reviews explicit user launch details without accepted-package or file-manage
   );
   expect(changed).toHaveBeenCalledOnce();
 });
+
+it.each(["current", "older"] as const)(
+  "shows the Second Hunt startup warning before setup with the %s directory",
+  async (directory) => {
+    const entry = listings.listings.find(
+      (candidate) => candidate.id === "bountyhunterkanden-secondhunt",
+    )!;
+    const guide = entry.manual_setup!;
+    await root.rerender(
+      <AuthoredPreparationGuidance
+        port={{ ...port, id: entry.id }}
+        setup={{
+          manual_setup: {
+            ...guide,
+            help_url: guide.help_url ?? null,
+            warnings: directory === "current" ? guide.warnings : [],
+          },
+        }}
+      />,
+    );
+    const warning = page.getByText(/Before opening Second Hunt v0\.4\.2-beta/);
+    const firstAction = page.getByRole("heading", { name: "Set up Second Hunt" });
+    await expect.element(warning).toBeVisible();
+    await expect.element(warning).toMatchTextContent(/ending in \.old or \.old followed by digits/);
+    await expect.element(warning).toMatchTextContent(/including portable saves/);
+    expect(
+      warning.element().compareDocumentPosition(firstAction.element()) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  },
+);
+
+it("keeps the Second Hunt caution visible before Play for an attached copy", async () => {
+  const listing = listings.listings.find(
+    (candidate) => candidate.id === "bountyhunterkanden-secondhunt",
+  )!;
+  const status = {
+    ...portStatus(),
+    port_id: listing.id,
+    external_runtime: { ...record, port_id: listing.id },
+  };
+  const perform = vi.fn(async () => undefined);
+  await root.rerender(
+    <SelfServiceSetup
+      entry={{
+        ...port,
+        id: listing.id,
+        listingStatus: {
+          port_id: listing.id,
+          status,
+          actions: [{ action: "launch", allowed: true }],
+        },
+      }}
+      status={status}
+      generation={7}
+      perform={perform}
+      onChanged={vi.fn()}
+    />,
+  );
+  const warning = page.getByText(/Before opening Second Hunt v0\.4\.2-beta/);
+  const play = page.getByRole("button", { name: "Play", exact: true });
+  await expect.element(warning).toBeVisible();
+  await expect.element(play).toBeEnabled();
+  expect(
+    warning.element().compareDocumentPosition(play.element()) & Node.DOCUMENT_POSITION_FOLLOWING,
+  ).toBeTruthy();
+  expect(perform).not.toHaveBeenCalled();
+});
+
+it.each(["ghostship", "starship"])(
+  "shows %s’s actual prepared-installation guide beside executable selection",
+  async (id) => {
+    const selectedPort = currentCatalogPort(id);
+    const status = { ...portStatus(), port_id: id };
+    await root.rerender(
+      <UserSelectedRuntimeControl
+        port={selectedPort}
+        status={status}
+        listingStatus={{
+          port_id: id,
+          status,
+          actions: [{ action: "attach-existing", allowed: true }],
+        }}
+        generation={7}
+        busy={false}
+      />,
+    );
+    for (const step of selectedPort.presentation!.manual_setup!.steps) {
+      await expect.element(page.getByText(step.instruction, { exact: true })).toBeVisible();
+    }
+    for (const warning of selectedPort.presentation!.manual_setup!.warnings) {
+      await expect.element(page.getByText(warning, { exact: true })).toBeVisible();
+    }
+    await expect
+      .element(page.getByRole("button", { name: "Choose game executable…" }))
+      .toBeEnabled();
+    await expect
+      .element(page.getByRole("link", { name: "Detailed preparation guide" }))
+      .toHaveAttribute("href", selectedPort.presentation!.manual_setup!.help_url!);
+    await expect.element(page.getByLabelText("Start in folder")).toBeVisible();
+  },
+);
 
 it("shows authored setup warnings and instructions for a user-managed installation", async () => {
   const selectedPort = {
@@ -585,6 +705,7 @@ it("keeps folder repair context after native consent cancellation and permits re
   await click("Change folder");
   expect(changed).not.toHaveBeenCalled();
   expect(document.body.textContent).toContain("C:\\Moved");
+  await captureParityState("external-repair-consent-declined-fixture");
   await click("Change folder");
   expect(apply).toHaveBeenCalledTimes(2);
   expect(pickInstallFolder).toHaveBeenCalledOnce();
@@ -623,6 +744,7 @@ it("retains a reviewed folder after native cancellation and retries without choo
     record.path,
   );
   expect(document.body.textContent).not.toContain("Portcove couldn't use this installation");
+  await captureParityState("external-registration-consent-declined-fixture");
   await click("Use this installation");
   expect(register).toHaveBeenCalledTimes(2);
   expect(register).toHaveBeenLastCalledWith(port.id, record.path, "reviewed-external", 7);
@@ -646,6 +768,12 @@ it("shows authored steps and essential warnings while preserving detailed notes 
           { title: "Review the folder", instruction: "Choose the prepared folder below." },
         ],
         warnings: ["Preserve the existing pilot; do not overwrite it."],
+        references: [
+          {
+            title: "Inspected build save paths",
+            instruction: "The inspected version writes profile/save.bin.",
+          },
+        ],
         help_url: "https://example.com/guide",
       },
     },
@@ -664,6 +792,17 @@ it("shows authored steps and essential warnings while preserving detailed notes 
   );
   expect(notes?.open).toBe(false);
   const help = section.querySelector<HTMLAnchorElement>("a")!;
+  const steps = document.querySelector("ol");
+  expect(steps?.textContent).not.toContain("Inspected build save paths");
+  await expect
+    .element(page.getByText("The inspected version writes profile/save.bin."))
+    .not.toBeVisible();
+  const reference = page.getByText("Save locations and version notes", { exact: true });
+  reference.element().focus();
+  await page.getByText("Save locations and version notes", { exact: true }).click();
+  await expect
+    .element(page.getByText("The inspected version writes profile/save.bin."))
+    .toBeVisible();
   expect(help.textContent).toBe("Detailed preparation guide");
   await act(async () => help.click());
   expect(open).toHaveBeenCalledExactlyOnceWith("https://example.com/guide");
@@ -808,6 +947,7 @@ it("reviews an exact player-owned folder before registering it", async () => {
   expect(preview).toHaveBeenCalledExactlyOnceWith(port.id, record.path, 7);
   expect(document.body.textContent).toContain(record.executable);
   expect(register).not.toHaveBeenCalled();
+  await captureParityState("external-registration-reviewed-fixture");
   await click("Use this installation");
   expect(register).toHaveBeenCalledExactlyOnceWith(port.id, record.path, "reviewed-external", 7);
   expect(changed).toHaveBeenCalledOnce();
@@ -835,6 +975,7 @@ it("removes only the external registration through the separate reviewed action"
   );
   await click("Stop using this installation");
   expect(document.body.textContent).toContain("The files stay where they are, including");
+  await captureParityState("external-removal-reviewed-fixture");
   await click("Stop using this installation");
   expect(remove).toHaveBeenCalledExactlyOnceWith(port.id, "reviewed-removal", 7);
   expect(managedUninstall).not.toHaveBeenCalled();
@@ -888,9 +1029,10 @@ it("does not invent a cause for an unknown external route hold", async () => {
     />,
   );
   expect(document.body.textContent).toContain(
-    "Setup status unknown. View details for current requirements.",
+    "Can't check setup right now. View details for current requirements.",
   );
   expect(document.body.textContent).not.toContain("future_reason");
+  await captureParityState("external-unknown-route-held-fixture");
 });
 
 const otherPort = { ...port, id: "another-external-port", name: "Another game" };
@@ -934,7 +1076,7 @@ it.each([
     />,
   );
   expect(document.body.textContent).toContain(
-    "Setup status unknown. View details for current requirements.",
+    "Can't check setup right now. View details for current requirements.",
   );
   expect(document.body.querySelector("button")?.disabled).toBe(true);
   await click("Choose game folder");
@@ -1192,7 +1334,9 @@ it.each(
   await click("Stop using this installation");
   expect(preview).not.toHaveBeenCalled();
   expect(document.body.querySelector('[role="dialog"]')).toBeNull();
-  expect(document.body.textContent).toContain("Current removal availability is unavailable");
+  expect(document.body.textContent).toContain(
+    "Portcove couldn’t check whether you can remove this installation",
+  );
 });
 
 it.each([

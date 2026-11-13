@@ -30,6 +30,7 @@ export interface ToolCachePins {
   bootstrap: {
     schema_version: number;
     aqua?: {
+      version?: string;
       release_base?: string;
       artifacts: Readonly<Record<string, { archive?: string; sha256: string }>>;
     };
@@ -104,6 +105,8 @@ export function readToolPins(root = projectRoot): ToolCachePins {
   const aquaVersion = readFileSync(path.join(root, ".aqua-version"), "utf8").trim();
   if (!/^v\d+\.\d+\.\d+$/u.test(aquaVersion))
     throw new Error(".aqua-version must contain an exact v-prefixed semantic version");
+  if (bootstrap.aqua.version !== aquaVersion)
+    throw new Error("Aqua bootstrap archive version must match .aqua-version");
   const repositoryPackage: unknown = JSON.parse(
     readFileSync(path.join(root, "package.json"), "utf8"),
   );
@@ -133,7 +136,7 @@ export function readToolPins(root = projectRoot): ToolCachePins {
     packageManager: repositoryPackage.packageManager,
     bootstrap: {
       schema_version: bootstrap.schema_version,
-      aqua: { release_base: bootstrap.aqua.release_base, artifacts },
+      aqua: { version: aquaVersion, release_base: bootstrap.aqua.release_base, artifacts },
       desktop: {
         tauri_driver: bootstrap.desktop.tauri_driver,
         edge_driver_base: bootstrap.desktop.edge_driver_base,

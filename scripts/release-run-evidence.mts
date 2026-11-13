@@ -6,8 +6,17 @@ import { performance } from "node:perf_hooks";
 import { fileURLToPath } from "node:url";
 
 import { isRecord } from "./runtime-values.mts";
-import type { GitHubRestReader } from "./github-api.mts";
-import { GitHubApiClient, createGitHubRunner } from "./github-api.mts";
+import type { GitHubMetadataResponse } from "./github-operation.mts";
+import { createGitHubClient } from "./github-client.mts";
+import type {
+  GitHubClientOptions,
+  GitHubCredential,
+  GitHubRequestPolicy,
+} from "./github-client.mts";
+import { nextLink } from "./github-operation.mts";
+import { localDeveloperCredential } from "./github-cli.mts";
+import { readOnlyReleaseChildEnvironment } from "./release-readonly-child-environment.mts";
+import { coordinatorCommandDeadline } from "./release-coordinator-deadline.mts";
 
 export interface ReleaseEvidenceRequest {
   schema_version: 1;
@@ -38,7 +47,13 @@ export interface EvidenceFileHandle {
 }
 export type EvidenceFileOpener = (filename: string, flags: number) => Promise<EvidenceFileHandle>;
 export interface ReleaseEvidenceOptions {
-  api?: GitHubRestReader;
+  read?: (endpoint: string) => Promise<GitHubMetadataResponse>;
+  credential?: GitHubCredential;
+  deadline?: number;
+  signal?: AbortSignal;
+  fetch?: typeof globalThis.fetch;
+  sleep?: GitHubClientOptions["sleep"];
+  reserve?: GitHubClientOptions["reserve"];
   elapsed?: () => number;
   now?: () => number;
   openFile?: EvidenceFileOpener;
@@ -128,16 +143,102 @@ function runIdentity(run: unknown, expected: ReleaseEvidenceRequest) {
   };
 }
 
+async function releaseEvidenceOperation(options: ReleaseEvidenceOptions, bound: string) {
+  const elapsed = options.elapsed ?? (() => performance.now());
+  const deadline = Math.min(
+    elapsed() + maximumDurationMs,
+    options.deadline ?? Infinity,
+    coordinatorCommandDeadline() ?? Infinity,
+  );
+  let charged = 0;
+  const check = () => {
+    if (elapsed() >= deadline) throw new Error(`${bound} exhausted its bound`);
+  };
+  const reserve: NonNullable<GitHubClientOptions["reserve"]> = async (request) => {
+    check();
+    if (charged >= maximumRequests) throw new Error(`${bound} exhausted its request bound`);
+    const outer = await options.reserve?.(request);
+    charged++;
+    return {
+      consumeBytes(bytes) {
+        outer?.consumeBytes(bytes);
+      },
+      settle(observation) {
+        if (!observation.dispatched) charged--;
+        outer?.settle(observation);
+      },
+    };
+  };
+  const fixtureRead = options.read;
+  const environment = readOnlyReleaseChildEnvironment();
+  const sdk = fixtureRead
+    ? null
+    : await createGitHubClient({
+        credential:
+          options.credential ??
+          (environment
+            ? { kind: "explicit", token: environment.GH_TOKEN ?? "" }
+            : localDeveloperCredential({ deadline })),
+        deadline,
+        now: elapsed,
+        maxBytes: 2 * 1024 ** 2,
+        ...(options.signal ? { signal: options.signal } : {}),
+        ...(options.fetch ? { fetch: options.fetch } : {}),
+        ...(options.sleep ? { sleep: options.sleep } : {}),
+        reserve,
+      });
+  return {
+    check,
+    async read(endpoint: string, url: URL) {
+      check();
+      if (fixtureRead) {
+        if (++charged > maximumRequests) throw new Error(`${bound} exhausted its request bound`);
+        return fixtureRead(endpoint);
+      }
+      const policy: GitHubRequestPolicy = { replay: "safe-read", attempts: 0 };
+      try {
+        const response = await sdk!.request({
+          method: "GET",
+          url: url.href,
+          request: { portcove: policy },
+        });
+        return {
+          status: response.status,
+          body: response.data as unknown,
+          headers: new Map(
+            Object.entries(response.headers).filter(
+              (entry): entry is [string, string] => typeof entry[1] === "string",
+            ),
+          ),
+        };
+      } finally {
+        await policy.admissionSettled;
+      }
+    },
+  };
+}
+type EvidenceOperation = Awaited<ReturnType<typeof releaseEvidenceOperation>>;
+
 /** Read-only API identities. This never downloads or executes candidate bytes,
  * associates an artifact with a producing job, or grants release eligibility.
  */
-export function collectReleaseRunEvidence(request: unknown, options: ReleaseEvidenceOptions = {}) {
+export async function collectReleaseRunEvidence(
+  request: unknown,
+  options: ReleaseEvidenceOptions = {},
+) {
   const expected = inspectReleaseEvidenceRequest(request);
-  const api =
-    options.api ?? new GitHubApiClient(createGitHubRunner({ maxBuffer: 2 * 1024 * 1024 }));
-  const elapsed = options.elapsed ?? (() => performance.now());
-  const started = elapsed();
-  let requests = 0;
+  return collectRun(
+    expected,
+    options,
+    await releaseEvidenceOperation(options, "release evidence collection"),
+  );
+}
+
+async function collectRun(
+  expected: ReleaseEvidenceRequest,
+  options: ReleaseEvidenceOptions,
+  operation: EvidenceOperation,
+) {
   const base = `repos/${repository}`;
   const allowedPaths = new Set([
     `/repos/${repository}/actions/runs/${expected.run_id}`,
@@ -147,7 +248,7 @@ export function collectReleaseRunEvidence(request: unknown, options: ReleaseEvid
     `/repos/${repository}/git/commits/${expected.revision}`,
     `/repos/${repository}/contents/${workflow}`,
   ]);
-  const read = (method: string, endpoint: string) => {
+  const read = async (endpoint: string, pages?: Set<string>) => {
     const url = new URL(
       endpoint.startsWith("https:") ? endpoint : `https://api.github.com/${endpoint}`,
     );
@@ -155,7 +256,6 @@ export function collectReleaseRunEvidence(request: unknown, options: ReleaseEvid
     const contents = url.pathname === `/repos/${repository}/contents/${workflow}`;
     const keys = [...url.searchParams.keys()];
     if (
-      method !== "GET" ||
       url.origin !== "https://api.github.com" ||
       url.username ||
       url.password ||
@@ -172,43 +272,66 @@ export function collectReleaseRunEvidence(request: unknown, options: ReleaseEvid
             !/^[1-9][0-9]{0,2}$/u.test(url.searchParams.get("page") ?? ""))))
     )
       throw new Error("release evidence traversal escaped its read-only scope");
-    if (++requests > maximumRequests || elapsed() - started >= maximumDurationMs)
-      throw new Error("release evidence collection exhausted its bound");
-    const response = api.request(method, endpoint);
-    if (response.status !== 200 || elapsed() - started >= maximumDurationMs)
+    if (pages) {
+      const pageIdentity = url.searchParams.get("page") ?? "1";
+      if (pages.has(pageIdentity)) throw new Error("release pagination did not advance");
+      pages.add(pageIdentity);
+    }
+    const response = await operation.read(endpoint, url);
+    try {
+      operation.check();
+    } catch {
+      throw new Error("release evidence response is unavailable or late");
+    }
+    if (response.status !== 200)
       throw new Error("release evidence response is unavailable or late");
     return response;
   };
-  const get = (endpoint: string) => read("GET", endpoint).body;
-  const page = (endpoint: string, key: "jobs" | "artifacts") =>
-    GitHubApiClient.prototype.paginateRest.call({ request: read }, endpoint, {
-      select(body) {
-        if (
-          !isRecord(body) ||
-          typeof body.total_count !== "number" ||
-          !Number.isSafeInteger(body.total_count) ||
-          body.total_count > maximumRecords
-        )
-          throw new Error(`${key} inventory exceeds its bound`);
-        return body[key];
-      },
-      totalCount: (body) => {
-        if (!isRecord(body) || typeof body.total_count !== "number")
-          throw new Error(`${key} total is invalid`);
-        return body.total_count;
-      },
-      identity: (record) => positive(isRecord(record) ? record.id : undefined, `${key} ID`),
-      label: `release ${key}`,
-    });
+  const get = async (endpoint: string) => (await read(endpoint)).body;
+  const page = async (endpoint: string, key: "jobs" | "artifacts") => {
+    const rows: unknown[] = [];
+    const seen = new Set<number>();
+    const pages = new Set<string>();
+    let total: number | undefined;
+    let next: string | null = endpoint;
+    while (next) {
+      const response = await read(next, pages);
+      const body = response.body;
+      if (
+        !isRecord(body) ||
+        typeof body.total_count !== "number" ||
+        !Number.isSafeInteger(body.total_count) ||
+        body.total_count < 0 ||
+        body.total_count > maximumRecords
+      )
+        throw new Error(`${key} inventory exceeds its bound`);
+      total ??= body.total_count;
+      if (body.total_count !== total)
+        throw new Error(`release ${key} total changed during pagination`);
+      const values = body[key];
+      if (!Array.isArray(values)) throw new Error(`release ${key} response is incomplete`);
+      for (const row of values as unknown[]) {
+        const id = positive(isRecord(row) ? row.id : undefined, `${key} ID`);
+        if (seen.has(id)) throw new Error(`release ${key} contains a missing or duplicate ID`);
+        seen.add(id);
+        rows.push(row);
+      }
+      if (rows.length > total) throw new Error(`release ${key} count exceeds reported total`);
+      next = nextLink(response.headers);
+    }
+    if (rows.length !== total)
+      throw new Error(`release ${key} count does not match reported total`);
+    return rows;
+  };
 
   const runPath = `${base}/actions/runs/${expected.run_id}`;
-  const initial = runIdentity(get(runPath), expected);
-  const attempt = runIdentity(get(`${runPath}/attempts/${expected.attempt}`), expected);
+  const initial = runIdentity(await get(runPath), expected);
+  const attempt = runIdentity(await get(`${runPath}/attempts/${expected.attempt}`), expected);
   const { updated_at: attemptUpdatedAt, ...attemptIdentity } = attempt;
   const { updated_at: _initialUpdatedAt, ...initialIdentity } = initial;
   if (JSON.stringify(attemptIdentity) !== JSON.stringify(initialIdentity))
     throw new Error("release attempt differs from the current terminal run");
-  const commit = get(`${base}/git/commits/${expected.revision}`);
+  const commit = await get(`${base}/git/commits/${expected.revision}`);
   if (
     !isRecord(commit) ||
     commit.sha !== expected.revision ||
@@ -216,7 +339,7 @@ export function collectReleaseRunEvidence(request: unknown, options: ReleaseEvid
     commit.tree.sha !== expected.tree
   )
     throw new Error("release source tree differs");
-  const source = get(`${base}/contents/${workflow}?ref=${expected.revision}`);
+  const source = await get(`${base}/contents/${workflow}?ref=${expected.revision}`);
   if (
     !isRecord(source) ||
     source.type !== "file" ||
@@ -237,7 +360,7 @@ export function collectReleaseRunEvidence(request: unknown, options: ReleaseEvid
   )
     throw new Error("release workflow bytes differ");
 
-  const jobs = page(`${runPath}/attempts/${expected.attempt}/jobs?per_page=100`, "jobs")
+  const jobs = (await page(`${runPath}/attempts/${expected.attempt}/jobs?per_page=100`, "jobs"))
     .map((job) => {
       if (
         !isRecord(job) ||
@@ -264,7 +387,7 @@ export function collectReleaseRunEvidence(request: unknown, options: ReleaseEvid
       };
     })
     .sort((left, right) => left.id - right.id);
-  const artifacts = page(`${runPath}/artifacts?per_page=100`, "artifacts")
+  const artifacts = (await page(`${runPath}/artifacts?per_page=100`, "artifacts"))
     .map((artifact) => {
       if (!isRecord(artifact)) throw new Error("artifact run/source identity differs");
       const producer = artifact.workflow_run;
@@ -302,7 +425,7 @@ export function collectReleaseRunEvidence(request: unknown, options: ReleaseEvid
       };
     })
     .sort((left, right) => left.id - right.id);
-  const final = runIdentity(get(runPath), expected);
+  const final = runIdentity(await get(runPath), expected);
   if (JSON.stringify(final) !== JSON.stringify(initial))
     throw new Error("release run changed during evidence collection");
   const evidence = {
@@ -327,8 +450,7 @@ export function collectReleaseRunEvidence(request: unknown, options: ReleaseEvid
     ...evidence,
     evidence_sha256: createHash("sha256").update(JSON.stringify(evidence)).digest("hex"),
   };
-  if (elapsed() - started >= maximumDurationMs)
-    throw new Error("release evidence collection exhausted its bound");
+  operation.check();
   return receipt;
 }
 
@@ -380,30 +502,9 @@ export async function verifyReleaseArtifactBytes(
 ) {
   const expected = structuredClone(inspectReleaseEvidenceRequest(request));
   positive(artifactId, "artifact ID");
-  const elapsed = options.elapsed ?? (() => performance.now());
-  const started = elapsed();
-  const withinBound = () => {
-    if (elapsed() - started >= maximumDurationMs)
-      throw new Error("artifact byte verification exhausted its bound");
-  };
-  const api =
-    options.api ?? new GitHubApiClient(createGitHubRunner({ maxBuffer: 2 * 1024 * 1024 }));
-  let requests = 0;
-  const collectionOptions = {
-    ...options,
-    elapsed,
-    api: {
-      request(...args: Parameters<GitHubRestReader["request"]>) {
-        withinBound();
-        if (++requests > maximumRequests)
-          throw new Error("artifact byte verification exhausted its request bound");
-        const response = api.request(...args);
-        withinBound();
-        return response;
-      },
-    },
-  };
-  const before = collectReleaseRunEvidence(expected, collectionOptions);
+  const operation = await releaseEvidenceOperation(options, "artifact byte verification");
+  const withinBound = operation.check;
+  const before = await collectRun(expected, options, operation);
   withinBound();
   const selected = before.artifacts.find((artifact) => artifact.id === artifactId);
   const maximumBytes = 512 * 1024 * 1024;
@@ -459,7 +560,7 @@ export async function verifyReleaseArtifactBytes(
     await handle.close();
   }
   withinBound();
-  const after = collectReleaseRunEvidence(expected, collectionOptions);
+  const after = await collectRun(expected, options, operation);
   withinBound();
   if (
     JSON.stringify(after.artifacts.find((artifact) => artifact.id === artifactId)) !==
@@ -506,7 +607,7 @@ async function settleDirectCli() {
     const request = await readReleaseEvidenceRequest(process.argv[2] ?? "");
     const evidence =
       process.argv.length === 3
-        ? collectReleaseRunEvidence(request)
+        ? await collectReleaseRunEvidence(request)
         : await verifyReleaseArtifactBytes(request, Number(process.argv[3]), process.argv[4] ?? "");
     console.log(JSON.stringify(evidence, null, 2));
   }

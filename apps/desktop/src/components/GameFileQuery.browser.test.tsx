@@ -66,7 +66,7 @@ const render = async (context = "accepted", generation = 1) => {
 };
 const check = async () => {
   const button = [...container.querySelectorAll<HTMLButtonElement>("button")].find(
-    (item) => item.textContent === "Check selected route game files",
+    (item) => item.textContent === "Check files for this option",
   );
   expect(button).toBeDefined();
   await act(async () => button?.click());
@@ -77,7 +77,7 @@ it("does no implicit inspection and displays a bounded exact route observation o
   expect(desktopApi.refreshGameFileQuery).not.toHaveBeenCalled();
   await check();
   expect(container.textContent).toContain("Files missing");
-  expect(container.textContent).toContain("No game-file registration");
+  expect(container.textContent).toContain("No saved game-file location is connected");
   expect(desktopApi.refreshGameFileQuery).toHaveBeenCalledExactlyOnceWith(
     {
       routes: [request],
@@ -158,7 +158,7 @@ it("keeps the real refresh pending after cancellation acknowledgment and rejects
   vi.mocked(desktopApi.cancelOperation).mockResolvedValue({ phase: "preparing", requested: true });
   await render();
   const button = [...container.querySelectorAll<HTMLButtonElement>("button")].find(
-    (item) => item.textContent === "Check selected route game files",
+    (item) => item.textContent === "Check files for this option",
   )!;
   await act(async () => {
     button.click();

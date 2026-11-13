@@ -30,6 +30,72 @@ pub(crate) fn document(contract: SchemaContract) -> serde_json::Value {
     serde_json::Value::Object(
         [
             (
+                "port_capability_report",
+                serde_json::json!(schema_for_contract::<portcove_core::PortCapabilityReport>(
+                    contract
+                )),
+            ),
+            (
+                "portable_save_export_preview",
+                serde_json::json!(schema_for_contract::<
+                    portcove_core::PortableSaveExportPreview,
+                >(contract)),
+            ),
+            (
+                "portable_save_export_result",
+                serde_json::json!(
+                    schema_for_contract::<portcove_core::PortableSaveExportResult>(contract)
+                ),
+            ),
+            (
+                "portable_save_import_preview",
+                serde_json::json!(schema_for_contract::<
+                    portcove_core::PortableSaveImportPreview,
+                >(contract)),
+            ),
+            (
+                "save_folder_status",
+                serde_json::json!(schema_for_contract::<portcove_core::SaveFolderStatus>(
+                    contract
+                )),
+            ),
+            (
+                "save_folder_push_result",
+                serde_json::json!(schema_for_contract::<portcove_core::SaveFolderPushResult>(
+                    contract
+                )),
+            ),
+            (
+                "portable_save_import_result",
+                serde_json::json!(
+                    schema_for_contract::<portcove_core::PortableSaveImportResult>(contract)
+                ),
+            ),
+            (
+                "game_settings_contract",
+                serde_json::json!(schema_for_contract::<portcove_core::GameSettingsContract>(
+                    contract
+                )),
+            ),
+            (
+                "game_settings_view",
+                serde_json::json!(schema_for_contract::<portcove_core::GameSettingsView>(
+                    contract
+                )),
+            ),
+            (
+                "game_setting_review",
+                serde_json::json!(schema_for_contract::<portcove_core::GameSettingReview>(
+                    contract
+                )),
+            ),
+            (
+                "game_setting_change",
+                serde_json::json!(schema_for_contract::<portcove_core::GameSettingChange>(
+                    contract
+                )),
+            ),
+            (
                 "game_comparison",
                 serde_json::json!(schema_for_contract::<portcove_core::GameComparison>(
                     contract
@@ -92,6 +158,24 @@ pub(crate) fn document(contract: SchemaContract) -> serde_json::Value {
                 serde_json::json!(
                     schema_for_contract::<Vec<portcove_core::LocalArtworkAsset>>(contract)
                 ),
+            ),
+            (
+                "steamgriddb_key_status",
+                serde_json::json!(schema_for_contract::<portcove_core::SteamGridDbKeyStatus>(
+                    contract
+                )),
+            ),
+            (
+                "steamgriddb_games",
+                serde_json::json!(schema_for_contract::<Vec<portcove_core::SteamGridDbGame>>(
+                    contract
+                )),
+            ),
+            (
+                "steamgriddb_candidates",
+                serde_json::json!(schema_for_contract::<
+                    Vec<portcove_core::SteamGridDbCandidate>,
+                >(contract)),
             ),
             (
                 "api_response_port_status",
@@ -174,6 +258,18 @@ pub(crate) fn document(contract: SchemaContract) -> serde_json::Value {
             (
                 "listing_delivery_status",
                 serde_json::json!(schema_for_contract::<portcove_core::ListingDeliveryStatus>(
+                    contract
+                )),
+            ),
+            (
+                "official_catalog_review",
+                serde_json::json!(schema_for_contract::<portcove_core::OfficialCatalogReview>(
+                    contract
+                )),
+            ),
+            (
+                "official_catalog_setup",
+                serde_json::json!(schema_for_contract::<portcove_core::OfficialCatalogSetup>(
                     contract
                 )),
             ),
@@ -286,8 +382,14 @@ pub(crate) fn document(contract: SchemaContract) -> serde_json::Value {
             (
                 "launch_request",
                 serde_json::json!(schema_for_contract::<
-                    Option<portcove_core::LaunchSessionRecord>,
+                    Option<portcove_core::LaunchSessionView>,
                 >(contract)),
+            ),
+            (
+                "update_check_forecast",
+                serde_json::json!(schema_for_contract::<portcove_core::UpdateCheckForecast>(
+                    contract
+                )),
             ),
             (
                 "library_identity",
@@ -362,6 +464,18 @@ pub(crate) fn document(contract: SchemaContract) -> serde_json::Value {
                 >(contract)),
             ),
             (
+                "game_file_scan_match_query",
+                serde_json::json!(
+                    schema_for_contract::<portcove_core::GameFileScanMatchQuery>(contract)
+                ),
+            ),
+            (
+                "game_file_scan_match_page",
+                serde_json::json!(schema_for_contract::<portcove_core::GameFileScanMatchPage>(
+                    contract
+                )),
+            ),
+            (
                 "source_discovery_limits",
                 serde_json::json!(schema_for_contract::<portcove_core::SourceDiscoveryLimits>(
                     contract
@@ -426,6 +540,12 @@ pub(crate) fn document(contract: SchemaContract) -> serde_json::Value {
             (
                 "source_inspection",
                 serde_json::json!(schema_for_contract::<SourceInspectionReport>(contract)),
+            ),
+            (
+                "source_reuse_review",
+                serde_json::json!(schema_for_contract::<portcove_core::SourceReuseReview>(
+                    contract
+                )),
             ),
             (
                 "source_catalog",
@@ -502,6 +622,24 @@ pub(crate) fn document(contract: SchemaContract) -> serde_json::Value {
             (
                 "adoption_preview",
                 serde_json::json!(schema_for_contract::<AdoptionPreview>(contract)),
+            ),
+            (
+                "launcher_library_inventory",
+                serde_json::json!(
+                    schema_for_contract::<portcove_core::LauncherLibraryInventory>(contract)
+                ),
+            ),
+            (
+                "adoption_batch_preview",
+                serde_json::json!(schema_for_contract::<portcove_core::AdoptionBatchPreview>(
+                    contract
+                )),
+            ),
+            (
+                "adoption_batch_result",
+                serde_json::json!(schema_for_contract::<portcove_core::AdoptionBatchResult>(
+                    contract
+                )),
             ),
             (
                 "port_removal_preview",
@@ -608,6 +746,76 @@ pub(crate) fn document(contract: SchemaContract) -> serde_json::Value {
                 serde_json::json!(schema_for_contract::<
                     portcove_core::RetainedBuildRemovalPreview,
                 >(contract)),
+            ),
+            (
+                "retained_build_retirement_preview",
+                serde_json::json!(schema_for_contract::<
+                    portcove_core::RetainedBuildRetirementPreview,
+                >(contract)),
+            ),
+            (
+                "profile_inventory",
+                serde_json::json!(schema_for_contract::<portcove_core::ProfileInventory>(
+                    contract
+                )),
+            ),
+            (
+                "profile_recipe",
+                serde_json::json!(schema_for_contract::<portcove_core::ProfileRecipe>(
+                    contract
+                )),
+            ),
+            (
+                "recipe_import_plan",
+                serde_json::json!(schema_for_contract::<portcove_core::RecipeImportPlan>(
+                    contract
+                )),
+            ),
+            (
+                "provider_browse_page",
+                serde_json::json!(schema_for_contract::<portcove_core::ProviderBrowsePage>(
+                    contract
+                )),
+            ),
+            (
+                "provider_project_view",
+                serde_json::json!(schema_for_contract::<portcove_core::ProviderProjectView>(
+                    contract
+                )),
+            ),
+            (
+                "provider_update_observation",
+                serde_json::json!(schema_for_contract::<
+                    portcove_core::ProviderUpdateObservation,
+                >(contract)),
+            ),
+            (
+                "provider_install_plan",
+                serde_json::json!(schema_for_contract::<portcove_core::ProviderInstallPlan>(
+                    contract
+                )),
+            ),
+            (
+                "live_mods",
+                serde_json::json!(schema_for_contract::<portcove_core::LiveMods>(contract)),
+            ),
+            (
+                "mod_setups_view",
+                serde_json::json!(schema_for_contract::<portcove_core::ModSetupsView>(
+                    contract
+                )),
+            ),
+            (
+                "mod_code_review",
+                serde_json::json!(schema_for_contract::<portcove_core::ModCodeReview>(
+                    contract
+                )),
+            ),
+            (
+                "profile_revision",
+                serde_json::json!(schema_for_contract::<portcove_core::ProfileRevision>(
+                    contract
+                )),
             ),
             (
                 "game_update_plan",

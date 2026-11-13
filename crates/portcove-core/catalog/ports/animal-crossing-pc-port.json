@@ -3,9 +3,10 @@
   "order": 57,
   "listing": {
     "id": "animal-crossing-pc-port",
-    "name": "Animal Crossing PC Port",
-    "summary": "Native Animal Crossing GameCube port.",
-    "project_url": "https://github.com/flyngmt/ACGC-PC-Port",
+    "name": "Animal Crossing — Nookery",
+    "summary": "Play your own Animal Crossing GameCube disc with the native Nookery player, formerly ACGC-PC-Port.",
+    "project_url": "https://github.com/flyngmt/Nookery",
+    "listed_at": "2026-10-23",
     "original_game_title": "Animal Crossing",
     "artwork": {
       "game_id": 2655,
@@ -15,7 +16,51 @@
       "game_slug": "animal-crossing",
       "match_kind": "underlying-game"
     },
-    "issue_number": 108
+    "issue_number": 108,
+    "platforms": ["linux-x86-64", "macos-x86-64", "macos-aarch64"],
+    "availability": "packages",
+    "release_url": "https://github.com/flyngmt/Nookery/releases",
+    "setup_url": "https://github.com/flyngmt/Nookery#running-the-port-for-players",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Keep your original GameCube disc image",
+          "instruction": "Use an unmodified image of your own Animal Crossing USA Rev 0 disc, game ID GAFE01. Nookery lists ISO, RVZ, CISO and GCM. Select the image in Nookery and follow its verification prompts."
+        },
+        {
+          "title": "Open the Windows package",
+          "instruction": "Choose the official ZIP for Windows x64 or Windows ARM64. Extract the complete archive into a new writable folder and open Nookery.exe. Keep the package and its companions together."
+        },
+        {
+          "title": "Open the Linux package",
+          "instruction": "Choose the official Linux AppImage for x86-64 or ARM64. Mark it executable and open it. The inspected builds require glibc 2.39 or later. The usual data location is ~/.local/share/Nookery."
+        },
+        {
+          "title": "Open the macOS app",
+          "instruction": "Choose the official ZIP for Intel or Apple Silicon, then open the complete Nookery.app. The inspected apps require macOS 12 or later. Keep your data in the app’s current data folder, normally ~/Library/Application Support/Nookery."
+        },
+        {
+          "title": "Install the Android package",
+          "instruction": "On an ARM64 Android device, install the official APK using the system installer. Choose your disc image in Nookery. Open the Nookery documents provider for saves and other data. If it is missing from your file manager, try a file manager that supports system documents providers."
+        }
+      ],
+      "warnings": [
+        "The Nookery packages in this guide are installed and updated through upstream. The existing Portcove-managed Windows playtest uses AnimalCrossing.exe and its own retained setup and data contract.",
+        "Keep a separate backup before moving from a playtest or updating. Keep the original disc image, the old player and its data until you verify the town in Nookery.",
+        "Follow your operating system’s security prompts. For Android updates, back up data before installing a compatible update over the existing app."
+      ],
+      "help_url": "https://github.com/flyngmt/Nookery#data-folder",
+      "references": [
+        {
+          "title": "Find your town and settings",
+          "instruction": "On Windows the default data folder is beside Nookery.exe. On desktop, Settings > Data shows the active folder. The main town is under save/card_a; towns to visit go under save/card_b. Keep config.json, input.json, texture_pack and nes_roms in the active profile with your saves."
+        },
+        {
+          "title": "Bring a copy of a town to Nookery",
+          "instruction": "Use a backup of your own .gci save in the active save/card_a folder. Leave the old playtest folder and settings in place until you have checked the imported town."
+        }
+      ]
+    }
   },
   "integration": {
     "support_tier": "beta",
@@ -25,7 +70,7 @@
     "automated_tested_platforms": ["windows-x86-64"],
     "manually_validated_platforms": ["windows-x86-64"],
     "release": {
-      "repository": "flyngmt/ACGC-PC-Port",
+      "repository": "flyngmt/Nookery",
       "asset_hints": {
         "windows-x86-64": ["ACGC-PC-Port"]
       }
@@ -49,5 +94,51 @@
       ],
       "saves_and_settings": "portcove-managed"
     }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "animal-crossing-pc-port",
+    "origin": {
+      "project_url": "https://github.com/flyngmt/ACGC-PC-Port"
+    },
+    "decisions": [
+      {
+        "from": {
+          "project_url": "https://github.com/flyngmt/ACGC-PC-Port"
+        },
+        "to": {
+          "project_url": "https://github.com/flyngmt/Nookery",
+          "repository": {
+            "host": "github.com",
+            "id": "1177228792"
+          }
+        },
+        "relationship": "relocation",
+        "outcome": "accepted",
+        "rationale": "The upstream maintainer identifies Nookery as the renamed project. The original URL redirects to the current repository, whose original playtest tag is an ancestor of the stable Nookery tag. Preserve the Portcove identity and the retained managed playtest contract. The renamed packages have different setup, executable and data behavior.",
+        "evidence": [
+          {
+            "kind": "supporting",
+            "reference": "https://github.com/flyngmt/Nookery/blob/79f870a30b2f0743994d2ba2ead22e8f1c1e55f7/README.md",
+            "note": "The stable tagged README calls Nookery the former ACGC-PC-Port and describes the same Animal Crossing target."
+          },
+          {
+            "kind": "supporting",
+            "reference": "https://github.com/flyngmt/Nookery/compare/4099d246c927e75b4fd342ca13f4ac4395c55af5...79f870a30b2f0743994d2ba2ead22e8f1c1e55f7",
+            "note": "The former playtest commit 4099d246c927e75b4fd342ca13f4ac4395c55af5 is the merge base and an ancestor of Nookery v1.0.0."
+          },
+          {
+            "kind": "context",
+            "reference": "https://api.github.com/repos/flyngmt/ACGC-PC-Port",
+            "note": "The original GitHub API endpoint resolves to flyngmt/Nookery, repository ID 1177228792. The original authoring record did not bind a historical numeric identity."
+          }
+        ],
+        "reconsider_when": "A conflicting canonical maintainer statement or an independently verified repository identity or history discrepancy requires a new lineage decision. Changed packages require separate qualification.",
+        "review": {
+          "reference": "https://github.com/boburning/portcove/issues/4890#issuecomment-6809213780",
+          "decision_sha256": "b2d55bded3b7e31d339963dbb03873c7bbec07d48493b378f76a00aa5f666577"
+        }
+      }
+    ]
   }
 }

@@ -1,3 +1,4 @@
+import { createReleaseCustodyProvider } from "./release-custody-provider.mts";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { inspectPublicationAuthorities } from "./release-authority-configuration.mts";
@@ -229,13 +230,16 @@ function preimage() {
 const sha = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
 const oid = (type: string, bytes: Buffer) =>
   createHash("sha1").update(`${type} ${bytes.length}\0`).update(bytes).digest("hex");
-void test("bootstrap paths are bound to reconstructed Git trees, exact raw blobs and historical ratified preimage", () => {
+void test("bootstrap paths are bound to reconstructed Git trees, exact raw blobs and historical ratified preimage", async () => {
   const data = new Map([
     ["root.json", Buffer.from("root public bytes")],
     ["targets.json", Buffer.from("offline public bytes")],
     ["payload.json", Buffer.from("public registry")],
     ["preimage.json", Buffer.from(JSON.stringify(preimage()))],
   ]);
+  // Retain the coordinator recovery envelope for a real tree above 256 KiB.
+  for (let index = 0; index < 3000; index++)
+    data.set(`u${index.toString().padStart(4, "0")}`, Buffer.from("inert"));
   let rows = [...data]
     .sort(([a], [b]) => (a < b ? -1 : 1))
     .map(([path, bytes]) => ({ path, mode: "100644", type: "blob", sha: oid("blob", bytes) }));
@@ -263,39 +267,67 @@ void test("bootstrap paths are bound to reconstructed Git trees, exact raw blobs
     initial_site_preimage_sha256: sha(data.get("preimage.json")!),
   };
   let fault = "";
-  const api = {
-    request(method: string, endpoint: string) {
-      assert.equal(method, "GET");
-      let body: unknown;
-      if (endpoint.endsWith(`/git/commits/${commit.sha}`)) body = commit;
-      else if (endpoint.endsWith(`/git/trees/${tree}?recursive=1`))
-        body = {
-          sha: tree,
-          truncated: fault === "truncated",
-          tree: rows.map((row) =>
-            fault === "mode" && row.path === "root.json" ? { ...row, mode: "120000" } : row,
-          ),
-        };
-      else {
-        const row = rows.find((row) => endpoint.endsWith(`/git/blobs/${row.sha}`));
-        assert(row);
-        const bytes = data.get(row.path)!;
-        body = {
-          sha: row.sha,
-          size: bytes.length,
-          encoding: "base64",
-          content: (fault === "blob" ? Buffer.from("changed") : bytes).toString("base64"),
-        };
-      }
-      return { status: 200, body, headers: new Map<string, string>() };
+  const provider = {
+    async commit(oid: string) {
+      assert.equal(oid, commit.sha);
+      return commit;
+    },
+    async tree(oid: string) {
+      assert.equal(oid, tree);
+      return {
+        sha: tree,
+        truncated: fault === "truncated",
+        tree: rows.map((row) =>
+          fault === "mode" && row.path === "root.json" ? { ...row, mode: "120000" } : row,
+        ),
+      };
+    },
+    async blob(oid: string) {
+      const row = rows.find((row) => row.sha === oid);
+      assert.ok(row);
+      const bytes = data.get(row.path)!;
+      return {
+        sha: row.sha,
+        size: bytes.length,
+        encoding: "base64",
+        content: (fault === "blob" ? Buffer.from("changed") : bytes).toString("base64"),
+      };
     },
   };
-  const result = readBootstrapPublicSource(
-    api,
-    value,
-    "2026-10-20T00:00:00Z",
-    performance.now() + 10000,
-  );
+  const deadline = performance.now() + 10000;
+  const reads: string[] = [];
+  const sdk = await createReleaseCustodyProvider({
+    token: "synthetic-bootstrap-reader",
+    deadline,
+    maxBytes: 2 * 1024 ** 2,
+    fetch: async (input, init) => {
+      assert.ok(typeof input === "string");
+      const url = new URL(input);
+      assert.equal(url.origin, "https://api.github.com");
+      assert.equal(init?.method, "GET");
+      assert.equal(
+        new Headers(init?.headers).get("authorization"),
+        "token synthetic-bootstrap-reader",
+      );
+      const match =
+        /^\/repos\/boburning\/portcove\/git\/(commits|trees|blobs)\/([0-9a-f]{40})$/u.exec(
+          url.pathname,
+        );
+      assert.ok(match);
+      const oid = match[2]!;
+      reads.push(match[1]!);
+      assert.equal(url.search, match[1] === "trees" ? "?recursive=1" : "");
+      if (match[1] === "commits") return Response.json(await provider.commit(oid));
+      if (match[1] === "trees") {
+        const body = JSON.stringify(await provider.tree(oid));
+        assert.ok(Buffer.byteLength(body) > 256 * 1024);
+        return new Response(body, { headers: { "content-type": "application/json" } });
+      }
+      return Response.json(await provider.blob(oid));
+    },
+  });
+  const result = await readBootstrapPublicSource(sdk, value, "2026-10-20T00:00:00Z", deadline);
+  assert.deepEqual(reads, ["commits", "trees", "blobs", "blobs", "blobs", "blobs"]);
   assert.equal(result.api_reads, 6);
   assert.deepEqual(result.files.get("initial_site_preimage"), data.get("preimage.json"));
   const catalog = {
@@ -332,8 +364,8 @@ void test("bootstrap paths are bound to reconstructed Git trees, exact raw blobs
       ],
     },
   };
-  const catalogResult = readCatalogBootstrapPublicSource(
-    api,
+  const catalogResult = await readCatalogBootstrapPublicSource(
+    provider,
     catalog,
     "2026-10-20T00:00:00Z",
     performance.now() + 10000,
@@ -343,8 +375,8 @@ void test("bootstrap paths are bound to reconstructed Git trees, exact raw blobs
   assert.equal(catalogResult.authority, "none");
   assert.deepEqual(catalogResult.files.get("initial_site_preimage"), data.get("preimage.json"));
   const selected = selectedPublicationAuthoritiesFixture("catalog-publication");
-  const selectedResult = readCatalogBootstrapPublicSource(
-    api,
+  const selectedResult = await readCatalogBootstrapPublicSource(
+    provider,
     {
       ...selected,
       journal: { ...selected.journal, setup_plan_sha256: catalog.catalog.setup_plan_sha256 },
@@ -356,38 +388,36 @@ void test("bootstrap paths are bound to reconstructed Git trees, exact raw blobs
   assert.deepEqual(selectedResult.files, catalogResult.files);
   assert.equal(selectedResult.api_reads, catalogResult.api_reads);
   assert.equal(selectedResult.authority, "none");
-  assert.throws(
-    () =>
-      readCatalogBootstrapPublicSource(
-        api,
-        selectedPublicationAuthoritiesFixture("application"),
-        "2026-10-20T00:00:00Z",
-        performance.now() + 10000,
-      ),
+  await assert.rejects(
+    readCatalogBootstrapPublicSource(
+      provider,
+      selectedPublicationAuthoritiesFixture("application"),
+      "2026-10-20T00:00:00Z",
+      performance.now() + 10000,
+    ),
     /catalog purpose/,
   );
   const { initial_site_preimage: _catalogPreimage, ...noPreimage } = catalog.catalog.public_source;
-  assert.throws(
-    () =>
-      readCatalogBootstrapPublicSource(
-        api,
-        { ...catalog, catalog: { ...catalog.catalog, public_source: noPreimage } },
-        "2026-10-20T00:00:00Z",
-        performance.now() + 10000,
-      ),
+  await assert.rejects(
+    readCatalogBootstrapPublicSource(
+      provider,
+      { ...catalog, catalog: { ...catalog.catalog, public_source: noPreimage } },
+      "2026-10-20T00:00:00Z",
+      performance.now() + 10000,
+    ),
     /explicit catalog/,
   );
   for (fault of ["mode", "truncated", "blob"]) {
-    assert.throws(() =>
+    await assert.rejects(
       readCatalogBootstrapPublicSource(
-        api,
+        provider,
         catalog,
         "2026-10-20T00:00:00Z",
         performance.now() + 10000,
       ),
     );
-    assert.throws(() =>
-      readBootstrapPublicSource(api, value, "2026-10-20T00:00:00Z", performance.now() + 10000),
+    await assert.rejects(
+      readBootstrapPublicSource(provider, value, "2026-10-20T00:00:00Z", performance.now() + 10000),
     );
   }
   assert.throws(
@@ -443,8 +473,8 @@ void test("bootstrap paths are bound to reconstructed Git trees, exact raw blobs
   value.public_source.commit = commit.sha;
   value.public_source.initial_site_preimage = pin("preimage.json");
   value.initial_site_preimage_sha256 = pin("preimage.json").sha256;
-  const overCatalog = readBootstrapPublicSource(
-    api,
+  const overCatalog = await readBootstrapPublicSource(
+    provider,
     value,
     "2026-10-20T00:00:00Z",
     performance.now() + 10000,
@@ -458,14 +488,13 @@ void test("bootstrap paths are bound to reconstructed Git trees, exact raw blobs
   );
   catalog.catalog.public_source.commit = commit.sha;
   catalog.catalog.public_source.initial_site_preimage = pin("preimage.json");
-  assert.throws(
-    () =>
-      readCatalogBootstrapPublicSource(
-        api,
-        catalog,
-        "2026-10-20T00:00:00Z",
-        performance.now() + 10000,
-      ),
+  await assert.rejects(
+    readCatalogBootstrapPublicSource(
+      provider,
+      catalog,
+      "2026-10-20T00:00:00Z",
+      performance.now() + 10000,
+    ),
     /historical/,
   );
 });
@@ -487,26 +516,37 @@ void test("fresh bootstrap bracket uses configured Pages plus public404s without
   };
   const calls: string[] = [];
   let fault = "";
-  const api = {
-    request(method: string, endpoint: string) {
-      assert.equal(method, "GET");
+  const sdk = await createReleaseCustodyProvider({
+    token: "synthetic-site-reader",
+    deadline: performance.now() + 10000,
+    fetch: async (input, init) => {
+      assert.ok(typeof input === "string");
+      const url = new URL(input);
+      assert.equal(url.origin, "https://api.github.com");
+      assert.equal(url.search, "");
+      assert.equal(init?.method, "GET");
+      assert.equal(new Headers(init?.headers).get("authorization"), "token synthetic-site-reader");
+      const endpoint = url.pathname;
+      assert.ok(
+        ["/repos/boburning/portcove", "/repos/boburning/portcove/pages"].includes(endpoint),
+      );
       calls.push(endpoint);
-      assert(["repos/boburning/portcove", "repos/boburning/portcove/pages"].includes(endpoint));
-      const body = endpoint.endsWith("/pages")
-        ? {
-            ...pages,
-            ...(fault === "cname"
-              ? { cname: "other.invalid" }
-              : fault === "https"
-                ? { https_enforced: false }
-                : fault === "legacy"
-                  ? { build_type: "legacy" }
-                  : {}),
-          }
-        : repo;
-      return { status: 200, body, headers: new Map<string, string>() };
+      return Response.json(
+        endpoint.endsWith("/pages")
+          ? {
+              ...pages,
+              ...(fault === "cname"
+                ? { cname: "other.invalid" }
+                : fault === "https"
+                  ? { https_enforced: false }
+                  : fault === "legacy"
+                    ? { build_type: "legacy" }
+                    : {}),
+            }
+          : repo,
+      );
     },
-  };
+  });
   const fakeFetch: typeof fetch = async (url) => {
     const response = new Response(null, { status: fault === "present" ? 200 : 404 });
     Object.defineProperty(response, "url", {
@@ -514,18 +554,23 @@ void test("fresh bootstrap bracket uses configured Pages plus public404s without
     });
     return response;
   };
-  const result = await readConfiguredBootstrapSite(api, performance.now() + 10000, {
+  const result = await readConfiguredBootstrapSite(sdk, performance.now() + 10000, {
     fetch: fakeFetch,
   });
   assert.equal(result.public_routes.length, 4);
-  assert.equal(calls.length, 4);
+  assert.deepEqual(calls, [
+    "/repos/boburning/portcove",
+    "/repos/boburning/portcove/pages",
+    "/repos/boburning/portcove",
+    "/repos/boburning/portcove/pages",
+  ]);
   assert.match(result.scope, /remains historical/);
   for (fault of ["cname", "https", "legacy", "present"])
     await assert.rejects(
-      readConfiguredBootstrapSite(api, performance.now() + 10000, { fetch: fakeFetch }),
+      readConfiguredBootstrapSite(sdk, performance.now() + 10000, { fetch: fakeFetch }),
     );
   calls.length = 0;
-  await assert.rejects(readConfiguredBootstrapSite(api, NaN, { fetch: fakeFetch }), /deadline/);
+  await assert.rejects(readConfiguredBootstrapSite(sdk, NaN, { fetch: fakeFetch }), /deadline/);
   assert.equal(calls.length, 0);
 });
 
@@ -629,26 +674,22 @@ void test("catalog-only setup pins retain real complete public custody and sole 
     globalThis.fetch = actualFetch;
   });
   const api = {
-    request(method: string, endpoint: string) {
-      assert.equal(method, "GET");
+    async repository() {
       return {
-        status: 200,
-        body: endpoint.endsWith("/pages")
-          ? {
-              url: provider.url,
-              build_type: provider.build_type,
-              html_url: provider.html_url,
-              cname: null,
-              https_enforced: true,
-              public: true,
-            }
-          : {
-              id: 1354613114,
-              full_name: "boburning/portcove",
-              private: false,
-              owner: { id: 43177418, login: "boburning" },
-            },
-        headers: new Map<string, string>(),
+        id: 1354613114,
+        full_name: "boburning/portcove",
+        private: false,
+        owner: { id: 43177418, login: "boburning" },
+      };
+    },
+    async pages() {
+      return {
+        url: provider.url,
+        build_type: provider.build_type,
+        html_url: provider.html_url,
+        cname: null,
+        https_enforced: true,
+        public: true,
       };
     },
   };

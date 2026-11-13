@@ -1,3 +1,4 @@
+import { captureParityState } from "../../test/parity-capture";
 import { render as renderComponent, cleanup } from "vitest-browser-react";
 import { page, userEvent } from "vite-plus/test/browser";
 import { afterEach, beforeEach, expect, it, vi } from "vite-plus/test";
@@ -136,7 +137,7 @@ it("opens and scans the Inbox, then applies the exact reviewed import", async ()
     .mockResolvedValue(plan);
   const importSource = vi
     .spyOn(desktopApi, "importSource")
-    .mockImplementation(async (_profile, _path, _mode, _plan, emit) => {
+    .mockImplementation(async (_profile, _path, _mode, _plan, _generation, emit) => {
       emit?.({
         schema_version: 2,
         parent_operation_id: null,
@@ -176,7 +177,12 @@ it("opens and scans the Inbox, then applies the exact reviewed import", async ()
   };
   try {
     await root.rerender(
-      <SourceDiscoveryButton profiles={[profile]} disabled={false} onAdded={refresh} />,
+      <SourceDiscoveryButton
+        generation={7}
+        profiles={[profile]}
+        disabled={false}
+        onAdded={refresh}
+      />,
     );
     await click("Find required files");
     const searchField = document.body.querySelector<HTMLInputElement>("#source-search-root");
@@ -192,6 +198,12 @@ it("opens and scans the Inbox, then applies the exact reviewed import", async ()
       "Searching does not upload or move your files. After finding a match, choose whether to use it where it is, copy it into Portcove, or move it.",
     );
     await page.getByRole("combobox", { name: /^Required files/ }).click();
+    // The portal can mount after the browser click completes its input events.
+    await expect
+      .poll(() =>
+        document.body.querySelector<HTMLElement>('[data-slot="select-content"][data-open]'),
+      )
+      .not.toBeNull();
     const openPopup = document.body.querySelector<HTMLElement>(
       '[data-slot="select-content"][data-open]',
     );
@@ -229,6 +241,7 @@ it("opens and scans the Inbox, then applies the exact reviewed import", async ()
     expect(document.body.textContent).toContain("temporarily move some files outside it");
     expect(document.body.textContent).not.toContain("Result count");
     expect(document.body.textContent).not.toContain("not-a-match.iso");
+    await captureParityState("source-discovery-incomplete-scan-fixture");
     await click("Search this folder");
     expect(search).toHaveBeenCalledWith(
       {
@@ -263,19 +276,21 @@ it("opens and scans the Inbox, then applies the exact reviewed import", async ()
     await click("Review copy");
     expect(review).toHaveBeenCalledWith(profile.id, candidate.path, "copy");
     expect(document.body.textContent).toContain("Source changed after discovery");
+    await captureParityState("source-discovery-changed-source-fixture");
     await click("Review copy");
     expect(document.body.textContent).toContain(plan.destination);
     expect(plan.admission_mode).toBe("exact_identity");
     const renderedReview = document.body.querySelector('[aria-label="Source import review"]');
     expect(renderedReview?.textContent).toContain(profile.label);
-    expect(renderedReview?.textContent).toContain("Source check: Exact identity");
-    expect(renderedReview?.textContent).toContain("Additional file data planned: 64 B");
+    expect(renderedReview?.textContent).toContain("File check: Edition identified");
+    expect(renderedReview?.textContent).toContain("Additional space needed: 64 B");
     await click("Copy into Portcove");
     expect(importSource).toHaveBeenCalledWith(
       profile.id,
       candidate.path,
       "copy",
       plan.plan_sha256,
+      7,
       expect.any(Function),
     );
     expect(refresh).toHaveBeenCalledOnce();
@@ -340,7 +355,9 @@ it("keeps cancellation tied to the emitted durable operation", async () => {
     await userEvent.click(control(label));
   };
   try {
-    await root.rerender(<SourceDiscoveryButton profiles={[profile]} disabled={false} />);
+    await root.rerender(
+      <SourceDiscoveryButton generation={7} profiles={[profile]} disabled={false} />,
+    );
     await click("Find required files");
     await click("Choose folder");
     await page.getByRole("combobox", { name: /^Required files/ }).click();

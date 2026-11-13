@@ -32,13 +32,12 @@ import type { ControllerToolArtifactExpected } from "./release-controller-tool-a
 import { readControllerToolFile } from "./release-controller-tools.mts";
 import { inspectPayloadPreparationConfiguration } from "./release-payload-preparation.mts";
 import { authenticateReleaseControlRound } from "./release-live-control-admission.mts";
-import { createGitHubRunner, GitHubApiClient } from "./github-api.mts";
-import { releaseControlRefQuery } from "./release-control-inputs.mts";
+import { fixedReleaseReaderToken } from "./release-readonly-child-environment.mts";
 import { releaseCanonicalDigest as digest } from "./release-canonical.mts";
 import { readRemoteCoordinatorSnapshot } from "./release-coordinator-recovery.mts";
 import { requireReservedAggregate } from "./production-aggregate-steps.mts";
 import { isRecord } from "./runtime-values.mts";
-import { currentPayloadJobDeadline } from "./release-signing-job-budget.mts";
+import { currentControllerJobDeadline } from "./release-signing-job-budget.mts";
 
 export async function runPayloadSigningAndContextController(
   configuration: unknown,
@@ -85,39 +84,11 @@ export async function runPayloadSigningAndContextController(
       digest(context.facts),
       "payload",
       round,
-      { deadline },
+      { deadline, controlReader: "payload" },
     );
     if (source.evidence_scope !== "github.com")
       throw new Error("actual payload context controls required");
-    let requests = 0;
-    const api = new GitHubApiClient((args, input) => {
-      if (++requests > 32) throw new Error("context control read bound exhausted");
-      const response = createGitHubRunner({
-        cwd: directory,
-        maxBuffer: 2 * 1024 ** 2,
-        timeoutMs: signingContextRemaining(deadline, 15000),
-      })([...args, "--hostname", "github.com"], input);
-      signingContextRemaining(deadline, 15000);
-      return response;
-    });
-    const current = source.read(
-      {
-        request(method, endpoint, body) {
-          if (
-            method !== "GET" ||
-            body !== undefined ||
-            !endpoint.startsWith("repos/boburning/portcove/")
-          )
-            throw new Error("context controls permit only fixed repository reads");
-          return api.request(method, endpoint);
-        },
-        graphql(query, variables) {
-          if (query !== releaseControlRefQuery) throw new Error("context control query differs");
-          return api.graphql(query, variables);
-        },
-      },
-      context.opportunity,
-    );
+    const current = await source.readSdkApplicationControls(context.opportunity);
     if (
       current.pause.publication_paused ||
       !current.resource_policy_matches_controller ||
@@ -128,10 +99,11 @@ export async function runPayloadSigningAndContextController(
       throw new Error("current context controls differ from actual admission");
     return current;
   };
+  const transport = { credential: { token: fixedReleaseReaderToken() }, deadline };
   const guard = async () => {
     await fresh();
     const snapshot = await readRemoteCoordinatorSnapshot(directory, coordinator, {
-      transport: { cwd: directory, deadline },
+      transport,
     });
     await requireReservedAggregate(
       JSON.stringify({
@@ -172,6 +144,9 @@ export async function runPayloadSigningAndContextController(
         evidence_sha256: digest(handoff),
       };
     },
+    async () => {
+      await fresh();
+    },
   );
   if (!handoff) throw new Error("actual context artifact custody missing");
   signingContextRemaining(deadline, 15000);
@@ -197,6 +172,7 @@ export async function runFixedPayloadContextConfiguration(
   deadline: number,
 ) {
   tightenPayloadSigningPhaseDeadline(deadline);
+  raw = structuredClone(raw);
   if (
     !isRecord(raw) ||
     Object.keys(raw).sort().join(",") !== "configuration,native_locators,signer_identity,tools" ||
@@ -208,9 +184,9 @@ export async function runFixedPayloadContextConfiguration(
   )
     throw new Error("fixed payload/context caller fields differ");
   tightenPayloadSigningPhaseDeadline(
-    currentPayloadJobDeadline(
+    await currentControllerJobDeadline(
+      "payload",
       inspectAssemblerIdentityExpectation(raw.signer_identity),
-      parent,
       payloadSigningPhaseDeadline(),
     ),
   );

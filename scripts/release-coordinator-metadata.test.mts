@@ -5,6 +5,25 @@ import {
   recordPublishedMetadata,
 } from "./release-capacity-operation.mts";
 import { metadataFixture } from "./fixtures/release-metadata-fixture.mts";
+import {
+  servedNativeBootstrapRenewal,
+  servedV13BootstrapRenewal,
+  standaloneBootstrapAdoption,
+  standaloneBootstrapForwardAdoption,
+  standaloneBootstrapRenewalAdoption,
+  validatePublishedMetadataTransition,
+} from "./release-metadata-contract.mts";
+import { currentPublishedSite } from "./release-catalog-metadata-contract.mts";
+import {
+  assertRetainedBootstrapForwardRenewal,
+  assertRetainedBootstrapRenewal,
+  assertStandaloneBootstrapAdoptionCapacity,
+} from "./release-catalog-bootstrap-adoption.mts";
+import {
+  retainedR55Renewal,
+  retainedR56FeedRecovery,
+  retainedServedRenewal,
+} from "./application-release-run.mts";
 import { isDeepStrictEqual } from "node:util";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
@@ -32,7 +51,10 @@ import {
 import type { CoordinatorRemoteApi } from "./release-coordinator-remote.mts";
 import { inspectCoordinatorCheckpointEvidence } from "./release-coordinator-checkpoint-evidence.mts";
 import { performance } from "node:perf_hooks";
-import { checkpointProofFixture } from "./fixtures/checkpoint-proof-fixture.mts";
+import {
+  checkpointProofFixture,
+  releaseCustodyFetch,
+} from "./fixtures/checkpoint-proof-fixture.mts";
 import { authenticateCoordinatorCheckpointEvidence } from "./release-coordinator-checkpoint-authentication.mts";
 import { withReadOnlyReleaseChildren } from "./release-readonly-child-environment.mts";
 import childProcess from "node:child_process";
@@ -44,6 +66,598 @@ import {
   checkpointEvidence,
   remoteCapacityFixture,
 } from "./fixtures/coordinator-state-fixtures.mts";
+
+void test("standalone bootstrap adoption requires current eligible catalog capacity", () => {
+  const catalog = {
+    phase: "coordinator",
+    purpose: "catalog-coordinator-controls",
+    resource_policy_matches_controller: true,
+    capacity_source: { report: { eligibility: "eligible" } },
+  };
+  assertStandaloneBootstrapAdoptionCapacity(catalog);
+  for (const changed of [
+    { ...catalog, purpose: "metadata-coordinator-controls" },
+    { ...catalog, phase: "site-publication" },
+    { ...catalog, resource_policy_matches_controller: false },
+    { ...catalog, capacity_source: { report: { eligibility: "ineligible" } } },
+    { ...catalog, capacity_source: {} },
+  ])
+    assert.throws(() => assertStandaloneBootstrapAdoptionCapacity(changed), /ineligible/u);
+});
+
+void test("one settled standalone bootstrap can seed the app-only cursor without replacing its abandoned descriptor", async (t) => {
+  const generation: string = standaloneBootstrapAdoption.generation;
+  const { run_id, feed_job_id } = standaloneBootstrapAdoption;
+  const versions = {
+    targets: "1",
+    releases: "1",
+    preview: "1",
+    stable: "1",
+    snapshot: "1",
+    timestamp: "1",
+  };
+  const root = "17de1676cd26c4bd2867d3a7941793147b94670d027e7846557d813bc9f43f92";
+  const offline = "377ca58a2535229056afe552ca34035c3c0791fe4b8ac1a3a0b861dfc2782642";
+  const emptyRecords = "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945";
+  const offlineExpiry = "2027-01-30T14:53:29Z";
+  const before = {
+    active_candidate: null,
+    metadata_bootstrap: {
+      schema_version: 1,
+      kind: "application-tuf-initial-bootstrap",
+      generated_at: "2026-11-03T21:20:37Z",
+      setup_plan_sha256: "fa78511a152452f1ff702a8ef4bf846dfc89f48735c30ae637e95dd0643def1c",
+      initial_site_preimage_sha256:
+        "82c2fdde9c53051f265a702c3e92b1c2e93a1fd0b973b23022da6750e9846767",
+      root_sha256: root,
+      offline_targets_sha256: offline,
+      payload_key_registry_sha256:
+        "3e7738e2e1a87484fa07dcca36c3a35c07f9a53473f65a21d59bbcc3d40ffa10",
+      initial_records_sha256: emptyRecords,
+      versions,
+      expires: {
+        targets: offlineExpiry,
+        releases: offlineExpiry,
+        preview: "2026-11-10T21:20:37Z",
+        stable: "2026-11-10T21:20:37Z",
+        snapshot: "2026-11-10T21:20:37Z",
+        timestamp: "2026-11-05T21:20:37Z",
+      },
+    },
+  };
+  const after = {
+    ...before,
+    now: "2026-11-07T19:00:00.000Z",
+    published_metadata: {
+      schema_version: 1,
+      root_sha256: root,
+      offline_targets_sha256: offline,
+      records_sha256: emptyRecords,
+      repository_sha256: "c4017f8aba6b1fce353eb005564e23d909bd72bd6133d1ef840741929839f38b",
+      timestamp_sha256: "7f2402319ea2268453d58807d27bd7e7c924ed14f08a1c16d96a6618cf1ebc19",
+      snapshot_sha256: "929ce9769c40883c3329122da6b90adbeedf11e5297d8931e55047056131a2e1",
+      operation_id: null,
+      standalone_bootstrap_run: run_id,
+      versions,
+      expires: {
+        targets: offlineExpiry,
+        releases: offlineExpiry,
+        preview: "2026-11-13T02:32:54Z",
+        stable: "2026-11-13T02:32:54Z",
+        snapshot: "2026-11-13T02:32:54Z",
+        timestamp: "2026-11-08T02:32:54Z",
+      },
+      publication: {
+        remote_identity: `https://github.com/boburning/portcove/actions/runs/${run_id}/job/${feed_job_id}`,
+        site_generation_sha256: generation,
+        evidence_sha256: "a".repeat(64),
+      },
+    },
+  };
+  validatePublishedMetadataTransition(before, after, null);
+  assert.equal(currentPublishedSite(after)?.generation_sha256, generation);
+  assert.equal(currentPublishedSite(after)?.components.catalog, null);
+  assert.throws(() => validatePublishedMetadataTransition(before, after, { outcome: "pending" }));
+  assert.throws(() => validatePublishedMetadataTransition(before, after, { outcome: "succeeded" }));
+  assert.throws(() =>
+    validatePublishedMetadataTransition({ ...before, catalog_review_request: {} }, after, null),
+  );
+  assert.throws(
+    () =>
+      validatePublishedMetadataTransition(
+        before,
+        { ...after, now: "2026-11-08T02:32:54.000Z" },
+        null,
+      ),
+    /expired standalone/,
+  );
+  const { standalone_bootstrap_run: _outside, ...ordinary } = after.published_metadata;
+  assert.throws(
+    () =>
+      validatePublishedMetadataTransition(before, { ...after, published_metadata: ordinary }, null),
+    /differs from exact bootstrap descriptor/,
+  );
+  const tampered = structuredClone(after);
+  tampered.published_metadata.publication.site_generation_sha256 = "a".repeat(64);
+  assert.throws(() => validatePublishedMetadataTransition(before, tampered, null));
+  tampered.published_metadata.publication.site_generation_sha256 = generation;
+  tampered.published_metadata.snapshot_sha256 = "a".repeat(64);
+  assert.throws(() => validatePublishedMetadataTransition(before, tampered, null));
+  const renewalRun = "42400000001";
+  const renewal = {
+    ...after,
+    now: "2026-11-08T07:00:00.000Z",
+    published_metadata: {
+      ...after.published_metadata,
+      standalone_bootstrap_run: renewalRun,
+      repository_sha256: "2f09956c9673b69a37fff2556e611af654adf4141f80ffc24a2d207d7873354e",
+      timestamp_sha256: "5eea7d893c9481a9a5fb27e582abe2b7b96c9a8b456dfc0c23aa9f1e808ae9c8",
+      snapshot_sha256: "688832524d9e95286975bc9f24c00b7a3961357e94c5a37ee2dbdaa41af71e01",
+      versions: {
+        targets: "1",
+        releases: "5",
+        preview: "5",
+        stable: "5",
+        snapshot: "5",
+        timestamp: "5",
+      },
+      expires: {
+        targets: offlineExpiry,
+        releases: "2027-02-06T06:01:34.664Z",
+        preview: "2026-11-15T06:01:34.664Z",
+        stable: "2026-11-15T06:01:34.664Z",
+        snapshot: "2026-11-15T06:01:34.664Z",
+        timestamp: "2026-11-10T06:01:34.664Z",
+      },
+      publication: {
+        ...after.published_metadata.publication,
+        remote_identity: `https://github.com/boburning/portcove/actions/runs/${renewalRun}/job/128600000001`,
+        site_generation_sha256: standaloneBootstrapRenewalAdoption.generation,
+      },
+    },
+  };
+  validatePublishedMetadataTransition(before, renewal, null);
+  const pin = standaloneBootstrapForwardAdoption;
+  const predecessor = {
+    ...renewal,
+    published_metadata: {
+      ...renewal.published_metadata,
+      standalone_bootstrap_run: pin.prior_run_id,
+      publication: {
+        ...renewal.published_metadata.publication,
+        remote_identity: `https://github.com/boburning/portcove/actions/runs/${pin.prior_run_id}/job/${pin.prior_job_id}`,
+      },
+    },
+  };
+  const forwardFacts = {
+    ...after.published_metadata,
+    repository_sha256: "c60ac310b3f6a7ccd118dce45314fa40e09b5db9c397fde469d546541b80c014",
+    timestamp_sha256: "ec9e767be018497ebb6a6b33b2bbe5857d71f33e730155a26aaa57fb410e2bcd",
+    snapshot_sha256: "57fe74fc121326f45788c5ca36bf1dba128e0f65686b46cb9e18456de4e5fe06",
+    versions: {
+      targets: "1",
+      releases: "7",
+      preview: "7",
+      stable: "7",
+      snapshot: "7",
+      timestamp: "7",
+    },
+    expires: {
+      targets: offlineExpiry,
+      releases: "2027-02-07T07:10:19.735Z",
+      preview: "2026-11-16T07:10:19.735Z",
+      stable: "2026-11-16T07:10:19.735Z",
+      snapshot: "2026-11-16T07:10:19.735Z",
+      timestamp: "2026-11-11T07:10:19.735Z",
+    },
+  };
+  const forward = {
+    ...predecessor,
+    now: "2026-11-10T08:00:00.000Z",
+    published_metadata: {
+      ...forwardFacts,
+      standalone_bootstrap_run: pin.run_id,
+      publication: {
+        ...predecessor.published_metadata.publication,
+        remote_identity: `https://github.com/boburning/portcove/actions/runs/${pin.run_id}/job/${pin.feed_job_id}`,
+        site_generation_sha256: pin.generation,
+      },
+    },
+  };
+  validatePublishedMetadataTransition(predecessor, forward, null);
+  assert.equal(currentPublishedSite(forward)?.generation_sha256, pin.generation);
+  for (const prior of [
+    before,
+    renewal,
+    { ...predecessor, review_request: {} },
+    { ...predecessor, published_site: null },
+  ])
+    assert.throws(
+      () => validatePublishedMetadataTransition(prior, forward, null),
+      /exact predecessor/u,
+    );
+  assert.throws(
+    () =>
+      validatePublishedMetadataTransition(
+        predecessor,
+        { ...forward, now: "2026-11-11T08:00:00.000Z" },
+        null,
+      ),
+    /expired standalone bootstrap/u,
+  );
+  const native = servedNativeBootstrapRenewal;
+  const superseded = {
+    schema_version: 1,
+    kind: "application-tuf-metadata-renewal",
+    generated_at: "2026-11-10T09:06:10Z",
+    root_sha256: forwardFacts.root_sha256,
+    offline_targets_sha256: forwardFacts.offline_targets_sha256,
+    unchanged_records_sha256: forwardFacts.records_sha256,
+    prior_repository_sha256: forwardFacts.repository_sha256,
+    prior_timestamp_sha256: forwardFacts.timestamp_sha256,
+    prior_snapshot_sha256: forwardFacts.snapshot_sha256,
+    current_versions: forwardFacts.versions,
+    current_expires: forwardFacts.expires,
+    next_versions: {
+      targets: "1",
+      releases: "8",
+      preview: "8",
+      stable: "8",
+      snapshot: "8",
+      timestamp: "8",
+    },
+    next_expires: {
+      targets: offlineExpiry,
+      releases: "2027-02-08T09:06:10Z",
+      preview: "2026-11-17T09:06:10Z",
+      stable: "2026-11-17T09:06:10Z",
+      snapshot: "2026-11-17T09:06:10Z",
+      timestamp: "2026-11-12T09:06:10Z",
+    },
+  };
+  const operation = {
+    id: native.settled_operation_id,
+    kind: "upload",
+    outcome: "recovered",
+    completed_effects: [],
+    metadata_renewal: { descriptor_sha256: native.superseded_descriptor_sha256 },
+    recovery: { resolution: "effect-not-applied" },
+  };
+  const servedBefore = {
+    ...forward,
+    metadata_renewal: superseded,
+    review_request: { preserved: "exact request" },
+    controller: { capacity_attempt: { operation } },
+  };
+  const servedAfter = {
+    ...servedBefore,
+    now: "2026-11-11T17:00:00.000Z",
+    metadata_renewal: null,
+    published_metadata: {
+      ...forward.published_metadata,
+      standalone_bootstrap_run: native.run_id,
+      repository_sha256: "666abbccb87032ddd004bdeff0b70a3b7a01288baa21adb9811c8c1f9d753489",
+      timestamp_sha256: "8f8be74a893ee13e9323febbf86dd20ebbc5b18b849b41a2a2d2c659504504cd",
+      snapshot_sha256: "28cb551261a42f71cdfd744c8025121f41141f44293e17ca02277e083fe26045",
+      versions: superseded.next_versions,
+      expires: {
+        targets: offlineExpiry,
+        releases: "2027-02-09T12:28:07.71Z",
+        preview: "2026-11-18T12:28:07.71Z",
+        stable: "2026-11-18T12:28:07.71Z",
+        snapshot: "2026-11-18T12:28:07.71Z",
+        timestamp: "2026-11-13T12:28:07.71Z",
+      },
+      publication: {
+        ...forward.published_metadata.publication,
+        remote_identity: `https://github.com/boburning/portcove/actions/runs/${native.run_id}/job/${native.feed_job_id}`,
+        site_generation_sha256: native.generation,
+      },
+    },
+  };
+  validatePublishedMetadataTransition(servedBefore, servedAfter, operation);
+  assert.equal(currentPublishedSite(servedAfter)?.generation_sha256, native.generation);
+  for (const edited of [
+    { ...servedAfter, metadata_renewal: superseded },
+    { ...servedAfter, review_request: null },
+    {
+      ...servedAfter,
+      controller: { capacity_attempt: { operation: { ...operation, completed_effects: [{}] } } },
+    },
+  ])
+    assert.throws(
+      () => validatePublishedMetadataTransition(servedBefore, edited, operation),
+      /exact settled journal preimage/u,
+    );
+  assert.throws(
+    () =>
+      validatePublishedMetadataTransition(
+        servedBefore,
+        { ...servedAfter, now: "2026-11-13T12:28:07.710Z" },
+        operation,
+      ),
+    /expired standalone bootstrap/u,
+  );
+  const v13 = servedV13BootstrapRenewal;
+  const recovered = {
+    ...servedAfter,
+    now: "2026-11-13T03:00:00.000Z",
+    published_metadata: {
+      ...servedAfter.published_metadata,
+      ...{
+        schema_version: 1,
+        root_sha256: "17de1676cd26c4bd2867d3a7941793147b94670d027e7846557d813bc9f43f92",
+        offline_targets_sha256: "377ca58a2535229056afe552ca34035c3c0791fe4b8ac1a3a0b861dfc2782642",
+        repository_sha256: "3f73d720ecaa86faf39ef4dca86d09303bd943a68568d8e2b4863a36734a5111",
+        timestamp_sha256: "2c350953323600794c7ae3424d6cd4406fdfc040c7eb68f8861c6055ea967b65",
+        snapshot_sha256: "f294e7c8b5e0b625b81d9f8ab2280cd5eb34d1a12303d615aa02dc2044873884",
+        records_sha256: "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        versions: {
+          preview: "13",
+          releases: "13",
+          snapshot: "13",
+          stable: "13",
+          targets: "1",
+          timestamp: "13",
+        },
+        expires: {
+          preview: "2026-11-20T00:47:28.285Z",
+          releases: "2027-02-11T00:47:28.285Z",
+          snapshot: "2026-11-20T00:47:28.285Z",
+          stable: "2026-11-20T00:47:28.285Z",
+          targets: "2027-01-30T14:53:29Z",
+          timestamp: "2026-11-15T00:47:28.285Z",
+        },
+      },
+      standalone_bootstrap_run: v13.run_id,
+      publication: {
+        ...servedAfter.published_metadata.publication,
+        remote_identity: `https://github.com/boburning/portcove/actions/runs/${v13.run_id}/job/${v13.feed_job_id}`,
+        site_generation_sha256: v13.generation,
+      },
+    },
+  };
+  validatePublishedMetadataTransition(servedAfter, recovered, operation);
+  assert.equal(currentPublishedSite(recovered)?.generation_sha256, v13.generation);
+  assert.throws(() =>
+    validatePublishedMetadataTransition(
+      servedAfter,
+      {
+        ...recovered,
+        published_metadata: {
+          ...recovered.published_metadata,
+          publication: {
+            ...recovered.published_metadata.publication,
+            remote_identity: servedAfter.published_metadata.publication.remote_identity,
+          },
+        },
+      },
+      operation,
+    ),
+  );
+  assert.throws(
+    () =>
+      validatePublishedMetadataTransition(
+        servedAfter,
+        {
+          ...recovered,
+          now: "2026-11-15T00:47:28.285Z",
+        },
+        operation,
+      ),
+    /expired standalone bootstrap/u,
+  );
+  const {
+    publication: _forwardPublication,
+    operation_id: _forwardOperation,
+    standalone_bootstrap_run: _forwardRun,
+    ...forwardTuf
+  } = forward.published_metadata;
+  const assembly = retainedR56FeedRecovery;
+  const forwardSelection = {
+    discovered: {
+      release_id: retainedR55Renewal.release_id,
+      custody: { opportunity: retainedR55Renewal.opportunity, preparation: null },
+      execution: {
+        run: { id: pin.run_id, control_commit: pin.revision, control_ref: assembly.next_ref },
+        attempt: 1,
+        conclusion: "success",
+        job_id: Number(pin.feed_job_id),
+      },
+      state: { log_url: forward.published_metadata.publication.remote_identity },
+    },
+    prior: {
+      receipt: {
+        producer: {
+          id: assembly.run_id,
+          control_commit: assembly.control_commit,
+          control_ref: retainedR55Renewal.next_ref,
+        },
+        producer_attempt: 1,
+        site: {
+          previous_generation: standaloneBootstrapRenewalAdoption.generation,
+          generation: pin.generation,
+        },
+        publication: forwardTuf,
+      },
+      metadata: {
+        purpose: "metadata-renewal",
+        prior_generation: standaloneBootstrapRenewalAdoption.generation,
+        prior_repository_sha256: pin.prior_repository_sha256,
+        context_sha256: assembly.context_sha256,
+      },
+      assets: Object.entries(assembly.assets).map(([name, asset]) => ({ name, ...asset })),
+    },
+  } as unknown as Parameters<typeof assertRetainedBootstrapForwardRenewal>[0];
+  assertRetainedBootstrapForwardRenewal(forwardSelection);
+  const wrongServingJob = structuredClone(forwardSelection);
+  wrongServingJob.discovered.execution.job_id++;
+  assert.throws(() => assertRetainedBootstrapForwardRenewal(wrongServingJob));
+  const wrongPrior = structuredClone(forwardSelection);
+  assert.ok(isRecord(wrongPrior.prior.metadata));
+  wrongPrior.prior.metadata.prior_repository_sha256 = "0".repeat(64);
+  assert.throws(() => assertRetainedBootstrapForwardRenewal(wrongPrior));
+  const {
+    publication: _publication,
+    operation_id: _operation,
+    standalone_bootstrap_run: _run,
+    ...facts
+  } = renewal.published_metadata;
+  const run = {
+    id: renewalRun,
+    control_commit: "e".repeat(40),
+    control_ref: standaloneBootstrapRenewalAdoption.feed_ref,
+  };
+  const selection = {
+    discovered: {
+      release_id: retainedServedRenewal.release_id,
+      custody: {
+        opportunity: retainedServedRenewal.opportunity,
+        source: retainedServedRenewal.source,
+        preparation: null,
+        runs: [run],
+      },
+      execution: { run, attempt: 1, conclusion: "success", job_id: 128600000001 },
+      state: { log_url: renewal.published_metadata.publication.remote_identity },
+    },
+    prior: {
+      receipt: {
+        producer: {
+          id: "42452784395",
+          control_commit: "8a3bbbba04c2f67f4f1654efef44d0a6186e8410",
+          control_ref: retainedServedRenewal.next_ref,
+        },
+        producer_attempt: 1,
+        site: {
+          previous_generation: generation,
+          generation: standaloneBootstrapRenewalAdoption.generation,
+        },
+        publication: facts,
+      },
+      metadata: {
+        purpose: "metadata-renewal",
+        prior_generation: generation,
+        prior_repository_sha256: after.published_metadata.repository_sha256,
+        context_sha256: "fdd0c0dc4b956383a56f21994a8fc4815b091c16ffc480c1291e3553e479bb15",
+      },
+      assets: [
+        {
+          id: 723074720,
+          name: "application-site.zip",
+          sha256: "5d7861c34626e422a0b8e613cf5da603bfc1fd439946857dfba436d127b0aef3",
+        },
+        {
+          id: 723074721,
+          name: "application-metadata.json",
+          sha256: "f5a7c25de4a4f3d3799c566e0b1c6af71ae1af674e4c51a67aa17e2f39999039",
+        },
+      ],
+    },
+  } as unknown as Parameters<typeof assertRetainedBootstrapRenewal>[0];
+  assertRetainedBootstrapRenewal(selection);
+  const unappointed = structuredClone(selection);
+  unappointed.discovered.execution.run.control_ref = standaloneBootstrapAdoption.ref;
+  assert.throws(() => assertRetainedBootstrapRenewal(unappointed));
+  const failed = structuredClone(selection);
+  failed.discovered.execution.conclusion = "failure";
+  assert.throws(() => assertRetainedBootstrapRenewal(failed));
+  const replayed = structuredClone(selection);
+  replayed.discovered.custody.runs.push({ ...run, id: "42400000002" });
+  assert.throws(() => assertRetainedBootstrapRenewal(replayed));
+  const unrelated = structuredClone(selection);
+  assert.ok(isRecord(unrelated.prior.metadata));
+  unrelated.prior.metadata.prior_repository_sha256 = "b".repeat(64);
+  assert.throws(() => assertRetainedBootstrapRenewal(unrelated));
+  assert.equal(
+    currentPublishedSite(renewal)?.generation_sha256,
+    standaloneBootstrapRenewalAdoption.generation,
+  );
+  assert.throws(
+    () => validatePublishedMetadataTransition(after, renewal, null),
+    /exact empty journal/u,
+  );
+  assert.throws(
+    () =>
+      validatePublishedMetadataTransition(
+        before,
+        { ...renewal, now: "2026-11-10T06:01:34.664Z" },
+        null,
+      ),
+    /expired standalone/u,
+  );
+  for (const mutation of [
+    { standalone_bootstrap_run: run_id },
+    { timestamp_sha256: "b".repeat(64) },
+    {
+      publication: {
+        ...renewal.published_metadata.publication,
+        remote_identity: "https://example.com/forged",
+      },
+    },
+    {
+      publication: {
+        ...renewal.published_metadata.publication,
+        site_generation_sha256: generation,
+      },
+    },
+  ]) {
+    assert.throws(
+      () =>
+        validatePublishedMetadataTransition(
+          before,
+          {
+            ...renewal,
+            published_metadata: { ...renewal.published_metadata, ...mutation },
+          },
+          null,
+        ),
+      /exact publication/u,
+    );
+  }
+  const repository = await mkdtemp(path.join(os.tmpdir(), "catalog-standalone-seed-"));
+  t.after(() => rm(repository, { recursive: true, force: true }));
+  execFileSync("git", ["init", "--bare", "--quiet", repository], { windowsHide: true });
+  const initial = {
+    ...before,
+    schema_version: 2,
+    now: "2026-11-03T21:20:37.000Z",
+    opportunity: null,
+    published_metadata: null,
+    publication: {
+      complete: true,
+      observed_at: "2026-11-03T21:20:37.000Z",
+      published_versions: [],
+      published_sources: [],
+      reserved_versions: [],
+      last_routine_preview_at: null,
+    },
+    controller: {
+      workflow: ".github/workflows/application-update-production.yml",
+      revision: "3".repeat(40),
+      publication_paused: false,
+      capacity_attempt: { ...capacityFixture(), schema_version: 2 },
+    },
+  };
+  const retained = await checkpointReleaseOpportunity(repository, null, initial);
+  const next = {
+    ...initial,
+    ...after,
+    publication: { ...initial.publication, observed_at: after.now },
+  };
+  const seed = await checkpointReleaseOpportunity(repository, retained.checkpoint, next);
+  const readback = await recoverReleaseOpportunity(repository, seed.checkpoint);
+  assert.deepEqual(readback.input.metadata_bootstrap, before.metadata_bootstrap);
+  assert.deepEqual(readback.input.published_metadata, after.published_metadata);
+  assert.deepEqual(readback.input.controller, initial.controller);
+  assert.equal(currentPublishedSite(readback.input)?.generation_sha256, generation);
+  const retry = await checkpointReleaseOpportunity(repository, retained.checkpoint, next);
+  assert.equal(retry.checkpoint, seed.checkpoint);
+  const competing = structuredClone(next);
+  competing.published_metadata.publication.evidence_sha256 = "b".repeat(64);
+  await assert.rejects(() =>
+    checkpointReleaseOpportunity(repository, retained.checkpoint, competing),
+  );
+});
 
 void test(
   "metadata renewal remains available during a failed candidate without consuming its recovery counters",
@@ -615,14 +1229,16 @@ for (const expires of ["read", "first-object", "before-cas", "mutated-options"])
           stdout: JSON.stringify([{ verificationResult: proof.verification }]),
           stderr: "",
         };
-      const response = proof.api.request("GET", args[2]!);
-      return {
-        status: 0,
-        stdout: `HTTP/2.0 200 OK\r\n\r\n${JSON.stringify(response.body)}`,
-        stderr: "",
-      };
+      assert.fail("unexpected retained CLI route");
     });
     syncBuiltinESMExports();
+    t.mock.method(
+      globalThis,
+      "fetch",
+      releaseCustodyFetch(proof.provider, (_url, init) => {
+        assert.equal(new Headers(init?.headers).get("authorization"), "token inert-metadata-token");
+      }),
+    );
     await withReadOnlyReleaseChildren(directory, async () => {
       const receipt = await authenticateCoordinatorCheckpointEvidence(
         directory,

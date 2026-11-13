@@ -1,361 +1,25 @@
+import { execFile } from "node:child_process";
+import { isDeepStrictEqual, promisify } from "node:util";
+import { releaseCanonicalDigest } from "./release-canonical.mts";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { isDeepStrictEqual } from "node:util";
-import { GitHubApiClient, createGitHubRunner } from "./github-api.mts";
 import { isRecord } from "./runtime-values.mts";
-
-interface PullParameters extends Record<string, unknown> {
-  allowed_merge_methods: string[];
-  dismiss_stale_reviews_on_push: boolean;
-  require_code_owner_review: boolean;
-  require_last_push_approval: boolean;
-  required_approving_review_count: number;
-  require_extra_approval_for_unattributed_changes: boolean;
-  required_review_thread_resolution: boolean;
-  required_reviewers?: unknown[];
-}
-interface StatusCheck extends Record<string, unknown> {
-  context: string;
-  integration_id?: number | null;
-}
-interface StatusParameters extends Record<string, unknown> {
-  required_status_checks: StatusCheck[];
-  strict_required_status_checks_policy: boolean;
-  do_not_enforce_on_create: boolean;
-}
-interface RawRule {
-  type: string;
-  parameters?: unknown;
-}
-function record(value: unknown, label = "repository settings"): Record<string, unknown> {
-  if (!isRecord(value)) throw new Error(`${label} must be an object`);
-  return value;
-}
-function records(value: unknown, label = "repository settings"): Record<string, unknown>[] {
-  if (!Array.isArray(value)) throw new Error(`${label} must be an array`);
-  const values: unknown[] = value;
-  return values.map((item) => record(item, label));
-}
-function rules(value: unknown): RawRule[] {
-  return records(record(value).rules, "ruleset rules").map((rule) => {
-    if (typeof rule.type !== "string") throw new Error("ruleset rule type must be text");
-    return { ...rule, type: rule.type };
-  });
-}
-function pullParameters(value: unknown): PullParameters {
-  function assertParameters(value: unknown): asserts value is PullParameters {
-    const fields = record(value, "pull-request parameters");
-    if (
-      !Array.isArray(fields.allowed_merge_methods) ||
-      !fields.allowed_merge_methods.every((item: unknown) => typeof item === "string") ||
-      typeof fields.required_approving_review_count !== "number"
-    )
-      throw new Error("Malformed pull-request parameters");
-    for (const key of [
-      "dismiss_stale_reviews_on_push",
-      "require_code_owner_review",
-      "require_last_push_approval",
-      "require_extra_approval_for_unattributed_changes",
-      "required_review_thread_resolution",
-    ])
-      if (typeof fields[key] !== "boolean") throw new Error("Malformed pull-request parameters");
-    if (fields.required_reviewers !== undefined && !Array.isArray(fields.required_reviewers))
-      throw new Error("Malformed required reviewers");
-  }
-  assertParameters(value);
-  return value;
-}
-function statusParameters(value: unknown): StatusParameters {
-  function assertParameters(value: unknown): asserts value is StatusParameters {
-    const fields = record(value, "status-check parameters");
-    if (
-      typeof fields.strict_required_status_checks_policy !== "boolean" ||
-      typeof fields.do_not_enforce_on_create !== "boolean"
-    )
-      throw new Error("Malformed status-check parameters");
-    for (const check of records(fields.required_status_checks, "required status checks")) {
-      if (
-        typeof check.context !== "string" ||
-        (check.integration_id !== undefined &&
-          check.integration_id !== null &&
-          (typeof check.integration_id !== "number" || !Number.isInteger(check.integration_id)))
-      )
-        throw new Error("Malformed status-check identity");
-    }
-  }
-  assertParameters(value);
-  return value;
-}
+import { GitHubApiError } from "./github-operation.mts";
+import {
+  validateRepositorySettings,
+  reconcileRepositorySettings,
+  planReleaseRulesets,
+} from "./repository-settings-policy.mts";
 
 const scriptPath = fileURLToPath(import.meta.url);
-const projectRoot = fileURLToPath(new URL("..", import.meta.url));
+const projectRoot = fileURLToPath(new URL("../", import.meta.url));
 const rulesetPath = path.join(projectRoot, ".github", "repository-ruleset.json");
 const securityPath = path.join(projectRoot, ".github", "repository-security.json");
-const expectedChecks = ["catalog", "dependency-review", "frontend", "rust", "rust-quality"];
-const repositorySettingNames = [
-  "allow_auto_merge",
-  "merge_commit_title",
-  "merge_commit_message",
-] as const;
-const expectedBypassActors = [
-  {
-    actor_id: 5,
-    actor_type: "RepositoryRole",
-    bypass_mode: "pull_request",
-  },
-];
-const github = new GitHubApiClient(createGitHubRunner({ cwd: projectRoot }));
-
-function requiredRule(ruleset: unknown, type: string) {
-  const matches = rules(ruleset).filter((rule) => rule.type === type);
-  if (matches.length !== 1) throw new Error(`ruleset must contain exactly one ${type} rule`);
-  const match = matches[0];
-  if (!match) throw new Error(`ruleset must contain exactly one ${type} rule`);
-  return match;
-}
-
-export function validateRepositorySettings(rulesetValue: unknown, securityValue: unknown) {
-  const ruleset = record(rulesetValue),
-    security = record(securityValue);
-  assertExactKeys(
-    security,
-    ["schema_version", "repository", "private_vulnerability_reporting", ...repositorySettingNames],
-    "repository security configuration",
-  );
-  if (security.schema_version !== 2)
-    throw new Error("repository security schema_version must be 2");
-  if (
-    typeof security.repository !== "string" ||
-    !security.repository.match(/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/)
-  ) {
-    throw new Error("repository security configuration has an invalid repository");
-  }
-  if (security.private_vulnerability_reporting !== true) {
-    throw new Error("private vulnerability reporting must be enabled");
-  }
-  if (security.allow_auto_merge !== true) {
-    throw new Error("repository auto-merge capability must be enabled");
-  }
-  if (security.merge_commit_title !== "PR_TITLE" || security.merge_commit_message !== "BLANK") {
-    throw new Error("merge commits must use the pull request title with a blank generated body");
-  }
-  if (ruleset.name !== "Protect main" || ruleset.target !== "branch") {
-    throw new Error("ruleset must target branches under the stable Protect main name");
-  }
-  if (ruleset.enforcement !== "active") throw new Error("ruleset enforcement must be active");
-  if (JSON.stringify(ruleset.bypass_actors) !== JSON.stringify(expectedBypassActors)) {
-    throw new Error("main protection must define only the pull-request repository-admin bypass");
-  }
-  const refs =
-    isRecord(ruleset.conditions) && isRecord(ruleset.conditions.ref_name)
-      ? ruleset.conditions.ref_name
-      : undefined;
-  if (
-    JSON.stringify(refs?.include) !== JSON.stringify(["refs/heads/main"]) ||
-    (refs?.exclude !== undefined && (!Array.isArray(refs.exclude) || refs.exclude.length > 0))
-  ) {
-    throw new Error("ruleset must include only refs/heads/main");
-  }
-  requiredRule(ruleset, "deletion");
-  requiredRule(ruleset, "non_fast_forward");
-  const pullRequest = pullParameters(requiredRule(ruleset, "pull_request").parameters);
-  if (
-    JSON.stringify(pullRequest.allowed_merge_methods) !==
-      JSON.stringify(["merge", "squash", "rebase"]) ||
-    pullRequest.required_approving_review_count !== 0 ||
-    !pullRequest.dismiss_stale_reviews_on_push ||
-    pullRequest.require_last_push_approval ||
-    pullRequest.require_code_owner_review ||
-    pullRequest.require_extra_approval_for_unattributed_changes !== true ||
-    !pullRequest.required_review_thread_resolution
-  ) {
-    throw new Error(
-      "pull requests must preserve merge, squash and rebase plus zero approvals, no last-push or CODEOWNERS approval, and resolved review threads",
-    );
-  }
-  const statusChecks = statusParameters(requiredRule(ruleset, "required_status_checks").parameters);
-  const contexts = statusChecks.required_status_checks.map((check) => check.context).sort();
-  if (
-    JSON.stringify(contexts) !== JSON.stringify(expectedChecks) ||
-    statusChecks.strict_required_status_checks_policy !== false ||
-    !statusChecks.do_not_enforce_on_create
-  ) {
-    throw new Error(
-      `required status checks must be exactly ${expectedChecks.join(", ")} and must allow independently reviewed behind-main heads`,
-    );
-  }
-}
-
-export function projectRuleset(value: unknown) {
-  const ruleset = record(value);
-  return {
-    name: ruleset.name,
-    target: ruleset.target,
-    enforcement: ruleset.enforcement,
-    bypass_actors: ruleset.bypass_actors ?? [],
-    conditions: ruleset.conditions,
-    rules: rules(ruleset).map((rule) => {
-      if (rule.type === "pull_request") {
-        const parameters = pullParameters(rule.parameters);
-        return {
-          type: rule.type,
-          parameters: {
-            allowed_merge_methods: parameters.allowed_merge_methods,
-            dismiss_stale_reviews_on_push: parameters.dismiss_stale_reviews_on_push,
-            require_code_owner_review: parameters.require_code_owner_review,
-            require_extra_approval_for_unattributed_changes:
-              parameters.require_extra_approval_for_unattributed_changes,
-            require_last_push_approval: parameters.require_last_push_approval,
-            required_approving_review_count: parameters.required_approving_review_count,
-            required_reviewers: parameters.required_reviewers ?? [],
-            required_review_thread_resolution: parameters.required_review_thread_resolution,
-          },
-        };
-      }
-      if (rule.type === "required_status_checks") {
-        const parameters = statusParameters(rule.parameters);
-        return {
-          type: rule.type,
-          parameters: {
-            do_not_enforce_on_create: parameters.do_not_enforce_on_create,
-            required_status_checks: parameters.required_status_checks.map((check) => ({
-              context: check.context,
-              ...(Number.isInteger(check.integration_id)
-                ? { integration_id: check.integration_id }
-                : {}),
-            })),
-            strict_required_status_checks_policy: parameters.strict_required_status_checks_policy,
-          },
-        };
-      }
-      return { type: rule.type };
-    }),
-  };
-}
-
-const authorizedStatusCheckChanges = ["strict_required_status_checks_policy"] as const;
-
-function assertExactKeys(value: unknown, expected: readonly string[], label: string) {
-  const actual = Object.keys(record(value ?? {}, label)).sort();
-  const wanted = [...expected].sort();
-  if (!isDeepStrictEqual(actual, wanted)) {
-    throw new Error(`${label} has unexpected parameters; refusing the bounded migration`);
-  }
-}
-
-export function rulesetMigration(actualRuleset: unknown, desiredRuleset: unknown) {
-  if (!actualRuleset)
-    throw new Error(
-      "Protect main ruleset is not configured; refusing to create replacement protection",
-    );
-  const actualPullRequestRule = requiredRule(actualRuleset, "pull_request");
-  const desiredPullRequestRule = requiredRule(desiredRuleset, "pull_request");
-  assertExactKeys(
-    actualPullRequestRule.parameters,
-    Object.keys(record(desiredPullRequestRule.parameters)),
-    "Protect main pull-request rule",
-  );
-  const actualStatusRule = requiredRule(actualRuleset, "required_status_checks");
-  const desiredStatusRule = requiredRule(desiredRuleset, "required_status_checks");
-  assertExactKeys(
-    actualStatusRule.parameters,
-    Object.keys(record(desiredStatusRule.parameters)),
-    "Protect main status-check rule",
-  );
-  for (const check of statusParameters(actualStatusRule.parameters).required_status_checks) {
-    const keys = Number.isInteger(check.integration_id)
-      ? ["context", "integration_id"]
-      : ["context"];
-    assertExactKeys(check, keys, `Protect main status check ${check.context ?? "<unnamed>"}`);
-  }
-  const payload = projectRuleset(actualRuleset);
-  const actualStatusChecks = statusParameters(
-    requiredRule(payload, "required_status_checks").parameters,
-  );
-  const desiredStatusChecks = statusParameters(
-    requiredRule(desiredRuleset, "required_status_checks").parameters,
-  );
-  const changes = [];
-  for (const name of authorizedStatusCheckChanges) {
-    if (actualStatusChecks[name] !== desiredStatusChecks[name]) {
-      changes.push({
-        path: `required_status_checks.${name}`,
-        from: actualStatusChecks[name],
-        to: desiredStatusChecks[name],
-      });
-      actualStatusChecks[name] = desiredStatusChecks[name];
-    }
-  }
-  if (!isDeepStrictEqual(payload, desiredRuleset)) {
-    throw new Error(
-      "Protect main has unexpected out-of-scope drift; refusing the bounded migration",
-    );
-  }
-  return { payload, changes };
-}
-
-export function repositoryApplyPlan({
-  rulesets,
-  actualRuleset,
-  securityStatus,
-  repositoryStatus,
-  desiredRuleset,
-  desiredRepository,
-}: {
-  rulesets: unknown;
-  actualRuleset: unknown;
-  securityStatus: unknown;
-  repositoryStatus: unknown;
-  desiredRuleset: unknown;
-  desiredRepository: unknown;
-}) {
-  const desired = record(desiredRuleset);
-  const existing = records(rulesets, "ruleset summaries").find(
-    (ruleset) => ruleset.name === desired.name && ruleset.target === desired.target,
-  );
-  if (!existing)
-    throw new Error(
-      "Protect main ruleset is not configured; refusing to create replacement protection",
-    );
-  if (
-    isRecord(actualRuleset) &&
-    actualRuleset.id !== undefined &&
-    actualRuleset.id !== existing.id
-  ) {
-    throw new Error(
-      "Protect main ruleset identity changed during inspection; refusing the bounded migration",
-    );
-  }
-  const migration = rulesetMigration(actualRuleset, desiredRuleset);
-  const repository = repositorySettingsMigration(repositoryStatus, desiredRepository);
-  return {
-    rulesetEndpoint: `rulesets/${String(existing.id)}`,
-    rulesetPayload: migration.payload,
-    rulesetChanges: migration.changes,
-    enablePrivateReporting: record(securityStatus).enabled !== true,
-    repositoryChanges: repository.changes,
-    repositoryPayload: repository.payload,
-  };
-}
-
-export function repositorySettingsMigration(actualValue: unknown, desiredValue: unknown) {
-  const actual = record(actualValue),
-    desired = record(desiredValue);
-  assertExactKeys(desired, repositorySettingNames, "desired repository settings");
-  const changes = repositorySettingNames
-    .filter((name) => actual[name] !== desired[name])
-    .map((name) => ({ path: name, from: actual[name], to: desired[name] }));
-  return {
-    changes,
-    payload: Object.fromEntries(changes.map((change) => [change.path, change.to])),
-  };
-}
-
-function gh(repo: string, args: { endpoint: string; method: string }, input?: unknown) {
-  const endpoint = args.endpoint ? `repos/${repo}/${args.endpoint}` : `repos/${repo}`;
-  return github.request(args.method, endpoint, input ?? null).body;
-}
+const record = (value: unknown) => {
+  if (!isRecord(value)) throw new Error("Repository settings must be an object");
+  return value;
+};
 
 async function loadDesired() {
   const [ruleset, security] = await Promise.all([
@@ -371,28 +35,42 @@ async function main(argv: readonly string[]) {
     console.log(`Usage: node scripts/repository-settings.mts [--validate|--plan|--check|--apply|--help]
 
 Validate the checked-in repository protection and security contract, or compare it
-with GitHub. Live operations require an authenticated GitHub CLI with access to
-the configured repository.
+with GitHub. Live operations use the configured SDK and an approved credential.
+Eligible local tooling can resolve an existing GitHub CLI login.
 
 Options (choose one):
   --validate  Validate local artifacts only; this is the default.
   --plan      Read live settings and print the supported changes as JSON.
   --check     Read live settings and fail if they differ from the checked-in contract.
   --apply     Apply only the supported migration, then read back the live settings.
+  --plan-release-rulesets   Inspect the stable release policy and next migration stage.
+  --check-release-rulesets  Verify the permanent release policy is in effect.
+  --apply-release-rulesets <observation>  Apply one reviewed stage at a settled boundary.
   --help      Show this help without reading configuration or contacting GitHub.
 
 Applying protection or security changes requires explicit owner authorization.
-This command does not create replacement protection or bypass its migration guards.
+Run the release ruleset migration from its owning release operation.
 
 Example:
   node scripts/repository-settings.mts --validate`);
     return;
   }
   const mode = argv[0] ?? "--validate";
-  if (!["--validate", "--plan", "--check", "--apply"].includes(mode) || argv.length > 1) {
-    throw new Error(
-      "Usage: node scripts/repository-settings.mts [--validate|--plan|--check|--apply]. Run with --help for an example.",
-    );
+  const releasePlan = mode === "--plan-release-rulesets";
+  const releaseCheck = mode === "--check-release-rulesets";
+  const releaseApply = mode === "--apply-release-rulesets";
+  if (
+    releaseApply
+      ? argv.length !== 2 || !/^[a-f0-9]{64}$/u.test(argv[1]!)
+      : argv.length > 1 ||
+        (!releasePlan &&
+          !releaseCheck &&
+          mode !== "--validate" &&
+          mode !== "--plan" &&
+          mode !== "--check" &&
+          mode !== "--apply")
+  ) {
+    throw new Error("Usage: node scripts/repository-settings.mts [option]. Run with --help.");
   }
   const { ruleset, security } = await loadDesired();
   if (mode === "--validate") {
@@ -401,86 +79,337 @@ Example:
   }
   const repo = security.repository;
   if (typeof repo !== "string") throw new Error("Invalid configured repository");
-  const desiredRepository = Object.fromEntries(
-    repositorySettingNames.map((name) => [name, security[name]]),
-  );
-  let summaries = records(gh(repo, { endpoint: "rulesets", method: "GET" }));
-  let securityStatus = gh(repo, {
-    endpoint: "private-vulnerability-reporting",
-    method: "GET",
+  const { createGitHubClient, iterateGitHubPages } = await import("./github-client.mts");
+  const { localDeveloperCredential } = await import("./github-cli.mts");
+  const deadline = performance.now() + 120000;
+  const prefix = `/repos/${repo}`;
+  const headers = { accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28" };
+  let received = 0;
+  const rulesetPath = `${prefix}/rulesets`;
+  const isRulesetDetail = (pathname: string) =>
+    pathname.startsWith(`${rulesetPath}/`) &&
+    /^[1-9][0-9]*$/u.test(pathname.slice(rulesetPath.length + 1));
+  const releaseWorkflows = [
+    "application-update-production.yml",
+    "application-update-wake.yml",
+    "application-release.yml",
+  ];
+  const pauseRef = "/git/ref/heads/portcove-release-pause";
+  const pauseDocument = "/contents/publication.json";
+  const activeReleaseVariables = new Set([
+    "PORTCOVE_APPLICATION_RELEASE_ACTIVE",
+    "PORTCOVE_CONTROLLER_ADMISSION",
+    "PORTCOVE_CONTROLLER_WAKE",
+    "PORTCOVE_CATALOG_CONTROLLER_ADMISSION",
+    "PORTCOVE_CATALOG_CONTROLLER_WAKE",
+  ]);
+  const sdk = await createGitHubClient({
+    credential: localDeveloperCredential({ deadline }),
+    deadline,
+    reserve: () => ({
+      consumeBytes(bytes) {
+        received += bytes;
+        if (received > 16 * 1024 * 1024)
+          throw new GitHubApiError(
+            "budget_exhausted",
+            "Repository settings exceeded its metadata budget",
+          );
+      },
+      settle() {},
+    }),
+    allowRequest(method, url) {
+      if (!url.pathname.startsWith(`${prefix}/`) && url.pathname !== prefix) return false;
+      const suffix = url.pathname.slice(prefix.length);
+      if (method === "GET")
+        return (
+          url.pathname === prefix ||
+          url.pathname === rulesetPath ||
+          isRulesetDetail(url.pathname) ||
+          url.pathname === `${prefix}/private-vulnerability-reporting` ||
+          (releaseApply &&
+            (suffix === pauseRef ||
+              suffix === pauseDocument ||
+              suffix === "/actions/variables" ||
+              releaseWorkflows.some((name) => suffix === `/actions/workflows/${name}/runs`) ||
+              /^\/rules\/branches\/portcove-[a-z-]+$/u.test(suffix)))
+        );
+      if (releaseApply)
+        return (
+          (method === "POST" && url.pathname === rulesetPath) ||
+          ((method === "PUT" || method === "DELETE") && isRulesetDetail(url.pathname))
+        );
+      return (
+        (method === "PATCH" && url.pathname === prefix) ||
+        (method === "PUT" &&
+          (url.pathname === `${prefix}/private-vulnerability-reporting` ||
+            isRulesetDetail(url.pathname)))
+      );
+    },
   });
-  let repositoryStatus = gh(repo, { endpoint: "", method: "GET" });
-  let summary = summaries.find(
-    (item) => item.name === ruleset.name && item.target === ruleset.target,
-  );
-  if (!summary) throw new Error("Protect main ruleset is not configured");
-  let actual = gh(repo, { endpoint: `rulesets/${String(summary.id)}`, method: "GET" });
-  const plan = repositoryApplyPlan({
-    rulesets: summaries,
-    actualRuleset: actual,
-    securityStatus,
-    repositoryStatus,
-    desiredRuleset: ruleset,
-    desiredRepository,
-  });
-  if (mode === "--plan") {
-    console.log(
-      JSON.stringify(
-        {
-          ruleset: plan.rulesetChanges,
-          repository: plan.repositoryChanges,
-          privateVulnerabilityReporting: plan.enablePrivateReporting
-            ? [
-                {
-                  path: "private_vulnerability_reporting",
-                  from: false,
-                  to: true,
-                },
-              ]
-            : [],
-        },
-        null,
-        2,
-      ),
+  const request = async (
+    method: "GET" | "PUT" | "PATCH" | "POST" | "DELETE",
+    suffix: string,
+    data?: unknown,
+  ) =>
+    (
+      await sdk.request({
+        method,
+        url: `https://api.github.com${prefix}${suffix}`,
+        headers,
+        ...(data === undefined ? {} : { data }),
+        request: { portcove: { replay: method === "GET" ? "safe-read" : "once", attempts: 0 } },
+      })
+    ).data as unknown;
+  const readRulesets = async () => {
+    const rows: unknown[] = [];
+    for await (const page of iterateGitHubPages(sdk, {
+      url: `https://api.github.com${rulesetPath}?includes_parents=true&per_page=100`,
+      headers,
+      deadline,
+    })) {
+      if (new URL(page.url).pathname !== `${prefix}/rulesets` || !Array.isArray(page.data))
+        throw new GitHubApiError(
+          "invalid_response",
+          "Repository ruleset pagination changed scope or shape",
+        );
+      rows.push(...(page.data as unknown[]));
+    }
+    return rows.map(record);
+  };
+  const readRule = (id: number) =>
+    request("GET", `/rulesets/${id}?includes_parents=true`).then(record);
+  if (releasePlan || releaseCheck || releaseApply) {
+    const repository = record(await request("GET", ""));
+    if (repository.id !== 1354613114 || repository.full_name !== repo)
+      throw new Error("Release ruleset repository identity differs");
+    const snapshot = async () => {
+      const summaries = await readRulesets();
+      const rows = [];
+      for (let start = 0; start < summaries.length; start += 4) {
+        const details = await Promise.all(
+          summaries.slice(start, start + 4).map(async (summary) => {
+            if (
+              typeof summary.id !== "number" ||
+              !Number.isSafeInteger(summary.id) ||
+              summary.id < 1
+            )
+              throw new Error("Invalid ruleset summary ID");
+            const detail = await readRule(summary.id);
+            for (const key of [
+              "id",
+              "name",
+              "target",
+              "enforcement",
+              "updated_at",
+              "source",
+              "source_type",
+            ])
+              if (summary[key] !== detail[key])
+                throw new Error("Ruleset changed during inspection");
+            return detail;
+          }),
+        );
+        rows.push(...details);
+      }
+      const { stdout } = await promisify(execFile)(
+        "git",
+        [
+          "ls-remote",
+          "--refs",
+          `https://github.com/${repo}.git`,
+          "refs/heads/portcove-*",
+          "refs/tags/portcove-*",
+          "refs/tags/v*",
+        ],
+        { timeout: 15_000, maxBuffer: 1024 * 1024 },
+      );
+      const refs = Object.fromEntries(
+        stdout
+          .trim()
+          .split("\n")
+          .filter(Boolean)
+          .map((line) => {
+            const match = /^([a-f0-9]{40})\t(refs\/(?:heads|tags)\/[^\s]+)$/u.exec(line);
+            if (!match) throw new Error("Unexpected protected Git ref response");
+            return [match[2]!, match[1]!];
+          }),
+      );
+      const byId = (rows: Record<string, unknown>[]) =>
+        rows.toSorted((a, b) => Number(a.id) - Number(b.id));
+      if (!isDeepStrictEqual(byId(summaries), byId(await readRulesets())))
+        throw new Error("Ruleset inventory changed during inspection");
+      return { rows, plan: planReleaseRulesets(rows, refs, ruleset) };
+    };
+    const before = await snapshot();
+    if (releasePlan) {
+      console.log(JSON.stringify(before.plan, null, 2));
+      return;
+    }
+    const { next } = before.plan;
+    if (releaseCheck || !next) {
+      if (next) throw new Error("Permanent release ruleset migration is pending");
+      console.log(`Release rulesets match the contract (${before.plan.count} policies).`);
+      return;
+    }
+    if (argv[1] !== before.plan.observation)
+      throw new Error("Live rulesets or protected refs changed since the reviewed observation");
+    const expectedPause = before.plan.identities["refs/heads/portcove-release-pause"];
+    const pause = record(await request("GET", `${pauseDocument}?ref=${expectedPause}`));
+    if (pause.encoding !== "base64" || typeof pause.content !== "string")
+      throw new Error("Publication pause document is unavailable");
+    const { inspectApplicationPublicationPause } = await import("./application-release-policy.mts");
+    const paused = inspectApplicationPublicationPause(
+      JSON.parse(Buffer.from(pause.content, "base64").toString("utf8")),
     );
+    if (!paused.paused)
+      throw new Error("Release ruleset migration requires a closed publication pause");
+    const variables = record(await request("GET", "/actions/variables?per_page=100"));
+    if (
+      !Array.isArray(variables.variables) ||
+      variables.variables.length !== variables.total_count ||
+      variables.variables.some(
+        (row: unknown) =>
+          !isRecord(row) || typeof row.name !== "string" || activeReleaseVariables.has(row.name),
+      )
+    )
+      throw new Error("Active release configuration must settle before ruleset migration");
+    for (const workflow of releaseWorkflows) {
+      const active = await Promise.all(
+        ["queued", "in_progress", "pending", "waiting", "requested"].map(async (status) =>
+          record(
+            await request("GET", `/actions/workflows/${workflow}/runs?status=${status}&per_page=1`),
+          ),
+        ),
+      );
+      if (active.some((row) => row.total_count !== 0))
+        throw new Error(`Release ruleset migration found an unsettled ${workflow} run`);
+    }
+    const assertPause = async () => {
+      const observed = record(await request("GET", pauseRef));
+      if (
+        observed.ref !== "refs/heads/portcove-release-pause" ||
+        !isRecord(observed.object) ||
+        observed.object.type !== "commit" ||
+        observed.object.sha !== expectedPause
+      )
+        throw new Error("Publication pause ref changed before migration write");
+    };
+    let writeFailure: unknown;
+    let attempted = false;
+    const write = async (method: "POST" | "PUT" | "DELETE", suffix: string, data?: unknown) => {
+      await assertPause();
+      attempted = true;
+      try {
+        await request(method, suffix, data);
+        return true;
+      } catch (error) {
+        writeFailure = error;
+        return false;
+      }
+    };
+    try {
+      if (next.action === "delete") {
+        for (const id of next.replacements) {
+          const replacement = before.rows.find((row) => row.id === id);
+          if (!isDeepStrictEqual(await readRule(id), replacement))
+            throw new Error(`Replacement ruleset ${id} changed before deletion`);
+          const policy = record(record(record(replacement).conditions).ref_name);
+          if (replacement?.target === "branch") {
+            for (const ref of policy.include as string[]) {
+              const branch = ref.slice("refs/heads/".length);
+              const effective = await request("GET", `/rules/branches/${branch}?per_page=100`);
+              if (
+                !Array.isArray(effective) ||
+                effective.length >= 100 ||
+                !(replacement.rules as { type: string }[]).every(({ type }) =>
+                  effective.some(
+                    (rule: unknown) =>
+                      isRecord(rule) && rule.type === type && rule.ruleset_id === id,
+                  ),
+                )
+              )
+                throw new Error(`Replacement ruleset ${id} is unproven on ${branch}`);
+            }
+          }
+        }
+        for (const { id } of next.policies) {
+          await Promise.all(
+            [id, ...next.replacements].map(async (preimageId) => {
+              const preimage = before.rows.find((row) => row.id === preimageId);
+              if (!isDeepStrictEqual(await readRule(preimageId), preimage))
+                throw new Error(`Ruleset ${preimageId} changed before deletion of ${id}`);
+            }),
+          );
+          if (!(await write("DELETE", `/rulesets/${id}`))) break;
+          console.error(`GitHub acknowledged deletion of redundant ruleset ${id}.`);
+        }
+      } else if (next.action === "update") {
+        if (
+          !isDeepStrictEqual(
+            await readRule(next.id),
+            before.rows.find((row) => row.id === next.id),
+          )
+        )
+          throw new Error(`Ruleset ${next.id} changed before expansion`);
+        await write("PUT", `/rulesets/${next.id}`, next.payload);
+      } else {
+        await write("POST", "/rulesets", next.payload);
+      }
+    } catch (error) {
+      if (!attempted) throw error;
+      writeFailure = error;
+    }
+    const after = await snapshot().catch((cause: unknown) => {
+      throw new Error("Migration outcome is unknown. Rerun the read-only plan.", { cause });
+    });
+    if (
+      releaseCanonicalDigest(before.plan.identities) !==
+      releaseCanonicalDigest(after.plan.identities)
+    )
+      throw new Error("Git refs changed during the migration stage. Reconcile before proceeding.");
+    const stableId =
+      next.action === "delete"
+        ? undefined
+        : Object.values(after.plan.stable).find((rule) => rule?.name === next.payload.name)?.id;
+    const excluded = new Set(
+      next.action === "delete" ? next.policies.map(({ id }) => id) : [stableId],
+    );
+    const preserved = (rows: typeof after.rows) =>
+      rows
+        .filter((row) => !excluded.has(Number(row.id)))
+        .sort((a, b) => Number(a.id) - Number(b.id));
+    if (
+      (next.action === "delete" && after.rows.some((row) => excluded.has(Number(row.id)))) ||
+      (next.action === "update" && stableId !== next.id) ||
+      (next.action === "create" &&
+        (stableId === undefined || before.rows.some((row) => row.id === stableId))) ||
+      !isDeepStrictEqual(preserved(before.rows), preserved(after.rows))
+    ) {
+      console.log(JSON.stringify(after.plan, null, 2));
+      throw new Error(
+        "Migration stage is incomplete or drifted. Reconcile the live plan before resuming.",
+        {
+          cause: writeFailure,
+        },
+      );
+    }
+    console.log(JSON.stringify(after.plan, null, 2));
     return;
   }
-  if (mode === "--apply") {
-    if (plan.rulesetChanges.length) {
-      gh(repo, { endpoint: plan.rulesetEndpoint, method: "PUT" }, plan.rulesetPayload);
-    }
-    if (plan.repositoryChanges.length) {
-      gh(repo, { endpoint: "", method: "PATCH" }, plan.repositoryPayload);
-    }
-    if (plan.enablePrivateReporting) {
-      gh(repo, { endpoint: "private-vulnerability-reporting", method: "PUT" });
-    }
-    summaries = records(gh(repo, { endpoint: "rulesets", method: "GET" }));
-    securityStatus = gh(repo, {
-      endpoint: "private-vulnerability-reporting",
-      method: "GET",
-    });
-    repositoryStatus = gh(repo, { endpoint: "", method: "GET" });
-    summary = summaries.find(
-      (item) => item.name === ruleset.name && item.target === ruleset.target,
-    );
-    if (!summary) throw new Error("Protect main ruleset disappeared during application");
-    actual = gh(repo, { endpoint: `rulesets/${String(summary.id)}`, method: "GET" });
-  }
-  if (!isDeepStrictEqual(projectRuleset(actual), projectRuleset(ruleset))) {
-    throw new Error("Protect main ruleset differs from .github/repository-ruleset.json");
-  }
-  if (record(securityStatus).enabled !== true)
-    throw new Error("private vulnerability reporting is not enabled");
-  const repositoryDrift = repositorySettingsMigration(repositoryStatus, desiredRepository).changes;
-  if (repositoryDrift.length) {
-    throw new Error(
-      `repository settings differ from .github/repository-security.json: ${repositoryDrift.map((change) => change.path).join(", ")}`,
-    );
-  }
-  console.log(`Repository settings match the checked-in contract for ${repo}.`);
+  if (mode !== "--plan" && mode !== "--check" && mode !== "--apply")
+    throw new Error("Invalid repository settings mode");
+  const result = await reconcileRepositorySettings(ruleset, security, mode, {
+    readRulesets,
+    readRuleset: (id) => request("GET", `/rulesets/${id}`),
+    readRepository: () => request("GET", ""),
+    readPrivateReporting: () => request("GET", "/private-vulnerability-reporting"),
+    updateRuleset: (id, payload) => request("PUT", `/rulesets/${id}`, payload),
+    updateRepository: (payload) => request("PATCH", "", payload),
+    enablePrivateReporting: () => request("PUT", "/private-vulnerability-reporting"),
+  });
+  if (result.kind === "plan") console.log(JSON.stringify(result.output, null, 2));
+  else console.log(`Repository settings match the checked-in contract for ${result.repository}.`);
 }
 
-if (process.argv[1] && path.resolve(process.argv[1]) === scriptPath) {
+if (process.argv[1] && path.resolve(process.argv[1]) === scriptPath)
   await main(process.argv.slice(2));
-}

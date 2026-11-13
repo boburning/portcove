@@ -616,6 +616,20 @@ export function buildWindowsRustArchive() {
     );
 }
 
+export function windowsRustProducerIdentity(
+  identity: ArchiveIdentity,
+  producerAttempt: string | undefined,
+) {
+  if (
+    !producerAttempt ||
+    !/^[1-9][0-9]*$/u.test(producerAttempt) ||
+    !/^[1-9][0-9]*$/u.test(identity.attempt) ||
+    BigInt(producerAttempt) > BigInt(identity.attempt)
+  )
+    throw new Error("Windows Rust producer attempt is missing, invalid or newer than the consumer");
+  return { ...identity, attempt: producerAttempt };
+}
+
 export function runWindowsRustPartition(partitionId: number) {
   const { plan, identity } = currentContext();
   if (plan.mode !== "fast") throw new Error("Ordinary Windows partitions require a fast plan");
@@ -623,7 +637,10 @@ export function runWindowsRustPartition(partitionId: number) {
   const manifestFile = path.join(packetDirectory, "manifest.json");
   if (fileDigest(manifestFile) !== process.env.PORTCOVE_WINDOWS_MANIFEST_SHA256)
     throw new Error("Windows Rust manifest differs from this producer's output");
-  const manifest = validateWindowsRustManifest(readJson(manifestFile), identity);
+  const manifest = validateWindowsRustManifest(
+    readJson(manifestFile),
+    windowsRustProducerIdentity(identity, process.env.PORTCOVE_WINDOWS_PRODUCER_ATTEMPT),
+  );
   const partition = manifest.partitions.find(({ id }) => id === partitionId);
   if (!partition) throw new Error("Unknown Windows Rust execution partition");
   const archive = path.join(packetDirectory, "tests.tar.zst");

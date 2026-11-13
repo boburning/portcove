@@ -3,13 +3,34 @@
   "listing": {
     "id": "n64hub-super-mario-64-recomp",
     "name": "Super Mario 64 (Super Mario 64: Recompiled)",
-    "summary": "Upstream route: Upstream runtime package for Super Mario 64: Recompiled; use own game files per documented setup, with upstream/player owning installation and runtime replacement. Observed release artifacts are evidence, not operational package selection or Portcove support. Limits: Upstream only: Upstream reports Bob-omb Battlefield through its first boss star and return to castle. This is bounded progress, not full campaign proof. Upstream only describes Bob-omb Battlefield through King Bob-omb star, not a full campaign. Separate from existing sm64 decompilation ports; Windows/Linux x64 release plus browser route. Upstream platforms: Windows/Linux x86-64 packages and WebGPU browser. Linux needs glibc 2.35+, Vulkan, GTK 3 and FreeType. Original data: N64 Super Mario 64 USA ROM, SHA1 9bef1128717f958171a4afac3ed78ee2bb4e86ce. Exact source revision/hash and BIOS/firmware requirements not stated above remain Unknown in this review. Portcove setup/gameplay not verified.",
+    "summary": "A Super Mario 64 recompilation separate from matching-decompilation ports. The project reports Bob-omb Battlefield through the King Bob-omb star and a return to the castle, rather than a complete campaign. Windows/Linux x86-64 packages and a WebGPU browser route are documented. Linux needs glibc 2.35+, Vulkan, GTK 3 and FreeType. Use your own USA N64 ROM with SHA-1 9bef1128717f958171a4afac3ed78ee2bb4e86ce. Further accepted revisions and BIOS/firmware needs are unconfirmed. You and the project manage setup and updates; Portcove has not qualified a release package or confirmed setup or gameplay.",
     "original_game_title": "Super Mario 64",
     "project_url": "https://github.com/n64hub/super-mario-64-recomp",
     "platforms": [],
     "availability": "unknown",
     "setup_url": "https://github.com/n64hub/super-mario-64-recomp",
-    "issue_number": 2725
+    "issue_number": 2725,
+    "listed_at": "2026-10-25",
+    "manual_setup": {
+      "help_url": "https://github.com/n64hub/super-mario-64-recomp/blob/52c6e0f06fbebb63980e12fb712d518c283f9b02/README.md",
+      "steps": [
+        {
+          "title": "Keep the complete permitted Windows player",
+          "instruction": "Use an independently permitted completed Windows copy of this specific implementation; the reviewed upstream route is v0.1.2. Keep the player, assets and all matching companions together. Finish any upstream source build outside Portcove. This is an existing-copy route, not managed package acquisition, source generation or a redistribution-rights grant."
+        },
+        {
+          "title": "Keep the matching original",
+          "instruction": "At the separate Play step, use Load ROM and Start Game in the upstream launcher. Use your own Super Mario 64 USA, big-endian .z64; documented SHA-1 9bef1128717f958171a4afac3ed78ee2bb4e86ce. The upstream player performs its own original check; Portcove registration does not import, normalize or authenticate the original."
+        }
+      ],
+      "warnings": [
+        "Upstream reports Bob-omb Battlefield through King Bob-omb and return to the castle. Full-campaign, gameplay, physical controls and save compatibility are not established by this registration.",
+        "Use only software and original data you are permitted to use. Registration and owned-probe tests do not certify the upstream binary, full-game behavior or real save formats.",
+        "Keep the creating mode and actual locations; adding or removing the marker does not migrate existing data.",
+        "Edit settings only while the player is closed; registration does not move profiles or certify state compatibility between versions."
+      ],
+      "references": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,
@@ -22,5 +43,18 @@
       }
     },
     "decisions": []
+  },
+  "route_facts_v1": {
+    "format_version": 1,
+    "prepared_player": {
+      "executable": "SuperMario64Recompiled.exe",
+      "working_directory": "executable-parent",
+      "arguments": [],
+      "data_locations": [
+        "%LOCALAPPDATA%/SuperMario64Recompiled, or the existing portable.txt working-folder mode",
+        "whole creating profile including original/EEPROM data, JSON settings, controllers, mods and hires_font",
+        "custom or external paths"
+      ]
+    }
   }
 }

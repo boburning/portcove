@@ -7,12 +7,21 @@ import {
   maximumProductionControllerWorkflowBytes,
 } from "./production-controller-admission.mts";
 import { createGitHubRunner, GitHubApiClient } from "./github-api.mts";
-import { releaseControlPhaseProfile } from "./release-control-phases.mts";
+import {
+  coordinatorJobBudgetMilliseconds,
+  releaseControlPhaseProfile,
+} from "./release-control-phases.mts";
 import type { TufSigningRole } from "./release-control-phases.mts";
 import type { CatalogControlPhase } from "./release-control-phases.mts";
 import { applicationProtectionObserver } from "./release-control-phases.mts";
 import { isRecord } from "./runtime-values.mts";
+import {
+  matchesRetainedCatalogReviewRecoverySource,
+  retainedCatalogReviewRecoveryResources,
+} from "./release-retained-catalog-review-resources.mts";
 import { hostedNativeJobProfile } from "./assembler-job-identity.mts";
+import { assertTrustedDirectNode } from "./release-direct-node-transport.mts";
+import { fixedReleaseReaderToken } from "./release-readonly-child-environment.mts";
 
 type SigningRole = "payload" | TufSigningRole;
 type ClockRole =
@@ -21,6 +30,7 @@ type ClockRole =
   | "classification-writer"
   | "classification-observer"
   | "candidate-building"
+  | "coordinator-protection"
   | "coordinator"
   | "release-publication"
   | "site-publication"
@@ -46,7 +56,7 @@ function signingOriginalJobDeadline(
   identity: { run_id: string; controller_revision: string },
   now = Date.now(),
   monotonic = performance.now(),
-  admittedNativeMaximum?: number,
+  admittedRoleMaximum?: number,
 ) {
   if (
     ![
@@ -63,6 +73,7 @@ function signingOriginalJobDeadline(
       "classification-writer",
       "classification-observer",
       "candidate-building",
+      "coordinator-protection",
       "coordinator",
       "release-publication",
       "site-publication",
@@ -74,17 +85,18 @@ function signingOriginalJobDeadline(
     throw new Error("fixed online signing role required");
   const role = rawRole as ClockRole;
   const maximum =
-    (role === "native-windows" || role === "native-linux") && admittedNativeMaximum !== undefined
-      ? admittedNativeMaximum
-      : role === "payload" ||
-          role === "native-windows" ||
-          role === "native-linux" ||
-          role === "application-protection"
-        ? 570000
-        : role === "candidate-building"
-          ? 525000
-          : role === "coordinator"
-            ? 170000
+    admittedRoleMaximum !== undefined &&
+    (role === "native-windows" || role === "native-linux" || role === "coordinator-protection")
+      ? admittedRoleMaximum
+      : role === "coordinator" || role === "coordinator-protection"
+        ? coordinatorJobBudgetMilliseconds
+        : role === "payload" ||
+            role === "native-windows" ||
+            role === "native-linux" ||
+            role === "application-protection"
+          ? 570000
+          : role === "candidate-building"
+            ? 525000
             : role === "release-publication"
               ? 350000
               : role === "site-publication"
@@ -114,23 +126,26 @@ function signingOriginalJobDeadline(
   const name =
     role === "application-protection"
       ? applicationProtectionObserver.name
-      : role === "coordinator" || role === "release-publication" || role === "site-publication"
-        ? releaseControlPhaseProfile(role).reader_name
-        : role === "native-windows" || role === "native-linux"
-          ? hostedNativeJobProfile(role === "native-linux" ? "linux-x86_64" : "windows-x86_64").job
-          : role === "candidate-building"
-            ? "Authenticate release control inputs"
-            : role === "classification-writer"
-              ? "Persist independently reviewed classification"
-              : role === "classification-observer"
-                ? "Observe release input protections"
-                : releaseControlPhaseProfile(
-                    role.startsWith("catalog-")
-                      ? role
-                      : role === "payload"
-                        ? "payload"
-                        : `tuf-${role}`,
-                  ).reader_name;
+      : role === "coordinator-protection"
+        ? releaseControlPhaseProfile("coordinator").observer_name
+        : role === "coordinator" || role === "release-publication" || role === "site-publication"
+          ? releaseControlPhaseProfile(role).reader_name
+          : role === "native-windows" || role === "native-linux"
+            ? hostedNativeJobProfile(role === "native-linux" ? "linux-x86_64" : "windows-x86_64")
+                .job
+            : role === "candidate-building"
+              ? "Authenticate release control inputs"
+              : role === "classification-writer"
+                ? "Persist independently reviewed classification"
+                : role === "classification-observer"
+                  ? "Observe release input protections"
+                  : releaseControlPhaseProfile(
+                      role.startsWith("catalog-")
+                        ? role
+                        : role === "payload"
+                          ? "payload"
+                          : `tuf-${role}`,
+                    ).reader_name;
   const matches = raw.jobs.filter((job: unknown) => isRecord(job) && job.name === name);
   const job: unknown = matches[0];
   if (
@@ -154,6 +169,19 @@ function signingOriginalJobDeadline(
   return monotonic + remaining;
 }
 
+function requireOriginalJobIdentity(identity: JobIdentity) {
+  if (
+    !/^[1-9][0-9]{0,15}$/u.test(identity.run_id) ||
+    !/^[a-f0-9]{40}$/u.test(identity.controller_revision) ||
+    identity.run_attempt !== 1 ||
+    identity.run_id !== process.env.GITHUB_RUN_ID ||
+    process.env.GITHUB_RUN_ATTEMPT !== "1" ||
+    identity.controller_revision !== process.env.GITHUB_SHA ||
+    identity.controller_ref !== process.env.GITHUB_REF
+  )
+    throw new Error("TUF invocation is not the original fixed job");
+}
+
 /** Reads the original fixed job BEFORE any tool receipt/download. No caller
  * supplied timestamp can reset the selected two-minute job's cleanup reserve. */
 function currentSigningJobDeadline(
@@ -166,18 +194,9 @@ function currentSigningJobDeadline(
   },
   root: string,
   processDeadline: number,
-  admittedNativeMaximum?: number,
+  admittedRoleMaximum?: number,
 ) {
-  if (
-    !/^[1-9][0-9]{0,15}$/u.test(identity.run_id) ||
-    !/^[a-f0-9]{40}$/u.test(identity.controller_revision) ||
-    identity.run_attempt !== 1 ||
-    identity.run_id !== process.env.GITHUB_RUN_ID ||
-    process.env.GITHUB_RUN_ATTEMPT !== "1" ||
-    identity.controller_revision !== process.env.GITHUB_SHA ||
-    identity.controller_ref !== process.env.GITHUB_REF
-  )
-    throw new Error("TUF invocation is not the original fixed job");
+  requireOriginalJobIdentity(identity);
   const remaining = () => {
     const left = Math.floor(processDeadline - performance.now());
     if (!Number.isFinite(left) || left < 1) throw new Error("fixed TUF job deadline exhausted");
@@ -204,7 +223,7 @@ function currentSigningJobDeadline(
       identity,
       Date.now(),
       performance.now(),
-      admittedNativeMaximum,
+      admittedRoleMaximum,
     ),
   );
 }
@@ -311,31 +330,70 @@ export function nativeOriginalJobDeadline(platform: unknown, ...args: BudgetArgu
 export function currentNativeJobDeadline(
   platform: unknown,
   identity: JobIdentity,
-  root: string,
   processDeadline: number,
   source: unknown,
   workflowBytes: Uint8Array,
 ) {
+  const original = { ...identity };
   const maximum = admittedNativeProviderMaximumMilliseconds(
     platform,
     source,
     workflowBytes,
-    identity,
+    original,
   );
-  return currentSigningJobDeadline(
-    nativeClockRole(platform),
+  return currentSdkJobDeadline(nativeClockRole(platform), original, processDeadline, maximum);
+}
+/** Windows pre-tool readers already run from the frozen dependency checkout. */
+export function currentWindowsNativeJobDeadline(
+  identity: JobIdentity,
+  processDeadline: number,
+  source: unknown,
+  workflowBytes: Uint8Array,
+) {
+  return currentNativeJobDeadline(
+    "windows-x86_64",
     identity,
-    root,
     processDeadline,
-    maximum,
+    source,
+    workflowBytes,
   );
 }
 /** One original shared observer allocation; individual phases cannot renew it. */
 export function sharedProtectionOriginalJobDeadline(...args: BudgetArguments) {
   return signingOriginalJobDeadline("application-protection", ...args);
 }
-export function currentSharedProtectionJobDeadline(...args: CurrentArguments) {
-  return currentSigningJobDeadline("application-protection", ...args);
+export function currentSharedProtectionJobDeadline(identity: JobIdentity, processDeadline: number) {
+  return currentSdkJobDeadline("application-protection", identity, processDeadline);
+}
+export function coordinatorProtectionOriginalJobDeadline(...args: BudgetArguments) {
+  return signingOriginalJobDeadline("coordinator-protection", ...args);
+}
+export function currentCoordinatorProtectionJobDeadline(
+  identity: JobIdentity,
+  source: { execution_ref: string; workflow_sha256: string },
+) {
+  let maximum = coordinatorJobBudgetMilliseconds;
+  if (matchesRetainedCatalogReviewRecoverySource(source)) {
+    requireAdmittedProductionSource(
+      source,
+      releaseControlPhaseProfile("coordinator").observer_job,
+      "catalog-publication",
+    );
+    if (
+      source.revision !== identity.controller_revision ||
+      source.execution_ref !== identity.controller_ref ||
+      String(source.run_id) !== identity.run_id ||
+      source.run_attempt !== identity.run_attempt
+    )
+      throw new Error("original catalog recovery observer source/clock identity differs");
+    maximum = retainedCatalogReviewRecoveryResources.observer_job_minutes * 60000 - 10000;
+  }
+  return currentSdkJobDeadline(
+    "coordinator-protection",
+    identity,
+    performance.now() + maximum,
+    maximum,
+  );
 }
 function catalogClockRole(raw: unknown): CatalogControlPhase {
   if (
@@ -350,8 +408,12 @@ function catalogClockRole(raw: unknown): CatalogControlPhase {
 export function catalogOriginalJobDeadline(role: unknown, ...args: BudgetArguments) {
   return signingOriginalJobDeadline(catalogClockRole(role), ...args);
 }
-export function currentCatalogJobDeadline(role: unknown, ...args: CurrentArguments) {
-  return currentSigningJobDeadline(catalogClockRole(role), ...args);
+export async function currentCatalogJobDeadline(
+  role: unknown,
+  identity: JobIdentity,
+  processDeadline: number,
+) {
+  return currentSdkJobDeadline(catalogClockRole(role), identity, processDeadline);
 }
 
 /** Clock metadata does not make either classification job a signing executor. */
@@ -360,34 +422,88 @@ export function classificationOriginalJobDeadline(role: unknown, ...args: Budget
     throw new Error("fixed classification clock role required");
   return signingOriginalJobDeadline(`classification-${role}`, ...args);
 }
-export function currentClassificationJobDeadline(role: unknown, ...args: CurrentArguments) {
+export function currentClassificationJobDeadline(
+  role: unknown,
+  identity: JobIdentity,
+  processDeadline: number,
+  token: string,
+) {
   if (role !== "writer" && role !== "observer")
     throw new Error("fixed classification clock role required");
-  return currentSigningJobDeadline(`classification-${role}`, ...args);
+  return currentSdkJobDeadline(`classification-${role}`, identity, processDeadline, undefined, {
+    token,
+    fetch(input, init) {
+      assertTrustedDirectNode("fixed classification job clock");
+      return globalThis.fetch(input, init);
+    },
+  });
 }
 
 /** Admission clock only; this does not create an executor or signing role. */
 export function buildingOriginalJobDeadline(...args: BudgetArguments) {
   return signingOriginalJobDeadline("candidate-building", ...args);
 }
-export function currentBuildingJobDeadline(...args: CurrentArguments) {
-  return currentSigningJobDeadline("candidate-building", ...args);
-}
 
-/** Resource clock for the closed job bootstrap only, never role authority. */
-export function currentControllerJobDeadline(operation: unknown, ...args: CurrentArguments) {
+/** Resource clock for fixed controller jobs, never role authority. */
+export async function currentControllerJobDeadline(
+  operation: unknown,
+  identity: JobIdentity,
+  processDeadline: number,
+) {
   const role = operation === "building" ? "candidate-building" : operation;
+  let selected: ClockRole;
   if (
     role === "payload" ||
     role === "candidate-building" ||
     role === "coordinator" ||
     role === "release-publication" ||
     role === "site-publication"
-  )
-    return currentSigningJobDeadline(role, ...args);
-  if (typeof role === "string" && role.startsWith("tuf-"))
-    return currentTufJobDeadline(role.slice(4), ...args);
-  if (typeof role === "string" && role.startsWith("catalog-"))
-    return currentCatalogJobDeadline(role, ...args);
-  throw new Error("fixed controller job clock required");
+  ) {
+    selected = role;
+  } else if (
+    typeof role === "string" &&
+    ["tuf-releases", "tuf-preview", "tuf-stable", "tuf-snapshot", "tuf-timestamp"].includes(role)
+  ) {
+    selected = role.slice(4) as TufSigningRole;
+  } else if (typeof role === "string" && role.startsWith("catalog-")) {
+    selected = catalogClockRole(role);
+  } else {
+    throw new Error("fixed controller job clock required");
+  }
+  return currentSdkJobDeadline(selected, identity, processDeadline);
+}
+
+async function currentSdkJobDeadline(
+  role: ClockRole,
+  identity: JobIdentity,
+  processDeadline: number,
+  admittedRoleMaximum?: number,
+  transport?: { token: string; fetch: typeof globalThis.fetch },
+) {
+  requireOriginalJobIdentity(identity);
+  const lookupDeadline =
+    role === "coordinator-protection"
+      ? Math.min(processDeadline, performance.now() + 15000)
+      : processDeadline;
+  const token = transport?.token ?? fixedReleaseReaderToken();
+  const { createReleaseCustodyProvider } = await import("./release-custody-provider.mts");
+  const provider = await createReleaseCustodyProvider({
+    token,
+    deadline: lookupDeadline,
+    ...(transport ? { fetch: transport.fetch } : {}),
+  });
+  const response = await provider.jobs(identity.run_id, 1, 1);
+  if (response.next !== null || performance.now() >= lookupDeadline)
+    throw new Error("original controller job budget unavailable");
+  return Math.min(
+    processDeadline,
+    signingOriginalJobDeadline(
+      role,
+      response.body,
+      identity,
+      Date.now(),
+      performance.now(),
+      admittedRoleMaximum,
+    ),
+  );
 }

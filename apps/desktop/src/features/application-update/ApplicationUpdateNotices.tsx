@@ -1,4 +1,6 @@
 import { Download, Settings, ShieldCheck, X } from "lucide-react";
+import { useAppTranslation } from "../../localization";
+import type { TFunction } from "i18next";
 import { Notice } from "../../components/ui/patterns";
 import { Button } from "../../components/ui/button";
 import { Icon } from "../../components/ui";
@@ -68,6 +70,7 @@ function ApplicationUpdateProductionTransitionBanner({
   keepPreview: () => void;
   dismiss: () => void;
 }) {
+  const { t } = useAppTranslation("applicationUpdate");
   return (
     <Notice
       intent="info"
@@ -84,22 +87,18 @@ function ApplicationUpdateProductionTransitionBanner({
         <Icon glyph={ShieldCheck} />
       </span>
       <div data-slot="notice-body">
-        <strong>Choose an update channel</strong>
-        <p>
-          Stable is recommended and waits for an eligible production release newer than this
-          installation; it never downgrades Portcove. Keep Preview to continue receiving eligible
-          test releases. Your update mode and pause setting stay unchanged.
-        </p>
+        <strong>{t("productionTransition.title")}</strong>
+        <p>{t("productionTransition.body")}</p>
       </div>
       <div data-slot="notice-actions" className="error-actions flex gap-1">
         <Button data-focusable variant="primary" size="sm" disabled={busy} onClick={useStable}>
-          Use Stable
+          {t("productionTransition.useStable")}
         </Button>
         <Button data-focusable variant="outline" size="sm" disabled={busy} onClick={keepPreview}>
-          Keep Preview
+          {t("productionTransition.keepPreview")}
         </Button>
         <Button data-focusable variant="ghost" size="sm" disabled={busy} onClick={dismiss}>
-          Not now
+          {t("productionTransition.notNow")}
         </Button>
       </div>
     </Notice>
@@ -113,6 +112,7 @@ function ApplicationUpdateChoiceBanner({
   review: () => void;
   dismiss: () => void;
 }) {
+  const { t } = useAppTranslation("applicationUpdate");
   return (
     <Notice intent="info" className="" role="status" aria-live="polite" aria-atomic="true">
       <span
@@ -122,23 +122,37 @@ function ApplicationUpdateChoiceBanner({
         <Icon glyph={Settings} />
       </span>
       <div data-slot="notice-body">
-        <strong>Choose how Portcove updates</strong>
-        <p>
-          Automatic updates are recommended. During public beta, Preview receives eligible test
-          releases. Portcove verifies updates and waits for a safe exit or an explicit restart
-          before applying them.
-        </p>
+        <strong>{t("choice.title")}</strong>
+        <p>{t("choice.body")}</p>
       </div>
       <div data-slot="notice-actions" className="error-actions flex gap-1">
         <Button data-focusable variant="outline" size="sm" onClick={review}>
-          Review options
+          {t("choice.review")}
         </Button>
         <Button data-focusable variant="ghost" size="sm" onClick={dismiss}>
-          Not now
+          {t("choice.notNow")}
         </Button>
       </div>
     </Notice>
   );
+}
+
+// Complete per-channel messages with static contexts: a channel name is never
+// inserted into a sentence, and no base key can surface as a raw fallback.
+function channelUpdateBody(
+  t: TFunction<"applicationUpdate">,
+  preview: boolean,
+  staged: boolean,
+  size: string,
+) {
+  if (staged) {
+    return preview
+      ? t("notice.readyBody", { context: "preview", size })
+      : t("notice.readyBody", { context: "stable", size });
+  }
+  return preview
+    ? t("notice.availableBody", { context: "preview", size })
+    : t("notice.availableBody", { context: "stable", size });
 }
 
 function ApplicationUpdateNoticeBanner({
@@ -150,9 +164,10 @@ function ApplicationUpdateNoticeBanner({
   review: () => void;
   dismiss: () => Promise<void>;
 }) {
+  const { t } = useAppTranslation("applicationUpdate");
   const candidate = notice.result.candidate;
   if (!candidate) return null;
-  const channel = candidate.channel === "preview" ? "Preview" : "Stable";
+  const size = formatBytes(candidate.bytes);
   return (
     <Notice
       intent={notice.result.staged ? "info" : "warning"}
@@ -170,24 +185,20 @@ function ApplicationUpdateNoticeBanner({
       <div data-slot="notice-body">
         <strong>
           {notice.result.staged
-            ? `Portcove ${candidate.version} is ready to install`
-            : `Portcove ${candidate.version} is available`}
+            ? t("notice.readyTitle", { version: candidate.version })
+            : t("notice.availableTitle", { version: candidate.version })}
         </strong>
-        <p>
-          {notice.result.staged
-            ? `${channel} update verified (${formatBytes(candidate.bytes)}). Review it in Settings and restart when convenient.`
-            : `${channel} update found (${formatBytes(candidate.bytes)}). Review it in Settings before downloading.`}
-        </p>
+        <p>{channelUpdateBody(t, candidate.channel === "preview", notice.result.staged, size)}</p>
       </div>
       <div data-slot="notice-actions" className="error-actions flex gap-1">
         <Button data-focusable variant="primary" size="sm" onClick={review}>
-          Review update
+          {t("notice.review")}
         </Button>
         <Button
           data-focusable
           variant="ghost"
           size="icon-sm"
-          aria-label="Dismiss application update notice"
+          aria-label={t("notice.dismiss")}
           onClick={() => void dismiss()}
         >
           <Icon glyph={X} />

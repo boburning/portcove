@@ -16,6 +16,7 @@ const ajv = new Ajv2020({
   // Schemars numeric formats are annotations; exported type/minimum/maximum
   // keywords own their constraints. Unrecognized future formats still fail.
   formats: {
+    double: true,
     int32: true,
     int64: true,
     uint: true,

@@ -84,13 +84,6 @@
     "rust-quality-full-2": {
       "arguments": ["--test", "--test-reporter=./scripts/required-node-test-reporter.mts"]
     },
-    "rust-quality-full-3": {
-      "arguments": [
-        "--test",
-        "--test-timeout=30000",
-        "--test-reporter=./scripts/required-node-test-reporter.mts"
-      ]
-    },
     "frontend-full": {
       "arguments": [
         "--test",
@@ -150,6 +143,7 @@
     "catalog-full-3": {
       "arguments": [
         "--test",
+        "--experimental-test-module-mocks",
         "--test-timeout=30000",
         "--test-reporter=./scripts/required-node-test-reporter.mts"
       ]
@@ -256,6 +250,86 @@
       ]
     },
     {
+      "file": "scripts/application-release-artifacts.test.mts",
+      "memberships": [
+        ["catalog-full-3", 300],
+        ["release-check", 50100]
+      ],
+      "ordinary_families": ["application-release-contract-tests"]
+    },
+    {
+      "file": "scripts/application-release-budget.test.mts",
+      "memberships": [
+        ["catalog-full-3", 400],
+        ["release-check", 50200]
+      ],
+      "ordinary_families": ["application-release-contract-tests"]
+    },
+    {
+      "file": "scripts/application-release-context.test.mts",
+      "memberships": [
+        ["catalog-full-3", 500],
+        ["release-check", 50300]
+      ],
+      "ordinary_families": ["application-release-contract-tests"]
+    },
+    {
+      "file": "scripts/application-release-feed.test.mts",
+      "memberships": [
+        ["catalog-full-3", 600],
+        ["release-check", 50400]
+      ],
+      "ordinary_families": ["application-release-contract-tests"]
+    },
+    {
+      "file": "scripts/application-release-native.test.mts",
+      "memberships": [
+        ["catalog-full-3", 700],
+        ["release-check", 50500]
+      ],
+      "ordinary_families": ["application-release-contract-tests"]
+    },
+    {
+      "file": "scripts/application-release-policy.test.mts",
+      "memberships": [
+        ["catalog-full-3", 800],
+        ["release-check", 50600]
+      ],
+      "ordinary_families": ["application-release-contract-tests"]
+    },
+    {
+      "file": "scripts/application-release-publication.test.mts",
+      "memberships": [
+        ["catalog-full-3", 900],
+        ["release-check", 50700]
+      ],
+      "ordinary_families": ["application-release-contract-tests"]
+    },
+    {
+      "file": "scripts/application-release-qualification.test.mts",
+      "memberships": [
+        ["catalog-full-3", 1000],
+        ["release-check", 50800]
+      ],
+      "ordinary_families": ["application-release-contract-tests"]
+    },
+    {
+      "file": "scripts/application-release-run.test.mts",
+      "memberships": [
+        ["catalog-full-3", 1100],
+        ["release-check", 50900]
+      ],
+      "ordinary_families": ["application-release-contract-tests"]
+    },
+    {
+      "file": "scripts/application-release-site.test.mts",
+      "memberships": [
+        ["catalog-full-3", 1200],
+        ["release-check", 51000]
+      ],
+      "ordinary_families": ["application-release-contract-tests"]
+    },
+    {
       "file": "scripts/assembler-job-identity.test.mts",
       "memberships": [
         ["frontend-full-6", 500],
@@ -288,7 +362,8 @@
       "memberships": [
         ["catalog-full-2", 1200],
         ["development-tools", 1400]
-      ]
+      ],
+      "ordinary_families": ["selection-contract-tests"]
     },
     {
       "file": "scripts/capture-target.test.mts",
@@ -303,56 +378,107 @@
       "memberships": [
         ["catalog-full-2", 8970],
         ["repository-tools-2", 3970]
-      ]
+      ],
+      "ordinary_families": ["catalog-generator-feature-tests", "catalog-generator-contract-tests"]
     },
     {
       "file": "scripts/catalog-artwork-batches.test.mts",
       "memberships": [
         ["catalog-full-2", 8940],
         ["repository-tools-2", 3940]
-      ]
+      ],
+      "ordinary_families": ["catalog-generator-feature-tests", "catalog-generator-contract-tests"]
     },
     {
       "file": "scripts/catalog-artwork-dispatch.test.mts",
       "memberships": [
         ["catalog-full-2", 8930],
         ["repository-tools-2", 3930]
-      ]
+      ],
+      "ordinary_families": ["catalog-generator-contract-tests", "catalog-authoring-contract-tests"]
     },
     {
       "file": "scripts/catalog-artwork-lifecycle.test.mts",
       "memberships": [
         ["catalog-full-2", 8960],
         ["repository-tools-2", 3960]
-      ]
+      ],
+      "ordinary_families": ["catalog-generator-feature-tests", "catalog-generator-contract-tests"]
     },
     {
       "file": "scripts/catalog-artwork-provider.test.mts",
       "memberships": [
         ["catalog-full-2", 8950],
         ["repository-tools-2", 3950]
-      ]
+      ],
+      "ordinary_families": ["catalog-generator-feature-tests", "catalog-generator-contract-tests"]
     },
     {
       "file": "scripts/catalog-proposal-comparison.test.mts",
       "memberships": [
         ["catalog-full-2", 8920],
         ["repository-tools-2", 3920]
-      ]
+      ],
+      "ordinary_families": ["catalog-generator-contract-tests", "catalog-authoring-contract-tests"]
     },
     {
       "file": "scripts/catalog-proposal-costs.test.mts",
       "memberships": [
         ["catalog-full-2", 9400],
         ["repository-tools-2", 4400]
+      ],
+      "ordinary_families": ["catalog-generator-contract-tests", "catalog-authoring-contract-tests"]
+    },
+    {
+      "file": "scripts/catalog-route-facts.test.mts",
+      "memberships": [
+        ["catalog-full-2", 8911],
+        ["repository-tools-2", 3911]
       ]
+    },
+    {
+      "file": "scripts/catalog-selection-enrollment.test.mts",
+      "memberships": [
+        ["catalog-full-2", 8916],
+        ["repository-tools-2", 3916]
+      ]
+    },
+    {
+      "file": "scripts/catalog-rust-edit-report.test.mts",
+      "memberships": [
+        ["catalog-full-2", 8913],
+        ["repository-tools-2", 3913]
+      ]
+    },
+    {
+      "file": "scripts/backfill-listing-dates.test.mts",
+      "memberships": [
+        ["catalog-full-2", 8914],
+        ["repository-tools-2", 3914]
+      ]
+    },
+    {
+      "file": "scripts/artifact-preservation.test.mts",
+      "memberships": [
+        ["catalog-full-2", 8915],
+        ["repository-tools-2", 3915]
+      ]
+    },
+    {
+      "file": "scripts/package-player-observation.test.mts",
+      "memberships": [
+        ["catalog-full-2", 8912],
+        ["repository-tools-2", 3912]
+      ],
+      "ordinary_families": ["catalog-preparation-contract-tests"]
     },
     {
       "file": "scripts/catalog-source-authoring.test.mts",
       "memberships": [
         ["catalog-full-2", 8910],
         ["repository-tools-2", 3910]
-      ]
+      ],
+      "ordinary_families": ["catalog-generator-contract-tests", "catalog-authoring-contract-tests"]
     },
     {
       "file": "scripts/catalog-staged-check.test.mts",
@@ -366,6 +492,14 @@
       "memberships": [
         ["catalog-full", 1201],
         ["repository-tools", 402]
+      ],
+      "ordinary_families": ["upstream-health-contract-tests"]
+    },
+    {
+      "file": "scripts/observer-checkpoint-artifact.test.mts",
+      "memberships": [
+        ["catalog-full", 1203],
+        ["repository-tools", 404]
       ]
     },
     {
@@ -409,7 +543,8 @@
       "memberships": [
         ["catalog-full-2", 1600],
         ["release-check", 100]
-      ]
+      ],
+      "ordinary_families": ["release-contract-tests"]
     },
     {
       "file": "scripts/check-retcomm-upstreams.test.mts",
@@ -470,6 +605,27 @@
       ]
     },
     {
+      "file": "scripts/rust-timing-hints.test.mts",
+      "memberships": [
+        ["catalog-full-2", 5001],
+        ["repository-tools-2", 601]
+      ]
+    },
+    {
+      "file": "scripts/browser-shard-balance.test.mts",
+      "memberships": [
+        ["catalog-full-2", 5003],
+        ["repository-tools-2", 603]
+      ]
+    },
+    {
+      "file": "scripts/ci-supersede.test.mts",
+      "memberships": [
+        ["catalog-full-2", 5002],
+        ["repository-tools-2", 602]
+      ]
+    },
+    {
       "file": "scripts/ci-metrics.test.mts",
       "memberships": [
         ["catalog-full-2", 900],
@@ -489,7 +645,8 @@
         ["windows-storage-3", 100],
         ["catalog-full-2", 4500],
         ["repository-tools-2", 100]
-      ]
+      ],
+      "ordinary_families": ["workflow-contract-tests"]
     },
     {
       "file": "scripts/ci-frontend-workflow.test.mts",
@@ -497,7 +654,8 @@
         ["windows-storage-3", 101],
         ["catalog-full-2", 4501],
         ["repository-tools-2", 101]
-      ]
+      ],
+      "ordinary_families": ["workflow-feature-tests", "workflow-contract-tests"]
     },
     {
       "file": "scripts/ci-native-workflow.test.mts",
@@ -505,7 +663,8 @@
         ["windows-storage-3", 103],
         ["catalog-full-2", 4503],
         ["repository-tools-2", 103]
-      ]
+      ],
+      "ordinary_families": ["workflow-feature-tests", "workflow-contract-tests"]
     },
     {
       "file": "scripts/ci-release-workflow.test.mts",
@@ -513,7 +672,8 @@
         ["windows-storage-3", 102],
         ["catalog-full-2", 4502],
         ["repository-tools-2", 102]
-      ]
+      ],
+      "ordinary_families": ["workflow-feature-tests", "workflow-contract-tests"]
     },
     {
       "file": "scripts/ci-rust-workflow.test.mts",
@@ -521,6 +681,11 @@
         ["windows-storage-3", 105],
         ["catalog-full-2", 4505],
         ["repository-tools-2", 105]
+      ],
+      "ordinary_families": [
+        "rust-workflow-contract-tests",
+        "workflow-feature-tests",
+        "workflow-contract-tests"
       ]
     },
     {
@@ -529,7 +694,8 @@
         ["windows-storage-3", 104],
         ["catalog-full-2", 4504],
         ["repository-tools-2", 104]
-      ]
+      ],
+      "ordinary_families": ["workflow-feature-tests", "workflow-contract-tests"]
     },
     {
       "file": "scripts/rust-toolchain-reader.test.mts",
@@ -537,7 +703,8 @@
         ["windows-storage-3", 106],
         ["catalog-full-2", 4506],
         ["repository-tools-2", 106]
-      ]
+      ],
+      "ordinary_families": ["workflow-feature-tests", "workflow-contract-tests"]
     },
     {
       "file": "scripts/windows-rust-tests.test.mts",
@@ -545,6 +712,11 @@
         ["windows-storage-3", 107],
         ["catalog-full-2", 4507],
         ["repository-tools-2", 107]
+      ],
+      "ordinary_families": [
+        "rust-workflow-contract-tests",
+        "workflow-feature-tests",
+        "workflow-contract-tests"
       ]
     },
     {
@@ -612,7 +784,8 @@
       "memberships": [
         ["frontend-full-6", 100],
         ["release-check", 1400]
-      ]
+      ],
+      "ordinary_families": ["release-contract-tests"]
     },
     {
       "file": "scripts/daily-discovery-quiver.test.mts",
@@ -684,6 +857,22 @@
         ["windows-storage-4", 400],
         ["frontend-full-4", 400],
         ["development-tools", 2200]
+      ]
+    },
+    {
+      "file": "scripts/desktop-runtime-exit-observation.test.mts",
+      "memberships": [
+        ["windows-storage-4", 298],
+        ["frontend-full-4", 298],
+        ["development-tools", 2098]
+      ]
+    },
+    {
+      "file": "scripts/desktop-game-first-installed-inputs.test.mts",
+      "memberships": [
+        ["windows-storage-4", 299],
+        ["frontend-full-4", 299],
+        ["development-tools", 2099]
       ]
     },
     {
@@ -782,6 +971,14 @@
             "account desktop handoff uses exact job identities, scrubbed environment and one stop"
           ]
         }
+      ]
+    },
+    {
+      "file": "scripts/desktop-source-reuse.test.mts",
+      "memberships": [
+        ["windows-storage-4", 510],
+        ["frontend-full-4", 510],
+        ["development-tools", 2310]
       ]
     },
     {
@@ -887,14 +1084,14 @@
           "platform": ["linux", "win32", "darwin"],
           "owner": "windows-storage",
           "category": "prerequisite",
-          "prerequisite": "Real Cargo acceptance was not observed: unchanged 20 GiB reserve blocks local compilation.",
+          "prerequisite": "Real Cargo acceptance was not observed: unchanged 5 GiB reserve blocks local compilation.",
           "reason": "The original prerequisite/admission guard remains required; a skipped observation is not execution.",
           "intended_route": ".github/workflows/ci.yml; complete Node suite windows-storage; Mac complement macos-platform-contracts",
           "cases": [
             "real Cargo owns target initialization and checked cleanup after Cargo-first preparation",
             "real Cargo owns target initialization and checked cleanup after support-first preparation"
           ],
-          "skip_reason_prefix": "Real Cargo acceptance was not observed: unchanged 20 GiB reserve blocks local compilation."
+          "skip_reason_prefix": "Real Cargo acceptance was not observed: unchanged 5 GiB reserve blocks local compilation."
         },
         {
           "platform": ["linux", "win32", "darwin"],
@@ -1039,7 +1236,8 @@
       "memberships": [
         ["catalog-full-2", 3300],
         ["release-check", 1100]
-      ]
+      ],
+      "ordinary_families": ["release-contract-tests"]
     },
     {
       "file": "scripts/fixture-module-closure.test.mts",
@@ -1094,20 +1292,29 @@
       "memberships": [
         ["catalog-full-2", 8900],
         ["repository-tools-2", 3900]
-      ]
+      ],
+      "ordinary_families": ["catalog-generator-contract-tests", "catalog-authoring-contract-tests"]
     },
     {
       "file": "scripts/generate-release-downloads.test.mts",
       "memberships": [
         ["catalog-full-2", 3400],
         ["release-check", 1200]
-      ]
+      ],
+      "ordinary_families": ["release-contract-tests"]
     },
     {
       "file": "scripts/github-api.test.mts",
       "memberships": [
         ["catalog-full-2", 7800],
         ["repository-tools-2", 3600]
+      ]
+    },
+    {
+      "file": "scripts/github-client.test.mts",
+      "memberships": [
+        ["catalog-full-2", 7801],
+        ["repository-tools-2", 3601]
       ]
     },
     {
@@ -1132,7 +1339,8 @@
         ["windows-storage-4", 2100],
         ["catalog-full-2", 1800],
         ["development-tools", 3800]
-      ]
+      ],
+      "ordinary_families": ["containment-contract-tests"]
     },
     {
       "file": "scripts/hosted-native-continuity.test.mts",
@@ -1153,7 +1361,8 @@
             "hosted runtime timings retain eligible and refused observations without installer effects"
           ]
         }
-      ]
+      ],
+      "ordinary_families": ["release-contract-tests"]
     },
     {
       "file": "scripts/linux-beta-risk-706-controller.test.mts",
@@ -1174,13 +1383,103 @@
       "memberships": [
         ["windows-storage-4", 2200],
         ["development-tools", 3900]
-      ]
+      ],
+      "ordinary_families": ["selection-contract-tests"]
     },
     {
       "file": "scripts/maintainer-config.test.mts",
       "memberships": [
         ["catalog-full-2", 9200],
         ["repository-tools-2", 4200]
+      ]
+    },
+    {
+      "file": "scripts/maintenance-inventory.test.mts",
+      "memberships": [
+        ["catalog-full", 1271],
+        ["repository-tools", 406]
+      ],
+      "platform_skips": [
+        {
+          "platform": ["linux", "darwin"],
+          "owner": "catalog-full",
+          "category": "prerequisite",
+          "prerequisite": "Non-root PostgreSQL 16+ server binaries (initdb, pg_ctl) for disposable clusters",
+          "reason": "The read-only inventory proof needs a real PostgreSQL cluster; a skipped observation is not execution.",
+          "intended_route": ".github/workflows/ci.yml; complete Node suite catalog-full on ubuntu-latest",
+          "cases": [
+            "declared records flow through Core assessment, the store and a static report",
+            "complete collection stores changes only, verifies membership and records absence",
+            "each host platform keeps its own assessment history, gaps and latest run",
+            "release health records coverage, quiet recurrence and needs-attention conditions",
+            "upstream observations record coverage, quiet recurrence, attention and failed reads",
+            "hosted intake records requests, quiet recurrence, attention, gaps and failed reads",
+            "handoffs plan once, stay quiet, clear and abandon only after complete runs, and refuse stale fences",
+            "current provenance refreshes quietly, stale collections replace nothing and sources fail alone",
+            "migration 0003 binds existing state and handoff plans follow the applicable assessment",
+            "Core per-target route offering is stored per port, reported and fails alone",
+            "typed reconsiderations follow complete owner reads, stay quiet and keep episodes",
+            "a selective run reuses unchanged Core results without re-verifying them"
+          ],
+          "skip_reason_prefix": "PostgreSQL server prerequisite unavailable"
+        }
+      ]
+    },
+    {
+      "file": "scripts/maintenance-release-health.test.mts",
+      "memberships": [
+        ["catalog-full", 1272],
+        ["repository-tools", 407]
+      ]
+    },
+    {
+      "file": "scripts/maintenance-upstream.test.mts",
+      "memberships": [
+        ["catalog-full", 1273],
+        ["repository-tools", 408]
+      ]
+    },
+    {
+      "file": "scripts/maintenance-hosted-intake.test.mts",
+      "memberships": [
+        ["catalog-full", 1274],
+        ["repository-tools", 409]
+      ]
+    },
+    {
+      "file": "scripts/maintenance-handoffs.test.mts",
+      "memberships": [
+        ["catalog-full", 1275],
+        ["repository-tools", 410]
+      ]
+    },
+    {
+      "file": "scripts/maintenance-universe.test.mts",
+      "memberships": [
+        ["catalog-full", 1276],
+        ["repository-tools", 411]
+      ]
+    },
+    {
+      "file": "scripts/maintenance-store.test.mts",
+      "memberships": [
+        ["catalog-full", 1270],
+        ["repository-tools", 405]
+      ],
+      "platform_skips": [
+        {
+          "platform": ["linux", "darwin"],
+          "owner": "catalog-full",
+          "category": "prerequisite",
+          "prerequisite": "Non-root PostgreSQL 16+ server binaries (initdb, pg_ctl) for disposable clusters",
+          "reason": "The integration proof needs real PostgreSQL clusters; a skipped observation is not execution.",
+          "intended_route": ".github/workflows/ci.yml; complete Node suite catalog-full on ubuntu-latest",
+          "cases": [
+            "maintenance store guards history and survives an independent PostgreSQL restore",
+            "an interrupted maintenance migration leaves no partial schema and resumes cleanly"
+          ],
+          "skip_reason_prefix": "PostgreSQL server prerequisite unavailable"
+        }
       ]
     },
     {
@@ -1218,6 +1517,7 @@
             "actual library picker input paths refuse foreign controls and changed process/window identities",
             "actual observation field projection uses its explicit window and title without input",
             "failed confirmation retains a redacted helper receipt before its original assertion",
+            "file picker receipt requires owned readback and fresh dismissal after one Open",
             "library picker discovery excludes unrelated providers and refuses changed identities",
             "malformed, oversized and private diagnostic fields cannot leak through receipts",
             "owned observation picker preflight binds exact fixture directories to their title",
@@ -1241,28 +1541,32 @@
       "memberships": [
         ["catalog-full-2", 15300],
         ["release-check", 15000]
-      ]
+      ],
+      "ordinary_families": ["release-contract-tests"]
     },
     {
       "file": "scripts/native-linux-isolated-init.test.mts",
       "memberships": [
         ["catalog-full-2", 15400],
         ["release-check", 15100]
-      ]
+      ],
+      "ordinary_families": ["python-contract-tests", "release-contract-tests"]
     },
     {
       "file": "scripts/native-linux-isolated-plan.test.mts",
       "memberships": [
         ["catalog-full-2", 15500],
         ["release-check", 15200]
-      ]
+      ],
+      "ordinary_families": ["release-contract-tests"]
     },
     {
       "file": "scripts/native-linux-public-fuse.test.mts",
       "memberships": [
         ["frontend-full-6", 1300],
         ["release-check", 12500]
-      ]
+      ],
+      "ordinary_families": ["python-contract-tests", "release-contract-tests"]
     },
     {
       "file": "scripts/native-linux-public-network.test.mts",
@@ -1280,21 +1584,24 @@
           "intended_route": ".github/workflows/ci.yml; complete Node suite frontend-full-6",
           "cases": ["actual Linux fixed outer relay requires its owned stop after clean guest EOF"]
         }
-      ]
+      ],
+      "ordinary_families": ["python-contract-tests"]
     },
     {
       "file": "scripts/native-linux-public-plan.test.mts",
       "memberships": [
         ["frontend-full-6", 1500],
         ["release-check", 12600]
-      ]
+      ],
+      "ordinary_families": ["release-contract-tests"]
     },
     {
       "file": "scripts/native-linux-public-services.test.mts",
       "memberships": [
         ["frontend-full-6", 1400],
         ["release-check", 12700]
-      ]
+      ],
+      "ordinary_families": ["python-contract-tests", "release-contract-tests"]
     },
     {
       "file": "scripts/native-qualification-account-adapter.test.mts",
@@ -1368,14 +1675,16 @@
       "memberships": [
         ["catalog-full-2", 15700],
         ["release-check", 15400]
-      ]
+      ],
+      "ordinary_families": ["python-contract-tests", "release-contract-tests"]
     },
     {
       "file": "scripts/native-qualification-linux-transfer.test.mts",
       "memberships": [
         ["catalog-full-2", 15800],
         ["release-check", 15500]
-      ]
+      ],
+      "ordinary_families": ["python-contract-tests", "release-contract-tests"]
     },
     {
       "file": "scripts/native-session-lock.test.mts",
@@ -1384,7 +1693,8 @@
         ["windows-storage-4", 2400],
         ["frontend-full-4", 1400],
         ["development-tools", 4200]
-      ]
+      ],
+      "ordinary_families": ["containment-contract-tests"]
     },
     {
       "file": "scripts/native-session.test.mts",
@@ -1430,7 +1740,8 @@
       "memberships": [
         ["catalog-full-2", 5300],
         ["repository-tools-2", 900]
-      ]
+      ],
+      "ordinary_families": ["workflow-feature-tests", "workflow-contract-tests"]
     },
     {
       "file": "scripts/qualification-nextest.test.mts",
@@ -1524,18 +1835,36 @@
       ]
     },
     {
+      "file": "scripts/settings-consumer-qualification.test.mts",
+      "ordinary_families": ["catalog-preparation-contract-tests"],
+      "memberships": [
+        ["catalog-full-2", 9104],
+        ["repository-tools-2", 4104]
+      ]
+    },
+    {
+      "file": "scripts/settings-qualification.test.mts",
+      "ordinary_families": ["catalog-preparation-contract-tests"],
+      "memberships": [
+        ["catalog-full-2", 9105],
+        ["repository-tools-2", 4105]
+      ]
+    },
+    {
       "file": "scripts/prepare-port.test.mts",
       "memberships": [
         ["catalog-full-2", 9100],
         ["repository-tools-2", 4100]
-      ]
+      ],
+      "ordinary_families": ["catalog-preparation-contract-tests"]
     },
     {
       "file": "scripts/process-lock.test.mts",
       "memberships": [
         ["catalog-full-2", 8000],
         ["development-tools", 4400]
-      ]
+      ],
+      "ordinary_families": ["containment-contract-tests"]
     },
     {
       "file": "scripts/production-aggregate-steps.test.mts",
@@ -1563,7 +1892,8 @@
       "memberships": [
         ["frontend-full-6", 200],
         ["release-check", 1500]
-      ]
+      ],
+      "ordinary_families": ["release-contract-tests"]
     },
     {
       "file": "scripts/release-job-authorities.test.mts",
@@ -1577,7 +1907,8 @@
       "memberships": [
         ["catalog-full-2", 6500],
         ["repository-tools-2", 2500]
-      ]
+      ],
+      "ordinary_families": ["python-contract-tests"]
     },
     {
       "file": "scripts/qualification-coverage.test.mts",
@@ -1585,6 +1916,11 @@
         ["catalog-full-2", 6300],
         ["repository-tools-2", 1800],
         ["windows-storage-3", 1000004]
+      ],
+      "ordinary_families": [
+        "rust-workflow-contract-tests",
+        "workflow-feature-tests",
+        "workflow-contract-tests"
       ]
     },
     {
@@ -1592,7 +1928,8 @@
       "memberships": [
         ["windows-storage-2", 200],
         ["release-check", 4600]
-      ]
+      ],
+      "ordinary_families": ["release-contract-tests"]
     },
     {
       "file": "scripts/quality-tools.test.mts",
@@ -1645,14 +1982,16 @@
       "memberships": [
         ["catalog-full-2", 3000],
         ["release-check", 800]
-      ]
+      ],
+      "ordinary_families": ["release-contract-tests"]
     },
     {
       "file": "scripts/reconstruct-application-update-records.test.mts",
       "memberships": [
         ["frontend-full-6", 3300],
         ["release-check", 4200]
-      ]
+      ],
+      "ordinary_families": ["release-contract-tests"]
     },
     {
       "file": "scripts/recover-local-worker-empty-setup.test.mts",
@@ -1677,7 +2016,8 @@
             "actual trusted-writer dot-source defines the original receipt writer in caller scope"
           ]
         }
-      ]
+      ],
+      "ordinary_families": ["release-contract-tests"]
     },
     {
       "file": "scripts/release-acceptance-evidence.test.mts",
@@ -1740,6 +2080,48 @@
       ]
     },
     {
+      "file": "scripts/initial-key-custody.test.mts",
+      "memberships": [
+        ["catalog-full-2", 11945],
+        ["release-check", 14145]
+      ],
+      "qualification": {
+        "linux-x86_64": "catalog-full-2"
+      },
+      "platform_skips": [
+        {
+          "platform": ["linux", "win32", "darwin"],
+          "owner": "catalog-full-2",
+          "category": "explicit-acceptance",
+          "prerequisite": "Independently pinned release-tools binary and qualified public age cache; disposable keys only",
+          "reason": "Actual initial-snapshot crypto and private-terminal observations are opt-in and do not establish production custody.",
+          "intended_route": "scripts/initial-key-custody.test.mts; bounded local disposable recovery qualification",
+          "cases": [
+            "actual shared vault engine restores the complete disposable initial set and refuses wrong keys and purpose"
+          ],
+          "required_environment": [
+            "PORTCOVE_CATALOG_RECOVERY_QUALIFICATION_TOOL",
+            "PORTCOVE_CATALOG_RECOVERY_TOOL_PARENT"
+          ]
+        },
+        {
+          "platform": ["linux", "win32", "darwin"],
+          "owner": "catalog-full-2",
+          "category": "explicit-acceptance",
+          "prerequisite": "Independently pinned complete-custody release-tools binary/source, qualified public age cache and repository-pinned Tauri CLI; disposable keys only",
+          "reason": "Actual complete-snapshot crypto qualification is opt-in and does not establish production credential creation or custody.",
+          "intended_route": "scripts/initial-key-custody.test.mts; bounded Linux x64 disposable complete-custody recovery qualification",
+          "cases": [
+            "actual complete vault reprojects a disposable Tauri payload and restores all sixteen roles without primary keys"
+          ],
+          "required_environment": [
+            "PORTCOVE_COMPLETE_CUSTODY_QUALIFICATION_TOOL",
+            "PORTCOVE_CATALOG_RECOVERY_TOOL_PARENT"
+          ]
+        }
+      ]
+    },
+    {
       "file": "scripts/recovery-tools.test.mts",
       "memberships": [
         ["catalog-full-2", 11950],
@@ -1787,7 +2169,8 @@
             "PORTCOVE_TUF_INITIAL_PUBLIC_FIXTURE"
           ]
         }
-      ]
+      ],
+      "ordinary_families": ["release-contract-tests"]
     },
     {
       "file": "scripts/release-candidate-dispatch.test.mts",
@@ -1815,14 +2198,16 @@
       "memberships": [
         ["catalog-full-2", 10000],
         ["release-check", 7400]
-      ]
+      ],
+      "ordinary_families": ["release-contract-tests"]
     },
     {
       "file": "scripts/release-candidate-signing-recovery.test.mts",
       "memberships": [
         ["frontend-full-6", 7500],
         ["release-check", 14400]
-      ]
+      ],
+      "ordinary_families": ["release-contract-tests"]
     },
     {
       "file": "scripts/release-capacity-executor.test.mts",
@@ -1995,7 +2380,8 @@
       "memberships": [
         ["catalog-full-2", 10800],
         ["release-check", 8200]
-      ]
+      ],
+      "ordinary_families": ["release-contract-tests"]
     },
     {
       "file": "scripts/release-connected-fixture.test.mts",
@@ -2016,14 +2402,16 @@
           ],
           "required_environment": ["PORTCOVE_CONNECTED_RELEASE_TOOL"]
         }
-      ]
+      ],
+      "ordinary_families": ["release-contract-tests"]
     },
     {
       "file": "scripts/release-control-handshake.test.mts",
       "memberships": [
         ["catalog-full-2", 2300],
         ["release-check", 4800]
-      ]
+      ],
+      "ordinary_families": ["release-contract-tests"]
     },
     {
       "file": "scripts/release-control-inputs.test.mts",
@@ -2048,12 +2436,27 @@
       ]
     },
     {
+      "file": "scripts/release-content-scan.test.mts",
+      "memberships": [
+        ["catalog-full", 1280],
+        ["repository-tools", 415]
+      ]
+    },
+    {
+      "file": "scripts/release-content-signals.test.mts",
+      "memberships": [
+        ["catalog-full", 1281],
+        ["repository-tools", 416]
+      ]
+    },
+    {
       "file": "scripts/release-controller-tools.test.mts",
       "desktop_dependencies": true,
       "memberships": [
         ["catalog-full-2", 10500],
         ["release-check", 7600]
-      ]
+      ],
+      "ordinary_families": ["release-contract-tests"]
     },
     {
       "file": "scripts/release-controller-transport.test.mts",
@@ -2077,7 +2480,8 @@
       "memberships": [
         ["catalog-full-2", 12600],
         ["release-check", 10300]
-      ]
+      ],
+      "ordinary_families": ["release-contract-tests"]
     },
     {
       "file": "scripts/release-coordinator-capacity-effects.test.mts",
@@ -2085,14 +2489,16 @@
       "memberships": [
         ["frontend-full-6", 2340],
         ["release-check", 3140]
-      ]
+      ],
+      "ordinary_families": ["coordinator-state-contract-tests", "release-contract-tests"]
     },
     {
       "file": "scripts/release-coordinator-checkpoint-authentication.test.mts",
       "memberships": [
         ["frontend-full-6", 2400],
         ["release-check", 3200]
-      ]
+      ],
+      "ordinary_families": ["release-contract-tests"]
     },
     {
       "file": "scripts/release-coordinator-checkpoint-evidence.test.mts",
@@ -2100,7 +2506,8 @@
       "memberships": [
         ["frontend-full-6", 2330],
         ["release-check", 3130]
-      ]
+      ],
+      "ordinary_families": ["coordinator-state-contract-tests", "release-contract-tests"]
     },
     {
       "file": "scripts/release-native-checkpoint-custody.test.mts",
@@ -2146,7 +2553,8 @@
       "memberships": [
         ["frontend-full-6", 2500],
         ["release-check", 3300]
-      ]
+      ],
+      "ordinary_families": ["release-contract-tests"]
     },
     {
       "file": "scripts/release-coordinator-deadline.test.mts",
@@ -2175,7 +2583,8 @@
       "memberships": [
         ["frontend-full-6", 2350],
         ["release-check", 3150]
-      ]
+      ],
+      "ordinary_families": ["coordinator-state-contract-tests", "release-contract-tests"]
     },
     {
       "file": "scripts/release-coordinator-owned-executor.test.mts",
@@ -2223,6 +2632,11 @@
           ],
           "requires_non_root": true
         }
+      ],
+      "ordinary_families": [
+        "coordinator-state-contract-tests",
+        "coordinator-signing-contract-tests",
+        "release-contract-tests"
       ]
     },
     {
@@ -2231,7 +2645,8 @@
       "memberships": [
         ["frontend-full-6", 2310],
         ["release-check", 3110]
-      ]
+      ],
+      "ordinary_families": ["coordinator-state-contract-tests", "release-contract-tests"]
     },
     {
       "file": "scripts/release-coordinator-remote.test.mts",
@@ -2239,7 +2654,8 @@
       "memberships": [
         ["frontend-full-6", 2320],
         ["release-check", 3120]
-      ]
+      ],
+      "ordinary_families": ["coordinator-state-contract-tests", "release-contract-tests"]
     },
     {
       "file": "scripts/release-coordinator-signing-exchange.test.mts",
@@ -2247,6 +2663,11 @@
       "memberships": [
         ["frontend-full-6", 2360],
         ["release-check", 3160]
+      ],
+      "ordinary_families": [
+        "coordinator-state-contract-tests",
+        "coordinator-signing-contract-tests",
+        "release-contract-tests"
       ]
     },
     {
@@ -2255,6 +2676,11 @@
       "memberships": [
         ["frontend-full-6", 2300],
         ["release-check", 3100]
+      ],
+      "ordinary_families": [
+        "coordinator-state-contract-tests",
+        "coordinator-signing-contract-tests",
+        "release-contract-tests"
       ]
     },
     {
@@ -2262,35 +2688,40 @@
       "memberships": [
         ["frontend-full-6", 2200],
         ["release-check", 3000]
-      ]
+      ],
+      "ordinary_families": ["release-contract-tests"]
     },
     {
       "file": "scripts/release-handshake-hosted-fixture.test.mts",
       "memberships": [
         ["catalog-full-2", 9900],
         ["release-check", 5100]
-      ]
+      ],
+      "ordinary_families": ["release-contract-tests"]
     },
     {
       "file": "scripts/release-immutable-publication.test.mts",
       "memberships": [
         ["catalog-full-2", 10100],
         ["release-check", 7500]
-      ]
+      ],
+      "ordinary_families": ["release-contract-tests"]
     },
     {
       "file": "scripts/release-live-control-admission.test.mts",
       "memberships": [
         ["catalog-full-2", 2200],
         ["release-check", 4700]
-      ]
+      ],
+      "ordinary_families": ["release-contract-tests"]
     },
     {
       "file": "scripts/release-local-native-setup.test.mts",
       "memberships": [
         ["catalog-full-2", 13200],
         ["release-check", 11200]
-      ]
+      ],
+      "ordinary_families": ["release-contract-tests"]
     },
     {
       "file": "scripts/release-local-worker-accounts.test.mts",
@@ -2327,7 +2758,8 @@
             "setup command boundaries retain disabled accounts, fixed intent custody and non-destructive recovery"
           ]
         }
-      ]
+      ],
+      "ordinary_families": ["release-contract-tests"]
     },
     {
       "file": "scripts/release-local-worker-tasks.test.mts",
@@ -2345,17 +2777,20 @@
           "reason": "The original platform guard is retained; execute every declared case on its maintained platform route.",
           "intended_route": ".github/workflows/ci.yml; complete Node suite windows-storage-3",
           "cases": [
+            "registration creates only a missing folder for mapped and COM file-not-found errors",
             "actual XML parser reads both fixed triggers/actions and PowerShell parses proposal commands without running COM"
           ]
         }
-      ]
+      ],
+      "ordinary_families": ["release-contract-tests"]
     },
     {
       "file": "scripts/release-metadata-context-recovery.test.mts",
       "memberships": [
         ["frontend-full-6", 7000],
         ["release-check", 13900]
-      ]
+      ],
+      "ordinary_families": ["release-contract-tests"]
     },
     {
       "file": "scripts/release-metadata-renewal.test.mts",
@@ -2378,6 +2813,21 @@
             "PORTCOVE_TUF_RENEWAL_ADAPTER_TOOL",
             "PORTCOVE_TUF_RENEWAL_ADAPTER_FIXTURE"
           ]
+        },
+        {
+          "platform": ["linux", "win32", "darwin"],
+          "owner": "frontend-full-6",
+          "category": "explicit-acceptance",
+          "prerequisite": "Appointed rebuilt Rust verifier and public historical fixture",
+          "reason": "Historical expiry verification requires the original public bytes and the explicit rebuilt tool.",
+          "intended_route": ".github/workflows/ci.yml; complete Node suite frontend-full-6; Mac complement macos-platform-contracts",
+          "cases": [
+            "actual Rust adapter authenticates expired online prior only under explicit historical policy"
+          ],
+          "required_environment": [
+            "PORTCOVE_TUF_RENEWAL_ADAPTER_TOOL",
+            "PORTCOVE_TUF_HISTORICAL_ADAPTER_FIXTURE"
+          ]
         }
       ]
     },
@@ -2386,21 +2836,24 @@
       "memberships": [
         ["frontend-full-6", 6900],
         ["release-check", 13800]
-      ]
+      ],
+      "ordinary_families": ["release-contract-tests"]
     },
     {
       "file": "scripts/release-metadata-site-controller.test.mts",
       "memberships": [
         ["frontend-full-6", 7200],
         ["release-check", 14100]
-      ]
+      ],
+      "ordinary_families": ["release-contract-tests"]
     },
     {
       "file": "scripts/release-native-acceptance.test.mts",
       "memberships": [
         ["catalog-full-2", 11700],
         ["release-check", 9100]
-      ]
+      ],
+      "ordinary_families": ["release-contract-tests"]
     },
     {
       "file": "scripts/release-native-account-capability.test.mts",
@@ -2424,21 +2877,24 @@
             "production observation argv delivers only base64 data to its fixed script block"
           ]
         }
-      ]
+      ],
+      "ordinary_families": ["release-contract-tests"]
     },
     {
       "file": "scripts/release-native-admission.test.mts",
       "memberships": [
         ["catalog-full-2", 11800],
         ["release-check", 9200]
-      ]
+      ],
+      "ordinary_families": ["release-contract-tests"]
     },
     {
       "file": "scripts/release-native-attempt.test.mts",
       "memberships": [
         ["catalog-full-2", 13700],
         ["release-check", 11700]
-      ]
+      ],
+      "ordinary_families": ["release-contract-tests"]
     },
     {
       "file": "scripts/release-native-candidate.test.mts",
@@ -2459,21 +2915,24 @@
           ],
           "required_environment": ["PORTCOVE_NATIVE_KEYLESS_FIXTURE_TOOL"]
         }
-      ]
+      ],
+      "ordinary_families": ["release-contract-tests"]
     },
     {
       "file": "scripts/release-native-check-broker.test.mts",
       "memberships": [
         ["catalog-full-2", 14200],
         ["release-check", 12200]
-      ]
+      ],
+      "ordinary_families": ["release-contract-tests"]
     },
     {
       "file": "scripts/release-native-check-discovery.test.mts",
       "memberships": [
         ["catalog-full-2", 11900],
         ["release-check", 14700]
-      ]
+      ],
+      "ordinary_families": ["release-contract-tests"]
     },
     {
       "file": "scripts/release-native-linux-driver.test.mts",
@@ -2493,14 +2952,16 @@
             "Linux portable package replacement retains actual inputs/state and refuses wrong prior or retained partial"
           ]
         }
-      ]
+      ],
+      "ordinary_families": ["release-contract-tests"]
     },
     {
       "file": "scripts/release-native-linux-public-capture.test.mts",
       "memberships": [
         ["catalog-full-2", 14500],
         ["release-check", 12800]
-      ]
+      ],
+      "ordinary_families": ["release-contract-tests"]
     },
     {
       "file": "scripts/release-native-observation.test.mts",
@@ -2514,49 +2975,56 @@
       "memberships": [
         ["catalog-full-2", 14400],
         ["release-check", 12400]
-      ]
+      ],
+      "ordinary_families": ["release-contract-tests"]
     },
     {
       "file": "scripts/release-native-pre-sign-report.test.mts",
       "memberships": [
         ["catalog-full-2", 14100],
         ["release-check", 12100]
-      ]
+      ],
+      "ordinary_families": ["release-contract-tests"]
     },
     {
       "file": "scripts/release-native-public-attempt-contract.test.mts",
       "memberships": [
         ["catalog-full-2", 14900],
         ["release-check", 13200]
-      ]
+      ],
+      "ordinary_families": ["release-contract-tests"]
     },
     {
       "file": "scripts/release-native-public-compiler.test.mts",
       "memberships": [
         ["catalog-full-2", 14700],
         ["release-check", 13000]
-      ]
+      ],
+      "ordinary_families": ["release-contract-tests"]
     },
     {
       "file": "scripts/release-native-public-pair.test.mts",
       "memberships": [
         ["catalog-full-2", 14600],
         ["release-check", 12900]
-      ]
+      ],
+      "ordinary_families": ["release-contract-tests"]
     },
     {
       "file": "scripts/release-native-public-signature.test.mts",
       "memberships": [
         ["catalog-full-2", 14800],
         ["release-check", 13100]
-      ]
+      ],
+      "ordinary_families": ["release-contract-tests"]
     },
     {
       "file": "scripts/release-native-qualification-contract.test.mts",
       "memberships": [
         ["catalog-full-2", 11200],
         ["release-check", 8600]
-      ]
+      ],
+      "ordinary_families": ["release-contract-tests"]
     },
     {
       "file": "scripts/release-native-scheduler.test.mts",
@@ -2578,7 +3046,8 @@
             "fixed public-root observer rejects foreign readers and writers using controlled ACL objects only"
           ]
         }
-      ]
+      ],
+      "ordinary_families": ["release-contract-tests"]
     },
     {
       "file": "scripts/release-native-source-contract.test.mts",
@@ -2586,7 +3055,8 @@
       "memberships": [
         ["catalog-full-2", 14000],
         ["release-check", 12000]
-      ]
+      ],
+      "ordinary_families": ["release-contract-tests"]
     },
     {
       "file": "scripts/release-hosted-native-acceptance.test.mts",
@@ -2600,14 +3070,16 @@
       "memberships": [
         ["catalog-full-2", 15126],
         ["release-check", 13426]
-      ]
+      ],
+      "ordinary_families": ["release-contract-tests"]
     },
     {
       "file": "scripts/release-hosted-native-job.test.mts",
       "memberships": [
         ["catalog-full-2", 15144],
         ["release-check", 13444]
-      ]
+      ],
+      "ordinary_families": ["release-contract-tests"]
     },
     {
       "file": "scripts/release-hosted-native-installation.test.mts",
@@ -2693,21 +3165,24 @@
       "memberships": [
         ["catalog-full-2", 15143],
         ["release-check", 13443]
-      ]
+      ],
+      "ordinary_families": ["release-contract-tests"]
     },
     {
       "file": "scripts/release-hosted-native-linux-report.test.mts",
       "memberships": [
         ["catalog-full-2", 15142],
         ["release-check", 13442]
-      ]
+      ],
+      "ordinary_families": ["release-contract-tests"]
     },
     {
       "file": "scripts/release-native-source-provider.test.mts",
       "memberships": [
         ["catalog-full-2", 14002],
         ["release-check", 12002]
-      ]
+      ],
+      "ordinary_families": ["release-contract-tests"]
     },
     {
       "file": "scripts/release-hosted-native-linux-capture.test.mts",
@@ -2728,7 +3203,8 @@
             "default original-request release-publication capture composition preserves identity, refusal, lifetime and byte custody"
           ]
         }
-      ]
+      ],
+      "ordinary_families": ["release-contract-tests"]
     },
     {
       "file": "scripts/release-hosted-native-proof.test.mts",
@@ -2742,7 +3218,8 @@
       "memberships": [
         ["catalog-full-2", 15100],
         ["release-check", 13400]
-      ]
+      ],
+      "ordinary_families": ["release-contract-tests"]
     },
     {
       "file": "scripts/release-native-windows-driver.test.mts",
@@ -2768,14 +3245,16 @@
             "public Windows plan is a separate exact initial variant, without weakening pre-sign or publication selection"
           ]
         }
-      ]
+      ],
+      "ordinary_families": ["release-contract-tests"]
     },
     {
       "file": "scripts/release-native-windows-public-continuation.test.mts",
       "memberships": [
         ["catalog-full-2", 13900],
         ["release-check", 11900]
-      ]
+      ],
+      "ordinary_families": ["release-contract-tests"]
     },
     {
       "file": "scripts/release-native-wsl-boundary.test.mts",
@@ -2796,7 +3275,8 @@
             "fixed Windows registration reader parses without executing any registry or host observation"
           ]
         }
-      ]
+      ],
+      "ordinary_families": ["release-contract-tests"]
     },
     {
       "file": "scripts/release-native-wsl-capture.test.mts",
@@ -2816,14 +3296,16 @@
             "hosted Linux driver stages actual fixture bytes once, retains ambiguity and requires matching closure before export"
           ]
         }
-      ]
+      ],
+      "ordinary_families": ["release-contract-tests"]
     },
     {
       "file": "scripts/release-package-policy.test.mts",
       "memberships": [
         ["catalog-full-2", 1900],
         ["release-check", 200]
-      ]
+      ],
+      "ordinary_families": ["release-contract-tests"]
     },
     {
       "file": "scripts/release-pages-metadata-recovery.test.mts",
@@ -2851,7 +3333,8 @@
       "memberships": [
         ["catalog-full-2", 2800],
         ["release-check", 5000]
-      ]
+      ],
+      "ordinary_families": ["release-contract-tests"]
     },
     {
       "file": "scripts/release-payload-signing.test.mts",
@@ -2872,21 +3355,24 @@
           ],
           "skip_reason_prefix": "appointed disposable signing/verifier artifacts unavailable"
         }
-      ]
+      ],
+      "ordinary_families": ["release-contract-tests"]
     },
     {
       "file": "scripts/release-pending-release-recovery.test.mts",
       "memberships": [
         ["frontend-full-6", 7600],
         ["release-check", 15700]
-      ]
+      ],
+      "ordinary_families": ["release-contract-tests"]
     },
     {
       "file": "scripts/release-pending-result-recovery.test.mts",
       "memberships": [
         ["frontend-full-6", 7700],
         ["release-check", 15800]
-      ]
+      ],
+      "ordinary_families": ["release-contract-tests"]
     },
     {
       "file": "scripts/release-preparation-source.test.mts",
@@ -2900,7 +3386,8 @@
       "memberships": [
         ["frontend-full-6", 2600],
         ["release-check", 3400]
-      ]
+      ],
+      "ordinary_families": ["release-contract-tests"]
     },
     {
       "file": "scripts/release-preview-withdrawals.test.mts",
@@ -2910,7 +3397,8 @@
       ],
       "qualification": {
         "linux-x86_64": "catalog-full-2"
-      }
+      },
+      "ordinary_families": ["release-contract-tests"]
     },
     {
       "file": "scripts/release-production-dag.test.mts",
@@ -2924,49 +3412,57 @@
       "memberships": [
         ["catalog-full-2", 2000],
         ["release-check", 300]
-      ]
+      ],
+      "ordinary_families": ["release-contract-tests"]
     },
     {
       "file": "scripts/release-public-build-provenance.test.mts",
       "memberships": [
         ["catalog-full-2", 2100],
         ["release-check", 400]
-      ]
+      ],
+      "ordinary_families": ["release-contract-tests"]
     },
     {
       "file": "scripts/release-publication-controller.test.mts",
       "memberships": [
         ["catalog-full-2", 12900],
         ["release-check", 10900]
-      ]
+      ],
+      "ordinary_families": ["release-contract-tests"]
     },
     {
       "file": "scripts/release-publication-inputs.test.mts",
       "memberships": [
         ["catalog-full-2", 13000],
         ["release-check", 11000]
-      ]
+      ],
+      "ordinary_families": ["release-contract-tests"]
     },
     {
       "file": "scripts/release-publication-result-artifact.test.mts",
       "memberships": [
         ["catalog-full-2", 12500],
         ["release-check", 10200]
-      ]
+      ],
+      "ordinary_families": ["release-contract-tests"]
     },
     {
       "file": "scripts/release-publication-result.test.mts",
       "memberships": [
         ["catalog-full-2", 12400],
         ["release-check", 10100]
-      ]
+      ],
+      "ordinary_families": ["release-contract-tests"]
     },
     {
       "file": "scripts/release-publication-source.test.mts",
+      "desktop_dependencies": true,
       "memberships": [
         ["catalog-full-2", 13100],
         ["release-check", 11100]
-      ]
+      ],
+      "ordinary_families": ["release-contract-tests"]
     },
     {
       "file": "scripts/release-published-source.test.mts",
@@ -2980,14 +3476,16 @@
       "memberships": [
         ["frontend-full-6", 7800],
         ["release-check", 15900]
-      ]
+      ],
+      "ordinary_families": ["release-contract-tests"]
     },
     {
       "file": "scripts/release-report-repair-identity.test.mts",
       "memberships": [
         ["frontend-full-6", 7900],
         ["release-check", 16000]
-      ]
+      ],
+      "ordinary_families": ["release-contract-tests"]
     },
     {
       "file": "scripts/release-result-gate.test.mts",
@@ -3036,14 +3534,16 @@
           "intended_route": ".github/workflows/ci.yml; complete Node suite macos-platform-contracts; Mac complement macos-platform-contracts",
           "cases": ["role key transport refuses unsupported host without touching a secret"]
         }
-      ]
+      ],
+      "ordinary_families": ["release-contract-tests"]
     },
     {
       "file": "scripts/release-run-artifact-inventory.test.mts",
       "memberships": [
         ["frontend-full-6", 7100],
         ["release-check", 14000]
-      ]
+      ],
+      "ordinary_families": ["release-contract-tests"]
     },
     {
       "file": "scripts/release-run-evidence.test.mts",
@@ -3062,7 +3562,8 @@
           "intended_route": ".github/workflows/ci.yml; complete Node suite catalog-full-3; Mac complement macos-platform-contracts",
           "cases": ["actual POSIX FIFO is refused without waiting for a writer"]
         }
-      ]
+      ],
+      "ordinary_families": ["release-contract-tests"]
     },
     {
       "file": "scripts/release-semantic-broker.test.mts",
@@ -3119,7 +3620,8 @@
       "memberships": [
         ["frontend-full-6", 6300],
         ["release-check", 10600]
-      ]
+      ],
+      "ordinary_families": ["python-contract-tests"]
     },
     {
       "file": "scripts/release-semantic-worker.test.mts",
@@ -3133,21 +3635,24 @@
       "memberships": [
         ["catalog-full-2", 12300],
         ["release-check", 10000]
-      ]
+      ],
+      "ordinary_families": ["release-contract-tests"]
     },
     {
       "file": "scripts/release-signing-context.test.mts",
       "memberships": [
         ["catalog-full-2", 12100],
         ["release-check", 9800]
-      ]
+      ],
+      "ordinary_families": ["release-contract-tests"]
     },
     {
       "file": "scripts/release-signing-handoff.test.mts",
       "memberships": [
         ["catalog-full-2", 2900],
         ["release-check", 9000]
-      ]
+      ],
+      "ordinary_families": ["release-contract-tests"]
     },
     {
       "file": "scripts/release-site-composer.test.mts",
@@ -3242,7 +3747,8 @@
       "memberships": [
         ["frontend-full-6", 6800],
         ["release-check", 13700]
-      ]
+      ],
+      "ordinary_families": ["release-contract-tests"]
     },
     {
       "file": "scripts/release-tuf-role-artifact.test.mts",
@@ -3252,7 +3758,8 @@
       ],
       "qualification": {
         "linux-x86_64": "catalog-full-2"
-      }
+      },
+      "ordinary_families": ["release-contract-tests"]
     },
     {
       "file": "scripts/release-tuf-signing.test.mts",
@@ -3276,7 +3783,8 @@
           ],
           "required_environment": ["PORTCOVE_TUF_WORKER_QUALIFICATION_TOOL"]
         }
-      ]
+      ],
+      "ordinary_families": ["release-contract-tests"]
     },
     {
       "file": "scripts/release-workflow.test.mts",
@@ -3285,30 +3793,7 @@
         ["release-check", 4300],
         ["macos-platform-contracts", 5]
       ],
-      "platform_skips": [
-        {
-          "platform": ["linux", "darwin"],
-          "owner": "catalog-full-2",
-          "category": "platform",
-          "prerequisite": "Actual linux/darwin process/filesystem semantics",
-          "reason": "The original platform guard is retained; execute every declared case on its maintained platform route.",
-          "intended_route": ".github/workflows/ci.yml; complete Node suite catalog-full-2; Mac complement macos-platform-contracts",
-          "cases": [
-            "mock publisher restores private lookup after startup reorder and refuses functions"
-          ]
-        },
-        {
-          "platform": ["linux"],
-          "owner": "catalog-full-2",
-          "category": "platform",
-          "prerequisite": "The Ubuntu-only production publisher uses GNU date -d for authorization timestamps.",
-          "reason": "Execute the actual Ubuntu publisher fixture on Linux; BSD date on macOS does not implement its required GNU flags.",
-          "intended_route": ".github/workflows/ci.yml; complete Node suite catalog-full-2; local release-check",
-          "cases": [
-            "publisher retries and recovers an interrupted draft without touching a published release"
-          ]
-        }
-      ]
+      "ordinary_families": ["release-contract-tests"]
     },
     {
       "file": "scripts/renovate-engine-probe.test.mts",
@@ -3382,7 +3867,8 @@
             "host bridge actual client closes its helper on register ACK loss and release-probe failure"
           ]
         }
-      ]
+      ],
+      "ordinary_families": ["containment-contract-tests"]
     },
     {
       "file": "scripts/resource-command.test.mts",
@@ -3390,7 +3876,8 @@
         ["windows-helpers-2", 200],
         ["windows-storage-4", 3200],
         ["development-tools", 300]
-      ]
+      ],
+      "ordinary_families": ["containment-contract-tests"]
     },
     {
       "file": "scripts/resource-status.test.mts",
@@ -3412,21 +3899,24 @@
       "memberships": [
         ["catalog-full-2", 9710],
         ["roadmap-check", 210]
-      ]
+      ],
+      "ordinary_families": ["roadmap-feature-tests", "roadmap-contract-tests"]
     },
     {
       "file": "scripts/roadmap-execution.test.mts",
       "memberships": [
         ["catalog-full-2", 9610],
         ["roadmap-check", 110]
-      ]
+      ],
+      "ordinary_families": ["roadmap-feature-tests", "roadmap-contract-tests"]
     },
     {
       "file": "scripts/roadmap-intake.test.mts",
       "memberships": [
         ["catalog-full-2", 9620],
         ["roadmap-check", 120]
-      ]
+      ],
+      "ordinary_families": ["roadmap-feature-tests", "roadmap-contract-tests"]
     },
     {
       "file": "scripts/roadmap-inventory.test.mts",
@@ -3447,42 +3937,56 @@
       "memberships": [
         ["catalog-full-2", 9650],
         ["roadmap-check", 150]
-      ]
+      ],
+      "ordinary_families": ["roadmap-feature-tests", "roadmap-contract-tests"]
     },
     {
       "file": "scripts/roadmap-provider-inventory.test.mts",
       "memberships": [
         ["catalog-full-2", 9670],
         ["roadmap-check", 170]
-      ]
+      ],
+      "ordinary_families": ["roadmap-feature-tests", "roadmap-contract-tests"]
+    },
+    {
+      "file": "scripts/roadmap-sdk.test.mts",
+      "memberships": [
+        ["catalog-full-2", 9675],
+        ["roadmap-check", 175]
+      ],
+      "ordinary_families": ["roadmap-feature-tests", "roadmap-contract-tests"]
     },
     {
       "file": "scripts/roadmap-publish.test.mts",
       "memberships": [
         ["catalog-full-2", 9730],
         ["roadmap-check", 230]
-      ]
+      ],
+      "ordinary_families": ["roadmap-feature-tests", "roadmap-contract-tests"]
     },
     {
       "file": "scripts/roadmap-qualification.test.mts",
       "memberships": [
         ["catalog-full-2", 9660],
         ["roadmap-check", 160]
-      ]
+      ],
+      "ordinary_families": ["roadmap-feature-tests", "roadmap-contract-tests"]
     },
     {
       "file": "scripts/roadmap-readiness.test.mts",
       "memberships": [
         ["catalog-full-2", 9640],
         ["roadmap-check", 140]
-      ]
+      ],
+      "ordinary_families": ["roadmap-feature-tests", "roadmap-contract-tests"]
     },
     {
       "file": "scripts/roadmap-report.test.mts",
       "memberships": [
         ["catalog-full-2", 9720],
         ["roadmap-check", 220]
-      ]
+      ],
+      "ordinary_families": ["roadmap-feature-tests", "roadmap-contract-tests"]
     },
     {
       "file": "scripts/hosted-discovery-intake-runner.test.mts",
@@ -3510,14 +4014,16 @@
       "memberships": [
         ["catalog-full-2", 9630],
         ["roadmap-check", 130]
-      ]
+      ],
+      "ordinary_families": ["roadmap-feature-tests", "roadmap-contract-tests"]
     },
     {
       "file": "scripts/roadmap.test.mts",
       "memberships": [
         ["catalog-full-2", 9600],
         ["roadmap-check", 100]
-      ]
+      ],
+      "ordinary_families": ["roadmap-contract-tests"]
     },
     {
       "file": "scripts/run-fallow.test.mts",
@@ -3531,25 +4037,6 @@
       "memberships": [
         ["frontend-full", 200],
         ["development-tools", 4100]
-      ]
-    },
-    {
-      "file": "scripts/run-rscheck.test.mts",
-      "memberships": [["rust-quality-full-3", 100]],
-      "platform_skips": [
-        {
-          "platform": ["linux", "win32", "darwin"],
-          "owner": "rust-quality-full-3",
-          "category": "prerequisite",
-          "prerequisite": "Pinned rscheck is not installed; run the maintained rscheck route for this control",
-          "reason": "The original prerequisite/admission guard remains required; a skipped observation is not execution.",
-          "intended_route": ".github/workflows/ci.yml; complete Node suite rust-quality-full-3; Mac complement macos-platform-contracts",
-          "cases": [
-            "TFE hostile-path exception applies only to the exact dedicated test fixture",
-            "reviewed portability literals apply only to exact files and exact values"
-          ],
-          "skip_reason_prefix": "Pinned rscheck is not installed; run the maintained rscheck route for this control"
-        }
       ]
     },
     {
@@ -3570,7 +4057,8 @@
           "intended_route": ".github/workflows/ci.yml; complete Node suite windows-storage-4",
           "cases": ["Windows Job Object supervisor kills a detached grandchild when its root exits"]
         }
-      ]
+      ],
+      "ordinary_families": ["containment-contract-tests"]
     },
     {
       "file": "scripts/rust-support-cache.test.mts",
@@ -3578,7 +4066,8 @@
         ["windows-storage-4", 2700],
         ["catalog-full-2", 4300],
         ["development-tools", 4800]
-      ]
+      ],
+      "ordinary_families": ["containment-contract-tests"]
     },
     {
       "file": "scripts/rust-test-impact.test.mts",
@@ -3628,12 +4117,13 @@
           "reason": "The original platform guard is retained; execute every declared case on its maintained platform route.",
           "intended_route": ".github/workflows/ci.yml; complete Node suite catalog-full-2",
           "cases": [
+            "Linux adopting containment proves adopted-exit",
             "Linux adopting containment proves cancel-pipe",
             "Linux adopting containment proves escaped-closure",
             "Linux adopting containment proves gate-refusal",
             "Linux adopting containment proves ignored-sigchld",
             "Linux adopting containment proves init-refusal",
-            "Linux adopting containment proves legacy-sibling-red",
+            "Linux adopting containment proves legacy-sibling-adopted",
             "Linux adopting containment proves natural",
             "Linux adopting containment proves parent-refusal",
             "Linux adopting containment proves pipe-refusal",
@@ -3645,7 +4135,8 @@
             "Linux child discovery preserves ownership without task children support"
           ]
         }
-      ]
+      ],
+      "ordinary_families": ["containment-contract-tests"]
     },
     {
       "file": "scripts/select-ci-plan.test.mts",
@@ -3653,6 +4144,12 @@
         ["catalog-full-2", 5800],
         ["repository-tools-2", 1400],
         ["windows-storage-3", 1000005]
+      ],
+      "ordinary_families": [
+        "selection-contract-tests",
+        "rust-workflow-contract-tests",
+        "workflow-feature-tests",
+        "workflow-contract-tests"
       ]
     },
     {
@@ -3660,7 +4157,8 @@
       "memberships": [
         ["frontend-full-6", 2100],
         ["release-check", 1300]
-      ]
+      ],
+      "ordinary_families": ["release-contract-tests"]
     },
     {
       "file": "scripts/semantic-review-linux-supervisor.test.mts",
@@ -3668,7 +4166,8 @@
       "memberships": [
         ["frontend-full-6", 1600],
         ["release-check", 2500]
-      ]
+      ],
+      "ordinary_families": ["python-contract-tests"]
     },
     {
       "file": "scripts/sign-catalog.test.mts",
@@ -3785,7 +4284,8 @@
             "Windows updater preflight records and refuses unsuitable runtimes before fixture builds"
           ]
         }
-      ]
+      ],
+      "ordinary_families": ["release-contract-tests"]
     },
     {
       "file": "scripts/updater-historical-inputs.test.mts",
@@ -3806,7 +4306,8 @@
       "memberships": [
         ["catalog-full", 130],
         ["repository-tools", 130]
-      ]
+      ],
+      "ordinary_families": ["upstream-health-observation-tests", "upstream-health-contract-tests"]
     },
     {
       "file": "scripts/upstream-health-triage.test.mts",
@@ -3820,56 +4321,64 @@
       "memberships": [
         ["catalog-full", 400],
         ["repository-tools", 400]
-      ]
+      ],
+      "ordinary_families": ["upstream-health-contract-tests"]
     },
     {
       "file": "scripts/upstream-health-plan.test.mts",
       "memberships": [
         ["catalog-full", 300],
         ["repository-tools", 300]
-      ]
+      ],
+      "ordinary_families": ["upstream-health-contract-tests"]
     },
     {
       "file": "scripts/upstream-health-planning.test.mts",
       "memberships": [
         ["catalog-full", 120],
         ["repository-tools", 120]
-      ]
+      ],
+      "ordinary_families": ["upstream-health-observation-tests", "upstream-health-contract-tests"]
     },
     {
       "file": "scripts/upstream-health-providers.test.mts",
       "memberships": [
         ["catalog-full", 110],
         ["repository-tools", 110]
-      ]
+      ],
+      "ordinary_families": ["upstream-health-observation-tests", "upstream-health-contract-tests"]
     },
     {
       "file": "scripts/upstream-health-source-archives.test.mts",
       "memberships": [
         ["catalog-full", 140],
         ["repository-tools", 140]
-      ]
+      ],
+      "ordinary_families": ["upstream-health-observation-tests", "upstream-health-contract-tests"]
     },
     {
       "file": "scripts/upstream-health.test.mts",
       "memberships": [
         ["catalog-full", 200],
         ["repository-tools", 200]
-      ]
+      ],
+      "ordinary_families": ["upstream-health-contract-tests"]
     },
     {
       "file": "scripts/upstream-lineage.test.mts",
       "memberships": [
         ["catalog-full-2", 9000],
         ["repository-tools-2", 4000]
-      ]
+      ],
+      "ordinary_families": ["catalog-preparation-contract-tests"]
     },
     {
       "file": "scripts/upstream-observer.test.mts",
       "memberships": [
         ["catalog-full", 100],
         ["repository-tools", 100]
-      ]
+      ],
+      "ordinary_families": ["upstream-health-contract-tests"]
     },
     {
       "file": "scripts/validation-evidence.test.mts",
@@ -3884,7 +4393,8 @@
       "memberships": [
         ["catalog-full-2", 5700],
         ["repository-tools-2", 1300]
-      ]
+      ],
+      "ordinary_families": ["selection-contract-tests"]
     },
     {
       "file": "scripts/windows-helper-checks.test.mts",
@@ -3904,6 +4414,7 @@
           "cases": [
             "completion and incomplete recovery share one exclusive operator boundary before attach",
             "installer responsive-window refusal retains evidence and the forced-cleanup failure state",
+            "installer byte-preserving mode requires a raw pin and retains default bundle hashing",
             "next observation preserves marker bytes, partial effects and exclusive handoff",
             "packaging refusals name containment and a complete single forbidden entry while preserving prior output",
             "release PowerShell help is inert and preserves the required installer input",
@@ -3923,7 +4434,8 @@
         ["windows-helpers-3", 700],
         ["windows-storage-4", 3300],
         ["development-tools", 5500]
-      ]
+      ],
+      "ordinary_families": ["workflow-feature-tests", "workflow-contract-tests"]
     },
     {
       "file": "scripts/windows-historical-bootstrap.test.mts",
@@ -3992,7 +4504,8 @@
       "memberships": [
         ["windows-storage-2", 100],
         ["release-check", 4500]
-      ]
+      ],
+      "ordinary_families": ["release-contract-tests"]
     },
     {
       "file": "scripts/workflow-provenance.test.mts",
@@ -4020,7 +4533,8 @@
       "memberships": [
         ["catalog-full-2", 2400],
         ["release-check", 500]
-      ]
+      ],
+      "ordinary_families": ["release-contract-tests"]
     },
     {
       "file": "scripts/required-node-test-reporter.test.mts",
@@ -4034,6 +4548,13 @@
       "memberships": [
         ["catalog-full", 1100],
         ["roadmap-check", 1100]
+      ]
+    },
+    {
+      "file": "scripts/discovery-github.test.mts",
+      "memberships": [
+        ["catalog-full", 1260],
+        ["roadmap-check", 1260]
       ]
     },
     {
@@ -4074,7 +4595,8 @@
             "fixed Windows custody reader preserves trusted principals and closed foreign-rights refusals"
           ]
         }
-      ]
+      ],
+      "ordinary_families": ["release-contract-tests"]
     },
     {
       "file": "scripts/ci-job-timeout-probe.test.mts",
@@ -4119,7 +4641,8 @@
             "structured audit queries retain exact per-object selectors and compile without reading records"
           ]
         }
-      ]
+      ],
+      "ordinary_families": ["release-contract-tests"]
     },
     {
       "file": "apps/desktop/scripts/cli-command-shell.native.test.mts",
@@ -4366,6 +4889,11 @@
             "Windows fixture setup exports a usable directory and rejects invalid roots without partial exports"
           ]
         }
+      ],
+      "ordinary_families": [
+        "rust-workflow-contract-tests",
+        "workflow-feature-tests",
+        "workflow-contract-tests"
       ]
     },
     {
@@ -4374,6 +4902,11 @@
         ["windows-storage-3", 1000003],
         ["catalog-full-2", 1000004],
         ["repository-tools-2", 1000003]
+      ],
+      "ordinary_families": [
+        "rust-workflow-contract-tests",
+        "workflow-feature-tests",
+        "workflow-contract-tests"
       ]
     },
     {
@@ -4431,42 +4964,48 @@
       "memberships": [
         ["catalog-full-2", 1000011],
         ["release-check", 16210]
-      ]
+      ],
+      "ordinary_families": ["release-contract-tests"]
     },
     {
       "file": "scripts/release-hosted-native-windows-session.test.mts",
       "memberships": [
         ["catalog-full-2", 1000020],
         ["release-check", 16220]
-      ]
+      ],
+      "ordinary_families": ["release-contract-tests"]
     },
     {
       "file": "scripts/release-hosted-native-windows-worker-contract.test.mts",
       "memberships": [
         ["catalog-full-2", 1000021],
         ["release-check", 16221]
-      ]
+      ],
+      "ordinary_families": ["release-contract-tests"]
     },
     {
       "file": "scripts/release-hosted-native-runtime.test.mts",
       "memberships": [
         ["catalog-full-2", 1000022],
         ["release-check", 16222]
-      ]
+      ],
+      "ordinary_families": ["release-contract-tests"]
     },
     {
       "file": "scripts/release-hosted-native-windows-capture.test.mts",
       "memberships": [
         ["catalog-full-2", 1000023],
         ["release-check", 16223]
-      ]
+      ],
+      "ordinary_families": ["release-contract-tests"]
     },
     {
       "file": "scripts/release-hosted-native-windows-runner.test.mts",
       "memberships": [
         ["catalog-full-2", 1000024],
         ["release-check", 16224]
-      ]
+      ],
+      "ordinary_families": ["release-contract-tests"]
     },
     {
       "file": "scripts/release-hosted-native-windows-workflow.test.mts",
@@ -4488,6 +5027,16 @@
         ["catalog-full-2", 2652],
         ["release-check", 752]
       ]
+    },
+    {
+      "file": "scripts/port-descriptor.test.mts",
+      "memberships": [
+        ["catalog-full-2", 50000],
+        ["release-check", 50000]
+      ],
+      "qualification": {
+        "linux-x86_64": "catalog-full-2"
+      }
     }
   ]
 }

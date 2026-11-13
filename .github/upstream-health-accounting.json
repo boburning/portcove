@@ -432,10 +432,10 @@
       "port_id": "f-zero-snes-recomp",
       "port_contract_sha256": "329175ad591253c04b8cee4baac67b313ddbeea830fd2f7597f65ff7bdbeb0b3",
       "platform": "windows-x86-64",
-      "url": "https://github.com/mstan/FZeroSNESRecomp/releases/download/v1.8.3/FZeroSNESRecomp-1.8.3-windows-x64.zip",
+      "url": "https://github.com/RetroPortingToolKit/FZeroSNESRecomp/releases/download/v1.8.3/FZeroSNESRecomp-1.8.3-windows-x64.zip",
       "size": 8247843,
       "sha256": "4a97edf9478501ad15d5f66403298e5c983d69558b1839017acbba5c58efe658",
-      "repository": "mstan/FZeroSNESRecomp",
+      "repository": "RetroPortingToolKit/FZeroSNESRecomp",
       "tag": "v1.8.3",
       "name": "FZeroSNESRecomp-1.8.3-windows-x64.zip",
       "repository_id": 1348026644,
@@ -443,7 +443,7 @@
       "release_id": 393440319,
       "asset_id": 580473673,
       "release_facts_sha256": "8f0c24a5ab82057f8b8e3af473b1d2e950d655ba4409446f8438f60b4006a4b3",
-      "asset_facts_sha256": "2d5c2c3e293f57d6aca09bcbbf4aa92d2efd2ffd86a3f771441126ba3e5ca9a5"
+      "asset_facts_sha256": "e045a09c15d29088161e47a06929cc9eba8e31e961fefa8d67dd6487295a57b9"
     },
     {
       "port_id": "dkc3-recomp",
@@ -522,6 +522,7 @@
       "sha256": "30ee44b296f18273842c50c2db5d5e5dccb2bba278d4909881273737f90c4eac",
       "repository": "TheForceEngine/TheForceEngine",
       "tag": "v1.22.420",
+      "historical_version": "1.22.420",
       "name": "TheForceEngine-v1.22.420.zip",
       "repository_id": 242802212,
       "archived": false,
@@ -600,19 +601,6 @@
     }
   ],
   "original_conditions": [
-    {
-      "port_id": "mortal-kombat-4-recompiled",
-      "port_contract_sha256": "15521f7c3979c51ed98fa6169445b4148738c2b261dd971f2253bf092ff8d414",
-      "provider": "github",
-      "repository": "Alexbeav/mortal-kombat-4-recomp",
-      "operation": "observe-availability",
-      "http_status": 301,
-      "reason": "provider-redirect",
-      "redirect_repository_id": 1352192597,
-      "evidence": "https://github.com/boburning/portcove/issues/247#issuecomment-6082358982",
-      "resume_condition": "Reconsider exact original-location evidence under #247/#139. Lineage, destination availability and accepted bytes remain unassessed; any changed condition requires review.",
-      "role": "project"
-    },
     {
       "port_id": "alexbeav-ape-escape-recomp",
       "port_contract_sha256": "e01b0e4420e27fa86ea256a45ec3a8a014444ff7a091ba138dab03b99a285fcf",

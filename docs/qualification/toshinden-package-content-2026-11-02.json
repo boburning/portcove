@@ -1,0 +1,126 @@
+{
+  "format_version": 1,
+  "observed_at": "2026-11-02T10:50:00.369149+00:00",
+  "base": "320ca5f84339b715137f8dba8cbda82ef4edcca4",
+  "canonical_issue": 1796,
+  "port_id": "omegakatana92-battle-arena-toshinden-gb-recomp",
+  "authored_path": "crates/portcove-core/catalog/ports/omegakatana92-battle-arena-toshinden-gb-recomp.json",
+  "before_sha256": "a8bc36e3aec2e526a649b445abfaa4a396d672f263db1bcb2d4c314988f6e853",
+  "after_sha256": "d4a1e13104edfc901d3fe3ea588e6f5a90e5e18b810de352410cea16fe7a1952",
+  "repository": "omegakatana92/Battle-Arena-Toshinden-GB-Recomp",
+  "repository_id": 1346473542,
+  "selected_source": {
+    "commit": "2e4134b3360c72e39b59e202843e17be20216162",
+    "kind": "selected first release envelope; ordinary route must be verified separately"
+  },
+  "asset": {
+    "id": 530079127,
+    "name": "Battle.Arena.Toshinden.1.2.zip",
+    "size": 25463889,
+    "digest": "sha256:ab14a345735105e0ea6d4f129de7cfc3aa14910ad9efcb0d5dd0d9a2d3265882",
+    "browser_download_url": "https://github.com/omegakatana92/Battle-Arena-Toshinden-GB-Recomp/releases/download/Battle_Arena_Toshiden_G_B/Battle.Arena.Toshinden.1.2.zip"
+  },
+  "observation": {
+    "artifact_digest": "sha256:ab14a345735105e0ea6d4f129de7cfc3aa14910ad9efcb0d5dd0d9a2d3265882",
+    "member": "Battle Arena Toshinden 1.2/CMakeFiles/toshinden.dir/toshinden_rom.c.obj",
+    "member_bytes": 525144,
+    "member_sha256": "04df831d8d139d1dd7c8c8528ad00f920d29f76f2551362e21944d945a117ab3",
+    "format": "AMD64 COFF object",
+    "sections": [
+      {
+        "name": ".text",
+        "raw_bytes": 0,
+        "file_offset": 300,
+        "sha256": null
+      },
+      {
+        "name": ".data",
+        "raw_bytes": 0,
+        "file_offset": 300,
+        "sha256": null
+      },
+      {
+        "name": ".bss",
+        "raw_bytes": 0,
+        "file_offset": 0,
+        "sha256": null
+      },
+      {
+        "name": "/34",
+        "raw_bytes": 524288,
+        "file_offset": 300,
+        "sha256": "519ca6523e54b67a4b4dcc7f525d56df986e0d77c84699dcf9e022f0ae6fbd0e"
+      },
+      {
+        "name": "/18",
+        "raw_bytes": 8,
+        "file_offset": 524588,
+        "sha256": "dc18a1ce81873b758e5d4a7809a900f8f971478008443297fddf46570605a1a2"
+      },
+      {
+        "name": ".debug$S",
+        "raw_bytes": 156,
+        "file_offset": 524596,
+        "sha256": "21f0646730254583f36cca973c814fc1d23fe3f98d085dc38ac093701244fca6"
+      },
+      {
+        "name": "/4",
+        "raw_bytes": 0,
+        "file_offset": 524752,
+        "sha256": null
+      }
+    ],
+    "rom_symbols": [
+      {
+        "name": ".rdata$rom_data",
+        "value": 0,
+        "section": 4,
+        "storage": 3
+      },
+      {
+        "name": "rom_data",
+        "value": 0,
+        "section": 4,
+        "storage": 2
+      },
+      {
+        "name": ".rdata$rom_size",
+        "value": 0,
+        "section": 5,
+        "storage": 3
+      },
+      {
+        "name": "rom_size",
+        "value": 0,
+        "section": 5,
+        "storage": 2
+      }
+    ],
+    "scope": "Static object metadata only. Full original ROM content identity/permission not established; no original bytes exported or executed."
+  },
+  "header_observation": {
+    "standard_gameboy_logo_prefix16_match": true,
+    "header_checksum_match": true,
+    "title": "BA.TOSHINDEN",
+    "rom_size_code": 4,
+    "rom_data_bytes": 524288,
+    "rom_data_sha256": "519ca6523e54b67a4b4dcc7f525d56df986e0d77c84699dcf9e022f0ae6fbd0e",
+    "no_original_bytes_exported": true
+  },
+  "change": "Existing listing download_block_reason; Core refuses options/preview/download before provider contact. No new authority or lifecycle behavior.",
+  "full_finite_outcome_can_close": false,
+  "direct_required_beta_resolved": 0,
+  "whole_required_parent_cohort_completed": false,
+  "selection": {
+    "retained_remaining_no_guide": 65,
+    "previous_holds_excluded": 46,
+    "plausible_candidates": 19,
+    "delivery_exception": "Focused correction for newly confirmed embedded game content; routine approximately40 target remains. Research/source proposals are internal checkpoints, not padding."
+  },
+  "limits": [
+    "No original ROM exported or published",
+    "No original/helper/compiler/installer/game execution",
+    "No attribution of the same finding to Kirby or Wario Land",
+    "No installed/native/gameplay/Supported/rights-completion claim"
+  ]
+}

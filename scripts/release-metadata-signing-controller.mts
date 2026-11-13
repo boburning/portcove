@@ -5,6 +5,8 @@ import { writeFile } from "node:fs/promises";
 import {
   prepareCoordinatorSigningContext,
   requireCoordinatorSigningContext,
+  readPreparedCoordinatorSigningContext,
+  requireCoordinatorSigningCheckpointControls,
   bindCoordinatorSigningContextPending,
   bindCoordinatorSigningContextBoundary,
 } from "./release-metadata-signing-context.mts";
@@ -23,15 +25,25 @@ import { releaseControlPhaseProfile } from "./release-control-phases.mts";
 import { requireControllerApplicationJobPublicationAuthorities } from "./release-authority-configuration.mts";
 import { withCoordinatorDeadline } from "./release-coordinator-deadline.mts";
 import { reconcileCoordinatorSigningContext } from "./release-metadata-context-recovery.mts";
+import { CoordinatorRemoteError } from "./release-coordinator-errors.mts";
+import { retainedRenewalCapacityRebind } from "./release-capacity.mts";
 
 export async function completeCoordinatorSigningContext(
   actualPreparation: object,
   parent: string,
   phaseDeadline?: number,
 ) {
-  const receipt = await prepareCoordinatorSigningContext(actualPreparation, parent, phaseDeadline),
-    context = await requireCoordinatorSigningContext(receipt),
-    deadline = context.deadline;
+  const { receipt, context } = await prepareCoordinatorSigningContext(
+    actualPreparation,
+    parent,
+    phaseDeadline,
+  ).catch((error: unknown) => {
+    if (error instanceof CoordinatorRemoteError) throw error;
+    throw new CoordinatorRemoteError("actual metadata context preparation refused", {
+      phase: "metadata-context-preparation",
+    });
+  });
+  const deadline = context.deadline;
   return withCoordinatorDeadline(deadline, async () => {
     signingContextRemaining(deadline, 15000);
     const reconciliation = await reconcileCoordinatorSigningContext(receipt, parent);
@@ -82,7 +94,7 @@ export async function completeCoordinatorSigningContext(
     let phase = "existing-metadata-pending",
       handoff: Awaited<ReturnType<typeof handoffSigningContextArtifact>> | undefined;
     try {
-      const current = await requireCoordinatorSigningContext(receipt, deadline);
+      const current = await readPreparedCoordinatorSigningContext(receipt);
       const settlement = await executeOwnedCapacityEffect(
         executor,
         {
@@ -101,19 +113,34 @@ export async function completeCoordinatorSigningContext(
           },
         },
         async (pending) => {
-          if (pending) await bindCoordinatorSigningContextBoundary(receipt, executor, pending);
-          return (await requireCoordinatorSigningContext(receipt, deadline)).capacity_source
-            .capacity.boundary;
+          phase = pending ? "metadata-pending-boundary" : "metadata-effect-boundary";
+          const checked = pending
+            ? await bindCoordinatorSigningContextBoundary(receipt, executor, pending)
+            : await requireCoordinatorSigningContext(receipt, deadline);
+          const fresh = checked.capacity_source.capacity;
+          if (
+            current.mode === "renewal" &&
+            current.checkpoint === retainedRenewalCapacityRebind.checkpoint &&
+            identity.controller_ref === retainedRenewalCapacityRebind.execution_ref
+          )
+            return { boundary: fresh.boundary, ratification: fresh.ratification };
+          return fresh.boundary;
         },
         async (pending) => {
+          phase = "metadata-owned-pending";
           await bindCoordinatorSigningContextPending(receipt, executor, pending);
           phase = "fixed-public-context-upload";
+          // Handoff returns only after the existing post-OIDC context check.
+          // The checkpoint callback separately rechecks authority before CAS.
           handoff = await handoffSigningContextArtifact(artifact, identity, pending, deadline);
-          await requireCoordinatorSigningContext(receipt, deadline);
           return {
             remote_identity: `github-actions:boburning/portcove:artifact:${handoff.artifact_id}`,
             evidence_sha256: handoff.predicate_sha256,
           };
+        },
+        async () => {
+          phase = "metadata-checkpoint-controls";
+          await requireCoordinatorSigningCheckpointControls(receipt, deadline);
         },
       );
       if (!handoff) throw new Error("actual metadata handoff was not independently read back");
@@ -154,8 +181,9 @@ export async function completeCoordinatorSigningContext(
         JSON.stringify({ phase, authority: "none", automatic_retry: false }),
         { flag: "wx", mode: 0o600 },
       ).catch(() => {});
-      throw new Error(
+      throw new CoordinatorRemoteError(
         "actual metadata context continuation stopped; retain public context and pending receipts",
+        { phase },
       );
     }
   });

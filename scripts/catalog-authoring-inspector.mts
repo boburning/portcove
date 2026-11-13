@@ -31,7 +31,8 @@ export function coreProposalInspector(cli: string, root: string) {
   const invoke = (
     name: string,
     bytes: Buffer,
-    operation: "inspect-proposal" | "inspect-listings",
+    operation: "inspect-proposal" | "inspect-listings" | "inspect-settings-qualification",
+    repositoryAuthoring = false,
   ) => {
     const file = join(root, `${name}.json`);
     writeFileSync(file, bytes, { flag: "wx" });
@@ -45,12 +46,13 @@ export function coreProposalInspector(cli: string, root: string) {
         "--non-interactive",
         "catalog",
         operation,
+        ...(repositoryAuthoring ? ["--repository-authoring"] : []),
         ...(operation === "inspect-listings" ? ["--path", file] : [file]),
       ],
       {
         env,
         encoding: "utf8",
-        timeout: 30000,
+        timeout: 120000,
         maxBuffer: (operation === "inspect-listings" ? 10 : 1) * 1024 * 1024,
         windowsHide: true,
       },
@@ -62,6 +64,7 @@ export function coreProposalInspector(cli: string, root: string) {
         {
           validator_artifact_sha256: artifactSha256,
           operation,
+          repository_authoring: repositoryAuthoring,
           status: child.status,
           signal: child.signal,
           error_code: errorCode(child.error) ?? null,
@@ -75,23 +78,42 @@ export function coreProposalInspector(cli: string, root: string) {
       ),
       { flag: "wx" },
     );
-    if (child.error || child.status !== 0)
+    if (child.error || child.status !== 0) {
+      let reason = "";
+      if (repositoryAuthoring && child.stdout) {
+        try {
+          const failure: unknown = JSON.parse(child.stdout);
+          if (
+            isRecord(failure) &&
+            failure.ok === false &&
+            failure.command === "catalog.inspect-proposal" &&
+            isRecord(failure.error) &&
+            typeof failure.error.message === "string"
+          )
+            reason = ` ${failure.error.message}`;
+        } catch {
+          // Transport failures remain available in the process receipt.
+        }
+      }
       throw new Error(
-        `Core refused ${name} catalog declarations; retained process receipt has the reason.`,
+        `Core refused ${name} catalog declarations.${reason} See the retained process receipt.`,
       );
+    }
     const envelope: unknown = JSON.parse(child.stdout);
     const report = isRecord(envelope) ? envelope.data : undefined;
     const sha256 = createHash("sha256").update(bytes).digest("hex");
     return { report, sha256 };
   };
-  const inspect = (name: string, bytes: Buffer): ProposalReceipt => {
-    const { report, sha256 } = invoke(name, bytes, "inspect-proposal");
+  const inspect = (name: string, bytes: Buffer, repositoryAuthoring = false): ProposalReceipt => {
+    const { report, sha256 } = invoke(name, bytes, "inspect-proposal", repositoryAuthoring);
     if (
       !isRecord(report) ||
       report.format_version !== 1 ||
       report.input_sha256 !== sha256 ||
       report.input_bytes !== bytes.length ||
-      !Array.isArray(report.ports)
+      !Array.isArray(report.ports) ||
+      (repositoryAuthoring &&
+        (typeof report.scope !== "string" || !report.scope.includes("repository-summary-policy")))
     )
       throw new Error("Core proposal receipt does not identify the checked input.");
     return {
@@ -122,5 +144,11 @@ export function coreProposalInspector(cli: string, root: string) {
       validator_artifact_sha256: artifactSha256,
     };
   };
-  return { artifact, inspect, inspectListings };
+  const inspectSettings = (name: string, bytes: Buffer) => {
+    const { report, sha256 } = invoke(name, bytes, "inspect-settings-qualification");
+    if (!isRecord(report) || report.input_sha256 !== sha256 || report.format_version !== 1)
+      throw new Error("Core settings response differs from the exact qualification input.");
+    return { ...report, validator_artifact_sha256: artifactSha256 };
+  };
+  return { artifact, inspect, inspectListings, inspectSettings };
 }

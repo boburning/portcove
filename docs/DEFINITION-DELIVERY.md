@@ -14,10 +14,14 @@ component fixtures do not complete either production outcome.
 ## Implemented engine capability negotiation
 
 Core advertises each installed `AdapterKind` template with contract version 1.
-The public inventory additionally advertises native portable versions 2–7,
-managed PS1 version 2, N64 portable versions 2 and 3 and
-staged-source portable versions 2–5, 8, 10–12 and 15–25. Staged-source creation
-versions 6, 7, 9, 13 and 14 are absent from that inventory. Serialized identifiers
+The public inventory additionally advertises Libultraship portable version 2,
+native portable versions 2–9, managed PS1 versions 2–3, N64 portable versions 2–4
+and staged-source portable versions 2–5, 8, 10–12 and 15–31. The inventory owner is
+`EngineTemplateCapability::current()` in
+[`definition_capabilities.rs`](../crates/portcove-core/src/definition_capabilities.rs);
+the version semantics and admission limits below remain part of each contract.
+
+Staged-source creation versions 6, 7, 9, 13 and 14 are absent from that inventory. Serialized identifiers
 and historical meanings are preserved; version numbers are not reused.
 
 Capability negotiation, new-definition admission and retained-state interpretation
@@ -57,6 +61,185 @@ keep their meanings. Retained installations continue to use their creating
 definitions, so a new declaration does not retrofit historical manifests. This
 capability grants neither upstream Unicode support nor external-profile ownership
 or protected publication. See the [runtime path contract](CATALOG.md).
+
+Native portable version 11 consumes the `openrct2-mac-v1` external profile
+policy and the official universal OpenRCT2 bundle. New and retained entries
+using that policy require version 11. It checks the real account’s external
+profile only for the Mac routes. Windows and Linux creating definitions
+keep their existing behavior.
+
+Native portable version 12 consumes `recomp-appimage-v1` for the reviewed
+direct Linux x86-64 AppImage layout. Fresh and retained entries require
+version 12. Linux acquisition binds the provider artifact and launch checks
+the effective external profile and AppImage mount and log paths. The same
+definition retains its existing Windows executable and data fallback.
+
+Native portable version 13 consumes `openmohaa-unix-v1` for the reviewed
+official OpenMoHAA Linux and Mac ZIPs. Fresh and retained entries require
+version 13. The Unix routes verify the title-specific launcher and child,
+establish executable permissions in staging, and check the effective profile
+outside managed runtimes before launch. Windows creating definitions keep
+their existing behavior.
+
+Native portable version 15 consumes the `ironwail-linux-v1` and
+`vkquake-linux-v1` external profile policies for the official Linux
+packages. Fresh and retained entries using either policy require version 15.
+The policies preserve the Windows launch contracts. Ironwail checks the
+Linux account-based profile outside managed storage. vkQuake keeps the
+managed save paths, binds the exact AppImage selection and checks its
+temporary mount location.
+
+Native portable version 16 consumes `corsixth-linux-v1` and
+`openloco-unix-v1` for their official Linux AppImages and the OpenLoco
+Apple Silicon ZIP. Fresh and retained entries require version 16. It binds
+the reviewed package and default external profile, with AppImage mount
+checks on Linux. The creating Windows definitions retain their rules.
+
+Native portable version 17 consumes `jgrpp-linux-v1` and `openglad-mac-v1`
+for the official Linux JGR Patch Pack and Apple silicon OpenGlad archives.
+Fresh and retained entries require version 17. JGR additionally declares
+the archive file links it needs. These guarded routes check default
+external profiles and use the executable's directory for packaged assets.
+The previously managed platform contracts retain their creating rules.
+
+Native portable version 19 consumes `portable_marker_file` for an engine whose portable
+mode is keyed on a named file that is also its own configuration (for example Raze's
+`raze_portable.ini`). Core creates that empty file beside the launch working directory
+only when it is missing, never truncates an existing regular file, and refuses a
+directory or link. The definition must also declare the same name as a persistent path,
+may not combine it with `portable_marker`, and is accepted only for native-portable.
+Indexed entries with the declaration require a Native19 lower bound for fresh and
+retained reads. The retained operational identity gains the name only when it is
+declared, so existing retained contracts keep theirs.
+
+Native portable version 20 consumes `z2rs-desktop-v1` for the official direct
+z2rs player. It verifies the selected Unix executable architecture and matches
+the exact Mac bundle player through at most one archive wrapper. Launch checks
+the effective default profile from the actual child environment. The managed
+route holds relative, library-overlapping and custom profile paths, while
+Windows and Linux retain the owned `.z2rs-data` fallback. The exact older
+Windows layout can use the launch check without rewriting its creating
+definition. New entries declaring the policy require version 20.
+
+Native portable version 21 consumes `recomp-direct-v1` for Body Harvest's
+official Windows and Linux x86-64 packages. The Linux package selects the
+direct AMD64 ELF player. Launch uses the upstream default profile lookup, holds
+portable markers and ambiguous or managed-overlapping profiles, and leaves
+profile data under player ownership.
+The exact retained Windows layout can apply this guard without recapturing its
+creating contract. Fresh and retained independent entries declaring the policy
+require version 21.
+
+Native portable version 23 consumes `doom3-linux-v1` for the reviewed
+direct dhewm3 and DUDE Linux x86-64 packages. It checks the packaged
+executable and native modules, starts with the managed base and module
+paths, and checks the effective external config and save directories.
+It holds a DUDE first launch that would copy a legacy profile. Earlier
+creating definitions keep their Windows launch and ownership contracts.
+Fresh and retained indexed entries declaring the policy require version 23.
+
+Native portable version 24 consumes `openjk-unix-v1` for the official
+OpenJK and OpenJO Linux campaign packages and OpenJO on Intel and Apple
+Silicon Macs. It binds the release selector and checked native package
+members. Launch checks the upstream-selected external profile and refuses
+alternate native modules in that profile. Original assets and Unix saves
+stay in the player-owned profile. The Windows routes keep their existing
+creating layouts and persistent paths. Fresh and retained indexed entries
+declaring this policy require version 24.
+
+Native portable version 25 consumes `linux_portable_data_directory` for an
+official Linux x86-64 TAR.GZ player that selects portable storage when a real
+directory exists beside its executable. The single basename is a declared
+persistent path. Fresh package staging requires an absent or empty directory
+and checks the direct ELF player. Launch prepares the directory and rechecks it
+at spawn. OpenSC2K's Godot log and temporary autosave locations must resolve
+outside the managed library. Launch can reserve an absent user-owned autosave
+directory under the system's sticky temporary root. Updates and rollback must
+retain the same effective Linux directory contract. Other platforms keep their
+creating launch and persistence rules.
+Fresh and retained indexed entries declaring this field require version 25.
+
+Native portable version 28 consumes `windows_tracked_handoff`. With it, a
+supervised Windows session also waits for its job members whose program lies in
+the installation; an older reader would drop the field and collect player data
+while a successor still runs. Fresh and retained indexed entries declaring the
+field require native-portable version 28 whatever their adapter, listed beside
+their own adapter requirement. Format-1 signed catalogs cannot deliver it, and
+a legacy installation without a retained definition cannot inherit it from the
+current catalog on Windows.
+
+Native portable version 29 is required by fresh indexed entries
+that combine a reviewed Unix package layout with
+`release.grant_declared_executable`. Core applies the verified grant to the
+declared program in private staging before comparing the executable inventory.
+Retained entries and Windows-only layout declarations can still use the
+earlier grant capability.
+
+Native portable version 30 recognizes `ignore_verified_macos_libraries` in
+reviewed macOS package layouts. Fresh and retained entries using that option
+require version 30. Core still fingerprints launcher paths and any executable
+whose file kind cannot be established as a matching shared library.
+
+Native portable version 18 binds `reviewed_package_layouts` in new
+independent entries. A reader without version 18 cannot accept a new
+entry that relies on the package-layout gate. Previously admitted
+retained entries keep their creating capability and shape rules.
+
+Native portable version 10 adds official sibling packages to verified native
+original-file definitions that keep a Windows temporary directory inside their
+private profile. Fresh and retained indexed entries declaring that combination
+require version 10. The Windows launch environment and creating Windows
+contracts retain their prior semantics. The Linux sibling may use a single
+exact AppImage asset with the existing standalone installer.
+
+N64 recomp version 5 consumes the same `release.archive_file_links` declaration for
+macOS app bundles whose upstream ZIP carries dylib version links, and for macOS or
+Linux packages published as one inner ZIP or TAR.GZ inside the downloaded ZIP. Indexed entries with the declaration require an N64 version 5 lower
+bound for fresh and retained reads; older readers refuse them, and no other adapter
+accepts the declaration.
+
+N64 recomp version 6 consumes `runtime_subdirectory_by_platform`, a map from a declared
+platform to the package wrapper folder that replaces `runtime_subdirectory` for that
+platform alone. It is accepted only on N64 recompilation definitions and only for their own
+platforms; each folder follows the `runtime_subdirectory` safety rules, and the declared
+source file must be a persistent path under every platform's folder. Indexed entries with the
+map require an N64 version 6 lower bound for fresh and retained reads; older readers refuse
+them. See [`docs/qualification/beetle-linux-managed-2026-11-12.md`](qualification/beetle-linux-managed-2026-11-12.md).
+
+Native portable version 14 consumes `release.archive_file_links` for a package
+whose archive relies on file links, such as versioned shared-library names. Core
+extracts each link as a regular copy of the file it names, following at most eight
+links inside the same archive, and refuses every other link shape. Indexed entries
+with the declaration require a Native14 lower bound for fresh and retained reads.
+Older readers refuse such an entry; other definitions keep their existing package
+contracts.
+
+Native portable version 22 consumes `release.grant_declared_executable`, which lets Core
+grant execution to the declared program of a package whose archive stores it without an
+executable bit, after verifying the file as a binary for the platform. Indexed entries
+with the declaration require a Native22 lower bound for fresh and retained reads; older
+readers refuse the whole definition. Libultraship portable version 4 and
+generated-cache version 2 consume the same declaration for their Unix routes,
+with the same lower-bound rule. The declaration is limited to these three adapters.
+
+Generated-cache version 3 consumes `release.tar_xz_platforms` for distinct
+declared Mac GitHub player routes. Each route requires a TAR.XZ-specific asset
+hint and keeps the existing checked provider resolution, bounded extraction and
+creating contract. Fresh and retained entries require the version 3 floor even
+when they also declare the version 2 executable grant. The older Native8
+`linux_tar_xz` declaration keeps its Linux-only scope.
+
+Native portable version 9 consumes `external_profile_policy` for the reviewed
+Dune Dynasty and fheroes2 external profile checks. Both fresh and retained
+indexed entries must declare capability 9 when they use this field.
+
+Native portable version 8 consumes `release.linux_tar_xz` for an ordinary
+GitHub-backed Linux x86-64 managed native player. It requires a matching
+archive-specific hint and the same retained definition and platform as the
+verified release selection. It uses the bounded TAR.XZ reader inside the
+existing managed publication transaction. Indexed entries with the declaration
+require a Native8 lower bound for fresh and retained reads. Older readers and
+the other platforms retain their existing package contracts.
 
 Native portable version 5 consumes `windows_temp_directory`: a dedicated,
 declared Windows entry-data directory used internally for relative `TEMP`/`TMP`.
@@ -104,6 +287,21 @@ records completed data restoration before first Play; it establishes no launch,
 game-file, mod, publisher or gameplay qualification. See the
 [PS1 data boundary](CATALOG.md#managed-ps1-package-and-player-data-restoration).
 
+Managed PS1 version 3 keeps each existing installation's retained persistent
+scope when a newer definition only adds `mods/texture-packs`. Indexed PS1
+entries that declare it require minimum version 3, so an older reader refuses
+the entry instead of treating existing installations as a changed scope. A
+format-1 signed catalog built from a catalog with the folder changes those
+ports' persistent paths, so an older reader refuses the whole catalog and asks
+for a Portcove update, as for earlier persistent-path changes.
+
+Managed PS1 version 4 installs a `psx-raw-set` disc set whose discs carry more
+than one track, keeping every track beside the data track. The track counts
+live in the source profile, so the catalog projection, not the entry alone,
+requires minimum version 4 for an indexed entry whose set has such a disc. An
+older reader would refuse the catalog only generically, because its validation
+admits a managed set only when every disc has one track.
+
 Staged-source version 22 covers ready managed archives without a source, build,
 setup-helper, initialization or shared-account contract. New indexed entries of
 that shape now require version 23. They stage and restore declared data before
@@ -150,19 +348,85 @@ restore preflights complete package conflicts across all retained runtimes befor
 publishing canonical data. This reuses the PS1 coexistence algorithm and grants
 no new publisher, executable, original-file or external-data authority.
 
-Version 25 supplies the bounded fresh-data isolation required by newer managed
-Sonic 3K, Sonic 1 and Mega Man X2 recipes. New indexed entries for these ready
-staged routes must declare `staged-source-portable` with `minimum_version: 25`
-and an inclusive `maximum_version` of at least 25. An interval starting at 24
-is insufficient: it would let a reader without the hold accept the recipe.
-The normal capability resolver therefore refuses these new entries on a
-version-24 inventory. Authors and publishers must emit that requirement; Core
-rejects underdeclared fresh entries rather than treating a guide as enforcement.
-The exact historical Direct package readers and retained entry projections keep
-their existing versions and bytes. Current Core applies its runtime compatibility
-checks independently of the retained envelope version. This is neither state ABI
-proof nor old flat-catalog, protected publication or #534 unchanged-client
-qualification. It introduces no new recipe field or console-family primitive.
+Version 25 introduced bounded fresh-data isolation for managed Sonic 3K,
+Sonic 1 and Mega Man X2 recipes. Retained entries and exact historical Direct
+package readers keep their creating versions and bytes. Current Core applies
+its runtime compatibility checks independently of the retained envelope version.
+
+Version 26 extends isolation to fresh Super Metroid recipes and enforces the
+archive boundary for all four families, including transitions with identical
+persistence scopes. New indexed entries for these ready staged routes must
+start their `staged-source-portable` interval at 26 or later; current Core
+rejects lower-bound underclaims. Reader 25 cannot enforce this boundary and its
+inventory refuses the new requirement. A different verified archive may replace
+or reuse a runtime only with original-only data in the active, canonical and
+retained target roots. An initialized restore receipt does not prove that shared
+player data came from that build.
+
+New guarded backups bind the verified producing archive into their content
+integrity stream; older raw-byte verifiers refuse them. Restore checks every
+actual retained destination before publication or synchronization. Unknown or
+mismatched producing builds cannot restore populated snapshots into a fresh
+guarded runtime. Restore journals retain one operation-owned, content-addressed
+copy of the reviewed manifest in `original_paths`; older restore readers refuse
+that nonempty envelope. Recovery rechecks that input and the phase-owned staged
+or published snapshot before mutation. Existing unbound backups keep their
+original hashes and exact historical administrative behavior, including SM
+v0.3.12. This grants no populated-data migration, state ABI proof, legacy state
+readability, native-game or protected-publication acceptance.
+
+Staged-source version 27 adds the explicit `archive_data_compatibility_v1`
+contract for ready runtime-local GitHub archives. New installations retain a
+format-10 installed envelope that older readers refuse, including embedded and
+unscoped contracts. Its bounded `shared_paths`
+identify reviewed conventional data that can reach compatible successor runtimes;
+all other declared persistent objects remain bound to their producing archive.
+`build_specific_progress_paths` identify progress requiring player review before
+activation. Automatic maintenance stages such an update and preserves the saved
+update preference. Runtime rollback carries current shared data; it does not rewind
+saves or establish an older reader's compatibility.
+
+The concrete data policy, original identity and persistent coordinates are hashed
+into the canonical namespace; the actual retained archive hash supplies each
+build-specific coordinate. New backup content framing authenticates that layout
+and refuses readers that would ignore it, including snapshots without an active
+runtime. Data-only restore can preserve that opaque layout across catalog changes,
+but cannot authorize a fresh runtime to consume it. Historical unpartitioned
+contracts retain their own interpretation and do not inherit version 27's policy.
+
+Staged-source version 28 adds optional `archive_data_transition_v1` for a
+reviewed one-time transition from an exact historical Direct creating contract
+and archive. This declaration is separate from the stable data policy, so adding
+it does not change an established version-27 namespace. The existing game-update
+review binds the complete retained-installation set, active selection, original,
+manifest and restore receipts, player-data preimage and temporary capacity. The
+player explicitly chooses the first update; automatic maintenance cannot admit
+an old installation into this policy.
+
+The existing lifecycle journal stages the new data layout, then fences every
+reviewed retained copy before publishing canonical data. A format-8 installation
+manifest preserves the creating contract, provider, artifact, executable and
+member identities, and adds only the separately reviewed data admission. Its new
+hash is conditionally recorded in the existing installation row. A strict
+version-2 restore receipt binds that hash. Older readers refuse these envelopes;
+missing or downgraded receipts do not grant data access. Recovery uses its frozen
+mapping authority even after catalog changes and holds unexpected data, active
+selection, retained-copy or metadata changes. Once cleanup has durably begun,
+recovery accepts only unchanged surviving entries from its frozen old-data tree,
+so partial deletion can resume while new or modified files remain preserved.
+Current conventional data is mirrored
+from the initialized active runtime, including deletions; its build-specific data
+stays bound to the original archive. Runtime rollback still does not rewind saves.
+
+The corresponding source contract may explicitly declare
+`release_policy: integration-contract-v1` once. It requires enforced original
+identities, existing evidence, a matching source profile and the provider-bound
+version-27 route. Exact historical applicability/evidence remains unchanged;
+ordinary future tag/archive identities use the reviewed integration policy.
+GitHub resolution retains repository, release and asset IDs in its acquisition
+proof and installation manifest. Changed bytes under a retained asset identity
+or replacement of its repository identity refuse; a rolling reference with a new
+asset identity remains a distinct artifact.
 
 The N64 portable template also advertises version 2, which implements the
 catalog-declared fresh Windows D3D12 default. Inventory identities are unique
@@ -281,6 +545,30 @@ CLI exits successfully after a valid check even when `compatible` is false;
 callers must inspect that value. Malformed requests use the normal error envelope.
 Neither successful negotiation nor a supported adapter establishes publisher
 trust, source admission, artifact integrity, or permission to install or launch.
+
+Staged-source version 29 admits sibling desktop ZIPs for a ready, original-bound
+GitHub archive with partitioned player data and a Windows path policy. Each
+platform needs explicit package and executable hints. Windows keeps its
+existing path checks. A reviewed Windows predecessor keeps its exact creating
+contract, archive and Windows executable hint. Sibling platform hints do not
+grant cross-platform adoption or build-specific progress compatibility.
+
+Staged-source version 30 admits the `xdvdfs-directory` and `iso9660-directory`
+source materializations with their `runtime_disc_image` declaration (see
+[Disc-image unpacking](CATALOG.md#disc-image-unpacking)). An indexed entry that
+declares `runtime_disc_image` must require staged-source minimum version 30, so
+older readers that cannot unpack a disc image refuse it instead of misreading the
+definition. The version adds no source, installation or publisher authority and
+does not change versions 2–29. A definition bundled with the application ships with
+the build that understands it and needs no separate requirement.
+
+Staged-source version 31 admits `optional_game_source` on such a disc-image port: the
+source is offered but not required, so an unregistered source never blocks installing,
+updating or launching, and nothing is unpacked or removed until one is registered (see
+[Optional game source](CATALOG.md#optional-game-source)). An indexed entry that declares
+`optional_game_source` must require staged-source minimum version 31, so an older reader,
+which would treat the source as required and hold Play, refuses it instead. The version
+adds no source, installation or publisher authority and does not change versions 2–30.
 
 ## Decision and threat model
 
@@ -419,10 +707,13 @@ grant; a reused textual repository name is not continuity of authority.
 
 ## Acquisition decision
 
-The current runtime accepts an upstream expected SHA-256 or existing reviewed
-direct-manifest provenance. Read-only API observations distinguish missing API
-digests from published checksum assets; neither is inferred from a same-download
-hash. The minimum [#246](https://github.com/boburning/portcove/issues/246)
+The runtime accepts an upstream expected SHA-256, reviewed direct-manifest
+provenance, or a GitHub curated acquisition record admitted under authenticated
+policy schema 4. Read-only
+API observations distinguish missing API digests from published checksum assets.
+Calculating a digest during download supplies an observed value. It becomes
+an expected value for subsequent acquisition only through the applicable
+acceptance path. The minimum [#246](https://github.com/boburning/portcove/issues/246)
 publication proof is independent of curated acquisition and uses an existing
 accepted route. A verified cache may be reused only against its retained
 accepted expected identity. Wrong bytes, ambiguous sidecars, missing provenance
@@ -434,21 +725,26 @@ an exact artifact from an attributable upstream release may be accepted without
 a separately published publisher checksum after the acquisition route receives
 independent review under protected catalog authority. The accepted record must
 bind upstream/host, release, asset, platform, size, SHA-256, acquisition evidence
-and acceptance provenance. A catalog-curated hash proves integrity against
-accepted bytes; it is not a publisher signature or authentication claim. A new
-release identity may enter normal protected acceptance. Different bytes under
-the same accepted identity require investigation, not silent repinning.
+and acceptance provenance. A catalog-curated hash verifies integrity against
+the accepted bytes. When an upstream signature or attestation is available and
+used, check the expected publisher or build identity and the claims binding the
+artifact. Authentic software can still be harmful. Installation, execution and
+redistribution each require their applicable authority. A new release identity
+may enter normal protected acceptance. Different bytes under the same accepted
+identity require investigation and must stay held.
 
-The #315 implementation must preserve withdrawal/revocation, verified-cache,
-recovery and permitted retained-version behavior. Proposal-producing runners
+The Core verifier, GitHub provider integration, accepted record and scoped
+transition handling are implemented. The #315 production canary, verified cache
+reuse, scoped refusals and recovery, and repeated eligible progression still
+need evidence through the protected route. Proposal-producing runners
 cannot approve their own authority changes or hold signing credentials.
 Protected publisher automation may sign or publish only exact independently
 authorized inputs, with enforceable workflow separation and exact-input
 validation. Routine candidates within established authority do not need a
 separate owner stamp. The policy decision accepts no particular artifact and
 does not provision credentials or change current protections; existing source,
-acquisition, ownership, consent and operation guards remain in force until the
-route is implemented and afterward.
+acquisition, ownership, consent and operation guards apply through protected
+rollout and subsequent operation.
 
 ## Delivery, compatibility and retention
 
@@ -730,13 +1026,15 @@ separate offline delegation signer rather than the timestamp/snapshot signer.
 
 `Library::review_definition_authority` reviews only the immutable public root
 compiled into the release from `crates/portcove-core/catalog/official-definition-root.json`.
-The checked-in value is `null`: ordinary builds report `configured: false` and
-refuse application. Selecting a production root, demonstrating its custody and
-shipping a configured release remain separate protected owner decisions. A valid
-root document alone does not prove offline custody or grant signing/publication
-permissions.
+The owner-appointed initial catalog Root v1 is the retained 2,144-byte public
+export with SHA-256 `748bf3e9ec10a585ea62beb6228379642de3b33d0f2d94272ce0bd42d6e35e7b`.
+Its November 3 source appointment authorizes this fixed client input and an
+isolated Windows baseline. It does not authorize new keys, signing, feed
+publication or Task activation. A valid public Root alone does not prove private
+custody, a public feed or configured native acceptance. Explicit null-input builds
+remain supported and report `configured: false` without applying authority.
 
-For a separately approved configured release, `catalog definition-authority`
+For a configured build, `catalog definition-authority`
 returns a `provisioning_schema: 1` review. `--apply --expected-plan <expected_plan>`
 requires explicit confirmation (`--yes` for noninteractive use) and delegates to
 Core. No file, URL, key, environment override or qualification option supplies
@@ -744,7 +1042,7 @@ the anchor. The compiled root is bounded to 1 MiB and must self-verify against
 the initial-anchor profile appointed in reviewed source. The selected Slice 4
 profile is single-owner-one-of-one-v1: one Root key/signature, distinct Ed25519
 Root/Targets/Snapshot/Timestamp material, consistent snapshots and exactly four
-top-level roles. The compiled root remains null until its separate appointment.
+top-level roles. The compiled input is the exact separately appointed public Root.
 Legacy two-of-three validation remains available for existing anchors and
 qualification; downloaded metadata cannot select a lower profile. Existing TUF
 acquisition still authenticates rotation, expiry and fresh metadata. This new
@@ -762,9 +1060,57 @@ select definitions or install games. Deleting all history or rolling back the
 entire database cannot be detected without an independent witness; this seam
 does not claim that protection.
 
-This is a CLI operator command with additive exported review/result schemas and
-capability advertisement. API result-envelope and operation-event versions stay
-unchanged; no event is emitted and no Tauri command/binding is introduced.
+The CLI operator command retains its explicit reviewed-plan confirmation.
+Normal Desktop setup uses the same Core transaction through its separate official
+catalog review and enablement bridge. API87 binds that confirmation to the existing
+library/Root/history plan and the exact compiled transport-source bytes. The CLI
+plan is unchanged. Neither review nor enablement emits a lifecycle event or selects
+a definition, policy or installation.
+
+**Normal official-catalog setup.**
+
+The compiled `crates/portcove-core/catalog/official-definition-source.json` contains
+only separately appointed credential-free HTTPS metadata and target locations.
+The appointed locations are `https://boburning.github.io/portcove/catalog/metadata/`
+and `https://boburning.github.io/portcove/catalog/targets/`. A source cannot supply
+trust, policy, a key or a publisher grant; unknown fields, unsafe addresses and inputs
+over 4,096 bytes refuse. There is no runtime, environment or caller override to
+these normal-client defaults. Explicit operator transport commands remain available.
+
+Desktop's ordinary update settings review this fixed pair and request one explicit
+enablement confirmation. Its generation-bound adapter accepts only the reviewed
+plan, never Root or source bytes. Core recomputes the source-bound plan and delegates
+to its existing provisioning transaction. Exact still-unadmitted lost-response
+retries remain idempotent; changed sources/libraries, conflicting anchors, corrupt
+history and advanced initialization preimages refuse without repair or floor reset.
+Opening a library or refreshing a directory never silently installs trust.
+
+Once enabled, the normal refresh action uses those compiled locations through
+the existing authenticated listing-delivery path and cancellation/lifecycle owner.
+The built-in catalog and installed games remain available when this optional
+source is unconfigured or its refresh fails. Enabling the source does not install
+a game, authorize a definition or replace executable/player data. The configured
+Windows/native baseline, authenticated feed and protected progression
+acceptance remain separate obligations after this source appointment. Neither
+compiled input nor a library enablement receipt establishes those outcomes.
+
+Selected Desktop details expose **Check setup availability** for the selected port.
+The generation-bound private command accepts only its known port ID and operation
+channel. Core resolves a retained definition's exact official namespace/stable ID,
+or the exact known listing/embedded port ID; it refuses unknown IDs and does not
+strip namespace prefixes, infer identities from titles or map related editions.
+It delegates to the existing definition-refresh pipeline using the compiled source
+and explicitly enabled authority. Catalog update settings remain the normal
+enablement route; checking cannot provision trust, install a game or replace files.
+
+The detail action supplies the maintained propagating mutation-readback callback
+to the existing application-lifetime operation owner. It reloads the current
+workspace after success or failure, including a lost response or a later failure after policy/launch-assessment
+admission. It retains the original Core phase/change details and any independent
+readback failure, without automatic replay or a claim that failure had no effects.
+An outgoing library cannot publish into or reload its replacement. Existing
+definition-refresh output and cancellation contracts are reused; this private
+Desktop command does not change API87, CLI commands or the operation-event window.
 
 **Ordinary refresh.** `PortcoveService::refresh_definition` and the thin
 `catalog definition-refresh` CLI use only the fixed installed compiled root.
@@ -823,6 +1169,49 @@ bypasses selection and HTTP caches and refuses redirects. Installation refreshes
 these identities through the same opaque scope before acquiring artifact bytes,
 then uses the existing shared byte verifier and policy checks at publication.
 Previously returned resolutions do not confer reusable upstream freshness.
+
+#### Preserved-location failover
+
+The owner approved this narrow exception to fresh upstream observation for
+[#1306](https://github.com/boburning/portcove/issues/1306). A curated record
+with `record_version: 2` may carry one or two `preserved_locations`. Each is a
+canonical `https://<host>/<owner>/<repo>/releases/download/<tag>/<file>` URL
+whose file is the record's `<sha256>.asset` or its filename, and whose host the
+schema-4 grant's `artifact_hosts` already authorizes. Locations are transport
+only: they are excluded from the retained immutable identity, cannot widen a
+grant, and never decide acceptance. Version-1 records cannot carry them.
+Clients that predate version 2 refuse such a record through
+`deny_unknown_fields` and keep their prior admission until it expires, so
+publish version-2 records only once the supporting client is the floor.
+
+Failover happens only when the upstream failure is classified _unavailable_
+from recorded transport facts, never from message text. Unavailable means a
+connect failure, a timeout, or HTTP 404/410 on repository, release, tag or
+asset discovery or on the asset bytes. It also covers an accepted release or
+asset that is absent from the listing by both ID and tag or name.
+Authentication, authorization and rate-limit refusals (401, 403, 407, 429) and
+every identity disagreement keep their existing behavior. Mid-stream resets are
+not classified as unavailable. A partial match never counts as disappearance:
+a moved tag, a reused asset name or a changed ID is a disagreement. A connect
+failure counts as unavailable only with a concrete socket-level cause
+(refused, reset, aborted, timed out, host or network unreachable). Proxy-tunnel
+refusals, including 407, and TLS failures never fail over.
+A failover selection carries the requested channel label for the record's
+accepted release; curated records are exact per platform, so no channel
+choice happens.
+
+Order: scope freshness, retained identity and the curated artifact hold are
+checked first. Then the existing upstream observation runs. When it is
+unavailable, Core selects the artifact from the authenticated, fresh policy
+record alone and makes no upstream request. Installation then re-observes
+through the same resolver and reuses a verified cache hit first. Otherwise it
+tries the upstream asset URL, then each preserved location in record order. Before every preserved
+attempt Core removes private partial bytes and rechecks the hold. The scoped
+anonymous client, `artifact_hosts` redirect policy, bounded transfer, bounded
+SHA-256 verifier, cache retention and atomic publication are unchanged. A byte
+mismatch from a preserved location refuses the install and tries no further
+location. Stale or expired policy, revocation, distribution withdrawal and
+lost future acceptance refuse before any preserved request.
 
 Only an exactly qualified curated platform uses the shared `downloads/curated-v1`
 byte cache; another platform's publisher-digest route remains independent. Cache
@@ -1125,6 +1514,13 @@ missing, extra, changed, linked or unsupported content refuses. The bounds are
 records. Its exact file/definition manifest grants no semantic or publisher
 acceptance. An empty index is bootstrap preparation, not a delivered definition.
 
+The maintained release inspector and its real-CLI build fixtures accept API84
+and API85 machine envelopes for this unchanged publication-schema-1 report.
+They retain exact envelope/report validation, byte binding and same-process
+inspection custody; unknown versions and reflected authority remain refused.
+This compatibility window changes no publisher, Root, signature or acceptance
+authority, and does not relabel earlier API84 observations.
+
 The release tool provides `sign-offline-definition-targets CONFIG`,
 `sign-definition-role ROLE CONFIG` and `assemble-definition-repository CONFIG`.
 Catalog Root and offline Targets remain separate from application authority.
@@ -1151,7 +1547,9 @@ The automatic catalog authoring boundary is the fixed inert source subtree
 the managed index, checksum-addressed definitions and official policy/launch
 records. This is separate from the compiled catalog. The existing coordinator
 freezes exact raw Git inputs, actual Core projection, accumulated changes from
-the accepted catalog baseline and current component/site identities. Its neutral
+the accepted catalog baseline and current component/site identities. The catalog
+source readers reconstruct at most 6,144 entries per complete Git tree and refuse
+truncated or mismatched trees. Its neutral
 request is consumed by the selected independent whole-opportunity producer;
 parser success or persistence does not establish acceptance. Negative results
 retain the actual authenticated Check and bounded repair history in the same
@@ -1301,6 +1699,12 @@ the retained revision/replay floor is not lowered. Status exposes the actual
 selection, revision, target and authority digests, expiry, counts, withdrawals
 and fallback reason. An expired tombstone is not an indefinite new authority over
 the bundled fallback. There is no startup fetch or unsigned GitHub JSON fallback.
+
+The existing target can carry listing format8 for supported GitLab descriptive
+observations. Exact native tag identities use the existing project/tag reference; GitHub numeric
+IDs retain their shape, and older incapable readers refuse the directory while
+retaining their last-good selection. This is data compatibility, not a publisher
+grant or permission to acquire or execute a package.
 
 CLI `catalog listing-refresh --metadata-base-url <https-base>
 --targets-base-url <https-base>` performs an explicit refresh under the installed

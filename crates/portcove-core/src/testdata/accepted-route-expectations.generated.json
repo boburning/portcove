@@ -1,0 +1,12 @@
+{
+  "format_version": 1,
+  "cases": [
+    {
+      "port_id": "mother-3-mother-3-recomp",
+      "executable": "Mother3Recomp.exe",
+      "arguments": [],
+      "managed_native": false,
+      "observation_scope_sha256": "111033e4012b570f5b4ee6ff453d31c38574c9ced21e8b818bd3c2fd6cb8b2ee"
+    }
+  ]
+}

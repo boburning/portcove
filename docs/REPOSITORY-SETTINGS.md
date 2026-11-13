@@ -13,7 +13,7 @@ The `Protect main` ruleset blocks deletion and force-pushes, requires a pull
 request and resolved review threads, and requires the `catalog`,
 `dependency-review`, `frontend`, `rust`, and `rust-quality` checks from
 `.github/workflows/ci.yml` on the current source head. Strict base freshness is
-disabled, so an independently reviewed unchanged source may merge behind
+disabled, so an unchanged source with applicable review may merge behind
 unrelated `main` advances after the interaction checks in
 [Quality](QUALITY.md#routine-merge-freshness). Required approvals are zero;
 last-push and mandatory CODEOWNERS approval are disabled.
@@ -25,9 +25,11 @@ it is emergency-only, never the routine solo-maintainer path.
 Repository auto-merge capability is enabled, but pull requests are not enrolled
 automatically. Routine authorized work uses the exact-head guarded immediate
 merge in [Contribution conventions](CONTRIBUTION-CONVENTIONS.md) only after all
-mandatory checks, an actual separate non-writing reviewer-subagent result,
+mandatory checks, [applicable review under Quality](QUALITY.md#review-scope),
 substantive finding repair, resolved threads, and current revision/authority
-confirmation. Auto-merge remains an explicitly justified deferred exception.
+confirmation. Quality owns review scope, including independent non-writing review
+for substantive behavior and higher-consequence boundaries; a Markdown extension
+does not make normative policy low risk. Auto-merge remains an explicitly justified deferred exception.
 Candidate-controlled workflow changes cannot establish or remove their own
 trusted gate. Fully unattended engineering requires a separately implemented
 trusted controller and end-to-end negative/recovery proof; this policy change
@@ -48,7 +50,19 @@ node scripts/repository-settings.mts --apply
 node scripts/repository-settings.mts --check
 ```
 
-The live modes fail closed when the stable ruleset is absent or any
+Live metadata and bounded ruleset pagination use the configured Octokit
+integration. The command selects an approved environment credential or, for
+eligible local tooling, resolves the existing CLI login once. `--validate` and
+`--help` remain offline and do not load SDK packages. Domain rules and migration
+planning live in `scripts/repository-settings-policy.mts`; command setup and
+output stay in `repository-settings.mts`.
+
+Each write has one transport attempt. An ambiguous write is followed by readback;
+matching authoritative state can complete the operation, while unavailable or
+mismatching evidence remains a typed unknown outcome without replaying the write.
+Changing this transport does not authorize applying protection changes.
+
+The main and security live modes fail closed when the stable ruleset is absent or any
 out-of-scope rule, check, condition, or bypass actor differs from the checked-in
 contract. `--apply` updates the existing stable ruleset identity only for the
 authorized review parameters and sends only changed values among
@@ -82,6 +96,74 @@ pull request title/blank body. It does not rewrite history, force a merge
 method, add a status requirement, or change merge authority. Apply it only from
 the merged `main` contract and record the exact live readback on its durable
 issue.
+
+## Release controller ref protection
+
+The repository settings tool owns five release-controller policies. GitHub's
+[ref matching rules](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-rulesets/creating-rulesets-for-a-repository#using-fnmatch-syntax)
+match the three flat tag prefixes `portcove-production-controller-*`,
+`portcove-upstream-rehearsal-*`, and `portcove-controller-canary-*`.
+
+| Policy                                  | Effective permission                                                                                                      |
+| --------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| Portcove controller tag immutability    | Deny updates and deletion across the three tag prefixes, with no bypass.                                                  |
+| Portcove controller tag creation        | Allow creation across those prefixes only to the existing repository owner, user ID `43177418`.                           |
+| Portcove release state writer           | Allow updates to `portcove-release-inputs` and `portcove-production-coordinator-state` only to App `5632044`.             |
+| Portcove release branch retention       | Deny creation, deletion and non-fast-forward updates on both state branches and `portcove-release-pause`, with no bypass. |
+| Portcove publication pause owner update | Allow updates to `portcove-release-pause` only to the existing repository owner.                                          |
+
+Protect main and Protect release tags continue as separate repository policies.
+Release observers still bind complete inventory and branch observations.
+Protected environments and controller admission still require exact appointments
+and the original source and workflow identities.
+
+### Settled migration
+
+Coordinate the closed publication pause, all affected operations, and the
+protected writer handoff through [#534](https://github.com/boburning/portcove/issues/534).
+Ship compatible readers and identify the exact controller source that will use
+them before changing the inventory. Keep the closed pause through the migration
+and held-configuration readback.
+
+Retain the complete live ruleset configuration, exact ref identities and
+existence checks, including the existing version tags. Review the plan against
+that preimage. An absent protected legacy tag stops consolidation of the tag
+policies until its creation prohibition has an explicit replacement.
+
+```bash
+node scripts/repository-settings.mts --plan-release-rulesets
+node scripts/repository-settings.mts --apply-release-rulesets <observation-from-reviewed-plan>
+node scripts/repository-settings.mts --check-release-rulesets
+```
+
+Apply one stage at a time using the observation from the last reviewed live
+plan. Read back the expanded state writer before retiring its duplicate and
+the expanded retention rule before retiring its duplicates. Their removals
+free slots for the separate immutable and creation policies. Read both tag
+policies back and record their GitHub enforcement for disposable refs before
+retiring exact legacy policies. Keep the full original
+configuration and the per-stage output. After interruption or an uncertain
+response, generate a fresh plan from GitHub and reconcile its actual changes
+before resuming. The recovery sequence uses the verified shared coverage
+within the 75-ruleset capacity.
+
+Obtain fresh observations and render the current held configuration again via
+its existing exact-source and purpose-specific appointment path. Prior
+protection bindings and receipts retain their original inventory digest.
+Record the successful exact successor appointment and fresh preflight before
+any protected continuation.
+
+### Appointing a successor
+
+From the owning release operation, use `--check-release-rulesets` before the
+owner creates the exact reviewed controller tag. The existing GitHub
+`POST /repos/boburning/portcove/git/refs` operation creates only that ref at the
+approved source SHA. Verify the returned and freshly observed Git ref, commit
+identity, and permanent policy before binding the exact environment selectors
+and rendering the held appointment. A creation bypass cannot update or delete
+the ref because the independent immutability rule applies to the owner.
+Existing scope, pause, review, authority and custody checks still govern each
+appointment. The owner procedure requires zero ruleset writes per successor.
 
 ## Release protections
 

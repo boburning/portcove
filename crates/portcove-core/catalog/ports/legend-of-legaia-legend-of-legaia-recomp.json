@@ -3,9 +3,10 @@
   "listing": {
     "id": "legend-of-legaia-legend-of-legaia-recomp",
     "name": "Legend of Legaia / legend-of-legaia-recomp",
-    "summary": "Explore Legend of Legaia / legend-of-legaia-recomp and follow the upstream project for requirements, downloads and setup.",
+    "summary": "Register an independently permitted prepared Legend of Legaia Windows playtest copy with your own USA disc, extracted executable and US PlayStation BIOS; preserve its creating runtime and external state.",
     "project_url": "https://github.com/SamSteProjects/legend-of-legaia-recomp",
     "issue_number": 352,
+    "listed_at": "2026-10-23",
     "platforms": [],
     "availability": "unknown",
     "setup_url": "https://github.com/SamSteProjects/legend-of-legaia-recomp",
@@ -16,6 +17,40 @@
       "image_sha256": "885b91f94d9b98b87afa1c6acbf6d362ce642386551334ba52a02ddf283ed0fe",
       "game_slug": "legend-of-legaia",
       "match_kind": "underlying-game"
+    },
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Complete the exact original and BIOS setup upstream",
+          "instruction": "Use an independently permitted complete Windows playtest copy. Supply your own legally dumped USA disc: extracted SCUS_942.54 in disc/, matching CUE/BIN in game/, and your own US SCPH1001.BIN in bios/. The documented CUE name is Legend of Legaia (USA).cue; retain the matching game.toml if your upstream working copy uses another path. A filename is not a whole-disc identity certificate. Portcove obtains or extracts no disc, executable, BIOS or helper."
+        },
+        {
+          "title": "Attach the completed native player",
+          "instruction": "The upstream v0.1.7 diagnostic-playtest README explicitly supports direct LegaiaRecomp.exe with its complete creating player directory as working directory and no extra arguments; keep SDL2.dll and bundled game.toml, settings.toml, bios/, disc/, game/ and matching resources together. Do not attach the batch file, package script, compiler or a setup-host output. Complete preparation upstream first. Retain supported literal arguments already required by your working copy; no renderer or input mode is newly qualified."
+        },
+        {
+          "title": "Review launch details, then choose Play",
+          "instruction": "Review and consent to the exact native executable, established CWD and literal arguments; request Play separately."
+        }
+      ],
+      "warnings": [
+        "Only attach actual originals, runtime and components you are independently permitted to use. Runtime PolyForm Noncommercial terms and SDL/dependency notices apply separately; no source label or upstream package assertion grants Sony/game rights.",
+        "This guidance follows upstream source, documentation, configuration and published release checksums. Portcove has not downloaded or inspected the package, confirmed that its executable matches the source, or tested launch, saves, gameplay or installed behavior. The package’s build settings and contents remain unconfirmed.",
+        "Close every actual player and companion before maintenance, retain the old runtime/data and review or relink changed selected bytes.",
+        "No cross-version card/state compatibility or migration is established.",
+        "This early diagnostic playtest has documented hitching and a static-overlay fallback. Keep the working configuration and runtime together; stable-player and runtime behavior remain unconfirmed."
+      ],
+      "references": [
+        {
+          "title": "Launch, preparation and maintenance scope",
+          "instruction": "The reviewed source provides the normal in-process launcher/runtime route; package build flags and package-to-source correspondence remain unverified. Independently started setup, helper, mod-preparation or successor sessions remain upstream activity outside this attachment. Removing registration preserves all external files. Portcove has not confirmed upstream gameplay reports. You and upstream manage preparation, replacement and recovery; Portcove does not update, back up, roll back, migrate or delete this external copy, or upload diagnostic reports."
+        },
+        {
+          "title": "Save cards, configuration and custom roots",
+          "instruction": "The title config selects runtime memcard_dir=saves. The named runtime source anchors normal runtime files to the executable directory and supports --memcard-dir plus settings-selected explicit card paths; preserve the actual effective directories and card1.mcd/card2.mcd, rather than assuming all state is under saves/. Retain all saves/states, settings.toml, game.toml and custom overlays, original disc/BIOS/extracted executable, cache or overlay shards, mods, logs, crash/hitch/manual reports, backups and temporary files with the creating runtime. Preserve external custom card/disc/BIOS/mod paths."
+        }
+      ],
+      "help_url": "https://github.com/SamSteProjects/legend-of-legaia-recomp/blob/261a40d12a800a73426367f643d2267e8393db3f/README.md"
     }
   }
 }

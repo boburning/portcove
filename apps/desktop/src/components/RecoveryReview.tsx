@@ -1,9 +1,12 @@
+import type { TFunction } from "i18next";
+import { Trans } from "react-i18next";
+import { countMessage, useAppTranslation } from "../localization";
 import { ActionReviewFailure } from "./ActionReviewFailure";
 import { useRef, useState } from "react";
 import { desktopApi } from "../api";
 import type { DoctorReport, PortDefinition, PreparationCleanupPreview } from "../types";
 import { useActionReview } from "../use-action-review";
-import { errorText, formatBytes, formatCountMessage } from "../view-model";
+import { errorText, formatBytes } from "../view-model";
 import type { DetailDestination } from "../view-model";
 import { gameIdentityLabel } from "../port-identity";
 import { Button } from "./ui/button";
@@ -11,21 +14,29 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle } f
 
 type Repair = DoctorReport["repair"];
 type Item = Repair["items"][number];
-const labels: Record<Item["kind"], string> = {
-  retained_preparation: "Unfinished setup files",
-  partial_operation: "Unfinished operation",
-  cleanup_pending: "Unfinished files need review",
-  orphaned_final_directory: "Unregistered game folder",
-  missing_registered_path: "Registered game folder is missing",
-  degraded_backup: "Backup needs attention",
-  backup_recovery_required: "Backup recovery needs review",
-};
-const countMessages = {
-  zero: "No recovery items were recorded in the last check.",
-  one: "1 recorded item needs review.",
-  other: "{count} recorded items need review.",
-  unknown: "Recovery information is unavailable.",
-};
+/** Core may add item kinds; an unrecognized kind keeps a general review label. */
+function itemLabel(t: TFunction<"operations">, kind: Item["kind"]) {
+  switch (kind) {
+    case "malformed_journal":
+      return t("recovery.kind.malformedJournal");
+    case "retained_preparation":
+      return t("recovery.kind.retainedPreparation");
+    case "partial_operation":
+      return t("recovery.kind.partialOperation");
+    case "cleanup_pending":
+      return t("recovery.kind.cleanupPending");
+    case "orphaned_final_directory":
+      return t("recovery.kind.orphanedFolder");
+    case "missing_registered_path":
+      return t("recovery.kind.missingFolder");
+    case "degraded_backup":
+      return t("recovery.kind.degradedBackup");
+    case "backup_recovery_required":
+      return t("recovery.kind.backupRecovery");
+    default:
+      return t("recovery.kind.unknown");
+  }
+}
 
 export function RecoveryReview({
   repair,
@@ -54,6 +65,7 @@ export function RecoveryReview({
   onReviewActivity?: (activityId: string) => void;
   availableActivityIds?: ReadonlySet<string>;
 }) {
+  const { t } = useAppTranslation("operations");
   const [cleanupOperation, setCleanupOperation] = useState<string>();
   const names = new Map(ports.map((port) => [port.id, gameIdentityLabel(port)]));
   const occurrences = new Map<string, number>();
@@ -71,39 +83,38 @@ export function RecoveryReview({
   return (
     <section
       className={"recovery-review" + (quiet ? " recovery-review-quiet" : "")}
-      aria-label="Unfinished work and recovery"
+      aria-label={t("recovery.label")}
       data-diagnostic-state={state}
     >
       <header className="recovery-review-heading">
         <h2
           className={quiet ? "m-0 text-sm font-medium text-pc-muted-foreground" : "m-0 text-base"}
         >
-          Unfinished work and recovery
+          {t("recovery.heading")}
         </h2>
         {(!stale || repair) && (
           <p className="mb-0 text-sm text-pc-muted-foreground">
-            {formatCountMessage(repair?.items.length, countMessages)}
+            {countMessage(repair?.items.length, "recoveryItems")}
           </p>
         )}
       </header>
       {refreshing && (
         <p className="mb-0 text-sm text-pc-secondary-foreground" role="status">
-          {repair
-            ? "Refreshing recovery information. The last completed check remains visible."
-            : "Checking the library for unfinished work…"}
+          {repair ? t("recovery.refreshing") : t("recovery.checking")}
         </p>
       )}
       {!refreshing && Boolean(failure) && (
         <p className="mb-0 text-sm text-pc-danger-foreground" role="alert">
-          Recovery information could not be refreshed: {errorText(failure)}
-          {repair ? " The last completed check remains visible." : ""}
+          <Trans
+            t={t}
+            i18nKey={repair ? "recovery.failedRetained" : "recovery.failed"}
+            components={{ error: <bdi>{errorText(failure)}</bdi> }}
+          />
         </p>
       )}
       {!refreshing && !failure && stale && (
         <p className="mb-0 text-sm text-pc-warning-foreground" role="status">
-          {repair
-            ? "Recovery information is out of date. The last completed check remains visible."
-            : "Recovery information has not been checked for the current library state."}
+          {repair ? t("recovery.stale") : t("recovery.unchecked")}
         </p>
       )}
       {(stale || Boolean(failure)) && !refreshing && (
@@ -114,14 +125,19 @@ export function RecoveryReview({
           className="self-start"
           onClick={() => void refresh()}
         >
-          Refresh recovery information
+          {t("recovery.refresh")}
         </Button>
       )}
+      {repair?.journal_diagnostics &&
+        (!repair.journal_diagnostics.enumeration_complete ||
+          !repair.journal_diagnostics.related_assessments_complete) && (
+          <p className="mb-0 text-sm text-pc-warning-foreground" role="status">
+            {t("recovery.incomplete")}
+          </p>
+        )}
       {!!repair?.items.length && (
         <>
-          <p className="mb-0 text-sm text-pc-secondary-foreground">
-            Expand an item for its recorded location and guidance. Review links do not change files.
-          </p>
+          <p className="mb-0 text-sm text-pc-secondary-foreground">{t("recovery.intro")}</p>
           <div className="recovery-review-list" data-focus-group>
             {repair.items.map((item) => {
               const portId = item.port_id;
@@ -142,64 +158,14 @@ export function RecoveryReview({
                     : undefined,
               });
               return (
-                <div
-                  className="recovery-review-item"
+                <RecoveryItem
                   key={origin}
-                  data-recovery-operation={item.operation_id ?? undefined}
-                >
-                  <details>
-                    <summary className="cursor-pointer" data-focusable>
-                      {item.port_id ? (names.get(item.port_id) ?? item.port_id) : "Library"} ·{" "}
-                      {Object.hasOwn(labels, item.kind)
-                        ? labels[item.kind]
-                        : "Recovery information needs review"}
-                    </summary>
-                    <dl className="text-xs">
-                      <dt>Recorded location</dt>
-                      <dd className="mt-1 mb-3">
-                        {item.path ? (
-                          <code className="whitespace-normal">{item.path}</code>
-                        ) : (
-                          "No location was recorded."
-                        )}
-                      </dd>
-                      <dt>Suggested next step</dt>
-                      <dd className="mt-1 mb-3">
-                        {item.proposed_action || "No recovery guidance was recorded."}
-                      </dd>
-                      {item.operation_id && (
-                        <>
-                          <dt>Operation reference</dt>
-                          <dd className="mt-1 mb-3">
-                            <code className="whitespace-normal">{item.operation_id}</code>
-                          </dd>
-                        </>
-                      )}
-                    </dl>
-                    {item.kind === "retained_preparation" && item.operation_id && (
-                      <Button
-                        data-focusable
-                        variant="outline"
-                        size="sm"
-                        className="mt-2"
-                        onClick={() => setCleanupOperation(item.operation_id ?? undefined)}
-                      >
-                        Review unfinished setup files
-                      </Button>
-                    )}
-                  </details>
-                  {action && (
-                    <Button
-                      data-focusable
-                      data-detail-origin={origin}
-                      variant={action.label === "View related task record" ? "link" : "outline"}
-                      size="sm"
-                      onClick={action.open}
-                    >
-                      {action.label}
-                    </Button>
-                  )}
-                </div>
+                  item={item}
+                  gameName={portId ? (names.get(portId) ?? portId) : t("recovery.library")}
+                  origin={origin}
+                  action={action}
+                  reviewCleanup={setCleanupOperation}
+                />
               );
             })}
           </div>
@@ -219,6 +185,98 @@ export function RecoveryReview({
   );
 }
 
+function RecoveryItem({
+  item,
+  gameName,
+  origin,
+  action,
+  reviewCleanup,
+}: {
+  item: Item;
+  gameName: string;
+  origin: string;
+  action: ReturnType<typeof recoveryNavigation>;
+  reviewCleanup: (operationId: string | undefined) => void;
+}) {
+  const { t } = useAppTranslation("operations");
+  return (
+    <div className="recovery-review-item" data-recovery-operation={item.operation_id ?? undefined}>
+      <details>
+        <summary className="cursor-pointer" data-focusable>
+          <Trans
+            t={t}
+            i18nKey="recovery.item.summary"
+            values={{ label: itemLabel(t, item.kind) }}
+            components={{ game: <bdi>{gameName}</bdi> }}
+          />
+        </summary>
+        <dl className="text-xs">
+          {item.kind === "malformed_journal" && (
+            <>
+              <dt>{t("recovery.item.observation")}</dt>
+              <dd className="mt-1 mb-3">{item.message}</dd>
+            </>
+          )}
+          <dt>{t("recovery.item.location")}</dt>
+          <dd className="mt-1 mb-3">
+            {item.path ? (
+              <code dir="ltr" className="whitespace-normal [unicode-bidi:isolate]">
+                {item.path}
+              </code>
+            ) : (
+              t("recovery.item.noLocation")
+            )}
+          </dd>
+          <dt>{t("recovery.item.nextStep")}</dt>
+          <dd className="mt-1 mb-3">{item.proposed_action || t("recovery.item.noGuidance")}</dd>
+          {item.operation_id && (
+            <>
+              <dt>{t("recovery.item.reference")}</dt>
+              <dd className="mt-1 mb-3">
+                <code dir="ltr" className="whitespace-normal [unicode-bidi:isolate]">
+                  {item.operation_id}
+                </code>
+              </dd>
+            </>
+          )}
+        </dl>
+        {item.kind === "retained_preparation" && item.operation_id && (
+          <Button
+            data-focusable
+            variant="outline"
+            size="sm"
+            className="mt-2"
+            onClick={() => reviewCleanup(item.operation_id ?? undefined)}
+          >
+            {t("recovery.item.reviewFiles")}
+          </Button>
+        )}
+      </details>
+      {action && (
+        <Button
+          data-focusable
+          data-detail-origin={origin}
+          variant={action.target === "task" ? "link" : "outline"}
+          size="sm"
+          onClick={action.open}
+        >
+          {action.target === "task"
+            ? t("recovery.navigation.task")
+            : action.target === "setup"
+              ? t("recovery.navigation.setup")
+              : action.target === "details"
+                ? t("recovery.navigation.details")
+                : action.target === "installation"
+                  ? t("recovery.navigation.installation")
+                  : action.target === "saves"
+                    ? t("recovery.navigation.saves")
+                    : t("recovery.navigation.storage")}
+        </Button>
+      )}
+    </div>
+  );
+}
+
 function recoveryNavigation(
   item: Item,
   destinations: {
@@ -226,26 +284,33 @@ function recoveryNavigation(
     storage?: (() => void) | undefined;
     activity?: (() => void) | undefined;
   },
-): { label: string; open: () => void } | undefined {
+):
+  | {
+      target: "storage" | "setup" | "task" | "details" | "installation" | "saves";
+      open: () => void;
+    }
+  | undefined {
   const game = destinations.game;
   const storage = destinations.storage
-    ? { label: "Review library storage", open: destinations.storage }
+    ? { target: "storage" as const, open: destinations.storage }
     : undefined;
   switch (item.kind) {
+    case "malformed_journal":
+      return undefined;
     case "retained_preparation":
-      return game ? { label: "Review game setup", open: () => game() } : storage;
+      return game ? { target: "setup", open: () => game() } : storage;
     case "partial_operation":
     case "cleanup_pending":
       return destinations.activity
-        ? { label: "View related task record", open: destinations.activity }
+        ? { target: "task", open: destinations.activity }
         : game
-          ? { label: "Review game details", open: () => game() }
+          ? { target: "details", open: () => game() }
           : storage;
     case "missing_registered_path":
-      return game ? { label: "Review game installation", open: () => game("saves") } : storage;
+      return game ? { target: "installation", open: () => game("saves") } : storage;
     case "degraded_backup":
     case "backup_recovery_required":
-      return game ? { label: "Review saves and backups", open: () => game("saves") } : storage;
+      return game ? { target: "saves", open: () => game("saves") } : storage;
     case "orphaned_final_directory":
       return storage;
     default:
@@ -266,6 +331,7 @@ function PreparationCleanupDialog({
   close: () => void;
   names: ReadonlyMap<string, string>;
 }) {
+  const { t } = useAppTranslation("operations");
   const reviewTitle = useRef<HTMLHeadingElement>(null);
   const [intent, setIntent] = useState<"inspect" | "cleanup">("inspect");
   const inspecting = intent === "inspect";
@@ -283,7 +349,7 @@ function PreparationCleanupDialog({
       return true;
     },
     close,
-    failureMessage: "Cleanup was not accepted. The retained recovery state remains unchanged.",
+    failureMessage: t("recovery.cleanup.failure"),
   });
   const emptyReview = Boolean(preview && !hasRetainedEntries(preview));
   return (
@@ -306,19 +372,19 @@ function PreparationCleanupDialog({
           className="mb-2 text-xl"
         >
           {inspecting
-            ? "Files left by unfinished setup"
+            ? t("recovery.cleanup.title.inspect")
             : emptyReview
-              ? "Clear unfinished setup record?"
-              : "Delete files left by unfinished setup?"}
+              ? t("recovery.cleanup.title.clear")
+              : t("recovery.cleanup.title.delete")}
         </DialogTitle>
         <DialogDescription id="preparation-cleanup-description" className="mb-4 leading-relaxed">
           {inspecting
-            ? "Review what remains from this setup and the locations recorded with it. Opening this account does not change files. Cleanup is a separate decision."
+            ? t("recovery.cleanup.description.inspect")
             : emptyReview
-              ? "No setup working files remain. Clear the unfinished setup record and its recorded path if present."
-              : "Delete the private working files left by this unfinished setup. Review the affected folder and preserved locations first."}
+              ? t("recovery.cleanup.description.clear")
+              : t("recovery.cleanup.description.delete")}
         </DialogDescription>
-        {pending === "review" && <p role="status">Checking unfinished setup files…</p>}
+        {pending === "review" && <p role="status">{t("recovery.cleanup.checking")}</p>}
         {preview && (
           <PreparationCleanupDetails
             preview={preview}
@@ -329,11 +395,15 @@ function PreparationCleanupDialog({
         <ActionReviewFailure error={error} />
         <DialogFooter className="mt-4">
           <Button data-focusable variant="outline" disabled={pending === "apply"} onClick={dismiss}>
-            {inspecting ? "Close" : emptyReview ? "Cancel" : "Keep files"}
+            {inspecting
+              ? t("recovery.cleanup.close")
+              : emptyReview
+                ? t("recovery.cleanup.cancel")
+                : t("recovery.cleanup.keep")}
           </Button>
           {!preview && (
             <Button data-focusable disabled={Boolean(pending)} onClick={() => void review()}>
-              Review again
+              {t("recovery.cleanup.again")}
             </Button>
           )}
           {preview && (
@@ -349,14 +419,14 @@ function PreparationCleanupDialog({
               }}
             >
               {inspecting
-                ? "Review cleanup…"
+                ? t("recovery.cleanup.reviewCleanup")
                 : pending === "apply"
                   ? emptyReview
-                    ? "Clearing unfinished setup record…"
-                    : "Deleting setup working files…"
+                    ? t("recovery.cleanup.clearing")
+                    : t("recovery.cleanup.deleting")
                   : emptyReview
-                    ? "Clear unfinished setup record"
-                    : "Delete setup working files"}
+                    ? t("recovery.cleanup.clear")
+                    : t("recovery.cleanup.delete")}
             </Button>
           )}
         </DialogFooter>
@@ -382,75 +452,78 @@ function PreparationCleanupDetails({
   readOnly?: boolean;
   name: string;
 }) {
+  const { t } = useAppTranslation("operations");
   const entries = [
-    ...preview.retained.directories.map((path) => ({ path, kind: "Folder" })),
-    ...preview.retained.files.map((file) => ({ path: file.relative_path, kind: "File" })),
+    ...preview.retained.directories.map((path) => ({ path, kind: "folder" as const })),
+    ...preview.retained.files.map((file) => ({ path: file.relative_path, kind: "file" as const })),
     ...preview.retained.skipped_entries.map((entry) => ({
       path: entry.relative_path,
-      kind: "Link or special entry",
+      kind: "special" as const,
     })),
   ];
   const recordedLocations = [
     [
-      readOnly ? "Original installation" : "Original installation preserved",
+      readOnly ? t("recovery.location.installation") : t("recovery.location.installationPreserved"),
       preview.original_install_path,
     ],
-    [readOnly ? "Registered source" : "Registered source preserved", preview.source_path],
-    [readOnly ? "Saved data" : "Saved data preserved", preview.persistent_data_path],
-    [readOnly ? "Backups" : "Backups preserved", preview.backup_path],
-    [readOnly ? "Logs" : "Logs preserved", preview.logs_path],
+    [
+      readOnly ? t("recovery.location.gameFiles") : t("recovery.location.gameFilesPreserved"),
+      preview.source_path,
+    ],
+    [
+      readOnly ? t("recovery.location.savedData") : t("recovery.location.savedDataPreserved"),
+      preview.persistent_data_path,
+    ],
+    [
+      readOnly ? t("recovery.location.backups") : t("recovery.location.backupsPreserved"),
+      preview.backup_path,
+    ],
+    [
+      readOnly ? t("recovery.location.logs") : t("recovery.location.logsPreserved"),
+      preview.logs_path,
+    ],
   ].map(([label, location]) => (
     <div key={label}>
       <dt>{label}</dt>
-      <dd className="m-[var(--space-1)_0_var(--space-3)] wrap-anywhere">{location}</dd>
+      <dd className="m-[var(--space-1)_0_var(--space-3)] wrap-anywhere">
+        <bdi dir="ltr">{location}</bdi>
+      </dd>
     </div>
   ));
   return (
     <section
       className="preparation-cleanup-details"
       aria-label={
-        readOnly
-          ? "Retained setup files and recorded locations"
-          : "Cleanup changes and preserved data"
+        readOnly ? t("recovery.details.inspectLabel") : t("recovery.details.cleanupLabel")
       }
     >
       <p className="[overflow-wrap:anywhere]">
-        <strong>{name}</strong> ·{" "}
-        {formatCountMessage(preview.retained.files.length, {
-          zero: "0 files",
-          one: "1 file",
-          other: "{count} files",
-          unknown: "File count unavailable",
-        })}{" "}
-        · {formatBytes(preview.retained.total_bytes)}
+        <strong>{name}</strong> · {countMessage(preview.retained.files.length, "retainedFiles")} ·{" "}
+        {formatBytes(preview.retained.total_bytes)}
       </p>
       {readOnly && (
         <div className="mb-4">
-          <h3 className="mt-3 text-base font-semibold">What remains</h3>
+          <h3 className="mt-3 text-base font-semibold">{t("recovery.details.remains")}</h3>
           <p>
             {entries.length
-              ? "Setup left working files behind. This account does not confirm that those files are complete or ready to play."
-              : "No private working files were found. An unfinished setup record remains."}
+              ? t("recovery.details.remainsFiles")
+              : t("recovery.details.remainsRecord")}
           </p>
-          <h3 className="mt-3 text-base font-semibold">What you can do now</h3>
-          <p>
-            Keep the files and return to the game to review its next steps, or review cleanup
-            separately. Opening cleanup checks the current files again before you decide what to
-            remove.
-          </p>
+          <h3 className="mt-3 text-base font-semibold">{t("recovery.details.now")}</h3>
+          <p>{t("recovery.details.nowText")}</p>
         </div>
       )}
       <dl>
         <div>
           <dt>
             {readOnly
-              ? "Recorded setup working folder"
+              ? t("recovery.details.folder")
               : entries.length
-                ? "Setup working folder to delete"
-                : "Recorded setup path to clear"}
+                ? t("recovery.details.folderDelete")
+                : t("recovery.details.pathClear")}
           </dt>
           <dd className="m-[var(--space-1)_0_var(--space-3)] [overflow-wrap:anywhere]">
-            {preview.retained_path}
+            <bdi dir="ltr">{preview.retained_path}</bdi>
           </dd>
         </div>
         {!readOnly && recordedLocations}
@@ -458,28 +531,32 @@ function PreparationCleanupDetails({
       {readOnly && (
         <details>
           <summary className="cursor-pointer py-2 font-semibold" data-focusable>
-            Installation, source, saves, backups and logs
+            {t("recovery.details.locations")}
           </summary>
-          <p className="text-xs wrap-anywhere">Recorded task: {preview.operation_id}</p>
+          <p className="text-xs wrap-anywhere">
+            <Trans
+              t={t}
+              i18nKey="recovery.details.task"
+              components={{ id: <bdi dir="ltr">{preview.operation_id}</bdi> }}
+            />
+          </p>
           <dl>{recordedLocations}</dl>
         </details>
       )}
       {!readOnly && (
         <p className="[overflow-wrap:anywhere]">
-          {entries.length
-            ? "This deletes only the recorded setup working folder and its recovery journal. The deleted files cannot be recovered. If cleanup is interrupted, Portcove keeps the accepted cleanup in its journal and retries it when the library reopens."
-            : "No setup working files were found. Cleanup clears the recorded setup path if it exists and its stale recovery journal."}
+          {entries.length ? t("recovery.details.deleteScope") : t("recovery.details.clearScope")}
         </p>
       )}
       <p className="[overflow-wrap:anywhere]">
         {readOnly
-          ? "Setup and any programs it started must have stopped before cleanup can run."
+          ? t("recovery.details.stopInspect")
           : entries.length
-            ? "Portcove must confirm that setup and any programs it started have stopped before deleting these files."
-            : "Portcove must confirm that setup and any programs it started have stopped before clearing this record."}
+            ? t("recovery.details.stopDelete")
+            : t("recovery.details.stopClear")}
       </p>
       <details>
-        <summary data-focusable>Affected entries ({entries.length})</summary>
+        <summary data-focusable>{t("recovery.details.entries", { total: entries.length })}</summary>
         {entries.length ? (
           <ul className="cleanup-entry-list m-[var(--space-2)_0_0] max-h-[12rem] overflow-auto ps-5">
             {entries.map((entry, index) => (
@@ -487,12 +564,21 @@ function PreparationCleanupDetails({
                 className="m-[var(--space-1)_0] text-[length:var(--text-xs)] [overflow-wrap:anywhere] text-[var(--color-text-secondary)]"
                 key={`${entry.kind}:${entry.path}:${index}`}
               >
-                <span>{entry.kind}</span> <code>{entry.path}</code>
+                <span>
+                  {entry.kind === "folder"
+                    ? t("recovery.details.kind.folder")
+                    : entry.kind === "file"
+                      ? t("recovery.details.kind.file")
+                      : t("recovery.details.kind.special")}
+                </span>{" "}
+                <code dir="ltr" className="[unicode-bidi:isolate]">
+                  {entry.path}
+                </code>
               </li>
             ))}
           </ul>
         ) : (
-          <p className="[overflow-wrap:anywhere]">No retained private entries were found.</p>
+          <p className="[overflow-wrap:anywhere]">{t("recovery.details.noEntries")}</p>
         )}
       </details>
     </section>

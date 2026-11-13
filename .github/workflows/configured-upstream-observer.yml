@@ -2,37 +2,57 @@ name: Configured upstream observer
 
 on:
   schedule:
-    - cron: "17 */6 * * *"
+    - cron: "31 * * * *"
+  # GitHub can skip schedules for hours (#4779). A merge to main may also start
+  # an observation, but the admit job lets it observe only to fill a gap: no
+  # schedule or push run observed, or is observing, within the last 55 minutes.
+  push:
+    branches: [main]
   workflow_dispatch:
 
 permissions:
   contents: read
 
-concurrency:
-  group: configured-upstream-observer-${{ github.ref }}
-  cancel-in-progress: false
-
 jobs:
   observe:
+    needs: admit
+    if: github.ref == 'refs/heads/main' && needs.admit.outputs.observe == 'true'
+    # Only observing jobs share the slot, so gated push runs never displace a
+    # pending scheduled observation.
+    concurrency:
+      group: configured-upstream-observer-${{ github.ref }}
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      actions: read
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 45
     steps:
       - name: Bound the existing hosted observation opportunity
         run: |
           python3 - <<'PY'
           import datetime, os
-          deadline = datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(minutes=9)
+          deadline = datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(minutes=40)
           with open(os.environ["GITHUB_ENV"], "a", encoding="utf-8") as output:
               output.write("PORTCOVE_OBSERVER_OPPORTUNITY_DEADLINE_UTC=" + deadline.isoformat() + "\n")
           PY
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+        with:
+          package_json_file: package.json
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version-file: .node-version
+      - name: Install locked observer dependencies before credentials
+        run: pnpm install --frozen-lockfile --ignore-scripts --ignore-pnpmfile
       - uses: ./.github/actions/setup-rust
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
+          save-if: ${{ github.ref == 'refs/heads/main' }}
           shared-key: upstream-observer-cli
+          cache-on-failure: true
       - uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: |
@@ -46,6 +66,10 @@ jobs:
           path: work/upstream-health/checkpoint.json
           key: upstream-health-history-v1-main-${{ github.run_id }}-${{ github.run_attempt }}
           restore-keys: upstream-health-history-v1-main-
+      - name: Recover exact observer checkpoints after cache loss
+        run: node scripts/observer-checkpoint-artifact.mts restore
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Build shared policy inspector
         run: cargo build --locked -p portcove-cli
       - name: Observe catalog sources through shared Core policy
@@ -53,6 +77,20 @@ jobs:
         run: node scripts/observe-catalog-upstreams.mts --cli target/debug/portcove
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Chameleon JP, the unchanged-client #246 acceptance scope.
+          PORTCOVE_OBSERVER_SCHEDULED_PRIORITY_SOURCE: df91a1c7d9af20e76a6ff5dda131dcd6d7d70c601361ebbfbee37a9a292618cd
+      - name: Export bounded checkpoint recovery snapshot
+        id: checkpoint
+        if: ${{ !cancelled() && hashFiles('work/upstream-observer/catalog/checkpoint.json') != '' }}
+        run: node scripts/observer-checkpoint-artifact.mts export
+      - name: Retain checkpoint recovery snapshot
+        if: ${{ !cancelled() && hashFiles('work/upstream-observer-snapshot/checkpoint.json') != '' }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ${{ steps.checkpoint.outputs.artifact_name }}
+          path: work/upstream-observer-snapshot/checkpoint.json
+          if-no-files-found: error
+          retention-days: 1
       - name: Preserve complete checkpoint and deduplicated exception
         if: ${{ !cancelled() && hashFiles('work/upstream-observer/*/checkpoint.json') != '' }}
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -78,3 +116,46 @@ jobs:
           path: ${{ steps.observe.outputs.catalog_handoff_directory }}
           if-no-files-found: warn
           retention-days: 1
+
+      - name: Propose relocations for moved or missing upstream repositories
+        # Read-only proposals for the run summary, after every retention step, so it
+        # never uses the checkpoint/artifact reserve or affects the job result.
+        if: ${{ !cancelled() && steps.observe.outputs.catalog_handoff_directory != '' }}
+        continue-on-error: true
+        timeout-minutes: 2
+        run: >-
+          node scripts/upstream-relocation-candidates.mts
+          --report "$HANDOFF/summary.json"
+          --checkpoint work/upstream-observer/catalog/checkpoint.json
+          --summary "$GITHUB_STEP_SUMMARY"
+        env:
+          HANDOFF: ${{ steps.observe.outputs.catalog_handoff_directory }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  admit:
+    if: github.ref == 'refs/heads/main'
+    permissions:
+      contents: read
+      actions: read
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    outputs:
+      observe: ${{ steps.admit.outputs.observe }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            .node-version
+            scripts/observer-push-admission.mts
+            scripts/runtime-values.mts
+          sparse-checkout-cone-mode: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+      - name: Admit only scheduled runs and gap-filling push runs
+        id: admit
+        timeout-minutes: 2
+        run: node scripts/observer-push-admission.mts
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

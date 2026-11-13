@@ -1,7 +1,6 @@
 /** Ordinary public source custody. A published pair is not native acceptance. */
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { writeFile } from "node:fs/promises";
 import path from "node:path";
 import { performance } from "node:perf_hooks";
 import { isRecord } from "./runtime-values.mts";
@@ -12,7 +11,7 @@ import {
   inspectPublicImmutableReleaseAsset,
 } from "./release-native-candidate.mts";
 import { remainingNativeParentBudget } from "./release-native-parent.mts";
-import { createReleasePublicationReader } from "./release-publication-inventory.mts";
+import type { readPublicationAllocationsWithSdk } from "./release-publication-inventory.mts";
 import {
   materializePublishedCompleteSite,
   requirePublishedCompleteSite,
@@ -27,11 +26,12 @@ import {
   inspectPublishedMetadata,
   assertMetadataRenewalBinding,
 } from "./release-metadata-contract.mts";
-import { readBoundedPublicBuildInputFile } from "./release-public-build-inputs.mts";
+import { hashNativeCapturedFile } from "./release-native-capture-files.mts";
+import { coordinatorCommandDeadline } from "./release-coordinator-deadline.mts";
 
 const sha = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
-type Allocation = ReturnType<
-  ReturnType<typeof createReleasePublicationReader>["readAllocations"]
+type Allocation = Awaited<
+  ReturnType<typeof readPublicationAllocationsWithSdk>
 >["allocations"][number];
 function record(raw: unknown) {
   assert.ok(isRecord(raw), "public journey source record absent");
@@ -348,11 +348,7 @@ async function acquirePublicSnapshot(parentReceipt: object) {
     sha(preparedFiles.get("payload.json")!),
     publication.public_source.payload_key_registry.sha256,
   );
-  const reader = createReleasePublicationReader(source.api);
-  const allocations = reader.readAllocations(
-    reader.tags(),
-    parent.descriptor.namespace,
-  ).allocations;
+  const { allocations } = await source.readPublicAllocations(parent.descriptor.namespace, deadline);
   return {
     session,
     site: site.receipt,
@@ -443,11 +439,10 @@ export async function requireActualPublicJourneyPair(receipt: object) {
     inspectPublishedMetadata(record(current.input).published_metadata),
     new Date().toISOString(),
   );
-  const reader = createReleasePublicationReader(retained.session.source.api);
-  const allocations = reader.readAllocations(
-    reader.tags(),
+  const { allocations } = await retained.session.source.readPublicAllocations(
     retained.session.parent.descriptor.namespace,
-  ).allocations;
+    retained.deadline,
+  );
   const files = await readBoundedReleaseContextFiles(prepared.prepared_root);
   const historical = retained.historical
     ? await (
@@ -495,9 +490,23 @@ const packages = new WeakMap<
     slot: "prior" | "candidate" | "parked";
     path: string;
     provider: string;
-    read: () => unknown;
+    read: () => Promise<unknown>;
   }
 >();
+async function assertPublicPackageBytes(
+  filename: string,
+  expected: { bytes: number; sha256: string },
+  deadline: number,
+) {
+  const observed = await hashNativeCapturedFile(
+    path.dirname(filename),
+    path.basename(filename),
+    expected.bytes,
+    Math.min(deadline, coordinatorCommandDeadline() ?? Infinity),
+  );
+  assert.ok(observed.bytes === expected.bytes && observed.sha256 === expected.sha256);
+}
+
 /** Complete immutable Release association and opaque package acquisition only.
  * The fixed installed parent subsequently compares actual installed bytes. */
 export async function materializeActualPublicJourneyPackage(
@@ -514,33 +523,8 @@ export async function materializeActualPublicJourneyPackage(
         : undefined
       : selected.pair[slot];
   assert.ok(identity, "parked package requires actual continuation custody");
-  const read = () => {
-    const release = record(
-      retained.session.source.api.request(
-        "GET",
-        `repos/boburning/portcove/releases/tags/v${identity.version}`,
-      ).body,
-    );
-    assert.ok(typeof release.id === "number" && Number.isSafeInteger(release.id) && release.id > 0);
-    const assets = retained.session.source.api.paginateRest(
-      `repos/boburning/portcove/releases/${release.id}/assets?per_page=100`,
-      {
-        select: (body: unknown) => {
-          assert.ok(Array.isArray(body) && body.length <= 64);
-          return body.map((item: unknown) => item);
-        },
-        identity: (item: unknown) => {
-          const id = record(item).id;
-          assert.ok(typeof id === "number" && Number.isSafeInteger(id) && id > 0);
-          return id;
-        },
-        label: "ordinary public immutable Release assets",
-      },
-    );
-    assert.ok(assets.length <= 64);
-    return { release, assets };
-  };
-  const before = read();
+  const read = () => retained.session.source.readPublicRelease(identity.version, retained.deadline);
+  const before = await read();
   const artifact = inspectPublicImmutableReleaseAsset(
     {
       version: identity.version,
@@ -552,7 +536,15 @@ export async function materializeActualPublicJourneyPackage(
     before.release,
     before.assets,
   );
-  let bytes: Buffer, file: string;
+  const provider = digest(before);
+  const assertUnchanged = async () => {
+    assert.equal(
+      digest(await read()),
+      provider,
+      "immutable public Release changed during package acquisition",
+    );
+  };
+  let file: string;
   if (retained.historical && slot !== "candidate") {
     const { requireActualRetainedPublicCohort } = await import("./release-native-attempt.mts");
     const historical = await requireActualRetainedPublicCohort(retained.historical),
@@ -565,36 +557,26 @@ export async function materializeActualPublicJourneyPackage(
     // Missing original input is not permission to reconstruct it by downloading
     // an expired or replacement artifact. Current immutable provider facts are
     // still checked independently before/after this original-byte read.
-    bytes = await readBoundedPublicBuildInputFile(
-      root,
-      path.basename(file),
-      identity.package.bytes,
-    );
+    await assertPublicPackageBytes(file, artifact, retained.deadline);
+    await assertUnchanged();
   } else {
-    bytes = retained.session.source.downloadAsset(
-      `repos/boburning/portcove/releases/assets/${artifact.id}`,
-      {
-        cwd: selected.directory,
-        maxBytes: artifact.bytes,
-        timeoutMs: remainingNativeParentBudget(120000),
-      },
+    const acquired = await retained.session.source.retainPublicReleaseAsset(
+      artifact,
+      selected.directory,
+      slot,
+      retained.deadline,
+      assertUnchanged,
     );
-    file = path.join(selected.directory, `${slot}-${identity.package.filename}`);
-    await writeFile(file, bytes, { flag: "wx", mode: 0o600 });
+    file = acquired.path;
   }
-  assert.ok(bytes.length === artifact.bytes && sha(bytes) === artifact.sha256);
-  assert.equal(
-    digest(read()),
-    digest(before),
-    "immutable public Release changed during package acquisition",
-  );
   await requireActualPublicJourneyPair(pairReceipt);
+  await assertPublicPackageBytes(file, artifact, retained.deadline);
   const receipt = Object.freeze({
     kind: "actual-public-journey-package",
     authority: "none",
     scope: "exact immutable public package custody only",
   });
-  packages.set(receipt, { pair: pairReceipt, slot, path: file, provider: digest(before), read });
+  packages.set(receipt, { pair: pairReceipt, slot, path: file, provider, read });
   return receipt;
 }
 export async function requireActualPublicJourneyPackage(receipt: object) {
@@ -608,17 +590,13 @@ export async function requireActualPublicJourneyPackage(receipt: object) {
           : undefined
         : selected.pair[retained.slot];
   assert.ok(identity);
-  const bytes = await readBoundedPublicBuildInputFile(
-    path.dirname(retained.path),
-    path.basename(retained.path),
-    identity.package.bytes,
-  );
-  assert.ok(bytes.length === identity.package.bytes && sha(bytes) === identity.package.sha256);
+  await assertPublicPackageBytes(retained.path, identity.package, selected.deadline);
   assert.equal(
-    digest(retained.read()),
+    digest(await retained.read()),
     retained.provider,
     "immutable public package provider changed before use",
   );
+  await assertPublicPackageBytes(retained.path, identity.package, selected.deadline);
   assert.ok(performance.now() < selected.deadline, "original public parent lifetime exhausted");
   return {
     pair_receipt: retained.pair,

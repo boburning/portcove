@@ -3,11 +3,12 @@
   "listing": {
     "id": "einhander-einhander-recompiled",
     "name": "Einhänder / Einhander-Recompiled",
-    "summary": "Explore Einhänder / Einhander-Recompiled and follow the upstream project for requirements, downloads and setup.",
+    "summary": "Prepare your own USA Einhänder disc with the upstream setup kit and use the completed player.",
     "project_url": "https://github.com/strider973/Einhander-Recompiled",
     "issue_number": 350,
-    "platforms": [],
-    "availability": "unknown",
+    "listed_at": "2026-10-23",
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
+    "availability": "packages",
     "setup_url": "https://github.com/strider973/Einhander-Recompiled",
     "artwork": {
       "game_id": 1360,
@@ -16,6 +17,44 @@
       "image_sha256": "d4ea5352ae0d8572e5fd9612111123508c8e67048fd1ec48c21bb51948391849",
       "game_slug": "einhander",
       "match_kind": "underlying-game"
+    },
+    "release_url": "https://github.com/strider973/Einhander-Recompiled/releases/tag/v0.1.3",
+    "manual_setup": {
+      "help_url": "https://github.com/strider973/Einhander-Recompiled/releases/tag/v0.1.3",
+      "steps": [
+        {
+          "title": "Complete the owned-input preparation upstream",
+          "instruction": "Use your own USA Einhänder PlayStation disc, SCUS-94243, as its CUE and every referenced BIN. The official Windows setup ZIP is a local build kit, not a ready game: it supplies no original disc, retail BIOS or generated game code. Complete upstream’s supported Generate & rebuild flow with its Python/toolchain outside Portcove. OpenBIOS is generated locally by default; an optional retail BIOS must be your own permitted copy. Keep the actual working disc and BIOS selections. Portcove does not run the compiler or setup helpers, or import your original files."
+        },
+        {
+          "title": "Attach the completed product",
+          "instruction": "After successful upstream preparation, select build-release/Einhander_Recompiled.exe, the completed executable’s parent directory as working directory and the supported --launcher literal argument. Keep its staged game.toml and matching resources in place. The root setup executable starts a replacement product and exits on Windows, so select the completed product instead. Keep Generate/Rebuild and SDK/toolchain changes as deliberate upstream maintenance outside the active attached session; an intentional rebuild can end or replace the process."
+        },
+        {
+          "title": "Prepare the official Linux or Mac kit",
+          "instruction": "Extract the complete Linux x86-64, Intel Mac or Apple Silicon Mac ZIP for your host. The observed Linux setup player needs glibc 2.38 and libstdc++ providing GLIBCXX_3.4.29, plus the host OpenGL and zlib libraries libOpenGL.so.0 and libz.so.1. The Mac setup player has a macOS 11 minimum. Select the Apple Command Line Tools or Xcode toolchain for its Clang and SDK. Install upstream’s required Python 3 and use its Generate & rebuild wizard and supported toolchain. Supply your own USA SCUS-94243 CUE and all referenced BIN files. Use the title’s default generated OpenBIOS or a separately owned SCPH-1001 as upstream allows. Start the completed build-release/Einhander_Recompiled in its own folder after upstream setup. Keep it with its matching config, assets and the complete creating project."
+        },
+        {
+          "title": "Review launch details, then choose Play",
+          "instruction": "Select the completed game executable, its working folder and supported launch arguments. Review those details and agree to use them, then choose Play separately. You manage setup, game replacement and recovery using the project’s tools. Portcove does not offer updates, backups, rollback, conversion, data migration or deletion for this external copy. Removing its registration leaves external files in place. Before changing versions, close the game and its companion programs and keep the working copy and its data. Review and select the changed executable before playing again."
+        }
+      ],
+      "warnings": [
+        "Use only a copy and components you are permitted to use. Before changing versions, keep the complete working game, original files and every profile, mod, generated-code cache and custom data location. Another executable may use the same saved data.",
+        "This title enables its GCC overlay backend. Keep the creating toolchain, actual generated overlay data and compiler settings with the original project before updating.",
+        "The Linux and Mac kits perform local generation and use upstream setup and replacement. Package inspection does not qualify a generated native game, multiplayer or a save migration."
+      ],
+      "references": [
+        {
+          "title": "Preserve the whole creating project and effective player data",
+          "instruction": "Keep both the complete source/setup kit and build-release product, every original and BIOS, generated code, toolchain resources, mods and all custom roots. settings.toml and input.ini are anchored beside the executable; game.toml/game_options.toml and their effective project root affect source and relative data paths. The packaged memcard_dir=saves can be overridden by settings or explicit card paths. Preserve actual memory cards, save states/options, keybinds, diagnostics, overlay code caches, backups and temporary files with their creating runtime. Do not relocate or rewrite paths from a developer example, copy another title’s source hashes, or assume cross-version state/save compatibility."
+        }
+      ]
+    },
+    "download_asset_hints": {
+      "linux-x86-64": ["einhander-", "-linux-x64.zip"],
+      "macos-x86-64": ["einhander-", "-macos-x64.zip"],
+      "macos-aarch64": ["einhander-", "-macos-arm64.zip"]
     }
   }
 }

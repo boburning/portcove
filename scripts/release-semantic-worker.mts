@@ -1,3 +1,4 @@
+import { controllerNodeMaximumBytes } from "./controller-node-runtime.mts";
 import {
   assertCatalogReviewRequestBaseline,
   inspectCatalogReviewRequest,
@@ -40,10 +41,13 @@ import {
 import {
   readbackSemanticCheck,
   readbackSemanticDispositionCheck,
-  inspectSemanticIssuerConfiguration,
   semanticIssuerProducer,
 } from "./release-semantic-broker.mts";
-import type { SemanticIssuerCustody } from "./release-semantic-issuer.mts";
+import { inspectSemanticIssuerCustody } from "./release-semantic-issuer.mts";
+import {
+  sealedCheckSdkFilename,
+  verifyLinuxSealedCheckSdkBundle,
+} from "./release-sealed-check-sdk.mts";
 import { reviewFrozenCoordinatorRequest } from "./release-semantic-request-pipeline.mts";
 import { capacityDigest } from "./release-capacity.mts";
 import { isRecord } from "./runtime-values.mts";
@@ -121,7 +125,7 @@ export function renderSemanticWorkerUnits(
   )
     throw new Error("initial probe requires its fixed configuration basename");
   return {
-    service: `[Unit]\nDescription=Portcove bounded semantic request worker\nAfter=network-online.target\n\n[Service]\nType=oneshot\nWorkingDirectory=${workerCheckout}\nExecStart=${config.runtime.node_executable} ${workerCheckout}/scripts/release-semantic-worker.mts ${configurationPath} ${configurationSha256}\nUMask=0077\nTimeoutStartSec=2700\nTimeoutStopSec=30\nKillMode=control-group\nRestart=no\nStandardOutput=journal\nStandardError=journal\n`,
+    service: `[Unit]\nDescription=Portcove bounded semantic request worker\nAfter=network-online.target\n\n[Service]\nType=oneshot\nWorkingDirectory=${workerCheckout}\nEnvironment=PATH=%h/.cargo/bin:/usr/bin:/bin\nExecStart=${config.runtime.node_executable} ${workerCheckout}/scripts/release-semantic-worker.mts ${configurationPath} ${configurationSha256}\nUMask=0077\nTimeoutStartSec=${"application_partition" in config ? (config.application_partition?.wall_seconds ?? 2700) : 2700}\nTimeoutStopSec=30\nKillMode=control-group\nRestart=no\nStandardOutput=journal\nStandardError=journal\n`,
     timer:
       "[Unit]\nDescription=Observe Portcove semantic requests automatically\n\n[Timer]\nOnBootSec=2min\nOnUnitInactiveSec=5min\nRandomizedDelaySec=30s\nUnit=portcove-semantic-worker.service\n\n[Install]\nWantedBy=timers.target\n",
     initial_state: {
@@ -184,7 +188,10 @@ export function inspectSemanticWorkerConfiguration(raw: unknown) {
   const value: unknown = structuredClone(raw);
   if (
     !isRecord(value) ||
-    Object.keys(value).sort().join(",") !==
+    Object.keys(value)
+      .filter((key) => key !== "application_partition")
+      .sort()
+      .join(",") !==
       "auth_cache,issuer,kind,namespace,output_parent,runtime,schema_version,setup_grant_sha256,source_git_sha256,source_read_token,source_repository,worker_revision" ||
     (value.schema_version !== 1 && value.schema_version !== 2) ||
     value.kind !== "portcove-fixed-semantic-worker" ||
@@ -195,20 +202,58 @@ export function inspectSemanticWorkerConfiguration(raw: unknown) {
     !isRecord(value.issuer.issuer)
   )
     throw new Error("semantic worker fixed setup schema differs");
-  const runtime = inspectLinuxQualificationConfiguration(value.runtime);
-  const ids = inspectSemanticIssuerConfiguration(value.issuer.issuer);
+  const partition = value.application_partition;
   if (
-    Object.keys(value.issuer).sort().join(",") !==
-      "http_modules_sha256,issuer,node_sha256,private_key,public_key_sha256" ||
-    (value.schema_version === 2 ? !("schema_version" in ids) : "schema_version" in ids) ||
-    !/^[a-f0-9]{64}$/u.test(String(value.issuer.public_key_sha256)) ||
-    value.issuer.node_sha256 !== runtime.node_sha256 ||
-    !isRecord(value.issuer.http_modules_sha256) ||
-    Object.keys(value.issuer.http_modules_sha256).sort().join(",") !==
-      "release-canonical.mts,release-semantic-issuer-http.mts,runtime-values.mts" ||
-    Object.values(value.issuer.http_modules_sha256).some(
-      (hash) => typeof hash !== "string" || !/^[a-f0-9]{64}$/u.test(hash),
-    )
+    "application_partition" in value &&
+    (!isRecord(partition) ||
+      ![
+        "max_lanes,request_id,wall_seconds",
+        "max_lanes,request_id,retry_stop_sha256,wall_seconds",
+        "continuation_prefix_sha256,continuation_stop_sha256,max_lanes,request_id,wall_seconds",
+        "continuation_prefix_sha256,continuation_stop_sha256,max_lanes,request_id,retry_stop_sha256,wall_seconds",
+        "continuation_prefix_sha256,continuation_stop_sha256,max_lanes,next_prefix_sha256,next_stop_sha256,request_id,retry_stop_sha256,wall_seconds",
+        "continuation_prefix_sha256,continuation_stop_sha256,max_lanes,next_prefix_sha256,next_stop_sha256,request_id,wall_seconds",
+        "capacity_prefix_sha256,capacity_stop_sha256,continuation_prefix_sha256,continuation_stop_sha256,max_lanes,next_prefix_sha256,next_stop_sha256,request_id,wall_seconds",
+      ].includes(Object.keys(partition).sort().join(",")) ||
+      ("retry_stop_sha256" in partition &&
+        (typeof partition.retry_stop_sha256 !== "string" ||
+          !/^[a-f0-9]{64}$/u.test(partition.retry_stop_sha256))) ||
+      ("continuation_stop_sha256" in partition &&
+        (typeof partition.continuation_stop_sha256 !== "string" ||
+          !/^[a-f0-9]{64}$/u.test(partition.continuation_stop_sha256) ||
+          typeof partition.continuation_prefix_sha256 !== "string" ||
+          !/^[a-f0-9]{64}$/u.test(partition.continuation_prefix_sha256))) ||
+      ("next_stop_sha256" in partition &&
+        (typeof partition.next_stop_sha256 !== "string" ||
+          !/^[a-f0-9]{64}$/u.test(partition.next_stop_sha256) ||
+          typeof partition.next_prefix_sha256 !== "string" ||
+          !/^[a-f0-9]{64}$/u.test(partition.next_prefix_sha256))) ||
+      ("capacity_stop_sha256" in partition &&
+        (typeof partition.capacity_stop_sha256 !== "string" ||
+          !/^[a-f0-9]{64}$/u.test(partition.capacity_stop_sha256) ||
+          typeof partition.capacity_prefix_sha256 !== "string" ||
+          !/^[a-f0-9]{64}$/u.test(partition.capacity_prefix_sha256))) ||
+      typeof partition.request_id !== "string" ||
+      !/^[a-f0-9]{64}$/u.test(partition.request_id) ||
+      typeof partition.max_lanes !== "number" ||
+      !Number.isSafeInteger(partition.max_lanes) ||
+      partition.max_lanes < 1 ||
+      partition.max_lanes > 512 ||
+      typeof partition.wall_seconds !== "number" ||
+      !Number.isSafeInteger(partition.wall_seconds) ||
+      partition.wall_seconds < 2700 ||
+      partition.wall_seconds > 259200)
+  )
+    throw new Error(
+      "semantic partition setup requires an exact request and finite lane/window bounds",
+    );
+  const runtime = inspectLinuxQualificationConfiguration(value.runtime);
+  const issuer = inspectSemanticIssuerCustody(value.issuer);
+  if (
+    (value.schema_version === 2
+      ? !("schema_version" in issuer.issuer)
+      : "schema_version" in issuer.issuer) ||
+    issuer.node_sha256 !== runtime.node_sha256
   )
     throw new Error("semantic worker issuer differs from the selected separated role");
   const namespace = inspectCoordinatorRemoteNamespace({
@@ -220,24 +265,49 @@ export function inspectSemanticWorkerConfiguration(raw: unknown) {
     throw new Error("dedicated reviewer auth identity differs");
   const output = absolute(value.output_parent);
   if (runtime.output_parent !== output) throw new Error("semantic runtime output boundary differs");
-  const credentials = [
-    authCache,
-    absolute(value.source_read_token),
-    absolute(value.issuer.private_key),
-  ];
+  const credentials = [authCache, absolute(value.source_read_token), absolute(issuer.private_key)];
   if (
     new Set(credentials).size !== 3 ||
     credentials.some(
       (file) =>
         file === output ||
         file.startsWith(`${output}/`) ||
-        [runtime.node_executable, runtime.codex_executable].includes(file),
+        [runtime.node_executable, runtime.codex_executable].includes(file) ||
+        ("issuer_sdk_bundle" in issuer &&
+          file === path.join(checkout, "scripts", sealedCheckSdkFilename)),
     )
   )
     throw new Error(
       "semantic source/reviewer/issuer credentials share a writable or executable boundary",
     );
   return {
+    ...(isRecord(partition)
+      ? {
+          application_partition: {
+            request_id: String(partition.request_id),
+            max_lanes: Number(partition.max_lanes),
+            wall_seconds: Number(partition.wall_seconds),
+            ...(typeof partition.retry_stop_sha256 === "string" && {
+              retry_stop_sha256: partition.retry_stop_sha256,
+            }),
+            ...(typeof partition.continuation_stop_sha256 === "string" &&
+              typeof partition.continuation_prefix_sha256 === "string" && {
+                continuation_stop_sha256: partition.continuation_stop_sha256,
+                continuation_prefix_sha256: partition.continuation_prefix_sha256,
+              }),
+            ...(typeof partition.next_stop_sha256 === "string" &&
+              typeof partition.next_prefix_sha256 === "string" && {
+                next_stop_sha256: partition.next_stop_sha256,
+                next_prefix_sha256: partition.next_prefix_sha256,
+              }),
+            ...(typeof partition.capacity_stop_sha256 === "string" &&
+              typeof partition.capacity_prefix_sha256 === "string" && {
+                capacity_stop_sha256: partition.capacity_stop_sha256,
+                capacity_prefix_sha256: partition.capacity_prefix_sha256,
+              }),
+          },
+        }
+      : {}),
     namespace,
     output_parent: output,
     auth_cache: authCache,
@@ -248,10 +318,9 @@ export function inspectSemanticWorkerConfiguration(raw: unknown) {
     setup_grant_sha256: String(value.setup_grant_sha256),
     runtime,
     issuer: {
-      ...value.issuer,
-      issuer: ids,
-      private_key: absolute(value.issuer.private_key),
-    } as unknown as SemanticIssuerCustody,
+      ...issuer,
+      private_key: absolute(issuer.private_key),
+    },
   };
 }
 
@@ -392,14 +461,14 @@ async function runInitialSemanticSetupProbe(
         await readBoundedPublicBuildInputFile(
           path.dirname(config.runtime.node_executable),
           path.basename(config.runtime.node_executable),
-          128 * 1024 * 1024,
+          controllerNodeMaximumBytes,
         ),
       ) !== config.runtime.node_sha256 ||
       digest(
         await readBoundedPublicBuildInputFile(
           path.dirname(process.execPath),
           path.basename(process.execPath),
-          128 * 1024 * 1024,
+          controllerNodeMaximumBytes,
         ),
       ) !== config.runtime.node_sha256
     )
@@ -413,7 +482,7 @@ async function runInitialSemanticSetupProbe(
   });
   try {
     await requirePrivateOwnerPath(directory, false);
-    const qualification = { ...config.runtime, output_parent: directory };
+    const qualification = { schema_version: 1, ...config.runtime, output_parent: directory };
     await retainProbeJson(directory, "qualification.json", qualification);
     const status = await runResourceCommand(
       "analysis",
@@ -519,6 +588,8 @@ export async function runSemanticWorkerOnce(configurationPath: string, expectedS
       throw new Error("fixed semantic worker checkout differs from reviewed setup");
   };
   requireFixedCheckout();
+  if ("issuer_sdk_bundle" in config.issuer)
+    verifyLinuxSealedCheckSdkBundle(checkout, config.issuer.issuer_sdk_bundle);
   const namespace = { schema_version: 1, namespace: config.namespace };
   const directory = config.output_parent;
   // A separately provisioned source reader is not the producer, writer or
@@ -563,6 +634,21 @@ export async function runSemanticWorkerOnce(configurationPath: string, expectedS
       authority: "none",
     };
   const request = selected.request;
+  const partitionScope = config.application_partition;
+  const partitionRequest =
+    partitionScope && selected.purpose === "application"
+      ? inspectReleaseReviewRequest(request)
+      : undefined;
+  if (
+    partitionScope &&
+    (!partitionRequest?.qualified_application ||
+      partitionRequest.request_id !== partitionScope.request_id)
+  )
+    throw new Error("held semantic partition setup does not appoint the selected request");
+  const partitionDeadline = partitionScope
+    ? entryStarted + (partitionScope.wall_seconds - 30) * 1000
+    : undefined;
+
   const runner = createGitHubRunner({
     cwd: directory,
     maxBuffer: 16 * 1024 * 1024,
@@ -587,7 +673,7 @@ export async function runSemanticWorkerOnce(configurationPath: string, expectedS
   );
   const requestDirectory = path.join(config.output_parent, `request-${request.request_id}`);
   const existingLocators: string[] = [];
-  for (let index = 0; index < 3; index++) {
+  for (let index = 0; index < (selected.purpose === "application" ? 6 : 3); index++) {
     const directory = path.join(requestDirectory, `technical-${index}`);
     try {
       await lstat(path.join(directory, "expected-check.json"));
@@ -687,6 +773,82 @@ export async function runSemanticWorkerOnce(configurationPath: string, expectedS
   // An original POST locator selects GET-only reconciliation even when the
   // provider has not yet exposed a matching Check. Never infer no remote effect.
   if (existingLocators.length) throw new Error("original Check POST requires readback; no repeat");
+  const resumePrefix =
+    partitionScope?.continuation_prefix_sha256 && partitionScope.continuation_stop_sha256
+      ? {
+          previous_attempt: path.join(
+            requestDirectory,
+            partitionScope.retry_stop_sha256 ? "technical-3" : "technical-1",
+          ),
+          stop_sha256: partitionScope.continuation_stop_sha256,
+          manifest_path: path.join(
+            path.dirname(configurationPath),
+            partitionScope.retry_stop_sha256
+              ? "application-proposal-prefix.json"
+              : `application-proposal-prefix-${partitionScope.request_id}.json`,
+          ),
+          sha256: partitionScope.continuation_prefix_sha256,
+        }
+      : undefined;
+  const resumeSuffix =
+    partitionScope?.next_prefix_sha256 && partitionScope.next_stop_sha256
+      ? {
+          previous_attempt: path.join(
+            requestDirectory,
+            partitionScope.retry_stop_sha256 ? "technical-4" : "technical-2",
+          ),
+          stop_sha256: partitionScope.next_stop_sha256,
+          manifest_path: path.join(
+            path.dirname(configurationPath),
+            partitionScope.retry_stop_sha256
+              ? "application-proposal-suffix.json"
+              : `application-proposal-suffix-${partitionScope.request_id}.json`,
+          ),
+          sha256: partitionScope.next_prefix_sha256,
+        }
+      : undefined;
+  const resumeCapacity =
+    partitionScope?.capacity_prefix_sha256 && partitionScope.capacity_stop_sha256
+      ? {
+          previous_attempt: path.join(requestDirectory, "technical-3"),
+          stop_sha256: partitionScope.capacity_stop_sha256,
+          manifest_path: path.join(
+            path.dirname(configurationPath),
+            "application-proposal-capacity.json",
+          ),
+          sha256: partitionScope.capacity_prefix_sha256,
+        }
+      : undefined;
+  let capacityStop: { sha256: string; log_sha256: string; request_sha256: string } | undefined;
+  for (const retained of [resumePrefix, resumeSuffix, resumeCapacity]) {
+    if (!retained) continue;
+    await requirePrivateOwnerPath(retained.manifest_path, true);
+    if (((await lstat(retained.manifest_path)).mode & 0o777) !== 0o600)
+      throw new Error("semantic continuation manifest must use mode 0600");
+    const manifest = await readBoundedPublicBuildInputFile(
+      path.dirname(retained.manifest_path),
+      path.basename(retained.manifest_path),
+      256 * 1024,
+    );
+    if (digest(manifest) !== retained.sha256)
+      throw new Error("semantic continuation manifest differs from its setup appointment");
+    if (retained === resumeCapacity) {
+      const record: unknown = JSON.parse(manifest.toString("utf8"));
+      if (
+        !isRecord(record) ||
+        record.request_id !== partitionScope?.request_id ||
+        record.stop_sha256 !== retained.stop_sha256 ||
+        typeof record.queue_log_sha256 !== "string" ||
+        typeof record.unstarted_request_sha256 !== "string"
+      )
+        throw new Error("semantic capacity continuation manifest differs");
+      capacityStop = {
+        sha256: retained.stop_sha256,
+        log_sha256: record.queue_log_sha256,
+        request_sha256: record.unstarted_request_sha256,
+      };
+    }
+  }
   const catalogRecovered =
     selected.purpose === "catalog"
       ? await recoverRemoteCoordinator(directory, namespace, { transport })
@@ -722,7 +884,24 @@ export async function runSemanticWorkerOnce(configurationPath: string, expectedS
         snapshot.checkpoint,
         catalogClaims,
       )
-    : await claimSemanticTechnicalAttempt(requestDirectory, config.runtime.tools_sha256.systemctl);
+    : await claimSemanticTechnicalAttempt(
+        requestDirectory,
+        config.runtime.tools_sha256.systemctl,
+        partitionScope && {
+          request_id: partitionScope.request_id,
+          max_lanes: partitionScope.max_lanes,
+          ...(partitionScope.retry_stop_sha256 && {
+            retry_stop_sha256: partitionScope.retry_stop_sha256,
+          }),
+          ...(partitionScope.continuation_stop_sha256 && {
+            continuation_stop_sha256: partitionScope.continuation_stop_sha256,
+          }),
+          ...(partitionScope.next_stop_sha256 && {
+            next_stop_sha256: partitionScope.next_stop_sha256,
+          }),
+          ...(capacityStop && { capacity_stop: capacityStop }),
+        },
+      );
   const invocations: { root: string; invocation_sha256: string }[] = [];
   const record = await open(path.join(attempt, "worker-attempt.jsonl"), "wx", 0o600);
   const retain = async (phase: string, evidence: unknown = null) => {
@@ -736,18 +915,31 @@ export async function runSemanticWorkerOnce(configurationPath: string, expectedS
     );
     await record.sync();
   };
+  const requirePartitionWindow = () => {
+    if (partitionDeadline !== undefined && performance.now() >= partitionDeadline)
+      throw new Error("semantic partition opportunity window exhausted");
+  };
   const guard = async () => {
+    requirePartitionWindow();
     requireFixedCheckout();
     const currentConfiguration = await readConfiguration();
     if (capacityDigest(currentConfiguration) !== capacityDigest(config))
       throw new Error("semantic worker setup changed");
     const fresh = await readRemoteCoordinatorSnapshot(directory, namespace, {
-      transport,
+      transport:
+        partitionDeadline === undefined
+          ? transport
+          : {
+              credential: { token: sourceToken },
+              deadline: Math.min(partitionDeadline, performance.now() + 120_000),
+              requireDirect: true,
+            },
     });
     if (capacityDigest(inspectSemanticWorkerRequest(fresh.input)) !== capacityDigest(selected))
       throw new Error(
         "frozen coordinator request changed during semantic attempt; retain capture without POST",
       );
+    requirePartitionWindow();
   };
   try {
     await retain("started-no-runtime-no-post", request);
@@ -760,8 +952,10 @@ export async function runSemanticWorkerOnce(configurationPath: string, expectedS
       throw new Error("journal changed during full request recovery");
     await guard();
     let publishedObject = selected.base_commit;
+    let applicationComparison = false;
     if (selected.purpose === "application") {
       const app = inspectReleaseReviewRequest(request)!;
+      applicationComparison = app.qualified_application !== undefined;
       const tag = api.request(
         "GET",
         `${repository}/git/ref/tags/${encodeURIComponent(`v${app.base_version}`)}`,
@@ -786,6 +980,9 @@ export async function runSemanticWorkerOnce(configurationPath: string, expectedS
       },
       api,
       { git_sha256: config.source_git_sha256, python_sha256: config.runtime.tools_sha256.python },
+      undefined,
+      applicationComparison,
+      selected.purpose === "catalog",
     );
     await retain("bounded-source-materialized-no-runtime", acquired);
     const source = acquired.repository;
@@ -798,6 +995,18 @@ export async function runSemanticWorkerOnce(configurationPath: string, expectedS
         backend: "linux-rootless" as const,
         output_parent: attempt,
         auth_cache: config.auth_cache,
+        ...(partitionScope && partitionRequest
+          ? {
+              application_partition: {
+                request: partitionRequest,
+                max_lanes: partitionScope.max_lanes,
+                deadline: partitionDeadline!,
+                ...(resumePrefix && { resume_prefix: resumePrefix }),
+                ...(resumeSuffix && { resume_suffix: resumeSuffix }),
+                ...(resumeCapacity && { resume_capacity: resumeCapacity }),
+              },
+            }
+          : {}),
         requireIsolationReady: guard,
         onInvocationPrepared: async (value: { root: string; invocation_sha256: string }) => {
           invocations.push(structuredClone(value));
@@ -879,7 +1088,12 @@ export async function runSemanticWorkerOnce(configurationPath: string, expectedS
     const stop = await open(path.join(attempt, "technical-stop.json"), "wx", 0o600);
     try {
       await stop.writeFile(
-        JSON.stringify({ schema_version: 1, outcome: "technical-failure", invocations }),
+        JSON.stringify({
+          schema_version: 1,
+          outcome: "technical-failure",
+          invocations,
+          ...(partitionScope && { application_partition_request_id: partitionScope.request_id }),
+        }),
       );
       await stop.sync();
     } finally {

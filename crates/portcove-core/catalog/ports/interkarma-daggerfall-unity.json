@@ -3,9 +3,10 @@
   "listing": {
     "id": "interkarma-daggerfall-unity",
     "name": "Daggerfall Unity",
-    "summary": "Daggerfall Unity offers upstream packages for The Elder Scrolls II: Daggerfall. Follow upstream setup before registering your executable.",
+    "summary": "Play The Elder Scrolls II: Daggerfall with Daggerfall Unity and your own compatible game folder. Choose your original files in the game’s first-run setup wizard; keep external saves and originals recoverable.",
     "project_url": "https://github.com/Interkarma/daggerfall-unity",
     "issue_number": 1809,
+    "listed_at": "2026-10-23",
     "availability": "packages",
     "setup_url": "https://github.com/Interkarma/daggerfall-unity/blob/v1.1.1-cve-2025/README.md",
     "original_game_title": "The Elder Scrolls II: Daggerfall",
@@ -15,10 +16,20 @@
         {
           "title": "Start the game",
           "instruction": "On first Play, use Daggerfall Unity’s setup wizard to select your compatible original Daggerfall game folder. It validates the game data. The package is a native Unity player and needs no separate game compilation. Keep external originals where they are."
+        },
+        {
+          "title": "Use the security-updated Intel Mac app",
+          "instruction": "Download the Mac ZIP from the Daggerfall Unity v1.1.1-cve-2025 release. Unpack DaggerfallUnity.app into a permanent folder separate from your DOS Daggerfall game. The current app executable is Intel x64. In the setup wizard choose the compatible game folder containing ARENA2."
         }
       ],
       "warnings": [],
-      "help_url": "https://github.com/Interkarma/daggerfall-unity/blob/v1.1.1-cve-2025/README.md"
+      "help_url": "https://github.com/Interkarma/daggerfall-unity/blob/v1.1.1-cve-2025/README.md",
+      "references": [
+        {
+          "title": "Keep the Mac profile and originals",
+          "instruction": "Back up the actual Daggerfall Unity profile, saves, settings, mod files and the original game folder before replacing the upstream app. Retain the app version that created your saves."
+        }
+      ]
     },
     "artwork": {
       "game_id": 53,
@@ -27,6 +38,10 @@
       "image_sha256": "d3363948d57336edfdb56921fbc4c174aa5b6d2f653b1ccd58a4c003f574da70",
       "game_slug": "the-elder-scrolls-ii-daggerfall",
       "match_kind": "underlying-game"
+    },
+    "platforms": ["macos-x86-64"],
+    "download_asset_hints": {
+      "macos-x86-64": ["dfu_mac_universal-", ".zip"]
     }
   },
   "integration": {
@@ -56,6 +71,12 @@
       "source_requirements": [],
       "saves_and_settings": "external-user-owned",
       "manual_preparation": "On first Play, use Daggerfall Unity’s setup wizard to select your compatible original Daggerfall game folder. It validates the game data. The package is a native Unity player and needs no separate game compilation. Keep external originals where they are. Normal saves, settings, logs, screenshots and mod data live in Unity’s Daggerfall Workshop/Daggerfall Unity user-data directory, outside Portcove backups. The reviewed Portable.txt mode uses PortableAppdata beside the player; that folder and the marker are declared. StreamingAssets/Mods and optional StreamingAssets/GameFiles are retained as supported user additions. Other replacements of version-owned assets require manual preservation or external registration. Mods and saves must remain compatible with the selected runtime. Existing external installations keep their files and runtime update owner. Gameplay, platform minimums and packaged Desktop acceptance remain separate observations. Linux uses Unity’s external user profile by default, outside Portcove backups. The same declared Portable.txt/PortableAppdata and supported StreamingAssets Mods/GameFiles paths apply. Keep UnityPlayer.so, DaggerfallUnity_Data and their packaged companions together; a Windows package does not establish Linux execution. Core extraction, published SHA-256 comparison and ELF/dependency inspection passed on Windows. Linux execution, minimum-environment and gameplay observations remain Not run."
+    },
+    "reviewed_package_layouts": {
+      "windows-x86-64": {
+        "directories": ["daggerfallunity_data", "monobleedingedge"],
+        "executables": ["daggerfallunity.exe", "unitycrashhandler64.exe"]
+      }
     }
   }
 }

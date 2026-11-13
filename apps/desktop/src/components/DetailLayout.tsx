@@ -1,7 +1,9 @@
 import { Tabs } from "@base-ui/react/tabs";
 import { Menu } from "@base-ui/react/menu";
-import { ArrowLeft, ArrowUpRight, FileText, MoreHorizontal } from "lucide-react";
+import { ArrowLeft, ArrowRight, ArrowUpRight, FileText, MoreHorizontal } from "lucide-react";
+import type { TFunction } from "i18next";
 import { useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import { useAppTranslation } from "../localization";
 import {
   detailSections,
   type DetailOpening,
@@ -18,21 +20,28 @@ import { GameHero } from "./GameHero";
 import { CatalogMediaGallery } from "./CatalogMedia";
 import { IdentityIcon } from "../features/identity/IdentityIcon";
 import { identityLabel, identityStyle } from "../features/identity/identity-style";
-import { platformLabel, releaseChannelPresentation } from "../view-model";
-import type { PortDefinition } from "../types";
+import { releaseChannelPresentation } from "../view-model";
+import type { PortDefinition, ReleaseChannel } from "../types";
 import { Chip } from "./ui/chip";
 import { ExternalLink } from "./ExternalLink";
 import { Icon } from "./ui";
 import { Button } from "./ui/button";
 import { controlFocus } from "./ui/control-style";
 
-const labels: Record<DetailSection, string> = {
-  overview: "Overview",
-  files: "Game files",
-  saves: "Saves & backups",
-  versions: "Versions & updates",
-  manage: "Manage",
-};
+function sectionLabel(t: TFunction<"detail">, section: DetailSection): string {
+  switch (section) {
+    case "overview":
+      return t("section.overview");
+    case "files":
+      return t("section.files");
+    case "saves":
+      return t("section.saves");
+    case "versions":
+      return t("section.versions");
+    case "manage":
+      return t("section.manage");
+  }
+}
 type Identity = PortIdentity & {
   id: string;
   platforms?: PortDefinition["platforms"] | undefined;
@@ -48,11 +57,15 @@ export type RevealDetailSection = (
 export function DetailLayout({
   backLabel,
   favoriteControl,
+  managementSupplement,
+  supplementSection,
   port,
   projectUrl,
   openSupport,
   overviewRequirements,
   overviewActions,
+  overviewDetails,
+  selectedChannel,
   opening,
   initialSection,
   readiness,
@@ -65,10 +78,16 @@ export function DetailLayout({
 }: {
   backLabel?: string | undefined;
   favoriteControl?: ReactNode;
+  /** Maintenance content (catalog checks) shown at the top of the management section. */
+  managementSupplement?: ReactNode;
+  /** Where the supplement opens; defaults to the management section. */
+  supplementSection?: DetailSection | undefined;
   port: Identity;
   projectUrl?: string | undefined;
   openSupport?: (() => void) | undefined;
   overviewRequirements?: ReactNode;
+  overviewDetails?: ReactNode;
+  selectedChannel?: ReleaseChannel;
   overviewActions?: ((reveal: RevealDetailSection) => ReactNode) | undefined;
   opening?: DetailOpening | undefined;
   initialSection: DetailSection;
@@ -80,6 +99,7 @@ export function DetailLayout({
   steam?: boolean | undefined;
   children: (reveal: RevealDetailSection) => Partial<Record<DetailSection, ReactNode>>;
 }) {
+  const { t } = useAppTranslation("detail");
   const identity = `${port.id}:${opening?.token ?? "standalone"}`;
   const [selection, setSelection] = useState({ identity, section: initialSection });
   // Generation/refresh changes must not reset a manual selection within an opening.
@@ -176,10 +196,11 @@ export function DetailLayout({
             {gameTitle(port)}
           </h1>
           {gameProjectLabel(port) && (
-            <p className="mt-2 text-sm text-pc-muted-foreground">
+            <p className="detail-project">
               {projectUrl ? (
                 <ExternalLink href={projectUrl} data-focusable>
                   {gameProjectLabel(port)}
+                  <ArrowUpRight aria-hidden="true" />
                 </ExternalLink>
               ) : (
                 gameProjectLabel(port)
@@ -189,35 +210,56 @@ export function DetailLayout({
           <div
             className="detail-identity-chips mt-3 flex flex-wrap gap-2"
             role="group"
-            aria-label="Game and port identity"
+            aria-label={t("identity.label")}
           >
             {sourceSystems.map((system) => (
-              <Chip key={`system:${system}`} style={identityStyle(system)} title="Original system">
+              <Chip
+                key={`system:${system}`}
+                style={identityStyle(system)}
+                title={t("identity.originalSystem")}
+              >
                 <IdentityIcon name={system} />
-                {identityLabel(system)}
+                {system === "not-specified"
+                  ? t("identity.originalSystemUnspecified")
+                  : identityLabel(system)}
               </Chip>
             ))}
-            {port.platforms?.map((platform) => {
-              const system = platform.split("-")[0]!;
-              return (
-                <Chip key={`platform:${platform}`} style={identityStyle(system)} title="Runs on">
-                  <IdentityIcon name={system} />
-                  {platformLabel(platform)}
-                </Chip>
-              );
-            })}
-            {port.channels?.map((channel) => (
+            {[...new Set(port.platforms?.map((platform) => platform.split("-")[0]!))].map(
+              (system) => {
+                return (
+                  <Chip
+                    key={`platform:${system}`}
+                    style={identityStyle(system)}
+                    title={t("identity.runsOn")}
+                  >
+                    <IdentityIcon name={system} />
+                    {identityLabel(system)}
+                  </Chip>
+                );
+              },
+            )}
+            {(selectedChannel ? [selectedChannel] : port.channels)?.map((channel) => (
               <Chip
                 key={`channel:${channel}`}
                 style={identityStyle(channel, true)}
-                title="Offered release channel"
+                title={
+                  selectedChannel ? t("identity.selectedChannel") : t("identity.offeredChannel")
+                }
               >
                 <IdentityIcon name={channel} channel />
                 {releaseChannelPresentation(channel).label}
               </Chip>
             ))}
           </div>
-          <div className="detail-header-actions mt-5 flex flex-wrap items-center gap-2">
+          <div className="mt-3 flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-sm">
+            <div data-detail-readiness className="detail-readiness">
+              {readiness}
+            </div>
+            <span className="text-pc-muted-foreground" data-installation-fact>
+              {installation}
+            </span>
+          </div>
+          <div className="detail-header-actions mt-6 flex flex-wrap items-center gap-2">
             {action(reveal)}
             {favoriteControl}
             <Menu.Root>
@@ -227,7 +269,7 @@ export function DetailLayout({
                     data-focusable
                     variant="outline"
                     size="icon-lg"
-                    aria-label={`More actions for ${gameIdentityLabel(port)}`}
+                    aria-label={t("actions.more", { name: gameIdentityLabel(port) })}
                   />
                 }
               >
@@ -250,7 +292,7 @@ export function DetailLayout({
                         reveal(managementSection, "detail-artwork", ".artwork-controls > summary")
                       }
                     >
-                      Change artwork
+                      {t("actions.artwork")}
                     </Menu.Item>
                     {steam && (
                       <Menu.Item
@@ -259,7 +301,7 @@ export function DetailLayout({
                           reveal(managementSection, "detail-steam", "[data-steam-shortcut]")
                         }
                       >
-                        Steam shortcut
+                        {t("actions.steam")}
                       </Menu.Item>
                     )}
                     {projectUrl && (
@@ -267,21 +309,13 @@ export function DetailLayout({
                         className={`${controlFocus} block rounded-pc-sm px-3 py-2 text-sm data-highlighted:bg-pc-selection`}
                         onClick={() => reveal("overview", "detail-project-link", "a")}
                       >
-                        Upstream project
+                        {t("actions.project")}
                       </Menu.Item>
                     )}
                   </Menu.Popup>
                 </Menu.Positioner>
               </Menu.Portal>
             </Menu.Root>
-          </div>
-          <div className="mt-3 flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-sm">
-            <div data-detail-readiness className="detail-readiness">
-              {readiness}
-            </div>
-            <span className="text-pc-muted-foreground" data-installation-fact>
-              {installation}
-            </span>
           </div>
         </div>
       </GameHero>
@@ -298,7 +332,7 @@ export function DetailLayout({
       >
         <Tabs.List
           activateOnFocus={false}
-          aria-label="Game detail sections"
+          aria-label={t("section.label")}
           className="detail-tab-list flex flex-wrap gap-x-7 gap-y-1 border-b border-pc-border"
         >
           {sections.map((section) => (
@@ -306,9 +340,9 @@ export function DetailLayout({
               key={section}
               value={section}
               data-focusable
-              className={`${controlFocus} detail-tab cursor-pointer border-b-2 border-transparent bg-transparent px-0 py-3 text-sm font-semibold text-pc-muted-foreground data-active:border-pc-interactive data-active:text-pc-interactive-foreground`}
+              className={`${controlFocus} detail-tab cursor-pointer rounded-t-pc-sm border-b-2 border-transparent bg-transparent px-3 py-3 text-sm font-semibold text-pc-muted-foreground data-active:border-current data-active:bg-pc-selection data-active:text-pc-selection-foreground`}
             >
-              {labels[section]}
+              {sectionLabel(t, section)}
             </Tabs.Tab>
           ))}
         </Tabs.List>
@@ -326,7 +360,7 @@ export function DetailLayout({
               tabIndex={-1}
               className={section === "overview" ? "sr-only" : "mb-5 text-xl"}
             >
-              {labels[section]}
+              {sectionLabel(t, section)}
             </h2>
             {section === "overview" ? (
               <div className="detail-overview">
@@ -334,44 +368,46 @@ export function DetailLayout({
                   {panels.overview}
                   <CatalogMediaGallery port={port} />
                   {overviewActions?.(reveal)}
+                  {overviewDetails}
                 </div>
                 <aside className="detail-overview-support min-w-0">
-                  <section className="detail-requirements" aria-label="Requirements">
-                    <h3 className="mb-4 text-base">Requirements</h3>
+                  <section className="detail-requirements" aria-label={t("requirements.heading")}>
+                    <h3 className="mb-4 text-base">{t("requirements.heading")}</h3>
                     {overviewRequirements ?? (
                       <p className="text-sm text-pc-muted-foreground">
-                        Review Game files and the upstream instructions for this port’s
-                        requirements.
+                        {t("requirements.fallback")}
                       </p>
                     )}
                   </section>
                   {(projectUrl || openSupport) && (
-                    <section className="detail-resources" aria-label="Project & support">
-                      <h3 className="mb-3 text-base">Project & support</h3>
+                    <section className="detail-resources" aria-label={t("resources.heading")}>
+                      <h3 className="mb-3 text-base">{t("resources.heading")}</h3>
                       {projectUrl && (
                         <div id="detail-project-link" tabIndex={-1}>
                           <ExternalLink
                             href={projectUrl}
                             className="flex w-full gap-2.5 border-b border-pc-border py-3 text-xs"
                           >
+                            <FileText aria-hidden="true" />
+                            <span>{t("resources.website")}</span>
                             <ArrowUpRight aria-hidden="true" />
-                            <span>Open upstream project</span>
                           </ExternalLink>
                         </div>
                       )}
                       {openSupport && (
                         <Button
                           variant="link"
-                          className="w-full justify-start rounded-none border-b border-pc-border px-0 py-3 text-start text-xs"
+                          className="w-full justify-start gap-2.5 rounded-none border-x-0 border-t-0 border-b border-pc-border px-0 py-3 text-start text-xs"
                           onClick={openSupport}
                         >
                           <FileText aria-hidden="true" />
-                          <span>Create support report</span>
+                          <span>{t("resources.support")}</span>
+                          <ArrowRight aria-hidden="true" />
                         </Button>
                       )}
                       {openSupport && (
                         <p className="mt-3 max-w-prose text-sm text-pc-muted-foreground">
-                          Save and review a sanitized report locally before choosing to share it.
+                          {t("resources.supportNote")}
                         </p>
                       )}
                     </section>
@@ -379,7 +415,13 @@ export function DetailLayout({
                 </aside>
               </div>
             ) : (
-              panels[section]
+              <>
+                {/* Catalog checks are maintenance; they live with management, not the hero. */}
+                {section === (supplementSection ?? managementSection) && managementSupplement && (
+                  <div className="detail-management-supplement mb-6">{managementSupplement}</div>
+                )}
+                {panels[section]}
+              </>
             )}
           </Tabs.Panel>
         ))}

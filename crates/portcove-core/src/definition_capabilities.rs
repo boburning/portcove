@@ -27,6 +27,26 @@ impl EngineTemplateCapability {
             })
             .collect();
         supported.push(Self {
+            template: AdapterKind::LibultrashipPortable,
+            contract_version: 2,
+        });
+        supported.push(Self {
+            template: AdapterKind::LibultrashipPortable,
+            contract_version: 3,
+        });
+        supported.push(Self {
+            template: AdapterKind::LibultrashipPortable,
+            contract_version: 4,
+        });
+        supported.push(Self {
+            template: AdapterKind::GeneratedCache,
+            contract_version: 2,
+        });
+        supported.push(Self {
+            template: AdapterKind::GeneratedCache,
+            contract_version: crate::runtime::GENERATED_CACHE_TAR_XZ_CAPABILITY,
+        });
+        supported.push(Self {
             template: AdapterKind::NativePortable,
             contract_version: 2,
         });
@@ -51,6 +71,34 @@ impl EngineTemplateCapability {
             contract_version: 7,
         });
         supported.push(Self {
+            template: AdapterKind::NativePortable,
+            contract_version: 8,
+        });
+        supported.push(Self {
+            template: AdapterKind::NativePortable,
+            contract_version: 9,
+        });
+        supported.push(Self {
+            template: AdapterKind::NativePortable,
+            contract_version: 10,
+        });
+        supported.push(Self {
+            template: AdapterKind::NativePortable,
+            contract_version: 11,
+        });
+        supported.push(Self {
+            template: AdapterKind::NativePortable,
+            contract_version: 12,
+        });
+        supported.push(Self {
+            template: AdapterKind::NativePortable,
+            contract_version: 13,
+        });
+        supported.push(Self {
+            template: AdapterKind::NativePortable,
+            contract_version: 14,
+        });
+        supported.push(Self {
             template: AdapterKind::N64RecompPortable,
             contract_version: 2,
         });
@@ -63,8 +111,24 @@ impl EngineTemplateCapability {
             contract_version: 4,
         });
         supported.push(Self {
+            template: AdapterKind::N64RecompPortable,
+            contract_version: 5,
+        });
+        supported.push(Self {
+            template: AdapterKind::N64RecompPortable,
+            contract_version: crate::runtime::N64_PLATFORM_RUNTIME_SUBDIRECTORY_CAPABILITY,
+        });
+        supported.push(Self {
             template: AdapterKind::PsxRecompManaged,
             contract_version: 2,
+        });
+        supported.push(Self {
+            template: AdapterKind::PsxRecompManaged,
+            contract_version: crate::persistence::PSX_RETAINED_SCOPE_CAPABILITY,
+        });
+        supported.push(Self {
+            template: AdapterKind::PsxRecompManaged,
+            contract_version: crate::adapter::PSX_MULTI_TRACK_SET_CAPABILITY,
         });
         supported.push(Self {
             template: AdapterKind::StagedSourcePortable,
@@ -141,6 +205,94 @@ impl EngineTemplateCapability {
         supported.push(Self {
             template: AdapterKind::StagedSourcePortable,
             contract_version: 25,
+        });
+        supported.push(Self {
+            template: AdapterKind::StagedSourcePortable,
+            contract_version: 26,
+        });
+        supported.push(Self {
+            template: AdapterKind::StagedSourcePortable,
+            contract_version: 27,
+        });
+        supported.push(Self {
+            template: AdapterKind::StagedSourcePortable,
+            contract_version: 28,
+        });
+        supported.push(Self {
+            template: AdapterKind::StagedSourcePortable,
+            contract_version: 29,
+        });
+        supported.push(Self {
+            template: AdapterKind::StagedSourcePortable,
+            contract_version: 30,
+        });
+        supported.push(Self {
+            template: AdapterKind::StagedSourcePortable,
+            contract_version: 31,
+        });
+        supported.push(Self {
+            template: AdapterKind::NativePortable,
+            contract_version: 15,
+        });
+        supported.push(Self {
+            template: AdapterKind::NativePortable,
+            contract_version: 16,
+        });
+        supported.push(Self {
+            template: AdapterKind::NativePortable,
+            contract_version: 17,
+        });
+        supported.push(Self {
+            template: AdapterKind::NativePortable,
+            contract_version: crate::package_layout::NATIVE_CAPABILITY,
+        });
+        supported.push(Self {
+            template: AdapterKind::NativePortable,
+            contract_version: 19,
+        });
+        supported.push(Self {
+            template: AdapterKind::NativePortable,
+            contract_version: crate::native_external_profile::z2rs::NATIVE_CAPABILITY,
+        });
+        supported.push(Self {
+            template: AdapterKind::NativePortable,
+            contract_version: crate::native_external_profile::recomp_direct::NATIVE_CAPABILITY,
+        });
+        supported.push(Self {
+            template: AdapterKind::NativePortable,
+            contract_version: 22,
+        });
+        supported.push(Self {
+            template: AdapterKind::NativePortable,
+            contract_version: crate::native_external_profile::doom3_linux::NATIVE_CAPABILITY,
+        });
+        supported.push(Self {
+            template: AdapterKind::NativePortable,
+            contract_version: crate::native_external_profile::openjk::NATIVE_CAPABILITY,
+        });
+        supported.push(Self {
+            template: AdapterKind::NativePortable,
+            contract_version: crate::native_portable_data::NATIVE_CAPABILITY,
+        });
+        supported.push(Self {
+            template: AdapterKind::NativePortable,
+            contract_version: crate::runtime::NATIVE_MAC_BUNDLE_TAR_XZ_CAPABILITY,
+        });
+        supported.push(Self {
+            template: AdapterKind::NativePortable,
+            contract_version: crate::native_external_profile::openomf::NATIVE_CAPABILITY,
+        });
+        supported.push(Self {
+            template: AdapterKind::NativePortable,
+            contract_version: crate::launch::TRACKED_HANDOFF_NATIVE_CAPABILITY,
+        });
+        supported.push(Self {
+            template: AdapterKind::NativePortable,
+            contract_version: crate::package_layout::EXECUTABLE_GRANT_CAPABILITY,
+        });
+        supported.push(Self {
+            template: AdapterKind::NativePortable,
+            contract_version: crate::package_layout::MACOS_LIBRARY_FILTER_CAPABILITY,
         });
         supported
     }
@@ -298,6 +450,210 @@ mod tests {
     use super::*;
 
     #[test]
+    fn native8_linux_tar_xz_excludes_older_readers_without_retiring_native7() {
+        let previous: Vec<_> = EngineTemplateCapability::current()
+            .into_iter()
+            .filter(|entry| {
+                entry.template != AdapterKind::NativePortable || entry.contract_version < 8
+            })
+            .collect();
+        assert!(
+            !check_with_inventory(&request("native-portable", 8, 8), &previous)
+                .unwrap()
+                .compatible
+        );
+        assert!(
+            check_definition_capabilities(&request("native-portable", 8, 8))
+                .unwrap()
+                .compatible
+        );
+        assert!(
+            check_definition_capabilities(&request("native-portable", 7, 7))
+                .unwrap()
+                .compatible
+        );
+    }
+
+    #[test]
+    fn native14_archive_file_links_exclude_older_readers_without_retiring_native13() {
+        let previous: Vec<_> = EngineTemplateCapability::current()
+            .into_iter()
+            .filter(|entry| {
+                entry.template != AdapterKind::NativePortable || entry.contract_version < 14
+            })
+            .collect();
+        assert!(
+            !check_with_inventory(&request("native-portable", 14, 14), &previous)
+                .unwrap()
+                .compatible
+        );
+        assert!(
+            check_definition_capabilities(&request("native-portable", 14, 14))
+                .unwrap()
+                .compatible
+        );
+        assert!(
+            check_definition_capabilities(&request("native-portable", 13, 13))
+                .unwrap()
+                .compatible
+        );
+    }
+
+    #[test]
+    fn n64_6_platform_runtime_subdirectories_exclude_older_readers_without_retiring_n64_5() {
+        let previous: Vec<_> = EngineTemplateCapability::current()
+            .into_iter()
+            .filter(|entry| {
+                entry.template != AdapterKind::N64RecompPortable || entry.contract_version < 6
+            })
+            .collect();
+        assert!(
+            !check_with_inventory(&request("n64-recomp-portable", 6, 6), &previous)
+                .unwrap()
+                .compatible
+        );
+        assert!(
+            check_definition_capabilities(&request("n64-recomp-portable", 6, 6))
+                .unwrap()
+                .compatible
+        );
+        assert!(
+            check_definition_capabilities(&request("n64-recomp-portable", 5, 5))
+                .unwrap()
+                .compatible
+        );
+    }
+
+    #[test]
+    fn n64_5_archive_file_links_exclude_older_readers_without_retiring_n64_4() {
+        let previous: Vec<_> = EngineTemplateCapability::current()
+            .into_iter()
+            .filter(|entry| {
+                entry.template != AdapterKind::N64RecompPortable || entry.contract_version < 5
+            })
+            .collect();
+        assert!(
+            !check_with_inventory(&request("n64-recomp-portable", 5, 5), &previous)
+                .unwrap()
+                .compatible
+        );
+        assert!(
+            check_definition_capabilities(&request("n64-recomp-portable", 5, 5))
+                .unwrap()
+                .compatible
+        );
+        assert!(
+            check_definition_capabilities(&request("n64-recomp-portable", 4, 4))
+                .unwrap()
+                .compatible
+        );
+    }
+
+    #[test]
+    fn libultraship4_and_generated_cache2_grants_exclude_older_readers() {
+        for (template, adapter, version) in [
+            (
+                "libultraship-portable",
+                AdapterKind::LibultrashipPortable,
+                4,
+            ),
+            ("generated-cache", AdapterKind::GeneratedCache, 2),
+        ] {
+            let previous: Vec<_> = EngineTemplateCapability::current()
+                .into_iter()
+                .filter(|entry| entry.template != adapter || entry.contract_version < version)
+                .collect();
+            assert!(
+                !check_with_inventory(&request(template, version, version), &previous)
+                    .unwrap()
+                    .compatible
+            );
+            assert!(
+                check_definition_capabilities(&request(template, version, version))
+                    .unwrap()
+                    .compatible
+            );
+            assert!(
+                check_definition_capabilities(&request(template, 1, 1))
+                    .unwrap()
+                    .compatible
+            );
+        }
+    }
+
+    #[test]
+    fn generated_cache3_mac_tar_xz_excludes_older_readers_and_keeps_generated_cache2() {
+        let previous: Vec<_> = EngineTemplateCapability::current()
+            .into_iter()
+            .filter(|entry| {
+                entry.template != AdapterKind::GeneratedCache || entry.contract_version < 3
+            })
+            .collect();
+        assert!(
+            !check_with_inventory(&request("generated-cache", 3, 3), &previous)
+                .unwrap()
+                .compatible
+        );
+        for version in [2, 3] {
+            assert!(
+                check_definition_capabilities(&request("generated-cache", version, version))
+                    .unwrap()
+                    .compatible
+            );
+        }
+    }
+
+    #[test]
+    fn native22_declared_executable_grants_exclude_older_readers_without_retiring_native21() {
+        let previous: Vec<_> = EngineTemplateCapability::current()
+            .into_iter()
+            .filter(|entry| {
+                entry.template != AdapterKind::NativePortable || entry.contract_version < 22
+            })
+            .collect();
+        assert!(
+            !check_with_inventory(&request("native-portable", 22, 22), &previous)
+                .unwrap()
+                .compatible
+        );
+        assert!(
+            check_definition_capabilities(&request("native-portable", 22, 22))
+                .unwrap()
+                .compatible
+        );
+        assert!(
+            check_definition_capabilities(&request("native-portable", 21, 21))
+                .unwrap()
+                .compatible
+        );
+    }
+
+    #[test]
+    fn native19_portable_marker_files_exclude_older_readers_without_retiring_native18() {
+        let previous: Vec<_> = EngineTemplateCapability::current()
+            .into_iter()
+            .filter(|entry| {
+                entry.template != AdapterKind::NativePortable || entry.contract_version < 19
+            })
+            .collect();
+        assert!(
+            !check_with_inventory(&request("native-portable", 19, 19), &previous)
+                .unwrap()
+                .compatible
+        );
+        assert!(
+            check_definition_capabilities(&request("native-portable", 19, 19))
+                .unwrap()
+                .compatible
+        );
+        assert!(
+            check_definition_capabilities(&request("native-portable", 18, 18))
+                .unwrap()
+                .compatible
+        );
+    }
+
+    #[test]
     fn native7_ascii_paths_exclude_older_readers_and_preserve_versions1_through6() {
         let previous: Vec<_> = EngineTemplateCapability::current()
             .into_iter()
@@ -419,6 +775,33 @@ mod tests {
     }
 
     #[test]
+    fn libultraship_path_v2_refuses_v1_clients_without_retiring_v1() {
+        let previous: Vec<_> = EngineTemplateCapability::current()
+            .into_iter()
+            .filter(|entry| {
+                entry.template != AdapterKind::LibultrashipPortable || entry.contract_version == 1
+            })
+            .collect();
+        assert!(
+            !check_with_inventory(&request("libultraship-portable", 2, 2), &previous)
+                .unwrap()
+                .compatible
+        );
+        for version in [1, 2] {
+            assert!(
+                check_definition_capabilities(&request("libultraship-portable", version, version))
+                    .unwrap()
+                    .compatible
+            );
+        }
+        assert!(
+            check_with_inventory(&request("libultraship-portable", 1, 1), &previous)
+                .unwrap()
+                .compatible
+        );
+    }
+
+    #[test]
     fn pinned_native_archives_exclude_v1_v2_inventory_without_retiring_it() {
         let previous: Vec<_> = EngineTemplateCapability::current()
             .into_iter()
@@ -449,7 +832,7 @@ mod tests {
                 .compatible
         );
         assert!(
-            !check_definition_capabilities(&request("native-portable", 8, 8))
+            !check_definition_capabilities(&request("native-portable", u32::MAX, u32::MAX))
                 .unwrap()
                 .compatible
         );
@@ -528,7 +911,11 @@ mod tests {
             (1, 1, true, 1),
             (2, 2, true, 2),
             (1, 2, true, 2),
-            (3, 3, false, 2),
+            (3, 3, true, 3),
+            (1, 3, true, 3),
+            (4, 4, true, 4),
+            (3, 4, true, 4),
+            (5, 5, false, 4),
         ] {
             let report =
                 check_definition_capabilities(&request("psx-recomp-managed", minimum, maximum))
@@ -544,6 +931,29 @@ mod tests {
             .collect();
         assert!(
             !check_with_inventory(&request("psx-recomp-managed", 2, 2), &old)
+                .unwrap()
+                .compatible
+        );
+        // A retained-scope reader cannot keep a multi-track disc set.
+        let retained_scope_only: Vec<_> = EngineTemplateCapability::current()
+            .into_iter()
+            .filter(|entry| {
+                entry.template != AdapterKind::PsxRecompManaged
+                    || entry.contract_version < crate::adapter::PSX_MULTI_TRACK_SET_CAPABILITY
+            })
+            .collect();
+        let multi_track = request(
+            "psx-recomp-managed",
+            crate::adapter::PSX_MULTI_TRACK_SET_CAPABILITY,
+            crate::adapter::PSX_MULTI_TRACK_SET_CAPABILITY,
+        );
+        assert!(
+            !check_with_inventory(&multi_track, &retained_scope_only)
+                .unwrap()
+                .compatible
+        );
+        assert!(
+            check_definition_capabilities(&multi_track)
                 .unwrap()
                 .compatible
         );
@@ -572,53 +982,64 @@ mod tests {
     }
 
     #[test]
-    fn fresh_direct_entry_requires_v25_while_prior_reader_inventory_refuses_it() {
+    fn fresh_direct_entries_require_their_v26_reader_inventory() {
         let catalog = crate::Catalog::embedded().unwrap();
-        let id = "sonic-3-and-knuckles-recomp";
-        let bundle = crate::test_fixture::indexed_catalog_bundle(&catalog, id);
-        let index = crate::DefinitionContentIndex::parse(&bundle.index).unwrap();
-        let entry = bundle
-            .contents
-            .iter()
-            .find_map(|(_, bytes)| {
-                let value: serde_json::Value = serde_json::from_slice(bytes).ok()?;
-                (value.get("definition_schema").is_some()).then_some(bytes)
-            })
-            .unwrap();
-        assert!(
-            index
-                .inspect_entry("official", id, entry)
-                .unwrap()
-                .capabilities()
-                .compatible
-        );
-        let value: serde_json::Value = serde_json::from_slice(entry).unwrap();
-        let requirement: DefinitionCapabilityRequest = serde_json::from_value(serde_json::json!({
+        for (id, minimum) in [
+            ("sonic-3-and-knuckles-recomp", 26),
+            ("super-metroid-recomp", 29),
+            ("mega-man-x2-snes-recomp", 28),
+            ("sonic-the-hedgehog-recomp", 28),
+        ] {
+            let bundle = crate::test_fixture::indexed_catalog_bundle(&catalog, id);
+            let index = crate::DefinitionContentIndex::parse(&bundle.index).unwrap();
+            let entry = bundle
+                .contents
+                .iter()
+                .find_map(|(_, bytes)| {
+                    let value: serde_json::Value = serde_json::from_slice(bytes).ok()?;
+                    (value.get("definition_schema").is_some()).then_some(bytes)
+                })
+                .unwrap();
+            assert!(
+                index
+                    .inspect_entry("official", id, entry)
+                    .unwrap()
+                    .capabilities()
+                    .compatible
+            );
+            let value: serde_json::Value = serde_json::from_slice(entry).unwrap();
+            assert_eq!(
+                value["required_capabilities"][0]["minimum_version"],
+                minimum
+            );
+            let requirement: DefinitionCapabilityRequest = serde_json::from_value(serde_json::json!({
             "capability_contract_schema":1, "required_capabilities":value["required_capabilities"]
         }))
         .unwrap();
-        let previous: Vec<_> = EngineTemplateCapability::current()
-            .into_iter()
-            .filter(|entry| {
-                entry.template != AdapterKind::StagedSourcePortable || entry.contract_version <= 24
-            })
-            .collect();
-        let refused = check_with_inventory(&requirement, &previous).unwrap();
-        assert!(!refused.compatible);
-        assert_eq!(
-            refused.checks[0].outcome,
-            DefinitionCapabilityOutcome::UnsupportedVersion
-        );
-        assert!(
-            check_definition_capabilities(&requirement)
-                .unwrap()
-                .compatible
-        );
-        assert!(
-            check_with_inventory(&request("staged-source-portable", 23, 24), &previous)
-                .unwrap()
-                .compatible
-        );
+            let previous: Vec<_> = EngineTemplateCapability::current()
+                .into_iter()
+                .filter(|entry| {
+                    entry.template != AdapterKind::StagedSourcePortable
+                        || entry.contract_version < minimum
+                })
+                .collect();
+            let refused = check_with_inventory(&requirement, &previous).unwrap();
+            assert!(!refused.compatible);
+            assert_eq!(
+                refused.checks[0].outcome,
+                DefinitionCapabilityOutcome::UnsupportedVersion
+            );
+            assert!(
+                check_definition_capabilities(&requirement)
+                    .unwrap()
+                    .compatible
+            );
+            assert!(
+                check_with_inventory(&request("staged-source-portable", 23, 24), &previous)
+                    .unwrap()
+                    .compatible
+            );
+        }
     }
 
     #[test]
@@ -639,11 +1060,11 @@ mod tests {
             check_definition_capabilities(&request("staged-source-portable", 3, 3)).unwrap();
         assert!(staged.compatible);
         assert_eq!(staged.checks[0].installed_version, Some(3));
-        let n64 = check_definition_capabilities(&request("n64-recomp-portable", 5, 5)).unwrap();
+        let n64 = check_definition_capabilities(&request("n64-recomp-portable", 99, 99)).unwrap();
         assert!(!n64.compatible);
-        assert_eq!(n64.checks[0].installed_version, Some(4));
+        assert_eq!(n64.checks[0].installed_version, Some(6));
         let future =
-            check_definition_capabilities(&request("staged-source-portable", 26, 26)).unwrap();
+            check_definition_capabilities(&request("staged-source-portable", 32, 32)).unwrap();
         assert!(!future.compatible);
     }
 
@@ -962,7 +1383,7 @@ mod tests {
         );
         assert!(check_definition_capabilities(&required).unwrap().compatible);
         assert!(
-            !check_definition_capabilities(&request("n64-recomp-portable", 5, 5))
+            !check_definition_capabilities(&request("n64-recomp-portable", 99, 99))
                 .unwrap()
                 .compatible
         );
@@ -982,7 +1403,7 @@ mod tests {
         );
         assert!(check_definition_capabilities(&required).unwrap().compatible);
         assert!(
-            !check_definition_capabilities(&request("n64-recomp-portable", 5, 5))
+            !check_definition_capabilities(&request("n64-recomp-portable", 99, 99))
                 .unwrap()
                 .compatible
         );
@@ -993,7 +1414,7 @@ mod tests {
         let mut input = request("n64-recomp-portable", 1, 2);
         input
             .required_capabilities
-            .extend(request("generated-cache", 2, 2).required_capabilities);
+            .extend(request("generated-cache", 99, 99).required_capabilities);
         input
             .required_capabilities
             .extend(request("future-template", 1, 1).required_capabilities);
@@ -1011,7 +1432,7 @@ mod tests {
                 DefinitionCapabilityOutcome::UnsupportedTemplate
             ]
         );
-        assert_eq!(report.checks[1].installed_version, Some(1));
+        assert_eq!(report.checks[1].installed_version, Some(3));
         assert_eq!(report.checks[2].installed_version, None);
     }
 

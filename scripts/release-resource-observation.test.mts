@@ -10,7 +10,61 @@ import {
   slice4CapacityResourceDigest,
   capacityDigest,
 } from "./release-capacity.mts";
+import { controllerWorkflowAtCurrentNode } from "./fixtures/release-capacity-fixture.mts";
 import { isRecord } from "./runtime-values.mts";
+
+void test("Windows-only protected source proposal preserves shared controls and stays held outside effective resource policy", async () => {
+  const [production, wake, candidate] = await Promise.all(
+    ["application-update-production.yml", "application-update-wake.yml", "release.yml"].map(
+      (name) =>
+        readFile(
+          new URL(
+            name === "application-update-production.yml"
+              ? "./fixtures/release-resource-baseline-20261103/production.yml"
+              : `../.github/workflows/${name}`,
+            import.meta.url,
+          ),
+        ),
+    ),
+  );
+  const { prepareReleaseResourceAmendmentProposal: prepare } =
+    await import("./release-resource-amendment-proposal.mts");
+  const result = prepare(production!, wake!, candidate!, "initial-beta-windows-x86_64-v1");
+  const source: unknown = parse(result.proposedWorkflow.toString("utf8"));
+  assert.ok(isRecord(source) && isRecord(source.jobs));
+  const jobs = source.jobs;
+  assert.equal(jobs.native_linux, undefined);
+  assert.ok(isRecord(jobs.native_windows) && typeof jobs.native_windows.if === "string");
+  assert.match(jobs.native_windows.if, /false &&/);
+  assert.match(jobs.native_windows.if, /initial-beta-windows-x86_64-v1/);
+  assert.ok(isRecord(jobs.release_publication) && Array.isArray(jobs.release_publication.needs));
+  assert.ok(jobs.release_publication.needs.includes("native_windows"));
+  assert.ok(!jobs.release_publication.needs.includes("native_linux"));
+  assert.match(String(jobs.release_publication.if), /needs.native_windows.result == 'success'/);
+  assert.doesNotMatch(String(jobs.release_publication.if), /needs.native_linux/);
+  for (const shared of [
+    "tool_bootstrap",
+    "attest",
+    "payload_signing",
+    "protection_observation",
+    "tuf_timestamp",
+    "site_publication",
+    "catalog_timestamp",
+  ])
+    assert.ok(isRecord(jobs[shared]), shared);
+  assert.equal(result.proposal.authority, "none");
+  assert.equal(result.proposal.status, "PROPOSAL ONLY; NOT RATIFIED");
+  assert.equal(result.proposal.effective_policy_digest, slice4CapacityResourceDigest);
+  assert.equal(result.proposal.observation.accounting.application, 141);
+  assert.equal(result.proposal.observation.accounting.catalog_alternative, 41);
+  assert.equal(result.proposal.observation.accounting.policy_envelope, 145);
+  assert.equal(result.proposal.observation.policy_matches_workflow, false);
+  assert.equal(
+    prepare(production!, wake!, candidate!).proposal.observation.accounting.application,
+    166,
+  );
+  assert.throws(() => prepare(production!, wake!, candidate!, "windows"));
+});
 
 void test("resource observations reconcile current purposes and keep provider, billing and measured gaps separate", async () => {
   const [production, wake, candidate] = await Promise.all(
@@ -20,10 +74,39 @@ void test("resource observations reconcile current purposes and keep provider, b
   );
   assert.ok(production && wake && candidate);
   const result = observeReleaseResources(production, wake, candidate);
-  assert.equal(result.accounting.application, 89);
-  assert.equal(result.accounting.catalog_alternative, 40);
-  assert.equal(result.accounting.policy_envelope, 100);
-  assert.equal(result.policy_matches_workflow, true);
+  assert.equal(result.accounting.application, 145);
+  assert.equal(result.accounting.catalog_alternative, 48);
+  assert.equal(result.accounting.policy_envelope, 145);
+  assert.equal(result.policy_matches_workflow, false);
+  assert.equal(result.retained_catalog_review_recovery_matches_workflow, true);
+  assert.equal(result.accounting.retained_catalog_review_recovery, 25);
+  assert.equal(result.ratification_required_for_policy_change, true);
+  const appointedWake = await readFile(
+    new URL("../docs/qualification/application-update-wake.held.yml", import.meta.url),
+  );
+  assert.equal(
+    createHash("sha256").update(appointedWake).digest("hex"),
+    "7cbd3c4a2dec7380fd818a4e686b3563ee7a4ffe4381123acc80a39b339a6def",
+  );
+  const appointedProduction = Buffer.from(
+    controllerWorkflowAtCurrentNode(
+      await readFile(
+        new URL(
+          "../docs/qualification/application-update-production.windows-20261103.proposed.yml",
+          import.meta.url,
+        ),
+        "utf8",
+      ),
+    ),
+  );
+  assert.equal(
+    observeReleaseResources(appointedProduction, appointedWake, candidate).policy_matches_workflow,
+    false,
+  );
+  assert.equal(
+    observeReleaseResources(production, appointedWake, candidate).policy_matches_workflow,
+    false,
+  );
   assert.equal(result.accounting.measured_wall_seconds, null);
   assert.equal(result.accounting.account_headroom, "Unknown");
   assert.equal(result.accounting.reservation, null);
@@ -39,13 +122,15 @@ void test("resource observations reconcile current purposes and keep provider, b
   const changed: unknown = parse(production.toString("utf8"));
   assert.ok(isRecord(changed) && isRecord(changed.jobs));
   changed.jobs.native_windows = {
-    name: "Held Windows addition",
+    name: "Changed Windows native budget",
     "runs-on": "windows-2022",
     "timeout-minutes": 12,
   };
   const next = observeReleaseResources(Buffer.from(stringify(changed)), wake, candidate);
-  assert.equal(next.accounting.application, 101);
+  assert.equal(next.accounting.application, 122);
   assert.equal(next.policy_matches_workflow, false);
+  assert.equal(next.retained_catalog_review_recovery_matches_workflow, false);
+  assert.equal(next.accounting.retained_catalog_review_recovery, null);
   assert.equal(next.ratification_required_for_policy_change, true);
   assert.equal(next.accounting.provider_availability, "Unknown");
   assert.equal(capacityDigest(slice4CapacityResources), slice4CapacityResourceDigest);
@@ -64,9 +149,9 @@ void test("resource observations reconcile current purposes and keep provider, b
     { strategy: { matrix: { platform: ["a", "b"] } } },
     { uses: "./.github/workflows/extra.yml" },
   ]) {
-    const variant = structuredClone(original);
-    assert.ok(isRecord(variant.jobs) && isRecord(variant.jobs.native_linux));
-    variant.jobs.native_linux = { ...variant.jobs.native_linux, ...replacement };
+    const variant: Record<string, unknown> = structuredClone(original);
+    assert.ok(isRecord(variant.jobs) && isRecord(variant.jobs.native_windows));
+    variant.jobs.native_windows = { ...variant.jobs.native_windows, ...replacement };
     const unknown = observeReleaseResources(Buffer.from(stringify(variant)), wake, candidate);
     assert.equal(unknown.accounting.application, null);
     assert.equal(unknown.accounting.declared_unused_allocation, null);
@@ -91,7 +176,7 @@ void test("resource observations reconcile current purposes and keep provider, b
   );
 });
 
-void test("measured resource amendment remains concrete, complete and unratified under effective100", async () => {
+void test("historical measured resource amendment retains its recorded source and effective100 scope", async () => {
   const proposal = JSON.parse(
     await readFile(
       new URL(
@@ -149,7 +234,15 @@ void test("measured resource amendment remains concrete, complete and unratified
   assert.equal(linux.job_ceiling_does_not_extend_owner, true);
   assert.match(linux.full_signing_wait_fit, /^Unknown/u);
 
-  assert.equal(slice4CapacityResources.total_job_minutes, 100);
+  const historicalPolicy: unknown = JSON.parse(
+    await readFile(
+      new URL("./fixtures/release-resource-baseline-20261103/policy.json", import.meta.url),
+      "utf8",
+    ),
+  );
+  assert.ok(isRecord(historicalPolicy));
+  assert.equal(historicalPolicy.total_job_minutes, 100);
+  assert.equal(slice4CapacityResources.total_job_minutes, 145);
   assert.equal(proposal.proposed_policy.application_minutes, 165);
   assert.equal(proposal.proposed_policy.hard_cap_minutes, 165);
   assert.equal(proposal.proposed_policy.catalog_alternative_minutes, 40);
@@ -166,9 +259,9 @@ void test("measured resource amendment remains concrete, complete and unratified
   const originalProposal: unknown = JSON.parse(historical.toString("utf8"));
   assert.ok(isRecord(originalProposal) && isRecord(originalProposal.proposed_policy));
   assert.equal(originalProposal.proposed_policy.application_minutes, 163);
-  assert.equal(proposal.prepared_source.effective_policy_digest, slice4CapacityResourceDigest);
+  assert.equal(proposal.prepared_source.effective_policy_digest, capacityDigest(historicalPolicy));
   const workflow = await readFile(
-      new URL("../.github/workflows/application-update-production.yml", import.meta.url),
+      new URL("./fixtures/release-resource-baseline-20261103/production.yml", import.meta.url),
     ),
     actual = parse(workflow.toString()) as { jobs: Record<string, { "timeout-minutes": number }> };
   assert.deepEqual(
@@ -204,21 +297,34 @@ void test("measured resource amendment remains concrete, complete and unratified
   assert.equal(
     proposal.source_scope.current_policy_sha256,
     createHash("sha256")
-      .update(await readFile(new URL("./release-capacity.mts", import.meta.url)))
+      .update(
+        await readFile(
+          new URL(
+            "./fixtures/release-resource-baseline-20261103/capacity.source.txt",
+            import.meta.url,
+          ),
+        ),
+      )
       .digest("hex"),
   );
 });
 
-void test("complete source amendment projects application165/catalog40 without activating policy or native execution", async () => {
+void test("complete source amendment projects application166/catalog41 without activating policy or native execution", async () => {
   const { prepareReleaseResourceAmendmentProposal: prepare } =
       await import("./release-resource-amendment-proposal.mts"),
-    {
-      protectedWindowsNativeRuntimePreparationExecutionAuthorized,
-      prepareAdmittedWindowsNativeRuntime,
-    } = await import("./release-windows-bootstrap-runtime.mts");
+    { protectedWindowsNativeRuntimePreparationExecutionAuthorized } =
+      await import("./release-windows-bootstrap-runtime.mts");
   const [production, wake, candidate] = await Promise.all(
     ["application-update-production.yml", "application-update-wake.yml", "release.yml"].map(
-      (name) => readFile(new URL("../.github/workflows/" + name, import.meta.url)),
+      (name) =>
+        readFile(
+          new URL(
+            name === "application-update-production.yml"
+              ? "./fixtures/release-resource-baseline-20261103/production.yml"
+              : "../.github/workflows/" + name,
+            import.meta.url,
+          ),
+        ),
     ),
   );
   assert.ok(production && wake && candidate);
@@ -227,11 +333,11 @@ void test("complete source amendment projects application165/catalog40 without a
   assert.ok(production.equals(original));
   assert.equal(result.proposal.authority, "none");
   assert.equal(result.proposal.status, "PROPOSAL ONLY; NOT RATIFIED");
-  assert.equal(result.proposal.observation.accounting.application, 165);
-  assert.equal(result.proposal.observation.accounting.catalog_alternative, 40);
-  assert.equal(result.proposal.observation.accounting.policy_envelope, 100);
-  assert.equal(slice4CapacityResources.total_job_minutes, 100);
-  assert.equal(result.proposal.proposed_resources.total_job_minutes, 165);
+  assert.equal(result.proposal.observation.accounting.application, 166);
+  assert.equal(result.proposal.observation.accounting.catalog_alternative, 41);
+  assert.equal(result.proposal.observation.accounting.policy_envelope, 145);
+  assert.equal(slice4CapacityResources.total_job_minutes, 145);
+  assert.equal(result.proposal.proposed_resources.total_job_minutes, 166);
   assert.equal(
     result.proposal.proposed_resource_digest,
     capacityDigest(result.proposal.proposed_resources),
@@ -294,8 +400,31 @@ void test("complete source amendment projects application165/catalog40 without a
     createHash("sha256").update(result.proposedWorkflow).digest("hex"),
   );
   assert.equal(
+    result.proposal.proposed_resources.wake_workflow_sha256,
+    createHash("sha256").update(wake).digest("hex"),
+  );
+  // Reproduce the dated proposal's wake identity separately from the current
+  // proposal, which must bind the installed source bytes above.
+  const historicalPolicy: unknown = JSON.parse(
+    await readFile(
+      new URL("./fixtures/release-resource-baseline-20261103/policy.json", import.meta.url),
+      "utf8",
+    ),
+  );
+  assert.ok(
+    isRecord(historicalPolicy) && typeof historicalPolicy.wake_workflow_sha256 === "string",
+  );
+  assert.equal(
     receipt.prepared_source.proposed_resource_digest,
-    result.proposal.proposed_resource_digest,
+    capacityDigest({
+      ...result.proposal.proposed_resources,
+      wake_workflow_sha256: historicalPolicy.wake_workflow_sha256,
+      wake_job_minutes: [1],
+      declared_job_minutes: 165,
+      catalog_declared_job_minutes: 40,
+      purpose_accounting: "mutually-exclusive-max-application165-catalog40",
+      total_job_minutes: 165,
+    }),
   );
   for (const row of receipt.jobs) {
     assert.ok(isRecord(row) && typeof row.job === "string");
@@ -328,11 +457,8 @@ void test("complete source amendment projects application165/catalog40 without a
     (step: unknown) => isRecord(step) && step.uses === "./.github/actions/release-native-windows",
   );
   assert.equal(stages.length, 2);
-  assert.equal(protectedWindowsNativeRuntimePreparationExecutionAuthorized, false);
-  await assert.rejects(
-    prepareAdmittedWindowsNativeRuntime(),
-    /Protected Windows runtime preparation remains held/u,
-  );
+  assert.equal(protectedWindowsNativeRuntimePreparationExecutionAuthorized, true);
+  // The amendment helper cannot appoint runtime authority; held-entry refusal remains covered in its isolated source-gate fixture.
   const changed: unknown = parse(production.toString());
   assert.ok(isRecord(changed) && isRecord(changed.jobs) && isRecord(changed.jobs.tool_bootstrap));
   changed.jobs.tool_bootstrap["timeout-minutes"] = 5;
@@ -405,7 +531,15 @@ void test("prepared publication waits for both native proofs without changing le
     await import("./release-resource-amendment-proposal.mts");
   const bytes = await Promise.all(
     ["application-update-production.yml", "application-update-wake.yml", "release.yml"].map(
-      (name) => readFile(new URL("../.github/workflows/" + name, import.meta.url)),
+      (name) =>
+        readFile(
+          new URL(
+            name === "application-update-production.yml"
+              ? "./fixtures/release-resource-baseline-20261103/production.yml"
+              : "../.github/workflows/" + name,
+            import.meta.url,
+          ),
+        ),
     ),
   );
   const proposed: unknown = parse(

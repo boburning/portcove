@@ -6,6 +6,7 @@
     "name": "Mega Man 64 Recompiled",
     "summary": "Native Mega Man 64 recompilation.",
     "project_url": "https://github.com/MegaMan64Recomp/MegaMan64Recompiled",
+    "listed_at": "2026-10-23",
     "original_game_title": "Mega Man 64",
     "artwork": {
       "game_id": 400965,
@@ -25,7 +26,8 @@
     "manually_validated_platforms": ["windows-x86-64"],
     "adapter": "n64-recomp-portable",
     "release": {
-      "repository": "MegaMan64Recomp/MegaMan64Recompiled"
+      "repository": "MegaMan64Recomp/MegaMan64Recompiled",
+      "archive_file_links": true
     },
     "source_profile": "mega-man-64",
     "executable_hints": {

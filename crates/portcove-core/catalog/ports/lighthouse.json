@@ -15,12 +15,36 @@
       "game_slug": "banjo-kazooie",
       "match_kind": "underlying-game"
     },
-    "issue_number": 62
+    "issue_number": 62,
+    "listed_at": "2026-10-23",
+    "availability": "packages",
+    "release_url": "https://github.com/HarbourMasters/Lighthouse/releases",
+    "setup_url": "https://github.com/HarbourMasters/Lighthouse/releases",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "macOS: get the upstream application",
+          "instruction": "Windows and Linux use Portcove’s managed Install route where offered. On macOS, get the Mac ZIP from the upstream Releases page. The release is a ZIP holding a disk image, and Portcove cannot extract or manage replacement of a disk image. Open the disk image yourself and copy the complete application to a permanent folder you choose."
+        },
+        {
+          "title": "macOS: register the copy and choose Play",
+          "instruction": "Use Choose existing installation and select the Lighthouse executable inside the copied application bundle (in its Contents/MacOS folder). Review the executable and launch location, then choose Play explicitly. Supply your own matching original in the game’s own picker. Follow upstream instructions for updates to this copy."
+        },
+        {
+          "title": "macOS: keep the app data separate",
+          "instruction": "Portcove does not own this copy, its data, update, backup or rollback. Check the upstream readme for where this build keeps settings and saves, and preserve that folder and your original separately before replacing the application."
+        }
+      ],
+      "warnings": [
+        "Portcove has no native macOS execution result for this port. An external registration gives Portcove no ownership of the copy."
+      ],
+      "help_url": "https://github.com/HarbourMasters/Lighthouse/releases"
+    }
   },
   "integration": {
     "support_tier": "stable",
     "channels": ["stable"],
-    "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
+    "platforms": ["windows-x86-64", "linux-x86-64"],
     "adapter": "libultraship-portable",
     "automated_tested_platforms": ["windows-x86-64"],
     "manually_validated_platforms": ["windows-x86-64"],
@@ -30,9 +54,7 @@
     "source_profile": "banjo-kazooie",
     "executable_hints": {
       "windows-x86-64": ["lighthouse.exe"],
-      "linux-x86-64": ["lighthouse"],
-      "macos-x86-64": ["lighthouse"],
-      "macos-aarch64": ["lighthouse"]
+      "linux-x86-64": ["lighthouse.appimage"]
     },
     "persistent_paths": [
       "mods",

@@ -8,6 +8,8 @@ import type { ArtworkSlot, ArtworkState, PortDefinition } from "../types";
 import { errorText, formatBytes } from "../view-model";
 import { Button } from "./ui/button";
 import { ExternalLink } from "./ExternalLink";
+import { SteamGridDbPicker, steamGridDbErrorText } from "./SteamGridDbPicker";
+import type { SteamGridDbCandidate } from "../types";
 
 export function ArtworkImage({
   port,
@@ -96,8 +98,14 @@ export function ArtworkFrame({
       ) : (
         <span className={styles.initials}>{fallback?.initials ?? "PC"}</span>
       )}
+      {image && (
+        <span
+          className={styles.backdrop}
+          style={{ backgroundImage: `url(${JSON.stringify(image)})` }}
+        />
+      )}
       {!identityArtwork && notice && (
-        <small className="artwork-image-note absolute inset-x-0 bottom-0 bg-pc-scrim p-2 text-[length:var(--text-2xs)] leading-tight text-[var(--color-art-text)]">
+        <small className="artwork-image-note absolute inset-x-0 bottom-0 z-2 bg-pc-scrim p-2 text-[length:var(--text-2xs)] leading-tight text-[var(--color-art-text)]">
           {notice}
         </small>
       )}
@@ -125,7 +133,11 @@ function DetailArtwork({ port }: { port: Pick<PortDefinition, "id"> }) {
   );
 }
 
-export function ArtworkControls({ port }: { port: Pick<PortDefinition, "id"> }) {
+export function ArtworkControls({
+  port,
+}: {
+  port: Pick<PortDefinition, "id"> & { name?: string };
+}) {
   const [open, setOpen] = useState(false);
   return (
     <details className="artwork-controls" onToggle={(event) => setOpen(event.currentTarget.open)}>
@@ -147,9 +159,10 @@ function ArtworkSlotControl({
   port,
   slot,
 }: {
-  port: Pick<PortDefinition, "id">;
+  port: Pick<PortDefinition, "id"> & { name?: string };
   slot: ArtworkSlot;
 }) {
+  const [findOpen, setFindOpen] = useState(false);
   const { cache, display } = useArtwork(port.id, slot);
   const [pending, setPending] = useState(false);
   const [message, setMessage] = useState<string>();
@@ -237,6 +250,41 @@ function ArtworkSlotControl({
     }
   };
 
+  const chooseSteamGridDb = async (gameId: number, candidate: SteamGridDbCandidate) => {
+    if (!cache || !display.state || busy.current) return;
+    const revision = display.state.choice.revision;
+    busy.current = true;
+    returnFocus.current = null;
+    setPending(true);
+    setMessage(undefined);
+    setError(undefined);
+    try {
+      const result = await cache.chooseSteamGridDb(
+        port.id,
+        slot,
+        revision,
+        gameId,
+        candidate.id,
+        stillCurrent,
+      );
+      if (result && stillInView()) {
+        if (currentIdentity.current.cache !== cache) await refreshCurrent(result.choice.revision);
+        if (!stillInView()) return;
+        setFindOpen(false);
+        setMessage(
+          `SteamGridDB image chosen. Image by ${candidate.author.name}; Portcove keeps a local copy.`,
+        );
+      }
+    } catch (value) {
+      if (stillInView()) {
+        setError(steamGridDbErrorText(value));
+        await refreshCurrent();
+      }
+    } finally {
+      finishChange(true);
+    }
+  };
+
   const label = slot === "cover" ? "Cover image" : "Detail image";
   return (
     <section
@@ -272,6 +320,15 @@ function ArtworkSlotControl({
         <Button
           data-focusable
           variant="outline"
+          aria-expanded={findOpen}
+          disabled={pending || !display.state || display.stale}
+          onClick={() => setFindOpen((open) => !open)}
+        >
+          Find on SteamGridDB
+        </Button>
+        <Button
+          data-focusable
+          variant="outline"
           disabled={pending || display.loading}
           onClick={() => {
             void cache?.load(port.id, slot, true);
@@ -280,6 +337,14 @@ function ArtworkSlotControl({
           Refresh artwork
         </Button>
       </div>
+      {findOpen && (
+        <SteamGridDbPicker
+          slot={slot}
+          initialTerm={port.name ?? ""}
+          disabled={pending || !display.state || Boolean(display.stale)}
+          choose={(gameId, candidate) => void chooseSteamGridDb(gameId, candidate)}
+        />
+      )}
       <p className="artwork-notice text-[length:var(--text-sm)] text-[var(--color-text-muted)]">
         Static PNG or JPEG, up to 16 MiB. Portcove keeps a local copy.
       </p>
@@ -349,6 +414,43 @@ export function ArtworkSource({
       <FallbackSource state={state} />
     ) : (
       <p>Artwork information is unavailable. Refresh to try again.</p>
+    );
+  const credits = state.attribution;
+  if (credits.length > 0)
+    return (
+      <dl>
+        <dt>Source</dt>
+        <dd>
+          {credits.map((credit) => (
+            <span key={`${credit.provider}:${credit.asset_id}`} className="block">
+              <ExternalLink
+                href={`https://www.steamgriddb.com/${credit.role === "hero_banner" ? "hero" : "grid"}/${credit.asset_id}`}
+              >
+                SteamGridDB image {credit.asset_id}
+              </ExternalLink>{" "}
+              by {credit.author_name}
+            </span>
+          ))}
+        </dd>
+        <dt>Image</dt>
+        <dd>
+          {asset.width} × {asset.height} · {asset.format.toUpperCase()} ·{" "}
+          {formatBytes(asset.byte_size)} · local copy
+        </dd>
+        <dt>Chosen</dt>
+        <dd>{new Date((credits[0]?.fetched_at ?? asset.imported_at) * 1000).toLocaleString()}</dd>
+        <dt>Author and license</dt>
+        <dd>
+          Made by the credited SteamGridDB artist. Use it under SteamGridDB's terms; Portcove does
+          not grant permission to share it.
+        </dd>
+        {renderedSource === "generated_fallback" && (
+          <>
+            <dt>Displayed artwork</dt>
+            <dd>Generated fallback; the chosen image is not currently rendered.</dd>
+          </>
+        )}
+      </dl>
     );
   return (
     <dl>

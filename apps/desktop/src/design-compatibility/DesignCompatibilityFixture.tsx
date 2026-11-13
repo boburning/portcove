@@ -141,13 +141,13 @@ export function DesignCompatibilityFixture() {
             <DialogHeader>
               <DialogTitle>Review installation</DialogTitle>
               <DialogDescription id="fixture-dialog-description">
-                Select a release channel before continuing. No download or installation runs in this
+                Select a update channel before continuing. No download or installation runs in this
                 fixture.
               </DialogDescription>
             </DialogHeader>
 
             <label className="design-compatibility-field" htmlFor="fixture-channel">
-              <span>Release channel</span>
+              <span>Update channel</span>
               <Select
                 open={selectOpen}
                 onOpenChange={(open, eventDetails) => {
@@ -165,7 +165,7 @@ export function DesignCompatibilityFixture() {
                 value={channel}
                 onValueChange={(value) => setChannel(value ?? "stable")}
               >
-                <SelectTrigger id="fixture-channel" aria-label="Release channel">
+                <SelectTrigger id="fixture-channel" aria-label="Update channel">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>

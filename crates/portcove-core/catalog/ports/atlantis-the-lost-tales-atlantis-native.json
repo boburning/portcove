@@ -3,11 +3,9 @@
   "listing": {
     "id": "atlantis-the-lost-tales-atlantis-native",
     "name": "Atlantis: The Lost Tales (Atlantis Native)",
-    "summary": "Research listing. Upstream route: Native Rust port, no game data included, current desktop release packages. Limits: New native implementation with broad original-edition data support; completion claims remain upstream-only. Upstream platforms: Windows x86-64 ZIP; macOS Apple-Silicon ARM64 DMG; Linux x86-64 and ARM64 archives (glibc2.35+). Web nightly archive is a separate browser route. Original data: Supply owned Atlantis: The Lost Tales game files: a supported GOG installation or CD-derived folder with atlantis.exe and BIGCD1.BIG through BIGCD4.BIG (or the supported four disc images). Retained README accepts English 1997/2001, French May/August 1997, German August 1997, Dutch/Swedish June 1997, Spanish August 1997, Italian July 1997, patched 1.01/1999 and specified 1998 Traditional/1999 Simplified Chinese editions; preserve the selected release/language. Portcove setup/gameplay not verified.",
+    "summary": "A native engine for Atlantis: The Lost Tales using your own original game data.",
     "original_game_title": "Atlantis: The Lost Tales",
     "project_url": "https://github.com/ripleyXLR8/atlantis-native",
-    "platforms": [],
-    "availability": "unknown",
     "setup_url": "https://github.com/ripleyXLR8/atlantis-native",
     "artwork": {
       "game_id": 2209,
@@ -17,7 +15,35 @@
       "game_slug": "atlantis-the-lost-tales",
       "match_kind": "underlying-game"
     },
-    "issue_number": 2876
+    "issue_number": 2876,
+    "listed_at": "2026-10-25",
+    "platforms": ["macos-x86-64", "macos-aarch64"],
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Choose your edition of Atlantis",
+          "instruction": "In Atlantis Native, add your own Atlantis: The Lost Tales edition with matching atlantis.exe and BIGCD1.BIG through BIGCD4.BIG. Keep the complete original folder. Use the upstream edition table for the exact language and build."
+        },
+        {
+          "title": "Start the Linux desktop player",
+          "instruction": "Extract the matching v0.6.0 Linux tar.gz and open atlantis-native. Both the x86-64 and ARM64 builds need glibc 2.35 or later and ALSA. On Windows 11 ARM, choose the Windows ARM64 ZIP and keep its folder together. Maintain the ARM builds through upstream."
+        }
+      ],
+      "warnings": [
+        "Preserve the original data and whole effective profile, including games.txt, settings and the edition-specific checkpoint directory. The player shares this profile between copies on the same account."
+      ],
+      "references": [
+        {
+          "title": "Open the matching Mac app",
+          "instruction": "Choose the Intel or Apple silicon v0.6.0 DMG, copy Atlantis Native.app out of it and open it on macOS 11 or later. Keep ~/Library/Application Support/atlantis-native. On Linux the profile normally uses $XDG_DATA_HOME/atlantis-native or ~/.local/share/atlantis-native."
+        },
+        {
+          "title": "Set up the PortMaster edition",
+          "instruction": "On a compatible ARM64 PortMaster device, unpack the v0.6.0 PortMaster ZIP into ports and put your original first-game files in ports/atlantisnative/gamedata. Use the firmware menu to launch it. Keep the port folder, its saves directory and any ATLANTIS_SAVES override. This build needs the firmware SDL2 and glibc 2.31 or later."
+        }
+      ],
+      "help_url": "https://github.com/ripleyXLR8/atlantis-native/blob/44ad4d0f9c1ccd449c6d895ee6a7bf4f798d3df7/README.md"
+    }
   },
   "upstream_lineage": {
     "format_version": 1,
@@ -30,5 +56,39 @@
       }
     },
     "decisions": []
+  },
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64", "linux-x86-64"],
+    "adapter": "native-portable",
+    "release": {
+      "repository": "ripleyXLR8/atlantis-native",
+      "asset_hints": {
+        "windows-x86-64": ["atlantis-native-windows-x64.zip"],
+        "linux-x86-64": ["atlantis-native-linux-x64.tar.gz"]
+      }
+    },
+    "executable_hints": {
+      "windows-x86-64": ["atlantis-native.exe"],
+      "linux-x86-64": ["atlantis-native"]
+    },
+    "persistent_paths": ["atlantis-native-data"],
+    "presentation": {
+      "installation_method": "portable-package",
+      "source_requirements": [],
+      "saves_and_settings": "external-user-owned",
+      "manual_preparation": "On Play, use the upstream in-process library and original-data picker with your own supported Atlantis: The Lost Tales copy: the edition-matched atlantis.exe and BIGCD1.BIG through BIGCD4.BIG. Keep the complete original tree and supported language/build together; GOG and supported CD editions are alternatives, not interchangeable executables. Upstream can prepare your own discs/images; no game content is downloaded by this engine operation. This offer is Atlantis I only. Normal logs, games.txt, per-build players/checkpoints/settings live under the current account’s AppData/atlantis-native on Windows or XDG data home on Linux; when that location is unavailable the dedicated atlantis-native-data directory is relative to the creating runtime. Core preserves that declared local directory; it does not import or back up the shared external profile or originals. Preserve all actual original/profile roots and the compatible creating engine before changes. Normal start remains in one process; adding a second engine copy does not isolate shared profiles. The Linux x86-64 player requires glibc 2.35 or later and ALSA."
+    },
+    "reviewed_package_layouts": {
+      "windows-x86-64": {
+        "directories": [],
+        "executables": ["atlantis-native.exe"]
+      },
+      "linux-x86-64": {
+        "directories": [],
+        "executables": ["atlantis-native"]
+      }
+    }
   }
 }

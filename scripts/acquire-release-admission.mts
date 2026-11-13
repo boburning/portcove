@@ -1,5 +1,10 @@
+import type { CoordinatorRemoteApi } from "./release-coordinator-remote.mts";
+import { applicationPublicBuildInputs } from "./release-authority-configuration-contract.mts";
+import { applicationReleaseProfile } from "./release-authority-configuration-contract.mts";
+import { isInitialBetaReleaseProfile } from "./release-package-policy.mts";
 import {
   createReleasePublicationReader,
+  createPublicationInventoryWithSdk,
   peelReleaseReference,
   releasePublicationRefsQuery as refsQuery,
 } from "./release-publication-inventory.mts";
@@ -13,9 +18,11 @@ import { readFile, mkdtemp, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { performance } from "node:perf_hooks";
 import { fileURLToPath } from "node:url";
-import { GitHubApiClient, createGitHubRunner } from "./github-api.mts";
+import { nextLink } from "./github-operation.mts";
+import type { GitHubMetadataResponse } from "./github-operation.mts";
 import { recoverRemoteCoordinator } from "./release-coordinator-recovery.mts";
 import { collectReleaseRunEvidence } from "./release-run-evidence.mts";
+import type { ReleaseEvidenceOptions } from "./release-run-evidence.mts";
 import {
   collectReleaseSbomEvidence,
   requireVerifiedReleaseSbomDocument,
@@ -28,8 +35,9 @@ import {
 import {
   requiredCheckContexts,
   requiredContextsFromConfigs,
-  PullRequestDeliveryClient,
-} from "./pr-delivery.mts";
+  checkMetadata,
+  statusMetadata,
+} from "./pr-delivery-snapshot.mts";
 import {
   loadPackagePolicy,
   releaseLabels,
@@ -37,12 +45,20 @@ import {
   inspectReleaseProfile,
   selectReleasePackagePolicy,
 } from "./release-package-policy.mts";
-import { readGitHubArtifactArchive } from "./github-binary.mts";
+import type { SigningArchiveDownload } from "./release-signing-handoff.mts";
+import { acquirePackageArchive } from "./release-artifact-assembly.mts";
+import { coordinatorCommandDeadline } from "./release-coordinator-deadline.mts";
+import {
+  fixedReleaseReaderToken,
+  readOnlyReleaseChildEnvironment,
+} from "./release-readonly-child-environment.mts";
+import { assertTrustedDirectNode } from "./release-direct-node-transport.mts";
 import { discoverReleaseArtifactFiles } from "./release-artifact-archive.mts";
 import { inspectTrustedAssemblyInput } from "./trusted-release-assembly.mts";
 import {
   inspectPublicBuildConfiguration,
   selectPublicBuildInputBinding,
+  publicBuildReadCredential,
   verifyReleasePublicBuildInputs,
   requireStablePublicBuildInputEvidence,
   requireVerifiedReleasePublicBuildInputs,
@@ -52,7 +68,11 @@ import {
   classifyApplicationVersion,
   parseVersionClassification,
 } from "../apps/desktop/scripts/release-version-policy.mts";
-import { collectReleaseSourceChanges, netTreeDeltaScope } from "./release-source-changes.mts";
+import {
+  collectReleaseSourceChanges,
+  collectReleaseSourceChangesWithSdk,
+  netTreeDeltaScope,
+} from "./release-source-changes.mts";
 import { isRecord } from "./runtime-values.mts";
 import { isDeepStrictEqual } from "node:util";
 import { retainAggregateStepReceipt } from "./production-aggregate-steps.mts";
@@ -89,6 +109,7 @@ const qualifyingCollections = new WeakSet<object>();
 const nativePreparationCollections = new WeakSet<object>();
 const aggregateCollections = new WeakSet<object>();
 const publicationCompletionCollections = new WeakSet<object>();
+const scopedControlCollections = new WeakSet<object>();
 const aggregateReadbacks = new WeakSet<object>();
 const acquiredCandidates = new WeakMap<object, Readonly<Record<string, unknown>>>();
 export interface ActualCandidateBuildingEligibility {
@@ -124,7 +145,7 @@ export function inspectAdmissionNativeStage(
     return "release-publication";
   throw new Error("actual admission context cannot appoint another execution stage");
 }
-type Api = Pick<GitHubApiClient, "request" | "graphql">;
+type Api = CoordinatorRemoteApi;
 type Recover = (...args: Parameters<typeof recoverRemoteCoordinator>) => Promise<unknown>;
 export interface PreparedReleaseAdmissionFacts {
   checkpoint: string;
@@ -133,7 +154,7 @@ export interface PreparedReleaseAdmissionFacts {
   assembly: unknown;
   archives: readonly { platform: string; artifact_id: number; bytes: number; sha256: string }[];
   public_build_inputs: unknown;
-  evidence: ReturnType<typeof collectReleaseRunEvidence>;
+  evidence: Awaited<ReturnType<typeof collectReleaseRunEvidence>>;
   contexts: unknown;
   allocations: unknown;
   compiler_evidence?: unknown;
@@ -261,7 +282,7 @@ function configuration(raw: unknown) {
       (value.schema_version === 2 &&
         Object.keys(value).sort().join(",") === "namespace,release_profile,schema_version") ||
       (value.schema_version === 3 &&
-        value.release_profile === "initial-beta-win-linux" &&
+        isInitialBetaReleaseProfile(value.release_profile) &&
         Object.keys(value).sort().join(",") ===
           "namespace,public_build_inputs,release_profile,schema_version")
     ) ||
@@ -270,6 +291,8 @@ function configuration(raw: unknown) {
     value.namespace.length > 64
   )
     throw new Error("admission needs separately ratified coordinator configuration");
+  if (value.release_profile === "initial-beta-windows-x86_64-v1" && value.schema_version !== 3)
+    throw new Error("Windows initial beta requires independently bound public build inputs");
   return {
     schema_version: value.schema_version,
     namespace: value.namespace,
@@ -296,7 +319,7 @@ export async function acquireHostedNativePreparation(
   configuration: unknown,
   sources: Pick<
     NonNullable<Parameters<typeof acquireReleaseAdmission>[2]>,
-    "api" | "recover" | "download" | "retainDesktopPackage"
+    "api" | "nativeSource" | "collectEvidence" | "recover" | "download" | "retainDesktopPackage"
   >,
   receiveFacts: (facts: Readonly<PreparedReleaseAdmissionFacts>) => Promise<unknown>,
 ) {
@@ -307,6 +330,8 @@ export async function acquireHostedNativePreparation(
     throw new Error("native preparation requires the original pre-sign source");
   const collection: NonNullable<Parameters<typeof acquireReleaseAdmission>[2]> = {
     ...(sources.api ? { api: sources.api } : {}),
+    ...(sources.nativeSource ? { nativeSource: sources.nativeSource } : {}),
+    ...(sources.collectEvidence ? { collectEvidence: sources.collectEvidence } : {}),
     ...(sources.recover ? { recover: sources.recover } : {}),
     ...(sources.download ? { download: sources.download } : {}),
     ...(sources.retainDesktopPackage ? { retainDesktopPackage: sources.retainDesktopPackage } : {}),
@@ -327,12 +352,15 @@ export async function acquireReleaseAdmission(
   rawConfiguration: unknown,
   rawOptions: {
     api?: Api;
+    nativeSource?: { token: string; deadline: number; guard: () => void };
+    collectEvidence?: typeof collectReleaseRunEvidence;
     recover?: Recover;
-    download?: typeof readGitHubArtifactArchive;
+    download?: SigningArchiveDownload;
     now?: () => number;
     capacity?: { ratification: unknown; readBoundary: () => Promise<unknown> };
     controls?: AuthenticatedReleaseControlSource;
     controlPhase?: ReleaseControlPhase;
+    deadline?: number;
     compiler?: ReleaseCompilerAdmissionPrerequisite;
     // Inert updater package custody only; full archive verification precedes it.
     retainDesktopPackage?: NonNullable<
@@ -351,15 +379,32 @@ export async function acquireReleaseAdmission(
     ) => Promise<AuthenticatedReleaseControlSource>;
   } = {},
 ) {
+  if (rawOptions.collectEvidence && !rawOptions.api && !rawOptions.nativeSource)
+    throw new Error("custom release evidence requires its original source reader");
+  if (
+    rawOptions.nativeSource &&
+    (rawOptions.api ||
+      rawOptions.controls ||
+      rawOptions.establishControls ||
+      rawOptions.compiler ||
+      !rawOptions.collectEvidence ||
+      !rawOptions.recover ||
+      !rawOptions.download)
+  )
+    throw new Error("native selection requires the original read-only admission sources");
   const qualifyingOnly = qualifyingCollections.has(rawOptions);
   const nativePreparation = nativePreparationCollections.has(rawOptions);
   const aggregateResume = aggregateCollections.has(rawOptions);
   const allowPublicationCompletion = publicationCompletionCollections.has(rawOptions);
+  const scopedControls = scopedControlCollections.has(rawOptions);
   // Preserve actual/injected transport provenance and capability references
   // throughout asynchronous acquisition. A caller cannot clear an injected
   // option after collection to obtain a production context.
   const options = Object.freeze({
     ...rawOptions,
+    ...(rawOptions.nativeSource
+      ? { nativeSource: Object.freeze({ ...rawOptions.nativeSource }) }
+      : {}),
     ...(rawOptions.compiler
       ? {
           compiler: Object.freeze({
@@ -388,80 +433,98 @@ export async function acquireReleaseAdmission(
     : undefined;
   const config = configuration(structuredClone(rawConfiguration));
   const started = performance.now();
+  const nativeSource = options.nativeSource;
+  const inventoryEnvironment = options.api || nativeSource ? undefined : { ...process.env };
   const root = await mkdtemp(path.join(path.resolve(privateRoot), "release-admission-"));
   let phase = "initialize";
   let checkpoint: string | null = null;
   let requests = 0;
   try {
-    const rawApi =
-      options.api ??
-      new GitHubApiClient((args, input) =>
-        createGitHubRunner({ cwd: root, maxBuffer: 2 * 1024 * 1024, timeoutMs: 15000 })(
-          [...args, "--hostname", "github.com"],
-          input,
-        ),
-      );
+    const rawApi = options.api;
     let apiMilliseconds = 0;
+    const admissionDeadline = Math.min(
+      started + 15 * 60 * 1000,
+      options.deadline ?? Infinity,
+      nativeSource?.deadline ?? Infinity,
+      options.api ? Infinity : (coordinatorCommandDeadline() ?? Infinity),
+    );
     const budget = () => {
-      if (
-        ++requests > 160 ||
-        apiMilliseconds > 120000 ||
-        performance.now() - started > 15 * 60 * 1000
-      )
+      if (requests >= 160 || apiMilliseconds >= 120000 || performance.now() >= admissionDeadline)
         throw new Error("admission API acquisition bound exhausted");
+      requests++;
+    };
+    const reserveProviderRequest = () => {
+      budget();
+      return {
+        consumeBytes() {},
+        settle(observation: { dispatched: boolean }) {
+          if (!observation.dispatched) requests--;
+        },
+      };
+    };
+    const archiveLookup = () => ({
+      deadline: Math.min(admissionDeadline, performance.now() + 120000 - apiMilliseconds),
+      reserve: reserveProviderRequest,
+      elapsed: (milliseconds: number) => {
+        apiMilliseconds += milliseconds;
+      },
+    });
+    const assertAdmissionRestRead = (method: string, url: URL, body?: unknown) => {
+      const route = url.pathname.slice(`/repos/${repository}`.length);
+      const comparison = /^\/compare\/[a-f0-9]{40}\.\.\.[a-f0-9]{40}$/u.test(route);
+      const tree = /^\/git\/trees\/[a-f0-9]{40}$/u.test(route);
+      const collection =
+        comparison ||
+        /^(?:\/releases|\/actions\/runs\/[1-9][0-9]*\/(?:artifacts|attempts\/[1-9][0-9]*\/jobs)|\/commits\/[a-f0-9]{40}\/(?:check-runs|status))$/u.test(
+          route,
+        );
+      const contents = route === "/contents/.github/workflows/release.yml";
+      const single =
+        route === "" ||
+        /^\/(?:git\/(?:commits|blobs)\/[a-f0-9]{40}|check-runs\/[1-9][0-9]*|actions\/runs\/[1-9][0-9]*(?:\/attempts\/[1-9][0-9]*)?)$/u.test(
+          route,
+        );
+      const keys = [...url.searchParams.keys()];
+      if (
+        method !== "GET" ||
+        body != null ||
+        url.origin !== "https://api.github.com" ||
+        url.username ||
+        url.password ||
+        url.hash ||
+        (url.pathname !== `/repos/${repository}` &&
+          !url.pathname.startsWith(`/repos/${repository}/`)) ||
+        (!collection && !contents && !single && !tree) ||
+        new Set(keys).size !== keys.length ||
+        keys.some(
+          (key) =>
+            !(
+              collection
+                ? ["per_page", "page", ...(route.endsWith("/check-runs") ? ["filter"] : [])]
+                : tree
+                  ? ["recursive"]
+                  : contents
+                    ? ["ref"]
+                    : []
+            ).includes(key),
+        ) ||
+        (collection &&
+          (url.searchParams.get("per_page") !== "100" ||
+            (url.searchParams.has("page") &&
+              !/^(?:[1-9]|1[0-6])$/u.test(url.searchParams.get("page") ?? "")))) ||
+        (route.endsWith("/check-runs") && url.searchParams.get("filter") !== "latest") ||
+        (tree && keys.length !== 0 && url.searchParams.get("recursive") !== "1") ||
+        (contents && !/^[a-f0-9]{40}$/u.test(url.searchParams.get("ref") ?? ""))
+      )
+        throw new Error("admission traversal escaped its remote-read-only repository");
     };
     const api: Api = {
       request(method, endpoint, body) {
         const url = new URL(
           endpoint.startsWith("https:") ? endpoint : `https://api.github.com/${endpoint}`,
         );
-        const route = url.pathname.slice(`/repos/${repository}`.length);
-        const comparison = /^\/compare\/[a-f0-9]{40}\.\.\.[a-f0-9]{40}$/u.test(route);
-        const tree = /^\/git\/trees\/[a-f0-9]{40}$/u.test(route);
-        const collection =
-          comparison ||
-          /^(?:\/releases|\/actions\/runs\/[1-9][0-9]*\/(?:artifacts|attempts\/[1-9][0-9]*\/jobs)|\/commits\/[a-f0-9]{40}\/(?:check-runs|status))$/u.test(
-            route,
-          );
-        const contents = route === "/contents/.github/workflows/release.yml";
-        const single =
-          route === "" ||
-          /^\/(?:git\/(?:commits|blobs)\/[a-f0-9]{40}|check-runs\/[1-9][0-9]*|actions\/runs\/[1-9][0-9]*(?:\/attempts\/[1-9][0-9]*)?)$/u.test(
-            route,
-          );
-        const keys = [...url.searchParams.keys()];
-        if (
-          method !== "GET" ||
-          body != null ||
-          url.origin !== "https://api.github.com" ||
-          url.username ||
-          url.password ||
-          url.hash ||
-          (url.pathname !== `/repos/${repository}` &&
-            !url.pathname.startsWith(`/repos/${repository}/`)) ||
-          (!collection && !contents && !single && !tree) ||
-          new Set(keys).size !== keys.length ||
-          keys.some(
-            (key) =>
-              !(
-                collection
-                  ? ["per_page", "page", ...(route.endsWith("/check-runs") ? ["filter"] : [])]
-                  : tree
-                    ? ["recursive"]
-                    : contents
-                      ? ["ref"]
-                      : []
-              ).includes(key),
-          ) ||
-          (collection &&
-            (url.searchParams.get("per_page") !== "100" ||
-              (url.searchParams.has("page") &&
-                !/^(?:[1-9]|1[0-6])$/u.test(url.searchParams.get("page") ?? "")))) ||
-          (route.endsWith("/check-runs") && url.searchParams.get("filter") !== "latest") ||
-          (tree && keys.length !== 0 && url.searchParams.get("recursive") !== "1") ||
-          (contents && !/^[a-f0-9]{40}$/u.test(url.searchParams.get("ref") ?? ""))
-        )
-          throw new Error("admission traversal escaped its remote-read-only repository");
+        assertAdmissionRestRead(method, url, body);
+        if (!rawApi) throw new Error("admission has no synchronous provider");
         budget();
         const requestStarted = performance.now();
         const response = rawApi.request("GET", endpoint);
@@ -469,7 +532,7 @@ export async function acquireReleaseAdmission(
         if (
           response.status !== 200 ||
           apiMilliseconds > 120000 ||
-          performance.now() - started > 15 * 60 * 1000
+          performance.now() >= admissionDeadline
         )
           throw new Error("admission API source unavailable or late");
         return response;
@@ -477,23 +540,73 @@ export async function acquireReleaseAdmission(
       graphql(query, variables) {
         if (query !== refsQuery && query !== releaseControlRefQuery)
           throw new Error("admission permits only the fixed read-only ref query");
+        if (!rawApi) throw new Error("admission has no synchronous provider");
         budget();
         const requestStarted = performance.now();
         const response = rawApi.graphql(query, variables);
         apiMilliseconds += performance.now() - requestStarted;
-        if (apiMilliseconds > 120000 || performance.now() - started > 15 * 60 * 1000)
+        if (apiMilliseconds > 120000 || performance.now() >= admissionDeadline)
           throw new Error("admission ref acquisition was late");
         return response;
       },
     };
     phase = "repository-and-reservation";
-    const publicationReader = createReleasePublicationReader(api);
-    const { tags, releases } = publicationReader;
+    const inventoryToken =
+      nativeSource?.token ??
+      (inventoryEnvironment && fixedReleaseReaderToken(inventoryEnvironment));
+    const checkReadTime = () => {
+      nativeSource?.guard();
+      if (performance.now() >= archiveLookup().deadline)
+        throw new Error("admission API acquisition bound exhausted");
+    };
+    const readControls = async (
+      selected: AuthenticatedReleaseControlSource,
+      opportunity: unknown,
+    ) => {
+      if (!scopedControls) return selected.read(api, opportunity);
+      checkReadTime();
+      const { reserve, elapsed } = archiveLookup();
+      const facts = await selected.readSdkApplicationControls(opportunity, {
+        deadline: admissionDeadline,
+        admission: { reserve, elapsed, currentDeadline: () => archiveLookup().deadline },
+      });
+      checkReadTime();
+      return facts;
+    };
+    const publicationReader =
+      inventoryToken === undefined
+        ? createReleasePublicationReader(api)
+        : await createPublicationInventoryWithSdk({
+            token: inventoryToken,
+            deadline: admissionDeadline,
+            accounting: {
+              ...archiveLookup(),
+              currentDeadline: () => archiveLookup().deadline,
+            },
+            async recheck() {
+              checkReadTime();
+            },
+            beforeDispatch(_method, url) {
+              if (nativeSource && url.pathname.startsWith("/repositories/"))
+                throw new Error("native source repository route refused");
+              checkReadTime();
+              assertTrustedDirectNode("fixed release admission inventory");
+            },
+          });
     const recover = () =>
       (options.recover ?? recoverRemoteCoordinator)(
         root,
         { schema_version: 1, namespace: config.namespace },
-        { transport: { cwd: root } },
+        {
+          transport:
+            inventoryToken === undefined || options.recover
+              ? { cwd: root }
+              : {
+                  credential: { token: inventoryToken },
+                  deadline: admissionDeadline,
+                  requireDirect: true,
+                },
+        },
       );
     const before = record(structuredClone(await recover()));
     oid(before.checkpoint);
@@ -525,9 +638,9 @@ export async function acquireReleaseAdmission(
     integer(candidate.release_run.attempt);
     if (candidate.release_run.revision !== candidate.prepared_commit)
       throw new Error("admission frozen run differs from prepared source");
-    const initialTags = tags();
-    const initialReleases = releases();
-    const { allocations, intents } = publicationReader.readAllocations(
+    const initialTags = await publicationReader.tags();
+    const initialReleases = await publicationReader.releases();
+    const { allocations, intents } = await publicationReader.readAllocations(
       initialTags,
       config.namespace,
     );
@@ -572,7 +685,24 @@ export async function acquireReleaseAdmission(
       if (classification.change_set_scope !== netTreeDeltaScope) {
         holds.add("frozen-change-set-scope-unsupported-no-legacy-hash-reinterpretation");
       } else {
-        sourceChanges = collectReleaseSourceChanges(api, frozen);
+        sourceChanges =
+          inventoryToken === undefined
+            ? collectReleaseSourceChanges(api, frozen)
+            : await collectReleaseSourceChangesWithSdk(
+                {
+                  ...archiveLookup(),
+                  token: inventoryToken,
+                  currentDeadline: () => archiveLookup().deadline,
+                  maxBytes: 2 * 1024 * 1024,
+                  requestTimeoutMs: 15000,
+                  guard() {
+                    checkReadTime();
+                    assertTrustedDirectNode("fixed release admission source comparison");
+                  },
+                  checkRoute: (url) => assertAdmissionRestRead("GET", url),
+                },
+                frozen,
+              );
         if (
           sourceChanges.change_set_sha256 !== frozen.change_set_sha256 ||
           sourceChanges.change_set_sha256 !== classification.change_set_sha256
@@ -602,7 +732,7 @@ export async function acquireReleaseAdmission(
         frozenControlsOpportunity = structuredClone(frozen);
         if (controls) {
           phase = "authenticated-controls-before";
-          controlsBefore = controls.read(api, frozenControlsOpportunity);
+          controlsBefore = await readControls(controls, frozenControlsOpportunity);
         }
       }
     }
@@ -652,7 +782,32 @@ export async function acquireReleaseAdmission(
       tree: active.prepared_tree,
       workflow_sha256: hash(workflow),
     };
-    const evidence = collectReleaseRunEvidence(evidenceRequest, { api });
+    const evidenceCredential = options.download
+      ? undefined
+      : publicBuildReadCredential(admissionDeadline);
+    const scoped = readOnlyReleaseChildEnvironment() !== undefined;
+    const collectEvidence = async () => {
+      if (options.api && !options.collectEvidence)
+        return collectReleaseRunEvidence(evidenceRequest, {
+          read: async (endpoint) => api.request("GET", endpoint),
+        });
+      const startedEvidence = performance.now();
+      const deadline = Math.min(admissionDeadline, startedEvidence + 120000 - apiMilliseconds);
+      const evidenceOptions: ReleaseEvidenceOptions = {
+        deadline,
+        reserve: reserveProviderRequest,
+        ...(evidenceCredential ? { credential: evidenceCredential } : {}),
+      };
+      try {
+        return await (options.collectEvidence ?? collectReleaseRunEvidence)(
+          evidenceRequest,
+          evidenceOptions,
+        );
+      } finally {
+        apiMilliseconds += performance.now() - startedEvidence;
+      }
+    };
+    const evidence = await collectEvidence();
     if (
       evidence.run.conclusion !== "success" ||
       evidence.jobs.some((job) => !["success", "skipped"].includes(job.conclusion ?? ""))
@@ -662,43 +817,113 @@ export async function acquireReleaseAdmission(
       JSON.parse(await readFile(path.join(project, ".github/repository-ruleset.json"), "utf8")),
       JSON.parse(await readFile(path.join(project, ".github/qualification-coverage.json"), "utf8")),
     );
-    const checkApi = {
-      ...api,
-      request: (method: string, endpoint: string, body?: unknown) => {
-        const response = api.request(method, endpoint, body);
-        const url = new URL(
-          endpoint.startsWith("https:") ? endpoint : `https://api.github.com/${endpoint}`,
-        );
-        if (url.pathname.endsWith("/check-runs")) {
-          const runs = record(response.body).check_runs;
-          if (!Array.isArray(runs)) throw new Error("qualification check inventory missing");
-          for (const raw of runs) {
-            const run = record(raw);
-            if (run.head_sha !== active.prepared_commit)
-              throw new Error("qualification check source differs");
-            if (required.includes(String(run.name)) && record(run.app).id !== 15368)
+    function* qualificationPages(
+      head: string,
+      kind: "check-runs" | "status",
+    ): Generator<string, unknown[], GitHubMetadataResponse> {
+      const pathname = `/${base}/commits/${head}/${kind}`;
+      const key = kind === "check-runs" ? "check_runs" : "statuses";
+      const records: unknown[] = [];
+      const identities = new Set<number>();
+      const pages = new Set<string>();
+      let total: number | undefined;
+      let endpoint: string | null =
+        `${pathname.slice(1)}?${kind === "check-runs" ? "filter=latest&" : ""}per_page=100`;
+      while (endpoint) {
+        const url = new URL(endpoint, "https://api.github.com/");
+        assertAdmissionRestRead("GET", url);
+        url.searchParams.sort();
+        if (url.pathname !== pathname || pages.has(url.href))
+          throw new Error("qualification pagination changed scope or did not advance");
+        pages.add(url.href);
+        const response = yield endpoint;
+        if (response.status !== 200) throw new Error("qualification provider unavailable");
+        const body = record(response.body);
+        const rows = body[key];
+        const count = body.total_count;
+        if (!Array.isArray(rows)) throw new Error("qualification inventory missing");
+        if (typeof count !== "number" || !Number.isSafeInteger(count) || count < 0)
+          throw new Error("qualification total is invalid");
+        total ??= count;
+        if (total !== count) throw new Error("qualification total changed during pagination");
+        if (kind === "status" && body.sha !== head)
+          throw new Error("qualification status source differs");
+        for (const raw of rows as readonly unknown[]) {
+          const item = record(raw);
+          if (kind === "check-runs") {
+            if (item.head_sha !== head) throw new Error("qualification check source differs");
+            if (required.includes(String(item.name)) && record(item.app).id !== 15368)
               throw new Error("required qualification check issuer differs");
           }
-        } else if (
-          url.pathname.endsWith("/status") &&
-          record(response.body).sha !== active.prepared_commit
-        )
-          throw new Error("qualification status source differs");
-        return response;
-      },
+          const id = item.id;
+          if (typeof id !== "number" || !Number.isSafeInteger(id) || identities.has(id))
+            throw new Error("qualification contains a missing or duplicate ID");
+          identities.add(id);
+          records.push(raw);
+        }
+        if (records.length > total) throw new Error("qualification count exceeds reported total");
+        endpoint = nextLink(response.headers);
+      }
+      if (records.length !== total)
+        throw new Error("qualification count does not match reported total");
+      return records;
+    }
+
+    let qualificationUrl: string | undefined;
+    const qualificationClient =
+      inventoryToken === undefined
+        ? undefined
+        : await (
+            await import("./github-client.mts")
+          ).createGitHubClient({
+            credential: { kind: "explicit", token: inventoryToken },
+            deadline: admissionDeadline,
+            maxBytes: 2 * 1024 * 1024,
+            requestTimeoutMs: 15000,
+            reserve: reserveProviderRequest,
+            observe: ({ elapsedMs }) => {
+              apiMilliseconds += elapsedMs;
+            },
+            allowRequest(method, url) {
+              checkReadTime();
+              assertTrustedDirectNode("fixed release admission qualification");
+              return method === "GET" && url.href === qualificationUrl;
+            },
+          });
+    const readQualificationRecords = async (kind: "check-runs" | "status") => {
+      const pages = qualificationPages(active.prepared_commit, kind);
+      let step = pages.next();
+      while (!step.done) {
+        if (!qualificationClient) {
+          step = pages.next(api.request("GET", step.value));
+          continue;
+        }
+        const url = new URL(step.value, "https://api.github.com/");
+        qualificationUrl = url.href;
+        const response = await qualificationClient.request(`GET ${url.pathname}${url.search}`, {
+          request: {
+            portcove: { replay: "once", attempts: 0, deadline: archiveLookup().deadline },
+          },
+        });
+        checkReadTime();
+        const link: unknown = response.headers.link;
+        if (link !== undefined && typeof link !== "string")
+          throw new Error("qualification pagination unavailable");
+        step = pages.next({
+          status: response.status,
+          body: response.data,
+          headers: new Map(typeof link === "string" ? [["link", link]] : []),
+        });
+      }
+      return step.value;
     };
-    const delivery = new PullRequestDeliveryClient({
-      ...checkApi,
-      paginateRest: (endpoint, options) =>
-        GitHubApiClient.prototype.paginateRest.call(checkApi, endpoint, options),
-    });
-    const readQualification = () =>
+    const readQualification = async () =>
       requiredCheckContexts(
-        delivery.checkRuns(active.prepared_commit),
-        delivery.commitStatuses(active.prepared_commit),
+        (await readQualificationRecords("check-runs")).map(checkMetadata),
+        (await readQualificationRecords("status")).map(statusMetadata),
         required,
       );
-    const contexts = readQualification();
+    const contexts = await readQualification();
     if (contexts.some((context) => context.outcome !== "success" || context.source !== "check-run"))
       holds.add("exact-prepared-head-required-contexts-not-successful");
     const policy = selectReleasePackagePolicy(
@@ -741,12 +966,31 @@ export async function acquireReleaseAdmission(
     const declarations = [];
     const cliPackages = new Map<string, Buffer>();
     for (const archive of archives) {
-      if (performance.now() - started > 15 * 60 * 1000)
+      if (performance.now() >= admissionDeadline)
         throw new Error("admission archive acquisition deadline exhausted");
-      const bytes = (options.download ?? readGitHubArtifactArchive)(
-        `${base}/actions/artifacts/${archive.artifact_id}/zip`,
-        { cwd: root, maxBytes: archive.bytes, timeoutMs: 120000 },
-      );
+      const endpoint = `${base}/actions/artifacts/${archive.artifact_id}/zip`;
+      const timeoutMs = Math.floor(Math.min(120000, admissionDeadline - performance.now()));
+      if (timeoutMs < 1) throw new Error("release package archive acquisition deadline exhausted");
+      const bytes = options.download
+        ? await options.download(endpoint, {
+            cwd: root,
+            maxBytes: archive.bytes,
+            timeoutMs,
+            lookup: archiveLookup(),
+          })
+        : await acquirePackageArchive(
+            root,
+            endpoint,
+            archive,
+            evidenceCredential!,
+            Math.min(
+              admissionDeadline,
+              coordinatorCommandDeadline() ?? Infinity,
+              performance.now() + 120000,
+            ),
+            { lookup: archiveLookup() },
+            scoped,
+          );
       const discovered = await discoverReleaseArtifactFiles(
         bytes,
         { bytes: archive.bytes, sha256: archive.sha256 },
@@ -780,9 +1024,12 @@ export async function acquireReleaseAdmission(
     const publicBuildInputs = publicBinding
       ? await verifyReleasePublicBuildInputs(root, publicBinding, evidence, {
           download: options.download,
+          credential: evidenceCredential,
+          deadline: admissionDeadline,
+          lookup: archiveLookup,
         })
       : null;
-    if (config.release_profile === "initial-beta-win-linux" && !publicBinding)
+    if (isInitialBetaReleaseProfile(config.release_profile) && !publicBinding)
       holds.add("ratified-public-build-inputs-unavailable");
     if (
       publicBinding?.artifacts.some((item) =>
@@ -825,7 +1072,18 @@ export async function acquireReleaseAdmission(
         publicBuildInputs,
         cliPackages,
         sourceBinding,
-        { preparedNamespace: config.namespace },
+        {
+          preparedNamespace: config.namespace,
+          ...(evidenceCredential
+            ? {
+                transport: {
+                  credential: evidenceCredential,
+                  deadline: admissionDeadline,
+                  lookup: archiveLookup,
+                },
+              }
+            : {}),
+        },
       );
       if (
         compilerEvidence.state === "verified-compiler-output-bindings" &&
@@ -839,6 +1097,9 @@ export async function acquireReleaseAdmission(
     const sbomEvidence = await collectReleaseSbomEvidence(root, assembly, evidence, {
       download: options.download,
       preparedNamespace: config.namespace,
+      deadline: admissionDeadline,
+      ...(evidenceCredential ? { credential: evidenceCredential } : {}),
+      lookup: archiveLookup(),
       maximumArchiveBytes: Math.min(
         512 * 1024 * 1024,
         2 * 1024 * 1024 * 1024 -
@@ -890,11 +1151,11 @@ export async function acquireReleaseAdmission(
         );
         requireAuthenticatedReleaseControlSource(controls, controlPhase);
         phase = "authenticated-controls-before-final-readback";
-        controlsBefore = controls.read(api, frozenControlsOpportunity);
+        controlsBefore = await readControls(controls, frozenControlsOpportunity);
       }
     }
     phase = "freshness-bracket";
-    const afterEvidence = collectReleaseRunEvidence(evidenceRequest, { api });
+    const afterEvidence = await collectEvidence();
     if (publicBinding)
       requireStablePublicBuildInputEvidence(publicBinding, evidence, afterEvidence);
     if (
@@ -905,16 +1166,19 @@ export async function acquireReleaseAdmission(
       throw new Error(
         "Release run, jobs or complete artifact inventory changed during acquisition",
       );
-    if (!isDeepStrictEqual(contexts, readQualification()))
+    if (!isDeepStrictEqual(contexts, await readQualification()))
       throw new Error("required qualification changed during acquisition");
-    if (!isDeepStrictEqual(initialTags, tags()) || !isDeepStrictEqual(initialReleases, releases()))
+    if (
+      !isDeepStrictEqual(initialTags, await publicationReader.tags()) ||
+      !isDeepStrictEqual(initialReleases, await publicationReader.releases())
+    )
       throw new Error("publication or complete reservation snapshot changed");
     const after = record(await recover());
     if (after.checkpoint !== checkpoint)
       throw new Error("coordinator checkpoint changed during admission");
     if (controls && controlsBefore) {
       phase = "authenticated-controls-after";
-      controlsAfter = controls.read(api, frozenControlsOpportunity);
+      controlsAfter = await readControls(controls, frozenControlsOpportunity);
       if (controlsBefore.facts_sha256 !== controlsAfter.facts_sha256)
         throw new Error("authenticated control inputs changed during admission");
     }
@@ -1014,6 +1278,7 @@ export async function acquireReleaseAdmission(
       sbomEvidence.state !== "verified-document" ||
       sbomEvidence.evidence_scope !== "github.com" ||
       options.api ||
+      nativeSource ||
       options.recover ||
       options.download ||
       options.now
@@ -1062,6 +1327,7 @@ export async function acquireReleaseAdmission(
         : null;
     const evidenceScope =
       options.api ||
+      nativeSource ||
       options.recover ||
       options.download ||
       options.now ||
@@ -1191,6 +1457,21 @@ async function performAdmissionHandshake(
 ) {
   const phase = inspectReleaseControlPhase(rawPhase);
   const env = { ...process.env };
+  const diagnosticControls =
+    !onAdmitted && !building && (phase === "admission" || phase === "payload");
+  const controlReader = building
+    ? "admitted-aggregate"
+    : publicationCompletion
+      ? "publication-application"
+      : phase === "payload" &&
+          (diagnosticControls ||
+            (onAdmitted && compiler && establishNative && deadline !== undefined))
+        ? "payload"
+        : diagnosticControls
+          ? "diagnostic-admission"
+          : undefined;
+  if (controlReader !== undefined && !diagnosticControls && deadline === undefined)
+    throw new Error("fixed admission controls require the original deadline");
   const workflow = await readProductionControllerWorkflowBytes();
   const reader = await authenticateControlReaderJob(env, workflow, {
     phase,
@@ -1214,6 +1495,7 @@ async function performAdmissionHandshake(
     ...(compiler ? { compiler } : {}),
     ...(establishNative ? { establishNative } : {}),
     controlPhase: phase,
+    ...(deadline === undefined ? {} : { deadline }),
     establishControls: async (factsSha256, facts) => {
       retained.facts = facts;
       const readyDigest = additionalFacts ? await additionalFacts(facts, factsSha256) : factsSha256;
@@ -1242,11 +1524,17 @@ async function performAdmissionHandshake(
       retained.controls = await authenticateReleaseControlSource(env, workflow, {
         phase,
         observedArtifact,
-        ...(deadline === undefined ? {} : { deadline }),
+        ...(controlReader === undefined ? {} : { controlReader }),
+        ...(deadline !== undefined
+          ? { deadline }
+          : diagnosticControls
+            ? { deadline: performance.now() + 120000 }
+            : {}),
       });
       return retained.controls;
     },
   };
+  if (controlReader !== undefined) scopedControlCollections.add(collection);
   if (building) {
     if (phase !== "admission" || onAdmitted)
       throw new Error("building eligibility is separate from payload/publication admission");
@@ -1447,11 +1735,18 @@ async function acquireBuildingEligibility(
   const configured = configuration(capturedConfiguration);
   if (
     configured.namespace !== authorities.namespace ||
-    configured.release_profile !== "initial-beta-win-linux"
+    configured.release_profile !== applicationReleaseProfile(authorities.configuration) ||
+    !isInitialBetaReleaseProfile(configured.release_profile)
   )
     throw new Error(
       "qualifying source requires the actual ratified namespace and selected package profile",
     );
+  if (
+    configured.release_profile === "initial-beta-windows-x86_64-v1" &&
+    capacityDigest(configured.public_build_inputs) !==
+      capacityDigest(applicationPublicBuildInputs(authorities.configuration))
+  )
+    throw new Error("public build configuration differs from ratified application authority");
   const closure = inspectReleaseCompilerSourceClosure(
     JSON.parse(
       (await readControllerToolFile(tools.compiler_source_closure, 65536)).toString("utf8"),
@@ -1547,6 +1842,7 @@ export async function runFixedBuildingConfiguration(raw: unknown, root: string, 
       !path.isAbsolute(root)
     )
       throw new Error("fixed building admission caller fields differ");
+    const readToken = fixedReleaseReaderToken();
     await requireControllerApplicationJobAuthorities("admission");
     const { receiveControllerTools } = await import("./release-controller-tool-admission.mts");
     const tools = await receiveControllerTools(
@@ -1583,7 +1879,7 @@ export async function runFixedBuildingConfiguration(raw: unknown, root: string, 
     await requireReservedAggregate(
       encoded,
       await readRemoteCoordinatorSnapshot(root, descriptor.coordinator, {
-        transport: { cwd: root, deadline },
+        transport: { credential: { token: readToken }, deadline, requireDirect: true },
       }),
     );
     if (Buffer.byteLength(encoded) > 65536)
@@ -1608,15 +1904,15 @@ async function runBuildingCli() {
   const raw = process.env.PORTCOVE_FIXED_BUILDING_CONFIGURATION;
   if (!raw || Buffer.byteLength(raw) > 65536)
     throw new Error("bounded fixed building configuration required");
-  const { currentBuildingJobDeadline } = await import("./release-signing-job-budget.mts");
-  const deadline = currentBuildingJobDeadline(
+  const { currentControllerJobDeadline } = await import("./release-signing-job-budget.mts");
+  const deadline = await currentControllerJobDeadline(
+    "building",
     {
       run_id: process.env.GITHUB_RUN_ID ?? "",
       run_attempt: 1,
       controller_revision: process.env.PORTCOVE_CONTROLLER_REVISION ?? "",
       controller_ref: process.env.PORTCOVE_CONTROLLER_REF ?? "",
     },
-    process.cwd(),
     performance.now() + 405000,
   );
   const selected: unknown = JSON.parse(raw);
@@ -1660,8 +1956,13 @@ async function main() {
           result = await acquireReleaseAdmissionWithControlHandshake(root, JSON.parse(raw));
         } else {
           const workflow = await readProductionControllerWorkflowBytes();
-          const controls = await authenticateReleaseControlSource(process.env, workflow);
-          result = await acquireReleaseAdmission(root, JSON.parse(raw), { controls });
+          const controls = await authenticateReleaseControlSource(process.env, workflow, {
+            controlReader: "diagnostic-admission",
+            deadline: performance.now() + 120000,
+          });
+          const collection = { controls };
+          scopedControlCollections.add(collection);
+          result = await acquireReleaseAdmission(root, JSON.parse(raw), collection);
         }
       } catch (error) {
         if (error instanceof CoordinatorRemoteError)

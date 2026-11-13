@@ -7,7 +7,7 @@ import {
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vite-plus/test";
 import type { InstallRecord, PortDefinition, PortStatus, SourceInspectionReport } from "../types";
-import { DetailPanel } from "./DetailPanel";
+import { DetailPanel, InstallationVersionSummary } from "./DetailPanel";
 import { currentCatalogPort } from "../catalog-test-fixtures";
 import {
   port,
@@ -197,16 +197,16 @@ it("distinguishes catalog saved-data declarations, retained installation rules a
     { ...port, persistent_paths: ["changed-provider-catalog-path"] },
     installRecord(),
   );
-  expect(managed).toContain("rules recorded for this installation");
-  expect(managed).toContain("Exact paths are not available");
+  expect(managed).toContain("current catalog may describe a different version");
+  expect(managed).toContain("Portcove couldn’t confirm which files to copy");
   expect(managed).not.toContain("changed-provider-catalog-path");
   expect(managed).not.toContain("backup review");
   const retained = coverage(
     { ...preparedPort, persistent_paths: ["new-catalog-path"] },
     installRecord(),
   );
-  expect(retained).toContain("rules recorded for this installation");
-  expect(retained).toContain("Exact paths are not available");
+  expect(retained).toContain("current catalog may describe a different version");
+  expect(retained).toContain("Portcove couldn’t confirm which files to copy");
   expect(retained).not.toContain("new-catalog-path");
   const external = coverage(preparedPort, null, {
     id: "external",
@@ -221,6 +221,65 @@ it("distinguishes catalog saved-data declarations, retained installation rules a
   });
   expect(external).toContain("outside Portcove’s managed backups");
   expect(external).not.toContain("<code>save</code>");
+});
+
+it("places the catalog setup check with Game files before installation and in Manage after", () => {
+  const render = (installed: boolean) =>
+    renderToStaticMarkup(
+      <DetailPanel
+        port={port}
+        sourcePath=""
+        setSourcePath={vi.fn()}
+        actions={actions}
+        managementSupplement={<p>Catalog setup check</p>}
+        status={{
+          ...portStatus(),
+          port_id: port.id,
+          ...(installed ? { active: installRecord() } : {}),
+        }}
+      />,
+    );
+  const before = render(false);
+  expect(detailSection(before, "files")).toContain("Catalog setup check");
+  expect(detailSection(before, "manage")).not.toContain("Catalog setup check");
+  const after = render(true);
+  expect(detailSection(after, "manage")).toContain("Catalog setup check");
+  expect(detailSection(after, "files")).not.toContain("Catalog setup check");
+});
+
+it("does not promise further updates only when the catalog withdrew them", () => {
+  const render = (assessment: NonNullable<PortStatus["port_actions"]>[number]) =>
+    renderToStaticMarkup(
+      <DetailPanel
+        port={port}
+        sourcePath=""
+        setSourcePath={vi.fn()}
+        actions={actions}
+        status={{
+          ...portStatus(),
+          port_id: port.id,
+          active: installRecord(),
+          port_actions: [assessment],
+        }}
+      />,
+    );
+  const handles = "Portcove handles updates for this installation.";
+  const withdrawn = "Portcove manages this installation; no further updates are offered.";
+  expect(render({ action: "update", availability: "allowed", reason: "available" })).toContain(
+    handles,
+  );
+  // A pending setup or acquisition hold is temporary, not a withdrawal.
+  expect(
+    render({ action: "update", availability: "not_offered", reason: "route_not_offered" }),
+  ).toContain(handles);
+  const revoked = render({
+    action: "update",
+    availability: "held",
+    reason: "definition_ineligible",
+    definition: { outcome: "hold", reason: "curated_artifact_revoked" },
+  });
+  expect(revoked).toContain(withdrawn);
+  expect(revoked).not.toContain(handles);
 });
 
 it.each([
@@ -260,15 +319,20 @@ it.each([
         .trim() === "Restore previous version",
   )?.[0];
   expect(button).toBeDefined();
+  expect(html).toContain("Portcove first takes an automatic snapshot of its saves and settings");
   expect(button?.includes('disabled=""')).toBe(disabled);
   expect(html.includes("data-rollback-assessment")).toBe(disabled);
   const assessment = html.match(/<p\b[^>]*data-rollback-assessment[^>]*>(.*?)<\/p>/s)?.[1] ?? null;
   expect(assessment).toBe(message);
+  const versions = detailSection(html, "versions");
+  expect(versions).toContain("Older software may not understand");
+  expect(versions).toContain("newer saves or configuration");
+  expect(versions).toContain("Saved-data restore is a separate reviewed action");
 });
 
 describe("desktop components", () => {
   it.each(["unknown", "available", "none", "stale-channel"] as const)(
-    "puts the %s update observation before the appropriate next action",
+    "keeps the %s update observation and action eligibility under a header check",
     (state) => {
       const fixture = missingRuntimeFixture(state === "available");
       const status: PortStatus = {
@@ -286,10 +350,10 @@ describe("desktop components", () => {
         />,
       );
       const check = html.indexOf("Check for updates</button>");
-      const review = html.indexOf("Update now</button>");
+      const review = html.indexOf("Update now");
       expect(check).toBeGreaterThan(-1);
       expect(review >= 0).toBe(state === "available");
-      expect(review < check).toBe(true);
+      expect(review === -1 || check < review).toBe(true);
       const expected =
         state === "available"
           ? "was available at the last check"
@@ -297,7 +361,7 @@ describe("desktop components", () => {
             ? "No update was found at the last check"
             : "No update check is saved for this installation and channel";
       expect(html).toContain(expected);
-      expect(html.indexOf(expected)).toBeLessThan(state === "available" ? review : check);
+      expect(state !== "available" || html.indexOf(expected) < review).toBe(true);
       expect(html).not.toContain(">This update<");
       expect(html.indexOf("Future update preferences")).toBeGreaterThan(Math.max(check, review));
     },
@@ -364,9 +428,9 @@ describe("desktop components", () => {
       actions,
     };
     const available = renderToStaticMarkup(<DetailPanel {...props} />);
-    expect(available).toContain("Prepare your runtime");
-    expect(available).toContain("without installing or owning them");
-    expect(available).toContain("You prepare the runtime");
+    expect(available).toContain("Prepare your installation");
+    expect(available).toContain("without copying or taking ownership of them");
+    expect(available).toContain("Use an installation you set up yourself");
     expect(available).not.toContain("Available to install");
     expect(available).not.toContain("Portcove checks this project for releases");
 
@@ -472,8 +536,8 @@ describe("desktop components", () => {
       );
       expect(html).toContain("Check installed files");
       expect(html).toContain(`Uninstall ${currentPort.name}`);
-      expect(html).toContain("Managed by Portcove using this installation");
-      expect(html).toContain("Saved data follows this installation");
+      expect(html).toContain("This installation’s saved-data coverage could not be verified.");
+      expect(html).toContain("Saved data follows the recorded rules for this installed version.");
       expect(html).not.toContain("No saved data paths declared");
       expect(html).not.toContain("Game-owned settings and saves in the external runtime");
       expect(html).not.toContain("Choose game executable");
@@ -516,7 +580,7 @@ describe("desktop components", () => {
       const activation = html.match(/<button[^>]*>Apply update · retained-staged<\/button>/)?.[0];
       expect(activation).toBeDefined();
       expect(/\sdisabled(?:=|\s|>)/.test(activation ?? "")).toBe(Boolean(busy));
-      expect(html).toContain("Managed by Portcove using this installation");
+      expect(html).toContain("This installation’s saved-data coverage could not be verified.");
       expect(html).not.toContain("Choose game executable");
       expect(html).not.toContain("Remove registration");
       expect(html).not.toContain("Stored with your external runtime");
@@ -677,10 +741,11 @@ describe("desktop components", () => {
         }}
       />,
     );
-    expect(html).toContain("First-time setup needed");
-    expect(html).toContain("Complete the port&#x27;s setup before playing.");
+    expect(html).toContain("Setup needed");
+    expect(html).toContain("Finish setup before playing.");
+    expect(html).toContain("Finish setup before playing.");
     expect(html).not.toContain("Game files required");
-    expect(html).not.toContain("Prepare game data</strong>");
+    expect(html).not.toContain("Finish setup</strong>");
     expect(html).not.toContain("Portcove will run and verify the upstream setup before play.");
   });
 
@@ -709,10 +774,11 @@ describe("desktop components", () => {
         actions,
       };
       const ready = renderToStaticMarkup(<DetailPanel {...props} />);
-      const reviewButton = ready.match(/<button\b[^>]*>Review setup<\/button>/)?.[0];
+      const reviewButton = ready.match(/<button\b[^>]*>Finish setup<\/button>/)?.[0];
       expect(reviewButton).toBeDefined();
       expect(reviewButton).not.toMatch(/\sdisabled(?:\s|=|>)/);
-      expect(ready).toContain("First-time setup needed");
+      expect(ready).toContain("Setup needed");
+      expect(ready).toContain("Finish setup before playing.");
       expect(ready).not.toContain(">Play</button>");
 
       const metadataOnly = renderToStaticMarkup(
@@ -728,7 +794,7 @@ describe("desktop components", () => {
           }}
         />,
       );
-      const metadataReview = metadataOnly.match(/<button\b[^>]*>Review setup<\/button>/)?.[0];
+      const metadataReview = metadataOnly.match(/<button\b[^>]*>Finish setup<\/button>/)?.[0];
       expect(metadataReview).toBeDefined();
       expect(metadataReview).not.toMatch(/\sdisabled(?:\s|=|>)/);
       expect(props.prepare).not.toHaveBeenCalled();
@@ -753,13 +819,13 @@ describe("desktop components", () => {
       ];
       for (const refusal of blocked.slice(0, 2)) {
         const html = renderToStaticMarkup(<DetailPanel {...refusal} />);
-        const button = html.match(/<button\b[^>]*>Review setup<\/button>/)?.[0];
+        const button = html.match(/<button\b[^>]*>Finish setup<\/button>/)?.[0];
         expect(button).toBeDefined();
         expect(button).toMatch(/\sdisabled(?:\s|=|>)/);
       }
       for (const missingRequirement of blocked.slice(2)) {
         const html = renderToStaticMarkup(<DetailPanel {...missingRequirement} />);
-        expect(html).not.toContain("Review setup");
+        expect(html).not.toMatch(/<button\b[^>]*>Finish setup<\/button>/);
         expect(html).not.toContain(">Play</button>");
         expect(html).toContain("Requirements");
         expect(html).toContain("Setup needed");
@@ -811,7 +877,7 @@ describe("desktop components", () => {
       ];
       for (const outsideContract of unavailable) {
         const html = renderToStaticMarkup(<DetailPanel {...outsideContract} />);
-        expect(html).not.toContain("Review setup");
+        expect(html).not.toMatch(/<button\b[^>]*>Finish setup<\/button>/);
       }
       expect(props.prepare).not.toHaveBeenCalled();
     },
@@ -848,7 +914,11 @@ describe("desktop components", () => {
 
     expect(ready).toContain("Ready to play");
     expect(ready).not.toContain('class="hero-reason"');
-    expect(ready.indexOf("Play")).toBeLessThan(ready.indexOf("Ready to play"));
+    // Identity and readiness precede the final hero action row.
+    expect(ready.indexOf("Ready to play")).toBeLessThan(
+      ready.indexOf('class="detail-header-actions'),
+    );
+    expect(ready.indexOf('class="detail-header-actions')).toBeLessThan(ready.indexOf("Play"));
     expect(ready.indexOf("Play")).toBeLessThan(ready.indexOf(port.summary));
     expect(ready.indexOf("Play")).toBeLessThan(ready.indexOf("Change artwork"));
     expect(downloaded).toContain("Ready to play");
@@ -1429,7 +1499,7 @@ describe("desktop components", () => {
     ).toHaveLength(1);
     expect(missingBoth).toContain("Future update preferences");
     expect(missingBoth).toContain("Folder for a future install");
-    expect(missingBoth).toContain("Release channel");
+    expect(missingBoth).toContain("Update channel");
     expect(missingBoth).toContain("Folder for future installs");
     expect(uninstalled).toContain(
       "Portcove uses this game file in place and never uploads or changes it.",
@@ -1454,7 +1524,7 @@ describe("desktop components", () => {
       /<button[^>]*data-variant="destructive"[^>]*aria-label="Delete backup/u,
     );
     expect(buttonLabels).toContain("Check for updates");
-    expect(installed).toContain("Open saved data folder");
+    expect(installed).toContain("Open folder for saved data");
     expect(installed).toContain("Back up now");
     expect(installed).toContain('title="Back up saves and settings managed by Portcove."');
     const backupButton = installed.match(
@@ -1467,12 +1537,23 @@ describe("desktop components", () => {
       uninstalled.match(/<button\b[^>]*aria-describedby="backup-create-explanation"[^>]*>/)?.[0],
     ).toContain(' disabled=""');
     expect(buttonLabels).toContain("Check installed files");
-    expect(buttonLabels).toContain("Restore previous version");
+    // No previous version is recorded, so restore is known to be inapplicable and hidden.
+    expect(buttonLabels).not.toContain("Restore previous version");
+    expect(installed).toContain("No previous version is recorded.");
+    // Update ownership is stated for a Portcove-managed installation.
+    expect(installed).toContain("Portcove handles updates for this installation.");
+    // Reachable on the page, not just rendered by its own component test.
+    expect(buttonLabels).toContain("Report a problem or send feedback");
+    // The restore explanation belongs to the hidden restore control here; the retained
+    // rollback cases assert it when a previous version exists.
+    expect(installed).not.toContain(
+      "Portcove first takes an automatic snapshot of its saves and settings",
+    );
     expect(buttonLabels).not.toContain("Check update");
     expect(buttonLabels).not.toContain("Verify");
     expect(buttonLabels).not.toContain("Rollback");
     expect(installed).not.toContain("Create a versioned backup of saves and settings");
-    expect(installed).toContain("1 verified backup");
+    expect(installed).toContain("1 backup");
     expect(installed).toContain("Restore");
     expect(installed).toContain("Delete");
     expect(installed).toContain("Uninstall Sample");
@@ -1482,7 +1563,7 @@ describe("desktop components", () => {
     expect(installed).toMatch(/<details class="future-setup-disclosure advanced-settings[^"]*">/u);
     expect(installed).toContain("Saves and settings folder");
     expect(installed).toContain("C:/Portcove/user/sample");
-    expect(installed).toContain("No legacy platform coverage recorded");
+    expect(installed).toContain("No earlier platform tests recorded");
     expect(installed).toContain("Launch from another app");
     expect(installed).toContain("Finding the command-line app");
     expect(installed).not.toContain("portcove exec sample --");
@@ -1532,10 +1613,10 @@ describe("desktop components", () => {
       "Linux availability does not show whether this game works on SteamOS or in Gaming Mode.",
     );
     expect(linux.replace(/ class="[^"]*"/gu, "")).toContain(
-      "<small>Legacy port-wide automated tests</small>Windows · Linux",
+      "<small>Earlier automated tests</small>Windows · Linux",
     );
     expect(linux.replace(/ class="[^"]*"/gu, "")).toContain(
-      "<small>Legacy port-wide hands-on tests</small>Windows · Linux",
+      "<small>Earlier hands-on tests</small>Windows · Linux",
     );
     const buttons = (html: string) => [...html.matchAll(/<button\b[^>]*>[^]*?<\/button>/gu)];
     expect(buttons(linux).map(([button]) => button)).toEqual(
@@ -1748,6 +1829,66 @@ describe("desktop components", () => {
     expect(primary).toContain("Add all required game files and the BIOS file before installing");
   });
 
+  it.each(["absent", "same", "version", "artifact", "runtime"] as const)(
+    "keeps saved activation primary and retains distinct checked candidates: %s",
+    (candidate) => {
+      const active = installRecord();
+      const staged = installRecord({ id: "saved", version: "2.0", staged: true });
+      const status: PortStatus = {
+        ...portStatus(),
+        port_id: port.id,
+        active,
+        staged,
+        last_update_check:
+          candidate === "absent"
+            ? null
+            : {
+                checked_at: 2,
+                check: {
+                  port_id: port.id,
+                  channel: active.channel,
+                  installed_version: active.version,
+                  installed_artifact: active.artifact,
+                  installed_runtime: active.runtime,
+                  required_runtime: candidate === "runtime" ? runtimeIdentity : staged.runtime,
+                  update_available: true,
+                  release: {
+                    published_at: null,
+                    version: candidate === "version" ? "3.0" : staged.version,
+                    channel: staged.channel,
+                    asset: {
+                      name: staged.artifact.asset_name,
+                      url: "https://example.com/sample.zip",
+                      size: staged.artifact.size,
+                      sha256: candidate === "artifact" ? "c".repeat(64) : staged.artifact.sha256,
+                    },
+                  },
+                },
+              },
+      };
+      const html = renderToStaticMarkup(
+        <DetailPanel
+          port={port}
+          status={status}
+          sourcePath=""
+          setSourcePath={vi.fn()}
+          actions={actions}
+        />,
+      );
+      const versions = detailSection(html, "versions");
+      expect(versions.match(/Apply update · 2\.0/gu)).toHaveLength(1);
+      expect(versions.indexOf("Apply update · 2.0")).toBeLessThan(
+        versions.indexOf("Future update preferences"),
+      );
+      expect(versions).toMatch(
+        /<button(?=[^>]*staged-action)(?=[^>]*data-variant="primary")[^>]*>Apply update · 2\.0<\/button>/u,
+      );
+      for (const action of ["Update now", "Download for later"]) {
+        expect(versions.includes(action)).toBe(candidate !== "absent" && candidate !== "same");
+      }
+    },
+  );
+
   it("keeps direct Play in the header and staged activation with its consequences in Versions", () => {
     const install = installRecord();
     const status: PortStatus = {
@@ -1789,6 +1930,41 @@ describe("desktop components", () => {
       /<button(?=[^>]*staged-action)(?=[^>]*disabled="")[^>]*>Apply update · 2\.0<\/button>/,
     );
   });
+
+  it.each([
+    [undefined, false],
+    [1, false],
+    [2, true],
+  ] as const)(
+    "offers a starting disc beside Play for %s selectable discs: %s",
+    (selectableDiscs, offered) => {
+      const status: PortStatus = {
+        ...portStatus(),
+        port_id: port.id,
+        active: installRecord(),
+        readiness: {
+          launchable: true,
+          blockers: [],
+          pending_setup: false,
+          ...(selectableDiscs === undefined ? {} : { selectable_discs: selectableDiscs }),
+        },
+      };
+      const html = renderToStaticMarkup(
+        <DetailPanel
+          port={{ ...port, source_profile: null }}
+          status={status}
+          sourcePath=""
+          setSourcePath={vi.fn()}
+          actions={actions}
+        />,
+      );
+      const picker = html.indexOf("Disc to start");
+      expect(html).toContain("data-launch-action");
+      expect(picker > -1).toBe(offered);
+      expect(html.includes("Saved disc")).toBe(offered);
+      expect(picker < html.indexOf("data-launch-action")).toBe(true);
+    },
+  );
 
   it.each(["missing_runtime", "invalid_installation"] as const)(
     "keeps staged activation reachable when %s blocks Play",
@@ -1916,8 +2092,8 @@ describe("desktop components", () => {
     for (const content of [
       port.summary,
       "Project status and release information",
-      "Compatibility qualifications",
-      "Recorded checks",
+      "Platforms and installation method",
+      "Test results",
     ])
       expect(overview).toContain(content);
     for (const content of ['aria-label="Game actions"', "Requirements"])
@@ -1930,7 +2106,7 @@ describe("desktop components", () => {
       expect(saves).toContain(content);
     for (const content of [
       "Installed version",
-      "Latest version at last check",
+      "Available at last check",
       "2.0",
       "Check for updates",
     ])
@@ -1979,7 +2155,7 @@ describe("desktop components", () => {
     );
     expect(html).toContain("Selected channel");
     expect(html).toContain("Preview");
-    expect(html).not.toContain("Latest version at last check");
+    expect(html).not.toContain("Latest release at last check");
     expect(html).not.toContain("9.9-stale");
   });
 
@@ -2021,8 +2197,9 @@ describe("desktop components", () => {
         }}
       />,
     );
-    expect(html).toContain("<dt>Installed version</dt><dd>1.1</dd>");
-    expect(html).not.toContain("Latest version at last check");
+    expect(html).toContain("Installed version");
+    expect(html).toContain("<strong>1.1</strong>");
+    expect(html).not.toContain("Latest release at last check");
     expect(html).not.toContain("9.9-stale");
   });
 });
@@ -2054,7 +2231,7 @@ it.each(["g-diffuser", "animal-crossing-pc-port", "openpete"])(
         actions={actions}
       />,
     );
-    const review = html.match(/<button\b[^>]*>Review setup<\/button>/)?.[0];
+    const review = html.match(/<button\b[^>]*>Finish setup<\/button>/)?.[0];
     expect(review).toBeDefined();
     expect(review).not.toMatch(/\sdisabled(?:\s|=|>)/);
     expect(html).not.toContain(">Start setup</button>");
@@ -2088,7 +2265,7 @@ it("keeps Core-permitted launch available while original bytes await an explicit
   );
   expect(html).toContain(">Try launch</button>");
   expect(html).not.toContain("Select game files");
-  expect(html).not.toContain("Review setup");
+  expect(html).not.toMatch(/<button\b[^>]*>Finish setup<\/button>/);
 });
 
 it("uses descriptive display metadata only in the shared detail shell", () => {
@@ -2170,3 +2347,80 @@ it("explains the retained setup and saved-data contract after current metadata c
   expect(coverage).toContain("retained-saves");
   expect(coverage).not.toContain("new-catalog-only");
 });
+
+it("separates the active version from a downloaded update without implying it is active", () => {
+  const active = installRecord({ version: "1.0" });
+  const html = renderToStaticMarkup(
+    <InstallationVersionSummary
+      status={{
+        ...portStatus(),
+        active,
+        staged: { ...active, id: "downloaded", version: "2.0", staged: true },
+      }}
+      selectedChannel="stable"
+    />,
+  );
+  const current = html.slice(
+    html.indexOf('class="detail-version-current"'),
+    html.indexOf('class="detail-version-candidate"'),
+  );
+  const candidate = html.slice(html.indexOf('class="detail-version-candidate"'));
+  expect(current).toContain("<strong>1.0</strong>");
+  expect(current).not.toContain("<strong>2.0</strong>");
+  expect(candidate).toContain("Update saved for later");
+  expect(candidate).toContain("<strong>2.0</strong>");
+});
+
+it.each(["current", "pending", "failed"] as const)(
+  "qualifies the backup journey caption when inventory read is %s",
+  (readStatus) => {
+    const html = renderToStaticMarkup(
+      <DetailPanel
+        port={port}
+        sourcePath=""
+        setSourcePath={vi.fn()}
+        actions={actions}
+        status={{ ...portStatus(), active: installRecord() }}
+        backupReadState={{ status: readStatus, hasInventory: true }}
+        backups={[
+          {
+            id: "b1",
+            port_id: port.id,
+            path: "backups/sample/b1",
+            created_at: 1,
+            file_count: 1,
+            size: 10,
+            sha256: "a".repeat(64),
+          },
+        ]}
+      />,
+    );
+    const overview = detailSection(html, "overview");
+    expect(overview.includes("1 backup")).toBe(readStatus === "current");
+    expect(overview.includes("Review backup history")).toBe(readStatus !== "current");
+  },
+);
+
+it.each([null, "bios"])(
+  "summarizes unrecorded setup facts for a retained installation (BIOS profile %s)",
+  (biosProfile) => {
+    const html = renderToStaticMarkup(
+      <DetailPanel
+        port={{ ...port, bios_source_profile: biosProfile }}
+        sourcePath=""
+        setSourcePath={vi.fn()}
+        actions={actions}
+        status={{ ...portStatus(), active: installRecord() }}
+      />,
+    );
+    const overview = detailSection(html, "overview");
+    expect(overview).toContain("Setup details");
+    expect(overview).toContain(
+      "Files, platforms and setup method weren’t recorded for this installation.",
+    );
+    expect(overview).not.toContain("Recorded requirements unavailable");
+    expect(overview).not.toContain("Recorded package targets unavailable");
+    expect(overview).not.toContain("Recorded setup method unavailable");
+    expect(overview.includes("Required BIOS not specified")).toBe(biosProfile !== null);
+  },
+);

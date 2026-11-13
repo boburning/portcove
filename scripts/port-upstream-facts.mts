@@ -1,7 +1,8 @@
 import { mkdirSync, lstatSync, readFileSync, writeFileSync, renameSync } from "node:fs";
 import { join } from "node:path";
 import { randomUUID } from "node:crypto";
-import { boundedDiscoveryRequest } from "./discovery-http.mts";
+import { createGitHubClient } from "./github-client.mts";
+import { GitHubApiError } from "./github-operation.mts";
 import { DiscoveryBudget } from "./discovery-budget.mts";
 import { observationHash } from "./upstream-observer.mts";
 import { isRecord, errorCode } from "./runtime-values.mts";
@@ -138,6 +139,46 @@ export async function collectPortFacts(options: PortFactsOptions) {
   const started = now();
   const budget = new DiscoveryBudget("ordinary", undefined, now);
   const observations: FactResult[] = [];
+  const deadline = performance.now() + limits.milliseconds;
+  const deferral = { primary: new Map<string, number>(), secondary: 0 };
+  let received = 0;
+  const sdk = await createGitHubClient({
+    credential:
+      options.token === undefined
+        ? { kind: "anonymous" }
+        : { kind: "explicit", token: options.token },
+    deadline,
+    wallNow: now,
+    deferral,
+    maxBytes: 2 * 1024 * 1024,
+    requestTimeoutMs: 20000,
+    ...(options.fetcher ? { fetch: options.fetcher } : {}),
+    headers: { accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28" },
+    allowRequest: (method, url) => method === "GET" && url.origin === "https://api.github.com",
+    reserve: async ({ url }) => {
+      if (
+        budget.usage.requests >= limits.requests ||
+        received >= limits.bytes ||
+        performance.now() >= deadline
+      )
+        throw new GitHubApiError(
+          "budget_exhausted",
+          "Ordinary facts collection allowance exhausted",
+        );
+      await budget.admit(1, 1);
+      return {
+        consumeBytes(bytes) {
+          received += bytes;
+          if (received > limits.bytes)
+            throw new GitHubApiError("budget_exhausted", "Ordinary facts byte allowance exhausted");
+        },
+        settle(observation) {
+          if (observation.dispatched)
+            budget.charge("GET", url.href, 1, observation.bytes, String(observation.status ?? 0));
+        },
+      };
+    },
+  });
   mkdirSync(options.cacheDirectory, { recursive: true });
   if (
     !lstatSync(options.cacheDirectory).isDirectory() ||
@@ -200,19 +241,37 @@ export async function collectPortFacts(options: PortFactsOptions) {
       else if (budget.usage.backoff_until && Date.parse(budget.usage.backoff_until) > now())
         result = unavailable("provider-backoff", budget.usage.backoff_until);
       else {
-        budget.admit(1, 1);
-        const response = await boundedDiscoveryRequest(
-          {
-            url: url.href,
+        let response: {
+          status: number;
+          headers: Readonly<Record<string, string | number | undefined>>;
+          data?: unknown;
+          error?: true;
+          backoff_until?: string;
+        };
+        try {
+          const result = await sdk.request({
             method: "GET",
-            token: options.token,
-            cap: Math.min(2 * 1024 * 1024, remaining.bytes),
-            timeout: Math.min(20000, remaining.milliseconds),
-            maxRequests: Math.min(5, remaining.requests),
-          },
-          options.fetcher,
-        );
-        budget.charge("GET", url.href, response.requests, response.bytes, String(response.status));
+            url: url.href,
+            // These bounded, cached observations have always been one-shot.
+            request: { portcove: { replay: "once", attempts: 0 } },
+          });
+          response = {
+            status: result.status,
+            headers: result.headers,
+            data: result.data as unknown,
+          };
+        } catch (error) {
+          const deferred = Math.max(deferral.secondary, ...deferral.primary.values());
+          const status = error instanceof GitHubApiError ? (error.status ?? 0) : 0;
+          response = {
+            status,
+            headers: {},
+            ...(status >= 400 ? {} : { error: true as const }),
+            ...(deferred > now() && Number.isFinite(new Date(deferred).getTime())
+              ? { backoff_until: new Date(deferred).toISOString() }
+              : {}),
+          };
+        }
         if (response.backoff_until) {
           budget.retainBackoff(response.backoff_until);
           const temporary = `${retryFile}.${randomUUID()}.tmp`;
@@ -229,13 +288,9 @@ export async function collectPortFacts(options: PortFactsOptions) {
             response.backoff_until,
           );
         else {
-          let body: unknown;
-          try {
-            body = JSON.parse(response.text);
-          } catch {
-            /* Invalid JSON stays unknown. */
-          }
-          if (body === undefined) result = unavailable("invalid-provider-json");
+          const body: unknown = response.data;
+          if (body === undefined || typeof body === "string")
+            result = unavailable("invalid-provider-json");
           else {
             const observed = now();
             const entry: CachedFact = {
@@ -245,7 +300,7 @@ export async function collectPortFacts(options: PortFactsOptions) {
               fresh_until: new Date(observed + hours * 3600000).toISOString(),
               body,
               body_sha256: observationHash(body),
-              next_page: /rel="next"/u.test(response.headers.link ?? ""),
+              next_page: /rel="next"/u.test(String(response.headers.link ?? "")),
             };
             const temporary = `${file}.${randomUUID()}.tmp`;
             writeFileSync(temporary, `${JSON.stringify(entry)}\n`, { flag: "wx", mode: 0o600 });

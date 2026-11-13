@@ -1,3 +1,4 @@
+import { selectedHostedNativePlatform } from "./release-authority-configuration-contract.mts";
 /** Original hosted capture -> bounded keyless proof. No CLI, imported
  * report, new issuer, upload, native acceptance or production activation. */
 import assert from "node:assert/strict";
@@ -31,13 +32,16 @@ import { readBoundedPublicBuildInputFile } from "./release-public-build-inputs.m
 import { createHostedNativeProofStore } from "./release-owned-capture-store.mts";
 import { createHostedWindowsNativeProofStore } from "./release-owned-windows-proof-store.mts";
 import { createCheckpointSigningTransport } from "./release-checkpoint-signing-transport.mts";
-import { withReadOnlyReleaseChildren } from "./release-readonly-child-environment.mts";
+import {
+  fixedReleaseReaderToken,
+  withReadOnlyReleaseChildren,
+} from "./release-readonly-child-environment.mts";
 import { isRecord } from "./runtime-values.mts";
 
 const hash = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
 const attempted = new WeakSet<object>();
 type Platform = "linux-x86_64" | "windows-x86_64";
-export const hostedWindowsProofExecutionAuthorized = false;
+export const hostedWindowsProofExecutionAuthorized = true;
 type Prepared = ReturnType<typeof prepareHostedNativeProofSubject>;
 type Retained = {
   platform: Platform;
@@ -124,7 +128,7 @@ async function readInput(reportReceipt: object, platform: Platform) {
     };
   } else {
     assert.equal(parent.configuration.purpose, "application");
-    const selected = parent.configuration.hosted_native["windows-x86_64"];
+    const selected = selectedHostedNativePlatform(parent.configuration, "windows-x86_64");
     assert.ok(
       selected.minimum_platform === "windows-11-26h2-x64" ||
         selected.minimum_platform === "windows-server-2022-x64-continuity",
@@ -239,7 +243,7 @@ async function signHostedNativeProof(reportReceipt: object, platform: Platform) 
           run_id: producer.run_id,
           run_attempt: producer.run_attempt,
         },
-        { transport: { cwd: directory, deadline } },
+        { transport: { sdkToken: fixedReleaseReaderToken(), requireDirect: true, deadline } },
       );
       assert.equal(identity.evidence_scope, "github.com");
       assert.equal(identity.job_id, producer.job_id);

@@ -1,3 +1,5 @@
+import { captureParityState } from "../../test/parity-capture";
+import "../styles/index.css";
 import { act, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
@@ -72,6 +74,42 @@ describe("Library card overflow", () => {
     expect(onSelect).toHaveBeenCalledWith(port.id, `library:card-more:${port.id}`, "saves");
   });
 
+  it("replaces a focused review button when the card becomes launchable", async () => {
+    const port = portDefinition();
+    const props = {
+      view: "library" as const,
+      ports: [port],
+      overview: { installed: 1, ready: 0, needsSetup: 1, staged: 0 },
+      filter: "all" as const,
+      setFilter: vi.fn(),
+      onSelect: vi.fn(),
+      onContinue: vi.fn(),
+      loading: false,
+    };
+    await act(async () => root.render(<PortBrowser {...props} statuses={new Map()} />));
+    const review = host.querySelector<HTMLButtonElement>('[data-detail-origin$=":review"]');
+    expect(review).not.toBeNull();
+    review?.focus();
+    expect(document.activeElement).toBe(review);
+
+    const launchable = installedLaunchStatus({
+      launchable: true,
+      pending_setup: false,
+      blockers: [],
+      source: "not_checked",
+    });
+    await act(async () =>
+      root.render(<PortBrowser {...props} statuses={new Map([[port.id, launchable]])} />),
+    );
+
+    const play = host.querySelector<HTMLButtonElement>(".library-card-play");
+    expect(play).not.toBeNull();
+    expect(review?.isConnected).toBe(false);
+    expect(document.activeElement).not.toBe(play);
+    await act(async () => play?.click());
+    expect(props.onContinue).toHaveBeenCalledExactlyOnceWith(port.id);
+  });
+
   it("routes a recorded input blocker directly to file review without launching", async () => {
     const port = portDefinition();
     const status = installedLaunchStatus({
@@ -98,7 +136,7 @@ describe("Library card overflow", () => {
       ),
     );
     const review = [...host.querySelectorAll<HTMLButtonElement>("button")].find((button) =>
-      button.getAttribute("aria-label")?.startsWith("Set up:"),
+      button.getAttribute("aria-label")?.startsWith("Finish setup:"),
     );
     expect(review).toBeDefined();
     await act(async () => review!.click());
@@ -225,11 +263,11 @@ describe("Library empty browsing context", () => {
 
     await render("all", "unmatched title");
     const resultStatus = host.querySelector('[role="status"]');
-    expect(resultStatus?.textContent).toBe("0 library entries");
+    expect(resultStatus?.textContent).toBe("0 in your library");
     expect(host.querySelector('[aria-label="Library readiness"]')).toBeNull();
-    expect(host.textContent).toContain("No matching library entries");
+    expect(host.textContent).toContain("Nothing in your library matches");
     expect(host.textContent).toContain(
-      "No library entries match “unmatched title” with the current view.",
+      "Reset search, filters, quick views and collection selection to browse again.",
     );
     expect(host.textContent).not.toContain("Your installed ports are still in this library");
     await act(async () =>
@@ -240,7 +278,7 @@ describe("Library empty browsing context", () => {
     expect(clearFilters).toHaveBeenCalledOnce();
 
     await render("ready", "");
-    expect(host.textContent).toContain("No matching library entries");
+    expect(host.textContent).toContain("Nothing in your library matches");
 
     await render("all", "   ");
     expect(host.querySelector('[role="status"]')).toBe(resultStatus);
@@ -248,6 +286,7 @@ describe("Library empty browsing context", () => {
     expect(host.querySelector('[aria-label="Library readiness"]')).toBeNull();
     expect(host.textContent).toContain("Your library is empty");
     expect(host.textContent).toContain("Connect game-file folder");
+    await captureParityState("empty-library-first-use");
     await act(async () =>
       [...host.querySelectorAll("button")]
         .find((button) => button.textContent?.includes("Connect game-file folder"))!

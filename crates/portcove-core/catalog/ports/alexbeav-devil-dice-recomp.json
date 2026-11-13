@@ -3,10 +3,11 @@
   "listing": {
     "id": "alexbeav-devil-dice-recomp",
     "name": "Devil Dice / Alexbeav PSXRecomp",
-    "summary": "Upstream PlayStation setup package using your own matching disc and any required BIOS. Finish generation with upstream; that external copy keeps its own runtime updates and player data.",
+    "summary": "PlayStation port prepared with your own matching disc and any required BIOS. Complete setup with the project’s launcher; you manage this copy, its updates and your saved data.",
     "project_url": "https://github.com/alexbeavs-ps1-ports/devil-dice-recomp",
     "issue_number": 1591,
-    "platforms": ["windows-x86-64", "linux-x86-64"],
+    "listed_at": "2026-10-23",
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
     "availability": "packages",
     "setup_url": "https://github.com/alexbeavs-ps1-ports/devil-dice-recomp#readme",
     "artwork": {
@@ -20,25 +21,44 @@
     "manual_setup": {
       "steps": [
         {
-          "title": "Download the upstream setup package",
-          "instruction": "Extract the complete official setup ZIP for your system into a separate writable folder you control. This is a setup package: its launcher prepares the game from your own matching disc through upstream generation/build. On Linux, follow the selected version\u2019s prerequisites, including CMake, Ninja, Python 3 and a C/C++ compiler where required; bundled Windows tools do not supply Linux tools. Downloading and extracting do not run a launcher, compiler or game. Native setup and gameplay remain unqualified by this handoff."
+          "title": "Unpack the setup kit",
+          "instruction": "Choose the official ZIP for your system from the upstream releases and extract it to a writable folder. On Mac, use -macos-x64.zip for Intel or -macos-arm64.zip for Apple silicon. Follow the setup instructions included in your kit."
+        },
+        {
+          "title": "Install the build tools",
+          "instruction": "On Windows, install Python 3 and follow the wizard’s portable build-tool instructions. On Linux and Mac, put a native C/C++ compiler, CMake, Ninja and Python 3 on PATH. On Mac, install Xcode Command Line Tools."
         },
         {
           "title": "Supply the matching original files",
-          "instruction": "Follow the upstream guide for the version you downloaded. Use your own original in its supported image representation, keeping a CUE and every referenced track together when required, and supply your own BIOS whenever that guide requires it. Preserve the exact edition, disc layout and BIOS requirements in that guide; an included setup BIOS does not establish game compatibility."
+          "instruction": "Use your own European Devil Dice disc (SCES-01312) with all 12 tracks present. Supply your own retail SCPH-5552 BIOS. Use the matching CHD or keep the CUE and every referenced BIN together."
         },
         {
-          "title": "Finish upstream setup, then add the player",
-          "instruction": "Deliberately open the supported upstream launcher when you are ready to generate/build from your own files. Follow that version\u2019s completed-player instructions and keep its runtime/compiler companions together. In Portcove choose the resulting native game executable or supported upstream launcher with its supplied working folder. If setup created it elsewhere, select that location. Saving launch details and Play are separate Portcove actions. You or upstream manage runtime updates, original files, saves and settings; these external files are outside Portcove-managed backups. Keep a working copy and its data before changing versions."
+          "title": "Build and add the player",
+          "instruction": "From the kit folder, run Devil_Dice (with .exe on Windows) and choose Generate & rebuild. In Portcove, select build-release/Devil_Dice (with .exe on Windows) and use build-release as the start folder. Save the details, then choose Play."
         }
       ],
-      "warnings": [],
-      "help_url": "https://github.com/alexbeavs-ps1-ports/devil-dice-recomp#readme"
+      "warnings": [
+        "Use the retail European disc for this kit. A prerelease disc shares its first data track and 12-track count.",
+        "Portcove has not verified native setup, gameplay or save compatibility for this kit."
+      ],
+      "help_url": "https://github.com/alexbeavs-ps1-ports/devil-dice-recomp#readme",
+      "references": [
+        {
+          "title": "Linux and Mac compatibility",
+          "instruction": "The Linux setup host requires glibc 2.29 or newer, libstdc++ with GLIBCXX_3.4.26, OpenGL and zlib. The Mac host and bundled generators require macOS 11 or newer."
+        },
+        {
+          "title": "Updates and backups",
+          "instruction": "Keep the complete working folder and back up your disc images, BIOS, saves, settings and mods. Use the upstream setup kit when replacing your player."
+        }
+      ]
     },
     "release_url": "https://github.com/alexbeavs-ps1-ports/devil-dice-recomp/releases",
     "download_asset_hints": {
-      "windows-x86-64": ["devildice-", "-windows-x64.zip"],
-      "linux-x86-64": ["devildice-", "-linux-x64.zip"]
+      "linux-x86-64": ["devildice-", "-linux-x64.zip"],
+      "macos-aarch64": ["devildice-", "-macos-arm64.zip"],
+      "macos-x86-64": ["devildice-", "-macos-x64.zip"],
+      "windows-x86-64": ["devildice-", "-windows-x64.zip"]
     },
     "recommended_download_channel": "stable"
   }

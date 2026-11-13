@@ -387,8 +387,33 @@ it("keeps accepted listing facts, uncertainty, staleness and reason-bearing over
       ],
     },
   };
+  const gitlab: PortListing = {
+    ...observed,
+    project_url: "https://gitlab.com/example/game",
+    upstream_observation: {
+      ...observed.upstream_observation!,
+      provider: "gitlab",
+      releases: observed.upstream_observation!.releases.map((release) => ({
+        ...release,
+        id: { provider: "gitlab", project_id: 7, tag: release.version },
+        release_url: `https://gitlab.com/example/game/-/releases/${release.version}`,
+      })),
+    },
+  };
   const current = Date.parse("2026-10-27T06:00:00Z");
   expect(listingAvailabilityLabel(observed, current)).toBe("Package candidates observed");
+  expect(listingAvailabilityLabel(gitlab, current)).toBe(
+    listingAvailabilityLabel(observed, current),
+  );
+  expect(listingAvailabilityLabel(gitlab, Date.parse("2026-10-28T00:00:00Z"))).toContain(
+    "stale observation",
+  );
+  expect(
+    listingAvailabilityLabel(
+      { ...gitlab, upstream_observation: { ...gitlab.upstream_observation!, status: "failed" } },
+      current,
+    ),
+  ).toContain("check failed");
   expect(
     listingAvailabilityLabel(
       { ...observed, availability_override_reason: "Reviewed distribution restriction" },

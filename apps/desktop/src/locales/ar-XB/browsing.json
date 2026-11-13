@@ -1,0 +1,175 @@
+{
+  "alternatives": {
+    "external": "تثبيت خارجي · <version/>",
+    "heading": "منافذ أخرى لهذه اللعبة ({{total}})",
+    "independence": "يحتفظ كل مشروع بملفاته وتثبيته الخاص. اختيار أحدها لا ينقل الحفظ ولا يختار إصدارًا.",
+    "managed": "تثبيت مُدار · <version/>",
+    "notInstalled": "غير مثبت",
+    "originalFiles": "الملفات الأصلية: <files/>",
+    "originalFilesUnknown": "الملفات الأصلية: راجع تعليمات إعداد المشروع",
+    "runsOn": "يعمل على: <platforms/>",
+    "runsOnUnknown": "يعمل على: غير مسجل",
+    "sourceEditions": "إصدارات المصدر: <editions/>",
+    "stateUnavailable": "حالة التثبيت غير متاحة",
+    "view": "عرض <name/>",
+    "viewing": "<name/> · قيد العرض"
+  },
+  "discover": {
+    "action": {
+      "compare": "مقارنة المنافذ",
+      "compareAll": "مقارنة الكل ({{total}})",
+      "continue": "متابعة الإعداد",
+      "installation": "عرض التثبيت",
+      "port": "عرض المنفذ",
+      "task": "عرض المهمة",
+      "why": "لماذا هذا المنفذ؟"
+    },
+    "cardLabel": "{{game}}. {{state}}.",
+    "chip": {
+      "channel": "قناة التحديث",
+      "platform": "يعمل على",
+      "system": "النظام الأصلي"
+    },
+    "compare": {
+      "files": "الملفات المطلوبة",
+      "filesUnlisted": "المتطلبات غير مدرجة هنا. راجع تعليمات إعداد المشروع.",
+      "instructions": "تعليمات المشروع",
+      "noChannel": "لا توجد قناة تحديث مدرجة.",
+      "noPlatform": "لا توجد منصة مدرجة.",
+      "options": "خيارات المقارنة والتقارير",
+      "optionsIntro": "تفاصيل الميزات غير متاحة لكل مشروع. راجع التقارير وتعليمات المشروع. قد لا تعمل ملفات الحفظ والتعديلات مع منفذ آخر.",
+      "outsideFilters": "خارج عوامل التصفية الحالية.",
+      "setup": "كيفية الإعداد",
+      "several": "قارن متطلبات الإعداد للمنافذ ({{total}}). راجع تعليمات كل منفذ لمعرفة مواقع الحفظ المشتركة.",
+      "single": "راجع متطلبات إعداد هذا المنفذ وتقاريره.",
+      "status": "الحالة الحالية",
+      "updates": "من يتولى التحديثات"
+    },
+    "compareMatching": "قارن المنافذ المطابقة لمعرفة متطلبات الإعداد وحالة التثبيت الخاصة بكل منها.",
+    "drop": {
+      "hover": "أسقط هنا للتحقق لهذه اللعبة",
+      "release": "أفلت للتحقق"
+    },
+    "favorite": {
+      "add": "إضافة إلى المفضلة",
+      "label": "تفضيل {{game}}",
+      "remove": "إزالة من المفضلة"
+    },
+    "groupLabel_zero": "{{title}}. {{count}} مشروع منفصل؛ {{matching}} مطابقة.",
+    "groupLabel_one": "{{title}}. مشروع منفصل واحد؛ {{matching}} مطابقة.",
+    "groupLabel_two": "{{title}}. مشروعان منفصلان؛ {{matching}} مطابقة.",
+    "groupLabel_few": "{{title}}. {{count}} مشاريع منفصلة؛ {{matching}} مطابقة.",
+    "groupLabel_many": "{{title}}. {{count}} مشروعًا منفصلًا؛ {{matching}} مطابقة.",
+    "groupLabel_other": "{{title}}. {{count}} مشروع منفصل؛ {{matching}} مطابقة.",
+    "identity": {
+      "matching": "{{title}} {{project}}. المنفذ المطابق: {{port}}. {{state}}. {{action}}",
+      "single": "{{title}} {{project}}. {{state}}. {{action}}"
+    },
+    "label": "اكتشاف الألعاب",
+    "matchingPort": "المنفذ المطابق: <port />",
+    "memberLabel": "{{action}}: {{game}}",
+    "ownership": {
+      "external": "تثبيت خارجي. تتولى أنت أو مشغّله التحديثات.",
+      "managed": "تثبيت مُدار. يتولى Portcove التحديثات المراجَعة.",
+      "notInstalled": "غير مثبت. اتبع تعليمات إعداد هذا المشروع.",
+      "unavailable": "الجهة المسؤولة عن التثبيت غير معروفة. راجع تعليمات المشروع."
+    },
+    "separateProjects_zero": "{{count}} مشروع منفصل",
+    "separateProjects_one": "مشروع منفصل واحد",
+    "separateProjects_two": "مشروعان منفصلان",
+    "separateProjects_few": "{{count}} مشاريع منفصلة",
+    "separateProjects_many": "{{count}} مشروعًا منفصلًا",
+    "separateProjects_other": "{{count}} مشروع منفصل",
+    "unavailableFor": "غير متاح لـ {{platform}}"
+  },
+  "hero": {
+    "continueLabel": "{{title}} لُعبت مؤخرًا",
+    "credits": "حقوق الصور",
+    "detailLabel": "تفاصيل لعبة {{title}}"
+  },
+  "implementation": {
+    "choose": "اختيار <name/>",
+    "preferred": "المفضّل: <name/>",
+    "refresh": "تحديث الخيارات",
+    "unconfirmed": "تعذر على Portcove تأكيد حفظ اختيارك. حدّث الخيارات للتحقق."
+  },
+  "library": {
+    "allPorts_zero": "جميع المنافذ ({{count, number}}) · المطابقة: {{matching, number}}",
+    "allPorts_one": "المنفذ الوحيد ({{count, number}}) · المطابقة: {{matching, number}}",
+    "allPorts_two": "المنفذان ({{count, number}}) · المطابقة: {{matching, number}}",
+    "allPorts_few": "جميع المنافذ ({{count, number}}) · المطابقة: {{matching, number}}",
+    "allPorts_many": "جميع المنافذ ({{count, number}}) · المطابقة: {{matching, number}}",
+    "allPorts_other": "جميع المنافذ ({{count, number}}) · المطابقة: {{matching, number}}",
+    "choiceFiltered": "المنفذ المفضل لديك خارج عوامل التصفية هذه. يمكنك عرض المنافذ المطابقة أدناه.",
+    "choiceReadFailed": "تعذرت قراءة اختيارك للتنفيذ. تظل إجراءات التثبيت الحالية متاحة.",
+    "choiceStale": "لم يعد المنفذ الذي اخترته ضمن مجموعة اللعبة هذه. اختر منفذًا من القائمة.",
+    "choosePrompt": "اختر المنفذ الذي سيُعرض لهذه اللعبة. راجع تعليمات إعداده بشأن مواقع الحفظ المشتركة قبل التبديل.",
+    "chosen": "<name/> · اختيارك",
+    "chosenOutside": "<name/> · اختيارك · خارج عوامل التصفية الحالية",
+    "independence": "اختيار مشروع لا يحدد إصدارًا ولا ينقل الحفظ ولا يستبدل تثبيتًا آخر.",
+    "outside": "<name/> · خارج عوامل التصفية الحالية",
+    "portCount_zero": "{{count, number}} منفذ",
+    "portCount_one": "منفذ واحد ({{count, number}})",
+    "portCount_two": "منفذان ({{count, number}})",
+    "portCount_few": "{{count, number}} منافذ",
+    "portCount_many": "{{count, number}} منفذًا",
+    "portCount_other": "{{count, number}} منفذ",
+    "portsLabel": "منافذ {{title}}"
+  },
+  "maintenance": {
+    "offer": "العرض المُدار الحالي",
+    "reconsider": "إعادة النظر عندما: <condition/>"
+  },
+  "match": {
+    "channelUnknown": "القناة غير معروفة",
+    "choose": "اختر إصدارًا لفحصه. كل خيار يطابق جميع المرشحات المحددة.",
+    "heading": "إصدارات مطابقة لمرشحاتك",
+    "installedBuild": "إصدار مثبت",
+    "label": "سياقات تصفح مطابقة",
+    "lostChoice": "لم يعد اختيارك السابق حاليًا. اختر إصدارًا مطابقًا لفحصه.",
+    "methodUnknown": "طريقة الإعداد المحفوظة غير معروفة",
+    "noCheck": "لا يوجد فحص حالي لملفات اللعبة لهذا الإصدار. افحص مرة أخرى.",
+    "noDetails": "تطابق هذه اللعبة مرشحاتك. تفاصيل الإصدار غير متاحة؛ يتحقق Portcove من المتطلبات قبل الإعداد أو التشغيل.",
+    "noLongerMatches": "لم يعد هذا المنفذ يطابق مرشحاتك.",
+    "platformUnknown": "المنصة غير معروفة",
+    "savedInstallation": "<method/>. هذا هو تثبيتك المحفوظ المطابق. يتحقق Portcove من المتطلبات الحالية مرة أخرى قبل الإعداد أو التشغيل.",
+    "setup": "إعداد",
+    "setupOption": "<method/>. خيار الإعداد هذا يطابق مرشحاتك. يتحقق Portcove من المتطلبات الحالية مرة أخرى قبل الإعداد أو التشغيل.",
+    "unavailable": "نتائج التصفية هذه غير متاحة. عد إلى المرشحات لتحديث اختياراتك أو للفحص مرة أخرى."
+  },
+  "media": {
+    "captionUnavailable": "<caption/> · الصورة غير متاحة",
+    "choose": "اختر لقطة شاشة",
+    "creditOriginal": "الإصدار الأصلي · <edition/> · <credit/>",
+    "creditPort": "صورة المنفذ · <credit/>",
+    "enlarge": "تكبير لقطة الشاشة {{number, number}}: {{caption}}",
+    "exactPort": "لقطة شاشة لهذا المنفذ بالتحديد.",
+    "fromOriginal": "من الإصدار الأصلي؛ قد يبدو هذا المنفذ مختلفًا.",
+    "igdbTerms": "شروط IGDB",
+    "loading": "جارٍ تحميل الصورة…",
+    "loadingScreenshot": "جارٍ تحميل لقطة الشاشة…",
+    "next": "التالي",
+    "openOriginal": "فتح الصورة الأصلية",
+    "position": "معاينة الصورة · لقطة الشاشة {{number, number}} من {{total, number}}",
+    "previous": "السابق",
+    "retry": "إعادة محاولة الصورة",
+    "retryScreenshot": "إعادة محاولة لقطة الشاشة {{number, number}}",
+    "screenshots": "لقطات الشاشة",
+    "show": "عرض لقطة الشاشة {{number, number}}: {{caption}}",
+    "source": "المصدر",
+    "unavailable": "الصورة غير متاحة"
+  },
+  "observations": {
+    "available": "تحديث متاح عند آخر فحص",
+    "channel": "قناة التحديث المحددة: <channel/>",
+    "retired": "متوقف من المصدر",
+    "staged": "تحديث محفوظ لوقت لاحق",
+    "updateDetails": "تفاصيل التحديث"
+  },
+  "search": {
+    "clear": "مسح البحث",
+    "discover": "البحث في الاكتشاف",
+    "library": "البحث في مكتبتك",
+    "placeholder": "اسم اللعبة أو المنفذ"
+  }
+}

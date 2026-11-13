@@ -27,7 +27,10 @@ import {
   type CatalogQuery,
   type CatalogQueryContext,
 } from "./catalog-query";
-import { states } from "./game-file-query-context";
+import type { TFunction } from "i18next";
+import { useAppTranslation } from "../../localization";
+import { gameFileStateLabel } from "./game-file-query-context";
+import { isQuickViewUpdateSelection } from "./quick-view-updates";
 import { GameFileFilterControls } from "./GameFileFilterControls";
 import type { GameFileFilterState } from "./use-game-file-filter-context";
 
@@ -35,14 +38,14 @@ import { Checkbox } from "../../components/ui/checkbox";
 import { CompactFilterField } from "../../components/ui/field";
 
 const fixedGroups = [
-  { key: "platforms", label: "Target OS" },
-  { key: "portOptions", label: "Port options" },
-  { key: "channels", label: "Release channels" },
-  { key: "installationMethods", label: "Setup methods" },
-  { key: "membership", label: "Library membership" },
-  { key: "updates", label: "Observed updates" },
-  { key: "gameFiles", label: "Game files for the observed route" },
-  { key: "attention", label: "Installation attention" },
+  { key: "platforms" },
+  { key: "portOptions" },
+  { key: "channels" },
+  { key: "installationMethods" },
+  { key: "membership" },
+  { key: "updates" },
+  { key: "gameFiles" },
+  { key: "attention" },
 ] as const;
 type Group = (typeof fixedGroups)[number]["key"] | "originalSystems";
 const commonGroups: readonly Group[] = [
@@ -53,6 +56,7 @@ const commonGroups: readonly Group[] = [
   "membership",
   "gameFiles",
 ];
+const libraryPrimaryGroups: readonly Group[] = ["platforms", "originalSystems", "channels"];
 interface FilterGroup {
   key: Group;
   label: string;
@@ -67,64 +71,105 @@ export function queryFromFilter(filter: Filter | CatalogQuery): CatalogQuery {
       }
     : filter;
 }
-function label(group: Group, value: string) {
+function label(t: TFunction<"gameFiles">, group: Group, value: string) {
   if (group === "originalSystems") return identityLabel(value);
-  if (group === "portOptions") return value === "multiple" ? "Multiple ports" : "Single port";
+  if (group === "portOptions")
+    return value === "multiple" ? t("filters.value.multiplePorts") : t("filters.value.singlePort");
   if (group === "installationMethods")
     return installationMethodLabels[value as keyof typeof installationMethodLabels] ?? value;
-  if (group === "platforms" && value === "this-device") return "For this device";
-  if (group === "gameFiles") return states[value as keyof typeof states];
+  if (group === "platforms" && value === "this-device") return t("filters.value.thisDevice");
+  if (group === "gameFiles")
+    return gameFileStateLabel(t, value as Parameters<typeof gameFileStateLabel>[1]);
   if (group === "updates")
-    return value === "available" ? "Available at last check" : "Matching update staged";
-  if (group === "attention") {
-    const labels: Record<string, string> = {
-      "missing-source": "Missing game files",
-      "missing-bios": "Missing BIOS",
-      "missing-runtime": "Missing runtime",
-      "repair-needed": "Repair needed",
-      "finish-setup": "Finish setup",
-    };
-    return labels[value];
-  }
-  if (group === "membership") return value === "in-library" ? "In my library" : "Not in my library";
+    return value === "available"
+      ? t("filters.value.updateAvailable")
+      : t("filters.value.updateStaged");
+  if (group === "attention") return attentionLabel(t, value);
+  if (group === "membership")
+    return value === "in-library" ? t("filters.value.inLibrary") : t("filters.value.notInLibrary");
   return group === "platforms" ? platformLabel(value) : releaseChannelPresentation(value).label;
 }
 
-/** Presentation of declarations and Core observations; the evaluator owns matching/counts. */
-export function CatalogFilters({
-  candidates,
-  context,
-  filter,
-  setFilter,
-  gameFileQuery,
-  view = "catalog",
-  before,
-  after,
-  summary,
-  advanced,
+function attentionLabel(t: TFunction<"gameFiles">, value: string) {
+  switch (value) {
+    case "missing-source":
+      return t("filters.value.missingSource");
+    case "missing-bios":
+      return t("filters.value.missingBios");
+    case "missing-runtime":
+      return t("filters.value.missingRuntime");
+    case "repair-needed":
+      return t("filters.value.repairNeeded");
+    case "finish-setup":
+      return t("filters.value.finishSetup");
+    default:
+      return undefined;
+  }
+}
+
+function groupLabel(t: TFunction<"gameFiles">, group: Group): string {
+  switch (group) {
+    case "originalSystems":
+      return t("filters.group.originalSystems");
+    case "platforms":
+      return t("filters.group.platforms");
+    case "portOptions":
+      return t("filters.group.portOptions");
+    case "channels":
+      return t("filters.group.channels");
+    case "installationMethods":
+      return t("filters.group.installationMethods");
+    case "membership":
+      return t("filters.group.membership");
+    case "updates":
+      return t("filters.group.updates");
+    case "gameFiles":
+      return t("filters.group.gameFiles");
+    case "attention":
+      return t("filters.group.attention");
+  }
+}
+
+function SelectedFilterChip({
+  group,
+  value,
+  groupLabel,
+  remove,
+  restoreFocus,
 }: {
-  advanced?: ReactNode;
-  before?: ReactNode;
-  after?: ReactNode;
-  summary?: ReactNode;
-  candidates?: readonly CatalogEntry[] | undefined;
-  context?: CatalogQueryContext | undefined;
-  view?: "catalog" | "library";
-  filter: Filter | CatalogQuery;
-  setFilter: Dispatch<SetStateAction<Filter | CatalogQuery>>;
-  gameFileQuery?: GameFileFilterState | undefined;
+  group: Group;
+  value: string;
+  groupLabel: string;
+  remove: (group: Group, value: string) => void;
+  restoreFocus: () => void;
 }) {
-  const groups: FilterGroup[] = [
-    {
-      key: "originalSystems",
-      label: "Original system",
-      values: sourceSystemOptions(candidates ?? [], filter),
-    },
-    ...fixedGroups.map((group) => ({
-      ...group,
-      values: filterOptionsFor(group.key, candidates ?? [], queryFromFilter(filter), context),
-    })),
-  ];
+  const { t } = useAppTranslation("gameFiles");
+  const valueLabel = label(t, group, value) ?? value;
+  return (
+    <ChipButton
+      style={group === "platforms" ? undefined : identityStyle(value, group === "channels")}
+      data-focusable
+      size="sm"
+      variant="selected"
+      aria-label={t("filters.removeChip", { group: groupLabel, value: valueLabel })}
+      onClick={(event) => {
+        const ownedFocus = document.activeElement === event.currentTarget;
+        remove(group, value);
+        if (ownedFocus) restoreFocus();
+      }}
+    >
+      {["originalSystems", "platforms", "channels"].includes(group) && (
+        <IdentityIcon
+          name={group === "platforms" ? (value.split("-")[0] ?? value) : value}
+          channel={group === "channels"}
+        />
+      )}
+      {t("filters.chip", { group: groupLabel, value: valueLabel })} <X aria-hidden="true" />
+    </ChipButton>
+  );
+}
+
+function useFilterPanel() {
   const [open, setOpen] = useState(false);
   const panelId = useId();
   const trigger = useRef<HTMLButtonElement>(null);
@@ -152,15 +197,62 @@ export function CatalogFilters({
     document.addEventListener("keydown", escape);
     return () => document.removeEventListener("keydown", escape);
   }, [open, close]);
+  return { open, setOpen, panelId, trigger, heading, panel, close };
+}
+
+/** Presentation of declarations and Core observations; the evaluator owns matching/counts. */
+export function CatalogFilters({
+  candidates,
+  context,
+  filter,
+  setFilter,
+  gameFileQuery,
+  view = "catalog",
+  before,
+  after,
+  summary,
+  advanced,
+  quickViewUpdates = false,
+}: {
+  advanced?: ReactNode;
+  /** The Library Updates quick view owns its update selection; show no chips for it. */
+  quickViewUpdates?: boolean;
+  before?: ReactNode;
+  after?: ReactNode;
+  summary?: ReactNode;
+  candidates?: readonly CatalogEntry[] | undefined;
+  context?: CatalogQueryContext | undefined;
+  view?: "catalog" | "library";
+  filter: Filter | CatalogQuery;
+  setFilter: Dispatch<SetStateAction<Filter | CatalogQuery>>;
+  gameFileQuery?: GameFileFilterState | undefined;
+}) {
+  const { t } = useAppTranslation("gameFiles");
+  const groups: FilterGroup[] = [
+    {
+      key: "originalSystems",
+      label: groupLabel(t, "originalSystems"),
+      values: sourceSystemOptions(candidates ?? [], filter),
+    },
+    ...fixedGroups.map((group) => ({
+      ...group,
+      label: groupLabel(t, group.key),
+      values: filterOptionsFor(group.key, candidates ?? [], queryFromFilter(filter), context),
+    })),
+  ];
+  const { open, setOpen, panelId, trigger, heading, panel, close } = useFilterPanel();
   const query = queryFromFilter(filter);
   const result = evaluateCatalogQuery(candidates ?? [], query, context);
   const editable = result.state === "matched";
   const supported = result.state !== "unresolved";
+  const quickViewOwnsUpdates = quickViewUpdates && isQuickViewUpdateSelection(query.updates);
   const selected = supported
     ? groups.flatMap((group) =>
-        group.values
-          .filter((value) => query[group.key]?.includes(value))
-          .map((value) => ({ group: group.key, value })),
+        quickViewOwnsUpdates && group.key === "updates"
+          ? []
+          : group.values
+              .filter((value) => query[group.key]?.includes(value))
+              .map((value) => ({ group: group.key, value })),
       )
     : [];
   const additionalCount = !supported
@@ -174,8 +266,9 @@ export function CatalogFilters({
         0,
       );
   const additional = additionalCount > 0;
+  const primaryGroups = view === "library" ? libraryPrimaryGroups : commonGroups;
   const hasAdvancedSelection =
-    selected.some(({ group }) => !commonGroups.includes(group)) || additional;
+    selected.some(({ group }) => !primaryGroups.includes(group)) || additional;
   const [advancedOpen, setAdvancedOpen] = useState(hasAdvancedSelection);
   const activeCount = selected.length + additionalCount;
   const remove = (group: Group, value: string) =>
@@ -205,6 +298,7 @@ export function CatalogFilters({
           data-focusable
           variant="outline"
           size="sm"
+          aria-label={t("filters.triggerLabel", { total: activeCount })}
           aria-expanded={open}
           aria-controls={panelId}
           onClick={() => {
@@ -212,7 +306,15 @@ export function CatalogFilters({
             setOpen((current) => !current);
           }}
         >
-          <ListFilter /> Filters ({activeCount})
+          <ListFilter /> {t("filters.trigger")}
+          {activeCount > 0 && (
+            <>
+              {" "}
+              <span aria-hidden="true" className="catalog-filter-count">
+                ({activeCount})
+              </span>
+            </>
+          )}
         </Button>
         {after}
       </div>
@@ -221,49 +323,53 @@ export function CatalogFilters({
           ref={panel}
           id={panelId}
           className="catalog-filter-panel basis-full"
-          aria-label="Filter options"
+          data-view={view}
+          aria-label={t("filters.panelLabel")}
         >
-          <h2 ref={heading} tabIndex={-1}>
-            {view === "library" ? "Library" : "Discover"} filters
-          </h2>
-          <details className="my-2 text-sm text-pc-muted-foreground">
-            <summary className="cursor-pointer py-1">How filters work</summary>
-            <p>
-              Choose one or more options. Results match at least one option in each selected group.
-            </p>
-          </details>
+          <div className="catalog-filter-heading">
+            <h2 ref={heading} tabIndex={-1}>
+              {view === "library" ? t("filters.headingLibrary") : t("filters.headingDiscover")}
+            </h2>
+            <details className="my-2 text-sm text-pc-muted-foreground">
+              <summary className="cursor-pointer py-1">{t("filters.howSummary")}</summary>
+              <p>{t("filters.howBody")}</p>
+            </details>
+          </div>
           {!editable && (
             <p role="alert">
               {result.state === "unresolved"
-                ? "These restored filters are not supported."
-                : "These restored filters need unavailable local context."}{" "}
-              Reset {view} filters to choose a supported query.
+                ? view === "library"
+                  ? t("filters.unsupportedLibrary")
+                  : t("filters.unsupportedCatalog")
+                : view === "library"
+                  ? t("filters.needsContextLibrary")
+                  : t("filters.needsContextCatalog")}
             </p>
           )}
           {additional && (
             <p role="status">
-              Additional restored filters remain active. Reset {view} filters to remove them.
+              {view === "library" ? t("filters.additionalLibrary") : t("filters.additionalCatalog")}
             </p>
           )}
           <div className="catalog-filter-groups items-start">
-            {commonGroups.map((key) => groups.find((group) => group.key === key)!).map(renderGroup)}
+            {primaryGroups
+              .map((key) => groups.find((group) => group.key === key)!)
+              .map(renderGroup)}
           </div>
           <details
+            className="catalog-filter-advanced"
             open={advancedOpen}
             onToggle={(event) => setAdvancedOpen(event.currentTarget.open)}
           >
-            <summary className="cursor-pointer py-2 font-medium">Advanced filters</summary>
-            <p className="text-sm text-pc-muted-foreground">
-              Route-dependent filters must match the same setup or installation. Unknown facts
-              remain unknown.
-            </p>
+            <summary className="cursor-pointer py-2 font-medium">{t("filters.advanced")}</summary>
+            <p className="text-sm text-pc-muted-foreground">{t("filters.advancedNote")}</p>
             <div className="catalog-filter-groups items-start pt-3">
               {advanced}
               {gameFileQuery && <GameFileFilterControls state={gameFileQuery} />}
-              {groups.filter((group) => !commonGroups.includes(group.key)).map(renderGroup)}
+              {groups.filter((group) => !primaryGroups.includes(group.key)).map(renderGroup)}
             </div>
           </details>
-          <div className="flex flex-wrap justify-end gap-2">
+          <div className="catalog-filter-actions flex flex-wrap justify-end gap-2">
             <Button
               data-focusable
               variant="ghost"
@@ -271,73 +377,60 @@ export function CatalogFilters({
                 setFilter("all");
               }}
             >
-              Clear filters
+              {t("filters.clear")}
             </Button>
             <Button data-focusable variant="outline" onClick={close}>
-              Done
+              {t("filters.done")}
             </Button>
           </div>
         </section>
       )}
-      <div className="browse-filter-summary mt-3 flex flex-wrap items-center gap-2 text-xs text-pc-muted-foreground">
-        {summary}
-        {Boolean(result.unavailablePortIds?.length) && (
-          <p role="status" className="basis-full text-xs text-pc-muted-foreground">
-            {result.unavailablePortIds?.length} projects have unknown facts for these filters.
-            Choose All ports or clear these filters to find them.
-          </p>
-        )}
-        {supported &&
-          selected.map(({ group, value }) => (
-            <ChipButton
-              style={identityStyle(
-                group === "platforms" ? (value.split("-")[0] ?? value) : value,
-                group === "channels",
-              )}
+      <div
+        className="browse-filter-summary mt-3 flex flex-wrap items-center gap-2 text-xs text-pc-muted-foreground"
+        data-view={view}
+      >
+        {view !== "library" && summary}
+        <div className="browse-active-filters">
+          {Boolean(result.unavailablePortIds?.length) && (
+            <p role="status" className="basis-full text-xs text-pc-muted-foreground">
+              {t("filters.unknownFacts", { count: result.unavailablePortIds?.length ?? 0 })}
+            </p>
+          )}
+          {selected.map(({ group, value }) => (
+            <SelectedFilterChip
               key={`${group}:${value}`}
+              group={group}
+              value={value}
+              groupLabel={groups.find((item) => item.key === group)?.label ?? ""}
+              remove={remove}
+              restoreFocus={() => trigger.current?.focus()}
+            />
+          ))}
+          {!open && activeCount > 0 && (
+            <Button
               data-focusable
               size="sm"
-              variant="selected"
-              aria-label={`Remove ${label(group, value)} filter`}
-              onClick={(event) => {
-                const ownedFocus = document.activeElement === event.currentTarget;
-                remove(group, value);
-                if (ownedFocus) trigger.current?.focus();
+              variant="ghost"
+              onClick={() => {
+                setFilter("all");
+                trigger.current?.focus();
               }}
             >
-              {["originalSystems", "platforms", "channels"].includes(group) && (
-                <IdentityIcon
-                  name={group === "platforms" ? (value.split("-")[0] ?? value) : value}
-                  channel={group === "channels"}
-                />
-              )}
-              {groups.find((item) => item.key === group)?.label}: {label(group, value)}{" "}
-              <X aria-hidden="true" />
-            </ChipButton>
-          ))}
-        {!open && activeCount > 0 && (
-          <Button
-            data-focusable
-            size="sm"
-            variant="ghost"
-            onClick={() => {
-              setFilter("all");
-              trigger.current?.focus();
-            }}
-          >
-            Clear filters
-          </Button>
-        )}
-        {!editable && (
-          <p role="status" className="text-sm text-pc-muted-foreground">
-            Open Filters to review or reset the restored query.
-          </p>
-        )}
-        {additional && (
-          <p role="status" className="text-sm text-pc-muted-foreground">
-            Additional restored filters are active; open Filters to review or reset them.
-          </p>
-        )}
+              {t("filters.clear")}
+            </Button>
+          )}
+          {!editable && (
+            <p role="status" className="text-sm text-pc-muted-foreground">
+              {t("filters.restoredNote")}
+            </p>
+          )}
+          {additional && (
+            <p role="status" className="text-sm text-pc-muted-foreground">
+              {t("filters.additionalNote")}
+            </p>
+          )}
+        </div>
+        {view === "library" && summary}
       </div>
     </div>
   );
@@ -345,15 +438,11 @@ export function CatalogFilters({
   function renderGroup(group: FilterGroup) {
     const chosen = supported ? (query[group.key] ?? []) : [];
     const help: Partial<Record<Group, string>> = {
-      platforms:
-        "Package targets, not tested device compatibility. For this device uses this PC’s platform; Intel and Apple silicon remain distinct.",
-      membership:
-        "Includes managed installations, registered runtimes and downloads awaiting setup. Membership does not imply readiness.",
-      updates:
-        "Uses the current installation’s last check and matching verified staged update. Choosing a filter does not check for updates.",
-      gameFiles:
-        "Uses the same setup or installation as your other filters. Changed or unreadable files need checking; they are not counted as missing.",
-      attention: "Recorded needs for the current installation. Unavailable details remain unknown.",
+      platforms: t("filters.help.platforms"),
+      membership: t("filters.help.membership"),
+      updates: t("filters.help.updates"),
+      gameFiles: t("filters.help.gameFiles"),
+      attention: t("filters.help.attention"),
     };
     return (
       <CompactFilterField
@@ -361,12 +450,12 @@ export function CatalogFilters({
         label={group.label}
         value={
           !supported
-            ? "Review restored query"
+            ? t("filters.reviewRestored")
             : chosen.length > 1
-              ? `${chosen.length} selected`
+              ? t("filters.selectedCount", { total: chosen.length })
               : chosen.length
-                ? label(group.key, chosen[0]!)!
-                : "All"
+                ? label(t, group.key, chosen[0]!)!
+                : t("filters.all")
         }
         help={help[group.key]}
       >
@@ -375,11 +464,11 @@ export function CatalogFilters({
           const unknown = result.unknownCounts?.[group.key][value] ?? 0;
           const countText =
             count == null
-              ? "unavailable"
+              ? t("filters.countUnavailable")
               : unknown > 0
-                ? `${count} known; ${unknown} unknown`
+                ? t("filters.countKnownUnknown", { known: count, unknown })
                 : String(count);
-          const text = label(group.key, value);
+          const text = label(t, group.key, value);
           const optionId = `${panelId}:${group.key}:${value}`;
           return (
             <label
@@ -390,17 +479,18 @@ export function CatalogFilters({
               <Checkbox
                 id={optionId}
                 data-focusable
-                aria-label={`${text} (${countText})`}
+                aria-label={t("filters.optionLabel", { option: text ?? value, amount: countText })}
                 checked={supported && query[group.key]?.includes(value) === true}
                 disabled={!editable || result.counts[group.key][value] === null}
                 onCheckedChange={() => toggle(group.key, value)}
               />
               <span className="flex min-w-0 flex-1 flex-wrap items-center gap-2 text-sm">
                 <Chip
-                  style={identityStyle(
-                    group.key === "platforms" ? (value.split("-")[0] ?? value) : value,
-                    group.key === "channels",
-                  )}
+                  style={
+                    group.key === "platforms"
+                      ? undefined
+                      : identityStyle(value, group.key === "channels")
+                  }
                 >
                   {["originalSystems", "platforms", "channels"].includes(group.key) && (
                     <IdentityIcon

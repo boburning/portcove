@@ -8,7 +8,11 @@ import { performance } from "node:perf_hooks";
 import { isRecord } from "./runtime-values.mts";
 import { releaseCanonicalDigest as digest } from "./release-canonical.mts";
 import { inspectCoordinatorRemoteNamespace } from "./release-coordinator-namespace.mts";
-import type { CoordinatorRemoteApi } from "./release-coordinator-remote.mts";
+import type {
+  CatalogAnchorMetadataProvider,
+  HistoricalJobProvider,
+} from "./release-custody-provider.mts";
+import type { CoordinatorCheckpointApi } from "./release-coordinator-remote.mts";
 import { hydrateRetainedCoordinatorCheckpointExport } from "./release-coordinator-recovery.mts";
 import { readCoordinatorCheckpointEvidence } from "./release-coordinator-checkpoint-evidence.mts";
 import {
@@ -49,9 +53,11 @@ export function selectHostedNativePredecessorScope(
     !/^[1-9][0-9]{0,15}$/u.test(source.run_id) ||
     !Number.isSafeInteger(source.run_attempt) ||
     Number(source.run_attempt) < 1 ||
-    records.length !== 2
+    ![1, 2].includes(records.length)
   )
     throw new Error("original native predecessor run/pair required");
+  if (records.length === 1 && (!isRecord(records[0]) || records[0].target !== "windows-x86_64"))
+    throw new Error("single-platform predecessor must be Windows x86-64");
   const platforms = new Set<unknown>();
   const current = records.map((record) => {
     if (
@@ -195,8 +201,9 @@ type PredecessorArguments = [
   rawRecords: readonly unknown[],
   rawConfiguration: unknown,
   deadline: number,
-  api: CoordinatorRemoteApi,
+  api: CoordinatorCheckpointApi,
   options?: {
+    checkpointObjects?: (deadline: number) => Promise<CatalogAnchorMetadataProvider>;
     checkpoint?: Parameters<typeof authenticateCoordinatorCheckpointEvidence>[6];
     native?: Parameters<typeof collectHistoricalHostedNativeQualification>[5];
   },
@@ -254,8 +261,9 @@ async function collectHostedNativePredecessors(
   rawRecords: readonly unknown[],
   rawConfiguration: unknown,
   deadline: number,
-  api: CoordinatorRemoteApi,
+  api: CoordinatorCheckpointApi,
   options: {
+    checkpointObjects?: (deadline: number) => Promise<CatalogAnchorMetadataProvider>;
     checkpoint?: Parameters<typeof authenticateCoordinatorCheckpointEvidence>[6];
     native?: Parameters<typeof collectHistoricalHostedNativeQualification>[5];
   } = {},
@@ -263,6 +271,14 @@ async function collectHostedNativePredecessors(
   const records = structuredClone(rawRecords),
     namespace = inspectCoordinatorRemoteNamespace(rawConfiguration);
   const configuration = { schema_version: 1, namespace };
+  const captureJobProvider = (provider: HistoricalJobProvider): HistoricalJobProvider => ({
+    attempt: provider.attempt.bind(provider),
+    jobs: provider.jobs.bind(provider),
+    job: provider.job.bind(provider),
+  });
+  const checkpointObjects = options.checkpointObjects;
+  const checkpointProvider = options.checkpoint?.job?.provider;
+  const nativeProvider = options.native?.provider;
   const checkpointOptions =
     options.checkpoint === undefined
       ? undefined
@@ -282,14 +298,8 @@ async function collectHostedNativePredecessors(
             ? {
                 job: {
                   ...options.checkpoint.job,
-                  ...(options.checkpoint.job.api
-                    ? {
-                        api: {
-                          request: options.checkpoint.job.api.request.bind(
-                            options.checkpoint.job.api,
-                          ),
-                        },
-                      }
+                  ...(checkpointProvider
+                    ? { provider: captureJobProvider(checkpointProvider) }
                     : {}),
                 },
               }
@@ -310,11 +320,17 @@ async function collectHostedNativePredecessors(
                 },
               }
             : {}),
-          ...(options.native.api
-            ? { api: { request: options.native.api.request.bind(options.native.api) } }
+          ...(nativeProvider
+            ? {
+                provider: {
+                  ...captureJobProvider(nativeProvider),
+                  commit: nativeProvider.commit.bind(nativeProvider),
+                  file: nativeProvider.file.bind(nativeProvider),
+                },
+              }
             : {}),
         };
-  const provider: CoordinatorRemoteApi = {
+  const provider: CoordinatorCheckpointApi = {
     request: api.request.bind(api),
     graphql: api.graphql.bind(api),
   };
@@ -325,13 +341,16 @@ async function collectHostedNativePredecessors(
   active();
   if (
     deadline - performance.now() > 120000 ||
-    records.length !== 2 ||
+    ![1, 2].includes(records.length) ||
     records.some(
       (record) => !isRecord(record) || Buffer.byteLength(JSON.stringify(record)) > 65536,
     ) ||
-    new Set(records.map((record) => (isRecord(record) ? record.target : null))).size !== 2
+    new Set(records.map((record) => (isRecord(record) ? record.target : null))).size !==
+      records.length
   )
     throw new Error("bounded historical native platform pair required");
+  if (records.length === 1 && (!isRecord(records[0]) || records[0].target !== "windows-x86_64"))
+    throw new Error("single-platform predecessor must be Windows x86-64");
   // Snapshot all supplied bytes/transports above before the first await.
   const originalConsumer = readCurrent ? await readCurrent() : undefined;
   active();
@@ -377,13 +396,15 @@ async function collectHostedNativePredecessors(
     active();
     phase = "checkpoint-objects";
     return await withCoordinatorDeadline(deadline, async () => {
+      if (!checkpointObjects)
+        throw new Error("historical native checkpoint object provider required");
       const checkpoint = await hydrateRetainedCoordinatorCheckpointExport(
         repository,
         pin.checkpoint,
-        { api: provider },
+        await checkpointObjects(deadline),
       );
       phase = "checkpoint-proof";
-      const evidence = readCoordinatorCheckpointEvidence(
+      const evidence = await readCoordinatorCheckpointEvidence(
         checkpoint,
         configuration,
         provider,

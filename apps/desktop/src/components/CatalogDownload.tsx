@@ -1,3 +1,14 @@
+import { upstreamUpdatesDestination } from "../features/browsing/upstream-links";
+import {
+  assetKey,
+  releaseKey,
+  sameAsset,
+  validCandidate,
+  isReleaseReference,
+  readablePendingRecord,
+  type ReleaseReference,
+} from "../features/browsing/download-identity";
+import { AuthoredSetupWarnings } from "./AuthoredSetupWarnings";
 import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { desktopApi } from "../api";
 import {
@@ -11,7 +22,6 @@ import { pickInstallFolder } from "../file-picker";
 import { gameIdentityLabel } from "../port-identity";
 import { LatestRequestGeneration } from "../shared/concurrency-state";
 import type {
-  CatalogDownloadCandidate,
   CatalogDownloadCandidates,
   CatalogDownloadRequest,
   PendingSetupRecord,
@@ -44,8 +54,22 @@ export function CatalogDownloadControl(props: DownloadControlProps) {
   );
 }
 
-function assetKey(asset: CatalogDownloadCandidate): string {
-  return `${asset.release_id}:${asset.asset_id}`;
+function initialDownloadChoices(
+  libraryRoot: string | undefined,
+  entry: CatalogEntry,
+  upstream: string,
+) {
+  const { choice, warning } = readDownloadChoice(libraryRoot, entry.id, upstream);
+  const channel: DownloadChoice["channel"] =
+    choice?.channel ?? (entry.listing?.recommended_download_channel === "beta" ? "beta" : "stable");
+  return {
+    warning,
+    channel,
+    release: choice?.release ?? undefined,
+    package: choice?.package ?? "",
+    destination: choice?.destination ?? "",
+    extract: choice?.extract ?? true,
+  };
 }
 
 function useDownloadChoices({
@@ -57,26 +81,21 @@ function useDownloadChoices({
   libraryRoot,
 }: DownloadControlProps) {
   const upstream = entry.listing?.project_url ?? entry.definition?.project_url ?? "";
-  const [restored] = useState(() => readDownloadChoice(libraryRoot, entry.id, upstream));
-  const [choiceWarning, setChoiceWarning] = useState(restored.warning);
+  const [initial] = useState(() => initialDownloadChoices(libraryRoot, entry, upstream));
+  const [choiceWarning, setChoiceWarning] = useState(initial.warning);
   const extractionId = useId();
   const optionsId = useId();
   const downloadRegion = useRef<HTMLElement>(null);
   const reviewButton = useRef<HTMLButtonElement>(null);
   const [result, setResult] = useState<CatalogDownloadCandidates>();
   const [selectedKey, setSelectedKey] = useState("");
-  const [releaseChoice, setReleaseChoice] = useState<number | undefined>(
-    restored.choice?.release ?? undefined,
-  );
-  const [packageChoice, setPackageChoice] = useState(restored.choice?.package ?? "");
-  const [channel, setChannel] = useState(
-    restored.choice?.channel ??
-      (entry.listing?.recommended_download_channel === "beta" ? "beta" : "stable"),
-  );
+  const [releaseChoice, setReleaseChoice] = useState(initial.release);
+  const [packageChoice, setPackageChoice] = useState(initial.package);
+  const [channel, setChannel] = useState(initial.channel);
   const [showOther, setShowOther] = useState(false);
   const [optionsOpen, setOptionsOpen] = useState(false);
-  const [destination, setDestination] = useState(restored.choice?.destination ?? "");
-  const [extract, setExtract] = useState(restored.choice?.extract ?? true);
+  const [destination, setDestination] = useState(initial.destination);
+  const [extract, setExtract] = useState(initial.extract);
   const initialChoice = useRef({ releaseChoice, channel, packageChoice });
   const remember = (change: Partial<DownloadChoice>) => {
     setChoiceWarning(
@@ -109,7 +128,7 @@ function useDownloadChoices({
   );
   const controlsBusy = busy || checking || choosingFolder;
   const loadCandidates = useCallback(
-    (releaseId?: number, selectedChannel = "stable", retainedPackage?: string) => {
+    (releaseId?: ReleaseReference, selectedChannel = "stable", retainedPackage?: string) => {
       const observation = requests.current.begin();
       return Promise.resolve()
         .then(() =>
@@ -117,14 +136,18 @@ function useDownloadChoices({
         )
         .then((next) => {
           if (!requests.current.isCurrent(observation)) return;
-          if (next.port_id !== entry.id)
+          if (
+            next.port_id !== entry.id ||
+            !next.candidates.every(validCandidate) ||
+            !next.releases.every((release) => isReleaseReference(release.id))
+          )
             throw new Error("The download list no longer matches this game. Check again.");
           setResult(next);
           const retained = retainedPackage
             ? next.candidates.find((candidate) => assetKey(candidate) === retainedPackage)
             : undefined;
-          const recommended = next.candidates.find(
-            (candidate) => candidate.asset_id === next.recommended_asset_id,
+          const recommended = next.candidates.find((candidate) =>
+            sameAsset(candidate.asset_id, next.recommended_asset_id),
           );
           if (next.allowed && retained) setSelectedKey(assetKey(retained));
           else if (next.allowed && retainedPackage)
@@ -145,7 +168,7 @@ function useDownloadChoices({
     },
     [entry.id, generation],
   );
-  const check = (releaseId?: number, selectedChannel = channel, keepPackage = false) => {
+  const check = (releaseId?: ReleaseReference, selectedChannel = channel, keepPackage = false) => {
     if (controlsBusy) return;
     setChecking(true);
     setError(undefined);
@@ -187,6 +210,7 @@ function useDownloadChoices({
     busy,
     perform,
     choiceWarning,
+    updates: upstreamUpdatesDestination(upstream, result?.upstream_url),
     extractionId,
     optionsId,
     downloadRegion,
@@ -251,7 +275,9 @@ function DownloadChoicesView({
               : "Check upstream downloads"}
         </Button>
         {model.result && (
-          <ExternalLink href={model.result.upstream_url}>View upstream releases</ExternalLink>
+          <ExternalLink href={model.updates.url}>
+            {model.updates.releases ? "View upstream releases" : "Project website"}
+          </ExternalLink>
         )}
       </ActionRow>
       <ActionReviewFailure error={model.error} />
@@ -335,7 +361,22 @@ function DownloadReview({
   const cancel = useRef<HTMLButtonElement>(null);
   const { preview, pending, error, review, execute, dismiss } = useActionReview({
     identity: JSON.stringify([request, generation]),
-    load: () => desktopApi.previewCatalogDownload(request, generation),
+    load: async () => {
+      const value = await desktopApi.previewCatalogDownload(request, generation);
+      if (
+        !validCandidate(value.artifact) ||
+        !isReleaseReference(value.request.release_id) ||
+        value.request.port_id !== request.port_id ||
+        releaseKey(value.request.release_id) !== releaseKey(request.release_id) ||
+        !sameAsset(value.request.asset_id, request.asset_id) ||
+        value.request.destination_parent !== request.destination_parent ||
+        value.request.extract_archive !== request.extract_archive ||
+        releaseKey(value.artifact.release_id) !== releaseKey(request.release_id) ||
+        !sameAsset(value.artifact.asset_id, request.asset_id)
+      )
+        throw new Error("The reviewed download no longer matches your selection. Check again.");
+      return value;
+    },
     apply: async (value) => {
       if (busy) return false;
       const transfer = perform(
@@ -458,6 +499,13 @@ function DownloadReview({
 }
 
 export function PendingSetupActions(props: DownloadControlProps & { pending: PendingSetupRecord }) {
+  if (!readablePendingRecord(props.pending))
+    return (
+      <p role="alert">
+        This download record needs a compatible version of Portcove. Refresh or update the app
+        before continuing setup.
+      </p>
+    );
   return <PendingActions key={`${props.pending.id}:${props.generation}`} {...props} />;
 }
 
@@ -498,6 +546,7 @@ function PendingActions({
           await desktopApi.forgetPendingSetup(entry.id, pending.id, generation);
           return true;
         } catch (value) {
+          // oxlint-disable-next-line react/immutability -- oxc#28401: invocation-local binding.
           failure = value;
           throw value;
         }
@@ -544,7 +593,7 @@ function PendingActions({
             setRemoving(true);
           }}
         >
-          Remove setup entry…
+          Remove setup reminder…
         </Button>
       </ActionRow>
       {removing && (
@@ -615,7 +664,7 @@ function DownloadOptions({
     (model.optionsOpen || !selected || !model.destination) && (
       <div id={model.optionsId} className="grid min-w-0 gap-3 pt-2">
         <ChoiceSelect
-          label="Release channel"
+          label="Update channel"
           value={model.channel}
           disabled={model.controlsBusy}
           options={[
@@ -634,21 +683,26 @@ function DownloadOptions({
         {model.result.releases.length > 0 && (
           <ChoiceSelect
             label="Release"
-            value={String(model.result.selected_release_id ?? "")}
+            value={
+              model.result.selected_release_id == null
+                ? ""
+                : releaseKey(model.result.selected_release_id)
+            }
             disabled={model.controlsBusy}
             options={[
               { value: "", label: "Choose a release" },
               ...model.result.releases.map((release) => ({
-                value: String(release.id),
+                value: releaseKey(release.id),
                 label: `${release.tag}${release.preview ? " · Preview" : " · Stable"}`,
               })),
             ]}
             onChange={(value) => {
-              if (value) {
-                model.remember({ release: Number(value), package: "" });
-                model.setReleaseChoice(Number(value));
+              const release = model.result.releases.find((item) => releaseKey(item.id) === value);
+              if (release) {
+                model.remember({ release: release.id, package: "" });
+                model.setReleaseChoice(release.id);
                 model.setPackageChoice("");
-                void model.check(Number(value));
+                void model.check(release.id);
               }
             }}
           />
@@ -663,7 +717,7 @@ function DownloadOptions({
               { value: "", label: "Choose a file…" },
               ...model.displayed.map((candidate) => ({
                 value: assetKey(candidate),
-                label: `${candidate.asset_id === model.result.recommended_asset_id ? "Recommended · " : ""}${candidate.name} · ${formatBytes(candidate.size)}`,
+                label: `${sameAsset(candidate.asset_id, model.result.recommended_asset_id) ? "Recommended · " : ""}${candidate.name} · ${formatBytes(candidate.size)}`,
               })),
             ]}
             onChange={(value) => {
@@ -686,12 +740,17 @@ function DownloadOptions({
             aria-expanded={model.showOther}
             onClick={() => model.setShowOther((value) => !value)}
           >
-            {model.showOther ? "Show recommended packages" : "Other and uncertain downloads"}
+            {model.showOther
+              ? "Show recommended packages"
+              : "Other downloads — compatibility not confirmed"}
           </Button>
         )}
         {selected && (
           <p className="text-sm">
-            {model.result.packages.find((item) => item.asset_id === selected.asset_id)?.reason}
+            {
+              model.result.packages.find((item) => sameAsset(item.asset_id, selected.asset_id))
+                ?.reason
+            }
           </p>
         )}
         {selected && (
@@ -741,14 +800,15 @@ function downloadSelection(
   const candidates = result?.allowed ? result.candidates : [];
   const ordinary = candidates.filter((candidate) =>
     result?.packages.some(
-      (item) => item.asset_id === candidate.asset_id && item.suitability === "suitable",
+      (item) => sameAsset(item.asset_id, candidate.asset_id) && item.suitability === "suitable",
     ),
   );
   // Keep Core's recommendation and the player's explicit choice visible even
   // when upstream publishes more packages than fit in the concise list.
   const preferred = candidates.filter(
     (candidate) =>
-      candidate.asset_id === result?.recommended_asset_id || assetKey(candidate) === selectedKey,
+      sameAsset(candidate.asset_id, result?.recommended_asset_id) ||
+      assetKey(candidate) === selectedKey,
   );
   const concise = [
     ...preferred,
@@ -784,6 +844,7 @@ function RecommendedDownload({
           You or upstream provide runtime updates. Your game files and saves stay outside Portcove's
           managed backups.
         </p>
+        <AuthoredSetupWarnings warnings={model.entry.presentation?.manual_setup?.warnings} />
         {model.entry.presentation?.manual_setup?.steps[0] && (
           <p className="text-sm">{model.entry.presentation.manual_setup.steps[0].instruction}</p>
         )}

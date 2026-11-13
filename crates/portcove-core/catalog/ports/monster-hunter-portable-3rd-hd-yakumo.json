@@ -3,11 +3,13 @@
   "listing": {
     "id": "monster-hunter-portable-3rd-hd-yakumo",
     "name": "Monster Hunter Portable 3rd HD Ver. Yakumo",
-    "summary": "Explore Monster Hunter Portable 3rd HD Ver. Yakumo and follow the upstream project for requirements, downloads and setup.",
+    "summary": "Play your own MHP3rd HD disc image with Yakumo. Portcove can manage a separate Windows x86-64 copy or launch one you prepared.",
+    "original_game_title": "Monster Hunter Portable 3rd HD Ver.",
     "project_url": "https://github.com/TeamGDB/Yakumo",
     "issue_number": 1120,
-    "platforms": [],
-    "availability": "unknown",
+    "listed_at": "2026-10-23",
+    "platforms": ["linux-x86-64", "macos-aarch64"],
+    "availability": "packages",
     "setup_url": "https://github.com/TeamGDB/Yakumo",
     "artwork": {
       "game_id": 78633,
@@ -16,6 +18,87 @@
       "image_sha256": "cc6ccbd1f206dcf4a935c22236d60f7eb70cf214602345ef92a677b62c47811c",
       "game_slug": "monster-hunter-portable-3rd-hd-ver",
       "match_kind": "underlying-game"
+    },
+    "release_url": "https://github.com/TeamGDB/Yakumo/releases",
+    "download_asset_hints": {
+      "windows-x86-64": ["yakumo-", "windows-x86_64-portable.zip"],
+      "linux-x86-64": ["yakumo-", "-linux-x86_64.tar.gz"],
+      "macos-aarch64": ["yakumo-", "-macos-arm64.dmg"]
+    },
+    "manual_setup": {
+      "help_url": "https://github.com/TeamGDB/Yakumo",
+      "steps": [
+        {
+          "title": "Complete the exact owned-input preparation upstream",
+          "instruction": "Yakumo needs the PSP UMD image from your own Monster Hunter Portable 3rd HD Ver. PS3 release (NPJB-40001) as an uncompressed ISO. The ordinary PSP edition, a whole PS3 disc image and compressed CSO files are different inputs. For a Windows copy you prepared yourself, let Yakumo prepare the game there and keep Yakumo.exe in its complete creating folder with its overlay libraries, FFmpeg DLLs and other files. If that working copy already starts with supported literal --data-dir or game-folder arguments, enter the same arguments when you select it instead of leaving them empty; do not silently change the creating data or save roots."
+        },
+        {
+          "title": "Set up Yakumo on Linux, Steam Deck, Mac or Android",
+          "instruction": "On x64 Linux or Steam Deck, open the Flatpak through your desktop or Steam; it uses the Freedesktop Platform 25.08 runtime. If you unpack the x64 tarball instead, start it with ./yakumo from the unpacked folder so the launcher sets the stack size; it needs glibc 2.29 or later, a Vulkan driver and the Vulkan loader. On an Apple Silicon Mac with macOS 13 or later, open the ARM64 disk image and copy the whole Yakumo.app to Applications, then open it directly. The publisher uses ad hoc signing; follow its macOS guide for the first-open prompt. On Android 10 or later with Vulkan 1.1, install the ARM64 APK and choose your ISO in the Android file picker. The app copies it into its own storage, so allow about 1.3 GB for the image in addition to the app, and use Yakumo to back up your saves before replacing or removing the app. Use Yakumo for setup and play on these systems."
+        }
+      ],
+      "warnings": [
+        "MIT covers the project’s own original code; third-party IP remains independently owned. Preserve the applicable packaged FFmpeg LGPL and font/dependency notices; this is not a whole-game rights certificate.",
+        "Upstream documents untranslated/blank save-dialog screens, curved-surface issues and unsupported code mods; reported rendering, multiplayer, controller and save compatibility are publisher claims, not Portcove observations. No game, original, helper, installer or native session was run.",
+        "For a copy you prepared yourself, the Windows installed profile normally uses %APPDATA%/Yakumo/MHP3rd and the upstream ZIP with portable.txt uses data/ beside the executable. Existing portable.txt, a data/ folder, --portable, --data-dir and MHP3RD_DATA_DIR/MHP3RD_PORTABLE choices affect selection; retain the actual established mode and do not add/remove markers or trigger profile-copy prompts as registration work. A non-writable data directory fails instead of silently falling back.",
+        "In a copy you prepared yourself, upstream Set Up Game Data Again and Restart Now after save import can end the selected process and start a successor. Perform those actions outside the attached session; Core does not adopt that successor or offer upstream save import/export, texture installation, backup or network configuration. Retain the old working runtime and all data before replacement."
+      ],
+      "references": [
+        {
+          "title": "Find and back up the data you actually use",
+          "instruction": "Keep settings.ini, prepared EBOOT.ELF, copied disc.iso or its external in-place original, ms0/PSP/SAVEDATA (including ULJM05800, ULJM05800QST and ULJM05800DAT), mods, texture packs, pipeline caches/keys, logs, controller mappings, translations/fonts, save-backups, temporary files and all custom roots. A source-build game directory may retain its own ms0 and older saves; do not migrate it automatically. The Flatpak keeps data in ~/.var/app/io.github.teamgdb.Yakumo/data/Yakumo/MHP3rd and can export saves to Downloads. The Linux tarball uses $XDG_DATA_HOME/Yakumo/MHP3rd or ~/.local/share/Yakumo/MHP3rd by default. The Mac app uses ~/Library/Application Support/Yakumo/MHP3rd. Keep your actual profile and any ISO used in place before replacing the app. Yakumo checks NPJB-40001 and encrypted EBOOT.BIN SHA-256 79e25f3512d56e0f7bf5c48351d7d0d255269675ffc8811ac5599322bb66945e, then verifies prepared EBOOT.ELF SHA-256 55c0598436c0753b04331f8e95d406f832d9217806e3a896fed0e88b33637d8c. The check covers those files and the disc ID."
+        }
+      ]
+    }
+  },
+  "route_facts_v1": {
+    "format_version": 1,
+    "prepared_player": {
+      "working_directory": "executable-parent",
+      "arguments": [],
+      "data_locations": [
+        "the data folder the copy actually uses, chosen in this order: a --data-dir folder, the MHP3RD_DATA_DIR folder, data beside Yakumo.exe when portable.txt or a data folder is there (unless MHP3RD_PORTABLE=0), then %APPDATA%\\Yakumo\\MHP3rd; plus any game folder it starts with and any disc image used in place"
+      ]
+    },
+    "managed_native": {
+      "preparation": {
+        "title": "Prepare the game on first Play",
+        "instruction": "On first Play, choose the uncompressed PSP UMD ISO from your own Monster Hunter Portable 3rd HD Ver. PS3 release (NPJB-40001) and let Yakumo prepare the game. If Yakumo copies the image, the copy is kept and backed up with the managed data. If you use the image where it is, keep it at a stable location outside the managed runtime and back it up yourself."
+      },
+      "warnings": [
+        "Yakumo keeps the managed copy's settings, saves, save backups and prepared game in its data folder. Leave MHP3RD_DATA_DIR, MHP3RD_GAME_DIR, MHP3RD_MODS_DIR and MHP3RD_PORTABLE unset, and add no --data-dir or game-folder argument. Otherwise Yakumo can play from or save to a folder Portcove does not keep.",
+        "Restart Now after a save import and Set Up Game Data Again restart Yakumo. On Windows, Portcove keeps the session open until the restarted Yakumo closes.",
+        "If you already use Yakumo, the first Play of the managed copy can offer to copy your data from %APPDATA%\\Yakumo\\MHP3rd. The original files stay where they are."
+      ]
+    }
+  },
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64"],
+    "adapter": "native-portable",
+    "windows_tracked_handoff": true,
+    "reviewed_package_layouts": {
+      "windows-x86-64": {
+        "directories": ["licenses", "overlays"],
+        "executables": ["yakumo.exe"]
+      }
+    },
+    "release": {
+      "provider": "github",
+      "repository": "TeamGDB/Yakumo",
+      "asset_hints": {
+        "windows-x86-64": ["yakumo-", "windows-x86_64-portable.zip"]
+      }
+    },
+    "executable_hints": {
+      "windows-x86-64": ["Yakumo.exe"]
+    },
+    "persistent_paths": ["data"],
+    "presentation": {
+      "installation_method": "portable-package",
+      "source_requirements": [],
+      "saves_and_settings": "portcove-managed"
     }
   }
 }

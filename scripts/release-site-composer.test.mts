@@ -17,6 +17,85 @@ import {
   assembleAuthenticatedApplicationSite,
 } from "./release-site-composer.mts";
 
+void test("first application feed and later catalog/application generations retain the exact published rehearsal namespace", async (t) => {
+  const f = await fixture(t);
+  const retained = path.join(f.root, "retained-rehearsal");
+  const name = "rehearsal/41788540335-1/application/metadata/timestamp.json";
+  const bytes = Buffer.from("inert retained public bytes; not production metadata");
+  await mkdir(path.dirname(path.join(retained, name)), { recursive: true });
+  await writeFile(path.join(retained, name), bytes);
+  await writeFile(path.join(retained, ".nojekyll"), "");
+  const inventory = [
+    { path: ".nojekyll", bytes: 0, sha256: createHash("sha256").update("").digest("hex") },
+    { path: name, bytes: bytes.length, sha256: createHash("sha256").update(bytes).digest("hex") },
+  ];
+  const initial = { directory: retained, inventory_sha256: capacityDigest(inventory) };
+  await assert.rejects(
+    composeSiteFiles({
+      ...f.request,
+      initial_rehearsal: { ...initial, inventory_sha256: "f".repeat(64) },
+    }),
+  );
+  const first = await composeSiteFiles({ ...f.request, initial_rehearsal: initial });
+  assert.equal(first.generation.previous_generation, null); // No prior public marker is invented.
+  assert.deepEqual(await readFile(path.join(first.output, name)), bytes);
+  const catalog = path.join(f.root, "retained-catalog");
+  await mkdir(path.join(catalog, "metadata"), { recursive: true });
+  await writeFile(path.join(catalog, "metadata/timestamp.json"), "inert catalog timestamp");
+  const initialCatalog = {
+    previous: null,
+    expected_previous_generation: null,
+    catalog,
+    catalog_root_sha256: "b".repeat(64),
+    output_parent: f.output,
+    initial_rehearsal: initial,
+  };
+  const catalogFirst = await composeCatalogSiteFiles(initialCatalog);
+  assert.equal(catalogFirst.authority, "none");
+  assert.equal(catalogFirst.generation.previous_generation, null);
+  assert.equal(catalogFirst.generation.application_root_sha256, null);
+  assert.deepEqual(await readFile(path.join(catalogFirst.output, name)), bytes);
+  await assert.rejects(
+    composeCatalogSiteFiles({
+      ...initialCatalog,
+      initial_rehearsal: { ...initial, inventory_sha256: "f".repeat(64) },
+    }),
+  );
+  await assert.rejects(
+    composeCatalogSiteFiles({
+      ...initialCatalog,
+      previous: first.output,
+      expected_previous_generation: first.generation.generation,
+    }),
+  );
+  const joined = await composeCatalogSiteFiles({
+    previous: first.output,
+    expected_previous_generation: first.generation.generation,
+    catalog,
+    catalog_root_sha256: "b".repeat(64),
+    output_parent: f.output,
+  });
+  assert.deepEqual(await readFile(path.join(joined.output, name)), bytes);
+  const app = await composeSiteFiles({
+    ...f.request,
+    previous: joined.output,
+    expected_previous_generation: joined.generation.generation,
+  });
+  assert.deepEqual(await readFile(path.join(app.output, name)), bytes);
+  await assert.rejects(
+    composeSiteFiles({
+      ...f.request,
+      previous: app.output,
+      expected_previous_generation: app.generation.generation,
+      initial_rehearsal: initial,
+    }),
+  );
+  await mkdir(path.join(retained, "unknown"));
+  await writeFile(path.join(retained, "unknown/file.json"), "{}");
+  await assert.rejects(composeSiteFiles({ ...f.request, initial_rehearsal: initial }));
+  await assert.rejects(composeCatalogSiteFiles(initialCatalog));
+});
+
 void test("catalog bootstraps independently and each later component preserves the other's exact bytes", async (t) => {
   // Byte-protocol fixture, not catalog TUF or protected acceptance.
   const f = await fixture(t);
@@ -368,6 +447,8 @@ void test("authenticated entry rejects wrong public root or tool before executin
   await mkdir(path.join(inputs, "records"));
   const root = Buffer.from("inert public root");
   await writeFile(path.join(inputs, "root.json"), root);
+  const verifier = path.join(f.root, "inert-keyless-verifier");
+  await writeFile(verifier, "inert negative verifier fixture\n", { flag: "wx", mode: 0o700 });
   await writeFile(path.join(inputs, "offline.json"), "{}");
   await writeFile(path.join(inputs, "registry.json"), "{}");
   const context = path.join(inputs, "context.json");
@@ -387,7 +468,7 @@ void test("authenticated entry rejects wrong public root or tool before executin
     context,
     signed_roles: path.join(inputs, "roles"),
     trusted_root_sha256: "0".repeat(64),
-    verifier: process.execPath,
+    verifier,
     verifier_sha256: "0".repeat(64),
     previous_site: null,
     expected_previous_generation: null,

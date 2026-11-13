@@ -6,6 +6,7 @@
     "name": "Gen2Recomped: Pokémon Crystal",
     "summary": "Native Lua/LÖVE recreation of Pokémon Crystal.",
     "project_url": "https://github.com/UNDERdecoded/Gen2Recomped",
+    "listed_at": "2026-10-23",
     "original_game_title": "Pokémon Crystal",
     "artwork": {
       "game_id": 1514,
@@ -37,6 +38,7 @@
     "portable_marker": true,
     "source_environment": "POKEPORT_IMPORT_ROM",
     "launch_environment": {
+      "POKEPORT_NOTIFY_ONLY_UPDATES": "1",
       "POKEPORT_VERSION": "crystal"
     },
     "runtime_source_filename": "portcove-import.gbc",
@@ -68,7 +70,8 @@
           "verification": "catalog-identity"
         }
       ],
-      "saves_and_settings": "portcove-managed"
+      "saves_and_settings": "portcove-managed",
+      "manual_preparation": "Portcove replaces this runtime and, from its next Portcove update or install, turns off its built-in update downloads; the game still checks for and announces new releases. A newer update that another copy downloaded into the shared Gen2Recomp updates folder (%APPDATA%/Gen2Recomp/updates on Windows) still loads when this copy starts, so remove that folder if you want the version Portcove installed."
     }
   }
 }

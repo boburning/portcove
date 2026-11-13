@@ -7,7 +7,10 @@ import {
   materializePublishedCompleteSite,
   requirePublishedCompleteSite,
 } from "./release-site-readback.mts";
-import { recoverOwnedCapacityEffect } from "./release-capacity-executor.mts";
+import {
+  recoverOwnedCapacityEffect,
+  ensureOwnedCheckpointJournalHistory,
+} from "./release-capacity-executor.mts";
 import { assertOwnedUnlinkedPath } from "./release-path-safety.mts";
 import { withCoordinatorDeadline } from "./release-coordinator-deadline.mts";
 
@@ -51,13 +54,13 @@ export async function readPendingPagesPublication(
       throw new Error("Pages recovery deadline exhausted; retain unresolved intent");
   };
   check();
-  const provider = options.provider ?? createPagesProviderTransport(directory, {}, phaseDeadline);
+  const provider = options.provider ?? createPagesProviderTransport({}, phaseDeadline);
   const identity = {
     artifact_id: expected.artifact_id,
     generation: expected.site_generation_sha256,
     controller_revision: operation.executor_identity!.controller_revision,
   };
-  const before = provider.observeByGeneration(identity);
+  const before = await provider.observeByGeneration(identity);
   if (before.status !== "succeed")
     throw new Error("Pages provider completion unavailable; no no-effect inference or retry");
   check();
@@ -80,7 +83,7 @@ export async function readPendingPagesPublication(
     publicProjection = { generation: verified.generation, pins: verified.pins };
   }
   check();
-  const after = provider.observeByGeneration(identity);
+  const after = await provider.observeByGeneration(identity);
   if (after.status !== "succeed")
     throw new Error("Pages provider status changed around complete public readback");
   check();
@@ -120,7 +123,7 @@ export async function recoverPendingPagesPublication(
   privateParent: string,
   phaseDeadline: number,
   beforeSettlement?: () => Promise<void>,
-  beforeMutation?: () => void,
+  beforeMutation?: () => Promise<void>,
 ) {
   if (!Number.isFinite(phaseDeadline) || performance.now() >= phaseDeadline)
     throw new Error("Pages recovery deadline exhausted before observation");
@@ -142,6 +145,17 @@ export async function recoverPendingPagesPublication(
   let observation: Awaited<ReturnType<typeof readPendingPagesPublication>> | undefined;
   try {
     await beforeSettlement?.();
+    const checkpointControls = async () => {
+      if (!beforeMutation)
+        throw new Error("selected Pages recovery requires original live mutation controls");
+      await beforeMutation();
+    };
+    const signedJournal = await ensureOwnedCheckpointJournalHistory(
+      executor,
+      raw.repository,
+      raw.checkpoint,
+      checkpointControls,
+    );
     const settled = await withCoordinatorDeadline(phaseDeadline, () =>
       recoverOwnedCapacityEffect(
         executor,
@@ -159,7 +173,8 @@ export async function recoverPendingPagesPublication(
           await beforeSettlement?.();
           return observation.resolution;
         },
-        beforeMutation,
+        !signedJournal && beforeMutation ? { readCurrent: beforeMutation } : undefined,
+        signedJournal ? checkpointControls : undefined,
       ),
     );
     if (!observation) throw new Error("actual Pages readback was not completed");

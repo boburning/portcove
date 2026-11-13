@@ -1,5 +1,7 @@
 import {
   projectListingObservation,
+  projectGitLabListingObservation,
+  listingProviderIdentity,
   listingObservationReleaseIds,
   listingProjectionHash,
   listingDeclarationHash,
@@ -10,12 +12,20 @@ import {
 } from "./provider-release-observation.mts";
 import type { ProviderCapacity, ProviderProgress } from "./provider-release-observation.mts";
 import { isRecord } from "./runtime-values.mts";
+import { decodeStoredObserverCheckpoint } from "./observer-checkpoint-storage.mts";
 import {
   observationHash,
   ObservationFailure,
   validateObserverConfig,
+  checksumSourcesFromProjections,
 } from "./upstream-observer.mts";
-import type { ObserverConfig, ObserveOptions, ProviderObservation } from "./upstream-observer.mts";
+import type {
+  ChecksumSource,
+  ObserverGitHubScope,
+  ObserverConfig,
+  ObserveOptions,
+  ProviderObservation,
+} from "./upstream-observer.mts";
 import { advanceObservation } from "./observe-configured-upstream.mts";
 
 export interface ObservablePort {
@@ -40,6 +50,8 @@ interface SelectionProgress {
   cursor: number;
   release_ids: number[];
   sha256: string;
+  checksum_sources?: ChecksumSource[];
+  checksum_sources_sha256?: string;
 }
 interface PolicyProgress {
   binding: string;
@@ -66,18 +78,35 @@ export interface SourceProgress {
   last_complete_policies: Record<string, unknown>[];
   retry_at: string | null;
   exception_key: string | null;
+  /** Rule behind `exception_key`; absent in checkpoints written before #4779. */
+  exception_rule?: string | null;
   selection_progress: SelectionProgress | null;
   policy_progress: PolicyProgress | null;
   current_config: ObserverConfig | null;
   last_complete_config: ObserverConfig | null;
   retired_configs: ObserverConfig[];
 }
+/**
+ * Budget, cancellation and quota stops are partial progress, not failures: a
+ * large managed source keeps its priority while it advances across turns, and
+ * such a stop never notifies.
+ */
+export const partialProgressRules: readonly string[] = ["budget", "cancelled", "provider-quota"];
 export interface CatalogObserverCheckpoint {
   format: 1;
   authority: "catalog-upstream-observation-only";
   sequence: number;
   provider_retry_at: string | null;
   provider_capacities?: Record<string, ProviderCapacity>;
+  /** Historical provenance only; never a successful observation/freshness clock. */
+  baseline?: {
+    id: string;
+    continuity: "lost";
+    initial_freshness: "unknown";
+    initialized_at: string;
+    producer: { run: number; attempt: number; source: string };
+    inputs: { config_sha256: string; catalog_sha256: string; listings_sha256: string };
+  };
   sources: Record<string, SourceProgress>;
 }
 export const newCatalogObserverCheckpoint = (): CatalogObserverCheckpoint => ({
@@ -158,34 +187,22 @@ export function catalogObservationSources(input: unknown) {
     )
       throw new Error("Listing observation requires unique stable identities");
     listingIds.add(listing.id);
-    let url: URL;
-    try {
-      url = new URL(
-        typeof listing.release_url === "string" ? listing.release_url : String(listing.project_url),
-      );
-    } catch {
+    const identity = listingProviderIdentity(listing);
+    if (!identity) {
+      held.push({
+        port_id: listing.id,
+        reason: "listing-provider-observation-unsupported",
+        resume_condition:
+          "Provide a reviewed supported GitHub/GitLab repository identity; no release absence or acquisition authority is inferred.",
+      });
+      seen.add(listing.id);
       continue;
     }
-    const match =
-      /^\/([A-Za-z0-9_.-]+)\/([A-Za-z0-9_.-]+?)(?:\.git)?(?:\/releases(?:\/.*)?)?\/?$/u.exec(
-        url.pathname,
-      );
-    if (
-      url.protocol !== "https:" ||
-      url.hostname !== "github.com" ||
-      url.username ||
-      url.password ||
-      url.port ||
-      url.search ||
-      url.hash ||
-      !match
-    )
-      continue;
-    const repository = `${match[1]}/${match[2]}`;
-    const key = observationHash({ provider: "github", repository });
+    const { provider, repository } = identity;
+    const key = observationHash({ provider, repository });
     const source: ObservableSource = sources.get(key) ?? {
       key,
-      provider: "github",
+      provider,
       repository,
       ports: [],
       scope_sha256: "",
@@ -229,7 +246,10 @@ export function catalogObservationSources(input: unknown) {
   };
 }
 
-function progressCheckpoint(value: unknown, now: number): CatalogObserverCheckpoint {
+export function validateCatalogObserverCheckpoint(
+  value: unknown,
+  now: number,
+): CatalogObserverCheckpoint {
   if (
     !isRecord(value) ||
     value.format !== 1 ||
@@ -243,6 +263,35 @@ function progressCheckpoint(value: unknown, now: number): CatalogObserverCheckpo
     Buffer.byteLength(JSON.stringify(value)) > 32 * 1024 * 1024
   )
     throw new Error("Invalid catalog observer checkpoint");
+  if (value.baseline !== undefined) {
+    const baseline = value.baseline;
+    if (
+      !isRecord(baseline) ||
+      Object.keys(baseline).sort().join(",") !==
+        "continuity,id,initial_freshness,initialized_at,inputs,producer" ||
+      typeof baseline.id !== "string" ||
+      !/^[a-z0-9-]{1,128}$/u.test(baseline.id) ||
+      baseline.continuity !== "lost" ||
+      baseline.initial_freshness !== "unknown" ||
+      typeof baseline.initialized_at !== "string" ||
+      !Number.isFinite(Date.parse(baseline.initialized_at)) ||
+      Date.parse(baseline.initialized_at) > now ||
+      !isRecord(baseline.producer) ||
+      Object.keys(baseline.producer).sort().join(",") !== "attempt,run,source" ||
+      ![baseline.producer.run, baseline.producer.attempt].every(
+        (n) => Number.isSafeInteger(n) && Number(n) > 0,
+      ) ||
+      typeof baseline.producer.source !== "string" ||
+      !/^[a-f0-9]{40}$/u.test(baseline.producer.source) ||
+      !isRecord(baseline.inputs) ||
+      Object.keys(baseline.inputs).sort().join(",") !==
+        "catalog_sha256,config_sha256,listings_sha256" ||
+      !Object.values(baseline.inputs).every(
+        (hash) => typeof hash === "string" && /^[a-f0-9]{64}$/u.test(hash),
+      )
+    )
+      throw new Error("Invalid observer baseline provenance");
+  }
   if (value.provider_capacities !== undefined) {
     if (!isRecord(value.provider_capacities)) throw new Error("Invalid provider capacity evidence");
     for (const [origin, rate] of Object.entries(value.provider_capacities)) {
@@ -292,6 +341,10 @@ function progressCheckpoint(value: unknown, now: number): CatalogObserverCheckpo
       ].some(
         (value) => value !== null && (typeof value !== "string" || !/^[a-f0-9]{64}$/u.test(value)),
       ) ||
+      (progress.exception_rule !== undefined &&
+        progress.exception_rule !== null &&
+        (typeof progress.exception_rule !== "string" ||
+          !/^[a-z-]{1,80}$/u.test(progress.exception_rule))) ||
       !Number.isSafeInteger(progress.change_intervals) ||
       Number(progress.change_intervals) < 0 ||
       (progress.mean_change_interval_ms !== null &&
@@ -352,6 +405,15 @@ function progressCheckpoint(value: unknown, now: number): CatalogObserverCheckpo
         throw new Error("Invalid Core continuation binding");
       if (key === "selection_progress") {
         if (
+          progress.checksum_sources !== undefined &&
+          (!Array.isArray(progress.checksum_sources) ||
+            progress.checksum_sources_sha256 !== observationHash(progress.checksum_sources) ||
+            observationHash(
+              checksumSourcesFromProjections([{ checksum_sources: progress.checksum_sources }]),
+            ) !== progress.checksum_sources_sha256)
+        )
+          throw new Error("Invalid Core checksum continuation");
+        if (
           !Number.isSafeInteger(progress.cursor) ||
           Number(progress.cursor) < 0 ||
           !Array.isArray(progress.release_ids) ||
@@ -376,17 +438,22 @@ function progressCheckpoint(value: unknown, now: number): CatalogObserverCheckpo
 type SourceResult = Awaited<ReturnType<typeof advanceObservation>>;
 export interface CatalogObservationOptions extends Pick<
   ObserveOptions,
-  "fetch" | "signal" | "sleep" | "token"
+  "fetch" | "signal" | "sleep" | "token" | "githubScope"
 > {
   now?: () => number;
   deadline?: number;
   excludedSources?: ReadonlySet<string>;
+  /** Hard cap on provider requests this operation may admit (#4779). */
+  requestLimit?: number;
+  prioritizeConfigured?: boolean;
+  scheduledPrioritySources?: ReadonlySet<string>;
   providerFetch?: typeof fetch;
   projectProvider?: (portId: string, observation: Record<string, unknown>) => Promise<unknown>;
   exportProvider?: (
     source: ObservableSource,
     observations: Record<string, unknown>[],
     policies: unknown[],
+    report?: { exception: { rule: string } },
   ) => Promise<void>;
   config: ObserverConfig;
   policyIdentity: string;
@@ -422,7 +489,10 @@ export async function advanceCatalogObservations(
 ) {
   const { sources, held, port_ids: catalogIds } = catalogObservationSources(catalog);
   const now = options.now ?? Date.now;
-  const state = prior === null ? newCatalogObserverCheckpoint() : progressCheckpoint(prior, now());
+  const state =
+    prior === null
+      ? newCatalogObserverCheckpoint()
+      : validateCatalogObserverCheckpoint(prior, now());
   if (state.provider_retry_at && Date.parse(state.provider_retry_at) <= now())
     state.provider_retry_at = null;
   const template = validateObserverConfig(options.config);
@@ -440,6 +510,11 @@ export async function advanceCatalogObservations(
       "Normalized current Core definition or descriptive declaration identities are required",
     );
   const deadline = Math.min(now() + template.budget.duration_ms, options.deadline ?? Infinity);
+  const githubScope: ObserverGitHubScope = options.githubScope ?? {
+    deadline: performance.now() + Math.max(0, deadline - now()),
+    failedReads: new Map(),
+    deferral: { primary: new Map(), secondary: 0 },
+  };
   if (!Number.isFinite(deadline) || deadline <= now())
     throw new ObservationFailure("budget", "Collector deadline unavailable");
   const scopeBinding = (source: ObservableSource) =>
@@ -457,6 +532,20 @@ export async function advanceCatalogObservations(
   let operationBytes = 0;
   let unknownSizeResponses = 0;
   let notifyException = false;
+  // Only exceptions that can affect what players install, or the configured and
+  // scheduled acceptance scopes that feed definition delivery, fail the job. A
+  // listing-only source's exception stays in the report and its checkpoint.
+  const notifiesOnException = (source: ObservableSource) =>
+    source.ports.some((port) => port.kind !== "listing") ||
+    options.scheduledPrioritySources?.has(source.key) === true ||
+    (source.repository === template.repository &&
+      source.ports.some((port) => port.id === template.port_id));
+  // A non-notifying exception uses its own key namespace, so a listing that later
+  // gains a managed port still reports the same unresolved rule once.
+  const exceptionKey = (source: ObservableSource, rule: string) =>
+    notifiesOnException(source)
+      ? observationHash({ source: source.key, rule })
+      : observationHash({ source: source.key, rule, notification: "report-only" });
   let requestStartedAt = now();
   let sampledCostMs = 0;
   let sampledRequests = 0;
@@ -497,25 +586,56 @@ export async function advanceCatalogObservations(
   const attempted: string[] = [];
   const completed: string[] = [];
   const failures: { source: string; repository: string; rule: string; details: string }[] = [];
+  const isConfigured = (source: (typeof sources)[number]) =>
+    source.repository === template.repository &&
+    source.ports.some((port) => port.id === template.port_id);
+  const isScheduledPriority = (source: ObservableSource) =>
+    options.scheduledPrioritySources?.has(source.key) === true;
+  const freshnessExpired = (progress: SourceProgress) =>
+    progress.freshness_observed_at === null ||
+    now() - Date.parse(progress.freshness_observed_at) >= template.stale_after_hours * 3600000;
+  const scopeDue = (source: ObservableSource, progress: SourceProgress | undefined) =>
+    !progress ||
+    progress.completed_scope_sha256 !== scopeBinding(source) ||
+    !progress.completed_at ||
+    !progress.next_due_at ||
+    Date.parse(progress.next_due_at) <= now() ||
+    (isScheduledPriority(source) && freshnessExpired(progress));
+  const earlyTurn = (source: ObservableSource) =>
+    options.prioritizeConfigured === true &&
+    (isScheduledPriority(source) ||
+      (isConfigured(source) && state.sources[source.key]?.attempted_sequence !== state.sequence));
+  const healthy = (progress: SourceProgress | undefined) =>
+    !progress?.exception_key ||
+    progress.exception_rule === undefined ||
+    (progress.exception_rule !== null && partialProgressRules.includes(progress.exception_rule));
+  const servesManagedPort = (source: ObservableSource) =>
+    healthy(state.sources[source.key]) && source.ports.some((port) => port.kind !== "listing");
   const pending = sources
     .filter((source) => {
       if (options.excludedSources?.has(source.key)) return false;
       const progress = state.sources[source.key];
       return (
-        !progress ||
-        ((progress.completed_scope_sha256 !== scopeBinding(source) ||
-          source.repository === template.repository ||
-          !progress.next_due_at ||
-          Date.parse(progress.next_due_at) <= now()) &&
-          (!progress.retry_at || Date.parse(progress.retry_at) <= now()))
+        (scopeDue(source, progress) || source.repository === template.repository) &&
+        (!progress?.retry_at || Date.parse(progress.retry_at) <= now())
       );
     })
+    // Prefer the selected scopes once per hosted opportunity, then healthy
+    // sources that serve a managed port: their releases can change what
+    // players install, while listing-only sources are descriptive. A completed
+    // managed source leaves `pending` until it is due again, and one with a
+    // recorded failure rejoins ordinary rotation, so listing-only sources
+    // still receive turns. The durable rotation orders each group.
     .sort(
       (a, b) =>
-        (state.sources[a.key]?.attempted_sequence ?? state.sequence) -
-          (state.sources[b.key]?.attempted_sequence ?? state.sequence) ||
+        Number(earlyTurn(b)) - Number(earlyTurn(a)) ||
+        Number(servesManagedPort(b)) - Number(servesManagedPort(a)) ||
+        (state.sources[a.key]?.attempted_sequence ?? -1) -
+          (state.sources[b.key]?.attempted_sequence ?? -1) ||
         a.key.localeCompare(b.key),
     );
+  const earlyTurns = new Set(pending.filter(earlyTurn).map((source) => source.key));
+  const earlyTurnCount = earlyTurns.size;
   const capacity = () =>
     state.provider_retry_at && Date.parse(state.provider_retry_at) > now()
       ? 0
@@ -525,6 +645,7 @@ export async function advanceCatalogObservations(
             remaining === null
               ? template.budget.requests - requests
               : remaining - Math.max(1, Math.ceil((providerLimit ?? remaining) * 0.05)),
+            (options.requestLimit ?? Infinity) - requests,
             Math.floor(
               (deadline - now()) /
                 (sampledRequests
@@ -601,7 +722,11 @@ export async function advanceCatalogObservations(
     if (options.signal?.aborted || now() >= deadline) break;
     // Completed provider reads may still admit offline Core continuation while the provider is unavailable.
     const previousProgress = state.sources[source.key];
+    const scheduledRefreshDue =
+      isScheduledPriority(source) &&
+      (!previousProgress?.next_due_at || Date.parse(previousProgress.next_due_at) <= now());
     const reprojectFreshFacts =
+      !scheduledRefreshDue &&
       previousProgress !== undefined &&
       previousProgress.completed_scope_sha256 !== scopeBinding(source) &&
       previousProgress.last_complete_facts_sha256 !== null;
@@ -647,6 +772,7 @@ export async function advanceCatalogObservations(
     state.sources[source.key] = progress;
     await options.commit(structuredClone(state));
     attempted.push(source.key);
+    const earlyCollection = earlyTurns.delete(source.key);
     if (source.provider === "gitlab" || source.provider === "direct-manifest") {
       const before = `${progress.provider_progress?.reads.length ?? 0}:${progress.provider_progress?.validation_cursor ?? 0}`;
       try {
@@ -710,7 +836,7 @@ export async function advanceCatalogObservations(
             },
             project: async (portId, observation) => {
               const port = source.ports.find((consumer) => consumer.id === portId)!;
-              if (!options.projectProvider)
+              if (port.kind !== "listing" && !options.projectProvider)
                 throw new ObservationFailure(
                   "core-provider-capability",
                   "Provider Core projection capability is unavailable",
@@ -735,7 +861,25 @@ export async function advanceCatalogObservations(
                 retained.format === 2
               )
                 return retained;
-              const policy = await options.projectProvider(portId, observation);
+              const projected =
+                port.kind === "listing"
+                  ? projectGitLabListingObservation(
+                      port.listing!,
+                      observation,
+                      template.stale_after_hours,
+                    )
+                  : await options.projectProvider!(portId, observation);
+              const policy =
+                port.kind !== "listing" && port.listing && source.provider === "gitlab"
+                  ? {
+                      ...(projected as Record<string, unknown>),
+                      listing_update: projectGitLabListingObservation(
+                        port.listing,
+                        observation,
+                        template.stale_after_hours,
+                      ).listing_update,
+                    }
+                  : projected;
               if (
                 !isRecord(policy) ||
                 policy.format !== 2 ||
@@ -801,18 +945,21 @@ export async function advanceCatalogObservations(
           policies: result.policies,
         });
         progress.exception_key = null;
+        progress.exception_rule = null;
         progress.retry_at = null;
         progress.policy_progress = null;
         completed.push(source.key);
       } catch (error) {
         const rule = error instanceof ObservationFailure ? error.rule : "provider-operation-failed";
-        const key = observationHash({ source: source.key, rule });
+        const key = exceptionKey(source, rule);
         if (
           progress.exception_key !== key &&
-          !["budget", "cancelled", "provider-quota"].includes(rule)
+          !partialProgressRules.includes(rule) &&
+          notifiesOnException(source)
         )
           notifyException = true;
         progress.exception_key = key;
+        progress.exception_rule = rule;
         progress.retry_at = error instanceof ObservationFailure ? error.retryAt : null;
         failures.push({
           source: source.key,
@@ -820,6 +967,23 @@ export async function advanceCatalogObservations(
           rule,
           details: error instanceof Error ? error.message : "Provider operation failed",
         });
+        if (source.ports.some((port) => port.listing) && options.exportProvider) {
+          try {
+            await options.exportProvider(source, [], progress.last_complete_policies, {
+              exception: { rule },
+            });
+          } catch (handoffError) {
+            failures.push({
+              source: source.key,
+              repository: source.repository,
+              rule: "provider-failure-handoff",
+              details:
+                handoffError instanceof Error
+                  ? handoffError.message
+                  : "Provider failure handoff unavailable",
+            });
+          }
+        }
         if (
           rule === "budget" &&
           before !==
@@ -832,9 +996,7 @@ export async function advanceCatalogObservations(
       continue;
     }
     try {
-      const legacy =
-        source.repository === template.repository &&
-        source.ports.some((port) => port.id === template.port_id);
+      const legacy = isConfigured(source);
       if (
         legacy &&
         progress.repository_id !== null &&
@@ -934,16 +1096,100 @@ export async function advanceCatalogObservations(
           await options.commit(structuredClone(state));
           coreProgress++;
         }
-        policies.push(...pendingPolicies.policies);
+        policies.splice(0, policies.length, ...pendingPolicies.policies);
         return policies[source.ports.findIndex((port) => port.id === config.port_id)];
       };
       let sourceRequests = 0;
+      const available = capacity();
+      const fairShare = Math.floor(available / (pending.length - index));
+      // Split the early collection allowance among the selected turns so
+      // other sources retain at least half of the estimated capacity.
+      const collectionShare = earlyCollection
+        ? Math.min(
+            template.budget.pages_per_collection,
+            Math.floor(available / (2 * earlyTurnCount)),
+          )
+        : 0;
+      // Dividing capacity across every pending source can round each turn down to
+      // a single request, so no source ever completes (#4779: ~1,300 pending sources
+      // against ~250 requests per batch). Give each admitted source a turn large
+      // enough to finish a typical collection and validation; sources beyond the
+      // remaining capacity wait for a later batch in durable rotation order. An
+      // early configured turn keeps its existing half-capacity cap.
+      const minimumTurn = Math.min(
+        template.budget.requests,
+        2 * template.budget.pages_per_collection + 4,
+      );
       const quantum = Math.max(
         1,
-        Math.min(template.budget.requests, Math.floor(capacity() / (pending.length - index))),
+        Math.min(
+          template.budget.requests,
+          earlyCollection
+            ? Math.max(fairShare, collectionShare)
+            : Math.max(fairShare, Math.min(minimumTurn, available)),
+        ),
       );
+      const selectAssetReleases = async (headers: ProviderObservation) => {
+        if (
+          progress.selection_progress?.binding !== binding ||
+          progress.selection_progress.facts_sha256 !== headers.facts_sha256 ||
+          progress.selection_progress.checksum_sources === undefined
+        )
+          progress.selection_progress = {
+            binding,
+            facts_sha256: headers.facts_sha256,
+            cursor: 0,
+            release_ids: [],
+            sha256: observationHash([]),
+            checksum_sources: [],
+            checksum_sources_sha256: observationHash([]),
+          };
+        const selection = progress.selection_progress;
+        if (
+          selection.cursor > source.ports.length ||
+          selection.sha256 !== observationHash(selection.release_ids) ||
+          selection.release_ids.some(
+            (id) => !headers.facts.releases.some((release) => release.id === id),
+          )
+        )
+          throw new ObservationFailure(
+            "invalid-checkpoint",
+            "Continued Core selection differs from exact policy or release headers",
+          );
+        const candidates = new Set(selection.release_ids);
+        for (let index = selection.cursor; index < source.ports.length; index++) {
+          const port = source.ports[index]!;
+          const policy = await projectBound(port, config.repository_id, scoped(headers, port.id));
+          if (port.listing)
+            for (const id of listingObservationReleaseIds(headers)) candidates.add(id);
+          for (const projection of policy.projections as unknown[]) {
+            if (
+              isRecord(projection) &&
+              port.channels.includes(String(projection.channel)) &&
+              isRecord(projection.channel_candidate) &&
+              Number.isSafeInteger(projection.channel_candidate.id)
+            )
+              candidates.add(Number(projection.channel_candidate.id));
+          }
+          selection.checksum_sources = checksumSourcesFromProjections([
+            { checksum_sources: selection.checksum_sources },
+            ...(policy.projections as unknown[]),
+          ]);
+          selection.checksum_sources_sha256 = observationHash(selection.checksum_sources);
+          selection.release_ids = [...candidates].sort((a, b) => a - b);
+          selection.sha256 = observationHash(selection.release_ids);
+          selection.cursor = index + 1;
+          await options.commit(structuredClone(state));
+          coreProgress++;
+        }
+        return selection.release_ids;
+      };
       const result = await options.withSourceLock(config, async () => {
-        const priorSource = await options.load(config);
+        const priorSource = decodeStoredObserverCheckpoint(
+          await options.load(config),
+          deadline,
+          now,
+        );
         const position = (continuation: unknown) => {
           if (!isRecord(continuation))
             return observationHash({ phase: "collect", cursor: 0, pages: [] });
@@ -962,6 +1208,7 @@ export async function advanceCatalogObservations(
         const result = await advanceObservation(config, priorSource, {
           deadline,
           ...(options.fetch ? { fetch: options.fetch } : {}),
+          githubScope,
           ...(options.token ? { token: options.token } : {}),
           ...(options.signal ? { signal: options.signal } : {}),
           ...(options.sleep ? { sleep: options.sleep } : {}),
@@ -980,56 +1227,10 @@ export async function advanceCatalogObservations(
           },
           observeResponse,
           consumeResponseBytes,
-          selectAssetReleases: async (headers) => {
-            if (
-              progress.selection_progress?.binding !== binding ||
-              progress.selection_progress.facts_sha256 !== headers.facts_sha256
-            )
-              progress.selection_progress = {
-                binding,
-                facts_sha256: headers.facts_sha256,
-                cursor: 0,
-                release_ids: [],
-                sha256: observationHash([]),
-              };
-            const selection = progress.selection_progress;
-            if (
-              selection.cursor > source.ports.length ||
-              selection.sha256 !== observationHash(selection.release_ids) ||
-              selection.release_ids.some(
-                (id) => !headers.facts.releases.some((release) => release.id === id),
-              )
-            )
-              throw new ObservationFailure(
-                "invalid-checkpoint",
-                "Continued Core selection differs from exact policy or release headers",
-              );
-            const candidates = new Set(selection.release_ids);
-            for (let index = selection.cursor; index < source.ports.length; index++) {
-              const port = source.ports[index]!;
-              const policy = await projectBound(
-                port,
-                config.repository_id,
-                scoped(headers, port.id),
-              );
-              if (port.listing)
-                for (const id of listingObservationReleaseIds(headers)) candidates.add(id);
-              for (const projection of policy.projections as unknown[]) {
-                if (
-                  isRecord(projection) &&
-                  port.channels.includes(String(projection.channel)) &&
-                  isRecord(projection.channel_candidate) &&
-                  Number.isSafeInteger(projection.channel_candidate.id)
-                )
-                  candidates.add(Number(projection.channel_candidate.id));
-              }
-              selection.release_ids = [...candidates].sort((a, b) => a - b);
-              selection.sha256 = observationHash(selection.release_ids);
-              selection.cursor = index + 1;
-              await options.commit(structuredClone(state));
-              coreProgress++;
-            }
-            return selection.release_ids;
+          selectAssetReleases,
+          selectChecksumSources: async (observation) => {
+            await selectAssetReleases(observation);
+            return progress.selection_progress!.checksum_sources!;
           },
           project: projectAll,
           commitContinuation: (checkpoint) => options.save(config, checkpoint),
@@ -1058,10 +1259,12 @@ export async function advanceCatalogObservations(
           pending.push(source);
         if (
           result.notify_exception &&
-          !["budget", "cancelled"].includes(result.report.exception.rule)
+          !["budget", "cancelled"].includes(result.report.exception.rule) &&
+          notifiesOnException(source)
         )
           notifyException = true;
         progress.exception_key = result.report.exception.key;
+        progress.exception_rule = result.report.exception.rule;
         progress.retry_at = result.report.exception.retry_at;
         if (result.report.exception.rule === "rate-limit") {
           remaining = 0;
@@ -1122,6 +1325,7 @@ export async function advanceCatalogObservations(
         }
         progress.retry_at = null;
         progress.exception_key = null;
+        progress.exception_rule = null;
         // Coverage and current Core output can change eligibility without changing provider facts.
         progress.completed_scope_sha256 = binding;
         progress.last_complete_config = config;
@@ -1149,10 +1353,15 @@ export async function advanceCatalogObservations(
         state.provider_retry_at = error.retryAt;
       }
       const rule = error instanceof ObservationFailure ? error.rule : "source-operation-failed";
-      const key = observationHash({ source: source.key, rule });
-      if (progress.exception_key !== key && !["budget", "cancelled"].includes(rule))
+      const key = exceptionKey(source, rule);
+      if (
+        progress.exception_key !== key &&
+        !["budget", "cancelled"].includes(rule) &&
+        notifiesOnException(source)
+      )
         notifyException = true;
       progress.exception_key = key;
+      progress.exception_rule = rule;
       failures.push({
         source: source.key,
         repository: source.repository,
@@ -1210,13 +1419,7 @@ export async function advanceCatalogObservations(
       attempted_source_keys: attempted,
       completed_source_keys: completed,
       pending_source_keys: sources
-        .filter(
-          (source) =>
-            state.sources[source.key]?.completed_scope_sha256 !== scopeBinding(source) ||
-            !state.sources[source.key]?.completed_at ||
-            !state.sources[source.key]?.next_due_at ||
-            Date.parse(state.sources[source.key]!.next_due_at!) <= now(),
-        )
+        .filter((source) => scopeDue(source, state.sources[source.key]))
         .map((source) => source.key),
       held,
       failures,

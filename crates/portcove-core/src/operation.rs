@@ -22,6 +22,10 @@ use crate::{
     OperationTarget, OutputRelocationPlan, PortcoveError, Result, SourceImportPlan, database,
 };
 
+pub(crate) mod acquisition;
+pub(crate) mod game_settings;
+pub(crate) mod publication;
+
 pub const OPERATION_EVENT_SCHEMA_VERSION: u32 = 3;
 
 #[cfg(test)]
@@ -47,6 +51,8 @@ pub(crate) enum LifecycleOperationKind {
     Relocate,
     ImportSource,
     GhostshipRecovery,
+    SettingsChange,
+    ArchiveDataTransition,
 }
 
 impl fmt::Display for LifecycleOperationKind {
@@ -63,6 +69,8 @@ impl fmt::Display for LifecycleOperationKind {
             Self::Relocate => "relocate",
             Self::ImportSource => "import_source",
             Self::GhostshipRecovery => "ghostship_recovery",
+            Self::SettingsChange => "settings_change",
+            Self::ArchiveDataTransition => "archive_data_transition",
         })
     }
 }
@@ -80,9 +88,11 @@ impl FromStr for LifecycleOperationKind {
             "restore" => Some(Self::Restore),
             "delete_backup" => Some(Self::DeleteBackup),
             "activate" => Some(Self::Activate),
+            "archive_data_transition" => Some(Self::ArchiveDataTransition),
             "relocate" => Some(Self::Relocate),
             "import_source" => Some(Self::ImportSource),
             "ghostship_recovery" => Some(Self::GhostshipRecovery),
+            "settings_change" => Some(Self::SettingsChange),
             _ => None,
         };
         kind.ok_or_else(|| {
@@ -144,7 +154,7 @@ pub(crate) struct LifecycleOperation {
     pub phase: LifecyclePhase,
     pub paths: LifecyclePaths,
     pub install: Option<InstallRecord>,
-    pub update_acquisition: Option<crate::service::game_update_acquisition::AcquisitionJournal>,
+    pub update_acquisition: Option<acquisition::AcquisitionJournal>,
     pub relocation: Option<OutputRelocationPlan>,
     pub source_import: Option<SourceImportPlan>,
     pub preparation: Option<crate::PreparationPlan>,
@@ -158,6 +168,7 @@ pub(crate) struct LifecycleOperation {
     pub external_registration_sha256: Option<String>,
     /// Exact installation identities retained through removal database deletion.
     pub removal_installs: Option<Vec<InstallRecord>>,
+    pub game_settings: Option<game_settings::SettingsJournal>,
     pub original_paths: Vec<PathBuf>,
     pub activate: bool,
     pub last_error: Option<String>,
@@ -166,6 +177,55 @@ pub(crate) struct LifecycleOperation {
 }
 
 impl LifecycleOperation {
+    /// Codec-level family discrimination. Path and transition rules remain with
+    /// the checked family, never inferred by a caller from an optional payload.
+    pub(crate) fn validate_family(&self) -> Result<()> {
+        use LifecycleOperationKind::*;
+        if (self.install.is_some()
+            && !matches!(
+                self.kind,
+                Install | Adopt | Prepare | Activate | GhostshipRecovery | ArchiveDataTransition
+            ))
+            || (self.relocation.is_some() != (self.kind == Relocate))
+            || (self.source_import.is_some() != (self.kind == ImportSource))
+            || (self.preparation.is_some() && self.kind != Prepare)
+            || (self.preparation_process_quiesced.is_some()
+                && !matches!(self.kind, Prepare | Install))
+            || (self.removal_installs.is_some() && self.kind != Remove)
+            || (self.game_settings.is_some() != (self.kind == SettingsChange))
+            || (matches!(self.kind, Install | Adopt | Prepare)
+                && matches!(
+                    self.phase,
+                    LifecyclePhase::Prepared
+                        | LifecyclePhase::PayloadPublished
+                        | LifecyclePhase::MetadataCommitted
+                )
+                && self.install.is_none())
+            || (self.kind == Activate
+                && (self.install.is_none()
+                    || !matches!(
+                        self.phase,
+                        LifecyclePhase::Preparing | LifecyclePhase::MetadataCommitted
+                    )))
+            || (self.kind == ArchiveDataTransition && self.install.is_none())
+        {
+            return Err(PortcoveError::state(
+                "lifecycle journal has a missing or foreign family payload",
+            ));
+        }
+        validate_external_replacement(
+            self.kind,
+            self.activate,
+            self.external_registration_sha256.as_deref(),
+        )?;
+        validate_private_family(
+            self.kind,
+            &self.port_id,
+            self.ghostship_recovery.is_some(),
+            self.backup_deletion.is_some(),
+        )
+    }
+
     pub fn new(
         id: impl Into<String>,
         kind: LifecycleOperationKind,
@@ -192,6 +252,7 @@ impl LifecycleOperation {
             preparation_process_quiesced: None,
             external_registration_sha256: None,
             removal_installs: None,
+            game_settings: None,
             original_paths: Vec::new(),
             activate: false,
             last_error: None,
@@ -212,24 +273,9 @@ impl OperationStore {
     }
 
     pub fn put(&self, operation: &mut LifecycleOperation) -> Result<()> {
-        validate_external_replacement(
-            operation.kind,
-            operation.activate,
-            operation.external_registration_sha256.as_deref(),
-        )?;
-        validate_private_family(
-            operation.kind,
-            &operation.port_id,
-            operation.ghostship_recovery.is_some(),
-            operation.backup_deletion.is_some(),
-        )?;
-        crate::service::game_update_acquisition::validate_journal(&self.library, operation)?;
-        if operation.removal_installs.is_some() && operation.kind != LifecycleOperationKind::Remove
-        {
-            return Err(PortcoveError::state(
-                "removal installation identities belong only to removal",
-            ));
-        }
+        operation.validate_family()?;
+        acquisition::validate_journal(&self.library, operation)?;
+        game_settings::validate_journal(&self.library, operation)?;
         operation.updated_at = Library::now();
         for path in operation
             .paths
@@ -282,14 +328,23 @@ impl OperationStore {
             .as_ref()
             .map(serde_json::to_string)
             .transpose()?;
+        let game_settings_json = operation
+            .game_settings
+            .as_ref()
+            .map(serde_json::to_string)
+            .transpose()?;
+        if game_settings_json
+            .as_ref()
+            .is_some_and(|value| value.len() > 16384)
+        {
+            return Err(PortcoveError::state(
+                "settings journal exceeds its bounded encoding",
+            ));
+        }
         let mut connection = database::connect(self.library.root())?;
         let transaction =
             connection.transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?;
-        crate::service::game_update_acquisition::require_capacity(
-            &transaction,
-            operation,
-            update_acquisition_json.as_deref(),
-        )?;
+        acquisition::require_capacity(&transaction, operation, update_acquisition_json.as_deref())?;
         if operation.kind != LifecycleOperationKind::AcquireUpdate {
             crate::ghostship_data_store::invalidate(&transaction, &operation.port_id)?;
         }
@@ -297,8 +352,8 @@ impl OperationStore {
             "INSERT INTO lifecycle_operations(
                id, kind, port_id, phase, staging_path, final_path, quarantine_path,
                install_json, relocation_json, source_import_json, original_paths_json, activate, last_error, created_at, updated_at, preparation_json,
-               preparation_process_quiesced, ghostship_recovery_json, backup_deletion_json, external_registration_sha256, update_acquisition_json, removal_installs_json
-             ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22)
+               preparation_process_quiesced, ghostship_recovery_json, backup_deletion_json, external_registration_sha256, update_acquisition_json, removal_installs_json, game_settings_json
+             ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23)
              ON CONFLICT(id) DO UPDATE SET
                kind=excluded.kind,
                port_id=excluded.port_id,
@@ -317,6 +372,7 @@ impl OperationStore {
                external_registration_sha256=excluded.external_registration_sha256,
                update_acquisition_json=excluded.update_acquisition_json,
                removal_installs_json=excluded.removal_installs_json,
+               game_settings_json=excluded.game_settings_json,
                activate=excluded.activate,
                last_error=excluded.last_error,
                updated_at=excluded.updated_at",
@@ -343,6 +399,7 @@ impl OperationStore {
                 operation.external_registration_sha256,
                 update_acquisition_json,
                 removal_installs_json,
+                game_settings_json,
             ],
         )?;
         transaction.commit()?;
@@ -365,6 +422,107 @@ impl OperationStore {
         Ok(self.read(Some(id))?.pop())
     }
 
+    /// Observation only: complete enumeration can contain undecodable rows.
+    /// This inventory must never authorize recovery, cleanup or mutation.
+    pub(crate) fn diagnostic_inventory(&self) -> Result<DiagnosticInventory> {
+        #[cfg(test)]
+        ALL_READ_COUNT.with(|count| count.set(count.get() + 1));
+        let connection = database::connect(self.library.root())?;
+        let mut statement = connection.prepare(&format!(
+            "{LIFECYCLE_COLUMNS} ORDER BY created_at, rowid LIMIT 4097"
+        ))?;
+        let mut rows = statement.query([])?;
+        let mut decoded = Vec::new();
+        let mut problems = Vec::new();
+        let mut enumerated_rows = 0;
+        let mut acquisition_owners = std::collections::HashSet::new();
+        while let Some(row) = rows.next()? {
+            enumerated_rows += 1;
+            if enumerated_rows > 4096 {
+                return Err(PortcoveError::state(
+                    "journal diagnostic enumeration exceeds 4096 rows; coverage is incomplete and requires review",
+                ));
+            }
+            let rowid: i64 = row.get(23)?;
+            let result = match StoredLifecycleRow::from_row(row) {
+                Ok(raw) => raw.decode(&self.library),
+                Err(error)
+                    if matches!(
+                        error,
+                        rusqlite::Error::InvalidColumnType(..)
+                            | rusqlite::Error::FromSqlConversionFailure(..)
+                            | rusqlite::Error::IntegralValueOutOfRange(..)
+                            | rusqlite::Error::Utf8Error(..)
+                    ) =>
+                {
+                    Err(RowFailure::at(
+                        crate::JournalValidationStage::Columns,
+                        error.into(),
+                    ))
+                }
+                Err(error) => return Err(error.into()),
+            };
+            let failure = match result {
+                Ok(operation) => {
+                    // Reuse the same pure cross-row owner rule as the status inventory.
+                    let inventory_failure = if let Some(payload) = &operation.update_acquisition {
+                        acquisition::validate_inventory_owner(
+                            &operation.id,
+                            &operation.port_id,
+                            &payload.view,
+                            acquisition_owners.len(),
+                            acquisition_owners.contains(&operation.port_id),
+                        )
+                        .err()
+                        .map(|error| {
+                            RowFailure::at(
+                                crate::JournalValidationStage::AcquisitionInventory,
+                                error,
+                            )
+                        })
+                    } else {
+                        None
+                    };
+                    if let Some(failure) = inventory_failure {
+                        Some(failure)
+                    } else {
+                        if operation.update_acquisition.is_some() {
+                            acquisition_owners.insert(operation.port_id.clone());
+                        }
+                        decoded.push(operation);
+                        None
+                    }
+                }
+                Err(failure) => Some(failure),
+            };
+            if let Some(failure) = failure {
+                let Some(stage) = failure.stage else {
+                    return Err(failure.error);
+                };
+                problems.push(crate::JournalRowProblem {
+                    rowid,
+                    operation_id: observed_token(row, 0).filter(|id| Uuid::parse_str(id).is_ok()),
+                    operation_kind: observed_token(row, 1)
+                        .filter(|kind| kind.parse::<LifecycleOperationKind>().is_ok()),
+                    port_id: observed_token(row, 2),
+                    stage,
+                    reason: diagnostic_reason(stage).into(),
+                });
+            }
+        }
+        let related_assessments_complete = problems.is_empty();
+        Ok(DiagnosticInventory {
+            report: crate::JournalDiagnostics {
+                enumeration_complete: true,
+                enumerated_rows,
+                decoded_rows: decoded.len(),
+                related_assessments_complete,
+                problems,
+            },
+            decoded,
+        })
+    }
+
     fn read(&self, id: Option<&str>) -> Result<Vec<LifecycleOperation>> {
         let connection = database::connect(self.library.root())?;
         let where_or_order = if id.is_some() {
@@ -372,129 +530,241 @@ impl OperationStore {
         } else {
             "ORDER BY created_at, rowid"
         };
-        let mut statement = connection.prepare(&format!(
-            "SELECT id, kind, port_id, phase, staging_path, final_path, quarantine_path,
+        let mut statement = connection.prepare(&format!("{LIFECYCLE_COLUMNS} {where_or_order}"))?;
+        statement
+            .query_map(rusqlite::params_from_iter(id), StoredLifecycleRow::from_row)?
+            .map(|row| row?.decode(&self.library).map_err(|failure| failure.error))
+            .collect()
+    }
+}
+
+const LIFECYCLE_COLUMNS: &str = "SELECT id, kind, port_id, phase, staging_path, final_path, quarantine_path,
                     install_json, relocation_json, source_import_json, original_paths_json, activate, last_error, created_at, updated_at, preparation_json,
-                    preparation_process_quiesced, ghostship_recovery_json, backup_deletion_json, external_registration_sha256, update_acquisition_json, removal_installs_json
-             FROM lifecycle_operations
-             {where_or_order}"
-        ))?;
-        let rows = statement.query_map(rusqlite::params_from_iter(id), |row| {
-            Ok((
-                row.get::<_, String>(0)?,
-                row.get::<_, String>(1)?,
-                row.get::<_, String>(2)?,
-                row.get::<_, String>(3)?,
-                row.get::<_, Option<String>>(4)?,
-                row.get::<_, Option<String>>(5)?,
-                row.get::<_, Option<String>>(6)?,
-                row.get::<_, Option<String>>(7)?,
-                row.get::<_, Option<String>>(8)?,
-                row.get::<_, Option<String>>(9)?,
-                row.get::<_, String>(10)?,
-                row.get::<_, i64>(11)?,
-                row.get::<_, Option<String>>(12)?,
-                row.get::<_, i64>(13)?,
-                row.get::<_, i64>(14)?,
-                row.get::<_, Option<String>>(15)?,
-                row.get::<_, Option<i64>>(16)?,
-                row.get::<_, Option<String>>(17)?,
-                row.get::<_, Option<String>>(18)?,
-                row.get::<_, Option<String>>(19)?,
-                row.get::<_, Option<String>>(20)?,
-                row.get::<_, Option<String>>(21)?,
-            ))
-        })?;
-        rows.map(|row| {
-            let (
-                id,
-                kind,
-                port_id,
-                phase,
-                staging_path,
-                final_path,
-                quarantine_path,
-                install_json,
-                relocation_json,
-                source_import_json,
-                original_paths_json,
-                activate,
-                last_error,
-                created_at,
-                updated_at,
-                preparation_json,
-                preparation_process_quiesced,
-                ghostship_recovery_json,
-                backup_deletion_json,
-                external_registration_sha256,
-                update_acquisition_json,
-                removal_installs_json,
-            ) = row?;
-            let kind = kind.parse()?;
-            validate_external_replacement(
-                kind,
-                activate != 0,
-                external_registration_sha256.as_deref(),
-            )?;
-            validate_private_family(
-                kind,
-                &port_id,
-                ghostship_recovery_json.is_some(),
-                backup_deletion_json.is_some(),
-            )?;
-            let operation = LifecycleOperation {
-                id,
-                kind,
-                port_id,
-                phase: phase.parse()?,
-                paths: LifecyclePaths {
-                    staging: staging_path.map(PathBuf::from),
-                    final_path: final_path.map(PathBuf::from),
-                    quarantine: quarantine_path.map(PathBuf::from),
-                },
-                install: install_json
-                    .map(|value| serde_json::from_str(&value))
-                    .transpose()?,
-                relocation: relocation_json
-                    .map(|value| serde_json::from_str(&value))
-                    .transpose()?,
-                source_import: source_import_json
-                    .map(|value| serde_json::from_str(&value))
-                    .transpose()?,
-                removal_installs: removal_installs_json
-                    .map(|value| serde_json::from_str(&value))
-                    .transpose()?,
-                original_paths: serde_json::from_str(&original_paths_json)?,
-                preparation: preparation_json
-                    .map(|value| serde_json::from_str(&value))
-                    .transpose()?,
-                preparation_process_quiesced: preparation_process_quiesced.map(|value| value != 0),
-                external_registration_sha256,
-                update_acquisition: crate::service::game_update_acquisition::decode_journal(
-                    update_acquisition_json.as_deref(),
-                )?,
-                ghostship_recovery: ghostship_recovery_json
-                    .map(|value| serde_json::from_str(&value))
-                    .transpose()?,
-                backup_deletion: backup_deletion_json
-                    .map(|value| serde_json::from_str(&value))
-                    .transpose()?,
-                activate: activate != 0,
-                last_error,
-                created_at,
-                updated_at,
-            };
-            if operation.removal_installs.is_some()
-                && operation.kind != LifecycleOperationKind::Remove
-            {
-                return Err(PortcoveError::state(
-                    "removal installation identities belong only to removal",
-                ));
-            }
-            crate::service::game_update_acquisition::validate_journal(&self.library, &operation)?;
-            Ok(operation)
+                    preparation_process_quiesced, ghostship_recovery_json, backup_deletion_json, external_registration_sha256, update_acquisition_json, removal_installs_json, game_settings_json, rowid
+             FROM lifecycle_operations";
+
+/// Codec-checked observations, not a complete trusted operation inventory.
+/// Only the read-only repair report consumes this type. No mutation adapter exists.
+pub(crate) struct DiagnosticInventory {
+    pub(crate) decoded: Vec<LifecycleOperation>,
+    pub(crate) report: crate::JournalDiagnostics,
+}
+
+fn observed_token(row: &rusqlite::Row<'_>, column: usize) -> Option<String> {
+    let rusqlite::types::ValueRef::Text(bytes) = row.get_ref(column).ok()? else {
+        return None;
+    };
+    let token = std::str::from_utf8(bytes).ok()?;
+    (!token.is_empty()
+        && token.len() <= 128
+        && token
+            .bytes()
+            .all(|b| b.is_ascii_alphanumeric() || b"._-".contains(&b)))
+    .then(|| token.to_owned())
+}
+
+fn diagnostic_reason(stage: crate::JournalValidationStage) -> &'static str {
+    use crate::JournalValidationStage::*;
+    match stage {
+        Columns => "journal columns have unsupported types or encoding",
+        Kind => "operation kind is not recognized by this version",
+        Phase => "operation phase is not recognized by this version",
+        Payload => "journal payload is malformed, unsupported or exceeds its decoding bound",
+        Family => "lifecycle journal has a missing or foreign family payload",
+        Acquisition => {
+            "acquisition journal validation refused its recorded ownership, paths or intent"
+        }
+        AcquisitionInventory => "acquisition inventory has duplicate or over-bound owners",
+    }
+}
+
+/// Raw SQLite values are interpreted once for both strict reads and observation.
+struct StoredLifecycleRow {
+    id: String,
+    kind: String,
+    port_id: String,
+    phase: String,
+    staging_path: Option<String>,
+    final_path: Option<String>,
+    quarantine_path: Option<String>,
+    install_json: Option<String>,
+    relocation_json: Option<String>,
+    source_import_json: Option<String>,
+    original_paths_json: String,
+    activate: i64,
+    last_error: Option<String>,
+    created_at: i64,
+    updated_at: i64,
+    preparation_json: Option<String>,
+    preparation_process_quiesced: Option<i64>,
+    ghostship_recovery_json: Option<String>,
+    backup_deletion_json: Option<String>,
+    external_registration_sha256: Option<String>,
+    update_acquisition_json: Option<String>,
+    removal_installs_json: Option<String>,
+    game_settings_json: Option<String>,
+}
+
+impl StoredLifecycleRow {
+    fn from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<Self> {
+        Ok(Self {
+            id: row.get(0)?,
+            kind: row.get(1)?,
+            port_id: row.get(2)?,
+            phase: row.get(3)?,
+            staging_path: row.get(4)?,
+            final_path: row.get(5)?,
+            quarantine_path: row.get(6)?,
+            install_json: row.get(7)?,
+            relocation_json: row.get(8)?,
+            source_import_json: row.get(9)?,
+            original_paths_json: row.get(10)?,
+            activate: row.get(11)?,
+            last_error: row.get(12)?,
+            created_at: row.get(13)?,
+            updated_at: row.get(14)?,
+            preparation_json: row.get(15)?,
+            preparation_process_quiesced: row.get(16)?,
+            ghostship_recovery_json: row.get(17)?,
+            backup_deletion_json: row.get(18)?,
+            external_registration_sha256: row.get(19)?,
+            update_acquisition_json: row.get(20)?,
+            removal_installs_json: row.get(21)?,
+            game_settings_json: row.get(22)?,
         })
-        .collect()
+    }
+
+    fn decode(self, library: &Library) -> std::result::Result<LifecycleOperation, RowFailure> {
+        let Self {
+            id,
+            kind,
+            port_id,
+            phase,
+            staging_path,
+            final_path,
+            quarantine_path,
+            install_json,
+            relocation_json,
+            source_import_json,
+            original_paths_json,
+            activate,
+            last_error,
+            created_at,
+            updated_at,
+            preparation_json,
+            preparation_process_quiesced,
+            ghostship_recovery_json,
+            backup_deletion_json,
+            external_registration_sha256,
+            update_acquisition_json,
+            removal_installs_json,
+            game_settings_json,
+        } = self;
+        let kind = kind
+            .parse()
+            .map_err(|e| RowFailure::at(crate::JournalValidationStage::Kind, e))?;
+        let phase = phase
+            .parse()
+            .map_err(|e| RowFailure::at(crate::JournalValidationStage::Phase, e))?;
+
+        let operation = LifecycleOperation {
+            id,
+            kind,
+            port_id,
+            phase,
+            paths: LifecyclePaths {
+                staging: staging_path.map(PathBuf::from),
+                final_path: final_path.map(PathBuf::from),
+                quarantine: quarantine_path.map(PathBuf::from),
+            },
+            install: install_json
+                .map(|value| serde_json::from_str(&value))
+                .transpose()
+                .map_err(|e| RowFailure::at(crate::JournalValidationStage::Payload, e.into()))?,
+            relocation: relocation_json
+                .map(|value| serde_json::from_str(&value))
+                .transpose()
+                .map_err(|e| RowFailure::at(crate::JournalValidationStage::Payload, e.into()))?,
+            source_import: source_import_json
+                .map(|value| serde_json::from_str(&value))
+                .transpose()
+                .map_err(|e| RowFailure::at(crate::JournalValidationStage::Payload, e.into()))?,
+            removal_installs: removal_installs_json
+                .map(|value| serde_json::from_str(&value))
+                .transpose()
+                .map_err(|e| RowFailure::at(crate::JournalValidationStage::Payload, e.into()))?,
+            original_paths: serde_json::from_str(&original_paths_json)
+                .map_err(|e| RowFailure::at(crate::JournalValidationStage::Payload, e.into()))?,
+            preparation: preparation_json
+                .map(|value| serde_json::from_str(&value))
+                .transpose()
+                .map_err(|e| RowFailure::at(crate::JournalValidationStage::Payload, e.into()))?,
+            preparation_process_quiesced: preparation_process_quiesced.map(|value| value != 0),
+            external_registration_sha256,
+            game_settings: game_settings::decode_journal(game_settings_json.as_deref())
+                .map_err(|e| RowFailure::at(crate::JournalValidationStage::Payload, e))?,
+            update_acquisition: acquisition::decode_journal(update_acquisition_json.as_deref())
+                .map_err(|e| RowFailure::at(crate::JournalValidationStage::Payload, e))?,
+            ghostship_recovery: ghostship_recovery_json
+                .map(|value| serde_json::from_str(&value))
+                .transpose()
+                .map_err(|e| RowFailure::at(crate::JournalValidationStage::Payload, e.into()))?,
+            backup_deletion: backup_deletion_json
+                .map(|value| serde_json::from_str(&value))
+                .transpose()
+                .map_err(|e| RowFailure::at(crate::JournalValidationStage::Payload, e.into()))?,
+            activate: activate != 0,
+            last_error,
+            created_at,
+            updated_at,
+        };
+        operation
+            .validate_family()
+            .map_err(|e| RowFailure::at(crate::JournalValidationStage::Family, e))?;
+        acquisition::validate_journal(library, &operation).map_err(|e| {
+            if matches!(
+                e.code,
+                crate::ErrorCode::Verification
+                    | crate::ErrorCode::Conflict
+                    | crate::ErrorCode::Usage
+            ) {
+                RowFailure::at(crate::JournalValidationStage::Acquisition, e)
+            } else {
+                RowFailure {
+                    stage: None,
+                    error: e,
+                }
+            }
+        })?;
+        game_settings::validate_journal(library, &operation).map_err(|e| {
+            if matches!(
+                e.code,
+                crate::ErrorCode::Verification
+                    | crate::ErrorCode::Conflict
+                    | crate::ErrorCode::Usage
+            ) {
+                RowFailure::at(crate::JournalValidationStage::Payload, e)
+            } else {
+                RowFailure {
+                    stage: None,
+                    error: e,
+                }
+            }
+        })?;
+        Ok(operation)
+    }
+}
+
+struct RowFailure {
+    stage: Option<crate::JournalValidationStage>,
+    error: PortcoveError,
+}
+impl RowFailure {
+    fn at(stage: crate::JournalValidationStage, error: PortcoveError) -> Self {
+        Self {
+            stage: Some(stage),
+            error,
+        }
     }
 }
 
@@ -540,8 +810,48 @@ fn path_string(path: Option<&PathBuf>) -> Result<Option<String>> {
         .transpose()
 }
 
+#[cfg(windows)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum SettingsFaultPoint {
+    IntentBeforeInsert,
+    CanonicalStageBeforeCreate,
+    CanonicalStageCreated,
+    CanonicalStageBound,
+    CanonicalStagePartialWrite,
+    CanonicalStageBeforeFlush,
+    CanonicalStageFlushed,
+    BetweenStages,
+    RuntimeStageBeforeCreate,
+    RuntimeStageCreated,
+    RuntimeStageBound,
+    RuntimeStagePartialWrite,
+    RuntimeStageBeforeFlush,
+    RuntimeStageFlushed,
+    Journaled,
+    Prepared,
+    CanonicalMoved,
+    CanonicalPublished,
+    RuntimeMoved,
+    RuntimePublished,
+    MetadataCommitted,
+    CleanupPending,
+    CanonicalRetired,
+    RuntimeRetired,
+    JournalRetired,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum LifecycleFaultPoint {
+    ArchiveDataTransitionPrepared,
+    ArchiveDataManifestPublished,
+    ArchiveDataManifestRecorded,
+    ArchiveDataReceiptFenced,
+    ArchiveDataCanonicalQuarantined,
+    ArchiveDataCanonicalPublished,
+    ArchiveDataTransitionCommitted,
+    ArchiveDataCleanupStarted,
+    #[cfg(windows)]
+    SettingsBoundary(SettingsFaultPoint),
     #[cfg(test)]
     RecoveryInventoried,
     PreparationJournaled,

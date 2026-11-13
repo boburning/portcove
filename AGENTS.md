@@ -62,7 +62,12 @@ the Roadmap route when none owns authorized work.
 
 Implement with focused feedback, complete the applicable review, repair blocking
 findings, satisfy required exact-head CI and explicit acceptance, then guarded
-merge and targeted roadmap reconciliation. Local checks are optional. The
+merge and targeted roadmap reconciliation. Local checks are optional and hosted CI
+remains the merge authority. Keep the pull request in draft until review
+repairs are complete, then mark it ready so the full Windows test partitions run
+once ([draft pacing](docs/CONTRIBUTION-CONVENTIONS.md#review-and-merge)). Do not merge `main` into a candidate because `main`
+advanced; merge it only for a conflict or a relevant interaction
+([QUALITY](docs/QUALITY.md#routine-merge-freshness)). The
 verified Renovate exception is owned by [QUALITY](docs/QUALITY.md#bounded-dependency-delivery).
 Preserve failure evidence and repeat only invalidated work. When blocked or
 interrupted, retain branch/head, checks, blocker and concrete resume condition
@@ -71,6 +76,31 @@ For substantial outcomes, define the complete issue boundary and review the
 consequential ownership/compatibility decisions early. Internal checkpoints do
 not require additional owner approvals or separate PRs. Inspect the existing
 complete-diff plan for surrounding contracts before choosing bespoke test filters.
+
+## Delegation, review and escalation
+
+Shared instructions name responsibilities, not models: implementation owner,
+independent reviewer, critical reviewer, specialist, research scout and visual
+helper. [Agent model selection](docs/DEVELOPMENT-TOOLS.md#agent-model-selection)
+owns the one dated model/effort table and what instructions cannot enforce.
+Stay with the session's provider, environment, account and spending boundaries.
+
+The implementation owner starts from the current issue, acceptance, relevant
+architecture and actual dependencies, and keeps decisions, integration and
+delivery. Delegate only bounded work worth its coordination cost: a research
+scout answers stated questions with evidence, sources and open uncertainty; a
+specialist takes a named hard problem; a visual helper inspects presentation.
+Most issues need only some responsibilities.
+
+Substantive candidates follow the [review and repair loop](docs/QUALITY.md#review-and-repair-loop):
+a fresh non-writing reviewer who did not help design or implement the candidate,
+a complete review packet, classified evidence-backed findings, repair and
+reassessment. Changes in the loop's listed critical areas start with a critical
+reviewer. After repeated
+unsuccessful attempts, change approach, investigate a discriminating
+reproduction or bring in a specialist; no attempt count turns a blocker into
+approval. While CI, review or an external prerequisite is pending, keep the
+waiting head frozen and continue independent authorized work.
 
 ## Task map
 
@@ -89,6 +119,7 @@ complete-diff plan for surrounding contracts before choosing bespoke test filter
 | Definition/catalog signing        | [Signed catalog](docs/SIGNED-CATALOG.md); [definition delivery](docs/DEFINITION-DELIVERY.md)                   |
 | CLI/integrations                  | [CLI](docs/CLI.md); [integration author](docs/INTEGRATION-AUTHOR.md)                                           |
 | Storage/cleanup                   | [Development storage](docs/DEVELOPMENT-STORAGE.md)                                                             |
+| Cloud agent session setup         | [Cloud agent sessions](docs/DEVELOPMENT-TOOLS.md#cloud-agent-sessions)                                         |
 
 ## Test-timeout calibration
 
@@ -98,6 +129,12 @@ fixture synchronization and outer command/supervisor/CI limits. Follow
 [timeout calibration](docs/QUALITY.md#autonomous-test-timeout-calibration) to
 distinguish harness waits from product deadlines, preserve failures/assertions
 and cleanup, validate the change and continue the original task.
+
+## Player copy
+
+Follow [Content design](docs/CONTENT-DESIGN.md) when changing player-facing
+text or its producers. Check the underlying state first, then write the player
+explanation and keep supporting evidence in the existing details or references.
 
 ## Frontend workflow
 

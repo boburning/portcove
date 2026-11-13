@@ -39,13 +39,22 @@ jobs:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    # Job-level so issue-comment and dispatch intake runs are never grouped with it.
+    concurrency:
+      group: hosted-discovery-intake-contracts-${{ github.event.pull_request.number }}
+      cancel-in-progress: true
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+        with:
+          package_json_file: package.json
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version-file: .node-version
+      - name: Install trusted locked GitHub dependencies
+        run: pnpm install --frozen-lockfile --ignore-scripts --ignore-pnpmfile
       - run: node --test scripts/hosted-discovery-intake*.test.mts
   intake:
     if: >-
@@ -56,7 +65,7 @@ jobs:
       (github.event.issue.number == 177 &&
       startsWith(github.event.comment.body, '<!-- portcove-hosted-intake:v1 -->')))
     runs-on: ubuntu-latest
-    # At most three joined 31-minute workers, each with its existing 30-minute budget.
+    # Progress-aware worker passes share a 90-minute deadline inside this outer limit.
     timeout-minutes: 100
     permissions:
       contents: read
@@ -71,9 +80,14 @@ jobs:
           ref: ${{ github.event_name == 'workflow_dispatch' && github.sha || github.event.repository.default_branch }}
           fetch-depth: 0
           persist-credentials: false
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+        with:
+          package_json_file: package.json
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version-file: .node-version
+      - name: Install trusted locked GitHub dependencies
+        run: pnpm install --frozen-lockfile --ignore-scripts --ignore-pnpmfile
       - name: Reconcile retained hosted requests through maintained intake and doctor
         run: node scripts/hosted-discovery-intake-runner.mts
         env:
@@ -87,7 +101,8 @@ jobs:
           node --input-type=module - <<'JS'
           import { existsSync, readdirSync, readFileSync } from 'node:fs';
           const root = 'work/hosted-discovery-intake';
-          for (const directory of [root, ...[1, 2, 3].map(pass => `${root}/pass-${pass}`)]) {
+          const passes = existsSync(root) ? readdirSync(root).filter(name => /^pass-[1-9]\d?$/.test(name)) : [];
+          for (const directory of [root, ...passes.map(name => `${root}/${name}`)]) {
           if (existsSync(directory)) for (const name of readdirSync(directory)) {
             if (!/^(?:summary|inventory-recollection|write-probe|write-proof-\d+|doctor-\d+-\d+|global-doctor-\d+|failure-\d+|receipt-\d+|api-observations|budget)\.json$/.test(name)) continue;
             const bytes = readFileSync(`${directory}/${name}`);

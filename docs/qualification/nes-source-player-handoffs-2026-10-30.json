@@ -1,0 +1,443 @@
+{
+  "format_version": 1,
+  "kind": "dated two-cycle-player exact-source observation; not a live registry or qualification authority",
+  "owners": [2926, 2510],
+  "source_base_commit": "0aedae80a31b4839478f8a89b4c89b5d4d0dba89",
+  "observation_date": "2026-10-30",
+  "selected_rows": [
+    {
+      "id": "mstan-legendofzeldanesrecomp",
+      "canonical_issue": 1840,
+      "cohort": "original-524",
+      "historical_1422_member": false,
+      "canonical_body_sha256_at_pickup": "6093df443266df9162fc96db457d0dcf437435d54b2ccbaf23f1675c31224c38",
+      "context_observed_at": "2026-10-30T19:07:14.007Z",
+      "planning_at_pickup": {
+        "Status": "Inbox",
+        "Priority": "None",
+        "Horizon": "Someday",
+        "Target release": "Unscheduled",
+        "Release commitment": null,
+        "Work type": "Port",
+        "Workstream": "Port catalog",
+        "Platform": "Unknown",
+        "Port stage": "Watchlist",
+        "Effort": "Unknown"
+      },
+      "authored_sha256": "2f090c4a92a85247a6d550e9799aca81a4aa8bbaa5f917a8a0cd54b05683fb53",
+      "selected_platform": "Windows permitted completed cycle source player",
+      "offered_operations": [
+        "explicit native executable/CWD/literal-argument review and consent",
+        "registration/relink",
+        "retained intent and creating listing across restart",
+        "explicit selected-process Play",
+        "metadata-only preserving removal"
+      ],
+      "update_owner": "upstream/player; user-managed-update",
+      "unoffered": [
+        "managed acquisition/setup/Install/Update/Backup/Rollback/migration/external deletion",
+        "legacy-cycle/old-image/cross-build state conversion"
+      ],
+      "original_identity": {
+        "upstream_variant": "USA PRG0, stock cartridge",
+        "prg_chr_payload_crc32": "3fe272fb",
+        "full_file_cryptographic_digest": null,
+        "scope": "Upstream source selector and compatible cartridge/header metadata; not Core-authenticated curated source identity."
+      },
+      "game_native_execution": "not_run",
+      "gameplay_state_compatibility_installed_protected": "not_evaluated"
+    },
+    {
+      "id": "mstan-yoshinesrecomp",
+      "canonical_issue": 2739,
+      "cohort": "affected-312",
+      "historical_1422_member": false,
+      "canonical_body_sha256_at_pickup": "bbadb7403b589eeba5d160cd4df151950471b0ada49e8d18f91aa09c2cae0513",
+      "context_observed_at": "2026-10-30T19:07:15.050Z",
+      "planning_at_pickup": {
+        "Status": "Inbox",
+        "Priority": "None",
+        "Horizon": "Someday",
+        "Target release": "Unscheduled",
+        "Release commitment": null,
+        "Work type": "Port",
+        "Workstream": "Port catalog",
+        "Platform": "Unknown",
+        "Port stage": "Watchlist",
+        "Effort": "Unknown"
+      },
+      "authored_sha256": "5d979f593065666ab1bab4544f06369fa964eaeaee7e43bd91759e5ee93a3aca",
+      "selected_platform": "Windows permitted completed cycle source player",
+      "offered_operations": [
+        "explicit native executable/CWD/literal-argument review and consent",
+        "registration/relink",
+        "retained intent and creating listing across restart",
+        "explicit selected-process Play",
+        "metadata-only preserving removal"
+      ],
+      "update_owner": "upstream/player; user-managed-update",
+      "unoffered": [
+        "managed acquisition/setup/Install/Update/Backup/Rollback/migration/external deletion",
+        "legacy-cycle/old-image/cross-build state conversion"
+      ],
+      "original_identity": {
+        "upstream_variant": "current USA payload,128KiB PRG+32KiB CHR",
+        "prg_chr_payload_crc32": "e7ead93b",
+        "canonical_nes20_file_sha1": "71cc02d4a005c6ad71f1fbf2b3ccd890d65056a3",
+        "scope": "Documented canonical NES2.0 file; legacy oversized header accepted only for complete known payload/length. Previous larger image remains separate."
+      },
+      "game_native_execution": "not_run",
+      "gameplay_state_compatibility_installed_protected": "not_evaluated"
+    }
+  ],
+  "complete_pinned_trees": [
+    {
+      "label": "zelda-title",
+      "repository": "mstan/LegendOfZeldaNESRecomp",
+      "source_commit": "07c3004786f36b73e58fe00bfece9ad648ba7d96",
+      "complete_tree_entries": 124,
+      "tree_response_sha256": "fc1a70ff535245777a923c986562ff2e0d0100eed578672776dde8a4f048723a"
+    },
+    {
+      "label": "yoshi-title",
+      "repository": "mstan/YoshiNESRecomp",
+      "source_commit": "f219991df2e70d6bf41f4ba9a46c8ddf990b572e",
+      "complete_tree_entries": 158,
+      "tree_response_sha256": "ef6e174c35fdbd37953e05bf6676ae9898011c8da9bd711628a316e11c9e2fd8"
+    },
+    {
+      "label": "zelda-framework",
+      "repository": "mstan/nesrecomp",
+      "source_commit": "23e87d71f6da42e22450323d882047b90363798d",
+      "complete_tree_entries": 660,
+      "tree_response_sha256": "f38bffd457ce45d49f2b3a1a92938dc96a8201cad4eb2c076e511353e3a9559e"
+    },
+    {
+      "label": "yoshi-framework",
+      "repository": "mstan/nesrecomp",
+      "source_commit": "5a2eddeecc646e9325bef53f3c711e119423f99c",
+      "complete_tree_entries": 641,
+      "tree_response_sha256": "5c3ac85a9fa9c57fce1dfb3ef396bb184db402b4509515614908b4d5b64b7ab9"
+    },
+    {
+      "label": "ui",
+      "repository": "mstan/recomp-ui",
+      "source_commit": "c11a4b6c649164b6951eff107f4607dcef117dd5",
+      "complete_tree_entries": 254,
+      "tree_response_sha256": "9f3eda9c96e3ccc4f9ffc1909ed50c84dcf25b4ca3255a468bbc68a992d06be3"
+    }
+  ],
+  "verified_source_observations": [
+    {
+      "label": "zelda-title",
+      "repository": "mstan/LegendOfZeldaNESRecomp",
+      "source_commit": "07c3004786f36b73e58fe00bfece9ad648ba7d96",
+      "path": "CMakeLists.txt",
+      "git_blob": "0470866178ab73928d1faa806ad6eb4808880d4c",
+      "sha256": "2c3fc801dcb12d48ae05fb38e45999512dd9ada03d3f1534aac1462b30cdfb96",
+      "bytes": 8167
+    },
+    {
+      "label": "zelda-title",
+      "repository": "mstan/LegendOfZeldaNESRecomp",
+      "source_commit": "07c3004786f36b73e58fe00bfece9ad648ba7d96",
+      "path": "LICENSE",
+      "git_blob": "b981b950da9e5e7363b08bd3c573cf0f479e07f6",
+      "sha256": "168689b754213aaa4f64b974ecfb15203b31f46b824ef436482cdb4a88a35b50",
+      "bytes": 3755
+    },
+    {
+      "label": "zelda-title",
+      "repository": "mstan/LegendOfZeldaNESRecomp",
+      "source_commit": "07c3004786f36b73e58fe00bfece9ad648ba7d96",
+      "path": "README.md",
+      "git_blob": "2396ea095d1482019ab08fc7a781f2d1110f95c0",
+      "sha256": "900476705f8f3077da1e635f524df763cc89a36381cb3f62983b496b5df1b045",
+      "bytes": 11875
+    },
+    {
+      "label": "zelda-title",
+      "repository": "mstan/LegendOfZeldaNESRecomp",
+      "source_commit": "07c3004786f36b73e58fe00bfece9ad648ba7d96",
+      "path": "config/cycle/game-cycle-stock.toml",
+      "git_blob": "235ebc8e8c963e9cf346a527572566de6082ba17",
+      "sha256": "d1b507fcb0e59a6ad69569c20141b04d5a9e8f148003394f17049e209a2baff8",
+      "bytes": 573
+    },
+    {
+      "label": "zelda-title",
+      "repository": "mstan/LegendOfZeldaNESRecomp",
+      "source_commit": "07c3004786f36b73e58fe00bfece9ad648ba7d96",
+      "path": "docs/CYCLE-MIGRATION.md",
+      "git_blob": "e92a52effcf37078fd70cc95da6815684cb8fc47",
+      "sha256": "5019181c007b6ee154c46ad0d1a2b312dade9725337a4a4a2aafbca2e826d6a8",
+      "bytes": 4531
+    },
+    {
+      "label": "zelda-title",
+      "repository": "mstan/LegendOfZeldaNESRecomp",
+      "source_commit": "07c3004786f36b73e58fe00bfece9ad648ba7d96",
+      "path": "docs/ROM_HEADERS.md",
+      "git_blob": "c7a5b07136aaa0e6c834dcf344eb383f6d0a54bf",
+      "sha256": "0e1b6fd2491c943af2c1002b20f73b60f7e19c1fed2d1468cec7cfa7a0886de2",
+      "bytes": 677
+    },
+    {
+      "label": "zelda-title",
+      "repository": "mstan/LegendOfZeldaNESRecomp",
+      "source_commit": "07c3004786f36b73e58fe00bfece9ad648ba7d96",
+      "path": "src/cyc_extras.c",
+      "git_blob": "4a15e0b896c95f2bcafe53a6a2757c88dc62b319",
+      "sha256": "cb121f81dac7cea0f13226631262bd4d7e4967c4132f195ac5d1a29776211518",
+      "bytes": 6305
+    },
+    {
+      "label": "zelda-title",
+      "repository": "mstan/LegendOfZeldaNESRecomp",
+      "source_commit": "07c3004786f36b73e58fe00bfece9ad648ba7d96",
+      "path": "tools/make_release.ps1",
+      "git_blob": "4560e08c58e6af979304c654bd3ac164034c61d1",
+      "sha256": "9ee6c7fdbaf5497cb2ec9f448f03d4ea76790becac7c1b622f5cf716cebab3ca",
+      "bytes": 11613
+    },
+    {
+      "label": "yoshi-title",
+      "repository": "mstan/YoshiNESRecomp",
+      "source_commit": "f219991df2e70d6bf41f4ba9a46c8ddf990b572e",
+      "path": "CMakeLists.txt",
+      "git_blob": "b30c640f39e42306ed099dac188f19c9fb8dd3a6",
+      "sha256": "6f2de32bbfa925c24c97999402f0760ad30e4e2655c98e08130c50876cdccd8b",
+      "bytes": 3004
+    },
+    {
+      "label": "yoshi-title",
+      "repository": "mstan/YoshiNESRecomp",
+      "source_commit": "f219991df2e70d6bf41f4ba9a46c8ddf990b572e",
+      "path": "LICENSE",
+      "git_blob": "b981b950da9e5e7363b08bd3c573cf0f479e07f6",
+      "sha256": "168689b754213aaa4f64b974ecfb15203b31f46b824ef436482cdb4a88a35b50",
+      "bytes": 3755
+    },
+    {
+      "label": "yoshi-title",
+      "repository": "mstan/YoshiNESRecomp",
+      "source_commit": "f219991df2e70d6bf41f4ba9a46c8ddf990b572e",
+      "path": "README.md",
+      "git_blob": "0c2c62551ae5dff167d2cbfda8a26eb44558da76",
+      "sha256": "841d64543465b1dd1439ca032a90c723b57ba8823345b7971e9e84339558a373",
+      "bytes": 6086
+    },
+    {
+      "label": "yoshi-title",
+      "repository": "mstan/YoshiNESRecomp",
+      "source_commit": "f219991df2e70d6bf41f4ba9a46c8ddf990b572e",
+      "path": "docs/ROM_HEADERS.md",
+      "git_blob": "fcd0abd34398e6f3eb5b2a974bec087b3666b855",
+      "sha256": "0a723e08b7205a3c0a4ee1ceee175fa06cf9dfb3f702b16cd442472cae59ada0",
+      "bytes": 1178
+    },
+    {
+      "label": "yoshi-title",
+      "repository": "mstan/YoshiNESRecomp",
+      "source_commit": "f219991df2e70d6bf41f4ba9a46c8ddf990b572e",
+      "path": "game.toml",
+      "git_blob": "ff77cdcc6634e8344bd235ff96540f32f44ce6f7",
+      "sha256": "307416fe603fc287fb486ca3a19307e736301c4f5b08273861b150a1a35de7b0",
+      "bytes": 2606
+    },
+    {
+      "label": "yoshi-title",
+      "repository": "mstan/YoshiNESRecomp",
+      "source_commit": "f219991df2e70d6bf41f4ba9a46c8ddf990b572e",
+      "path": "tools/make_release.ps1",
+      "git_blob": "784eb69ee3e03d4c23dfed28acee229a5b5a66d8",
+      "sha256": "2c1dcb535567e1861f431539b62fcd6f944e8481585f16ffc216e3919e6363ce",
+      "bytes": 660
+    },
+    {
+      "label": "zelda-framework",
+      "repository": "mstan/nesrecomp",
+      "source_commit": "23e87d71f6da42e22450323d882047b90363798d",
+      "path": "LICENSE",
+      "git_blob": "b981b950da9e5e7363b08bd3c573cf0f479e07f6",
+      "sha256": "168689b754213aaa4f64b974ecfb15203b31f46b824ef436482cdb4a88a35b50",
+      "bytes": 3755
+    },
+    {
+      "label": "zelda-framework",
+      "repository": "mstan/nesrecomp",
+      "source_commit": "23e87d71f6da42e22450323d882047b90363798d",
+      "path": "runner/cyc/cyc.cmake",
+      "git_blob": "2dae8b9b839b89c104e72c0a707adf0226ba00c5",
+      "sha256": "1590cc6c523eaa9ae14515614030f1297727c661411941f7c97933d1c87dda2a",
+      "bytes": 8704
+    },
+    {
+      "label": "zelda-framework",
+      "repository": "mstan/nesrecomp",
+      "source_commit": "23e87d71f6da42e22450323d882047b90363798d",
+      "path": "runner/cyc/cyc_host.c",
+      "git_blob": "a05b7f90e3cc0a931d6dff51a60f79c74bed751e",
+      "sha256": "ac4f03f5bff4ef7af43f44c8b5aa13bb747df54550f320db2cc7ac3e925e9ab7",
+      "bytes": 87732
+    },
+    {
+      "label": "zelda-framework",
+      "repository": "mstan/nesrecomp",
+      "source_commit": "23e87d71f6da42e22450323d882047b90363798d",
+      "path": "runner/cyc/cyc_save.inc",
+      "git_blob": "cd3fb213e4d43b841132a12b7ec767d31404cbda",
+      "sha256": "85cdc21409a1a65c65a1ae3ea40368da10c31fe1955208209bad178ced19fe94",
+      "bytes": 4003
+    },
+    {
+      "label": "zelda-framework",
+      "repository": "mstan/nesrecomp",
+      "source_commit": "23e87d71f6da42e22450323d882047b90363798d",
+      "path": "runner/cyc/cyc_sdl.c",
+      "git_blob": "a403c7d0b75e53d164d0c2502c542cbc1bba6ee3",
+      "sha256": "c5158852fe4459645abbeb799a993f977dc0f1538b8474e142f10a843e0174b7",
+      "bytes": 70026
+    },
+    {
+      "label": "zelda-framework",
+      "repository": "mstan/nesrecomp",
+      "source_commit": "23e87d71f6da42e22450323d882047b90363798d",
+      "path": "runner/cyc/cyc_settings.c",
+      "git_blob": "7cd1347b477bb20b69cfa964beb66acb5f233fc7",
+      "sha256": "d797a730dbe4cb3bb11f588583e576ba118974c32b595bf89e19b779bbd6c8f5",
+      "bytes": 11963
+    },
+    {
+      "label": "zelda-framework",
+      "repository": "mstan/nesrecomp",
+      "source_commit": "23e87d71f6da42e22450323d882047b90363798d",
+      "path": "runner/cyc/cyc_state_ui.h",
+      "git_blob": "a272e664dc757e8c88b5e336a11570fd6eb388f3",
+      "sha256": "5b4fb406d6dbd5d611c548847fb80a5932b3c2d4b412f0332a3b21bdecb0afc7",
+      "bytes": 1032
+    },
+    {
+      "label": "zelda-framework",
+      "repository": "mstan/nesrecomp",
+      "source_commit": "23e87d71f6da42e22450323d882047b90363798d",
+      "path": "runner/cyc/cyc_ui_launcher.c",
+      "git_blob": "92f1cc5cb197ba5618c101054974991dc539d60d",
+      "sha256": "ff897257bf48a0abd73420ac2f43d5eb9dad1067c50977f601f0e9d96c4b9d5d",
+      "bytes": 14964
+    },
+    {
+      "label": "zelda-framework",
+      "repository": "mstan/nesrecomp",
+      "source_commit": "23e87d71f6da42e22450323d882047b90363798d",
+      "path": "runner/cyc/project.cmake",
+      "git_blob": "68f7105e953509bc7b807b2ebeec6e04fe83f588",
+      "sha256": "73dc5cf3ac182033211dbbd5187e26add47fe8df52d8204ee53373f9da323eb3",
+      "bytes": 13297
+    },
+    {
+      "label": "yoshi-framework",
+      "repository": "mstan/nesrecomp",
+      "source_commit": "5a2eddeecc646e9325bef53f3c711e119423f99c",
+      "path": "LICENSE",
+      "git_blob": "b981b950da9e5e7363b08bd3c573cf0f479e07f6",
+      "sha256": "168689b754213aaa4f64b974ecfb15203b31f46b824ef436482cdb4a88a35b50",
+      "bytes": 3755
+    },
+    {
+      "label": "yoshi-framework",
+      "repository": "mstan/nesrecomp",
+      "source_commit": "5a2eddeecc646e9325bef53f3c711e119423f99c",
+      "path": "runner/cyc/cyc.cmake",
+      "git_blob": "322602cc427ee61dfa4ecf7c64f09347b957b182",
+      "sha256": "e116ac585e41a15adf1e203eff03599f626667b72faaeb61f6ee959681721dae",
+      "bytes": 8479
+    },
+    {
+      "label": "yoshi-framework",
+      "repository": "mstan/nesrecomp",
+      "source_commit": "5a2eddeecc646e9325bef53f3c711e119423f99c",
+      "path": "runner/cyc/cyc_host.c",
+      "git_blob": "a05b7f90e3cc0a931d6dff51a60f79c74bed751e",
+      "sha256": "ac4f03f5bff4ef7af43f44c8b5aa13bb747df54550f320db2cc7ac3e925e9ab7",
+      "bytes": 87732
+    },
+    {
+      "label": "yoshi-framework",
+      "repository": "mstan/nesrecomp",
+      "source_commit": "5a2eddeecc646e9325bef53f3c711e119423f99c",
+      "path": "runner/cyc/cyc_save.inc",
+      "git_blob": "cd3fb213e4d43b841132a12b7ec767d31404cbda",
+      "sha256": "85cdc21409a1a65c65a1ae3ea40368da10c31fe1955208209bad178ced19fe94",
+      "bytes": 4003
+    },
+    {
+      "label": "yoshi-framework",
+      "repository": "mstan/nesrecomp",
+      "source_commit": "5a2eddeecc646e9325bef53f3c711e119423f99c",
+      "path": "runner/cyc/cyc_sdl.c",
+      "git_blob": "150a0e83592e4598fb67a0e5b64b1b9d197c9c7a",
+      "sha256": "d096fbbad434424c7dd2aed4726aa32a35f197eb9212640582fe93df0d1025b6",
+      "bytes": 67656
+    },
+    {
+      "label": "yoshi-framework",
+      "repository": "mstan/nesrecomp",
+      "source_commit": "5a2eddeecc646e9325bef53f3c711e119423f99c",
+      "path": "runner/cyc/cyc_settings.c",
+      "git_blob": "b9fe7755ad716be977c48be1d951c4bed2f8ae3c",
+      "sha256": "b687e37a8bd22e801c7e0b4c7730a5c6f14fb616d1e79d10d1ef16e06fcd4ab6",
+      "bytes": 11314
+    },
+    {
+      "label": "yoshi-framework",
+      "repository": "mstan/nesrecomp",
+      "source_commit": "5a2eddeecc646e9325bef53f3c711e119423f99c",
+      "path": "runner/cyc/cyc_ui_launcher.c",
+      "git_blob": "8d1ae456912ca86dc238144e4521d182eb080f76",
+      "sha256": "f06f0ef40f54f6382008ddb7f9d745f839fdb491e51dcd02060c99d517f8285c",
+      "bytes": 14550
+    },
+    {
+      "label": "yoshi-framework",
+      "repository": "mstan/nesrecomp",
+      "source_commit": "5a2eddeecc646e9325bef53f3c711e119423f99c",
+      "path": "runner/cyc/project.cmake",
+      "git_blob": "238d35311fcd26b7cc31294edb710cdd5dc6a2e3",
+      "sha256": "35a74289b3059f5b346cbaf416ace7ac7f6604ed581696d8ada2f000be1afc94",
+      "bytes": 13178
+    },
+    {
+      "label": "ui",
+      "repository": "mstan/recomp-ui",
+      "source_commit": "c11a4b6c649164b6951eff107f4607dcef117dd5",
+      "path": "LICENSE",
+      "git_blob": "a4e60e1cc9c426120561d3ab85b58fcc9201a3ef",
+      "sha256": "676252c9efb0849cc08cdba279318b4d62ae144c19a52a0aa7ab5ca845ae5ddc",
+      "bytes": 1072
+    },
+    {
+      "label": "zelda-framework",
+      "repository": "mstan/nesrecomp",
+      "source_commit": "23e87d71f6da42e22450323d882047b90363798d",
+      "path": "runner/cyc/cyc_fds_save.inc",
+      "git_blob": "c2b1d97edb580c0a8e071bbf35981bf58aca010b",
+      "sha256": "6217f30a19b617ce587c0511901db2aaafbc45707f44a4429314149ea799e679",
+      "bytes": 14495
+    },
+    {
+      "label": "yoshi-framework",
+      "repository": "mstan/nesrecomp",
+      "source_commit": "5a2eddeecc646e9325bef53f3c711e119423f99c",
+      "path": "runner/cyc/cyc_fds_save.inc",
+      "git_blob": "c2b1d97edb580c0a8e071bbf35981bf58aca010b",
+      "sha256": "6217f30a19b617ce587c0511901db2aaafbc45707f44a4429314149ea799e679",
+      "bytes": 14495
+    }
+  ],
+  "observation_count": 34,
+  "observation_count_scope": "Distinct repository/commit/path/blob bindings; identical content across selected commits is not counted as a new unique content digest.",
+  "source_binding": "Decoded source bytes independently rechecked against Git blob SHA and SHA256. Trees and source observations retained; no source-to-binary equivalence asserted.",
+  "historical_scope": "Two existing frozen858 members, one original524 and one affected312; both outside the overlapping historical317-row/316-identity #1422 cohort. No identity/cohort expansion.",
+  "evidence_boundary": "Source/metadata and maintained authoring only. Actual-ID Core cases and hosted outcomes belong to the delivery PR; no upstream game package/ROM/build helper/compiler or game executed."
+}

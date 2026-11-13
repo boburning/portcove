@@ -23,6 +23,8 @@ import {
   coordinatorStateRef,
   exportCoordinatorCheckpoint,
   importCoordinatorCheckpoint,
+  stageRetainedCoordinatorClaim,
+  exportRetainedCoordinatorCheckpoint,
 } from "./release-coordinator-state.mts";
 import {
   publishCoordinatorCheckpoint,
@@ -1120,6 +1122,30 @@ void test("checkpoint recovers exact prepared candidate and parent history witho
   );
   assert.equal(git("rev-parse", coordinatorStateRef), advanced.checkpoint);
   await assert.rejects(async () => await recoverReleaseOpportunity(repository, saved.checkpoint));
+});
+
+void test("stage an existing claim locally without constructing or replacing its objects", async (t) => {
+  const { repository, input, initial } = await fixture(t);
+  const saved = await checkpointReleaseOpportunity(repository, initial.checkpoint, input);
+  const bare = path.join(repository, "retained-claim.git");
+  execFileSync("git", ["clone", "--mirror", "--quiet", repository, bare], { windowsHide: true });
+  const git = (...args: string[]) =>
+    execFileSync("git", ["-C", bare, ...args], {
+      encoding: "utf8",
+      windowsHide: true,
+    }).trim();
+  const { authority: _authority, ...expected } = exportRetainedCoordinatorCheckpoint(
+    bare,
+    saved.checkpoint,
+  );
+  git("update-ref", coordinatorStateRef, initial.checkpoint, saved.checkpoint);
+  const refs = git("for-each-ref", "--format=%(objectname)", "refs/portcove/prepared");
+  await assert.rejects(stageRetainedCoordinatorClaim(bare, saved.checkpoint, initial.checkpoint));
+  assert.equal(git("rev-parse", coordinatorStateRef), initial.checkpoint);
+  await stageRetainedCoordinatorClaim(bare, initial.checkpoint, saved.checkpoint);
+  assert.deepEqual(await exportCoordinatorCheckpoint(bare, saved.checkpoint), expected);
+  await assert.rejects(stageRetainedCoordinatorClaim(bare, initial.checkpoint, saved.checkpoint));
+  assert.equal(git("for-each-ref", "--format=%(objectname)", "refs/portcove/prepared"), refs);
 });
 
 void test("missing and conflicting prepared receipts refuse atomically including identical checkpoint retry", async (t) => {

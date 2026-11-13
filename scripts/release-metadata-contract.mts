@@ -56,13 +56,28 @@ function expires(raw: unknown): Roles<string> {
 }
 export function inspectMetadataRenewalDescriptor(raw: unknown) {
   const online = isRecord(raw) && raw.schema_version === 2;
+  const reserved = isRecord(raw) && raw.schema_version === 3;
+  const historical = reserved && Object.hasOwn(raw, "prior_expiration_policy");
+  const floorsPresent = reserved && Object.hasOwn(raw, "reserved_version_floors");
   const keys =
     "current_expires,current_versions,generated_at,kind,next_expires,next_versions,offline_targets_sha256,prior_repository_sha256,prior_snapshot_sha256,prior_timestamp_sha256,root_sha256,schema_version,unchanged_records_sha256";
-  exact(raw, online ? `${keys},top_level_targets_profile`.split(",").sort().join(",") : keys);
+  exact(
+    raw,
+    [
+      ...keys.split(","),
+      ...(online ? ["top_level_targets_profile"] : []),
+      ...(historical ? ["prior_expiration_policy"] : []),
+      ...(floorsPresent ? ["reserved_version_floors"] : []),
+    ]
+      .sort()
+      .join(","),
+  );
   if (
-    (!online && raw.schema_version !== 1) ||
+    (!online && !reserved && raw.schema_version !== 1) ||
+    (reserved && !historical && !floorsPresent) ||
     raw.kind !== "application-tuf-metadata-renewal" ||
-    (online && raw.top_level_targets_profile !== "online-unchanged-authority-v1")
+    (online && raw.top_level_targets_profile !== "online-unchanged-authority-v1") ||
+    (historical && raw.prior_expiration_policy !== "historical-online-expired-v1")
   )
     throw new Error("unsupported metadata renewal contract");
   const generated = metadataInstant(raw.generated_at);
@@ -79,6 +94,9 @@ export function inspectMetadataRenewalDescriptor(raw: unknown) {
     next = versions(raw.next_versions),
     beforeExpiry = expires(raw.current_expires),
     nextExpiry = expires(raw.next_expires);
+  const floors = floorsPresent ? versions(raw.reserved_version_floors) : undefined;
+  if (floors && floors.targets !== current.targets)
+    throw new Error("reserved floors cannot change pinned Targets");
   for (const role of roles) {
     if (role === "targets" && !online) {
       if (current[role] !== next[role] || beforeExpiry[role] !== nextExpiry[role])
@@ -86,7 +104,11 @@ export function inspectMetadataRenewalDescriptor(raw: unknown) {
     } else {
       const days = role === "timestamp" ? 2 : role === "releases" || role === "targets" ? 90 : 7;
       if (
-        BigInt(next[role]) !== BigInt(current[role]) + 1n ||
+        BigInt(next[role]) !==
+          (floors && BigInt(floors[role]) > BigInt(current[role])
+            ? BigInt(floors[role])
+            : BigInt(current[role])) +
+            1n ||
         metadataInstant(nextExpiry[role]) <= metadataInstant(beforeExpiry[role]) ||
         metadataInstant(nextExpiry[role]) > generated + BigInt(days) * 86_400_000_000_000n
       )
@@ -94,7 +116,9 @@ export function inspectMetadataRenewalDescriptor(raw: unknown) {
     }
   }
   return {
-    schema_version: online ? (2 as const) : (1 as const),
+    schema_version: online ? (2 as const) : reserved ? (3 as const) : (1 as const),
+    ...(floors ? { reserved_version_floors: floors } : {}),
+    ...(historical ? { prior_expiration_policy: "historical-online-expired-v1" as const } : {}),
     ...(online ? { top_level_targets_profile: "online-unchanged-authority-v1" as const } : {}),
     kind: "application-tuf-metadata-renewal" as const,
     generated_at: String(raw.generated_at),
@@ -222,7 +246,7 @@ export function assertMetadataRenewalPublication(rawDescriptor: unknown, rawFact
   const facts = inspectTufPublicationFacts(rawFacts);
   if (
     facts.root_sha256 !== descriptor.root_sha256 ||
-    (descriptor.schema_version === 1 &&
+    (descriptor.schema_version !== 2 &&
       facts.offline_targets_sha256 !== descriptor.offline_targets_sha256) ||
     (descriptor.schema_version === 2 &&
       facts.offline_targets_sha256 === descriptor.offline_targets_sha256) ||
@@ -236,9 +260,12 @@ export function assertMetadataRenewalPublication(rawDescriptor: unknown, rawFact
 
 export function inspectPublishedMetadata(raw: unknown) {
   if (raw === null || raw === undefined) return null;
+  const standalone = isRecord(raw) && Object.hasOwn(raw, "standalone_bootstrap_run");
   exact(
     raw,
-    "expires,offline_targets_sha256,operation_id,publication,records_sha256,repository_sha256,root_sha256,schema_version,snapshot_sha256,timestamp_sha256,versions",
+    standalone
+      ? "expires,offline_targets_sha256,operation_id,publication,records_sha256,repository_sha256,root_sha256,schema_version,snapshot_sha256,standalone_bootstrap_run,timestamp_sha256,versions"
+      : "expires,offline_targets_sha256,operation_id,publication,records_sha256,repository_sha256,root_sha256,schema_version,snapshot_sha256,timestamp_sha256,versions",
   );
   if (raw.schema_version !== 1) throw new Error("unsupported published metadata contract");
   for (const key of [
@@ -255,7 +282,14 @@ export function inspectPublishedMetadata(raw: unknown) {
   sha(raw.publication.evidence_sha256);
   sha(raw.publication.site_generation_sha256);
   text(raw.publication.remote_identity);
-  return {
+  if (
+    standalone &&
+    (!isStandaloneBootstrapRun(raw.standalone_bootstrap_run) || raw.operation_id !== null)
+  )
+    throw new Error(
+      "standalone bootstrap requires its exact external run and no journal operation",
+    );
+  const facts = {
     schema_version: 1 as const,
     root_sha256: raw.root_sha256,
     offline_targets_sha256: raw.offline_targets_sha256,
@@ -265,13 +299,181 @@ export function inspectPublishedMetadata(raw: unknown) {
     records_sha256: raw.records_sha256,
     versions: versions(raw.versions),
     expires: expires(raw.expires),
-    operation_id: raw.operation_id,
-    publication: {
-      remote_identity: raw.publication.remote_identity,
-      evidence_sha256: raw.publication.evidence_sha256,
-      site_generation_sha256: raw.publication.site_generation_sha256,
-    },
   };
+  const publication = {
+    remote_identity: raw.publication.remote_identity,
+    evidence_sha256: raw.publication.evidence_sha256,
+    site_generation_sha256: raw.publication.site_generation_sha256,
+  };
+  const run = standalone ? standaloneBootstrapRun(raw.standalone_bootstrap_run) : null;
+  if (run && !matchesStandaloneBootstrapPublication(facts, publication, run))
+    throw new Error("standalone bootstrap adoption differs from exact publication");
+  return {
+    ...facts,
+    operation_id: raw.operation_id,
+    ...(run ? { standalone_bootstrap_run: run } : {}),
+    publication,
+  };
+}
+
+/** Only this verified, independently published genesis can replace the absence
+ * of App metadata in the existing journal. The abandoned journal descriptor
+ * remains untouched, including its original generation clock. */
+export const standaloneBootstrapAdoption = {
+  run_id: "42403889193",
+  attempt: 1,
+  feed_job_id: 128498673910,
+  revision: "1779ef17eaf154b918a990b9dafba89dbbcddfa7",
+  ref: "refs/tags/portcove-production-controller-windows-20261105r29",
+  generation: "1000adca784333dd4ca3b92930b0929ca8e6faf186389b27441c9e3c412245ab",
+  publication_sha256: "b18311564f29396acd06ec44dd44de06d0a2e43a4cc3c4014ed1b203898dda03",
+  abandoned_descriptor_sha256: "603fae90b93dbaeef08d6030cbec243add36f82ceb748aa592423cedc8f17157",
+} as const;
+
+export const standaloneBootstrapRenewalAdoption = {
+  feed_ref: "refs/tags/portcove-production-controller-windows-20261105r44",
+  generation: "07999ab91c4aeef3f2d04d4f7341729b35422d06f8c939535e5e34a4a35dbd74",
+  publication_sha256: "c3b7ee8ace1531e52a4be5bb9b0fac45f4d0f208cabd5d55195f1d351b7e8cb2",
+} as const;
+
+export const standaloneBootstrapForwardAdoption = {
+  prior_run_id: "42459134017",
+  prior_job_id: "128666005038",
+  prior_repository_sha256: "2f09956c9673b69a37fff2556e611af654adf4141f80ffc24a2d207d7873354e",
+  run_id: "42583959281",
+  feed_job_id: "129051933704",
+  revision: "719851091491cb0db93cb0b42fee3838fce9672b",
+  generation: "fa46b99d77acb7bcbd09a699884522cf6afec098692202e13ebd0b627827fada",
+  publication_sha256: "5b320322ad87a97e3fcb307bb6750f0218693993953ee5b7f37be01e9e99fd33",
+} as const;
+
+// The native metadata-only release advanced Pages while the signed journal
+// retained an earlier, settled no-effect renewal.
+export const servedNativeBootstrapRenewal = {
+  run_id: "43019180783",
+  feed_job_id: "130527865397",
+  revision: "207819b2a6e89a7801b8722f0b7e7229d4fc4968",
+  ref: "refs/tags/portcove-production-controller-windows-20261111r78",
+  release_id: 441659465,
+  opportunity: "4748878692c8fd350045bbedfedbebc70789b72c3bfa811c30c8d302ec896348",
+  generation: "5ced5fe15999ce976eaf3b793d70c76108a432d699ee293bc33d4e1576adf4d3",
+  publication_sha256: "cd94458c83aeab9641837f8a77414304b79d4410679877a12b194e61b391975f",
+  prior_repository_sha256: "c60ac310b3f6a7ccd118dce45314fa40e09b5db9c397fde469d546541b80c014",
+  superseded_descriptor_sha256: "e2cf6e64f8c4d6b3cad2123caf67fe70ee9d3b438dc2ff38d9879dbbb930a413",
+  settled_operation_id: "f7468b3daade44b98d7dde0af13f6cc81bbdc03d8b9c838ff8336e0a3a73e542",
+} as const;
+
+/** Served feed recovery retains the same signed journal preimage as v8. */
+export const servedV13BootstrapRenewal = {
+  ...servedNativeBootstrapRenewal,
+  run_id: "43350005289",
+  feed_job_id: "131648693360",
+  revision: "0c333d8e9d8d402f488975312f43c27097154afe",
+  ref: "refs/tags/portcove-production-controller-windows-20261113r87",
+  release_id: 442923418,
+  opportunity: "7db3dcbe2c276d6240e6ec6dccfcd813b4877fc51243d0487314849dbd0138c4",
+  generation: "deff5ba394373775c3f19d5ee9c44222484be8e2a58397826e6bd45c8bb40fc6",
+  publication_sha256: "891b3fb0373165adef0513f9c5c072d62cecb53cfcb694f953d5be1098abc33a",
+  prior_repository_sha256: "666abbccb87032ddd004bdeff0b70a3b7a01288baa21adb9811c8c1f9d753489",
+} as const;
+
+export function isServedNativeBootstrapRenewalPreimage(
+  input: Record<string, unknown>,
+  renewal:
+    | typeof servedNativeBootstrapRenewal
+    | typeof servedV13BootstrapRenewal = servedNativeBootstrapRenewal,
+) {
+  const published = inspectPublishedMetadata(input.published_metadata);
+  const controller = input.controller;
+  const capacity = isRecord(controller) ? controller.capacity_attempt : null;
+  const operation = isRecord(capacity) ? capacity.operation : null;
+  const v13 = renewal === servedV13BootstrapRenewal;
+  const prior = v13 ? servedNativeBootstrapRenewal : standaloneBootstrapForwardAdoption;
+  return (
+    published?.standalone_bootstrap_run === prior.run_id &&
+    published.repository_sha256 === renewal.prior_repository_sha256 &&
+    (v13
+      ? input.metadata_renewal === null
+      : digest(input.metadata_renewal ?? null) === renewal.superseded_descriptor_sha256) &&
+    isRecord(operation) &&
+    operation.id === renewal.settled_operation_id &&
+    operation.kind === "upload" &&
+    isRecord(operation.metadata_renewal) &&
+    operation.metadata_renewal.descriptor_sha256 === renewal.superseded_descriptor_sha256 &&
+    operation.outcome === "recovered" &&
+    isRecord(operation.recovery) &&
+    operation.recovery.resolution === "effect-not-applied" &&
+    Array.isArray(operation.completed_effects) &&
+    operation.completed_effects.length === 0 &&
+    !Object.hasOwn(input, "published_site") &&
+    input.active_candidate === null &&
+    input.published_catalog_metadata == null &&
+    input.catalog_initialization == null &&
+    input.catalog_publication == null &&
+    input.catalog_review_request == null &&
+    input.catalog_review_disposition == null &&
+    digest(input.metadata_bootstrap ?? null) ===
+      standaloneBootstrapAdoption.abandoned_descriptor_sha256
+  );
+}
+
+export function isStandaloneBootstrapForwardPreimage(
+  published: ReturnType<typeof inspectPublishedMetadata>,
+) {
+  const successor = standaloneBootstrapForwardAdoption;
+  return (
+    published?.standalone_bootstrap_run === successor.prior_run_id &&
+    published.repository_sha256 === successor.prior_repository_sha256 &&
+    published.publication.site_generation_sha256 ===
+      standaloneBootstrapRenewalAdoption.generation &&
+    published.publication.remote_identity ===
+      `https://github.com/boburning/portcove/actions/runs/${successor.prior_run_id}/job/${successor.prior_job_id}`
+  );
+}
+
+function isStandaloneBootstrapRun(raw: unknown): raw is string {
+  return (
+    typeof raw === "string" && /^[1-9][0-9]{0,15}$/u.test(raw) && Number.isSafeInteger(Number(raw))
+  );
+}
+
+function standaloneBootstrapRun(raw: unknown) {
+  if (!isStandaloneBootstrapRun(raw)) throw new Error("standalone bootstrap run is invalid");
+  return raw;
+}
+
+function matchesStandaloneBootstrapPublication(
+  facts: ReturnType<typeof inspectTufPublicationFacts>,
+  publication: { remote_identity: string; site_generation_sha256: string },
+  run: string,
+) {
+  const base = `https://github.com/boburning/portcove/actions/runs/${run}/job/`;
+  if (!publication.remote_identity.startsWith(base)) return false;
+  const job = publication.remote_identity.slice(base.length);
+  if (run === standaloneBootstrapAdoption.run_id)
+    return (
+      job === String(standaloneBootstrapAdoption.feed_job_id) &&
+      publication.site_generation_sha256 === standaloneBootstrapAdoption.generation &&
+      digest(facts) === standaloneBootstrapAdoption.publication_sha256
+    );
+  for (const native of [servedNativeBootstrapRenewal, servedV13BootstrapRenewal])
+    if (run === native.run_id)
+      return (
+        job === native.feed_job_id &&
+        publication.site_generation_sha256 === native.generation &&
+        digest(facts) === native.publication_sha256
+      );
+  if (run === standaloneBootstrapForwardAdoption.run_id)
+    return (
+      job === standaloneBootstrapForwardAdoption.feed_job_id &&
+      publication.site_generation_sha256 === standaloneBootstrapForwardAdoption.generation &&
+      digest(facts) === standaloneBootstrapForwardAdoption.publication_sha256
+    );
+  return (
+    isStandaloneBootstrapRun(job) &&
+    publication.site_generation_sha256 === standaloneBootstrapRenewalAdoption.generation &&
+    digest(facts) === standaloneBootstrapRenewalAdoption.publication_sha256
+  );
 }
 export function assertMetadataRenewalBinding(
   descriptor: ReturnType<typeof inspectMetadataRenewalDescriptor>,
@@ -317,6 +519,74 @@ export function validatePublishedMetadataTransition(
   if (!after) throw new Error("published metadata cannot disappear");
   if (digest(previous.active_candidate) !== digest(next.active_candidate))
     throw new Error("published metadata readback cannot change active reservation");
+  if (after.standalone_bootstrap_run) {
+    const { operation_id, expires } = after;
+    const selected = standaloneBootstrapAdoption;
+    const forward = after.standalone_bootstrap_run === standaloneBootstrapForwardAdoption.run_id;
+    const native = [servedNativeBootstrapRenewal, servedV13BootstrapRenewal].find(
+      (candidate) => candidate.run_id === after.standalone_bootstrap_run,
+    );
+    if (native) {
+      const priorController = previous.controller;
+      const priorCapacity = isRecord(priorController) ? priorController.capacity_attempt : null;
+      const nextController = next.controller;
+      const nextCapacity = isRecord(nextController) ? nextController.capacity_attempt : null;
+      if (
+        !isServedNativeBootstrapRenewalPreimage(previous, native) ||
+        !isRecord(priorCapacity) ||
+        !isRecord(nextCapacity) ||
+        digest(priorCapacity.operation) !== digest(nextCapacity.operation) ||
+        !isRecord(operation) ||
+        operation.id !== native.settled_operation_id ||
+        operation.outcome !== "recovered" ||
+        digest(operation.recovery) !==
+          digest(isRecord(priorCapacity.operation) ? priorCapacity.operation.recovery : null) ||
+        next.metadata_renewal !== null ||
+        Object.hasOwn(next, "published_site") ||
+        digest(previous.review_request ?? null) !== digest(next.review_request ?? null) ||
+        digest(previous.review_disposition ?? null) !== digest(next.review_disposition ?? null) ||
+        digest(next.metadata_bootstrap) !== selected.abandoned_descriptor_sha256 ||
+        next.published_catalog_metadata != null ||
+        next.catalog_initialization != null ||
+        next.catalog_publication != null ||
+        next.catalog_review_request != null ||
+        next.catalog_review_disposition != null
+      )
+        throw new Error("served native renewal differs from its exact settled journal preimage");
+    } else if (
+      (forward
+        ? !isStandaloneBootstrapForwardPreimage(before) ||
+          Object.hasOwn(previous, "published_site") ||
+          Object.hasOwn(next, "published_site")
+        : before !== null) ||
+      operation_id !== null ||
+      operation != null ||
+      previous.active_candidate !== null ||
+      previous.published_catalog_metadata != null ||
+      previous.published_site != null ||
+      previous.catalog_initialization != null ||
+      previous.catalog_publication != null ||
+      previous.catalog_review_request != null ||
+      previous.catalog_review_disposition != null ||
+      previous.review_request != null ||
+      previous.review_disposition != null ||
+      previous.metadata_renewal != null ||
+      digest(previous.metadata_bootstrap) !== selected.abandoned_descriptor_sha256 ||
+      digest(next.metadata_bootstrap) !== selected.abandoned_descriptor_sha256
+    )
+      throw new Error(
+        forward
+          ? "standalone bootstrap renewal differs from exact predecessor journal and publication"
+          : "standalone bootstrap adoption differs from exact empty journal and publication",
+      );
+    const now = typeof next.now === "string" ? Date.parse(next.now) : NaN;
+    if (!Number.isFinite(now) || new Date(now).toISOString() !== next.now)
+      throw new Error("standalone bootstrap requires canonical coordinator observation time");
+    for (const role of roles)
+      if (metadataInstant(expires[role]) <= BigInt(now) * 1_000_000n)
+        throw new Error("expired standalone bootstrap cannot seed the journal");
+    return;
+  }
   if (!before) {
     if (previous.metadata_bootstrap != null || next.metadata_bootstrap != null) {
       const { operation_id: initialOperation, publication: initialPublication, ...facts } = after;
@@ -425,3 +695,6 @@ export function applicationMetadataMaintenancePriority(
     ? ("renewal" as const)
     : null;
 }
+
+/** Canonical positive-u64 role versions; parsing grants no authority. */
+export const inspectMetadataRoleVersions = versions;

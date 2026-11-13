@@ -1,5 +1,5 @@
-import { useGameFileObservation } from "./use-game-file-observation";
-import { useState } from "react";
+import { useGameFileObservation, GameFileCheckError } from "./use-game-file-observation";
+import { useMemo, useState } from "react";
 import type {
   CatalogDocument,
   SourceRecord,
@@ -33,27 +33,20 @@ export function useGameFileFilterContext({
     platform: "windows-x86-64",
     channel: "stable",
   });
-  const key = JSON.stringify([
-    catalog,
-    sources,
-    statuses,
-    browsing?.workspace_binding_sha256,
-    generation,
-    libraryKey,
-    selection,
-  ]);
+  const binding = browsing?.workspace_binding_sha256;
+  // Content identity, serialized only when an input reference changes rather than per render.
+  const key = useMemo(
+    () => JSON.stringify([catalog, sources, statuses, binding, generation, libraryKey, selection]),
+    [catalog, sources, statuses, binding, generation, libraryKey, selection],
+  );
   const observation = useGameFileObservation({
     contextKey: key,
     generation,
     request: () => (catalog ? gameFileFilterRequest(catalog.ports, selection) : undefined),
-    refusal:
-      "This catalog exceeds the bounded complete query scope. Game-file filters are unavailable.",
+    refusal: "catalog_too_large",
     accept: (snapshot, request, library, now) => {
       const accepted = gameFileFilterContext(snapshot, request, library, libraryKey ?? "", now);
-      if (!accepted)
-        throw new Error(
-          "The complete game-file observation no longer matches this context. Check again.",
-        );
+      if (!accepted) throw new GameFileCheckError("catalog_mismatch");
       return accepted;
     },
   });

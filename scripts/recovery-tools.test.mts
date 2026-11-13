@@ -1,10 +1,21 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { gzipSync } from "node:zlib";
-import { appendFile, mkdtemp, open, readFile, rename, rm, stat, writeFile } from "node:fs/promises";
+import {
+  appendFile,
+  mkdtemp,
+  open,
+  readFile,
+  rename,
+  rm,
+  stat,
+  writeFile,
+  link,
+  chmod,
+} from "node:fs/promises";
 import { createHash } from "node:crypto";
 import type { FileHandle } from "node:fs/promises";
-import { readSync } from "node:fs";
+import { readSync, type BigIntStats } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { readControllerToolFile } from "./release-controller-tools.mts";
@@ -16,6 +27,7 @@ import {
   inspectRecoveryToolProof,
 } from "./prepare-recovery-tools.mts";
 import { parseAquaConfig, validateAquaChecksumLedger } from "./aqua-integrity.mts";
+import { readRecoveryCiphertext } from "./catalog-recovery-vault.mts";
 
 function tar(records: { name: string; bytes?: Buffer; type?: string; size?: number }[]) {
   const chunks: Buffer[] = [];
@@ -231,6 +243,106 @@ void test("held recovery reader bounds actual temporary-file growth and refuses 
   assert.equal(mutated, true);
   assert.ok(requests.every((length) => length <= 5));
   assert.equal((await stat(filename)).size, 65540);
+});
+
+void test("held reader preserves exact large identities and refuses rounded, colliding or changed descriptors", async (t) => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), "recovery-bigint-read-"));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const filename = path.join(directory, "ciphertext-fixture");
+  await writeFile(filename, "bounded ciphertext fixture");
+  const numeric = await stat(filename),
+    exact = await stat(filename, { bigint: true });
+  const probe = await open(filename, "r"),
+    prototype = Object.getPrototypeOf(probe) as FileHandle;
+  await probe.close();
+  const originalStat = prototype.stat;
+  let identity = exact.ino,
+    changed = false,
+    linksChanged = false,
+    nanosChanged = false,
+    stats = 0,
+    reads = 0;
+  t.mock.method(prototype, "stat", async function (this: FileHandle) {
+    const result = (await originalStat.call(this, { bigint: true })) as BigIntStats;
+    if (result.dev === exact.dev && result.ino === exact.ino) {
+      stats++;
+      Object.defineProperty(result, "ino", { value: identity + (changed && stats > 1 ? 1n : 0n) });
+      if (linksChanged && stats > 1)
+        Object.defineProperty(result, "nlink", { value: result.nlink + 1n });
+      if (nanosChanged && stats > 1)
+        Object.defineProperty(result, "ctimeNs", { value: result.ctimeNs + 1n });
+    }
+    return result;
+  });
+  t.mock.method(
+    prototype,
+    "read",
+    async function (this: { fd: number }, buffer: Buffer, offset: number, length: number) {
+      reads++;
+      return { bytesRead: readSync(this.fd, buffer, offset, length, null), buffer };
+    },
+  );
+  assert.equal(
+    (await readControllerToolFile(filename, 64, numeric)).toString(),
+    "bounded ciphertext fixture",
+  );
+  identity = 9007199254740993n;
+  const descriptor = { dev: exact.dev, ino: identity, uid: exact.uid, nlink: exact.nlink };
+  stats = reads = 0;
+  assert.equal(
+    (await readControllerToolFile(filename, 64, descriptor)).toString(),
+    "bounded ciphertext fixture",
+  );
+  assert.ok(reads > 0);
+  assert.equal(Number(identity), Number(identity - 1n));
+  stats = reads = 0;
+  await assert.rejects(
+    readControllerToolFile(filename, 64, { ...descriptor, ino: identity - 1n }),
+    /held identity differs/u,
+  );
+  assert.equal(reads, 0);
+  await assert.rejects(
+    readControllerToolFile(filename, 64, {
+      dev: numeric.dev,
+      ino: Number(identity),
+      uid: numeric.uid,
+      nlink: numeric.nlink,
+    }),
+    /held identity differs/u,
+  );
+  assert.equal(reads, 0);
+  stats = reads = 0;
+  changed = true;
+  await assert.rejects(
+    readControllerToolFile(filename, 64, descriptor),
+    /changed during acquisition/u,
+  );
+  assert.ok(reads > 0);
+  stats = reads = 0;
+  changed = false;
+  linksChanged = true;
+  await assert.rejects(readControllerToolFile(filename, 64, descriptor), /held identity changed/u);
+  assert.ok(reads > 0);
+  stats = reads = 0;
+  linksChanged = false;
+  nanosChanged = true;
+  await assert.rejects(
+    readControllerToolFile(filename, 64, descriptor),
+    /changed during acquisition/u,
+  );
+  assert.ok(reads > 0);
+});
+
+void test("ciphertext transport preserves read bounds and refuses aliases without requiring plaintext permissions", async (t) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "ciphertext-transport-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const filename = path.join(root, "backup.age");
+  await writeFile(filename, "fixture ciphertext");
+  await chmod(filename, 0o777);
+  assert.equal((await readRecoveryCiphertext(filename, 64)).toString(), "fixture ciphertext");
+  await assert.rejects(readRecoveryCiphertext(filename, 1), /regular-file bound/u);
+  await link(filename, path.join(root, "alias.age"));
+  await assert.rejects(readRecoveryCiphertext(filename, 64), /single-link/u);
 });
 
 void test("raw recovery tar rejects traversal, duplicate aliases, foreign members, truncation and oversized records", () => {

@@ -6,6 +6,7 @@
     "summary": "Explore StarLancer / OpenReliant and follow the upstream project for requirements, downloads and setup.",
     "project_url": "https://github.com/OpenReliant/openreliant",
     "issue_number": 1789,
+    "listed_at": "2026-10-23",
     "availability": "packages",
     "setup_url": "https://github.com/OpenReliant/openreliant/blob/v0.20.0/docs/guide/installation.md",
     "artwork": {
@@ -32,25 +33,47 @@
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],
-    "platforms": ["windows-x86-64", "linux-x86-64"],
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
     "adapter": "native-portable",
     "release": {
       "repository": "OpenReliant/openreliant",
       "asset_hints": {
         "windows-x86-64": ["openreliant-", "-windows-x86_64.zip"],
-        "linux-x86-64": ["openreliant-", "-linux-x86_64.tar.gz"]
+        "linux-x86-64": ["openreliant-", "-linux-x86_64.tar.gz"],
+        "macos-x86-64": ["openreliant-", "-macos-x86_64.tar.gz"],
+        "macos-aarch64": ["openreliant-", "-macos-aarch64.tar.gz"]
       }
     },
     "executable_hints": {
       "windows-x86-64": ["openreliant.exe"],
-      "linux-x86-64": ["openreliant"]
+      "linux-x86-64": ["openreliant"],
+      "macos-x86-64": ["openreliant"],
+      "macos-aarch64": ["openreliant"]
     },
     "persistent_paths": ["StarLancer"],
     "presentation": {
       "installation_method": "portable-package",
       "source_requirements": [],
       "saves_and_settings": "portcove-managed",
-      "manual_preparation": "Follow the linked installation guide to run openreliant.exe install StarLancer yourself from the player folder, supplying your own StarLancer discs, images or extracted folders. Use --from for each disc image as the guide describes. Keep the resulting StarLancer folder beside the player; Play then finds it automatically. Portcove does not run the installer command during discovery or registration. The declared StarLancer folder contains original game assets, campaign saves, starlancer.ini and openreliant.log. It is retained during compatible runtime replacement and backup. Keep another copy of the original media. A game installed elsewhere or custom launch arguments can use external registration; such external data is outside Portcove backups. Runtime rollback carries current declared data without rewinding saves. Existing external installations keep their files and runtime update owner. Gameplay, platform minimums and packaged Desktop acceptance remain separate observations. On Linux, run ./openreliant install StarLancer yourself from the player folder with your own discs/images and upstream’s --from options. Play finds the resulting declared StarLancer folder. sltool is a helper, not the player. External or custom installed data remains outside backup. Core extraction, published SHA-256 comparison and ELF/dependency inspection passed on Windows. Linux execution, minimum-environment and gameplay observations remain Not run."
+      "manual_preparation": "Follow the linked installation guide to run openreliant.exe install StarLancer (./openreliant install StarLancer on Linux or a Mac) yourself from the player folder, supplying your own StarLancer discs, images or extracted folders. Use --from for each disc image as the guide describes. Keep the resulting StarLancer folder beside the player; Play then finds it automatically. Portcove does not run the installer command during discovery or registration. The Mac players need macOS 15 or later. The declared StarLancer folder contains original game assets, campaign saves, starlancer.ini and openreliant.log. It is retained during compatible runtime replacement and backup. Keep another copy of the original media. A game installed elsewhere or custom launch arguments can use external registration; such external data is outside Portcove backups. Runtime rollback carries current declared data without rewinding saves. Existing external installations keep their files and runtime update owner. Gameplay, platform minimums and packaged Desktop acceptance remain separate observations. sltool is a helper, not the player. Core extraction and published SHA-256 comparison passed for each managed package. Native execution, minimum-environment and gameplay observations remain Not run on every platform."
+    },
+    "reviewed_package_layouts": {
+      "windows-x86-64": {
+        "directories": [],
+        "executables": ["openreliant.exe", "sltool.exe"]
+      },
+      "linux-x86-64": {
+        "directories": [],
+        "executables": ["openreliant", "sltool"]
+      },
+      "macos-x86-64": {
+        "directories": [],
+        "executables": ["openreliant", "sltool"]
+      },
+      "macos-aarch64": {
+        "directories": [],
+        "executables": ["openreliant", "sltool"]
+      }
     }
   }
 }

@@ -224,7 +224,7 @@ it("reveals real management controls through the header and preserves their moun
   await expect.element(choice).toHaveValue("saved input");
 });
 
-it("keeps unknown original systems explicit and shows every offered release channel", async () => {
+it("keeps unknown original systems explicit and shows every offered update channel", async () => {
   const port = { ...portDefinition(), channels: ["stable", "beta", "rolling"] as const };
   await render(
     <DetailLayout
@@ -239,7 +239,7 @@ it("keeps unknown original systems explicit and shows every offered release chan
     </DetailLayout>,
   );
   const identity = page.getByRole("group", { name: "Game and port identity", exact: true });
-  for (const label of ["Not specified", "Stable", "Preview", "Rolling"])
+  for (const label of ["Original system not specified", "Stable", "Preview", "Rolling"])
     await expect.element(identity.getByText(label, { exact: true })).toBeVisible();
   await expect
     .element(page.getByRole("tab", { name: "Manage", exact: true }))
@@ -281,8 +281,73 @@ it("composes About beside authored requirements and support without reserving ab
   expect(requirements.element().getBoundingClientRect().left).toBeGreaterThan(
     about.element().getBoundingClientRect().right,
   );
-  await expect.element(page.getByRole("link", { name: "Open upstream project" })).toBeVisible();
+  await expect.element(page.getByRole("link", { name: "Project website" })).toBeVisible();
   await expect.element(page.getByRole("button", { name: "Create support report" })).toBeVisible();
   expect(document.querySelector(".media-gallery")).toBeNull();
   expect(document.querySelector(".game-hero-background")).toBeNull();
+});
+
+it("shows the selected channel in the hero and keeps supporting evidence after the primary overview", async () => {
+  await render(
+    <DetailLayout
+      port={{ ...portDefinition(), channels: ["stable", "beta", "rolling"] }}
+      selectedChannel="beta"
+      initialSection="overview"
+      readiness="Ready to play"
+      installation="Managed installation"
+      close={vi.fn()}
+      action={() => <button>Play</button>}
+      overviewActions={() => <button>Open game files</button>}
+      overviewDetails={
+        <details>
+          <summary>Recorded checks</summary>
+          <p>Retained evidence</p>
+        </details>
+      }
+    >
+      {() => ({ overview: <p>About this port</p>, files: null, saves: null, versions: null })}
+    </DetailLayout>,
+  );
+  const identity = page.getByRole("group", { name: "Game and port identity", exact: true });
+  await expect.element(identity.getByText("Preview", { exact: true })).toBeVisible();
+  await expect.element(identity.getByText("Stable", { exact: true })).not.toBeInTheDocument();
+  await expect.element(identity.getByText("Rolling", { exact: true })).not.toBeInTheDocument();
+  const action = page.getByRole("button", { name: "Open game files", exact: true }).element();
+  const evidence = page.getByText("Recorded checks", { exact: true }).element();
+  expect(action.compareDocumentPosition(evidence) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  await userEvent.click(evidence);
+  await expect.element(page.getByText("Retained evidence", { exact: true })).toBeVisible();
+});
+
+it("labels the detail shell in the current language", async () => {
+  const { initializeLocalization } = await import("../localization");
+  const localization = initializeLocalization(["en-US"]);
+  try {
+    await localization.changeLanguage("ar-XB");
+    await render(
+      <DetailLayout
+        port={portDefinition()}
+        projectUrl="https://github.com/example/project"
+        openSupport={vi.fn()}
+        initialSection="overview"
+        readiness="Ready"
+        installation="Managed installation"
+        close={vi.fn()}
+        action={() => <button>Play</button>}
+      >
+        {() => ({ overview: null, files: null, saves: null, versions: null })}
+      </DetailLayout>,
+    );
+    await expect.element(page.getByRole("tablist", { name: "أقسام تفاصيل اللعبة" })).toBeVisible();
+    await expect.element(page.getByRole("tab", { name: "ملفات اللعبة" })).toBeVisible();
+    await expect
+      .element(page.getByRole("heading", { name: "المتطلبات", exact: true }))
+      .toBeVisible();
+    await expect.element(page.getByRole("link", { name: "موقع المشروع" })).toBeVisible();
+    await expect.element(page.getByRole("group", { name: "هوية اللعبة والمنفذ" })).toBeVisible();
+    await expect.element(page.getByRole("button", { name: /^إجراءات إضافية لـ / })).toBeVisible();
+    expect(document.body.textContent).not.toContain("Game files");
+  } finally {
+    await localization.changeLanguage("en");
+  }
 });

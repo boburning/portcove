@@ -208,7 +208,7 @@ describe("native path pickers", () => {
     openMock.mockResolvedValue(null);
     await expect(pickGameFileFolder("")).resolves.toBeNull();
     expect(openMock).toHaveBeenLastCalledWith({
-      title: "Choose game-file folder",
+      title: "Choose game files folder",
       multiple: false,
       directory: true,
       defaultPath: undefined,
@@ -216,7 +216,7 @@ describe("native path pickers", () => {
     openMock.mockResolvedValue("D:/Originals");
     await expect(pickGameFileFolder("D:/Old originals")).resolves.toBe("D:/Originals");
     expect(openMock).toHaveBeenLastCalledWith({
-      title: "Choose game-file folder",
+      title: "Choose game files folder",
       multiple: false,
       directory: true,
       defaultPath: "D:/Old originals",

@@ -3,48 +3,28 @@ on:
   pull_request:
     paths:
       - .github/workflows/controller-tool-build-fixture.yml
+      - scripts/release-controller-tool*.mts
+      - scripts/release-controller-job-bootstrap.mts
+      - scripts/release-controller-diagnostics.mts
+      - scripts/release-control-step-bridge.mts
+      - scripts/release-semantic-*.mts
       - scripts/release-*.mts
+      - scripts/semantic-review-linux-supervisor*.py
+      - scripts/semantic-review-linux-supervisor.test.mts
+      - scripts/release-controller-wake.mts
+      - scripts/application-release-private.mts
+      - scripts/application-release-budget*.mts
+      - scripts/application-release-run.mts
+      - scripts/application-release-source.mts
+      - scripts/application-release-tools.mts
+      - scripts/fixtures/audit-zip-fixture.mts
+      - .github/workflows/application-release.yml
+      - .github/workflows/application-release-private.yml
+      - scripts/controller-node-runtime.mts
+      - scripts/release-input-protections.mts
       - scripts/production-controller-admission.mts
       - scripts/assembler-job-identity.mts
       - scripts/github-*.mts
-      - scripts/qualify-controller-tool-build.mts
-      - scripts/qualify-controller-tools-windows.mts
-      - scripts/prepare-hosted-windows-runtime.ps1
-      - apps/desktop/src-tauri/src/runtime_support.rs
-      - scripts/release-windows-webview-driver.mts
-      - scripts/release-windows-webview-driver.test.mts
-      - scripts/windows-webview-driver-policy.psm1
-      - scripts/bounded-zip.mts
-      - scripts/release-hosted-native-windows-setup.ps1
-      - scripts/release-hosted-native-windows-setup.cs.txt
-      - scripts/release-hosted-native-windows-audit.cs.txt
-      - scripts/native-qualification-account.cs.txt
-      - scripts/native-qualification-account-registry.ps1
-      - scripts/fixtures/native-account-gui-probe.ps1
-      - scripts/fixtures/tuf-worker-fixture.mts
-      - scripts/fixtures/trusted-assembly-fixture.mts
-      - scripts/reconstruct-application-update-records.mts
-      - scripts/updater-artifact-inventory.mts
-      - apps/desktop/scripts/prepare-release-version.mts
-      - scripts/resource-*.mts
-      - scripts/run-rust-tests.mts
-      - scripts/heavy-rust-test-lock.mts
-      - crates/portcove-release-tools/**
-      - crates/portcove-cli/**
-      - crates/portcove-core/**
-      - Cargo.toml
-      - Cargo.lock
-      - rust-toolchain.toml
-      - package.json
-      - apps/desktop/package.json
-      - release/package-policy.json
-      - pnpm-lock.yaml
-      - .node-version
-  push:
-    branches: [main]
-    paths:
-      - .github/workflows/controller-tool-build-fixture.yml
-      - scripts/release-controller-tool*.mts
       - scripts/qualify-controller-tool-build.mts
       - scripts/qualify-controller-tools-windows.mts
       - scripts/prepare-hosted-windows-runtime.ps1
@@ -65,6 +45,9 @@ on:
       - scripts/reconstruct-application-update-records.mts
       - scripts/updater-artifact-inventory.mts
       - apps/desktop/scripts/prepare-release-version.mts
+      - scripts/resource-*.mts
+      - scripts/run-rust-tests.mts
+      - scripts/heavy-rust-test-lock.mts
       - crates/portcove-release-tools/**
       - crates/portcove-cli/**
       - crates/portcove-core/**
@@ -74,8 +57,79 @@ on:
       - package.json
       - apps/desktop/package.json
       - release/package-policy.json
+      - scripts/release-tool-dependenc*.mts
+      - patches/@sigstore__sign@*.patch
+      - pnpm-workspace.yaml
       - pnpm-lock.yaml
       - .node-version
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/controller-tool-build-fixture.yml
+      - scripts/release-controller-tool*.mts
+      - scripts/release-controller-job-bootstrap.mts
+      - scripts/release-controller-diagnostics.mts
+      - scripts/release-control-step-bridge.mts
+      - scripts/release-semantic-*.mts
+      - scripts/release-*.mts
+      - scripts/semantic-review-linux-supervisor*.py
+      - scripts/semantic-review-linux-supervisor.test.mts
+      - scripts/release-controller-wake.mts
+      - scripts/application-release-private.mts
+      - scripts/application-release-budget*.mts
+      - scripts/application-release-run.mts
+      - scripts/application-release-source.mts
+      - scripts/application-release-tools.mts
+      - scripts/fixtures/audit-zip-fixture.mts
+      - .github/workflows/application-release.yml
+      - .github/workflows/application-release-private.yml
+      - scripts/controller-node-runtime.mts
+      - scripts/release-input-protections.mts
+      - scripts/production-controller-admission.mts
+      - scripts/assembler-job-identity.mts
+      - scripts/github-*.mts
+      - scripts/qualify-controller-tool-build.mts
+      - scripts/qualify-controller-tools-windows.mts
+      - scripts/prepare-hosted-windows-runtime.ps1
+      - apps/desktop/src-tauri/src/runtime_support.rs
+      - scripts/release-windows-webview-driver.mts
+      - scripts/release-windows-webview-driver.test.mts
+      - scripts/windows-webview-driver-policy.psm1
+      - scripts/bounded-zip.mts
+      - scripts/release-hosted-native-windows-setup.ps1
+      - scripts/release-hosted-native-windows-setup.cs.txt
+      - scripts/release-hosted-native-windows-audit.cs.txt
+      - scripts/native-qualification-account.cs.txt
+      - scripts/native-qualification-account-registry.ps1
+      - scripts/fixtures/native-account-gui-probe.ps1
+      - scripts/release-connected-fixture.test.mts
+      - scripts/fixtures/tuf-worker-fixture.mts
+      - scripts/fixtures/trusted-assembly-fixture.mts
+      - scripts/reconstruct-application-update-records.mts
+      - scripts/updater-artifact-inventory.mts
+      - apps/desktop/scripts/prepare-release-version.mts
+      - scripts/resource-*.mts
+      - scripts/run-rust-tests.mts
+      - scripts/heavy-rust-test-lock.mts
+      - crates/portcove-release-tools/**
+      - crates/portcove-cli/**
+      - crates/portcove-core/**
+      - Cargo.toml
+      - Cargo.lock
+      - rust-toolchain.toml
+      - package.json
+      - apps/desktop/package.json
+      - release/package-policy.json
+      - scripts/release-tool-dependenc*.mts
+      - patches/@sigstore__sign@*.patch
+      - pnpm-workspace.yaml
+      - pnpm-lock.yaml
+      - .node-version
+# Superseded pull request runs are cancelled; every other run has its own
+# group, so pushes and dispatches always finish.
+concurrency:
+  group: controller-tool-build-fixture-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 permissions:
   contents: read
 jobs:
@@ -86,6 +140,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413
         with:
           package_json_file: package.json
@@ -101,10 +156,10 @@ jobs:
           pnpm install --frozen-lockfile --ignore-scripts --ignore-pnpmfile --store-dir "$RUNNER_TEMP/controller-fixture-pnpm"
       - name: Qualify actual fixed tools at the checked-out fixture commit and tree
         env:
-          FIXTURE_SOURCE_SHA: ${{ github.sha }}
+          FIXTURE_SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         run: node scripts/qualify-controller-tool-build.mts
       - name: Exercise actual job-local disposable role channel and native runtime contracts on Linux
-        run: node --experimental-test-module-mocks --test --test-timeout=45000 scripts/release-role-key-channel.test.mts scripts/release-hosted-native-runner.test.mts scripts/release-hosted-native-linux-capture.test.mts scripts/release-hosted-native-installation.test.mts
+        run: node --experimental-test-module-mocks --test --test-timeout=45000 --test-reporter=./scripts/required-node-test-reporter.mts scripts/release-role-key-channel.test.mts scripts/release-hosted-native-runner.test.mts scripts/release-hosted-native-linux-capture.test.mts scripts/release-hosted-native-installation.test.mts
       - name: Retain only bounded public fixture evidence
         if: ${{ always() }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

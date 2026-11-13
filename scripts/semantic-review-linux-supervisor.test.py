@@ -1,9 +1,13 @@
 """Inert model/parser tests only: no namespace, systemd, auth or provider calls."""
 
+import contextlib
 import errno
 import importlib.util
 import io
 import json
+import os
+import shutil
+import socket
 import stat
 import tempfile
 import threading
@@ -35,6 +39,135 @@ def request():
 
 
 class SupervisorContract(unittest.TestCase):
+    def test_regular_input_refuses_early_eof_but_proc_mountinfo_is_dynamic(self):
+        with tempfile.TemporaryDirectory() as directory:
+            frozen = Path(directory) / "frozen"
+            frozen.write_bytes(b"expected")
+            with (
+                patch.object(supervisor.os, "read", return_value=b""),
+                self.assertRaisesRegex(supervisor.Refusal, "observed file size"),
+            ):
+                supervisor.read_regular(frozen, 32)
+        mountinfo = supervisor.read_regular("/proc/self/mountinfo", supervisor.MIB, exact_size=False)
+        self.assertTrue(mountinfo)
+
+    def test_only_qualified_application_instructions_get_synthesis_bound(self):
+        with tempfile.TemporaryDirectory() as directory:
+            instructions = Path(directory) / "instructions.txt"
+            instructions.write_bytes(b"x" * (512 * 1024))
+            with self.assertRaises(supervisor.Refusal):
+                supervisor.read_frozen_input(instructions, "instructions.txt")
+            self.assertEqual(
+                len(supervisor.read_frozen_input(instructions, "instructions.txt", True)),
+                512 * 1024,
+            )
+            with self.assertRaises(supervisor.Refusal):
+                supervisor.read_frozen_input(instructions, "result-schema.json", True)
+            instructions.write_bytes(b"x" * (supervisor.MIB + 1))
+            with self.assertRaises(supervisor.Refusal):
+                supervisor.read_frozen_input(instructions, "instructions.txt", True)
+
+    def test_only_exact_retained_evidence_can_exceed_the_ordinary_input_bound(self):
+        retained = Path(__file__).resolve().parent.parent / (
+            "docs/qualification/non-switch-ecosystem-reconciliation-2026-10-25.json"
+        )
+        expected = f"objects/{supervisor.RETAINED_EVIDENCE_OID}.data"
+        wrong_path = f"objects/{'c' * 40}.data"
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "objects").mkdir()
+            target = root / expected
+            shutil.copyfile(retained, target)
+            self.assertEqual(len(supervisor.read_frozen_input(target, expected)), supervisor.RETAINED_EVIDENCE_BYTES)
+
+            other = root / wrong_path
+            target.rename(other)
+            with self.assertRaisesRegex(supervisor.Refusal, "bounded single-link"):
+                supervisor.read_frozen_input(other, wrong_path)
+            other.rename(target)
+            with target.open("r+b") as stream:
+                first = stream.read(1)
+                stream.seek(0)
+                stream.write(bytes([first[0] ^ 1]))
+            with self.assertRaisesRegex(supervisor.Refusal, "blob identity differs"):
+                supervisor.read_frozen_input(target, expected)
+            with target.open("r+b") as stream:
+                stream.truncate(supervisor.RETAINED_EVIDENCE_BYTES + 1)
+            with self.assertRaisesRegex(supervisor.Refusal, "bounded single-link"):
+                supervisor.read_frozen_input(target, expected)
+
+    def test_qualified_lanes_share_exact_read_only_runtime_without_aliasing(self):
+        # A mock applies only to /tmp ancestry, which production forbids.
+        with tempfile.TemporaryDirectory() as directory, patch.object(
+            supervisor, "private_directory", side_effect=lambda path: Path(path)
+        ):
+            attempt = Path(directory) / ("request-" + "a" * 64) / "technical-0"
+            shared = attempt / ".semantic-shared-runtime"
+            shared.mkdir(parents=True, mode=0o700)
+            shared.chmod(0o500)
+            first, second = attempt / "r-first", attempt / "r-second"
+            first.mkdir()
+            second.mkdir()
+            selected = request()
+            selected["shared_runtime"] = True
+            supervisor.inspect_request(selected)
+            self.assertEqual(supervisor.runtime_directory(selected, first), shared)
+            self.assertEqual(supervisor.runtime_directory(selected, second), shared)
+            for path in (attempt / "fixture", attempt.parent / "r-other", Path(directory) / "r-other"):
+                with self.assertRaisesRegex(supervisor.Refusal, "original review attempt"):
+                    supervisor.runtime_directory(selected, path)
+            alias = second / "runtime"
+            alias.symlink_to(attempt / "not-a-runtime")
+            with self.assertRaisesRegex(supervisor.Refusal, "original review attempt"):
+                supervisor.runtime_directory(selected, second)
+            alias.unlink()
+            (first / "inputs").mkdir()
+            (first / "capture").mkdir()
+            (first / ".portcove-semantic-review-owned").write_bytes(b"fixture")
+            manifest = first / "inputs/manifest.json"
+            manifest.write_bytes(b'{"qualified_application_comparison":false}')
+            manifest.chmod(0o600)
+            with self.assertRaisesRegex(supervisor.Refusal, "qualified application comparison"):
+                supervisor.inspect_files({**selected, "run_root": str(first)})
+            shared.chmod(0o700)
+            binary = shared / "node"
+            binary.write_bytes(b"fixture")
+            binary.chmod(0o500)
+            link = attempt / "linked-node"
+            os.link(binary, link)
+            with self.assertRaisesRegex(supervisor.Refusal, "bounded single-link"):
+                supervisor.read_runtime(binary, "node", os.getuid())
+            link.unlink()
+            self.assertEqual(supervisor.read_runtime(binary, "node", os.getuid()), b"fixture")
+            with self.assertRaisesRegex(supervisor.Refusal, "directory must be read-only"):
+                supervisor.runtime_directory(selected, second)
+            for value in (False, "/foreign/path", 1):
+                with self.assertRaisesRegex(supervisor.Refusal, "fixed request fields"):
+                    supervisor.inspect_request({**selected, "shared_runtime": value})
+
+    def test_transport_sockets_bind_under_long_request_custody(self):
+        for name, kind in (("provider.sock", socket.SOCK_STREAM), ("control.sock", socket.SOCK_SEQPACKET)):
+            with self.subTest(name=name), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory) / ("request-" + "a" * 64) / "technical-0" / "r-123456"
+                root.mkdir(parents=True, mode=0o700)
+                physical = root / "transport" / name
+                with socket.socket(socket.AF_UNIX, kind) as listener:
+                    with supervisor.transport_socket_directory(root) as transport:
+                        self.assertGreaterEqual(len(os.fsencode(physical)), 108)
+                        with self.assertRaises(OSError):
+                            listener.bind(str(physical))
+                        listener.bind(str(transport / name))
+                    self.assertFalse(transport.exists())
+                    self.assertTrue(physical.is_socket())
+                    listener.listen()
+                    # Use a short lookup of the same socket, as the guest's /transport mount does.
+                    guest = Path(directory) / "guest"
+                    guest.symlink_to(physical.parent, target_is_directory=True)
+                    with socket.socket(socket.AF_UNIX, kind) as peer:
+                        peer.connect(str(guest / name))
+                        connected, _ = listener.accept()
+                        connected.close()
+
     def test_static_catalog_keeps_exact_model_except_client_direct_surface(self):
         data = Path(__file__).with_name("semantic-review-model-catalog.json").read_bytes()
         self.assertEqual(supervisor.inspect_model_catalog(data), data)
@@ -46,11 +179,13 @@ class SupervisorContract(unittest.TestCase):
         for changed in ({"models": []}, {"models": json.loads(data)["models"] * 2}, {**json.loads(data), "fallback": "remote"}):
             with self.subTest(changed=list(changed)), self.assertRaises(supervisor.Refusal):
                 supervisor.inspect_model_catalog(json.dumps(changed).encode())
-        args = supervisor.codex_arguments("a" * 64, "codex")
+        args = supervisor.codex_arguments("a" * 64)
         self.assertIn('model_catalog_json="/runtime/semantic-review-model-catalog.json"', args)
         self.assertIn('features.code_mode_host=false', args)
         self.assertIn('mcp_servers.portcove_frozen_bundle.omit_tools_from=["deferred","code_mode"]', args)
         self.assertIn('mcp_servers.portcove_frozen_bundle.required=true', args)
+        enabled = next(arg for arg in args if arg.startswith("mcp_servers.portcove_frozen_bundle.enabled_tools="))
+        self.assertEqual(json.loads(enabled.split("=", 1)[1]), ["list", "read", "read_text", "net_diff", "search", "read_page"])
         self.assertIn('analytics.enabled=false', args)
         self.assertIn('feedback.enabled=false', args)
         self.assertEqual(args[args.index("--model") + 1], "gpt-6.1-sol")
@@ -274,8 +409,66 @@ class SupervisorContract(unittest.TestCase):
         self.assertFalse(supervisor.auth_refresh_allowed(result, []))
         self.assertFalse(supervisor.auth_refresh_allowed(result, [10, 11]))
 
+    def test_keyless_handoff_uses_the_fixed_reader_and_checks_exact_bytes(self):
+        reader_hash = "f" * 64
+        expected = b"inert fixture\n"
+        page = {
+            "bytes": len(expected),
+            "sha256": supervisor.hashlib.sha256(expected).hexdigest(),
+            "offset": 0,
+            "encoding": "base64",
+            "data": supervisor.base64.b64encode(expected).decode("ascii"),
+            "next": None,
+        }
+
+        def responses(page, extra_content=()):
+            initialized = {
+                "protocolVersion": "2025-06-18",
+                "capabilities": {"tools": {}},
+                "serverInfo": {"name": "portcove_frozen_bundle", "version": "1"},
+            }
+            read = {
+                "isError": False,
+                "content": [{"type": "text", "text": json.dumps(page)}, *extra_content],
+            }
+            return SimpleNamespace(
+                returncode=0,
+                stderr=b"",
+                stdout="".join(
+                    json.dumps({"jsonrpc": "2.0", "id": identifier, "result": result}) + "\n"
+                    for identifier, result in enumerate((initialized, read))
+                ).encode(),
+            )
+
+        with patch.object(supervisor.subprocess, "run", return_value=responses(page)) as run:
+            with contextlib.redirect_stdout(io.StringIO()) as output:
+                supervisor.qualify_reader_handoff(reader_hash)
+            self.assertEqual(run.call_args.args, (supervisor.reader_arguments(reader_hash),))
+            self.assertEqual(run.call_args.kwargs["timeout"], 15)
+            requests = [json.loads(row) for row in run.call_args.kwargs["input"].splitlines()]
+            self.assertEqual(
+                [row["method"] for row in requests],
+                ["initialize", "notifications/initialized", "tools/call"],
+            )
+            self.assertEqual(requests[2]["params"]["name"], "read")
+            self.assertEqual(requests[2]["params"]["arguments"]["path"], "fixture.txt")
+            self.assertEqual(json.loads(output.getvalue())["reader_sha256"], reader_hash)
+        with (
+            patch.object(supervisor.subprocess, "run", return_value=responses({**page, "data": "eA=="})),
+            self.assertRaisesRegex(supervisor.Refusal, "fixture bytes differ"),
+        ):
+            supervisor.qualify_reader_handoff(reader_hash)
+        with (
+            patch.object(
+                supervisor.subprocess, "run",
+                return_value=responses(page, [{"type": "text", "text": "extra"}]),
+            ),
+            self.assertRaisesRegex(supervisor.Refusal, "content differs"),
+        ):
+            supervisor.qualify_reader_handoff(reader_hash)
+
     def test_codex_command_is_fixed_safe_reader_and_disabled_shell(self):
-        command = supervisor.codex_arguments("f" * 64, "codex")
+        command = supervisor.codex_arguments("f" * 64)
         self.assertEqual(command[0], "/runtime/codex")
         self.assertIn("features.shell_tool=false", command)
         self.assertIn("features.plugins=false", command)

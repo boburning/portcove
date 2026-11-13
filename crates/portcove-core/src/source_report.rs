@@ -93,7 +93,8 @@ pub struct SourceApplicationInspection {
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct SourceReleaseApplicability {
-    /// Open code: `artifact_bound`, `upstream_release_bound`, or `not_rebound`.
+    /// Open code: `artifact_bound`, `upstream_release_bound`,
+    /// `integration_contract_bound`, or `not_rebound`.
     pub state_code: String,
     #[serde(default)]
     pub reviewed_bindings: Vec<crate::SourceContractApplicability>,
@@ -182,18 +183,18 @@ pub(crate) fn unavailable_report(
     let (state_code, summary, next_action) = match health {
         SourceHealth::Changed => (
             "source_changed",
-            "The selected source differs from the registered baseline.",
+            "These files have changed since you added them.",
             "These files have changed since they were added. Choose an unchanged copy to update their location. To use different files, add them again so Portcove can check them.",
         ),
         SourceHealth::Missing => (
             "source_missing",
-            "The registered source could not be found.",
-            "Reconnect the original storage or relink to an unchanged copy of the registered files. To use different files, add them again for checking.",
+            "Portcove can’t find these files at their saved location.",
+            "Reconnect the drive or choose an unchanged copy at its new location. To use different files, add them again so Portcove can check them.",
         ),
         _ => (
             "source_could_not_be_checked",
-            "The registered source could not be checked.",
-            "Review the reported problem, restore access, and inspect the source again.",
+            "Portcove couldn’t check the selected files.",
+            "Check the problem below, make sure Portcove can read the files, then check them again.",
         ),
     };
     assemble_report(
@@ -294,7 +295,9 @@ fn assemble_report(
                 contract: contract.clone(),
                 contract_result: contract_result(contract, inspection.as_ref()),
                 release_applicability: SourceReleaseApplicability {
-                    state_code: if contract
+                    state_code: if contract.release_policy.is_some() {
+                        "integration_contract_bound"
+                    } else if contract
                         .applicability
                         .iter()
                         .any(|binding| binding.artifact_sha256.is_some())
@@ -460,7 +463,7 @@ fn report_message(
     if health == SourceHealth::Changed {
         return (
             "source_changed",
-            "The selected source differs from the registered baseline.",
+            "These files have changed since you added them.",
             "These files have changed since they were added. Choose an unchanged copy to update their location. To use different files, add them again so Portcove can check them.",
         );
     }
@@ -470,8 +473,8 @@ fn report_message(
     ) {
         return (
             "ambiguous_identity",
-            "The source matches more than one catalog identity.",
-            "Keep the source unchanged and review the candidate editions before continuing.",
+            "These files have more than one possible match.",
+            "Keep these files unchanged. Check the required edition and file format, then choose the original files again.",
         );
     }
     if inspection
@@ -481,8 +484,8 @@ fn report_message(
     {
         return (
             "selected_needs_checking",
-            "The source passed preliminary selection and still needs its upstream check.",
-            "Continue with the port's reviewed setup to complete the remaining file check.",
+            "These files still need to be checked by the game’s setup program.",
+            "Review this port’s setup instructions to finish checking the files.",
         );
     }
     match (
@@ -491,9 +494,9 @@ fn report_message(
     ) {
         (SourceClassification::Recognized { .. }, SourceAdmission::Admitted { .. }) => (
             "recognized_exact",
-            "The source matches one exact catalog identity.",
+            "These files match a recognized edition.",
             if health == SourceHealth::Current {
-                "No source action is needed for these registered files. Review the port's available actions."
+                "These files still match the edition you added. Open this game’s page in Portcove to see the next step."
             } else {
                 "Choose how to add these files."
             },
@@ -505,7 +508,7 @@ fn report_message(
             },
         ) => (
             "known_mismatch",
-            "The source does not match an accepted catalog identity.",
+            "These files don’t match an accepted game edition.",
             "Choose files from a supported edition and check them again.",
         ),
         (
@@ -515,8 +518,8 @@ fn report_message(
             },
         ) => (
             "ambiguous_identity",
-            "The source matches more than one catalog identity.",
-            "Keep the source unchanged and review the candidate editions before continuing.",
+            "These files have more than one possible match.",
+            "Keep these files unchanged. Check the required edition and file format, then choose the original files again.",
         ),
         (
             _,
@@ -525,8 +528,8 @@ fn report_message(
             },
         ) => (
             "check_failed",
-            "The game files failed a required format check.",
-            "Review the check result and choose valid original game files before continuing.",
+            "The selected files failed a required format check.",
+            "Review the check result and choose files in the required format.",
         ),
         (
             _,
@@ -535,8 +538,8 @@ fn report_message(
             },
         ) => (
             "accepted_identity_unknown",
-            "The source is eligible for informational intake, but its exact edition is unknown.",
-            "Review the evidence gap before consenting to setup.",
+            "You can add these files, but Portcove couldn’t identify their exact edition.",
+            "Read the limitations before deciding whether to continue.",
         ),
         (
             _,
@@ -545,13 +548,13 @@ fn report_message(
             },
         ) => (
             "accepted_identity_unknown",
-            "The source passed structural checks, but its exact edition is unknown.",
+            "These files passed format checks, but Portcove couldn’t identify their exact edition.",
             "Review the port requirements before setup.",
         ),
         _ => (
             "not_evaluated",
-            "The source identity has not been fully evaluated.",
-            "Inspect the expected identities and complete the required source check.",
+            "These files haven’t been fully checked.",
+            "Check the required game editions and finish checking your files.",
         ),
     }
 }
@@ -751,7 +754,7 @@ mod tests {
         let mut inspection = report.inspection.unwrap();
         assert_eq!(
             report_message(SourceHealth::Current, &inspection).2,
-            "No source action is needed for these registered files. Review the port's available actions."
+            "These files still match the edition you added. Open this game’s page in Portcove to see the next step."
         );
 
         inspection.validator = Some(ObservedSourceValidator {
@@ -762,7 +765,7 @@ mod tests {
         });
         assert_eq!(
             report_message(SourceHealth::NotBaselined, &inspection).2,
-            "Continue with the port's reviewed setup to complete the remaining file check."
+            "Review this port’s setup instructions to finish checking the files."
         );
 
         inspection.validator = None;
@@ -790,13 +793,24 @@ mod tests {
             &catalog,
             &profile.id,
             SourceClassification::Ambiguous {
-                candidates: vec![candidate.clone(), candidate],
+                candidates: vec![
+                    candidate.clone(),
+                    SourceIdentity {
+                        representation_id: "another-format".into(),
+                        ..candidate
+                    },
+                ],
             },
             SourceAdmission::Rejected {
                 reason: SourceRejectionReason::AmbiguousIdentity,
             },
         );
         assert_eq!(ambiguous.state_code, "ambiguous_identity");
+        assert_eq!(
+            ambiguous.summary,
+            "These files have more than one possible match."
+        );
+        assert!(ambiguous.next_action.contains("edition and file format"));
 
         let informational_contract = source_catalog
             .contracts

@@ -17,6 +17,7 @@ import {
 } from "./release-native-pre-sign-report.mts";
 import { reconcileActualNativeCheck } from "./release-native-candidate.mts";
 import { readBoundedPublicBuildInputFile } from "./release-public-build-inputs.mts";
+import { verifySealedCheckSdkBundle } from "./release-sealed-check-sdk.mts";
 
 const repository = "repos/boburning/portcove";
 type Issuer = { app_id: number; installation_id: number };
@@ -171,6 +172,10 @@ export async function publishActualNativeStageReport(receipt: object) {
       // The private parent getter positively rechecks the issuer file's
       // appointed Windows ACL / Linux owner custody before this read.
       await actual.parent.recheck();
+      const sdk = actual.parent.descriptor.issuer_sdk_bundle;
+      const worker = sdk
+        ? await verifySealedCheckSdkBundle(actual.parent.controller_root, sdk)
+        : path.join(actual.parent.controller_root, "scripts/release-semantic-issuer-http.mts");
       const key = await readBoundedPublicBuildInputFile(
         path.dirname(custody.private_key),
         path.basename(custody.private_key),
@@ -188,10 +193,6 @@ export async function publishActualNativeStageReport(receipt: object) {
       }
       const started = Date.now();
       let requests = 0;
-      const worker = path.join(
-        actual.parent.controller_root,
-        "scripts/release-semantic-issuer-http.mts",
-      );
       const workerConfiguration = {
         app_id: issuer.app_id,
         installation_id: issuer.installation_id,
@@ -218,6 +219,7 @@ export async function publishActualNativeStageReport(receipt: object) {
         inspectSemanticIssuerRequest(transport);
         let value: unknown;
         try {
+          if (sdk) await verifySealedCheckSdkBundle(actual.parent.controller_root, sdk);
           const output = execFileSync(process.execPath, [worker], {
             input: JSON.stringify(transport),
             encoding: "utf8",
@@ -232,6 +234,7 @@ export async function publishActualNativeStageReport(receipt: object) {
             },
             stdio: ["pipe", "pipe", "pipe"],
           });
+          if (sdk) await verifySealedCheckSdkBundle(actual.parent.controller_root, sdk);
           value = JSON.parse(output);
         } catch {
           throw new Error(

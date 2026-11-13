@@ -147,7 +147,7 @@ namespace Portcove.HostedNative {
     // Hosted-only proposal: existing station access is a reviewed authority delta.
     public sealed class HostedDesktop : IDisposable {
         public static bool ExecutionAuthorized { get { return true; } }
-        public static bool HostedCandidateRecoveryAuthorized { get { return false; } }
+        public static bool HostedCandidateRecoveryAuthorized { get { return true; } }
         public static byte[] ReadCurrentStation() {
             if (ObjectName(GetProcessWindowStation()) != "WinSta0") throw new InvalidOperationException("Original broker station required");
             IntPtr handle = OpenWindowStationW("WinSta0", false, 0x00020000);

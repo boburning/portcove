@@ -3,12 +3,12 @@
   "listing": {
     "id": "transport-tycoon-deluxe-openttd-upstream",
     "name": "Transport Tycoon Deluxe (OpenTTD (upstream))",
-    "summary": "Upstream route: Mature native reimplementation with free replacement data or original retail data. Limits: Established upstream OpenTTD engine; independent from JGR PatchPack and uses free replacement or owned original data. Upstream platforms: Official Windows/Linux/macOS package routes; macOS universal support documented. Selected Windows/Linux release artifact CPUs unknown in frozen audit. Original data: OpenTTD needs base graphics and sound data. Use the free OpenGFX/OpenSFX sets (OpenMSX supplies optional music), or copy original DOS/Windows Transport Tycoon Deluxe CD graphics/sound files into baseset/. Original commercial TTD assets are optional when using the free sets; original TTD music can be copied separately. Portcove setup/gameplay not verified.",
+    "summary": "Play OpenTTD with free base graphics or your own Transport Tycoon Deluxe files. Official Linux, Mac and Windows packages use upstream setup. Keep OpenTTD and JGR Patch Pack as separate variants.",
     "original_game_title": "Transport Tycoon Deluxe",
     "project_url": "https://github.com/OpenTTD/OpenTTD",
-    "platforms": [],
-    "availability": "unknown",
-    "setup_url": "https://github.com/OpenTTD/OpenTTD",
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
+    "availability": "packages",
+    "setup_url": "https://wiki.openttd.org/en/Manual/Installation",
     "artwork": {
       "game_id": 5502,
       "cover_id": 85659,
@@ -17,7 +17,48 @@
       "game_slug": "transport-tycoon-deluxe",
       "match_kind": "underlying-game"
     },
-    "issue_number": 2716
+    "issue_number": 2716,
+    "listed_at": "2026-10-25",
+    "manual_setup": {
+      "help_url": "https://wiki.openttd.org/en/Manual/Installation",
+      "steps": [
+        {
+          "title": "Prepare the upstream OpenTTD variant",
+          "instruction": "Use a permitted complete official upstream OpenTTD Windows copy for your CPU and finish its documented setup. Free OpenGFX graphics and OpenSFX sound can be used; original Transport Tycoon Deluxe data is not mandatory, and OpenMSX music is optional. Upstream can offer a base-graphics download at startup when its network/font/UI prerequisites are available; finish that setup before attaching an existing copy. Select native openttd.exe, retaining its package resources. JGR Patch Pack is a separate variant, not an interchangeable update."
+        },
+        {
+          "title": "Retain the actual personal or portable directories",
+          "instruction": "Keep the creating working directory and established literal arguments, including an existing -c config selection. Do not create an executable-side openttd.cfg merely to register. Windows normally searches the current account’s Documents/OpenTTD personal directory as well as package/working locations; an existing portable/config choice changes the selected root. Preserve every actual config and personal directory, openttd.cfg, private.cfg/secrets.cfg, saves, scenarios, heightmaps, orders, NewGRFs, scripts, screenshots, content_download, custom files and unknowns. Keep secrets private. Other OpenTTD variants can share those paths; a separate runtime folder does not isolate them."
+        },
+        {
+          "title": "Keep compatible versions and content recoverable",
+          "instruction": "Before changing an engine, close all clients using the actual shared profile, retain its old creating runtime, configuration, saves and exact content sets, and follow upstream’s compatibility guidance. Do not assume JGR/upstream, multiplayer, NewGRF or backward-save compatibility. This route does not freeze an arbitrary CDN version or turn a locally computed download hash into a publisher-approved identity; upstream/player remains the runtime replacement owner."
+        },
+        {
+          "title": "Check the working copy before registration",
+          "instruction": "Finish setup with the project’s tools, then start and quit the copy you intend to add. Keep its game executable, working folder and supported launch arguments. Review those details in Portcove and agree to launch them, then choose Play separately. Adding a copy does not confirm its game files or save compatibility."
+        },
+        {
+          "title": "Keep updates and removal under the existing owner",
+          "instruction": "Close every running copy of the game before changing files. Keep the working game version and every data and profile folder recoverable. Update it with the project’s tools, then review and select the changed executable in Portcove before choosing Play. You manage setup, updates, file changes, data migration and recovery. Portcove monitors the process you selected; it does not prevent other copies from running or restrict the game’s file access. Removing the registration leaves external files in place. This route does not offer Portcove downloads, setup, updates, backups, rollback, data migration or external-file deletion."
+        }
+      ],
+      "warnings": [
+        "Use only a copy and content you are already permitted to use. Engine licensing does not grant rights to original game assets, music, mods or bundled components.",
+        "Before updating the game, keep a copy of its working files and every location containing saved data. Choosing a different executable does not give it a separate profile."
+      ],
+      "references": [
+        {
+          "title": "Get the official OpenTTD package for your host",
+          "instruction": "Use the upstream downloads page and its published SHA-256. The stable channel has a Linux x86-64 generic tar.xz, an Intel and Apple Silicon universal Mac DMG or ZIP, and Windows ZIPs or installers for x86-64 and ARM64. The reviewed Linux player needs glibc 2.28 and libstdc++ with GLIBCXX_3.4.22. Use your system archive tool and keep the entire extracted folder or OpenTTD.app. Open the official executable or app directly and complete its base-graphics setup."
+        },
+        {
+          "title": "Keep the actual OpenTTD config and save roots",
+          "instruction": "The Linux generic build normally uses ~/.config/openttd and ~/.local/share/openttd, or the corresponding XDG locations. An older ~/.openttd profile or an existing -c config choice can change where it writes. On Mac preserve ~/Library/Application Support/OpenTTD and any custom location. Keep openttd.cfg, private.cfg, secrets.cfg and all actual saves and content private and backed up. These upstream copies stay under player ownership."
+        }
+      ]
+    },
+    "release_url": "https://www.openttd.org/downloads/openttd-releases/latest"
   },
   "upstream_lineage": {
     "format_version": 1,

@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { isRecord } from "./runtime-values.mts";
 
 /** Order object keys recursively while preserving array order and primitive values.
@@ -13,3 +14,9 @@ export function orderedJsonValue(value: unknown): unknown {
     );
   return value;
 }
+
+export const orderedJsonSha256 = (value: unknown): string => {
+  const serialized = JSON.stringify(orderedJsonValue(value));
+  if (serialized === undefined) throw new TypeError("Observation is not JSON serializable");
+  return createHash("sha256").update(serialized).digest("hex");
+};

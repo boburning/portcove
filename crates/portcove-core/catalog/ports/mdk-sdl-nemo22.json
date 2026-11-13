@@ -4,10 +4,11 @@
     "id": "mdk-sdl-nemo22",
     "name": "MDK / SDL engine (nemo22)",
     "summary": "Explore MDK / SDL engine (nemo22) and follow the upstream project for requirements, downloads and setup.",
-    "project_url": "https://github.com/nemo22/mdk-sdl",
+    "project_url": "https://github.com/nautilusbits/mdk-sdl",
     "issue_number": 1775,
+    "listed_at": "2026-10-23",
     "availability": "packages",
-    "setup_url": "https://github.com/nautilusbits/mdk-sdl/blob/v1.2.0/README.md",
+    "setup_url": "https://github.com/nautilusbits/mdk-sdl/blob/main/README.md",
     "artwork": {
       "game_id": 219,
       "cover_id": 100005,
@@ -16,32 +17,56 @@
       "game_slug": "mdk",
       "match_kind": "underlying-game"
     },
-    "release_url": "https://github.com/nautilusbits/mdk-sdl/releases/tag/v1.2.0",
+    "release_url": "https://github.com/nautilusbits/mdk-sdl/releases/latest",
     "manual_setup": {
       "steps": [
         {
-          "title": "Prepare your original game",
-          "instruction": "Keep your own original MDK installed in a supported default GOG or Steam location; the player detects it. If it is elsewhere, follow upstream\u2019s Running instructions to create mdk_paths.cfg beside mdk_sdl.exe and name the original folder in its [paths] mdk setting. The original files stay external and are read at runtime. The ZIP contains the native player and SDL3.dll; no game compilation or separate installer is required."
+          "title": "Prepare your original game on Windows",
+          "instruction": "On Windows, keep your own original MDK installed in a supported default GOG or Steam location; the player detects it. If it is elsewhere, follow upstream’s Running instructions to create mdk_paths.cfg beside mdk_sdl.exe and name the original folder in its [paths] mdk setting. The original files stay external and are read at runtime. The ZIP contains the native player and SDL3.dll; no game compilation or separate installer is required."
+        },
+        {
+          "title": "Set up MDK on Linux",
+          "instruction": "On x86-64 Linux, Portcove can install and update the official mdk-linux-x64.tar.gz player. Linux has no default game-location detection, so create mdk_paths.cfg beside mdk_sdl and name your complete original installation in its [paths] mdk setting; Portcove does not pass MDK_DATA_DIR to the game. For an ARM64 copy you maintain, choose mdk-linux-arm64.tar.gz from the stable releases, keep libSDL3.so beside mdk_sdl, and point MDK_DATA_DIR or the [paths] mdk entry in mdk_paths.cfg at your original installation. Use a Vulkan driver. The inspected v1.2.6 x86-64 player needs glibc 2.43 or later and its ARM64 sibling needs glibc 2.38 or later."
+        },
+        {
+          "title": "Set up MDK on an Apple silicon Mac",
+          "instruction": "Portcove can install and update the official mdk-osx-arm64.zip player. Create mdk_paths.cfg beside mdk_sdl and name your complete original installation in its [paths] mdk setting; Portcove does not pass MDK_DATA_DIR to the game. Keep libSDL3.dylib beside mdk_sdl. The inspected v1.2.6 package requires macOS 12 or later with Metal."
+        },
+        {
+          "title": "Set up MDK on Android",
+          "instruction": "Choose mdk-android.apk from the stable releases. The inspected v1.2.6 APK needs 64-bit Android 8 or later with Vulkan. Select your original MDK folder containing TRAVERSE, MISC, FALL3D and STREAM. To play in place, the app requires All files access and a writable folder. Progress stays in that folder. Choose Copy instead to avoid broad access. The app copies the game to Android/data/io.github.nemo22.mdk/files/mdk and keeps settings and saves in the parent files folder. Keep whichever location the app uses before uninstalling."
         }
       ],
-      "warnings": [],
-      "help_url": "https://github.com/nautilusbits/mdk-sdl/blob/v1.2.0/README.md"
+      "warnings": [
+        "Optional HD texture generation downloads and starts a separate upscaling tool. Let it finish, or cancel and confirm it has stopped before updating, backing up or removing the player. You and upstream maintain the Linux ARM64 and Android copies."
+      ],
+      "help_url": "https://github.com/nautilusbits/mdk-sdl/blob/main/README.md",
+      "references": [
+        {
+          "title": "Keep your desktop files",
+          "instruction": "For a Linux ARM64 copy you maintain, keep settings.cfg, saves, mods, captures and custom exports. Keep the whole MDK_USER_DIR if you set it, or the actual user-data fallback if the player folder is read-only. On first portable start, upstream can copy settings and saves from an older personal profile. Keep both copies until you know which one the player uses. Keep mdk_paths.cfg and your originals separately."
+        }
+      ]
     },
     "original_game_title": "MDK"
   },
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],
-    "platforms": ["windows-x86-64"],
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-aarch64"],
     "adapter": "native-portable",
     "release": {
       "repository": "nautilusbits/mdk-sdl",
       "asset_hints": {
-        "windows-x86-64": ["mdk-win-x64.zip"]
+        "windows-x86-64": ["mdk-win-x64.zip"],
+        "linux-x86-64": ["mdk-linux-x64.tar.gz"],
+        "macos-aarch64": ["mdk-osx-arm64.zip"]
       }
     },
     "executable_hints": {
-      "windows-x86-64": ["mdk_sdl.exe"]
+      "windows-x86-64": ["mdk_sdl.exe"],
+      "linux-x86-64": ["mdk_sdl"],
+      "macos-aarch64": ["mdk_sdl"]
     },
     "persistent_paths": ["mdk_paths.cfg", "settings.cfg", "saves", "mods"],
     "persistent_file_patterns": [
@@ -54,7 +79,67 @@
       "installation_method": "portable-package",
       "source_requirements": [],
       "saves_and_settings": "portcove-managed",
-      "manual_preparation": "Keep your own original MDK installed in a supported default GOG or Steam location; the player detects it. If it is elsewhere, follow upstream\u2019s Running instructions to create mdk_paths.cfg beside mdk_sdl.exe and name the original folder in its [paths] mdk setting. The original files stay external and are read at runtime. The ZIP contains the native player and SDL3.dll; no game compilation or separate installer is required. Default settings.cfg, saves, mods and normal mdk-*.bmp captures live beside the player and are declared for compatible replacement and backup, along with the remembered mdk_paths.cfg. The original game remains external. If that directory is not writable, upstream uses AppData/mdk-sdl; MDK_USER_DIR and that external fallback remain outside backups. Optional locally generated texture mods/upstream upscaler tools belong to the declared mods folder, not the immutable player. Custom exported assets/captures and changed runtime files can use external registration. Runtime rollback carries current declared data, without rewinding saves or guaranteeing older-runtime compatibility. Existing external installations keep their files and runtime owner. Source/package inspection is separate from original-input, gameplay, minimum-environment and packaged Desktop acceptance observations."
+      "manual_preparation": "On Windows, keep your own original MDK installed in a supported default GOG or Steam location; the player detects it. If it is elsewhere, follow upstream’s Running instructions to create mdk_paths.cfg beside mdk_sdl.exe and name the original folder in its [paths] mdk setting. The original files stay external and are read at runtime. The ZIP contains the native player and SDL3.dll; no game compilation or separate installer is required. Default settings.cfg, saves, mods and normal mdk-*.bmp captures live beside the player and are declared for compatible replacement and backup, along with the remembered mdk_paths.cfg. The original game remains external. On an Apple silicon Mac, the managed mdk_sdl player and its libSDL3.dylib follow the same rules with macOS 12 or later and Metal, and mdk_paths.cfg beside mdk_sdl must name your original installation. On x86-64 Linux, the managed mdk_sdl player and its libSDL3.so follow the same rules; it needs glibc 2.43 or later and a Vulkan driver, and mdk_paths.cfg beside mdk_sdl must name your complete original installation because Linux has no default-location detection and Portcove does not pass MDK_DATA_DIR. If that directory is not writable, upstream uses AppData/mdk-sdl on Windows, ~/.local/share/mdk-sdl on Linux or ~/Library/Application Support/mdk-sdl on a Mac; MDK_USER_DIR and that external fallback remain outside backups. Optional locally generated texture mods/upstream upscaler tools belong to the declared mods folder, not the immutable player. Custom exported assets/captures and changed runtime files can use external registration. Runtime rollback carries current declared data, without rewinding saves or guaranteeing older-runtime compatibility. Existing external installations keep their files and runtime owner. Source/package inspection is separate from original-input, gameplay, minimum-environment and packaged Desktop acceptance observations."
+    },
+    "reviewed_package_layouts": {
+      "windows-x86-64": {
+        "directories": [],
+        "executables": ["mdk_sdl.exe"]
+      },
+      "linux-x86-64": {
+        "directories": [],
+        "executables": ["libsdl3.so", "mdk_sdl"]
+      },
+      "macos-aarch64": {
+        "directories": [],
+        "executables": ["libsdl3.dylib", "mdk_sdl"]
+      }
     }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "mdk-sdl-nemo22",
+    "origin": {
+      "project_url": "https://github.com/nemo22/mdk-sdl"
+    },
+    "decisions": [
+      {
+        "from": {
+          "project_url": "https://github.com/nemo22/mdk-sdl"
+        },
+        "to": {
+          "project_url": "https://github.com/nautilusbits/mdk-sdl",
+          "repository": {
+            "host": "github.com",
+            "id": "1406153922"
+          }
+        },
+        "relationship": "relocation",
+        "outcome": "accepted",
+        "rationale": "The retained November 10 dossier independently records both names at this repository ID and the exact v1.2.6 release commit and sibling package identities.",
+        "evidence": [
+          {
+            "kind": "supporting",
+            "reference": "https://github.com/nautilusbits/mdk-sdl/releases/tag/v1.2.6",
+            "note": "The retained November 10 dossier independently records both names at this repository ID and the exact v1.2.6 release commit and sibling package identities."
+          },
+          {
+            "kind": "supporting",
+            "reference": "https://github.com/nautilusbits/mdk-sdl/commit/1094e273b33c3bae6a06c5b04d0381ebc5f143c3",
+            "note": "The release retains the reviewed project source revision."
+          },
+          {
+            "kind": "context",
+            "reference": "https://api.github.com/repositories/1406153922",
+            "note": "The former GitHub API URL returns HTTP 301 to this numeric endpoint and the canonical repository reports the same ID."
+          }
+        ],
+        "reconsider_when": "Reassess if the canonical repository ID, retained release identity or attributable project continuity changes.",
+        "review": {
+          "reference": "https://github.com/boburning/portcove/issues/4784#issuecomment-6840558886",
+          "decision_sha256": "cf9bd26d42c37cc42382ab4f6d6e5fb235054e39085c24775fcaa4ec0cd5947a"
+        }
+      }
+    ]
   }
 }

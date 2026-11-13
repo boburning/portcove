@@ -45,10 +45,13 @@ void test("reviewed exact metadata and original conditions remain degraded witho
   for (const call of calls) {
     assert.equal(call.options.redirect, "manual");
     if (call.url.startsWith("https://api.github.com/"))
-      assert.equal(call.options.headers.Authorization, "Bearer synthetic-token");
+      assert.match(
+        new Headers(call.options.headers).get("authorization") ?? "",
+        /^(?:token|Bearer) synthetic-token$/u,
+      );
     else {
       assert.equal(call.options.method, "HEAD");
-      assert.equal(call.options.headers.Authorization, undefined);
+      assert.equal(new Headers(call.options.headers).get("authorization"), null);
     }
   }
   for (const record of report.observations.filter((record) => record.pin_assessment)) {
@@ -185,7 +188,7 @@ void test("fixed mixed inventory retains every location and pin check with eight
     assert.equal(calls.length, expanded ? 130 : 47);
     assert.equal(report.limits.requests, expanded ? 139 : 55);
     assert.equal(report.request_plan.conservative_requests, report.limits.requests);
-    assert.equal(report.request_plan.hard_ceiling, 320);
+    assert.equal(report.request_plan.hard_ceiling, 352);
     assert.equal(report.request_plan.conditional_repository_reuses, expanded ? 9 : 8);
     assert.equal(report.observations.filter((record) => record.pin_assessment).length, 10);
     for (const pin of reviewedAccounting.pins) {
@@ -217,7 +220,7 @@ void test("repository reuse retains all obligations across the former cap and ne
     [123, false],
     [124, false],
     [124, true],
-    [315, false],
+    [347, false],
   ] as const) {
     const catalog = {
       ports: [
@@ -244,7 +247,7 @@ void test("repository reuse retains all obligations across the former cap and ne
       },
     });
     assert.equal(report.limits.requests, ordinaryCount + 5 + Number(nextLive));
-    assert.equal(report.request_plan.hard_ceiling, 320);
+    assert.equal(report.request_plan.hard_ceiling, 352);
     assert.equal(report.consumed.requests, ordinaryCount + 4 + Number(nextLive));
     assert.equal(calls.length, ordinaryCount + 4 + Number(nextLive));
     assert.equal(calls.filter((call) => call.url === prefix).length, 1);
@@ -289,7 +292,7 @@ void test("repository reuse stays in one collection and failed or partial reads 
       ),
     });
     assert.equal(report.outcome, "incomplete", String(status));
-    assert.equal(calls.filter((call) => call.url === prefix).length, 2);
+    assert.equal(calls.filter((call) => call.url === prefix).length, 2, String(status));
     assert.equal(
       requiredFixture(
         report.observations.find(

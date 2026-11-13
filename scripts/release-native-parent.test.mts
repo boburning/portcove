@@ -9,6 +9,27 @@ import {
 } from "./release-native-parent.mts";
 import { inspectLocalNativeTransport } from "./release-local-native-setup.mts";
 import { nativeAuthorityConfigurationFixture } from "./fixtures/native-authority-configuration-fixture.mts";
+import { sealedCheckSdkFilename } from "./release-sealed-check-sdk.mts";
+
+void test("an appointed native SDK must be in the Windows scheduler custody inventory", () => {
+  const f = fixture();
+  const descriptor = {
+    ...f.descriptor,
+    issuer_sdk_bundle: { bytes: 123, sha256: "a".repeat(64) },
+  };
+  const scheduler = f.installation_record.scheduler;
+  const appointed = path.win32.join(f.controller_root, "scripts", sealedCheckSdkFilename);
+  const setup = (issuer_sdk: string) => ({
+    ...f,
+    descriptor,
+    installation_record: {
+      scheduler: { ...scheduler, protected_paths: { ...scheduler.protected_paths, issuer_sdk } },
+    },
+  });
+  assert.doesNotThrow(() => inspectWindowsNativeParentSetup(setup(appointed)));
+  assert.throws(() => inspectWindowsNativeParentSetup({ ...f, descriptor }));
+  assert.throws(() => inspectWindowsNativeParentSetup(setup("C:\\Mutable\\issuer.mjs")));
+});
 
 void test("source, crypto, queue and native stages share the original finite parent lifetime without allocating a new clock", () => {
   assert.equal(remainingNativeParentBudget(1800000, 600000), 1470000);

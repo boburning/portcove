@@ -9,6 +9,7 @@
     "availability": "packages",
     "setup_url": "https://github.com/Aleph-One-Marathon/alephone/tree/fc4c274359088614b58c91af5daa541504cb50cf",
     "issue_number": 2588,
+    "listed_at": "2026-10-25",
     "release_url": "https://github.com/Aleph-One-Marathon/alephone/releases/tag/release-20260930",
     "manual_setup": {
       "steps": [
@@ -21,7 +22,22 @@
         "Core backups exclude upstream-owned Aleph One profiles. This pinned runtime does not offer automatic updates.",
         "Use a short Windows output folder. Core checks packaged-file path lengths before publication and Play; this runtime cannot use every long installation path."
       ],
-      "help_url": "https://github.com/Aleph-One-Marathon/alephone/tree/fc4c274359088614b58c91af5daa541504cb50cf"
+      "help_url": "https://github.com/Aleph-One-Marathon/alephone/tree/fc4c274359088614b58c91af5daa541504cb50cf",
+      "references": [
+        {
+          "title": "Install the matching Marathon scenario on Linux",
+          "instruction": "Use the official Marathon x86-64 Flatpak bundle and install it with Flatpak. Start Classic Marathon from the desktop launcher or run flatpak run org.bungie.source.Marathon. Its packaged scenario data is included. This bundle has home-directory access. Preserve your actual ~/.alephone profile, which the three games can share, and any overrides before replacement."
+        },
+        {
+          "title": "Open the matching Marathon application on Mac",
+          "instruction": "Use the official Marathon Mac disk image. Copy Classic Marathon.app out of the image and open the complete app. The package includes the scenario and supports Intel and Apple Silicon. Preserve the actual Aleph One or title-specific data in ~/Library/Application Support, its preferences in ~/Library/Preferences and custom scenarios before replacing it."
+        }
+      ]
+    },
+    "platforms": ["linux-x86-64", "macos-x86-64", "macos-aarch64"],
+    "download_asset_hints": {
+      "macos-x86-64": ["Marathon-", "-Mac.dmg"],
+      "macos-aarch64": ["Marathon-", "-Mac.dmg"]
     }
   },
   "upstream_lineage": {
@@ -55,7 +71,6 @@
         }
       }
     },
-    "runtime_subdirectory": "Marathon-20260930",
     "executable_hints": {
       "windows-x86-64": ["Classic Marathon.exe"]
     },
@@ -73,7 +88,7 @@
     "windows_runtime_path_policy": "relative-file-max-path"
   },
   "release_maintenance": {
-    "reason": "The accepted package has a release-specific runtime directory and reads upstream-owned shared profiles. A later package must not reinterpret either contract.",
-    "reconsider_when": "Reassess a newly observed official Windows game package against archive layout, executable identity, Windows path limits, profile ownership and retained runtime compatibility."
+    "reason": "The full scenario package and engine-only package overlap the provider’s current literal filename hints. Populated shared upstream profiles have not been qualified across runtime versions; Core does not own or migrate them. The incidental archive wrapper is derived from the retained exact player path, not pinned.",
+    "reconsider_when": "Enable compatible-release selection after an unambiguous full-scenario package selector and bounded shared-profile read/write compatibility evidence are available. Reassess changed executable identity, scenario structure and Windows path limits independently of wrapper naming."
   }
 }

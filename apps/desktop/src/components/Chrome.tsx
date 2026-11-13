@@ -1,10 +1,20 @@
+import { countMessage } from "../localization";
+import {
+  SidebarCollections,
+  OrganizationControls,
+  type Organization,
+} from "../features/organization/OrganizationControls";
 import { OperationProgress } from "./OperationProgress";
+import { InvocationAnnouncements } from "./InvocationAnnouncements";
 import { cn } from "cn";
 import { RadioGroup } from "@base-ui/react/radio-group";
 import { Radio } from "@base-ui/react/radio";
 import { controlFocus } from "./ui/control-style";
 import { ActionRow, Notice, SettingsRow } from "./ui/patterns";
 import { SourceRemovalControl } from "./SourceRemoval";
+import { AutomaticSnapshotsSetting } from "./AutomaticSnapshotsSetting";
+import { ReportProblem } from "./ReportProblem";
+import { SteamGridDbSettings } from "./SteamGridDbSettings";
 import { SupportBundleExport } from "./SupportBundleExport";
 import { desktopApi } from "../api";
 import {
@@ -26,9 +36,14 @@ import {
   Command,
   Download,
   HardDrive,
+  Keyboard,
+  Gamepad2,
   Library,
   LoaderCircle,
-  Menu as MenuIcon,
+  Monitor,
+  Moon,
+  Sun,
+  Folder,
   Settings,
   Search,
   Palette,
@@ -66,8 +81,8 @@ import {
   errorText,
   failurePresentation,
   formatBytes,
-  formatCountMessage,
   navigationActivityState,
+  progressPresentation,
   type NavigationActivityState,
   type SourceRequirement,
   type View,
@@ -78,6 +93,7 @@ import { BrandAvatar, BrandMascot } from "./Brand";
 import { ExternalLink } from "./ExternalLink";
 import { LibraryRecovery } from "./LibraryRecovery";
 import { CatalogOrigin, CatalogSettings } from "./CatalogUpdates";
+import { OfficialCatalogUpdates } from "./OfficialCatalogUpdates";
 import { SourceDiscoveryButton } from "./SourceDiscovery";
 import { invocationFailure, type InvocationRecord } from "../features/operations/invocation-state";
 import { GameFileLibraries } from "./GameFileLibraries";
@@ -89,6 +105,7 @@ import { Input } from "./ui/input";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle } from "./ui/dialog";
 import { commandShortcut } from "../keyboard-shortcuts";
 import { scrollWorkspaceTo, workspaceScrollTop } from "../workspace-scroll";
+import { SteamBatchEntryDialog, SteamEntryDialog } from "./SteamEntry";
 import { LanguageSettings } from "./LanguageSettings";
 import {
   settingsCategories,
@@ -102,6 +119,11 @@ export function Sidebar({
   updateCount,
   activities,
   controller,
+  organization,
+  collectionView = "all",
+  onSelectCollection,
+  libraryRoot,
+  collectionActions,
 }: {
   view: View;
   setView: Dispatch<SetStateAction<View>>;
@@ -109,6 +131,11 @@ export function Sidebar({
   updateCount: number;
   activities: ActivityRecord[];
   controller?: string | undefined;
+  organization?: Organization | undefined;
+  collectionView?: string;
+  onSelectCollection?: ((id: string) => void) | undefined;
+  libraryRoot?: string | undefined;
+  collectionActions?: ReactNode;
 }) {
   const activityState = navigationActivityState(activities);
   const [navigationOpen, setNavigationOpen] = useState(false);
@@ -134,50 +161,91 @@ export function Sidebar({
     icon: typeof Library;
     shortcut: string;
   }>;
+  const renderNavigationItem = (item: (typeof items)[number], sheet: boolean) => (
+    <Tooltip
+      label={`${item.label} · ${commandShortcut(item.shortcut)}`}
+      disabled={sheet}
+      side="inline-end"
+    >
+      <Button
+        data-focusable
+        data-navigation-destination={item.view}
+        aria-current={view === item.view ? "page" : undefined}
+        variant={view === item.view ? "selected" : "ghost"}
+        size="lg"
+        className={cn(
+          "group/nav nav-item flex h-auto min-h-[var(--control-height-lg)] w-full items-center gap-2 border-transparent p-[var(--space-2)_var(--space-3)] text-start font-normal whitespace-normal after:hidden",
+          view !== item.view && "text-pc-muted-foreground",
+        )}
+        onClick={() => {
+          setView(item.view);
+          setNavigationOpen(false);
+        }}
+      >
+        <Icon glyph={item.icon} />
+        <span className="nav-label min-w-0 flex-1">{item.label}</span>
+        {item.view === "library" && (
+          <b
+            className={cn(
+              "rounded-pc-sm border border-pc-border px-1 py-0.5 text-xs font-normal",
+              view === "library" ? "text-pc-selection-foreground" : "text-pc-muted-foreground",
+            )}
+            aria-label={`${installedCount} in library`}
+          >
+            {installedCount}
+          </b>
+        )}
+        {item.view === "updates" && (updateCount > 0 || activityState) && (
+          <NavigationStatus updateCount={updateCount} activityState={activityState} />
+        )}
+        <Shortcut className="hidden">{commandShortcut(item.shortcut)}</Shortcut>
+      </Button>
+    </Tooltip>
+  );
   const renderNavigation = (sheet = false) => (
     <nav
       ref={sheet ? sheetNavigation : desktopNavigation}
-      className="flex min-h-0 flex-1 flex-col gap-2"
+      className="sidebar-navigation flex min-h-0 flex-1 flex-col gap-2"
       aria-label="Primary navigation"
     >
-      {items.map((item) => (
-        <Tooltip
-          key={item.view}
-          label={`${item.label} · ${commandShortcut(item.shortcut)}`}
-          disabled={sheet}
-        >
-          <Button
-            data-focusable
-            aria-current={view === item.view ? "page" : undefined}
-            variant={view === item.view ? "selected" : "ghost"}
-            size="lg"
-            className={cn(
-              "group/nav nav-item flex h-auto min-h-[var(--control-height-lg)] w-full items-center gap-2 border-transparent p-[var(--space-2)_var(--space-3)] text-start font-normal whitespace-normal after:hidden",
-              view !== item.view && "text-pc-muted-foreground",
-              item.view === "settings" && !sheet && "mt-auto",
-            )}
-            onClick={() => {
-              setView(item.view);
-              setNavigationOpen(false);
-            }}
-          >
-            <Icon glyph={item.icon} />
-            <span className="nav-label min-w-0 flex-1">{item.label}</span>
-            {item.view === "library" && (
-              <b
-                className="rounded-pc-sm border border-pc-border px-1 py-0.5 text-xs font-normal text-pc-muted-foreground"
-                aria-label={`${installedCount} in library`}
-              >
-                {installedCount}
-              </b>
-            )}
-            {item.view === "updates" && (updateCount > 0 || activityState) && (
-              <NavigationStatus updateCount={updateCount} activityState={activityState} />
-            )}
-            <Shortcut className="hidden">{commandShortcut(item.shortcut)}</Shortcut>
-          </Button>
-        </Tooltip>
+      {items.slice(0, 3).map((item) => (
+        <div key={item.view}>{renderNavigationItem(item, sheet)}</div>
       ))}
+      {!sheet && organization && onSelectCollection && (
+        <>
+          <SidebarCollections
+            organization={organization}
+            selected={view === "library" ? collectionView : ""}
+            onSelect={onSelectCollection}
+          >
+            {collectionActions}
+          </SidebarCollections>
+          <div className="sidebar-compact-collections">
+            <OrganizationControls
+              organization={organization}
+              selected={view === "library" ? collectionView : ""}
+              onSelect={onSelectCollection}
+              discover={false}
+              trigger={<Folder aria-hidden="true" />}
+              triggerLabel="Manage collections"
+            >
+              {collectionActions}
+            </OrganizationControls>
+          </div>
+        </>
+      )}
+      <div className={sheet ? undefined : "sidebar-bottom mt-auto"}>
+        {!sheet && libraryRoot && (
+          <div className="sidebar-library" title={libraryRoot}>
+            <span className="sidebar-library-dot" aria-hidden="true" />
+            <span>
+              My library<small>On this computer</small>
+            </span>
+            <Icon glyph={HardDrive} size="sm" />
+          </div>
+        )}
+        {renderNavigationItem(items[3]!, sheet)}
+      </div>
     </nav>
   );
   return (
@@ -192,16 +260,15 @@ export function Sidebar({
             data-focusable
             variant="ghost"
             size="icon"
-            className="shrink-0 text-pc-muted-foreground"
+            className="sidebar-navigation-trigger shrink-0 text-pc-muted-foreground"
             aria-label="Open navigation"
             aria-haspopup="dialog"
             aria-expanded={navigationOpen}
             onClick={() => setNavigationOpen(true)}
           >
-            <Icon glyph={MenuIcon} />
+            <BrandAvatar />
           </Button>
         </Tooltip>
-        <BrandAvatar />
         <span className="min-w-0 flex-1 truncate font-semibold">
           {items.find((item) => item.view === view)?.label}
         </span>
@@ -262,15 +329,7 @@ function NavigationStatus({
       : activityState === "attention"
         ? "Activity needs attention"
         : undefined;
-  const updateLabel =
-    updateCount > 0
-      ? formatCountMessage(updateCount, {
-          zero: "No updates available",
-          one: "1 update available",
-          other: "{count} updates available",
-          unknown: "Update count unavailable",
-        })
-      : undefined;
+  const updateLabel = updateCount > 0 ? countMessage(updateCount, "updates") : undefined;
   const label = [activityLabel, updateLabel].filter(Boolean).join(", ");
   return (
     <b
@@ -317,8 +376,8 @@ export function PageHeader({
       <div className="min-w-0 flex-1">
         <h1 tabIndex={-1}>{copy.title}</h1>
         {view === "library" && libraryCount !== undefined && (
-          <p className="mt-2 mb-0 text-sm text-pc-muted-foreground">
-            {libraryCount} {libraryCount === 1 ? "entry" : "entries"} · On this computer
+          <p className="mt-2 mb-0 text-sm text-[var(--color-text-secondary)]">
+            {libraryCount} in your library
           </p>
         )}
         {copy.description && (
@@ -352,10 +411,10 @@ export function PageHeader({
               size="sm"
               className="command-trigger whitespace-nowrap text-pc-muted-foreground max-[48rem]:size-9 max-[48rem]:shrink-0 max-[48rem]:p-0"
               onClick={onOpenCommands}
-              aria-label={`Commands ${commandShortcut("K")}: open command palette`}
+              aria-label={`Search games and pages ${commandShortcut("K")}: open command palette`}
             >
               <Icon glyph={Command} />
-              <span className="max-[65rem]:hidden">Commands </span>
+              <span className="max-[65rem]:hidden">Search games and pages </span>
               <span className="ms-1 text-xs max-[48rem]:hidden">{commandShortcut("K")}</span>
             </Button>
           </Tooltip>
@@ -381,7 +440,7 @@ export function WorkspaceToolbar({
     settings: "Settings",
   }[view];
   return (
-    <div className="workspace-toolbar flex min-w-0 items-center justify-between gap-3 border-b border-pc-border text-xs text-pc-muted-foreground">
+    <div className="workspace-toolbar @container/workspace-header flex min-w-0 items-center justify-between gap-3 border-b border-pc-border text-xs text-pc-muted-foreground">
       <div className="flex min-w-0 items-center gap-3" role="group" aria-label="Current location">
         <span className="max-[42rem]:hidden">Portcove</span>
         <span className="max-[42rem]:hidden" aria-hidden="true">
@@ -402,10 +461,10 @@ export function WorkspaceToolbar({
         size="sm"
         className="command-trigger shrink-0 gap-2 font-normal text-pc-muted-foreground"
         onClick={onOpenCommands}
-        aria-label={`Commands ${commandShortcut("K")}: open command palette`}
+        aria-label={`Search games and pages ${commandShortcut("K")}: open command palette`}
       >
         <Icon glyph={Search} />
-        <span className="max-[65rem]:hidden">Commands </span>{" "}
+        <span className="max-[65rem]:hidden">Search games and pages</span>{" "}
         <Shortcut className="max-[42rem]:hidden">{commandShortcut("K")}</Shortcut>
       </Button>
     </div>
@@ -445,7 +504,11 @@ export function StatusLayer({
   dismissInvocation,
   openActivity,
   preparationRecovery,
+  readyToPlay,
+  onActivity = false,
 }: {
+  /** Activity is open: a link may reveal a known task there but never re-open Activity. */
+  onActivity?: boolean;
   error?: unknown;
   clearError: () => void;
   reviewPreparation?: (() => void) | undefined;
@@ -456,8 +519,10 @@ export function StatusLayer({
   invocations?: ReadonlyMap<number, InvocationRecord>;
   operationEvents?: ReadonlyMap<string, OperationEvent>;
   dismissInvocation?: (id: number) => void;
-  openActivity?: (id?: string) => void;
+  openActivity?: ((id?: string) => void) | undefined;
   preparationRecovery?: (record: InvocationRecord) => (() => void) | undefined;
+  /** Returns Play only when current readback reports the record's port launchable. */
+  readyToPlay?: (record: InvocationRecord) => (() => void) | undefined;
 }) {
   const acknowledgedSuccess = useRef(new Set<number>());
   const [latestSuccess, setLatestSuccess] = useState<number>();
@@ -478,6 +543,14 @@ export function StatusLayer({
   }, [invocations]);
   return (
     <>
+      {invocations && (
+        <InvocationAnnouncements
+          messages={[...invocations.values()].flatMap((record) => {
+            const text = invocationAnnouncement(record, operationEvents);
+            return text === undefined ? [] : [{ id: record.id, text }];
+          })}
+        />
+      )}
       {invocations
         ? [...invocations.values()].map((record) => (
             <div
@@ -488,7 +561,9 @@ export function StatusLayer({
               className={
                 record.phase === "settled" &&
                 invocationFailure(record) === undefined &&
-                record.id !== latestSuccess
+                // A successful launch needs no visible message; the game itself is the result.
+                (record.id !== latestSuccess ||
+                  (record.context.operation === "launch" && record.outcome === "succeeded"))
                   ? "sr-only"
                   : "mb-3 min-w-0"
               }
@@ -500,68 +575,27 @@ export function StatusLayer({
                   reviewPreparation={preparationRecovery?.(record)}
                   reviewCurrentState={reviewCurrentState}
                   invocation={record}
+                  announceNeutral={false}
                   openActivity={openActivity}
+                  onActivity={onActivity}
                 />
               )}
               {record.phase === "pending" ? (
-                <>
-                  <p className="mb-1 text-sm font-semibold [overflow-wrap:anywhere]">
-                    {record.context.action} · {record.context.target.label}
-                  </p>
-                  <OperationProgress
-                    // Invocation and event identities are distinct. Only an actual
-                    // explicitly owned ID permits this progress association.
-                    operation={
-                      record.context.activityId
-                        ? operationEvents?.get(record.context.activityId)
-                        : undefined
-                    }
-                    busy={record.outcome ? "refresh current state" : record.name}
-                  />
-                  {openActivity && (
-                    <Button
-                      variant="link"
-                      size="sm"
-                      onClick={() => openActivity(record.context.activityId)}
-                    >
-                      {record.context.activityId ? "View task in Activity" : "Open Activity"}
-                    </Button>
-                  )}
-                </>
+                <PendingInvocation
+                  record={record}
+                  operationEvents={operationEvents}
+                  openActivity={openActivity}
+                  onActivity={onActivity}
+                />
               ) : (
-                invocationFailure(record) === undefined &&
-                (record.id === latestSuccess ? (
-                  <Notice intent="success" className="mb-0 items-center">
-                    <p data-slot="notice-body" role="status">
-                      {record.context.action} · {record.context.target.label}: finished.
-                    </p>
-                    <div data-slot="notice-actions">
-                      {record.context.activityId && openActivity && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => openActivity(record.context.activityId)}
-                        >
-                          View in Activity
-                        </Button>
-                      )}
-                      {dismissInvocation && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          aria-label={`Dismiss completion for ${record.context.action}`}
-                          onClick={() => dismissInvocation(record.id)}
-                        >
-                          Dismiss
-                        </Button>
-                      )}
-                    </div>
-                  </Notice>
-                ) : record.outcome === "cancelled" ? (
-                  <p role="status" className="sr-only">
-                    {record.context.action} · {record.context.target.label}: cancelled.
-                  </p>
-                ) : null)
+                <SettledInvocation
+                  record={record}
+                  latestSuccess={latestSuccess}
+                  readyToPlay={readyToPlay}
+                  dismissInvocation={dismissInvocation}
+                  openActivity={openActivity}
+                  onActivity={onActivity}
+                />
               )}
             </div>
           ))
@@ -584,6 +618,38 @@ export function StatusLayer({
   );
 }
 
+function invocationAnnouncement(
+  record: InvocationRecord,
+  events: ReadonlyMap<string, OperationEvent> | undefined,
+) {
+  const identity = `${record.context.action} · ${record.context.target.label}`;
+  const failure = invocationFailure(record);
+  if (failure !== undefined) {
+    const { neutral, summary } = noticePresentation(failure, record);
+    // Real failures retain their independently attributed assertive notice.
+    if (!neutral) return undefined;
+    const detail = summary === "The operation was cancelled." ? "" : ` ${summary}`;
+    const readback =
+      record.refreshFailure === undefined
+        ? ""
+        : ` Refreshing the current state also failed: ${errorText(record.refreshFailure)}. The original action result is retained.`;
+    return `${identity}: cancelled.${detail}${readback}`;
+  }
+  const outcome = record.outcome === "succeeded" ? "finished" : record.outcome;
+  if (record.phase === "pending") {
+    if (outcome) return `${identity}: ${outcome}; refreshing current state.`;
+    const event = record.context.activityId ? events?.get(record.context.activityId) : undefined;
+    return `${identity}: ${progressPresentation(event, record.name).label}.`;
+  }
+  return outcome ? `${identity}: ${outcome}.` : undefined;
+}
+
+/** On Activity itself, a link only reveals the exact task; it never re-opens Activity. */
+function activityLinkLabel(activityId: string | undefined, onActivity: boolean) {
+  if (onActivity) return "Show task";
+  return activityId ? "View task in Activity" : "Open Activity";
+}
+
 function ErrorNotice({
   error,
   clearError,
@@ -591,13 +657,17 @@ function ErrorNotice({
   reviewCurrentState,
   invocation,
   openActivity,
+  onActivity = false,
+  announceNeutral = true,
 }: {
+  onActivity?: boolean;
   error: unknown;
   clearError: () => void;
   reviewPreparation?: (() => void) | undefined;
   reviewCurrentState?: (() => unknown) | undefined;
   invocation?: InvocationRecord | undefined;
   openActivity?: ((id?: string) => void) | undefined;
+  announceNeutral?: boolean;
 }) {
   const { presentation, committed, neutral, summary, code, cancelled, readbackOnly } =
     noticePresentation(error, invocation);
@@ -610,15 +680,15 @@ function ErrorNotice({
       )}
       <strong>
         {readbackOnly
-          ? "Action finished; current state could not be refreshed"
+          ? "The action finished, but Portcove couldn’t refresh this screen."
           : committed
-            ? "Change saved; review the current state"
+            ? "Your change was saved. Check the result before trying again."
             : neutral
               ? "Operation cancelled"
               : cancelled
                 ? presentation?.mutation_state === "recovery_required"
                   ? "Cancelled operation needs recovery review"
-                  : "Cancellation outcome needs review"
+                  : "We couldn’t confirm that cancellation finished. Check the task in Activity before continuing."
                 : "Portcove couldn’t finish that action"}
       </strong>
       {!((neutral || committed || cancelled) && summary === "The operation was cancelled.") && (
@@ -628,7 +698,7 @@ function ErrorNotice({
         <FailureDetails
           presentation={presentation}
           code={code}
-          showMutationSummary={!readbackOnly}
+          showMutationSummary={!readbackOnly && !committed}
         />
       )}
       {invocation?.failure !== undefined && invocation.refreshFailure !== undefined && (
@@ -643,7 +713,7 @@ function ErrorNotice({
     <Notice
       intent={neutral ? "neutral" : "danger"}
       className=""
-      role={neutral ? "status" : "alert"}
+      role={neutral ? (announceNeutral ? "status" : undefined) : "alert"}
     >
       <span
         data-slot="notice-icon"
@@ -653,14 +723,14 @@ function ErrorNotice({
       </span>
       <div data-slot="notice-body">{renderFailureDetails()}</div>
       <div data-slot="notice-actions" className="error-actions flex gap-1">
-        {openActivity && invocation && (
+        {openActivity && invocation && (!onActivity || invocation.context.activityId) && (
           <Button
             data-focusable
             variant="outline"
             size="sm"
             onClick={() => openActivity(invocation.context.activityId)}
           >
-            {invocation.context.activityId ? "View task in Activity" : "Open Activity"}
+            {activityLinkLabel(invocation.context.activityId, onActivity)}
           </Button>
         )}
         {reviewCurrentState && presentation?.recovery_actions.includes("review_current_state") && (
@@ -670,7 +740,7 @@ function ErrorNotice({
             size="sm"
             onClick={() => void reviewCurrentState()}
           >
-            Review current state
+            Refresh library
           </Button>
         )}
         {reviewPreparation && (
@@ -743,7 +813,7 @@ function GithubConnection({ status }: { status?: GithubAuthStatus | undefined })
   const StateIcon = connected ? CheckCircle2 : CircleUserRound;
   return (
     <>
-      <div className="settings-title flex items-center justify-between gap-[12px]">
+      <div className="settings-title flex flex-wrap items-center justify-between gap-[12px]">
         <h2 className="m-0 flex items-center gap-2">GitHub connection</h2>
         <span className={stateClass}>
           <Icon glyph={StateIcon} size="sm" />
@@ -757,7 +827,10 @@ function GithubConnection({ status }: { status?: GithubAuthStatus | undefined })
       )}
       <details className="mt-3 text-sm text-pc-muted-foreground">
         <summary className="cursor-pointer font-semibold">Connection details</summary>
-        <p className="mt-2 mb-0">Sign-in source: {source}.</p>
+        <p className="mt-2 mb-0">
+          Sign-in source: {source}
+          {status?.environment_variable ? ` (${status.environment_variable})` : ""}.
+        </p>
         <p className="mt-2 mb-0">{githubQuota(status)}.</p>
         <p className="mt-2 mb-0">
           Repeated checks for an unchanged GitHub release may not use the primary request limit.
@@ -775,7 +848,7 @@ function githubQuota(status?: GithubAuthStatus) {
 function DeviceLogin({ login }: { login?: GithubDeviceLogin | undefined }) {
   if (!login) return null;
   return (
-    <div className="flex items-center gap-3 rounded-pc-md border border-[var(--color-warning-border)] bg-pc-warning-subtle p-3">
+    <div className="flex flex-wrap items-center gap-3 rounded-pc-md border border-[var(--color-warning-border)] bg-pc-warning-subtle p-3">
       <strong className="tracking-[0.12em] text-pc-warning-foreground">
         Enter {login.user_code}
       </strong>
@@ -934,7 +1007,7 @@ function GithubSettings({
 
 type SourceRequirementsState = "loading" | "available" | "unavailable";
 const sourceRequirementsBase = "source-requirements mt-4 mb-5 rounded-pc-lg border p-3.5";
-const sourceRequirementsClass = `${sourceRequirementsBase} grid gap-2 border-[var(--color-warning-border)] bg-pc-warning-subtle`;
+const sourceRequirementsClass = `${sourceRequirementsBase} grid grid-cols-1 gap-2 border-[var(--color-warning-border)] bg-pc-warning-subtle`;
 
 function SourceRequirements({
   requirements,
@@ -967,13 +1040,13 @@ function SourceRequirements({
       <div
         className={
           installedCount > 0
-            ? `${sourceRequirementsBase} complete block border-pc-border bg-pc-surface text-xs text-pc-muted-foreground`
+            ? "source-requirements complete text-sm font-normal text-pc-muted-foreground [&_strong]:font-normal"
             : sourceRequirementsClass
         }
       >
         <strong>
           {installedCount > 0
-            ? "No missing game-file requirements are recorded. Check each game for current file and launch status."
+            ? "No missing original game files are currently listed. Open a game to check its files and Play status."
             : "No ports in your library yet. File requirements will appear here after you add a port."}
         </strong>
       </div>
@@ -1084,8 +1157,8 @@ function SourceHealth({
   const byProfile = new Map(outcomes.map((outcome) => [outcome.profile_id, outcome]));
   const profilesById = new Map(profiles.map((profile) => [profile.id, profile]));
   return (
-    <SettingsRow className="source-health col-span-full min-h-0" data-focus-group>
-      <div className="settings-title flex items-center justify-between gap-[12px]">
+    <SettingsRow className="source-health col-span-full min-h-0 grid-cols-1" data-focus-group>
+      <div className="settings-title flex flex-wrap items-center justify-between gap-[12px]">
         <h2 className="m-0 flex items-center gap-2">Game files and BIOS</h2>
         <Button
           data-focusable
@@ -1094,7 +1167,7 @@ function SourceHealth({
           disabled={!!busy || sources.length === 0}
           onClick={verify}
         >
-          Check saved files
+          Check original game files and BIOS
         </Button>
       </div>
       <SourceRequirements
@@ -1104,11 +1177,14 @@ function SourceHealth({
         busy={busy}
         add={add}
       />
-      <SourceDiscoveryButton
-        profiles={profiles}
-        disabled={Boolean(busy) || requirementsState !== "available"}
-        onAdded={onAdded}
-      />
+      <div className="justify-self-start">
+        <SourceDiscoveryButton
+          generation={generation}
+          profiles={profiles}
+          disabled={Boolean(busy) || requirementsState !== "available"}
+          onAdded={onAdded}
+        />
+      </div>
       {requirementsState === "available" &&
         (sources.length === 0 ? (
           <p>No game files or BIOS files have been added yet.</p>
@@ -1177,7 +1253,7 @@ function SourceHealthRow({
 }) {
   return (
     <div
-      className="source-health-row grid grid-cols-[minmax(0,1fr)] items-center gap-x-3 gap-y-1 rounded-pc-md border border-pc-border bg-[var(--color-bg-inset)] p-3"
+      className="source-health-row grid grid-cols-[minmax(0,1fr)] items-center gap-x-3 gap-y-1 border-b border-pc-border py-4 last:border-b-0"
       data-source-profile={source.profile_id}
       tabIndex={-1}
     >
@@ -1445,52 +1521,37 @@ function AppearanceSettings({ appearance }: { appearance?: ThemeState | undefine
   );
 }
 
-function AboutCard() {
+function AboutCard({ onOpenDiagnostics }: { onOpenDiagnostics: () => void }) {
   return (
-    <SettingsRow
-      className="about-card grid min-h-0 grid-cols-1 items-center gap-6 @min-[40rem]/section:grid-cols-[8rem_minmax(0,1fr)]"
-      data-focus-group
-    >
-      <div className="about-art flex min-w-0 items-center justify-center">
-        <BrandMascot
-          className="block max-h-40 max-w-[100%] bg-transparent object-contain"
-          decorative
-        />
-      </div>
-      <div className="self-center">
-        <h2 className="mb-2 text-xl">About Portcove</h2>
-        <p className="leading-relaxed text-pc-muted-foreground">
-          Install, update, and play native game ports. Portcove keeps track of your library,
-          installed versions, saved file locations, and recovery information.
-        </p>
-        <dl className="my-5 grid grid-cols-1 gap-4 @min-[32rem]/section:grid-cols-3">
-          <div className="min-w-0 border-b border-pc-border py-3">
-            <dt className="text-xs text-pc-muted-foreground">Version</dt>
-            <dd className="mt-1 mr-0 mb-0 ml-0 text-xs [overflow-wrap:anywhere] text-[var(--color-text-secondary)]">
-              {desktopPackage.version}
-            </dd>
-          </div>
-          <div className="min-w-0 border-b border-pc-border py-3">
-            <dt className="text-xs text-pc-muted-foreground">Built with</dt>
-            <dd className="mt-1 mr-0 mb-0 ml-0 text-xs [overflow-wrap:anywhere] text-[var(--color-text-secondary)]">
-              Tauri 2 · Rust · React
-            </dd>
-          </div>
-          <div className="min-w-0 border-b border-pc-border py-3">
-            <dt className="text-xs text-pc-muted-foreground">License</dt>
-            <dd className="mt-1 mr-0 mb-0 ml-0 text-xs [overflow-wrap:anywhere] text-[var(--color-text-secondary)]">
-              MIT or Apache-2.0
-            </dd>
-          </div>
-        </dl>
+    <div className="about-card" data-focus-group>
+      <SettingsRow className="settings-field-row mb-4 gap-5 rounded-[7px] border border-pc-border bg-pc-surface p-6">
+        <div className="settings-field-copy">
+          <h3>Portcove {desktopPackage.version}</h3>
+          <p>Tauri 2 · Rust · React</p>
+          <p>Licensed under MIT or Apache-2.0.</p>
+        </div>
         <ExternalLink
-          className="button-link inline-flex items-center rounded-pc-md px-[13px] py-[9px] text-[var(--color-text)] [text-decoration:none] hover:bg-[var(--color-bg-hover)] hover:text-[var(--color-text)]"
+          className="settings-field-control inline-flex min-h-10 items-center rounded-pc-md border border-pc-border px-3 py-2 text-sm no-underline hover:bg-pc-secondary"
           href="https://github.com/boburning/portcove"
         >
           Open project repository
         </ExternalLink>
-      </div>
-    </SettingsRow>
+      </SettingsRow>
+      <SettingsRow className="settings-field-row mb-4 gap-5 rounded-[7px] border border-pc-border bg-pc-surface p-6">
+        <div className="settings-field-copy">
+          <h3>Support</h3>
+          <p>Save logs and system details to help troubleshoot a problem.</p>
+        </div>
+        <Button
+          data-focusable
+          variant="outline"
+          className="settings-field-control justify-self-start"
+          onClick={onOpenDiagnostics}
+        >
+          Open diagnostics
+        </Button>
+      </SettingsRow>
+    </div>
   );
 }
 
@@ -1515,7 +1576,7 @@ function DiagnosticsCard({
     <SettingsRow className="diagnostics-card" data-focus-group>
       <h2 className="flex items-center gap-2">
         <Icon glyph={ShieldCheck} />
-        Create support bundle
+        Create a support report
       </h2>
       <p role="status">
         {refreshing
@@ -1559,17 +1620,21 @@ function ThemeOption({ option }: { option: ThemePreference }) {
           <b />
         </span>
       </span>
-      <span className="flex items-center gap-2">
-        <Radio.Indicator>
+      <span className="flex w-full min-w-0 items-center gap-2 text-start">
+        <Icon glyph={option === "dark" ? Moon : option === "light" ? Sun : Monitor} size="sm" />
+        <span className="min-w-0">
+          {option === "system" ? "Follow system" : option.charAt(0).toUpperCase() + option.slice(1)}
+        </span>
+        <Radio.Indicator className="ms-auto shrink-0">
           <Icon glyph={Check} size="sm" />
         </Radio.Indicator>
-        {option === "system" ? "Follow system" : option.charAt(0).toUpperCase() + option.slice(1)}
       </span>
     </Radio.Root>
   );
 }
 
 type SettingsViewProps = {
+  steamPorts?: PortDefinition[];
   category?: SettingsCategory | undefined;
   onCategoryChange?: ((category: SettingsCategory) => void) | undefined;
   generation?: number;
@@ -1619,6 +1684,7 @@ export function SettingsView(props: SettingsViewProps) {
   const {
     category,
     onCategoryChange,
+    steamPorts = [],
     generation = 0,
     ports = [],
     statuses = new Map(),
@@ -1664,10 +1730,11 @@ export function SettingsView(props: SettingsViewProps) {
 
   const [localCategory, setLocalCategory] = useState<SettingsCategory>("appearance");
   const selectedCategory = category ?? localCategory;
+  const [steamOpen, setSteamOpen] = useState(false);
 
   const renderCategoryNavigation = () => (
     <nav
-      className="settings-section-index sticky top-0 z-10 flex min-w-0 flex-nowrap items-start gap-1 overflow-x-auto bg-pc-background py-2 min-[65rem]:flex-col min-[65rem]:overflow-visible"
+      className="settings-section-index sticky top-0 z-10 flex min-w-0 flex-nowrap items-start gap-1 overflow-x-auto bg-pc-background py-2 min-[56.3125rem]:flex-col min-[56.3125rem]:overflow-visible"
       aria-label="Settings categories"
       data-focus-group
     >
@@ -1678,11 +1745,15 @@ export function SettingsView(props: SettingsViewProps) {
           variant={selectedCategory === id ? "selected" : "ghost"}
           size="sm"
           className={cn(
-            "max-w-full shrink-0 justify-start gap-2.5 border-transparent text-start font-normal whitespace-nowrap after:hidden min-[65rem]:w-full min-[65rem]:whitespace-normal",
+            "max-w-full shrink-0 justify-start gap-2.5 border-transparent text-start font-normal whitespace-nowrap after:hidden min-[56.3125rem]:w-full min-[56.3125rem]:whitespace-normal",
             selectedCategory !== id && "text-pc-muted-foreground",
           )}
           aria-current={selectedCategory === id ? "page" : undefined}
           aria-controls={`settings-${id}`}
+          onFocus={(event) => {
+            // Native focus can leave a partially visible category clipped in the strip.
+            event.currentTarget.scrollIntoView({ block: "nearest", inline: "nearest" });
+          }}
           onClick={() => {
             (onCategoryChange ?? setLocalCategory)(id);
             jumpToSettingsSection(id);
@@ -1696,6 +1767,7 @@ export function SettingsView(props: SettingsViewProps) {
                 "game-files": FolderOpen,
                 updates: Download,
                 integrations: Plug,
+                controls: Keyboard,
                 advanced: Wrench,
                 about: Info,
               }[id]
@@ -1720,7 +1792,15 @@ export function SettingsView(props: SettingsViewProps) {
         switchLibrary={switchLibrary}
         reset={resetLibrary}
       />
-      <StorageCard libraryRoot={storage?.library_root ?? libraryRoot} storage={storage} />
+      <StorageCard
+        libraryRoot={storage?.library_root ?? libraryRoot}
+        storage={storage}
+        showLocation={
+          !librarySelection?.root ||
+          librarySelection.root !== (storage?.library_root ?? libraryRoot)
+        }
+      />
+      <AutomaticSnapshotsSetting key={generation} generation={generation} />
       <LibraryRecovery
         key={generation}
         libraryRoot={storage?.library_root ?? libraryRoot}
@@ -1802,6 +1882,16 @@ export function SettingsView(props: SettingsViewProps) {
         refresh={refreshDiagnostics}
         hasSnapshot={Boolean(doctor)}
       />
+      <SettingsRow data-focus-group>
+        <h2>Report a problem or send feedback</h2>
+        <p>
+          Tell us when something broke, or when something was hard, confusing or missing. You review
+          the pre-filled text, and nothing is sent until you choose how: from your GitHub account
+          when signed in, on GitHub, or as copied text. Folder paths and your user name are
+          replaced.
+        </p>
+        <ReportProblem key={generation} generation={generation} />
+      </SettingsRow>
       <SettingsRow className="privacy-card">
         <h2>Original game files stay local</h2>
         <p>
@@ -1828,6 +1918,12 @@ export function SettingsView(props: SettingsViewProps) {
       }
     >
       {applicationUpdates}
+      <OfficialCatalogUpdates
+        key={generation}
+        generation={generation}
+        disabled={Boolean(busy)}
+        onChanged={onCatalogChanged}
+      />
       <SettingsRow>
         <h2>Game catalog</h2>
         <CatalogOrigin provenance={doctor?.catalog_provenance} />
@@ -1849,7 +1945,7 @@ export function SettingsView(props: SettingsViewProps) {
     </SettingsSection>
   );
   return (
-    <section className="settings-grid grid max-w-[62rem] items-start gap-8 min-[65rem]:grid-cols-[11.875rem_minmax(0,47.5rem)]">
+    <section className="settings-grid grid max-w-[62rem] items-start gap-8 min-[56.3125rem]:grid-cols-[11.875rem_minmax(0,47.5rem)]">
       {renderCategoryNavigation()}
       <div className="min-w-0">
         <SettingsSection
@@ -1871,16 +1967,92 @@ export function SettingsView(props: SettingsViewProps) {
           title="Integrations"
           description="Connect optional services. You don't need an account to play."
         >
+          <SettingsRow>
+            <h2>Steam shortcuts</h2>
+            <p>
+              Add installed games to Steam to launch them from your Steam library. Review each
+              shortcut before making changes.
+            </p>
+            {steamPorts.length > 0 ? (
+              <Button data-focusable variant="outline" onClick={() => setSteamOpen(true)}>
+                <Icon glyph={Gamepad2} />
+                Choose games for Steam…
+              </Button>
+            ) : (
+              <p>Install a game to add a Steam shortcut.</p>
+            )}
+            {steamOpen && steamPorts.length === 1 && steamPorts[0] ? (
+              <SteamEntryDialog
+                port={steamPorts[0]}
+                installed
+                generation={generation}
+                close={() => setSteamOpen(false)}
+              />
+            ) : steamOpen ? (
+              <SteamBatchEntryDialog
+                ports={steamPorts}
+                generation={generation}
+                close={() => setSteamOpen(false)}
+              />
+            ) : null}
+          </SettingsRow>
           <GithubSettings github={github} busy={busy} />
+          <SteamGridDbSettings />
+        </SettingsSection>
+        <SettingsSection
+          id="controls"
+          active={selectedCategory === "controls"}
+          title="Keyboard and controller"
+          description="Move around Portcove without reaching for a mouse."
+        >
+          <SettingsRow>
+            <h2>Keyboard shortcuts</h2>
+            <dl className="divide-y divide-pc-border">
+              {[
+                ["Search games and pages", commandShortcut("K")],
+                ["Search the current Library or Discover view", commandShortcut("F")],
+                ["Open Library", commandShortcut("1")],
+                ["Open Discover", commandShortcut("2")],
+                ["Open Activity", commandShortcut("3")],
+                ["Open Settings", commandShortcut("4")],
+              ].map(([label, keys]) => (
+                <div key={label} className="flex items-center justify-between gap-4 py-3 text-sm">
+                  <dt>{label}</dt>
+                  <dd className="shrink-0">
+                    <Shortcut>{keys}</Shortcut>
+                  </dd>
+                </div>
+              ))}
+            </dl>
+          </SettingsRow>
+          <SettingsRow>
+            <h2>Controller navigation</h2>
+            <p>
+              Connect a controller to navigate Portcove. Use the D-pad or stick to move, the confirm
+              button to select, and the back button to go back or open navigation. Shoulder buttons
+              switch sections.
+            </p>
+            <p>
+              Controller navigation is available automatically while Portcove is in focus. In-game
+              controls are managed by each game.
+            </p>
+          </SettingsRow>
         </SettingsSection>
         {renderAdvancedSettings()}
         <SettingsSection
           id="about"
           active={selectedCategory === "about"}
-          title="About Portcove"
-          description="Version, project information and acknowledgements."
+          title="Portcove"
+          headingLabel="About Portcove"
+          identity={<BrandMascot className="mb-5 size-14" decorative transparent />}
+          description="Install, update, and play native game ports."
         >
-          <AboutCard />
+          <AboutCard
+            onOpenDiagnostics={() => {
+              (onCategoryChange ?? setLocalCategory)("advanced");
+              jumpToSettingsSection("advanced");
+            }}
+          />
         </SettingsSection>
       </div>
     </section>
@@ -1892,6 +2064,8 @@ function SettingsSection({
   id,
   title,
   description,
+  headingLabel,
+  identity,
   action,
   children,
 }: {
@@ -1899,6 +2073,8 @@ function SettingsSection({
   id: string;
   title: string;
   description: string;
+  headingLabel?: string;
+  identity?: ReactNode;
   action?: ReactNode;
   children: ReactNode;
 }) {
@@ -1907,19 +2083,33 @@ function SettingsSection({
     <section
       id={`settings-${id}`}
       hidden={!active}
-      className={cn("settings-section @container/section gap-6", active ? "grid" : "hidden")}
+      className={cn(
+        "settings-section @container/section",
+        identity ? "gap-0" : "gap-6",
+        active ? "grid" : "hidden",
+      )}
       data-settings-group={id}
       aria-labelledby={headingId}
     >
-      <div className="settings-section-heading py-2">
+      <div className={cn("settings-section-heading", identity ? "about-identity" : "py-2")}>
+        {identity}
         <h2
           id={headingId}
           tabIndex={-1}
-          className="mb-1 scroll-mt-3 text-[length:var(--text-xl)] focus:outline-3 focus:outline-offset-3 focus:outline-pc-ring focus:outline-solid"
+          aria-label={headingLabel}
+          className={cn(
+            "scroll-mt-3 focus:outline-3 focus:outline-offset-3 focus:outline-pc-ring focus:outline-solid",
+            identity ? "m-0 text-[2.2rem] tracking-[-0.035em]" : "mb-1 text-[1.25rem]",
+          )}
         >
           {title}
         </h2>
-        <p className="settings-section-description m-0 max-w-[52rem] leading-[var(--leading-relaxed)] text-pc-muted-foreground">
+        <p
+          className={cn(
+            "settings-section-description leading-[var(--leading-relaxed)] text-pc-muted-foreground",
+            identity ? "mt-4 max-w-[24.375rem] text-xs" : "m-0 max-w-[52rem]",
+          )}
+        >
           {description}
         </p>
         {action}
@@ -2068,7 +2258,7 @@ export function LibrarySelectionCard({
               className="mb-4 leading-relaxed"
             >
               {review.kind === "switch"
-                ? "Portcove will open this library and save it for future launches. A launch override can still select another library for one launch. Existing files stay in place. The library you open uses its own game install folder settings."
+                ? "Portcove will open this library and save it for future launches. Existing files stay in place. The library you open uses its own game install folder settings."
                 : "Portcove will open the default library shown below and clear the saved library choice. If host preferences are damaged or from a newer format, this also resets saved language and tool paths. Files in the current library will stay where they are. The default library uses its own game install folder settings."}
             </DialogDescription>
             <code className="block break-all">{review.path}</code>
@@ -2288,7 +2478,10 @@ export function HostToolRow({
       </div>
       <small className="text-[var(--color-text-secondary)]">{tool.purpose}</small>
       {tool.state === "missing" && (
-        <p>{tool.display_name} was not found. Choose its executable to continue.</p>
+        <p>
+          Portcove couldn’t find {tool.display_name}. If it’s installed, choose its program file.
+          Otherwise, install it from its official site first.
+        </p>
       )}
       {tool.state === "misconfigured" &&
         (tool.source === "environment" ? (
@@ -2375,7 +2568,9 @@ export function HostToolRow({
 function StorageCard({
   libraryRoot,
   storage,
+  showLocation = true,
 }: {
+  showLocation?: boolean;
   libraryRoot: string;
   storage?: StorageSummary | undefined;
 }) {
@@ -2395,10 +2590,14 @@ function StorageCard({
         <Icon glyph={HardDrive} />
         Files and capacity
       </h2>
-      <p className="m-0 text-sm text-pc-muted-foreground">Current library</p>
-      <code className="block rounded-pc-md border border-pc-border bg-[var(--color-bg-inset)] p-3 text-xs [overflow-wrap:anywhere] text-[var(--color-text-secondary)]">
-        {libraryRoot || "Library location unavailable"}
-      </code>
+      {showLocation && (
+        <>
+          <p className="m-0 text-sm text-pc-muted-foreground">Current library</p>
+          <code className="block text-xs [overflow-wrap:anywhere] text-[var(--color-text-secondary)]">
+            {libraryRoot || "Library location unavailable"}
+          </code>
+        </>
+      )}
       {measurable ? (
         <div className="mb-[15px] grid gap-2">
           <div className="flex items-baseline justify-between gap-3">
@@ -2424,9 +2623,8 @@ function StorageCard({
       ) : (
         <p>Storage capacity is unavailable for this location.</p>
       )}
-      <p className="flex items-start gap-2 [&_svg]:mt-0.5">
-        <Icon glyph={ShieldCheck} size="sm" /> Installed application files are kept separate from
-        saves and settings.
+      <p>
+        Check Saves &amp; backups on each game’s page for its save locations and backup options.
       </p>
     </SettingsRow>
   );
@@ -2480,4 +2678,119 @@ function noticePresentation(error: unknown, invocation: InvocationRecord | undef
   const cancelled = code === "cancelled";
   const readbackOnly = invocation?.outcome === "succeeded" && invocation.failure === undefined;
   return { presentation, committed, neutral, summary, code, cancelled, readbackOnly };
+}
+
+function PendingInvocation({
+  record,
+  operationEvents,
+  openActivity,
+  onActivity,
+}: {
+  record: InvocationRecord;
+  operationEvents: ReadonlyMap<string, OperationEvent> | undefined;
+  openActivity: ((id?: string) => void) | undefined;
+  onActivity: boolean;
+}) {
+  return (
+    <>
+      <p className="mb-1 text-sm font-semibold [overflow-wrap:anywhere]">
+        {record.context.action} · {record.context.target.label}
+      </p>
+      <OperationProgress
+        // Invocation and event identities are distinct. Only an actual
+        // explicitly owned ID permits this progress association.
+        operation={
+          record.context.activityId ? operationEvents?.get(record.context.activityId) : undefined
+        }
+        busy={record.outcome ? "refresh current state" : record.name}
+        announcePhase={false}
+      />
+      {openActivity && (!onActivity || record.context.activityId) && (
+        <Button variant="link" size="sm" onClick={() => openActivity(record.context.activityId)}>
+          {activityLinkLabel(record.context.activityId, onActivity)}
+        </Button>
+      )}
+    </>
+  );
+}
+
+function SettledInvocation({
+  record,
+  latestSuccess,
+  readyToPlay,
+  dismissInvocation,
+  openActivity,
+  onActivity,
+}: {
+  record: InvocationRecord;
+  latestSuccess: number | undefined;
+  readyToPlay: ((record: InvocationRecord) => (() => void) | undefined) | undefined;
+  dismissInvocation: ((id: number) => void) | undefined;
+  openActivity: ((id?: string) => void) | undefined;
+  onActivity: boolean;
+}) {
+  return (
+    invocationFailure(record) === undefined &&
+    (record.id === latestSuccess && readyToPlay?.(record) ? (
+      <Notice intent="success" className="mb-0 items-center">
+        <p data-slot="notice-body">{record.context.target.label} is ready to play.</p>
+        <div data-slot="notice-actions">
+          <Button
+            data-focusable
+            variant="primary"
+            size="sm"
+            aria-label={`Play: ${record.context.target.label}`}
+            onClick={() => {
+              readyToPlay(record)?.();
+              dismissInvocation?.(record.id);
+            }}
+          >
+            Play
+          </Button>
+          {dismissInvocation && (
+            <Button
+              variant="ghost"
+              size="sm"
+              aria-label={`Dismiss completion for ${record.context.action}`}
+              onClick={() => dismissInvocation(record.id)}
+            >
+              Dismiss
+            </Button>
+          )}
+        </div>
+      </Notice>
+    ) : record.id === latestSuccess &&
+      !(record.context.operation === "launch" && record.outcome === "succeeded") ? (
+      <Notice intent="success" className="mb-0 items-center">
+        <p data-slot="notice-body">
+          {record.context.action} · {record.context.target.label}: finished.
+        </p>
+        <div data-slot="notice-actions">
+          {record.context.activityId && openActivity && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => openActivity(record.context.activityId)}
+            >
+              {onActivity ? "Show task" : "View in Activity"}
+            </Button>
+          )}
+          {dismissInvocation && (
+            <Button
+              variant="ghost"
+              size="sm"
+              aria-label={`Dismiss completion for ${record.context.action}`}
+              onClick={() => dismissInvocation(record.id)}
+            >
+              Dismiss
+            </Button>
+          )}
+        </div>
+      </Notice>
+    ) : record.outcome === "cancelled" ? (
+      <p className="sr-only">
+        {record.context.action} · {record.context.target.label}: cancelled.
+      </p>
+    ) : null)
+  );
 }

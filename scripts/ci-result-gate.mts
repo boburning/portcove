@@ -15,7 +15,7 @@ interface FailedProducer {
   name: string;
   result: string;
 }
-type ResultGateError = Error & { failedProducer?: FailedProducer };
+type ResultGateError = Error & { failedProducer?: FailedProducer; deferral?: true };
 export interface CiResultInputs {
   classifier?: string | undefined;
   plan: unknown;
@@ -26,6 +26,8 @@ export interface CiResultInputs {
   qualification: unknown;
   always?: unknown;
   reuse?: unknown;
+  frontendBrowserSharded?: string | undefined;
+  windowsTestsDeferred?: string | undefined;
 }
 function isGroup(value: unknown): value is ValidationGroup {
   return fastGroups.some((group) => group === value);
@@ -62,6 +64,8 @@ function resultFailure(
 }
 
 export function formatResultGateFailure(error: unknown) {
+  if (isRecord(error) && error.deferral === true)
+    return `Deferred by draft policy, not a test failure: ${errorMessage(error)}`;
   const producer = isRecord(error) ? error.failedProducer : undefined;
   return isRecord(producer) &&
     typeof producer.name === "string" &&
@@ -92,6 +96,8 @@ export function evaluateCiResults({
   qualification: qualificationInput,
   always: alwaysInput = {},
   reuse: reuseInput = null,
+  frontendBrowserSharded,
+  windowsTestsDeferred,
 }: CiResultInputs) {
   if (classifier !== "success")
     throw resultFailure(`classifier result is ${classifier || "missing"}`, "classify", classifier);
@@ -118,6 +124,35 @@ export function evaluateCiResults({
       "windows_helpers",
       targeted?.windows_helpers,
     );
+  if (
+    frontendBrowserSharded !== undefined &&
+    frontendBrowserSharded !== "true" &&
+    frontendBrowserSharded !== "false"
+  )
+    throw new Error("frontend browser sharding flag must be true or false");
+  // The classifier flag and the producers share one source, so a wrong flag cannot lose coverage:
+  // true makes the browser shards mandatory here, false makes the main frontend job run everything.
+  const shardedFrontend =
+    group === "frontend" &&
+    frontendBrowserSharded === "true" &&
+    plan.mode === "fast" &&
+    selected &&
+    !reused;
+  if (
+    windowsTestsDeferred !== undefined &&
+    windowsTestsDeferred !== "true" &&
+    windowsTestsDeferred !== "false"
+  )
+    throw new Error("Windows test deferral flag must be true or false");
+  const deferredWindowsTests = windowsTestsDeferred === "true";
+  if (deferredWindowsTests && (group !== "rust" || plan.mode !== "fast" || !selected || reused))
+    throw new Error("Windows test deferral applies only to a selected, executed fast Rust plan");
+  if (shardedFrontend && targeted?.fast_frontend_browser !== "success")
+    throw resultFailure(
+      `fast_frontend_browser was ${targeted?.fast_frontend_browser ?? "missing"}, expected success for sharded browser tests`,
+      "fast_frontend_browser",
+      targeted?.fast_frontend_browser,
+    );
   if (plan.mode === "qualification") {
     if (!selected) throw new Error(`qualification plan omitted protected group ${group}`);
     if (prose !== "skipped")
@@ -125,7 +160,7 @@ export function evaluateCiResults({
     requireResults(fast, "skipped", "qualification");
     if (Object.keys(targeted ?? {}).length)
       requireResults(targeted, "skipped", "qualification targeted-platform");
-    if (plan.release_profile === "initial-beta-win-linux" && group === "rust") {
+    if (plan.release_profile !== undefined && group === "rust") {
       const required = [
         "intel_build",
         "intel_tests",
@@ -143,7 +178,13 @@ export function evaluateCiResults({
       )
         throw new Error("release qualification requires every applicable Rust producer result");
       for (const [name, result] of Object.entries(qualification)) {
-        const expected = name === "intel_build" || name === "intel_tests" ? "skipped" : "success";
+        const unselected =
+          ((name === "intel_build" || name === "intel_tests") &&
+            !plan.platforms.includes("macos-x86_64")) ||
+          (name === "native_rust" &&
+            !plan.platforms.includes("linux-x86_64") &&
+            !plan.platforms.includes("macos-aarch64"));
+        const expected = unselected ? "skipped" : "success";
         if (result !== expected)
           throw resultFailure(
             `${name} was ${result || "missing"}, expected ${expected} for release qualification`,
@@ -166,11 +207,29 @@ export function evaluateCiResults({
       throw new Error(
         "ordinary Rust requires build, partition execution and live transport results",
       );
+    if (deferredWindowsTests) {
+      // The draft run still proves the build and live transport, then fails on purpose: a skipped
+      // partition must never let the required rust result pass for this head.
+      requireResults(
+        { fast_rust: fast?.fast_rust, fast_rust_transport: fast?.fast_rust_transport },
+        "success",
+        "fast",
+      );
+      if (fast?.fast_rust_tests !== "skipped")
+        throw new Error(
+          `fast_rust_tests was ${fast?.fast_rust_tests || "missing"}, expected skipped for a draft`,
+        );
+      const deferral: ResultGateError = new Error(
+        "Windows test partitions are deferred while this pull request is a draft; mark it ready for review, or re-run all jobs once it is ready, to run them",
+      );
+      deferral.deferral = true;
+      throw deferral;
+    }
     requireResults(fast, selected && !reused ? "success" : "skipped", "fast");
     if (Object.keys(targeted ?? {}).length)
       requireResults(
         targeted,
-        targetsAffectedPlatform ? "success" : "skipped",
+        targetsAffectedPlatform || shardedFrontend ? "success" : "skipped",
         "fast targeted-platform",
       );
   } else if (plan.mode === "prose") {
@@ -201,6 +260,8 @@ function main() {
     evaluateCiResults({
       classifier: process.env.PORTCOVE_CLASSIFIER_RESULT,
       reuse: JSON.parse(process.env.PORTCOVE_REUSE_JSON ?? "null"),
+      frontendBrowserSharded: process.env.PORTCOVE_FRONTEND_BROWSER_SHARDED,
+      windowsTestsDeferred: process.env.PORTCOVE_WINDOWS_TESTS_DEFERRED,
       plan,
       group: process.env.PORTCOVE_GROUP,
       prose: process.env.PORTCOVE_PROSE_RESULT,

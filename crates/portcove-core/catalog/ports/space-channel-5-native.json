@@ -3,11 +3,12 @@
   "listing": {
     "id": "space-channel-5-native",
     "name": "Space Channel 5 Native",
-    "summary": "Explore Space Channel 5 Native and follow the upstream project for requirements, downloads and setup.",
+    "summary": "Play Space Channel 5 with the native game program and your original USA Dreamcast disc files.",
     "project_url": "https://github.com/ZoomiesZaggy/Space-Channel-5",
     "issue_number": 1540,
-    "platforms": [],
-    "availability": "unknown",
+    "listed_at": "2026-10-23",
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
+    "availability": "packages",
     "setup_url": "https://github.com/ZoomiesZaggy/Space-Channel-5",
     "artwork": {
       "game_id": 6602,
@@ -16,6 +17,44 @@
       "image_sha256": "a66106a23b73e455cdea0d3f4c69123cef5c79b8d8e51ec5f015c0c3837881c5",
       "game_slug": "space-channel-5",
       "match_kind": "underlying-game"
+    },
+    "manual_setup": {
+      "help_url": "https://github.com/ZoomiesZaggy/Space-Channel-5",
+      "steps": [
+        {
+          "title": "Complete the title’s supported preparation upstream",
+          "instruction": "Keep the complete package you are permitted to use. Open SpaceChannel5.exe on Windows, SpaceChannel5 on Linux or SpaceChannel5.app on macOS. In the launcher select your original USA GDI, with all its tracks beside it, and choose Play to import the files and start the game."
+        },
+        {
+          "title": "Choose the package for your system",
+          "instruction": "Linux has x64 and ARM64 packages. The game needs glibc 2.38, GLIBCXX 3.4.32, curl, zlib and the ALSA and PulseAudio client libraries. The Intel game program requires macOS 10.15 or later. The Apple Silicon game program requires macOS 11 or later. Keep the entire bundle and follow the project's first-open guidance for its ad hoc signature."
+        },
+        {
+          "title": "Add a prepared Windows installation to Portcove",
+          "instruction": "After upstream preparation completes, select build/sc5-native-dev.exe with the package root as working directory and the supported literal arguments --gdi followed by your absolute original GDI path. This documented native entry keeps the game harness in-process. Keep the matching build/native-diff modules and support files; do not attach an importer or an arbitrary helper."
+        },
+        {
+          "title": "Add the Windows game and keep your working copy",
+          "instruction": "Review the selected program, start folder and launch options, then add the game and choose Play. On Linux and macOS, use the upstream launcher for both setup and play. It selects the game data folder and starts the game from there. Before changing versions, close the launcher and game and back up the working copy and its data."
+        }
+      ],
+      "warnings": [
+        "Use only a copy and components you are permitted to use. Keep the complete working game, originals, saves, settings, mods, caches, backups and every custom data location before changing versions. Another executable may use those same locations. These instructions do not establish Portcove-managed installation, gameplay or save compatibility."
+      ],
+      "references": [
+        {
+          "title": "Preserve the whole creating copy and effective data",
+          "instruction": "Keep the entire creating player, build modules, extracted files, userdata, settings, mods and original GDI/tracks. For direct launch, SC5_USER_ROOT can change where the program looks for imported files and settings. The Linux and macOS launchers select their own root. SC5_RUNTIME_DATA can change runtime data, so preserve every effective override and any custom --image, --dll or --data location. Retain GPL and per-file third-party notices. Published translated modules and their separately supplied corresponding native-aot source do not license your original game assets."
+        },
+        {
+          "title": "Check the original disc layout",
+          "instruction": "The importer expects a USA GDI with a Mode1/2352 data track at LBA 45000 and checks the extracted executable. Keep every track in the creating disc set."
+        },
+        {
+          "title": "Find the Linux or macOS data folder",
+          "instruction": "The Linux launcher keeps userdata and imported files under $XDG_DATA_HOME/SpaceChannel5 or ~/.local/share/SpaceChannel5 by default. The macOS launcher uses ~/Library/Application Support/SpaceChannel5. Keep any custom data location with your backup."
+        }
+      ]
     }
   }
 }

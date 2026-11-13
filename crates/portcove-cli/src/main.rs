@@ -26,10 +26,14 @@ mod cancellation;
 mod catalog;
 mod startup;
 use catalog::CatalogCommand;
+mod game_settings;
 mod human;
 mod human_adapters;
+mod profile;
 mod progress;
 mod retained_build_human;
+mod saves;
+mod steamgriddb;
 use progress::HumanProgress;
 mod schema;
 mod setup;
@@ -111,6 +115,7 @@ struct SourceBatchOutcome {
 const CLI_RUNTIME_STACK_BYTES: usize = 8 * 1024 * 1024;
 
 fn main() -> ExitCode {
+    portcove_diagnostics::install_panic_hook();
     std::hint::black_box(PORTCOVE_CLI_STEAM_EXEC_IDENTITY);
     let runtime = std::thread::Builder::new()
         .name("portcove-main".into())
@@ -129,7 +134,7 @@ fn main() -> ExitCode {
 }
 
 fn command_is_observation(command: &Commands) -> bool {
-    startup::startup_mode(command) == startup::StartupMode::ReadOnly
+    crate::startup::startup_mode(command) == crate::startup::StartupMode::ReadOnly
 }
 
 #[tokio::main]
@@ -320,6 +325,39 @@ async fn execute_with_qualification_environment(
 
 async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Result<ExitCode> {
     if let Commands::Catalog {
+        command:
+            CatalogCommand::InspectPackageLayout {
+                archive,
+                platform,
+                size,
+                sha256,
+                ignore_verified_macos_libraries,
+            },
+    } = &cli.command
+    {
+        let platform = serde_json::from_value(serde_json::Value::String(platform.clone()))
+            .map_err(|_| portcove_core::PortcoveError::usage("unknown package platform"))?;
+        render_read_success(
+            mode,
+            "catalog.inspect-package-layout",
+            portcove_core::inspect_package_archive_with_program_filter(
+                archive,
+                platform,
+                *size,
+                sha256,
+                *ignore_verified_macos_libraries,
+            )?,
+            |layout| {
+                format!(
+                    "Observed {} directories and {} program paths.",
+                    layout.directories.len(),
+                    layout.executables.len()
+                )
+            },
+        )?;
+        return Ok(ExitCode::SUCCESS);
+    }
+    if let Commands::Catalog {
         command: CatalogCommand::InspectListings { path },
     } = &cli.command
     {
@@ -352,14 +390,104 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
         return Ok(ExitCode::SUCCESS);
     }
     if let Commands::Catalog {
-        command: CatalogCommand::InspectProposal { file },
+        command: CatalogCommand::InspectDefinitionDelivery,
+    } = &cli.command
+    {
+        render_read_success(
+            mode,
+            "catalog.inspect-definition-delivery",
+            portcove_core::inspect_official_definition_delivery().await,
+            |report| {
+                format!(
+                    "Official definition delivery: {}; {} verified definitions.{}",
+                    report.serving.as_str(),
+                    report.definitions.len(),
+                    report
+                        .reason
+                        .as_deref()
+                        .map(|reason| format!(" {reason}"))
+                        .unwrap_or_default()
+                )
+            },
+        )?;
+        return Ok(ExitCode::SUCCESS);
+    }
+    if let Commands::Catalog {
+        command: CatalogCommand::InspectTargets { ports, platforms },
+    } = &cli.command
+    {
+        let platforms = platforms
+            .iter()
+            .map(|platform| {
+                serde_json::from_value::<portcove_core::Platform>(serde_json::Value::String(
+                    platform.clone(),
+                ))
+                .map_err(|_| {
+                    portcove_core::PortcoveError::usage(format!(
+                        "unknown target platform: {platform}"
+                    ))
+                })
+            })
+            .collect::<std::result::Result<Vec<_>, _>>()?;
+        render_read_success(
+            mode,
+            "catalog.inspect-targets",
+            portcove_core::inspect_targets(
+                &portcove_core::Catalog::embedded()?,
+                ports,
+                &platforms,
+            )?,
+            |report| {
+                let offered = report
+                    .ports
+                    .iter()
+                    .flat_map(|port| &port.targets)
+                    .filter(|target| target.routes.iter().any(|route| route.offered))
+                    .count();
+                format!(
+                    "Inspected {} ports on {} platforms; {offered} port-platform pairs offer a route for a fresh library. Trust eligibility, installed state and readiness are not assessed.",
+                    report.ports.len(),
+                    report.platforms.len()
+                )
+            },
+        )?;
+        return Ok(ExitCode::SUCCESS);
+    }
+    if let Commands::Catalog {
+        command:
+            CatalogCommand::InspectProposal {
+                file,
+                repository_authoring,
+            },
     } = &cli.command
     {
         render_read_success(
             mode,
             "catalog.inspect-proposal",
-            portcove_core::Catalog::inspect_proposal(file)?,
+            if *repository_authoring {
+                portcove_core::Catalog::inspect_repository_proposal(file)?
+            } else {
+                portcove_core::Catalog::inspect_proposal(file)?
+            },
             |report| catalog::proposal_inspection(report, cli.technical_details),
+        )?;
+        return Ok(ExitCode::SUCCESS);
+    }
+    if let Commands::Catalog {
+        command: CatalogCommand::InspectSettingsQualification { file },
+    } = &cli.command
+    {
+        let mut bytes = Vec::new();
+        std::fs::File::open(file)?
+            .take(4 * 1024 * 1024 + 1)
+            .read_to_end(&mut bytes)?;
+        render_read_success(
+            mode,
+            "catalog.inspect-settings-qualification",
+            portcove_core::inspect_game_settings_qualification(&bytes)?,
+            |_| {
+                "Settings document qualification passed; upstream and publication acceptance remain separate.".into()
+            },
         )?;
         return Ok(ExitCode::SUCCESS);
     }
@@ -491,9 +619,10 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
         } else {
             None
         };
+        let record = record.map(portcove_core::LaunchSessionView::new);
         render_read_success(mode, "launch.show", record, |record| {
             human_adapters::launch_record(
-                record.as_ref(),
+                record.as_ref().map(|view| &view.record),
                 &request_id.to_string(),
                 display_service.as_ref().map(PortcoveService::catalog),
                 cli.technical_details,
@@ -547,6 +676,7 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
                     command: InstallationCommand::Run { .. }
                         | InstallationCommand::ReferenceBind { .. }
                         | InstallationCommand::ReferenceRemove { .. }
+                        | InstallationCommand::ReferenceRetire { .. }
                 }
                 | Commands::Update(_)
                 | Commands::Ensure(_)
@@ -565,6 +695,9 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
     .then(|| cancellation::CancellationSignals::start(service.clone()))
     .transpose()?;
     match cli.command {
+        Commands::Profile { command } => {
+            profile::execute(command, &service, mode, cli.non_interactive).await?;
+        }
         Commands::Setup { command } => {
             setup::execute(command, &service, mode, cli.non_interactive).await?;
         }
@@ -691,6 +824,65 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
             )?;
         }
         Commands::Installation {
+            command:
+                InstallationCommand::ReferenceRetirePlan {
+                    port_id,
+                    setup_id,
+                    revision,
+                },
+        } => render_read_success(
+            mode,
+            "installation.reference-retire-plan",
+            service.preview_retained_build_revision_retirement(&port_id, &setup_id, revision)?,
+            |value| retained_build_human::retirement_preview(value, service.catalog()),
+        )?,
+        Commands::Installation {
+            command:
+                InstallationCommand::ReferenceRetire {
+                    port_id,
+                    setup_id,
+                    revision,
+                    expected_preview,
+                    yes,
+                },
+        } => {
+            let preview = service
+                .preview_retained_build_revision_retirement(&port_id, &setup_id, revision)?;
+            if mode == OutputMode::Human {
+                println!(
+                    "{}",
+                    retained_build_human::retirement_preview(&preview, service.catalog())
+                );
+            }
+            if preview.preview_sha256 != expected_preview {
+                return Err(PortcoveError::conflict(
+                    "retained build history changed; review its retirement again",
+                ));
+            }
+            require_confirmation(
+                "Stop offering this earlier build for recovery? Build files and player data stay in place.",
+                yes,
+                cli.non_interactive,
+            )?;
+            let authorization = service.authorize_retained_build_revision_retirement(
+                &port_id,
+                &setup_id,
+                revision,
+                &expected_preview,
+            )?;
+            render_read_success(
+                mode,
+                "installation.reference-retire",
+                service.retire_retained_build_revision(
+                    &port_id,
+                    &setup_id,
+                    revision,
+                    &authorization.token,
+                )?,
+                |value| retained_build_human::retired(value, service.catalog()),
+            )?;
+        }
+        Commands::Installation {
             command: InstallationCommand::Plan { port_id },
         } => {
             let review = service.plan_game_install(&port_id).await?;
@@ -780,6 +972,9 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
                 },
             )?;
         }
+        Commands::Artwork {
+            command: ArtworkCommand::Steamgriddb { command },
+        } => steamgriddb::execute(command, &service, mode, cli.non_interactive).await?,
         Commands::Artwork { command } => {
             execute_artwork(&service, command, mode, cli.non_interactive)?
         }
@@ -853,6 +1048,12 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
                     )?;
                 }
             }
+        }
+        Commands::GameSettings { command } => {
+            game_settings::execute(command, &service, mode)?;
+        }
+        Commands::Saves { command } => {
+            saves::execute(command, &service, mode, cli.non_interactive)?;
         }
         Commands::Catalog { command } => {
             catalog::execute(command, &service, mode, cli.non_interactive).await?;
@@ -1127,6 +1328,18 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
                 service.game_file_scan_snapshot()?,
                 human::game_file_scan_snapshot,
             )?,
+            GameFileRootCommand::Matches(args) => render_read_success(
+                mode,
+                "source.roots.matches",
+                service.game_file_scan_matches(&args.query())?,
+                |page| human::game_file_scan_matches(page, service.catalog()),
+            )?,
+            GameFileRootCommand::Profiles { root_id } => render_read_success(
+                mode,
+                "source.roots.profiles",
+                service.game_file_root_match_profiles(&root_id)?,
+                |profiles| human::game_file_root_match_profiles(profiles, service.catalog()),
+            )?,
             GameFileRootCommand::Add { path } => render_read_success(
                 mode,
                 "source.roots.add",
@@ -1202,6 +1415,28 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
                 "source.inspect",
                 service.inspect_registered_source(&profile_id)?,
                 human::source_inspection,
+            )?;
+        }
+        Commands::Source {
+            command: SourceCommand::Reuse { profile_id },
+        } => {
+            render_read_success(
+                mode,
+                "source.reuse",
+                service.review_source_reuse(&profile_id)?,
+                |review| {
+                    let mut text = human::source_inspection(&review.inspection);
+                    for application in &review.applications {
+                        text.push_str(&format!(
+                            "\n{}: {}\n",
+                            application.port_name, application.summary
+                        ));
+                        for check in &application.additional_checks {
+                            text.push_str(&format!("  {check}\n"));
+                        }
+                    }
+                    text
+                },
             )?;
         }
         Commands::Source {
@@ -1347,6 +1582,14 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
                 },
             )?;
         }
+        Commands::PortCapabilities { port_id } => {
+            render_read_success(
+                mode,
+                "port-capabilities",
+                service.port_capabilities(&port_id)?,
+                human::port_capabilities,
+            )?;
+        }
         Commands::Status { port_id } => {
             if let Some(port_id) = port_id {
                 render_read_success(mode, "status", service.status(&port_id)?, |value| {
@@ -1387,10 +1630,13 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
             render_read_success(
                 mode,
                 "launch.recover",
-                service.library().launch_request(&request_id.to_string())?,
+                service
+                    .library()
+                    .launch_request(&request_id.to_string())?
+                    .map(portcove_core::LaunchSessionView::new),
                 |record| {
                     human_adapters::launch_record(
-                        record.as_ref(),
+                        record.as_ref().map(|view| &view.record),
                         &request_id.to_string(),
                         Some(service.catalog()),
                         cli.technical_details,
@@ -1398,6 +1644,196 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
                 },
             )?;
         }
+        Commands::Games { command } => match command {
+            GamesCommand::List => render_read_success(
+                mode,
+                "games.list",
+                service.library_memberships()?,
+                |entries| human::library_memberships(entries),
+            )?,
+            GamesCommand::Add { port_ids } => {
+                let requests = port_ids
+                    .iter()
+                    .map(|port_id| portcove_core::LibraryMembershipRequest {
+                        port_id: port_id.clone(),
+                        origin: portcove_core::LibraryMembershipOrigin::Manual,
+                        sources: Vec::new(),
+                    })
+                    .collect::<Vec<_>>();
+                render_read_success(
+                    mode,
+                    "games.add",
+                    service.add_games_to_library(&requests)?,
+                    |outcomes| human::library_membership_outcomes(outcomes),
+                )?;
+            }
+            GamesCommand::Remove { port_id } => {
+                let removed = service.remove_library_membership(&port_id)?;
+                render_read_success(
+                    mode,
+                    "games.remove",
+                    serde_json::json!({"port_id": port_id, "removed": removed}),
+                    |_| {
+                        format!(
+                            "Saved Library entry {}: {}\nInstallations, registrations and game files are unchanged.",
+                            if removed { "removed" } else { "not found" },
+                            human::clean(&port_id)
+                        )
+                    },
+                )?;
+            }
+            GamesCommand::BatchPlan { port_ids } => {
+                let review = service.plan_install_batch(&port_ids).await?;
+                render_read_success(mode, "games.batch-plan", review, |review| {
+                    human::install_batch_review(review)
+                })?;
+            }
+            GamesCommand::BatchRun { items, yes } => {
+                let items = items
+                    .iter()
+                    .map(|item| parse_batch_item(item))
+                    .collect::<Result<Vec<_>>>()?;
+                require_confirmation(
+                    "Save these games to the Library and install each reviewed game whose plan is unchanged?",
+                    yes,
+                    cli.non_interactive,
+                )?;
+                let batch = service
+                    .start_install_batch(&items, portcove_core::LibraryMembershipOrigin::Manual)?;
+                let mut progress = progress_renderer(mode, service.catalog());
+                let finished = service.run_install_batch(&batch.id, &mut progress).await?;
+                render_read_success(mode, "games.batch-run", finished, |record| {
+                    human::install_batch(record)
+                })?;
+            }
+            GamesCommand::BatchResume { batch_id, yes } => {
+                require_confirmation(
+                    "Continue this batch? Finished games are not repeated and each plan is checked again.",
+                    yes,
+                    cli.non_interactive,
+                )?;
+                let mut progress = progress_renderer(mode, service.catalog());
+                let finished = service.run_install_batch(&batch_id, &mut progress).await?;
+                render_read_success(mode, "games.batch-resume", finished, |record| {
+                    human::install_batch(record)
+                })?;
+            }
+            GamesCommand::BatchCancel { batch_id } => render_read_success(
+                mode,
+                "games.batch-cancel",
+                service.cancel_install_batch(&batch_id)?,
+                human::install_batch,
+            )?,
+            GamesCommand::BatchShow { batch_id } => render_read_success(
+                mode,
+                "games.batch-show",
+                service.install_batch(&batch_id)?.ok_or_else(|| {
+                    PortcoveError::not_found("install batch does not exist")
+                        .detail("batch_id", &batch_id)
+                })?,
+                human::install_batch,
+            )?,
+            GamesCommand::Intent {
+                port_id,
+                mode: intent_mode,
+            } => render_read_success(
+                mode,
+                "games.intent",
+                service.set_port_intent(&port_id, intent_mode.into())?,
+                human::port_intent,
+            )?,
+            GamesCommand::Intents => {
+                let assessed = service.assess_port_intents().await?;
+                render_read_success(mode, "games.intents", assessed, |value| {
+                    human::port_intent_assessments(value)
+                })?;
+            }
+            GamesCommand::Notices { state } => {
+                if let Some(state) = state {
+                    service.set_ready_notices_enabled(matches!(state, NoticeState::On))?;
+                }
+                let enabled = service.ready_notices_enabled()?;
+                render_read_success(
+                    mode,
+                    "games.notices",
+                    serde_json::json!({"ready_notices_enabled": enabled}),
+                    |_| human::ready_notices(enabled),
+                )?;
+            }
+            GamesCommand::IntentsAcknowledge { items } => {
+                let acknowledgements = items
+                    .iter()
+                    .map(|item| {
+                        parse_batch_item(item).map(|item| {
+                            portcove_core::PortReadinessAcknowledgement {
+                                port_id: item.port_id,
+                                plan_sha256: item.expected_plan_sha256,
+                            }
+                        })
+                    })
+                    .collect::<Result<Vec<_>>>()?;
+                service.acknowledge_port_readiness(&acknowledgements)?;
+                render_read_success(
+                    mode,
+                    "games.intents-acknowledge",
+                    serde_json::json!({"acknowledged": acknowledgements.len()}),
+                    |_| "Marked as seen. The same ready plan won't be reported again.".to_owned(),
+                )?;
+            }
+            GamesCommand::SetupReady => {
+                let mut progress = progress_renderer(mode, service.catalog());
+                let result = service.run_standing_setup(&mut progress).await?;
+                render_read_success(mode, "games.setup-ready", result, |value| {
+                    human::standing_setup(value)
+                })?;
+            }
+            GamesCommand::FolderSetup {
+                root_id,
+                mode: folder_mode,
+            } => {
+                let enrollment = match folder_mode {
+                    FolderSetupMode::ExistingAndFuture => {
+                        Some(portcove_core::RootSetupEnrollment::ExistingAndFuture)
+                    }
+                    FolderSetupMode::FutureOnly => {
+                        Some(portcove_core::RootSetupEnrollment::FutureOnly)
+                    }
+                    FolderSetupMode::Off => None,
+                };
+                let consent = match enrollment {
+                    Some(enrollment) => Some(service.set_root_setup_consent(&root_id, enrollment)?),
+                    None => {
+                        service.remove_root_setup_consent(&root_id)?;
+                        None
+                    }
+                };
+                render_read_success(mode, "games.folder-setup", consent, |value| {
+                    human::root_setup_consent(value.as_ref())
+                })?;
+            }
+            GamesCommand::FolderSetupChoose {
+                root_id,
+                profile_id,
+                port_id,
+            } => render_read_success(
+                mode,
+                "games.folder-setup-choose",
+                Some(service.set_root_setup_implementation(&root_id, &profile_id, &port_id)?),
+                |value| human::root_setup_consent(value.as_ref()),
+            )?,
+            GamesCommand::FolderSetupCopy { root_id, copy } => render_read_success(
+                mode,
+                "games.folder-setup-copy",
+                Some(service.set_root_setup_local_copy(&root_id, copy == FolderSetupCopy::On)?),
+                |value| human::root_setup_consent(value.as_ref()),
+            )?,
+            GamesCommand::FolderSetups => render_read_success(
+                mode,
+                "games.folder-setups",
+                service.root_setup_consents()?,
+                |value| human::root_setup_consents(value),
+            )?,
+        },
         Commands::Launch {
             command: LaunchCommand::Show { .. },
         } => unreachable!("launch observation is handled before service initialization"),
@@ -2334,6 +2770,91 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
                 },
             )?;
         }
+        Commands::LauncherLibrary {
+            command:
+                LauncherLibraryCommand::Inspect {
+                    launcher,
+                    data_root,
+                    apps_root,
+                },
+        } => {
+            let data_root = std::path::absolute(&data_root)?;
+            let apps_root = apps_root.map(std::path::absolute).transpose()?;
+            render_read_success(
+                mode,
+                "launcher-library.inspect",
+                service.inspect_launcher_library(
+                    launcher.into(),
+                    &data_root,
+                    apps_root.as_deref(),
+                )?,
+                |inventory| human::launcher_library_inventory(inventory, service.catalog()),
+            )?;
+        }
+        Commands::LauncherLibrary {
+            command:
+                LauncherLibraryCommand::Adopt {
+                    launcher,
+                    data_root,
+                    apps_root,
+                    apps,
+                    yes,
+                },
+        } => {
+            let data_root = std::path::absolute(&data_root)?;
+            let apps_root = apps_root.map(std::path::absolute).transpose()?;
+            let inventory = service.inspect_launcher_library(
+                launcher.into(),
+                &data_root,
+                apps_root.as_deref(),
+            )?;
+            let (items, left_out) = launcher_batch_items(&inventory, &apps)?;
+            let preview = service.preview_adoption_batch(&items)?;
+            if mode == OutputMode::Human {
+                println!(
+                    "{}",
+                    human::adoption_batch_preview(&preview, service.catalog())
+                );
+                if !left_out.is_empty() {
+                    println!(
+                        "\nLeft out because they repeat a folder or game already in this batch: {}\nCopy them separately with --app after this batch.",
+                        left_out.join(", ")
+                    );
+                }
+            }
+            require_confirmation(
+                "Copy these installations into Portcove? Originals will be left untouched.",
+                yes,
+                cli.non_interactive,
+            )?;
+            let authorization = service.authorize_adoption_batch(&items, &preview.batch_sha256)?;
+            render_read_success(
+                mode,
+                "launcher-library.adopt",
+                service.adopt_batch(&items, &preview, &authorization.token)?,
+                |result| {
+                    // Name apps as `--app` will find them: by their launcher label.
+                    let labels = inventory
+                        .entries
+                        .iter()
+                        // Only matched apps can be batch items, so an unmatched entry
+                        // sharing a folder never replaces the label.
+                        .filter(|entry| entry.adopt_port_id.is_some())
+                        .filter_map(|entry| {
+                            entry.install_path.clone().map(|path| {
+                                let label = if entry.name.trim().is_empty() {
+                                    entry.folder_name.clone()
+                                } else {
+                                    entry.name.clone()
+                                };
+                                (path, label)
+                            })
+                        })
+                        .collect::<std::collections::BTreeMap<_, _>>();
+                    human::adoption_batch_result(result, service.catalog(), &labels)
+                },
+            )?;
+        }
         Commands::Channel {
             command: ChannelCommand::Set { port_id, channel },
         } => {
@@ -2708,18 +3229,35 @@ async fn exec_game(service: &PortcoveService, args: ExecArgs) -> Result<ExitCode
     let (accepted_sender, accepted_receiver) = tokio::sync::oneshot::channel();
     let (started_sender, started_receiver) = tokio::sync::oneshot::channel();
     let mut supervision = tokio::task::spawn_blocking(move || {
-        PortcoveService::new(library)?.supervise_launch_identified(
+        let service = PortcoveService::new(library)?;
+        // Preparation progress (for example unpacking a disc image) goes to
+        // stderr before the game starts; the game's own streams stay untouched.
+        // It is best-effort: a closed or failing stderr never aborts the launch.
+        let progress = std::cell::RefCell::new(HumanProgress::with_catalog(
+            io::stderr().is_terminal(),
+            service.catalog(),
+        ));
+        let write_progress = |text: String| {
+            use std::io::Write as _;
+            let _ = io::stderr().write_all(text.as_bytes());
+        };
+        service.supervise_launch_observed(
             IdentifiedLaunchRequest {
                 request_id: &worker_request_id,
                 port_id: &args.port_id,
                 source_override: args.source.as_deref(),
                 arguments: &args.game_args,
                 stdio: LaunchStdio::Inherit,
+                disc: args.disc,
             },
+            &|event| write_progress(progress.borrow_mut().render(&event)),
             |session| {
                 let _ = accepted_sender.send(session.id.clone());
             },
             |session| {
+                // Preparation is over: end any open progress line before the game
+                // writes to the same terminal.
+                write_progress(progress.borrow_mut().finish());
                 let _ = started_sender.send(session.child_pid.expect("started session has a PID"));
             },
         )
@@ -2856,6 +3394,90 @@ where
     T: Serialize + JsonSchema,
 {
     render_success_with(mode, command, data, human::document)
+}
+
+/// Launcher apps to copy: every app ready to review, or exactly those named.
+/// Returns the items and, for the default selection, apps left out because they
+/// would repeat a folder or game already in the batch.
+fn launcher_batch_items(
+    inventory: &portcove_core::LauncherLibraryInventory,
+    names: &[String],
+) -> Result<(Vec<portcove_core::AdoptionBatchItem>, Vec<String>)> {
+    let item = |entry: &portcove_core::LauncherLibraryEntry| {
+        entry
+            .install_path
+            .clone()
+            .zip(entry.adopt_port_id.clone())
+            .map(|(source, port_id)| portcove_core::AdoptionBatchItem { source, port_id })
+    };
+    if names.is_empty() {
+        let mut items = Vec::new();
+        let mut left_out = Vec::new();
+        let mut ports = std::collections::BTreeSet::new();
+        let mut folders = std::collections::BTreeSet::new();
+        for entry in &inventory.entries {
+            let Some(candidate) = item(entry) else {
+                continue;
+            };
+            let label = if entry.name.trim().is_empty() {
+                entry.folder_name.clone()
+            } else {
+                entry.name.clone()
+            };
+            // Compare with what this batch already takes, not with every earlier
+            // entry: an unmatched earlier entry for the same folder takes nothing.
+            let folder = if cfg!(any(windows, target_os = "macos")) {
+                candidate.source.to_string_lossy().to_lowercase()
+            } else {
+                candidate.source.to_string_lossy().into_owned()
+            };
+            if ports.contains(&candidate.port_id) || folders.contains(&folder) {
+                left_out.push(label);
+            } else {
+                ports.insert(candidate.port_id.clone());
+                folders.insert(folder);
+                items.push(candidate);
+            }
+        }
+        if items.is_empty() {
+            return Err(PortcoveError::not_found(
+                "no app in this launcher library is ready to review; run launcher-library inspect for details",
+            ));
+        }
+        return Ok((items, left_out));
+    }
+    let items = names
+        .iter()
+        .map(|name| {
+            let matches = inventory
+                .entries
+                .iter()
+                .filter(|entry| {
+                    entry.status != portcove_core::LauncherEntryStatus::Duplicate
+                        && (entry.name.eq_ignore_ascii_case(name)
+                            || entry.folder_name.eq_ignore_ascii_case(name))
+                })
+                .collect::<Vec<_>>();
+            match matches.as_slice() {
+                [entry] => item(entry).ok_or_else(|| {
+                    PortcoveError::conflict(format!(
+                        "{name} is not ready to review ({}); run launcher-library inspect for details",
+                        serde_json::to_value(entry.status)
+                            .ok()
+                            .and_then(|value| value.as_str().map(str::to_owned))
+                            .unwrap_or_default()
+                    ))
+                }),
+                [] => Err(PortcoveError::not_found(format!(
+                    "no app named {name} is in this launcher library"
+                ))),
+                _ => Err(PortcoveError::conflict(format!(
+                    "more than one app is named {name}; use its folder name"
+                ))),
+            }
+        })
+        .collect::<Result<Vec<_>>>()?;
+    Ok((items, Vec::new()))
 }
 
 fn render_read_success<T, F>(mode: OutputMode, command: &str, data: T, renderer: F) -> Result<()>
@@ -3016,6 +3638,9 @@ fn execute_artwork(
                 )
             })
         }
+        ArtworkCommand::Steamgriddb { .. } => Err(PortcoveError::state(
+            "SteamGridDB commands are dispatched before local artwork commands",
+        )),
         ArtworkCommand::Unused => {
             render_read_success(mode, name, service.unused_local_artwork()?, |assets| {
                 human_adapters::unused_artwork(assets)
@@ -3094,6 +3719,7 @@ fn exit_code(error: &PortcoveError) -> u8 {
 fn command_name(command: &Commands) -> &'static str {
     match command {
         Commands::Setup { command } => command.name(),
+        Commands::Profile { command } => command.name(),
         Commands::Auth { command } => match command {
             AuthCommand::Status => "auth.status",
             AuthCommand::Login => "auth.login",
@@ -3108,6 +3734,8 @@ fn command_name(command: &Commands) -> &'static str {
             BackupCommand::Delete { .. } => "backup.delete",
             BackupCommand::Restore { .. } => "backup.restore",
         },
+        Commands::GameSettings { command } => game_settings::name(command),
+        Commands::Saves { command } => saves::name(command),
         Commands::Catalog { command } => command.name(),
         Commands::Source { command } => match command {
             SourceCommand::Add { .. } => "source.add",
@@ -3122,6 +3750,8 @@ fn command_name(command: &Commands) -> &'static str {
                 GameFileRootCommand::List => "source.roots.list",
                 GameFileRootCommand::Scan(_) => "source.roots.scan",
                 GameFileRootCommand::Snapshot => "source.roots.snapshot",
+                GameFileRootCommand::Matches(_) => "source.roots.matches",
+                GameFileRootCommand::Profiles { .. } => "source.roots.profiles",
                 GameFileRootCommand::Add { .. } => "source.roots.add",
                 GameFileRootCommand::Relink { .. } => "source.roots.relink",
                 GameFileRootCommand::Remove { .. } => "source.roots.remove",
@@ -3129,6 +3759,7 @@ fn command_name(command: &Commands) -> &'static str {
             SourceCommand::Relink { .. } => "source.relink",
             SourceCommand::List => "source.list",
             SourceCommand::Inspect { .. } => "source.inspect",
+            SourceCommand::Reuse { .. } => "source.reuse",
             SourceCommand::Query(_) => "source.query",
             SourceCommand::Verify(_) => "source.verify",
             SourceCommand::Remove { .. } => "source.remove",
@@ -3139,6 +3770,7 @@ fn command_name(command: &Commands) -> &'static str {
             ToolCommand::SetPath { .. } => "tool.set-path",
             ToolCommand::ClearPath { .. } => "tool.clear-path",
         },
+        Commands::PortCapabilities { .. } => "port-capabilities",
         Commands::Status { .. } => "status",
         Commands::Activity {
             command: Some(ActivityCommand::Log { .. }),
@@ -3146,6 +3778,25 @@ fn command_name(command: &Commands) -> &'static str {
         } => "activity.log",
         Commands::Activity { .. } => "activity",
         Commands::Cancel { .. } => "cancel",
+        Commands::Games { command } => match command {
+            GamesCommand::List => "games.list",
+            GamesCommand::Add { .. } => "games.add",
+            GamesCommand::Remove { .. } => "games.remove",
+            GamesCommand::BatchPlan { .. } => "games.batch-plan",
+            GamesCommand::BatchRun { .. } => "games.batch-run",
+            GamesCommand::BatchResume { .. } => "games.batch-resume",
+            GamesCommand::BatchCancel { .. } => "games.batch-cancel",
+            GamesCommand::BatchShow { .. } => "games.batch-show",
+            GamesCommand::Intent { .. } => "games.intent",
+            GamesCommand::Intents => "games.intents",
+            GamesCommand::Notices { .. } => "games.notices",
+            GamesCommand::IntentsAcknowledge { .. } => "games.intents-acknowledge",
+            GamesCommand::SetupReady => "games.setup-ready",
+            GamesCommand::FolderSetup { .. } => "games.folder-setup",
+            GamesCommand::FolderSetupChoose { .. } => "games.folder-setup-choose",
+            GamesCommand::FolderSetupCopy { .. } => "games.folder-setup-copy",
+            GamesCommand::FolderSetups => "games.folder-setups",
+        },
         Commands::Launch { command } => match command {
             LaunchCommand::Show { .. } => "launch.show",
             LaunchCommand::Recover { .. } => "launch.recover",
@@ -3178,6 +3829,8 @@ fn command_name(command: &Commands) -> &'static str {
                 "installation.reference-removal-plan"
             }
             InstallationCommand::ReferenceRemove { .. } => "installation.reference-remove",
+            InstallationCommand::ReferenceRetirePlan { .. } => "installation.reference-retire-plan",
+            InstallationCommand::ReferenceRetire { .. } => "installation.reference-retire",
             InstallationCommand::Plan { .. } => "installation.plan",
             InstallationCommand::Run { .. } => "installation.run",
             #[cfg(feature = "qualification-fixtures")]
@@ -3213,6 +3866,12 @@ fn command_name(command: &Commands) -> &'static str {
         Commands::Reconcile(_) => "reconcile",
         Commands::Install(_) => "install",
         Commands::Adopt(_) => "adopt",
+        Commands::LauncherLibrary {
+            command: LauncherLibraryCommand::Inspect { .. },
+        } => "launcher-library.inspect",
+        Commands::LauncherLibrary {
+            command: LauncherLibraryCommand::Adopt { .. },
+        } => "launcher-library.adopt",
         Commands::Ensure(_) => "ensure",
         Commands::Update(_) => "update",
         Commands::Verify { .. } => "verify",
@@ -3228,8 +3887,101 @@ fn command_name(command: &Commands) -> &'static str {
     }
 }
 
+/// Parses one reviewed `PORT_ID=PLAN_SHA256` batch item; Core validates the digest.
+fn parse_batch_item(value: &str) -> Result<portcove_core::InstallBatchRequestItem> {
+    let (port_id, digest) = value.split_once('=').ok_or_else(|| {
+        PortcoveError::usage("write each batch item as PORT_ID=PLAN_SHA256 from `games batch-plan`")
+    })?;
+    Ok(portcove_core::InstallBatchRequestItem {
+        port_id: port_id.to_owned(),
+        expected_plan_sha256: digest.to_owned(),
+    })
+}
+
 #[cfg(test)]
 mod tests {
+    fn launcher_inventory(entries: serde_json::Value) -> portcove_core::LauncherLibraryInventory {
+        serde_json::from_value(serde_json::json!({
+            "launcher": "quiver",
+            "format_revision": "r",
+            "data_root": "/d",
+            "library_file": "/d/apps.json",
+            "legacy_library_file": false,
+            "apps_root": "/a",
+            "apps_root_origin": "default",
+            "entries": entries,
+            "skipped_entries": [],
+            "original_will_be_modified": false,
+            "inventory_sha256": "0",
+        }))
+        .unwrap()
+    }
+
+    fn launcher_entry(
+        name: &str,
+        folder: &str,
+        status: &str,
+        port: Option<&str>,
+        shares: Option<usize>,
+    ) -> serde_json::Value {
+        serde_json::json!({
+            "index": 0, "name": name, "repository_source": "github", "repository": "o/r",
+            "folder_name": folder, "install_path": format!("/a/{folder}"),
+            "explicit_install_path": false, "status": status,
+            "candidate_port_ids": [], "detected_port_ids": [], "user_data_paths": [],
+            "hints": {"preferred_version": null, "installed_version_label": null, "selected_executable": null},
+            "mods": null, "explanation": "", "adopt_port_id": port,
+            "shares_folder_with": shares, "not_carried_over": [],
+        })
+    }
+
+    #[test]
+    fn default_launcher_batch_leaves_out_only_real_repeats() {
+        let inventory = launcher_inventory(serde_json::json!([
+            launcher_entry("Fork", "Game", "not-in-catalog", None, None),
+            // Shares a folder with an unmatched entry: still taken.
+            launcher_entry("Game", "Game", "ready-to-review", Some("game"), Some(0)),
+            launcher_entry("Nightly", "Nightly", "ready-to-review", Some("game"), None),
+            launcher_entry("Other", "Other", "ready-to-review", Some("other"), None),
+        ]));
+        let (items, left_out) = super::launcher_batch_items(&inventory, &[]).unwrap();
+        assert_eq!(
+            items
+                .iter()
+                .map(|item| item.port_id.as_str())
+                .collect::<Vec<_>>(),
+            ["game", "other"]
+        );
+        assert_eq!(left_out, ["Nightly"]);
+    }
+
+    #[test]
+    fn named_launcher_apps_ignore_duplicates_and_refuse_unready_or_unknown() {
+        let inventory = launcher_inventory(serde_json::json!([
+            launcher_entry("Game", "Game", "ready-to-review", Some("game"), None),
+            launcher_entry("Game", "Game", "duplicate", None, None),
+            launcher_entry("Gone", "Gone", "not-installed", None, None),
+        ]));
+        let (items, left_out) =
+            super::launcher_batch_items(&inventory, &["game".to_owned()]).unwrap();
+        assert_eq!(items.len(), 1);
+        assert!(left_out.is_empty());
+        assert!(super::launcher_batch_items(&inventory, &["Gone".to_owned()]).is_err());
+        assert!(super::launcher_batch_items(&inventory, &["Nope".to_owned()]).is_err());
+    }
+
+    use super::parse_batch_item;
+
+    #[test]
+    fn batch_items_need_a_port_and_digest_pair() {
+        let item = parse_batch_item("zelda64-recomp=abc").unwrap();
+        assert_eq!(
+            (item.port_id.as_str(), item.expected_plan_sha256.as_str()),
+            ("zelda64-recomp", "abc")
+        );
+        assert!(parse_batch_item("zelda64-recomp").is_err());
+    }
+
     #[test]
     fn stderr_verbosity_keeps_existing_levels_and_excludes_host_observations() {
         use tracing_subscriber::{Layer, layer::SubscriberExt};
@@ -3723,6 +4475,22 @@ mod tests {
     }
 
     #[test]
+    fn exec_accepts_a_one_based_disc_choice() {
+        let cli = Cli::try_parse_from(["portcove", "exec", "lighthouse", "--disc", "2"]).unwrap();
+        let Commands::Exec(args) = cli.command else {
+            panic!("expected exec command");
+        };
+        assert_eq!(args.disc, Some(2));
+        assert!(args.game_args.is_empty());
+        assert!(Cli::try_parse_from(["portcove", "exec", "lighthouse", "--disc", "0"]).is_err());
+        let default = Cli::try_parse_from(["portcove", "exec", "lighthouse"]).unwrap();
+        let Commands::Exec(args) = default.command else {
+            panic!("expected exec command");
+        };
+        assert_eq!(args.disc, None);
+    }
+
+    #[test]
     fn exec_forwards_arguments_after_the_separator() {
         let cli = Cli::try_parse_from([
             "portcove",
@@ -3880,6 +4648,7 @@ mod tests {
             vec!["portcove", "doctor"],
             vec!["portcove", "auth", "status"],
             vec!["portcove", "capabilities"],
+            vec!["portcove", "port-capabilities", "shipwright"],
             vec!["portcove", "source", "verify", "zelda64-recomp"],
             vec!["portcove", "source", "verify", "--all"],
             vec!["portcove", "catalog", "update", "--file", "catalog.json"],
@@ -3956,6 +4725,63 @@ mod tests {
         let cli = Cli::try_parse_from(["portcove", "about"]).unwrap();
         assert!(matches!(cli.command, Commands::About));
         assert_eq!(super::command_name(&cli.command), "about");
+    }
+
+    #[test]
+    fn saves_commands_require_reviewed_identities() {
+        let export = Cli::try_parse_from([
+            "portcove",
+            "saves",
+            "export",
+            "shipwright",
+            "--output",
+            "saves.json",
+            "--expected-content",
+            &"a".repeat(64),
+        ])
+        .unwrap();
+        assert_eq!(super::command_name(&export.command), "saves.export");
+        assert_eq!(
+            crate::startup::startup_mode(&export.command),
+            crate::startup::StartupMode::Recovering
+        );
+        assert!(
+            Cli::try_parse_from(["portcove", "saves", "export", "shipwright", "--output", "x"])
+                .is_err()
+        );
+        let import = Cli::try_parse_from([
+            "portcove",
+            "saves",
+            "import",
+            "shipwright",
+            "saves.json",
+            "--replace-diverged-progress",
+            "--expected-preview",
+            &"b".repeat(64),
+            "--yes",
+        ])
+        .unwrap();
+        assert!(matches!(
+            import.command,
+            Commands::Saves {
+                command: crate::args::SavesCommand::Import { ref port_id, ref choices, yes, .. }
+            } if port_id == "shipwright"
+                && choices.replace_diverged_progress
+                && !choices.remove_local_only_saves
+                && yes
+        ));
+        let preview = Cli::try_parse_from([
+            "portcove",
+            "saves",
+            "import-preview",
+            "shipwright",
+            "saves.json",
+        ])
+        .unwrap();
+        assert_eq!(
+            crate::startup::startup_mode(&preview.command),
+            crate::startup::StartupMode::ReadOnly
+        );
     }
 
     #[test]
@@ -4203,7 +5029,7 @@ mod tests {
         assert!(matches!(
             cli.command,
             Commands::Catalog {
-                command: CatalogCommand::Export
+                command: CatalogCommand::Export { .. }
             }
         ));
     }
@@ -4349,6 +5175,36 @@ mod tests {
                 vec!["portcove", "backup", "list", "lighthouse"],
                 "backup.list",
             ),
+            (
+                vec!["portcove", "game-settings", "list", "lighthouse"],
+                "game-settings.list",
+            ),
+            (
+                vec![
+                    "portcove",
+                    "game-settings",
+                    "review",
+                    "lighthouse",
+                    "prefs",
+                    "volume",
+                    "--reset",
+                ],
+                "game-settings.review",
+            ),
+            (
+                vec![
+                    "portcove",
+                    "game-settings",
+                    "apply",
+                    "lighthouse",
+                    "prefs",
+                    "volume",
+                    "--reset",
+                    "--expected-review",
+                    "review",
+                ],
+                "game-settings.apply",
+            ),
             (vec!["portcove", "catalog", "list"], "catalog.list"),
             (vec!["portcove", "source", "list"], "source.list"),
             (vec!["portcove", "tool", "list"], "tool.list"),
@@ -4380,16 +5236,25 @@ mod tests {
     #[test]
     fn capabilities_advertise_failure_isolated_batches() {
         let capabilities = CapabilityDocument::current();
+        assert_eq!(capabilities.port_capability_schema, Some(1));
+        assert_eq!(capabilities.listing_formats, [5, 6, 7, 8, 9]);
+        assert!(
+            capabilities
+                .commands
+                .contains(&"port-capabilities".to_owned())
+        );
         assert_eq!(
             capabilities.schema_version,
             portcove_core::API_SCHEMA_VERSION
         );
-        assert!(
-            capabilities
-                .commands
-                .iter()
-                .any(|command| command == "source.roots")
-        );
+        for name in [
+            "source.roots",
+            "source.roots.scan",
+            "source.roots.matches",
+            "source.roots.profiles",
+        ] {
+            assert!(capabilities.commands.iter().any(|command| command == name));
+        }
         assert_eq!(
             capabilities.operation_event_schema_version,
             portcove_core::OPERATION_EVENT_SCHEMA_VERSION
@@ -4402,6 +5267,47 @@ mod tests {
         assert!(capabilities.commands.contains(&"storage".to_owned()));
         assert!(capabilities.commands.contains(&"doctor".to_owned()));
         assert!(capabilities.commands.contains(&"backup".to_owned()));
+        for name in [
+            "artwork.steamgriddb.status",
+            "artwork.steamgriddb.set-key",
+            "artwork.steamgriddb.clear-key",
+            "artwork.steamgriddb.search",
+            "artwork.steamgriddb.candidates",
+            "artwork.steamgriddb.choose",
+            "saves",
+            "saves.export-preview",
+            "saves.export",
+            "saves.import-preview",
+            "saves.import",
+            "game-settings",
+            "game-settings.list",
+            "game-settings.review",
+            "game-settings.apply",
+        ] {
+            assert!(capabilities.commands.iter().any(|command| command == name));
+        }
+        for name in [
+            "games",
+            "games.list",
+            "games.add",
+            "games.remove",
+            "games.batch-plan",
+            "games.batch-run",
+            "games.batch-resume",
+            "games.batch-cancel",
+            "games.batch-show",
+            "games.intent",
+            "games.intents",
+            "games.notices",
+            "games.intents-acknowledge",
+            "games.setup-ready",
+            "games.folder-setup",
+            "games.folder-setup-choose",
+            "games.folder-setup-copy",
+            "games.folder-setups",
+        ] {
+            assert!(capabilities.commands.iter().any(|command| command == name));
+        }
         assert!(capabilities.commands.contains(&"artwork".to_owned()));
         assert!(capabilities.commands.contains(&"tool".to_owned()));
         assert!(capabilities.commands.contains(&"plan".to_owned()));

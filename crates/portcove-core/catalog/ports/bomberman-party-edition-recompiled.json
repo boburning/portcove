@@ -6,6 +6,7 @@
     "name": "Bomberman Party Edition: Recompiled",
     "summary": "Native Bomberman Party Edition recompilation.",
     "project_url": "https://github.com/TechnicallyComputers/BombermanPartyEditionRecomp",
+    "listed_at": "2026-10-23",
     "original_game_title": "Bomberman Party Edition",
     "artwork": {
       "game_id": 18786,
@@ -20,7 +21,7 @@
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],
-    "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
+    "platforms": ["windows-x86-64", "macos-x86-64", "macos-aarch64"],
     "automated_tested_platforms": ["windows-x86-64"],
     "manually_validated_platforms": ["windows-x86-64"],
     "adapter": "psx-recomp-managed",
@@ -28,7 +29,6 @@
       "repository": "TechnicallyComputers/BombermanPartyEditionRecomp",
       "asset_hints": {
         "windows-x86-64": ["windows-x64"],
-        "linux-x86-64": ["linux-x64"],
         "macos-x86-64": ["macos-x64"],
         "macos-aarch64": ["macos-arm64"]
       }
@@ -36,7 +36,6 @@
     "source_profile": "bomberman-party-edition-psx",
     "executable_hints": {
       "windows-x86-64": ["Bomberman_Party_Edition_Recompiled.exe"],
-      "linux-x86-64": ["Bomberman_Party_Edition_Recompiled"],
       "macos-x86-64": ["Bomberman_Party_Edition_Recompiled"],
       "macos-aarch64": ["Bomberman_Party_Edition_Recompiled"]
     },

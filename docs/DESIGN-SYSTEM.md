@@ -11,34 +11,45 @@ inline. Keep location dismisses the inline region and returns focus to its
 trigger. Cancellation is neutral and changed impact requires renewed intent.
 Other destructive reviews retain their own consent contracts.
 
+Current and reviewed output destinations summarize all existing eligibility checks.
+Raw filesystem availability cannot announce passed checks when ownership or
+validation refuses the folder. Full, unavailable and unknown results remain
+explicit; the host retains apply authorization and preimage checks.
+
 ## Library and Discover covers and compact rows
 
 Library and Discover default independently to Covers; Compact rows uses the same entries and authoritative
-local actions. Their profile-local preferences are separate and retain read/write failure feedback. Library defaults to Title A–Z only when no saved sort exists and also offers Catalog order, Title Z–A and Recently played using recorded launch history; Discover offers Catalog order, Title A–Z, Title Z–A and In library first. With an observed device target, Catalog order is labeled Library & device to describe the existing deterministic library/device ranking; its explanation remains visible. No subjective recommendation or quality score is implied. Library counts entries, including separate ports for one game; Discover names reviewed game groups and matching independent ports separately.
+local actions. Their profile-local preferences are separate and retain read/write failure feedback. Library defaults to Title A–Z only when no saved sort exists and also offers Catalog order, Title Z–A and Recently played using recorded launch history; Discover defaults to Title A–Z when no sort is saved and offers Catalog order, Title A–Z, Title Z–A and In library first (#5058 F4; a tested-first shelf waits for a native look at the real catalog). With an observed device target, Catalog order is labeled Library & device to describe the existing deterministic library/device ranking; its explanation remains visible. No subjective recommendation or quality score is implied. Library counts entries, including separate ports for one game; the Discover header counts the cards it shows as games, and port counts stay on each game's comparison (#5058 F3).
 Search, named Readiness, independent Favorites and declared filters share the
-retrieval area. On narrow layouts Favorites and Filters can share a wrapped row;
-no hidden duplicate controls or second query owner are introduced. Active filter
+retrieval area. Quick views keep their own navigation row above the search/filter
+toolbar and deliberately reflow at narrow or enlarged-text widths; no hidden
+duplicate controls or second query owner are introduced. Active filter
 chips, counts and reset stay with the existing browsing projection. First use
 omits retrieval controls. Add games sits beside the Library heading; scoped
 Collection commands accompany collection navigation; Covers/Compact rows share the retrieval toolbar. At
 compact widths the visible Rows label retains its full Compact rows accessible
-name. Readiness keeps its accessible label when its decorative prefix is omitted
+name. Below 16rem of query width the layout switch uses named icons, and Library
+quick views form two columns without reducing their touch height. Readiness keeps its accessible label when its decorative prefix is omitted
 above 20rem through 32rem of query width. Collection commands retains its explicit
 selection scope, including filtered-out entries in supported Steam commands.
 
-Covers use content-driven columns with a preferred minimum of 12.75rem, giving
-five columns at the matched 1440px desktop viewport with the normal interface
-size and full sidebar. Available width and interface size change the count.
-Whole-image 2:3 artwork caps at 260 CSS pixels; below 28em of collection width
-it caps at 160px. Short windows retain the same density rules. Supporting text
-scales and wraps without growing artwork beyond its CSS bound; native interface
-zoom still enlarges the physical rendering. Cover cards reserve two readable lines for both title and project, aligning chips and actions across mixed-length identities. Both expand on keyboard focus. Full identity wraps below
-40em. Footer actions stay beside the dominant status without overlapping it. Repeated Play controls pair a triangle with a bordered, labeled button; hover and keyboard focus use the signature red. Setup and review actions include a right arrow. A subtle divider separates the status/action footer from identity chips.
+Library covers use content-driven columns with a preferred minimum of 11.25rem,
+giving six columns at the matched 1440px desktop viewport with the normal interface
+size and full sidebar. At desktop widths of761px and above with height800px or
+less, Library uses a10rem minimum for denser short windows. Whole-image
+2:3 artwork caps at 220 CSS pixels, and identity and overlay controls share that
+width. Below 760px the preferred minimum is 10rem; 360–480px windows use two
+flexible columns with a 12px gap and no artwork cap, while narrower windows use
+one column. Available width and interface size still determine readable text and
+control wrapping. Library covers use 10px artwork corners, a 24px effective art-to-title gap and
+600 title weight; compact rows and Discover keep their own geometry.
+Cover cards reserve two readable lines for both title and project (the project reserves one line in desktop windows up to 760px high and expands on hover and keyboard focus), aligning chips and actions across mixed-length identities. Both expand on keyboard focus. Full identity wraps below
+40em. Footer actions stay beside the dominant status without overlapping it. A ready card's Play pairs a triangle with a compact signature-red labeled button, so the primary action is recognizable on arrival; its accessible name adds the game and project ("Play: Title · Project"), as do View task and the setup/review actions. Readiness stays a compact text-and-icon cue, and updates remain secondary while the game is playable. Routine Stable is omitted from Library card chips; a non-Stable channel or a channel that differs from the selected one stays visible. Discover cards likewise omit the chip when Stable is the only offered channel and the selected channel is Stable or unset; Preview, Rolling and mixed channels stay, and the comparison dialog shows every offered channel. With an observed device target, Discover cards omit platform chips and show “Not available for Platform” only when a port lists platforms that exclude this device; without a device target the platforms stay listed. The single-port “Why this port?” view omits setup, file and update rows and the “No platform/update channel is listed” lines when they have no value; several ports keep every row aligned for comparison (#5058 F3, F5). Release-channel and platform chips and filter options are neutral: semantic green means ready to play and blue means selection or a link, so a kept update is a neutral status with its icon; original-system identity colors remain (#5058 V2). “Update saved for later” stays, because a kept version may reuse local bytes without a download. (Supersedes the quiet bordered repeated Play; see #5058 L4–L5.) Setup and review actions include a right arrow. A subtle divider separates the status/action footer from identity chips.
 The quick views read as underlined navigation above the search/filter toolbar.
 Artwork remains contained; neither a crop nor a provider mapping is inferred.
 
 Library entries have separate identity, Play/review and More actions controls.
-Library cards expose a heart favorite toggle at the artwork’s upper right, beside More actions. More retains existing organization, update/activity and saved-data destinations. The direct toggle uses the same preference owner, failure handling and focus return when a filtered entry disappears. Discover places its grouped-game bookmark Save action over the cover and retains the independent Favorite control for singleton projects. Overlay controls are sibling buttons outside the identity control, always visible for touch, at least 32px square, and bounded by the actual artwork. Compact rows place them inline. Discover’s full-width arrow action opens the exact project or comparison; it does not bypass setup review. Checked Ready to play uses semantic success green in both
+Library cards expose a heart favorite toggle at the artwork’s upper right, beside More actions. On hover-capable fine pointers without a coarse pointer, an unfavorited heart reveals on cover hover or keyboard focus within the card; active favorites and More actions stay visible. Touch and hybrid coarse-pointer devices retain visible heart controls. More retains existing organization, update/activity and saved-data destinations. The direct toggle uses the same preference owner, failure handling and focus return when a filtered entry disappears. Discover places its grouped-game bookmark Save action over the cover and retains the independent Favorite control for singleton projects. Overlay controls are sibling buttons outside the identity control, always visible for touch, at least 32px square, and bounded by the actual artwork. Compact rows place them inline. Discover’s full-width arrow action opens the exact project or comparison; it does not bypass setup review. Checked Ready to play uses semantic success green in both
 themes; selection remains blue and focus retains its distinct indicator. A
 playable current installation keeps Play when a downloaded candidate is present.
 The candidate has a concise update review link. Healthy update entries omit the redundant green readiness summary while retaining Play. Mandatory setup/repair/unknown states and concurrent blockers remain visible. Acquisition work or attention precedes prepared/available update copy; secondary update/channel facts use an explicit disclosure. Active invocations lead to their existing task destination.
@@ -63,7 +74,8 @@ channels, total Single/Multiple port options and library membership. Advanced
 setup, attention, updates and observed file controls retain their existing query
 owners and unavailable states. OR within facets and AND across facets must match
 one eligible port/context. Clear filters preserves search; Escape and Done return
-focus to Filters. Source systems without reviewed metadata say Not specified.
+focus to Filters. Source systems without reviewed metadata say Not specified; the
+game detail identity chip names the fact as Original system not specified.
 Each workspace composes collection/navigation choices, one search/filter/sort/view toolbar, then a wrapping result and active-filter summary. Chips name their categories and share the choices’ canonical identity icons/colors; target labels retain architecture. Clear filters preserves search and returns focus to Filters.
 
 Comparisons use balanced project cards, side by side where space allows and stacked in compact windows, with aligned setup, file, target, ownership and observation sections. Filtered-out projects retain their own actions and explicit qualification. Unresearched gameplay differences remain unclaimed.
@@ -77,7 +89,26 @@ Geist, semantic tokens, the existing controls and the one persisted/native sizin
 authority remain shared. Enlarged text may wrap and scroll; it never authorizes
 shrinking essential text, hiding consequences or replacing the domain projections.
 
+Cover-grid titles use scalable 14px-equivalent type with 1.45 leading; project text
+uses a 12px-equivalent role with 1.5 leading. Compact-row titles use 15px-equivalent
+type with 1.4 leading and 13px-equivalent project text. The cover-to-identity gap is
+24px in Library and 12px in Discover at normal scale. Columns are separated by
+20px, and card actions use a 32px-equivalent height. Shared general-purpose buttons retain their larger hit targets. Saved and
+hidden collection views, Favorites, and Not in library share existing query owners;
+the latter is selected only for that exact singleton membership, not an OR selection
+that also includes installed games. Selecting a quick view preserves search and
+unrelated facets.
+
 ## Game details
+
+The detail hero holds identity, concise port/system context, readiness, one
+primary action, Favorite and More. Catalog setup-availability checks and catalog
+update settings are maintenance and appear at the top of the management section
+(Manage, or Game files when Manage is absent), not in the hero. Before the game is
+installed they appear at the top of Game files, beside setup. In desktop
+windows up to 760px high (from 761px width) the hero uses a 12.5rem minimum, tighter
+padding and a smaller title clamp so the tabs and initial tab content are visible
+at 1280×720; long titles and enlarged text still grow it. (#5058 D1)
 
 Managed games, registered external installations and catalog/self-service entries
 use one responsive detail composition, bounded at 87.5rem. The complete game title uses the existing large
@@ -105,19 +136,22 @@ keep the complete glyph bounds over a readable surface. Logo ink/contrast and
 minimum rendered size are checked; unsuitable or failed assets advance to the
 next fallback without arbitrary pixel recoloring. Continue uses recorded launch
 history and relaunches that installation; it does not load a save automatically.
-Loaded galleries use three columns in wide containers when at least three images
-exist, two at medium widths, and one in compact containers; per-slot attribution,
+Loaded galleries use contained 4:3 stages, with three columns for exactly three images at
+851px viewport width and above and two columns otherwise. The viewer includes a selectable thumbnail
+filmstrip with an exposed current selection; per-slot attribution,
 errors and lightbox focus remain with the media owner. Forced colors suppress
 decorative backdrop images. Change artwork in Manage retains the existing user
 artwork choices. No title-based identity or edition mapping is inferred.
 
 Five permanent sections use Base UI manual-activation tabs. Arrow keys and
-Home/End move focus; Enter/Space select. Narrow tab lists wrap with visible labels.
+Home/End move focus; Enter/Space select. Narrow tab lists retain visible labels in one horizontally scrollable row.
 Panels stay mounted to preserve drafts and reviews; inactive panels are hidden and
 inert, so they cannot receive keyboard, accessibility or controller traversal.
 Overview pairs the actual description with a narrower facts column; project status,
 compatibility qualifications and recorded checks have named disclosures. Game files owns setup, source/BIOS/tool and file observations. Saves owns
-coverage, unknowns, backup history, recovery and reviews. Versions & updates owns
+coverage, unknowns, backup history, recovery and reviews, plus game settings and, for
+games with reviewed mod support, setups and mods (each setup keeps its own saves and
+settings), including reviewed GameBanana installs for games with a binding. Versions & updates owns
 checks, candidate decisions, staged activation, rollback, future preferences and
 private notice choices. Manage owns installation/location/artwork/Steam/CLI,
 verification/removal and the existing reviewed managed-route transition. Unsupported routes state their actual limits and keep upstream links.
@@ -168,30 +202,31 @@ feedback changes never take focus or reveal a control the player left behind.
 
 Primary destinations display Library, Discover, Activity and Settings; internal `catalog`/`updates` route identities stay compatible. Ordinary Activity entry selects Tasks. Explicit game-update links select Game updates; terminal records remain in History. Application-update preferences remain in Settings. Section controls retain a non-color selected cue and keep their content mounted, hidden from interaction when inactive. The same exact-ID record tree serves Tasks and History, preserving disclosures and a focused settling record.
 
-Cards, details and Activity use the same action-presentation selector. Core readiness remains distinct from a temporary local exclusion. Feedback names the action and game/port or library target. Independent failures remain individually dismissible; a successful mutation followed by failed refresh is presented as finished work with unavailable current state, not an instruction to repeat the mutation. Link a specific task only when its exact owned identity exists. Shared progress announces phase changes separately from numeric ticks. Cancellation requested stays pending until authoritative settlement.
+Cards, details and Activity use the same action-presentation selector. Core readiness remains distinct from a temporary local exclusion. Feedback names the action and game/port or library target. Independent failures remain individually dismissible; a successful mutation followed by failed refresh is presented as finished work with unavailable current state, not an instruction to repeat the mutation. Link a specific task only when its exact owned identity exists. Shared progress announces phase changes separately from numeric ticks. Cancellation requested stays pending until authoritative settlement. Invocation-backed polite messages use a status owner that exists empty before work begins, with an atomic action/target message for each invocation. Pending, execution completion, readback and terminal changes update that invocation’s message; simultaneous results do not replace one another. Real failures retain their attributed assertive notices, and visual progress does not duplicate the owned announcement. Browser lifecycle checks do not establish actual screen-reader speech.
+
+Library location-change review and recovery retain Core's typed failure consequences through the shared review-failure presentation. The summary, reported mutation outcome and expandable technical phase/context remain together. An unknown outcome stays unknown; a committed outcome does not invite an automatic repeat. Displaying recovery details grants no additional recovery action or library lease authority.
 
 Portcove should feel like development software from an alternate 1997 console studio, rebuilt with current desktop UX and accessibility standards. Nostalgia never outranks clarity. The working interface stays compact, neutral, and technical; personality appears through tactile geometry, restrained color, direct copy, and quick interaction feedback.
 
-The React/Vite/Tauri desktop is migrating incrementally under [#917](https://github.com/boburning/portcove/issues/917). Its checked-in foundation uses official shadcn/ui component source with Base UI, Tailwind, semantic CSS variables, and a Portcove theme; several journeys already consume that foundation while legacy controls and rules remain on unmigrated surfaces. This is a decided architecture and an active migration, not another framework comparison or a claim that the complete redesign or its platform qualification has shipped.
+The React/Vite/Tauri desktop uses checked-in official shadcn/ui component source
+with Base UI, Tailwind, semantic CSS variables and the Portcove theme. [#917](https://github.com/boburning/portcove/issues/917)
+completed its current redesign, migration and visual-acceptance contract on
+October 18, 2026. Extend the delivered architecture through shared controls and
+real application patterns using the [implementation workflow](#agent-implementation-workflow).
+Completed migration does not qualify new candidate bytes, every platform/package,
+physical controls, gameplay or production publication.
 
 ## Checked-in foundation
 
-`apps/desktop/components.json` records Base UI, Base Nova (`style: base-nova`), React Server Components off, Lucide, the Tailwind entry, and the app-local aliases. The initial checked-in controls are Button, Dialog, and Select. They exist to prove the difficult installation-review nesting; they do not authorize broad screen migration by themselves. Portcove retained the generated internal implementations but removed the unused generated helper and unused public exports after static analysis; future regeneration must preserve that deliberately smaller maintained surface.
-
-The following table preserves the initial generation inputs. Current runtime inputs are Base UI 1.9.0, cn 0.5.0 and Tailwind 4.3.3 under Vite+ 1.4.0. The finite [CSS architecture cutover](reference/css-architecture.md) uses Preflight, explicit layers and Base UI transitions; tw-animate-css is removed. The wider #917 acceptance remains open.
-
-| Input                             | Version | License    | Demonstrated purpose                                              |
-| --------------------------------- | ------- | ---------- | ----------------------------------------------------------------- |
-| shadcn CLI                        | 4.21.0  | MIT        | Base/Nova project configuration and checked-in control source     |
-| Tailwind CSS and Vite integration | 4.3.3   | MIT        | generated component utilities and production CSS compilation      |
-| Base UI React                     | 1.8.0   | MIT        | dialog, select, portal, dismissal, and focus primitives           |
-| class-variance-authority          | 0.7.1   | Apache-2.0 | generated Button variants                                         |
-| cn                                | 0.3.0   | MIT        | generated class composition utility                               |
-| tw-animate-css                    | 1.4.0   | MIT        | generated state animations with Portcove reduced-motion overrides |
-| Geist variable font               | 5.3.0   | OFL-1.1    | bundled, offline heading and interface typography                 |
-| Tauri WDIO WebDriver plugin       | 1.4.0   | MIT        | feature-gated driver server, absent from production builds        |
-
-The production build from base `52e81bd` emitted 560,643 bytes of JavaScript and 76,142 bytes of CSS. The same build after the foundation emitted 560,908 bytes of JavaScript, 111,551 bytes of CSS, and 76,416 bytes of local font files: a measured 112,094-byte raw asset increase excluding source maps (about 82,990 bytes using Vite's gzip figures for CSS/JavaScript and the already-compressed font files). This measurement is a bundle effect, not a performance claim.
+`apps/desktop/components.json` records Base UI, Base Nova (`style: base-nova`),
+React Server Components off, Lucide, the Tailwind entry and app-local aliases.
+The checked-in controls are app-owned source; preserve deliberately maintained
+exports and behavior fixes when comparing upstream changes. Current runtime
+inputs are Base UI 1.9.0, cn 0.5.2 and Tailwind 4.3.4 under Vite+ 1.5.0. The
+[CSS architecture cutover](reference/css-architecture.md) uses Preflight,
+explicit layers and Base UI transitions; tw-animate-css is removed. The
+[initial generation inputs and bundle measurement](#initial-foundation-history)
+are retained as history.
 
 For an upstream component update, invoke the exact CLI on demand with `pnpm dlx shadcn@4.21.0`, inspect `shadcn view` and `shadcn add <component> --dry-run`, compare the generated source with the app-owned file, and apply only reviewed changes. Ordinary builds do not carry the CLI dependency graph. Adapt generated output to native Base UI starting/ending and state attributes, the shared outline/motion conventions, and the CSS entry at `src/styles/index.css`; do not restore copied animation helpers or reset overrides. Never overwrite Portcove token mappings or behavior fixes wholesale. Dependency upgrades and copied-component updates remain separate review decisions.
 
@@ -202,17 +237,22 @@ The dependency requirement, Portcove support promise, and observed environment a
 | Platform            | Upstream dependency requirement                                                                                       | Portcove Public beta baseline                                                                                   | Executable evidence owner                                                                                                                     |
 | ------------------- | --------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
 | Windows x64         | Tailwind/Base UI need a Chromium-family engine at least Chrome/Edge 111                                               | Windows 11 26H2 with security updates; serviced WebView2 Evergreen production Runtime, initially 155.0.4283.62+ | #993 retains exact 26H2 native/installed evidence; 25H2 is an unqualified follow-up, not an initial-beta gate                                 |
-| Linux x64           | Tauri runtime 2.12.2 with Wry 0.57.0 enables WebKitGTK 2.40+; Tailwind does not publish a WebKitGTK minimum guarantee | Updated Ubuntu 24.04 LTS with maintained WebKitGTK 2.52.6+ (initial package 2.52.6-0ubuntu0.24.04.1)            | #993 must qualify Ubuntu 24.04 native and installed packages, including the AppImage's actual bundled/loaded engine                           |
+| Linux x64           | Tauri runtime 2.12.2 with Wry 0.57.0 enables WebKitGTK 2.40+; Tailwind does not publish a WebKitGTK minimum guarantee | Updated Ubuntu 24.04 LTS with maintained WebKitGTK 2.52.6+ (initial package 2.52.6-0ubuntu0.24.04.1)            | #993 retains scoped Ubuntu 24.04 native/package and engine evidence; later Linux candidates require their own applicable qualification        |
 | Steam Deck          | Must satisfy the proven Linux engine requirement in the actual SteamOS runtime                                        | Unqualified at initial beta; follow-up required before 1.0                                                      | #51/#217 run the retained fixture on actual Deck and record SteamOS/WebKitGTK identity; #993 beta closure does not wait for this device proof |
 | macOS Intel         | Tailwind/Base UI require Safari/WebKit 16.4-era features                                                              | Unqualified initial beta; qualify before 1.0 during beta                                                        | #45/#226 use the existing qualification route on an exact Intel WKWebView host                                                                |
 | macOS Apple silicon | Tailwind/Base UI require Safari/WebKit 16.4-era features                                                              | Unqualified initial beta; qualify before 1.0 during beta                                                        | #45/#226 use the existing qualification route on an exact Apple-silicon WKWebView host                                                        |
 
 The owner approved the Linux support pair in the October 18 #993 follow-up and amended the initial-beta Windows target to 26H2 on October 19. Windows 25H2 remains an explicit unqualified follow-up compatibility target; missing media is not evidence of incompatibility. This support amendment adds no installer or startup OS rejection. Approval selects the support policy; it does not establish a qualification pass. Evergreen automatic updates remain enabled. The exact tested OS builds, package revisions, loaded engines and artifact identities belong to #993's evidence. Other Linux distributions and older engines acquire no support claim. Ubuntu 22.04 compilation remains useful CI feedback, separately from the Ubuntu 24.04 package producer and supported runtime.
 
-Vite's `chrome111` and `safari16.4` transform targets match the selected Tailwind engine features and are not an operating-system support declaration. Until #993 records the required native-family and claimed-minimum evidence, an affected platform remains unqualified for redesign publication even though this non-publishing foundation may be developed and merged. #993 retains the bounded selected-stack architecture/portability decision and
-Windows/Linux native/minimum proof required by #917. Keep practical macOS CI/build
-health; full Intel/Apple Silicon native/package qualification belongs to #45/#226
-during beta before 1.0, without holding the initial Windows/Linux foundation.
+Vite's `chrome111` and `safari16.4` transform targets match the selected Tailwind
+engine features and are not an operating-system support declaration. [#993](https://github.com/boburning/portcove/issues/993)
+completed its amended initial-beta stack/minimum acceptance on October 19, 2026.
+Its retained native, installed and engine observations keep their exact source,
+artifact and environment scopes; they do not certify a new candidate or imply
+publication authority. Follow the [current first-beta release boundary](DELIVERY.md#first-public-beta-host-boundary)
+for Windows candidate qualification and retain the completed Linux evidence for
+later Linux delivery. Keep practical macOS CI/build health; full Intel/Apple
+Silicon native/package qualification belongs to #45/#226 during beta before 1.0.
 
 The [versioned runtime manifest](https://github.com/tauri-apps/tauri/blob/tauri-runtime-wry-v2.12.2/crates/tauri-runtime-wry/Cargo.toml)
 selects Wry 0.57.0's `linux-body` feature and WebKitGTK `v2_40`; the
@@ -235,7 +275,9 @@ build targets, operating-system minima or publication qualification.
 - `html[data-theme]` is the runtime theme marker and activates Tailwind `dark:` variants. `html[lang]`, `html[dir]`, and Base UI's `DirectionProvider` are now driven together by the [desktop localization owner](LOCALIZATION.md), including for portaled controls. New layout rules use logical properties and mixed-direction technical values keep an explicit direction.
 - Shared Button intent is explicit: neutral `default`, signature-red `primary` for the dominant Play/Install/Apply action, blue `selected`, and danger-semantic `destructive`. All retain the shared gold focus signal and 36px compact and 40px ordinary/large minimum heights. Dialog owns the semantic scrim without backdrop blur; Dialog and Select use logical positioning and spacing where direction matters.
 - Graphite and warm controller-gray surfaces carry most of the interface. In the light theme, navigation is darker than the warm workspace and elevated surfaces are brighter. Blue means selected or interactive, yellow means keyboard/controller focus or rare emphasis, green means healthy or complete, and red is reserved for Portcove's signature and dangerous or critical action.
-- Selected state and focus are deliberately different: shared selected buttons use blue fill and a bottom-line marker with a transparent border; destination and Settings category navigation use the fill and current-page semantics. A gold outline communicates the current keyboard or controller target independently. Selecting an ordinary control preserves its regular font weight and geometry; forced colors retain a visible state cue.
+- Text uses four sizes: 13px for metadata and chips (`--text-2xs`/`--text-xs`), 14px for body (`--text-sm`), 16px for card and game titles (`--text-md`), plus the page and section heading sizes; weights are 400 and 600 (#5058 V1).
+- Single-select strips, including Library quick views, Activity sections and detail tabs, share the selected treatment: selection fill plus an underline in the current color; option cards such as the theme picker keep their outline and tick (#5058 V3).
+- Selected state and focus are deliberately different: shared selected buttons use blue fill and a bottom-line marker with a transparent border; destination and Settings category navigation use the fill and current-page semantics. A gold outline communicates the current keyboard or controller target independently. Selecting an ordinary control preserves its regular font weight and geometry; forced colors retain a visible state cue. Current destination and Settings-category controls keep a leading system-color border in forced colors, independently of the keyboard focus outline.
 - Depth comes from borders, tonal steps, restrained inset treatment, and small shadows. Portcove does not use decorative gradients, glass, blur, neon glow, scanlines, or pixel-interface typography. Hero artwork uses the shared directional opacity mask solely to protect foreground readability.
 - The bundled Geist variable font is the intended default interface typeface, with an intentional monospace stack for technical content and offline system/script fallbacks coordinated with #203. The desktop must not make a network request to render its interface.
 - A second token interchange format is unnecessary while CSS has one runtime consumer. If a demonstrated second consumer later needs exchange, evaluate the then-current Design Tokens Community Group format without treating a community-group specification as a W3C Recommendation or manually maintaining competing CSS and JSON authorities.
@@ -245,9 +287,17 @@ build targets, operating-system minima or publication qualification.
 Interface size is one profile-local whole-interface control in Appearance with
 100/125/150/175/200/250/300/400 percent presets and Ctrl/Command plus/minus/zero.
 It preserves the active library, drafts and browsing context. Below 42rem
-effective width, a compact current-destination header and navigation sheet precede
-the workspace in one vertical reading flow. The existing Commands trigger shares
-that header without a second toolbar row or duplicate trigger. Keep task controls
+effective width, a 60px icon navigation rail sits beside a document-flow workspace.
+Primary destination tooltips open toward the workspace to avoid covering adjacent
+rail controls while remaining hoverable. The same destination controls retain
+accessible names and selection cues;
+the rail's Open navigation control retains the full-label modal sheet and focus
+restoration. Compact collection controls use the rail’s existing organization editor. At narrow query widths the
+Continue strip omits its decorative foreground thumbnail so identity and actions
+can use the full text width; its background, image credits and real controls remain.
+Commands stays
+in the workspace top bar with one trigger. The 672–760px compact desktop shell
+uses the same 60px rail. Keep task controls
 in the workspace flow. [Theme ownership](THEME.md#whole-interface-enlargement-and-reflow) owns
 the controller, persistence and native/browser evidence boundaries.
 
@@ -289,9 +339,11 @@ Finishing is acceptance within the owning journeys, not a separate perpetual pol
 - Acknowledge an action promptly without inventing its outcome. Copy confirmation is local; launch distinguishes accepted, starting, running when authoritative, and failure; install/update uses real stages or an honest indeterminate state; cancellation distinguishes requested from stopped; integration results distinguish core success from optional partial failure. The existing operation/event authority owns progress and durable outcomes, while toasts remain supplemental.
 - Catalog completion identifies the applied update, restored catalog, selected source or publisher trust change. Relocation results display the supplied retained and pending-cleanup folder paths without deletion advice. Retained logs explain available saved output independently of the operation outcome. Digest copy announces success or failure and offers the exact selectable value on failure; an older attempt cannot replace current feedback. Zero-total progress retains the concrete action and indeterminate state without an absent-telemetry sentence or fabricated percentage.
 - Command-palette query changes choose the best eligible result predictably, background refresh preserves the active command by stable identity where possible, and Enter during IME composition never executes a command.
+- Typing in the command palette also lists matching games, grouped as Library or Discover entries, and opens their details. Game results appear only for a non-empty query so the empty palette stays a short list of destinations and actions. Matching ignores letter case and accents, as Library and Discover search do. Library-hidden games remain searchable but appear only as Discover results.
 - Command-palette pointer movement, option focus and direct clicks remain usable alongside keyboard selection. A popup appearing beneath a stationary pointer must not replace the command selected with the arrow keys.
 - Artwork remains legible and stable across bright, dark, white, missing, unusual-aspect, and long-title cases. Optional artwork failure does not become launch failure, and essential actions never depend on imagery.
 - Optical review covers icon/label alignment, tabular numerals where values change or align in columns, consistent dialog geometry, subordinate shortcut hints, long-path identification and exact copying, and reduced nested-card emphasis. Essential instructions and warnings never exist only in a tooltip or browser title.
+- Supplemental tooltips stay within their trigger's existing landmark or dialog. Fixed positioning keeps the popup clear of scrollable containers while preserving accessible names, descriptions and dismissal.
 - Shared review dialogs permit long path and identifier text to wrap anywhere when space requires it, including inline values in consequence paragraphs. Preserve the complete selectable value; do not hide horizontal overflow. Check real Windows paths spanning several directory names at 240px and 320px effective widths as well as ordinary windows: hyphenated or Unicode-only samples can introduce break opportunities that mask failures.
 - Motion is small, interruptible, reduced-motion safe, and independent of business logic. Approximately 100–140 ms for ordinary visual transitions and 160–220 ms for small floating surfaces are evaluation ranges, not standards or global release gates.
 - First use, no filtered matches, unavailable storage, refresh failure with retained data, operation failure, partial success, and cancellation remain distinct. Settings either persist immediately and report persistence truthfully or use an explicit Apply/Cancel transaction.
@@ -311,9 +363,9 @@ For each cohesive slice:
 3. Run focused tests and render the affected real-component scenarios at relevant themes, sizes, and states. Inspect the output for clipping, hierarchy, spacing, inconsistent controls, hidden actions, unreadable text, and missing states; screenshot generation alone is not inspection.
 4. Repair identifiable defects or violated contracts. Repeated defects in an approved control or pattern are fixed at the shared owner rather than hidden by another feature override.
 5. For an intentional reference change, record the reason, affected semantic or interaction contract, and inspected before/after evidence. Unexplained screenshot churn does not replace an accepted reference.
-6. Hand the exact candidate head, acceptance criteria, scenario IDs, screenshots, checks, and limitations to the separate non-writing reviewer. Complete the normal exact-head validation and merge path.
+6. Provide the exact candidate head, acceptance criteria, scenario IDs, screenshots, checks and limitations for [applicable review](QUALITY.md#review-scope), as the UI part of the [review packet](QUALITY.md#review-and-repair-loop), including separate non-writing review where required. Complete the normal exact-head validation and merge path.
 
-The first foundation slice records the actual `components.json` paths, aliases, Base UI selection, Nova preset, Tailwind entry, semantic token mapping, icon choice, and component-update procedure, then imports only the controls needed to prove the complex installation-review dialog's nested selector, controller, portal, focus, and dismissal behavior in Tauri. Library and broad screen migration start only after that foundation is reviewed. Until the configuration lands, later sessions must not guess it. The existing development-only renderer remains the ordinary presentation loop, while the native harness remains required for Tauri, WebView, IPC, portal, focus, controller, native-dialog, restart, platform, and packaged obligations.
+The completed foundation records the actual `components.json` paths, aliases, Base UI selection, Nova preset, Tailwind entry, semantic token mapping, icon choice and component-update procedure. Read those checked-in inputs when extending the system. The original nested installation-review selector, controller, portal, focus and dismissal proof remains in the [foundation history](#initial-foundation-history) and #917 receipts; its phase restriction is satisfied. The existing development-only renderer remains the ordinary presentation loop, while the native harness remains required for Tauri, WebView, IPC, portal, focus, controller, native-dialog, restart, platform, and packaged obligations.
 
 ## Product vocabulary
 
@@ -370,7 +422,7 @@ an existing registered runtime. Counts follow the actual result unit.
 | Activate a retained checked update   | Apply update · {version}                                              | Calls the existing activation owner; no new review step.                                                                                                           |
 | Retained checked game update         | Update saved for later                                                | A checked staged record is present; it can reuse local bytes without a new download. Partial download/recovery and failed-check states remain distinct.            |
 | Update notices                       | Pause update notices / Resume update notices / Skip this version      | Current scope is the selected Library and port; skip binds the exact version and artifact digest. It changes notices, not installed/staged files or update policy. |
-| Library filtered empty state         | No matching library entries                                           | A Library result counts entries, including separate implementations of one game. Discover can use No matching games for its grouped results.                       |
+| Library filtered empty state         | Nothing in your library matches                                       | A Library result counts entries, including separate implementations of one game. Discover can use No matching games for its grouped results.                       |
 
 **Saves and settings** names that data scope; **Saved data** covers broader declared
 files. **Saves & backups** is the destination. **Steam shortcut** is the integration
@@ -502,7 +554,9 @@ Portcove targets dense desktop use and a minimum 960-pixel-wide Tauri window. At
 contract; [#206](https://github.com/boburning/portcove/issues/206) owns its desktop
 presentation. Start with consistent 2:3 portrait library/catalog covers unless
 current design evidence supports another established layout. Letterbox other
-ratios instead of silently cropping important content. Wide detail imagery is
+ratios instead of silently cropping important content; the letterboxed space shows
+a softened, blurred copy of the same artwork behind the whole image, removed for
+reduced transparency and forced colors. Wide detail imagery is
 optional; titles, status and actions remain readable outside images, including
 generated fallback states. Logos, icons, animation and a crop editor are not
 required for this slice.
@@ -540,12 +594,89 @@ Library uses Title A–Z only when no sort preference exists; explicit legacy Ca
 order and saved sorts remain available. Unreadable stored preferences retain Catalog
 order for explicit recovery and are not replaced without an explicit save. Discover
 retains Suggested order. Everyday
-Library quick views compose existing query and favorites state; collection editing
-and Hidden stay in the collection menu. Clear filters retains search; Reset view
+Library quick views (All, Favorites, Needs attention, Updates) are one exclusive
+choice exposed as a radio group with a single tab stop; arrow, Home and End keys move
+and select. Selecting a view clears the other views' state, never search, the
+selected collection or declared filters; Readiness Ready stays an ordinary filter,
+and only Needs attention replaces it. Every count uses the same base: library
+membership, search, the selected collection, Ready when chosen, and declared
+filters other than the Updates view's own selection. Needs attention counts without
+Ready because selecting it replaces Ready. A count never derives from another
+view's narrowed result; unknown inputs, including an unread collection, stay
+unavailable rather than zero. Updates includes available and downloaded (staged)
+updates and adds no filter chips. A custom Observed updates filter remains an
+ordinary filter with its chips, and the Updates view is unavailable until it is
+cleared, so no view overwrites it. Combined legacy state or an uninterpretable
+Readiness value selects no view. The Filters panel's Readiness counts keep their
+self-excluding filter semantics. Collection editing
+and Hidden stay in the collection menu. (Supersedes the earlier composed-toggle
+quick views; see #5058.) Clear filters retains search; Reset view
 states that it also clears search, quick views and collection selection. At compact
 widths search occupies its own toolbar row.
 
-Common filters use compact labeled checkbox popovers. Selection stays multi-select,
+Library rows occupy at most1120px, with40×60 contained artwork,5px row-art
+corners and12px block/10px inline inset. Title, project and identity facts form
+one visual stack beside the thumbnail. Facts remain siblings of the details
+button, whose full focus/return bounds include the visual stack. Subgrid-capable
+engines share the stack's tracks; the explicit ordinary-grid fallback retains
+readable separate facts on older engines. The grouped state/action footer sits
+beside the identity, follows it at narrow collection widths, and loses its indent
+at the smallest widths. More and Favorite remain independently reachable;
+truly narrow or enlarged content may stack personal controls. Long identities
+wrap and remain accessible in full.
+
+At desktop windows up to 760px high (from 761px width, including the 1280×720
+reference), chrome rhythm tightens (toolbar, header, quick views and query rows)
+and the cover project reserves one line instead of two, expanding on focus, so
+the first row's primary actions are visible on arrival without changing cover
+geometry. At short desktop heights (up to800px, from761px width), Library covers use a10rem
+minimum track. The220px artwork cap remains; no obsolete180px cap is reintroduced.
+Ordinary/tall and compact width rules retain their existing density. Rem-based
+minimums continue honoring whole-interface enlargement. The effective cover-to-
+title gap is24px at normal size (14px caption padding plus10px title margin),
+with the existing two-line title/project reservations. Artwork uses the raised
+surface and a quiet translucent border. Chips use11px/500 type and7px corners;
+wrapped footer rhythm uses an8px gap while action controls retain32px height.
+
+Library quick views retain their full meaning, lighter400-weight labels and44px
+minimum control height. Compact count badges are visually omitted, with counts
+retained in accessible names/descriptions. Very narrow/enlarged content reflows
+rather than clipping. Needs attention still includes repair/readiness needs.
+An unfavorited heart stays visible; More is subordinate until hover/focus on a
+fine pointer and remains visible on touch. Every action retains keyboard access.
+
+Library's intermediate app-window tier uses a 10.25rem sidebar and 1.5rem
+workspace gutters between 47.5rem and 56.25rem. Retrieval wraps according to
+available workspace; its phone controls retain safe text-enlargement fallbacks.
+Cover metadata keeps at least 10px before the footer while retaining bottom
+alignment. Narrow rows keep independent personal actions beside short identity
+stacks where space permits, and naturally grow for long titles. A narrow header
+wraps Add games below the identity before squeezing the heading.
+
+Continue retains its artwork suitability, attribution and focus owners. Closed
+image credits use a compact affordance; opening them grows the shelf to keep all
+attribution reachable. Detail presentation and launch eligibility are unchanged.
+
+The compact rail combines the decorative mascot with the existing Open navigation
+trigger. A folder control opens the existing collection editor; full navigation
+and focus return remain intact. Known-empty collection navigation also offers
+Create your first collection through that same editor/commit owner. Loading or
+unreadable collections are never presented as a known empty library.
+
+The Library header retains its total. Retrieval owns one visible22px-minimum
+result summary and constrained-view reset; selected-filter chips and Clear filters
+precede that summary on their own row. The separate visually hidden Search results
+status owns count announcements. Clear filters and Reset view retain distinct
+scopes. Removal labels include the visible filter group and value for speech control. Empty/unavailable results retain accurate recovery; no-match headings use
+22px/1.35 with concise explicit reset scope and natural growth for longer text.
+
+Library starts with Runs on (including Available for this device, which states acquisition availability only), Original system and Update channels. Other real
+groups remain in Advanced filters, which opens for restored advanced selections.
+The Library panel places heading/help in a compact row and keeps closed Advanced
+controls beside the footer where space allows. Explanations, unknown-context
+recovery and multi-selection semantics stay available. Library search/sort use
+13px text and6px control corners; contrast-qualified borders and the distinct
+3px focus indicator remain. Discover retains its existing common groups. Common filters use compact labeled checkbox popovers. Selection stays multi-select,
 with OR within a category and AND across categories; route-dependent predicates
 must still match the same observed route. Advanced filters and per-field help retain
 technical semantics. Escape closes the active popover before the containing panel.
@@ -652,11 +783,11 @@ The approved brand direction is an expressive 2D illustrated crab, custom `Portc
 
 ## Approved Public beta redesign contract
 
-[#917](https://github.com/boburning/portcove/issues/917) is the finite desktop
-redesign, shared-control, visual-system, style-enforcement, and visual-acceptance
-owner. It is an organizational child of #200; that parentage does not retarget
-the broader workstream or make #200 closure a Public beta prerequisite. #917 itself remains a Required
-Public beta outcome. #206 retains information
+[#917](https://github.com/boburning/portcove/issues/917) completed the finite
+desktop redesign, shared-control, visual-system, style-enforcement and
+visual-acceptance contract on October 18, 2026. It remains credited as a completed
+Required Public beta outcome. Its organizational parent #200 retains the broader
+workstream; parentage does not make #200 closure a Public beta prerequisite. #206 retains information
 architecture, navigation, interaction, focus, content ordering, and domain-driven
 presentation. #203 retains labels, localization, formatting, and safe unknowns.
 #208 retains shared artwork selection/provenance/fallback/ingestion/cache, and
@@ -820,6 +951,9 @@ rows. Recovery has a disclosed three-step manual-copy guide, then independently
 labeled Restore and Change library location actions. Preserve exact LTR-isolated paths and six
 current export content categories. Export success acknowledges metadata only;
 manual copy remains unverified until corresponding restore observations succeed.
+The export guide asks for a new filename. The system save dialog returns a path
+and may offer to replace a file. Core refuses collisions and Desktop directs the
+user to a fresh filename.
 Use existing reviewed backup/import controls and native restore consent. Do not
 introduce a progress bar, checkbox, success badge or automatic-copy implication
 for work the application did not perform.
@@ -834,10 +968,20 @@ reset and filtering controls; hiding first-use tools must not clear preferences.
 
 Library's heading Add games action and empty-state primary action open the
 same in-flow workspace. Keep source choice, current port identity and the next
-review action together. Start with three intentions: choose a game or port,
-find games in a folder, or use an existing installation. Show only the selected
-route's actual inputs and requirements. Files are checked against an explicitly
-selected port; folder search supplies bounded recognition. Retain ambiguous/unsupported and
+review action together. Start with three routes: Browse games (opens Discover,
+where choosing a game always happens), Scan a folder, or use an existing
+installation. Show only the selected route's actual inputs and requirements. In
+Add games, "Choose folder to scan" saves the chosen folder and scans the saved
+folders; Settings keeps "Add folder" without scanning. Files are checked against the
+port chosen on its game page; folder search supplies bounded recognition (#5058 F2).
+When setup or install finishes and current readiness, including Core's launch
+assessment, reports the game ready with nothing left to confirm, the completion
+notice reads "Title is ready to play." with a primary "Play: Title" and Dismiss;
+external runtimes and every other outcome keep the factual "Action · Title:
+finished." notice. A successful launch shows no visible notice; its announcement
+remains. On the game page one Cancel serves running setup: the Game files control
+omits its own when the page's cancellation covers the operation, and the review
+dialog keeps its own (#5058 S3, S4). Retain ambiguous/unsupported and
 unknown evidence in existing review treatments. Detail/setup completion uses the
 shared primary/recovery and focus contracts. Save drafts during normal navigation;
 opening another destination must not imply cancellation or task completion.
@@ -845,7 +989,7 @@ opening another destination must not imply cancellation or task completion.
 ### Discover artwork and identity
 
 Catalog cards retain their own browsing filters, sort and route semantics. Whole
-cover images use Library's centered 2:3 frame and semantic neutral padding.
+cover images use Library's centered 2:3 frame and the shared letterbox fill.
 Artwork size is independent of title/status height, with the shared short-window bound. Missing artwork uses the same
 quiet game symbol as Library and Detail. Do not infer crop bounds or replace
 provider/user-selected artwork. Titles and project/variant identity follow the
@@ -1016,3 +1160,44 @@ precede that identity chain. Header and screenshot selection remain independent.
 A logo sits above the game identity/actions; a cover retains its portrait column.
 Supporting detail and settings text scales with interface size. No artwork or
 prototype fixture creates readiness, launch history or operation eligibility.
+
+### Prototype composition and production state
+
+Overview uses a primary information column and a narrower Requirements/Project &
+support column. Files and Versions follow the same responsive rhythm. Current
+and downloaded/available versions are separate prominent values; retained update
+observations never become current facts after a generation or installation change.
+Backup journey counts require a current healthy inventory, and unavailable data
+never becomes a zero count. Manage uses ruled rows and a separate destructive zone.
+
+Activity embeds progress within task rows and uses open empty states while keeping
+history completeness visible. Supplemental update explanations are disclosed;
+current check coverage remains visible. Command groups are registry metadata, with
+original keyboard order, disabled skipping and command dispatch unchanged.
+
+Shared dialogs reserve heading and description space for Close. Shared empty
+states use an open icon/title/body composition; informational notices use a quiet
+surface and leading accent while warning/error semantics remain independent.
+
+## Initial foundation history
+
+The initial #917 foundation checked in Button, Dialog and Select to prove nested
+installation-review behavior. Those controls alone did not authorize broad
+migration: actual native portal, dismissal and focus evidence was required.
+The [completed owner's receipts](https://github.com/boburning/portcove/issues/917)
+record the satisfied phase gate and subsequent migration. The following original
+generation inputs and bundle measurement describe that foundation, rather than
+current dependency versions or a renewed migration gate.
+
+| Input                             | Version | License    | Demonstrated purpose                                              |
+| --------------------------------- | ------- | ---------- | ----------------------------------------------------------------- |
+| shadcn CLI                        | 4.21.0  | MIT        | Base/Nova project configuration and checked-in control source     |
+| Tailwind CSS and Vite integration | 4.3.3   | MIT        | generated component utilities and production CSS compilation      |
+| Base UI React                     | 1.8.0   | MIT        | dialog, select, portal, dismissal, and focus primitives           |
+| class-variance-authority          | 0.7.1   | Apache-2.0 | generated Button variants                                         |
+| cn                                | 0.3.0   | MIT        | generated class composition utility                               |
+| tw-animate-css                    | 1.4.0   | MIT        | generated state animations with Portcove reduced-motion overrides |
+| Geist variable font               | 5.3.0   | OFL-1.1    | bundled, offline heading and interface typography                 |
+| Tauri WDIO WebDriver plugin       | 1.4.0   | MIT        | feature-gated driver server, absent from production builds        |
+
+The production build from base `52e81bd` emitted 560,643 bytes of JavaScript and 76,142 bytes of CSS. The same build after the foundation emitted 560,908 bytes of JavaScript, 111,551 bytes of CSS, and 76,416 bytes of local font files: a measured 112,094-byte raw asset increase excluding source maps (about 82,990 bytes using Vite's gzip figures for CSS/JavaScript and the already-compressed font files). This measurement is a bundle effect, not a performance claim.

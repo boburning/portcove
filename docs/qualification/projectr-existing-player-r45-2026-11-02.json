@@ -1,0 +1,208 @@
+{
+  "format_version": 1,
+  "kind": "conditional-projectr-existing-player-guides",
+  "source_base": "46ef4844639ca0ca6b2f5f2e941495d0567a799b",
+  "date": "2026-11-02",
+  "owners": [121, 132, 1422, 2510, 2926],
+  "rows": [
+    {
+      "issue": 121,
+      "id": "projectr-san-francisco-rush-2049",
+      "route": {
+        "selected_program": "<existing upstream installation>/bin/project-r.exe",
+        "cwd": "<existing upstream installation>/bin",
+        "arguments": ["--2049"],
+        "runtime_replacement_owner": "upstream/player",
+        "operations": "register/revalidate/Play/restart/readback/remove reference; no external file management"
+      },
+      "specification_sha256": "f9336e35035dd4da06a4e9bab544c03b15115bd89dc71284fc7f2fee7e6ca992",
+      "preimage_sha256": "e3d23367e32dbda852a3c33896ab9e748570309a893a7f4c6a18d58aa5b432c0",
+      "postimage_sha256": "19446961a8a6892f96a088cff0d16dd4ca81d3f3eb95427bdc973a04c86823ea",
+      "remaining_limits": [
+        "No expected publisher digest; computed installer hash is observational, not authentication",
+        "No native/installed/original/setup/gameplay/save observation; physical GUI STOP unchanged",
+        "Rights and exact original input remain conditional; no broad redistribution grant",
+        "Preserve entire existing shared profile and all configured external paths; no destructive/migration authority"
+      ],
+      "finite_closure": "Proposed conditional nonowning existingplayer outcome only; pending independent review, finalCI, guarded delivery and canonical readback"
+    },
+    {
+      "issue": 132,
+      "id": "projectr-san-francisco-rush-the-rock",
+      "route": {
+        "selected_program": "<existing upstream installation>/bin/project-r.exe",
+        "cwd": "<existing upstream installation>/bin",
+        "arguments": ["--rtr"],
+        "runtime_replacement_owner": "upstream/player",
+        "operations": "register/revalidate/Play/restart/readback/remove reference; no external file management"
+      },
+      "specification_sha256": "30b3e0491a37fee7347cf4957e91dd55d09497f40e3c07a51acda8f398bd82b4",
+      "preimage_sha256": "fb9d215ad46141c838c74471d6359678ba728d0e301acd0acb4419b5537897c3",
+      "postimage_sha256": "fdc20c48da2c89ed6d5fb0c8fe8df12b58100563253992dfb641e52156c93800",
+      "remaining_limits": [
+        "No expected publisher digest; computed installer hash is observational, not authentication",
+        "No native/installed/original/setup/gameplay/save observation; physical GUI STOP unchanged",
+        "Rights and exact original input remain conditional; no broad redistribution grant",
+        "Preserve entire existing shared profile and all configured external paths; no destructive/migration authority"
+      ],
+      "finite_closure": "Proposed conditional nonowning existingplayer outcome only; pending independent review, finalCI, guarded delivery and canonical readback"
+    }
+  ],
+  "package": {
+    "url": "https://t3hd0gg.com/project-r/0.7.1/project-r-0.7.1-windows-x86_64.exe",
+    "actual_url": "https://t3hd0gg.com/project-r/0.7.1/project-r-0.7.1-windows-x86_64.exe",
+    "observed_at": "2026-11-02T13:10:43.657048+00:00",
+    "bytes": 5063867,
+    "computed_sha256": "34df2fb965e6dab28388e4110e8449926b978ce015980ab93ed88d58ef043217",
+    "expected_sha256": null,
+    "execution": "not run; static inspection only"
+  },
+  "package_inventory": {
+    "files": [
+      {
+        "path": "app/bin/project-r.exe",
+        "bytes": 8543744,
+        "sha256": "edb360730b531a9266520197ad1780ea21bd9e22b961f075b34a5937e497f796",
+        "PE_machine": "0x8664"
+      },
+      {
+        "path": "app/bin/SDL3.dll",
+        "bytes": 1677824,
+        "sha256": "4c15586f7eec140b91a640af5f3781e5a910bfb16c4e2ba4ce5e9513dabffd85",
+        "PE_machine": "0x8664"
+      },
+      {
+        "path": "app/bin/zstd.dll",
+        "bytes": 658944,
+        "sha256": "ac220e0ab6c77023f1a019ca4bab89f5df4b6426dbfdd6ce8c0e434db2efdf80",
+        "PE_machine": "0x8664"
+      },
+      {
+        "path": "app/bin/fmt.dll",
+        "bytes": 117248,
+        "sha256": "e4091036d7cf493f542fa83368d325f909c867bcf52160c6ab55848d0c72d4c3",
+        "PE_machine": "0x8664"
+      },
+      {
+        "path": "app/bin/libpng16.dll",
+        "bytes": 197120,
+        "sha256": "151783089b6c2df8566def3ce55183f7d2cc9a42ef42180964ff44c90207ffc1",
+        "PE_machine": "0x8664"
+      },
+      {
+        "path": "app/bin/zip.dll",
+        "bytes": 105984,
+        "sha256": "97b6b8ba7797b05aee9e488daf178d5aaa1a40a5246ba497d79226a70afabba0",
+        "PE_machine": "0x8664"
+      },
+      {
+        "path": "app/bin/zlib1.dll",
+        "bytes": 225792,
+        "sha256": "7b6c607ca31c90f31742e2df7407e208f1d0e87e0867dea0581f6b6ecefa5941",
+        "PE_machine": "0x8664"
+      },
+      {
+        "path": "app/share/doc/README.txt",
+        "bytes": 21892,
+        "sha256": "9ac87168956ebfc664f1850236413c871e4bf59f58c098057c5c70fd091cd29a"
+      },
+      {
+        "path": "app/share/doc/LICENSE.txt",
+        "bytes": 67380,
+        "sha256": "1902f60611adee9dbd8acbe1d707356c593fc1b2fc2b4541bcbde55edd772ac0"
+      }
+    ],
+    "total_bytes": 11615928,
+    "data_only": true,
+    "no_upstream_executable_run": true
+  },
+  "local_evidence_sha256": {
+    "official.html": "81630e724ed4d91693f050454d9f7c933bbe38dffee1a5df131ec0ba4dea66fc",
+    "official-binding.json": "ca927fb9dd04132932a82116fee341cc6ee6613fd65b153d8d8315cb1b13361d",
+    "help.html": "920a2a620b70489eb13e2a28d29e07ea0706e8f0a833b83c3ddf786e9f84da9d",
+    "help-binding.json": "0f38fae0a3cd61d0fe4cc2d71a52ca962200333463289af66d0e5a3be4ffc6a6",
+    "installer-observation.json": "07b04f186305fffa1eb51187b3ff36d8e2a1c9321f479dd648878de52cb7573a",
+    "extracted-observation.json": "137f5ed8f2c16baa488dcf5f0eb67ffaf072ab0a0c48bedbe00a6baa3b6f3871",
+    "inno-new-list.stdout": "8fadc818f4011180d924b7055448d0ca0ce6cc4fbca95187d6e71f7c84e4a49b",
+    "inno-new-list.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "inno-extract.stdout": "0cd09ccba6e92f02b7fb1dc568f5a3d66d06936138976c0dae5d1517f2edf805",
+    "inno-extract.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "inno-debug-supported.stdout": "6ed695dcf2d14a8761ebf2690eb93089e57b0738a010a13f9f7165e2ead30aef",
+    "inno-debug-supported.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "native-pe-imports.txt": "ececa05f09b9e666fc14109711d7bd449875b717944728fca2989fd18681276b",
+    "native-sections.txt": "509bfd563ffd797923bc1157fd3027c7bcedbe6bd9b2fedad593a2f0ec5d139b",
+    "path-reference-candidates.json": "fc4953548b1a5da9634697aa69fbfef401e24160112dfd0eed89651f99731f20",
+    "function-133ef0.txt": "ad9841f27fdcc50428792e1021106ab6ea5e93d335c299a336207f8204f78826",
+    "function-133ff0.txt": "d72ad835814237d1096e5d1d399323e8d422a4a136bca0d27ea8e1c868b0f694",
+    "function-134420.txt": "c985c71220bdf7a04e537ffc200dd0267ea96ada1ad93592441e142b01b3cbb3",
+    "function-134690.txt": "f6c7488cd716e9b77c230a1671a97032093ea6011f18ef75bf946b827b0db165"
+  },
+  "diagnostic_parser": {
+    "purpose": "Bounded static ProjectR installer inspection; never game/installer/upstream setup execution",
+    "source": "https://github.com/dscharrer/innoextract/pull/210",
+    "selected_fork": "dscho/innoextract",
+    "selected_commit": "376a13e7c41cc5528b6088d0dd16ec1b323a8d37",
+    "archive_sha256": "d780adf8d9111b61100adbe7f136f2eb94af889e3add0123a51560134516588d",
+    "local_build_adjustment": "Only CMake requiredcomponents date_time/system removed; Boost1.90 has header-only implementations. Parser source unchanged. No installation.",
+    "cmake_original_sha256": "9bb1708cc454dd179dd72d2c335670d640ce6e722ffc04bf39af0c34903ee714",
+    "cmake_adjusted_sha256": "273f17965104631f69ff8a462b096f778eb0fca641569c3f151ad013c415701b",
+    "deb_sha256s": {
+      "libboost-program-options1.90.0_1.90.0-6ubuntu1_amd64.deb": "552699d9211d5e9bc6c2ff97c412a901b431ba61eb7d93c8c139c3d20f45104e",
+      "libboost-random1.90-dev_1.90.0-6ubuntu1_amd64.deb": "0acb6839e36940db6924739ebbddd82d256a30ce3b68d9bce5fbba280f90d40c",
+      "libbz2-dev_1.0.8-6ubuntu0.1_amd64.deb": "a983927bd8f7952d742814b53cef35c21b1836c920fa2e5002e48f2e6f46905e",
+      "libboost-program-options1.90-dev_1.90.0-6ubuntu1_amd64.deb": "a0ab262d574ae0e23be9d9f638f91d2cd945216f1310175a6e1eaad13d2ce29b",
+      "libboost-random1.90.0_1.90.0-6ubuntu1_amd64.deb": "4eee0992199ba5f72c52808c1877fee68ffa807e509309370394034e1d7ee1b3",
+      "innoextract_1.9-3_amd64.deb": "3d5e220208add5f6524a873f299071b44062c39c16cc0f0e487350ddb2b4b1e2",
+      "libboost-container1.90-dev_1.90.0-6ubuntu1_amd64.deb": "0ee31d54c869053a9a3d42d4fdd4281246ed48d4123b262fbbfd0446052bee34",
+      "libboost-iostreams1.90.0_1.90.0-6ubuntu1_amd64.deb": "f2b4576e6b61d636874c09e6e84bcc3632fdde9eef808ca9eff5d5904dee2948",
+      "libboost1.90-dev_1.90.0-6ubuntu1_amd64.deb": "7b89698c907fd5d33ccd439674fa53803139923822181c87b910579827aca379",
+      "libboost-regex1.90.0_1.90.0-6ubuntu1_amd64.deb": "e9bb8c2d6c2866b71a7191fb4a2dc370c30eb69fe05e72e97b563811ca722e5b",
+      "liblzma-dev_5.8.3-1ubuntu0.1_amd64.deb": "b00302651654508be52052cd454851f7e1828f9d7ea8bb4cd4f1758084d66e1d",
+      "libboost-regex1.90-dev_1.90.0-6ubuntu1_amd64.deb": "ba2c8d844faf986c038333c8c5eb9dc8f5cdc15e0fb9a8e751891f9900a1aadf",
+      "libboost-atomic1.90-dev_1.90.0-6ubuntu1_amd64.deb": "abaf2dce5d16a38fa39e4a6a4a4a4876b44a221583d21d591533967e634be617",
+      "libboost-atomic1.90.0_1.90.0-6ubuntu1_amd64.deb": "07eed67d64072a349ab080f088d2224669fb2cbbf9779d2cb1ce20909d6e16a3",
+      "libboost-filesystem1.90-dev_1.90.0-6ubuntu1_amd64.deb": "d00a3479e52c3abaea103cfafe9149a1b17af7acfce0c0f01b9761d8429f2126",
+      "libboost-iostreams1.90-dev_1.90.0-6ubuntu1_amd64.deb": "d6b44817e6164d5cce95db724936fe7f3cd5d277b242276ee62bc3e15f7050b2",
+      "zlib1g-dev_1%3a1.3.dfsg+really1.3.1-1ubuntu3.2_amd64.deb": "2e4663ab8d018aff8351ee949e53971911b2aca3491eefde61e82111ee83cbc3",
+      "libboost-container1.90.0_1.90.0-6ubuntu1_amd64.deb": "fc427a77f500d3bfa38c0e3995ac7a391a1a23959b31bf3c9dfa73d9d401690a",
+      "libboost-filesystem1.90.0_1.90.0-6ubuntu1_amd64.deb": "3f78b71bf3bcaf465ee3010a7fd09e0374a1e3be040b4520a71466788f1fa93b"
+    },
+    "failed_tool_attempts": [
+      "stockUbuntuinnoextract1.9 unsupported6.4.3; retaininno-list.stdout/stderr",
+      "localconfiguremissingboostrandom thenregex; retainedconfigurestderr; resolvedlocaltransitivedeps"
+    ],
+    "resource_route": "maintained resource-command analysis wrapper; configure300s/build600s; parallel2",
+    "build_mode": "DEBUG=ON enables upstream metadata dump; original parser source unchanged, CMake only drops obsolete Boostdate_time/system component requirements",
+    "binary_sha256": "91b29c241bdf1da0ac8a12ac80169682dd0b31d3ea6956642a0083ee8b26d0b1",
+    "debug_stdout_sha256": "6ed695dcf2d14a8761ebf2690eb93089e57b0738a010a13f9f7165e2ead30aef"
+  },
+  "static_boundary": {
+    "installer_metadata": "Nine completefile entries; AMD64native/DLLs; actual native shortcut target with distinct --rtr/--2049; shortcut working_dir empty. Guide selects executableparentbin. Installer not run.",
+    "configuration": "BundledREADME documents %LOCALAPPDATA%/ProjectR/project-r.toml; officialhelp Logs subfolder. Native dataonly disassembly shows USERPROFILE plus AppData/Local/ProjectR path and Data/Cache/Logs components. Redirected/customactualroots and precise savecompatibility unobserved; retain completeexistingprofile and all configuredexternalpaths.",
+    "lifetime": "No fullsessionlifetime inferred; selectedprogramonly capability remains nonowning. No Windows/native observation.",
+    "license": "OwnProjectR section Allrightsreserved; separately attributed component terms, README free-to-play/share statement. Conditional existingpermittedcopy only; no blanketrelicensing/redistribution inference."
+  },
+  "counts": {
+    "substantive_port_changes": 2,
+    "proposed_finite_outcomes": 2,
+    "actual_closed_before_delivery": 0,
+    "historical_components": 2,
+    "direct_required_beta_outcomes": 0,
+    "whole_required_parent_or_cohort_completions": 0,
+    "remaining_in_prior_bounded_reserve": 13
+  },
+  "selection": {
+    "kind": "Progressive continuation of R44 retainedreserve; no catalog recrawl",
+    "prior_reserve": 21,
+    "prior_delivered": 6,
+    "remaining_held_unready": 15,
+    "selected": [121, 132],
+    "mechanism": "ProjectR ordinary installedplayer, upstreamsetup, nonowning title-specific native arguments",
+    "bounded_other_reserve": [
+      1796, 2626, 745, 2879, 2190, 2246, 744, 2857, 2803, 1575, 171, 817, 2907
+    ],
+    "reason": "New static installer/document inspection resolves exactnativeentry while retaining operation/authentication/native limits; others retain alreadydocumented conditions. R44materiallyresolved6; no unrelatedpadding.",
+    "independent_review_must_decide": "Whether both approvedfiniteconditional existingplayer outcomes are satisfied, preserving actualsource/rights/integrity/native conditions. No claimedclosureuntil delivered."
+  },
+  "authority": "Dated evidence only; canonical issues/Project own actual completion/planning. No native STOP/private/protected authority changed."
+}

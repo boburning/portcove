@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import {
   observeDesktopScenario,
   recordDesktopCheck,
@@ -206,7 +207,7 @@ void test("shared review presentation preserves native visual acceptance thresho
     borderWidth: "1px",
     backgroundColor: "rgb(1, 1, 1)",
     dialogBackgroundColor: "rgb(2, 2, 2)",
-    labelFontWeight: "700",
+    labelFontWeight: "600",
   };
   const field = {},
     label = {},
@@ -226,7 +227,7 @@ void test("shared review presentation preserves native visual acceptance thresho
     ["borderWidth", "0px"],
     ["backgroundColor", "rgba(0, 0, 0, 0)"],
     ["backgroundColor", valid.dialogBackgroundColor],
-    ["labelFontWeight", "699"],
+    ["labelFontWeight", "599"],
   ] as const) {
     observation = { ...valid, [key]: value };
     await assert.rejects(Promise.resolve(invokePresentation(browser, field, label, dialog)));
@@ -826,7 +827,47 @@ import {
   normalPackageBoundaryScenario,
   verifyLinuxPackageEvidence,
   assertMainWebviewContainment,
+  readBoundaryDiagnostics,
 } from "../apps/desktop/scripts/desktop-main-webview-boundary.mts";
+
+void test("WebView evidence reads only the active Desktop diagnostics session", async (t) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "pcv-boundary-diagnostics-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const preferences = path.join(root, "preferences.json");
+  const addSlot = async (name: string, sessionId: string, complete: boolean) => {
+    const directory = path.join(root, "diagnostics", name);
+    await mkdir(directory, { recursive: true });
+    await writeFile(
+      path.join(directory, ".portcove-session.json"),
+      JSON.stringify({
+        schema_version: 1,
+        session_id: sessionId,
+        surface: "desktop",
+        process_id: 123,
+        complete,
+      }),
+    );
+    return path.join(directory, "portcove-desktop.jsonl");
+  };
+  const stale = await addSlot("session-00", "prior", true);
+  await writeFile(stale, JSON.stringify({ session_id: "prior" }) + "\n");
+  const active = await addSlot("session-01", "active", false);
+  assert.deepEqual(await readBoundaryDiagnostics(preferences), []);
+  const event = {
+    session_id: "active",
+    process_id: 123,
+    fields: { operation_id: "webview-navigation", main_webview: true },
+  };
+  await writeFile(active, JSON.stringify(event) + "\n");
+  assert.deepEqual(await readBoundaryDiagnostics(preferences), [event]);
+  await writeFile(active, JSON.stringify({ ...event, session_id: "prior" }) + "\n");
+  await assert.rejects(readBoundaryDiagnostics(preferences), /belongs to another session/u);
+  await writeFile(active, JSON.stringify({ ...event, process_id: 456 }) + "\n");
+  await assert.rejects(readBoundaryDiagnostics(preferences), /belongs to another process/u);
+  await mkdir(path.join(root, "diagnostics", "session-03"));
+  await addSlot("session-02", "other", false);
+  await assert.rejects(readBoundaryDiagnostics(preferences), /Expected one active/u);
+});
 
 void test("failed permission command retains bounded redacted progress without acceptance or error replacement", async () => {
   async function run(mode: string) {
@@ -1017,6 +1058,7 @@ import {
 import {
   catalogReport,
   desktopHarnessDeadlineMs,
+  gameFirstLaunchStartDeadlineMs,
   desktopScenarioById,
   DESKTOP_PROFILES,
   DESKTOP_SCENARIOS,
@@ -1687,7 +1729,7 @@ void test("owned frame CSP requires a trusted enforced event and removes its fra
             code: command === "open_external_url" ? "usage" : "not_found",
             message:
               command === "open_external_url"
-                ? "only reviewed project, artwork source and GitHub sign-in links may be opened"
+                ? "only reviewed project, setup, upgrade, release, artwork and GitHub sign-in links may be opened"
                 : "unknown source evidence id: portcove-boundary-unknown-evidence",
           },
         };
@@ -1903,7 +1945,7 @@ void test("reviewed link refusals require guard errors and preserve the ready na
             code: command === "open_external_url" ? "usage" : "not_found",
             message:
               command === "open_external_url"
-                ? "only reviewed project, artwork source and GitHub sign-in links may be opened"
+                ? "only reviewed project, setup, upgrade, release, artwork and GitHub sign-in links may be opened"
                 : "unknown source evidence id: portcove-boundary-unknown-evidence",
           },
         }
@@ -2058,7 +2100,8 @@ void test("shipping secondary creation requires ACL refusal and preserves native
           ok: false,
           error: {
             code: "usage",
-            message: "only reviewed project, artwork source and GitHub sign-in links may be opened",
+            message:
+              "only reviewed project, setup, upgrade, release, artwork and GitHub sign-in links may be opened",
           },
         },
         open_source_evidence: {
@@ -2579,6 +2622,11 @@ void test("native resource release requires current positive exit after any laun
         snapshot: "current.json",
       };
     if (state === "replacement") session.beginLaunch();
+    if (state === "pristine")
+      assert.deepEqual(session.cleanupDisposition(), { kind: "not-started" });
+    else if (state === "positive")
+      assert.deepEqual(session.cleanupDisposition(), { kind: "quiescent", proof: session.cleanup });
+    else assert.throws(() => session.cleanupDisposition(), /Current owned|Positive current owned/);
     const release = session.releaseResources({
       closeFixtures: async () => {
         calls.push("close");
@@ -2595,6 +2643,47 @@ void test("native resource release requires current positive exit after any laun
       assert.deepEqual(calls, [], state);
     }
   }
+});
+
+void test("prelaunch admission refusal stays pristine but a synchronous failed spawn requires exit proof", async () => {
+  const session = new OwnedNativeSession();
+  const refusal = new Error("admission refused");
+  assert.throws(
+    () =>
+      session.startLaunch({
+        admit: () => {
+          throw refusal;
+        },
+        create: () => assert.fail("Refused admission must not attempt a launch"),
+      }),
+    (error) => error === refusal,
+  );
+  assert.deepEqual(session.cleanupDisposition(), { kind: "not-started" });
+  const failedSpawn = new Error("spawn failed synchronously");
+  assert.throws(
+    () =>
+      session.startLaunch({
+        admit: () => {},
+        create: () => {
+          throw failedSpawn;
+        },
+      }),
+    (error) => error === failedSpawn,
+  );
+  assert.throws(() => session.cleanupDisposition(), /Current owned launch identity/);
+  const calls: string[] = [];
+  await assert.rejects(
+    session.releaseResources({
+      closeFixtures: async () => {
+        calls.push("close");
+      },
+      releaseLock: async () => {
+        calls.push("release");
+      },
+    }),
+    /Current owned launch identity/,
+  );
+  assert.deepEqual(calls, []);
 });
 
 void test("native resource release waits for fixture teardown and preserves teardown failures", async () => {
@@ -2650,6 +2739,43 @@ void test("fixture-only reviews select without first-play while continuity keeps
       "native-preparation-review-and-play",
     ),
   );
+});
+
+void test("organization persistence selects the normal owned-fixture path without consent or preparation claims", () => {
+  const selection = resolveDesktopSelection({
+    scenarios: ["native-library-organization-restart"],
+    platform: "win32",
+  });
+  assert.deepEqual(selection.selected_scenarios, ["native-library-organization-restart"]);
+  assert.deepEqual(selection.setup_scenarios, []);
+  assert.ok(selection.prerequisites.includes("owned-fixture"));
+  assert.ok(selection.host_resources.includes("native-desktop"));
+  assert.ok(!selection.prerequisites.includes("native-dialog"));
+  assert.ok(!selection.prerequisites.includes("steam-fixture"));
+});
+
+void test("game-first choice is one explicit normal Windows journey without installation authority", () => {
+  const id = "native-game-first-choice-and-restart";
+  for (const ids of Object.values(DESKTOP_PROFILES)) assert.ok(!ids.includes(id));
+  const selection = resolveDesktopSelection({ scenarios: [id], platform: "win32" });
+  assert.deepEqual(selection.selected_scenarios, [id]);
+  assert.deepEqual(selection.setup_scenarios, []);
+  assert.deepEqual(selection.prerequisites, ["desktop", "owned-fixture"]);
+  assert.deepEqual(selection.host_resources, ["native-desktop", "keyboard-pointer"]);
+  assert.equal(desktopHarnessDeadlineMs(selection), 600_000);
+  assert.equal(
+    required(DESKTOP_SCENARIOS.find((entry) => entry.id === id)).source,
+    "desktop-game-first-test.mts",
+  );
+  assert.throws(
+    () => resolveDesktopSelection({ scenarios: [id, "empty-library"], platform: "win32" }),
+    /standalone/u,
+  );
+  for (const platform of ["linux", "darwin"] as const)
+    assert.throws(
+      () => resolveDesktopSelection({ scenarios: [id], platform }),
+      /requires Windows/u,
+    );
 });
 
 void test("staged native composition installs its isolated fixture before review", () => {
@@ -2926,7 +3052,7 @@ void test("saved-folder selected setup stays standalone and opt-in", () => {
   assert.deepEqual(selection.selected_scenarios, [id]);
   assert.deepEqual(selection.setup_scenarios, []);
   assert.deepEqual(selection.prerequisites, ["desktop", "install-fixture", "owned-fixture"]);
-  assert.equal(desktopHarnessDeadlineMs(selection), 180_000);
+  assert.equal(desktopHarnessDeadlineMs(selection), 600_000);
   for (const profile of ["smoke", "full"])
     assert.ok(
       !resolveDesktopSelection({ profile, platform: "win32" }).selected_scenarios.includes(id),
@@ -3064,7 +3190,7 @@ void test("selected setup identities admit both replacements only in the opt-in 
     .filter((item) => owned.profiles.includes(text(item.id)));
   assert.deepEqual(
     identities.map((item) => values(item.variants).length),
-    [2, 1],
+    [3, 1],
   );
   const expectedHashes = await Promise.all(
     [owned.gameBefore, owned.gameReplacement].map(
@@ -3072,11 +3198,30 @@ void test("selected setup identities admit both replacements only in the opt-in 
     ),
   );
   assert.deepEqual(
-    values(required(identities[0]).variants).map(
-      (item) =>
-        object(values(object(values(object(item).representations)[0]).identities)[0]).sha256,
-    ),
+    values(required(identities[0]).variants)
+      .slice(0, 2)
+      .map(
+        (item) =>
+          object(values(object(values(object(item).representations)[0]).identities)[0]).sha256,
+      ),
     expectedHashes,
+  );
+  const ambiguous = object(values(required(identities[0]).variants)[2]);
+  assert.equal(ambiguous.id, "ambiguous-inspection-only");
+  const ambiguousBytes = await readFile(owned.ambiguousPath);
+  assert.deepEqual(
+    values(ambiguous.representations),
+    ["sha1", "sha256"].map((algorithm) => ({
+      id: `ambiguous-${algorithm}`,
+      extensions: [path.extname(owned.ambiguousPath).slice(1)],
+      kind: "raw-file",
+      identities: [
+        {
+          scope: "original-file",
+          [algorithm]: createHash(algorithm).update(ambiguousBytes).digest("hex"),
+        },
+      ],
+    })),
   );
   for (const port of [fixture.port, fixture.refreshPort]) {
     const contract = required(
@@ -3151,3 +3296,50 @@ import "../apps/desktop/scripts/desktop-bootstrap-recovery.native.test.mts";
 import "../apps/desktop/scripts/desktop-install.native.test.mts";
 import "../apps/desktop/scripts/desktop-staged-layout.native.test.mts";
 import "../apps/desktop/scripts/desktop-reload.native.test.mts";
+
+void test("installed Picori is explicit, standalone and excludes inert fixture authority", () => {
+  const id = "native-game-first-installed-picori";
+  for (const ids of Object.values(DESKTOP_PROFILES)) assert.ok(!ids.includes(id));
+  const selection = resolveDesktopSelection({ scenarios: [id], platform: "win32" });
+  assert.deepEqual(selection.prerequisites, ["desktop"]);
+  assert.deepEqual(selection.setup_scenarios, []);
+  assert.equal(gameFirstLaunchStartDeadlineMs("project-picori"), 3_600_000);
+  assert.equal(gameFirstLaunchStartDeadlineMs("2ship2harkinian"), 30_000);
+  assert.equal(gameFirstLaunchStartDeadlineMs("zelda64-recomp"), 30_000);
+  assert.equal(desktopHarnessDeadlineMs(selection), 11_700_000);
+  assert.equal(
+    desktopHarnessDeadlineMs(selection),
+    2 * (gameFirstLaunchStartDeadlineMs("project-picori") + 1_800_000 + 300_000) + 300_000,
+  );
+  assert.throws(
+    () => resolveDesktopSelection({ scenarios: [id, "empty-library"], platform: "win32" }),
+    /standalone/u,
+  );
+  for (const platform of ["linux", "darwin"] as const)
+    assert.throws(
+      () => resolveDesktopSelection({ scenarios: [id], platform }),
+      /requires Windows/u,
+    );
+});
+
+void test("installed MM is Windows-only standalone with two-install custody budget", () => {
+  const id = "native-game-first-installed-mm";
+  for (const ids of Object.values(DESKTOP_PROFILES)) assert.ok(!ids.includes(id));
+  const selection = resolveDesktopSelection({ scenarios: [id], platform: "win32" });
+  assert.deepEqual(selection.prerequisites, ["desktop"]);
+  assert.deepEqual(selection.setup_scenarios, []);
+  assert.equal(desktopHarnessDeadlineMs(selection), 2_400_000);
+  assert.throws(
+    () =>
+      resolveDesktopSelection({
+        scenarios: [id, "native-game-first-installed-picori"],
+        platform: "win32",
+      }),
+    /standalone/u,
+  );
+  for (const platform of ["linux", "darwin"] as const)
+    assert.throws(
+      () => resolveDesktopSelection({ scenarios: [id], platform }),
+      /requires Windows/u,
+    );
+});

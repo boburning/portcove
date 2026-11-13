@@ -140,7 +140,7 @@ function requiredFixture<T>(value: T | null | undefined): T {
       assert.ok(options.signal instanceof AbortSignal);
       assert.equal(
         new URL(url).host === "api.github.com",
-        Object.hasOwn(options.headers, "Authorization"),
+        new Headers(options.headers).has("authorization"),
       );
       assert.equal(
         new URL(url).host === "gitlab.com",
@@ -471,13 +471,13 @@ function requiredFixture<T>(value: T | null | undefined): T {
     assert.equal(report.request_plan.status, "admitted");
     assert.equal(report.limits.requests, 130);
     const atCeiling = await collect(
-      catalog(...Array.from({ length: 320 }, (_, i) => port(`ceiling-${i}`))),
+      catalog(...Array.from({ length: 352 }, (_, i) => port(`ceiling-${i}`))),
     );
-    assert.equal(atCeiling.consumed.requests, 320);
+    assert.equal(atCeiling.consumed.requests, 352);
     assert.equal(atCeiling.request_plan.status, "admitted");
     let overflowCalls = 0;
     const overflow = await collect(
-      catalog(...Array.from({ length: 321 }, (_, i) => port(`overflow-${i}`))),
+      catalog(...Array.from({ length: 353 }, (_, i) => port(`overflow-${i}`))),
       async () => {
         overflowCalls += 1;
         assert.fail("overflow must refuse before network");
@@ -486,7 +486,7 @@ function requiredFixture<T>(value: T | null | undefined): T {
     assert.equal(overflow.request_plan.status, "overflow");
     assert.equal(overflow.consumed.requests, 0);
     assert.equal(overflowCalls, 0);
-    assert.equal(overflow.observations.length, 321);
+    assert.equal(overflow.observations.length, 353);
     assert.ok(
       overflow.observations.every(
         (record) => record.reason === "budget" && record.attempted === false,
@@ -582,7 +582,9 @@ function requiredFixture<T>(value: T | null | undefined): T {
         const tag=decodeURIComponent(ref);
         const ports=catalog.ports.filter(port=>port.release.repository===repository || port.project_url?.toLowerCase()==='https://github.com/'+repository.toLowerCase()).map(port=>port.id);
         const digests=catalog.source_catalog.qualification.filter(value=>ports.includes(value.scope.port_id)&&value.scope.upstream_ref===tag).map(value=>({digest:'sha256:'+value.scope.artifact_sha256}));
-        return new Response(JSON.stringify({id:2,tag_name:tag,assets:github?digests:{links:digests}}),{headers:{'content-type':'application/json'}});
+        const reviewed=github&&accounting.pins.find(pin=>pin.historical_version&&pin.repository===repository&&pin.tag===tag);
+        if(reviewed) digests.push({digest:'sha256:'+reviewed.sha256});
+        return new Response(JSON.stringify({id:reviewed?reviewed.release_id:2,tag_name:tag,assets:github?digests:{links:digests}}),{headers:{'content-type':'application/json'}});
       }
       const github=url.startsWith('https://api.github.com/');
       const repository=decodeURIComponent(github?url.split('/repos/')[1]:url.split('/projects/')[1]);
@@ -665,3 +667,438 @@ function requiredFixture<T>(value: T | null | undefined): T {
     }
   });
 }
+
+void test("health policy consumes narrow async metadata and preserves serialized evidence", async () => {
+  const calls: string[] = [];
+  const data = { id: 42, full_name: "owner/project", archived: false };
+  const bytes = Buffer.byteLength(JSON.stringify(data));
+  const result = await collectRepositoryHealth(
+    { ports: [{ id: "fixture", release: { provider: "github", repository: "owner/project" } }] },
+    {
+      fetch: () => assert.fail("Domain metadata fake must not invoke HTTP"),
+      githubMetadata: async (url) => {
+        calls.push(url);
+        return {
+          status: 200,
+          headers: new Headers({ "content-type": "application/json" }),
+          data,
+          body: null,
+          responseBytes: bytes,
+        };
+      },
+    },
+  );
+  assert.deepEqual(calls, ["https://api.github.com/repos/owner/project"]);
+  assert.equal(result.outcome, "complete");
+  assert.equal(result.observations[0]?.observed_repository_id, 42);
+  assert.deepEqual(result.consumed, { requests: 1, response_bytes: bytes });
+  assert.deepEqual(JSON.parse(JSON.stringify(result)), result);
+});
+
+void test(
+  "health command abort drains its single SDK read without publishing a provider failure",
+  { timeout: 10000 },
+  async () => {
+    const controller = new AbortController();
+    const reason = new Error("fixture command cancelled");
+    let start!: () => void;
+    const started = new Promise<void>((resolve) => {
+      start = resolve;
+    });
+    let dispatched = 0,
+      published = 0,
+      drained = false;
+    const operation = collectRepositoryHealth(
+      { ports: [{ id: "fixture", release: { provider: "github", repository: "owner/project" } }] },
+      {
+        abortSignal: controller.signal,
+        githubToken: "synthetic-health-token",
+        fetch: async (_url, options) => {
+          dispatched++;
+          start();
+          return await new Promise<Response>((_resolve, reject) => {
+            options.signal.addEventListener(
+              "abort",
+              () => {
+                drained = true;
+                reject(options.signal.reason);
+              },
+              { once: true },
+            );
+          });
+        },
+        onObservation: async () => {
+          published++;
+        },
+      },
+    );
+    await started;
+    controller.abort(reason);
+    await assert.rejects(operation, (error: unknown) => error === reason);
+    assert.equal(dispatched, 1);
+    assert.equal(drained, true);
+    assert.equal(published, 0);
+  },
+);
+
+void test("relocation candidates classify moved repositories without following redirects", async () => {
+  const { relocationCandidates, retainedRepositoryIds } =
+    await import("./upstream-relocation-candidates.mts");
+  const reads: string[] = [];
+  const moved = (id: number) => ({
+    status: 301,
+    data: { message: "Moved Permanently", url: `https://api.github.com/repositories/${id}` },
+  });
+  const responses: Record<string, { status: number; data: unknown }> = {
+    "/repos/old/renamed": moved(11),
+    "/repositories/11": {
+      status: 200,
+      data: { id: 11, full_name: "new/renamed", archived: false },
+    },
+    "/repos/old/elsewhere": moved(22),
+    "/repos/old/unbound": moved(33),
+    "/repositories/33": { status: 200, data: { id: 33, full_name: "new/unbound", archived: true } },
+    "/repos/old/gone": { status: 404, data: null },
+    "/repos/old/reused": { status: 200, data: { id: 99 } },
+    "/repos/old/steady": { status: 200, data: { id: 44 } },
+    "/repos/old/odd": {
+      status: 301,
+      data: { message: "Moved Permanently", url: "https://x.example/1" },
+    },
+  };
+  const read = async (endpoint: string) => {
+    reads.push(endpoint);
+    const response = responses[endpoint];
+    assert.ok(response, `unexpected read ${endpoint}`);
+    return response;
+  };
+  const retained = retainedRepositoryIds({
+    sources: {
+      a: { repository: "Old/Renamed", repository_id: 11 },
+      b: { repository: "old/elsewhere", repository_id: 5 },
+      c: { repository: "old/reused", repository_id: 7 },
+      d: { repository: "old/steady", repository_id: 44 },
+      e: { provider: "gitlab", repository: "old/unbound", repository_id: 33 },
+    },
+  });
+  const result = await relocationCandidates(
+    [
+      "old/renamed",
+      "old/elsewhere",
+      "old/unbound",
+      "old/gone",
+      "old/reused",
+      "old/steady",
+      "old/odd",
+    ],
+    retained,
+    read,
+  );
+  assert.equal(result.authority, "proposal-only");
+  assert.equal(result.redirects_followed, false);
+  assert.deepEqual(
+    result.candidates.map((c) => [c.repository, c.status, c.current_full_name]),
+    [
+      ["old/renamed", "same-repository-renamed", "new/renamed"],
+      ["old/elsewhere", "different-repository", null],
+      ["old/unbound", "identity-unbound", "new/unbound"],
+      ["old/gone", "unavailable", null],
+      ["old/reused", "name-reused", null],
+      ["old/steady", "not-moved", null],
+      ["old/odd", "unknown", null],
+    ],
+  );
+  // A mismatched redirect target is never looked up; only bounded identity reads occur.
+  assert.ok(!reads.includes("/repositories/22"));
+  assert.equal(reads.filter((r) => r.startsWith("/repositories/")).length, 2);
+  await assert.rejects(relocationCandidates(["not a repo"], retained, read), /Invalid repository/);
+  // One failing lookup leaves only that repository unassessed.
+  const partial = await relocationCandidates(
+    ["old/steady", "old/throws"],
+    retained,
+    async (endpoint) => {
+      if (endpoint === "/repos/old/throws") throw new Error("rate limited");
+      return read(endpoint);
+    },
+  );
+  assert.deepEqual(
+    partial.candidates.map((c) => [c.repository, c.status]),
+    [
+      ["old/steady", "not-moved"],
+      ["old/throws", "unknown"],
+    ],
+  );
+  await assert.rejects(relocationCandidates([], retained, read), /between 1 and 64/);
+});
+
+void test("relocation candidates read moved and missing identities from an observer report", async () => {
+  const { relocationRepositoriesFromReport, renderRelocationSummary, githubSourceKeys } =
+    await import("./upstream-relocation-candidates.mts");
+  const report = {
+    failures: [
+      // Real observer texts: a first identity lookup, and a retained source whose
+      // release listing refused the redirect as a generic transport failure.
+      {
+        source: "s-b",
+        repository: "b/moved",
+        rule: "provider-transport",
+        details:
+          "Primary repository identity returned HTTP 301; preserve the declared source and reconcile its current primary-provider availability.",
+      },
+      {
+        source: "s-e",
+        repository: "e/renamed",
+        rule: "transport",
+        details: "provider transport failed within its retry budget",
+      },
+      {
+        source: "s-a",
+        repository: "a/gone",
+        rule: "repository-unavailable",
+        details: "Primary repository identity returned HTTP 404",
+      },
+      {
+        source: "s-c",
+        repository: "c/budget",
+        rule: "budget",
+        details: "provider response byte or time budget exhausted",
+      },
+      {
+        source: "s-d",
+        repository: "d/transport",
+        rule: "provider-transport",
+        details: "Primary repository identity returned HTTP 502",
+      },
+      {
+        source: "s-b",
+        repository: "b/moved",
+        rule: "provider-transport",
+        details: "returned HTTP 301",
+      },
+    ],
+  };
+  const github = new Set(["s-a", "s-b", "s-c", "s-d", "s-e"]);
+  assert.deepEqual(relocationRepositoriesFromReport(report, github), [
+    "a/gone",
+    "b/moved",
+    "d/transport",
+    "e/renamed",
+  ]);
+  // A compact summary without a failure list is unassessed, not empty.
+  assert.equal(relocationRepositoriesFromReport({ coverage: "partial" }, github), null);
+  // GitLab and unknown sources share rule names but are never probed on GitHub.
+  assert.deepEqual(
+    relocationRepositoriesFromReport(
+      {
+        failures: [
+          {
+            source: "gitlab",
+            repository: "sonicdcer/ExtremeGRecomp",
+            rule: "provider-transport",
+            details: "x",
+          },
+          { source: "missing", repository: "x/y", rule: "transport", details: "x" },
+        ],
+      },
+      githubSourceKeys({
+        sources: {
+          gitlab: { provider: "gitlab", repository: "sonicdcer/ExtremeGRecomp" },
+          "s-a": { repository: "a/gone" },
+        },
+      }),
+    ),
+    [],
+  );
+  const summary = renderRelocationSummary({
+    format: 1,
+    authority: "proposal-only",
+    redirects_followed: false,
+    candidates: [
+      {
+        repository: "b/moved",
+        status: "same-repository-renamed",
+        http_status: 301,
+        redirect_repository_id: 1,
+        retained_repository_id: 1,
+        current_full_name: "b/renamed",
+        current_archived: false,
+        next_step: "Review the rename.",
+      },
+    ],
+  });
+  assert.match(summary, /proposal only/);
+  assert.match(summary, /`b\/moved` \| same-repository-renamed \| `b\/renamed`/);
+});
+
+// Relocation evidence (#4784): read-only provider facts for a reviewed rename.
+type EvidenceRead = import("./upstream-relocation-evidence.mts").MetadataRead;
+const { observationHash } = await import("./upstream-observer.mts");
+const { maxRequests, parseEvidenceRequests, relocationEvidenceReport, renderEvidenceSummary } =
+  await import("./upstream-relocation-evidence.mts");
+
+const repository = "New-Org/Game";
+const release = {
+  id: 393440319,
+  tag_name: "v1.8.3",
+  draft: false,
+  prerelease: false,
+  created_at: "2026-09-22T03:40:00Z",
+  published_at: "2026-09-22T03:42:21Z",
+};
+const asset = {
+  id: 580473673,
+  name: "Game-1.8.3-windows-x64.zip",
+  size: 8247843,
+  state: "uploaded",
+  digest: `sha256:${"a".repeat(64)}`,
+  browser_download_url: `https://github.com/${repository}/releases/download/v1.8.3/Game-1.8.3-windows-x64.zip`,
+  created_at: "2026-09-22T03:41:00Z",
+  updated_at: "2026-09-22T03:42:00Z",
+};
+const embeddedRelease = { ...release, assets: [asset] };
+
+function fakeRead(overrides: Record<string, unknown> = {}) {
+  const endpoints: string[] = [];
+  const responses: Record<string, unknown> = {
+    [`/repos/${repository}`]: { id: 1348026644, full_name: repository, archived: false },
+    [`/repos/${repository}/releases?per_page=30`]: [embeddedRelease],
+    [`/repos/${repository}/releases/tags/v1.8.3`]: embeddedRelease,
+    [`/repos/${repository}/releases/393440319/assets?per_page=100`]: [asset],
+    ...overrides,
+  };
+  const read: EvidenceRead = async (endpoint) => {
+    endpoints.push(endpoint);
+    if (!(endpoint in responses)) throw new Error(`unexpected endpoint ${endpoint}`);
+    return responses[endpoint];
+  };
+  return { read, endpoints };
+}
+
+void test("requests are bounded, exact and unique", () => {
+  assert.deepEqual(parseEvidenceRequests(" a/b  c/d@v1.0.0 "), [
+    { repository: "a/b", tag: null },
+    { repository: "c/d", tag: "v1.0.0" },
+  ]);
+  for (const text of [
+    "",
+    "a",
+    "a/b/c",
+    "../b",
+    "a/..",
+    "a/b@",
+    "a/b@../x",
+    "a/b@v1 x",
+    "a/b A/B",
+    Array.from({ length: maxRequests + 1 }, (_, index) => `o/r${index}`).join(" "),
+  ])
+    assert.throws(() => parseEvidenceRequests(text), JSON.stringify(text));
+});
+
+void test("pin evidence uses the observer's facts and hashes at the current name", async () => {
+  const { read, endpoints } = fakeRead();
+  const report = await relocationEvidenceReport(
+    parseEvidenceRequests(`${repository}@v1.8.3`),
+    read,
+  );
+  assert.equal(report.authority, "evidence-only");
+  assert.equal(report.redirects_followed, false);
+  assert.equal(report.artifacts_downloaded, false);
+  const [result] = report.results;
+  assert.ok(result?.ok);
+  assert.deepEqual(result.repository, { id: 1348026644, full_name: repository, archived: false });
+  assert.deepEqual(result.releases[0]?.asset_names, ["Game-1.8.3-windows-x64.zip"]);
+  assert.equal(result.releases_may_be_partial, false);
+  assert.ok(result.pin);
+  const releaseFacts = release;
+  assert.deepEqual(result.pin.release, releaseFacts);
+  assert.equal(result.pin.release_facts_sha256, observationHash(releaseFacts));
+  const [pinned] = result.pin.assets;
+  assert.ok(pinned);
+  const { asset_facts_sha256: digest, ...facts } = pinned;
+  assert.equal(facts.id, 580473673);
+  assert.equal(facts.browser_download_url, asset.browser_download_url);
+  assert.equal(digest, observationHash(facts));
+  assert.deepEqual(endpoints, [
+    `/repos/${repository}`,
+    `/repos/${repository}/releases/tags/v1.8.3`,
+    `/repos/${repository}/releases/393440319/assets?per_page=100`,
+    `/repos/${repository}/releases?per_page=30`,
+  ]);
+  assert.match(renderEvidenceSummary(report), /580473673, 8247843 B/u);
+});
+
+void test("a request without a tag reads only repository and release sample", async () => {
+  const { read, endpoints } = fakeRead();
+  const report = await relocationEvidenceReport(parseEvidenceRequests(repository), read);
+  assert.ok(report.results[0]?.ok);
+  assert.equal(report.results[0].pin, null);
+  assert.equal(endpoints.length, 2);
+});
+
+void test("inconsistent provider facts fail that request without hiding the others", async () => {
+  for (const [name, overrides] of [
+    [
+      "foreign download URL",
+      {
+        [`/repos/${repository}/releases/393440319/assets?per_page=100`]: [
+          { ...asset, browser_download_url: asset.browser_download_url.replace("New-Org", "Old") },
+        ],
+      },
+    ],
+    [
+      "different tag",
+      {
+        [`/repos/${repository}/releases/tags/v1.8.3`]: { ...embeddedRelease, tag_name: "v1.8.4" },
+      },
+    ],
+    [
+      "draft release",
+      { [`/repos/${repository}/releases/tags/v1.8.3`]: { ...embeddedRelease, draft: true } },
+    ],
+    [
+      "embedded collection differs",
+      {
+        [`/repos/${repository}/releases/tags/v1.8.3`]: {
+          ...embeddedRelease,
+          assets: [{ ...asset, size: 1 }],
+        },
+      },
+    ],
+    [
+      "possibly capped assets",
+      {
+        [`/repos/${repository}/releases/393440319/assets?per_page=100`]: Array.from(
+          { length: 100 },
+          () => asset,
+        ),
+      },
+    ],
+    ["invalid repository", { [`/repos/${repository}`]: { id: "1", full_name: repository } }],
+  ] as const) {
+    const { read } = fakeRead({
+      ...overrides,
+      "/repos/other/repo": { id: 7, full_name: "other/repo", archived: true },
+      "/repos/other/repo/releases?per_page=30": [],
+    });
+    const report = await relocationEvidenceReport(
+      parseEvidenceRequests(`${repository}@v1.8.3 other/repo`),
+      read,
+    );
+    assert.equal(report.results[0]?.ok, false, name);
+    assert.equal(report.results[1]?.ok, true, name);
+    assert.match(renderEvidenceSummary(report), /failed:/u, name);
+  }
+});
+
+void test("a failed release sample keeps the pin evidence", async () => {
+  const { read } = fakeRead({ [`/repos/${repository}/releases?per_page=30`]: "too large" });
+  const report = await relocationEvidenceReport(
+    parseEvidenceRequests(`${repository}@v1.8.3`),
+    read,
+  );
+  const [result] = report.results;
+  assert.ok(result?.ok);
+  assert.equal(result.pin?.assets[0]?.id, 580473673);
+  assert.equal(result.releases.length, 0);
+  assert.match(result.releases_error ?? "", /invalid release collection/u);
+});

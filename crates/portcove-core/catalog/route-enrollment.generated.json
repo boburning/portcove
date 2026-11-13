@@ -1,0 +1,321 @@
+{
+  "format_version": 1,
+  "cases": [
+    {
+      "port_id": "body-harvest-recompiled",
+      "prepared_player": {
+        "working_directory": "executable-parent",
+        "arguments": [],
+        "data_locations": [
+          "the actual BodyHarvestRecompiled profile, normally %LOCALAPPDATA%\\BodyHarvestRecompiled on Windows; the working folder for a Windows portable.txt copy; the real custom or platform-specific profile for other copies"
+        ],
+        "executable": "BodyHarvestRecompiled.exe"
+      },
+      "managed_native": true
+    },
+    {
+      "port_id": "doom-3-classic-dhewm3",
+      "prepared_player": {
+        "working_directory": "executable-parent",
+        "arguments": [],
+        "data_locations": [
+          "saves, settings, screenshots, demos and logs in actual Documents/My Games/dhewm3 with separate base and d3xp scopes",
+          "original game installation and any custom external profile"
+        ],
+        "executable": "dhewm3.exe"
+      },
+      "managed_native": true
+    },
+    {
+      "port_id": "dune-ii-dune-dynasty",
+      "prepared_player": {
+        "working_directory": "executable-parent",
+        "arguments": [],
+        "data_locations": [
+          "the complete personal Dune Dynasty profile or the actual executable-side data and configuration of your prepared copy"
+        ],
+        "executable": "dunedynasty.exe"
+      },
+      "managed_native": true
+    },
+    {
+      "port_id": "elasota-aerofoil",
+      "prepared_player": {
+        "working_directory": "executable-parent",
+        "arguments": [],
+        "data_locations": [
+          "the actual Aerofoil folder in your Windows Documents location, including custom houses, saves, scores, preferences, logs and exports"
+        ],
+        "executable": "Aerofoil.exe"
+      },
+      "managed_native": true
+    },
+    {
+      "port_id": "gamebreaker20xx-fullrumble-ps1-slus01068",
+      "prepared_player": {
+        "executable": "FullRumble.exe",
+        "working_directory": "executable-parent",
+        "arguments": [],
+        "data_locations": [
+          "carda.sav, cardb.sav, settings.json and interface.ini in the working folder",
+          "%APPDATA%/FullRumble for setup settings and the generated library",
+          "disc/ beside the program, or %LOCALAPPDATA%/FullRumble/disc if the program folder is not writable"
+        ]
+      },
+      "managed_native": false
+    },
+    {
+      "port_id": "gothic-ii-night-of-the-raven-opengothic",
+      "prepared_player": {
+        "executable": "Gothic2Notr.exe",
+        "working_directory": "executable-parent",
+        "arguments": [],
+        "data_locations": [
+          "the prepared working directory containing Gothic.ini and save slots",
+          "the separately owned original Gothic II installation"
+        ]
+      },
+      "managed_native": false
+    },
+    {
+      "port_id": "heroes-of-might-and-magic-ii-fheroes2",
+      "prepared_player": {
+        "working_directory": "executable-parent",
+        "arguments": [],
+        "data_locations": [
+          "the actual external fheroes2 profile and the original and custom resources of your prepared copy"
+        ],
+        "executable": "fheroes2.exe"
+      },
+      "managed_native": true
+    },
+    {
+      "port_id": "jetforcegemini-recomp-vibintoast-jet-force-gemini",
+      "prepared_player": {
+        "executable": "JetForceGeminiRecompiled.exe",
+        "working_directory": "executable-parent",
+        "arguments": [],
+        "data_locations": [
+          "the portable executable’s containing folder, including saves, settings, mods and texture packs"
+        ]
+      },
+      "managed_native": false
+    },
+    {
+      "port_id": "monster-hunter-portable-3rd-hd-yakumo",
+      "prepared_player": {
+        "working_directory": "executable-parent",
+        "arguments": [],
+        "data_locations": [
+          "the data folder the copy actually uses, chosen in this order: a --data-dir folder, the MHP3RD_DATA_DIR folder, data beside Yakumo.exe when portable.txt or a data folder is there (unless MHP3RD_PORTABLE=0), then %APPDATA%\\Yakumo\\MHP3rd; plus any game folder it starts with and any disc image used in place"
+        ],
+        "executable": "Yakumo.exe"
+      },
+      "managed_native": true
+    },
+    {
+      "port_id": "mother-3-mother-3-recomp",
+      "prepared_player": {
+        "executable": "Mother3Recomp.exe",
+        "working_directory": "executable-parent",
+        "arguments": [],
+        "data_locations": [
+          "saves/mother3_en_v13.sav and its .sav.bak retained by upstream battery-save import",
+          "state/settings data, config.ini, keybinds.ini, game.toml, rom.cfg and bios.cfg",
+          "mods/rom-patches and existing external original/patch/save paths"
+        ]
+      },
+      "managed_native": false
+    },
+    {
+      "port_id": "mstan-tetrisgbrecomp",
+      "prepared_player": {
+        "executable": "Tetris.exe",
+        "working_directory": "executable-parent",
+        "arguments": [],
+        "data_locations": [
+          "rom.cfg and runtime_prefs.ini beside the executable, keybinds.ini in the working folder",
+          "creating-runtime save/state/RTC, mods, captures and diagnostics",
+          "any separately selected or absolute output paths"
+        ]
+      },
+      "managed_native": false
+    },
+    {
+      "port_id": "n64hub-rayman-2-recomp-n64-usa",
+      "prepared_player": {
+        "executable": "Rayman2Recompiled.exe",
+        "working_directory": "executable-parent",
+        "arguments": [],
+        "data_locations": [
+          "%LOCALAPPDATA%/Rayman2Recompiled by default, or the game folder if it already uses portable.txt; saves/controllerpak_1.mpk and other Controller Pak files under that profile"
+        ]
+      },
+      "managed_native": false
+    },
+    {
+      "port_id": "n64hub-super-mario-64-recomp",
+      "prepared_player": {
+        "executable": "SuperMario64Recompiled.exe",
+        "working_directory": "executable-parent",
+        "arguments": [],
+        "data_locations": [
+          "%LOCALAPPDATA%/SuperMario64Recompiled, or the existing portable.txt working-folder mode",
+          "whole creating profile including original/EEPROM data, JSON settings, controllers, mods and hires_font",
+          "custom or external paths"
+        ]
+      },
+      "managed_native": false
+    },
+    {
+      "port_id": "n64hub-super-smash-bros-n64-usa-recomp",
+      "prepared_player": {
+        "executable": "SmashBrosRecompiled.exe",
+        "working_directory": "executable-parent",
+        "arguments": [],
+        "data_locations": [
+          "%LOCALAPPDATA%/SmashBrosRecompiled by default, or the game folder if it already uses portable.txt"
+        ]
+      },
+      "managed_native": false
+    },
+    {
+      "port_id": "nhl-94-genesis-ninety-four",
+      "prepared_player": {
+        "working_directory": "executable-parent",
+        "arguments": [],
+        "data_locations": [
+          "settings.ini; out/nhl94.srm cartridge SRAM; states/ including Autosave; rosters, recordings, screenshots, videos and configured external ROM/save paths"
+        ],
+        "executable": "nhl94.exe"
+      },
+      "managed_native": true
+    },
+    {
+      "port_id": "quake-ironwail",
+      "prepared_player": {
+        "working_directory": "executable-parent",
+        "arguments": [],
+        "data_locations": [
+          "the actual prepared Quake directory and any store, rerelease, add-on or custom profile directories"
+        ],
+        "executable": "ironwail.exe"
+      },
+      "managed_native": true
+    },
+    {
+      "port_id": "quake-vkquake",
+      "prepared_player": {
+        "working_directory": "executable-parent",
+        "arguments": [],
+        "data_locations": [
+          "the actual prepared Quake directory and any store, multiuser or custom profile directories"
+        ],
+        "executable": "vkQuake.exe"
+      },
+      "managed_native": true
+    },
+    {
+      "port_id": "retropulse03-winback-n64recomp",
+      "prepared_player": {
+        "executable": "WinBackRecompiled.exe",
+        "working_directory": "executable-parent",
+        "arguments": [],
+        "data_locations": [
+          "ROM copy, settings.json, saves/ including Controller Pak and checkpoints, mods and renderer data in the game folder"
+        ]
+      },
+      "managed_native": false
+    },
+    {
+      "port_id": "rustmania-racing-ray-m-w-muppet-racemania",
+      "prepared_player": {
+        "working_directory": "executable-parent",
+        "arguments": [],
+        "data_locations": [
+          "the actual %APPDATA%/MuppetRaceMania profile, portable or custom profile, and the external original disc image"
+        ],
+        "executable": "rustmania-racing.exe"
+      },
+      "managed_native": true
+    },
+    {
+      "port_id": "scottjco-wetrix-n64-usa-rev0-recomp",
+      "prepared_player": {
+        "executable": "Wetrix.exe",
+        "working_directory": "executable-parent",
+        "arguments": [],
+        "data_locations": [
+          "Assets/data.z64, config/user/ and saves/controller1.mpk in the game folder"
+        ]
+      },
+      "managed_native": false
+    },
+    {
+      "port_id": "snprecomp-wootbeer-sin-and-punishment",
+      "prepared_player": {
+        "executable": "SnPRecompiled.exe",
+        "working_directory": "executable-parent",
+        "arguments": [],
+        "data_locations": [
+          "the existing snprecomp profile or the application folder when portable.txt is present"
+        ]
+      },
+      "managed_native": false
+    },
+    {
+      "port_id": "tekrantgaming-muppet-racemania-recompiled",
+      "prepared_player": {
+        "executable": "MuppetRaceMania.exe",
+        "working_directory": "executable-parent",
+        "arguments": [
+          "--offline"
+        ],
+        "data_locations": [
+          "saves/muppet_racemania and save-backups/muppet_racemania beside the launcher",
+          "games/muppet_racemania for the staged disc and game settings",
+          "muppet_racemania.txt beside the launcher"
+        ]
+      },
+      "managed_native": false
+    },
+    {
+      "port_id": "tomba-2-recompiled",
+      "prepared_player": {
+        "executable": "Tomba2Recomp.exe",
+        "working_directory": "executable-parent",
+        "arguments": [],
+        "data_locations": [
+          "saves/ and settings.toml beside the player, plus any configured card or settings locations",
+          "mods/ and cache/ beside the player",
+          "%LOCALAPPDATA%/Tomba2Recomp/seamless and any custom seamless-loading locations"
+        ]
+      },
+      "managed_native": false
+    },
+    {
+      "port_id": "toy-story-2-buzz-lightyear-to-the-rescue-n64-spaceranger",
+      "prepared_player": {
+        "working_directory": "executable-parent",
+        "arguments": [],
+        "data_locations": [
+          "the complete spaceranger-config folder beside SpaceRanger.exe, including the validated ROM copy, settings, Controller Pak and its recovery siblings"
+        ],
+        "executable": "SpaceRanger.exe"
+      },
+      "managed_native": true
+    },
+    {
+      "port_id": "troyedwardsjr-z2rs",
+      "prepared_player": {
+        "working_directory": "executable-parent",
+        "arguments": [],
+        "data_locations": [
+          "the active %APPDATA%/z2rs or XDG_DATA_HOME/z2rs profile, original ROM and any custom save or pack directories"
+        ],
+        "executable": "z2rs.exe"
+      },
+      "managed_native": true
+    }
+  ]
+}

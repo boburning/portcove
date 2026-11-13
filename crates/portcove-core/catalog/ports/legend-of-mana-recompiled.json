@@ -6,6 +6,7 @@
     "name": "Legend of Mana: Recompiled",
     "summary": "Native Legend of Mana recompilation.",
     "project_url": "https://github.com/TechnicallyComputers/Legend-of-Mana-Recomp",
+    "listed_at": "2026-10-23",
     "original_game_title": "Legend of Mana",
     "artwork": {
       "game_id": 14986,
@@ -20,7 +21,7 @@
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],
-    "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
+    "platforms": ["windows-x86-64", "macos-x86-64", "macos-aarch64"],
     "automated_tested_platforms": ["windows-x86-64"],
     "manually_validated_platforms": ["windows-x86-64"],
     "adapter": "psx-recomp-managed",
@@ -28,7 +29,6 @@
       "repository": "TechnicallyComputers/Legend-of-Mana-Recomp",
       "asset_hints": {
         "windows-x86-64": ["windows-x64"],
-        "linux-x86-64": ["linux-x64"],
         "macos-x86-64": ["macos-x64"],
         "macos-aarch64": ["macos-arm64"]
       }
@@ -36,7 +36,6 @@
     "source_profile": "legend-of-mana-psx",
     "executable_hints": {
       "windows-x86-64": ["Legend_of_Mana__Recompiled.exe"],
-      "linux-x86-64": ["Legend_of_Mana__Recompiled"],
       "macos-x86-64": ["Legend_of_Mana__Recompiled"],
       "macos-aarch64": ["Legend_of_Mana__Recompiled"]
     },

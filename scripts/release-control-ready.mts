@@ -14,7 +14,10 @@ import {
   inspectReleaseControlPhase,
 } from "./release-control-phases.mts";
 import { requireProtectionObserverSourceConfiguration } from "./release-authority-configuration-contract.mts";
-import { currentSharedProtectionJobDeadline } from "./release-signing-job-budget.mts";
+import {
+  currentCoordinatorProtectionJobDeadline,
+  currentSharedProtectionJobDeadline,
+} from "./release-signing-job-budget.mts";
 
 async function main() {
   const environment = { ...process.env };
@@ -60,18 +63,19 @@ async function main() {
     environment.PORTCOVE_EXPECTED_INSTALLATION_ID !== String(roles.protection_installation_id)
   )
     throw new Error("appointed observer mint target differs from the source-bound configuration");
-  const phaseDeadline = isSharedApplicationProtectionObserverSource(admitted)
-    ? currentSharedProtectionJobDeadline(
-        {
-          run_id: String(admitted.run_id),
-          run_attempt: 1,
-          controller_revision: admitted.revision,
-          controller_ref: admitted.execution_ref,
-        },
-        process.cwd(),
-        performance.now() + 570000,
-      )
-    : undefined;
+  const identity = {
+    run_id: String(admitted.run_id),
+    run_attempt: 1,
+    controller_revision: admitted.revision,
+    controller_ref: admitted.execution_ref,
+  };
+  const coordinatorObserver =
+    environment.GITHUB_JOB === "coordinator_protection_observation" && phase === "coordinator";
+  const phaseDeadline = coordinatorObserver
+    ? await currentCoordinatorProtectionJobDeadline(identity, admitted)
+    : isSharedApplicationProtectionObserverSource(admitted)
+      ? await currentSharedProtectionJobDeadline(identity, performance.now() + 570000)
+      : undefined;
   const root = path.join(
     environment.RUNNER_TEMP,
     `release-control-ready-${phase}${round ? `-r${round.index}` : ""}`,
@@ -88,7 +92,12 @@ async function main() {
       run_attempt: admitted.run_attempt,
       ...(round ? { round } : {}),
     },
-    { ...(phaseDeadline === undefined ? {} : { phaseDeadline }) },
+    {
+      ...(phaseDeadline === undefined ? {} : { phaseDeadline }),
+      ...(coordinatorObserver
+        ? { onRefusal: (receipt) => console.error(JSON.stringify(receipt)) }
+        : {}),
+    },
   );
 }
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url))

@@ -322,6 +322,7 @@ namespace Portcove.ReferenceClient
             if (updates.Any(value => !(
                 (value.Availability == "not_offered" && value.DefinitionReason == null && new[] { "route_not_offered", "not_installed", "unsupported_platform" }.Contains(value.Reason)) ||
                 (value.Availability == "waiting" && value.Reason == "review_required" && value.DefinitionReason == null) ||
+                (schema >= 88 && value.Availability == "held" && value.Reason == "route_not_offered" && value.DefinitionReason == null) ||
                 (value.Availability == "held" && value.Reason == "definition_ineligible" && value.DefinitionReason != null))))
                 throw new InvalidOperationException("Portcove status update decision requires a current reviewed candidate before execution.");
             if (decisions.Any(value => value.Action == "backup_create" || value.Action == "backup_restore"))
@@ -688,7 +689,7 @@ namespace Portcove.ReferenceClient
 
     internal sealed class ProtocolStream
     {
-        internal const int Schema = 84;
+        internal const int Schema = 89;
         internal static bool SupportsExternalRelink(object capabilities) =>
             Json.Number(capabilities, "schema_version") >= 72 &&
             Json.Number(capabilities, "schema_version") <= Schema &&
@@ -725,7 +726,7 @@ namespace Portcove.ReferenceClient
             if (type == null || (type as string) == "result")
             {
                 if (!SupportedSchema(Json.Number(record, "schema_version")) || Json.Text(record, "command") != command)
-                    throw new InvalidOperationException("Unsupported Portcove response. This client requires API schema 42 through 57, 60 through 63 or 65 through 84; install a matching CLI/client pair.");
+                    throw new InvalidOperationException("Unsupported Portcove response. This client requires API schema 42 through 57, 60 through 63 or 65 through 89; install a matching CLI/client pair.");
                 Json.Boolean(record, "ok");
                 result = record;
                 return;
@@ -848,7 +849,7 @@ namespace Portcove.ReferenceClient
         {
             var schema = Json.Number(capabilities, "schema_version");
             if (!SupportedSchema(schema) || Json.Text(capabilities, "product") != "Portcove")
-                throw new InvalidOperationException("This reference client requires Portcove API schema 42 through 57, 60 through 63 or 65 through 84. Select a compatible CLI or update the client.");
+                throw new InvalidOperationException("This reference client requires Portcove API schema 42 through 57, 60 through 63 or 65 through 89. Select a compatible CLI or update the client.");
             if (requiredCapabilities == null || requiredCapabilities.Length == 0)
                 throw new InvalidOperationException("Select at least one Portcove consumer capability before negotiation.");
             var commands = Json.Array(Json.Field(capabilities, "commands")).OfType<string>().ToArray();

@@ -7,10 +7,27 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { hasNextestEquivalence, isNextestProof } from "./nextest-equivalence.mts";
 import { nativeCompatibilitySourcePaths } from "./release-native-source-contract.mts";
+import { inspectReleaseProfile, type ReleaseProfile } from "./release-package-policy.mts";
 
 const scriptPath = fileURLToPath(import.meta.url);
 
 export const validationPlanVersion = 3;
+
+export const routeEnrollmentInputs = new Set([
+  "crates/portcove-core/catalog/route-enrollment.generated.json",
+  "crates/portcove-core/src/testdata/accepted-route-expectations.generated.json",
+  "crates/portcove-core/src/testdata/managed-route-tests.generated.rs",
+  "crates/portcove-core/src/testdata/prepared-route-tests.generated.rs",
+  "crates/portcove-core/src/testdata/route-enrollment-expectations.json",
+  "crates/portcove-core/src/testdata/retained-prepared-enrollment.json",
+  "crates/portcove-core/src/testdata/retained-prepared-tests.generated.rs",
+]);
+
+export function isRetainedPreparedFixturePath(file: string) {
+  return /^crates\/portcove-core\/src\/testdata\/[a-z0-9-]+-retained-selected-\d{4}-\d{2}-\d{2}\.json$/u.test(
+    file,
+  );
+}
 
 export const fastGroups = Object.freeze([
   "catalog",
@@ -35,7 +52,55 @@ export const validationAreas = Object.freeze([
 export type ValidationGroup = (typeof fastGroups)[number];
 export type ValidationArea = (typeof validationAreas)[number];
 export type ValidationPlatform = "primary-host" | (typeof qualificationPlatforms)[number];
-export type ReleaseQualificationProfile = "full" | "initial-beta-win-linux";
+export type ReleaseQualificationProfile = ReleaseProfile;
+export interface GuideCopyProof {
+  kind: "catalog-guide-reference-copy-v1";
+  before: string;
+  after: string;
+}
+
+export function isGuideCopyProof(value: unknown): value is GuideCopyProof {
+  return (
+    isRecord(value) &&
+    value.kind === "catalog-guide-reference-copy-v1" &&
+    [value.before, value.after].every(
+      (hash) => typeof hash === "string" && /^[a-f0-9]{64}$/u.test(hash),
+    ) &&
+    value.before !== value.after
+  );
+}
+
+export interface CatalogAuthoringProof {
+  kind: "catalog-authoring-equivalence-v1";
+  before: string;
+  after: string;
+}
+
+export function isCatalogAuthoringProof(value: unknown): value is CatalogAuthoringProof {
+  return (
+    isRecord(value) &&
+    value.kind === "catalog-authoring-equivalence-v1" &&
+    isGuideCopyProof({ ...value, kind: "catalog-guide-reference-copy-v1" })
+  );
+}
+
+export interface DiscoveryPlatformProof {
+  kind: "catalog-discovery-platforms-v1";
+  before: string;
+  after: string;
+  operational: string;
+}
+
+export function isDiscoveryPlatformProof(value: unknown): value is DiscoveryPlatformProof {
+  return (
+    isRecord(value) &&
+    value.kind === "catalog-discovery-platforms-v1" &&
+    typeof value.operational === "string" &&
+    /^[a-f0-9]{64}$/u.test(value.operational) &&
+    isGuideCopyProof({ ...value, kind: "catalog-guide-reference-copy-v1" })
+  );
+}
+
 export interface ValidationChange {
   status: string;
   oldMode: string | null;
@@ -43,6 +108,9 @@ export interface ValidationChange {
   oldPath: string;
   newPath: string;
   nextest_equivalence?: NextestProof;
+  guide_copy?: GuideCopyProof;
+  catalog_authoring?: CatalogAuthoringProof;
+  discovery_platforms?: DiscoveryPlatformProof;
 }
 export interface ValidationChangeInput {
   status: string;
@@ -54,6 +122,9 @@ export interface ValidationChangeInput {
   // Raw local change discovery retains this property with undefined for non-renames.
   previousPath?: string | undefined;
   nextest_equivalence?: NextestProof;
+  guide_copy?: GuideCopyProof;
+  catalog_authoring?: CatalogAuthoringProof;
+  discovery_platforms?: DiscoveryPlatformProof;
 }
 export interface PathOwnership {
   path: string;
@@ -75,7 +146,7 @@ export interface ValidationPlan {
   groups: readonly ValidationGroup[];
   platforms: readonly ValidationPlatform[];
   qualification_required: boolean;
-  release_profile?: "initial-beta-win-linux";
+  release_profile?: Exclude<ReleaseQualificationProfile, "full">;
   fallback: { kind: "all-fast-groups"; paths: string[] } | null;
   identities: {
     base: string | null;
@@ -104,6 +175,7 @@ export function isInformationalPath(file: string) {
     (/\.md$/u.test(file) &&
       !protectedPolicyDocuments.has(file) &&
       !file.startsWith(".agents/") &&
+      !file.startsWith(".claude/") &&
       !file.startsWith("docs/agents/") &&
       !releaseSecurityFiles.has(file)) ||
     /^docs\/media\/.+\.(?:png|jpe?g|webp|gif|svg)$/u.test(file)
@@ -136,10 +208,13 @@ export const qualificationPlatforms = Object.freeze([
   "windows-x86_64",
 ] as const);
 
-export function qualificationPlatformsForProfile(profile: string = "full") {
+export function qualificationPlatformsForProfile(input: unknown = "full") {
+  const profile = inspectReleaseProfile(input);
   if (profile === "full") return qualificationPlatforms;
   if (profile === "initial-beta-win-linux")
     return Object.freeze(["linux-x86_64", "windows-x86_64"] as const);
+  if (profile === "initial-beta-windows-x86_64-v1")
+    return Object.freeze(["windows-x86_64"] as const);
   throw new Error("unknown release qualification profile");
 }
 
@@ -190,6 +265,7 @@ const protectedPolicyFiles = withNodeTestCompanions([
   "scripts/audit-evidence.mts",
   "scripts/audit-archive.mts",
   "scripts/audit-reuse.mts",
+  "scripts/github-artifact-download.mts",
   "scripts/check-child-process-policy.mts",
   "scripts/check-ci-prose.mts",
   "scripts/ci-result-gate.mts",
@@ -231,16 +307,26 @@ const protectedPolicyFiles = withNodeTestCompanions([
 // is separate. A reviewed test path does not grant ownership to its implementation.
 // New or renamed harness files stay unknown until their ownership is reviewed.
 const nativeScenarioFiles = new Set([
+  "apps/desktop/scripts/desktop-source-reuse-test.mts",
+  "apps/desktop/scripts/desktop-runtime-exit-observation.mts",
   "apps/desktop/scripts/desktop-artwork-observations.mts",
   "apps/desktop/scripts/desktop-artwork-observations.native.test.mts",
   "apps/desktop/scripts/desktop-owned-fixture-journeys.mts",
   "apps/desktop/scripts/desktop-artwork-correction-test.mts",
+  "apps/desktop/scripts/desktop-game-first-test.mts",
+  "apps/desktop/scripts/desktop-game-first-installed-test.mts",
+  "apps/desktop/scripts/desktop-game-first-installed-mm-test.mts",
+  "apps/desktop/scripts/desktop-runtime-exit-observation.mts",
+  "scripts/desktop-runtime-exit-observation.test.mts",
+  "scripts/desktop-game-first-installed-inputs.mts",
+  "scripts/desktop-game-first-installed-inputs.test.mts",
   "apps/desktop/scripts/desktop-default-cover-test.mts",
   "apps/desktop/scripts/desktop-install-fixture.test.mts",
   "apps/desktop/scripts/desktop-install-fixture.native.test.mts",
   "apps/desktop/scripts/cli-command-shell.native.test.mts",
   "apps/desktop/scripts/desktop-preparation-test.mts",
   "apps/desktop/scripts/desktop-source-dialog-test.mts",
+  "apps/desktop/scripts/desktop-source-intake-boundaries-test.mts",
   "apps/desktop/scripts/desktop-test.mts",
   "apps/desktop/scripts/testdata/catalog-artwork-blue.jpg",
   "apps/desktop/scripts/testdata/catalog-artwork-red.jpg",
@@ -261,6 +347,7 @@ const releaseSecurityFiles = withNodeTestCompanions([
   "scripts/release-hosted-native-proof-contract.mts",
   "scripts/release-hosted-native-proof-producer.mts",
   "scripts/release-hosted-native-job.mts",
+  "scripts/release-hosted-native-artifact.mts",
   "scripts/release-hosted-native-runner.mts",
   "scripts/release-hosted-native-bootstrap.mts",
   "scripts/release-hosted-native-launcher.mts",
@@ -291,6 +378,7 @@ const releaseSecurityFiles = withNodeTestCompanions([
   "scripts/release-routing-marker.mts",
   "scripts/release-owned-capture-store.mts",
   "scripts/release-hosted-native-acceptance.mts",
+  "scripts/release-custody-provider.mts",
   "scripts/release-hosted-native-admission.mts",
   "scripts/release-hosted-native-linux-capture.mts",
   "scripts/release-hosted-native-linux-capture.test.py",
@@ -385,11 +473,13 @@ const releaseSecurityFiles = withNodeTestCompanions([
   "scripts/release-catalog-metadata-contract.mts",
   "scripts/release-capacity-operation.test.mts",
   "scripts/release-coordinator-journal-api.mts",
+  "scripts/release-direct-node-transport.mts",
   "scripts/release-coordinator-deadline.mts",
   "scripts/release-publication-inventory.mts",
   "scripts/release-coordinator-deadline.mts",
   "scripts/release-preparation-source.mts",
   "scripts/release-coordinator-driver.mts",
+  "scripts/application-release-source-git.mts",
   "scripts/release-review-request.mts",
   "scripts/release-candidate-dispatch.mts",
   "scripts/release-candidate-progress.mts",
@@ -442,6 +532,7 @@ const releaseSecurityFiles = withNodeTestCompanions([
   "scripts/fixtures/release-metadata-canonical.json",
   "scripts/fixtures/release-metadata-fixture.mts",
   "scripts/release-semantic-review.mts",
+  "scripts/release-semantic-review-evidence.mts",
   "scripts/release-semantic-inputs.mts",
   "scripts/release-semantic-proposal.mts",
   "scripts/release-review-request.mts",
@@ -463,6 +554,7 @@ const releaseSecurityFiles = withNodeTestCompanions([
   "scripts/release-semantic-request-pipeline.mts",
   "scripts/release-semantic-reader.mts",
   "scripts/release-semantic-reader-core.mts",
+  "scripts/release-semantic-source-limits.mts",
   "scripts/release-semantic-reader-server.mts",
   "scripts/release-semantic-broker.mts",
   "scripts/semantic-review-sandbox.ps1",
@@ -489,6 +581,7 @@ const releaseSecurityFiles = withNodeTestCompanions([
   "scripts/fixtures/semantic-review-appcontainer.cs.txt",
   "scripts/release-capacity-operation.mts",
   "scripts/release-input-protections.mts",
+  "scripts/release-ref-rulesets.mts",
   "scripts/release-reviewed-inputs.mts",
   "docs/qualification/release-reviewed-inputs.held.yml",
   "scripts/trusted-aggregate-attestation.mts",
@@ -562,6 +655,7 @@ const releaseSecurityFiles = withNodeTestCompanions([
   "scripts/release-native-public-signature.mts",
   "scripts/release-native-public-attempt-contract.mts",
   "scripts/release-controller-wake.mts",
+  "scripts/release-wake-provider.mts",
   "scripts/release-publication-result.mts",
   "scripts/release-publication-result-artifact.mts",
   "scripts/release-signing-controller.mts",
@@ -577,7 +671,6 @@ const releaseSecurityFiles = withNodeTestCompanions([
   "scripts/release-live-control-admission.mts",
   "apps/desktop/src-tauri/tauri.release-public.conf.json",
   "scripts/bounded-zip.mts",
-  "scripts/github-binary.mts",
   "scripts/generate-release-downloads.mts",
   "scripts/package-cli.ps1",
   "scripts/package-local.ps1",
@@ -600,6 +693,7 @@ const releaseSecurityFiles = withNodeTestCompanions([
   "scripts/roadmap-readiness.mts",
   "scripts/runtime-values.mts",
   "scripts/release-coordinator.mts",
+  "scripts/release-opportunity.mts",
   "scripts/release-coordinator-state.mts",
   "scripts/release-coordinator-remote.mts",
   "scripts/release-checkpoint-job-identity.mts",
@@ -710,7 +804,10 @@ function classifyPath(file: string): PathOwnership {
   const documentation =
     (file.endsWith(".md") || file.startsWith("docs/") || inertGithubFile) &&
     !(releaseSecurity && /\.ya?ml$/u.test(file));
-  const rust = file.startsWith("crates/") || file.startsWith("apps/desktop/src-tauri/");
+  const rust =
+    file.startsWith("crates/") ||
+    file.startsWith("apps/desktop/src-tauri/") ||
+    file.startsWith("tools/rust-portability/");
   const rootRust = [
     "Cargo.toml",
     "Cargo.lock",
@@ -736,6 +833,8 @@ function classifyPath(file: string): PathOwnership {
           "scripts/frontend-case-observations.ts",
           "scripts/viteplus-cli.mts",
           "scripts/frontend-tests.ts",
+          "scripts/browser-shard-balance.mts",
+          ".config/browser-test-weights.json",
           "scripts/run-ui-tests.mts",
           "scripts/test-coverage-config.mts",
           "scripts/coverage-maps.mts",
@@ -780,7 +879,9 @@ function classifyPath(file: string): PathOwnership {
       "native-or-ipc-contract",
     );
     match(
-      file.startsWith("crates/portcove-core/catalog/"),
+      file.startsWith("crates/portcove-core/catalog/") ||
+        routeEnrollmentInputs.has(file) ||
+        isRetainedPreparedFixturePath(file),
       "catalog",
       ["catalog", "rust", "rust-quality"],
       "catalog-contract",
@@ -825,6 +926,12 @@ function classifyPath(file: string): PathOwnership {
       "platform-contract",
     );
     match(
+      file.startsWith("integrations/playnite/") && /\.(?:cs|csproj|ps1|json)$/u.test(file),
+      "policy",
+      ["rust"],
+      "playnite-reference-client",
+    );
+    match(
       file.startsWith("scripts/") ||
         file === "apps/desktop/src/browser/failure-probe-contract.ts" ||
         file === ".fallow-tooling.json" ||
@@ -849,7 +956,6 @@ function classifyPath(file: string): PathOwnership {
           "tsconfig.json",
           "tsconfig.base.json",
           ".prettierignore",
-          ".rscheck.toml",
           "eslint.config.mjs",
           "prettier.config.mjs",
           "pyproject.toml",
@@ -964,6 +1070,8 @@ function classifyAuditPath(file: string): PathOwnership {
         "scripts/frontend-case-observations.ts",
         "scripts/viteplus-cli.mts",
         "scripts/frontend-tests.ts",
+        "scripts/browser-shard-balance.mts",
+        ".config/browser-test-weights.json",
         "scripts/run-ui-tests.mts",
         "scripts/test-coverage-config.mts",
         "scripts/coverage-maps.mts",
@@ -982,6 +1090,7 @@ function classifyAuditPath(file: string): PathOwnership {
   );
   match(
     file.startsWith("crates/") ||
+      file.startsWith("tools/rust-portability/") ||
       [
         "Cargo.toml",
         "Cargo.lock",
@@ -1012,6 +1121,8 @@ function classifyAuditPath(file: string): PathOwnership {
       !documentationRaster &&
       (file === "crates/portcove-core/catalog/catalog.json" ||
         file.startsWith("crates/portcove-core/catalog/") ||
+        routeEnrollmentInputs.has(file) ||
+        isRetainedPreparedFixturePath(file) ||
         /(?:catalog|retcomm|source-provenance)/iu.test(file)),
     "catalog",
     ["catalog", "rust", "rust-quality"],
@@ -1063,7 +1174,6 @@ function classifyAuditPath(file: string): PathOwnership {
         "tsconfig.json",
         "tsconfig.base.json",
         ".prettierignore",
-        ".rscheck.toml",
         "eslint.config.mjs",
         "prettier.config.mjs",
         "pyproject.toml",
@@ -1277,13 +1387,26 @@ export function buildValidationPlan({
             : "area-routed-fast-validation",
     changed_files: changedFiles,
     changes: normalizedChanges.map(
-      ({ status, oldMode, newMode, oldPath, newPath, nextest_equivalence }) => ({
+      ({
+        status,
+        oldMode,
+        newMode,
+        oldPath,
+        newPath,
+        nextest_equivalence,
+        guide_copy,
+        catalog_authoring,
+        discovery_platforms,
+      }) => ({
         status,
         oldMode: oldMode ?? null,
         newMode: newMode ?? null,
         oldPath,
         newPath,
         ...(nextest_equivalence ? { nextest_equivalence } : {}),
+        ...(guide_copy ? { guide_copy } : {}),
+        ...(catalog_authoring ? { catalog_authoring } : {}),
+        ...(discovery_platforms ? { discovery_platforms } : {}),
       }),
     ),
     areas,
@@ -1337,8 +1460,13 @@ function assertPlanShape(plan: unknown): asserts plan is ValidationPlan {
     throw new Error("validation plan reason is missing");
   if (typeof plan.qualification_required !== "boolean")
     throw new Error("validation qualification authority is invalid");
-  if (Object.hasOwn(plan, "release_profile") && plan.release_profile !== "initial-beta-win-linux")
-    throw new Error("invalid release qualification profile");
+  if (Object.hasOwn(plan, "release_profile")) {
+    if (
+      typeof plan.release_profile !== "string" ||
+      inspectReleaseProfile(plan.release_profile) === "full"
+    )
+      throw new Error("invalid release qualification profile");
+  }
   assertStringArray(plan.changed_files, [], "changed_files");
   assertStringArray(plan.areas, validationAreas, "area");
   assertStringArray(plan.groups, fastGroups, "group");
@@ -1356,6 +1484,18 @@ function assertPlanShape(plan: unknown): asserts plan is ValidationPlan {
       throw new Error("unsafe or missing validation file mode");
     if (change.nextest_equivalence !== undefined && !isNextestProof(change.nextest_equivalence))
       throw new Error("invalid nextest equivalence proof");
+    if (change.guide_copy !== undefined && !isGuideCopyProof(change.guide_copy))
+      throw new Error("invalid catalog guide copy proof");
+    if (
+      change.catalog_authoring !== undefined &&
+      !isCatalogAuthoringProof(change.catalog_authoring)
+    )
+      throw new Error("invalid catalog authoring equivalence proof");
+    if (
+      change.discovery_platforms !== undefined &&
+      !isDiscoveryPlatformProof(change.discovery_platforms)
+    )
+      throw new Error("invalid catalog discovery platform proof");
   }
   if (!Array.isArray(plan.paths)) throw new Error("validation plan paths must be an array");
   for (const entry of plan.paths) assertPathOwnership(entry);
@@ -1599,7 +1739,8 @@ function validatePlanSemantics(plan: ValidationPlan): ValidationPlan {
 // with a single environment string above MAX_ARG_STRLEN. Bound both transport
 // and inflation; compression never replaces plan/digest/source validation.
 const planJsonByteLimit = 1024 * 1024;
-const planEnvironmentByteLimit = 64 * 1024;
+// Leave 32 KiB below Linux’s 128 KiB per-string exec limit, including the key.
+const planEnvironmentByteLimit = 96 * 1024;
 export function encodeValidationPlanEnvironment(plan: ValidationPlan): string {
   validateValidationPlan(plan);
   const json = JSON.stringify(plan);

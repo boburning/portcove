@@ -2,6 +2,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vite-plus/test";
 import { BackupHistory } from "../../components/BackupHistory";
 import { failureReport, portDefinition } from "../../test-fixtures";
+import { automaticSnapshotLabel } from "./snapshot-label";
 
 const port = portDefinition();
 
@@ -21,7 +22,7 @@ describe("backup history presentation", () => {
     );
     expect(html).toContain("Backups");
     expect(html).toContain("Backups include saves and settings managed by Portcove.");
-    expect(html).toContain("4 verified backups");
+    expect(html).toContain("4 backups");
     expect(html).toContain("Show 1 older");
     expect(html).toMatch(/<button[^>]*data-variant="ghost"[^>]*>[^]*?Show 1 older<\/button>/u);
     expect(html).not.toContain("backup-expander");
@@ -50,7 +51,7 @@ describe("backup history presentation", () => {
     );
     expect(empty).toContain("No backups yet");
     expect(empty).not.toContain("snapshot");
-    expect(populated).toContain("1 verified backup");
+    expect(populated).toContain("1 backup");
     expect(populated).toContain("1 file · 1.0 KiB");
     expect(populated).toContain("Technical details");
     expect(populated).toContain('aria-label="Technical details for backup from ');
@@ -90,9 +91,9 @@ describe("backup history presentation", () => {
       />,
     );
     expect(html).toContain("Backup recovery required");
-    expect(html).toContain("1 verified backup");
+    expect(html).toContain("1 backup");
     expect(html).toContain(
-      "Verified backups remain listed, but restoring and deleting require recovery to finish.",
+      "Available backups remain listed, but restoring and deleting require recovery to finish.",
     );
     const actionButtons = Array.from(html.matchAll(/<button[^>]*>/gu), ([opening]) => opening);
     expect(actionButtons).toHaveLength(2);
@@ -143,7 +144,7 @@ describe("backup history presentation", () => {
         remove={vi.fn()}
       />,
     );
-    expect(html).toContain("Verified backups remain listed and usable.");
+    expect(html).toContain("Available backups remain listed. Review a backup before restoring it.");
     const actionButtons = Array.from(html.matchAll(/<button[^>]*>/gu), ([opening]) => opening);
     expect(actionButtons).toHaveLength(2);
     for (const opening of actionButtons) expect(opening).not.toContain('disabled=""');
@@ -152,11 +153,11 @@ describe("backup history presentation", () => {
   it.each([
     [
       "recovery_required",
-      "Verified backups remain listed, but restoring requires recovery to finish.",
+      "Available backups remain listed, but restoring requires recovery to finish.",
     ],
     [
       "unsafe_data",
-      "Verified backups remain listed. Review the current restore availability below.",
+      "Available backups remain listed. Review the current restore availability below.",
     ],
   ] as const)(
     "does not call degraded backups usable when restore is held by %s",
@@ -216,7 +217,7 @@ describe("backup history presentation", () => {
         />,
       );
       expect(html).toContain(
-        "Verified backups remain listed. Review the current restore availability below.",
+        "Available backups remain listed. Review the current restore availability below.",
       );
       expect(html).not.toContain("restoring requires recovery to finish");
       expect(html).not.toContain("listed and usable");
@@ -322,4 +323,48 @@ it("keeps a read failure's private diagnostics behind technical details without 
   expect(primary).not.toContain("The change was saved");
   expect(html).toContain("private/read/path");
   expect(html).toContain("View technical details");
+});
+
+it("labels automatic snapshots with their version change and leaves manual ones unlabelled", () => {
+  const base = {
+    port_id: port.id,
+    path: "backups/sample/x",
+    created_at: 1,
+    file_count: 1,
+    size: 1024,
+    sha256: "b".repeat(64),
+  };
+  const backups = [
+    { ...base, id: "manual" },
+    {
+      ...base,
+      id: "rollback",
+      automatic: { operation: "rollback" as const, from_version: "2.0", to_version: "1.9" },
+    },
+    {
+      ...base,
+      id: "update",
+      automatic: { operation: "update" as const, from_version: null, to_version: "3.0" },
+    },
+  ];
+  const html = renderToStaticMarkup(
+    <BackupHistory backups={backups} restore={vi.fn()} remove={vi.fn()} />,
+  );
+  expect(html).toContain("Automatic snapshot before restoring a previous version (2.0 to 1.9)");
+  expect(html).toContain("Automatic snapshot before an update (to 3.0)");
+  expect(html.match(/data-automatic-snapshot/gu)).toHaveLength(2);
+  const manualRow = html.slice(
+    html.indexOf('data-backup-id="manual"'),
+    html.indexOf('data-backup-id="rollback"'),
+  );
+  expect(manualRow).not.toContain("Automatic snapshot");
+});
+
+it("builds one label per version change", () => {
+  const label = (operation: "update" | "activation" | "rollback") =>
+    automaticSnapshotLabel({ automatic: { operation, from_version: "1", to_version: "2" } });
+  expect(label("update")).toBe("Automatic snapshot before an update (1 to 2)");
+  expect(label("activation")).toBe("Automatic snapshot before activating a saved update (1 to 2)");
+  expect(label("rollback")).toBe("Automatic snapshot before restoring a previous version (1 to 2)");
+  expect(automaticSnapshotLabel({})).toBeUndefined();
 });

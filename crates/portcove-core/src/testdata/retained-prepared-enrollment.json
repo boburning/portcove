@@ -1,0 +1,170 @@
+{
+  "format_version": 1,
+  "cases": [
+    {
+      "port_id": "elasota-aerofoil",
+      "fixture": "aerofoil-retained-selected-2026-11-07.json",
+      "test_name": "classic_pc_route_1790"
+    },
+    {
+      "port_id": "blake-stone-aliens-of-gold-bstone",
+      "fixture": "bstone-retained-selected-2026-10-29.json",
+      "test_name": "desktop_prepared_route_2555"
+    },
+    {
+      "port_id": "blake-stone-planet-strike-bstone",
+      "fixture": "bstone-retained-selected-2026-10-29.json",
+      "test_name": "desktop_prepared_route_2556"
+    },
+    {
+      "port_id": "final-doom-crispy-doom-family",
+      "fixture": "crispy-final-doom-retained-selected-2026-10-29.json",
+      "test_name": "desktop_prepared_route_2656"
+    },
+    {
+      "port_id": "doom-ii-crispy-doom-family",
+      "fixture": "crispy-retained-selected-2026-10-29.json",
+      "test_name": "desktop_prepared_route_2655"
+    },
+    {
+      "port_id": "doom-the-ultimate-doom-crispy-doom-family",
+      "fixture": "crispy-retained-selected-2026-10-29.json",
+      "test_name": "desktop_prepared_route_2654"
+    },
+    {
+      "port_id": "heretic-crispy-doom-family",
+      "fixture": "crispy-retained-selected-2026-10-29.json",
+      "test_name": "desktop_prepared_route_2657"
+    },
+    {
+      "port_id": "hexen-crispy-doom-family",
+      "fixture": "crispy-retained-selected-2026-10-29.json",
+      "test_name": "desktop_prepared_route_2662"
+    },
+    {
+      "port_id": "strife-crispy-doom-family",
+      "fixture": "crispy-retained-selected-2026-10-29.json",
+      "test_name": "desktop_prepared_route_2663"
+    },
+    {
+      "port_id": "diablo-devilutionx",
+      "fixture": "devilution-retained-selected-2026-10-29.json",
+      "test_name": "desktop_prepared_route_2563"
+    },
+    {
+      "port_id": "diablo-hellfire-devilutionx",
+      "fixture": "devilution-retained-selected-2026-10-29.json",
+      "test_name": "desktop_prepared_route_2564"
+    },
+    {
+      "port_id": "pokemon-firered-fireredleafgreenrecomp",
+      "fixture": "gba-pokemon-retained-selected-2026-11-05.json",
+      "test_name": "historical_route_firered"
+    },
+    {
+      "port_id": "pokemon-leafgreen-fireredleafgreenrecomp",
+      "fixture": "gba-pokemon-retained-selected-2026-11-05.json",
+      "test_name": "historical_route_leafgreen"
+    },
+    {
+      "port_id": "pokemon-ruby-rubysapphirerecomp",
+      "fixture": "gba-ruby-sapphire-retained-selected-2026-11-06.json",
+      "test_name": "historical_route_ruby"
+    },
+    {
+      "port_id": "pokemon-sapphire-rubysapphirerecomp",
+      "fixture": "gba-ruby-sapphire-retained-selected-2026-11-06.json",
+      "test_name": "historical_route_sapphire"
+    },
+    {
+      "port_id": "doom-3-classic-dhewm3",
+      "fixture": "native-engine-retained-selected-2026-11-02.json",
+      "test_name": "desktop_prepared_route_2567"
+    },
+    {
+      "port_id": "doom-3-classic-dude-doom-3-unified-development-engine",
+      "fixture": "native-engine-retained-selected-2026-11-02.json",
+      "test_name": "native_engine_route_2565"
+    },
+    {
+      "port_id": "doom-3-resurrection-of-evil-classic-dhewm3",
+      "fixture": "native-engine-retained-selected-2026-11-02.json",
+      "test_name": "desktop_prepared_route_2568"
+    },
+    {
+      "port_id": "doom-3-resurrection-of-evil-classic-dude-doom-3-unified-development-engine",
+      "fixture": "native-engine-retained-selected-2026-11-02.json",
+      "test_name": "native_engine_route_2566"
+    },
+    {
+      "port_id": "medal-of-honor-allied-assault-breakthrough-openmohaa",
+      "fixture": "native-engine-retained-selected-2026-11-02.json",
+      "test_name": "native_engine_route_2594"
+    },
+    {
+      "port_id": "medal-of-honor-allied-assault-openmohaa",
+      "fixture": "native-engine-retained-selected-2026-11-02.json",
+      "test_name": "native_engine_route_2592"
+    },
+    {
+      "port_id": "medal-of-honor-allied-assault-spearhead-openmohaa",
+      "fixture": "native-engine-retained-selected-2026-11-02.json",
+      "test_name": "native_engine_route_2593"
+    },
+    {
+      "port_id": "star-wars-jedi-knight-ii-jedi-outcast-single-player-openjk-openjo",
+      "fixture": "native-engine-retained-selected-2026-11-02.json",
+      "test_name": "native_engine_route_2611"
+    },
+    {
+      "port_id": "star-wars-jedi-knight-jedi-academy-single-player-and-multiplayer-openjk-openjo",
+      "fixture": "native-engine-retained-selected-2026-11-02.json",
+      "test_name": "native_engine_route_2612"
+    },
+    {
+      "port_id": "bio-menace-reflectionhle",
+      "fixture": "reflectionhle-retained-selected-2026-10-28.json",
+      "test_name": "desktop_prepared_route_2692"
+    },
+    {
+      "port_id": "catacomb-3-d-the-descent-reflectionhle",
+      "fixture": "reflectionhle-retained-selected-2026-10-28.json",
+      "test_name": "desktop_prepared_route_2684"
+    },
+    {
+      "port_id": "keen-dreams-reflectionhle",
+      "fixture": "reflectionhle-retained-selected-2026-10-28.json",
+      "test_name": "desktop_prepared_route_2683"
+    },
+    {
+      "port_id": "spear-of-destiny-reflectionhle",
+      "fixture": "reflectionhle-retained-selected-2026-10-28.json",
+      "test_name": "desktop_prepared_route_2689"
+    },
+    {
+      "port_id": "super-3-d-noah-s-ark-dos-reflectionhle",
+      "fixture": "reflectionhle-retained-selected-2026-10-28.json",
+      "test_name": "desktop_prepared_route_2690"
+    },
+    {
+      "port_id": "the-catacomb-abyss-reflectionhle",
+      "fixture": "reflectionhle-retained-selected-2026-10-28.json",
+      "test_name": "desktop_prepared_route_2685"
+    },
+    {
+      "port_id": "the-catacomb-apocalypse-reflectionhle",
+      "fixture": "reflectionhle-retained-selected-2026-10-28.json",
+      "test_name": "desktop_prepared_route_2687"
+    },
+    {
+      "port_id": "the-catacomb-armageddon-reflectionhle",
+      "fixture": "reflectionhle-retained-selected-2026-10-28.json",
+      "test_name": "desktop_prepared_route_2686"
+    },
+    {
+      "port_id": "wolfenstein-3d-reflectionhle",
+      "fixture": "reflectionhle-retained-selected-2026-10-28.json",
+      "test_name": "desktop_prepared_route_2688"
+    }
+  ]
+}

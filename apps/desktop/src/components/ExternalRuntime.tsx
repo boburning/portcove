@@ -1,3 +1,4 @@
+import { AuthoredSetupWarnings, setupWarningsBeforeAction } from "./AuthoredSetupWarnings";
 import { ActionReviewFailure } from "./ActionReviewFailure";
 import { FolderOpen } from "lucide-react";
 import { gameIdentityLabel } from "../port-identity";
@@ -102,19 +103,7 @@ export function AuthoredPreparationGuidance({
     <>
       {guide ? (
         <>
-          {guide.warnings.length > 0 && (
-            <aside
-              aria-label="Before you begin"
-              className="border-pc-warning rounded-pc-md border bg-pc-warning-subtle p-3 text-pc-warning-foreground"
-            >
-              <h4 className="font-semibold">Before you begin</h4>
-              <ul className="mt-2 grid list-disc gap-2 pl-5">
-                {guide.warnings.map((warning) => (
-                  <li key={warning}>{warning}</li>
-                ))}
-              </ul>
-            </aside>
-          )}
+          <AuthoredSetupWarnings warnings={setupWarningsBeforeAction(port.id, guide.warnings)} />
           <ol className="grid min-w-0 list-decimal gap-4 pl-5 wrap-anywhere marker:font-semibold">
             {guide.steps.map((step, index) => (
               <li key={`${index}:${step.title}`} className="pl-1">
@@ -123,6 +112,21 @@ export function AuthoredPreparationGuidance({
               </li>
             ))}
           </ol>
+          {!!guide.references?.length && (
+            <details className="min-w-0 text-sm wrap-anywhere">
+              <summary data-focusable className="cursor-pointer font-medium">
+                Save locations and version notes
+              </summary>
+              <div className="mt-2 grid gap-3">
+                {guide.references.map((reference, index) => (
+                  <section key={`${index}:${reference.title}`}>
+                    <h4 className="font-semibold">{reference.title}</h4>
+                    <p>{reference.instruction}</p>
+                  </section>
+                ))}
+              </div>
+            </details>
+          )}
           {guide.help_url && (
             <ExternalLink href={guide.help_url}>Detailed preparation guide</ExternalLink>
           )}
@@ -137,7 +141,7 @@ export function AuthoredPreparationGuidance({
         </>
       ) : externalManaged ? (
         port.project_url ? (
-          <ExternalLink href={port.project_url}>Upstream setup instructions</ExternalLink>
+          <ExternalLink href={port.project_url}>Setup guide on the project’s website</ExternalLink>
         ) : null
       ) : note ? (
         <p>{note}</p>
@@ -560,8 +564,8 @@ function SelectedRuntimeDialog({
     <>
       {inline ? (
         <p className="text-sm">
-          Finish adding this launch target without starting it. You or upstream provide updates;
-          Portcove does not authenticate, replace, back up or delete these external files.
+          Add this game to Portcove. It won’t start until you choose Play. You or upstream provide
+          updates; Portcove does not authenticate, replace, back up or delete these external files.
           {relink &&
             " This changes the saved launch target; the previous copy stays untouched and can be selected again."}
         </p>
@@ -573,18 +577,19 @@ function SelectedRuntimeDialog({
           </DialogTitle>
           <DialogDescription id="selected-runtime-description">
             You selected this executable. Portcove has not authenticated it as an official package.
-            You or upstream own setup and updates. Portcove saves launch details and can remove
-            their registration. It will not replace, back up, restore, roll back or delete the
-            external files. Changing the target leaves the previous copy untouched.
+            You’ll handle setup and updates yourself, or through the game’s own launcher. Portcove
+            saves launch details and can remove their registration. It will not replace, back up,
+            restore, roll back or delete the external files. Changing the target leaves the previous
+            copy untouched.
           </DialogDescription>
         </>
       )}
       <dl hidden={inline} className="grid gap-2 [overflow-wrap:anywhere]">
-        <dt>Executable</dt>
+        <dt>Game program</dt>
         <dd>{selected.executable}</dd>
-        <dt>Working directory</dt>
+        <dt>Start in folder</dt>
         <dd>{selected.workingDirectory}</dd>
-        <dt>Arguments</dt>
+        <dt>Launch options (advanced)</dt>
         <dd>
           {selected.arguments.length
             ? selected.arguments.map((argument, index) => (
@@ -745,7 +750,7 @@ function RegisterExternalDialog({
               {preview.path}
             </span>
             <span className="min-w-0 rounded-pc-md bg-[var(--color-bg-subtle)] p-[12px] text-[length:var(--text-xs)] [overflow-wrap:anywhere] text-[var(--color-text-secondary)]">
-              <small className="mb-[5px] block text-[var(--color-text-muted)]">Executable</small>
+              <small className="mb-[5px] block text-[var(--color-text-muted)]">Game program</small>
               {preview.executable}
             </span>
             <span className="min-w-0 rounded-pc-md bg-[var(--color-bg-subtle)] p-[12px] text-[length:var(--text-xs)] [overflow-wrap:anywhere] text-[var(--color-text-secondary)]">
@@ -921,7 +926,7 @@ function RuntimeArgumentEditor(
       ) : (
         <>
           <label className="grid gap-1">
-            Arguments (one per line, optional)
+            Launch options (advanced) (one per line, optional)
             <textarea
               className="rounded-pc-md border border-pc-input bg-pc-surface p-2"
               aria-label="Launch arguments"
@@ -1163,14 +1168,14 @@ function RuntimeLaunchDetails(
         </Button>
         {model.executable && (
           <p className="[overflow-wrap:anywhere]">
-            Executable: <code>{model.executable}</code>
+            Game program: <code>{model.executable}</code>
           </p>
         )}
         <label className="grid gap-1" htmlFor={model.workingDirectoryId}>
-          Working directory
+          Start in folder
           <Input
             id={model.workingDirectoryId}
-            aria-label="Working directory"
+            aria-label="Start in folder"
             value={model.workingDirectory}
             disabled={model.busy}
             onValueChange={(value) => {

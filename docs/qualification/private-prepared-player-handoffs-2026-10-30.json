@@ -1,0 +1,1164 @@
+{
+  "format_version": 1,
+  "kind": "dated two-title private-prepared native-player evidence; not live planning or fleet acceptance",
+  "observation_date": "2026-10-30",
+  "owners": [2510, 2926, 1422],
+  "local_stack_parent_source": "6706825af7ec11c12860a2dc9198fd5614933044",
+  "counts": {
+    "distinct_repository_commit_path_blob_bindings": 56,
+    "unique_content_blobs": 29,
+    "complete_tree_reference_roles": 4,
+    "distinct_commit_root_tree_bindings": 4
+  },
+  "selected_rows": [
+    {
+      "id": "dragon-ball-z-budokai-3-hd-budokai-3-hd-collection-recomp",
+      "canonical_issue": 366,
+      "cohort": "original-524",
+      "historical_1422_member": true,
+      "canonical_body_sha256_at_pickup": "4fc3c813af076570337a5d4ab3a2156af278897505d23585bd7c409ab5e45868",
+      "planning_at_pickup": {
+        "Status": "Triage",
+        "Priority": "Low",
+        "Horizon": "Later",
+        "Target release": "Unscheduled",
+        "Release commitment": "Planned",
+        "Work type": "Port",
+        "Workstream": "Port catalog",
+        "Platform": "Windows",
+        "Port stage": "Release integrity qualified",
+        "Effort": "Unknown"
+      },
+      "context_observed_at": "2026-10-30T21:56:53.799Z",
+      "authored_sha256": "06eb37a9a72da3d45b1ee4c9b13ced140e7adac8d230f284543a3cacc3f2326a",
+      "tag": "v1.5.5.5",
+      "selected_tag_source": "70e53af12a79e93a9fc2273cce875308b0ad7a99",
+      "current_source": "b5bff8a9b92b13b5c470034f868834a875add755",
+      "publisher_assets": [
+        {
+          "id": 683342658,
+          "name": "DBZ-Budokai-3-HD-Collection-v1.5.5.5-linux-amd64.tar.gz",
+          "bytes": 21418624,
+          "digest": "sha256:c4732bb181e2db92141b68d5126c33900cf8b11c7071776422fc4e83d65ae379"
+        },
+        {
+          "id": 683270503,
+          "name": "DBZ-Budokai-3-HD-Collection-v1.5.5.5.zip",
+          "bytes": 91591702,
+          "digest": "sha256:cfc5e7d4825f44c62eff9973bd79f4e88746312d12d82abd50b9bc518de79b5f"
+        }
+      ],
+      "acquisition_hold_present": false,
+      "offered_route": "already permitted fully upstream-prepared working Windows x64 selected-native intent/register/relink/restart/explicit selected-process Play/metadata-only preserving removal; preparation/activation/replacement external",
+      "game_package_original_execution_this_batch": "not_run",
+      "native_gameplay_state_installed_protected_this_batch": "not_evaluated"
+    },
+    {
+      "id": "triaevum-ocarina-of-time-3d",
+      "canonical_issue": 515,
+      "cohort": "original-524",
+      "historical_1422_member": true,
+      "canonical_body_sha256_at_pickup": "f15c400b6adf869918b56c2102ec44a9f7a08f7893e26a4722b934ee2d23e1d7",
+      "planning_at_pickup": {
+        "Status": "Triage",
+        "Priority": "Medium",
+        "Horizon": "Later",
+        "Target release": "Unscheduled",
+        "Release commitment": "Planned",
+        "Work type": "Port",
+        "Workstream": "Port catalog",
+        "Platform": "Multi-platform",
+        "Port stage": "Release integrity qualified",
+        "Effort": "L"
+      },
+      "context_observed_at": "2026-10-30T21:56:54.793Z",
+      "authored_sha256": "5e18e1e3860833ad23c790c054fcdbb591b40221f2b64a5fa446555d7cf2dfdb",
+      "tag": "v0.8.0-beta.1.2",
+      "selected_tag_source": "a56f9649747a46655728f217abda9c51c66b11ba",
+      "current_source": "8f69a26f390bf3a500bf3149b6596c19724a5b5d",
+      "publisher_assets": [
+        {
+          "id": 665922766,
+          "name": "SHA256SUMS.txt",
+          "bytes": 332,
+          "digest": "sha256:ebfdc35b8743fb1d32bc6da834e26fcef78e21488ed9566f1194308d276047ed"
+        },
+        {
+          "id": 665922765,
+          "name": "TriAevum-v0.8.0-beta.1.2-Linux-x86_64.AppImage",
+          "bytes": 465828344,
+          "digest": "sha256:2e80fb50e1d21ffc5cc852a90f715408b82e65839e8baf8b3dbf6f9295d5296a"
+        },
+        {
+          "id": 665922764,
+          "name": "TriAevum-v0.8.0-beta.1.2-Linux-x86_64.flatpak",
+          "bytes": 269893960,
+          "digest": "sha256:575db1812b37070e9512192bf760d5d78b9efda158b740a089a2eb1a528a54ef"
+        },
+        {
+          "id": 665922767,
+          "name": "TriAevum-v0.8.0-beta.1.2-Windows-x64.zip",
+          "bytes": 550467290,
+          "digest": "sha256:23c3febe3a4dc1b7ffe652f21861f4c5b5068411a16df5fc721e52a80ba817a6"
+        }
+      ],
+      "acquisition_hold_present": false,
+      "offered_route": "already permitted fully upstream-prepared working Windows x64 selected-native intent/register/relink/restart/explicit selected-process Play/metadata-only preserving removal; preparation/activation/replacement external",
+      "game_package_original_execution_this_batch": "not_run",
+      "native_gameplay_state_installed_protected_this_batch": "not_evaluated"
+    }
+  ],
+  "source_packets": [
+    {
+      "canonical_issue": 366,
+      "bindings": [
+        {
+          "repository": "novapowers0/DBZ-Budokai-3-HD-Collection",
+          "commit": "70e53af12a79e93a9fc2273cce875308b0ad7a99",
+          "path": "CMakeLists.txt",
+          "blob": "e1de4d121f0041c5e3c0400d3caf1cd02c94bcf6",
+          "bytes": 10920,
+          "sha256": "415f9af154f833451df339fa7c261bcebf2bb5765dc34d96b0184aab76719475",
+          "retained_source_name": "tag-CMakeLists.txt"
+        },
+        {
+          "repository": "novapowers0/DBZ-Budokai-3-HD-Collection",
+          "commit": "70e53af12a79e93a9fc2273cce875308b0ad7a99",
+          "path": "LICENSE",
+          "blob": "0d8a5b6f81ed02aedb6c85bf5b1fbfc35c3b25c6",
+          "bytes": 1067,
+          "sha256": "66ce737cb0b64564bec4824ca1e047db6eb93220033cac4b875c7fb5f0d450f0",
+          "retained_source_name": "tag-LICENSE"
+        },
+        {
+          "repository": "novapowers0/DBZ-Budokai-3-HD-Collection",
+          "commit": "70e53af12a79e93a9fc2273cce875308b0ad7a99",
+          "path": "README.md",
+          "blob": "49962b77b8d7ad8f6247ec5465ac23c6364eb8a2",
+          "bytes": 26951,
+          "sha256": "c59b9d3e02db39b1568cac38f82745f2e8de3d33776e135236256c0dc5aedc81",
+          "retained_source_name": "tag-README.md"
+        },
+        {
+          "repository": "novapowers0/DBZ-Budokai-3-HD-Collection",
+          "commit": "70e53af12a79e93a9fc2273cce875308b0ad7a99",
+          "path": "baserom.md",
+          "blob": "c7f97d132b52dde8b9bb0412ff060cc3242f7214",
+          "bytes": 5461,
+          "sha256": "0fb07b63523de412ab63258d391b0cad0b05d5df586257dda3c5056ceba3e729",
+          "retained_source_name": "tag-baserom.md"
+        },
+        {
+          "repository": "novapowers0/DBZ-Budokai-3-HD-Collection",
+          "commit": "70e53af12a79e93a9fc2273cce875308b0ad7a99",
+          "path": "src/launcher/launcher_state.cpp",
+          "blob": "2a50e8fb6fc958392073dc9137dde09f3710fdc0",
+          "bytes": 334586,
+          "sha256": "ce86efad68c32da94dc7abe43543a4df8cbb4773512764749ede5d498cc69db1",
+          "retained_source_name": "tag-src__launcher__launcher_state.cpp"
+        },
+        {
+          "repository": "novapowers0/DBZ-Budokai-3-HD-Collection",
+          "commit": "70e53af12a79e93a9fc2273cce875308b0ad7a99",
+          "path": "src/launcher/launcher_state.h",
+          "blob": "2c658d1b977f27c24a001169aa728ca9c27a40d4",
+          "bytes": 15425,
+          "sha256": "27497eca6a13c4eb0c96f9e75a00abda319004779eff1c73c9dbfa62f9610a67",
+          "retained_source_name": "tag-src__launcher__launcher_state.h"
+        },
+        {
+          "repository": "novapowers0/DBZ-Budokai-3-HD-Collection",
+          "commit": "70e53af12a79e93a9fc2273cce875308b0ad7a99",
+          "path": "src/launcher/settings.cpp",
+          "blob": "581268474ee8db63efeb90480e987bade307d902",
+          "bytes": 128656,
+          "sha256": "e930b58b63cba3deb590796459a08ecf431e8e48cf3d6370c62d290572a5e6f3",
+          "retained_source_name": "tag-src__launcher__settings.cpp"
+        },
+        {
+          "repository": "novapowers0/DBZ-Budokai-3-HD-Collection",
+          "commit": "70e53af12a79e93a9fc2273cce875308b0ad7a99",
+          "path": "src/launcher/settings.h",
+          "blob": "9800a78b53e2a59210c39ce1ba36880d7c382a8f",
+          "bytes": 27095,
+          "sha256": "695414b43de18460ae86a1042451d2df951e7f381a32e559d286336156fa7469",
+          "retained_source_name": "tag-src__launcher__settings.h"
+        },
+        {
+          "repository": "novapowers0/DBZ-Budokai-3-HD-Collection",
+          "commit": "70e53af12a79e93a9fc2273cce875308b0ad7a99",
+          "path": "src/launcher/update_check.cpp",
+          "blob": "aab543767b8e6f8a58a75faf2fd758f04c20e06e",
+          "bytes": 35285,
+          "sha256": "1c89844fbc28b64b3788bddcf35a8fa458dd0f090b20cdf3e99ee4525ffcf9f3",
+          "retained_source_name": "tag-src__launcher__update_check.cpp"
+        },
+        {
+          "repository": "novapowers0/DBZ-Budokai-3-HD-Collection",
+          "commit": "70e53af12a79e93a9fc2273cce875308b0ad7a99",
+          "path": "src/launcher/update_check.h",
+          "blob": "14c166bae667f1bf46e3006bfae5734eefa3e102",
+          "bytes": 4895,
+          "sha256": "9710d6cc1d522a7ab9a4907ff2849af887e26e349b23e0af382f600f3465425f",
+          "retained_source_name": "tag-src__launcher__update_check.h"
+        },
+        {
+          "repository": "novapowers0/DBZ-Budokai-3-HD-Collection",
+          "commit": "70e53af12a79e93a9fc2273cce875308b0ad7a99",
+          "path": "src/main.cpp",
+          "blob": "b14f0f1d9cb691ae1a7ba0c948266607d8d6449e",
+          "bytes": 68605,
+          "sha256": "22fdc716d3ef30040e54b841f86cf20ece56e8893e5110427492dfe5ca9270fc",
+          "retained_source_name": "tag-src__main.cpp"
+        },
+        {
+          "repository": "novapowers0/DBZ-Budokai-3-HD-Collection",
+          "commit": "b5bff8a9b92b13b5c470034f868834a875add755",
+          "path": "CMakeLists.txt",
+          "blob": "e1de4d121f0041c5e3c0400d3caf1cd02c94bcf6",
+          "bytes": 10920,
+          "sha256": "415f9af154f833451df339fa7c261bcebf2bb5765dc34d96b0184aab76719475",
+          "retained_source_name": "current-CMakeLists.txt"
+        },
+        {
+          "repository": "novapowers0/DBZ-Budokai-3-HD-Collection",
+          "commit": "b5bff8a9b92b13b5c470034f868834a875add755",
+          "path": "LICENSE",
+          "blob": "0d8a5b6f81ed02aedb6c85bf5b1fbfc35c3b25c6",
+          "bytes": 1067,
+          "sha256": "66ce737cb0b64564bec4824ca1e047db6eb93220033cac4b875c7fb5f0d450f0",
+          "retained_source_name": "current-LICENSE"
+        },
+        {
+          "repository": "novapowers0/DBZ-Budokai-3-HD-Collection",
+          "commit": "b5bff8a9b92b13b5c470034f868834a875add755",
+          "path": "README.md",
+          "blob": "49962b77b8d7ad8f6247ec5465ac23c6364eb8a2",
+          "bytes": 26951,
+          "sha256": "c59b9d3e02db39b1568cac38f82745f2e8de3d33776e135236256c0dc5aedc81",
+          "retained_source_name": "current-README.md"
+        },
+        {
+          "repository": "novapowers0/DBZ-Budokai-3-HD-Collection",
+          "commit": "b5bff8a9b92b13b5c470034f868834a875add755",
+          "path": "baserom.md",
+          "blob": "c7f97d132b52dde8b9bb0412ff060cc3242f7214",
+          "bytes": 5461,
+          "sha256": "0fb07b63523de412ab63258d391b0cad0b05d5df586257dda3c5056ceba3e729",
+          "retained_source_name": "current-baserom.md"
+        },
+        {
+          "repository": "novapowers0/DBZ-Budokai-3-HD-Collection",
+          "commit": "b5bff8a9b92b13b5c470034f868834a875add755",
+          "path": "src/launcher/launcher_state.cpp",
+          "blob": "2a50e8fb6fc958392073dc9137dde09f3710fdc0",
+          "bytes": 334586,
+          "sha256": "ce86efad68c32da94dc7abe43543a4df8cbb4773512764749ede5d498cc69db1",
+          "retained_source_name": "current-src__launcher__launcher_state.cpp"
+        },
+        {
+          "repository": "novapowers0/DBZ-Budokai-3-HD-Collection",
+          "commit": "b5bff8a9b92b13b5c470034f868834a875add755",
+          "path": "src/launcher/launcher_state.h",
+          "blob": "2c658d1b977f27c24a001169aa728ca9c27a40d4",
+          "bytes": 15425,
+          "sha256": "27497eca6a13c4eb0c96f9e75a00abda319004779eff1c73c9dbfa62f9610a67",
+          "retained_source_name": "current-src__launcher__launcher_state.h"
+        },
+        {
+          "repository": "novapowers0/DBZ-Budokai-3-HD-Collection",
+          "commit": "b5bff8a9b92b13b5c470034f868834a875add755",
+          "path": "src/launcher/settings.cpp",
+          "blob": "581268474ee8db63efeb90480e987bade307d902",
+          "bytes": 128656,
+          "sha256": "e930b58b63cba3deb590796459a08ecf431e8e48cf3d6370c62d290572a5e6f3",
+          "retained_source_name": "current-src__launcher__settings.cpp"
+        },
+        {
+          "repository": "novapowers0/DBZ-Budokai-3-HD-Collection",
+          "commit": "b5bff8a9b92b13b5c470034f868834a875add755",
+          "path": "src/launcher/settings.h",
+          "blob": "9800a78b53e2a59210c39ce1ba36880d7c382a8f",
+          "bytes": 27095,
+          "sha256": "695414b43de18460ae86a1042451d2df951e7f381a32e559d286336156fa7469",
+          "retained_source_name": "current-src__launcher__settings.h"
+        },
+        {
+          "repository": "novapowers0/DBZ-Budokai-3-HD-Collection",
+          "commit": "b5bff8a9b92b13b5c470034f868834a875add755",
+          "path": "src/launcher/update_check.cpp",
+          "blob": "aab543767b8e6f8a58a75faf2fd758f04c20e06e",
+          "bytes": 35285,
+          "sha256": "1c89844fbc28b64b3788bddcf35a8fa458dd0f090b20cdf3e99ee4525ffcf9f3",
+          "retained_source_name": "current-src__launcher__update_check.cpp"
+        },
+        {
+          "repository": "novapowers0/DBZ-Budokai-3-HD-Collection",
+          "commit": "b5bff8a9b92b13b5c470034f868834a875add755",
+          "path": "src/launcher/update_check.h",
+          "blob": "14c166bae667f1bf46e3006bfae5734eefa3e102",
+          "bytes": 4895,
+          "sha256": "9710d6cc1d522a7ab9a4907ff2849af887e26e349b23e0af382f600f3465425f",
+          "retained_source_name": "current-src__launcher__update_check.h"
+        },
+        {
+          "repository": "novapowers0/DBZ-Budokai-3-HD-Collection",
+          "commit": "b5bff8a9b92b13b5c470034f868834a875add755",
+          "path": "src/main.cpp",
+          "blob": "b14f0f1d9cb691ae1a7ba0c948266607d8d6449e",
+          "bytes": 68605,
+          "sha256": "22fdc716d3ef30040e54b841f86cf20ece56e8893e5110427492dfe5ca9270fc",
+          "retained_source_name": "current-src__main.cpp"
+        }
+      ],
+      "complete_trees": [
+        {
+          "role": "current",
+          "commit": "b5bff8a9b92b13b5c470034f868834a875add755",
+          "root_tree": "ff9044651802817b6d935ff844b407c2717c9375",
+          "entries": 1187,
+          "truncated": false,
+          "sha256": "d7a32889d48e905fd54878908abb9412268580118879a1b1072ca18b012bd3cc",
+          "retained_name": "current-tree.json",
+          "gitlinks": []
+        },
+        {
+          "role": "tag",
+          "commit": "70e53af12a79e93a9fc2273cce875308b0ad7a99",
+          "root_tree": "181a6aba8392c5540503f1005d34bf392d9e7fc1",
+          "entries": 1187,
+          "truncated": false,
+          "sha256": "b70096d8b3b5a6dc07c42aa9d9bd3f7a30bf418ae997c792a668aaeecd00c378",
+          "retained_name": "tag-tree.json",
+          "gitlinks": []
+        }
+      ],
+      "retained_api_manifest": [
+        {
+          "retained_name": "current-CMakeLists.txt.api.json",
+          "bytes": 15352,
+          "sha256": "37cbe7fe67779510cadefd7e602254534f6228c380732486d68858ff48239a61"
+        },
+        {
+          "retained_name": "current-LICENSE.api.json",
+          "bytes": 1777,
+          "sha256": "b371bfdcc1426ec548a236cb3ecd11c9ff3065a9ac8033df71827b2bb28b776a"
+        },
+        {
+          "retained_name": "current-LICENSE.api.json.observation.json",
+          "bytes": 148,
+          "sha256": "38088ceffab46897a9a481fb98c2d7cf6ff3daae700d8c3a7dafbf21ca38c28c"
+        },
+        {
+          "retained_name": "current-README.md.api.json",
+          "bytes": 37440,
+          "sha256": "782435d0095cc88d54a68dcb50063f0ea4ba946a5fc6f7e63358117743c0a3d5"
+        },
+        {
+          "retained_name": "current-README.md.api.json.observation.json",
+          "bytes": 148,
+          "sha256": "ed0feb3649a0bff8b336f080fa1a2629eea4150256c18816b457ee4d6896e427"
+        },
+        {
+          "retained_name": "current-README_EN.md.api.json",
+          "bytes": 490,
+          "sha256": "d4c07032c17437de1186ea7ac81a6bbc251fdb79a188de683699912acf49d434"
+        },
+        {
+          "retained_name": "current-README_EN.md.api.json.observation.json",
+          "bytes": 148,
+          "sha256": "0ac1bc532c0d3381c3270469d22d68e42fa91cf567fc1bda4eed2601eb1a2d34"
+        },
+        {
+          "retained_name": "current-README_ES.md.api.json",
+          "bytes": 39190,
+          "sha256": "6aae168a8fb40a9b9daec87ecc279ca5c0759f544f66fc044f598084877f0f9c"
+        },
+        {
+          "retained_name": "current-README_ES.md.api.json.observation.json",
+          "bytes": 148,
+          "sha256": "26c2828780b680aaf6339c401499949aa26d2b8c988125d796cac77269b70c81"
+        },
+        {
+          "retained_name": "current-README_PRIMER_ARRANQUE.txt.api.json",
+          "bytes": 5713,
+          "sha256": "161ab1766a776e5dbdcfd90fbe5eeee027bbcf8d7402abe4d99e1d0f7259839d"
+        },
+        {
+          "retained_name": "current-README_PRIMER_ARRANQUE.txt.api.json.observation.json",
+          "bytes": 148,
+          "sha256": "aaedaff63d5b8daaeb07f031b56ce95d28dd81824902465667d6d9860768b351"
+        },
+        {
+          "retained_name": "current-baserom.md.api.json",
+          "bytes": 7833,
+          "sha256": "a07d63f7ebffc96c1ba2db3443064351fdc903eab879bb6373beabccdb29ade2"
+        },
+        {
+          "retained_name": "current-src__launcher__launcher_state.cpp.api.json",
+          "bytes": 461295,
+          "sha256": "b074646c52017dd68b7829067e8db61a329d3533b9270f884279c3763f9d4bab"
+        },
+        {
+          "retained_name": "current-src__launcher__launcher_state.h.api.json",
+          "bytes": 21560,
+          "sha256": "a09da4b9157a648d3d96b1d55e270cbe86aa9f7258104a3de1555b0d4d6397b7"
+        },
+        {
+          "retained_name": "current-src__launcher__settings.cpp.api.json",
+          "bytes": 177571,
+          "sha256": "f78d1b1a8b051fad0b3586785915d60fccde3b8e679fb2401cdf35998916375c"
+        },
+        {
+          "retained_name": "current-src__launcher__settings.h.api.json",
+          "bytes": 37640,
+          "sha256": "dec86e2b3f43ecf60b069f2108e7beb31e4db45e0b6c01eca30a6b30629173f2"
+        },
+        {
+          "retained_name": "current-src__launcher__update_check.cpp.api.json",
+          "bytes": 48924,
+          "sha256": "dcc6d6a14e358d8146fcc7e34ab786c974f0fd41378e6093c6959eec5f344678"
+        },
+        {
+          "retained_name": "current-src__launcher__update_check.h.api.json",
+          "bytes": 7051,
+          "sha256": "6877e1beb965b387c29f4009c7f1776f045fcf7f589580087c6a927176ed14c4"
+        },
+        {
+          "retained_name": "current-src__main.cpp.api.json",
+          "bytes": 94832,
+          "sha256": "a985de5f0818dfe2c2ee8a0f09176dee9ab274f47ad6cd403fb2c7ad8b2f916f"
+        },
+        {
+          "retained_name": "current-tree.json",
+          "bytes": 314726,
+          "sha256": "d7a32889d48e905fd54878908abb9412268580118879a1b1072ca18b012bd3cc"
+        },
+        {
+          "retained_name": "current-tree.json.observation.json",
+          "bytes": 160,
+          "sha256": "882c23bf5b30a1844cc7a0c352f3821a4df7ef7f60ff19ea210749d17a569c8d"
+        },
+        {
+          "retained_name": "current.json",
+          "bytes": 7178,
+          "sha256": "8a78756c7b066d2a1cc79b57a03733575becef48779bb29de0b0570a36a23778"
+        },
+        {
+          "retained_name": "current.json.observation.json",
+          "bytes": 112,
+          "sha256": "7836740dabedbd50a66c7e47eba23d18a947a914b1ea5099575a76e468964861"
+        },
+        {
+          "retained_name": "release.json",
+          "bytes": 11101,
+          "sha256": "020fc8f8ff35c881f8812c052133ea642b2b941250c6aab7dfa9e893e92d5202"
+        },
+        {
+          "retained_name": "release.json.observation.json",
+          "bytes": 113,
+          "sha256": "887bcd7ccbd7831978c08e1ee6d16015506a2a5578fddadedba34e35cf24d69e"
+        },
+        {
+          "retained_name": "repository.json",
+          "bytes": 6354,
+          "sha256": "8387ac43338d4b1da8899cd1fca255810216dbf67f437359298ff4743e060359"
+        },
+        {
+          "retained_name": "repository.json.observation.json",
+          "bytes": 97,
+          "sha256": "e801507433b57c941b32378b2a2595615372883e082f4d4c93fe1d1edecfe2bf"
+        },
+        {
+          "retained_name": "source-manifest.json",
+          "bytes": 9185,
+          "sha256": "ba487ba6e8f81c019161c1b753b2462f4491efb25259037348fc58c655be879a"
+        },
+        {
+          "retained_name": "tag-CMakeLists.txt.api.json",
+          "bytes": 15352,
+          "sha256": "37cbe7fe67779510cadefd7e602254534f6228c380732486d68858ff48239a61"
+        },
+        {
+          "retained_name": "tag-LICENSE.api.json",
+          "bytes": 1777,
+          "sha256": "b371bfdcc1426ec548a236cb3ecd11c9ff3065a9ac8033df71827b2bb28b776a"
+        },
+        {
+          "retained_name": "tag-LICENSE.api.json.observation.json",
+          "bytes": 148,
+          "sha256": "38088ceffab46897a9a481fb98c2d7cf6ff3daae700d8c3a7dafbf21ca38c28c"
+        },
+        {
+          "retained_name": "tag-README.md.api.json",
+          "bytes": 37440,
+          "sha256": "782435d0095cc88d54a68dcb50063f0ea4ba946a5fc6f7e63358117743c0a3d5"
+        },
+        {
+          "retained_name": "tag-README.md.api.json.observation.json",
+          "bytes": 148,
+          "sha256": "ed0feb3649a0bff8b336f080fa1a2629eea4150256c18816b457ee4d6896e427"
+        },
+        {
+          "retained_name": "tag-README_EN.md.api.json",
+          "bytes": 490,
+          "sha256": "d4c07032c17437de1186ea7ac81a6bbc251fdb79a188de683699912acf49d434"
+        },
+        {
+          "retained_name": "tag-README_EN.md.api.json.observation.json",
+          "bytes": 148,
+          "sha256": "0ac1bc532c0d3381c3270469d22d68e42fa91cf567fc1bda4eed2601eb1a2d34"
+        },
+        {
+          "retained_name": "tag-README_ES.md.api.json",
+          "bytes": 39190,
+          "sha256": "6aae168a8fb40a9b9daec87ecc279ca5c0759f544f66fc044f598084877f0f9c"
+        },
+        {
+          "retained_name": "tag-README_ES.md.api.json.observation.json",
+          "bytes": 148,
+          "sha256": "26c2828780b680aaf6339c401499949aa26d2b8c988125d796cac77269b70c81"
+        },
+        {
+          "retained_name": "tag-README_PRIMER_ARRANQUE.txt.api.json",
+          "bytes": 5713,
+          "sha256": "161ab1766a776e5dbdcfd90fbe5eeee027bbcf8d7402abe4d99e1d0f7259839d"
+        },
+        {
+          "retained_name": "tag-README_PRIMER_ARRANQUE.txt.api.json.observation.json",
+          "bytes": 148,
+          "sha256": "aaedaff63d5b8daaeb07f031b56ce95d28dd81824902465667d6d9860768b351"
+        },
+        {
+          "retained_name": "tag-baserom.md.api.json",
+          "bytes": 7833,
+          "sha256": "a07d63f7ebffc96c1ba2db3443064351fdc903eab879bb6373beabccdb29ade2"
+        },
+        {
+          "retained_name": "tag-src__launcher__launcher_state.cpp.api.json",
+          "bytes": 461295,
+          "sha256": "b074646c52017dd68b7829067e8db61a329d3533b9270f884279c3763f9d4bab"
+        },
+        {
+          "retained_name": "tag-src__launcher__launcher_state.h.api.json",
+          "bytes": 21560,
+          "sha256": "a09da4b9157a648d3d96b1d55e270cbe86aa9f7258104a3de1555b0d4d6397b7"
+        },
+        {
+          "retained_name": "tag-src__launcher__settings.cpp.api.json",
+          "bytes": 177571,
+          "sha256": "f78d1b1a8b051fad0b3586785915d60fccde3b8e679fb2401cdf35998916375c"
+        },
+        {
+          "retained_name": "tag-src__launcher__settings.h.api.json",
+          "bytes": 37640,
+          "sha256": "dec86e2b3f43ecf60b069f2108e7beb31e4db45e0b6c01eca30a6b30629173f2"
+        },
+        {
+          "retained_name": "tag-src__launcher__update_check.cpp.api.json",
+          "bytes": 48924,
+          "sha256": "dcc6d6a14e358d8146fcc7e34ab786c974f0fd41378e6093c6959eec5f344678"
+        },
+        {
+          "retained_name": "tag-src__launcher__update_check.h.api.json",
+          "bytes": 7051,
+          "sha256": "6877e1beb965b387c29f4009c7f1776f045fcf7f589580087c6a927176ed14c4"
+        },
+        {
+          "retained_name": "tag-src__main.cpp.api.json",
+          "bytes": 94832,
+          "sha256": "a985de5f0818dfe2c2ee8a0f09176dee9ab274f47ad6cd403fb2c7ad8b2f916f"
+        },
+        {
+          "retained_name": "tag-tree.json",
+          "bytes": 314726,
+          "sha256": "b70096d8b3b5a6dc07c42aa9d9bd3f7a30bf418ae997c792a668aaeecd00c378"
+        },
+        {
+          "retained_name": "tag-tree.json.observation.json",
+          "bytes": 160,
+          "sha256": "a5495c1b6b6cb4705d662d41c064c7ca3dcaca13bbab0db5828e2912ec4564e9"
+        },
+        {
+          "retained_name": "tag.json",
+          "bytes": 1150703,
+          "sha256": "548527f554911e48ac0d6d78cf6ad531a0a87428628faecfa9f1027f8a8d0e49"
+        },
+        {
+          "retained_name": "tag.json.observation.json",
+          "bytes": 114,
+          "sha256": "185745e4824e0f559ffecc3e940b1c45100f888d0ca59e704eee6a608bc161b9"
+        }
+      ]
+    },
+    {
+      "canonical_issue": 515,
+      "bindings": [
+        {
+          "repository": "coccofresco/TriAevum",
+          "commit": "a56f9649747a46655728f217abda9c51c66b11ba",
+          "path": "CMakeLists.txt",
+          "blob": "ccb3b22d09f002f2b834a8b6bba40e8999c17ce7",
+          "bytes": 8858,
+          "sha256": "0c8051bd9eb25bd8f6dbe73223bc8bfbc4541260622732b36a8b1faae61224b2",
+          "retained_source_name": "tag-CMakeLists.txt"
+        },
+        {
+          "repository": "coccofresco/TriAevum",
+          "commit": "a56f9649747a46655728f217abda9c51c66b11ba",
+          "path": "LICENSE",
+          "blob": "f288702d2fa16d3cdf0035b15a9fcbc552cd88e7",
+          "bytes": 35149,
+          "sha256": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986",
+          "retained_source_name": "tag-LICENSE"
+        },
+        {
+          "repository": "coccofresco/TriAevum",
+          "commit": "a56f9649747a46655728f217abda9c51c66b11ba",
+          "path": "LICENSE_SCOPE.md",
+          "blob": "ab14f18df595a7663f70d33582355eafa56a7754",
+          "bytes": 5630,
+          "sha256": "f07916f20ae11d6ea64ff170be5ef73d57c9565080a87318a35cd0541e146915",
+          "retained_source_name": "tag-LICENSE_SCOPE.md"
+        },
+        {
+          "repository": "coccofresco/TriAevum",
+          "commit": "a56f9649747a46655728f217abda9c51c66b11ba",
+          "path": "README.md",
+          "blob": "7c4e9a72b8f668dfa9976bcbdebec9cdbd9f849e",
+          "bytes": 8454,
+          "sha256": "684de2cdc1cb0d1de6a2128d6da968bf8cce5ec6947aa66d985864329b94c6f1",
+          "retained_source_name": "tag-README.md"
+        },
+        {
+          "repository": "coccofresco/TriAevum",
+          "commit": "a56f9649747a46655728f217abda9c51c66b11ba",
+          "path": "THIRD_PARTY_NOTICES.md",
+          "blob": "02935db37063cd435e636eea9913f4a199642a57",
+          "bytes": 24474,
+          "sha256": "176f45892fd1d9455314fef5164145c0108f6e68c85209d4d19f2175e2079fd6",
+          "retained_source_name": "tag-THIRD_PARTY_NOTICES.md"
+        },
+        {
+          "repository": "coccofresco/TriAevum",
+          "commit": "a56f9649747a46655728f217abda9c51c66b11ba",
+          "path": "docs/TRIAEVUM_CONTENT_FAMILY_IMPORT.md",
+          "blob": "ed93e8a65964fcf5faca2390bc74851647d16e92",
+          "bytes": 5327,
+          "sha256": "49675df81d74a0d8206ec8c8c5fd2ebeadff6a35c6ec171c3e2a1fc42c4808d1",
+          "retained_source_name": "tag-docs__TRIAEVUM_CONTENT_FAMILY_IMPORT.md"
+        },
+        {
+          "repository": "coccofresco/TriAevum",
+          "commit": "a56f9649747a46655728f217abda9c51c66b11ba",
+          "path": "docs/TRIAEVUM_PRECOMPILED_RELEASE.md",
+          "blob": "b9f3363d674e7b35e5de6c8d392aeb858df2ce6b",
+          "bytes": 12414,
+          "sha256": "1fd8ffcddf5e02ab8405e6bbcdbbe4b02c59281d3c4e7bcbd5cabad7071d9559",
+          "retained_source_name": "tag-docs__TRIAEVUM_PRECOMPILED_RELEASE.md"
+        },
+        {
+          "repository": "coccofresco/TriAevum",
+          "commit": "a56f9649747a46655728f217abda9c51c66b11ba",
+          "path": "tools/oot3d/native_game_runtime/oot3d_native_game.cpp",
+          "blob": "932f7ba376978c13000131788346d9d1e6e7a06e",
+          "bytes": 11494,
+          "sha256": "7d87cf1b175934a31fb24738b32f90119f9a6fa8db34b518c58ced4fd5561ff0",
+          "retained_source_name": "tag-tools__oot3d__native_game_runtime__oot3d_native_game.cpp"
+        },
+        {
+          "repository": "coccofresco/TriAevum",
+          "commit": "a56f9649747a46655728f217abda9c51c66b11ba",
+          "path": "tools/oot3d/native_game_runtime/oot3d_native_game_launch_profile.cpp",
+          "blob": "5238b9d59fa7bf6250a1ba44faa1123c9256fd33",
+          "bytes": 5136,
+          "sha256": "2b52b7e2fa3dae350c5f6a78a8138bc08dd7e49627e7dbd1821d9ec73e341b6b",
+          "retained_source_name": "tag-tools__oot3d__native_game_runtime__oot3d_native_game_launch_profile.cpp"
+        },
+        {
+          "repository": "coccofresco/TriAevum",
+          "commit": "a56f9649747a46655728f217abda9c51c66b11ba",
+          "path": "tools/oot3d/native_game_runtime/oot3d_native_game_launch_profile.h",
+          "blob": "620b343c50c8fd443dcb39ca67fe454c9a3bf868",
+          "bytes": 450,
+          "sha256": "d414de8eb21d88a01a9b4cb779034dd2afd83200d0d0aee3969db5b9015d1b63",
+          "retained_source_name": "tag-tools__oot3d__native_game_runtime__oot3d_native_game_launch_profile.h"
+        },
+        {
+          "repository": "coccofresco/TriAevum",
+          "commit": "a56f9649747a46655728f217abda9c51c66b11ba",
+          "path": "tools/triaevum_release/activation_transaction.py",
+          "blob": "aafedde09c241651b0b6c977a5c3bd7f71f7acc7",
+          "bytes": 4249,
+          "sha256": "b2a5165b01bd9440fe1aa326b2786b1f629526aaa02db6d6e427102eeb6edb1d",
+          "retained_source_name": "tag-tools__triaevum_release__activation_transaction.py"
+        },
+        {
+          "repository": "coccofresco/TriAevum",
+          "commit": "a56f9649747a46655728f217abda9c51c66b11ba",
+          "path": "tools/triaevum_release/bundle_paths.py",
+          "blob": "3d2b446ea8bb79440230929134e90293bde46a09",
+          "bytes": 1096,
+          "sha256": "f2c688337d497132bb06ce274f1ed0a2d6ff185d95b3b2ff8bab6a280ece31e5",
+          "retained_source_name": "tag-tools__triaevum_release__bundle_paths.py"
+        },
+        {
+          "repository": "coccofresco/TriAevum",
+          "commit": "a56f9649747a46655728f217abda9c51c66b11ba",
+          "path": "tools/triaevum_release/desktop_launcher.py",
+          "blob": "c5552b4a0ac8394b19dc28366a291624cf67f80d",
+          "bytes": 1618,
+          "sha256": "8667176d224f627a9d831fea58e00207aa2c632fb349bc9566826197bb991ff7",
+          "retained_source_name": "tag-tools__triaevum_release__desktop_launcher.py"
+        },
+        {
+          "repository": "coccofresco/TriAevum",
+          "commit": "a56f9649747a46655728f217abda9c51c66b11ba",
+          "path": "tools/triaevum_release/install_worker.py",
+          "blob": "f2b2be8731c18ce51ce011dbb045e76aa585083a",
+          "bytes": 1069,
+          "sha256": "77cb39665e17cc4ea177fc852bcaa534e922a96414afebc01422087e0888b772",
+          "retained_source_name": "tag-tools__triaevum_release__install_worker.py"
+        },
+        {
+          "repository": "coccofresco/TriAevum",
+          "commit": "a56f9649747a46655728f217abda9c51c66b11ba",
+          "path": "tools/triaevum_release/installed_runtime.py",
+          "blob": "0c8c65ec0860a27f72c53a445f730c74edcc9272",
+          "bytes": 5985,
+          "sha256": "cb25e6ff12aaad908328f62f7ce49710e898d840192035be5d59fce8f571f67d",
+          "retained_source_name": "tag-tools__triaevum_release__installed_runtime.py"
+        },
+        {
+          "repository": "coccofresco/TriAevum",
+          "commit": "8f69a26f390bf3a500bf3149b6596c19724a5b5d",
+          "path": "CMakeLists.txt",
+          "blob": "ccb3b22d09f002f2b834a8b6bba40e8999c17ce7",
+          "bytes": 8858,
+          "sha256": "0c8051bd9eb25bd8f6dbe73223bc8bfbc4541260622732b36a8b1faae61224b2",
+          "retained_source_name": "current-CMakeLists.txt"
+        },
+        {
+          "repository": "coccofresco/TriAevum",
+          "commit": "8f69a26f390bf3a500bf3149b6596c19724a5b5d",
+          "path": "LICENSE",
+          "blob": "f288702d2fa16d3cdf0035b15a9fcbc552cd88e7",
+          "bytes": 35149,
+          "sha256": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986",
+          "retained_source_name": "current-LICENSE"
+        },
+        {
+          "repository": "coccofresco/TriAevum",
+          "commit": "8f69a26f390bf3a500bf3149b6596c19724a5b5d",
+          "path": "LICENSE_SCOPE.md",
+          "blob": "ab14f18df595a7663f70d33582355eafa56a7754",
+          "bytes": 5630,
+          "sha256": "f07916f20ae11d6ea64ff170be5ef73d57c9565080a87318a35cd0541e146915",
+          "retained_source_name": "current-LICENSE_SCOPE.md"
+        },
+        {
+          "repository": "coccofresco/TriAevum",
+          "commit": "8f69a26f390bf3a500bf3149b6596c19724a5b5d",
+          "path": "README.md",
+          "blob": "0a5a3b7b239c7e9e01c9b10399ba4a4a95201e3e",
+          "bytes": 13338,
+          "sha256": "f68ebb5a94e1ab062463ce530761995224a19aee8ef37b5c4e6c7d5b2c7d9074",
+          "retained_source_name": "current-README.md"
+        },
+        {
+          "repository": "coccofresco/TriAevum",
+          "commit": "8f69a26f390bf3a500bf3149b6596c19724a5b5d",
+          "path": "THIRD_PARTY_NOTICES.md",
+          "blob": "02935db37063cd435e636eea9913f4a199642a57",
+          "bytes": 24474,
+          "sha256": "176f45892fd1d9455314fef5164145c0108f6e68c85209d4d19f2175e2079fd6",
+          "retained_source_name": "current-THIRD_PARTY_NOTICES.md"
+        },
+        {
+          "repository": "coccofresco/TriAevum",
+          "commit": "8f69a26f390bf3a500bf3149b6596c19724a5b5d",
+          "path": "docs/TRIAEVUM_CONTENT_FAMILY_IMPORT.md",
+          "blob": "ed93e8a65964fcf5faca2390bc74851647d16e92",
+          "bytes": 5327,
+          "sha256": "49675df81d74a0d8206ec8c8c5fd2ebeadff6a35c6ec171c3e2a1fc42c4808d1",
+          "retained_source_name": "current-docs__TRIAEVUM_CONTENT_FAMILY_IMPORT.md"
+        },
+        {
+          "repository": "coccofresco/TriAevum",
+          "commit": "8f69a26f390bf3a500bf3149b6596c19724a5b5d",
+          "path": "docs/TRIAEVUM_PRECOMPILED_RELEASE.md",
+          "blob": "b9f3363d674e7b35e5de6c8d392aeb858df2ce6b",
+          "bytes": 12414,
+          "sha256": "1fd8ffcddf5e02ab8405e6bbcdbbe4b02c59281d3c4e7bcbd5cabad7071d9559",
+          "retained_source_name": "current-docs__TRIAEVUM_PRECOMPILED_RELEASE.md"
+        },
+        {
+          "repository": "coccofresco/TriAevum",
+          "commit": "8f69a26f390bf3a500bf3149b6596c19724a5b5d",
+          "path": "tools/oot3d/native_game_runtime/oot3d_native_game.cpp",
+          "blob": "932f7ba376978c13000131788346d9d1e6e7a06e",
+          "bytes": 11494,
+          "sha256": "7d87cf1b175934a31fb24738b32f90119f9a6fa8db34b518c58ced4fd5561ff0",
+          "retained_source_name": "current-tools__oot3d__native_game_runtime__oot3d_native_game.cpp"
+        },
+        {
+          "repository": "coccofresco/TriAevum",
+          "commit": "8f69a26f390bf3a500bf3149b6596c19724a5b5d",
+          "path": "tools/oot3d/native_game_runtime/oot3d_native_game_launch_profile.cpp",
+          "blob": "5238b9d59fa7bf6250a1ba44faa1123c9256fd33",
+          "bytes": 5136,
+          "sha256": "2b52b7e2fa3dae350c5f6a78a8138bc08dd7e49627e7dbd1821d9ec73e341b6b",
+          "retained_source_name": "current-tools__oot3d__native_game_runtime__oot3d_native_game_launch_profile.cpp"
+        },
+        {
+          "repository": "coccofresco/TriAevum",
+          "commit": "8f69a26f390bf3a500bf3149b6596c19724a5b5d",
+          "path": "tools/oot3d/native_game_runtime/oot3d_native_game_launch_profile.h",
+          "blob": "620b343c50c8fd443dcb39ca67fe454c9a3bf868",
+          "bytes": 450,
+          "sha256": "d414de8eb21d88a01a9b4cb779034dd2afd83200d0d0aee3969db5b9015d1b63",
+          "retained_source_name": "current-tools__oot3d__native_game_runtime__oot3d_native_game_launch_profile.h"
+        },
+        {
+          "repository": "coccofresco/TriAevum",
+          "commit": "8f69a26f390bf3a500bf3149b6596c19724a5b5d",
+          "path": "tools/triaevum_release/activation_transaction.py",
+          "blob": "aafedde09c241651b0b6c977a5c3bd7f71f7acc7",
+          "bytes": 4249,
+          "sha256": "b2a5165b01bd9440fe1aa326b2786b1f629526aaa02db6d6e427102eeb6edb1d",
+          "retained_source_name": "current-tools__triaevum_release__activation_transaction.py"
+        },
+        {
+          "repository": "coccofresco/TriAevum",
+          "commit": "8f69a26f390bf3a500bf3149b6596c19724a5b5d",
+          "path": "tools/triaevum_release/bundle_paths.py",
+          "blob": "3d2b446ea8bb79440230929134e90293bde46a09",
+          "bytes": 1096,
+          "sha256": "f2c688337d497132bb06ce274f1ed0a2d6ff185d95b3b2ff8bab6a280ece31e5",
+          "retained_source_name": "current-tools__triaevum_release__bundle_paths.py"
+        },
+        {
+          "repository": "coccofresco/TriAevum",
+          "commit": "8f69a26f390bf3a500bf3149b6596c19724a5b5d",
+          "path": "tools/triaevum_release/desktop_launcher.py",
+          "blob": "c5552b4a0ac8394b19dc28366a291624cf67f80d",
+          "bytes": 1618,
+          "sha256": "8667176d224f627a9d831fea58e00207aa2c632fb349bc9566826197bb991ff7",
+          "retained_source_name": "current-tools__triaevum_release__desktop_launcher.py"
+        },
+        {
+          "repository": "coccofresco/TriAevum",
+          "commit": "8f69a26f390bf3a500bf3149b6596c19724a5b5d",
+          "path": "tools/triaevum_release/install_worker.py",
+          "blob": "f2b2be8731c18ce51ce011dbb045e76aa585083a",
+          "bytes": 1069,
+          "sha256": "77cb39665e17cc4ea177fc852bcaa534e922a96414afebc01422087e0888b772",
+          "retained_source_name": "current-tools__triaevum_release__install_worker.py"
+        },
+        {
+          "repository": "coccofresco/TriAevum",
+          "commit": "8f69a26f390bf3a500bf3149b6596c19724a5b5d",
+          "path": "tools/triaevum_release/installed_runtime.py",
+          "blob": "0c8c65ec0860a27f72c53a445f730c74edcc9272",
+          "bytes": 5985,
+          "sha256": "cb25e6ff12aaad908328f62f7ce49710e898d840192035be5d59fce8f571f67d",
+          "retained_source_name": "current-tools__triaevum_release__installed_runtime.py"
+        },
+        {
+          "repository": "coccofresco/TriAevum",
+          "commit": "a56f9649747a46655728f217abda9c51c66b11ba",
+          "path": "tools/triaevum_release/forge_gui.py",
+          "blob": "22379069d81c4269e4180582b431e62c9bf1b18e",
+          "bytes": 49896,
+          "sha256": "fbab543bab807ec630b2d1ad7307b5de6e6d54c0574ceaf8e8c522f959dfe00b",
+          "retained_source_name": "tag-tools__triaevum_release__forge_gui.py"
+        },
+        {
+          "repository": "coccofresco/TriAevum",
+          "commit": "a56f9649747a46655728f217abda9c51c66b11ba",
+          "path": "tools/triaevum_release/forge.py",
+          "blob": "a3faee135df8ff38e71e895241436a28f914dcb3",
+          "bytes": 71535,
+          "sha256": "a12b7b9be1eb856b4af15c49715b9f3674d58e74ac604f1467d14594ae4fbffd",
+          "retained_source_name": "tag-tools__triaevum_release__forge.py"
+        },
+        {
+          "repository": "coccofresco/TriAevum",
+          "commit": "8f69a26f390bf3a500bf3149b6596c19724a5b5d",
+          "path": "tools/triaevum_release/forge_gui.py",
+          "blob": "22379069d81c4269e4180582b431e62c9bf1b18e",
+          "bytes": 49896,
+          "sha256": "fbab543bab807ec630b2d1ad7307b5de6e6d54c0574ceaf8e8c522f959dfe00b",
+          "retained_source_name": "current-tools__triaevum_release__forge_gui.py"
+        },
+        {
+          "repository": "coccofresco/TriAevum",
+          "commit": "8f69a26f390bf3a500bf3149b6596c19724a5b5d",
+          "path": "tools/triaevum_release/forge.py",
+          "blob": "a3faee135df8ff38e71e895241436a28f914dcb3",
+          "bytes": 71535,
+          "sha256": "a12b7b9be1eb856b4af15c49715b9f3674d58e74ac604f1467d14594ae4fbffd",
+          "retained_source_name": "current-tools__triaevum_release__forge.py"
+        }
+      ],
+      "complete_trees": [
+        {
+          "role": "current",
+          "commit": "8f69a26f390bf3a500bf3149b6596c19724a5b5d",
+          "root_tree": "d2d7617a818381c8066816c6b958522d6da6978a",
+          "entries": 3920,
+          "truncated": false,
+          "sha256": "6268752b21f9c93b410a75ba0f5fcd6d3b29bc2b38ea98ac24c10f51b05be325",
+          "retained_name": "current-tree.json",
+          "gitlinks": []
+        },
+        {
+          "role": "tag",
+          "commit": "a56f9649747a46655728f217abda9c51c66b11ba",
+          "root_tree": "4814dc704a786c8e3a6b172bc7ddf32ab1850322",
+          "entries": 3915,
+          "truncated": false,
+          "sha256": "09ca381b9a4721829b3696dcd6872d3f70365e7370b0e30b9bb6a4cc5adfbf6b",
+          "retained_name": "tag-tree.json",
+          "gitlinks": []
+        }
+      ],
+      "retained_api_manifest": [
+        {
+          "retained_name": "current-CMakeLists.txt.api.json",
+          "bytes": 12492,
+          "sha256": "ce1a59370a8a1705fd0b6c9ee4dd6c5b30b53344e50bdf9ff0ff9bb13c234f98"
+        },
+        {
+          "retained_name": "current-LICENSE.api.json",
+          "bytes": 48719,
+          "sha256": "92a8e2fa0c1d79202a913aeaa566dd5c4815a37ccf9e4bf7721919cce1408766"
+        },
+        {
+          "retained_name": "current-LICENSE_SCOPE.md.api.json",
+          "bytes": 8046,
+          "sha256": "b21ecabfbb344e493f2e47c598dc02da2ae5165bbf8f846422cf78caf3fd6362"
+        },
+        {
+          "retained_name": "current-README.md.api.json",
+          "bytes": 18665,
+          "sha256": "b6af60199e788c6a6313327cbf38b7436f2cbff49f64e0563793e9b7e633e4a0"
+        },
+        {
+          "retained_name": "current-THIRD_PARTY_NOTICES.md.api.json",
+          "bytes": 34007,
+          "sha256": "b8fcdb6cc55fccc98772e0040ae5ad85a99fd8206073b211ce1a9bc5786712c0"
+        },
+        {
+          "retained_name": "current-docs__TRIAEVUM_CONTENT_FAMILY_IMPORT.md.api.json",
+          "bytes": 7628,
+          "sha256": "669306bf0cba44863231c84441f694654be240cfa70dac96e7a227d1c0f9f547"
+        },
+        {
+          "retained_name": "current-docs__TRIAEVUM_PRECOMPILED_RELEASE.md.api.json",
+          "bytes": 17391,
+          "sha256": "0f024b8883438964d35bafca82dbe63888c741561907ce67365373ffb96e18de"
+        },
+        {
+          "retained_name": "current-tools__oot3d__native_game_runtime__oot3d_native_game.cpp.api.json",
+          "bytes": 16127,
+          "sha256": "e6a6e85f35c0c3ce1bc5c9c12441d67620b3d4d144a0bab4397652ab983fbb62"
+        },
+        {
+          "retained_name": "current-tools__oot3d__native_game_runtime__oot3d_native_game_launch_profile.cpp.api.json",
+          "bytes": 7364,
+          "sha256": "a1edd7b0c555264ebf5883606cf59900572195598c07477d858a6707ffa8b594"
+        },
+        {
+          "retained_name": "current-tools__oot3d__native_game_runtime__oot3d_native_game_launch_profile.h.api.json",
+          "bytes": 905,
+          "sha256": "ced84d5681418f8ca4ef7647c3770609c641fb98b9d38ea520bc2ae0007dda3d"
+        },
+        {
+          "retained_name": "current-tools__triaevum_release__activation_transaction.py.api.json",
+          "bytes": 6144,
+          "sha256": "e04f193cb2ecf9fe333a14822e4f3b3866db718d840ce7d3103f1c5533d5ab19"
+        },
+        {
+          "retained_name": "current-tools__triaevum_release__bundle_paths.py.api.json",
+          "bytes": 1800,
+          "sha256": "b7a694073fa7d83935778dab045a5c4b8026f083fa39b147474c8a5486b2381c"
+        },
+        {
+          "retained_name": "current-tools__triaevum_release__desktop_launcher.py.api.json",
+          "bytes": 2518,
+          "sha256": "7e6bfaea4b0ec6835f83fcbd000ea3c25a81a04613fdbff0e7da218456219c45"
+        },
+        {
+          "retained_name": "current-tools__triaevum_release__forge.py.api.json",
+          "bytes": 98847,
+          "sha256": "c1777e67f73c8edfe543fc0d1c0d0bbaa059f0357f81e01ff80ad9049c186f4b"
+        },
+        {
+          "retained_name": "current-tools__triaevum_release__forge_gui.py.api.json",
+          "bytes": 69033,
+          "sha256": "67a55bd50b94ce8d374813f079c2f9446b9c3de83048a1b2b5aa37491b02b4d1"
+        },
+        {
+          "retained_name": "current-tools__triaevum_release__install_worker.py.api.json",
+          "bytes": 1762,
+          "sha256": "3922942d626d06b531fb2650ba27163e68ea59ad7b419c6d3f8692f08e90bf03"
+        },
+        {
+          "retained_name": "current-tools__triaevum_release__installed_runtime.py.api.json",
+          "bytes": 8532,
+          "sha256": "8fd9d11dc6e0f4fbaa0143c9c80f9fb41edd230f2bbe7c5a4fbe7f6c38008cb1"
+        },
+        {
+          "retained_name": "current-tree.json",
+          "bytes": 1061624,
+          "sha256": "6268752b21f9c93b410a75ba0f5fcd6d3b29bc2b38ea98ac24c10f51b05be325"
+        },
+        {
+          "retained_name": "current.json",
+          "bytes": 5812,
+          "sha256": "c40f010ca45660d0d6d6452dffcdc2e4ad5b6d6c885b1edf870dc21ce04e32fb"
+        },
+        {
+          "retained_name": "recent-releases-first-10.json",
+          "bytes": 110184,
+          "sha256": "02c18a545cb21269d7f4b9a80bfa856160cbb0d9aac1f6b3a3e139eba3289f29"
+        },
+        {
+          "retained_name": "release.json",
+          "bytes": 17217,
+          "sha256": "11347b097e7aae697c77d5b387985f8799f3509ddfad79e040e821f2071098dd"
+        },
+        {
+          "retained_name": "release.json.observation.json",
+          "bytes": 120,
+          "sha256": "43841f65ceb1791a5220090d0fd67020c770e72b5624cf1568975adf896f42c8"
+        },
+        {
+          "retained_name": "repository.json",
+          "bytes": 5515,
+          "sha256": "8b03c3a9eda1f1513399520cfbf2b366c41636be2f3c7384553b4a09fcce392d"
+        },
+        {
+          "retained_name": "repository.json.observation.json",
+          "bytes": 78,
+          "sha256": "912f9bb6ae9d3a27cec4ed37edead916a32651bd8122fd3e8cb6937b7fcc8ef9"
+        },
+        {
+          "retained_name": "source-manifest.json",
+          "bytes": 14626,
+          "sha256": "73dcb2619ede5570ee4d50d27134e26f8d97493408a12c37c80788b7a74ea3e8"
+        },
+        {
+          "retained_name": "tag-CMakeLists.txt.api.json",
+          "bytes": 12492,
+          "sha256": "ce1a59370a8a1705fd0b6c9ee4dd6c5b30b53344e50bdf9ff0ff9bb13c234f98"
+        },
+        {
+          "retained_name": "tag-LICENSE.api.json",
+          "bytes": 48719,
+          "sha256": "92a8e2fa0c1d79202a913aeaa566dd5c4815a37ccf9e4bf7721919cce1408766"
+        },
+        {
+          "retained_name": "tag-LICENSE_SCOPE.md.api.json",
+          "bytes": 8046,
+          "sha256": "b21ecabfbb344e493f2e47c598dc02da2ae5165bbf8f846422cf78caf3fd6362"
+        },
+        {
+          "retained_name": "tag-README.md.api.json",
+          "bytes": 11934,
+          "sha256": "130f16f64a5618691d3d4df7ed0898bb5887d4a2923eec4743390c0a121a9c92"
+        },
+        {
+          "retained_name": "tag-THIRD_PARTY_NOTICES.md.api.json",
+          "bytes": 34007,
+          "sha256": "b8fcdb6cc55fccc98772e0040ae5ad85a99fd8206073b211ce1a9bc5786712c0"
+        },
+        {
+          "retained_name": "tag-docs__TRIAEVUM_CONTENT_FAMILY_IMPORT.md.api.json",
+          "bytes": 7628,
+          "sha256": "669306bf0cba44863231c84441f694654be240cfa70dac96e7a227d1c0f9f547"
+        },
+        {
+          "retained_name": "tag-docs__TRIAEVUM_PRECOMPILED_RELEASE.md.api.json",
+          "bytes": 17391,
+          "sha256": "0f024b8883438964d35bafca82dbe63888c741561907ce67365373ffb96e18de"
+        },
+        {
+          "retained_name": "tag-tools__oot3d__native_game_runtime__oot3d_native_game.cpp.api.json",
+          "bytes": 16127,
+          "sha256": "e6a6e85f35c0c3ce1bc5c9c12441d67620b3d4d144a0bab4397652ab983fbb62"
+        },
+        {
+          "retained_name": "tag-tools__oot3d__native_game_runtime__oot3d_native_game_launch_profile.cpp.api.json",
+          "bytes": 7364,
+          "sha256": "a1edd7b0c555264ebf5883606cf59900572195598c07477d858a6707ffa8b594"
+        },
+        {
+          "retained_name": "tag-tools__oot3d__native_game_runtime__oot3d_native_game_launch_profile.h.api.json",
+          "bytes": 905,
+          "sha256": "ced84d5681418f8ca4ef7647c3770609c641fb98b9d38ea520bc2ae0007dda3d"
+        },
+        {
+          "retained_name": "tag-tools__triaevum_release__activation_transaction.py.api.json",
+          "bytes": 6144,
+          "sha256": "e04f193cb2ecf9fe333a14822e4f3b3866db718d840ce7d3103f1c5533d5ab19"
+        },
+        {
+          "retained_name": "tag-tools__triaevum_release__bundle_paths.py.api.json",
+          "bytes": 1800,
+          "sha256": "b7a694073fa7d83935778dab045a5c4b8026f083fa39b147474c8a5486b2381c"
+        },
+        {
+          "retained_name": "tag-tools__triaevum_release__desktop_launcher.py.api.json",
+          "bytes": 2518,
+          "sha256": "7e6bfaea4b0ec6835f83fcbd000ea3c25a81a04613fdbff0e7da218456219c45"
+        },
+        {
+          "retained_name": "tag-tools__triaevum_release__forge.py.api.json",
+          "bytes": 98847,
+          "sha256": "c1777e67f73c8edfe543fc0d1c0d0bbaa059f0357f81e01ff80ad9049c186f4b"
+        },
+        {
+          "retained_name": "tag-tools__triaevum_release__forge_gui.py.api.json",
+          "bytes": 69033,
+          "sha256": "67a55bd50b94ce8d374813f079c2f9446b9c3de83048a1b2b5aa37491b02b4d1"
+        },
+        {
+          "retained_name": "tag-tools__triaevum_release__install_worker.py.api.json",
+          "bytes": 1762,
+          "sha256": "3922942d626d06b531fb2650ba27163e68ea59ad7b419c6d3f8692f08e90bf03"
+        },
+        {
+          "retained_name": "tag-tools__triaevum_release__installed_runtime.py.api.json",
+          "bytes": 8532,
+          "sha256": "8fd9d11dc6e0f4fbaa0143c9c80f9fb41edd230f2bbe7c5a4fbe7f6c38008cb1"
+        },
+        {
+          "retained_name": "tag-tree.json",
+          "bytes": 1060396,
+          "sha256": "09ca381b9a4721829b3696dcd6872d3f70365e7370b0e30b9bb6a4cc5adfbf6b"
+        },
+        {
+          "retained_name": "tag.json",
+          "bytes": 15025,
+          "sha256": "3fed08248d3d9ee137f382c17bc57c919759c8f7c8704559a0f2f7cc18543215"
+        }
+      ]
+    }
+  ],
+  "known_upstream_conditions": [
+    "Budokai missing-source picker creates successor and exits; complete upstream original/settings preparation before selected-process Play. Normal game loop remains in dbz3 app; normal close hard-exits after upstream session/log cleanup, not a graceful-save guarantee.",
+    "Budokai actual portable user_data/dbz3, platform user-folder fallback and legacy executable-side dbz3_user.toml must remain separate from original/ISO/private XEX caches; preserve full creating copy, regions and unknown data.",
+    "TriAevum direct native default/custom profile launch is explicitly supported after Forge. Direct entry does not repeat Forge activation journal/receipt checks. After interrupted install/activation/update/mod refresh, journal, mismatch or not-ready tuple, complete upstream Forge recovery plus successful normal Launch game before Core Play/relink. Never delete/bypass journal or mix profile/plugin/package.",
+    "TriAevum selected GPL scope excludes Nintendo/private outputs and separately retains iMMERSE TriAevum-exclusive nontransferable redistribution and NVIDIA NGX/DLSS/component terms. Permitted working private-copy use is not redistribution clearance.",
+    "TriAevum alpha.3/alpha.3b broken/withdrawn warnings remain; selected beta.1.2 is distinct, not qualified by earlier alpha.2c Windows Forge/intro observations."
+  ],
+  "limits": [
+    "No game package/original/ROM/private save/helper/compiler/game acquired or executed. Source/authoring/eventual inert Core probes are not package/plugin/original authentication, game/save/state/mod/installed/physical/human/other-platform/protected qualification.",
+    "Complete primary root trees are not exhaustive transitive package/component inspection or source-to-binary certification.",
+    "TriAevum stable-latest endpoint returned404 because recent published releases are prereleases. The retained first10 recent release responses supply the selected observed beta, not a complete release inventory or stable-provider availability claim.",
+    "No Core generation/activation/recovery/update/rollback/migration/deletion or Supported promotion. All272 strict definitions/source contracts, accepted artwork/lineage and identities remain unchanged; full Required umbrella scope remains open."
+  ],
+  "delivery_authority": "Final PR/individual receipts own actual source/base/composition, independent review, five exact-head contexts, case/artifact inventories, guarded merge/readback and canonical dispositions."
+}

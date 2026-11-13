@@ -16,23 +16,50 @@
       "match_kind": "underlying-game"
     },
     "issue_number": 1113,
+    "listed_at": "2026-10-23",
     "setup_url": "https://github.com/linkssy2/RoadRash64Recompiled/blob/a789926d38f17c9a683a7826d74536a1ff2200b5/docs/PLAYER_PACKAGE.md",
     "release_url": "https://github.com/linkssy2/RoadRash64Recompiled/releases",
     "manual_setup": {
       "help_url": "https://github.com/linkssy2/RoadRash64Recompiled/blob/a789926d38f17c9a683a7826d74536a1ff2200b5/docs/PLAYER_PACKAGE.md",
-      "warnings": [],
+      "warnings": [
+        "Close the game and importer before replacing a runtime. Preserve the complete local race-packs folder, including import jobs and previous-pack backups; custom external course-pack folders require a separate backup.",
+        "A historical managed v1.4.3 copy retains its accepted definition and data locations. Keep it usable while a supported transition is unavailable.",
+        "The experimental Linux package includes translated game routines and separately sourced artwork. Follow the upstream notices and use only a copy and components you are already permitted to use."
+      ],
       "steps": [
         {
           "title": "Use the complete Windows package",
-          "instruction": "The managed Windows route keeps RoadRash64Recompiled.exe with its official assets, libraries and importer tools, and prepares your matching USA v1.0 original through Core. Linux experimental AppImage packages have different storage and upstream installation instructions; the Windows contract does not establish their managed support or native qualification."
+          "instruction": "The managed Windows route keeps RoadRash64Recompiled.exe with its official assets, libraries and importer tools, and prepares your matching USA v1.0 original through Core."
+        },
+        {
+          "title": "Run a permitted experimental Linux copy",
+          "instruction": "For an already permitted v1.4.9 Linux x64 copy, keep the official AppImage in a writable folder and make it executable. Use a Vulkan driver, glibc 2.35 or newer, and libstdc++ with GLIBCXX_3.4.30. Open the AppImage and choose Select Game ROM with your own Road Rash 64 USA v1.0 original, then Start Game. Follow the included Linux help if your system needs a FUSE fallback."
         },
         {
           "title": "Keep optional setup with the game",
-          "instruction": "Optional texture, character and Mario Kart 64 course imports remain deliberate upstream features. Follow the included guide and supply an extra original only if you choose that feature. Portcove does not discover and run the DirectStart or importer helpers automatically. Close the game and importer before replacing a runtime. Preserve the complete local race-packs folder, including import jobs and previous-pack backups; custom external course-pack folders require a separate backup."
+          "instruction": "Optional texture, character and Mario Kart 64 course imports remain deliberate upstream features. Follow the included guide and supply an extra original only if you choose that feature. Portcove does not discover and run the DirectStart or importer helpers automatically."
+        },
+        {
+          "title": "Register a separately prepared Road Rash player",
+          "instruction": "For a separately prepared or customized upstream copy, select the completed player in its own stable folder, save launch details, then choose Play separately."
+        }
+      ],
+      "references": [
+        {
+          "title": "Preserve optional Road Rash imports before replacement",
+          "instruction": "Close the game and importer before replacing a runtime. Preserve the complete local race-packs folder, including import jobs and previous-pack backups; custom external course-pack folders require a separate backup."
+        },
+        {
+          "title": "Back up the Linux profile and adjacent files",
+          "instruction": "Close the game and importer. Keep ~/.config/RoadRash64Recompiled or the profile you selected through APP_FOLDER_PATH, plus music and race-packs beside the writable AppImage. For an already working normal AppImage launch, select the AppImage and its containing folder when adding it to Portcove."
         },
         {
           "title": "Keep your current copy while changing routes",
-          "instruction": "A historical managed v1.4.3 copy retains its accepted definition and data locations. Keep it usable while a supported transition is unavailable. For a separately prepared or customized upstream copy, select the completed player in its own stable folder, save launch details, then choose Play separately. Upstream or you provide that external copy’s runtime updates; Portcove registration removal leaves every external file untouched and does not grant managed Backup or Rollback."
+          "instruction": "A historical managed v1.4.3 copy retains its accepted definition and data locations. Keep it usable while a supported transition is unavailable."
+        },
+        {
+          "title": "Keep external Road Rash replacement and data ownership",
+          "instruction": "Upstream or you provide that external copy’s runtime updates; Portcove registration removal leaves every external file untouched and does not grant managed Backup or Rollback."
         }
       ]
     }

@@ -9,24 +9,66 @@ import {
   requireDirectSemanticDispositionCapture,
 } from "./release-semantic-runtime.mts";
 import type { runSemanticRuntime } from "./release-semantic-runtime.mts";
-import type { SemanticIssuer } from "./release-semantic-broker.mts";
 import { inspectSemanticIssuerConfiguration } from "./release-semantic-broker.mts";
 import type { CoordinatorRemoteApi } from "./release-coordinator-remote.mts";
 import { capacityDigest } from "./release-capacity.mts";
 import { isRecord } from "./runtime-values.mts";
 import { readBoundedPublicBuildInputFile } from "./release-public-build-inputs.mts";
+import {
+  inspectSealedCheckSdkIdentity,
+  verifyLinuxSealedCheckSdkBundle,
+} from "./release-sealed-check-sdk.mts";
 
-export interface SemanticIssuerCustody {
-  issuer: SemanticIssuer;
-  private_key: string;
-  public_key_sha256: string;
-  node_sha256: string;
-  http_modules_sha256: {
-    "release-semantic-issuer-http.mts": string;
-    "release-canonical.mts": string;
-    "runtime-values.mts": string;
+const legacyModules = [
+  "release-canonical.mts",
+  "release-semantic-issuer-http.mts",
+  "runtime-values.mts",
+] as const;
+
+export function inspectSemanticIssuerCustody(config: unknown) {
+  const hasSdk = isRecord(config) && Object.hasOwn(config, "issuer_sdk_bundle");
+  if (
+    !isRecord(config) ||
+    Object.keys(config).sort().join(",") !==
+      (hasSdk
+        ? "issuer,issuer_sdk_bundle,node_sha256,private_key,public_key_sha256"
+        : "http_modules_sha256,issuer,node_sha256,private_key,public_key_sha256") ||
+    typeof config.private_key !== "string" ||
+    typeof config.node_sha256 !== "string" ||
+    !/^[a-f0-9]{64}$/u.test(config.node_sha256) ||
+    typeof config.public_key_sha256 !== "string" ||
+    !/^[a-f0-9]{64}$/u.test(config.public_key_sha256)
+  )
+    throw new Error("selected semantic issuer custody configuration differs");
+  const common = {
+    issuer: inspectSemanticIssuerConfiguration(config.issuer),
+    private_key: config.private_key,
+    node_sha256: config.node_sha256,
+    public_key_sha256: config.public_key_sha256,
+  };
+  if (hasSdk)
+    return {
+      ...common,
+      issuer_sdk_bundle: inspectSealedCheckSdkIdentity(config.issuer_sdk_bundle),
+    };
+  const modules = config.http_modules_sha256;
+  if (!isRecord(modules) || Object.keys(modules).sort().join(",") !== legacyModules.join(","))
+    throw new Error("selected semantic issuer HTTP source closure differs");
+  const digests = legacyModules.map((name) => {
+    const digest = modules[name];
+    if (typeof digest !== "string" || !/^[a-f0-9]{64}$/u.test(digest))
+      throw new Error("selected semantic issuer HTTP source closure differs");
+    return [name, digest];
+  });
+  return {
+    ...common,
+    http_modules_sha256: Object.fromEntries(digests) as Record<
+      (typeof legacyModules)[number],
+      string
+    >,
   };
 }
+export type SemanticIssuerCustody = ReturnType<typeof inspectSemanticIssuerCustody>;
 const sha = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
 
 /** Pure signing primitive for the selected App's short-lived RS256 token.
@@ -115,30 +157,23 @@ async function authenticateSemanticIssuerRequest(
   checkBody: { head_sha: string },
   raw: SemanticIssuerCustody,
 ) {
-  const config = structuredClone(raw);
-  const issuer = inspectSemanticIssuerConfiguration(config.issuer);
-  if (
-    Object.keys(config).sort().join(",") !==
-      "http_modules_sha256,issuer,node_sha256,private_key,public_key_sha256" ||
-    Object.keys(config.http_modules_sha256).sort().join(",") !==
-      "release-canonical.mts,release-semantic-issuer-http.mts,runtime-values.mts" ||
-    ![
-      config.public_key_sha256,
-      config.node_sha256,
-      ...Object.values(config.http_modules_sha256),
-    ].every((digest) => /^[a-f0-9]{64}$/u.test(digest))
-  )
-    throw new Error("selected semantic issuer custody configuration differs");
-  const worker = fileURLToPath(new URL("./release-semantic-issuer-http.mts", import.meta.url));
+  const config = inspectSemanticIssuerCustody(raw);
+  const issuer = config.issuer;
   const verifyTools = async () => {
     if (sha(await readFile(process.execPath)) !== config.node_sha256)
       throw new Error("semantic issuer transport executable changed");
-    verifyHttpModules();
+    return verifyWorker();
   };
-  const verifyHttpModules = () => {
+  const verifyWorker = () => {
+    if ("issuer_sdk_bundle" in config)
+      return verifyLinuxSealedCheckSdkBundle(
+        fileURLToPath(new URL("../", import.meta.url)),
+        config.issuer_sdk_bundle,
+      );
     for (const [name, expected] of Object.entries(config.http_modules_sha256))
       if (sha(readFileSync(new URL(name, import.meta.url))) !== expected)
         throw new Error("semantic issuer HTTP source closure changed");
+    return fileURLToPath(new URL("./release-semantic-issuer-http.mts", import.meta.url));
   };
   await verifyTools();
   const bytes = await readPrivateKey(config.private_key);
@@ -164,7 +199,7 @@ async function authenticateSemanticIssuerRequest(
   };
   const client = (kind: "app" | "installation", token: string): CoordinatorRemoteApi => ({
     request(method, endpoint, body = null) {
-      verifyHttpModules();
+      const worker = verifyWorker();
       if (++requests > 40 || Date.now() - started > 120000)
         throw new Error("semantic credential session bound exhausted");
       let result: unknown;
@@ -179,7 +214,7 @@ async function authenticateSemanticIssuerRequest(
           stdio: ["pipe", "pipe", "pipe"],
         });
         result = JSON.parse(output);
-        verifyHttpModules();
+        verifyWorker();
       } catch {
         throw new Error(
           "semantic credential request failed; read back any attempted effect before retry",

@@ -170,7 +170,7 @@ describe("source identity controls", () => {
     const names = focusableControls(host).map(
       (control) => control.getAttribute("aria-label") ?? control.textContent,
     );
-    expect(names).toContain("Full identity and evidence");
+    expect(names).toContain("File details and test results");
     expect(names).toContain("Copy Calculated SHA256 for normalized content");
     expect(names).toContain("Open reviewed evidence from Sample authority");
   });

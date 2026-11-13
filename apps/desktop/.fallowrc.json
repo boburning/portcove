@@ -1,6 +1,7 @@
 {
   "$schema": "../../node_modules/fallow/schema.json",
   "entry": ["i18next.invalid.config.ts", "src/i18next-contract.test-d.ts", "src/i18next.d.ts"],
+  "ignoreBinaries": ["gdbus"],
   "framework": [
     {
       "name": "portcove-desktop-unit-tests",
@@ -26,6 +27,10 @@
       "entryPointRole": "test",
       "toolingDependencies": ["@tauri-apps/cli"],
       "usedExports": [
+        {
+          "pattern": "scripts/desktop-main-webview-boundary.mts",
+          "exports": ["readBoundaryDiagnostics"]
+        },
         {
           "pattern": "scripts/desktop-bootstrap-recovery-test.mts",
           "exports": ["technicalDetailHasSeparation", "observeTechnicalDetails"]

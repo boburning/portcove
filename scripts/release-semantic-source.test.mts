@@ -7,11 +7,25 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 import test from "node:test";
 import {
+  largeQualificationEvidence,
+  semanticSourceBlobFits,
+  semanticSourceBlobLimit,
+} from "./release-semantic-source-limits.mts";
+import {
   materializeSemanticSource,
   semanticSourceResourceEnvironment,
 } from "./release-semantic-source.mts";
 
 const pins = { git_sha256: "a".repeat(64), python_sha256: "b".repeat(64) };
+void test("the scoped evidence allowance pins both Git identity and exact size", () => {
+  const { oid, bytes } = largeQualificationEvidence;
+  assert.ok(semanticSourceBlobFits(oid, bytes, true));
+  assert.ok(!semanticSourceBlobFits(oid, bytes, false));
+  assert.ok(!semanticSourceBlobFits(oid, bytes - 1, true));
+  assert.ok(!semanticSourceBlobFits("a".repeat(40), bytes, true));
+  assert.ok(semanticSourceBlobFits("a".repeat(40), semanticSourceBlobLimit, false));
+});
+
 void test("ordinary hosted source acquisition retains resource routing without credential/reviewer environment", () => {
   const environment = semanticSourceResourceEnvironment("/private/source-home", {
     GITHUB_ACTIONS: "true",
@@ -131,8 +145,9 @@ async function fixture(t: { after: (fn: () => Promise<void>) => void }, oversize
       "--no-write-fetch-head",
       "--no-recurse-submodules",
       "--no-auto-maintenance",
-      request.phase === "commits" ? "--filter=tree:0" : "--filter=blob:none",
+      request.phase === "blobs" ? "--filter=blob:none" : "--filter=tree:0",
       ...(request.phase === "commits" ? ["--depth=2049"] : []),
+      ...(request.phase === "application-commits" ? ["--depth=3201"] : []),
       pathToFileURL(origin).href,
       ...request.oids,
     ]);
@@ -153,6 +168,20 @@ async function fixture(t: { after: (fn: () => Promise<void>) => void }, oversize
     },
   };
 }
+
+void test("qualified application materializes an annotated publication using the larger history phase", async (t) => {
+  const f = await fixture(t);
+  const result = await materializeSemanticSource(
+    f.parent,
+    f.expected,
+    f.api,
+    pins,
+    { git: "git", fetchObjects: f.fetchObjects },
+    true,
+  );
+  assert.deepEqual(f.phases, ["application-commits", "blobs"]);
+  assert.equal(result.authority, "none");
+});
 
 void test("empty source cache acquires exact raw non-UTC commits, annotated publication and complete binary snapshots without refs/checkout", async (t) => {
   const f = await fixture(t);

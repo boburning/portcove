@@ -15,7 +15,41 @@
       "game_slug": "aerogauge",
       "match_kind": "underlying-game"
     },
-    "issue_number": 71
+    "issue_number": 71,
+    "listed_at": "2026-10-23",
+    "availability": "packages",
+    "release_url": "https://github.com/alondero/aerogauge-recomp/releases",
+    "setup_url": "https://github.com/alondero/aerogauge-recomp#readme",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Run the Linux ARM64 package",
+          "instruction": "Unpack the official aerogauge-recomp-linux-arm64.zip and open aerogauge_modern from the extracted folder. The current build needs glibc 2.38, GLIBCXX_3.4.32, SDL2 and a compatible Vulkan driver."
+        },
+        {
+          "title": "Install the official Android package",
+          "instruction": "Choose aerogauge-recomp-android-arm64.apk from the upstream release. Use an ARM64 device with Android 9 or newer and a compatible Vulkan driver supporting descriptor indexing and scalar block layout."
+        },
+        {
+          "title": "Select your original",
+          "instruction": "Use the Linux file picker or Android Import ROM with your own matching USA or Japan Rev A cartridge dump. The official package selects the region after checking the ROM. The regions keep separate saves."
+        }
+      ],
+      "warnings": [
+        "These packages use upstream or player-managed setup, replacement and data backups. Portcove has no native execution or populated-save result for these sibling packages."
+      ],
+      "help_url": "https://github.com/alondero/aerogauge-recomp#readme",
+      "references": [
+        {
+          "title": "Keep the Linux profile",
+          "instruction": "Preserve $XDG_CONFIG_HOME/AeroGaugeRecomp or ~/.config/AeroGaugeRecomp. If you use the upstream portable.txt mode, preserve the actual program folder and its data."
+        },
+        {
+          "title": "Back up Android saves",
+          "instruction": "Use Back up saves in the Android launcher to export EEPROM and Controller Pak files. Keep the exported ZIP separately before changing signing identity, clearing app data or uninstalling."
+        }
+      ]
+    }
   },
   "integration": {
     "support_tier": "beta",

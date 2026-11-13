@@ -12,13 +12,22 @@ import {
   slice4CapacityResourceDigest,
   capacityDigest,
 } from "./release-capacity.mts";
-import { observeReleaseResources } from "./release-resource-observation.mts";
+import {
+  catalogObservers,
+  catalogReaders,
+  observeReleaseResources,
+} from "./release-resource-observation.mts";
+import { inspectReleaseProfile } from "./release-package-policy.mts";
 
 export function prepareReleaseResourceAmendmentProposal(
   production: Buffer,
   wake: Buffer,
   candidate: Buffer,
+  rawProfile: unknown = "initial-beta-win-linux",
 ) {
+  const profile = inspectReleaseProfile(rawProfile);
+  assert.ok(profile !== "full", "Explicit initial-beta proposal profile required");
+  const windowsOnly = profile === "initial-beta-windows-x86_64-v1";
   assert.ok(production.length > 0 && production.length <= 512 * 1024);
   const parsed = parseDocument(production.toString("utf8"), { uniqueKeys: true });
   assert.equal(parsed.errors.length, 0);
@@ -119,11 +128,36 @@ export function prepareReleaseResourceAmendmentProposal(
     linuxSuccess,
     "(" + linuxSuccess + " && needs.native_windows.result == 'success')",
   );
+  if (windowsOnly) {
+    assert.ok(
+      Array.isArray(publication.needs) &&
+        typeof publication.if === "string" &&
+        typeof native.if === "string",
+    );
+    // This is still only proposed source. Keep every shared Linux tool,
+    // observer/signing job and the separately held Windows execution gate.
+    delete jobs.native_linux;
+    publication.needs = publication.needs.filter((name) => name !== "native_linux");
+    publication.if = publication.if.replace(
+      "(" + linuxSuccess + " && needs.native_windows.result == 'success')",
+      "needs.native_windows.result == 'success'",
+    );
+    assert.ok(isRecord(jobs.admission) && isRecord(jobs.admission.outputs));
+    jobs.admission.outputs.release_profile = "${{ steps.admit.outputs.release_profile }}";
+    native.if = native.if.replace(
+      "false &&",
+      "false && needs.admission.outputs.release_profile == 'initial-beta-windows-x86_64-v1' &&",
+    );
+  }
   const proposedWorkflow = Buffer.from(stringify(raw, { lineWidth: 100 })),
     observation = observeReleaseResources(proposedWorkflow, wake, candidate);
-  assert.equal(observation.accounting.application, 165);
-  assert.equal(observation.accounting.catalog_alternative, 40);
-  assert.equal(observation.accounting.policy_envelope, 100);
+  const wakeMinutes = observation.wake.find((job) => job.key === "wake")?.maximum_job_minutes;
+  assert.ok(wakeMinutes === 1 || wakeMinutes === 2);
+  const proposedMinutes = (windowsOnly ? 139 : 164) + wakeMinutes;
+  const proposedCatalogMinutes = 39 + wakeMinutes;
+  assert.equal(observation.accounting.application, proposedMinutes);
+  assert.equal(observation.accounting.catalog_alternative, proposedCatalogMinutes);
+  assert.equal(observation.accounting.policy_envelope, slice4CapacityResources.total_job_minutes);
   assert.equal(observation.policy_matches_workflow, false);
   const inputs = (name: string) =>
     name.includes("protection_observation") || name === "classification_writer";
@@ -134,15 +168,30 @@ export function prepareReleaseResourceAmendmentProposal(
     return value;
   };
   const digest = createHash("sha256").update(proposedWorkflow).digest("hex");
+  const catalogMinutes = (name: string) => {
+    const row = observation.jobs.find(
+      (job) => job.key === name && job.purposes.includes("catalog"),
+    );
+    assert.ok(row, `missing catalog proposal job ${name}`);
+    const value =
+      row.purpose_maximum_job_minutes?.["catalog-publication"] ?? row.maximum_job_minutes;
+    assert.ok(typeof value === "number" && Number.isSafeInteger(value) && value > 0);
+    return value;
+  };
   const proposedResources = {
     ...slice4CapacityResources,
     aggregate_workflow_sha256: digest,
     input_workflow_sha256: digest,
+    wake_workflow_sha256: createHash("sha256").update(wake).digest("hex"),
     aggregate_job_minutes: app.filter((row) => !inputs(row.key)).map(minutes),
     input_job_minutes: app.filter((row) => inputs(row.key)).map(minutes),
-    declared_job_minutes: 165,
-    purpose_accounting: "mutually-exclusive-max-application165-catalog40",
-    total_job_minutes: 165,
+    catalog_job_minutes: catalogReaders.map(catalogMinutes),
+    catalog_observer_job_minutes: catalogObservers.map(catalogMinutes),
+    wake_job_minutes: [wakeMinutes],
+    declared_job_minutes: proposedMinutes,
+    catalog_declared_job_minutes: proposedCatalogMinutes,
+    purpose_accounting: `mutually-exclusive-max-application${proposedMinutes}-catalog${proposedCatalogMinutes}`,
+    total_job_minutes: proposedMinutes,
   };
   return {
     proposedWorkflow,
@@ -150,6 +199,7 @@ export function prepareReleaseResourceAmendmentProposal(
       schema_version: 1,
       authority: "none",
       status: "PROPOSAL ONLY; NOT RATIFIED",
+      ...(windowsOnly ? { release_profile: profile } : {}),
       effective_policy_digest: slice4CapacityResourceDigest,
       input_workflow_sha256: createHash("sha256").update(production).digest("hex"),
       proposed_workflow_sha256: digest,
@@ -157,24 +207,34 @@ export function prepareReleaseResourceAmendmentProposal(
       proposed_resource_digest: capacityDigest(proposedResources),
       observation,
       execution:
-        "Explicit false Windows job plus unchanged protected source/account/worker/recovery/sign/publication gates",
-      owner_clock:
-        "Both native platforms retain the existing570000ms total original clock;600000ms full signer wait cannot fit; late signer refuses; outer25/35minute caps do not extend it",
-      application_only_bootstrap:
-        "Fixed application12/catalog4 expression; catalog remains independent40 under effective100",
+        "Generated Windows job remains explicitly false; source/account/worker/recovery/signing/publication authority requires separate exact reconciliation",
+      owner_clock: windowsOnly
+        ? "Windows retains the original570000ms clock;600000ms full signer wait cannot fit; late signer refuses; outer35minute cap does not extend it"
+        : "Both native platforms retain the existing570000ms total original clock;600000ms full signer wait cannot fit; late signer refuses; outer25/35minute caps do not extend it",
+      application_only_bootstrap: `Fixed application12/catalog4 expression; catalog remains independent${proposedCatalogMinutes} under actual imported effective${slice4CapacityResources.total_job_minutes}; this proposal cannot ratify policy`,
       activation:
         "Requires independently reviewed exact final workflow/source/resource/configuration and explicit policy ratification; no publication or production execution authority inferred",
     },
   };
 }
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  assert.equal(process.argv.length, 2, "Proposal has no execution or arbitrary source options");
+  const args = process.argv.slice(2);
+  assert.ok(
+    args.length === 0 || (args.length === 2 && args[0] === "--release-profile"),
+    "Proposal accepts only one closed release-profile selector",
+  );
+  const profile = inspectReleaseProfile(args[1] ?? "initial-beta-win-linux");
   const bytes = await Promise.all(
     ["application-update-production.yml", "application-update-wake.yml", "release.yml"].map(
       (name) => readFile(new URL("../.github/workflows/" + name, import.meta.url)),
     ),
   );
-  const proposal = prepareReleaseResourceAmendmentProposal(bytes[0]!, bytes[1]!, bytes[2]!);
+  const proposal = prepareReleaseResourceAmendmentProposal(
+    bytes[0]!,
+    bytes[1]!,
+    bytes[2]!,
+    profile,
+  );
   console.log(
     JSON.stringify(
       { ...proposal.proposal, proposed_workflow_utf8: proposal.proposedWorkflow.toString("utf8") },

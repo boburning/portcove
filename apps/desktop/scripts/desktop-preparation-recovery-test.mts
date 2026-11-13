@@ -78,6 +78,9 @@ import {
   captureAccessibilityReport,
   clickVisible,
   reviewControls,
+  preparationLogControl,
+  setupConfirmButton,
+  setupReviewButton,
 } from "./desktop-review-controls.mts";
 
 function insertOwnedRow(
@@ -334,7 +337,7 @@ export async function interruptedPreparationScenario({
           text.includes("Game-data setup") &&
           text.includes(recoveredSummary) &&
           text.toLowerCase().includes("failed") &&
-          text.includes("Review game preparation")
+          text.includes("Review setup")
         ) {
           return candidate;
         }
@@ -378,10 +381,8 @@ export async function interruptedPreparationScenario({
       "Failed preparation must remain discoverable after navigating away and returning",
     );
     assert.ok(beforeRestart);
-    const beforeRestartLog = await beforeRestart.findElement(
-      By.xpath('.//summary[normalize-space(.)="View preparation log"]'),
-    );
-    await beforeRestartLog.click();
+    const beforeRestartLog = await preparationLogControl(browser, beforeRestart);
+    await clickVisible(browser, beforeRestartLog);
     const beforeRestartText = await browser.wait(async () => {
       const text = await beforeRestart.getText();
       return text.includes("Only the output saved before the last observation is available.")
@@ -418,7 +419,7 @@ export async function interruptedPreparationScenario({
           text.includes("Game-data setup") &&
           text.includes(recoveredSummary) &&
           text.toLowerCase().includes("failed") &&
-          text.includes("Review game preparation")
+          text.includes("Review setup")
         ) {
           matches.push(candidate);
         }
@@ -429,12 +430,10 @@ export async function interruptedPreparationScenario({
     let row;
     for (const candidate of rows) {
       const text = await candidate.getText();
-      assert.match(text, /Review game preparation/);
+      assert.match(text, /Review setup/);
       assert.doesNotMatch(text, /No files were changed|The operation was cancelled/);
-      const log = await candidate.findElement(
-        By.xpath('.//summary[normalize-space(.)="View preparation log"]'),
-      );
-      await log.click();
+      const log = await preparationLogControl(browser, candidate);
+      await clickVisible(browser, log);
       const loadedText = await browser.wait(async () => {
         const current = await candidate.getText();
         return current.includes("Reading the retained log")
@@ -644,7 +643,7 @@ export async function interruptedPreparationScenario({
       "cannot be recovered",
       "setup and any programs it started have stopped",
     ]) {
-      assert.ok(cleanupText.includes(required(expected)), expected);
+      assert.ok(cleanupText.includes(required(expected)), String(expected));
     }
     const cleanupAccessibility = path.join(output, "preparation-cleanup-accessibility.json");
     await captureAccessibilityReport(browser, cleanupAccessibility, artifacts);
@@ -1008,14 +1007,9 @@ async function beginLivePreparation({
   port: Pick<PortDefinition, "id">;
   message: string;
 }) {
-  await browser
-    .findElement(By.xpath('//button[normalize-space(.)="Review game preparation"]'))
-    .click();
-  await browser.wait(
-    until.elementLocated(By.xpath('//button[normalize-space(.)="Prepare game data"]')),
-    15_000,
-  );
-  await browser.findElement(By.xpath('//button[normalize-space(.)="Prepare game data"]')).click();
+  await browser.findElement(setupReviewButton()).click();
+  await browser.wait(until.elementLocated(setupConfirmButton()), 15_000);
+  await browser.findElement(setupConfirmButton()).click();
   let activity: ActivityRecord | undefined;
   let checkpoint: string | undefined;
   await browser.wait(
@@ -1587,7 +1581,7 @@ async function livePreparationRecoveryScenario({
     if (required(recovered).status === "succeeded") {
       const history = await browser.findElement(
         By.xpath(
-          '//*[@role="tablist" and @aria-label="Activity sections"]//*[@role="tab" and normalize-space(.)="History"]',
+          '//*[@role="tablist" and @aria-label="Activity sections"]//*[@role="tab" and text()[normalize-space(.)="History"]]',
         ),
       );
       await executeBrowserScript(
@@ -1616,7 +1610,7 @@ async function livePreparationRecoveryScenario({
       "Fresh host must render the recovered durable activity",
     );
     assert.ok(row);
-    if (repair) assert.ok((await row.getText()).includes("Review game preparation"));
+    if (repair) assert.ok((await row.getText()).includes("Review setup"));
     const afterImage = path.join(output, `native-live-preparation-after-${suffix}.png`);
     await writeFile(afterImage, await browser.takeScreenshot(), { encoding: "base64", flag: "wx" });
     artifacts.push(afterImage);

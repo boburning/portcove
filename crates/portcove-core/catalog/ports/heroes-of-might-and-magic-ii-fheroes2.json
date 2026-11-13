@@ -3,11 +3,11 @@
   "listing": {
     "id": "heroes-of-might-and-magic-ii-fheroes2",
     "name": "Heroes of Might and Magic II (fheroes2)",
-    "summary": "Upstream route: Mature engine recreation with current desktop packages and official install guide. Limits: Established Heroes II recreation with desktop packages; supported retail/demo input boundaries stay separate. Upstream platforms: Official Windows/Linux/macOS desktop packages/install guide; exact selected artifact CPU architectures unknown in frozen research. Original data: Original retail game or supported demo; separate from tracked Heroes III/VCMI. Portcove setup/gameplay not verified.",
+    "summary": "Play Heroes of Might and Magic II with the fheroes2 engine and your own game resources.",
     "original_game_title": "Heroes of Might and Magic II",
     "project_url": "https://github.com/ihhub/fheroes2",
-    "platforms": [],
-    "availability": "unknown",
+    "platforms": ["macos-aarch64"],
+    "availability": "packages",
     "setup_url": "https://github.com/ihhub/fheroes2",
     "artwork": {
       "game_id": 363,
@@ -17,7 +17,34 @@
       "game_slug": "heroes-of-might-and-magic-ii-the-succession-wars",
       "match_kind": "underlying-game"
     },
-    "issue_number": 2582
+    "issue_number": 2582,
+    "listed_at": "2026-10-25",
+    "manual_setup": {
+      "help_url": "https://github.com/ihhub/fheroes2/tree/2685c2188b541660f1ce261b554c3e92f79b1775",
+      "steps": [
+        {
+          "title": "Finish and back up the prepared Windows copy",
+          "instruction": "Use a permitted complete fheroes2 Windows copy with its matching libraries and your own supported Heroes of Might and Magic II resources, or a demo you are separately permitted to use. The Windows ZIP instructions require upstream resource extraction or the documented manual ANIM/DATA/MAPS/MUSIC copy before normal play. The Linux Flatpak first-start resource picker is a different route. Portcove does not run the extraction BAT, acquire demo/original assets or install Windows redistributables for this prepared-copy route. Select native fheroes2.exe after setup. Keep the creating working directory, complete runtime/resources and all original/custom maps and music. Windows profile selection checks an existing HOME environment first, using HOME/.fheroes2, then APPDATA/fheroes2, with an SDL preference fallback. Preserve the actual creating account/environment and selected config/data directories rather than assuming AppData is always used; Portcove does not inject environment variables. Keep fheroes2.cfg, the full data/profile tree including files/save, saves, custom files and unknowns. Do not force a new portable profile or treat the missing-resource error window as an original-data picker. Finish setup with upstream’s tools and start and quit the intended copy before registering it. Keep the creating version and actual data locations recoverable when replacing an external copy."
+        },
+        {
+          "title": "Choose an independent Linux or Mac package",
+          "instruction": "For a separate Linux x86-64 or ARM64 ZIP, keep the complete archive contents in a permanent folder and use upstream’s extraction script or manually copy your own ANIM, DATA, MAPS and MUSIC when present. Start fheroes2 from its folder. The Linux ZIPs need SDL2, SDL2_image, SDL2_mixer, zlib, glibc 2.35 and libstdc++ providing GLIBCXX_3.4.30. Flathub’s io.github.ihhub.Fheroes2 uses its own first-start import and sandbox profile. On Apple Silicon, use the native Homebrew or MacPorts route and upstream’s fheroes2-extract-resources tool. For the Intel Mac ZIP, follow upstream’s SDL library setup. The Intel binary needs macOS 10.15 or later and matching Intel SDL2 compatibility, SDL2_image, SDL2_mixer and libpng at its /usr/local/opt paths. Standalone Mac builds use ~/.fheroes2 with an ordinary HOME; source-built Mac app bundles use separate Library/Preferences and Library/Application Support profiles. Keep the actual profile and the package that created it."
+        },
+        {
+          "title": "Import your originals with the Android Toolset",
+          "instruction": "Extract the official fheroes2_android.zip and install fheroes2.apk. The package documents Android 5.1 or newer. Put your own original ANIM, DATA, MAPS and MUSIC directories that are present in one ZIP, copy it to the device, and choose Extract HoMM2 assets in fh2 Toolset. Open fheroes2 after the import. Keep the original ZIP and an accessible backup of the actual Android profile before clearing app data or replacing the package."
+        }
+      ],
+      "warnings": [
+        "Use only a copy and content you are already permitted to use. Engine licensing does not grant rights to original game assets, music, mods or bundled components.",
+        "Before updating the game, keep a copy of its working files and every location containing saved data. Choosing a different executable does not give it a separate profile.",
+        "Back up the actual upstream profile before replacing the runtime. The Linux ZIP normally uses ~/.config/fheroes2 for settings and ~/.local/share/fheroes2 for data, including files/save and custom maps. If you set XDG_CONFIG_HOME or XDG_DATA_HOME, preserve those actual locations and use absolute paths outside the runtime folder. Flatpak, Mac and Android keep their own profiles."
+      ]
+    },
+    "download_asset_hints": {
+      "linux-x86-64": ["fheroes2_ubuntu_x86-64_SDL2.zip"],
+      "macos-x86-64": ["fheroes2_macos_x86-64_SDL2.zip"]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,
@@ -30,5 +57,80 @@
       }
     },
     "decisions": []
+  },
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64"],
+    "adapter": "native-portable",
+    "reviewed_package_layouts": {
+      "windows-x86-64": {
+        "directories": ["files", "maps"],
+        "executables": [
+          "download_demo_version.bat",
+          "download_demo_version.ps1",
+          "extract_homm2_resources.bat",
+          "extract_homm2_resources.ps1",
+          "fheroes2.exe",
+          "resource_extraction_toolset.bat",
+          "resource_extraction_toolset.ps1"
+        ]
+      },
+      "linux-x86-64": {
+        "directories": ["files", "maps", "script"],
+        "executables": [
+          "download_demo_version.sh",
+          "extract_homm2_resources.sh",
+          "fheroes2",
+          "script/linux/install_sdl2.sh"
+        ]
+      },
+      "macos-x86-64": {
+        "directories": ["files", "maps", "script"],
+        "executables": ["download_demo_version.sh", "extract_homm2_resources.sh", "fheroes2"]
+      }
+    },
+    "external_profile_policy": "fheroes2-v1",
+    "release": {
+      "provider": "github",
+      "repository": "ihhub/fheroes2",
+      "asset_hints": {
+        "windows-x86-64": ["fheroes2_windows_x64_SDL2.zip"],
+        "linux-x86-64": ["fheroes2_ubuntu_x86-64_SDL2.zip"],
+        "macos-x86-64": ["fheroes2_macos_x86-64_SDL2.zip"]
+      }
+    },
+    "executable_hints": {
+      "windows-x86-64": ["fheroes2.exe"],
+      "linux-x86-64": ["fheroes2"],
+      "macos-x86-64": ["fheroes2"]
+    },
+    "persistent_paths": [],
+    "presentation": {
+      "installation_method": "portable-package",
+      "source_requirements": [],
+      "saves_and_settings": "external-user-owned"
+    }
+  },
+  "route_facts_v1": {
+    "format_version": 1,
+    "prepared_player": {
+      "working_directory": "executable-parent",
+      "arguments": [],
+      "data_locations": [
+        "the actual external fheroes2 profile and the original and custom resources of your prepared copy"
+      ]
+    },
+    "managed_native": {
+      "preparation": {
+        "title": "Copy your Heroes II resources to the personal fheroes2 folder before Play",
+        "instruction": "Copy your own supported Heroes II ANIM, DATA, MAPS and MUSIC directories when present. Use HOME/.fheroes2 on Windows or Intel Mac, or APPDATA/fheroes2 on Windows when HOME is unset. On Linux, use XDG_DATA_HOME/fheroes2 or ~/.local/share/fheroes2. Use absolute personal profile locations outside the managed game folder and the same account and environment for setup and Play."
+      },
+      "warnings": [
+        "The Windows x64 ZIP may need the Microsoft Visual C++ x64 Redistributable linked by upstream. Portcove runs no bundled resource, demo or prerequisite installer.",
+        "The Linux x86-64 ZIP needs SDL2, SDL2_image, SDL2_mixer, zlib, glibc 2.35 and libstdc++ with GLIBCXX_3.4.30. Intel Mac requires macOS 10.15 or later and matching Intel SDL2 compatibility, SDL2_image, SDL2_mixer and libpng at the upstream /usr/local/opt paths.",
+        "Keep a separate backup of the actual external fheroes2 profile, including files/save, settings and custom maps. Use a separately prepared copy for custom profile or resource locations. Real save compatibility across versions remains unverified."
+      ]
+    }
   }
 }

@@ -6,7 +6,8 @@
     "summary": "Play Halo: Combat Evolved through OpenCE with your own Xbox disc image and the upstream updater.",
     "project_url": "https://github.com/OpenCommunityEdition/OpenCE",
     "issue_number": 1849,
-    "platforms": ["windows-x86-64"],
+    "listed_at": "2026-10-23",
+    "platforms": ["windows-x86-64", "linux-x86-64"],
     "availability": "packages",
     "setup_url": "https://github.com/OpenCommunityEdition/OpenCE#readme",
     "artwork": {
@@ -21,25 +22,42 @@
     "manual_setup": {
       "steps": [
         {
-          "title": "Keep the Windows package together",
-          "instruction": "Extract halo-windows-release.zip into a separate upstream-owned folder. Finish setup with halo.exe and that folder."
+          "title": "Keep the player package together",
+          "instruction": "Extract halo-windows-release.zip or, on Linux, halo-Linux-release.zip into a separate upstream-owned folder. Finish setup with halo.exe (halo on Linux) and that folder."
         },
         {
           "title": "Choose your original Xbox disc image on Play",
           "instruction": "On first Play, select your own Halo: Combat Evolved Xbox .iso or .xiso. OpenCE extracts its maps beside the player. Halo PC or Custom Edition maps do not replace these Xbox maps."
         },
         {
-          "title": "Use OpenCE’s updates and keep your data",
-          "instruction": "OpenCE replaces its own runtime when you use its updater. Keep the extracted maps, config.toml and your saves backed up; Windows saves normally use the halo folder under AppData/Roaming, unless paths.saves changes it."
+          "title": "Select the ordinary player",
+          "instruction": "Keep the complete release package together and select halo.exe (halo on Linux) with its containing folder as working directory. Leave arguments empty for the normal player. The release package is for playing; debug builds stop at failed assertions, and symbol archives are not players. Use your own supported Xbox disc image for the upstream first-Play picker; Portcove does not import or authenticate it. Finish any deliberate upstream update or repair separately before starting the registered Play session."
         }
       ],
       "warnings": [
-        "Optional Halo Custom Edition maps and their matching resources belong in custom_maps. OpenSauce maps are incompatible. Portcove does not replace or back up this upstream-owned runtime."
+        "Optional Halo Custom Edition maps and their matching resources belong in custom_maps. OpenSauce maps are incompatible. Portcove does not replace or back up this upstream-owned runtime.",
+        "OpenCE replaces its own runtime when you use its updater. Keep the extracted maps, config.toml and your saves backed up; Windows saves normally use the halo folder under AppData/Roaming, unless paths.saves changes it.",
+        "Keep the creating runtime with those files before changes; a separate executable folder does not isolate an existing shared profile or establish save, mod or network compatibility."
       ],
-      "help_url": "https://github.com/OpenCommunityEdition/OpenCE#readme"
+      "help_url": "https://github.com/OpenCommunityEdition/OpenCE/blob/899219cc0a14b03bc12f0517a1e9ee4c37158af8/README.md",
+      "references": [
+        {
+          "title": "Use OpenCE’s updates and keep your data",
+          "instruction": "For the usual Windows layout, the saves are under AppData/Roaming/halo. Check paths.saves for an override and keep config.toml with the extracted maps."
+        },
+        {
+          "title": "Keep all actual data locations",
+          "instruction": "Preserve the complete working copy, maps, custom_maps, mods, load_order.toml, config.toml, logs and captures. In the actual Windows save root, keep u, z and shader_cache along with your profiles and progress. The usual save root is AppData/Roaming/halo; paths.saves or HALO_SAVE_ROOT can change it. The data, custom-map and log roots also have configuration or environment overrides, so preserve their actual locations too."
+        },
+        {
+          "title": "Updates and backups",
+          "instruction": "OpenCE asks before an ordinary update and can replace its executable and DLLs, then start another process. Complete those updates upstream outside the registered Play session, then review and relink changed execution intent before Play. Portcove supervises only the selected process and does not adopt the restarted copy. Registration removal preserves all external files. Managed installation, updates, backup, rollback, migration and deletion are not offered for this upstream-owned runtime."
+        }
+      ]
     },
     "download_asset_hints": {
-      "windows-x86-64": ["halo-windows-release.zip"]
+      "windows-x86-64": ["halo-windows-release.zip"],
+      "linux-x86-64": ["halo-Linux-release.zip"]
     }
   }
 }

@@ -3,7 +3,7 @@
   "listing": {
     "id": "need-for-speed-iii-hot-pursuit-nfs-recompiled",
     "name": "Need for Speed III: Hot Pursuit (NFS Recompiled)",
-    "summary": "Research listing. Upstream route: Static recompilation with release zip and original-data instructions. Limits: Maintainer explicitly calls it a toy project; Linux runnable route exists with game-specific defects to qualify. Upstream platforms: Linux native C++ release/source route; original executable is Win32 x86 input, not proof of host CPU. Selected Linux package/build CPU unknown; other host platforms only potential. Original data: Supply an original Need for Speed III: Hot Pursuit installation plus its CD Fedata/GameData content. Source generation requires nfs3.exe, eacsnd.dll, softtria.dll and voodoo2a.dll in nfs3hp/. Exact supported language/patch and binary hashes are not stated in the retained README. Portcove setup/gameplay not verified.",
+    "summary": "Use the prepared NFS Recompiled Windows nfs3hp.exe with your own Need for Speed III: Hot Pursuit installation and CD Fedata/GameData files. The v1.0.1 package contains separate players for NFS II SE and NFS III; choose this game’s player. Keep both original data locations backed up because the game can write to them. Upstream calls this a toy project; exact language, patch and save compatibility remain unconfirmed.",
     "original_game_title": "Need for Speed III: Hot Pursuit",
     "project_url": "https://github.com/motor-dev/nfs-recompiled",
     "platforms": [],
@@ -17,7 +17,37 @@
       "game_slug": "need-for-speed-iii-hot-pursuit",
       "match_kind": "underlying-game"
     },
-    "issue_number": 2888
+    "issue_number": 2888,
+    "listed_at": "2026-10-25",
+    "manual_setup": {
+      "help_url": "https://github.com/motor-dev/nfs-recompiled/tree/77ebdb3b6a21925ccfc4fc4c1d712abec3e1945a",
+      "steps": [
+        {
+          "title": "Prepare the NFS III native player upstream",
+          "instruction": "Use a permitted prepared native NFS Recompiled copy compatible with your host, and your own complete Need for Speed III: Hot Pursuit installation plus CD Fedata/GameData content. This project separately implements NFS II SE; its data and nfs2se player are not substitutes. The original nfs3.exe, eacsnd.dll, softtria.dll and voodoo2a.dll are source-generation inputs, not the native executable to register. Finish any upstream preparation outside Portcove; no compiler or game helper is run here. Upstream describes this as a toy project."
+        },
+        {
+          "title": "Use explicit original-data directory arguments",
+          "instruction": "The inspected official v1.0.1 nfs_recompiled.zip contains AMD64 Windows PE players nfs3hp.exe and nfs2se.exe. Select the actual prepared NFS III nfs3hp.exe on Windows, or an upstream-prepared native nfs3hp build on Linux, with its complete runtime and established working directory. Static package headers do not establish successful game execution. Keep the absolute original installation path as one literal argument; if CD data stays in a separate directory, keep its absolute path as a second literal argument. One argument uses the same root for both. In the reviewed v1.0.1 entry point, no arguments derive both paths from the executable path rather than reliably selecting your working directory. Do not select original Windows nfs3.exe or the NFS II player."
+        },
+        {
+          "title": "Retain the writable installation and CD roots",
+          "instruction": "Upstream maps relative Win32 game paths into the selected installation and drive-letter paths into the CD-data root; writes and removal use that mapping too. Keep the complete creating runtime, writable original installation, CD roots, all saves, configuration, custom and unknown files before changes. Its shown registry emulation is in-process data, not evidence that a Windows registry export backs up progress. Keep existing render/options choices; language/patch compatibility and actual game/save behavior are not qualified."
+        },
+        {
+          "title": "Check the prepared copy before registration",
+          "instruction": "Finish setup with the project’s tools, then start and quit the copy you intend to add. Keep its game executable, working folder and supported launch arguments. Review those details in Portcove and agree to launch them, then choose Play separately. Adding a copy does not confirm its original game files, gameplay or save compatibility."
+        },
+        {
+          "title": "Keep updates and removal under the existing owner",
+          "instruction": "Close every running copy of the game before changing files. Keep the working game version and every data and profile folder recoverable. Update it with the project’s tools, then review and select the changed executable in Portcove before choosing Play. You manage setup, updates, file changes, data migration and recovery. Portcove monitors the process you selected; it does not prevent other copies from running or restrict the game’s file access. Removing the registration leaves external files in place. This route does not offer Portcove downloads, setup, updates, backups, rollback, data migration or external-file deletion."
+        }
+      ],
+      "warnings": [
+        "Use only a copy and content you are already permitted to use. Engine licensing does not grant rights to original game assets, music, mods or bundled components.",
+        "Before updating the game, keep a copy of its working files and every location containing saved data. Choosing a different executable does not give it a separate profile."
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

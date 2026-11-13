@@ -3,6 +3,7 @@ import copy
 import hashlib
 import importlib.util
 import os
+import re
 import sys
 import tempfile
 import time
@@ -28,6 +29,24 @@ def plan():
 
 
 class Installation(unittest.TestCase):
+    def test_only_closed_node_identity_has_the_coordinated_finite_executable_bound(self):
+        source = Path(__file__).with_name("controller-node-runtime.mts").read_text()
+        matched = re.search(r"controllerNodeMaximumBytes = ([0-9]+) \* 1024 \* 1024;", source)
+        self.assertIsNotNone(matched)
+        self.assertEqual(installation.NODE_MAXIMUM_BYTES, int(matched.group(1)) * 1024 ** 2)
+        for size in (150319296, installation.NODE_MAXIMUM_BYTES):
+            accepted = plan()
+            accepted["tools"]["node"]["bytes"] = size
+            self.assertEqual(installation.inspect_plan(accepted), accepted)
+        for name, size in (("node", installation.NODE_MAXIMUM_BYTES + 1),
+                           ("driver", 128 * 1024 ** 2 + 1), ("node", True), ("node", 1.5)):
+            rejected = plan()
+            rejected["tools"][name]["bytes"] = size
+            with self.subTest(name=name, size=size), self.assertRaisesRegex(RuntimeError, "tool bound"):
+                installation.inspect_plan(rejected)
+        with self.assertRaisesRegex(RuntimeError, "tool name"):
+            installation.tool_maximum_bytes("other/node")
+
     def test_runtime_input_context_is_closed_and_cannot_select_paths_or_package_policy(self):
         raw = plan()
         runtime = {key: raw[key] for key in ("schema_version", "binding", "broker_uid", "broker_pid", "broker_identity", "deadline_ns", "context")}
@@ -309,7 +328,7 @@ class DependencyGraph(unittest.TestCase):
                 root = Path(temporary)
                 source = root / "native-source"
                 (source / "apps/desktop").mkdir(parents=True)
-                (source / "package.json").write_text('{"packageManager":"pnpm@12.16.1"}')
+                (source / "package.json").write_text('{"packageManager":"pnpm@12.88.91"}')
                 (source / "apps/desktop/package.json").write_text('{}')
                 workspace = b"packages: [apps/desktop]\n"
                 (source / "pnpm-workspace.yaml").write_bytes(workspace)
@@ -365,7 +384,7 @@ class DependencyGraph(unittest.TestCase):
                     calls.append((arguments, environment, maximum_file_bytes))
                     check()
                     if "--version" in arguments:
-                        return "12.16.1"
+                        return "12.88.91"
                     (source / "node_modules").mkdir()
                     (source / "apps/desktop/node_modules").mkdir()
                     if refused:

@@ -37,7 +37,7 @@ it("lets a distinct Escape close the fixture dialog while its nested select is s
     await render(<DesignCompatibilityFixture />);
     const opener = page.getByRole("button", { name: "Review install", exact: true });
     await opener.click();
-    const trigger = page.getByRole("combobox", { name: "Release channel", exact: true });
+    const trigger = page.getByRole("combobox", { name: "Update channel", exact: true });
     await trigger.click();
     await expect.element(trigger).toHaveAttribute("aria-expanded", "true");
     const listId = trigger.element().getAttribute("aria-controls")!;

@@ -1,4 +1,5 @@
 import type { PortStatus } from "../../types";
+import { withoutVerbatimPrefix } from "../app-shell/use-library-browsing-context";
 
 type PresentedAction = "install" | "launch" | "rollback";
 type ActionPresentation = { blocked: false; reason?: never } | { blocked: true; reason: string };
@@ -34,7 +35,8 @@ export function removalReviewPresentation(
 ): ActionPresentation {
   const unknown: ActionPresentation = {
     blocked: true,
-    reason: "Current removal availability is unavailable. Refresh the workspace to check again.",
+    reason:
+      "Portcove couldn’t check whether you can remove this installation. Refresh to check again.",
   };
   if (!status) return unknown;
   const assessments = status.port_actions;
@@ -67,12 +69,14 @@ const definitionReasons: Record<string, string> = {
   unknown_safety_semantics: "This definition has safety requirements Portcove cannot interpret.",
   publisher_scope_required: "This publisher is not approved for this port.",
   engine_capability_required: "This version of Portcove cannot use this route.",
-  ownership_migration_required: "An existing installation needs ownership review.",
+  ownership_migration_required:
+    "Review which installation Portcove would manage before continuing.",
   metadata_replay: "The catalog update is older than the accepted version.",
   refresh_incomplete: "The catalog update did not finish.",
   metadata_stale: "The catalog information needs refreshing.",
   recorded_identity_changed: "The accepted file identity changed.",
-  authenticated_integrity_required: "The required file integrity evidence is missing.",
+  authenticated_integrity_required:
+    "Portcove is missing the expected verification for this download.",
   local_integrity_failed: "A required local file check failed.",
   mandatory_check_failed: "A required check failed.",
   source_identity_mismatch: "The game files do not match the required edition.",
@@ -88,7 +92,7 @@ export function definitionHoldReason(context: "Setup" | "Launch", reason?: strin
 }
 
 const incompatibleSourceFallback =
-  "The selected game-file format cannot be used by this runtime. Select and validate the required format before playing.";
+  "This game program can’t use that file format. Choose and check a file in the required format.";
 
 const actionReasons: Record<string, string> = {
   route_not_offered: "This route is unavailable. Check the port details for current requirements.",
@@ -106,13 +110,31 @@ const actionReasons: Record<string, string> = {
   incompatible_bios:
     "This BIOS edition is not supported by the installed version. Choose a supported BIOS file.",
   missing_runtime: "A required runtime component is missing.",
-  preparation_required: "Prepare game data before playing.",
+  preparation_required: "Finish setup before playing.",
   shared_preferences_review_required:
     "Windows account or shared preferences location changed. Remove the managed installation while keeping saves and settings, then review a fresh installation. Leave the shared preferences file in place.",
   shared_preferences_unavailable:
     "Portcove cannot safely check this game's shared preferences. Leave the file unchanged, close other copies of the game, check that your Windows profile is available, then refresh. Reinstalling does not fix an unsafe or unreadable shared location.",
   invalid_installation: "Portcove could not verify the installed files.",
 };
+
+/** Wording only; the original assessment remains available as detailed evidence. */
+export function capabilityActionReason(assessment: Assessment): string {
+  if (assessment.definition && assessment.definition.outcome !== "eligible")
+    return definitionHoldReason(
+      assessment.action === "launch" ? "Launch" : "Setup",
+      assessment.definition.reason,
+    );
+  if (assessment.reason === "available")
+    return "No current prerequisite is outstanding. Execution checks again.";
+  if (assessment.reason === "review_required") return "Review the operation before continuing.";
+  if (assessment.reason === "not_installed")
+    return "The installation or retained version required for this operation is absent.";
+  return (
+    actionReasons[assessment.reason] ??
+    "Review this operation's current requirements in its own panel."
+  );
+}
 
 function sourceFormatReason(status: PortStatus | undefined): string {
   if (status?.readiness?.source_assessment?.contract.state === "recognized_not_listed")
@@ -131,7 +153,12 @@ function sourceFormatReason(status: PortStatus | undefined): string {
 function unavailable(action: PresentedAction): ActionPresentation {
   return {
     blocked: true,
-    reason: `Current ${action === "install" ? "setup" : action} availability is unavailable. Refresh the workspace to check again.`,
+    reason:
+      action === "install"
+        ? "Portcove couldn’t check whether setup can continue. Refresh to check again."
+        : action === "rollback"
+          ? "Portcove couldn’t check whether you can restore the previous version. Refresh to check again."
+          : "Portcove couldn’t check whether this game can start. Refresh to check again.",
   };
 }
 
@@ -187,6 +214,17 @@ function presentAssessment(
     };
   if (action === "launch" && reason === "incompatible_source" && definition == null)
     return { blocked: true, reason: sourceFormatReason(status) };
+  // Core names the saved folder when it is disconnected; nothing was deleted.
+  const disconnected = status?.readiness?.source_folder_unavailable;
+  if (
+    action === "launch" &&
+    disconnected &&
+    (reason === "missing_source" || reason === "unreadable_source")
+  )
+    return {
+      blocked: true,
+      reason: `Connect ${withoutVerbatimPrefix(disconnected)} to play.`,
+    };
   const explanation = Object.hasOwn(actionReasons, reason) ? actionReasons[reason] : undefined;
   if (explanation !== undefined) return { blocked: true, reason: explanation };
   return unavailable(action);
@@ -237,7 +275,7 @@ export function catalogSetupPresentation(status: PortStatus | undefined) {
       action,
       route,
       availability: "unknown",
-      reason: "Setup status unknown. View details for current requirements.",
+      reason: "Can't check setup right now. View details for current requirements.",
     };
     const assessments = status?.port_actions;
     if (!Array.isArray(assessments)) return unknown;
@@ -317,7 +355,7 @@ export function catalogSetupPresentation(status: PortStatus | undefined) {
     : routes.some((route) => route.availability === "waiting")
       ? "Setup needs review"
       : routes.some((route) => route.availability === "unknown")
-        ? "Setup status unknown"
+        ? "Can't check right now"
         : routes.some((route) => route.availability === "held")
           ? "Setup on hold"
           : "Setup unavailable";
@@ -348,7 +386,11 @@ export function installedCardInputPresentation(status: PortStatus | undefined) {
     (reason): reason is keyof typeof installedInputLabels =>
       typeof reason === "string" && Object.hasOwn(installedInputLabels, reason),
   );
+  const disconnected = readiness.source_folder_unavailable;
+  const folderReason = (reason: string) =>
+    disconnected && (reason === "missing_source" || reason === "unreadable_source");
   const reasons = inputs.map((reason) => {
+    if (folderReason(reason)) return `Connect ${withoutVerbatimPrefix(disconnected!)} to play.`;
     const recovery = reason.startsWith("unreadable_")
       ? "View details to restore access or choose the required files again."
       : "View details to select and review the required files.";
@@ -380,7 +422,9 @@ export function installedCardInputPresentation(status: PortStatus | undefined) {
     : incompatible
       ? "Game-file format needs review"
       : inputs.length === 1 && singleInput !== undefined
-        ? installedInputLabels[singleInput]
+        ? folderReason(singleInput)
+          ? "Game-file folder disconnected"
+          : installedInputLabels[singleInput]
         : game && bios
           ? "Game files and BIOS need review"
           : bios

@@ -8,6 +8,11 @@ import { readControllerToolFile } from "./release-controller-tools.mts";
 import { errorCode, isRecord } from "./runtime-values.mts";
 import { readBoundedPublicBuildInputFile } from "./release-public-build-inputs.mts";
 import { homedir } from "node:os";
+import { catalogRefusalFile, requireCatalogRefusal } from "./release-control-step-bridge.mts";
+import {
+  applicationCoordinatorRefusalFile,
+  requireApplicationCoordinatorRefusal,
+} from "./release-coordinator-errors.mts";
 
 export async function retainControllerDiagnostics(root: string, rawPhase: unknown) {
   const phase = inspectReleaseControlPhase(rawPhase);
@@ -19,6 +24,13 @@ export async function retainControllerDiagnostics(root: string, rawPhase: unknow
     `controller-worker-${phase}-started.json`,
     `controller-job-settlement-${phase}.json`,
     `release-control-${phase}-process-ended.json`,
+    ...(phase === "coordinator"
+      ? [
+          catalogRefusalFile("launch"),
+          catalogRefusalFile("operation"),
+          applicationCoordinatorRefusalFile,
+        ]
+      : []),
     ...[
       "clock",
       "aggregate-ack",
@@ -39,8 +51,14 @@ export async function retainControllerDiagnostics(root: string, rawPhase: unknow
   const unavailable: { path: string; reason: string }[] = [];
   for (const name of names) {
     try {
-      const bytes = await readControllerToolFile(path.join(root, name), 65536);
-      JSON.parse(bytes.toString("utf8"));
+      let bytes = await readControllerToolFile(path.join(root, name), 65536);
+      const parsed: unknown = JSON.parse(bytes.toString("utf8"));
+      if (name === catalogRefusalFile("launch")) requireCatalogRefusal("launch", parsed);
+      if (name === catalogRefusalFile("operation")) requireCatalogRefusal("operation", parsed);
+      if (name === applicationCoordinatorRefusalFile) {
+        requireApplicationCoordinatorRefusal(parsed);
+        bytes = Buffer.from(JSON.stringify(parsed));
+      }
       await writeFile(path.join(directory, name), bytes, { flag: "wx", mode: 0o600 });
       files.push({
         path: name,

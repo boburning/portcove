@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { FileSearch } from "lucide-react";
 import { desktopApi } from "../api";
+import { focusAndReveal, navigationScope } from "../focus";
 import { pickSourcePath, type SourcePickerPurpose } from "../file-picker";
 import type {
   HostToolStatus,
@@ -23,6 +24,7 @@ import { Button } from "./ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle } from "./ui/dialog";
 
 export interface SourceIntakeRequest {
+  generation: number;
   portId: string;
   portName: string;
   profile: SourceProfile;
@@ -70,7 +72,7 @@ export function SourceIntakeDialog(props: SourceIntakeDialogProps) {
   const { request } = props;
   return (
     <SourceIntakeSession
-      key={`${request.portId}:${request.profile.id}:${request.purpose}:${JSON.stringify(request.paths)}`}
+      key={`${request.generation}:${request.portId}:${request.profile.id}:${request.purpose}:${JSON.stringify(request.paths)}`}
       {...props}
     />
   );
@@ -85,6 +87,7 @@ function useSourceIntakeSession({
   hostTools = [],
   hostToolActions,
 }: SourceIntakeDialogProps) {
+  const opener = useRef(typeof document === "undefined" ? null : document.activeElement);
   const copy = sourceIntakeCopy(request.purpose);
   const [result, setResult] = useState<SourceIntakeInspection>();
   const [plan, setPlan] = useState<SourceImportPlan>();
@@ -97,7 +100,22 @@ function useSourceIntakeSession({
   const selectedPathsRef = useRef(request.paths);
   const intent = useRef(0);
   const dismiss = () => {
-    if (!busy) close();
+    if (busy) return;
+    close();
+    // Base UI owns restoration. After its cleanup, reveal only the control it
+    // actually focused: native zoom can reposition the background while open.
+    requestAnimationFrame(() => {
+      const target = saved && returnFocus ? returnFocus() : opener.current;
+      if (
+        target instanceof HTMLElement &&
+        target !== document.body &&
+        target.isConnected &&
+        !target.closest("[hidden], [inert]") &&
+        document.activeElement === target &&
+        navigationScope() === document
+      )
+        focusAndReveal(target);
+    });
   };
 
   const loadInspection = useCallback(
@@ -199,6 +217,7 @@ function useSourceIntakeSession({
         plan.source.path,
         plan.mode,
         plan.plan_sha256,
+        request.generation,
       );
       if (intent.current !== current) return;
       setPlan(undefined);
@@ -333,7 +352,7 @@ function SourceIntakeSession(props: Parameters<typeof useSourceIntakeSession>[0]
           {copy.description}
         </DialogDescription>
         <NavigationHints />
-        <div className="flex items-center gap-3">
+        <div className="flex min-w-0 flex-wrap items-center gap-3">
           <Button
             data-focusable
             variant="primary"
@@ -346,11 +365,17 @@ function SourceIntakeSession(props: Parameters<typeof useSourceIntakeSession>[0]
             <Icon glyph={FileSearch} />
             {copy.choose}
           </Button>
-          <small className="text-pc-muted-foreground">{request.profile.label}</small>
+          <small className="min-w-0 [overflow-wrap:anywhere] text-pc-muted-foreground">
+            {request.profile.label}
+          </small>
         </div>
-        {busy && <p role="status">{busy}</p>}
+        {busy && (
+          <p className="mt-3" role="status">
+            {busy}
+          </p>
+        )}
         {result && (
-          <section className="grid gap-3" aria-label={copy.resultLabel}>
+          <section className="mt-3 grid gap-3" aria-label={copy.resultLabel}>
             {!result.report && (
               <>
                 <p className="mb-0 font-bold" role="status">
@@ -369,7 +394,10 @@ function SourceIntakeSession(props: Parameters<typeof useSourceIntakeSession>[0]
               <SourceIdentityPanel report={result.report} openEvidence={openEvidence} />
             )}
             {requiredTool && (
-              <section className="source-intake-tool" aria-label="Preparation tool needed">
+              <section
+                className="source-intake-tool grid gap-3"
+                aria-label="Preparation tool needed"
+              >
                 <h3>Preparation tool needed</h3>
                 <p>
                   This source format needs {requiredTool.display_name} before Portcove can finish
@@ -436,8 +464,16 @@ function SourceIntakeSession(props: Parameters<typeof useSourceIntakeSession>[0]
           onCancel={() => setPlan(undefined)}
           onApply={apply}
         />
-        {notice && <p role="status">{notice}</p>}
-        {error && <p role="alert">{error}</p>}
+        {notice && (
+          <p className="mt-3" role="status">
+            {notice}
+          </p>
+        )}
+        {error && (
+          <p className="mt-3" role="alert">
+            {error}
+          </p>
+        )}
         <DialogFooter className="mt-4">
           {refreshFailed && (
             <Button data-focusable disabled={Boolean(busy)} onClick={() => void retryRefresh()}>

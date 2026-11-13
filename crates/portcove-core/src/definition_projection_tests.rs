@@ -7,10 +7,26 @@ fn target(bytes: &[u8]) -> String {
 }
 
 fn projection() -> Value {
+    let catalog = crate::test_fixture::indexed_fixture_document(&Catalog::embedded().unwrap());
     json!({
         "contract_schema": 1, "representation": "catalog_projection",
-        "catalog": Catalog::embedded().unwrap().authoritative_document()
+        "catalog": catalog
     })
+}
+
+#[test]
+fn catalog_projection_refuses_embedded_only_patterns_in_sibling_ports() {
+    let catalog = Catalog::embedded().unwrap();
+    let document = json!({
+        "contract_schema": 1, "representation": "catalog_projection",
+        "catalog": catalog.authoritative_document()
+    });
+    let contract = serde_json::to_vec(&document).unwrap();
+    let selected = entry(&document, &contract, 0);
+    assert_ne!(selected["stable_id"], "opentyrian-opentyrian");
+    let error = inspect(&selected, &contract).unwrap_err();
+    assert_eq!(error.code, crate::ErrorCode::Unsupported);
+    assert!(error.message.contains("embedded-only"));
 }
 
 // Malformed-contract checks need a complete source graph and two siblings,
@@ -76,12 +92,59 @@ fn generic_projection() -> Value {
 }
 
 fn entry(document: &Value, contract: &[u8], port_index: usize) -> Value {
+    entry_with_reference(document, &target(contract), port_index)
+}
+
+fn entry_with_reference(document: &Value, reference: &str, port_index: usize) -> Value {
     let port = &document["catalog"]["ports"][port_index];
-    let reference = target(contract);
     // Declare the semantics of each complete port in this synthetic envelope.
     let typed: crate::PortDefinition = serde_json::from_value(port.clone()).unwrap();
-    let version = if crate::preparation::source::native(&typed) {
+    let version = if typed.optional_game_source {
+        // An optional game source needs staged-source capability version 31. Keep this
+        // branch first: a later capability chain that matched earlier would silently
+        // skip the requirement.
+        31
+    } else if typed.runtime_disc_image.is_some() {
+        // Disc-image unpacking needs staged-source capability version 30. Keep this branch
+        // directly after the optional-source one (version 31) and before every other chain:
+        // a later chain that matched first would silently skip the requirement.
+        30
+    } else if crate::package_layout::layout_capability(&typed)
+        == crate::package_layout::MACOS_LIBRARY_FILTER_CAPABILITY
+    {
+        crate::package_layout::MACOS_LIBRARY_FILTER_CAPABILITY
+    } else if typed.linux_portable_data_directory.is_some() {
+        crate::native_portable_data::NATIVE_CAPABILITY
+    } else if !typed.release.tar_xz_platforms.is_empty() {
+        if typed.adapter == crate::AdapterKind::NativePortable {
+            crate::runtime::NATIVE_MAC_BUNDLE_TAR_XZ_CAPABILITY
+        } else {
+            crate::runtime::GENERATED_CACHE_TAR_XZ_CAPABILITY
+        }
+    } else if !typed.runtime_subdirectory_by_platform.is_empty() {
+        crate::runtime::N64_PLATFORM_RUNTIME_SUBDIRECTORY_CAPABILITY
+    } else if typed.release.grant_declared_executable {
+        crate::test_fixture::grant_declared_executable_capability(&typed)
+    } else if typed.portable_marker_file.is_some() {
+        19
+    } else if !typed.reviewed_package_layouts.is_empty() {
+        crate::package_layout::NATIVE_CAPABILITY.max(
+            typed
+                .external_profile_policy
+                .map_or(0, crate::native_external_profile::minimum_capability),
+        )
+    } else if typed.release.archive_file_links {
+        crate::test_fixture::archive_file_links_capability(&typed)
+    } else if crate::native_temp::has_sibling_platforms(&typed) {
+        10
+    } else if let Some(policy) = typed.external_profile_policy {
+        crate::native_external_profile::minimum_capability(policy)
+    } else if typed.release.linux_tar_xz {
+        8
+    } else if crate::preparation::source::native(&typed) {
         6
+    } else if typed.windows_shipwright_persistence {
+        3
     } else if typed.windows_temp_directory.is_some() {
         5
     } else if typed.adapter == crate::AdapterKind::NativePortable
@@ -103,8 +166,8 @@ fn entry(document: &Value, contract: &[u8], port_index: usize) -> Value {
         .any(|runtime| runtime.trust == crate::ExternalRuntimeTrust::UserSelected)
     {
         20
-    } else if crate::persistence::requires_fresh_direct_data_guard(&typed) {
-        25
+    } else if let Some(version) = crate::persistence::fresh_direct_data_guard_capability(&typed) {
+        version
     } else if typed.mod_package_policy.is_some() {
         24
     } else if crate::persistence::ready_staged_archive(&typed) {
@@ -220,6 +283,46 @@ fn inspect(value: &Value, contract: &[u8]) -> Result<DefinitionCatalogProjection
 }
 
 #[test]
+fn settings_are_complete_operational_projection_content_not_listing_metadata() {
+    let mut document = projection();
+    let position = document["catalog"]["ports"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .position(|port| port["id"] == "shipwright")
+        .unwrap();
+    let authored: Value =
+        serde_json::from_str(include_str!("../catalog/ports/shipwright.json")).unwrap();
+    let expected = authored["integration"]["game_settings"].clone();
+    document["catalog"]["ports"][position]["game_settings"] = expected.clone();
+    let contract = serde_json::to_vec(&document).unwrap();
+    let valid = entry(&document, &contract, position);
+    let inspected = inspect(&valid, &contract).unwrap();
+    assert_eq!(
+        serde_json::to_value(
+            inspected
+                .catalog()
+                .port("shipwright")
+                .unwrap()
+                .game_settings
+                .as_ref()
+                .unwrap()
+        )
+        .unwrap(),
+        expected,
+    );
+    let mut changed = valid.clone();
+    changed["port"]["game_settings"]["files"][0]["settings"][0]["value"]["default"] = json!(60);
+    assert!(inspect(&changed, &contract).is_err());
+    let mut absent = valid;
+    absent["port"]
+        .as_object_mut()
+        .unwrap()
+        .remove("game_settings");
+    assert!(inspect(&absent, &contract).is_err());
+}
+
+#[test]
 fn current_projection_routes_keep_distinct_capability_floors() {
     let document = projection();
     let contract = serde_json::to_vec(&document).unwrap();
@@ -228,6 +331,19 @@ fn current_projection_routes_keep_distinct_capability_floors() {
         ("wave-race-64-racewave46", 21),
         ("render96ex", 20),
         ("f-zero-snes-recomp", 23),
+        (
+            "jgrennison-openttd-patches",
+            crate::package_layout::NATIVE_CAPABILITY,
+        ),
+        (
+            "gladiator-openglad",
+            crate::package_layout::NATIVE_CAPABILITY,
+        ),
+        ("troyedwardsjr-z2rs", 20),
+        ("body-harvest-recompiled", 21),
+        ("dune-ii-dune-dynasty", 18),
+        ("doom-3-classic-dhewm3", 23),
+        ("doom-3-classic-dude-doom-3-unified-development-engine", 23),
     ] {
         let position = document["catalog"]["ports"]
             .as_array()
@@ -334,9 +450,10 @@ fn every_current_port_retains_exact_bytes_and_complete_validated_source_graph() 
     let document = projection();
     println!("full catalog projection loaded: {:?}", clock.elapsed());
     let contract = serde_json::to_vec_pretty(&document).unwrap();
+    let reference = target(&contract);
     let entries: Vec<_> = (0..document["catalog"]["ports"].as_array().unwrap().len())
         .map(|port_index| {
-            let value = entry(&document, &contract, port_index);
+            let value = entry_with_reference(&document, &reference, port_index);
             let bytes = serde_json::to_vec_pretty(&value).unwrap();
             (value, bytes)
         })
@@ -358,7 +475,7 @@ fn every_current_port_retains_exact_bytes_and_complete_validated_source_graph() 
             .inspect_entry("official", value["stable_id"].as_str().unwrap(), bytes)
             .unwrap();
         assert_eq!(inspected.bytes(), *bytes);
-        assert_eq!(inspected.execution_contract(), target(&contract));
+        assert_eq!(inspected.execution_contract(), reference.as_str());
         assert_eq!(
             serde_json::to_value(inspected.port()).unwrap(),
             value["port"]
@@ -391,7 +508,7 @@ fn every_current_port_retains_exact_bytes_and_complete_validated_source_graph() 
         .unwrap();
     assert_eq!(result.entry().bytes(), *bytes);
     assert_eq!(result.contract_bytes(), contract);
-    assert_eq!(result.contract_target(), target(&contract));
+    assert_eq!(result.contract_target(), reference.as_str());
     assert_eq!(
         serde_json::to_value(result.catalog().authoritative_document()).unwrap(),
         document["catalog"]
@@ -450,6 +567,11 @@ fn supported_new_id_needs_no_per_port_dispatch_and_does_not_mutate_embedded_cata
         .unwrap()
         .to_owned();
     document["catalog"]["ports"][0]["id"] = json!("redistributable-definition-fixture");
+    // The synthetic ID has no official Shipwright persistence authority.
+    document["catalog"]["ports"][0]
+        .as_object_mut()
+        .unwrap()
+        .remove("windows_shipwright_persistence");
     for collection in ["contracts", "qualification"] {
         for record in document["catalog"]["source_catalog"][collection]
             .as_array_mut()
@@ -705,4 +827,30 @@ fn generic_projection_source_mutations_fail_after_valid_entry_inspection() {
                 .is_err()
         );
     }
+}
+
+#[test]
+fn multi_track_psx_disc_sets_require_their_reader_capability() {
+    let document = projection();
+    let position = document["catalog"]["ports"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .position(|port| port["id"] == "alexbeav-alone-in-the-dark-the-new-nightmare-recomp")
+        .unwrap();
+    let contract = serde_json::to_vec(&document).unwrap();
+    let valid = entry(&document, &contract, position);
+    assert_eq!(
+        valid["required_capabilities"],
+        json!([{"template":"psx-recomp-managed","minimum_version":4,"maximum_version":4}])
+    );
+    inspect(&valid, &contract).unwrap();
+    // A retained-scope reader would accept the entry alone; the projection's
+    // source profile makes it refuse.
+    let mut stale = valid.clone();
+    stale["required_capabilities"][0]["minimum_version"] = json!(3);
+    stale["required_capabilities"][0]["maximum_version"] = json!(3);
+    let error = inspect(&stale, &contract).unwrap_err();
+    assert_eq!(error.code, crate::ErrorCode::Verification);
+    assert!(error.message.contains("capability version 4"), "{error:?}");
 }

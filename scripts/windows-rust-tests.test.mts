@@ -28,6 +28,7 @@ import {
   validateWindowsQualificationCoreManifest,
   windowsPartitionConfig,
   readWindowsQualificationCorePacket,
+  windowsRustProducerIdentity,
   qualificationBinaryListDigest,
   writeWindowsRustSkipRoutes,
   windowsRustSkipResultsDirectory,
@@ -704,11 +705,16 @@ void test("ordinary Windows Rust compiles once and joins every execution and liv
   const build = workflowJob("fast_rust");
   const execution = workflowJob("fast_rust_tests");
   const transport = workflowJob("fast_rust_transport");
+  const ordinary =
+    "needs.classify.outputs.mode == 'fast' && contains(fromJSON(needs.classify.outputs.groups_json), 'rust')";
   for (const producer of [build, execution, transport]) {
     assert.equal(producer["runs-on"], "windows-latest");
+    // Only the partitions are deferred for a draft; the build and live transport always run.
     assert.equal(
       producer.if,
-      "needs.classify.outputs.mode == 'fast' && contains(fromJSON(needs.classify.outputs.groups_json), 'rust')",
+      producer === execution
+        ? `${ordinary} && needs.classify.outputs.windows_tests_deferred != 'true'`
+        : ordinary,
     );
     assert.equal(producer["continue-on-error"], undefined);
   }
@@ -723,6 +729,10 @@ void test("ordinary Windows Rust compiles once and joins every execution and liv
     "${{ fromJSON(needs.fast_rust.outputs.matrix) }}",
   );
   assert.ok(isRecord(execution.env));
+  assert.equal(
+    execution.env.PORTCOVE_WINDOWS_PRODUCER_ATTEMPT,
+    "${{ needs.fast_rust.outputs.producer_attempt }}",
+  );
   assert.equal(
     execution.env.PORTCOVE_WINDOWS_MANIFEST_SHA256,
     "${{ needs.fast_rust.outputs.manifest_sha256 }}",
@@ -746,6 +756,11 @@ void test("ordinary Windows Rust compiles once and joins every execution and liv
   assert.ok(Array.isArray(aggregate.needs));
   const gate: Record<string, unknown> = workflowStep("rust", "Require every Rust lane");
   assert.ok(isRecord(gate.env) && typeof gate.env.PORTCOVE_FAST_RESULTS === "string");
+  // The gate sees the same deferral flag as the partitions, so it fails a deferred draft.
+  assert.equal(
+    gate.env.PORTCOVE_WINDOWS_TESTS_DEFERRED,
+    "${{ needs.classify.outputs.windows_tests_deferred }}",
+  );
   const results: unknown = JSON.parse(gate.env.PORTCOVE_FAST_RESULTS);
   assert.ok(isRecord(results));
   assert.deepEqual(Object.keys(results).sort(), [
@@ -784,8 +799,34 @@ void test("ordinary Windows Rust compiles once and joins every execution and liv
     uploaded.with.name,
     "windows-rust-tests-${{ github.run_id }}-${{ github.run_attempt }}",
   );
-  assert.equal(downloaded.with.name, uploaded.with.name);
+  assert.equal(uploaded.id, "upload");
+  assert.equal(build.outputs.artifact_id, "${{ steps.upload.outputs.artifact-id }}");
+  assert.equal(build.outputs.producer_attempt, "${{ steps.identity.outputs.attempt }}");
+  const identity = workflowStep("fast_rust", "Record Windows test archive producer attempt");
+  assert.equal(identity.id, "identity");
+  assert.match(String(identity.run), /attempt=\$env:GITHUB_RUN_ATTEMPT/u);
+  const provenance = workflowStep(
+    "fast_rust_tests",
+    "Require and record Windows test archive provenance",
+  );
+  assert.deepEqual(provenance.env, {
+    PORTCOVE_WINDOWS_ARTIFACT_ID: "${{ needs.fast_rust.outputs.artifact_id }}",
+    PORTCOVE_WINDOWS_PRODUCER_ATTEMPT: "${{ needs.fast_rust.outputs.producer_attempt }}",
+  });
+  assert.match(String(provenance.run), /throw "Missing Windows test archive provenance/u);
+  assert.equal(downloaded.with["artifact-ids"], "${{ needs.fast_rust.outputs.artifact_id }}");
+  assert.equal(downloaded.with.name, undefined);
   assert.match(String(uploaded.with.path), /tests\.tar\.zst/u);
   assert.match(String(uploaded.with.path), /manifest\.json/u);
   assert.equal(uploaded.with["if-no-files-found"], "error");
+});
+
+void test("ordinary Windows retry identity uses only an explicit earlier producer attempt", () => {
+  const identity = qualificationPacketFixture().identity;
+  const consumer = { ...identity, attempt: "2" };
+  assert.deepEqual(windowsRustProducerIdentity(consumer, "1"), identity);
+  assert.deepEqual(windowsRustProducerIdentity(consumer, "2"), consumer);
+  assert.equal(consumer.attempt, "2");
+  for (const attempt of [undefined, "", "0", "-1", "1.5", "3"])
+    assert.throws(() => windowsRustProducerIdentity(consumer, attempt), /producer attempt/u);
 });

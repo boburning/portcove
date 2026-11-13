@@ -15,15 +15,16 @@ import { inspectNegativeSemanticDisposition } from "./release-semantic-dispositi
 import { semanticReviewCheckName } from "./release-semantic-review.mts";
 import { inspectSemanticReviewEvidence } from "./release-semantic-review.mts";
 import { validateOpportunity } from "./release-coordinator.mts";
-import type { GitHubRestReader } from "./github-api.mts";
+import type { GitHubMetadataResponse, GitHubRestReader } from "./github-operation.mts";
+import type { GitHubRequestPolicy } from "./github-client.mts";
+import { coordinatorCommandDeadline } from "./release-coordinator-deadline.mts";
 import { isRecord } from "./runtime-values.mts";
 
 /** GET-only consistency evidence. This API accepts injected transports and
  * therefore never brands its output as direct runtime/provider authority.
  * The fixed coordinator must independently authenticate its current control
  * source and producer configuration before consuming any retirement receipt. */
-function readDisposition(
-  api: GitHubRestReader,
+function* dispositionRead(
   rawConfiguration: unknown,
   rawRequest: unknown,
   checkId: number,
@@ -44,13 +45,16 @@ function readDisposition(
     checkId < 1
   )
     throw new Error("negative semantic readback requires fixed producer/request/check identity");
+  const sourceCommit =
+    "opportunity" in request ? request.opportunity.source_commit : request.source_commit;
   const started = performance.now();
   let count = 0;
-  const read = api.request.bind(api);
-  const get = (endpoint: string) => {
+  function* get(
+    endpoint: string,
+  ): Generator<CheckInventoryRead, Record<string, unknown>, GitHubMetadataResponse> {
     if (++count > 4 || performance.now() - started > 120000)
       throw new Error("negative semantic readback request/duration bound exhausted");
-    const response = read("GET", endpoint);
+    const response = yield { endpoint, remainingBytes: Infinity };
     if (
       response.status !== 200 ||
       !isRecord(response.body) ||
@@ -59,9 +63,9 @@ function readDisposition(
     )
       throw new Error("negative semantic provider record unavailable or oversized");
     return structuredClone(response.body);
-  };
-  const repository = () => {
-    const value = get("repos/boburning/portcove");
+  }
+  function* repository() {
+    const value = yield* get("repos/boburning/portcove");
     if (
       value.id !== 1354613114 ||
       value.full_name !== "boburning/portcove" ||
@@ -71,16 +75,15 @@ function readDisposition(
     )
       throw new Error("negative semantic repository differs");
     return { id: value.id, name: value.full_name, node_id: value.node_id };
-  };
-  const observe = () => {
-    const value = get(`repos/boburning/portcove/check-runs/${checkId}`);
+  }
+  function* observe() {
+    const value = yield* get(`repos/boburning/portcove/check-runs/${checkId}`);
     if (
       value.id !== checkId ||
       !isRecord(value.app) ||
       value.app.id !== config.review_app_id ||
       value.name !== semanticReviewCheckName ||
-      value.head_sha !==
-        ("opportunity" in request ? request.opportunity.source_commit : request.source_commit) ||
+      value.head_sha !== sourceCommit ||
       value.status !== "completed" ||
       value.conclusion !== "failure" ||
       typeof value.completed_at !== "string" ||
@@ -127,12 +130,12 @@ function readDisposition(
       summary_sha256: capacityDigest(value.output.summary),
       observation_sha256: capacityDigest(observed),
     };
-  };
-  const firstRepository = repository();
-  const first = observe();
-  const final = observe();
+  }
+  const firstRepository = yield* repository();
+  const first = yield* observe();
+  const final = yield* observe();
   if (
-    capacityDigest(firstRepository) !== capacityDigest(repository()) ||
+    capacityDigest(firstRepository) !== capacityDigest(yield* repository()) ||
     first.observation_sha256 !== final.observation_sha256 ||
     first.wire_sha256 !== final.wire_sha256
   )
@@ -146,13 +149,22 @@ function readDisposition(
   };
 }
 
+function runLegacy<T>(
+  api: GitHubRestReader,
+  sequence: Generator<CheckInventoryRead, T, GitHubMetadataResponse>,
+) {
+  let step = sequence.next();
+  while (!step.done) step = sequence.next(api.request("GET", step.value.endpoint));
+  return step.value;
+}
+
 export function readIndependentSemanticDisposition(
   api: GitHubRestReader,
   config: unknown,
   request: unknown,
   checkId: number,
 ) {
-  const result = readDisposition(api, config, request, checkId, false);
+  const result = runLegacy(api, dispositionRead(config, request, checkId, false));
   return { ...result, wire: inspectNegativeSemanticDisposition(result.wire) };
 }
 export function readIndependentCatalogSemanticDisposition(
@@ -161,18 +173,136 @@ export function readIndependentCatalogSemanticDisposition(
   request: unknown,
   checkId: number,
 ) {
-  return readDisposition(api, config, request, checkId, true);
+  return runLegacy(api, dispositionRead(config, request, checkId, true));
 }
 
 /** Discover a lost/unreturned Check locator without asking a human or trusting
  * the producer's local POST response. GitHub's ref/check-runs endpoint silently
  * limits coverage to the most recent 1000 suites, so enumerate suites first.
  * Missing, duplicated or excessive history stays Unknown; never re-POST here. */
+type CheckInventoryRead = { endpoint: string; remainingBytes: number };
+
 function readCheckInventory(
   api: GitHubRestReader,
   rawConfiguration: unknown,
   sourceCommit: string,
   catalog: boolean,
+) {
+  const result = runLegacy(api, checkInventory(rawConfiguration, sourceCommit, catalog));
+  return { ...result, assertUnchanged: () => runLegacy(api, result.assertUnchanged()) };
+}
+
+type SemanticSdkOptions = {
+  token: string;
+  checkToken?: string;
+  deadline: number;
+  guard: () => void;
+  maxBytes?: number;
+  requestTimeoutMs?: number;
+  fetch?: typeof globalThis.fetch;
+};
+
+async function createSemanticSdkReader(options: SemanticSdkOptions, deadline: number) {
+  let expectedUrl: string | undefined;
+  const { createGitHubClient } = await import("./github-client.mts");
+  const createReader = (token: string) =>
+    createGitHubClient({
+      credential: { kind: "explicit", token },
+      deadline,
+      maxBytes: options.maxBytes ?? 2 * 1024 ** 2,
+      ...(options.requestTimeoutMs === undefined
+        ? {}
+        : { requestTimeoutMs: options.requestTimeoutMs }),
+      allowRequest(method, url) {
+        options.guard();
+        return method === "GET" && url.href === expectedUrl;
+      },
+      ...(options.fetch ? { fetch: options.fetch } : {}),
+    });
+  const client = await createReader(options.token);
+  const checks =
+    options.checkToken === undefined || options.checkToken === options.token
+      ? client
+      : await createReader(options.checkToken);
+  async function run<T>(sequence: Generator<CheckInventoryRead, T, GitHubMetadataResponse>) {
+    let step = sequence.next();
+    while (!step.done) {
+      options.guard();
+      const endpoint = new URL(step.value.endpoint, "https://api.github.com/");
+      expectedUrl = endpoint.href;
+      let bodyBytes = 0;
+      let remainingBytes = step.value.remainingBytes;
+      const policy: GitHubRequestPolicy = {
+        replay: "once",
+        attempts: 0,
+        observe(observation) {
+          bodyBytes = observation.bytes;
+        },
+        reserve() {
+          return {
+            consumeBytes(bytes) {
+              remainingBytes -= bytes;
+              if (remainingBytes < 0)
+                throw new Error("semantic discovery aggregate byte bound exceeded");
+            },
+            settle() {},
+          };
+        },
+      };
+      const reader = endpoint.pathname === "/repos/boburning/portcove" ? client : checks;
+      const result = await reader.request(`GET ${endpoint.pathname}${endpoint.search}`, {
+        request: { portcove: policy },
+      });
+      options.guard();
+      step = sequence.next({
+        status: result.status,
+        body: result.data as unknown,
+        headers: new Map(),
+        bodyBytes,
+      });
+    }
+    return step.value;
+  }
+  return run;
+}
+
+async function readCheckInventoryWithSdk(
+  options: SemanticSdkOptions,
+  configuration: unknown,
+  sourceCommit: string,
+  catalog: boolean,
+) {
+  const deadline = Math.min(
+    options.deadline,
+    coordinatorCommandDeadline() ?? Infinity,
+    performance.now() + 120000,
+  );
+  const run = await createSemanticSdkReader(options, deadline);
+  const result = await run(checkInventory(configuration, sourceCommit, catalog, deadline));
+  return { ...result, assertUnchanged: () => run(result.assertUnchanged()) };
+}
+
+export function readIndependentSemanticCheckInventoryWithSdk(
+  options: SemanticSdkOptions,
+  configuration: unknown,
+  sourceCommit: string,
+) {
+  return readCheckInventoryWithSdk(options, configuration, sourceCommit, false);
+}
+
+export function readIndependentCatalogSemanticCheckInventoryWithSdk(
+  options: SemanticSdkOptions,
+  configuration: unknown,
+  sourceCommit: string,
+) {
+  return readCheckInventoryWithSdk(options, configuration, sourceCommit, true);
+}
+
+function* checkInventory(
+  rawConfiguration: unknown,
+  sourceCommit: string,
+  catalog: boolean,
+  parentDeadline = Infinity,
 ) {
   const config = (
     catalog
@@ -181,31 +311,30 @@ function readCheckInventory(
   )(structuredClone(rawConfiguration));
   if (!/^[a-f0-9]{40}$/u.test(sourceCommit) || config.review_check_name !== semanticReviewCheckName)
     throw new Error("negative semantic discovery requires fixed producer/request identity");
-  const start = performance.now();
+  const deadline = Math.min(parentDeadline, performance.now() + 120000);
+  const maxTotalBytes = 32 * 1024 * 1024;
   let requests = 0,
     bytes = 0;
-  const read = api.request.bind(api);
-  const bounded: GitHubRestReader = {
-    request(method, endpoint) {
-      if (method !== "GET" || ++requests > 40 || performance.now() - start > 120000)
-        throw new Error("negative semantic discovery request/duration bound exceeded");
-      const response = read("GET", endpoint);
-      const length = Buffer.byteLength(JSON.stringify(response.body));
-      bytes += length;
-      if (
-        response.status !== 200 ||
-        !isRecord(response.body) ||
-        length > 8 * 1024 * 1024 ||
-        bytes > 32 * 1024 * 1024 ||
-        performance.now() - start > 120000
-      )
-        throw new Error("negative semantic discovery provider/body bound exceeded");
-      return structuredClone(response);
-    },
-  };
-  const snapshot = () => {
-    const suitesResponse = bounded.request(
-      "GET",
+  function* get(
+    endpoint: string,
+  ): Generator<CheckInventoryRead, GitHubMetadataResponse, GitHubMetadataResponse> {
+    if (++requests > 40 || performance.now() >= deadline)
+      throw new Error("negative semantic discovery request/duration bound exceeded");
+    const response = yield { endpoint, remainingBytes: maxTotalBytes - bytes };
+    const length = response.bodyBytes ?? Buffer.byteLength(JSON.stringify(response.body));
+    bytes += length;
+    if (
+      response.status !== 200 ||
+      !isRecord(response.body) ||
+      length > 8 * 1024 * 1024 ||
+      bytes > maxTotalBytes ||
+      performance.now() >= deadline
+    )
+      throw new Error("negative semantic discovery provider/body bound exceeded");
+    return structuredClone(response);
+  }
+  function* snapshot() {
+    const suitesResponse = yield* get(
       `repos/boburning/portcove/commits/${sourceCommit}/check-suites?app_id=${config.review_app_id}&per_page=100&page=1`,
     );
     const body = suitesResponse.body;
@@ -242,8 +371,7 @@ function readCheckInventory(
       let total: number | null = null;
       const rows: Record<string, unknown>[] = [];
       for (let page = 1; page <= 10; page++) {
-        const response = bounded.request(
-          "GET",
+        const response: GitHubMetadataResponse = yield* get(
           `repos/boburning/portcove/check-suites/${suite.id}/check-runs?check_name=${encodeURIComponent(semanticReviewCheckName)}&filter=all&per_page=100&page=${page}`,
         );
         const runs = response.body;
@@ -301,9 +429,9 @@ function readCheckInventory(
       if (records.length > 1600) throw new Error("semantic check inventory record bound exceeded");
     }
     return { inventory, records };
-  };
-  const repository = () => {
-    const value = bounded.request("GET", "repos/boburning/portcove").body;
+  }
+  function* repository() {
+    const value = (yield* get("repos/boburning/portcove")).body;
     if (
       !isRecord(value) ||
       value.id !== 1354613114 ||
@@ -313,17 +441,17 @@ function readCheckInventory(
     )
       throw new Error("semantic inventory repository differs");
     return { id: value.id, name: value.full_name, node_id: value.node_id };
-  };
-  const originalRepository = repository();
-  const first = snapshot();
-  const assertUnchanged = () => {
+  }
+  const originalRepository = yield* repository();
+  const first = yield* snapshot();
+  function* assertUnchanged() {
     if (
-      capacityDigest(first) !== capacityDigest(snapshot()) ||
-      capacityDigest(repository()) !== capacityDigest(originalRepository)
+      capacityDigest(first) !== capacityDigest(yield* snapshot()) ||
+      capacityDigest(yield* repository()) !== capacityDigest(originalRepository)
     )
       throw new Error("semantic suite/run/repository inventory changed during readback");
-  };
-  assertUnchanged();
+  }
+  yield* assertUnchanged();
   return {
     records: structuredClone(first.records),
     inventory_sha256: capacityDigest(first.inventory),
@@ -341,6 +469,35 @@ export function readIndependentSemanticCheckInventory(
   sourceCommit: string,
 ) {
   return readCheckInventory(api, configuration, sourceCommit, false);
+}
+
+/** Select from an already authenticated fixed-App inventory. Catalog decisions
+ * share the Check name, but cannot replace an application decision. Unknown
+ * namespaces hold instead of allowing fallback to an older application success.
+ * The caller must still authenticate the selected report and its outcome. */
+export function selectLatestApplicationSemanticCheck(records: readonly Record<string, unknown>[]) {
+  const application: Record<string, unknown>[] = [];
+  const ids = new Set<number>();
+  for (const record of records) {
+    if (
+      typeof record.id !== "number" ||
+      !Number.isSafeInteger(record.id) ||
+      record.id < 1 ||
+      ids.has(record.id) ||
+      typeof record.external_id !== "string"
+    )
+      throw new Error("semantic Check selection requires unique provider identities");
+    ids.add(record.id);
+    if (/^portcove-catalog-review(?:-negative)?-v1:[a-f0-9]{64}$/u.test(record.external_id))
+      continue;
+    if (!/^portcove-release-review(?:-v2|-negative-v1):[a-f0-9]{64}$/u.test(record.external_id))
+      throw new Error("unknown semantic Check namespace; application selection held");
+    application.push(record);
+  }
+  application.sort((left, right) => Number(right.id) - Number(left.id));
+  const latest = application[0];
+  if (!latest) throw new Error("no independent application classification for this source");
+  return latest;
 }
 export function readIndependentCatalogSemanticCheckInventory(
   api: GitHubRestReader,
@@ -457,6 +614,32 @@ export function discoverIndependentSemanticDisposition(
   );
   inventory.assertUnchanged();
   return result;
+}
+
+export async function discoverIndependentSemanticDispositionWithSdk(
+  options: SemanticSdkOptions,
+  configuration: unknown,
+  rawRequest: unknown,
+) {
+  const request = inspectReleaseReviewRequest(rawRequest);
+  if (!request) throw new Error("negative semantic discovery requires exact request");
+  const deadline = Math.min(
+    options.deadline,
+    coordinatorCommandDeadline() ?? Infinity,
+    performance.now() + 120000,
+  );
+  const run = await createSemanticSdkReader(options, deadline);
+  const inventory = await run(
+    checkInventory(configuration, request.source_commit, false, deadline),
+  );
+  const matches = inspectSemanticRequestCheckMatches(inventory.records, request);
+  if (matches.negative.length !== 1 || matches.accepted.length !== 0)
+    throw new Error(
+      "negative semantic disposition absent or ambiguous; retain request without POST",
+    );
+  const result = await run(dispositionRead(configuration, request, matches.negative[0]!, false));
+  await run(inventory.assertUnchanged());
+  return { ...result, wire: inspectNegativeSemanticDisposition(result.wire) };
 }
 
 /** Compact declared custody only. Call this on a direct, freshly authenticated
@@ -597,6 +780,30 @@ export function discoverIndependentCatalogSemanticDisposition(
     matches.negative[0]!,
   );
   inventory.assertUnchanged();
+  return result;
+}
+
+export async function discoverIndependentCatalogSemanticDispositionWithSdk(
+  options: SemanticSdkOptions,
+  config: unknown,
+  rawRequest: unknown,
+) {
+  const request = inspectCatalogReviewRequest(rawRequest);
+  if (!request) throw new Error("catalog negative discovery requires request");
+  const deadline = Math.min(
+    options.deadline,
+    coordinatorCommandDeadline() ?? Infinity,
+    performance.now() + 120000,
+  );
+  const run = await createSemanticSdkReader(options, deadline);
+  const inventory = await run(
+    checkInventory(config, request.opportunity.source_commit, true, deadline),
+  );
+  const matches = inspectCatalogSemanticRequestCheckMatches(inventory.records, request);
+  if (matches.negative.length !== 1 || matches.accepted.length !== 0)
+    throw new Error("catalog negative absent or ambiguous; no POST");
+  const result = await run(dispositionRead(config, request, matches.negative[0]!, true));
+  await run(inventory.assertUnchanged());
   return result;
 }
 

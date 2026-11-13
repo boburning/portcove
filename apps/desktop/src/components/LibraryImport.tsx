@@ -1,7 +1,9 @@
 import { reloadWorkspace } from "../reload-workspace";
 import { useRef, useState } from "react";
+import { Trans } from "react-i18next";
 import { desktopApi } from "../api";
 import { pickInstallFolder, pickMetadataImportPath } from "../file-picker";
+import { useAppTranslation } from "../localization";
 import type { LibraryImportPlan } from "../types";
 import { errorText } from "../view-model";
 import { LibraryCopySummary, transferRecoveryRoot } from "./LibraryMove";
@@ -17,6 +19,7 @@ export function LibraryImportButton({
   disabled: boolean;
   libraryRoot: string;
 }) {
+  const { t } = useAppTranslation("settings");
   const [open, setOpen] = useState(false);
   return (
     <>
@@ -28,19 +31,23 @@ export function LibraryImportButton({
         disabled={disabled}
         onClick={() => setOpen(true)}
       >
-        Restore from a library copy
+        {t("libraryRestore.open")}
       </Button>
       {open && <LibraryImportDialog libraryRoot={libraryRoot} close={() => setOpen(false)} />}
     </>
   );
 }
 
+/** App-owned progress states; each renders one complete message. */
+type Busy = "" | "choosing" | "reviewing" | "copying" | "recovering";
+
 function LibraryImportDialog({ libraryRoot, close }: { libraryRoot: string; close: () => void }) {
+  const { t } = useAppTranslation("settings");
   const metadataInput = useRef<HTMLInputElement>(null);
   const [metadata, setMetadata] = useState("");
   const [content, setContent] = useState("");
   const [plan, setPlan] = useState<LibraryImportPlan>();
-  const [busy, setBusy] = useState("");
+  const [busy, setBusy] = useState<Busy>("");
   const [error, setError] = useState<unknown>();
   const [transferAttempted, setTransferAttempted] = useState(false);
   const dismiss = () => {
@@ -50,7 +57,7 @@ function LibraryImportDialog({ libraryRoot, close }: { libraryRoot: string; clos
     }
   };
   const recoveryRoot = transferRecoveryRoot(error, "import_destination");
-  const run = async (label: string, operation: () => Promise<void>) => {
+  const run = async (label: Exclude<Busy, "">, operation: () => Promise<void>) => {
     setBusy(label);
     setError(undefined);
     try {
@@ -63,7 +70,7 @@ function LibraryImportDialog({ libraryRoot, close }: { libraryRoot: string; clos
     }
   };
   const choose = (field: "metadata" | "content") =>
-    run("Choosing your export…", async () => {
+    run("choosing", async () => {
       const path =
         field === "metadata" ? await pickMetadataImportPath() : await pickInstallFolder(content);
       if (path) {
@@ -86,26 +93,29 @@ function LibraryImportDialog({ libraryRoot, close }: { libraryRoot: string; clos
         aria-describedby="import-library-description"
       >
         <DialogTitle id="import-library-title" className="mb-2 text-xl">
-          Restore from a library copy
+          {t("libraryRestore.title")}
         </DialogTitle>
         <DialogDescription id="import-library-description" className="mb-4 leading-relaxed">
-          You need a library metadata file and a separate copy of the original library folder.
-          Restore into a new or empty library. Review the destination and copied files first.
-          Portcove copies and verifies the restored content before opening the library. A review
-          alone does not verify a complete recovery copy. The originals stay where they are.
+          {t("libraryRestore.description")}
         </DialogDescription>
         <p>
-          <strong>Use an export you trust.</strong> Review its source, destination, required space,
-          installed versions, saved file locations, and copied files before restoring it.
+          <Trans t={t} i18nKey="libraryRestore.trust" components={{ strong: <strong /> }} />
         </p>
         <p className="min-w-0 [overflow-wrap:anywhere]">
-          Destination:{" "}
-          <bdi dir="ltr">
-            <code>{libraryRoot}</code>
-          </bdi>
+          <Trans
+            t={t}
+            i18nKey="libraryRestore.destination"
+            components={{
+              path: (
+                <bdi dir="ltr">
+                  <code>{libraryRoot}</code>
+                </bdi>
+              ),
+            }}
+          />
         </p>
         <NavigationHints />
-        <label htmlFor="import-metadata">Library metadata file</label>
+        <label htmlFor="import-metadata">{t("libraryRestore.metadata")}</label>
         <div className="grid min-w-0 gap-2 min-[48rem]:grid-cols-[minmax(0,1fr)_auto] [&_input]:min-w-0">
           <Input
             ref={metadataInput}
@@ -117,7 +127,7 @@ function LibraryImportDialog({ libraryRoot, close }: { libraryRoot: string; clos
               setMetadata(event.target.value);
               setPlan(undefined);
             }}
-            placeholder="Choose the library metadata file"
+            placeholder={t("libraryRestore.metadataPlaceholder")}
           />
           <Button
             data-focusable
@@ -127,10 +137,10 @@ function LibraryImportDialog({ libraryRoot, close }: { libraryRoot: string; clos
               void choose("metadata");
             }}
           >
-            Choose file
+            {t("libraryRestore.chooseFile")}
           </Button>
         </div>
-        <label htmlFor="import-content">Copy of the original library folder</label>
+        <label htmlFor="import-content">{t("libraryRestore.content")}</label>
         <div className="grid min-w-0 gap-2 min-[48rem]:grid-cols-[minmax(0,1fr)_auto] [&_input]:min-w-0">
           <Input
             data-focusable
@@ -141,7 +151,7 @@ function LibraryImportDialog({ libraryRoot, close }: { libraryRoot: string; clos
               setContent(event.target.value);
               setPlan(undefined);
             }}
-            placeholder="Choose the copied library folder"
+            placeholder={t("libraryRestore.contentPlaceholder")}
           />
           <Button
             data-focusable
@@ -151,26 +161,38 @@ function LibraryImportDialog({ libraryRoot, close }: { libraryRoot: string; clos
               void choose("content");
             }}
           >
-            Choose folder
+            {t("libraryRestore.chooseFolder")}
           </Button>
         </div>
         {plan && (
-          <LibraryCopySummary plan={plan} source={plan.content_root} label="Library restore plan" />
+          <LibraryCopySummary
+            plan={plan}
+            source={plan.content_root}
+            label={t("libraryRestore.plan")}
+          />
         )}
-        {busy && <p role="status">{busy} Keep Portcove open until this finishes.</p>}
+        {busy && (
+          <p role="status">
+            {busy === "choosing"
+              ? t("libraryRestore.busy.choosing")
+              : busy === "reviewing"
+                ? t("libraryRestore.busy.reviewing")
+                : busy === "copying"
+                  ? t("libraryRestore.busy.copying")
+                  : t("libraryRestore.busy.recovering")}
+          </p>
+        )}
         {error != null && <p role="alert">{errorText(error)}</p>}
-        {transferAttempted && !busy && (
-          <p>Closing this restore review refreshes the library before you continue.</p>
-        )}
+        {transferAttempted && !busy && <p>{t("libraryRestore.closeRefreshes")}</p>}
         {recoveryRoot && (
           <LibraryImportRecovery
             destination={recoveryRoot}
-            onBusyChange={(active) => setBusy(active ? "Recovering your restore…" : "")}
+            onBusyChange={(active) => setBusy(active ? "recovering" : "")}
           />
         )}
         <DialogFooter className="mt-4">
           <Button data-focusable variant="outline" disabled={Boolean(busy)} onClick={dismiss}>
-            Close
+            {t("libraryRestore.close")}
           </Button>
           {!recoveryRoot &&
             (plan ? (
@@ -179,7 +201,7 @@ function LibraryImportDialog({ libraryRoot, close }: { libraryRoot: string; clos
                 variant="primary"
                 disabled={Boolean(busy)}
                 onClick={() => {
-                  void run("Copying and verifying the restored library…", async () => {
+                  void run("copying", async () => {
                     setTransferAttempted(true);
                     await desktopApi.importLibrary(
                       plan.metadata_file.path,
@@ -190,19 +212,19 @@ function LibraryImportDialog({ libraryRoot, close }: { libraryRoot: string; clos
                   });
                 }}
               >
-                Restore this library
+                {t("libraryRestore.restore")}
               </Button>
             ) : (
               <Button
                 data-focusable
                 disabled={Boolean(busy) || !metadata.trim() || !content.trim()}
                 onClick={() => {
-                  void run("Reviewing your restore…", async () =>
+                  void run("reviewing", async () =>
                     setPlan(await desktopApi.planLibraryImport(metadata, content)),
                   );
                 }}
               >
-                Review restore
+                {t("libraryRestore.review")}
               </Button>
             ))}
         </DialogFooter>
@@ -220,6 +242,7 @@ export function LibraryImportRecovery({
   onBusyChange?: (active: boolean) => void;
   disabled?: boolean;
 }) {
+  const { t } = useAppTranslation("settings");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>();
   const recover = async () => {
@@ -238,15 +261,16 @@ export function LibraryImportRecovery({
     }
   };
   return (
-    <section aria-label="Library restore recovery">
-      <h2 className="text-base">Finish the interrupted library restore</h2>
+    <section aria-label={t("libraryRestore.recovery.label")}>
+      <h2 className="text-base">{t("libraryRestore.recovery.heading")}</h2>
       <p className="[overflow-wrap:anywhere] [unicode-bidi:plaintext]">
-        Restore destination: {destination}
+        <Trans
+          t={t}
+          i18nKey="libraryRestore.recovery.destination"
+          components={{ path: <bdi dir="ltr">{destination}</bdi> }}
+        />
       </p>
-      <p>
-        Resume the restore to verify and finish opening the copied library. The Portcove export
-        stays unchanged. Incomplete copies remain closed until recovery succeeds.
-      </p>
+      <p>{t("libraryRestore.recovery.intro")}</p>
       <Button
         data-focusable
         variant="primary"
@@ -255,9 +279,9 @@ export function LibraryImportRecovery({
           void recover();
         }}
       >
-        Resume restore
+        {t("libraryRestore.recovery.resume")}
       </Button>
-      {busy && <p role="status">Recovering the library restore…</p>}
+      {busy && <p role="status">{t("libraryRestore.recovery.busy")}</p>}
       {error && <p role="alert">{error}</p>}
     </section>
   );

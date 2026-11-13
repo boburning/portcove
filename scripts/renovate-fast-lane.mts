@@ -1,3 +1,4 @@
+import { parse, type SemVer } from "semver";
 import { isRecord } from "./runtime-values.mts";
 import { execFileSync, spawnSync } from "node:child_process";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
@@ -77,6 +78,8 @@ const controlledDependencies = new Set([
   "rustix",
   "tempfile",
 ]);
+// Executable repository tools retain the owning controlled-maintenance route.
+const controlledTools = new Set(["i18next-cli"]);
 const requiredPolicy = Object.freeze({
   automerge: false,
   internalChecksFilter: "strict",
@@ -128,19 +131,10 @@ function markdownLabel(value: string) {
   return /^\[([^\]]+)\]\([^()\s]+\)(?:\s+\(\[source\]\([^()\s]+\)\))?$/u.exec(value)?.[1] ?? value;
 }
 
-function parseVersion(value: string) {
-  const match = /^v?(\d+)\.(\d+)\.(\d+)(?:\+[0-9A-Za-z.-]+)?$/u.exec(value.trim());
-  if (!match) return null;
-  return { major: Number(match[1]), minor: Number(match[2]), patch: Number(match[3]) };
-}
-
-function versionChangeMatches(
-  updateType: string,
-  current: NonNullable<ReturnType<typeof parseVersion>>,
-  next: NonNullable<ReturnType<typeof parseVersion>>,
-) {
-  if (current.major !== next.major) return false;
-  if (updateType === "patch") return current.minor === next.minor && next.patch > current.patch;
+// Parsing/precedence belongs to semver; stable forward patch/minor eligibility is policy.
+function versionChangeMatches(updateType: string, current: SemVer, next: SemVer) {
+  if (current.major !== next.major || next.compare(current) <= 0) return false;
+  if (updateType === "patch") return current.minor === next.minor;
   return updateType === "minor" && next.minor > current.minor;
 }
 
@@ -390,6 +384,10 @@ export function classifyRenovateSnapshot({
       "manual-review-required",
       `${update.updateType || "unknown"} updates stay outside the fast lane`,
     );
+  if (controlledTools.has(update.packageName))
+    return verdict("manual-review-required", "executable tool updates require controlled review", {
+      package: update.packageName,
+    });
   if (controlledDependencies.has(update.packageName))
     return verdict(
       "manual-review-required",
@@ -398,9 +396,15 @@ export function classifyRenovateSnapshot({
         package: update.packageName,
       },
     );
-  const currentVersion = parseVersion(update.currentVersion);
-  const newVersion = parseVersion(update.newVersion);
-  if (!currentVersion || !newVersion || currentVersion.major < 1)
+  const currentVersion = parse(update.currentVersion.trim());
+  const newVersion = parse(update.newVersion.trim());
+  if (
+    !currentVersion ||
+    !newVersion ||
+    currentVersion.major < 1 ||
+    currentVersion.prerelease.length > 0 ||
+    newVersion.prerelease.length > 0
+  )
     return verdict(
       "manual-review-required",
       "pre-1.0 or non-semver updates stay outside the fast lane",

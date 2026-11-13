@@ -3,9 +3,10 @@
   "listing": {
     "id": "mario-kart-64-mariokart64recomp",
     "name": "Mario Kart 64 / MarioKart64Recomp",
-    "summary": "Explore Mario Kart 64 / MarioKart64Recomp and follow the upstream project for requirements, downloads and setup.",
+    "summary": "Mario Kart 64 / MarioKart64Recomp for your own North American original. Keep the complete Windows runtime and its profile together. Portcove does not manage replacing it.",
     "project_url": "https://gitlab.com/sonicdcer/MarioKart64Recomp",
     "issue_number": 332,
+    "listed_at": "2026-10-23",
     "platforms": ["windows-x86-64"],
     "availability": "packages",
     "setup_url": "https://gitlab.com/sonicdcer/MarioKart64Recomp/-/blob/3885e86a4b2088188ddb3914aa26ad4f147bb5df/README.md",
@@ -18,17 +19,16 @@
       "match_kind": "underlying-game"
     },
     "release_url": "https://gitlab.com/sonicdcer/MarioKart64Recomp/-/releases",
-    "download_block_reason": "Portcove downloads are paused until the applicable grant for the included Chiaro fonts is established. The font notices identify Fontworks Japan; the project code license does not settle that separate grant. Keep an existing permitted copy. Reconsider when upstream provides the applicable grant or an appropriately licensed replacement package.",
     "manual_setup": {
       "help_url": "https://gitlab.com/sonicdcer/MarioKart64Recomp/-/blob/3885e86a4b2088188ddb3914aa26ad4f147bb5df/README.md",
       "warnings": [
-        "Portcove downloads are paused until the applicable grant for the included Chiaro fonts is established. The font notices identify Fontworks Japan; the project code license does not settle that separate grant. Keep an existing permitted copy. Reconsider when upstream provides the applicable grant or an appropriately licensed replacement package.",
+        "The package includes Chiaro fonts by Fontworks that the project license does not cover. Portcove downloads it only from the project’s own releases. You need your own original game files.",
         "The reviewed v0.9.2 release currently supports single-player modes."
       ],
       "steps": [
         {
-          "title": "Keep a complete permitted copy",
-          "instruction": "Keep the complete upstream Windows runtime together with its assets and DLLs. The player is MarioKart64Recompiled.exe; select that existing executable and use its containing folder as the working directory. Retain any existing portable.txt choice. Registration preserves external ownership and does not execute setup or the game."
+          "title": "Keep the complete runtime together",
+          "instruction": "Keep the complete upstream Windows runtime together with its assets and DLLs. The player is MarioKart64Recompiled.exe; select that executable and use its containing folder as the working directory. Retain any existing portable.txt choice. Registration preserves external ownership and does not execute setup or the game."
         },
         {
           "title": "Supply your original when you choose Play",
@@ -43,6 +43,10 @@
           "instruction": "The reviewed Linux ZIP contains MarioKart64Recompiled.tar.gz: unpack both layers yourself before registering the existing player. Keep the complete upstream macOS application bundle and follow its setup instructions. Normal data roots are ~/.config/MarioKart64Recompiled/ on Linux and ~/Library/Application Support/MarioKart64Recompiled/ on macOS; portable mode instead uses the working folder or bundle-parent folder containing portable.txt. Preserve that actual location separately."
         }
       ]
-    }
+    },
+    "download_asset_hints": {
+      "windows-x86-64": ["MarioKart64Recompiled-", "-Windows-RelWithDebInfo"]
+    },
+    "recommended_download_channel": "stable"
   }
 }

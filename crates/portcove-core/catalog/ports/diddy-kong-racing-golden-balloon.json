@@ -6,6 +6,7 @@
     "name": "Golden Balloon",
     "summary": "Native Diddy Kong Racing recompilation.",
     "project_url": "https://github.com/akratch/goldenballoon",
+    "listed_at": "2026-10-23",
     "original_game_title": "Diddy Kong Racing",
     "artwork": {
       "game_id": 412063,
@@ -15,7 +16,40 @@
       "game_slug": "golden-balloon",
       "match_kind": "port"
     },
-    "issue_number": 321
+    "issue_number": 321,
+    "platforms": ["linux-x86-64", "macos-aarch64"],
+    "release_url": "https://github.com/akratch/goldenballoon/releases",
+    "setup_url": "https://github.com/akratch/goldenballoon#readme",
+    "download_asset_hints": {
+      "linux-x86-64": ["golden-balloon-", "-linux-x86_64.appimage"],
+      "macos-aarch64": ["golden-balloon-", "-macos-arm64-unsigned.dmg"]
+    },
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Open Golden Balloon on Linux",
+          "instruction": "Put the official x86-64 AppImage in a writable folder, mark it executable and open it. For the tarball, extract the whole archive and open AppRun inside Golden-Balloon.AppDir. Keep the folder together so the player can find its bundled libraries."
+        },
+        {
+          "title": "Install the Apple Silicon app",
+          "instruction": "Open the official ARM64 DMG and copy the app to Applications. If macOS blocks the unsigned app, follow the first-launch instructions in the upstream README."
+        },
+        {
+          "title": "Choose your original game",
+          "instruction": "Select your own Diddy Kong Racing US 1.1 or European 1.1 original. On Linux, browse inside the game, drag the file onto the launcher or paste its path. On Mac, use the file picker."
+        }
+      ],
+      "warnings": [
+        "Use the upstream package to install and update on Linux and Mac. Keep your saves, settings and add-ons backed up before replacing the package."
+      ],
+      "help_url": "https://github.com/akratch/goldenballoon#readme",
+      "references": [
+        {
+          "title": "Find the data you need to back up",
+          "instruction": "Keep the per-user profile or the active portable folder. On Linux, follow the upstream portable-data instructions for your package. Include saves, settings, ghosts and any custom content you want to keep."
+        }
+      ]
+    }
   },
   "integration": {
     "support_tier": "beta",
@@ -42,7 +76,13 @@
       "GoldenBalloon/mdkr64.ini",
       "GoldenBalloon/mdkr64_app.ini"
     ],
-    "runtime_mutable_paths": ["mdkr64.log", "mdkr64.prev.log", "mdkr64-online-failure.txt"],
+    "runtime_mutable_paths": [
+      "mdkr64.log",
+      "mdkr64.prev.log",
+      "mdkr64-online-failure.txt",
+      "mdkr64.ini.lock",
+      "mdkr64_app.ini.lock"
+    ],
     "launch_environment": {
       "MDKR_APP_PREFS_DIR": "."
     },
@@ -50,7 +90,7 @@
     "runtime_subdirectory": "GoldenBalloon",
     "runtime_source_filename": "dkr-v80.z64",
     "runtime_source_materialization": "n64-big-endian",
-    "launch_arguments": ["--rom", "dkr-v80.z64"],
+    "launch_arguments": ["--ui"],
     "presentation": {
       "installation_method": "portable-recompilation",
       "source_requirements": [
@@ -62,6 +102,46 @@
         }
       ],
       "saves_and_settings": "portcove-managed"
+    },
+    "game_settings": {
+      "format_version": 1,
+      "releases": [
+        {
+          "version": "v1.8.0",
+          "platform": "windows-x86-64",
+          "archive_sha256": "98ab31dd7108e478cc1469b3cbcce05e321b97b16a06035c2ea99c2122f2b0e1",
+          "source_commit": "2b69e748ec04f87a4dc6f032c598726de1b0e813",
+          "evidence_urls": [
+            "https://github.com/akratch/goldenballoon/blob/2b69e748ec04f87a4dc6f032c598726de1b0e813/platform/video_config.c",
+            "https://github.com/akratch/goldenballoon/blob/2b69e748ec04f87a4dc6f032c598726de1b0e813/platform/video_config_runtime.c",
+            "https://github.com/akratch/goldenballoon/blob/2b69e748ec04f87a4dc6f032c598726de1b0e813/platform/config_ini.c",
+            "https://github.com/akratch/goldenballoon/blob/2b69e748ec04f87a4dc6f032c598726de1b0e813/platform/audio_volume.c",
+            "https://github.com/akratch/goldenballoon/blob/2b69e748ec04f87a4dc6f032c598726de1b0e813/platform/user_paths.c"
+          ]
+        }
+      ],
+      "files": [
+        {
+          "id": "audio",
+          "path": "GoldenBalloon/mdkr64.ini",
+          "format": "ini",
+          "maximum_bytes": 32767,
+          "settings": [
+            {
+              "id": "master-volume",
+              "label": "Master volume",
+              "key": ["Audio", "MasterVolume"],
+              "value": {
+                "kind": "integer",
+                "minimum": 0,
+                "maximum": 100,
+                "step": 1,
+                "default": 100
+              }
+            }
+          ]
+        }
+      ]
     }
   }
 }

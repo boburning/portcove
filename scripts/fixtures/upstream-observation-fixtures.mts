@@ -108,7 +108,8 @@ export function fixture(overrides: FixtureOverrides = {}) {
     const reply = replies.get(url);
     assert.ok(reply, `Unexpected URL ${url}`);
     const etag = `"${observationHash(reply)}"`;
-    if (options.headers["If-None-Match"] === etag) return new Response(null, { status: 304 });
+    if (new Headers(options.headers).get("if-none-match") === etag)
+      return new Response(null, { status: 304 });
     return new Response(JSON.stringify(reply.body), {
       headers: {
         "content-type": "application/json",

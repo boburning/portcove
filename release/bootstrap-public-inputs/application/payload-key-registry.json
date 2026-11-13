@@ -1,0 +1,9 @@
+{
+  "schema_version": 1,
+  "keys": [
+    {
+      "id": "bc8310990bb854552b94113dd26c0a4a2f4733c5ec7ced4eb6b692928b5ab7e8",
+      "tauri_public_key": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDM2MEQ2QUI4NDVFQ0I4NDgKUldSSXVPeEZ1R29OTm9HRVpyeWZHcDdGdVJvUzhjV0JGdE9TN0lPR3pRbHcxMzZmMUlZcFBSYnoK"
+    }
+  ]
+}

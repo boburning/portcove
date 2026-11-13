@@ -27,12 +27,11 @@ export function inspectCompleteRunArtifactInventory(raw: unknown) {
   return { total_count: artifacts.length, artifacts };
 }
 
-/** Reuses the maintained four-page ceiling; callers retain per-request/whole-phase budgets. */
-export function readCompleteRunArtifactInventory(readPage: (page: number) => unknown) {
+/** Shared pure page validation; source-specific budgets stay with each reader. */
+function runArtifactPages() {
   const found: unknown[] = [];
   let total: number | undefined;
-  for (let page = 1; page <= 4; page++) {
-    const body = readPage(page);
+  return (body: unknown) => {
     if (
       !isRecord(body) ||
       !Array.isArray(body.artifacts) ||
@@ -46,11 +45,32 @@ export function readCompleteRunArtifactInventory(readPage: (page: number) => unk
     if (total !== body.total_count) throw new Error("artifact inventory changed");
     const rows: unknown[] = body.artifacts;
     found.push(...rows);
-    // Validate every accumulated identity before another provider read.
     inspectCompleteRunArtifactInventory({ total_count: found.length, artifacts: found });
     if (found.length === total)
       return inspectCompleteRunArtifactInventory({ total_count: total, artifacts: found });
-    if (!body.artifacts.length || found.length > total) break;
+    if (!rows.length || found.length > total) throw new Error("artifact inventory omitted records");
+    return null;
+  };
+}
+
+/** Retained synchronous release readers; retired as their owning callers migrate. */
+export function readCompleteRunArtifactInventory(readPage: (page: number) => unknown) {
+  const append = runArtifactPages();
+  for (let page = 1; page <= 4; page++) {
+    const result = append(readPage(page));
+    if (result) return result;
+  }
+  throw new Error("artifact inventory omitted records");
+}
+
+/** Await each page and validate its identities before admitting the next read. */
+export async function readCompleteRunArtifactInventoryAsync(
+  readPage: (page: number) => Promise<unknown>,
+) {
+  const append = runArtifactPages();
+  for (let page = 1; page <= 4; page++) {
+    const result = append(await readPage(page));
+    if (result) return result;
   }
   throw new Error("artifact inventory omitted records");
 }

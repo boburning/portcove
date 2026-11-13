@@ -5,6 +5,7 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 import { performance } from "node:perf_hooks";
+import { GitHubApiError } from "./github-operation.mts";
 import { createAuditZip } from "./fixtures/audit-zip-fixture.mts";
 import {
   controlHandshakeArtifactName,
@@ -78,23 +79,20 @@ async function fixture(
     artifactReads = 0;
   const calls: string[] = [];
   const options = {
-    api: {
-      request(method: string, endpoint: string) {
-        assert.equal(method, "GET");
-        calls.push(endpoint);
-        let value: unknown;
-        if (endpoint.includes("/artifacts?")) {
-          artifactReads++;
-          const artifacts = artifactReads <= missing ? [] : [structuredClone(artifact)];
-          value = { total_count: artifacts.length, artifacts };
-        } else if (endpoint.includes("/jobs?"))
-          value = { total_count: 1, jobs: [structuredClone(job)] };
-        else if (endpoint.endsWith(`/jobs/${job.id}`)) value = structuredClone(job);
-        else throw new Error(`unexpected GET ${endpoint}`);
-        return { status: 200, headers: new Map<string, string>(), body: value };
-      },
+    async read(endpoint: string) {
+      calls.push(endpoint);
+      let value: unknown;
+      if (endpoint.includes("/artifacts?")) {
+        artifactReads++;
+        const artifacts = artifactReads <= missing ? [] : [structuredClone(artifact)];
+        value = { total_count: artifacts.length, artifacts };
+      } else if (endpoint.includes("/jobs?"))
+        value = { total_count: 1, jobs: [structuredClone(job)] };
+      else if (endpoint.endsWith(`/jobs/${job.id}`)) value = structuredClone(job);
+      else throw new Error(`unexpected GET ${endpoint}`);
+      return { status: 200, body: value };
     },
-    download: () => zip,
+    download: async () => zip,
     now: () => clock,
     sleep: async (ms: number) => {
       clock += ms;
@@ -121,11 +119,129 @@ async function fixture(
   };
 }
 
+void test("coordinator artifact transfer has scoped headroom and retains a safe refusal", async (t) => {
+  const f = await fixture(t, "ready", "coordinator");
+  const phases: unknown[] = [];
+  let budget = 0;
+  await assert.rejects(
+    waitForControlArtifact(f.root, "ready", f.input, {
+      ...f.options,
+      download: async (_, deadline) => {
+        budget = deadline - performance.now();
+        throw new Error("private provider response");
+      },
+      onRefusal: (receipt) => phases.push(receipt),
+    }),
+    /handoff refused/u,
+  );
+  assert.ok(budget > 5000 && budget <= 15000);
+  assert.deepEqual(phases, [
+    { stage: "artifact-transfer", polls: 1, api_requests: 2, elapsed_ms: 0 },
+  ]);
+  assert.doesNotMatch(
+    await readFile(path.join(f.root, "control-ready-refusal.json"), "utf8"),
+    /private provider response/u,
+  );
+});
+
+void test("coordinator transfer re-joins the same just-listed archive after a bounded provider 404", async (t) => {
+  for (const role of ["ready", "observation"] as const) {
+    const f = await fixture(t, role, "coordinator");
+    const archive = await f.options.download();
+    let unavailable = 1;
+    const proof = await waitForControlArtifact(f.root, role, f.input, {
+      ...f.options,
+      download: async () => {
+        if (unavailable-- > 0)
+          throw new GitHubApiError("request_failed", "artifact archive pending", { status: 404 });
+        return archive;
+      },
+    });
+    assert.equal(proof.artifact.id, f.artifact.id);
+  }
+});
+
+void test("coordinator transfer 404 stays bounded, identity-bound and coordinator-only", async (t) => {
+  const missing = () => {
+    throw new GitHubApiError("request_failed", "artifact archive pending", { status: 404 });
+  };
+  const bounded = await fixture(t, "ready", "coordinator");
+  const phases: Record<string, unknown>[] = [];
+  let downloads = 0;
+  await assert.rejects(
+    waitForControlArtifact(bounded.root, "ready", bounded.input, {
+      ...bounded.options,
+      download: async () => {
+        downloads++;
+        return missing();
+      },
+      onRefusal: (receipt) => phases.push(receipt),
+    }),
+    /handoff refused/u,
+  );
+  assert.equal(downloads, 4);
+  assert.equal(phases[0]?.stage, "artifact-transfer");
+  assert.equal(phases[0]?.provider_status, 404);
+
+  for (const change of ["digest", "id"] as const) {
+    const changed = await fixture(t, "ready", "coordinator");
+    const archive = await changed.options.download();
+    let changedDownloads = 0;
+    await assert.rejects(
+      waitForControlArtifact(changed.root, "ready", changed.input, {
+        ...changed.options,
+        download: async () => {
+          if (++changedDownloads === 1) {
+            if (change === "digest") changed.artifact.digest = `sha256:${"0".repeat(64)}`;
+            else changed.artifact.id += 1;
+            return missing();
+          }
+          return archive;
+        },
+      }),
+      /handoff refused/u,
+    );
+    assert.equal(changedDownloads, 1, `${change} change must refuse before another download`);
+  }
+
+  const vanished = await fixture(t, "ready", "coordinator");
+  let vanishedDownloads = 0;
+  const vanishedPhases: Record<string, unknown>[] = [];
+  await assert.rejects(
+    waitForControlArtifact(vanished.root, "ready", vanished.input, {
+      ...vanished.options,
+      download: async () => {
+        vanishedDownloads++;
+        vanished.missing(Number.MAX_SAFE_INTEGER);
+        return missing();
+      },
+      onRefusal: (receipt) => vanishedPhases.push(receipt),
+    }),
+    /handoff refused/u,
+  );
+  assert.equal(vanishedDownloads, 1);
+  assert.equal(vanishedPhases[0]?.polls, 2, "a vanished pending artifact refuses on the next poll");
+
+  const other = await fixture(t, "observation", "payload");
+  let otherDownloads = 0;
+  await assert.rejects(
+    waitForControlArtifact(other.root, "observation", other.input, {
+      ...other.options,
+      download: async () => {
+        otherDownloads++;
+        return missing();
+      },
+    }),
+    /handoff refused/u,
+  );
+  assert.equal(otherDownloads, 1);
+});
+
 void test("legacy phase inventory keeps its own producer when the admission/shared name also exists", async (t) => {
   const f = await fixture(t, "observation", "payload");
-  const request = f.options.api.request;
-  f.options.api.request = (method, endpoint) => {
-    const result = request(method, endpoint);
+  const request = f.options.read;
+  f.options.read = async (endpoint) => {
+    const result = await request(endpoint);
     if (endpoint.includes("/jobs?"))
       return {
         ...result,
@@ -170,12 +286,10 @@ void test("the caller's monotonic phase deadline survives handshake pagination a
     waitForControlArtifact(f.root, "ready", f.input, {
       ...f.options,
       phaseDeadline: 2000,
-      api: {
-        request(...args: Parameters<typeof f.options.api.request>) {
-          const result = f.options.api.request(...args);
-          clock = 2001;
-          return result;
-        },
+      async read(endpoint) {
+        const result = await f.options.read(endpoint);
+        clock = 2001;
+        return result;
       },
     }),
   );
@@ -286,6 +400,28 @@ void test("same active job ready artifact becomes readable before job completion
   }, TypeError);
 });
 
+void test("coordinator refresh repeats one timed-out inventory without changing the original deadline", async (t) => {
+  for (const terminal of [false, true]) {
+    const f = await fixture(t, "ready", "coordinator", { index: 2, nonce: "a".repeat(64) });
+    const read = f.options.read;
+    let attempts = 0;
+    f.options.read = async (endpoint) => {
+      if (endpoint.includes("/artifacts?") && (++attempts === 1 || terminal)) {
+        throw new GitHubApiError("deadline_exceeded", "inert request timeout");
+      }
+      return read(endpoint);
+    };
+    const result = f.collect();
+    if (terminal) {
+      await assert.rejects(result, /retain exact attempt/u);
+      assert.equal(attempts, 2);
+    } else {
+      assert.equal((await result).artifact.id, f.artifact.id);
+      assert.equal(attempts, 3);
+    }
+  }
+});
+
 void test("actual immutable report permits live observer consumption without awaiting its queue or completion", async (t) => {
   const f = await fixture(t, "observation");
   const proof = await f.collect();
@@ -387,15 +523,15 @@ void test("provider digest changes, incomplete content and wrong payload issuer/
 void test("duplicate immutable names and provider job changes after download refuse without a second download", async (t) => {
   for (const kind of ["duplicate", "job-change", "artifact-change"] as const) {
     const f = await fixture(t);
-    const request = f.options.api.request;
+    const request = f.options.read;
     let downloaded = 0,
       reads = 0;
-    f.options.download = () => {
+    f.options.download = async () => {
       downloaded++;
       return createAuditZip([["ready.json", JSON.stringify(f.body)]]);
     };
-    f.options.api.request = (method, endpoint) => {
-      const result = request(method, endpoint);
+    f.options.read = async (endpoint) => {
+      const result = await request(endpoint);
       if (endpoint.includes("/artifacts?") && isRecord(result.body)) {
         reads++;
         if (kind === "duplicate")
@@ -412,39 +548,92 @@ void test("duplicate immutable names and provider job changes after download ref
   }
 });
 
-void test("default artifact REST path explicitly pins github.com despite ambient GH_HOST", async (t) => {
+void test("locked SDK brackets the exact control archive and does not forward credentials", async (t) => {
   const f = await fixture(t);
-  const previous = process.env.GH_HOST;
-  process.env.GH_HOST = "ambient.invalid";
-  t.after(() => {
-    if (previous === undefined) delete process.env.GH_HOST;
-    else process.env.GH_HOST = previous;
-  });
-  const { api, ...options } = f.options;
-  let requests = 0;
+  const environment = { GH_HOST: "ambient.invalid", GH_TOKEN: "ghs_SYNTHETIC_CONTROL_READER" };
+  for (const [key, value] of Object.entries(environment)) {
+    const previous = process.env[key];
+    process.env[key] = value;
+    t.after(() => {
+      if (previous === undefined) delete process.env[key];
+      else process.env[key] = previous;
+    });
+  }
+  const { read, download, ...options } = f.options;
+  const calls: string[] = [];
   const proof = await waitForControlArtifact(f.root, "ready", f.input, {
     ...options,
-    transport: {
-      spawn(command, args) {
-        requests++;
-        assert.equal(command, "gh");
-        assert.equal(process.env.GH_HOST, "ambient.invalid");
-        assert.deepEqual(args.slice(-2), ["--hostname", "github.com"]);
-        assert.equal(args[0], "api");
-        assert.equal(args[args.indexOf("--method") + 1], "GET");
-        const endpoint = args.find((arg) => arg.startsWith("repos/boburning/portcove/"));
-        assert.ok(endpoint);
-        const response = api.request("GET", endpoint);
-        return {
-          status: 0,
-          stdout: `HTTP/2.0 200 OK\r\ncontent-type: application/json\r\n\r\n${JSON.stringify(response.body)}`,
-          stderr: "",
-        };
-      },
+    async fetch(input, init) {
+      const url = new URL(input instanceof Request ? input.url : input);
+      const headers = new Headers(init?.headers);
+      calls.push(url.pathname);
+      if (url.origin === "https://api.github.com") {
+        assert.equal(init?.method, "GET");
+        assert.equal(headers.get("authorization"), `token ${environment.GH_TOKEN}`);
+        if (url.pathname.endsWith("/zip")) {
+          assert.equal(
+            url.pathname,
+            `/repos/boburning/portcove/actions/artifacts/${f.artifact.id}/zip`,
+          );
+          return new Response(null, {
+            status: 302,
+            headers: {
+              location:
+                "https://productionresultssa10.blob.core.windows.net/actions-results/control?sig=synthetic",
+            },
+          });
+        }
+        const response = await read(url.pathname.slice(1) + url.search);
+        return Response.json(response.body, { status: response.status });
+      }
+      assert.equal(init?.credentials, "omit");
+      assert.equal(headers.has("authorization"), false);
+      return new Response(Uint8Array.from(await download()));
     },
   });
-  assert.ok(requests >= 4);
+  assert.equal(proof.api_requests, 5);
+  assert.equal(calls.length, 6);
   assert.equal(proof.evidence_scope, "injected-provider");
+});
+
+void test("an inherited control deadline cancels the actual SDK response body", async (t) => {
+  const f = await fixture(t);
+  const token = process.env.GH_TOKEN;
+  process.env.GH_TOKEN = "ghs_SYNTHETIC_CONTROL_READER";
+  t.after(() => {
+    if (token === undefined) delete process.env.GH_TOKEN;
+    else process.env.GH_TOKEN = token;
+  });
+  const keepalive = setInterval(() => {}, 100);
+  t.after(() => clearInterval(keepalive));
+  let dispatches = 0;
+  let cancelled = 0;
+  await assert.rejects(
+    waitForControlArtifact(f.root, "ready", f.input, {
+      phaseDeadline: performance.now() + 500,
+      async fetch(_input, init) {
+        assert.equal(init?.method, "GET");
+        dispatches++;
+        return new Response(
+          new ReadableStream<Uint8Array>({
+            cancel() {
+              cancelled++;
+            },
+          }),
+          { headers: { "content-type": "application/json" } },
+        );
+      },
+    }),
+    /retain exact attempt/u,
+  );
+  assert.equal(dispatches, 1);
+  assert.equal(cancelled, 1);
+  const refusal: unknown = JSON.parse(
+    await readFile(path.join(f.root, "control-ready-refusal.json"), "utf8"),
+  );
+  assert.ok(isRecord(refusal));
+  assert.equal(refusal.api_requests, 1);
+  assert.equal(refusal.automatic_retry, false);
 });
 
 void test("fixed phase names bind fresh payload readiness and observation; admission proof cannot cross phases", async (t) => {

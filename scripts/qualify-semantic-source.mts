@@ -4,6 +4,10 @@ import { createHash } from "node:crypto";
 import { mkdir, readFile, realpath, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { materializeSemanticSource } from "./release-semantic-source.mts";
+import { createGitHubClient } from "./github-client.mts";
+import { sanitizeOperationError } from "./github-operation.mts";
+import { assertTrustedDirectNode } from "./release-direct-node-transport.mts";
+import { isRecord } from "./runtime-values.mts";
 
 // Public, already merged source is deliberate: this fixture qualifies the
 // credential-free transport, not candidate selection or any semantic decision.
@@ -16,41 +20,38 @@ await mkdir(output, { mode: 0o700 });
 const parent = path.join(output, "private-work");
 await mkdir(parent, { mode: 0o700 });
 let gets = 0;
-const api = {
-  request(method: string, endpoint: string) {
-    if (
-      method !== "GET" ||
-      !/^repos\/boburning\/portcove\/git\/(?:commits\/[a-f0-9]{40}|trees\/[a-f0-9]{40}\?recursive=1)$/u.test(
-        endpoint,
-      ) ||
-      ++gets > 4
-    )
-      throw new Error("fixed source fixture GET bound differs");
-    const bytes = execFileSync(
-      "/usr/bin/curl",
-      [
-        "--fail",
-        "--silent",
-        "--show-error",
-        "--proto",
-        "=https",
-        "--tlsv1.2",
-        "--max-time",
-        "15",
-        "--max-filesize",
-        "16777216",
-        "--header",
-        "Accept: application/vnd.github+json",
-        `https://api.github.com/${endpoint}`,
-      ],
-      {
-        env: { PATH: "/usr/bin:/bin", HOME: parent, LANG: "C.UTF-8" },
-        timeout: 16000,
-        maxBuffer: 16 * 1024 * 1024,
+const metadataPath =
+  /^\/repos\/boburning\/portcove\/git\/(?:commits\/[a-f0-9]{40}|trees\/[a-f0-9]{40}\?recursive=1)$/u;
+const client = await createGitHubClient({
+  credential: { kind: "anonymous" },
+  deadline: performance.now() + 135000,
+  requestTimeoutMs: 15000,
+  maxBytes: 16 * 1024 ** 2,
+  headers: { accept: "application/vnd.github+json" },
+  allowRequest(method, url) {
+    assertTrustedDirectNode("public semantic source fixture");
+    return method === "GET" && metadataPath.test(url.pathname + url.search);
+  },
+  reserve() {
+    if (gets >= 4) throw new Error("fixed source fixture GET bound differs");
+    gets++;
+    return {
+      consumeBytes() {},
+      settle(observation) {
+        if (!observation.dispatched) gets--;
       },
-    );
-    const body: unknown = JSON.parse(bytes.toString("utf8"));
-    return { status: 200, body, headers: new Map<string, string>() };
+    };
+  },
+});
+const api = {
+  async request(method: "GET", endpoint: string, deadline?: number) {
+    const response = await client.request(`${method} /${endpoint}`, {
+      request: {
+        portcove: { replay: "once", attempts: 0, ...(deadline === undefined ? {} : { deadline }) },
+      },
+    });
+    const body: unknown = response.data;
+    return { status: response.status, body, headers: new Map<string, string>() };
   },
 };
 const tools = {
@@ -58,9 +59,15 @@ const tools = {
   python_sha256: sha(await readFile(await realpath("/usr/bin/python3"))),
 };
 try {
-  const raw = api.request("GET", `repos/boburning/portcove/git/commits/${commit}`).body as {
-    tree: { sha: string };
-  };
+  const raw = (await api.request("GET", `repos/boburning/portcove/git/commits/${commit}`)).body;
+  if (
+    !isRecord(raw) ||
+    raw.sha !== commit ||
+    !isRecord(raw.tree) ||
+    typeof raw.tree.sha !== "string" ||
+    !/^[a-f0-9]{40}$/u.test(raw.tree.sha)
+  )
+    throw new Error("fixed semantic source commit/tree identity differs");
   const result = await materializeSemanticSource(
     parent,
     {
@@ -109,6 +116,7 @@ try {
     { flag: "wx" },
   );
 } catch (error) {
+  const { message } = sanitizeOperationError(error);
   await writeFile(
     path.join(output, "failure.json"),
     JSON.stringify({
@@ -118,10 +126,10 @@ try {
       tools,
       get_requests: gets,
       outcome: "refused",
-      message: error instanceof Error ? error.message.slice(0, 2048) : "unknown",
+      message,
       authority: "none",
     }),
     { flag: "wx" },
   );
-  throw error;
+  throw new Error(message);
 }

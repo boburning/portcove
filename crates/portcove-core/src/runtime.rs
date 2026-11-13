@@ -6,6 +6,83 @@ use crate::{
     Result, RuntimeIdentity, RuntimeOrigin,
 };
 
+pub(crate) const GENERATED_CACHE_TAR_XZ_CAPABILITY: u32 = 3;
+/// n64-recomp-portable capability that reads a per-platform runtime subdirectory.
+pub(crate) const N64_PLATFORM_RUNTIME_SUBDIRECTORY_CAPABILITY: u32 = 6;
+pub(crate) const NATIVE_MAC_BUNDLE_TAR_XZ_CAPABILITY: u32 = 26;
+
+fn has_github_tar_xz_route(port: &PortDefinition, platform: Platform) -> bool {
+    let release = &port.release;
+    release.provider == crate::ReleaseSource::Github
+        && port.platforms.contains(&platform)
+        && !release.curated.contains_key(&platform)
+        && !release.direct.contains_key(&platform)
+        && !release.user_prepared.contains_key(&platform)
+        && !release.managed_build.contains_key(&platform)
+        && !port.bundled_runtime.contains_key(&platform)
+        && release.asset_hints.get(&platform).is_some_and(|hints| {
+            hints
+                .iter()
+                .any(|hint| hint.to_ascii_lowercase().ends_with(".tar.xz"))
+        })
+}
+
+pub(crate) fn native_mac_bundle_tar_xz(port: &PortDefinition, platform: Platform) -> bool {
+    port.adapter == crate::AdapterKind::NativePortable
+        && matches!(platform, Platform::MacosX86_64 | Platform::MacosAarch64)
+        && port.release.tar_xz_platforms.contains(&platform)
+}
+
+pub(crate) fn validate_platform_tar_xz(port: &PortDefinition) -> Result<()> {
+    let release = &port.release;
+    for (index, platform) in release.tar_xz_platforms.iter().enumerate() {
+        if !matches!(platform, Platform::MacosX86_64 | Platform::MacosAarch64)
+            || release.tar_xz_platforms[..index].contains(platform)
+            || !has_github_tar_xz_route(port, *platform)
+        {
+            return Err(PortcoveError::usage(
+                "platform TAR.XZ requires a distinct declared Mac GitHub player route and an archive-specific asset hint",
+            ));
+        }
+        match port.adapter {
+            crate::AdapterKind::GeneratedCache if !release.linux_tar_xz => {}
+            crate::AdapterKind::NativePortable if native_mac_bundle_layout(port, *platform) => {}
+            _ => {
+                return Err(PortcoveError::usage(
+                    "platform TAR.XZ requires a generated-cache player or a reviewed native Mac app bundle",
+                ));
+            }
+        }
+    }
+    Ok(())
+}
+
+fn native_mac_bundle_layout(port: &PortDefinition, platform: Platform) -> bool {
+    if port.runtime_subdirectory_for(platform).is_some() || port.launch_from_install_root {
+        return false;
+    }
+    let Some([executable]) = port.executable_hints.get(&platform).map(Vec::as_slice) else {
+        return false;
+    };
+    let mut components = executable.split('/');
+    let Some(bundle) = components.next().filter(|name| name.ends_with(".app")) else {
+        return false;
+    };
+    if components.next() != Some("Contents")
+        || components.next() != Some("MacOS")
+        || components.next().is_none_or(str::is_empty)
+        || components.next().is_some()
+    {
+        return false;
+    }
+    port.reviewed_package_layouts
+        .get(&platform)
+        .is_some_and(|layout| {
+            layout.directories == [bundle.to_ascii_lowercase()]
+                && layout.executables == [executable.to_ascii_lowercase()]
+        })
+}
+
 impl BundledRuntime {
     pub(crate) fn identity(&self) -> RuntimeIdentity {
         RuntimeIdentity {
@@ -27,9 +104,22 @@ impl BundledRuntime {
 }
 
 pub(crate) fn validate(port: &PortDefinition) -> Result<()> {
+    crate::native_external_profile::validate(port)?;
+    crate::native_portable_data::validate(port)?;
+    validate_platform_tar_xz(port)?;
+    let linux = Platform::LinuxX86_64;
+    if port.release.linux_tar_xz
+        && (port.adapter != crate::AdapterKind::NativePortable
+            || !has_github_tar_xz_route(port, linux))
+    {
+        return Err(PortcoveError::usage(
+            "managed TAR.XZ requires a Linux x86-64 GitHub NativePortable player and an archive-specific asset hint",
+        ));
+    }
+    crate::installed_mutability::validate_shipwright_persistence(port)?;
     if port.n64_runtime_at_executable_parent
         && (port.adapter != crate::AdapterKind::N64RecompPortable
-            || port.runtime_subdirectory.is_some()
+            || port.declares_runtime_subdirectory()
             || port.launch_from_install_root
             || port.user_data_environment.is_some()
             || !port.portable_marker
@@ -66,7 +156,11 @@ pub(crate) fn validate(port: &PortDefinition) -> Result<()> {
             "a bundled runtime must cover every declared platform",
         ));
     }
-    if let Some(directory) = &port.runtime_subdirectory {
+    for directory in port
+        .runtime_subdirectory
+        .iter()
+        .chain(port.runtime_subdirectory_by_platform.values())
+    {
         crate::archive::validate_relative_path(directory, true)?;
     }
     for runtime in port.bundled_runtime.values() {
@@ -152,17 +246,23 @@ pub(crate) fn required(port: &PortDefinition, platform: Platform) -> Option<Runt
         .map(BundledRuntime::identity)
 }
 
-pub(crate) fn persistence_at_install_root(port: &PortDefinition) -> bool {
+pub(crate) fn persistence_at_install_root(port: &PortDefinition, platform: Platform) -> bool {
     port.launch_from_install_root
+        || native_mac_bundle_tar_xz(port, platform)
         || (port.adapter == crate::AdapterKind::N64RecompPortable
             && !port.n64_runtime_at_executable_parent)
 }
 
-pub(crate) fn working_root(port: &PortDefinition, install: &InstallRecord) -> PathBuf {
+pub(crate) fn working_root(
+    port: &PortDefinition,
+    install: &InstallRecord,
+    platform: Platform,
+) -> PathBuf {
     working_root_for_executable(
         port,
         &install.path,
         &install.path.join(&install.selected_executable),
+        platform,
     )
 }
 
@@ -170,10 +270,11 @@ pub(crate) fn working_root_for_executable(
     port: &PortDefinition,
     install_root: &Path,
     executable: &Path,
+    platform: Platform,
 ) -> PathBuf {
-    if let Some(directory) = &port.runtime_subdirectory {
+    if let Some(directory) = port.runtime_subdirectory_for(platform) {
         install_root.join(directory)
-    } else if persistence_at_install_root(port) {
+    } else if persistence_at_install_root(port, platform) {
         install_root.to_path_buf()
     } else {
         executable.parent().unwrap_or(install_root).to_path_buf()
@@ -185,7 +286,7 @@ pub(crate) fn ready(port: &PortDefinition, platform: Platform, install: &Install
         return install.runtime.is_none();
     };
     install.runtime.as_ref().is_some_and(|identity| {
-        let executable = working_root(port, install)
+        let executable = working_root(port, install, platform)
             .join(&identity.target_directory)
             .join(&identity.executable);
         required.same_layout(identity)

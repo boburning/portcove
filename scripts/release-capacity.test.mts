@@ -15,6 +15,7 @@ import {
   inspectSitePublicationExpectation,
   assertPublicationResultDestination,
 } from "./release-capacity.mts";
+import { retainedCatalogReviewRecoveryResources } from "./release-retained-catalog-review-resources.mts";
 import { metadataFixture, metadataBootstrapFixture } from "./fixtures/release-metadata-fixture.mts";
 import {
   inspectMetadataRenewalDescriptor,
@@ -508,9 +509,9 @@ void test("bounded eligibility never claims availability, headroom or reservatio
   assert.equal(result.headroom, "unknown");
   assert.equal(result.reservation, "none");
   assert.equal(result.authority, "none");
-  assert.equal(result.resource_estimate.total_job_minutes, 100);
+  assert.equal(result.resource_estimate.total_job_minutes, 145);
   assert.equal(result.resource_estimate.input_receipts, 163);
-  assert.equal(result.resource_estimate.declared_job_minutes, 89);
+  assert.equal(result.resource_estimate.declared_job_minutes, 145);
   assert.equal(result.resource_estimate.retention_days, 7);
 });
 void test("changed account, stop, budget, visibility, runner or resource policy refuses even a rehashed observation", () => {
@@ -540,32 +541,29 @@ void test("changed account, stop, budget, visibility, runner or resource policy 
   changed.boundary.configuration_generation = "changed";
   assert.equal(assessBoundedCapacity(changed).eligibility, "ineligible");
 });
-void test("complete held controller policy replaces historical pins without appointing capacity authority", async () => {
+void test("delivered recovery workflow is pinned separately from ordinary capacity policy", async () => {
   for (const [file, expected] of [
     [
-      "docs/qualification/application-update-production.complete.yml",
-      slice4CapacityResources.aggregate_workflow_sha256,
+      ".github/workflows/application-update-production.yml",
+      retainedCatalogReviewRecoveryResources.workflow_sha256,
     ],
-    [
-      "docs/qualification/application-update-production.complete.yml",
-      slice4CapacityResources.input_workflow_sha256,
-    ],
-    [
-      "docs/qualification/application-update-wake.held.yml",
-      slice4CapacityResources.wake_workflow_sha256,
-    ],
+    [".github/workflows/application-update-wake.yml", slice4CapacityResources.wake_workflow_sha256],
   ] as const) {
     const bytes = await readFile(new URL(`../${file}`, import.meta.url));
     const current = createHash("sha256").update(bytes).digest("hex");
     assert.equal(current, expected);
   }
+  assert.notEqual(
+    retainedCatalogReviewRecoveryResources.workflow_sha256,
+    slice4CapacityResources.aggregate_workflow_sha256,
+  );
   assert.equal(
     [
       ...slice4CapacityResources.aggregate_job_minutes,
       ...slice4CapacityResources.input_job_minutes,
       ...slice4CapacityResources.wake_job_minutes,
     ].reduce((a, b) => a + b, 0),
-    89,
+    145,
   );
   const historical = capacityFixture();
   historical.ratification.resource_policy_sha256 = "1".repeat(64);

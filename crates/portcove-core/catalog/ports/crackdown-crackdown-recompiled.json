@@ -3,13 +3,59 @@
   "listing": {
     "id": "crackdown-crackdown-recompiled",
     "name": "Crackdown (Crackdown Recompiled)",
-    "summary": "Upstream route: Windows package; Linux AppImage experimental Limits: Official launcher/setup expects own Xbox 360 files. Decide one update owner if launcher continues updating. Upstream platforms: Windows x86-64 ZIP; experimental native Linux x86-64/SteamDeck AppImage, glibc2.31+, Vulkan. Linux has no broad real-hardware validation claim. Original data: Own original, unupdated Crackdown Xbox 360 retail disc, title 4D5307DC, as ISO or extracted folder. Default.xex must be 14,270,464 bytes with SHA-256 7AAA7A8920D1C3C737E58CF583DEBAFE6013BE0A96BEC3EC136E5DE7E3377E5A. Upstream launcher verifies executable and required files; $SystemUpdate is unnecessary. Portcove setup/gameplay not verified.",
+    "summary": "Add a prepared Crackdown copy from the Windows package or Linux AppImage, preserving its exact original-data requirements, upstream-owned updates and separate base/TU6 save generations.",
     "original_game_title": "Crackdown",
     "project_url": "https://github.com/saulob/crackdown-xbox360-recompiled",
     "issue_number": 2559,
-    "platforms": [],
-    "availability": "unknown",
-    "setup_url": "https://github.com/saulob/crackdown-xbox360-recompiled"
+    "listed_at": "2026-10-25",
+    "platforms": ["windows-x86-64", "linux-x86-64"],
+    "availability": "packages",
+    "setup_url": "https://github.com/saulob/crackdown-xbox360-recompiled",
+    "manual_setup": {
+      "help_url": "https://github.com/saulob/crackdown-xbox360-recompiled/blob/757ad47070719c4cdb6405bc0047fd6d64bbe108/README.md",
+      "steps": [
+        {
+          "title": "Finish exact original-disc setup upstream",
+          "instruction": "Use the complete Windows package or Linux AppImage and your own original, unupdated Crackdown Xbox360 retail disc: title4D5307DC, Default.xex14,270,464bytes, SHA-256 7AAA7A8920D1C3C737E58CF583DEBAFE6013BE0A96BEC3EC136E5DE7E3377E5A. Complete upstream ISO/extracted-folder validation and installation until Ready to play; game/ is adjacent and $SystemUpdate is unnecessary. No disc extraction, original acquisition, compilation or installer is invoked by this registration."
+        },
+        {
+          "title": "Select the prepared native game entry",
+          "instruction": "Select crackdown.exe, its complete containing writable package directory and no arguments for ordinary Play. Keep the matching SDK/runtime/GPU DLLs, launcher resources, game data, configuration and notices together. The embedded launcher calls the native ReXApp game path in-process. Review and consent to the exact executable/CWD/arguments, then request Play separately. Windows10/11 x64, Direct3D12 and the applicable VC++ x64 runtime remain upstream prerequisites. On Linux, select the CrackdownRecompiled AppImage itself, with its folder as the working folder and no arguments; it needs no Windows runtime."
+        },
+        {
+          "title": "Complete restarts and updates outside attachment",
+          "instruction": "Window size, monitor, VSync or adapter changes can make the next launcher Play start a successor window/process; upstream restart explicitly relaunches and quits the selected process. Finish settings/setup/restart and upstream updater work separately, close every actual game/helper/successor, then attach the resulting prepared player. Do not register trg-updater.exe or rely on automatic successor adoption/termination. Upstream/user is the sole runtime-replacement owner; Core offers no external update or rollback."
+        },
+        {
+          "title": "Retain upstream save switching and cleanup boundaries",
+          "instruction": "Normal startup selects base or the separately installed TU6 guest and can recover an interrupted save switch, snapshot/swap live profile and campaign/header slots, then remove completed .switch-* staging under save-versions. These are upstream-owned writes, not Portcove migration or cross-version compatibility promises. TU6 and Four-Play/Free-for-All DLC are optional separately owned inputs with their own exact source checks; Free-for-All requires TU6. Do not remove/update content through this guide. The updater constructor may remove %TEMP%/trg-update-* directories older than24hours; ordinary exit may remove non-crash session logs unless detailed logging is enabled. Preserve recovery/diagnostic copies separately before startup/maintenance."
+        },
+        {
+          "title": "Manage this copy yourself",
+          "instruction": "Removing registration preserves external files; no external backup/restore, deletion, save conversion or managed maintenance is offered."
+        }
+      ],
+      "warnings": [
+        "This guide’s source evidence is for v0.6.2; later source revisions differ. The published package SHA-256 is the provider’s expected value. Portcove has not inspected the ZIP or executable files or confirmed which source and SDK produced them.",
+        "No actual player/helper/installer/game, native session, real save, installed-client, Supported or protected acceptance was performed. Own hard-exit/renderer/save/updater claims retain source scope, not observed safety or playability.",
+        "Keep a separate complete recovery copy outside upstream transaction/workspace directories.",
+        "Normal startup selects base or the separately installed TU6 guest and can recover an interrupted save switch, snapshot/swap live profile and campaign/header slots, then remove completed .switch-* staging under save-versions. These are upstream-owned writes, not Portcove migration or cross-version compatibility promises.",
+        "The updater constructor may remove %TEMP%/trg-update-* directories older than24hours; ordinary exit may remove non-crash session logs unless detailed logging is enabled. Preserve recovery/diagnostic copies separately before startup/maintenance.",
+        "The package includes an unlicensed TRG launcher (revision b384a28c712c9320eea8f9d50639dec49981b6c1) that the project license does not cover. Portcove downloads it only from the project’s own releases. You need your own original game files."
+      ],
+      "references": [
+        {
+          "title": "Back up the actual user-data root before first prepared startup",
+          "instruction": "The selected source uses user_data/ beside the program, or explicit --user_data_root; if the default is not writable it refuses rather than claiming another profile. Preserve settings.toml, all4D5307DC profile/campaign/header data, save-versions/base and tu6 snapshots, achievements, caches, separate originals/game/, logs and every actual --cache_root/--update_data_root/custom location. No legacy Documents migration is inferred from another title. Keep a separate complete recovery copy outside upstream transaction/workspace directories."
+        }
+      ]
+    },
+    "release_url": "https://github.com/saulob/crackdown-xbox360-recompiled/releases",
+    "download_asset_hints": {
+      "windows-x86-64": ["Crackdown-", "-windows-x64.zip"],
+      "linux-x86-64": ["CrackdownRecompiled-", "-x86_64.AppImage"]
+    },
+    "recommended_download_channel": "stable"
   },
   "upstream_lineage": {
     "format_version": 1,

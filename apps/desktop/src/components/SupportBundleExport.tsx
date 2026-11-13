@@ -1,4 +1,8 @@
+import type { TFunction } from "i18next";
 import { useLayoutEffect, useRef, useState } from "react";
+import { Trans } from "react-i18next";
+import { desktopApi } from "../api";
+import { useAppTranslation } from "../localization";
 import type { DesktopSupportBundleExport } from "../types";
 import { failurePresentation, type FailureDisplay } from "../view-model";
 import { FailureDetails } from "./FailureDetails";
@@ -6,35 +10,62 @@ import { Button } from "./ui/button";
 
 type BundleSection = DesktopSupportBundleExport["manifest"]["sections"][number];
 
-const sectionLabels = {
-  startup: "Startup diagnostics",
-  doctor: "System and library checks",
-  activities: "Recent activity history",
-  activity_capture: "Preparation output",
-  runtime_log: "Runtime log",
-} satisfies Record<BundleSection["kind"], string>;
+function sectionLabel(t: TFunction<"settings">, kind: BundleSection["kind"]): string {
+  switch (kind) {
+    case "startup":
+      return t("supportReport.section.startup");
+    case "doctor":
+      return t("supportReport.section.doctor");
+    case "activities":
+      return t("supportReport.section.activities");
+    case "activity_capture":
+      return t("supportReport.section.activityCapture");
+    case "runtime_log":
+      return t("supportReport.section.runtimeLog");
+  }
+}
 
-const sectionStatuses = {
-  included: "Included",
-  partial: "Partially included",
-  omitted: "Omitted",
-} satisfies Record<BundleSection["status"], string>;
+function sectionStatus(t: TFunction<"settings">, status: BundleSection["status"]): string {
+  switch (status) {
+    case "included":
+      return t("supportReport.status.included");
+    case "partial":
+      return t("supportReport.status.partial");
+    case "omitted":
+      return t("supportReport.status.omitted");
+  }
+}
 
-const reasonLabels = {
-  unavailable: "The diagnostic source was unavailable; its contents are unknown.",
-  read_failed: "The diagnostic source could not be fully read; any missing contents are unknown.",
-  invalid_record: "Invalid records were omitted.",
-  unsafe_file: "A file could not be safely read and was omitted.",
-  section_limit: "Some data was omitted to stay within the section size limit.",
-  total_limit: "Some data was omitted to stay within the bundle size limit.",
-  record_limit: "Some records were omitted to stay within the record limit.",
-  deadline: "Collection stopped at the time limit.",
-  incomplete_record: "An incomplete trailing record was omitted.",
-  capture_incomplete: "The retained capture may be missing later output.",
-  capture_truncated: "Some captured output was omitted when the capture limit was reached.",
-  capture_not_collected: "Retained preparation output was not collected.",
-  bounded_snapshot: "Only a bounded snapshot was collected; older or later data may be missing.",
-} satisfies Record<BundleSection["reasons"][number], string>;
+function reasonLabel(t: TFunction<"settings">, reason: BundleSection["reasons"][number]): string {
+  switch (reason) {
+    case "unavailable":
+      return t("supportReport.reason.unavailable");
+    case "read_failed":
+      return t("supportReport.reason.readFailed");
+    case "invalid_record":
+      return t("supportReport.reason.invalidRecord");
+    case "unsafe_file":
+      return t("supportReport.reason.unsafeFile");
+    case "section_limit":
+      return t("supportReport.reason.sectionLimit");
+    case "total_limit":
+      return t("supportReport.reason.totalLimit");
+    case "record_limit":
+      return t("supportReport.reason.recordLimit");
+    case "deadline":
+      return t("supportReport.reason.deadline");
+    case "incomplete_record":
+      return t("supportReport.reason.incompleteRecord");
+    case "capture_incomplete":
+      return t("supportReport.reason.captureIncomplete");
+    case "capture_truncated":
+      return t("supportReport.reason.captureTruncated");
+    case "capture_not_collected":
+      return t("supportReport.reason.captureNotCollected");
+    case "bounded_snapshot":
+      return t("supportReport.reason.boundedSnapshot");
+  }
+}
 
 export function SupportBundleExport({
   createSupportBundle,
@@ -43,8 +74,10 @@ export function SupportBundleExport({
   createSupportBundle?: (() => Promise<DesktopSupportBundleExport | undefined>) | undefined;
   disabled?: boolean;
 }) {
+  const { t } = useAppTranslation("settings");
   const [exported, setExported] = useState<DesktopSupportBundleExport>();
   const [pending, setPending] = useState(false);
+  const [folderFailed, setFolderFailed] = useState(false);
   const [failure, setFailure] = useState<{ presentation: FailureDisplay | undefined }>();
   const request = useRef(0);
   const exporting = useRef(false);
@@ -62,6 +95,7 @@ export function SupportBundleExport({
     setPending(true);
     setExported(undefined);
     setFailure(undefined);
+    setFolderFailed(false);
     try {
       const result = await createSupportBundle();
       if (request.current === current) {
@@ -78,24 +112,23 @@ export function SupportBundleExport({
     }
   };
 
+  const openFolder = () => {
+    setFolderFailed(false);
+    desktopApi.openSupportReportFolder().catch(() => setFolderFailed(true));
+  };
+
   const incomplete = exported?.manifest.sections.some((section) => section.status !== "included");
   return (
     <div className="support-bundle-export grid min-w-0 gap-3 [overflow-wrap:anywhere]">
-      <p>
-        Create a support bundle with available recent logs, operation history, and system details.
-        Game-file contents and saved credentials are excluded, but paths, file names, and other
-        metadata may remain. Review the bundle before sharing it.
-      </p>
+      <p>{t("supportReport.intro")}</p>
       <details>
         <summary data-focusable className="[scroll-margin-block:var(--space-2)]">
-          Examples of details that may remain
+          {t("supportReport.examplesSummary")}
         </summary>
-        <p>
-          Port and tool identifiers, timestamps, and other system details can remain after sensitive
-          values are redacted.
-        </p>
+        <p>{t("supportReport.examples")}</p>
       </details>
       <Button
+        data-settings-control="diagnostics"
         data-focusable
         variant="outline"
         size="sm"
@@ -103,12 +136,12 @@ export function SupportBundleExport({
         className="justify-self-start"
         onClick={() => void create()}
       >
-        {pending ? "Creating support bundle…" : "Create support bundle"}
+        {pending ? t("supportReport.creating") : t("supportReport.create")}
       </Button>
-      {pending && <p role="status">Collecting available diagnostics…</p>}
+      {pending && <p role="status">{t("supportReport.collecting")}</p>}
       {failure && (
         <div role="alert">
-          <p>Support bundle export did not finish. Try again.</p>
+          <p>{t("supportReport.failed")}</p>
           {failure.presentation && (
             <>
               <p>{failure.presentation.summary}</p>
@@ -120,32 +153,42 @@ export function SupportBundleExport({
       {exported && (
         <>
           <p role="status">
-            Support bundle saved to{" "}
-            <code dir="ltr" className="[overflow-wrap:anywhere] [unicode-bidi:isolate]">
-              {exported.path}
-            </code>
-            .{" "}
-            {incomplete
-              ? "Some diagnostics are partial or omitted. Review the collection details below."
-              : "Only the available diagnostics within collection limits were saved."}
+            <Trans
+              t={t}
+              i18nKey={incomplete ? "supportReport.savedPartial" : "supportReport.savedComplete"}
+              components={{
+                path: (
+                  <code dir="ltr" className="[overflow-wrap:anywhere] [unicode-bidi:isolate]">
+                    {exported.path}
+                  </code>
+                ),
+              }}
+            />
           </p>
-          {!exported.manifest.library_available && (
-            <p>
-              The library was unavailable during collection. Available sections are listed below.
-            </p>
-          )}
+          <Button
+            data-focusable
+            variant="outline"
+            size="sm"
+            className="justify-self-start"
+            onClick={openFolder}
+          >
+            {t("supportReport.openFolder")}
+          </Button>
+          {folderFailed && <p role="alert">{t("supportReport.openFolderFailed")}</p>}
+          {!exported.manifest.library_available && <p>{t("supportReport.libraryUnavailable")}</p>}
           <details>
             <summary data-focusable className="[scroll-margin-block:var(--space-2)]">
-              View support bundle contents
+              {t("supportReport.contentsSummary")}
             </summary>
-            <p>
-              This is a bounded snapshot. Older or later activity and log output may be missing.
-            </p>
-            <ul aria-label="Support bundle sections" className="grid gap-3 ps-5">
+            <p>{t("supportReport.contentsLimits")}</p>
+            <ul aria-label={t("supportReport.sectionsLabel")} className="grid gap-3 ps-5">
               {exported.manifest.sections.map((section, index) => (
                 <li key={`${section.kind}:${section.entry ?? index}`}>
                   <strong>
-                    {sectionLabels[section.kind]}: {sectionStatuses[section.status]}
+                    {t("supportReport.sectionSummary", {
+                      section: sectionLabel(t, section.kind),
+                      status: sectionStatus(t, section.status),
+                    })}
                   </strong>
                   {section.entry && (
                     <p>
@@ -157,7 +200,7 @@ export function SupportBundleExport({
                   {section.reasons.length > 0 && (
                     <ul className="ps-5">
                       {section.reasons.map((reason) => (
-                        <li key={reason}>{reasonLabels[reason]}</li>
+                        <li key={reason}>{reasonLabel(t, reason)}</li>
                       ))}
                     </ul>
                   )}

@@ -7,8 +7,9 @@
     "original_game_title": "Blake Stone: Planet Strike",
     "project_url": "https://github.com/bibendovsky/bstone",
     "issue_number": 2556,
+    "listed_at": "2026-10-25",
     "availability": "packages",
-    "setup_url": "https://github.com/bibendovsky/bstone/blob/e65a6b40b960a409d7ea840580c2431f56fb6fd4/README.md",
+    "setup_url": "https://github.com/bibendovsky/bstone#readme",
     "artwork": {
       "game_id": 8490,
       "cover_id": 95891,
@@ -23,7 +24,7 @@
       "steps": [
         {
           "title": "Choose the runtime owner and original edition",
-          "instruction": "This managed offer uses --ps for Planet Strike only. The managed Windows offer uses the official package and a private profile under its executable parent. The following upstream/external setup steps remain the non-owning alternative, including supported shareware where applicable. Existing registrations are not converted. Use a separate library or upstream-owned copy for another edition or runtime owner; one entry/library cannot contain both simultaneously."
+          "instruction": "This managed offer uses --ps for Planet Strike only. The managed offer uses the official Windows x64, Linux x64 or Intel Mac package and a private profile beside the selected player. The following upstream/external setup steps remain the non-owning alternative, including supported shareware where applicable. Existing registrations are not converted. Use a separate library or upstream-owned copy for another edition or runtime owner; one entry/library cannot contain both simultaneously."
         },
         {
           "title": "Use this original game and edition",
@@ -31,19 +32,27 @@
         },
         {
           "title": "Prepare upstream and select the real player",
-          "instruction": "Extract the official Windows 64-bit BStone ZIP into a separate player folder, keeping its companions. The .sig beside the ZIP is a separate signature file. GOG/Steam installations may be detected; otherwise set --data_dir and your complete original-data folder as two separate argument lines. Register bstone.exe inside its wrapper with that folder as the working directory. Add --ps as a separate argument to choose this game."
+          "instruction": "For an upstream-owned copy, extract the official BStone ZIP for Windows x64, Linux x64 or Intel Mac into a separate folder and keep the complete package. The .sig beside the ZIP is a separate signature file. GOG/Steam installations may be detected; otherwise set --data_dir and your complete original-data folder as two separate argument lines. Register bstone.exe on Windows or bstone on Linux or Intel Mac, with its enclosing folder as the working directory. Add --ps as a separate argument to choose this game."
         },
+        {
+          "title": "Add the game and manage your files",
+          "instruction": "Finish setup with the project’s tools before adding the game. Portcove saves your selected executable, working folder and launch arguments; choose Play separately when you are ready. You manage this game’s files, original files and profile. Removing its registration leaves those files in place. Portcove does not offer updates, backups, rollback, data migration or file deletion for this external copy. Keep a working copy and its data before changing versions. Linux needs glibc 2.29 or later for the reviewed build. The official Mac ZIP is Intel-only and the reviewed executable needs macOS 14 or later."
+        }
+      ],
+      "warnings": [
+        "Aliens of Gold shareware/full and Planet Strike have distinct aog_sw/aog_full/ps data names but can share a profile. --profile_dir plus a directory redirects the profile without migrating it. Preserve the actual profile, original data and separate mod folders with the player closed before replacing upstream files."
+      ],
+      "help_url": "https://github.com/bibendovsky/bstone#readme",
+      "references": [
         {
           "title": "Keep the actual original and player data",
           "instruction": "Windows normally uses %APPDATA%/bibendovsky/bstone for settings, saves and screenshots. Aliens of Gold shareware/full and Planet Strike have distinct aog_sw/aog_full/ps data names but can share a profile. --profile_dir plus a directory redirects the profile without migrating it. Preserve the actual profile, original data and separate mod folders with the player closed before replacing upstream files."
         },
         {
-          "title": "Keep external ownership and deliberate Play",
-          "instruction": "Finish upstream setup first. Registration saves your selected executable, working directory and literal arguments; Play is a separate explicit action. You and upstream own this external runtime, original files and profile. Registration-only removal preserves them. Managed Update, Backup, Rollback, migration and deletion are not offered for these external files. Preserve a working copy and its data before upstream replacement. Other platforms require their own supported upstream application/native flow."
+          "title": "Reviewed BStone package",
+          "instruction": "The reviewed Linux x64 and Intel Mac ZIPs are documented at https://github.com/bibendovsky/bstone/releases/tag/v1.3.4."
         }
-      ],
-      "warnings": [],
-      "help_url": "https://github.com/bibendovsky/bstone/blob/e65a6b40b960a409d7ea840580c2431f56fb6fd4/README.md"
+      ]
     }
   },
   "upstream_lineage": {
@@ -61,18 +70,36 @@
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],
-    "platforms": ["windows-x86-64"],
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64"],
     "adapter": "native-portable",
+    "reviewed_package_layouts": {
+      "windows-x86-64": {
+        "directories": [],
+        "executables": ["bstone.exe"]
+      },
+      "linux-x86-64": {
+        "directories": [],
+        "executables": ["bstone"]
+      },
+      "macos-x86-64": {
+        "directories": [],
+        "executables": ["bstone"]
+      }
+    },
     "automated_tested_platforms": [],
     "manually_validated_platforms": [],
     "release": {
       "repository": "bibendovsky/bstone",
       "asset_hints": {
-        "windows-x86-64": ["bstone-", "-win64.zip"]
+        "windows-x86-64": ["bstone-", "-win64.zip"],
+        "linux-x86-64": ["bstone-", "-linux.zip"],
+        "macos-x86-64": ["bstone-", "-darwin.zip"]
       }
     },
     "executable_hints": {
-      "windows-x86-64": ["bstone.exe"]
+      "windows-x86-64": ["bstone.exe"],
+      "linux-x86-64": ["bstone"],
+      "macos-x86-64": ["bstone"]
     },
     "windows_runtime_path_policy": "relative-file-max-path",
     "launch_arguments": ["--ps", "--data_dir", "originals", "--profile_dir", "profile"],

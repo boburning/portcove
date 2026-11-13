@@ -260,7 +260,12 @@ void test("actual qualifier CLI keeps auth in the supervisor and binds inert inp
       encoding: "utf8",
       timeout: 45000,
       maxBuffer: 128 * 1024,
-      env: { PATH: process.env.PATH, SystemRoot: process.env.SystemRoot, LANG: "C.UTF-8" },
+      env: {
+        PATH: process.env.PATH,
+        SystemRoot: process.env.SystemRoot,
+        TMPDIR: process.env.TMPDIR,
+        LANG: "C.UTF-8",
+      },
     },
   );
   assert.equal(child.error, undefined, child.stderr);

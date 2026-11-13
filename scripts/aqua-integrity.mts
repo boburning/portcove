@@ -1,7 +1,9 @@
+import { parseDocument } from "yaml";
 import { isRecord } from "./runtime-values.mts";
 import type { SpawnSyncOptionsWithStringEncoding } from "node:child_process";
-import { spawnSync } from "node:child_process";
-import { copyFile, mkdir, mkdtemp, readFile, rename, rm } from "node:fs/promises";
+import { createGitHubClient } from "./github-client.mts";
+import { localDeveloperCredential } from "./github-cli.mts";
+import { copyFile, mkdir, mkdtemp, readFile, rename, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { runAqua } from "./tool-cache.mts";
@@ -73,18 +75,47 @@ function exactUnique(values: readonly string[], label: string) {
 }
 
 export function parseAquaConfig(contents: string) {
-  const normalized = contents.replaceAll("\r\n", "\n");
-  const structure =
-    /^# yaml-language-server: \$schema=https:\/\/raw\.githubusercontent\.com\/aquaproj\/aqua\/main\/json-schema\/aqua-yaml\.json\nregistries:\n  - type: standard\n    ref: (\S+)\n\nchecksum:\n  enabled: true\n  require_checksum: true\n\npackages:\n((?:  - name: [^@\s]+@\S+\n?)+)$/u.exec(
-      normalized,
-    );
-  if (!structure)
-    throw new Error(
+  if (Buffer.byteLength(contents, "utf8") > 64 * 1024)
+    throw new Error("aqua.yaml exceeds the 64 KiB configuration limit");
+  const document = parseDocument(contents, { uniqueKeys: true, version: "1.2" });
+  if (
+    document.errors.length ||
+    document.warnings.length ||
+    document.directives?.yaml.version !== "1.2"
+  )
+    throw new Error("Invalid or unsupported Aqua YAML", {
+      cause: document.errors[0] ?? document.warnings[0],
+    });
+  const config: unknown = document.toJS({ maxAliasCount: 0 });
+  const policyError = () =>
+    new Error(
       "aqua.yaml must use the maintained standard registry, required checksums, and default package authority only",
     );
-  const packages = [...(structure[2] ?? "").matchAll(/^ {2}- name: ([^@\s]+)@(\S+)$/gmu)].map(
-    ([, name, version]) => ({ name: name ?? "", version: version ?? "" }),
-  );
+  const hasKeys = (value: unknown, keys: string[]): value is Record<string, unknown> =>
+    isRecord(value) &&
+    Object.keys(value).length === keys.length &&
+    keys.every((key) => Object.hasOwn(value, key));
+  if (
+    !hasKeys(config, ["registries", "checksum", "packages"]) ||
+    !Array.isArray(config.registries) ||
+    config.registries.length !== 1 ||
+    !hasKeys(config.registries[0], ["type", "ref"]) ||
+    config.registries[0].type !== "standard" ||
+    typeof config.registries[0].ref !== "string" ||
+    !/^\S+$/u.test(config.registries[0].ref) ||
+    !hasKeys(config.checksum, ["enabled", "require_checksum"]) ||
+    config.checksum.enabled !== true ||
+    config.checksum.require_checksum !== true ||
+    !Array.isArray(config.packages)
+  )
+    throw policyError();
+  const registryRef = config.registries[0].ref;
+  const packages = config.packages.map((entry: unknown) => {
+    if (!hasKeys(entry, ["name"]) || typeof entry.name !== "string") throw policyError();
+    const match = /^([^@\s]+)@(\S+)$/u.exec(entry.name);
+    if (!match) throw policyError();
+    return { name: match[1]!, version: match[2]! };
+  });
   if (!packages.length) throw new Error("aqua.yaml must define at least one package");
   exactUnique(
     packages.map(({ name }) => name),
@@ -97,8 +128,7 @@ export function parseAquaConfig(contents: string) {
       throw new Error(`${name} must use an exact version`);
     if (!assetInventories[name]) throw new Error(`no maintained platform inventory for ${name}`);
   }
-  if (!structure[1]) throw new Error("Missing standard registry ref");
-  return { registryRef: structure[1], packages };
+  return { registryRef, packages };
 }
 
 export function parseReleaseChecksumId(id: string) {
@@ -200,7 +230,6 @@ export function verifyPublisherDigests(entries: readonly AquaChecksumEntry[], re
 }
 
 function run(
-  command: string,
   arguments_: string[],
   options: Pick<SpawnSyncOptionsWithStringEncoding, "cwd" | "env"> = {},
 ) {
@@ -210,18 +239,17 @@ function run(
     env: options.env ?? process.env,
     windowsHide: true,
   };
-  const result =
-    command === "aqua" ? runAqua(arguments_, settings) : spawnSync(command, arguments_, settings);
+  const result = runAqua(arguments_, settings);
   if (result.error) throw result.error;
   if (result.status !== 0)
     throw new Error(
-      `${command} ${arguments_.join(" ")} failed: ${result.stderr.trim() || result.stdout.trim()}`,
+      `aqua ${arguments_.join(" ")} failed: ${result.stderr.trim() || result.stdout.trim()}`,
     );
   return result.stdout.trim();
 }
 
 function assertPinnedAquaVersion(expected: string) {
-  const output = run("aqua", ["-v"]);
+  const output = run(["-v"]);
   const actual = /^aqua version (\S+)$/mu.exec(output)?.[1];
   if (`v${actual}` !== expected)
     throw new Error(
@@ -229,19 +257,115 @@ function assertPinnedAquaVersion(expected: string) {
     );
 }
 
-function releaseMetadata(config: AquaConfig) {
-  return Object.fromEntries(
-    config.packages.map(({ name, version }) => {
-      const output = run("gh", [
-        "api",
-        "--method",
-        "GET",
-        `repos/${name}/releases/tags/${encodeURIComponent(version)}`,
-      ]);
-      const release: unknown = JSON.parse(output);
-      return [`${name}@${version}`, release];
-    }),
+async function releaseMetadata(config: AquaConfig) {
+  const deadline = performance.now() + 120_000;
+  const client = await createGitHubClient({
+    credential: localDeveloperCredential({ deadline }),
+    deadline,
+    allowRequest: (method, url) =>
+      method === "GET" &&
+      config.packages.some(
+        ({ name, version }) =>
+          url.pathname === `/repos/${name}/releases/tags/${encodeURIComponent(version)}`,
+      ),
+  });
+  const entries: [string, unknown][] = [];
+  for (const { name, version } of config.packages) {
+    const response = await client.request("GET /repos/{owner}/{repo}/releases/tags/{tag}", {
+      owner: name.split("/")[0]!,
+      repo: name.split("/")[1]!,
+      tag: version,
+      request: { portcove: { replay: "safe-read", attempts: 0 } },
+    });
+    entries.push([`${name}@${version}`, response.data]);
+  }
+  return Object.fromEntries(entries);
+}
+
+/**
+ * Derive the pinned Aqua executable identity from its publisher release. Only
+ * fields already recorded for a platform are refreshed, so the bootstrap shape
+ * stays reviewed while version, asset id, size and digest follow `.aqua-version`.
+ */
+export function deriveAquaBootstrap(bootstrap: unknown, version: string, release: unknown) {
+  if (
+    !isRecord(bootstrap) ||
+    !isRecord(bootstrap.aqua) ||
+    !isRecord(bootstrap.aqua.artifacts) ||
+    !/^v\d+\.\d+\.\d+$/u.test(version)
+  )
+    throw new Error("tool bootstrap must record an Aqua version and artifacts");
+  if (!isRecord(release) || release.tag_name !== version || !Array.isArray(release.assets))
+    throw new Error(`publisher release metadata is missing for aquaproj/aqua@${version}`);
+  const assets: unknown[] = release.assets;
+  const artifacts: Record<string, unknown> = {};
+  for (const [platform, recorded] of Object.entries(bootstrap.aqua.artifacts)) {
+    if (!isRecord(recorded) || typeof recorded.archive !== "string")
+      throw new Error(`tool bootstrap Aqua artifact is invalid: ${platform}`);
+    const matches = assets.filter((asset) => isRecord(asset) && asset.name === recorded.archive);
+    const asset = matches[0];
+    if (matches.length !== 1 || !isRecord(asset))
+      throw new Error(`publisher asset is missing or ambiguous: aquaproj/aqua/${recorded.archive}`);
+    const digest = asset.digest;
+    if (typeof digest !== "string" || !/^sha256:[a-f0-9]{64}$/u.test(digest))
+      throw new Error(`publisher SHA-256 digest is missing for aquaproj/aqua/${recorded.archive}`);
+    const refreshed: Record<string, unknown> = { ...recorded };
+    if ("asset_id" in recorded) {
+      if (!Number.isSafeInteger(asset.id) || Number(asset.id) <= 0)
+        throw new Error(`publisher asset id is invalid for aquaproj/aqua/${recorded.archive}`);
+      refreshed.asset_id = asset.id;
+    }
+    if ("bytes" in recorded) {
+      if (!Number.isSafeInteger(asset.size) || Number(asset.size) <= 0)
+        throw new Error(`publisher asset size is invalid for aquaproj/aqua/${recorded.archive}`);
+      refreshed.bytes = asset.size;
+    }
+    refreshed.sha256 = digest.slice("sha256:".length).toUpperCase();
+    artifacts[platform] = refreshed;
+  }
+  return { ...bootstrap, aqua: { ...bootstrap.aqua, artifacts, version } };
+}
+
+async function aquaReleaseMetadata(version: string) {
+  const deadline = performance.now() + 120_000;
+  const client = await createGitHubClient({
+    credential: localDeveloperCredential({ deadline }),
+    deadline,
+    allowRequest: (method, url) =>
+      method === "GET" &&
+      url.pathname === `/repos/aquaproj/aqua/releases/tags/${encodeURIComponent(version)}`,
+  });
+  const response = await client.request("GET /repos/{owner}/{repo}/releases/tags/{tag}", {
+    owner: "aquaproj",
+    repo: "aqua",
+    tag: version,
+    request: { portcove: { replay: "safe-read", attempts: 0 } },
+  });
+  return response.data;
+}
+
+async function updateBootstrap(version: string) {
+  const file = path.join(projectRoot, ".config", "tool-bootstrap.json");
+  const text = await readFile(file, "utf8");
+  const derived = deriveAquaBootstrap(
+    JSON.parse(text),
+    version,
+    await aquaReleaseMetadata(version),
   );
+  const next = `${JSON.stringify(derived, null, 2)}\n`;
+  if (next === text) return false;
+  const promotion = `${file}.${process.pid}.tmp`;
+  try {
+    await writeFile(promotion, next, "utf8");
+    if ((await readFile(file, "utf8")) !== text)
+      throw new Error(
+        ".config/tool-bootstrap.json changed while Aqua identity repair was running; retry",
+      );
+    await rename(promotion, file);
+  } finally {
+    await rm(promotion, { force: true });
+  }
+  return true;
 }
 
 function stableNonReleaseEntries(ledger: AquaChecksumLedger) {
@@ -285,6 +409,10 @@ async function loadCurrent(validateInventory = true) {
 async function update() {
   const current = await loadCurrent(false);
   const aquaVersion = (await readFile(path.join(projectRoot, ".aqua-version"), "utf8")).trim();
+  // The executable identity needs no installed Aqua, so a Renovate `.aqua-version`
+  // bump is repaired before the pinned executable is required below.
+  if (await updateBootstrap(aquaVersion))
+    console.log(`Updated .config/tool-bootstrap.json to Aqua ${aquaVersion} publisher identity.`);
   assertPinnedAquaVersion(aquaVersion);
 
   const workRoot = path.join(projectRoot, "work");
@@ -296,7 +424,7 @@ async function update() {
   try {
     await copyFile(path.join(projectRoot, "aqua.yaml"), stagedConfig);
     await copyFile(path.join(projectRoot, "aqua-checksums.json"), stagedLedger);
-    run("aqua", ["--config", stagedConfig, "update-checksum", "--prune"], {
+    run(["--config", stagedConfig, "update-checksum", "--prune"], {
       cwd: temporary,
       env: {
         ...process.env,
@@ -309,7 +437,7 @@ async function update() {
     const generated: unknown = JSON.parse(generatedText);
     const releaseEntries = validateAquaChecksumLedger(current.config, generated);
     requireStableNonReleaseEntries(current.ledger, generated);
-    verifyPublisherDigests(releaseEntries, releaseMetadata(current.config));
+    verifyPublisherDigests(releaseEntries, await releaseMetadata(current.config));
 
     await copyFile(stagedLedger, promotion);
     requireUnchangedInputs(current, {
@@ -327,10 +455,29 @@ async function update() {
 }
 
 async function main(argv: string[]) {
-  if (argv.length !== 1 || !["--check", "--update"].includes(argv[0] ?? ""))
-    throw new Error("usage: aqua-integrity.mts --check|--update");
+  if (argv.length !== 1 || !["--check", "--update", "--update-bootstrap"].includes(argv[0] ?? ""))
+    throw new Error("usage: aqua-integrity.mts --check|--update|--update-bootstrap");
+  if (argv[0] === "--update-bootstrap") {
+    // Refresh only the Aqua executable identity, so automation can install the
+    // newly pinned Aqua before --update regenerates package checksums with it.
+    const aquaVersion = (await readFile(path.join(projectRoot, ".aqua-version"), "utf8")).trim();
+    console.log(
+      (await updateBootstrap(aquaVersion))
+        ? `Updated .config/tool-bootstrap.json to Aqua ${aquaVersion} publisher identity.`
+        : `.config/tool-bootstrap.json already records Aqua ${aquaVersion}.`,
+    );
+    return;
+  }
   if (argv[0] === "--check") {
     const current = await loadCurrent();
+    const aquaVersion = (await readFile(path.join(projectRoot, ".aqua-version"), "utf8")).trim();
+    const bootstrap: unknown = JSON.parse(
+      await readFile(path.join(projectRoot, ".config", "tool-bootstrap.json"), "utf8"),
+    );
+    if (!isRecord(bootstrap) || !isRecord(bootstrap.aqua) || bootstrap.aqua.version !== aquaVersion)
+      throw new Error(
+        `.config/tool-bootstrap.json does not record Aqua ${aquaVersion}; run just aqua-integrity-update`,
+      );
     console.log(
       `Aqua package versions and ${current.releaseEntries.length} required platform checksums are synchronized.`,
     );

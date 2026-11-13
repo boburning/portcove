@@ -3,13 +3,54 @@
   "listing": {
     "id": "half-life-xash3d-fwgs",
     "name": "Half-Life (Xash3D FWGS)",
-    "summary": "Upstream route: Native cross-platform engine with current continuous binary packages. Limits: Original valve data and compatible HLSDK game library; separate game targets/mods only with evidence. Upstream platforms: Windows/Linux official continuous packages default to x86/32-bit on x86 hosts for Half-Life compatibility. x86/ARM and other platform source ports documented; CPU/game-library pairing matters. Original data: Original valve data and compatible HLSDK game library; separate game targets/mods only with evidence. Portcove setup/gameplay not verified.",
+    "summary": "Play Half-Life with the FWGS Xash3D engine and your own original valve data and matching game libraries. Official Windows and Linux continuous packages normally use 32-bit x86 for game-library compatibility; choose matching engine and library architectures. Other platforms and mods have separate requirements. Portcove has not confirmed setup or gameplay.",
     "original_game_title": "Half-Life",
     "project_url": "https://github.com/FWGS/xash3d-fwgs",
-    "platforms": [],
+    "platforms": ["macos-x86-64", "macos-aarch64"],
     "availability": "unknown",
     "setup_url": "https://github.com/FWGS/xash3d-fwgs",
-    "issue_number": 2678
+    "issue_number": 2678,
+    "listed_at": "2026-10-25",
+    "manual_setup": {
+      "help_url": "https://github.com/FWGS/xash3d-fwgs/tree/a7becfdf8d134eb2ae5cd083a45c816e6b4e42fc",
+      "steps": [
+        {
+          "title": "Keep the complete compatible Half-Life engine tuple",
+          "instruction": "Use a permitted complete official FWGS Windows copy with your own compatible Half-Life valve data and the game libraries matching that engine. Select native xash3d.exe with its companion engine DLLs/resources. The normal launcher loads the engine in the same process. The default Windows engine is 32-bit for Steam game-DLL compatibility; a 64-bit engine needs compatible game libraries and does not automatically run 32-bit DLLs. Keep an already working tuple rather than mixing architectures, substituting a DLL/server, rebuilding an SDK or assuming arbitrary GoldSrc mods work."
+        },
+        {
+          "title": "Retain the creating root and write directories",
+          "instruction": "Keep the actual prepared working directory, established game arguments and original valve/game trees. The engine can resolve its root from existing XASH3D_BASEDIR, otherwise its SDL base path with a working-directory fallback; it then changes to that root. An existing -rodir argument or XASH3D_RODIR can select a separate read-only data root. Preserve the creating environment and both actual roots; Portcove does not inject environment variables or force a new data layout. Keep the full writable game directory, saves, configuration, custom downloads/mods, logs and unknown files, plus all matching runtime libraries and read-only originals. Do not assume Steam’s profile or another runtime folder owns all state."
+        },
+        {
+          "title": "Check the working copy before registration",
+          "instruction": "Finish setup with the project’s tools, then start and quit the copy you intend to add. Keep its game executable, working folder and supported launch arguments. Review those details in Portcove and agree to launch them, then choose Play separately. Adding a copy does not confirm its game files or save compatibility."
+        },
+        {
+          "title": "Keep updates and removal under the existing owner",
+          "instruction": "Close every running copy of the game before changing files. Keep the working game version and every data and profile folder recoverable. Update it with the project’s tools, then review and select the changed executable in Portcove before choosing Play. You manage setup, updates, file changes, data migration and recovery. Portcove monitors the process you selected; it does not prevent other copies from running or restrict the game’s file access. Removing the registration leaves external files in place. This route does not offer Portcove downloads, setup, updates, backups, rollback, data migration or external-file deletion."
+        },
+        {
+          "title": "Prepare a matching Mac engine and game tree",
+          "instruction": "Choose the official Xash3D FWGS Apple amd64 or arm64 tarball for Intel or Apple Silicon. Unpack it into a writable folder and keep its packaged Half-Life client and game libraries. Merge your compatible original Half-Life valve game data into that tree, preserving the matching engine libraries. Run the supplied xash3d from that folder."
+        }
+      ],
+      "warnings": [
+        "Use only a copy and content you are already permitted to use. Engine licensing does not grant rights to original game assets, music, mods or bundled components.",
+        "Before updating the game, keep a copy of its working files and every location containing saved data. Choosing a different executable does not give it a separate profile."
+      ],
+      "references": [
+        {
+          "title": "Keep the external Mac game tree",
+          "instruction": "Back up the complete working Xash3D folder and its actual save, config, mod and data roots before using an upstream replacement. Retain any separate read-only data root and the engine and game libraries that created the profile."
+        }
+      ]
+    },
+    "release_url": "https://github.com/FWGS/xash3d-fwgs/releases/tag/continuous",
+    "download_asset_hints": {
+      "macos-x86-64": ["xash3d-fwgs-apple-amd64.tar.xz"],
+      "macos-aarch64": ["xash3d-fwgs-apple-arm64.tar.xz"]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

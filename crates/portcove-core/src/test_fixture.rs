@@ -4,6 +4,53 @@ use std::{
     path::{Path, PathBuf},
 };
 
+#[cfg(test)]
+pub(crate) fn gitlab_listing_observation() -> serde_json::Value {
+    serde_json::json!({
+        "provider":"gitlab", "repository":"example/game", "repository_id":7,
+        "status":"complete", "attempted_at":"2026-10-27T00:01:00Z",
+        "observed_at":"2026-10-27T00:00:00Z", "fresh_until":"2026-10-27T12:00:00Z",
+        "facts_sha256":"a".repeat(64), "release_limit":4,
+        "releases":[{
+            "id":{"provider":"gitlab","project_id":7,"tag":"v1.2.0"},
+            "version":"v1.2.0", "release_url":"https://gitlab.com/example/game/-/releases/v1.2.0",
+            "published_at":"2026-10-26T00:00:00Z", "provider_prerelease":false,
+            "assets_complete":true, "assets":[]
+        }]
+    })
+}
+
+pub(crate) fn v26_diagnostic_port(id: &str) -> crate::PortDefinition {
+    let value: serde_json::Value =
+        serde_json::from_str(include_str!("../tests/fixtures/direct-diagnostic-v26.json")).unwrap();
+    serde_json::from_value(
+        value["ports"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|p| p["id"] == id)
+            .unwrap()
+            .clone(),
+    )
+    .unwrap()
+}
+
+#[cfg(windows)]
+pub(crate) fn v26_diagnostic_contract(id: &str) -> crate::PortSourceContract {
+    let value: serde_json::Value =
+        serde_json::from_str(include_str!("../tests/fixtures/direct-diagnostic-v26.json")).unwrap();
+    serde_json::from_value(
+        value["source_contracts"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|p| p["port_id"] == id)
+            .unwrap()
+            .clone(),
+    )
+    .unwrap()
+}
+
 pub(crate) fn versioned_mod_catalog() -> crate::Catalog {
     crate::Catalog::from_json(
         &serde_json::json!({
@@ -25,6 +72,26 @@ pub(crate) fn versioned_mod_catalog() -> crate::Catalog {
     .unwrap()
 }
 
+/// The capability a port's declared-executable grant requires, by adapter.
+pub(crate) fn grant_declared_executable_capability(port: &crate::PortDefinition) -> u32 {
+    match port.adapter {
+        crate::AdapterKind::LibultrashipPortable => 4,
+        crate::AdapterKind::GeneratedCache => 2,
+        _ => crate::package_layout::native_executable_grant_capability(port),
+    }
+}
+
+/// A fixture using archive file links may also declare an external profile guard.
+pub(crate) fn archive_file_links_capability(port: &crate::PortDefinition) -> u32 {
+    let archive = match port.adapter {
+        crate::AdapterKind::N64RecompPortable => 5,
+        _ => 14,
+    };
+    port.external_profile_policy
+        .map(crate::native_external_profile::minimum_capability)
+        .map_or(archive, |profile| profile.max(archive))
+}
+
 pub(crate) fn definition_requirements(
     port: &crate::PortDefinition,
     default_version: u32,
@@ -41,9 +108,38 @@ pub(crate) fn definition_requirements(
             json!({"template":"staged-source-portable","minimum_version":11,"maximum_version":11}),
         ];
     }
-    vec![
+    // A Windows tracked handoff needs a native-portable reader that tracks
+    // successors whatever the adapter, listed beside the adapter's own floor.
+    let handoff = crate::launch::TRACKED_HANDOFF_NATIVE_CAPABILITY;
+    if port.windows_tracked_handoff && port.adapter == crate::AdapterKind::NativePortable {
+        let version = default_version.max(handoff);
+        return vec![
+            json!({"template":port.adapter,"minimum_version":version,"maximum_version":version}),
+        ];
+    }
+    let default_version = if crate::persistence::requires_psx_retained_scope(port) {
+        default_version.max(crate::persistence::PSX_RETAINED_SCOPE_CAPABILITY)
+    } else {
+        default_version
+    };
+    // Track counts live in the embedded source profile, not on the port.
+    let default_version = if port.adapter == crate::AdapterKind::PsxRecompManaged
+        && crate::Catalog::embedded()
+            .is_ok_and(|catalog| catalog.requires_psx_multi_track_set(port))
+    {
+        default_version.max(crate::adapter::PSX_MULTI_TRACK_SET_CAPABILITY)
+    } else {
+        default_version
+    };
+    let mut requirements = vec![
         json!({"template":port.adapter,"minimum_version":default_version,"maximum_version":default_version}),
-    ]
+    ];
+    if port.windows_tracked_handoff {
+        requirements.push(
+            json!({"template":"native-portable","minimum_version":handoff,"maximum_version":handoff}),
+        );
+    }
+    requirements
 }
 
 /// Preserve the last entered test phase when nextest terminates a slow process.
@@ -113,6 +209,28 @@ fn historical_port_catalog(snapshot: &str) -> crate::Catalog {
     crate::Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap()
 }
 
+pub(crate) fn legacy_opentyrian_indexed_port(
+    port: &crate::PortDefinition,
+) -> crate::PortDefinition {
+    let mut port = port.clone();
+    for pattern in &mut port.persistent_file_patterns {
+        pattern.allow_empty_middle = false;
+    }
+    port
+}
+
+pub(crate) fn indexed_fixture_document(catalog: &crate::Catalog) -> crate::CatalogDocument {
+    let mut document = catalog.authoritative_document();
+    if let Some(port) = document
+        .ports
+        .iter_mut()
+        .find(|port| port.id == "opentyrian-opentyrian")
+    {
+        *port = legacy_opentyrian_indexed_port(port);
+    }
+    document
+}
+
 /// Give synthetic installer fixtures the same complete retention input as a
 /// production catalog operation, with their explicitly modified port contract.
 pub(crate) fn retained_qualification(
@@ -174,7 +292,7 @@ pub(crate) fn indexed_catalog_bundle_at_revision(
 /// Immutable projection bytes shared only within one synthetic fixture lifetime.
 /// Each revision still receives a distinct entry/index and fresh authentication.
 pub(crate) struct IndexedCatalogFixture<'a> {
-    port: &'a crate::PortDefinition,
+    port: std::borrow::Cow<'a, crate::PortDefinition>,
     contract: Vec<u8>,
     contract_sha256: String,
 }
@@ -186,13 +304,18 @@ impl<'a> IndexedCatalogFixture<'a> {
         // repeating pretty-print whitespace throughout the complete projection.
         let mut contract = serde_json::to_vec(&serde_json::json!({
             "contract_schema":1,"representation":"catalog_projection",
-            "catalog":catalog.authoritative_document()
+            "catalog":indexed_fixture_document(catalog)
         }))
         .unwrap();
         contract.push(b'\n');
         let contract_sha256 = hex::encode(Sha256::digest(&contract));
+        let port = catalog.port(port_id).unwrap();
         Self {
-            port: catalog.port(port_id).unwrap(),
+            port: if port_id == "opentyrian-opentyrian" {
+                std::borrow::Cow::Owned(legacy_opentyrian_indexed_port(port))
+            } else {
+                std::borrow::Cow::Borrowed(port)
+            },
             contract,
             contract_sha256,
         }
@@ -203,10 +326,53 @@ impl<'a> IndexedCatalogFixture<'a> {
         use sha2::{Digest, Sha256};
         let contract = &self.contract;
         let leaf = format!("sha256/{}.json", self.contract_sha256);
-        let port = self.port;
+        let port = self.port.as_ref();
         let port_id = &port.id;
-        let capability_version = if crate::preparation::source::native(port) {
+        let capability_version = if port.optional_game_source {
+            // An optional game source needs staged-source capability version 31. Keep this
+            // branch first: a later capability chain that matched earlier would silently
+            // skip the requirement.
+            31
+        } else if port.runtime_disc_image.is_some() {
+            // Disc-image unpacking needs staged-source capability version 30. Keep this branch
+            // directly after the optional-source one (version 31) and before every other chain:
+            // a later chain that matched first would silently skip the requirement.
+            30
+        } else if crate::package_layout::layout_capability(port)
+            == crate::package_layout::MACOS_LIBRARY_FILTER_CAPABILITY
+        {
+            crate::package_layout::MACOS_LIBRARY_FILTER_CAPABILITY
+        } else if port.linux_portable_data_directory.is_some() {
+            crate::native_portable_data::NATIVE_CAPABILITY
+        } else if !port.release.tar_xz_platforms.is_empty() {
+            if port.adapter == crate::AdapterKind::NativePortable {
+                crate::runtime::NATIVE_MAC_BUNDLE_TAR_XZ_CAPABILITY
+            } else {
+                crate::runtime::GENERATED_CACHE_TAR_XZ_CAPABILITY
+            }
+        } else if !port.runtime_subdirectory_by_platform.is_empty() {
+            crate::runtime::N64_PLATFORM_RUNTIME_SUBDIRECTORY_CAPABILITY
+        } else if port.release.grant_declared_executable {
+            crate::test_fixture::grant_declared_executable_capability(port)
+        } else if port.portable_marker_file.is_some() {
+            19
+        } else if !port.reviewed_package_layouts.is_empty() {
+            crate::package_layout::NATIVE_CAPABILITY.max(
+                port.external_profile_policy
+                    .map_or(0, crate::native_external_profile::minimum_capability),
+            )
+        } else if port.release.archive_file_links {
+            archive_file_links_capability(port)
+        } else if crate::native_temp::has_sibling_platforms(port) {
+            10
+        } else if let Some(policy) = port.external_profile_policy {
+            crate::native_external_profile::minimum_capability(policy)
+        } else if port.release.linux_tar_xz {
+            8
+        } else if crate::preparation::source::native(port) {
             6
+        } else if port.windows_shipwright_persistence {
+            3
         } else if port.windows_temp_directory.is_some() {
             5
         } else if port.adapter == crate::AdapterKind::NativePortable
@@ -228,8 +394,8 @@ impl<'a> IndexedCatalogFixture<'a> {
             20
         } else if crate::preparation::has_manual_marker(port) {
             2
-        } else if crate::persistence::requires_fresh_direct_data_guard(port) {
-            25
+        } else if let Some(version) = crate::persistence::fresh_direct_data_guard_capability(port) {
+            version
         } else if port.mod_package_policy.is_some() {
             24
         } else if crate::persistence::ready_staged_archive(port) {
@@ -330,10 +496,14 @@ impl<'a> IndexedCatalogFixture<'a> {
 fn indexed_policy_fixtures_keep_delivered_reader_floors() {
     let catalog = crate::Catalog::embedded().unwrap();
     for (id, version) in [
-        ("re-rac-rerac", 2),
+        ("re-rac-rerac", crate::package_layout::NATIVE_CAPABILITY),
         ("resident-evil-gaiden-recomp", 21),
         ("wave-race-64-racewave46", 21),
         ("render96ex", 20),
+        (
+            "star-wars-x-wing-openxw",
+            crate::package_layout::NATIVE_CAPABILITY,
+        ),
     ] {
         let bundle = IndexedCatalogFixture::new(&catalog, id).at_revision(7);
         let entry: serde_json::Value = serde_json::from_slice(&bundle.contents[0].1).unwrap();
@@ -379,7 +549,7 @@ fn indexed_fixture_revisions_preserve_full_catalog_projection() {
         assert_eq!(projection.entry().revision(), revision);
         assert_eq!(
             serde_json::to_value(projection.catalog().authoritative_document()).unwrap(),
-            serde_json::to_value(catalog.authoritative_document()).unwrap()
+            serde_json::to_value(indexed_fixture_document(&catalog)).unwrap()
         );
     }
 }
@@ -526,6 +696,74 @@ pub(crate) fn admitted_indexed_catalog(catalog: &crate::Catalog, port_id: &str) 
     catalog
 }
 
+/// Make a fixture port also declare the running host, reusing the platform-keyed
+/// facts of a platform the port already declares (Linux first, for Unix naming).
+///
+/// Lifecycle fixtures borrow real catalog ports only as convenient shapes. On a
+/// host the real port does not ship for (for example macOS), they would otherwise
+/// fail before reaching the behavior under test. Hosts the port already declares
+/// are unchanged, so Windows and Linux coverage stays byte-identical. The real
+/// embedded catalog is never modified. Per-platform `release` routes and
+/// validation records are not projected; use a port without them, or extend
+/// this before relying on them.
+pub(crate) fn declare_host_platform(port: &mut crate::PortDefinition) {
+    use crate::Platform;
+
+    let host = Platform::current().unwrap();
+    if port.executable_hints.contains_key(&host) {
+        return;
+    }
+    let donor = [
+        Platform::LinuxX86_64,
+        Platform::MacosAarch64,
+        Platform::MacosX86_64,
+        Platform::WindowsX86_64,
+    ]
+    .into_iter()
+    .find(|platform| port.executable_hints.contains_key(platform))
+    .unwrap_or_else(|| panic!("{} declares no executable on any platform", port.id));
+    let hints = port.executable_hints[&donor].clone();
+    port.executable_hints.insert(host, hints);
+    if let Some(hints) = port.setup_executable_hints.get(&donor).cloned() {
+        port.setup_executable_hints.insert(host, hints);
+    }
+    if let Some(runtime) = port.bundled_runtime.get(&donor).cloned() {
+        port.bundled_runtime.insert(host, runtime);
+    }
+    if let Some(layout) = port.reviewed_package_layouts.get(&donor).cloned() {
+        port.reviewed_package_layouts.insert(host, layout);
+    }
+    if !port.platforms.contains(&host) {
+        port.platforms.push(host);
+    }
+}
+
+/// `catalog` with [`declare_host_platform`] applied to each of `port_ids`.
+pub(crate) fn host_declared_catalog(catalog: &crate::Catalog, port_ids: &[&str]) -> crate::Catalog {
+    let host = crate::Platform::current().unwrap();
+    let mut document = catalog.authoritative_document();
+    let mut changed = false;
+    for id in port_ids {
+        let port = document
+            .ports
+            .iter_mut()
+            .find(|port| port.id == *id)
+            .unwrap_or_else(|| panic!("fixture port {id} is not cataloged"));
+        changed |= !port.executable_hints.contains_key(&host);
+        declare_host_platform(port);
+    }
+    if !changed {
+        // Keep declared hosts on the exact catalog instance the test supplied.
+        return catalog.clone();
+    }
+    crate::Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap()
+}
+
+/// The embedded catalog with [`declare_host_platform`] applied to `port_ids`.
+pub(crate) fn host_declared_embedded_catalog(port_ids: &[&str]) -> crate::Catalog {
+    host_declared_catalog(&crate::Catalog::embedded().unwrap(), port_ids)
+}
+
 /// Create a valid catalog with one source-backed port that did not exist when
 /// the embedded client catalog was built.
 pub(crate) fn post_client_catalog() -> (crate::Catalog, String) {
@@ -569,6 +807,9 @@ pub(crate) fn post_client_catalog() -> (crate::Catalog, String) {
     source.contracts.push(contract);
 
     port.id = port_id.clone();
+    declare_host_platform(&mut port);
+    // The synthetic port does not inherit the official Shipwright package route.
+    port.windows_shipwright_persistence = false;
     port.name = "Post-client definition fixture".to_string();
     port.summary = "A valid port definition published after this client was built.".to_string();
     port.source_profile = Some(profile_id);
@@ -711,4 +952,121 @@ pub(crate) fn library_file_snapshot(library: &crate::Library) -> Vec<(PathBuf, S
     visit(library.root(), library.root(), &mut files);
     files.sort_by(|left, right| left.0.cmp(&right.0));
     files
+}
+
+/// Generated enrollment is checked independently by retained observations and
+/// expectations in each existing lifecycle harness. No title-specific Rust entry.
+#[derive(serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct RouteEnrollment {
+    pub port_id: String,
+    pub prepared_player: PreparedRouteFacts,
+    pub managed_native: bool,
+}
+#[derive(serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct PreparedRouteFacts {
+    pub executable: String,
+    pub working_directory: String,
+    pub arguments: Vec<String>,
+    pub data_locations: Vec<String>,
+}
+pub(crate) fn route_enrollment() -> Vec<RouteEnrollment> {
+    #[derive(serde::Deserialize)]
+    #[serde(deny_unknown_fields)]
+    struct Envelope {
+        format_version: u32,
+        cases: Vec<RouteEnrollment>,
+    }
+    let envelope: Envelope =
+        serde_json::from_str(include_str!("../catalog/route-enrollment.generated.json")).unwrap();
+    assert_eq!(envelope.format_version, 1);
+    assert!(!envelope.cases.is_empty());
+    let mut ids = std::collections::BTreeSet::new();
+    for case in &envelope.cases {
+        assert!(
+            ids.insert(&case.port_id),
+            "duplicate route enrollment: {}",
+            case.port_id
+        );
+        assert_eq!(case.prepared_player.working_directory, "executable-parent");
+        assert!(!case.prepared_player.data_locations.is_empty());
+    }
+    let mut expected_ids = std::collections::BTreeMap::new();
+    for row in route_expectations() {
+        assert!(
+            expected_ids
+                .insert(
+                    row["port_id"].as_str().unwrap().to_owned(),
+                    row["managed_native"].as_bool().unwrap()
+                )
+                .is_none()
+        );
+    }
+    let actual = envelope
+        .cases
+        .iter()
+        .map(|case| (case.port_id.clone(), case.managed_native))
+        .collect::<std::collections::BTreeMap<_, _>>();
+    assert_eq!(
+        actual, expected_ids,
+        "no missing, duplicate or unexpectedly skipped declared lifecycle coverage"
+    );
+    envelope.cases
+}
+
+/// Retained independent legacy expectations plus accepted package/member observations.
+pub(crate) fn route_expectations() -> Vec<serde_json::Value> {
+    let mut rows = Vec::new();
+    for document in [
+        include_str!("testdata/route-enrollment-expectations.json"),
+        include_str!("testdata/accepted-route-expectations.generated.json"),
+    ] {
+        let envelope: serde_json::Value = serde_json::from_str(document).unwrap();
+        assert_eq!(envelope["format_version"], 1);
+        rows.extend(envelope["cases"].as_array().unwrap().iter().cloned());
+    }
+    rows
+}
+
+#[cfg(test)]
+pub(crate) fn assert_fixture_archive_prefix(id: &str, folder: &str) {
+    assert!(
+        folder.is_empty() || folder.ends_with('/'),
+        "{id}: runtime_folder {folder:?} must be empty or an archive directory prefix ending in /"
+    );
+}
+
+#[cfg(test)]
+mod tests {
+    use super::assert_fixture_archive_prefix;
+
+    #[test]
+    fn native_archive_fixture_inventory() {
+        let corpus: serde_json::Value = serde_json::from_str(include_str!(
+            "testdata/native-engine-adoption-2026-11-02.json"
+        ))
+        .unwrap();
+        for case in corpus["cases"].as_array().unwrap() {
+            assert_fixture_archive_prefix(
+                case["port_id"].as_str().unwrap(),
+                case["runtime_folder"].as_str().unwrap(),
+            );
+        }
+    }
+
+    #[test]
+    fn native_archive_prefix_requires_directory_separator() {
+        for folder in ["", "runtime/", "runtime/bin/"] {
+            assert_fixture_archive_prefix("valid fixture", folder);
+        }
+        for folder in ["runtime", "runtime\\"] {
+            assert!(
+                std::panic::catch_unwind(|| {
+                    assert_fixture_archive_prefix("invalid fixture", folder);
+                })
+                .is_err()
+            );
+        }
+    }
 }

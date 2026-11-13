@@ -1,6 +1,8 @@
-import { Gamepad2 } from "lucide-react";
-import { useId, useRef, useState, type ReactNode } from "react";
+import { upstreamUpdatesDestination } from "../features/browsing/upstream-links";
+import { Play } from "lucide-react";
+import { useId, useMemo, useRef, useState, type ReactNode } from "react";
 import { desktopApi } from "../api";
+import { useAppTranslation } from "../localization";
 import { listingActionAssessment, type CatalogEntry } from "../features/browsing/catalog-entry";
 import {
   presentPortAction,
@@ -9,8 +11,9 @@ import {
 import type { Perform } from "../features/operations/use-operation-state";
 import { gameIdentityLabel } from "../port-identity";
 import type { PortStatus } from "../types";
+import { ExternalLaunchWarnings } from "./AuthoredSetupWarnings";
 import { CatalogDownloadControl, PendingSetupActions } from "./CatalogDownload";
-import { UserSelectedRuntimeControl } from "./ExternalRuntime";
+import { AuthoredPreparationGuidance, UserSelectedRuntimeControl } from "./ExternalRuntime";
 import { ExternalLink } from "./ExternalLink";
 import { Icon } from "./ui";
 import { Button } from "./ui/button";
@@ -36,7 +39,24 @@ export function SelfServiceSetup({
   onChanged,
   render,
 }: SelfServiceSetupProps) {
+  const { t } = useAppTranslation("installation");
+  const updates =
+    entry.listing &&
+    upstreamUpdatesDestination(entry.listing.project_url, entry.listing.release_url);
   const [editorOpen, setEditorOpen] = useState(false);
+  // Only this explicitly selected non-owning surface uses listing guidance.
+  // Keep the strict definition and the managed detail's retained guide intact.
+  const routeEntry = useMemo(
+    () => ({
+      ...entry,
+      presentation: {
+        ...entry.presentation,
+        manual_setup: entry.listing?.manual_setup ?? null,
+        manual_preparation: null,
+      },
+    }),
+    [entry],
+  );
   const editorId = useId();
   const editorHeading = useRef<HTMLHeadingElement>(null);
   const pending = entry.pendingSetup;
@@ -63,45 +83,51 @@ export function SelfServiceSetup({
     });
   };
   const playAction = registered ? (
-    <Button
-      data-focusable
-      variant="primary"
-      size="lg"
-      disabled={!launch.allowed || busy}
-      focusableWhenDisabled={launch.allowed && busy}
-      aria-busy={launch.allowed && busy}
-      onClick={play}
-    >
-      <Icon glyph={Gamepad2} /> Play
-    </Button>
+    <div className="grid min-w-0 justify-items-start gap-2 wrap-anywhere">
+      <ExternalLaunchWarnings portId={entry.id} status={status} />
+      <Button
+        data-focusable
+        variant="primary"
+        size="lg"
+        disabled={!launch.allowed || busy}
+        focusableWhenDisabled={launch.allowed && busy}
+        aria-busy={launch.allowed && busy}
+        onClick={play}
+      >
+        <Icon glyph={Play} className="fill-current" /> {t("selfService.play")}
+      </Button>
+    </div>
   ) : null;
   const setup = (
     <section
       id="detail-self-service-setup"
       tabIndex={-1}
       className="self-service-setup grid gap-4"
-      aria-label="Set up and launch"
+      aria-label={t("selfService.label")}
     >
+      {!registered && entry.listing?.manual_setup && (
+        <div className="grid gap-3" aria-label={t("selfService.upstreamLabel")}>
+          <h3>{t("selfService.upstreamHeading")}</h3>
+          {/* External ownership is the guidance default for this non-owning route. */}
+          <AuthoredPreparationGuidance
+            port={entry}
+            setup={{ manual_setup: entry.listing.manual_setup }}
+          />
+        </div>
+      )}
       {pending && (
         <Notice intent={needsRecovery ? "warning" : "info"}>
           <div data-slot="notice-body">
             <strong>
-              {needsRecovery ? "Download needs attention" : "Downloaded · finish setup"}
+              {needsRecovery ? t("selfService.pending.attention") : t("selfService.pending.ready")}
             </strong>
             {needsRecovery ? (
               <>
-                <p>{pending.reason || "This saved download is not ready for setup."}</p>
-                <p>
-                  Review the download folder. To download again, remove this setup entry first. Your
-                  files will stay where they are.
-                </p>
+                <p>{pending.reason || t("selfService.pending.notReady")}</p>
+                <p>{t("selfService.pending.review")}</p>
               </>
             ) : (
-              <p>
-                Your download is saved. Confirm the game or launcher below to finish adding it. If
-                no launch target is available, open the download folder and follow the upstream
-                setup instructions, then return here. Nothing has been run yet.
-              </p>
+              <p>{t("selfService.pending.readyBody")}</p>
             )}
             <code className="[overflow-wrap:anywhere]">{pending.path}</code>
           </div>
@@ -112,7 +138,7 @@ export function SelfServiceSetup({
           <CatalogDownloadControl
             autoCheck
             libraryRoot={libraryRoot}
-            entry={entry}
+            entry={routeEntry}
             generation={generation}
             busy={busy}
             perform={perform}
@@ -131,11 +157,11 @@ export function SelfServiceSetup({
             aria-controls={editorId}
             onClick={showEditor}
           >
-            Use an existing installation
+            {t("selfService.useExisting")}
           </Button>
         ) : null}
         {!registered && entry.listing?.setup_url && (
-          <ExternalLink href={entry.listing.setup_url}>Upstream setup instructions</ExternalLink>
+          <ExternalLink href={entry.listing.setup_url}>{t("selfService.setupGuide")}</ExternalLink>
         )}
       </ActionRow>
       {pending && (
@@ -150,17 +176,13 @@ export function SelfServiceSetup({
       {registered?.user_selected && !pending && (
         <details>
           <summary data-focusable className="cursor-pointer py-2 font-medium">
-            Download another version or package
+            {t("selfService.another.summary")}
           </summary>
           <div className="grid gap-3 pt-2">
-            <p>
-              Keep using your current installation while preparing another copy. Downloading leaves
-              its files and launch details unchanged. Review the new executable before switching;
-              both copies and their saves stay where they are.
-            </p>
+            <p>{t("selfService.another.body")}</p>
             <CatalogDownloadControl
               libraryRoot={libraryRoot}
-              entry={entry}
+              entry={routeEntry}
               generation={generation}
               busy={busy}
               perform={perform}
@@ -175,12 +197,9 @@ export function SelfServiceSetup({
       )}
       {registered && entry.listing && (
         <div className="grid gap-2 text-sm">
-          <p>
-            Registered · ready to launch when available. You or upstream manage updates; the
-            downloaded release does not establish the currently installed version.
-          </p>
-          <ExternalLink href={entry.listing.release_url || entry.listing.project_url}>
-            Upstream releases and updates
+          <p>{t("selfService.registeredNote")}</p>
+          <ExternalLink href={updates!.url}>
+            {updates!.releases ? t("selfService.versionsLink") : t("selfService.projectLink")}
           </ExternalLink>
         </div>
       )}
@@ -192,11 +211,11 @@ export function SelfServiceSetup({
       {(registered || ((editorOpen || pending?.state === "downloaded") && !needsRecovery)) && (
         <div id={editorId} className="grid gap-3 border-t border-pc-border pt-4">
           <h2 ref={editorHeading} tabIndex={-1} className="text-base">
-            Launch details
+            {t("selfService.launchDetails")}
           </h2>
           <UserSelectedRuntimeControl
             libraryRoot={libraryRoot}
-            port={entry}
+            port={routeEntry}
             status={status}
             listingStatus={entry.listingStatus}
             generation={generation}

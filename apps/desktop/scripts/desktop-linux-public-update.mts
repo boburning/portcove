@@ -201,7 +201,11 @@ async function seedInitialImage(
       let offset = 0;
       while (offset < result.bytesRead) {
         active();
-        const written = await output.write(buffer, offset, result.bytesRead - offset);
+        const written: { bytesWritten: number } = await output.write(
+          buffer,
+          offset,
+          result.bytesRead - offset,
+        );
         assert.ok(written.bytesWritten > 0);
         offset += written.bytesWritten;
       }

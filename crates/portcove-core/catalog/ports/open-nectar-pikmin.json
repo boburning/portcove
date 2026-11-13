@@ -15,13 +15,68 @@
       "game_slug": "pikmin",
       "match_kind": "underlying-game"
     },
-    "issue_number": 742
+    "issue_number": 742,
+    "listed_at": "2026-10-23",
+    "platforms": ["linux-x86-64"],
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Windows x64 separate upstream copy",
+          "instruction": "If you already have a permitted Open Nectar 1.1.1 Windows x64 copy, run its nectar-launcher.exe from a separate folder outside the Portcove library. Choose Install under Pikmin, provide your own supported USA Rev. 1 or Europe disc and choose a separate writable destination. Keep verification enabled. Preserve the installation and its active config folder or LOCALAPPDATA/Open Nectar."
+        },
+        {
+          "title": "Linux x64 upstream launcher",
+          "instruction": "For an already permitted 1.1.1 Linux x64 copy, use its nectar-launcher or the x64 AppImage. The bundled README lists glibc 2.29, OpenGL 3.3 and zenity or kdialog for graphical file selection."
+        },
+        {
+          "title": "Prepare your original on Linux",
+          "instruction": "Choose Install under Pikmin, provide your own Pikmin USA Rev. 1 or Europe ISO or GCM, and select a separate writable installation directory. Upstream can use Dolphin Tool for RVZ, WIA and GCZ. Keep disc verification enabled."
+        },
+        {
+          "title": "Android ARM64 upstream launcher",
+          "instruction": "For an already permitted 1.1.1 Android ARM64 copy on Android 11 or later, allow All files access for its chosen data folder. Use Install under Pikmin with your own matching ISO or GCM. The default folder is OpenNectar in shared storage. Pikmin 2 uses its own disc and setup."
+        },
+        {
+          "title": "Android ARM64 1.2 data folder",
+          "instruction": "For an already permitted 1.2 copy, use Android 10 or newer and OpenGL ES 3.0. On Android 10 grant the storage permission. On Android 11 or newer use Allow access to all files. Confirm the writable OpenNectar data folder, then choose Install under Pikmin and select your own matching ISO or GCM in the system picker."
+        },
+        {
+          "title": "Build an already permitted Mac copy",
+          "instruction": "With an already permitted 1.2 source checkout, use Xcode Command Line Tools, CMake and a Mac with OpenGL 4.1. Follow scripts/build-macos.sh. It builds both Pikmin regions and also builds a separate Pikmin 2 player. Start build/pikmin1/bin/nectar-launcher, choose Install under Pikmin and select your matching disc and a writable destination."
+        },
+        {
+          "title": "Keep the creating installation and data",
+          "instruction": "Close the game and launcher before copying their data. On Linux preserve the installed folder, including saves, and the active settings location, either its config directory or open-nectar under XDG_CONFIG_HOME (usually ~/.config). On Android retain the actual chosen data folder and use the upstream export for memory cards. The card ZIP covers the cards only."
+        }
+      ],
+      "warnings": [
+        "Use only a copy and bundled components you are already permitted to use. The upstream CC0 notice excludes Nintendo and other third-party material, and the package includes a separate Pikmin 2 runtime. An attributable grant for that bundled game code or a separately qualified package is needed before fresh acquisition can be offered.",
+        "Keep the player-managed folder outside Portcove's managed installation. Preserve the creating installation and profile. The existing managed Windows acquisition hold remains in place."
+      ],
+      "help_url": "https://github.com/SSunnKing/Open-Nectar---Pikmin-Native-PC-Mobile-Port/blob/f4633bf50099789047a3c70e62c86caf3cbaf38c/README.md",
+      "references": [
+        {
+          "title": "Keep the Mac and Android data you actually use",
+          "instruction": "On Mac keep the selected installation, its saves and the active settings folder. The launcher defaults to pikmin-native under XDG_DATA_HOME, or ~/.local/share/pikmin-native. On Android preserve the actual chosen OpenNectar folder and export the memory cards before replacing the copy. The card export covers only the cards."
+        }
+      ]
+    }
   },
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],
     "platforms": ["windows-x86-64"],
     "adapter": "upstream-managed-setup",
+    "managed_acquisition_hold": {
+      "reason": "Open Nectar managed acquisition is on hold while upstream launcher updates and settings storage are reviewed.",
+      "activation_reason": "This staged Open Nectar package lacks reviewed launcher and settings compatibility. Keep the existing active copy.",
+      "reviewed_artifacts": [
+        {
+          "version": "0.8.5",
+          "sha256": "0e3ca0fddc6410747d735d98e0e515f534143417319af3f1c666c9b71b932d29"
+        }
+      ]
+    },
     "automated_tested_platforms": [],
     "manually_validated_platforms": [],
     "release": {

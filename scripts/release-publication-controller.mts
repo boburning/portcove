@@ -53,7 +53,8 @@ import {
   refreshCapacityExecutor,
 } from "./release-capacity-executor.mts";
 import { authenticateReleaseControlRound } from "./release-live-control-admission.mts";
-import { GitHubApiClient, createGitHubRunner } from "./github-api.mts";
+import { createGitHubClient } from "./github-client.mts";
+import { readOnlyReleaseChildEnvironment } from "./release-readonly-child-environment.mts";
 import {
   prepareOwnedPublicationResult,
   requireOwnedPublicationResult,
@@ -210,27 +211,45 @@ export function publicationOriginalJobDeadline(
     throw new Error("original publication job budget exhausted or future dated");
   return monotonic + remaining;
 }
-function currentPublicationJobDeadline(
-  root: string,
+function publicationReaderToken() {
+  return (readOnlyReleaseChildEnvironment() ?? process.env).GH_TOKEN ?? "";
+}
+function publicationMetadataClient(token: string, deadline: number) {
+  return createGitHubClient({
+    credential: { kind: "explicit", token },
+    deadline,
+    maxBytes: 2 * 1024 ** 2,
+    requestTimeoutMs: 15000,
+    headers: { accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28" },
+  });
+}
+async function currentPublicationJobDeadline(
   identity: { run_id: string; controller_revision: string },
+  token: string,
+  phaseDeadline?: number,
 ) {
   if (
     !/^[1-9][0-9]{0,15}$/u.test(identity.run_id) ||
     !/^[a-f0-9]{40}$/u.test(identity.controller_revision)
   )
     throw new Error("fixed publication run identity missing");
-  const api = new GitHubApiClient((args, input) =>
-    createGitHubRunner({ cwd: root, timeoutMs: 15000, maxBuffer: 2 * 1024 ** 2 })(
-      [...args, "--hostname", "github.com"],
-      input,
-    ),
+  const deadline = Math.min(started + 350000, phaseDeadline ?? Infinity);
+  const client = await publicationMetadataClient(
+    token,
+    Math.min(deadline, performance.now() + coordinatorCommandTimeout(15000)),
   );
-  const response = api.request(
-    "GET",
-    `repos/boburning/portcove/actions/runs/${identity.run_id}/attempts/1/jobs?per_page=100`,
+  const response = await client.request(
+    "GET /repos/{owner}/{repo}/actions/runs/{run_id}/attempts/1/jobs",
+    {
+      owner: "boburning",
+      repo: "portcove",
+      run_id: identity.run_id,
+      per_page: 100,
+      request: { portcove: { replay: "once", attempts: 0 } },
+    },
   );
   if (response.status !== 200) throw new Error("publication original job budget unavailable");
-  return Math.min(started + 350000, publicationOriginalJobDeadline(response.body, identity));
+  return Math.min(deadline, publicationOriginalJobDeadline(response.data as unknown, identity));
 }
 
 export async function runFixedPublicationEntry(filename: string, phaseDeadline?: number) {
@@ -260,9 +279,10 @@ export async function runFixedPublicationConfiguration(input: unknown, phaseDead
     throw new Error("publication invocation is not the original fixed job");
   const root = process.env.RUNNER_TEMP;
   if (!root || !path.isAbsolute(root)) throw new Error("fixed private runner root required");
-  const deadline = Math.min(
-    currentPublicationJobDeadline(root, identity),
-    phaseDeadline ?? Infinity,
+  const deadline = await currentPublicationJobDeadline(
+    identity,
+    publicationReaderToken(),
+    phaseDeadline,
   );
   const toolsInput = raw.tools;
   return withCoordinatorDeadline(deadline, async () => {
@@ -338,7 +358,9 @@ export async function runReleasePublicationController(
   outputParent: string,
   phaseDeadline?: number,
 ) {
+  const readerToken = publicationReaderToken();
   const deadline = Math.min(started + 350000, phaseDeadline ?? Infinity);
+  const transport = { credential: { token: readerToken }, deadline };
   return withCoordinatorDeadline(deadline, async () => {
     const configuration: unknown = structuredClone(raw);
     if (
@@ -429,7 +451,7 @@ export async function runReleasePublicationController(
           });
           const snapshot = () =>
             readRemoteCoordinatorSnapshot(directory, coordinator, {
-              transport: { cwd: directory, deadline },
+              transport,
             });
           stage = "keyless-release-preparation";
           const prepared = await prepareImmutableReleasePublication(
@@ -487,7 +509,7 @@ export async function runReleasePublicationController(
           }
           let controls = admitted.controls;
           let usedRound = 0;
-          const fresh = async (ordinal: number) => {
+          const fresh = async (ordinal: number, controlReader?: "publication-application") => {
             if (ordinal <= usedRound || ordinal > 14)
               throw new Error("publication control round repeated or exhausted");
             usedRound = ordinal;
@@ -496,7 +518,7 @@ export async function runReleasePublicationController(
               digest(admitted.facts),
               "release-publication",
               ordinal,
-              { deadline },
+              { deadline, ...(controlReader ? { controlReader } : {}) },
             );
             return controls;
           };
@@ -510,7 +532,7 @@ export async function runReleasePublicationController(
                       prepared,
                       executor,
                       actual,
-                      await fresh(ordinal),
+                      await fresh(ordinal, "publication-application"),
                       {
                         repository: admitted.coordinator_repository,
                         remote_configuration: coordinator,
@@ -520,7 +542,7 @@ export async function runReleasePublicationController(
                   initialState.input.active_candidate,
                 );
           stage = "actual-immutable-completion";
-          await fresh(usedRound + 1);
+          await fresh(usedRound + 1, "publication-application");
           let completion = await observeOwnedImmutableReleaseCompletion(
             prepared,
             executor,
@@ -538,7 +560,7 @@ export async function runReleasePublicationController(
             // verified above before even advancing the repair's journal phase.
             const phase = await advanceActualCandidateToPublishing(actual, { deadline, executor });
             await rebindPreparedImmutableReleaseAfterPhase(prepared, phase, deadline);
-            await fresh(usedRound + 1);
+            await fresh(usedRound + 1, "publication-application");
             completion = await observeOwnedImmutableReleaseCompletion(
               prepared,
               executor,
@@ -556,13 +578,6 @@ export async function runReleasePublicationController(
             checkpoint = (await requireActualCandidatePhaseAdvance(promoting, "promoting"))
               .checkpoint;
           }
-          const api = new GitHubApiClient((args, input) =>
-            createGitHubRunner({
-              cwd: directory,
-              maxBuffer: 2 * 1024 ** 2,
-              timeoutMs: coordinatorCommandTimeout(15000),
-            })([...args, "--hostname", "github.com"], input),
-          );
           const currentState = await recoverReleaseOpportunity(
             admitted.coordinator_repository,
             checkpoint,
@@ -574,17 +589,32 @@ export async function runReleasePublicationController(
           )
             throw new Error("result attempt journal unavailable");
           const currentCandidate = currentState.input.active_candidate;
-          const retained = inspectRetainedResultUpload(
-            inspectCapacityOperation(currentState.input.controller.capacity_attempt.operation),
-            currentCandidate,
+          const retained = structuredClone(
+            inspectRetainedResultUpload(
+              inspectCapacityOperation(currentState.input.controller.capacity_attempt.operation),
+              currentCandidate,
+            ),
           );
           if (retained) {
-            const read = () => {
-              const response = api.request(
-                  "GET",
-                  `repos/boburning/portcove/actions/artifacts/${retained.artifact_id}`,
-                ),
-                item = response.body;
+            const metadata = await publicationMetadataClient(readerToken, deadline);
+            const read = async () => {
+              const response = await metadata.request(
+                "GET /repos/{owner}/{repo}/actions/artifacts/{artifact_id}",
+                {
+                  owner: "boburning",
+                  repo: "portcove",
+                  artifact_id: retained.artifact_id,
+                  request: {
+                    portcove: {
+                      replay: "once",
+                      attempts: 0,
+                      deadline: performance.now() + coordinatorCommandTimeout(15000),
+                    },
+                  },
+                },
+              );
+              checkCoordinatorDeadline();
+              const item: unknown = response.data;
               if (
                 response.status !== 200 ||
                 !isRecord(item) ||
@@ -609,8 +639,11 @@ export async function runReleasePublicationController(
                 );
               return { id: item.id, bytes: item.size_in_bytes, sha256: item.digest.slice(7) };
             };
-            const before = read();
-            if (digest(before) !== digest(read()) || (await snapshot()).checkpoint !== checkpoint)
+            const before = await read();
+            if (
+              digest(before) !== digest(await read()) ||
+              (await snapshot()).checkpoint !== checkpoint
+            )
               throw new Error("retained result upload changed during GET-only readback");
             result = Object.freeze({
               decision: "retained-result-requires-attestation-readback",
@@ -630,11 +663,15 @@ export async function runReleasePublicationController(
             directory,
             deadline,
           );
+          stage = "owned-result-upload";
+          const resultControls = await fresh(usedRound + 1, "publication-application");
           const boundary = async () => {
             checkCoordinatorDeadline();
             const currentExecutor = await refreshCapacityExecutor(executor);
             const original = admitted.admission.controls;
-            const current = controls.read(api, admitted.facts.opportunity);
+            const current = await resultControls.readSdkApplicationControls(
+              admitted.facts.opportunity,
+            );
             if (
               !original ||
               current.reader.job_id !== currentExecutor.job_id ||
@@ -653,8 +690,6 @@ export async function runReleasePublicationController(
               throw new Error("publication result controls held");
             return current.capacity_source.capacity.boundary;
           };
-          stage = "owned-result-upload";
-          await fresh(usedRound + 1);
           let handoff: Awaited<ReturnType<typeof handoffPublicationResultArtifact>> | undefined;
           const settlement = await executeOwnedCapacityEffect(
             executor,
@@ -684,6 +719,9 @@ export async function runReleasePublicationController(
                 remote_identity: `github-actions:boburning/portcove:artifact:${handoff.artifact_id}`,
                 evidence_sha256: digest(handoff),
               };
+            },
+            async () => {
+              await boundary();
             },
           );
           if (!handoff) throw new Error("actual publication result artifact missing");
@@ -717,7 +755,7 @@ export async function runReleasePublicationController(
           const current = await readRemoteCoordinatorSnapshot(
             directory,
             { schema_version: 1, namespace: authorities.namespace },
-            { transport: { cwd: directory, deadline } },
+            { transport },
           );
           if (current.checkpoint !== facts.checkpoint)
             throw new Error("native publication checkpoint changed before collection");
@@ -759,26 +797,27 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
       await runFixedPublicationEntry(process.argv[3]!);
     } else if (["--ready", "--uploaded", "--predicate"].includes(process.argv[2] ?? "")) {
       const mode = process.argv[2]!;
+      const directory = process.env.RUNNER_TEMP;
       if (
         (mode === "--uploaded" && process.argv.length !== 5) ||
         (mode !== "--uploaded" && process.argv.length !== 3) ||
-        !process.env.RUNNER_TEMP
+        !directory
       )
         throw new Error("fixed publication upload arguments differ");
       if (process.env.GITHUB_RUN_ATTEMPT !== "1")
         throw new Error("publication attempt cannot restart");
-      const deadline = currentPublicationJobDeadline(process.env.RUNNER_TEMP, {
-        run_id: process.env.GITHUB_RUN_ID ?? "",
-        controller_revision: process.env.GITHUB_SHA ?? "",
-      });
-      await publicationUploadCommand(
-        mode,
-        process.env.RUNNER_TEMP,
-        deadline,
+      const upload =
         mode === "--uploaded"
           ? { id: Number(process.argv[3]), sha256: process.argv[4]! }
-          : undefined,
+          : undefined;
+      const deadline = await currentPublicationJobDeadline(
+        {
+          run_id: process.env.GITHUB_RUN_ID ?? "",
+          controller_revision: process.env.GITHUB_SHA ?? "",
+        },
+        publicationReaderToken(),
       );
+      await publicationUploadCommand(mode, directory, deadline, upload);
     } else {
       if (process.argv.length !== 4 || process.argv[2] !== "--finalize")
         throw new Error(

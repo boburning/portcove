@@ -26,6 +26,7 @@ import {
   existingAquaDefinition,
   existingNpmDefinition,
   cachedRustDefinition,
+  qualityBootstrapRemedy,
 } from "./dev-doctor.mts";
 
 void test("Windows desktop doctor probes pinned Rust payloads without ambient executable fallback", async () => {
@@ -33,7 +34,7 @@ void test("Windows desktop doctor probes pinned Rust payloads without ambient ex
   const cargoRoot = path.join(os.tmpdir(), "portcove-absent-doctor-cache");
   for (const tool of manifest.tools.filter((item) => item.tier === "required")) {
     const definition = cachedRustDefinition(tool, { cargoRoot }, "win32");
-    const binary = tool.id === "rscheck-cli" ? "rscheck" : tool.crate;
+    const binary = tool.crate;
     assert.deepEqual(definition.command, [
       path.join(cargoRoot, tool.crate, tool.version, "bin", `${binary}.exe`),
       "--version",
@@ -108,6 +109,16 @@ void test("stale Windows Aqua state is an actionable prerequisite failure", asyn
     status: "unavailable",
     remediation: "./scripts/bootstrap-quality-tools.ps1",
   });
+  const linux = await collectSelectedPrerequisites([{ id: "actionlint" }], {
+    platform: "linux",
+    run: () => ({ status: 0, stdout: "24.21.0" }),
+  });
+  assert.equal(
+    requiredFixture(linux.find((item) => item.id === "aqua-state")).remediation,
+    "bash scripts/bootstrap-quality-tools.sh",
+  );
+  assert.equal(qualityBootstrapRemedy("darwin"), "bash scripts/bootstrap-quality-tools.sh");
+  assert.equal(qualityBootstrapRemedy("win32"), "./scripts/bootstrap-quality-tools.ps1");
   assert.ok(
     selectedPrerequisites({ id: "conservative-audit" }).includes("complete-audit-prerequisites"),
   );
@@ -591,6 +602,8 @@ void test("doctor reports a timeout rather than a version pass", () => {
 });
 
 void test("Core profile observes only Rust capabilities; missing frontend cannot block it", async () => {
+  const pins = await loadQualityManifest();
+  const nextest = pins.tools.find((tool) => tool.id === "cargo-nextest")!.version;
   const commands: [string, string[]][] = [];
   const report = await collectProfileDoctor("core", {
     storage: {},
@@ -600,9 +613,9 @@ void test("Core profile observes only Rust capabilities; missing frontend cannot
       commands.push([command, args]);
       assert.equal(options.env?.RUSTUP_AUTO_INSTALL, "0");
       assert.equal(options.env?.COREPACK_ENABLE_NETWORK, "0");
-      if (command === "rustc") return { status: 0, stdout: "rustc 1.99.1" };
-      if (args[0] === "nextest") return { status: 0, stdout: "cargo-nextest 0.9.100" };
-      return { status: 0, stdout: "1.99.1" };
+      if (command === "rustc") return { status: 0, stdout: `rustc ${pins.rust.channel}` };
+      if (args[0] === "nextest") return { status: 0, stdout: `cargo-nextest ${nextest}` };
+      return { status: 0, stdout: pins.rust.channel };
     },
   });
   assert.equal(report.ok, true);

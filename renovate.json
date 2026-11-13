@@ -1,6 +1,17 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": ["config:recommended", ":dependencyDashboard"],
+  "ignorePaths": [
+    "**/node_modules/**",
+    "**/bower_components/**",
+    "**/vendor/**",
+    "**/examples/**",
+    "**/__tests__/**",
+    "**/test/**",
+    "**/tests/**",
+    "**/__fixtures__/**",
+    "crates/portcove-core/fuzz/**"
+  ],
   "enabledManagers": [
     "cargo",
     "npm",
@@ -21,6 +32,7 @@
   "commitHourlyLimit": 0,
   "rangeStrategy": "bump",
   "rebaseWhen": "conflicted",
+  "gitIgnoredAuthors": ["renovate-derived-data@portcove.invalid"],
   "lockFileMaintenance": {
     "enabled": true,
     "schedule": ["before 6am on monday"],
@@ -42,6 +54,14 @@
       "pinDigests": true
     },
     {
+      "description": "Keep strict install-action contract pins with their immutable workflow update",
+      "matchManagers": ["custom.regex"],
+      "matchPackageNames": ["taiki-e/install-action"],
+      "groupName": "github-actions",
+      "schedule": ["at any time"],
+      "pinDigests": true
+    },
+    {
       "description": "Propose npm development-tool maintenance continuously",
       "matchManagers": ["npm"],
       "matchDepTypes": ["devDependencies"],
@@ -55,7 +75,6 @@
         "cargo-shear",
         "cargo-deny",
         "cargo-modules",
-        "rscheck-cli",
         "cargo-mutants",
         "cargo-nextest",
         "rust",
@@ -116,7 +135,10 @@
         "koalaman/shellcheck"
       ],
       "groupName": "aqua-toolchain",
-      "schedule": ["at any time"]
+      "schedule": ["at any time"],
+      "prBodyNotes": [
+        "Renovate updates versions only. The `Renovate derived data repair` workflow regenerates `aqua-checksums.json` and the `.config/tool-bootstrap.json` Aqua identity from publisher release digests and pushes them here when its GitHub App is configured; otherwise run `just aqua-integrity-update` on this branch and commit the result."
+      ]
     },
     {
       "description": "Change the Aqua registry authority only with a reviewed tool or integrity need",
@@ -124,14 +146,6 @@
       "matchDatasources": ["github-tags"],
       "matchDepNames": ["aquaproj/aqua-registry"],
       "matchPackageNames": ["aquaproj/aqua-registry"],
-      "enabled": false
-    },
-    {
-      "description": "Do not replace the reviewed SQLite upstream revision automatically",
-      "matchManagers": ["cargo"],
-      "matchDatasources": ["git-refs"],
-      "matchDepNames": ["rusqlite"],
-      "matchPackageNames": ["https://github.com/rusqlite/rusqlite"],
       "enabled": false
     },
     {
@@ -184,6 +198,20 @@
   "customManagers": [
     {
       "customType": "regex",
+      "managerFilePatterns": [
+        "/^scripts\\/ci-release-workflow\\.test\\.mts$/",
+        "/^scripts\\/ci-rust-workflow\\.test\\.mts$/",
+        "/^scripts\\/ci-native-workflow\\.test\\.mts$/"
+      ],
+      "matchStrings": [
+        "const reviewedInstallAction\\s*=\\s*\"taiki-e/install-action@(?<currentDigest>[a-f0-9]{40})\";[ \\t]*//[ \\t]*(?<currentValue>v\\d+\\.\\d+\\.\\d+)\\b"
+      ],
+      "depNameTemplate": "taiki-e/install-action",
+      "datasourceTemplate": "github-tags",
+      "versioningTemplate": "github-actions"
+    },
+    {
+      "customType": "regex",
       "managerFilePatterns": ["/^\\.github\\/quality-tools\\.json$/"],
       "matchStrings": [
         "\\\"crate\\\":\\s*\\\"(?<depName>[^\\\"]+)\\\",\\s*\\\"version\\\":\\s*\\\"(?<currentValue>\\d+\\.\\d+\\.\\d+)\\\""
@@ -193,8 +221,30 @@
     },
     {
       "customType": "regex",
+      "managerFilePatterns": ["/^scripts\\/dependency-security\\.mts$/"],
+      "matchStrings": [
+        "export const reviewedCargoDenyVersion = \"(?<currentValue>\\d+\\.\\d+\\.\\d+)\";"
+      ],
+      "depNameTemplate": "cargo-deny",
+      "datasourceTemplate": "crate",
+      "versioningTemplate": "cargo"
+    },
+    {
+      "customType": "regex",
       "managerFilePatterns": ["/^\\.github\\/quality-tools\\.json$/"],
       "matchStrings": ["\\\"channel\\\":\\s*\\\"(?<currentValue>\\d+\\.\\d+\\.\\d+)\\\""],
+      "depNameTemplate": "rust",
+      "datasourceTemplate": "rust-version",
+      "versioningTemplate": "rust"
+    },
+    {
+      "customType": "regex",
+      "managerFilePatterns": ["/^scripts\\/release-compiler-evidence\\.mts$/"],
+      "matchStrings": [
+        "channel !== \"(?<currentValue>\\d+\\.\\d+\\.\\d+)\"",
+        "\"cargo (?<currentValue>\\d+\\.\\d+\\.\\d+) \"",
+        "\"rustc (?<currentValue>\\d+\\.\\d+\\.\\d+) \""
+      ],
       "depNameTemplate": "rust",
       "datasourceTemplate": "rust-version",
       "versioningTemplate": "rust"
@@ -262,8 +312,15 @@
     },
     {
       "customType": "regex",
-      "managerFilePatterns": ["/^\\.github\\/workflows\\/release\\.yml$/"],
-      "matchStrings": ["syft-version:\\s*v(?<currentValue>\\d+\\.\\d+\\.\\d+)"],
+      "managerFilePatterns": [
+        "/^\\.github\\/workflows\\/release\\.yml$/",
+        "/^scripts\\/release-workflow\\.test\\.mts$/",
+        "/^scripts\\/release-acceptance-evidence\\.mts$/"
+      ],
+      "matchStrings": [
+        "syft-version:\\s*v(?<currentValue>\\d+\\.\\d+\\.\\d+)",
+        "const reviewedSyftProducer = \"Tool: syft-(?<currentValue>\\d+\\.\\d+\\.\\d+)\";"
+      ],
       "depNameTemplate": "anchore/syft",
       "datasourceTemplate": "github-releases",
       "versioningTemplate": "semver"

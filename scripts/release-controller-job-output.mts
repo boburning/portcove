@@ -283,7 +283,7 @@ export async function finishFixedControllerJobOutputs(rawRole: unknown) {
   if (!root || !path.isAbsolute(root) || !environment.GITHUB_OUTPUT)
     throw new Error("fixed output channels unavailable");
   const source = await requireControllerJobSourceConfiguration(phase);
-  const deadline = currentControllerJobDeadline(
+  const deadline = await currentControllerJobDeadline(
     selected,
     {
       run_id: environment.GITHUB_RUN_ID ?? "",
@@ -291,7 +291,6 @@ export async function finishFixedControllerJobOutputs(rawRole: unknown) {
       controller_revision: environment.GITHUB_SHA ?? "",
       controller_ref: environment.GITHUB_REF ?? "",
     },
-    root,
     performance.now() + 570000,
   );
   return withCoordinatorDeadline(deadline, async () => {

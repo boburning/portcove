@@ -151,7 +151,7 @@ pub(crate) fn verify(bytes: &[u8], keys: &[CatalogTrustKey], now: i64) -> Result
         &signature,
     )
     .map_err(|_| PortcoveError::verification("catalog signature verification failed"))?;
-    let payload: SignedCatalogPayload = serde_json::from_str(&envelope.payload)
+    let mut payload: SignedCatalogPayload = serde_json::from_str(&envelope.payload)
         .map_err(|_| PortcoveError::verification("invalid signed catalog payload"))?;
     if !(1..=MAX_SEQUENCE).contains(&payload.sequence)
         || payload.issued_at < 0
@@ -170,8 +170,42 @@ pub(crate) fn verify(bytes: &[u8], keys: &[CatalogTrustKey], now: i64) -> Result
         issued_at: payload.issued_at,
         expires_at: payload.expires_at,
     };
+    let baseline = Catalog::embedded()?;
+    for port in &mut payload.catalog.ports {
+        let original = baseline.port(&port.id)?;
+        if port.windows_shipwright_persistence {
+            return Err(PortcoveError::verification(
+                "legacy signed catalogs cannot deliver Shipwright working-directory persistence",
+            ));
+        }
+        // V1 can still supply compatible metadata to a newer binary. Its
+        // payload cannot provide or turn off authority compiled into that binary.
+        port.windows_shipwright_persistence = original.windows_shipwright_persistence;
+        if port.windows_tracked_handoff {
+            return Err(PortcoveError::verification(
+                "legacy signed catalogs cannot deliver a Windows tracked handoff",
+            ));
+        }
+        port.windows_tracked_handoff = original.windows_tracked_handoff;
+        for pattern in &port.persistent_file_patterns {
+            if pattern.allow_empty_middle {
+                return Err(PortcoveError::verification(
+                    "legacy signed catalogs cannot deliver empty-middle file patterns",
+                ));
+            }
+        }
+        for (pattern, compiled) in port
+            .persistent_file_patterns
+            .iter_mut()
+            .zip(&original.persistent_file_patterns)
+        {
+            if pattern.prefix == compiled.prefix && pattern.suffix == compiled.suffix {
+                pattern.allow_empty_middle = compiled.allow_empty_middle;
+            }
+        }
+    }
     let catalog = Catalog::from_document(payload.catalog)?;
-    validate_update_contract(&catalog, &Catalog::embedded()?)?;
+    validate_update_contract(&catalog, &baseline)?;
     Ok(VerifiedCatalog {
         catalog,
         envelope,

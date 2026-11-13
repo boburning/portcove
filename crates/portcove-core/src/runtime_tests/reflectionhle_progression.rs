@@ -54,7 +54,7 @@ async fn progression(id: &str) {
         .install(id, None, None, None, true, |_| {})
         .await
         .unwrap();
-    let old_root = crate::runtime::working_root(port, &old);
+    let old_root = crate::runtime::working_root(port, &old, Platform::WindowsX86_64);
     assert_eq!(old_root, old.path.join("old-wrapper"));
     fs::create_dir(old_root.join("wl6ap14")).unwrap();
     for (relative, bytes) in original_progress() {
@@ -83,7 +83,7 @@ async fn progression(id: &str) {
     assert_eq!(result.action, crate::ReconcileAction::Staged);
     assert_eq!(next.status(id).unwrap().active.unwrap().id, old.id);
     let updated = next.activate_staged(id).unwrap();
-    let new_root = crate::runtime::working_root(port, &updated);
+    let new_root = crate::runtime::working_root(port, &updated, Platform::WindowsX86_64);
     assert_eq!(new_root, updated.path.join("new-wrapper"));
     assert!(next.verify(id).unwrap().valid);
     for root in [&old_root, &new_root] {

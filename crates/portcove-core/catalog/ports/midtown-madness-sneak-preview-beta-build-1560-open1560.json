@@ -3,13 +3,43 @@
   "listing": {
     "id": "midtown-madness-sneak-preview-beta-build-1560-open1560",
     "name": "Midtown Madness Sneak Preview Beta / Build 1560 (Open1560)",
-    "summary": "Research listing. Upstream route: Partial native rewrite with OpenGL and downloadable build. Limits: Partial native rewrite targets preview build1560, not general retail Midtown Madness. Upstream platforms: Desktop downloadable build/source route for preview1560; exact package OS/CPU matrix unknown in frozen evidence. Do not advertise retail Midtown Madness. Original data: Original-data contract remains Unknown for Midtown Madness Sneak Preview Beta/build 1560. The retained Open1560 README identifies that exact target and partial assembly reuse, but does not establish which preview executable/data files are required, where they come from or their accepted digest. Do not substitute retail Midtown Madness assets without evidence. Portcove setup/gameplay not verified.",
+    "summary": "Use a prepared Open1560 Windows x86 copy with your own Midtown Madness Sneak Preview Beta/build 1560 data. This partial native rewrite targets that preview, not the retail game. Preserve the complete game folder before playing: the game can remove replays and diagnostic files at exit.",
     "original_game_title": "Midtown Madness Sneak Preview Beta / Build 1560",
     "project_url": "https://github.com/0x1F9F1/Open1560",
     "platforms": [],
     "availability": "unknown",
     "setup_url": "https://github.com/0x1F9F1/Open1560",
-    "issue_number": 2884
+    "issue_number": 2884,
+    "listed_at": "2026-10-25",
+    "manual_setup": {
+      "help_url": "https://github.com/0x1F9F1/Open1560/tree/965d1cccc1d7bbecdb799c01c1f9daab1344d580",
+      "steps": [
+        {
+          "title": "Prepare the exact preview edition upstream",
+          "instruction": "Use a permitted complete Open1560 Windows x86 copy with your own Midtown Madness Sneak Preview Beta/build 1560 data. The selected upstream setup names audio.ar, core.ar and ui.ar as the minimum fresh inputs; keep the complete original preview and existing player data. Retail Midtown Madness is a different target. No preview download, original-file digest acceptance or general retail compatibility is supplied by this registration."
+        },
+        {
+          "title": "Select the player and retain its arguments",
+          "instruction": "Select native Open1560.exe, keeping all accompanying runtime files and the prepared game directory as working directory. Keep commandline.txt and established literal options. This is a partial native rewrite with retained assembly; a source repository or installer is not a prepared player. Upstream says its XP patch and dgVoodoo are unnecessary."
+        },
+        {
+          "title": "Preserve the creating directory before upstream cleanup",
+          "instruction": "Retain the entire creating game directory, original archives, settings, player/progress files, replays, custom and unknown files, and any actual external profile used by that copy. Open1560.log is written relative to the working directory. Final upstream builds default to -cleandir and delete last.rpl, crash.rpl, portals.s and root *.csv at exit; back up existing files before a run and use the supported -nocleandir option if retaining those diagnostics is intended. Portcove does not prevent the player’s writes or cleanup. Exact legacy save-file mapping and cross-version compatibility remain unverified."
+        },
+        {
+          "title": "Check the prepared copy before registration",
+          "instruction": "Finish setup with the project’s tools, then start and quit the copy you intend to add. Keep its game executable, working folder and supported launch arguments. Review those details in Portcove and agree to launch them, then choose Play separately. Adding a copy does not confirm its original game files, gameplay or save compatibility."
+        },
+        {
+          "title": "Keep updates and removal under the existing owner",
+          "instruction": "Close every running copy of the game before changing files. Keep the working game version and every data and profile folder recoverable. Update it with the project’s tools, then review and select the changed executable in Portcove before choosing Play. You manage setup, updates, file changes, data migration and recovery. Portcove monitors the process you selected; it does not prevent other copies from running or restrict the game’s file access. Removing the registration leaves external files in place. This route does not offer Portcove downloads, setup, updates, backups, rollback, data migration or external-file deletion."
+        }
+      ],
+      "warnings": [
+        "Use only a copy and content you are already permitted to use. Engine licensing does not grant rights to original game assets, music, mods or bundled components.",
+        "Before updating the game, keep a copy of its working files and every location containing saved data. Choosing a different executable does not give it a separate profile."
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

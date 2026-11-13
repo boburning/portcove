@@ -65,7 +65,7 @@ async function validatePickerInput({
     );
   }
   if (directoryPath) {
-    assert.ok(["Choose Portcove library", "Choose game-file folder"].includes(title));
+    assert.ok(["Choose Portcove library", "Choose game files folder"].includes(title));
     assert.equal(button, "Select Folder");
     assert.ok((await stat(directoryPath)).isDirectory(), "Owned picker fixture is not a directory");
   }
@@ -125,7 +125,7 @@ function ownedRuntimePicker(
       if (gameFilePicker) {
         await validatePickerInput({
           output,
-          title: "Choose game-file folder",
+          title: "Choose game files folder",
           button: "Select Folder",
           directoryPath,
         });
@@ -169,7 +169,7 @@ function ownedRuntimePicker(
         "-ApplicationPath",
         application,
         "-ObservePicker",
-        ...(gameFilePicker ? ["-ExpectedPickerTitle", "Choose game-file folder"] : []),
+        ...(gameFilePicker ? ["-ExpectedPickerTitle", "Choose game files folder"] : []),
         ...(select && directoryPath !== undefined
           ? ["-PreparedRuntimeDirectory", directoryPath]
           : []),
@@ -208,7 +208,7 @@ function ownedLinuxGameFilePicker({
     if (directoryPath)
       await validatePickerInput({
         output,
-        title: "Choose game-file folder",
+        title: "Choose game files folder",
         button: "Select Folder",
         directoryPath,
       });
@@ -304,6 +304,8 @@ const failureStages = [
   "screenshot-preparation-start",
   "screenshot-written",
   "observation-complete",
+  "file-input-readback",
+  "file-picker-close",
   "unknown",
 ];
 const failureTypes = [
@@ -585,7 +587,7 @@ export function nativeConfirmation({
         ...(directoryPath ? ["-DirectoryPath", directoryPath] : []),
         ...(screenshot ? ["-ScreenshotPath", screenshot] : []),
       ],
-      { encoding: "utf8", windowsHide: true, timeout: 15_000 },
+      { encoding: "utf8", windowsHide: true, timeout: filePath ? 30_000 : 15_000 },
     );
     if (result.status !== 0) await retainConfirmationFailure({ output, artifacts }, name, result);
     const observation = await retainPickerObservation(result, output, name, artifacts);

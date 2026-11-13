@@ -263,11 +263,38 @@ impl DefinitionAcquisitionScope {
 
 /// Exact resolved bytes and their opaque acquisition provenance. The serialized
 /// release client contract stays unchanged; installation retains this proof internally.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct GithubArtifactIdentity {
+    pub repository: String,
+    pub repository_id: u64,
+    pub release_id: u64,
+    pub asset_id: u64,
+    pub tag: String,
+}
+
+impl GithubArtifactIdentity {
+    pub(crate) fn validate(&self) -> Result<()> {
+        if !valid_github_repository(&self.repository)
+            || self.tag.is_empty()
+            || [self.repository_id, self.release_id, self.asset_id]
+                .into_iter()
+                .any(|id| id == 0 || id > 9_007_199_254_740_991)
+        {
+            return Err(PortcoveError::verification(
+                "GitHub artifact identity is incomplete",
+            ));
+        }
+        Ok(())
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct ScopedResolvedRelease {
     pub(crate) release: ResolvedRelease,
     pub(crate) scope: Option<DefinitionAcquisitionScope>,
     selection: Option<(serde_json::Value, crate::Platform, crate::ReleaseChannel)>,
+    pub(crate) github_identity: Option<GithubArtifactIdentity>,
 }
 
 impl ScopedResolvedRelease {
@@ -276,6 +303,7 @@ impl ScopedResolvedRelease {
             release,
             scope: None,
             selection: None,
+            github_identity: None,
         }
     }
 
@@ -289,6 +317,7 @@ impl ScopedResolvedRelease {
             release,
             scope: Some(scope),
             selection: None,
+            github_identity: None,
         })
     }
 

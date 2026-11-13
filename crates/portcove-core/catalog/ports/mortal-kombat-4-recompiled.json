@@ -4,8 +4,9 @@
   "listing": {
     "id": "mortal-kombat-4-recompiled",
     "name": "Mortal Kombat 4: Recompiled",
-    "summary": "Native Mortal Kombat 4 recompilation.",
-    "project_url": "https://github.com/Alexbeav/mortal-kombat-4-recomp",
+    "summary": "Play Mortal Kombat 4 with a native player built from your matching original disc and BIOS.",
+    "project_url": "https://github.com/alexbeavs-ps1-ports/mortal-kombat-4-recomp",
+    "listed_at": "2026-10-23",
     "original_game_title": "Mortal Kombat 4",
     "variant_label": "PlayStation",
     "artwork": {
@@ -18,6 +19,70 @@
     },
     "issue_number": 82
   },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "mortal-kombat-4-ps1",
+    "origin": {
+      "project_url": "https://github.com/Alexbeav/mortal-kombat-4-recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1352192597"
+      }
+    },
+    "decisions": [
+      {
+        "from": {
+          "project_url": "https://github.com/Alexbeav/mortal-kombat-4-recomp",
+          "repository": {
+            "host": "github.com",
+            "id": "1352192597"
+          }
+        },
+        "to": {
+          "project_url": "https://github.com/alexbeavs-ps1-ports/mortal-kombat-4-recomp",
+          "repository": {
+            "host": "github.com",
+            "id": "1352192597"
+          }
+        },
+        "relationship": "relocation",
+        "outcome": "accepted",
+        "rationale": "The former path returns HTTP 301 to numeric repository ID 1352192597, and the current organization path resolves to that same provider identity, so the repository moved rather than being recreated. Every commit after the initial scaffold is authored by the same maintainer, including September 2026 commits that adopt the alexbeavs-ps1-ports organization's shared manifest workflow and its 'Alexbeav's PS1 Recomps' banner.",
+        "evidence": [
+          {
+            "kind": "supporting",
+            "reference": "https://api.github.com/repositories/1352192597",
+            "note": "The former and current paths resolve to this one repository identity; the current canonical name is alexbeavs-ps1-ports/mortal-kombat-4-recomp."
+          },
+          {
+            "kind": "supporting",
+            "reference": "https://github.com/boburning/portcove/issues/247#issuecomment-6082358982",
+            "note": "Earlier reviewed health accounting recorded the former path's HTTP 301 to repository ID 1352192597; it records only the numeric redirect target and leaves continuity unverified."
+          },
+          {
+            "kind": "supporting",
+            "reference": "https://github.com/alexbeavs-ps1-ports/mortal-kombat-4-recomp/blob/e1892e2a9034cb5753081ae0a0c2596d76cedac4/README.md",
+            "note": "Commit e1892e2a by the same maintainer adds the organization-hosted 'Alexbeav's PS1 Recomps' banner; the README release badges still name the former path."
+          },
+          {
+            "kind": "supporting",
+            "reference": "https://github.com/alexbeavs-ps1-ports/mortal-kombat-4-recomp/commit/8bcf2eaf12e23a7a620e75edc77ddd62634310cc",
+            "note": "The same maintainer adopts the alexbeavs-ps1-ports organization's shared psx-contracts manifest workflow."
+          },
+          {
+            "kind": "context",
+            "reference": "https://github.com/boburning/portcove/actions/runs/42664975992",
+            "note": "Observer relocation candidates reported the 301 target ID and current name without following the redirect."
+          }
+        ],
+        "reconsider_when": "Reassess if either path resolves to a different provider identity or attributable contradictory continuity evidence appears.",
+        "review": {
+          "reference": "https://github.com/boburning/portcove/issues/82#issuecomment-6749459167",
+          "decision_sha256": "6d5e291cb014c7cf47918600be20ae7e5cfd64fa4c1035aea96970ba3bf24189"
+        }
+      }
+    ]
+  },
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],
@@ -26,7 +91,7 @@
     "manually_validated_platforms": ["windows-x86-64"],
     "adapter": "psx-recomp-managed",
     "release": {
-      "repository": "Alexbeav/mortal-kombat-4-recomp",
+      "repository": "alexbeavs-ps1-ports/mortal-kombat-4-recomp",
       "asset_hints": {
         "windows-x86-64": ["windows-x64"],
         "linux-x86-64": ["linux-x64"],
@@ -44,14 +109,48 @@
     },
     "persistent_paths": [
       "saves",
-      "config",
-      "mods",
       "settings.toml",
-      "game_options.json",
-      "graphics.json",
-      "input.json",
-      "sound.json"
+      "settings.toml.bad",
+      "input.ini",
+      "keybinds.ini",
+      "config.ini",
+      "disc.cfg",
+      "bios.cfg",
+      "mods/installed",
+      "mods/packages",
+      "mods/.staging",
+      "mods/state.toml",
+      "mods/state.toml.tmp",
+      "mods/texture-packs",
+      "overlay-captures",
+      "overlay_captures.json",
+      "overlay_captures.json.d",
+      "overlay_captures.addendum.jsonl",
+      "diagnostics-location.txt"
     ],
+    "runtime_mutable_paths": [
+      "cache",
+      "psx_freeze_heartbeat.json",
+      "psx_freeze_heartbeat.json.tmp",
+      "psx_last_run_report.json",
+      "psx_cps_exit_trace.json",
+      "netplay_lan_lobby.txt",
+      "psx_crash.txt"
+    ],
+    "runtime_mutable_file_patterns": [
+      {
+        "prefix": "psx_freeze_dump_psx-runtime_",
+        "suffix": ".json"
+      },
+      {
+        "prefix": "overlay_captures.json.",
+        "suffix": ".tmp"
+      }
+    ],
+    "launch_environment": {
+      "PSX_OVERLAY_CAPTURES": "build-portcove/overlay-captures/overlay_captures.json"
+    },
+    "launch_arguments": ["--no-launcher"],
     "runtime_subdirectory": "build-portcove",
     "presentation": {
       "installation_method": "managed-recompilation",
@@ -69,7 +168,8 @@
           "verification": "catalog-identity"
         }
       ],
-      "saves_and_settings": "portcove-managed"
+      "saves_and_settings": "portcove-managed",
+      "manual_preparation": "Select your own complete Mortal Kombat 4 (USA) CHD (SLUS-00605, 1 track) and retail SCPH-1001 BIOS. Portcove builds a private player on Windows, Linux or Mac and skips the kit’s setup launcher when you play. On Mac, select Apple Command Line Tools or Xcode with the macOS SDK first. Portcove preserves your saves, settings, installed mods, texture packs and overlay captures; bundled mods belong to each runtime version. A copy installed earlier keeps its previous saves-and-settings scope until you update. Generation, runtime, lifecycle and gameplay are untested with these versions on every platform."
     }
   }
 }

@@ -14,6 +14,33 @@ const identity = (file: string) => {
   return process.platform === "win32" ? absolute.toLowerCase() : absolute;
 };
 
+/** Failure location only; case names, errors and output may contain private data. */
+export function nodeFailureAnnotation(
+  event: TestEvent,
+  root: string,
+  registered: readonly string[],
+) {
+  try {
+    if (event.type !== "test:fail") return null;
+    const data = event.data;
+    if (data.skip || data.todo || typeof data.file !== "string") return null;
+    const file = path.relative(root, path.resolve(root, data.file)).replaceAll("\\", "/");
+    if (
+      !registered.includes(file) ||
+      !/^(?:scripts|apps\/desktop\/(?:scripts|src|test))\/(?:[A-Za-z0-9_-][A-Za-z0-9_.-]*\/)*[A-Za-z0-9_-][A-Za-z0-9_.-]*\.test\.[cm]?[jt]sx?$/u.test(
+        file,
+      )
+    )
+      return null;
+    const line = data.line ?? 1;
+    if (!Number.isSafeInteger(line) || line < 1 || line > 1000000) return null;
+    return `::error file=${file},line=${line},title=Node contract failed::Node contract failed at its public source location`;
+  } catch {
+    // Diagnostic projection must never replace the original native failure.
+    return null;
+  }
+}
+
 /** Execution requirements are separate from the bounded, passive diagnostic reporter. */
 export function createNodeExecutionInventory(
   requestedFiles: readonly string[],
@@ -219,15 +246,25 @@ export default async function* requiredReport(source: AsyncIterable<TestEvent>) 
     registryError,
     root: fileURLToPath(new URL("../", import.meta.url)),
   });
+  const annotations = new Set<string>();
   async function* inspect() {
     for await (const event of source) {
       inventory.capture(event);
+      if (process.env.GITHUB_ACTIONS === "true" && annotations.size < 10) {
+        const annotation = nodeFailureAnnotation(
+          event,
+          fileURLToPath(new URL("../", import.meta.url)),
+          registeredFiles ?? [],
+        );
+        if (annotation) annotations.add(annotation);
+      }
       yield event;
     }
   }
   // Consume the original stream completely so failures and worker diagnostics are
   // retained before the additional nonempty-family requirement is evaluated.
   yield* report(inspect());
+  for (const annotation of annotations) yield `${annotation}\n`;
   const result = inventory.finish();
   yield `Node test execution inventory: ${JSON.stringify(result)}\n`;
   if (!result.complete && !result.native_failure) throw new Error(result.errors.join("; "));

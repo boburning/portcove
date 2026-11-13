@@ -1,0 +1,40 @@
+{
+  "batch": {
+    "apps_one": "{{count, number}} aplicación",
+    "apps_many": "{{count, number}} aplicaciones",
+    "apps_other": "{{count, number}} aplicaciones",
+    "becomesActive": "Pasa a ser la versión activa; <version/> sigue instalada.",
+    "continue": "Continuar a la confirmación de copia",
+    "copying": "Procesando…",
+    "files_one": "{{count, number}} archivo",
+    "files_many": "{{count, number}} archivos",
+    "files_other": "{{count, number}} archivos",
+    "label": "Copiar varias aplicaciones",
+    "outcome": {
+      "changed": "Cambió después de la revisión; no se copió",
+      "copied": "Copiada",
+      "failed": "No se copió"
+    },
+    "planLabel": "Plan de copia de varias aplicaciones",
+    "planSummary": "<strong>{{apps}}</strong> · {{files}} · {{size}} para copiar en Portcove.",
+    "recheckNote": "Cada aplicación se vuelve a comprobar justo antes de copiarla; si cambió, se retiene y no se copia. Las carpetas originales no cambian. Cierra los juegos antes de copiar.",
+    "replacesSavedFiles_one": "Para {{count, number}} juego, se reemplazan los archivos guardados coincidentes que ya están en Portcove. Portcove no crea antes una copia de seguridad, y quitar una copia más adelante no los restaura.",
+    "replacesSavedFiles_many": "Para {{count, number}} juegos, se reemplazan los archivos guardados coincidentes que ya están en Portcove. Portcove no crea antes una copia de seguridad, y quitar una copia más adelante no los restaura.",
+    "replacesSavedFiles_other": "Para {{count, number}} juegos, se reemplazan los archivos guardados coincidentes que ya están en Portcove. Portcove no crea antes una copia de seguridad, y quitar una copia más adelante no los restaura.",
+    "resultItem": "<name/>: {{outcome}}",
+    "resultLabel": "Resultado de la copia de varias aplicaciones",
+    "resultSummary_one": "Se copió {{count, number}} aplicación de {{total, number}}.",
+    "resultSummary_many": "Se copiaron {{count, number}} aplicaciones de {{total, number}}.",
+    "resultSummary_other": "Se copiaron {{count, number}} aplicaciones de {{total, number}}.",
+    "review": "Revisar la copia de las aplicaciones seleccionadas",
+    "reviewing": "Revisando…",
+    "savedFilesCopied": "Se copian los archivos guardados.",
+    "selected_zero": "Selecciona aplicaciones arriba para copiar varias a la vez.",
+    "selected_one": "{{count, number}} aplicación seleccionada. Selecciona al menos una más para copiarlas juntas o revísala por separado arriba.",
+    "selected_many": "{{count, number}} aplicaciones seleccionadas.",
+    "selected_other": "{{count, number}} aplicaciones seleccionadas.",
+    "unsupported_one": "{{count, number}} elemento no compatible permanece solo en la carpeta original.",
+    "unsupported_many": "{{count, number}} elementos no compatibles permanecen solo en la carpeta original.",
+    "unsupported_other": "{{count, number}} elementos no compatibles permanecen solo en la carpeta original."
+  }
+}

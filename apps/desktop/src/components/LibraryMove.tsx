@@ -1,10 +1,12 @@
+import { countMessage } from "../localization";
 import { useRef, useState } from "react";
 import { reloadWorkspace } from "../reload-workspace";
 import { join } from "@tauri-apps/api/path";
 import { desktopApi } from "../api";
 import { pickInstallFolder } from "../file-picker";
 import type { LibraryMovePlan } from "../types";
-import { errorText, formatBytes, formatCountMessage } from "../view-model";
+import { errorText, formatBytes } from "../view-model";
+import { ActionReviewFailure } from "./ActionReviewFailure";
 import { NavigationHints } from "./ui";
 import { Button } from "./ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle } from "./ui/dialog";
@@ -125,7 +127,7 @@ function LibraryMoveDialog({ close }: { close: () => void }) {
           />
         )}
         {busy && <p role="status">{busy} Keep Portcove open until this finishes.</p>}
-        {error != null && <p role="alert">{errorText(error)}</p>}
+        {error != null && <ActionReviewFailure error={error} />}
         {transferAttempted && !busy && (
           <p>Closing this review refreshes the library before you continue.</p>
         )}
@@ -187,7 +189,7 @@ export function LibraryMoveRecovery({
   disabled?: boolean;
 }) {
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string>();
+  const [error, setError] = useState<unknown>();
   const recover = async (abort: boolean) => {
     if (busy || disabled) return;
     setBusy(true);
@@ -197,7 +199,7 @@ export function LibraryMoveRecovery({
       await desktopApi.recoverLibraryMove(source, abort);
       reloadWorkspace();
     } catch (value) {
-      setError(errorText(value));
+      setError(value ?? errorText(value));
     } finally {
       setBusy(false);
       onBusyChange?.(false);
@@ -206,20 +208,21 @@ export function LibraryMoveRecovery({
   return (
     <section aria-label="Library move recovery">
       <h2 className="text-base">Finish changing library location</h2>
-      <p className="[overflow-wrap:anywhere] [unicode-bidi:plaintext]">
+      <p className="mt-1 text-sm [overflow-wrap:anywhere] text-pc-muted-foreground [unicode-bidi:plaintext]">
         Original library: {source}
       </p>
-      <p>Continue to check the new copy and finish switching libraries.</p>
-      {canKeepOriginal ? (
-        <p>Keep using the original library before the new copy is activated.</p>
-      ) : (
-        <p>The new copy is already active. Continue to finish the location change.</p>
-      )}
-      <p>Neither option deletes the copied files.</p>
+      <ul className="mt-3 grid list-disc gap-1 ps-5 text-sm">
+        <li>Continue to check the new copy and finish switching libraries.</li>
+        {canKeepOriginal ? (
+          <li>Keep using the original library before the new copy is activated.</li>
+        ) : (
+          <li>The new copy is already active. Continue to finish the location change.</li>
+        )}
+        <li>Neither option deletes the copied files.</li>
+      </ul>
       <div className="actions mt-[24px] flex flex-wrap gap-[8px] [&.compact]:mt-[14px]">
         <Button
           data-focusable
-          variant="primary"
           disabled={busy || disabled}
           onClick={() => {
             void recover(false);
@@ -241,7 +244,7 @@ export function LibraryMoveRecovery({
         )}
       </div>
       {busy && <p role="status">Recovering the library location change…</p>}
-      {error && <p role="alert">{error}</p>}
+      {error != null && <ActionReviewFailure error={error} />}
     </section>
   );
 }
@@ -306,7 +309,7 @@ export function LibraryCopySummary({
       {plan.metadata.application_versions.length > 0 ? (
         <>
           <p className="m-[0_0_var(--space-2)] text-[var(--color-text-secondary)]">
-            Current, previous, and saved-for-later versions keep their identities. These
+            Your current, previous, and prepared game versions will all be copied. These
             installation paths are relative to the library folder.
           </p>
           <ul className="ps-5">
@@ -334,12 +337,7 @@ export function LibraryCopySummary({
       ))}
       <h3>Saved file locations</h3>
       <p className="m-[0_0_var(--space-2)] text-[var(--color-text-secondary)]">
-        {formatCountMessage(plan.metadata.source_references.length, {
-          zero: "No saved file locations are included.",
-          one: "1 saved file location will stay unchanged.",
-          other: "{count} saved file locations will stay unchanged.",
-          unknown: "Saved file location count is unavailable.",
-        })}
+        {countMessage(plan.metadata.source_references.length, "savedLocations")}
       </p>
       {plan.metadata.source_references.length > 0 && (
         <details>
@@ -358,8 +356,8 @@ export function LibraryCopySummary({
         </details>
       )}
       <p className="m-[0_0_var(--space-2)] text-[var(--color-text-secondary)]">
-        Copying Portcove game-file folder contents does not redirect these saved locations. Keep the
-        original game files available until you explicitly add another location.
+        Copying these files does not update their saved locations. Keep the originals until you
+        choose the new locations.
       </p>
       <p className="m-[0_0_var(--space-2)] text-[var(--color-text-secondary)]">
         Original game files, saves, backups and artwork remain in place. Later saves and settings
@@ -395,14 +393,7 @@ function LibraryCopyTree({ tree }: { tree: LibraryMovePlan["content"][number] })
           <p>
             Folder within both locations: <code>{tree.relative_path}</code>
           </p>
-          <p>
-            {formatCountMessage(tree.copy.files.length, {
-              zero: "No files are recorded in this folder.",
-              one: "1 file will be copied.",
-              other: "{count} files will be copied.",
-              unknown: "File count is unavailable.",
-            })}
-          </p>
+          <p>{countMessage(tree.copy.files.length, "copiedFiles")}</p>
           {tree.copy.files.length > 0 && (
             <ul aria-label={`Files in ${tree.relative_path}`}>
               {tree.copy.files.map((file) => (

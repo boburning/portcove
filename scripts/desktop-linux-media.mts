@@ -174,6 +174,45 @@ export async function verifyApplicationMediaInputs(
   admission.assertReady();
 }
 
+/** Bind both readiness inputs to the originally captured bytes. */
+export function assertCapturedApplicationMediaBindings(
+  readiness: unknown,
+  inputs: readonly unknown[],
+) {
+  const media = object(readiness);
+  for (const value of [media.configuration, media.source]) {
+    const binding = object(value);
+    const captured = inputs.find((input) => object(input).path === binding.path);
+    assert.ok(captured, "Application media readiness requires captured configuration/source");
+    const capturedIdentity = object(captured);
+    assert.equal(binding.sha256, capturedIdentity.sha256);
+    assert.equal(binding.bytes, capturedIdentity.bytes);
+  }
+}
+
+/** The connected inspector must enter caller custody before any post-connect
+ * media check can fail. The harness still owns connection and final teardown. */
+export async function verifyConnectedApplicationMedia<
+  Inspector extends { ownedProcessIdentity?: unknown },
+>({
+  inspector,
+  retain,
+  inputs,
+  admission,
+  readiness,
+}: {
+  inspector: Inspector;
+  retain: (inspector: Inspector) => void;
+  inputs: readonly unknown[];
+  admission: ReturnType<typeof executionAdmission>;
+  readiness: unknown;
+}): Promise<void> {
+  retain(inspector);
+  await verifyApplicationMediaInputs(inputs, admission);
+  assertCapturedApplicationMediaBindings(readiness, inputs);
+  assertApplicationMediaReadiness(readiness, inspector.ownedProcessIdentity);
+}
+
 export async function publishApplicationMediaReadiness(file: string, value: unknown) {
   const pending = `${file}.pending`;
   await save(pending, value);

@@ -129,7 +129,7 @@ def main():
             None, None,
         )
         deadline = time.monotonic() + 10
-        title = "Choose game-file folder"
+        title = "Choose game files folder"
         application = None
         bus_name = None
         while time.monotonic() < deadline and application is None:

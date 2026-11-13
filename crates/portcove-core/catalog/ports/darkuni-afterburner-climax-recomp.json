@@ -1,0 +1,48 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "darkuni-afterburner-climax-recomp",
+    "name": "After Burner Climax (darkuni Recomp)",
+    "summary": "Windows player for After Burner Climax using its own Xbox 360 package.",
+    "project_url": "https://github.com/darkuni/afterburner-climax-recomp",
+    "original_game_title": "After Burner Climax",
+    "issue_number": 4134,
+    "listed_at": "2026-11-08",
+    "platforms": ["windows-x86-64"],
+    "availability": "packages",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Prepare your original in the upstream folder",
+          "instruction": "Keep the Windows x64 package files together in a writable folder. Put your own Xbox 360 LIVE package for title 58410A06 beside after_burner_climax.exe. Keep both bundled executables and the matching original variant together."
+        },
+        {
+          "title": "Use the documented Windows prerequisites",
+          "instruction": "The package README calls for 64-bit Windows 10 or 11 and the Microsoft Visual C++ 2015–2022 x64 Redistributable when its runtime libraries are missing."
+        },
+        {
+          "title": "Complete first-run setup",
+          "instruction": "Start after_burner_climax.exe in that folder and let the upstream program prepare assets. Keep your original export separately."
+        },
+        {
+          "title": "Let the upstream entry point select the variant",
+          "instruction": "The tagged source describes separate World 0.0.1.2 and Original 1.0.0.0 default.xex variants. Start after_burner_climax.exe with either supported original. It can hand off to after_burner_climax_world.exe for the World variant. Close the actual game before changing the folder."
+        },
+        {
+          "title": "Preserve the creating folder",
+          "instruction": "Keep the generated assets, after_burner_climax.toml and any game-created profile, saves or diagnostic files alongside the creating version."
+        }
+      ],
+      "warnings": [
+        "The package includes recompiled game code that the project license does not cover. Portcove downloads it only from the project’s own releases. You need your own original game files.",
+        "Keep the upstream folder outside the Portcove library. Close the game and its helpers before backing up or replacing the creating runtime and its data."
+      ],
+      "help_url": "https://github.com/darkuni/afterburner-climax-recomp/blob/9eeeb46030a2247e7b13b0f6241b42c4f32383b7/README.md"
+    },
+    "release_url": "https://github.com/darkuni/afterburner-climax-recomp/releases",
+    "download_asset_hints": {
+      "windows-x86-64": ["AfterBurnerClimax-", "-win64.zip"]
+    },
+    "recommended_download_channel": "stable"
+  }
+}

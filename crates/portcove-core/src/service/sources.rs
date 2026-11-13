@@ -57,15 +57,15 @@ impl PortcoveService {
         if paths.is_empty() {
             return Ok(static_result(
                 "no_paths",
-                "No game files were offered for inspection.",
-                "Choose one file or one source folder, then check it again.",
+                "No original game files were selected.",
+                "Choose one file or one game files folder, then check it again.",
             ));
         }
         if paths.len() != 1 {
             return Ok(static_result(
                 "multiple_paths",
-                "Portcove cannot determine one source from multiple dropped paths.",
-                "Choose one file or one source folder that contains the complete required set.",
+                "Choose one file or folder to check.",
+                "Choose one file or one game files folder containing all the required files.",
             ));
         }
         match self.inspect_source_report(profile_id, &paths[0]) {
@@ -95,13 +95,14 @@ impl PortcoveService {
                     summary: match state_code {
                         "source_missing" => "The selected game files could not be found.",
                         "unsupported_shape" => {
-                            "The selected path is not a supported shape for this game."
+                            "The selected file or folder cannot be checked for this game."
                         }
                         _ => "The selected game files could not be checked.",
                     }
                     .to_owned(),
-                    next_action: "Choose the expected file or source folder and check it again."
-                        .to_owned(),
+                    next_action:
+                        "Choose the required file or game files folder and check it again."
+                            .to_owned(),
                     report: None,
                     problem: Some(crate::source_report::problem_from_error(&error)),
                 })
@@ -163,6 +164,7 @@ impl PortcoveService {
             let source = self.inspect_source_record(profile_id, path)?;
             if expected_sha256.is_some_and(|expected| !source.sha256.eq_ignore_ascii_case(expected))
             {
+                self.library.forget_game_file_observation(path);
                 return Err(PortcoveError::conflict(
                     "source changed after discovery; review it again",
                 ));
@@ -323,6 +325,26 @@ impl PortcoveService {
             PortcoveError::not_found(format!("source profile {profile_id} is not registered"))
         })?;
         self.verify_source_record(&registered)?;
+        Ok(registered)
+    }
+
+    pub(super) fn verified_original_for_setup(
+        &self,
+        port: &crate::PortDefinition,
+    ) -> Result<SourceRecord> {
+        let profile_id = port
+            .source_profile
+            .as_deref()
+            .ok_or_else(|| PortcoveError::state("original-file setup requires a source profile"))?;
+        let registered = self.library.source(profile_id)?.ok_or_else(|| {
+            PortcoveError::not_found(format!("source profile {profile_id} is not registered"))
+        })?;
+        let assessment = crate::source_inspection::verify_registered_assessment_with_checkpoint(
+            &self.catalog,
+            &registered,
+            &|| Ok(()),
+        )?;
+        self.require_original_setup_compatibility(port, &assessment.classification)?;
         Ok(registered)
     }
 

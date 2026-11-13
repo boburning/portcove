@@ -254,9 +254,11 @@ impl PortcoveService {
             preparation_mode: None,
             required_source_extension: None,
             source: None,
+            source_folder_unavailable: None,
             bios: None,
             source_assessment: None,
             bios_assessment: None,
+            selectable_discs: None,
         });
         // Public PortStatus carries lifecycle actions; backup-only assessments
         // belong to the backup inventory, including for selected runtimes.
@@ -608,9 +610,18 @@ mod tests {
         executable: &Path,
         working: &Path,
     ) -> ExternalRuntimeRecord {
-        let arguments = vec!["--help".into()];
+        register_with_arguments(service, id, executable, working, &["--help".into()])
+    }
+
+    fn register_with_arguments(
+        service: &PortcoveService,
+        id: &str,
+        executable: &Path,
+        working: &Path,
+        arguments: &[String],
+    ) -> ExternalRuntimeRecord {
         let preview = service
-            .preview_user_selected_runtime(id, executable, working, &arguments)
+            .preview_user_selected_runtime(id, executable, working, arguments)
             .unwrap();
         assert!(preview.archive_sha256.is_empty());
         assert!(preview.immutable_tree_sha256.is_empty());
@@ -620,7 +631,7 @@ mod tests {
                 id,
                 executable,
                 working,
-                &arguments,
+                arguments,
                 &preview.preview_sha256,
             )
             .unwrap();
@@ -629,7 +640,7 @@ mod tests {
                 id,
                 executable,
                 working,
-                &arguments,
+                arguments,
                 &authorization.token,
             )
             .unwrap()
@@ -650,7 +661,9 @@ mod tests {
     // The listing-based contract retains its acquisition restriction without
     // promoting the descriptive identity into a strict managed definition.
     fn assert_listing_only_player_route(id: &str, embedded_download_hold: Option<bool>) {
+        let started = std::time::Instant::now();
         let (temporary, mut service, executable, working) = fixture(id);
+        eprintln!("listing route {id}: fixture ready {:?}", started.elapsed());
         if let Some(download_hold) = embedded_download_hold {
             service.catalog = Catalog::embedded().unwrap();
             let listing = service.catalog.listing(id).unwrap();
@@ -659,15 +672,77 @@ mod tests {
         } else {
             listing_only(&mut service);
         }
-        let expected_listing = service.catalog.listing(id).unwrap().clone();
         assert!(service.catalog.port(id).is_err());
+        eprintln!(
+            "listing route {id}: embedded contract ready {:?}",
+            started.elapsed()
+        );
+        assert_selected_listing_lifecycle(temporary, service, executable, working, id);
+    }
+
+    fn assert_selected_listing_lifecycle(
+        temporary: tempfile::TempDir,
+        service: PortcoveService,
+        executable: PathBuf,
+        working: PathBuf,
+        id: &str,
+    ) {
+        assert_selected_listing_lifecycle_with_arguments(
+            temporary,
+            service,
+            executable,
+            working,
+            id,
+            vec!["--help".into()],
+            None,
+        );
+    }
+
+    fn assert_selected_listing_lifecycle_with_arguments(
+        temporary: tempfile::TempDir,
+        service: PortcoveService,
+        executable: PathBuf,
+        working: PathBuf,
+        id: &str,
+        arguments: Vec<String>,
+        recorded_arguments: Option<String>,
+    ) {
+        let started = std::time::Instant::now();
+        let expected_listing = service.catalog.listing(id).unwrap().clone();
+        let expected_definition = service
+            .catalog
+            .port(id)
+            .ok()
+            .map(|port| serde_json::to_value(port).unwrap());
+        let expected_creating_definition = service
+            .current_user_selected_definition(id)
+            .unwrap()
+            .map(|port| serde_json::to_value(port).unwrap());
+        // Strict retained catalogs project their listing from the creating
+        // definition, without directory-only metadata such as issue_number.
+        let mut expected_retained_listing = service
+            .current_user_selected_definition(id)
+            .unwrap()
+            .map(crate::PortListing::from)
+            .unwrap_or_else(|| expected_listing.clone());
+        // The first-listed date is directory recency; a retained selection does not keep it.
+        expected_retained_listing.listed_at = None;
         let initial = service.listing_status(id).unwrap();
         assert!(
             initial.actions.iter().any(|action| action.action
                 == crate::ListingAction::AttachExisting
                 && action.allowed)
         );
-        let record = register(&service, id, &executable, &working);
+        let record = register_with_arguments(&service, id, &executable, &working, &arguments);
+        eprintln!("listing route {id}: registered {:?}", started.elapsed());
+        assert_eq!(
+            service
+                .catalog
+                .port(id)
+                .ok()
+                .map(|port| serde_json::to_value(port).unwrap()),
+            expected_definition
+        );
         assert!(
             service
                 .preview_user_selected_runtime(id, &executable, &working, &[])
@@ -678,7 +753,8 @@ mod tests {
         fs::create_dir(&replacement).unwrap();
         let replacement_executable = replacement.join(executable.file_name().unwrap());
         fs::copy(&executable, &replacement_executable).unwrap();
-        let arguments = vec!["--help".into()];
+        let replacement_before = fs::read(&replacement_executable).unwrap();
+
         let preview = service
             .preview_user_selected_runtime_relink(
                 id,
@@ -687,13 +763,15 @@ mod tests {
                 &arguments,
             )
             .unwrap();
+        let mut changed_arguments = arguments.clone();
+        changed_arguments.push("--unreviewed-argument".into());
         assert!(
             service
                 .authorize_user_selected_runtime_relink(
                     id,
                     &replacement_executable,
                     &replacement,
-                    &[],
+                    &changed_arguments,
                     &preview.preview_sha256,
                 )
                 .is_err()
@@ -719,8 +797,17 @@ mod tests {
                 &authorization.token,
             )
             .unwrap();
+        eprintln!("listing route {id}: relinked {:?}", started.elapsed());
         assert_eq!(relinked.id, record.id);
         assert_eq!(relinked.registered_at, record.registered_at);
+        assert_eq!(
+            service
+                .catalog
+                .port(id)
+                .ok()
+                .map(|port| serde_json::to_value(port).unwrap()),
+            expected_definition
+        );
         assert!(
             service
                 .relink_user_selected_runtime(
@@ -745,10 +832,22 @@ mod tests {
             .external_runtime_with_port(id)
             .unwrap()
             .unwrap();
-        assert!(retained.is_user_selected_listing(id));
+        if let Some(expected) = expected_creating_definition {
+            assert!(!retained.is_user_selected_listing(id));
+            assert_eq!(
+                serde_json::to_value(retained.port(id).unwrap()).unwrap(),
+                expected
+            );
+        } else {
+            assert!(retained.is_user_selected_listing(id));
+        }
         assert_eq!(
             serde_json::to_value(retained.listing(id).unwrap()).unwrap(),
-            serde_json::to_value(&expected_listing).unwrap()
+            serde_json::to_value(&expected_retained_listing).unwrap()
+        );
+        eprintln!(
+            "listing route {id}: reopened retained contract {:?}",
+            started.elapsed()
         );
         let workspace = service.workspace_snapshot(10).unwrap();
         assert!(
@@ -772,21 +871,321 @@ mod tests {
                 .unwrap()
                 .successful
         );
+        eprintln!(
+            "listing route {id}: owned probe returned {:?}",
+            started.elapsed()
+        );
+        if let Some(expected) = &recorded_arguments {
+            assert_eq!(
+                fs::read_to_string(replacement.join("route-binding")).unwrap(),
+                *expected
+            );
+        }
         let removal = service.preview_external_removal(id).unwrap();
         let consent = service
             .authorize_external_removal(id, &removal.preview_sha256)
             .unwrap();
         service.remove_external_runtime(id, &consent.token).unwrap();
+        eprintln!(
+            "listing route {id}: registration removed {:?}",
+            started.elapsed()
+        );
         assert!(replacement_executable.is_file());
+        assert_eq!(
+            fs::read(&replacement_executable).unwrap(),
+            replacement_before
+        );
+        if let Some(expected) = &recorded_arguments {
+            assert_eq!(
+                fs::read_to_string(replacement.join("route-binding")).unwrap(),
+                *expected
+            );
+        }
         assert_eq!(
             fs::read(working.join("player-save.dat")).unwrap(),
             b"player save"
         );
+        assert_eq!(
+            service
+                .catalog
+                .port(id)
+                .ok()
+                .map(|port| serde_json::to_value(port).unwrap()),
+            expected_definition
+        );
+    }
+
+    // Actual catalog identities with an owned inert probe, never game execution.
+    // Keep the managed definition while exercising the independent external route.
+    fn assert_harbour_day_one_route(id: &str) {
+        let (temporary, mut service, executable, working) = fixture(id);
+        service.catalog = Catalog::embedded().unwrap();
+        assert_eq!(
+            service.catalog.port(id).unwrap().adapter,
+            crate::AdapterKind::LibultrashipPortable
+        );
+        assert!(service.catalog.listing(id).unwrap().manual_setup.is_some());
+        assert_selected_listing_lifecycle_with_arguments(
+            temporary,
+            service,
+            executable,
+            working,
+            id,
+            Vec::new(),
+            None,
+        );
+    }
+
+    #[test]
+    fn prepared_guide_adoption_ghostship_day_one_preserves_managed_route() {
+        assert_harbour_day_one_route("ghostship");
+    }
+
+    #[test]
+    fn prepared_guide_adoption_starship_day_one_preserves_managed_route() {
+        assert_harbour_day_one_route("starship");
     }
 
     #[test]
     fn listing_only_registration_relink_restart_and_launch_preserve_user_ownership() {
         assert_listing_only_player_route("listing-only", None);
+    }
+
+    fn assert_bound_listing_player_route(id: &str, player_name: &str, literal_arguments: &[&str]) {
+        let (temporary, mut service, probe, working) = fixture(id);
+        let executable = working.join(player_name);
+        fs::rename(probe, &executable).unwrap();
+        service.catalog = Catalog::embedded().unwrap();
+        let listing = service.catalog.listing(id).unwrap();
+        assert!(listing.manual_setup.is_some());
+        // The prefix is the owned probe's recording ABI. The suffix is the
+        // individually reviewed player argument vector, never a shell command.
+        let arguments: Vec<String> = ["--record".into(), "route-binding".into()]
+            .into_iter()
+            .chain(
+                literal_arguments
+                    .iter()
+                    .map(|argument| (*argument).to_owned()),
+            )
+            .collect();
+        let preview = service
+            .preview_user_selected_runtime(id, &executable, &working, &arguments)
+            .unwrap();
+        assert!(
+            service
+                .register_user_selected_runtime(id, &executable, &working, &arguments, "")
+                .is_err()
+        );
+        assert!(
+            service
+                .authorize_user_selected_runtime(
+                    id,
+                    &executable,
+                    &working,
+                    &[],
+                    &preview.preview_sha256,
+                )
+                .is_err()
+        );
+        assert!(
+            service
+                .library
+                .external_runtime_with_port(id)
+                .unwrap()
+                .is_none()
+        );
+        assert_selected_listing_lifecycle_with_arguments(
+            temporary,
+            service,
+            executable,
+            working,
+            id,
+            arguments,
+            Some(literal_arguments.join("\n")),
+        );
+    }
+
+    #[test]
+    fn inspected_player_adoption_1866_dabs_mod() {
+        assert_bound_listing_player_route("dabdavis-perfect-dark-dabs-mod", "pd.x86_64.exe", &[]);
+    }
+
+    #[test]
+    fn inspected_player_adoption_1310_swrots() {
+        assert_bound_listing_player_route(
+            "star-wars-episode-iii-revenge-of-the-sith",
+            "swrots.exe",
+            &[],
+        );
+    }
+
+    #[test]
+    fn inspected_launcher_adoption_2798_two_towers() {
+        assert_bound_listing_player_route("athelas-the-two-towers-xbox", "Athelas.exe", &[]);
+    }
+
+    #[test]
+    fn inspected_launcher_adoption_2799_rotk_xbox() {
+        assert_bound_listing_player_route(
+            "athelas-the-return-of-the-king-xbox",
+            "Athelas.exe",
+            &[],
+        );
+    }
+
+    #[test]
+    fn inspected_launcher_adoption_2800_fellowship() {
+        assert_bound_listing_player_route(
+            "athelas-the-fellowship-of-the-ring-xbox",
+            "Athelas.exe",
+            &[],
+        );
+    }
+
+    #[test]
+    fn inspected_launcher_adoption_2801_pc_enhancement() {
+        assert_bound_listing_player_route("athelas-return-of-the-king-pc-fix", "Athelas.exe", &[]);
+    }
+
+    #[test]
+    fn inspected_player_adoption_2806_nvdemu_fork() {
+        assert_bound_listing_player_route(
+            "nvdemu-apeescaperecomp-macwindowslinux",
+            "ApeEscapeRecomp.exe",
+            &[],
+        );
+    }
+
+    #[test]
+    fn inspected_player_adoption_2806_custom_disc_config_and_card_paths() {
+        assert_bound_listing_player_route(
+            "nvdemu-apeescaperecomp-macwindowslinux",
+            "ApeEscapeRecomp.exe",
+            &[
+                "--disc",
+                r"C:\Owned Discs\Ape Escape.cue",
+                "--game",
+                r"C:\Player Data\Ape Escape\game.toml",
+                "--memcard-dir",
+                r"C:\Player Data\Ape Escape Cards",
+            ],
+        );
+    }
+
+    #[test]
+    fn inspected_player_adoption_2796_gumpolas_two_towers() {
+        assert_bound_listing_player_route("gumpolas-tootawersrecomp", "twotowers_recomp.exe", &[]);
+    }
+
+    // Per-title acceptance of an existing listing-only route. These controls
+    // execute the owned probe, not the upstream game or original-data setup.
+    #[test]
+    fn prepared_guide_adoption_2553() {
+        assert_bound_listing_player_route(
+            "3d-pinball-for-windows-space-cadet-spacecadetpinball",
+            "SpaceCadetPinball.exe",
+            &[],
+        );
+    }
+
+    #[test]
+    fn prepared_guide_adoption_1904() {
+        assert_bound_listing_player_route("wargus-wargus", "wargus.exe", &[]);
+    }
+
+    #[test]
+    fn prepared_guide_adoption_1905() {
+        assert_bound_listing_player_route("wargus-war1gus", "war1gus.exe", &[]);
+    }
+
+    #[test]
+    fn prepared_guide_adoption_1849() {
+        assert_bound_listing_player_route("opencommunityedition-opence", "halo.exe", &[]);
+    }
+
+    #[test]
+    fn prepared_guide_adoption_1813() {
+        assert_bound_listing_player_route(
+            "doukutsu-rs-doukutsu-rs",
+            "doukutsu-rs_windows_1.0.0.x86_64.exe",
+            &[],
+        );
+    }
+
+    #[test]
+    fn prepared_guide_adoption_1833() {
+        assert_bound_listing_player_route("dkfans-keeperfx", "keeperfx-launcher.exe", &[]);
+    }
+
+    #[test]
+    fn prepared_guide_adoption_1857() {
+        assert_bound_listing_player_route("gizcesi-opentricky", "OpenTricky.exe", &[]);
+    }
+
+    #[test]
+    fn prepared_guide_adoption_1912() {
+        assert_bound_listing_player_route("xander-haj-z3r", "zelda3.exe", &[]);
+    }
+
+    #[test]
+    fn prepared_guide_adoption_1852_red_alert() {
+        assert_bound_listing_player_route("openra-openra", "RedAlert.exe", &[]);
+    }
+
+    #[test]
+    fn prepared_guide_adoption_1852_tiberian_dawn() {
+        assert_bound_listing_player_route("openra-openra", "TiberianDawn.exe", &[]);
+    }
+
+    #[test]
+    fn prepared_guide_adoption_1852_dune_2000() {
+        assert_bound_listing_player_route("openra-openra", "Dune2000.exe", &[]);
+    }
+
+    #[test]
+    fn prepared_guide_adoption_1791() {
+        assert_bound_listing_player_route("derrickgold-ar-recomp", "ActRaiserRecomp.exe", &[]);
+    }
+
+    #[test]
+    fn prepared_guide_adoption_2447() {
+        assert_bound_listing_player_route("burnout-2-timftw21", "b2.exe", &[]);
+    }
+
+    #[test]
+    fn prepared_guide_adoption_2751() {
+        assert_bound_listing_player_route(
+            "inliner495-bblit-remaster",
+            "bugs.exe",
+            &["/opengl", "/win", "/b0", "/x800", "/y600"],
+        );
+    }
+
+    #[test]
+    fn prepared_guide_adoption_345() {
+        assert_bound_listing_player_route(
+            "syphon-filter-2-syphon-filter-2-recompiled",
+            "Syphon_Filter_2_Recompiled.exe",
+            &[],
+        );
+    }
+
+    #[test]
+    fn prepared_guide_adoption_384_v5() {
+        assert_bound_listing_player_route(
+            "sonic-mania-sonic-mania-decompilation-rsdkv5",
+            "RSDKv5.exe",
+            &[],
+        );
+    }
+
+    #[test]
+    fn prepared_guide_adoption_384_v5u() {
+        assert_bound_listing_player_route(
+            "sonic-mania-sonic-mania-decompilation-rsdkv5",
+            "RSDKv5U.exe",
+            &[],
+        );
     }
 
     #[test]
@@ -810,6 +1209,16 @@ mod tests {
     }
 
     #[test]
+    fn verdite_prepared_player_route_1900() {
+        assert_listing_only_player_route("voicedrew11-verdite2", Some(false));
+    }
+
+    #[test]
+    fn verdite_prepared_player_route_1901() {
+        assert_listing_only_player_route("voicedrew11-verdite3", Some(false));
+    }
+
+    #[test]
     fn snes_source_player_route_146() {
         assert_listing_only_player_route("mega-man-x-snes-recomp", Some(true));
     }
@@ -819,6 +1228,403 @@ mod tests {
         assert_listing_only_player_route("super-metroid-snesrev-sm", Some(false));
     }
 
+    #[test]
+    fn nes_cycle_source_player_route_1840() {
+        assert_listing_only_player_route("mstan-legendofzeldanesrecomp", Some(false));
+    }
+
+    #[test]
+    fn nes_cycle_source_player_route_2739() {
+        assert_listing_only_player_route("mstan-yoshinesrecomp", Some(false));
+    }
+
+    #[test]
+    fn rechan_prepared_player_route_348() {
+        assert_listing_only_player_route("jackie-chan-stuntmaster-rechan", Some(false));
+    }
+
+    #[test]
+    fn crash_prepared_player_route_385() {
+        assert_listing_only_player_route("crash-bandicoot-crashbandicoot-launcher", Some(false));
+    }
+
+    #[test]
+    fn symphony_permitted_player_route_319() {
+        assert_listing_only_player_route(
+            "castlevania-symphony-of-the-night-ps1-symphonyrecomp",
+            Some(false),
+        );
+    }
+
+    #[test]
+    fn rage_permitted_player_route_349() {
+        assert_listing_only_player_route("rage-racer-rage-racer-pc", Some(true));
+    }
+
+    #[test]
+    fn kameo_permitted_player_route_129() {
+        assert_listing_only_player_route("kameo-repowered", Some(true));
+    }
+
+    #[test]
+    fn redahm_permitted_player_route_130() {
+        assert_listing_only_player_route(
+            "redahm-destroy-all-humans-path-of-the-furon",
+            Some(false),
+        );
+    }
+
+    #[test]
+    fn svr07_permitted_player_route_131() {
+        assert_listing_only_player_route("svr07-recomp-wwe-smackdown-vs-raw-2007", Some(false));
+    }
+
+    #[test]
+    fn valkyrie_prepared_product_route_491() {
+        assert_listing_only_player_route("alexbeav-valkyrie-profile-recomp", Some(false));
+    }
+
+    #[test]
+    fn dprecomp_permitted_prepared_runtime_route_812() {
+        assert_listing_only_player_route("deadly-premonition-dprecomp", Some(true));
+    }
+
+    #[test]
+    fn melee_static_prepared_player_route_814() {
+        assert_listing_only_player_route("melee-unlocked", Some(false));
+    }
+
+    #[test]
+    fn strikers_prepared_player_route_816() {
+        assert_listing_only_player_route("super-mario-strikers-strikers", Some(false));
+    }
+
+    #[test]
+    fn skate3_permitted_prepared_player_route_150() {
+        assert_listing_only_player_route("skate-3-recomp", Some(true));
+    }
+
+    #[test]
+    fn budokai3_prepared_player_route_366() {
+        assert_listing_only_player_route(
+            "dragon-ball-z-budokai-3-hd-budokai-3-hd-collection-recomp",
+            Some(false),
+        );
+    }
+
+    #[test]
+    fn triaevum_prepared_player_route_515() {
+        assert_listing_only_player_route("triaevum-ocarina-of-time-3d", Some(false));
+    }
+
+    #[test]
+    fn arwing2_installed_player_route_1946() {
+        assert_listing_only_player_route("star-fox-2-arwing2", Some(false));
+    }
+
+    #[test]
+    fn ackman_permitted_player_route_2881() {
+        assert_listing_only_player_route("go-go-ackman-go-go-ackman-recompiled", Some(true));
+    }
+
+    #[test]
+    fn strike_gunner_prepared_player_route_2713() {
+        assert_listing_only_player_route(
+            "strike-gunner-s-t-g-strike-gunner-stg-recomp",
+            Some(false),
+        );
+    }
+
+    #[test]
+    fn top_gear_direct_player_route_2905() {
+        assert_listing_only_player_route("top-gear-snes-top-gear-for-windows", Some(false));
+    }
+
+    #[test]
+    fn opentie_prepared_player_route_1975() {
+        assert_listing_only_player_route("star-wars-tie-fighter-opentie", Some(true));
+    }
+
+    #[test]
+    fn open_annihilation_settled_player_route_1635() {
+        assert_listing_only_player_route("total-annihilation-open-annihilation", Some(false));
+    }
+
+    #[test]
+    fn woodyre_prepared_player_route_1636() {
+        assert_listing_only_player_route("woody-woodpecker-woodyre", Some(false));
+    }
+
+    #[test]
+    fn reblue_prepared_player_preserves_strict_definition_route_56() {
+        let id = "re-blue";
+        let (temporary, mut service, executable, working) = fixture(id);
+        service.catalog = Catalog::embedded().unwrap();
+        let declared = service.catalog.port(id).unwrap();
+        assert_eq!(declared.adapter, crate::AdapterKind::GeneratedCache);
+        assert_ne!(declared.release.provider, ReleaseSource::UserPrepared);
+        assert!(declared.source_profile.is_some());
+        assert!(service.catalog.listing(id).unwrap().manual_setup.is_some());
+        assert!(
+            service
+                .current_user_selected_definition(id)
+                .unwrap()
+                .is_none()
+        );
+        assert_selected_listing_lifecycle(temporary, service, executable, working, id);
+    }
+
+    #[test]
+    fn prepared_guide_adoption_2705_launcher() {
+        assert_bound_listing_player_route("re-volt-rvgl", "rvgl_launcher.exe", &[]);
+    }
+
+    include!("../testdata/prepared-route-tests.generated.rs");
+    include!("../testdata/retained-prepared-tests.generated.rs");
+
+    #[test]
+    fn prepared_guide_adoption_declaration_inventory() {
+        let declared = crate::test_fixture::route_enrollment()
+            .into_iter()
+            .map(|case| case.port_id)
+            .collect::<std::collections::BTreeSet<_>>();
+        assert_eq!(
+            declared,
+            DECLARED_PREPARED_ROUTE_TEST_IDS
+                .iter()
+                .map(|id| (*id).to_owned())
+                .collect::<std::collections::BTreeSet<_>>()
+        );
+        assert_eq!(DECLARED_PREPARED_ROUTE_TEST_IDS.len(), declared.len());
+    }
+    fn assert_declarative_prepared_player_route(id: &str) {
+        let expectations = crate::test_fixture::route_expectations();
+        let case = crate::test_fixture::route_enrollment()
+            .into_iter()
+            .find(|case| case.port_id == id)
+            .unwrap();
+        let observed = expectations
+            .iter()
+            .find(|row| row["port_id"] == id)
+            .expect("new route needs independent reviewed expected facts");
+        assert_eq!(observed["executable"], case.prepared_player.executable);
+        assert_eq!(
+            observed["arguments"],
+            serde_json::to_value(&case.prepared_player.arguments).unwrap()
+        );
+        if case.managed_native {
+            let catalog = Catalog::embedded().unwrap();
+            let port = catalog.port(id).unwrap();
+            assert_eq!(port.adapter, crate::AdapterKind::NativePortable);
+            assert_ne!(port.release.provider, ReleaseSource::UserPrepared);
+            // A reviewed catalog hold may legitimately withhold a managed route, so
+            // the invariant follows the hold instead of assuming no route is held.
+            let held = port.managed_acquisition_hold.is_some();
+            assert_eq!(
+                crate::managed_runtime_policy::require_acquisition_available(&catalog, id).is_err(),
+                held,
+                "{id}: acquisition availability follows the catalog hold"
+            );
+            if !held {
+                assert!(
+                    catalog.listing(id).unwrap().download_block_reason.is_none(),
+                    "{id}: an unheld managed route has no listing download block"
+                );
+            }
+        }
+        let args = case
+            .prepared_player
+            .arguments
+            .iter()
+            .map(String::as_str)
+            .collect::<Vec<_>>();
+        assert_bound_listing_player_route(id, &case.prepared_player.executable, &args);
+        eprintln!(
+            "{}",
+            serde_json::json!({"kind":"owned-probe-prepared-route-lifecycle","port_id":id,"outcome":"passed","upstream_game_executed":false})
+        );
+    }
+
+    #[test]
+    fn prepared_guide_adoption_2776_windows_player() {
+        assert_bound_listing_player_route(
+            "n64hub-perfect-dark-recomp",
+            "PerfectDarkRecompiled.exe",
+            &[],
+        );
+    }
+
+    #[test]
+    fn prepared_guide_adoption_2838_controller_pak_player() {
+        assert_bound_listing_player_route("n64hub-rush-2049-recomp", "Rush2049Recompiled.exe", &[]);
+    }
+
+    #[test]
+    fn prepared_guide_adoption_2851_enhanced_portable_player() {
+        assert_bound_listing_player_route("kandowontu2-urbanrecomp", "UrbanRecomp.exe", &[]);
+    }
+
+    #[test]
+    fn prepared_guide_adoption_2624_compiled_product_player() {
+        assert_bound_listing_player_route("wild-9-wild9recomp", "Wild9_Recompiled.exe", &[]);
+    }
+
+    #[test]
+    fn prepared_guide_adoption_2759_same_process_player() {
+        assert_bound_listing_player_route("previouslevelgames-recharged", "recharged.exe", &[]);
+    }
+
+    #[test]
+    fn prepared_guide_adoption_1871_existing_ntsc_player() {
+        assert_bound_listing_player_route("theclub654-projectcane", "Sly1-Release.exe", &[]);
+    }
+
+    #[test]
+    fn prepared_guide_adoption_2811_waiting_portable_launcher() {
+        assert_bound_listing_player_route(
+            "linkssy2-urbanchaosriotresponseburneredition",
+            "Play Burner Edition.exe",
+            &[],
+        );
+    }
+
+    #[test]
+    fn prepared_guide_adoption_2812_direct_tu2_player() {
+        assert_bound_listing_player_route(
+            "shaneomac1337-wwe-allstars-recomp",
+            "wweallstars.exe",
+            &[],
+        );
+    }
+
+    #[test]
+    fn prepared_guide_adoption_2772_waiting_configured_launcher() {
+        assert_bound_listing_player_route(
+            "josiahg2502-glitch-newsuperpaperbros",
+            "New Super Paper Bros.exe",
+            &[],
+        );
+    }
+
+    #[test]
+    fn prepared_guide_adoption_2610_literal_disc_path_player() {
+        assert_bound_listing_player_route(
+            "star-fox-adventures-foxhollow",
+            "foxhollow.exe",
+            &[r"C:\Owned Games\Star Fox Adventures.iso"],
+        );
+    }
+
+    #[test]
+    fn prepared_guide_adoption_1878_external_copy_preserves_managed_offer() {
+        let id = "sdlpal-sdlpal";
+        let (temporary, mut service, probe, working) = fixture(id);
+        let executable = working.join("sdlpal.exe");
+        fs::rename(probe, &executable).unwrap();
+        service.catalog = Catalog::embedded().unwrap();
+        assert_eq!(
+            service.catalog.port(id).unwrap().adapter,
+            crate::AdapterKind::NativePortable
+        );
+        assert!(
+            service
+                .current_user_selected_definition(id)
+                .unwrap()
+                .is_none()
+        );
+        // An owned probe exercises registration, consent, relink, restart,
+        // supervision and preserving removal. No upstream program is run.
+        assert_selected_listing_lifecycle_with_arguments(
+            temporary,
+            service,
+            executable,
+            working,
+            id,
+            vec!["--record".to_owned(), "route-binding".to_owned()],
+            Some(String::new()),
+        );
+    }
+
+    #[test]
+    fn prepared_guide_adoption_2612_multiplayer_preserves_managed_sp() {
+        let id = "star-wars-jedi-knight-jedi-academy-single-player-and-multiplayer-openjk-openjo";
+        let (temporary, mut service, probe, working) = fixture(id);
+        let executable = working.join("openjk.x86_64.exe");
+        fs::rename(probe, &executable).unwrap();
+        service.catalog = Catalog::embedded().unwrap();
+        let declared = service.catalog.port(id).unwrap();
+        assert_eq!(declared.adapter, crate::AdapterKind::NativePortable);
+        assert_eq!(declared.release.provider, ReleaseSource::Github);
+        assert!(
+            service
+                .current_user_selected_definition(id)
+                .unwrap()
+                .is_none()
+        );
+        // The owned probe records the documented MP vector; it never runs
+        // OpenJK, an original, a server, or a downloaded mod. The shared
+        // lifecycle control also preserves the full current SP definition.
+        let selected = ["+set", "s_UseOpenAL", "0"];
+        let arguments = ["--record", "route-binding"]
+            .into_iter()
+            .chain(selected)
+            .map(str::to_owned)
+            .collect();
+        assert_selected_listing_lifecycle_with_arguments(
+            temporary,
+            service,
+            executable,
+            working,
+            id,
+            arguments,
+            Some(selected.join("\n")),
+        );
+    }
+
+    #[test]
+    fn prepared_guide_adoption_173_project_working_directory() {
+        let id = "earthbound-recomp";
+        let (temporary, mut service, probe, working) = fixture(id);
+        let build = working.join("build");
+        fs::create_dir(&build).unwrap();
+        let executable = build.join("EarthBoundRecomp.exe");
+        fs::rename(probe, &executable).unwrap();
+        service.catalog = Catalog::embedded().unwrap();
+        assert_eq!(
+            service.catalog.port(id).unwrap().release.provider,
+            ReleaseSource::UserPrepared
+        );
+        #[cfg(windows)]
+        assert!(
+            service
+                .current_user_selected_definition(id)
+                .unwrap()
+                .is_some()
+        );
+        // This path is a literal owned-probe argument, never an original to
+        // open. The probe binds the project CWD independently of build/exe.
+        let selected = ["C:\\Owned originals\\EarthBound USA.sfc"];
+        let arguments = ["--record", "route-binding"]
+            .into_iter()
+            .chain(selected)
+            .map(str::to_owned)
+            .collect();
+        assert_selected_listing_lifecycle_with_arguments(
+            temporary,
+            service,
+            executable,
+            working,
+            id,
+            arguments,
+            Some(selected.join("\n")),
+        );
+    }
+
+    #[test]
+    fn redriver2_prepared_player_route_317() {
+        assert_listing_only_player_route("driver-2-redriver2", Some(false));
+    }
+
     // Bind the real embedded identities to Core's offered operations with an
     // owned native probe. These are not game/ROM observations. Separate cases
     // keep each complete consent/restart/launch/removal sequence independently
@@ -826,22 +1632,15 @@ mod tests {
     fn assert_prepared_player_route(id: &str, selected_arguments: Option<&[&str]>) {
         let (_temporary, mut service, executable, working) = fixture(id);
         service.catalog = Catalog::embedded().unwrap();
+        let current_adapter = service.catalog.port(id).unwrap().adapter;
         // A new managed offer does not rewrite an existing registration's
         // creating contract. Unreplaced cases continue to bind current data.
-        let retained_fixture = [
-            include_str!("../testdata/reflectionhle-retained-selected-2026-10-28.json"),
-            include_str!("../testdata/crispy-retained-selected-2026-10-29.json"),
-            include_str!("../testdata/crispy-final-doom-retained-selected-2026-10-29.json"),
-            include_str!("../testdata/bstone-retained-selected-2026-10-29.json"),
-            include_str!("../testdata/devilution-retained-selected-2026-10-29.json"),
-        ]
-        .into_iter()
-        .find(|fixture| Catalog::from_json(fixture).unwrap().port(id).is_ok());
+        let retained_fixture = retained_prepared_definition(id);
         if let Some(fixture) = retained_fixture {
-            assert_eq!(
-                service.catalog.port(id).unwrap().adapter,
-                crate::AdapterKind::NativePortable
-            );
+            assert!(matches!(
+                current_adapter,
+                crate::AdapterKind::NativePortable | crate::AdapterKind::StagedSourcePortable
+            ));
             service.catalog = Catalog::from_json(fixture)
                 .unwrap()
                 .with_embedded_listings()
@@ -955,10 +1754,7 @@ mod tests {
         drop(service);
         let service = PortcoveService::new(Library::open(root).unwrap()).unwrap();
         if retained_fixture.is_some() {
-            assert_eq!(
-                service.catalog.port(id).unwrap().adapter,
-                crate::AdapterKind::NativePortable
-            );
+            assert_eq!(service.catalog.port(id).unwrap().adapter, current_adapter);
         }
         #[cfg(windows)]
         if let Some(fixture) = retained_fixture {
@@ -1038,6 +1834,15 @@ mod tests {
     }
 
     prepared_player_case!(
+        prepared_guide_adoption_330_completed_game,
+        "gundam-wing-endless-duel-recomp",
+        [
+            "--no-launcher",
+            "C:\\Owned originals\\Endless Duel Japan.sfc"
+        ]
+    );
+
+    prepared_player_case!(
         cps_route_2769,
         "cps2recomp-alien-vs-predator",
         ["--play", "avsp"]
@@ -1098,9 +1903,10 @@ mod tests {
         ["--play", "xmvsf"]
     );
 
+    prepared_player_case!(render96_selected_native_route_519, "render96ex");
+
     prepared_player_case!(classic_pc_route_1877, "lethal-guitar-rigelengine");
     prepared_player_case!(classic_pc_route_1793, "keriew-augustus");
-    prepared_player_case!(classic_pc_route_1790, "elasota-aerofoil");
     prepared_player_case!(classic_pc_route_1826, "m-x-d-heretic2r");
 
     prepared_player_case!(classic_fps_route_1873, "bodbdearg-psydoom");
@@ -1135,48 +1941,7 @@ mod tests {
     prepared_player_case!(historical_route_sm64coopdx, "super-mario-64-sm64-co-op-dx");
     prepared_player_case!(historical_route_wipeout, "wipeout-phantom-edition");
     prepared_player_case!(historical_route_emerald, "pokemon-emerald-emeraldrecomp");
-    prepared_player_case!(
-        historical_route_firered,
-        "pokemon-firered-fireredleafgreenrecomp"
-    );
-    prepared_player_case!(
-        historical_route_leafgreen,
-        "pokemon-leafgreen-fireredleafgreenrecomp"
-    );
-    prepared_player_case!(historical_route_ruby, "pokemon-ruby-rubysapphirerecomp");
-    prepared_player_case!(
-        historical_route_sapphire,
-        "pokemon-sapphire-rubysapphirerecomp"
-    );
 
-    prepared_player_case!(
-        native_engine_route_2592,
-        "medal-of-honor-allied-assault-openmohaa"
-    );
-    prepared_player_case!(
-        native_engine_route_2593,
-        "medal-of-honor-allied-assault-spearhead-openmohaa"
-    );
-    prepared_player_case!(
-        native_engine_route_2594,
-        "medal-of-honor-allied-assault-breakthrough-openmohaa"
-    );
-    prepared_player_case!(
-        native_engine_route_2565,
-        "doom-3-classic-dude-doom-3-unified-development-engine"
-    );
-    prepared_player_case!(
-        native_engine_route_2566,
-        "doom-3-resurrection-of-evil-classic-dude-doom-3-unified-development-engine"
-    );
-    prepared_player_case!(
-        native_engine_route_2612,
-        "star-wars-jedi-knight-jedi-academy-single-player-and-multiplayer-openjk-openjo"
-    );
-    prepared_player_case!(
-        native_engine_route_2611,
-        "star-wars-jedi-knight-ii-jedi-outcast-single-player-openjk-openjo"
-    );
     prepared_player_case!(
         native_engine_route_2889,
         "perimeter-perimeter-community-engine"
@@ -1400,43 +2165,6 @@ mod tests {
         );
     }
 
-    // Preserve all nine prior route case identities across the managed offer.
-    prepared_player_case!(desktop_prepared_route_2683, "keen-dreams-reflectionhle");
-    prepared_player_case!(
-        desktop_prepared_route_2684,
-        "catacomb-3-d-the-descent-reflectionhle"
-    );
-    prepared_player_case!(
-        desktop_prepared_route_2685,
-        "the-catacomb-abyss-reflectionhle"
-    );
-    prepared_player_case!(
-        desktop_prepared_route_2686,
-        "the-catacomb-armageddon-reflectionhle"
-    );
-    prepared_player_case!(
-        desktop_prepared_route_2687,
-        "the-catacomb-apocalypse-reflectionhle"
-    );
-    prepared_player_case!(desktop_prepared_route_2688, "wolfenstein-3d-reflectionhle");
-    prepared_player_case!(
-        desktop_prepared_route_2689,
-        "spear-of-destiny-reflectionhle"
-    );
-    prepared_player_case!(
-        desktop_prepared_route_2690,
-        "super-3-d-noah-s-ark-dos-reflectionhle"
-    );
-    prepared_player_case!(desktop_prepared_route_2692, "bio-menace-reflectionhle");
-
-    prepared_player_case!(
-        desktop_prepared_route_2555,
-        "blake-stone-aliens-of-gold-bstone"
-    );
-    prepared_player_case!(
-        desktop_prepared_route_2556,
-        "blake-stone-planet-strike-bstone"
-    );
     prepared_player_case!(desktop_prepared_route_2652, "descent-dxx-rebirth");
     prepared_player_case!(desktop_prepared_route_2653, "descent-ii-dxx-rebirth");
     prepared_player_case!(
@@ -1468,26 +2196,10 @@ mod tests {
         desktop_prepared_route_2622,
         "ultima-vii-part-two-serpent-isle-exult"
     );
-    prepared_player_case!(desktop_prepared_route_2563, "diablo-devilutionx");
-    prepared_player_case!(desktop_prepared_route_2564, "diablo-hellfire-devilutionx");
     prepared_player_case!(
         desktop_prepared_route_2616,
         "the-elder-scrolls-iii-morrowind-openmw"
     );
-    prepared_player_case!(desktop_prepared_route_2567, "doom-3-classic-dhewm3");
-    prepared_player_case!(
-        desktop_prepared_route_2568,
-        "doom-3-resurrection-of-evil-classic-dhewm3"
-    );
-    prepared_player_case!(
-        desktop_prepared_route_2654,
-        "doom-the-ultimate-doom-crispy-doom-family"
-    );
-    prepared_player_case!(desktop_prepared_route_2655, "doom-ii-crispy-doom-family");
-    prepared_player_case!(desktop_prepared_route_2656, "final-doom-crispy-doom-family");
-    prepared_player_case!(desktop_prepared_route_2657, "heretic-crispy-doom-family");
-    prepared_player_case!(desktop_prepared_route_2662, "hexen-crispy-doom-family");
-    prepared_player_case!(desktop_prepared_route_2663, "strife-crispy-doom-family");
     prepared_player_case!(
         desktop_prepared_route_2643,
         "catacomb-3-d-the-descent-catacombgl"
@@ -1518,6 +2230,26 @@ mod tests {
         service.catalog = Catalog::embedded().unwrap();
         let before = serde_json::to_value(service.catalog.port("shipwright").unwrap()).unwrap();
         let record = register(&service, "shipwright", &executable, &working);
+        let report = service.port_capabilities("shipwright").unwrap();
+        let current = report.routes.last().unwrap();
+        assert_eq!(current.install_id.as_deref(), Some(record.id.as_str()));
+        assert_eq!(current.route, "user-selected");
+        let updates = current
+            .features
+            .iter()
+            .find(|row| row.feature == crate::CapabilityFeature::Updates)
+            .unwrap();
+        assert_eq!(updates.mode, crate::CapabilityMode::Manual);
+        assert!(updates.action.is_some());
+        assert_eq!(
+            service
+                .status("shipwright")
+                .unwrap()
+                .external_runtime
+                .as_ref()
+                .map(|r| &r.id),
+            Some(&record.id)
+        );
         let status = service.status("shipwright").unwrap();
         assert!(status.readiness.unwrap().launchable);
         assert!(
@@ -1539,6 +2271,36 @@ mod tests {
             .unwrap()
             .unwrap();
         assert!(retained.port("shipwright").is_err());
+    }
+
+    #[test]
+    fn fallout1_ce_prepared_player_route_2573() {
+        assert_listing_only_player_route("fallout-fallout-community-edition", Some(false));
+    }
+
+    #[test]
+    fn fallout2_ce_prepared_player_route_2574() {
+        assert_listing_only_player_route("fallout-2-fallout-2-community-edition", Some(false));
+    }
+
+    #[test]
+    fn arx_libertatis_prepared_player_route_2554() {
+        assert_listing_only_player_route("arx-fatalis-arx-libertatis", Some(false));
+    }
+
+    #[test]
+    fn iortcw_sp_prepared_player_route_2706() {
+        assert_listing_only_player_route("return-to-castle-wolfenstein-iortcw", Some(false));
+    }
+
+    #[test]
+    fn yamagi_direct_player_route_2700() {
+        assert_listing_only_player_route("quake-ii-yamagi-quake-ii", Some(false));
+    }
+
+    #[test]
+    fn sdlpop_permitted_player_route_2892() {
+        assert_listing_only_player_route("prince-of-persia-dos-sdlpop", Some(false));
     }
 
     #[test]
@@ -2044,5 +2806,719 @@ mod tests {
         let mut changed = original;
         changed["ports"][0]["launch_environment"] = json!({"SECRET":"value"});
         assert!(Catalog::from_json(&changed.to_string()).is_err());
+    }
+
+    #[test]
+    fn dune_ii_opendune_prepared_player_route_2674() {
+        assert_listing_only_player_route("dune-ii-opendune", Some(false));
+    }
+
+    #[test]
+    fn might_and_magic_vii_openenroth_prepared_player_route_2885() {
+        assert_listing_only_player_route("might-and-magic-vii-openenroth", Some(false));
+    }
+
+    #[test]
+    fn gsrecomp_collection_player_route_1619() {
+        assert_bound_listing_player_route("gsrecomp", "GoldenSunLauncher.exe", &[]);
+    }
+
+    #[test]
+    fn medievil_recomp_upstream_player_route_1844() {
+        assert_bound_listing_player_route("blacklabelhq-medievilrecomp", "medievil.exe", &[]);
+    }
+
+    #[test]
+    fn jazz_jackrabbit_2_jazz2_resurrection_prepared_player_route_2682() {
+        assert_listing_only_player_route("jazz-jackrabbit-2-jazz2-resurrection", Some(false));
+    }
+
+    #[test]
+    fn transport_tycoon_deluxe_openttd_upstream_prepared_player_route_2716() {
+        assert_listing_only_player_route("transport-tycoon-deluxe-openttd-upstream", Some(false));
+    }
+
+    #[test]
+    fn half_life_xash3d_fwgs_prepared_player_route_2678() {
+        assert_listing_only_player_route("half-life-xash3d-fwgs", Some(false));
+    }
+
+    #[test]
+    fn freespace_2_freespace_open_prepared_player_route_2677() {
+        assert_listing_only_player_route("freespace-2-freespace-open", Some(false));
+    }
+
+    #[test]
+    fn pharaoh_akhenaten_prepared_player_route_2891() {
+        assert_listing_only_player_route("pharaoh-akhenaten", Some(false));
+    }
+
+    #[test]
+    fn midtown_madness_sneak_preview_beta_build_1560_open1560_prepared_player_route_2884() {
+        assert_listing_only_player_route(
+            "midtown-madness-sneak-preview-beta-build-1560-open1560",
+            Some(false),
+        );
+    }
+
+    #[test]
+    fn need_for_speed_iii_hot_pursuit_nfs_recompiled_prepared_player_route_2888() {
+        assert_listing_only_player_route(
+            "need-for-speed-iii-hot-pursuit-nfs-recompiled",
+            Some(false),
+        );
+    }
+
+    #[test]
+    fn smbx_13_thextech_prepared_player_route_2731() {
+        assert_listing_only_player_route("smbx-13-thextech", Some(false));
+    }
+
+    #[test]
+    fn ambermoon_permitted_copy_keeps_fresh_acquisition_held_2625() {
+        assert_listing_only_player_route("ambermoon-ambermoon-net", Some(true));
+    }
+    #[test]
+    fn cave_story_nxengine_evo_prepared_player_route_2647() {
+        assert_listing_only_player_route("cave-story-nxengine-evo", Some(true));
+    }
+
+    #[test]
+    fn chasm_the_rift_panzerchasm_prepared_player_route_2878() {
+        assert_listing_only_player_route("chasm-the-rift-panzerchasm", Some(false));
+    }
+
+    #[test]
+    fn urban_chaos_openchaos_prepared_player_route_2906() {
+        assert_listing_only_player_route("urban-chaos-openchaos", Some(false));
+    }
+
+    #[test]
+    fn tomb_raider_openlara_prepared_player_route_2904() {
+        assert_listing_only_player_route("tomb-raider-openlara", Some(false));
+    }
+    #[test]
+    fn need_for_speed_ii_special_edition_nfs_recompiled_prepared_player_route_2887() {
+        assert_listing_only_player_route(
+            "need-for-speed-ii-special-edition-nfs-recompiled",
+            Some(false),
+        );
+    }
+
+    #[test]
+    fn the_operative_no_one_lives_forever_goty_nolf1_modern_nolfsrc_prepared_player_route_2902() {
+        assert_listing_only_player_route(
+            "the-operative-no-one-lives-forever-goty-nolf1-modern-nolfsrc",
+            Some(false),
+        );
+    }
+
+    #[test]
+    fn need_for_speed_ii_special_edition_nfsiise_prepared_player_route_2886() {
+        assert_listing_only_player_route("need-for-speed-ii-special-edition-nfsiise", Some(false));
+    }
+
+    #[test]
+    fn syndicate_wars_syndicate_wars_fan_expansion_prepared_player_route_2715() {
+        assert_listing_only_player_route(
+            "syndicate-wars-syndicate-wars-fan-expansion",
+            Some(false),
+        );
+    }
+
+    #[test]
+    fn heart_of_darkness_hode_prepared_player_route_2882() {
+        assert_listing_only_player_route("heart-of-darkness-hode", Some(false));
+    }
+
+    #[test]
+    fn master_of_orion_1oom_vanilla_branch_prepared_player_route_2883() {
+        assert_listing_only_player_route("master-of-orion-1oom-vanilla-branch", Some(false));
+    }
+
+    #[test]
+    fn elite_force_holomatch_lilium_voyager_prepared_player_route_1918() {
+        assert_listing_only_player_route("elite-force-holomatch-lilium-voyager", Some(false));
+    }
+
+    #[test]
+    fn wolfenstein_enemy_territory_et_legacy_prepared_player_route_2721() {
+        assert_listing_only_player_route("wolfenstein-enemy-territory-et-legacy", Some(false));
+    }
+
+    #[test]
+    fn zuma_deluxe_zuma_portable_circleshootapp_prepared_player_route_2912() {
+        assert_listing_only_player_route("zuma-deluxe-zuma-portable-circleshootapp", Some(false));
+    }
+
+    #[test]
+    fn cut_the_rope_dx_prepared_player_route_1128() {
+        assert_listing_only_player_route("cut-the-rope-dx", Some(false));
+    }
+
+    #[test]
+    fn metal_gear_solid_integral_reintegral_prepared_player_route_2106() {
+        assert_listing_only_player_route("metal-gear-solid-integral-reintegral", Some(false));
+    }
+
+    #[test]
+    fn sonic_unleashed_recompiled_prepared_player_route_126() {
+        assert_listing_only_player_route("sonic-unleashed-recompiled", Some(false));
+    }
+
+    #[test]
+    fn dead_rising_2_case_zero_recomp_prepared_player_route_1121() {
+        assert_listing_only_player_route("dead-rising-2-case-zero-recomp", Some(true));
+    }
+
+    #[test]
+    fn mega_man_x4_recompiled_prepared_player_route_144() {
+        assert_listing_only_player_route("mega-man-x4-recompiled", Some(false));
+    }
+
+    #[test]
+    fn viva_pinata_trouble_in_paradise_retip_prepared_player_route_158() {
+        assert_listing_only_player_route("viva-pinata-trouble-in-paradise-retip", Some(false));
+    }
+
+    #[test]
+    fn odrannnn_metroidprimeport_prepared_player_route_1846() {
+        assert_listing_only_player_route("odrannnn-metroidprimeport", Some(true));
+    }
+
+    #[test]
+    fn naughty_bear_gold_edition_restuff_prepared_player_route_160() {
+        assert_listing_only_player_route("naughty-bear-gold-edition-restuff", Some(false));
+    }
+
+    #[test]
+    fn lollipop_chainsaw_re_cherry_prepared_player_route_162() {
+        assert_listing_only_player_route("lollipop-chainsaw-re-cherry", Some(true));
+    }
+
+    #[test]
+    fn kileak_the_dna_imperative_ktdir_prepared_player_route_324() {
+        assert_listing_only_player_route("kileak-the-dna-imperative-ktdir", Some(false));
+    }
+
+    #[test]
+    fn sexy_parodius_sexyparorecomp_prepared_player_route_325() {
+        assert_listing_only_player_route("sexy-parodius-sexyparorecomp", Some(false));
+    }
+
+    #[test]
+    fn snowboard_kids_frontend_license_player_route_1354() {
+        assert_listing_only_player_route("snowboard-kids", Some(false));
+    }
+
+    #[test]
+    fn cdlewis_snowboardkids_recomp_frontend_license_player_route_1886() {
+        assert_listing_only_player_route("cdlewis-snowboardkids-recomp", Some(false));
+    }
+
+    #[test]
+    fn vidanox_banjotooierecompiled_frontend_license_player_route_1795() {
+        assert_listing_only_player_route("vidanox-banjotooierecompiled", Some(false));
+    }
+
+    #[test]
+    fn dahsidiabdallah_conkerbfdreloaded_frontend_license_player_route_1806() {
+        assert_listing_only_player_route("dahsidiabdallah-conkerbfdreloaded", Some(false));
+    }
+
+    #[test]
+    fn danielgomesvieira2000_beetle_adventure_racing_recomp_frontend_license_player_route_1800() {
+        assert_listing_only_player_route(
+            "danielgomesvieira2000-beetle-adventure-racing-recomp",
+            Some(false),
+        );
+    }
+
+    #[test]
+    fn cbfd_recompiled_sciaschi_frontend_license_player_route_1216() {
+        assert_listing_only_player_route("cbfd-recompiled-sciaschi", Some(true));
+    }
+
+    #[test]
+    fn blast_corps_recompiled_permitted_player_route_2558() {
+        assert_listing_only_player_route("blast-corps-blastcorps-recompiled", Some(false));
+    }
+    #[test]
+    fn final_fantasy_tactics_finfantacrecomp_prepared_player_route_327() {
+        assert_listing_only_player_route("final-fantasy-tactics-finfantacrecomp", Some(true));
+    }
+
+    #[test]
+    fn einhander_einhander_recompiled_prepared_player_route_350() {
+        assert_listing_only_player_route("einhander-einhander-recompiled", Some(false));
+    }
+
+    #[test]
+    fn syphon_filter_sf_pc_port_prepared_player_route_344() {
+        assert_listing_only_player_route("syphon-filter-sf-pc-port", Some(false));
+    }
+
+    #[test]
+    fn silent_hill_silent_hill_decomp_pc_branch_prepared_player_route_351() {
+        assert_listing_only_player_route("silent-hill-silent-hill-decomp-pc-branch", Some(true));
+    }
+
+    #[test]
+    fn tenchu_stealth_assassins_tenchu_sa_recomp_prepared_player_route_353() {
+        assert_listing_only_player_route("tenchu-stealth-assassins-tenchu-sa-recomp", Some(false));
+    }
+
+    #[test]
+    fn exit_rexglue_exit_exit1_prepared_player_route_362() {
+        assert_listing_only_player_route("exit-rexglue-exit-exit1", Some(false));
+    }
+
+    #[test]
+    fn exit_2_rexglue_exit_exit2_prepared_player_route_363() {
+        assert_listing_only_player_route("exit-2-rexglue-exit-exit2", Some(false));
+    }
+
+    #[test]
+    fn fable_ii_recomp_prepared_player_route_1124() {
+        assert_listing_only_player_route("fable-ii-recomp", Some(false));
+    }
+
+    #[test]
+    fn eternal_sonata_reprise_prepared_player_route_1126() {
+        assert_listing_only_player_route("eternal-sonata-reprise", Some(false));
+    }
+
+    #[test]
+    fn dead_rising_2_case_west_recomp_prepared_player_route_1122() {
+        assert_listing_only_player_route("dead-rising-2-case-west-recomp", Some(true));
+    }
+
+    #[test]
+    fn condemned_2_bloodshot_condemned2recomp_prepared_player_route_361() {
+        assert_listing_only_player_route("condemned-2-bloodshot-condemned2recomp", Some(true));
+    }
+
+    #[test]
+    fn guitar_hero_warriors_of_rock_re_wor_prepared_player_route_359() {
+        assert_listing_only_player_route("guitar-hero-warriors-of-rock-re-wor", Some(false));
+    }
+
+    #[test]
+    fn project_gotham_racing_4_pgr4_recomp_prepared_player_route_360() {
+        assert_listing_only_player_route("project-gotham-racing-4-pgr4-recomp", Some(false));
+    }
+
+    #[test]
+    fn silent_hill_downpour_downpourrecomp_prepared_player_route_358() {
+        assert_listing_only_player_route("silent-hill-downpour-downpourrecomp", Some(true));
+    }
+
+    #[test]
+    fn tony_hawks_project_8_recomp_prepared_player_route_1125() {
+        assert_listing_only_player_route("tony-hawks-project-8-recomp", Some(false));
+    }
+
+    #[test]
+    fn sonic_free_riders_recompiled_prepared_player_route_1450() {
+        assert_listing_only_player_route("sonic-free-riders-recompiled", Some(true));
+    }
+
+    #[test]
+    fn x_men_destiny_xmd_recompiled_prepared_player_route_365() {
+        assert_listing_only_player_route("x-men-destiny-xmd-recompiled", Some(false));
+    }
+
+    #[test]
+    fn sega_superstars_tennis_rematch_prepared_player_route_378() {
+        assert_listing_only_player_route("sega-superstars-tennis-rematch", Some(false));
+    }
+
+    #[test]
+    fn street_fighter_ex_plus_alpha_recomp_prepared_player_route_1116() {
+        assert_listing_only_player_route("street-fighter-ex-plus-alpha-recomp", Some(false));
+    }
+
+    #[test]
+    fn street_fighter_ex2_plus_recompiled_prepared_player_route_1117() {
+        assert_listing_only_player_route("street-fighter-ex2-plus-recompiled", Some(false));
+    }
+
+    #[test]
+    fn strider_2_recompiled_prepared_player_route_1118() {
+        assert_listing_only_player_route("strider-2-recompiled", Some(false));
+    }
+
+    #[test]
+    fn wwf_smackdown_2_know_your_role_recomp_prepared_player_route_1396() {
+        assert_listing_only_player_route("wwf-smackdown-2-know-your-role-recomp", Some(false));
+    }
+
+    #[test]
+    fn space_channel_5_native_prepared_player_route_1540() {
+        assert_listing_only_player_route("space-channel-5-native", Some(false));
+    }
+
+    #[test]
+    fn kirbys_return_to_dream_land_kirby_wii_recomp_prepared_player_route_1131() {
+        assert_listing_only_player_route(
+            "kirbys-return-to-dream-land-kirby-wii-recomp",
+            Some(false),
+        );
+    }
+
+    #[test]
+    fn unchiga_yu_gi_oh_forbidden_memories_recompiled_prepared_player_route_1910() {
+        assert_listing_only_player_route(
+            "unchiga-yu-gi-oh-forbidden-memories-recompiled",
+            Some(true),
+        );
+    }
+
+    #[test]
+    fn james2doyle_ffta_recomp_prepared_player_route_2824() {
+        assert_listing_only_player_route("james2doyle-ffta-recomp", Some(false));
+    }
+
+    #[test]
+    fn final_fantasy_tactics_advance_fftarecomp_prepared_player_route_2575() {
+        assert_listing_only_player_route("final-fantasy-tactics-advance-fftarecomp", Some(false));
+    }
+
+    #[test]
+    fn kingdom_hearts_chain_of_memories_gba_rekhcom_prepared_player_route_2586() {
+        assert_listing_only_player_route(
+            "kingdom-hearts-chain-of-memories-gba-rekhcom",
+            Some(true),
+        );
+    }
+
+    #[test]
+    fn vibecodekun_shantaerecomp_prepared_player_route_1881() {
+        assert_listing_only_player_route("vibecodekun-shantaerecomp", Some(false));
+    }
+
+    #[test]
+    fn monster_hunter_portable_3rd_hd_yakumo_prepared_player_route_1120() {
+        // The managed Windows route keeps the independent prepared-copy route.
+        let id = "monster-hunter-portable-3rd-hd-yakumo";
+        let (temporary, mut service, executable, working) = fixture(id);
+        service.catalog = Catalog::embedded().unwrap();
+        let port = service.catalog.port(id).unwrap();
+        assert_eq!(port.adapter, crate::AdapterKind::NativePortable);
+        assert!(port.windows_tracked_handoff);
+        let listing = service.catalog.listing(id).unwrap();
+        assert!(listing.manual_setup.is_some());
+        assert!(listing.download_block_reason.is_none());
+        assert!(
+            service
+                .current_user_selected_definition(id)
+                .unwrap()
+                .is_none()
+        );
+        assert_selected_listing_lifecycle(temporary, service, executable, working, id);
+    }
+
+    #[test]
+    fn mario_party_4_party_board_prepared_player_route_1130() {
+        assert_listing_only_player_route("mario-party-4-party-board", Some(false));
+    }
+
+    #[test]
+    fn pokemon_platinum_pokeplatinum_pc_port_lead_prepared_player_route_373() {
+        assert_listing_only_player_route("pokemon-platinum-pokeplatinum-pc-port-lead", Some(true));
+    }
+
+    #[test]
+    fn ace_combat_5_static_recompilation_prepared_player_route_1119() {
+        assert_listing_only_player_route("ace-combat-5-static-recompilation", Some(false));
+    }
+
+    #[test]
+    fn ace_combat_x_skies_of_deception_ace_combat_x_recompilation_prepared_player_route_355() {
+        assert_listing_only_player_route(
+            "ace-combat-x-skies-of-deception-ace-combat-x-recompilation",
+            Some(false),
+        );
+    }
+
+    #[test]
+    fn star_wars_episode_iii_revenge_of_the_sith_prepared_player_route_1310() {
+        assert_listing_only_player_route("star-wars-episode-iii-revenge-of-the-sith", Some(false));
+    }
+
+    #[test]
+    fn the_simpsons_game_thesimpsonsgamerecomp_prepared_player_route_379() {
+        assert_listing_only_player_route("the-simpsons-game-thesimpsonsgamerecomp", Some(false));
+    }
+
+    #[test]
+    fn abilliontokens_sims1_recomp_prepared_player_route_2733() {
+        assert_listing_only_player_route("abilliontokens-sims1-recomp", Some(false));
+    }
+
+    #[test]
+    fn abilliontokens_sims2_recomp_prepared_player_route_2752() {
+        assert_listing_only_player_route("abilliontokens-sims2-recomp", Some(false));
+    }
+
+    #[test]
+    fn abilliontokens_urbz_recomp_prepared_player_route_2813() {
+        assert_listing_only_player_route("abilliontokens-urbz-recomp", Some(false));
+    }
+
+    #[test]
+    fn bitsandbreakpoints_d_psx_pc_recomp_prepared_player_route_2741() {
+        assert_listing_only_player_route("bitsandbreakpoints-d-psx-pc-recomp", Some(false));
+    }
+
+    #[test]
+    fn bluddy_rails_prepared_player_route_2787() {
+        assert_listing_only_player_route("bluddy-rails", Some(false));
+    }
+
+    #[test]
+    fn legend_of_legaia_legend_of_legaia_recomp_prepared_player_route_352() {
+        assert_listing_only_player_route("legend-of-legaia-legend-of-legaia-recomp", Some(false));
+    }
+
+    #[test]
+    fn x_men_mutant_academy_2_xmen_mutant_academy_2_pc_prepared_player_route_356() {
+        assert_listing_only_player_route(
+            "x-men-mutant-academy-2-xmen-mutant-academy-2-pc",
+            Some(true),
+        );
+    }
+
+    #[test]
+    fn burnout_3_takedown_ps2_burnout3_pc_prepared_player_route_2638() {
+        assert_listing_only_player_route("burnout-3-takedown-ps2-burnout3-pc", Some(false));
+    }
+
+    #[test]
+    fn burnout_3_takedawn_xbox_prepared_player_route_2105() {
+        assert_listing_only_player_route("burnout-3-takedawn-xbox", Some(false));
+    }
+
+    #[test]
+    fn burnout_xbox_burnout_recompilation_prepared_player_route_2637() {
+        assert_listing_only_player_route("burnout-xbox-burnout-recompilation", Some(false));
+    }
+
+    #[test]
+    fn dead_or_alive_3_doa3_recomp_prepared_player_route_2560() {
+        assert_listing_only_player_route("dead-or-alive-3-doa3-recomp", Some(false));
+    }
+
+    #[test]
+    fn goliathret_edgeoftimerecomp_prepared_player_route_1818() {
+        assert_listing_only_player_route("goliathret-edgeoftimerecomp", Some(false));
+    }
+
+    #[test]
+    fn dragon_ball_z_burst_limit_dbz_burst_limit_recompiled_prepared_player_route_2664() {
+        assert_listing_only_player_route(
+            "dragon-ball-z-burst-limit-dbz-burst-limit-recompiled",
+            Some(false),
+        );
+    }
+
+    #[test]
+    fn dudux42_freedomunbound_prepared_player_route_2808() {
+        assert_listing_only_player_route("dudux42-freedomunbound", Some(false));
+    }
+
+    #[test]
+    fn erreib_pure_recomp_prepared_player_route_2749() {
+        assert_listing_only_player_route("erreib-pure-recomp", Some(false));
+    }
+
+    #[test]
+    fn eternal_darkness_sanity_s_requiem_eternal_darkness_recomp_prepared_player_route_2570() {
+        assert_listing_only_player_route(
+            "eternal-darkness-sanity-s-requiem-eternal-darkness-recomp",
+            Some(true),
+        );
+    }
+
+    #[test]
+    fn geometry_wars_retro_evolved_2_geometry_wars_2_recompiled_prepared_player_route_2577() {
+        assert_listing_only_player_route(
+            "geometry-wars-retro-evolved-2-geometry-wars-2-recompiled",
+            Some(false),
+        );
+    }
+
+    #[test]
+    fn hard_corps_uprising_hard_corps_uprising_recompiled_prepared_player_route_2581() {
+        assert_listing_only_player_route(
+            "hard-corps-uprising-hard-corps-uprising-recompiled",
+            Some(false),
+        );
+    }
+
+    #[test]
+    fn jedeyesniv_art_pacman_ce_pc_recomp_prepared_player_route_2727() {
+        assert_listing_only_player_route("jedeyesniv-art-pacman-ce-pc-recomp", Some(false));
+    }
+
+    #[test]
+    fn iron_jay_banjo_tooie_xbla_recomp_prepared_player_route_2860() {
+        assert_listing_only_player_route("iron-jay-banjo-tooie-xbla-recomp", Some(false));
+    }
+
+    #[test]
+    fn fataldecomp_roller_prepared_player_route_2792() {
+        assert_listing_only_player_route("fataldecomp-roller", Some(false));
+    }
+
+    #[test]
+    fn bountyhunterkanden_secondhunt_prepared_player_route_2845() {
+        assert_listing_only_player_route("bountyhunterkanden-secondhunt", Some(false));
+    }
+
+    #[test]
+    fn citrongames_dora64_3_prepared_player_route_2724() {
+        assert_listing_only_player_route("citrongames-dora64-3", Some(false));
+    }
+
+    #[test]
+    fn clergyman0013_arizona_vamp_recomp_prepared_player_route_2740() {
+        assert_listing_only_player_route("clergyman0013-arizona-vamp-recomp", Some(false));
+    }
+
+    #[test]
+    fn crackdown_crackdown_recompiled_prepared_player_route_2559() {
+        assert_listing_only_player_route("crackdown-crackdown-recompiled", Some(false));
+    }
+
+    #[test]
+    fn dannyowelch_deception_recomp_prepared_player_route_2735() {
+        assert_listing_only_player_route("dannyowelch-deception-recomp", Some(false));
+    }
+
+    #[test]
+    fn daytona_usa_sega_model_2_arcade_daytona_usa_static_recompilation_prepared_player_route_2651()
+    {
+        assert_listing_only_player_route(
+            "daytona-usa-sega-model-2-arcade-daytona-usa-static-recompilation",
+            Some(false),
+        );
+    }
+
+    #[test]
+    fn def_jam_fight_for_ny_defjamffny_recomp_prepared_player_route_2562() {
+        assert_listing_only_player_route("def-jam-fight-for-ny-defjamffny-recomp", Some(false));
+    }
+
+    #[test]
+    fn crazyriddler_finesthourremastered_prepared_player_route_2785() {
+        assert_listing_only_player_route("crazyriddler-finesthourremastered", Some(true));
+    }
+
+    #[test]
+    fn nsmbu_recomp_irishbruse_prepared_player_route_1712() {
+        assert_listing_only_player_route("nsmbu-recomp-irishbruse", Some(false));
+    }
+
+    #[test]
+    fn heromachine_breakdown_recompilation_prepared_player_route_1805() {
+        assert_listing_only_player_route("heromachine-breakdown-recompilation", Some(false));
+    }
+
+    #[test]
+    fn elmasas_lcs_recomp_prepared_player_route_1836() {
+        assert_listing_only_player_route("elmasas-lcs-recomp", Some(true));
+    }
+
+    #[test]
+    fn kirby1237_parappatherapperrecomp_prepared_player_route_1864() {
+        assert_listing_only_player_route("kirby1237-parappatherapperrecomp", Some(false));
+    }
+
+    #[test]
+    fn nevercookfirst_dimensionsrecomp_prepared_player_route_1817() {
+        assert_listing_only_player_route("nevercookfirst-dimensionsrecomp", Some(true));
+    }
+
+    #[test]
+    fn goodshepherd23_hellnight_recompiled_prepared_player_route_1825() {
+        assert_listing_only_player_route("goodshepherd23-hellnight-recompiled", Some(false));
+    }
+
+    #[test]
+    fn njh_1001_wipeout2k97xl_prepared_player_route_1908() {
+        assert_bound_listing_player_route("njh-1001-wipeout2k97xl", "Wipeout2K97XL.exe", &[]);
+    }
+
+    #[test]
+    fn elprogramadorloco_arch_jim2_recomp_prepared_player_route_1819() {
+        assert_listing_only_player_route("elprogramadorloco-arch-jim2-recomp", Some(false));
+    }
+
+    #[test]
+    fn eandis_sdoj_recomp_prepared_player_route_1880() {
+        assert_listing_only_player_route("eandis-sdoj-recomp", Some(false));
+    }
+
+    #[test]
+    fn kumapauz_project_reignition_prepared_player_route_1870() {
+        assert_listing_only_player_route("kumapauz-project-reignition", Some(false));
+    }
+    #[test]
+    fn junior_jones_adventure_island_ii_nes_static_recomp_prepared_player_route_1792() {
+        assert_listing_only_player_route(
+            "junior-jones-adventure-island-ii-nes-static-recomp",
+            Some(false),
+        );
+    }
+
+    #[test]
+    fn gabrielnnk_bigodao_prepared_player_route_1799() {
+        assert_listing_only_player_route("gabrielnnk-bigodao", Some(false));
+    }
+
+    #[test]
+    fn jhdev2006_super_mario_world_remastered_public_prepared_player_route_1891() {
+        assert_listing_only_player_route(
+            "jhdev2006-super-mario-world-remastered-public",
+            Some(true),
+        );
+    }
+
+    #[test]
+    fn def_jam_vendetta_playstation_2_def_jam_vendetta_recompiled_prepared_player_route_2561() {
+        assert_listing_only_player_route(
+            "def-jam-vendetta-playstation-2-def-jam-vendetta-recompiled",
+            Some(false),
+        );
+    }
+
+    #[test]
+    fn gran_turismo_4_playstation_2_gt4recomp_prepared_player_route_2579() {
+        assert_listing_only_player_route("gran-turismo-4-playstation-2-gt4recomp", Some(false));
+    }
+
+    #[test]
+    fn hogs_of_war_frontschweine_playstation_german_pal_frontschweine_recompiled_prepared_player_route_2680()
+     {
+        assert_listing_only_player_route(
+            "hogs-of-war-frontschweine-playstation-german-pal-frontschweine-recompiled",
+            Some(false),
+        );
+    }
+
+    #[test]
+    fn goodshepherd23_galerians_recompiled_prepared_player_route_2734() {
+        assert_listing_only_player_route("goodshepherd23-galerians-recompiled", Some(false));
+    }
+
+    #[test]
+    fn goodshepherd23_jetmoto2_recomp_prepared_player_route_2825() {
+        assert_listing_only_player_route("goodshepherd23-jetmoto2-recomp", Some(false));
+    }
+
+    #[test]
+    fn djultra64_clayfighter64_prepared_player_route_2830() {
+        assert_listing_only_player_route("djultra64-clayfighter64", Some(true));
     }
 }

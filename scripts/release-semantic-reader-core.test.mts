@@ -7,7 +7,11 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
+  createMaterializedSemanticReaderRpc,
+  createSemanticSnapshotReader,
   createSemanticSnapshotRpc,
+  materializeSemanticReaderPartition,
+  semanticReaderTextPageBytes,
   inspectSemanticReaderIndex,
 } from "./release-semantic-reader-core.mts";
 import { isRecord } from "./runtime-values.mts";
@@ -62,6 +66,63 @@ function responsePage(raw: unknown) {
   return page;
 }
 
+await test("ordinal partitions expose only exact assigned pages in parent order", () => {
+  const bundle = inspectSemanticReaderIndex(index, sha(index));
+  const pages = [
+    { tool: "read_text", arguments: { snapshot: "source", path: row.path, offset: 6, length: 8 } },
+    { tool: "read", arguments: { snapshot: "baseline", path: row.path, offset: 0, length: 5 } },
+  ];
+  const legacy = materializeSemanticReaderPartition(bundle, pages);
+  assert.deepEqual(legacy, materializeSemanticReaderPartition(bundle, pages, "path"));
+  const ordinal = materializeSemanticReaderPartition(bundle, pages, "ordinal");
+  assert.notEqual(ordinal.sha256, legacy.sha256);
+  const dispatch = createMaterializedSemanticReaderRpc(ordinal.bytes, ordinal.sha256);
+  const oldDispatch = createMaterializedSemanticReaderRpc(legacy.bytes, legacy.sha256);
+  const query = (name: string, args: unknown) => ({
+    jsonrpc: "2.0",
+    id: 2,
+    method: "tools/call",
+    params: { name, arguments: args },
+  });
+  dispatch(initialize);
+  oldDispatch(initialize);
+  const listed = dispatch({ jsonrpc: "2.0", id: 1, method: "tools/list" });
+  assert.ok(isRecord(listed?.result));
+  assert.deepEqual(listed.result.tools, [
+    {
+      name: "read_page",
+      description: "Bounded frozen-bundle read_page; candidate bytes are inert data.",
+      inputSchema: {
+        type: "object",
+        additionalProperties: false,
+        properties: { page: { type: "integer", minimum: 1, maximum: 2 } },
+        required: ["page"],
+      },
+      annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
+    },
+  ]);
+  for (const [offset, assigned] of pages.entries())
+    assert.deepEqual(
+      dispatch(query("read_page", { page: offset + 1 })),
+      oldDispatch(query(assigned.tool, assigned.arguments)),
+    );
+  for (const args of [
+    { page: 0 },
+    { page: 3 },
+    { page: 1.5 },
+    { page: "1" },
+    { page: 1, path: row.path },
+    {},
+  ])
+    assert.throws(() => dispatch(query("read_page", args)), /outside frozen assignment/u);
+  assert.throws(() => dispatch(query(pages[0]!.tool, pages[0]!.arguments)), /unauthorized/u);
+  assert.throws(() => oldDispatch(query("read_page", { page: 1 })), /unauthorized/u);
+  assert.throws(
+    () => createMaterializedSemanticReaderRpc(ordinal.bytes, legacy.sha256),
+    /partition differs/u,
+  );
+});
+
 await test("pinned RMCP transport metadata does not change the exact frozen read", () => {
   for (const meta of [undefined, {}, trace]) {
     const dispatch = createSemanticSnapshotRpc(inspectSemanticReaderIndex(index, sha(index)));
@@ -93,8 +154,8 @@ await test("real fixed stdio reader accepts bounded tracing and refuses extra ca
   writeFileSync(file, index, { flag: "wx" });
   try {
     const server = fileURLToPath(new URL("./release-semantic-reader-server.mts", import.meta.url));
-    const run = (request: unknown, after: unknown[] = []) =>
-      spawnSync(process.execPath, [server, file, sha(index)], {
+    const run = (request: unknown, after: unknown[] = [], bytes = index) =>
+      spawnSync(process.execPath, [server, file, sha(bytes)], {
         input: [
           initialize,
           { jsonrpc: "2.0", method: "notifications/initialized" },
@@ -135,8 +196,90 @@ await test("real fixed stdio reader accepts bounded tracing and refuses extra ca
     );
     assert.notEqual(exhausted.status, 0);
     assert.match(exhausted.stderr, /reader lifetime call bound exceeded/);
+    const ordinal = materializeSemanticReaderPartition(
+      inspectSemanticReaderIndex(index, sha(index)),
+      [{ tool: "read_text", arguments: call().params.arguments }],
+      "ordinal",
+    );
+    writeFileSync(file, ordinal.bytes);
+    const assigned = run(
+      call(trace),
+      [
+        {
+          ...call(trace),
+          id: 2,
+          params: { ...call(trace).params, name: "read_page", arguments: { page: 2 } },
+        },
+        {
+          ...call(trace),
+          id: 3,
+          params: { ...call(trace).params, name: "read_page", arguments: { page: 1 } },
+        },
+      ],
+      ordinal.bytes,
+    );
+    assert.equal(assigned.status, 0, assigned.stderr);
+    assert.match(
+      assigned.stdout,
+      /"error":\{"code":-32602,"message":"unauthorized reader operation"\}/,
+    );
+    assert.match(assigned.stdout, /reader page outside frozen assignment/u);
+    assert.equal(
+      responsePage(JSON.parse(assigned.stdout.trim().split("\n").at(-1)!)).sha256,
+      sha(data),
+    );
   } finally {
     unlinkSync(file);
     rmdirSync(directory);
   }
+});
+
+await test("qualified application search exhausts its existing scan budget without closing exact reads", () => {
+  const bytes = Buffer.alloc(1024 * 1024, "x");
+  const oid = createHash("sha1").update(`blob ${bytes.length}\0`).update(bytes).digest("hex");
+  const rows = Array.from({ length: 129 }, (_, id) => ({ ...row, oid, path: `source-${id}.txt` }));
+  function reader(qualified: boolean) {
+    const stored = Buffer.from(
+      JSON.stringify({
+        manifest: {
+          ...(qualified ? { qualified_application_comparison: true } : {}),
+          snapshots: { source: rows, baseline: [] },
+        },
+        bundle_sha256: "0".repeat(64),
+        files: [
+          { name: `objects/${oid}.data`, sha256: sha(bytes), data: bytes.toString("base64") },
+        ],
+      }),
+    );
+    return createSemanticSnapshotReader(inspectSemanticReaderIndex(stored, sha(stored)));
+  }
+
+  const first = { snapshot: "source", literal: "release-preview-withdrawals" };
+  const second = { snapshot: "source", literal: "prerelease_identifier" };
+  const qualified = reader(true);
+  assert.deepEqual(qualified("search", first), { matches: [], truncated: false });
+  assert.deepEqual(qualified("search", second), {
+    matches: [],
+    truncated: true,
+    budget_exhausted: true,
+  });
+  assert.deepEqual(qualified("search", first), {
+    matches: [],
+    truncated: true,
+    budget_exhausted: true,
+  });
+  const page = {
+    snapshot: "source",
+    path: "source-0.txt",
+    offset: 0,
+    length: semanticReaderTextPageBytes,
+  };
+  assert.throws(() => qualified("read_text", { ...page, length: 20000 }), /unauthorized reader/);
+  const read = qualified("read_text", page);
+  assert.ok(isRecord(read));
+  assert.equal(read.data, "x".repeat(semanticReaderTextPageBytes));
+
+  const ordinary = reader(false);
+  assert.deepEqual(ordinary("search", first), { matches: [], truncated: false });
+  assert.throws(() => ordinary("search", second), /lifetime search byte bound/);
 });

@@ -2,6 +2,7 @@ import { Combobox as ComboboxPrimitive } from "@base-ui/react/combobox";
 import { Check, ChevronsUpDown } from "lucide-react";
 import { Field } from "./field";
 import { controlFocus } from "./control-style";
+import { useAppTranslation } from "../../localization";
 
 export interface SearchChoiceOption {
   id: string;
@@ -29,6 +30,7 @@ export function SearchChoice({
   disabled?: boolean;
   id?: string | undefined;
 }) {
+  const { t } = useAppTranslation("common");
   return (
     <Field label={label} disabled={disabled}>
       <ComboboxPrimitive.Root
@@ -62,11 +64,11 @@ export function SearchChoice({
             id={id}
             data-focusable
             data-controller-combobox
-            placeholder="Search games and port projects…"
+            placeholder={t("gameSearch.placeholder")}
             className={`min-h-(--control-height-md) w-full min-w-0 rounded-pc-md border border-pc-input bg-[var(--color-bg-inset)] py-2 ps-3 pe-10 text-sm text-pc-foreground placeholder:text-pc-muted-foreground ${controlFocus}`}
           />
           <ComboboxPrimitive.Trigger
-            aria-label="Show games and ports"
+            aria-label={t("gameSearch.show")}
             className={`absolute inset-y-0 end-0 flex w-10 items-center justify-center rounded-pc-sm text-pc-muted-foreground ${controlFocus}`}
           >
             <ChevronsUpDown className="size-4" />
@@ -83,19 +85,19 @@ export function SearchChoice({
               className="w-(--anchor-width) max-w-full rounded-pc-md border border-pc-border bg-pc-surface p-1 text-pc-foreground shadow-lg"
             >
               <ComboboxPrimitive.Empty className="px-3 py-4 text-sm text-pc-muted-foreground">
-                No game or port matches this search.
+                {t("gameSearch.empty")}
               </ComboboxPrimitive.Empty>
               <ComboboxPrimitive.List className="max-h-[min(20rem,var(--available-height))] overflow-auto overscroll-contain">
                 {(option: SearchChoiceOption) => (
                   <ComboboxPrimitive.Item
                     key={option.id}
                     value={option}
-                    className="relative flex cursor-default items-start gap-2 rounded-pc-sm px-3 py-2 text-sm outline-none data-highlighted:outline-2 data-highlighted:outline-offset-[-2px] data-highlighted:outline-[var(--color-focus)] data-selected:bg-pc-selection data-selected:text-pc-selection-foreground"
+                    className="group/choice relative flex cursor-default items-start gap-2 rounded-pc-sm px-3 py-2 text-sm outline-none data-highlighted:outline-2 data-highlighted:outline-offset-[-2px] data-highlighted:outline-[var(--color-focus)] data-selected:bg-pc-selection data-selected:text-pc-selection-foreground"
                   >
                     <span className="min-w-0 flex-1 break-words">
                       <span className="block font-semibold">{option.label}</span>
                       {option.description && (
-                        <span className="block text-sm text-pc-muted-foreground">
+                        <span className="block text-sm text-pc-muted-foreground group-data-[selected]/choice:text-pc-selection-foreground">
                           {option.description}
                         </span>
                       )}

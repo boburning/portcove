@@ -1128,7 +1128,7 @@ mod tests {
         };
         let path = root.join(&artifact.sha256);
         fs::create_dir_all(&path).unwrap();
-        let catalog = Catalog::embedded().unwrap();
+        let catalog = crate::test_fixture::host_declared_embedded_catalog(&[port_id]);
         let port = catalog.port(port_id).unwrap();
         let platform = Platform::current().unwrap();
         let executable = path.join(&port.executable_hints[&platform][0]);
@@ -1721,7 +1721,10 @@ mod tests {
         let fixture = Fixture::new();
         const SECOND_PORT: &str = "2ship2harkinian";
         let second = register_install(&fixture.library, SECOND_PORT, "active", true);
-        let first_service = PortcoveService::new(fixture.library.clone()).unwrap();
+        let mut first_service = PortcoveService::new(fixture.library.clone()).unwrap();
+        first_service.replace_catalog_for_test(
+            crate::test_fixture::host_declared_embedded_catalog(&[SECOND_PORT]),
+        );
         let first_plan = first_service
             .plan_output_relocation(PORT, &fixture.destination)
             .unwrap();
@@ -2171,6 +2174,37 @@ mod tests {
                 store.get(&operation.id).unwrap().unwrap().phase,
                 operation.phase
             );
+            if matches!(variant, 0 | 1 | 3) {
+                assert!(store.put(&mut invalid).is_err(), "variant {variant}");
+                // Model malformed retained rows below the checked writer, so
+                // codec refusal still protects the original installation files.
+                let connection = fixture.library.connection().unwrap();
+                connection.execute(
+                    "UPDATE lifecycle_operations SET kind=?2,install_json=?3,preparation_process_quiesced=?4 WHERE id=?1",
+                    rusqlite::params![operation.id, invalid.kind.to_string(), invalid.install.as_ref().map(serde_json::to_string).transpose().unwrap(), invalid.preparation_process_quiesced.map(i64::from)],
+                ).unwrap();
+                assert!(store.get(&operation.id).is_err());
+                assert!(store.all().is_err());
+                let retained: (String, Option<String>, Option<i64>) = connection.query_row(
+                    "SELECT kind,install_json,preparation_process_quiesced FROM lifecycle_operations WHERE id=?1",
+                    [&operation.id], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+                ).unwrap();
+                assert_eq!(
+                    retained,
+                    (
+                        invalid.kind.to_string(),
+                        invalid
+                            .install
+                            .as_ref()
+                            .map(serde_json::to_string)
+                            .transpose()
+                            .unwrap(),
+                        invalid.preparation_process_quiesced.map(i64::from),
+                    )
+                );
+                let mut valid = operation.clone();
+                store.put(&mut valid).unwrap();
+            }
         }
         for phase in [
             LifecyclePhase::PayloadPublished,

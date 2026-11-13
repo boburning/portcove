@@ -278,7 +278,31 @@ void test("shared Windows owner framing preserves byte and original deadline bou
   assert.match(script, /Flush\(\$true\)/u);
 });
 
-void test("actual production and diagnostic owner wrappers remain held before context, storage or OS effects", () => {
+void test("held owner-wrapper copies refuse before context, storage or OS effects", () => {
+  const invokeHeld = (name: string, tail: string) => {
+    // Counterfactual source-revocation fixture only. Real source appointment is separate.
+    const actual = readFileSync(new URL(name, import.meta.url), "utf8");
+    const held = actual
+      .replace(
+        "$hostedSessionExecutionAuthorized=$true",
+        "$hostedSessionExecutionAuthorized=$false",
+      )
+      .replace(
+        "$hostedRecoveryExecutionAuthorized=$true",
+        "$hostedRecoveryExecutionAuthorized=$false",
+      );
+    const script = `& ([scriptblock]::Create([Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('${Buffer.from(held).toString("base64")}')))) ${tail}`;
+    return spawnSync(
+      "pwsh",
+      [
+        "-NoProfile",
+        "-NonInteractive",
+        "-EncodedCommand",
+        Buffer.from(script, "utf16le").toString("base64"),
+      ],
+      { encoding: "utf8", timeout: 15000, maxBuffer: 16384 },
+    );
+  };
   for (const [name, message] of [
     [
       "release-hosted-native-windows-owner.ps1",
@@ -289,36 +313,15 @@ void test("actual production and diagnostic owner wrappers remain held before co
       "Connected Windows diagnostic awaits exact",
     ],
   ] as const) {
-    const result = spawnSync(
-      "pwsh",
-      [
-        "-NoProfile",
-        "-NonInteractive",
-        "-File",
-        fileURLToPath(new URL(name, import.meta.url)),
-        "-ContextBase64",
-        "deliberately invalid",
-      ],
-      { encoding: "utf8", timeout: 15000, maxBuffer: 16384 },
-    );
+    const result = invokeHeld(name, "-ContextBase64 'deliberately invalid'");
     assert.notEqual(result.status, 0);
     assert.ok(result.stderr.includes(String(message)), result.stderr);
   }
   for (const diagnostic of [false, true]) {
-    const recovery = spawnSync(
-      "pwsh",
-      [
-        "-NoProfile",
-        "-NonInteractive",
-        "-File",
-        fileURLToPath(new URL("./release-hosted-native-windows-recovery.ps1", import.meta.url)),
-        "-Context",
-        "unreadable-untrusted-path",
-        "-ExpectedSha256",
-        "a".repeat(64),
-        ...(diagnostic ? ["-Diagnostic"] : []),
-      ],
-      { encoding: "utf8", timeout: 15000, maxBuffer: 16384 },
+    const recovery = invokeHeld(
+      "./release-hosted-native-windows-recovery.ps1",
+      "-Context 'unreadable-untrusted-path' -ExpectedSha256 ('a'*64) -Diagnostic:$" +
+        String(diagnostic),
     );
     assert.notEqual(recovery.status, 0);
     assert.ok(
@@ -409,20 +412,19 @@ void test("owner wrapper authenticates bounded original mechanism bytes before e
   assert.match(oversized.stderr, /Owner wrapper input exceeds bound/u);
 });
 
-void test("diagnostic worker selection cannot enable production or read an arbitrary input before its fresh gate", async () => {
+void test("diagnostic worker remains held while appointed production refuses malformed requests", async () => {
   const {
     readHostedWindowsWorkerAbi,
     readHostedWindowsDiagnosticWorkerAbi,
     runHostedWindowsWorkerStage,
     runHostedWindowsDiagnosticWorkerStage,
   } = await import("./release-hosted-native-windows-worker.mts");
-  assert.equal(readHostedWindowsWorkerAbi().execution_authorized, false);
+  assert.equal(readHostedWindowsWorkerAbi().execution_authorized, true);
   assert.equal(readHostedWindowsDiagnosticWorkerAbi().execution_authorized, false);
   assert.equal(readHostedWindowsDiagnosticWorkerAbi().authority, "none");
-  await assert.rejects(
-    runHostedWindowsWorkerStage("unreadable-untrusted-path", "invalid"),
-    /held hosted worker execution awaits separate authority/u,
-  );
+  await assert.rejects(runHostedWindowsWorkerStage("unreadable-untrusted-path", "invalid"), {
+    code: "ERR_ASSERTION",
+  });
   await assert.rejects(
     runHostedWindowsDiagnosticWorkerStage("unreadable-untrusted-path", "invalid"),
     /Connected diagnostic worker awaits exact separate authority/u,
@@ -1069,7 +1071,7 @@ void test("same-job derivation binds the maintained producer, actual commands an
         assert.deepEqual(
           JSON.parse(JSON.stringify(actual)) as unknown,
           JSON.parse(JSON.stringify(expected)) as unknown,
-          message,
+          message ?? "",
         ),
     },
     JSON,
@@ -1200,7 +1202,7 @@ void test("shared original A/B stage mechanics reject altered worker generations
         assert.deepEqual(
           JSON.parse(JSON.stringify(actual)) as unknown,
           JSON.parse(JSON.stringify(expected)) as unknown,
-          message,
+          message ?? "",
         ),
     };
     const common = runInNewContext(
@@ -1436,7 +1438,7 @@ void test("actual diagnostic first-stage failure preserves recovery success or U
   const body = source.slice(start, end).trimEnd();
   assert.ok(body.endsWith("}"));
   const program = stripTypeScriptTypes("(async () => {\n" + body.slice(0, -1) + "\n})()", {
-    mode: "transform",
+    mode: "strip",
   });
   for (const recoveryFails of [false, true]) {
     const nativeFailure = new Error("controlled first-stage failure"),
@@ -1850,7 +1852,7 @@ void test("actual preparation completion publishes identical durable create-only
     ending = implementation.slice(start).trimEnd();
   assert.ok(start > 0 && ending.endsWith("}"), "Actual producer completion boundary required");
   const program = stripTypeScriptTypes("(async () => {\n" + ending.slice(0, -1) + "\n})()", {
-    mode: "transform",
+    mode: "strip",
   });
   const temporary = await mkdtemp(path.join(os.tmpdir(), "pc-preparation-persistence-"));
   t.after(() => rm(temporary, { recursive: true, force: true }));

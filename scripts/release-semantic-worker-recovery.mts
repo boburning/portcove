@@ -14,12 +14,13 @@ import {
   coordinatorCommandTimeout,
 } from "./release-coordinator-deadline.mts";
 import { execFileSync } from "node:child_process";
-import { lstat, mkdir, open, readFile, readdir } from "node:fs/promises";
+import { lstat, mkdir, open, readFile, readdir, realpath } from "node:fs/promises";
 import path from "node:path";
 import { createHash } from "node:crypto";
 import { capacityDigest } from "./release-capacity.mts";
 import { readBoundedPublicBuildInputFile } from "./release-public-build-inputs.mts";
 import { isRecord } from "./runtime-values.mts";
+import { verifyRetainedApplicationCapacityStop } from "./release-semantic-runtime.mts";
 
 /** Technical duplicate/resource control, never semantic acceptance or journal
  * mutation authority. Retained POST locators permanently select readback. */
@@ -62,6 +63,126 @@ async function json(root: string, name: string) {
   ) as unknown;
 }
 
+const retainedApplicationRequest =
+  "request-b59b5c190f4933ff6f26ef05b0f5fd137b9da2e0e5114d2499a678f2a918b7be";
+
+const retainedApplicationAttempt = `/home/boburning/portcove-semantic/private/production-semantic-output/${retainedApplicationRequest}/technical-0`;
+const retainedApplicationInvocation = "r-eqdehy";
+
+export function assertRetainedApplicationPrelaunchLocation(
+  root: string,
+  canonicalRoot: string,
+  entries: readonly string[],
+) {
+  if (root !== retainedApplicationAttempt || canonicalRoot !== root)
+    throw new Error("exact retained application prelaunch path differs");
+  if (entries.some((name) => name.startsWith("r-") && name !== retainedApplicationInvocation))
+    throw new Error("unexpected retained application invocation sibling");
+}
+
+function isRetainedApplicationPrelaunch(root: string) {
+  return (
+    path.basename(root) === "technical-0" &&
+    path.basename(path.dirname(root)) === retainedApplicationRequest
+  );
+}
+
+/** Read-only verification for the exact historical technical-0 refusal.
+ * Its old supervisor inspected inputs before taking the persistent lock or
+ * writing the exclusive intent that precedes any isolated process/network start.
+ * The original worker's owner-held systemd exit was verified before reseal.
+ * No launched invocation can use this historical exception. */
+export async function verifyRetainedApplicationPrelaunch(root: string) {
+  if (root !== retainedApplicationAttempt)
+    throw new Error("exact retained application prelaunch path differs");
+  assertRetainedApplicationPrelaunchLocation(root, await realpath(root), await readdir(root));
+  const invocation = path.join(root, retainedApplicationInvocation);
+  if (
+    !(await absent(path.join(root, "expected-check.json"))) ||
+    // The retained worker and the supervisor child must both have exited.
+    !(await absent("/proc/169129")) ||
+    !(await absent("/proc/177438")) ||
+    JSON.stringify((await readdir(invocation)).sort()) !==
+      JSON.stringify([".portcove-semantic-review-owned", "capture", "inputs", "runtime"]) ||
+    JSON.stringify((await readdir(path.join(invocation, "capture"))).sort()) !==
+      JSON.stringify(["invocation.json", "linux-request.json"])
+  )
+    throw new Error("exact retained application prelaunch boundary differs");
+
+  const owner = process.getuid?.();
+  for (const directory of [
+    path.dirname(root),
+    root,
+    invocation,
+    path.join(invocation, "capture"),
+  ]) {
+    const metadata = await lstat(directory);
+    if (!metadata.isDirectory() || metadata.uid !== owner || (metadata.mode & 0o077) !== 0)
+      throw new Error("exact retained application prelaunch directory custody differs");
+  }
+  const evidence = [
+    [
+      "technical-start.json",
+      128,
+      "6657689c761ac9d7658ba6f9b2eefd65e67f5ac6de7d0ac75dbd5bb900a3c13d",
+    ],
+    [
+      "technical-stop.json",
+      4096,
+      "7663e747d4c1b39a4014fb4ae818a26738481a6cf97d2f5830000a25b2c0cd9d",
+    ],
+    [
+      "worker-attempt.jsonl",
+      4096,
+      "00410341b25be1c40cac7006402ec0c34575a045c3640c408e3b46c0e087de87",
+    ],
+    [
+      "r-eqdehy/.portcove-semantic-review-owned",
+      128,
+      "763c0b01db544ca1de2a401d3b5ffae18028b204c957bc4c42759b2b00350ad7",
+    ],
+    [
+      "r-eqdehy/capture/invocation.json",
+      4096,
+      "8df5d3e1fd35ca928bf1ebb67dd1b17f0dcc95fdfeba434c758485e3b3f42e5a",
+    ],
+    [
+      "r-eqdehy/capture/linux-request.json",
+      638410,
+      "f63591278e037f2572842280dba73f9ca93a7dff20b35ca9dbf7988d9d147423",
+    ],
+  ] as const;
+  for (const [filename, maximum, expected] of evidence) {
+    const metadata = await lstat(path.join(root, filename));
+    if (
+      !metadata.isFile() ||
+      metadata.nlink !== 1 ||
+      metadata.uid !== owner ||
+      (metadata.mode & 0o077) !== 0
+    )
+      throw new Error("exact retained application prelaunch file custody differs");
+    const bytes = await readBoundedPublicBuildInputFile(root, filename, maximum);
+    if (createHash("sha256").update(bytes).digest("hex") !== expected)
+      throw new Error("exact retained application prelaunch evidence changed");
+    if (filename === "technical-stop.json") {
+      const stop: unknown = JSON.parse(bytes.toString("utf8"));
+      if (
+        !isRecord(stop) ||
+        !Array.isArray(stop.invocations) ||
+        stop.invocations.length !== 1 ||
+        !isRecord(stop.invocations[0]) ||
+        stop.invocations[0].root !== invocation
+      )
+        throw new Error("exact retained application stop locator differs");
+    }
+    if (filename.endsWith("/linux-request.json")) {
+      const request: unknown = JSON.parse(bytes.toString("utf8"));
+      if (!isRecord(request) || request.run_root !== invocation)
+        throw new Error("exact retained application request locator differs");
+    }
+  }
+}
+
 /** Fixed GET-only OS readback. It never starts, stops, kills or resets a unit. */
 async function settleRetainedInvocation(
   root: string,
@@ -80,7 +201,13 @@ async function settleRetainedInvocation(
     ) !== invocation.id
   )
     throw new Error("original semantic invocation identity changed");
-  const request = await json(root, "capture/linux-request.json");
+  // Match the fixed supervisor's request envelope. A qualified input
+  // manifest can exceed the smaller bound for ordinary custody records.
+  const request: unknown = JSON.parse(
+    (
+      await readBoundedPublicBuildInputFile(root, "capture/linux-request.json", 1024 * 1024)
+    ).toString("utf8"),
+  );
   const isolation = await json(root, "capture/isolation.json");
   const intent = await json(root, "capture/linux-intent.json");
   if (
@@ -131,14 +258,46 @@ async function settleRetainedInvocation(
   return inspectSemanticTechnicalRecovery(isolation, properties);
 }
 
-/** The sole installed worker retains initial+two technical invocations. State
- * loss, incomplete evidence and possible POST effects refuse automatic replay. */
+/** Each supplemental application attempt requires its appointed prior stop.
+ * State loss, incomplete evidence and possible POST effects refuse replay. */
 export async function claimSemanticTechnicalAttempt(
   requestDirectory: string,
   systemctlSha256: string,
+  partition?: {
+    request_id: string;
+    max_lanes: number;
+    retry_stop_sha256?: string;
+    continuation_stop_sha256?: string;
+    next_stop_sha256?: string;
+    capacity_stop?: {
+      sha256: string;
+      log_sha256: string;
+      request_sha256: string;
+    };
+  },
 ) {
+  if (
+    partition &&
+    (path.basename(requestDirectory) !== `request-${partition.request_id}` ||
+      !/^[a-f0-9]{64}$/u.test(partition.request_id) ||
+      !Number.isSafeInteger(partition.max_lanes) ||
+      partition.max_lanes < 1 ||
+      partition.max_lanes > 512 ||
+      (partition.retry_stop_sha256 !== undefined &&
+        !/^[a-f0-9]{64}$/u.test(partition.retry_stop_sha256)) ||
+      (partition.continuation_stop_sha256 !== undefined &&
+        !/^[a-f0-9]{64}$/u.test(partition.continuation_stop_sha256)) ||
+      (partition.next_stop_sha256 !== undefined &&
+        (partition.continuation_stop_sha256 === undefined ||
+          !/^[a-f0-9]{64}$/u.test(partition.next_stop_sha256))) ||
+      (partition.capacity_stop !== undefined &&
+        (partition.retry_stop_sha256 !== undefined ||
+          partition.next_stop_sha256 === undefined ||
+          Object.values(partition.capacity_stop).some((value) => !/^[a-f0-9]{64}$/u.test(value)))))
+  )
+    throw new Error("retained semantic partition scope differs");
   const entries = await readdir(requestDirectory);
-  const runs = entries.filter((name) => /^technical-[0-2]$/u.test(name)).sort();
+  const runs = entries.filter((name) => /^technical-[0-9]+$/u.test(name)).sort();
   const anchor = path.join(
     path.dirname(requestDirectory),
     `${path.basename(requestDirectory)}.attempts.jsonl`,
@@ -154,22 +313,93 @@ export async function claimSemanticTechnicalAttempt(
   }
   if (JSON.stringify(anchored) !== JSON.stringify(runs))
     throw new Error("semantic attempt custody missing or contradictory; no counter reset");
-  if (runs.length >= 3) throw new Error("semantic technical retry budget exhausted");
+  const originalClaims = partition?.next_stop_sha256
+    ? 5
+    : partition?.continuation_stop_sha256
+      ? 4
+      : 3;
+  const providerContinuation = partition?.next_stop_sha256 && !partition.retry_stop_sha256;
+  const maximumClaims = partition?.capacity_stop
+    ? 5
+    : providerContinuation
+      ? 4
+      : partition?.retry_stop_sha256
+        ? originalClaims + 1
+        : 3;
+  if (runs.length >= maximumClaims) throw new Error("semantic technical retry budget exhausted");
+  const bridgeContinuation = partition?.continuation_stop_sha256 && !partition.retry_stop_sha256;
+  if (partition?.capacity_stop && runs.length !== 4)
+    throw new Error("capacity continuation requires exactly four original claims");
+  if (
+    bridgeContinuation &&
+    !partition?.capacity_stop &&
+    runs.length !== (providerContinuation ? 3 : 2)
+  )
+    throw new Error(
+      providerContinuation
+        ? "provider continuation requires exactly three original claims"
+        : "bridge continuation requires exactly two original claims",
+    );
+  if (partition?.retry_stop_sha256 && runs.length !== originalClaims)
+    throw new Error(`supplemental application attempt requires ${originalClaims} original claims`);
   if (runs.some((name, index) => name !== `technical-${index}`))
     throw new Error("semantic technical attempt custody has a gap");
   for (const name of runs) {
     const root = path.join(requestDirectory, name);
     if (!(await absent(path.join(root, "expected-check.json"))))
       throw new Error("retained original Check request requires GET-only reconciliation");
-    const stopped = await json(root, "technical-stop.json");
+    if (isRetainedApplicationPrelaunch(root)) {
+      await verifyRetainedApplicationPrelaunch(root);
+      continue;
+    }
+    const stopBytes = await readBoundedPublicBuildInputFile(
+      root,
+      "technical-stop.json",
+      partition ? 1024 * 1024 : 128 * 1024,
+    );
+    const appointedStop =
+      name === "technical-1" && bridgeContinuation
+        ? partition?.continuation_stop_sha256
+        : name === "technical-2"
+          ? providerContinuation
+            ? partition?.next_stop_sha256
+            : partition?.retry_stop_sha256
+          : name === "technical-3"
+            ? (partition?.capacity_stop?.sha256 ?? partition?.continuation_stop_sha256)
+            : name === "technical-4"
+              ? partition?.next_stop_sha256
+              : undefined;
+    if (appointedStop && createHash("sha256").update(stopBytes).digest("hex") !== appointedStop)
+      throw new Error("original supplemental application stop differs from its appointment");
+    const stopped: unknown = JSON.parse(stopBytes.toString("utf8"));
     if (
       !isRecord(stopped) ||
       stopped.outcome !== "technical-failure" ||
+      (appointedStop && stopped.application_partition_request_id !== partition?.request_id) ||
       !Array.isArray(stopped.invocations) ||
-      stopped.invocations.length > 2
+      (name === "technical-3" && partition?.capacity_stop && stopped.invocations.length < 2) ||
+      (stopped.application_partition_request_id !== undefined &&
+        stopped.application_partition_request_id !== partition?.request_id) ||
+      stopped.invocations.length >
+        (partition && stopped.application_partition_request_id ? 2 * (partition.max_lanes + 1) : 2)
     )
       throw new Error("previous technical attempt is live, incomplete or ambiguous");
-    for (const invocation of stopped.invocations) {
+    if (appointedStop || partition?.continuation_stop_sha256) {
+      const retained = (await readdir(root)).filter((entry) => entry.startsWith("r-")).sort();
+      const located = stopped.invocations
+        .map((invocation: unknown) => {
+          if (!isRecord(invocation) || typeof invocation.root !== "string")
+            throw new Error("supplemental application invocation locator differs");
+          return path.basename(invocation.root);
+        })
+        .sort();
+      if (
+        new Set(located).size !== located.length ||
+        JSON.stringify(retained) !== JSON.stringify(located)
+      )
+        throw new Error("supplemental application invocation inventory differs");
+    }
+    for (const [index, invocation] of stopped.invocations.entries()) {
       if (
         !isRecord(invocation) ||
         typeof invocation.root !== "string" ||
@@ -178,6 +408,19 @@ export async function claimSemanticTechnicalAttempt(
         typeof invocation.invocation_sha256 !== "string"
       )
         throw new Error("retained technical invocation locator differs");
+      if (
+        name === "technical-3" &&
+        partition?.capacity_stop &&
+        index === stopped.invocations.length - 1
+      ) {
+        await verifyRetainedApplicationCapacityStop(
+          root,
+          partition.request_id,
+          { root: invocation.root, invocation_sha256: invocation.invocation_sha256 },
+          partition.capacity_stop,
+        );
+        continue;
+      }
       await settleRetainedInvocation(
         invocation.root,
         invocation.invocation_sha256,

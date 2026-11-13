@@ -80,8 +80,8 @@ globalThis.fixture={
  candidate:step('candidate',1),runtime:async(tools,parent)=>{order.push('runtime');assert.equal(tools,toolReceipt);assert.equal(parent,tokens[0]);if(fault==='runtime')throw Error('original runtime refusal');return runtimeReceipt},controller:async value=>{order.push('controller');assert.equal(value,tokens[0]);if(fault==='controller')throw Error('original controller refusal');return tokens[2]},inputs:step('inputs',3),journey:step('journey',4),package:step('package',5),payload:step('payload',6),request:step('request',post?7:2),capture:step('capture',windows?1:post?8:3),report:step('report',windows?2:post?9:4),sign:step('sign',windows?3:post?10:5),
  original:async value=>{assert.equal(value,tokens[final]);if(stale)throw Error('custody expired');if(fault==='mutate-ack'&&submittedAck){await Promise.resolve();submittedAck.artifact_id=2;submittedAck.sha256='c'.repeat(64)}return {stage:stageUnderTest,directory,producer,files:Object.fromEntries(Object.entries(files).map(([key,bytes])=>[key,Buffer.from(bytes)])),artifact_name:'hosted-native-'+stageUnderTest+'-'+platform+'-99-1',deadline:fault==='expired'?performance.now()-1:performance.now()+100000}},
 };
-globalThis.fixture.readback=(api,slot,dir,deadline)=>{
- readbacks++;assert.deepEqual(slot,{controller_revision:producer.controller_revision,run_id:'99',run_attempt:1,platform_label:platform,stage:stageUnderTest});assert.equal(dir,directory);assert.ok(deadline>performance.now());
+globalThis.fixture.readback=async(api,slot,deadline,options)=>{
+ readbacks++;assert.deepEqual(slot,{controller_revision:producer.controller_revision,run_id:'99',run_attempt:1,platform_label:platform,stage:stageUnderTest});assert.deepEqual(options,{token:"inert-reader"});assert.ok(deadline>performance.now());
  if(fault==='ambiguous')throw Error('provider unavailable');if(fault==='stale')stale=true;
  return {artifact:{id:fault==='mutate-ack'?2:1,sha256:fault==='mutate-ack'?'c'.repeat(64):'b'.repeat(64),bytes:100,name:'hosted-native-payload-signing-linux-x86_64-99-1'},locator:{run_id:'99',run_attempt:1,platform_label:platform,job_id:fault==='job'?9:88,check_run_id:fault==='check'?'9':'77'},files:{...files,...(fault==='bytes'?{bundle:Buffer.from('changed')}: {})}};
 };
@@ -150,6 +150,8 @@ void test("hosted post-sign source binds the original timestamp executor and per
   const capacity = new URL("./release-capacity.mts", import.meta.url).href;
   const deadlineModule = new URL("./release-coordinator-deadline.mts", import.meta.url).href;
   const nativeModule = new URL("./release-native-candidate.mts", import.meta.url).href;
+  const admissionModule = new URL("./release-native-publication-admission.mts", import.meta.url)
+    .href;
   const code = String.raw`
 import assert from 'node:assert/strict';
 import {registerHooks} from 'node:module';
@@ -159,7 +161,7 @@ import path from 'node:path';
 import {performance} from 'node:perf_hooks';
 import {createHash} from 'node:crypto';
 import {capacityDigest as digest} from ${JSON.stringify(capacity)};
-import {coordinatorCommandTimeout} from ${JSON.stringify(deadlineModule)};
+import {coordinatorCommandTimeout,withCoordinatorDeadline} from ${JSON.stringify(deadlineModule)};
 const root=process.argv[1]; process.env.GH_TOKEN='inert-reader';
 const originals=new Set(); let parentReceipt, directory, fault='', stale=false, calls=0, hydrated=0, clock=1000, originalDeadline=101000; Object.defineProperty(performance,'now',{value:()=>clock});
 const producer={controller_revision:'a'.repeat(40),controller_ref:'refs/tags/portcove-production-controller-fixture',actor_id:'123',run_id:'12345',run_attempt:1};
@@ -178,35 +180,68 @@ const check=()=>{if(stale)throw Error('original parent expired')};
 globalThis.postsignFixture={
  parent:async receipt=>{assert.ok(originals.has(receipt),'original active hosted native parent source required');check();return {directory,platform_label:'linux-x86_64',stage:fault==='wrong-stage'?'payload-signing':'release-publication',deadline:originalDeadline,configuration:{schema_version:4,purpose:'application',journal:{namespace:'fixture'},publication:{}},producer:{...producer},recheck:check}},
  recover:async()=>{calls++;check();const op=operation();const groups=[];if(['history','history-budget','history-expiry','duplicate','pending-history','hydrate-drift'].includes(fault))groups.push({summary_schema_version:1,subject:{kind:'candidate',identity:candidate.prepared_commit},kind:'upload',destination_sha256:digest(op.destination),transient_retries:0,substantive_repairs:0,completed:true,attempts:[{checkpoint:'3'.repeat(40),id:op.id,operation_sha256:digest(op)}]});return {checkpoint:(fault==='journal-drift'&&calls>1)?'8'.repeat(40):'7'.repeat(40),repository:directory,input:{active_candidate:structuredClone(candidate),controller:{capacity_attempt:{schema_version:2,operation:['history','history-budget','history-expiry','hydrate-drift','missing'].includes(fault)?null:fault==='pending-history'?{...op,outcome:'pending',completed_effects:[]}:op,prior_operations:groups}}}}},
- hydrate:async()=>{hydrated++; if(fault==='history-budget'||fault==='history-expiry'){assert.equal(coordinatorCommandTimeout(),100,'local Git must inherit the original100ms deadline');if(fault==='history-expiry'){clock+=101;assert.throws(()=>coordinatorCommandTimeout(),/exhausted/)}} if(fault==='hydrate-drift')stale=true; return operation()},
+ hydrate:async(_repo,_proof,options)=>{assert.deepEqual(Object.keys(options),['provider']);assert.equal(typeof options.provider.commit,'function');assert.equal(typeof options.provider.tree,'function');assert.equal(typeof options.provider.blob,'function');hydrated++; if(fault==='history-budget'||fault==='history-expiry'){assert.equal(coordinatorCommandTimeout(),100,'local Git must inherit the original100ms deadline');if(fault==='history-expiry'){clock+=101;assert.throws(()=>coordinatorCommandTimeout(),/exhausted/)}} if(fault==='hydrate-drift')stale=true; return operation()},
  write:async(...args)=>{await files.writeFile(...args);if(fault==='late-write'&&path.basename(args[0])==='original-controller-selection.json')stale=true;if(scenario==='journey-late-write'&&path.basename(args[0])==='journey.json')clock=122000}
 };
 
 const hash=b=>createHash('sha256').update(b).digest('hex');
 const payload=Buffer.from('opaque compatible updater'),oldPayload=Buffer.from('opaque distinct predecessor');
 const packageId={filename:'Portcove_0.1.0-beta.1_amd64.AppImage',bytes:payload.length,sha256:hash(payload)};
-const packageCandidate={source_commit:candidate.prepared_commit,source_tree:candidate.prepared_tree,artifact_id:19,harness:{path:'apps/desktop/scripts/native-qualification.mts',sha256:'5'.repeat(64)},package:packageId};
+const oldUrl='https://github.com/boburning/portcove/releases/download/v0.1.0-beta.0/'+packageId.filename;
+const packageCandidate={source_commit:candidate.prepared_commit,source_tree:candidate.prepared_tree,artifact_id:19,run_id:'999',run_attempt:1,package:packageId};
 const metadata={accepted:{version:candidate.version,run_id:'999',run_attempt:1,source_commit:candidate.prepared_commit},archive:{artifact_id:19,bytes:22,sha256:hash(Buffer.alloc(22))},archives:[]};
-let inputReceipt,inputValue,sourceReceipt,packageReads=0,assetReads=0,scenario='',holdInputs=false,gateRelease,gateStarted;
+let inputReceipt,inputValue,sourceReceipt,packageReads=0,contextReads=0,archiveReads=0,archiveCancelled=false,assetReads=0,predecessorCancelled=false,scenario='',holdInputs=false,gateRelease,gateStarted;
 Object.assign(globalThis.postsignFixture,{
  inputs:async receipt=>{assert.equal(receipt,inputReceipt);if(holdInputs){holdInputs=false;gateStarted();await new Promise(resolve=>{gateRelease=resolve})}return inputValue},
  config:x=>x,
- derive:async(raw,dir,deadline,parent)=>{assert.equal(parent,parentReceipt);assert.deepEqual(raw.platform_labels,['windows-x86_64','linux-x86_64']);assert.equal(raw.coordinator_input.active_candidate.prepared_commit,candidate.prepared_commit);assert.ok(deadline<=121000);if(scenario==='journey-refusal')throw Error('historical verification refused');const journey=scenario.startsWith('update')?{predecessor:{...packageCandidate,source_commit:'1'.repeat(40),source_tree:'2'.repeat(40),package:{...packageId,bytes:oldPayload.length,sha256:hash(oldPayload)}}}:{kind:'initial-empty-feed'};return [journey,journey].map(x=>({...x,signed_context_sha256:'3'.repeat(64),signatures_sha256:'4'.repeat(64)}))},
- request:(method,endpoint)=>{assert.equal(method,'GET');if(endpoint.endsWith('/actions/artifacts/19')){packageReads++;return {status:200,body:{id:19,stamp:scenario==='metadata-drift'&&packageReads>1?2:1}}}if(endpoint.includes('/releases/tags/'))return {status:200,body:{id:8,immutable:scenario!=='update-mutable'}};throw Error('unexpected fixed endpoint '+endpoint)},
+ derive:async(raw,dir,deadline,read,proof,parent)=>{assert.equal(parent,parentReceipt);assert.equal(typeof read,'function');assert.equal(typeof proof.graphql,'function');assert.equal(Object.hasOwn(raw,'api'),false);await assert.rejects(()=>proof.request('POST','repos/boburning/portcove/git/commits'),/exact Git object GET/);assert.equal(typeof raw.checkpointObjects,"function");assert.deepEqual(raw.platform_labels,['windows-x86_64','linux-x86_64']);assert.equal(raw.coordinator_input.active_candidate.prepared_commit,candidate.prepared_commit);assert.ok(deadline<=121000);if(scenario==='journey-refusal')throw Error('historical verification refused');const journey=scenario.startsWith('update')?{predecessor:{...packageCandidate,source_commit:'1'.repeat(40),source_tree:'2'.repeat(40),package:{...packageId,bytes:oldPayload.length,sha256:hash(oldPayload)}}}:{kind:'initial-empty-feed'};return [journey,journey].map(x=>({...x,signed_context_sha256:'3'.repeat(64),signatures_sha256:'4'.repeat(64)}))},
  metadata:async(facts,platform,raw)=>{assert.equal(platform,'linux-x86_64');assert.equal(raw.id,19);if(scenario==='wrong-package')throw Error('signed package metadata refused');return structuredClone(metadata)},
  selected:async(facts,platform,retained)=>{assert.equal(platform,'linux-x86_64');assert.equal(hash(retained.bytes),packageId.sha256);return {candidate:structuredClone(packageCandidate),version:candidate.version}},
  discover:async(_archive,_identity,platform,_compiler,options)=>{assert.equal(platform,'linux-x86_64');await options.retainDesktopPackage({platform_label:platform,...packageId},payload)},
- predecessor:(_record,_candidate,release,_assets)=>{assetReads++;assert.equal(release.immutable,true,'immutable predecessor required');return {id:9,version:'0.1.0-beta.0',filename:packageId.filename,bytes:oldPayload.length,sha256:hash(oldPayload)}},
- archive:()=>Buffer.alloc(22),asset:()=>scenario==='update-bad-bytes'?Buffer.from('wrong predecessor'):oldPayload,
 });
-const routes={'./release-hosted-native-parent.mts':"export const requireActualHostedNativeParentSource=globalThis.postsignFixture.parent;",'./release-coordinator-recovery.mts':"export const recoverRemoteCoordinator=globalThis.postsignFixture.recover; export const hydrateRetainedCoordinatorOperation=globalThis.postsignFixture.hydrate;",'node:fs/promises':"export {chmod,mkdtemp} from 'node:fs/promises'; export const writeFile=globalThis.postsignFixture.write;",
+globalThis.fetch=async(input,init)=>{
+ const url=new URL(input instanceof Request?input.url:input),headers=new Headers(init.headers);
+ assert.equal(init.redirect,'manual');
+ if(url.origin==='https://productionresultssa1.blob.core.windows.net'){
+  assert.equal(init.credentials,'omit');assert.equal(headers.has('authorization'),false);archiveReads++;
+  if(scenario==='context-stall')return new Response(new ReadableStream({start(controller){controller.enqueue(new Uint8Array([1]));},cancel(){archiveCancelled=true;}}));
+  return new Response(Buffer.alloc(scenario==='context-short'?21:22));
+ }
+ if(url.origin==='https://release-assets.githubusercontent.com'){
+  assert.equal(init.credentials,'omit');assert.equal(headers.has('authorization'),false);
+  if(scenario==='update-stall')return new Response(new ReadableStream({start(controller){controller.enqueue(new Uint8Array([1]));},cancel(){predecessorCancelled=true;}}));
+  return new Response(scenario==='update-bad-bytes'?Buffer.alloc(oldPayload.length,1):oldPayload);
+ }
+ assert.equal(url.origin,'https://api.github.com');assert.equal(headers.get('authorization'),'token inert-reader');
+ if(url.pathname==='/repos/boburning/portcove/releases/tags/v0.1.0-beta.0'){
+  assetReads++;
+  return Response.json({id:8,tag_name:'v0.1.0-beta.0',draft:false,immutable:scenario!=='update-mutable',published_at:'2026-10-20T12:00:00Z'});
+ }
+ if(url.pathname==='/repos/boburning/portcove/releases/8/assets')
+  return Response.json([{id:9,name:packageId.filename,state:'uploaded',size:oldPayload.length,digest:'sha256:'+hash(oldPayload),browser_download_url:oldUrl,url:'https://api.github.com/repos/boburning/portcove/releases/assets/9'}]);
+ if(url.pathname==='/repos/boburning/portcove/releases/assets/9'){
+  assert.equal(headers.get('accept'),'application/octet-stream');
+  return new Response(null,{status:302,headers:{location:'https://release-assets.githubusercontent.com/original?sig=fixture'}});
+ }
+ const base='/repos/boburning/portcove/actions',suffix=url.pathname.slice(base.length);
+ assert.ok(url.pathname.startsWith(base));
+ if(suffix==='/artifacts/19'){
+  packageReads++;return Response.json({id:19,stamp:scenario==='metadata-drift'&&packageReads>1?2:1});
+ }
+ if(suffix==='/runs/12345/artifacts'){
+  assert.equal(url.search,'?per_page=100');contextReads++;
+  const names=['trusted-payload-signing-context','trusted-payload-signing-context-attestation',...['releases','preview','stable','snapshot','timestamp'].flatMap(role=>['trusted-tuf-'+role+'-output','trusted-tuf-'+role+'-attestation'])];
+  return Response.json({total_count:names.length,artifacts:names.map((name,index)=>({id:index+21,name:name+'-12345-1',expired:false,size_in_bytes:22,digest:'sha256:'+hash(Buffer.alloc(22,index===0&&scenario==='context-drift'&&contextReads>1?1:0)),workflow_run:{id:12345,repository_id:1354613114,head_repository_id:1354613114,head_sha:producer.controller_revision}}))});
+ }
+ assert.match(suffix,/^\/artifacts\/(19|21)\/zip$/u);
+ return new Response(null,{status:302,headers:{location:'https://productionresultssa1.blob.core.windows.net/actions-results/'+suffix.split('/')[2]+'?sig=fixture'}});
+};
+const routes={'./release-hosted-native-parent.mts':"export const requireActualHostedNativeParentSource=globalThis.postsignFixture.parent;",'./release-coordinator-recovery.mts':"export const recoverRemoteCoordinator=globalThis.postsignFixture.recover; export const hydrateRetainedCoordinatorOperation=globalThis.postsignFixture.hydrate;",'node:fs/promises':"export {chmod,mkdtemp,rm} from 'node:fs/promises'; export const writeFile=globalThis.postsignFixture.write;",
  './release-hosted-native-postsign-inputs.mts':"export const requireActualHostedNativePostSignInputs=globalThis.postsignFixture.inputs;",
- './release-authority-configuration.mts':"export const inspectSelectedPublicationAuthorityConfiguration=globalThis.postsignFixture.config;",
- './release-native-publication-admission.mts':"export const deriveHostedNativePublicationJourneys=globalThis.postsignFixture.derive;",
+ './release-authority-configuration.mts':"export const inspectSelectedPublicationAuthorityConfiguration=globalThis.postsignFixture.config;export const applicationReleaseProfile=()=>'initial-beta-win-linux';export const applicationPublicBuildInputs=()=>undefined;",
+ './release-native-publication-admission.mts':"export {createNativePredecessorReader,createNativeCheckpointEvidenceReader} from "+JSON.stringify(${JSON.stringify(admissionModule)})+"; export const deriveHostedNativePublicationJourneys=globalThis.postsignFixture.derive;",
  './release-artifact-archive.mts':"export const discoverReleaseArtifactFiles=globalThis.postsignFixture.discover;",
- './github-api.mts':"export class GitHubApiClient{request(...args){return globalThis.postsignFixture.request(...args)}paginateRest(){return [{id:9}]}};export const createGitHubRunner=()=>()=>{throw Error('unexpected CLI')};",
- './github-binary.mts':"export const readGitHubArtifactArchive=globalThis.postsignFixture.archive;export const readGitHubReleaseAsset=globalThis.postsignFixture.asset;",
- './release-native-candidate.mts':"export {inspectNativePostSignController,inspectNativePostSignArtifactInventory,inspectHostedNativePreparationStage,inspectNativeSourceCommand} from "+JSON.stringify(${JSON.stringify(nativeModule)})+"; export const inspectNativePostSignPackageMetadata=globalThis.postsignFixture.metadata;export const inspectSelectedNativeCandidate=globalThis.postsignFixture.selected;export const inspectNativePredecessorReleaseAsset=globalThis.postsignFixture.predecessor;",
+ './release-native-candidate.mts':"export {inspectNativePostSignController,inspectNativePostSignArtifactInventory,inspectHostedNativePreparationStage,acquireNativePredecessorRelease} from "+JSON.stringify(${JSON.stringify(nativeModule)})+"; export const inspectNativePostSignPackageMetadata=globalThis.postsignFixture.metadata;export const inspectSelectedNativeCandidate=globalThis.postsignFixture.selected;",
 };
 registerHooks({resolve(specifier,context,next){if(context.parentURL===${JSON.stringify(entry)}&&routes[specifier])return {url:'postsign-fixture:'+specifier,shortCircuit:true};return next(specifier,context)},load(url,context,next){if(url.startsWith('postsign-fixture:'))return {format:'module',source:routes[url.slice('postsign-fixture:'.length)],shortCircuit:true};return next(url,context)}});
 const api=await import(${JSON.stringify(entry)});
@@ -231,13 +266,31 @@ for(const name of ['foreign-run','foreign-ref','foreign-actor','foreign-revision
 reset('wrong-stage');await assert.rejects(api.readActualHostedNativePostSignController(parentReceipt),/post-sign/);
 await assert.rejects(api.readActualHostedNativePostSignController({}),/original active/);
 
-for(const name of ['bootstrap','update','journey-refusal','wrong-package','metadata-drift','update-mutable','update-bad-bytes','journey-race','package-race','package-tamper','journey-lifetime','journey-late-write']){
+for(const name of ['context','context-drift','context-short','context-stall']){
+ reset(name);scenario=name;contextReads=archiveReads=0;archiveCancelled=false;
+ const receipt=await api.readActualHostedNativePostSignController(parentReceipt);
+ if(name==='context'){
+  const result=await api.readActualHostedNativePostSignContextArchive(receipt);
+  assert.equal(result.inventory.context.id,21);assert.deepEqual(result.bytes,Buffer.alloc(22));
+  assert.equal(contextReads,2);
+ }else{
+  if(name==='context-stall'){
+   const keepAlive=setInterval(()=>{},1000);
+   try{await assert.rejects(withCoordinatorDeadline(clock+350,()=>api.readActualHostedNativePostSignContextArchive(receipt)));}finally{clearInterval(keepAlive);}
+   assert.ok(archiveCancelled);
+  }else await assert.rejects(api.readActualHostedNativePostSignContextArchive(receipt));
+  await assert.rejects(api.requireActualHostedNativePostSignController(receipt),/original active/);
+  assert.equal(contextReads,name==='context-drift'?2:1);
+ }
+ assert.equal(archiveReads,1);
+}
+for(const name of ['bootstrap','update','journey-refusal','wrong-package','metadata-drift','update-mutable','update-bad-bytes','update-stall','journey-race','package-race','package-tamper','journey-lifetime','journey-late-write']){
  reset('integration-'+name);if(name==='journey-lifetime'||name==='journey-late-write')originalDeadline=301000;scenario=name;packageReads=assetReads=0;
  sourceReceipt=await api.readActualHostedNativePostSignController(parentReceipt);
  const source=await api.requireActualHostedNativePostSignController(sourceReceipt);
  inputReceipt={};const contextRoot=path.join(directory,'frozen-context');mkdirSync(contextRoot);
  const contextFiles=new Map([['context.json',Buffer.from('{}')]]);
- if(name.startsWith('update')){const old={target:'linux-x86_64',version:'0.1.0-beta.0',source_commit:'1'.repeat(40),source_tree:'2'.repeat(40),artifact:{bytes:oldPayload.length,sha256:hash(oldPayload)}};contextFiles.set('prior/targets/old.json',Buffer.from(JSON.stringify(old)))}
+ if(name.startsWith('update')){const old={target:'linux-x86_64',version:'0.1.0-beta.0',source_commit:'1'.repeat(40),source_tree:'2'.repeat(40),artifact:{bytes:oldPayload.length,sha256:hash(oldPayload),url:oldUrl}};contextFiles.set('prior/targets/old.json',Buffer.from(JSON.stringify(old)))}
  for(const [name,bytes]of contextFiles){const filename=path.join(contextRoot,name);mkdirSync(path.dirname(filename),{recursive:true});writeFileSync(filename,bytes)}
  const manifest={files:[...contextFiles].map(([name,b])=>({path:name,bytes:b.length,sha256:hash(b)})),facts:{assembly:{reviewed:true},archives:[{platform:'linux-x86_64',artifact_id:19}]}};
  inputValue={directory,source_receipt:sourceReceipt,source,deadline:source.deadline,context:{context:path.join(contextRoot,'context.json'),manifest},publication:{repository_sha256:'3'.repeat(64)}};
@@ -250,6 +303,16 @@ for(const name of ['bootstrap','update','journey-refusal','wrong-package','metad
  }
  if(name==='journey-lifetime'){clock=122000;await api.requireActualHostedNativePostSignJourney(journey);clock=1000;continue}
  const packageAttempt=()=>api.acquireActualHostedNativePostSignPackage(journey);
+ if(name==='update-stall'){
+  const keepAlive=setInterval(()=>{},1000);
+  try{await assert.rejects(withCoordinatorDeadline(clock+350,packageAttempt),/retain/)}finally{clearInterval(keepAlive)}
+  assert.equal(predecessorCancelled,true);
+  assert.equal(assetReads,1);
+  const packageRoot=readdirSync(journey.directory).find(name=>name.startsWith('package-'));
+  assert.ok(packageRoot);
+  assert.deepEqual(readdirSync(path.join(journey.directory,packageRoot)).filter(name=>!name.startsWith('readonly-cli-')),['refusal.json']);
+  continue;
+ }
  if(['wrong-package','metadata-drift','update-mutable','update-bad-bytes'].includes(name)){await assert.rejects(packageAttempt(),/retain/);await assert.rejects(packageAttempt(),/recovery/);continue}
  const selected=await packageAttempt(),value=await api.requireActualHostedNativePostSignPackage(selected);
  assert.equal(value.signature_verification,'pending');assert.equal(value.native_acceptance,'not-established');assert.equal(value.package_path.endsWith(packageId.filename),true);assert.equal(assetReads,name.startsWith('update')?2:0);
@@ -323,7 +386,7 @@ globalThis.signedFixture={
  snapshotContext:async r=>{const context=await globalThis.signedFixture.requireContext(r);return {context,root:context.directory,files:fileInventory(path.dirname(context.context)).map(f=>({...f,path:'context/'+f.path}))}},
  snapshotRole:async r=>{const actual=await globalThis.signedFixture.requireRole(r);return {root:path.dirname(actual.envelope.path),files:[{path:path.basename(actual.envelope.path),bytes:2,sha256:hash(Buffer.from('{}'))}]}},
  requireRole:async r=>{alive();assert.ok(roleReceipts.has(r));if(fault==='role-drift'&&childDone)throw Error('retained role changed');return roleReceipts.get(r)},
- parseConfig:x=>x,parseAssembly:async()=>({accepted:{release_profile:'initial-beta-win-linux',source_commit:fault==='compiler'?'9'.repeat(40):candidate.prepared_commit,source_tree:candidate.prepared_tree,version:candidate.version,run_id:'999',run_attempt:1},labels:['windows-x86_64','linux-x86_64']}),parsePublication:x=>x,
+ parseProfile:()=>"initial-beta-win-linux",parsePublicInputs:()=>undefined,parseConfig:x=>x,parseAssembly:async()=>({accepted:{release_profile:'initial-beta-win-linux',source_commit:fault==='compiler'?'9'.repeat(40):candidate.prepared_commit,source_tree:candidate.prepared_tree,version:candidate.version,run_id:'999',run_attempt:1},labels:['windows-x86_64','linux-x86_64']}),parsePublication:x=>x,
  resource:async(profile,exe,args,options)=>{childPlan=args[1];assert.equal(profile,'analysis');assert.equal(exe,path.join(toolRoot,'bin/node'));assert.equal(args[0],path.join(toolRoot,'scripts/release-native-keyless-assembly.bundle.mjs'));assert.equal(options.queueDeadline,phaseDeadline());assert.ok(options.exclusive[0].startsWith('native-keyless:'));for(const key of ['GH_TOKEN','ACTIONS_ID_TOKEN_REQUEST_TOKEN','NODE_OPTIONS'])assert.equal(options.environment[key],undefined);if(fault==='queue-expiry')clock=101001;return options.supervise(['fixed-child'],{acquireLock:async()=>({release:async()=>{}})})},
  supervise:async(_args,options)=>{assert.equal(typeof options.rustSupportCompilerIdentity,'function');assert.equal(typeof options.prepareSupportArtifact,'function');const lease=await options.acquireLock({},{});try{if(fault==='child-failure'||(fault==='payload-child'&&path.basename(childPlan)==='native-payload-plan.json'))return 1;await materialize();return 0}finally{await lease.release()}},
  write:async(...args)=>{await fs.writeFile(...args);if(path.basename(args[0])==='refusal.json')console.error('controlled refusal '+fault+': '+JSON.parse(args[1]).phase);if(fault==='late-write'&&path.basename(args[0])==='signed-inputs.json')stale=true}
@@ -335,7 +398,7 @@ const routes={
  './release-hosted-native-runtime.mts':{requireHostedNativeRuntime:'runtime',hostedNativeSupportDependencies:'support'},
  './release-signing-context-artifact.mts':{inspectSigningContextArchive:'inspect',receiveSigningContextArtifact:'receiveContext',requireReceivedSigningContext:'requireContext',snapshotReceivedSigningContextEvidence:'snapshotContext'},
  './release-tuf-role-artifact.mts':{receiveTufRoleArtifact:'receiveRole',requireReceivedTufRoleArtifact:'requireRole',snapshotReceivedTufRoleEvidence:'snapshotRole'},
- './release-authority-configuration.mts':{inspectSelectedPublicationAuthorityConfiguration:'parseConfig'},
+ './release-authority-configuration.mts':{inspectSelectedPublicationAuthorityConfiguration:'parseConfig',applicationReleaseProfile:'parseProfile',applicationPublicBuildInputs:'parsePublicInputs'},
  './trusted-release-assembly.mts':{inspectTrustedAssemblyInput:'parseAssembly'},
  './release-metadata-contract.mts':{inspectTufPublicationFacts:'parsePublication'},
  './resource-command.mts':{runResourceCommand:'resource'},'./run-rust-tests.mts':{runRustTests:'supervise'},

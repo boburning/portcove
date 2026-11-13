@@ -1,0 +1,26 @@
+{
+  "interfaceSize": {
+    "applied": "Interface size {{ratio, number(style: percent)}}.",
+    "appliedSessionOnly": "Interface size {{ratio, number(style: percent)}}. This session only; preference could not be saved.",
+    "applying": "Applying interface size {{ratio, number(style: percent)}}.",
+    "description": "Enlarge text, artwork and controls together.",
+    "dismiss": "Dismiss",
+    "reset": "Reset to {{ratio, number(style: percent)}}",
+    "resetAction": "Reset interface size",
+    "resetWithShortcut": "Reset to {{ratio, number(style: percent)}} · {{shortcut}}",
+    "sessionOnly": "Applied for this session. The preference could not be saved.",
+    "shortcuts": "{{enlarge}} / {{reduce}} enlarge or reduce; {{reset}} resets.",
+    "title": "Interface size",
+    "unconfirmed": "Interface size could not be confirmed. Try again or reset to {{ratio, number(style: percent)}}.",
+    "unconfirmedStatus": "Interface size could not be confirmed. Use reset to {{ratio, number(style: percent)}}.",
+    "value": "{{ratio, number(style: percent)}}"
+  },
+  "renderRecovery": {
+    "details": "Error details",
+    "detailsLabel": "Screen error details",
+    "instruction": "Reload Portcove, then check the status of any active task.",
+    "reload": "Reload Portcove",
+    "title": "Portcove couldn’t display this screen",
+    "unknownError": "Unknown display error"
+  }
+}

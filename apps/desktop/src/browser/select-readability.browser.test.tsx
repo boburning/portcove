@@ -48,7 +48,7 @@ it.each(layouts)(
     flushSync(() =>
       root.render(
         <DirectionProvider direction="ltr">
-          <SourceDiscoveryButton profiles={profiles} disabled={false} />
+          <SourceDiscoveryButton generation={7} profiles={profiles} disabled={false} />
         </DirectionProvider>,
       ),
     );

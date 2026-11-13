@@ -69,6 +69,31 @@ function columns() {
 }
 
 for (const theme of ["dark", "light"] as const) {
+  it(`keeps the ${theme} library toolbar together on a small desktop`, async () => {
+    await page.viewport(1024, 800);
+    await mount(theme);
+    const search = page.getByRole("textbox", { name: "Search your library" });
+    for (const query of ["", "a"]) {
+      await search.fill(query);
+      const toolbar = document.querySelector<HTMLElement>(".browse-toolbar")!;
+      const controls = [
+        toolbar.querySelector<HTMLElement>(".search")!,
+        toolbar.querySelector<HTMLElement>("button[aria-controls]")!,
+        toolbar.querySelector<HTMLElement>(".browse-sort")!,
+        toolbar.querySelector<HTMLElement>('[aria-label="Collection view"]')!,
+      ].map((control) => control.getBoundingClientRect());
+      const searchBox = controls[0]!;
+      expect(searchBox.width).toBeGreaterThanOrEqual(240);
+      for (const box of controls) {
+        expect(
+          Math.abs(box.top + box.height / 2 - searchBox.top - searchBox.height / 2),
+        ).toBeLessThanOrEqual(1);
+      }
+      expectWorkspaceFit();
+      await expect.element(search).toHaveFocus();
+    }
+  });
+
   it(`uses the expanded ${theme} workspace for game columns and right-side wheel scrolling`, async () => {
     await page.viewport(1280, 800);
     await mount(theme);

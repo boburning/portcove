@@ -1,9 +1,11 @@
 //! Task-specific summaries. Core records remain the authority for every outcome.
 use portcove_core::{
-    AdoptionPreview, BackupRecord, CancellationPhase, CancellationState, Catalog,
-    ExternalRuntimePreview, ExternalRuntimeRecord, ExternalRuntimeRelinkPreview,
-    ExternalRuntimeRemovalPreview, InstallRecord, OutputRelocationResult, PortRemovalPreview,
-    ReconcileAction, ReconcileResult, RestoreResult, UpdateCheck, VerificationReport,
+    AdoptionBatchItemOutcome, AdoptionBatchPreview, AdoptionBatchResult, AdoptionPreview,
+    BackupRecord, CancellationPhase, CancellationState, Catalog, ExternalRuntimePreview,
+    ExternalRuntimeRecord, ExternalRuntimeRelinkPreview, ExternalRuntimeRemovalPreview,
+    InstallRecord, LauncherAppsRootOrigin, LauncherEntryStatus, LauncherKind,
+    LauncherLibraryInventory, OutputRelocationResult, PortRemovalPreview, ReconcileAction,
+    ReconcileResult, RestoreResult, UpdateCheck, VerificationReport,
 };
 
 use super::{clean, format_bytes, platform_name, port_name, release_channel, utc_time};
@@ -135,6 +137,299 @@ pub(crate) fn reconcile_result(result: &ReconcileResult, catalog: &Catalog) -> S
         ));
     }
     text.push_str(&format!("\nNext step: Using the same library, run portcove status {} to inspect the resulting readiness.", clean(&result.port_id)));
+    text
+}
+
+pub(crate) fn launcher_library_inventory(
+    inventory: &LauncherLibraryInventory,
+    catalog: &Catalog,
+) -> String {
+    let launcher = match inventory.launcher {
+        LauncherKind::GithubLauncher => "GitHub Launcher",
+        LauncherKind::Quiver => "Quiver",
+    };
+    let apps_root = match (&inventory.apps_root, inventory.apps_root_origin) {
+        (Some(path), LauncherAppsRootOrigin::Settings) => {
+            format!(
+                "{} (from launcher settings)",
+                clean(&path.display().to_string())
+            )
+        }
+        (Some(path), LauncherAppsRootOrigin::Override) => {
+            format!(
+                "{} (chosen for this review)",
+                clean(&path.display().to_string())
+            )
+        }
+        (Some(path), _) => format!("{} (launcher default)", clean(&path.display().to_string())),
+        (None, _) => "Unknown; launcher settings could not be read. Use --apps-root.".into(),
+    };
+    let ready = inventory
+        .entries
+        .iter()
+        .filter(|entry| entry.status == LauncherEntryStatus::ReadyToReview)
+        .count();
+    let mut text = format!(
+        "{launcher} library review\nLibrary file: {}\nApps folder: {apps_root}\nApps listed: {}\nReady to review for copying: {ready}\nLauncher files will be modified: {}",
+        clean(&inventory.library_file.display().to_string()),
+        inventory.entries.len(),
+        if inventory.original_will_be_modified {
+            "Yes"
+        } else {
+            "No"
+        },
+    );
+    for entry in &inventory.entries {
+        let status = match entry.status {
+            LauncherEntryStatus::ReadyToReview => "Ready to review",
+            LauncherEntryStatus::Ambiguous => "Choose a port",
+            LauncherEntryStatus::NotInCatalog => "Not in the catalog",
+            LauncherEntryStatus::UnrecognizedFiles => "Files not recognized",
+            LauncherEntryStatus::AdoptionUnsupported => "Cannot be copied",
+            LauncherEntryStatus::NotInstalled => "Not installed",
+            LauncherEntryStatus::UnsafePath => "Location not inspected",
+            LauncherEntryStatus::Duplicate => "Listed twice",
+        };
+        let name = if entry.name.trim().is_empty() {
+            entry.folder_name.as_str()
+        } else {
+            entry.name.as_str()
+        };
+        text.push_str(&format!("\n\n{}: {status}", clean(name)));
+        if !entry.repository.is_empty() {
+            text.push_str(&format!("\nUpstream: {}", clean(&entry.repository)));
+        }
+        if let Some(path) = &entry.install_path {
+            text.push_str(&format!("\nFolder: {}", clean(&path.display().to_string())));
+        }
+        let ports = if entry.detected_port_ids.is_empty() {
+            &entry.candidate_port_ids
+        } else {
+            &entry.detected_port_ids
+        };
+        if !ports.is_empty() {
+            text.push_str(&format!(
+                "\nCatalog port: {}",
+                ports
+                    .iter()
+                    .map(|id| format!("{} ({})", port_name(catalog, id), clean(id)))
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            ));
+        }
+        for path in &entry.user_data_paths {
+            text.push_str(&format!(
+                "\nSave/settings found: {}",
+                clean(&path.display().to_string())
+            ));
+        }
+        if let Some(version) = &entry.hints.preferred_version {
+            text.push_str(&format!(
+                "\nLauncher version label: {} (not verified)",
+                clean(version)
+            ));
+        }
+        if let Some(mods) = &entry.mods {
+            text.push_str(&if mods.readable {
+                format!(
+                    "\nLauncher mod records: {} (listed only; not copied as mods or enabled)",
+                    mods.records
+                )
+            } else {
+                "\nLauncher mod records: present but unreadable".into()
+            });
+        }
+        text.push_str(&format!("\n{}", clean(&entry.explanation)));
+        if !entry.not_carried_over.is_empty() {
+            text.push_str(&format!(
+                "\nLauncher settings not carried over: {}",
+                clean(&entry.not_carried_over.join(", "))
+            ));
+        }
+        match (&entry.install_path, &entry.adopt_port_id, entry.status) {
+            (Some(path), Some(port_id), _) => text.push_str(&format!(
+                "\nNext: portcove adopt {} --port {}",
+                shell_quoted(&path.display().to_string()),
+                clean(port_id)
+            )),
+            (Some(path), None, LauncherEntryStatus::Ambiguous) => text.push_str(&format!(
+                "\nNext: choose PORT_ID from the ports above, then run portcove adopt {} --port PORT_ID",
+                shell_quoted(&path.display().to_string())
+            )),
+            _ => {}
+        }
+    }
+    for skipped in &inventory.skipped_entries {
+        text.push_str(&format!(
+            "\n\nEntry {} skipped: {}",
+            skipped.index,
+            clean(&skipped.reason)
+        ));
+    }
+    text
+}
+
+/// Quote a path so pasting the suggested command passes it literally in
+/// PowerShell (Windows) or a POSIX shell. cmd.exe is not a supported paste target.
+fn shell_quoted(value: &str) -> String {
+    // Control characters never reach the terminal; such a path then fails safely.
+    let value = clean(value);
+    if cfg!(windows) {
+        powershell_quoted(&value)
+    } else {
+        posix_quoted(&value)
+    }
+}
+
+/// PowerShell treats U+2018–U+201B like `'`; doubling each keeps it literal.
+fn powershell_quoted(value: &str) -> String {
+    let mut quoted = String::from("'");
+    for character in value.chars() {
+        if matches!(
+            character,
+            '\'' | '\u{2018}' | '\u{2019}' | '\u{201A}' | '\u{201B}'
+        ) {
+            quoted.push(character);
+        }
+        quoted.push(character);
+    }
+    quoted.push('\'');
+    quoted
+}
+
+fn posix_quoted(value: &str) -> String {
+    format!("'{}'", value.replace('\'', "'\\''"))
+}
+
+pub(crate) fn adoption_batch_preview(preview: &AdoptionBatchPreview, catalog: &Catalog) -> String {
+    let mut text = format!(
+        "Copy several existing installations review\nInstallations: {}\nFiles to copy: {}\nCopy size: {}\nOriginals will be modified: {}\nReview SHA-256: {}",
+        preview.items.len(),
+        preview.total_files,
+        format_bytes(preview.total_bytes),
+        if preview.original_will_be_modified {
+            "Yes"
+        } else {
+            "No"
+        },
+        clean(&preview.batch_sha256),
+    );
+    for item in &preview.items {
+        let port = item
+            .selected_port_id
+            .as_deref()
+            .map(|id| port_name(catalog, id))
+            .unwrap_or_else(|| "Not selected".into());
+        text.push_str(&format!(
+            "\n\n{port}\nOriginal: {}\nFiles: {} · {}",
+            clean(&item.source.display().to_string()),
+            item.copy_plan.files.len(),
+            format_bytes(item.copy_plan.total_bytes),
+        ));
+        if let Some(destination) = &item.destination {
+            text.push_str(&format!(
+                "\nManaged destination: {}",
+                clean(
+                    &destination
+                        .output_location
+                        .effective_output_directory
+                        .display()
+                        .to_string()
+                )
+            ));
+            if let Some(install) = &destination.active_install {
+                text.push_str(&format!(
+                    "\nCurrent active version {} stays installed; the copy becomes active",
+                    clean(&install.version)
+                ));
+            }
+            let replaces = destination.current_user_data_files > 0;
+            for path in &destination.imported_user_data_paths {
+                text.push_str(&format!(
+                    "\n{}: {}",
+                    if replaces {
+                        "Saved file copied in; a matching file in Portcove is replaced, with no backup first"
+                    } else {
+                        "Saved file copied in"
+                    },
+                    clean(&path.display().to_string())
+                ));
+            }
+        }
+        if !item.copy_plan.skipped_entries.is_empty() {
+            text.push_str(&format!(
+                "\nUnsupported items left only in the original: {}",
+                item.copy_plan.skipped_entries.len()
+            ));
+        }
+    }
+    if preview.items_replacing_saved_files > 0 {
+        text.push_str("\n\nRemoving a copy later does not restore replaced saved files. Create a backup first if you need them.");
+    }
+    text.push_str("\n\nEach installation is checked again just before it is copied. One that changed after this review is held, not copied. Stop the games before copying.");
+    text
+}
+
+pub(crate) fn adoption_batch_result(
+    result: &AdoptionBatchResult,
+    catalog: &Catalog,
+    labels: &std::collections::BTreeMap<std::path::PathBuf, String>,
+) -> String {
+    let count = |outcome| {
+        result
+            .items
+            .iter()
+            .filter(|item| item.outcome == outcome)
+            .count()
+    };
+    let mut text = format!(
+        "Copy several existing installations result\nCopied: {}\nChanged after review, not copied: {}\nNot copied because of an error: {}",
+        count(AdoptionBatchItemOutcome::Copied),
+        count(AdoptionBatchItemOutcome::Changed),
+        count(AdoptionBatchItemOutcome::Failed),
+    );
+    for item in &result.items {
+        let outcome = match item.outcome {
+            AdoptionBatchItemOutcome::Copied => "Copied",
+            AdoptionBatchItemOutcome::Changed => "Changed after review; not copied",
+            AdoptionBatchItemOutcome::Failed => "Not copied",
+        };
+        text.push_str(&format!(
+            "\n\n{}: {outcome}\nOriginal: {}",
+            port_name(catalog, &item.port_id),
+            clean(&item.source.display().to_string())
+        ));
+        if let Some(install) = &item.install {
+            text.push_str(&format!("\nInstalled version: {}", clean(&install.version)));
+        }
+        if let Some(message) = &item.message {
+            text.push_str(&format!("\n{}", clean(message)));
+        }
+    }
+    let remaining = result
+        .items
+        .iter()
+        .filter(|item| item.outcome != AdoptionBatchItemOutcome::Copied)
+        .map(|item| {
+            labels.get(&item.source).cloned().unwrap_or_else(|| {
+                item.source
+                    .file_name()
+                    .map(|name| name.to_string_lossy().into_owned())
+                    .unwrap_or_default()
+            })
+        })
+        .collect::<Vec<_>>();
+    if !remaining.is_empty() {
+        // Copied apps stay listed as ready; name only the rest so they are not copied again.
+        text.push_str(&format!(
+            "\n\nNext step: review the installations that were not copied with {}.",
+            remaining
+                .iter()
+                .map(|name| format!("--app {}", shell_quoted(name)))
+                .collect::<Vec<_>>()
+                .join(" ")
+        ));
+    }
     text
 }
 

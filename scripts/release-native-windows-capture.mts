@@ -358,7 +358,7 @@ export async function requireActualWindowsPublicCapture(receipt: object) {
       if (!relative && entry === "public-settlement.json") continue;
       assert.match(entry, /^[A-Za-z0-9][A-Za-z0-9._-]*$/u);
       const name = relative ? `${relative}/${entry}` : entry;
-      const info = await lstat(path.join(retained.directory, name));
+      const info: import("node:fs").Stats = await lstat(path.join(retained.directory, name));
       assert.ok(!info.isSymbolicLink());
       if (info.isDirectory()) {
         await walk(name, depth + 1);

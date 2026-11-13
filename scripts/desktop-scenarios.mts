@@ -18,6 +18,15 @@ interface DesktopScenario {
 
 const nativeResources = ["native-desktop", "keyboard-pointer"];
 
+// Two finite install waits, source scan, owned game observation and cleanup.
+// This explicit MM case does not change product or other scenario deadlines.
+export const gameFirstMMHarnessDeadlineMs = 40 * 60_000;
+
+/** Picori can synchronize its generated retained tree twice before game creation. */
+export function gameFirstLaunchStartDeadlineMs(portId: string) {
+  return portId === "project-picori" ? 3_600_000 : 30_000;
+}
+
 function scenario(
   id: string,
   description: string,
@@ -118,6 +127,17 @@ export const DESKTOP_SCENARIOS = Object.freeze([
       prerequisites: ["desktop", "owned-fixture", "install-fixture", "native-dialog"],
       host_resources: [...nativeResources, "native-dialog"],
       source: "desktop-host-publication-test.mts",
+      qualification_only: true,
+      platforms: ["win32"],
+    },
+  ),
+  scenario(
+    "native-registered-source-reuse",
+    "Real original registration, alternative integration setup and same-content repair preserve saved identities.",
+    {
+      prerequisites: ["desktop", "owned-fixture", "native-dialog"],
+      host_resources: [...nativeResources, "native-dialog"],
+      source: "desktop-source-reuse-test.mts",
       qualification_only: true,
       platforms: ["win32"],
     },
@@ -289,7 +309,7 @@ export const DESKTOP_SCENARIOS = Object.freeze([
   ),
   scenario(
     "native-update-acquisition-lifecycle",
-    "Real immutable transfers coexist with owned Play, fresh exclusive apply/prepare reuse exact archives, and retained cancellation is discarded after reviewed uninstall.",
+    "Real immutable transfers coexist with owned Play, fresh exclusive apply/prepare reuse exact archives, the activating update keeps one labelled automatic snapshot shown in history, restore review, rollback and Settings, a real Restore previous version then keeps saves and one labelled rollback snapshot, and retained cancellation is discarded after reviewed uninstall.",
     {
       prerequisites: ["desktop", "install-fixture", "owned-fixture"],
       dependencies: ["install-commit-refresh-recovery"],
@@ -457,6 +477,46 @@ export const DESKTOP_SCENARIOS = Object.freeze([
     },
   ),
   scenario(
+    "native-library-organization-restart",
+    "Normal-app collection membership and favorites persist across an owned application restart.",
+    {
+      platforms: ["win32"],
+      prerequisites: ["desktop", "owned-fixture"],
+      source: "desktop-preparation-test.mts",
+      qualification_only: true,
+    },
+  ),
+  scenario(
+    "native-game-first-choice-and-restart",
+    "Normal-app game grouping and deliberate implementation choice persist across an owned restart; installation and gameplay remain separate.",
+    {
+      platforms: ["win32"],
+      prerequisites: ["desktop", "owned-fixture"],
+      source: "desktop-game-first-test.mts",
+      qualification_only: true,
+    },
+  ),
+  scenario(
+    "native-game-first-installed-picori",
+    "Normal-app source connection, reviewed managed Picori copy, Library launch and restart with explicitly supplied private inputs.",
+    {
+      platforms: ["win32"],
+      prerequisites: ["desktop"],
+      source: "desktop-game-first-installed-test.mts",
+      qualification_only: true,
+    },
+  ),
+  scenario(
+    "native-game-first-installed-mm",
+    "Normal-app MM source reuse, two genuine installations, grouped choices and one managed launch with both alternatives retained.",
+    {
+      platforms: ["win32"],
+      prerequisites: ["desktop"],
+      source: "desktop-game-first-installed-mm-test.mts",
+      qualification_only: true,
+    },
+  ),
+  scenario(
     "native-release-channel-selection-and-restart",
     "Release-channel selection survives renderer restart.",
     {
@@ -569,7 +629,7 @@ export const DESKTOP_SCENARIOS = Object.freeze([
     "native-local-artwork-picker-and-recovery",
     "Local artwork uses the native picker safely.",
     {
-      prerequisites: ["desktop", "owned-fixture", "native-dialog"],
+      prerequisites: ["desktop", "owned-fixture", "native-dialog", "install-fixture"],
       host_resources: [...nativeResources, "native-dialog"],
       source: "desktop-artwork-test.mts",
     },
@@ -774,6 +834,27 @@ export function resolveDesktopSelection({
     throw new Error("native-linux-webview-origin-boundary requires one exact standalone scenario");
   if (uniqueRequested.includes("native-linux-webview-origin-boundary") && platform !== "linux")
     throw new Error("native-linux-webview-origin-boundary requires Linux");
+  if (uniqueRequested.includes("native-library-organization-restart") && platform !== "win32")
+    throw new Error("native-library-organization-restart requires Windows");
+  if (uniqueRequested.includes("native-game-first-installed-mm")) {
+    if (uniqueRequested.length !== 1)
+      throw new Error("native-game-first-installed-mm requires one exact standalone scenario");
+    if (platform !== "win32") throw new Error("native-game-first-installed-mm requires Windows");
+  }
+  if (uniqueRequested.includes("native-game-first-installed-picori")) {
+    if (uniqueRequested.length !== 1)
+      throw new Error("native-game-first-installed-picori requires one exact standalone scenario");
+    if (platform !== "win32")
+      throw new Error("native-game-first-installed-picori requires Windows");
+  }
+  if (uniqueRequested.includes("native-game-first-choice-and-restart")) {
+    if (uniqueRequested.length !== 1)
+      throw new Error(
+        "native-game-first-choice-and-restart requires one exact standalone scenario",
+      );
+    if (platform !== "win32")
+      throw new Error("native-game-first-choice-and-restart requires Windows");
+  }
   if (uniqueRequested.includes("native-startup-network-diagnostic") && platform !== "win32")
     throw new Error("native-startup-network-diagnostic requires Windows");
   if (uniqueRequested.includes("native-saved-folder-selected-setup")) {
@@ -794,6 +875,13 @@ export function resolveDesktopSelection({
     (uniqueRequested.length !== 1 || platform !== "win32")
   )
     throw new Error("native-real-prepared-runtime requires one exact standalone Windows scenario");
+  if (
+    uniqueRequested.includes("native-registered-source-reuse") &&
+    (uniqueRequested.length !== 1 || platform !== "win32")
+  )
+    throw new Error(
+      "native-registered-source-reuse requires one exact standalone Windows scenario",
+    );
   if (uniqueRequested.includes("native-external-runtime-review") && platform !== "win32")
     throw new Error("native-external-runtime-review requires Windows");
   if (
@@ -878,8 +966,29 @@ export type DesktopSelection = ReturnType<typeof resolveDesktopSelection>;
 export function desktopHarnessDeadlineMs(
   selection: Pick<DesktopSelection, "selected_scenarios" | "setup_scenarios">,
 ) {
+  // Real saved-folder checks plus three bounded input pickers, two library
+  // handoffs and positive custody. Product/cancellation deadlines are unchanged.
+  if (selection.selected_scenarios.includes("native-saved-folder-selected-setup")) return 600_000;
+  // Two ordinary downloads/setups, real launches, file repair and positive exit joins.
+  if (selection.selected_scenarios.includes("native-registered-source-reuse")) return 1_200_000;
+  if (selection.selected_scenarios.includes("native-game-first-installed-mm"))
+    return gameFirstMMHarnessDeadlineMs;
+  // Picori generates thousands of retained assets. Allow two finite 30-minute
+  // collection observations, two five-minute operator exit observations, and
+  // five minutes for custody, setup and cleanup. No product deadline or retry changes.
+  if (selection.selected_scenarios.includes("native-game-first-installed-picori"))
+    return 11_700_000;
+  // The retained 2026-11-01 A1 attempt exhausted 180s verifying immutable
+  // inputs before App launch. Allow finite room for custody, captures and restart;
+  // keep every inner wait, identity check and cleanup unchanged.
+  if (selection.selected_scenarios.includes("native-game-first-choice-and-restart")) return 600_000;
   // Three immutable upgrades, two owned live launches, reviews and positive exit joins.
-  if (selection.selected_scenarios.includes("native-update-acquisition-lifecycle")) return 720_000;
+  // Calibrated from 720 s (#4879): on hosted Windows the debug build reached the
+  // fourth of seven phases after ~6 min with 16.5 s status reads, and its inner
+  // script and held-transfer waits are now 60 s; inner failure and cleanup must
+  // finish first. Harness only; product deadlines are unchanged.
+  if (selection.selected_scenarios.includes("native-update-acquisition-lifecycle"))
+    return 1_200_000;
   // Five checkpoints, positive host/driver joins and fresh starts; harness only.
   if (selection.selected_scenarios.includes("native-host-publication-recovery")) return 720_000;
   // Includes source verification of the owned256MiB intervention fixture,
@@ -924,6 +1033,6 @@ export function desktopHarnessDeadlineMs(
   return (
     ordinary +
     displayRuns * (covers * 2 * 40_000 + Math.min(covers, 12) * 2 * 30_000) +
-    (cacheConditions ? 180_000 : 0)
+    (cacheConditions ? (selection.selected_scenarios.length === 1 ? 240_000 : 180_000) : 0)
   );
 }

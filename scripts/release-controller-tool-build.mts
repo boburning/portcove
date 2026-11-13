@@ -3,12 +3,18 @@ import { createHash } from "node:crypto";
 import { chmod, mkdir, mkdtemp, realpath, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { createRequire, isBuiltin } from "node:module";
+import { createRequire, findPackageJSON, isBuiltin } from "node:module";
 import { spawnSync } from "node:child_process";
+import {
+  readReleaseToolDependencies,
+  readSealedCheckSdkSelection,
+  verifyInstalledReleasePackage,
+} from "./release-tool-dependencies.mts";
 import { isRecord } from "./runtime-values.mts";
+import { sealedCheckSdkFilename, sealedCheckSdkMaximumBytes } from "./release-sealed-check-sdk.mts";
 import { acquireWindowsWebviewDriver } from "./release-windows-webview-driver.mts";
 import { captureSupportedHostedWindowsRuntimeInput } from "./hosted-windows-runtime-input.mts";
-import { acquireNativePnpm, nativePnpmVersion } from "./release-pnpm-runtime.mts";
+import { acquireNativePnpm, nativePnpmPackageProfile } from "./release-pnpm-runtime.mts";
 import { runResourceCommand } from "./resource-command.mts";
 import { prepareReleaseCompilerSourceClosure } from "./release-compiler-source.mts";
 import { controllerNodeVersion } from "./controller-node-runtime.mts";
@@ -30,7 +36,9 @@ import {
   controllerCompilerSourceAsset,
   controllerNativeDriverVersion,
   controllerToolSourceAssetMaximumBytes,
+  controllerToolExpandedMaximumBytes,
   controllerToolPlatformProfile,
+  controllerToolFileMaximumBytes,
   type ControllerToolPlatform,
 } from "./release-controller-tools.mts";
 /** Installed package API is the repository-pinned Vite+ Pack, not a downloaded
@@ -39,15 +47,21 @@ export async function bundleControllerEntries(
   sourceRoot: string,
   outputRoot: string,
   platform: ControllerToolPlatform = "linux-x86_64",
+  dependencies?: ReturnType<typeof readReleaseToolDependencies>,
 ) {
   const profile = controllerToolPlatformProfile(platform);
-  return bundleFixedControllerEntries(sourceRoot, outputRoot, [
-    ...controllerToolEntries.map((name) => ({
-      source: `scripts/${name === "production-controller-admission" ? "production-controller-admission-cli" : name}.mts`,
-      output: `${name}.bundle.mjs`,
-    })),
-    ...profile.children.map((source) => ({ source, output: path.posix.basename(source) })),
-  ]);
+  return bundleFixedControllerEntries(
+    sourceRoot,
+    outputRoot,
+    [
+      ...controllerToolEntries.map((name) => ({
+        source: `scripts/${name === "production-controller-admission" ? "production-controller-admission-cli" : name}.mts`,
+        output: `${name}.bundle.mjs`,
+      })),
+      ...profile.children.map((source) => ({ source, output: path.posix.basename(source) })),
+    ],
+    dependencies,
+  );
 }
 
 /** Fixed unbranded source-preparation CLI only; no controller admission export. */
@@ -60,30 +74,68 @@ export async function bundleWindowsSourcePreparation(sourceRoot: string, outputR
   ]);
 }
 
+/** Reuse the maintained dependency-free Node packaging for the native release
+ * worker. The compiler job never produces this trusted executable. */
+export async function bundleApplicationReleasePrivate(sourceRoot: string, outputRoot: string) {
+  return bundleFixedControllerEntries(sourceRoot, outputRoot, [
+    {
+      source: "scripts/application-release-private.mts",
+      output: "application-release-private.bundle.mjs",
+    },
+  ]);
+}
+
+/** The sealed issuer receives one command-only file and needs no package tree. */
+export async function bundleSealedCheckSdkIssuer(sourceRoot: string, outputRoot: string) {
+  const importer = pathToFileURL(path.join(sourceRoot, "scripts/github-client.mts"));
+  const { name, version } = readSealedCheckSdkSelection(sourceRoot);
+  const manifest = findPackageJSON(name, importer);
+  if (!manifest) throw new Error(`sealed Check dependency unavailable: ${name}`);
+  const slot = path.resolve(sourceRoot, "node_modules", name, "package.json");
+  const installed = await realpath(manifest);
+  if (path.resolve(manifest) !== slot || installed !== (await realpath(slot)))
+    throw new Error("sealed Check dependency escaped the fixed checkout install");
+  verifyInstalledReleasePackage(installed, name, version);
+  await bundleFixedControllerEntries(
+    sourceRoot,
+    outputRoot,
+    [
+      {
+        source: "scripts/release-semantic-issuer-sdk-http.mts",
+        output: sealedCheckSdkFilename,
+      },
+    ],
+    readReleaseToolDependencies(sourceRoot),
+    path.dirname(installed),
+  );
+  const file = path.join(outputRoot, "scripts", sealedCheckSdkFilename);
+  if (process.platform === "linux") await chmod(file, 0o600);
+  const bytes = await readControllerToolFile(file, sealedCheckSdkMaximumBytes);
+  return { bytes: bytes.length, sha256: hash(bytes) };
+}
+
 async function bundleFixedControllerEntries(
   sourceRoot: string,
   outputRoot: string,
   entries: readonly { source: string; output: string }[],
+  dependencies = readReleaseToolDependencies(fileURLToPath(new URL("../", import.meta.url))),
+  sealedCheckCoreRoot?: string,
 ) {
   const installed = await realpath(fileURLToPath(import.meta.resolve("vite-plus/pack")));
-  const pack = (await import(pathToFileURL(installed).href)) as typeof import("vite-plus/pack");
   const packageFile = await realpath(fileURLToPath(import.meta.resolve("vite-plus/package.json")));
-  const version: unknown = JSON.parse(
-    (await readControllerToolFile(packageFile, 64 * 1024)).toString("utf8"),
+  verifyInstalledReleasePackage(
+    packageFile,
+    "vite-plus",
+    dependencies.bundler.slice("vite-plus@".length),
   );
-  if (
-    !version ||
-    typeof version !== "object" ||
-    !("version" in version) ||
-    version.version !== "1.4.0"
-  )
-    throw new Error("repository-pinned pack version differs");
+  const pack = (await import(pathToFileURL(installed).href)) as typeof import("vite-plus/pack");
   await mkdir(path.join(outputRoot, "scripts"), { recursive: true, mode: 0o700 });
   for (const definition of entries) {
     const entry = path.join(sourceRoot, definition.source);
     const commandOnly = [
       "scripts/release-hosted-native-worker.mts",
       "scripts/release-hosted-native-windows-source.mts",
+      "scripts/release-semantic-issuer-sdk-http.mts",
     ].includes(definition.source);
     await pack.build({
       config: false,
@@ -96,6 +148,8 @@ async function bundleFixedControllerEntries(
       target: "node24",
       dts: false,
       sourcemap: false,
+      // Repeated dependency closures must fit the unchanged expanded tool cap.
+      minify: true,
       report: false,
       env: {},
       envPrefix: [],
@@ -105,6 +159,45 @@ async function bundleFixedControllerEntries(
       inputOptions: commandOnly ? { preserveEntrySignatures: false } : {},
       outputOptions: { entryFileNames: definition.output, codeSplitting: false },
       plugins: [
+        {
+          name: "portcove-fixed-release-dependency-selection",
+          async resolveId(specifier, importer) {
+            if (sealedCheckCoreRoot && specifier === "@octokit/core") {
+              const selected = await this.resolve(specifier, importer, { skipSelf: true });
+              if (!selected || selected.external)
+                throw new Error("sealed Check bundle did not resolve Octokit");
+              const relative = path.relative(sealedCheckCoreRoot, await realpath(selected.id));
+              if (path.isAbsolute(relative) || relative.split(path.sep)[0] === "..")
+                throw new Error("sealed Check bundle resolved a foreign Octokit implementation");
+              return selected;
+            }
+            if (
+              importer &&
+              !importer.startsWith("\0") &&
+              (specifier === "@sigstore/sign" || specifier.startsWith("@sigstore/sign/"))
+            ) {
+              const fromImporter = createRequire(importer);
+              verifyInstalledReleasePackage(
+                fromImporter.resolve("@sigstore/sign/package.json"),
+                "@sigstore/sign",
+                dependencies.sigstoreSign,
+              );
+            }
+
+            if (
+              specifier === "./release-tool-dependency-selection.mts" &&
+              importer &&
+              path.dirname(path.resolve(importer)) === path.join(sourceRoot, "scripts")
+            )
+              return "\0portcove-release-dependency-selection";
+            return null;
+          },
+          load(id) {
+            if (id !== "\0portcove-release-dependency-selection") return null;
+            return `export function fixedReleaseToolDependencies() { return ${JSON.stringify(dependencies)}; }`;
+          },
+        },
+
         {
           name: "portcove-bundled-version-runtime",
           resolveId(specifier, importer) {
@@ -320,17 +413,34 @@ export async function buildControllerTools(
         path.join(sourceRoot, name),
         controllerToolSourceAssetMaximumBytes,
       );
+    const dependencies = readReleaseToolDependencies(sourceRoot);
+    const desktop = createRequire(path.join(sourceRoot, "apps/desktop/package.json"));
+    const cliPackage = desktop.resolve("@tauri-apps/cli/package.json");
+    const cli = createRequire(cliPackage);
+    const addon = await realpath(
+      cli.resolve(
+        platform === "linux-x86_64"
+          ? "@tauri-apps/cli-linux-x64-gnu"
+          : "@tauri-apps/cli-win32-x64-msvc",
+      ),
+    );
+    verifyInstalledReleasePackage(cliPackage, "@tauri-apps/cli", dependencies.tauri);
+    const nativeName =
+      platform === "linux-x86_64"
+        ? "@tauri-apps/cli-linux-x64-gnu"
+        : "@tauri-apps/cli-win32-x64-msvc";
+    verifyInstalledReleasePackage(
+      cli.resolve(nativeName + "/package.json"),
+      nativeName,
+      dependencies.tauri,
+    );
+
     await mkdir(tools, { mode: 0o700 });
     mark("fixed-native-package-manager");
-    const packageMetadata: unknown = JSON.parse(
-      (await readControllerToolFile(path.join(sourceRoot, "package.json"), 65536)).toString("utf8"),
+    const pnpm = await acquireNativePnpm(
+      platform,
+      nativePnpmPackageProfile(platform, dependencies.pnpm),
     );
-    if (
-      !isRecord(packageMetadata) ||
-      packageMetadata.packageManager !== `pnpm@${nativePnpmVersion}`
-    )
-      throw new Error("maintained package-manager pin differs");
-    const pnpm = await acquireNativePnpm(platform);
     await mkdir(path.join(tools, "bin"), { mode: 0o700 });
     for (const [name, bytes] of [
       [`bin/pnpm${profile.suffix}`, pnpm.binary],
@@ -355,7 +465,7 @@ export async function buildControllerTools(
       guard();
     }
     mark("fixed-node-bundles");
-    await bundleControllerEntries(sourceRoot, tools, platform);
+    await bundleControllerEntries(sourceRoot, tools, platform, dependencies);
     mark("fixed-rust-build");
     const status = await runResourceCommand(
       "rust",
@@ -421,23 +531,6 @@ export async function buildControllerTools(
       throw new Error(`fixed native driver build refused; retain ${directory}`);
     guard();
     mark("tool-inventory");
-    const desktop = createRequire(path.join(sourceRoot, "apps/desktop/package.json"));
-    const cliPackage = desktop.resolve("@tauri-apps/cli/package.json");
-    const cli = createRequire(cliPackage);
-    const addon = await realpath(
-      cli.resolve(
-        platform === "linux-x86_64"
-          ? "@tauri-apps/cli-linux-x64-gnu"
-          : "@tauri-apps/cli-win32-x64-msvc",
-      ),
-    );
-    for (const filename of [cliPackage, path.join(path.dirname(addon), "package.json")]) {
-      const metadata: unknown = JSON.parse(
-        (await readControllerToolFile(filename, 65536)).toString("utf8"),
-      );
-      if (!isRecord(metadata) || metadata.version !== "2.12.2")
-        throw new Error("fixed maintained Tauri CLI version differs");
-    }
     for (const [name, filename] of [
       [`node${profile.suffix}`, process.execPath],
       [
@@ -454,10 +547,14 @@ export async function buildControllerTools(
         path.join(driverRoot, "bin", `tauri-driver${profile.suffix}`),
       ],
     ])
-      await writeFile(path.join(tools, "bin", name!), await readControllerToolFile(filename!), {
-        flag: "wx",
-        mode: 0o700,
-      });
+      await writeFile(
+        path.join(tools, "bin", name!),
+        await readControllerToolFile(filename!, controllerToolFileMaximumBytes(`bin/${name}`)),
+        {
+          flag: "wx",
+          mode: 0o700,
+        },
+      );
     for (const name of profile.assets) {
       await mkdir(path.dirname(path.join(tools, name)), { recursive: true, mode: 0o700 });
       await writeFile(
@@ -476,8 +573,23 @@ export async function buildControllerTools(
     guard();
     const files = [];
     for (const name of profile.paths) {
-      const bytes = await readControllerToolFile(path.join(tools, name));
+      const bytes = await readControllerToolFile(
+        path.join(tools, name),
+        controllerToolFileMaximumBytes(name),
+      );
       files.push({ path: name, bytes: bytes.length, sha256: hash(bytes) });
+    }
+    if (process.env.GITHUB_ACTIONS === "true") {
+      // Paths come only from the closed platform profile; expose sizes, never
+      // source contents, private filesystem locations or compiler error text.
+      console.log(
+        `::notice title=Controller inventory bytes::${JSON.stringify({
+          platform,
+          maximum: controllerToolExpandedMaximumBytes,
+          total: files.reduce((total, file) => total + file.bytes, 0),
+          files: files.map(({ path, bytes }) => ({ path, bytes })),
+        })}`,
+      );
     }
     const manifest = inspectControllerToolManifest(
       {
@@ -486,8 +598,8 @@ export async function buildControllerTools(
         source_tree: expected.tree,
         platform,
         node_version: controllerNodeVersion,
-        bundler: "vite-plus@1.4.0",
-        tauri_cli_version: "2.12.2",
+        bundler: dependencies.bundler,
+        tauri_cli_version: dependencies.tauri,
         files,
       },
       platform,
@@ -528,9 +640,11 @@ export async function buildControllerTools(
       }),
       { flag: "wx", mode: 0o600 },
     ).catch(() => {});
-    throw new Error(
-      `fixed controller bootstrap refused in ${phase}: ${failure}; retain ${directory}`,
-      { cause: error },
+    throw Object.assign(
+      new Error(`fixed controller bootstrap refused in ${phase}: ${failure}; retain ${directory}`, {
+        cause: error,
+      }),
+      { controllerBootstrapPhase: phase },
     );
   }
 }

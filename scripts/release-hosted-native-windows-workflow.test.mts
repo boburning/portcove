@@ -17,7 +17,14 @@ import {
 } from "./release-hosted-native-workflow.mts";
 import { superviseFixedHostedWindowsNativeJob } from "./release-hosted-native-worker.mts";
 
-void test("every real Windows transport entry remains held before source reads, process or upload effects", async () => {
+void test("the Windows bootstrap hold refuses every transport entry before scope reads or effects", async (t) => {
+  t.mock.module("./release-hosted-native-bootstrap.mts", {
+    namedExports: {
+      hostedWindowsBootstrapExecutionAuthorized: false,
+      readActualHostedWindowsBootstrapScope: () =>
+        assert.fail("Held transport read bootstrap scope"),
+    },
+  });
   for (const call of [
     () => startHostedWindowsWorkflow(),
     () => hostedWindowsWorkflowUploadRequest("pre-sign"),
@@ -28,7 +35,7 @@ void test("every real Windows transport entry remains held before source reads, 
     await assert.rejects(call(), /awaits separate bootstrap execution authority/);
 });
 
-void test("unused Windows action retains fixed uploads and adds no production job or external post-start scheduler", async () => {
+void test("Windows transport retains fixed uploads and runs both stages in the protected job", async () => {
   const action: unknown = parseDocument(
     await readFile(
       new URL("../.github/actions/release-native-windows/action.yml", import.meta.url),
@@ -52,13 +59,33 @@ void test("unused Windows action retains fixed uploads and adds no production jo
     "retention-days": 7,
     "compression-level": 0,
   });
-  const production = await readFile(
-    new URL("../.github/workflows/application-update-production.yml", import.meta.url),
-    "utf8",
+  const production: unknown = parseDocument(
+    await readFile(
+      new URL("../.github/workflows/application-update-production.yml", import.meta.url),
+      "utf8",
+    ),
+  ).toJS();
+  assert.ok(isRecord(production) && isRecord(production.jobs));
+  const native = production.jobs.native_windows;
+  assert.ok(isRecord(native) && Array.isArray(native.steps));
+  assert.equal(native.environment, "production-native-windows");
+  const expectedAdmission = [
+    "needs.admission.outputs.release_profile == 'initial-beta-windows-x86_64-v1'",
+    "needs.admission.outputs.publication_purpose == 'application'",
+    "needs.admission.outputs.classification_transport == 'fixed-job'",
+    "needs.coordinator.outputs.mode == 'release'",
+    "needs.coordinator.outputs.signing_custody != 'reused'",
+  ];
+  assert.equal(
+    String(native.if).replace(/\s+/gu, " "),
+    "${{ " + expectedAdmission.join(" && ") + " }}",
   );
-  assert.doesNotMatch(
-    production,
-    /^  native_windows:|uses: \.\/\.github\/actions\/release-native-windows/mu,
+  const transportSteps = (native.steps as unknown[]).filter(
+    (step) => isRecord(step) && step.uses === "./.github/actions/release-native-windows",
+  );
+  assert.deepEqual(
+    transportSteps.map((step) => isRecord(step) && step.with),
+    [{ stage: "pre-sign" }, { stage: "post-sign" }],
   );
 });
 
@@ -106,7 +133,7 @@ const custody=files=>new Map(files.map(file=>{const s=lstatSync(file,{bigint:tru
 globalThis.windowsWorkflowPeer={
  scope:async()=>({identity,binding,temporary,artifact:{platform:'windows-x86_64'},bundle:{},unchanged(){}}),
  linux:async()=>assert.fail('Windows cannot select Linux source'),
- deadline:()=>performance.now()+30000,
+ deadline:async(expected,bound)=>{assert.equal(expected,identity);assert.ok(bound>performance.now());return performance.now()+30000},
  receive:async()=>token,
  paths:async value=>{assert.equal(value,token);return tools},
  profile:()=>({paths:['bin/node.exe','scripts/release-hosted-native-worker.bundle.mjs']}),
@@ -116,7 +143,7 @@ globalThis.windowsWorkflowPeer={
 };
 const routes={
  './release-hosted-native-bootstrap.mts':"export const hostedWindowsBootstrapExecutionAuthorized=true;export const readActualHostedWindowsBootstrapScope=globalThis.windowsWorkflowPeer.scope;export const readActualHostedLinuxBootstrapScope=globalThis.windowsWorkflowPeer.linux;",
- './release-signing-job-budget.mts':"export const currentNativeJobDeadline=globalThis.windowsWorkflowPeer.deadline;",
+ './release-signing-job-budget.mts':"export const currentNativeJobDeadline=globalThis.windowsWorkflowPeer.deadline;export const currentWindowsNativeJobDeadline=globalThis.windowsWorkflowPeer.deadline;",
  './release-controller-tool-admission.mts':"export const receiveControllerTools=globalThis.windowsWorkflowPeer.receive;export const verifiedControllerToolPaths=globalThis.windowsWorkflowPeer.paths;",
  './release-controller-tools.mts':"export const controllerToolPaths=[];export const controllerToolPlatformProfile=globalThis.windowsWorkflowPeer.profile;export const readControllerToolFile=globalThis.windowsWorkflowPeer.read;",
  './release-native-runtime-custody.mts':"export const inspectNativeRuntimeCustody=globalThis.windowsWorkflowPeer.custody;export const recheckNativeRuntimeCustody=globalThis.windowsWorkflowPeer.recheck;",

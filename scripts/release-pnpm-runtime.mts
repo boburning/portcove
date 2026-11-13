@@ -1,4 +1,5 @@
 /** Fixed public bootstrap dependency. The Node wrapper/downloader is never used. */
+import { fixedReleaseToolDependencies } from "./release-tool-dependency-selection.mts";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { gunzipSync } from "node:zlib";
@@ -8,27 +9,26 @@ import path from "node:path";
 import { parseDocument } from "yaml";
 import { isRecord } from "./runtime-values.mts";
 
-export const nativePnpmVersion = "12.16.1";
-export const nativePnpmArchive = Object.freeze({
-  url: "https://registry.npmjs.org/@pnpm/exe.linux-x64/-/exe.linux-x64-12.16.1.tgz",
-  integrity:
-    "sha512-RK//8ZLcXGW8A2k8bQOXZDBN1Qu92zN4dYnG1bzj1zoQ1fkZ6jNzZ1AvXtsfGVma795CJtvoaF5bLXf4l/FIUw==",
-});
-export const nativeWindowsPnpmArchive = Object.freeze({
-  url: "https://registry.npmjs.org/@pnpm/exe.win32-x64/-/exe.win32-x64-12.16.1.tgz",
-  integrity:
-    "sha512-k+FhRJ0ttphFoFIVB1Sk4v76YJAulafmA/Ly57cysesUhhIzVlApeOShUz0jXubKx317TThlEfpQrukldnqORA==",
-});
 export type NativePnpmPlatform = "linux-x86_64" | "windows-x86_64";
-function packageProfile(platform: NativePnpmPlatform) {
+export function nativePnpmVersion() {
+  return fixedReleaseToolDependencies().pnpm.version;
+}
+export function nativePnpmPackageProfile(
+  platform: NativePnpmPlatform,
+  pnpm = fixedReleaseToolDependencies().pnpm,
+) {
   assert.ok(platform === "linux-x86_64" || platform === "windows-x86_64");
-  return platform === "linux-x86_64"
-    ? { archive: nativePnpmArchive, name: "@pnpm/exe.linux-x64", binary: "package/pnpm" }
-    : {
-        archive: nativeWindowsPnpmArchive,
-        name: "@pnpm/exe.win32-x64",
-        binary: "package/pnpm.exe",
-      };
+  const suffix = platform === "linux-x86_64" ? "linux-x64" : "win32-x64";
+  const basename = `exe.${suffix}`;
+  return {
+    archive: {
+      url: `https://registry.npmjs.org/@pnpm/${basename}/-/${basename}-${pnpm.version}.tgz`,
+      integrity: platform === "linux-x86_64" ? pnpm.linuxIntegrity : pnpm.windowsIntegrity,
+    },
+    version: pnpm.version,
+    name: `@pnpm/${basename}`,
+    binary: platform === "linux-x86_64" ? "package/pnpm" : "package/pnpm.exe",
+  };
 }
 const maximum = 64 * 1024 ** 2;
 export function inspectNativeDependencyWorkspace(bytes: Buffer) {
@@ -72,7 +72,7 @@ export function inspectNativeDependencyWorkspace(bytes: Buffer) {
     raw.minimumReleaseAgeStrict === undefined || typeof raw.minimumReleaseAgeStrict === "boolean",
   );
   for (const key of ["catalog", "overrides", "patchedDependencies", "allowBuilds"]) {
-    const value = raw[key];
+    const value: unknown = raw[key];
     assert.ok(
       value === undefined ||
         (isRecord(value) &&
@@ -87,7 +87,7 @@ export function inspectNativeDependencyWorkspace(bytes: Buffer) {
     );
   }
   for (const key of ["catalog", "overrides"]) {
-    const versions =
+    const versions: string[] =
       raw[key] === undefined ? [] : Object.values(raw[key] as Record<string, string>);
     assert.ok(
       versions.every(
@@ -139,8 +139,8 @@ function octal(bytes: Buffer) {
 export function inspectNativePnpmTar(
   decoded: Buffer,
   platform: NativePnpmPlatform = "linux-x86_64",
+  profile = nativePnpmPackageProfile(platform),
 ) {
-  const profile = packageProfile(platform);
   const names = [
     "package/LICENSE",
     profile.binary,
@@ -199,7 +199,7 @@ export function inspectNativePnpmTar(
   );
   const metadata: unknown = JSON.parse(files.get("package/package.json")!.toString("utf8"));
   assert.ok(
-    isRecord(metadata) && metadata.name === profile.name && metadata.version === nativePnpmVersion,
+    isRecord(metadata) && metadata.name === profile.name && metadata.version === profile.version,
   );
   const binary = files.get(profile.binary)!;
   if (platform === "linux-x86_64") {
@@ -231,8 +231,8 @@ export function inspectNativePnpmTar(
 export function inspectNativePnpmArchive(
   archive: Buffer,
   platform: NativePnpmPlatform = "linux-x86_64",
+  profile = nativePnpmPackageProfile(platform),
 ) {
-  const profile = packageProfile(platform);
   assert.ok(
     archive.length > 0 && archive.length <= 32 * 1024 ** 2,
     "pnpm compressed archive exceeds bound",
@@ -242,12 +242,14 @@ export function inspectNativePnpmArchive(
     profile.archive.integrity,
     "pinned pnpm archive differs",
   );
-  return inspectNativePnpmTar(gunzipSync(archive, { maxOutputLength: maximum }), platform);
+  return inspectNativePnpmTar(gunzipSync(archive, { maxOutputLength: maximum }), platform, profile);
 }
 
 /** One fixed GET, no redirects, credentials, retry or ambient registry config. */
-export async function acquireNativePnpm(platform: NativePnpmPlatform = "linux-x86_64") {
-  const profile = packageProfile(platform);
+export async function acquireNativePnpm(
+  platform: NativePnpmPlatform = "linux-x86_64",
+  profile = nativePnpmPackageProfile(platform),
+) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 30000);
   try {
@@ -268,7 +270,7 @@ export async function acquireNativePnpm(platform: NativePnpmPlatform = "linux-x8
       assert.ok(size <= 32 * 1024 ** 2, "pnpm download exceeds bound");
       chunks.push(Buffer.from(value));
     }
-    return inspectNativePnpmArchive(Buffer.concat(chunks, size), platform);
+    return inspectNativePnpmArchive(Buffer.concat(chunks, size), platform, profile);
   } finally {
     controller.abort();
     clearTimeout(timer);
@@ -307,7 +309,7 @@ export async function qualifyNativePnpmRuntime(
   });
   assert.equal(version.error, undefined);
   assert.equal(version.status, 0);
-  assert.equal(version.stdout.trim(), nativePnpmVersion);
+  assert.equal(version.stdout.trim(), nativePnpmVersion());
   const observations = [];
   for (const changed of [false, true]) {
     const root = path.join(directory, changed ? "changed-lock" : "matching-lock");
@@ -382,7 +384,7 @@ export async function qualifyNativePnpmRuntime(
     });
   }
   return {
-    version: nativePnpmVersion,
+    version: nativePnpmVersion(),
     observations,
     scope: "offline-inert-runtime-only",
     authority: "none",

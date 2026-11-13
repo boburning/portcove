@@ -30,6 +30,18 @@ export type GameFileObservationPresentation = {
   outcome: GameFileObservationOutcome;
 };
 
+/** App-owned game-file check failures; the code drives translated presentation. */
+export type GameFileCheckCode = "selection_mismatch" | "catalog_mismatch" | "catalog_too_large";
+export class GameFileCheckError extends Error {
+  readonly code: GameFileCheckCode;
+  constructor(code: GameFileCheckCode) {
+    super(code);
+    this.code = code;
+  }
+}
+/** Either an app-owned code or Core's own summary, which stays verbatim. */
+export type GameFileCheckFailure = { code: GameFileCheckCode } | { message: string };
+
 /** One explicit request owner per caller; context, attempt and observation identities are distinct. */
 export function useGameFileObservation<T>({
   contextKey,
@@ -41,7 +53,7 @@ export function useGameFileObservation<T>({
   contextKey: string;
   generation: number;
   request: () => GameFileQueryRefreshRequest | undefined;
-  refusal?: string;
+  refusal?: GameFileCheckCode;
   accept: (
     snapshot: GameFileQuerySnapshot,
     request: GameFileQueryRefreshRequest,
@@ -59,7 +71,7 @@ export function useGameFileObservation<T>({
   const attemptOwner = useRef<object | undefined>(undefined);
   const [pending, setPending] = useState(false);
   const [operation, setOperation] = useState<{ epoch: number; id: string }>();
-  const [error, setError] = useState<{ epoch: number; message: string }>();
+  const [error, setError] = useState<{ epoch: number; failure: GameFileCheckFailure }>();
   const [outcome, setOutcome] = useState<{ epoch: number; value: GameFileObservationOutcome }>();
   const [accepted, setAccepted] = useState<{
     epoch: number;
@@ -88,7 +100,7 @@ export function useGameFileObservation<T>({
     const proposed = request();
     if (!proposed) {
       if (refusal) {
-        setError({ epoch, message: refusal });
+        setError({ epoch, failure: { code: refusal } });
         setOutcome({ epoch, value: "failed" });
       }
       return;
@@ -138,7 +150,13 @@ export function useGameFileObservation<T>({
       setOutcome({ epoch: requestEpoch, value: "accepted" });
     } catch (value) {
       if (active()) {
-        setError({ epoch: requestEpoch, message: errorText(value) });
+        setError({
+          epoch: requestEpoch,
+          failure:
+            value instanceof GameFileCheckError
+              ? { code: value.code }
+              : { message: errorText(value) },
+        });
         setOutcome({ epoch: requestEpoch, value: isCancellation(value) ? "cancelled" : "failed" });
       }
     } finally {
@@ -161,7 +179,7 @@ export function useGameFileObservation<T>({
     pending,
     current,
     operationId: operation?.epoch === epoch ? operation.id : undefined,
-    error: error?.epoch === epoch ? error.message : undefined,
+    error: error?.epoch === epoch ? error.failure : undefined,
     expired,
     presentation,
   };

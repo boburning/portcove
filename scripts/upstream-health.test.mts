@@ -427,3 +427,61 @@ void test("prepared request estimates preserve global shared identities and isol
   assert.throws(() => estimator(["missing"]), /existing port IDs/);
   assert.throws(() => estimator(["first", "first"]), /unique existing/);
 });
+
+void test("historical version uses the exact reviewed GitHub tag and release identity", async () => {
+  const pin = productionPolicy.pins.find(
+    (value) => value.port_id === "the-force-engine-dark-forces",
+  );
+  assert.ok(pin);
+  const originalVersion = "1.22.420";
+  const base = `https://api.github.com/repos/${pin.repository}`;
+  for (const [platform, sha256, observedId, observedDigest, ref, expected] of [
+    [pin.platform, pin.sha256, pin.release_id, pin.sha256, pin.tag, "reachable"],
+    [pin.platform, pin.sha256, pin.release_id + 1, pin.sha256, pin.tag, "unknown"],
+    [pin.platform, pin.sha256, pin.release_id, null, pin.tag, "unknown"],
+    [pin.platform, pin.sha256, pin.release_id, "a".repeat(64), pin.tag, "unknown"],
+    [pin.platform, "a".repeat(64), pin.release_id, pin.sha256, originalVersion, "unknown"],
+    ["linux-x86-64", pin.sha256, pin.release_id, pin.sha256, originalVersion, "unknown"],
+  ] as const) {
+    const scope: {
+      port_id: string;
+      platform: string;
+      upstream_ref: string;
+      artifact_sha256: string;
+    } = {
+      port_id: pin.port_id,
+      platform,
+      upstream_ref: originalVersion,
+      artifact_sha256: sha256,
+    };
+    const report = await collectRepositoryHealth(
+      {
+        ports: [{ id: pin.port_id, release: { provider: "github", repository: pin.repository } }],
+        source_catalog: { qualification: [{ scope }] },
+      },
+      {
+        now: () => now,
+        reviewedAccounting: productionPolicy,
+        githubToken: "fixture-only",
+        fetch: async (url) => {
+          if (url === base)
+            return Response.json({
+              id: pin.repository_id,
+              full_name: pin.repository,
+              archived: false,
+            });
+          assert.equal(url, `${base}/releases/tags/${ref}`);
+          if (ref === originalVersion) return new Response(null, { status: 404 });
+          return Response.json({
+            id: observedId,
+            tag_name: pin.tag,
+            assets: [{ digest: observedDigest && `sha256:${observedDigest}` }],
+          });
+        },
+      },
+    );
+    const release = report.observations.find((entry) => entry.release_ref === ref);
+    assert.equal(release?.status, expected);
+    assert.deepEqual(release?.historical_artifact_identities, [scope]);
+  }
+});

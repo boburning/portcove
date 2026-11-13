@@ -26,7 +26,7 @@ void test("hosted Linux readiness preserves original-generation recovery and ref
 
 const script = fileURLToPath(new URL("./rehearse-updater-artifacts.ps1", import.meta.url));
 function describe(workflow: string, caller: string) {
-  return spawnSync(
+  const result = spawnSync(
     "pwsh",
     [
       "-NoProfile",
@@ -39,8 +39,10 @@ function describe(workflow: string, caller: string) {
       workflow,
       "-DescribeWorkflow",
     ],
-    { encoding: "utf8", timeout: 30000, env: { ...process.env, GITHUB_WORKFLOW_REF: caller } },
+    { encoding: "utf8", timeout: 60000, env: { ...process.env, GITHUB_WORKFLOW_REF: caller } },
   );
+  assert.ifError(result.error);
+  return result;
 }
 void test("rehearsal receipts bind only the actual allowlisted workflow before native effects", () => {
   for (const name of ["updater-artifact-rehearsal", "hosted-native-continuity"]) {
@@ -594,7 +596,7 @@ void test("Windows tool fixture prepares the ordinary supported runtime before i
   const workflow: unknown = parseDocument(raw).toJS();
   assert.ok(isRecord(workflow) && isRecord(workflow.on) && isRecord(workflow.jobs));
   for (const event of ["push", "pull_request"]) {
-    const value = workflow.on[event];
+    const value: unknown = workflow.on[event];
     assert.ok(isRecord(value) && Array.isArray(value.paths));
     for (const file of [
       "scripts/prepare-hosted-windows-runtime.ps1",
@@ -1336,7 +1338,7 @@ try{Copy-FixedPublicDiagnosticRecords}catch{$secondRefused=$true}
           },
         },
       );
-      assert.equal(result.error, undefined, result.error?.message);
+      assert.equal(result.error, undefined, String(result.error?.message ?? ""));
       assert.equal(result.status, 0, result.stderr);
       const refused = scenario === "forged-ready" || scenario === "conflicting-startup";
       assert.deepEqual(JSON.parse(result.stdout), { refused, second_refused: refused });

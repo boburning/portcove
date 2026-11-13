@@ -3,11 +3,12 @@
   "listing": {
     "id": "syphon-filter-sf-pc-port",
     "name": "Syphon Filter / SF-pc-port",
-    "summary": "Explore Syphon Filter / SF-pc-port and follow the upstream project for requirements, downloads and setup.",
+    "summary": "Play Syphon Filter on Windows using your own USA v1.1 (SCUS-94240) BIN/CUE files. You handle setup and updates; Portcove can launch it.",
     "project_url": "https://github.com/Madxbio97/SF-pc-port",
     "issue_number": 344,
-    "platforms": [],
-    "availability": "unknown",
+    "listed_at": "2026-10-23",
+    "platforms": ["windows-x86-64"],
+    "availability": "packages",
     "setup_url": "https://github.com/Madxbio97/SF-pc-port",
     "artwork": {
       "game_id": 4115,
@@ -16,6 +17,48 @@
       "image_sha256": "20acf73d36a68feb7a54b5a2347279935265d80fe4ef582f6439cc58a0efea00",
       "game_slug": "syphon-filter",
       "match_kind": "underlying-game"
+    },
+    "release_url": "https://github.com/Madxbio97/SF-pc-port/releases/tag/v0.1.0-public-test.16",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Download the Windows port",
+          "instruction": "Choose a release with a Windows player download. Extract the complete package and keep syphon_filter.exe with its DLLs, locales, assets and notices. A release with no attached player download cannot be used for this step. Check the project’s downloads before choosing a version."
+        },
+        {
+          "title": "Keep your original disc files together",
+          "instruction": "Use your own Syphon Filter USA v1.1 (SCUS-94240) BIN/CUE files. Keep the CUE beside every BIN file it references. The download does not include the original game. This setup does not require a separate BIOS import or compilation step."
+        },
+        {
+          "title": "Add the program to Portcove",
+          "instruction": "Choose syphon_filter.exe. For the documented normal launcher, use its package folder as the start folder and leave launch options empty. Check the selected program and launch options, then add it to Portcove. This does not start the game. A CMD wrapper or separate setup process is not needed."
+        },
+        {
+          "title": "Choose Play",
+          "instruction": "Use the game’s BROWSE/DEPLOY file picker to choose your CUE file. The game checks the supported game executable itself."
+        }
+      ],
+      "warnings": [
+        "Use only a copy and components you are permitted to use. Back up the complete working installation, original files, saves, settings, mods, generated files, caches and any custom folders before maintenance. Another program can share the same saved data.",
+        "Close the game and its companion programs first. Keep the working program, original disc files, saves, settings, mods and custom data before replacing or moving this copy. Different program folders can share saves.",
+        "For the inspected public-test.16 version, the game can move a legacy SyphonFilterPC.sav beside the CUE into its newer save location. Preserve the whole profile and all legacy save locations. Other versions may use different locations or incompatible saves.",
+        "Portcove will not back up or update this external installation. Back up its saves, settings and custom folders separately."
+      ],
+      "references": [
+        {
+          "title": "Updates and file ownership",
+          "instruction": "Portcove can launch this copy, but it won’t update, back up, restore, switch to an older version, convert, move, or delete its files. Removing it from Portcove leaves those files in place. After replacing the program, review and update its saved launch details."
+        },
+        {
+          "title": "Where the inspected version keeps saves and settings",
+          "instruction": "For public-test.16, launcher.ini normally lives under %LOCALAPPDATA%/SyphonFilterPC; it can fall back to the executable folder or start folder. Campaign saves use SyphonFilterPC/Saves/<sanitized serial>.sav under the effective user-data folder, with backups and temporary files. That folder can fall back through APPDATA and the system temporary directory."
+        },
+        {
+          "title": "About the inspected download",
+          "instruction": "The inspected v0.1.0-public-test.16 Windows x64 ZIP contains the player. At the recorded inspection, the later listed 0.2.0 beta and test releases had no attached player packages. This is a historical observation, not a check of today’s latest release or a recommendation to use an older test."
+        }
+      ],
+      "help_url": "https://github.com/Madxbio97/SF-pc-port/releases/tag/v0.1.0-public-test.16"
     }
   }
 }

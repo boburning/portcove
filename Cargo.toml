@@ -1,17 +1,18 @@
 [workspace]
 resolver = "2"
-exclude = ["vendor/rfd"]
+exclude = ["crates/portcove-core/fuzz", "vendor/rfd"]
 members = [
   "crates/portcove-core",
   "crates/portcove-cli",
   "crates/portcove-diagnostics",
   "crates/portcove-release-tools",
+  "tools/rust-portability",
   "apps/desktop/src-tauri",
 ]
 default-members = ["crates/portcove-core", "crates/portcove-cli"]
 
 [workspace.package]
-version = "0.1.0-alpha.2"
+version = "0.1.0"
 edition = "2024"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/boburning/portcove"
@@ -23,17 +24,18 @@ bytes = "1.12.1"
 clap = { version = "4.6.7", features = ["derive", "env"] }
 directories = "6"
 ed25519-dalek = { version = "3.0.0", default-features = false, features = ["fast"] }
-crc32fast = "1.5.3"
+crc32fast = "1.5.4"
 flate2 = "1.1.10"
 filetime = "0.2.29"
 futures-util = "0.3.34"
-fs2 = "0.4.3"
+fs4 = { version = "1.1.0", default-features = false }
 hex = "0.4.3"
 icu_casemap = { version = "2.4.0", default-features = false, features = ["compiled_data"] }
 icu_properties = { version = "2.4.0", default-features = false, features = ["compiled_data"] }
 image = { version = "=0.25.10", default-features = false, features = ["png", "jpeg"] }
 keyring = "4.2.0"
 libc = "0.2.191"
+lzma-turbo = { version = "=0.10.3", default-features = false, features = ["xz"] }
 reqwest = { version = "0.13.5", default-features = false, features = [
   "blocking",
   "form",
@@ -41,19 +43,13 @@ reqwest = { version = "0.13.5", default-features = false, features = [
   "rustls",
   "stream",
 ] }
-# SQLite 3.53.4 fixes concurrent WAL access through Windows canonical paths.
-# The published 0.40.2 still bundles 3.53.2; retain this reviewed upstream revision
-# until a registry release contains the fix (see docs/QUALITY.md).
-rusqlite = { git = "https://github.com/rusqlite/rusqlite", rev = "b2b2592ecf40dcce20641aeb94af82e7d3a0b26d", features = [
-  "bundled",
-  "fallible_uint",
-  "limits",
-] }
+rusqlite = { version = "0.41.1", features = ["bundled", "fallible_uint", "limits"] }
 schemars = { version = "1.2.3", features = ["derive"] }
 serde = { version = "1.0.229", features = ["derive"] }
 serde_json = "1.0.152"
 semver = "1.0.28"
 sha2 = "0.11.1"
+sevenz-turbo = { version = "=0.29.7", default-features = false }
 sha1 = "0.11.0"
 tar = "0.4.46"
 tempfile = "3.27.0"
@@ -77,11 +73,13 @@ tracing-subscriber = { version = "0.3.23", features = ["env-filter", "fmt"] }
 unicode-normalization = "0.1.26"
 uuid = { version = "1.29.0", features = ["v4", "serde"] }
 url = "2.5.8"
-zip = { version = "9.1.3", default-features = false, features = ["deflate"] }
+# Keep Cargo resolution on the reviewed ZIP release instead of a younger compatible version.
+zip = { version = "=9.4.0", default-features = false, features = ["deflate"] }
 windows-sys = { version = "0.61.2", features = [
   "Win32_Foundation",
   "Win32_Globalization",
   "Win32_Security",
+  "Win32_Security_Authorization",
   "Win32_Storage_FileSystem",
   "Win32_System_Console",
   "Win32_System_Diagnostics_ToolHelp",
@@ -98,13 +96,20 @@ rpassword = "7.5.4"
 rustix = { version = "1.1.6", features = ["fs"] }
 same-file = "1.0.6"
 
-# Signed-catalog tests exercise real signatures repeatedly. Optimize the numeric
-# dependency work while keeping Portcove itself unoptimized with debug assertions.
-[profile.test.package.curve25519-dalek]
+# Test time, not compile time, bounds hosted validation: the Windows Rust test
+# partitions are most of a Rust run's runner minutes. Optimize every dependency
+# for tests (signatures, hashing, compression, JSON), and lightly optimize the
+# shared core, whose own generic code dominated CPU-bound cases: three such
+# cases went from 52-65s to 5-8s on Linux while an incremental rebuild stayed
+# near 30s. Debug assertions and overflow checks stay on; a cold non-incremental
+# core test build takes several minutes longer.
+[profile.test.package."*"]
 opt-level = 3
 
-[profile.test.package.ed25519-dalek]
-opt-level = 3
+[profile.test.package.portcove-core]
+opt-level = 1
+debug-assertions = true
+overflow-checks = true
 
 # Fixed controller helpers are not shipping packages. Bound their cold build
 # without changing the release profile, feature set or production job timeout.
@@ -112,6 +117,12 @@ opt-level = 3
 inherits = "release"
 opt-level = 0
 strip = "symbols"
+
+# Node 26's larger official executable leaves less room in the unchanged fixed
+# tool inventory. Optimize only our shared core in this non-shipping profile;
+# keep dependency compilation and shipping/test profiles unchanged.
+[profile.controller-tools.package.portcove-core]
+opt-level = 1
 
 # Preserve the GTK format fix until a compatible fixed RFD release is available.
 [patch.crates-io]

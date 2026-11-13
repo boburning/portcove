@@ -1,0 +1,1494 @@
+{
+  "format_version": 1,
+  "date": "2026-11-03",
+  "baseline": "76a9b5c22e6fbf84c6ecfb56748469d9dab8c972",
+  "authored_checkpoint_head": "85630d7d2aca986f371d72fe0eb649de6d30248c",
+  "phase": "Candidate evidence; final review, final-head CI, merge and canonical completion still required",
+  "mechanism": "Individually assessed already-prepared Windows players/launchers through existing execution-intent binding, explicit Play/relink and preserving registration removal",
+  "counts": {
+    "authored_port_changes": 8,
+    "new_individual_owned_probe_controls": 9,
+    "proposed_finite_outcomes_after_delivery": 8,
+    "currently_completed": 0,
+    "new_managed_integrations": 0,
+    "direct_required_beta_resolved": 0,
+    "cohort_members": {
+      "original524": 2,
+      "affected312": 4,
+      "roadmap22": 2
+    },
+    "historical1422_overlap_not_additive": 1,
+    "whole_required_parents_or_cohorts_completed": 0,
+    "frozen_union_unchanged": 858
+  },
+  "shared_boundaries": [
+    "No upstream game, original, compiler, installer, updater/helper, private input or native Desktop execution. First-party owned probes remain separate from actual title/runtime/save acceptance.",
+    "Selected executable binding establishes execution intent, not original/companion authenticity or ownership of the external tree. Only the selected process is supervised.",
+    "Upstream/player owns original preparation, replacement, shared/custom data and recovery. Registration removal preserves external bytes. No external managed update/backup/rollback/migration/delete or Supported promotion.",
+    "Original/component terms and version-specific known limits stay individual. Four shared Athelas records do not inherit source, original, profile or acceptance from another title."
+  ],
+  "packages": {
+    "660965769": {
+      "asset": {
+        "id": 660965769,
+        "name": "pd-dabs-mod-x86_64-windows.zip",
+        "size": 10484470,
+        "digest": "sha256:f7102c87254fcee5d6b02dc3972de0438abe8f85e21a69167436cf53ca691e96",
+        "updated_at": "2026-10-21T01:06:01Z",
+        "browser_download_url": "https://github.com/DabDavis/perfect-dark-dabs-mod/releases/download/v3.15.1/pd-dabs-mod-x86_64-windows.zip"
+      },
+      "observed_sha256": "f7102c87254fcee5d6b02dc3972de0438abe8f85e21a69167436cf53ca691e96",
+      "independent_expected_digest_matched": true,
+      "physical_records": 10,
+      "selected_native_members": [
+        {
+          "path": "pd-dabs-mod-x86_64-windows/zlib1.dll",
+          "bytes": 128488,
+          "sha256": "93e9243a44c29200eeacaf9658efe2558581770e4b11ca4b500e18e424a6e3b5",
+          "full_member_CRC_verified": true,
+          "pe_prefix": {
+            "machine": "0x8664",
+            "sections": 10,
+            "bytes_retained": 65560,
+            "scope": "bounded header only; no execution, complete imports, ABI or dependency resolution"
+          }
+        },
+        {
+          "path": "pd-dabs-mod-x86_64-windows/SDL2.dll",
+          "bytes": 2412441,
+          "sha256": "47a3b27654832d9f7e5719c88078210a3dbfd6407b559c5a3c4eb8ab7d0ebdb6",
+          "full_member_CRC_verified": true,
+          "pe_prefix": {
+            "machine": "0x8664",
+            "sections": 11,
+            "bytes_retained": 65560,
+            "scope": "bounded header only; no execution, complete imports, ABI or dependency resolution"
+          }
+        },
+        {
+          "path": "pd-dabs-mod-x86_64-windows/pd.x86_64.exe",
+          "bytes": 27442620,
+          "sha256": "ce0c44fa8b89921b9545ea0a2ddf0e15d2d47088d3553ed4608c456e4f438f78",
+          "full_member_CRC_verified": true,
+          "pe_prefix": {
+            "machine": "0x8664",
+            "sections": 12,
+            "bytes_retained": 65560,
+            "scope": "bounded header only; no execution, complete imports, ABI or dependency resolution"
+          }
+        }
+      ],
+      "inspection_limits": {
+        "archive_bytes": 536870912,
+        "central_bytes": 4194304,
+        "physical_records": 32768,
+        "member_bytes": 536870912,
+        "expanded_aggregate_bytes": 2147483648,
+        "max_name_bytes": 512,
+        "selected_stream_chunk_bytes": 1048576,
+        "selected_header_bytes": 65560,
+        "documentation_total_bytes": 4194304
+      },
+      "all_members_full_CRC_verified": false,
+      "scope": "Whole archive size/hash and bounded raw/logical ZIP index; selected native/doc streams CRC+SHA256 and PE headers only. Not complete ABI/dependencies, source-binary reproduction, upstream startup or gameplay."
+    },
+    "673550325": {
+      "asset": {
+        "id": 673550325,
+        "name": "SWROTS-PC-v0.5.0.zip",
+        "size": 1732305,
+        "digest": "sha256:6df9391fe7b7695ad1bf1ceda6073e06d0e24a68467278b72e9a4e491b3d3a9b",
+        "updated_at": "2026-10-24T23:14:50Z",
+        "browser_download_url": "https://github.com/jedijosh920/SWROTS-PC/releases/download/v0.5.0/SWROTS-PC-v0.5.0.zip"
+      },
+      "observed_sha256": "6df9391fe7b7695ad1bf1ceda6073e06d0e24a68467278b72e9a4e491b3d3a9b",
+      "independent_expected_digest_matched": true,
+      "physical_records": 36,
+      "selected_native_members": [
+        {
+          "path": "core.dll",
+          "bytes": 3683328,
+          "sha256": "22062d15ac095dbe1f5945127ee39cc7b20c7f13d343baca09103b1b05ebb0d7",
+          "full_member_CRC_verified": true,
+          "pe_prefix": {
+            "machine": "0x14c",
+            "sections": 6,
+            "bytes_retained": 65560,
+            "scope": "bounded header only; no execution, complete imports, ABI or dependency resolution"
+          }
+        },
+        {
+          "path": "swrots.exe",
+          "bytes": 4608,
+          "sha256": "c46f464a46eee02111f04f463813df73379467299864656cb9e4b8463dc0bf50",
+          "full_member_CRC_verified": true,
+          "pe_prefix": {
+            "machine": "0x14c",
+            "sections": 4,
+            "bytes_retained": 4608,
+            "scope": "bounded header only; no execution, complete imports, ABI or dependency resolution"
+          }
+        }
+      ],
+      "inspection_limits": {
+        "archive_bytes": 536870912,
+        "central_bytes": 4194304,
+        "physical_records": 32768,
+        "member_bytes": 536870912,
+        "expanded_aggregate_bytes": 2147483648,
+        "max_name_bytes": 512,
+        "selected_stream_chunk_bytes": 1048576,
+        "selected_header_bytes": 65560,
+        "documentation_total_bytes": 4194304
+      },
+      "all_members_full_CRC_verified": false,
+      "scope": "Whole archive size/hash and bounded raw/logical ZIP index; selected native/doc streams CRC+SHA256 and PE headers only. Not complete ABI/dependencies, source-binary reproduction, upstream startup or gameplay."
+    },
+    "703931347": {
+      "asset": {
+        "id": 703931347,
+        "name": "Athelas-1.8.0.zip",
+        "size": 160236423,
+        "digest": "sha256:16c910cddff1d4c9f358655dc9f425f7bd320871b1073576261ec9c48ac0a9a6",
+        "updated_at": "2026-11-03T02:12:00Z",
+        "browser_download_url": "https://github.com/Shagg88/Athelas/releases/download/1.8.0/Athelas-1.8.0.zip"
+      },
+      "observed_sha256": "16c910cddff1d4c9f358655dc9f425f7bd320871b1073576261ec9c48ac0a9a6",
+      "independent_expected_digest_matched": true,
+      "physical_records": 166,
+      "selected_native_members": [
+        {
+          "path": "Athelas.exe",
+          "bytes": 3670016,
+          "sha256": "e80e2e9a677bb2599143231c7768847f32adba6b3cc4bfe23cfdfa130830a902",
+          "full_member_CRC_verified": true,
+          "pe_prefix": {
+            "machine": "0x14c",
+            "sections": 10,
+            "bytes_retained": 65560,
+            "scope": "bounded header only; no execution, complete imports, ABI or dependency resolution"
+          }
+        },
+        {
+          "path": "SDL3.dll",
+          "bytes": 5120308,
+          "sha256": "28061ec6fa13060675bee34bc29e1b25e488b47ee82f614d71cf781f07a54c93",
+          "full_member_CRC_verified": true,
+          "pe_prefix": {
+            "machine": "0x14c",
+            "sections": 19,
+            "bytes_retained": 65560,
+            "scope": "bounded header only; no execution, complete imports, ABI or dependency resolution"
+          }
+        },
+        {
+          "path": "upscalers/amd_fidelityfx_framegeneration_dx12.dll",
+          "bytes": 29679376,
+          "sha256": "e6843252f58b0341a0d80f6a20bc0d840643ee95bc48c22cac08745344577bb6",
+          "full_member_CRC_verified": true,
+          "pe_prefix": {
+            "machine": "0x8664",
+            "sections": 6,
+            "bytes_retained": 65560,
+            "scope": "bounded header only; no execution, complete imports, ABI or dependency resolution"
+          }
+        },
+        {
+          "path": "upscalers/amd_fidelityfx_loader_dx12.dll",
+          "bytes": 39184,
+          "sha256": "e2191d3c0828be45eb8affd4e3ec0378f2293adc345b772a7170edcf3b021ecb",
+          "full_member_CRC_verified": true,
+          "pe_prefix": {
+            "machine": "0x8664",
+            "sections": 6,
+            "bytes_retained": 39184,
+            "scope": "bounded header only; no execution, complete imports, ABI or dependency resolution"
+          }
+        },
+        {
+          "path": "upscalers/amd_fidelityfx_upscaler_dx12.dll",
+          "bytes": 57664272,
+          "sha256": "aad4fccccb29084a655f9a4f9f613bd22c8c03fb4a0f8840148cc6543b4ccace",
+          "full_member_CRC_verified": true,
+          "pe_prefix": {
+            "machine": "0x8664",
+            "sections": 6,
+            "bytes_retained": 65560,
+            "scope": "bounded header only; no execution, complete imports, ABI or dependency resolution"
+          }
+        },
+        {
+          "path": "upscalers/nvngx_dlss.dll",
+          "bytes": 58956912,
+          "sha256": "d00b5b0ab29c3ca101b70c3a5ecb3a01b7ef33766a3383a28a18623083e6123e",
+          "full_member_CRC_verified": true,
+          "pe_prefix": {
+            "machine": "0x8664",
+            "sections": 7,
+            "bytes_retained": 65560,
+            "scope": "bounded header only; no execution, complete imports, ABI or dependency resolution"
+          }
+        },
+        {
+          "path": "upscalers/sl.common.dll",
+          "bytes": 843904,
+          "sha256": "38eea3b4209afc455636ea372b5933d65fcc13becec6c84d101dcfc4d8648f75",
+          "full_member_CRC_verified": true,
+          "pe_prefix": {
+            "machine": "0x8664",
+            "sections": 6,
+            "bytes_retained": 65560,
+            "scope": "bounded header only; no execution, complete imports, ABI or dependency resolution"
+          }
+        },
+        {
+          "path": "upscalers/sl.dlss.dll",
+          "bytes": 422016,
+          "sha256": "18871eea87c90345da97d8109faa81ea7d5840e8d99b51b55b0e46cfa177f84e",
+          "full_member_CRC_verified": true,
+          "pe_prefix": {
+            "machine": "0x8664",
+            "sections": 6,
+            "bytes_retained": 65560,
+            "scope": "bounded header only; no execution, complete imports, ABI or dependency resolution"
+          }
+        },
+        {
+          "path": "upscalers/sl.interposer.dll",
+          "bytes": 652928,
+          "sha256": "b1d7395aebd7b9722841d64dcf7433680020b6a8e421f851c16d5ba0c2182edf",
+          "full_member_CRC_verified": true,
+          "pe_prefix": {
+            "machine": "0x8664",
+            "sections": 6,
+            "bytes_retained": 65560,
+            "scope": "bounded header only; no execution, complete imports, ABI or dependency resolution"
+          }
+        },
+        {
+          "path": "TT-Xbox/TwoTowers-arm64.exe",
+          "bytes": 17187840,
+          "sha256": "91bdfdd8d7fe549acd5b69c292c21d1eb16b325ee9471587232ce7e226b63834",
+          "full_member_CRC_verified": true,
+          "pe_prefix": {
+            "machine": "0xaa64",
+            "sections": 14,
+            "bytes_retained": 65560,
+            "scope": "bounded header only; no execution, complete imports, ABI or dependency resolution"
+          }
+        },
+        {
+          "path": "TT-Xbox/TwoTowers.exe",
+          "bytes": 17873920,
+          "sha256": "09c6d95682b94bf0ee7166f87e4bae7eca2b3d9824b555887780683e70b89afa",
+          "full_member_CRC_verified": true,
+          "pe_prefix": {
+            "machine": "0x8664",
+            "sections": 15,
+            "bytes_retained": 65560,
+            "scope": "bounded header only; no execution, complete imports, ABI or dependency resolution"
+          }
+        },
+        {
+          "path": "TA-Xbox/TAXbox-arm64.exe",
+          "bytes": 21132800,
+          "sha256": "fd75788539ea2872a5cd669dce51c9e3b452fbada7a8d45082015f103665180c",
+          "full_member_CRC_verified": true,
+          "pe_prefix": {
+            "machine": "0xaa64",
+            "sections": 14,
+            "bytes_retained": 65560,
+            "scope": "bounded header only; no execution, complete imports, ABI or dependency resolution"
+          }
+        },
+        {
+          "path": "TA-Xbox/TAXbox.exe",
+          "bytes": 21800448,
+          "sha256": "cb499bba8cfb8c62bfcca8c7581320605debb6d33c2db704672164730b2175ae",
+          "full_member_CRC_verified": true,
+          "pe_prefix": {
+            "machine": "0x8664",
+            "sections": 15,
+            "bytes_retained": 65560,
+            "scope": "bounded header only; no execution, complete imports, ABI or dependency resolution"
+          }
+        },
+        {
+          "path": "ROTK-Xbox/ROTKXbox-arm64.exe",
+          "bytes": 16444416,
+          "sha256": "b7be3268c641b363b06ac1fb4cd3c9b7b812f1ce91134edeed3d2934534c73ae",
+          "full_member_CRC_verified": true,
+          "pe_prefix": {
+            "machine": "0xaa64",
+            "sections": 14,
+            "bytes_retained": 65560,
+            "scope": "bounded header only; no execution, complete imports, ABI or dependency resolution"
+          }
+        },
+        {
+          "path": "ROTK-Xbox/ROTKXbox.exe",
+          "bytes": 17325568,
+          "sha256": "5a15090f20a37a5334afdd629e4eb73b8856e8004b0477b21ec43dd5cd7bd52a",
+          "full_member_CRC_verified": true,
+          "pe_prefix": {
+            "machine": "0x8664",
+            "sections": 15,
+            "bytes_retained": 65560,
+            "scope": "bounded header only; no execution, complete imports, ABI or dependency resolution"
+          }
+        },
+        {
+          "path": "ROTK-PC/pcfix/d3d8.dll",
+          "bytes": 13312,
+          "sha256": "118108a2c137cadae1f3d8f997e72be00a61384bd24ba2810122b2dfe933a944",
+          "full_member_CRC_verified": true,
+          "pe_prefix": {
+            "machine": "0x14c",
+            "sections": 10,
+            "bytes_retained": 13312,
+            "scope": "bounded header only; no execution, complete imports, ABI or dependency resolution"
+          }
+        },
+        {
+          "path": "ROTK-PC/pcfix/dinput8.dll",
+          "bytes": 13312,
+          "sha256": "a9aa984cf04dd8e99c7836e5e3f01fa0ca130d7e36ac623812c2b6bcd9bab413",
+          "full_member_CRC_verified": true,
+          "pe_prefix": {
+            "machine": "0x14c",
+            "sections": 10,
+            "bytes_retained": 13312,
+            "scope": "bounded header only; no execution, complete imports, ABI or dependency resolution"
+          }
+        },
+        {
+          "path": "ROTK-PC/pcfix/ROTKFix.dll",
+          "bytes": 474624,
+          "sha256": "a997bc78a17de7f2ed0ba6c069592c0e8e82c2ea791b85d5fbc7c10bade37703",
+          "full_member_CRC_verified": true,
+          "pe_prefix": {
+            "machine": "0x14c",
+            "sections": 10,
+            "bytes_retained": 65560,
+            "scope": "bounded header only; no execution, complete imports, ABI or dependency resolution"
+          }
+        },
+        {
+          "path": "ROTK-PC/pcfix/SDL3.dll",
+          "bytes": 5120308,
+          "sha256": "28061ec6fa13060675bee34bc29e1b25e488b47ee82f614d71cf781f07a54c93",
+          "full_member_CRC_verified": true,
+          "pe_prefix": {
+            "machine": "0x14c",
+            "sections": 19,
+            "bytes_retained": 65560,
+            "scope": "bounded header only; no execution, complete imports, ABI or dependency resolution"
+          }
+        },
+        {
+          "path": "ROTK-PC/pcfix/ROTKFix/mods/ValarBoons.dll",
+          "bytes": 93184,
+          "sha256": "7350d389b324515ae4b6ac14a168777d6b618ecd07d5ada7ecc89f27efed239d",
+          "full_member_CRC_verified": true,
+          "pe_prefix": {
+            "machine": "0x14c",
+            "sections": 10,
+            "bytes_retained": 65560,
+            "scope": "bounded header only; no execution, complete imports, ABI or dependency resolution"
+          }
+        },
+        {
+          "path": "ROTK-PC/pcfix/ROTKFix/dxvk/d3d8.dll",
+          "bytes": 1687566,
+          "sha256": "9152ba43386e756790a66f61cdcee01b3287d156d4161c7456d816faa82fc364",
+          "full_member_CRC_verified": true,
+          "pe_prefix": {
+            "machine": "0x14c",
+            "sections": 10,
+            "bytes_retained": 65560,
+            "scope": "bounded header only; no execution, complete imports, ABI or dependency resolution"
+          }
+        },
+        {
+          "path": "ROTK-PC/pcfix/ROTKFix/dxvk/d3d9.dll",
+          "bytes": 7856142,
+          "sha256": "265888c31ca78dffa290c39cb7e50bfb02762590e41927906e46fb32f01497fa",
+          "full_member_CRC_verified": true,
+          "pe_prefix": {
+            "machine": "0x14c",
+            "sections": 10,
+            "bytes_retained": 65560,
+            "scope": "bounded header only; no execution, complete imports, ABI or dependency resolution"
+          }
+        },
+        {
+          "path": "FOTR-Xbox/FOTRXbox-arm64.exe",
+          "bytes": 18035200,
+          "sha256": "98f9a5d25d6266268a4a9dc4c04a83792ff921388b945f5b50cd06712762868c",
+          "full_member_CRC_verified": true,
+          "pe_prefix": {
+            "machine": "0xaa64",
+            "sections": 14,
+            "bytes_retained": 65560,
+            "scope": "bounded header only; no execution, complete imports, ABI or dependency resolution"
+          }
+        },
+        {
+          "path": "FOTR-Xbox/FOTRXbox.exe",
+          "bytes": 18642944,
+          "sha256": "0dadc4a372cece5cfae65348ed7377b5409459fa3fa863907db4b330f63e8604",
+          "full_member_CRC_verified": true,
+          "pe_prefix": {
+            "machine": "0x8664",
+            "sections": 15,
+            "bytes_retained": 65560,
+            "scope": "bounded header only; no execution, complete imports, ABI or dependency resolution"
+          }
+        }
+      ],
+      "inspection_limits": {
+        "archive_bytes": 536870912,
+        "central_bytes": 4194304,
+        "physical_records": 32768,
+        "member_bytes": 536870912,
+        "expanded_aggregate_bytes": 2147483648,
+        "max_name_bytes": 512,
+        "selected_stream_chunk_bytes": 1048576,
+        "selected_header_bytes": 65560,
+        "documentation_total_bytes": 4194304
+      },
+      "all_members_full_CRC_verified": false,
+      "scope": "Whole archive size/hash and bounded raw/logical ZIP index; selected native/doc streams CRC+SHA256 and PE headers only. Not complete ABI/dependencies, source-binary reproduction, upstream startup or gameplay."
+    },
+    "692543393": {
+      "asset": {
+        "id": 692543393,
+        "name": "ApeEscapeRecomp-v1.0.0-windows-x64.zip",
+        "size": 47214142,
+        "digest": "sha256:6cdb44a082504ccb803d7949f381d3f23ebf5012280ae85101c9f8278a1ede37",
+        "updated_at": "2026-10-30T15:32:50Z",
+        "browser_download_url": "https://github.com/NVDEMU/ApeEscapeRecomp-MacWindowsLinux/releases/download/macos-nightly/ApeEscapeRecomp-v1.0.0-windows-x64.zip"
+      },
+      "observed_sha256": "6cdb44a082504ccb803d7949f381d3f23ebf5012280ae85101c9f8278a1ede37",
+      "independent_expected_digest_matched": true,
+      "physical_records": 598,
+      "selected_native_members": [
+        {
+          "path": "overlay_toolchain/libgcc_s_seh-1.dll",
+          "bytes": 143872,
+          "sha256": "16208d55dd47602ea8bc27d752faa66afbecba2200e346ae0b41c9a94fbe3b0e",
+          "full_member_CRC_verified": true,
+          "pe_prefix": {
+            "machine": "0x8664",
+            "sections": 10,
+            "bytes_retained": 65560,
+            "scope": "bounded header only; no execution, complete imports, ABI or dependency resolution"
+          }
+        },
+        {
+          "path": "overlay_toolchain/libstdc++-6.dll",
+          "bytes": 2302464,
+          "sha256": "ea252277c5939cd63848a3db465cf7c88e48dbe169edfd4f19d345851a6b400c",
+          "full_member_CRC_verified": true,
+          "pe_prefix": {
+            "machine": "0x8664",
+            "sections": 10,
+            "bytes_retained": 65560,
+            "scope": "bounded header only; no execution, complete imports, ABI or dependency resolution"
+          }
+        },
+        {
+          "path": "overlay_toolchain/libwinpthread-1.dll",
+          "bytes": 55808,
+          "sha256": "f5042e8e3d21edce20c1bc99445f551b89212403164e9388d2c6f48d6d6bcb78",
+          "full_member_CRC_verified": true,
+          "pe_prefix": {
+            "machine": "0x8664",
+            "sections": 12,
+            "bytes_retained": 55808,
+            "scope": "bounded header only; no execution, complete imports, ABI or dependency resolution"
+          }
+        },
+        {
+          "path": "overlay_toolchain/psxrecomp-bios.exe",
+          "bytes": 1951239,
+          "sha256": "45f21cd6a27dc19ef7e371b32645304dbfe4b4f68add68a63f4e5a8a78e201f0",
+          "full_member_CRC_verified": true,
+          "pe_prefix": {
+            "machine": "0x8664",
+            "sections": 17,
+            "bytes_retained": 65560,
+            "scope": "bounded header only; no execution, complete imports, ABI or dependency resolution"
+          }
+        },
+        {
+          "path": "overlay_toolchain/psxrecomp-game.exe",
+          "bytes": 2357135,
+          "sha256": "291348207469ed3f599ea6ae0142607359921db2fdb1944c3aa89a3c4d9b5698",
+          "full_member_CRC_verified": true,
+          "pe_prefix": {
+            "machine": "0x8664",
+            "sections": 17,
+            "bytes_retained": 65560,
+            "scope": "bounded header only; no execution, complete imports, ABI or dependency resolution"
+          }
+        },
+        {
+          "path": "overlay_toolchain/python/libcrypto-3.dll",
+          "bytes": 5232408,
+          "sha256": "4e5d5d20d6d31e72ab341c81e97b89e514326c4c861b48638243bdf0918cfa43",
+          "full_member_CRC_verified": true,
+          "pe_prefix": {
+            "machine": "0x8664",
+            "sections": 8,
+            "bytes_retained": 65560,
+            "scope": "bounded header only; no execution, complete imports, ABI or dependency resolution"
+          }
+        },
+        {
+          "path": "overlay_toolchain/python/libffi-8.dll",
+          "bytes": 39696,
+          "sha256": "eff52743773eb550fcc6ce3efc37c85724502233b6b002a35496d828bd7b280a",
+          "full_member_CRC_verified": true,
+          "pe_prefix": {
+            "machine": "0x8664",
+            "sections": 5,
+            "bytes_retained": 39696,
+            "scope": "bounded header only; no execution, complete imports, ABI or dependency resolution"
+          }
+        },
+        {
+          "path": "overlay_toolchain/python/libssl-3.dll",
+          "bytes": 792856,
+          "sha256": "2e4d35b681a172d3298caf7dc670451be7a8ba27c26446efc67470742497a950",
+          "full_member_CRC_verified": true,
+          "pe_prefix": {
+            "machine": "0x8664",
+            "sections": 8,
+            "bytes_retained": 65560,
+            "scope": "bounded header only; no execution, complete imports, ABI or dependency resolution"
+          }
+        },
+        {
+          "path": "overlay_toolchain/python/python.exe",
+          "bytes": 105840,
+          "sha256": "03573716a7fcbd8b7fed8fe0163bbfbd3a852546920d6a666123f307c8dac7d9",
+          "full_member_CRC_verified": true,
+          "pe_prefix": {
+            "machine": "0x8664",
+            "sections": 6,
+            "bytes_retained": 65560,
+            "scope": "bounded header only; no execution, complete imports, ABI or dependency resolution"
+          }
+        },
+        {
+          "path": "overlay_toolchain/python/python3.dll",
+          "bytes": 72560,
+          "sha256": "c1de4bfe57dc4a5be8c72c865d617dc39dfd8162fcd2ce1fac9f401cf9efb504",
+          "full_member_CRC_verified": true,
+          "pe_prefix": {
+            "machine": "0x8664",
+            "sections": 2,
+            "bytes_retained": 65560,
+            "scope": "bounded header only; no execution, complete imports, ABI or dependency resolution"
+          }
+        },
+        {
+          "path": "overlay_toolchain/python/python313.dll",
+          "bytes": 6093816,
+          "sha256": "78b1dd211c0e66a0603df48da2c9b67a915ab3258701b9285d3faa255ed8dc25",
+          "full_member_CRC_verified": true,
+          "pe_prefix": {
+            "machine": "0x8664",
+            "sections": 7,
+            "bytes_retained": 65560,
+            "scope": "bounded header only; no execution, complete imports, ABI or dependency resolution"
+          }
+        },
+        {
+          "path": "overlay_toolchain/python/pythonw.exe",
+          "bytes": 104304,
+          "sha256": "2bea4fc941b7d9436afa1be8cb46551c0694deed23b3fec87b969054238be099",
+          "full_member_CRC_verified": true,
+          "pe_prefix": {
+            "machine": "0x8664",
+            "sections": 6,
+            "bytes_retained": 65560,
+            "scope": "bounded header only; no execution, complete imports, ABI or dependency resolution"
+          }
+        },
+        {
+          "path": "overlay_toolchain/python/sqlite3.dll",
+          "bytes": 1542000,
+          "sha256": "afb50a080d3c79d9c89d134b006fb2b0779b5ffeeb703762d163141b15eb03bb",
+          "full_member_CRC_verified": true,
+          "pe_prefix": {
+            "machine": "0x8664",
+            "sections": 6,
+            "bytes_retained": 65560,
+            "scope": "bounded header only; no execution, complete imports, ABI or dependency resolution"
+          }
+        },
+        {
+          "path": "overlay_toolchain/python/vcruntime140.dll",
+          "bytes": 120400,
+          "sha256": "36585912e5eaf83ba9fea0631534f690ccdc2d7ba91537166fe53e56c221e153",
+          "full_member_CRC_verified": true,
+          "pe_prefix": {
+            "machine": "0x8664",
+            "sections": 8,
+            "bytes_retained": 65560,
+            "scope": "bounded header only; no execution, complete imports, ABI or dependency resolution"
+          }
+        },
+        {
+          "path": "overlay_toolchain/python/vcruntime140_1.dll",
+          "bytes": 49744,
+          "sha256": "82a2f9ae1e6146ae3cb0f4bc5a62b7227e0384209d9b1aef86bbcc105912f7cd",
+          "full_member_CRC_verified": true,
+          "pe_prefix": {
+            "machine": "0x8664",
+            "sections": 6,
+            "bytes_retained": 49744,
+            "scope": "bounded header only; no execution, complete imports, ABI or dependency resolution"
+          }
+        },
+        {
+          "path": "overlay_toolchain/tcc/i386-win32-tcc.exe",
+          "bytes": 155136,
+          "sha256": "fec8d9e6ff9430f6a58b8dbf3dd5c320501275cd999ebd47cb92021653565bed",
+          "full_member_CRC_verified": true,
+          "pe_prefix": {
+            "machine": "0x8664",
+            "sections": 7,
+            "bytes_retained": 65560,
+            "scope": "bounded header only; no execution, complete imports, ABI or dependency resolution"
+          }
+        },
+        {
+          "path": "overlay_toolchain/tcc/libtcc.dll",
+          "bytes": 156160,
+          "sha256": "e08569d34baf5c546c9a19c5e6d0b5993f196f41e5eaebb10e54c71b591092bc",
+          "full_member_CRC_verified": true,
+          "pe_prefix": {
+            "machine": "0x8664",
+            "sections": 9,
+            "bytes_retained": 65560,
+            "scope": "bounded header only; no execution, complete imports, ABI or dependency resolution"
+          }
+        },
+        {
+          "path": "overlay_toolchain/tcc/tcc.exe",
+          "bytes": 23552,
+          "sha256": "e9cb3e89e20a9efead83cc9e6b100314275634c2f705056da71f424ea9b0cdf0",
+          "full_member_CRC_verified": true,
+          "pe_prefix": {
+            "machine": "0x8664",
+            "sections": 7,
+            "bytes_retained": 23552,
+            "scope": "bounded header only; no execution, complete imports, ABI or dependency resolution"
+          }
+        },
+        {
+          "path": "ApeEscapeRecomp.exe",
+          "bytes": 55883464,
+          "sha256": "4cb04e5914fad6e6cccd8e62639925b51e434e86a8d7c4ca5430957280d069dd",
+          "full_member_CRC_verified": true,
+          "pe_prefix": {
+            "machine": "0x8664",
+            "sections": 19,
+            "bytes_retained": 65560,
+            "scope": "bounded header only; no execution, complete imports, ABI or dependency resolution"
+          }
+        }
+      ],
+      "inspection_limits": {
+        "archive_bytes": 536870912,
+        "central_bytes": 4194304,
+        "physical_records": 32768,
+        "member_bytes": 536870912,
+        "expanded_aggregate_bytes": 2147483648,
+        "max_name_bytes": 512,
+        "selected_stream_chunk_bytes": 1048576,
+        "selected_header_bytes": 65560,
+        "documentation_total_bytes": 4194304
+      },
+      "all_members_full_CRC_verified": false,
+      "scope": "Whole archive size/hash and bounded raw/logical ZIP index; selected native/doc streams CRC+SHA256 and PE headers only. Not complete ABI/dependencies, source-binary reproduction, upstream startup or gameplay."
+    },
+    "689377911": {
+      "asset": {
+        "id": 689377911,
+        "name": "TwoTowers-Recompiled-v1.9.9-win64.zip",
+        "size": 177201685,
+        "digest": "sha256:181ffaed47376b1b4b516860123a7197a3167759d868b572cd1b8eb9dedbc45b",
+        "browser_download_url": "https://github.com/Gumpolas/TooTawersRecomp/releases/download/1.9.9/TwoTowers-Recompiled-v1.9.9-win64.zip"
+      },
+      "observed_sha256": "181ffaed47376b1b4b516860123a7197a3167759d868b572cd1b8eb9dedbc45b",
+      "independent_expected_digest_matched": true,
+      "scope": "Exact unchanged R39 actual selected archive/PE observations reused; no new acquisition or execution",
+      "primary_record": "prepared-player-cohort-r39-2026-11-01.json",
+      "primary_merge": "aa31e268bbd4d50596d287feef475563be0375f3"
+    }
+  },
+  "source_consumers": {
+    "dabs-mod": {
+      "repository": "DabDavis/perfect-dark-dabs-mod",
+      "commit": "a8c2ab2d7b1c99f6a96a2d9addee1fdf9630e379",
+      "files": [
+        {
+          "path": "port/src/system.c",
+          "git_blob": "fffbe04b989512de6a06168d7bff3d81967531eb",
+          "sha256": "5203024dd8675eeef00347dd9548f35a8f4faed7f0c3299c01b590f8f81a7e00",
+          "bytes": 13514,
+          "url": "https://github.com/DabDavis/perfect-dark-dabs-mod/blob/a8c2ab2d7b1c99f6a96a2d9addee1fdf9630e379/port/src/system.c"
+        },
+        {
+          "path": "LICENSE",
+          "git_blob": "7766d601e40338bdfd617ae583c4dc9120188afd",
+          "sha256": "33efa0ef96a7e69f0aeb755b01f6b846cdadd750f725a32a19f4612b2b86c03c",
+          "bytes": 1067,
+          "url": "https://github.com/DabDavis/perfect-dark-dabs-mod/blob/a8c2ab2d7b1c99f6a96a2d9addee1fdf9630e379/LICENSE"
+        },
+        {
+          "path": "port/src/fs.c",
+          "git_blob": "96b427a6590fa2bdd8452ca09bb588df67b5cfab",
+          "sha256": "2fd86b6fc635c450121f8af8acf5e6b474c3d4039ecf0487b40dea16d987fe6b",
+          "bytes": 34883,
+          "url": "https://github.com/DabDavis/perfect-dark-dabs-mod/blob/a8c2ab2d7b1c99f6a96a2d9addee1fdf9630e379/port/src/fs.c"
+        },
+        {
+          "path": "port/src/main.c",
+          "git_blob": "52d3fdc464e87c31a37897333110c2ddc5dcf6ef",
+          "sha256": "e8d54c5711111296e75bbc7cc8b0a878d34d4e3b2fbb4d6250f189bd5a099186",
+          "bytes": 29458,
+          "url": "https://github.com/DabDavis/perfect-dark-dabs-mod/blob/a8c2ab2d7b1c99f6a96a2d9addee1fdf9630e379/port/src/main.c"
+        },
+        {
+          "path": "port/src/pdmain.c",
+          "git_blob": "9e53de033855b18571bc4c869d8ba7a62a83ad4d",
+          "sha256": "8e7d3c9df975183cb75d6f02b5c9400b9df8371b4cfc444d51351d046f17e360",
+          "bytes": 32216,
+          "url": "https://github.com/DabDavis/perfect-dark-dabs-mod/blob/a8c2ab2d7b1c99f6a96a2d9addee1fdf9630e379/port/src/pdmain.c"
+        },
+        {
+          "path": "port/src/update.c",
+          "git_blob": "b32b6b91782812e8746281e45e85e526e5a8f856",
+          "sha256": "605d1bfb3020516b482948125ecc8c34be50511b14f3e8dcea2fe80bcb265ba7",
+          "bytes": 43186,
+          "url": "https://github.com/DabDavis/perfect-dark-dabs-mod/blob/a8c2ab2d7b1c99f6a96a2d9addee1fdf9630e379/port/src/update.c"
+        },
+        {
+          "path": "CLAUDE-notes/updater.md",
+          "git_blob": "eb050656cb5f1e0dba44ab0ff01621e3da1f60aa",
+          "sha256": "fc221a795ecf99277d508aaf63b1424f5eb57f616d834bc07e66c21fcd1925fd",
+          "bytes": 5431,
+          "url": "https://github.com/DabDavis/perfect-dark-dabs-mod/blob/a8c2ab2d7b1c99f6a96a2d9addee1fdf9630e379/CLAUDE-notes/updater.md"
+        },
+        {
+          "path": "CLAUDE-notes/save-format.md",
+          "git_blob": "7153746bba862c15289c6470941ef4147e446b90",
+          "sha256": "843d4887dbfaa826a4d2ec2e924933970b1c475378e1051b65108fe1d39685a8",
+          "bytes": 2478,
+          "url": "https://github.com/DabDavis/perfect-dark-dabs-mod/blob/a8c2ab2d7b1c99f6a96a2d9addee1fdf9630e379/CLAUDE-notes/save-format.md"
+        }
+      ],
+      "source_binary_correspondence": "Unknown; no reproduced build or immutable companion-tree attestation"
+    },
+    "swrots": {
+      "repository": "jedijosh920/SWROTS-PC",
+      "commit": "fbea4d817669106c70c0a349870774f28d5fdfeb",
+      "files": [
+        {
+          "path": "LICENSE",
+          "git_blob": "f288702d2fa16d3cdf0035b15a9fcbc552cd88e7",
+          "sha256": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986",
+          "bytes": 35149,
+          "url": "https://github.com/jedijosh920/SWROTS-PC/blob/fbea4d817669106c70c0a349870774f28d5fdfeb/LICENSE"
+        },
+        {
+          "path": "THIRD_PARTY_NOTICES.md",
+          "git_blob": "619b4ba0a2bdcb21de7f891efaff4be988de6cbb",
+          "sha256": "69870d1880c8f5461a150bf2ed4e9ad14d4826149ddfb2fc2191b7645c838862",
+          "bytes": 1912,
+          "url": "https://github.com/jedijosh920/SWROTS-PC/blob/fbea4d817669106c70c0a349870774f28d5fdfeb/THIRD_PARTY_NOTICES.md"
+        },
+        {
+          "path": "src/core/main.cpp",
+          "git_blob": "c65cf65ee1d268557a4af41901f870c6e57058d6",
+          "sha256": "1ccdd823d1af8b0e16ee8e01b1047cf6fd1279b65de10c3fd793b1bfef5cef6c",
+          "bytes": 16833,
+          "url": "https://github.com/jedijosh920/SWROTS-PC/blob/fbea4d817669106c70c0a349870774f28d5fdfeb/src/core/main.cpp"
+        },
+        {
+          "path": "src/core/install.cpp",
+          "git_blob": "7fe9214512a9ab2c00e50a91a43e4c6ac257fda5",
+          "sha256": "61891d3d0401f93f747bb2e85a12fc401db8cbcba6bf4b5d913f5db3eefaebee",
+          "bytes": 24928,
+          "url": "https://github.com/jedijosh920/SWROTS-PC/blob/fbea4d817669106c70c0a349870774f28d5fdfeb/src/core/install.cpp"
+        },
+        {
+          "path": "src/core/settings.cpp",
+          "git_blob": "378c0a5d11f8f0865aff58579a761f5cde0cb7be",
+          "sha256": "15ff8defbb1aed86a48045be5f2c464419e008ff9ebf4b1f541f7728b11ab165",
+          "bytes": 5547,
+          "url": "https://github.com/jedijosh920/SWROTS-PC/blob/fbea4d817669106c70c0a349870774f28d5fdfeb/src/core/settings.cpp"
+        },
+        {
+          "path": "docs/install.md",
+          "git_blob": "098621fbf77f5bb4cdb88163ec117401d0b815b2",
+          "sha256": "3c679cc0664c1b79e2053a76475f090a9e438136986a59f9047edc7b4e9553c7",
+          "bytes": 2350,
+          "url": "https://github.com/jedijosh920/SWROTS-PC/blob/fbea4d817669106c70c0a349870774f28d5fdfeb/docs/install.md"
+        },
+        {
+          "path": "docs/settings.md",
+          "git_blob": "afc3951c15c3faae79b11f05101e066152ffc67b",
+          "sha256": "a25310c7b94401b4315cbb8cd117ef0b79e3b7e01f36e3766d9aac39a45c1720",
+          "bytes": 6937,
+          "url": "https://github.com/jedijosh920/SWROTS-PC/blob/fbea4d817669106c70c0a349870774f28d5fdfeb/docs/settings.md"
+        },
+        {
+          "path": "src/kernel/reboot.cpp",
+          "git_blob": "5b980ee1bfde1b2be6c7930be0182da6353106ca",
+          "sha256": "a5903bb9fccdc15d865c38b88d8a30aa9b01766f53cdee1064efd8c9ad677c96",
+          "bytes": 8359,
+          "url": "https://github.com/jedijosh920/SWROTS-PC/blob/fbea4d817669106c70c0a349870774f28d5fdfeb/src/kernel/reboot.cpp"
+        },
+        {
+          "path": "src/loader/loader.cpp",
+          "git_blob": "5e412ea991cc3f81444eacd74183a1591aa0888f",
+          "sha256": "bffefc777c92de33ed4ae0d51f2289b49aa1387688a60d4b52e2e6d3ca9f4dd4",
+          "bytes": 2069,
+          "url": "https://github.com/jedijosh920/SWROTS-PC/blob/fbea4d817669106c70c0a349870774f28d5fdfeb/src/loader/loader.cpp"
+        },
+        {
+          "path": "src/game/game.h",
+          "git_blob": "a4db457ce26d28c1f875bc8c873ab84019057c58",
+          "sha256": "cb85fbbb93d7d92b15d74a0305963fd2d9018dbb892112838d3c518463616ca3",
+          "bytes": 15700,
+          "url": "https://github.com/jedijosh920/SWROTS-PC/blob/fbea4d817669106c70c0a349870774f28d5fdfeb/src/game/game.h"
+        }
+      ],
+      "source_binary_correspondence": "Unknown; no reproduced build or immutable companion-tree attestation"
+    },
+    "athelas": {
+      "repository": "Shagg88/Athelas",
+      "commit": "32e2ae97af97f457e5ab90fb4f765d326006c197",
+      "files": [
+        {
+          "path": "ports/two-towers/sdk_4928/d3d12_shader_cache.patch",
+          "git_blob": "5228afb7b10e9da2d690324b976f72e2402020ca",
+          "sha256": "7f4176e5b6b978e2945a19eed86178c8b7839f448486cac46cad0984fcb16dab",
+          "bytes": 1979,
+          "url": "https://github.com/Shagg88/Athelas/blob/32e2ae97af97f457e5ab90fb4f765d326006c197/ports/two-towers/sdk_4928/d3d12_shader_cache.patch"
+        },
+        {
+          "path": "workbench/seed/record.sh",
+          "git_blob": "01d8d25e9285401490a948565da5c845e249340d",
+          "sha256": "72d9299663c3adb45d500bc3ce7fcd4fcb91e1894f4e4708040dec1bff771c54",
+          "bytes": 1759,
+          "url": "https://github.com/Shagg88/Athelas/blob/32e2ae97af97f457e5ab90fb4f765d326006c197/workbench/seed/record.sh"
+        },
+        {
+          "path": "workbench/seed/merge.py",
+          "git_blob": "e6f580b6fe8fa786be268e5b5938f02f4f5adff3",
+          "sha256": "d6491405eee2934e6fdb6d9520c8a3ba488a0094ab14415f788d60e39b3e5564",
+          "bytes": 612,
+          "url": "https://github.com/Shagg88/Athelas/blob/32e2ae97af97f457e5ab90fb4f765d326006c197/workbench/seed/merge.py"
+        },
+        {
+          "path": "workbench/seed/count.py",
+          "git_blob": "887817a93c138e10c4974cf54780a08cf93cb34c",
+          "sha256": "f1774a69e72c676c06dbc4db283826cea227270e3bd5d2961274248c4262d24a",
+          "bytes": 167,
+          "url": "https://github.com/Shagg88/Athelas/blob/32e2ae97af97f457e5ab90fb4f765d326006c197/workbench/seed/count.py"
+        },
+        {
+          "path": "LICENSE",
+          "git_blob": "ac88724c2d408164c2c4441f99e390684ed52b9b",
+          "sha256": "aac27e3a9eee7aebcc9282969226a03ec104e107aef715151a60784647f3ae6e",
+          "bytes": 1062,
+          "url": "https://github.com/Shagg88/Athelas/blob/32e2ae97af97f457e5ab90fb4f765d326006c197/LICENSE"
+        },
+        {
+          "path": "dist-files/README.txt",
+          "git_blob": "6025d4eb07dc0172cd42a8b0c9364c2820322177",
+          "sha256": "dda18350ff7fbb37aef4c24eef6d3598f60f72f05a3bfdc08153bb909d2d43b9",
+          "bytes": 40625,
+          "url": "https://github.com/Shagg88/Athelas/blob/32e2ae97af97f457e5ab90fb4f765d326006c197/dist-files/README.txt"
+        },
+        {
+          "path": "scripts/package.sh",
+          "git_blob": "9c68acfb88f9cad4bdeeab615b19334391dcbf2c",
+          "sha256": "4ca364717e2d70347f4fa5bbc580c1aabb58488e44a62fec78eb1bc566d359bc",
+          "bytes": 9153,
+          "url": "https://github.com/Shagg88/Athelas/blob/32e2ae97af97f457e5ab90fb4f765d326006c197/scripts/package.sh"
+        },
+        {
+          "path": "launcher/src/ports.cpp",
+          "git_blob": "ab217869074a006e14c9358f572b66cb48159b86",
+          "sha256": "82e473b426cd6342be4f77e1e2760819a2595563dedd98e69969d46fdce1c0ab",
+          "bytes": 18481,
+          "url": "https://github.com/Shagg88/Athelas/blob/32e2ae97af97f457e5ab90fb4f765d326006c197/launcher/src/ports.cpp"
+        },
+        {
+          "path": "launcher/src/port.cpp",
+          "git_blob": "7158999a281e2409024cf0fccd7bff4a8e5dd883",
+          "sha256": "cdcfbd4c9b4fb32bedb90d8701e27b5ae84df3684f28f8fc2a35ea0877b268c7",
+          "bytes": 14968,
+          "url": "https://github.com/Shagg88/Athelas/blob/32e2ae97af97f457e5ab90fb4f765d326006c197/launcher/src/port.cpp"
+        },
+        {
+          "path": "launcher/src/userdata.cpp",
+          "git_blob": "fde1c911706ec1c1a65764072705bd02be98def9",
+          "sha256": "60d7880c50d7fb097e3a4877f0c1636d9f058f55760c57899e1ae8febf2b0d84",
+          "bytes": 19289,
+          "url": "https://github.com/Shagg88/Athelas/blob/32e2ae97af97f457e5ab90fb4f765d326006c197/launcher/src/userdata.cpp"
+        },
+        {
+          "path": "launcher/src/saves.cpp",
+          "git_blob": "8e40ba325e2e7f48ef87af2b0f060e81052b605f",
+          "sha256": "02b7ba996e9dba4f6ca613da483d0a85c097bcaff2ff161d8807be413e0fa1bb",
+          "bytes": 5359,
+          "url": "https://github.com/Shagg88/Athelas/blob/32e2ae97af97f457e5ab90fb4f765d326006c197/launcher/src/saves.cpp"
+        },
+        {
+          "path": "launcher/src/update.cpp",
+          "git_blob": "589e9ac2d51f687fb0926f4c333806fb01caeb42",
+          "sha256": "2d976aec5247d6197336d6cbafcfef21b98c305affa6bd2defd0da4cf0c31d2f",
+          "bytes": 15380,
+          "url": "https://github.com/Shagg88/Athelas/blob/32e2ae97af97f457e5ab90fb4f765d326006c197/launcher/src/update.cpp"
+        },
+        {
+          "path": "launcher/src/config.cpp",
+          "git_blob": "c7a454ae04be2d519f976ee03fb31bc2f72fc2f5",
+          "sha256": "5fecdd7fee61ead2562998e2669b3ec74b9409bf92ef2516f194e69528f93e5f",
+          "bytes": 80596,
+          "url": "https://github.com/Shagg88/Athelas/blob/32e2ae97af97f457e5ab90fb4f765d326006c197/launcher/src/config.cpp"
+        },
+        {
+          "path": "ports/two-towers/README.md",
+          "git_blob": "8894e19338f6a633519e3e1b1143005e65ef0ec1",
+          "sha256": "557386a046b2cc6590e7f4be9a9f73c65f7eb84295d86a7379ac7e38d7a1db5e",
+          "bytes": 3801,
+          "url": "https://github.com/Shagg88/Athelas/blob/32e2ae97af97f457e5ab90fb4f765d326006c197/ports/two-towers/README.md"
+        },
+        {
+          "path": "ports/rotk-xbox/README.md",
+          "git_blob": "e6a3c593fa9b50d6cefd318212dbd0cc8855429f",
+          "sha256": "68191716700161a8fe32aca420e354cc3635c5f8dcf3029dbbd7d2b6d5f8b00a",
+          "bytes": 4212,
+          "url": "https://github.com/Shagg88/Athelas/blob/32e2ae97af97f457e5ab90fb4f765d326006c197/ports/rotk-xbox/README.md"
+        },
+        {
+          "path": "ports/fellowship/README.md",
+          "git_blob": "b305db8e16836abf4feb6e3f847fa12753f845e3",
+          "sha256": "c6b64de3d9249bf67ce1f6466c01cf0c2daa8b31355a3619f1ff71112e347a3b",
+          "bytes": 3807,
+          "url": "https://github.com/Shagg88/Athelas/blob/32e2ae97af97f457e5ab90fb4f765d326006c197/ports/fellowship/README.md"
+        },
+        {
+          "path": "launcher/src/app.h",
+          "git_blob": "8019ec013ad8c5d9e681a7b21059438959086a14",
+          "sha256": "e15ad80ef364c788901ace581d17b1aa99edc94e2ff8a3feb6fcd1b70b517b00",
+          "bytes": 13533,
+          "url": "https://github.com/Shagg88/Athelas/blob/32e2ae97af97f457e5ab90fb4f765d326006c197/launcher/src/app.h"
+        },
+        {
+          "path": "launcher/src/library.cpp",
+          "git_blob": "7780994484e5a409f8f976d39398722ba42ceccc",
+          "sha256": "70022bf1b131cf5c96db6e16a68fbcfea310244126c1d658e7a655517eec4256",
+          "bytes": 16344,
+          "url": "https://github.com/Shagg88/Athelas/blob/32e2ae97af97f457e5ab90fb4f765d326006c197/launcher/src/library.cpp"
+        },
+        {
+          "path": "launcher/src/main.cpp",
+          "git_blob": "e85fda03dceb006a78aed6438ef8d858d1d3c6c3",
+          "sha256": "78e691a98cf528c226af1b830e825849c339dd2d84bc1b9aff549cd69f124c7b",
+          "bytes": 26732,
+          "url": "https://github.com/Shagg88/Athelas/blob/32e2ae97af97f457e5ab90fb4f765d326006c197/launcher/src/main.cpp"
+        },
+        {
+          "path": "launcher/src/pc_settings.cpp",
+          "git_blob": "1edcd55d232866832429f10f3d55e0ec9065258b",
+          "sha256": "d32a043ebf5601b32c0b2aeff0177830b40d5bc0b1a80a3a1cc171c48f4be0f2",
+          "bytes": 78036,
+          "url": "https://github.com/Shagg88/Athelas/blob/32e2ae97af97f457e5ab90fb4f765d326006c197/launcher/src/pc_settings.cpp"
+        },
+        {
+          "path": "sdk/runtime/gpu/shaders.cpp",
+          "git_blob": "df5bbb2f1d2d15e784ad7de4a2bba041a5240bf8",
+          "sha256": "a4e4a2454fb5a4630cb5973009139435fa1ea3076737c51506916ab09e03b001",
+          "bytes": 51100,
+          "url": "https://github.com/Shagg88/Athelas/blob/32e2ae97af97f457e5ab90fb4f765d326006c197/sdk/runtime/gpu/shaders.cpp"
+        },
+        {
+          "path": "sdk/runtime/gpu/shaders.h",
+          "git_blob": "f0d5d4bde5a4c74f87be2138df8b9bd73a138a43",
+          "sha256": "32a06b36c0ed5bc5cc3eff8e53a8d873f81db4dc178d9b85159cfd2087910452",
+          "bytes": 6239,
+          "url": "https://github.com/Shagg88/Athelas/blob/32e2ae97af97f457e5ab90fb4f765d326006c197/sdk/runtime/gpu/shaders.h"
+        },
+        {
+          "path": "sdk/LICENSE",
+          "git_blob": "f9e2426224a871c336005d4f58f1c5b2d491e7b0",
+          "sha256": "b61d0b216ea6b3a6be922ef85f6348568069fb3c5fc816d021ee66ec43de8157",
+          "bytes": 1063,
+          "url": "https://github.com/Shagg88/Athelas/blob/32e2ae97af97f457e5ab90fb4f765d326006c197/sdk/LICENSE"
+        },
+        {
+          "path": "sdk/runtime/gpu/d3d12.cpp",
+          "git_blob": "4bdfce27740c7e75f48b01690f62215e9826fa82",
+          "sha256": "58a4c7d41ef1f0641215f7e74d72dc961171af5e216edfdc4d407a3ba376182a",
+          "bytes": 271100,
+          "url": "https://github.com/Shagg88/Athelas/blob/32e2ae97af97f457e5ab90fb4f765d326006c197/sdk/runtime/gpu/d3d12.cpp"
+        }
+      ],
+      "source_binary_correspondence": "Unknown; no reproduced build or immutable companion-tree attestation"
+    },
+    "nvdemu": {
+      "repository": "NVDEMU/ApeEscapeRecomp-MacWindowsLinux",
+      "commit": "becea42d6eadefd04eb0c8ee5814f805d35809c2",
+      "files": [
+        {
+          "path": "tools/apply_recomp_ui_update_patch.py",
+          "git_blob": "3210c6366658d72fbba6ac239a29d13ba74ae28a",
+          "sha256": "8db2341325d6f146775ead394484b36bcadcb56f2ab1b205e1e1889ccb212251",
+          "bytes": 96990,
+          "url": "https://github.com/NVDEMU/ApeEscapeRecomp-MacWindowsLinux/blob/becea42d6eadefd04eb0c8ee5814f805d35809c2/tools/apply_recomp_ui_update_patch.py"
+        },
+        {
+          "path": "LICENSE",
+          "git_blob": "26234755f0029c53fca26dc8bc2f72fee32a5ff7",
+          "sha256": "af19eb5fc7ef0266a62a64dbacce334691d4251ecd68cc35a7c4d7c9dc0bb519",
+          "bytes": 3881,
+          "url": "https://github.com/NVDEMU/ApeEscapeRecomp-MacWindowsLinux/blob/becea42d6eadefd04eb0c8ee5814f805d35809c2/LICENSE"
+        },
+        {
+          "path": "README.md",
+          "git_blob": "ab45c8a94606e1f8ac1b8980afcae83bd5dcc4bb",
+          "sha256": "2f20e43fe0980776eddf60757814fdca2ef15b4a80f79b97b6d1d4e145e5d1f7",
+          "bytes": 13199,
+          "url": "https://github.com/NVDEMU/ApeEscapeRecomp-MacWindowsLinux/blob/becea42d6eadefd04eb0c8ee5814f805d35809c2/README.md"
+        },
+        {
+          "path": "DISC.md",
+          "git_blob": "931d442f9457493f517bdb9a94093e3708e1a281",
+          "sha256": "8a91fed2123655ab581629ede8510ea8ddbf380f5eef2ef3568e36dec31d44ae",
+          "bytes": 958,
+          "url": "https://github.com/NVDEMU/ApeEscapeRecomp-MacWindowsLinux/blob/becea42d6eadefd04eb0c8ee5814f805d35809c2/DISC.md"
+        },
+        {
+          "path": "game.toml",
+          "git_blob": "de10be783522326084207262a292f047e31b055d",
+          "sha256": "468c73d3c5e55ff7f954cd902a883253cb2792170b5b8a2feaebd4a7546eab25",
+          "bytes": 12886,
+          "url": "https://github.com/NVDEMU/ApeEscapeRecomp-MacWindowsLinux/blob/becea42d6eadefd04eb0c8ee5814f805d35809c2/game.toml"
+        },
+        {
+          "path": ".gitmodules",
+          "git_blob": "d3a3dd2509b71b3831ed18a1a1d68dcab87b92a7",
+          "sha256": "1695798dcd09d2cbc124c43b254608aa10e1001932a342b2eeae7005c450819b",
+          "bytes": 182,
+          "url": "https://github.com/NVDEMU/ApeEscapeRecomp-MacWindowsLinux/blob/becea42d6eadefd04eb0c8ee5814f805d35809c2/.gitmodules"
+        },
+        {
+          "path": "tools/in_app_updater.py",
+          "git_blob": "c473fb57ed0e3628a60d939bf0291692e0482a5f",
+          "sha256": "f252d95263e64b4f01adbd364f38e31e8aa86c55c64e78b6ac351b2240b6ae61",
+          "bytes": 34498,
+          "url": "https://github.com/NVDEMU/ApeEscapeRecomp-MacWindowsLinux/blob/becea42d6eadefd04eb0c8ee5814f805d35809c2/tools/in_app_updater.py"
+        }
+      ],
+      "source_binary_correspondence": "Unknown; no reproduced build or immutable companion-tree attestation"
+    },
+    "nvdemu-frontend": {
+      "repository": "mstan/recomp-ui",
+      "commit": "3f1d6f122a58823614abce14f5b86f4d165a629c",
+      "files": [
+        {
+          "path": "src/consoles/psx/psx_profile.h",
+          "git_blob": "c041fbbf336eab9a36bad12ba9b0612e249154d5",
+          "sha256": "bf29b7ec2c63ded1477643ba57be2622aba4023ac726059a878e4dca54b54ab0",
+          "bytes": 10017,
+          "url": "https://github.com/mstan/recomp-ui/blob/3f1d6f122a58823614abce14f5b86f4d165a629c/src/consoles/psx/psx_profile.h"
+        },
+        {
+          "path": "src/common/launcher_files.c",
+          "git_blob": "18d22decbd96640f5bcebc4cc8467e06e352079f",
+          "sha256": "14727d95734495d9ef27f0ddb89a1b571961f1f86c1cca4d080260e4ea0f20c0",
+          "bytes": 29109,
+          "url": "https://github.com/mstan/recomp-ui/blob/3f1d6f122a58823614abce14f5b86f4d165a629c/src/common/launcher_files.c"
+        },
+        {
+          "path": "src/recomp_launcher.h",
+          "git_blob": "1611349ada10d35a68d8dccc80705c0b8aed24c2",
+          "sha256": "153938845c2eaa829d7bc4f987f7da83d6c8ef97d5989a7c2c3f98fc7e62a957",
+          "bytes": 142096,
+          "url": "https://github.com/mstan/recomp-ui/blob/3f1d6f122a58823614abce14f5b86f4d165a629c/src/recomp_launcher.h"
+        }
+      ],
+      "source_binary_correspondence": "Unknown; no reproduced build or immutable companion-tree attestation"
+    },
+    "nvdemu-framework": {
+      "repository": "mstan/psxrecomp",
+      "commit": "ffbd9d1ca4ee698866a2a9d7c58c3cc29a77f111",
+      "files": [
+        {
+          "path": "runtime/src/main.cpp",
+          "git_blob": "4585d14d1d0d41cd08dfe19b2d6848b0329b7f83",
+          "sha256": "3df064b1e8014b697e3a2bb2739b695014ee18fe0d268254ca00730c6116cafa",
+          "bytes": 1085446,
+          "url": "https://github.com/mstan/psxrecomp/blob/ffbd9d1ca4ee698866a2a9d7c58c3cc29a77f111/runtime/src/main.cpp"
+        },
+        {
+          "path": "runtime/CMakeLists.txt",
+          "git_blob": "775e3075b0a881aeb3a83fc7b234e85bec9cfb0a",
+          "sha256": "a79e253be1c862211b8e43e182dcca121bbbba838f3978ab6492b12e06e50721",
+          "bytes": 136213,
+          "url": "https://github.com/mstan/psxrecomp/blob/ffbd9d1ca4ee698866a2a9d7c58c3cc29a77f111/runtime/CMakeLists.txt"
+        }
+      ],
+      "source_binary_correspondence": "Unknown; no reproduced build or immutable companion-tree attestation"
+    },
+    "gumpolas": {
+      "repository": "Gumpolas/TooTawersRecomp",
+      "commit": "ac711ffb8d6c896573a19750250e4ddfa725ae12",
+      "files": [
+        {
+          "path": "LICENSE-The128ReBits.txt",
+          "blob": "8ee492cd237312ff4ecad048105295f0d32ce8b1",
+          "sha256": "2cc6db0d3daea11790ee1278f2b238594c9d4cf933a900164af7e9911d817cef",
+          "url": "https://github.com/Gumpolas/TooTawersRecomp/blob/ac711ffb8d6c896573a19750250e4ddfa725ae12/LICENSE-The128ReBits.txt"
+        },
+        {
+          "path": "LICENSE.txt",
+          "blob": "d851f0848827380815c3261d2b9b36d7567049ca",
+          "sha256": "e4cc83688ac1a42179e97396e77b23fa88e654b1e8d52c65507315aa08b228e1",
+          "url": "https://github.com/Gumpolas/TooTawersRecomp/blob/ac711ffb8d6c896573a19750250e4ddfa725ae12/LICENSE.txt"
+        },
+        {
+          "path": "README.md",
+          "blob": "a788d76f03a1123acb081790aa7d9c85312a3f79",
+          "sha256": "051f3009f5fb131fb3f94cd5b7cfdb2f732deaa853118d10406ea95bb889e197",
+          "url": "https://github.com/Gumpolas/TooTawersRecomp/blob/ac711ffb8d6c896573a19750250e4ddfa725ae12/README.md"
+        },
+        {
+          "path": "twotowers/src/setup_launcher.cpp",
+          "blob": "5567f6b7024e6f16e95d8eac9b8a5e1dab5908eb",
+          "sha256": "77b6ce574480844474127421ec64179e37f685e05abcb064b27e9e7a8ee84e9a",
+          "url": "https://github.com/Gumpolas/TooTawersRecomp/blob/ac711ffb8d6c896573a19750250e4ddfa725ae12/twotowers/src/setup_launcher.cpp"
+        },
+        {
+          "path": "twotowers/src/main.c",
+          "blob": "2d1c3bed2e7016c813854007f537ed6cc0a81510",
+          "sha256": "9b6d68925fe6b9f142fca7580bc196007ad556c545e12299896df0716c13c078",
+          "url": "https://github.com/Gumpolas/TooTawersRecomp/blob/ac711ffb8d6c896573a19750250e4ddfa725ae12/twotowers/src/main.c"
+        },
+        {
+          "path": "CONTRIBUTION_NOTICES.md",
+          "blob": "7f94ba934c6e744dec28810873f8a33688a7a2a1",
+          "sha256": "b18c0035896330923801e381f15f004ec85e2d01e54fbb909e19df33ddef1e30",
+          "url": "https://github.com/Gumpolas/TooTawersRecomp/blob/ac711ffb8d6c896573a19750250e4ddfa725ae12/CONTRIBUTION_NOTICES.md"
+        },
+        {
+          "path": "twotowers/src/twotowers_host.h",
+          "blob": "0e8ba23eaa58f78895284711bd8121198c9e9e26",
+          "sha256": "5f284892848246549ebb3fa49f6f63362197a1f04ec199edee3130601408849a",
+          "url": "https://github.com/Gumpolas/TooTawersRecomp/blob/ac711ffb8d6c896573a19750250e4ddfa725ae12/twotowers/src/twotowers_host.h"
+        }
+      ],
+      "scope": "Hash-verified exact R39 source consumers, including native main, host settings and individual contribution notices; not a new whole-history census"
+    }
+  },
+  "rows": [
+    {
+      "issue": 1866,
+      "id": "dabdavis-perfect-dark-dabs-mod",
+      "cohort": "original-524",
+      "historical_1422_member": false,
+      "authored_path": "crates/portcove-core/catalog/ports/dabdavis-perfect-dark-dabs-mod.json",
+      "authored_sha256": "b0ce433462d6fb92d27935322b02a47e38e6b15f63b89ca0f38eb4cb9e669395",
+      "canonical_node_id": "I_kwDOUL3Bes8AAAABWqTRUQ",
+      "canonical_specification_sha256": "f28a5f8efaf7acb2cc3cb69b9ad99c6aec40cfe2c125f7a632f0de0e3564c2c5",
+      "canonical_stage_at_pickup": "Watchlist",
+      "route": {
+        "executable": "pd.x86_64.exe",
+        "cwd": "Complete creating package/launcher directory",
+        "normal_literal_argv": [],
+        "runtime_and_data_owner": "Player/upstream; registration owns reference and explicit selected-process Play only"
+      },
+      "asset_ref": "660965769",
+      "source_refs": ["dabs-mod"],
+      "individual_controls": ["inspected_player_adoption_1866_dabs_mod"],
+      "actual_delta_and_limits": "Normal default empty args; retain established basedir/savedir/portable/mod arguments and actual old/current save roots. Windows updater can spawn a successor; expanded setups/stat formats need compatible versions.",
+      "full_finite_outcome": "Conditionally eligible after whole-owner final review, exact-head CI, guarded delivery and exact canonical/Project readback. No current completion credit.",
+      "unchanged_authority": "Identity, strict integration absence, platforms, availability, artwork, acquisition restrictions and source lineage fields preserved; no Supported/managed/native promotion."
+    },
+    {
+      "issue": 1310,
+      "id": "star-wars-episode-iii-revenge-of-the-sith",
+      "cohort": "original-524",
+      "historical_1422_member": true,
+      "authored_path": "crates/portcove-core/catalog/ports/star-wars-episode-iii-revenge-of-the-sith.json",
+      "authored_sha256": "f6e80d72754519a26ef85097c729414ccb1acbc81d6e20f6a1da5abaae370369",
+      "canonical_node_id": "I_kwDOUL3Bes8AAAABUOphlQ",
+      "canonical_specification_sha256": "ac9f4b0fb382447403f0a6ade4b3e160f29e29a621f905f66657702773ac0e3f",
+      "canonical_stage_at_pickup": "Watchlist",
+      "route": {
+        "executable": "swrots.exe",
+        "cwd": "Complete creating package/launcher directory",
+        "normal_literal_argv": [],
+        "runtime_and_data_owner": "Player/upstream; registration owns reference and explicit selected-process Play only"
+      },
+      "asset_ref": "673550325",
+      "source_refs": ["swrots"],
+      "individual_controls": ["inspected_player_adoption_1310_swrots"],
+      "actual_delta_and_limits": "Complete matched PE32 swrots.exe/core.dll; own Xbox North-American original XBE MD5 contract is not whole-disc authentication. Ordinary reboot is in process; explicit/fallback successor remains outside registration.",
+      "full_finite_outcome": "Conditionally eligible after whole-owner final review, exact-head CI, guarded delivery and exact canonical/Project readback. No current completion credit.",
+      "unchanged_authority": "Identity, strict integration absence, platforms, availability, artwork, acquisition restrictions and source lineage fields preserved; no Supported/managed/native promotion."
+    },
+    {
+      "issue": 2798,
+      "id": "athelas-the-two-towers-xbox",
+      "cohort": "affected-312",
+      "historical_1422_member": false,
+      "authored_path": "crates/portcove-core/catalog/ports/athelas-the-two-towers-xbox.json",
+      "authored_sha256": "c123a6801484f8d7ad38078964c0afdd9051a3f6404fa3305f7875d8cbcd2ae1",
+      "canonical_node_id": "I_kwDOUL3Bes8AAAABZrnxwA",
+      "canonical_specification_sha256": "ab61eed9b32ab40e628a11a42bfbf09bc462bb9de8be283456a7c2f98c18b544",
+      "canonical_stage_at_pickup": "Watchlist",
+      "route": {
+        "executable": "Athelas.exe",
+        "cwd": "Complete creating package/launcher directory",
+        "normal_literal_argv": [],
+        "runtime_and_data_owner": "Player/upstream; registration owns reference and explicit selected-process Play only"
+      },
+      "asset_ref": "703931347",
+      "source_refs": ["athelas"],
+      "individual_controls": ["inspected_launcher_adoption_2798_two_towers"],
+      "actual_delta_and_limits": "Launcher supplies distinct TT-Xbox/TwoTowers.exe paths. Keep TT-Xbox and old ROTKFix/TwoTowers/hdd roots; no Gumpolas binary/profile/qualification inheritance.",
+      "full_finite_outcome": "Conditionally eligible after whole-owner final review, exact-head CI, guarded delivery and exact canonical/Project readback. No current completion credit.",
+      "unchanged_authority": "Identity, strict integration absence, platforms, availability, artwork, acquisition restrictions and source lineage fields preserved; no Supported/managed/native promotion."
+    },
+    {
+      "issue": 2799,
+      "id": "athelas-the-return-of-the-king-xbox",
+      "cohort": "affected-312",
+      "historical_1422_member": false,
+      "authored_path": "crates/portcove-core/catalog/ports/athelas-the-return-of-the-king-xbox.json",
+      "authored_sha256": "2832f5542fd4e5ec13e4cc438bcc17a2303cf717dcc1d1ad8d8420f0c8c54c5f",
+      "canonical_node_id": "I_kwDOUL3Bes8AAAABZroAiw",
+      "canonical_specification_sha256": "4843f7c47ec4b35961bbd2479eaa841484016dd9e30e4a498e0459d4dbf7fd77",
+      "canonical_stage_at_pickup": "Watchlist",
+      "route": {
+        "executable": "Athelas.exe",
+        "cwd": "Complete creating package/launcher directory",
+        "normal_literal_argv": [],
+        "runtime_and_data_owner": "Player/upstream; registration owns reference and explicit selected-process Play only"
+      },
+      "asset_ref": "703931347",
+      "source_refs": ["athelas"],
+      "individual_controls": ["inspected_launcher_adoption_2799_rotk_xbox"],
+      "actual_delta_and_limits": "Launcher supplies distinct ROTK-Xbox/ROTKXbox.exe paths. Preserve former PC ROTKFix.ini and settings-import marker, old/current Xbox data and all custom roots; no cross-game compatibility claim.",
+      "full_finite_outcome": "Conditionally eligible after whole-owner final review, exact-head CI, guarded delivery and exact canonical/Project readback. No current completion credit.",
+      "unchanged_authority": "Identity, strict integration absence, platforms, availability, artwork, acquisition restrictions and source lineage fields preserved; no Supported/managed/native promotion."
+    },
+    {
+      "issue": 2800,
+      "id": "athelas-the-fellowship-of-the-ring-xbox",
+      "cohort": "affected-312",
+      "historical_1422_member": false,
+      "authored_path": "crates/portcove-core/catalog/ports/athelas-the-fellowship-of-the-ring-xbox.json",
+      "authored_sha256": "351cee3802e607ced9c88e5cd72ffaa8c8ace10301dc06aabd0ce6bd433b691b",
+      "canonical_node_id": "I_kwDOUL3Bes8AAAABZroMhw",
+      "canonical_specification_sha256": "d90d09d862019f94a127e40e496a37ba6083666e22e14f19d4f69fc0daf4724a",
+      "canonical_stage_at_pickup": "Watchlist",
+      "route": {
+        "executable": "Athelas.exe",
+        "cwd": "Complete creating package/launcher directory",
+        "normal_literal_argv": [],
+        "runtime_and_data_owner": "Player/upstream; registration owns reference and explicit selected-process Play only"
+      },
+      "asset_ref": "703931347",
+      "source_refs": ["athelas"],
+      "individual_controls": ["inspected_launcher_adoption_2800_fellowship"],
+      "actual_delta_and_limits": "Launcher supplies distinct FOTR-Xbox/FOTRXbox.exe paths. Keep this title’s original, settings, cards/saves, mods/cache/log roots. First-version and optional gameplay limits remain scoped.",
+      "full_finite_outcome": "Conditionally eligible after whole-owner final review, exact-head CI, guarded delivery and exact canonical/Project readback. No current completion credit.",
+      "unchanged_authority": "Identity, strict integration absence, platforms, availability, artwork, acquisition restrictions and source lineage fields preserved; no Supported/managed/native promotion."
+    },
+    {
+      "issue": 2801,
+      "id": "athelas-return-of-the-king-pc-fix",
+      "cohort": "roadmap-22",
+      "historical_1422_member": false,
+      "authored_path": "crates/portcove-core/catalog/ports/athelas-return-of-the-king-pc-fix.json",
+      "authored_sha256": "1866a057a0965dd10f8e07624082a669238597ef621fb84f2c9fd4e69858a97e",
+      "canonical_node_id": "I_kwDOUL3Bes8AAAABZroakA",
+      "canonical_specification_sha256": "f6bc6110c6a694282c681c2a7b65b0ef452b72a667eb9e218bc250254170ea73",
+      "canonical_stage_at_pickup": "Watchlist",
+      "route": {
+        "executable": "Athelas.exe",
+        "cwd": "Complete creating package/launcher directory",
+        "normal_literal_argv": [],
+        "runtime_and_data_owner": "Player/upstream; registration owns reference and explicit selected-process Play only"
+      },
+      "asset_ref": "703931347",
+      "source_refs": ["athelas"],
+      "individual_controls": ["inspected_launcher_adoption_2801_pc_enhancement"],
+      "actual_delta_and_limits": "Already-working own US2003 PC game, separate enhancement DLLs and original protection. Preserve resource-named Documents profile, ROTK.ini/before-rotkfix, Input.ini/original and all original game/launcher/mod roots. Upstream install/remove can rewrite/restore settings.",
+      "full_finite_outcome": "Conditionally eligible after whole-owner final review, exact-head CI, guarded delivery and exact canonical/Project readback. No current completion credit.",
+      "unchanged_authority": "Identity, strict integration absence, platforms, availability, artwork, acquisition restrictions and source lineage fields preserved; no Supported/managed/native promotion."
+    },
+    {
+      "issue": 2806,
+      "id": "nvdemu-apeescaperecomp-macwindowslinux",
+      "cohort": "roadmap-22",
+      "historical_1422_member": false,
+      "authored_path": "crates/portcove-core/catalog/ports/nvdemu-apeescaperecomp-macwindowslinux.json",
+      "authored_sha256": "08124d97a6ab14b1508e5730913c7325ae12c0b46433facab8b2d0b5ac97b9df",
+      "canonical_node_id": "I_kwDOUL3Bes8AAAABZrpWAg",
+      "canonical_specification_sha256": "3d15774b646448676ad5acad36b0e2d5bd99f651098ab3dccb08f9baff82a1dc",
+      "canonical_stage_at_pickup": "Watchlist",
+      "route": {
+        "executable": "ApeEscapeRecomp.exe",
+        "cwd": "Complete creating package/launcher directory",
+        "normal_literal_argv": [],
+        "runtime_and_data_owner": "Player/upstream; registration owns reference and explicit selected-process Play only"
+      },
+      "asset_ref": "692543393",
+      "source_refs": ["nvdemu", "nvdemu-frontend", "nvdemu-framework"],
+      "individual_controls": [
+        "inspected_player_adoption_2806_nvdemu_fork",
+        "inspected_player_adoption_2806_custom_disc_config_and_card_paths"
+      ],
+      "actual_delta_and_limits": "Actual Windows package plus independently checksummed publisher source manifest; tag and declared build source remain distinct. Preserve game and NVDEMU preference/updater roots, overlays/mod state, disc/card/config/custom paths. Updater and regional/helper successors are not adopted; Linux/macOS handoffs retain their existing separate scope.",
+      "full_finite_outcome": "Conditionally eligible after whole-owner final review, exact-head CI, guarded delivery and exact canonical/Project readback. No current completion credit.",
+      "unchanged_authority": "Identity, strict integration absence, platforms, availability, artwork, acquisition restrictions and source lineage fields preserved; no Supported/managed/native promotion."
+    },
+    {
+      "issue": 2796,
+      "id": "gumpolas-tootawersrecomp",
+      "cohort": "affected-312",
+      "historical_1422_member": false,
+      "authored_path": "crates/portcove-core/catalog/ports/gumpolas-tootawersrecomp.json",
+      "authored_sha256": "7a201d171ba3a450c0e5f9b63c9551073026c59e7531425fd03617ce62277378",
+      "canonical_node_id": "I_kwDOUL3Bes8AAAABZrnieQ",
+      "canonical_specification_sha256": "f8fd50f61632c25fcd4115c5ac86b53de333c95db2fe72e0ff30ba284d8b6fc2",
+      "canonical_stage_at_pickup": "Watchlist",
+      "route": {
+        "executable": "twotowers_recomp.exe",
+        "cwd": "Complete creating package/launcher directory",
+        "normal_literal_argv": [],
+        "runtime_and_data_owner": "Player/upstream; registration owns reference and explicit selected-process Play only"
+      },
+      "asset_ref": "689377911",
+      "source_refs": ["gumpolas"],
+      "individual_controls": ["inspected_player_adoption_2796_gumpolas_two_towers"],
+      "actual_delta_and_limits": "Reuse actual R39 1.9.9 package/source evidence. Direct native player, separate setup UI, ini/.ini.old, game_files/saves and custom paths; independently maintained from Athelas TT with different framework attribution/config/replacement ownership, not no-common-ancestry or save compatibility.",
+      "full_finite_outcome": "Conditionally eligible after whole-owner final review, exact-head CI, guarded delivery and exact canonical/Project readback. No current completion credit.",
+      "unchanged_authority": "Identity, strict integration absence, platforms, availability, artwork, acquisition restrictions and source lineage fields preserved; no Supported/managed/native promotion."
+    }
+  ],
+  "two_towers_comparison": {
+    "observed_at": "2026-11-03T10:37:40.651518+00:00",
+    "same_title_platform": "The Lord of the Rings: The Two Towers, original Xbox USA; no PS2-edition assumption",
+    "athelas": {
+      "owner": 2798,
+      "repository": "Shagg88/Athelas",
+      "repository_id": 1422517871,
+      "source": "32e2ae97af97f457e5ab90fb4f765d326006c197",
+      "package": "Athelas1.8.0",
+      "component": "TT-Xbox/TwoTowers.exe",
+      "selected_entry": "Athelas.exe",
+      "framework_attribution": "TGP482/XboxXBE-Recomp; sdk/LICENSE MIT copyright2026TGP482",
+      "player_data": "Athelas.ini and TT-Xbox/settings.toml, saves, textures, shadercache and logs; launcher supplies per-title paths; old ROTKFix/TwoTowers migration"
+    },
+    "gumpolas": {
+      "owner": 2796,
+      "canonical_state_observed": "OPEN",
+      "repository": "Gumpolas/TooTawersRecomp",
+      "repository_id": 1408079933,
+      "source": "ac711ffb8d6c896573a19750250e4ddfa725ae12",
+      "package": "1.9.9 Windows; previously inspected exact bytes preserved",
+      "framework_attribution": "sp00nz/xboxrecomp with xemu-derived LGPL components; separately licensed The128ReBits contribution, not ownership of original port/game",
+      "selected_entry": "twotowers_recomp.exe",
+      "separate_setup_ui": "The Two Towers Recompiled.exe",
+      "player_data": "twotowers_recomp.ini, game_files/, saves/ and configured overrides; upstream .ini.old rewrite retained",
+      "record_sha256_at_comparison": "68f97390548344c696583f9d7e03b837b1daaffb6770f3f5582d6117176083cc"
+    },
+    "comparison": "The source, packaging, launcher/configuration contracts, toolkit attribution and release channels establish independently maintained runtime routes for the same Xbox title. This is not a claim of no shared historical code/game ancestry. Preserve both canonical identities; runtime/source/save/qualification and notices are not interchangeable. No new alias or migration authority.",
+    "remaining": "Final whole-owner/source review, per-owner controls, exact delivery/canonical readback; both owners remain open meanwhile."
+  },
+  "nvdemu_manifest": {
+    "schema_version": 1,
+    "repository": "NVDEMU/ApeEscapeRecomp-MacWindowsLinux",
+    "channel": "nightly",
+    "tag": "macos-nightly",
+    "version": "v1.0.0",
+    "commit": "becea42d6eadefd04eb0c8ee5814f805d35809c2",
+    "run_id": "41077121419",
+    "run_number": "332",
+    "built_at_utc": "2026-10-30T15:32:46.958418+00:00"
+  },
+  "athelas_seed_classification": {
+    "observed": "Three Xbox component shader/pipeline seed pairs in selected1.8.0 archive",
+    "source": "sdk/runtime/gpu/d3d12.cpp reader/recorder at exact source32e2ae97: entry/profile/generated-HLSL strings; pipeline keys separately",
+    "scope": "Not evidence of the specific original-Xbox-microcode condition on DPRecomp812. SDK/software/component notices do not grant original-game rights; no broad distribution/legal/source-binary claim. Independent early review found no concrete extra hold solely from captured-shader wording."
+  },
+  "held_reserve_observation": {
+    "issue": 2105,
+    "receipt": "https://github.com/boburning/portcove/issues/2105#issuecomment-6602173995",
+    "status": "Open/incomplete; game export/BUILDINFO correspondence and selected native installer/player acceptance remain unresolved",
+    "exports": [
+      {
+        "asset": {
+          "id": 665750688,
+          "name": "xboxrecomp-takedawn-0.2.1-source.tar.gz",
+          "size": 4564861,
+          "digest": "sha256:b036ca57132a01992a39671761caa3c3d7d1fa96251eb3582c1e2d74df928fa4",
+          "browser_download_url": "https://github.com/xenophobentx/takedawn/releases/download/v0.2.1/xboxrecomp-takedawn-0.2.1-source.tar.gz"
+        },
+        "physical_records": 1083,
+        "entries": 1082,
+        "decoded_bytes": 18718720,
+        "archive_commit_comment": "e04d11d957284db9a093e2d735ad035c40bf764f",
+        "expected_digest_matched": true,
+        "all_regular_bytes_hashed": true
+      },
+      {
+        "asset": {
+          "id": 665750469,
+          "name": "takedawn-0.2.1-source.tar.gz",
+          "size": 10741234,
+          "digest": "sha256:f891bfaae3c4ddccb1111136cd27dbf31356ff770a3a2d3716d6b4b691cc19d4",
+          "browser_download_url": "https://github.com/xenophobentx/takedawn/releases/download/v0.2.1/takedawn-0.2.1-source.tar.gz"
+        },
+        "physical_records": 488,
+        "entries": 487,
+        "decoded_bytes": 13639680,
+        "archive_commit_comment": "6fcb0534ca20a1e4a914af3235e5eba90d29e647",
+        "expected_digest_matched": true,
+        "all_regular_bytes_hashed": true
+      }
+    ],
+    "buildinfo_game": "daa1f33f3a",
+    "buildinfo_toolkit": "e04d11d957",
+    "no_installer_game_helper_or_private_original_execution": true
+  },
+  "selection": {
+    "routine_target": 40,
+    "routine_range": [30, 50],
+    "bounded_active_reserve": 71,
+    "closed_exclusions_not_reopened": 101,
+    "scope": "Lightweight retained-member/live-owner selection plus progressive per-title source/package work, not71 newly deep investigations or a global readiness census",
+    "below_target": "Checked reserve did not establish additional ready Windows outcomes without waiving existing rights, private/native, generated-player, original/source, useful-runtime or historical-evidence conditions; non-Windows-only handoffs are outside this delivery. Takedawn public exports were investigated once and its concrete discrepancy retained. No padding, partial-owner closure or quota delay."
+  },
+  "validation": {
+    "new_control_execution": "Pending final exact-head CI",
+    "authored_feedback": "Maintained checkedAuthoredPort and unchanged-authority checks apply per record; final generation/coherence required for combined diff",
+    "required_contexts": ["catalog", "dependency-review", "frontend", "rust", "rust-quality"],
+    "independent_review": "Early six-owner boundary conditional; final full source/whole-owner/target interaction review still required. Private source-export inspector separately reviewed and repaired, thirteen fixtures passed."
+  }
+}

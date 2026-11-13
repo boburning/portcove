@@ -35,9 +35,6 @@ on:
       plan_digest:
         description: Exact digest of the executed validation plan.
         value: ${{ jobs.classify.outputs.plan_digest }}
-      plan_json:
-        description: Exact executed validation plan.
-        value: ${{ jobs.classify.outputs.plan_json }}
       plan_gzip_base64:
         description: Bounded compressed transport of the exact executed plan.
         value: ${{ jobs.classify.outputs.plan_gzip_base64 }}
@@ -57,9 +54,14 @@ env:
   VP_GIT_HOOKS: "0"
   pnpm_config_store_dir: ${{ github.workspace }}/work/pnpm-store
 
+# Pull request runs get a group of their own so a replacement starts at once instead of
+# waiting for the superseded run's gate jobs to drain; ci-supersede.yml cancels the old run.
 concurrency:
-  group: ci-${{ inputs.force_qualification && format('qualification-{0}', github.ref) || github.event.pull_request.number || github.ref }}
-  cancel-in-progress: ${{ !inputs.force_qualification }}
+  group: ci-${{ inputs.force_qualification && format('qualification-{0}', github.ref) || github.event.pull_request.number && format('pr-{0}-{1}', github.event.pull_request.number, github.run_id) || github.ref }}
+  # A main run finishes even when the next merge lands: it is the only run that saves the
+  # shared Rust caches, and a cancelled one validates nothing. A later merge waits as the
+  # one pending run and replaces any older pending run.
+  cancel-in-progress: ${{ !inputs.force_qualification && github.event_name != 'push' }}
 
 jobs:
   classify:
@@ -92,20 +94,36 @@ jobs:
       release_profile: ${{ steps.plan.outputs.release_profile }}
       qualification_required: ${{ steps.plan.outputs.qualification_required }}
       plan_digest: ${{ steps.plan.outputs.plan_digest }}
-      plan_json: ${{ steps.plan.outputs.plan_json }}
       plan_gzip_base64: ${{ steps.plan.outputs.plan_gzip_base64 }}
       windows_helpers: ${{ steps.plan.outputs.windows_helpers }}
       native_tools: ${{ steps.plan.outputs.native_tools }}
       linux_diagnostics: ${{ steps.plan.outputs.linux_diagnostics }}
       frontend_tools: ${{ steps.plan.outputs.frontend_tools }}
       frontend_workspace: ${{ steps.plan.outputs.frontend_workspace }}
+      frontend_browser_shards: ${{ steps.plan.outputs.frontend_browser_shards }}
+      windows_tests_deferred: ${{ steps.plan.outputs.windows_tests_deferred }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+      - name: Stop when a newer head superseded this run
+        uses: ./.github/actions/stop-if-superseded
+        with:
+          pull-request: ${{ github.event.pull_request.number }}
+          head-sha: ${{ github.event.pull_request.head.sha }}
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version-file: .node-version
+      # Pull requests need the client for the live draft read; pushes for postmerge observation.
+      - name: Set up pinned packages for postmerge observation
+        if: github.event_name == 'push' || github.event_name == 'pull_request'
+        uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+        with:
+          package_json_file: package.json
+          run_install: false
+      - name: Install locked postmerge observation dependencies before credentials
+        if: github.event_name == 'push' || github.event_name == 'pull_request'
+        run: pnpm install --filter portcove-repository --frozen-lockfile --ignore-scripts
       - name: Select the fail-closed CI plan
         id: plan
         env:
@@ -120,6 +138,21 @@ jobs:
           PORTCOVE_QUALIFICATION_CALLER: ${{ inputs.qualification_caller || '' }}
           PORTCOVE_CALLER_WORKFLOW: ${{ inputs.caller_workflow || '' }}
         run: node scripts/select-ci-plan.mts
+      # A visible, machine-readable marker: ci-supersede.mts reads this step's conclusion to
+      # tell a deferred draft run from one that will run its partitions.
+      - name: Defer Windows test partitions for draft
+        if: steps.plan.outputs.windows_tests_deferred == 'true'
+        run: echo "Windows test partitions are deferred while this pull request is a draft."
+      - name: Retain the exact validation plan
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: validation-plan-${{ inputs.provenance_scope || 'ci' }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: work/ci-plan/validation-plan.json
+          retention-days: 7
+          if-no-files-found: error
+      - name: Report catalog changes that needed Rust edits (advisory)
+        if: github.event_name == 'pull_request'
+        run: node scripts/catalog-rust-edit-report.mts work/ci-plan/validation-plan.json
       - name: Report compared revisions and expected lanes
         env:
           PLAN_MODE: ${{ steps.plan.outputs.mode }}
@@ -204,11 +237,17 @@ jobs:
           node scripts/check-ci-prose.mts
 
   fast_rust:
-    timeout-minutes: 45
+    # With the optimized test profile a cold workspace build compiles for 33.8 to 35.5
+    # minutes (43352707453, 43352622836, 43359545707; 37.0 minute job) and a root-manifest
+    # edit forces one until main saves the cache. A runner 25% slower would pass 45.
+    # Warm builds take 13 to 22 minutes. Finite room only; no step or assertion changes.
+    timeout-minutes: 60
     name: fast-rust-build (windows-x86_64)
     needs: classify
     outputs:
       matrix: ${{ steps.archive.outputs.matrix }}
+      artifact_id: ${{ steps.upload.outputs.artifact-id }}
+      producer_attempt: ${{ steps.identity.outputs.attempt }}
       manifest_sha256: ${{ steps.archive.outputs.manifest_sha256 }}
     if: needs.classify.outputs.mode == 'fast' && contains(fromJSON(needs.classify.outputs.groups_json), 'rust')
     runs-on: windows-latest
@@ -217,6 +256,11 @@ jobs:
       PORTCOVE_PLAN_GZIP_BASE64: ${{ needs.classify.outputs.plan_gzip_base64 }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Stop when a newer head superseded this run
+        uses: ./.github/actions/stop-if-superseded
+        with:
+          pull-request: ${{ github.event.pull_request.number }}
+          head-sha: ${{ github.event.pull_request.head.sha }}
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version-file: .node-version
@@ -226,8 +270,17 @@ jobs:
       - id: workspace-cache
         uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
+          # The transport job restores this same Windows cache; only this
+          # superset workspace build saves it, and only from main.
+          # With a shared key the action ignores `key` and hashes only the dependency
+          # sections of manifests, so a profile change kept the old key: every build
+          # restored the stale cache, recompiled everything and, on an exact hit, never
+          # saved again (43361711247: full match, 36m build, "Cache up-to-date").
+          # Carry the whole root manifest in the shared key instead.
+          shared-key: fast-rust-windows-${{ hashFiles('Cargo.toml') }}
+          save-if: ${{ github.ref == 'refs/heads/main' }}
           cache-on-failure: true
-          key: fast-rust-tests-${{ hashFiles('Cargo.toml') }}
+          key: ${{ hashFiles('Cargo.toml') }}
       - name: Read pinned test runner
         id: test-runner
         shell: pwsh
@@ -237,7 +290,7 @@ jobs:
           if (-not $version) { throw "Missing cargo-nextest version" }
           "spec=cargo-nextest@$version" >> $env:GITHUB_OUTPUT
       - name: Install pinned test runner
-        uses: taiki-e/install-action@86f7a0ffb25f40114606501a311ebcfaf882ea32 # v2.88.0
+        uses: taiki-e/install-action@c509219cf42fba86913069efd0ade2458c59337b # v2.90.1
         with:
           tool: ${{ steps.test-runner.outputs.spec }}
       - name: Record workspace cache observation
@@ -252,7 +305,17 @@ jobs:
       - name: Compile workspace targets and archive balanced test partitions
         id: archive
         run: node scripts/run-rust-tests.mts --guard-command node scripts/windows-rust-tests.mts build
+      - name: Compile and test changed Playnite reference client
+        if: contains(needs.classify.outputs.files_json, '"integrations/playnite/') || fromJSON(needs.classify.outputs.files_json)[0] == null
+        shell: pwsh
+        run: ./integrations/playnite/check.ps1 -ContractsOnly
+      - name: Record Windows test archive producer attempt
+        id: identity
+        shell: pwsh
+        run: |
+          "attempt=$env:GITHUB_RUN_ATTEMPT" >> $env:GITHUB_OUTPUT
       - name: Upload this attempt's Windows test archive and manifest
+        id: upload
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: windows-rust-tests-${{ github.run_id }}-${{ github.run_attempt }}
@@ -261,7 +324,7 @@ jobs:
             work/windows-rust-tests/manifest.json
           compression-level: 0
           if-no-files-found: error
-          retention-days: 1
+          retention-days: 5
       - name: Summarize diagnostic timings
         if: always()
         continue-on-error: true
@@ -282,7 +345,8 @@ jobs:
     timeout-minutes: 45
     name: fast-rust-test (windows-x86_64, ${{ matrix.partition }})
     needs: [classify, fast_rust]
-    if: needs.classify.outputs.mode == 'fast' && contains(fromJSON(needs.classify.outputs.groups_json), 'rust')
+    # Draft pull requests defer the partitions; the required rust result then fails until ready.
+    if: needs.classify.outputs.mode == 'fast' && contains(fromJSON(needs.classify.outputs.groups_json), 'rust') && needs.classify.outputs.windows_tests_deferred != 'true'
     runs-on: windows-latest
     strategy:
       fail-fast: false
@@ -293,8 +357,14 @@ jobs:
       PORTCOVE_DIAGNOSTICS_EVIDENCE_DIR: ${{ github.workspace }}/work/runtime-diagnostics/windows
       PORTCOVE_PLAN_GZIP_BASE64: ${{ needs.classify.outputs.plan_gzip_base64 }}
       PORTCOVE_WINDOWS_MANIFEST_SHA256: ${{ needs.fast_rust.outputs.manifest_sha256 }}
+      PORTCOVE_WINDOWS_PRODUCER_ATTEMPT: ${{ needs.fast_rust.outputs.producer_attempt }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Stop when a newer head superseded this run
+        uses: ./.github/actions/stop-if-superseded
+        with:
+          pull-request: ${{ github.event.pull_request.number }}
+          head-sha: ${{ github.event.pull_request.head.sha }}
       - uses: ./.github/actions/setup-rust
         with:
           test-fixtures: true
@@ -307,13 +377,24 @@ jobs:
           if (-not $version) { throw "Missing cargo-nextest version" }
           "spec=cargo-nextest@$version" >> $env:GITHUB_OUTPUT
       - name: Install pinned test runner
-        uses: taiki-e/install-action@86f7a0ffb25f40114606501a311ebcfaf882ea32 # v2.88.0
+        uses: taiki-e/install-action@c509219cf42fba86913069efd0ade2458c59337b # v2.90.1
         with:
           tool: ${{ steps.test-runner.outputs.spec }}
-      - name: Download this attempt's Windows test archive and manifest
+      - name: Require and record Windows test archive provenance
+        shell: pwsh
+        env:
+          PORTCOVE_WINDOWS_ARTIFACT_ID: ${{ needs.fast_rust.outputs.artifact_id }}
+          PORTCOVE_WINDOWS_PRODUCER_ATTEMPT: ${{ needs.fast_rust.outputs.producer_attempt }}
+        run: |
+          if ($env:PORTCOVE_WINDOWS_ARTIFACT_ID -notmatch "^[1-9][0-9]*$" -or
+              $env:PORTCOVE_WINDOWS_PRODUCER_ATTEMPT -notmatch "^[1-9][0-9]*$") {
+            throw "Missing Windows test archive provenance. Rerun the Windows build producer and its dependent jobs."
+          }
+          Write-Host "Windows test archive $env:PORTCOVE_WINDOWS_ARTIFACT_ID from run $env:GITHUB_RUN_ID producer attempt $env:PORTCOVE_WINDOWS_PRODUCER_ATTEMPT, consumer attempt $env:GITHUB_RUN_ATTEMPT"
+      - name: Download the Windows build producer archive and manifest
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
-          name: windows-rust-tests-${{ github.run_id }}-${{ github.run_attempt }}
+          artifact-ids: ${{ needs.fast_rust.outputs.artifact_id }}
           path: work/windows-rust-tests
       - name: Record runtime diagnostics fixture source and compiler
         shell: pwsh
@@ -322,7 +403,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           $env:PORTCOVE_DIAGNOSTICS_SOURCE_REVISION = $revision.Trim()
           "PORTCOVE_DIAGNOSTICS_SOURCE_REVISION=$env:PORTCOVE_DIAGNOSTICS_SOURCE_REVISION" >> $env:GITHUB_ENV
-          node --input-type=module -e "import fs from 'node:fs'; import crypto from 'node:crypto'; const files = ['Cargo.toml', 'Cargo.lock', 'crates/portcove-diagnostics/Cargo.toml', 'crates/portcove-diagnostics/src/lib.rs', 'crates/portcove-diagnostics/src/sessions.rs', 'crates/portcove-diagnostics/src/sessions/tests.rs', 'crates/portcove-diagnostics/src/tests.rs', 'crates/portcove-diagnostics/src/writer.rs', 'crates/portcove-diagnostics/src/writer_tests.rs', 'crates/portcove-diagnostics/src/events.rs', 'crates/portcove-diagnostics/src/events_tests.rs', 'apps/desktop/src-tauri/src/diagnostics.rs', 'apps/desktop/src-tauri/src/host_startup.rs', 'apps/desktop/src-tauri/src/lib.rs', 'crates/portcove-cli/src/main.rs', 'crates/portcove-cli/src/startup.rs', 'crates/portcove-cli/tests/host_diagnostics.rs', 'crates/portcove-cli/tests/desktop_host_diagnostics.rs', 'crates/portcove-core/src/host_preferences.rs', 'crates/portcove-core/src/database.rs', 'crates/portcove-core/src/support_bundle_export.rs', 'crates/portcove-core/src/support_bundle_export_tests.rs', 'apps/desktop/src-tauri/src/frontend_diagnostics.rs', 'crates/portcove-core/src/runtime_diagnostics.rs', 'crates/portcove-core/src/operation.rs', 'crates/portcove-core/src/support_bundle.rs', 'crates/portcove-core/src/service.rs', 'crates/portcove-core/src/preparation_execution.rs', 'crates/portcove-core/src/tool_process.rs', 'crates/portcove-cli/tests/runtime_diagnostics.rs']; const hashes = Object.fromEntries(files.map(file => [file, crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex')])); fs.mkdirSync(process.env.PORTCOVE_DIAGNOSTICS_EVIDENCE_DIR, {recursive:true}); fs.writeFileSync(process.env.PORTCOVE_DIAGNOSTICS_EVIDENCE_DIR + '/source.json', JSON.stringify({format_version:1, source_revision:process.env.PORTCOVE_DIAGNOSTICS_SOURCE_REVISION, runner_os:process.env.RUNNER_OS, runner_arch:process.env.RUNNER_ARCH, run_id:process.env.GITHUB_RUN_ID, run_attempt:process.env.GITHUB_RUN_ATTEMPT, source_sha256:hashes}, null, 2) + '\n');"
+          node scripts/runtime-diagnostics-source.mts
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           rustc --version --verbose > "$env:PORTCOVE_DIAGNOSTICS_EVIDENCE_DIR/compiler.txt"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
@@ -347,6 +428,14 @@ jobs:
         shell: pwsh
         run: |
           node scripts/ci-metrics.mts summarize "$env:PORTCOVE_CI_METRICS_DIR" >> $env:GITHUB_STEP_SUMMARY
+      - name: Flag Rust tests near their harness timeout
+        if: always()
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          if (Test-Path target/nextest/hosted-windows/junit.xml) {
+            node scripts/rust-timing-hints.mts summary --timeout 120 target/nextest/hosted-windows/junit.xml
+          }
       - name: Retain diagnostic timings
         if: always()
         continue-on-error: true
@@ -368,14 +457,20 @@ jobs:
       PORTCOVE_PLAN_GZIP_BASE64: ${{ needs.classify.outputs.plan_gzip_base64 }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Stop when a newer head superseded this run
+        uses: ./.github/actions/stop-if-superseded
+        with:
+          pull-request: ${{ github.event.pull_request.number }}
+          head-sha: ${{ github.event.pull_request.head.sha }}
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version-file: .node-version
       - uses: ./.github/actions/setup-rust
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
-          cache-on-failure: true
-          key: fast-rust-transport-${{ hashFiles('Cargo.toml') }}
+          shared-key: fast-rust-windows-${{ hashFiles('Cargo.toml') }}
+          save-if: false
+          key: ${{ hashFiles('Cargo.toml') }}
       - name: Compare live CLI and headless and native Desktop serialization
         run: node scripts/run-rust-tests.mts --guard-command node scripts/check-transport-contract.mts
       - name: Summarize diagnostic timings
@@ -406,6 +501,13 @@ jobs:
       PORTCOVE_DIAGNOSTICS_EVIDENCE_DIR: ${{ github.workspace }}/work/runtime-diagnostics/linux
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Stop when a newer head superseded this run
+        uses: ./.github/actions/stop-if-superseded
+        with:
+          pull-request: ${{ github.event.pull_request.number }}
+          head-sha: ${{ github.event.pull_request.head.sha }}
       - uses: voidzero-dev/setup-vp@cab1ab9eaff52d4857875f4f2c016e36af8f2c76 # v1.22.0
         if: needs.classify.outputs.frontend_tools == 'true'
         with:
@@ -426,11 +528,15 @@ jobs:
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         if: contains(fromJSON(needs.classify.outputs.groups_json), 'rust')
         with:
+          save-if: ${{ github.ref == 'refs/heads/main' }}
           cache-on-failure: true
           key: runtime-diagnostics-linux-${{ hashFiles('Cargo.toml') }}
       - name: Check Rust formatting
         if: contains(fromJSON(needs.classify.outputs.groups_json), 'rust')
         run: cargo fmt --all -- --check
+      - name: Check Rust path portability
+        if: contains(fromJSON(needs.classify.outputs.groups_json), 'rust')
+        run: cargo run --locked -p portcove-rust-portability
       - name: Test Linux update process environment
         if: contains(fromJSON(needs.classify.outputs.groups_json), 'rust')
         run: |
@@ -455,7 +561,7 @@ jobs:
           "spec=cargo-nextest@$version" >> $env:GITHUB_OUTPUT
       - name: Install pinned Linux diagnostic test runner
         if: contains(fromJSON(needs.classify.outputs.groups_json), 'rust') && needs.classify.outputs.linux_diagnostics != 'false'
-        uses: taiki-e/install-action@86f7a0ffb25f40114606501a311ebcfaf882ea32 # v2.88.0
+        uses: taiki-e/install-action@c509219cf42fba86913069efd0ade2458c59337b # v2.90.1
         with:
           tool: ${{ steps.linux-diagnostic-test-runner.outputs.spec }}
       - name: Test typed runtime diagnostics and frontend admission on Linux
@@ -464,11 +570,11 @@ jobs:
         run: |
           PORTCOVE_DIAGNOSTICS_SOURCE_REVISION="$(node scripts/checked-git.mts rev-parse HEAD)"
           export PORTCOVE_DIAGNOSTICS_SOURCE_REVISION
-          node --input-type=module -e "import fs from 'node:fs'; import crypto from 'node:crypto'; const files = ['Cargo.toml', 'Cargo.lock', 'crates/portcove-diagnostics/Cargo.toml', 'crates/portcove-diagnostics/src/lib.rs', 'crates/portcove-diagnostics/src/sessions.rs', 'crates/portcove-diagnostics/src/sessions/tests.rs', 'crates/portcove-diagnostics/src/tests.rs', 'crates/portcove-diagnostics/src/writer.rs', 'crates/portcove-diagnostics/src/writer_tests.rs', 'crates/portcove-diagnostics/src/events.rs', 'crates/portcove-diagnostics/src/events_tests.rs', 'apps/desktop/src-tauri/src/diagnostics.rs', 'apps/desktop/src-tauri/src/host_startup.rs', 'apps/desktop/src-tauri/src/lib.rs', 'crates/portcove-cli/src/main.rs', 'crates/portcove-cli/src/startup.rs', 'crates/portcove-cli/tests/host_diagnostics.rs', 'crates/portcove-cli/tests/desktop_host_diagnostics.rs', 'crates/portcove-core/src/host_preferences.rs', 'crates/portcove-core/src/database.rs', 'crates/portcove-core/src/support_bundle_export.rs', 'crates/portcove-core/src/support_bundle_export_tests.rs', 'apps/desktop/src-tauri/src/frontend_diagnostics.rs', 'crates/portcove-core/src/runtime_diagnostics.rs', 'crates/portcove-core/src/operation.rs', 'crates/portcove-core/src/support_bundle.rs', 'crates/portcove-core/src/service.rs', 'crates/portcove-core/src/preparation_execution.rs', 'crates/portcove-core/src/tool_process.rs', 'crates/portcove-cli/tests/runtime_diagnostics.rs']; const hashes = Object.fromEntries(files.map(file => [file, crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex')])); fs.mkdirSync(process.env.PORTCOVE_DIAGNOSTICS_EVIDENCE_DIR, {recursive:true}); fs.writeFileSync(process.env.PORTCOVE_DIAGNOSTICS_EVIDENCE_DIR + '/source.json', JSON.stringify({format_version:1, source_revision:process.env.PORTCOVE_DIAGNOSTICS_SOURCE_REVISION, runner_os:process.env.RUNNER_OS, runner_arch:process.env.RUNNER_ARCH, run_id:process.env.GITHUB_RUN_ID, run_attempt:process.env.GITHUB_RUN_ATTEMPT, source_sha256:hashes}, null, 2) + '\n');"
+          node scripts/runtime-diagnostics-source.mts
           rustc --version --verbose > "$PORTCOVE_DIAGNOSTICS_EVIDENCE_DIR/compiler.txt"
-          node scripts/run-rust-tests.mts --locked -p portcove-diagnostics --test-threads=1 --success-output immediate --failure-output immediate 2>&1 | tee "$PORTCOVE_DIAGNOSTICS_EVIDENCE_DIR/shared-host-tests.txt"
-          node scripts/run-rust-tests.mts --locked -p portcove-cli --test runtime_diagnostics --test host_diagnostics --test desktop_host_diagnostics --test-threads=1 --success-output immediate --failure-output immediate 2>&1 | tee "$PORTCOVE_DIAGNOSTICS_EVIDENCE_DIR/runtime-tests.txt"
-          node scripts/run-rust-tests.mts --locked -p portcove-core -E 'test(support_bundle_export)' --test-threads=1 --success-output immediate --failure-output immediate 2>&1 | tee "$PORTCOVE_DIAGNOSTICS_EVIDENCE_DIR/support-export-tests.txt"
+          node scripts/run-rust-tests.mts --locked -p portcove-diagnostics --success-output immediate --failure-output immediate 2>&1 | tee "$PORTCOVE_DIAGNOSTICS_EVIDENCE_DIR/shared-host-tests.txt"
+          node scripts/run-rust-tests.mts --locked -p portcove-cli --test runtime_diagnostics --test host_diagnostics --test desktop_host_diagnostics --success-output immediate --failure-output immediate 2>&1 | tee "$PORTCOVE_DIAGNOSTICS_EVIDENCE_DIR/runtime-tests.txt"
+          node scripts/run-rust-tests.mts --locked -p portcove-core -E 'test(support_bundle_export)' --success-output immediate --failure-output immediate 2>&1 | tee "$PORTCOVE_DIAGNOSTICS_EVIDENCE_DIR/support-export-tests.txt"
       - name: Retain Linux runtime diagnostics acceptance evidence
         if: always() && contains(fromJSON(needs.classify.outputs.groups_json), 'rust') && needs.classify.outputs.linux_diagnostics != 'false'
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -480,11 +586,14 @@ jobs:
       - name: Read pinned script tool manager
         if: needs.classify.outputs.script_tools == 'true'
         id: aqua-version
-        run: echo "version=$(tr -d '\r\n' < .aqua-version)" >> "$GITHUB_OUTPUT"
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: bash scripts/bootstrap-ci-aqua-linux.sh
       - uses: aquaproj/aqua-installer@611554c6f0137ba41c8dd15aca8bee82504ea461 # v4.1.1
         if: needs.classify.outputs.script_tools == 'true'
         with:
           aqua_version: ${{ steps.aqua-version.outputs.version }}
+          skip_install_aqua: "true"
           enable_aqua_install: "false"
       - name: Lint affected repository inputs
         run: node scripts/ci-baseline.mts lint
@@ -520,12 +629,19 @@ jobs:
     env:
       PORTCOVE_CI_METRICS_DIR: ${{ github.workspace }}/work/ci-metrics
       PORTCOVE_PLAN_GZIP_BASE64: ${{ needs.classify.outputs.plan_gzip_base64 }}
+      # When true the sharded jobs below own the browser projects and this job runs the rest.
+      PORTCOVE_FRONTEND_BROWSER_SHARDED: ${{ needs.classify.outputs.frontend_browser_shards }}
       npm_config_audit: "false"
     defaults:
       run:
         working-directory: apps/desktop
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Stop when a newer head superseded this run
+        uses: ./.github/actions/stop-if-superseded
+        with:
+          pull-request: ${{ github.event.pull_request.number }}
+          head-sha: ${{ github.event.pull_request.head.sha }}
       - id: dependency-cache
         uses: voidzero-dev/setup-vp@cab1ab9eaff52d4857875f4f2c016e36af8f2c76 # v1.22.0
         with:
@@ -573,17 +689,83 @@ jobs:
           if-no-files-found: warn
           retention-days: 7
 
+  fast_frontend_browser:
+    timeout-minutes: 45
+    name: fast-frontend-browser (linux-x86_64, ${{ matrix.shard }}/${{ strategy.job-total }})
+    needs: classify
+    if: needs.classify.outputs.mode == 'fast' && contains(fromJSON(needs.classify.outputs.groups_json), 'frontend') && !contains(fromJSON(needs.classify.outputs.reused_groups), 'frontend') && needs.classify.outputs.frontend_browser_shards == 'true'
+    runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
+    env:
+      PORTCOVE_CI_METRICS_DIR: ${{ github.workspace }}/work/ci-metrics
+      PORTCOVE_PLAN_GZIP_BASE64: ${{ needs.classify.outputs.plan_gzip_base64 }}
+      # The shard count is the matrix length, so the shards always cover the whole suite.
+      PORTCOVE_BROWSER_SHARD: ${{ matrix.shard }}/${{ strategy.job-total }}
+      npm_config_audit: "false"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Stop when a newer head superseded this run
+        uses: ./.github/actions/stop-if-superseded
+        with:
+          pull-request: ${{ github.event.pull_request.number }}
+          head-sha: ${{ github.event.pull_request.head.sha }}
+      - uses: voidzero-dev/setup-vp@cab1ab9eaff52d4857875f4f2c016e36af8f2c76 # v1.22.0
+        with:
+          version-file: pnpm-workspace.yaml
+          node-version-file: .node-version
+          cache-toolchain: true
+          cache: true
+          run-install: |
+            args: [--frozen-lockfile]
+      - name: Provision the pinned browser for the browser shard
+        run: node scripts/browser-runtime.mts bootstrap
+        working-directory: apps/desktop
+      - name: Run this shard of the browser projects
+        run: node scripts/ci-baseline.mts frontend-browser
+      - name: Retain browser shard diagnostics
+        if: always()
+        uses: ./.github/actions/retain-browser-diagnostics
+        with:
+          name: browser-traces-fast-shard-${{ matrix.shard }}-${{ github.run_id }}-${{ github.run_attempt }}
+      - name: Summarize diagnostic timings
+        if: always()
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          node scripts/ci-metrics.mts summarize "$env:PORTCOVE_CI_METRICS_DIR" >> $env:GITHUB_STEP_SUMMARY
+      - name: Retain diagnostic timings
+        if: always()
+        continue-on-error: true
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ci-timings-${{ github.job }}-${{ matrix.shard }}-${{ github.run_attempt }}
+          path: work/ci-metrics/*.json
+          if-no-files-found: warn
+          retention-days: 7
+
   windows_helpers:
     name: windows-helper-contracts
     needs: classify
     if: needs.classify.outputs.windows_helpers == 'true'
     runs-on: windows-latest
-    timeout-minutes: 10
+    # 43296962076/a1 reached 10m in its last step with every step 15 to 25% slower than
+    # 43244889351 (8m19s) and passed its one re-run in 8m. Finite room for a slow
+    # runner; no step limit, assertion or cleanup changes.
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version-file: .node-version
+      - name: Provision pinned package manager for repository contracts
+        uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+        with:
+          package_json_file: package.json
+      - name: Install frozen root dependencies for repository contracts
+        run: pnpm install --filter portcove-repository --frozen-lockfile --ignore-scripts
       - uses: ./.github/actions/setup-rust
         if: needs.classify.outputs.native_tools == 'true'
       - name: Test affected native compiler and shell integrations
@@ -601,12 +783,6 @@ jobs:
         run: |
           # node-suite: windows-helpers-2
           node --test --test-concurrency=1 --test-timeout=30000 --test-reporter=./scripts/required-node-test-reporter.mts scripts/resource-capacity.test.mts scripts/resource-command.test.mts scripts/heavy-rust-test-lock.test.mts scripts/run-rust-tests.test.mts scripts/rust-test-tree-supervisor.test.mts scripts/native-confirmation.test.mts scripts/native-session.test.mts scripts/native-session-lock.test.mts scripts/native-helper-dependencies.test.mts scripts/frontend-command-preflight.test.mts scripts/desktop-verify.test.mts scripts/windows-helper-checks.test.mts scripts/windows-historical-bootstrap.test.mts
-      - name: Provision pinned package manager for repository contracts
-        uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
-        with:
-          package_json_file: package.json
-      - name: Install frozen root dependencies for repository contracts
-        run: pnpm install --filter portcove-repository --frozen-lockfile --ignore-scripts
       - name: Test inert fixed-account setup and capability contracts on Windows
         run: |
           # node-suite: windows-helpers-3
@@ -640,6 +816,11 @@ jobs:
       PORTCOVE_PLAN_GZIP_BASE64: ${{ needs.classify.outputs.plan_gzip_base64 }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Stop when a newer head superseded this run
+        uses: ./.github/actions/stop-if-superseded
+        with:
+          pull-request: ${{ github.event.pull_request.number }}
+          head-sha: ${{ github.event.pull_request.head.sha }}
       - id: dependency-cache
         uses: voidzero-dev/setup-vp@cab1ab9eaff52d4857875f4f2c016e36af8f2c76 # v1.22.0
         with:
@@ -717,6 +898,7 @@ jobs:
           test-fixtures: true
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
+          save-if: ${{ github.ref == 'refs/heads/main' }}
           cache-on-failure: true
           key: ${{ hashFiles('Cargo.toml') }}
       - name: Read pinned test runner
@@ -728,7 +910,7 @@ jobs:
           if (-not $version) { throw "Missing cargo-nextest version" }
           "spec=cargo-nextest@$version" >> $env:GITHUB_OUTPUT
       - name: Install pinned test runner
-        uses: taiki-e/install-action@86f7a0ffb25f40114606501a311ebcfaf882ea32 # v2.88.0
+        uses: taiki-e/install-action@c509219cf42fba86913069efd0ade2458c59337b # v2.90.1
         with:
           tool: ${{ steps.test-runner.outputs.spec }}
       - name: Compile Core and prove all original qualification phase selections
@@ -775,6 +957,7 @@ jobs:
           test-fixtures: true
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
+          save-if: ${{ github.ref == 'refs/heads/main' }}
           cache-on-failure: true
           key: ${{ hashFiles('Cargo.toml') }}
       - name: Read pinned test runner
@@ -786,7 +969,7 @@ jobs:
           if (-not $version) { throw "Missing cargo-nextest version" }
           "spec=cargo-nextest@$version" >> $env:GITHUB_OUTPUT
       - name: Install pinned test runner
-        uses: taiki-e/install-action@86f7a0ffb25f40114606501a311ebcfaf882ea32 # v2.88.0
+        uses: taiki-e/install-action@c509219cf42fba86913069efd0ade2458c59337b # v2.90.1
         with:
           tool: ${{ steps.test-runner.outputs.spec }}
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
@@ -820,6 +1003,7 @@ jobs:
           test-fixtures: true
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
+          save-if: ${{ github.ref == 'refs/heads/main' }}
           cache-on-failure: true
           key: ${{ hashFiles('Cargo.toml') }}
       - name: Read pinned test runner
@@ -831,7 +1015,7 @@ jobs:
           if (-not $version) { throw "Missing cargo-nextest version" }
           "spec=cargo-nextest@$version" >> $env:GITHUB_OUTPUT
       - name: Install pinned test runner
-        uses: taiki-e/install-action@86f7a0ffb25f40114606501a311ebcfaf882ea32 # v2.88.0
+        uses: taiki-e/install-action@c509219cf42fba86913069efd0ade2458c59337b # v2.90.1
         with:
           tool: ${{ steps.test-runner.outputs.spec }}
       - name: Test workspace-other with original scope and case outcomes
@@ -871,6 +1055,7 @@ jobs:
       - uses: ./.github/actions/setup-rust
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
+          save-if: ${{ github.ref == 'refs/heads/main' }}
           cache-on-failure: true
           key: ${{ hashFiles('Cargo.toml') }}
       - name: Check formatting
@@ -903,7 +1088,7 @@ jobs:
           # node-suite: windows-storage-2
           node --test --test-timeout=30000 --test-reporter=./scripts/required-node-test-reporter.mts scripts/windows-qualification-session.test.mts scripts/qualification-preparation.test.mts scripts/windows-historical-bootstrap.test.mts
       - name: Provision pinned package manager for repository contracts
-        uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+        uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
         with:
           package_json_file: package.json
       - name: Install frozen root dependencies for repository contracts
@@ -926,7 +1111,7 @@ jobs:
       - name: Test development diagnostics and evidence
         run: |
           # node-suite: windows-storage-4
-          node scripts/dev-storage.mts run -- node --test --test-concurrency=1 --test-timeout=30000 --test-reporter=./scripts/required-node-test-reporter.mts scripts/desktop-scenarios.test.mts scripts/native-compatibility.test.mts scripts/desktop-execution-plan.test.mts scripts/native-qualification-inventory.test.mts scripts/desktop-staged-layout.test.mts scripts/desktop-execution-baseline.test.mts scripts/desktop-real-runtime.test.mts scripts/desktop-linux-native-session.test.mts scripts/desktop-linux-stop.test.mts scripts/desktop-listener-probe.test.mts scripts/desktop-verify.test.mts scripts/dev-doctor.test.mts scripts/development-capabilities.test.mts scripts/development-cli-help.test.mts scripts/development-evidence.test.mts scripts/retained-package.test.mts scripts/capture-target.test.mts scripts/handoff-evidence.test.mts scripts/native-confirmation.test.mts scripts/native-helper-dependencies.test.mts scripts/frontend-command-preflight.test.mts scripts/windows-helper-checks.test.mts scripts/heavy-rust-test-lock.test.mts scripts/local-validation.test.mts scripts/validation-evidence.test.mts scripts/native-session-lock.test.mts scripts/native-session.test.mts scripts/run-rust-tests.test.mts scripts/rust-support-cache.test.mts scripts/rust-test-impact.test.mts scripts/rust-test-tree-supervisor.test.mts scripts/tool-cache.test.mts scripts/resource-capacity.test.mts scripts/resource-command.test.mts scripts/ci-windows-helpers.test.mts
+          node scripts/dev-storage.mts run -- node --test --test-concurrency=1 --test-timeout=30000 --test-reporter=./scripts/required-node-test-reporter.mts scripts/desktop-scenarios.test.mts scripts/native-compatibility.test.mts scripts/desktop-runtime-exit-observation.test.mts scripts/desktop-game-first-installed-inputs.test.mts scripts/desktop-execution-plan.test.mts scripts/native-qualification-inventory.test.mts scripts/desktop-staged-layout.test.mts scripts/desktop-execution-baseline.test.mts scripts/desktop-real-runtime.test.mts scripts/desktop-source-reuse.test.mts scripts/desktop-linux-native-session.test.mts scripts/desktop-linux-stop.test.mts scripts/desktop-listener-probe.test.mts scripts/desktop-verify.test.mts scripts/dev-doctor.test.mts scripts/development-capabilities.test.mts scripts/development-cli-help.test.mts scripts/development-evidence.test.mts scripts/retained-package.test.mts scripts/capture-target.test.mts scripts/handoff-evidence.test.mts scripts/native-confirmation.test.mts scripts/native-helper-dependencies.test.mts scripts/frontend-command-preflight.test.mts scripts/windows-helper-checks.test.mts scripts/heavy-rust-test-lock.test.mts scripts/local-validation.test.mts scripts/validation-evidence.test.mts scripts/native-session-lock.test.mts scripts/native-session.test.mts scripts/run-rust-tests.test.mts scripts/rust-support-cache.test.mts scripts/rust-test-impact.test.mts scripts/rust-test-tree-supervisor.test.mts scripts/tool-cache.test.mts scripts/resource-capacity.test.mts scripts/resource-command.test.mts scripts/ci-windows-helpers.test.mts
       - name: Lint PowerShell scripts
         shell: pwsh
         run: |
@@ -945,7 +1130,7 @@ jobs:
     timeout-minutes: 120
     name: native-rust (${{ matrix.platform }}, ${{ matrix.partition }})
     needs: classify
-    if: needs.classify.outputs.mode == 'qualification'
+    if: needs.classify.outputs.mode == 'qualification' && (contains(fromJSON(needs.classify.outputs.platforms_json), 'linux-x86_64') || contains(fromJSON(needs.classify.outputs.platforms_json), 'macos-aarch64'))
     runs-on: ${{ matrix.runner }}
     env:
       PORTCOVE_HEAD_SHA: ${{ needs.classify.outputs.head }}
@@ -960,6 +1145,7 @@ jobs:
           test-fixtures: true
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
+          save-if: ${{ github.ref == 'refs/heads/main' }}
           cache-on-failure: true
           key: ${{ hashFiles('Cargo.toml') }}
       - name: Read pinned test runner
@@ -971,7 +1157,7 @@ jobs:
           if (-not $version) { throw "Missing cargo-nextest version" }
           "spec=cargo-nextest@$version" >> $env:GITHUB_OUTPUT
       - name: Install pinned test runner
-        uses: taiki-e/install-action@86f7a0ffb25f40114606501a311ebcfaf882ea32 # v2.88.0
+        uses: taiki-e/install-action@c509219cf42fba86913069efd0ade2458c59337b # v2.90.1
         with:
           tool: ${{ steps.test-runner.outputs.spec }}
       - name: Use the runner-owned temporary directory
@@ -1003,6 +1189,7 @@ jobs:
           targets: x86_64-apple-darwin
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
+          save-if: ${{ github.ref == 'refs/heads/main' }}
           cache-on-failure: true
           key: ${{ hashFiles('Cargo.toml') }}
       - name: Read pinned test runner
@@ -1014,7 +1201,7 @@ jobs:
           if (-not $version) { throw "Missing cargo-nextest version" }
           "spec=cargo-nextest@$version" >> $env:GITHUB_OUTPUT
       - name: Install pinned test runner
-        uses: taiki-e/install-action@86f7a0ffb25f40114606501a311ebcfaf882ea32 # v2.88.0
+        uses: taiki-e/install-action@c509219cf42fba86913069efd0ade2458c59337b # v2.90.1
         with:
           tool: ${{ steps.test-runner.outputs.spec }}
       - name: Cross-compile the full Intel test workspace
@@ -1054,7 +1241,7 @@ jobs:
           if (-not $version) { throw "Missing cargo-nextest version" }
           "spec=cargo-nextest@$version" >> $env:GITHUB_OUTPUT
       - name: Install pinned test runner
-        uses: taiki-e/install-action@86f7a0ffb25f40114606501a311ebcfaf882ea32 # v2.88.0
+        uses: taiki-e/install-action@c509219cf42fba86913069efd0ade2458c59337b # v2.90.1
         with:
           tool: ${{ steps.test-runner.outputs.spec }}
       - name: Download this attempt's Intel test binaries
@@ -1094,6 +1281,7 @@ jobs:
       - uses: ./.github/actions/setup-rust
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
+          save-if: ${{ github.ref == 'refs/heads/main' }}
           cache-on-failure: true
           key: ${{ hashFiles('Cargo.toml') }}
       - name: Install Linux desktop prerequisites
@@ -1144,6 +1332,7 @@ jobs:
           PORTCOVE_CLASSIFIER_RESULT: ${{ needs.classify.result }}
           PORTCOVE_PLAN_GZIP_BASE64: ${{ needs.classify.outputs.plan_gzip_base64 }}
           PORTCOVE_GROUP: rust
+          PORTCOVE_WINDOWS_TESTS_DEFERRED: ${{ needs.classify.outputs.windows_tests_deferred }}
           PORTCOVE_PROSE_RESULT: ${{ needs.prose_checks.result }}
           PORTCOVE_FAST_RESULTS: '{"fast_rust":"${{ needs.fast_rust.result }}","fast_rust_tests":"${{ needs.fast_rust_tests.result }}","fast_rust_transport":"${{ needs.fast_rust_transport.result }}"}'
           PORTCOVE_TARGETED_RESULTS: "{}"
@@ -1161,6 +1350,8 @@ jobs:
       AQUA_ENFORCE_REQUIRE_CHECKSUM: "true"
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - name: Read quality tool pins
         id: quality-pins
         run: node scripts/quality-tools.mts --github-output >> "$GITHUB_OUTPUT"
@@ -1169,17 +1360,11 @@ jobs:
           test-fixtures: true
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
+          save-if: ${{ github.ref == 'refs/heads/main' }}
           cache-on-failure: true
           key: ${{ hashFiles('Cargo.toml') }}
-      - name: Restore pinned rscheck binaries
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: |
-            ~/.cargo/bin/cargo-rscheck
-            ~/.cargo/bin/rscheck
-          key: quality-rscheck-binaries-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('.github/quality-tools.json') }}
       - name: Install pinned prebuilt Rust quality tools
-        uses: taiki-e/install-action@86f7a0ffb25f40114606501a311ebcfaf882ea32 # v2.88.0
+        uses: taiki-e/install-action@c509219cf42fba86913069efd0ade2458c59337b # v2.90.1
         with:
           tool: ${{ steps.quality-pins.outputs.required_prebuilt }}
       - name: Read pinned aqua version
@@ -1191,20 +1376,6 @@ jobs:
         with:
           aqua_version: ${{ steps.aqua-version.outputs.version }}
           enable_aqua_install: "false"
-      - name: Check cached pinned rscheck version
-        id: rscheck-tool
-        shell: bash
-        run: |
-          if node scripts/quality-tools.mts --verify rscheck-cli; then
-            echo "ready=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "ready=false" >> "$GITHUB_OUTPUT"
-          fi
-      - name: Install pinned rscheck
-        if: steps.rscheck-tool.outputs.ready != 'true'
-        uses: taiki-e/install-action@86f7a0ffb25f40114606501a311ebcfaf882ea32 # v2.88.0
-        with:
-          tool: ${{ steps.quality-pins.outputs.rscheck_spec }}
       - name: Verify exact Rust quality-tool versions
         run: ./scripts/bootstrap-quality-tools.sh
       - name: Lint repository scripts and workflows
@@ -1232,6 +1403,10 @@ jobs:
           # node-suite: rust-quality-full
           node --test --test-timeout=30000 --test-reporter=./scripts/required-node-test-reporter.mts scripts/check-rust-architecture.test.mts
       - run: node scripts/check-rust-architecture.mts
+      - name: Check Rust path portability and regressions
+        run: |
+          cargo test --locked -p portcove-rust-portability
+          cargo run --locked -p portcove-rust-portability
       - name: Install Linux desktop schema-export prerequisites
         timeout-minutes: 30
         run: ./scripts/install-linux-desktop-prerequisites.sh --prefer-archive-mirror --install-timeout-seconds=600
@@ -1243,10 +1418,6 @@ jobs:
           node scripts/check-transport-contract.mts
           # node-suite: rust-quality-full-2
           node --test --test-reporter=./scripts/required-node-test-reporter.mts scripts/check-transport-contract.integration.test.mts
-      - run: |
-          # node-suite: rust-quality-full-3
-          node --test --test-timeout=30000 --test-reporter=./scripts/required-node-test-reporter.mts scripts/run-rscheck.test.mts
-      - run: node scripts/run-rscheck.mts
 
   rust-quality:
     timeout-minutes: 15
@@ -1311,7 +1482,7 @@ jobs:
         working-directory: .
         run: echo "just=just@$(node scripts/quality-tools.mts --version just)" >> "$GITHUB_OUTPUT"
       - name: Install pinned recipe runner
-        uses: taiki-e/install-action@86f7a0ffb25f40114606501a311ebcfaf882ea32 # v2.88.0
+        uses: taiki-e/install-action@c509219cf42fba86913069efd0ade2458c59337b # v2.90.1
         with:
           tool: ${{ steps.quality-pins.outputs.just }}
       - name: Verify staged checks and hook installation
@@ -1336,7 +1507,7 @@ jobs:
         run: |
           /usr/bin/unshare --user --map-current-user --mount --pid --fork --mount-proc /usr/bin/true
           # node-suite: frontend-full-4
-          node --test --test-timeout=30000 --test-reporter=./scripts/required-node-test-reporter.mts scripts/desktop-scenarios.test.mts scripts/native-compatibility.test.mts scripts/desktop-execution-plan.test.mts scripts/native-qualification-inventory.test.mts scripts/desktop-staged-layout.test.mts scripts/desktop-execution-baseline.test.mts scripts/desktop-real-runtime.test.mts scripts/desktop-linux-native-session.test.mts scripts/desktop-linux-stop.test.mts scripts/desktop-listener-probe.test.mts scripts/desktop-verify.test.mts scripts/development-evidence.test.mts scripts/retained-package.test.mts scripts/capture-target.test.mts scripts/handoff-evidence.test.mts scripts/native-session-lock.test.mts
+          node --test --test-timeout=30000 --test-reporter=./scripts/required-node-test-reporter.mts scripts/desktop-scenarios.test.mts scripts/native-compatibility.test.mts scripts/desktop-runtime-exit-observation.test.mts scripts/desktop-game-first-installed-inputs.test.mts scripts/desktop-execution-plan.test.mts scripts/native-qualification-inventory.test.mts scripts/desktop-staged-layout.test.mts scripts/desktop-execution-baseline.test.mts scripts/desktop-real-runtime.test.mts scripts/desktop-source-reuse.test.mts scripts/desktop-linux-native-session.test.mts scripts/desktop-linux-stop.test.mts scripts/desktop-listener-probe.test.mts scripts/desktop-verify.test.mts scripts/development-evidence.test.mts scripts/retained-package.test.mts scripts/capture-target.test.mts scripts/handoff-evidence.test.mts scripts/native-session-lock.test.mts
           node apps/desktop/scripts/desktop-preparation-test.mts --context-preflight
         working-directory: .
       - name: Test the maintained POSIX tooling route
@@ -1379,7 +1550,7 @@ jobs:
   frontend:
     timeout-minutes: 15
     if: always()
-    needs: [classify, prose_checks, fast_frontend, frontend_full]
+    needs: [classify, prose_checks, fast_frontend, fast_frontend_browser, frontend_full]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -1391,7 +1562,8 @@ jobs:
           PORTCOVE_GROUP: frontend
           PORTCOVE_PROSE_RESULT: ${{ needs.prose_checks.result }}
           PORTCOVE_FAST_RESULTS: '{"fast_frontend":"${{ needs.fast_frontend.result }}"}'
-          PORTCOVE_TARGETED_RESULTS: "{}"
+          PORTCOVE_FRONTEND_BROWSER_SHARDED: ${{ needs.classify.outputs.frontend_browser_shards }}
+          PORTCOVE_TARGETED_RESULTS: '{"fast_frontend_browser":"${{ needs.fast_frontend_browser.result }}"}'
           PORTCOVE_QUALIFICATION_RESULTS: '{"frontend_full":"${{ needs.frontend_full.result }}"}'
         run: node scripts/ci-result-gate.mts
 
@@ -1406,7 +1578,7 @@ jobs:
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version-file: .node-version
-      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
         with:
           package_json_file: package.json
       - run: pnpm install --frozen-lockfile --ignore-scripts
@@ -1427,9 +1599,9 @@ jobs:
       - name: Verify repository and release contracts
         run: |
           # node-suite: catalog-full
-          node --test --test-timeout=30000 --test-reporter=./scripts/required-node-test-reporter.mts scripts/upstream-observer.test.mts scripts/upstream-health-providers.test.mts scripts/upstream-health-planning.test.mts scripts/upstream-health-accounting.test.mts scripts/upstream-health-source-archives.test.mts scripts/upstream-health.test.mts scripts/upstream-health-plan.test.mts scripts/upstream-health-monitor.test.mts scripts/upstream-health-triage.test.mts scripts/discovery-checkpoint.test.mts scripts/daily-discovery-quiver.test.mts scripts/discovery-intake.test.mts scripts/roadmap-inventory.test.mts scripts/repository-issue-inventory.test.mts scripts/roadmap-rest-intake.test.mts scripts/daily-discovery.test.mts scripts/discovery-leads.test.mts scripts/discovery-ecosystems.test.mts scripts/discovery-reconciliation.test.mts scripts/catalog-upstream-observer.test.mts scripts/provider-release-observation.test.mts scripts/discovery-primary-progress.test.mts
+          node --test --test-timeout=30000 --test-reporter=./scripts/required-node-test-reporter.mts scripts/upstream-observer.test.mts scripts/upstream-health-providers.test.mts scripts/upstream-health-planning.test.mts scripts/upstream-health-accounting.test.mts scripts/upstream-health-source-archives.test.mts scripts/upstream-health.test.mts scripts/upstream-health-plan.test.mts scripts/upstream-health-monitor.test.mts scripts/upstream-health-triage.test.mts scripts/discovery-checkpoint.test.mts scripts/daily-discovery-quiver.test.mts scripts/discovery-intake.test.mts scripts/roadmap-inventory.test.mts scripts/repository-issue-inventory.test.mts scripts/roadmap-rest-intake.test.mts scripts/daily-discovery.test.mts scripts/discovery-leads.test.mts scripts/discovery-ecosystems.test.mts scripts/discovery-reconciliation.test.mts scripts/catalog-upstream-observer.test.mts scripts/provider-release-observation.test.mts scripts/observer-checkpoint-artifact.test.mts scripts/discovery-primary-progress.test.mts scripts/discovery-github.test.mts scripts/maintenance-store.test.mts scripts/maintenance-inventory.test.mts scripts/maintenance-release-health.test.mts scripts/maintenance-upstream.test.mts scripts/maintenance-hosted-intake.test.mts scripts/maintenance-handoffs.test.mts scripts/maintenance-universe.test.mts scripts/release-content-scan.test.mts scripts/release-content-signals.test.mts
           # node-suite: catalog-full-2
-          node --test --experimental-test-module-mocks --test-timeout=60000 --test-reporter=./scripts/required-node-test-reporter.mts scripts/validation-evidence.test.mts scripts/container-browser.test.mts scripts/container-build.test.mts scripts/container-recovery.test.mts scripts/checked-git.test.mts scripts/resource-status.test.mts scripts/resource-capacity.test.mts scripts/report-summary.test.mts scripts/ci-metrics.test.mts scripts/checkout-context.test.mts scripts/github-body.test.mts scripts/audit.test.mts scripts/audit-evidence.test.mts scripts/audit-archive.test.mts scripts/audit-reuse.test.mts scripts/check-release-metadata.test.mts scripts/desktop-build-cache.test.mts scripts/heavy-rust-test-lock.test.mts scripts/release-package-policy.test.mts scripts/release-public-build-inputs.test.mts scripts/release-public-build-provenance.test.mts scripts/release-live-control-admission.test.mts scripts/release-control-handshake.test.mts scripts/write-release-checksums.test.mts scripts/hosted-native-continuity.test.mts scripts/updater-artifact-inventory.test.mts scripts/updater-historical-inputs.test.mts scripts/installed-game-data-fixture.test.mts scripts/windows-installed-game-data.test.mts scripts/release-payload-signing.test.mts scripts/release-payload-preparation.test.mts scripts/release-signing-handoff.test.mts scripts/reconcile-release-assets.test.mts scripts/trusted-release-assembly.test.mts scripts/release-artifact-archive.test.mts scripts/finalize-release-assets.test.mts scripts/generate-release-downloads.test.mts scripts/release-workflow.test.mts scripts/sign-catalog.test.mts scripts/release-result-gate.test.mts scripts/linux-beta-risk-706.test.mts scripts/linux-beta-risk-706-controller.test.mts scripts/dependency-security.test.mts scripts/lock-maintenance-policy.test.mts scripts/desktop-input-observation.test.mts scripts/run-rust-tests.test.mts scripts/rust-support-cache.test.mts scripts/rust-test-tree-supervisor.test.mts scripts/ci-workflow.test.mts scripts/ci-frontend-workflow.test.mts scripts/ci-release-workflow.test.mts scripts/ci-native-workflow.test.mts scripts/native-backup-evidence.test.mts scripts/ci-rust-workflow.test.mts scripts/rust-toolchain-reader.test.mts scripts/windows-rust-tests.test.mts scripts/rust-coverage.test.mts scripts/check-catalog-repositories.test.mts scripts/check-retcomm-upstreams.test.mts scripts/deep-audit-summary.test.mts scripts/node-test-inventory.test.mts scripts/ci-health.test.mts scripts/workflow-provenance.test.mts scripts/check-document-links.test.mts scripts/nextest-equivalence.test.mts scripts/ordinary-git-routing.test.mts scripts/package-ownership-selection.test.mts scripts/postmerge-ci.test.mts scripts/validation-plan.test.mts scripts/select-ci-plan.test.mts scripts/ci-result-gate.test.mts scripts/ci-baseline.test.mts scripts/ci-baseline-execution.test.mts scripts/rust-test-impact.test.mts scripts/qualification-coverage.test.mts scripts/required-node-test-reporter.test.mts scripts/nextest-outcomes.test.mts scripts/qualification-nextest.test.mts scripts/qualification-rustdoc.test.mts scripts/test-duration-reporter.test.mts scripts/python-test-results.test.mts scripts/ui-test-selection.test.mts scripts/quality-tools.test.mts scripts/dependency-automation.test.mts scripts/pnpm-lock-inventory.test.mts scripts/frontend-build-compare.test.mts scripts/renovate-engine-probe.test.mts scripts/repository-settings.test.mts scripts/repository-skills.test.mts scripts/pr-conventions.test.mts scripts/pr-delivery.test.mts scripts/pr-delivery-snapshot.test.mts scripts/renovate-fast-lane.test.mts scripts/github-api.test.mts scripts/cleanup-intel-artifacts.test.mts scripts/process-lock.test.mts scripts/source-provenance-audit.test.mts scripts/check-child-process-policy.test.mts scripts/check-transport-contract.test.mts scripts/check-fallow-report.test.mts scripts/run-fallow.test.mts scripts/fallow-summary.test.mts scripts/fallow-scope.test.mts scripts/fallow-source.test.mts scripts/generate-catalog.test.mts scripts/catalog-source-authoring.test.mts scripts/catalog-proposal-comparison.test.mts scripts/catalog-artwork-dispatch.test.mts scripts/catalog-artwork-batches.test.mts scripts/catalog-artwork-provider.test.mts scripts/catalog-artwork-lifecycle.test.mts scripts/catalog-artwork-backoff.test.mts scripts/upstream-lineage.test.mts scripts/prepare-port.test.mts scripts/maintainer-config.test.mts scripts/catalog-staged-check.test.mts scripts/catalog-proposal-costs.test.mts scripts/migrate-catalog-schema2.test.mts scripts/roadmap.test.mts scripts/roadmap-execution.test.mts scripts/roadmap-intake.test.mts scripts/roadmap-views.test.mts scripts/roadmap-readiness.test.mts scripts/roadmap-mutations.test.mts scripts/roadmap-qualification.test.mts scripts/roadmap-provider-inventory.test.mts scripts/hosted-discovery-intake.test.mts scripts/hosted-discovery-intake-runner.test.mts scripts/roadmap-scoped.test.mts scripts/roadmap-authoring.test.mts scripts/roadmap-report.test.mts scripts/roadmap-publish.test.mts scripts/roadmap-membership-readback.test.mts scripts/release-handshake-hosted-fixture.test.mts scripts/release-candidate-qualification.test.mts scripts/release-immutable-publication.test.mts scripts/release-acceptance-evidence.test.mts scripts/release-compiler-capture.test.mts scripts/release-native-observation.test.mts scripts/release-controller-tools.test.mts scripts/release-role-key-channel.test.mts scripts/release-compiler-outputs.test.mts scripts/release-compiler-source.test.mts scripts/release-compiler-source-admission.test.mts scripts/release-compiler-evidence.test.mts scripts/release-source-attestation.test.mts scripts/release-native-qualification-contract.test.mts scripts/native-qualification-account.test.mts scripts/native-qualification-account-client.test.mts scripts/native-qualification-account-adapter.test.mts scripts/desktop-native-account-session.test.mts scripts/release-native-acceptance.test.mts scripts/release-native-admission.test.mts scripts/release-native-check-discovery.test.mts scripts/catalog-recovery-vault.test.mts scripts/recovery-tools.test.mts scripts/release-bootstrap-preparation.test.mts scripts/release-signing-context.test.mts scripts/release-preview-withdrawals.test.mts scripts/release-signing-context-artifact.test.mts scripts/release-publication-result.test.mts scripts/release-publication-result-artifact.test.mts scripts/release-controller-wake.test.mts scripts/release-tuf-signing.test.mts scripts/release-tuf-role-artifact.test.mts scripts/release-publication-controller.test.mts scripts/release-publication-inputs.test.mts scripts/release-publication-source.test.mts scripts/release-local-native-setup.test.mts scripts/release-local-worker-tasks.test.mts scripts/release-local-worker-accounts.test.mts scripts/release-native-account-capability.test.mts scripts/recover-local-worker-empty-setup.test.mts scripts/release-native-attempt.test.mts scripts/release-native-windows-driver.test.mts scripts/release-native-windows-public-continuation.test.mts scripts/release-native-source-contract.test.mts scripts/release-native-source-provider.test.mts scripts/release-native-pre-sign-report.test.mts scripts/release-native-check-broker.test.mts scripts/release-native-candidate.test.mts scripts/release-native-parent.test.mts scripts/release-native-linux-public-capture.test.mts scripts/release-native-public-pair.test.mts scripts/release-native-public-compiler.test.mts scripts/release-native-public-signature.test.mts scripts/release-native-public-attempt-contract.test.mts scripts/release-native-scheduler.test.mts scripts/release-native-stage-capture.test.mts scripts/release-hosted-native-acceptance.test.mts scripts/release-hosted-native-history.test.mts scripts/release-hosted-native-linux-capture.test.mts scripts/release-hosted-native-linux-report.test.mts scripts/release-hosted-native-proof-producer.test.mts scripts/release-hosted-native-job.test.mts scripts/release-hosted-native-runner.test.mts scripts/release-routing-marker.test.mts scripts/release-hosted-native-installation.test.mts scripts/release-pnpm-runtime.test.mts scripts/release-hosted-native-proof.test.mts scripts/release-native-wsl-boundary.test.mts scripts/native-linux-driver-http.test.mts scripts/native-linux-isolated-init.test.mts scripts/native-linux-isolated-plan.test.mts scripts/release-native-linux-driver.test.mts scripts/native-qualification-linux-supervisor.test.mts scripts/native-qualification-linux-transfer.test.mts scripts/release-native-wsl-capture.test.mts scripts/release-native-presign-readiness.test.mts scripts/release-native-runtime-custody.test.mts scripts/release-hosted-native-windows-setup.test.mts scripts/ci-job-timeout-probe.test.mts scripts/release-hosted-native-windows-bootstrap.test.mts scripts/rust-validation-setup.test.mts scripts/ci-workflow-fixture.test.mts scripts/release-hosted-native-windows-source.test.mts scripts/release-hosted-native-windows-dependency-files.test.mts scripts/release-hosted-native-windows-installation.test.mts scripts/release-hosted-native-windows-host.test.mts scripts/release-owned-windows-proof-store.test.mts scripts/release-windows-webview-driver.test.mts scripts/release-resource-observation.test.mts scripts/release-hosted-native-windows-session.test.mts scripts/release-hosted-native-windows-worker-contract.test.mts scripts/release-hosted-native-runtime.test.mts scripts/release-hosted-native-windows-capture.test.mts scripts/release-hosted-native-windows-runner.test.mts scripts/release-hosted-native-windows-workflow.test.mts scripts/desktop-boundary-wiring.test.mts
+          node --test --experimental-test-module-mocks --test-timeout=60000 --test-reporter=./scripts/required-node-test-reporter.mts scripts/validation-evidence.test.mts scripts/container-browser.test.mts scripts/container-build.test.mts scripts/container-recovery.test.mts scripts/checked-git.test.mts scripts/resource-status.test.mts scripts/resource-capacity.test.mts scripts/report-summary.test.mts scripts/ci-metrics.test.mts scripts/checkout-context.test.mts scripts/github-body.test.mts scripts/audit.test.mts scripts/audit-evidence.test.mts scripts/audit-archive.test.mts scripts/audit-reuse.test.mts scripts/check-release-metadata.test.mts scripts/desktop-build-cache.test.mts scripts/heavy-rust-test-lock.test.mts scripts/release-package-policy.test.mts scripts/release-public-build-inputs.test.mts scripts/release-public-build-provenance.test.mts scripts/release-live-control-admission.test.mts scripts/release-control-handshake.test.mts scripts/write-release-checksums.test.mts scripts/hosted-native-continuity.test.mts scripts/updater-artifact-inventory.test.mts scripts/updater-historical-inputs.test.mts scripts/installed-game-data-fixture.test.mts scripts/windows-installed-game-data.test.mts scripts/release-payload-signing.test.mts scripts/release-payload-preparation.test.mts scripts/release-signing-handoff.test.mts scripts/reconcile-release-assets.test.mts scripts/trusted-release-assembly.test.mts scripts/release-artifact-archive.test.mts scripts/finalize-release-assets.test.mts scripts/generate-release-downloads.test.mts scripts/release-workflow.test.mts scripts/sign-catalog.test.mts scripts/release-result-gate.test.mts scripts/linux-beta-risk-706.test.mts scripts/linux-beta-risk-706-controller.test.mts scripts/dependency-security.test.mts scripts/lock-maintenance-policy.test.mts scripts/desktop-input-observation.test.mts scripts/run-rust-tests.test.mts scripts/rust-support-cache.test.mts scripts/rust-test-tree-supervisor.test.mts scripts/ci-workflow.test.mts scripts/ci-frontend-workflow.test.mts scripts/ci-release-workflow.test.mts scripts/ci-native-workflow.test.mts scripts/native-backup-evidence.test.mts scripts/ci-rust-workflow.test.mts scripts/rust-toolchain-reader.test.mts scripts/windows-rust-tests.test.mts scripts/rust-coverage.test.mts scripts/check-catalog-repositories.test.mts scripts/check-retcomm-upstreams.test.mts scripts/deep-audit-summary.test.mts scripts/node-test-inventory.test.mts scripts/ci-health.test.mts scripts/rust-timing-hints.test.mts scripts/ci-supersede.test.mts scripts/browser-shard-balance.test.mts scripts/workflow-provenance.test.mts scripts/check-document-links.test.mts scripts/nextest-equivalence.test.mts scripts/ordinary-git-routing.test.mts scripts/package-ownership-selection.test.mts scripts/postmerge-ci.test.mts scripts/validation-plan.test.mts scripts/select-ci-plan.test.mts scripts/ci-result-gate.test.mts scripts/ci-baseline.test.mts scripts/ci-baseline-execution.test.mts scripts/rust-test-impact.test.mts scripts/qualification-coverage.test.mts scripts/required-node-test-reporter.test.mts scripts/nextest-outcomes.test.mts scripts/qualification-nextest.test.mts scripts/qualification-rustdoc.test.mts scripts/test-duration-reporter.test.mts scripts/python-test-results.test.mts scripts/ui-test-selection.test.mts scripts/quality-tools.test.mts scripts/dependency-automation.test.mts scripts/pnpm-lock-inventory.test.mts scripts/frontend-build-compare.test.mts scripts/renovate-engine-probe.test.mts scripts/repository-settings.test.mts scripts/repository-skills.test.mts scripts/pr-conventions.test.mts scripts/pr-delivery.test.mts scripts/pr-delivery-snapshot.test.mts scripts/renovate-fast-lane.test.mts scripts/github-api.test.mts scripts/github-client.test.mts scripts/cleanup-intel-artifacts.test.mts scripts/process-lock.test.mts scripts/source-provenance-audit.test.mts scripts/check-child-process-policy.test.mts scripts/check-transport-contract.test.mts scripts/check-fallow-report.test.mts scripts/run-fallow.test.mts scripts/fallow-summary.test.mts scripts/fallow-scope.test.mts scripts/fallow-source.test.mts scripts/generate-catalog.test.mts scripts/catalog-source-authoring.test.mts scripts/catalog-route-facts.test.mts scripts/package-player-observation.test.mts scripts/catalog-rust-edit-report.test.mts scripts/backfill-listing-dates.test.mts scripts/artifact-preservation.test.mts scripts/catalog-selection-enrollment.test.mts scripts/catalog-proposal-comparison.test.mts scripts/catalog-artwork-dispatch.test.mts scripts/catalog-artwork-batches.test.mts scripts/catalog-artwork-provider.test.mts scripts/catalog-artwork-lifecycle.test.mts scripts/catalog-artwork-backoff.test.mts scripts/upstream-lineage.test.mts scripts/prepare-port.test.mts scripts/settings-consumer-qualification.test.mts scripts/settings-qualification.test.mts scripts/maintainer-config.test.mts scripts/catalog-staged-check.test.mts scripts/catalog-proposal-costs.test.mts scripts/migrate-catalog-schema2.test.mts scripts/roadmap.test.mts scripts/roadmap-execution.test.mts scripts/roadmap-intake.test.mts scripts/roadmap-views.test.mts scripts/roadmap-readiness.test.mts scripts/roadmap-mutations.test.mts scripts/roadmap-qualification.test.mts scripts/roadmap-provider-inventory.test.mts scripts/roadmap-sdk.test.mts scripts/hosted-discovery-intake.test.mts scripts/hosted-discovery-intake-runner.test.mts scripts/roadmap-scoped.test.mts scripts/roadmap-authoring.test.mts scripts/roadmap-report.test.mts scripts/roadmap-publish.test.mts scripts/roadmap-membership-readback.test.mts scripts/release-handshake-hosted-fixture.test.mts scripts/release-candidate-qualification.test.mts scripts/release-immutable-publication.test.mts scripts/release-acceptance-evidence.test.mts scripts/release-compiler-capture.test.mts scripts/release-native-observation.test.mts scripts/release-controller-tools.test.mts scripts/release-role-key-channel.test.mts scripts/release-compiler-outputs.test.mts scripts/release-compiler-source.test.mts scripts/release-compiler-source-admission.test.mts scripts/release-compiler-evidence.test.mts scripts/release-source-attestation.test.mts scripts/release-native-qualification-contract.test.mts scripts/native-qualification-account.test.mts scripts/native-qualification-account-client.test.mts scripts/native-qualification-account-adapter.test.mts scripts/desktop-native-account-session.test.mts scripts/release-native-acceptance.test.mts scripts/release-native-admission.test.mts scripts/release-native-check-discovery.test.mts scripts/catalog-recovery-vault.test.mts scripts/initial-key-custody.test.mts scripts/recovery-tools.test.mts scripts/release-bootstrap-preparation.test.mts scripts/release-signing-context.test.mts scripts/release-preview-withdrawals.test.mts scripts/release-signing-context-artifact.test.mts scripts/release-publication-result.test.mts scripts/release-publication-result-artifact.test.mts scripts/release-controller-wake.test.mts scripts/release-tuf-signing.test.mts scripts/release-tuf-role-artifact.test.mts scripts/release-publication-controller.test.mts scripts/release-publication-inputs.test.mts scripts/release-publication-source.test.mts scripts/release-local-native-setup.test.mts scripts/release-local-worker-tasks.test.mts scripts/release-local-worker-accounts.test.mts scripts/release-native-account-capability.test.mts scripts/recover-local-worker-empty-setup.test.mts scripts/release-native-attempt.test.mts scripts/release-native-windows-driver.test.mts scripts/release-native-windows-public-continuation.test.mts scripts/release-native-source-contract.test.mts scripts/release-native-source-provider.test.mts scripts/release-native-pre-sign-report.test.mts scripts/release-native-check-broker.test.mts scripts/release-native-candidate.test.mts scripts/release-native-parent.test.mts scripts/release-native-linux-public-capture.test.mts scripts/release-native-public-pair.test.mts scripts/release-native-public-compiler.test.mts scripts/release-native-public-signature.test.mts scripts/release-native-public-attempt-contract.test.mts scripts/release-native-scheduler.test.mts scripts/release-native-stage-capture.test.mts scripts/release-hosted-native-acceptance.test.mts scripts/release-hosted-native-history.test.mts scripts/release-hosted-native-linux-capture.test.mts scripts/release-hosted-native-linux-report.test.mts scripts/release-hosted-native-proof-producer.test.mts scripts/release-hosted-native-job.test.mts scripts/release-hosted-native-runner.test.mts scripts/release-routing-marker.test.mts scripts/release-hosted-native-installation.test.mts scripts/release-pnpm-runtime.test.mts scripts/release-hosted-native-proof.test.mts scripts/release-native-wsl-boundary.test.mts scripts/native-linux-driver-http.test.mts scripts/native-linux-isolated-init.test.mts scripts/native-linux-isolated-plan.test.mts scripts/release-native-linux-driver.test.mts scripts/native-qualification-linux-supervisor.test.mts scripts/native-qualification-linux-transfer.test.mts scripts/release-native-wsl-capture.test.mts scripts/release-native-presign-readiness.test.mts scripts/release-native-runtime-custody.test.mts scripts/release-hosted-native-windows-setup.test.mts scripts/port-descriptor.test.mts scripts/ci-job-timeout-probe.test.mts scripts/release-hosted-native-windows-bootstrap.test.mts scripts/rust-validation-setup.test.mts scripts/ci-workflow-fixture.test.mts scripts/release-hosted-native-windows-source.test.mts scripts/release-hosted-native-windows-dependency-files.test.mts scripts/release-hosted-native-windows-installation.test.mts scripts/release-hosted-native-windows-host.test.mts scripts/release-owned-windows-proof-store.test.mts scripts/release-windows-webview-driver.test.mts scripts/release-resource-observation.test.mts scripts/release-hosted-native-windows-session.test.mts scripts/release-hosted-native-windows-worker-contract.test.mts scripts/release-hosted-native-runtime.test.mts scripts/release-hosted-native-windows-capture.test.mts scripts/release-hosted-native-windows-runner.test.mts scripts/release-hosted-native-windows-workflow.test.mts scripts/desktop-boundary-wiring.test.mts
           node scripts/check-release-metadata.mts
           node scripts/quality-tools.mts --validate
           node scripts/qualification-coverage.mts
@@ -1438,7 +1610,7 @@ jobs:
       - name: Test bounded release run evidence
         run: |
           # node-suite: catalog-full-3
-          node --test --test-timeout=30000 --test-reporter=./scripts/required-node-test-reporter.mts scripts/release-run-evidence.test.mts scripts/node-platform-skips.test.mts
+          node --test --experimental-test-module-mocks --test-timeout=30000 --test-reporter=./scripts/required-node-test-reporter.mts scripts/release-run-evidence.test.mts scripts/node-platform-skips.test.mts scripts/application-release-artifacts.test.mts scripts/application-release-budget.test.mts scripts/application-release-context.test.mts scripts/application-release-feed.test.mts scripts/application-release-native.test.mts scripts/application-release-policy.test.mts scripts/application-release-publication.test.mts scripts/application-release-qualification.test.mts scripts/application-release-run.test.mts scripts/application-release-site.test.mts
       - name: Validate local RetComM mappings
         run: node scripts/check-retcomm-upstreams.mts --offline
 
@@ -1519,7 +1691,7 @@ jobs:
         if: steps.maintenance.outputs.maintenance == 'true'
         with:
           python-version: "3.12"
-      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
         if: steps.maintenance.outputs.maintenance == 'true'
         with:
           package_json_file: package.json
@@ -1542,7 +1714,9 @@ jobs:
     needs: classify
     # Exercise the no-global route for toolchain, Unix custody and native text-navigation changes.
     if: (needs.classify.outputs.mode == 'qualification' && contains(fromJSON(needs.classify.outputs.platforms_json), 'macos-aarch64')) || (needs.classify.outputs.mode != 'qualification' && (contains(needs.classify.outputs.files_json, 'apps/desktop/scripts/browser-runtime.mts') || contains(needs.classify.outputs.files_json, 'scripts/run-rust-tests.mts') || contains(needs.classify.outputs.files_json, 'scripts/run-rust-tests.test.mts') || contains(needs.classify.outputs.files_json, 'scripts/rust-test-tree-supervisor.mts') || contains(needs.classify.outputs.files_json, 'scripts/rust-test-tree-supervisor.test.mts') || contains(needs.classify.outputs.files_json, 'pnpm-workspace.yaml') || contains(needs.classify.outputs.files_json, 'apps/desktop/src/browser/display-recovery.browser.test.tsx') || contains(needs.classify.outputs.files_json, 'apps/desktop/src/browser/compact-navigation.browser.test.tsx') || contains(needs.classify.outputs.files_json, 'apps/desktop/src/components/AdoptionModal.browser.test.tsx') || contains(needs.classify.outputs.files_json, 'apps/desktop/src/components/Artwork.browser.test.tsx') || contains(needs.classify.outputs.files_json, 'apps/desktop/src/browser/workspace-feedback-user-intent.browser.test.tsx')))
-    runs-on: macos-26
+    # Two macos-26 attempts acquired no ARM64 runner. Keep the same standard
+    # ARM64 portability contract on the supported macOS 15 pool.
+    runs-on: macos-15
     # 40718922826/a1 exhausted 15m after 5m38s of cold setup and while
     # browser cases were still passing. Keep the complete contributor route,
     # assertions and cleanup; this finite outer budget is not a latency claim.
@@ -1553,7 +1727,7 @@ jobs:
       PORTCOVE_PLAN_GZIP_BASE64: ${{ needs.classify.outputs.plan_gzip_base64 }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
         with:
           package_json_file: package.json
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
@@ -1562,6 +1736,8 @@ jobs:
       - name: Verify the contributor route has no global Vite+
         shell: bash
         run: |
+          node -e 'if (process.platform !== "darwin" || process.arch !== "arm64") throw new Error("Expected macOS ARM64"); console.log(JSON.stringify({ platform: process.platform, arch: process.arch }));'
+          sw_vers
           if command -v vp; then
             echo 'Expected a Node/pnpm-only environment for this portability check.' >&2
             exit 1

@@ -1,0 +1,2902 @@
+{
+  "format_version": 1,
+  "kind": "dated eight classic-engine prepared-copy source packet; not live planning or native acceptance",
+  "observation_date": "2026-10-31",
+  "owners": [2510, 2926, 1422],
+  "base": "21d3ad09bfe505a5fcc5df2f6447d36990c11d19",
+  "counts": {
+    "distinct_repository_commit_path_blob_bindings": 166,
+    "unique_content_blobs": 135,
+    "complete_tree_reference_roles": 16,
+    "unique_root_tree_objects": 14
+  },
+  "selected_rows": [
+    {
+      "canonical_issue": 2674,
+      "id": "dune-ii-opendune",
+      "cohort": "affected-312",
+      "historical_1422_member": false,
+      "normal_windows_entry": "opendune.exe",
+      "authored_sha256": "0c75c12482cb4c8023859ffed0218886e4ebb85498198e6f561f06f324435ad3",
+      "prior_body_sha256": "c9ad33b197b95fea3fbed905b4951ef1fdd22a5b95510b8187ef4d8b5d03540c",
+      "context_observed_at": "2026-10-31T05:15:13.293Z",
+      "planning_at_pickup": {
+        "Status": "Inbox",
+        "Priority": "None",
+        "Horizon": "Someday",
+        "Target release": "Unscheduled",
+        "Release commitment": null,
+        "Work type": "Port",
+        "Workstream": "Port catalog",
+        "Platform": "Unknown",
+        "Port stage": "Watchlist",
+        "Effort": "Unknown"
+      },
+      "preparation": {
+        "report_sha256": "3e42505a73846322494e7b4e3cc9385b74e763dd2435c74127109389429b255c",
+        "operational_changed": false,
+        "validation": {
+          "status": "unchanged-operational-projection",
+          "scope": "Per-record listing structure checked; final Core catalog/listing CI still applies."
+        },
+        "listing_validation": {
+          "format_version": 4,
+          "input_sha256": "b00c8de4fd24217540c88a620ac4c5b830e265faaade89fb7d3848790c808eb7",
+          "input_bytes": 2934927,
+          "validator_artifact_sha256": "06dd083d7b3cc124867527cd0e7f32c0cb12893f76268f69aad63589f70a11c4",
+          "listings_validated_count": 1424,
+          "scope": "full Core parser output retained by hashed private preparation receipt; no repeated listing payload"
+        },
+        "compatibility": {
+          "status": "matched",
+          "fixture": "crates/portcove-core/catalog/catalog-legacy-additions-fixture.json",
+          "fixture_sha256": "c240e8759aa5e9e6ad3a7873febe5d00859ece5e2f036d35c2f31a569c9bee89",
+          "collections": {
+            "source_profile_ids": {
+              "expected_count": 116,
+              "unreviewed_ids": [],
+              "missing_expected_ids": []
+            },
+            "port_ids": {
+              "expected_count": 272,
+              "unreviewed_ids": [],
+              "missing_expected_ids": []
+            }
+          },
+          "scope": "Identity bookkeeping only; manually review expectations. Full frozen equality, source contracts and qualification remain separate Rust checks."
+        }
+      },
+      "offered_operation": "already permitted upstream-prepared Windows native copy; exact intent/consent/register/relink/restart/separate selected-process Play/registration-only preserving removal",
+      "native_game_installed_original_save_observation": "not_run"
+    },
+    {
+      "canonical_issue": 2569,
+      "id": "dune-ii-dune-dynasty",
+      "cohort": "affected-312",
+      "historical_1422_member": false,
+      "normal_windows_entry": "dunedynasty.exe",
+      "authored_sha256": "8a274812d51ffd153620ab2038282f1f022a7ffa3d2720cee8085434d5182d58",
+      "prior_body_sha256": "1ab7a126e33e4f2c5ce92aaf2d998349039a8809f22f23cb40127512d3631e55",
+      "context_observed_at": "2026-10-31T05:15:14.473Z",
+      "planning_at_pickup": {
+        "Status": "Inbox",
+        "Priority": "None",
+        "Horizon": "Someday",
+        "Target release": "Unscheduled",
+        "Release commitment": null,
+        "Work type": "Port",
+        "Workstream": "Port catalog",
+        "Platform": "Unknown",
+        "Port stage": "Watchlist",
+        "Effort": "Unknown"
+      },
+      "preparation": {
+        "report_sha256": "02719d522d956e86d3d0df15882eaac5990ece072831a4f775e7dff827f0b81a",
+        "operational_changed": false,
+        "validation": {
+          "status": "unchanged-operational-projection",
+          "scope": "Per-record listing structure checked; final Core catalog/listing CI still applies."
+        },
+        "listing_validation": {
+          "format_version": 4,
+          "input_sha256": "35f304131e782723033a055e4fedb041f7b2d657f699f465fda2d757a8541203",
+          "input_bytes": 2911507,
+          "validator_artifact_sha256": "06dd083d7b3cc124867527cd0e7f32c0cb12893f76268f69aad63589f70a11c4",
+          "listings_validated_count": 1424,
+          "scope": "full Core parser output retained by hashed private preparation receipt; no repeated listing payload"
+        },
+        "compatibility": {
+          "status": "matched",
+          "fixture": "crates/portcove-core/catalog/catalog-legacy-additions-fixture.json",
+          "fixture_sha256": "c240e8759aa5e9e6ad3a7873febe5d00859ece5e2f036d35c2f31a569c9bee89",
+          "collections": {
+            "source_profile_ids": {
+              "expected_count": 116,
+              "unreviewed_ids": [],
+              "missing_expected_ids": []
+            },
+            "port_ids": {
+              "expected_count": 272,
+              "unreviewed_ids": [],
+              "missing_expected_ids": []
+            }
+          },
+          "scope": "Identity bookkeeping only; manually review expectations. Full frozen equality, source contracts and qualification remain separate Rust checks."
+        }
+      },
+      "offered_operation": "already permitted upstream-prepared Windows native copy; exact intent/consent/register/relink/restart/separate selected-process Play/registration-only preserving removal",
+      "native_game_installed_original_save_observation": "not_run"
+    },
+    {
+      "canonical_issue": 2885,
+      "id": "might-and-magic-vii-openenroth",
+      "cohort": "affected-312",
+      "historical_1422_member": false,
+      "normal_windows_entry": "OpenEnroth.exe",
+      "authored_sha256": "799ebd1f905fa1f6bc0c2a5b77f50eaddc9774cf099ec4b681640b2849d9351f",
+      "prior_body_sha256": "6fb8c9cce39b19fcc14f67b0e6364d1a97c7832788257c0a72776407044d1d1e",
+      "context_observed_at": "2026-10-31T05:15:15.491Z",
+      "planning_at_pickup": {
+        "Status": "Inbox",
+        "Priority": "None",
+        "Horizon": "Someday",
+        "Target release": "Unscheduled",
+        "Release commitment": null,
+        "Work type": "Port",
+        "Workstream": "Port catalog",
+        "Platform": "Unknown",
+        "Port stage": "Watchlist",
+        "Effort": "Unknown"
+      },
+      "preparation": {
+        "report_sha256": "b50340694db9e182c7f5785f11356c005f0effa980a25c3fb737d5d9a81c74c5",
+        "operational_changed": false,
+        "validation": {
+          "status": "unchanged-operational-projection",
+          "scope": "Per-record listing structure checked; final Core catalog/listing CI still applies."
+        },
+        "listing_validation": {
+          "format_version": 4,
+          "input_sha256": "e238568bf9cb3518a89ad54ab6de45773fb8a4625eb7f497ab4753d913d2397d",
+          "input_bytes": 2912073,
+          "validator_artifact_sha256": "06dd083d7b3cc124867527cd0e7f32c0cb12893f76268f69aad63589f70a11c4",
+          "listings_validated_count": 1424,
+          "scope": "full Core parser output retained by hashed private preparation receipt; no repeated listing payload"
+        },
+        "compatibility": {
+          "status": "matched",
+          "fixture": "crates/portcove-core/catalog/catalog-legacy-additions-fixture.json",
+          "fixture_sha256": "c240e8759aa5e9e6ad3a7873febe5d00859ece5e2f036d35c2f31a569c9bee89",
+          "collections": {
+            "source_profile_ids": {
+              "expected_count": 116,
+              "unreviewed_ids": [],
+              "missing_expected_ids": []
+            },
+            "port_ids": {
+              "expected_count": 272,
+              "unreviewed_ids": [],
+              "missing_expected_ids": []
+            }
+          },
+          "scope": "Identity bookkeeping only; manually review expectations. Full frozen equality, source contracts and qualification remain separate Rust checks."
+        }
+      },
+      "offered_operation": "already permitted upstream-prepared Windows native copy; exact intent/consent/register/relink/restart/separate selected-process Play/registration-only preserving removal",
+      "native_game_installed_original_save_observation": "not_run"
+    },
+    {
+      "canonical_issue": 2578,
+      "id": "gothic-ii-night-of-the-raven-opengothic",
+      "cohort": "affected-312",
+      "historical_1422_member": false,
+      "normal_windows_entry": "Gothic2Notr.exe",
+      "authored_sha256": "f06cfc0a3bc1e498ee352a65f5309eac6d4a3442e1f019bc72806540489cfcbf",
+      "prior_body_sha256": "df82e422d0d5140b487c8847a9a7426b3fbd46b7ef6910751e80ca66a4f75a70",
+      "context_observed_at": "2026-10-31T05:15:16.483Z",
+      "planning_at_pickup": {
+        "Status": "Inbox",
+        "Priority": "None",
+        "Horizon": "Someday",
+        "Target release": "Unscheduled",
+        "Release commitment": null,
+        "Work type": "Port",
+        "Workstream": "Port catalog",
+        "Platform": "Unknown",
+        "Port stage": "Watchlist",
+        "Effort": "Unknown"
+      },
+      "preparation": {
+        "report_sha256": "e7ce920affef06bb8d6decad1fc509c0ee11623b27dc75e825b11fdd6b723f52",
+        "operational_changed": false,
+        "validation": {
+          "status": "unchanged-operational-projection",
+          "scope": "Per-record listing structure checked; final Core catalog/listing CI still applies."
+        },
+        "listing_validation": {
+          "format_version": 4,
+          "input_sha256": "261982ed4cac81e1f4492c97b5fb4750345d8298211014943bb07102d00207b7",
+          "input_bytes": 2911455,
+          "validator_artifact_sha256": "06dd083d7b3cc124867527cd0e7f32c0cb12893f76268f69aad63589f70a11c4",
+          "listings_validated_count": 1424,
+          "scope": "full Core parser output retained by hashed private preparation receipt; no repeated listing payload"
+        },
+        "compatibility": {
+          "status": "matched",
+          "fixture": "crates/portcove-core/catalog/catalog-legacy-additions-fixture.json",
+          "fixture_sha256": "c240e8759aa5e9e6ad3a7873febe5d00859ece5e2f036d35c2f31a569c9bee89",
+          "collections": {
+            "source_profile_ids": {
+              "expected_count": 116,
+              "unreviewed_ids": [],
+              "missing_expected_ids": []
+            },
+            "port_ids": {
+              "expected_count": 272,
+              "unreviewed_ids": [],
+              "missing_expected_ids": []
+            }
+          },
+          "scope": "Identity bookkeeping only; manually review expectations. Full frozen equality, source contracts and qualification remain separate Rust checks."
+        }
+      },
+      "offered_operation": "already permitted upstream-prepared Windows native copy; exact intent/consent/register/relink/restart/separate selected-process Play/registration-only preserving removal",
+      "native_game_installed_original_save_observation": "not_run"
+    },
+    {
+      "canonical_issue": 2682,
+      "id": "jazz-jackrabbit-2-jazz2-resurrection",
+      "cohort": "affected-312",
+      "historical_1422_member": false,
+      "normal_windows_entry": "Jazz2.exe",
+      "authored_sha256": "ac6f3850fc192b76851198dbf5227d6fefb797b8c420d236cc598999afc530a9",
+      "prior_body_sha256": "9c01c55c1263bd64f1cf400cf1cfc5ca576b2c7a93902e046846a2cc2e621c23",
+      "context_observed_at": "2026-10-31T05:15:17.386Z",
+      "planning_at_pickup": {
+        "Status": "Inbox",
+        "Priority": "None",
+        "Horizon": "Someday",
+        "Target release": "Unscheduled",
+        "Release commitment": null,
+        "Work type": "Port",
+        "Workstream": "Port catalog",
+        "Platform": "Unknown",
+        "Port stage": "Watchlist",
+        "Effort": "Unknown"
+      },
+      "preparation": {
+        "report_sha256": "3fc7d78565e947a5812cb6e014abbdc05f99447f151d2ab651f73a778aea4908",
+        "operational_changed": false,
+        "validation": {
+          "status": "unchanged-operational-projection",
+          "scope": "Per-record listing structure checked; final Core catalog/listing CI still applies."
+        },
+        "listing_validation": {
+          "format_version": 4,
+          "input_sha256": "b00c8de4fd24217540c88a620ac4c5b830e265faaade89fb7d3848790c808eb7",
+          "input_bytes": 2934927,
+          "validator_artifact_sha256": "06dd083d7b3cc124867527cd0e7f32c0cb12893f76268f69aad63589f70a11c4",
+          "listings_validated_count": 1424,
+          "scope": "full Core parser output retained by hashed private preparation receipt; no repeated listing payload"
+        },
+        "compatibility": {
+          "status": "matched",
+          "fixture": "crates/portcove-core/catalog/catalog-legacy-additions-fixture.json",
+          "fixture_sha256": "c240e8759aa5e9e6ad3a7873febe5d00859ece5e2f036d35c2f31a569c9bee89",
+          "collections": {
+            "source_profile_ids": {
+              "expected_count": 116,
+              "unreviewed_ids": [],
+              "missing_expected_ids": []
+            },
+            "port_ids": {
+              "expected_count": 272,
+              "unreviewed_ids": [],
+              "missing_expected_ids": []
+            }
+          },
+          "scope": "Identity bookkeeping only; manually review expectations. Full frozen equality, source contracts and qualification remain separate Rust checks."
+        }
+      },
+      "offered_operation": "already permitted upstream-prepared Windows native copy; exact intent/consent/register/relink/restart/separate selected-process Play/registration-only preserving removal",
+      "native_game_installed_original_save_observation": "not_run"
+    },
+    {
+      "canonical_issue": 2582,
+      "id": "heroes-of-might-and-magic-ii-fheroes2",
+      "cohort": "affected-312",
+      "historical_1422_member": false,
+      "normal_windows_entry": "fheroes2.exe",
+      "authored_sha256": "e91dc9f620631a1b5ece4e42751488a47e9c619aa66756751e5d2e3d0e91b738",
+      "prior_body_sha256": "79ef1ccc135e58660a9a8fd790a9739f0237fd88b7159d7a0919c3c30242c0d8",
+      "context_observed_at": "2026-10-31T05:15:18.328Z",
+      "planning_at_pickup": {
+        "Status": "Inbox",
+        "Priority": "None",
+        "Horizon": "Someday",
+        "Target release": "Unscheduled",
+        "Release commitment": null,
+        "Work type": "Port",
+        "Workstream": "Port catalog",
+        "Platform": "Unknown",
+        "Port stage": "Watchlist",
+        "Effort": "Unknown"
+      },
+      "preparation": {
+        "report_sha256": "288cdede6f424d031b262f2059883faf0fc681d596993efd9bcac1a06a07e882",
+        "operational_changed": false,
+        "validation": {
+          "status": "unchanged-operational-projection",
+          "scope": "Per-record listing structure checked; final Core catalog/listing CI still applies."
+        },
+        "listing_validation": {
+          "format_version": 4,
+          "input_sha256": "b5a01f183436df3b11deec8c2eafb6ecb03ca520342c0858fec404c8b713049b",
+          "input_bytes": 2911703,
+          "validator_artifact_sha256": "06dd083d7b3cc124867527cd0e7f32c0cb12893f76268f69aad63589f70a11c4",
+          "listings_validated_count": 1424,
+          "scope": "full Core parser output retained by hashed private preparation receipt; no repeated listing payload"
+        },
+        "compatibility": {
+          "status": "matched",
+          "fixture": "crates/portcove-core/catalog/catalog-legacy-additions-fixture.json",
+          "fixture_sha256": "c240e8759aa5e9e6ad3a7873febe5d00859ece5e2f036d35c2f31a569c9bee89",
+          "collections": {
+            "source_profile_ids": {
+              "expected_count": 116,
+              "unreviewed_ids": [],
+              "missing_expected_ids": []
+            },
+            "port_ids": {
+              "expected_count": 272,
+              "unreviewed_ids": [],
+              "missing_expected_ids": []
+            }
+          },
+          "scope": "Identity bookkeeping only; manually review expectations. Full frozen equality, source contracts and qualification remain separate Rust checks."
+        }
+      },
+      "offered_operation": "already permitted upstream-prepared Windows native copy; exact intent/consent/register/relink/restart/separate selected-process Play/registration-only preserving removal",
+      "native_game_installed_original_save_observation": "not_run"
+    },
+    {
+      "canonical_issue": 2716,
+      "id": "transport-tycoon-deluxe-openttd-upstream",
+      "cohort": "affected-312",
+      "historical_1422_member": false,
+      "normal_windows_entry": "openttd.exe",
+      "authored_sha256": "a1b8ffc8bb48d8c92383981f5bde0613c3e2126b6f83c97f0660b35f3fa5d6c2",
+      "prior_body_sha256": "8777be606976604277ae07617dbef0d0eef9aba710c46250d642f64267c920da",
+      "context_observed_at": "2026-10-31T05:15:19.312Z",
+      "planning_at_pickup": {
+        "Status": "Inbox",
+        "Priority": "None",
+        "Horizon": "Someday",
+        "Target release": "Unscheduled",
+        "Release commitment": null,
+        "Work type": "Port",
+        "Workstream": "Port catalog",
+        "Platform": "Unknown",
+        "Port stage": "Watchlist",
+        "Effort": "Unknown"
+      },
+      "preparation": {
+        "report_sha256": "fd2eda35b8f29981a668e154eba6254d0917370b75da477c2d21279a1975e064",
+        "operational_changed": false,
+        "validation": {
+          "status": "unchanged-operational-projection",
+          "scope": "Per-record listing structure checked; final Core catalog/listing CI still applies."
+        },
+        "listing_validation": {
+          "format_version": 4,
+          "input_sha256": "f34177d46e9faa59a3c8f3b4e13eda4ceb86038606eb15c116fef81a61d44238",
+          "input_bytes": 2912305,
+          "validator_artifact_sha256": "06dd083d7b3cc124867527cd0e7f32c0cb12893f76268f69aad63589f70a11c4",
+          "listings_validated_count": 1424,
+          "scope": "full Core parser output retained by hashed private preparation receipt; no repeated listing payload"
+        },
+        "compatibility": {
+          "status": "matched",
+          "fixture": "crates/portcove-core/catalog/catalog-legacy-additions-fixture.json",
+          "fixture_sha256": "c240e8759aa5e9e6ad3a7873febe5d00859ece5e2f036d35c2f31a569c9bee89",
+          "collections": {
+            "source_profile_ids": {
+              "expected_count": 116,
+              "unreviewed_ids": [],
+              "missing_expected_ids": []
+            },
+            "port_ids": {
+              "expected_count": 272,
+              "unreviewed_ids": [],
+              "missing_expected_ids": []
+            }
+          },
+          "scope": "Identity bookkeeping only; manually review expectations. Full frozen equality, source contracts and qualification remain separate Rust checks."
+        }
+      },
+      "offered_operation": "already permitted upstream-prepared Windows native copy; exact intent/consent/register/relink/restart/separate selected-process Play/registration-only preserving removal",
+      "native_game_installed_original_save_observation": "not_run"
+    },
+    {
+      "canonical_issue": 2678,
+      "id": "half-life-xash3d-fwgs",
+      "cohort": "affected-312",
+      "historical_1422_member": false,
+      "normal_windows_entry": "xash3d.exe",
+      "authored_sha256": "73e0605edd88cfd26ae23189ac4d7ee387df185e4381bb975a64aeee09536b00",
+      "prior_body_sha256": "f3b0e182a91452b55913efdf03e4b2dff2c14c7b36ab542cf22fcbfe9e7b7773",
+      "context_observed_at": "2026-10-31T05:15:20.311Z",
+      "planning_at_pickup": {
+        "Status": "Inbox",
+        "Priority": "None",
+        "Horizon": "Someday",
+        "Target release": "Unscheduled",
+        "Release commitment": null,
+        "Work type": "Port",
+        "Workstream": "Port catalog",
+        "Platform": "Unknown",
+        "Port stage": "Watchlist",
+        "Effort": "Unknown"
+      },
+      "preparation": {
+        "report_sha256": "c7db4ca29491e95b97c43a37b3dec8163617b9586bd3b623d44a2764af52c194",
+        "operational_changed": false,
+        "validation": {
+          "status": "unchanged-operational-projection",
+          "scope": "Per-record listing structure checked; final Core catalog/listing CI still applies."
+        },
+        "listing_validation": {
+          "format_version": 4,
+          "input_sha256": "822fff97f89fc724add9495ca7aa274f2ee61e0df616b0582fc9cad53dcfebf2",
+          "input_bytes": 2911793,
+          "validator_artifact_sha256": "06dd083d7b3cc124867527cd0e7f32c0cb12893f76268f69aad63589f70a11c4",
+          "listings_validated_count": 1424,
+          "scope": "full Core parser output retained by hashed private preparation receipt; no repeated listing payload"
+        },
+        "compatibility": {
+          "status": "matched",
+          "fixture": "crates/portcove-core/catalog/catalog-legacy-additions-fixture.json",
+          "fixture_sha256": "c240e8759aa5e9e6ad3a7873febe5d00859ece5e2f036d35c2f31a569c9bee89",
+          "collections": {
+            "source_profile_ids": {
+              "expected_count": 116,
+              "unreviewed_ids": [],
+              "missing_expected_ids": []
+            },
+            "port_ids": {
+              "expected_count": 272,
+              "unreviewed_ids": [],
+              "missing_expected_ids": []
+            }
+          },
+          "scope": "Identity bookkeeping only; manually review expectations. Full frozen equality, source contracts and qualification remain separate Rust checks."
+        }
+      },
+      "offered_operation": "already permitted upstream-prepared Windows native copy; exact intent/consent/register/relink/restart/separate selected-process Play/registration-only preserving removal",
+      "native_game_installed_original_save_observation": "not_run"
+    }
+  ],
+  "source_packets": [
+    {
+      "issue": 2674,
+      "repository": "OpenDUNE/OpenDUNE",
+      "complete_tree_references": [
+        {
+          "role": "current",
+          "commit": "ebea79aeba025be2fe9004570e9255044aacc0be",
+          "root_tree": "5d5cc9b18fb2fdb7e21801edd4d6816e72c4789b",
+          "members": 298,
+          "complete": true
+        },
+        {
+          "role": "selected",
+          "commit": "af3f3239eca1073ac9d621286014fba282c1dc5a",
+          "root_tree": "acd8cc0cce8e80163cc3821ade07d8a0c78b34fe",
+          "members": 288,
+          "complete": true
+        }
+      ],
+      "source_bindings": [
+        {
+          "repository": "OpenDUNE/OpenDUNE",
+          "commit": "ebea79aeba025be2fe9004570e9255044aacc0be",
+          "path": "COPYING",
+          "blob": "d159169d1050894d3ea3b98e1c965c4058208fe1",
+          "bytes": 18092,
+          "sha256": "8177f97513213526df2cf6184d8ff986c675afb514d4e68a404010521b880643"
+        },
+        {
+          "repository": "OpenDUNE/OpenDUNE",
+          "commit": "ebea79aeba025be2fe9004570e9255044aacc0be",
+          "path": "README",
+          "blob": "c3ca07460abccc3085c5c6e80c4d94daf6ebcfe4",
+          "bytes": 10,
+          "sha256": "b01eeed0ec6fc4f4799e44c7b4084e649d6eee4f1aca52ac935553ff82108398"
+        },
+        {
+          "repository": "OpenDUNE/OpenDUNE",
+          "commit": "ebea79aeba025be2fe9004570e9255044aacc0be",
+          "path": "README.atari",
+          "blob": "88dff3599e75b7fcd9b7d9175d5df2fe2f4443e0",
+          "bytes": 2286,
+          "sha256": "3728a9018b4bbc6685d6c9dc1c90b416f185d9f815be4db401df9c470f047bb5"
+        },
+        {
+          "repository": "OpenDUNE/OpenDUNE",
+          "commit": "ebea79aeba025be2fe9004570e9255044aacc0be",
+          "path": "README.os2",
+          "blob": "5a25af2e98d0838c4c1561a6815a69577c427f18",
+          "bytes": 998,
+          "sha256": "bff6d5fd7048cc73d8b30ed70d0989a378e56fe01212fc185c962f7684064bb1"
+        },
+        {
+          "repository": "OpenDUNE/OpenDUNE",
+          "commit": "ebea79aeba025be2fe9004570e9255044aacc0be",
+          "path": "README.txt",
+          "blob": "e3ee5c74d0ccb445385219b42e4ca2fdbd28cd6e",
+          "bytes": 6403,
+          "sha256": "32aaabed466acf02491826272298e2d6d04f4255c30db7305fab29f8c6728ac3"
+        },
+        {
+          "repository": "OpenDUNE/OpenDUNE",
+          "commit": "af3f3239eca1073ac9d621286014fba282c1dc5a",
+          "path": "COPYING",
+          "blob": "d159169d1050894d3ea3b98e1c965c4058208fe1",
+          "bytes": 18092,
+          "sha256": "8177f97513213526df2cf6184d8ff986c675afb514d4e68a404010521b880643"
+        },
+        {
+          "repository": "OpenDUNE/OpenDUNE",
+          "commit": "af3f3239eca1073ac9d621286014fba282c1dc5a",
+          "path": "README",
+          "blob": "c3ca07460abccc3085c5c6e80c4d94daf6ebcfe4",
+          "bytes": 10,
+          "sha256": "b01eeed0ec6fc4f4799e44c7b4084e649d6eee4f1aca52ac935553ff82108398"
+        },
+        {
+          "repository": "OpenDUNE/OpenDUNE",
+          "commit": "af3f3239eca1073ac9d621286014fba282c1dc5a",
+          "path": "README.atari",
+          "blob": "d432a5e58646f1cac3a3b6f87f76cfc96794c491",
+          "bytes": 1193,
+          "sha256": "908edcc2fbb76513a9862b42b910af14a180d71e35df2a61abd234d446a74dca"
+        },
+        {
+          "repository": "OpenDUNE/OpenDUNE",
+          "commit": "af3f3239eca1073ac9d621286014fba282c1dc5a",
+          "path": "README.txt",
+          "blob": "755b085063bb8286a38797c71ea07f0e024efca2",
+          "bytes": 5975,
+          "sha256": "2eb143585b30aac82c9442536944a56cf328f496e7bb752d6490cb9d82b8faf2"
+        },
+        {
+          "repository": "OpenDUNE/OpenDUNE",
+          "commit": "af3f3239eca1073ac9d621286014fba282c1dc5a",
+          "path": "Makefile.src.in",
+          "blob": "828b32fc9eba924f2d4e65bd46ad8854ea419eb5",
+          "bytes": 6952,
+          "sha256": "e8315f6ffb6407aeae62e91490b2c1cf453706050d5c4421d129d874d9065e39"
+        },
+        {
+          "repository": "OpenDUNE/OpenDUNE",
+          "commit": "af3f3239eca1073ac9d621286014fba282c1dc5a",
+          "path": "Makefile.in",
+          "blob": "032991a255da8bc72dc32e1890fabf230ee781c0",
+          "bytes": 5586,
+          "sha256": "a317e23c2f4f7c91daf1fe6caf5eb54871962cfb117a86af73b4dd14bd969188"
+        },
+        {
+          "repository": "OpenDUNE/OpenDUNE",
+          "commit": "af3f3239eca1073ac9d621286014fba282c1dc5a",
+          "path": "src/opendune.c",
+          "blob": "f0d05d4f61a95ec6062d67dd7d2308590a0d360b",
+          "bytes": 39484,
+          "sha256": "48f7f15603ebe3794f1757ad781abc5b33dc78fed119f630dd4f2321123aa253"
+        },
+        {
+          "repository": "OpenDUNE/OpenDUNE",
+          "commit": "af3f3239eca1073ac9d621286014fba282c1dc5a",
+          "path": "src/config.c",
+          "blob": "a0d1029ad33102257abe16807a40a8789ceac023",
+          "bytes": 3119,
+          "sha256": "6043117de80842625ccc5636bb3b52f57cb884eacd1cf0ad7df3d4470ba8a357"
+        },
+        {
+          "repository": "OpenDUNE/OpenDUNE",
+          "commit": "af3f3239eca1073ac9d621286014fba282c1dc5a",
+          "path": "src/config.h",
+          "blob": "6bf5ecb3ae6be7dc42a45340dced4bffd054b1d3",
+          "bytes": 1964,
+          "sha256": "188019ac92dd04b2c02a9e1729d03c651c3b34bc6b753ed842d3e9fccfc610f3"
+        },
+        {
+          "repository": "OpenDUNE/OpenDUNE",
+          "commit": "af3f3239eca1073ac9d621286014fba282c1dc5a",
+          "path": "src/file.c",
+          "blob": "4d3f4dcadf5e44808060d73681215227974f3a45",
+          "bytes": 28792,
+          "sha256": "09cd7a586d98220743885c753ceed3b8e93e6072cddd58f3cb4c1acac2712077"
+        },
+        {
+          "repository": "OpenDUNE/OpenDUNE",
+          "commit": "af3f3239eca1073ac9d621286014fba282c1dc5a",
+          "path": "src/inifile.c",
+          "blob": "d51996a49916ee3f5853bfcc42d8730f931139d5",
+          "bytes": 4792,
+          "sha256": "e229358cec190abfae7b52696d83e0adbfe0a10e88db3a4e55034160491c439d"
+        },
+        {
+          "repository": "OpenDUNE/OpenDUNE",
+          "commit": "af3f3239eca1073ac9d621286014fba282c1dc5a",
+          "path": "src/ini.c",
+          "blob": "56a446055084cf44a26d8338288dd9cfa99b606e",
+          "bytes": 4554,
+          "sha256": "7bdf2e8937d723294cbc7f5dc718f15da5156545ff252324eda5f580d2e01ae0"
+        },
+        {
+          "repository": "OpenDUNE/OpenDUNE",
+          "commit": "af3f3239eca1073ac9d621286014fba282c1dc5a",
+          "path": "src/os/file.h",
+          "blob": "ec3c77f3ecb2c01b7c01e7d2533f402c9b975956",
+          "bytes": 343,
+          "sha256": "6309636b36b0406044a1256f2c8c521b81893efc4806ed78ba3b71af7fd92faf"
+        },
+        {
+          "repository": "OpenDUNE/OpenDUNE",
+          "commit": "ebea79aeba025be2fe9004570e9255044aacc0be",
+          "path": "Makefile.src.in",
+          "blob": "e95454d85f49d2333e10b84452a2fb3444554b91",
+          "bytes": 7349,
+          "sha256": "ebc6f3c6fcecda905feee5a1d459e7bc9c158ed29133f977d69481519114ac42"
+        },
+        {
+          "repository": "OpenDUNE/OpenDUNE",
+          "commit": "ebea79aeba025be2fe9004570e9255044aacc0be",
+          "path": "Makefile.in",
+          "blob": "032991a255da8bc72dc32e1890fabf230ee781c0",
+          "bytes": 5586,
+          "sha256": "a317e23c2f4f7c91daf1fe6caf5eb54871962cfb117a86af73b4dd14bd969188"
+        },
+        {
+          "repository": "OpenDUNE/OpenDUNE",
+          "commit": "ebea79aeba025be2fe9004570e9255044aacc0be",
+          "path": "src/opendune.c",
+          "blob": "3afb9684a64c1d69ac877d1090d25651df53a49c",
+          "bytes": 40795,
+          "sha256": "45dacb357f6096fa1d3792a4cb2e11ebd2eed4af99771093781aa4a56e392804"
+        },
+        {
+          "repository": "OpenDUNE/OpenDUNE",
+          "commit": "ebea79aeba025be2fe9004570e9255044aacc0be",
+          "path": "src/config.c",
+          "blob": "a0d1029ad33102257abe16807a40a8789ceac023",
+          "bytes": 3119,
+          "sha256": "6043117de80842625ccc5636bb3b52f57cb884eacd1cf0ad7df3d4470ba8a357"
+        },
+        {
+          "repository": "OpenDUNE/OpenDUNE",
+          "commit": "ebea79aeba025be2fe9004570e9255044aacc0be",
+          "path": "src/config.h",
+          "blob": "6bf5ecb3ae6be7dc42a45340dced4bffd054b1d3",
+          "bytes": 1964,
+          "sha256": "188019ac92dd04b2c02a9e1729d03c651c3b34bc6b753ed842d3e9fccfc610f3"
+        },
+        {
+          "repository": "OpenDUNE/OpenDUNE",
+          "commit": "ebea79aeba025be2fe9004570e9255044aacc0be",
+          "path": "src/file.c",
+          "blob": "60e11ec4273aa934f8d3821041bb5abce5131b04",
+          "bytes": 29847,
+          "sha256": "f2be3c2931b4515b4291f1bbeefdcdc37fde4f69ea31ac464bf774dd78ce5bbf"
+        },
+        {
+          "repository": "OpenDUNE/OpenDUNE",
+          "commit": "ebea79aeba025be2fe9004570e9255044aacc0be",
+          "path": "src/inifile.c",
+          "blob": "f61fc0a34f70332a1c4786f9cd1b40fdb9cc0567",
+          "bytes": 5555,
+          "sha256": "a82ea9fc53775efaa7be44f98370e3ab29e8aca5f29351973a8568e18decaf49"
+        },
+        {
+          "repository": "OpenDUNE/OpenDUNE",
+          "commit": "ebea79aeba025be2fe9004570e9255044aacc0be",
+          "path": "src/ini.c",
+          "blob": "56a446055084cf44a26d8338288dd9cfa99b606e",
+          "bytes": 4554,
+          "sha256": "7bdf2e8937d723294cbc7f5dc718f15da5156545ff252324eda5f580d2e01ae0"
+        },
+        {
+          "repository": "OpenDUNE/OpenDUNE",
+          "commit": "ebea79aeba025be2fe9004570e9255044aacc0be",
+          "path": "src/os/file.h",
+          "blob": "ec3c77f3ecb2c01b7c01e7d2533f402c9b975956",
+          "bytes": 343,
+          "sha256": "6309636b36b0406044a1256f2c8c521b81893efc4806ed78ba3b71af7fd92faf"
+        },
+        {
+          "repository": "OpenDUNE/OpenDUNE",
+          "commit": "af3f3239eca1073ac9d621286014fba282c1dc5a",
+          "path": "configure",
+          "blob": "4619b0b69096f337179ab572210fa2f7c25fe291",
+          "bytes": 4224,
+          "sha256": "f889078e396030b6c5173a7d6e84f021b41b9a5d8ba19b0348532ef5a83e98ca"
+        },
+        {
+          "repository": "OpenDUNE/OpenDUNE",
+          "commit": "af3f3239eca1073ac9d621286014fba282c1dc5a",
+          "path": "src/save.c",
+          "blob": "b2866a21a8ad86084f34df2edd58750d16e1c977",
+          "bytes": 5091,
+          "sha256": "023c900be33cc6fd5079a96b919916c668d30d8f78f9c1945c59ee0955250220"
+        },
+        {
+          "repository": "OpenDUNE/OpenDUNE",
+          "commit": "af3f3239eca1073ac9d621286014fba282c1dc5a",
+          "path": "config.lib",
+          "blob": "09bd456e4503b19fee8010045d6779194e926afa",
+          "bytes": 63364,
+          "sha256": "96a936c176f7ada0b06fe7b83d86415bcbb21f4b0bf77c69c204efae5edfde2b"
+        }
+      ],
+      "retained_metadata_manifest": [
+        {
+          "name": "current--COPYING.api.json.observation.json",
+          "bytes": 262,
+          "sha256": "6c6d27a97fb1604dd4d30c782f825f3b5acd89e173c4888b16ae35abdf935fb4"
+        },
+        {
+          "name": "current--README.api.json.observation.json",
+          "bytes": 260,
+          "sha256": "ea95e23adb841360dc55aaf3b42cd1c328650c313dcd0c7c3ac13078df5ab887"
+        },
+        {
+          "name": "current--README.atari.api.json.observation.json",
+          "bytes": 261,
+          "sha256": "328ca878aa8ee7521c8fb653b01836f7726fe45d32d565f94bb876eeaa87fd37"
+        },
+        {
+          "name": "current--README.os2.api.json.observation.json",
+          "bytes": 261,
+          "sha256": "2be9b2453fda93d24da39afbcc5362c805842e1db501de0e86f88e2e5707e79d"
+        },
+        {
+          "name": "current--README.txt.api.json.observation.json",
+          "bytes": 261,
+          "sha256": "e22f7ddf7d5d07ca9ad381b495cfc8d3458452e07705d01eed86228059165389"
+        },
+        {
+          "name": "current-tree.json",
+          "bytes": 67529,
+          "sha256": "e941d0ae838a45473c82bffe964031cc09983e627c7b688c91162033517b69a4"
+        },
+        {
+          "name": "current-tree.json.observation.json",
+          "bytes": 274,
+          "sha256": "c9ba607b7209e8442e5f5cd0228ba951ae429db0115675cc317d06a515336ee4"
+        },
+        {
+          "name": "current.json",
+          "bytes": 7370,
+          "sha256": "fad9e7da1d9e6c22486e0c75928bc5feab78c73c01b54c29e3b327f82bb2afeb"
+        },
+        {
+          "name": "current.json.observation.json",
+          "bytes": 225,
+          "sha256": "7b3e0aa8f680ebdf12904777934a9995ac2f82c5d531710c1fad67197e378724"
+        },
+        {
+          "name": "release-stable.json",
+          "bytes": 13926,
+          "sha256": "c114ba6f1cc677b2a918967452287c26fd1e85fcb0e8572bff74e06f9e656439"
+        },
+        {
+          "name": "release-stable.json.observation.json",
+          "bytes": 227,
+          "sha256": "21300aabaf77f68fbabd35c8e6ee027d8cbb1e3fe68066d00ad32a54544c7902"
+        },
+        {
+          "name": "release.json",
+          "bytes": 16747,
+          "sha256": "1d707806016bec5ecb17f8f0b0d9cba54687b9937e3aebb5b04b880157262fa2"
+        },
+        {
+          "name": "repository.json",
+          "bytes": 6260,
+          "sha256": "b6457ad5c6e3f5409fdda98d49f7b782ca2017b215132505a67ab1b6efeb4510"
+        },
+        {
+          "name": "repository.json.observation.json",
+          "bytes": 210,
+          "sha256": "6db5c93275d131344712710202a01c6595f95936d7e53a5d30642eaccae16e4a"
+        },
+        {
+          "name": "selected-path-observations.json",
+          "bytes": 3,
+          "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+        },
+        {
+          "name": "tag--COPYING.api.json.observation.json",
+          "bytes": 262,
+          "sha256": "f084c1a3225e9c42bedfc226e1023319252ad24a738b52ebba01a2d170dd3ee5"
+        },
+        {
+          "name": "tag--README.api.json.observation.json",
+          "bytes": 260,
+          "sha256": "d194e46ba0b5fe2712b0ccd380f2562c28bffdff32fde44d4ab8ba3f68758868"
+        },
+        {
+          "name": "tag--README.atari.api.json.observation.json",
+          "bytes": 261,
+          "sha256": "62779b2833a685e19cbe525560d880bd603e082ec05d5ddfd957ba4dc265f4e6"
+        },
+        {
+          "name": "tag--README.txt.api.json.observation.json",
+          "bytes": 261,
+          "sha256": "322597fe867ba2ebc043d7ae4385db707d171c83b3fd95c8844786f43cc5a1da"
+        },
+        {
+          "name": "tag-tree.json",
+          "bytes": 65256,
+          "sha256": "0cde281c079148de420e463868a4940725df3ac59eef0fa0ff611b8b972243a8"
+        },
+        {
+          "name": "tag-tree.json.observation.json",
+          "bytes": 274,
+          "sha256": "704dbacfab203521c5316d952d067c0335f05c55dcbd4d31a178cbad23e1de26"
+        },
+        {
+          "name": "tag.json",
+          "bytes": 4160,
+          "sha256": "2f7e4e726d319875c4234a66c3dc1fa8e5ab2bf599e6a46b33df6c84f0167ec9"
+        },
+        {
+          "name": "tag.json.observation.json",
+          "bytes": 222,
+          "sha256": "a453387549cbba56cc1e1bc3aa91cb010984f32212048550ee9c3f2d70358df9"
+        }
+      ]
+    },
+    {
+      "issue": 2569,
+      "repository": "gameflorist/dunedynasty",
+      "complete_tree_references": [
+        {
+          "role": "current",
+          "commit": "b0cc8e62d81e8573a76eb59b063fa539d6aaa287",
+          "root_tree": "4f15f6bf9c47ba3e4f351f23afe539e73818c997",
+          "members": 436,
+          "complete": true
+        },
+        {
+          "role": "selected",
+          "commit": "9e447c4667b3f41097279d24819a11a46087050c",
+          "root_tree": "77310ae0633705db0e56ce45a59427568ce79316",
+          "members": 434,
+          "complete": true
+        }
+      ],
+      "source_bindings": [
+        {
+          "repository": "gameflorist/dunedynasty",
+          "commit": "b0cc8e62d81e8573a76eb59b063fa539d6aaa287",
+          "path": "CMakeLists.txt",
+          "blob": "1a2873cb3585888381f91a64ef0136c93bb51873",
+          "bytes": 8059,
+          "sha256": "6ec8078d65ba8a66b4cf135135cf9b3e3ff443e109f79e68662452babe723a58"
+        },
+        {
+          "repository": "gameflorist/dunedynasty",
+          "commit": "b0cc8e62d81e8573a76eb59b063fa539d6aaa287",
+          "path": "LICENSE.txt",
+          "blob": "d159169d1050894d3ea3b98e1c965c4058208fe1",
+          "bytes": 18092,
+          "sha256": "8177f97513213526df2cf6184d8ff986c675afb514d4e68a404010521b880643"
+        },
+        {
+          "repository": "gameflorist/dunedynasty",
+          "commit": "b0cc8e62d81e8573a76eb59b063fa539d6aaa287",
+          "path": "README.md",
+          "blob": "803d855feb68d42d4ef8cabb0611b1d996e5c8de",
+          "bytes": 38790,
+          "sha256": "e35f6bf052d8531ebd90c069c545b2829378466fd3720edb8c3697a95eb45dfd"
+        },
+        {
+          "repository": "gameflorist/dunedynasty",
+          "commit": "b0cc8e62d81e8573a76eb59b063fa539d6aaa287",
+          "path": "README.txt",
+          "blob": "77dc49309131aa42074aba4371ac6449ed369f82",
+          "bytes": 35473,
+          "sha256": "b51375b228fb1c019e56dccd628d8cc255d0fc656602368c8023098fdd69b3d9"
+        },
+        {
+          "repository": "gameflorist/dunedynasty",
+          "commit": "9e447c4667b3f41097279d24819a11a46087050c",
+          "path": "CMakeLists.txt",
+          "blob": "1a2873cb3585888381f91a64ef0136c93bb51873",
+          "bytes": 8059,
+          "sha256": "6ec8078d65ba8a66b4cf135135cf9b3e3ff443e109f79e68662452babe723a58"
+        },
+        {
+          "repository": "gameflorist/dunedynasty",
+          "commit": "9e447c4667b3f41097279d24819a11a46087050c",
+          "path": "LICENSE.txt",
+          "blob": "d159169d1050894d3ea3b98e1c965c4058208fe1",
+          "bytes": 18092,
+          "sha256": "8177f97513213526df2cf6184d8ff986c675afb514d4e68a404010521b880643"
+        },
+        {
+          "repository": "gameflorist/dunedynasty",
+          "commit": "9e447c4667b3f41097279d24819a11a46087050c",
+          "path": "README.md",
+          "blob": "bd009dfe0fa80b7c14c9b5c3e4c023fe48b7e9d2",
+          "bytes": 37880,
+          "sha256": "7a671337acd17ea85e5eca827dd7b054e0e7510c99c12f21f7dadb4bfd8be7cb"
+        },
+        {
+          "repository": "gameflorist/dunedynasty",
+          "commit": "9e447c4667b3f41097279d24819a11a46087050c",
+          "path": "README.txt",
+          "blob": "77dc49309131aa42074aba4371ac6449ed369f82",
+          "bytes": 35473,
+          "sha256": "b51375b228fb1c019e56dccd628d8cc255d0fc656602368c8023098fdd69b3d9"
+        },
+        {
+          "repository": "gameflorist/dunedynasty",
+          "commit": "9e447c4667b3f41097279d24819a11a46087050c",
+          "path": "src/opendune.c",
+          "blob": "d448b743e81dc05fad92e2662ad0eb885c4a82cc",
+          "bytes": 26439,
+          "sha256": "abe9353c9d7bbda82c179c4dfc57463cc09a92c73f7e8c40ed8a7315e31e8b6c"
+        },
+        {
+          "repository": "gameflorist/dunedynasty",
+          "commit": "9e447c4667b3f41097279d24819a11a46087050c",
+          "path": "src/config_a5.c",
+          "blob": "37829330d7a3efc71e0739f9a1796c1d1bab6b1e",
+          "bytes": 30385,
+          "sha256": "c8492074f7befb22a827526c23706b307fae79d3daf80d6437a42c7299f4d0b7"
+        },
+        {
+          "repository": "gameflorist/dunedynasty",
+          "commit": "9e447c4667b3f41097279d24819a11a46087050c",
+          "path": "src/config.h",
+          "blob": "44ee285af38572bfd659afdd369f2c4f6f82d44a",
+          "bytes": 1067,
+          "sha256": "7358ab3f50dacde018633438b2bc6c8999fa50911c2263324a1979a545c66e32"
+        },
+        {
+          "repository": "gameflorist/dunedynasty",
+          "commit": "9e447c4667b3f41097279d24819a11a46087050c",
+          "path": "src/file.c",
+          "blob": "ddfe4f69f708a6bbc4652b94276157e9097e58d1",
+          "bytes": 20661,
+          "sha256": "ac4c39b6b574291f90173981240cb5815551279e56243cfa1380b7926206860c"
+        },
+        {
+          "repository": "gameflorist/dunedynasty",
+          "commit": "9e447c4667b3f41097279d24819a11a46087050c",
+          "path": "src/ini.c",
+          "blob": "789c9401dc44c0cee60af20f87c4dae696fffc43",
+          "bytes": 4516,
+          "sha256": "2e84ebd98091962ffb4c7da70012b5d250ea067287c04a7f6530d1302e2126d8"
+        },
+        {
+          "repository": "gameflorist/dunedynasty",
+          "commit": "9e447c4667b3f41097279d24819a11a46087050c",
+          "path": "src/enhancement.c",
+          "blob": "3239ba497cd2efe86fc5827940fafcc18c1b01a9",
+          "bytes": 9584,
+          "sha256": "aa24af7c8ed2467301b61d371069aff9a87da30c87c158acfc9cbb07c1ddf0c6"
+        },
+        {
+          "repository": "gameflorist/dunedynasty",
+          "commit": "b0cc8e62d81e8573a76eb59b063fa539d6aaa287",
+          "path": "src/opendune.c",
+          "blob": "d448b743e81dc05fad92e2662ad0eb885c4a82cc",
+          "bytes": 26439,
+          "sha256": "abe9353c9d7bbda82c179c4dfc57463cc09a92c73f7e8c40ed8a7315e31e8b6c"
+        },
+        {
+          "repository": "gameflorist/dunedynasty",
+          "commit": "b0cc8e62d81e8573a76eb59b063fa539d6aaa287",
+          "path": "src/config_a5.c",
+          "blob": "592b584940332eef6875ba3e03a090ac48932c5a",
+          "bytes": 30385,
+          "sha256": "c93766240bdcb0ab043c854ddb5d38476d2b76722fc677b7432eaf5e4231cd2c"
+        },
+        {
+          "repository": "gameflorist/dunedynasty",
+          "commit": "b0cc8e62d81e8573a76eb59b063fa539d6aaa287",
+          "path": "src/config.h",
+          "blob": "44ee285af38572bfd659afdd369f2c4f6f82d44a",
+          "bytes": 1067,
+          "sha256": "7358ab3f50dacde018633438b2bc6c8999fa50911c2263324a1979a545c66e32"
+        },
+        {
+          "repository": "gameflorist/dunedynasty",
+          "commit": "b0cc8e62d81e8573a76eb59b063fa539d6aaa287",
+          "path": "src/file.c",
+          "blob": "ddfe4f69f708a6bbc4652b94276157e9097e58d1",
+          "bytes": 20661,
+          "sha256": "ac4c39b6b574291f90173981240cb5815551279e56243cfa1380b7926206860c"
+        },
+        {
+          "repository": "gameflorist/dunedynasty",
+          "commit": "b0cc8e62d81e8573a76eb59b063fa539d6aaa287",
+          "path": "src/ini.c",
+          "blob": "789c9401dc44c0cee60af20f87c4dae696fffc43",
+          "bytes": 4516,
+          "sha256": "2e84ebd98091962ffb4c7da70012b5d250ea067287c04a7f6530d1302e2126d8"
+        },
+        {
+          "repository": "gameflorist/dunedynasty",
+          "commit": "b0cc8e62d81e8573a76eb59b063fa539d6aaa287",
+          "path": "src/enhancement.c",
+          "blob": "3239ba497cd2efe86fc5827940fafcc18c1b01a9",
+          "bytes": 9584,
+          "sha256": "aa24af7c8ed2467301b61d371069aff9a87da30c87c158acfc9cbb07c1ddf0c6"
+        },
+        {
+          "repository": "gameflorist/dunedynasty",
+          "commit": "9e447c4667b3f41097279d24819a11a46087050c",
+          "path": "static/general/data/FILELIST.TXT",
+          "blob": "38e0de84e01024aabc91a5cabdd87326ae984bcf",
+          "bytes": 725,
+          "sha256": "3518dd076d158e935dcfce569f4a9b794476b680687a1d8e2f9c58483656b65e"
+        },
+        {
+          "repository": "gameflorist/dunedynasty",
+          "commit": "9e447c4667b3f41097279d24819a11a46087050c",
+          "path": "src/file.h",
+          "blob": "9e8646b3f5e3dc596def53e0e0711b13c1b805c5",
+          "bytes": 4477,
+          "sha256": "5389873e3f9b238aee78287a84d006c8984bd89a835403ffe7621e18535c6241"
+        }
+      ],
+      "retained_metadata_manifest": [
+        {
+          "name": "current--CMakeLists.txt.api.json.observation.json",
+          "bytes": 268,
+          "sha256": "aa7885bbe4df2c48d3e8caffa853b1819e6f79f2b1b5221f2369bb98fd52f7ff"
+        },
+        {
+          "name": "current--LICENSE.txt.api.json.observation.json",
+          "bytes": 268,
+          "sha256": "cae29addd68fcb4f838f6c67d13580545df7f55e76e52fedce81ec4fb7c20c27"
+        },
+        {
+          "name": "current--README.md.api.json.observation.json",
+          "bytes": 268,
+          "sha256": "5e0207261c980daa76ad4ce007b77b8d42c01e98d3947ad9fad0575945057120"
+        },
+        {
+          "name": "current--README.txt.api.json.observation.json",
+          "bytes": 268,
+          "sha256": "7bb891f896614722e610ec280565016a9fa38566d5701e0d0806bb78691309c4"
+        },
+        {
+          "name": "current-tree.json",
+          "bytes": 102948,
+          "sha256": "646d4e459c709edf8112fefd538620f959135d2ed978d1384cfcb31ec3407a67"
+        },
+        {
+          "name": "current-tree.json.observation.json",
+          "bytes": 281,
+          "sha256": "902c64a52b737a3cbb93246bbbaa794b80fa472816bc82eb2f11ea8ea385ef86"
+        },
+        {
+          "name": "current.json",
+          "bytes": 12829,
+          "sha256": "7544022f9d16dc044f79f2fe35ad1c8a2a275523199706f61fc59e8b23cbfd30"
+        },
+        {
+          "name": "current.json.observation.json",
+          "bytes": 232,
+          "sha256": "a901c5958b05d87f78f6c95d772a3cf57b8b177168e266fe23091bc160fcf112"
+        },
+        {
+          "name": "release-stable.json",
+          "bytes": 21573,
+          "sha256": "c55c69422c660f43eed26ef1b1df4921c805a2c899a4cf8f602c055e36f161e1"
+        },
+        {
+          "name": "release-stable.json.observation.json",
+          "bytes": 233,
+          "sha256": "1b37b4283d2c97fe519a63629d9ab96c85e66c4b8b6dc307f6205c2cf42c9e08"
+        },
+        {
+          "name": "release.json",
+          "bytes": 24717,
+          "sha256": "839bdaf92c145a0e562bcb3dfe242c65bf5e1fe00db736b30e3132d5b017435b"
+        },
+        {
+          "name": "repository.json",
+          "bytes": 6980,
+          "sha256": "bef439dba600df946422d84028befec8b09ec3ab0b6ac1b35290324144519425"
+        },
+        {
+          "name": "repository.json.observation.json",
+          "bytes": 216,
+          "sha256": "869d648fd7a9269cbf8afd1d355ce2f6eb4295928f6ff9e5b968ddc2694881e1"
+        },
+        {
+          "name": "selected-path-observations.json",
+          "bytes": 3,
+          "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+        },
+        {
+          "name": "tag--CMakeLists.txt.api.json.observation.json",
+          "bytes": 268,
+          "sha256": "f53bf0aa5014ddfeba1387dbce259f803b934f16165c157ddc3dd14882e9febe"
+        },
+        {
+          "name": "tag--LICENSE.txt.api.json.observation.json",
+          "bytes": 268,
+          "sha256": "ea9be8d0d64325548dabd22fa5ffe23b5ac2a2314c55b72e2d574ebc72d8a291"
+        },
+        {
+          "name": "tag--README.md.api.json.observation.json",
+          "bytes": 268,
+          "sha256": "d80a008ee0c2282e641c7db56b7e82ad7ddc78e0245c8c7e2cb079ccfb03e911"
+        },
+        {
+          "name": "tag--README.txt.api.json.observation.json",
+          "bytes": 268,
+          "sha256": "ab669115840f83908261f2f94affd7aef64f5febeda36f26a1efa1fe8132e640"
+        },
+        {
+          "name": "tag-tree.json",
+          "bytes": 102453,
+          "sha256": "8b343fd065646a24d7d1b28eb66724d240a4f1001389a1690703c6716bfafe2f"
+        },
+        {
+          "name": "tag-tree.json.observation.json",
+          "bytes": 281,
+          "sha256": "2564ed327b1c046f94bcc4b76197dcebce0f3332aad0fc1adcece841111e2055"
+        },
+        {
+          "name": "tag.json",
+          "bytes": 4445,
+          "sha256": "b856fbe23527d519fbf54bec2fc804305116736b75cc83733778cc44fad10824"
+        },
+        {
+          "name": "tag.json.observation.json",
+          "bytes": 231,
+          "sha256": "11ec2424819a9088e5efd8cb5effdb509c4e2967807b1bfb976379f532d31dc4"
+        }
+      ]
+    },
+    {
+      "issue": 2885,
+      "repository": "OpenEnroth/OpenEnroth",
+      "complete_tree_references": [
+        {
+          "role": "current",
+          "commit": "a644b752f05af0cdbb1c5d96d120d6967bd8b790",
+          "root_tree": "dac1a6dbdc53036d887042136451809310101d58",
+          "members": 1844,
+          "complete": true
+        },
+        {
+          "role": "selected",
+          "commit": "a644b752f05af0cdbb1c5d96d120d6967bd8b790",
+          "root_tree": "dac1a6dbdc53036d887042136451809310101d58",
+          "members": 1844,
+          "complete": true
+        }
+      ],
+      "source_bindings": [
+        {
+          "repository": "OpenEnroth/OpenEnroth",
+          "commit": "a644b752f05af0cdbb1c5d96d120d6967bd8b790",
+          "path": ".gitmodules",
+          "blob": "90f3b65f3fd745b680497fc49e5955a37daee726",
+          "bytes": 2534,
+          "sha256": "aeb00e1d7a10639df83c5311122480da42b4a800de250d3702dc9e2b6d92aab5"
+        },
+        {
+          "repository": "OpenEnroth/OpenEnroth",
+          "commit": "a644b752f05af0cdbb1c5d96d120d6967bd8b790",
+          "path": "CMakeLists.txt",
+          "blob": "943cc494901647193f6886eaebcdf1f70610b444",
+          "bytes": 11859,
+          "sha256": "8affc491639bb9ab9cf63f1269607fa8b4a6e4270283c336fa23e055bf2827b4"
+        },
+        {
+          "repository": "OpenEnroth/OpenEnroth",
+          "commit": "a644b752f05af0cdbb1c5d96d120d6967bd8b790",
+          "path": "LICENSE",
+          "blob": "f17f6cc1bf86bb6e83c77f3070f79e7d7652bac3",
+          "bytes": 7654,
+          "sha256": "a5e6ce857b3a4c0dfef950e9e1fc7dc2eff33c460ca8bf18496d9bc18a2a4c9a"
+        },
+        {
+          "repository": "OpenEnroth/OpenEnroth",
+          "commit": "a644b752f05af0cdbb1c5d96d120d6967bd8b790",
+          "path": "README.md",
+          "blob": "420edc09ec962068b0a2287221750ae4c0ee8afb",
+          "bytes": 6058,
+          "sha256": "cc36208cf9f5f081523f15d6b36528419d4f89953e3ba59e05426abde42e1da9"
+        },
+        {
+          "repository": "OpenEnroth/OpenEnroth",
+          "commit": "a644b752f05af0cdbb1c5d96d120d6967bd8b790",
+          "path": "src/Bin/OpenEnroth/CMakeLists.txt",
+          "blob": "68409e404c948e1329096f1610b1acf8308975e3",
+          "bytes": 2551,
+          "sha256": "a24d2a63f86543507179c0530f28b0cf4b7c5eb79162ee72002bad18e30f1348"
+        },
+        {
+          "repository": "OpenEnroth/OpenEnroth",
+          "commit": "a644b752f05af0cdbb1c5d96d120d6967bd8b790",
+          "path": "src/Bin/OpenEnroth/OpenEnroth.cpp",
+          "blob": "08d55acad38441afe6f19a527fd86b3c55ce0450",
+          "bytes": 5102,
+          "sha256": "39bf065dd6caea48292cc3884f3d11fe6880bbfb7dc9b636994fba96a010f45c"
+        },
+        {
+          "repository": "OpenEnroth/OpenEnroth",
+          "commit": "a644b752f05af0cdbb1c5d96d120d6967bd8b790",
+          "path": "src/Bin/OpenEnroth/OpenEnrothOptions.cpp",
+          "blob": "c8ad7d081f9c96243ee445cc14e5c6308eb54919",
+          "bytes": 4183,
+          "sha256": "14ce8e5decde879ae67c7495746cf04b6baf9679a1ea73a63c0c70ff0357615b"
+        },
+        {
+          "repository": "OpenEnroth/OpenEnroth",
+          "commit": "a644b752f05af0cdbb1c5d96d120d6967bd8b790",
+          "path": "src/Bin/OpenEnroth/OpenEnrothOptions.h",
+          "blob": "e50cb5f99193e5674104ec2cf4d61d64b6cc9a2a",
+          "bytes": 1023,
+          "sha256": "c1174298cb0bc6eca3721507884165c53abfc6fc27b40619d5b8166c80747f89"
+        },
+        {
+          "repository": "OpenEnroth/OpenEnroth",
+          "commit": "a644b752f05af0cdbb1c5d96d120d6967bd8b790",
+          "path": "src/Application/Startup/GameStarter.cpp",
+          "blob": "c1df165d0395225835b0a530290fc7113a319837",
+          "bytes": 13318,
+          "sha256": "056728930800f5ed95f56ff46dbf61b83a21779e85b4e1ca680c855abd3927d5"
+        },
+        {
+          "repository": "OpenEnroth/OpenEnroth",
+          "commit": "a644b752f05af0cdbb1c5d96d120d6967bd8b790",
+          "path": "src/Application/Startup/GameStarterOptions.h",
+          "blob": "4186498ecf5c5c0c6f77c4184794e4f9bfc5ea55",
+          "bytes": 718,
+          "sha256": "fce9c766610226a329bce7833548aec7f18d08c3320f5eae7c8b260676915e9c"
+        },
+        {
+          "repository": "OpenEnroth/OpenEnroth",
+          "commit": "a644b752f05af0cdbb1c5d96d120d6967bd8b790",
+          "path": "src/Application/Startup/FileSystemStarter.cpp",
+          "blob": "3bdf1ba754281a6756b6c6114ae3231617d6281d",
+          "bytes": 1533,
+          "sha256": "f2ea0e3679bad793ae987bcb2e0ba6d5f864aec81f033efccceb4d03412f9d4c"
+        },
+        {
+          "repository": "OpenEnroth/OpenEnroth",
+          "commit": "a644b752f05af0cdbb1c5d96d120d6967bd8b790",
+          "path": "src/Application/Startup/PathResolver.cpp",
+          "blob": "64d103e1ce328328e9413b3cbfacf52517663170",
+          "bytes": 5595,
+          "sha256": "cee490e85f216d4d05d8477831ffceefd57afbd57ce157766e404bdf77a7d9f0"
+        },
+        {
+          "repository": "OpenEnroth/OpenEnroth",
+          "commit": "a644b752f05af0cdbb1c5d96d120d6967bd8b790",
+          "path": "src/Application/GameConfig.cpp",
+          "blob": "3f3c8f6026f0e640bc67b90d7a54358430ef1596",
+          "bytes": 993,
+          "sha256": "c34aedb8b668537da9dd45927c0e07e58cd25e21aa8fb4f5158412e3f2337fea"
+        }
+      ],
+      "retained_metadata_manifest": [
+        {
+          "name": "current--.gitmodules.api.json.observation.json",
+          "bytes": 265,
+          "sha256": "b72e0fc5be5841c011988800f7b6c8887cb27a739595bb998e9e52d7a112d4dd"
+        },
+        {
+          "name": "current--CMakeLists.txt.api.json.observation.json",
+          "bytes": 266,
+          "sha256": "20ac1c1b570e7a32cc4d848f6311cced33e3b0313d20264d9d92b5cf3981a96c"
+        },
+        {
+          "name": "current--LICENSE.api.json.observation.json",
+          "bytes": 266,
+          "sha256": "59151eaa0a55151d379fb1c38cbcdc0101090543d2e7bee897d0aed4131f854f"
+        },
+        {
+          "name": "current--README.md.api.json.observation.json",
+          "bytes": 265,
+          "sha256": "e98886ed4f71c8aca932c2ee263e3c5ecc84bedc0ea191d2b1ddb2d0fd4ee5d8"
+        },
+        {
+          "name": "current-tree.json",
+          "bytes": 445745,
+          "sha256": "e8942f81e681a9560cca1c9b8a202eff176c6d7f798293a1706cd2bfa38351a1"
+        },
+        {
+          "name": "current-tree.json.observation.json",
+          "bytes": 279,
+          "sha256": "f947959066667778adb360520673e3cbd4a730b5c71ae73ee14c476269898e35"
+        },
+        {
+          "name": "current.json",
+          "bytes": 31086,
+          "sha256": "694aa53a906284be820db0e8c661da9739bf1df8d1150a0e5b303cf0e2c2f3bd"
+        },
+        {
+          "name": "current.json.observation.json",
+          "bytes": 230,
+          "sha256": "c98c4ecda1ffa8ae7889567fc8319fee45446c31116fcfe89653a77d2db2ddc6"
+        },
+        {
+          "name": "release-recent-first10.json",
+          "bytes": 20721,
+          "sha256": "ec91115d1696fe6d3125fe5c8b6717a499be1d2abf4c5c96b79e58a262d17fb2"
+        },
+        {
+          "name": "release-recent-first10.json.observation.json",
+          "bytes": 236,
+          "sha256": "299d595c2f9ac54dd6d9696dbf779f73e708b5f0c26a69ba4507d0fb3a441046"
+        },
+        {
+          "name": "release-stable.json",
+          "bytes": 130,
+          "sha256": "d9e37600354c1839f6b22cebde497e9d14750d2401a06c9a51b1619baf991613"
+        },
+        {
+          "name": "release-stable.json.observation.json",
+          "bytes": 229,
+          "sha256": "4b89de42bcac5ee0df4cd025df35879abf3c36a969d2965310a1e4d332cf069f"
+        },
+        {
+          "name": "release.json",
+          "bytes": 24430,
+          "sha256": "a6e4718fc47da5984db48fa910bca9f0785d909da49085dc5d83e73d8f3be241"
+        },
+        {
+          "name": "repository.json",
+          "bytes": 6508,
+          "sha256": "7a179b8bd56e1a4fdda8c535b669389b1628c244a270d9d5358d2d568f3a2ed8"
+        },
+        {
+          "name": "repository.json.observation.json",
+          "bytes": 214,
+          "sha256": "6ccb68aa1e64280888d1d0fd481232024351f1d18027a249f95935d98e5d92b0"
+        },
+        {
+          "name": "selected-path-observations.json",
+          "bytes": 3,
+          "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+        },
+        {
+          "name": "tag-tree.json",
+          "bytes": 445745,
+          "sha256": "e8942f81e681a9560cca1c9b8a202eff176c6d7f798293a1706cd2bfa38351a1"
+        },
+        {
+          "name": "tag-tree.json.observation.json",
+          "bytes": 279,
+          "sha256": "8bc35f46ad0cc0b8bec235a930751f10836f8f1694ff43c6f2db2258f2d02c76"
+        },
+        {
+          "name": "tag.json",
+          "bytes": 31086,
+          "sha256": "694aa53a906284be820db0e8c661da9739bf1df8d1150a0e5b303cf0e2c2f3bd"
+        },
+        {
+          "name": "tag.json.observation.json",
+          "bytes": 231,
+          "sha256": "2a80c438d49fa5cd0ff02ae0d134e1e0e61e2ffcb584ff8ff73a257aaa7649d2"
+        }
+      ]
+    },
+    {
+      "issue": 2578,
+      "repository": "Try/OpenGothic",
+      "complete_tree_references": [
+        {
+          "role": "current",
+          "commit": "05486efb9259f96c592b878ad822c8c9bbd465bf",
+          "root_tree": "10d332fe952c280b1925c95c9feb82820247b3e0",
+          "members": 775,
+          "complete": true
+        },
+        {
+          "role": "selected",
+          "commit": "2855fa51957bac9e7ce83f938ec127a0ab3badce",
+          "root_tree": "0230714aef069bfeb2074471a36c39ea4e65be9b",
+          "members": 603,
+          "complete": true
+        }
+      ],
+      "source_bindings": [
+        {
+          "repository": "Try/OpenGothic",
+          "commit": "05486efb9259f96c592b878ad822c8c9bbd465bf",
+          "path": ".gitmodules",
+          "blob": "da892d5c873f636db8990be18589b27240acbd5b",
+          "bytes": 580,
+          "sha256": "a361b248617a5490b7045fc9dc6d76d0727608b97055e081f2812c9a5fdbeaa9"
+        },
+        {
+          "repository": "Try/OpenGothic",
+          "commit": "05486efb9259f96c592b878ad822c8c9bbd465bf",
+          "path": "CMakeLists.txt",
+          "blob": "24fcd1862a97b38ece20842cc7a56256a9409980",
+          "bytes": 7744,
+          "sha256": "bd2643bbf12134fbe21fe3eda0b12b7b2f33317dcc3fd05874ef19c8e4631458"
+        },
+        {
+          "repository": "Try/OpenGothic",
+          "commit": "05486efb9259f96c592b878ad822c8c9bbd465bf",
+          "path": "LICENSE",
+          "blob": "b14efcc5b60b6645218a217ae67e4f71c3dabe4c",
+          "bytes": 1059,
+          "sha256": "8b06f1e0cd3ceaa9018337bb05fb9199e59959c2f3e97c7757a3436c7da7f492"
+        },
+        {
+          "repository": "Try/OpenGothic",
+          "commit": "05486efb9259f96c592b878ad822c8c9bbd465bf",
+          "path": "README.md",
+          "blob": "7062bc9b0c9efa409b3c53180cbcc22ad70971c1",
+          "bytes": 10756,
+          "sha256": "f08a2b5bdf79cb733378b8c6e997a8d63b601acc5aa6cae35fcfd0f9cd577d5b"
+        },
+        {
+          "repository": "Try/OpenGothic",
+          "commit": "2855fa51957bac9e7ce83f938ec127a0ab3badce",
+          "path": ".gitmodules",
+          "blob": "732812ee14f7dbff8c37c65024b40ccc597a3ff9",
+          "bytes": 482,
+          "sha256": "5d4afa99530329ce1893db10910b2816ed1e2b24b9f1a80a215a0ed41a9422d9"
+        },
+        {
+          "repository": "Try/OpenGothic",
+          "commit": "2855fa51957bac9e7ce83f938ec127a0ab3badce",
+          "path": "CMakeLists.txt",
+          "blob": "4e44c7f0a84518292878c77d537865b2f56536de",
+          "bytes": 6800,
+          "sha256": "1b1d67b6a72fca2fd8f88dfcf046683c876d5a898999c9254c4ed4df98309e86"
+        },
+        {
+          "repository": "Try/OpenGothic",
+          "commit": "2855fa51957bac9e7ce83f938ec127a0ab3badce",
+          "path": "LICENSE",
+          "blob": "b14efcc5b60b6645218a217ae67e4f71c3dabe4c",
+          "bytes": 1059,
+          "sha256": "8b06f1e0cd3ceaa9018337bb05fb9199e59959c2f3e97c7757a3436c7da7f492"
+        },
+        {
+          "repository": "Try/OpenGothic",
+          "commit": "2855fa51957bac9e7ce83f938ec127a0ab3badce",
+          "path": "README.md",
+          "blob": "4ceb80a61818c9b68dffe6d17f2086876de05934",
+          "bytes": 9947,
+          "sha256": "b24037e5c24c4020a2280a383111175950c73a031ada50581fdc41700a3c1cab"
+        },
+        {
+          "repository": "Try/OpenGothic",
+          "commit": "2855fa51957bac9e7ce83f938ec127a0ab3badce",
+          "path": "game/main.cpp",
+          "blob": "de00118e96b928db46d159d6386bdfa283a8239a",
+          "bytes": 3687,
+          "sha256": "c32758e302cd85fc58006d6467959356021cfe5cbcfa51080b52b6e82ff08249"
+        },
+        {
+          "repository": "Try/OpenGothic",
+          "commit": "2855fa51957bac9e7ce83f938ec127a0ab3badce",
+          "path": "game/gothic.cpp",
+          "blob": "a56699787c062f4e0b387299189ace5a4829de4e",
+          "bytes": 38163,
+          "sha256": "79c26326a54fbe8400366d7fdafc45dbb8d440cf383022a93723396d7f2f853c"
+        },
+        {
+          "repository": "Try/OpenGothic",
+          "commit": "2855fa51957bac9e7ce83f938ec127a0ab3badce",
+          "path": "game/gothic.h",
+          "blob": "3738f81937537791e604ac36d270cf416a70a2e0",
+          "bytes": 14570,
+          "sha256": "6b51f823ed8953a9234f2124e9de905dcbc84e4a346bfe40f00f265270dff139"
+        },
+        {
+          "repository": "Try/OpenGothic",
+          "commit": "2855fa51957bac9e7ce83f938ec127a0ab3badce",
+          "path": "game/utils/fileutil.cpp",
+          "blob": "d309cfa41de1ee00c6c6e05263240b3179afd3be",
+          "bytes": 1608,
+          "sha256": "830e191c7893515c6927aa68666667ba76c5352d80ab371cac1906cad02bd992"
+        },
+        {
+          "repository": "Try/OpenGothic",
+          "commit": "05486efb9259f96c592b878ad822c8c9bbd465bf",
+          "path": "game/main.cpp",
+          "blob": "dc4d2ddec6f9b9a47c40f0e973ab0682813e90b2",
+          "bytes": 3871,
+          "sha256": "d6e5b5f82daa453c544b1e48525e36121f9ed230f4c87e2dd68a2347b872e4c5"
+        },
+        {
+          "repository": "Try/OpenGothic",
+          "commit": "2855fa51957bac9e7ce83f938ec127a0ab3badce",
+          "path": "game/commandline.cpp",
+          "blob": "eda2039ba9cfb24249daabb0a7a8ee60187b16f6",
+          "bytes": 6040,
+          "sha256": "b4990991e640956001dd99ea078f96350a4f02d0ed47cbc18831d95ad360ea0f"
+        },
+        {
+          "repository": "Try/OpenGothic",
+          "commit": "2855fa51957bac9e7ce83f938ec127a0ab3badce",
+          "path": "game/commandline.h",
+          "blob": "355053c08a076c04b457d8770f6a420b3b75f467",
+          "bytes": 3250,
+          "sha256": "0b409d614bf1a9a27aea0367dcaae49e67b79e8f19b20b0b9a4f15a3dfc77578"
+        },
+        {
+          "repository": "Try/OpenGothic",
+          "commit": "2855fa51957bac9e7ce83f938ec127a0ab3badce",
+          "path": "game/game/gamesession.cpp",
+          "blob": "6f5c5492ee02fc690990412401692b1e07d4ec05",
+          "bytes": 12839,
+          "sha256": "04f609f98f5c90b9ed183e1a90ed557031883b21d3a68b88c5bb7a159167b62b"
+        },
+        {
+          "repository": "Try/OpenGothic",
+          "commit": "2855fa51957bac9e7ce83f938ec127a0ab3badce",
+          "path": "game/mainwindow.cpp",
+          "blob": "9874dafdbf81fdebf5e69c869abfaec75da4bf0b",
+          "bytes": 37801,
+          "sha256": "3d817e4d125a2e073cf74b3b2884d34b7cf57b5271f0885784f023e0550f1804"
+        },
+        {
+          "repository": "Try/OpenGothic",
+          "commit": "2855fa51957bac9e7ce83f938ec127a0ab3badce",
+          "path": "game/utils/inifile.cpp",
+          "blob": "d172ad9ef798029a56cd629c917a3024398abfa7",
+          "bytes": 6086,
+          "sha256": "fbe0266c5f5264d37647f1ba2c81c5b359b84c3f24299a3c08169d419f02d35a"
+        }
+      ],
+      "retained_metadata_manifest": [
+        {
+          "name": "current--.gitmodules.api.json.observation.json",
+          "bytes": 258,
+          "sha256": "983527de53e1a3c1c08951e04d1959b89edfbd85c8590db8701eb32188c0056f"
+        },
+        {
+          "name": "current--CMakeLists.txt.api.json.observation.json",
+          "bytes": 259,
+          "sha256": "09d6bf2bb8037211b02806db9668f8f197c745651ac2454b589da673776dbe9d"
+        },
+        {
+          "name": "current--LICENSE.api.json.observation.json",
+          "bytes": 258,
+          "sha256": "7cc3bdfd740135ccaa099250c721c1c0d6c491d5aff4048a3b357b4bad52d37b"
+        },
+        {
+          "name": "current--README.md.api.json.observation.json",
+          "bytes": 259,
+          "sha256": "d728d24dceb9afed7105500292d9b6161325edc57e474ac9f9bdff538f9e6fc6"
+        },
+        {
+          "name": "current-tree.json",
+          "bytes": 179944,
+          "sha256": "7b0fd968ae48acc932d3b1997d5e4804b20341a99f17a7491da229e0ef79f006"
+        },
+        {
+          "name": "current-tree.json.observation.json",
+          "bytes": 272,
+          "sha256": "20da61f45e28c0461e80e3e082837648894451ff6e07b6f9b2100b541275366d"
+        },
+        {
+          "name": "current.json",
+          "bytes": 5753,
+          "sha256": "e7472a1b552c710c09bd2842bf3211679390d640e7c49aa05e84393f6ca9d3be"
+        },
+        {
+          "name": "current.json.observation.json",
+          "bytes": 222,
+          "sha256": "9ac969cb7e552d8ed951d147ed9bec561388ab1606b44e2ba1da8e35fd168f10"
+        },
+        {
+          "name": "release-recent-first10.json",
+          "bytes": 73525,
+          "sha256": "669810e91cb8f851d774f801589c94446f2bd0144d4d46a3436cbe7825f40a13"
+        },
+        {
+          "name": "release-recent-first10.json.observation.json",
+          "bytes": 229,
+          "sha256": "56eb9a7f751d260b6a4f72a5bf5299fc435d387067a24bbfecdc2c367f54b37f"
+        },
+        {
+          "name": "release-stable.json",
+          "bytes": 130,
+          "sha256": "d9e37600354c1839f6b22cebde497e9d14750d2401a06c9a51b1619baf991613"
+        },
+        {
+          "name": "release-stable.json.observation.json",
+          "bytes": 222,
+          "sha256": "7d533932345984d2214a9a4fc40a10ee6a6254132840a9b0f5ee1736dacda5c7"
+        },
+        {
+          "name": "release.json",
+          "bytes": 14909,
+          "sha256": "d7ea468fc8a958d0f86945a32fcfdcd269eb863dc58d074a0597d9425f3a2224"
+        },
+        {
+          "name": "repository.json",
+          "bytes": 5103,
+          "sha256": "e2419fe75936d397c8a22b5a46aacbc9f7bf1248593fd40b7dffc730dff0a71a"
+        },
+        {
+          "name": "repository.json.observation.json",
+          "bytes": 207,
+          "sha256": "0a2e8157dfeb32df9fc7e604db8e7f0e87c4a611679c8c29fa0e957f5dabd379"
+        },
+        {
+          "name": "selected-path-observations.json",
+          "bytes": 435,
+          "sha256": "f38555c707d4617b2cd8cedfcf7447d4ceb5a9d80a2654242b3ec2fe6dd310c5"
+        },
+        {
+          "name": "tag--.gitmodules.api.json.observation.json",
+          "bytes": 257,
+          "sha256": "ffdfb156c07f27b10bfa18d106c1df2dc47452e7ebaa6652c56d6648c123ac16"
+        },
+        {
+          "name": "tag--CMakeLists.txt.api.json.observation.json",
+          "bytes": 258,
+          "sha256": "86403a67dac3a22180819b695728b81aaa13878f40ac0d2aa796061999afa7b8"
+        },
+        {
+          "name": "tag--LICENSE.api.json.observation.json",
+          "bytes": 258,
+          "sha256": "dbc8beb557777677b5c1e7ccc725ef252475f9b14e1fa8bf4d36fe38f9e48547"
+        },
+        {
+          "name": "tag--README.md.api.json.observation.json",
+          "bytes": 259,
+          "sha256": "f7f2fcbc03a4b65791caf284788dc1522db43dfd7e91d9c4ef7ea3cf837faf24"
+        },
+        {
+          "name": "tag-tree.json",
+          "bytes": 139505,
+          "sha256": "014c58f9a4c708ab7e77bf0b990e5878f40531965c1e1f9fcb47a9732931cd96"
+        },
+        {
+          "name": "tag-tree.json.observation.json",
+          "bytes": 272,
+          "sha256": "b2512b9ae9fa07f12c1faa07c62f53da1d3639425ff0e92b4c5e18b30e70c813"
+        },
+        {
+          "name": "tag.json",
+          "bytes": 5806,
+          "sha256": "f35c504f630e35a54efe09b4e8aea4cf1afbbbca478179960029a9f659deaa99"
+        },
+        {
+          "name": "tag.json.observation.json",
+          "bytes": 221,
+          "sha256": "14a1efd86a2e31e5d214fce7da13f58949d23e6502a9d9041b923eec764603c4"
+        }
+      ]
+    },
+    {
+      "issue": 2682,
+      "repository": "deathkiller/jazz2-native",
+      "complete_tree_references": [
+        {
+          "role": "current",
+          "commit": "46f8696c8af3add2f69e27cda1448dadafb0cba1",
+          "root_tree": "0aea232745c243eacf8c19fe948e2792204044f0",
+          "members": 2972,
+          "complete": true
+        },
+        {
+          "role": "selected-distribution-3.9",
+          "commit": "81f315f1f62d1716c489df349e5ebfdc017603da",
+          "root_tree": "815898c33a845527d873f619657bb42b317c6fc0",
+          "members": 2677,
+          "complete": true
+        }
+      ],
+      "source_bindings": [
+        {
+          "repository": "deathkiller/jazz2-native",
+          "commit": "46f8696c8af3add2f69e27cda1448dadafb0cba1",
+          "path": "CMakeLists.txt",
+          "blob": "cd2a00601f3da9473f8dc34e79cb73af21c9fff3",
+          "bytes": 8265,
+          "sha256": "51f89eae6a30fc0008d142fd3a5d7c779e837ccfdf3a2d702721d81b256a5a90"
+        },
+        {
+          "repository": "deathkiller/jazz2-native",
+          "commit": "46f8696c8af3add2f69e27cda1448dadafb0cba1",
+          "path": "LICENSE",
+          "blob": "7f98fc1fd8772ceb93bd17cff9ab0f6fa233d196",
+          "bytes": 32400,
+          "sha256": "98f306ff37026d8a63b1e0ced8804d57fd44275e7aa45925874064f78faf9829"
+        },
+        {
+          "repository": "deathkiller/jazz2-native",
+          "commit": "46f8696c8af3add2f69e27cda1448dadafb0cba1",
+          "path": "README.md",
+          "blob": "55d3450b2826d41cb6c09a43a3f8ab95be7a75b9",
+          "bytes": 24875,
+          "sha256": "6b2962c5cbcd311dc0880800d88972c9f9f8c5a3c4e7cca10f52ef2b386a16e4"
+        },
+        {
+          "repository": "deathkiller/jazz2-native",
+          "commit": "46f8696c8af3add2f69e27cda1448dadafb0cba1",
+          "path": "Sources/Main.cpp",
+          "blob": "b5c1befe6f2d2658f39547ec4b9af6f674838742",
+          "bytes": 103779,
+          "sha256": "20105282d770557adf23e68acd6faecff53c1ae909ef86a2b6d8d1620cd6f29b"
+        },
+        {
+          "repository": "deathkiller/jazz2-native",
+          "commit": "46f8696c8af3add2f69e27cda1448dadafb0cba1",
+          "path": "Sources/Jazz2/ContentResolver.cpp",
+          "blob": "9026bde49ba5751fd5aa50c4434448e7304afbaa",
+          "bytes": 225063,
+          "sha256": "47eaba368573296504e4c64813eb5df4c1e0f8962933f5de547af1589f67c54c"
+        },
+        {
+          "repository": "deathkiller/jazz2-native",
+          "commit": "46f8696c8af3add2f69e27cda1448dadafb0cba1",
+          "path": "Sources/Jazz2/PreferencesCache.cpp",
+          "blob": "040bcda39cf985f78494b20593bba42968ca5d85",
+          "bytes": 111159,
+          "sha256": "f3f8c47a91ead71d79b20eb4d12010b10f22d6cde09b0815dbd4634b8e62c219"
+        },
+        {
+          "repository": "deathkiller/jazz2-native",
+          "commit": "46f8696c8af3add2f69e27cda1448dadafb0cba1",
+          "path": "Sources/nCine/MainApplication.cpp",
+          "blob": "12e569c62ac08df1b7809144f8ed8f546f885944",
+          "bytes": 75734,
+          "sha256": "6a7f123b5288f19f3e78b8ca5b9741bac34758ca7be8fdea15b6338838ebe6a8"
+        },
+        {
+          "repository": "deathkiller/jazz2-native",
+          "commit": "46f8696c8af3add2f69e27cda1448dadafb0cba1",
+          "path": "Sources/nCine/Application.cpp",
+          "blob": "1065aeb87515672d9a9202126a16d399587d81e4",
+          "bytes": 137432,
+          "sha256": "80fa7b364d94f31dbcca7fcb8156d73c43a9b1ed134a2a9ea6853c71b98b42f5"
+        },
+        {
+          "repository": "deathkiller/jazz2-native",
+          "commit": "46f8696c8af3add2f69e27cda1448dadafb0cba1",
+          "path": "Sources/Shared/IO/FileSystem.cpp",
+          "blob": "408a0319e2e10f7d49165d94f6479b68d464a260",
+          "bytes": 119708,
+          "sha256": "43bbf5722ef866fc8f1b91450357bf0bd398bad1c48569948742c608922b3848"
+        },
+        {
+          "repository": "deathkiller/jazz2-native",
+          "commit": "81f315f1f62d1716c489df349e5ebfdc017603da",
+          "path": "CMakeLists.txt",
+          "blob": "cd2a00601f3da9473f8dc34e79cb73af21c9fff3",
+          "bytes": 8265,
+          "sha256": "51f89eae6a30fc0008d142fd3a5d7c779e837ccfdf3a2d702721d81b256a5a90"
+        },
+        {
+          "repository": "deathkiller/jazz2-native",
+          "commit": "81f315f1f62d1716c489df349e5ebfdc017603da",
+          "path": "LICENSE",
+          "blob": "7f98fc1fd8772ceb93bd17cff9ab0f6fa233d196",
+          "bytes": 32400,
+          "sha256": "98f306ff37026d8a63b1e0ced8804d57fd44275e7aa45925874064f78faf9829"
+        },
+        {
+          "repository": "deathkiller/jazz2-native",
+          "commit": "81f315f1f62d1716c489df349e5ebfdc017603da",
+          "path": "README.md",
+          "blob": "68cb0a346bdd486afad3ec8108581765dd9b2782",
+          "bytes": 31888,
+          "sha256": "e65296ff2cf5cc99a65234a10661490e92e42e6eb7ae32b090330c4b1c8097a5"
+        },
+        {
+          "repository": "deathkiller/jazz2-native",
+          "commit": "81f315f1f62d1716c489df349e5ebfdc017603da",
+          "path": "Sources/Jazz2/ContentResolver.cpp",
+          "blob": "90677540d6270c6fdbf5753ffdea6854e3a7d8f2",
+          "bytes": 182901,
+          "sha256": "ab04e486a66255fc72bd2217fa15bdd136dfdcff79a9457fc8a66d3dbd850901"
+        },
+        {
+          "repository": "deathkiller/jazz2-native",
+          "commit": "81f315f1f62d1716c489df349e5ebfdc017603da",
+          "path": "Sources/Jazz2/PreferencesCache.cpp",
+          "blob": "fe4e77064b06b261d9c771d859663cf242dee599",
+          "bytes": 108511,
+          "sha256": "7640f33d6343990f0b9739738861c9ff6434a68ce092b8c5c40f0fe14635062d"
+        },
+        {
+          "repository": "deathkiller/jazz2-native",
+          "commit": "81f315f1f62d1716c489df349e5ebfdc017603da",
+          "path": "Sources/Main.cpp",
+          "blob": "3d1044fff321ae152130b646c68de7dd3ee8e7aa",
+          "bytes": 110324,
+          "sha256": "7bb897d87df99ae864b6228645b8bc76400d4708d61b88c579201aedd44c1785"
+        },
+        {
+          "repository": "deathkiller/jazz2-native",
+          "commit": "81f315f1f62d1716c489df349e5ebfdc017603da",
+          "path": "Sources/Shared/IO/FileSystem.cpp",
+          "blob": "0778a93fc7ed9bd4dd21feee18792f1ed5242a6f",
+          "bytes": 119897,
+          "sha256": "a7381fc7d87ab454611f7cc5a7e6bba6250b56f95cde10841904a0a1027c9c19"
+        },
+        {
+          "repository": "deathkiller/jazz2-native",
+          "commit": "81f315f1f62d1716c489df349e5ebfdc017603da",
+          "path": "Sources/nCine/Application.cpp",
+          "blob": "36957596eaa166ccf16e7c21eec0bc40808bedbe",
+          "bytes": 137403,
+          "sha256": "be17ef88c30c4d850213345c47a2a4b4f9d4b69b0e5d508f86cbc6c3d55cd30d"
+        },
+        {
+          "repository": "deathkiller/jazz2-native",
+          "commit": "81f315f1f62d1716c489df349e5ebfdc017603da",
+          "path": "Sources/nCine/MainApplication.cpp",
+          "blob": "71109fa4338ab08fbff594740090baa4380c858e",
+          "bytes": 75243,
+          "sha256": "8a4e12700b11428be8928e69d659ba2ea1a908dddbbe465065e2e274a93feb90"
+        }
+      ],
+      "retained_metadata_manifest": [
+        {
+          "name": "current--CMakeLists.txt.api.json.observation.json",
+          "bytes": 269,
+          "sha256": "52ca7c8a8effc14eac2f97985810fe222be44211915cb581ce5fc0013b44c6eb"
+        },
+        {
+          "name": "current--LICENSE.api.json.observation.json",
+          "bytes": 269,
+          "sha256": "dcf7e56ee7c5cb6cba9ffa9a5a128681a9ddd7257d19bae63b985406f7b00b41"
+        },
+        {
+          "name": "current--README.md.api.json.observation.json",
+          "bytes": 269,
+          "sha256": "dca8528985f5fed1db9b5db86a04cfc1bd63aec2a9772a597bd994753f4ce7e9"
+        },
+        {
+          "name": "current-tree.json",
+          "bytes": 765166,
+          "sha256": "0a1618f45d0be1c486b6786a454ecae3d4e7b5b26c6dcf7e70d65d462e4fbe77"
+        },
+        {
+          "name": "current-tree.json.observation.json",
+          "bytes": 282,
+          "sha256": "76a2c842c7ba5fe6d87924df7f226d8a38bd74ad3e574f2dca1668369a143e98"
+        },
+        {
+          "name": "current.json",
+          "bytes": 8627,
+          "sha256": "333d40972992596299a152338da438857c662358c7fb6bfe1c872cc313cb7f68"
+        },
+        {
+          "name": "current.json.observation.json",
+          "bytes": 232,
+          "sha256": "c00cd52a9a35d66d343d08a4964a1d608cc071f4e92d4336600511db0806b29b"
+        },
+        {
+          "name": "documented-distribution-release-observation.json",
+          "bytes": 190,
+          "sha256": "40e0defb6282b310fb4d3915cf9657917dba695183c7e6fd8dba1165d2698965"
+        },
+        {
+          "name": "documented-distribution-release.json",
+          "bytes": 15969,
+          "sha256": "3bb63de772463c5d8763f1e2a9c8d87a094e7546bc1a96c8848ffc336549bb25"
+        },
+        {
+          "name": "documented-distribution-repository-observation.json",
+          "bytes": 174,
+          "sha256": "2e680017b1981484d3d1aaaf08dadba5978ec9120bc2cf25001baf61eef30889"
+        },
+        {
+          "name": "documented-distribution-repository.json",
+          "bytes": 5531,
+          "sha256": "70e0d0864d2adb8e25961e32963ad454f15cedeab436d91498bc01502fb3ccab"
+        },
+        {
+          "name": "documented-distribution-source-tag.json",
+          "bytes": 10633,
+          "sha256": "af9a10f865da2b4ba099b9bea3bcb376a2fb9b0ea7a3bcebfc9b8187f40c945d"
+        },
+        {
+          "name": "documented-distribution-source-tree.json",
+          "bytes": 687605,
+          "sha256": "dcd7a9fa402db8dfbfaa90bf0a3c32f65ff2ec4ed1052c08229a7accbe5f854c"
+        },
+        {
+          "name": "documented-windows-archive-inventory.json",
+          "bytes": 209520,
+          "sha256": "691dbfb23a0ea0dd77c17f853871ef06b96000b56b8b49cfd60d246a190bd35e"
+        },
+        {
+          "name": "release-recent-first10.json",
+          "bytes": 2,
+          "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        {
+          "name": "release-recent-first10.json.observation.json",
+          "bytes": 235,
+          "sha256": "bc447fbad5922832c6befb11ba7cf2aa54f55124a72e359492253be1a3d56a6f"
+        },
+        {
+          "name": "release-stable.json",
+          "bytes": 130,
+          "sha256": "d9e37600354c1839f6b22cebde497e9d14750d2401a06c9a51b1619baf991613"
+        },
+        {
+          "name": "release-stable.json.observation.json",
+          "bytes": 232,
+          "sha256": "7862f806952c046b296dd9e59eac39c63beddb33c7fd3a6bf76049605aa5cf98"
+        },
+        {
+          "name": "release.json",
+          "bytes": 5,
+          "sha256": "38e0b9de817f645c4bec37c0d4a3e58baecccb040f5718dc069a72c7385a0bed"
+        },
+        {
+          "name": "repository.json",
+          "bytes": 5864,
+          "sha256": "8f950e64691ea0baf822767c5f16810bde1c4696750e683887845fa7a3a8da52"
+        },
+        {
+          "name": "repository.json.observation.json",
+          "bytes": 217,
+          "sha256": "e6eaae64e6839b87ea4123adaddd73c8cdeb71f871d9b7043cae1cd42499e9e3"
+        },
+        {
+          "name": "selected-path-observations.json",
+          "bytes": 3,
+          "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+        }
+      ]
+    },
+    {
+      "issue": 2582,
+      "repository": "ihhub/fheroes2",
+      "complete_tree_references": [
+        {
+          "role": "current",
+          "commit": "c0e8128701b29c46ad4f7f63dd31f874439981cd",
+          "root_tree": "7972df5a6b2d2e61f157fceeaec6150bc7c0731e",
+          "members": 1119,
+          "complete": true
+        },
+        {
+          "role": "selected",
+          "commit": "2685c2188b541660f1ce261b554c3e92f79b1775",
+          "root_tree": "52c55b092843cfbbc659f08478f26fa48f1fecd8",
+          "members": 1108,
+          "complete": true
+        }
+      ],
+      "source_bindings": [
+        {
+          "repository": "ihhub/fheroes2",
+          "commit": "c0e8128701b29c46ad4f7f63dd31f874439981cd",
+          "path": "CMakeLists.txt",
+          "blob": "6fdfceca5488105c154c9ba9d995b8bb0ab0c3ca",
+          "bytes": 7193,
+          "sha256": "daa97a1178cd3abc44389577dc4ede5dec822404e15561afa5aa93cd651fa37c"
+        },
+        {
+          "repository": "ihhub/fheroes2",
+          "commit": "c0e8128701b29c46ad4f7f63dd31f874439981cd",
+          "path": "LICENSE",
+          "blob": "d159169d1050894d3ea3b98e1c965c4058208fe1",
+          "bytes": 18092,
+          "sha256": "8177f97513213526df2cf6184d8ff986c675afb514d4e68a404010521b880643"
+        },
+        {
+          "repository": "ihhub/fheroes2",
+          "commit": "c0e8128701b29c46ad4f7f63dd31f874439981cd",
+          "path": "README.md",
+          "blob": "800f6e3371ce6626e3ba40a0de75462b8a62ea93",
+          "bytes": 4718,
+          "sha256": "8a51fb925b8ed68e9ff16867dee404cf562b0e84e864386da7e75b4d6a013ef9"
+        },
+        {
+          "repository": "ihhub/fheroes2",
+          "commit": "2685c2188b541660f1ce261b554c3e92f79b1775",
+          "path": "CMakeLists.txt",
+          "blob": "6fdfceca5488105c154c9ba9d995b8bb0ab0c3ca",
+          "bytes": 7193,
+          "sha256": "daa97a1178cd3abc44389577dc4ede5dec822404e15561afa5aa93cd651fa37c"
+        },
+        {
+          "repository": "ihhub/fheroes2",
+          "commit": "2685c2188b541660f1ce261b554c3e92f79b1775",
+          "path": "LICENSE",
+          "blob": "d159169d1050894d3ea3b98e1c965c4058208fe1",
+          "bytes": 18092,
+          "sha256": "8177f97513213526df2cf6184d8ff986c675afb514d4e68a404010521b880643"
+        },
+        {
+          "repository": "ihhub/fheroes2",
+          "commit": "2685c2188b541660f1ce261b554c3e92f79b1775",
+          "path": "README.md",
+          "blob": "800f6e3371ce6626e3ba40a0de75462b8a62ea93",
+          "bytes": 4718,
+          "sha256": "8a51fb925b8ed68e9ff16867dee404cf562b0e84e864386da7e75b4d6a013ef9"
+        },
+        {
+          "repository": "ihhub/fheroes2",
+          "commit": "2685c2188b541660f1ce261b554c3e92f79b1775",
+          "path": "src/fheroes2/CMakeLists.txt",
+          "blob": "b994b45946301d64d3129514dc75c6eec8972d89",
+          "bytes": 4178,
+          "sha256": "8fb76a654a2c04b9738e5b1484ec6fe46e828bbc04c047a2cf363e05aaff9668"
+        },
+        {
+          "repository": "ihhub/fheroes2",
+          "commit": "2685c2188b541660f1ce261b554c3e92f79b1775",
+          "path": "src/fheroes2/game/fheroes2.cpp",
+          "blob": "393ad06c011dabeac582af9fa67645738832778a",
+          "bytes": 14616,
+          "sha256": "3a58ee87121289c5972e7409580b924b8ddabb39ac3d7f506aa95174dc6db037"
+        },
+        {
+          "repository": "ihhub/fheroes2",
+          "commit": "2685c2188b541660f1ce261b554c3e92f79b1775",
+          "path": "src/fheroes2/system/settings.cpp",
+          "blob": "7e3449e2a98c08022bf05f132c55390f2d4bc6df",
+          "bytes": 42035,
+          "sha256": "45956f0b86cc5b3a616f6172c20c30403402edbc1ca0849df295932bd0642c0c"
+        },
+        {
+          "repository": "ihhub/fheroes2",
+          "commit": "2685c2188b541660f1ce261b554c3e92f79b1775",
+          "path": "src/engine/system.cpp",
+          "blob": "bd8e6f5e85276353ce702c39ebdf3076e71fdecb",
+          "bytes": 19134,
+          "sha256": "959cf9e71fa072efd27a4c4913eeb6f232793235efb8eab86a5ac5a9f38ec185"
+        },
+        {
+          "repository": "ihhub/fheroes2",
+          "commit": "2685c2188b541660f1ce261b554c3e92f79b1775",
+          "path": "src/engine/system.h",
+          "blob": "16bb4574a0649b1d6a8fb1ce5e6cb9b0103e360c",
+          "bytes": 5009,
+          "sha256": "fc02e5c21bee17f97df4a39ae1b06c2b65dd25f4584036af3a374ee9314be77f"
+        },
+        {
+          "repository": "ihhub/fheroes2",
+          "commit": "2685c2188b541660f1ce261b554c3e92f79b1775",
+          "path": "docs/README.md",
+          "blob": "5ad6234da3a6f8df8e8dd14ca5cb9401ddcbedc6",
+          "bytes": 4827,
+          "sha256": "e26e16f5c8e14fabad9ab95bed5e29e6a58a3c7b6bd5313bd1b1e7ea5f923e33"
+        },
+        {
+          "repository": "ihhub/fheroes2",
+          "commit": "2685c2188b541660f1ce261b554c3e92f79b1775",
+          "path": "docs/INSTALL.md",
+          "blob": "8bf8897a11d396bfaad10b2e243cc150e200eb52",
+          "bytes": 17529,
+          "sha256": "3c997683a463e99fcf9811e6fbadc284b7e3838941688dfbb3eceb777175ae89"
+        },
+        {
+          "repository": "ihhub/fheroes2",
+          "commit": "2685c2188b541660f1ce261b554c3e92f79b1775",
+          "path": "script/homm2/README.md",
+          "blob": "4ff0861a837b310cb4a3ee9e99d52da89e566d61",
+          "bytes": 139,
+          "sha256": "60813570127365cf7eee5def305487fc1e232f475379b6ab24e502ab1f9aaaf3"
+        },
+        {
+          "repository": "ihhub/fheroes2",
+          "commit": "2685c2188b541660f1ce261b554c3e92f79b1775",
+          "path": "script/demo/README.md",
+          "blob": "8481969913d89837129755be9b5939eabcedc301",
+          "bytes": 196,
+          "sha256": "a13f4e056923c27fd6e9624e67a8fdc580de26269cb20f33c7ecd103d6143b69"
+        },
+        {
+          "repository": "ihhub/fheroes2",
+          "commit": "c0e8128701b29c46ad4f7f63dd31f874439981cd",
+          "path": "src/fheroes2/CMakeLists.txt",
+          "blob": "b994b45946301d64d3129514dc75c6eec8972d89",
+          "bytes": 4178,
+          "sha256": "8fb76a654a2c04b9738e5b1484ec6fe46e828bbc04c047a2cf363e05aaff9668"
+        },
+        {
+          "repository": "ihhub/fheroes2",
+          "commit": "c0e8128701b29c46ad4f7f63dd31f874439981cd",
+          "path": "src/fheroes2/game/fheroes2.cpp",
+          "blob": "ce25e88f4b2463e9eb19871905046b14c2929525",
+          "bytes": 4182,
+          "sha256": "54c7442f807a3e22c583cbd79c1e32cd59a00648a0137fcf601bafbefc0f76c9"
+        },
+        {
+          "repository": "ihhub/fheroes2",
+          "commit": "c0e8128701b29c46ad4f7f63dd31f874439981cd",
+          "path": "src/fheroes2/system/settings.cpp",
+          "blob": "353da3b70c9d8d2480d8ef491d97ea15ea2d5d68",
+          "bytes": 41550,
+          "sha256": "784279c16446bfa30b8a87aded8594b85f42ffaeb707dd022e636089324a5f1b"
+        },
+        {
+          "repository": "ihhub/fheroes2",
+          "commit": "c0e8128701b29c46ad4f7f63dd31f874439981cd",
+          "path": "src/engine/system.cpp",
+          "blob": "e3d7171c0be63aa61608db0b26b7734f4f6cf9be",
+          "bytes": 19033,
+          "sha256": "f521977ff9639b8ab9f91e4d99b7094e8de57503bee3cc0bd1df9994cb6505ac"
+        },
+        {
+          "repository": "ihhub/fheroes2",
+          "commit": "c0e8128701b29c46ad4f7f63dd31f874439981cd",
+          "path": "src/engine/system.h",
+          "blob": "16bb4574a0649b1d6a8fb1ce5e6cb9b0103e360c",
+          "bytes": 5009,
+          "sha256": "fc02e5c21bee17f97df4a39ae1b06c2b65dd25f4584036af3a374ee9314be77f"
+        },
+        {
+          "repository": "ihhub/fheroes2",
+          "commit": "c0e8128701b29c46ad4f7f63dd31f874439981cd",
+          "path": "docs/README.md",
+          "blob": "5ad6234da3a6f8df8e8dd14ca5cb9401ddcbedc6",
+          "bytes": 4827,
+          "sha256": "e26e16f5c8e14fabad9ab95bed5e29e6a58a3c7b6bd5313bd1b1e7ea5f923e33"
+        },
+        {
+          "repository": "ihhub/fheroes2",
+          "commit": "c0e8128701b29c46ad4f7f63dd31f874439981cd",
+          "path": "docs/INSTALL.md",
+          "blob": "8bf8897a11d396bfaad10b2e243cc150e200eb52",
+          "bytes": 17529,
+          "sha256": "3c997683a463e99fcf9811e6fbadc284b7e3838941688dfbb3eceb777175ae89"
+        },
+        {
+          "repository": "ihhub/fheroes2",
+          "commit": "c0e8128701b29c46ad4f7f63dd31f874439981cd",
+          "path": "script/homm2/README.md",
+          "blob": "4ff0861a837b310cb4a3ee9e99d52da89e566d61",
+          "bytes": 139,
+          "sha256": "60813570127365cf7eee5def305487fc1e232f475379b6ab24e502ab1f9aaaf3"
+        },
+        {
+          "repository": "ihhub/fheroes2",
+          "commit": "c0e8128701b29c46ad4f7f63dd31f874439981cd",
+          "path": "script/demo/README.md",
+          "blob": "8481969913d89837129755be9b5939eabcedc301",
+          "bytes": 196,
+          "sha256": "a13f4e056923c27fd6e9624e67a8fdc580de26269cb20f33c7ecd103d6143b69"
+        },
+        {
+          "repository": "ihhub/fheroes2",
+          "commit": "2685c2188b541660f1ce261b554c3e92f79b1775",
+          "path": "src/fheroes2/system/settings.h",
+          "blob": "bb156094a28782f1b2610cd4c628b69c2cadc4cc",
+          "bytes": 12369,
+          "sha256": "a52c05333024e29dd303bc5d9187062dffadc1ae8db9dba0f4a6da6fc7b8e1c9"
+        }
+      ],
+      "retained_metadata_manifest": [
+        {
+          "name": "current--CMakeLists.txt.api.json.observation.json",
+          "bytes": 259,
+          "sha256": "45766d23ec2336ac9138d32e77bb620773e517cd92f59fa42ea052e241f32159"
+        },
+        {
+          "name": "current--LICENSE.api.json.observation.json",
+          "bytes": 259,
+          "sha256": "6bbd30f88d7fcc318e6fdf519b5b7e918dc61a6558c7d952d168bde17ffaff0c"
+        },
+        {
+          "name": "current--README.md.api.json.observation.json",
+          "bytes": 258,
+          "sha256": "3bb900487c135fa5a8fd42ab5929606b0fcf5c8aac332c40e29ee8cb7d735f0b"
+        },
+        {
+          "name": "current-tree.json",
+          "bytes": 267444,
+          "sha256": "fd9b63dbb35b7f1d96b917ae31e20f00e587325fd012a2b08bdbf1685faac8e7"
+        },
+        {
+          "name": "current-tree.json.observation.json",
+          "bytes": 272,
+          "sha256": "879b4cc9cf0878de676348760b4b5135706ea11482374819c92f6cde746283b8"
+        },
+        {
+          "name": "current.json",
+          "bytes": 51265,
+          "sha256": "f172bb40d479649480ba22901842cab9079756a2c43a8609b42ff1a2768b521c"
+        },
+        {
+          "name": "current.json.observation.json",
+          "bytes": 223,
+          "sha256": "71d85b7ea1962d3c1028cd0c9c547c2949a0f00eb9c193f489216b6344ca7670"
+        },
+        {
+          "name": "release-stable.json",
+          "bytes": 16997,
+          "sha256": "8651f4f22cee1cc63be5ebedae53ebb690fe0800b5a12af7fe591ed7a2eae569"
+        },
+        {
+          "name": "release-stable.json.observation.json",
+          "bytes": 224,
+          "sha256": "31a3465acc019ac0593be9fb5749b305624f1f9c31eeb96763044b61fd020583"
+        },
+        {
+          "name": "release.json",
+          "bytes": 20456,
+          "sha256": "ca306e9aef61183e1146c7c6cfe64b895291132f089e8ddeea92987f833a9a4e"
+        },
+        {
+          "name": "repository.json",
+          "bytes": 5353,
+          "sha256": "f55b007cd9a8ba8ca460e26c78284bde321d0728c360dc95da45bc9936dffc99"
+        },
+        {
+          "name": "repository.json.observation.json",
+          "bytes": 207,
+          "sha256": "cd4ca8066f7698b1fa9c3b1c3434f1629bd0a2514898ef9431f917f873733c6b"
+        },
+        {
+          "name": "selected-path-observations.json",
+          "bytes": 3,
+          "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+        },
+        {
+          "name": "tag--CMakeLists.txt.api.json.observation.json",
+          "bytes": 259,
+          "sha256": "56087770bf4e41af0fed058426514feb04323e08989497e7df70e66ef5d3b290"
+        },
+        {
+          "name": "tag--LICENSE.api.json.observation.json",
+          "bytes": 259,
+          "sha256": "dc5c0153237b6ae380c8a0f819b3e3d5b948cd76265106c2131ced2a5007cbd1"
+        },
+        {
+          "name": "tag--README.md.api.json.observation.json",
+          "bytes": 258,
+          "sha256": "52293a02732dec093aa235779a8e90b6e271b8f4f138b8d37589a716518d496e"
+        },
+        {
+          "name": "tag-tree.json",
+          "bytes": 264841,
+          "sha256": "0814c5b1b746ece3369760643fe6bb112047ab9d579a3e374d37ae0b76d0d501"
+        },
+        {
+          "name": "tag-tree.json.observation.json",
+          "bytes": 272,
+          "sha256": "782b0854e52ff5c405b3a779ef7f4056e16119c728f94a0268d0f66f48944989"
+        },
+        {
+          "name": "tag.json",
+          "bytes": 12176,
+          "sha256": "7ed551323e32d8bdf2132053a34d7dc84bcc5911adae95dc1845a299f8d9ec4e"
+        },
+        {
+          "name": "tag.json.observation.json",
+          "bytes": 223,
+          "sha256": "3e376af64662c7062218fb15f74b9ec95e94332bdc5971df00bf9f7a8acff9dd"
+        }
+      ]
+    },
+    {
+      "issue": 2716,
+      "repository": "OpenTTD/OpenTTD",
+      "complete_tree_references": [
+        {
+          "role": "current",
+          "commit": "d4702b4d1eb1e379fe9f4f261737b02b7fe0bd1a",
+          "root_tree": "8d8a38d763782b7fb601e3a8223a73749875469c",
+          "members": 1987,
+          "complete": true
+        },
+        {
+          "role": "selected",
+          "commit": "14ec60f248547d4d062a1160f0fc26d742319888",
+          "root_tree": "02d8cbbb0d8c030698d37ca76ab2773b6e23c397",
+          "members": 1936,
+          "complete": true
+        }
+      ],
+      "source_bindings": [
+        {
+          "repository": "OpenTTD/OpenTTD",
+          "commit": "d4702b4d1eb1e379fe9f4f261737b02b7fe0bd1a",
+          "path": "CMakeLists.txt",
+          "blob": "c8212806d19addfec3426676d0af5e793ec5f7ab",
+          "bytes": 15901,
+          "sha256": "0cce437b4e0f5c7c9ca726a2c60f4f77b463e14cb5cec0a88019a026a25e628e"
+        },
+        {
+          "repository": "OpenTTD/OpenTTD",
+          "commit": "d4702b4d1eb1e379fe9f4f261737b02b7fe0bd1a",
+          "path": "COPYING.md",
+          "blob": "089f86e973d7e5e2b8ac901a7d44a6083fca4b1c",
+          "bytes": 17949,
+          "sha256": "50ac792e113700dd23ecb25ed6f341eb383bed36cb8fd87aa164f4e44f2760b3"
+        },
+        {
+          "repository": "OpenTTD/OpenTTD",
+          "commit": "d4702b4d1eb1e379fe9f4f261737b02b7fe0bd1a",
+          "path": "README.md",
+          "blob": "a0e50bdef899db73b4fc8a8d6f29da13f1ac0d25",
+          "bytes": 9747,
+          "sha256": "1d3ef552927e7e52239eab89c2b213fffd3c006f008bacfd13187018a534dd86"
+        },
+        {
+          "repository": "OpenTTD/OpenTTD",
+          "commit": "14ec60f248547d4d062a1160f0fc26d742319888",
+          "path": "CMakeLists.txt",
+          "blob": "2891beeb5126f7824b663a03f7f9cd2e46b212b5",
+          "bytes": 15539,
+          "sha256": "9c67c4e02ea184154d1c48dcd11fba246f28b4bc11872cdfa959e0919d4b88fb"
+        },
+        {
+          "repository": "OpenTTD/OpenTTD",
+          "commit": "14ec60f248547d4d062a1160f0fc26d742319888",
+          "path": "COPYING.md",
+          "blob": "089f86e973d7e5e2b8ac901a7d44a6083fca4b1c",
+          "bytes": 17949,
+          "sha256": "50ac792e113700dd23ecb25ed6f341eb383bed36cb8fd87aa164f4e44f2760b3"
+        },
+        {
+          "repository": "OpenTTD/OpenTTD",
+          "commit": "14ec60f248547d4d062a1160f0fc26d742319888",
+          "path": "README.md",
+          "blob": "a0e50bdef899db73b4fc8a8d6f29da13f1ac0d25",
+          "bytes": 9747,
+          "sha256": "1d3ef552927e7e52239eab89c2b213fffd3c006f008bacfd13187018a534dd86"
+        },
+        {
+          "repository": "OpenTTD/OpenTTD",
+          "commit": "14ec60f248547d4d062a1160f0fc26d742319888",
+          "path": "src/CMakeLists.txt",
+          "blob": "16215e7f8d867de5bcd74b9c032a10e3c7f64299",
+          "bytes": 11082,
+          "sha256": "5efa2fabab07fdc3bb40da5232e28f6509bb2ee5e19b856fadfebb960c7ebfa1"
+        },
+        {
+          "repository": "OpenTTD/OpenTTD",
+          "commit": "14ec60f248547d4d062a1160f0fc26d742319888",
+          "path": "src/os/windows/win32.cpp",
+          "blob": "a51074f4a49e7f69e1e874b4cecb9f80386ec97b",
+          "bytes": 17390,
+          "sha256": "3132a2ac44dc60620c6bc84cfe6a04cd89d04f13274ba8e1cff0eceb5529de4c"
+        },
+        {
+          "repository": "OpenTTD/OpenTTD",
+          "commit": "14ec60f248547d4d062a1160f0fc26d742319888",
+          "path": "src/fileio.cpp",
+          "blob": "51b333337cb1b710e44f03f33dad61da072e264a",
+          "bytes": 36553,
+          "sha256": "a3df42face23690b8043fca8a04c06ac213d2a2e44b455d1728e7c2e5a111ae1"
+        },
+        {
+          "repository": "OpenTTD/OpenTTD",
+          "commit": "14ec60f248547d4d062a1160f0fc26d742319888",
+          "path": "src/openttd.cpp",
+          "blob": "7d585b09e0374362f3fa08cf9fb9819233f1eae2",
+          "bytes": 44882,
+          "sha256": "319a27a31f1f241ab1e83853d0ec61cd0fa60adfaf5d4e3666a1dd74c57acba0"
+        },
+        {
+          "repository": "OpenTTD/OpenTTD",
+          "commit": "14ec60f248547d4d062a1160f0fc26d742319888",
+          "path": "src/settings.cpp",
+          "blob": "2d15b815058ec78fe94324c59b4530f2c8711fc2",
+          "bytes": 70960,
+          "sha256": "9f51995f3da8e2849acefd140f60003da54adcc1d4fbde85a170aeac777373ac"
+        },
+        {
+          "repository": "OpenTTD/OpenTTD",
+          "commit": "14ec60f248547d4d062a1160f0fc26d742319888",
+          "path": "src/saveload/saveload.cpp",
+          "blob": "ebec3d24d993f4dbaa83dd7e118df7952ba8c236",
+          "bytes": 108850,
+          "sha256": "3526778cd266d0e1cc51dfde5f894b4b546040cf266fa353988dcef4f9b53fc7"
+        },
+        {
+          "repository": "OpenTTD/OpenTTD",
+          "commit": "d4702b4d1eb1e379fe9f4f261737b02b7fe0bd1a",
+          "path": "src/CMakeLists.txt",
+          "blob": "6005a8ce41d7dc254f6138c9e6c3283974c32852",
+          "bytes": 11541,
+          "sha256": "1535af5d4d694eba7a638735da12b7a54248d07e7b0dc77d083192a9edc646f6"
+        },
+        {
+          "repository": "OpenTTD/OpenTTD",
+          "commit": "d4702b4d1eb1e379fe9f4f261737b02b7fe0bd1a",
+          "path": "src/os/windows/win32.cpp",
+          "blob": "572dc940759a3a2678420b73b67f9341cd485bc0",
+          "bytes": 18264,
+          "sha256": "6e1b59b8780180a8024572773ee00bbc7fc1bed6791f34aa1239a86755a9c8ba"
+        },
+        {
+          "repository": "OpenTTD/OpenTTD",
+          "commit": "d4702b4d1eb1e379fe9f4f261737b02b7fe0bd1a",
+          "path": "src/fileio.cpp",
+          "blob": "5a0ce471e6fb0de0c9ff60865750447e7f2537d3",
+          "bytes": 39797,
+          "sha256": "a2fd6a2fa5077a4b6725bdeaac10613927847923aaf33c3bf17e77f49a849f53"
+        },
+        {
+          "repository": "OpenTTD/OpenTTD",
+          "commit": "d4702b4d1eb1e379fe9f4f261737b02b7fe0bd1a",
+          "path": "src/openttd.cpp",
+          "blob": "f39206438713f951385f3bd820576eb085f6f3c5",
+          "bytes": 46304,
+          "sha256": "2ce1d5454ca7f6f8c2078499198597605338b5ad3575d48d46543144bde35c7f"
+        },
+        {
+          "repository": "OpenTTD/OpenTTD",
+          "commit": "d4702b4d1eb1e379fe9f4f261737b02b7fe0bd1a",
+          "path": "src/settings.cpp",
+          "blob": "cfa0337b5342386b4b6526afc2b6bdbff75e30a2",
+          "bytes": 72580,
+          "sha256": "903f86f5dea77ab12932ca4f628b82e9be10eb42169133b90ddf5e22b47ff940"
+        },
+        {
+          "repository": "OpenTTD/OpenTTD",
+          "commit": "d4702b4d1eb1e379fe9f4f261737b02b7fe0bd1a",
+          "path": "src/saveload/saveload.cpp",
+          "blob": "f4895d04657412ad11f278a065ac14402274bea4",
+          "bytes": 115304,
+          "sha256": "4e1825879b2eba65370392c3573275b99fe93dad21c9dda293dbb32a4c957dfb"
+        },
+        {
+          "repository": "OpenTTD/OpenTTD",
+          "commit": "14ec60f248547d4d062a1160f0fc26d742319888",
+          "path": "src/bootstrap_gui.cpp",
+          "blob": "3c62d3bd1c0fb2e71015638507afe7a981f20438",
+          "bytes": 14130,
+          "sha256": "1e0437d999e3f440e8f9335c18105426c5e6d5446f4b9617fe23900eec973a40"
+        },
+        {
+          "repository": "OpenTTD/OpenTTD",
+          "commit": "14ec60f248547d4d062a1160f0fc26d742319888",
+          "path": "src/network/network_content.cpp",
+          "blob": "ced3a4d8fda42909dfecd8bc18f3a397c7a045c0",
+          "bytes": 34446,
+          "sha256": "29fef526f5029a0c0de56bcf1a3f43bf7869c42068e123530aab8e1d2cc84634"
+        },
+        {
+          "repository": "OpenTTD/OpenTTD",
+          "commit": "14ec60f248547d4d062a1160f0fc26d742319888",
+          "path": "src/network/network_content_gui.cpp",
+          "blob": "914b630cbab063fae827673f4187c100576c4e92",
+          "bytes": 41935,
+          "sha256": "6d77502c89b5153ef3dce836dab6cc9fa0f41954ddef636edd80f3f7d99bf17e"
+        }
+      ],
+      "retained_metadata_manifest": [
+        {
+          "name": "current--CMakeLists.txt.api.json.observation.json",
+          "bytes": 260,
+          "sha256": "448d64d93224a2cd7b8f4a0c02285b1b8c720eae9e5e24573621a9830d098af7"
+        },
+        {
+          "name": "current--COPYING.md.api.json.observation.json",
+          "bytes": 260,
+          "sha256": "502ef4ae85aa77b6408b7f41e8accfe45336f378bdde49afb3dab43ce0b76dca"
+        },
+        {
+          "name": "current--README.md.api.json.observation.json",
+          "bytes": 260,
+          "sha256": "026756d3fef4d5f85c40365d60b75d3f7ab9a3f77a90dd0d45348020ef5d493c"
+        },
+        {
+          "name": "current-tree.json",
+          "bytes": 461163,
+          "sha256": "180e579030be3a2e419e96d30bce23e2116e4925c2a6481e6cdd0debc0443125"
+        },
+        {
+          "name": "current-tree.json.observation.json",
+          "bytes": 273,
+          "sha256": "19a1c42b4def35fd831aa63c7344592b69096491bb3141ebb2194c25cab90f74"
+        },
+        {
+          "name": "current.json",
+          "bytes": 31946,
+          "sha256": "eb33c10c9c12a65f3db495cae6d7823843a470b6ca0b7e04714091faeac85c6d"
+        },
+        {
+          "name": "current.json.observation.json",
+          "bytes": 224,
+          "sha256": "5eefb4c58f4f4b36945c2d49a99217c8f02211864b04aacdc85b349ab432061a"
+        },
+        {
+          "name": "official-15.3-directory-observation.json",
+          "bytes": 184,
+          "sha256": "840cd508144f5eed34d2614366fc4234ffb86e327ab12483a46c02f18ea4457a"
+        },
+        {
+          "name": "release-stable.json",
+          "bytes": 2406,
+          "sha256": "fe5742f460e0ee930e40e1e7740418b47092b4b02baf13e3efd83ff3409784d9"
+        },
+        {
+          "name": "release-stable.json.observation.json",
+          "bytes": 224,
+          "sha256": "d68fc1d68cc94ed9b639eb1511b72996fd2dec2c492dec2b143b1a06fb8e423c"
+        },
+        {
+          "name": "release.json",
+          "bytes": 2672,
+          "sha256": "e76be2fa03c65ab4db62fc15990236d204c09e9ca6c6fc85f880c4f5af5f8910"
+        },
+        {
+          "name": "repository.json",
+          "bytes": 6237,
+          "sha256": "2ac96eaae251dfe5274bbdfd09b0062a986864e940e990532bfdca7a0d84f382"
+        },
+        {
+          "name": "repository.json.observation.json",
+          "bytes": 208,
+          "sha256": "cc52e2e9ac697e622e0ddfa7d445a65286d477b2f76e8a9c012e44954c42d2c4"
+        },
+        {
+          "name": "selected-path-observations.json",
+          "bytes": 3,
+          "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+        },
+        {
+          "name": "tag--CMakeLists.txt.api.json.observation.json",
+          "bytes": 260,
+          "sha256": "4f557f5f60900e87a5e88a1e37cb553eb97150a31b2fb5d566f62fb0738e15f1"
+        },
+        {
+          "name": "tag--COPYING.md.api.json.observation.json",
+          "bytes": 260,
+          "sha256": "5c97d35b1bf4c151a9caaaaa296e8b5f4a54dfff3ca698999a4c6354175efc23"
+        },
+        {
+          "name": "tag--README.md.api.json.observation.json",
+          "bytes": 260,
+          "sha256": "481210ee560ad74bfd8014965e48541af873a8a1a96d959afb6ee7ce99cb6deb"
+        },
+        {
+          "name": "tag-tree.json",
+          "bytes": 449274,
+          "sha256": "4e36c3c4240ba319f1508f37b14ae9e587d90230486e49619ed3aea078df6a05"
+        },
+        {
+          "name": "tag-tree.json.observation.json",
+          "bytes": 273,
+          "sha256": "7e8f1d6b7f90f0d750c77636b33a23605574f71db53dbc74845150d3ad65f0c3"
+        },
+        {
+          "name": "tag.json",
+          "bytes": 5081,
+          "sha256": "24097e71b069c2ba6ea1aff33ff0a24021ff8ecc38ffcd87e1c107c3e94fb811"
+        },
+        {
+          "name": "tag.json.observation.json",
+          "bytes": 221,
+          "sha256": "bfddee42c63241ecfedd74a94e0ec50034f49d8e63b31b4a2b17a1f8f1fced09"
+        }
+      ]
+    },
+    {
+      "issue": 2678,
+      "repository": "FWGS/xash3d-fwgs",
+      "complete_tree_references": [
+        {
+          "role": "current",
+          "commit": "a7becfdf8d134eb2ae5cd083a45c816e6b4e42fc",
+          "root_tree": "5509ef92db46f2dbb86268317db2a81323ac444f",
+          "members": 916,
+          "complete": true
+        },
+        {
+          "role": "selected",
+          "commit": "a7becfdf8d134eb2ae5cd083a45c816e6b4e42fc",
+          "root_tree": "5509ef92db46f2dbb86268317db2a81323ac444f",
+          "members": 916,
+          "complete": true
+        }
+      ],
+      "source_bindings": [
+        {
+          "repository": "FWGS/xash3d-fwgs",
+          "commit": "a7becfdf8d134eb2ae5cd083a45c816e6b4e42fc",
+          "path": ".gitmodules",
+          "blob": "ca927a5052019be1cb5832e58cd4ecfceed79d57",
+          "bytes": 1834,
+          "sha256": "6386a575d53a7a0d1cd71c268a30e793e392c9c5119e1f95bea833ff13b94b73"
+        },
+        {
+          "repository": "FWGS/xash3d-fwgs",
+          "commit": "a7becfdf8d134eb2ae5cd083a45c816e6b4e42fc",
+          "path": "README.md",
+          "blob": "f311555d6ea0433418c949388e978293eaeaefbe",
+          "bytes": 10485,
+          "sha256": "3110fbfa38663589af4df6fef93c04a05cefda4642ad829524cf5aeccd1f6c38"
+        },
+        {
+          "repository": "FWGS/xash3d-fwgs",
+          "commit": "a7becfdf8d134eb2ae5cd083a45c816e6b4e42fc",
+          "path": "wscript",
+          "blob": "b92142291e2e1178587f5f9142e9efd48bcc70eb",
+          "bytes": 27311,
+          "sha256": "c8f165c4b5c38465fbf26e5e53463a28082ba2c4b12e83423e1953f669953dae"
+        },
+        {
+          "repository": "FWGS/xash3d-fwgs",
+          "commit": "a7becfdf8d134eb2ae5cd083a45c816e6b4e42fc",
+          "path": "engine/wscript",
+          "blob": "6055b7984bbc521d4ad28698bb1e551404c4c95e",
+          "bytes": 13461,
+          "sha256": "5c943c7ee4dfc6b6b6348a52dc6da5d65dc151694a4b8d70237ef739922aaad4"
+        },
+        {
+          "repository": "FWGS/xash3d-fwgs",
+          "commit": "a7becfdf8d134eb2ae5cd083a45c816e6b4e42fc",
+          "path": "game_launch/wscript",
+          "blob": "2e2fff68d45fc204f6d416029f0e083a38cf6a7d",
+          "bytes": 1061,
+          "sha256": "ee0199bfe5f1479be38b7312379a5232a3d7db8e5753e829a400e448ca5d8361"
+        },
+        {
+          "repository": "FWGS/xash3d-fwgs",
+          "commit": "a7becfdf8d134eb2ae5cd083a45c816e6b4e42fc",
+          "path": "game_launch/game.cpp",
+          "blob": "9be4c4a55347efd1f5c0cc1d2c2e35039cd2b431",
+          "bytes": 4835,
+          "sha256": "084676e94590ec794842dc06a7a93dd90247918d33cbd610aa6091f5e9f379ad"
+        },
+        {
+          "repository": "FWGS/xash3d-fwgs",
+          "commit": "a7becfdf8d134eb2ae5cd083a45c816e6b4e42fc",
+          "path": "engine/common/launcher.c",
+          "blob": "70adc33cb81cd40f40c58513fd53f9bb9ae4e43b",
+          "bytes": 1251,
+          "sha256": "a8ae81a94244dcfebe5bacdc94578b6e2ef028191dd3e19720e37ac37899c5b5"
+        },
+        {
+          "repository": "FWGS/xash3d-fwgs",
+          "commit": "a7becfdf8d134eb2ae5cd083a45c816e6b4e42fc",
+          "path": "engine/common/host.c",
+          "blob": "24601b22210507fed53721aec5bfd18a04d9838d",
+          "bytes": 38715,
+          "sha256": "ce0242fac60cc0146c0ab33372908d798df451c9d0188c3ca606a85ba51a1e51"
+        },
+        {
+          "repository": "FWGS/xash3d-fwgs",
+          "commit": "a7becfdf8d134eb2ae5cd083a45c816e6b4e42fc",
+          "path": "engine/platform/win32/sys_win.c",
+          "blob": "26f8fbb5db06253483cc518aa8931f827ada4823",
+          "bytes": 3622,
+          "sha256": "4a65cd199b5f7a50b570ca67ca1475d1a07b4e10bb38a1ef85f2db85ffef5c6e"
+        },
+        {
+          "repository": "FWGS/xash3d-fwgs",
+          "commit": "a7becfdf8d134eb2ae5cd083a45c816e6b4e42fc",
+          "path": "engine/platform/win32/lib_win.c",
+          "blob": "b26af7aa53954a54bdd0cfc313b35e6047c7faad",
+          "bytes": 15379,
+          "sha256": "71c4be1fdf5df57f7cb54b5c4a53a2546d1cf54ffa629d12b4813d26053f8847"
+        },
+        {
+          "repository": "FWGS/xash3d-fwgs",
+          "commit": "a7becfdf8d134eb2ae5cd083a45c816e6b4e42fc",
+          "path": "filesystem/filesystem.c",
+          "blob": "500efb13d132f775a4f6675067b13180ade4494d",
+          "bytes": 2579,
+          "sha256": "8ad618de3025d6199eaf7697c84905dcb9e2244c4ded64646a79fad0d41ccc94"
+        },
+        {
+          "repository": "FWGS/xash3d-fwgs",
+          "commit": "a7becfdf8d134eb2ae5cd083a45c816e6b4e42fc",
+          "path": "filesystem/wscript",
+          "blob": "7a06c0d95bc3dcf7ddedc15ccd63c077b1cc0b5d",
+          "bytes": 2114,
+          "sha256": "89d47f2debcc2745dbfff6698c581eaeefb4f2e2ff20cd1bbf0c9d16efd7044e"
+        },
+        {
+          "repository": "FWGS/xash3d-fwgs",
+          "commit": "a7becfdf8d134eb2ae5cd083a45c816e6b4e42fc",
+          "path": "filesystem/searchpath.c",
+          "blob": "6ffbd4b8ea3c7bf6d957b1e75e41c27585a9d917",
+          "bytes": 28095,
+          "sha256": "fc5444a727a784e6bba260975d9bc6bc628f18b8dff2781cd24948dfc85962e1"
+        },
+        {
+          "repository": "FWGS/xash3d-fwgs",
+          "commit": "a7becfdf8d134eb2ae5cd083a45c816e6b4e42fc",
+          "path": "filesystem/sys.c",
+          "blob": "712c3e42e18af7858b24bfc13d4094686c5e9db6",
+          "bytes": 11262,
+          "sha256": "85308877790933f4bcf28ce0450e12fb20bbae01689d2500148e507a9792dd7f"
+        },
+        {
+          "repository": "FWGS/xash3d-fwgs",
+          "commit": "a7becfdf8d134eb2ae5cd083a45c816e6b4e42fc",
+          "path": "filesystem/io.c",
+          "blob": "d30047fc296d6b00523fb9280ccd2382ad919b44",
+          "bytes": 24102,
+          "sha256": "dac8e707d19c6ea43160a62596ef36ac10d0d95e258ab73ed64f7fcc6f0171a9"
+        },
+        {
+          "repository": "FWGS/xash3d-fwgs",
+          "commit": "a7becfdf8d134eb2ae5cd083a45c816e6b4e42fc",
+          "path": "filesystem/gameinfo.c",
+          "blob": "2c1ed0f0b75530892d18d8e86c244ff380f187fb",
+          "bytes": 22491,
+          "sha256": "f05efc855602040f9fa99516ae0f1d06856aa10f2a4f03e42c640b4cead5c3d6"
+        },
+        {
+          "repository": "FWGS/xash3d-fwgs",
+          "commit": "a7becfdf8d134eb2ae5cd083a45c816e6b4e42fc",
+          "path": "engine/server/sv_save.c",
+          "blob": "54975d66b874105654a5d1c84bfea9ad2ecb811d",
+          "bytes": 65898,
+          "sha256": "e5a794d86f5d9f8c83e8f2dfea5da6d8543c130db5e47634991dbc72fad64929"
+        },
+        {
+          "repository": "FWGS/xash3d-fwgs",
+          "commit": "a7becfdf8d134eb2ae5cd083a45c816e6b4e42fc",
+          "path": "engine/common/filesystem_engine.c",
+          "blob": "9ed62eb2802e6e2f631dc3382af6c5e79e609d76",
+          "bytes": 11094,
+          "sha256": "cee48242549e16e028f0a51ba726a2486e7f05fd5c8256b7050054ddcb6db25b"
+        },
+        {
+          "repository": "FWGS/xash3d-fwgs",
+          "commit": "a7becfdf8d134eb2ae5cd083a45c816e6b4e42fc",
+          "path": "engine/common/sys_con.c",
+          "blob": "253680c0f243fbcd5f5282b962fb1ca1f5819cfe",
+          "bytes": 10643,
+          "sha256": "26edb899797930549bdff82495e3b5323cc75f6e0e6287ef4d5ee0dfcad9c232"
+        }
+      ],
+      "retained_metadata_manifest": [
+        {
+          "name": "current--.gitmodules.api.json.observation.json",
+          "bytes": 260,
+          "sha256": "a1700e405a0af9ae54ddff0fb8f19b1e42b71400ea1b078133314e014c94aa3a"
+        },
+        {
+          "name": "current--README.md.api.json.observation.json",
+          "bytes": 261,
+          "sha256": "3ceb195e9277af7695d30ade03e97007a520a8077d3eefbe15c6fbab1949a907"
+        },
+        {
+          "name": "current-tree.json",
+          "bytes": 212910,
+          "sha256": "1d7a5c356123f780c43d3c99f22f48c7af5a928b78485e687f2f05a54d11c3c4"
+        },
+        {
+          "name": "current-tree.json.observation.json",
+          "bytes": 274,
+          "sha256": "eebf6f8aba08dc7997be9cfcaad456268707d31e527bfa80b3d2d58b9af372c0"
+        },
+        {
+          "name": "current.json",
+          "bytes": 5807,
+          "sha256": "5d048266f9efd11938696a7bc589e9b3c7b93ef7c0c1928f577eac50b56d54f1"
+        },
+        {
+          "name": "current.json.observation.json",
+          "bytes": 224,
+          "sha256": "0939d08e9819503a3e8fe3fed026b3a083c2fa5c0ad4c0e9f753f4a82f7b10a0"
+        },
+        {
+          "name": "release-recent-first10.json",
+          "bytes": 143479,
+          "sha256": "5e8b5a887a4b2b96ff23ad3b1a58104d0733f4464664c573c80d14a259a5988e"
+        },
+        {
+          "name": "release-recent-first10.json.observation.json",
+          "bytes": 232,
+          "sha256": "05d37eafd27e67abe5402641d8f8b9fa5e0f8a404a175258db1115d35839514a"
+        },
+        {
+          "name": "release-stable.json",
+          "bytes": 130,
+          "sha256": "d9e37600354c1839f6b22cebde497e9d14750d2401a06c9a51b1619baf991613"
+        },
+        {
+          "name": "release-stable.json.observation.json",
+          "bytes": 224,
+          "sha256": "9b5f36344f39cec6c73a306a1357bc2d33cf03cef66af0badfab7bab276161d0"
+        },
+        {
+          "name": "release.json",
+          "bytes": 55839,
+          "sha256": "11b80d0d2bdecb000f65bc2571bb03479b78db7ddb09e2e685e6ed01a315822a"
+        },
+        {
+          "name": "repository.json",
+          "bytes": 6255,
+          "sha256": "23b8d446ced273937f6f01066c5f796ed86e560a23e265ac13e7088727253eee"
+        },
+        {
+          "name": "repository.json.observation.json",
+          "bytes": 209,
+          "sha256": "c5ff909a0e693d5143c0c06a07e2d541bf5e509d077924abf1054feecb3dea57"
+        },
+        {
+          "name": "selected-path-observations.json",
+          "bytes": 3,
+          "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+        },
+        {
+          "name": "tag-tree.json",
+          "bytes": 212910,
+          "sha256": "1d7a5c356123f780c43d3c99f22f48c7af5a928b78485e687f2f05a54d11c3c4"
+        },
+        {
+          "name": "tag-tree.json.observation.json",
+          "bytes": 274,
+          "sha256": "5e385bc6e108f9255468c57f2ed93a70e5bc13f4393e0c9e632c7b72506a5ede"
+        },
+        {
+          "name": "tag.json",
+          "bytes": 5807,
+          "sha256": "5d048266f9efd11938696a7bc589e9b3c7b93ef7c0c1928f577eac50b56d54f1"
+        },
+        {
+          "name": "tag.json.observation.json",
+          "bytes": 228,
+          "sha256": "5c207a3d00bb96731fc92612cb018c94dc15c079d6845cfc09156f583401228c"
+        }
+      ]
+    }
+  ],
+  "jazz_static_public_engine_archive": {
+    "observed_at": "2026-10-31T04:46:25.322576+00:00",
+    "release_id": 378072349,
+    "tag": "3.9.0",
+    "asset_id": 650157688,
+    "asset": "Jazz2_3.9.0_Windows.zip",
+    "expected_sha256_source": "official GitHub API digest; distinct from locally computed hash",
+    "expected_sha256": "78859c000f556170c7d9e72ea1adf831effe619ab6b482b37bf7de4d9a556ffd",
+    "observed_sha256": "78859c000f556170c7d9e72ea1adf831effe619ab6b482b37bf7de4d9a556ffd",
+    "bytes": 25506420,
+    "raw_preparser_bounds": {
+      "records": 1181,
+      "central_bytes": 146557,
+      "declared_expanded_bytes": 61765818
+    },
+    "policy": {
+      "max_archive_bytes": 33554432,
+      "max_central_metadata": 4194304,
+      "max_physical_records": 8192,
+      "max_name_bytes": 512,
+      "max_member_bytes": 134217728,
+      "max_aggregate_expanded_bytes": 536870912,
+      "ZIP64_multidisk_encryption_links_unsupported": true
+    },
+    "parser": "Python3.14.4 zipfile after physical central-index checks",
+    "boundary_fixtures": [
+      "valid near512-byte name",
+      "oversized declared index refused before ZipFile",
+      "oversized raw name refused before ZipFile"
+    ],
+    "bounded_packaged_documentation": {},
+    "extraction_writes": 0,
+    "upstream_code_or_game_execution": false,
+    "inventory_members": 1181,
+    "inventory_file_sha256": "691dbfb23a0ea0dd77c17f853871ef06b96000b56b8b49cfd60d246a190bd35e"
+  },
+  "invariants": {
+    "all_strict_catalog_bytes_unchanged": true,
+    "all_source_catalog_bytes_unchanged": true,
+    "only_eight_listing_manual_setup_changed": true,
+    "all_other_authored_fields_unchanged": true,
+    "remove_only_eight_new_case_blocks_recovers_entire_prior_Rust_file": true,
+    "no_production_core_frontend_or_helper_changes": true
+  },
+  "limits": [
+    "One public Jazz engine ZIP was downloaded and statically inspected against independently observed provider size/digest; zero extraction and no upstream execution. Release API asset metadata otherwise does not establish acquired bytes or complete release inventory.",
+    "No original/ROM/private-save/demo acquisition; no upstream script/compiler/installer/player/game execution. Exact sources do not bind arbitrary downloaded binaries or grant original/component rights.",
+    "Existing full actual-ID native fixtures establish Core selected operations only when executed; source existence, authoring compatibility and archive inventory do not establish game/installed/real-save/mod/network/other-platform/physical/human/protected acceptance.",
+    "No Supported promotion, Required reduction, new family infrastructure, managed setup/update/backup/rollback or private-output trust. Individual managed-fit gaps/reconsideration conditions remain in the companion dossier."
+  ],
+  "delivery_authority": "Fresh exact-head CI, independent source/target/canonical review, guarded merge and remote readback precede any finite completion."
+}

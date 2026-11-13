@@ -1,3 +1,5 @@
+import { nativePlatformsForReleaseProfile, loadPackagePolicy } from "./release-package-policy.mts";
+import { isInitialBetaReleaseProfile } from "./release-package-policy.mts";
 /** Exact public record-set association for the existing owned publisher. This
  * is not a generic receipt importer: actual preparation below requires private
  * producer, tool and settled-publication custody. */
@@ -45,7 +47,7 @@ export async function inspectPublicationRecordAssociation(
     facts = rawManifest.facts;
   const { accepted, policy, labels } = await inspectTrustedAssemblyInput(rawFacts.assembly);
   if (
-    accepted.release_profile !== "initial-beta-win-linux" ||
+    !isInitialBetaReleaseProfile(accepted.release_profile) ||
     binding.version !== accepted.version ||
     binding.source_commit !== accepted.source_commit ||
     binding.source_tree !== accepted.source_tree ||
@@ -56,6 +58,19 @@ export async function inspectPublicationRecordAssociation(
     digest(facts.configuration) !== digest(rawFacts.configuration)
   )
     throw new Error("publication records differ from actual admitted package/source lineage");
+  if (accepted.release_profile === "initial-beta-windows-x86_64-v1") {
+    const unselected = (await loadPackagePolicy()).packages
+      .filter((entry) => entry.platform_label !== "windows-x86_64")
+      .map((entry) => artifactName(entry, accepted.version));
+    if (
+      assets.some((asset) =>
+        unselected.some(
+          (filename) => asset.filename === filename || asset.filename === `${filename}.sig`,
+        ),
+      )
+    )
+      throw new Error("unselected platform package cannot enter Windows publication inventory");
+  }
   const packageFiles = labels.flatMap((label) =>
     packagesForPlatform(policy, label).map((rule) => {
       const filename = artifactName(rule, accepted.version);
@@ -128,7 +143,7 @@ export async function inspectPublicationRecordAssociation(
   // The two platform signatures have fixed identities; the retained producer's
   // digest also retains its original pair ordering, which conveys no authority.
   if (
-    signatures.length !== 2 ||
+    signatures.length !== nativePlatformsForReleaseProfile(accepted.release_profile).length ||
     ![signatures, [...signatures].reverse()].some(
       (pair) => digest(pair) === binding.signatures_sha256,
     )

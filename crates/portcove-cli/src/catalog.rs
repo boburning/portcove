@@ -67,9 +67,17 @@ pub(crate) enum CatalogCommand {
     /// List ports in the active catalog.
     List,
     /// Export the complete active catalog document.
-    Export,
+    Export {
+        /// Catalog document schema; 1 and 2 preserve references as legacy flat steps.
+        #[arg(long)]
+        schema_version: Option<u32>,
+    },
     /// Export every descriptive listing, including projects without a managed integration.
-    Listings,
+    Listings {
+        /// Listing format: 5 keeps legacy flat references; 8 supports GitLab observations; 9 adds the first-listed date.
+        #[arg(long)]
+        format_version: Option<u32>,
+    },
     /// Show one port's channels, platform, and source requirements.
     Show {
         /// Catalog port ID; run `portcove catalog list` to find it.
@@ -83,6 +91,43 @@ pub(crate) enum CatalogCommand {
     /// Validate inert catalog declarations without changing the trusted catalog.
     InspectProposal {
         /// Inert catalog proposal JSON file; inspection does not sign, trust or publish it.
+        file: PathBuf,
+        /// Also check the repository's authored catalog summary convention.
+        #[arg(long)]
+        repository_authoring: bool,
+    },
+    /// Verify what the appointed official location serves, read-only, as a client would.
+    InspectDefinitionDelivery,
+    /// Report catalog route offering per target platform for a fresh library.
+    InspectTargets {
+        /// Catalog port ID to inspect; repeat for several. Omitted, every listed port.
+        #[arg(long = "port")]
+        ports: Vec<String>,
+        /// Target platform (windows-x86-64, linux-x86-64, macos-x86-64, or macos-aarch64);
+        /// repeat for several. Omitted, every platform Core can represent.
+        #[arg(long = "platform")]
+        platforms: Vec<String>,
+    },
+    /// Observe a verified local archive with the managed package layout rules.
+    InspectPackageLayout {
+        /// Local ZIP, TAR.GZ, or Linux x86-64 TAR.XZ package archive.
+        archive: PathBuf,
+        /// Managed route platform (windows-x86-64, linux-x86-64, macos-x86-64, or macos-aarch64).
+        #[arg(long)]
+        platform: String,
+        /// Expected archive size in bytes from the publisher's release metadata.
+        #[arg(long)]
+        size: u64,
+        /// Expected 64-digit archive SHA-256 from the publisher's release metadata.
+        #[arg(long)]
+        sha256: String,
+        /// Exclude verified shared libraries from the macOS program inventory.
+        #[arg(long)]
+        ignore_verified_macos_libraries: bool,
+    },
+    /// Probe inert settings samples through Core's document editor without library writes.
+    InspectSettingsQualification {
+        /// Bounded JSON qualification input; this does not trust or publish a binding.
         file: PathBuf,
     },
     /// Validate a lightweight listing projection without opening a library or trusting it.
@@ -207,11 +252,15 @@ impl CatalogCommand {
         match self {
             Self::Compare { .. } => "catalog.compare",
             Self::List => "catalog.list",
-            Self::Export => "catalog.export",
-            Self::Listings => "catalog.listings",
+            Self::Export { .. } => "catalog.export",
+            Self::Listings { .. } => "catalog.listings",
             Self::Show { .. } => "catalog.show",
             Self::CheckCapabilities { .. } => "catalog.check-capabilities",
             Self::InspectProposal { .. } => "catalog.inspect-proposal",
+            Self::InspectTargets { .. } => "catalog.inspect-targets",
+            Self::InspectDefinitionDelivery => "catalog.inspect-definition-delivery",
+            Self::InspectPackageLayout { .. } => "catalog.inspect-package-layout",
+            Self::InspectSettingsQualification { .. } => "catalog.inspect-settings-qualification",
             Self::InspectListings { .. } => "catalog.inspect-listings",
             Self::InspectDefinitionPublication { .. } => "catalog.inspect-definition-publication",
             Self::InspectObservation { .. } => "catalog.inspect-observation",
@@ -271,11 +320,24 @@ pub(crate) async fn execute(
                 human::catalog_list(ports)
             })
         }
-        CatalogCommand::Export => render_success(mode, name, service.catalog().document().clone()),
-        CatalogCommand::Listings => render_read_success(
+        CatalogCommand::Export { schema_version } => render_success(
             mode,
             name,
-            service.catalog().listing_document().clone(),
+            service.catalog().export_document(
+                schema_version.unwrap_or(service.catalog().document().schema_version),
+            )?,
+        ),
+        CatalogCommand::Listings { format_version } => render_read_success(
+            mode,
+            name,
+            if let Some(version) = format_version {
+                service
+                    .catalog()
+                    .listing_document()
+                    .export_format(version)?
+            } else {
+                service.catalog().listing_document().clone()
+            },
             |document| {
                 document
                     .listings
@@ -396,6 +458,18 @@ pub(crate) async fn execute(
         }
         CatalogCommand::InspectProposal { .. } => {
             unreachable!("proposal inspection executes before opening a library")
+        }
+        CatalogCommand::InspectTargets { .. } => {
+            unreachable!("target inspection executes before opening a library")
+        }
+        CatalogCommand::InspectDefinitionDelivery => {
+            unreachable!("delivery inspection executes before opening a library")
+        }
+        CatalogCommand::InspectPackageLayout { .. } => {
+            unreachable!("package layout inspection executes before opening a library")
+        }
+        CatalogCommand::InspectSettingsQualification { .. } => {
+            unreachable!("settings qualification executes before opening a library")
         }
         CatalogCommand::InspectListings { .. } => {
             unreachable!("listing inspection executes before opening a library")

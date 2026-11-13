@@ -12,16 +12,25 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { assertOwnedUnlinkedPath } from "./release-path-safety.mts";
 import {
+  decodeStoredObserverCheckpoint,
+  withCheckpointLock,
+  observerSourceCheckpointLimit,
+} from "./observer-checkpoint-storage.mts";
+import {
   ObservationFailure,
   observationHash,
   observeUpstream,
   validateObserverConfig,
   validateObservationContinuation,
   reusableProviderObservation,
+  compactObserverCache,
+  validateObserverCache,
+  checksumSourcesFromProjections,
 } from "./upstream-observer.mts";
 
 const repositoryRoot = fileURLToPath(new URL("../", import.meta.url));
-const checkpointLimit = 32 * 1024 * 1024;
+const checkpointLimit = observerSourceCheckpointLimit;
+export { checkpointLimit as observerCheckpointByteLimit };
 
 type Observation = Awaited<ReturnType<typeof observeUpstream>>["observation"];
 type RetainedObservation = Record<string, unknown> &
@@ -128,6 +137,7 @@ function validateCheckpoint(
       "invalid-checkpoint",
       "checkpoint observation and core projection do not match",
     );
+  if (prior?.cache !== undefined) validateObserverCache(prior.cache, config);
   if (
     typeof checkpoint.completed_runs !== "number" ||
     !Number.isSafeInteger(checkpoint.completed_runs) ||
@@ -167,6 +177,57 @@ function validateCheckpoint(
 
 export { validateCheckpoint as validateObserverCheckpoint };
 
+/** Migrate only inert GitHub response pages. Accepted observations, projections,
+ * raw page identities, configuration, counters, cursors and clocks are retained. */
+export function compactObserverCheckpoint(checkpoint: unknown, config: ObserverConfig) {
+  validateCheckpoint(checkpoint, config);
+  if (checkpoint == null) return checkpoint;
+  if (Buffer.byteLength(JSON.stringify(checkpoint)) > checkpointLimit)
+    throw new ObservationFailure(
+      "invalid-checkpoint",
+      "raw source exceeds checkpoint read envelope",
+    );
+  const complete = checkpoint.last_complete;
+  const continuation = checkpoint.continuation;
+  const result = {
+    ...checkpoint,
+    ...(complete
+      ? {
+          last_complete: {
+            ...complete,
+            ...(complete.cache === undefined
+              ? {}
+              : { cache: compactObserverCache(complete.cache, config) }),
+          },
+        }
+      : {}),
+    ...(continuation
+      ? {
+          continuation: {
+            ...continuation,
+            pages: compactObserverCache(
+              { format: 1, config_sha256: observationHash(config), pages: continuation.pages },
+              config,
+            )!.pages,
+          },
+        }
+      : {}),
+  };
+  validateCheckpoint(result, config);
+  if (Buffer.byteLength(JSON.stringify(result)) > checkpointLimit)
+    throw new ObservationFailure(
+      "invalid-checkpoint",
+      "projected source exceeds checkpoint write envelope",
+    );
+  return result;
+}
+
+/** Names only the error class: unexpected messages may carry provider or host text. */
+function unexpectedErrorClass(error: unknown) {
+  const name = error instanceof Error ? error.name : typeof error;
+  return /^[A-Za-z][A-Za-z0-9_]{0,63}$/u.test(name) ? name : "unrecognized";
+}
+
 function exceptionFor(
   error: unknown,
   prior: CheckpointException | null,
@@ -193,7 +254,7 @@ function exceptionFor(
     details:
       error instanceof ObservationFailure
         ? error.message
-        : "Observation or core policy inspection failed; inspect this run's retained evidence.",
+        : `Observation or core policy inspection failed (${unexpectedErrorClass(error)}); inspect this run's retained evidence.`,
     retry_at: error instanceof ObservationFailure ? error.retryAt : null,
     resume_condition:
       rule === "rate-limit"
@@ -209,8 +270,10 @@ export async function advanceObservation(
   options: AdvanceOptions,
 ) {
   const config = validateObserverConfig(input);
-  validateCheckpoint(checkpoint, config);
   const now = options.now ?? Date.now;
+  checkpoint = decodeStoredObserverCheckpoint(checkpoint, options.deadline ?? Infinity, now);
+  checkpoint = compactObserverCheckpoint(checkpoint, config);
+  validateCheckpoint(checkpoint, config);
   const next: Checkpoint = structuredClone(
     checkpoint ?? {
       format: 1,
@@ -239,29 +302,22 @@ export async function advanceObservation(
         if (retained) {
           let covered = true;
           if (config.format === 2) {
-            const facts = {
-              ...retained.facts,
-              releases: retained.facts.releases.map((release) => ({ ...release, assets: [] })),
-            };
-            const headers = {
-              ...retained,
-              facts,
-              facts_sha256: observationHash(facts),
-              coverage: {
-                kind: "channel-candidate-assets" as const,
-                complete_release_headers: true as const,
-                asset_release_ids: [],
-              },
-            };
             if (!options.selectAssetReleases)
               throw new ObservationFailure(
                 "core-binding",
                 "Current Core selection is required before provider fact reuse",
               );
-            const selected = await options.selectAssetReleases(headers);
+            const selected = await options.selectAssetReleases(retained);
             const known = new Set(retained.coverage!.asset_release_ids);
             covered = selected.every((id) => known.has(id));
           }
+          if (covered && options.selectChecksumSources)
+            covered = (await options.selectChecksumSources(retained)).every((source) =>
+              retained.facts.checksum_sidecars?.some(
+                (text) =>
+                  text.asset_id === source.asset_id && text.release_id === source.release_id,
+              ),
+            );
           if (covered)
             result = {
               observation: retained,
@@ -459,31 +515,7 @@ export async function atomicJson(filename: string, value: unknown) {
   }
 }
 
-/** Never steal an interrupted coordinator's lock; preserve its checkpoint for recovery. */
-export async function withCheckpointLock<T>(
-  statePath: string,
-  operation: () => T | Promise<T>,
-): Promise<T> {
-  const lockPath = await assertOwnedUnlinkedPath(
-    path.join(repositoryRoot, "work"),
-    `${statePath}.lock`,
-    "observer coordinator lock",
-  );
-  await mkdir(path.dirname(lockPath), { recursive: true });
-  const handle = await open(lockPath, "wx");
-  try {
-    await handle.writeFile(
-      JSON.stringify({
-        pid: process.pid,
-        started_at: new Date().toISOString(),
-      }),
-    );
-    return await operation();
-  } finally {
-    await handle.close();
-    await rm(lockPath);
-  }
-}
+export { withCheckpointLock } from "./observer-checkpoint-storage.mts";
 
 interface InspectionBounds {
   deadline: number;
@@ -585,6 +617,18 @@ export async function projectObservation(
   observation: Observation,
   bounds?: InspectionBounds,
 ): Promise<unknown> {
+  return projectObservedFacts(cli, config, directory, observation, bounds);
+}
+
+/** Reuse the same Core projection when the caller already collected bounded facts;
+ * this entry does not construct cadence or scheduling policy. */
+export async function projectObservedFacts(
+  cli: string,
+  config: Pick<ObserverConfig, "port_id" | "repository_id">,
+  directory: string,
+  observation: Observation,
+  bounds?: InspectionBounds,
+): Promise<unknown> {
   return inspectCoreJson(
     cli,
     directory,
@@ -664,7 +708,9 @@ async function main(args: string[]) {
   if (new Set(destinations).size !== destinations.length)
     throw new Error("observer configuration, checkpoint, lock and report must have distinct paths");
   await withCheckpointLock(statePath, async () => {
-    const checkpoint = await boundedJson(statePath, checkpointLimit, true);
+    const checkpoint = decodeStoredObserverCheckpoint(
+      await boundedJson(statePath, checkpointLimit, true),
+    );
     const priorReport = await boundedJson(reportPath, checkpointLimit, true);
     if (
       priorReport &&
@@ -692,7 +738,7 @@ async function main(args: string[]) {
     const project = (observation: Observation) =>
       projectObservation(cli, config, path.dirname(statePath), observation);
     const execution = {
-      kind: ["schedule", "workflow_dispatch"].includes(process.env.GITHUB_EVENT_NAME ?? "")
+      kind: ["schedule", "push", "workflow_dispatch"].includes(process.env.GITHUB_EVENT_NAME ?? "")
         ? process.env.GITHUB_EVENT_NAME
         : "local",
       source_commit: /^[a-f0-9]{40}$/.test(process.env.GITHUB_SHA ?? "")
@@ -706,6 +752,12 @@ async function main(args: string[]) {
     const result = await advanceObservation(config, checkpoint, {
       ...(process.env.GITHUB_TOKEN ? { token: process.env.GITHUB_TOKEN } : {}),
       project,
+      selectChecksumSources: async (observation: Observation) => {
+        const projection = await project(observation);
+        if (!isRecord(projection) || !Array.isArray(projection.projections))
+          throw new ObservationFailure("core-binding", "Core checksum selection is unavailable");
+        return checksumSourcesFromProjections(projection.projections);
+      },
       ...(config.format === 2
         ? {
             selectAssetReleases: async (headers: Observation) => {

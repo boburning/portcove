@@ -15,7 +15,33 @@
       "game_slug": "automobili-lamborghini",
       "match_kind": "underlying-game"
     },
-    "issue_number": 70
+    "issue_number": 70,
+    "listed_at": "2026-10-23",
+    "availability": "packages",
+    "release_url": "https://github.com/alondero/automobililamborghini-recomp/releases",
+    "setup_url": "https://github.com/alondero/automobililamborghini-recomp/blob/main/docs/ANDROID.md",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Install the official Android package",
+          "instruction": "Choose lamborghini-recomp-android-arm64.apk from the upstream release. Use an ARM64 device with Android 9 or newer and Vulkan 1.1 with scalar block layout."
+        },
+        {
+          "title": "Import your original",
+          "instruction": "Open Lamborghini Recompiled and use its file picker to import your own USA cartridge dump. The launcher validates the entire ROM after normalizing its byte order."
+        }
+      ],
+      "warnings": [
+        "These packages use upstream or player-managed setup, replacement and data backups. Portcove has no native execution or populated-save result for these sibling packages."
+      ],
+      "help_url": "https://github.com/alondero/automobililamborghini-recomp/blob/main/docs/ANDROID.md",
+      "references": [
+        {
+          "title": "Keep the Android profile",
+          "instruction": "Use in-place updates signed by the same upstream signer to keep the app-private saves, Controller Pak data and settings. Clearing app data or uninstalling erases that profile. Use the diagnostics ZIP for troubleshooting."
+        }
+      ]
+    }
   },
   "integration": {
     "support_tier": "stable",

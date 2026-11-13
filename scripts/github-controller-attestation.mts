@@ -1,12 +1,39 @@
 /** Existing pinned GitHub/Sigstore verification shared by fixed controller artifacts.
  * This returns verified data; each owning consumer binds its own exact subject,
  * predicate and provider custody. No imported JSON can replace the gh execution. */
-import { spawnSync } from "node:child_process";
-import { createGitHubRunner } from "./github-api.mts";
+import { verifyGitHubAttestation } from "./github-cli.mts";
+import type { RetainedGitHubSpawn } from "./github-cli.mts";
+import {
+  coordinatorCommandTimeout,
+  checkCoordinatorDeadline,
+} from "./release-coordinator-deadline.mts";
 import { productionControllerWorkflow } from "./production-controller-admission.mts";
 import { isRecord } from "./runtime-values.mts";
 import { performance } from "node:perf_hooks";
 const repository = "boburning/portcove";
+/** GitHub CLI may render the same verified instant in the local offset. */
+export function parseControllerWitnessedTime(entry: unknown) {
+  const timestamp = isRecord(entry) ? entry.timestamp : null;
+  const zoned =
+    typeof timestamp === "string"
+      ? /^(\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d)(?:\.\d{1,9})?(?:Z|[+-](?:[01]\d|2[0-3]):[0-5]\d)$/u.exec(
+          timestamp,
+        )
+      : null;
+  const civil = zoned?.[1];
+  if (typeof timestamp !== "string" || !civil)
+    throw new Error("controller verifier supplied no supported witnessed time");
+  const instant = Date.parse(timestamp);
+  const local = new Date(`${civil}Z`);
+  if (
+    !Number.isFinite(instant) ||
+    !Number.isFinite(local.getTime()) ||
+    local.toISOString().slice(0, 19) !== civil
+  )
+    throw new Error("controller verifier supplied no supported witnessed time");
+  return instant;
+}
+
 export function verifyControllerArtifactVerification(
   directory: string,
   filename: string,
@@ -19,7 +46,7 @@ export function verifyControllerArtifactVerification(
   },
   predicateType: string,
   options: {
-    spawn?: NonNullable<Parameters<typeof createGitHubRunner>[0]>["spawn"];
+    spawn?: RetainedGitHubSpawn | undefined;
     environment?: NodeJS.ProcessEnv;
     deadline?: number;
   } = {},
@@ -32,44 +59,43 @@ export function verifyControllerArtifactVerification(
     (options.deadline !== undefined && remaining > 600000)
   )
     throw new Error("controller attestation phase deadline exhausted");
-  const runner = createGitHubRunner({
+  const settings: Parameters<typeof verifyGitHubAttestation>[1] = {
     cwd: directory,
-    spawn:
-      options.spawn ??
-      ((command, args, settings) =>
-        spawnSync(command, args, {
-          ...settings,
-          env: { ...(options.environment ?? process.env), GH_HOST: "github.com" },
-        })),
-    maxBuffer: 1024 * 1024,
-    timeoutMs: Math.min(30000, remaining),
-  });
+    ...(options.spawn ? { spawn: options.spawn } : {}),
+    environment: { ...(options.environment ?? process.env), GH_HOST: "github.com" },
+    maxBytes: 1024 * 1024,
+    timeoutMs: coordinatorCommandTimeout(Math.min(30000, remaining)),
+  };
   const raw: unknown = JSON.parse(
-    runner([
-      "attestation",
-      "verify",
-      filename,
-      "--bundle",
-      bundlePath,
-      "--repo",
-      repository,
-      "--signer-workflow",
-      `${repository}/${productionControllerWorkflow}`,
-      "--signer-digest",
-      expected.controller_revision,
-      "--source-digest",
-      expected.controller_revision,
-      "--source-ref",
-      expected.controller_ref,
-      "--cert-oidc-issuer",
-      "https://token.actions.githubusercontent.com",
-      "--deny-self-hosted-runners",
-      "--predicate-type",
-      predicateType,
-      "--format",
-      "json",
-    ]),
+    verifyGitHubAttestation(
+      [
+        "attestation",
+        "verify",
+        filename,
+        "--bundle",
+        bundlePath,
+        "--repo",
+        repository,
+        "--signer-workflow",
+        `${repository}/${productionControllerWorkflow}`,
+        "--signer-digest",
+        expected.controller_revision,
+        "--source-digest",
+        expected.controller_revision,
+        "--source-ref",
+        expected.controller_ref,
+        "--cert-oidc-issuer",
+        "https://token.actions.githubusercontent.com",
+        "--deny-self-hosted-runners",
+        "--predicate-type",
+        predicateType,
+        "--format",
+        "json",
+      ],
+      settings,
+    ),
   );
+  checkCoordinatorDeadline();
   if (options.deadline !== undefined && performance.now() >= options.deadline)
     throw new Error("controller attestation phase deadline exhausted");
   if (

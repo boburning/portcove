@@ -61,10 +61,11 @@ export function SourceIdentityPanel({
         ? "File check"
         : "Game-file check";
   const problemToolId = report.problem?.tool_id;
+  const requirementName = report.expected_identity?.label ?? report.applications[0]?.port_name;
   return (
     <section
       className="source-identity @container/source mt-3 grid gap-3 rounded-pc-lg border border-pc-border bg-pc-surface p-4"
-      aria-label={`${checkLabel} for ${report.expected_identity?.label ?? report.profile_id}`}
+      aria-label={requirementName ? `${checkLabel} for ${requirementName}` : checkLabel}
     >
       <p
         className="sr-only m-0 leading-[var(--leading-relaxed)] text-[var(--color-text-muted)]"
@@ -75,7 +76,7 @@ export function SourceIdentityPanel({
       <div className="flex items-center justify-between gap-3 @max-[30rem]/source:flex-col @max-[30rem]/source:items-start">
         <div className="grid gap-0.5">
           <small className="text-pc-muted-foreground">{checkLabel}</small>
-          <strong>{report.expected_identity?.label ?? report.profile_id}</strong>
+          {requirementName && <strong>{requirementName}</strong>}
         </div>
         <span
           className={cn(
@@ -133,7 +134,9 @@ export function SourceIdentityPanel({
         </div>
         <div className="min-w-0 rounded-pc-md bg-[var(--color-bg-inset)] p-2">
           <dt className="m-0 text-xs tracking-[0.04em] text-[var(--color-text-muted)] uppercase">
-            Edition
+            {report.inspection?.assessment.classification.state === "ambiguous"
+              ? "Matches"
+              : "Edition"}
           </dt>
           <dd className="m-0 mt-[2px] [overflow-wrap:anywhere]">
             {variant ? variantLabel(variant) : classificationLabel(report)}
@@ -153,7 +156,7 @@ export function SourceIdentityPanel({
           data-focusable
           className="cursor-pointer py-3 font-medium text-pc-interactive-foreground"
         >
-          Full identity and evidence
+          File details and test results
         </summary>
         <div className="grid gap-4 [&_h4]:mt-3 [&_h4]:mb-2">
           <MetadataGrid className="source-identity-summary @max-[30rem]/source:grid-cols-[1fr]">
@@ -253,7 +256,7 @@ function ApplicationResult({
       </div>
       <MetadataGrid className="@max-[30rem]/source:grid-cols-[1fr]">
         <div className="flex min-w-0 items-center justify-between gap-3 rounded-pc-md bg-[var(--color-bg-inset)] p-2 @max-[30rem]/source:flex-col @max-[30rem]/source:items-start">
-          <dt>Release applicability</dt>
+          <dt>Requirements apply to</dt>
           <dd>{applicability}</dd>
         </div>
       </MetadataGrid>
@@ -626,7 +629,7 @@ function sourceDisplayState(report: SourceInspectionReport) {
       icon: ShieldAlert,
     },
     ambiguous_identity: {
-      label: "More checks needed · edition unclear",
+      label: "More checks needed · match unclear",
       tone: "warning",
       icon: HelpCircle,
     },
@@ -669,7 +672,7 @@ function classificationLabel(report: SourceInspectionReport) {
       : "Couldn't check";
   if (classification.state === "recognized") return classification.identity.variant_id;
   if (classification.state === "ambiguous")
-    return `${classification.candidates.length} possible editions`;
+    return `${classification.candidates.length} possible matches`;
   if (classification.state === "unrecognized") return "Unidentified edition";
   return "Not evaluated";
 }
@@ -677,34 +680,34 @@ function classificationLabel(report: SourceInspectionReport) {
 export function sourceAdmissionPresentation(mode: string) {
   const modes = {
     exact_identity: {
-      label: "Exact identity",
+      label: "Edition identified",
       detailLabel: "Admitted · exact identity",
       explanation:
-        "The source matched an accepted exact identity. This is not installation or gameplay proof.",
+        "These files match a listed edition. Review the port’s setup requirements before playing.",
     },
     structural_checks: {
-      label: "Structural checks",
+      label: "Basic file checks passed",
       detailLabel: "Admitted · structural checks",
       explanation:
-        "Required file checks passed. Structural admission alone does not establish an exact edition.",
+        "These checks alone don’t identify the edition. Check which files this port needs.",
     },
     informational_consent: {
-      label: "Informational consent",
+      label: "Compatibility unconfirmed",
       detailLabel: "Admitted · informational consent",
       explanation:
-        "The source was admitted under its informational rules. This does not verify an exact edition.",
+        "You can add these files. Review the file requirements before setting up the port.",
     },
     upstream_validator: {
-      label: "Upstream validator",
+      label: "The game’s file check passed",
       detailLabel: "Admitted · upstream validator",
       explanation:
-        "The configured upstream validator accepted the source. The admission label alone does not establish an exact edition.",
+        "The project’s setup tool accepted these files. This check alone doesn’t identify the edition.",
     },
   };
   return Object.hasOwn(modes, mode)
     ? { ...modes[mode as keyof typeof modes], known: true }
     : {
-        label: "Source check unavailable",
+        label: "File check unavailable",
         detailLabel: "Admission result unavailable",
         explanation:
           "This version cannot explain the reviewed source check. Cancel this review and check the files again, or update Portcove if this continues.",
@@ -725,10 +728,10 @@ function contractLabel(
   state: SourceInspectionReport["applications"][number]["contract_result"]["state"],
 ) {
   const labels = {
-    supported: "Matches evaluated source requirements",
-    recognized_not_listed: "Recognized · not listed",
-    known_incompatible: "Known mismatch · refused",
-    informational: "Informational requirement",
+    supported: "Matches the listed file requirements",
+    recognized_not_listed: "Edition identified, but unlisted for this port",
+    known_incompatible: "Files don’t match this port’s requirements",
+    informational: "Compatibility unconfirmed",
     unreviewed_for_release: "Not reviewed for this release",
     not_evaluated: "Not evaluated",
   };
@@ -741,11 +744,14 @@ function applicabilityLabel(
 ) {
   if (contract === "unreviewed_for_release") return "Not reviewed for this release";
   const labels: Record<string, string> = {
-    artifact_bound: "Bound to this exact release artifact",
-    upstream_release_bound: "Bound to the reviewed upstream release",
-    not_rebound: "No release-specific binding is recorded",
+    artifact_bound: "This exact download",
+    integration_contract_bound: "Releases covered by these requirements",
+    upstream_release_bound: "The listed game version",
+    not_rebound: "Game version not recorded",
   };
-  return Object.hasOwn(labels, state) ? labels[state] : "Release applicability unavailable";
+  return Object.hasOwn(labels, state)
+    ? labels[state]
+    : "The game version for these checks is unknown";
 }
 
 function variantLabel(
@@ -854,7 +860,7 @@ function rejectionReason(reason: string) {
     unreadable: "file couldn't be read",
     changed: "file changed since it was added",
     known_mismatch: "file does not match the required edition",
-    ambiguous_identity: "edition could not be identified",
+    ambiguous_identity: "files have more than one possible match",
     missing_tool: "required checking tool is unavailable",
     check_failed: "required file check failed",
     consent_required: "review and consent required",

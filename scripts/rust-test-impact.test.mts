@@ -1,3 +1,10 @@
+import { checkedAuthoredPort, parseCatalogSource } from "./catalog-authoring.mts";
+import { projectPsxManagedWindows } from "./catalog-psx-managed-windows.mts";
+import {
+  annotateCatalogAuthoring,
+  annotateCatalogGuideCopy,
+  annotateDiscoveryPlatforms,
+} from "./catalog-guide-copy-impact.mts";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
@@ -16,6 +23,7 @@ import {
   runWorkspaceRustImpact,
 } from "./rust-test-impact.mts";
 import { buildValidationPlan, linuxRuntimeDiagnosticsRequired } from "./validation-plan.mts";
+import { baselineContractTests, baselineIntegrityCommands } from "./ci-baseline.mts";
 import { createCiMetrics } from "./ci-metrics.mts";
 import { isRecord } from "./runtime-values.mts";
 
@@ -1279,7 +1287,7 @@ void test("cross-cutting, manifest, unmapped addition, rename, and deletion chan
 
 void test("an explicitly mapped addition uses its reviewed focused group", () => {
   const selected = selectRustTestImpact(map, "portcove-core", [
-    { status: "A", path: "crates/portcove-core/catalog/catalog-current-authoring.json" },
+    { status: "A", path: "crates/portcove-core/catalog/catalog.json" },
   ]);
   assert.equal(selected.mode, "focused");
   assert.deepEqual(
@@ -1287,6 +1295,102 @@ void test("an explicitly mapped addition uses its reviewed focused group", () =>
     ["catalog-contract"],
   );
   assert.match(selected.reason, /added or modified Rust path/u);
+});
+
+void test("route fixture changes retain both enrollment inventories and release selection", () => {
+  const fixtures = [
+    "crates/portcove-core/catalog/route-enrollment.generated.json",
+    "crates/portcove-core/src/testdata/accepted-route-expectations.generated.json",
+    "crates/portcove-core/src/testdata/managed-route-tests.generated.rs",
+    "crates/portcove-core/src/testdata/prepared-route-tests.generated.rs",
+    "crates/portcove-core/src/testdata/route-enrollment-expectations.json",
+  ];
+  const selection = "crates/portcove-core/src/testdata/windows-archive-release-selection.json";
+  for (const fixture of fixtures) {
+    const fixturePlan = workspacePlan([fixture]);
+    assert.ok(fixturePlan.groups.includes("catalog"), fixture);
+    assert.ok(
+      baselineContractTests(fixturePlan).includes("scripts/catalog-route-facts.test.mts"),
+      fixture,
+    );
+    assert.ok(
+      baselineIntegrityCommands(fixturePlan).some(
+        ([script, flag]) => script === "scripts/generate-catalog.mts" && flag === "--check",
+      ),
+      fixture,
+    );
+    const [group, ...rest] = selectWorkspaceRustImpact(workspacePlan([fixture, selection]));
+    assert.equal(group?.id, "portcove-core:route-enrollment-fixtures", fixture);
+    assert.match(group?.filter ?? "", /managed_native_\(declared_\|declaration_inventory/u);
+    assert.match(
+      group?.filter ?? "",
+      /prepared_guide_adoption_\(declared_\|declaration_inventory/u,
+    );
+    assert.deepEqual(
+      rest.map((entry) => entry.id),
+      ["portcove-core:windows-archive-selection-fixture"],
+    );
+  }
+  const authored = "crates/portcove-core/catalog/ports/body-harvest-recompiled.json";
+  assert.equal(
+    selectWorkspaceRustImpact(workspacePlan([...fixtures, selection, authored]))[0]?.filter,
+    "package(=portcove-core)",
+  );
+});
+
+void test("retained prepared enrollment selects the historical user-selected cases", () => {
+  for (const name of [
+    "retained-prepared-enrollment.json",
+    "retained-prepared-tests.generated.rs",
+  ]) {
+    const plan = workspacePlan([`crates/portcove-core/src/testdata/${name}`]);
+    assert.ok(plan.groups.includes("catalog"));
+    assert.ok(baselineContractTests(plan).includes("scripts/catalog-route-facts.test.mts"));
+    assert.deepEqual(
+      selectWorkspaceRustImpact(plan).map((group) => group.filter),
+      ["package(=portcove-core) & (test(/^service::user_selected::tests::/))"],
+    );
+  }
+});
+
+void test("unenrolled fixture paths and retained generator edits still run catalog checks", () => {
+  for (const file of [
+    "crates/portcove-core/src/testdata/new-title-retained-selected-2026-11-07.json",
+    "scripts/catalog-retained-prepared.mts",
+  ]) {
+    const plan = workspacePlan([file]);
+    assert.ok(plan.groups.includes("catalog"));
+    assert.ok(baselineContractTests(plan).includes("scripts/catalog-route-facts.test.mts"));
+    assert.ok(
+      baselineIntegrityCommands(plan).some(
+        ([script, flag]) => script === "scripts/generate-catalog.mts" && flag === "--check",
+      ),
+    );
+  }
+});
+
+void test("native adoption observations select every direct Rust consumer", () => {
+  const fixture = "crates/portcove-core/src/testdata/native-engine-adoption-2026-11-02.json";
+  const groups = selectWorkspaceRustImpact(workspacePlan([fixture]));
+  assert.deepEqual(
+    groups.map((group) => group.id),
+    ["portcove-core:native-engine-adoption-fixture"],
+  );
+  const filter = groups[0]?.filter ?? "";
+  for (const family of [
+    "test_fixture::tests::native_archive_fixture_inventory",
+    "release::tests::unchanged_definition::native_engine_selection_",
+    "service::native_portable::tests::native_engine_adoption_",
+    "service::native_portable::tests::managed_native_(declared_|declaration_inventory$)",
+  ]) {
+    assert.ok(filter.includes(family), family);
+  }
+  const catalogRecord =
+    "crates/portcove-core/catalog/ports/heroes-of-might-and-magic-ii-fheroes2.json";
+  assert.equal(
+    selectWorkspaceRustImpact(workspacePlan([fixture, catalogRecord]))[0]?.filter,
+    "package(=portcove-core)",
+  );
 });
 
 void test("one unmapped path makes an otherwise focused mixed change broad", () => {
@@ -1622,5 +1726,246 @@ void test("unrelated CLI fixtures cannot suppress artwork or advertised capabili
       workspacePlan([artwork, "crates/portcove-core/src/unknown.rs"]),
       map,
     ).some((entry) => entry.filter === "package(=portcove-cli)"),
+  );
+});
+
+void test("discovery platforms narrow only complete upstream-only directory additions", () => {
+  const root = "crates/portcove-core/catalog/";
+  const generated = `${root}listings.json`;
+  const operational = `${root}catalog.json`;
+  const titles = ["sample-a", "sample-b"];
+  const files = [generated, ...titles.map((id) => `${root}ports/${id}.json`)];
+  const plan = workspacePlan(files);
+  const changes = plan.changes.map((change) => ({
+    ...change,
+    oldMode: "100644",
+    newMode: "100644",
+  }));
+  const listing = (id: string, added: boolean) => ({
+    id,
+    name: id,
+    summary: "Sample upstream setup.",
+    project_url: "https://github.com/example/sample",
+    availability: "packages",
+    platforms: added ? ["windows-x86-64", "macos-aarch64"] : ["windows-x86-64"],
+    download_asset_hints: {
+      "windows-x86-64": ["windows.zip"],
+      ...(added ? { "macos-aarch64": ["macos.zip"] } : {}),
+    },
+  });
+  const blobs = (added: boolean) => (file: string) => {
+    if (file === operational) return "{}";
+    if (file === generated)
+      return JSON.stringify({ listings: titles.map((id) => listing(id, added)) });
+    const id = path.basename(file, ".json");
+    return JSON.stringify({ format_version: 1, listing: listing(id, added) });
+  };
+  const before = blobs(false);
+  const after = blobs(true);
+  const select = (entries: ReturnType<typeof annotateDiscoveryPlatforms>, checkout = after) =>
+    selectWorkspaceRustImpact(
+      buildValidationPlan({
+        ...plan.identities,
+        mergeBase: plan.identities.merge_base,
+        eventName: "pull_request",
+        changes: entries,
+      }),
+      undefined,
+      checkout,
+    );
+  const annotated = annotateDiscoveryPlatforms(changes, before, after);
+  assert.equal(annotated.filter((change) => change.discovery_platforms).length, 3);
+  assert.deepEqual(
+    select(annotated).map((group) => group.id),
+    [
+      "portcove-core:catalog-discovery-platforms",
+      "portcove-cli:catalog-discovery-platforms",
+      "portcove-desktop:catalog-discovery-platforms",
+    ],
+  );
+  const broad = (selection: ReturnType<typeof select>) =>
+    selection.some(
+      (group) => group.filter === "package(=portcove-core)" || group.filter === "all()",
+    );
+  assert.ok(broad(select(annotated, before)));
+  for (const postimage of [
+    (file: string) => (file === generated ? before(file) : after(file)),
+    (file: string) => (file === operational ? "[]" : after(file)),
+    (file: string) =>
+      file === generated ? after(file).replace("macos.zip", "wrong.zip") : after(file),
+    (file: string) =>
+      file === generated ? after(file) : after(file).replace('"name":', '"extra":true,"name":'),
+    (file: string) =>
+      after(file).replace(
+        '["windows-x86-64","macos-aarch64"]',
+        '["macos-aarch64","windows-x86-64"]',
+      ),
+  ]) {
+    assert.ok(broad(select(annotateDiscoveryPlatforms(changes, before, postimage), postimage)));
+  }
+  assert.ok(
+    broad(
+      select(
+        annotateDiscoveryPlatforms(
+          changes.map((change) => ({ ...change, newMode: "100755" })),
+          before,
+          after,
+        ),
+      ),
+    ),
+  );
+});
+
+void test("guide reference copy narrows Rust only for complete matching projections", () => {
+  const root = "crates/portcove-core/catalog/";
+  const files = [`${root}catalog.json`, `${root}listings.json`, `${root}ports/sample.json`];
+  const plan = workspacePlan(files);
+  const changes = plan.changes.map((change) => ({
+    ...change,
+    oldMode: "100644",
+    newMode: "100644",
+  }));
+  const document = (file: string, instruction: string) => {
+    const manual_setup = { references: [{ title: "Updates", instruction }] };
+    if (file.endsWith("/ports/sample.json"))
+      return { listing: { id: "sample", manual_setup }, integration: { channels: ["stable"] } };
+    if (file.endsWith("/listings.json")) return { listings: [{ id: "sample", manual_setup }] };
+    return { ports: [{ id: "sample", presentation: { manual_setup } }] };
+  };
+  const before = (file: string) =>
+    JSON.stringify(document(file, "old guide")).replace(/\}$/u, ',"opaque":9007199254740991}');
+  const after = (file: string) =>
+    JSON.stringify(document(file, "new guide")).replace(/\}$/u, ',"opaque":9007199254740991}');
+  const annotate = (candidate = changes, postimage = after) =>
+    annotateCatalogGuideCopy(candidate, before, postimage);
+  const withProof = (entries: ReturnType<typeof annotate>) =>
+    buildValidationPlan({
+      ...plan.identities,
+      mergeBase: plan.identities.merge_base,
+      eventName: "pull_request",
+      changes: entries,
+    });
+  const [first] = changes;
+  assert.ok(first);
+  const annotated = annotate();
+  assert.equal(annotated.filter((change) => change.guide_copy).length, 3);
+  const guided = withProof(annotated);
+  assert.deepEqual(
+    selectWorkspaceRustImpact(guided, undefined, after).map((group) => group.id),
+    ["portcove-core:catalog-guide-copy", "portcove-cli:catalog-guide-copy"],
+  );
+  const usesBroadCore = (candidate: typeof guided, checkout = after) =>
+    selectWorkspaceRustImpact(candidate, undefined, checkout).some(
+      (group) => group.filter === "package(=portcove-core)",
+    );
+  assert.ok(usesBroadCore(guided, before), "stale checkout");
+  assert.ok(usesBroadCore(withProof([first, ...annotated.slice(1)])), "missing proof");
+  for (const postimage of [
+    (file: string) => (file === files[1] ? before(file) : after(file)),
+    (file: string) =>
+      file === files[2] ? after(file).replace("9007199254740991", "9007199254740992") : after(file),
+    (file: string) => (file === files[2] ? after(file).replace("stable", "beta") : after(file)),
+    (file: string) =>
+      file === files[2] ? after(file).replace('"id":', '"id":"extra","id":') : after(file),
+  ]) {
+    assert.ok(usesBroadCore(withProof(annotate(changes, postimage)), postimage));
+  }
+  assert.ok(
+    usesBroadCore(
+      withProof(
+        annotate([
+          ...changes,
+          {
+            ...first,
+            oldPath: `${root}route-enrollment.generated.json`,
+            newPath: `${root}route-enrollment.generated.json`,
+          },
+        ]),
+      ),
+    ),
+  );
+});
+
+void test("proven per-title layout conversions retain generator and embedded catalog checks", () => {
+  const file = "crates/portcove-core/catalog/ports/alexbeav-tony-hawk-s-pro-skater-3-recomp.json";
+  const compact = readFileSync(file, "utf8");
+  const record = checkedAuthoredPort(parseCatalogSource(compact));
+  const explicit = projectPsxManagedWindows(record);
+  delete explicit.psx_managed_windows_v1;
+  const before = () => JSON.stringify(explicit);
+  const after = () => compact;
+  const plan = workspacePlan([file]);
+  const [change] = plan.changes;
+  assert.ok(change);
+  const changes = [{ ...change, oldMode: "100644", newMode: "100644" }];
+  const replay = (candidate: typeof changes, readAfter = after) =>
+    buildValidationPlan({
+      ...plan.identities,
+      mergeBase: plan.identities.merge_base,
+      eventName: "pull_request",
+      changes: annotateCatalogAuthoring(candidate, before, readAfter),
+    });
+  const mixed = workspacePlan([file, "crates/portcove-core/src/catalog.rs"]);
+  const mixedChanges = mixed.changes.map((change) => ({
+    ...change,
+    oldMode: "100644",
+    newMode: "100644",
+  }));
+  assert.ok(
+    annotateCatalogAuthoring(mixedChanges, before, after).every(
+      (change) => !change.catalog_authoring,
+    ),
+  );
+  assert.ok(
+    annotateCatalogAuthoring(
+      changes,
+      () => {
+        throw new Error("missing base blob");
+      },
+      after,
+    ).every((change) => !change.catalog_authoring),
+  );
+  const proven = replay(changes);
+  assert.ok(proven.groups.includes("catalog"));
+  assert.ok(proven.changes[0]?.catalog_authoring);
+  assert.deepEqual(
+    selectWorkspaceRustImpact(proven, undefined, after).map((group) => group.id),
+    ["portcove-core:catalog-authoring-equivalence"],
+  );
+  assert.ok(baselineContractTests(proven).includes("scripts/generate-catalog.test.mts"));
+  assert.ok(
+    baselineIntegrityCommands(proven).some(
+      ([script, flag]) => script === "scripts/generate-catalog.mts" && flag === "--check",
+    ),
+  );
+  assert.equal(
+    selectWorkspaceRustImpact(proven, undefined, before)[0]?.filter,
+    "package(=portcove-core)",
+  );
+  assert.equal(
+    selectWorkspaceRustImpact(
+      replay(changes, () => compact.replace("SLUS-01419", "SLUS-99999")),
+      undefined,
+      after,
+    )[0]?.filter,
+    "package(=portcove-core)",
+  );
+  assert.equal(
+    selectWorkspaceRustImpact(replay([{ ...changes[0]!, newMode: "100755" }]), undefined, after)[0]
+      ?.filter,
+    "package(=portcove-core)",
+  );
+  assert.equal(
+    selectWorkspaceRustImpact(
+      replay(changes, () =>
+        JSON.stringify({
+          ...record,
+          release_maintenance: { reason: "changed", reconsider_when: "later" },
+        }),
+      ),
+      undefined,
+      after,
+    )[0]?.filter,
+    "package(=portcove-core)",
   );
 });

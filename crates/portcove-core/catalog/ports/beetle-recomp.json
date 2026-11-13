@@ -16,6 +16,7 @@
       "match_kind": "underlying-game"
     },
     "issue_number": 88,
+    "listed_at": "2026-10-23",
     "original_game": {
       "format_version": 1,
       "id": "beetle-adventure-racing",
@@ -37,7 +38,7 @@
   "integration": {
     "support_tier": "beta",
     "channels": ["stable", "rolling"],
-    "platforms": ["windows-x86-64"],
+    "platforms": ["windows-x86-64", "linux-x86-64"],
     "adapter": "n64-recomp-portable",
     "automated_tested_platforms": ["windows-x86-64"],
     "manually_validated_platforms": ["windows-x86-64"],
@@ -45,12 +46,14 @@
       "repository": "bryankruman/BeetleRecomp",
       "rolling_tag": "Continuous",
       "asset_hints": {
-        "windows-x86-64": ["BeetleRecomp", "Windows-x64"]
+        "windows-x86-64": ["BeetleRecomp", "Windows-x64"],
+        "linux-x86-64": ["BeetleRecomp", "Linux-x64"]
       }
     },
     "source_profile": "beetle-adventure-racing",
     "executable_hints": {
-      "windows-x86-64": ["BeetleRecomp.exe"]
+      "windows-x86-64": ["BeetleRecomp.exe"],
+      "linux-x86-64": ["BeetleRecomp"]
     },
     "persistent_paths": [
       "BeetleRecomp-Windows-x64/mods",
@@ -63,9 +66,23 @@
       "BeetleRecomp-Windows-x64/input.json",
       "BeetleRecomp-Windows-x64/input.json.bak",
       "BeetleRecomp-Windows-x64/cheats.cfg",
-      "BeetleRecomp-Windows-x64/bar.n64.us.z64"
+      "BeetleRecomp-Windows-x64/bar.n64.us.z64",
+      "BeetleRecomp-Linux-x64/mods",
+      "BeetleRecomp-Linux-x64/mod_config",
+      "BeetleRecomp-Linux-x64/saves",
+      "BeetleRecomp-Linux-x64/mods.json",
+      "BeetleRecomp-Linux-x64/mods.json.bak",
+      "BeetleRecomp-Linux-x64/graphics.json",
+      "BeetleRecomp-Linux-x64/graphics.json.bak",
+      "BeetleRecomp-Linux-x64/input.json",
+      "BeetleRecomp-Linux-x64/input.json.bak",
+      "BeetleRecomp-Linux-x64/cheats.cfg",
+      "BeetleRecomp-Linux-x64/bar.n64.us.z64"
     ],
     "runtime_subdirectory": "BeetleRecomp-Windows-x64",
+    "runtime_subdirectory_by_platform": {
+      "linux-x86-64": "BeetleRecomp-Linux-x64"
+    },
     "runtime_source_filename": "bar.n64.us.z64",
     "presentation": {
       "installation_method": "portable-recompilation",

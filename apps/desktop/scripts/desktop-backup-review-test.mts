@@ -125,6 +125,56 @@ export async function backupReviewScenario({
       });
       artifacts.push(screenshot);
     };
+    // The panel is titled "Backups and updates" (backups.protection.title). It names
+    // installations by role and version, shows the managed folder path, and discloses
+    // the latest backup identifier on request.
+    const protectionSelector = 'section[aria-label="Backups and updates"]';
+    const observeProtection = async (name: string) => {
+      const currentInventory = inventory(port.id);
+      const protection = currentInventory.protection;
+      assert.ok(protection, "Core must expose protection facts for the owned library");
+      assert.equal(protection.port_id, port.id);
+      assert.ok(protection.installations.some((item) => item.install_id === install.id));
+      const complete = currentInventory.state === "healthy" && !currentInventory.problems.length;
+      const expected = [
+        "Latest backup information",
+        protection.managed_data.path,
+        // Each installation by its role heading, so a missing one is not hidden by
+        // another installation or text that shares its version.
+        ...protection.installations.map(
+          (item) =>
+            `${
+              {
+                active: "Current version",
+                previous: "Previous version",
+                staged: "Prepared version",
+                external: "Installation you maintain",
+              }[item.role]
+            } · ${item.version}`,
+        ),
+      ];
+      if (protection.latest_completed_backup) expected.push(protection.latest_completed_backup.id);
+      if (!complete) expected.push("We couldn’t confirm");
+      await browser.wait(
+        async () => {
+          const panel = await browser.findElement(By.css(protectionSelector));
+          // The backup identifier is disclosed on request; open it to observe it.
+          for (const summary of await panel.findElements(
+            By.xpath('.//details[not(@open)]/summary[normalize-space(.)="Backup identifier"]'),
+          ))
+            await executeBrowserScript(browser, "arguments[0].click();", summary);
+          const rendered = await panel.getText();
+          return expected.every((value) => rendered.includes(value));
+        },
+        15_000,
+        "Backups and updates did not settle on the current Core inventory",
+      );
+      const observation = path.join(output, `${name}-core-inventory.json`);
+      await writeFile(observation, JSON.stringify(currentInventory, null, 2), { flag: "wx" });
+      artifacts.push(observation);
+      await capture(name, protectionSelector);
+    };
+    await observeProtection("native-protection-before-restore");
     await clickRestore();
     await browser.wait(until.elementLocated(button("Restore this backup")), 15_000);
     await browser.actions().sendKeys(Key.ESCAPE).perform();
@@ -249,7 +299,10 @@ export async function backupReviewScenario({
       async () =>
         (await browser.findElements(By.css('[aria-labelledby="backup-review-title"]'))).length ===
         0,
-      15_000,
+      // Calibrated from 15 s: on hosted Windows (debug build) the confirmed restore was
+      // still running, with its safety backup already written, when 15 s expired.
+      60_000,
+      "Confirmed backup restore did not finish and close its review",
     );
     assert.equal(await readFile(save, "utf8"), "selected snapshot data");
     const afterRestore = list();
@@ -260,6 +313,7 @@ export async function backupReviewScenario({
       await readFile(path.join(safety.path, "data/owned-review-save.bin"), "utf8"),
       "changed after review",
     );
+    await observeProtection("native-protection-after-reviewed-restore");
     await clickVisible(
       await (await row(selected.id)).findElement(By.css('button[aria-label^="Delete backup"]')),
     );
@@ -333,6 +387,7 @@ export async function backupReviewScenario({
     assert.ok(degradedNotice);
     assert.ok((await degradedNotice.getText()).includes("What to do next"));
     assert.ok((await degradedNotice.getText()).includes(degraded.problems[0].proposed_action));
+    await observeProtection("native-protection-degraded-history");
     const usableRow = await row(other.id);
     assert.equal(
       await usableRow.findElement(By.xpath('.//button[normalize-space(.)="Restore"]')).isEnabled(),
@@ -384,6 +439,7 @@ export async function backupReviewScenario({
     const retainedAssessment = inventory(port.id).create_assessment;
     assert.deepEqual(retainedAssessment, unavailable.create_assessment);
     await openCatalogPortAfterRefresh(browser, port, port.name);
+    await revealDetailSection(browser, "Saves & backups");
     const create = await browser.wait(
       until.elementLocated(
         By.css(`${backupSectionSelector} button[aria-describedby="backup-create-explanation"]`),
@@ -499,6 +555,7 @@ export async function backupReviewScenario({
     assert.equal(deletePreview.ok, true);
     // WebView refresh keeps the same native host; its service adapter is read-only.
     await openCatalogPortAfterRefresh(browser, port, port.name);
+    await revealDetailSection(browser, "Saves & backups");
     await browser.wait(
       async () => {
         const history = await browser.findElements(
@@ -756,6 +813,7 @@ export async function backupReviewScenario({
       [second.id],
     );
     await openCatalogPortAfterRefresh(browser, port, port.name);
+    await revealDetailSection(browser, "Saves & backups");
     await deleteReviewed(second, "backup-focus-final");
     await browser.wait(
       async () => {

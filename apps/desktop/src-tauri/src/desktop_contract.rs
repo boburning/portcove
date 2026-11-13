@@ -18,9 +18,20 @@ pub(crate) type DesktopError = portcove_core::FailureReport;
 
 #[derive(Debug, Serialize, JsonSchema)]
 pub(crate) struct DesktopWorkspaceSnapshot {
-    pub(crate) catalog: portcove_core::CatalogDocument,
+    /// Omitted only when `catalog_unchanged` is true.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) catalog: Option<portcove_core::CatalogDocument>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) listing_catalog: Option<portcove_core::CatalogListingDocument>,
+    /// SHA-256 of the catalog and listing documents as serialized here. A
+    /// caller that already holds these exact documents passes the digest back
+    /// and receives `catalog_unchanged` without either document.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) catalog_digest: Option<String>,
+    /// True when `catalog` and `listing_catalog` were omitted because the
+    /// caller's known digest matched; the caller keeps its own copies.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub(crate) catalog_unchanged: bool,
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub(crate) listing_statuses: Vec<portcove_core::PortListingStatus>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
@@ -77,13 +88,15 @@ pub(crate) struct CliCommandContext {
 }
 
 #[derive(Debug, Serialize, Deserialize, JsonSchema)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub(crate) struct InstallInput {
     pub(crate) port_id: String,
     pub(crate) channel: Option<ReleaseChannel>,
     pub(crate) source: Option<PathBuf>,
     pub(crate) bios: Option<PathBuf>,
     pub(crate) stage: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) source_reference: Option<portcove_core::SourceRegistrationReference>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
@@ -331,6 +344,29 @@ pub struct SteamEntryApplyResult {
     pub backup_path: Option<PathBuf>,
     pub changes: Vec<SteamEntryChange>,
     pub wrote: bool,
+    /// Per-game outcome of artwork included with a shortcut Add. A failed or
+    /// unavailable role never undoes a successfully written shortcut.
+    #[serde(default)]
+    pub artwork: Vec<SteamEntryArtworkOutcome>,
+}
+
+/// Artwork reviewed together with a shortcut Add for one game.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct SteamEntryArtworkPreview {
+    pub port_id: String,
+    pub roles: Vec<SteamArtworkRoleChange>,
+    /// Why this game's artwork cannot be reviewed now; the shortcut is unaffected.
+    pub unavailable: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct SteamEntryArtworkOutcome {
+    pub port_id: String,
+    pub roles: Vec<SteamArtworkRoleChange>,
+    pub backup_paths: Vec<PathBuf>,
+    pub wrote: bool,
+    /// Why no artwork was written for this game; retry with Review artwork update.
+    pub error: Option<String>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
@@ -347,6 +383,9 @@ pub struct SteamEntrySelection {
     pub steam_root: PathBuf,
     pub steam_user_id: String,
     pub operation: SteamEntryOperation,
+    /// Also fill missing Steam artwork for a newly added shortcut.
+    #[serde(default)]
+    pub include_artwork: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
@@ -355,6 +394,9 @@ pub struct SteamBatchSelection {
     pub port_ids: Vec<String>,
     pub steam_root: PathBuf,
     pub steam_user_id: String,
+    /// Also fill missing Steam artwork for each newly added shortcut.
+    #[serde(default)]
+    pub include_artwork: bool,
 }
 
 #[derive(Debug, Clone, Serialize, JsonSchema)]
@@ -375,6 +417,11 @@ pub struct SteamBatchReview {
     pub changes: Vec<SteamEntryChange>,
     pub steam_client_state: SteamClientState,
     pub writes_required: bool,
+    pub artwork: Vec<SteamEntryArtworkPreview>,
+    pub artwork_review_sha256: Option<String>,
+    /// An interrupted shortcut (or, for shortcut reviews, artwork) change in this
+    /// profile was settled before review.
+    pub recovered_shortcut_change: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, JsonSchema)]
@@ -396,6 +443,91 @@ pub struct SteamEntryReview {
     pub changes: Vec<SteamEntryChange>,
     pub steam_client_state: SteamClientState,
     pub writes_required: bool,
+    pub artwork: Vec<SteamEntryArtworkPreview>,
+    pub artwork_review_sha256: Option<String>,
+    /// An interrupted shortcut (or, for shortcut reviews, artwork) change in this
+    /// profile was settled before review.
+    pub recovered_shortcut_change: bool,
+}
+
+/// Separate reviewed Steam artwork action for one owned shortcut.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum SteamArtworkOperation {
+    /// Fill missing roles; replace existing art only when explicitly requested.
+    Update { replace_existing: bool },
+    /// Remove only recorded, unchanged Portcove-written art for this entry.
+    RemoveOwned,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum SteamArtworkRoleAction {
+    Write,
+    Replace,
+    Preserve,
+    Unchanged,
+    Unavailable,
+    Remove,
+    PreserveModified,
+    Absent,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct SteamArtworkRoleChange {
+    pub role: portcove_core::DestinationArtworkRole,
+    pub action: SteamArtworkRoleAction,
+    pub destination_path: Option<PathBuf>,
+    pub existing_paths: Vec<PathBuf>,
+    pub existing_sha256: Option<String>,
+    pub proposed_sha256: Option<String>,
+    pub unavailable_reason: Option<portcove_core::DestinationArtworkUnavailableReason>,
+    /// The destination-local ownership record for this role is dropped.
+    pub forget_ownership: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct SteamArtworkSelection {
+    pub port_id: String,
+    pub steam_root: PathBuf,
+    pub steam_user_id: String,
+    pub operation: SteamArtworkOperation,
+}
+
+/// Roles an earlier interrupted artwork change settled before this review.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct SteamArtworkRecovery {
+    pub completed: Vec<portcove_core::DestinationArtworkRole>,
+    pub abandoned: Vec<portcove_core::DestinationArtworkRole>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, JsonSchema)]
+pub struct SteamArtworkReview {
+    pub schema_version: u32,
+    pub operation: SteamArtworkOperation,
+    pub port_id: String,
+    pub display_name: String,
+    pub steam_root: PathBuf,
+    pub steam_user_id: String,
+    pub app_id: Option<u32>,
+    pub grid_path: PathBuf,
+    pub plan_sha256: String,
+    pub roles: Vec<SteamArtworkRoleChange>,
+    pub steam_client_state: SteamClientState,
+    pub writes_required: bool,
+    pub recovered: Option<SteamArtworkRecovery>,
+    /// An interrupted shortcut (or, for shortcut reviews, artwork) change in this
+    /// profile was settled before review.
+    pub recovered_shortcut_change: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct SteamArtworkApplyResult {
+    pub plan_sha256: String,
+    pub roles: Vec<SteamArtworkRoleChange>,
+    pub backup_paths: Vec<PathBuf>,
+    pub wrote: bool,
 }
 
 fn output<T: JsonSchema>() -> Value {
@@ -433,6 +565,11 @@ pub fn export_transport_schemas() -> Value {
             "reconcile_outcome": output::<BatchOutcome<ReconcileResult>>(),
             "source_verification_outcome": output::<SourceBatchOutcome>(),
             "launch_result": output::<LaunchResult>(),
+            "automatic_snapshots_enabled": output::<bool>(),
+            "ready_notices_enabled": output::<bool>(),
+            "bug_report_draft": output::<portcove_core::BugReportDraft>(),
+            "bug_report_link": output::<portcove_core::BugReportLink>(),
+            "submitted_report": output::<portcove_core::SubmittedReport>(),
             "application_update_preferences": output::<ApplicationUpdatePreferences>(),
             "application_update_production_transition": output::<ApplicationUpdateProductionTransition>(),
             "application_update_production_transition_result": output::<ApplicationUpdateProductionTransitionResult>(),
@@ -443,7 +580,22 @@ pub fn export_transport_schemas() -> Value {
             "application_update_notice": output::<ApplicationUpdateNoticeSnapshot>(),
             "workspace_snapshot": output::<DesktopWorkspaceSnapshot>(),
             "game_file_roots": output::<Vec<portcove_core::GameFileRoot>>(),
+            "library_memberships": output::<Vec<portcove_core::LibraryMembership>>(),
+            "library_membership_outcomes": output::<Vec<portcove_core::LibraryMembershipOutcome>>(),
+            "install_batch_review": output::<portcove_core::InstallBatchReview>(),
+            "adoption_batch_preview": output::<portcove_core::AdoptionBatchPreview>(),
+            "adoption_batch_result": output::<Option<portcove_core::AdoptionBatchResult>>(),
+            "install_batch": output::<portcove_core::InstallBatchRecord>(),
+            "install_batches": output::<Vec<portcove_core::InstallBatchRecord>>(),
+            "port_intent": output::<portcove_core::PortIntent>(),
+            "port_intents": output::<Vec<portcove_core::PortIntent>>(),
+            "port_intent_assessments": output::<portcove_core::PortIntentAssessments>(),
+            "standing_setup": output::<portcove_core::StandingSetupResult>(),
+            "root_setup_consent": output::<Option<portcove_core::RootSetupConsent>>(),
+            "root_setup_consents": output::<Vec<portcove_core::RootSetupConsent>>(),
+            "source_reuse_review": output::<portcove_core::SourceReuseReview>(),
             "game_file_scan_snapshot": output::<Option<portcove_core::GameFileScanSnapshot>>(),
+            "game_file_scan_match_page": output::<portcove_core::GameFileScanMatchPage>(),
             "game_file_query_snapshot": output::<portcove_core::GameFileQuerySnapshot>(),
             "preparation_cleanup_preview": output::<portcove_core::PreparationCleanupPreview>(),
             "external_runtime_preview": output::<portcove_core::ExternalRuntimePreview>(),
@@ -460,13 +612,24 @@ pub fn export_transport_schemas() -> Value {
             "steam_profiles": output::<Vec<String>>(),
             "steam_batch_review": output::<SteamBatchReview>(),
             "steam_entry_apply_result": output::<SteamEntryApplyResult>(),
+            "steam_artwork_review": output::<SteamArtworkReview>(),
+            "steam_artwork_apply_result": output::<SteamArtworkApplyResult>(),
         },
         "input": {
             "game_comparison_request": schemars::schema_for!(portcove_core::GameComparisonRequest),
+            "bug_report_field": schemars::schema_for!(portcove_core::BugReportField),
+            "report_kind": schemars::schema_for!(portcove_core::ReportKind),
             "install_input": schemars::schema_for!(InstallInput),
             "organization_change": schemars::schema_for!(portcove_core::OrganizationChange),
             "catalog_download_request": schemars::schema_for!(portcove_core::CatalogDownloadRequest),
             "game_file_query_request": schemars::schema_for!(portcove_core::GameFileQueryRefreshRequest),
+            "library_membership_requests": schemars::schema_for!(Vec<portcove_core::LibraryMembershipRequest>),
+            "install_batch_request_items": schemars::schema_for!(Vec<portcove_core::InstallBatchRequestItem>),
+            "adoption_batch_items": schemars::schema_for!(Vec<portcove_core::AdoptionBatchItem>),
+            "port_intent_mode": schemars::schema_for!(portcove_core::PortIntentMode),
+            "root_setup_enrollment": schemars::schema_for!(Option<portcove_core::RootSetupEnrollment>),
+            "game_file_scan_match_query": schemars::schema_for!(portcove_core::GameFileScanMatchQuery),
+            "port_readiness_acknowledgements": schemars::schema_for!(Vec<portcove_core::PortReadinessAcknowledgement>),
             "application_update_choice": schemars::schema_for!(ApplicationUpdateChoice),
             "application_update_production_decision": schemars::schema_for!(ApplicationUpdateProductionDecision),
             "application_update_recovery_area": schemars::schema_for!(ApplicationUpdateRecoveryArea),
@@ -474,6 +637,7 @@ pub fn export_transport_schemas() -> Value {
             "application_update_manual_check_request": schemars::schema_for!(ApplicationUpdateManualCheckRequest),
             "steam_entry_selection": schemars::schema_for!(SteamEntrySelection),
             "steam_batch_selection": schemars::schema_for!(SteamBatchSelection),
+            "steam_artwork_selection": schemars::schema_for!(SteamArtworkSelection),
         },
         "events": events,
     })

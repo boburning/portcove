@@ -3,8 +3,11 @@ import { execFileSync } from "node:child_process";
 import { mkdtemp } from "node:fs/promises";
 import path from "node:path";
 import { performance } from "node:perf_hooks";
-import { createGitHubRunner, GitHubApiClient, sanitizeOperationError } from "./github-api.mts";
-import type { GitHubRestReader } from "./github-api.mts";
+import { createGitHubRunner, GitHubApiClient } from "./github-api.mts";
+import { sanitizeOperationError } from "./github-operation.mts";
+import type { GitHubClientOptions } from "./github-client.mts";
+import type { GitHubRestReader } from "./github-operation.mts";
+import type { CatalogAnchorMetadataProvider } from "./release-custody-provider.mts";
 import { CoordinatorRemoteError } from "./release-coordinator-errors.mts";
 import {
   readRetainedCapacityOperation,
@@ -15,16 +18,23 @@ import {
 import type { CoordinatorGitObject } from "./release-coordinator-state.mts";
 import { isRecord } from "./runtime-values.mts";
 import { readOnlyReleaseChildEnvironment } from "./release-readonly-child-environment.mts";
+import { assertTrustedDirectNode } from "./release-direct-node-transport.mts";
 import {
   withCoordinatorDeadline,
   coordinatorCommandTimeout,
   checkCoordinatorDeadline,
+  coordinatorCommandDeadline,
 } from "./release-coordinator-deadline.mts";
 
 const repository = "boburning/portcove";
 const maximumResponseBytes = 256 * 1024;
 const maximumObjectBytes = 128 * 1024;
 const duration = 120_000;
+type RetainedCheckpointReader =
+  | { api?: GitHubRestReader; provider?: never }
+  | { provider: CatalogAnchorMetadataProvider; api?: never };
+const recoveryRefQuery =
+  "query($id:ID!,$ref:String!){node(id:$id){__typename ... on Repository{id databaseId nameWithOwner ref(qualifiedName:$ref){name prefix target{__typename oid}}}}}";
 type Spawn = NonNullable<NonNullable<Parameters<typeof createGitHubRunner>[0]>["spawn"]>;
 
 function oid(value: unknown): asserts value is string {
@@ -82,6 +92,30 @@ function person(value: unknown) {
  * proves that reconstruction is complete. Unsupported forms remain Unknown.
  * A signature is reconstructed for byte identity, never treated as authority.
  */
+/** The version preparation writer copies its source's committer time and
+ * offset. GitHub normalizes those dates in REST, so reconstruct only the
+ * deterministic prepared child from the already verified parent bytes. */
+export function inspectRemotePreparedCommit(
+  value: unknown,
+  expected: string,
+  source: ReturnType<typeof inspectRemoteCommitObject>,
+) {
+  if (!isRecord(value) || !isRecord(value.tree)) throw new Error("prepared commit unavailable");
+  oid(value.tree.sha);
+  const raw = Buffer.from(source.object.bytes).toString("utf8");
+  const time = /^committer .* ([0-9]+ [+-][0-9]{4})$/mu.exec(raw.split("\n\n", 1)[0]!)?.[1];
+  if (!time) throw new Error("verified source committer time unavailable");
+  const actor = `Portcove version preparation <version-preparation@portcove.invalid> ${time}`;
+  const message = utf8(value.message, 64 * 1024);
+  return inspectRemoteCommitObject(
+    value,
+    expected,
+    Buffer.from(
+      `tree ${value.tree.sha}\nparent ${source.object.oid}\nauthor ${actor}\ncommitter ${actor}\n\n${message.replace(/\n$/u, "")}\n`,
+    ),
+  );
+}
+
 export function inspectRemoteCommitObject(value: unknown, expected: string, exactBytes?: Buffer) {
   if (!isRecord(value) || value.sha !== expected || !isRecord(value.tree))
     throw new Error("remote commit identity differs");
@@ -149,13 +183,14 @@ export function inspectRemoteCommitObject(value: unknown, expected: string, exac
         /^[+-](?:0[0-9]|1[0-4])[0-5][0-9]$/u.test(line.slice(prefix.length))
       );
     };
+    const signedMessage = payload.slice(boundary + 2);
     if (
       boundary < 0 ||
       lines.length !== leading.length + 2 ||
       leading.some((line, index) => lines[index] !== line) ||
       !actorMatches(lines[leading.length], "author", value.author) ||
       !actorMatches(lines[leading.length + 1], "committer", value.committer) ||
-      payload.slice(boundary + 2) !== message ||
+      (signedMessage !== message && signedMessage !== `${message}\n`) ||
       !signature ||
       signature.includes("\r")
     )
@@ -164,7 +199,7 @@ export function inspectRemoteCommitObject(value: unknown, expected: string, exac
     // empty continuation line. Support only these two bounded encodings; the
     // exact raw-object hash, never the verification boolean, chooses one.
     for (const form of new Set([signature.replace(/\n$/u, ""), signature])) {
-      raw = `${payload.slice(0, boundary)}\ngpgsig ${form.replaceAll("\n", "\n ")}\n\n${message}`;
+      raw = `${payload.slice(0, boundary)}\ngpgsig ${form.replaceAll("\n", "\n ")}\n\n${signedMessage}`;
       try {
         return {
           object: inspectRemoteGitObject("commit", expected, Buffer.from(raw)),
@@ -178,11 +213,15 @@ export function inspectRemoteCommitObject(value: unknown, expected: string, exac
     }
     throw new Error("remote signed Git commit bytes are unsupported or differ from their identity");
   }
-  return {
-    object: inspectRemoteGitObject("commit", expected, Buffer.from(raw)),
-    tree: value.tree.sha,
-    parents,
-  };
+  // GitHub may omit one terminal message newline. Reconstruct only these two
+  // unsigned encodings; the exact Git object hash must select the original.
+  let object: ReturnType<typeof inspectRemoteGitObject>;
+  try {
+    object = inspectRemoteGitObject("commit", expected, Buffer.from(raw));
+  } catch {
+    object = inspectRemoteGitObject("commit", expected, Buffer.from(`${raw}\n`));
+  }
+  return { object, tree: value.tree.sha, parents };
 }
 
 /** Hydrate only a raw operation receipt explicitly named by the current
@@ -190,7 +229,7 @@ export function inspectRemoteCommitObject(value: unknown, expected: string, exac
 export async function hydrateRetainedCoordinatorOperation(
   repository: string,
   proof: unknown,
-  options: { api?: GitHubRestReader } = {},
+  options: RetainedCheckpointReader = {},
 ) {
   if (!isRecord(proof) || Object.keys(proof).sort().join(",") !== "checkpoint,id,operation_sha256")
     throw new Error("retained operation proof schema differs");
@@ -211,25 +250,12 @@ export async function hydrateRetainedCoordinatorOperation(
 export async function hydrateRetainedCoordinatorCheckpoint(
   repository: string,
   checkpoint: unknown,
-  options: { api?: GitHubRestReader } = {},
+  options: RetainedCheckpointReader = {},
 ) {
   oid(checkpoint);
-  const api =
-    options.api ??
-    new GitHubApiClient((args, input) =>
-      createGitHubRunner({
-        cwd: repository,
-        maxBuffer: 256 * 1024,
-        timeoutMs: coordinatorCommandTimeout(15000),
-      })([...args, "--hostname", "github.com"], input),
-    );
-  const get = (suffix: string) => {
-    const result = api.request("GET", `repos/boburning/portcove/${suffix}`);
-    if (result.status !== 200) throw new Error("retained operation unavailable");
-    return result.body;
-  };
-  const commit = inspectRemoteCommitObject(get(`git/commits/${checkpoint}`), checkpoint);
-  const raw = get(`git/trees/${commit.tree}`);
+  const provider = options.provider ?? legacyRetainedCheckpointReader(repository, options.api);
+  const commit = inspectRemoteCommitObject(await provider.commit(checkpoint), checkpoint);
+  const raw = await provider.tree(commit.tree, false);
   if (
     !isRecord(raw) ||
     raw.sha !== commit.tree ||
@@ -252,7 +278,7 @@ export async function hydrateRetainedCoordinatorCheckpoint(
     commit.tree,
     Buffer.concat([Buffer.from("100644 state.json\0"), Buffer.from(entry.sha, "hex")]),
   );
-  const blobRaw = get(`git/blobs/${entry.sha}`);
+  const blobRaw = await provider.blob(entry.sha);
   if (
     !isRecord(blobRaw) ||
     blobRaw.sha !== entry.sha ||
@@ -270,6 +296,31 @@ export async function hydrateRetainedCoordinatorCheckpoint(
   const blob = inspectRemoteGitObject("blob", entry.sha, bytes);
   writeRetainedCoordinatorObjects(repository, [commit.object, tree, blob]);
   return readRetainedCoordinatorCheckpoint(repository, checkpoint);
+}
+
+function legacyRetainedCheckpointReader(
+  repository: string,
+  injected?: GitHubRestReader,
+): CatalogAnchorMetadataProvider {
+  const api =
+    injected ??
+    new GitHubApiClient((args, input) =>
+      createGitHubRunner({
+        cwd: repository,
+        maxBuffer: maximumResponseBytes,
+        timeoutMs: coordinatorCommandTimeout(15000),
+      })([...args, "--hostname", "github.com"], input),
+    );
+  const get = async (suffix: string) => {
+    const result = api.request("GET", `repos/boburning/portcove/${suffix}`);
+    if (result.status !== 200) throw new Error("retained operation unavailable");
+    return result.body;
+  };
+  return {
+    commit: (sha) => get(`git/commits/${sha}`),
+    tree: (sha) => get(`git/trees/${sha}`),
+    blob: (sha) => get(`git/blobs/${sha}`),
+  };
 }
 
 function writeRetainedCoordinatorObjects(
@@ -308,39 +359,32 @@ function writeRetainedCoordinatorObjects(
 export async function hydrateRetainedCoordinatorCheckpointExport(
   repository: string,
   checkpoint: unknown,
-  options: { api?: GitHubRestReader } = {},
+  provider: CatalogAnchorMetadataProvider,
 ) {
   oid(checkpoint);
-  const provider =
-    options.api ??
-    new GitHubApiClient((args, input) =>
-      createGitHubRunner({
-        cwd: repository,
-        maxBuffer: 256 * 1024,
-        timeoutMs: coordinatorCommandTimeout(15000),
-      })([...args, "--hostname", "github.com"], input),
-    );
   let requests = 0;
-  const api: GitHubRestReader = {
-    request(method, route) {
-      checkCoordinatorDeadline();
-      if (method !== "GET" || ++requests > 8)
-        throw new Error("historical checkpoint closure read bound exhausted");
-      const response = provider.request(method, route);
-      checkCoordinatorDeadline();
-      return response;
-    },
+  const bounded = async (read: () => Promise<unknown>) => {
+    checkCoordinatorDeadline();
+    if (++requests > 8) throw new Error("historical checkpoint closure read bound exhausted");
+    const response = await read();
+    checkCoordinatorDeadline();
+    return response;
   };
-  const state = await hydrateRetainedCoordinatorCheckpoint(repository, checkpoint, { api });
+  const exact: CatalogAnchorMetadataProvider = {
+    commit: (sha) => bounded(() => provider.commit(sha)),
+    tree: (sha) => bounded(() => provider.tree(sha, false)),
+    blob: (sha) => bounded(() => provider.blob(sha)),
+  };
+  const state = await hydrateRetainedCoordinatorCheckpoint(repository, checkpoint, {
+    provider: exact,
+  });
   if (!state.previous || !isRecord(state.input.active_candidate))
     throw new Error("historical native carrier requires an original active transition");
   const candidate = structuredClone(state.input.active_candidate);
-  await hydrateRetainedCoordinatorCheckpoint(repository, state.previous, { api });
+  await hydrateRetainedCoordinatorCheckpoint(repository, state.previous, { provider: exact });
   for (const selected of [candidate.source_commit, candidate.prepared_commit]) {
     oid(selected);
-    const result = api.request("GET", `repos/boburning/portcove/git/commits/${selected}`);
-    if (result.status !== 200) throw new Error("original preparation commit unavailable");
-    const commit = inspectRemoteCommitObject(result.body, selected);
+    const commit = inspectRemoteCommitObject(await exact.commit(selected), selected);
     writeRetainedCoordinatorObjects(repository, [commit.object]);
   }
   checkCoordinatorDeadline();
@@ -356,7 +400,19 @@ export async function hydrateRetainedCoordinatorCheckpointExport(
 export async function readRemoteCoordinatorSnapshot(
   _parentDirectory: string,
   configuration: unknown,
-  options: { transport?: { cwd: string; spawn?: Spawn; deadline?: number } } = {},
+  options: {
+    transport?:
+      | { cwd: string; spawn?: Spawn; deadline?: number; credential?: never }
+      | {
+          credential: { token: string };
+          deadline: number;
+          requireDirect?: true;
+          checkSource?: () => void;
+          reserve?: GitHubClientOptions["reserve"];
+          cwd?: never;
+          spawn?: never;
+        };
+  } = {},
 ) {
   if (
     !isRecord(configuration) ||
@@ -367,6 +423,7 @@ export async function readRemoteCoordinatorSnapshot(
     configuration.namespace.length > 64
   )
     throw new Error("recovery requires separately ratified destination configuration");
+  const scope = configuration.namespace;
   if (!options.transport) throw new Error("remote recovery transport is unconfigured");
   const deadline = options.transport.deadline;
   if (deadline !== undefined && (!Number.isFinite(deadline) || deadline <= performance.now()))
@@ -377,28 +434,97 @@ export async function readRemoteCoordinatorSnapshot(
     if (timeoutMs < 1) throw new Error("remote recovery phase deadline exhausted");
     return timeoutMs;
   };
-  const transport = options.transport;
-  const api = new GitHubApiClient((args, input) =>
-    createGitHubRunner({ ...transport, maxBuffer: maximumResponseBytes, timeoutMs: remaining() })(
-      [...args, "--hostname", "github.com"],
-      input,
-    ),
-  );
   const started = performance.now();
+  const transport = { ...options.transport };
+  const reader = await (async () => {
+    if (!transport.credential) {
+      const api = new GitHubApiClient((args, input) =>
+        createGitHubRunner({
+          ...transport,
+          maxBuffer: maximumResponseBytes,
+          timeoutMs: remaining(),
+        })([...args, "--hostname", "github.com"], input),
+      );
+      return {
+        async get(route: string) {
+          const { status, body } = api.request("GET", route.slice(1));
+          return { status, data: body };
+        },
+        async ref(variables: { id: string; ref: string }): Promise<unknown> {
+          return api.graphql(recoveryRefQuery, variables).data;
+        },
+      };
+    }
+    const token = transport.credential.token;
+    const direct =
+      transport.requireDirect === true || readOnlyReleaseChildEnvironment() !== undefined;
+    const checkSource = transport.checkSource;
+    const reserve = transport.reserve;
+    const { createGitHubClient } = await import("./github-client.mts");
+    const client = await createGitHubClient({
+      credential: { kind: "explicit", token },
+      deadline: Math.min(
+        started + duration,
+        transport.deadline,
+        coordinatorCommandDeadline() ?? Infinity,
+      ),
+      maxBytes: maximumResponseBytes,
+      ...(reserve ? { reserve } : {}),
+      ...((direct || checkSource) && {
+        allowRequest() {
+          if (direct) assertTrustedDirectNode("isolated coordinator snapshot");
+          checkSource?.();
+          return true;
+        },
+      }),
+      headers: { accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28" },
+    });
+    return {
+      async get(route: string) {
+        try {
+          return await client.request(`GET ${route}`, {
+            request: { portcove: { replay: "once", attempts: 0 } },
+          });
+        } finally {
+          checkSource?.();
+        }
+      },
+      async ref(variables: { id: string; ref: string }): Promise<unknown> {
+        const response = await client
+          .request("POST /graphql", {
+            query: recoveryRefQuery,
+            variables,
+            request: { portcove: { replay: "once", attempts: 0 } },
+          })
+          .finally(() => checkSource?.());
+        const envelope: unknown = response.data;
+        if (
+          response.status !== 200 ||
+          !isRecord(envelope) ||
+          ("errors" in envelope && (!Array.isArray(envelope.errors) || envelope.errors.length > 0))
+        )
+          throw new Error("remote recovery ref response unavailable");
+        return envelope.data;
+      },
+    };
+  })();
   let requests = 0;
-  const get = (endpoint: string) => {
+  const admit = () => {
     if (++requests > 20 || performance.now() - started > duration)
       throw new Error("remote recovery request or duration bound exhausted");
-    const response = api.request("GET", `repos/${repository}${endpoint}`);
+  };
+  const get = async (endpoint: string) => {
+    admit();
+    const response = await reader.get(`/repos/${repository}${endpoint}`);
     if (
       response.status !== 200 ||
       performance.now() - started > duration ||
       (deadline !== undefined && performance.now() >= deadline)
     )
       throw new Error("remote recovery response unavailable or late");
-    return response.body;
+    return response.data as unknown;
   };
-  const identity = get("");
+  const identity = await get("");
   if (
     !isRecord(identity) ||
     identity.id !== 1354613114 ||
@@ -408,21 +534,17 @@ export async function readRemoteCoordinatorSnapshot(
     identity.node_id.length > 128
   )
     throw new Error("remote recovery repository identity differs");
-  const scope = configuration.namespace;
+  const nodeId = identity.node_id;
   const stateRef = `refs/heads/${scope}-coordinator-state`;
-  const readRef = (ref: string) => {
-    if (++requests > 20 || performance.now() - started > duration)
-      throw new Error("remote recovery request or duration bound exhausted");
-    const response = api.graphql(
-      "query($id:ID!,$ref:String!){node(id:$id){__typename ... on Repository{id databaseId nameWithOwner ref(qualifiedName:$ref){name prefix target{__typename oid}}}}}",
-      { id: identity.node_id, ref },
-    );
-    const node = isRecord(response.data) ? response.data.node : null;
+  const readRef = async (ref: string) => {
+    admit();
+    const data = await reader.ref({ id: nodeId, ref });
+    const node = isRecord(data) ? data.node : null;
     if (
       performance.now() - started > duration ||
       !isRecord(node) ||
       node.__typename !== "Repository" ||
-      node.id !== identity.node_id ||
+      node.id !== nodeId ||
       node.databaseId !== 1354613114 ||
       node.nameWithOwner !== repository
     )
@@ -438,7 +560,7 @@ export async function readRemoteCoordinatorSnapshot(
     oid(value.target.oid);
     return value.target.oid;
   };
-  const expected = readRef(stateRef);
+  const expected = await readRef(stateRef);
   const objects = new Map<string, CoordinatorGitObject>();
   const add = (object: CoordinatorGitObject) => {
     const old = objects.get(object.oid);
@@ -446,14 +568,14 @@ export async function readRemoteCoordinatorSnapshot(
       throw new Error("remote recovery object collision");
     objects.set(object.oid, object);
   };
-  const commit = (id: string) => {
-    const result = inspectRemoteCommitObject(get(`/git/commits/${id}`), id);
+  const commit = async (id: string) => {
+    const result = inspectRemoteCommitObject(await get(`/git/commits/${id}`), id);
     add(result.object);
     return result;
   };
-  const checkpoint = (id: string) => {
-    const result = commit(id);
-    const tree = get(`/git/trees/${result.tree}`);
+  const checkpoint = async (id: string) => {
+    const result = await commit(id);
+    const tree = await get(`/git/trees/${result.tree}`);
     if (
       !isRecord(tree) ||
       tree.sha !== result.tree ||
@@ -478,7 +600,7 @@ export async function readRemoteCoordinatorSnapshot(
         Buffer.concat([Buffer.from("100644 state.json\0"), Buffer.from(entry.sha, "hex")]),
       ),
     );
-    const blob = get(`/git/blobs/${entry.sha}`);
+    const blob = await get(`/git/blobs/${entry.sha}`);
     if (
       !isRecord(blob) ||
       blob.sha !== entry.sha ||
@@ -508,8 +630,8 @@ export async function readRemoteCoordinatorSnapshot(
       throw new Error("checkpoint fixed metadata differs");
     return { previous, input: input.input };
   };
-  const current = checkpoint(expected);
-  const previous = current.previous === null ? null : checkpoint(current.previous);
+  const current = await checkpoint(expected);
+  const previous = current.previous === null ? null : await checkpoint(current.previous);
   const candidate = current.input.active_candidate ?? previous?.input.active_candidate;
   const refs = [stateRef];
   const expectedRefs = [expected];
@@ -522,8 +644,8 @@ export async function readRemoteCoordinatorSnapshot(
       throw new Error("incomplete remote reservation");
     oid(candidate.source_commit);
     oid(candidate.prepared_commit);
-    commit(candidate.source_commit);
-    commit(candidate.prepared_commit);
+    await commit(candidate.source_commit);
+    await commit(candidate.prepared_commit);
     refs.push(
       `refs/tags/${scope}-prepared/v${candidate.version}`,
       `refs/tags/${scope}-prepared-source/${candidate.source_commit}`,
@@ -533,8 +655,10 @@ export async function readRemoteCoordinatorSnapshot(
   // Bracket the complete state and paired receipts. Incomplete or changed
   // observations create no local repository and never admit recovered state.
   for (let observation = 0; observation < 2; observation++) {
-    if (refs.some((ref, index) => readRef(ref) !== expectedRefs[index]))
-      throw new Error("remote recovery snapshot changed or receipt pair differs");
+    for (const [index, ref] of refs.entries()) {
+      if ((await readRef(ref)) !== expectedRefs[index])
+        throw new Error("remote recovery snapshot changed or receipt pair differs");
+    }
   }
   return {
     checkpoint: expected,

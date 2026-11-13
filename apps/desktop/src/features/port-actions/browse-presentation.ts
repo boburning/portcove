@@ -1,7 +1,9 @@
+import { canonicalIdentityId, identityLabel } from "../identity/identity-style";
 import { gameUpdateAcquisitionLabel } from "../port-updates/acquisition-presentation";
 import type { PortStatus, PortDefinition } from "../../types";
 import type { CatalogEntry } from "../browsing/catalog-entry";
 import { listingAvailabilityLabel } from "../browsing/catalog-entry";
+import { setupRoutePresentation } from "./setup-route-presentation";
 import {
   SOURCE_BLOCKERS,
   BIOS_BLOCKERS,
@@ -34,7 +36,7 @@ export function browsePortPresentation(
     !status?.external_runtime &&
     !port.pendingSetup &&
     Boolean(port.release)
-      ? catalogSetupPresentation(status)
+      ? setupRoutePresentation(port, status)
       : undefined;
   return { input, state, setup, concurrentBlockers: concurrentReadinessReasons(status) };
 }
@@ -58,7 +60,9 @@ export function readinessPresentation(
     return { label: "Compatibility unconfirmed", action: "View details", tone: "setup" } as const;
   if (view === "catalog" && !status?.active && !status?.external_runtime)
     return {
-      label: catalogSetupPresentation(status).label,
+      label: port
+        ? setupRoutePresentation(port, status).label
+        : catalogSetupPresentation(status).label,
       action: "View details",
       tone: "available",
     } as const;
@@ -84,7 +88,7 @@ export function readinessPresentation(
     setup: { label: "Setup needed", action: "Finish setup", tone: "setup" },
     staged: { label: "Ready to play", action: "View details", tone: "ready" },
     unknown: {
-      label: "Readiness unavailable",
+      label: "Can't check right now",
       action: "View details",
       tone: "setup",
     },
@@ -143,18 +147,26 @@ export function browseStatusSummary(
 
 /** File-state copy only. Paths and review-eligibility booleans cannot prove connected inputs. */
 export function gameFilesPresentation(
-  port: Pick<PortDefinition, "source_profile" | "bios_source_profile" | "presentation">,
+  port: Pick<
+    PortDefinition,
+    "source_profile" | "bios_source_profile" | "presentation" | "optional_game_source"
+  >,
   status: PortStatus | undefined,
 ) {
   const readiness = status?.readiness;
   const sourceBlocked = readiness?.blockers.some((blocker) => SOURCE_BLOCKERS.includes(blocker));
   const biosBlocked = readiness?.blockers.some((blocker) => BIOS_BLOCKERS.includes(blocker));
+  // An optional source that is not registered is simply absent: it neither requires nor
+  // needs checking. A registered one, even if changed or unreadable, is judged as usual.
+  const optionalSourceAbsent =
+    Boolean(port.optional_game_source) &&
+    !sourceBlocked &&
+    (readiness?.source == null || readiness.source === "unregistered");
   const sourceRequired = Boolean(
     sourceBlocked ||
-    port.source_profile ||
+    (port.source_profile && !port.optional_game_source) ||
     readiness?.required_source_extension ||
-    readiness?.source_assessment ||
-    readiness?.source,
+    (!optionalSourceAbsent && (readiness?.source_assessment || readiness?.source)),
   );
   const biosRequired = Boolean(
     biosBlocked || port.bios_source_profile || readiness?.bios_assessment || readiness?.bios,
@@ -170,8 +182,7 @@ export function gameFilesPresentation(
   )
     return {
       title: "Setup needed",
-      description:
-        "Select the game files or BIOS identified by the current requirements, then review setup.",
+      description: missingInputDescription(port, readiness.blockers),
     };
   if (readiness?.pending_setup)
     return {
@@ -182,7 +193,9 @@ export function gameFilesPresentation(
   if (
     sourceBlocked ||
     biosBlocked ||
-    [readiness?.source, readiness?.bios].some((value) => value != null && value !== "current")
+    [optionalSourceAbsent ? null : readiness?.source, readiness?.bios].some(
+      (value) => value != null && value !== "current",
+    )
   )
     return {
       title: "Files need checking",
@@ -203,6 +216,12 @@ export function gameFilesPresentation(
       description:
         "Recorded input checks are current for this installation’s supported file contract.",
     };
+  if (port.optional_game_source && !sourceRequired && !biosRequired)
+    return {
+      title: "Game files are optional",
+      description:
+        "You can choose a disc image for Portcove to prepare, or keep using your own files. Play does not need one.",
+    };
   if (!sourceRequired && !biosRequired && port.presentation?.source_requirements?.length === 0)
     return {
       title: "No files to add in Portcove",
@@ -220,4 +239,29 @@ export function gameFilesPresentation(
     description:
       "No current file assessment is available here. Check the project instructions and recorded input details.",
   };
+}
+
+/** Names what the player owns, not the requirement's role; unknown titles stay generic. */
+function missingInputDescription(
+  port: Pick<PortDefinition, "presentation">,
+  blockers: readonly string[],
+) {
+  const title = port.presentation?.original_game_title?.trim();
+  const systems = [
+    ...new Set(
+      (port.presentation?.original_game?.source_editions ?? [])
+        .map((edition) => edition.system)
+        .filter((system): system is string => Boolean(system))
+        .map((system) => identityLabel(canonicalIdentityId(system))),
+    ),
+  ];
+  if (title && blockers.includes("missing_source") && !blockers.includes("missing_bios")) {
+    const editionsKnown = (port.presentation?.original_game?.source_editions?.length ?? 0) > 0;
+    return `You need your own copy of ${title}${systems.length === 1 ? ` (${systems[0]})` : ""}. ${
+      editionsKnown
+        ? "Portcove checks that it's a supported version and never changes it."
+        : "Portcove never changes it."
+    }`;
+  }
+  return "Choose your own copy of the game files or BIOS this port needs, then finish setup. Portcove never changes them.";
 }

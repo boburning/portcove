@@ -1,0 +1,40 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "darkuni-target-terror-wii-recomp",
+    "name": "TARGET: Terror (darkuni Recomp)",
+    "summary": "Player-managed Windows setup for the NTSC-U Wii disc.",
+    "project_url": "https://github.com/darkuni/target-terror-wii-recomp",
+    "original_game_title": "TARGET: Terror",
+    "issue_number": 4178,
+    "listed_at": "2026-11-08",
+    "platforms": ["windows-x86-64"],
+    "availability": "packages",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Prepare your Wii disc image",
+          "instruction": "Keep the Windows x64 package files together, with the runtime DLLs beside targetterror.exe. Supply your own NTSC-U RGDEA4 ISO or CISO in that writable folder."
+        },
+        {
+          "title": "Allow space for the upstream import",
+          "instruction": "Run targetterror.exe and allow first-run extraction to populate game. Keep the original disc image separately, and leave enough free space for the generated files."
+        },
+        {
+          "title": "Preserve the creating profile",
+          "instruction": "Keep the generated game folder, targetterror.ini and nand, including high scores, with the creating runtime."
+        }
+      ],
+      "warnings": [
+        "The package includes recompiled game code that the project license does not cover. Portcove downloads it only from the project’s own releases. You need your own original game files.",
+        "Keep the upstream folder outside the Portcove library. Close the game and its helpers before backing up or replacing the creating runtime and its data."
+      ],
+      "help_url": "https://github.com/darkuni/target-terror-wii-recomp/blob/51bf36f469fe502ca6aeeab20f07ca42fca3671e/README.md"
+    },
+    "release_url": "https://github.com/darkuni/target-terror-wii-recomp/releases",
+    "download_asset_hints": {
+      "windows-x86-64": ["TargetTerror-", "-win64.zip"]
+    },
+    "recommended_download_channel": "stable"
+  }
+}

@@ -1,0 +1,44 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "darkuni-outrun-arcade-recomp",
+    "name": "OutRun Online Arcade (darkuni Recomp)",
+    "summary": "Windows player for OutRun Online Arcade using its own Xbox 360 package.",
+    "project_url": "https://github.com/darkuni/outrun-arcade-recomp",
+    "original_game_title": "OutRun Online Arcade",
+    "issue_number": 4133,
+    "listed_at": "2026-11-08",
+    "platforms": ["windows-x86-64"],
+    "availability": "packages",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Prepare your original in the upstream folder",
+          "instruction": "Keep the Windows x64 package files together in a writable folder. Put your own Xbox 360 LIVE package for title 58410968 beside outrun_arcade.exe. The tagged source identifies default.xex 0.0.1.5. Keep the matching media files if using an already extracted assets folder."
+        },
+        {
+          "title": "Use the documented Windows prerequisites",
+          "instruction": "The package README calls for 64-bit Windows 10 or 11 and the Microsoft Visual C++ 2015–2022 x64 Redistributable when its runtime libraries are missing."
+        },
+        {
+          "title": "Complete first-run setup",
+          "instruction": "Start outrun_arcade.exe in that folder and let the upstream program prepare assets. Keep your original export separately."
+        },
+        {
+          "title": "Preserve the creating folder",
+          "instruction": "Keep the generated assets, outrun_arcade.toml and any game-created profile, saves or diagnostic files alongside the creating version."
+        }
+      ],
+      "warnings": [
+        "The package includes recompiled game code that the project license does not cover. Portcove downloads it only from the project’s own releases. You need your own original game files.",
+        "Keep the upstream folder outside the Portcove library. Close the game and its helpers before backing up or replacing the creating runtime and its data."
+      ],
+      "help_url": "https://github.com/darkuni/outrun-arcade-recomp/blob/e1c57e065b74e594d38778b05d13fdc895e90d4b/README.md"
+    },
+    "release_url": "https://github.com/darkuni/outrun-arcade-recomp/releases",
+    "download_asset_hints": {
+      "windows-x86-64": ["outrun_arcade-", "-win-amd64.zip"]
+    },
+    "recommended_download_channel": "stable"
+  }
+}

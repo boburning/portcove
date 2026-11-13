@@ -1,7 +1,12 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { desktopApi } from "../../api";
 import { LatestRequestGeneration } from "../../shared/concurrency-state";
-import type { PortDefinition, PortStatus } from "../../types";
+import type {
+  PortDefinition,
+  PortStatus,
+  SourceRecord,
+  SourceRegistrationReference,
+} from "../../types";
 import { gameIdentityLabel } from "../../port-identity";
 import type { Perform } from "../operations/use-operation-state";
 import { targetInvocationContext, type InvocationContext } from "../operations/invocation-state";
@@ -60,16 +65,71 @@ export function useInstallPlanning(
   channel: PortStatus["channel"] | undefined,
   perform: Perform,
   context: InvocationContext | undefined,
+  registeredSource?: SourceRecord,
+  sourcePath = "",
 ) {
-  const request = useReviewRequest<Awaited<ReturnType<typeof desktopApi.plan>>>(
-    JSON.stringify([portId, channel, context?.libraryGeneration]),
+  // Empty and the automatically filled saved path select the same registration.
+  // A display-only prefill must not discard its checked setup continuation.
+  const explicitSourcePath = sourcePath === registeredSource?.path ? "" : sourcePath;
+  const request = useReviewRequest<{
+    plan: Awaited<ReturnType<typeof desktopApi.plan>>;
+    sourceReference?: SourceRegistrationReference;
+  }>(
+    JSON.stringify([
+      portId,
+      channel,
+      context?.libraryGeneration,
+      registeredSource,
+      explicitSourcePath,
+    ]),
     perform,
   );
-  const review = async () => {
+  const reviewSource = async (sourceReference?: SourceRegistrationReference) => {
     if (portId && channel && context)
-      await request.review("review install", () => desktopApi.plan(portId, channel), context);
+      await request.review(
+        "review install",
+        async () => {
+          let reference = sourceReference;
+          // An explicit replacement keeps the existing Core checked-override
+          // route. Only an actual saved-file choice binds its registration.
+          if (reference || (registeredSource && !explicitSourcePath.trim())) {
+            const checked = await desktopApi.reviewSourceReuse(
+              reference?.profile_id ?? registeredSource!.profile_id,
+              context.libraryGeneration,
+            );
+            if (
+              (reference && checked.reference.reference_sha256 !== reference.reference_sha256) ||
+              (registeredSource &&
+                JSON.stringify(checked.registration) !== JSON.stringify(registeredSource))
+            )
+              throw new Error(
+                "The saved files or this game's requirements changed. Check the saved files again before reviewing setup.",
+              );
+            const application = checked.applications.find((app) => app.port_id === portId);
+            if (application) {
+              if (!application.can_review_setup) throw new Error(application.summary);
+              reference = checked.reference;
+            } else if (sourceReference) {
+              throw new Error(
+                "These saved files have no checked reuse contract for this integration. Review its required original files.",
+              );
+            }
+            // A legacy route without a reuse contract keeps its ordinary checked
+            // setup path. It is not promoted into reusable-source compatibility.
+          }
+          const plan = await desktopApi.plan(portId, channel);
+          return { plan, ...(reference ? { sourceReference: reference } : {}) };
+        },
+        context,
+      );
   };
-  return { plan: request.value, review, invalidate: request.invalidate };
+  return {
+    plan: request.value?.plan,
+    sourceReference: request.value?.sourceReference,
+    review: () => reviewSource(),
+    reviewSource,
+    invalidate: () => request.invalidate(),
+  };
 }
 
 export function useAdoptionPlanning(

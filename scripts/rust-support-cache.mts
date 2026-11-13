@@ -1,5 +1,4 @@
 import { errorCode, isRecord } from "./runtime-values.mts";
-import type { BinaryLike } from "node:crypto";
 import type { SpawnSyncOptions } from "node:child_process";
 export interface CompilerProbeResult {
   error?: NodeJS.ErrnoException;
@@ -96,7 +95,8 @@ const compilerEnvironmentNames = new Set([
   "WINDOWSSDKVERSION",
 ]);
 
-const sha256 = (value: BinaryLike) => createHash("sha256").update(value).digest("hex");
+const sha256 = (value: string | NodeJS.ArrayBufferView) =>
+  createHash("sha256").update(value).digest("hex");
 const fileIdentity = (file: string) => {
   const contents = readFileSync(file);
   return { bytes: contents.length, sha256: sha256(contents) };

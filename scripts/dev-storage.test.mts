@@ -950,7 +950,7 @@ void test("preflight is read-only and machine-readable, and low space prevents c
   const result = cli(root, ["preflight", "--json"]);
   assert.equal(result.status, 0, result.stderr);
   const report = fixtureRecord(result.stdout);
-  assert.equal(report.minimum_free_gib, 20);
+  assert.equal(report.minimum_free_gib, 5);
   assert.equal(report.workspace, root);
   assert.equal(report.target_directory, path.join(root, "target"));
   assert.equal(report.rust_support_cache, path.join(root, "target.portcove-rust-support"));
@@ -1268,16 +1268,16 @@ for (const order of ["support-first", "Cargo-first"] as const) {
       admission.status !== 0 &&
       !process.env.CI &&
       !process.env.GITHUB_ACTIONS &&
-      /Portcove needs at least 20\.0 GiB free;/u.test(String(admission.stderr))
+      /Portcove needs at least 5\.0 GiB free;/u.test(String(admission.stderr))
     ) {
       completed = true;
       t.skip(
-        `Real Cargo acceptance was not observed: unchanged 20 GiB reserve blocks local compilation. ${String(admission.stderr).trim()}`,
+        `Real Cargo acceptance was not observed: unchanged 5 GiB reserve blocks local compilation. ${String(admission.stderr).trim()}`,
       );
       return;
     }
     assert.equal(admission.status, 0, String(admission.stderr));
-    assert.equal(fixtureRecord(String(admission.stdout)).minimum_free_gib, 20);
+    assert.equal(fixtureRecord(String(admission.stdout)).minimum_free_gib, 5);
     assert.equal(existsSync(target), false);
 
     const pinnedToolchain = /channel\s*=\s*"([^"]+)"/u.exec(

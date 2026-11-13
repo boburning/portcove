@@ -1,6 +1,7 @@
 /** Producer preparation inside the existing trusted controller. The owning
  * driver must establish its ratified history/current controls and durable remote
  * pending intent before invoking this adapter. There is no CLI or activation. */
+import { fixedReleaseToolDependencies } from "./release-tool-dependency-selection.mts";
 import { createHash } from "node:crypto";
 import { performance } from "node:perf_hooks";
 import path from "node:path";
@@ -29,7 +30,10 @@ import type { CheckpointProducerExpectation } from "./release-coordinator-checkp
 import { createCheckpointSigningStore } from "./release-app-registration-capture.mts";
 import { requirePreparedHostedNativeCustody } from "./release-hosted-native-acceptance.mts";
 import type { AppRegistrationStore } from "./release-app-registration-capture.mts";
-import { readOnlyReleaseChildEnvironment } from "./release-readonly-child-environment.mts";
+import {
+  fixedReleaseReaderToken,
+  readOnlyReleaseChildEnvironment,
+} from "./release-readonly-child-environment.mts";
 import { createCheckpointSigningTransport } from "./release-checkpoint-signing-transport.mts";
 
 type Checkpoint = Awaited<ReturnType<typeof exportCoordinatorCheckpoint>>;
@@ -104,19 +108,23 @@ export async function signCoordinatorCheckpointEvidence(
   const injected = Boolean(
     selected.environment || selected.fetcher || selected.identity || selected.createStore,
   );
+  const identityTransport = selected.identity?.transport;
   if (
     injected &&
     (!selected.fetcher ||
       !selected.environment ||
       !selected.createStore ||
       !selected.identity?.readKeys ||
-      !selected.identity.transport?.spawn)
+      !identityTransport ||
+      !("cwd" in identityTransport) ||
+      !identityTransport.spawn)
   )
     throw new Error("complete injected signing transport, identity and custody required");
   const capture = path.join(directory, `checkpoint-signing-${checkpoint.checkpoint}`);
   // Existing owner-only, exclusive, fsynced native Linux capture machinery.
   // A retained path is refused rather than reset, overwritten or reminted.
   const store = await (selected.createStore ?? createCheckpointSigningStore)(capture);
+  let network: ReturnType<typeof createCheckpointSigningTransport> | undefined;
   let stage = "identity";
   try {
     await store.write(
@@ -127,7 +135,7 @@ export async function signCoordinatorCheckpointEvidence(
           checkpoint: checkpoint.checkpoint,
           subject_sha256: hash(input.subject),
           producer: expected.producer,
-          sdk: "@sigstore/sign@5.0.0",
+          sdk: `@sigstore/sign@${fixedReleaseToolDependencies().sigstoreSign}`,
           automatic_retry: false,
           signature_verification: "not-performed",
           authority: "none",
@@ -155,7 +163,10 @@ export async function signCoordinatorCheckpointEvidence(
       },
       {
         ...selected.identity,
-        transport: { ...selected.identity?.transport, cwd: directory, deadline },
+        transport:
+          identityTransport && "cwd" in identityTransport
+            ? { ...identityTransport, cwd: directory, deadline }
+            : { sdkToken: fixedReleaseReaderToken(), requireDirect: true, deadline },
       },
     );
     if (
@@ -173,7 +184,7 @@ export async function signCoordinatorCheckpointEvidence(
       if (performance.now() >= signingDeadline || Date.now() >= Date.parse(identity.expires_at))
         throw new Error("checkpoint signing identity or original deadline exhausted");
     };
-    const network = createCheckpointSigningTransport(
+    const transport = (network = createCheckpointSigningTransport(
       store,
       signingDeadline,
       selected.fetcher ?? fetch,
@@ -183,12 +194,12 @@ export async function signCoordinatorCheckpointEvidence(
         await selected.beforePost?.(stage);
         requireCurrent();
       },
-    );
+    ));
     stage = "signing";
     const signed = await withPortcoveSigningTransport(
       (url, settings) => {
         requireCurrent();
-        return network.request(url, settings);
+        return transport.request(url, settings);
       },
       async () => {
         const signer = new FulcioSigner({
@@ -218,7 +229,7 @@ export async function signCoordinatorCheckpointEvidence(
       },
     );
     requireCurrent();
-    if (network.completedRequests !== 2)
+    if (transport.completedRequests !== 2)
       throw new Error("checkpoint signing exchange incomplete or expired");
     const evidence = {
       subject: input.subject,
@@ -268,6 +279,7 @@ export async function signCoordinatorCheckpointEvidence(
             automatic_retry: false,
             recovery_required: true,
             provider_error_text_retained: false,
+            ...(stage === "signing" && network ? { transport: network.progress } : {}),
           }),
         ),
       );

@@ -117,15 +117,19 @@ export async function continueCatalogBatches<
     handoff_exhausted: boolean;
   },
 >(
-  operation: (excluded: ReadonlySet<string>) => Promise<T>,
+  operation: (excluded: ReadonlySet<string>, requestLimit: number) => Promise<T>,
   {
     deadline,
+    maxRequests = Infinity,
     now = Date.now,
     signal,
     onBatch = () => {},
     evidenceByteLimit = 4 * 1024 * 1024,
   }: {
     deadline: number;
+    /** Hard aggregate request cap: each batch receives only the remaining
+     * allowance, and no batch starts once it is spent (#4779). */
+    maxRequests?: number;
     now?: () => number;
     signal?: AbortSignal;
     onBatch?: (result: T) => void | Promise<void>;
@@ -148,7 +152,7 @@ export async function continueCatalogBatches<
   for (;;) {
     if (signal?.aborted)
       throw new ObservationFailure("cancelled", "Observation cancelled between bounded batches");
-    const result = await operation(excluded);
+    const result = await operation(excluded, maxRequests - requests);
     batches++;
     // Publish original batch evidence before bounded aggregate admission can fail.
     await onBatch(result);
@@ -178,6 +182,7 @@ export async function continueCatalogBatches<
       !more ||
       !result.made_progress ||
       result.handoff_exhausted ||
+      requests >= maxRequests ||
       now() >= deadline ||
       signal?.aborted
     )

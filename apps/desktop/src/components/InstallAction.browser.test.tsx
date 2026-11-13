@@ -1,3 +1,4 @@
+import { captureParityState } from "../../test/parity-capture";
 import { controlledAct as act } from "../../test/controlled-react-act";
 import { render as renderComponent, cleanup, type RenderResult } from "vitest-browser-react";
 import { useState } from "react";
@@ -10,6 +11,7 @@ import { DetailPanel, InstallAction } from "./DetailPanel";
 import { currentCatalogPort } from "../catalog-test-fixtures";
 import { portStatus } from "../test-fixtures";
 import { actions } from "./rendered-test-fixtures";
+import "../styles/index.css";
 
 const plan: InstallPlan = {
   bundled_runtime: null,
@@ -244,6 +246,30 @@ it("shows upstream first-run requirements and external backup limits before inst
   expect(install).toHaveBeenCalledOnce();
 });
 
+it("shows the Windows DKC3 setup first in the managed install review", async () => {
+  const port = currentCatalogPort("dkc3-recomp");
+  await root.rerender(
+    <DetailPanel
+      port={port}
+      sourcePath="C:/Player/dkc3.sfc"
+      setSourcePath={vi.fn()}
+      status={{ ...portStatus(), port_id: port.id, active: null }}
+      installPlan={{ ...plan, port_id: port.id }}
+      actions={actions}
+    />,
+  );
+  const dialog = page.getByRole("dialog");
+  const setup = dialog.getByRole("region", { name: "Game setup" });
+  await expect.element(setup).toBeVisible();
+  expect(setup.element().textContent).toContain(
+    "On Windows, select your own headerless North American English/French DKC3 ROM in Portcove",
+  );
+  expect(setup.element().textContent).toContain(
+    "On Apple Silicon, use the upstream Mac app and its launcher.",
+  );
+  expect(setup.element().textContent).not.toContain("download the official Mac arm64 ZIP");
+});
+
 it("discloses external saves and managed local settings for the staged MC2 route", async () => {
   const port = currentCatalogPort("alariq-mc2");
   const install = vi.fn();
@@ -263,7 +289,9 @@ it("discloses external saves and managed local settings for the staged MC2 route
   expect(dialog.element().textContent).toContain("official Windows x64 ZIP");
   expect(document.body.textContent).toContain("options.cfg");
   expect(document.body.textContent).toContain(".mechcommander2/savegame");
-  expect(document.body.textContent).toContain("declared local data may still be covered");
+  expect(document.body.textContent).toContain(
+    "Listed files in the installation folder may still be included",
+  );
   expect(document.body.textContent).not.toContain("Managed by Portcove for backup and restore");
   expect(install).not.toHaveBeenCalled();
 });
@@ -631,6 +659,7 @@ it("does not dismiss the reviewed installation after installation starts", async
   await pressEscape();
   expect(document.body.querySelector('[role="dialog"]')).not.toBeNull();
   expect(button("Cancel review").disabled).toBe(true);
+  await captureParityState("install-busy-review");
 });
 
 it("keeps the active installation cancellation reachable inside the busy review", async () => {
@@ -671,6 +700,7 @@ it("keeps the active installation cancellation reachable inside the busy review"
   await click("Cancel operation");
   expect(cancel).toHaveBeenCalledWith("install-1");
   expect(dialog?.textContent).toContain("Cancellation requested");
+  await captureParityState("install-cancellation-requested");
 });
 
 it("exposes a failed install result outside the dismissed review before another attempt", async () => {
@@ -703,12 +733,13 @@ it("exposes a failed install result outside the dismissed review before another 
     "Artifact unavailable",
   );
   expect(document.activeElement?.textContent).toContain("Review installation");
+  await captureParityState("install-failed-status");
 });
 
 it.each([
   ["download", "Install · 64.0 MiB", "64.0 MiB", "512 GiB available in library"],
   ["use_staged", "Use saved version", "No download", "Required component included · 1.0 KiB"],
-  ["reuse_retained", "Use previous version", "No download", "Local release already checked"],
+  ["reuse_retained", "Use checked local version", "No download", "Local release already checked"],
 ] as const)(
   "presents the %s plan with its player-facing action",
   async (action, actionLabel, firstDetail, secondDetail) => {
@@ -783,3 +814,30 @@ it.each(["future_action", "constructor", "__proto__"])(
     expect(review).toHaveBeenCalledTimes(1);
   },
 );
+
+it("shows authored save warnings before installation confirmation without opening Requirements", async () => {
+  const install = vi.fn();
+  await root.rerender(
+    <InstallAction
+      ready
+      sourceReady
+      biosReady
+      plan={plan}
+      setupNote="Choose the original game in its launcher after Play."
+      setupWarnings={[
+        "Separate program folders can share saves. Back up the shared profile before updating.",
+      ]}
+      review={vi.fn()}
+      dismiss={vi.fn()}
+      install={install}
+    />,
+  );
+  const warning = document.querySelector("aside[data-setup-warnings]");
+  expect(warning?.textContent).toContain("Separate program folders can share saves");
+  expect(warning?.closest("details")).toBeNull();
+  const confirm = button("Install");
+  expect(
+    Boolean(warning!.compareDocumentPosition(confirm) & Node.DOCUMENT_POSITION_FOLLOWING),
+  ).toBe(true);
+  expect(install).not.toHaveBeenCalled();
+});

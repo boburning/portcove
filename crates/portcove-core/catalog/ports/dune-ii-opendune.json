@@ -3,7 +3,7 @@
   "listing": {
     "id": "dune-ii-opendune",
     "name": "Dune II (OpenDUNE)",
-    "summary": "Upstream route: Native original-engine recreation with explicit v1.07 data and Windows/macOS archives. Limits: Distinct implementation from Dune Dynasty and from OpenRA Dune 2000; older releases. Upstream platforms: Windows i686/x86-64 and macOS PowerPC/i686/x86-64 documented build targets; Linux source route. Selected historical archive CPUs require asset choice. Original data: Supply original Dune II version 1.07 data files, including dune2.exe, in OpenDUNE data/. Retained README accepts the eu, hs and us 1.07 data sets; French requires eu/hs, and German requires eu. Do not substitute Dune 2000 data. Portcove setup/gameplay not verified.",
+    "summary": "OpenDUNE is a separate engine for Dune II. You need the original v1.07 game files and a build for your system. Portcove has not tested setup or gameplay.",
     "original_game_title": "Dune II",
     "project_url": "https://github.com/OpenDUNE/OpenDUNE",
     "platforms": [],
@@ -17,7 +17,44 @@
       "game_slug": "dune-ii-the-building-of-a-dynasty",
       "match_kind": "underlying-game"
     },
-    "issue_number": 2674
+    "issue_number": 2674,
+    "listed_at": "2026-10-25",
+    "manual_setup": {
+      "help_url": "https://github.com/OpenDUNE/OpenDUNE/tree/af3f3239eca1073ac9d621286014fba282c1dc5a",
+      "steps": [
+        {
+          "title": "Prepare the supported Dune II data upstream",
+          "instruction": "Use a complete permitted OpenDUNE Windows copy for your CPU, with your own Dune II 1.07 data, including dune2.exe, prepared in data/. Upstream accepts eu, hs and us 1.07 sets; French needs eu/hs and German needs eu. Dune 2000 is a different game. Keep the complete original files; select native opendune.exe rather than the original DOS dune2.exe or an installer."
+        },
+        {
+          "title": "Retain the creating data and save paths",
+          "instruction": "Keep the actual prepared runtime directory as working directory. Retain opendune.ini and its [opendune] datadir and savedir choices."
+        },
+        {
+          "title": "Check the working copy before registration",
+          "instruction": "Finish setup with the project’s tools, then start and quit the copy you intend to add. Keep its game executable, working folder and supported launch arguments. Review those details in Portcove and agree to launch them, then choose Play separately. Adding a copy does not confirm its game files or save compatibility."
+        },
+        {
+          "title": "Keep updates and removal under the existing owner",
+          "instruction": "Close every running copy of the game before changing files. Keep the working game version and every data and profile folder recoverable. Update it with the project’s tools, then review and select the changed executable in Portcove before choosing Play. You manage setup, updates, file changes, data migration and recovery. Portcove monitors the process you selected; it does not prevent other copies from running or restrict the game’s file access. Removing the registration leaves external files in place. This route does not offer Portcove downloads, setup, updates, backups, rollback, data migration or external-file deletion."
+        }
+      ],
+      "warnings": [
+        "Use only a copy and content you are already permitted to use. Engine licensing does not grant rights to original game assets, music, mods or bundled components.",
+        "Before updating the game, keep a copy of its working files and every location containing saved data. Choosing a different executable does not give it a separate profile.",
+        "Preserve the actual personal directory, OPTIONS.CFG, all saves, originals and custom/unknown files."
+      ],
+      "references": [
+        {
+          "title": "OpenDUNE configuration and save locations",
+          "instruction": "On Windows, upstream looks for the INI first in the actual AppData/OpenDUNE location, then the working directory, then data/. savedir overrides the personal path; otherwise Windows uses the current account’s roaming AppData/OpenDUNE, with a working-directory fallback if that lookup fails."
+        },
+        {
+          "title": "Platform and package notes",
+          "instruction": "Set up OpenDUNE with your own Dune II v1.07 files, including dune2.exe in data/. It is a separate engine from Dune Dynasty and OpenRA Dune 2000. Historical Windows and macOS archives require a package matching your CPU; Linux uses a source build. The README lists Windows i686/x86-64 and macOS PowerPC/i686/x86-64 targets. Portcove has not confirmed setup or gameplay."
+        }
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

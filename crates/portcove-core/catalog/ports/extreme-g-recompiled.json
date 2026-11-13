@@ -6,6 +6,7 @@
     "name": "Extreme-G: Recompiled",
     "summary": "Native Extreme-G recompilation.",
     "project_url": "https://gitlab.com/sonicdcer/ExtremeGRecomp",
+    "listed_at": "2026-10-23",
     "original_game_title": "Extreme-G",
     "artwork": {
       "game_id": 3485,
@@ -32,7 +33,8 @@
         "linux-x86-64": ["linux-x64-release"],
         "macos-x86-64": ["macos-release"],
         "macos-aarch64": ["macos-release"]
-      }
+      },
+      "archive_file_links": true
     },
     "source_profile": "extreme-g",
     "executable_hints": {

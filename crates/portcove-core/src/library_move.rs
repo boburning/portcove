@@ -459,6 +459,7 @@ mod tests {
                     setup_id: setup_id.into(),
                     revision: 1,
                     build: crate::install::retained_build_identity_for_install(install).unwrap(),
+                    history: Vec::new(),
                     created_at: 1,
                     updated_at: 1,
                 }
@@ -554,16 +555,24 @@ mod tests {
         let temporary = tempfile::tempdir().unwrap();
         let source = temporary.path().join("source");
         let destination = temporary.path().join("destination");
-        let service = fixture(&source);
-        let references = retain_versions(&service);
-        let plan = service.plan_library_move(&destination).unwrap();
+        eprintln!("move boundary fixture: {fault:?}");
+        let service =
+            crate::test_fixture::phase("move boundary: source fixture", || fixture(&source));
+        let references = crate::test_fixture::phase("move boundary: retain versions", || {
+            retain_versions(&service)
+        });
+        let plan = crate::test_fixture::phase("move boundary: plan", || {
+            service.plan_library_move(&destination).unwrap()
+        });
         drop(service);
-        let error = start_move(&source, &destination, &plan.plan_sha256, &|phase| {
-            if phase == fault {
-                Err(PortcoveError::state("simulated process interruption"))
-            } else {
-                Ok(())
-            }
+        let error = crate::test_fixture::phase("move boundary: interrupted transfer", || {
+            start_move(&source, &destination, &plan.plan_sha256, &|phase| {
+                if phase == fault {
+                    Err(PortcoveError::state("simulated process interruption"))
+                } else {
+                    Ok(())
+                }
+            })
         })
         .unwrap_err();
         assert_eq!(error.message, "simulated process interruption");
@@ -581,76 +590,85 @@ mod tests {
                 }
             )
         );
-        if fault == TransferPhase::Complete {
-            let current = Library::open(&source).unwrap();
-            assert_eq!(current.root(), fs::canonicalize(&destination).unwrap());
-            fs::write(
-                destination.join("user/starship/data.bin"),
-                b"new save after activation",
-            )
-            .unwrap();
-        } else if fault == TransferPhase::Published {
-            let open_error = Library::open(&source).unwrap_err();
-            assert_eq!(
-                open_error
-                    .details
-                    .get("move_abort_available")
-                    .map(String::as_str),
-                Some("false")
-            );
-            assert_eq!(
-                open_error
-                    .details
-                    .get("retained_source")
-                    .map(String::as_str),
-                Some(source_detail.as_str())
-            );
-            assert!(Library::open(&destination).is_err());
-        } else {
-            let open_error = Library::open(&source).unwrap_err();
-            assert_eq!(
-                open_error
-                    .details
-                    .get("move_abort_available")
-                    .map(String::as_str),
-                Some("true")
-            );
-            assert_eq!(
-                open_error
-                    .details
-                    .get("retained_source")
-                    .map(String::as_str),
-                Some(source_detail.as_str())
-            );
-            assert!(Library::open(&destination).is_err());
-        }
+        crate::test_fixture::phase("move boundary: authority observations", || {
+            if fault == TransferPhase::Complete {
+                let current = Library::open(&source).unwrap();
+                assert_eq!(current.root(), fs::canonicalize(&destination).unwrap());
+                fs::write(
+                    destination.join("user/starship/data.bin"),
+                    b"new save after activation",
+                )
+                .unwrap();
+            } else if fault == TransferPhase::Published {
+                let open_error = Library::open(&source).unwrap_err();
+                assert_eq!(
+                    open_error
+                        .details
+                        .get("move_abort_available")
+                        .map(String::as_str),
+                    Some("false")
+                );
+                assert_eq!(
+                    open_error
+                        .details
+                        .get("retained_source")
+                        .map(String::as_str),
+                    Some(source_detail.as_str())
+                );
+                assert!(Library::open(&destination).is_err());
+            } else {
+                let open_error = Library::open(&source).unwrap_err();
+                assert_eq!(
+                    open_error
+                        .details
+                        .get("move_abort_available")
+                        .map(String::as_str),
+                    Some("true")
+                );
+                assert_eq!(
+                    open_error
+                        .details
+                        .get("retained_source")
+                        .map(String::as_str),
+                    Some(source_detail.as_str())
+                );
+                assert!(Library::open(&destination).is_err());
+            }
+        });
         assert!(
-            PortcoveService::resume_library_move(&source)
-                .unwrap()
-                .completed
+            crate::test_fixture::phase("move boundary: first resume", || {
+                PortcoveService::resume_library_move(&source).unwrap()
+            })
+            .completed
         );
         assert_eq!(
-            crate::retained_build::references_from(
-                &Library::open(&destination).unwrap().connection().unwrap()
-            )
-            .unwrap(),
+            crate::test_fixture::phase("move boundary: retained reference readback", || {
+                crate::retained_build::references_from(
+                    &Library::open(&destination).unwrap().connection().unwrap(),
+                )
+                .unwrap()
+            }),
             references
         );
         assert!(
-            PortcoveService::resume_library_move(&source)
-                .unwrap()
-                .completed
+            crate::test_fixture::phase("move boundary: repeated resume", || {
+                PortcoveService::resume_library_move(&source).unwrap()
+            })
+            .completed
         );
-        assert_eq!(
-            fs::read(source.join("user/starship/data.bin")).unwrap(),
-            b"save"
-        );
-        if fault == TransferPhase::Complete {
+        crate::test_fixture::phase("move boundary: final byte assertions", || {
             assert_eq!(
-                fs::read(destination.join("user/starship/data.bin")).unwrap(),
-                b"new save after activation"
+                fs::read(source.join("user/starship/data.bin")).unwrap(),
+                b"save"
             );
-        }
+            if fault == TransferPhase::Complete {
+                assert_eq!(
+                    fs::read(destination.join("user/starship/data.bin")).unwrap(),
+                    b"new save after activation"
+                );
+            }
+        });
+        eprintln!("move boundary assertions complete: {fault:?}; fixture teardown follows");
     }
 
     #[test]
@@ -678,36 +696,47 @@ mod tests {
         let temporary = tempfile::tempdir().unwrap();
         let source = temporary.path().join("source");
         let destination = temporary.path().join("destination");
-        let library = Library::open(&source).unwrap();
+        let library = crate::test_fixture::phase("successor move: open source", || {
+            Library::open(&source).unwrap()
+        });
         let (post_client, port_id) = crate::test_fixture::post_client_catalog();
         let catalog = crate::test_fixture::admitted_indexed_catalog(&post_client, &port_id);
-        crate::test_fixture::register_qualification_install(&library, &catalog, &port_id);
+        crate::test_fixture::phase("successor move: register admitted fixture", || {
+            crate::test_fixture::register_qualification_install(&library, &catalog, &port_id)
+        });
         let service = PortcoveService::new(library).unwrap();
-        let plan = service.plan_library_move(&destination).unwrap();
+        let plan = crate::test_fixture::phase("successor move: plan", || {
+            service.plan_library_move(&destination).unwrap()
+        });
         drop(service);
 
-        start_move(&source, &destination, &plan.plan_sha256, &|phase| {
-            if phase == TransferPhase::Verified {
-                Err(PortcoveError::state(
-                    "synthetic successor move interruption",
-                ))
-            } else {
-                Ok(())
-            }
+        crate::test_fixture::phase("successor move: interrupted transfer", || {
+            start_move(&source, &destination, &plan.plan_sha256, &|phase| {
+                if phase == TransferPhase::Verified {
+                    Err(PortcoveError::state(
+                        "synthetic successor move interruption",
+                    ))
+                } else {
+                    Ok(())
+                }
+            })
         })
         .unwrap_err();
         assert!(
-            PortcoveService::resume_library_move(&source)
-                .unwrap()
-                .completed
+            crate::test_fixture::phase("successor move: resume", || {
+                PortcoveService::resume_library_move(&source).unwrap()
+            })
+            .completed
         );
         assert!(
-            Library::open(&destination)
-                .unwrap()
-                .status(&port_id, ReleaseChannel::Stable)
-                .unwrap()
-                .active
-                .is_some()
+            crate::test_fixture::phase("successor move: destination status", || {
+                Library::open(&destination)
+                    .unwrap()
+                    .status(&port_id, ReleaseChannel::Stable)
+                    .unwrap()
+            })
+            .active
+            .is_some()
         );
     }
 

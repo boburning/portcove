@@ -15,26 +15,60 @@
       "game_slug": "donkey-kong-64",
       "match_kind": "underlying-game"
     },
-    "issue_number": 69
+    "issue_number": 69,
+    "listed_at": "2026-10-23",
+    "availability": "packages",
+    "release_url": "https://github.com/Rainchus/Donkey-Kong-64-Recompiled/releases",
+    "setup_url": "https://github.com/Rainchus/Donkey-Kong-64-Recompiled#readme",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Run the Linux ARM64 package",
+          "instruction": "Extract the release ZIP, then unpack DK64Recompiled.tar.gz. Start DK64Recompiled from the extracted folder. The current ARM64 build needs glibc 2.35 or newer, SDL2, GTK 3, libatomic, libcurl and a Vulkan-capable driver."
+        },
+        {
+          "title": "Install the Linux x64 Flatpak",
+          "instruction": "Extract the Flatpak x64 ZIP to get io.github.dk64recompiled.dk64recompiled.flatpak. Install the file with Flatpak, then start io.github.dk64recompiled.dk64recompiled from the app menu or with flatpak run io.github.dk64recompiled.dk64recompiled."
+        },
+        {
+          "title": "Select your original",
+          "instruction": "In the upstream game picker choose your own USA 1.0 Donkey Kong 64 cartridge dump. The game validates the matching original before play."
+        }
+      ],
+      "warnings": [
+        "Portcove manages the official Windows, Linux x64 and Apple Silicon Mac packages. The Linux ARM64 and Flatpak packages use upstream or player-managed setup, replacement and data backups.",
+        "Portcove has no native Mac execution, macOS first-launch (Gatekeeper) result or populated-save result for this package."
+      ],
+      "help_url": "https://github.com/Rainchus/Donkey-Kong-64-Recompiled#readme",
+      "references": [
+        {
+          "title": "Keep an upstream-managed profile",
+          "instruction": "If you already use an upstream-managed copy, preserve ~/.config/DK64Recompiled on Linux, the DK64Recompiled profile under ~/Library/Application Support on Mac, or your actual custom profile. For Flatpak also keep ~/.var/app/io.github.dk64recompiled.dk64recompiled. Back up the original, saves, mods and settings before replacing it. Portcove-managed installs keep their data in the Portcove profile and do not adopt these folders."
+        }
+      ]
+    }
   },
   "integration": {
     "support_tier": "stable",
     "channels": ["stable"],
-    "platforms": ["windows-x86-64", "linux-x86-64"],
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-aarch64"],
     "adapter": "n64-recomp-portable",
     "automated_tested_platforms": ["windows-x86-64"],
     "manually_validated_platforms": ["windows-x86-64"],
     "release": {
       "repository": "Rainchus/Donkey-Kong-64-Recompiled",
       "asset_hints": {
-        "windows-x86-64": ["DK64-Recompiled-Windows"],
-        "linux-x86-64": ["DK64Recompiled-Linux-X64"]
-      }
+        "windows-x86-64": ["DK64", "-Windows-Release", ".zip"],
+        "linux-x86-64": ["DK64Recompiled-Linux-X64"],
+        "macos-aarch64": ["macOS-ARM64"]
+      },
+      "archive_file_links": true
     },
     "source_profile": "donkey-kong-64",
     "executable_hints": {
       "windows-x86-64": ["DK64Recompiled.exe"],
-      "linux-x86-64": ["DK64Recompiled"]
+      "linux-x86-64": ["DK64Recompiled"],
+      "macos-aarch64": ["DK64Recompiled"]
     },
     "persistent_paths": [
       "mods",

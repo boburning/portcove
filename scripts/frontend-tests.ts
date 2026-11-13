@@ -1,6 +1,7 @@
 import { configDefaults, type TestProjectConfiguration, type TestUserConfig } from "vite-plus";
 import { fileURLToPath } from "node:url";
 import process from "node:process";
+import type { Reporter } from "vite-plus/test/node";
 import { URL } from "node:url";
 import { playwright } from "vite-plus/test/browser-playwright";
 import { createBrowserTraceRun } from "./browser-traces.ts";
@@ -14,6 +15,17 @@ const traceRun = createBrowserTraceRun(
 export const testReporters = [
   ...configDefaults.reporters,
   traceRun.reporter,
+  ...(process.env.PORTCOVE_CONTAINER_GUEST === "1"
+    ? [
+        {
+          onBrowserInit(project) {
+            process.stderr.write(
+              new Date().toISOString() + " Browser server ready " + project.name + "\n",
+            );
+          },
+        } satisfies Reporter,
+      ]
+    : []),
   createFrontendCaseObservations(fileURLToPath(new URL("../", import.meta.url))),
   ...(process.env.VITE_PORTCOVE_BROWSER_TRACE_PROBE === "1" ? ["json" as const] : []),
 ] satisfies NonNullable<TestUserConfig["reporters"]>;
@@ -40,11 +52,15 @@ const browserProject = {
       "lucide-react",
       "i18next",
       "react-i18next",
+      "selenium-webdriver/lib/atoms/get-attribute.js",
+      "selenium-webdriver/lib/atoms/is-displayed.js",
     ],
     exclude: ["vitest-browser-react", "vitest-browser-react/pure"],
   },
   test: {
     name: "browser",
+    // Vitest's browser API is separate from Vite's dev-server listener above.
+    api: { port: 0 },
     maxWorkers: 4,
     sequence: { groupOrder: 1 },
     setupFiles: ["test/browser-setup.mts"],
@@ -56,6 +72,10 @@ const browserProject = {
     browser: {
       enabled: true,
       headless: true,
+      // The 1.5 evaluation found slower warm runs with import maps in this app.
+      // Keep a diagnostic opt-in; neither mode changes application isolation.
+      importMapMocks: process.env.PORTCOVE_BROWSER_IMPORT_MAP_MOCKS === "1",
+      traceView: "failure-only",
       // Bounded headroom for cold Windows browser startup on shared storage.
       // This changes connection setup only, not test assertion deadlines.
       connectTimeout: process.platform === "win32" ? 180_000 : 60_000,
@@ -71,6 +91,9 @@ const browserProject = {
   },
 } satisfies TestProjectConfiguration;
 
+// Hosted CI runs every browser project below in sharded jobs. A new browser project must also be
+// added to the `frontend:browser` task in vite.config.ts and to `browserShardProjects` in
+// scripts/ci-baseline.mts; a contract test checks that those two lists agree.
 export const desktopProjects = [
   {
     extends: fileURLToPath(new URL("../apps/desktop/vite.config.ts", import.meta.url)),

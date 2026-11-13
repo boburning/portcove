@@ -2,6 +2,36 @@ import { lstatSync, realpathSync } from "node:fs";
 import path from "node:path";
 import type { TestModule, TestCase } from "vite-plus/test/node";
 import { browserTraceProbe } from "../apps/desktop/src/browser/failure-probe-contract.ts";
+import { isRecord } from "./runtime-values.mts";
+
+/** Replay whole files: native --last-failed test-name filters miss renamed cases. */
+export function failedUiSpecifications<T>(
+  specifications: T[],
+  cachedResult: (specification: T) => unknown,
+  oldestRun: number,
+  now = Date.now(),
+): T[] {
+  if (!Number.isFinite(oldestRun) || oldestRun > now) return specifications;
+  const failed: T[] = [];
+  for (const specification of specifications) {
+    const result = cachedResult(specification);
+    if (
+      !isRecord(result) ||
+      typeof result.failed !== "boolean" ||
+      typeof result.duration !== "number" ||
+      !Number.isFinite(result.duration) ||
+      result.duration < 0 ||
+      typeof result.lastRun !== "number" ||
+      !Number.isFinite(result.lastRun) ||
+      result.lastRun <= oldestRun ||
+      result.lastRun > now
+    )
+      return specifications;
+    if (result.failed) failed.push(specification);
+  }
+  // No prior failures is useful information, but never a successful empty run.
+  return failed.length ? failed : specifications;
+}
 
 type TestObservation = Pick<TestCase, "fullName"> & {
   result(): Pick<ReturnType<TestCase["result"]>, "state"> & { note?: string | undefined };
@@ -91,16 +121,16 @@ export function uiShuffleSeed(value: string | undefined): number {
   return seed;
 }
 
-/** This diagnostic deliberately fails only when explicitly enabled. */
+/** Only declared diagnostics and host-inapplicable cases may be skipped. */
 export function allowedUiSkippedFiles(
   files: readonly string[],
   desktopRoot: string,
   environment: Readonly<NodeJS.ProcessEnv> = process.env,
-): ReadonlyMap<string, UiSkipContract> {
+): ReadonlyMap<string, FrontendCaseSkipContract> {
   return new Map(
     files.flatMap((file) => {
-      const contract = declaredUiSkip(file, desktopRoot);
-      return contract && environment[browserTraceProbe.environment] !== "1"
+      const contract = declaredFrontendCaseSkip(file, desktopRoot);
+      return contract && frontendCaseSkipAllowed(contract, environment)
         ? [[file, contract] as const]
         : [];
     }),
@@ -144,7 +174,7 @@ export function resolveUiSelection(
 export function reconcileUiSelection(
   { testModules, unhandledErrors }: UiRunObservation,
   files: readonly string[],
-  allowedSkippedFiles: ReadonlyMap<string, UiSkipContract> = new Map(),
+  allowedSkippedFiles: ReadonlyMap<string, FrontendCaseSkipContract> = new Map(),
 ) {
   const rawModules: unknown = testModules;
   const rawErrors: unknown = unhandledErrors;
@@ -152,7 +182,7 @@ export function reconcileUiSelection(
     throw new Error("UI run is unsuccessful or incomplete");
   const expected = new Set(files.map((file: string) => identity(path.resolve(file))));
   if (!expected.size) throw new Error("UI selection is empty");
-  const permissions = new Map<string, UiSkipContract>();
+  const permissions = new Map<string, FrontendCaseSkipContract>();
   for (const [file, contract] of allowedSkippedFiles) {
     const key = identity(path.resolve(file));
     if (
@@ -160,7 +190,16 @@ export function reconcileUiSelection(
       permissions.has(key) ||
       typeof contract !== "object" ||
       contract === null ||
-      contract.category !== "explicit-diagnostic" ||
+      (contract.category !== "explicit-diagnostic" &&
+        (contract.category !== "platform" ||
+          contract.platform !== "win32" ||
+          !frontendCaseSkipAllowed(contract) ||
+          !Array.isArray(contract.cases) ||
+          !contract.cases.every(
+            (name) =>
+              typeof name === "string" &&
+              declaredFrontendCaseSkip(file, path.resolve(file, "../.."))?.cases.includes(name),
+          ))) ||
       ![contract.reason, contract.prerequisite, contract.intended_route].every(
         (value) => typeof value === "string" && value.trim() && value.length <= 4096,
       ) ||
@@ -180,7 +219,7 @@ export function reconcileUiSelection(
     file: string;
     name: string;
     original_skip_reason: string | null;
-    contract: UiSkipContract;
+    contract: FrontendCaseSkipContract;
   }[] = [];
   let passed = 0,
     skipped = 0;
@@ -218,7 +257,8 @@ export function reconcileUiSelection(
     if (ran) executed.push(module.moduleId);
     else {
       const contract = permissions.get(key);
-      if (!contract) throw new Error(`Requested UI suite was wholly skipped: ${module.moduleId}`);
+      if (contract?.category !== "explicit-diagnostic")
+        throw new Error(`Requested UI suite was wholly skipped: ${module.moduleId}`);
       skippedFiles.push({ file: module.moduleId, reason: contract.reason });
     }
   }

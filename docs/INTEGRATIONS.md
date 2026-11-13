@@ -329,6 +329,24 @@ must not hard-code usernames, Deck mount paths, versioned install directories,
 or assumptions shared only by similarly derived frontends. They do not mutate
 arbitrary third-party libraries, copy original game data, or bypass consent.
 
+## Automatic setup and frontend handoff
+
+Automatic game setup (a game's "set up when ready" choice or a folder's
+automatic setup) never writes to a frontend and never needs one. A prepared
+installation reaches a frontend only through that frontend's own authorization:
+
+- The Playnite library plugin reads Portcove's installed games through the
+  public CLI on Playnite's own library refresh, so a newly prepared game appears
+  there as installed on the next refresh. A game that is waiting or failed stays
+  uninstalled there; Portcove adds no unprepared entry.
+- Steam entries have no standing enablement: the Steam installation and
+  profile are chosen in each game's review, and every write needs the reviewed
+  plan, a closed Steam client and a separate native confirmation. Automatic setup
+  therefore never adds Steam shortcuts; a prepared game stays available for the
+  existing per-game Add to Steam review.
+
+A frontend that is unavailable or not set up never delays or blocks game setup.
+
 ## Steam and Steam Deck without Decky
 
 Steam integration puts Portcove-managed games in the Steam library. A Decky
@@ -558,14 +576,112 @@ inspection merely by containing the scanner. Desktop does not execute or shell
 out to a discovered candidate, and this compatibility marker is not a
 publisher-signature claim.
 
-Local folder discovery is a read-only aid to explicit profile selection. This
-consumer does not deliver artwork or qualify the actual Steam client. Controlled
+Local folder discovery is a read-only aid to explicit profile selection.
+
+The same Desktop shortcut review offers **Review artwork update** and **Review
+artwork removal** as separate actions. Update requires a shortcut carrying this
+library and game's Portcove ownership marker and reads each role through Core's
+versioned destination handoff; the renderer supplies no bytes, paths or provider
+data. It publishes the selected imported cover original as
+`config/grid/<shortcut AppID>p.png` or `.jpg` and, when the selected detail image
+is displayed wider than tall, that original as `<shortcut AppID>_hero.png` or `.jpg`. The
+landscape role reports unavailable until #527 provides it, a detail image that is
+not wide is reported rather than cropped, and a catalog default or generated
+fallback is reported rather than copied. Existing art for a role is preserved by
+default. Replacement requires the explicit **Replace artwork already in Steam**
+choice, accepts exactly one readable existing file and keeps a content-addressed
+backup in the profile `config` folder; several variants or a linked, oversized or
+unreadable file are always preserved. Removal does not need the shortcut or an
+installed game: it removes only a file recorded in
+`config/portcove-steam-artwork.json` whose bytes still match that record, keeps a
+backup, and preserves and forgets art the player changed. Both actions bind the
+profile, owned shortcut, existing destination files, ownership record and the
+Core selection revision and content identity into one plan, require Steam closed,
+revalidate after native consent, and publish through no-clobber set-aside and
+rename with `config/portcove-steam-artwork.journal.json`. The next artwork review
+for that profile first settles an interrupted write per role to the exact prior
+file or the bytes the player already confirmed, and says so; anything else is
+preserved with recovery required. Identical bytes another program placed are
+kept but never claimed. A role's art recorded for an earlier shortcut AppID must
+be removed before new art is added. Only lower-case `png`, `jpg` and `jpeg`
+names are inspected. Shortcut Repair still never writes artwork.
+
+Single and selected-batch shortcut setup offer **Include artwork when adding a
+shortcut**, on by default. For each game the shortcut plan newly adds, the same
+review shows the fill-missing artwork plan for the AppID that plan assigns; it
+never replaces existing art and is omitted for Repair. Consent covers both, and
+both are rebound after consent. The shortcut is written first, then each game's
+artwork is re-planned and written only if it still matches the review. An
+unavailable role, a changed destination or an artwork failure is reported per
+game beside the successfully added shortcut, with **Review artwork update** as
+the retry.
+
+Every shortcut or artwork review first settles an interrupted shortcut or
+artwork publication in the selected profile, keeping either the committed
+reviewed bytes or the exact earlier file, and says so in the review. It writes
+nothing when no operation is pending; anything that matches neither side is
+preserved and the review refuses with recovery required.
+
+#### Compatibility, maintenance and recovery boundary
+
+Revalidated on 2026-11-12 against Steam ROM Manager's default branch (`master` as
+read that day; no commit was pinned). Neither the shortcut file nor the artwork
+naming is an official Valve interface.
+
+| Portcove writes in the selected profile's `config` folder                                                                                                                                                              | Purpose                                                                                                                      |
+| ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| `shortcuts.vdf`                                                                                                                                                                                                        | Only entries carrying this library and game's Portcove ownership marker; unrelated entries and unknown fields are preserved. |
+| `grid/<AppID>p.png\|jpg`, `grid/<AppID>_hero.png\|jpg`                                                                                                                                                                 | Portrait and hero art for an owned shortcut, from the selected imported originals.                                           |
+| `portcove-steam-artwork.json`                                                                                                                                                                                          | Which art files Portcove wrote, so cleanup touches only unchanged Portcove art.                                              |
+| `shortcuts.vdf.portcove-backup-<sha256>`, `portcove-steam-artwork-backup-<sha256>.<ext>`                                                                                                                               | Content-addressed backups of every shortcut file and art file Portcove replaced or removed; Portcove never deletes them.     |
+| `shortcuts.vdf.portcove-lock`                                                                                                                                                                                          | Empty per-profile lock that serializes Portcove shortcut and artwork changes; it stays in place.                             |
+| `shortcuts.vdf.portcove-journal.{json,tmp}`, `shortcuts.vdf.portcove-{replace,original}.tmp`, `portcove-steam-artwork.journal.{json,tmp}`, `portcove-steam-artwork.json.tmp`, `grid/.*.portcove-{staged,original}.tmp` | In-progress publication state, removed when an operation finishes or is settled.                                             |
+
+`<AppID>` is the unsigned 32-bit shortcut AppID, `crc32(Exe + appname) | 0x80000000`,
+where `Exe` is the stored quoted CLI path. Steam ROM Manager uses the same value
+for the same grid names (`<id>p`, `<id>`, `<id>_hero`, `<id>_logo`, `<id>_icon`) and
+still reads and writes `shortcuts.vdf` directly through `steam-shortcut-editor`.
+Portcove takes neither project as a dependency. It does not yet write landscape
+art (`<AppID>.<ext>`, unavailable until #527), and it never writes logo, icon or
+`screenshots.vdf`.
+
+**Supported Steam versions:** none is qualified yet. All evidence so far uses
+controlled fixtures. A Steam version enters this contract only through an actual
+Desktop Steam observation under #292 (or a Steam Deck observation under #217) that
+records the exact client build.
+
+**Maintenance:** Portcove maintainers own this writer
+(`apps/desktop/src-tauri/src/steam_entries.rs` and `steam_artwork.rs`). If
+`shortcuts.vdf` can no longer be parsed, the writer refuses it as malformed and
+writes nothing; added fields it does not recognise are kept. A change to Steam's
+artwork naming would not be detected, so Portcove could keep writing files Steam
+ignores. A format change is adopted only after requalifying against an actual
+Steam client.
+
+**Recovery:** the next shortcut or artwork review for the profile settles any
+interrupted operation automatically and says so. Artwork is settled one role at a
+time, so earlier roles may already be restored when a later one cannot be settled.
+When settling cannot prove the earlier or reviewed state, the review refuses and
+names the file it could not settle, and the remaining files are kept. To recover
+by hand:
+
+1. Close Steam.
+2. Put the affected file back: copy its content-addressed backup over
+   `shortcuts.vdf` or the named art file. If no backup exists because the file did
+   not exist before Portcove's change, delete the new file instead.
+3. Open the review again. If it still refuses, move the leftover in-progress
+   publication files listed in the table above out of the `config` folder (and its
+   `grid` folder). Leave `shortcuts.vdf.portcove-lock` in place.
+
+Deleting backups is the player's choice once Steam shows the expected state.
+
+Controlled
 host and renderer tests prove the
 review/apply contract and isolated shortcut-file behavior. Native positive-path
 qualification may use the compile-time fixture that reports the client closed;
 that proves UI, consent, stale-plan and writer integration against an output-owned
 Steam tree, not an actual closed Steam process. It does **not** prove Steam
-consumed the entry, client restart behavior, Steam-facing launch/Stop/return,
+consumed the entry or displayed its artwork, client restart behavior, Steam-facing launch/Stop/return,
 Desktop presentation in a packaged candidate, or Steam Deck behavior. Those
 remain separate implementation and actual-platform gates for #292, #527 and #217.
 

@@ -41,8 +41,12 @@ async function mount(journey: string) {
   ).body.innerHTML;
   await act(async () => startInteractiveScenarios());
 }
-async function click(label: string) {
-  const button = [...document.querySelectorAll<HTMLButtonElement>("button")].find(
+// The hero, the Game files review opener and the review confirmation all read
+// "Finish setup", so those callers scope to the owning region.
+async function click(label: string, within = "body") {
+  const button = [
+    ...(document.querySelector(within)?.querySelectorAll<HTMLButtonElement>("button") ?? []),
+  ].find(
     (item) =>
       !item.hidden &&
       (item.getAttribute("aria-label") === label || item.textContent?.trim() === label),
@@ -89,6 +93,12 @@ it("gives every disposable detail route five real tabs and binds external Play t
   await expect
     .element(page.getByRole("button", { name: "Play", exact: true }))
     .not.toBeInTheDocument();
+  expect(document.querySelector("[data-detail-readiness]")?.textContent).toBe(
+    "Can't check right now",
+  );
+  expect(document.querySelector("#detail-self-service-setup")?.textContent).not.toContain(
+    "ready to launch when available",
+  );
   expect(document.querySelector("[data-installation-fact]")?.textContent).toBe(
     "Registered external installation",
   );
@@ -101,11 +111,11 @@ it("gives every disposable detail route five real tabs and binds external Play t
     .element(page.getByRole("button", { name: "Apply update · 1.3", exact: true }))
     .toBeVisible();
   await expect.element(page.getByRole("button", { name: "Play", exact: true })).toBeVisible();
-});
+}, 30_000);
 
 it("opens actual game details, returns to Library and resets the selected journey", async () => {
   await mount("library");
-  await click("View details for Harbor Adventure Harbor Adventure");
+  await click("View details for Harbor Adventure");
   expect(document.querySelector(".scenario-fixture-actions [role=alert]")?.textContent).toBe("");
   expect(document.querySelector('[aria-labelledby="port-detail-title"]')).not.toBeNull();
   await click("Back to Library");
@@ -117,13 +127,15 @@ it("opens actual game details, returns to Library and resets the selected journe
 
 it("keeps the optional folder editor and artwork behind disclosures without losing a draft", async () => {
   await mount("library");
-  await click("View details for Harbor Adventure Harbor Adventure");
+  await click("View details for Harbor Adventure");
   const folder = page.getByText("Folder for a future install", { exact: true });
   const input = page.getByRole("textbox", { name: "Folder for future installs", exact: true });
   await expect.element(input).not.toBeInTheDocument();
   expect(document.querySelector(".detail-artwork")).toBeNull();
   await page.getByRole("tab", { name: "Manage", exact: true }).click();
-  await page.getByText("Advanced installation settings", { exact: true }).click();
+  // Future-folder editing has one disclosure; its draft still survives collapse and tab changes.
+  await expect.element(folder).toBeVisible();
+  await expect.element(input).not.toBeInTheDocument();
   await folder.click();
   await expect.element(input).toBeVisible();
   await input.fill("fixture/future-draft");
@@ -151,16 +163,22 @@ it("keeps the optional folder editor and artwork behind disclosures without losi
   expect(document.querySelector(".scenario-fixture-actions [role=alert]")?.textContent).toBe("");
 });
 
-it("shows different installed and selected release channels separately", async () => {
+it("shows different installed and selected update channels separately", async () => {
   const snapshot = workspace("library");
   snapshot.statuses[0]!.channel = "beta";
   vi.spyOn(desktopApi, "workspaceSnapshot").mockResolvedValue(snapshot);
   await mount("library");
-  await click("View details for Harbor Adventure Harbor Adventure");
+  await click("View details for Harbor Adventure");
   const facts = document.querySelector('[aria-label="Installation and release versions"]')!;
-  expect(facts.textContent).toContain("Selected channelPreview");
-  expect(facts.textContent).toContain("Installed channelStable");
-  expect(facts.textContent).toContain("Installed version1.2");
+  expect(facts.querySelector(".detail-version-context")?.textContent).toContain(
+    "Selected channel for future checks:",
+  );
+  expect(facts.querySelector(".detail-version-context")?.textContent).toContain("Preview");
+  expect(facts.querySelector(".detail-version-current")?.textContent).toContain("Stable");
+  expect(facts.querySelector(".detail-version-current")?.textContent).not.toContain("Preview");
+  expect(facts.querySelector(".detail-version-current")?.textContent).toContain(
+    "Installed version1.2",
+  );
 });
 
 it("uses a viewport-bound demo workspace across resizing and preserves embedded mode on reset", async () => {
@@ -230,7 +248,7 @@ it("returns to the exact older recovery activity after opening its game", async 
           operation_id: "recovery-history-12",
           path: "fixture/retained",
           message: "Retained fixture operation",
-          proposed_action: "Review current state",
+          proposed_action: "Refresh library",
         },
       ],
     },
@@ -333,6 +351,7 @@ it("opens application updates from Activity without entering custom catalog sett
   await mount("library");
   await navigateTo("Activity");
   await page.getByRole("tab", { name: "Game updates", exact: true }).click();
+  await page.getByText("About update checks", { exact: true }).click();
   await page.getByRole("button", { name: "Open Portcove update settings", exact: true }).click();
   await expect
     .element(
@@ -418,7 +437,7 @@ it.each(["game", "bios"] as const)(
     };
     vi.spyOn(desktopApi, "workspaceSnapshot").mockResolvedValue(snapshot);
     await mount("setup");
-    await click("View details for Harbor Adventure Harbor Adventure");
+    await click("View details for Harbor Adventure");
     const inspect = vi
       .spyOn(desktopApi, "inspectSourceIntake")
       .mockRejectedValue(new Error("Check fixture"));
@@ -440,31 +459,33 @@ it.each(["game", "bios"] as const)(
 
 it("reviews preparation, preserves progress until cancellation, and shows controlled failure", async () => {
   await mount("setup");
-  await click("View details for Harbor Adventure Harbor Adventure");
-  await click("Review setup");
+  await click("View details for Harbor Adventure");
+  await click("Finish setup", ".preparation-control");
   expect(document.querySelector('[role="dialog"]')?.textContent).toContain("fixture/owned.iso");
-  await click("Prepare game data");
+  await click("Finish setup", "[role=dialog]");
   expect(document.body.textContent).toContain("Fixture preparation is waiting");
-  await click("Cancel preparation");
+  await click("Cancel setup");
   expect(document.body.textContent).toContain("Cancellation requested");
   expect((await desktopApi.activities()).records[0]?.status).toBe("running");
   await click("Settle fixture cancellation");
-  expect(document.body.textContent).toContain("Preparation did not complete");
-  await click("Review setup");
-  await click("Prepare game data");
+  expect(document.body.textContent).toContain(
+    "Setup didn’t finish. Check the selected game files before starting again.",
+  );
+  await click("Finish setup", ".preparation-control");
+  await click("Finish setup", "[role=dialog]");
   await click("Fail fixture preparation");
   expect(document.body.textContent).toContain("The demo setup did not finish");
-  expect(document.body.textContent).not.toContain("Game data is prepared");
+  expect(document.body.textContent).not.toContain("Setup is finished");
 });
 
 it("revisits the original running task after browsing another game and records its exact completion", async () => {
   await mount("activity");
-  await click("View details for Harbor Adventure Harbor Adventure");
-  await click("Review setup");
-  await click("Prepare game data");
+  await click("View details for Harbor Adventure");
+  await click("Finish setup", ".preparation-control");
+  await click("Finish setup", "[role=dialog]");
   const retained = await desktopApi.previewPreparationCleanup("fixture-retained-orchard", 1);
   await click("Back to Library");
-  await click("View details for Orchard Quest Orchard Quest");
+  await click("View details for Orchard Quest");
   await click("Back to Library");
   await navigateTo("Activity");
   const row = () => document.querySelector('[data-activity-id="fixture-preparation"]');
@@ -513,4 +534,36 @@ it("preserves the existing inert static reference entry", async () => {
   expect(preview.inert).toBe(true);
   expect(preview.textContent).toBe("Static reference");
   expect("__TAURI_INTERNALS__" in window).toBe(false);
+});
+
+it("stacks downloaded setup and installation context without horizontal overflow at320px", async () => {
+  await page.viewport(320, 844);
+  await mount("details");
+  await page
+    .getByRole("button", {
+      name: "View details for Moonlit Harbor Harbor upstream project · downloaded",
+      exact: true,
+    })
+    .click();
+  await expect
+    .element(page.getByRole("tab", { name: "Game files", exact: true }))
+    .toHaveAttribute("aria-selected", "true");
+  const main = document.querySelector<HTMLElement>(".detail-setup-main")!;
+  const context = document.querySelector<HTMLElement>(".detail-setup-context")!;
+  await expect
+    .poll(() => context.getBoundingClientRect().top >= main.getBoundingClientRect().bottom)
+    .toBe(true);
+  expect(main.getBoundingClientRect().width).toBeGreaterThan(200);
+  expect(context.getBoundingClientRect().right).toBeLessThanOrEqual(
+    document.documentElement.clientWidth + 1,
+  );
+  expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(
+    document.documentElement.clientWidth + 1,
+  );
+  await expect
+    .element(page.getByRole("textbox", { name: "Start in folder", exact: true }))
+    .toBeVisible();
+  await expect
+    .element(page.getByRole("button", { name: "Review launch details", exact: true }))
+    .toBeDisabled();
 });

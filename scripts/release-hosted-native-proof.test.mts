@@ -12,6 +12,64 @@ import { prepareHostedNativeStageRequest } from "./release-native-stage-capture.
 import { inspectSelectedPublicationAuthorityConfiguration } from "./release-authority-configuration.mts";
 import { isRecord } from "./runtime-values.mts";
 
+void test("Windows-only native custody and transport bind the full selected authority and refuse legacy cardinality substitution", () => {
+  const profile = "initial-beta-windows-x86_64-v1";
+  const f = hostedNativeProofFixture(
+    "windows-x86_64",
+    "payload-signing",
+    "client-minimum",
+    profile,
+  );
+  const proof = inspectHostedNativeProofFiles(f.files, f.authorities, f.producer);
+  const value = {
+    schema_version: 1,
+    purpose: "hosted-native-custody",
+    configuration: f.authorities,
+    stage: "payload-signing",
+    proofs: [
+      {
+        platform_label: "windows-x86_64",
+        producer: f.producer,
+        files: Object.fromEntries(
+          Object.entries(f.files).map(([name, bytes]) => [name, bytes.toString("base64")]),
+        ),
+      },
+    ],
+  };
+  const custody = inspectHostedNativeCustodyBundle(Buffer.from(JSON.stringify(value)));
+  assert.equal(custody.proofs.length, 1);
+  const identities = [
+    {
+      platform: "windows-x86_64",
+      transport: "fixed-hosted-job",
+      report_sha256: proof.report_sha256,
+      hosted_job: {
+        ...f.producer,
+        subject_sha256: proof.subject_sha256,
+        report_sha256: proof.report_sha256,
+        bundle_sha256: "b".repeat(64),
+      },
+    },
+  ];
+  assert.deepEqual(inspectHostedNativeTransportIdentities(identities, profile), identities);
+  assert.throws(() => inspectHostedNativeTransportIdentities(identities));
+  for (const proofs of [
+    [],
+    [...value.proofs, value.proofs[0]],
+    [{ ...value.proofs[0], platform_label: "linux-x86_64" }],
+  ])
+    assert.throws(() =>
+      inspectHostedNativeCustodyBundle(Buffer.from(JSON.stringify({ ...value, proofs }))),
+    );
+  assert.throws(() =>
+    inspectHostedNativeCustodyBundle(
+      Buffer.from(
+        JSON.stringify({ ...value, configuration: hostedNativeProofFixture().authorities }),
+      ),
+    ),
+  );
+});
+
 for (const stage of ["payload-signing", "release-publication"] as const) {
   void test(`${stage} source-selected Server proof states continuity only and preserves client compatibility`, () => {
     const f = hostedNativeProofFixture("windows-x86_64", stage, "server-continuity");

@@ -106,6 +106,29 @@ describe("detail actions", () => {
     expect(desktopApi.check).toHaveBeenCalledExactlyOnceWith(port.id, 17);
   });
 
+  it("forwards only an explicit disc choice with the launch request", async () => {
+    const launch = vi
+      .spyOn(desktopApi, "launch")
+      .mockResolvedValue({ processId: null, sessionId: "session" });
+    const actions = detailActions({
+      port,
+      status: undefined,
+      sourcePath: "",
+      biosPath: "",
+      perform: async (_name, task) => task(),
+      close: vi.fn(),
+      libraryGeneration: 4,
+    });
+    await actions.launch();
+    await actions.launch(2);
+    await actions.launch(1);
+    expect(launch.mock.calls).toEqual([
+      [port.id, "", 4],
+      [port.id, "", 4, 2],
+      [port.id, "", 4, 1],
+    ]);
+  });
+
   it("refreshes persisted workspace state after checking one port", async () => {
     vi.spyOn(desktopApi, "check").mockResolvedValue(undefined!);
     const perform = vi.fn(async (_name: string, task: () => Promise<unknown>) =>
@@ -168,7 +191,15 @@ describe("detail actions", () => {
       close: vi.fn(),
       libraryGeneration: 9,
     }).install();
-    expect(install).toHaveBeenCalledExactlyOnceWith(port.id, "stable", "source.z64", "", false, 9);
+    expect(install).toHaveBeenCalledExactlyOnceWith(
+      port.id,
+      "stable",
+      "source.z64",
+      "",
+      false,
+      9,
+      undefined,
+    );
   });
 
   it("closes a failed installation review only after the shared operation settles", async () => {
@@ -306,8 +337,8 @@ describe("detail actions", () => {
     }
     for (const task of pending) await task();
     expect(install.mock.calls).toEqual([
-      [port.id, "stable", "source.z64", "bios.bin", false, 7],
-      [port.id, "stable", "source.z64", "bios.bin", false, 8],
+      [port.id, "stable", "source.z64", "bios.bin", false, 7, undefined],
+      [port.id, "stable", "source.z64", "bios.bin", false, 8, undefined],
     ]);
     expect(launch.mock.calls).toEqual([
       [port.id, "source.z64", 7],
@@ -345,6 +376,7 @@ describe("detail actions", () => {
     }).remove("reviewed-removal");
 
     expect(perform).toHaveBeenCalledWith("remove", expect.any(Function), {
+      cancelledResult: expect.any(Function) as unknown,
       context: {
         action: "Remove installation",
         target: { kind: "port", id: "lighthouse", label: "Lighthouse" },
@@ -444,6 +476,7 @@ describe("detail actions", () => {
     }).remove("reviewed-removal");
 
     expect(perform).toHaveBeenCalledWith("remove", expect.any(Function), {
+      cancelledResult: expect.any(Function) as unknown,
       context: {
         action: "Remove installation",
         target: { kind: "port", id: "lighthouse", label: "Lighthouse" },

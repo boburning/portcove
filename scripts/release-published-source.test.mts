@@ -4,12 +4,17 @@ import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
+import { performance } from "node:perf_hooks";
 import { prepareReleaseVersion } from "../apps/desktop/scripts/prepare-release-version.mts";
-import { inspectPublishedApplicationSource } from "./release-published-source.mts";
+import {
+  inspectPublishedApplicationSource,
+  inspectPublishedApplicationSourceWithSdk,
+} from "./release-published-source.mts";
 import { readSemanticPublicationBaseline } from "./release-semantic-inputs.mts";
 import { isRecord } from "./runtime-values.mts";
+import { withCoordinatorDeadline } from "./release-coordinator-deadline.mts";
 
-async function fixture(t: test.TestContext, extraCodeChange = false) {
+async function fixture(t: test.TestContext, extraCodeChange = false, padded = false) {
   const root = await mkdtemp(path.join(os.tmpdir(), "published-source-"));
   t.after(() => rm(root, { recursive: true, force: true }));
   const git = (args: string[]) =>
@@ -22,8 +27,8 @@ async function fixture(t: test.TestContext, extraCodeChange = false) {
         maxBuffer: 2 * 1024 * 1024,
         env: {
           ...process.env,
-          GIT_AUTHOR_DATE: "2026-10-20T00:00:00Z",
-          GIT_COMMITTER_DATE: "2026-10-20T00:00:00Z",
+          GIT_AUTHOR_DATE: padded ? "2026-10-20T00:00:00-05:00" : "2026-10-20T00:00:00Z",
+          GIT_COMMITTER_DATE: padded ? "2026-10-20T00:00:00-05:00" : "2026-10-20T00:00:00Z",
           GIT_NO_LAZY_FETCH: "1",
           GIT_NO_REPLACE_OBJECTS: "1",
         },
@@ -45,24 +50,48 @@ async function fixture(t: test.TestContext, extraCodeChange = false) {
     await mkdir(path.dirname(path.join(root, filename)), { recursive: true });
     await writeFile(path.join(root, filename), bytes);
   }
+  if (padded) {
+    // Use real Git entries at the current V0 tree size, sharing a single blob.
+    const blob = execFileSync("git", ["-C", root, "hash-object", "-w", "--stdin"], {
+      input: "padding\n",
+      encoding: "utf8",
+      timeout: 10000,
+    }).trim();
+    execFileSync("git", ["-C", root, "update-index", "--index-info"], {
+      input: Array.from({ length: 5520 }, (_, i) => `100644 ${blob}\tfixture-${i}\n`).join(""),
+      timeout: 10000,
+    });
+  }
   git(["add", "."]);
-  git(["commit", "-qm", "original source"]);
+  if (padded) {
+    // The provider exposes the original signed parent's timezone in its
+    // signature payload. The prepared child has no such payload.
+    const tree = git(["write-tree"]).trim();
+    const actor = "Fixture <fixture@example.invalid> 1792472400 -0500";
+    const raw = `tree ${tree}\nauthor ${actor}\ncommitter ${actor}\ngpgsig fixture-signature\n\noriginal application\n`;
+    const id = execFileSync("git", ["-C", root, "hash-object", "-w", "-t", "commit", "--stdin"], {
+      input: raw,
+      encoding: "utf8",
+      timeout: 10000,
+    }).trim();
+    git(["update-ref", "HEAD", id]);
+  } else {
+    git(["commit", "-qm", "original source"]);
+  }
   const source = git(["rev-parse", "HEAD"]).trim();
   const sourceTree = git(["rev-parse", "HEAD^{tree}"]).trim();
-  const prepared = await prepareReleaseVersion(
-    root,
-    {
-      source_commit: source,
-      reviewed_commit: source,
-      source_tree: sourceTree,
-      reviewed_tree: sourceTree,
-      change_set_sha256: "c".repeat(64),
-      base_version: "0.1.0-alpha.2",
-      change: "prerelease",
-      compatibility: "compatible",
-    },
-    ["0.1.0-alpha.2"],
-  );
+  const classification = {
+    source_commit: source,
+    reviewed_commit: source,
+    source_tree: sourceTree,
+    reviewed_tree: sourceTree,
+    change_set_sha256: "c".repeat(64),
+    base_version: "0.1.0-alpha.2",
+    change: "prerelease",
+    compatibility: "compatible",
+  };
+  const publishedVersions = ["0.1.0-alpha.2"];
+  const prepared = await prepareReleaseVersion(root, classification, publishedVersions);
   if (extraCodeChange) {
     git(["read-tree", prepared.prepared_tree]);
     await writeFile(path.join(root, "app.rs"), "unreviewed extra prepared code\n");
@@ -87,13 +116,14 @@ async function fixture(t: test.TestContext, extraCodeChange = false) {
     [`${namespace}-prepared-source/${source}`, prepared.prepared_commit],
   ]);
   let fault = "";
+  let nativeRelease: Record<string, unknown> = {};
   const calls: string[] = [];
   const commit = (id: string) => {
     const raw = git(["cat-file", "commit", id]);
     const split = raw.indexOf("\n\n");
     const headers = raw.slice(0, split).split("\n");
     const actor = (kind: string) => {
-      const match = new RegExp(`^${kind} (.+) <([^>]+)> ([0-9]+) \\+0000$`, "u").exec(
+      const match = new RegExp(`^${kind} (.+) <([^>]+)> ([0-9]+) [+-][0-9]{4}$`, "u").exec(
         headers.find((line) => line.startsWith(`${kind} `))!,
       );
       assert.ok(match);
@@ -112,6 +142,14 @@ async function fixture(t: test.TestContext, extraCodeChange = false) {
       author: actor("author"),
       committer: actor("committer"),
       message: raw.slice(split + 2),
+      ...(padded && id === source
+        ? {
+            verification: {
+              signature: "fixture-signature",
+              payload: raw.replace(/\ngpgsig fixture-signature/u, ""),
+            },
+          }
+        : {}),
     };
   };
   const api = {
@@ -130,6 +168,7 @@ async function fixture(t: test.TestContext, extraCodeChange = false) {
           tag_name: `v${prepared.version}`,
           draft: false,
           published_at: "2026-10-20T01:00:00Z",
+          ...nativeRelease,
         };
       else if (route.startsWith("git/ref/tags/")) {
         const name = decodeURIComponent(route.slice("git/ref/tags/".length));
@@ -205,10 +244,71 @@ async function fixture(t: test.TestContext, extraCodeChange = false) {
     namespace,
     calls,
     prepared,
+    useNativeRelease() {
+      refs.delete(`${namespace}-prepared/v${prepared.version}`);
+      refs.delete(`${namespace}-prepared-source/${source}`);
+      const custody = {
+        schema_version: 1,
+        kind: "application-release-run-custody",
+        source,
+        source_tree: sourceTree,
+        opportunity: source,
+        runs: [
+          {
+            id: "42",
+            control_commit: "1".repeat(40),
+            control_ref: "refs/tags/portcove-production-controller-windows-fixture",
+          },
+        ],
+        preparation: {
+          source_commit: source,
+          source_tree: sourceTree,
+          prepared_commit: prepared.prepared_commit,
+          prepared_tree: prepared.prepared_tree,
+          intent_sha256: prepared.intent_sha256,
+          version: prepared.version,
+          classification,
+          published_versions: publishedVersions,
+          qualification: {
+            workflow: ".github/workflows/application-release.yml",
+            workflow_commit: source,
+            run_id: 43,
+            attempt: 1,
+          },
+        },
+      };
+      const retain = () => {
+        nativeRelease.body = `<!-- portcove-application-runs-v1\n${JSON.stringify(custody)}\n-->`;
+      };
+      nativeRelease = { immutable: true, prerelease: true, target_commitish: source };
+      retain();
+      return { record: nativeRelease, custody, retain };
+    },
     setFault(value: string) {
       fault = value;
     },
   };
+}
+
+function readWithLockedSdk(f: Awaited<ReturnType<typeof fixture>>, publication = f.publication) {
+  return inspectPublishedApplicationSourceWithSdk(
+    {
+      token: "inert-published-source",
+      deadline: performance.now() + 5000,
+      requireDirect: false,
+      guard() {},
+      fetch: async (input, init) => {
+        const request = new Request(input, init);
+        const url = new URL(request.url);
+        assert.equal(url.origin, "https://api.github.com");
+        assert.equal(request.headers.get("authorization"), "token inert-published-source");
+        const result = f.api.request(request.method, url.pathname.slice(1) + url.search);
+        return Response.json(result.body, { status: result.status });
+      },
+    },
+    { schema_version: 1, namespace: f.namespace },
+    publication,
+  );
 }
 
 void test("actual paired preparation and exact four-file transform preserve distinct published and original source identities", async (t) => {
@@ -226,6 +326,9 @@ void test("actual paired preparation and exact four-file transform preserve dist
   assert.equal(result.authority, "none");
   assert.match(result.proof_sha256, /^[a-f0-9]{64}$/u);
   assert.ok(f.calls.some((entry) => entry.includes("/compare/")));
+  const legacyRoutes = f.calls.splice(0);
+  assert.deepEqual(await readWithLockedSdk(f), result);
+  assert.deepEqual(f.calls, legacyRoutes);
   const semanticApi = {
     request(method: string, endpoint: string) {
       if (endpoint === "repos/boburning/portcove")
@@ -256,6 +359,27 @@ void test("actual paired preparation and exact four-file transform preserve dist
   assert.deepEqual(baseline.source_baseline, { commit: f.source, tree: f.sourceTree });
   assert.equal(baseline.published_source?.kind, "verified-prepared-publication");
 });
+
+void test("an immutable native executable Release proves the original baseline without allocating extra refs", async (t) => {
+  const f = await fixture(t, false, true);
+  const { record, custody, retain } = f.useNativeRelease();
+  const result = await readWithLockedSdk(f);
+  assert.equal(result.kind, "verified-prepared-publication");
+  assert.deepEqual(result.source_baseline, { commit: f.source, tree: f.sourceTree });
+  assert.equal(result.preparation?.intent_sha256, f.prepared.intent_sha256);
+  record.immutable = false;
+  await assert.rejects(readWithLockedSdk(f), /immutable native publication preparation differs/u);
+  record.immutable = true;
+  custody.preparation.intent_sha256 = "0".repeat(64);
+  retain();
+  await assert.rejects(readWithLockedSdk(f), /verified source or release intent/u);
+  custody.preparation.intent_sha256 = f.prepared.intent_sha256;
+  retain();
+  f.refs.set(`${f.namespace}-prepared-source/${f.source}`, f.prepared.prepared_commit);
+  await assert.rejects(readWithLockedSdk(f), /receipt missing or unpaired/u);
+  f.refs.set(`${f.namespace}-prepared/v${f.publication.version}`, f.prepared.prepared_commit);
+  await assert.rejects(readWithLockedSdk(f), /receipt missing or unpaired/u);
+});
 void test("missing/wrong paired receipt, truncated tree, changed blob and tag drift cannot manufacture a source baseline", async (t) => {
   const f = await fixture(t);
   for (const mode of ["wrong-source-ref", "truncated", "blob-tamper", "tag-drift"]) {
@@ -268,6 +392,8 @@ void test("missing/wrong paired receipt, truncated tree, changed blob and tag dr
         f.publication,
       ),
     );
+    f.calls.length = 0;
+    await assert.rejects(readWithLockedSdk(f));
   }
   f.setFault("");
   f.refs.delete(`${f.namespace}-prepared-source/${f.source}`);
@@ -308,6 +434,7 @@ void test("legacy direct publication retains its actual source identity without 
     f.calls.some((entry) => entry.includes("/contents/") || entry.includes("/compare/")),
     false,
   );
+  assert.deepEqual(await readWithLockedSdk(f, publication), result);
   assert.ok(isRecord(result.publication));
 });
 
@@ -322,4 +449,137 @@ void test("valid raw intent and receipt pair cannot conceal extra application ch
       ),
     /changes more than exact existing version authorities/,
   );
+});
+
+void test("published source proof aborts a stalled metadata body at the tighter current deadline without replay", async () => {
+  let dispatches = 0;
+  let cancelled = false;
+  const deadline = performance.now() + 200;
+  await assert.rejects(
+    withCoordinatorDeadline(performance.now() + 4500, () =>
+      inspectPublishedApplicationSourceWithSdk(
+        {
+          token: "inert-published-source",
+          deadline: performance.now() + 5000,
+          requireDirect: false,
+          guard() {},
+          currentDeadline: () => deadline,
+          fetch: async (_input, init) => {
+            assert.ok(init?.signal);
+            dispatches++;
+            return new Response(
+              new ReadableStream({
+                start(controller) {
+                  controller.enqueue(Buffer.from("{"));
+                },
+                cancel() {
+                  cancelled = true;
+                },
+              }),
+              { headers: { "content-type": "application/json" } },
+            );
+          },
+        },
+        { schema_version: 1, namespace: "portcove-fixture" },
+        {
+          id: 42,
+          version: "0.1.0-alpha.3",
+          prepared_commit: "a".repeat(40),
+          prepared_tree: "b".repeat(40),
+        },
+      ),
+    ),
+    { code: "deadline_exceeded" },
+  );
+  assert.equal(dispatches, 1);
+  assert.equal(cancelled, true);
+});
+
+void test("native predecessor shares its dispatch owner across bracketing inventories, source proof and Check routes", async (t) => {
+  const { createNativePredecessorReader } =
+    await import("./release-native-publication-admission.mts");
+  const f = await fixture(t);
+  const routes: string[] = [];
+  let charges = 0;
+  let exhausted = false;
+  const release = {
+    id: f.publication.id,
+    tag_name: `v${f.publication.version}`,
+    draft: false,
+    prerelease: true,
+    published_at: "2026-11-04T00:00:00Z",
+    updated_at: "2026-11-04T00:00:00Z",
+  };
+  const tag = {
+    id: "R_tag",
+    name: release.tag_name,
+    prefix: "refs/tags/",
+    target: { __typename: "Commit", oid: f.publication.prepared_commit },
+  };
+  const read = await createNativePredecessorReader(
+    "inert-postsign-reader",
+    performance.now() + 5000,
+    () => {},
+    () => {
+      if (exhausted) throw new Error("fixture shared predecessor budget exhausted");
+      charges++;
+    },
+    async (input, init) => {
+      const request = new Request(input, init);
+      const url = new URL(request.url);
+      assert.equal(url.origin, "https://api.github.com");
+      assert.equal(request.headers.get("authorization"), "token inert-postsign-reader");
+      routes.push(url.pathname + url.search);
+      if (url.pathname === "/graphql") {
+        assert.equal(request.method, "POST");
+        return Response.json({
+          data: {
+            repository: {
+              id: "R_fixture",
+              databaseId: 1354613114,
+              nameWithOwner: "boburning/portcove",
+              refs: { totalCount: 1, nodes: [tag], pageInfo: { hasNextPage: false } },
+            },
+          },
+        });
+      }
+      assert.equal(request.method, "GET");
+      if (url.pathname === "/repos/boburning/portcove")
+        return Response.json({
+          id: 1354613114,
+          full_name: "boburning/portcove",
+          node_id: "R_fixture",
+        });
+      if (url.pathname === "/repos/boburning/portcove/releases") return Response.json([release]);
+      if (url.pathname === "/repos/boburning/portcove/check-runs/44")
+        return Response.json({ id: 44 });
+      const result = f.api.request(request.method, url.pathname.slice(1) + url.search);
+      return Response.json(result.body, { status: result.status });
+    },
+  );
+  const beforeReleases = await read({ kind: "releases" });
+  assert.deepEqual(beforeReleases, { status: 200, body: [release] });
+  const beforeTags = await read({ kind: "tags" });
+  assert.deepEqual(beforeTags, { status: 200, body: [tag] });
+  assert.deepEqual(await read({ kind: "source", namespace: f.namespace, subject: f.publication }), {
+    status: 200,
+    body: f.source,
+  });
+  assert.ok(routes.length > 1);
+  assert.deepEqual(await read({ kind: "metadata", endpoint: "check-runs/44" }), {
+    status: 200,
+    body: { id: 44 },
+  });
+  assert.deepEqual(await read({ kind: "releases" }), beforeReleases);
+  assert.deepEqual(await read({ kind: "tags" }), beforeTags);
+  assert.equal(routes.filter((route) => route === "/repos/boburning/portcove").length, 1);
+  assert.deepEqual(routes.slice(-2), [
+    "/repos/boburning/portcove/releases?per_page=100",
+    "/graphql",
+  ]);
+  assert.equal(charges, routes.length);
+  const before = routes.length;
+  exhausted = true;
+  await assert.rejects(read({ kind: "releases" }), /fixture shared predecessor budget exhausted/u);
+  assert.equal(routes.length, before);
 });

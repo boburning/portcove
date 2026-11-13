@@ -2,7 +2,7 @@ import { defaultReleaseChannel } from "../../view-model";
 import { gameIdentityLabel } from "../../port-identity";
 import { desktopApi } from "../../api";
 import type { DetailActions } from "../../components/DetailPanel";
-import type { PortDefinition, PortStatus } from "../../types";
+import type { PortDefinition, PortStatus, SourceRegistrationReference } from "../../types";
 import type { Perform } from "../operations/use-operation-state";
 import { targetInvocationContext } from "../operations/invocation-state";
 
@@ -18,15 +18,20 @@ const actionLabels: Readonly<Record<string, string>> = {
   "delete backup": "Delete backup",
   rollback: "Use previous version",
   "restore backup": "Restore backup",
+  "recover legacy installation and data": "Recover legacy installation and data",
+  "refresh backup history": "Refresh backup history",
   channel: "Change release channel",
   policy: "Save update preferences",
   verify: "Check installed files",
 };
 
+const nullableNativeConsent = { cancelledResult: (result: unknown) => result === null };
+
 export interface DetailActionContext {
   port: PortDefinition;
   status: PortStatus | undefined;
   sourcePath: string;
+  sourceReference?: SourceRegistrationReference | undefined;
   biosPath: string;
   perform: Perform;
   close: () => void;
@@ -40,6 +45,7 @@ export function detailActions({
   port,
   status,
   sourcePath,
+  sourceReference,
   biosPath,
   perform: execute,
   close,
@@ -88,7 +94,7 @@ export function detailActions({
     dismissInstallReview,
     install: async () => {
       try {
-        return await perform("install", () =>
+        return await perform("install", (reportEvent) =>
           desktopApi.install(
             port.id,
             status?.channel ?? defaultReleaseChannel(port),
@@ -96,6 +102,8 @@ export function detailActions({
             biosPath,
             false,
             libraryGeneration,
+            reportEvent,
+            ...(sourceReference ? ([sourceReference] as const) : ([] as const)),
           ),
         );
       } finally {
@@ -104,8 +112,12 @@ export function detailActions({
         dismissInstallReview();
       }
     },
-    launch: () =>
-      perform("launch", () => desktopApi.launch(port.id, sourcePath, libraryGeneration)),
+    launch: (disc?: number) =>
+      perform("launch", () =>
+        disc === undefined
+          ? desktopApi.launch(port.id, sourcePath, libraryGeneration)
+          : desktopApi.launch(port.id, sourcePath, libraryGeneration, disc),
+      ),
     openUserData: () =>
       perform("open data folder", () => desktopApi.openUserData(port.id, libraryGeneration), {
         refresh: "none",
@@ -122,15 +134,19 @@ export function detailActions({
       ),
     reviewInstall,
     remove: async (expectedPreview) => {
-      const removed = await perform("remove", () =>
-        desktopApi.remove(port.id, expectedPreview, libraryGeneration),
+      const removed = await perform(
+        "remove",
+        () => desktopApi.remove(port.id, expectedPreview, libraryGeneration),
+        nullableNativeConsent,
       );
       if (removed) close();
       return removed === null ? "cancelled" : Boolean(removed);
     },
     deleteBackup: async (backup, expectedPreview) => {
-      const result = await perform("delete backup", () =>
-        desktopApi.deleteBackup(port.id, backup.id, expectedPreview, libraryGeneration),
+      const result = await perform(
+        "delete backup",
+        () => desktopApi.deleteBackup(port.id, backup.id, expectedPreview, libraryGeneration),
+        nullableNativeConsent,
       );
       if (result === null) return "cancelled";
       const completed = Boolean(result);
@@ -139,14 +155,36 @@ export function detailActions({
     },
     rollback: () => perform("rollback", () => desktopApi.rollback(port.id, libraryGeneration)),
     restoreBackup: async (backup, expectedPreview) => {
-      const result = await perform("restore backup", () =>
-        desktopApi.restoreBackup(port.id, backup.id, expectedPreview, libraryGeneration),
+      const result = await perform(
+        "restore backup",
+        () => desktopApi.restoreBackup(port.id, backup.id, expectedPreview, libraryGeneration),
+        nullableNativeConsent,
       );
       if (result === null) return "cancelled";
       const completed = Boolean(result);
       if (completed) await backupsChanged();
       return completed;
     },
+    recoverGhostshipLegacy:
+      port.id === "ghostship"
+        ? async (backup, expectedPlan) => {
+            if (backup.port_id !== port.id)
+              throw new Error("Recovery backup belongs to another game.");
+            const result = await perform(
+              "recover legacy installation and data",
+              () =>
+                desktopApi.recoverGhostshipLegacyData(backup.id, expectedPlan, libraryGeneration),
+              { cancelledResult: (value) => value === null },
+            );
+            if (result === null) return "cancelled";
+            // Readback failure is separately attributable; it cannot undo committed recovery.
+            await perform("refresh backup history", backupsChanged, {
+              refresh: "none",
+              invalidateDiagnostics: false,
+            });
+            return Boolean(result);
+          }
+        : undefined,
     setChannel: (channel) =>
       perform("channel", () => desktopApi.setChannel(port.id, channel, libraryGeneration)),
     setPolicy: (policy) =>

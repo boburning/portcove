@@ -59,10 +59,14 @@ it.each([false, true])(
     );
     const trigger = container.querySelector<HTMLButtonElement>('[data-slot="select-trigger"]')!;
     await userEvent.click(trigger);
+    await expect
+      .poll(() => document.activeElement?.matches('[role="option"][aria-selected="true"]'))
+      .toBe(true);
     const rolling = [...document.querySelectorAll<HTMLElement>('[role="option"]')].find(
       (option) => option.textContent === "Rolling",
     )!;
-    rolling.focus();
+    await userEvent.keyboard("{ArrowDown}");
+    await expect.poll(() => document.activeElement).toBe(rolling);
     await userEvent.keyboard("{Enter}");
     await expect.poll(() => trigger.disabled).toBe(true);
     await expect
@@ -273,7 +277,7 @@ it.each([
     channels: ["stable"] as ReleaseChannel[],
     selected: "beta" as ReleaseChannel,
     label: "Preview",
-    reason: "not offered",
+    reason: "no longer listed",
   },
   {
     channels: ["stable"] as ReleaseChannel[],
@@ -304,3 +308,32 @@ it.each([
     expect(container.textContent).not.toContain("future-channel");
   },
 );
+
+it("re-renders a channel-change result and channel names in the current language", async () => {
+  const { initializeLocalization } = await import("../localization");
+  const localization = initializeLocalization(["en-US"]);
+  await root.rerender(
+    <ReleaseChannelControl
+      channels={["stable", "rolling"]}
+      selected="stable"
+      busy={false}
+      change={vi.fn().mockResolvedValue(saved)}
+      refresh={vi.fn().mockResolvedValue(true)}
+    />,
+  );
+  await openChannelSelect();
+  await chooseChannel("Rolling");
+  const result = () => container.querySelector('[role="status"]')?.textContent ?? "";
+  expect(result()).toBe("Rolling selected. Release information refreshed.");
+  try {
+    await act(async () => {
+      await localization.changeLanguage("ar-XB");
+    });
+    await expect.poll(result).toBe("تم اختيار القناة متجدد. تم تحديث معلومات الإصدار.");
+  } finally {
+    await act(async () => {
+      await localization.changeLanguage("en");
+    });
+  }
+  await expect.poll(result).toBe("Rolling selected. Release information refreshed.");
+});

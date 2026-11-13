@@ -1,3 +1,4 @@
+import { captureParityState } from "../../test/parity-capture";
 import axe from "axe-core";
 import { afterEach, expect, it, vi } from "vite-plus/test";
 import { page, userEvent } from "vite-plus/test/browser";
@@ -71,6 +72,7 @@ it.each(["Covers", "Compact rows"])(
     play.click();
     await userEvent.keyboard("{Enter}");
     expect(launch).toHaveBeenCalledOnce();
+    await captureParityState(`library-launch-pending-${layout === "Covers" ? "covers" : "rows"}`);
     finish({ processId: null, sessionId: "fixture-return-focus" });
     await expect
       .poll(() => play.disabled || play.getAttribute("aria-disabled") === "true")
@@ -179,6 +181,7 @@ it.each([
   );
   const state = document.querySelector<HTMLElement>(loading ? ".loading-state" : ".empty-state")!;
   expect(state.scrollWidth).toBeLessThanOrEqual(state.clientWidth + 1);
+  await captureParityState(loading ? "library-loading-narrow" : "library-empty-narrow");
 });
 
 it("retains a session-only layout through the real details unmount and return", async () => {
@@ -210,6 +213,7 @@ it("retains a session-only layout through the real details unmount and return", 
   await expect
     .poll(() => document.activeElement?.getAttribute("data-detail-game-id"))
     .toBe("collection-0");
+  await captureParityState("library-session-only-layout");
 });
 
 for (const theme of ["dark", "light"]) {
@@ -229,7 +233,7 @@ for (const theme of ["dark", "light"]) {
     await mount(theme);
     const entries = [...document.querySelectorAll<HTMLElement>(".collection-entry")];
     expect(document.querySelector('[aria-label="Search results"]')?.textContent).toBe(
-      "12 library entries",
+      "12 in your library",
     );
     const entryFor = (index: number) =>
       entries.find((entry) => entry.querySelector(`[data-detail-game-id="collection-${index}"]`))!;
@@ -266,7 +270,7 @@ for (const theme of ["dark", "light"]) {
         ".collection-actions button[data-detail-origin$=':review']",
       )) {
         const visibleAction = action.textContent.trim();
-        expect(visibleAction).toBe("Set up");
+        expect(visibleAction).toBe("Finish setup");
         expect(action.getAttribute("aria-label")).toContain(visibleAction);
       }
     }
@@ -287,8 +291,10 @@ for (const theme of ["dark", "light"]) {
     expect(entryFor(3).textContent).toContain("Update saved for later");
     expect(entryFor(3).querySelector(".collection-actions")?.textContent).toContain("Play");
     expect(entryFor(4).textContent).toContain("Game files missing");
-    expect(entryFor(4).querySelector(".collection-actions")?.textContent).toContain("Set up");
+    expect(entryFor(4).querySelector(".collection-actions")?.textContent).toContain("Finish setup");
+    // Stable is kept here only because it differs from the selected channel.
     expect(entryFor(0).querySelector(".library-entry-chips")?.textContent).toContain("Stable");
+    expect(entryFor(1).querySelector(".library-entry-chips")?.textContent).not.toContain("Stable");
     expect(entryFor(0).querySelector(".library-entry-chips")?.textContent).not.toContain("Preview");
     expect(entryFor(0).querySelector(".collection-state")?.textContent).toContain(
       "Selected update channel: Preview",
@@ -311,7 +317,7 @@ for (const theme of ["dark", "light"]) {
     expect(localStorage.getItem(collectionLayoutKey("fixture/library"))).toBe("rows");
     expect(document.querySelectorAll(".collection-row")).toHaveLength(12);
     expect(entryFor(3).querySelector(".collection-actions")?.textContent).toContain("Play");
-    expect(entryFor(4).querySelector(".collection-actions")?.textContent).toContain("Set up");
+    expect(entryFor(4).querySelector(".collection-actions")?.textContent).toContain("Finish setup");
     await page
       .getByRole("textbox", { name: "Search your library", exact: true })
       .fill("Super Mario 64");
@@ -456,11 +462,12 @@ it.each(["dark", "light"])(
       expect(getComputedStyle(image).objectFit).toBe("contain");
     const action = first.querySelector<HTMLButtonElement>('[data-detail-origin$=":details"]')!;
     await userEvent.click(action);
+    // Discover defaults to Title A–Z, so the first card is the alphabetically first game.
     await expect
       .poll(() =>
         document.querySelector("[data-detail-port-id]")?.getAttribute("data-detail-port-id"),
       )
-      .toBe("collection-0");
+      .toBe("collection-2");
   },
 );
 
@@ -494,10 +501,11 @@ it.each(["dark", "light"])(
     await userEvent.click(
       first.querySelector<HTMLButtonElement>('[data-detail-origin$=":details"]')!,
     );
+    // Discover defaults to Title A–Z, so the first card is the alphabetically first game.
     await expect
       .poll(() =>
         document.querySelector("[data-detail-port-id]")?.getAttribute("data-detail-port-id"),
       )
-      .toBe("collection-0");
+      .toBe("collection-2");
   },
 );

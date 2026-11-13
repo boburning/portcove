@@ -1,0 +1,1047 @@
+{
+  "format_version": 1,
+  "date": "2026-11-02",
+  "base": "b12c162a8109719800fa7ac1bde8236c20631b26",
+  "authored_count": 6,
+  "new_guides": 6,
+  "actual_finite_closures_before_delivery": 0,
+  "proposed_conditional_finite_closures": 6,
+  "direct_required_beta_resolved": 0,
+  "whole_required_parent_cohort_completions": 0,
+  "cohort_components": {
+    "original-524": 3,
+    "affected-312": 3
+  },
+  "preserved_scope": 858,
+  "selection": {
+    "retained_no_guide_pool": 65,
+    "bounded_progressive_candidates": 21,
+    "authored_ready_proposals": 6,
+    "retained_not_ready": 15,
+    "broader_local_textual_matches": 93,
+    "interpretation": "Matches are not readyports or new necessarywork. Validexistingdirectroutes are retained. No optional/unrelatedpadding, newCorecapability, researchfanout or native/private authority."
+  },
+  "below_target_reason": "The retained guide reserve is now substantially blocked, nonWindows-only or unfinished at exact source/runtime/rights boundaries. All21 progressive candidates are accounted for; only6 independently ready route proposals selected. A broader local mechanism search did not justify replacing valid completed routes to inflate count. Approximately40/normally30-50 remains the routine target; no new permanentdeferral or scope reduction.",
+  "claims": "Only conditional source/setup/nonowning routes. Perport original/artifact/runtime/data checks stay individual; no sample or other-title transfer. No managed install/update/rollback/backup, native/gameplay, fullcampaign, protected or Supported claim.",
+  "rows": [
+    {
+      "issue": 1837,
+      "port_id": "omegakatana92-kirby-pinball-land-recomp",
+      "cohort": "original-524",
+      "authored_path": "crates/portcove-core/catalog/ports/omegakatana92-kirby-pinball-land-recomp.json",
+      "before_sha256": "7230b7819be299508670389bfb998c010aa5f8589fcf0beb6cf7433f8eac21a6",
+      "after_sha256": "9dee26675244ab3ebbca7da9ddb5f42a659738bcfe145b4f5947911db85ab907",
+      "canonical_specification_sha256": "dd3ded9129ea2c07962a0da4b3d6868cf8515e143ec036072fb1a0800a905a48",
+      "canonical_preimage_planning": {
+        "Status": "Inbox",
+        "Priority": "None",
+        "Horizon": "Someday",
+        "Target release": "Unscheduled",
+        "Release commitment": null,
+        "Work type": "Port",
+        "Workstream": "Port catalog",
+        "Platform": "Unknown",
+        "Port stage": "Watchlist",
+        "Effort": "Unknown"
+      },
+      "canonical_preimage_state": "OPEN",
+      "repository": "omegakatana92/Kirby-Pinball-Land-Recomp",
+      "repository_id": 1346816986,
+      "repository_node_id": "R_kgDOUEbL2g",
+      "selected_source": {
+        "commit": "502d3bd646819fe5b7d15cd668d30c1ef7ca7cf3",
+        "tree": "66684c773b0fea474e20f8a07251e3d47bf10047",
+        "complete_serialized_tree_proof": {
+          "root": "66684c773b0fea474e20f8a07251e3d47bf10047",
+          "entries": 3,
+          "serialized_tree_objects_verified": true,
+          "truncated": false
+        }
+      },
+      "source_blobs": [
+        {
+          "repository": "omegakatana92/Kirby-Pinball-Land-Recomp",
+          "repository_id": 1346816986,
+          "commit": "502d3bd646819fe5b7d15cd668d30c1ef7ca7cf3",
+          "path": "LICENSE",
+          "blob": "f288702d2fa16d3cdf0035b15a9fcbc552cd88e7",
+          "sha256": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986",
+          "bytes": 35149,
+          "url": "https://github.com/omegakatana92/Kirby-Pinball-Land-Recomp/blob/502d3bd646819fe5b7d15cd668d30c1ef7ca7cf3/LICENSE"
+        },
+        {
+          "repository": "omegakatana92/Kirby-Pinball-Land-Recomp",
+          "repository_id": 1346816986,
+          "commit": "502d3bd646819fe5b7d15cd668d30c1ef7ca7cf3",
+          "path": "README.md",
+          "blob": "0d1775c9c85685d1c8b353ef680a7b30cf3779bd",
+          "sha256": "8a8cbee8a3024b1b98fdd7403225a637c6b78331f52a60fb3e4d0c1bafc2fd2f",
+          "bytes": 3763,
+          "url": "https://github.com/omegakatana92/Kirby-Pinball-Land-Recomp/blob/502d3bd646819fe5b7d15cd668d30c1ef7ca7cf3/README.md"
+        }
+      ],
+      "actual_route": "Kirby_s_Pinball_Land__USA__Europe_.exe; full package folder as CWD; empty arguments for ROM picker.",
+      "limits": "Incomplete source kit; original ROM fingerprints unestablished. Static observed native player, not gameplay/complete ABI. Shared SDL preferences and per-game saves remain separately owned.",
+      "finite_closure_proposal": "Conditional source/setup and nonowning existing-player outcome only; actual closure requires final independent review, exactheadCI, guarded merge and canonical readback. No whole Required parent/cohort completion.",
+      "artifact": {
+        "id": 530129952,
+        "name": "Kirby.s.Pinball.Land.zip",
+        "size": 12846638,
+        "digest": "sha256:69dec21928601956827cb8253d5b725d34cb3c0e99609568baa873d3dd3eea8f",
+        "browser_download_url": "https://github.com/omegakatana92/Kirby-Pinball-Land-Recomp/releases/download/recomp/Kirby.s.Pinball.Land.zip",
+        "updated_at": "2026-08-26T02:24:41Z"
+      },
+      "artifact_observation": {
+        "computed_sha256": "69dec21928601956827cb8253d5b725d34cb3c0e99609568baa873d3dd3eea8f",
+        "expected_digest_matched": true,
+        "expected_digest_authority": "official API metadata retained before download; null means no expected digest published",
+        "bounded_physical_index": {
+          "physical_records": 114,
+          "central_bytes": 17826,
+          "declared_expanded_bytes": 42787815,
+          "raw_names_bound_before_parser": true
+        },
+        "limits": {
+          "archive_bytes": 536870912,
+          "central_bytes": 4194304,
+          "physical_records": 32768,
+          "member_bytes": 536870912,
+          "expanded_aggregate_bytes": 2147483648,
+          "max_name_bytes": 512,
+          "selected_stream_chunk_bytes": 1048576,
+          "selected_header_bytes": 65560,
+          "documentation_total_bytes": 4194304
+        },
+        "selected_native": [
+          {
+            "path": "Kirby's Pinball Land/Kirby_s_Pinball_Land__USA__Europe_.exe",
+            "bytes": 11695616,
+            "sha256": "551f07e99e7faaad455b8d8fd169e8adb09de561c1295a619a8a2a29587e02e5",
+            "full_member_CRC_verified": true,
+            "pe_prefix": {
+              "machine": "0x8664",
+              "sections": 7,
+              "bytes_retained": 65560,
+              "scope": "bounded header only; no execution, complete imports, ABI or dependency resolution"
+            }
+          },
+          {
+            "path": "Kirby's Pinball Land/libc++.dll",
+            "bytes": 2095104,
+            "sha256": "952b41b1370ddb5e7299cc9fcefce2ad8c2021409948b057ec4d903c03760b6c",
+            "full_member_CRC_verified": true,
+            "pe_prefix": {
+              "machine": "0x8664",
+              "sections": 14,
+              "bytes_retained": 65560,
+              "scope": "bounded header only; no execution, complete imports, ABI or dependency resolution"
+            }
+          },
+          {
+            "path": "Kirby's Pinball Land/libunwind.dll",
+            "bytes": 204288,
+            "sha256": "8d9f60801f50c0a6cb7beb7fd2e121f98bf39ebe40e6c7e07a8a39fccb817c03",
+            "full_member_CRC_verified": true,
+            "pe_prefix": {
+              "machine": "0x8664",
+              "sections": 14,
+              "bytes_retained": 65560,
+              "scope": "bounded header only; no execution, complete imports, ABI or dependency resolution"
+            }
+          },
+          {
+            "path": "Kirby's Pinball Land/libwinpthread-1.dll",
+            "bytes": 282624,
+            "sha256": "849d176464140e0705bd4fdec6974a1d6efeba20efebc13a364c58b7bf0ba594",
+            "full_member_CRC_verified": true,
+            "pe_prefix": {
+              "machine": "0x8664",
+              "sections": 15,
+              "bytes_retained": 65560,
+              "scope": "bounded header only; no execution, complete imports, ABI or dependency resolution"
+            }
+          },
+          {
+            "path": "Kirby's Pinball Land/SDL2.dll",
+            "bytes": 2312192,
+            "sha256": "2cc8f55e614a24eb3b42413668d82f34526d8b2aa3682f075a975d94ed7a55ad",
+            "full_member_CRC_verified": true,
+            "pe_prefix": {
+              "machine": "0x8664",
+              "sections": 12,
+              "bytes_retained": 65560,
+              "scope": "bounded header only; no execution, complete imports, ABI or dependency resolution"
+            }
+          }
+        ],
+        "all_members_full_CRC_verified": false,
+        "no_extraction_writes": true,
+        "no_upstream_execution": true
+      },
+      "static_native_consumers": [
+        {
+          "path": "work/ports-r43/upstream/1837/title-main-static-annotated.txt",
+          "sha256": "3d147576edf65bede80c41b50f4e31481c1dde98665055106b1e1e06b1e261f3",
+          "bytes": 94841
+        },
+        {
+          "path": "work/ports-r43/upstream/1837/persistent-path-static-disassembly.txt",
+          "sha256": "3037fb0a86afe653e6acab32b86676e363527adc203b564c31b8d695aaa21d9e",
+          "bytes": 15404
+        },
+        {
+          "path": "work/ports-r43/upstream/1837/set-persistence-dir-static-annotated.txt",
+          "sha256": "e309653ab1ed5a0e7fbe08bc69190eb140b9fa5226eb5cb626162ee2aa18a529",
+          "bytes": 5244
+        },
+        {
+          "path": "work/ports-r43/upstream/1837/runtime-prefs-static-annotated.txt",
+          "sha256": "fc152fb7b80bd99fe02b0a907b4ae56622670e9eb31d33eb08fd18ae8936cbb3",
+          "bytes": 7937
+        }
+      ],
+      "static_conclusions": [
+        "Title-specific native ROMpicker and inprocess game loop; optional --rom/--save-dir arguments seen in selected title main",
+        "Default persistent path uses SDL_GetBasePath plus saveID/basename and .sav/.rtc/.stateN; existing --save-dir names an existing directory and overrides default",
+        "Runtime prefs use SDL_GetPrefPath(\"gbrecompiled\",\"runtime\")/runtime_prefs.ini with relative-working-directory fallback; no cross-title preferences isolation promised"
+      ],
+      "SDL2_reference": {
+        "source": "https://api.github.com/repos/libsdl-org/SDL/git/blobs/e24f1536464d5f0cbaef87fc6e847103e1e27c0c",
+        "path": "src/filesystem/windows/SDL_sysfilesystem.c",
+        "fact": "SDL2Windows preference org/app path uses RoamingAppData; APIsemantics reference, not selectedDLL/sourceequivalence or ABI certificate"
+      }
+    },
+    {
+      "issue": 1893,
+      "port_id": "omegakatana92-super-mario-land-3-wario-land-recomp",
+      "cohort": "original-524",
+      "authored_path": "crates/portcove-core/catalog/ports/omegakatana92-super-mario-land-3-wario-land-recomp.json",
+      "before_sha256": "d61fac059897495d346822c006b34385d8b9202c50bb6739da11fe55b1b5676a",
+      "after_sha256": "02e0ff6cef5583477e025cfa275b40c03d5a768f4ad9b7ae28a10a591c77e93d",
+      "canonical_specification_sha256": "59fbf47efd80743af2649240837e659356c089a68a4c7ba35152bcec345c4c61",
+      "canonical_preimage_planning": {
+        "Status": "Inbox",
+        "Priority": "None",
+        "Horizon": "Someday",
+        "Target release": "Unscheduled",
+        "Release commitment": null,
+        "Work type": "Port",
+        "Workstream": "Port catalog",
+        "Platform": "Unknown",
+        "Port stage": "Watchlist",
+        "Effort": "Unknown"
+      },
+      "canonical_preimage_state": "OPEN",
+      "repository": "omegakatana92/Super-Mario-Land-3-Wario-Land-Recomp-",
+      "repository_id": 1346549860,
+      "repository_node_id": "R_kgDOUEK4ZA",
+      "selected_source": {
+        "commit": "47eb0a67fe54e6a7966d5e949c51292b82e1e573",
+        "tree": "303fe30f67dfc8c776ef6f961f1dabc212138c7e",
+        "complete_serialized_tree_proof": {
+          "root": "303fe30f67dfc8c776ef6f961f1dabc212138c7e",
+          "entries": 1,
+          "serialized_tree_objects_verified": true,
+          "truncated": false
+        }
+      },
+      "source_blobs": [
+        {
+          "repository": "omegakatana92/Super-Mario-Land-3-Wario-Land-Recomp-",
+          "repository_id": 1346549860,
+          "commit": "47eb0a67fe54e6a7966d5e949c51292b82e1e573",
+          "path": "README.md",
+          "blob": "8c7629f3593ae9acdc2c781527fc61a7abd219fb",
+          "sha256": "26474609038c3beb9b47229a55abfcac94bf48b688b2e0d36585060688fb14a9",
+          "bytes": 348,
+          "url": "https://github.com/omegakatana92/Super-Mario-Land-3-Wario-Land-Recomp-/blob/47eb0a67fe54e6a7966d5e949c51292b82e1e573/README.md"
+        }
+      ],
+      "actual_route": "Super_Mario_Land_3___Wario_Land__USA_.exe; full package folder as CWD; empty arguments for ROM picker.",
+      "limits": "Same operation limits independently verified. README-only source has no own project-wide grant; no redistribution or clean-content permission is inferred. Do not transfer Toshinden finding.",
+      "finite_closure_proposal": "Conditional source/setup and nonowning existing-player outcome only; actual closure requires final independent review, exactheadCI, guarded merge and canonical readback. No whole Required parent/cohort completion.",
+      "artifact": {
+        "id": 530083531,
+        "name": "Super.Mario.Land.3.Wario.Land.1.2.zip",
+        "size": 24810060,
+        "digest": "sha256:49a89101af1073568ad070d31768a7c2ef34895ce72e896075315392853d8f5d",
+        "browser_download_url": "https://github.com/omegakatana92/Super-Mario-Land-3-Wario-Land-Recomp-/releases/download/recomp/Super.Mario.Land.3.Wario.Land.1.2.zip",
+        "updated_at": "2026-08-26T01:49:36Z"
+      },
+      "artifact_observation": {
+        "computed_sha256": "49a89101af1073568ad070d31768a7c2ef34895ce72e896075315392853d8f5d",
+        "expected_digest_matched": true,
+        "expected_digest_authority": "official API metadata retained before download; null means no expected digest published",
+        "bounded_physical_index": {
+          "physical_records": 179,
+          "central_bytes": 33319,
+          "declared_expanded_bytes": 84652053,
+          "raw_names_bound_before_parser": true
+        },
+        "limits": {
+          "archive_bytes": 536870912,
+          "central_bytes": 4194304,
+          "physical_records": 32768,
+          "member_bytes": 536870912,
+          "expanded_aggregate_bytes": 2147483648,
+          "max_name_bytes": 512,
+          "selected_stream_chunk_bytes": 1048576,
+          "selected_header_bytes": 65560,
+          "documentation_total_bytes": 4194304
+        },
+        "selected_native": [
+          {
+            "path": "Super Mario Land 3 Wario Land 1.2/libc++.dll",
+            "bytes": 2095104,
+            "sha256": "952b41b1370ddb5e7299cc9fcefce2ad8c2021409948b057ec4d903c03760b6c",
+            "full_member_CRC_verified": true,
+            "pe_prefix": {
+              "machine": "0x8664",
+              "sections": 14,
+              "bytes_retained": 65560,
+              "scope": "bounded header only; no execution, complete imports, ABI or dependency resolution"
+            }
+          },
+          {
+            "path": "Super Mario Land 3 Wario Land 1.2/libunwind.dll",
+            "bytes": 204288,
+            "sha256": "8d9f60801f50c0a6cb7beb7fd2e121f98bf39ebe40e6c7e07a8a39fccb817c03",
+            "full_member_CRC_verified": true,
+            "pe_prefix": {
+              "machine": "0x8664",
+              "sections": 14,
+              "bytes_retained": 65560,
+              "scope": "bounded header only; no execution, complete imports, ABI or dependency resolution"
+            }
+          },
+          {
+            "path": "Super Mario Land 3 Wario Land 1.2/libwinpthread-1.dll",
+            "bytes": 282624,
+            "sha256": "849d176464140e0705bd4fdec6974a1d6efeba20efebc13a364c58b7bf0ba594",
+            "full_member_CRC_verified": true,
+            "pe_prefix": {
+              "machine": "0x8664",
+              "sections": 15,
+              "bytes_retained": 65560,
+              "scope": "bounded header only; no execution, complete imports, ABI or dependency resolution"
+            }
+          },
+          {
+            "path": "Super Mario Land 3 Wario Land 1.2/SDL2.dll",
+            "bytes": 2312192,
+            "sha256": "2cc8f55e614a24eb3b42413668d82f34526d8b2aa3682f075a975d94ed7a55ad",
+            "full_member_CRC_verified": true,
+            "pe_prefix": {
+              "machine": "0x8664",
+              "sections": 12,
+              "bytes_retained": 65560,
+              "scope": "bounded header only; no execution, complete imports, ABI or dependency resolution"
+            }
+          },
+          {
+            "path": "Super Mario Land 3 Wario Land 1.2/Super_Mario_Land_3___Wario_Land__USA_.exe",
+            "bytes": 25761792,
+            "sha256": "62059259a29485c62c44bb830233a5e47901a26b49d9fbf3899b1c008415ac4c",
+            "full_member_CRC_verified": true,
+            "pe_prefix": {
+              "machine": "0x8664",
+              "sections": 7,
+              "bytes_retained": 65560,
+              "scope": "bounded header only; no execution, complete imports, ABI or dependency resolution"
+            }
+          }
+        ],
+        "all_members_full_CRC_verified": false,
+        "no_extraction_writes": true,
+        "no_upstream_execution": true
+      },
+      "static_native_consumers": [
+        {
+          "path": "work/ports-r43/upstream/1893/title-main-static-annotated.txt",
+          "sha256": "8a73d1cabda6bd0cfe79ffa8f5f15e850c22d7403b9157eeaeffd149da153ab5",
+          "bytes": 96123
+        },
+        {
+          "path": "work/ports-r43/upstream/1893/persistent-path-static-disassembly.txt",
+          "sha256": "ed784e36920b1d4b642ccf6a595fe55eecfb54851954d5aa341cbb164b0c9ff4",
+          "bytes": 15404
+        },
+        {
+          "path": "work/ports-r43/upstream/1893/set-persistence-dir-static-annotated.txt",
+          "sha256": "cff934b02e51d93b66c55a86e17ba5ad268c16c3bcdaa89a639160428772ce46",
+          "bytes": 5244
+        },
+        {
+          "path": "work/ports-r43/upstream/1893/runtime-prefs-static-annotated.txt",
+          "sha256": "c1414456b19cbbccbbe50630fc91e68583310d550bc52c35c26ef90830a4e555",
+          "bytes": 7937
+        }
+      ],
+      "static_conclusions": [
+        "Title-specific native ROMpicker and inprocess game loop; optional --rom/--save-dir arguments seen in selected title main",
+        "Default persistent path uses SDL_GetBasePath plus saveID/basename and .sav/.rtc/.stateN; existing --save-dir names an existing directory and overrides default",
+        "Runtime prefs use SDL_GetPrefPath(\"gbrecompiled\",\"runtime\")/runtime_prefs.ini with relative-working-directory fallback; no cross-title preferences isolation promised"
+      ],
+      "SDL2_reference": {
+        "source": "https://api.github.com/repos/libsdl-org/SDL/git/blobs/e24f1536464d5f0cbaef87fc6e847103e1e27c0c",
+        "path": "src/filesystem/windows/SDL_sysfilesystem.c",
+        "fact": "SDL2Windows preference org/app path uses RoamingAppData; APIsemantics reference, not selectedDLL/sourceequivalence or ABI certificate"
+      }
+    },
+    {
+      "issue": 2903,
+      "port_id": "the-warriors-ps2-coney",
+      "cohort": "affected-312",
+      "authored_path": "crates/portcove-core/catalog/ports/the-warriors-ps2-coney.json",
+      "before_sha256": "a063b8a2a20f7553debe06618af6137fedecee80828274633dc3cb8d84cdcfe4",
+      "after_sha256": "528ce92ac2b0b396d05a2a1b5c62810f445f72d9df99b131464458884ce1ae24",
+      "canonical_specification_sha256": "fb44b7bbd83f1990991b7f0ac6edf0f271a5cb6d3daba3684ce5cc05e84a3fee",
+      "canonical_preimage_planning": {
+        "Status": "Inbox",
+        "Priority": "None",
+        "Horizon": "Someday",
+        "Target release": "Unscheduled",
+        "Release commitment": null,
+        "Work type": "Port",
+        "Workstream": "Port catalog",
+        "Platform": "Unknown",
+        "Port stage": "Watchlist",
+        "Effort": "Unknown"
+      },
+      "canonical_preimage_state": "OPEN",
+      "repository": "Ryubara/coney",
+      "repository_id": 1404333003,
+      "repository_node_id": "R_kgDOU7Rryw",
+      "selected_source": {
+        "commit": "eb07fc0f9d69e62c7aeee6307be5c2ef162f4ee6",
+        "tree": "56bc9345c6dfa156d13479a160c7d2ededc343c0",
+        "complete_serialized_tree_proof": {
+          "root": "56bc9345c6dfa156d13479a160c7d2ededc343c0",
+          "entries": 5814,
+          "serialized_tree_objects_verified": true,
+          "truncated": false
+        }
+      },
+      "source_blobs": [
+        {
+          "repository": "Ryubara/coney",
+          "repository_id": 1404333003,
+          "commit": "eb07fc0f9d69e62c7aeee6307be5c2ef162f4ee6",
+          "path": "CMakeLists.txt",
+          "blob": "ccecd3b91b6e87fab911946562cd8f3951e3d539",
+          "sha256": "31e3776956a1e5214581de0cf370e0a28d9fc6925807a18709e4848994fa66a6",
+          "bytes": 1401,
+          "url": "https://github.com/Ryubara/coney/blob/eb07fc0f9d69e62c7aeee6307be5c2ef162f4ee6/CMakeLists.txt"
+        },
+        {
+          "repository": "Ryubara/coney",
+          "repository_id": 1404333003,
+          "commit": "eb07fc0f9d69e62c7aeee6307be5c2ef162f4ee6",
+          "path": "LICENSE",
+          "blob": "f288702d2fa16d3cdf0035b15a9fcbc552cd88e7",
+          "sha256": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986",
+          "bytes": 35149,
+          "url": "https://github.com/Ryubara/coney/blob/eb07fc0f9d69e62c7aeee6307be5c2ef162f4ee6/LICENSE"
+        },
+        {
+          "repository": "Ryubara/coney",
+          "repository_id": 1404333003,
+          "commit": "eb07fc0f9d69e62c7aeee6307be5c2ef162f4ee6",
+          "path": "README.md",
+          "blob": "50ddd42a8c0761356dd5fa16997504afc0d1aafd",
+          "sha256": "ac0585a5cf72552e070177fdebc9ab7a40f64ece6fb724b1b2412c9ce260c72e",
+          "bytes": 12048,
+          "url": "https://github.com/Ryubara/coney/blob/eb07fc0f9d69e62c7aeee6307be5c2ef162f4ee6/README.md"
+        },
+        {
+          "repository": "Ryubara/coney",
+          "repository_id": 1404333003,
+          "commit": "eb07fc0f9d69e62c7aeee6307be5c2ef162f4ee6",
+          "path": "LEGAL.md",
+          "blob": "8e513b0a5e9ea48a3e6aa9e040ff87ec1a406ef2",
+          "sha256": "3bfeadeba1d8a83329d2ec978031cbd8136c44c59fb57f8fd3278fa3c57826fa",
+          "bytes": 7604,
+          "url": "https://github.com/Ryubara/coney/blob/eb07fc0f9d69e62c7aeee6307be5c2ef162f4ee6/LEGAL.md"
+        },
+        {
+          "repository": "Ryubara/coney",
+          "repository_id": 1404333003,
+          "commit": "eb07fc0f9d69e62c7aeee6307be5c2ef162f4ee6",
+          "path": "docs/guides/running.md",
+          "blob": "960864d63fabfc4d9bdba26da38255c770c17d4b",
+          "sha256": "7d7b8e29e71e6d4721dd7009966fd2258e90285ffde32f6354b5589b3dc48c7e",
+          "bytes": 14244,
+          "url": "https://github.com/Ryubara/coney/blob/eb07fc0f9d69e62c7aeee6307be5c2ef162f4ee6/docs/guides/running.md"
+        },
+        {
+          "repository": "Ryubara/coney",
+          "repository_id": 1404333003,
+          "commit": "eb07fc0f9d69e62c7aeee6307be5c2ef162f4ee6",
+          "path": "docs/guides/building.md",
+          "blob": "fc06d1dbea1a5d32aadfcf956905a2ed3ab02ee0",
+          "sha256": "44a86d16b47cb6cf2fc8a7119d91baeeb41f5780bd771c6366dca3dd070b2787",
+          "bytes": 61950,
+          "url": "https://github.com/Ryubara/coney/blob/eb07fc0f9d69e62c7aeee6307be5c2ef162f4ee6/docs/guides/building.md"
+        },
+        {
+          "repository": "Ryubara/coney",
+          "repository_id": 1404333003,
+          "commit": "eb07fc0f9d69e62c7aeee6307be5c2ef162f4ee6",
+          "path": "docs/missions/index.md",
+          "blob": "be1c020d1e35e01158da7325b59552d27f729d45",
+          "sha256": "4a9293ed42a9348a205ba6100e340c9e8f345cdaad783d027a86fa1e443251c3",
+          "bytes": 5280,
+          "url": "https://github.com/Ryubara/coney/blob/eb07fc0f9d69e62c7aeee6307be5c2ef162f4ee6/docs/missions/index.md"
+        },
+        {
+          "repository": "Ryubara/coney",
+          "repository_id": 1404333003,
+          "commit": "eb07fc0f9d69e62c7aeee6307be5c2ef162f4ee6",
+          "path": "src/platform/main.cpp",
+          "blob": "1debff554d9b7023a1f6f71d0e59d7ab5d8c4d5c",
+          "sha256": "4e7fa81c7b09fe010d1e7274216402f9de4b663393538978e44101b24880d8d7",
+          "bytes": 74431,
+          "url": "https://github.com/Ryubara/coney/blob/eb07fc0f9d69e62c7aeee6307be5c2ef162f4ee6/src/platform/main.cpp"
+        },
+        {
+          "repository": "Ryubara/coney",
+          "repository_id": 1404333003,
+          "commit": "eb07fc0f9d69e62c7aeee6307be5c2ef162f4ee6",
+          "path": "src/platform/CMakeLists.txt",
+          "blob": "edd8d43926ac775d06c5196fde2189926972d826",
+          "sha256": "5086253557daa36ad84cd2bc2c9d3aed944ec1c657f2c22416653d4ec1b20ee4",
+          "bytes": 30417,
+          "url": "https://github.com/Ryubara/coney/blob/eb07fc0f9d69e62c7aeee6307be5c2ef162f4ee6/src/platform/CMakeLists.txt"
+        },
+        {
+          "repository": "Ryubara/coney",
+          "repository_id": 1404333003,
+          "commit": "eb07fc0f9d69e62c7aeee6307be5c2ef162f4ee6",
+          "path": "cmake/deps.cmake",
+          "blob": "1fe0328e0cc87a1a34053421351d61cd97a6660f",
+          "sha256": "1346b5f8b9e8d2c81a13ebed87842741212cb69a0032959a50f15e7a9cb54cdd",
+          "bytes": 21017,
+          "url": "https://github.com/Ryubara/coney/blob/eb07fc0f9d69e62c7aeee6307be5c2ef162f4ee6/cmake/deps.cmake"
+        },
+        {
+          "repository": "Ryubara/coney",
+          "repository_id": 1404333003,
+          "commit": "eb07fc0f9d69e62c7aeee6307be5c2ef162f4ee6",
+          "path": "CMakePresets.json",
+          "blob": "982a19f1d80e0a958e085cd5cfd8ed28d7aa1271",
+          "sha256": "cbf1aeb0bf5576f56c7dd24b62f995601c5e7999282683e963f8ac82d540a73b",
+          "bytes": 4084,
+          "url": "https://github.com/Ryubara/coney/blob/eb07fc0f9d69e62c7aeee6307be5c2ef162f4ee6/CMakePresets.json"
+        }
+      ],
+      "actual_route": "Completed installed coney.exe with adjacent finished install/index and empty arguments; existing source build alternatively uses its upstream working directory and --disc plus actual absolute disc path.",
+      "limits": "Mission1 level99 has3/3 built checkpoints and hub12/12; both PendingGameplayApproval, zero Approved. Source/build conditional; actual Windows build and gameplay unobserved. No complete game.",
+      "finite_closure_proposal": "Conditional source/setup and nonowning existing-player outcome only; actual closure requires final independent review, exactheadCI, guarded merge and canonical readback. No whole Required parent/cohort completion."
+    },
+    {
+      "issue": 2795,
+      "port_id": "overkilllabs3-driveclub-recomp",
+      "cohort": "affected-312",
+      "authored_path": "crates/portcove-core/catalog/ports/overkilllabs3-driveclub-recomp.json",
+      "before_sha256": "c8df1cdd13025b2a964c0a4dafffba1b4598384ce4fc90be5dcd179b63ba4861",
+      "after_sha256": "e9d5370806982a3a968f8c3a9bd14f0a9af9cc08979961acd9fcd6f7a6cddc67",
+      "canonical_specification_sha256": "20558f12b75fdc53df11613577c9d3a126efee9899b14398278cf3e54199670f",
+      "canonical_preimage_planning": {
+        "Status": "Inbox",
+        "Priority": "None",
+        "Horizon": "Someday",
+        "Target release": "Unscheduled",
+        "Release commitment": null,
+        "Work type": "Port",
+        "Workstream": "Port catalog",
+        "Platform": "Unknown",
+        "Port stage": "Watchlist",
+        "Effort": "Unknown"
+      },
+      "canonical_preimage_state": "OPEN",
+      "repository": "OverkillLabs3/driveclub-recomp",
+      "repository_id": 1422653739,
+      "repository_node_id": "R_kgDOVMv5Kw",
+      "selected_source": {
+        "commit": "3e7f6d8543f8a426fdbbb323cf822f36b5c3a11a",
+        "tree": "48a4a878470ea81f73b5ad867adcc5d5a6cb611f",
+        "complete_serialized_tree_proof": {
+          "root": "48a4a878470ea81f73b5ad867adcc5d5a6cb611f",
+          "entries": 2299,
+          "serialized_tree_objects_verified": true,
+          "truncated": false
+        }
+      },
+      "source_blobs": [
+        {
+          "repository": "OverkillLabs3/driveclub-recomp",
+          "repository_id": 1422653739,
+          "commit": "3e7f6d8543f8a426fdbbb323cf822f36b5c3a11a",
+          "path": "LICENSE",
+          "blob": "9efa6fbc962836e243e20f7f23db062e2c077d28",
+          "sha256": "edaef632cbb643e4e7a221717a6c441a4c1a7c918e6e4d56debc3d8739b233f6",
+          "bytes": 17984,
+          "url": "https://github.com/OverkillLabs3/driveclub-recomp/blob/3e7f6d8543f8a426fdbbb323cf822f36b5c3a11a/LICENSE"
+        },
+        {
+          "repository": "OverkillLabs3/driveclub-recomp",
+          "repository_id": 1422653739,
+          "commit": "3e7f6d8543f8a426fdbbb323cf822f36b5c3a11a",
+          "path": "README.md",
+          "blob": "1285f2f227a51f1c006a08c5301f0805f77d435f",
+          "sha256": "143db19261ee8fea5bf78db62ac2055a95881bfd1fe825dce98d53dfe54c2c3b",
+          "bytes": 21791,
+          "url": "https://github.com/OverkillLabs3/driveclub-recomp/blob/3e7f6d8543f8a426fdbbb323cf822f36b5c3a11a/README.md"
+        },
+        {
+          "repository": "OverkillLabs3/driveclub-recomp",
+          "repository_id": 1422653739,
+          "commit": "3e7f6d8543f8a426fdbbb323cf822f36b5c3a11a",
+          "path": "launcher/driveclub_launcher.cpp",
+          "blob": "6af3355a1dda77c11ba6f535356cfb51d08ffa5f",
+          "sha256": "abfcdbf6142182843d653e45a6813b53e374d77a8f4fbf5829f9fa644385a535",
+          "bytes": 222395,
+          "url": "https://github.com/OverkillLabs3/driveclub-recomp/blob/3e7f6d8543f8a426fdbbb323cf822f36b5c3a11a/launcher/driveclub_launcher.cpp"
+        }
+      ],
+      "actual_route": "Normal DriveClub.exe; complete selected package root as CWD; empty arguments; upstream supplies preparation/environment.",
+      "limits": "CUSA00093v1.28; CUSA00003v1.28 less tested. Observe selected launcher only; real child may outlive it. Optional online/server/DLC and hardware/save claims not qualified.",
+      "finite_closure_proposal": "Conditional source/setup and nonowning existing-player outcome only; actual closure requires final independent review, exactheadCI, guarded merge and canonical readback. No whole Required parent/cohort completion.",
+      "artifact": {
+        "id": 690722298,
+        "name": "driveclub-recomp-0.4.0-win64.zip",
+        "size": 131489823,
+        "digest": "sha256:60bc08bf031a39302daa78a6a12edec714228803564e674c79e23333e84d0ff3",
+        "browser_download_url": "https://github.com/OverkillLabs3/driveclub-recomp/releases/download/v0.4.0/driveclub-recomp-0.4.0-win64.zip",
+        "updated_at": "2026-10-30T02:57:26Z"
+      },
+      "artifact_observation": {
+        "computed_sha256": "60bc08bf031a39302daa78a6a12edec714228803564e674c79e23333e84d0ff3",
+        "expected_digest_matched": true,
+        "expected_digest_authority": "official API metadata retained before download; null means no expected digest published",
+        "bounded_physical_index": {
+          "physical_records": 288,
+          "central_bytes": 29788,
+          "declared_expanded_bytes": 313710635,
+          "raw_names_bound_before_parser": true
+        },
+        "limits": {
+          "archive_bytes": 536870912,
+          "central_bytes": 4194304,
+          "physical_records": 32768,
+          "member_bytes": 536870912,
+          "expanded_aggregate_bytes": 2147483648,
+          "max_name_bytes": 512,
+          "selected_stream_chunk_bytes": 1048576,
+          "selected_header_bytes": 65560,
+          "documentation_total_bytes": 4194304
+        },
+        "selected_native": [
+          {
+            "path": "driveclub-recomp-0.4.0-win64/DriveClub.Backend.exe",
+            "bytes": 2732032,
+            "sha256": "4eb4a4a05f9c7563a1817c83e8052c0b00c35bf1c06f1a03888cc64a9305df03",
+            "full_member_CRC_verified": true,
+            "pe_prefix": {
+              "machine": "0x8664",
+              "sections": 8,
+              "bytes_retained": 65560,
+              "scope": "bounded header only; no execution, complete imports, ABI or dependency resolution"
+            }
+          },
+          {
+            "path": "driveclub-recomp-0.4.0-win64/DriveClub.Launcher.dll",
+            "bytes": 293376,
+            "sha256": "04b0c894b76a6abbda18787c6cf7a2fcf188b28f309dca92ffaae1248fec0ed3",
+            "full_member_CRC_verified": true,
+            "pe_prefix": {
+              "machine": "0x8664",
+              "sections": 2,
+              "bytes_retained": 65560,
+              "scope": "bounded header only; no execution, complete imports, ABI or dependency resolution"
+            }
+          },
+          {
+            "path": "driveclub-recomp-0.4.0-win64/DriveClub.Launcher.exe",
+            "bytes": 217600,
+            "sha256": "1564549eb37153cd2b30b6c1a3376dc30ae9d52d80fa84e7025e3e16ecdfd679",
+            "full_member_CRC_verified": true,
+            "pe_prefix": {
+              "machine": "0x8664",
+              "sections": 6,
+              "bytes_retained": 65560,
+              "scope": "bounded header only; no execution, complete imports, ABI or dependency resolution"
+            }
+          },
+          {
+            "path": "driveclub-recomp-0.4.0-win64/DriveClub.Native.exe",
+            "bytes": 2732032,
+            "sha256": "4eb4a4a05f9c7563a1817c83e8052c0b00c35bf1c06f1a03888cc64a9305df03",
+            "full_member_CRC_verified": true,
+            "pe_prefix": {
+              "machine": "0x8664",
+              "sections": 8,
+              "bytes_retained": 65560,
+              "scope": "bounded header only; no execution, complete imports, ABI or dependency resolution"
+            }
+          },
+          {
+            "path": "driveclub-recomp-0.4.0-win64/DriveClub.exe",
+            "bytes": 882688,
+            "sha256": "f77abd9a211a5e9b0f63895af410adb35cefe0c9b0281a2ffb908035b4fa377b",
+            "full_member_CRC_verified": true,
+            "pe_prefix": {
+              "machine": "0x8664",
+              "sections": 7,
+              "bytes_retained": 65560,
+              "scope": "bounded header only; no execution, complete imports, ABI or dependency resolution"
+            }
+          },
+          {
+            "path": "driveclub-recomp-0.4.0-win64/FfbTest.exe",
+            "bytes": 4775936,
+            "sha256": "d1a21c2809f60e38a46d9cc7cffe97ec6d33e04715b79a8f2b6a2d5a1be94637",
+            "full_member_CRC_verified": true,
+            "pe_prefix": {
+              "machine": "0x8664",
+              "sections": 6,
+              "bytes_retained": 65560,
+              "scope": "bounded header only; no execution, complete imports, ABI or dependency resolution"
+            }
+          },
+          {
+            "path": "driveclub-recomp-0.4.0-win64/WheelSetup.exe",
+            "bytes": 4829696,
+            "sha256": "9c9bd026eeaed5d9af9f80fb9fcc5fa60b880cbd87476e0448877f70c06fb53e",
+            "full_member_CRC_verified": true,
+            "pe_prefix": {
+              "machine": "0x8664",
+              "sections": 6,
+              "bytes_retained": 65560,
+              "scope": "bounded header only; no execution, complete imports, ABI or dependency resolution"
+            }
+          }
+        ],
+        "all_members_full_CRC_verified": false,
+        "no_extraction_writes": true,
+        "no_upstream_execution": true
+      }
+    },
+    {
+      "issue": 2859,
+      "port_id": "overkilllabs3-gears-judgement-recomp",
+      "cohort": "affected-312",
+      "authored_path": "crates/portcove-core/catalog/ports/overkilllabs3-gears-judgement-recomp.json",
+      "before_sha256": "2ec369f9076655fe01c1df72cacaa9a6e94f0abcc3315f5036c75c1029529107",
+      "after_sha256": "c7f19eea005d5eeabf17226cb47fdb163881b537c1a032c1b7cb7ecec43fc3f5",
+      "canonical_specification_sha256": "032d9ea3cb57208e064c3fc356bf7e071426fa61e65032c1821f4d7376e3d7eb",
+      "canonical_preimage_planning": {
+        "Status": "Inbox",
+        "Priority": "None",
+        "Horizon": "Someday",
+        "Target release": "Unscheduled",
+        "Release commitment": null,
+        "Work type": "Port",
+        "Workstream": "Port catalog",
+        "Platform": "Unknown",
+        "Port stage": "Watchlist",
+        "Effort": "Unknown"
+      },
+      "canonical_preimage_state": "OPEN",
+      "repository": "OverkillLabs3/gears-judgement-recomp",
+      "repository_id": 1405676973,
+      "repository_node_id": "R_kgDOU8jtrQ",
+      "selected_source": {
+        "commit": "e56c475a75b1b703aee0e3422ffc18a27a05f66a",
+        "tree": "b01d18ac788905f46f15a023906dfa701fe0b6ee",
+        "complete_serialized_tree_proof": {
+          "root": "b01d18ac788905f46f15a023906dfa701fe0b6ee",
+          "entries": 122,
+          "serialized_tree_objects_verified": true,
+          "truncated": false
+        }
+      },
+      "source_blobs": [
+        {
+          "repository": "OverkillLabs3/gears-judgement-recomp",
+          "repository_id": 1405676973,
+          "commit": "e56c475a75b1b703aee0e3422ffc18a27a05f66a",
+          "path": "CMakeLists.txt",
+          "blob": "3ee84233390489d6571d769fafab5db5a9df223a",
+          "sha256": "44669b3adbf038f155dd98822de0b71c97ae0725c738eb4beec7518ebb94d36f",
+          "bytes": 12811,
+          "url": "https://github.com/OverkillLabs3/gears-judgement-recomp/blob/e56c475a75b1b703aee0e3422ffc18a27a05f66a/CMakeLists.txt"
+        },
+        {
+          "repository": "OverkillLabs3/gears-judgement-recomp",
+          "repository_id": 1405676973,
+          "commit": "e56c475a75b1b703aee0e3422ffc18a27a05f66a",
+          "path": "LICENSE",
+          "blob": "27b15103f01d0281fb7ab507beed023d1f26930a",
+          "sha256": "c29760318b480d96a52681b1475b3baefaacbb2ce6a1e2ba1ba6c902d62ddff3",
+          "bytes": 1540,
+          "url": "https://github.com/OverkillLabs3/gears-judgement-recomp/blob/e56c475a75b1b703aee0e3422ffc18a27a05f66a/LICENSE"
+        },
+        {
+          "repository": "OverkillLabs3/gears-judgement-recomp",
+          "repository_id": 1405676973,
+          "commit": "e56c475a75b1b703aee0e3422ffc18a27a05f66a",
+          "path": "README.md",
+          "blob": "aadf24a37627bcfecae960a210550f7e0b66fcee",
+          "sha256": "31666c1833e4258b76daeca7abcdde5a4d261af8f1d5bc2a43580a1859be0d28",
+          "bytes": 10554,
+          "url": "https://github.com/OverkillLabs3/gears-judgement-recomp/blob/e56c475a75b1b703aee0e3422ffc18a27a05f66a/README.md"
+        },
+        {
+          "repository": "OverkillLabs3/gears-judgement-recomp",
+          "repository_id": 1405676973,
+          "commit": "e56c475a75b1b703aee0e3422ffc18a27a05f66a",
+          "path": "src/main.cpp",
+          "blob": "d603d1fa54a428e6eb0e5b0890ea36267598b62e",
+          "sha256": "34505661ebc6077a3931190e45920570036607fb348af9a17841ce9c6428175e",
+          "bytes": 141,
+          "url": "https://github.com/OverkillLabs3/gears-judgement-recomp/blob/e56c475a75b1b703aee0e3422ffc18a27a05f66a/src/main.cpp"
+        },
+        {
+          "repository": "OverkillLabs3/gears-judgement-recomp",
+          "repository_id": 1405676973,
+          "commit": "e56c475a75b1b703aee0e3422ffc18a27a05f66a",
+          "path": "launcher/settings.cpp",
+          "blob": "b831259e1f7ecd219c4a09eea93360a4b7a42005",
+          "sha256": "e6c35740f4f3b6c27f37265809762079d4c1d609f181b248ea0e79a57c4e8282",
+          "bytes": 59247,
+          "url": "https://github.com/OverkillLabs3/gears-judgement-recomp/blob/e56c475a75b1b703aee0e3422ffc18a27a05f66a/launcher/settings.cpp"
+        },
+        {
+          "repository": "OverkillLabs3/gears-judgement-recomp",
+          "repository_id": 1405676973,
+          "commit": "e56c475a75b1b703aee0e3422ffc18a27a05f66a",
+          "path": "src/gowj_app.h",
+          "blob": "8d9663213f54de59b6b8be0886ed2106ea5e1b25",
+          "sha256": "94dee02ae778a319d389788874432e68daab0bb8a52e199c89fcbb6d3141bf11",
+          "bytes": 50124,
+          "url": "https://github.com/OverkillLabs3/gears-judgement-recomp/blob/e56c475a75b1b703aee0e3422ffc18a27a05f66a/src/gowj_app.h"
+        },
+        {
+          "repository": "OverkillLabs3/gears-judgement-recomp",
+          "repository_id": 1405676973,
+          "commit": "e56c475a75b1b703aee0e3422ffc18a27a05f66a",
+          "path": "launcher/stub.cpp",
+          "blob": "4ee068eb54dc9b44fddde46fada6b362a73b69b2",
+          "sha256": "e7f6b4b8fe763f7898251543670a460b79510dee1ba97fbf1852aa75087fa938",
+          "bytes": 10828,
+          "url": "https://github.com/OverkillLabs3/gears-judgement-recomp/blob/e56c475a75b1b703aee0e3422ffc18a27a05f66a/launcher/stub.cpp"
+        }
+      ],
+      "actual_route": "Normal portable GearsOfWarJudgment.exe; complete package root as CWD; empty arguments; wrapper supplies GOWJ_HOME rather than registering its extracted child.",
+      "limits": "Retail4D530A26 only. Early single-player beginning, no multiplayer. Observe selected wrapper only; portable data and separate LocalAppData user/cache preserved. No actual native/save observation.",
+      "finite_closure_proposal": "Conditional source/setup and nonowning existing-player outcome only; actual closure requires final independent review, exactheadCI, guarded merge and canonical readback. No whole Required parent/cohort completion.",
+      "artifact": {
+        "id": 630678248,
+        "name": "GearsOfWarJudgment-PC-v0.2.1.zip",
+        "size": 33349047,
+        "digest": "sha256:eef1dd50d4bc2a24809e68721a4db45093d1e63d04945d4b7675d49f86670f6f",
+        "browser_download_url": "https://github.com/OverkillLabs3/gears-judgement-recomp/releases/download/v0.2.1/GearsOfWarJudgment-PC-v0.2.1.zip",
+        "updated_at": "2026-10-11T12:20:43Z"
+      },
+      "artifact_observation": {
+        "computed_sha256": "eef1dd50d4bc2a24809e68721a4db45093d1e63d04945d4b7675d49f86670f6f",
+        "expected_digest_matched": true,
+        "expected_digest_authority": "official API metadata retained before download; null means no expected digest published",
+        "bounded_physical_index": {
+          "physical_records": 4,
+          "central_bytes": 376,
+          "declared_expanded_bytes": 33665978,
+          "raw_names_bound_before_parser": true
+        },
+        "limits": {
+          "archive_bytes": 536870912,
+          "central_bytes": 4194304,
+          "physical_records": 32768,
+          "member_bytes": 536870912,
+          "expanded_aggregate_bytes": 2147483648,
+          "max_name_bytes": 512,
+          "selected_stream_chunk_bytes": 1048576,
+          "selected_header_bytes": 65560,
+          "documentation_total_bytes": 4194304
+        },
+        "selected_native": [
+          {
+            "path": "GearsOfWarJudgment-PC-v0.2.1/GearsOfWarJudgment.exe",
+            "bytes": 33268956,
+            "sha256": "3967fc7445f1df8648bc11c6cb1af6cb915139e5b3bd3163182fac00bc6cc46d",
+            "full_member_CRC_verified": true,
+            "pe_prefix": {
+              "machine": "0x8664",
+              "sections": 8,
+              "bytes_retained": 65560,
+              "scope": "bounded header only; no execution, complete imports, ABI or dependency resolution"
+            }
+          },
+          {
+            "path": "GearsOfWarJudgment-PC-v0.2.1/Graphics Settings.exe",
+            "bytes": 390144,
+            "sha256": "3f35f94f25e727268c507828fae67e49df2d28f96374964b57705050a870e2f6",
+            "full_member_CRC_verified": true,
+            "pe_prefix": {
+              "machine": "0x8664",
+              "sections": 9,
+              "bytes_retained": 65560,
+              "scope": "bounded header only; no execution, complete imports, ABI or dependency resolution"
+            }
+          }
+        ],
+        "all_members_full_CRC_verified": false,
+        "no_extraction_writes": true,
+        "no_upstream_execution": true
+      }
+    },
+    {
+      "issue": 368,
+      "port_id": "sonic-the-hedgehog-2013-derived-sonic-1-forever",
+      "cohort": "original-524",
+      "authored_path": "crates/portcove-core/catalog/ports/sonic-the-hedgehog-2013-derived-sonic-1-forever.json",
+      "before_sha256": "29390b6c311b565cf1b2bcc37e5be86342a9b4d20eb5aec15910cce006833ce9",
+      "after_sha256": "25db174ec034e7e173e1a11b21cf462725f907b8cd4ad5818f3828c4b5861531",
+      "canonical_specification_sha256": "3d64b80c765b95646c446f68a460a41bae855027216873b78f3d75cdb8959f1a",
+      "canonical_preimage_planning": {
+        "Status": "Blocked",
+        "Priority": "Low",
+        "Horizon": "Later",
+        "Target release": "Unscheduled",
+        "Release commitment": "Planned",
+        "Work type": "Port",
+        "Workstream": "Port catalog",
+        "Platform": "Multi-platform",
+        "Port stage": "Blocked",
+        "Effort": "Unknown"
+      },
+      "canonical_preimage_state": "OPEN",
+      "repository": "ElspethThePict/S1Forever",
+      "repository_id": 833236529,
+      "repository_node_id": "R_kgDOMaouMQ",
+      "selected_source": {
+        "commit": "af6e94f9d50f4edac9ef7f4f6d1d7b82f0c8ee7c",
+        "tree": "8f4b51a7651b21afac72c012dbd18f9fcd784003",
+        "complete_serialized_tree_proof": {
+          "root": "8f4b51a7651b21afac72c012dbd18f9fcd784003",
+          "entries": 836,
+          "serialized_tree_objects_verified": true,
+          "truncated": false
+        }
+      },
+      "source_blobs": [
+        {
+          "repository": "ElspethThePict/S1Forever",
+          "repository_id": 833236529,
+          "commit": "af6e94f9d50f4edac9ef7f4f6d1d7b82f0c8ee7c",
+          "path": "README.md",
+          "blob": "898647b3f6bb5d84b1acb513fac6b64e1976b0da",
+          "sha256": "535e93f54cb2a40cfbc9ff543e651768bf00c1dce6265e69e73559b85787437c",
+          "bytes": 3673,
+          "url": "https://github.com/ElspethThePict/S1Forever/blob/af6e94f9d50f4edac9ef7f4f6d1d7b82f0c8ee7c/README.md"
+        }
+      ],
+      "actual_route": "SonicForever.exe; complete 1.5.1 Windows folder as CWD; empty arguments; own Sonic 1 Classic mobile Data.rsdk.xmf, not Genesis or vanilla-engine data.",
+      "limits": "Inspected player/DLLs are Win32/I386; no nativeAMD64 claim. Published expected digest absent; computed hash not authentication. Modcomponent still1.5.0 inside1.5.1 package. No cross-engine/save compatibility or input authentication.",
+      "finite_closure_proposal": "Conditional source/setup and nonowning existing-player outcome only; actual closure requires final independent review, exactheadCI, guarded merge and canonical readback. No whole Required parent/cohort completion.",
+      "artifact": {
+        "id": 199530576,
+        "name": "SonicForever_1.5.1_Windows.zip",
+        "size": 17976011,
+        "digest": null,
+        "browser_download_url": "https://github.com/ElspethThePict/S1Forever/releases/download/1.5.1/SonicForever_1.5.1_Windows.zip",
+        "updated_at": "2024-10-16T14:34:43Z"
+      },
+      "artifact_observation": {
+        "computed_sha256": "6b6c514ed70767f48ce1905985029ceecb446a86c843dbf5d6c227ea8760810e",
+        "expected_digest_matched": null,
+        "expected_digest_authority": "official API metadata retained before download; null means no expected digest published",
+        "bounded_physical_index": {
+          "physical_records": 927,
+          "central_bytes": 139887,
+          "declared_expanded_bytes": 26460094,
+          "raw_names_bound_before_parser": true
+        },
+        "limits": {
+          "archive_bytes": 536870912,
+          "central_bytes": 4194304,
+          "physical_records": 32768,
+          "member_bytes": 536870912,
+          "expanded_aggregate_bytes": 2147483648,
+          "max_name_bytes": 512,
+          "selected_stream_chunk_bytes": 1048576,
+          "selected_header_bytes": 65560,
+          "documentation_total_bytes": 4194304
+        },
+        "selected_native": [
+          {
+            "path": "SonicForever_1.5.1_Windows/glew32.dll",
+            "bytes": 424960,
+            "sha256": "c087c55e2b1f12c1528ecda97a55cc74ed0a8073bf1f35e52b4957138e8c5704",
+            "full_member_CRC_verified": true,
+            "pe_prefix": {
+              "machine": "0x14c",
+              "sections": 5,
+              "bytes_retained": 65560,
+              "scope": "bounded header only; no execution, complete imports, ABI or dependency resolution"
+            }
+          },
+          {
+            "path": "SonicForever_1.5.1_Windows/SDL2.dll",
+            "bytes": 2042368,
+            "sha256": "c8c85e3228524bc07a901286d9c049ada99a9f660997c23a2f5a0b9808ce5216",
+            "full_member_CRC_verified": true,
+            "pe_prefix": {
+              "machine": "0x14c",
+              "sections": 10,
+              "bytes_retained": 65560,
+              "scope": "bounded header only; no execution, complete imports, ABI or dependency resolution"
+            }
+          },
+          {
+            "path": "SonicForever_1.5.1_Windows/SonicForever.exe",
+            "bytes": 1472000,
+            "sha256": "ef1d5a370e9d3d3546aece08bff8d568e91693d73af3660faeebce2f86d24df7",
+            "full_member_CRC_verified": true,
+            "pe_prefix": {
+              "machine": "0x14c",
+              "sections": 5,
+              "bytes_retained": 65560,
+              "scope": "bounded header only; no execution, complete imports, ABI or dependency resolution"
+            }
+          }
+        ],
+        "all_members_full_CRC_verified": false,
+        "no_extraction_writes": true,
+        "no_upstream_execution": true
+      },
+      "official_site_snapshots": [
+        {
+          "url": "https://teamforeveronline.wixsite.com/home/sonic-1-forever",
+          "final_url": "https://teamforeveronline.wixsite.com/home/sonic-1-forever",
+          "observed_at": "2026-11-02T12:03:13.977322+00:00",
+          "bytes": 495392,
+          "sha256": "8b759ab210c54535f209ec1043dfe3843689ec797735a4e442b1a5268e7e2b45",
+          "path": "work/ports-r44/upstream/368/official-site/windows-install.html",
+          "scope": "Public first-party setup/maintenance prose only; no scripts/browser/game execution"
+        },
+        {
+          "url": "https://teamforeveronline.wixsite.com/home/faqs",
+          "final_url": "https://teamforeveronline.wixsite.com/home/faqs",
+          "observed_at": "2026-11-02T12:03:14.033109+00:00",
+          "bytes": 467243,
+          "sha256": "4f31cd9c138015691bcbc147f729f97dc4159a4a1c1188c9ec346a6f00826b3c",
+          "path": "work/ports-r44/upstream/368/official-site/faq.html",
+          "scope": "Public first-party setup/maintenance prose only; no scripts/browser/game execution"
+        }
+      ],
+      "packaged_component_labels": {
+        "selected_release": "1.5.1",
+        "mod_ini_version": "1.5.0",
+        "not_relabelled": true
+      },
+      "metadata_permission_scope": "RSDK noncommercial/credit/asset conditions and separate original/mod/artist rights retained; no blanket permission inferred from attribution or a checksum."
+    }
+  ]
+}

@@ -62,6 +62,7 @@ param(
     [Parameter(Position = 25)]
     [string]$InstalledUpdatePredecessorVersion,
     [switch]$RendererUpdate,
+    [switch]$ControlledPublicUpdate,
     [switch]$VerifyStableWaiting,
     [string]$HistoricalBootstrapManifestPath,
     [string]$InstalledGameDataConfigurationPath,
@@ -75,6 +76,9 @@ param(
     [ValidateSet("", "post-spawn-verification")]
     [Parameter(Position = 27)]
     [string]$TestFault = "",
+    [ValidateSet("Applied", "Skipped")]
+    [string]$ExpectedBinaryPatching = "Applied",
+    [string]$ExpectedExecutableSha256,
     [Parameter(Mandatory = $true, ParameterSetName = "Help")]
     [Alias("h", "-help")][switch]$Help
 )
@@ -104,6 +108,8 @@ Lifecycle options:
   -InstalledLibraryBusyHelperSource COMMIT  Recorded helper builder source; not application-source equivalence.
 
   -ExpectedExecutablePath FILE  Expected candidate desktop bytes.
+  -ExpectedBinaryPatching Applied|Skipped  Expected Tauri bundle-marker handling (default: Applied).
+  -ExpectedExecutableSha256 HEX  Required raw executable pin when binary patching was Skipped.
   -ExpectedVersion VERSION  Expected installed version.
   -InstallMode Silent|Passive  Installer interaction mode (default: Silent).
   -TestBase DIRECTORY  Isolated test parent; defaults to configured development scratch storage.
@@ -124,6 +130,8 @@ Qualification modes (use their documented admitted parent commands):
     -InstalledUpdateTargetsPath DIRECTORY, -InstalledUpdateCandidatePath FILE,
     -InstalledUpdatePredecessorVersion VERSION
   -RendererUpdate, -RendererTransport official|embedded
+  -ControlledPublicUpdate (separate controlled HTTPS fixture only; no local metadata
+    or payload substitute, protected account, or ordinary-public route)
   -VerifyStableWaiting (opt-in disposable renderer fixture; no eligible Stable candidate)
   -TestFault post-spawn-verification  Isolated fault fixture only.
   -Help, --help  Show this help before storage, Registry, or process operations.
@@ -139,6 +147,14 @@ Example:
 }
 
 $ErrorActionPreference = "Stop"
+if ($ExpectedBinaryPatching -eq 'Skipped' -and (-not $ExpectedExecutablePath -or
+        $ExpectedExecutableSha256 -cnotmatch '^[a-f0-9]{64}$')) {
+    throw 'Skipped binary patching requires an expected executable and its exact raw SHA-256 pin'
+}
+if ($ExpectedExecutableSha256 -and (-not $ExpectedExecutablePath -or
+        $ExpectedExecutableSha256 -cnotmatch '^[a-f0-9]{64}$')) {
+    throw 'ExpectedExecutableSha256 requires an expected executable and lowercase SHA-256'
+}
 $null = $ProcessTimeoutSeconds, $TestFault
 $ProcessIdentityClockToleranceMilliseconds = 1000
 $nativeAccount = $null
@@ -543,9 +559,18 @@ function Invoke-ApplicationSmoke([string]$Application, [string]$Role, [string]$E
     }
 }
 
-function Get-ExpectedBundledHash([string]$Executable) {
+function Get-ExpectedBundledHash([string]$Executable, [ValidateSet('Applied', 'Skipped')][string]$BinaryPatching = 'Applied', [string]$ExpectedSha256) {
     $bytes = [System.IO.File]::ReadAllBytes($Executable)
-    $rawHash = (Get-FileHash -LiteralPath $Executable -Algorithm SHA256).Hash.ToLowerInvariant()
+    $rawHasher = [System.Security.Cryptography.SHA256]::Create()
+    try { $rawHash = [System.BitConverter]::ToString($rawHasher.ComputeHash($bytes)).Replace('-', '').ToLowerInvariant() }
+    finally { $rawHasher.Dispose() }
+    if (($BinaryPatching -eq 'Skipped' -and $ExpectedSha256 -cnotmatch '^[a-f0-9]{64}$') -or
+        ($ExpectedSha256 -and $rawHash -cne $ExpectedSha256)) {
+        throw 'Expected executable does not match its exact raw SHA-256 pin'
+    }
+    if ($BinaryPatching -eq 'Skipped') {
+        return [pscustomobject]@{ raw_sha256 = $rawHash; bundled_sha256 = $rawHash; bundle_slot_patched = $false; binary_patching = $BinaryPatching }
+    }
     # Tauri patches its one bundle-type slot to NSS while packing NSIS, then
     # restores the build output to UNK. Compare against those exact bundled bytes.
     $marker = "__TAURI_BUNDLE_TYPE_VAR_UNK"
@@ -563,7 +588,7 @@ function Get-ExpectedBundledHash([string]$Executable) {
         $bundledHash = [System.BitConverter]::ToString($hasher.ComputeHash($bytes)).Replace("-", "").ToLowerInvariant()
     }
     finally { $hasher.Dispose() }
-    [pscustomobject]@{ raw_sha256 = $rawHash; bundled_sha256 = $bundledHash; bundle_slot_patched = $index -ge 0 }
+    [pscustomobject]@{ raw_sha256 = $rawHash; bundled_sha256 = $bundledHash; bundle_slot_patched = $index -ge 0; binary_patching = $BinaryPatching }
 }
 
 function Get-RecursiveFileManifest([string]$Root) {
@@ -581,12 +606,11 @@ function Get-RecursiveFileManifest([string]$Root) {
         })
 }
 
-function Get-PreservationManifest([string]$LibraryRoot) {
-    $preferences = [System.Environment]::GetEnvironmentVariable("PORTCOVE_PREFERENCES", "Process")
+function Get-PreservationManifest([string]$LibraryRoot, [string]$Preferences = [System.Environment]::GetEnvironmentVariable("PORTCOVE_PREFERENCES", "Process")) {
     [ordered]@{
         library = @(Get-RecursiveFileManifest $LibraryRoot)
-        preferences = if ($preferences -and [System.IO.File]::Exists($preferences)) {
-            [ordered]@{ present = $true; bytes = (Get-Item -LiteralPath $preferences).Length; sha256 = (Get-FileHash -LiteralPath $preferences -Algorithm SHA256).Hash.ToLowerInvariant() }
+        preferences = if ($Preferences -and [System.IO.File]::Exists($Preferences)) {
+            [ordered]@{ present = $true; bytes = (Get-Item -LiteralPath $Preferences).Length; sha256 = (Get-FileHash -LiteralPath $Preferences -Algorithm SHA256).Hash.ToLowerInvariant() }
         } else { [ordered]@{ present = $false; bytes = $null; sha256 = $null } }
     }
 }
@@ -626,8 +650,16 @@ if ($VerifyStableWaiting -and -not $RendererUpdate) { throw "Stable waiting veri
 if ($RendererUpdate -and -not $installedUpdate) {
     throw "Renderer update qualification requires an installed application update"
 }
-if ($installedUpdate -and (-not $predecessor -or -not $InstalledUpdateMetadataPath -or
-        -not $InstalledUpdateTargetsPath -or -not $InstalledUpdateCandidatePath -or
+if ($ControlledPublicUpdate -and (-not $installedUpdate -or -not $RendererUpdate -or
+        $InstalledUpdateMetadataPath -or $InstalledUpdateTargetsPath -or $ordinaryPublicMode -or
+        $NativeAccountBindingPath -or $NativeParentOwnsFinish -or $NormalPackageManifestPath -or
+        $NormalPackageAdmissionPath -or $HistoricalBootstrapManifestPath -or
+        $InstalledGameDataConfigurationPath -or $InstalledLibraryBusyHelperPath)) {
+    throw 'Controlled HTTPS fixture requires its separate renderer mode without local metadata, payload substitution, protected account or ordinary-public authority'
+}
+if ($installedUpdate -and (-not $predecessor -or
+        (-not $ControlledPublicUpdate -and (-not $InstalledUpdateMetadataPath -or -not $InstalledUpdateTargetsPath)) -or
+        -not $InstalledUpdateCandidatePath -or
         -not $InstalledUpdatePredecessorVersion -or -not $ExpectedVersion -or -not $RequireSigningAuthorityAbsent)) {
     throw "Installed update qualification requires a predecessor, complete signed repository paths, and absent signing authority"
 }
@@ -639,7 +671,7 @@ if ($HistoricalBootstrapManifestPath) {
     }
     $historicalBootstrap = Read-HistoricalBootstrapManifest $HistoricalBootstrapManifestPath
 }
-$expected = if ($ExpectedExecutablePath) { Get-ExpectedBundledHash (Resolve-Path -LiteralPath $ExpectedExecutablePath).Path } else { $null }
+$expected = if ($ExpectedExecutablePath) { Get-ExpectedBundledHash (Resolve-Path -LiteralPath $ExpectedExecutablePath).Path $ExpectedBinaryPatching $ExpectedExecutableSha256 } else { $null }
 if ($NormalPackageManifestPath) {
     if ($installedUpdate -or $predecessor -or $RendererUpdate -or -not $EvidencePath -or -not $expected -or -not $ExpectedVersion) {
         throw "Current-installed boundary requires an ordinary bootstrap package, expected bytes/version and external evidence"
@@ -1376,18 +1408,28 @@ try {
         $updatePreferences = Join-Path $runRoot "application-update-preferences.json"
         $qualificationStage = Join-Path $runRoot "application-update-qualification-stage.json"
         $trustedRoot = (Resolve-Path -LiteralPath $InstalledUpdateTrustedRootPath).Path
-        $metadata = (Resolve-Path -LiteralPath $InstalledUpdateMetadataPath).Path
-        $targets = (Resolve-Path -LiteralPath $InstalledUpdateTargetsPath).Path
+        $metadata = if ($ControlledPublicUpdate) { $null } else { (Resolve-Path -LiteralPath $InstalledUpdateMetadataPath).Path }
+        $targets = if ($ControlledPublicUpdate) { $null } else { (Resolve-Path -LiteralPath $InstalledUpdateTargetsPath).Path }
         $candidate = (Resolve-Path -LiteralPath $InstalledUpdateCandidatePath).Path
-        $env:PORTCOVE_APPLICATION_UPDATE_BUNDLED_ROOT_FILE = $trustedRoot
-        $env:PORTCOVE_APPLICATION_UPDATE_METADATA_URL = ([Uri]::new($metadata.TrimEnd('\', '/') + '/')).AbsoluteUri
-        $env:PORTCOVE_APPLICATION_UPDATE_TARGETS_URL = ([Uri]::new($targets.TrimEnd('\', '/') + '/')).AbsoluteUri
+        if ($ControlledPublicUpdate) {
+            foreach ($name in @('PORTCOVE_APPLICATION_UPDATE_BUNDLED_ROOT_FILE', 'PORTCOVE_APPLICATION_UPDATE_METADATA_URL', 'PORTCOVE_APPLICATION_UPDATE_TARGETS_URL', 'PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_PAYLOAD')) {
+                # PowerShell 7.5+ converts $null to an empty environment value.
+                # Rust var_os still observes it, selecting the fixture provider.
+                Remove-Item -LiteralPath ('Env:' + $name) -ErrorAction SilentlyContinue
+                if ([Environment]::GetEnvironmentVariables('Process').Contains($name)) { throw "Controlled-public transport override remains present: $name" }
+            }
+            if ($evidence) { $evidence.controlled_public_transport = 'compiled HTTPS metadata and normal GitHub payload transport; no local repository or payload substitute' }
+        } else {
+            $env:PORTCOVE_APPLICATION_UPDATE_BUNDLED_ROOT_FILE = $trustedRoot
+            $env:PORTCOVE_APPLICATION_UPDATE_METADATA_URL = ([Uri]::new($metadata.TrimEnd('\', '/') + '/')).AbsoluteUri
+            $env:PORTCOVE_APPLICATION_UPDATE_TARGETS_URL = ([Uri]::new($targets.TrimEnd('\', '/') + '/')).AbsoluteUri
+        }
         $env:PORTCOVE_APPLICATION_UPDATE_PREFERENCES = $updatePreferences
         $env:PORTCOVE_APPLICATION_UPDATE_SCHEDULE = Join-Path $runRoot "application-update-schedule.json"
         $env:PORTCOVE_APPLICATION_UPDATE_STAGING = $updateRoot
         $env:PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_STAGE = $qualificationStage
         if ($RendererUpdate) {
-            [Environment]::SetEnvironmentVariable("PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_EXIT", $null, "Process")
+            Remove-Item -LiteralPath 'Env:PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_EXIT' -ErrorAction SilentlyContinue
             $env:PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_RELAUNCH_EXIT = "1"
         } else {
             $env:PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_EXIT = "after-reconciliation"
@@ -1511,7 +1553,13 @@ try {
             [IO.Directory]::CreateDirectory($rendererRoot) | Out-Null
             $helperMarker = Join-Path $rendererRoot "helper-process.json"
             $relaunchMarker = Join-Path $rendererRoot "relaunch-process.json"
-            $env:PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_PAYLOAD = $candidate
+            if ($ControlledPublicUpdate) {
+                Remove-Item -LiteralPath 'Env:PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_PAYLOAD' -ErrorAction SilentlyContinue
+                foreach ($name in @('PORTCOVE_APPLICATION_UPDATE_BUNDLED_ROOT_FILE', 'PORTCOVE_APPLICATION_UPDATE_METADATA_URL', 'PORTCOVE_APPLICATION_UPDATE_TARGETS_URL', 'PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_PAYLOAD')) {
+                    if ([Environment]::GetEnvironmentVariables('Process').Contains($name)) { throw "Controlled-public renderer override remains present: $name" }
+                }
+            }
+            else { $env:PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_PAYLOAD = $candidate }
             $env:PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_HELPER_PROCESS = $helperMarker
             $env:PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_RELAUNCH_PROCESS = $relaunchMarker
             $driverPreflight = Join-Path $runRoot "driver-preflight-fixture-env"
@@ -1561,7 +1609,8 @@ try {
             }
             if ($preflightExitCode -ne 0) { throw "Installed predecessor WebDriver fixture-environment preflight failed" }
             if ($evidence) { $evidence.driver_preflight_fixture_env = "passed"; Write-InstallerEvidence "driver_preflight_fixture_env_passed" }
-            $candidateExecutableHash = (Get-FileHash -LiteralPath $ExpectedExecutablePath -Algorithm SHA256).Hash.ToLowerInvariant()
+            $rendererCandidate = Get-ExpectedBundledHash (Resolve-Path -LiteralPath $ExpectedExecutablePath).Path $ExpectedBinaryPatching $expected.raw_sha256
+            $candidateExecutableHash = $rendererCandidate.bundled_sha256
             $rendererArguments = @(
                 (Join-Path $PSScriptRoot "../apps/desktop/scripts/desktop-windows-update-test.mts"),
                 "--app", $application,
@@ -1786,8 +1835,8 @@ try {
         # The next smoke is an ordinary interactive candidate launch. Keep the
         # saved values for the outer finally, but do not let the qualification
         # relaunch's immediate-exit mode suppress its window and close checks.
-        [Environment]::SetEnvironmentVariable("PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_EXIT", $null, "Process")
-        [Environment]::SetEnvironmentVariable("PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_STAGE", $null, "Process")
+        Remove-Item -LiteralPath 'Env:PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_EXIT' -ErrorAction SilentlyContinue
+        Remove-Item -LiteralPath 'Env:PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_STAGE' -ErrorAction SilentlyContinue
     } else {
         $installFlag = if ($InstallMode -eq "Passive") { "/P" } else { "/S" }
         # A predecessor establishes the registered destination. /UPDATE must
@@ -1937,6 +1986,7 @@ try {
 
     }
     $isolatedAccountBoundary=$null
+    $journeyProfilePreservation=$null
     if ($nativeAccount) {
         # Exercise the maintained ordinary client before uninstalling its actual
         # installed image. Every driver/application/WebView root uses the same
@@ -2033,6 +2083,24 @@ try {
         $beforeUninstallManifest=$packageRollback.manifest_after_launch
         Write-InstallerEvidence 'package_rollback_verified' $packageRollback
     }
+    if ($ordinaryPublicMode) {
+        # Derive the same fixed profile used by DesktopNativeAccountSession.runtimeRoot.
+        $journeyRuntime = Join-Path $nativeAccount.binding.work_root ('desktop-' + [IO.Path]::GetFileName($publicOutput))
+        $journeyLibrary = Join-Path $journeyRuntime 'library'
+        $journeyPreferences = Join-Path $journeyRuntime 'preferences.json'
+        Assert-NoReparseAncestry $journeyLibrary
+        Assert-NoReparseAncestry $journeyPreferences
+        if (-not [IO.File]::Exists((Join-Path $journeyLibrary 'portcove.sqlite3'))) {
+            throw 'Ordinary public update profile database is missing before uninstall'
+        }
+        $journeyProfilePreservation = [ordered]@{
+            library_root = $journeyLibrary
+            preferences_path = $journeyPreferences
+            before = Get-PreservationManifest $journeyLibrary $journeyPreferences
+            after = $null
+        }
+        $evidence.journey_profile_preservation = $journeyProfilePreservation
+    }
     Write-InstallerEvidence "uninstalling"
     # NSIS may continue from an exact self-copy below TEMP. The original bytes
     # are journaled before launch; permit only that same image below this run.
@@ -2069,6 +2137,15 @@ try {
     if ((Get-FileHash -LiteralPath $sentinel -Algorithm SHA256).Hash -ne $sentinelHash -or
         -not [System.IO.File]::Exists((Join-Path $libraryRoot "portcove.sqlite3"))) {
         throw "Uninstall did not preserve the isolated library and persistent-data marker"
+    }
+    if ($journeyProfilePreservation) {
+        Assert-NoReparseAncestry $journeyLibrary
+        Assert-NoReparseAncestry $journeyPreferences
+        $journeyProfilePreservation.after = Get-PreservationManifest $journeyLibrary $journeyPreferences
+        if (($journeyProfilePreservation.before | ConvertTo-Json -Depth 6 -Compress) -cne
+            ($journeyProfilePreservation.after | ConvertTo-Json -Depth 6 -Compress)) {
+            throw 'Uninstall changed the ordinary public update library or preferences'
+        }
     }
     $afterUninstallManifest = Get-PreservationManifest $libraryRoot
     if (($beforeUninstallManifest | ConvertTo-Json -Depth 6 -Compress) -ne
@@ -2117,6 +2194,9 @@ try {
         isolated_account_boundary = $isolatedAccountBoundary
         package_rollback = $packageRollback
     }
+    if ($journeyProfilePreservation) {
+        $result | Add-Member -NotePropertyName journey_profile_preservation -NotePropertyValue $journeyProfilePreservation
+    }
     Write-InstallerEvidence "complete" $result
     $result | ConvertTo-Json -Depth 10 -Compress
 }
@@ -2129,13 +2209,15 @@ catch {
 }
 finally {
     foreach ($name in $updateEnvironmentNames) {
-        [Environment]::SetEnvironmentVariable($name, $previousUpdateEnvironment[$name], "Process")
+        if ($null -eq $previousUpdateEnvironment[$name]) { Remove-Item -LiteralPath ('Env:' + $name) -ErrorAction SilentlyContinue }
+        else { [Environment]::SetEnvironmentVariable($name, $previousUpdateEnvironment[$name], "Process") }
     }
     foreach ($name in $previousTemp.Keys) {
         if ($null -eq $previousTemp[$name]) { Remove-Item -LiteralPath "Env:$name" -ErrorAction SilentlyContinue }
         else { [System.Environment]::SetEnvironmentVariable($name, $previousTemp[$name], "Process") }
     }
-    [System.Environment]::SetEnvironmentVariable("PORTCOVE_LIBRARY", $previousLibrary, "Process")
+    if ($null -eq $previousLibrary) { Remove-Item -LiteralPath 'Env:PORTCOVE_LIBRARY' -ErrorAction SilentlyContinue }
+    else { [System.Environment]::SetEnvironmentVariable("PORTCOVE_LIBRARY", $previousLibrary, "Process") }
     if ($completed -and -not $nativeAccount -and [System.IO.Directory]::Exists($runRoot)) {
         $resolvedRunRoot = (Resolve-Path -LiteralPath $runRoot).Path
         if (-not $resolvedRunRoot.StartsWith($expectedPrefix, [System.StringComparison]::OrdinalIgnoreCase)) {

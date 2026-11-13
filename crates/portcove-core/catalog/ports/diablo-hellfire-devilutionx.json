@@ -7,8 +7,9 @@
     "original_game_title": "Diablo: Hellfire",
     "project_url": "https://github.com/diasurgical/DevilutionX",
     "issue_number": 2564,
+    "listed_at": "2026-10-25",
     "availability": "packages",
-    "setup_url": "https://github.com/diasurgical/DevilutionX/blob/7223eeac9e8274fbf665b4de86fda26d3b22c52f/docs/installing.md",
+    "setup_url": "https://github.com/diasurgical/DevilutionX/blob/master/docs/installing.md",
     "artwork": {
       "game_id": 8175,
       "cover_id": 95334,
@@ -20,13 +21,16 @@
     "release_url": "https://github.com/diasurgical/DevilutionX/releases",
     "recommended_download_channel": "stable",
     "download_asset_hints": {
-      "windows-x86-64": ["devilutionx-windows-x86_64.zip"]
+      "windows-x86-64": ["devilutionx-windows-x86_64.zip"],
+      "linux-x86-64": ["devilutionx-linux-x86_64.appimage"],
+      "macos-x86-64": ["devilutionx-macOS-universal.dmg"],
+      "macos-aarch64": ["devilutionx-macOS-universal.dmg"]
     },
     "manual_setup": {
       "steps": [
         {
           "title": "Choose the runtime owner and original set",
-          "instruction": "The managed Windows offer prepares only its reviewed complete original-file set and owns its new private runtime/profile. The following upstream setup steps are the non-owning alternative for other permitted original editions or an existing player. Keep its original files and profile separately; existing registrations are not converted. One entry in a library cannot hold both runtime owners concurrently."
+          "instruction": "The managed Windows and Linux x64 offer prepares only its reviewed complete original-file set and owns its new private runtime/profile. The following upstream setup steps are the non-owning alternative for other permitted original editions or an existing player. Keep its original files and profile separately; existing registrations are not converted. One entry in a library cannot hold both runtime owners concurrently."
         },
         {
           "title": "Use this original game and edition",
@@ -41,13 +45,28 @@
           "instruction": "The Windows data/profile location is normally %APPDATA%/diasurgical/devilution, with upstream portable/path overrides depending on the selected setup. Preserve the actual configuration, character saves and MPQ locations as well as the working copy, with all players closed before changing versions. Diablo and Hellfire modes have different original-data and save semantics. No automatic character conversion or cross-version save guarantee is supplied by registration."
         },
         {
-          "title": "Keep external ownership and deliberate Play",
-          "instruction": "Finish upstream setup first. Registration saves your selected executable, working directory and literal arguments; Play is a separate explicit action. You and upstream own this external runtime, original files and profile. Registration-only removal preserves them. Managed Update, Backup, Rollback, migration and deletion are not offered for these external files. Preserve a working copy and its data before upstream replacement. Other platforms require their own supported upstream application/native flow."
+          "title": "Add the game and manage your files",
+          "instruction": "Finish setup with the project’s tools before adding the game. Portcove saves your selected executable, working folder and launch arguments; choose Play separately when you are ready. You manage this game’s files, original files and profile. Removing its registration leaves those files in place. Portcove does not offer updates, backups, rollback, data migration or file deletion for this external copy. Keep a working copy and its data before changing versions. The Linux reference below separates managed installation from upstream setup. Use the upstream application for the Mac and mobile instructions."
         }
       ],
       "warnings": [],
-      "help_url": "https://github.com/diasurgical/DevilutionX/blob/7223eeac9e8274fbf665b4de86fda26d3b22c52f/README.md"
-    }
+      "help_url": "https://github.com/diasurgical/DevilutionX/blob/master/docs/installing.md",
+      "references": [
+        {
+          "title": "Choose a DevilutionX route on Linux",
+          "instruction": "The managed x86-64 route uses the official AppImage and the original-file chooser. The reviewed AppImage needs glibc 2.34 or later and a working FUSE setup. For a separate upstream-owned copy, make the AppImage executable and supply your matching MPQs in its actual data folder, normally ~/.local/share/diasurgical/devilution. For the x86-64 tar.xz, extract it into a new setup folder with Portcove Download or your archive tool, keep the complete package and start devilutionx.sh. On Linux ARM64 use the separate AArch64 tar.xz, install the needed SDL2 and SDL2_image libraries, and start devilutionx from the extracted folder. Use the game mode that matches your original data."
+        },
+        {
+          "title": "Prepare DevilutionX on Mac",
+          "instruction": "Use the upstream macOS-universal DMG on Intel or Apple Silicon. Copy devilutionX.app out of the image and keep the complete bundle. Put the matching MPQs in ~/Library/Application Support/diasurgical/devilution unless you already use a custom directory. Select Hellfire in the upstream game mode, or use its documented --hellfire argument when launching from a terminal. On either desktop platform, preserve the actual config, character saves and original files, including overrides. The upstream license governs use of the external copy."
+        },
+        {
+          "title": "Prepare DevilutionX on Android, iPhone or iPad",
+          "instruction": "On Android, install the upstream 1.5.5 APK or use Google Play. Use Import Data in the app to choose your files. Import your full Diablo DIABDAT.MPQ and all four Hellfire MPQs listed above, then select Hellfire in the app. The app copies the selected files into its external files directory, usually Android/data/org.diasurgical.devilutionx/files. Keep your originals and preserve that directory’s actual game data, saves and settings before replacing or removing the app. Use the same distribution channel for updates so the Android package signer remains compatible. On iPhone or iPad, use the official 1.5.5 IPA with your own sideloading and signing setup on iOS or iPadOS 13 or later. Open the app once, then close it. Use Finder or iTunes file sharing to copy your owned DIABDAT.MPQ and the four Hellfire MPQs listed above to the app’s Documents folder. Select Hellfire in the app. Keep the Documents folder, including .hsv characters and stashes and the configuration, before changing the installation."
+        }
+      ]
+    },
+    "platforms": ["macos-x86-64", "macos-aarch64"]
   },
   "upstream_lineage": {
     "format_version": 1,
@@ -64,18 +83,20 @@
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],
-    "platforms": ["windows-x86-64"],
+    "platforms": ["windows-x86-64", "linux-x86-64"],
     "adapter": "native-portable",
     "automated_tested_platforms": [],
     "manually_validated_platforms": [],
     "release": {
       "repository": "diasurgical/DevilutionX",
       "asset_hints": {
-        "windows-x86-64": ["devilutionx-windows-x86_64.zip"]
+        "windows-x86-64": ["devilutionx-windows-x86_64.zip"],
+        "linux-x86-64": ["devilutionx-linux-x86_64.appimage"]
       }
     },
     "executable_hints": {
-      "windows-x86-64": ["devilutionx.exe"]
+      "windows-x86-64": ["devilutionx.exe"],
+      "linux-x86-64": ["devilutionx.AppImage"]
     },
     "windows_runtime_path_policy": "relative-file-max-path",
     "source_profile": "diablo-hellfire-devilutionx-originals",

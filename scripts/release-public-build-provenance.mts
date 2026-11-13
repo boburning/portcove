@@ -1,23 +1,36 @@
+import {
+  inspectPublicBuildConfiguration,
+  inspectPublicBuildInputBinding,
+  maximumArchiveBytes,
+} from "./release-public-build-binding-contract.mts";
+export {
+  inspectPublicBuildConfiguration,
+  inspectPublicBuildInputBinding,
+} from "./release-public-build-binding-contract.mts";
+import { nativePlatformsForReleaseProfile } from "./release-package-policy.mts";
 import { createHash } from "node:crypto";
 import { crc32, inflateRawSync } from "node:zlib";
 import { mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { isDeepStrictEqual } from "node:util";
 import { inspectBoundedZip } from "./bounded-zip.mts";
-import { readGitHubArtifactArchive } from "./github-binary.mts";
+import { performance } from "node:perf_hooks";
+import { downloadGitHubArtifactArchive } from "./github-artifact-download.mts";
+import { localDeveloperCredential } from "./github-cli.mts";
+import { assertTrustedDirectNode } from "./release-direct-node-transport.mts";
+import { coordinatorCommandDeadline } from "./release-coordinator-deadline.mts";
+import { readOnlyReleaseChildEnvironment } from "./release-readonly-child-environment.mts";
+import type { GitHubCredential } from "./github-client.mts";
+import type { SigningArchiveDownload } from "./release-signing-handoff.mts";
 import { releaseBuildArtifactName } from "./release-package-policy.mts";
-import { isRecord } from "./runtime-values.mts";
 import {
-  inspectPublicBuildInputIdentity,
   prepareReleasePublicBuildInputs,
   readBoundedPublicBuildInputFile,
 } from "./release-public-build-inputs.mts";
 import type { collectReleaseRunEvidence } from "./release-run-evidence.mts";
 import { CoordinatorRemoteError } from "./release-coordinator-errors.mts";
 
-type Evidence = ReturnType<typeof collectReleaseRunEvidence>;
-const labels = ["linux-x86_64", "windows-x86_64"];
-const maximumArchiveBytes = 1024 * 1024;
+type Evidence = Awaited<ReturnType<typeof collectReleaseRunEvidence>>;
 const maximumExpandedBytes = 512 * 1024;
 const members = new Map([
   ["root.json", 256 * 1024],
@@ -31,6 +44,7 @@ const verifiedPublicInputs = new WeakMap<
   object,
   {
     snapshot: string;
+    release_profile: "initial-beta-win-linux" | "initial-beta-windows-x86_64-v1";
     directory: string;
     artifacts: { platform: string; bytes: number; sha256: string }[];
   }
@@ -89,7 +103,10 @@ export async function readVerifiedReleasePublicBuildInputFiles(receipt: object) 
       throw new Error("actual public input roots/configuration differ across platforms");
     common = selected;
   }
-  if (!common || retained.artifacts.length !== labels.length)
+  if (
+    !common ||
+    retained.artifacts.length !== nativePlatformsForReleaseProfile(retained.release_profile).length
+  )
     throw new Error("actual complete public input matrix missing");
   return common;
 }
@@ -118,68 +135,13 @@ export function releasePublicBuildArtifactName(platform: string, runId: string, 
   );
 }
 
-export function inspectPublicBuildConfiguration(raw: unknown) {
-  if (
-    !isRecord(raw) ||
-    Object.keys(raw).sort().join(",") !== "configuration_revision,manifest_sha256"
-  )
-    throw new Error("public build configuration requires independent exact identities");
-  inspectPublicBuildInputIdentity(raw.configuration_revision, raw.manifest_sha256);
-  return {
-    configuration_revision: String(raw.configuration_revision),
-    manifest_sha256: String(raw.manifest_sha256),
-  };
-}
-
-export function inspectPublicBuildInputBinding(raw: unknown) {
-  if (
-    !isRecord(raw) ||
-    Object.keys(raw).sort().join(",") !== "artifacts,configuration_revision,manifest_sha256"
-  )
-    throw new Error("public build input binding schema differs");
-  const configuration = inspectPublicBuildConfiguration({
-    configuration_revision: raw.configuration_revision,
-    manifest_sha256: raw.manifest_sha256,
-  });
-  if (!Array.isArray(raw.artifacts) || raw.artifacts.length !== labels.length)
-    throw new Error("public build inputs require the complete selected platform matrix");
-  const artifacts = raw.artifacts
-    .map((item) => {
-      if (
-        !isRecord(item) ||
-        Object.keys(item).sort().join(",") !== "artifact_id,bytes,platform,sha256" ||
-        typeof item.platform !== "string" ||
-        !labels.includes(item.platform) ||
-        typeof item.artifact_id !== "number" ||
-        !Number.isSafeInteger(item.artifact_id) ||
-        item.artifact_id < 1 ||
-        typeof item.bytes !== "number" ||
-        !Number.isSafeInteger(item.bytes) ||
-        item.bytes < 22 ||
-        item.bytes > maximumArchiveBytes ||
-        typeof item.sha256 !== "string" ||
-        !/^[a-f0-9]{64}$/u.test(item.sha256)
-      )
-        throw new Error("public build artifact identity exceeds its bounds");
-      return {
-        platform: item.platform,
-        artifact_id: item.artifact_id,
-        bytes: item.bytes,
-        sha256: item.sha256,
-      };
-    })
-    .sort((a, b) => a.platform.localeCompare(b.platform));
-  if (
-    new Set(artifacts.map((item) => item.platform)).size !== labels.length ||
-    new Set(artifacts.map((item) => item.artifact_id)).size !== labels.length
-  )
-    throw new Error("public build artifact matrix is duplicated");
-  return { ...configuration, artifacts };
-}
 export type PublicBuildInputBinding = ReturnType<typeof inspectPublicBuildInputBinding>;
 
 export function selectPublicBuildInputBinding(rawConfiguration: unknown, evidence: Evidence) {
   const configuration = inspectPublicBuildConfiguration(rawConfiguration);
+  const labels = [
+    ...nativePlatformsForReleaseProfile(configuration.release_profile ?? "initial-beta-win-linux"),
+  ].sort();
   return inspectPublicBuildInputBinding({
     ...configuration,
     artifacts: labels.map((platform) => {
@@ -244,6 +206,13 @@ export function requireStablePublicBuildInputEvidence(
     throw new Error("public build input provider evidence changed during collection");
 }
 
+export function publicBuildReadCredential(deadline: number): GitHubCredential {
+  const scoped = readOnlyReleaseChildEnvironment();
+  return scoped
+    ? { kind: "explicit", token: scoped.GH_TOKEN ?? "" }
+    : localDeveloperCredential({ environment: { ...process.env }, deadline });
+}
+
 /** Verify PUBLIC configuration provenance only. No compiler/package-content,
  * semantic acceptance, signing, publication or execution claim is established.
  * The caller obtains evidence using the existing source/tree/workflow collector
@@ -252,21 +221,57 @@ export async function verifyReleasePublicBuildInputs(
   privateRoot: string,
   rawBinding: unknown,
   evidence: Evidence,
-  options: { download?: typeof readGitHubArtifactArchive | undefined } = {},
+  options: {
+    download?: SigningArchiveDownload | undefined;
+    deadline?: number | undefined;
+    credential?: GitHubCredential | undefined;
+    lookup?: () => NonNullable<Parameters<typeof downloadGitHubArtifactArchive>[1]["lookup"]>;
+  } = {},
 ) {
+  const { download, deadline: callerDeadline, lookup } = options;
+  const deadline = Math.min(callerDeadline ?? Infinity, coordinatorCommandDeadline() ?? Infinity);
+  const scoped = readOnlyReleaseChildEnvironment() !== undefined;
+  let credential = options.credential;
   const binding = inspectPublicBuildInputBinding(structuredClone(rawBinding));
   evidence = structuredClone(evidence);
   requirePublicBuildInputProviderBinding(binding, evidence);
+  if (!download)
+    credential ??= publicBuildReadCredential(Math.min(deadline, performance.now() + 120000));
   const directory = await mkdtemp(path.join(path.resolve(privateRoot), "public-build-provenance-"));
   let phase = "download";
   try {
     const receipts = [];
     const compilerInputs = [];
     for (const item of binding.artifacts) {
-      const received = (options.download ?? readGitHubArtifactArchive)(
-        `repos/boburning/portcove/actions/artifacts/${item.artifact_id}/zip`,
-        { cwd: directory, maxBytes: item.bytes, timeoutMs: 120000 },
-      );
+      phase = "download";
+      const transferDeadline = Math.min(deadline, performance.now() + 120000);
+      const timeoutMs = Math.floor(transferDeadline - performance.now());
+      if (!Number.isFinite(timeoutMs) || timeoutMs < 1)
+        throw new Error("public build artifact deadline exhausted");
+      const endpoint = `repos/boburning/portcove/actions/artifacts/${item.artifact_id}/zip`;
+      const received = download
+        ? await download(endpoint, {
+            cwd: directory,
+            maxBytes: item.bytes,
+            timeoutMs,
+            ...(lookup ? { lookup: lookup() } : {}),
+          })
+        : await downloadGitHubArtifactArchive(endpoint, {
+            credential: credential!,
+            deadline: transferDeadline,
+            maxBytes: item.bytes,
+            ...(scoped
+              ? {
+                  fetch(input, init) {
+                    assertTrustedDirectNode("public build archive");
+                    return globalThis.fetch(input, init);
+                  },
+                }
+              : {}),
+            ...(lookup ? { lookup: lookup() } : {}),
+          });
+      if (performance.now() >= transferDeadline)
+        throw new Error("public build artifact deadline exhausted");
       if (
         !Buffer.isBuffer(received) ||
         received.length !== item.bytes ||
@@ -325,14 +330,15 @@ export async function verifyReleasePublicBuildInputs(
       binding,
       receipts,
       compiler_inputs: compilerInputs,
-      evidence_scope: options.download ? "injected-provider" : "github.com",
+      evidence_scope: download ? "injected-provider" : "github.com",
       scope:
         "public configuration bytes and archive provenance only; no compiler-content or execution claim",
       authority: "none",
     };
-    if (!options.download)
+    if (!download)
       verifiedPublicInputs.set(result, {
         snapshot: digest(Buffer.from(JSON.stringify(result))),
+        release_profile: binding.release_profile ?? "initial-beta-win-linux",
         directory,
         artifacts: binding.artifacts.map(({ platform, bytes, sha256 }) => ({
           platform,

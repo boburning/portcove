@@ -17,9 +17,12 @@ use crate::{
 
 #[cfg(test)]
 #[path = "retained_build_tests.rs"]
-mod tests;
+pub(crate) mod tests;
 
 pub(crate) const MAX_REFERENCES: usize = 4096;
+/// Superseded builds one setup may keep offered for recovery. Reaching the bound
+/// never discards retention silently; the player retires a revision explicitly.
+pub const MAX_OFFERED_REVISIONS: usize = 16;
 const MAX_REFERENCE_BYTES: usize = 64 * 1024;
 
 /// Immutable identity only. Paths, version labels, and active selection are not keys.
@@ -61,8 +64,44 @@ pub struct RetainedBuildReference {
     /// timestamps alone cannot invalidate approvals after an A-to-B-to-A change.
     pub revision: u64,
     pub build: RetainedBuildIdentity,
+    /// Former bindings still offered as recovery targets. Rebinding `build` keeps
+    /// each superseded exact build protected until it is explicitly retired.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub history: Vec<RetainedBuildRevision>,
     pub created_at: i64,
     pub updated_at: i64,
+}
+
+impl RetainedBuildReference {
+    /// Every exact build this setup keeps: the current binding, then offered history.
+    pub(crate) fn retained_builds(&self) -> impl Iterator<Item = &RetainedBuildIdentity> {
+        std::iter::once(&self.build).chain(self.history.iter().map(|entry| &entry.build))
+    }
+}
+
+/// A superseded binding. `revision` is the binding revision it held while current.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct RetainedBuildRevision {
+    pub revision: u64,
+    pub build: RetainedBuildIdentity,
+    pub superseded_at: i64,
+}
+
+/// Current availability of one offered recovery target.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct RetainedBuildHistoryResolution {
+    pub revision: RetainedBuildRevision,
+    pub availability: RetainedBuildAvailability,
+    pub install: Option<InstallRecord>,
+    pub gap: Option<RetainedBuildGap>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct RetainedBuildRetirementPreview {
+    pub setup_id: String,
+    pub revision: RetainedBuildRevision,
+    pub preview_sha256: String,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
@@ -101,6 +140,8 @@ pub struct RetainedBuild {
     pub availability: RetainedBuildAvailability,
     pub gap: Option<RetainedBuildGap>,
     pub retained_by: Vec<String>,
+    /// Setups keeping this build only as an offered recovery target.
+    pub offered_by: Vec<String>,
 }
 
 /// A verified observation, not permission to launch. Consumers must use the
@@ -111,6 +152,7 @@ pub struct RetainedBuildResolution {
     pub availability: RetainedBuildAvailability,
     pub install: Option<InstallRecord>,
     pub gap: Option<RetainedBuildGap>,
+    pub history: Vec<RetainedBuildHistoryResolution>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
@@ -165,6 +207,14 @@ impl PortcoveService {
                     .filter(|r| r.build.install_id == install.id)
                     .map(|r| r.setup_id.clone())
                     .collect(),
+                offered_by: references
+                    .iter()
+                    .filter(|r| {
+                        r.build.install_id != install.id
+                            && r.history.iter().any(|h| h.build.install_id == install.id)
+                    })
+                    .map(|r| r.setup_id.clone())
+                    .collect(),
                 install,
                 identity,
                 availability,
@@ -197,21 +247,47 @@ impl PortcoveService {
         &self,
         reference: RetainedBuildReference,
     ) -> Result<RetainedBuildResolution> {
-        let install = Library::install_by_id(
-            &self.library.connection()?,
-            Some(&reference.build.install_id),
-        )?;
+        let (availability, install, gap) = self.resolve_build_identity(&reference.build)?;
+        let history = reference
+            .history
+            .iter()
+            .map(|revision| {
+                let (availability, install, gap) = self.resolve_build_identity(&revision.build)?;
+                Ok(RetainedBuildHistoryResolution {
+                    revision: revision.clone(),
+                    availability,
+                    install,
+                    gap,
+                })
+            })
+            .collect::<Result<_>>()?;
+        Ok(RetainedBuildResolution {
+            reference,
+            availability,
+            install,
+            gap,
+            history,
+        })
+    }
+
+    fn resolve_build_identity(
+        &self,
+        build: &RetainedBuildIdentity,
+    ) -> Result<(
+        RetainedBuildAvailability,
+        Option<InstallRecord>,
+        Option<RetainedBuildGap>,
+    )> {
+        let install = Library::install_by_id(&self.library.connection()?, Some(&build.install_id))?;
         let result = match install.as_ref() {
             None => Err(PortcoveError::not_found(
                 "referenced installation record is missing",
             )),
-            Some(install) if !reference.build.matches_install(install) => {
-                Err(PortcoveError::verification(
-                    "referenced installation identity changed; no other build was selected",
-                ))
-            }
+            Some(install) if !build.matches_install(install) => Err(PortcoveError::verification(
+                "referenced installation identity changed; no other build was selected",
+            )),
             Some(install) => self.check_retained_build(install).and_then(|identity| {
-                if identity == reference.build {
+                if identity == *build {
                     Ok(())
                 } else {
                     Err(PortcoveError::verification(
@@ -220,17 +296,9 @@ impl PortcoveService {
                 }
             }),
         };
-        let (availability, gap) = match result {
-            Ok(()) => (RetainedBuildAvailability::Verified, None),
-            Err(error) => (availability_for_error(&error), Some(error.into())),
-        };
-        Ok(RetainedBuildResolution {
-            reference,
-            availability,
-            install: (availability == RetainedBuildAvailability::Verified)
-                .then_some(install)
-                .flatten(),
-            gap,
+        Ok(match result {
+            Ok(()) => (RetainedBuildAvailability::Verified, install, None),
+            Err(error) => (availability_for_error(&error), None, Some(error.into())),
         })
     }
 
@@ -309,6 +377,7 @@ impl PortcoveService {
             })?;
         let build = self.check_retained_build(&install)?;
         let previous = reference_from(&connection, port_id, setup_id)?;
+        successor_history(previous.as_ref(), &build, 0)?;
         let preview_sha256 = digest(&(setup_id, &build, &previous))?;
         Ok(RetainedBuildBindingPreview {
             setup_id: setup_id.into(),
@@ -358,8 +427,48 @@ impl PortcoveService {
             .ok_or_else(|| PortcoveError::state("retained-build review was not consumed"))?;
         let mut connection = self.library.connection()?;
         let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
-        require_idle(&transaction, port_id)?;
-        if reference_from(&transaction, port_id, setup_id)? != preview.previous {
+        let reference = self.publish_binding(
+            &transaction,
+            port_id,
+            setup_id,
+            install_id,
+            preview.build,
+            preview.previous.as_ref(),
+        )?;
+        transaction.commit()?;
+        self.reference_committed(&reference)?;
+        Ok(reference)
+    }
+
+    /// Verifies one exact build outside any transaction, as binding review does.
+    pub(crate) fn verified_retained_build(
+        &self,
+        port_id: &str,
+        install_id: &str,
+    ) -> Result<RetainedBuildIdentity> {
+        validate_identifier(port_id, "port ID")?;
+        let install = Library::install_by_id(&self.library.connection()?, Some(install_id))?
+            .filter(|install| install.port_id == port_id)
+            .ok_or_else(|| {
+                PortcoveError::not_found("exact installation ID is not registered for this port")
+            })?;
+        self.check_retained_build(&install)
+    }
+
+    /// Writes the next binding inside the caller's immediate transaction, leaving the
+    /// commit to the caller so related durable rows publish atomically with it. The
+    /// caller holds the port lock and supplies the previous reference it reviewed.
+    pub(crate) fn publish_binding(
+        &self,
+        transaction: &rusqlite::Transaction<'_>,
+        port_id: &str,
+        setup_id: &str,
+        install_id: &str,
+        build: RetainedBuildIdentity,
+        previous: Option<&RetainedBuildReference>,
+    ) -> Result<RetainedBuildReference> {
+        require_idle(transaction, port_id)?;
+        if reference_from(transaction, port_id, setup_id)?.as_ref() != previous {
             return Err(PortcoveError::conflict(
                 "setup reference changed after review",
             ));
@@ -367,7 +476,7 @@ impl PortcoveService {
         // Serialize the final current-policy decision with durable publication.
         // Policy admissions use this same SQLite writer boundary. The port lock
         // already protects ordinary managed byte changes during verification.
-        let install = Library::install_by_id(&transaction, Some(install_id))?
+        let install = Library::install_by_id(transaction, Some(install_id))?
             .ok_or_else(|| PortcoveError::conflict("referenced installation disappeared"))?;
         let installer = Installer::new(self.library.clone())?;
         let catalog = installer.retained_catalog(&install)?.ok_or_else(|| {
@@ -375,31 +484,31 @@ impl PortcoveService {
         })?;
         self.require_retained_build_permission(&installer, &install, &catalog)?;
         let now = Library::now();
+        let history = successor_history(previous, &build, now)?;
         let reference = RetainedBuildReference {
-            id: preview
-                .previous
-                .as_ref()
-                .map_or_else(|| uuid::Uuid::new_v4().to_string(), |r| r.id.clone()),
+            id: previous.map_or_else(|| uuid::Uuid::new_v4().to_string(), |r| r.id.clone()),
             setup_id: setup_id.into(),
-            build: preview.build,
-            revision: preview
-                .previous
-                .as_ref()
+            build,
+            history,
+            revision: previous
                 .map_or(Some(1), |r| r.revision.checked_add(1))
                 .ok_or_else(|| {
                     PortcoveError::state("retained-build reference revision exhausted")
                 })?,
-            created_at: preview.previous.as_ref().map_or(now, |r| r.created_at),
-            updated_at: preview
-                .previous
-                .as_ref()
-                .map_or(now, |r| now.max(r.updated_at)),
+            created_at: previous.map_or(now, |r| r.created_at),
+            updated_at: previous.map_or(now, |r| now.max(r.updated_at)),
         };
-        write_reference(&transaction, &reference)?;
+        write_reference(transaction, &reference)?;
         self.reference_publication_checkpoint()?;
-        transaction.commit()?;
-        self.reference_committed(&reference)?;
         Ok(reference)
+    }
+
+    pub(crate) fn current_retained_reference(
+        &self,
+        port_id: &str,
+        setup_id: &str,
+    ) -> Result<Option<RetainedBuildReference>> {
+        reference_from(&self.library.connection()?, port_id, setup_id)
     }
 
     pub fn preview_retained_build_removal(
@@ -465,6 +574,87 @@ impl PortcoveService {
         Ok(reference)
     }
 
+    pub fn preview_retained_build_revision_retirement(
+        &self,
+        port_id: &str,
+        setup_id: &str,
+        revision: u64,
+    ) -> Result<RetainedBuildRetirementPreview> {
+        let connection = self.library.connection()?;
+        require_idle(&connection, port_id)?;
+        let reference = reference_from(&connection, port_id, setup_id)?
+            .ok_or_else(|| PortcoveError::not_found("setup has no retained-build reference"))?;
+        let entry = reference
+            .history
+            .iter()
+            .find(|entry| entry.revision == revision)
+            .cloned()
+            .ok_or_else(|| {
+                PortcoveError::not_found("setup has no offered recovery revision with that number")
+            })?;
+        let preview_sha256 = digest(&(&entry, reference.revision))?;
+        Ok(RetainedBuildRetirementPreview {
+            setup_id: setup_id.into(),
+            revision: entry,
+            preview_sha256,
+        })
+    }
+
+    pub fn authorize_retained_build_revision_retirement(
+        &self,
+        port_id: &str,
+        setup_id: &str,
+        revision: u64,
+        expected_preview: &str,
+    ) -> Result<crate::DestructiveAuthorization> {
+        let preview =
+            self.preview_retained_build_revision_retirement(port_id, setup_id, revision)?;
+        require_preview(&preview.preview_sha256, expected_preview)?;
+        self.library.issue_authorization(
+            "retire_retained_build_revision",
+            &revision_target(port_id, setup_id, revision)?,
+            expected_preview,
+        )
+    }
+
+    /// Stops offering one superseded build for recovery. Metadata only: the build's
+    /// bytes become eligible for ordinary cleanup, and progress is never touched.
+    pub fn retire_retained_build_revision(
+        &self,
+        port_id: &str,
+        setup_id: &str,
+        revision: u64,
+        token: &str,
+    ) -> Result<RetainedBuildRevision> {
+        let _guard = self
+            .library
+            .try_lock_port(port_id, "retire-retained-build-revision")?;
+        let mut connection = self.library.connection()?;
+        let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
+        require_idle(&transaction, port_id)?;
+        let mut reference = reference_from(&transaction, port_id, setup_id)?
+            .ok_or_else(|| PortcoveError::not_found("setup has no retained-build reference"))?;
+        let position = reference
+            .history
+            .iter()
+            .position(|entry| entry.revision == revision)
+            .ok_or_else(|| {
+                PortcoveError::not_found("setup has no offered recovery revision with that number")
+            })?;
+        self.library.consume_authorization(
+            token,
+            "retire_retained_build_revision",
+            &revision_target(port_id, setup_id, revision)?,
+            &digest(&(&reference.history[position], reference.revision))?,
+        )?;
+        let retired = reference.history.remove(position);
+        write_reference(&transaction, &reference)?;
+        self.reference_publication_checkpoint()?;
+        transaction.commit()?;
+        self.reference_committed(&reference)?;
+        Ok(retired)
+    }
+
     fn reference_publication_checkpoint(&self) -> Result<()> {
         self.check_lifecycle_fault(LifecycleFaultPoint::RetainedBuildBeforeCommit)?;
         if self.cancellation_requested.load(Ordering::SeqCst) {
@@ -511,6 +701,42 @@ fn target(port_id: &str, setup_id: &str) -> Result<String> {
     Ok(serde_json::to_string(&(port_id, setup_id))?)
 }
 
+fn revision_target(port_id: &str, setup_id: &str, revision: u64) -> Result<String> {
+    validate_identifier(port_id, "port ID")?;
+    validate_identifier(setup_id, "setup ID")?;
+    Ok(serde_json::to_string(&(port_id, setup_id, revision))?)
+}
+
+/// Superseding a binding offers the former build for recovery; re-binding an
+/// offered build promotes it back instead of duplicating it. Same-build rebinding
+/// keeps history unchanged.
+fn successor_history(
+    previous: Option<&RetainedBuildReference>,
+    build: &RetainedBuildIdentity,
+    now: i64,
+) -> Result<Vec<RetainedBuildRevision>> {
+    let Some(previous) = previous else {
+        return Ok(Vec::new());
+    };
+    let mut history = previous.history.clone();
+    history.retain(|entry| entry.build.install_id != build.install_id);
+    if previous.build.install_id != build.install_id {
+        history.push(RetainedBuildRevision {
+            revision: previous.revision,
+            build: previous.build.clone(),
+            superseded_at: now.max(previous.updated_at),
+        });
+    }
+    if history.len() > MAX_OFFERED_REVISIONS {
+        return Err(PortcoveError::conflict(
+            "this setup already offers the maximum number of recovery builds; retire one explicitly before binding another",
+        )
+        .detail("setup_id", &previous.setup_id)
+        .detail("limit", MAX_OFFERED_REVISIONS.to_string()));
+    }
+    Ok(history)
+}
+
 fn digest(value: &impl Serialize) -> Result<String> {
     Ok(hex::encode(Sha256::digest(serde_json::to_vec(value)?)))
 }
@@ -546,20 +772,50 @@ pub(crate) fn validate_reference(reference: &RetainedBuildReference) -> Result<(
         || reference.revision == 0
         || reference.created_at < 0
         || reference.updated_at < reference.created_at
-        || [
-            &reference.build.artifact.sha256,
-            &reference.build.manifest_sha256,
-            &reference.build.installed_contract_sha256,
-        ]
-        .iter()
-        .any(|hash| hash.len() != 64 || !hash.bytes().all(|b| b.is_ascii_hexdigit()))
+        || reference.history.len() > MAX_OFFERED_REVISIONS
+        || reference.retained_builds().any(|build| {
+            [
+                &build.artifact.sha256,
+                &build.manifest_sha256,
+                &build.installed_contract_sha256,
+            ]
+            .iter()
+            .any(|hash| hash.len() != 64 || !hash.bytes().all(|b| b.is_ascii_hexdigit()))
+        })
         || serde_json::to_vec(reference)?.len() > MAX_REFERENCE_BYTES
     {
         return Err(PortcoveError::verification(
             "retained-build reference has an invalid or oversized identity",
         ));
     }
-    crate::portability::portable_relative(&reference.build.selected_executable)?;
+    let mut installs = std::collections::BTreeSet::new();
+    for build in reference.retained_builds() {
+        validate_identifier(&build.install_id, "installation ID")?;
+        if build.port_id != reference.build.port_id || !installs.insert(&build.install_id) {
+            return Err(PortcoveError::verification(
+                "retained-build history must name distinct builds of the same port",
+            ));
+        }
+        crate::portability::portable_relative(&build.selected_executable)?;
+    }
+    if reference
+        .history
+        .windows(2)
+        .any(|pair| pair[0].revision >= pair[1].revision)
+    {
+        return Err(PortcoveError::verification(
+            "retained-build history revisions must be unique and increasing",
+        ));
+    }
+    if reference
+        .history
+        .iter()
+        .any(|entry| entry.revision >= reference.revision)
+    {
+        return Err(PortcoveError::verification(
+            "retained-build history must predate the current binding",
+        ));
+    }
     Ok(())
 }
 
@@ -636,14 +892,16 @@ pub(crate) fn restore_references(
 
 fn write_reference(connection: &Connection, reference: &RetainedBuildReference) -> Result<()> {
     validate_reference(reference)?;
-    let install = Library::install_by_id(connection, Some(&reference.build.install_id))?
-        .ok_or_else(|| {
-            PortcoveError::conflict("referenced installation is no longer registered")
-        })?;
-    if !reference.build.matches_install(&install) || !install.verified {
-        return Err(PortcoveError::conflict(
-            "referenced installation changed before metadata publication",
-        ));
+    for build in reference.retained_builds() {
+        let install =
+            Library::install_by_id(connection, Some(&build.install_id))?.ok_or_else(|| {
+                PortcoveError::conflict("referenced installation is no longer registered")
+            })?;
+        if !build.matches_install(&install) || !install.verified {
+            return Err(PortcoveError::conflict(
+                "referenced installation changed before metadata publication",
+            ));
+        }
     }
     let count: usize = connection.query_row(
         "SELECT count(*) FROM retained_build_references",
@@ -690,13 +948,15 @@ fn require_idle(connection: &Connection, port_id: &str) -> Result<()> {
 }
 
 pub(crate) fn require_no_references(connection: &Connection, port_id: &str) -> Result<()> {
-    let mut statement = connection.prepare(
-        "SELECT setup_id FROM retained_build_references WHERE port_id=?1
-         OR install_id IN (SELECT id FROM installs WHERE port_id=?1) ORDER BY setup_id",
-    )?;
-    let setups = statement
-        .query_map([port_id], |row| row.get::<_, String>(0))?
-        .collect::<std::result::Result<Vec<_>, _>>()?;
+    let setups = references_from(connection)?
+        .into_iter()
+        .filter(|reference| {
+            reference
+                .retained_builds()
+                .any(|build| build.port_id == port_id)
+        })
+        .map(|reference| reference.setup_id)
+        .collect::<Vec<_>>();
     if !setups.is_empty() {
         return Err(PortcoveError::conflict("managed builds are retained by setups; explicitly remove their references before cleanup")
             .detail("port_id", port_id).detail("setup_ids", setups.join(", ")));
@@ -708,11 +968,11 @@ pub(crate) fn require_unchanged_install(
     connection: &Connection,
     install: &InstallRecord,
 ) -> Result<()> {
-    for reference in references_from(connection)?
-        .iter()
-        .filter(|r| r.build.install_id == install.id)
-    {
-        if !reference.build.matches_install(install) {
+    for reference in references_from(connection)? {
+        if reference
+            .retained_builds()
+            .any(|build| build.install_id == install.id && !build.matches_install(install))
+        {
             return Err(PortcoveError::conflict(
                 "cannot replace the exact identity of a referenced build",
             )
@@ -727,13 +987,14 @@ pub(crate) fn require_unreferenced_install(
     connection: &Connection,
     install_id: &str,
 ) -> Result<()> {
-    let setup: Option<String> = connection
-        .query_row(
-            "SELECT setup_id FROM retained_build_references WHERE install_id=?1 LIMIT 1",
-            [install_id],
-            |row| row.get(0),
-        )
-        .optional()?;
+    let setup = references_from(connection)?
+        .into_iter()
+        .find(|reference| {
+            reference
+                .retained_builds()
+                .any(|build| build.install_id == install_id)
+        })
+        .map(|reference| reference.setup_id);
     if let Some(setup) = setup {
         return Err(PortcoveError::conflict("referenced exact build cannot refresh its manifest; explicitly remove its setup reference first")
             .detail("setup_id", setup).detail("install_id", install_id));

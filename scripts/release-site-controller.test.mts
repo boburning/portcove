@@ -8,7 +8,7 @@ import {
   inspectSitePublicationReservation,
   runSitePublicationController,
 } from "./release-site-controller.mts";
-import { siteOriginalJobDeadline } from "./release-site-job-budget.mts";
+import { currentSiteJobDeadline, siteOriginalJobDeadline } from "./release-site-job-budget.mts";
 import { launchFixedSiteController } from "./release-site-launch.mts";
 import { prepareSiteDeploymentFromActualTufPublication } from "./release-site-deployment.mts";
 
@@ -101,6 +101,75 @@ void test("Pages job budget counts prior setup and refuses partial, duplicate, w
     assert.throws(() => siteOriginalJobDeadline(bad, identity, start + 35000, 1000));
   for (const now of [start - 1, start + 290000, NaN])
     assert.throws(() => siteOriginalJobDeadline(raw, identity, now, 1000));
+});
+void test("fixed Pages clock uses one scoped SDK read and refuses an incomplete observation", async (t) => {
+  const identity = {
+    run_id: "123",
+    run_attempt: 1,
+    controller_revision: "a".repeat(40),
+    controller_ref: "refs/heads/main",
+  };
+  const environment = {
+    GH_TOKEN: "ghs_SYNTHETIC_SITE_READER",
+    GITHUB_RUN_ID: identity.run_id,
+    GITHUB_RUN_ATTEMPT: "1",
+    GITHUB_SHA: identity.controller_revision,
+    GITHUB_REF: identity.controller_ref,
+  };
+  for (const [key, value] of Object.entries(environment)) {
+    const previous = process.env[key];
+    process.env[key] = value;
+    t.after(() => {
+      if (previous === undefined) delete process.env[key];
+      else process.env[key] = previous;
+    });
+  }
+  let next = false;
+  const fetcher = t.mock.method(
+    globalThis,
+    "fetch",
+    async (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
+      assert.ok(typeof input === "string");
+      const url = new URL(input);
+      assert.equal(url.origin, "https://api.github.com");
+      assert.equal(url.pathname, "/repos/boburning/portcove/actions/runs/123/attempts/1/jobs");
+      assert.equal(url.searchParams.get("per_page"), "100");
+      assert.equal(
+        new Headers(init?.headers).get("authorization"),
+        "token " + environment.GH_TOKEN,
+      );
+      const headers = next
+        ? { link: `<${url.origin}${url.pathname}?per_page=100&page=2>; rel="next"` }
+        : {};
+      return Response.json(
+        {
+          total_count: 1,
+          jobs: [
+            {
+              id: 77,
+              run_id: 123,
+              run_attempt: 1,
+              head_sha: identity.controller_revision,
+              name: "Publish authenticated application site",
+              status: "in_progress",
+              started_at: new Date(Date.now() - 35000).toISOString(),
+            },
+          ],
+        },
+        { headers },
+      );
+    },
+  );
+  const deadline = performance.now() + 10000;
+  assert.equal(await currentSiteJobDeadline(identity, deadline), deadline);
+  assert.equal(fetcher.mock.callCount(), 1);
+  next = true;
+  await assert.rejects(currentSiteJobDeadline(identity, deadline), /observation unavailable/u);
+  await assert.rejects(
+    currentSiteJobDeadline(identity, performance.now() - 1),
+    /budget exhausted/u,
+  );
+  assert.equal(fetcher.mock.callCount(), 2);
 });
 void test("fixed verified Pages launcher refuses copied fields and expired phase before provider IO", async () => {
   await assert.rejects(launchFixedSiteController({}, path.resolve("unused")), /fields differ/u);

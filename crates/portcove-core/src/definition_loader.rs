@@ -48,6 +48,8 @@ pub(crate) fn validate_definition_transition(
     if baseline_order != candidate_order {
         return Err(out_of_scope("unrelated port ordering changed"));
     }
+    validate_acquisition_hold_transition(&baseline.ports, &candidate.ports, selected_port_id)?;
+    validate_package_layout_transition(&baseline.ports, &candidate.ports, selected_port_id)?;
 
     match (
         baseline.source_catalog.as_ref(),
@@ -58,6 +60,72 @@ pub(crate) fn validate_definition_transition(
             validate_source_transition(baseline, candidate, selected_port_id)
         }
         _ => Err(out_of_scope("source authority presence changed")),
+    }
+}
+
+/// A selected definition may keep or narrow an existing managed acquisition
+/// hold, but never remove it or allow an artifact the baseline did not review.
+/// Clearing a hold is a reviewed catalog change shipped with the application.
+fn validate_acquisition_hold_transition(
+    baseline: &[crate::PortDefinition],
+    candidate: &[crate::PortDefinition],
+    selected_port_id: &str,
+) -> Result<()> {
+    fn hold<'a>(
+        ports: &'a [crate::PortDefinition],
+        id: &str,
+    ) -> Option<&'a crate::ManagedAcquisitionHold> {
+        ports
+            .iter()
+            .find(|port| port.id == id)
+            .and_then(|port| port.managed_acquisition_hold.as_ref())
+    }
+    let Some(baseline_hold) = hold(baseline, selected_port_id) else {
+        return Ok(());
+    };
+    match hold(candidate, selected_port_id) {
+        Some(candidate_hold)
+            if candidate_hold
+                .reviewed_artifacts
+                .iter()
+                .all(|artifact| baseline_hold.reviewed_artifacts.contains(artifact)) =>
+        {
+            Ok(())
+        }
+        Some(_) => Err(out_of_scope(
+            "a managed acquisition hold permits an unreviewed artifact",
+        )),
+        None => Err(out_of_scope("a managed acquisition hold was removed")),
+    }
+}
+
+/// A selected definition may replace a reviewed package-layout fingerprint with
+/// a newly reviewed one, but never silently drop the requirement for a platform.
+fn validate_package_layout_transition(
+    baseline: &[crate::PortDefinition],
+    candidate: &[crate::PortDefinition],
+    selected_port_id: &str,
+) -> Result<()> {
+    let layouts = |ports: &[crate::PortDefinition]| {
+        ports
+            .iter()
+            .find(|port| port.id == selected_port_id)
+            .map(|port| {
+                port.reviewed_package_layouts
+                    .keys()
+                    .copied()
+                    .collect::<Vec<_>>()
+            })
+            .unwrap_or_default()
+    };
+    let candidate_platforms = layouts(candidate);
+    if layouts(baseline)
+        .iter()
+        .all(|platform| candidate_platforms.contains(platform))
+    {
+        Ok(())
+    } else {
+        Err(out_of_scope("a reviewed package layout was removed"))
     }
 }
 
@@ -408,6 +476,76 @@ mod tests {
         let (candidate, port_id) = post_client_catalog();
 
         validate_definition_transition(&baseline, &candidate, &port_id).unwrap();
+    }
+
+    #[test]
+    fn a_selected_definition_cannot_remove_or_widen_a_managed_acquisition_hold() {
+        let baseline = Catalog::embedded().unwrap();
+        let port_id = "open-nectar-pikmin";
+        let with = |change: &dyn Fn(&mut Option<crate::ManagedAcquisitionHold>)| {
+            let mut document = baseline.authoritative_document();
+            let port = document
+                .ports
+                .iter_mut()
+                .find(|port| port.id == port_id)
+                .unwrap();
+            assert!(port.managed_acquisition_hold.is_some());
+            change(&mut port.managed_acquisition_hold);
+            rebuild(document)
+        };
+
+        let reworded = with(&|hold| hold.as_mut().unwrap().reason.push_str(" Check back later."));
+        validate_definition_transition(&baseline, &reworded, port_id).unwrap();
+        let narrowed = with(&|hold| hold.as_mut().unwrap().reviewed_artifacts.clear());
+        validate_definition_transition(&baseline, &narrowed, port_id).unwrap();
+
+        let removed = with(&|hold| *hold = None);
+        let error = validate_definition_transition(&baseline, &removed, port_id).unwrap_err();
+        assert!(error.message.contains("hold was removed"));
+        let widened = with(&|hold| {
+            hold.as_mut()
+                .unwrap()
+                .reviewed_artifacts
+                .push(crate::ReviewedHoldArtifact {
+                    version: "1.1.1".into(),
+                    sha256: "3".repeat(64),
+                });
+        });
+        let error = validate_definition_transition(&baseline, &widened, port_id).unwrap_err();
+        assert!(error.message.contains("unreviewed artifact"));
+    }
+
+    #[test]
+    fn a_selected_definition_can_replace_but_not_remove_a_reviewed_package_layout() {
+        let port_id = "open-nectar-pikmin";
+        let platform = crate::Platform::WindowsX86_64;
+        let layout = |name: &str| crate::ReviewedPackageLayout {
+            ignore_verified_macos_libraries: false,
+            directories: vec![],
+            executables: vec![name.to_owned()],
+        };
+        let rebuilt = |change: &dyn Fn(&mut crate::PortDefinition)| {
+            let mut document = Catalog::embedded().unwrap().authoritative_document();
+            let port = document
+                .ports
+                .iter_mut()
+                .find(|port| port.id == port_id)
+                .unwrap();
+            change(port);
+            rebuild(document)
+        };
+        let baseline = rebuilt(&|port| {
+            port.reviewed_package_layouts
+                .insert(platform, layout("a.exe"));
+        });
+        let replaced = rebuilt(&|port| {
+            port.reviewed_package_layouts
+                .insert(platform, layout("b.exe"));
+        });
+        validate_definition_transition(&baseline, &replaced, port_id).unwrap();
+        let removed = rebuilt(&|port| port.reviewed_package_layouts.clear());
+        let error = validate_definition_transition(&baseline, &removed, port_id).unwrap_err();
+        assert!(error.message.contains("package layout was removed"));
     }
 
     #[test]

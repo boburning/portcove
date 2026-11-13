@@ -1,12 +1,11 @@
 import { createHash } from "node:crypto";
-import { GitHubApiError, sanitizeOperationError } from "./github-api.mts";
+import { GitHubApiError, sanitizeOperationError } from "./github-operation.mts";
 import { isRecord, errorCode } from "./runtime-values.mts";
-import { coordinatorCommandTimeout } from "./release-coordinator-deadline.mts";
 import { RestInventoryTransport } from "./github-rest-inventory.mts";
 
 export interface InventoryReader {
   config: { repository: string };
-  graphql(query: string, variables?: Readonly<Record<string, unknown>>): unknown;
+  graphql(query: string, variables?: Readonly<Record<string, unknown>>): Promise<unknown>;
 }
 export interface RepositoryIssueRecord {
   id: string;
@@ -113,14 +112,14 @@ export interface InventoryPageEvidence {
   terminal: boolean;
 }
 /** Every connection is independently counted. A failed page never returns partial records. */
-export function readCompleteConnection(
+export async function readCompleteConnection(
   reader: Pick<InventoryReader, "graphql">,
   query: string,
   variables: Readonly<Record<string, unknown>>,
   select: (data: unknown) => unknown,
   identity: (node: unknown) => unknown,
   evidence: InventoryPageEvidence[] = [],
-): unknown[] {
+): Promise<unknown[]> {
   const rows: unknown[] = [],
     ids = new Set<string>(),
     cursors = new Set<string>();
@@ -128,7 +127,7 @@ export function readCompleteConnection(
     total: number | undefined;
   try {
     for (;;) {
-      const page = object(select(reader.graphql(query, { ...variables, after })));
+      const page = object(select(await reader.graphql(query, { ...variables, after })));
       const info = object(page.pageInfo);
       if (
         !Array.isArray(page.nodes) ||
@@ -223,13 +222,13 @@ export interface VerifiedRepositoryIssueInventory {
 }
 const verified = new WeakMap<
   VerifiedRepositoryIssueInventory,
-  { reader: InventoryReader; hash: string }
+  { reader: Pick<InventoryReader, "config">; hash: string }
 >();
 /** Complete open/closed REST issue inventory for intake; no Project-membership claim. */
-export function collectRestRepositoryIssueInventory(
-  reader: InventoryReader,
+export async function collectRestRepositoryIssueInventory(
+  reader: Pick<InventoryReader, "config">,
   rest: RestInventoryTransport,
-): VerifiedRepositoryIssueInventory {
+): Promise<VerifiedRepositoryIssueInventory> {
   const binding = reader.config.repository;
   if (!/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/u.test(binding))
     throw new InventoryError("inventory_identity", "Invalid REST repository binding");
@@ -243,8 +242,8 @@ export function collectRestRepositoryIssueInventory(
   };
   try {
     let numericRepository: number | undefined;
-    const repository = () => {
-      const value = object(rest.get(`repos/${binding}`).body);
+    const repository = async () => {
+      const value = object((await rest.get(`repos/${binding}`)).body);
       if (
         typeof value.node_id !== "string" ||
         !value.node_id ||
@@ -258,20 +257,21 @@ export function collectRestRepositoryIssueInventory(
       numericRepository = value.id;
       return value.node_id;
     };
-    const identity = repository();
+    const identity = await repository();
     evidence.repository_node_id = identity;
-    const marker = (sort: "created" | "updated") => {
+    const marker = async (sort: "created" | "updated") => {
       const endpoint = `repos/${binding}/issues?state=all&sort=${sort}&direction=desc&per_page=1`;
       const values =
         sort === "created"
-          ? rest.get(endpoint).body
-          : rest
-              .prefixThrough(
+          ? (await rest.get(endpoint)).body
+          : (
+              await rest.prefixThrough(
                 endpoint,
                 [`/repos/${binding}/issues`, `/repositories/${numericRepository}/issues`],
                 (row) => !row.pull_request,
               )
-              .rows.filter((row) => !row.pull_request)
+            ).rows
+              .filter((row) => !row.pull_request)
               .slice(0, 1);
       if (!Array.isArray(values) || values.length > 1)
         throw new InventoryError("inventory_malformed", "Malformed REST repository marker");
@@ -300,8 +300,8 @@ export function collectRestRepositoryIssueInventory(
             };
       });
     };
-    const before = { created: marker("created"), updated: marker("updated") };
-    const collected = rest.pages(
+    const before = { created: await marker("created"), updated: await marker("updated") };
+    const collected = await rest.pages(
       `repos/${binding}/issues?state=all&sort=created&direction=asc&per_page=100`,
       [`/repos/${binding}/issues`, `/repositories/${numericRepository}/issues`],
     );
@@ -348,11 +348,11 @@ export function collectRestRepositoryIssueInventory(
         }),
       );
     }
-    const after = { created: marker("created"), updated: marker("updated") };
+    const after = { created: await marker("created"), updated: await marker("updated") };
     const newestIssue = before.updated[0];
     const collectedNewest = issues.find((issue) => issue.id === newestIssue?.id);
     if (
-      repository() !== identity ||
+      (await repository()) !== identity ||
       hash(before) !== hash(after) ||
       (collected.rows.at(-1)?.node_id ?? null) !== (before.created[0]?.id ?? null) ||
       (newestIssue
@@ -406,7 +406,7 @@ export function requireRepositoryIssueInventory(
     );
   return value;
 }
-export function collectRepositoryIssueInventory(
+export async function collectRepositoryIssueInventory(
   reader: InventoryReader,
   {
     bodies = true,
@@ -417,7 +417,7 @@ export function collectRepositoryIssueInventory(
     projectMemberships?: boolean;
     evidence?: RepositoryInventoryEvidence[];
   } = {},
-): VerifiedRepositoryIssueInventory {
+): Promise<VerifiedRepositoryIssueInventory> {
   const binding = reader.config.repository;
   const [owner, name, extra] = binding.split("/");
   if (!owner || !name || extra)
@@ -453,10 +453,10 @@ export function collectRepositoryIssueInventory(
     evidence.repository_node_id = value.id;
     return value;
   };
-  const marker = () => {
+  const marker = async () => {
     const connection = object(
       repository(
-        reader.graphql(
+        await reader.graphql(
           `query RepositoryIssueMarker($owner:String!,$name:String!){repository(owner:$owner,name:$name){id nameWithOwner issues(first:1,orderBy:{field:CREATED_AT,direction:DESC}){totalCount nodes{id number}}} rateLimit{cost limit remaining used resetAt}}`,
           { owner, name },
         ),
@@ -491,17 +491,19 @@ export function collectRepositoryIssueInventory(
     return { count, id: node?.id ?? null, number: node?.number ?? null };
   };
   try {
-    const before = marker();
+    const before = await marker();
     const numbers = new Set<number>();
     const memberships: IssueProjectMembership[] = [];
     const membershipIds = new Set<string>();
-    const issues = readCompleteConnection(
-      reader,
-      query,
-      { owner, name },
-      (data) => repository(data).issues,
-      (node) => object(node).id,
-      evidence.pages,
+    const issues = (
+      await readCompleteConnection(
+        reader,
+        query,
+        { owner, name },
+        (data) => repository(data).issues,
+        (node) => object(node).id,
+        evidence.pages,
+      )
     ).map((raw): Readonly<RepositoryIssueRecord> => {
       const row = object(raw);
       if (
@@ -619,7 +621,7 @@ export function collectRepositoryIssueInventory(
         ...(blockedBy ? { blockedBy } : {}),
       });
     });
-    const after = marker();
+    const after = await marker();
     if (
       before.count !== issues.length ||
       hash(before) !== hash(after) ||
@@ -661,19 +663,22 @@ export interface DoctorReadAttempt {
   provider?: { status: number | null; rate: unknown; retry_after: string | null };
 }
 /** Retry admission uses fresh counts/quota, never a request-count claim about actual API cost. */
-export function admitDoctorReadRetry(
+export async function admitDoctorReadRetry(
   reader: InventoryReader,
   projectId: string,
   elapsedMs: number,
   pointHeadroom = 10,
+  time: { deadline: number; now?: () => number } = { deadline: Number.POSITIVE_INFINITY },
 ) {
   try {
     if (!Number.isFinite(pointHeadroom) || pointHeadroom < 10) return false;
     const requiredMs = Math.max(1, Math.ceil(elapsedMs));
-    if (coordinatorCommandTimeout(requiredMs) < requiredMs) return false;
+    const enoughTime = () =>
+      time.deadline - (time.now ?? (() => performance.now()))() >= requiredMs;
+    if (!enoughTime()) return false;
     const [owner, name] = reader.config.repository.split("/");
     const data = object(
-      reader.graphql(
+      await reader.graphql(
         `query DoctorRetryAdmission($owner:String!,$name:String!,$id:ID!){repository(owner:$owner,name:$name){id nameWithOwner issues(first:1){totalCount}} node(id:$id){...on ProjectV2{id items(first:1){totalCount} fields(first:1){totalCount} views(first:1){totalCount}}} rateLimit{cost remaining resetAt}}`,
         { owner, name, id: projectId },
       ),
@@ -711,7 +716,7 @@ export function admitDoctorReadRetry(
     return (
       rate.remaining >= requests * pointHeadroom &&
       Date.parse(rate.resetAt) > Date.now() &&
-      coordinatorCommandTimeout(requiredMs) >= requiredMs
+      enoughTime()
     );
   } catch {
     return false;
@@ -725,8 +730,8 @@ export async function runDoctorRead<T>({
   attempts,
 }: {
   read: () => Promise<T>;
-  admitRetry: () => boolean;
-  reset: () => void;
+  admitRetry: () => boolean | Promise<boolean>;
+  reset: () => void | Promise<void>;
   attempts: DoctorReadAttempt[];
 }): Promise<T> {
   for (let attempt = 1; attempt <= 2; attempt++) {
@@ -753,8 +758,8 @@ export async function runDoctorRead<T>({
             }
           : {}),
       });
-      if (attempt === 2 || !retryableInventoryRead(error) || !admitRetry()) throw error;
-      reset();
+      if (attempt === 2 || !retryableInventoryRead(error) || !(await admitRetry())) throw error;
+      await reset();
     }
   }
   throw new Error("Unreachable doctor attempt");

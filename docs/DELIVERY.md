@@ -20,10 +20,56 @@ optimization does not activate unattended publication,
 change signing authority, or make a rehearsal equivalent to a released artifact.
 
 [QUALITY](QUALITY.md#required-hosted-baseline) owns CI scheduling. Ordinary PRs
-use the minimum Windows baseline; nightly/manual/release qualification retains
-full platform coverage and exact release-SHA/plan binding. Release package
+use the minimum Windows baseline. Nightly/manual full-platform qualification and
+its original schedule remain intact; release qualification follows the explicitly
+selected profile with exact release-SHA/plan binding. Release package
 assembly waits for validation. These checks grant no signing, tag, feed or
 publication authority.
+
+## First public beta host boundary
+
+The owner-approved first public beta application host is **Windows x86-64** at
+its existing supported Windows/WebView2 baseline. This changes the application
+host release commitment, not the original platforms of games Portcove manages,
+historical port inventory membership, or truthful per-port support metadata.
+The November 3 port-commitment decision below separately removes the full-cohort
+first-beta deadline while preserving tracked work and safeguards.
+
+| Obligation                             | First Windows beta boundary                                                                                                                                                                                                                                            |
+| -------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Windows application/product acceptance | Required: supported baseline, native player journeys, accessibility, installation, preservation, recovery, trusted catalog delivery and application updates at their actual scope. Windows Steam remains Required.                                                     |
+| Shared infrastructure/correctness      | Required regardless of execution OS: authority, signatures, provenance, exact inputs, consent, locks, persistence, recovery and useful shared tests/build/publishing infrastructure. Linux/WSL or macOS execution does not make a shared check optional.               |
+| Linux application/release acceptance   | Planned for a subsequent beta with existing owners. Preserve implementation, metadata, completed receipts and unfinished native/package/updater/Steam acceptance. An unshipped Linux application artifact or Linux-only observation does not gate this Windows launch. |
+| Other non-Windows qualification        | Retain existing owners and before-1.0 commitments. Platform-only observations do not gate Windows; shared or Windows-affecting defects still do.                                                                                                                       |
+
+Mixed owners have independently finishable Windows/shared initial-beta minima.
+Existing #45/#46 retain later native/platform and final-package qualification;
+#290 retains its deferred Linux graphical Steam acceptance. #49/#706 retain the
+Linux GLib defect, actual remediation and exact scope/expiry/effect limits of
+existing Linux-only risk decisions. This Windows decision neither fixes the
+advisory nor exercises, renews or expands those decisions. A later Linux release
+must satisfy its applicable security and package requirements afresh. Use
+[package qualification](RELEASING.md#declared-package-policy) for final package
+and uninstall acceptance, and the [upgrade acceptance procedure](RELEASING.md#upgrade-acceptance-and-technical-previews)
+for platform-specific updater continuity. Additional distribution such as winget
+can be prioritized independently of the existing release commitments.
+
+The selected additive profile is `initial-beta-windows-x86_64-v1` through the
+existing qualification, release admission, package and feed machinery. It must
+require actual Windows/shared evidence, reject missing/mismatched/invalid inputs,
+and refuse unqualified non-Windows packages or advertising. The existing `full`
+and historical `initial-beta-win-linux` profiles and their evidence retain their
+broader scope. A failed full-platform run never becomes a Windows-profile pass.
+Profile engineering, exact-candidate qualification and protected production
+acceptance must actually be delivered before this path is eligible; the owner
+scope decision alone is not implementation or publication authority.
+
+Current branch protections, five exact-head contexts, spending limits and
+publication/credential/signing authority remain unchanged. No nightly schedule
+change or Audit 01 completion follows. Continue unrelated Windows/shared work;
+serialize only actual overlapping inputs, protected changes and constrained
+native resources. Reuse valid evidence at its source/artifact/profile scope and
+repeat only invalidated observations.
 
 ## Versions, channels and readiness
 
@@ -72,32 +118,50 @@ preparation and download selection implement this policy as documented in
 suffix-only classification; its protected integration and activation remain
 separate.
 
-Public beta requires usable representative first play/recovery, Windows and ordinary Linux x86-64 baseline
-updater paths, a real updater-enabled release-to-release proof, safe failure and
+The first Windows Public beta requires usable representative first play/recovery,
+Windows x86-64 baseline updater paths, shared trust/correctness, a real
+updater-enabled release-to-release proof, safe failure and
 data preservation, honest limitations, and the provisioned bounded delivery
 pipeline needed to keep testers current. Compiling packages or manual reinstall
 instructions cannot complete this updater commitment. Incremental previews need
 their applicable candidate safety checks; they need not complete the milestone.
 
-The #917 design-system foundation follows the same separation between permission
-to implement and permission to publish. Its checked-in compatibility fixture and
-non-publishing qualification work may merge while #993 remains open. Broad screen
-migration begins only after the nested Dialog/Select portal, dismissal, and focus
-case passes in the actual Tauri application on an available native host. A Public
-beta package containing the redesign still requires #993's Windows/Linux native-family
-and claimed-minimum evidence for that target; a current hosted runner does not
-prove a historical minimum. Missing beta-critical evidence stays with #993 rather
-than moving to #45, while #45 retains broader 1.0 qualification. No automatic
-release path may convert foundation merge authority into publication authority for
-an unqualified platform.
+The delivered [design system](DESIGN-SYSTEM.md#checked-in-foundation) preserves
+the separation between implementation and publication. [#917](https://github.com/boburning/portcove/issues/917)
+completed its current redesign contract on October 18, 2026; [#993](https://github.com/boburning/portcove/issues/993)
+completed its amended initial-beta stack/minimum acceptance on October 19.
+The original foundation's nested Dialog/Select portal, dismissal and focus gate
+was satisfied before broad migration; its [historical inputs and measurements](DESIGN-SYSTEM.md#initial-foundation-history)
+remain evidence at their original scope. These completed owners are not new
+migration prerequisites. New Windows candidates still require applicable
+exact-candidate release qualification. Retained Linux evidence remains separate
+from later Linux application qualification, and #45 retains broader 1.0 work.
+Neither an ordinary merge nor these historical completions authorizes publication
+or certifies new package bytes or an unqualified platform.
 
 The initial beta retains the complete preparation boundary (#31), coherent
 design system (#917), development-agility/domain consolidation (#921/#925),
-structured account-free artwork (#1155/#208/#206), owner-amended upstream-first
-frozen rollout (#1422), onboarding and truthful limited routes (#254/#1168/#1169), public CLI and
-real reference proof (#30/#243), manual Desktop Steam (#290), and independent
-catalog delivery (#245/#397/#398/#246). These are finite outcomes, not optional
-polish. Shared controller/focus/input safety remains with #29/#206/#917.
+structured account-free artwork (#1155/#208/#206), connected-folder discovery and
+selected setup (#244), useful managed and user-prepared routes, onboarding and
+truthful operation availability (#254/#1168/#1169), original-file setup, developer
+integration and settings (#30/#243/#4156/#2228), manual Desktop Steam (#290), and
+independent catalog delivery (#245/#397/#398/#246). Shared controller/focus/input
+safety remains with #29/#206/#917.
+
+Use representative integrations to prove the actual discovery, setup, launch,
+update and player-data recovery journeys. Reuse accepted title evidence at its
+recorded scope and retain frozen client identities where required. Fixtures can
+exercise controlled behavior. Installed, protected and production observations
+retain their separate proof obligations. Admission, later maintenance and
+whole-backlog accounting do not determine beta readiness.
+
+#534, #246, #315, #52, #1155 and #921 retain their finite obligations. The
+completed #4154/#4155/#4156/#2228 product outcomes retain their credits.
+Operations exposed to users retain exact source, permission, integrity,
+runtime, consent and preservation holds. A known unsafe exposed operation keeps
+its scoped remediation owner. Independent port additions and maintenance can
+ship throughout beta preparation using their applicable delivery paths.
+#42's finite risk-based representative qualification remains Required for 1.0.
 
 Full user-ready Playnite (#910), Steam Add/Repair/Update-artwork/Remove (#292),
 SteamGridDB (#527), physical Xbox evidence (#44), and macOS/Deck qualification
@@ -172,8 +236,10 @@ Failed/expired checks never disable offline application use.
 
 ## Platform contracts
 
-Windows and ordinary Linux x86-64 are the initial Public beta qualification
-commitments. The macOS row is the later qualified-support contract under #45/#226,
+Windows x86-64 is the first Public beta application qualification commitment.
+The Linux row is retained for a planned subsequent beta; its completed components
+and unfinished acceptance remain with #45/#46 and their existing component owners.
+It is not a Windows launch prerequisite. The macOS row is the later qualified-support contract under #45/#226,
 delivered during beta and Required before 1.0. The Steam Deck row is a separate
 later contract: #51/#213–#217/#535 deliver it during the Public beta follow-up (Beta 2), Required
 before 1.0. Until it passes, the Linux build may run on SteamOS but Deck is
@@ -306,8 +372,14 @@ relevant owner decision. Current protections remain effective until replacement.
 
 The baseline adds $0 in service/certificate fees, not zero engineering, custody
 or hardware effort. Authenticode and Developer ID/notarization are optional
-installation-trust improvements, independently authorized in response to measured
-support burden. Flatpak, extra formats/architectures, repositories, deltas,
+installation-trust improvements. The protected release decision owner in
+[#534](https://github.com/boburning/portcove/issues/534) can reconsider Windows
+publisher signing when repeated actionable reports or native observations show
+that OS publisher prompts or enforcement prevent ordinary installation.
+Record the affected Windows versions, observed OS behavior and install outcomes.
+Updater signatures authenticate updater payloads, release hashes verify byte
+integrity, Authenticode identifies a Windows publisher, and Windows enforces its
+own installation policies. Flatpak, extra formats/architectures, repositories, deltas,
 percentage rollouts, standalone CLI self-update, continuous Steam synchronization
 and Decky are outside the baseline. The separately owned #292
 Add/Repair/Update-artwork/Remove commitment coordinates stable runtime paths with
@@ -333,7 +405,8 @@ OS/architecture/ownership, inputs and observed outcomes. Record return, recovery
 prompts/actions, preservation and owner intervention through local diagnostics.
 Fixtures, packaged processes, VMs, physical automation, gameplay and human
 comprehension are distinct evidence. Missing hardware blocks its required proof,
-not unrelated implementation; complete beta stays open until every baseline path
-has actual evidence. No telemetry, install count or fixed waiting period substitutes.
+not unrelated implementation; the selected release profile stays unqualified until
+every applicable Windows/shared baseline path has actual evidence. Broader
+platform acceptance remains open at its existing owners. No telemetry, install count or fixed waiting period substitutes.
 
 Dated [reference verification](reference/delivery-research-2026-09-08.md) is retained separately.

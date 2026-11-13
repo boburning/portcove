@@ -1,3 +1,4 @@
+import { catalogGuideCopyMaxBytes, decodeGuideCopyBlob } from "./catalog-guide-copy-impact.mts";
 import { validateChangedPath as normalizePath } from "./repository-path.mts";
 import type { ExecFileSyncOptions } from "node:child_process";
 import type {
@@ -8,11 +9,12 @@ import type {
 import { errorCode, errorMessage, isRecord } from "./runtime-values.mts";
 import type { PostmergeReuseBinding } from "./postmerge-ci.mts";
 import { discoverPostmergeReuse } from "./postmerge-ci.mts";
-import { annotateNextest } from "./nextest-equivalence.mts";
+import { annotateChanges } from "./validation-change-proofs.mts";
 import { execFileSync } from "node:child_process";
-import { appendFile } from "node:fs/promises";
+import { appendFile, mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { inspectReleaseProfile } from "./release-package-policy.mts";
 import {
   windowsHelperChecksRequired,
   windowsNativeToolsRequired,
@@ -35,6 +37,79 @@ const fullSha = /^[a-f0-9]{40}$/u;
 export { isInformationalPath };
 export { fastPlatformMatrix, qualificationMatrices } from "./validation-platforms.mts";
 import { fastPlatformMatrix, qualificationMatrices } from "./validation-platforms.mts";
+
+/**
+ * True only for a fast pull-request run of a draft that would execute the Rust partitions itself.
+ * Qualification, push, prose and reused plans never defer, and any value other than "true" for the
+ * draft flag keeps the partitions.
+ */
+export function windowsTestsDeferred(
+  plan: Pick<ValidationPlan, "mode" | "groups">,
+  {
+    eventName,
+    draft,
+    reused,
+  }: { eventName: string | undefined; draft: string | undefined; reused: boolean },
+) {
+  return (
+    eventName === "pull_request" &&
+    draft === "true" &&
+    plan.mode === "fast" &&
+    plan.groups.includes("rust") &&
+    !reused
+  );
+}
+
+/**
+ * The pull request's current draft state, read live so a re-run attempt started after the pull
+ * request became ready sees "false" even though its event payload still says draft. Any failure
+ * returns "false", which keeps the Windows partitions.
+ */
+export async function liveDraftState({
+  eventName,
+  eventPath,
+  read,
+}: {
+  eventName: string | undefined;
+  eventPath: string | undefined;
+  read: (route: string) => Promise<unknown>;
+}): Promise<"true" | "false"> {
+  if (eventName !== "pull_request" || !eventPath) return "false";
+  try {
+    const { readFile } = await import("node:fs/promises");
+    const event: unknown = JSON.parse(await readFile(eventPath, "utf8"));
+    const number =
+      isRecord(event) && isRecord(event.pull_request) ? event.pull_request.number : undefined;
+    if (typeof number !== "number" || !Number.isSafeInteger(number) || number < 1) return "false";
+    const pull = await read(`pulls/${number}`);
+    return isRecord(pull) && pull.number === number && pull.draft === true ? "true" : "false";
+  } catch (error) {
+    console.error(
+      `Draft state unavailable; running the Windows partitions: ${errorMessage(error)}`,
+    );
+    return "false";
+  }
+}
+
+export async function readRepositoryRoute(route: string): Promise<unknown> {
+  const deadline = performance.now() + 20000;
+  const { localDeveloperCredential } = await import("./github-cli.mts");
+  const { createGitHubClient } = await import("./github-client.mts");
+  const prefix = "repos/boburning/portcove";
+  const client = await createGitHubClient({
+    credential: localDeveloperCredential({ deadline }),
+    deadline,
+    maxBytes: 1024 * 1024,
+    allowRequest: (method, url) => method === "GET" && url.pathname.startsWith(`/${prefix}/`),
+  });
+  return (
+    await client.request({
+      method: "GET",
+      url: new URL(`${prefix}/${route}`, "https://api.github.com/").href,
+      request: { portcove: { replay: "safe-read", attempts: 0 } },
+    })
+  ).data as unknown;
+}
 
 export function parseRawDiff(buffer: unknown): (ValidationChange & { score: string | null })[] {
   if (!Buffer.isBuffer(buffer)) throw new Error("raw diff must be a Buffer");
@@ -87,6 +162,31 @@ interface CiDiscoveryOptions {
 }
 type CiGitRunner = (args: string[], options?: ExecFileSyncOptions) => string | Buffer;
 
+function testedPullRequestTarget(
+  eventBase: string,
+  head: string,
+  checkout: string,
+  runGit: CiGitRunner,
+): string {
+  const read = (args: string[]) => String(runGit(args, { encoding: "utf8" })).trim();
+  const [commit, target, source, ...extra] = read([
+    "rev-list",
+    "--parents",
+    "-n",
+    "1",
+    checkout,
+  ]).split(/\s+/u);
+  if (commit !== checkout || source !== head || extra.length !== 0)
+    throw new Error("PR test merge does not bind the checkout and exact source parents");
+  const testedTarget = checkedSha(target, "tested target SHA");
+  if (testedTarget !== eventBase) {
+    const sharedTarget = read(["merge-base", "--all", eventBase, testedTarget]);
+    if (sharedTarget !== eventBase && sharedTarget !== testedTarget)
+      throw new Error("PR test merge target is outside the event base ancestry");
+  }
+  return testedTarget;
+}
+
 export function discoverCiPlan(
   {
     eventName = "",
@@ -104,13 +204,20 @@ export function discoverCiPlan(
     execFileSync("git", args, { cwd: projectRoot, ...options }),
 ): ValidationPlan {
   const checkout = checkedSha(checkoutSha, "checkout SHA");
-  const releasePlatforms = qualificationPlatformsForProfile(releaseProfile);
+  const selectedProfile = inspectReleaseProfile(releaseProfile);
+  const releasePlatforms = qualificationPlatformsForProfile(selectedProfile);
+  const legacyReleaseCaller =
+    callerWorkflow === "release.yml" &&
+    ["workflow_call", "workflow_dispatch", "push"].includes(eventName);
+  const windowsApplicationCaller =
+    callerWorkflow === "application-release.yml" &&
+    selectedProfile === "initial-beta-windows-x86_64-v1" &&
+    ["workflow_dispatch", "schedule"].includes(eventName);
   if (
-    releaseProfile !== "full" &&
+    selectedProfile !== "full" &&
     (!forceQualification ||
       qualificationCaller !== "release" ||
-      callerWorkflow !== "release.yml" ||
-      !["workflow_call", "workflow_dispatch", "push"].includes(eventName))
+      !(legacyReleaseCaller || windowsApplicationCaller))
   )
     throw new Error("reduced profile requires explicitly forced release reusable qualification");
   const qualify = (
@@ -125,7 +232,7 @@ export function discoverCiPlan(
       groups: fastGroups,
       platforms: releasePlatforms,
       qualification_required: true,
-      ...(releaseProfile === "initial-beta-win-linux" ? { release_profile: releaseProfile } : {}),
+      ...(selectedProfile !== "full" ? { release_profile: selectedProfile } : {}),
     };
     delete replacement.digest;
     return { ...replacement, digest: digestValidationPlan(replacement) };
@@ -137,8 +244,10 @@ export function discoverCiPlan(
   try {
     if (eventName === "push" && (!baseSha || /^0{40}$/u.test(baseSha)))
       return buildValidationPlan({ changes: [], eventName, checkout });
-    const base = checkedSha(baseSha, "base SHA");
+    const eventBase = checkedSha(baseSha, "base SHA");
     const head = checkedSha(headSha, "head SHA");
+    const testMerge = eventName === "pull_request" && checkout !== head;
+    const base = testMerge ? testedPullRequestTarget(eventBase, head, checkout, runGit) : eventBase;
     if (eventName === "push") {
       // A missing historical base uses the whole baseline. A missing current
       // head, unavailable Git, or failed/truncated diff still blocks discovery.
@@ -158,17 +267,31 @@ export function discoverCiPlan(
     const mergeBase = checkedSha(
       eventName === "push"
         ? base
-        : String(runGit(["merge-base", base, head], { encoding: "utf8" })).trim(),
+        : String(runGit(["merge-base", "--all", base, head], { encoding: "utf8" })).trim(),
       "merge base",
     );
-    const raw = runGit(["diff", "--raw", "-z", "--find-renames", mergeBase, head], {
+    const comparisonBase = testMerge ? base : mergeBase;
+    const comparisonHead = testMerge ? checkout : head;
+    const raw = runGit(["diff", "--raw", "-z", "--find-renames", comparisonBase, comparisonHead], {
       encoding: "buffer",
       maxBuffer: 16 * 1024 * 1024,
     });
-    const changes = annotateNextest(
+    const changes = annotateChanges(
       parseRawDiff(raw),
-      (file) => String(runGit(["show", `${mergeBase}:${file}`], { encoding: "utf8" })),
-      (file) => String(runGit(["show", `${head}:${file}`], { encoding: "utf8" })),
+      (file) =>
+        decodeGuideCopyBlob(
+          runGit(["show", `${comparisonBase}:${file}`], {
+            encoding: "buffer",
+            maxBuffer: catalogGuideCopyMaxBytes,
+          }),
+        ),
+      (file) =>
+        decodeGuideCopyBlob(
+          runGit(["show", `${comparisonHead}:${file}`], {
+            encoding: "buffer",
+            maxBuffer: catalogGuideCopyMaxBytes,
+          }),
+        ),
     );
     const plan = buildValidationPlan({ changes, eventName, base, mergeBase, head, checkout });
     if (plan.mode === "prose" && !proseOnlyEnabled) {
@@ -219,6 +342,24 @@ export async function writeGithubOutputs(
         (selection.repositoryLint || Boolean(plan.fallback) || plan.changes.length === 0),
     ),
     windows_helpers: String(windowsHelperChecksRequired(plan)),
+    // Only a complete frontend suite that CI will actually execute is split across browser shards.
+    frontend_browser_shards: String(
+      !reuse?.groups.includes("frontend") &&
+        (await import("./ci-baseline.mts")).baselineBrowserShardsRequired(plan),
+    ),
+    // A draft pull request defers the Windows test partitions; the rust gate then fails until a
+    // ready_for_review or later run executes them on the same contract.
+    windows_tests_deferred: String(
+      windowsTestsDeferred(plan, {
+        eventName: process.env.GITHUB_EVENT_NAME,
+        draft: await liveDraftState({
+          eventName: process.env.GITHUB_EVENT_NAME,
+          eventPath: process.env.GITHUB_EVENT_PATH,
+          read: readRepositoryRoute,
+        }),
+        reused: Boolean(reuse?.groups.includes("rust")),
+      }),
+    ),
     native_tools: String(windowsNativeToolsRequired(plan)),
     linux_diagnostics: String(linuxRuntimeDiagnosticsRequired(plan)),
     frontend_tools: String(
@@ -238,13 +379,17 @@ export async function writeGithubOutputs(
     release_profile: plan.release_profile ?? "full",
     qualification_required: String(plan.qualification_required),
     plan_digest: plan.digest,
-    plan_json: JSON.stringify(plan),
     plan_gzip_base64: encodeValidationPlanEnvironment(plan),
     base: plan.identities.base ?? "",
     merge_base: plan.identities.merge_base ?? "",
     head: plan.identities.head ?? "",
     checkout: plan.identities.checkout,
   };
+  const outputBytes = Object.entries(fields).reduce(
+    (total, [key, value]) => total + Buffer.byteLength(key + value, "utf16le"),
+    0,
+  );
+  if (outputBytes > 1024 * 1024) throw new Error("CI plan outputs exceed GitHub UTF-16 byte limit");
   if (Object.values(fields).some((value) => String(value).includes("\n"))) {
     throw new Error("CI plan outputs must remain single-line values");
   }
@@ -258,6 +403,12 @@ export async function writeGithubOutputs(
 }
 
 async function main() {
+  if (
+    process.env.GITHUB_EVENT_NAME === "pull_request" &&
+    execFileSync("git", ["rev-parse", "HEAD"], { cwd: projectRoot, encoding: "utf8" }).trim() !==
+      process.env.GITHUB_SHA
+  )
+    throw new Error("Checked-out HEAD differs from the workflow checkout identity");
   const plan = discoverCiPlan({
     eventName: process.env.GITHUB_EVENT_NAME,
     baseSha: process.env.PORTCOVE_BASE_SHA,
@@ -271,10 +422,16 @@ async function main() {
     callerWorkflow: process.env.PORTCOVE_CALLER_WORKFLOW ?? "",
   });
   validateValidationPlan(plan);
-  const reuse = discoverPostmergeReuse(plan, {
+  const reuse = await discoverPostmergeReuse(plan, {
     event: process.env.GITHUB_EVENT_NAME,
     discoverPlan: discoverCiPlan,
   });
+  const evidenceDirectory = path.join(projectRoot, "work/ci-plan");
+  await mkdir(evidenceDirectory, { recursive: true });
+  await writeFile(
+    path.join(evidenceDirectory, "validation-plan.json"),
+    JSON.stringify(plan) + "\n",
+  );
   await writeGithubOutputs(process.env.GITHUB_OUTPUT, plan, reuse);
   console.log(
     reuse

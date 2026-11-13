@@ -76,7 +76,7 @@ it.each(
       />,
     );
     await expect
-      .element(page.getByRole("textbox", { name: "Search Find games", exact: true }))
+      .element(page.getByRole("textbox", { name: "Search Discover", exact: true }))
       .toBeVisible();
     await page.getByRole("button", { name: "View port", exact: true }).first().click();
     expect(select).toHaveBeenCalledExactlyOnceWith(entries[0]!.id, "catalog:card:harbor-0:details");
@@ -87,7 +87,7 @@ it.each(
       const title = identity
         .querySelector<HTMLElement>(".collection-title")!
         .getBoundingClientRect();
-      const textSize = Number.parseFloat(getComputedStyle(identity).fontSize);
+      const textSize = Number.parseFloat(getComputedStyle(document.documentElement).fontSize);
       const compact = layout === "rows";
       expect(art.width).toBeGreaterThan(0);
       expect(art.width).toBeLessThanOrEqual(textSize * (compact ? 3 : 16));
@@ -108,7 +108,7 @@ it.each(
     const left = cards[0]!.getBoundingClientRect(),
       right = cards[1]!.getBoundingClientRect();
     expect(right.left).toBeGreaterThanOrEqual(left.right);
-    for (const card of cards) expect(card.textContent).toContain("Portable upstream package");
+    for (const card of cards) expect(card.textContent).toContain("Download and install");
     await page.screenshot({
       path: `../../../../../outputs/ui-refinement/comparison-${layout}-${theme}-1440.png`,
     });
@@ -155,11 +155,14 @@ it("labels active facets and restores focus after removing chips or clearing whi
     );
   }
   await render(<Fixture />);
-  const chip = page.getByRole("button", { name: "Remove Preview filter", exact: true });
-  await expect.element(chip).toHaveTextContent("Release channels: Preview");
+  const chip = page.getByRole("button", {
+    name: "Remove Update channels: Preview filter",
+    exact: true,
+  });
+  await expect.element(chip).toHaveTextContent("Update channels: Preview");
   await expect
-    .element(page.getByRole("button", { name: /Remove Windows/ }))
-    .toMatchTextContent("Target OS:");
+    .element(page.getByRole("button", { name: "Remove Runs on: Windows filter", exact: true }))
+    .toMatchTextContent("Runs on:");
   chip.element().focus();
   await userEvent.keyboard("{Enter}");
   await expect
@@ -191,7 +194,7 @@ it("labels active facets and restores focus after removing chips or clearing whi
     .element(page.getByRole("button", { name: "Filters (0)", exact: true }))
     .toHaveFocus();
   await page.getByRole("button", { name: "Filters (0)", exact: true }).click();
-  await openFilterField("Release channels");
+  await openFilterField("Update channels");
   await page.getByRole("checkbox", { name: /^Stable/ }).click();
   await userEvent.keyboard("{Escape}");
   const panelClear = page.getByRole("button", { name: "Clear filters", exact: true });
@@ -250,7 +253,7 @@ it("routes active work to its owned Activity identity instead of launching", asy
       />
     </OperationPresentationProvider>,
   );
-  await page.getByRole("button", { name: "View task", exact: true }).click();
+  await page.getByRole("button", { name: /^View task: / }).click();
   expect(task).toHaveBeenCalledExactlyOnceWith("owned-task");
   expect(launch).not.toHaveBeenCalled();
   await expect

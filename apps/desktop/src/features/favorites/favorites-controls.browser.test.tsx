@@ -64,8 +64,11 @@ it("counts favorites within actual composed search/channel results and reset pre
       clearFilters={clear}
     />,
   );
-  expect(host.textContent).toContain("Favorites (1)");
-  expect(host.textContent).toContain("1 ungrouped project · 1 matching port");
+  expect(host.querySelector('button[aria-label="Favorites 1"]')).not.toBeNull();
+  // Discover counts the favorite games left by search and channel filters, not stored choices.
+  expect(
+    host.querySelector('[role="status"][aria-label="Search results"]')?.textContent?.trim(),
+  ).toBe("1 game");
   expect(host.querySelector('button[aria-label="Favorite Keep first"]')).not.toBeNull();
   expect(host.querySelector('button[aria-label="Favorite Keep second"]')).toBeNull();
   const reset = [...host.querySelectorAll<HTMLButtonElement>("button")].find(
@@ -125,7 +128,36 @@ it("keeps an unknown existing query unresolved instead of treating it as an empt
       favorites={saved}
     />,
   );
-  expect(host.querySelector('[role="alert"]')?.textContent).toContain("not supported");
+  expect(host.querySelector('[role="alert"]')?.textContent).toContain(
+    "These saved filters aren’t supported by this version of Portcove.",
+  );
   expect(saved.ids?.size).toBe(3);
   expect(saved.toggle).not.toHaveBeenCalled();
+});
+
+it("ends loading after a favorites read fails without reporting a successful empty search", async () => {
+  const saved = favorites({ ids: undefined, only: true, failure: "read", busy: false });
+  await root.rerender(
+    <PortBrowser
+      view="catalog"
+      ports={ports}
+      statuses={new Map()}
+      overview={{ installed: 0, ready: 0, needsSetup: 0, staged: 0 }}
+      filter="all"
+      setFilter={vi.fn()}
+      onSelect={vi.fn()}
+      loading={false}
+      favorites={saved}
+    />,
+  );
+  expect(host.querySelector('[aria-label="Search results"]')?.textContent).toBe(
+    "Search results unavailable",
+  );
+  expect(host.textContent).not.toContain("Loading your port library");
+  expect(host.textContent).not.toMatch(/no (matching )?(ports|games) found/i);
+  const retry = [...host.querySelectorAll("button")].find((button) =>
+    button.textContent?.includes("Retry favorites"),
+  )!;
+  await act(async () => retry.click());
+  expect(saved.refresh).toHaveBeenCalledOnce();
 });

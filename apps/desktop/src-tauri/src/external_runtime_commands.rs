@@ -115,7 +115,7 @@ pub(crate) async fn register_user_selected_runtime(
         .into());
     }
     let description = format!(
-        "Save launch details for the executable you selected at {} with working directory {} and arguments {}? This adds the game without starting it; choose Play separately to launch. Portcove has not authenticated these bytes as an official package. You or the upstream launcher manage setup and updates. Portcove can remove this registration; it will not replace, back up, restore, roll back or delete the external files.",
+        "Save launch details for the executable you selected at {} with start folder {} and launch options {}? This adds the game without starting it; choose Play separately to launch. Portcove hasn’t verified that this program came from the project’s publisher. Only add a program you trust. You or the game’s launcher handle setup and updates. Portcove can remove this registration; it will not replace, back up, restore, roll back or delete the external files.",
         review.executable.display(),
         review.path.display(),
         serde_json::to_string(&arguments).map_err(PortcoveError::from)?
@@ -209,7 +209,7 @@ pub(crate) async fn relink_user_selected_runtime(
         &app,
         "Change launch details",
         format!(
-            "Save {} as the launch target with working directory {} and arguments {}? This changes the saved launch details without starting the game; choose Play separately to launch. The old and new game files stay where they are. Portcove has not authenticated these bytes as an official package. You or the upstream launcher remain responsible for setup and updates.",
+            "Save {} as the launch target with start folder {} and launch options {}? This changes the saved launch details without starting the game; choose Play separately to launch. The old and new game files stay where they are. Portcove hasn’t verified that this program came from the project’s publisher. Only add a program you trust. You or the game’s launcher handle setup and updates.",
             review.proposed.executable.display(),
             review.proposed.path.display(),
             serde_json::to_string(&arguments).map_err(PortcoveError::from)?,
@@ -290,7 +290,7 @@ pub(crate) async fn relink_external_runtime(
         return Ok(None);
     }
     if !confirm_destructive(&app, "Change game folder", format!(
-        "Change {} from {} to {}? All external game files, settings and saves stay where they are. Portcove will verify and launch the replacement folder. It will not copy, update, back up or delete either folder.",
+        "Change {} from {} to {}? All external game files, settings and saves stay where they are. Portcove checks the replacement installation and saves its location. Choose Play separately to launch. It will not copy, update, back up or delete either folder.",
         review.port_id, review.previous_path.display(), review.proposed.path.display(),
     ), "Change folder").await { return Ok(None); }
     let state = state.inner().clone();
@@ -369,19 +369,12 @@ pub(crate) async fn register_external_runtime(
         }
     }
     let consent = format!(
-        "Register {} version {} at {}? Portcove will verify and launch this exact runtime. It will not copy, update, back up, or delete the external folder. Game-owned output there remains outside Portcove's save management.",
+        "Register {} version {} at {}? Portcove checks this installation and saves its location. Choose Play separately to launch. It will not copy, update, back up, or delete the external folder. Game-owned output there remains outside Portcove's save management.",
         review.port_id,
         review.version,
         review.path.display(),
     );
-    if !confirm_destructive(
-        &app,
-        "Confirm external runtime",
-        consent,
-        "Register runtime",
-    )
-    .await
-    {
+    if !confirm_destructive(&app, "Use this installation?", consent, "Add installation").await {
         return Ok(None);
     }
     let state = state.inner().clone();

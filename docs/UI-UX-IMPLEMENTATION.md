@@ -52,6 +52,8 @@ Extend the existing frontend `Perform` options with invocation context: action, 
 - Core locks, freshness checks and execution-time refusal remain authoritative. An enabled control never proves that another process holds no lock.
 - Preserve operation IDs, parent relationships, sequence handling and exact-ID retirement against durable Activity records.
 - Attribute early failures using invocation context. Provide an exact Activity link only when its identity is actually known; otherwise provide a general Activity link.
+- Ordinary managed installation forwards its owned event channel to the invocation; global events cannot assign that identity. Batch update checks remain indeterminate until Core returns the completed collection.
+- Classify declined nullable removal, restore and backup-deletion consent before invocation settlement. Other null results keep their command-specific meaning. Declined shared-preferences install/update returns cancellation before authorization; committed outcomes and independent readback failures remain distinct.
 - Never correlate requests and events by “latest,” timestamp or matching names. Add no scheduler, durable queue or parallel job database.
 
 ### Source removal and recovery authority
@@ -130,6 +132,7 @@ Acceptance uses duplicate game titles, long names, mixed artwork, missing art, u
 - Keep drafts and return context while the workspace exists. Navigation does not automatically cancel Core work; library replacement invalidates outgoing UI continuations.
 - “Cancel requested” remains pending until authoritative settlement. Offer resume only when Core provides a valid resumable plan.
 - Implement the saved-location confirmation changes as a separable slice.
+- Offer saved originals through Core's per-integration assessment. A shared profile or listed identity does not imply exact admission or completed preparation. Keep informational gaps and required editions visible, bind setup to the reviewed registration, and repair moved identical files through the existing relink review without replacing the saved identity for substituted bytes.
 
 Acceptance includes valid, invalid, ambiguous and unsupported inputs; stale plans; cancellation; library switching; interrupted preparation; one native saved-location approval; and unchanged original bytes.
 

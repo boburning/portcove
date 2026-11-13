@@ -155,3 +155,51 @@ void test("configuration validation retains the original Project definitions and
     /visible fields/,
   );
 });
+
+void test("hosted Roadmap dispatch runs only allowlisted commands with parsed arguments", async () => {
+  const { dispatchableRoadmapCommands, roadmapDispatchArguments } =
+    await import("./roadmap-dispatch.mts");
+  assert.deepEqual(roadmapDispatchArguments("doctor", '["--issue","211","--json"]'), [
+    "doctor",
+    "--issue",
+    "211",
+    "--json",
+  ]);
+  assert.deepEqual(roadmapDispatchArguments("next", ""), ["next"]);
+  assert.deepEqual(roadmapDispatchArguments("set", '["#42", "--status=Ready; rm -rf /"]'), [
+    "set",
+    "#42",
+    "--status=Ready; rm -rf /",
+  ]);
+  for (const command of ["bootstrap", "rename-commitment", "set-many", "snapshot", "", "doctor "])
+    assert.throws(() => roadmapDispatchArguments(command, "[]"), /not dispatchable/u);
+  for (const encoded of [
+    "--issue 211",
+    "{}",
+    "[1]",
+    '["a\\nb"]',
+    JSON.stringify(Array(33).fill("x")),
+  ])
+    assert.throws(() => roadmapDispatchArguments("doctor", encoded), /JSON array/u);
+  for (const option of ["--spec-file", "--output=docs/x.md", "--consumed-file"])
+    assert.throws(() => roadmapDispatchArguments("promote", JSON.stringify([option])), /refused/u);
+  assert.throws(() => roadmapDispatchArguments("set", '["--help"]'), /help locally/u);
+
+  const workflow = await readFile(
+    new URL("../.github/workflows/roadmap-command.yml", import.meta.url),
+    "utf8",
+  );
+  const options = workflow.match(/options:\n((?:\s+- [a-z-]+\n)+)/u)?.[1] ?? "";
+  assert.deepEqual(
+    [...options.matchAll(/- ([a-z-]+)/gu)].map((match) => match[1]),
+    [...dispatchableRoadmapCommands],
+    "the dispatch choices must equal the reviewed allowlist",
+  );
+  assert.match(workflow, /github\.actor == github\.repository_owner/u);
+  assert.match(workflow, /github\.triggering_actor == github\.repository_owner/u);
+  assert.match(workflow, /path: work\/roadmap-\*\//u);
+  assert.match(workflow, /ref: \$\{\{ github\.event\.repository\.default_branch \}\}/u);
+  assert.match(workflow, /ROADMAP_ARGUMENTS: \$\{\{ inputs\.arguments \}\}/u);
+  for (const [, run] of workflow.matchAll(/^\s+run: (.+)$/gmu))
+    assert.doesNotMatch(run ?? "", /\$\{\{/u, "inputs never reach a shell");
+});

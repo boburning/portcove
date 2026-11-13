@@ -128,7 +128,9 @@ it("keeps another port's retained cleanup identity through cancelled review and 
     const locations = account.element().querySelector("details")!;
     expect(locations.open).toBe(false);
     expect(account.element().textContent).toContain("What you can do now");
-    await page.getByText("Installation, source, saves, backups and logs", { exact: true }).click();
+    await page
+      .getByText("Installation, game files, saves, backups and logs", { exact: true })
+      .click();
     expect(locations.open).toBe(true);
     for (const fact of facts) expect(account.element().textContent).toContain(fact);
     expect(remove).not.toHaveBeenCalled();
@@ -153,12 +155,15 @@ it("keeps another port's retained cleanup identity through cancelled review and 
     await navigateTo("Library");
     await page
       .getByRole("button", {
-        name: "View details for Harbor Adventure Harbor Adventure",
+        name: "View details for Harbor Adventure",
         exact: true,
       })
       .click();
     await page.getByRole("tab", { name: "Game files", exact: true }).click();
-    await page.getByRole("button", { name: "Review setup", exact: true }).click();
+    await page
+      .getByRole("region", { name: "Finish setup", exact: true })
+      .getByRole("button", { name: "Finish setup", exact: true })
+      .click();
     expect(review.mock.lastCall).toEqual(["sample", 1]);
     expect(page.getByRole("dialog").element().textContent).toContain(
       preparation.inputs.source.path,
@@ -172,7 +177,7 @@ it("keeps another port's retained cleanup identity through cancelled review and 
   await openRetained();
   await page.getByRole("button", { name: "Keep files", exact: true }).click();
   await openOther();
-  await page.getByRole("button", { name: "Prepare game data", exact: true }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "Finish setup", exact: true }).click();
   await expect.poll(() => prepare.mock.calls.length).toBe(1);
   expect(prepare.mock.calls[0]?.slice(0, 3)).toEqual(["sample", preparation.plan_sha256, 1]);
   finish();

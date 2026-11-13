@@ -3,10 +3,11 @@
   "listing": {
     "id": "alexbeav-die-hard-trilogy-recomp",
     "name": "Die Hard Trilogy / Alexbeav PSXRecomp",
-    "summary": "Upstream PlayStation setup package using your own matching disc and any required BIOS. Finish generation with upstream; that external copy keeps its own runtime updates and player data.",
+    "summary": "Play Die Hard Trilogy with a native player built from your matching original disc and BIOS.",
     "project_url": "https://github.com/alexbeavs-ps1-ports/die-hard-trilogy-recomp",
     "issue_number": 440,
-    "platforms": ["windows-x86-64", "linux-x86-64"],
+    "listed_at": "2026-10-23",
+    "platforms": ["macos-x86-64", "macos-aarch64"],
     "availability": "packages",
     "setup_url": "https://github.com/alexbeavs-ps1-ports/die-hard-trilogy-recomp#readme",
     "artwork": {
@@ -20,26 +21,80 @@
     "manual_setup": {
       "steps": [
         {
-          "title": "Download the upstream setup package",
-          "instruction": "Extract the complete official setup ZIP for your system into a separate writable folder you control. This is a setup package: its launcher prepares the game from your own matching disc through upstream generation/build. On Linux, follow the selected version\u2019s prerequisites, including CMake, Ninja, Python 3 and a C/C++ compiler where required; bundled Windows tools do not supply Linux tools. Downloading and extracting do not run a launcher, compiler or game. Native setup and gameplay remain unqualified by this handoff."
+          "title": "Supply the exact original disc",
+          "instruction": "Use your own USA, Rev 1 Die Hard Trilogy disc, SLUS-00119, with all 21 tracks present."
         },
         {
-          "title": "Supply the matching original files",
-          "instruction": "Follow the upstream guide for the version you downloaded. Use your own original in its supported image representation, keeping a CUE and every referenced track together when required, and supply your own BIOS whenever that guide requires it. Preserve the exact edition, disc layout and BIOS requirements in that guide; an included setup BIOS does not establish game compatibility."
+          "title": "Prepare the managed Windows or Linux player",
+          "instruction": "Select the complete matching disc as a CHD and your own retail SCPH-1001 BIOS in Portcove. Portcove prepares and builds the player locally. On Linux, put your native C/C++ compiler, CMake, Ninja and Python 3 on PATH. The bundled emitters need glibc 2.14 and GLIBCXX 3.4.26. Choose Play after preparation."
         },
         {
-          "title": "Finish upstream setup, then add the player",
-          "instruction": "Deliberately open the supported upstream launcher when you are ready to generate/build from your own files. Follow that version\u2019s completed-player instructions and keep its runtime/compiler companions together. In Portcove choose the resulting native game executable or supported upstream launcher with its supplied working folder. If setup created it elsewhere, select that location. Saving launch details and Play are separate Portcove actions. You or upstream manage runtime updates, original files, saves and settings; these external files are outside Portcove-managed backups. Keep a working copy and its data before changing versions."
+          "title": "Prepare the Mac or a separate upstream-owned copy",
+          "instruction": "For standalone Linux setup, the packaged host needs glibc 2.29, GLIBCXX 3.4.26, OpenGL and zlib. On macOS 11 or later, choose the Intel or Apple Silicon ZIP for your system and put the Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. Run the upstream Die_Hard_Trilogy_Recompiled setup host and complete Generate & rebuild with your own matching original. Keep all tracks together for a CUE image. Add build-release/Die_Hard_Trilogy_Recompiled as the player, with build-release as the start folder. Use the kit’s supported BIOS instructions for an upstream-owned copy."
         }
       ],
-      "warnings": [],
-      "help_url": "https://github.com/alexbeavs-ps1-ports/die-hard-trilogy-recomp#readme"
+      "warnings": [
+        "Portcove has not confirmed setup or gameplay for this package.",
+        "The source check uses first data-track identity and track count. Keep the full original disc intact. Mac setup, native gameplay and populated-save compatibility remain unobserved."
+      ],
+      "help_url": "https://github.com/alexbeavs-ps1-ports/die-hard-trilogy-recomp#readme",
+      "references": [
+        {
+          "title": "Keep the data and runtime you actually use",
+          "instruction": "For Portcove-managed copies, compatible replacement preserves declared saves, settings, mods and overlay captures. Keep the original disc and BIOS separately. For an upstream-owned copy, retain the complete creating folder and back up your saves and settings before replacement."
+        }
+      ]
     },
     "release_url": "https://github.com/alexbeavs-ps1-ports/die-hard-trilogy-recomp/releases",
     "download_asset_hints": {
-      "windows-x86-64": ["Die-Hard-Trilogy-Recomp-", "-windows-x64.zip"],
-      "linux-x86-64": ["Die-Hard-Trilogy-Recomp-", "-linux-x64.zip"]
+      "linux-x86-64": ["Die-Hard-Trilogy-Recomp-", "-linux-x64.zip"],
+      "macos-aarch64": ["Die-Hard-Trilogy-Recomp-", "-macos-arm64.zip"],
+      "macos-x86-64": ["Die-Hard-Trilogy-Recomp-", "-macos-x64.zip"],
+      "windows-x86-64": ["Die-Hard-Trilogy-Recomp-", "-windows-x64.zip"]
     },
-    "recommended_download_channel": "stable"
+    "recommended_download_channel": "stable",
+    "original_game_title": "Die Hard Trilogy"
+  },
+  "psx_managed_windows_v1": "split-mods",
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64", "linux-x86-64"],
+    "automated_tested_platforms": [],
+    "manually_validated_platforms": [],
+    "adapter": "psx-recomp-managed",
+    "release": {
+      "provider": "github",
+      "repository": "alexbeavs-ps1-ports/die-hard-trilogy-recomp",
+      "asset_hints": {
+        "windows-x86-64": ["Die-Hard-Trilogy-Recomp-", "-windows-x64.zip"],
+        "linux-x86-64": ["Die-Hard-Trilogy-Recomp-", "-linux-x64.zip"]
+      }
+    },
+    "source_profile": "alexbeav-die-hard-trilogy-recomp-usa-rev-1-psx",
+    "executable_hints": {
+      "windows-x86-64": ["Die_Hard_Trilogy_Recompiled.exe"],
+      "linux-x86-64": ["Die_Hard_Trilogy_Recompiled"]
+    },
+    "presentation": {
+      "installation_method": "managed-recompilation",
+      "source_requirements": [
+        {
+          "role": "game",
+          "profile_id": "alexbeav-die-hard-trilogy-recomp-usa-rev-1-psx",
+          "label": "Die Hard Trilogy (USA, Rev 1) disc",
+          "verification": "catalog-identity"
+        },
+        {
+          "role": "bios",
+          "profile_id": "psx-scph-1001-bios",
+          "label": "PlayStation SCPH-1001 BIOS",
+          "verification": "catalog-identity"
+        }
+      ],
+      "saves_and_settings": "portcove-managed",
+      "manual_preparation": "Provide your own USA, Rev 1 Die Hard Trilogy CHD (SLUS-00119) containing all 21 tracks, plus your own retail SCPH-1001 BIOS. Portcove runs the local kit build with that BIOS and launches the completed player. A copy installed with the bundled OpenBIOS keeps it until you update; the update needs your SCPH-1001 BIOS. Keep your original disc and BIOS files independently. On Linux, use the native C/C++ compiler, CMake, Ninja and Python 3, with glibc 2.14 and GLIBCXX 3.4.26 for the kit’s emitters."
+    },
+    "bios_source_profile": "psx-scph-1001-bios"
   }
 }

@@ -3,7 +3,7 @@ import { inspectNativeCheckpointLocator } from "./release-native-custody-locator
 import { verifyControllerArtifactStatement } from "./github-controller-attestation.mts";
 import { orderedJsonValue as canonical } from "./json-values.mts";
 import { createHash } from "node:crypto";
-import { lstat, mkdir, mkdtemp, realpath, writeFile } from "node:fs/promises";
+import { lstat, mkdir, mkdtemp, realpath, rm, writeFile } from "node:fs/promises";
 import { writeFileSync } from "node:fs";
 import path from "node:path";
 import { crc32, inflateRawSync } from "node:zlib";
@@ -16,8 +16,16 @@ import {
 import type { AssemblerIdentityExpectation } from "./assembler-job-identity.mts";
 import { inspectTrustedAssemblyInput } from "./trusted-release-assembly.mts";
 import { artifactName } from "./release-package-policy.mts";
-import { readGitHubArtifactArchive } from "./github-binary.mts";
-import { createGitHubRunner, parseIncludedResponse } from "./github-api.mts";
+import type { GitHubRequestPolicy } from "./github-client.mts";
+import { downloadGitHubArtifactArchiveFile } from "./github-artifact-download.mts";
+import type { SigningArchiveDownload } from "./release-signing-handoff.mts";
+import { coordinatorCommandDeadline } from "./release-coordinator-deadline.mts";
+import { assertTrustedDirectNode } from "./release-direct-node-transport.mts";
+import {
+  fixedReleaseReaderToken,
+  readOnlyReleaseChildEnvironment,
+} from "./release-readonly-child-environment.mts";
+import type { RetainedGitHubSpawn } from "./github-cli.mts";
 import { productionControllerWorkflow } from "./production-controller-admission.mts";
 import { isRecord } from "./runtime-values.mts";
 import { performance } from "node:perf_hooks";
@@ -40,7 +48,6 @@ const repository = "boburning/portcove";
 const maximumArchiveBytes = 512 * 1024 * 1024;
 const hash = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
 type IdentityOptions = Parameters<typeof verifyAssemblerJobIdentity>[2];
-type Spawn = NonNullable<NonNullable<Parameters<typeof createGitHubRunner>[0]>["spawn"]>;
 
 function positive(value: unknown): asserts value is number {
   if (typeof value !== "number" || !Number.isSafeInteger(value) || value < 1)
@@ -218,6 +225,24 @@ function artifact(
   };
 }
 
+async function acquireAggregateArchive(
+  cwd: string,
+  endpoint: string,
+  options: Parameters<typeof downloadGitHubArtifactArchiveFile>[2],
+) {
+  const scratch = await mkdtemp(path.join(cwd, "aggregate-upload-readback-"));
+  try {
+    const filename = path.join(scratch, "uploaded.zip");
+    await downloadGitHubArtifactArchiveFile(endpoint, filename, options);
+    if (performance.now() >= options.deadline)
+      throw new Error("aggregate archive deadline exhausted");
+    const { readControllerToolFile } = await import("./release-controller-tools.mts");
+    return await readControllerToolFile(filename, options.maxBytes);
+  } finally {
+    await rm(scratch, { recursive: true, force: true });
+  }
+}
+
 /** Invoked only by reviewed fixed controller code after real assembly/upload.
  * Independently authenticate input authority before calling. This verifies the
  * actual uploaded opaque archive's members, then invokes fresh signed own-job
@@ -252,14 +277,15 @@ export async function prepareAggregateAttestation(
   options: {
     cwd: string;
     identity?: IdentityOptions;
-    spawn?: Spawn;
-    download?: typeof readGitHubArtifactArchive;
+    readArtifact?: (id: number) => Promise<unknown>;
+    download?: SigningArchiveDownload;
     evidenceRequest?: ReleaseEvidenceRequest;
     evidence?: ReleaseEvidenceOptions;
     deadline?: number;
     native_custody?: ReturnType<typeof inspectNativeCheckpointLocator>;
   },
 ) {
+  const { cwd, download, readArtifact, identity: identityOptions, evidence } = options;
   const admitted = admittedPreparations.has(options);
   const original = recoveredPreparations.get(options);
   const nativeCustody =
@@ -270,7 +296,11 @@ export async function prepareAggregateAttestation(
     throw new Error("native custody requires the fixed admitted aggregate producer");
   if (nativeCustody && original && nativeCustody.checkpoint !== original.before_checkpoint)
     throw new Error("native custody differs from original aggregate operation");
-  const deadline = Math.min(performance.now() + 120000, options.deadline ?? Infinity);
+  const deadline = Math.min(
+    performance.now() + 120000,
+    options.deadline ?? Infinity,
+    coordinatorCommandDeadline() ?? Infinity,
+  );
   const remaining = (cap: number) => {
     const left = deadline - performance.now();
     if (!Number.isFinite(left) || left <= 0)
@@ -292,12 +322,28 @@ export async function prepareAggregateAttestation(
   )
     throw new Error("aggregate must be a new artifact distinct from all bounded candidate IDs");
   ids.forEach(positive);
+  const readerToken =
+    readArtifact && download && identityOptions ? undefined : fixedReleaseReaderToken();
+  const credential = { kind: "explicit" as const, token: readerToken ?? "" };
+  const scoped = readOnlyReleaseChildEnvironment() !== undefined;
+  const scopedFetch: typeof globalThis.fetch = (input, init) => {
+    assertTrustedDirectNode("aggregate sender");
+    return globalThis.fetch(input, init);
+  };
   const { accepted, files, platformCount } = await expectedMembers(request);
   if (ids.length !== platformCount)
     throw new Error("aggregate candidate artifact matrix is incomplete");
   if (accepted.run_id === expected.run_id)
     throw new Error("candidate run cannot impersonate its trusted assembler run");
-  let publicBefore: ReturnType<typeof collectReleaseRunEvidence> | null = null;
+  const publicBuildCredential =
+    accepted.public_build_inputs && !download ? (evidence?.credential ?? credential) : undefined;
+  const evidenceOptions = {
+    ...evidence,
+    ...(publicBuildCredential ? { credential: publicBuildCredential } : {}),
+    deadline: Math.min(deadline, evidence?.deadline ?? Infinity),
+  };
+  const { reserve } = evidenceOptions;
+  let publicBefore: Awaited<ReturnType<typeof collectReleaseRunEvidence>> | null = null;
   let publicRequest: ReleaseEvidenceRequest | null = null;
   let publicVerification: Awaited<ReturnType<typeof verifyReleasePublicBuildInputs>> | null = null;
   if (accepted.public_build_inputs) {
@@ -318,69 +364,106 @@ export async function prepareAggregateAttestation(
       publicRequest.repository_id !== 1354613114
     )
       throw new Error("public input source and independently expected Release evidence differ");
-    publicBefore = collectReleaseRunEvidence(publicRequest, options.evidence);
+    publicBefore = await collectReleaseRunEvidence(publicRequest, evidenceOptions);
     publicVerification = await verifyReleasePublicBuildInputs(
-      options.cwd,
+      cwd,
       accepted.public_build_inputs,
       publicBefore,
-      { download: options.download },
+      {
+        download,
+        credential: publicBuildCredential,
+        deadline,
+        lookup: () => ({
+          deadline: evidenceOptions.deadline,
+          ...(reserve ? { reserve } : {}),
+        }),
+      },
     );
   }
-  const runner = createGitHubRunner({
-    cwd: options.cwd,
-    ...(options.spawn ? { spawn: options.spawn } : {}),
-    maxBuffer: 128 * 1024,
-    timeoutMs: remaining(15000),
-  });
-  const get = () => {
-    const response = parseIncludedResponse(
-      runner([
-        "api",
-        `repos/${repository}/actions/artifacts/${upload.artifact_id}`,
-        "--include",
-        "--method",
-        "GET",
-        "--hostname",
-        "github.com",
-      ]),
-    );
-    if (response.status !== 200) throw new Error("new aggregate artifact unavailable");
+  const endpoint = `repos/${repository}/actions/artifacts/${upload.artifact_id}`;
+  let read = readArtifact;
+  if (!read) {
+    const { createGitHubClient } = await import("./github-client.mts");
+    const api = await createGitHubClient({
+      credential,
+      deadline,
+      maxBytes: 128 * 1024,
+      allowRequest: (method, url) =>
+        method === "GET" && url.pathname === `/${endpoint}` && !url.search,
+      ...(scoped ? { fetch: scopedFetch } : {}),
+      ...(reserve ? { reserve } : {}),
+    });
+    read = async () => {
+      const policy: GitHubRequestPolicy = { replay: "once", attempts: 0 };
+      try {
+        const response = await api.request(`GET /${endpoint}`, { request: { portcove: policy } });
+        if (response.status !== 200) throw new Error("new aggregate artifact unavailable");
+        return response.data as unknown;
+      } finally {
+        await policy.admissionSettled;
+      }
+    };
+  }
+  const getArtifact = read;
+  const get = async () => {
     remaining(1);
-    return artifact(response.body, upload.artifact_id, upload.sha256, original ?? expected);
+    const data = await getArtifact(upload.artifact_id);
+    remaining(1);
+    return artifact(data, upload.artifact_id, upload.sha256, original ?? expected);
   };
-  const before = get();
-  const downloaded = (options.download ?? readGitHubArtifactArchive)(
-    `repos/${repository}/actions/artifacts/${upload.artifact_id}/zip`,
-    { cwd: options.cwd, maxBytes: before.bytes, timeoutMs: remaining(120000) },
-  );
+  const before = await get();
+  let downloaded: Buffer;
+  if (download) {
+    downloaded = await download(`${endpoint}/zip`, {
+      cwd,
+      maxBytes: before.bytes,
+      timeoutMs: remaining(120000),
+    });
+  } else {
+    downloaded = await acquireAggregateArchive(cwd, `${endpoint}/zip`, {
+      credential,
+      deadline,
+      maxBytes: before.bytes,
+      ...(scoped ? { fetch: scopedFetch } : {}),
+      ...(reserve ? { lookup: { reserve } } : {}),
+    });
+  }
+  remaining(1);
   if (!Buffer.isBuffer(downloaded) || downloaded.length !== before.bytes)
     throw new Error("uploaded aggregate archive digest differs");
   const archive = Buffer.from(downloaded);
   if (hash(archive) !== upload.sha256) throw new Error("uploaded aggregate archive digest differs");
   verifyMembers(archive, files);
   remaining(1);
+  if (scoped && !identityOptions) assertTrustedDirectNode("aggregate sender identity");
   const identity = await (
     admitted ? verifyAdmittedAssemblerJobIdentity : verifyAssemblerJobIdentity
-  )(token, expected, options.identity ?? { transport: { cwd: options.cwd, deadline } });
+  )(
+    token,
+    expected,
+    identityOptions ?? {
+      transport: { sdkToken: credential.token, deadline, requireDirect: scoped },
+    },
+  );
   if (original && original.run_id === expected.run_id && original.job_id === identity.job_id)
     throw new Error(
       "aggregate current custodian cannot impersonate its original terminal producer",
     );
-  if (!same(get(), before)) throw new Error("new aggregate artifact changed during binding");
+  if (!same(await get(), before)) throw new Error("new aggregate artifact changed during binding");
   if (accepted.public_build_inputs && publicBefore && publicRequest)
     requireStablePublicBuildInputEvidence(
       accepted.public_build_inputs,
       publicBefore,
-      collectReleaseRunEvidence(publicRequest, options.evidence),
+      await collectReleaseRunEvidence(publicRequest, evidenceOptions),
     );
   if (Date.now() >= Date.parse(identity.expires_at))
     throw new Error("assembler identity expired before binding completed");
   const evidence_scope =
-    options.spawn ||
-    options.download ||
+    readArtifact ||
+    download ||
     identity.evidence_scope !== "github.com" ||
     (accepted.public_build_inputs &&
-      (options.evidence || publicVerification?.evidence_scope !== "github.com"))
+      (evidence || publicVerification?.evidence_scope !== "github.com"))
       ? "injected-provider"
       : "github.com";
   remaining(1);
@@ -454,7 +537,7 @@ export async function verifyAggregateAttestation(
     original_upload?: ReturnType<typeof inspectAggregateOriginalUpload>;
     native_custody?: ReturnType<typeof inspectNativeCheckpointLocator>;
   },
-  options: { spawn?: Spawn } = {},
+  options: NonNullable<Parameters<typeof verifyControllerArtifactStatement>[5]> = {},
 ) {
   const expected = structuredClone(rawExpected);
   const nativeCustody =
@@ -629,8 +712,15 @@ export async function verifyUploadedAggregate(
     bundle_artifact_id: number;
     bundle_sha256: string;
   },
-  options: { spawn?: Spawn; download?: typeof readGitHubArtifactArchive } = {},
+  options: {
+    spawn?: RetainedGitHubSpawn;
+    download?: SigningArchiveDownload;
+    readMetadata?: (route: string) => Promise<unknown>;
+  } = {},
 ) {
+  const { spawn, download: injectedDownload, readMetadata } = options;
+  const scopedEnvironment = readOnlyReleaseChildEnvironment();
+  const token = (scopedEnvironment ?? process.env).GH_TOKEN ?? "";
   const expected = structuredClone(rawExpected);
   const original =
     expected.original_upload === undefined
@@ -671,40 +761,59 @@ export async function verifyUploadedAggregate(
     throw new Error("aggregate verification candidate identities differ");
   expected.candidate_artifact_ids.forEach(positive);
   const directory = await mkdtemp(path.join(path.resolve(privateRoot), "aggregate-verification-"));
-  const started = performance.now();
+  const deadline = Math.min(
+    performance.now() + 10 * 60 * 1000,
+    coordinatorCommandDeadline() ?? Infinity,
+  );
   let phase = "provider-before";
   let requests = 0;
   try {
-    const runner = createGitHubRunner({
-      cwd: directory,
-      ...(options.spawn ? { spawn: options.spawn } : {}),
-      maxBuffer: 128 * 1024,
-      timeoutMs: 15000,
-    });
     const budget = () => {
-      if (performance.now() - started > 10 * 60 * 1000)
+      if (performance.now() >= deadline)
         throw new Error("aggregate verification deadline exhausted");
     };
-    const get = (route: string) => {
+    budget();
+    const credential = { kind: "explicit" as const, token };
+    const scopedFetch: typeof globalThis.fetch = (input, init) => {
+      assertTrustedDirectNode("aggregate receiver");
+      return globalThis.fetch(input, init);
+    };
+    const base = `/repos/${repository}/`;
+    const runRoute = `actions/runs/${expected.run_id}`;
+    const attemptRoute = `${runRoute}/attempts/${expected.run_attempt}`;
+    const aggregateRoute = `actions/artifacts/${expected.artifact_id}`;
+    const bundleRoute = `actions/artifacts/${expected.bundle_artifact_id}`;
+    const routes = new Set(
+      [runRoute, attemptRoute, aggregateRoute, bundleRoute].map((route) => base + route),
+    );
+    let read = readMetadata;
+    if (!read) {
+      const { createGitHubClient } = await import("./github-client.mts");
+      const client = await createGitHubClient({
+        credential,
+        deadline,
+        maxBytes: 128 * 1024,
+        allowRequest: (method, url) => method === "GET" && !url.search && routes.has(url.pathname),
+        ...(scopedEnvironment ? { fetch: scopedFetch } : {}),
+      });
+      read = async (route) => {
+        const response = await client.request(`GET ${base}${route}`, {
+          request: { portcove: { replay: "once", attempts: 0 } },
+        });
+        if (response.status !== 200) throw new Error("aggregate verification provider unavailable");
+        return response.data as unknown;
+      };
+    }
+    const readExact = read;
+    const get = async (route: string) => {
       budget();
       if (++requests > 8) throw new Error("aggregate verification API read bound exhausted");
-      const response = parseIncludedResponse(
-        runner([
-          "api",
-          `repos/${repository}/${route}`,
-          "--include",
-          "--method",
-          "GET",
-          "--hostname",
-          "github.com",
-        ]),
-      );
-      if (response.status !== 200) throw new Error("aggregate verification provider unavailable");
+      const body = await readExact(route);
       budget();
-      return response.body;
+      return body;
     };
-    const run = (route: string) => {
-      const raw = get(route);
+    const run = async (route: string) => {
+      const raw = await get(route);
       if (
         !isRecord(raw) ||
         raw.id !== Number(expected.run_id) ||
@@ -731,17 +840,17 @@ export async function verifyUploadedAggregate(
         conclusion: raw.conclusion,
       };
     };
-    const snapshot = () => ({
-      run: run(`actions/runs/${expected.run_id}`),
-      attempt: run(`actions/runs/${expected.run_id}/attempts/${expected.run_attempt}`),
+    const snapshot = async () => ({
+      run: await run(runRoute),
+      attempt: await run(attemptRoute),
       aggregate: artifact(
-        get(`actions/artifacts/${expected.artifact_id}`),
+        await get(aggregateRoute),
         expected.artifact_id,
         expected.sha256,
         original ?? expected,
       ),
       bundle: artifact(
-        get(`actions/artifacts/${expected.bundle_artifact_id}`),
+        await get(bundleRoute),
         expected.bundle_artifact_id,
         expected.bundle_sha256,
         expected,
@@ -749,14 +858,24 @@ export async function verifyUploadedAggregate(
         1024 * 1024,
       ),
     });
-    const before = snapshot();
+    const before = await snapshot();
     phase = "opaque-download";
-    const download = (id: number, item: { bytes: number; sha256: string }) => {
+    const download = async (id: number, item: { bytes: number; sha256: string }) => {
       budget();
-      const received = (options.download ?? readGitHubArtifactArchive)(
-        `repos/${repository}/actions/artifacts/${id}/zip`,
-        { cwd: directory, maxBytes: item.bytes, timeoutMs: 120000 },
-      );
+      const transferDeadline = Math.min(deadline, performance.now() + 120000);
+      const timeoutMs = Math.floor(transferDeadline - performance.now());
+      if (timeoutMs < 1) throw new Error("aggregate verification archive deadline exhausted");
+      const endpoint = `repos/${repository}/actions/artifacts/${id}/zip`;
+      const received = injectedDownload
+        ? await injectedDownload(endpoint, { cwd: directory, maxBytes: item.bytes, timeoutMs })
+        : await acquireAggregateArchive(directory, endpoint, {
+            credential,
+            deadline: transferDeadline,
+            maxBytes: item.bytes,
+            ...(scopedEnvironment ? { fetch: scopedFetch } : {}),
+          });
+      if (performance.now() >= transferDeadline)
+        throw new Error("aggregate verification archive deadline exhausted");
       if (!Buffer.isBuffer(received) || received.length !== item.bytes)
         throw new Error("aggregate verification archive length differs");
       const archive = Buffer.from(received);
@@ -765,8 +884,8 @@ export async function verifyUploadedAggregate(
       budget();
       return archive;
     };
-    const archive = download(expected.artifact_id, before.aggregate);
-    const bundleArchive = download(expected.bundle_artifact_id, before.bundle);
+    const archive = await download(expected.artifact_id, before.aggregate);
+    const bundleArchive = await download(expected.bundle_artifact_id, before.bundle);
     phase = "retain-opaque-inputs";
     await mkdir(path.join(directory, "input"));
     await writeFile(path.join(directory, "input", "aggregate.zip"), archive, {
@@ -802,10 +921,14 @@ export async function verifyUploadedAggregate(
       archive,
       bundle,
       { ...expected, bytes: before.aggregate.bytes },
-      options,
+      {
+        ...(spawn ? { spawn } : {}),
+        ...(scopedEnvironment ? { environment: scopedEnvironment } : {}),
+        deadline,
+      },
     );
     phase = "provider-after";
-    if (!same(before, snapshot()))
+    if (!same(before, await snapshot()))
       throw new Error("aggregate verification provider identities changed");
     budget();
     return {
@@ -813,7 +936,8 @@ export async function verifyUploadedAggregate(
       acquisition_directory: directory,
       bundle_artifact_id: expected.bundle_artifact_id,
       bundle_sha256: expected.bundle_sha256,
-      evidence_scope: options.spawn || options.download ? "injected-provider" : "github.com",
+      evidence_scope:
+        spawn || injectedDownload || readMetadata ? "injected-provider" : "github.com",
       api_requests: requests,
     };
   } catch {

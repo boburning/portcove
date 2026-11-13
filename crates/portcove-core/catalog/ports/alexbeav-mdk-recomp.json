@@ -3,10 +3,11 @@
   "listing": {
     "id": "alexbeav-mdk-recomp",
     "name": "MDK / Alexbeav PSXRecomp",
-    "summary": "Upstream PlayStation setup package using your own matching disc and any required BIOS. Finish generation with upstream; that external copy keeps its own runtime updates and player data.",
+    "summary": "Play MDK with a player built from your matching original PlayStation disc and BIOS.",
     "project_url": "https://github.com/alexbeavs-ps1-ports/mdk-recomp",
     "issue_number": 464,
-    "platforms": ["windows-x86-64", "linux-x86-64"],
+    "listed_at": "2026-10-23",
+    "platforms": ["macos-x86-64", "macos-aarch64"],
     "availability": "packages",
     "setup_url": "https://github.com/alexbeavs-ps1-ports/mdk-recomp#readme",
     "artwork": {
@@ -20,26 +21,132 @@
     "manual_setup": {
       "steps": [
         {
-          "title": "Download the upstream setup package",
-          "instruction": "Extract the complete official setup ZIP for your system into a separate writable folder you control. This is a setup package: its launcher prepares the game from your own matching disc through upstream generation/build. On Linux, follow the selected version\u2019s prerequisites, including CMake, Ninja, Python 3 and a C/C++ compiler where required; bundled Windows tools do not supply Linux tools. Downloading and extracting do not run a launcher, compiler or game. Native setup and gameplay remain unqualified by this handoff."
+          "title": "Supply your matching disc and BIOS",
+          "instruction": "Use your own European MDK disc (SLES-00599) with all 30 tracks present. This kit requires your own retail SCPH-5552 BIOS dump. Keep the CUE and every referenced track together when using CUE/BIN."
         },
         {
-          "title": "Supply the matching original files",
-          "instruction": "Follow the upstream guide for the version you downloaded. Use your own original in its supported image representation, keeping a CUE and every referenced track together when required, and supply your own BIOS whenever that guide requires it. Preserve the exact edition, disc layout and BIOS requirements in that guide; an included setup BIOS does not establish game compatibility."
+          "title": "Prepare the managed Windows or Linux player",
+          "instruction": "In Portcove, select your matching disc as a CHD and your SCPH-5552 BIOS. On Linux, use a native C/C++ compiler, CMake, Ninja and Python 3.10 or newer. Choose Play after Portcove builds the player."
         },
         {
-          "title": "Finish upstream setup, then add the player",
-          "instruction": "Deliberately open the supported upstream launcher when you are ready to generate/build from your own files. Follow that version\u2019s completed-player instructions and keep its runtime/compiler companions together. In Portcove choose the resulting native game executable or supported upstream launcher with its supplied working folder. If setup created it elsewhere, select that location. Saving launch details and Play are separate Portcove actions. You or upstream manage runtime updates, original files, saves and settings; these external files are outside Portcove-managed backups. Keep a working copy and its data before changing versions."
+          "title": "Prepare a separate Mac player",
+          "instruction": "Choose the official Mac ZIP from the upstream releases. Use -macos-x64.zip for Intel or -macos-arm64.zip for Apple silicon. Extract the complete kit to a writable folder and follow its README-SETUP.txt. Put Xcode Command Line Tools, CMake, Ninja and Python 3.10 or newer on PATH. The inspected Mac setup host requires macOS 11 or newer. The bundled game and BIOS generators require macOS 15 or newer."
+        },
+        {
+          "title": "Build and add the player on Mac",
+          "instruction": "Run MDK_Recompiled from the unpacked folder and follow Generate & rebuild. In Portcove, select build-release/MDK_Recompiled as the program and build-release as its start folder."
         }
       ],
-      "warnings": [],
-      "help_url": "https://github.com/alexbeavs-ps1-ports/mdk-recomp#readme"
+      "warnings": [
+        "Before replacing your kit, make a normal in-game save, close the game and keep the previous kit and memory cards. Upstream warns that save states may be incompatible across versions.",
+        "Portcove checks the first data track and the track count. Keep the entire original disc intact.",
+        "Portcove has not verified Mac setup, native gameplay or populated-save compatibility for this kit."
+      ],
+      "help_url": "https://github.com/alexbeavs-ps1-ports/mdk-recomp#readme",
+      "references": [
+        {
+          "title": "Updates and backups",
+          "instruction": "Keep the complete working folder and back up your disc image, BIOS, saves, settings and overlay captures before replacing the kit. Keep the player with the folder that built it."
+        },
+        {
+          "title": "Linux generator compatibility",
+          "instruction": "The bundled Linux generators require glibc 2.14 or newer and libstdc++ with GLIBCXX_3.4.26."
+        }
+      ]
     },
     "release_url": "https://github.com/alexbeavs-ps1-ports/mdk-recomp/releases",
     "download_asset_hints": {
-      "windows-x86-64": ["mdk-recomp-", "-windows-x64.zip"],
-      "linux-x86-64": ["mdk-recomp-", "-linux-x64.zip"]
+      "linux-x86-64": ["mdk-recomp-", "-linux-x64.zip"],
+      "macos-aarch64": ["mdk-recomp-", "-macos-arm64.zip"],
+      "macos-x86-64": ["mdk-recomp-", "-macos-x64.zip"],
+      "windows-x86-64": ["mdk-recomp-", "-windows-x64.zip"]
     },
-    "recommended_download_channel": "stable"
+    "recommended_download_channel": "stable",
+    "original_game_title": "MDK"
+  },
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64", "linux-x86-64"],
+    "automated_tested_platforms": [],
+    "manually_validated_platforms": [],
+    "adapter": "psx-recomp-managed",
+    "release": {
+      "provider": "github",
+      "repository": "alexbeavs-ps1-ports/mdk-recomp",
+      "asset_hints": {
+        "windows-x86-64": ["mdk-recomp-", "-windows-x64.zip"],
+        "linux-x86-64": ["mdk-recomp-", "-linux-x64.zip"]
+      }
+    },
+    "source_profile": "alexbeav-mdk-recomp-europe-psx",
+    "executable_hints": {
+      "windows-x86-64": ["MDK_Recompiled.exe"],
+      "linux-x86-64": ["MDK_Recompiled"]
+    },
+    "persistent_paths": [
+      "saves",
+      "settings.toml",
+      "settings.toml.bad",
+      "input.ini",
+      "keybinds.ini",
+      "config.ini",
+      "disc.cfg",
+      "bios.cfg",
+      "mods/installed",
+      "mods/packages",
+      "mods/.staging",
+      "mods/state.toml",
+      "mods/state.toml.tmp",
+      "mods/texture-packs",
+      "overlay-captures",
+      "overlay_captures.json",
+      "overlay_captures.json.d",
+      "overlay_captures.addendum.jsonl"
+    ],
+    "runtime_mutable_paths": [
+      "cache",
+      "psx_freeze_heartbeat.json",
+      "psx_freeze_heartbeat.json.tmp",
+      "psx_last_run_report.json",
+      "psx_cps_exit_trace.json",
+      "netplay_lan_lobby.txt",
+      "psx_crash.txt"
+    ],
+    "runtime_mutable_file_patterns": [
+      {
+        "prefix": "psx_freeze_dump_psx-runtime_",
+        "suffix": ".json"
+      },
+      {
+        "prefix": "overlay_captures.json.",
+        "suffix": ".tmp"
+      }
+    ],
+    "launch_environment": {
+      "PSX_OVERLAY_CAPTURES": "build-portcove/overlay-captures/overlay_captures.json"
+    },
+    "launch_arguments": ["--no-launcher"],
+    "runtime_subdirectory": "build-portcove",
+    "presentation": {
+      "installation_method": "managed-recompilation",
+      "source_requirements": [
+        {
+          "role": "game",
+          "profile_id": "alexbeav-mdk-recomp-europe-psx",
+          "label": "MDK (Europe) disc",
+          "verification": "catalog-identity"
+        },
+        {
+          "role": "bios",
+          "profile_id": "psx-scph-5552-bios",
+          "label": "PlayStation SCPH-5552 BIOS (Europe)",
+          "verification": "catalog-identity"
+        }
+      ],
+      "saves_and_settings": "portcove-managed",
+      "manual_preparation": "Use your own European MDK disc (SLES-00599) with all 30 tracks present. Select the complete CHD and your retail SCPH-5552 BIOS in Portcove. On Linux use native C/C++ tools, CMake, Ninja and Python 3.10 or newer. Choose Play after Portcove builds the player."
+    },
+    "bios_source_profile": "psx-scph-5552-bios"
   }
 }

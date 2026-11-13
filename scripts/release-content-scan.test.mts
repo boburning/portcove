@@ -1,0 +1,323 @@
+import assert from "node:assert/strict";
+import { writeFile } from "node:fs/promises";
+import test from "node:test";
+import {
+  type ScanDependencies,
+  type UpstreamRelease,
+  channelRelease,
+  hintedAsset,
+  parse7zTechnical,
+  parseTarVerbose,
+  parseUnsquashfs,
+  scan,
+  scanTargets,
+} from "./release-content-scan.mts";
+
+const listings = {
+  listings: [
+    {
+      id: "code-only",
+      project_url: "https://github.com/up/code",
+      release_url: "https://github.com/up/code/releases",
+      download_asset_hints: { "windows-x86-64": ["Code-", "-windows-x64.zip"] },
+    },
+    {
+      id: "header",
+      project_url: "https://github.com/up/header",
+      download_asset_hints: { "linux-x86-64": ["release_Linux.zip"] },
+      recommended_download_channel: "beta",
+    },
+    {
+      id: "held",
+      project_url: "https://github.com/up/held",
+      download_block_reason: "Held.",
+      download_asset_hints: { "windows-x86-64": ["x"] },
+    },
+    { id: "no-hints", project_url: "https://github.com/up/none" },
+    {
+      id: "gitlab",
+      project_url: "https://gitlab.com/group/Project",
+      release_url: "https://gitlab.com/group/Project/-/releases",
+      download_asset_hints: { "windows-x86-64": ["Project-", "-Windows"] },
+    },
+  ],
+};
+
+void test("targets cover unheld hinted listings on GitHub and GitLab", () => {
+  assert.deepEqual(
+    scanTargets(listings).map((target) => [
+      target.id,
+      target.provider,
+      target.repository,
+      target.platform,
+      target.channel,
+    ]),
+    [
+      ["code-only", "github", "up/code", "windows-x86-64", "stable"],
+      ["header", "github", "up/header", "linux-x86-64", "beta"],
+      ["gitlab", "gitlab", "group/Project", "windows-x86-64", "stable"],
+    ],
+  );
+});
+
+void test("channel and hint selection skip drafts, prereleases, symbols and ambiguity", () => {
+  const releases: UpstreamRelease[] = [
+    { tag: "v3", draft: true, prerelease: false, assets: [] },
+    { tag: "v2-beta", draft: false, prerelease: true, assets: [] },
+    { tag: "v1", draft: false, prerelease: false, assets: [] },
+  ];
+  assert.equal(channelRelease(releases, "stable")?.tag, "v1");
+  assert.equal(channelRelease(releases, "beta")?.tag, "v2-beta");
+  const asset = (name: string) => ({
+    name,
+    url: `https://example.invalid/${name}`,
+    size: 1,
+    digest: null,
+  });
+  assert.equal(
+    hintedAsset(
+      [
+        asset("Code-1-windows-x64.zip"),
+        asset("Code-1-windows-x64-symbols.zip"),
+        asset("Code-1-windows-x64.zip.sha256"),
+      ],
+      ["Code-", "-windows-x64.zip"],
+    )?.name,
+    "Code-1-windows-x64.zip",
+  );
+  assert.equal(hintedAsset([asset("a-win.zip"), asset("b-win.zip")], ["win.zip"]), undefined);
+});
+
+const header = Buffer.alloc(352);
+Buffer.from("24ffae51699aa2213d84820a84e409ad", "hex").copy(header, 0xc0);
+
+function fakes(calls: string[]): ScanDependencies {
+  const releases: Record<string, UpstreamRelease[]> = {
+    "up/code": [
+      {
+        tag: "v1",
+        draft: false,
+        prerelease: false,
+        assets: [{ name: "Code-1-windows-x64.zip", url: "u1", size: 10, digest: null }],
+      },
+    ],
+    "up/header": [
+      {
+        tag: "v0.2",
+        draft: false,
+        prerelease: true,
+        assets: [{ name: "release_Linux.zip", url: "u2", size: 10, digest: null }],
+      },
+    ],
+    "group/Project": [{ tag: "v9", draft: false, prerelease: false, assets: [] }],
+  };
+  return {
+    async releases(target) {
+      calls.push(`releases ${target.repository}`);
+      return releases[target.repository] ?? [];
+    },
+    async download(asset, file) {
+      calls.push(`download ${asset.name}`);
+      await writeFile(file, asset.name);
+    },
+    async list(_file, name) {
+      return name === "release_Linux.zip"
+        ? [
+            { path: "main", size: 70_000_000 },
+            { path: "header.bin", size: 352 },
+          ]
+        : [{ path: "game.exe", size: 5_000_000 }];
+    },
+    async heads(_file, _name, entries) {
+      return new Map(
+        entries.filter((entry) => entry.path === "header.bin").map((entry) => [entry.path, header]),
+      );
+    },
+  };
+}
+
+void test("a scan flags copied headers, records coverage and reuses its checkpoint", async () => {
+  const calls: string[] = [];
+  const targets = scanTargets(listings);
+  const first = await scan(targets, new Map(), fakes(calls));
+  assert.deepEqual(
+    first.report.scanned.map((record) => [
+      record.id,
+      record.asset,
+      record.signals.map((signal) => signal.kind),
+    ]),
+    [
+      ["code-only", "Code-1-windows-x64.zip", []],
+      ["header", "release_Linux.zip", ["cartridge-header"]],
+    ],
+  );
+  assert.deepEqual(
+    first.report.findings.map((record) => record.id),
+    ["header"],
+  );
+  assert.deepEqual(first.report.unscanned, [
+    { id: "gitlab", platform: "windows-x86-64", reason: "hints select no single asset in v9" },
+  ]);
+  const again: string[] = [];
+  const second = await scan(targets, first.checkpoint, fakes(again));
+  assert.equal(second.report.scanned.length, 0);
+  assert.equal(second.report.reused, 2);
+  assert.deepEqual(
+    second.report.findings.map((record) => record.id),
+    ["header"],
+  );
+  assert.ok(!again.some((call) => call.startsWith("download")));
+});
+
+void test("budgets leave assets for a later run without guessing their contents", async () => {
+  const limited = await scan(scanTargets(listings), new Map(), fakes([]), { maxAssets: 1 });
+  assert.equal(limited.report.scanned.length, 1);
+  assert.ok(limited.report.unscanned.some((entry) => entry.reason.includes("budget reached")));
+  const small = await scan(scanTargets(listings), new Map(), fakes([]), { maxAssetBytes: 5 });
+  assert.equal(small.report.scanned.length, 0);
+  assert.ok(
+    small.report.unscanned.every(
+      (entry) => !entry.reason.includes("budget") || entry.reason.includes("exceeds"),
+    ),
+  );
+});
+
+void test("listers' output parses into entries with sizes", () => {
+  assert.deepEqual(
+    parse7zTechnical("Path = a/b.bin\nSize = 352\nFolder = -\n\nPath = a\nSize = 0\nFolder = +\n"),
+    [{ path: "a/b.bin", size: 352 }],
+  );
+  assert.deepEqual(
+    parseTarVerbose(
+      "-rw-r--r-- user/group 1584 2026-11-07 18:37 ./dir/firmware.bin\ndrwxr-xr-x user/group 0 2026-11-07 18:37 ./dir/\n",
+    ),
+    [{ path: "dir/firmware.bin", size: 1584, member: "./dir/firmware.bin" }],
+  );
+  assert.deepEqual(
+    parseUnsquashfs(
+      "drwxr-xr-x root/root 120 2026-11-07 18:37 squashfs-root\n-rwxr-xr-x root/root 42 2026-11-07 18:37 squashfs-root/usr/bin/game\n",
+    ),
+    [{ path: "usr/bin/game", size: 42 }],
+  );
+});
+
+void test("the job summary leads with findings and lists unscanned targets", async () => {
+  const { report } = await scan(scanTargets(listings), new Map(), fakes([]));
+  const { summaryMarkdown } = await import("./release-content-scan.mts");
+  const text = summaryMarkdown(report);
+  assert.match(text, /Scanned 2 new package\(s\)/);
+  assert.match(
+    text,
+    /`header` \(linux-x86-64\) v0\.2 `release_Linux\.zip`: header\.bin \(contains Nintendo's cartridge boot logo\)/,
+  );
+  assert.match(text, /`gitlab` \(windows-x86-64\): hints select no single asset in v9/);
+});
+
+void test("member names that look like options, list files or wildcards are never passed to a lister", async () => {
+  const { safeMember } = await import("./release-content-scan.mts");
+  assert.ok(safeMember("dir/header.bin"));
+  for (const name of [
+    "--use-compress-program=sh",
+    "-ao",
+    "@list.txt",
+    "a*.bin",
+    "b?.bin",
+    "c[1].bin",
+  ])
+    assert.equal(safeMember(name), false, name);
+});
+
+void test("tar listings keep the raw member name for extraction", () => {
+  assert.deepEqual(parseTarVerbose("-rw-r--r-- u/g 352 2026-11-07 18:37 ./d/header.bin\n"), [
+    { path: "d/header.bin", size: 352, member: "./d/header.bin" },
+  ]);
+});
+
+void test("failed downloads spend the asset and byte budgets and the deadline stops the run", async () => {
+  const failing: ScanDependencies = {
+    ...fakes([]),
+    async download(asset, file) {
+      await writeFile(file, Buffer.alloc(8));
+      throw new Error(`transfer of ${asset.name} failed`);
+    },
+  };
+  const spent = await scan(scanTargets(listings), new Map(), failing, { maxAssets: 1 });
+  assert.equal(spent.report.scanned.length, 0);
+  assert.deepEqual(
+    spent.report.unscanned.map((entry) => entry.reason.split(":")[0]),
+    [
+      "asset Code-1-windows-x64.zip could not be scanned",
+      "asset or byte budget reached; scanned in a later run",
+      "hints select no single asset in v9",
+    ],
+  );
+  const bytes = await scan(scanTargets(listings), new Map(), failing, { maxTotalBytes: 12 });
+  assert.deepEqual(
+    bytes.report.unscanned.map((entry) => entry.reason.includes("budget")),
+    [false, true, false],
+  );
+  let now = 0;
+  const late = await scan(scanTargets(listings), new Map(), fakes([]), {
+    deadline: 1,
+    clock: () => now++,
+  });
+  assert.equal(late.report.scanned.length, 1);
+  assert.ok(late.report.unscanned.every((entry) => entry.reason.startsWith("time budget")));
+});
+
+void test("a published digest that differs from the bytes is not scanned", async () => {
+  const deps = fakes([]);
+  const mismatched: ScanDependencies = {
+    ...deps,
+    async releases(target) {
+      return (await deps.releases(target)).map((release) => ({
+        ...release,
+        assets: release.assets.map((asset) => ({ ...asset, digest: `sha256:${"0".repeat(64)}` })),
+      }));
+    },
+  };
+  const result = await scan(scanTargets(listings), new Map(), mismatched);
+  assert.equal(result.report.scanned.length, 0);
+  assert.ok(result.report.unscanned.some((entry) => entry.reason.includes("published digest")));
+});
+
+void test("records carry the rules version and partial reads", async () => {
+  const { RULES_VERSION } = await import("./release-content-signals.mts");
+  const { report } = await scan(scanTargets(listings), new Map(), fakes([]));
+  for (const record of report.scanned) {
+    assert.equal(record.rules, RULES_VERSION);
+    assert.ok(record.key.startsWith(`r${RULES_VERSION}|`));
+    assert.equal(record.heads_truncated, false);
+  }
+  assert.equal(report.scanned.find((record) => record.id === "code-only")?.heads_unread, 0);
+});
+
+void test("every external call is capped at the run's deadline", async () => {
+  const { callTimeout, escapeCommand } = await import("./release-content-scan.mts");
+  assert.equal(callTimeout(300_000, 1_000_000, 900_000), 100_000);
+  assert.equal(callTimeout(300_000, Number.POSITIVE_INFINITY, 0), 300_000);
+  assert.throws(() => callTimeout(300_000, 1000, 1000), /time budget reached/);
+  assert.equal(escapeCommand("a%b\r\n::stop-commands::x"), "a%25b%0D%0A::stop-commands::x");
+});
+
+void test("a package whose reads the deadline cut is retried instead of recorded as clean", async () => {
+  let now = 0;
+  const deps = fakes([]);
+  const slow: ScanDependencies = {
+    ...deps,
+    async heads() {
+      now = 10;
+      return new Map();
+    },
+    async list() {
+      return [{ path: "data.bin", size: 100 }];
+    },
+  };
+  const { report, checkpoint } = await scan(scanTargets(listings), new Map(), slow, {
+    deadline: 5,
+    clock: () => now,
+  });
+  assert.equal(report.scanned.length, 0);
+  assert.equal(checkpoint.size, 0);
+  assert.ok(report.unscanned.some((entry) => entry.reason.includes("cut by the time budget")));
+});

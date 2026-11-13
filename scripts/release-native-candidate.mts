@@ -1,11 +1,16 @@
+import { collectReleaseRunEvidence } from "./release-run-evidence.mts";
+import type { ReleaseEvidenceOptions } from "./release-run-evidence.mts";
+import { nativeCompatibilitySourcePaths } from "./release-native-source-contract.mts";
+import { nativePlatformsForReleaseProfile } from "./release-package-policy.mts";
+import { isInitialBetaReleaseProfile } from "./release-package-policy.mts";
 /** Actual local-parent candidate selection. Provider acquisition deliberately
  * retains the admission collector's injected-provider scope: this module owns
  * its fixed transport and package custody, never an admission/native result. */
 import { createHash } from "node:crypto";
 import { retainNativeSourceDeclarations } from "./release-native-source-provider.mts";
 import { spawnSync } from "node:child_process";
-import { lstatSync, readFileSync } from "node:fs";
-import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
+import { constants, lstatSync, readFileSync, unlinkSync, type BigIntStats } from "node:fs";
+import { link, lstat, mkdir, mkdtemp, open, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { performance } from "node:perf_hooks";
 import { EventEmitter } from "node:events";
@@ -15,8 +20,17 @@ import {
   requireActualNativeParent,
   remainingNativeParentBudget,
 } from "./release-native-parent.mts";
-import { GitHubApiClient, createGitHubRunner } from "./github-api.mts";
-import { readGitHubArtifactArchive, readGitHubReleaseAsset } from "./github-binary.mts";
+import type { RetainedGitHubSpawn } from "./github-cli.mts";
+import {
+  downloadGitHubArtifactArchiveFile,
+  downloadGitHubReleaseAssetFile,
+} from "./github-artifact-download.mts";
+import type { GitHubCredential, GitHubRequestPolicy } from "./github-client.mts";
+import { coordinatorCommandDeadline } from "./release-coordinator-deadline.mts";
+import { assertTrustedDirectNode } from "./release-direct-node-transport.mts";
+import { readControllerToolFile } from "./release-controller-tools.mts";
+import type { SigningArchiveDownload } from "./release-signing-handoff.mts";
+import { createReleaseCustodyProvider } from "./release-custody-provider.mts";
 import {
   recoverRemoteCoordinator,
   hydrateRetainedCoordinatorOperation,
@@ -53,7 +67,10 @@ import {
   prepareNativeQualificationCheck,
   collectNativeReleaseQualification,
 } from "./release-native-acceptance.mts";
-import { deriveNativePublicationJourneys } from "./release-native-publication-admission.mts";
+import {
+  createNativePredecessorReader,
+  deriveNativePublicationJourneysWithSdk,
+} from "./release-native-publication-admission.mts";
 import { inspectNativeQualificationCandidate } from "./release-native-qualification-contract.mts";
 import { nativeQualificationCheckName } from "./release-native-qualification-contract.mts";
 
@@ -98,14 +115,14 @@ export async function inspectSelectedNativeCandidate(
 ) {
   const { accepted, policy, labels } = await inspectTrustedAssemblyInput(facts.assembly);
   if (
-    accepted.release_profile !== "initial-beta-win-linux" ||
-    labels.length !== 2 ||
-    facts.archives.length !== 2 ||
+    !isInitialBetaReleaseProfile(accepted.release_profile) ||
+    labels.length !== nativePlatformsForReleaseProfile(accepted.release_profile).length ||
+    facts.archives.length !== labels.length ||
     facts.archives
       .map((entry) => entry.platform)
       .sort()
       .join(",") !== [...labels].sort().join(",") ||
-    new Set(facts.archives.map((entry) => entry.artifact_id)).size !== 2 ||
+    new Set(facts.archives.map((entry) => entry.artifact_id)).size !== labels.length ||
     !/^[a-f0-9]{40}$/u.test(facts.checkpoint)
   )
     throw new Error("native selection requires the reserved complete beta pair");
@@ -168,85 +185,6 @@ function toolBytes(file: string, expected: string) {
   )
     throw new Error("native fixed source tool changed");
   return { dev: after.dev, ino: after.ino, size: after.size, mtimeMs: after.mtimeMs };
-}
-
-/** Data-only route guard used immediately before every credentialled child. */
-export function inspectNativeSourceCommand(args: readonly string[], input?: unknown) {
-  if (args[0] !== "api" || args.length > 16)
-    throw new Error("native source admits fixed read-only GitHub API operations only");
-  let endpoint: string | null = null,
-    method: string | null = null,
-    host: string | null = null,
-    stdin = false,
-    octetStream = false;
-  for (let index = 1; index < args.length; index++) {
-    const item = args[index];
-    if (item === "--include") continue;
-    if (item === "-H" && !octetStream) {
-      if (args[++index] !== "Accept: application/octet-stream")
-        throw new Error("native source header differs");
-      octetStream = true;
-    } else if (item === "--hostname" && host === null) host = args[++index] ?? null;
-    else if (item === "--method" && method === null) method = args[++index] ?? null;
-    else if (item === "--input" && !stdin) {
-      if (args[++index] !== "-") throw new Error("native source forbids body files");
-      stdin = true;
-    } else if (typeof item === "string" && !item.startsWith("-") && endpoint === null)
-      endpoint = item;
-    else throw new Error("native source command shape differs");
-  }
-  if (host !== "github.com" || !endpoint) throw new Error("native source host/route differs");
-  if (
-    octetStream &&
-    !/^repos\/boburning\/portcove\/releases\/assets\/[1-9][0-9]{0,15}$/u.test(endpoint)
-  )
-    throw new Error("native binary transport requires an exact Release asset");
-  if (endpoint === "graphql") {
-    if (!stdin || input === undefined || (method !== null && method !== "POST"))
-      throw new Error("native source GraphQL body required");
-    const text = Buffer.isBuffer(input) ? input.toString("utf8") : input;
-    if (typeof text !== "string") throw new Error("native source query must be UTF-8 text");
-    if (Buffer.byteLength(text) > 128 * 1024) throw new Error("native source query bound exceeded");
-    const body: unknown = JSON.parse(text);
-    if (
-      !isRecord(body) ||
-      typeof body.query !== "string" ||
-      !/^\s*query(?:\s|\()/u.test(body.query) ||
-      /\bmutation\b/u.test(body.query)
-    )
-      throw new Error("native source GraphQL mutation refused");
-  } else if (
-    !/^repos\/boburning\/portcove(?:\/[A-Za-z0-9_./?=&%+-]+)?$/u.test(endpoint) ||
-    decodeURIComponent(endpoint.split("?")[0]!)
-      .split("/")
-      .some((part) => part === "." || part === ".." || !part) ||
-    (method !== null && method !== "GET") ||
-    stdin ||
-    input !== undefined
-  )
-    throw new Error("native source repository mutation/foreign route refused");
-  return { scope: "read-only-route-integrity", authority: "none" } as const;
-}
-
-/** Passive, read-only source transport; callers retain credential/tool custody. */
-export function createNativeSourceApiReader(
-  cwd: string,
-  spawn: NonNullable<NonNullable<Parameters<typeof createGitHubRunner>[0]>["spawn"]>,
-) {
-  return new GitHubApiClient((args, input) => {
-    const command = [...args, "--hostname", "github.com"];
-    inspectNativeSourceCommand(command, input);
-    // A 4 MiB catalog needs base64 plus JSON framing. Only an immutable source
-    // blob gets this allowance; all unrelated metadata retains its 2 MiB bound.
-    const blob = command.some((item) =>
-      /^repos\/boburning\/portcove\/git\/blobs\/[a-f0-9]{40}$/u.test(item),
-    );
-    return createGitHubRunner({
-      cwd,
-      maxBuffer: (blob ? 8 : 2) * 1024 * 1024,
-      spawn,
-    })(command, input);
-  });
 }
 
 /** Only the existing fixed GitHub/Sigstore verifier over retained public files.
@@ -415,42 +353,113 @@ async function sourceTransport(parent: Parent, directory: string) {
     GH_PROMPT_DISABLED: "1",
     GH_NO_UPDATE_NOTIFIER: "1",
   });
-  // The closure is never passed to candidate code or exported as a provenance
-  // constructor. Only maintained read-only collectors below receive adapters.
-  const textSpawn: NonNullable<NonNullable<Parameters<typeof createGitHubRunner>[0]>["spawn"]> = (
-    command,
-    args,
-    options,
-  ) => {
-    if (command !== "gh") throw new Error("native source executable selection refused");
-    inspectNativeSourceCommand(args, options.input);
+  const credential = { kind: "explicit" as const, token };
+  const fixedFetch: typeof globalThis.fetch = (input, init) => {
     checkToolIdentity();
-    const result = spawnSync(fixed.github_cli.path, args, { ...options, env });
-    checkToolIdentity();
-    return result;
+    assertTrustedDirectNode("installed native post-sign artifacts");
+    return globalThis.fetch(input, init);
   };
-  const api = createNativeSourceApiReader(directory, textSpawn);
-  const opaque =
-    (reader: typeof readGitHubArtifactArchive): typeof readGitHubArtifactArchive =>
-    (endpoint, options) =>
-      reader(endpoint, {
-        ...options,
-        spawn: (command, args, spawnOptions) => {
-          if (command !== "gh") throw new Error("native source executable selection refused");
-          inspectNativeSourceCommand(args);
-          checkToolIdentity();
-          const result = spawnSync(fixed.github_cli.path, args, { ...spawnOptions, env });
-          checkToolIdentity();
-          return result;
-        },
+  const postSignDeadline = (phaseDeadline: number, cap: number) =>
+    Math.min(
+      phaseDeadline,
+      coordinatorCommandDeadline() ?? Infinity,
+      performance.now() + remainingNativeParentBudget(cap),
+    );
+  const readPostSignMetadata = async (endpoint: string, phaseDeadline: number) => {
+    await recheck();
+    const deadline = postSignDeadline(phaseDeadline, 15000);
+    const { createGitHubClient } = await import("./github-client.mts");
+    const client = await createGitHubClient({
+      credential,
+      deadline,
+      maxBytes: 2 * 1024 ** 2,
+      fetch: fixedFetch,
+      allowRequest(method, url) {
+        if (method !== "GET" || url.pathname + url.search !== endpoint) return false;
+        checkToolIdentity();
+        return true;
+      },
+    });
+    const response = await client.request(`GET ${endpoint}`, {
+      request: { portcove: { replay: "once", attempts: 0 } },
+    });
+    await recheck();
+    if (response.status !== 200 || performance.now() >= deadline)
+      throw new Error("post-sign artifact inventory unavailable");
+    return response.data as unknown;
+  };
+  const readPostSignInventory = (run: string, deadline: number) =>
+    readPostSignMetadata(
+      `/repos/boburning/portcove/actions/runs/${run}/artifacts?per_page=100`,
+      deadline,
+    );
+  const readPostSignArtifact = (id: number, deadline: number) => {
+    if (!Number.isSafeInteger(id) || id < 1)
+      throw new Error("native signed platform archive identity unavailable");
+    return readPostSignMetadata(`/repos/boburning/portcove/actions/artifacts/${id}`, deadline);
+  };
+  const download = async (
+    endpoint: string,
+    { cwd, maxBytes, timeoutMs, lookup }: Parameters<SigningArchiveDownload>[1],
+    phaseDeadline = Infinity,
+  ) => {
+    if (!/^repos\/boburning\/portcove\/actions\/artifacts\/[1-9][0-9]{0,15}\/zip$/u.test(endpoint))
+      throw new Error("fixed installed native archive route refused");
+    const deadline = postSignDeadline(phaseDeadline, timeoutMs);
+    await recheck();
+    const scratch = await mkdtemp(path.join(cwd, "native-proof-archive-"));
+    let bytes: Buffer;
+    try {
+      const filename = path.join(scratch, "archive.zip");
+      await downloadGitHubArtifactArchiveFile(endpoint, filename, {
+        credential,
+        deadline,
+        maxBytes,
+        fetch: fixedFetch,
+        ...(lookup ? { lookup } : {}),
       });
-  const download = opaque(readGitHubArtifactArchive);
-  const downloadAsset = opaque(readGitHubReleaseAsset);
+      checkToolIdentity();
+      if (performance.now() >= deadline) throw new Error("native proof archive deadline exhausted");
+      bytes = await readControllerToolFile(filename, maxBytes);
+    } finally {
+      await rm(scratch, { recursive: true, force: true });
+    }
+    await recheck();
+    if (performance.now() >= deadline || bytes.length !== maxBytes)
+      throw new Error("native proof archive differs or exceeded its deadline");
+    return bytes;
+  };
+  const downloadPostSignArchive = async (
+    item: { id: number; bytes: number; sha256: string },
+    root: string,
+    cap: number,
+    phaseDeadline: number,
+  ) => {
+    const bytes = await download(
+      `repos/boburning/portcove/actions/artifacts/${item.id}/zip`,
+      { cwd: root, maxBytes: item.bytes, timeoutMs: cap },
+      phaseDeadline,
+    );
+    if (hash(bytes) !== item.sha256) throw new Error("native proof archive digest differs");
+    return bytes;
+  };
   const recover = () =>
     recoverRemoteCoordinator(
       directory,
       { schema_version: 1, namespace: parent.descriptor.namespace },
-      { transport: { cwd: directory, spawn: textSpawn } },
+      {
+        transport: {
+          credential: { token },
+          deadline: Math.min(
+            coordinatorCommandDeadline() ?? Infinity,
+            performance.now() + remainingNativeParentBudget(120000),
+          ),
+          checkSource() {
+            checkToolIdentity();
+            assertTrustedDirectNode("installed native journal");
+          },
+        },
+      },
     );
   const recheck = async () => {
     await parent.recheck();
@@ -459,11 +468,7 @@ async function sourceTransport(parent: Parent, directory: string) {
   };
   const verifier = (controller: { controller_revision: string; controller_ref: string }) => {
     const expected = Object.freeze({ ...controller });
-    const spawn: NonNullable<NonNullable<Parameters<typeof createGitHubRunner>[0]>["spawn"]> = (
-      command,
-      args,
-      options,
-    ) => {
+    const spawn: RetainedGitHubSpawn = (command, args, options) => {
       if (command !== "gh") throw new Error("native verifier executable selection refused");
       inspectNativeControllerVerificationCommand(args, directory, expected);
       checkToolIdentity();
@@ -477,11 +482,7 @@ async function sourceTransport(parent: Parent, directory: string) {
     const expected = Object.freeze({ ...identity });
     if (!expected.ref.startsWith(`refs/tags/${parent.descriptor.namespace}-prepared/v`))
       throw new Error("public compiler source escaped installed namespace");
-    const spawn: NonNullable<NonNullable<Parameters<typeof createGitHubRunner>[0]>["spawn"]> = (
-      command,
-      args,
-      options,
-    ) => {
+    const spawn: RetainedGitHubSpawn = (command, args, options) => {
       if (command !== "gh") throw new Error("native public verifier executable selection refused");
       inspectNativeReleaseVerificationCommand(args, directory, expected);
       checkToolIdentity();
@@ -495,7 +496,176 @@ async function sourceTransport(parent: Parent, directory: string) {
     };
     return spawn;
   };
-  return { api, download, downloadAsset, recover, recheck, verifier, releaseVerifier };
+  const metadata = (deadline: number, maxBytes = 2 * 1024 ** 2) =>
+    createReleaseCustodyProvider({
+      token,
+      deadline: Math.min(deadline, performance.now() + remainingNativeParentBudget(300000)),
+      maxBytes,
+    });
+  const collectEvidence = (request: unknown, options: ReleaseEvidenceOptions = {}) => {
+    checkToolIdentity();
+    return collectReleaseRunEvidence(request, {
+      ...options,
+      credential: { kind: "explicit", token },
+      async reserve(request) {
+        checkToolIdentity();
+        const outer = await options.reserve?.(request);
+        return {
+          consumeBytes(bytes) {
+            outer?.consumeBytes(bytes);
+          },
+          settle(observation) {
+            outer?.settle(observation);
+            checkToolIdentity();
+          },
+        };
+      },
+      deadline: Math.min(
+        options.deadline ?? Infinity,
+        performance.now() + remainingNativeParentBudget(),
+      ),
+    });
+  };
+  const declarations = async () => {
+    const deadline =
+      performance.now() +
+      remainingNativeParentBudget(2 * nativeCompatibilitySourcePaths.length * 15000);
+    const contents = await metadata(deadline);
+    let blobs: ReturnType<typeof metadata> | undefined;
+    const read = async (operation: () => Promise<unknown>) => {
+      checkToolIdentity();
+      const body = await operation();
+      checkToolIdentity();
+      return body;
+    };
+    return {
+      file: (pathname: string, revision: string) => read(() => contents.file(pathname, revision)),
+      blob: (sha: string) =>
+        read(async () => {
+          blobs ??= metadata(deadline, 8 * 1024 ** 2);
+          return (await blobs).blob(sha);
+        }),
+    };
+  };
+  return {
+    async compilerSourceReader(phaseDeadline: number) {
+      await recheck();
+      const { createCompilerSourceReader } = await import("./release-compiler-source.mts");
+      const deadline = postSignDeadline(phaseDeadline, 15 * 60 * 1000);
+      const read = await createCompilerSourceReader({
+        credential,
+        deadline,
+        maxBytes: 2 * 1024 * 1024,
+        fixedReader: true,
+        checkSource(url) {
+          if (url.pathname.startsWith("/repositories/"))
+            throw new Error("native source repository route refused");
+          checkToolIdentity();
+        },
+      });
+      return { read, deadline };
+    },
+    collectEvidence,
+    metadata,
+    declarations,
+    download,
+    readPublicAllocations: async (namespace: string, deadline: number) =>
+      (await import("./release-publication-inventory.mts")).readPublicationAllocationsWithSdk(
+        namespace,
+        { token, deadline, fetch: fixedFetch, recheck },
+      ),
+    readPublicRelease: (version: string, deadline: number) =>
+      readNativeImmutableReleaseSnapshot(
+        version,
+        { credential, deadline, fetch: fixedFetch, recheck },
+        true,
+      ),
+    retainPublicReleaseAsset: (
+      asset: ReturnType<typeof inspectPublicImmutableReleaseAsset>,
+      root: string,
+      slot: "prior" | "candidate" | "parked",
+      deadline: number,
+      assertUnchanged: () => Promise<void>,
+    ) =>
+      retainNativeImmutableReleaseAsset(
+        asset,
+        root,
+        slot,
+        { credential, deadline, fetch: fixedFetch, recheck },
+        assertUnchanged,
+      ),
+    async readPublicationJourneys(
+      input: Parameters<typeof deriveNativePublicationJourneysWithSdk>[0],
+    ) {
+      await recheck();
+      const deadline = Math.min(
+        coordinatorCommandDeadline() ?? Infinity,
+        performance.now() + remainingNativeParentBudget(),
+      );
+      const predecessor = await createNativePredecessorReader(
+        token,
+        deadline,
+        checkToolIdentity,
+        undefined,
+        fixedFetch,
+        2 * 1024 ** 2,
+      );
+      const journeys = await deriveNativePublicationJourneysWithSdk(input, predecessor);
+      await recheck();
+      return journeys;
+    },
+    async checkpointObjects() {
+      const deadline = Math.min(
+        coordinatorCommandDeadline() ?? Infinity,
+        performance.now() + remainingNativeParentBudget(),
+      );
+      const scoped = (maxBytes: number) =>
+        createReleaseCustodyProvider({
+          token,
+          deadline,
+          maxBytes,
+          fetch: fixedFetch,
+          afterRead: checkToolIdentity,
+        });
+      const objects = await scoped(2 * 1024 ** 2);
+      let blobs: ReturnType<typeof scoped> | undefined;
+      return {
+        commit: (sha: string) => objects.commit(sha),
+        tree: (sha: string, recursive?: boolean) => objects.tree(sha, recursive),
+        async blob(sha: string) {
+          blobs ??= scoped(8 * 1024 ** 2);
+          return (await blobs).blob(sha);
+        },
+      };
+    },
+    readCheckMetadata: (route: string) =>
+      readPostSignMetadata(
+        `/repos/boburning/portcove/${route}`,
+        performance.now() + remainingNativeParentBudget(),
+      ),
+    admissionSource: () => ({
+      token,
+      deadline: postSignDeadline(Infinity, 15 * 60 * 1000),
+      guard() {
+        checkToolIdentity();
+        assertTrustedDirectNode("installed native admission");
+      },
+    }),
+    readPostSignInventory,
+    readPostSignArtifact,
+    downloadPostSignArchive,
+    acquirePredecessor: (record: unknown, candidate: unknown, root: string) =>
+      acquireNativePredecessorRelease(record, candidate, root, {
+        credential,
+        deadline: performance.now() + remainingNativeParentBudget(),
+        fetch: fixedFetch,
+        recheck,
+      }),
+    recover,
+    recheck,
+    verifier,
+    releaseVerifier,
+  };
 }
 
 /** The public journey uses the same installed parent's read-only source tool
@@ -558,7 +728,8 @@ const selections = new WeakMap<
     recovery: ReturnType<typeof nativeInvocationIdentity>["counters"];
     recover: Awaited<ReturnType<typeof sourceTransport>>["recover"];
     recheckSource: Awaited<ReturnType<typeof sourceTransport>>["recheck"];
-    api: GitHubApiClient;
+    readCheckMetadata: Awaited<ReturnType<typeof sourceTransport>>["readCheckMetadata"];
+    declarations: Awaited<ReturnType<typeof sourceTransport>>["declarations"];
   }
 >();
 
@@ -655,10 +826,12 @@ export async function readActualNativePostSignController(parentReceipt: object) 
           `github-actions:boburning/portcove:${String(candidate.version)}:tuf-timestamp-envelope`,
         ),
   );
+  let checkpointObjects: Awaited<ReturnType<typeof source.checkpointObjects>> | undefined;
   for (const group of groups) {
     for (const proof of group.attempts) {
+      checkpointObjects ??= await source.checkpointObjects();
       const operation = await hydrateRetainedCoordinatorOperation(before.repository, proof, {
-        api: source.api,
+        provider: checkpointObjects,
       });
       raws.push({ checkpoint: proof.checkpoint, operation });
     }
@@ -847,28 +1020,19 @@ export async function readActualNativePostSignPublicInputs(controllerReceipt: ob
     if (performance.now() >= deadline)
       throw new Error("native public input acquisition deadline exhausted");
   };
-  const inventory = () => {
+  const inventory = async () => {
     active();
-    const response = source.api.request(
-      "GET",
-      `repos/boburning/portcove/actions/runs/${controller.run_id}/artifacts?per_page=100`,
-    );
+    const body = await source.readPostSignInventory(controller.run_id, deadline);
     active();
-    if (response.status !== 200) throw new Error("post-sign artifact inventory unavailable");
-    return inspectNativePostSignArtifactInventory(response.body, controller);
+    return inspectNativePostSignArtifactInventory(body, controller);
   };
-  const before = inventory();
-  const zipEndpoint = `repos/boburning/portcove/actions/artifacts/${before.context.id}/zip`;
-  const contextArchive = source.download(zipEndpoint, {
-    cwd: directory,
-    maxBytes: before.context.bytes,
-    timeoutMs: 30000,
-  });
-  if (
-    contextArchive.length !== before.context.bytes ||
-    hash(contextArchive) !== before.context.sha256
-  )
-    throw new Error("native public context archive differs from provider identity");
+  const before = await inventory();
+  const contextArchive = await source.downloadPostSignArchive(
+    before.context,
+    directory,
+    30000,
+    deadline,
+  );
   const inspected = inspectSigningContextArchive(contextArchive);
   for (const [name, expectedHash] of [
     ["trusted-root.json", publicPins.public_source.root.sha256],
@@ -896,11 +1060,25 @@ export async function readActualNativePostSignPublicInputs(controllerReceipt: ob
     binding_sha256: digest(inspected.manifest.binding),
     facts_sha256: factsSha256,
   };
-  const cachedDownload: typeof readGitHubArtifactArchive = (endpoint, options) =>
-    endpoint === zipEndpoint ? Buffer.from(contextArchive) : source.download(endpoint, options);
+  const selectedArchives = new Map(
+    [
+      before.context,
+      before.context_bundle,
+      ...before.roles.flatMap((role) => [role.artifact, role.bundle]),
+    ].map((item) => [`repos/boburning/portcove/actions/artifacts/${item.id}/zip`, item]),
+  );
+  const download: SigningArchiveDownload = (endpoint, options) => {
+    const item = selectedArchives.get(endpoint);
+    if (!item || item.bytes !== options.maxBytes)
+      throw new Error("native proof archive differs from original inventory");
+    return item.id === before.context.id
+      ? Buffer.from(contextArchive)
+      : source.downloadPostSignArchive(item, options.cwd, options.timeoutMs, deadline);
+  };
+  const metadata = await source.metadata(deadline);
   const context = await receiveSigningContextArtifact(directory, expected, deadline, {
-    api: source.api,
-    download: cachedDownload,
+    metadata,
+    download,
     spawn: source.verifier(controller),
   });
   const candidate = selected.candidate,
@@ -909,7 +1087,7 @@ export async function readActualNativePostSignPublicInputs(controllerReceipt: ob
     throw new Error("actual signed context differs from reserved complete opportunity");
   const { accepted } = await inspectTrustedAssemblyInput(facts.assembly);
   if (
-    accepted.release_profile !== "initial-beta-win-linux" ||
+    !isInitialBetaReleaseProfile(accepted.release_profile) ||
     accepted.source_commit !== candidate.prepared_commit ||
     accepted.source_tree !== candidate.prepared_tree ||
     accepted.version !== candidate.version ||
@@ -943,12 +1121,12 @@ export async function readActualNativePostSignPublicInputs(controllerReceipt: ob
           context_facts_sha256: expected.facts_sha256,
         },
         deadline,
-        { api: source.api, download: source.download, spawn: source.verifier(controller) },
+        { metadata, download, spawn: source.verifier(controller) },
       ),
     );
   }
   active();
-  if (digest(inventory()) !== digest(before))
+  if (digest(await inventory()) !== digest(before))
     throw new Error("post-sign artifact inventory changed during acquisition");
   await requireActualNativePostSignController(controllerReceipt);
   await writeFile(
@@ -1135,7 +1313,7 @@ export async function readActualNativePostSignJourney(controllerReceipt: object)
     .map(([name, bytes]) => ({ path: name, bytes: bytes.length, sha256: hash(bytes) }));
   if (digest(fileInventory) !== digest(manifest.files))
     throw new Error("native context files changed after authenticated keyless assembly");
-  const journeys = deriveNativePublicationJourneys({
+  const journeys = await original.source.readPublicationJourneys({
     files,
     coordinator_input: current.input,
     manifest,
@@ -1144,7 +1322,6 @@ export async function readActualNativePostSignJourney(controllerReceipt: object)
     platform_labels: [selected.parent.descriptor.platform_label],
     public_pins: inspectPublicationAuthorities(authorities.publication, authorities.schema_version),
     authority_schema_version: authorities.schema_version,
-    api: original.source.api,
   });
   const journey = journeys[0];
   let predecessorRecord: Record<string, unknown> | null = null;
@@ -1224,10 +1401,10 @@ export async function inspectNativePostSignPackageMetadata(
   const matches = archives.filter((entry) => entry.platform === platform),
     archive = matches[0];
   if (
-    accepted.release_profile !== "initial-beta-win-linux" ||
-    labels.length !== 2 ||
-    archives.length !== 2 ||
-    new Set(archives.map((entry) => entry.artifact_id)).size !== 2 ||
+    !isInitialBetaReleaseProfile(accepted.release_profile) ||
+    labels.length !== nativePlatformsForReleaseProfile(accepted.release_profile).length ||
+    archives.length !== labels.length ||
+    new Set(archives.map((entry) => entry.artifact_id)).size !== labels.length ||
     archives
       .map((entry) => entry.platform)
       .sort()
@@ -1345,6 +1522,249 @@ export function inspectPublicImmutableReleaseAsset(
   });
 }
 
+type NativeImmutableReleaseSource = {
+  credential: Extract<GitHubCredential, { kind: "explicit" }>;
+  deadline: number;
+  fetch: typeof globalThis.fetch;
+  recheck: () => void | Promise<void>;
+};
+
+export async function readNativeImmutableReleaseSnapshot(
+  version: string,
+  options: NativeImmutableReleaseSource,
+  pageSize100 = false,
+) {
+  if (!/^[0-9]+[.][0-9]+[.][0-9]+(?:-[A-Za-z0-9.-]+)?$/u.test(version))
+    throw new Error("native immutable Release version refused");
+  const deadline = Math.min(options.deadline, coordinatorCommandDeadline() ?? Infinity);
+  const repository = "/repos/boburning/portcove";
+  const tag = `${repository}/releases/tags/${encodeURIComponent(`v${version}`)}`;
+  const { createGitHubClient } = await import("./github-client.mts");
+  let admittedRoute = tag;
+  const api = await createGitHubClient({
+    credential: options.credential,
+    deadline,
+    maxBytes: 2 * 1024 * 1024,
+    fetch: options.fetch,
+    allowRequest: (method, url) => method === "GET" && url.pathname + url.search === admittedRoute,
+  });
+  const guard = async () => {
+    await options.recheck();
+    if (performance.now() >= deadline) throw new Error("native predecessor lifetime exhausted");
+  };
+  const get = async (route: string) => {
+    await guard();
+    admittedRoute = route;
+    const policy: GitHubRequestPolicy = { replay: "once", attempts: 0 };
+    try {
+      const response = await api.request(`GET ${route}`, { request: { portcove: policy } });
+      await guard();
+      if (response.status !== 200) throw new Error("native predecessor Release unavailable");
+      return response;
+    } finally {
+      await policy.admissionSettled;
+    }
+  };
+  const release: unknown = (await get(tag)).data;
+  if (!isRecord(release) || !Number.isSafeInteger(release.id) || Number(release.id) < 1)
+    throw new Error("native predecessor Release unavailable");
+  const assetsRoute = `${repository}/releases/${String(release.id)}/assets`;
+  const numericRoute = `/repositories/1354613114/releases/${String(release.id)}/assets`;
+  const assets: unknown[] = [];
+  const ids = new Set<number>();
+  let route = pageSize100 ? `${assetsRoute}?per_page=100` : assetsRoute;
+  for (let page = 1; ; page++) {
+    const response = await get(route);
+    const entries: unknown = response.data;
+    if (!Array.isArray(entries) || assets.length + entries.length > 64)
+      throw new Error("native predecessor immutable asset inventory exceeds its bound");
+    for (const asset of entries as unknown[]) {
+      if (
+        !isRecord(asset) ||
+        typeof asset.id !== "number" ||
+        !Number.isSafeInteger(asset.id) ||
+        asset.id < 1 ||
+        ids.has(asset.id)
+      )
+        throw new Error("native predecessor asset inventory ambiguous");
+      ids.add(asset.id);
+      assets.push(asset);
+    }
+    const header = response.headers.link;
+    let next: string | undefined;
+    if (header !== undefined) {
+      if (typeof header !== "string")
+        throw new Error("native predecessor immutable asset pagination is malformed");
+      const pattern = /<([^>]+)>;\s*rel="([^"]+)"/gu;
+      const relations = [...header.matchAll(pattern)];
+      const nextRelations = relations.filter((match) => match[2]?.split(/\s+/u).includes("next"));
+      if (
+        !relations.length ||
+        header.replace(pattern, "").replace(/[,\s]/gu, "") ||
+        nextRelations.length > 1
+      )
+        throw new Error("native predecessor immutable asset pagination is malformed");
+      next = nextRelations[0]?.[1];
+    }
+    if (!next) return { release, assets };
+    const url = URL.parse(next, "https://api.github.com");
+    if (
+      !url ||
+      entries.length === 0 ||
+      assets.length >= 64 ||
+      url.origin !== "https://api.github.com" ||
+      url.username ||
+      url.password ||
+      url.hash ||
+      (url.pathname !== assetsRoute && url.pathname !== numericRoute) ||
+      url.searchParams.size !== (pageSize100 ? 2 : 1) ||
+      (pageSize100 && url.searchParams.get("per_page") !== "100") ||
+      url.searchParams.get("page") !== String(page + 1)
+    )
+      throw new Error("native predecessor immutable asset pagination changed scope");
+    route = url.pathname + url.search;
+  }
+}
+
+async function retainNativeImmutableReleaseAsset(
+  asset: ReturnType<typeof inspectPublicImmutableReleaseAsset>,
+  directory: string,
+  prefix: "predecessor" | "prior" | "candidate" | "parked",
+  options: NativeImmutableReleaseSource,
+  assertUnchanged: () => Promise<void>,
+) {
+  if (path.basename(asset.filename) !== asset.filename)
+    throw new Error("native immutable asset filename refused");
+  const deadline = Math.min(options.deadline, coordinatorCommandDeadline() ?? Infinity);
+  const guard = async () => {
+    await options.recheck();
+    if (performance.now() >= deadline) throw new Error("native predecessor lifetime exhausted");
+  };
+  const transferDeadline = Math.min(deadline, performance.now() + 120000);
+  const scratch = await mkdtemp(path.join(directory, "native-predecessor-"));
+  const filename = path.join(directory, `${prefix}-${asset.filename}`);
+  const sameFile = (left: BigIntStats, right: BigIntStats) =>
+    left.isFile() && right.isFile() && left.dev === right.dev && left.ino === right.ino;
+  const sameVersion = (left: BigIntStats, right: BigIntStats) =>
+    sameFile(left, right) &&
+    left.size === right.size &&
+    left.mtimeNs === right.mtimeNs &&
+    left.ctimeNs === right.ctimeNs;
+  let published: BigIntStats | undefined;
+  try {
+    try {
+      const source = path.join(scratch, "asset");
+      await guard();
+      const downloaded = await downloadGitHubReleaseAssetFile(asset.id, source, {
+        credential: options.credential,
+        deadline: transferDeadline,
+        maxBytes: asset.bytes,
+        fetch: options.fetch,
+      });
+      await guard();
+      if (downloaded.bytes !== asset.bytes || downloaded.sha256 !== asset.sha256)
+        throw new Error("native predecessor bytes differ from exact Tough identity");
+      const owned = await open(
+        source,
+        constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0) | (constants.O_NONBLOCK ?? 0),
+      );
+      try {
+        if (!sameVersion(downloaded.identity, await owned.stat({ bigint: true })))
+          throw new Error("native predecessor scratch file changed");
+        await assertUnchanged();
+        await guard();
+        if (!sameVersion(downloaded.identity, await lstat(source, { bigint: true })))
+          throw new Error("native predecessor scratch file changed");
+        await link(source, filename);
+        published = downloaded.identity;
+        const before = await owned.stat({ bigint: true });
+        if (
+          !sameFile(published, before) ||
+          before.size !== BigInt(asset.bytes) ||
+          !sameVersion(before, await lstat(filename, { bigint: true }))
+        )
+          throw new Error("native predecessor retained file changed");
+        const sha256 = createHash("sha256");
+        const buffer = Buffer.alloc(64 * 1024);
+        let bytes = 0;
+        while (bytes <= asset.bytes) {
+          if (performance.now() >= deadline)
+            throw new Error("native predecessor lifetime exhausted");
+          const { bytesRead } = await owned.read(
+            buffer,
+            0,
+            Math.min(buffer.length, asset.bytes - bytes + 1),
+            null,
+          );
+          if (!bytesRead) break;
+          bytes += bytesRead;
+          sha256.update(buffer.subarray(0, bytesRead));
+        }
+        if (
+          bytes !== asset.bytes ||
+          sha256.digest("hex") !== asset.sha256 ||
+          !sameVersion(before, await owned.stat({ bigint: true })) ||
+          !sameVersion(before, await lstat(filename, { bigint: true }))
+        )
+          throw new Error("native predecessor retained bytes changed");
+      } finally {
+        await owned.close();
+      }
+    } finally {
+      await rm(scratch, { recursive: true, force: true });
+    }
+    await guard();
+    const retained = await lstat(filename, { bigint: true });
+    if (
+      !published ||
+      !sameFile(published, retained) ||
+      retained.size !== BigInt(asset.bytes) ||
+      retained.mtimeNs !== published.mtimeNs ||
+      retained.nlink !== 1n ||
+      performance.now() >= deadline
+    )
+      throw new Error("native predecessor retained file or lifetime changed");
+    return { path: filename, bytes: asset.bytes, sha256: asset.sha256, version: asset.version };
+  } catch (error) {
+    if (published) {
+      const existing = lstatSync(filename, { bigint: true, throwIfNoEntry: false });
+      if (existing && sameFile(published, existing)) unlinkSync(filename);
+    }
+    throw error;
+  }
+}
+
+/** Retain an exact immutable predecessor under its owner's original reader and
+ * lifetime. The numeric asset identifier never establishes native acceptance. */
+export async function acquireNativePredecessorRelease(
+  record: unknown,
+  candidate: unknown,
+  directory: string,
+  options: NativeImmutableReleaseSource,
+) {
+  if (
+    !isRecord(record) ||
+    typeof record.version !== "string" ||
+    !/^[0-9]+[.][0-9]+[.][0-9]+(?:-[A-Za-z0-9.-]+)?$/u.test(record.version)
+  )
+    throw new Error("native actual predecessor record absent");
+  const version = record.version;
+  const read = async () => {
+    const snapshot = await readNativeImmutableReleaseSnapshot(version, options);
+    return inspectNativePredecessorReleaseAsset(
+      record,
+      candidate,
+      snapshot.release,
+      snapshot.assets,
+    );
+  };
+  const asset = await read();
+  return retainNativeImmutableReleaseAsset(asset, directory, "predecessor", options, async () => {
+    if (digest(asset) !== digest(await read()))
+      throw new Error("native predecessor provider state changed");
+  });
+}
+
 /** The same installed parent owns signed-input/Tough verification, exact opaque
  * package acquisition and the report2 request. It never imports a journey or
  * substitutes a successful native/admission result for byte custody. */
@@ -1364,19 +1784,21 @@ export async function acquireActualNativePostSignCandidate(parentReceipt: object
   );
   if (rows.length !== 1 || !isRecord(rows[0]) || typeof rows[0].artifact_id !== "number")
     throw new Error("native signed platform archive absent");
-  const endpoint = `repos/boburning/portcove/actions/artifacts/${rows[0].artifact_id}`;
-  const read = () => {
-    const response = original.source.api.request("GET", endpoint);
-    if (response.status !== 200) throw new Error("native exact package archive unavailable");
-    return response.body;
-  };
-  const before = read(),
+  const artifactId = rows[0].artifact_id;
+  const deadline = performance.now() + remainingNativeParentBudget();
+  const read = () => original.source.readPostSignArtifact(artifactId, deadline);
+  const before = await read(),
     identity = await inspectNativePostSignPackageMetadata(facts, platform, before);
-  const archiveBytes = original.source.download(`${endpoint}/zip`, {
-    cwd: verified.directory,
-    maxBytes: identity.archive.bytes,
-    timeoutMs: remainingNativeParentBudget(120000),
-  });
+  const archiveBytes = await original.source.downloadPostSignArchive(
+    {
+      id: identity.archive.artifact_id,
+      bytes: identity.archive.bytes,
+      sha256: identity.archive.sha256,
+    },
+    verified.directory,
+    120000,
+    deadline,
+  );
   let retained: { identity: Identity; bytes: Buffer } | undefined;
   await discoverReleaseArtifactFiles(
     archiveBytes,
@@ -1396,7 +1818,7 @@ export async function acquireActualNativePostSignCandidate(parentReceipt: object
     },
   );
   if (!retained) throw new Error("native signed updater package missing");
-  const after = read();
+  const after = await read();
   await inspectNativePostSignPackageMetadata(facts, platform, after);
   if (digest(before) !== digest(after))
     throw new Error("native exact package provider identity changed");
@@ -1431,65 +1853,11 @@ export async function acquireActualNativePostSignCandidate(parentReceipt: object
   );
   let predecessor: { path: string; bytes: number; sha256: string; version: string } | undefined;
   if (isRecord(verified.journey) && "predecessor" in verified.journey) {
-    const record = verified.predecessor_record;
-    if (!record || typeof record.version !== "string")
-      throw new Error("native actual predecessor record absent");
-    const releaseEndpoint = `repos/boburning/portcove/releases/tags/${encodeURIComponent(`v${record.version}`)}`;
-    const readRelease = () => {
-      const response = original.source.api.request("GET", releaseEndpoint);
-      if (
-        response.status !== 200 ||
-        !isRecord(response.body) ||
-        typeof response.body.id !== "number"
-      )
-        throw new Error("native predecessor Release unavailable");
-      const assets = original.source.api.paginateRest(
-        `repos/boburning/portcove/releases/${response.body.id}/assets`,
-        {
-          identity: (item: unknown) => {
-            if (!isRecord(item) || typeof item.id !== "number")
-              throw new Error("native asset identity absent");
-            return String(item.id);
-          },
-          label: "native predecessor immutable assets",
-        },
-      );
-      return { release: response.body, assets };
-    };
-    const before = readRelease();
-    const asset = inspectNativePredecessorReleaseAsset(
-      record,
+    predecessor = await original.source.acquirePredecessor(
+      verified.predecessor_record,
       verified.journey.predecessor,
-      before.release,
-      before.assets,
+      verified.directory,
     );
-    const bytes = original.source.downloadAsset(
-      `repos/boburning/portcove/releases/assets/${asset.id}`,
-      {
-        cwd: verified.directory,
-        maxBytes: asset.bytes,
-        timeoutMs: remainingNativeParentBudget(120000),
-      },
-    );
-    if (bytes.length !== asset.bytes || hash(bytes) !== asset.sha256)
-      throw new Error("native predecessor bytes differ from exact Tough identity");
-    const after = readRelease();
-    const repeated = inspectNativePredecessorReleaseAsset(
-      record,
-      verified.journey.predecessor,
-      after.release,
-      after.assets,
-    );
-    if (digest(asset) !== digest(repeated))
-      throw new Error("native predecessor provider state changed");
-    const filename = `predecessor-${asset.filename}`;
-    await writeFile(path.join(verified.directory, filename), bytes, { flag: "wx", mode: 0o600 });
-    predecessor = {
-      path: path.join(verified.directory, filename),
-      bytes: asset.bytes,
-      sha256: asset.sha256,
-      version: asset.version,
-    };
   }
   const packagePath = path.join(verified.directory, packageIdentity.candidate.package.filename);
   await writeFile(packagePath, retained.bytes, { flag: "wx", mode: 0o600 });
@@ -1637,7 +2005,8 @@ export async function acquireActualNativePostSignCandidate(parentReceipt: object
       if (digest(inventory) !== verified.publication.repository_sha256)
         throw new Error("native signed repository changed after package selection");
     },
-    api: original.source.api,
+    readCheckMetadata: original.source.readCheckMetadata,
+    declarations: original.source.declarations,
   });
   await requireActualNativeCandidate(receipt);
   return receipt;
@@ -1744,7 +2113,8 @@ export async function acquireActualNativeCandidate(parentReceipt: object) {
         release_profile: "initial-beta-win-linux",
       },
       {
-        api: source.api,
+        nativeSource: source.admissionSource(),
+        collectEvidence: source.collectEvidence,
         download: source.download,
         recover: source.recover,
         controlPhase: "payload",
@@ -1846,7 +2216,8 @@ export async function acquireActualNativeCandidate(parentReceipt: object) {
     recovery: invocation.counters,
     recover: source.recover,
     recheckSource: source.recheck,
-    api: source.api,
+    readCheckMetadata: source.readCheckMetadata,
+    declarations: source.declarations,
   });
   packages.clear();
   return receipt;
@@ -1930,21 +2301,20 @@ export async function reconcileActualNativeCheck(
     value.parent.authority_configuration,
   );
   const { report } = plan.wire;
-  const endpoint = `repos/boburning/portcove/commits/${report.candidate.source_commit}/check-runs?check_name=${encodeURIComponent(nativeQualificationCheckName)}&filter=all&per_page=100`;
-  const response = retained.api.request("GET", endpoint);
+  const endpoint = `commits/${report.candidate.source_commit}/check-runs?check_name=${encodeURIComponent(nativeQualificationCheckName)}&filter=all&per_page=100`;
+  const response = await retained.readCheckMetadata(endpoint);
   if (
-    response.status !== 200 ||
-    !isRecord(response.body) ||
-    !Number.isSafeInteger(response.body.total_count) ||
-    typeof response.body.total_count !== "number" ||
-    response.body.total_count < 0 ||
-    response.body.total_count > 100 ||
-    !Array.isArray(response.body.check_runs) ||
-    response.body.check_runs.length !== response.body.total_count
+    !isRecord(response) ||
+    !Number.isSafeInteger(response.total_count) ||
+    typeof response.total_count !== "number" ||
+    response.total_count < 0 ||
+    response.total_count > 100 ||
+    !Array.isArray(response.check_runs) ||
+    response.check_runs.length !== response.total_count
   )
     throw new Error("native Check readback inventory is incomplete; preserve original attempt");
   const issuer = value.parent.authority_configuration.apps.native_qualification.app_id;
-  const matches = response.body.check_runs.filter(
+  const matches = response.check_runs.filter(
     (raw: unknown) =>
       isRecord(raw) &&
       isRecord(raw.app) &&
@@ -1980,7 +2350,7 @@ export async function reconcileActualNativeCheck(
       compatibility: fixed.compatibility,
       journey: plan.prepared.request.journey,
     },
-    { api: retained.api },
+    { read: retained.readCheckMetadata },
   );
   await retained.recheckSource();
   return Object.freeze({
@@ -2063,14 +2433,12 @@ export async function readActualNativeSourceDeclarations(receipt: object) {
   const retained = selections.get(receipt);
   if (!retained) throw new Error("actual native source selection required");
   const selected = await requireActualNativeCandidate(receipt);
+  const provider = await retained.declarations();
+  const source = selected.request.request.candidate.source_commit;
   const declaration = await retainNativeSourceDeclarations(
     retained.directory,
-    (pathname) =>
-      retained.api.request(
-        "GET",
-        `repos/boburning/portcove/contents/${pathname}?ref=${selected.request.request.candidate.source_commit}`,
-      ),
-    (sha) => retained.api.request("GET", `repos/boburning/portcove/git/blobs/${sha}`),
+    (pathname) => provider.file(pathname, source),
+    (sha) => provider.blob(sha),
   );
   await requireActualNativeCandidate(receipt);
   return Object.freeze({

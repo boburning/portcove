@@ -9,6 +9,8 @@ import { failureReport, portStatus } from "../../test-fixtures";
 import type { ActivityRecord } from "../../types";
 
 import { installRecord, updateCenterFixtures } from "../../components/rendered-test-fixtures";
+import { captureParityState } from "../../../test/parity-capture";
+import { page } from "vite-plus/test/browser";
 
 const { port, priorResult } = updateCenterFixtures();
 
@@ -148,6 +150,178 @@ describe("individual update failure interaction", () => {
 
 vi.mock("../../clipboard", { spy: true });
 
+describe("retained task recovery navigation", () => {
+  const interrupted = (): ActivityRecord => {
+    const failure = failureReport();
+    failure.presentation.presentation_key = "operation_interrupted";
+    failure.presentation.summary = "Portcove stopped before this task finished.";
+    failure.presentation.mutation_state = "unknown";
+    failure.presentation.recovery_actions = ["review_current_state", "view_technical_details"];
+    return {
+      id: "interrupted-update",
+      operation: "update",
+      target_kind: "port",
+      target_id: port.id,
+      status: "failed",
+      started_at: 1,
+      finished_at: 2,
+      message: "private-worker-message",
+      failure,
+      cancellation: null,
+    };
+  };
+
+  async function renderTask(activity: ActivityRecord) {
+    const onSelect = vi.fn();
+    const result = await renderComponent(
+      <UpdateCenter
+        section="tasks"
+        generation={1}
+        ports={[port]}
+        statuses={new Map()}
+        activities={[activity]}
+        activityFeed={{
+          records: [activity],
+          current_activity_ids: [],
+          attention_required_activity_ids: [activity.id],
+          recovery_required_activity_ids: [],
+          active_and_actionable_complete: true,
+          terminal_history_complete: true,
+          terminal_history_count: 1,
+          terminal_history_limit: 20,
+        }}
+        outcomes={[]}
+        diagnosticsRefreshing={false}
+        diagnosticsStale={false}
+        refreshDiagnostics={vi.fn()}
+        checkAll={vi.fn()}
+        onSelect={onSelect}
+        onOpenSettings={vi.fn()}
+      />,
+    );
+    return { result, onSelect };
+  }
+
+  it("opens only the failed task's resolved game through its offered review action", async () => {
+    const { result, onSelect } = await renderTask(interrupted());
+    try {
+      await expect
+        .element(page.getByText("Portcove stopped before this task finished."))
+        .toBeVisible();
+      expect(document.body.textContent).not.toContain("private-worker-message");
+      expect(onSelect).not.toHaveBeenCalled();
+      await page.getByRole("button", { name: /^Review game: / }).click();
+      expect(onSelect).toHaveBeenCalledExactlyOnceWith(
+        port.id,
+        "updates:activity:interrupted-update:review",
+      );
+    } finally {
+      await result.unmount();
+    }
+  });
+
+  it("keeps setup review ahead of the generic game review", async () => {
+    const activity = interrupted();
+    activity.failure!.presentation.recovery_actions.unshift("review_preparation");
+    const { result, onSelect } = await renderTask(activity);
+    try {
+      await expect.element(page.getByRole("button", { name: /^Review setup: / })).toBeVisible();
+      await expect
+        .element(page.getByRole("button", { name: /^Review game: / }))
+        .not.toBeInTheDocument();
+      await page.getByRole("button", { name: /^Review setup: / }).click();
+      expect(onSelect).toHaveBeenCalledExactlyOnceWith(
+        port.id,
+        "updates:activity:interrupted-update:review",
+      );
+    } finally {
+      await result.unmount();
+    }
+  });
+
+  it.each(["missing-port", "library"])(
+    "offers no game review for unresolved %s targets",
+    async (target) => {
+      const activity = interrupted();
+      if (target === "library") activity.target_kind = "library";
+      else activity.target_id = target;
+      const { result, onSelect } = await renderTask(activity);
+      try {
+        await expect
+          .element(page.getByRole("button", { name: /^Review game: / }))
+          .not.toBeInTheDocument();
+        expect(onSelect).not.toHaveBeenCalled();
+      } finally {
+        await result.unmount();
+      }
+    },
+  );
+});
+
+it("reveals a task shown from elsewhere while Activity is open, but not a retained one on mount", async () => {
+  const record: ActivityRecord = {
+    id: "shown-task",
+    operation: "install",
+    target_kind: "port",
+    target_id: port.id,
+    status: "running",
+    started_at: 1,
+    finished_at: null,
+    message: null,
+    failure: null,
+    cancellation: null,
+  };
+  const renderTasks = (reviewedActivityId: string | undefined, reviewedActivityRequest = 0) => (
+    <UpdateCenter
+      section="tasks"
+      generation={1}
+      ports={[port]}
+      statuses={new Map()}
+      activities={[record]}
+      activityFeed={{
+        records: [record],
+        current_activity_ids: [record.id],
+        attention_required_activity_ids: [],
+        recovery_required_activity_ids: [],
+        active_and_actionable_complete: true,
+        terminal_history_complete: true,
+        terminal_history_count: 0,
+        terminal_history_limit: 20,
+      }}
+      reviewedActivityId={reviewedActivityId}
+      reviewedActivityRequest={reviewedActivityRequest}
+      onReviewActivity={vi.fn()}
+      outcomes={[]}
+      diagnosticsRefreshing={false}
+      diagnosticsStale={false}
+      refreshDiagnostics={vi.fn()}
+      checkAll={vi.fn()}
+      onSelect={vi.fn()}
+      onOpenSettings={vi.fn()}
+    />
+  );
+  const host = document.body.appendChild(document.createElement("div"));
+  const outside = document.body.appendChild(document.createElement("button"));
+  outside.focus();
+  const result = await renderComponent(renderTasks("shown-task"), { container: host });
+  try {
+    const row = () => host.querySelector<HTMLElement>('[data-activity-id="shown-task"]')!;
+    await new Promise((resolve) => requestAnimationFrame(resolve));
+    expect(row().contains(document.activeElement)).toBe(false);
+    await result.rerender(renderTasks(undefined));
+    await result.rerender(renderTasks("shown-task"));
+    await expect.poll(() => row().contains(document.activeElement)).toBe(true);
+    // A repeated "Show task" for the same task reveals it again.
+    outside.focus();
+    await result.rerender(renderTasks("shown-task", 1));
+    await expect.poll(() => row().contains(document.activeElement)).toBe(true);
+  } finally {
+    await result.unmount();
+    host.remove();
+    outside.remove();
+  }
+});
+
 it("keeps the focused task and expanded diagnostics mounted through Activity regrouping", async () => {
   const record: ActivityRecord = {
     id: "settling-task",
@@ -212,8 +386,112 @@ it("keeps the focused task and expanded diagnostics mounted through Activity reg
     expect(summary.closest("details")?.open).toBe(true);
     expect(host.textContent).toContain("Recent");
     expect(host.textContent).not.toContain("Needs attention");
+    await captureParityState("activity-regrouped-expanded-diagnostics");
   } finally {
     await result.unmount();
     host.remove();
+  }
+});
+
+it.each(["partial", "unavailable", "stale"] as const)(
+  "renders qualified update counts for the %s fixture",
+  async (state) => {
+    await page.viewport(1024, 800);
+    const second = { ...port, id: "second-game", name: "Second game" };
+    const status = { ...portStatus(), active: installRecord() };
+    const result = await renderComponent(
+      <UpdateCenter
+        section="updates"
+        generation={1}
+        ports={[port, second]}
+        statuses={
+          new Map([
+            [port.id, status],
+            [second.id, { ...status, port_id: second.id }],
+          ])
+        }
+        activities={[]}
+        outcomes={
+          state === "unavailable"
+            ? []
+            : [
+                {
+                  port_id: port.id,
+                  ok: true,
+                  error: null,
+                  result: { ...priorResult, update_available: true },
+                },
+              ]
+        }
+        batchRead={{
+          status: state === "stale" ? "failed" : "current",
+          hasResults: state !== "unavailable",
+        }}
+        diagnosticsRefreshing={false}
+        diagnosticsStale={state === "stale"}
+        refreshDiagnostics={vi.fn()}
+        checkAll={vi.fn()}
+        onSelect={vi.fn()}
+        onOpenSettings={vi.fn()}
+      />,
+    );
+    try {
+      await expect
+        .element(
+          page.getByText(
+            `${state === "stale" ? "Earlier update" : "Update"} results cover ${state === "unavailable" ? 0 : 1} of 2 installed ports.`,
+            { exact: false },
+          ),
+        )
+        .toBeVisible();
+      await captureParityState(`activity-update-count-${state}-synthetic`);
+    } finally {
+      await result.unmount();
+      await page.viewport(1280, 800);
+    }
+  },
+);
+
+it.each([true, false])("renders an empty Activity feed with completeness %s", async (complete) => {
+  await page.viewport(1024, 800);
+  const result = await renderComponent(
+    <UpdateCenter
+      section="tasks"
+      generation={1}
+      ports={[]}
+      statuses={new Map()}
+      activities={[]}
+      outcomes={[]}
+      activityFeed={{
+        records: [],
+        current_activity_ids: [],
+        attention_required_activity_ids: [],
+        recovery_required_activity_ids: [],
+        active_and_actionable_complete: complete,
+        terminal_history_complete: complete,
+        terminal_history_count: 0,
+        terminal_history_limit: 20,
+      }}
+      diagnosticsRefreshing={false}
+      diagnosticsStale={!complete}
+      refreshDiagnostics={vi.fn()}
+      checkAll={vi.fn()}
+      onSelect={vi.fn()}
+      onOpenSettings={vi.fn()}
+    />,
+  );
+  try {
+    await expect
+      .element(
+        page.getByRole("heading", { name: "No current tasks in these records", exact: true }),
+      )
+      .toBeVisible();
+    expect(
+      document.body.textContent?.includes("Current work and attention coverage is incomplete."),
+    ).toBe(!complete);
+    await captureParityState(`activity-empty-${complete ? "complete" : "partial"}-synthetic`);
+  } finally {
+    await result.unmount();
+    await page.viewport(1280, 800);
   }
 });

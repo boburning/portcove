@@ -22,10 +22,13 @@ const noActivities: readonly ActivityRecord[] = [];
 
 export type OperationRefresh = "workspace" | "activities" | "none";
 export type PerformOptions = {
-  refresh?: OperationRefresh;
+  /** Explicit workspace readback may propagate failures unlike an ambient retry action. */
+  refresh?: OperationRefresh | (() => Promise<unknown>);
   invalidateDiagnostics?: boolean;
   /** Preserve the original task rejection after settlement for a current caller. */
   propagateFailure?: boolean;
+  /** Only named nullable native-consent commands opt in; other null results retain their meaning. */
+  cancelledResult?: (result: unknown) => boolean;
   context?: InvocationContext;
 };
 
@@ -215,6 +218,7 @@ export function useOperationState(configuration: {
             event.parent_operation_id === null &&
             !record.context.activityId
           ) {
+            // oxlint-disable-next-line react/immutability -- oxc#28401: invocation-local binding.
             record = { ...record, context: { ...record.context, activityId: event.operation_id } };
             updateInvocations((current) => new Map(current).set(pendingId, record));
           }
@@ -232,6 +236,7 @@ export function useOperationState(configuration: {
             event.type === "started" || event.type === "finished" ? "prompt" : "progress",
           );
         });
+        if (options.cancelledResult?.(result)) outcome = "cancelled";
       } catch (value) {
         taskFailure = { value };
         ({ outcome, failure } = classifyInvocationFailure(value));
@@ -251,7 +256,8 @@ export function useOperationState(configuration: {
             if (isCurrent()) {
               if (options.invalidateDiagnostics ?? true) invalidateDiagnostics?.();
               const effect = options.refresh ?? "workspace";
-              if (effect === "workspace") await refresh();
+              if (typeof effect === "function") await effect();
+              else if (effect === "workspace") await refresh();
               else if (effect === "activities") await refreshActivities();
             }
           } catch (value) {

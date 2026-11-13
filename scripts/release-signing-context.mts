@@ -1,3 +1,5 @@
+import { nativePlatformsForReleaseProfile } from "./release-package-policy.mts";
+import { isInitialBetaReleaseProfile } from "./release-package-policy.mts";
 import { catalogListingContextFileBound } from "./release-catalog-publication-contract.mts";
 /** Same-process release record preparation. This is neither publication admission
  * nor a constructor for imported qualification reports. */
@@ -45,6 +47,7 @@ import {
 } from "./release-site-readback.mts";
 import { requireControllerApplicationJobPublicationAuthorities } from "./release-authority-configuration.mts";
 import { readRemoteCoordinatorSnapshot } from "./release-coordinator-recovery.mts";
+import { fixedReleaseReaderToken } from "./release-readonly-child-environment.mts";
 import {
   inspectPublishedMetadata,
   assertMetadataRenewalBinding,
@@ -135,6 +138,8 @@ export function releaseSigningContextBytes(
     profile !== "single-owner-one-of-one-v1"
   )
     throw new Error("online Targets requires explicit single-owner profile");
+  if (descriptor.schema_version === 3 && profile !== "single-owner-one-of-one-v1")
+    throw new Error("historical prior requires explicit single-owner profile");
   const versions = Object.fromEntries(
     roles.map((role) => {
       const version = descriptor.next_versions[role];
@@ -147,6 +152,9 @@ export function releaseSigningContextBytes(
     schema_version: 1,
     ...initialRootProfileFields(profile),
     ...topLevelTargetsProfileFields(targetsProfile),
+    ...(descriptor.schema_version === 3
+      ? { prior_expiration_policy: descriptor.prior_expiration_policy }
+      : {}),
     generated_at: descriptor.generated_at,
     trusted_root: "trusted-root.json",
     offline_targets: "offline-targets.json",
@@ -227,11 +235,12 @@ export async function prepareControllerReleaseSigningContext(
     payload.context.facts.configuration.namespace !== authorities.namespace
   )
     throw new Error("release context namespace differs from actual admission");
+  const credential = { token: fixedReleaseReaderToken() };
   const snapshot = () =>
     readRemoteCoordinatorSnapshot(
       outputParent,
       { schema_version: 1, namespace: authorities.namespace },
-      { transport: { cwd: outputParent, deadline } },
+      { transport: { credential, deadline } },
     );
   const before = await snapshot();
   if (before.checkpoint !== payload.settlement.checkpoint)
@@ -266,7 +275,7 @@ export async function prepareControllerReleaseSigningContext(
     previous_repository: currentSite.application,
     prior_repository_sha256: published.repository_sha256,
     generated_at: generatedAt,
-    output_parent: outputParent,
+    output_parent: await mkdtemp(path.join(outputParent, "renewal-work-")),
     deadline,
   });
   const actualPrior = await inspectPreparedMetadataRenewal(prior);
@@ -323,7 +332,7 @@ export async function prepareReleaseSigningContext(
   );
   const { accepted, policy } = await inspectTrustedAssemblyInput(payload.context.facts.assembly);
   if (
-    accepted.release_profile !== "initial-beta-win-linux" ||
+    !isInitialBetaReleaseProfile(accepted.release_profile) ||
     prior.verifier_sha256 !== hash(await readControllerToolFile(payload.tools.rust))
   )
     throw new Error("release context requires selected actual tools and package profile");
@@ -364,7 +373,7 @@ export async function prepareReleaseSigningContext(
   let nativeCheckpoint: string | undefined;
   const hosted = payload.native.filter((report) => report.hosted_job);
   if (hosted.length) {
-    if (hosted.length !== 2)
+    if (hosted.length !== nativePlatformsForReleaseProfile(accepted.release_profile).length)
       throw new Error("record cannot mix current native transport authorities");
     const locator = inspectNativeCheckpointLocator(payload.aggregate.native_custody);
     const custody = await requirePreparedHostedNativeCustody(

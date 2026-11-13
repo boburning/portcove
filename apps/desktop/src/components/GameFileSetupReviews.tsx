@@ -3,9 +3,13 @@ import {
   useSetupReviewSelection,
 } from "../features/game-file-discovery/setup-review-selection";
 import { useEffect, useRef } from "react";
+import { Trans } from "react-i18next";
+import { useAppTranslation } from "../localization";
 import type { PortDefinition, PortStatus, SourceRecord, SourceInspectionReport } from "../types";
 import { preliminarySelectionRecord } from "./PreliminarySourceSelections";
 import { Button } from "./ui/button";
+import { gameTitle, gameProjectLabel } from "../port-identity";
+import { ArtworkImage } from "./Artwork";
 import { Checkbox } from "./ui/checkbox";
 
 export function GameFileSetupReviews({
@@ -17,6 +21,8 @@ export function GameFileSetupReviews({
   current,
   busy,
   onOpenPort,
+  onAddToLibrary,
+  onReviewInstall,
   focusFallback,
 }: {
   ports: PortDefinition[];
@@ -27,9 +33,12 @@ export function GameFileSetupReviews({
   current: boolean;
   busy: boolean;
   onOpenPort?: ((portId: string, originKey: string) => void) | undefined;
+  onAddToLibrary?: ((portIds: string[]) => void) | undefined;
+  onReviewInstall?: ((portIds: string[]) => void) | undefined;
   focusFallback?: (() => HTMLElement | null) | undefined;
 }) {
-  const { selected, toggle, clear, requestReview } = useSetupReviewSelection();
+  const { t } = useAppTranslation("gameFiles");
+  const { selected, toggle, selectAll, clear, requestReview } = useSetupReviewSelection();
   const section = useRef<HTMLElement>(null);
   const restoreFocus = useRef(false);
   useEffect(() => {
@@ -78,19 +87,64 @@ export function GameFileSetupReviews({
     );
   };
   const available = compatible.filter((port) => canReview(port.id));
+  // Several versions that can use the same files are never selected together
+  // automatically; the player chooses between them.
+  // Versions are counted across every catalog game using the same files, so a
+  // lone reviewable version whose sibling is installed or blocked still waits
+  // for the player's choice.
+  const versions = new Map<string, number>();
+  for (const port of ports)
+    if (port.source_profile)
+      versions.set(port.source_profile, (versions.get(port.source_profile) ?? 0) + 1);
+  const needsChoice = available.filter(
+    (port) => port.source_profile && (versions.get(port.source_profile) ?? 0) > 1,
+  );
+  const choiceGames = new Set(needsChoice.map((port) => port.source_profile)).size;
+  const eligible = available.filter((port) => !needsChoice.includes(port));
+  const unselectedEligible = eligible.filter((port) => !selected.includes(port.id));
+  const room = Math.max(0, maxSetupReviewSelection - selected.length);
+  const toSelect = Math.min(unselectedEligible.length, room);
   if (!available.length && !selected.length) return null;
   return (
-    <section ref={section} aria-label="Selected setup reviews" className="col-span-full">
-      <h3>Select ports for setup review</h3>
+    <section ref={section} aria-label={t("setupReviews.label")} className="col-span-full">
+      <h3>{t("setupReviews.heading")}</h3>
+      <p>{t("setupReviews.intro")}</p>
       <p>
-        Select up to {maxSetupReviewSelection} independent ports. Each opens the existing setup
-        review; selecting a port does not register files or install anything.
+        {choiceGames > 0 ? (
+          <Trans
+            t={t}
+            i18nKey="setupReviews.countsWithChoice"
+            count={choiceGames}
+            values={{ selected: selected.length, eligible: eligible.length }}
+            components={{ status: <span role="status" /> }}
+          />
+        ) : (
+          <Trans
+            t={t}
+            i18nKey="setupReviews.counts"
+            values={{ selected: selected.length, eligible: eligible.length }}
+            components={{ status: <span role="status" /> }}
+          />
+        )}
       </p>
-      {available.map((port) => (
-        <label
-          key={port.id}
-          className="flex min-h-10 cursor-pointer flex-wrap items-center gap-3 py-2"
+      {choiceGames > 0 && <p>{t("setupReviews.choiceNote", { count: choiceGames })}</p>}
+      {toSelect > 0 && (
+        <Button
+          data-focusable
+          variant="outline"
+          onClick={() => {
+            // The button disappears once everything is selected; keep focus in the section.
+            restoreFocus.current = true;
+            selectAll(unselectedEligible.map((port) => port.id));
+          }}
         >
+          {toSelect === unselectedEligible.length && toSelect === eligible.length
+            ? t("setupReviews.selectAll", { total: toSelect })
+            : t("setupReviews.selectMore", { total: toSelect })}
+        </Button>
+      )}
+      {available.map((port) => (
+        <label key={port.id} className="setup-review-choice">
           <Checkbox
             data-focusable
             data-setup-review-port={port.id}
@@ -98,32 +152,25 @@ export function GameFileSetupReviews({
             disabled={!selected.includes(port.id) && selected.length >= maxSetupReviewSelection}
             onCheckedChange={() => toggle(port.id)}
           />
-          {port.name} <span className="text-pc-muted-foreground">({port.id})</span>
+          <ArtworkImage port={port} quietFallback className="setup-review-artwork" />
+          <span className="setup-review-identity">
+            <strong>{gameTitle(port)}</strong>
+            <span>{gameProjectLabel(port)}</span>
+          </span>
           {(preliminaryProfiles.has(port.source_profile ?? "") ||
             preliminaryProfiles.has(port.bios_source_profile ?? "")) && (
-            <span className="block text-pc-muted-foreground">
-              Validation has not run for a selected input. Review setup requirements before
-              continuing.
-            </span>
+            <span className="block text-pc-muted-foreground">{t("setupReviews.unvalidated")}</span>
           )}
         </label>
       ))}
       {selected.length > 0 && (
         <>
-          <p role="status">
-            {selected.length} of {maxSetupReviewSelection} ports selected. Return here after each
-            review to continue.
-          </p>
+          <p>{t("setupReviews.returnNote")}</p>
           <ol>
             {selected.map((id) => (
               <li key={id}>
                 <span>{ports.find((port) => port.id === id)?.name ?? id}</span>
-                {!canReview(id) && (
-                  <p>
-                    Setup review is unavailable in the current view. Refresh the workspace and
-                    folders, or check game details for remaining requirements.
-                  </p>
-                )}
+                {!canReview(id) && <p>{t("setupReviews.unavailable")}</p>}
                 <Button
                   data-focusable
                   variant="outline"
@@ -135,7 +182,13 @@ export function GameFileSetupReviews({
                     onOpenPort?.(id, "game-file-libraries-setup");
                   }}
                 >
-                  Review {ports.find((port) => port.id === id)?.name ?? id} setup
+                  <Trans
+                    t={t}
+                    i18nKey="setupReviews.review"
+                    components={{
+                      name: <bdi>{ports.find((port) => port.id === id)?.name ?? id}</bdi>,
+                    }}
+                  />
                 </Button>
                 <Button
                   data-focusable
@@ -145,11 +198,41 @@ export function GameFileSetupReviews({
                     toggle(id);
                   }}
                 >
-                  Remove {ports.find((port) => port.id === id)?.name ?? id} from selection
+                  <Trans
+                    t={t}
+                    i18nKey="setupReviews.remove"
+                    components={{
+                      name: <bdi>{ports.find((port) => port.id === id)?.name ?? id}</bdi>,
+                    }}
+                  />
                 </Button>
               </li>
             ))}
           </ol>
+          {onAddToLibrary && (
+            <Button
+              data-focusable
+              disabled={!current || busy}
+              onClick={() => {
+                onAddToLibrary(selected);
+                clear();
+              }}
+            >
+              {t("setupReviews.add", { total: selected.length })}
+            </Button>
+          )}
+          {onReviewInstall && (
+            <Button
+              data-focusable
+              disabled={!current || busy || !selected.some(canReview)}
+              onClick={() => {
+                onReviewInstall(selected);
+                clear();
+              }}
+            >
+              {t("setupReviews.reviewInstall", { total: selected.length })}
+            </Button>
+          )}
           <Button
             data-focusable
             variant="outline"
@@ -158,7 +241,7 @@ export function GameFileSetupReviews({
               clear();
             }}
           >
-            Clear setup selection
+            {t("setupReviews.clear")}
           </Button>
         </>
       )}

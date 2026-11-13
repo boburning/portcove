@@ -1,3 +1,4 @@
+import { captureParityState } from "../../test/parity-capture";
 import { fixtureValue } from "../test-fixtures";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
@@ -6,6 +7,7 @@ import { desktopApi } from "../api";
 import type { DoctorReport, PreparationCleanupPreview } from "../types";
 import { portDefinition } from "../test-fixtures";
 import { RecoveryReview } from "./RecoveryReview";
+import "../styles/index.css";
 
 type Repair = DoctorReport["repair"];
 const port = portDefinition();
@@ -71,7 +73,7 @@ it("puts paths behind a collapsed review and omits raw errors and execution cont
   }
 });
 
-it("inspects exact retained facts without deleting, then refreshes the bound plan for separate cleanup", async () => {
+it("inspects retained facts, keeps pending cleanup locked, and retries failure with a fresh plan", async () => {
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
   const preview: PreparationCleanupPreview = {
     format_version: 1,
@@ -100,7 +102,16 @@ it("inspects exact retained facts without deleting, then refreshes the bound pla
     preview_sha256: "b".repeat(64),
   };
   const load = vi.spyOn(desktopApi, "previewPreparationCleanup").mockResolvedValue(preview);
-  const cleanup = vi.spyOn(desktopApi, "cleanupPreparation").mockResolvedValue(preview);
+  let rejectCleanup: ((error: Error) => void) | undefined;
+  const cleanup = vi
+    .spyOn(desktopApi, "cleanupPreparation")
+    .mockImplementationOnce(
+      () =>
+        new Promise((_resolve, reject) => {
+          rejectCleanup = reject;
+        }),
+    )
+    .mockResolvedValue(preview);
   const changed = vi.fn().mockResolvedValue(undefined);
   const host = document.createElement("div");
   document.body.append(host);
@@ -135,6 +146,7 @@ it("inspects exact retained facts without deleting, then refreshes the bound pla
     expect(document.body.textContent).not.toContain("Delete files left by unfinished setup?");
     expect(document.body.textContent).not.toContain("Setup working folder to delete");
     expect(cleanup).not.toHaveBeenCalled();
+    await captureParityState("retained-preparation-readonly-review");
     const updated = { ...preview, preview_sha256: "c".repeat(64) };
     load.mockResolvedValue(updated);
     await act(async () =>
@@ -149,11 +161,37 @@ it("inspects exact retained facts without deleting, then refreshes the bound pla
     expect(document.body.textContent).toContain("Delete files left by unfinished setup?");
     expect(document.body.textContent).toContain("setup and any programs it started have stopped");
     expect(cleanup).not.toHaveBeenCalled();
+    await captureParityState("retained-preparation-delete-confirmation");
     const apply = [...document.body.querySelectorAll("button")].find((button) =>
       button.textContent?.includes("Delete setup working files"),
     );
     await act(async () => apply?.click());
     expect(cleanup).toHaveBeenCalledWith("owned-operation", updated.preview_sha256, 7);
+    expect(document.body.textContent).toContain("Deleting setup working files…");
+    expect(apply?.disabled).toBe(true);
+    expect(changed).not.toHaveBeenCalled();
+    await captureParityState("retained-preparation-cleanup-pending-fixture");
+    await act(async () => rejectCleanup?.(new Error("Cleanup fixture refused changed files")));
+    expect(document.body.querySelector('[role="alert"]')?.textContent).toContain(
+      "Cleanup fixture refused changed files",
+    );
+    expect(changed).not.toHaveBeenCalled();
+    expect(document.body.textContent).not.toContain("Delete setup working files");
+    await captureParityState("retained-preparation-cleanup-failed-fixture");
+    const retried = { ...updated, preview_sha256: "d".repeat(64) };
+    load.mockResolvedValue(retried);
+    await act(async () =>
+      [...document.body.querySelectorAll("button")]
+        .find((button) => button.textContent === "Review again")
+        ?.click(),
+    );
+    expect(load).toHaveBeenCalledTimes(3);
+    await act(async () =>
+      [...document.body.querySelectorAll("button")]
+        .find((button) => button.textContent === "Delete setup working files")
+        ?.click(),
+    );
+    expect(cleanup).toHaveBeenLastCalledWith("owned-operation", retried.preview_sha256, 7);
     expect(changed).toHaveBeenCalledOnce();
     expect(document.body.querySelector('[role="dialog"]')).toBeNull();
   } finally {
@@ -249,5 +287,172 @@ it("explains that journal-only cleanup has no private entries to remove", async 
   } finally {
     await act(async () => root.unmount());
     host.remove();
+  }
+});
+
+it("shows malformed journal observations without offering operation controls", async () => {
+  vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+  const host = document.createElement("div");
+  const root = createRoot(host);
+  const review = {
+    ...item(),
+    kind: "malformed_journal" as const,
+    operation_id: "sqlite:lifecycle_operations:rowid:42",
+    port_id: null,
+    path: null,
+    message: "lifecycle row 42 requires review: Family: missing or foreign family payload",
+    proposed_action:
+      "Preserve retained journal rows and files and obtain support for manual review.",
+  };
+  try {
+    await act(async () =>
+      root.render(
+        <RecoveryReview
+          {...freshDiagnostics}
+          repair={{
+            generated_at: 1,
+            items: [review],
+            journal_diagnostics: {
+              enumeration_complete: true,
+              enumerated_rows: 1,
+              decoded_rows: 0,
+              related_assessments_complete: false,
+              problems: [],
+            },
+          }}
+          ports={[port]}
+          onSelect={vi.fn()}
+          onOpenStorage={vi.fn()}
+          onReviewActivity={vi.fn()}
+          availableActivityIds={new Set([review.operation_id])}
+        />,
+      ),
+    );
+    expect(host.textContent).toContain("Unfinished operation needs review");
+    expect(host.textContent).toContain("assessments are incomplete");
+    expect(host.textContent).toContain("missing or foreign family payload");
+    expect(host.textContent).toContain("rowid:42");
+    expect(host.querySelectorAll("button,a")).toHaveLength(0);
+  } finally {
+    await act(async () => root.unmount());
+  }
+});
+
+it("presents recovery items, failures and navigation in the active locale", async () => {
+  vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+  const { initializeLocalization } = await import("../localization");
+  const localization = initializeLocalization(["en-US"]);
+  const host = document.createElement("div");
+  const root = createRoot(host);
+  try {
+    await localization.changeLanguage("ar-XB");
+    const repair = {
+      generated_at: 1,
+      items: [
+        { ...item(), kind: "degraded_backup" as const },
+        { ...item(), kind: "future" },
+      ],
+    } as unknown as Repair;
+    await act(async () =>
+      root.render(
+        <RecoveryReview
+          {...freshDiagnostics}
+          stale
+          failure={new Error("Core detail")}
+          repair={repair}
+          ports={[port]}
+          onSelect={vi.fn()}
+        />,
+      ),
+    );
+    expect(host.querySelector("section")?.getAttribute("aria-label")).toBe(
+      "العمل غير المكتمل والاسترداد",
+    );
+    expect(host.querySelector("[role=alert]")?.textContent).toBe(
+      "تعذّر تحديث معلومات الاسترداد: Core detail يبقى آخر فحص مكتمل ظاهرًا.",
+    );
+    const summaries = [...host.querySelectorAll("summary")].map((summary) => summary.textContent);
+    expect(summaries).toEqual([
+      `${port.name} · النسخة الاحتياطية تحتاج إلى انتباه`,
+      `${port.name} · معلومات الاسترداد تحتاج إلى مراجعة`,
+    ]);
+    expect(host.querySelector("summary bdi")?.textContent).toBe(port.name);
+    const buttons = [...host.querySelectorAll("button")].map((button) => button.textContent);
+    expect(buttons).toContain("تحديث معلومات الاسترداد");
+    expect(buttons).toContain("مراجعة ملفات الحفظ والنسخ الاحتياطية");
+  } finally {
+    await act(async () => root.unmount());
+    await localization.changeLanguage("en");
+  }
+});
+
+it("presents the cleanup review and an unloaded failure in the active locale", async () => {
+  vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+  const { initializeLocalization } = await import("../localization");
+  const localization = initializeLocalization(["en-US"]);
+  const preview: PreparationCleanupPreview = {
+    format_version: 1,
+    operation_id: "owned-operation",
+    port_id: port.id,
+    retained_path: "C:\\Library\\staging\\owned-operation\\",
+    retained: {
+      directories: ["payload/generated"],
+      files: [
+        { relative_path: "payload/generated/private.bin", sha256: "a".repeat(64), size: 128 },
+      ],
+      skipped_entries: [{ relative_path: "payload/generated/link", reason: "symbolic link" }],
+      total_bytes: 128,
+    },
+    original_install_path: "C:\\Library\\versions\\sample\\original",
+    source_path: "D:\\Owned\\source.iso",
+    persistent_data_path: "C:\\Library\\user\\sample",
+    backup_path: "C:\\Library\\backups\\sample",
+    logs_path: "C:\\Library\\logs",
+    cleanup_is_irreversible: true,
+    interrupted_cleanup_will_retry: true,
+    preview_sha256: "b".repeat(64),
+  };
+  vi.spyOn(desktopApi, "previewPreparationCleanup").mockResolvedValue(preview);
+  const host = document.createElement("div");
+  document.body.append(host);
+  const root = createRoot(host);
+  try {
+    await localization.changeLanguage("ar-XB");
+    await act(async () =>
+      root.render(
+        <RecoveryReview {...freshDiagnostics} failure={new Error("Core detail")} ports={[port]} />,
+      ),
+    );
+    expect(host.querySelector("[role=alert]")?.textContent).toBe(
+      "تعذّر تحديث معلومات الاسترداد: Core detail",
+    );
+    expect(host.querySelector("[role=alert] bdi")?.textContent).toBe("Core detail");
+    await act(async () =>
+      root.render(
+        <RecoveryReview
+          {...freshDiagnostics}
+          repair={{ generated_at: 1, items: [{ ...item(), kind: "retained_preparation" }] }}
+          ports={[port]}
+        />,
+      ),
+    );
+    await act(async () =>
+      [...host.querySelectorAll("button")]
+        .find((button) => button.textContent === "مراجعة ملفات الإعداد غير المكتمل")
+        ?.click(),
+    );
+    await expect.poll(() => document.body.textContent).toContain("ملفات تركها إعداد غير مكتمل");
+    expect(document.body.textContent).toContain("المهمة المسجّلة: owned-operation");
+    expect(document.body.textContent).toContain("الإدخالات المتأثرة (3)");
+    expect(document.body.textContent).toContain("رابط أو إدخال خاص");
+    expect(document.body.textContent).toContain("التثبيت الأصلي");
+    const retained = [...document.querySelectorAll("bdi[dir=ltr]")].find(
+      (element) => element.textContent === preview.retained_path,
+    );
+    expect(retained).toBeTruthy();
+  } finally {
+    await act(async () => root.unmount());
+    host.remove();
+    await localization.changeLanguage("en");
   }
 });

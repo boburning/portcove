@@ -1,9 +1,7 @@
-import type { GitHubRunner } from "./github-api.mts";
 import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
-  RoadmapClient,
   materializeViews,
   manualUiChecklist,
   planFieldReconciliation,
@@ -18,10 +16,10 @@ import {
   fixtureFind,
   fixtureElement,
   fixtureObject,
-  fixtureGraphql,
+  sdkRoadmap,
+  projectData,
   config,
 } from "./fixtures/roadmap-fixtures.mts";
-import type { RunnerCall } from "./fixtures/roadmap-fixtures.mts";
 
 function completeView(id: string, name: string) {
   type Field = { id: string; name: string };
@@ -134,7 +132,10 @@ void test("active port work is additive and preserves the complete inventory vie
   const active = config.views.find((view) => view.name === "Active Port Work");
   assert.ok(active);
   assert.equal(active.layout, "TABLE_LAYOUT");
-  assert.equal(active.filter, "work-type:Port -status:Done -status:Deferred");
+  assert.equal(
+    active.filter,
+    'work-type:Port status:"In progress",Validating,Blocked horizon:Now,Next -port-stage:Watchlist',
+  );
   assert.deepEqual(active.fields, [
     "Title",
     "Priority",
@@ -196,6 +197,21 @@ void test("next work excludes workstreams, completed items, and Later horizon", 
     {
       title: "Done",
       status: "Done",
+      priority: "Urgent",
+      horizon: "Now",
+      "work type": "Bug",
+    },
+    {
+      title: "Watchlist",
+      status: "Ready",
+      priority: "Urgent",
+      horizon: "Now",
+      "work type": "Port",
+      "port stage": "Watchlist",
+    },
+    {
+      title: "Triage",
+      status: "Triage",
       priority: "Urgent",
       horizon: "Now",
       "work type": "Bug",
@@ -295,13 +311,13 @@ void test("doctor drift covers identity linkage field options and view propertie
   );
 });
 
-void test("GraphQL view pagination reads every page", () => {
-  const calls: RunnerCall[] = [];
-  const runner: GitHubRunner = (args, input) => {
-    calls.push({ args, input });
-    const after = fixtureGraphql(input).variables.after;
-    return JSON.stringify({
-      data: {
+void test("GraphQL view pagination reads every page", async () => {
+  const calls: unknown[] = [];
+  const client = await sdkRoadmap(config, {
+    graphql: (_query, variables) => {
+      calls.push(variables);
+      const after = variables.after;
+      return {
         node: {
           id: "PVT",
           views: after
@@ -316,11 +332,11 @@ void test("GraphQL view pagination reads every page", () => {
                 pageInfo: { hasNextPage: true, endCursor: "next" },
               },
         },
-      },
-    });
-  };
+      };
+    },
+  });
   assert.deepEqual(
-    new RoadmapClient(config, runner).viewList("PVT").map((view) => view.name),
+    (await client.viewList("PVT")).map((view) => view.name),
     ["First", "Second"],
   );
   assert.equal(calls.length, 2);
@@ -358,7 +374,7 @@ void test("view renames retain identity and repeated reconciliation creates no d
   );
 });
 
-void test("view inventory refuses incomplete records rather than claiming a complete UI", () => {
+void test("view inventory refuses incomplete records rather than claiming a complete UI", async () => {
   for (const alter of [
     (node: ViewInventoryFixture) => {
       node.id = "wrong";
@@ -395,20 +411,30 @@ void test("view inventory refuses incomplete records rather than claiming a comp
       },
     };
     alter(node);
-    assert.throws(
-      () => new RoadmapClient(config, () => JSON.stringify({ data: { node } })).viewList("PVT"),
+    await assert.rejects(
+      async () => await (await sdkRoadmap(config, { graphql: () => ({ node }) })).viewList("PVT"),
       /incomplete GitHub inventory/,
     );
   }
 });
 
-void test("Project provider observations reject malformed option scalars before planning", () => {
-  const client = new RoadmapClient(config, () =>
-    JSON.stringify({
-      fields: [{ id: "F_status", name: "Status", options: [{ id: "O_bad", name: 7 }] }],
-    }),
+void test("Project provider observations reject malformed option scalars before planning", async () => {
+  const client = await sdkRoadmap(config, {
+    graphql: () =>
+      projectData("PVT", config.project.number, [
+        {
+          __typename: "ProjectV2SingleSelectField",
+          dataType: "SINGLE_SELECT",
+          id: "F_status",
+          name: "Status",
+          options: [{ id: "O_bad", name: 7 }],
+        },
+      ]),
+  });
+  await assert.rejects(
+    async () => await client.fieldList(config.project.number),
+    /malformed Project option/,
   );
-  assert.throws(() => client.fieldList(config.project.number), /malformed Project option/);
 });
 
 void test("readable grouping and sorting distinguish empty settings from unavailable evidence", () => {
@@ -435,7 +461,7 @@ void test("readable grouping and sorting distinguish empty settings from unavail
   assert.match(viewMachineDrift(desired, actual).join("\n"), /secondary grouping Platform/);
 });
 
-void test("view reconciliation preflights every view and verifies saved identities", () => {
+void test("view reconciliation preflights every view and verifies saved identities", async () => {
   const desired = {
     name: "One",
     layout: "TABLE_LAYOUT",
@@ -452,12 +478,14 @@ void test("view reconciliation preflights every view and verifies saved identiti
     filter: "old",
     fields: { nodes: [{ id: "Ftitle", name: "Title" }] },
   }));
-  const client = new RoadmapClient(settings, () => {
-    throw new Error("unexpected GitHub call");
+  const client = await sdkRoadmap(settings, {
+    graphql: () => {
+      throw new Error("unexpected GitHub call");
+    },
   });
-  client.viewList = () => saved;
+  client.viewList = async () => saved;
   const writes = [];
-  client.graphql = (_query, variables) => {
+  client.graphql = async (_query, variables) => {
     const input = fixtureObject(fixtureValue(variables).input);
     assert.ok(typeof input.viewId === "string" && typeof input.filter === "string");
     writes.push(input);
@@ -465,21 +493,24 @@ void test("view reconciliation preflights every view and verifies saved identiti
     Object.assign(target, { filter: input.filter });
   };
   fixtureElement(saved, 1).groupByFields.nodes = [{ id: "Fstatus", name: "Status" }];
-  assert.throws(() => client.reconcileViews("P", [{ id: "Ftitle", name: "Title" }]), /owner UI/);
+  await assert.rejects(
+    async () => await client.reconcileViews("P", [{ id: "Ftitle", name: "Title" }]),
+    /owner UI/,
+  );
   assert.equal(writes.length, 0);
   fixtureElement(saved, 1).groupByFields.nodes = [];
-  client.reconcileViews("P", [{ id: "Ftitle", name: "Title" }]);
+  await client.reconcileViews("P", [{ id: "Ftitle", name: "Title" }]);
   assert.equal(writes.length, 2);
   assert.equal(
-    client
-      .reconcileViews("P", [{ id: "Ftitle", name: "Title" }])
-      .every((step) => step.action === "keep"),
+    (await client.reconcileViews("P", [{ id: "Ftitle", name: "Title" }])).every(
+      (step) => step.action === "keep",
+    ),
     true,
   );
   fixtureElement(saved, 0).filter = "old";
-  client.graphql = () => {};
-  assert.throws(
-    () => client.reconcileViews("P", [{ id: "Ftitle", name: "Title" }]),
+  client.graphql = async () => {};
+  await assert.rejects(
+    async () => await client.reconcileViews("P", [{ id: "Ftitle", name: "Title" }]),
     /readback did not match/,
   );
 });

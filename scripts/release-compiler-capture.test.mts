@@ -1,3 +1,4 @@
+import { fixedReleaseToolDependencies } from "./release-tool-dependency-selection.mts";
 import assert from "node:assert/strict";
 import { execFileSync, spawnSync } from "node:child_process";
 import { mkdir, readFile, writeFile, link, mkdtemp, rm } from "node:fs/promises";
@@ -36,7 +37,10 @@ async function fixture(t: test.TestContext) {
   );
   const cliRoot = path.join(f.root, "apps/desktop/node_modules/@tauri-apps/cli");
   await mkdir(cliRoot, { recursive: true });
-  await writeFile(path.join(cliRoot, "package.json"), JSON.stringify({ version: "2.12.2" }));
+  await writeFile(
+    path.join(cliRoot, "package.json"),
+    JSON.stringify({ name: "@tauri-apps/cli", version: fixedReleaseToolDependencies().tauri }),
+  );
   await writeFile(path.join(cliRoot, "tauri.js"), "process.exit(0);\n");
   await writeFile(path.join(cliRoot, "main.js"), "// inert fixture entry\n");
   await writeFile(path.join(cliRoot, "index.js"), "// inert fixture binding\n");
@@ -44,10 +48,23 @@ async function fixture(t: test.TestContext) {
   await mkdir(nativeRoot);
   await writeFile(
     path.join(nativeRoot, "package.json"),
-    JSON.stringify({ version: "2.12.2", main: "fixture.node" }),
+    JSON.stringify({
+      name: "@tauri-apps/cli-linux-x64-gnu",
+      version: fixedReleaseToolDependencies().tauri,
+      main: "fixture.node",
+    }),
   );
   await writeFile(path.join(nativeRoot, "fixture.node"), "inert bytes; never load as native code");
-  await writeFile(path.join(f.root, "pnpm-lock.yaml"), "inert lock fixture\n");
+  for (const name of [
+    "package.json",
+    "pnpm-workspace.yaml",
+    "pnpm-lock.yaml",
+    "apps/desktop/package.json",
+  ])
+    await writeFile(
+      path.join(f.root, name),
+      await readFile(new URL("../" + name, import.meta.url)),
+    );
   await writeFile(path.join(f.root, "Cargo.lock"), "inert lock fixture\n");
   await writeFile(path.join(f.root, "rust-toolchain.toml"), '[toolchain]\nchannel = "1.99.1"\n');
   const overlay = path.join(f.root, "apps/desktop/src-tauri");

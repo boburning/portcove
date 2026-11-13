@@ -15,7 +15,10 @@ import {
   inspectNativeWslGuestHost,
 } from "./release-native-wsl-host.mts";
 import { readNativeWslControllerSourcePin } from "./release-native-wsl-capture.mts";
-import { readNativeSchedulerToolDigest } from "./release-native-scheduler.mts";
+import {
+  readNativeSchedulerToolDigest,
+  nativeSchedulerNodeMaximumBytes,
+} from "./release-native-scheduler.mts";
 import { readBoundedPublicBuildInputFile } from "./release-public-build-inputs.mts";
 import {
   retainNativeCaptureWire,
@@ -332,7 +335,10 @@ export async function captureActualLinuxPublicJourney(claim: object) {
     },
     node: {
       path: process.execPath,
-      sha256: await readNativeSchedulerToolDigest(process.execPath, 128 * 1024 * 1024),
+      sha256: await readNativeSchedulerToolDigest(
+        process.execPath,
+        nativeSchedulerNodeMaximumBytes,
+      ),
     },
     parent_deadline_utc: new Date(Date.now() + remaining()).toISOString(),
     entry_pins: {

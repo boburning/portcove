@@ -30,6 +30,10 @@ import {
 import { capacityFixture } from "./fixtures/release-capacity-fixture.mts";
 import { catalogPublicationFixture } from "./fixtures/release-catalog-publication-fixture.mts";
 import {
+  catalogPagesReadbackId,
+  inspectCatalogSitePublicationExpectation,
+} from "./release-catalog-publication-contract.mts";
+import {
   checkpointReleaseOpportunity,
   recoverReleaseOpportunity,
 } from "./release-coordinator-state.mts";
@@ -338,7 +342,12 @@ void test("named catalog recovery requires both actual caller guard functions be
   const session = {},
     raw = { repository: "controlled", checkpoint: "retained", remote_configuration: {} };
   let refreshes = 0,
-    handoffs = 0;
+    handoffs = 0,
+    guarded = 0;
+  const beforeMutation = async () => {
+    await Promise.resolve();
+    guarded++;
+  };
   const run = runInNewContext(
     stripTypeScriptTypes(source.slice(start, end).replace("export ", "")) +
       "\nrecoverPublishedCatalogSiteHandoff",
@@ -352,13 +361,25 @@ void test("named catalog recovery requires both actual caller guard functions be
           },
         ],
       ]),
+      ensureOwnedCheckpointJournalHistory: async (
+        _executor: object,
+        _repository: string,
+        _checkpoint: string,
+        controls: () => Promise<void>,
+      ) => {
+        await controls();
+        return false; // This case retains the original explicit legacy route.
+      },
       recoverOwnedPublishedCatalogMetadata: async (
         _executor: object,
         _raw: unknown,
         _readback: unknown,
-        beforeMutation: unknown,
+        controls: { readCurrent: () => Promise<void> },
       ) => {
-        assert.equal(typeof beforeMutation, "function");
+        assert.equal(controls.readCurrent, beforeMutation);
+        assert.equal(guarded, 1);
+        await controls.readCurrent();
+        assert.equal(guarded, 2);
         handoffs++;
         return {};
       },
@@ -379,7 +400,128 @@ void test("named catalog recovery requires both actual caller guard functions be
     await assert.rejects(run(session, {}, raw, guards), /current control mutation guards/);
   assert.equal(refreshes, 0);
   assert.equal(handoffs, 0);
-  await run(session, {}, raw, { refresh, beforeMutation: () => {} });
+  await run(session, {}, raw, { refresh, beforeMutation });
   assert.equal(refreshes, 1);
   assert.equal(handoffs, 1);
+});
+
+void test("catalog handoff rechecks the original successful Pages ID around exact public readback", async () => {
+  const source = await readFile(new URL("./release-site-deployment.mts", import.meta.url), "utf8"),
+    start = source.indexOf("export async function recoverPublishedCatalogSiteHandoff("),
+    end = source.indexOf("/** Bind actual", start);
+  const session = {},
+    descriptor = catalogPublicationFixture();
+  const expected = inspectCatalogSitePublicationExpectation({
+    application_root_sha256: null,
+    archive_sha256: "3".repeat(64),
+    artifact_id: 17,
+    catalog_repository_sha256: "4".repeat(64),
+    catalog_root_sha256: descriptor.prior.catalog_root_sha256,
+    prior_site_generation_sha256: null,
+    site_generation_sha256: "5".repeat(64),
+  });
+  const revision = "6".repeat(40);
+  const effect = { remote_identity: "", evidence_sha256: "7".repeat(64) };
+  const operation = {
+    id: "8".repeat(64),
+    executor_identity: { controller_revision: revision },
+    catalog_publication: { descriptor },
+    catalog_site_expectation: expected,
+    completed_effects: [effect],
+  };
+  const calls: string[] = [];
+  let id = "",
+    afterStatus = "succeed";
+  const invoke = runInNewContext(
+    stripTypeScriptTypes(source.slice(start, end).replace("export ", "")) +
+      "\nrecoverPublishedCatalogSiteHandoff",
+    {
+      sessions: new Map([
+        [
+          session,
+          {
+            catalog: { recovery_only: true, recovery_intent: { checkpoint: "retained" } },
+            archive_bytes: 0,
+            generation: { generation: expected.site_generation_sha256 },
+          },
+        ],
+      ]),
+      isRecord,
+      capacityDigest,
+      inspectCatalogSitePublicationExpectation,
+      inspectCatalogCapacitySubject: (raw: unknown) => raw,
+      inspectCapacityExecutorIdentity: (raw: unknown) => raw,
+      catalogPagesReadbackId,
+      ensureOwnedCheckpointJournalHistory: async () => false,
+      recoverOwnedPublishedCatalogMetadata: async (
+        _executor: object,
+        _raw: unknown,
+        read: (value: unknown) => Promise<unknown>,
+      ) => read(operation),
+      recheckCatalogDeployment: async () => ({
+        recovery_intent: { operation_sha256: capacityDigest(operation) },
+        subject: descriptor,
+        facts: {},
+        prior: null,
+      }),
+      createPagesProviderTransport: () => ({
+        async observe(identity: Record<string, unknown>) {
+          assert.deepEqual(
+            { ...identity },
+            {
+              id,
+              artifact_id: expected.artifact_id,
+              controller_revision: revision,
+              generation: expected.site_generation_sha256,
+            },
+          );
+          calls.push(`GET ${id}`);
+          return { status: calls.includes("public") ? afterStatus : "succeed" };
+        },
+      }),
+      readBackSiteDeployment: async () => {
+        calls.push("public");
+        return {};
+      },
+      mkdtemp: async () => "inert",
+      path: { join: () => "inert" },
+      writeFile: async () => {
+        calls.push("receipt");
+      },
+    },
+  ) as (...args: unknown[]) => Promise<{ site: { publication: typeof effect } }>;
+  const run = () =>
+    invoke(
+      session,
+      {},
+      { checkpoint: "retained" },
+      {
+        refresh: async () => {},
+        beforeMutation: async () => {},
+      },
+    );
+  for (id of ["provider-deployment-17", expected.site_generation_sha256]) {
+    calls.length = 0;
+    effect.remote_identity = `github-pages:boburning/portcove:${id}`;
+    assert.deepEqual({ ...(await run()).site.publication }, effect);
+    assert.deepEqual(calls, [`GET ${id}`, "public", `GET ${id}`, "receipt"]);
+  }
+  assert.throws(
+    () =>
+      catalogPagesReadbackId(
+        expected,
+        "github-pages:boburning/portcove:provider-deployment-17",
+        false,
+      ),
+    /differs from original deployment/u,
+  );
+  assert.equal(catalogPagesReadbackId(expected, effect.remote_identity, false), id);
+  calls.length = 0;
+  afterStatus = "deployment_failed";
+  await assert.rejects(run(), /changed during handoff readback/u);
+  assert.deepEqual(calls, [`GET ${id}`, "public", `GET ${id}`]);
+  calls.length = 0;
+  effect.remote_identity = `github-pages:another/repository:${id}`;
+  await assert.rejects(run(), /differs from original deployment/u);
+  assert.deepEqual(calls, []);
 });

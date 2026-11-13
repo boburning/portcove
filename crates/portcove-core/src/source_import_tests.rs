@@ -124,7 +124,7 @@ fn invalid_import_family_cannot_execute_recover_or_clean_staging() {
     fs::create_dir_all(staging_root).unwrap();
     let retained_bytes = staging_root.join("retained-fixture");
     fs::write(&retained_bytes, b"preserve").unwrap();
-    for mut operation in invalid {
+    for (case, mut operation) in invalid.into_iter().enumerate() {
         assert!(SourceImportOperation::decode(&operation).is_err());
         let coordinator = OperationCoordinator::resume(&operation.id, "import_source", None);
         assert!(
@@ -139,12 +139,46 @@ fn invalid_import_family_cannot_execute_recover_or_clean_staging() {
             .is_err()
         );
         assert!(recover(&service, &store, &mut operation).is_err());
-        store.put(&mut operation).unwrap();
+        if matches!(case, 0 | 2 | 4) {
+            assert!(store.put(&mut operation).is_err());
+            let mut baseline = valid.clone();
+            store.put(&mut baseline).unwrap();
+            // Inject malformed retained bytes below the checked writer; cleanup
+            // must refuse them without removing the original row or private tree.
+            library.connection().unwrap().execute(
+                "UPDATE lifecycle_operations SET kind=?2,preparation_process_quiesced=?3,source_import_json=?4 WHERE id=?1",
+                rusqlite::params![operation.id, operation.kind.to_string(), operation.preparation_process_quiesced.map(i64::from), operation.source_import.as_ref().map(serde_json::to_string).transpose().unwrap()],
+            ).unwrap();
+            assert!(store.get(&operation.id).is_err());
+        } else {
+            store.put(&mut operation).unwrap();
+        }
         assert!(cleanup_cancelled_import(&store, &operation.id).is_err());
         assert_eq!(fs::read(&retained_bytes).unwrap(), b"preserve");
         assert!(source.exists());
         assert!(library.source(PROFILE).unwrap().is_none());
-        assert_eq!(store.all().unwrap().len(), 1);
+        if matches!(case, 0 | 2 | 4) {
+            assert!(store.all().is_err());
+            let retained: (String, Option<i64>, Option<String>) = library.connection().unwrap().query_row(
+                "SELECT kind,preparation_process_quiesced,source_import_json FROM lifecycle_operations WHERE id=?1",
+                [&operation.id], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+            ).unwrap();
+            assert_eq!(
+                retained,
+                (
+                    operation.kind.to_string(),
+                    operation.preparation_process_quiesced.map(i64::from),
+                    operation
+                        .source_import
+                        .as_ref()
+                        .map(serde_json::to_string)
+                        .transpose()
+                        .unwrap(),
+                )
+            );
+        } else {
+            assert_eq!(store.all().unwrap().len(), 1);
+        }
         store.remove(&operation.id).unwrap();
     }
 }

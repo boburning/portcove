@@ -25,6 +25,13 @@ pub struct LibraryMetadata {
     pub launch_history: Vec<LibraryLaunchHistory>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub retained_build_references: Vec<crate::RetainedBuildReference>,
+    /// Local profiles and revisions; present only under metadata schema 6 or later.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub profiles: Vec<crate::LibraryProfile>,
+    /// Explicit add-only Library entries; present only under metadata schema 7 or 8,
+    /// so an older reader refuses the export instead of silently dropping them.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub library_memberships: Vec<crate::LibraryMembership>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub artwork: Option<crate::ArtworkMetadata>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -79,6 +86,22 @@ impl PortcoveService {
     }
 
     pub fn write_library_metadata(&self, destination: &Path) -> Result<LibraryMetadataFile> {
+        self.write_library_metadata_file(destination, false)
+    }
+
+    /// Save a new metadata file and explain a collision from a native picker.
+    pub fn write_library_metadata_from_picker(
+        &self,
+        destination: &Path,
+    ) -> Result<LibraryMetadataFile> {
+        self.write_library_metadata_file(destination, true)
+    }
+
+    fn write_library_metadata_file(
+        &self,
+        destination: &Path,
+        explain_collision: bool,
+    ) -> Result<LibraryMetadataFile> {
         crate::path::unicode(destination, "metadata export")?;
         let destination = std::path::absolute(destination)?;
         let parent = destination
@@ -88,9 +111,17 @@ impl PortcoveService {
         let mut temporary = tempfile::NamedTempFile::new_in(parent)?;
         temporary.write_all(&bytes)?;
         temporary.as_file().sync_all()?;
-        temporary
-            .persist_noclobber(&destination)
-            .map_err(|error| PortcoveError::from(error.error))?;
+        temporary.persist_noclobber(&destination).map_err(|error| {
+            let kind = error.error.kind();
+            let error = PortcoveError::from(error.error);
+            if explain_collision && kind == std::io::ErrorKind::AlreadyExists {
+                error
+                    .with_mutation_state(crate::MutationState::NoChanges)
+                    .with_known_cause(crate::failure::KnownFailureCause::MetadataExportExists)
+            } else {
+                error
+            }
+        })?;
         Ok(LibraryMetadataFile {
             path: destination,
             sha256: hex::encode(Sha256::digest(&bytes)),
@@ -128,7 +159,13 @@ impl Library {
         for reference in &mut retained_build_references {
             reference.build.selected_executable =
                 PathBuf::from(portable_relative(&reference.build.selected_executable)?);
+            for entry in &mut reference.history {
+                entry.build.selected_executable =
+                    PathBuf::from(portable_relative(&entry.build.selected_executable)?);
+            }
         }
+        let profiles = crate::profile::export(&transaction)?;
+        let library_memberships = Self::library_memberships_from(&transaction)?;
         let artwork = crate::artwork_store::snapshot(&transaction)?;
         transaction.commit()?;
         let mut metadata = LibraryMetadata {
@@ -154,6 +191,8 @@ impl Library {
             port_settings,
             launch_history,
             retained_build_references,
+            profiles,
+            library_memberships,
             artwork: Some(artwork),
             portability_authority: None,
         };
@@ -378,7 +417,29 @@ mod tests {
         let legacy: LibraryMetadata = serde_json::from_value(legacy_value).unwrap();
         assert!(legacy.source_references[0].observed_identity.is_none());
         assert!(legacy.retained_build_references.is_empty());
-        assert!(service.write_library_metadata(&destination).is_err());
+        let ordinary = service
+            .write_library_metadata(&destination)
+            .unwrap_err()
+            .report();
+        let from_picker = service
+            .write_library_metadata_from_picker(&destination)
+            .unwrap_err()
+            .report();
+        assert_eq!(ordinary.code, crate::ErrorCode::State);
+        assert_eq!(ordinary.message, from_picker.message);
+        assert_eq!(ordinary.details, from_picker.details);
+        assert_eq!(
+            from_picker.presentation.mutation_state,
+            crate::MutationState::NoChanges
+        );
+        assert_eq!(
+            from_picker.presentation.presentation_key,
+            "metadata_export_exists"
+        );
+        assert_eq!(
+            from_picker.presentation.summary,
+            "Portcove kept the existing file. Choose a new filename to export library information."
+        );
         assert_eq!(fs::read(destination).unwrap(), bytes);
         assert_eq!(fs::read(source).unwrap(), source_bytes);
     }

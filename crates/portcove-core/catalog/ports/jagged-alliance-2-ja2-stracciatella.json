@@ -3,11 +3,9 @@
   "listing": {
     "id": "jagged-alliance-2-ja2-stracciatella",
     "name": "Jagged Alliance 2 (JA2 Stracciatella)",
-    "summary": "Upstream route: Mature desktop port with explicit original-data directory and localization setup. Limits: Established Jagged Alliance 2 source-port route; preserve exact edition/localization and mod lineage. Upstream platforms: Desktop Windows/Linux/macOS source/package routes; exact selected artifact CPU architectures unknown in frozen research. Original data: Use original Jagged Alliance 2 installation data and point the JA2 Data Directory/game_dir at that installation. Select its matching localization: Dutch, English, French, German, Italian, Polish, Russian BUKA Agonia Vlasty, or Russian Gold. Exact accepted release/patch fingerprints are not specified in the retained README. Portcove setup/gameplay not verified.",
+    "summary": "A native engine for Jagged Alliance 2 using your own original installation.",
     "original_game_title": "Jagged Alliance 2",
     "project_url": "https://github.com/ja2-stracciatella/ja2-stracciatella",
-    "platforms": [],
-    "availability": "unknown",
     "setup_url": "https://github.com/ja2-stracciatella/ja2-stracciatella",
     "artwork": {
       "game_id": 9,
@@ -17,7 +15,35 @@
       "game_slug": "jagged-alliance-2",
       "match_kind": "underlying-game"
     },
-    "issue_number": 2583
+    "issue_number": 2583,
+    "listed_at": "2026-10-25",
+    "platforms": ["linux-x86-64", "macos-aarch64"],
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Keep a clean original installation",
+          "instruction": "Use your own unmodified Jagged Alliance 2 installation with its Data folder. In the launcher set JA2 Data Directory and Game Version. For Russian releases, use RUSSIAN for BUKA Agonia Vlasty or RUSSIAN_GOLD for Gold."
+        },
+        {
+          "title": "Choose the Linux AppImage for your processor",
+          "instruction": "The inspected x86-64 AppImage opens the upstream launcher. The aarch64 and armhf AppImages start ja2 directly. For the direct entry, configure game_dir in ~/.ja2/ja2.json and use -resversion with your localization if needed. The armhf runtime uses libfuse.so.2. Keep the x86-64 launcher open until its game exits."
+        }
+      ],
+      "warnings": [
+        "Back up the whole effective profile and any custom save folder. On Linux and Mac the default is ~/.ja2. On Windows the player prefers AppData/JA2 and reuses Documents/JA2 when it is the existing profile."
+      ],
+      "references": [
+        {
+          "title": "Open the Apple silicon Mac app",
+          "instruction": "Mount the Apple silicon DMG and copy JA2 Stracciatella.app out of it. Both the launcher and player in this build need Apple silicon and macOS 15 or later. Start the app to configure your original data and localization."
+        },
+        {
+          "title": "Configure the Android APK",
+          "instruction": "Use the upstream APK on a compatible device that allows its storage access. In the Data tab choose your original game folder and version, then choose a separate Save Game Directory if needed. Keep the originals and your effective save location before replacing the app. The inspected APK uses io.github.ja2stracciatella, targets Android API 26, and contains ARM64, ARMv7, x86 and x86-64 native libraries."
+        }
+      ],
+      "help_url": "https://github.com/ja2-stracciatella/ja2-stracciatella/blob/11e9430b67d788b73f7a57d22166e8b500c23dab/README.md"
+    }
   },
   "upstream_lineage": {
     "format_version": 1,
@@ -30,5 +56,33 @@
       }
     },
     "decisions": []
+  },
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64"],
+    "adapter": "native-portable",
+    "release": {
+      "repository": "ja2-stracciatella/ja2-stracciatella",
+      "asset_hints": {
+        "windows-x86-64": ["win-msvc64", ".zip"]
+      }
+    },
+    "executable_hints": {
+      "windows-x86-64": ["ja2.exe"]
+    },
+    "persistent_paths": [],
+    "presentation": {
+      "installation_method": "portable-package",
+      "source_requirements": [],
+      "saves_and_settings": "external-user-owned",
+      "manual_preparation": "Use your own complete original Jagged Alliance 2 installation and matching localization: Dutch, English, French, German, Italian, Polish, Russian BUKA Agonia Vlasty or Russian Gold. Keep the originals outside this engine package. Run the bundled ja2-launcher.exe upstream once to set JA2 Data Directory and localization, then use normal ja2.exe for Play. Alternatively let ja2.exe create ja2.json, close it, and configure game_dir and the supported localization upstream before Play. Missing configuration is not successful setup. The selected Windows source prefers the existing AppData/JA2 profile; if absent it retains an existing Documents/JA2 profile, otherwise it chooses AppData/JA2. The older README names only Documents/JA2. Preserve the actual selected home, ja2.json, SavedGames, mods and custom save_game_dir overrides; diagnostic logs use the account temporary directory. These external shared locations are not isolated by another engine copy and Core does not back them up, migrate or delete them. Core replaces only the official MSVC x64 portable engine and its packaged assets/dependencies, not the original game or optional original-game data. Keep the complete compatible old runtime and every effective profile/original/custom root before changes. Original SFI code, later contributions and bundled libraries retain distinct terms; public engine downloads do not grant original-game rights. No title, launcher, actual-save or backward-format qualification is claimed."
+    },
+    "reviewed_package_layouts": {
+      "windows-x86-64": {
+        "directories": ["externalized", "mods", "unittests"],
+        "executables": ["ja2-launcher.exe", "ja2-resource-pack.exe", "ja2.exe"]
+      }
+    }
   }
 }

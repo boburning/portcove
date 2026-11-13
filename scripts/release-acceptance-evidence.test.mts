@@ -1,5 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { readFile, readdir } from "node:fs/promises";
+import { parseDocument } from "yaml";
+import { isRecord } from "./runtime-values.mts";
 import { createHash } from "node:crypto";
 import { trustedAssemblyFixture } from "./fixtures/trusted-assembly-fixture.mts";
 import { releasePublicBuildProvenanceFixture } from "./fixtures/release-public-build-provenance-fixture.mts";
@@ -36,12 +39,45 @@ const document = {
     },
   ],
 };
-void test("SPDX producer compatibility admits the current scanner while retaining historical evidence", () => {
+void test("SPDX producer compatibility admits the current scanner while retaining historical evidence", async () => {
+  const yaml = parseDocument(
+    await readFile(new URL("../.github/workflows/release.yml", import.meta.url), "utf8"),
+    { uniqueKeys: true },
+  );
+  assert.equal(yaml.errors.length, 0);
+  assert.equal(yaml.warnings.length, 0);
+  const field = (value: unknown, key: string): unknown => {
+    assert.ok(isRecord(value));
+    return value[key];
+  };
+  const workflow: unknown = yaml.toJS();
+  const steps = field(field(field(workflow, "jobs"), "assemble"), "steps");
+  assert.ok(Array.isArray(steps));
+  const scanners: unknown[] = steps.filter(
+    (step: unknown) =>
+      isRecord(step) &&
+      typeof step.uses === "string" &&
+      step.uses.startsWith("anchore/sbom-action@"),
+  );
+  assert.equal(scanners.length, 1);
+  const pin = field(field(scanners[0], "with"), "syft-version");
+  assert.ok(typeof pin === "string");
+  const version = /^v(\d+)\.(\d+)\.(\d+)$/u.exec(pin);
+  assert.ok(version);
+  const producer = `Tool: syft-${pin.slice(1)}`;
+  const unreviewedPatch = `Tool: syft-${version[1]}.${version[2]}.${BigInt(version[3]!) + 1n}`;
   const current = structuredClone(document);
-  current.creationInfo.creators = ["Tool: syft-1.55.0"];
-  assert.doesNotThrow(() => inspectReleaseSpdx(current));
+  for (const creator of ["Tool: syft-1.55.0", producer]) {
+    current.creationInfo.creators = [creator];
+    assert.doesNotThrow(() => inspectReleaseSpdx(current));
+  }
   assert.doesNotThrow(() => inspectReleaseSpdx(document));
-  for (const creator of ["Tool: syft-1.55.1", "Tool: syft-1.55.0-unreviewed", "Tool: other"]) {
+  for (const creator of [
+    "Tool: syft-0.0.0",
+    unreviewedPatch,
+    `${producer}-unreviewed`,
+    "Tool: other",
+  ]) {
     current.creationInfo.creators = [creator];
     assert.throws(() => inspectReleaseSpdx(current), /pinned Syft producer/);
   }
@@ -148,7 +184,9 @@ void test("verified SBOM requires exact issuer/run/attempt/source, all subjects 
 });
 void test("dispatch without an existing signed final artifact remains Unknown without network", async (t) => {
   const f = await releasePublicBuildProvenanceFixture(t);
-  const evidence = collectReleaseRunEvidence(f.expected, { api: f.api });
+  const evidence = await collectReleaseRunEvidence(f.expected, {
+    read: async (endpoint) => f.api.request("GET", endpoint),
+  });
   const result = await collectReleaseSbomEvidence(f.root, f.request, evidence, {
     download: () => {
       throw new Error("unexpected network");
@@ -159,7 +197,9 @@ void test("dispatch without an existing signed final artifact remains Unknown wi
 void test("actual bounded ZIP + verifier transport validates fixture document but remains injected-provider", async (t) => {
   const f = await trustedAssemblyFixture(t, "initial-beta-win-linux");
   const source = await releasePublicBuildProvenanceFixture(t);
-  const evidence = collectReleaseRunEvidence(source.expected, { api: source.api });
+  const evidence = await collectReleaseRunEvidence(source.expected, {
+    read: async (endpoint) => source.api.request("GET", endpoint),
+  });
   const packages = f.request.files.filter(
     (file) =>
       !file.filename.startsWith("SHA256SUMS-") && !file.filename.startsWith("release-producer-"),
@@ -203,8 +243,45 @@ void test("actual bounded ZIP + verifier transport validates fixture document bu
     name: filename,
     digest: { sha256 },
   }));
+  const routes: string[] = [];
+  let dispatches = 0;
+  let settled = 0;
   const result = await collectReleaseSbomEvidence(f.root, f.request, evidence, {
-    download: () => archive,
+    credential: { kind: "explicit", token: "ghs_SYNTHETIC_SBOM_READER" },
+    lookup: {
+      reserve() {
+        dispatches++;
+        return {
+          consumeBytes() {},
+          settle(observation) {
+            assert.equal(observation.dispatched, true);
+            assert.equal(observation.status, 302);
+            assert.equal(observation.headers.location, undefined);
+            settled++;
+          },
+        };
+      },
+    },
+    async fetch(input, init) {
+      const url = new URL(input instanceof Request ? input.url : input);
+      routes.push(url.origin + url.pathname);
+      const headers = new Headers(init?.headers);
+      if (url.origin === "https://api.github.com") {
+        assert.equal(url.pathname, "/repos/boburning/portcove/actions/artifacts/987/zip");
+        assert.equal(headers.get("authorization"), "token ghs_SYNTHETIC_SBOM_READER");
+        return new Response(null, {
+          status: 302,
+          headers: {
+            location:
+              "https://productionresultssa10.blob.core.windows.net/actions-results/sbom?sig=synthetic",
+          },
+        });
+      }
+      assert.equal(init?.credentials, "omit");
+      assert.equal(headers.has("authorization"), false);
+      assert.equal(settled, 1);
+      return new Response(Uint8Array.from(archive));
+    },
     spawn: (command, args) => {
       assert.equal(command, "gh");
       assert.ok(args.includes("--deny-self-hosted-runners"));
@@ -212,6 +289,13 @@ void test("actual bounded ZIP + verifier transport validates fixture document bu
       return { status: 0, stdout: JSON.stringify(value), stderr: "" };
     },
   });
+  assert.deepEqual(routes, [
+    "https://api.github.com/repos/boburning/portcove/actions/artifacts/987/zip",
+    "https://productionresultssa10.blob.core.windows.net/actions-results/sbom",
+  ]);
+  assert.equal(dispatches, 1);
+  assert.equal(settled, 1);
+  assert.ok(!(await readdir(f.root)).some((name) => name.startsWith("release-spdx-download-")));
   assert.equal(result.state, "verified-document");
   assert.equal(result.evidence_scope, "injected-provider");
   assert.equal(result.authority, "none");

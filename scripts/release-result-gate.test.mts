@@ -35,6 +35,16 @@ void test("named beta requires every applicable validator/build and explicit ina
     );
 });
 
+void test("Windows first beta still requires every shared and Windows decision", () => {
+  const profile = "initial-beta-windows-x86_64-v1";
+  const windows = { ...success, build_intel: "skipped", verify_intel: "skipped" };
+  assert.equal(evaluateReleaseResults(windows, profile), true);
+  for (const name of ["identity", "qualification", "validate", "build"])
+    for (const state of ["skipped", "failure", "cancelled", undefined])
+      assert.throws(() => evaluateReleaseResults({ ...windows, [name]: state }, profile));
+  assert.throws(() => evaluateReleaseResults(success, profile), /build_intel=skipped/);
+});
+
 for (const result of ["failure", "cancelled", "timed_out", "skipped"]) {
   void test(`rejects ${result} release dependencies`, () => {
     assert.throws(

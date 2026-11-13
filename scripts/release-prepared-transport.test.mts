@@ -9,7 +9,11 @@ import {
   exportPreparedReleaseVersion,
 } from "../apps/desktop/scripts/prepare-release-version.mts";
 import { checkpointReleaseOpportunity, coordinatorStateRef } from "./release-coordinator-state.mts";
-import { publishPreparedCoordinatorCheckpoint } from "./release-prepared-transport.mts";
+import {
+  publishPreparedCoordinatorCheckpoint,
+  publishPreparedReleaseObjects,
+  createNativePreparedObjectTransport,
+} from "./release-prepared-transport.mts";
 import type { CoordinatorRemoteApi } from "./release-coordinator-remote.mts";
 import { CoordinatorRemoteError } from "./release-coordinator-errors.mts";
 import { isRecord } from "./runtime-values.mts";
@@ -322,7 +326,12 @@ void test(
       f.local,
       f.saved.checkpoint,
       f.config,
-      { api: f.api },
+      {
+        api: {
+          request: async (...args) => f.api.request(...args),
+          graphql: async (...args) => f.api.graphql(...args),
+        },
+      },
     );
     assert.equal(result.objects.length, 6);
     assert.equal(f.counts().mutations, 1);
@@ -340,6 +349,151 @@ void test(
       api: f.api,
     });
     assert.deepEqual(f.counts(), before);
+  },
+);
+
+void test(
+  "prepared transport delegates the journal write after publishing and checking the exact objects",
+  { timeout: 60000 },
+  async (t) => {
+    const f = await fixture(t);
+    const refs = [...f.refs];
+    const published = { checkpoint: f.saved.checkpoint };
+    const checkpoints: string[] = [];
+    const result = await publishPreparedCoordinatorCheckpoint(
+      f.local,
+      f.saved.checkpoint,
+      f.config,
+      {
+        api: f.api,
+        publishCheckpoint: async (checkpoint) => {
+          checkpoints.push(checkpoint);
+          assert.equal(
+            f.git(f.remote, ["rev-parse", `${f.prepared.prepared_commit}^{tree}`]),
+            f.prepared.prepared_tree,
+          );
+          assert.deepEqual([...f.refs], refs);
+          return published;
+        },
+      },
+    );
+    assert.deepEqual(checkpoints, [f.saved.checkpoint]);
+    assert.equal(result.published, published);
+    assert.deepEqual([...f.refs], refs);
+    assert.equal(f.counts().mutations, 0);
+  },
+);
+
+void test(
+  "native release source custody publishes exact objects without touching any journal or ref",
+  { timeout: 60000 },
+  async (t) => {
+    const f = await fixture(t);
+    const refs = [...f.refs];
+    let guarded = 0;
+    const options = {
+      open: async () => f.api,
+      beforeWrite: async () => {
+        guarded++;
+      },
+    };
+    const result = await publishPreparedReleaseObjects(f.local, f.candidate, options);
+    assert.equal(guarded, 1);
+    assert.equal(result.authority, "none");
+    assert.equal(result.objects.length, 6);
+    assert.deepEqual(f.counts(), { posts: 6, mutations: 0 });
+    assert.deepEqual([...f.refs], refs);
+    assert.equal(
+      f.git(f.remote, ["rev-parse", `${result.prepared_commit}^{tree}`]),
+      f.prepared.prepared_tree,
+    );
+    assert.equal(f.git(f.remote, ["show", `${result.prepared_commit}:unrelated.txt`]), "untouched");
+    const before = f.counts();
+    await publishPreparedReleaseObjects(f.local, f.candidate, options);
+    assert.equal(guarded, 2);
+    assert.deepEqual(f.counts(), before);
+    assert.deepEqual([...f.refs], refs);
+  },
+);
+
+void test(
+  "native source guard refusal occurs before any Git-object mutation",
+  { timeout: 60000 },
+  async (t) => {
+    const f = await fixture(t);
+    await assert.rejects(
+      publishPreparedReleaseObjects(f.local, f.candidate, {
+        open: async () => f.api,
+        beforeWrite: async () => {
+          throw new Error("fresh production guard refused");
+        },
+      }),
+      /guard refused/,
+    );
+    assert.deepEqual(f.counts(), { posts: 0, mutations: 0 });
+  },
+);
+
+for (const kind of ["blobs", "trees", "commits"])
+  void test(
+    `native source lost ${kind} acknowledgement reconciles exact bytes without another POST or journal`,
+    { timeout: 60000 },
+    async (t) => {
+      const f = await fixture(t);
+      f.faults.lose = kind;
+      t.mock.method(
+        globalThis,
+        "fetch",
+        async (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
+          const request = new Request(input, init);
+          const url = new URL(request.url);
+          assert.equal(url.origin, "https://api.github.com");
+          assert.equal(request.headers.get("authorization"), "token inert-prepared-object-writer");
+          const body: unknown = request.method === "GET" ? undefined : await request.json();
+          const result = f.api.request(request.method, url.pathname.slice(1), body);
+          return Response.json(result.body, { status: result.status ?? 200 });
+        },
+      );
+      const result = await publishPreparedReleaseObjects(f.local, f.candidate, {
+        open: (deadline) =>
+          createNativePreparedObjectTransport("inert-prepared-object-writer", deadline),
+        beforeWrite: async () => {},
+      });
+      assert.ok(result.objects.some((object) => object.mutation_error));
+      assert.deepEqual(f.counts(), { posts: 6, mutations: 0 });
+      assert.equal(f.refs.get(f.stateRef), f.initial.checkpoint);
+    },
+  );
+
+void test(
+  "native source ambiguous mutation with unavailable readback retains allocation and stops",
+  { timeout: 60000 },
+  async (t) => {
+    const f = await fixture(t);
+    f.faults.lose = "blobs";
+    f.faults.readback = true;
+    await assert.rejects(
+      publishPreparedReleaseObjects(f.local, f.candidate, {
+        open: async () => f.api,
+        beforeWrite: async () => {},
+      }),
+      (error: unknown) => {
+        assert.ok(error instanceof CoordinatorRemoteError && isRecord(error.evidence));
+        assert.equal(error.evidence.retry, "forbidden");
+        assert.ok(
+          isRecord(error.evidence.cause) &&
+            error.evidence.cause.mutation_error &&
+            error.evidence.cause.readback_error,
+        );
+        return true;
+      },
+    );
+    assert.deepEqual(f.counts(), { posts: 1, mutations: 0 });
+    assert.equal(
+      f.git(f.local, ["rev-parse", `${f.candidate.prepared_commit}^{tree}`]),
+      f.candidate.prepared_tree,
+    );
+    assert.equal(f.refs.get(f.stateRef), f.initial.checkpoint);
   },
 );
 for (const kind of ["blobs", "trees", "commits"])

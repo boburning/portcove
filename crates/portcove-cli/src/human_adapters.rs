@@ -234,6 +234,9 @@ pub(crate) fn artwork_state(state: &portcove_core::ArtworkState, catalog: &Catal
     if let Some(asset) = &state.selection {
         output.push_str(&format!("\n{}", artwork_asset(asset)));
     }
+    if let Some(credits) = artwork_credits(&state.attribution) {
+        output.push_str(&format!("\n{credits}"));
+    }
     if let Some(reason) = &state.reason {
         output.push_str(&format!(
             "\nReason: {}",
@@ -241,6 +244,29 @@ pub(crate) fn artwork_state(state: &portcove_core::ArtworkState, catalog: &Catal
         ));
     }
     output
+}
+
+/// Provider credits stay with the image wherever it is shown.
+pub(crate) fn artwork_credits(attribution: &[portcove_core::ArtworkAttribution]) -> Option<String> {
+    if attribution.is_empty() {
+        return None;
+    }
+    Some(
+        attribution
+            .iter()
+            .map(|credit| {
+                let provider = match credit.provider {
+                    portcove_core::ArtworkProvider::Steamgriddb => "SteamGridDB",
+                };
+                format!(
+                    "Image by {} on {provider} (image {})",
+                    human::clean(&credit.author_name),
+                    credit.asset_id
+                )
+            })
+            .collect::<Vec<_>>()
+            .join("\n"),
+    )
 }
 
 pub(crate) fn artwork_handoff(
@@ -285,7 +311,13 @@ pub(crate) fn artwork_handoff(
             DestinationArtworkUnavailableReason::SelectedOriginalUnavailable => {
                 "\nThe selected local original is unavailable."
             }
+            DestinationArtworkUnavailableReason::SelectedImageNotWide => {
+                "\nThe selected detail image is not displayed wider than tall, so it is not offered as a wide role."
+            }
         }),
+    }
+    if let Some(credits) = artwork_credits(&handoff.attribution) {
+        output.push_str(&format!("\n{credits}"));
     }
     output.push_str("\nThis observation does not grant destination ownership, copyright permission, or consent to write there.");
     output
@@ -360,6 +392,13 @@ pub(crate) fn launch_record(
     if let Some(exit_code) = record.exit_code {
         output.push_str(&format!("\nGame exit code: {exit_code}"));
     }
+    if let Some(explained) = portcove_core::LaunchSessionView::new(record.clone()).exit_explanation
+    {
+        output.push_str(&format!(
+            "\nWhat likely happened: {}\nNext step: {}",
+            explained.explanation, explained.next_action
+        ));
+    }
     if technical && known_catalog.is_none() {
         output.push_str(&format!(
             "\nRecorded port ID (redacted): {}",
@@ -416,6 +455,14 @@ pub(crate) fn error(command: &str, error: &PortcoveError, technical: bool) -> St
         ) => Some((
             "With --non-interactive, auth set-token requires --stdin.",
             "Supply the token through standard input. You can also set PORTCOVE_GITHUB_TOKEN for this environment.",
+            false,
+        )),
+        (
+            ErrorCode::Usage,
+            "artwork steamgriddb set-key requires --stdin under --non-interactive",
+        ) => Some((
+            "With --non-interactive, artwork steamgriddb set-key requires --stdin.",
+            "Supply your SteamGridDB API key through standard input, or run the command without --non-interactive to enter it at a prompt.",
             false,
         )),
         (ErrorCode::Usage, "applying an import requires --expected-plan") => Some((
@@ -479,6 +526,23 @@ mod tests {
     use super::*;
 
     #[test]
+    fn launch_readback_explains_failed_exit_codes_without_inventing_causes() {
+        let mut record: LaunchSessionRecord = serde_json::from_value(serde_json::json!({
+            "id": "r", "port_id": "unknown", "install_id": "i", "install_root": "/i",
+            "supervisor_pid": 1, "phase": "running", "started_at": 0, "updated_at": 1,
+            "outcome": "failed", "exit_code": -1073741515,
+        }))
+        .unwrap();
+        let text = launch_record(Some(&record), "r", None, false);
+        assert!(text.contains("What likely happened: A required DLL"));
+        record.exit_code = Some(3);
+        let text = launch_record(Some(&record), "r", None, false);
+        assert!(text.contains("The game closed with an error."));
+        record.outcome = Some(LaunchSessionOutcome::Cancelled);
+        assert!(!launch_record(Some(&record), "r", None, false).contains("What likely happened"));
+    }
+
+    #[test]
     fn launch_readback_names_known_ports_and_keeps_unknown_targets_and_outcomes_honest() {
         let catalog = Catalog::embedded().unwrap();
         let port = &catalog.ports()[0];
@@ -517,6 +581,45 @@ mod tests {
             assert!(details.contains("Recorded port ID (redacted):"));
             assert!(!details.contains("private-launch"), "{details}");
         }
+    }
+
+    #[test]
+    fn hero_refusal_explains_the_displayed_shape_including_rotation() {
+        use portcove_core::{
+            ArtworkChoice, ArtworkSlot, DestinationArtworkContent, DestinationArtworkHandoff,
+            DestinationArtworkRole, DestinationArtworkSource, DestinationArtworkUnavailableReason,
+            LibraryIdentity,
+        };
+        let catalog = Catalog::embedded().unwrap();
+        let port_id = catalog.ports()[0].id.clone();
+        let handoff = DestinationArtworkHandoff {
+            handoff_schema: portcove_core::ARTWORK_HANDOFF_SCHEMA,
+            library: LibraryIdentity {
+                id: "library".into(),
+                root: "library".into(),
+            },
+            port_id: port_id.clone(),
+            role: DestinationArtworkRole::HeroBanner,
+            choice: Some(ArtworkChoice {
+                port_id,
+                slot: ArtworkSlot::Detail,
+                revision: 1,
+                asset_sha256: None,
+            }),
+            source: DestinationArtworkSource::UnassignedRole,
+            selected_asset_sha256: None,
+            content: DestinationArtworkContent::Unavailable {
+                reason: DestinationArtworkUnavailableReason::SelectedImageNotWide,
+            },
+            attribution: Vec::new(),
+        };
+        let text = artwork_handoff(&handoff, &catalog);
+        assert!(
+            text.contains(
+                "The selected detail image is not displayed wider than tall, so it is not offered as a wide role."
+            ),
+            "{text}"
+        );
     }
 
     #[test]

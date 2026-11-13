@@ -4,29 +4,49 @@
     "id": "jetforcegemini-recomp-vibintoast-jet-force-gemini",
     "name": "Jet Force Gemini — JetForceGemini-Recomp (VibinToast)",
     "original_game_title": "Jet Force Gemini",
-    "summary": "Claims100% playable, modern controls and texture packs; upstream claim only, no Portcove playthrough. Different repo ID than existing TK22 owner and own DKR-derived runtime needs final lineage reconciliation. Original files and setup are described below. Portcove has not verified setup or gameplay.",
-    "project_url": "https://github.com/VibinToast/JetForceGemini-Recomp",
-    "platforms": ["linux-x86-64"],
-    "availability": "unknown",
-    "setup_url": "https://github.com/VibinToast/JetForceGemini-Recomp",
+    "summary": "Native Jet Force Gemini with a US ROM picker, portable packages and a separate Linux AppImage.",
+    "project_url": "https://github.com/VibinToast/JetForceGemini-Recompiled",
+    "platforms": ["windows-x86-64", "linux-x86-64"],
+    "availability": "packages",
+    "setup_url": "https://github.com/VibinToast/JetForceGemini-Recompiled",
     "manual_setup": {
       "steps": [
         {
           "title": "Check the required game files",
-          "instruction": "USA z64 ROM SHA1 493ced9008dbe932d6e91179b68e8630cf23a023"
+          "instruction": "Use your own USA z64 ROM, SHA-1 493ced9008dbe932d6e91179b68e8630cf23a023."
         },
         {
-          "title": "Follow upstream setup",
-          "instruction": "README Windows/Linux archives/AppImage or source local build. Runtime selects own ROM; saves separate per package."
+          "title": "Start the complete portable package",
+          "instruction": "Extract the v1.3.2 portable archive into a writable folder. On Windows 10 or 11 with Direct3D 12, open JetForceGeminiRecompiled.exe. For the Linux x64 tarball and AppImage, use glibc 2.35 or newer, Vulkan and system FreeType and D-Bus libraries. For the tarball, open JetForceGeminiRecompiled from the extracted folder. Choose your own ROM in the launcher."
+        },
+        {
+          "title": "Use the prepared Linux copy",
+          "instruction": "For the prepared portable tarball, select JetForceGeminiRecompiled as the executable and its containing folder as the working directory. Choose Play when you want to start that external copy. The .exe in the next step is for Windows."
         }
       ],
       "warnings": [
-        "Claims100% playable, modern controls and texture packs; upstream claim only, no Portcove playthrough. Different repo ID than existing TK22 owner and own DKR-derived runtime needs final lineage reconciliation.",
-        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+        "The Windows upstream updater can replace and restart the executable. End the Portcove Play session before using that updater from the standalone player. Keep the data of other Jet Force Gemini implementations separate."
       ],
-      "help_url": "https://github.com/VibinToast/JetForceGemini-Recomp"
+      "help_url": "https://github.com/VibinToast/JetForceGemini-Recompiled",
+      "references": [
+        {
+          "title": "Choose the Linux package and keep its data",
+          "instruction": "The portable tarball keeps data beside its executable. The AppImage runs from a writable copy in JFG_GAME_DIR, or in JetForceGeminiRecompiled under XDG_DATA_HOME (default ~/.local/share). Keep saves, settings, mods and texture_packs in the folder you actually use. For Steam Deck, start the AppImage through Steam."
+        },
+        {
+          "title": "Replace a Linux 1.2.x copy",
+          "instruction": "Use the current upstream release page for the first update after the repository rename. Keep a backup of your portable folder or AppImage data before replacing it. The 1.3.2 release fixes an upstream Linux crash when selecting a save after restart."
+        }
+      ]
     },
-    "issue_number": 3580
+    "issue_number": 3580,
+    "listed_at": "2026-10-25",
+    "release_url": "https://github.com/VibinToast/JetForceGemini-Recompiled/releases",
+    "download_asset_hints": {
+      "windows-x86-64": ["JFG-", "-windows-x64-portable.zip"],
+      "linux-x86-64": ["JFG-", "-linux-x86_64-portable.tar.gz"]
+    },
+    "recommended_download_channel": "stable"
   },
   "upstream_lineage": {
     "format_version": 1,
@@ -38,6 +58,54 @@
         "id": "1418141714"
       }
     },
-    "decisions": []
+    "decisions": [
+      {
+        "from": {
+          "project_url": "https://github.com/VibinToast/JetForceGemini-Recomp",
+          "repository": {
+            "host": "github.com",
+            "id": "1418141714"
+          }
+        },
+        "to": {
+          "project_url": "https://github.com/VibinToast/JetForceGemini-Recompiled",
+          "repository": {
+            "host": "github.com",
+            "id": "1418141714"
+          }
+        },
+        "relationship": "relocation",
+        "outcome": "accepted",
+        "rationale": "The former and current GitHub paths resolve to the recorded numeric repository ID. The maintainer explicitly describes the rename and release history continues across it.",
+        "evidence": [
+          {
+            "kind": "supporting",
+            "reference": "https://api.github.com/repositories/1418141714",
+            "note": "Both provider paths resolve to this recorded repository identity and the current canonical name."
+          },
+          {
+            "kind": "supporting",
+            "reference": "https://github.com/VibinToast/JetForceGemini-Recompiled/releases/tag/v1.3.1",
+            "note": "The maintainer describes the repository rename and why the older Linux updater needs a manual download."
+          }
+        ],
+        "reconsider_when": "Reassess if either path resolves to a different provider identity or attributable contradictory continuity evidence appears.",
+        "review": {
+          "reference": "https://github.com/boburning/portcove/issues/3580#issuecomment-6710095177",
+          "decision_sha256": "28b1a22e84cc49a9e34336e7ccfa0ed0df8633a13f4fc86a651412782142e9e3"
+        }
+      }
+    ]
+  },
+  "route_facts_v1": {
+    "format_version": 1,
+    "prepared_player": {
+      "executable": "JetForceGeminiRecompiled.exe",
+      "working_directory": "executable-parent",
+      "arguments": [],
+      "data_locations": [
+        "the portable executable’s containing folder, including saves, settings, mods and texture packs"
+      ]
+    }
   }
 }

@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { controllerWorkflowAtCurrentNode } from "./fixtures/release-capacity-fixture.mts";
 import test from "node:test";
 import {
   readFile,
@@ -19,6 +20,7 @@ import { performance } from "node:perf_hooks";
 import { parseDocument } from "yaml";
 import { inspectControllerExecutionPurpose } from "./release-control-phases.mts";
 import { isRecord } from "./runtime-values.mts";
+import { controllerTagPatterns, releaseOwner } from "./release-ref-rulesets.mts";
 import { releaseCanonicalDigest as digest } from "./release-canonical.mts";
 import { prepareFixedControllerConfiguration } from "./release-controller-configuration.mts";
 import { fixedControllerConfigurationSource } from "./release-authority-configuration-contract.mts";
@@ -26,7 +28,7 @@ import { projectFixedControllerJobOutputs } from "./release-controller-job-outpu
 import { assertControllerBootstrapEnvironment } from "./release-controller-job-bootstrap.mts";
 import {
   inspectControllerWakeChoices,
-  readControllerWakeChoicesFromEnvironment,
+  readControllerWakeSetupFromEnvironment,
   selectControllerWakePurpose,
   readWakePurposePriority,
 } from "./release-controller-wake.mts";
@@ -38,7 +40,83 @@ import {
 } from "./release-input-protections.mts";
 import { catalogEnvironmentFixture } from "./fixtures/release-live-control-fixture.mts";
 import { capacityDigest, slice4CapacityResources } from "./release-capacity.mts";
+import { retainedCatalogReviewRecoveryResources } from "./release-retained-catalog-review-resources.mts";
 import { maximumProductionControllerWorkflowBytes } from "./production-controller-admission.mts";
+import {
+  isCatalogBootstrapRecoveryRef,
+  selectCatalogBootstrapRecovery,
+} from "./release-catalog-bootstrap-adoption.mts";
+import {
+  retainedCatalogBootstrapClaim,
+  retainedCatalogForwardAdoptionClaim,
+  retainedCatalogNativeAdoptionClaim,
+  retainedCatalogV13AdoptionClaim,
+} from "./release-coordinator-checkpoint-authentication.mts";
+
+void test("catalog recovery distinguishes exact renewal claims from historical bootstrap", () => {
+  const v13 = retainedCatalogV13AdoptionClaim;
+  assert.equal(selectCatalogBootstrapRecovery(v13.successor_ref, 1, v13.previous, "native"), v13);
+  assert.equal(
+    selectCatalogBootstrapRecovery(`refs/tags/${v13.original_ref}`, 1, v13.previous, "native"),
+    undefined,
+  );
+  assert.throws(() => selectCatalogBootstrapRecovery(v13.successor_ref, 2, v13.previous, "native"));
+  assert.throws(() => selectCatalogBootstrapRecovery(v13.successor_ref, 1, v13.child, "native"));
+  assert.throws(() => selectCatalogBootstrapRecovery(v13.successor_ref, 1, v13.previous, true));
+  const old = retainedCatalogBootstrapClaim;
+  const forward = retainedCatalogForwardAdoptionClaim;
+  const native = retainedCatalogNativeAdoptionClaim;
+  assert.equal(selectCatalogBootstrapRecovery(old.successor_ref, 1, old.previous, false), old);
+  assert.equal(
+    selectCatalogBootstrapRecovery(forward.successor_ref, 1, forward.previous, true),
+    forward,
+  );
+  assert.equal(
+    selectCatalogBootstrapRecovery(forward.original_ref, 1, forward.previous, true),
+    undefined,
+  );
+  assert.equal(
+    selectCatalogBootstrapRecovery(native.successor_ref, 1, native.previous, "native"),
+    native,
+  );
+  assert.equal(
+    selectCatalogBootstrapRecovery(
+      `refs/tags/${native.original_ref}`,
+      1,
+      native.previous,
+      "native",
+    ),
+    undefined,
+  );
+  assert.equal(
+    native.successor_ref,
+    "refs/tags/portcove-production-controller-catalog-adoption-settle-20261111",
+  );
+  assert.ok(isCatalogBootstrapRecoveryRef(native.successor_ref));
+  for (const retired of [
+    "refs/tags/portcove-production-controller-catalog-adoption-resume-20261111",
+    "refs/tags/portcove-production-controller-catalog-adoption-stable-wake-20261111",
+  ]) {
+    assert.equal(selectCatalogBootstrapRecovery(retired, 1, native.previous, "native"), undefined);
+    assert.equal(isCatalogBootstrapRecoveryRef(retired), false);
+  }
+  for (const [ref, attempt, parent, direction] of [
+    [old.successor_ref, 1, old.previous, true],
+    [forward.successor_ref, 1, forward.previous, false],
+    [forward.successor_ref, 2, forward.previous, true],
+    [forward.successor_ref, 1, old.previous, true],
+    [forward.successor_ref, 1, forward.previous, "native"],
+    [native.successor_ref, 1, native.previous, true],
+    [native.successor_ref, 1, native.previous, false],
+    [native.successor_ref, 2, native.previous, "native"],
+    [native.successor_ref, 1, forward.previous, "native"],
+  ] as const)
+    assert.throws(
+      () => selectCatalogBootstrapRecovery(ref, attempt, parent, direction),
+      /original predecessor and one successor attempt/u,
+    );
+});
+
 const hash = (bytes: Buffer | string) => createHash("sha256").update(bytes).digest("hex");
 function fixture() {
   const fixed = {
@@ -243,21 +321,21 @@ void test("automatic purpose fairness is fixed-data routing, with exact shared n
     catalog = { ...base, publication_purpose: "catalog-publication", dispatch_actor_id: "888" };
   const choices = inspectControllerWakeChoices(app, catalog);
   assert.deepEqual(
-    readControllerWakeChoicesFromEnvironment({
+    readControllerWakeSetupFromEnvironment({
       PORTCOVE_CONTROLLER_WAKE: JSON.stringify(app),
       PORTCOVE_CATALOG_CONTROLLER_WAKE: "",
-    }),
+    }).choices,
     inspectControllerWakeChoices(app, null),
   );
   assert.deepEqual(
-    readControllerWakeChoicesFromEnvironment({
+    readControllerWakeSetupFromEnvironment({
       PORTCOVE_CONTROLLER_WAKE: "",
       PORTCOVE_CATALOG_CONTROLLER_WAKE: JSON.stringify(catalog),
-    }),
+    }).choices,
     inspectControllerWakeChoices(null, catalog),
   );
   assert.throws(() =>
-    readControllerWakeChoicesFromEnvironment({
+    readControllerWakeSetupFromEnvironment({
       PORTCOVE_CONTROLLER_WAKE: " ",
       PORTCOVE_CATALOG_CONTROLLER_WAKE: JSON.stringify(catalog),
     }),
@@ -286,12 +364,13 @@ void test("automatic purpose fairness is fixed-data routing, with exact shared n
   assert.throws(() => inspectControllerWakeChoices(null, null));
   assert.throws(() => selectControllerWakePurpose(choices, NaN));
 });
-void test("catalog maintenance authenticates pause and exact catalog environments without application prerequisites", () => {
+void test("catalog maintenance authenticates pause and exact catalog environments without application prerequisites", async () => {
   const controllerRef = "refs/tags/portcove-production-controller-test";
   const environments = catalogEnvironmentFixture(controllerRef);
   const branch = "portcove-release-pause";
   const rule = (id: number, types: string[], actors: unknown[]) => ({
     id,
+    target: "branch",
     source_type: "Repository",
     source: "boburning/portcove",
     enforcement: "active",
@@ -302,39 +381,139 @@ void test("catalog maintenance authenticates pause and exact catalog environment
   const rules = [
     rule(1, ["update"], [{ actor_type: "User", actor_id: 43177418, bypass_mode: "always" }]),
     rule(2, ["creation", "deletion", "non_fast_forward"], []),
+    {
+      ...rule(99, ["creation", "update", "deletion"], []),
+      target: "tag",
+      conditions: { ref_name: { include: [controllerRef], exclude: [] } },
+    },
   ];
   const paths: string[] = [];
-  const api = {
-    request(method: string, endpoint: string) {
-      assert.equal(method, "GET");
-      paths.push(endpoint);
-      let body: unknown;
-      if (endpoint === "repos/boburning/portcove")
-        body = { id: 1354613114, full_name: "boburning/portcove" };
-      else if (endpoint.includes("/rulesets?")) body = rules;
-      else if (endpoint.includes("/rulesets/")) body = rules[endpoint.includes("/1?") ? 0 : 1];
-      else if (endpoint.includes("/git/ref/heads/")) {
-        assert.ok(endpoint.endsWith(branch));
-        body = { ref: `refs/heads/${branch}`, object: { type: "commit", sha: "a".repeat(40) } };
-      } else if (endpoint.includes("/rules/branches/"))
-        body = rules.flatMap((r) => r.rules.map((value) => ({ ...value, ruleset_id: r.id })));
-      else if (endpoint.includes("/environments/")) {
-        const name = endpoint.split("/environments/")[1]!.split("/")[0]!;
-        const row = environments.find((row) => row.name === name);
-        assert.ok(row);
-        body = endpoint.includes("/deployment-branch-policies?")
-          ? { total_count: row.policies.length, branch_policies: row.policies }
-          : row.environment;
-      } else throw new Error("unexpected path " + endpoint);
-      return { status: 200, headers: new Map<string, string>(), body };
-    },
+  const read = async (endpoint: string) => {
+    paths.push(endpoint);
+    let body: unknown;
+    if (endpoint === "repos/boburning/portcove")
+      body = { id: 1354613114, full_name: "boburning/portcove" };
+    else if (endpoint.includes("/rulesets?")) body = rules;
+    else if (endpoint.includes("/rulesets/")) {
+      const id = Number(/\/rulesets\/(\d+)\?/u.exec(endpoint)?.[1]);
+      body = rules.find((rule) => rule.id === id);
+    } else if (endpoint.includes("/git/ref/heads/")) {
+      assert.ok(endpoint.endsWith(branch));
+      body = { ref: `refs/heads/${branch}`, object: { type: "commit", sha: "a".repeat(40) } };
+    } else if (endpoint.includes("/rules/branches/"))
+      body = rules.flatMap((r) => r.rules.map((value) => ({ ...value, ruleset_id: r.id })));
+    else if (endpoint.includes("/environments/")) {
+      const name = endpoint.split("/environments/")[1]!.split("/")[0]!;
+      const row = environments.find((row) => row.name === name);
+      assert.ok(row);
+      body = endpoint.includes("/deployment-branch-policies?")
+        ? { total_count: row.policies.length, branch_policies: row.policies }
+        : row.environment;
+    } else throw new Error("unexpected path " + endpoint);
+    return { status: 200, body };
   };
-  const observation = observeCatalogMaintenanceProtections(api);
+  const observation = await observeCatalogMaintenanceProtections(read);
   assert.equal(observation.coverage, "current-repository-catalog-maintenance-only");
   assert.equal(observation.inventory.branches.length, 1);
   requireCatalogMaintenancePolicy(observation, controllerRef);
   assert.ok(paths.every((path) => !path.includes("portcove-release-inputs")));
   assert.throws(() => requireReleaseInputWriterPolicy(observation, 202));
+  // Retained immutable-controller rulesets must not crowd out the complete
+  // catalog/environment stability observations.
+  const retained = Array.from({ length: 59 }, (_, index) => ({
+    ...rule(index + 3, ["creation", "update", "deletion"], []),
+    conditions: { ref_name: { include: [`refs/tags/controller-retained-${index}`], exclude: [] } },
+  }));
+  const dense = [...rules, ...retained];
+  const densePaths: string[] = [];
+  let activeDetails = 0;
+  let peakDetails = 0;
+  let failFirstDetail = false;
+  const journalNamespace = "portcove-production";
+  const journalBranch = `${journalNamespace}-coordinator-state`;
+  const denseRead = async (endpoint: string) => {
+    densePaths.push(endpoint);
+    if (endpoint.includes("/rulesets?")) return { status: 200, body: dense };
+    const detail = /\/rulesets\/(\d+)\?/u.exec(endpoint);
+    if (detail) {
+      const row = dense.find((value) => value.id === Number(detail[1]));
+      assert.ok(row);
+      activeDetails++;
+      peakDetails = Math.max(peakDetails, activeDetails);
+      try {
+        await new Promise<void>((resolve) => setImmediate(resolve));
+        return { status: failFirstDetail && row.id === 1 ? 503 : 200, body: row };
+      } finally {
+        activeDetails--;
+      }
+    }
+    if (endpoint.endsWith(`/git/ref/heads/${journalBranch}`))
+      return {
+        status: 200,
+        body: {
+          ref: `refs/heads/${journalBranch}`,
+          object: { type: "commit", sha: "b".repeat(40) },
+        },
+      };
+    return read(endpoint);
+  };
+  const complete = await observeCatalogMaintenanceProtections(denseRead, { journalNamespace });
+  assert.equal(complete.inventory.branches.length, 2);
+  assert.equal(peakDetails, 4);
+  assert.equal(activeDetails, 0);
+  assert.equal(complete.inventory.rulesets.length, dense.length);
+  assert.equal(complete.api_requests, densePaths.length);
+  assert.equal(
+    complete.api_requests,
+    163,
+    "current 62-rule inventory needs more than the former 156 requests",
+  );
+  for (const name of catalogProtectionEnvironments) {
+    assert.equal(densePaths.filter((entry) => entry.endsWith(`/environments/${name}`)).length, 2);
+    assert.equal(
+      densePaths.filter((entry) =>
+        entry.includes(`/environments/${name}/deployment-branch-policies?`),
+      ).length,
+      2,
+    );
+  }
+  failFirstDetail = true;
+  densePaths.length = 0;
+  await assert.rejects(
+    observeCatalogMaintenanceProtections(denseRead, { journalNamespace }),
+    /protection response unavailable/,
+  );
+  assert.equal(activeDetails, 0);
+  assert.equal(densePaths.filter((entry) => entry.includes("/rulesets/")).length, 4);
+  failFirstDetail = false;
+  dense.push(
+    ...Array.from({ length: 36 }, (_, index) => ({
+      ...rule(index + 100, ["creation", "update", "deletion"], []),
+      conditions: {
+        ref_name: { include: [`refs/tags/controller-overflow-${index}`], exclude: [] },
+      },
+    })),
+  );
+  densePaths.length = 0;
+  const refusals: unknown[] = [];
+  await assert.rejects(
+    observeCatalogMaintenanceProtections(denseRead, {
+      journalNamespace,
+      onRefusal: (evidence) => refusals.push(evidence),
+    }),
+    /observation bound exhausted/,
+  );
+  assert.equal(densePaths.length, 224);
+  const refusal = refusals[0];
+  assert.ok(isRecord(refusal) && typeof refusal.elapsed_ms === "number" && refusal.elapsed_ms >= 0);
+  assert.deepEqual(refusals, [
+    {
+      snapshot: 2,
+      stage: "catalog-environments",
+      api_requests: 224,
+      elapsed_ms: refusal.elapsed_ms,
+    },
+  ]);
   assert.throws(() =>
     requireCatalogMaintenancePolicy(
       {
@@ -362,7 +541,182 @@ void test("catalog maintenance authenticates pause and exact catalog environment
     "production-release-coordinator",
     "production-release-protection-observer",
   ]);
+  const retainedTag = "portcove-production-controller-catalog-20261028r2";
+  const retainedRule = {
+    ...rule(90, ["creation", "update", "deletion"], []),
+    target: "tag",
+    conditions: { ref_name: { include: [`refs/tags/${retainedTag}`], exclude: [] } },
+  };
+  environments[0]!.policies.push({ id: 88, name: retainedTag, type: "tag" });
+  const withoutImmutableRule = await observeCatalogMaintenanceProtections(read);
+  assert.throws(
+    () => requireCatalogMaintenancePolicy(withoutImmutableRule, controllerRef),
+    /additional tag lacks exact immutable protection/u,
+  );
+  rules.push(retainedRule);
+  const shared = await observeCatalogMaintenanceProtections(read);
+  assert.notEqual(
+    requireCatalogMaintenancePolicy(shared, controllerRef).environment_policy_sha256,
+    requireCatalogMaintenancePolicy(observation, controllerRef).environment_policy_sha256,
+  );
+  retainedRule.bypass_actors.push({
+    actor_type: "Integration",
+    actor_id: 123,
+    bypass_mode: "always",
+  });
+  const withBypass = await observeCatalogMaintenanceProtections(read);
+  assert.throws(
+    () => requireCatalogMaintenancePolicy(withBypass, controllerRef),
+    /additional tag lacks exact immutable protection/u,
+  );
+  retainedRule.bypass_actors.pop();
+  environments[0]!.policies.pop();
+  rules.pop();
+  const tagConditions: { ref_name: { include: string[]; exclude: string[] } } = {
+    ref_name: { include: [...controllerTagPatterns], exclude: [] },
+  };
+  const split = [
+    {
+      ...retainedRule,
+      id: 90,
+      conditions: tagConditions,
+      rules: [{ type: "update" }, { type: "deletion" }],
+    },
+    {
+      ...retainedRule,
+      id: 91,
+      conditions: tagConditions,
+      rules: [{ type: "creation" }],
+      bypass_actors: [releaseOwner] as unknown[],
+    },
+  ];
+  const withRules = (rows: unknown[]) => {
+    const inventory = { ...shared.inventory, rulesets: [...rules.slice(0, 2), ...rows] };
+    return { ...shared, inventory, inventory_sha256: capacityDigest(inventory) };
+  };
+  const sharedExact = structuredClone(retainedRule);
+  sharedExact.conditions.ref_name.include.push(controllerRef);
+  requireCatalogMaintenancePolicy(withRules([sharedExact]), controllerRef);
+  const consolidated = withRules(split);
+  requireCatalogMaintenancePolicy(consolidated, controllerRef);
+  assert.notEqual(consolidated.inventory_sha256, shared.inventory_sha256);
+  assert.throws(
+    () =>
+      requireCatalogMaintenancePolicy(
+        {
+          ...consolidated,
+          inventory_sha256: shared.inventory_sha256,
+        },
+        controllerRef,
+      ),
+    /fresh authenticated protection inventory/u,
+  );
   for (const mutate of [
+    (rows: typeof split) => {
+      rows[0]!.target = "branch";
+    },
+    (rows: typeof split) => {
+      rows[0]!.enforcement = "disabled";
+    },
+    (rows: typeof split) => {
+      rows[0]!.conditions.ref_name.include = ["refs/tags/*"];
+    },
+    (rows: typeof split) => {
+      rows[0]!.conditions.ref_name.include = ["refs/tags/unrelated"];
+    },
+    (rows: typeof split) => {
+      rows[0]!.conditions.ref_name.exclude.push(controllerRef);
+    },
+    (rows: typeof split) => {
+      rows[0]!.rules.pop();
+    },
+    (rows: typeof split) => {
+      rows[0]!.bypass_actors.push(releaseOwner);
+    },
+    (rows: typeof split) => {
+      rows[1]!.bypass_actors = [];
+    },
+    (rows: typeof split) => {
+      rows[1]!.bypass_actors = [{ ...releaseOwner, actor_id: 5632044 }];
+    },
+    (rows: typeof split) => {
+      rows[1]!.rules.push({ type: "update" });
+    },
+  ]) {
+    const changed = structuredClone(split);
+    mutate(changed);
+    assert.throws(() => requireCatalogMaintenancePolicy(withRules(changed), controllerRef));
+  }
+  const unappointed = "refs/tags/portcove-production-controller-unappointed";
+  assert.throws(
+    () => requireCatalogMaintenancePolicy(consolidated, unappointed),
+    /outside retained appointments|authenticated exact controller tag/u,
+  );
+  const applicationTag = "portcove-production-controller-windows-20261105r10";
+  const applicationRule = {
+    ...retainedRule,
+    conditions: { ref_name: { include: [`refs/tags/${applicationTag}`], exclude: [] } },
+  };
+  const applicationSelector = { id: 88, name: applicationTag, type: "tag" };
+  rules.push(applicationRule);
+  environments[0]!.policies.push(applicationSelector);
+  requireCatalogMaintenancePolicy(await observeCatalogMaintenanceProtections(read), controllerRef);
+  environments[0]!.policies.pop();
+  environments[1]!.policies.push(applicationSelector);
+  const signerExtra = await observeCatalogMaintenanceProtections(read);
+  assert.throws(
+    () => requireCatalogMaintenancePolicy(signerExtra, controllerRef),
+    /outside retained appointments/u,
+  );
+  environments[1]!.policies.pop();
+  for (const heldTag of [
+    "portcove-production-controller-windows-20261105r30",
+    "portcove-production-controller-windows-20261108r55",
+    "portcove-production-controller-windows-20261109r56",
+    "portcove-production-controller-windows-20261109r57",
+    "portcove-production-controller-windows-20261109r58",
+  ]) {
+    const heldRule = {
+      ...retainedRule,
+      id: 91,
+      conditions: { ref_name: { include: [`refs/tags/${heldTag}`], exclude: [] } },
+    };
+    const heldSelector = { id: 89, name: heldTag, type: "tag" };
+    const protection = environments.find(
+      (row) => row.name === "production-release-protection-observer",
+    )!;
+    const coordinator = environments.find((row) => row.name === "production-release-coordinator")!;
+    environments[0]!.policies.push(applicationSelector, heldSelector);
+    protection.policies.push(heldSelector);
+    rules.push(heldRule);
+    requireCatalogMaintenancePolicy(
+      await observeCatalogMaintenanceProtections(read),
+      controllerRef,
+    );
+    coordinator.policies.push(heldSelector);
+    const coordinatorExtra = await observeCatalogMaintenanceProtections(read);
+    assert.throws(
+      () => requireCatalogMaintenancePolicy(coordinatorExtra, controllerRef),
+      /outside retained appointments/u,
+    );
+    coordinator.policies.pop();
+    rules.pop();
+    const unprotectedHeldTag = await observeCatalogMaintenanceProtections(read);
+    assert.throws(
+      () => requireCatalogMaintenancePolicy(unprotectedHeldTag, controllerRef),
+      /additional tag lacks exact immutable protection/u,
+    );
+    protection.policies.pop();
+    environments[0]!.policies.splice(-2);
+  }
+  rules.pop();
+  for (const mutate of [
+    (row: (typeof environments)[number]) => {
+      row.policies.push({ ...row.policies[0]!, id: 88 });
+    },
+    (row: (typeof environments)[number]) => {
+      row.policies.push({ id: 88, name: "portcove-production-controller-*", type: "tag" });
+    },
     (row: (typeof environments)[number]) => {
       row.environment.can_admins_bypass = true;
     },
@@ -386,7 +740,7 @@ void test("catalog maintenance authenticates pause and exact catalog environment
     // valid and refusal comes from policy interpretation, not a stale hash.
     const prior = structuredClone(environments[0]!);
     mutate(environments[0]!);
-    const drifted = observeCatalogMaintenanceProtections(api);
+    const drifted = await observeCatalogMaintenanceProtections(read);
     assert.throws(() => requireCatalogMaintenancePolicy(drifted, controllerRef));
     environments[0] = prior;
   }
@@ -414,49 +768,45 @@ void test("catalog maintenance authenticates pause and exact catalog environment
     assert.throws(() => requireCatalogMaintenancePolicy(changed, controllerRef));
   }
   for (const fault of ["short-total", "duplicate-pages", "nonterminal-pages"] as const) {
-    const faultyApi = {
-      request(method: string, endpoint: string) {
-        const result = api.request(method, endpoint);
-        if (!endpoint.includes("/deployment-branch-policies?")) return result;
-        const page = Number(new URL(`https://api.github.com/${endpoint}`).searchParams.get("page"));
-        const entries = Array.from({ length: 100 }, (_, index) => ({
-          id: index + 1,
-          name: `tag-${index}`,
-          type: "tag",
-        }));
-        return {
-          ...result,
-          body:
-            fault === "short-total"
-              ? { total_count: 2, branch_policies: environments[0]!.policies }
-              : {
-                  total_count: fault === "duplicate-pages" ? 200 : 800,
-                  branch_policies: fault === "duplicate-pages" && page > 2 ? [] : entries,
-                },
-        };
-      },
+    const faultyRead = async (endpoint: string) => {
+      const result = await read(endpoint);
+      if (!endpoint.includes("/deployment-branch-policies?")) return result;
+      const page = Number(new URL(`https://api.github.com/${endpoint}`).searchParams.get("page"));
+      const entries = Array.from({ length: 100 }, (_, index) => ({
+        id: index + 1,
+        name: `tag-${index}`,
+        type: "tag",
+      }));
+      return {
+        ...result,
+        body:
+          fault === "short-total"
+            ? { total_count: 2, branch_policies: environments[0]!.policies }
+            : {
+                total_count: fault === "duplicate-pages" ? 200 : 800,
+                branch_policies: fault === "duplicate-pages" && page > 2 ? [] : entries,
+              },
+      };
     };
-    assert.throws(() => observeCatalogMaintenanceProtections(faultyApi), /inventory/);
+    await assert.rejects(observeCatalogMaintenanceProtections(faultyRead), /inventory/);
   }
   let firstEnvironmentReads = 0;
-  const driftingApi = {
-    request(method: string, endpoint: string) {
-      if (
-        endpoint === "repos/boburning/portcove/environments/github-pages" &&
-        ++firstEnvironmentReads === 2
-      ) {
-        environments[0]!.environment.can_admins_bypass = true;
-      }
-      return api.request(method, endpoint);
-    },
+  const driftingRead = async (endpoint: string) => {
+    if (
+      endpoint === "repos/boburning/portcove/environments/github-pages" &&
+      ++firstEnvironmentReads === 2
+    ) {
+      environments[0]!.environment.can_admins_bypass = true;
+    }
+    return read(endpoint);
   };
-  assert.throws(
-    () => observeCatalogMaintenanceProtections(driftingApi),
+  await assert.rejects(
+    observeCatalogMaintenanceProtections(driftingRead),
     /changed during observation/,
   );
   environments[0]!.environment.can_admins_bypass = false;
 });
-void test("installed two-purpose workflow remains mutually exclusive under unchanged source and job ceilings", async () => {
+void test("installed two-purpose workflow remains mutually exclusive under the exact source and job ceilings", async () => {
   const bytes = await readFile(
     new URL("../.github/workflows/application-update-production.yml", import.meta.url),
   );
@@ -489,15 +839,30 @@ void test("installed two-purpose workflow remains mutually exclusive under uncha
     ].sort((a, b) => String(a).localeCompare(String(b))),
     catalogProtectionEnvironments,
   );
-  assert.equal(hash(bytes), slice4CapacityResources.aggregate_workflow_sha256);
-  assert.equal(hash(bytes), slice4CapacityResources.input_workflow_sha256);
-  assert.equal(
+  const appointed = controllerWorkflowAtCurrentNode(
     await readFile(
-      new URL("../docs/qualification/application-update-production.complete.yml", import.meta.url),
+      new URL(
+        "../docs/qualification/application-update-production.windows-20261103.proposed.yml",
+        import.meta.url,
+      ),
       "utf8",
     ),
-    bytes.toString(),
   );
+  assert.equal(
+    hash(Buffer.from(appointed)),
+    "a57e277b51e00fd20b42f4e61a712c468cae523dd523930bc37cfc248b418aa4",
+  );
+  assert.equal(hash(bytes), retainedCatalogReviewRecoveryResources.workflow_sha256);
+  assert.ok(isRecord(jobs.coordinator));
+  assert.deepEqual(jobs.coordinator.permissions, {
+    contents: "write",
+    actions: "write",
+    "id-token": "write",
+    attestations: "write",
+    checks: "read",
+    pages: "read",
+    deployments: "read",
+  });
   for (const role of ["definitions", "policy", "snapshot", "timestamp"]) {
     const job = jobs[`catalog_${role}`];
     assert.ok(isRecord(job));
@@ -528,18 +893,18 @@ void test("installed two-purpose workflow remains mutually exclusive under uncha
     assert.ok(isRecord(job));
     assert.match(String(job.if), /needs.admission.outputs.publication_purpose == 'application'/);
   }
-  assert.equal(slice4CapacityResources.declared_job_minutes, 89);
-  assert.equal(slice4CapacityResources.total_job_minutes, 100);
+  assert.equal(slice4CapacityResources.declared_job_minutes, 145);
+  assert.equal(slice4CapacityResources.total_job_minutes, 145);
   assert.equal(
     slice4CapacityResources.catalog_job_minutes.reduce((a, b) => a + b, 0) +
       slice4CapacityResources.catalog_observer_job_minutes.reduce((a, b) => a + b, 0) +
-      1,
-    40,
+      slice4CapacityResources.wake_job_minutes.reduce((a, b) => a + b, 0),
+    48,
   );
   assert.equal(slice4CapacityResources.report_repair_maximum_job_minutes_per_candidate, 4);
 });
 
-void test("wake priority uses one stable bounded data snapshot and never turns malformed or missing state into fair absence", () => {
+void test("wake priority uses one stable bounded data snapshot and never turns malformed or missing state into fair absence", async () => {
   const namespace = "portcove-production";
   let input: Record<string, unknown> = {
     active_candidate: null,
@@ -548,60 +913,59 @@ void test("wake priority uses one stable bounded data snapshot and never turns m
   let drift = false;
   let reads = 0;
   const api = {
-    request(method: string, endpoint: string) {
-      assert.equal(method, "GET");
-      let body: unknown;
-      if (endpoint.includes("/git/ref/")) {
-        reads++;
-        body = {
-          ref: `refs/heads/${namespace}-coordinator-state`,
-          object: { type: "commit", sha: (drift && reads % 2 === 0 ? "b" : "a").repeat(40) },
-        };
-      } else {
-        assert.match(endpoint, /contents\/state.json\?ref=a{40}$/u);
-        const bytes = Buffer.from(JSON.stringify({ schema_version: 1, previous: null, input }));
-        body = {
-          type: "file",
-          path: "state.json",
-          encoding: "base64",
-          content: bytes.toString("base64"),
-          size: bytes.length,
-          sha: createHash("sha1").update(`blob ${bytes.length}\0`).update(bytes).digest("hex"),
-        };
-      }
-      return { status: 200, headers: new Map<string, string>(), body };
+    async ref(name: string) {
+      assert.equal(name, `heads/${namespace}-coordinator-state`);
+      reads++;
+      return {
+        ref: `refs/heads/${namespace}-coordinator-state`,
+        object: { type: "commit", sha: (drift && reads % 2 === 0 ? "b" : "a").repeat(40) },
+      };
+    },
+    async file(filename: string, revision: string) {
+      assert.equal(filename, "state.json");
+      assert.equal(revision, "a".repeat(40));
+      const bytes = Buffer.from(JSON.stringify({ schema_version: 1, previous: null, input }));
+      return {
+        type: "file",
+        path: "state.json",
+        encoding: "base64",
+        content: bytes.toString("base64"),
+        size: bytes.length,
+        sha: createHash("sha1").update(`blob ${bytes.length}\0`).update(bytes).digest("hex"),
+      };
     },
   };
-  assert.equal(readWakePurposePriority(api, namespace), null);
+  assert.equal(await readWakePurposePriority(api, namespace), null);
   input = { ...input, catalog_review_request: { kind: "inert routing" } };
-  assert.equal(readWakePurposePriority(api, namespace), "catalog-publication");
+  assert.equal(await readWakePurposePriority(api, namespace), "catalog-publication");
   input = { ...input, active_candidate: { phase: "promoting" } };
-  assert.equal(readWakePurposePriority(api, namespace), "application");
+  assert.equal(await readWakePurposePriority(api, namespace), "application");
   input = {
     active_candidate: null,
     controller: {
       capacity_attempt: { operation: { outcome: "ambiguous", catalog_publication: {} } },
     },
   };
-  assert.equal(readWakePurposePriority(api, namespace), "catalog-publication");
+  assert.equal(await readWakePurposePriority(api, namespace), "catalog-publication");
   for (const bad of [
     { controller: input.controller },
     { active_candidate: null, controller: {} },
     { active_candidate: null, controller: { capacity_attempt: { operation: "unreadable" } } },
   ]) {
     input = bad;
-    assert.throws(() => readWakePurposePriority(api, namespace));
+    await assert.rejects(() => readWakePurposePriority(api, namespace));
   }
   input = { active_candidate: null, controller: { capacity_attempt: { operation: null } } };
   drift = true;
   reads = 0;
-  assert.throws(() => readWakePurposePriority(api, namespace), /changed/);
-  assert.throws(
+  await assert.rejects(() => readWakePurposePriority(api, namespace), /changed/);
+  await assert.rejects(
     () =>
       readWakePurposePriority(
         {
-          request() {
-            return { status: 404, headers: new Map<string, string>(), body: {} };
+          ...api,
+          async ref() {
+            throw new Error("wake journal routing ref unavailable");
           },
         },
         namespace,
@@ -618,9 +982,53 @@ void test("production secret selection never falls back across purposes and job-
     const bytes = await readFile(new URL(file, import.meta.url), "utf8");
     const expression = /\$\{\{([\s\S]*?)\}\}/gu;
     let count = 0;
+    let combinedStorage = 0;
     for (const match of bytes.matchAll(expression)) {
       // YAML folding may wrap a closed expression without changing its tokens.
       const body = match[1]!.replace(/\s+/gu, " ");
+      if (body.includes("secrets.PORTCOVE_STORAGE_APP_PRIVATE_KEY")) {
+        if (!body.includes("publication_purpose")) continue;
+        const selected = body
+          .replace(/needs\.admission\.outputs\.publication_purpose/gu, "purpose")
+          .replace(/steps\.authorities\.outputs\.storage_transport/gu, "storageTransport")
+          .replace(/steps\.authorities\.outputs\.credential_transport/gu, "credentialTransport")
+          .replace(/secrets\.PORTCOVE_STORAGE_APP_PRIVATE_KEY/gu, "storage")
+          .replace(/secrets\.PORTCOVE_CATALOG_COORDINATOR_JOURNAL_APP_PRIVATE_KEY/gu, "catalog")
+          .replace(/secrets\.PORTCOVE_COORDINATOR_JOURNAL_APP_PRIVATE_KEY/gu, "app");
+        const evaluate = (
+          purpose: string,
+          storageTransport: string,
+          credentialTransport: string,
+          storage: string,
+          catalog: string,
+          app: string,
+        ): unknown =>
+          runInNewContext(
+            selected,
+            { purpose, storageTransport, credentialTransport, storage, catalog, app },
+            { timeout: 1000 },
+          );
+        for (const [purpose, catalog, app, expected] of [
+          ["catalog-publication", "CATALOG", "APP", "CATALOG"],
+          ["application", "CATALOG", "APP", "APP"],
+          ["catalog-publication", "", "APP", false],
+          ["application", "CATALOG", "", false],
+        ] as const) {
+          assert.equal(evaluate(purpose, "", "legacy-app", "", catalog, app) || false, expected);
+        }
+        for (const purpose of ["application", "catalog-publication"]) {
+          assert.equal(
+            evaluate(purpose, "dedicated-app", "fixed-job", "STORAGE", "CATALOG", "APP"),
+            "STORAGE",
+          );
+          assert.equal(
+            Boolean(evaluate(purpose, "dedicated-app", "fixed-job", "", "CATALOG", "APP")),
+            false,
+          );
+        }
+        combinedStorage++;
+        continue;
+      }
       if (!body.includes("secrets.PORTCOVE_CATALOG_") || !body.includes("||")) continue;
       assert.match(
         body,
@@ -647,7 +1055,10 @@ void test("production secret selection never falls back across purposes and job-
       assert.equal(count, 0);
       assert.doesNotMatch(bytes, /secrets\.|create-github-app-token/u);
       assert.match(bytes, /GH_TOKEN: \$\{\{ github\.token \}\}/u);
-    } else assert.ok(count > 0);
+    } else {
+      assert.ok(count > 0);
+      assert.equal(combinedStorage, 1);
+    }
   }
 });
 

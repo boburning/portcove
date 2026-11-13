@@ -1,0 +1,2486 @@
+{
+  "format_version": 1,
+  "kind": "dated classic-engine managed and prepared-route follow-up evidence; not live planning or native acceptance",
+  "observation_date": "2026-10-31",
+  "owners": [2510, 2926, 1422],
+  "base": "662d8508d34cc87eb5e04cf502f0e0d6500cd733",
+  "counts": {
+    "distinct_repository_commit_path_blob_bindings": 134,
+    "unique_content_blobs": 120,
+    "complete_tree_reference_roles": 16,
+    "unique_root_tree_objects": 14
+  },
+  "selected_rows": [
+    {
+      "issue": 2677,
+      "id": "freespace-2-freespace-open",
+      "cohort": "affected-312",
+      "historical_1422_member": false,
+      "route": "prepared-copy",
+      "record_sha256": "47a34d8852f79eadd11d12fe98955017f838ef0058948f074df22062d021f8b3",
+      "original_record_sha256": "4f8428c2bb9d3b723938b15494705b1e47a1ef797c2cfd30701891dff67115b4"
+    },
+    {
+      "issue": 2891,
+      "id": "pharaoh-akhenaten",
+      "cohort": "affected-312",
+      "historical_1422_member": false,
+      "route": "prepared-copy",
+      "record_sha256": "86ce42ed52a0a6aa645af3e0a8b81ebc03a9e2730260cb691a85186f9027be74",
+      "original_record_sha256": "8345fdc5fa20f5d0253cb629685bfb73d16f315c96f2427285cafef3a0d625aa"
+    },
+    {
+      "issue": 2884,
+      "id": "midtown-madness-sneak-preview-beta-build-1560-open1560",
+      "cohort": "affected-312",
+      "historical_1422_member": false,
+      "route": "prepared-copy",
+      "record_sha256": "2ac75dd3dd64c8a9e44ec1e9675a59b2106c0f9c672d01625876e8c7b7d27111",
+      "original_record_sha256": "28d161206292cf2004550be04fd1887a1648709e3d170cb569f046c7c25f72a2"
+    },
+    {
+      "issue": 2888,
+      "id": "need-for-speed-iii-hot-pursuit-nfs-recompiled",
+      "cohort": "affected-312",
+      "historical_1422_member": false,
+      "route": "prepared-copy",
+      "record_sha256": "e91e090e1c3b4b8e6f948efd0ea7673176c2cdbf6867e349cf8f0ef9d906c579",
+      "original_record_sha256": "4ee756ddff5bce57123001bdf78cb5883bf6ed4f3d1bb41730ea46a717ef32db"
+    },
+    {
+      "issue": 2909,
+      "id": "wing-commander-kilrathi-saga-wing-commander-reloaded-wc1-re",
+      "cohort": "affected-312",
+      "historical_1422_member": false,
+      "route": "managed",
+      "record_sha256": "9cd8416dbfaf80d9f0cdedaf8a12296500cad588e4de76745af3273f2cd1c5c2",
+      "original_record_sha256": "5f69ae8ffdf12270a6600c988947f562cada6c661570885d43ceecd9bfa5b130"
+    },
+    {
+      "issue": 2731,
+      "id": "smbx-13-thextech",
+      "cohort": "affected-312",
+      "historical_1422_member": false,
+      "route": "prepared-copy",
+      "record_sha256": "55e954a1aabb716e6896d2b2388c040502bebd72172da5fbee4e21b4a18b303d",
+      "original_record_sha256": "bd946a7bb6fa8c6bb5ddfa75ef7c3ded40a6eead615d325ce25fafad28e632fb"
+    },
+    {
+      "issue": 2625,
+      "id": "ambermoon-ambermoon-net",
+      "cohort": "affected-312",
+      "historical_1422_member": false,
+      "route": "permitted-copy-acquisition-held",
+      "record_sha256": "3dea86feda637cb56ca762dda7bd111d73155435da57d68de5a441da05aac8e3",
+      "original_record_sha256": "57282db6a89811538c17f974ed96400652fee78bbbd4b28f9860b4e821db6b79"
+    },
+    {
+      "issue": 2633,
+      "id": "baldur-s-gate-ii-enhanced-edition-gemrb",
+      "cohort": "affected-312",
+      "historical_1422_member": false,
+      "route": "research-hold",
+      "record_sha256": "2d488eaab4871439cc9c27ce48cefcec179af21299b9c888081e165ebf99b282",
+      "original_record_sha256": "2d488eaab4871439cc9c27ce48cefcec179af21299b9c888081e165ebf99b282"
+    }
+  ],
+  "source_packets": [
+    {
+      "issue": 2677,
+      "repository": "scp-fs2open/fs2open.github.com",
+      "complete_tree_references": [
+        {
+          "role": "current",
+          "commit": "8afa318428dfddc0194d9d901b33c15185d2cbee",
+          "root_tree": "7c3eb031a0c27cfaafcaf525736879ea92c6b8bd",
+          "members": 4376,
+          "complete": true
+        },
+        {
+          "role": "selected",
+          "commit": "feed085710869ccd8d998fc07a04ffccc8ed479a",
+          "root_tree": "c243e7cc9f35ca19f2ca2a9a3e5ba41072027fab",
+          "members": 4377,
+          "complete": true
+        }
+      ],
+      "source_bindings": [
+        {
+          "repository": "scp-fs2open/fs2open.github.com",
+          "commit": "8afa318428dfddc0194d9d901b33c15185d2cbee",
+          "path": ".gitmodules",
+          "blob": "713442b560ad04f3d6c1fc17352291f46f81abee",
+          "bytes": 102,
+          "sha256": "a2e5c2c212a44c2164f8888c55e3ac76dfb89c59b5276f14b1d5c944206e60fa"
+        },
+        {
+          "repository": "scp-fs2open/fs2open.github.com",
+          "commit": "8afa318428dfddc0194d9d901b33c15185d2cbee",
+          "path": "CMakeLists.txt",
+          "blob": "43508ae83f64cd66a389fad087fa64853ced7c32",
+          "bytes": 9822,
+          "sha256": "19ec8f6e63bbedd93ce55a32f6480f309b44f0378df105ec068b14d5bbee4b55"
+        },
+        {
+          "repository": "scp-fs2open/fs2open.github.com",
+          "commit": "8afa318428dfddc0194d9d901b33c15185d2cbee",
+          "path": "Copying.md",
+          "blob": "e42cbebbd935a65a7cd86f281b9df9c6974dedcc",
+          "bytes": 1130,
+          "sha256": "b39c98440d48826f492d04bc4ffaeb61994b7cd6179cd16c3d65cf70e687a6d4"
+        },
+        {
+          "repository": "scp-fs2open/fs2open.github.com",
+          "commit": "8afa318428dfddc0194d9d901b33c15185d2cbee",
+          "path": "Readme.md",
+          "blob": "5126987f2b4e9e97d8bdc29664d7f53b63767ce5",
+          "bytes": 505,
+          "sha256": "427ed851ccc4de2288c11a014ab9508d6b7462c589c5896bc63d7fc5a59c5144"
+        },
+        {
+          "repository": "scp-fs2open/fs2open.github.com",
+          "commit": "feed085710869ccd8d998fc07a04ffccc8ed479a",
+          "path": ".gitmodules",
+          "blob": "713442b560ad04f3d6c1fc17352291f46f81abee",
+          "bytes": 102,
+          "sha256": "a2e5c2c212a44c2164f8888c55e3ac76dfb89c59b5276f14b1d5c944206e60fa"
+        },
+        {
+          "repository": "scp-fs2open/fs2open.github.com",
+          "commit": "feed085710869ccd8d998fc07a04ffccc8ed479a",
+          "path": "CMakeLists.txt",
+          "blob": "43508ae83f64cd66a389fad087fa64853ced7c32",
+          "bytes": 9822,
+          "sha256": "19ec8f6e63bbedd93ce55a32f6480f309b44f0378df105ec068b14d5bbee4b55"
+        },
+        {
+          "repository": "scp-fs2open/fs2open.github.com",
+          "commit": "feed085710869ccd8d998fc07a04ffccc8ed479a",
+          "path": "Copying.md",
+          "blob": "e42cbebbd935a65a7cd86f281b9df9c6974dedcc",
+          "bytes": 1130,
+          "sha256": "b39c98440d48826f492d04bc4ffaeb61994b7cd6179cd16c3d65cf70e687a6d4"
+        },
+        {
+          "repository": "scp-fs2open/fs2open.github.com",
+          "commit": "feed085710869ccd8d998fc07a04ffccc8ed479a",
+          "path": "Readme.md",
+          "blob": "5126987f2b4e9e97d8bdc29664d7f53b63767ce5",
+          "bytes": 505,
+          "sha256": "427ed851ccc4de2288c11a014ab9508d6b7462c589c5896bc63d7fc5a59c5144"
+        },
+        {
+          "repository": "scp-fs2open/fs2open.github.com",
+          "commit": "feed085710869ccd8d998fc07a04ffccc8ed479a",
+          "path": "freespace2/freespace.cpp",
+          "blob": "be6ddf71d6036b8180840817cfa72f5f9645cfeb",
+          "bytes": 238094,
+          "sha256": "0035ba08e2ba5c306760b74f2a759f643ee6b5972648edd3e09ac165651fd71e"
+        },
+        {
+          "repository": "scp-fs2open/fs2open.github.com",
+          "commit": "feed085710869ccd8d998fc07a04ffccc8ed479a",
+          "path": "freespace2/CMakeLists.txt",
+          "blob": "ed83791eafb2bf4225b50904060b5ddcc999daab",
+          "bytes": 3891,
+          "sha256": "8b8cb0f14338ccbd50a79218e3a2eff80f62e2bd8100b04d06ec65342881d47d"
+        },
+        {
+          "repository": "scp-fs2open/fs2open.github.com",
+          "commit": "feed085710869ccd8d998fc07a04ffccc8ed479a",
+          "path": "code/osapi/osregistry.cpp",
+          "blob": "b45018e239518beb9246ae8bf0ec6697957fbb75",
+          "bytes": 27009,
+          "sha256": "d7a7385867280e8dc4a97bf6930a1770643ab358486b332bf3a323f8222145bf"
+        },
+        {
+          "repository": "scp-fs2open/fs2open.github.com",
+          "commit": "feed085710869ccd8d998fc07a04ffccc8ed479a",
+          "path": "code/cmdline/cmdline.cpp",
+          "blob": "1351c72f1dbd68137d6715dc6ef5cf4c41ed17af",
+          "bytes": 94470,
+          "sha256": "ecbd3c1af08b968f7e7f856060c835dfae4002c71fd3828ce566f2e6293d7c13"
+        },
+        {
+          "repository": "scp-fs2open/fs2open.github.com",
+          "commit": "feed085710869ccd8d998fc07a04ffccc8ed479a",
+          "path": "code/cfile/cfile.cpp",
+          "blob": "12f6df421a9c683f782c914747498ab321e2df6a",
+          "bytes": 43727,
+          "sha256": "596a7b1cad8a0494c4fa89d261e403b17d659818b4398115628a673ccc51e76d"
+        },
+        {
+          "repository": "scp-fs2open/fs2open.github.com",
+          "commit": "feed085710869ccd8d998fc07a04ffccc8ed479a",
+          "path": "code/cfile/cfilesystem.cpp",
+          "blob": "545ab62d105173c0640abdd3dc782fe3bc696c40",
+          "bytes": 65413,
+          "sha256": "7a9b9e5378b7dfb1b1ca30a57e14343abae45e548693b8a9159d26ef85a02eaa"
+        },
+        {
+          "repository": "scp-fs2open/fs2open.github.com",
+          "commit": "feed085710869ccd8d998fc07a04ffccc8ed479a",
+          "path": "code/osapi/osapi.cpp",
+          "blob": "304314cfe414b3d9ba0fbc91bccc2302b274a5cd",
+          "bytes": 26515,
+          "sha256": "138f1c0d815c843c87a013460c10c5e9615bcc80a2fb124d22d733f7f49413f8"
+        },
+        {
+          "repository": "scp-fs2open/fs2open.github.com",
+          "commit": "feed085710869ccd8d998fc07a04ffccc8ed479a",
+          "path": "code/pilotfile/pilotfile.cpp",
+          "blob": "e0463e76be0c9740bbb7f38ab82b6e1f87af5767",
+          "bytes": 11117,
+          "sha256": "b9f4df496411a2fd03cffb52b49aef3aa9858ae94aad123e6ea2e22b28f0c135"
+        },
+        {
+          "repository": "scp-fs2open/fs2open.github.com",
+          "commit": "feed085710869ccd8d998fc07a04ffccc8ed479a",
+          "path": "cmake/util.cmake",
+          "blob": "d6610d45904e607c9a90c471be1bfea71143afd5",
+          "bytes": 9427,
+          "sha256": "785613b78e65a8ca58d012d4cb4d2c6404cf4b89e96abf25ebb24e860c25ab1b"
+        },
+        {
+          "repository": "scp-fs2open/fs2open.github.com",
+          "commit": "feed085710869ccd8d998fc07a04ffccc8ed479a",
+          "path": "cmake/version.cmake",
+          "blob": "fd7a471024209a763b9e6225e24438cbe6e65477",
+          "bytes": 2035,
+          "sha256": "9fc2e81e1a440688144c672a34bb1e43c0405e6e6cadb5c929c062960651347a"
+        },
+        {
+          "repository": "scp-fs2open/fs2open.github.com",
+          "commit": "feed085710869ccd8d998fc07a04ffccc8ed479a",
+          "path": "version_override.cmake",
+          "blob": "80efc4d708fedf815ae670dc0411a1bb03ca4043",
+          "bytes": 138,
+          "sha256": "d2ab9d3a4e955b76e802f47f2d0e3f10828c33e37bb0d5843f00881348ff21b9"
+        }
+      ]
+    },
+    {
+      "issue": 2891,
+      "repository": "dalerank/Akhenaten",
+      "complete_tree_references": [
+        {
+          "role": "current",
+          "commit": "0860a9fcde73d15f71488b1c28db9f6d3af6fa72",
+          "root_tree": "77afdd8c6d464ae498b2afc6d976bb7fecfd78cb",
+          "members": 3155,
+          "complete": true
+        },
+        {
+          "role": "selected",
+          "commit": "3598ab90856b216a11aae35aa5ad6a519b97bd97",
+          "root_tree": "a6ec0e7165ada1097c5693d70312079c9a088993",
+          "members": 2419,
+          "complete": true
+        }
+      ],
+      "source_bindings": [
+        {
+          "repository": "dalerank/Akhenaten",
+          "commit": "0860a9fcde73d15f71488b1c28db9f6d3af6fa72",
+          "path": ".gitmodules",
+          "blob": "380f5790ef3066aa2639aecdaf21aa21b6c6b65d",
+          "bytes": 86,
+          "sha256": "ccfc8d17ca8dc0de4aa4dba5e20c5093314be2070bfa525814b278ed59dd0685"
+        },
+        {
+          "repository": "dalerank/Akhenaten",
+          "commit": "0860a9fcde73d15f71488b1c28db9f6d3af6fa72",
+          "path": "CMakeLists.txt",
+          "blob": "739fa0d03b629f10e1d9deba84e10cc190db4827",
+          "bytes": 57926,
+          "sha256": "551b48b469865f25af9f5cc5459962e332497dd881b30605de746218392dd0db"
+        },
+        {
+          "repository": "dalerank/Akhenaten",
+          "commit": "0860a9fcde73d15f71488b1c28db9f6d3af6fa72",
+          "path": "LICENSE.txt",
+          "blob": "be3f7b28e564e7dd05eaf59d64adba1a4065ac0e",
+          "bytes": 34523,
+          "sha256": "0d96a4ff68ad6d4b6f1f30f713b18d5184912ba8dd389f86aa7710db079abcb0"
+        },
+        {
+          "repository": "dalerank/Akhenaten",
+          "commit": "0860a9fcde73d15f71488b1c28db9f6d3af6fa72",
+          "path": "README.md",
+          "blob": "c00ae7edff3927ea76a8eeee848777ba963f464e",
+          "bytes": 17357,
+          "sha256": "f77dd49a075bb689dc988d51879c2158f90a6a935430bc6f25d1e84e76ec6e17"
+        },
+        {
+          "repository": "dalerank/Akhenaten",
+          "commit": "3598ab90856b216a11aae35aa5ad6a519b97bd97",
+          "path": ".gitmodules",
+          "blob": "380f5790ef3066aa2639aecdaf21aa21b6c6b65d",
+          "bytes": 86,
+          "sha256": "ccfc8d17ca8dc0de4aa4dba5e20c5093314be2070bfa525814b278ed59dd0685"
+        },
+        {
+          "repository": "dalerank/Akhenaten",
+          "commit": "3598ab90856b216a11aae35aa5ad6a519b97bd97",
+          "path": "CMakeLists.txt",
+          "blob": "2c3ea55b6d0ebdd278d7a81f52f2d214090e3ada",
+          "bytes": 60397,
+          "sha256": "43205f01068448219420b4a3f6414d209cb554f1df868f75bcfeb52d94cfe21f"
+        },
+        {
+          "repository": "dalerank/Akhenaten",
+          "commit": "3598ab90856b216a11aae35aa5ad6a519b97bd97",
+          "path": "LICENSE.txt",
+          "blob": "be3f7b28e564e7dd05eaf59d64adba1a4065ac0e",
+          "bytes": 34523,
+          "sha256": "0d96a4ff68ad6d4b6f1f30f713b18d5184912ba8dd389f86aa7710db079abcb0"
+        },
+        {
+          "repository": "dalerank/Akhenaten",
+          "commit": "3598ab90856b216a11aae35aa5ad6a519b97bd97",
+          "path": "README.md",
+          "blob": "7762303b68c871162ec43452c9c0d4020fe67871",
+          "bytes": 14878,
+          "sha256": "5cfe0cb034d6a2343fad2c0af6fa340eaa5b57f3c8ffcd7f799dba906a5af781"
+        },
+        {
+          "repository": "dalerank/Akhenaten",
+          "commit": "3598ab90856b216a11aae35aa5ad6a519b97bd97",
+          "path": "src/platform/akhenaten.cpp",
+          "blob": "c99e144652248445165535a14f5908cd8f270c97",
+          "bytes": 14386,
+          "sha256": "6c68ac6fd422809b58016e66d4b1015fbf1dea6f96510dcbe6b8d2c856f2984c"
+        },
+        {
+          "repository": "dalerank/Akhenaten",
+          "commit": "3598ab90856b216a11aae35aa5ad6a519b97bd97",
+          "path": "src/platform/arguments.cpp",
+          "blob": "fee45bf781fb30825953d19c0ccf619254096d2f",
+          "bytes": 22288,
+          "sha256": "98c7ecd9172d43b1cb046a454aebc2f7bce448d631900b49d829732ca07e3d55"
+        },
+        {
+          "repository": "dalerank/Akhenaten",
+          "commit": "3598ab90856b216a11aae35aa5ad6a519b97bd97",
+          "path": "src/platform/platform_windows.cpp",
+          "blob": "dbd30cb058d9ca42d268c9e5d38e16aff1753a97",
+          "bytes": 2334,
+          "sha256": "85f1ae629e06dd8874e36a8278aa91235f4f3638e4845142846220b142bddcae"
+        },
+        {
+          "repository": "dalerank/Akhenaten",
+          "commit": "3598ab90856b216a11aae35aa5ad6a519b97bd97",
+          "path": "src/platform/prefs.cpp",
+          "blob": "23eedbc336c1d755be0f014d1c90da39f98eb5fd",
+          "bytes": 1404,
+          "sha256": "84a8f38b0ac38775f5b04cd79fb903b4f224adf15c4d09e03cddd6479e631124"
+        },
+        {
+          "repository": "dalerank/Akhenaten",
+          "commit": "3598ab90856b216a11aae35aa5ad6a519b97bd97",
+          "path": "src/game/game_config.cpp",
+          "blob": "5f50ee4abc65e79e13ee777eeccf90ca5a2e1208",
+          "bytes": 19580,
+          "sha256": "c39eaa7880d1a633465c280f8a6f7f43c6f5b28bd87dd2bf6a937e169ffc99d6"
+        },
+        {
+          "repository": "dalerank/Akhenaten",
+          "commit": "3598ab90856b216a11aae35aa5ad6a519b97bd97",
+          "path": "src/content/vfs.cpp",
+          "blob": "830768af3a84b0f6579c025697b7db5d80e13e2f",
+          "bytes": 9217,
+          "sha256": "6e836bb577ef63930717276ce1921948a0b4c686c0ec6116f32c1d35eb148258"
+        },
+        {
+          "repository": "dalerank/Akhenaten",
+          "commit": "3598ab90856b216a11aae35aa5ad6a519b97bd97",
+          "path": "src/core/log.cpp",
+          "blob": "f2d6ce79a37d452ee17050055174da6b3049807c",
+          "bytes": 6480,
+          "sha256": "ff08bcf66e1b60015ed6f498daca965d77075c8fb7cb5b16f8675146c28147bb"
+        },
+        {
+          "repository": "dalerank/Akhenaten",
+          "commit": "3598ab90856b216a11aae35aa5ad6a519b97bd97",
+          "path": "src/window/file_dialog_save.cpp",
+          "blob": "5259b1e002b28af68b17f5356bac6da146667a88",
+          "bytes": 341,
+          "sha256": "480eef9b7e15ea32af92dff8f65980b7678b608956cb699ac2f877b176a06d38"
+        }
+      ]
+    },
+    {
+      "issue": 2884,
+      "repository": "0x1F9F1/Open1560",
+      "complete_tree_references": [
+        {
+          "role": "current",
+          "commit": "965d1cccc1d7bbecdb799c01c1f9daab1344d580",
+          "root_tree": "92ccbccff4b0b65fcb88907c40ad561915ae4538",
+          "members": 1325,
+          "complete": true
+        },
+        {
+          "role": "selected",
+          "commit": "965d1cccc1d7bbecdb799c01c1f9daab1344d580",
+          "root_tree": "92ccbccff4b0b65fcb88907c40ad561915ae4538",
+          "members": 1325,
+          "complete": true
+        }
+      ],
+      "source_bindings": [
+        {
+          "repository": "0x1F9F1/Open1560",
+          "commit": "965d1cccc1d7bbecdb799c01c1f9daab1344d580",
+          "path": "LICENSE.txt",
+          "blob": "f288702d2fa16d3cdf0035b15a9fcbc552cd88e7",
+          "bytes": 35149,
+          "sha256": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986"
+        },
+        {
+          "repository": "0x1F9F1/Open1560",
+          "commit": "965d1cccc1d7bbecdb799c01c1f9daab1344d580",
+          "path": "README.md",
+          "blob": "84d1c8291eeb44e7591307662d1726ef19ce0572",
+          "bytes": 1113,
+          "sha256": "1f528ceaba0d8436205d8d079e917d26c9657f8088c8fca71dd611cf599f1956"
+        },
+        {
+          "repository": "0x1F9F1/Open1560",
+          "commit": "965d1cccc1d7bbecdb799c01c1f9daab1344d580",
+          "path": "docs/setup.md",
+          "blob": "6d76e660a15e17a4286b497b002d5f1e1e34e3dc",
+          "bytes": 4468,
+          "sha256": "e08c32af5d6c1b37a4078035babaa08ae9a22c538556328cbd2e56146678f055"
+        },
+        {
+          "repository": "0x1F9F1/Open1560",
+          "commit": "965d1cccc1d7bbecdb799c01c1f9daab1344d580",
+          "path": "docs/building.md",
+          "blob": "34f088e4a4259b883da09f801fafa532079063f6",
+          "bytes": 1775,
+          "sha256": "7cc21a622df76c5529cfc8ea3d8b0a5acc704b586a5ca7793040c5c72a9d4012"
+        },
+        {
+          "repository": "0x1F9F1/Open1560",
+          "commit": "965d1cccc1d7bbecdb799c01c1f9daab1344d580",
+          "path": "docs/index.md",
+          "blob": "b4b8c09f9f4beb0510b1a88603c9f2891db42295",
+          "bytes": 908,
+          "sha256": "d9277d797b928470e28914c581d33f83ea7e81940697369c7cf000baadead58b"
+        },
+        {
+          "repository": "0x1F9F1/Open1560",
+          "commit": "965d1cccc1d7bbecdb799c01c1f9daab1344d580",
+          "path": "premake5.lua",
+          "blob": "32b4e31a04f0f981d8a5cf13982183836be7151e",
+          "bytes": 2171,
+          "sha256": "370cc15174dabebe6ac93118e885fcaf9a3cb91b3cdfc7332223a81eb1555793"
+        },
+        {
+          "repository": "0x1F9F1/Open1560",
+          "commit": "965d1cccc1d7bbecdb799c01c1f9daab1344d580",
+          "path": "code/premake5.lua",
+          "blob": "e9804099a3eeba82618e2929423325603be0d560",
+          "bytes": 773,
+          "sha256": "9ef4d329fa6c6d0eb704676b6e073c3bdb9506e532da796796449643b2c8e945"
+        },
+        {
+          "repository": "0x1F9F1/Open1560",
+          "commit": "965d1cccc1d7bbecdb799c01c1f9daab1344d580",
+          "path": "code/midtown/premake5.lua",
+          "blob": "f931e037896617f16f0e7671c6becfc1180b3e4a",
+          "bytes": 3074,
+          "sha256": "77dd0bbf8e2c4c167ee42a324408c1f5ac029cc6c433a461383d494c1d6ee5e8"
+        },
+        {
+          "repository": "0x1F9F1/Open1560",
+          "commit": "965d1cccc1d7bbecdb799c01c1f9daab1344d580",
+          "path": ".github/workflows/build.yml",
+          "blob": "8b2ab1ed9492098358cf20421d23daade7982c76",
+          "bytes": 1378,
+          "sha256": "3ac1515d91a4bcae68182277ab9d7d153ff050fec7a3182573763ab927dc90ec"
+        },
+        {
+          "repository": "0x1F9F1/Open1560",
+          "commit": "965d1cccc1d7bbecdb799c01c1f9daab1344d580",
+          "path": "code/midtown/mmgame/gameman.cpp",
+          "blob": "8c07eea3b820eb1a053a7220fe0c0b33fe2015c3",
+          "bytes": 4278,
+          "sha256": "d26e9108fc4ede436ca3b593e1fd7792ddecea7c861ff33bb40dc0a7857b923c"
+        },
+        {
+          "repository": "0x1F9F1/Open1560",
+          "commit": "965d1cccc1d7bbecdb799c01c1f9daab1344d580",
+          "path": "code/midtown/pcwindis/pcwindis.cpp",
+          "blob": "7ca9e0bc244205945772136d45e07a1738c0f53f",
+          "bytes": 2899,
+          "sha256": "27f3e327ea66f99b61eae6e31f18e36415a2681dbe6b3149d1c1a921286c8a79"
+        },
+        {
+          "repository": "0x1F9F1/Open1560",
+          "commit": "965d1cccc1d7bbecdb799c01c1f9daab1344d580",
+          "path": "code/midtown/data7/args.cpp",
+          "blob": "7eb5e2b09d485a07293e63bc93dbfac1051a7095",
+          "bytes": 4135,
+          "sha256": "e56cefce5379ba230d2c59af45ef8f3c5cf69b86ba81e8a4ccb76bf9d726369c"
+        },
+        {
+          "repository": "0x1F9F1/Open1560",
+          "commit": "965d1cccc1d7bbecdb799c01c1f9daab1344d580",
+          "path": "code/midtown/midtown.cpp",
+          "blob": "39c865d45abd7941699f6cb0c08775539bb94544",
+          "bytes": 48601,
+          "sha256": "f290b73d4430682da48b01c6d1e2e7755259ddbb78e86c13ed1cd48c7dc2dfbd"
+        },
+        {
+          "repository": "0x1F9F1/Open1560",
+          "commit": "965d1cccc1d7bbecdb799c01c1f9daab1344d580",
+          "path": "code/midtown/mmcityinfo/playerdata.cpp",
+          "blob": "a7c0db21b366a8f99404c85384cfcc8abf74440b",
+          "bytes": 926,
+          "sha256": "3accd0efc9a6824defa4f0e9cab81f485a2b4cffbf54442587aa686c2837b76c"
+        },
+        {
+          "repository": "0x1F9F1/Open1560",
+          "commit": "965d1cccc1d7bbecdb799c01c1f9daab1344d580",
+          "path": "code/midtown/mmcityinfo/playerdir.cpp",
+          "blob": "b7f7408ce77d693d73a05f9e74421994c24462ea",
+          "bytes": 829,
+          "sha256": "e42678c8af0e75386cafe9eba41f3f59feec23fda49112970bd71fabdec41e00"
+        },
+        {
+          "repository": "0x1F9F1/Open1560",
+          "commit": "965d1cccc1d7bbecdb799c01c1f9daab1344d580",
+          "path": "code/midtown/mmui/options.cpp",
+          "blob": "d687ca617c14a42757a7808c50c7ef2f9b0f6c0e",
+          "bytes": 1828,
+          "sha256": "ddc721657da712e09bffaf25e72d47dc2ae99846589c2561b6a2444b5bccb151"
+        },
+        {
+          "repository": "0x1F9F1/Open1560",
+          "commit": "965d1cccc1d7bbecdb799c01c1f9daab1344d580",
+          "path": "vendor/mem/mem/cmd_param.h",
+          "blob": "abbc2db07ac7bcd774bf8a2e23047d9440a9601e",
+          "bytes": 6365,
+          "sha256": "9e5a978c76c70a07407e93f63c7a00e8614fcf9585b03eb60d36cff4a9628d13"
+        },
+        {
+          "repository": "0x1F9F1/Open1560",
+          "commit": "965d1cccc1d7bbecdb799c01c1f9daab1344d580",
+          "path": "vendor/mem/mem/cmd_param-inl.h",
+          "blob": "a76e702763571d02af0325acecf1fce64d9e0dad",
+          "bytes": 7585,
+          "sha256": "8c5759d43236939b3379930362262c6bb1c67fa806daf0b37d974f809b8d5c04"
+        }
+      ]
+    },
+    {
+      "issue": 2888,
+      "repository": "motor-dev/nfs-recompiled",
+      "complete_tree_references": [
+        {
+          "role": "current",
+          "commit": "77ebdb3b6a21925ccfc4fc4c1d712abec3e1945a",
+          "root_tree": "78b559ab3c0a7d368ff363fc322eaf98e3df91ac",
+          "members": 429,
+          "complete": true
+        },
+        {
+          "role": "selected",
+          "commit": "77ebdb3b6a21925ccfc4fc4c1d712abec3e1945a",
+          "root_tree": "78b559ab3c0a7d368ff363fc322eaf98e3df91ac",
+          "members": 429,
+          "complete": true
+        }
+      ],
+      "source_bindings": [
+        {
+          "repository": "motor-dev/nfs-recompiled",
+          "commit": "77ebdb3b6a21925ccfc4fc4c1d712abec3e1945a",
+          "path": "CMakeLists.txt",
+          "blob": "fc620c26aa2aeaa1bd1357038f7812800d2311ff",
+          "bytes": 5559,
+          "sha256": "704b51062c7a031c47f52b402432e7d1a75cac0a77b68e890002ff7794d71142"
+        },
+        {
+          "repository": "motor-dev/nfs-recompiled",
+          "commit": "77ebdb3b6a21925ccfc4fc4c1d712abec3e1945a",
+          "path": "README.md",
+          "blob": "21fea1da61abec11b1c81216d76dd30c4480ad00",
+          "bytes": 6614,
+          "sha256": "cb54c98de56ae115365e2030cf01ce1ed78a6844dc0cada3c692554a36053103"
+        },
+        {
+          "repository": "motor-dev/nfs-recompiled",
+          "commit": "77ebdb3b6a21925ccfc4fc4c1d712abec3e1945a",
+          "path": "src/nfs3hp/nfs3hp_main.cpp",
+          "blob": "9b5531ad60a47e8bd8b0390a8b184e9be51d16be",
+          "bytes": 2505,
+          "sha256": "cce19fbd7ae39b9580f93bddc889ab6bd251fd42f68302b79a9c24d132c5520f"
+        },
+        {
+          "repository": "motor-dev/nfs-recompiled",
+          "commit": "77ebdb3b6a21925ccfc4fc4c1d712abec3e1945a",
+          "path": "src/nfs2se/nfs2se_main.cpp",
+          "blob": "ce4ee3b30a70f9a0ee2cc63e762a00b7e2bc4ea6",
+          "bytes": 1018,
+          "sha256": "d4d9cab75b033b4645bad973f9d62be4b46ff103dd2570c7de1585fecdce92ec"
+        },
+        {
+          "repository": "motor-dev/nfs-recompiled",
+          "commit": "77ebdb3b6a21925ccfc4fc4c1d712abec3e1945a",
+          "path": "src/lib/sdl-backend/file.cpp",
+          "blob": "bc7717e91d31ed086e7c3efff60ac93dab7327bb",
+          "bytes": 10408,
+          "sha256": "9ea8c361f5382f9985a578ce8da51f5a46b57ae7a5a65cac35e6d39176e27a20"
+        },
+        {
+          "repository": "motor-dev/nfs-recompiled",
+          "commit": "77ebdb3b6a21925ccfc4fc4c1d712abec3e1945a",
+          "path": "src/lib/registry.cpp",
+          "blob": "28d7e5bb4065a0b9462704f7df5730aceed26c9f",
+          "bytes": 1825,
+          "sha256": "6402e7cbf3565b9421a99446a5ac9c8b5c5f6d813cca0b4e25dfa25f74013b3d"
+        }
+      ]
+    },
+    {
+      "issue": 2909,
+      "repository": "neuromancer/wc1-re",
+      "complete_tree_references": [
+        {
+          "role": "current",
+          "commit": "3b25c6288629cd95c4a56c2709c496fa6d0f49a5",
+          "root_tree": "583f9683a88b9f91e46ada0119a201b194fbcbb9",
+          "members": 225,
+          "complete": true
+        },
+        {
+          "role": "selected",
+          "commit": "4462524b5ecb8a42f19b74ff141cc4240466ace8",
+          "root_tree": "d93402713280fe68a5b31ad6fc8a4161bfce8b35",
+          "members": 187,
+          "complete": true
+        }
+      ],
+      "source_bindings": [
+        {
+          "repository": "neuromancer/wc1-re",
+          "commit": "3b25c6288629cd95c4a56c2709c496fa6d0f49a5",
+          "path": ".gitmodules",
+          "blob": "df1ad78e7aa8fbad367f180104d714c586f4c2ff",
+          "bytes": 286,
+          "sha256": "3b29fb4801845a1a33f4f0a5d60d0c8ed405e725c8b594e782afdbd438fa5d00"
+        },
+        {
+          "repository": "neuromancer/wc1-re",
+          "commit": "3b25c6288629cd95c4a56c2709c496fa6d0f49a5",
+          "path": "LICENSE",
+          "blob": "f288702d2fa16d3cdf0035b15a9fcbc552cd88e7",
+          "bytes": 35149,
+          "sha256": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986"
+        },
+        {
+          "repository": "neuromancer/wc1-re",
+          "commit": "3b25c6288629cd95c4a56c2709c496fa6d0f49a5",
+          "path": "README.md",
+          "blob": "b1c5076491c32e5317afa09c47cfeb66292b06ad",
+          "bytes": 12703,
+          "sha256": "6a949e64937aa4f9ecd6c0ede14462c138ea9e66f5dbdcd09ac482e0170fcbd9"
+        },
+        {
+          "repository": "neuromancer/wc1-re",
+          "commit": "4462524b5ecb8a42f19b74ff141cc4240466ace8",
+          "path": ".gitmodules",
+          "blob": "5e6e787081fdb85d9374f81549f1f8ee6a3b75d7",
+          "bytes": 185,
+          "sha256": "cd47a991a31e89e0c4b7859de87676309c44745edff66f60d54de890176e4ccc"
+        },
+        {
+          "repository": "neuromancer/wc1-re",
+          "commit": "4462524b5ecb8a42f19b74ff141cc4240466ace8",
+          "path": "LICENSE",
+          "blob": "f288702d2fa16d3cdf0035b15a9fcbc552cd88e7",
+          "bytes": 35149,
+          "sha256": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986"
+        },
+        {
+          "repository": "neuromancer/wc1-re",
+          "commit": "4462524b5ecb8a42f19b74ff141cc4240466ace8",
+          "path": "README.md",
+          "blob": "3a2727269ea6f7d23d0d60aaac1a6ac37dd6e989",
+          "bytes": 10979,
+          "sha256": "661a1983f37d0547859e50728115798cffcded703152ffdab2ef25c91cfae998"
+        },
+        {
+          "repository": "neuromancer/wc1-re",
+          "commit": "4462524b5ecb8a42f19b74ff141cc4240466ace8",
+          "path": "src/main.c",
+          "blob": "11782c3895cf7e2c36f7370b154b98794095c3b6",
+          "bytes": 32142,
+          "sha256": "c17ee5a6b5debda8261f0a13d392be0dc287857131a4f09fd89218a15a70ec13"
+        },
+        {
+          "repository": "neuromancer/wc1-re",
+          "commit": "4462524b5ecb8a42f19b74ff141cc4240466ace8",
+          "path": "src/sdl/launcher.c",
+          "blob": "f48154326fbc641c8849c71b76107055afb9d739",
+          "bytes": 10859,
+          "sha256": "112929a3a1430df3e9584542f24c96a3d645defd33351c5cf6714dc81f8fd1b0"
+        },
+        {
+          "repository": "neuromancer/wc1-re",
+          "commit": "4462524b5ecb8a42f19b74ff141cc4240466ace8",
+          "path": "src/sdl/registry.c",
+          "blob": "9abcf1992c4a461d93daef4caf3a5f83f25e3404",
+          "bytes": 4156,
+          "sha256": "e429aaa51d62df6619a0a5364ab0ee30925a63c2947b57b126060fbadd37ab28"
+        },
+        {
+          "repository": "neuromancer/wc1-re",
+          "commit": "4462524b5ecb8a42f19b74ff141cc4240466ace8",
+          "path": "src/sdl/slint/launcher_paths.cpp",
+          "blob": "67aa68ac02c407cf93eca458112f6850673d07b9",
+          "bytes": 4139,
+          "sha256": "cb9f4cb656020efbfe881258ed2ccab1ca24e81b28d1ef9e62aeddc0627125f0"
+        },
+        {
+          "repository": "neuromancer/wc1-re",
+          "commit": "4462524b5ecb8a42f19b74ff141cc4240466ace8",
+          "path": "src/sdl/slint/launcher.cpp",
+          "blob": "aaeab9c99558a676efbb8013c0865ef45f1b0302",
+          "bytes": 5578,
+          "sha256": "998d5176db2e4713b4a955bdf99a28ce9dff27fa07eaa8db4747182964433273"
+        },
+        {
+          "repository": "neuromancer/wc1-re",
+          "commit": "4462524b5ecb8a42f19b74ff141cc4240466ace8",
+          "path": "Makefile",
+          "blob": "552a6224296f85a27d552805e2ede7e82b141da5",
+          "bytes": 41028,
+          "sha256": "64378c621d58281760a389ee74d0ed795e008a2dc03c8d5cc51dd582e43db959"
+        },
+        {
+          "repository": "neuromancer/wc1-re",
+          "commit": "4462524b5ecb8a42f19b74ff141cc4240466ace8",
+          "path": "src/sdl/resources.c",
+          "blob": "8632d1e4a92a893c7f70d6077f35e84ad1a070da",
+          "bytes": 9571,
+          "sha256": "816f6347b933bd9e58e8ee90217ad88f3ee4f6f43933da39fc4bb5d95de5e29a"
+        },
+        {
+          "repository": "neuromancer/wc1-re",
+          "commit": "4462524b5ecb8a42f19b74ff141cc4240466ace8",
+          "path": "src/sdl/compat.c",
+          "blob": "2fd3100fd02281189a74351c0309e1c1a2932370",
+          "bytes": 6087,
+          "sha256": "5a2ec9749b2ca9136bd4d945e50ff89c9badc5e264a42c740b91bcbdb2c0c276"
+        },
+        {
+          "repository": "neuromancer/wc1-re",
+          "commit": "4462524b5ecb8a42f19b74ff141cc4240466ace8",
+          "path": "src/pilot.cpp",
+          "blob": "7ae27757e991b7ede63b778884b5938f0457a594",
+          "bytes": 32793,
+          "sha256": "78d17ba0e20693a98fb349c0795f76276acec5df0fcc6c1f57a1f95fbb1e2b84"
+        },
+        {
+          "repository": "neuromancer/wc1-re",
+          "commit": "4462524b5ecb8a42f19b74ff141cc4240466ace8",
+          "path": "src/disk.c",
+          "blob": "d92c949e0458913216ac883ea2f44316d7e810d5",
+          "bytes": 31533,
+          "sha256": "c8ef9729406eca7da9ab8c8f706860340134cfefe77473fe7fcb983c81a04966"
+        },
+        {
+          "repository": "neuromancer/wc1-re",
+          "commit": "4462524b5ecb8a42f19b74ff141cc4240466ace8",
+          "path": "src/cmpgn.c",
+          "blob": "4c0794c0dc1c9125bb70ea46b415ae73a62415bd",
+          "bytes": 35041,
+          "sha256": "278e5985fb6aba457a1a39c9f5fd1b3333e0eb351a48873d04fb5567843748e1"
+        },
+        {
+          "repository": "neuromancer/wc1-re",
+          "commit": "4462524b5ecb8a42f19b74ff141cc4240466ace8",
+          "path": "src/pload.c",
+          "blob": "01ad59c8ae73e081925ba166f971b50030d0c54c",
+          "bytes": 7744,
+          "sha256": "9a66610e7f3bd55af019d98737f5f39b69552869cb766c165d254697a2ed1b59"
+        },
+        {
+          "repository": "neuromancer/wc1-re",
+          "commit": "4462524b5ecb8a42f19b74ff141cc4240466ace8",
+          "path": "docs/SDL2.md",
+          "blob": "8c361253348398bbd4aedbf87e1436135a64c339",
+          "bytes": 6102,
+          "sha256": "6183e547e29f92aae39b7cf7792dea8037ba38e948c2debb6313a4795c2d11e5"
+        },
+        {
+          "repository": "neuromancer/wc1-re",
+          "commit": "4462524b5ecb8a42f19b74ff141cc4240466ace8",
+          "path": "src/system.c",
+          "blob": "d8d712325f3443f4757813049c0b12d796fe66b9",
+          "bytes": 5125,
+          "sha256": "4562f25541febed793c698f321c11e9dbe2825fa681a52b39f59025025e99dd7"
+        },
+        {
+          "repository": "neuromancer/wc1-re",
+          "commit": "4462524b5ecb8a42f19b74ff141cc4240466ace8",
+          "path": "src/globals.c",
+          "blob": "64e18cdd3a11f387f1f81a75367926be2461d3d9",
+          "bytes": 135917,
+          "sha256": "6187713d504fcd3c321a6cc8cc8408a3d20d18f8be8866474ee3879984abb736"
+        },
+        {
+          "repository": "neuromancer/wc1-re",
+          "commit": "4462524b5ecb8a42f19b74ff141cc4240466ace8",
+          "path": "packaging/THIRD-PARTY-NOTICES.txt",
+          "blob": "cf2d21b9a3dd9cd2edb301559fa0fd33df548508",
+          "bytes": 978,
+          "sha256": "153d37dd77961a7cf92d5ffbd619024a36cc2a07a1915b8543eedd60cad0f971"
+        },
+        {
+          "repository": "neuromancer/wc1-re",
+          "commit": "4462524b5ecb8a42f19b74ff141cc4240466ace8",
+          "path": "packaging/package-modern.sh",
+          "blob": "aeb7e32946e7b9897c3c5747661ad64c205675ae",
+          "bytes": 3758,
+          "sha256": "53f11ec7728413e8c9d30fc0ec91038dc5815a282fecf00950c91fcdd21b6481"
+        },
+        {
+          "repository": "neuromancer/wc1-re",
+          "commit": "4462524b5ecb8a42f19b74ff141cc4240466ace8",
+          "path": ".github/workflows/release.yml",
+          "blob": "8731daedf0dcab914f4e1292a6db5e61e5bbe328",
+          "bytes": 9485,
+          "sha256": "70d317207b1ac7f37b6fb93d1fef9f9de0ccc0b7dec5d49a3bbc22a6d4292351"
+        },
+        {
+          "repository": "neuromancer/wc1-re",
+          "commit": "4462524b5ecb8a42f19b74ff141cc4240466ace8",
+          "path": "src/strdos.c",
+          "blob": "013a5abceaee3f839ee5c8c6b315f6b43cd8d095",
+          "bytes": 2330,
+          "sha256": "24f018fa795f67fd3a43e0277197f088584707e3e756b5e6d0893d73e4d479c5"
+        },
+        {
+          "repository": "neuromancer/wc1-re",
+          "commit": "4462524b5ecb8a42f19b74ff141cc4240466ace8",
+          "path": "src/mono.c",
+          "blob": "83caf7929b4add2b5bae19424d1fb4db4b581c8e",
+          "bytes": 10459,
+          "sha256": "adde41a0e3dff45b1b5cbce03a1b775fde83ebb6a053250ef2edb157f24360a5"
+        },
+        {
+          "repository": "neuromancer/wc1-re",
+          "commit": "4462524b5ecb8a42f19b74ff141cc4240466ace8",
+          "path": "src/barracks.c",
+          "blob": "5e157f3d45c1f84005cd647b3e1a2ef05764a91e",
+          "bytes": 36080,
+          "sha256": "4380897a50f21ff17b35fc2c4f67361728a208af29376c5351d7ea2b3654e698"
+        },
+        {
+          "repository": "neuromancer/wc1-re",
+          "commit": "4462524b5ecb8a42f19b74ff141cc4240466ace8",
+          "path": "src/winmain.c",
+          "blob": "b9f00d83d10d1ee89034bc30ffcc79959f02640a",
+          "bytes": 36585,
+          "sha256": "3180c7d1db276d50aa3b35be2834b2c448564ef7284ce23d35832f7fa8363a58"
+        }
+      ]
+    },
+    {
+      "issue": 2731,
+      "repository": "TheXTech/TheXTech",
+      "complete_tree_references": [
+        {
+          "role": "current",
+          "commit": "0f235142b8ca59ad28217b88b3f862de57dabb36",
+          "root_tree": "6bd21f4a95691902a5577c8e3f2fe6f3cac318e2",
+          "members": 1490,
+          "complete": true
+        },
+        {
+          "role": "selected",
+          "commit": "5181debcb4cea2b131ebf0e0958e375d87afee05",
+          "root_tree": "b501c935ed7355b58558e904cbbb4fc7ac7bf339",
+          "members": 1467,
+          "complete": true
+        }
+      ],
+      "source_bindings": [
+        {
+          "repository": "TheXTech/TheXTech",
+          "commit": "0f235142b8ca59ad28217b88b3f862de57dabb36",
+          "path": ".gitmodules",
+          "blob": "c43e4a497fdc70f48f7f43aa4642d80f7dc21b4e",
+          "bytes": 2256,
+          "sha256": "7e91fe88dfa91ef983edb449143d38a1402687d058a37391c2b1c50349cbb403"
+        },
+        {
+          "repository": "TheXTech/TheXTech",
+          "commit": "0f235142b8ca59ad28217b88b3f862de57dabb36",
+          "path": "CMakeLists.txt",
+          "blob": "5d6d236c22fff60a4d438b3aa77feef63308a3d9",
+          "bytes": 86897,
+          "sha256": "32d7f1b289d816b5d3e309cd2a48c1f0301e401108bd132942019bb075bf8e47"
+        },
+        {
+          "repository": "TheXTech/TheXTech",
+          "commit": "0f235142b8ca59ad28217b88b3f862de57dabb36",
+          "path": "LICENSE",
+          "blob": "ef7e7efc09c9d471c391f05b9567966928085840",
+          "bytes": 35121,
+          "sha256": "e1c0ad728983d8a57335e52cf1064f1affd1d454173d8cebd3ed8b4a72b48704"
+        },
+        {
+          "repository": "TheXTech/TheXTech",
+          "commit": "0f235142b8ca59ad28217b88b3f862de57dabb36",
+          "path": "README.ESP.md",
+          "blob": "f3c144c62cea59848c65da74ea7554b99bc136c8",
+          "bytes": 14732,
+          "sha256": "90417340b2123b29d4e553fea1609d354051b5baa6606e3eda73999afd010137"
+        },
+        {
+          "repository": "TheXTech/TheXTech",
+          "commit": "0f235142b8ca59ad28217b88b3f862de57dabb36",
+          "path": "README.RUS.md",
+          "blob": "fd8d0a41998f645beb1cb7203566f729ffd9a1a0",
+          "bytes": 27384,
+          "sha256": "f8923eb74191327e76a9529b73b79e7bb4760ac63ee73ed916198e319d374e37"
+        },
+        {
+          "repository": "TheXTech/TheXTech",
+          "commit": "0f235142b8ca59ad28217b88b3f862de57dabb36",
+          "path": "README.md",
+          "blob": "4834cf70fc09e8afad9b6e1e2f7ad40c7830bf80",
+          "bytes": 14227,
+          "sha256": "1fb7f56e5769d4e57ceb849e6485f376dc23fc29a5e1e309585629f3e2c82847"
+        },
+        {
+          "repository": "TheXTech/TheXTech",
+          "commit": "5181debcb4cea2b131ebf0e0958e375d87afee05",
+          "path": ".gitmodules",
+          "blob": "a7c5b1a54e5639b697c75dbf1ddf9508a9fab52a",
+          "bytes": 2259,
+          "sha256": "74f042a9f2c1fa700d2aac62e2c316ccb7c8a3ab730e7d8e2438d4e071df3d9f"
+        },
+        {
+          "repository": "TheXTech/TheXTech",
+          "commit": "5181debcb4cea2b131ebf0e0958e375d87afee05",
+          "path": "CMakeLists.txt",
+          "blob": "485219dad16d26e721573b7ac7a3d3ab82c15ae8",
+          "bytes": 83448,
+          "sha256": "e99aa5f9032782436f54d2f465ea7ad355d19c8653deb963f855980280ddc708"
+        },
+        {
+          "repository": "TheXTech/TheXTech",
+          "commit": "5181debcb4cea2b131ebf0e0958e375d87afee05",
+          "path": "LICENSE",
+          "blob": "ef7e7efc09c9d471c391f05b9567966928085840",
+          "bytes": 35121,
+          "sha256": "e1c0ad728983d8a57335e52cf1064f1affd1d454173d8cebd3ed8b4a72b48704"
+        },
+        {
+          "repository": "TheXTech/TheXTech",
+          "commit": "5181debcb4cea2b131ebf0e0958e375d87afee05",
+          "path": "README.ESP.md",
+          "blob": "f3c144c62cea59848c65da74ea7554b99bc136c8",
+          "bytes": 14732,
+          "sha256": "90417340b2123b29d4e553fea1609d354051b5baa6606e3eda73999afd010137"
+        },
+        {
+          "repository": "TheXTech/TheXTech",
+          "commit": "5181debcb4cea2b131ebf0e0958e375d87afee05",
+          "path": "README.RUS.md",
+          "blob": "7c70fa09fae8f2635609fe4ef2d94386b8eb59df",
+          "bytes": 27680,
+          "sha256": "b75d53de8fa938db504dd5096ef16d3736e128165b71a3fd2cd2822baf99478f"
+        },
+        {
+          "repository": "TheXTech/TheXTech",
+          "commit": "5181debcb4cea2b131ebf0e0958e375d87afee05",
+          "path": "README.md",
+          "blob": "7173a3bd9e415c69363e12652f3e72cd5eac4811",
+          "bytes": 14370,
+          "sha256": "2bcab9450643db46c4fad36f2a4294902040040f26bc9ab49cb51730c2fcf326"
+        },
+        {
+          "repository": "TheXTech/TheXTech",
+          "commit": "5181debcb4cea2b131ebf0e0958e375d87afee05",
+          "path": "src/main/game_info.cpp",
+          "blob": "096b442f7058c17f6f8cccecc2347eb797f40d25",
+          "bytes": 9660,
+          "sha256": "794a5dcd7a4af2ce42ea1c112f21a432138e03cc872e775e2eb98954e6c1a4e1"
+        },
+        {
+          "repository": "TheXTech/TheXTech",
+          "commit": "5181debcb4cea2b131ebf0e0958e375d87afee05",
+          "path": "src/main/asset_pack.cpp",
+          "blob": "b18447fcee0427945d15b5f4c7c2dcafad988445",
+          "bytes": 12955,
+          "sha256": "5795b8f820a9d016f8b2bb421beb96538021e3f060703c5f4e4c4488ae179fc7"
+        },
+        {
+          "repository": "TheXTech/TheXTech",
+          "commit": "5181debcb4cea2b131ebf0e0958e375d87afee05",
+          "path": "src/main.cpp",
+          "blob": "d114a626d8081494cda109180bb84da393105232",
+          "bytes": 32810,
+          "sha256": "742af48127707232b9cef0cbe34fecbfd5580a5a5f10f18ded7fc67c1eba25df"
+        },
+        {
+          "repository": "TheXTech/TheXTech",
+          "commit": "5181debcb4cea2b131ebf0e0958e375d87afee05",
+          "path": "lib/AppPath/private/app_path_win32.cpp",
+          "blob": "f26a1d566092fe21a63f147754c3661bc849a629",
+          "bytes": 5364,
+          "sha256": "09ad1ad10b205a4f2d91802972ff2a064acc83ace9a2e0dfab280e6c76c0f46a"
+        },
+        {
+          "repository": "TheXTech/TheXTech",
+          "commit": "5181debcb4cea2b131ebf0e0958e375d87afee05",
+          "path": "lib/AppPath/private/app_path.cpp",
+          "blob": "b71250a04db43473b1f6ac39a448730e33a5c2cc",
+          "bytes": 9925,
+          "sha256": "9f9e735cec75094af7a71b30003bac2efc43b03948f452e9c0484f12869dc313"
+        },
+        {
+          "repository": "TheXTech/TheXTech",
+          "commit": "5181debcb4cea2b131ebf0e0958e375d87afee05",
+          "path": "src/config/config_main.cpp",
+          "blob": "91fe607c8eaf3bc63146670efa39cdd74fede992",
+          "bytes": 14197,
+          "sha256": "9abe12491f1e75a64355e6381e733f5009fca60fd94ececfff4f3146617ec561"
+        },
+        {
+          "repository": "TheXTech/TheXTech",
+          "commit": "5181debcb4cea2b131ebf0e0958e375d87afee05",
+          "path": ".github/workflows/windows-ci.yml",
+          "blob": "ff41a111e105bbf733fc1331d72f18f49c42134b",
+          "bytes": 9700,
+          "sha256": "07273c97b1a109e48c1d218eed6c135ac4d13270a1aa4bb66fd1186ddc981a75"
+        },
+        {
+          "repository": "TheXTech/TheXTech",
+          "commit": "5181debcb4cea2b131ebf0e0958e375d87afee05",
+          "path": "lib/AppPath/private/app_path_private.h",
+          "blob": "2e588ceb63657137c166a1066f0a0b13753df493",
+          "bytes": 3354,
+          "sha256": "384fdc7c36e341a98638ddb2625834c52e478909d988e87c0baef5a5a54d2cba"
+        },
+        {
+          "repository": "TheXTech/TheXTech",
+          "commit": "5181debcb4cea2b131ebf0e0958e375d87afee05",
+          "path": ".github/ci-helper/pack-game.sh",
+          "blob": "855e4ab5c3697f9192da434f365693948b6ff65e",
+          "bytes": 1014,
+          "sha256": "e1a008ffbb2cd4e2bac0f705ba2378c1582dbe04390eae1c1d85396e5d35318c"
+        },
+        {
+          "repository": "TheXTech/TheXTech",
+          "commit": "5181debcb4cea2b131ebf0e0958e375d87afee05",
+          "path": "src/main/game_info.h",
+          "blob": "a439914505f7c85ccec8ebe0b5e6b35d50da3ca8",
+          "bytes": 2946,
+          "sha256": "e077f5ada916ad01260662675f93f3c64355b48841ba403dfc2f623618e9fbc5"
+        }
+      ]
+    },
+    {
+      "issue": 2625,
+      "repository": "Pyrdacor/Ambermoon.net",
+      "complete_tree_references": [
+        {
+          "role": "current",
+          "commit": "d52ac33d81dbb08e1d93bd5dbaef01f583feb8fc",
+          "root_tree": "7e6b3c3172addc6aec924169a13f5bf7a91a808f",
+          "members": 1212,
+          "complete": true
+        },
+        {
+          "role": "selected",
+          "commit": "ade13444f139adaf8cf4e60915907d7e3dbbd4dc",
+          "root_tree": "f438a22e03082cbab8ff5deb4f2a713742f51136",
+          "members": 1153,
+          "complete": true
+        }
+      ],
+      "source_bindings": [
+        {
+          "repository": "Pyrdacor/Ambermoon.net",
+          "commit": "d52ac33d81dbb08e1d93bd5dbaef01f583feb8fc",
+          "path": "LICENSE",
+          "blob": "f288702d2fa16d3cdf0035b15a9fcbc552cd88e7",
+          "bytes": 35149,
+          "sha256": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986"
+        },
+        {
+          "repository": "Pyrdacor/Ambermoon.net",
+          "commit": "d52ac33d81dbb08e1d93bd5dbaef01f583feb8fc",
+          "path": "README.md",
+          "blob": "3e9d1659afd852a952bd8ba9ec87459d07199101",
+          "bytes": 15423,
+          "sha256": "20a3c16a3b65ef3cb066030d32707517bba78581f4585796fcf12ca903b9af93"
+        },
+        {
+          "repository": "Pyrdacor/Ambermoon.net",
+          "commit": "ade13444f139adaf8cf4e60915907d7e3dbbd4dc",
+          "path": "LICENSE",
+          "blob": "f288702d2fa16d3cdf0035b15a9fcbc552cd88e7",
+          "bytes": 35149,
+          "sha256": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986"
+        },
+        {
+          "repository": "Pyrdacor/Ambermoon.net",
+          "commit": "ade13444f139adaf8cf4e60915907d7e3dbbd4dc",
+          "path": "README.md",
+          "blob": "5125e9196a81f21a5d5eca48355f4412736e0721",
+          "bytes": 15157,
+          "sha256": "80ec1ba7d3a0425402e9c962dbdd39a438da0f26712a8c1363f574830f408eb6"
+        },
+        {
+          "repository": "Pyrdacor/Ambermoon.net",
+          "commit": "ade13444f139adaf8cf4e60915907d7e3dbbd4dc",
+          "path": "Ambermoon.net/Program.cs",
+          "blob": "db65788298520c50abc4a6ad15e9fff7215cac5b",
+          "bytes": 7413,
+          "sha256": "27164f05f6f9aa713c9dc48de306f1090ae545c959bd62b567e0c60029ea80dc"
+        },
+        {
+          "repository": "Pyrdacor/Ambermoon.net",
+          "commit": "ade13444f139adaf8cf4e60915907d7e3dbbd4dc",
+          "path": "Ambermoon.net/Configuration.cs",
+          "blob": "0ba60d6bd3c1c12fe86654ff5e31230f15bf97e8",
+          "bytes": 22134,
+          "sha256": "5e723fa115821cca2743c5ec57d22e08a13146149a017ec31263882dbb3118c3"
+        },
+        {
+          "repository": "Pyrdacor/Ambermoon.net",
+          "commit": "ade13444f139adaf8cf4e60915907d7e3dbbd4dc",
+          "path": "Ambermoon.net/CommandLineOptions.cs",
+          "blob": "0a0030bc3fb51b46efbed03b5e444d1588d5f2bc",
+          "bytes": 6232,
+          "sha256": "4b22a5df5c2e6876a3fbd8b5d272479bc46b51e1b128b852bd793b584b65ab9b"
+        },
+        {
+          "repository": "Pyrdacor/Ambermoon.net",
+          "commit": "ade13444f139adaf8cf4e60915907d7e3dbbd4dc",
+          "path": "Ambermoon.net/Ambermoon.net.csproj",
+          "blob": "ab8505bd22928c8332a98c86b67b5084d2c8b3d7",
+          "bytes": 6101,
+          "sha256": "730a77b7068c2ed1e6dfcb701a598bca7421825318e186bbe9f57ab918616b91"
+        },
+        {
+          "repository": "Pyrdacor/Ambermoon.net",
+          "commit": "ade13444f139adaf8cf4e60915907d7e3dbbd4dc",
+          "path": "Ambermoon.net/RemakeSavegameManager.cs",
+          "blob": "ed1f4b20bb0d7ebf3b95481c70d00ef9d23d1217",
+          "bytes": 6116,
+          "sha256": "552a2569dceabd22744d20e0c574e7d5515078d9d31bc7a2acbd67185535f14d"
+        },
+        {
+          "repository": "Pyrdacor/Ambermoon.net",
+          "commit": "ade13444f139adaf8cf4e60915907d7e3dbbd4dc",
+          "path": "Ambermoon.net/BuiltinVersionLoader.cs",
+          "blob": "8e03a88038ceb6c3fcfc7cdb49109c747ac808f1",
+          "bytes": 1861,
+          "sha256": "e85642404098f8a93abd475bce754c276377fd3c986b54decf4000636559124a"
+        },
+        {
+          "repository": "Pyrdacor/Ambermoon.net",
+          "commit": "ade13444f139adaf8cf4e60915907d7e3dbbd4dc",
+          "path": "Ambermoon.net/Patcher.cs",
+          "blob": "a1ac55db3505abfc4c347358fc9dae65edc3f6a2",
+          "bytes": 35978,
+          "sha256": "8be6c035a898234e0308f57c0d49e88ad797ebf34494186179a70c3d5fbdc39a"
+        },
+        {
+          "repository": "Pyrdacor/Ambermoon.net",
+          "commit": "ade13444f139adaf8cf4e60915907d7e3dbbd4dc",
+          "path": "publish.ps1",
+          "blob": "c0583e8d43505e9c42ba63127d210ececf504f21",
+          "bytes": 6572,
+          "sha256": "bfa4099edcc63035d441accdb6443946cd665281a6f48e7c8172f83c43e6960b"
+        },
+        {
+          "repository": "Pyrdacor/Ambermoon.net",
+          "commit": "ade13444f139adaf8cf4e60915907d7e3dbbd4dc",
+          "path": "Ambermoon.net/GameWindow.cs",
+          "blob": "95d0b53c2cd833656da2a07a2856048f2b144996",
+          "bytes": 93869,
+          "sha256": "6dc334bb3aeedd6b4769d40f38c291d20082db751a53d0528a4ebae8fd9d7776"
+        },
+        {
+          "repository": "Pyrdacor/Ambermoon.net",
+          "commit": "ade13444f139adaf8cf4e60915907d7e3dbbd4dc",
+          "path": "Ambermoon.net/Properties/PublishProfiles/FolderProfile.pubxml",
+          "blob": "79576fb52fffa2ce64930960dbd0b521efb5eb22",
+          "bytes": 616,
+          "sha256": "7966513031a16836ba7a6ee1fb946c3b1de3fa6e6d735480dfa1d3af709c5127"
+        },
+        {
+          "repository": "Pyrdacor/Ambermoon.net",
+          "commit": "ade13444f139adaf8cf4e60915907d7e3dbbd4dc",
+          "path": "Configuration.md",
+          "blob": "7a4ca79ff1160e545a3242cd284a5d6339860b14",
+          "bytes": 6284,
+          "sha256": "c87616253edb1f727e97ad0640f00b1923f8dc66c486742ba9501d57b0c2a596"
+        }
+      ]
+    },
+    {
+      "issue": 2633,
+      "repository": "gemrb/gemrb",
+      "complete_tree_references": [
+        {
+          "role": "current",
+          "commit": "64925a1c74643cf40c377c2d1ebbfd6b6a0408b8",
+          "root_tree": "70b5f9e6788c94b085ba8246aa4c792655b3d46e",
+          "members": 3658,
+          "complete": true
+        },
+        {
+          "role": "selected",
+          "commit": "b33f0e7275ea1fc8a82459b418f6a7b5f1b40108",
+          "root_tree": "a5d1035a4311381b695a0b024118dc2a009e4456",
+          "members": 3675,
+          "complete": true
+        }
+      ],
+      "source_bindings": [
+        {
+          "repository": "gemrb/gemrb",
+          "commit": "64925a1c74643cf40c377c2d1ebbfd6b6a0408b8",
+          "path": "CMakeLists.txt",
+          "blob": "e27ed2801a5ad66d4fa53fc28368cd96ee00bff0",
+          "bytes": 5898,
+          "sha256": "c57ca7be2e7713ab1f6533f7a6bf4597ed463902226ab8708efbae324d31bf9c"
+        },
+        {
+          "repository": "gemrb/gemrb",
+          "commit": "64925a1c74643cf40c377c2d1ebbfd6b6a0408b8",
+          "path": "COPYING",
+          "blob": "e065ffa05152375052eee223e8875b4397ff823d",
+          "bytes": 18017,
+          "sha256": "c9bf7643726da4f149e9669cf6f00257e4b3a173e4ab307461b8bd42717dd9a4"
+        },
+        {
+          "repository": "gemrb/gemrb",
+          "commit": "64925a1c74643cf40c377c2d1ebbfd6b6a0408b8",
+          "path": "README.md",
+          "blob": "21257cc8eaea2101566850603aab88b816395d06",
+          "bytes": 3587,
+          "sha256": "196a4f4f09b37cee42325df8e6f76241e572aa860666296973269cefc9e4ca14"
+        },
+        {
+          "repository": "gemrb/gemrb",
+          "commit": "b33f0e7275ea1fc8a82459b418f6a7b5f1b40108",
+          "path": "CMakeLists.txt",
+          "blob": "e5025482f3a9317d299b11a4d4495a5415dc65c2",
+          "bytes": 5610,
+          "sha256": "96fdb79d4049c08fcb3bea3477999195a0b3557e60b6ae051356dc8ab02d43b8"
+        },
+        {
+          "repository": "gemrb/gemrb",
+          "commit": "b33f0e7275ea1fc8a82459b418f6a7b5f1b40108",
+          "path": "COPYING",
+          "blob": "e065ffa05152375052eee223e8875b4397ff823d",
+          "bytes": 18017,
+          "sha256": "c9bf7643726da4f149e9669cf6f00257e4b3a173e4ab307461b8bd42717dd9a4"
+        },
+        {
+          "repository": "gemrb/gemrb",
+          "commit": "b33f0e7275ea1fc8a82459b418f6a7b5f1b40108",
+          "path": "README.md",
+          "blob": "21257cc8eaea2101566850603aab88b816395d06",
+          "bytes": 3587,
+          "sha256": "196a4f4f09b37cee42325df8e6f76241e572aa860666296973269cefc9e4ca14"
+        },
+        {
+          "repository": "gemrb/gemrb",
+          "commit": "b33f0e7275ea1fc8a82459b418f6a7b5f1b40108",
+          "path": "gemrb/GUIScripts/GameCheck.py",
+          "blob": "c18a76ffcf170f9ceae97a90d4355942bbb31369",
+          "bytes": 3002,
+          "sha256": "272832c18bad20c06af26bf863432f93ba386ad7a7e9b9493869a350bdb4dc35"
+        },
+        {
+          "repository": "gemrb/gemrb",
+          "commit": "b33f0e7275ea1fc8a82459b418f6a7b5f1b40108",
+          "path": "gemrb/GUIScripts/bg2/Autodetect.py",
+          "blob": "ab23d9e5713cf948f6f8310c38c8d6755903b94b",
+          "bytes": 1356,
+          "sha256": "f8e2c2240a3547116155b22ab52c3665c16ee7fe487c473b670d26f60231e605"
+        },
+        {
+          "repository": "gemrb/gemrb",
+          "commit": "b33f0e7275ea1fc8a82459b418f6a7b5f1b40108",
+          "path": "gemrb/GemRB.cfg.sample.in",
+          "blob": "66d191fa1fb9a08056abaa2ed624889bb58f6661",
+          "bytes": 13826,
+          "sha256": "05b9dead557c9d93bb3da083d2eddd7812ccc8aa2c67acfab1a9b7ef8acaf962"
+        },
+        {
+          "repository": "gemrb/gemrb",
+          "commit": "b33f0e7275ea1fc8a82459b418f6a7b5f1b40108",
+          "path": "NEWS",
+          "blob": "5a10fd235a0cabc0108576edb666891cb18a9469",
+          "bytes": 23806,
+          "sha256": "d4c7c14fce456061f80260b5149179ef88cb0584d3370505753bb3f211106677"
+        }
+      ]
+    }
+  ],
+  "static_public_package_observations": [
+    {
+      "issue": 2625,
+      "release_id": 416566875,
+      "asset_id": 653934535,
+      "asset": "Ambermoon.net-Windows.zip",
+      "bytes": 79003604,
+      "expected_sha256": "32ce60aaf58170dd107ac6ba8c87e440eeeb3fbd8114de85b12b14b88b001d45",
+      "observed_sha256": "32ce60aaf58170dd107ac6ba8c87e440eeeb3fbd8114de85b12b14b88b001d45",
+      "expected_identity_source": "official GitHub API digest; distinct from locally computed hash",
+      "raw_preparser_bounds": {
+        "records": 10,
+        "central_bytes": 1003,
+        "declared_expanded_bytes": 135300074
+      },
+      "policy": {
+        "max_archive_bytes": 134217728,
+        "max_central_metadata": 4194304,
+        "max_physical_records": 8192,
+        "max_name_bytes": 512,
+        "max_member_bytes": 536870912,
+        "max_aggregate_expanded_bytes": 1073741824,
+        "ZIP64_multidisk_encryption_links_unsupported": true
+      },
+      "members": [
+        {
+          "path": "Ambermoon.net.exe",
+          "bytes": 119030591,
+          "compressed_bytes": 70203656,
+          "crc32": "e9ddf82b",
+          "directory": false
+        },
+        {
+          "path": "AmbermoonManualEnglish.pdf",
+          "bytes": 188531,
+          "compressed_bytes": 176978,
+          "crc32": "8bdfe827",
+          "directory": false
+        },
+        {
+          "path": "AmbermoonMap.pdf",
+          "bytes": 2916949,
+          "compressed_bytes": 2916492,
+          "crc32": "c5ae6692",
+          "directory": false
+        },
+        {
+          "path": "AmbermoonPatcher.exe",
+          "bytes": 12351428,
+          "compressed_bytes": 5280521,
+          "crc32": "c94cdaf8",
+          "directory": false
+        },
+        {
+          "path": "AmbermoonRuneTable.png",
+          "bytes": 125050,
+          "compressed_bytes": 117828,
+          "crc32": "6eb4809b",
+          "directory": false
+        },
+        {
+          "path": "api-ms-win-core-winrt-l1-1-0.dll",
+          "bytes": 19704,
+          "compressed_bytes": 11012,
+          "crc32": "6b4c8435",
+          "directory": false
+        },
+        {
+          "path": "changelog.txt",
+          "bytes": 19288,
+          "compressed_bytes": 7143,
+          "crc32": "3ac88083",
+          "directory": false
+        },
+        {
+          "path": "Controls.pdf",
+          "bytes": 444990,
+          "compressed_bytes": 217470,
+          "crc32": "350e5daa",
+          "directory": false
+        },
+        {
+          "path": "readme.txt",
+          "bytes": 2647,
+          "compressed_bytes": 911,
+          "crc32": "808d9bdc",
+          "directory": false
+        },
+        {
+          "path": "Walkthrough.txt",
+          "bytes": 200896,
+          "compressed_bytes": 70085,
+          "crc32": "3a423d67",
+          "directory": false
+        }
+      ],
+      "headers": [
+        {
+          "path": "Ambermoon.net.exe",
+          "machine": "0x8664",
+          "sections": 9,
+          "header_bytes_read": 304,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "AmbermoonPatcher.exe",
+          "machine": "0x8664",
+          "sections": 10,
+          "header_bytes_read": 288,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "api-ms-win-core-winrt-l1-1-0.dll",
+          "machine": "0x8664",
+          "sections": 3,
+          "header_bytes_read": 232,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        }
+      ],
+      "extraction_writes": 0,
+      "inventory_sha256": "680da518bdcfff02e90e3bd6a9b9f047c9481f3b71fabe54c66fdb14b88abfed"
+    },
+    {
+      "issue": 2909,
+      "release_id": 388237326,
+      "asset_id": 562933799,
+      "asset": "wc1-re-v0.0.13-windows-x86_64-sdl2.zip",
+      "bytes": 6444945,
+      "expected_sha256": "5ea3f0e79d1708a199aa206551002bbe86e57cae26bdd9320cef7949cbc40d2e",
+      "observed_sha256": "5ea3f0e79d1708a199aa206551002bbe86e57cae26bdd9320cef7949cbc40d2e",
+      "expected_identity_source": "official GitHub API digest; distinct from locally computed hash",
+      "raw_preparser_bounds": {
+        "records": 10,
+        "central_bytes": 833,
+        "declared_expanded_bytes": 17922274
+      },
+      "policy": {
+        "max_archive_bytes": 134217728,
+        "max_central_metadata": 4194304,
+        "max_physical_records": 8192,
+        "max_name_bytes": 512,
+        "max_member_bytes": 536870912,
+        "max_aggregate_expanded_bytes": 1073741824,
+        "ZIP64_multidisk_encryption_links_unsupported": true
+      },
+      "members": [
+        {
+          "path": "libc++.dll",
+          "bytes": 1659392,
+          "compressed_bytes": 533881,
+          "crc32": "8c9dbcd0",
+          "directory": false
+        },
+        {
+          "path": "liblzo2-2.dll",
+          "bytes": 186368,
+          "compressed_bytes": 77766,
+          "crc32": "6b6fdd0d",
+          "directory": false
+        },
+        {
+          "path": "libunwind.dll",
+          "bytes": 63488,
+          "compressed_bytes": 28783,
+          "crc32": "ae457622",
+          "directory": false
+        },
+        {
+          "path": "LICENSE.txt",
+          "bytes": 35823,
+          "compressed_bytes": 12280,
+          "crc32": "cece3b93",
+          "directory": false
+        },
+        {
+          "path": "NFD-LICENSE.txt",
+          "bytes": 834,
+          "compressed_bytes": 438,
+          "crc32": "7710d440",
+          "directory": false
+        },
+        {
+          "path": "README.txt",
+          "bytes": 1982,
+          "compressed_bytes": 1076,
+          "crc32": "d451725f",
+          "directory": false
+        },
+        {
+          "path": "SDL2.dll",
+          "bytes": 1972224,
+          "compressed_bytes": 754892,
+          "crc32": "33e8c60f",
+          "directory": false
+        },
+        {
+          "path": "THIRD-PARTY-NOTICES.txt",
+          "bytes": 999,
+          "compressed_bytes": 511,
+          "crc32": "ae295c2a",
+          "directory": false
+        },
+        {
+          "path": "wc1-modern.exe",
+          "bytes": 13999616,
+          "compressed_bytes": 5032940,
+          "crc32": "7ea50c26",
+          "directory": false
+        },
+        {
+          "path": "YMFM-LICENSE.txt",
+          "bytes": 1548,
+          "compressed_bytes": 810,
+          "crc32": "fd5a4b5e",
+          "directory": false
+        }
+      ],
+      "headers": [
+        {
+          "path": "libc++.dll",
+          "machine": "0x8664",
+          "sections": 7,
+          "header_bytes_read": 144,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "liblzo2-2.dll",
+          "machine": "0x8664",
+          "sections": 7,
+          "header_bytes_read": 144,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "libunwind.dll",
+          "machine": "0x8664",
+          "sections": 7,
+          "header_bytes_read": 144,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "SDL2.dll",
+          "machine": "0x8664",
+          "sections": 8,
+          "header_bytes_read": 144,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "wc1-modern.exe",
+          "machine": "0x8664",
+          "sections": 7,
+          "header_bytes_read": 144,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        }
+      ],
+      "extraction_writes": 0,
+      "inventory_sha256": "913cc4395af900c41a31119d00bdb7cccc009d3139ea0a57473cb4b4794f37c9"
+    },
+    {
+      "issue": 2677,
+      "release_id": 425021868,
+      "asset_id": 680518958,
+      "asset": "fs2_open_26_2_0-RC3-builds-x64-SSE2.zip",
+      "bytes": 78450974,
+      "expected_sha256": "fa64f0ea251e838291465823020d137373b5d0a93ca38cdb38f69379fe202153",
+      "observed_sha256": "fa64f0ea251e838291465823020d137373b5d0a93ca38cdb38f69379fe202153",
+      "expected_identity_source": "official GitHub API digest; distinct from locally computed hash",
+      "raw_preparser_bounds": {
+        "records": 57,
+        "central_bytes": 5940,
+        "declared_expanded_bytes": 195178008
+      },
+      "policy": {
+        "max_archive_bytes": 134217728,
+        "max_central_metadata": 4194304,
+        "max_physical_records": 8192,
+        "max_name_bytes": 512,
+        "max_member_bytes": 536870912,
+        "max_aggregate_expanded_bytes": 1073741824,
+        "ZIP64_multidisk_encryption_links_unsupported": true
+      },
+      "members": [
+        {
+          "path": "OpenAL32.dll",
+          "bytes": 2212352,
+          "compressed_bytes": 934711,
+          "crc32": "5b3c4aa2",
+          "directory": false
+        },
+        {
+          "path": "Qt6Core.dll",
+          "bytes": 10403840,
+          "compressed_bytes": 3541542,
+          "crc32": "b6f90633",
+          "directory": false
+        },
+        {
+          "path": "Qt6Gui.dll",
+          "bytes": 9614336,
+          "compressed_bytes": 4131997,
+          "crc32": "d2f8296c",
+          "directory": false
+        },
+        {
+          "path": "Qt6Help.dll",
+          "bytes": 590848,
+          "compressed_bytes": 226475,
+          "crc32": "65cecd99",
+          "directory": false
+        },
+        {
+          "path": "Qt6Network.dll",
+          "bytes": 1746432,
+          "compressed_bytes": 736095,
+          "crc32": "27faf906",
+          "directory": false
+        },
+        {
+          "path": "Qt6Sql.dll",
+          "bytes": 306176,
+          "compressed_bytes": 124761,
+          "crc32": "64b68002",
+          "directory": false
+        },
+        {
+          "path": "Qt6Svg.dll",
+          "bytes": 626688,
+          "compressed_bytes": 251846,
+          "crc32": "134d8fee",
+          "directory": false
+        },
+        {
+          "path": "Qt6Widgets.dll",
+          "bytes": 6546432,
+          "compressed_bytes": 2871004,
+          "crc32": "234e0cb2",
+          "directory": false
+        },
+        {
+          "path": "README.md",
+          "bytes": 486,
+          "compressed_bytes": 314,
+          "crc32": "a09ba1ef",
+          "directory": false
+        },
+        {
+          "path": "SDL3.dll",
+          "bytes": 2848256,
+          "compressed_bytes": 1128715,
+          "crc32": "b01a07da",
+          "directory": false
+        },
+        {
+          "path": "avcodec-57.dll",
+          "bytes": 12537856,
+          "compressed_bytes": 5563915,
+          "crc32": "22121a0a",
+          "directory": false
+        },
+        {
+          "path": "avformat-57.dll",
+          "bytes": 1498112,
+          "compressed_bytes": 699415,
+          "crc32": "da0d2601",
+          "directory": false
+        },
+        {
+          "path": "avutil-55.dll",
+          "bytes": 593408,
+          "compressed_bytes": 257990,
+          "crc32": "89fea94d",
+          "directory": false
+        },
+        {
+          "path": "fred2_open_26_2_0_RC3_x64_SSE2-FASTDBG.exe",
+          "bytes": 23029248,
+          "compressed_bytes": 9205896,
+          "crc32": "710a3e89",
+          "directory": false
+        },
+        {
+          "path": "fred2_open_26_2_0_RC3_x64_SSE2.exe",
+          "bytes": 22030336,
+          "compressed_bytes": 8755407,
+          "crc32": "d47cd359",
+          "directory": false
+        },
+        {
+          "path": "freetype281.dll",
+          "bytes": 731648,
+          "compressed_bytes": 384232,
+          "crc32": "660f5590",
+          "directory": false
+        },
+        {
+          "path": "fs2_open_26_2_0_RC3_x64_SSE2-FASTDBG.exe",
+          "bytes": 22033920,
+          "compressed_bytes": 8934869,
+          "crc32": "946d0984",
+          "directory": false
+        },
+        {
+          "path": "fs2_open_26_2_0_RC3_x64_SSE2.exe",
+          "bytes": 21154816,
+          "compressed_bytes": 8443270,
+          "crc32": "41929c79",
+          "directory": false
+        },
+        {
+          "path": "help/",
+          "bytes": 0,
+          "compressed_bytes": 0,
+          "crc32": "00000000",
+          "directory": true
+        },
+        {
+          "path": "help/qtfred_help.qch",
+          "bytes": 163840,
+          "compressed_bytes": 85680,
+          "crc32": "16d951bc",
+          "directory": false
+        },
+        {
+          "path": "help/qtfred_help.qhc",
+          "bytes": 98304,
+          "compressed_bytes": 5240,
+          "crc32": "234c1da0",
+          "directory": false
+        },
+        {
+          "path": "plugins/",
+          "bytes": 0,
+          "compressed_bytes": 0,
+          "crc32": "00000000",
+          "directory": true
+        },
+        {
+          "path": "plugins/generic/",
+          "bytes": 0,
+          "compressed_bytes": 0,
+          "crc32": "00000000",
+          "directory": true
+        },
+        {
+          "path": "plugins/generic/qtuiotouchplugin.dll",
+          "bytes": 88576,
+          "compressed_bytes": 38187,
+          "crc32": "0889500e",
+          "directory": false
+        },
+        {
+          "path": "plugins/help/",
+          "bytes": 0,
+          "compressed_bytes": 0,
+          "crc32": "00000000",
+          "directory": true
+        },
+        {
+          "path": "plugins/help/helpplugin.dll",
+          "bytes": 23552,
+          "compressed_bytes": 9436,
+          "crc32": "47196641",
+          "directory": false
+        },
+        {
+          "path": "plugins/iconengines/",
+          "bytes": 0,
+          "compressed_bytes": 0,
+          "crc32": "00000000",
+          "directory": true
+        },
+        {
+          "path": "plugins/iconengines/qsvgicon.dll",
+          "bytes": 60416,
+          "compressed_bytes": 25410,
+          "crc32": "9bfb40fe",
+          "directory": false
+        },
+        {
+          "path": "plugins/imageformats/",
+          "bytes": 0,
+          "compressed_bytes": 0,
+          "crc32": "00000000",
+          "directory": true
+        },
+        {
+          "path": "plugins/imageformats/qgif.dll",
+          "bytes": 35840,
+          "compressed_bytes": 16739,
+          "crc32": "8a0c276b",
+          "directory": false
+        },
+        {
+          "path": "plugins/imageformats/qicns.dll",
+          "bytes": 44544,
+          "compressed_bytes": 19927,
+          "crc32": "f2ca42ad",
+          "directory": false
+        },
+        {
+          "path": "plugins/imageformats/qico.dll",
+          "bytes": 34304,
+          "compressed_bytes": 15277,
+          "crc32": "0f034b28",
+          "directory": false
+        },
+        {
+          "path": "plugins/imageformats/qjpeg.dll",
+          "bytes": 569856,
+          "compressed_bytes": 184493,
+          "crc32": "9ffdc7de",
+          "directory": false
+        },
+        {
+          "path": "plugins/imageformats/qsvg.dll",
+          "bytes": 27648,
+          "compressed_bytes": 11378,
+          "crc32": "1c942b57",
+          "directory": false
+        },
+        {
+          "path": "plugins/imageformats/qtga.dll",
+          "bytes": 26112,
+          "compressed_bytes": 11051,
+          "crc32": "eed45cf0",
+          "directory": false
+        },
+        {
+          "path": "plugins/imageformats/qtiff.dll",
+          "bytes": 430080,
+          "compressed_bytes": 151196,
+          "crc32": "d8cca4a6",
+          "directory": false
+        },
+        {
+          "path": "plugins/imageformats/qwbmp.dll",
+          "bytes": 24576,
+          "compressed_bytes": 10131,
+          "crc32": "1026a48d",
+          "directory": false
+        },
+        {
+          "path": "plugins/imageformats/qwebp.dll",
+          "bytes": 553472,
+          "compressed_bytes": 260002,
+          "crc32": "33eb90e9",
+          "directory": false
+        },
+        {
+          "path": "plugins/networkinformation/",
+          "bytes": 0,
+          "compressed_bytes": 0,
+          "crc32": "00000000",
+          "directory": true
+        },
+        {
+          "path": "plugins/networkinformation/qnetworklistmanager.dll",
+          "bytes": 67072,
+          "compressed_bytes": 25365,
+          "crc32": "a399c510",
+          "directory": false
+        },
+        {
+          "path": "plugins/platforms/",
+          "bytes": 0,
+          "compressed_bytes": 0,
+          "crc32": "00000000",
+          "directory": true
+        },
+        {
+          "path": "plugins/platforms/qwindows.dll",
+          "bytes": 991232,
+          "compressed_bytes": 412419,
+          "crc32": "eb152ad9",
+          "directory": false
+        },
+        {
+          "path": "plugins/sqldrivers/",
+          "bytes": 0,
+          "compressed_bytes": 0,
+          "crc32": "00000000",
+          "directory": true
+        },
+        {
+          "path": "plugins/sqldrivers/qsqlite.dll",
+          "bytes": 1964544,
+          "compressed_bytes": 1025709,
+          "crc32": "55cd6c11",
+          "directory": false
+        },
+        {
+          "path": "plugins/sqldrivers/qsqlodbc.dll",
+          "bytes": 120320,
+          "compressed_bytes": 51325,
+          "crc32": "8ab4facd",
+          "directory": false
+        },
+        {
+          "path": "plugins/styles/",
+          "bytes": 0,
+          "compressed_bytes": 0,
+          "crc32": "00000000",
+          "directory": true
+        },
+        {
+          "path": "plugins/styles/qmodernwindowsstyle.dll",
+          "bytes": 228864,
+          "compressed_bytes": 99550,
+          "crc32": "29961af0",
+          "directory": false
+        },
+        {
+          "path": "plugins/tls/",
+          "bytes": 0,
+          "compressed_bytes": 0,
+          "crc32": "00000000",
+          "directory": true
+        },
+        {
+          "path": "plugins/tls/qcertonlybackend.dll",
+          "bytes": 91648,
+          "compressed_bytes": 37815,
+          "crc32": "2941f4b3",
+          "directory": false
+        },
+        {
+          "path": "plugins/tls/qschannelbackend.dll",
+          "bytes": 253952,
+          "compressed_bytes": 103636,
+          "crc32": "1f90853d",
+          "directory": false
+        },
+        {
+          "path": "qt.conf",
+          "bytes": 50,
+          "compressed_bytes": 50,
+          "crc32": "d13fc0f1",
+          "directory": false
+        },
+        {
+          "path": "qtfred_26_2_0_RC3_x64_SSE2-FASTDBG.exe",
+          "bytes": 23016960,
+          "compressed_bytes": 8993224,
+          "crc32": "420cce94",
+          "directory": false
+        },
+        {
+          "path": "qtfred_26_2_0_RC3_x64_SSE2.exe",
+          "bytes": 21871616,
+          "compressed_bytes": 8490097,
+          "crc32": "c92e64ff",
+          "directory": false
+        },
+        {
+          "path": "shaderc_shared.dll",
+          "bytes": 4469760,
+          "compressed_bytes": 1704090,
+          "crc32": "d7dfaf40",
+          "directory": false
+        },
+        {
+          "path": "swresample-2.dll",
+          "bytes": 126976,
+          "compressed_bytes": 49839,
+          "crc32": "7365fbea",
+          "directory": false
+        },
+        {
+          "path": "swscale-4.dll",
+          "bytes": 535552,
+          "compressed_bytes": 161333,
+          "crc32": "de6581d3",
+          "directory": false
+        },
+        {
+          "path": "vulkan-1.dll",
+          "bytes": 753152,
+          "compressed_bytes": 250983,
+          "crc32": "8999ad50",
+          "directory": false
+        }
+      ],
+      "headers": [
+        {
+          "path": "OpenAL32.dll",
+          "machine": "0x8664",
+          "sections": 12,
+          "header_bytes_read": 152,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "Qt6Core.dll",
+          "machine": "0x8664",
+          "sections": 7,
+          "header_bytes_read": 320,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "Qt6Gui.dll",
+          "machine": "0x8664",
+          "sections": 7,
+          "header_bytes_read": 328,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "Qt6Help.dll",
+          "machine": "0x8664",
+          "sections": 6,
+          "header_bytes_read": 296,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "Qt6Network.dll",
+          "machine": "0x8664",
+          "sections": 6,
+          "header_bytes_read": 312,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "Qt6Sql.dll",
+          "machine": "0x8664",
+          "sections": 6,
+          "header_bytes_read": 304,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "Qt6Svg.dll",
+          "machine": "0x8664",
+          "sections": 6,
+          "header_bytes_read": 304,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "Qt6Widgets.dll",
+          "machine": "0x8664",
+          "sections": 6,
+          "header_bytes_read": 304,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "SDL3.dll",
+          "machine": "0x8664",
+          "sections": 7,
+          "header_bytes_read": 304,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "avcodec-57.dll",
+          "machine": "0x8664",
+          "sections": 13,
+          "header_bytes_read": 152,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "avformat-57.dll",
+          "machine": "0x8664",
+          "sections": 12,
+          "header_bytes_read": 152,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "avutil-55.dll",
+          "machine": "0x8664",
+          "sections": 13,
+          "header_bytes_read": 152,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "fred2_open_26_2_0_RC3_x64_SSE2-FASTDBG.exe",
+          "machine": "0x8664",
+          "sections": 6,
+          "header_bytes_read": 336,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "fred2_open_26_2_0_RC3_x64_SSE2.exe",
+          "machine": "0x8664",
+          "sections": 6,
+          "header_bytes_read": 344,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "freetype281.dll",
+          "machine": "0x8664",
+          "sections": 6,
+          "header_bytes_read": 288,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "fs2_open_26_2_0_RC3_x64_SSE2-FASTDBG.exe",
+          "machine": "0x8664",
+          "sections": 6,
+          "header_bytes_read": 336,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "fs2_open_26_2_0_RC3_x64_SSE2.exe",
+          "machine": "0x8664",
+          "sections": 6,
+          "header_bytes_read": 336,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "plugins/generic/qtuiotouchplugin.dll",
+          "machine": "0x8664",
+          "sections": 7,
+          "header_bytes_read": 288,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "plugins/help/helpplugin.dll",
+          "machine": "0x8664",
+          "sections": 7,
+          "header_bytes_read": 304,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "plugins/iconengines/qsvgicon.dll",
+          "machine": "0x8664",
+          "sections": 7,
+          "header_bytes_read": 296,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "plugins/imageformats/qgif.dll",
+          "machine": "0x8664",
+          "sections": 7,
+          "header_bytes_read": 288,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "plugins/imageformats/qicns.dll",
+          "machine": "0x8664",
+          "sections": 7,
+          "header_bytes_read": 296,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "plugins/imageformats/qico.dll",
+          "machine": "0x8664",
+          "sections": 7,
+          "header_bytes_read": 288,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "plugins/imageformats/qjpeg.dll",
+          "machine": "0x8664",
+          "sections": 7,
+          "header_bytes_read": 320,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "plugins/imageformats/qsvg.dll",
+          "machine": "0x8664",
+          "sections": 7,
+          "header_bytes_read": 304,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "plugins/imageformats/qtga.dll",
+          "machine": "0x8664",
+          "sections": 7,
+          "header_bytes_read": 296,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "plugins/imageformats/qtiff.dll",
+          "machine": "0x8664",
+          "sections": 7,
+          "header_bytes_read": 296,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "plugins/imageformats/qwbmp.dll",
+          "machine": "0x8664",
+          "sections": 7,
+          "header_bytes_read": 296,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "plugins/imageformats/qwebp.dll",
+          "machine": "0x8664",
+          "sections": 7,
+          "header_bytes_read": 304,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "plugins/networkinformation/qnetworklistmanager.dll",
+          "machine": "0x8664",
+          "sections": 7,
+          "header_bytes_read": 296,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "plugins/platforms/qwindows.dll",
+          "machine": "0x8664",
+          "sections": 7,
+          "header_bytes_read": 328,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "plugins/sqldrivers/qsqlite.dll",
+          "machine": "0x8664",
+          "sections": 7,
+          "header_bytes_read": 304,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "plugins/sqldrivers/qsqlodbc.dll",
+          "machine": "0x8664",
+          "sections": 7,
+          "header_bytes_read": 296,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "plugins/styles/qmodernwindowsstyle.dll",
+          "machine": "0x8664",
+          "sections": 7,
+          "header_bytes_read": 296,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "plugins/tls/qcertonlybackend.dll",
+          "machine": "0x8664",
+          "sections": 7,
+          "header_bytes_read": 288,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "plugins/tls/qschannelbackend.dll",
+          "machine": "0x8664",
+          "sections": 7,
+          "header_bytes_read": 304,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "qtfred_26_2_0_RC3_x64_SSE2-FASTDBG.exe",
+          "machine": "0x8664",
+          "sections": 5,
+          "header_bytes_read": 352,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "qtfred_26_2_0_RC3_x64_SSE2.exe",
+          "machine": "0x8664",
+          "sections": 5,
+          "header_bytes_read": 352,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "shaderc_shared.dll",
+          "machine": "0x8664",
+          "sections": 7,
+          "header_bytes_read": 288,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "swresample-2.dll",
+          "machine": "0x8664",
+          "sections": 13,
+          "header_bytes_read": 152,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "swscale-4.dll",
+          "machine": "0x8664",
+          "sections": 13,
+          "header_bytes_read": 152,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "vulkan-1.dll",
+          "machine": "0x8664",
+          "sections": 7,
+          "header_bytes_read": 312,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        }
+      ],
+      "extraction_writes": 0,
+      "inventory_sha256": "8eb6ccaee4dad1ed9c37616fee90b0006b3f839c1a97f52d0bde437c658ac2f8"
+    },
+    {
+      "issue": 2888,
+      "release_id": 293191034,
+      "asset_id": 367069504,
+      "asset": "nfs_recompiled.zip",
+      "bytes": 7222876,
+      "expected_sha256": "3211fda1a12bde27430b22446f4618e46dd841d6cee307f127cfe00a647e798b",
+      "observed_sha256": "3211fda1a12bde27430b22446f4618e46dd841d6cee307f127cfe00a647e798b",
+      "expected_identity_source": "official GitHub API digest; distinct from locally computed hash",
+      "raw_preparser_bounds": {
+        "records": 3,
+        "central_bytes": 238,
+        "declared_expanded_bytes": 21525504
+      },
+      "policy": {
+        "max_archive_bytes": 134217728,
+        "max_central_metadata": 4194304,
+        "max_physical_records": 8192,
+        "max_name_bytes": 512,
+        "max_member_bytes": 536870912,
+        "max_aggregate_expanded_bytes": 1073741824,
+        "ZIP64_multidisk_encryption_links_unsupported": true
+      },
+      "members": [
+        {
+          "path": "nfs2se.exe",
+          "bytes": 5496832,
+          "compressed_bytes": 2022738,
+          "crc32": "cadc4d84",
+          "directory": false
+        },
+        {
+          "path": "nfs3hp.exe",
+          "bytes": 13238272,
+          "compressed_bytes": 4049488,
+          "crc32": "5a699b33",
+          "directory": false
+        },
+        {
+          "path": "SDL3.dll",
+          "bytes": 2790400,
+          "compressed_bytes": 1150188,
+          "crc32": "a28273de",
+          "directory": false
+        }
+      ],
+      "headers": [
+        {
+          "path": "nfs2se.exe",
+          "format": "PE",
+          "machine": "0x8664",
+          "header_bytes_read": 144
+        },
+        {
+          "path": "nfs3hp.exe",
+          "format": "PE",
+          "machine": "0x8664",
+          "header_bytes_read": 144
+        }
+      ],
+      "extraction_writes": 0,
+      "inventory_sha256": "ae9a92b465a7746012bcb139c9b2abfc398701c0f735dd0a11452df54a6ec109",
+      "correction": "Historical private filename linux-archive-inventory.json reflected README emphasis, not observed host evidence. Separate actual-host-headers.json proves both released .exe players PE AMD64; no ELF observation or Linux binary qualification."
+    }
+  ],
+  "ambermoon_bundled_authority_observations": [
+    {
+      "repository": "Pyrdacor/Ambermoon",
+      "commit": "369560c2d329c7f5d6671134d883c880a7de4830",
+      "root_tree": "887fb4f3a71df00631770bb3feb6667a443516f3",
+      "members": 31107,
+      "complete": true,
+      "bound_texts": [
+        {
+          "repository": "Pyrdacor/Ambermoon",
+          "commit": "369560c2d329c7f5d6671134d883c880a7de4830",
+          "path": "README.md",
+          "blob": "9635bfe345d6238f9e47e6f7e14f080aafa6e400",
+          "bytes": 18309,
+          "sha256": "e7e9458de27e157e62a71fdc77153bcb5ca5c092e891e538ee155a23faefbea7"
+        }
+      ],
+      "scope": "Complete recursive tree metadata + bounded top-level authority documents only; no game asset bytes acquired. License-file absence would not prove legal prohibition."
+    },
+    {
+      "repository": "Pyrdacor/Ambermoon-Advanced",
+      "commit": "4475d613aee5c3f0616dae6ac36a391d865d8e90",
+      "root_tree": "d12b60e63fc7fd70882243abd0e8c19b393fbf24",
+      "members": 12294,
+      "complete": true,
+      "bound_texts": [
+        {
+          "repository": "Pyrdacor/Ambermoon-Advanced",
+          "commit": "4475d613aee5c3f0616dae6ac36a391d865d8e90",
+          "path": "README.md",
+          "blob": "b4db6510dfddbadca5af78a9bc60b31a39973f12",
+          "bytes": 12310,
+          "sha256": "4be43aa66a4ecca153b3b7e45260e7913559bd2c1a7bba1d71dcc758dfb0e621"
+        }
+      ],
+      "scope": "Complete recursive tree metadata + bounded top-level authority documents only; no game asset bytes acquired. License-file absence would not prove legal prohibition."
+    },
+    {
+      "url": "https://thalion.exotica.org.uk/games/ambermoon/ambermoon.html",
+      "error": "<urlopen error [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: Hostname mismatch, certificate is not valid for 'thalion.exotica.org.uk'. (_ssl.c:1081)>"
+    },
+    {
+      "url": "http://thalion.atari.org/games/ambermoon/ambermoon.html",
+      "status": 200,
+      "bytes": 8234,
+      "sha256": "200f387d65c116aeb530186deb5078516c93bbfbf3f9b9058f490ac997e80154"
+    }
+  ],
+  "smbx_game_package_metadata": {
+    "release_id": 416513684,
+    "tag": "v1.7.4.1",
+    "asset_id": 653768484,
+    "name": "super-mario-bros-x-thextech-v1.7.4.1-win64.7z",
+    "bytes": 39966360,
+    "provider_expected_digest": "sha256:cf47361d4b0a3bf6bb0461cdde771251781b19f47d74e19f2a1907d84eec087c",
+    "asset_url": "https://github.com/TheXTech/TheXTech/releases/download/v1.7.4.1/super-mario-bros-x-thextech-v1.7.4.1-win64.7z",
+    "scope": "Specific SMBX game-package provider metadata, not downloaded/locally hashed/asset-rights or executable qualification. Exact selected source Windows CI calls pack-game.sh with thextech-super-mario-bros-x, smbx-win64 and smbx13; helper copies thextech.exe to smbx-win64.exe and copies smbx13 assets, separate from advdemo and bare runtime. Released archive contents not inspected; player selects actual prepared native executable, never inferred from generic engine name."
+  },
+  "primary_web_observations": [
+    {
+      "url": "https://wiki.hard-light.net/index.php/Manually_Installing_FreeSpace_2_Open",
+      "status": 200,
+      "bytes": 27201,
+      "sha256": "659dfb827cacd53774f910fcffa1b65a87edf762079ab1683cb031e02bc1a2c6",
+      "local_path": "/tmp/portcove-b1-20261030/resume-14/primary-web-0.html"
+    },
+    {
+      "url": "https://wiki.hard-light.net/index.php/Installing_FreeSpace_2",
+      "status": 200,
+      "bytes": 18853,
+      "sha256": "afe4ff903db9afc290d33405d08ccb5067da8806bc9ae579c3a7a9f3cfafe30f",
+      "local_path": "/tmp/portcove-b1-20261030/resume-14/primary-web-1.html"
+    },
+    {
+      "url": "https://gemrb.org/Features.html",
+      "status": 200,
+      "bytes": 17026,
+      "sha256": "af1e6ee62ed29033f033964afe5670099e99af9f2825c237b566258171166d0f",
+      "local_path": "/tmp/portcove-b1-20261030/resume-14/primary-web-2.html"
+    },
+    {
+      "url": "https://gemrb.org/Install.html",
+      "status": 200,
+      "bytes": 18323,
+      "sha256": "b385a92b9f472e202682cb4942a7f15f436aff91347a208ed04d1308c9a7d9c3",
+      "local_path": "/tmp/portcove-b1-20261030/resume-14/primary-web-3.html"
+    }
+  ],
+  "invariants": {
+    "all_preexisting_managed_declarations_unchanged": true,
+    "all_source_catalog_unchanged": true,
+    "one_explicit_append_only_compatibility_identity": true,
+    "six_listing_manual_setup_additions_and_one_precise_acquisition_hold": true,
+    "gemrb_research_record_unchanged": true,
+    "prior_Rust_source_recovered_by_removing_only_new_test_fragments": true,
+    "no_production_adapter_or_durable_authority_change": true
+  },
+  "limits": [
+    "Four official public packages were downloaded and statically inspected against provider size/digest after physical ZIP-index preparse bounds and refusal probes; zero extraction/upstream-code/game execution. Ambermoon package includes bundled game content; no separate original ROM/private save acquired.",
+    "Only separately named metadata or bounded source/header facts were inspected. Source is not a binary reproducibility, rights, dependency, installed-app, gameplay, real-save, network or whole-mod certificate. SMBX 7z contents were not downloaded/inspected; specific metadata/source packaging resolves product identity only.",
+    "One synthetic managed progression case, six existing-helper actual-ID selected lifecycle cases and one existing-helper before-network acquisition-refusal case establish only their executed Core fixture contracts when qualified. They do not execute upstream players, first-Play UI, real user data or original-game compatibility.",
+    "Ambermoon remains OPEN pending attributable permission covering bundled original/Advanced assets; fresh acquisition is held while already-permitted copy use remains conditional. GemRB BGII Enhanced Edition remains OPEN pending exact supported EE revision evidence. Existing Required roots, full frozen858 scope and known mandatory failures on other owners remain; this packet is not all-port acceptance or Supported promotion."
+  ],
+  "delivery_authority": "Independent full source/target/canonical review, required exact-head CI, guarded merge and actual remote readback remain necessary for finite completion."
+}

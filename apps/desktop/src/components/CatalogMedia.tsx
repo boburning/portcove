@@ -1,6 +1,8 @@
 import { ArrowLeft, ArrowRight, Expand } from "lucide-react";
 import { useRef, useState } from "react";
+import { Trans } from "react-i18next";
 import { useArtworkVisibility, useCatalogMedia } from "../artwork";
+import { useAppTranslation } from "../localization";
 import { heroMediaCandidates, type HeroMediaPort, type HeroMediaContext } from "../hero-media";
 import type { CatalogMediaAsset } from "../types";
 import { ExternalLink } from "./ExternalLink";
@@ -9,6 +11,7 @@ import { Button } from "./ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "./ui/dialog";
 
 export function MediaCredit({ media, port }: { media: CatalogMediaAsset; port?: HeroMediaPort }) {
+  const { t } = useAppTranslation("browsing");
   const edition =
     media.subject.kind === "original"
       ? port?.presentation?.original_game?.source_editions.find(
@@ -19,14 +22,26 @@ export function MediaCredit({ media, port }: { media: CatalogMediaAsset; port?: 
   return (
     <div className="media-credit flex min-w-0 flex-wrap gap-x-3 gap-y-1 text-xs [overflow-wrap:anywhere] text-pc-muted-foreground">
       <span>
-        {media.subject.kind === "original"
-          ? `Original release · ${edition ?? media.subject.source_edition_id}`
-          : "Port image"}{" "}
-        · {media.attribution}
+        {media.subject.kind === "original" ? (
+          <Trans
+            t={t}
+            i18nKey="media.creditOriginal"
+            components={{
+              edition: <bdi>{edition ?? media.subject.source_edition_id}</bdi>,
+              credit: <bdi>{media.attribution}</bdi>,
+            }}
+          />
+        ) : (
+          <Trans
+            t={t}
+            i18nKey="media.creditPort"
+            components={{ credit: <bdi>{media.attribution}</bdi> }}
+          />
+        )}
       </span>
-      <ExternalLink href={media.source_url}>Source</ExternalLink>
+      <ExternalLink href={media.source_url}>{t("media.source")}</ExternalLink>
       <ExternalLink href={media.rights_url}>
-        {media.license === "LicenseRef-IGDB-Terms" ? "IGDB terms" : media.license}
+        {media.license === "LicenseRef-IGDB-Terms" ? t("media.igdbTerms") : media.license}
       </ExternalLink>
     </div>
   );
@@ -41,6 +56,7 @@ function MediaPreview({
   media: CatalogMediaAsset;
   visible: boolean;
 }) {
+  const { t } = useAppTranslation("browsing");
   const { display, retry } = useCatalogMedia(portId, media, visible);
   return display.image ? (
     <img
@@ -54,10 +70,10 @@ function MediaPreview({
     />
   ) : (
     <div className="media-preview-message grid place-items-center gap-2 p-4 text-sm">
-      <span>{display.error ? "Image unavailable" : "Loading image…"}</span>
+      <span>{display.error ? t("media.unavailable") : t("media.loading")}</span>
       {display.error && (
         <Button size="sm" variant="outline" onClick={retry}>
-          Retry image
+          {t("media.retry")}
         </Button>
       )}
     </div>
@@ -75,15 +91,22 @@ function Screenshot({
   index: number;
   onOpen: (element: HTMLButtonElement) => void;
 }) {
+  const { t } = useAppTranslation("browsing");
   const { element, visible } = useArtworkVisibility();
   const { display, retry } = useCatalogMedia(portId, media, visible);
   return (
     <figure ref={element} className="m-0 min-w-0">
       {display.error ? (
         <div className="grid gap-2 rounded-pc-md border border-pc-border p-3 text-sm">
-          <span>{media.caption} · Image unavailable</span>
+          <span>
+            <Trans
+              t={t}
+              i18nKey="media.captionUnavailable"
+              components={{ caption: <bdi>{media.caption}</bdi> }}
+            />
+          </span>
           <Button size="sm" variant="outline" onClick={retry}>
-            Retry screenshot {index + 1}
+            {t("media.retryScreenshot", { number: index + 1 })}
           </Button>
         </div>
       ) : (
@@ -91,7 +114,7 @@ function Screenshot({
           variant="ghost"
           className="media-thumbnail relative block w-full overflow-hidden rounded-pc-md border border-pc-border p-0"
           disabled={!display.image}
-          aria-label={`Enlarge screenshot ${index + 1}: ${media.caption}`}
+          aria-label={t("media.enlarge", { number: index + 1, caption: media.caption })}
           onClick={(event) => onOpen(event.currentTarget)}
         >
           {display.image ? (
@@ -105,7 +128,7 @@ function Screenshot({
               onError={display.onImageError}
             />
           ) : (
-            <span className="block p-6 text-sm">Loading screenshot…</span>
+            <span className="block p-6 text-sm">{t("media.loadingScreenshot")}</span>
           )}
           <span
             className="media-expand absolute end-2 bottom-2 rounded-pc-sm bg-pc-surface p-1"
@@ -123,6 +146,37 @@ function Screenshot({
   );
 }
 
+function ScreenshotChoice({
+  portId,
+  media,
+  index,
+  selected,
+  onSelect,
+}: {
+  portId: string;
+  media: CatalogMediaAsset;
+  index: number;
+  selected: boolean;
+  onSelect: () => void;
+}) {
+  const { t } = useAppTranslation("browsing");
+  const { display } = useCatalogMedia(portId, media, true);
+  return (
+    <Button
+      variant="ghost"
+      className="rounded-md border-2 p-0.5 aria-pressed:border-pc-interactive forced-colors:aria-pressed:border-[Highlight]"
+      aria-label={t("media.show", { number: index + 1, caption: media.caption })}
+      aria-pressed={selected}
+      onClick={onSelect}
+    >
+      {display.image && (
+        <img src={display.image} alt="" decoding="async" onError={display.onImageError} />
+      )}
+      <span aria-hidden="true">{index + 1}</span>
+    </Button>
+  );
+}
+
 /** Only explicitly admitted exact-port or exact-edition images reach this gallery. */
 export function CatalogMediaGallery({
   port,
@@ -131,6 +185,7 @@ export function CatalogMediaGallery({
   port: HeroMediaPort;
   context?: HeroMediaContext;
 }) {
+  const { t } = useAppTranslation("browsing");
   const portId = port.id;
   const shots = heroMediaCandidates(port, context).screenshots;
   const [selected, setSelected] = useState<string>();
@@ -144,9 +199,9 @@ export function CatalogMediaGallery({
   return (
     <section
       className="catalog-media mb-7 min-w-0 [overflow-wrap:anywhere]"
-      aria-label="Screenshots"
+      aria-label={t("media.screenshots")}
     >
-      <h3 className="mb-4 text-base">Screenshots</h3>
+      <h3 className="mb-4 text-base">{t("media.screenshots")}</h3>
       <div className="media-gallery-grid grid gap-4">
         {shots.map((asset, position) => (
           <Screenshot
@@ -188,27 +243,39 @@ export function CatalogMediaGallery({
                 {active.caption}
               </DialogTitle>
               <DialogDescription>
-                Image preview · Screenshot {index + 1} of {shots.length}
+                {t("media.position", { number: index + 1, total: shots.length })}
               </DialogDescription>
               <div className="media-viewer-stage mt-4">
                 <MediaPreview portId={portId} media={active} visible />
+              </div>
+              <div className="media-filmstrip" role="group" aria-label={t("media.choose")}>
+                {shots.map((asset, position) => (
+                  <ScreenshotChoice
+                    key={`${asset.id}:${asset.sha256}`}
+                    portId={portId}
+                    media={asset}
+                    index={position}
+                    selected={position === index}
+                    onSelect={() => setSelected(asset.id)}
+                  />
+                ))}
               </div>
               <div className="mt-4">
                 <MediaCredit media={active} />
               </div>
               <p className="mt-3 text-xs text-pc-muted-foreground">
                 {active.subject.kind === "original"
-                  ? "From the original release; this port may look different."
-                  : "Screenshot of this exact port."}
+                  ? t("media.fromOriginal")
+                  : t("media.exactPort")}
               </p>
               <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
                 <Button variant="outline" disabled={shots.length < 2} onClick={() => change(-1)}>
                   <Icon glyph={ArrowLeft} />
-                  Previous
+                  {t("media.previous")}
                 </Button>
-                <ExternalLink href={active.url}>Open original image</ExternalLink>
+                <ExternalLink href={active.url}>{t("media.openOriginal")}</ExternalLink>
                 <Button variant="outline" disabled={shots.length < 2} onClick={() => change(1)}>
-                  Next
+                  {t("media.next")}
                   <Icon glyph={ArrowRight} />
                 </Button>
               </div>

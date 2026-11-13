@@ -1,3 +1,4 @@
+import { readControllerNodeFile } from "./release-controller-tools.mts";
 /** Fixed source bootstrap into the attested native runner. Public locators and
  * clock records do not grant admission, proof custody or execution authority. */
 import assert from "node:assert/strict";
@@ -111,7 +112,7 @@ async function readBootstrapScope(operation: unknown, platform: ControllerToolPl
   const needs = data(environment.PORTCOVE_FIXED_NEEDS, 256 * 1024);
   assert.ok(isRecord(needs));
   const bootstrap = windows ? needs.tool_bootstrap_windows : needs.tool_bootstrap,
-    attest = needs.tool_attest;
+    attest = windows ? needs.tool_attest_windows : needs.tool_attest;
   assert.ok(isRecord(bootstrap) && bootstrap.result === "success" && isRecord(bootstrap.outputs));
   assert.ok(isRecord(attest) && attest.result === "success" && isRecord(attest.outputs));
   const artifact = {
@@ -147,10 +148,9 @@ async function readBootstrapScope(operation: unknown, platform: ControllerToolPl
 export async function launchFixedHostedLinuxNativeJob(rawOperation: unknown) {
   const { operation, workflow, source, binding, identity, temporary, unchanged, artifact, bundle } =
     await readActualHostedLinuxBootstrapScope(rawOperation);
-  const providerDeadline = currentNativeJobDeadline(
+  const providerDeadline = await currentNativeJobDeadline(
     "linux-x86_64",
     identity,
-    fileURLToPath(new URL("..", import.meta.url)),
     performance.now() + 570000,
     source,
     workflow,
@@ -300,8 +300,8 @@ async function materializeBootstrapRunner(
   ];
   const custody = inspectNativeRuntimeCustody(custodyFiles);
   assert.equal(
-    digest(await readControllerToolFile(process.execPath)),
-    digest(await readControllerToolFile(tools.node)),
+    digest(await readControllerNodeFile(process.execPath)),
+    digest(await readControllerNodeFile(tools.node)),
     "actual native bootstrap Node differs from attested runtime",
   );
   const entry = tools.entries["release-hosted-native-runner"];
@@ -358,7 +358,7 @@ type WindowsOperations = {
   runConfiguredHostedWindowsNativeJob: WindowsSettlement;
 };
 
-export const hostedWindowsBootstrapExecutionAuthorized = false;
+export const hostedWindowsBootstrapExecutionAuthorized = true;
 /** Fixed connected operation; the original source/job clock is never renewed. */
 export async function launchFixedHostedWindowsNativeJob(originalWorkflowDeadline?: bigint) {
   assert.ok(
@@ -376,14 +376,7 @@ async function runFixedHostedWindowsOperation<Operation extends keyof WindowsOpe
   originalWorkflowDeadline?: bigint,
 ): Promise<WindowsOperations[Operation]> {
   const scope = await readActualHostedWindowsBootstrapScope("pre-sign");
-  let providerDeadline = currentNativeJobDeadline(
-    "windows-x86_64",
-    scope.identity,
-    fileURLToPath(new URL("..", import.meta.url)),
-    performance.now() + 570000,
-    scope.source,
-    scope.workflow,
-  );
+  let ceiling = performance.now() + 570000;
   if (originalWorkflowDeadline !== undefined) {
     const origin = performance.now(),
       now = process.hrtime.bigint();
@@ -394,11 +387,15 @@ async function runFixedHostedWindowsOperation<Operation extends keyof WindowsOpe
       "original Windows workflow deadline exhausted or invalid",
     );
     // Caller data can only shorten this independently admitted provider window.
-    providerDeadline = Math.min(
-      providerDeadline,
-      origin + Number(originalWorkflowDeadline - now) / 1e6,
-    );
+    ceiling = Math.min(ceiling, origin + Number(originalWorkflowDeadline - now) / 1e6);
   }
+  const { currentWindowsNativeJobDeadline } = await import("./release-signing-job-budget.mts");
+  const providerDeadline = await currentWindowsNativeJobDeadline(
+    scope.identity,
+    ceiling,
+    scope.source,
+    scope.workflow,
+  );
   scope.unchanged();
   const home = homedir();
   assert.ok(path.isAbsolute(home) && path.normalize(home) === home);

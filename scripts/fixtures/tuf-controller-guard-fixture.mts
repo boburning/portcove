@@ -13,6 +13,7 @@ const forbidden = () => {
   throw new Error("Uncontrolled TUF controller fixture capability");
 };
 globalThis.fetch = forbidden;
+process.env.GH_TOKEN = "inert-tuf-reader-token";
 process.kill = forbidden;
 for (const [name, value] of Object.entries(children))
   if (typeof value === "function") Reflect.set(children, name, forbidden);
@@ -138,34 +139,50 @@ dependency("release-capacity-executor", {
   },
 });
 dependency("release-live-control-admission", {
-  authenticateReleaseControlRound: () => ({
-    evidence_scope: "github.com",
-    read: () => {
-      events.push(`controls:${clock}`);
-      const current = {
-        pause: { publication_paused: mode === "stale-controls" && clock >= 60000 },
-        resource_policy_matches_controller: true,
-        capacity,
-        classification: manifest.control_facts.classification,
-      };
-      if (mode === "expired-after-controls") clock = 116000;
-      return current;
-    },
-  }),
-});
-dependency("github-api", {
-  createGitHubRunner: forbidden,
-  GitHubApiClient: class {
-    request = forbidden;
-    graphql = forbidden;
+  authenticateReleaseControlRound: async (
+    _path: string,
+    _digest: string,
+    _phase: string,
+    _round: number,
+    options: unknown,
+  ) => {
+    assert.deepEqual(options, { deadline: 115000, controlReader: "tuf-application" });
+    return {
+      evidence_scope: "github.com",
+      async readSdkApplicationControls() {
+        events.push(`controls:${clock}`);
+        const current = {
+          pause: { publication_paused: mode === "stale-controls" && clock >= 60000 },
+          resource_policy_matches_controller: true,
+          capacity,
+          classification: manifest.control_facts.classification,
+        };
+        if (mode === "expired-after-controls") clock = 116000;
+        return current;
+      },
+    };
   },
 });
 dependency("release-coordinator-recovery", {
-  recoverRemoteCoordinator: () => {
+  recoverRemoteCoordinator: async (
+    _directory: string,
+    _configuration: unknown,
+    options: unknown,
+  ) => {
+    assert.deepEqual(options, {
+      transport: { credential: { token: "inert-tuf-reader-token" }, deadline: 115000 },
+    });
     events.push("initial recovery");
     return snapshot;
   },
-  readRemoteCoordinatorSnapshot: () => {
+  readRemoteCoordinatorSnapshot: async (
+    _directory: string,
+    _configuration: unknown,
+    options: unknown,
+  ) => {
+    assert.deepEqual(options, {
+      transport: { credential: { token: "inert-tuf-reader-token" }, deadline: 115000 },
+    });
     if (mode === "stale-controls") clock = 61000;
     events.push(`guarded snapshot:${clock}`);
     return snapshot;

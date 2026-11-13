@@ -1,3 +1,4 @@
+import { captureParityState } from "../../test/parity-capture";
 import { render as renderComponent, cleanup, type RenderResult } from "vitest-browser-react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 import type { OperationEvent } from "../types";
@@ -55,10 +56,12 @@ describe("accessible operation progress", () => {
       expect(container.textContent).toContain("100 B of 100 B");
       expect(status.textContent).toBe("Downloading release");
       expect(container.querySelector('[role="progressbar"]')?.closest("[aria-live]")).toBeNull();
+      await captureParityState("operation-progress-download-complete");
       await render(event(0, 10, "copy"));
       expect(container.querySelector('[role="status"]')).toBe(status);
       expect(status.textContent).toBe("Copying game files");
       expect(changes.length).toBeGreaterThan(0);
+      await captureParityState("operation-progress-phase-evolved");
     } finally {
       observer.disconnect();
     }
@@ -176,19 +179,32 @@ describe("accessible operation progress", () => {
   );
 
   it.each([
-    { phase: "download", unit: "bytes" as const, detail: "Total size not yet known." },
+    {
+      phase: "download",
+      unit: "bytes" as const,
+      label: "Downloading release",
+      detail: "Total size not yet known.",
+    },
     {
       phase: "Checking installed ports",
       unit: "ports" as const,
+      label: "Checking installed ports",
       detail: "Port total not yet known.",
     },
-  ])("uses a task-specific indeterminate detail for $phase", async ({ phase, detail, unit }) => {
-    await render(event(3, null, phase, unit));
-    expect(container.textContent).toContain(detail);
-    expect(container.querySelector('[role="progressbar"]')?.hasAttribute("aria-valuenow")).toBe(
-      false,
-    );
-  });
+  ])(
+    "names the task while unknown totals remain indeterminate for $phase",
+    async ({ phase, label, detail, unit }) => {
+      await render(event(3, null, phase, unit));
+      expect(container.querySelector('[role="status"]')?.textContent).toBe(label);
+      expect(container.textContent).not.toContain(detail);
+      const progress = container.querySelector('[role="progressbar"]')!;
+      expect(progress.getAttribute("aria-valuetext")).toBe(detail);
+      expect(progress.hasAttribute("aria-valuenow")).toBe(false);
+      expect(progress.hasAttribute("aria-valuemax")).toBe(false);
+      expect(container.textContent).not.toContain("%");
+      await captureParityState(`operation-progress-indeterminate-${unit}`);
+    },
+  );
 
   it.each([
     { operation: "check_installed", label: "Checking for updates" },
@@ -205,13 +221,21 @@ describe("accessible operation progress", () => {
       type: "started",
     });
     expect(container.querySelector('[role="status"]')?.textContent).toBe(label);
-    expect(container.textContent).toContain("Progress total not yet known.");
+    const progress = container.querySelector('[role="progressbar"]')!;
+    expect(progress.getAttribute("aria-valuetext")).toBe("Progress total not yet known.");
+    expect(progress.hasAttribute("aria-valuenow")).toBe(false);
+    expect(progress.hasAttribute("aria-valuemax")).toBe(false);
+    expect(container.textContent).not.toContain("%");
   });
 
   it("uses port-count copy before the busy-only update check starts", async () => {
     await render(undefined, "check installed");
     expect(container.querySelector('[role="status"]')?.textContent).toBe("Checking for updates");
-    expect(container.textContent).toContain("Progress total not yet known.");
+    const progress = container.querySelector('[role="progressbar"]')!;
+    expect(progress.getAttribute("aria-valuetext")).toBe("Progress total not yet known.");
+    expect(progress.hasAttribute("aria-valuenow")).toBe(false);
+    expect(progress.hasAttribute("aria-valuemax")).toBe(false);
+    expect(container.textContent).not.toContain("%");
   });
 
   it.each(["future_internal_operation_code", "constructor", "__proto__", "toString"])(

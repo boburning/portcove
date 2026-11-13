@@ -1,6 +1,7 @@
 import { useLayoutEffect, useRef, useState } from "react";
 import { desktopApi } from "../api";
 import { copyText } from "../clipboard";
+import { useAppTranslation } from "../localization";
 import type { ActivityDiagnostic as Diagnostic } from "../types";
 import {
   failurePresentation,
@@ -35,6 +36,7 @@ function ActivityDiagnosticSession({
   activityId: string;
   generation: number;
 }) {
+  const { t } = useAppTranslation("operations");
   const [capture, setCapture] = useState<Diagnostic>();
   const [pending, setPending] = useState(false);
   const [failure, setFailure] = useState<{
@@ -88,24 +90,22 @@ function ActivityDiagnosticSession({
       }}
     >
       <summary data-focusable className="cursor-pointer">
-        View preparation log
+        {t("diagnostic.view")}
       </summary>
       {pending && (
         <p role="status">
-          Reading the retained log…
-          {capture !== undefined &&
-            " Showing the last loaded capture while the current log is checked."}
+          {capture !== undefined ? t("diagnostic.readingWithPrevious") : t("diagnostic.reading")}
         </p>
       )}
       {failure && (
         <div role={failure.cancelled ? "status" : "alert"}>
           <strong>
-            {failure.cancelled ? "Log read cancelled" : "Preparation log could not be loaded"}
+            {failure.cancelled ? t("diagnostic.cancelled") : t("diagnostic.loadFailed")}
           </strong>
           <p>
-            Current log availability is unknown.
-            {capture !== undefined &&
-              " Showing the last loaded capture; it may have changed since it was read."}
+            {capture !== undefined
+              ? t("diagnostic.availabilityUnknownWithPrevious")
+              : t("diagnostic.availabilityUnknown")}
           </p>
           {failure.presentation && (
             <>
@@ -115,42 +115,34 @@ function ActivityDiagnosticSession({
           )}
         </div>
       )}
-      {capture?.length === 0 && !pending && !failure && (
-        <p>
-          No retained diagnostic capture is available. Older activity details may be available in a
-          redacted support bundle in Settings.
-        </p>
-      )}
+      {capture?.length === 0 && !pending && !failure && <p>{t("diagnostic.none")}</p>}
       {capture?.map((phase) => (
         <section key={phase.phase}>
           <h3>
             {phase.phase === "preparation.extract"
-              ? "Preparing source data"
+              ? t("diagnostic.phase.extract")
               : phase.phase === "preparation.setup"
-                ? "Running game setup"
-                : "Preparation log"}
+                ? t("diagnostic.phase.setup")
+                : t("diagnostic.phase.other")}
           </h3>
-          <p>
-            {phase.complete
-              ? "Both output streams ended. Saved output is shown below."
-              : "Only the output saved before the last observation is available. Later output may be missing."}
-          </p>
+          <p>{phase.complete ? t("diagnostic.complete") : t("diagnostic.incomplete")}</p>
           {(phase.stdout.truncated || phase.stderr.truncated) && (
-            <p>
-              Some output was omitted because it exceeded the{" "}
-              {formatBytes(phase.stream_limit_bytes)} capture limit per stream.
-            </p>
+            <p>{t("diagnostic.truncated", { limit: formatBytes(phase.stream_limit_bytes) })}</p>
           )}
-          <p>Last saved: {new Date(phase.updated_at * 1000).toLocaleString()}</p>
-          <h4>Standard output</h4>
+          <p>
+            {t("diagnostic.lastSaved", {
+              time: new Date(phase.updated_at * 1000).toLocaleString(),
+            })}
+          </p>
+          <h4>{t("diagnostic.stdout")}</h4>
           <ReadOnlyTextField
-            label="Preparation standard output"
-            value={phase.stdout.text || "No standard output was captured."}
+            label={t("diagnostic.stdoutLabel")}
+            value={phase.stdout.text || t("diagnostic.stdoutEmpty")}
           />
-          <h4>Standard error</h4>
+          <h4>{t("diagnostic.stderr")}</h4>
           <ReadOnlyTextField
-            label="Preparation standard error"
-            value={phase.stderr.text || "No standard error was captured."}
+            label={t("diagnostic.stderrLabel")}
+            value={phase.stderr.text || t("diagnostic.stderrEmpty")}
           />
         </section>
       ))}
@@ -172,7 +164,7 @@ function ActivityDiagnosticSession({
                 });
             }}
           >
-            {copyOutcome === "copied" ? "Copied" : "Copy retained log"}
+            {copyOutcome === "copied" ? t("diagnostic.copied") : t("diagnostic.copy")}
           </Button>
         )}
         <Button
@@ -184,14 +176,14 @@ function ActivityDiagnosticSession({
             void load();
           }}
         >
-          {failure ? "Retry log read" : "Refresh captured log"}
+          {failure ? t("diagnostic.retry") : t("diagnostic.refresh")}
         </Button>
       </div>
-      {copyOutcome === "copied" && <p role="status">Retained log copied.</p>}
+      {copyOutcome === "copied" && <p role="status">{t("diagnostic.copiedStatus")}</p>}
       {copyOutcome === "failed" && (
         <>
-          <p role="alert">Clipboard unavailable. Select and copy the retained log below.</p>
-          <ReadOnlyTextField label="Retained log for manual copy" value={technical} />
+          <p role="alert">{t("diagnostic.clipboardUnavailable")}</p>
+          <ReadOnlyTextField label={t("diagnostic.manualCopy")} value={technical} />
         </>
       )}
     </details>

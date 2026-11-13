@@ -1,0 +1,1709 @@
+{
+  "format_version": 1,
+  "kind": "dated matched-source grant and static-package maintenance evidence",
+  "source_base": "f9d9bde764ea1268e4b5139d753c0ec91c5972ef",
+  "owning_issues": [2510, 2926, 1422],
+  "counts": {
+    "changed_listing_records": 7,
+    "unchanged_required_consumers": 1,
+    "new_guides": 1,
+    "removed_obsolete_holds": 4,
+    "narrowed_remaining_holds": 2,
+    "strict_definitions": 285,
+    "listing_identities": 1424,
+    "source_bindings": 94,
+    "unique_source_contents": 67,
+    "tree_contexts": 20
+  },
+  "routes": [
+    {
+      "issue": 1354,
+      "id": "snowboard-kids",
+      "authored_path": "crates/portcove-core/catalog/ports/snowboard-kids.json",
+      "decision": "conditional_prepared_copy_fork_hold",
+      "record_changed": true,
+      "prior_record_sha256": "89cf65a53bdb01329bdaddf7bff6d1290c086ac62230c5d2fd73a7379f432096",
+      "record_sha256": "42e3a6b9e8d4a49b963dfa18990dcad22ec54fe5684c274c6febf175e176cef1",
+      "frozen_identity": {
+        "id": "snowboard-kids",
+        "canonical_issue": 1354,
+        "cohort": "original-524",
+        "historical_1422_member": true
+      },
+      "attachment_case": "service::user_selected::tests::snowboard_kids_frontend_license_player_route_1354"
+    },
+    {
+      "issue": 1886,
+      "id": "cdlewis-snowboardkids-recomp",
+      "authored_path": "crates/portcove-core/catalog/ports/cdlewis-snowboardkids-recomp.json",
+      "decision": "narrow_remaining_fork_hold",
+      "record_changed": true,
+      "prior_record_sha256": "77e0b6b700f0d0b4974ab0e9d827c6790d54c1e9fd7c61f6f8111d084dfe2a27",
+      "record_sha256": "0e63c49ba2dc5d0569282a902390a1ce37ba21dee82c36aabf0bccf59e7d47b6",
+      "frozen_identity": {
+        "id": "cdlewis-snowboardkids-recomp",
+        "canonical_issue": 1886,
+        "cohort": "original-524",
+        "historical_1422_member": false
+      },
+      "attachment_case": "service::user_selected::tests::cdlewis_snowboardkids_recomp_frontend_license_player_route_1886"
+    },
+    {
+      "issue": 1795,
+      "id": "vidanox-banjotooierecompiled",
+      "authored_path": "crates/portcove-core/catalog/ports/vidanox-banjotooierecompiled.json",
+      "decision": "narrow_remaining_font_hold",
+      "record_changed": true,
+      "prior_record_sha256": "115d81cee393e12171b0bcf66369cf78ffca0fd198a963aa8b420d8225167b73",
+      "record_sha256": "9e8b9fe2ea2acdd70200da46b35758e526f2040766ad223defc71232a58ed12e",
+      "frozen_identity": {
+        "id": "vidanox-banjotooierecompiled",
+        "canonical_issue": 1795,
+        "cohort": "original-524",
+        "historical_1422_member": false
+      },
+      "attachment_case": "service::user_selected::tests::vidanox_banjotooierecompiled_frontend_license_player_route_1795"
+    },
+    {
+      "issue": 1806,
+      "id": "dahsidiabdallah-conkerbfdreloaded",
+      "authored_path": "crates/portcove-core/catalog/ports/dahsidiabdallah-conkerbfdreloaded.json",
+      "decision": "remove_resolved_base_frontend_hold",
+      "record_changed": true,
+      "prior_record_sha256": "511a1caf1b7f7d06fd8a6585fb78618b5466e901bb8ed7d50a581579d0f75e92",
+      "record_sha256": "5c2a79104a1e0673f1b6289b9e915e5f22a7f2286d13fb4f5e919689dd0d24d8",
+      "frozen_identity": {
+        "id": "dahsidiabdallah-conkerbfdreloaded",
+        "canonical_issue": 1806,
+        "cohort": "original-524",
+        "historical_1422_member": false
+      },
+      "attachment_case": "service::user_selected::tests::dahsidiabdallah_conkerbfdreloaded_frontend_license_player_route_1806"
+    },
+    {
+      "issue": 1800,
+      "id": "danielgomesvieira2000-beetle-adventure-racing-recomp",
+      "authored_path": "crates/portcove-core/catalog/ports/danielgomesvieira2000-beetle-adventure-racing-recomp.json",
+      "decision": "remove_resolved_base_frontend_hold",
+      "record_changed": true,
+      "prior_record_sha256": "8fb304d7d93b60c1e2ba7f419dfbd25aebe4baf0c94b07b98b25787fef963180",
+      "record_sha256": "232ac7943e70a8dc892077b9f1e9b85af20f626cdd6d3bddb7b144b996c7e05c",
+      "frozen_identity": {
+        "id": "danielgomesvieira2000-beetle-adventure-racing-recomp",
+        "canonical_issue": 1800,
+        "cohort": "original-524",
+        "historical_1422_member": false
+      },
+      "attachment_case": "service::user_selected::tests::danielgomesvieira2000_beetle_adventure_racing_recomp_frontend_license_player_route_1800"
+    },
+    {
+      "issue": 1275,
+      "id": "pilotwings-64-dgv-recomp",
+      "authored_path": "crates/portcove-core/catalog/ports/pilotwings-64-dgv-recomp.json",
+      "decision": "required_beta_component_assessment_unchanged",
+      "record_changed": false,
+      "prior_record_sha256": "ce37c6c64ae2bdcb9eae636cd9c77c92b3538cda2d1e3dfe8cba25ffee0bf748",
+      "record_sha256": "ce37c6c64ae2bdcb9eae636cd9c77c92b3538cda2d1e3dfe8cba25ffee0bf748",
+      "frozen_identity": {
+        "id": "pilotwings-64-dgv-recomp",
+        "canonical_issue": 1275,
+        "cohort": "original-524",
+        "historical_1422_member": true
+      },
+      "attachment_case": null
+    },
+    {
+      "issue": 1448,
+      "id": "body-harvest-recompiled",
+      "authored_path": "crates/portcove-core/catalog/ports/body-harvest-recompiled.json",
+      "decision": "remove_resolved_base_frontend_hold",
+      "record_changed": true,
+      "prior_record_sha256": "a7d8f6bb38d50264d549af49b5bbc7a18bdf3d4939cfe7a3ed4534a4af43cbff",
+      "record_sha256": "1f32e6af15f86c858d767e56fefc340752e9191a5581f03a04019eb21df5af95",
+      "frozen_identity": {
+        "id": "body-harvest-recompiled",
+        "canonical_issue": 1448,
+        "cohort": "original-524",
+        "historical_1422_member": false
+      },
+      "attachment_case": "service::user_selected::tests::body_harvest_recompiled_frontend_license_player_route_1448"
+    },
+    {
+      "issue": 1216,
+      "id": "cbfd-recompiled-sciaschi",
+      "authored_path": "crates/portcove-core/catalog/ports/cbfd-recompiled-sciaschi.json",
+      "decision": "remove_resolved_base_frontend_hold",
+      "record_changed": true,
+      "prior_record_sha256": "3ce7e33d60414dd4734cf83b7107cc4ade7597d5826843f5a1e056c3ea63eda1",
+      "record_sha256": "90064d45a83a3f3df1d9862061632214e7eabd067224fff61468a89b393bf130",
+      "frozen_identity": {
+        "id": "cbfd-recompiled-sciaschi",
+        "canonical_issue": 1216,
+        "cohort": "original-524",
+        "historical_1422_member": true
+      },
+      "attachment_case": "service::user_selected::tests::cbfd_recompiled_sciaschi_frontend_license_player_route_1216"
+    }
+  ],
+  "official_license_resolution": {
+    "issue_url": "https://github.com/N64Recomp/RecompFrontend/issues/44",
+    "pull_request_url": "https://github.com/N64Recomp/RecompFrontend/pull/49",
+    "merged_at": "2026-10-16T14:00:37Z",
+    "merge": "2ddbfc8adcfe9ba26520441f14488861fdcefef7",
+    "only_added_file": "COPYING",
+    "license_sha256": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986",
+    "official_base_commit": "b1a1477c6556aeb7ed45defbfb5924f721efebc1",
+    "official_base_tree": "292c5e7e512a7809c09eba2690b8089c17458965",
+    "licensed_tree": "45885177a4be5f253bb8315cda759a012b4746c6",
+    "unchanged_non_tree_entries": 153,
+    "official_base_inventory_sha256": "a76a753a4b91c6eae719ee839f55bdeff1b02b879a3d9d647769117d861c34e8",
+    "licensed_inventory_sha256": "b4040db36865d84b8592b4d9747c4ebe1de6fd87359c1550791e12cfc8b5b56f",
+    "scope": "exact matching official source grant; not a package/notices, separately authored fork/font, original-game or source-to-binary certificate"
+  },
+  "remaining_fork_contexts": [
+    {
+      "repository": "cdlewis/RecompFrontend",
+      "commit": "e85b912d9df677b04f9358867dd010c8af27ea05",
+      "tree": "5fc7ee9d5279a291b7f7cb185b3c72faba137b11",
+      "changed_existing_non_tree_entries": [
+        "recompinput/include/recompinput/input_types.h",
+        "recompinput/include/recompinput/players.h",
+        "recompinput/include/recompinput/profiles.h",
+        "recompinput/src/input_events.cpp",
+        "recompinput/src/input_state.cpp",
+        "recompinput/src/players.cpp",
+        "recompinput/src/profiles.cpp",
+        "recompui/CMakeLists.txt",
+        "recompui/include/recompui/config.h",
+        "recompui/include/recompui/recompui.h",
+        "recompui/src/base/ui_state.cpp",
+        "recompui/src/composites/ui_assign_players_modal.cpp",
+        "recompui/src/composites/ui_assign_players_modal.h",
+        "recompui/src/composites/ui_mod_details_panel.cpp",
+        "recompui/src/composites/ui_mod_menu.cpp",
+        "recompui/src/composites/ui_player_card.cpp",
+        "recompui/src/composites/ui_player_card.h",
+        "recompui/src/composites/ui_prompt.cpp",
+        "recompui/src/config/ui_config.cpp",
+        "recompui/src/config/ui_config_page_controls.cpp",
+        "recompui/src/config/ui_config_page_controls.h",
+        "recompui/src/config/ui_config_tab_controls.cpp",
+        "recompui/src/config/ui_config_tab_graphics.cpp",
+        "recompui/src/elements/ui_binding_button.cpp",
+        "recompui/src/elements/ui_button.cpp",
+        "recompui/src/elements/ui_button.h",
+        "recompui/src/elements/ui_element.cpp",
+        "recompui/src/elements/ui_element.h",
+        "recompui/src/elements/ui_icon_button.cpp",
+        "recompui/src/elements/ui_modal.cpp",
+        "recompui/src/elements/ui_radio.cpp",
+        "recompui/src/elements/ui_select.cpp",
+        "recompui/src/elements/ui_style.cpp",
+        "recompui/src/elements/ui_style.h",
+        "recompui/src/elements/ui_tab_set.cpp",
+        "recompui/src/elements/ui_tab_set.h",
+        "recompui/src/elements/ui_theme.h",
+        "recompui/src/elements/ui_toggle.cpp",
+        "recompui/src/elements/ui_toggle.h"
+      ],
+      "added": [
+        "recompui/src/elements/ui_frontend_theme.cpp",
+        "recompui/src/elements/ui_frontend_theme.h"
+      ],
+      "missing": ["COPYING"],
+      "remaining": "separately authored modified fork-specific grant remains unestablished"
+    },
+    {
+      "repository": "cdlewis/RecompFrontend",
+      "commit": "fa4f0ca42ba2efaca631203ef1e0753f2be78985",
+      "tree": "a64c39355170ba26dec7cf3d235007d117afd8a9",
+      "changed_existing_non_tree_entries": [
+        "recompinput/include/recompinput/input_types.h",
+        "recompinput/include/recompinput/players.h",
+        "recompinput/include/recompinput/profiles.h",
+        "recompinput/src/input_events.cpp",
+        "recompinput/src/input_state.cpp",
+        "recompinput/src/players.cpp",
+        "recompinput/src/profiles.cpp",
+        "recompui/CMakeLists.txt",
+        "recompui/include/recompui/config.h",
+        "recompui/include/recompui/recompui.h",
+        "recompui/src/base/ui_state.cpp",
+        "recompui/src/composites/ui_assign_players_modal.cpp",
+        "recompui/src/composites/ui_assign_players_modal.h",
+        "recompui/src/composites/ui_mod_details_panel.cpp",
+        "recompui/src/composites/ui_mod_menu.cpp",
+        "recompui/src/composites/ui_player_card.cpp",
+        "recompui/src/composites/ui_player_card.h",
+        "recompui/src/composites/ui_prompt.cpp",
+        "recompui/src/config/ui_config.cpp",
+        "recompui/src/config/ui_config_page_controls.cpp",
+        "recompui/src/config/ui_config_page_controls.h",
+        "recompui/src/config/ui_config_tab_controls.cpp",
+        "recompui/src/config/ui_config_tab_graphics.cpp",
+        "recompui/src/elements/ui_binding_button.cpp",
+        "recompui/src/elements/ui_button.cpp",
+        "recompui/src/elements/ui_button.h",
+        "recompui/src/elements/ui_element.cpp",
+        "recompui/src/elements/ui_element.h",
+        "recompui/src/elements/ui_icon_button.cpp",
+        "recompui/src/elements/ui_modal.cpp",
+        "recompui/src/elements/ui_radio.cpp",
+        "recompui/src/elements/ui_select.cpp",
+        "recompui/src/elements/ui_style.cpp",
+        "recompui/src/elements/ui_style.h",
+        "recompui/src/elements/ui_tab_set.cpp",
+        "recompui/src/elements/ui_tab_set.h",
+        "recompui/src/elements/ui_theme.h",
+        "recompui/src/elements/ui_toggle.cpp",
+        "recompui/src/elements/ui_toggle.h"
+      ],
+      "added": [
+        "recompui/src/elements/ui_frontend_theme.cpp",
+        "recompui/src/elements/ui_frontend_theme.h"
+      ],
+      "missing": ["COPYING"],
+      "remaining": "separately authored modified fork-specific grant remains unestablished"
+    }
+  ],
+  "beetle_vendored_comparison": {
+    "code_only_base_blobs": 150,
+    "unchanged_blobs": 147,
+    "own_modified_files": [
+      "recompinput/include/recompinput/players.h",
+      "recompinput/src/players.cpp"
+    ],
+    "absent_from_full_licensed_namespace": [".gitmodules", "COPYING"],
+    "scope": "root AGPL applies to own project changes plus exact matching official GPL3 base; separately authored dependencies retain own terms. Newly added official COPYING was not vendored into the old source."
+  },
+  "source_bindings": [
+    {
+      "repository": "HikariLucy/SnowboardKids-Recomp",
+      "commit": "4a7f9613114d308a31ad629584a9638c21a29a3b",
+      "path": "CMakeLists.txt",
+      "blob": "a65ebfa8781d9093dd61f95b17c62e1e43595937",
+      "bytes": 36111,
+      "sha256": "673ea0ad210b6122932d36cfca19766da63b50a8984555d33e2d8a8a2fadf965",
+      "url": "https://github.com/HikariLucy/SnowboardKids-Recomp/blob/4a7f9613114d308a31ad629584a9638c21a29a3b/CMakeLists.txt"
+    },
+    {
+      "repository": "HikariLucy/SnowboardKids-Recomp",
+      "commit": "4a7f9613114d308a31ad629584a9638c21a29a3b",
+      "path": "LICENSE",
+      "blob": "f288702d2fa16d3cdf0035b15a9fcbc552cd88e7",
+      "bytes": 35149,
+      "sha256": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986",
+      "url": "https://github.com/HikariLucy/SnowboardKids-Recomp/blob/4a7f9613114d308a31ad629584a9638c21a29a3b/LICENSE"
+    },
+    {
+      "repository": "HikariLucy/SnowboardKids-Recomp",
+      "commit": "4a7f9613114d308a31ad629584a9638c21a29a3b",
+      "path": "README.md",
+      "blob": "328bdb1e8d87416b95e9dcf7196810d22045cd9d",
+      "bytes": 10704,
+      "sha256": "d88cc5eb74df3ecdbc99021f61b9d74b44c0868554f4142bc50ab20a5f357dfe",
+      "url": "https://github.com/HikariLucy/SnowboardKids-Recomp/blob/4a7f9613114d308a31ad629584a9638c21a29a3b/README.md"
+    },
+    {
+      "repository": "HikariLucy/SnowboardKids-Recomp",
+      "commit": "a6187d2d3c44005c394717b29a2829e984b2dddc",
+      "path": "CMakeLists.txt",
+      "blob": "a65ebfa8781d9093dd61f95b17c62e1e43595937",
+      "bytes": 36111,
+      "sha256": "673ea0ad210b6122932d36cfca19766da63b50a8984555d33e2d8a8a2fadf965",
+      "url": "https://github.com/HikariLucy/SnowboardKids-Recomp/blob/a6187d2d3c44005c394717b29a2829e984b2dddc/CMakeLists.txt"
+    },
+    {
+      "repository": "HikariLucy/SnowboardKids-Recomp",
+      "commit": "a6187d2d3c44005c394717b29a2829e984b2dddc",
+      "path": "LICENSE",
+      "blob": "f288702d2fa16d3cdf0035b15a9fcbc552cd88e7",
+      "bytes": 35149,
+      "sha256": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986",
+      "url": "https://github.com/HikariLucy/SnowboardKids-Recomp/blob/a6187d2d3c44005c394717b29a2829e984b2dddc/LICENSE"
+    },
+    {
+      "repository": "HikariLucy/SnowboardKids-Recomp",
+      "commit": "a6187d2d3c44005c394717b29a2829e984b2dddc",
+      "path": "README.md",
+      "blob": "a66efc73c742428d69a7c933b260d23d272eb6de",
+      "bytes": 10396,
+      "sha256": "8922d854d475b150370e989de359a78c1cba07634745af5b6d9661a742ef21a0",
+      "url": "https://github.com/HikariLucy/SnowboardKids-Recomp/blob/a6187d2d3c44005c394717b29a2829e984b2dddc/README.md"
+    },
+    {
+      "repository": "HikariLucy/SnowboardKids-Recomp",
+      "commit": "a6187d2d3c44005c394717b29a2829e984b2dddc",
+      "path": "THIRD_PARTY_NOTICES.md",
+      "blob": "09433a5b8477fa4c3329b7767ed0bcf29c4ceac0",
+      "bytes": 4578,
+      "sha256": "c9d4b10f74fed0fd22705c4ee84088095bfe870fca8a84538506f984cbbfa728",
+      "url": "https://github.com/HikariLucy/SnowboardKids-Recomp/blob/a6187d2d3c44005c394717b29a2829e984b2dddc/THIRD_PARTY_NOTICES.md"
+    },
+    {
+      "repository": "HikariLucy/SnowboardKids-Recomp",
+      "commit": "a6187d2d3c44005c394717b29a2829e984b2dddc",
+      "path": "docs/LICENSE-AUDIT.md",
+      "blob": "727ababfd972e820ad72bf0ddb89395e309543d7",
+      "bytes": 6957,
+      "sha256": "bb86fd5b750e4a918cee407013dc94a882fe24b2223f2a8f6496c317badb358a",
+      "url": "https://github.com/HikariLucy/SnowboardKids-Recomp/blob/a6187d2d3c44005c394717b29a2829e984b2dddc/docs/LICENSE-AUDIT.md"
+    },
+    {
+      "repository": "HikariLucy/SnowboardKids-Recomp",
+      "commit": "4a7f9613114d308a31ad629584a9638c21a29a3b",
+      "path": "LAUNCHER-INTEGRATION.md",
+      "blob": "036978315ea7746721eaeb9f51386e9a091e9dc8",
+      "bytes": 6762,
+      "sha256": "474971711e9e101625097f2ffb907caa66285d5d1d29dcb1ca826082f0637e5d",
+      "url": "https://github.com/HikariLucy/SnowboardKids-Recomp/blob/4a7f9613114d308a31ad629584a9638c21a29a3b/LAUNCHER-INTEGRATION.md"
+    },
+    {
+      "repository": "HikariLucy/SnowboardKids-Recomp",
+      "commit": "4a7f9613114d308a31ad629584a9638c21a29a3b",
+      "path": "ROM-IDENTITY.md",
+      "blob": "d4016cd4327c015a47861911a48e33aa4209704d",
+      "bytes": 3126,
+      "sha256": "52523d0a1dfb8b611619da23364fe891f11b0742c32ec1f474277d69d82902e0",
+      "url": "https://github.com/HikariLucy/SnowboardKids-Recomp/blob/4a7f9613114d308a31ad629584a9638c21a29a3b/ROM-IDENTITY.md"
+    },
+    {
+      "repository": "HikariLucy/SnowboardKids-Recomp",
+      "commit": "4a7f9613114d308a31ad629584a9638c21a29a3b",
+      "path": "THIRD_PARTY_NOTICES.md",
+      "blob": "9be28db47e2cc51dc5b821aae971426bd95c06bb",
+      "bytes": 4877,
+      "sha256": "93ed26f7b5b9698f897e7417a6d302fda53d35f6fbe36566c6a84934018b8735",
+      "url": "https://github.com/HikariLucy/SnowboardKids-Recomp/blob/4a7f9613114d308a31ad629584a9638c21a29a3b/THIRD_PARTY_NOTICES.md"
+    },
+    {
+      "repository": "HikariLucy/SnowboardKids-Recomp",
+      "commit": "4a7f9613114d308a31ad629584a9638c21a29a3b",
+      "path": "docs/LICENSE-AUDIT.md",
+      "blob": "992771bffb8d825228d928194ec5d2770fbccbc8",
+      "bytes": 7605,
+      "sha256": "d2591012768475a92e91b920c8ebd1667f8ae83e99859328053f576752d9e5e8",
+      "url": "https://github.com/HikariLucy/SnowboardKids-Recomp/blob/4a7f9613114d308a31ad629584a9638c21a29a3b/docs/LICENSE-AUDIT.md"
+    },
+    {
+      "repository": "HikariLucy/SnowboardKids-Recomp",
+      "commit": "a6187d2d3c44005c394717b29a2829e984b2dddc",
+      "path": "docs/DEPENDENCY-PROVENANCE.md",
+      "blob": "c2c6986de95f0840db4df2786dfdde44757f611a",
+      "bytes": 6577,
+      "sha256": "0ecd567046d09971f160513d2db1a938198d6316526ebf61af56a02e2bf6b3aa",
+      "url": "https://github.com/HikariLucy/SnowboardKids-Recomp/blob/a6187d2d3c44005c394717b29a2829e984b2dddc/docs/DEPENDENCY-PROVENANCE.md"
+    },
+    {
+      "repository": "HikariLucy/SnowboardKids-Recomp",
+      "commit": "a6187d2d3c44005c394717b29a2829e984b2dddc",
+      "path": "SOURCE-COMPLIANCE.md",
+      "blob": "e0a80683dbb66f4d6402c858e18abd2a170ab5e0",
+      "bytes": 1389,
+      "sha256": "953f09debcbe03695b6dd266e7872c5e39231b1155a90e8f1da640282696dd55",
+      "url": "https://github.com/HikariLucy/SnowboardKids-Recomp/blob/a6187d2d3c44005c394717b29a2829e984b2dddc/SOURCE-COMPLIANCE.md"
+    },
+    {
+      "repository": "HikariLucy/SnowboardKids-Recomp",
+      "commit": "a6187d2d3c44005c394717b29a2829e984b2dddc",
+      "path": "scripts/dependency_lock.py",
+      "blob": "7b1e1baf8e50da52f594e276deba63744d924896",
+      "bytes": 2720,
+      "sha256": "f3c9413d3604193ad716605aedb865cce7be5f49abb28f7e138941b321a33abf",
+      "url": "https://github.com/HikariLucy/SnowboardKids-Recomp/blob/a6187d2d3c44005c394717b29a2829e984b2dddc/scripts/dependency_lock.py"
+    },
+    {
+      "repository": "HikariLucy/SnowboardKids-Recomp",
+      "commit": "4a7f9613114d308a31ad629584a9638c21a29a3b",
+      "path": "docs/DEPENDENCY-PROVENANCE.md",
+      "blob": "c2c6986de95f0840db4df2786dfdde44757f611a",
+      "bytes": 6577,
+      "sha256": "0ecd567046d09971f160513d2db1a938198d6316526ebf61af56a02e2bf6b3aa",
+      "url": "https://github.com/HikariLucy/SnowboardKids-Recomp/blob/4a7f9613114d308a31ad629584a9638c21a29a3b/docs/DEPENDENCY-PROVENANCE.md"
+    },
+    {
+      "repository": "HikariLucy/SnowboardKids-Recomp",
+      "commit": "4a7f9613114d308a31ad629584a9638c21a29a3b",
+      "path": "SOURCE-COMPLIANCE.md",
+      "blob": "be309e9ca3a4cc3fbfbd2298d92aba539149e747",
+      "bytes": 1779,
+      "sha256": "9935218e0dacdbf0bba48dec221068cfe12a3d74f12ec4bede21eb608c34642e",
+      "url": "https://github.com/HikariLucy/SnowboardKids-Recomp/blob/4a7f9613114d308a31ad629584a9638c21a29a3b/SOURCE-COMPLIANCE.md"
+    },
+    {
+      "repository": "HikariLucy/SnowboardKids-Recomp",
+      "commit": "4a7f9613114d308a31ad629584a9638c21a29a3b",
+      "path": "scripts/dependency_lock.py",
+      "blob": "7b1e1baf8e50da52f594e276deba63744d924896",
+      "bytes": 2720,
+      "sha256": "f3c9413d3604193ad716605aedb865cce7be5f49abb28f7e138941b321a33abf",
+      "url": "https://github.com/HikariLucy/SnowboardKids-Recomp/blob/4a7f9613114d308a31ad629584a9638c21a29a3b/scripts/dependency_lock.py"
+    },
+    {
+      "repository": "HikariLucy/SnowboardKids-Recomp",
+      "commit": "a6187d2d3c44005c394717b29a2829e984b2dddc",
+      "path": "src/main/native_boot.cpp",
+      "blob": "038a527301b0e34a6e879cbe20b75d3ec9ec7842",
+      "bytes": 48081,
+      "sha256": "09cf5fba3fec9aa90250a6840ff4a0c6b5e2bcd6e2a703340bf3dd67bc029957",
+      "url": "https://github.com/HikariLucy/SnowboardKids-Recomp/blob/a6187d2d3c44005c394717b29a2829e984b2dddc/src/main/native_boot.cpp"
+    },
+    {
+      "repository": "HikariLucy/SnowboardKids-Recomp",
+      "commit": "a6187d2d3c44005c394717b29a2829e984b2dddc",
+      "path": "src/module/module_loader.cpp",
+      "blob": "a01d54119f735d1052b3e2d7ed08b5e328bb1acb",
+      "bytes": 12008,
+      "sha256": "4bbbd5aeab6a07cf5a720c4cd33abb2f45275187c4c6e9046315bd1356fb146e",
+      "url": "https://github.com/HikariLucy/SnowboardKids-Recomp/blob/a6187d2d3c44005c394717b29a2829e984b2dddc/src/module/module_loader.cpp"
+    },
+    {
+      "repository": "HikariLucy/SnowboardKids-Recomp",
+      "commit": "a6187d2d3c44005c394717b29a2829e984b2dddc",
+      "path": "src/ui/first_run_process.cpp",
+      "blob": "043042011ce15fa31b3cb4e2c9e63c7e65fa4673",
+      "bytes": 9051,
+      "sha256": "3337cacf8c99b451c54f85bf539fbdef44c6c67918b613a9ca89863cda3ea132",
+      "url": "https://github.com/HikariLucy/SnowboardKids-Recomp/blob/a6187d2d3c44005c394717b29a2829e984b2dddc/src/ui/first_run_process.cpp"
+    },
+    {
+      "repository": "HikariLucy/SnowboardKids-Recomp",
+      "commit": "a6187d2d3c44005c394717b29a2829e984b2dddc",
+      "path": "src/savestate/storage.cpp",
+      "blob": "874001f604da53e11a9f4a2925aac1df65da32d4",
+      "bytes": 6920,
+      "sha256": "969e21f7c966378090f6a36cdb44502d5aa117e5d6469503c70602eacc005e7a",
+      "url": "https://github.com/HikariLucy/SnowboardKids-Recomp/blob/a6187d2d3c44005c394717b29a2829e984b2dddc/src/savestate/storage.cpp"
+    },
+    {
+      "repository": "HikariLucy/SnowboardKids-Recomp",
+      "commit": "a6187d2d3c44005c394717b29a2829e984b2dddc",
+      "path": "src/pfs/controller_pak.cpp",
+      "blob": "ed6cb530670b6f19df614c70b9918340359f589f",
+      "bytes": 17893,
+      "sha256": "bdbb65e2796090686c83fa4fea83cee73b09996ec6e19d04b7463ec42784d41a",
+      "url": "https://github.com/HikariLucy/SnowboardKids-Recomp/blob/a6187d2d3c44005c394717b29a2829e984b2dddc/src/pfs/controller_pak.cpp"
+    },
+    {
+      "repository": "HikariLucy/SnowboardKids-Recomp",
+      "commit": "4a7f9613114d308a31ad629584a9638c21a29a3b",
+      "path": "src/main/native_boot.cpp",
+      "blob": "038a527301b0e34a6e879cbe20b75d3ec9ec7842",
+      "bytes": 48081,
+      "sha256": "09cf5fba3fec9aa90250a6840ff4a0c6b5e2bcd6e2a703340bf3dd67bc029957",
+      "url": "https://github.com/HikariLucy/SnowboardKids-Recomp/blob/4a7f9613114d308a31ad629584a9638c21a29a3b/src/main/native_boot.cpp"
+    },
+    {
+      "repository": "HikariLucy/SnowboardKids-Recomp",
+      "commit": "4a7f9613114d308a31ad629584a9638c21a29a3b",
+      "path": "src/module/module_loader.cpp",
+      "blob": "a01d54119f735d1052b3e2d7ed08b5e328bb1acb",
+      "bytes": 12008,
+      "sha256": "4bbbd5aeab6a07cf5a720c4cd33abb2f45275187c4c6e9046315bd1356fb146e",
+      "url": "https://github.com/HikariLucy/SnowboardKids-Recomp/blob/4a7f9613114d308a31ad629584a9638c21a29a3b/src/module/module_loader.cpp"
+    },
+    {
+      "repository": "HikariLucy/SnowboardKids-Recomp",
+      "commit": "4a7f9613114d308a31ad629584a9638c21a29a3b",
+      "path": "src/ui/first_run_process.cpp",
+      "blob": "043042011ce15fa31b3cb4e2c9e63c7e65fa4673",
+      "bytes": 9051,
+      "sha256": "3337cacf8c99b451c54f85bf539fbdef44c6c67918b613a9ca89863cda3ea132",
+      "url": "https://github.com/HikariLucy/SnowboardKids-Recomp/blob/4a7f9613114d308a31ad629584a9638c21a29a3b/src/ui/first_run_process.cpp"
+    },
+    {
+      "repository": "HikariLucy/SnowboardKids-Recomp",
+      "commit": "4a7f9613114d308a31ad629584a9638c21a29a3b",
+      "path": "src/savestate/storage.cpp",
+      "blob": "874001f604da53e11a9f4a2925aac1df65da32d4",
+      "bytes": 6920,
+      "sha256": "969e21f7c966378090f6a36cdb44502d5aa117e5d6469503c70602eacc005e7a",
+      "url": "https://github.com/HikariLucy/SnowboardKids-Recomp/blob/4a7f9613114d308a31ad629584a9638c21a29a3b/src/savestate/storage.cpp"
+    },
+    {
+      "repository": "HikariLucy/SnowboardKids-Recomp",
+      "commit": "4a7f9613114d308a31ad629584a9638c21a29a3b",
+      "path": "src/pfs/controller_pak.cpp",
+      "blob": "ed6cb530670b6f19df614c70b9918340359f589f",
+      "bytes": 17893,
+      "sha256": "bdbb65e2796090686c83fa4fea83cee73b09996ec6e19d04b7463ec42784d41a",
+      "url": "https://github.com/HikariLucy/SnowboardKids-Recomp/blob/4a7f9613114d308a31ad629584a9638c21a29a3b/src/pfs/controller_pak.cpp"
+    },
+    {
+      "repository": "cdlewis/snowboardkids-recomp",
+      "commit": "68fac1b76fe5bb955bb6c92f20daf622139e05e2",
+      "path": ".gitmodules",
+      "blob": "662d43ee932abdbfad78b32f6b2df0af49f7c75c",
+      "bytes": 927,
+      "sha256": "09cece757f499587023cb415d68dff9cc82b368e60eeaa4d087da15a405e8516",
+      "url": "https://github.com/cdlewis/snowboardkids-recomp/blob/68fac1b76fe5bb955bb6c92f20daf622139e05e2/.gitmodules"
+    },
+    {
+      "repository": "cdlewis/snowboardkids-recomp",
+      "commit": "68fac1b76fe5bb955bb6c92f20daf622139e05e2",
+      "path": "CMakeLists.txt",
+      "blob": "3e2c7dd3b8c04c729223013c56458d31951f7f40",
+      "bytes": 18044,
+      "sha256": "c1dcc81b49194ea6bd0452478c36b5a77f3bd39b2ca99256b545fe85bd4f06b5",
+      "url": "https://github.com/cdlewis/snowboardkids-recomp/blob/68fac1b76fe5bb955bb6c92f20daf622139e05e2/CMakeLists.txt"
+    },
+    {
+      "repository": "cdlewis/snowboardkids-recomp",
+      "commit": "68fac1b76fe5bb955bb6c92f20daf622139e05e2",
+      "path": "LICENSE",
+      "blob": "f288702d2fa16d3cdf0035b15a9fcbc552cd88e7",
+      "bytes": 35149,
+      "sha256": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986",
+      "url": "https://github.com/cdlewis/snowboardkids-recomp/blob/68fac1b76fe5bb955bb6c92f20daf622139e05e2/LICENSE"
+    },
+    {
+      "repository": "cdlewis/snowboardkids-recomp",
+      "commit": "68fac1b76fe5bb955bb6c92f20daf622139e05e2",
+      "path": "README.md",
+      "blob": "5f1e0e150e370f983e8f40d808dabc20473a9e45",
+      "bytes": 10408,
+      "sha256": "6a84fa3f8ad23cf966b74fee11477caaee733577d819171bacc4e1d70fa85c87",
+      "url": "https://github.com/cdlewis/snowboardkids-recomp/blob/68fac1b76fe5bb955bb6c92f20daf622139e05e2/README.md"
+    },
+    {
+      "repository": "cdlewis/snowboardkids-recomp",
+      "commit": "2ac83a8af625acf7da92d5610b25f2693bff7c91",
+      "path": ".gitmodules",
+      "blob": "662d43ee932abdbfad78b32f6b2df0af49f7c75c",
+      "bytes": 927,
+      "sha256": "09cece757f499587023cb415d68dff9cc82b368e60eeaa4d087da15a405e8516",
+      "url": "https://github.com/cdlewis/snowboardkids-recomp/blob/2ac83a8af625acf7da92d5610b25f2693bff7c91/.gitmodules"
+    },
+    {
+      "repository": "cdlewis/snowboardkids-recomp",
+      "commit": "2ac83a8af625acf7da92d5610b25f2693bff7c91",
+      "path": "CMakeLists.txt",
+      "blob": "7716343edc4f8530faac5a017100de2755b23226",
+      "bytes": 20122,
+      "sha256": "54aff11b134654ce71b44b9bba5e3ff2bd002a66b4a3844e9d5991cc7bc2f134",
+      "url": "https://github.com/cdlewis/snowboardkids-recomp/blob/2ac83a8af625acf7da92d5610b25f2693bff7c91/CMakeLists.txt"
+    },
+    {
+      "repository": "cdlewis/snowboardkids-recomp",
+      "commit": "2ac83a8af625acf7da92d5610b25f2693bff7c91",
+      "path": "LICENSE",
+      "blob": "f288702d2fa16d3cdf0035b15a9fcbc552cd88e7",
+      "bytes": 35149,
+      "sha256": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986",
+      "url": "https://github.com/cdlewis/snowboardkids-recomp/blob/2ac83a8af625acf7da92d5610b25f2693bff7c91/LICENSE"
+    },
+    {
+      "repository": "cdlewis/snowboardkids-recomp",
+      "commit": "2ac83a8af625acf7da92d5610b25f2693bff7c91",
+      "path": "README.md",
+      "blob": "8b99c54869e6284f31a94407a49122d0fca4230a",
+      "bytes": 10579,
+      "sha256": "614aa68f8a43873170550853eb9867e836f1d7f3f153518ab9ed905ff8e17478",
+      "url": "https://github.com/cdlewis/snowboardkids-recomp/blob/2ac83a8af625acf7da92d5610b25f2693bff7c91/README.md"
+    },
+    {
+      "repository": "Vidanox/BanjoTooieRecompiled",
+      "commit": "9e5852541ba1436417e2c4468960e8c6de6deda5",
+      "path": ".gitmodules",
+      "blob": "fd6004049622a23573d582ee62b2645c52f16272",
+      "bytes": 400,
+      "sha256": "11db02c2c9b132ab1c5899421069a859669d4b5054be530dc644afbd0c89ad3b",
+      "url": "https://github.com/Vidanox/BanjoTooieRecompiled/blob/9e5852541ba1436417e2c4468960e8c6de6deda5/.gitmodules"
+    },
+    {
+      "repository": "Vidanox/BanjoTooieRecompiled",
+      "commit": "9e5852541ba1436417e2c4468960e8c6de6deda5",
+      "path": "CMakeLists.txt",
+      "blob": "c33980eb0f45127b8d5295922419af7ae52796e3",
+      "bytes": 13789,
+      "sha256": "4fc61bdb3af81d371e6386f6bca073e3d270b64de862aea1f2d1a75b69c1949b",
+      "url": "https://github.com/Vidanox/BanjoTooieRecompiled/blob/9e5852541ba1436417e2c4468960e8c6de6deda5/CMakeLists.txt"
+    },
+    {
+      "repository": "Vidanox/BanjoTooieRecompiled",
+      "commit": "9e5852541ba1436417e2c4468960e8c6de6deda5",
+      "path": "COPYING",
+      "blob": "f288702d2fa16d3cdf0035b15a9fcbc552cd88e7",
+      "bytes": 35149,
+      "sha256": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986",
+      "url": "https://github.com/Vidanox/BanjoTooieRecompiled/blob/9e5852541ba1436417e2c4468960e8c6de6deda5/COPYING"
+    },
+    {
+      "repository": "Vidanox/BanjoTooieRecompiled",
+      "commit": "9e5852541ba1436417e2c4468960e8c6de6deda5",
+      "path": "README.md",
+      "blob": "cc150009eababb5b497ca3ff0320fbd422fa199c",
+      "bytes": 19372,
+      "sha256": "5dca694eac91e5d42d56da94caef207ed0bbd6b74538f548a0d7a9b48771e785",
+      "url": "https://github.com/Vidanox/BanjoTooieRecompiled/blob/9e5852541ba1436417e2c4468960e8c6de6deda5/README.md"
+    },
+    {
+      "repository": "Vidanox/BanjoTooieRecompiled",
+      "commit": "9e5852541ba1436417e2c4468960e8c6de6deda5",
+      "path": "tools/setup_deps.py",
+      "blob": "edafb6eba2adcb972b25dbc26c77b4938bc93402",
+      "bytes": 4337,
+      "sha256": "5b7e4cdfbee1d41942936c853a050e4681b1480af15b4b11f621d87659484398",
+      "url": "https://github.com/Vidanox/BanjoTooieRecompiled/blob/9e5852541ba1436417e2c4468960e8c6de6deda5/tools/setup_deps.py"
+    },
+    {
+      "repository": "Vidanox/BanjoTooieRecompiled",
+      "commit": "9e5852541ba1436417e2c4468960e8c6de6deda5",
+      "path": ".github/workflows/build.yml",
+      "blob": "0c1220c01aa67f4b3c8a038c91eefc7b080d4111",
+      "bytes": 20854,
+      "sha256": "ef2df2189e64b52109baf1d353c0e1d2dc62c664536c9eb76cc9dd7597b651a7",
+      "url": "https://github.com/Vidanox/BanjoTooieRecompiled/blob/9e5852541ba1436417e2c4468960e8c6de6deda5/.github/workflows/build.yml"
+    },
+    {
+      "repository": "DahSidiAbdallah/ConkerBFDReloaded",
+      "commit": "9cfebde3b65bb2b79b97c1b80aacb2285b072098",
+      "path": "LICENSE",
+      "blob": "f0a20d0c871fc258f455c20cfebea8b1fb47e256",
+      "bytes": 1069,
+      "sha256": "f6a44195e9806fdf5431385809d06a95e9577a4aef5a72f8afe06b67640e5925",
+      "url": "https://github.com/DahSidiAbdallah/ConkerBFDReloaded/blob/9cfebde3b65bb2b79b97c1b80aacb2285b072098/LICENSE"
+    },
+    {
+      "repository": "DahSidiAbdallah/ConkerBFDReloaded",
+      "commit": "9cfebde3b65bb2b79b97c1b80aacb2285b072098",
+      "path": "README.md",
+      "blob": "dd84abc7818d92bba6e0bf6d3c3df2d47bc01276",
+      "bytes": 14583,
+      "sha256": "25797cb7f62c2a00a537578dba0492f8ed33b2fcd7864fc9e524d3e89520014c",
+      "url": "https://github.com/DahSidiAbdallah/ConkerBFDReloaded/blob/9cfebde3b65bb2b79b97c1b80aacb2285b072098/README.md"
+    },
+    {
+      "repository": "DahSidiAbdallah/ConkerBFDReloaded",
+      "commit": "9cfebde3b65bb2b79b97c1b80aacb2285b072098",
+      "path": "host/CMakeLists.txt",
+      "blob": "ca0afde5787dfa9a9a5d9c64e335ddffc7895d4c",
+      "bytes": 9073,
+      "sha256": "fd942cd34b56c3e7ca474c171b0b057f84c64000937e0dc1ccb3fbfc78bd9f3a",
+      "url": "https://github.com/DahSidiAbdallah/ConkerBFDReloaded/blob/9cfebde3b65bb2b79b97c1b80aacb2285b072098/host/CMakeLists.txt"
+    },
+    {
+      "repository": "DahSidiAbdallah/ConkerBFDReloaded",
+      "commit": "9cfebde3b65bb2b79b97c1b80aacb2285b072098",
+      "path": "host/setup_deps.bat",
+      "blob": "72ba17c6aa127242bb2fbdea24eecabd209cd723",
+      "bytes": 3286,
+      "sha256": "3d95fbc2c240047e162e7428b9d9961e70899d7f72de4c2613dfb697b8271571",
+      "url": "https://github.com/DahSidiAbdallah/ConkerBFDReloaded/blob/9cfebde3b65bb2b79b97c1b80aacb2285b072098/host/setup_deps.bat"
+    },
+    {
+      "repository": "DahSidiAbdallah/ConkerBFDReloaded",
+      "commit": "9cfebde3b65bb2b79b97c1b80aacb2285b072098",
+      "path": "tools/setup_deps.sh",
+      "blob": "49199696afdab50ac0524dbe23f86c2a9c659576",
+      "bytes": 2302,
+      "sha256": "b72a5e5960558f554766ee216d7a5984b90308d5ed808b1f372d538a86dc6ca6",
+      "url": "https://github.com/DahSidiAbdallah/ConkerBFDReloaded/blob/9cfebde3b65bb2b79b97c1b80aacb2285b072098/tools/setup_deps.sh"
+    },
+    {
+      "repository": "DahSidiAbdallah/ConkerBFDReloaded",
+      "commit": "9cfebde3b65bb2b79b97c1b80aacb2285b072098",
+      "path": "patches/recompfrontend.patch",
+      "blob": "aa282bbc5542f06254d8a926bf6a3229876fd58a",
+      "bytes": 4812,
+      "sha256": "855701d1b2c5f2c1b535a01caf7fb5c9cc58ef92abb3d9814c1873905794e49c",
+      "url": "https://github.com/DahSidiAbdallah/ConkerBFDReloaded/blob/9cfebde3b65bb2b79b97c1b80aacb2285b072098/patches/recompfrontend.patch"
+    },
+    {
+      "repository": "DahSidiAbdallah/ConkerBFDReloaded",
+      "commit": "9cfebde3b65bb2b79b97c1b80aacb2285b072098",
+      "path": "patches/recompfrontend_conker.patch",
+      "blob": "80339eda0e65d9e9b64dfd522cd7b0a811f13a0b",
+      "bytes": 46305,
+      "sha256": "380e9d8d03efc1dbdd1d6adc466103f6aa39c0d0a232b96b0e1ad435008746d3",
+      "url": "https://github.com/DahSidiAbdallah/ConkerBFDReloaded/blob/9cfebde3b65bb2b79b97c1b80aacb2285b072098/patches/recompfrontend_conker.patch"
+    },
+    {
+      "repository": "DahSidiAbdallah/ConkerBFDReloaded",
+      "commit": "9cfebde3b65bb2b79b97c1b80aacb2285b072098",
+      "path": "patches/recompfrontend_filedialog.patch",
+      "blob": "a0461b61beb163483527bc118f9bb55178cb0c55",
+      "bytes": 4621,
+      "sha256": "f5548c0231b56405f1da69e61e344e5614db8c67b94bd25ffa916b7dcc8153dc",
+      "url": "https://github.com/DahSidiAbdallah/ConkerBFDReloaded/blob/9cfebde3b65bb2b79b97c1b80aacb2285b072098/patches/recompfrontend_filedialog.patch"
+    },
+    {
+      "repository": "DahSidiAbdallah/ConkerBFDReloaded",
+      "commit": "9cfebde3b65bb2b79b97c1b80aacb2285b072098",
+      "path": "patches/recompfrontend_keyprompts.patch",
+      "blob": "9e351b76b9870864a1360123a6aec76d89f43b23",
+      "bytes": 1221,
+      "sha256": "4005c67afe81f1f70ba7fd8cfc50abdd3059a8cb1c18c12ec9e355e5c27c2474",
+      "url": "https://github.com/DahSidiAbdallah/ConkerBFDReloaded/blob/9cfebde3b65bb2b79b97c1b80aacb2285b072098/patches/recompfrontend_keyprompts.patch"
+    },
+    {
+      "repository": "danielgomesvieira2000/beetle-adventure-racing-recomp",
+      "commit": "6497e67257809401468cd47850393775952b31bb",
+      "path": "CMakeLists.txt",
+      "blob": "7616d2fbbda6380cafe87601a68d3451a6172011",
+      "bytes": 22929,
+      "sha256": "e6e2969e5c03be65bb80ea9d16cc014ba93fec8a5b0fa76a09da43d2361eff9b",
+      "url": "https://github.com/danielgomesvieira2000/beetle-adventure-racing-recomp/blob/6497e67257809401468cd47850393775952b31bb/CMakeLists.txt"
+    },
+    {
+      "repository": "danielgomesvieira2000/beetle-adventure-racing-recomp",
+      "commit": "6497e67257809401468cd47850393775952b31bb",
+      "path": "COPYING",
+      "blob": "bae94e189e62df1b8d5bd11435d954b25bee9d7b",
+      "bytes": 34522,
+      "sha256": "4df3c306dddaaf4baffdff5ca820cc679ac8cd6dc263c6a74517783e42fa7a3b",
+      "url": "https://github.com/danielgomesvieira2000/beetle-adventure-racing-recomp/blob/6497e67257809401468cd47850393775952b31bb/COPYING"
+    },
+    {
+      "repository": "danielgomesvieira2000/beetle-adventure-racing-recomp",
+      "commit": "6497e67257809401468cd47850393775952b31bb",
+      "path": "README.md",
+      "blob": "978e8444b9550c99e4501a50dd5bb3d902d87559",
+      "bytes": 20698,
+      "sha256": "d14e0ea1271a74b9f081e8ee4e4104a77f04401c27126ee1dc72e460277102aa",
+      "url": "https://github.com/danielgomesvieira2000/beetle-adventure-racing-recomp/blob/6497e67257809401468cd47850393775952b31bb/README.md"
+    },
+    {
+      "repository": "danielgomesvieira2000/beetle-adventure-racing-recomp",
+      "commit": "974596dfa0493fe2c7c2446b3f5165dd11237020",
+      "path": "CMakeLists.txt",
+      "blob": "7616d2fbbda6380cafe87601a68d3451a6172011",
+      "bytes": 22929,
+      "sha256": "e6e2969e5c03be65bb80ea9d16cc014ba93fec8a5b0fa76a09da43d2361eff9b",
+      "url": "https://github.com/danielgomesvieira2000/beetle-adventure-racing-recomp/blob/974596dfa0493fe2c7c2446b3f5165dd11237020/CMakeLists.txt"
+    },
+    {
+      "repository": "danielgomesvieira2000/beetle-adventure-racing-recomp",
+      "commit": "974596dfa0493fe2c7c2446b3f5165dd11237020",
+      "path": "COPYING",
+      "blob": "bae94e189e62df1b8d5bd11435d954b25bee9d7b",
+      "bytes": 34522,
+      "sha256": "4df3c306dddaaf4baffdff5ca820cc679ac8cd6dc263c6a74517783e42fa7a3b",
+      "url": "https://github.com/danielgomesvieira2000/beetle-adventure-racing-recomp/blob/974596dfa0493fe2c7c2446b3f5165dd11237020/COPYING"
+    },
+    {
+      "repository": "danielgomesvieira2000/beetle-adventure-racing-recomp",
+      "commit": "974596dfa0493fe2c7c2446b3f5165dd11237020",
+      "path": "README.md",
+      "blob": "978e8444b9550c99e4501a50dd5bb3d902d87559",
+      "bytes": 20698,
+      "sha256": "d14e0ea1271a74b9f081e8ee4e4104a77f04401c27126ee1dc72e460277102aa",
+      "url": "https://github.com/danielgomesvieira2000/beetle-adventure-racing-recomp/blob/974596dfa0493fe2c7c2446b3f5165dd11237020/README.md"
+    },
+    {
+      "repository": "danielgomesvieira2000/beetle-adventure-racing-recomp",
+      "commit": "974596dfa0493fe2c7c2446b3f5165dd11237020",
+      "path": "lib/RecompFrontend/recompinput/include/recompinput/players.h",
+      "blob": "9bfd26e7dc919021d372fc09682244c41548837a",
+      "bytes": 2344,
+      "sha256": "4f856a394a14f78d3ba404dcfedb077f1a9a2e7ce91b82b1390f17ba45bd764d",
+      "url": "https://github.com/danielgomesvieira2000/beetle-adventure-racing-recomp/blob/974596dfa0493fe2c7c2446b3f5165dd11237020/lib/RecompFrontend/recompinput/include/recompinput/players.h"
+    },
+    {
+      "repository": "danielgomesvieira2000/beetle-adventure-racing-recomp",
+      "commit": "974596dfa0493fe2c7c2446b3f5165dd11237020",
+      "path": "lib/RecompFrontend/recompinput/src/players.cpp",
+      "blob": "c1c94109b6000b082e1c3f32458b3ce64a80d04b",
+      "bytes": 12260,
+      "sha256": "14b9381e032d728b95ce488fd96a1bb3f176174261291c0e05b7312ef0e6db24",
+      "url": "https://github.com/danielgomesvieira2000/beetle-adventure-racing-recomp/blob/974596dfa0493fe2c7c2446b3f5165dd11237020/lib/RecompFrontend/recompinput/src/players.cpp"
+    },
+    {
+      "repository": "danielgomesvieira2000/pilotwings-64-recomp",
+      "commit": "ce3634ad4be6ee5666dec2cd0bbcc35c4571bf29",
+      "path": ".gitmodules",
+      "blob": "389862b64beb7c3a377a4514837279fee698a036",
+      "bytes": 441,
+      "sha256": "393032907f6372e14f05a770cdddeba5043250c04632dd2f4b3105cecaef562b",
+      "url": "https://github.com/danielgomesvieira2000/pilotwings-64-recomp/blob/ce3634ad4be6ee5666dec2cd0bbcc35c4571bf29/.gitmodules"
+    },
+    {
+      "repository": "danielgomesvieira2000/pilotwings-64-recomp",
+      "commit": "ce3634ad4be6ee5666dec2cd0bbcc35c4571bf29",
+      "path": "CMakeLists.txt",
+      "blob": "1ed76ba3256815092d0fe7b547a2f5398724451b",
+      "bytes": 26130,
+      "sha256": "1a758854cdf9367e9b6e6d147a5b87cc74c6a251d002c3949bd60f9cf95d9599",
+      "url": "https://github.com/danielgomesvieira2000/pilotwings-64-recomp/blob/ce3634ad4be6ee5666dec2cd0bbcc35c4571bf29/CMakeLists.txt"
+    },
+    {
+      "repository": "danielgomesvieira2000/pilotwings-64-recomp",
+      "commit": "ce3634ad4be6ee5666dec2cd0bbcc35c4571bf29",
+      "path": "LICENSE",
+      "blob": "58b90ed3d66341fbb16b33295eb19874438b02ac",
+      "bytes": 1391,
+      "sha256": "01a51982a14c3d46b86fd18b00756594395e51be4566d99e98144e902f89c3e1",
+      "url": "https://github.com/danielgomesvieira2000/pilotwings-64-recomp/blob/ce3634ad4be6ee5666dec2cd0bbcc35c4571bf29/LICENSE"
+    },
+    {
+      "repository": "danielgomesvieira2000/pilotwings-64-recomp",
+      "commit": "ce3634ad4be6ee5666dec2cd0bbcc35c4571bf29",
+      "path": "README.md",
+      "blob": "412b092f2cd15c0a28b700b4cc0970f858faa7f4",
+      "bytes": 3730,
+      "sha256": "4563bb37d2d3e3ec59a4a45dd5eb07183d9d55cc5fcda8efbe8abfe6aec4f9cb",
+      "url": "https://github.com/danielgomesvieira2000/pilotwings-64-recomp/blob/ce3634ad4be6ee5666dec2cd0bbcc35c4571bf29/README.md"
+    },
+    {
+      "repository": "danielgomesvieira2000/pilotwings-64-recomp",
+      "commit": "ce3634ad4be6ee5666dec2cd0bbcc35c4571bf29",
+      "path": "THIRD_PARTY_NOTICES.md",
+      "blob": "ae975f35f0ab39845cac450f595ff3221cde7878",
+      "bytes": 11868,
+      "sha256": "f5d5b389341552c3037ac46a44bf46f642091f03aa335ce224ca059562fc1e3f",
+      "url": "https://github.com/danielgomesvieira2000/pilotwings-64-recomp/blob/ce3634ad4be6ee5666dec2cd0bbcc35c4571bf29/THIRD_PARTY_NOTICES.md"
+    },
+    {
+      "repository": "danielgomesvieira2000/pilotwings-64-recomp",
+      "commit": "ce3634ad4be6ee5666dec2cd0bbcc35c4571bf29",
+      "path": "tools/third_party_licenses.txt",
+      "blob": "158b6e8e2119b6b2962a0f26f88844a07b5e065f",
+      "bytes": 3213,
+      "sha256": "159452cf0e148a665bd4d446ce11e4f0ee5e5912afc1bd8bc86dba20eb1a9804",
+      "url": "https://github.com/danielgomesvieira2000/pilotwings-64-recomp/blob/ce3634ad4be6ee5666dec2cd0bbcc35c4571bf29/tools/third_party_licenses.txt"
+    },
+    {
+      "repository": "danielgomesvieira2000/pilotwings-64-recomp",
+      "commit": "ce3634ad4be6ee5666dec2cd0bbcc35c4571bf29",
+      "path": "tools/setup_linux.sh",
+      "blob": "93bda0afacca7c5d47e558d19bb55c7df200ca31",
+      "bytes": 3346,
+      "sha256": "b659b15c0db797ed11522554bc27362a2f882f0cffa5bdcc7251b8e03fe9ee45",
+      "url": "https://github.com/danielgomesvieira2000/pilotwings-64-recomp/blob/ce3634ad4be6ee5666dec2cd0bbcc35c4571bf29/tools/setup_linux.sh"
+    },
+    {
+      "repository": "mcsoderh/BodyHarvestRecomp",
+      "commit": "e90747cd09fd732340443c73ed0657eb9bee0fdf",
+      "path": ".gitmodules",
+      "blob": "28f37948397b693deee1bb35ff28405630694e45",
+      "bytes": 304,
+      "sha256": "3af98a6c261cdac3c798ed54197f75cfad7268b67a566fb631bc2b39b44ecce2",
+      "url": "https://github.com/mcsoderh/BodyHarvestRecomp/blob/e90747cd09fd732340443c73ed0657eb9bee0fdf/.gitmodules"
+    },
+    {
+      "repository": "mcsoderh/BodyHarvestRecomp",
+      "commit": "e90747cd09fd732340443c73ed0657eb9bee0fdf",
+      "path": "CMakeLists.txt",
+      "blob": "0c9317f4f17db35d9cf71c6da5344dd12a2fa9be",
+      "bytes": 13256,
+      "sha256": "d2746615c453217058d45b0950646419ccbb4e1972c9d809e02a474b9760ea88",
+      "url": "https://github.com/mcsoderh/BodyHarvestRecomp/blob/e90747cd09fd732340443c73ed0657eb9bee0fdf/CMakeLists.txt"
+    },
+    {
+      "repository": "mcsoderh/BodyHarvestRecomp",
+      "commit": "e90747cd09fd732340443c73ed0657eb9bee0fdf",
+      "path": "LICENSE",
+      "blob": "f288702d2fa16d3cdf0035b15a9fcbc552cd88e7",
+      "bytes": 35149,
+      "sha256": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986",
+      "url": "https://github.com/mcsoderh/BodyHarvestRecomp/blob/e90747cd09fd732340443c73ed0657eb9bee0fdf/LICENSE"
+    },
+    {
+      "repository": "mcsoderh/BodyHarvestRecomp",
+      "commit": "e90747cd09fd732340443c73ed0657eb9bee0fdf",
+      "path": "README.md",
+      "blob": "29769562634cf87c50b9aaad47f606cc61e9d1fc",
+      "bytes": 4080,
+      "sha256": "2c27e4aa9c5cf025ee3342990b3a63a801d2d29a101af6cba4c89704249e6ade",
+      "url": "https://github.com/mcsoderh/BodyHarvestRecomp/blob/e90747cd09fd732340443c73ed0657eb9bee0fdf/README.md"
+    },
+    {
+      "repository": "mcsoderh/BodyHarvestRecomp",
+      "commit": "e90747cd09fd732340443c73ed0657eb9bee0fdf",
+      "path": ".github/workflows/release.yml",
+      "blob": "25510acc0173ef4234c45314227978c5e9bd968d",
+      "bytes": 2197,
+      "sha256": "f1c0cf366a7c8ada8753d559df7b0523fdbbbd39fd8730c0769c65c84dd77b90",
+      "url": "https://github.com/mcsoderh/BodyHarvestRecomp/blob/e90747cd09fd732340443c73ed0657eb9bee0fdf/.github/workflows/release.yml"
+    },
+    {
+      "repository": "sciaschi/CBFD-Recompiled",
+      "commit": "ed1b8bb7f3f036334124ec27eb28efa64e400178",
+      "path": ".gitmodules",
+      "blob": "a87cc01ad91ff3ce5c4bd4651ce4ba37d315925f",
+      "bytes": 1016,
+      "sha256": "c579aad86f1954b4683cc9f2b7256cd759eb6bd2d469b7ce15c9bfaf1d75ba0d",
+      "url": "https://github.com/sciaschi/CBFD-Recompiled/blob/ed1b8bb7f3f036334124ec27eb28efa64e400178/.gitmodules"
+    },
+    {
+      "repository": "sciaschi/CBFD-Recompiled",
+      "commit": "ed1b8bb7f3f036334124ec27eb28efa64e400178",
+      "path": "LICENSE",
+      "blob": "81f450b358a1456e4a5717a43adccb929fa4bd99",
+      "bytes": 1069,
+      "sha256": "cdb5b04c7881ba15ea4ea82452966dbc6e100b68f87bba917211ab417d066422",
+      "url": "https://github.com/sciaschi/CBFD-Recompiled/blob/ed1b8bb7f3f036334124ec27eb28efa64e400178/LICENSE"
+    },
+    {
+      "repository": "sciaschi/CBFD-Recompiled",
+      "commit": "ed1b8bb7f3f036334124ec27eb28efa64e400178",
+      "path": "README.md",
+      "blob": "c1d0c4a4bd97c71f02e1fdadd8718842727e308b",
+      "bytes": 21176,
+      "sha256": "9e731315357fd9fbf73a8293fb7d0f094179811e637c73d9b65a75f31d897be1",
+      "url": "https://github.com/sciaschi/CBFD-Recompiled/blob/ed1b8bb7f3f036334124ec27eb28efa64e400178/README.md"
+    },
+    {
+      "repository": "sciaschi/CBFD-Recompiled",
+      "commit": "85d8c3bc617e2d8311f5f978b832006797bc8ac7",
+      "path": ".gitmodules",
+      "blob": "a87cc01ad91ff3ce5c4bd4651ce4ba37d315925f",
+      "bytes": 1016,
+      "sha256": "c579aad86f1954b4683cc9f2b7256cd759eb6bd2d469b7ce15c9bfaf1d75ba0d",
+      "url": "https://github.com/sciaschi/CBFD-Recompiled/blob/85d8c3bc617e2d8311f5f978b832006797bc8ac7/.gitmodules"
+    },
+    {
+      "repository": "sciaschi/CBFD-Recompiled",
+      "commit": "85d8c3bc617e2d8311f5f978b832006797bc8ac7",
+      "path": "LICENSE",
+      "blob": "81f450b358a1456e4a5717a43adccb929fa4bd99",
+      "bytes": 1069,
+      "sha256": "cdb5b04c7881ba15ea4ea82452966dbc6e100b68f87bba917211ab417d066422",
+      "url": "https://github.com/sciaschi/CBFD-Recompiled/blob/85d8c3bc617e2d8311f5f978b832006797bc8ac7/LICENSE"
+    },
+    {
+      "repository": "sciaschi/CBFD-Recompiled",
+      "commit": "85d8c3bc617e2d8311f5f978b832006797bc8ac7",
+      "path": "README.md",
+      "blob": "3f370b947e0d6793382bad4ecf6bc7f466211825",
+      "bytes": 19841,
+      "sha256": "9295f9b4b23744c8b800a34430e5b7abd412dbcbd7c352a87c2be657b4be6496",
+      "url": "https://github.com/sciaschi/CBFD-Recompiled/blob/85d8c3bc617e2d8311f5f978b832006797bc8ac7/README.md"
+    },
+    {
+      "repository": "sciaschi/CBFD-Recompiled",
+      "commit": "85d8c3bc617e2d8311f5f978b832006797bc8ac7",
+      "path": "recomp/recompfrontend.patch",
+      "blob": "183fb7e077c002bbad5f018f5f6d4817ac699dc0",
+      "bytes": 19103,
+      "sha256": "73f77dd74768a786bc7c74180f5bc16db264717a315d659675bd1e4da213cdaf",
+      "url": "https://github.com/sciaschi/CBFD-Recompiled/blob/85d8c3bc617e2d8311f5f978b832006797bc8ac7/recomp/recompfrontend.patch"
+    },
+    {
+      "repository": "sciaschi/CBFD-Recompiled",
+      "commit": "85d8c3bc617e2d8311f5f978b832006797bc8ac7",
+      "path": "host/CMakeLists.txt",
+      "blob": "abfe53e890808fa85091d214d2798217de33f4ac",
+      "bytes": 11381,
+      "sha256": "0518a8af575f8b20da50dc609f74c1e9a66406a21df509b64cd7de22618174f0",
+      "url": "https://github.com/sciaschi/CBFD-Recompiled/blob/85d8c3bc617e2d8311f5f978b832006797bc8ac7/host/CMakeLists.txt"
+    },
+    {
+      "repository": "sciaschi/CBFD-Recompiled",
+      "commit": "85d8c3bc617e2d8311f5f978b832006797bc8ac7",
+      "path": ".github/workflows/build.yml",
+      "blob": "34ad603fdd2cf62b062584d325dcf72d5585b730",
+      "bytes": 4099,
+      "sha256": "ec3b9e8f78c4ad1cc62e82133918b52412d82e7b9cda31cbb1b350c5b77be597",
+      "url": "https://github.com/sciaschi/CBFD-Recompiled/blob/85d8c3bc617e2d8311f5f978b832006797bc8ac7/.github/workflows/build.yml"
+    },
+    {
+      "repository": "sciaschi/CBFD-Recompiled",
+      "commit": "85d8c3bc617e2d8311f5f978b832006797bc8ac7",
+      "path": ".github/workflows/release.yml",
+      "blob": "d4fffa1c93357db61246e43f3b53d8e182a89306",
+      "bytes": 9437,
+      "sha256": "28ddd530ad20835997fe3b4ebba1f2df8d23fc24429f3beeac5e8873376e8647",
+      "url": "https://github.com/sciaschi/CBFD-Recompiled/blob/85d8c3bc617e2d8311f5f978b832006797bc8ac7/.github/workflows/release.yml"
+    },
+    {
+      "repository": "sciaschi/CBFD-Recompiled",
+      "commit": "ed1b8bb7f3f036334124ec27eb28efa64e400178",
+      "path": "recomp/recompfrontend.patch",
+      "blob": "183fb7e077c002bbad5f018f5f6d4817ac699dc0",
+      "bytes": 19103,
+      "sha256": "73f77dd74768a786bc7c74180f5bc16db264717a315d659675bd1e4da213cdaf",
+      "url": "https://github.com/sciaschi/CBFD-Recompiled/blob/ed1b8bb7f3f036334124ec27eb28efa64e400178/recomp/recompfrontend.patch"
+    },
+    {
+      "repository": "sciaschi/CBFD-Recompiled",
+      "commit": "ed1b8bb7f3f036334124ec27eb28efa64e400178",
+      "path": "host/CMakeLists.txt",
+      "blob": "abfe53e890808fa85091d214d2798217de33f4ac",
+      "bytes": 11381,
+      "sha256": "0518a8af575f8b20da50dc609f74c1e9a66406a21df509b64cd7de22618174f0",
+      "url": "https://github.com/sciaschi/CBFD-Recompiled/blob/ed1b8bb7f3f036334124ec27eb28efa64e400178/host/CMakeLists.txt"
+    },
+    {
+      "repository": "sciaschi/CBFD-Recompiled",
+      "commit": "ed1b8bb7f3f036334124ec27eb28efa64e400178",
+      "path": ".github/workflows/build.yml",
+      "blob": "34ad603fdd2cf62b062584d325dcf72d5585b730",
+      "bytes": 4099,
+      "sha256": "ec3b9e8f78c4ad1cc62e82133918b52412d82e7b9cda31cbb1b350c5b77be597",
+      "url": "https://github.com/sciaschi/CBFD-Recompiled/blob/ed1b8bb7f3f036334124ec27eb28efa64e400178/.github/workflows/build.yml"
+    },
+    {
+      "repository": "sciaschi/CBFD-Recompiled",
+      "commit": "ed1b8bb7f3f036334124ec27eb28efa64e400178",
+      "path": ".github/workflows/release.yml",
+      "blob": "d4fffa1c93357db61246e43f3b53d8e182a89306",
+      "bytes": 9437,
+      "sha256": "28ddd530ad20835997fe3b4ebba1f2df8d23fc24429f3beeac5e8873376e8647",
+      "url": "https://github.com/sciaschi/CBFD-Recompiled/blob/ed1b8bb7f3f036334124ec27eb28efa64e400178/.github/workflows/release.yml"
+    },
+    {
+      "repository": "sciaschi/CBFD-Recompiled",
+      "commit": "85d8c3bc617e2d8311f5f978b832006797bc8ac7",
+      "path": "build.sh",
+      "blob": "4f46dd1e36db0ba158abefd02d8ef8a656af00e9",
+      "bytes": 13546,
+      "sha256": "08ea950f2eb5990d1844ce1048c11141d7ad598e857e58da0ea3ce172c210228",
+      "url": "https://github.com/sciaschi/CBFD-Recompiled/blob/85d8c3bc617e2d8311f5f978b832006797bc8ac7/build.sh"
+    },
+    {
+      "repository": "sciaschi/CBFD-Recompiled",
+      "commit": "ed1b8bb7f3f036334124ec27eb28efa64e400178",
+      "path": "build.sh",
+      "blob": "4f46dd1e36db0ba158abefd02d8ef8a656af00e9",
+      "bytes": 13546,
+      "sha256": "08ea950f2eb5990d1844ce1048c11141d7ad598e857e58da0ea3ce172c210228",
+      "url": "https://github.com/sciaschi/CBFD-Recompiled/blob/ed1b8bb7f3f036334124ec27eb28efa64e400178/build.sh"
+    },
+    {
+      "repository": "cdlewis/RecompFrontend",
+      "commit": "e85b912d9df677b04f9358867dd010c8af27ea05",
+      "path": "README.md",
+      "blob": "89c1d350abcb0475fa56559797894912b1fc5620",
+      "bytes": 1372,
+      "sha256": "d75ebed25568819d8d3b8eea63ca550a47f58ab00ef67b584a47e91387691347",
+      "url": "https://github.com/cdlewis/RecompFrontend/blob/e85b912d9df677b04f9358867dd010c8af27ea05/README.md"
+    },
+    {
+      "repository": "cdlewis/RecompFrontend",
+      "commit": "118d77a63e929a3bf3dbd5a70a65c2ab19fc1c14",
+      "path": "README.md",
+      "blob": "89c1d350abcb0475fa56559797894912b1fc5620",
+      "bytes": 1372,
+      "sha256": "d75ebed25568819d8d3b8eea63ca550a47f58ab00ef67b584a47e91387691347",
+      "url": "https://github.com/cdlewis/RecompFrontend/blob/118d77a63e929a3bf3dbd5a70a65c2ab19fc1c14/README.md"
+    },
+    {
+      "repository": "cdlewis/RecompFrontend",
+      "commit": "fa4f0ca42ba2efaca631203ef1e0753f2be78985",
+      "path": "README.md",
+      "blob": "89c1d350abcb0475fa56559797894912b1fc5620",
+      "bytes": 1372,
+      "sha256": "d75ebed25568819d8d3b8eea63ca550a47f58ab00ef67b584a47e91387691347",
+      "url": "https://github.com/cdlewis/RecompFrontend/blob/fa4f0ca42ba2efaca631203ef1e0753f2be78985/README.md"
+    },
+    {
+      "repository": "cdlewis/RecompFrontend",
+      "commit": "fa4f0ca42ba2efaca631203ef1e0753f2be78985",
+      "path": "recompui/src/elements/ui_frontend_theme.cpp",
+      "blob": "ef8940ff5dcfe51c9244c2d081998f5d86d0da4d",
+      "bytes": 1840,
+      "sha256": "f4680e57ad70a6bca403d500681ad2ed758dc5fbfd85ff2561feb3c6f3c47138",
+      "url": "https://github.com/cdlewis/RecompFrontend/blob/fa4f0ca42ba2efaca631203ef1e0753f2be78985/recompui/src/elements/ui_frontend_theme.cpp"
+    },
+    {
+      "repository": "cdlewis/RecompFrontend",
+      "commit": "fa4f0ca42ba2efaca631203ef1e0753f2be78985",
+      "path": "recompui/src/elements/ui_frontend_theme.h",
+      "blob": "54e8ba404661847a768c6dd4bb75b88ded916a37",
+      "bytes": 2156,
+      "sha256": "89e86461622066f8d3f5dc9115fa2715befc8a095377b394afcbd3a2c95a4211",
+      "url": "https://github.com/cdlewis/RecompFrontend/blob/fa4f0ca42ba2efaca631203ef1e0753f2be78985/recompui/src/elements/ui_frontend_theme.h"
+    },
+    {
+      "repository": "cdlewis/RecompFrontend",
+      "commit": "fa4f0ca42ba2efaca631203ef1e0753f2be78985",
+      "path": "recompinput/src/input_state.cpp",
+      "blob": "041c67bb38ecc314f27e84ee3dba6d6dd6f5dcb2",
+      "bytes": 15564,
+      "sha256": "c1e684f446c64d834e63b550ec8c1d20115efa3610d082b6a6d20da51acaffcc",
+      "url": "https://github.com/cdlewis/RecompFrontend/blob/fa4f0ca42ba2efaca631203ef1e0753f2be78985/recompinput/src/input_state.cpp"
+    },
+    {
+      "path": "COPYING",
+      "commit": "2ddbfc8adcfe9ba26520441f14488861fdcefef7",
+      "blob": "f288702d2fa16d3cdf0035b15a9fcbc552cd88e7",
+      "sha256": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986",
+      "bytes": 35149,
+      "repository": "N64Recomp/RecompFrontend",
+      "url": "https://github.com/N64Recomp/RecompFrontend/blob/2ddbfc8adcfe9ba26520441f14488861fdcefef7/COPYING"
+    }
+  ],
+  "complete_tree_contexts": [
+    {
+      "repository": "HikariLucy/SnowboardKids-Recomp",
+      "repository_id": 1383482900,
+      "role": "tag",
+      "commit": "a6187d2d3c44005c394717b29a2829e984b2dddc",
+      "tree": "6bad8decd892f803e1fe6fcf8144507e1b54e222",
+      "entries": 369,
+      "complete_tree_inventory_sha256": "ae0f9bd1e27aceeb4685952f384ecabc6d013ceec6021ea116d559e053ef4842",
+      "scope": "complete untruncated repository tree only; transitive dependencies and binary provenance not certified"
+    },
+    {
+      "repository": "HikariLucy/SnowboardKids-Recomp",
+      "repository_id": 1383482900,
+      "role": "current",
+      "commit": "4a7f9613114d308a31ad629584a9638c21a29a3b",
+      "tree": "d374932cf7a640d7c6358dda0ca671ae18ec2e41",
+      "entries": 373,
+      "complete_tree_inventory_sha256": "1acd3abec1ca6507794b80cc3f35333d19f696479609a1a33c4222ed1b69f19b",
+      "scope": "complete untruncated repository tree only; transitive dependencies and binary provenance not certified"
+    },
+    {
+      "repository": "cdlewis/snowboardkids-recomp",
+      "repository_id": 1356220121,
+      "role": "tag",
+      "commit": "2ac83a8af625acf7da92d5610b25f2693bff7c91",
+      "tree": "cfccb10320f132fc67d38b1bebcc731ab99e2b73",
+      "entries": 148,
+      "complete_tree_inventory_sha256": "1528bf31feab93c149b5d3b0198832de1aa2af8ce34ae309279593ab892cafd1",
+      "scope": "complete untruncated repository tree only; transitive dependencies and binary provenance not certified"
+    },
+    {
+      "repository": "cdlewis/snowboardkids-recomp",
+      "repository_id": 1356220121,
+      "role": "current",
+      "commit": "68fac1b76fe5bb955bb6c92f20daf622139e05e2",
+      "tree": "78e8e32395b4c09cf66503270cafa695930f0236",
+      "entries": 177,
+      "complete_tree_inventory_sha256": "2d42525aabc77131e911aeccc311c06a209402d656de284af7f49728ea154825",
+      "scope": "complete untruncated repository tree only; transitive dependencies and binary provenance not certified"
+    },
+    {
+      "repository": "Vidanox/BanjoTooieRecompiled",
+      "repository_id": 1371760314,
+      "role": "tag",
+      "commit": "9e5852541ba1436417e2c4468960e8c6de6deda5",
+      "tree": "675b44eaf2ace3f87e58c023eb2dafda6ec12332",
+      "entries": 228,
+      "complete_tree_inventory_sha256": "d6c83c54baf2d479fb6f9e5633d2dcd15e86da41b0a71f081fee39427e3c121c",
+      "scope": "complete untruncated repository tree only; transitive dependencies and binary provenance not certified"
+    },
+    {
+      "repository": "Vidanox/BanjoTooieRecompiled",
+      "repository_id": 1371760314,
+      "role": "current",
+      "commit": "9e5852541ba1436417e2c4468960e8c6de6deda5",
+      "tree": "675b44eaf2ace3f87e58c023eb2dafda6ec12332",
+      "entries": 228,
+      "complete_tree_inventory_sha256": "d6c83c54baf2d479fb6f9e5633d2dcd15e86da41b0a71f081fee39427e3c121c",
+      "scope": "complete untruncated repository tree only; transitive dependencies and binary provenance not certified"
+    },
+    {
+      "repository": "DahSidiAbdallah/ConkerBFDReloaded",
+      "repository_id": 1398880009,
+      "role": "tag",
+      "commit": "9cfebde3b65bb2b79b97c1b80aacb2285b072098",
+      "tree": "eda407fc48134a7c6654b330f5375739cba8c887",
+      "entries": 278,
+      "complete_tree_inventory_sha256": "973a06737e91ecb92704191b55006ec6eaec9938dff74b7ce5b1938005286608",
+      "scope": "complete untruncated repository tree only; transitive dependencies and binary provenance not certified"
+    },
+    {
+      "repository": "DahSidiAbdallah/ConkerBFDReloaded",
+      "repository_id": 1398880009,
+      "role": "current",
+      "commit": "9cfebde3b65bb2b79b97c1b80aacb2285b072098",
+      "tree": "eda407fc48134a7c6654b330f5375739cba8c887",
+      "entries": 278,
+      "complete_tree_inventory_sha256": "973a06737e91ecb92704191b55006ec6eaec9938dff74b7ce5b1938005286608",
+      "scope": "complete untruncated repository tree only; transitive dependencies and binary provenance not certified"
+    },
+    {
+      "repository": "danielgomesvieira2000/beetle-adventure-racing-recomp",
+      "repository_id": 1359478825,
+      "role": "tag",
+      "commit": "974596dfa0493fe2c7c2446b3f5165dd11237020",
+      "tree": "6a7cbf699ee81e0a1fed4e102b46c711d10a8fc1",
+      "entries": 19149,
+      "complete_tree_inventory_sha256": "6ecce5061a0f72f1410cd398a48eaebbd00aadd72c3f6a64aac7a085ab6e06ac",
+      "scope": "complete untruncated repository tree only; transitive dependencies and binary provenance not certified"
+    },
+    {
+      "repository": "danielgomesvieira2000/beetle-adventure-racing-recomp",
+      "repository_id": 1359478825,
+      "role": "current",
+      "commit": "6497e67257809401468cd47850393775952b31bb",
+      "tree": "bb8751707135cb025fa0222a77cbee157c5ba485",
+      "entries": 19149,
+      "complete_tree_inventory_sha256": "aa8a916137e355f05b5619f75b494ad9d3c07d6381be44d6addf299f14e45087",
+      "scope": "complete untruncated repository tree only; transitive dependencies and binary provenance not certified"
+    },
+    {
+      "repository": "danielgomesvieira2000/pilotwings-64-recomp",
+      "repository_id": 1370658881,
+      "role": "tag",
+      "commit": "ce3634ad4be6ee5666dec2cd0bbcc35c4571bf29",
+      "tree": "ebad2a71d038237c593f412a40bb892f027edca9",
+      "entries": 133,
+      "complete_tree_inventory_sha256": "df570dfa3c713550fca68361904e30099b7860cc34f23eba187cadf3a90244be",
+      "scope": "complete untruncated repository tree only; transitive dependencies and binary provenance not certified"
+    },
+    {
+      "repository": "danielgomesvieira2000/pilotwings-64-recomp",
+      "repository_id": 1370658881,
+      "role": "current",
+      "commit": "ce3634ad4be6ee5666dec2cd0bbcc35c4571bf29",
+      "tree": "ebad2a71d038237c593f412a40bb892f027edca9",
+      "entries": 133,
+      "complete_tree_inventory_sha256": "df570dfa3c713550fca68361904e30099b7860cc34f23eba187cadf3a90244be",
+      "scope": "complete untruncated repository tree only; transitive dependencies and binary provenance not certified"
+    },
+    {
+      "repository": "mcsoderh/BodyHarvestRecomp",
+      "repository_id": 1399766299,
+      "role": "tag",
+      "commit": "e90747cd09fd732340443c73ed0657eb9bee0fdf",
+      "tree": "e188d108731274d715009c29a8bf7fcc63f9387c",
+      "entries": 128,
+      "complete_tree_inventory_sha256": "8e6fa103131d19264f1c2d04788c93a39d63124446885cd33d45e04c0a357514",
+      "scope": "complete untruncated repository tree only; transitive dependencies and binary provenance not certified"
+    },
+    {
+      "repository": "mcsoderh/BodyHarvestRecomp",
+      "repository_id": 1399766299,
+      "role": "current",
+      "commit": "e90747cd09fd732340443c73ed0657eb9bee0fdf",
+      "tree": "e188d108731274d715009c29a8bf7fcc63f9387c",
+      "entries": 128,
+      "complete_tree_inventory_sha256": "8e6fa103131d19264f1c2d04788c93a39d63124446885cd33d45e04c0a357514",
+      "scope": "complete untruncated repository tree only; transitive dependencies and binary provenance not certified"
+    },
+    {
+      "repository": "sciaschi/CBFD-Recompiled",
+      "repository_id": 1388317348,
+      "role": "tag",
+      "commit": "85d8c3bc617e2d8311f5f978b832006797bc8ac7",
+      "tree": "0f6593c40eaeee2c2a9f155de7154b9aadc4caf6",
+      "entries": 987,
+      "complete_tree_inventory_sha256": "ef7b7cc5a256322394fb856263011f741707490f068cb2a7254ecc78178256d9",
+      "scope": "complete untruncated repository tree only; transitive dependencies and binary provenance not certified"
+    },
+    {
+      "repository": "sciaschi/CBFD-Recompiled",
+      "repository_id": 1388317348,
+      "role": "current",
+      "commit": "ed1b8bb7f3f036334124ec27eb28efa64e400178",
+      "tree": "62e95d577a206ab810b9548868de400b2cb6589b",
+      "entries": 987,
+      "complete_tree_inventory_sha256": "c16ed02857599785c55d90f11495942c97314e5f06e9da9489455ab844f20510",
+      "scope": "complete untruncated repository tree only; transitive dependencies and binary provenance not certified"
+    },
+    {
+      "repository": "cdlewis/RecompFrontend",
+      "repository_id": 1291620990,
+      "role": "current",
+      "commit": "118d77a63e929a3bf3dbd5a70a65c2ab19fc1c14",
+      "tree": "6bb353bb5744b586d43045af5ade3460011719f1",
+      "entries": 179,
+      "complete_tree_inventory_sha256": "c0ff270876d26409092a8a0a598bbeea660fb1c1b7fc553991459171cd871729",
+      "scope": "complete untruncated repository tree only; transitive dependencies and binary provenance not certified"
+    },
+    {
+      "repository": "cdlewis/RecompFrontend",
+      "repository_id": 1291620990,
+      "role": "pinned",
+      "commit": "e85b912d9df677b04f9358867dd010c8af27ea05",
+      "tree": "5fc7ee9d5279a291b7f7cb185b3c72faba137b11",
+      "entries": 179,
+      "complete_tree_inventory_sha256": "53e2ee88654c6e16d503243aa4b04625d54b9c6d3730d28ff2c91885a4f1a470",
+      "scope": "complete untruncated repository tree only; transitive dependencies and binary provenance not certified"
+    },
+    {
+      "repository": "cdlewis/RecompFrontend",
+      "repository_id": 1291620990,
+      "role": "current",
+      "commit": "118d77a63e929a3bf3dbd5a70a65c2ab19fc1c14",
+      "tree": "6bb353bb5744b586d43045af5ade3460011719f1",
+      "entries": 179,
+      "complete_tree_inventory_sha256": "c0ff270876d26409092a8a0a598bbeea660fb1c1b7fc553991459171cd871729",
+      "scope": "complete untruncated repository tree only; transitive dependencies and binary provenance not certified"
+    },
+    {
+      "repository": "cdlewis/RecompFrontend",
+      "repository_id": 1291620990,
+      "role": "pinned",
+      "commit": "fa4f0ca42ba2efaca631203ef1e0753f2be78985",
+      "tree": "a64c39355170ba26dec7cf3d235007d117afd8a9",
+      "entries": 179,
+      "complete_tree_inventory_sha256": "a74d4effeae84713201cd804d5f9136116538f394d5d3d9a5be8c97f917e3f4a",
+      "scope": "complete untruncated repository tree only; transitive dependencies and binary provenance not certified"
+    }
+  ],
+  "static_public_package_observations": [
+    {
+      "observed_at": "2026-10-31T18:42:41.277677+00:00",
+      "release_id": 426583164,
+      "tag": "v1.4.7",
+      "asset_id": 684772613,
+      "asset": "ConkerBFDReloaded-v1.4.7-Windows.zip",
+      "expected_sha256_source": "official GitHub API digest; distinct from locally computed hash",
+      "expected_sha256": "7f9a22a3994e34889c76c07ff927824046573856c4f945d0c4dd8e5bfe14b2e2",
+      "observed_sha256": "7f9a22a3994e34889c76c07ff927824046573856c4f945d0c4dd8e5bfe14b2e2",
+      "bytes": 41241440,
+      "raw_preparser_bounds": {
+        "records": 129,
+        "central_bytes": 13676,
+        "declared_expanded_bytes": 79382413
+      },
+      "policy": {
+        "max_archive_bytes": 134217728,
+        "max_central_metadata": 4194304,
+        "max_physical_records": 8192,
+        "max_name_bytes": 512,
+        "max_member_bytes": 536870912,
+        "max_aggregate_expanded_bytes": 1073741824,
+        "ZIP64_multidisk_encryption_links_unsupported": true
+      },
+      "parser": "Python3.14.4 zipfile after physical central-index checks",
+      "boundary_fixtures": [
+        "valid near512-byte name",
+        "oversized declared index refused before ZipFile",
+        "oversized raw name refused before ZipFile"
+      ],
+      "bounded_PE_headers": [
+        {
+          "path": "ConkerBFDReloaded-v1.4.7-Windows/ConkerBFDReloaded.exe",
+          "machine": "0x8664",
+          "sections": 9,
+          "header_bytes_read": 352,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "ConkerBFDReloaded-v1.4.7-Windows/dxcompiler.dll",
+          "machine": "0x8664",
+          "sections": 6,
+          "header_bytes_read": 304,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "ConkerBFDReloaded-v1.4.7-Windows/dxil.dll",
+          "machine": "0x8664",
+          "sections": 6,
+          "header_bytes_read": 296,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "ConkerBFDReloaded-v1.4.7-Windows/SDL2.dll",
+          "machine": "0x8664",
+          "sections": 12,
+          "header_bytes_read": 152,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        }
+      ],
+      "extraction_writes": 0,
+      "upstream_code_or_game_execution": false,
+      "issue": 1806,
+      "asset_url": "https://github.com/DahSidiAbdallah/ConkerBFDReloaded/releases/download/v1.4.7/ConkerBFDReloaded-v1.4.7-Windows.zip",
+      "private_full_inventory_sha256": "29c372af7528a1f6fd797f43ce1c20caed43230d24ba272e66ccb91180f83e2a",
+      "members": 129,
+      "packaged_notice_paths": [
+        "ConkerBFDReloaded-v1.4.7-Windows/LICENSE",
+        "ConkerBFDReloaded-v1.4.7-Windows/assets/LuckiestGuy-LICENSE.txt",
+        "ConkerBFDReloaded-v1.4.7-Windows/assets/promptfont/LICENSE.txt"
+      ]
+    },
+    {
+      "observed_at": "2026-10-31T18:42:41.756361+00:00",
+      "release_id": 392402683,
+      "tag": "v0.4.2-alpha",
+      "asset_id": 576660968,
+      "asset": "beetle-adventure-racing-recomp-v0.4.2-alpha-windows-x64.zip",
+      "expected_sha256_source": "official GitHub API digest; distinct from locally computed hash",
+      "expected_sha256": "b7ad13d3518f6645d32b66bea2c8832595cfea76838299d800e20bf943a704d4",
+      "observed_sha256": "b7ad13d3518f6645d32b66bea2c8832595cfea76838299d800e20bf943a704d4",
+      "bytes": 18595622,
+      "raw_preparser_bounds": {
+        "records": 36,
+        "central_bytes": 2518,
+        "declared_expanded_bytes": 46260086
+      },
+      "policy": {
+        "max_archive_bytes": 134217728,
+        "max_central_metadata": 4194304,
+        "max_physical_records": 8192,
+        "max_name_bytes": 512,
+        "max_member_bytes": 536870912,
+        "max_aggregate_expanded_bytes": 1073741824,
+        "ZIP64_multidisk_encryption_links_unsupported": true
+      },
+      "parser": "Python3.14.4 zipfile after physical central-index checks",
+      "boundary_fixtures": [
+        "valid near512-byte name",
+        "oversized declared index refused before ZipFile",
+        "oversized raw name refused before ZipFile"
+      ],
+      "bounded_PE_headers": [
+        {
+          "path": "beetle-adventure-racing-recomp.exe",
+          "machine": "0x8664",
+          "sections": 7,
+          "header_bytes_read": 144,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "dxcompiler.dll",
+          "machine": "0x8664",
+          "sections": 6,
+          "header_bytes_read": 304,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "dxil.dll",
+          "machine": "0x8664",
+          "sections": 6,
+          "header_bytes_read": 296,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "SDL2.dll",
+          "machine": "0x8664",
+          "sections": 12,
+          "header_bytes_read": 152,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        }
+      ],
+      "extraction_writes": 0,
+      "upstream_code_or_game_execution": false,
+      "issue": 1800,
+      "asset_url": "https://github.com/danielgomesvieira2000/beetle-adventure-racing-recomp/releases/download/v0.4.2-alpha/beetle-adventure-racing-recomp-v0.4.2-alpha-windows-x64.zip",
+      "private_full_inventory_sha256": "2085423a91f7e1536f7251516b6830da2e7439b738e94408bbad6bd84632e26c",
+      "members": 36,
+      "packaged_notice_paths": [
+        "assets/NOTICE.md",
+        "assets/promptfont/LICENSE.txt",
+        "licenses/bar-decomp-LICENSE.txt",
+        "licenses/FreeType-LICENSE.txt",
+        "licenses/GamepadMotionHelpers-LICENSE.txt",
+        "licenses/lunasvg-LICENSE.txt",
+        "licenses/N64ModernRuntime-COPYING.txt",
+        "licenses/N64Recomp-LICENSE.txt",
+        "licenses/RmlUi-LICENSE.txt",
+        "licenses/RT64-LICENSE.txt",
+        "licenses/SDL2-COPYING.txt",
+        "COPYING",
+        "THIRD_PARTY_NOTICES.md"
+      ]
+    },
+    {
+      "observed_at": "2026-10-31T18:42:42.322694+00:00",
+      "release_id": 402446213,
+      "tag": "v1.0.0",
+      "asset_id": 607572513,
+      "asset": "BodyHarvestRecompiled-v1.0.0-Windows.zip",
+      "expected_sha256_source": "official GitHub API digest; distinct from locally computed hash",
+      "expected_sha256": "c3bdb56f152c94c55af66d92bc1d9a37f9ce9eea358315700569c2dcca406a9f",
+      "observed_sha256": "c3bdb56f152c94c55af66d92bc1d9a37f9ce9eea358315700569c2dcca406a9f",
+      "bytes": 17969468,
+      "raw_preparser_bounds": {
+        "records": 37,
+        "central_bytes": 3465,
+        "declared_expanded_bytes": 44271984
+      },
+      "policy": {
+        "max_archive_bytes": 134217728,
+        "max_central_metadata": 4194304,
+        "max_physical_records": 8192,
+        "max_name_bytes": 512,
+        "max_member_bytes": 536870912,
+        "max_aggregate_expanded_bytes": 1073741824,
+        "ZIP64_multidisk_encryption_links_unsupported": true
+      },
+      "parser": "Python3.14.4 zipfile after physical central-index checks",
+      "boundary_fixtures": [
+        "valid near512-byte name",
+        "oversized declared index refused before ZipFile",
+        "oversized raw name refused before ZipFile"
+      ],
+      "bounded_PE_headers": [
+        {
+          "path": "dxcompiler.dll",
+          "machine": "0x8664",
+          "sections": 6,
+          "header_bytes_read": 304,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "BodyHarvestRecompiled.exe",
+          "machine": "0x8664",
+          "sections": 7,
+          "header_bytes_read": 144,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "SDL2.dll",
+          "machine": "0x8664",
+          "sections": 12,
+          "header_bytes_read": 152,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "dxil.dll",
+          "machine": "0x8664",
+          "sections": 6,
+          "header_bytes_read": 296,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        }
+      ],
+      "extraction_writes": 0,
+      "upstream_code_or_game_execution": false,
+      "issue": 1448,
+      "asset_url": "https://github.com/mcsoderh/BodyHarvestRecomp/releases/download/v1.0.0/BodyHarvestRecompiled-v1.0.0-Windows.zip",
+      "private_full_inventory_sha256": "e4544df9ceb60d75202e2fb4cbb6fadb562ef90ed234c4509d41daa6161d3e5c",
+      "members": 37,
+      "packaged_notice_paths": ["assets/promptfont/LICENSE.txt"]
+    },
+    {
+      "observed_at": "2026-10-31T18:42:42.801101+00:00",
+      "release_id": 412130222,
+      "tag": "V0.1.6",
+      "asset_id": 638393682,
+      "asset": "ConkerRecompiled-V0.1.6-Windows.zip",
+      "expected_sha256_source": "official GitHub API digest; distinct from locally computed hash",
+      "expected_sha256": "0fcef307aff8f3632cddfecb4a1a6233af0afb0b77d5deaab6538be5c563115e",
+      "observed_sha256": "0fcef307aff8f3632cddfecb4a1a6233af0afb0b77d5deaab6538be5c563115e",
+      "bytes": 22781093,
+      "raw_preparser_bounds": {
+        "records": 38,
+        "central_bytes": 2625,
+        "declared_expanded_bytes": 60308376
+      },
+      "policy": {
+        "max_archive_bytes": 134217728,
+        "max_central_metadata": 4194304,
+        "max_physical_records": 8192,
+        "max_name_bytes": 512,
+        "max_member_bytes": 536870912,
+        "max_aggregate_expanded_bytes": 1073741824,
+        "ZIP64_multidisk_encryption_links_unsupported": true
+      },
+      "parser": "Python3.14.4 zipfile after physical central-index checks",
+      "boundary_fixtures": [
+        "valid near512-byte name",
+        "oversized declared index refused before ZipFile",
+        "oversized raw name refused before ZipFile"
+      ],
+      "bounded_PE_headers": [
+        {
+          "path": "ConkerRecomp.exe",
+          "machine": "0x8664",
+          "sections": 9,
+          "header_bytes_read": 336,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "dxcompiler.dll",
+          "machine": "0x8664",
+          "sections": 6,
+          "header_bytes_read": 304,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "dxil.dll",
+          "machine": "0x8664",
+          "sections": 6,
+          "header_bytes_read": 296,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "SDL2.dll",
+          "machine": "0x8664",
+          "sections": 12,
+          "header_bytes_read": 152,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        }
+      ],
+      "extraction_writes": 0,
+      "upstream_code_or_game_execution": false,
+      "issue": 1216,
+      "asset_url": "https://github.com/sciaschi/CBFD-Recompiled/releases/download/V0.1.6/ConkerRecompiled-V0.1.6-Windows.zip",
+      "private_full_inventory_sha256": "e60beaf84bc43bd7aa4ef59c2b7e7e289e21217f290ce493643b17eddf8024a0",
+      "members": 38,
+      "packaged_notice_paths": [
+        "assets/promptfont/LICENSE.txt",
+        "LICENSE",
+        "LICENSE-GPL-3.0.txt",
+        "LICENSES.txt"
+      ]
+    }
+  ],
+  "core_inspection": {
+    "ports": 285,
+    "listings": 1424,
+    "port_input_sha256": "9e3c2965c8ec105f4eb52ef087857ae74941b07a9c90386b0ede05bb69816c51",
+    "listing_input_sha256": "b2b7c195f40a9cb74be83877d604448dad468285e6363e03ecf378dce0efe45e",
+    "validator_artifact_sha256": "06dd083d7b3cc124867527cd0e7f32c0cb12893f76268f69aad63589f70a11c4",
+    "compatibility": {
+      "status": "matched",
+      "fixture": "crates/portcove-core/catalog/catalog-legacy-additions-fixture.json",
+      "fixture_sha256": "f3fa9cada8bfdbaf3c960742e8bd50feaaf6ee1244b71fcf4245d08e1b903b06",
+      "collections": {
+        "source_profile_ids": {
+          "expected_count": 116,
+          "unreviewed_ids": [],
+          "missing_expected_ids": []
+        },
+        "port_ids": {
+          "expected_count": 285,
+          "unreviewed_ids": [],
+          "missing_expected_ids": []
+        }
+      },
+      "scope": "Identity bookkeeping only; manually review expectations. Full frozen equality, source contracts and qualification remain separate Rust checks."
+    }
+  },
+  "condition_review_receipts": [
+    {
+      "file": "early-license-review.md",
+      "sha256": "8fb96ffbb1616c51a895fcd4d41c720c41ec39edc47abc60cfb38fe6679de9f3"
+    },
+    {
+      "file": "early-license-patch-supplement-review.md",
+      "sha256": "35a2ed6b310c70c16ddd02dbc5b3bac19f8aa27ea1f524405538d43fe7c70441"
+    }
+  ],
+  "preparation": {
+    "new_1354_guide": "Maintained pre-edit preparation accepted exact final record.",
+    "six_existing_conditions": "Explicit independently reviewed Git-authored source edits under CATALOG. Preparation intentionally refused1886restriction replacement; refusal preserved, guard unchanged. No pre-edit preparation success claimed for these six.",
+    "retained_refusal_sha256": "0eee0d22d3969aed5f27bd0a97cd60f9195277edc479980115010a7995bb3cdc"
+  },
+  "operation_checks": {
+    "status": "Original source CI41231549702/a1 observed all14newcases passing, while required Rust FAILED on an existing rollback-reuse fixture at30.219s. Repaired-source exact-head qualification remains pending; selected passes do not qualify the failing full suite.",
+    "cases": "Seven actual-ID unchanged full non-owning attachment helpers, four resolved-base local-provider options/review/extraction/pending-setup cases and three remaining fork/font zero-provider refusals",
+    "boundary": "Synthetic first-party fixture bytes are not actual upstream packages or license/gameplay/native/protected qualification"
+  },
+  "preservation": "All strict/source/compatibility, identities, artwork, lineage, existing guides and1275bytes unchanged. Existing fixture owner/game default and all prior assertions retained; only explicit repository routing is parameterized. No production Core/adapter/UI/runtime replacement owner added.",
+  "canonical_scope": {
+    "potential_finite_closures_after_delivery": [1806, 1800, 1448],
+    "open_all_fields": [1354, 1886, 1795, 1216, 1275],
+    "reason_1216": "Earlier promised curated local-build/immutable-output acceptance remains operative.",
+    "reason_1275": "Matched base grant credit only; separate actual package-notices applicability and offered-operation acceptance retained alongside D3D12 close failure/Vulkan Unknown/scoped H: missing-index observation/HUMAN B1 GUI stop. No new universal gameplay requirement."
+  },
+  "overall_B1_complete": false,
+  "retained_validation_failure": {
+    "source": "5ec88d8827272d22d0f46047d64a6582a1ead971",
+    "run": 41231549702,
+    "attempt": 1,
+    "actual_checkout": "083887183d6ed6a8dea5f7c11ef160d70ff8cf8d",
+    "actual_tree": "54298593028458c7e12b109fbd3198d8948c6aeb",
+    "producer_job": 124627765253,
+    "producer_log_sha256": "57de53c447a34249b9274d0e357e250eac77adbc797c48278cde9e3b0560f308",
+    "native_failure": {
+      "format_version": 1,
+      "invocation_id": "9ea0c066-c96b-4b3c-8f1e-20faf472f01c",
+      "source": "5ec88d8827272d22d0f46047d64a6582a1ead971",
+      "checkout": "083887183d6ed6a8dea5f7c11ef160d70ff8cf8d",
+      "run": "41231549702",
+      "attempt": "1",
+      "job": "fast_rust_tests",
+      "platform": "win32",
+      "arch": "x64",
+      "identity": "[\"portcove-core\",\"portcove-core\",\"service::tests::update_reuses_a_matching_rollback_version_without_downloading\"]",
+      "outcome": "failed",
+      "duration_ms": 30218.800900000002,
+      "failure": "time limit exceeded",
+      "failure_truncated": false,
+      "failure_raw_source": "original nextest JSON stdout"
+    },
+    "new_case_scope": "All14actual-ID cases passed at the original failed source; required Rust result remained FAILED.",
+    "diagnosis": "Original exact internal phase/timing cause UNKNOWN; no internal diagnostics were emitted. Same case passed9.773s on earlier R21 source, separately retained.",
+    "repair": "Test-only monotonic phases and exact Windows30\u219260second nextest harness allowance, with existing configuration contract. Every staging/activation assertion, cleanup, slots, zero retries and product deadline retained. A later pass proves completion under that finite budget rather than a causal speedup.",
+    "reused_evidence": "Unchanged record/generation/Core input hashes, maintained1354preparation, source grants/static packages and full prior source review remain applicable; repair/current-target review and fresh exact-head checks are required."
+  }
+}

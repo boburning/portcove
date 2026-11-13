@@ -14,9 +14,10 @@ import {
 } from "./release-coordinator-state.mts";
 import {
   recoverRemoteCoordinator,
+  readRemoteCoordinatorSnapshot,
   hydrateRetainedCoordinatorCheckpointExport,
 } from "./release-coordinator-recovery.mts";
-import { GitHubApiClient, createGitHubRunner } from "./github-api.mts";
+import { createReleaseCustodyProvider } from "./release-custody-provider.mts";
 import { CoordinatorRemoteError } from "./release-coordinator-remote.mts";
 import childProcess from "node:child_process";
 import type { SpawnSyncOptionsWithStringEncoding } from "node:child_process";
@@ -46,6 +47,8 @@ void test(
     });
     const excluded = [
       "PORTCOVE_COORDINATOR_JOURNAL_TOKEN",
+      "PORTCOVE_STORAGE_APP_TOKEN",
+      "PORTCOVE_STORAGE_APP_PRIVATE_KEY",
       "PORTCOVE_RELEASE_DISPATCH_TOKEN",
       "PORTCOVE_RELEASE_PUBLICATION_TOKEN",
       "ACTIONS_ID_TOKEN_REQUEST_TOKEN",
@@ -124,24 +127,50 @@ void test(
     const f = await recoveryFixture(t);
     const bare = path.join(f.parent, "historical.git");
     execFileSync("git", ["init", "--bare", "--quiet", bare], { windowsHide: true });
-    const api = new GitHubApiClient((args, input) =>
-      createGitHubRunner({ ...f.transport, maxBuffer: 256 * 1024, timeoutMs: 15000 })(
-        [...args, "--hostname", "github.com"],
-        input,
-      ),
-    );
+    const token = "synthetic-historical-checkpoint";
+    const requests: string[] = [];
+    let admitted = 152,
+      settled = 0;
+    const provider = await createReleaseCustodyProvider({
+      token,
+      chargeRead() {
+        if (++admitted > 160) throw new Error("historical shared allowance exhausted");
+      },
+      afterRead() {
+        settled++;
+      },
+      deadline: performance.now() + 15000,
+      fetch: async (input, init) => {
+        const url = new URL(input instanceof Request ? input.url : input);
+        assert.equal(url.origin, "https://api.github.com");
+        assert.equal(url.search, "");
+        assert.equal(init?.method, "GET");
+        assert.equal(new Headers(init?.headers).get("authorization"), `token ${token}`);
+        requests.push(url.pathname);
+        return Response.json(f.readObject(url.pathname));
+      },
+    });
     const before = execFileSync("git", ["-C", bare, "for-each-ref"], {
       encoding: "utf8",
       windowsHide: true,
     });
-    const reads = f.reads();
-    const historical = await hydrateRetainedCoordinatorCheckpointExport(bare, f.saved.checkpoint, {
-      api,
-    });
+    const historical = await hydrateRetainedCoordinatorCheckpointExport(
+      bare,
+      f.saved.checkpoint,
+      provider,
+    );
     assert.equal(historical.checkpoint, f.saved.checkpoint);
     assert.equal(historical.previous, f.initial.checkpoint);
     assert.equal(historical.requests, 8);
-    assert.equal(f.reads() - reads, 8);
+    assert.equal(requests.length, 8);
+    assert.deepEqual(
+      requests.map((route) => route.split("/").at(-2)),
+      ["commits", "trees", "blobs", "commits", "trees", "blobs", "commits", "commits"],
+    );
+    assert.equal(settled, 8);
+    await assert.rejects(provider.commit(f.saved.checkpoint), /shared allowance exhausted/u);
+    assert.equal(requests.length, 8);
+    assert.equal(f.reads(), 0);
     assert.equal(historical.authority, "none");
     assert.deepEqual(
       exportRetainedCoordinatorCheckpoint(bare, f.saved.checkpoint),
@@ -162,13 +191,156 @@ void test(
   },
 );
 
+void test("configured SDK recovers the exact bracketed snapshot and refuses a GraphQL error", async (t) => {
+  const f = await recoveryFixture(t);
+  const configuration = { schema_version: 1, namespace: "portcove-fixture" };
+  const legacyRequests: string[] = [];
+  const legacy = await readRemoteCoordinatorSnapshot(f.parent, configuration, {
+    transport: {
+      ...f.transport,
+      spawn(command: string, args: readonly string[], options: SpawnSyncOptionsWithStringEncoding) {
+        if (args[1] === "graphql") {
+          const payload: unknown = JSON.parse(
+            typeof options.input === "string" ? options.input : "",
+          );
+          assert.ok(
+            isRecord(payload) &&
+              isRecord(payload.variables) &&
+              typeof payload.variables.ref === "string",
+          );
+          legacyRequests.push(`/graphql ${payload.variables.ref}`);
+        } else {
+          assert.ok(args[2]);
+          legacyRequests.push(`/${args[2]}`);
+        }
+        return f.transport.spawn(command, args, options);
+      },
+    },
+  });
+  const token = "synthetic-sdk-recovery";
+  const requests: string[] = [];
+  let refused = false;
+  t.mock.method(globalThis, "fetch", async (input: string | URL | Request, init?: RequestInit) => {
+    const url = new URL(input instanceof Request ? input.url : input);
+    assert.equal(url.origin, "https://api.github.com");
+    assert.equal(url.search, "");
+    assert.equal(new Headers(init?.headers).get("authorization"), `token ${token}`);
+    if (url.pathname === "/graphql") {
+      assert.equal(init?.method, "POST");
+      const payload: unknown = JSON.parse(typeof init.body === "string" ? init.body : "");
+      assert.ok(
+        isRecord(payload) &&
+          typeof payload.query === "string" &&
+          payload.query.startsWith("query("),
+      );
+      assert.ok(
+        isRecord(payload.variables) &&
+          typeof payload.variables.id === "string" &&
+          typeof payload.variables.ref === "string",
+      );
+      requests.push(`/graphql ${payload.variables.ref}`);
+      const data = f.readRef(payload.variables.id, payload.variables.ref);
+      return Response.json(refused ? { ...data, errors: [{ message: "Synthetic error" }] } : data);
+    }
+    assert.equal(init?.method, "GET");
+    requests.push(url.pathname);
+    return Response.json(
+      url.pathname === "/repos/boburning/portcove"
+        ? f.readRepository()
+        : f.readObject(url.pathname),
+    );
+  });
+  const read = () =>
+    readRemoteCoordinatorSnapshot(f.parent, configuration, {
+      transport: { credential: { token }, deadline: performance.now() + 15000 },
+    });
+  assert.deepEqual(await read(), legacy);
+  assert.equal(requests.length, legacy.requests);
+  assert.deepEqual(requests, legacyRequests);
+  requests.length = 0;
+  refused = true;
+  await assert.rejects(read(), /Synthetic error/);
+  assert.deepEqual(requests, [
+    "/repos/boburning/portcove",
+    "/graphql refs/heads/portcove-fixture-coordinator-state",
+  ]);
+});
+
+void test("scoped SDK snapshot rechecks source custody after the original response", async (t) => {
+  const f = await recoveryFixture(t, false, true);
+  let reads = 0;
+  let checks = 0;
+  t.mock.method(globalThis, "fetch", async (input: string | URL | Request, init?: RequestInit) => {
+    const url = new URL(input instanceof Request ? input.url : input);
+    assert.equal(url.href, "https://api.github.com/repos/boburning/portcove");
+    assert.equal(
+      new Headers(init?.headers).get("authorization"),
+      "token ghs_native_journal_fixture",
+    );
+    reads++;
+    return Response.json(f.readRepository());
+  });
+  await assert.rejects(
+    readRemoteCoordinatorSnapshot(
+      f.parent,
+      { schema_version: 1, namespace: "portcove-fixture" },
+      {
+        transport: {
+          credential: { token: "ghs_native_journal_fixture" },
+          deadline: performance.now() + 15000,
+          checkSource() {
+            checks++;
+            if (reads) throw new Error("native original source changed during response");
+          },
+        },
+      },
+    ),
+    /native original source changed during response/u,
+  );
+  assert.equal(reads, 1);
+  assert.equal(checks, 2);
+});
+
+void test("isolated SDK coordinator snapshot refuses a late proxy override before dispatch", async (t) => {
+  const f = await recoveryFixture(t, false, true);
+  const originalToken = process.env.GH_TOKEN;
+  const originalProxy = process.env.NODE_USE_ENV_PROXY;
+  process.env.GH_TOKEN = "ghs_isolated_journal_fixture";
+  t.after(() => {
+    if (originalToken === undefined) delete process.env.GH_TOKEN;
+    else process.env.GH_TOKEN = originalToken;
+    if (originalProxy === undefined) delete process.env.NODE_USE_ENV_PROXY;
+    else process.env.NODE_USE_ENV_PROXY = originalProxy;
+  });
+  const fetcher = t.mock.method(globalThis, "fetch", async () => {
+    throw new Error("isolated reader must not dispatch");
+  });
+  await withReadOnlyReleaseChildren(f.parent, async () => {
+    process.env.NODE_USE_ENV_PROXY = "1";
+    await assert.rejects(
+      readRemoteCoordinatorSnapshot(
+        f.parent,
+        { schema_version: 1, namespace: "portcove-fixture" },
+        {
+          transport: {
+            credential: { token: "ghs_isolated_journal_fixture" },
+            deadline: performance.now() + 15000,
+          },
+        },
+      ),
+      /trusted direct Node runtime/u,
+    );
+  });
+  assert.equal(fetcher.mock.callCount(), 0);
+});
+
 for (const scenario of ["seeded", "changed", "unseeded", "pending-context"] as const)
   void test(
     `trusted coordinator ${scenario === "changed" ? "refuses changed remote recovery before reading main" : scenario === "seeded" ? "recovers active candidate then requires actual resumption authority before reading main" : scenario === "pending-context" ? "routes unresolved context to GET-only recovery before bootstrap preparation" : "holds an unseeded active candidate at bootstrap before resumption or main"}`,
     { timeout: 60000 },
     async (t) => {
-      // Real Git recovery through the production default transport, with the gh
-      // subprocess provider simulated. No OIDC, credential or protected POST.
+      // Real Git recovery and locked SDK clock, with controlled provider boundaries.
+      // No OIDC, live credential or protected POST.
       const changed = scenario === "changed";
       const f = await recoveryFixture(
         t,
@@ -182,6 +354,7 @@ for (const scenario of ["seeded", "changed", "unseeded", "pending-context"] as c
       t.after(() => rm(parent, { recursive: true, force: true }));
       const initialRefs = structuredClone(f.refs);
       const jobEnvironment = {
+        GH_TOKEN: "ghs_coordinator_clock_fixture",
         GITHUB_RUN_ID: "12345",
         GITHUB_RUN_ATTEMPT: "1",
         GITHUB_SHA: f.input.opportunity.source_commit,
@@ -205,26 +378,75 @@ for (const scenario of ["seeded", "changed", "unseeded", "pending-context"] as c
       const original = childProcess.spawnSync;
       let mainReads = 0;
       let jobReads = 0;
+      t.mock.method(
+        globalThis,
+        "fetch",
+        async (input: URL | Request | string, init?: RequestInit) => {
+          const url = new URL(input instanceof Request ? input.url : input);
+          assert.equal(url.origin, "https://api.github.com");
+          assert.equal(
+            new Headers(init?.headers).get("authorization"),
+            `token ${jobEnvironment.GH_TOKEN}`,
+          );
+          if (url.pathname === "/graphql") {
+            assert.equal(init?.method, "POST");
+            const payload: unknown = JSON.parse(typeof init.body === "string" ? init.body : "");
+            assert.ok(
+              isRecord(payload) &&
+                typeof payload.query === "string" &&
+                payload.query.startsWith("query("),
+            );
+            assert.ok(
+              isRecord(payload.variables) &&
+                typeof payload.variables.id === "string" &&
+                typeof payload.variables.ref === "string",
+            );
+            return Response.json(f.readRef(payload.variables.id, payload.variables.ref));
+          }
+          if (!url.pathname.endsWith("/actions/runs/12345/jobs")) {
+            assert.equal(init?.method, "GET");
+            assert.equal(url.search, "");
+            return Response.json(
+              url.pathname === "/repos/boburning/portcove"
+                ? f.readRepository()
+                : f.readObject(url.pathname),
+            );
+          }
+          assert.equal(url.pathname, "/repos/boburning/portcove/actions/runs/12345/jobs");
+          assert.deepEqual(Object.fromEntries(url.searchParams), {
+            filter: "all",
+            per_page: "100",
+            page: "1",
+          });
+          assert.equal(init?.method, "GET");
+          assert.equal(
+            new Headers(init?.headers).get("authorization"),
+            `token ${jobEnvironment.GH_TOKEN}`,
+          );
+          assert.equal(f.reads(), 0, "original job budget precedes recovery reads");
+          process.env.GH_TOKEN = "ghs_rotated_after_original_clock";
+          jobReads++;
+          return Response.json({
+            total_count: 1,
+            jobs: [
+              {
+                id: 901,
+                name: "Coordinate application release",
+                run_id: 12345,
+                run_attempt: 1,
+                head_sha: jobEnvironment.GITHUB_SHA,
+                status: "in_progress",
+                started_at: new Date().toISOString(),
+              },
+            ],
+          });
+        },
+      );
       const mock = t.mock.method(
         childProcess,
         "spawnSync",
         (command: string, args: readonly string[], options: SpawnSyncOptionsWithStringEncoding) => {
           if (command !== "gh") return original(command, args, options);
-          if (
-            args.includes(
-              "repos/boburning/portcove/actions/runs/12345/jobs?filter=all&per_page=100&page=1",
-            )
-          ) {
-            jobReads++;
-            assert.equal(args[args.indexOf("--method") + 1], "GET");
-            assert.equal(args[args.indexOf("--hostname") + 1], "github.com");
-            assert.equal(f.reads(), 0, "original job budget precedes recovery reads");
-            return {
-              status: 0,
-              stdout: `HTTP/2.0 200 Fixture\r\nContent-Type: application/json\r\n\r\n${JSON.stringify({ total_count: 1, jobs: [{ id: 901, name: "Coordinate application release", run_id: 12345, run_attempt: 1, head_sha: jobEnvironment.GITHUB_SHA, status: "in_progress", started_at: new Date().toISOString() }] })}`,
-              stderr: "",
-            };
-          }
           if (args.includes("repos/boburning/portcove/git/ref/heads/main")) {
             mainReads++;
             assert.ok(f.reads() >= 16, "complete recovery must precede live source selection");
@@ -243,9 +465,11 @@ for (const scenario of ["seeded", "changed", "unseeded", "pending-context"] as c
         mock.mock.restore();
         syncBuiltinESMExports();
       });
-      const run = requestTrustedSemanticReview(parent, {
+      const invocation = {
         remote_configuration: { schema_version: 1, namespace: "portcove-fixture" },
-      });
+      };
+      const run = requestTrustedSemanticReview(parent, invocation);
+      invocation.remote_configuration.namespace = "changed-while-clock-pending";
       if (changed) {
         await assert.rejects(run, (error: unknown) => {
           assert.ok(error instanceof CoordinatorRemoteError);

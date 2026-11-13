@@ -36,62 +36,68 @@ const evaluate = (overrides: Partial<CiResultInputs> = {}) =>
     ...overrides,
   });
 
-void test("beta Rust qualification skips only the inapplicable Intel jobs and requires every Windows/Linux producer", () => {
-  const beta = discoverCiPlan({
-    eventName: "workflow_dispatch",
-    checkoutSha: sha("d"),
-    forceQualification: true,
-    qualificationCaller: "release",
-    callerWorkflow: "release.yml",
-    releaseProfile: "initial-beta-win-linux",
-  });
-  const results = {
-    qualification_core_archive: "success",
-    rust_tests: "success",
-    rust_workspace_tests: "success",
-    rust_clippy: "success",
-    windows_storage: "success",
-    native_rust: "success",
-    rust_docs: "success",
-    intel_build: "skipped",
-    intel_tests: "skipped",
-  };
-  const check = (qualification: Record<string, string>, selectedPlan = beta) =>
-    evaluate({
-      group: "rust",
-      plan: selectedPlan,
-      fast: { fast_rust: "skipped", fast_rust_tests: "skipped", fast_rust_transport: "skipped" },
-      qualification,
+for (const profile of ["initial-beta-win-linux", "initial-beta-windows-x86_64-v1"] as const) {
+  void test(`${profile} requires every selected Windows/shared producer and exact absent-platform skips`, () => {
+    const beta = discoverCiPlan({
+      eventName: "workflow_dispatch",
+      checkoutSha: sha("d"),
+      forceQualification: true,
+      qualificationCaller: "release",
+      callerWorkflow: "release.yml",
+      releaseProfile: profile,
     });
-  assert.match(check(results), /Accepted qualification/);
-  for (const name of Object.keys(results)) {
-    assert.throws(() => check({ ...results, [name]: "failure" }));
-    const omitted = { ...results };
-    delete omitted[name as keyof typeof omitted];
-    assert.throws(() => check(omitted), /every applicable/);
-    assert.throws(() =>
-      check({ ...results, [name]: name.startsWith("intel_") ? "success" : "skipped" }),
-    );
-  }
-  assert.throws(() => check({ ...results, foreign: "success" }), /every applicable/);
-  const full = discoverCiPlan({
-    eventName: "workflow_call",
-    checkoutSha: sha("d"),
-    forceQualification: true,
-  });
-  assert.throws(() => check(results, full), /expected success/);
-  for (const group of ["catalog", "dependency-review", "frontend", "rust-quality"])
-    assert.throws(
-      () =>
-        evaluate({
-          group,
-          plan: beta,
-          fast: { fast_group: "skipped" },
-          qualification: { producer: "skipped" },
+    const results = {
+      qualification_core_archive: "success",
+      rust_tests: "success",
+      rust_workspace_tests: "success",
+      rust_clippy: "success",
+      windows_storage: "success",
+      native_rust: profile === "initial-beta-win-linux" ? "success" : "skipped",
+      rust_docs: "success",
+      intel_build: "skipped",
+      intel_tests: "skipped",
+    };
+    const check = (qualification: Record<string, string>, selectedPlan = beta) =>
+      evaluate({
+        group: "rust",
+        plan: selectedPlan,
+        fast: { fast_rust: "skipped", fast_rust_tests: "skipped", fast_rust_transport: "skipped" },
+        qualification,
+      });
+    assert.match(check(results), /Accepted qualification/);
+    for (const name of Object.keys(results)) {
+      for (const failure of ["failure", "cancelled", "timed_out", "startup_failure", "", "refused"])
+        assert.throws(() => check({ ...results, [name]: failure }));
+      const omitted = { ...results };
+      delete omitted[name as keyof typeof omitted];
+      assert.throws(() => check(omitted), /every applicable/);
+      assert.throws(() =>
+        check({
+          ...results,
+          [name]: results[name as keyof typeof results] === "skipped" ? "success" : "skipped",
         }),
-      /expected success/,
-    );
-});
+      );
+    }
+    assert.throws(() => check({ ...results, foreign: "success" }), /every applicable/);
+    const full = discoverCiPlan({
+      eventName: "workflow_call",
+      checkoutSha: sha("d"),
+      forceQualification: true,
+    });
+    assert.throws(() => check(results, full), /expected success/);
+    for (const group of ["catalog", "dependency-review", "frontend", "rust-quality"])
+      assert.throws(
+        () =>
+          evaluate({
+            group,
+            plan: beta,
+            fast: { fast_group: "skipped" },
+            qualification: { producer: "skipped" },
+          }),
+        /expected success/,
+      );
+  });
+}
 
 void test("dependent aggregates name the failed producer without changing acceptance or asserting its cause", () => {
   for (const result of ["failure", "timed_out", "cancelled", "startup_failure"])
@@ -266,4 +272,150 @@ void test("malformed lane result JSON cannot authorize an aggregate", () => {
     assert.throws(() => evaluate({ always: malformed }), /job-result map/u);
   }
   assert.throws(() => evaluate({ reuse: false }), /postmerge reuse binding/u);
+});
+
+void test("sharded browser results are mandatory exactly when the classifier flag selects them", () => {
+  const sharded = (overrides: Partial<CiResultInputs> = {}) =>
+    evaluate({
+      frontendBrowserSharded: "true",
+      targeted: { fast_frontend_browser: "success" },
+      ...overrides,
+    });
+  assert.match(sharded(), /Accepted fast plan/u);
+  for (const result of ["failure", "cancelled", "skipped", "timed_out"])
+    assert.throws(
+      () => sharded({ targeted: { fast_frontend_browser: result } }),
+      /fast_frontend_browser was .*expected success/u,
+      result,
+    );
+  // A workflow that drops the shard job entirely cannot pass by omission.
+  assert.throws(() => sharded({ targeted: {} }), /fast_frontend_browser was missing/u);
+  assert.throws(() => sharded({ targeted: { fast_platform: "skipped" } }), /missing/u);
+
+  // Unsharded runs keep the browser projects in the main job and require the shards skipped.
+  assert.match(
+    evaluate({
+      frontendBrowserSharded: "false",
+      targeted: { fast_frontend_browser: "skipped" },
+    }),
+    /Accepted fast plan/u,
+  );
+  assert.throws(
+    () =>
+      evaluate({
+        frontendBrowserSharded: "false",
+        targeted: { fast_frontend_browser: "success" },
+      }),
+    /expected skipped/u,
+  );
+  assert.throws(() => sharded({ frontendBrowserSharded: "yes" }), /must be true or false/u);
+  assert.throws(() => sharded({ frontendBrowserSharded: "" }), /must be true or false/u);
+
+  // The main frontend job must still pass for the sharded case to be accepted.
+  assert.throws(
+    () => sharded({ fast: { fast_frontend: "failure" } }),
+    /fast_frontend was failure/u,
+  );
+
+  // The flag never affects another group, and qualification keeps its own unsharded producer.
+  assert.match(
+    evaluate({
+      group: "rust",
+      plan: plan("crates/portcove-core/src/lib.rs"),
+      fast: { fast_rust: "success", fast_rust_tests: "success", fast_rust_transport: "success" },
+      qualification: { rust_tests: "skipped" },
+      targeted: {},
+      frontendBrowserSharded: "true",
+    }),
+    /Accepted fast plan/u,
+  );
+  const qualification = discoverCiPlan({
+    eventName: "workflow_dispatch",
+    checkoutSha: sha("d"),
+    forceQualification: true,
+    qualificationCaller: "release",
+    callerWorkflow: "release.yml",
+  });
+  assert.match(
+    evaluate({
+      plan: qualification,
+      frontendBrowserSharded: "true",
+      fast: { fast_frontend: "skipped" },
+      targeted: { fast_frontend_browser: "skipped" },
+      qualification: { frontend_full: "success" },
+    }),
+    /Accepted qualification plan/u,
+  );
+});
+
+void test("a draft defers the Windows partitions and the rust result fails until ready", () => {
+  const rust = (overrides: Partial<CiResultInputs> = {}) =>
+    evaluate({
+      group: "rust",
+      plan: plan("crates/portcove-core/src/lib.rs"),
+      fast: { fast_rust: "success", fast_rust_tests: "skipped", fast_rust_transport: "success" },
+      qualification: { rust_tests: "skipped" },
+      targeted: {},
+      windowsTestsDeferred: "true",
+      ...overrides,
+    });
+  // Even with every executed lane green, the deferred draft result is a failure, never a pass.
+  assert.throws(
+    () => rust(),
+    (error: unknown) => {
+      assert.match(
+        formatResultGateFailure(error),
+        /^Deferred by draft policy, not a test failure: Windows test partitions are deferred/u,
+      );
+      return true;
+    },
+  );
+  // The draft run still requires the build and transport it did execute.
+  for (const lane of ["fast_rust", "fast_rust_transport"])
+    for (const result of ["failure", "cancelled", "skipped"])
+      assert.throws(
+        () =>
+          rust({
+            fast: {
+              fast_rust: "success",
+              fast_rust_tests: "skipped",
+              fast_rust_transport: "success",
+              [lane]: result,
+            },
+          }),
+        /expected success/u,
+        `${lane} ${result}`,
+      );
+  // Partitions that ran despite the flag mean the flag and the workflow disagree.
+  assert.throws(
+    () =>
+      rust({
+        fast: { fast_rust: "success", fast_rust_tests: "success", fast_rust_transport: "success" },
+      }),
+    /expected skipped for a draft/u,
+  );
+  // A ready run with the flag false needs the partitions as before.
+  assert.match(
+    rust({
+      windowsTestsDeferred: "false",
+      fast: { fast_rust: "success", fast_rust_tests: "success", fast_rust_transport: "success" },
+    }),
+    /Accepted fast plan/u,
+  );
+  assert.throws(
+    () => rust({ windowsTestsDeferred: "false" }),
+    /fast_rust_tests was skipped, expected success/u,
+  );
+  // The flag cannot apply to another group or to a plan that does not execute Rust.
+  assert.throws(() => evaluate({ windowsTestsDeferred: "true" }), /applies only/u);
+  assert.throws(
+    () =>
+      rust({
+        plan: plan("apps/desktop/src/App.tsx"),
+        fast: { fast_rust: "skipped", fast_rust_tests: "skipped", fast_rust_transport: "skipped" },
+      }),
+    /applies only/u,
+  );
+  for (const malformed of ["yes", "", "TRUE"])
+    assert.throws(() => rust({ windowsTestsDeferred: malformed }), /must be true or false/u);
 });

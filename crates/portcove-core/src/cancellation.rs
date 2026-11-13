@@ -51,11 +51,33 @@ impl CancellationState {
     }
 }
 
+const CANCELLATION_INTERVAL: Duration = Duration::from_millis(50);
+
+/// Activities whose cancellation was requested from this process. A scope
+/// checks SQLite immediately when its id is here; requests from another
+/// process are still observed by the throttled check. No connection is held
+/// open, so the database file can still be renamed on Windows.
+static IN_PROCESS_REQUESTS: Mutex<Vec<String>> = Mutex::new(Vec::new());
+
+fn requested_in_process(id: &str) -> bool {
+    IN_PROCESS_REQUESTS.lock().map_or(true, |requests| {
+        requests.iter().any(|request| request == id)
+    })
+}
+
 pub(crate) struct CancellationScope {
     library: Library,
     id: String,
     _guard: PortOperationGuard,
     checked: Mutex<Option<Instant>>,
+}
+
+impl Drop for CancellationScope {
+    fn drop(&mut self) {
+        if let Ok(mut requests) = IN_PROCESS_REQUESTS.lock() {
+            requests.retain(|request| request != &self.id);
+        }
+    }
 }
 
 impl std::fmt::Debug for CancellationScope {
@@ -104,11 +126,14 @@ impl CancellationScope {
     }
 
     pub fn checkpoint(&self) -> Result<()> {
+        if requested_in_process(&self.id) {
+            return self.check_now();
+        }
         let mut checked = self
             .checked
             .lock()
             .map_err(|_| PortcoveError::state("cancellation clock lock poisoned"))?;
-        if checked.is_some_and(|last| last.elapsed() < Duration::from_millis(50)) {
+        if checked.is_some_and(|last| last.elapsed() < CANCELLATION_INTERVAL) {
             return Ok(());
         }
         self.check_now()?;
@@ -130,20 +155,31 @@ impl CancellationScope {
     }
 
     /// Only use with a read-only network future, never with a spawned mutation worker.
+    ///
+    /// Download loops call this once per network chunk. Entry and completion
+    /// share the throttled `checkpoint`, which still answers a request made in
+    /// this process immediately, instead of opening SQLite twice per chunk.
     pub async fn interruptible<T>(&self, future: impl Future<Output = Result<T>>) -> Result<T> {
-        self.check_now()?;
+        self.checkpoint()?;
         tokio::pin!(future);
         loop {
             tokio::select! {
-                result = &mut future => { self.check_now()?; return result; }
-                _ = tokio::time::sleep(Duration::from_millis(50)) => self.check_now()?,
+                result = &mut future => { self.checkpoint()?; return result; }
+                _ = tokio::time::sleep(CANCELLATION_INTERVAL) => self.check_now()?,
             }
         }
     }
 }
 
 pub(crate) fn cancellation_state(library: &Library, id: &str) -> Result<Option<CancellationState>> {
-    let row = database::connect(library.root())?.query_row(
+    cancellation_state_on(&database::connect(library.root())?, id)
+}
+
+fn cancellation_state_on(
+    connection: &rusqlite::Connection,
+    id: &str,
+) -> Result<Option<CancellationState>> {
+    let row = connection.query_row(
         "SELECT cancellation_phase, cancel_requested FROM activity_history WHERE id=?1 AND status='running'",
         [id], |row| Ok((row.get::<_, Option<String>>(0)?, row.get::<_, bool>(1)?)),
     ).optional()?;
@@ -211,6 +247,17 @@ impl PortcoveService {
             )
             .with_known_cause(crate::failure::KnownFailureCause::CancellationUnavailable)
             .detail("operation_id", operation_id));
+        }
+        if let Ok(mut requests) = IN_PROCESS_REQUESTS.lock()
+            && !requests.iter().any(|request| request == operation_id)
+        {
+            // A request for another process's activity has no local scope to
+            // clear it; keep the list bounded (missed hints fall back to the
+            // throttled SQLite check).
+            if requests.len() >= 256 {
+                requests.remove(0);
+            }
+            requests.push(operation_id.to_owned());
         }
         Ok(CancellationState {
             phase: CancellationPhase::Preparing,
@@ -318,18 +365,25 @@ impl PortcoveService {
                     Err(error) => return Err(error),
                 }
             }
-            let (status, message) = if state.requested {
-                (
+            if state.requested {
+                self.library().finish_activity_once(
+                    &id,
                     ActivityStatus::Cancelled,
                     "Cancelled preparation recovered after interruption",
-                )
+                )?;
             } else {
-                (
+                let message = "Worker was interrupted before recording its result; inspect library state before retrying";
+                let failure = PortcoveError::state(message)
+                    .with_known_cause(crate::failure::KnownFailureCause::OperationInterrupted)
+                    .with_mutation_state(crate::MutationState::Unknown)
+                    .report();
+                self.library().finish_activity_once_with_report(
+                    &id,
                     ActivityStatus::Failed,
-                    "Worker was interrupted before recording its result; inspect library state before retrying",
-                )
-            };
-            self.library().finish_activity_once(&id, status, message)?;
+                    message,
+                    Some(&failure),
+                )?;
+            }
         }
         Ok(())
     }

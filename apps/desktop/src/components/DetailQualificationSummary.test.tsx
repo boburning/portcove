@@ -67,8 +67,8 @@ function details(
       biosInspection={biosInspection}
     />,
   );
-  const recorded = markup.split(">Recorded checks</summary>")[1];
-  expect(recorded, "Recorded checks disclosure is present in Overview").toBeDefined();
+  const recorded = markup.split(">Test results</summary>")[1];
+  expect(recorded, "Test results disclosure is present in Overview").toBeDefined();
   return recorded!.split("</details>")[0]!;
 }
 
@@ -80,7 +80,7 @@ describe("detail qualification history", () => {
     expect(markup).toContain("Known failure");
     expect(markup).toContain("165 Hz host");
     expect(markup).toContain("v1.0.5");
-    expect(markup).toContain("Recorded history");
+    expect(markup).toContain("earlier test results");
     expect(markup).not.toContain("No automated test recorded");
   });
 
@@ -88,7 +88,7 @@ describe("detail qualification history", () => {
     const markup = details();
     expect(markup).toContain("File-check report unavailable");
     expect(markup).toContain("Catalog evidence may still exist");
-    expect(markup).toContain("No legacy platform coverage recorded");
+    expect(markup).toContain("No earlier platform tests recorded");
     expect(markup).not.toContain("No automated test recorded");
   });
 
@@ -232,14 +232,14 @@ describe("detail qualification history", () => {
     value.applications[0].qualification.exact_records = [record];
     const markup = details(value);
     expect(markup).toContain(record.method);
-    expect(markup.match(/Not recorded — scope unknown/g)).toHaveLength(2);
-    expect(markup).toContain("Current applicability is unknown");
-    expect(markup).toContain("not a fresh check");
+    expect(markup.match(/Not recorded/g)).toHaveLength(2);
+    expect(markup).toContain("We haven’t confirmed whether these test results apply");
+    expect(markup).toContain("earlier test results");
   });
 
   it("keeps legacy platform coverage alongside recorded exact history", () => {
     const markup = details(report(), { ...snap64, automated_tested_platforms: ["linux-x86-64"] });
-    expect(markup).toContain("Legacy port-wide automated tests");
+    expect(markup).toContain("Earlier automated tests");
     expect(markup).toContain("Linux · Not recorded: Windows");
     expect(markup).toContain("Structural check · Passed");
     expect(markup).toContain("Known failure · Failed");
@@ -318,4 +318,40 @@ describe("detail qualification history", () => {
       expect(technical).not.toContain("Steam shortcut");
     },
   );
+});
+
+describe("earlier test results localization", () => {
+  it("labels unrecognized Core kinds and outcomes as unknown", () => {
+    const value = report();
+    const record = structuredClone(value.applications[0].qualification.exact_records[0]!);
+    Object.assign(record, { kind: "future_kind", outcome: "future" });
+    value.applications[0].qualification.exact_records = [record];
+    const markup = renderToStaticMarkup(
+      <DetailQualificationSummary port={snap64} sourceInspection={value} />,
+    );
+    expect(markup).toContain("Check kind unknown · Outcome unknown");
+  });
+
+  it("translates labels while recorded editions and methods stay exact", async () => {
+    const { initializeLocalization } = await import("../localization");
+    const localization = initializeLocalization(["en-US"]);
+    try {
+      await localization.changeLanguage("ar-XB");
+      const markup = renderToStaticMarkup(
+        <DetailQualificationSummary
+          port={{ ...snap64, automated_tested_platforms: ["linux-x86-64"] }}
+          sourceInspection={report()}
+        />,
+      );
+      expect(markup).toContain("اختبارات آلية سابقة");
+      expect(markup).toContain("Linux · غير مسجل: Windows");
+      expect(markup).toContain("فحص بنيوي · نجح");
+      expect(markup).toContain('aria-label="فحوصات ملفات اللعبة المسجلة"');
+      expect(markup).toContain("Pokemon Snap · USA · Rev 0");
+      expect(markup).not.toContain("Earlier automated tests");
+      expect(markup).not.toContain("Recorded platform");
+    } finally {
+      await localization.changeLanguage("en");
+    }
+  });
 });

@@ -36,14 +36,14 @@ import {
 import { createHash, randomUUID } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
-import { evaluateFallowReport } from "./check-fallow-report.mts";
+import { evaluateFallowReport, reviewedFallowVersion } from "./check-fallow-report.mts";
 import { commandFailure, renderBoundedSummary, retainCommandEvidence } from "./report-summary.mts";
 import { summarizeFallow } from "./fallow-summary.mts";
 import { fallowSource } from "./fallow-source.mts";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
 const cli = fileURLToPath(new URL("../node_modules/fallow/bin/fallow", import.meta.url));
-const version = "3.37.0";
+const version = reviewedFallowVersion;
 
 // Fixed maintained scopes must not silently inherit a production subset, a line
 // filter, or a different semantic backend. Cache and presentation settings remain
@@ -172,7 +172,7 @@ export function fallowArguments(
 }
 
 function validateAdvisory(report: unknown, mode: string) {
-  const expected = mode === "css" ? ["health", 12] : ["audit-brief", 13];
+  const expected = mode === "css" ? ["health", 13] : ["audit-brief", 14];
   if (
     !isRecord(report) ||
     report.kind !== expected[0] ||

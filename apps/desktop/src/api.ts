@@ -2,6 +2,10 @@ import type { GameComparison, GameComparisonRequest } from "./types";
 import type {
   ArtworkSlot,
   ArtworkState,
+  DestinationArtworkRole,
+  SteamGridDbCandidate,
+  SteamGridDbGame,
+  SteamGridDbKeyStatus,
   ArtworkThumbnail,
   CliCommandContext,
   BackupAction,
@@ -12,7 +16,16 @@ import type {
   ExternalRuntimeRecord,
 } from "./types";
 
-import type { InstallInput, LaunchResult } from "./types";
+import type {
+  BugReportDraft,
+  BugReportField,
+  BugReportLink,
+  ReportKind,
+  SubmittedReport,
+  InstallInput,
+  LaunchResult,
+  LaunchSessionView,
+} from "./types";
 import type {
   GameUpdateAcquisition,
   GameUpdatePlan,
@@ -48,6 +61,11 @@ import type {
   ActivityDiagnostic,
   ActivityFeed,
   AdoptionPreview,
+  AdoptionBatchItem,
+  AdoptionBatchPreview,
+  AdoptionBatchResult,
+  LauncherKind,
+  LauncherLibraryInventory,
   ApplicationUpdateChoice,
   ApplicationUpdateCheckPhase,
   ApplicationUpdateCheckResult,
@@ -61,6 +79,8 @@ import type {
   ApplicationUpdateProductionTransitionResult,
   ApplicationUpdateRecoveryArea,
   ApplicationUpdateStatus,
+  GhostshipRecoveryPlan,
+  GhostshipRecoveryResult,
   BackupInventory,
   BackupRecord,
   BootstrapStatus,
@@ -78,8 +98,23 @@ import type {
   GithubDeviceLogin,
   GithubDeviceLoginResult,
   GameFileRoot,
+  InstallBatchRecord,
+  InstallBatchRequestItem,
+  InstallBatchReview,
+  PortIntent,
+  PortIntentAssessments,
+  PortIntentMode,
+  PortReadinessAcknowledgement,
+  StandingSetupResult,
+  RootSetupConsent,
+  RootSetupEnrollment,
+  LibraryMembership,
+  LibraryMembershipOutcome,
+  LibraryMembershipRequest,
   GameFileQueryRefreshRequest,
   GameFileQuerySnapshot,
+  GameFileScanMatchPage,
+  GameFileScanMatchQuery,
   GameFileScanSnapshot,
   HostToolProbeResult,
   HostToolStatus,
@@ -104,6 +139,9 @@ import type {
   SourceRelinkPlan,
   SourceRemovalPreview,
   SourceVerificationOutcome,
+  SteamArtworkApplyResult,
+  SteamArtworkReview,
+  SteamArtworkSelection,
   SteamEntryApplyResult,
   SteamEntryOperation,
   SteamEntryReview,
@@ -111,16 +149,50 @@ import type {
   SteamBatchReview,
   SteamBatchSelection,
   UpdateCheck,
+  UpdateCheckForecast,
   UpdateCheckOutcome,
   UpdatePolicy,
-  WorkspaceSnapshot,
+  WorkspaceSnapshotTransport,
 } from "./types";
 
 export type DesktopArtworkThumbnail = Pick<ArtworkThumbnail, "asset_sha256" | "choice_revision"> & {
   png_base64: string;
 };
 
+/** Explicit player choices bound into a reviewed save import. */
+export interface PortableSaveChoices {
+  removeLocalOnlySaves: boolean;
+  replaceDivergedProgress: boolean;
+}
+
 export const desktopApi = {
+  gameSettings: (portId: string, generation: number) =>
+    invoke<import("./types").GameSettingsView>("get_game_settings", { portId, generation }),
+  portCapabilities: (portId: string, generation: number) =>
+    invoke<import("./types").PortCapabilityReport>("get_port_capabilities", { portId, generation }),
+  reviewGameSetting: (
+    portId: string,
+    fileId: string,
+    settingId: string,
+    change: import("./types").GameSettingChange,
+    generation: number,
+  ) =>
+    invoke<import("./types").GameSettingReview>("review_game_setting", {
+      portId,
+      fileId,
+      settingId,
+      change,
+      generation,
+    }),
+  applyGameSetting: (review: import("./types").GameSettingReview, generation: number) =>
+    invoke<import("./types").GameSettingsView>("apply_game_setting", {
+      portId: review.port_id,
+      fileId: review.file_id,
+      settingId: review.setting_id,
+      change: review.change,
+      reviewSha256: review.review_sha256,
+      generation,
+    }),
   compareGamePorts: (request: GameComparisonRequest, generation: number) =>
     invoke<GameComparison>("compare_game_ports", { request, generation }),
   organizationPreferences: (generation: number) =>
@@ -218,6 +290,32 @@ export const desktopApi = {
       expectedSha256,
       generation,
     }),
+  steamGridDbKeyStatus: () => invoke<SteamGridDbKeyStatus>("get_steamgriddb_key_status"),
+  /** Saves the player's own key in the OS secure store; it is never read back. */
+  setSteamGridDbKey: (key: string) => invoke<SteamGridDbKeyStatus>("set_steamgriddb_key", { key }),
+  clearSteamGridDbKey: () => invoke<SteamGridDbKeyStatus>("clear_steamgriddb_key"),
+  searchSteamGridDbGames: (term: string) =>
+    invoke<SteamGridDbGame[]>("search_steamgriddb_games", { term }),
+  steamGridDbCandidates: (gameId: number, role: DestinationArtworkRole) =>
+    invoke<SteamGridDbCandidate[]>("get_steamgriddb_candidates", { gameId, role }),
+  steamGridDbPreview: (url: string) =>
+    invoke<{ png_base64: string }>("get_steamgriddb_preview", { url }),
+  chooseSteamGridDbArtwork: (
+    portId: string,
+    slot: ArtworkSlot,
+    gameId: number,
+    candidateId: number,
+    expectedRevision: number,
+    generation: number,
+  ) =>
+    invoke<ArtworkState>("choose_steamgriddb_artwork", {
+      portId,
+      slot,
+      gameId,
+      candidateId,
+      expectedRevision,
+      generation,
+    }),
   importArtwork: (
     portId: string,
     slot: ArtworkSlot,
@@ -230,6 +328,115 @@ export const desktopApi = {
       slot,
       path,
       expectedRevision,
+      generation,
+    }),
+  modSetups: (portId: string, generation: number) =>
+    invoke<import("./types").ModSetupsView>("get_mod_setups", { portId, generation }),
+  createDefaultModSetup: (portId: string, generation: number) =>
+    invoke<import("./types").ModSetup>("create_default_mod_setup", { portId, generation }),
+  copyModSetup: (
+    portId: string,
+    profileId: string,
+    displayName: string,
+    generation: number,
+    currentBuild = false,
+  ) =>
+    invoke<import("./types").ModSetup>("copy_mod_setup", {
+      portId,
+      profileId,
+      displayName,
+      generation,
+      currentBuild,
+    }),
+  useModSetup: (portId: string, profileId: string, generation: number) =>
+    invoke<import("./types").ModSetupRevision>("use_mod_setup", {
+      portId,
+      profileId,
+      generation,
+    }),
+  setModPackageEnabled: (
+    portId: string,
+    profileId: string,
+    nativeId: string,
+    enabled: boolean,
+    expectedRevision: number,
+    generation: number,
+  ) =>
+    invoke<import("./types").ModSetupRevision>("set_mod_package_enabled", {
+      portId,
+      profileId,
+      nativeId,
+      enabled,
+      expectedRevision,
+      generation,
+    }),
+  browseProviderMods: (portId: string, page: number, generation: number) =>
+    invoke<import("./types").ProviderBrowsePage>("browse_provider_mods", {
+      portId,
+      page,
+      generation,
+    }),
+  providerProject: (portId: string, projectId: string, generation: number) =>
+    invoke<import("./types").ProviderProjectView>("get_provider_project", {
+      portId,
+      projectId,
+      generation,
+    }),
+  planProviderInstall: (
+    portId: string,
+    profileId: string,
+    projectId: string,
+    fileId: string,
+    generation: number,
+  ) =>
+    invoke<import("./types").ProviderInstallPlan>("plan_provider_install", {
+      portId,
+      profileId,
+      projectId,
+      fileId,
+      generation,
+    }),
+  applyProviderInstall: (
+    portId: string,
+    profileId: string,
+    expectedPlanSha256: string,
+    plan: import("./types").ProviderInstallPlan,
+    generation: number,
+    allowCode = false,
+  ) =>
+    invoke<import("./types").ModSetupRevision>("apply_provider_install", {
+      portId,
+      profileId,
+      expectedPlanSha256,
+      plan,
+      generation,
+      allowCode,
+    }),
+  discardProviderInstall: (
+    portId: string,
+    plan: import("./types").ProviderInstallPlan,
+    generation: number,
+  ) => invoke<void>("discard_provider_install", { portId, plan, generation }),
+  addModPackage: (
+    portId: string,
+    profileId: string,
+    path: string,
+    expectedRevision: number,
+    generation: number,
+    allowCodeSha256: string | null = null,
+  ) =>
+    invoke<import("./types").ModSetupRevision>("add_mod_package", {
+      portId,
+      profileId,
+      path,
+      expectedRevision,
+      generation,
+      allowCodeSha256,
+    }),
+  reviewModPackageCode: (portId: string, path: string, generation: number) =>
+    invoke<import("./types").ModCodeReview | null>("review_mod_package_code", {
+      portId,
+      path,
       generation,
     }),
   resetArtwork: (portId: string, slot: ArtworkSlot, expectedRevision: number, generation: number) =>
@@ -250,10 +457,17 @@ export const desktopApi = {
     steamRoot: string,
     steamUserId: string,
     operation: SteamEntryOperation,
+    includeArtwork: boolean,
     generation: number,
   ) =>
     invoke<SteamEntryReview>("preview_steam_entry", {
-      request: { portId, steamRoot, steamUserId, operation } satisfies SteamEntrySelection,
+      request: {
+        portId,
+        steamRoot,
+        steamUserId,
+        operation,
+        includeArtwork,
+      } satisfies SteamEntrySelection,
       generation,
     }),
   applySteamEntry: (
@@ -261,12 +475,21 @@ export const desktopApi = {
     steamRoot: string,
     steamUserId: string,
     operation: SteamEntryOperation,
+    includeArtwork: boolean,
     expectedPlanSha256: string,
+    expectedArtworkReviewSha256: string | null,
     generation: number,
   ) =>
     invoke<SteamEntryApplyResult | null>("apply_steam_entry", {
-      request: { portId, steamRoot, steamUserId, operation } satisfies SteamEntrySelection,
+      request: {
+        portId,
+        steamRoot,
+        steamUserId,
+        operation,
+        includeArtwork,
+      } satisfies SteamEntrySelection,
       expectedPlanSha256,
+      expectedArtworkReviewSha256,
       generation,
     }),
   previewSteamBatchAdd: (request: SteamBatchSelection, generation: number) =>
@@ -274,14 +497,43 @@ export const desktopApi = {
   applySteamBatchAdd: (
     request: SteamBatchSelection,
     expectedReviewSha256: string,
+    expectedArtworkReviewSha256: string | null,
     generation: number,
   ) =>
     invoke<SteamEntryApplyResult | null>("apply_steam_batch_add", {
       request,
       expectedReviewSha256,
+      expectedArtworkReviewSha256,
+      generation,
+    }),
+  previewSteamArtwork: (request: SteamArtworkSelection, generation: number) =>
+    invoke<SteamArtworkReview>("preview_steam_artwork", { request, generation }),
+  applySteamArtwork: (
+    request: SteamArtworkSelection,
+    expectedPlanSha256: string,
+    generation: number,
+  ) =>
+    invoke<SteamArtworkApplyResult | null>("apply_steam_artwork", {
+      request,
+      expectedPlanSha256,
       generation,
     }),
   listingDeliveryStatus: () => invoke<ListingDeliveryStatus>("get_listing_delivery_status"),
+  officialCatalogReview: (generation: number) =>
+    invoke<import("./types").OfficialCatalogReview>("get_official_catalog_review", { generation }),
+  enableOfficialCatalog: (expectedPlan: string, generation: number) =>
+    invoke<import("./types").OfficialCatalogSetup>("enable_official_catalog", {
+      expectedPlan,
+      generation,
+    }),
+  refreshOfficialCatalog: (generation: number, onEvent: (event: OperationEvent) => void) => {
+    const channel = new Channel<OperationEvent>();
+    channel.onmessage = onEvent;
+    return invoke<ListingDeliveryStatus>("refresh_official_catalog", {
+      generation,
+      onEvent: channel,
+    });
+  },
   refreshCatalogListings: (
     metadataBaseUrl: string,
     targetsBaseUrl: string,
@@ -292,6 +544,19 @@ export const desktopApi = {
     return invoke<ListingDeliveryStatus>("refresh_catalog_listings", {
       metadataBaseUrl,
       targetsBaseUrl,
+      onEvent: channel,
+    });
+  },
+  refreshOfficialDefinition: (
+    portId: string,
+    generation: number,
+    onEvent: (event: OperationEvent) => void,
+  ) => {
+    const channel = new Channel<OperationEvent>();
+    channel.onmessage = onEvent;
+    return invoke<import("./types").DefinitionRefresh>("refresh_official_definition", {
+      portId,
+      generation,
       onEvent: channel,
     });
   },
@@ -337,14 +602,17 @@ export const desktopApi = {
     invoke<GithubDeviceLoginResult>("poll_github_device_login", { sessionId }),
   catalog: () => invoke<CatalogDocument>("get_catalog"),
   statuses: () => invoke<PortStatus[]>("get_statuses"),
-  workspaceSnapshot: (generation: number) =>
-    invoke<WorkspaceSnapshot>("get_workspace_snapshot", { generation }),
+  workspaceSnapshot: (generation: number, knownCatalogDigest?: string | null) =>
+    invoke<WorkspaceSnapshotTransport>("get_workspace_snapshot", {
+      generation,
+      knownCatalogDigest: knownCatalogDigest ?? null,
+    }),
   workspaceChanged: (generation: number) =>
     invoke<boolean>("get_workspace_changed", { generation }),
   catalogDownloadCandidates: (
     portId: string,
     generation: number,
-    selectedReleaseId?: number,
+    selectedReleaseId?: NonNullable<CatalogDownloadCandidates["selected_release_id"]>,
     channel = "stable",
   ) =>
     invoke<CatalogDownloadCandidates>("catalog_download_candidates", {
@@ -511,6 +779,57 @@ export const desktopApi = {
       expectedPreview,
       generation,
     }),
+  previewPortableSaveExport: (portId: string, generation: number) =>
+    invoke<import("./types").PortableSaveExportPreview>("preview_portable_save_export", {
+      portId,
+      generation,
+    }),
+  exportPortableSaves: (
+    portId: string,
+    path: string,
+    expectedContent: string,
+    generation: number,
+  ) =>
+    invoke<import("./types").PortableSaveExportResult>("export_portable_saves", {
+      portId,
+      path,
+      expectedContent,
+      generation,
+    }),
+  previewPortableSaveImport: (
+    portId: string,
+    path: string,
+    choices: PortableSaveChoices,
+    generation: number,
+  ) =>
+    invoke<import("./types").PortableSaveImportPreview>("preview_portable_save_import", {
+      portId,
+      path,
+      ...choices,
+      generation,
+    }),
+  importPortableSaves: (
+    portId: string,
+    path: string,
+    choices: PortableSaveChoices,
+    expectedPreview: string,
+    generation: number,
+  ) =>
+    invoke<import("./types").PortableSaveImportResult | null>("import_portable_saves", {
+      portId,
+      path,
+      ...choices,
+      expectedPreview,
+      generation,
+    }),
+  planGhostshipLegacyRecovery: (backupId: string, generation: number) =>
+    invoke<GhostshipRecoveryPlan>("plan_ghostship_legacy_recovery", { backupId, generation }),
+  recoverGhostshipLegacyData: (backupId: string, expectedPlan: string, generation: number) =>
+    invoke<GhostshipRecoveryResult | null>("recover_ghostship_legacy_data", {
+      backupId,
+      expectedPlan,
+      generation,
+    }),
   deleteBackup: (portId: string, backupId: string, expectedPreview: string, generation: number) =>
     invoke<BackupRecord | null>("delete_backup", {
       portId,
@@ -520,8 +839,83 @@ export const desktopApi = {
     }),
   addSource: (profileId: string, path: string, expectedSha256?: string) =>
     invoke<SourceRecord>("add_source", { profileId, path, expectedSha256 }),
+  reviewSourceReuse: (profileId: string, generation: number) =>
+    invoke<import("./types").SourceReuseReview>("review_source_reuse", { profileId, generation }),
   gameFileRoots: (generation: number) =>
     invoke<GameFileRoot[]>("get_game_file_roots", { generation }),
+  libraryMemberships: (generation: number) =>
+    invoke<LibraryMembership[]>("get_library_memberships", { generation }),
+  addGamesToLibrary: (requests: LibraryMembershipRequest[], generation: number) =>
+    invoke<LibraryMembershipOutcome[]>("add_games_to_library", { requests, generation }),
+  removeLibraryMembership: (portId: string, generation: number) =>
+    invoke<boolean>("remove_library_membership", { portId, generation }),
+  planInstallBatch: (portIds: string[], generation: number) =>
+    invoke<InstallBatchReview>("plan_install_batch", { portIds, generation }),
+  /** Saves the reviewed games to the Library and records them as one batch. Runs nothing. */
+  startInstallBatch: (items: InstallBatchRequestItem[], generation: number) =>
+    invoke<InstallBatchRecord>("start_install_batch", { items, generation }),
+  /** Runs unstarted games once each; finished games are never repeated. Never launches a game. */
+  runInstallBatch: (
+    batchId: string,
+    generation: number,
+    onEvent: (event: OperationEvent) => void,
+  ) => {
+    const channel = new Channel<OperationEvent>();
+    channel.onmessage = onEvent;
+    return invoke<InstallBatchRecord>("run_install_batch", {
+      batchId,
+      generation,
+      onEvent: channel,
+    });
+  },
+  unfinishedInstallBatches: (generation: number) =>
+    invoke<InstallBatchRecord[]>("get_unfinished_install_batches", { generation }),
+  setPortIntent: (portId: string, mode: PortIntentMode, generation: number) =>
+    invoke<PortIntent>("set_port_intent", { portId, mode, generation }),
+  portIntents: (generation: number) => invoke<PortIntent[]>("get_port_intents", { generation }),
+  assessPortIntents: (generation: number) =>
+    invoke<PortIntentAssessments>("assess_port_intents", { generation }),
+  acknowledgePortReadiness: (
+    acknowledgements: PortReadinessAcknowledgement[],
+    generation: number,
+  ) => invoke<null>("acknowledge_port_readiness", { acknowledgements, generation }),
+  /** Installs ready set-up-when-ready games under the player's standing choice. Never launches. */
+  runStandingSetup: (generation: number, onEvent: (event: OperationEvent) => void) => {
+    const channel = new Channel<OperationEvent>();
+    channel.onmessage = onEvent;
+    return invoke<StandingSetupResult>("run_standing_setup", { generation, onEvent: channel });
+  },
+  /** Turns automatic setup for one saved folder on, or off with `null`. Installed games are kept. */
+  setRootSetupConsent: (
+    rootId: string,
+    enrollment: RootSetupEnrollment | null,
+    generation: number,
+  ) =>
+    invoke<RootSetupConsent | null>("set_root_setup_consent", { rootId, enrollment, generation }),
+  setRootSetupImplementation: (
+    rootId: string,
+    profileId: string,
+    portId: string,
+    generation: number,
+  ) =>
+    invoke<RootSetupConsent>("set_root_setup_implementation", {
+      rootId,
+      profileId,
+      portId,
+      generation,
+    }),
+  setRootSetupLocalCopy: (rootId: string, keepLocalCopy: boolean, generation: number) =>
+    invoke<RootSetupConsent>("set_root_setup_local_copy", {
+      rootId,
+      keepLocalCopy,
+      generation,
+    }),
+  rootSetupConsents: (generation: number) =>
+    invoke<RootSetupConsent[]>("get_root_setup_consents", { generation }),
+  cancelInstallBatch: (batchId: string, generation: number) =>
+    invoke<InstallBatchRecord>("cancel_install_batch", { batchId, generation }),
+  installBatch: (batchId: string, generation: number) =>
+    invoke<InstallBatchRecord | null>("get_install_batch", { batchId, generation }),
   addGameFileRoot: (path: string, generation: number) =>
     invoke<GameFileRoot>("add_game_file_root", { path, generation }),
   relinkGameFileRoot: (rootId: string, path: string, generation: number) =>
@@ -543,6 +937,10 @@ export const desktopApi = {
   },
   gameFileScanSnapshot: (generation: number) =>
     invoke<GameFileScanSnapshot | null>("get_game_file_scan_snapshot", { generation }),
+  gameFileScanMatches: (query: GameFileScanMatchQuery, generation: number) =>
+    invoke<GameFileScanMatchPage>("get_game_file_scan_matches", { query, generation }),
+  gameFileRootMatchProfiles: (rootId: string, generation: number) =>
+    invoke<string[]>("get_game_file_root_match_profiles", { rootId, generation }),
   refreshGameFileQuery: (
     request: GameFileQueryRefreshRequest,
     generation: number,
@@ -564,8 +962,6 @@ export const desktopApi = {
       onEvent: channel,
     });
   },
-  sourceInboxPaths: (profileId: string) =>
-    invoke<SourceInboxPaths>("get_source_inbox_paths", { profileId }),
   openSourceInbox: (profileId: string) =>
     invoke<SourceInboxPaths>("open_source_inbox", { profileId }),
   scanSourceInbox: (
@@ -588,6 +984,7 @@ export const desktopApi = {
     path: string,
     mode: SourceImportMode,
     expectedPlan: string,
+    generation: number,
     onEvent?: (event: OperationEvent) => void,
   ) => {
     const channel = new Channel<OperationEvent>();
@@ -597,13 +994,23 @@ export const desktopApi = {
       path,
       mode,
       expectedPlan,
+      generation,
       onEvent: channel,
     });
   },
-  planSourceRelink: (profileId: string, path: string) =>
-    invoke<SourceRelinkPlan>("plan_source_relink", { profileId, path }),
-  relinkSource: (profileId: string, path: string, previewSha256: string) =>
-    invoke<SourceRecord>("relink_source", { profileId, path, previewSha256 }),
+  planSourceRelink: (profileId: string, path: string, generation?: number) =>
+    invoke<SourceRelinkPlan>("plan_source_relink", {
+      profileId,
+      path,
+      ...(generation === undefined ? {} : { generation }),
+    }),
+  relinkSource: (profileId: string, path: string, previewSha256: string, generation?: number) =>
+    invoke<SourceRecord>("relink_source", {
+      profileId,
+      path,
+      previewSha256,
+      ...(generation === undefined ? {} : { generation }),
+    }),
   previewSourceRemoval: (profileId: string, generation: number) =>
     invoke<SourceRemovalPreview>("preview_source_removal", {
       profileId,
@@ -627,6 +1034,8 @@ export const desktopApi = {
   check: (portId: string, generation: number) =>
     invoke<UpdateCheck>("check_port", { portId, generation }),
   checkInstalled: () => invoke<UpdateCheckOutcome[]>("check_installed"),
+  forecastInstalledUpdateChecks: () =>
+    invoke<UpdateCheckForecast>("forecast_installed_update_checks"),
   doctor: (generation: number) => invoke<DoctorReport>("get_doctor_report", { generation }),
   previewPreparationCleanup: (operationId: string, generation: number) =>
     invoke<PreparationCleanupPreview>("preview_preparation_cleanup", {
@@ -639,7 +1048,6 @@ export const desktopApi = {
       expectedPreview,
       generation,
     }),
-  hostTools: () => invoke<HostToolStatus[]>("get_host_tools"),
   setHostToolPath: (toolId: string, path: string) =>
     invoke<HostToolProbeResult>("set_host_tool_path", { toolId, path }),
   clearHostToolPath: (toolId: string) => invoke<HostToolStatus>("clear_host_tool_path", { toolId }),
@@ -647,6 +1055,7 @@ export const desktopApi = {
   openHostToolOfficialSite: (toolId: string) =>
     invoke<void>("open_host_tool_official_site", { toolId }),
   createSupportBundle: () => invoke<DesktopSupportBundleExport>("create_support_bundle"),
+  openSupportReportFolder: () => invoke<void>("open_support_report_folder"),
   runtimeDiagnosticHealth: () => invoke<string>("get_runtime_diagnostic_health"),
   exportLibraryMetadata: (path: string) =>
     invoke<LibraryMetadataFile>("export_library_metadata", { path }),
@@ -689,8 +1098,13 @@ export const desktopApi = {
     bios: string,
     stage: boolean,
     generation: number,
-  ) =>
-    invoke<InstallRecord>("install_port", {
+    onEvent?: (event: OperationEvent) => void,
+    sourceReference?: import("./types").SourceRegistrationReference,
+  ) => {
+    const eventChannel = new Channel<OperationEvent>();
+    eventChannel.onmessage = (event) => onEvent?.(event);
+    return invoke<InstallRecord>("install_port", {
+      onEvent: eventChannel,
       generation,
       input: {
         portId,
@@ -698,8 +1112,10 @@ export const desktopApi = {
         source: source || null,
         bios: bios || null,
         stage,
+        ...(sourceReference ? { sourceReference } : {}),
       } satisfies InstallInput,
-    }),
+    });
+  },
   verify: (portId: string, generation: number) => invoke("verify_port", { portId, generation }),
   activate: (
     portId: string,
@@ -837,19 +1253,56 @@ export const desktopApi = {
       expectedPreview,
       generation,
     }),
-  launch: (portId: string, source: string, generation: number) =>
+  launch: (portId: string, source: string, generation: number, disc?: number) =>
     invoke<LaunchResult>("launch_port", {
       portId,
       generation,
       source: source || null,
       arguments: [],
+      disc: disc ?? null,
     }),
+  automaticSnapshots: (generation: number) =>
+    invoke<boolean>("get_automatic_snapshots", { generation }),
+  setAutomaticSnapshots: (enabled: boolean, generation: number) =>
+    invoke<boolean>("set_automatic_snapshots", { enabled, generation }),
+  readyNoticesEnabled: (generation: number) =>
+    invoke<boolean>("get_ready_notices_enabled", { generation }),
+  setReadyNoticesEnabled: (enabled: boolean, generation: number) =>
+    invoke<boolean>("set_ready_notices_enabled", { enabled, generation }),
+  previewBugReport: (portId: string | undefined, generation: number, kind: ReportKind) =>
+    invoke<BugReportDraft>("preview_bug_report", { portId: portId ?? null, generation, kind }),
+  /** Opens the reviewed form, or only returns its text when `copyOnly` is set. */
+  openBugReport: (fields: BugReportField[], kind: ReportKind, copyOnly: boolean) =>
+    invoke<BugReportLink>("open_bug_report", { fields, kind, copyOnly }),
+  /** Files the reviewed text as an issue under the player's GitHub sign-in. */
+  submitReport: (fields: BugReportField[], kind: ReportKind) =>
+    invoke<SubmittedReport>("submit_report", { fields, kind }),
+  launchFailure: (portId: string, generation: number) =>
+    invoke<LaunchSessionView | null>("get_launch_failure", { portId, generation }),
   previewAdoption: (path: string, generation: number, portId?: string) =>
     invoke<AdoptionPreview>("preview_adoption", {
       path,
       generation,
       portId: portId ?? null,
     }),
+  inspectLauncherLibrary: (
+    launcher: LauncherKind,
+    dataRoot: string,
+    generation: number,
+    appsRoot?: string,
+  ) =>
+    invoke<LauncherLibraryInventory>("inspect_launcher_library", {
+      launcher,
+      dataRoot,
+      appsRoot: appsRoot ?? null,
+      generation,
+    }),
+  /** Read-only review of several existing installations as one batch. */
+  previewAdoptionBatch: (items: AdoptionBatchItem[], generation: number) =>
+    invoke<AdoptionBatchPreview>("preview_adoption_batch", { items, generation }),
+  /** Re-reviews, asks once natively, then copies each unchanged item; null when declined. */
+  adoptBatch: (items: AdoptionBatchItem[], batchSha256: string, generation: number) =>
+    invoke<AdoptionBatchResult | null>("adopt_batch", { items, generation, batchSha256 }),
   adopt: (path: string, planSha256: string, generation: number, portId?: string) =>
     invoke<InstallRecord | null>("adopt_port", {
       path,

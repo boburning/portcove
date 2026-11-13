@@ -82,7 +82,7 @@ export function inspectNativeCompatibilitySources(raw: unknown) {
   if (
     !isRecord(catalog) ||
     typeof catalog.schema_version !== "number" ||
-    ![1, 2].includes(catalog.schema_version)
+    ![1, 2, 3].includes(catalog.schema_version)
   )
     throw new Error("native embedded catalog declaration is unsupported");
   const windows = text(nativeCompatibilitySourcePaths[3]);

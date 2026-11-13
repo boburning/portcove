@@ -21,7 +21,7 @@ namespace Portcove.ReferenceClient
         private readonly TextBox bios = new TextBox();
         private readonly TextBox technical = new TextBox { IsReadOnly = true, TextWrapping = TextWrapping.Wrap, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, MaxHeight = 220 };
         private readonly TextBox preparationNotes = new TextBox { IsReadOnly = true, TextWrapping = TextWrapping.Wrap, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, MaxHeight = 220 };
-        private readonly Expander preparationNotesSection = new Expander { Header = "Compatibility and technical notes", Visibility = Visibility.Collapsed };
+        private readonly Expander preparationNotesSection = new Expander { Header = "Save locations and version notes", Visibility = Visibility.Collapsed };
         private readonly List<Button> actions = new List<Button>();
         private readonly List<Button> pathButtons = new List<Button>();
         private readonly Button cancel = new Button { Content = "Request cancellation", IsEnabled = false, Margin = new Thickness(4), Padding = new Thickness(10, 6, 10, 6) };
@@ -126,7 +126,7 @@ namespace Portcove.ReferenceClient
 
         private Task OpenPreparationGuide()
         {
-            var help = SetupInstructions.HelpUrl(Json.OptionalObjectField(currentCatalog, "presentation"));
+            var help = SetupInstructions.HelpUrl(SetupInstructions.ForRuntime(CurrentStatus, currentCatalog));
             if (help == null) throw new InvalidOperationException("No preparation guide is available for this game.");
             System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(help) { UseShellExecute = true });
             return Task.CompletedTask;
@@ -334,37 +334,36 @@ namespace Portcove.ReferenceClient
             var external = Json.OptionalObjectField(status, "external_runtime");
             externalRoute = external != null || Json.Text(Json.Field(catalog, "release"), "provider") == "user-prepared";
             var readiness = Json.Field(status, "readiness");
-            var blockers = readiness == null ? "Readiness unknown" : string.Join(", ", Json.Array(Json.Field(readiness, "blockers")).Select(value => Convert.ToString(value).Replace('_', ' ')));
+            var blockers = readiness == null ? "" : string.Join(" ", Json.Array(Json.Field(readiness, "blockers")).Select(value => SetupInstructions.LaunchBlocker(Convert.ToString(value))));
             var definitionOperations = DefinitionOperations.Summary(status);
             var portActions = PortActions.Summary(status);
             var presentation = SetupInstructions.ForRuntime(status, catalog);
             var preparationText = SetupInstructions.Summary(presentation);
             preparationNotes.Text = SetupInstructions.TechnicalNotes(presentation) ?? "";
-            preparationNotesSection.Visibility = externalRoute && !string.IsNullOrWhiteSpace(preparationNotes.Text)
+            preparationNotesSection.Visibility = !string.IsNullOrWhiteSpace(preparationNotes.Text)
                 ? Visibility.Visible : Visibility.Collapsed;
-            preparationHelp.Visibility = externalRoute && SetupInstructions.HelpUrl(presentation) != null
+            preparationHelp.Visibility = SetupInstructions.HelpUrl(presentation) != null
                 ? Visibility.Visible : Visibility.Collapsed;
-            state.Text = (active != null ? "Installed: " + Json.Text(active, "version") + "." :
-                external != null ? "External runtime registered: " + Json.Text(external, "version") + ". Portcove does not own its files." :
-                externalRoute ? "User-prepared runtime not registered. Choose its prepared folder below for a checked review." : "Not installed.") + "\n" +
-                (readiness != null && Json.Boolean(readiness, "launchable") ? "Portcove reports this game is ready to launch." : "Setup: " + blockers + ".") +
-                "\nSource profile: " + (Json.Field(catalog, "source_profile") ?? "none") +
-                "\nBIOS profile: " + (Json.Field(catalog, "bios_source_profile") ?? "none") +
-                "\nCatalog support: " + Json.Text(catalog, "support_tier") + ". Gameplay evidence is separate from launch readiness." +
-                (externalRoute && !string.IsNullOrWhiteSpace(preparationText) ? "\nPrepare the runtime: " + preparationText : "") +
-                "\nRetained private preparations: " + repairs.Length + "." +
-                (definitionOperations == null ? "" : "\n" + definitionOperations) +
-                (portActions == null ? "" : "\n" + portActions);
+            state.Text = (active != null ? "Installed version: " + Json.Text(active, "version") + "." :
+                external != null ? "Installation you maintain: " + Json.Text(external, "version") + ". Update this copy with the project’s tools." :
+                externalRoute ? "Choose the folder for a game you’ve already set up." : "Game program not installed.") + "\n" +
+                (string.IsNullOrWhiteSpace(blockers) ? "" : blockers + "\n") +
+                (Json.Field(catalog, "source_profile") == null ? "" : "\nThis port requires original game files.") +
+                (Json.Field(catalog, "bios_source_profile") == null ? "" : "\nThis port requires a BIOS file.") +
+                (!string.IsNullOrWhiteSpace(preparationText) ? "\nSetup instructions: " + preparationText : "") +
+                (repairs.Length > 0 ? "\nSetup copies needing attention: " + repairs.Length + "." : "");
             var entries = activityFeed.VisibleRecords(
                 item => (Json.Field(item, "target_id") as string) == port,
                 8);
-            progress.Text = entries.Length == 0 ?
-                (activityFeed.TerminalHistoryComplete ? "No retained activity for this game." :
-                    activityFeed.ActiveAndActionableComplete ? "No activity for this game appears in the available history. In-progress tasks and items needing attention remain covered by this feed." :
-                    "No retained activity for this game in the bounded legacy window; older current or actionable work may be absent.") :
-                string.Join("\n", entries.Select(item => Json.Text(item, "operation").Replace('_', ' ') + ": " + Json.Text(item, "status") +
+            progress.Text = entries.Length == 0
+                ? (activityFeed.TerminalHistoryComplete ? "No activity for this game." : "No activity for this game appears in the available history.")
+                : string.Join("\n", entries.Select(item => Json.Text(item, "operation").Replace('_', ' ') + ": " + Json.Text(item, "status") +
                     (Json.Field(item, "message") == null ? "" : " — " + Json.Field(item, "message"))));
-            technical.Text = Json.Print(new { status, activity = entries, catalog });
+            if (!activityFeed.ActiveAndActionableComplete)
+                progress.Text += "\nThis list may be missing tasks. Check Activity in Portcove before starting recovery or changing the library.";
+            else if (!activityFeed.TerminalHistoryComplete)
+                progress.Text += "\nEarlier finished tasks may be missing.";
+            technical.Text = Json.Print(new { status, activity = entries, catalog, definitionOperations, portActions });
             var request = plugin.RecentLaunch(game.GameId);
             if (!string.IsNullOrEmpty(request))
             {
@@ -514,17 +513,7 @@ namespace Portcove.ReferenceClient
             DefinitionOperations.RequireEligible(status, "prepare");
             var plan = await cli.Read("preparation.plan", "preparation", "plan", port);
             technical.Text = Json.Print(plan);
-            var inputs = Json.Field(plan, "inputs");
-            var install = Json.Field(inputs, "install");
-            var sourceRecord = Json.Field(inputs, "source");
-            var tool = Json.Field(inputs, "setup_tool");
-            var conversion = Json.Field(inputs, "conversion_tool");
-            var message = "Prepare a private installation from the reviewed artifact and registered source? Portcove checks this exact plan before applying it. Original files and the existing version remain. Cancellation may retain private work for recovery.\n\nInstallation: " + Json.Text(install, "path") +
-                "\nVersion: " + Json.Text(install, "version") + "\nSource: " + Json.Text(sourceRecord, "path") +
-                "\nSetup tool: " + Json.Text(tool, "path") + "\nSetup SHA-256: " + Json.Text(tool, "sha256") +
-                (conversion == null ? "" : "\nConversion tool: " + Json.Text(conversion, "path") + "\nConversion SHA-256: " + Json.Text(conversion, "sha256")) +
-                "\nCopy bytes: " + Json.Field(Json.Field(plan, "copy"), "total_bytes") +
-                "\nMode: " + Json.Text(Json.Field(inputs, "options"), "mode") + "\nTarget: " + Json.Text(Json.Field(inputs, "options"), "target");
+            var message = SetupInstructions.PreparationConfirmation(plan);
             if (MessageBox.Show(window, message, "Review preparation", MessageBoxButton.OKCancel, MessageBoxImage.Question) != MessageBoxResult.OK) return;
             CurrentStatus = null;
             await cli.Manage("preparation.run", new[] { "preparation", "run", port, "--expected-plan", Json.Text(plan, "plan_sha256"), "--yes" }, OnProgress);

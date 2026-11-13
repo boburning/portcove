@@ -1,8 +1,19 @@
+import { isBuiltin } from "node:module";
+import { readFixtureModuleClosure } from "./fixtures/module-closure.mts";
 import assert from "node:assert/strict";
-import { copyFile, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import {
+  copyFile,
+  mkdir,
+  mkdtemp,
+  readFile,
+  rm,
+  writeFile,
+  symlink,
+  realpath,
+} from "node:fs/promises";
 import { spawnSync } from "node:child_process";
 import { tmpdir } from "node:os";
-import { pathToFileURL } from "node:url";
+import { pathToFileURL, fileURLToPath } from "node:url";
 import path from "node:path";
 import test from "node:test";
 import pinFixture from "./fixtures/upstream-health-fade-to-black.json" with { type: "json" };
@@ -124,6 +135,14 @@ void test("inconclusive failures retain missing-incident history without reporti
     options({ now: () => epoch + 3000 }),
   );
   assert.ok(recovered.report.collection.resolved_incidents.includes(original.key));
+  const receipt = recovered.report.recovery_evidence.find(
+    (entry) => entry.incident.key === original.key,
+  );
+  assert.equal(receipt?.kind, "endpoint");
+  assert.equal(receipt?.incident.first_seen, original.first_seen);
+  assert.equal(receipt?.incident.occurrences, 2);
+  assert.equal(receipt?.recovered_observed_at, new Date(epoch + 3000).toISOString());
+  assert.equal(receipt?.reused_observation, false);
   assert.deepEqual(recovered.checkpoint?.incident_history[0]?.canonical_incidents, []);
 });
 
@@ -204,6 +223,10 @@ void test("changed provider pin identities stay visible and metadata recovery do
   assert.equal(recovered.exitCode, 0);
   assert.deepEqual(recovered.report.collection.resolved_incidents, []);
   assert.equal(recovered.report.collection.assessment_recovered_incidents.length, 1);
+  assert.deepEqual(
+    recovered.report.recovery_evidence.map((entry) => entry.kind),
+    ["provider-metadata"],
+  );
   assert.match(
     recovered.summary,
     /\*\*0 endpoint recoveries\*\*, \*\*1 metadata assessments recovered\*\*/u,
@@ -680,26 +703,23 @@ void test("missing planner scope emits CLI failure artifacts without network wor
   t.after(() => rm(directory, { recursive: true, force: true }));
   await mkdir(path.join(directory, "scripts"));
   await mkdir(path.join(directory, ".github"));
-  for (const script of [
-    "upstream-health-monitor",
-    "upstream-health-triage",
-    "check-catalog-repositories",
-    "observe-configured-upstream",
-    "upstream-observer",
-    "upstream-health-inputs",
-    "upstream-lineage",
-    "release-path-safety",
-    "json-values",
-    "runtime-values",
-  ])
-    await copyFile(
-      new URL(`./${script}.mts`, import.meta.url),
-      path.join(directory, "scripts", `${script}.mts`),
-    );
-  await copyFile(
-    new URL("../.github/upstream-health-accounting.json", import.meta.url),
-    path.join(directory, ".github/upstream-health-accounting.json"),
-  );
+  const root = fileURLToPath(new URL("../", import.meta.url));
+  const closure = readFixtureModuleClosure(root, ["scripts/upstream-health-monitor.mts"]);
+  const packages = closure.external.filter((name) => !isBuiltin(name));
+  assert.deepEqual(packages, ["@octokit/core", "@octokit/plugin-paginate-rest"]);
+  for (const module of closure.modules) {
+    const destination = path.join(directory, module.path);
+    await mkdir(path.dirname(destination), { recursive: true });
+    await writeFile(destination, module.bytes);
+  }
+  // Package availability is explicit; dependency discovery grants no provenance authority.
+  for (const name of packages) {
+    const destination = path.join(directory, "node_modules", name);
+    await mkdir(path.dirname(destination), { recursive: true });
+    await symlink(await realpath(path.join(root, "node_modules", name)), destination, "junction");
+  }
+  for (const name of ["package.json", "pnpm-lock.yaml", ".github/upstream-health-accounting.json"])
+    await copyFile(path.join(root, name), path.join(directory, name));
   const denyNetwork = path.join(directory, "deny-network.mjs");
   await writeFile(
     denyNetwork,
@@ -730,6 +750,8 @@ void test("missing planner scope emits CLI failure artifacts without network wor
         GITHUB_RUN_ID: mainExecution.run_id,
         GITHUB_RUN_ATTEMPT: mainExecution.run_attempt,
         GITHUB_TOKEN: "",
+        GH_TOKEN: "",
+        REPOSITORY_TOKEN: "",
         GITHUB_OUTPUT: outputs,
         GITHUB_STEP_SUMMARY: stepSummary,
       },
@@ -808,7 +830,7 @@ void test("catalog coverage progresses beyond one collector and history batch wi
       options({ now: () => epoch + batch * 1000 }),
     );
     checkpoint = result.checkpoint;
-    assert.ok(result.report.collection.consumed.requests <= 320);
+    assert.ok(result.report.collection.consumed.requests <= 352);
     for (const id of result.report.batch.selected_port_ids) assessed.add(id);
     assert.equal(result.report.collection.scope.global_health, "not assessed");
     if (batch === 0) assert.ok(result.report.inventory.unmonitored_port_ids.length > 0);
@@ -910,7 +932,7 @@ function oversizedCatalog(count = 641) {
   };
 }
 
-void test("an oversized single collection progresses beyond 320 requests and 512 records beside a smaller port", async () => {
+void test("an oversized single collection progresses beyond 352 requests and 512 records beside a smaller port", async () => {
   const input = oversizedCatalog();
   let calls = 0;
   const settings = options({
@@ -921,7 +943,7 @@ void test("an oversized single collection progresses beyond 320 requests and 512
   });
   let result = await advanceHealthMonitor(input, null, settings);
   assert.deepEqual(result.report.batch.selected_port_ids, ["port-1", "port-2"]);
-  assert.equal(result.report.collection.consumed.requests, 320);
+  assert.equal(result.report.collection.consumed.requests, 352);
   assert.equal(result.report.collection.observations.length, 643);
   assert.deepEqual(result.report.inventory.fresh_complete_port_ids, ["port-2"]);
   assert.deepEqual(result.report.inventory.fresh_partial_port_ids, ["port-1"]);
@@ -933,13 +955,7 @@ void test("an oversized single collection progresses beyond 320 requests and 512
     continueDueOnly: true,
     now: () => epoch + 1000,
   });
-  assert.equal(result.report.collection.consumed.requests, 320);
-  result = await advanceHealthMonitor(input, result.checkpoint, {
-    ...settings,
-    continueDueOnly: true,
-    now: () => epoch + 2000,
-  });
-  assert.equal(result.report.collection.consumed.requests, 3);
+  assert.equal(result.report.collection.consumed.requests, 291);
   assert.deepEqual(result.report.inventory.fresh_complete_port_ids, ["port-1", "port-2"]);
   assert.equal(calls, 643);
   assert.equal(
@@ -997,6 +1013,24 @@ void test("per-location progress survives interruption, preserves source binding
   );
   assert.equal(resumedCalls, 9);
   assert.equal(resumed.report.collection.collection_status, "complete");
+  const retainedConditions = resumed.report.known_conditions.filter(
+    (condition) => condition.observed_at === new Date(epoch).toISOString(),
+  );
+  assert.equal(retainedConditions.length, 5);
+  assert.ok(
+    retainedConditions.every(
+      (condition) =>
+        !condition.observed_this_run &&
+        !condition.changed_in_this_run &&
+        condition.occurrences === 1,
+    ),
+  );
+  assert.equal(
+    resumed.report.known_conditions.filter(
+      (condition) => condition.observed_this_run && condition.changed_in_this_run,
+    ).length,
+    resumedCalls,
+  );
   const changed = structuredClone(input);
   changed.ports[0]!.project_url = "https://github.com/owner/replaced";
   let changedCalls = 0;
@@ -1045,12 +1079,24 @@ void test("automatic draining finishes logical oversized work without specificat
     sessionDeadline: epoch + 120000,
   });
   assert.equal(calls, 643);
-  assert.equal(result.report.session!.batches.length, 3);
+  assert.equal(result.report.session!.batches.length, 2);
   assert.deepEqual(
     result.report.session!.batches.map((batch) => batch.requests),
-    [320, 320, 3],
+    [352, 291],
   );
   assert.equal(result.report.inventory.fresh_complete_port_ids.length, 2);
+  assert.deepEqual(result.report.batch.selected_port_ids, ["port-1"]);
+  assert.deepEqual(result.report.inventory.assessed_this_run_port_ids, ["port-1", "port-2"]);
+  assert.deepEqual(result.report.inventory.unassessed_this_run_port_ids, []);
+  assert.ok(
+    result.report.known_conditions.every(
+      (condition) =>
+        condition.observed_this_run && condition.changed_in_this_run && condition.occurrences === 1,
+    ),
+  );
+  assert.equal(result.report.known_conditions.length, calls);
+  assert.match(result.summary, /2\/2 ports selected across the session/u);
+  assert.match(result.summary, /Final batch recorded \*\*0 endpoint recoveries/u);
   assert.equal(result.exitCode, 0);
   let failures = 0;
   const failed = await drainHealthMonitor(input, null, {
@@ -1064,7 +1110,7 @@ void test("automatic draining finishes logical oversized work without specificat
   });
   assert.equal(failures, 643);
   assert.equal(failed.exitCode, 1);
-  assert.equal(failed.report.session!.batches.length, 3);
+  assert.equal(failed.report.session!.batches.length, 2);
   assert.ok(failed.report.known_conditions.some((record) => record.rule === "provider-error"));
 });
 
@@ -1192,10 +1238,10 @@ void test("actual provider headers preserve a rate-limit reserve without rejecti
 });
 
 void test("provider-wide reserve survives batch boundaries and restart without blocking unrelated providers", async () => {
-  const input = catalog(322);
+  const input = catalog(354);
   for (const [index, port] of input.ports.entries())
-    port.id = index === 321 ? "z-small" : `g-${String(index).padStart(4, "0")}`;
-  input.ports[321]!.project_url = "https://gitlab.com/other/small";
+    port.id = index === 353 ? "z-small" : `g-${String(index).padStart(4, "0")}`;
+  input.ports[353]!.project_url = "https://gitlab.com/other/small";
   let githubCalls = 0;
   let gitlabCalls = 0;
   const resetAt = epoch + 3600000;
@@ -1216,7 +1262,7 @@ void test("provider-wide reserve survives batch boundaries and restart without b
       }),
       {
         headers:
-          githubCalls === 320
+          githubCalls === 352
             ? {
                 "content-type": "application/json",
                 "x-ratelimit-limit": "5000",
@@ -1231,24 +1277,24 @@ void test("provider-wide reserve survives batch boundaries and restart without b
     ...options({ fetch }),
     sessionDeadline: epoch + 120000,
   });
-  assert.equal(githubCalls, 320);
+  assert.equal(githubCalls, 352);
   assert.equal(gitlabCalls, 1);
-  assert.equal(result.report.inventory.fresh_complete_port_ids.length, 321);
+  assert.equal(result.report.inventory.fresh_complete_port_ids.length, 353);
   assert.equal(result.checkpoint!.provider_backoff!.github, new Date(resetAt).toISOString());
   const beforeReset = await advanceHealthMonitor(
     input,
     result.checkpoint,
     options({ fetch, now: () => epoch + 1000, continueDueOnly: true }),
   );
-  assert.equal(githubCalls, 320);
+  assert.equal(githubCalls, 352);
   assert.equal(beforeReset.report.collection.consumed.requests, 0);
   const reset = await advanceHealthMonitor(
     input,
     beforeReset.checkpoint,
     options({ fetch, now: () => resetAt + 1, continueDueOnly: true }),
   );
-  assert.equal(githubCalls, 321);
-  assert.equal(reset.report.inventory.fresh_complete_port_ids.length, 322);
+  assert.equal(githubCalls, 353);
+  assert.equal(reset.report.inventory.fresh_complete_port_ids.length, 354);
   const invalid = {
     ...result.checkpoint,
     provider_backoff: { "https://bad.example/path": "invalid" },
@@ -1276,4 +1322,40 @@ void test("a shared repository retains more than 4096 catalog identities through
   );
   assert.equal(resumed.report.inventory.fresh_complete_port_ids.length, 4097);
   assert.equal(resumed.checkpoint!.observations[0]!.port_ids.length, 4097);
+});
+
+void test("a capped SDK response spends its read across same-operation recovery batches", async () => {
+  let sends = 0,
+    clock = epoch;
+  const fetch: HealthFetch = async () => {
+    sends++;
+    clock += 1000;
+    return new Response(JSON.stringify({ padding: "x".repeat(1024 * 1024) }), {
+      headers: { "content-type": "application/json" },
+    });
+  };
+  const first = await drainHealthMonitor(catalog(), null, {
+    ...options({ fetch, now: () => clock }),
+    sessionDeadline: epoch + 10000,
+  });
+  assert.equal(sends, 1);
+  assert.equal(first.report.collection.observations[0]?.reason, "budget");
+  assert.equal(first.report.collection.observations[0]?.http_status, 200);
+  assert.equal(first.report.collection.outcome, "incomplete");
+  assert.equal(first.report.session?.requests, 1);
+  // Even after a zero-request reused record, the original received status
+  // prevents a later same-session batch from renewing its transport allowance.
+  const third = await advanceHealthMonitor(
+    catalog(),
+    first.checkpoint,
+    options({ fetch, now: () => clock, sessionStartedAt: epoch, continueDueOnly: true }),
+  );
+  assert.equal(third.report.collection.consumed.requests, 0);
+  assert.equal(sends, 1);
+  clock = epoch + 60000;
+  await drainHealthMonitor(catalog(), third.checkpoint, {
+    ...options({ fetch, now: () => clock }),
+    sessionDeadline: clock + 10000,
+  });
+  assert.equal(sends, 2, "A new independent health observation may read again");
 });

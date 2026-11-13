@@ -16,9 +16,10 @@ use super::{
     validate_reviewed_fingerprint,
 };
 use crate::{
-    ActivityOperation, ActivityTargetKind, BackupInventory, BackupInventoryState, BackupProblem,
-    BackupProblemKind, BackupRecord, InstallRecord, Library, PortAction, PortActionAssessment,
-    PortActionReason, PortcoveError, RestoreResult, Result,
+    ActivityOperation, ActivityStatus, ActivityTargetKind, AutomaticSnapshotLabel, BackupInventory,
+    BackupInventoryState, BackupProblem, BackupProblemKind, BackupRecord, InstallRecord, Library,
+    PortAction, PortActionAssessment, PortActionReason, PortcoveError, RestoreResult, Result,
+    SavesAndSettingsBehavior, VersionChangeKind,
     durability::{prepare_backup_publication, publish_backup_directory},
     operation::{
         LifecycleFaultPoint, LifecycleOperation, LifecycleOperationKind, LifecyclePhase,
@@ -26,6 +27,70 @@ use crate::{
     },
     path::refuse_symlink_ancestors,
 };
+
+mod guarded_archive;
+
+/// The newest this many automatic snapshots per game are kept.
+pub(super) const AUTOMATIC_SNAPSHOT_RETENTION: usize = 5;
+
+/// Marks the one `not_found` that means "nothing to back up", so a snapshot skip
+/// never swallows an unrelated missing catalog entry, install or directory.
+const NO_PERSISTENT_DATA: &str = "no_persistent_data";
+
+pub(super) fn no_persistent_data(port_id: &str) -> PortcoveError {
+    PortcoveError::not_found(format!("{port_id} has no persistent data to back up"))
+        .detail("backup_state", NO_PERSISTENT_DATA)
+}
+
+pub(super) fn is_no_persistent_data(error: &PortcoveError) -> bool {
+    error.code == crate::ErrorCode::NotFound
+        && error.details.get("backup_state").map(String::as_str) == Some(NO_PERSISTENT_DATA)
+}
+
+/// What an automatic snapshot request did.
+#[derive(Debug)]
+pub(crate) enum SnapshotOutcome {
+    Created {
+        pruned: usize,
+    },
+    /// The library setting is off.
+    Disabled,
+    /// The game's saves are handled outside Portcove.
+    ExternalData,
+    /// There was no managed saved data yet.
+    NoData,
+}
+
+impl SnapshotOutcome {
+    fn activity_message(
+        &self,
+        kind: VersionChangeKind,
+        from_version: Option<&str>,
+        to_version: &str,
+    ) -> String {
+        let change = match kind {
+            VersionChangeKind::Update => "update",
+            VersionChangeKind::Activation => "activating a staged version",
+            VersionChangeKind::Rollback => "rollback",
+        };
+        let versions = match from_version {
+            Some(from) => format!("{from} to {to_version}"),
+            None => format!("to {to_version}"),
+        };
+        match self {
+            Self::Created { pruned: 0, .. } => {
+                format!("Automatic snapshot before {change} ({versions}).")
+            }
+            Self::Created { pruned, .. } => format!(
+                "Automatic snapshot before {change} ({versions}). Removed {pruned} older automatic snapshot(s)."
+            ),
+            Self::NoData => format!(
+                "No automatic snapshot before {change} ({versions}): there was no saved data yet."
+            ),
+            Self::Disabled | Self::ExternalData => String::new(),
+        }
+    }
+}
 
 /// Doctor consumes history diagnostics without probing live save trees.
 pub(super) struct BackupHistory {
@@ -167,6 +232,7 @@ pub(crate) struct RestoreOperation {
     pub(crate) staged_data: PathBuf,
     pub(crate) user_root: PathBuf,
     pub(crate) previous_data: PathBuf,
+    input_manifest: Option<PathBuf>,
 }
 
 impl RestoreOperation {
@@ -181,7 +247,7 @@ impl RestoreOperation {
             || operation.source_import.is_some()
             || operation.preparation.is_some()
             || operation.preparation_process_quiesced.is_some()
-            || !operation.original_paths.is_empty()
+            || operation.original_paths.len() > 1
         {
             return Err(PortcoveError::state(
                 "backup restore journal has an incompatible identity or family payload",
@@ -197,12 +263,18 @@ impl RestoreOperation {
         store: &OperationStore,
     ) -> Result<()> {
         Self::validate_envelope(operation)?;
+        if guarded_archive::manifest_input(operation, &self.recovery_root)? != self.input_manifest {
+            return Err(PortcoveError::verification(
+                "restore manifest input changed before phase advancement",
+            ));
+        }
         if operation.id != self.id
             || operation.port_id != self.port_id
             || operation.activate != self.replaces_existing_data
             || operation.paths.staging.as_ref() != Some(&self.recovery_root)
             || operation.paths.final_path.as_ref() != Some(&self.user_root)
             || operation.paths.quarantine.as_ref() != Some(&self.previous_data)
+            || operation.original_paths.as_slice() != self.input_manifest.as_slice()
             || operation.phase != self.phase.stored()
             || !matches!(
                 (self.phase, next),
@@ -239,6 +311,7 @@ impl RestoreOperation {
             || operation.paths.staging.as_ref() != Some(&self.recovery_root)
             || operation.paths.final_path.as_ref() != Some(&self.user_root)
             || operation.paths.quarantine.as_ref() != Some(&self.previous_data)
+            || operation.original_paths.as_slice() != self.input_manifest.as_slice()
         {
             return Err(PortcoveError::state(
                 "restore cancellation does not match its prepared identity",
@@ -261,6 +334,10 @@ impl RestoreOperation {
         Ok(())
     }
 }
+
+/// Marks a pending deletion that a later backup action or startup recovery already
+/// failed to finish.
+pub(super) const RESUME_FAILED: &str = "could not be finished on retry: ";
 
 /// Internal interpretation of the released deletion envelope, never consent or path authority.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -389,6 +466,18 @@ struct BackupManifest {
     /// Older snapshots retain their original byte-only integrity contract.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     metadata_sha256: Option<String>,
+    /// Versioned build identity, also framed into the content-integrity stream.
+    /// Earlier verifiers cannot silently ignore it and restore the raw tree.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    guarded_archive_v1: Option<String>,
+    /// Included in content framing so earlier unpartitioned readers refuse it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    partitioned_data_v1: Option<String>,
+    /// Advisory label for a snapshot Portcove took before a version change. It is
+    /// not part of content integrity: an older reader ignores it and lists the
+    /// snapshot as a manual one, which is only ever the safe direction.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    automatic_v1: Option<crate::AutomaticSnapshotLabel>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -406,6 +495,9 @@ struct BackupStats {
     hasher: Sha256,
     metadata_hasher: Sha256,
 }
+
+/// A reviewed change applied to a private copy of canonical data.
+pub(super) type SnapshotOverlay<'a> = dyn Fn(&Path) -> Result<()> + 'a;
 
 impl PortcoveService {
     /// Bind the same retained selection and omission rules used by collection.
@@ -447,7 +539,11 @@ impl PortcoveService {
         if !contract.writes_directly {
             // Canonical-only pattern names are bound by canonical_data_review.
             // Normal collection can delete them without changing runtime facts.
-            for relative in crate::persistence::entries(port, &[&root])? {
+            let mut paths = crate::persistence::entries(port, &[&root])?;
+            if contract.regaiden_graphics_exports {
+                paths.push(crate::managed_shared_preferences::GRAPHICS_EXPORTS.into());
+            }
+            for relative in paths {
                 entries.insert(
                     relative.clone(),
                     review.entry(port, &root.join(relative), &user)?,
@@ -459,10 +555,14 @@ impl PortcoveService {
         let replaced = if contract.writes_directly || additive {
             Vec::new()
         } else {
-            crate::persistence::entries(port, &[&root, &user])?
+            crate::archive_data::entries(port, contract.archive_sha256.as_deref(), &root, &user)?
                 .into_iter()
-                .map(|relative| {
-                    let path = user.join(&relative);
+                .map(|entry| {
+                    let path = entry.canonical;
+                    let relative = path
+                        .strip_prefix(&user)
+                        .map_err(|_| PortcoveError::state("data mapping escaped canonical root"))?
+                        .to_path_buf();
                     refuse_symlink_ancestors(&path)?;
                     match fs::canonicalize(&path) {
                         Ok(actual) => actual
@@ -473,9 +573,7 @@ impl PortcoveService {
                                     "reviewed player-data coordinate escaped its canonical root",
                                 )
                             }),
-                        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
-                            Ok(std::path::PathBuf::from(relative))
-                        }
+                        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(relative),
                         Err(error) => Err(error.into()),
                     }
                 })
@@ -505,6 +603,22 @@ impl PortcoveService {
         })
     }
 
+    /// Combined read-only player-data state used by other reviewed operations
+    /// that must refuse when canonical or collectible runtime data changes.
+    pub(super) fn player_data_review_sha256(&self, port_id: &str) -> Result<String> {
+        Ok(crate::signed_catalog::digest(&serde_json::to_vec(&(
+            self.collectible_data_review(port_id)?.sha256,
+            self.canonical_data_review(port_id)?,
+        ))?))
+    }
+
+    /// Whether restore would find files to protect in a safety backup.
+    pub(super) fn safety_backup_would_be_created(&self, port_id: &str) -> Result<bool> {
+        Ok(self
+            .collectible_data_review(port_id)?
+            .files_after_collection)
+    }
+
     fn canonical_data_review(&self, port_id: &str) -> Result<String> {
         let tree = crate::runtime_data_policy::DataReview::default()
             .canonical(&self.library.user_dir(port_id))?;
@@ -519,6 +633,8 @@ impl PortcoveService {
         let result: Result<BackupRecord> = (|| {
             self.catalog.port(port_id)?;
             let _operation = self.library.try_lock_port(port_id, "backup")?;
+            // An interrupted retention prune must not block a player's own backup.
+            self.resume_pending_backup_deletions(port_id);
             self.require_completed_backup_deletion(port_id)?;
             self.collect_active_user_data_if_launched(port_id)?;
             self.create_backup_locked(port_id)
@@ -527,13 +643,44 @@ impl PortcoveService {
     }
 
     pub(super) fn create_backup_locked(&self, port_id: &str) -> Result<BackupRecord> {
+        self.create_backup_locked_labeled(port_id, None)
+    }
+
+    /// Publish an ordinary snapshot of current canonical data with a reviewed
+    /// change applied to a private copy inside the unpublished backup stage.
+    /// Canonical data is not modified; an interrupted stage keeps the existing
+    /// unpublished-stage recovery semantics and is never restorable.
+    pub(super) fn create_overlay_backup_locked(
+        &self,
+        port_id: &str,
+        overlay: &SnapshotOverlay<'_>,
+    ) -> Result<BackupRecord> {
+        self.create_backup_snapshot(port_id, None, Some(overlay))
+    }
+
+    fn create_backup_locked_labeled(
+        &self,
+        port_id: &str,
+        label: Option<crate::AutomaticSnapshotLabel>,
+    ) -> Result<BackupRecord> {
+        self.create_backup_snapshot(port_id, label, None)
+    }
+
+    fn create_backup_snapshot(
+        &self,
+        port_id: &str,
+        label: Option<crate::AutomaticSnapshotLabel>,
+        overlay: Option<&SnapshotOverlay<'_>>,
+    ) -> Result<BackupRecord> {
         self.require_generated_cache_outputs_unchanged(port_id)?;
         let source = self.library.user_dir(port_id);
         if !source.is_dir() {
-            return Err(PortcoveError::not_found(format!(
-                "{port_id} has no persistent data to back up"
-            )));
+            return Err(no_persistent_data(port_id));
         }
+        // Both callers have successfully collected the active runtime under the
+        // port lock. A catalog pin cannot supply this producer observation.
+        let producer = self.guarded_backup_producer(port_id)?;
+        let partitioned_policy = crate::archive_data::snapshot_policy(&source)?;
 
         let parent = self.library.backups_dir().join(port_id);
         refuse_symlink_ancestors(&parent)?;
@@ -571,12 +718,25 @@ impl PortcoveService {
             self.faults
                 .check(LifecycleFaultPoint::BackupStagingCreated)?;
             let mut stats = BackupStats::default();
-            copy_backup_tree(&source, &staging_path.join("data"), &source, &mut stats)?;
+            if let Some(overlay) = overlay {
+                let merged = staging_path.join("overlay");
+                copy_backup_tree(&source, &merged, &source, &mut BackupStats::default())?;
+                overlay(&merged)?;
+                copy_backup_tree(&merged, &staging_path.join("data"), &merged, &mut stats)?;
+                fs::remove_dir_all(&merged)?;
+            } else {
+                copy_backup_tree(&source, &staging_path.join("data"), &source, &mut stats)?;
+            }
             self.faults.check(LifecycleFaultPoint::BackupDataCopied)?;
+            if self.guarded_backup_producer(port_id)? != producer
+                || crate::archive_data::snapshot_policy(&source)? != partitioned_policy
+            {
+                return Err(PortcoveError::conflict(
+                    "backup producing installation changed while copying",
+                ));
+            }
             if stats.file_count == 0 {
-                return Err(PortcoveError::not_found(format!(
-                    "{port_id} has no persistent data to back up"
-                )));
+                return Err(no_persistent_data(port_id));
             }
             // Publish only data that the existing restore review can interpret.
             crate::runtime_data_policy::DataReview::default()
@@ -601,8 +761,15 @@ impl PortcoveService {
                 created_at,
                 file_count,
                 size,
-                sha256: hex::encode(hasher.finalize()),
+                sha256: guarded_archive::content_digest(
+                    hasher,
+                    producer.as_ref().map(|p| p.archive_sha256.as_str()),
+                    partitioned_policy.as_deref(),
+                )?,
                 metadata_sha256: Some(hex::encode(metadata_hasher.finalize())),
+                partitioned_data_v1: partitioned_policy.clone(),
+                automatic_v1: label,
+                guarded_archive_v1: producer.map(|p| p.archive_sha256),
             };
             let final_path = parent.join(&manifest.id);
             let manifest_path = staging_path.join("backup.json");
@@ -655,6 +822,7 @@ impl PortcoveService {
         let history = self.backup_history_with_operations(port_id, operations)?;
         Ok(BackupInventory {
             port_id: port_id.into(),
+            protection: Some(self.player_data_protection(port, &status, &history.backups)?),
             restore_assessment: self.backup_restore_assessment(port_id, operations, &history),
             create_assessment: self.backup_create_assessment(
                 port_id,
@@ -686,6 +854,7 @@ impl PortcoveService {
             .collect::<HashSet<_>>();
         let mut problems = pending_deletions
             .iter()
+            .filter(|operation| !self.deletion_finishes_on_next_action(operation))
             .map(|operation| BackupProblem {
                 kind: BackupProblemKind::RecoveryRequired,
                 backup_id: operation
@@ -929,7 +1098,8 @@ impl PortcoveService {
         };
         if operations.iter().any(|operation| {
             operation.port_id == port_id
-                && (operation.kind == LifecycleOperationKind::DeleteBackup
+                && ((operation.kind == LifecycleOperationKind::DeleteBackup
+                    && !self.deletion_finishes_on_next_action(operation))
                     || (operation.kind == LifecycleOperationKind::Restore
                         && operation.phase != LifecyclePhase::Preparing))
         }) {
@@ -984,7 +1154,9 @@ impl PortcoveService {
             definition: None,
         };
         if operations.iter().any(|operation| {
-            operation.port_id == port_id && operation.kind == LifecycleOperationKind::DeleteBackup
+            operation.port_id == port_id
+                && operation.kind == LifecycleOperationKind::DeleteBackup
+                && !self.deletion_finishes_on_next_action(operation)
         }) {
             return decision(Availability::Held, Reason::RecoveryRequired);
         }
@@ -1022,15 +1194,38 @@ impl PortcoveService {
                     let contract = self.persistence_contract_for_install(active)?;
                     let port = contract.port;
                     let persistent_root = self.persistence_root(&port, &active.path)?;
-                    let entries =
-                        crate::persistence::entries(&port, &[&persistent_root, &user_root])?;
+                    if contract.regaiden_graphics_exports {
+                        let relative = crate::managed_shared_preferences::GRAPHICS_EXPORTS;
+                        if scan.collectible_has_files(
+                            &persistent_root.join(relative),
+                            &user_root.join(relative),
+                            0,
+                        )? {
+                            return Ok(true);
+                        }
+                    }
+                    let entries = crate::archive_data::entries(
+                        &port,
+                        contract.archive_sha256.as_deref(),
+                        &persistent_root,
+                        &user_root,
+                    )?;
                     if !contract.writes_directly {
-                        for relative in entries {
+                        for entry in entries {
+                            let relative = entry.relative;
                             crate::archive::validate_relative_path(&relative, false)?;
-                            replaced.push(PathBuf::from(&relative));
+                            replaced.push(
+                                entry
+                                    .canonical
+                                    .strip_prefix(&user_root)
+                                    .map_err(|_| {
+                                        PortcoveError::state("data mapping escaped canonical root")
+                                    })?
+                                    .to_path_buf(),
+                            );
                             if scan.collectible_has_files(
                                 &persistent_root.join(&relative),
-                                &user_root.join(relative),
+                                &entry.canonical,
                                 0,
                             )? {
                                 return Ok(true);
@@ -1078,12 +1273,23 @@ impl PortcoveService {
         self.catalog.port(port_id)?;
         if action == BackupAction::Restore {
             self.require_completed_restore(port_id)?;
-            self.require_completed_backup_deletion(port_id)?;
+            // Read-only: a deletion the restore itself finishes under its port lock
+            // does not stop the review; any other one still does.
+            if self.has_unfinishable_backup_deletion(port_id)? {
+                self.require_completed_backup_deletion(port_id)?;
+            }
         }
         let backup = self.load_backup(port_id, backup_id)?;
-        let backup_plan = adoption_copy_plan(&backup.path.join("data"))?;
+        let backup_data = backup.path.join("data");
+        let backup_plan = adoption_copy_plan(&backup_data)?;
         if action == BackupAction::Restore {
-            self.retained_persistence_contracts(port_id)?;
+            let installs = self.retained_persistence_contracts(port_id)?;
+            if installs
+                .iter()
+                .any(|(_, contract)| contract.regaiden_graphics_exports)
+            {
+                crate::managed_shared_preferences::require_graphics_export_directory(&backup_data)?;
+            }
         }
         let user_root = self.library.user_dir(port_id);
         let current_user_data_exists = user_root.exists();
@@ -1169,6 +1375,7 @@ impl PortcoveService {
                 "backup restore paths do not match the recorded library and operation identity",
             ));
         }
+        let input_manifest = guarded_archive::manifest_input(operation, &recovery)?;
         for path in [&recovery, &user, &previous, &recovery.join("staged-data")] {
             refuse_symlink_ancestors(path)?;
             crate::runtime_data_policy::refuse_sensitive_tree(path)?;
@@ -1198,6 +1405,7 @@ impl PortcoveService {
             recovery_root: recovery,
             user_root: user,
             previous_data: previous,
+            input_manifest,
         })
     }
 
@@ -1231,6 +1439,8 @@ impl PortcoveService {
             self.catalog.port(port_id)?;
             let _operation = self.library.try_lock_port(port_id, "restore-backup")?;
             self.require_completed_restore(port_id)?;
+            // An interrupted retention prune must not block restoring saves.
+            self.resume_pending_backup_deletions(port_id);
             self.require_completed_backup_deletion(port_id)?;
             let reviewed_runtime = self.collectible_data_review(port_id)?;
             let reviewed_canonical = self.canonical_data_review(port_id)?;
@@ -1296,7 +1506,13 @@ impl PortcoveService {
             self.faults.check(LifecycleFaultPoint::RestoreAuthorized)?;
             require_reviewed_manifest()?;
             copy_backup_tree(&source_data, &staged_data, &source_data, &mut stats)?;
-            verify_backup_stats(&restored_backup, stats, manifest.metadata_sha256.as_deref())?;
+            verify_backup_stats(
+                &restored_backup,
+                stats,
+                manifest.metadata_sha256.as_deref(),
+                manifest.guarded_archive_v1.as_deref(),
+                manifest.partitioned_data_v1.as_deref(),
+            )?;
             require_reviewed_manifest()?;
             if self.collectible_data_review(port_id)? != reviewed_runtime
                 || self.canonical_data_review(port_id)? != reviewed_canonical
@@ -1306,6 +1522,12 @@ impl PortcoveService {
                 ));
             }
             self.preflight_psx_mod_restores(port_id, &staged_data)?;
+            self.require_direct_backup_snapshot(
+                port_id,
+                &staged_data,
+                manifest.guarded_archive_v1.as_deref(),
+                manifest.partitioned_data_v1.as_deref(),
+            )?;
             self.collect_active_user_data_if_launched(port_id)?;
             let collected_canonical = self.canonical_data_review(port_id)?;
 
@@ -1319,9 +1541,11 @@ impl PortcoveService {
                 None
             };
             lifecycle.activate = user_root.exists();
+            self.retain_restore_manifest(&mut lifecycle, &reviewed_manifest)?;
             let mut restore = self.validate_restore_operation(&lifecycle)?;
-            let require_reviewed_data = || -> Result<()> {
+            let require_reviewed_data = |operation: &LifecycleOperation| -> Result<()> {
                 require_reviewed_manifest()?;
+                self.require_restore_snapshot_authority(operation, &staged_data)?;
                 self.preflight_psx_mod_restores(port_id, &staged_data)?;
                 if self.collectible_data_review(port_id)? != reviewed_runtime
                     || self.canonical_data_review(port_id)? != collected_canonical
@@ -1332,12 +1556,12 @@ impl PortcoveService {
                 }
                 Ok(())
             };
-            require_reviewed_data()?;
+            require_reviewed_data(&lifecycle)?;
             restore.advance(RestorePhase::ReadyToPublish, &mut lifecycle, &store)?;
             self.faults.check(LifecycleFaultPoint::RestorePrepared)?;
             let final_review = self
                 .validate_restore_operation(&lifecycle)
-                .and_then(|_| require_reviewed_data());
+                .and_then(|_| require_reviewed_data(&lifecycle));
             if let Err(refusal) = final_review {
                 if let Err(error) =
                     restore.abandon_before_publication(&mut lifecycle, &store, &refusal.message)
@@ -1362,6 +1586,7 @@ impl PortcoveService {
             restore.advance(RestorePhase::Published, &mut lifecycle, &store)?;
             self.faults.check(LifecycleFaultPoint::RestorePublished)?;
             self.validate_restore_operation(&lifecycle)?;
+            self.require_restore_snapshot_authority(&lifecycle, &user_root)?;
             self.synchronize_restored_user_data(port_id)?;
             restore.advance(RestorePhase::Committed, &mut lifecycle, &store)?;
             self.validate_restore_operation(&lifecycle)?;
@@ -1401,6 +1626,26 @@ impl PortcoveService {
         backup_id: &str,
         authorization_token: &str,
     ) -> Result<BackupRecord> {
+        self.delete_backup_inner(port_id, backup_id, Some(authorization_token))
+    }
+
+    /// Retention only. The caller holds the port lock, and only a snapshot that
+    /// carries the automatic label can be removed this way, so a manual one is
+    /// never pruned even if its identifier is supplied by mistake.
+    pub(super) fn delete_automatic_backup_locked(
+        &self,
+        port_id: &str,
+        backup_id: &str,
+    ) -> Result<BackupRecord> {
+        self.delete_backup_inner(port_id, backup_id, None)
+    }
+
+    fn delete_backup_inner(
+        &self,
+        port_id: &str,
+        backup_id: &str,
+        authorization_token: Option<&str>,
+    ) -> Result<BackupRecord> {
         let activity = self.library.begin_activity(
             ActivityOperation::DeleteBackup,
             ActivityTargetKind::Port,
@@ -1411,18 +1656,33 @@ impl PortcoveService {
             LifecycleOperation::new(&activity.id, LifecycleOperationKind::DeleteBackup, port_id);
         let mut result: Result<BackupRecord> = (|| {
             self.catalog.port(port_id)?;
-            let _operation = self.library.try_lock_port(port_id, "delete-backup")?;
+            // Retention runs under the version change's own port lock.
+            let _operation = match authorization_token {
+                Some(_) => Some(self.library.try_lock_port(port_id, "delete-backup")?),
+                None => None,
+            };
+            if authorization_token.is_some() {
+                // Retention already finished pending deletions before its snapshot.
+                self.resume_pending_backup_deletions(port_id);
+            }
             self.require_completed_backup_deletion(port_id)?;
-            let deletion_binding =
-                self.runtime_safety_binding(&self.load_backup(port_id, backup_id)?)?;
-            let locked_preview =
-                self.preview_backup_action(port_id, backup_id, BackupAction::Delete)?;
-            self.library.consume_authorization(
-                authorization_token,
-                BackupAction::Delete.authorization_action(),
-                &backup_authorization_target(port_id, backup_id),
-                &locked_preview.preview_sha256,
-            )?;
+            let candidate = self.load_backup(port_id, backup_id)?;
+            if authorization_token.is_none() && candidate.automatic.is_none() {
+                return Err(PortcoveError::state(
+                    "only an automatic snapshot can be removed by retention",
+                ));
+            }
+            let deletion_binding = self.runtime_safety_binding(&candidate)?;
+            if let Some(token) = authorization_token {
+                let locked_preview =
+                    self.preview_backup_action(port_id, backup_id, BackupAction::Delete)?;
+                self.library.consume_authorization(
+                    token,
+                    BackupAction::Delete.authorization_action(),
+                    &backup_authorization_target(port_id, backup_id),
+                    &locked_preview.preview_sha256,
+                )?;
+            }
             let backup = self.load_backup(port_id, backup_id)?;
             let parent = backup.path.parent().ok_or_else(|| {
                 PortcoveError::state(format!(
@@ -1497,6 +1757,180 @@ impl PortcoveService {
         self.finish_activity(activity, result)
     }
 
+    /// Takes the automatic snapshot a version change promises, or explains why none
+    /// is needed. The caller holds the port lock; `collect_first` gathers the
+    /// active version's latest saves when the caller has not already. A snapshot
+    /// failure returns an error, so the caller stops before it mutates anything.
+    pub(super) fn snapshot_before_version_change(
+        &self,
+        port_id: &str,
+        kind: VersionChangeKind,
+        contract_install: &InstallRecord,
+        from_version: Option<&str>,
+        to_version: &str,
+        collect_first: bool,
+    ) -> Result<SnapshotOutcome> {
+        if !self.library.automatic_snapshots_enabled()? {
+            return Ok(SnapshotOutcome::Disabled);
+        }
+        // The retained definition decides ownership, not today's catalog. If it
+        // cannot be read, treat the data as managed: copying Portcove's own saved-data
+        // folder is harmless, whereas refusing here could block a rollback, which is
+        // the recovery path.
+        if self.installed_port(contract_install).is_ok_and(|port| {
+            port.presentation.as_ref().is_some_and(|p| {
+                p.saves_and_settings == SavesAndSettingsBehavior::ExternalUserOwned
+            }) && !crate::Platform::current().is_ok_and(|platform| {
+                crate::native_external_profile::z2rs::owns_fallback(&port, platform)
+            })
+        }) {
+            return Ok(SnapshotOutcome::ExternalData);
+        }
+        let activity = self.library.begin_activity(
+            ActivityOperation::Backup,
+            ActivityTargetKind::Port,
+            Some(port_id),
+        )?;
+        let result = (|| {
+            // A retention prune that was interrupted must not block the player's
+            // version change until restart: finish it here, under the same port lock.
+            self.resume_pending_backup_deletions(port_id);
+            self.require_completed_backup_deletion(port_id)?;
+            if collect_first {
+                // The snapshot must include what the game wrote most recently.
+                self.collect_active_user_data_if_launched(port_id)?;
+            }
+            let label = AutomaticSnapshotLabel {
+                operation: kind,
+                from_version: from_version.map(str::to_owned),
+                to_version: to_version.to_owned(),
+            };
+            match self.create_backup_locked_labeled(port_id, Some(label)) {
+                Ok(_) => {
+                    let pruned = self.prune_automatic_snapshots(port_id);
+                    Ok(SnapshotOutcome::Created { pruned })
+                }
+                // Nothing to protect yet; this is a recorded skip, not a failure.
+                Err(error) if is_no_persistent_data(&error) => Ok(SnapshotOutcome::NoData),
+                Err(error) => Err(explain_snapshot_failure(error)),
+            }
+        })();
+        match result {
+            Ok(outcome) => {
+                self.library.finish_activity_report(
+                    &activity.id,
+                    ActivityStatus::Succeeded,
+                    Some(&outcome.activity_message(kind, from_version, to_version)),
+                    None,
+                )?;
+                Ok(outcome)
+            }
+            Err(error) => self.finish_activity(activity, Err(error)),
+        }
+    }
+
+    /// Read-only: whether this pending deletion has already moved its backup out of
+    /// view and is expected to be finished, without a judgement call, by the next
+    /// backup, restore, deletion or version change. Such a deletion does not hold
+    /// those actions. One that a later attempt already failed to finish, and every
+    /// other pending deletion, still requires recovery.
+    pub(super) fn deletion_finishes_on_next_action(&self, operation: &LifecycleOperation) -> bool {
+        operation.kind == LifecycleOperationKind::DeleteBackup
+            && operation.backup_deletion.is_none()
+            && !operation
+                .last_error
+                .as_deref()
+                .is_some_and(|error| error.starts_with(RESUME_FAILED))
+            && self
+                .library
+                .require_no_ghostship_recovery(&operation.port_id)
+                .is_ok()
+            && self
+                .validate_backup_deletion_operation(operation)
+                .is_ok_and(|deletion| {
+                    matches!(
+                        deletion.phase,
+                        BackupDeletionPhase::Quarantined
+                            | BackupDeletionPhase::Deleted
+                            | BackupDeletionPhase::CleanupPending
+                    ) && fs::symlink_metadata(&deletion.original)
+                        .is_err_and(|error| error.kind() == std::io::ErrorKind::NotFound)
+                        // Recovery refuses a quarantine holding an unauthorized
+                        // runtime-safety companion; so must this prediction.
+                        && (fs::symlink_metadata(&deletion.quarantine).is_err_and(|error| {
+                            error.kind() == std::io::ErrorKind::NotFound
+                        }) || self
+                            .require_backup_deletion_preimage(&deletion.quarantine, None)
+                            .is_ok())
+                })
+    }
+
+    /// Whether any pending deletion of this port still requires recovery.
+    fn has_unfinishable_backup_deletion(&self, port_id: &str) -> Result<bool> {
+        Ok(OperationStore::new(self.library.clone())
+            .all()?
+            .iter()
+            .any(|operation| {
+                operation.port_id == port_id
+                    && operation.kind == LifecycleOperationKind::DeleteBackup
+                    && !self.deletion_finishes_on_next_action(operation)
+            }))
+    }
+
+    /// Best-effort completion of this port's unfinished backup deletions through the
+    /// existing recovery. A deletion that cannot be completed stays pending and the
+    /// caller's `require_completed_backup_deletion` still refuses with its clear message.
+    fn resume_pending_backup_deletions(&self, port_id: &str) {
+        let store = OperationStore::new(self.library.clone());
+        let Ok(operations) = store.all() else {
+            return;
+        };
+        for mut operation in operations.into_iter().filter(|operation| {
+            operation.port_id == port_id && operation.kind == LifecycleOperationKind::DeleteBackup
+        }) {
+            let outcome = crate::recovery::recover_backup_deletion(self, &store, &mut operation);
+            if let Err(error) = &outcome {
+                // Stop predicting that the next action finishes it: history shows
+                // recovery as required again, with the cause.
+                operation.last_error = Some(format!("{RESUME_FAILED}{}", error.message));
+                let _ = store.put(&mut operation);
+            }
+            let _ = self.library.finish_activity(
+                &operation.id,
+                if outcome.is_ok() {
+                    ActivityStatus::Succeeded
+                } else {
+                    ActivityStatus::Failed
+                },
+                Some(match outcome {
+                    Ok(()) => "completed by a later backup, restore, deletion or version change",
+                    Err(_) => "could not be completed; restart Portcove to retry recovery",
+                }),
+            );
+        }
+    }
+
+    /// Keeps the newest automatic snapshots and removes older automatic ones.
+    /// Manual snapshots are never candidates. Best effort: the version change
+    /// must not fail because an old snapshot could not be removed. Returns how
+    /// many were removed.
+    fn prune_automatic_snapshots(&self, port_id: &str) -> usize {
+        let Ok(inventory) = self.list_backups(port_id) else {
+            return 0;
+        };
+        // `list_backups` is newest first.
+        inventory
+            .backups
+            .iter()
+            .filter(|backup| backup.automatic.is_some())
+            .skip(AUTOMATIC_SNAPSHOT_RETENTION)
+            .filter(|backup| {
+                self.delete_automatic_backup_locked(port_id, &backup.id)
+                    .is_ok()
+            })
+            .count()
+    }
+
     pub(super) fn load_backup(&self, port_id: &str, backup_id: &str) -> Result<BackupRecord> {
         let parsed = Uuid::parse_str(backup_id).map_err(|_| {
             PortcoveError::not_found(format!("backup {backup_id} was not found for {port_id}"))
@@ -1544,6 +1978,7 @@ impl PortcoveService {
 
 fn backup_record(manifest: BackupManifest, path: PathBuf) -> BackupRecord {
     BackupRecord {
+        automatic: manifest.automatic_v1,
         id: manifest.id,
         port_id: manifest.port_id,
         path,
@@ -1605,6 +2040,8 @@ fn read_backup_manifest(path: &Path, port_id: &str, backup_id: &str) -> Result<B
             &manifest_path,
         ));
     }
+    guarded_archive::validate_binding(manifest.guarded_archive_v1.as_deref())?;
+    guarded_archive::validate_binding(manifest.partitioned_data_v1.as_deref())?;
     Ok(manifest)
 }
 
@@ -1754,6 +2191,8 @@ fn verify_backup_stats(
     backup: &BackupRecord,
     stats: BackupStats,
     expected_metadata_sha256: Option<&str>,
+    guarded_archive_v1: Option<&str>,
+    partitioned_data_v1: Option<&str>,
 ) -> Result<()> {
     let BackupStats {
         file_count,
@@ -1761,7 +2200,7 @@ fn verify_backup_stats(
         hasher,
         metadata_hasher,
     } = stats;
-    let sha256 = hex::encode(hasher.finalize());
+    let sha256 = guarded_archive::content_digest(hasher, guarded_archive_v1, partitioned_data_v1)?;
     if let Some(expected) = expected_metadata_sha256 {
         let actual = hex::encode(metadata_hasher.finalize());
         if actual != expected {
@@ -1838,7 +2277,8 @@ fn copy_backup_tree(
         let parent = destination
             .parent()
             .ok_or_else(|| PortcoveError::state("backup target has no parent"))?;
-        let mut output = tempfile::NamedTempFile::new_in(parent)?;
+        let publication = crate::durability::tempfile_destination(destination)?;
+        let mut output = tempfile::NamedTempFile::new_in(publication.parent().unwrap_or(parent))?;
         // Keep the existing bounded copy buffer off each recursive stack frame.
         // Empty deep directories must not consume 64 KiB per ancestor.
         let mut buffer = vec![0_u8; 64 * 1024];
@@ -1868,9 +2308,11 @@ fn copy_backup_tree(
         crate::runtime_data_policy::preserve_modified_time(output.as_file(), &before)?;
         output.as_file().sync_all()?;
         refuse_symlink_ancestors(destination)?;
-        output
-            .persist(destination)
-            .map_err(|error| PortcoveError::from(error.error))?;
+        output.persist(&publication).map_err(|error| {
+            PortcoveError::from(error.error)
+                .detail("backup_copy_phase", "atomic_file_publication")
+                .detail("destination", destination.display().to_string())
+        })?;
         stats.file_count += 1;
         return Ok(());
     }
@@ -1951,6 +2393,41 @@ fn backup_action_fingerprint(
     let encoded =
         serde_json::to_vec(&(action, backup, backup_plan, user_plan, modified, manifest))?;
     Ok(hex::encode(Sha256::digest(encoded)))
+}
+
+/// Tells the player that a failed automatic snapshot stopped the version change
+/// before anything changed, and how to continue. The cause stays in the message and
+/// the error keeps its code and details. It is applied only to the backup copy itself;
+/// every other kind carries its own guidance and passes through unchanged.
+pub(super) fn explain_snapshot_failure(mut error: PortcoveError) -> PortcoveError {
+    // Only a copy that failed (file-system errors are `State`; a credential-scan limit
+    // is `Unsupported`) is reworded. Conflicts and verification refusals, such as a
+    // changed producer, a modified retained runtime or a recovery hold, carry their
+    // own remedy, and turning snapshots off would point away from it.
+    if !matches!(
+        error.code,
+        crate::ErrorCode::State | crate::ErrorCode::Unsupported
+    ) {
+        return error;
+    }
+    error.message = format!(
+        "Portcove could not back up this game's saves first, so the version was not changed. {} Try again once that is fixed, or turn off automatic snapshots in Settings > Library to continue without one.",
+        sentence(&error.message)
+    );
+    error.details.insert(
+        "recovery_action".into(),
+        "retry_or_disable_snapshots".into(),
+    );
+    error
+}
+
+fn sentence(cause: &str) -> String {
+    let cause = cause.trim();
+    if cause.ends_with(['.', '!', '?']) {
+        cause.to_owned()
+    } else {
+        format!("{cause}.")
+    }
 }
 
 #[cfg(test)]

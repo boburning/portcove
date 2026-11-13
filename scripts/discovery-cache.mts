@@ -1,6 +1,6 @@
 import { readFileSync, lstatSync, copyFileSync, constants } from "node:fs";
 import { isRecord, errorCode } from "./runtime-values.mts";
-import { observationHash } from "./upstream-observer.mts";
+import { orderedJsonSha256 as observationHash } from "./json-values.mts";
 import type { InventoryCache } from "./roadmap-inventory.mts";
 export function isDiscoveryCache(value: unknown): value is InventoryCache {
   if (

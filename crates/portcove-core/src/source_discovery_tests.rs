@@ -173,7 +173,7 @@ fn schema1_validator_selection_stays_manual_without_silent_hashing() {
 }
 
 #[test]
-fn preliminary_saved_scan_resumes_after_restart_without_rehashing_or_resetting_candidate_limits() {
+fn preliminary_saved_scan_resumes_after_restart_without_rehashing_and_keeps_every_selection() {
     let temporary = tempfile::tempdir().unwrap();
     let root = temporary.path().join("selected");
     fs::create_dir(&root).unwrap();
@@ -226,13 +226,20 @@ fn preliminary_saved_scan_resumes_after_restart_without_rehashing_or_resetting_c
     assert_eq!(second.report.files_hashed, 2);
     assert_eq!(second.report.hash_bytes, 2 * payload.len() as u64);
     assert!(second.report.candidates.is_empty());
+    // The budget bounds each batch, so the third file is still examined after
+    // restart, without rehashing the first two.
+    assert!(second.coverage.as_ref().unwrap().can_resume);
+    let third = publish_saved_batch(&catalog, &reopened, &limits).unwrap();
+    assert_eq!(third.report.preliminary_selections.len(), 6);
+    assert_eq!(third.report.files_hashed, 3);
+    assert_eq!(third.report.hash_bytes, 3 * payload.len() as u64);
+    assert!(third.coverage.as_ref().unwrap().frontier_exhausted);
     assert!(
-        second
+        !third
             .report
             .limits_reached
             .contains(&SourceDiscoveryLimit::Candidates)
     );
-    assert!(!second.coverage.as_ref().unwrap().can_resume);
 }
 
 // Generic discovery needs two identities and one port for catalog snapshot changes.
@@ -1668,7 +1675,7 @@ fn real_owned_gamecube_containers_share_admission_and_resume_with_progress() {
     };
     let operation = crate::OperationCoordinator::new("owned-gamecube-progress", None);
     let mut emitted = Vec::new();
-    let (first, outputs, payload) = super::build_game_file_scan_with_registry_events(
+    let (first, outputs, payload, matches) = super::build_game_file_scan_with_registry_events(
         &catalog,
         &library,
         &limits,
@@ -1685,8 +1692,15 @@ fn real_owned_gamecube_containers_share_admission_and_resume_with_progress() {
     .unwrap();
     assert_eq!(emitted.len(), 1);
     assert_eq!(emitted[0].0, "animal-crossing-gamecube");
-    super::publish_game_file_scan(&library, &operation, &first, &outputs, payload.as_deref())
-        .unwrap();
+    super::publish_game_file_scan(
+        &library,
+        &operation,
+        &first,
+        &outputs,
+        payload.as_deref(),
+        &matches,
+    )
+    .unwrap();
     assert_eq!(first.report.candidates.len(), 1);
     assert!(first.coverage.as_ref().unwrap().can_resume);
     drop(library);
@@ -2357,7 +2371,7 @@ fn exact_candidates_stream_before_the_saved_root_snapshot_is_published() {
     library.add_game_file_root(&root).unwrap();
     let operation = crate::OperationCoordinator::new("saved-root-scan", None);
     let mut events = Vec::new();
-    let (snapshot, _, _) = super::build_game_file_scan_with_registry_events(
+    let (snapshot, _, _, _) = super::build_game_file_scan_with_registry_events(
         &catalog,
         &library,
         &SourceDiscoveryLimits::default(),
@@ -2989,6 +3003,7 @@ fn cancellation_before_snapshot_publication_preserves_the_previous_snapshot() {
             .stored_game_file_scan_payload()
             .unwrap()
             .as_deref(),
+        &super::GameFileScanMatchWrite::Unchanged,
     );
     assert_eq!(result.as_ref().unwrap_err().code, ErrorCode::Cancelled);
     assert_eq!(
@@ -3039,6 +3054,7 @@ fn output_claim_after_traversal_refuses_snapshot_publication() {
         &snapshot,
         &expected_outputs,
         library.stored_game_file_scan_payload().unwrap().as_deref(),
+        &super::GameFileScanMatchWrite::Unchanged,
     )
     .unwrap_err();
     assert_eq!(error.code, ErrorCode::Conflict);
@@ -4545,15 +4561,131 @@ fn publish_saved_batch(
     limits: &SourceDiscoveryLimits,
 ) -> Result<GameFileScanSnapshot> {
     let operation = crate::OperationCoordinator::new("resumable-saved-scan", None);
-    let (snapshot, outputs, payload) = super::build_game_file_scan_with_registry_events(
+    let (snapshot, outputs, payload, matches) = super::build_game_file_scan_with_registry_events(
         catalog,
         library,
         limits,
         &operation,
         &mut |_| {},
     )?;
-    super::publish_game_file_scan(library, &operation, &snapshot, &outputs, payload.as_deref())?;
+    super::publish_game_file_scan(
+        library,
+        &operation,
+        &snapshot,
+        &outputs,
+        payload.as_deref(),
+        &matches,
+    )?;
     Ok(snapshot)
+}
+
+type StoredMatchRow = (String, i64, i64, String, String, i64, String);
+
+/// Every stored match row, in a stable order.
+fn match_rows(library: &crate::Library) -> Vec<StoredMatchRow> {
+    let connection = library.connection().unwrap();
+    let mut statement = connection
+        .prepare(
+            "SELECT scan_id,kind,ordinal,profile_id,path,batch,record_json
+             FROM game_file_scan_matches ORDER BY scan_id,kind,ordinal",
+        )
+        .unwrap();
+    statement
+        .query_map([], |row| {
+            Ok((
+                row.get(0)?,
+                row.get(1)?,
+                row.get(2)?,
+                row.get(3)?,
+                row.get(4)?,
+                row.get(5)?,
+                row.get(6)?,
+            ))
+        })
+        .unwrap()
+        .collect::<std::result::Result<Vec<_>, _>>()
+        .unwrap()
+}
+
+/// Every exact match of the current scan, read through the paged API.
+fn paged_exact_matches(library: &crate::Library, limit: u32) -> Vec<crate::SourceRecord> {
+    let mut matches = Vec::new();
+    let mut offset = Some(0);
+    let mut scan_id = None;
+    while let Some(start) = offset {
+        let page = library
+            .game_file_scan_match_page(&crate::GameFileScanMatchQuery {
+                scan_id: scan_id.clone(),
+                kind: crate::GameFileScanMatchKind::Exact,
+                offset: start,
+                limit,
+                root_id: None,
+            })
+            .unwrap();
+        assert_eq!(page.offset, start);
+        scan_id = page.scan_id.clone();
+        offset = page.next_offset;
+        matches.extend(page.candidates);
+    }
+    matches
+}
+
+/// Replaces a published continuation's stored matches with exactly `exact`,
+/// all from the first batch, rebinding the summary, preview and cursor the
+/// way a real publication does. Callers rebind `report_sha256` last.
+fn forge_match_rows(
+    library: &crate::Library,
+    prior: &mut GameFileScanSnapshot,
+    cursor: &mut ScanContinuation,
+    exact: &[crate::SourceRecord],
+) {
+    let scan_id = prior.matches.as_ref().unwrap().scan_id.clone();
+    let mut connection = library.connection().unwrap();
+    let transaction = connection.transaction().unwrap();
+    transaction
+        .execute("DELETE FROM game_file_scan_matches", [])
+        .unwrap();
+    cursor.match_bytes = 0;
+    cursor.matches_sha256 = [EMPTY_MATCH_CHAIN.into(), EMPTY_MATCH_CHAIN.into()];
+    for (ordinal, record) in exact.iter().enumerate() {
+        let row = super::match_row(
+            0,
+            ordinal,
+            &record.profile_id,
+            &record.path,
+            1,
+            serde_json::to_string(record).unwrap(),
+        )
+        .unwrap();
+        transaction
+            .execute(
+                "INSERT INTO game_file_scan_matches(scan_id,kind,ordinal,profile_id,path,path_key,batch,record_json)
+                 VALUES (?1,0,?2,?3,?4,?5,1,?6)",
+                rusqlite::params![
+                    scan_id,
+                    row.ordinal,
+                    row.profile_id,
+                    row.path,
+                    crate::game_file_root::path_key(&row.path),
+                    row.record_json,
+                ],
+            )
+            .unwrap();
+        cursor.match_bytes += row.record_json.len() as u64;
+        cursor.matches_sha256[0] = super::chain_match_row(&cursor.matches_sha256[0], &row);
+    }
+    transaction.commit().unwrap();
+    let total = exact.len() as u32;
+    cursor.match_count = total;
+    let (preview, _) = super::scan_preview(None, [0, 0], exact, &[], [total, 0]).unwrap();
+    prior.matches = Some(crate::GameFileScanMatchSummary {
+        scan_id,
+        exact_matches: total,
+        preliminary_selections: 0,
+        preview_complete: preview.len() as u32 == total,
+    });
+    prior.report.candidates = preview;
+    prior.report.preliminary_selections.clear();
 }
 
 #[test]
@@ -4741,8 +4873,12 @@ fn saved_scan_stale_inputs_refuse_once_and_preserve_prior_report_before_restart(
             }
             _ => unreachable!(),
         }
+        let rows = match_rows(&library);
+        assert_eq!(rows.len(), first.report.candidates.len(), "{change}");
         let error = publish_saved_batch(&catalog, &library, &limits).unwrap_err();
         assert_eq!(error.code, ErrorCode::Conflict, "{change}");
+        // The prior report and its stored matches stay readable.
+        assert_eq!(match_rows(&library), rows, "{change}");
         let refused = super::current_game_file_scan(&catalog, &library)
             .unwrap()
             .unwrap();
@@ -4760,11 +4896,15 @@ fn saved_scan_stale_inputs_refuse_once_and_preserve_prior_report_before_restart(
         assert!(refused.continuation.is_none());
         let restarted = publish_saved_batch(&catalog, &library, &limits).unwrap();
         assert_eq!(restarted.coverage.unwrap().batches, 1, "{change}");
+        // A fresh scan replaces every earlier row.
+        let scan_id = &restarted.matches.as_ref().unwrap().scan_id;
+        assert_ne!(scan_id, &first.matches.as_ref().unwrap().scan_id);
+        assert!(match_rows(&library).iter().all(|row| &row.0 == scan_id));
     }
 }
 
 #[test]
-fn saved_scan_candidate_limit_remains_cumulative_on_entry_resume() {
+fn saved_scan_candidate_budget_is_per_batch_and_keeps_every_match() {
     let temporary = tempfile::tempdir().unwrap();
     let root = temporary.path().join("selected");
     fs::create_dir(&root).unwrap();
@@ -4780,18 +4920,499 @@ fn saved_scan_candidate_limit_remains_cumulative_on_entry_resume() {
         ..Default::default()
     };
     let catalog = catalog(payload);
-    let first = publish_saved_batch(&catalog, &library, &limits).unwrap();
-    assert!(first.coverage.unwrap().can_resume);
-    let second = publish_saved_batch(&catalog, &library, &limits).unwrap();
+    // Each file matches both catalog profiles, so the folder holds six
+    // matches: more than one batch's budget of three.
+    let mut snapshot = publish_saved_batch(&catalog, &library, &limits).unwrap();
+    let mut batches = 1;
+    while snapshot.coverage.as_ref().unwrap().can_resume {
+        snapshot = publish_saved_batch(&catalog, &library, &limits).unwrap();
+        batches += 1;
+        assert!(batches <= 8, "the scan must finish");
+    }
+    let coverage = snapshot.coverage.unwrap();
+    assert!(coverage.frontier_exhausted && !coverage.restart_required);
+    // No match was dropped while its file was marked examined, and the scan
+    // was not reported as limited. Matches are counted through the stored
+    // rows; the preview holds them all because there are few.
+    assert_eq!(snapshot.matches.as_ref().unwrap().exact_matches, 6);
+    assert!(snapshot.matches.as_ref().unwrap().preview_complete);
+    assert_eq!(paged_exact_matches(&library, 4).len(), 6);
+    assert_eq!(snapshot.report.candidates.len(), 6);
     assert!(
-        second
+        !snapshot
             .report
             .limits_reached
             .contains(&SourceDiscoveryLimit::Candidates)
     );
-    assert!(!second.coverage.unwrap().can_resume);
-    assert!(second.continuation.is_none());
-    assert_eq!(second.report.candidates.len(), 3);
+    assert!(snapshot.continuation.is_none());
+}
+
+#[test]
+fn a_ten_thousand_entry_folder_is_covered_across_batches_without_losing_matches() {
+    let temporary = tempfile::tempdir().unwrap();
+    let root = temporary.path().join("selected");
+    let payload = b"supported resumable source";
+    // 10,050 unrelated entries spread over subfolders, plus 150 games: each
+    // game matches both catalog profiles, so 300 matches against a default
+    // per-batch budget of 64.
+    for folder in 0..50 {
+        let directory = root.join(format!("folder-{folder:02}"));
+        fs::create_dir_all(&directory).unwrap();
+        for file in 0..201 {
+            fs::write(directory.join(format!("note-{file:03}.txt")), b"x").unwrap();
+        }
+        for game in 0..3 {
+            fs::write(directory.join(format!("game-{game}.z64")), payload).unwrap();
+        }
+    }
+    let library = crate::Library::open(temporary.path().join("library")).unwrap();
+    library.add_game_file_root(&root).unwrap();
+    let limits = SourceDiscoveryLimits::default();
+    let catalog = catalog(payload);
+    let mut snapshot = publish_saved_batch(&catalog, &library, &limits).unwrap();
+    let mut batches = 1;
+    let retained = |snapshot: &crate::GameFileScanSnapshot| {
+        snapshot.continuation.as_ref().map_or(0, |cursor| {
+            cursor["observed"]
+                .as_object()
+                .map_or(0, serde_json::Map::len)
+        })
+    };
+    while snapshot.coverage.as_ref().unwrap().can_resume {
+        // The cursor keeps only the unfinished frontier, never every entry
+        // the scan has already finished with nor its matches (in rows).
+        assert!(
+            retained(&snapshot) <= 2 * 204 + 64,
+            "retained {} stamps after {} entries",
+            retained(&snapshot),
+            snapshot.report.entries_examined
+        );
+        snapshot = publish_saved_batch(&catalog, &library, &limits).unwrap();
+        batches += 1;
+        assert!(batches <= 64, "the scan must finish");
+    }
+    let coverage = snapshot.coverage.as_ref().unwrap();
+    assert!(
+        snapshot.report.issues.is_empty(),
+        "{:?}",
+        snapshot.report.issues
+    );
+    assert!(batches > 1, "more matches than one batch keeps");
+    assert!(coverage.frontier_exhausted && !coverage.restart_required);
+    assert!(snapshot.report.entries_examined >= 10_200);
+    assert_eq!(snapshot.matches.as_ref().unwrap().exact_matches, 300);
+    let paged = paged_exact_matches(&library, 64);
+    assert_eq!(paged.len(), 300);
+    let mut unique = paged
+        .iter()
+        .map(|candidate| (candidate.profile_id.clone(), candidate.path.clone()))
+        .collect::<Vec<_>>();
+    unique.sort();
+    unique.dedup();
+    assert_eq!(unique.len(), 300, "no match is repeated across batches");
+}
+
+#[test]
+fn reaching_the_scan_match_ceiling_on_a_batch_boundary_ends_coverage_as_limited() {
+    // A lowered ceiling stands in for the 100,000-match safety ceiling. It
+    // is above the 512-match preview, so the scan keeps more matches than
+    // its snapshot shows and every one is still read through pages.
+    const CEILING: usize = 520;
+    super::set_test_scan_match_ceiling(CEILING, super::MAX_SCAN_MATCH_BYTES);
+    let temporary = tempfile::tempdir().unwrap();
+    let root = temporary.path().join("selected");
+    fs::create_dir(&root).unwrap();
+    let payload = b"supported resumable source";
+    // Two matches per file: every 64-match batch ends exactly on a file, so
+    // the ceiling is reached without dropping anything.
+    for game in 0..(CEILING / 2 + 8) {
+        fs::write(root.join(format!("game-{game:04}.z64")), payload).unwrap();
+    }
+    let library = crate::Library::open(temporary.path().join("library")).unwrap();
+    library.add_game_file_root(&root).unwrap();
+    let limits = SourceDiscoveryLimits::default();
+    let catalog = catalog(payload);
+    let mut snapshot = publish_saved_batch(&catalog, &library, &limits).unwrap();
+    let mut batches = 1;
+    while snapshot.coverage.as_ref().unwrap().can_resume {
+        snapshot = publish_saved_batch(&catalog, &library, &limits).unwrap();
+        batches += 1;
+        assert!(batches <= 64, "the scan must stop");
+    }
+    let coverage = snapshot.coverage.as_ref().unwrap();
+    let summary = snapshot.matches.as_ref().unwrap();
+    assert_eq!(summary.exact_matches as usize, CEILING);
+    assert!(!summary.preview_complete);
+    assert_eq!(
+        snapshot.report.candidates.len(),
+        super::MAX_SCAN_PREVIEW_MATCHES
+    );
+    assert!(
+        library
+            .stored_game_file_scan_payload()
+            .unwrap()
+            .unwrap()
+            .len()
+            <= 8 * 1024 * 1024
+    );
+    assert!(
+        snapshot
+            .report
+            .limits_reached
+            .contains(&SourceDiscoveryLimit::Candidates)
+    );
+    assert!(!coverage.frontier_exhausted && !coverage.restart_required);
+    assert!(snapshot.continuation.is_none());
+    // Pages hold every match once, the preview is their prefix, and each
+    // batch's matches keep their sorted order.
+    let paged = paged_exact_matches(&library, 97);
+    assert_eq!(paged.len(), CEILING);
+    let mut unique = paged
+        .iter()
+        .map(|record| (record.profile_id.clone(), record.path.clone()))
+        .collect::<Vec<_>>();
+    unique.sort();
+    unique.dedup();
+    assert_eq!(unique.len(), CEILING);
+    assert_eq!(
+        serde_json::to_value(&paged[..super::MAX_SCAN_PREVIEW_MATCHES]).unwrap(),
+        serde_json::to_value(&snapshot.report.candidates).unwrap()
+    );
+    let rows = match_rows(&library);
+    assert_eq!(rows.len(), CEILING);
+    assert!(rows.iter().all(|row| row.0 == summary.scan_id));
+    assert_eq!(rows.iter().map(|row| row.5).max(), Some(batches));
+}
+
+#[test]
+fn the_match_byte_ceiling_also_ends_coverage_as_limited() {
+    let temporary = tempfile::tempdir().unwrap();
+    let root = temporary.path().join("selected");
+    fs::create_dir(&root).unwrap();
+    let payload = b"supported resumable source";
+    for game in 0..4 {
+        fs::write(root.join(format!("game-{game}.z64")), payload).unwrap();
+    }
+    let catalog = catalog(payload);
+    let one_off = scan(&catalog, &request(&root)).unwrap();
+    assert_eq!(one_off.candidates.len(), 8);
+    let largest = one_off
+        .candidates
+        .iter()
+        .map(|record| serde_json::to_vec(record).unwrap().len() as u64)
+        .max()
+        .unwrap();
+    // Room for three stored records, not eight.
+    let ceiling = largest * 3 + largest / 2;
+    super::set_test_scan_match_ceiling(super::MAX_SCAN_MATCHES, ceiling);
+    let library = crate::Library::open(temporary.path().join("library")).unwrap();
+    library.add_game_file_root(&root).unwrap();
+    let (snapshot, _) = scan_to_end(&catalog, &library, &SourceDiscoveryLimits::default());
+    let coverage = snapshot.coverage.as_ref().unwrap();
+    let summary = snapshot.matches.as_ref().unwrap();
+    assert!((1..8).contains(&summary.exact_matches), "{summary:?}");
+    assert!(
+        snapshot
+            .report
+            .limits_reached
+            .contains(&SourceDiscoveryLimit::Candidates)
+    );
+    assert!(!coverage.can_resume && !coverage.frontier_exhausted);
+    let stored = match_rows(&library)
+        .iter()
+        .map(|row| row.6.len() as u64)
+        .sum::<u64>();
+    assert!(stored <= ceiling);
+}
+
+#[test]
+fn one_match_too_large_to_store_is_reported_and_the_scan_goes_on() {
+    let temporary = tempfile::tempdir().unwrap();
+    let root = temporary.path().join("selected");
+    fs::create_dir(&root).unwrap();
+    let payload = b"supported resumable source";
+    for game in 0..3 {
+        fs::write(root.join(format!("game-{game}.z64")), payload).unwrap();
+    }
+    let long = root.join(format!("game-{}.z64", "x".repeat(120)));
+    fs::write(&long, payload).unwrap();
+    let catalog = catalog(payload);
+    let one_off = scan(&catalog, &request(&root)).unwrap();
+    let size = |record: &crate::SourceRecord| serde_json::to_vec(record).unwrap().len();
+    // Scans report canonical paths (`\\?\` on Windows), so compare file names.
+    let is_long = |path: &Path| path.file_name() == long.file_name();
+    let short = one_off
+        .candidates
+        .iter()
+        .filter(|record| !is_long(&record.path))
+        .map(size)
+        .max()
+        .unwrap();
+    let large = one_off
+        .candidates
+        .iter()
+        .filter(|record| is_long(&record.path))
+        .map(size)
+        .min()
+        .unwrap();
+    assert!(short < large);
+    super::set_test_scan_match_limits(super::MAX_SCAN_MATCHES, super::MAX_SCAN_MATCH_BYTES, short);
+    let library = crate::Library::open(temporary.path().join("library")).unwrap();
+    library.add_game_file_root(&root).unwrap();
+    let (snapshot, _) = scan_to_end(&catalog, &library, &SourceDiscoveryLimits::default());
+    let coverage = snapshot.coverage.as_ref().unwrap();
+    assert!(coverage.frontier_exhausted && !coverage.restart_required);
+    assert!(
+        !snapshot
+            .report
+            .limits_reached
+            .contains(&SourceDiscoveryLimit::Candidates)
+    );
+    let kept = paged_exact_matches(&library, 64);
+    assert_eq!(kept.len(), one_off.candidates.len() - 2);
+    assert!(kept.iter().all(|record| !is_long(&record.path)));
+    let reported = snapshot
+        .report
+        .issues
+        .iter()
+        .filter(|issue| issue.path.as_deref().is_some_and(is_long))
+        .count();
+    assert_eq!(reported, 2, "{:?}", snapshot.report.issues);
+}
+
+#[test]
+fn a_large_tree_with_few_matches_ends_batches_before_checkpoint_storage_fills() {
+    let temporary = tempfile::tempdir().unwrap();
+    let root = temporary.path().join("selected");
+    let payload = b"supported resumable source";
+    for folder in 0..60 {
+        let directory = root.join(format!("folder-with-a-long-descriptive-name-{folder:02}"));
+        fs::create_dir_all(&directory).unwrap();
+        for file in 0..200 {
+            fs::write(
+                directory.join(format!("unrelated-notes-file-number-{file:03}.txt")),
+                b"x",
+            )
+            .unwrap();
+        }
+        if folder % 10 == 0 {
+            fs::write(directory.join("game.z64"), payload).unwrap();
+        }
+    }
+    let library = crate::Library::open(temporary.path().join("library")).unwrap();
+    library.add_game_file_root(&root).unwrap();
+    let limits = SourceDiscoveryLimits {
+        max_entries: 20_000,
+        ..Default::default()
+    };
+    let catalog = catalog(payload);
+    let mut snapshot = publish_saved_batch(&catalog, &library, &limits).unwrap();
+    let mut batches = 1;
+    while snapshot.coverage.as_ref().unwrap().can_resume {
+        snapshot = publish_saved_batch(&catalog, &library, &limits).unwrap();
+        batches += 1;
+        assert!(batches <= 64, "the scan must finish");
+    }
+    let coverage = snapshot.coverage.as_ref().unwrap();
+    assert!(
+        snapshot.report.issues.is_empty(),
+        "{:?}",
+        snapshot.report.issues
+    );
+    assert!(coverage.frontier_exhausted && !coverage.restart_required);
+    assert!(snapshot.report.entries_examined >= 12_000);
+    assert_eq!(snapshot.report.candidates.len(), 12);
+}
+
+fn scan_to_end(
+    catalog: &Catalog,
+    library: &crate::Library,
+    limits: &SourceDiscoveryLimits,
+) -> (GameFileScanSnapshot, u32) {
+    let mut snapshot = publish_saved_batch(catalog, library, limits).unwrap();
+    let mut batches = 1;
+    while snapshot.coverage.as_ref().unwrap().can_resume {
+        snapshot = publish_saved_batch(catalog, library, limits).unwrap();
+        batches += 1;
+        assert!(batches <= 64, "the scan must finish");
+    }
+    (snapshot, batches)
+}
+
+#[test]
+fn a_wide_frontier_still_advances_many_folders_per_batch() {
+    let temporary = tempfile::tempdir().unwrap();
+    let root = temporary.path().join("selected");
+    let payload = b"supported resumable source";
+    for folder in 0..3_200 {
+        let directory = root.join(format!("one-folder-per-game-with-a-long-name-{folder:04}"));
+        fs::create_dir_all(&directory).unwrap();
+        fs::write(directory.join("readme-for-this-game.txt"), b"x").unwrap();
+    }
+    fs::write(
+        root.join("one-folder-per-game-with-a-long-name-0000/game.z64"),
+        payload,
+    )
+    .unwrap();
+    let library = crate::Library::open(temporary.path().join("library")).unwrap();
+    library.add_game_file_root(&root).unwrap();
+    let limits = SourceDiscoveryLimits {
+        max_entries: 20_000,
+        ..Default::default()
+    };
+    let (snapshot, batches) = scan_to_end(&catalog(payload), &library, &limits);
+    let coverage = snapshot.coverage.as_ref().unwrap();
+    assert!(
+        snapshot.report.issues.is_empty(),
+        "{:?}",
+        snapshot.report.issues
+    );
+    assert!(coverage.frontier_exhausted, "{coverage:?}");
+    assert!(batches <= 16, "{batches} batches");
+    assert_eq!(snapshot.report.candidates.len(), 2);
+}
+
+#[test]
+fn a_folder_that_fits_a_fresh_batch_is_not_ended_by_earlier_folders_in_the_batch() {
+    let temporary = tempfile::tempdir().unwrap();
+    let root = temporary.path().join("selected");
+    let payload = b"supported resumable source";
+    // Each entry charges about 840 bytes of the 4 MiB checkpoint bound. The
+    // nested folder is always listed after the earlier one finishes: the
+    // earlier one stays under half the bound, both together exceed it, and
+    // the nested one alone fits a fresh batch.
+    let earlier = root.join("a-earlier-folder");
+    let nested = earlier.join("b-nested-folder");
+    for (directory, files) in [(&earlier, 2_400), (&nested, 2_900)] {
+        fs::create_dir_all(directory).unwrap();
+        for file in 0..files {
+            fs::write(
+                directory.join(format!(
+                    "unrelated-notes-file-with-a-long-name-{file:05}.txt"
+                )),
+                b"x",
+            )
+            .unwrap();
+        }
+    }
+    fs::write(nested.join("game.z64"), payload).unwrap();
+    let library = crate::Library::open(temporary.path().join("library")).unwrap();
+    library.add_game_file_root(&root).unwrap();
+    let limits = SourceDiscoveryLimits {
+        max_entries: 20_000,
+        ..Default::default()
+    };
+    let (snapshot, batches) = scan_to_end(&catalog(payload), &library, &limits);
+    let coverage = snapshot.coverage.as_ref().unwrap();
+    assert!(
+        snapshot.report.issues.is_empty(),
+        "{:?}",
+        snapshot.report.issues
+    );
+    assert!(coverage.frontier_exhausted, "{coverage:?}");
+    assert!(batches > 1);
+    assert_eq!(snapshot.report.candidates.len(), 2);
+}
+
+#[test]
+fn finished_folders_drop_every_stamp_and_leave_changed_matches_to_reverification() {
+    for matched in [false, true] {
+        let temporary = tempfile::tempdir().unwrap();
+        let root = temporary.path().join("selected");
+        let finished = root.join("a-finished");
+        let later = root.join("b-later");
+        fs::create_dir_all(&finished).unwrap();
+        fs::create_dir_all(&later).unwrap();
+        let payload = b"supported resumable source";
+        fs::write(finished.join("game.z64"), payload).unwrap();
+        fs::write(finished.join("note.txt"), b"x").unwrap();
+        for file in 0..20 {
+            fs::write(later.join(format!("note-{file:02}.txt")), b"x").unwrap();
+        }
+        let library = crate::Library::open(temporary.path().join("library")).unwrap();
+        // Selected roots are scanned in sorted order, while read_dir order
+        // within a folder is not stable (macOS listed b-later first in
+        // Qualification 43431499321). Select both folders so the finished one
+        // is always traversed first.
+        library.add_game_file_root(&finished).unwrap();
+        library.add_game_file_root(&later).unwrap();
+        let limits = SourceDiscoveryLimits {
+            max_entries: 8,
+            ..Default::default()
+        };
+        let catalog = catalog(payload);
+        let first = publish_saved_batch(&catalog, &library, &limits).unwrap();
+        assert!(first.coverage.as_ref().unwrap().can_resume);
+        let cursor = first.continuation.as_ref().unwrap();
+        let pending = cursor["pending"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|directory| PathBuf::from(directory["path"].as_str().unwrap()))
+            .collect::<Vec<_>>();
+        let finished = fs::canonicalize(&finished).unwrap();
+        assert!(!pending.contains(&finished), "{pending:?}");
+        let observed = cursor["observed"].as_object().unwrap();
+        let game = finished.join("game.z64");
+        let note = finished.join("note.txt");
+        // Matches live in rows, so a finished folder keeps no stamp at all
+        // and checkpoint storage never grows with the matches.
+        assert!(!observed.contains_key(game.to_str().unwrap()));
+        assert!(!observed.contains_key(note.to_str().unwrap()));
+        // Like a change after the scan completes, the next scan sees it. A
+        // changed matched file keeps its row from the earlier batch; it is
+        // re-verified from current bytes before registration or setup.
+        if matched {
+            fs::write(&game, b"changed source bytes").unwrap();
+        } else {
+            fs::write(&note, b"changed note").unwrap();
+        }
+        let mut snapshot = publish_saved_batch(&catalog, &library, &limits).unwrap();
+        while snapshot.coverage.as_ref().unwrap().can_resume {
+            snapshot = publish_saved_batch(&catalog, &library, &limits).unwrap();
+        }
+        let coverage = snapshot.coverage.as_ref().unwrap();
+        assert!(coverage.frontier_exhausted && !coverage.restart_required);
+        assert_eq!(snapshot.report.candidates.len(), 2);
+        assert_eq!(snapshot.matches.as_ref().unwrap().exact_matches, 2);
+    }
+}
+
+#[test]
+fn a_full_batch_budget_continues_instead_of_ending_the_scan() {
+    let temporary = tempfile::tempdir().unwrap();
+    let root = temporary.path().join("selected");
+    fs::create_dir(&root).unwrap();
+    let payload = b"supported resumable source";
+    for name in ["one.z64", "two.z64", "three.z64", "four.z64"] {
+        fs::write(root.join(name), payload).unwrap();
+    }
+    let library = crate::Library::open(temporary.path().join("library")).unwrap();
+    library.add_game_file_root(&root).unwrap();
+    // The entry budget alone would finish in one batch; the match budget
+    // (one file's two matches) ends each batch first.
+    let limits = SourceDiscoveryLimits {
+        max_candidates: 2,
+        ..Default::default()
+    };
+    let catalog = catalog(payload);
+    let first = publish_saved_batch(&catalog, &library, &limits).unwrap();
+    assert_eq!(first.report.candidates.len(), 2);
+    assert!(
+        first
+            .report
+            .limits_reached
+            .contains(&SourceDiscoveryLimit::Candidates)
+    );
+    let coverage = first.coverage.unwrap();
+    assert!(coverage.can_resume && !coverage.frontier_exhausted);
+    // The partial result never claims the folder is fully covered.
+    assert_ne!(coverage.remaining_entries, Some(0));
+    let mut snapshot = publish_saved_batch(&catalog, &library, &limits).unwrap();
+    while snapshot.coverage.as_ref().unwrap().can_resume {
+        snapshot = publish_saved_batch(&catalog, &library, &limits).unwrap();
+    }
+    assert_eq!(snapshot.report.candidates.len(), 8);
 }
 
 #[test]
@@ -4936,14 +5557,15 @@ fn saved_scan_publication_refuses_concurrent_checkpoint_and_saved_root_writers()
         let limits = SourceDiscoveryLimits::default();
         let prior = publish_saved_batch(&catalog, &library, &limits).unwrap();
         let operation = crate::OperationCoordinator::new("publication-CAS", None);
-        let (snapshot, outputs, payload) = super::build_game_file_scan_with_registry_events(
-            &catalog,
-            &library,
-            &limits,
-            &operation,
-            &mut |_| {},
-        )
-        .unwrap();
+        let (snapshot, outputs, payload, matches) =
+            super::build_game_file_scan_with_registry_events(
+                &catalog,
+                &library,
+                &limits,
+                &operation,
+                &mut |_| {},
+            )
+            .unwrap();
         if change_roots {
             let second = temporary.path().join("second");
             fs::create_dir(&second).unwrap();
@@ -4954,16 +5576,20 @@ fn saved_scan_publication_refuses_concurrent_checkpoint_and_saved_root_writers()
             library.replace_game_file_scan_snapshot(&changed).unwrap();
         }
         let before = library.stored_game_file_scan_payload().unwrap();
+        let rows_before = match_rows(&library);
         let error = super::publish_game_file_scan(
             &library,
             &operation,
             &snapshot,
             &outputs,
             payload.as_deref(),
+            &matches,
         )
         .unwrap_err();
         assert_eq!(error.code, ErrorCode::Conflict);
         assert_eq!(library.stored_game_file_scan_payload().unwrap(), before);
+        // The stale compare-and-swap writes no rows either.
+        assert_eq!(match_rows(&library), rows_before);
     }
 }
 
@@ -5121,7 +5747,7 @@ fn resumed_zip_profiles_keep_independent_identities_without_duplicate_events() {
     };
     let mut emitted = Vec::new();
     let operation = crate::OperationCoordinator::new("zip-hash-resume", None);
-    let (first, outputs, preimage) = super::build_game_file_scan_with_registry_events(
+    let (first, outputs, preimage, matches) = super::build_game_file_scan_with_registry_events(
         &catalog,
         &library,
         &limits,
@@ -5138,10 +5764,17 @@ fn resumed_zip_profiles_keep_independent_identities_without_duplicate_events() {
     .unwrap();
     assert!(first.coverage.as_ref().unwrap().can_resume);
     assert_eq!(first.report.candidates.len(), 2);
-    super::publish_game_file_scan(&library, &operation, &first, &outputs, preimage.as_deref())
-        .unwrap();
+    super::publish_game_file_scan(
+        &library,
+        &operation,
+        &first,
+        &outputs,
+        preimage.as_deref(),
+        &matches,
+    )
+    .unwrap();
     let operation = crate::OperationCoordinator::new("zip-hash-resume-next", None);
-    let (last, _, _) = super::build_game_file_scan_with_registry_events(
+    let (last, _, _, _) = super::build_game_file_scan_with_registry_events(
         &catalog,
         &library,
         &limits,
@@ -5225,9 +5858,9 @@ fn forged_deferred_inputs_and_impossible_hash_totals_refuse_continuation() {
         let mut prior = publish_saved_batch(&catalog, &library, &limits).unwrap();
         if counter {
             prior.report.hash_bytes = u64::MAX;
-            prior.continuation.as_mut().unwrap()["report_sha256"] = serde_json::json!(hex::encode(
-                Sha256::digest(serde_json::to_vec(&prior.report).unwrap())
-            ));
+            prior.continuation.as_mut().unwrap()["report_sha256"] = serde_json::json!(
+                super::report_digest(&prior.report, prior.matches.as_ref()).unwrap()
+            );
         } else {
             prior.continuation.as_mut().unwrap()["pending"][0]["deferred_file"] =
                 serde_json::json!("../outside.z64");
@@ -5280,13 +5913,14 @@ fn deferred_inspection_precedes_fresh_entries_when_enumeration_order_changes() {
     let directory = cursor.pending.front_mut().unwrap();
     directory.seen = BTreeSet::from([deferred.clone()]);
     directory.deferred_file = Some(deferred);
-    prior.report.candidates.clear();
+    // That enumeration has recorded no match yet.
+    forge_match_rows(&library, &mut prior, &mut cursor, &[]);
     prior.report.hash_bytes = 0;
     prior.report.files_hashed = 0;
     prior.report.entries_examined = 1;
     limits.max_hash_bytes *= 2;
     prior.limits = Some(limits.clone());
-    cursor.report_sha256 = hex::encode(Sha256::digest(serde_json::to_vec(&prior.report).unwrap()));
+    cursor.report_sha256 = super::report_digest(&prior.report, prior.matches.as_ref()).unwrap();
     prior.continuation = Some(serde_json::to_value(cursor).unwrap());
     library.replace_game_file_scan_snapshot(&prior).unwrap();
     let resumed = publish_saved_batch(&catalog, &library, &limits).unwrap();
@@ -5304,8 +5938,11 @@ fn deferred_inspection_precedes_fresh_entries_when_enumeration_order_changes() {
     };
     assert!(last.coverage.unwrap().frontier_exhausted);
     assert_eq!(last.report.candidates.len(), 4);
-    assert_eq!(last.report.files_hashed, 2);
-    assert_eq!(last.report.hash_bytes, payload.len() as u64 * 2);
+    // The file hashed by the first batch is unchanged, so its saved identity
+    // is reused; only the deferred file is hashed again from fresh bytes.
+    assert_eq!(last.report.files_hashed, 1);
+    assert_eq!(last.report.hash_bytes, payload.len() as u64);
+    assert_eq!(observation_rows(&library), 2);
 }
 
 #[test]
@@ -5331,9 +5968,10 @@ fn resumed_zip_file_set_conflict_preserves_the_exact_published_snapshot() {
         .record
         .unwrap();
     record.storage_sha256 = "f".repeat(64);
-    prior.report.candidates = vec![record];
     let mut cursor: ScanContinuation =
         serde_json::from_value(prior.continuation.take().unwrap()).unwrap();
+    // An earlier batch stored different facts for the same profile and path.
+    forge_match_rows(&library, &mut prior, &mut cursor, &[record]);
     cursor
         .observed
         .retain(|entry, _| entry == &root || entry == &path);
@@ -5341,14 +5979,16 @@ fn resumed_zip_file_set_conflict_preserves_the_exact_published_snapshot() {
     let directory = cursor.pending.front_mut().unwrap();
     directory.seen = BTreeSet::from(["set.zip".into()]);
     directory.deferred_file = Some("set.zip".into());
-    cursor.report_sha256 = hex::encode(Sha256::digest(serde_json::to_vec(&prior.report).unwrap()));
+    cursor.report_sha256 = super::report_digest(&prior.report, prior.matches.as_ref()).unwrap();
     prior.continuation = Some(serde_json::to_value(cursor).unwrap());
     library.replace_game_file_scan_snapshot(&prior).unwrap();
     let original = library.stored_game_file_scan_payload().unwrap();
+    let rows = match_rows(&library);
     let error = publish_saved_batch(&catalog, &library, &limits).unwrap_err();
     assert_eq!(error.code, ErrorCode::Conflict);
     assert!(error.message.contains("source identity changed"));
     assert_eq!(library.stored_game_file_scan_payload().unwrap(), original);
+    assert_eq!(match_rows(&library), rows);
 }
 
 #[test]
@@ -5384,4 +6024,838 @@ fn public_fresh_saved_root_scan_recovers_malformed_prior_payload() {
         library.stored_game_file_scan_payload().unwrap().as_deref(),
         Some("not json")
     );
+}
+
+fn observation_rows(library: &crate::Library) -> i64 {
+    library
+        .connection()
+        .unwrap()
+        .query_row("SELECT count(*) FROM game_file_observations", [], |row| {
+            row.get(0)
+        })
+        .unwrap()
+}
+
+#[test]
+fn unchanged_rescans_reuse_saved_identities_without_hashing_and_changes_rehash_only_those_files() {
+    let temporary = tempfile::tempdir().unwrap();
+    let root = temporary.path().join("selected");
+    fs::create_dir(&root).unwrap();
+    let payload = b"supported resumable source";
+    for name in ["one.z64", "two.z64", "three.z64"] {
+        fs::write(root.join(name), payload).unwrap();
+    }
+    fs::write(root.join("other.z64"), b"unrelated bytes").unwrap();
+    let library = crate::Library::open(temporary.path().join("library")).unwrap();
+    library.add_game_file_root(&root).unwrap();
+    let limits = SourceDiscoveryLimits::default();
+    let mut catalog = catalog(payload);
+    let (first, _) = scan_to_end(&catalog, &library, &limits);
+    assert_eq!(first.report.files_hashed, 4);
+    assert_eq!(first.coverage.as_ref().unwrap().observations_reused, 0);
+    assert_eq!(observation_rows(&library), 4);
+
+    // Unchanged files: identities are reused and nothing is hashed.
+    let (second, _) = scan_to_end(&catalog, &library, &limits);
+    assert_eq!(second.report.files_hashed, 0);
+    assert_eq!(second.report.hash_bytes, 0);
+    assert_eq!(second.coverage.as_ref().unwrap().observations_reused, 4);
+    assert_eq!(
+        second.report.candidates.len(),
+        first.report.candidates.len()
+    );
+
+    // An unrelated catalog edit restarts the scan but rehashes nothing.
+    let mut document = catalog.document().clone();
+    document.ports[0].summary.push_str(" changed");
+    catalog = Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap();
+    let (edited, _) = scan_to_end(&catalog, &library, &limits);
+    assert_eq!(edited.report.files_hashed, 0);
+    assert_eq!(
+        edited.report.candidates.len(),
+        first.report.candidates.len()
+    );
+
+    // A changed file is inspected again; the others are still reused.
+    fs::write(root.join("two.z64"), b"changed source bytes!").unwrap();
+    let (changed, _) = scan_to_end(&catalog, &library, &limits);
+    assert_eq!(changed.report.files_hashed, 1);
+    assert_eq!(changed.coverage.as_ref().unwrap().observations_reused, 3);
+    assert_eq!(
+        changed.report.candidates.len(),
+        first.report.candidates.len() - 2
+    );
+
+    // Identities from another inspector version are never reused.
+    library
+        .connection()
+        .unwrap()
+        .execute("UPDATE game_file_observations SET inspector_version=0", [])
+        .unwrap();
+    let (reinspected, _) = scan_to_end(&catalog, &library, &limits);
+    assert_eq!(reinspected.report.files_hashed, 4);
+    assert_eq!(
+        reinspected.coverage.as_ref().unwrap().observations_reused,
+        0
+    );
+}
+
+#[test]
+fn deleted_files_are_forgotten_while_an_unavailable_folder_keeps_its_observations() {
+    let temporary = tempfile::tempdir().unwrap();
+    let payload = b"supported resumable source";
+    let near = temporary.path().join("near");
+    let far = temporary.path().join("far");
+    for (root, names) in [
+        (&near, ["one.z64", "two.z64"]),
+        (&far, ["three.z64", "four.z64"]),
+    ] {
+        fs::create_dir(root).unwrap();
+        for name in names {
+            fs::write(root.join(name), payload).unwrap();
+        }
+    }
+    let library = crate::Library::open(temporary.path().join("library")).unwrap();
+    library.add_game_file_root(&near).unwrap();
+    library.add_game_file_root(&far).unwrap();
+    let limits = SourceDiscoveryLimits::default();
+    let catalog = catalog(payload);
+    scan_to_end(&catalog, &library, &limits);
+    assert_eq!(observation_rows(&library), 4);
+
+    // One folder disconnects while a file is deleted from the other.
+    fs::remove_file(near.join("two.z64")).unwrap();
+    let parked = temporary.path().join("parked");
+    fs::rename(&far, &parked).unwrap();
+    let (partial, _) = scan_to_end(&catalog, &library, &limits);
+    assert!(partial.coverage.as_ref().unwrap().frontier_exhausted);
+    assert_eq!(
+        observation_rows(&library),
+        3,
+        "only the deleted file is forgotten"
+    );
+
+    fs::rename(&parked, &far).unwrap();
+    let (reconnected, _) = scan_to_end(&catalog, &library, &limits);
+    assert_eq!(reconnected.report.files_hashed, 0);
+    assert_eq!(
+        reconnected.coverage.as_ref().unwrap().observations_reused,
+        3
+    );
+
+    // Removing a saved folder forgets its observations with it.
+    let far_id = library
+        .game_file_roots()
+        .unwrap()
+        .into_iter()
+        .find(|root| root.path == fs::canonicalize(&far).unwrap())
+        .unwrap()
+        .id;
+    library.remove_game_file_root(&far_id).unwrap();
+    assert_eq!(observation_rows(&library), 1);
+}
+
+#[test]
+fn the_observation_cache_never_fails_a_scan() {
+    let temporary = tempfile::tempdir().unwrap();
+    let root = temporary.path().join("selected");
+    fs::create_dir(&root).unwrap();
+    let payload = b"supported resumable source";
+    fs::write(root.join("one.z64"), payload).unwrap();
+    let library = crate::Library::open(temporary.path().join("library")).unwrap();
+    library.add_game_file_root(&root).unwrap();
+    let limits = SourceDiscoveryLimits::default();
+    let catalog = catalog(payload);
+
+    // Oversized facts are skipped rather than failing the write.
+    library
+        .record_game_file_observations(&[super::ObservationRow {
+            path: root.join("long.zip").to_str().unwrap().into(),
+            representation: "[]".into(),
+            stamp_json: "{}".into(),
+            identity_json: "x".repeat(20_000),
+        }])
+        .unwrap();
+    assert_eq!(observation_rows(&library), 0);
+
+    // An unusable store is a miss: the scan still finishes and hashes.
+    library
+        .connection()
+        .unwrap()
+        .execute("DROP TABLE game_file_observations", [])
+        .unwrap();
+    let (snapshot, _) = scan_to_end(&catalog, &library, &limits);
+    assert!(snapshot.coverage.as_ref().unwrap().frontier_exhausted);
+    assert_eq!(snapshot.report.files_hashed, 1);
+    assert_eq!(snapshot.report.candidates.len(), 2);
+}
+
+#[test]
+fn a_changed_size_limit_or_failed_verification_inspects_the_file_again() {
+    let temporary = tempfile::tempdir().unwrap();
+    let root = temporary.path().join("selected");
+    fs::create_dir(&root).unwrap();
+    let payload = b"supported resumable source";
+    fs::write(root.join("one.z64"), payload).unwrap();
+    let library = crate::Library::open(temporary.path().join("library")).unwrap();
+    library.add_game_file_root(&root).unwrap();
+    let mut limits = SourceDiscoveryLimits::default();
+    let catalog = catalog(payload);
+    scan_to_end(&catalog, &library, &limits);
+
+    limits.max_file_bytes -= 1;
+    let (narrower, _) = scan_to_end(&catalog, &library, &limits);
+    assert_eq!(narrower.report.files_hashed, 1);
+    assert_eq!(narrower.coverage.as_ref().unwrap().observations_reused, 0);
+
+    // Fresh verification that disagrees forgets the saved identity.
+    let (reused, _) = scan_to_end(&catalog, &library, &limits);
+    assert_eq!(reused.report.files_hashed, 0);
+    library.forget_game_file_observation(&fs::canonicalize(root.join("one.z64")).unwrap());
+    let (healed, _) = scan_to_end(&catalog, &library, &limits);
+    assert_eq!(healed.report.files_hashed, 1);
+}
+
+// Synthetic large-library fixtures: ordinary-looking trees with many unrelated
+// entries and a known number of real matches, spread over many folders.
+fn write_large_library(root: &std::path::Path, matching: usize, noise: usize, payload: &[u8]) {
+    for index in 0..matching {
+        let folder = root.join(format!("roms-{:03}", index % 50));
+        fs::create_dir_all(&folder).unwrap();
+        fs::write(folder.join(format!("game-{index:05}.z64")), payload).unwrap();
+    }
+    for index in 0..noise {
+        let folder = root.join(format!("misc-{:03}", index % 100));
+        fs::create_dir_all(&folder).unwrap();
+        fs::write(folder.join(format!("note-{index:05}.txt")), b"unrelated").unwrap();
+    }
+}
+
+fn candidate_pairs(report: &SourceDiscoveryReport) -> Vec<(String, std::path::PathBuf)> {
+    report
+        .candidates
+        .iter()
+        .map(|candidate| (candidate.profile_id.clone(), candidate.path.clone()))
+        .collect()
+}
+
+#[test]
+fn a_library_larger_than_one_entry_budget_resumes_to_completion_without_silent_truncation() {
+    const MATCHING: usize = 20;
+    const NOISE: usize = 2_980;
+    let temporary = tempfile::tempdir().unwrap();
+    let root = temporary.path().join("selected");
+    fs::create_dir(&root).unwrap();
+    let payload = b"supported large-library source";
+    write_large_library(&root, MATCHING, NOISE, payload);
+    let catalog = catalog(payload);
+    let library = crate::Library::open(temporary.path().join("library")).unwrap();
+    library.add_game_file_root(&root).unwrap();
+    let limits = SourceDiscoveryLimits {
+        max_entries: 1_000,
+        ..Default::default()
+    };
+
+    // One processing budget cannot cover the library. The first batch stays
+    // within it and says the scan can continue.
+    let first = publish_saved_batch(&catalog, &library, &limits).unwrap();
+    assert!(first.report.entries_examined <= limits.max_entries);
+    assert!(
+        first.coverage.as_ref().unwrap().can_resume,
+        "first batch: entries={} limits={:?} coverage={:?} issues={:?}",
+        first.report.entries_examined,
+        first.report.limits_reached,
+        first.coverage,
+        first.report.issues,
+    );
+    assert!(first.report.entries_examined < (MATCHING + NOISE) as u32);
+
+    // Continuing finishes the whole collection, reaching every match.
+    let mut snapshot = first;
+    let mut batches = 1;
+    while snapshot.coverage.as_ref().unwrap().can_resume {
+        snapshot = publish_saved_batch(&catalog, &library, &limits).unwrap();
+        batches += 1;
+        assert!(batches <= 12, "scan did not converge");
+    }
+    assert!(batches >= 2);
+    let coverage = snapshot.coverage.as_ref().unwrap();
+    assert!(
+        coverage.frontier_exhausted,
+        "coverage={coverage:?} issues={:?}",
+        snapshot.report.issues
+    );
+    assert_eq!(coverage.remaining_entries, Some(0));
+    assert!(snapshot.continuation.is_none());
+    assert!(snapshot.report.limits_reached.is_empty());
+    assert!(snapshot.report.entries_examined >= (MATCHING + NOISE) as u32);
+
+    // Two profiles accept these bytes, so each of the 20 files is two candidates;
+    // more than 16 distinct eligible files are retained, below the candidate budget.
+    let pairs = candidate_pairs(&snapshot.report);
+    assert_eq!(pairs.len(), 2 * MATCHING);
+    let files = pairs
+        .iter()
+        .map(|(_, path)| path.clone())
+        .collect::<std::collections::BTreeSet<_>>();
+    assert_eq!(files.len(), MATCHING);
+    assert!(files.len() > 16);
+    // Only extension-matching candidates are hashed; the unrelated files are
+    // never read, so resumed batches do not rehash earlier work.
+    assert_eq!(snapshot.report.files_hashed, MATCHING as u32);
+    assert_eq!(
+        snapshot.report.hash_bytes,
+        (MATCHING * payload.len()) as u64
+    );
+}
+
+#[test]
+fn a_very_wide_library_either_completes_or_stops_with_an_explicit_narrower_folder_instruction() {
+    // More entries than one bounded continuation may retain: following the scan
+    // to its end must never present an examined prefix as the whole library.
+    let temporary = tempfile::tempdir().unwrap();
+    let root = temporary.path().join("selected");
+    fs::create_dir(&root).unwrap();
+    let payload = b"supported large-library source";
+    write_large_library(&root, 20, 0, payload);
+    // Long names enlarge each retained continuation record.
+    let padding = "n".repeat(120);
+    for index in 0..10_240 {
+        let folder = root.join(format!("misc-{:03}", index % 100));
+        fs::create_dir_all(&folder).unwrap();
+        fs::write(folder.join(format!("{padding}-{index:05}.txt")), b"x").unwrap();
+    }
+    let catalog = catalog(payload);
+    let library = crate::Library::open(temporary.path().join("library")).unwrap();
+    library.add_game_file_root(&root).unwrap();
+    let limits = SourceDiscoveryLimits::default();
+    let mut snapshot = publish_saved_batch(&catalog, &library, &limits).unwrap();
+    let mut batches = 1;
+    while snapshot.coverage.as_ref().unwrap().can_resume {
+        snapshot = publish_saved_batch(&catalog, &library, &limits).unwrap();
+        batches += 1;
+        assert!(batches <= 40, "scan did not converge");
+    }
+    // Where the capacity falls depends on path length, so assert the invariant:
+    // a scan that stops resuming is either complete with nothing remaining or
+    // says why it stopped. It never ends silently with work left.
+    let coverage = snapshot.coverage.as_ref().unwrap();
+    let explicit = snapshot
+        .report
+        .issues
+        .iter()
+        .any(|issue| issue.message.contains("select narrower folders"));
+    let complete = coverage.frontier_exhausted && coverage.remaining_entries == Some(0);
+    assert!(
+        complete || explicit,
+        "silent stop: coverage={coverage:?} limits={:?} issues={:?}",
+        snapshot.report.limits_reached,
+        snapshot.report.issues
+    );
+    if !complete {
+        assert!(!coverage.frontier_exhausted);
+        assert_ne!(coverage.remaining_entries, Some(0));
+    }
+}
+
+#[test]
+fn more_matches_than_the_retained_candidate_budget_stop_with_an_explicit_limit() {
+    const MATCHING: usize = 80; // 160 candidates against the default budget of 64
+    let temporary = tempfile::tempdir().unwrap();
+    let root = temporary.path().join("selected");
+    fs::create_dir(&root).unwrap();
+    let payload = b"supported large-library source";
+    write_large_library(&root, MATCHING, 0, payload);
+    let catalog = catalog(payload);
+    let library = crate::Library::open(temporary.path().join("library")).unwrap();
+    library.add_game_file_root(&root).unwrap();
+    let limits = SourceDiscoveryLimits::default();
+    let snapshot = publish_saved_batch(&catalog, &library, &limits).unwrap();
+    // The retained set is bounded and the report says it is partial: a full
+    // retained-candidate budget never reads as "no other matches exist".
+    assert!(snapshot.report.candidates.len() <= limits.max_candidates as usize);
+    assert!(
+        snapshot
+            .report
+            .limits_reached
+            .contains(&SourceDiscoveryLimit::Candidates)
+    );
+    let coverage = snapshot.coverage.as_ref().unwrap();
+    assert!(!coverage.frontier_exhausted);
+    assert_ne!(coverage.remaining_entries, Some(0));
+}
+
+#[test]
+fn overlapping_saved_roots_do_not_duplicate_candidates() {
+    // Two profiles accept these bytes, so 30 files are 60 candidates: under the
+    // default retained budget of 64, so only duplication could change the count.
+    const MATCHING: usize = 30;
+    let temporary = tempfile::tempdir().unwrap();
+    let root = temporary.path().join("selected");
+    fs::create_dir(&root).unwrap();
+    let payload = b"supported large-library source";
+    write_large_library(&root, MATCHING, 200, payload);
+    let catalog = catalog(payload);
+    let library = crate::Library::open(temporary.path().join("library")).unwrap();
+    library.add_game_file_root(&root).unwrap();
+    // A second saved root nested inside the first re-covers some of the same files.
+    library.add_game_file_root(&root.join("roms-000")).unwrap();
+    let mut snapshot =
+        publish_saved_batch(&catalog, &library, &SourceDiscoveryLimits::default()).unwrap();
+    let mut batches = 1;
+    while snapshot.coverage.as_ref().unwrap().can_resume {
+        snapshot =
+            publish_saved_batch(&catalog, &library, &SourceDiscoveryLimits::default()).unwrap();
+        batches += 1;
+        assert!(batches <= 8, "scan did not converge");
+    }
+    let pairs = candidate_pairs(&snapshot.report);
+    let unique = pairs
+        .iter()
+        .cloned()
+        .collect::<std::collections::BTreeSet<_>>();
+    assert_eq!(pairs.len(), unique.len(), "overlap duplicated a candidate");
+    assert_eq!(pairs.len(), 2 * MATCHING);
+}
+
+#[test]
+fn a_continuation_appends_rows_and_a_fresh_scan_replaces_them() {
+    let temporary = tempfile::tempdir().unwrap();
+    let root = temporary.path().join("selected");
+    fs::create_dir(&root).unwrap();
+    let payload = b"supported resumable source";
+    for name in ["one.z64", "two.z64"] {
+        fs::write(root.join(name), payload).unwrap();
+    }
+    let library = crate::Library::open(temporary.path().join("library")).unwrap();
+    library.add_game_file_root(&root).unwrap();
+    let catalog = catalog(payload);
+    let limits = SourceDiscoveryLimits {
+        max_entries: 1,
+        ..Default::default()
+    };
+    let first = publish_saved_batch(&catalog, &library, &limits).unwrap();
+    let scan_id = first.matches.as_ref().unwrap().scan_id.clone();
+    let rows = match_rows(&library);
+    assert_eq!(rows.len(), 2);
+    assert!(rows.iter().all(|row| row.0 == scan_id && row.5 == 1));
+    let second = publish_saved_batch(&catalog, &library, &limits).unwrap();
+    assert_eq!(second.matches.as_ref().unwrap().scan_id, scan_id);
+    let rows = match_rows(&library);
+    // The second batch appends its matches after the first batch's, per kind.
+    assert_eq!(
+        rows.iter()
+            .map(|row| (row.1, row.2, row.5))
+            .collect::<Vec<_>>(),
+        vec![(0, 0, 1), (0, 1, 1), (0, 2, 2), (0, 3, 2)]
+    );
+    let complete = if second.coverage.as_ref().unwrap().can_resume {
+        scan_to_end(&catalog, &library, &limits).0
+    } else {
+        second
+    };
+    assert!(complete.coverage.as_ref().unwrap().frontier_exhausted);
+    assert_eq!(complete.matches.as_ref().unwrap().scan_id, scan_id);
+    assert_eq!(complete.matches.as_ref().unwrap().exact_matches, 4);
+    // A finished scan has no continuation, so the next scan starts fresh and
+    // replaces every earlier row.
+    let fresh = publish_saved_batch(&catalog, &library, &limits).unwrap();
+    let fresh_id = fresh.matches.as_ref().unwrap().scan_id.clone();
+    assert_ne!(fresh_id, scan_id);
+    let rows = match_rows(&library);
+    assert_eq!(rows.len(), 2);
+    assert!(rows.iter().all(|row| row.0 == fresh_id && row.5 == 1));
+
+    // An append is checked against the rows it continues, in the same
+    // transaction as the snapshot.
+    let payload_before = library.stored_game_file_scan_payload().unwrap();
+    let error = library
+        .replace_game_file_scan_snapshot_if_outputs_match(
+            &fresh,
+            &library.output_roots().unwrap(),
+            &fresh.roots,
+            payload_before.as_deref(),
+            &super::GameFileScanMatchWrite::Append {
+                scan_id: fresh_id.clone(),
+                expected_counts: [1, 0],
+                rows: Vec::new(),
+            },
+        )
+        .unwrap_err();
+    assert_eq!(error.code, ErrorCode::Conflict);
+    // A duplicate profile and path rolls the whole publication back.
+    let duplicate = rows[0].clone();
+    let error = library
+        .replace_game_file_scan_snapshot_if_outputs_match(
+            &first,
+            &library.output_roots().unwrap(),
+            &fresh.roots,
+            payload_before.as_deref(),
+            &super::GameFileScanMatchWrite::Append {
+                scan_id: fresh_id,
+                expected_counts: [2, 0],
+                rows: vec![super::GameFileScanMatchRow {
+                    kind: 0,
+                    ordinal: 2,
+                    profile_id: duplicate.3,
+                    path: duplicate.4,
+                    batch: 2,
+                    record_json: duplicate.6,
+                }],
+            },
+        )
+        .unwrap_err();
+    assert_ne!(error.code, ErrorCode::Cancelled);
+    assert_eq!(
+        library.stored_game_file_scan_payload().unwrap(),
+        payload_before
+    );
+    assert_eq!(match_rows(&library), rows);
+}
+
+#[test]
+fn tampered_missing_or_extra_match_rows_restart_the_scan_and_keep_the_prior_report() {
+    // Owner decision: resume checks counts, order, batches and bytes, not each
+    // record's contents (see the next test).
+    for tamper in ["record", "delete", "extra", "foreign", "batch"] {
+        let temporary = tempfile::tempdir().unwrap();
+        let root = temporary.path().join("selected");
+        fs::create_dir(&root).unwrap();
+        let payload = b"supported resumable source";
+        for name in ["one.z64", "two.z64"] {
+            fs::write(root.join(name), payload).unwrap();
+        }
+        let library = crate::Library::open(temporary.path().join("library")).unwrap();
+        library.add_game_file_root(&root).unwrap();
+        let catalog = catalog(payload);
+        let limits = SourceDiscoveryLimits {
+            max_entries: 1,
+            ..Default::default()
+        };
+        let first = publish_saved_batch(&catalog, &library, &limits).unwrap();
+        assert!(first.coverage.as_ref().unwrap().can_resume);
+        let scan_id = first.matches.as_ref().unwrap().scan_id.clone();
+        let connection = library.connection().unwrap();
+        let statement = match tamper {
+            "record" => {
+                "UPDATE game_file_scan_matches SET record_json=record_json||' ' WHERE ordinal=1"
+            }
+            "delete" => "DELETE FROM game_file_scan_matches WHERE ordinal=1",
+            "extra" => {
+                "INSERT INTO game_file_scan_matches SELECT scan_id,kind,2,profile_id,path||'x',path_key||'x',batch,record_json FROM game_file_scan_matches WHERE ordinal=1"
+            }
+            "foreign" => {
+                "INSERT INTO game_file_scan_matches SELECT '00000000-0000-4000-8000-000000000000',kind,ordinal,profile_id,path,path_key,batch,record_json FROM game_file_scan_matches"
+            }
+            "batch" => "UPDATE game_file_scan_matches SET batch=7 WHERE ordinal=1",
+            _ => unreachable!(),
+        };
+        connection.execute(statement, []).unwrap();
+        drop(connection);
+        let rows = match_rows(&library);
+        let error = publish_saved_batch(&catalog, &library, &limits).unwrap_err();
+        assert_eq!(error.code, ErrorCode::Conflict, "{tamper}");
+        let refused = current_game_file_scan(&catalog, &library).unwrap().unwrap();
+        assert!(
+            refused.coverage.as_ref().unwrap().restart_required,
+            "{tamper}"
+        );
+        assert!(refused.continuation.is_none(), "{tamper}");
+        assert_eq!(
+            serde_json::to_value(&refused.report).unwrap(),
+            serde_json::to_value(&first.report).unwrap(),
+            "{tamper}"
+        );
+        assert_eq!(refused.matches.as_ref().unwrap().scan_id, scan_id);
+        assert_eq!(match_rows(&library), rows, "{tamper}");
+        let restarted = publish_saved_batch(&catalog, &library, &limits).unwrap();
+        assert_eq!(restarted.coverage.unwrap().batches, 1, "{tamper}");
+    }
+}
+
+#[test]
+fn a_same_size_row_edit_does_not_stop_a_resume() {
+    let temporary = tempfile::tempdir().unwrap();
+    let root = temporary.path().join("selected");
+    fs::create_dir(&root).unwrap();
+    let payload = b"supported resumable source";
+    for name in ["one.z64", "two.z64"] {
+        fs::write(root.join(name), payload).unwrap();
+    }
+    let library = crate::Library::open(temporary.path().join("library")).unwrap();
+    library.add_game_file_root(&root).unwrap();
+    let catalog = catalog(payload);
+    let limits = SourceDiscoveryLimits {
+        max_entries: 1,
+        ..Default::default()
+    };
+    let first = publish_saved_batch(&catalog, &library, &limits).unwrap();
+    assert!(first.coverage.as_ref().unwrap().can_resume);
+    // Resume checks the rows' shape, not each record's contents; every stored
+    // match is re-verified from current bytes before it is used.
+    library
+        .connection()
+        .unwrap()
+        .execute(
+            "UPDATE game_file_scan_matches SET path=path||'x', path_key=path_key||'x' WHERE ordinal=1",
+            [],
+        )
+        .unwrap();
+    let resumed = publish_saved_batch(&catalog, &library, &limits).unwrap();
+    assert_eq!(resumed.coverage.unwrap().batches, 2);
+}
+
+#[test]
+fn a_match_found_again_in_a_later_batch_is_kept_once_through_rows() {
+    let temporary = tempfile::tempdir().unwrap();
+    let root = temporary.path().join("selected");
+    fs::create_dir(&root).unwrap();
+    let payload = b"supported resumable source";
+    for name in ["one.z64", "two.z64"] {
+        fs::write(root.join(name), payload).unwrap();
+    }
+    let catalog = catalog(payload);
+    let library = crate::Library::open(temporary.path().join("library")).unwrap();
+    library.add_game_file_root(&root).unwrap();
+    let limits = SourceDiscoveryLimits {
+        max_entries: 1,
+        ..Default::default()
+    };
+    let mut prior = publish_saved_batch(&catalog, &library, &limits).unwrap();
+    assert!(prior.coverage.as_ref().unwrap().can_resume);
+    assert_eq!(match_rows(&library).len(), 2);
+    let found = prior.report.candidates[0].path.clone();
+    let name = found.file_name().unwrap().to_str().unwrap().to_owned();
+    // The file whose matches are already stored is inspected again.
+    let mut cursor: ScanContinuation =
+        serde_json::from_value(prior.continuation.take().unwrap()).unwrap();
+    let directory = cursor.pending.front_mut().unwrap();
+    assert_eq!(directory.seen, BTreeSet::from([name.clone()]));
+    directory.deferred_file = Some(name);
+    prior.continuation = Some(serde_json::to_value(cursor).unwrap());
+    library.replace_game_file_scan_snapshot(&prior).unwrap();
+    let mut emitted = Vec::new();
+    let mut snapshot = prior;
+    for _ in 0..8 {
+        let operation = crate::OperationCoordinator::new("rows-dedup", None);
+        let (next, outputs, payload, matches) = super::build_game_file_scan_with_registry_events(
+            &catalog,
+            &library,
+            &limits,
+            &operation,
+            &mut |event| {
+                if let crate::OperationEventKind::SourceCandidate { path, .. } = event.event {
+                    emitted.push(path);
+                }
+            },
+        )
+        .unwrap();
+        super::publish_game_file_scan(
+            &library,
+            &operation,
+            &next,
+            &outputs,
+            payload.as_deref(),
+            &matches,
+        )
+        .unwrap();
+        snapshot = next;
+        if !snapshot.coverage.as_ref().unwrap().can_resume {
+            break;
+        }
+    }
+    assert!(snapshot.coverage.as_ref().unwrap().frontier_exhausted);
+    assert!(!emitted.contains(&found), "{emitted:?}");
+    assert_eq!(emitted.len(), 2);
+    assert_eq!(snapshot.matches.as_ref().unwrap().exact_matches, 4);
+    let rows = match_rows(&library);
+    assert_eq!(rows.len(), 4);
+    assert_eq!(
+        rows.iter().filter(|row| Path::new(&row.4) == found).count(),
+        2
+    );
+}
+
+#[test]
+fn more_matches_than_continuation_records_never_reach_checkpoint_storage() {
+    let temporary = tempfile::tempdir().unwrap();
+    let root = temporary.path().join("selected");
+    fs::create_dir(&root).unwrap();
+    let payload = b"supported resumable source";
+    for name in ["one.z64", "two.z64", "three.z64"] {
+        fs::write(root.join(name), payload).unwrap();
+    }
+    let catalog = catalog(payload);
+    let library = crate::Library::open(temporary.path().join("library")).unwrap();
+    library.add_game_file_root(&root).unwrap();
+    let limits = SourceDiscoveryLimits {
+        max_entries: 1,
+        ..Default::default()
+    };
+    let mut prior = publish_saved_batch(&catalog, &library, &limits).unwrap();
+    assert!(prior.coverage.as_ref().unwrap().can_resume);
+    let mut cursor: ScanContinuation =
+        serde_json::from_value(prior.continuation.take().unwrap()).unwrap();
+    // More stored matches than the checkpoint may hold records.
+    let synthetic = MAX_CONTINUATION_RECORDS + 3_616;
+    let template = prior.report.candidates[0].clone();
+    let root_path = fs::canonicalize(&root).unwrap();
+    let mut exact = prior.report.candidates.clone();
+    exact.extend((0..synthetic).map(|index| {
+        crate::SourceRecord {
+            path: root_path
+                .join("earlier")
+                .join(format!("synthetic-{index:05}.z64")),
+            ..template.clone()
+        }
+    }));
+    forge_match_rows(&library, &mut prior, &mut cursor, &exact);
+    cursor.report_sha256 = super::report_digest(&prior.report, prior.matches.as_ref()).unwrap();
+    prior.continuation = Some(serde_json::to_value(cursor).unwrap());
+    library.replace_game_file_scan_snapshot(&prior).unwrap();
+    let (snapshot, _) = scan_to_end(&catalog, &library, &limits);
+    let coverage = snapshot.coverage.as_ref().unwrap();
+    assert!(
+        snapshot.report.issues.is_empty(),
+        "{:?}",
+        snapshot.report.issues
+    );
+    assert!(coverage.frontier_exhausted && !coverage.restart_required);
+    assert!(snapshot.report.limits_reached.is_empty());
+    let summary = snapshot.matches.as_ref().unwrap();
+    assert_eq!(summary.exact_matches as usize, synthetic + 6);
+    assert!(!summary.preview_complete);
+    assert_eq!(
+        snapshot.report.candidates.len(),
+        super::MAX_SCAN_PREVIEW_MATCHES
+    );
+    assert_eq!(match_rows(&library).len(), synthetic + 6);
+}
+
+#[test]
+fn scan_matches_are_paged_in_order_by_folder_and_refuse_a_replaced_scan() {
+    let temporary = tempfile::tempdir().unwrap();
+    let first = temporary.path().join("first");
+    let second = temporary.path().join("first-sibling");
+    fs::create_dir(&first).unwrap();
+    fs::create_dir(&second).unwrap();
+    let payload = b"supported resumable source";
+    for name in ["a.z64", "b.z64"] {
+        fs::write(first.join(name), payload).unwrap();
+    }
+    fs::write(second.join("c.z64"), payload).unwrap();
+    let library = crate::Library::open(temporary.path().join("library")).unwrap();
+    let first_root = library.add_game_file_root(&first).unwrap();
+    library.add_game_file_root(&second).unwrap();
+    let catalog = catalog(payload);
+    let (snapshot, _) = scan_to_end(&catalog, &library, &SourceDiscoveryLimits::default());
+    let scan_id = snapshot.matches.as_ref().unwrap().scan_id.clone();
+    let service = PortcoveService::new(library).unwrap();
+    let query = |offset, limit, root_id: Option<&str>, scan_id: Option<&str>| {
+        service.game_file_scan_matches(&crate::GameFileScanMatchQuery {
+            scan_id: scan_id.map(str::to_owned),
+            kind: crate::GameFileScanMatchKind::Exact,
+            offset,
+            limit,
+            root_id: root_id.map(str::to_owned),
+        })
+    };
+    let all = query(0, 512, None, Some(&scan_id)).unwrap();
+    assert_eq!(all.total, 6);
+    assert_eq!(all.next_offset, None);
+    assert_eq!(
+        serde_json::to_value(&all.candidates).unwrap(),
+        serde_json::to_value(&snapshot.report.candidates).unwrap()
+    );
+    let page = query(2, 3, None, Some(&scan_id)).unwrap();
+    assert_eq!(page.next_offset, Some(5));
+    assert_eq!(
+        serde_json::to_value(&page.candidates).unwrap(),
+        serde_json::to_value(&all.candidates[2..5]).unwrap()
+    );
+    // A folder filter keeps only that folder, not a sibling sharing its prefix.
+    let inside = query(0, 3, Some(&first_root.id), None).unwrap();
+    assert_eq!(inside.total, 4);
+    assert_eq!(inside.next_offset, Some(3));
+    assert!(
+        inside
+            .candidates
+            .iter()
+            .all(|record| record.path.starts_with(&first_root.path))
+    );
+    let rest = query(3, 3, Some(&first_root.id), None).unwrap();
+    assert_eq!(rest.candidates.len(), 1);
+    assert_eq!(rest.next_offset, None);
+    let preliminary = service
+        .game_file_scan_matches(&crate::GameFileScanMatchQuery {
+            scan_id: None,
+            kind: crate::GameFileScanMatchKind::Preliminary,
+            offset: 0,
+            limit: 10,
+            root_id: None,
+        })
+        .unwrap();
+    assert_eq!(preliminary.total, 0);
+    assert!(preliminary.preliminary_selections.is_empty());
+    for limit in [0, 513] {
+        assert_eq!(
+            query(0, limit, None, None).unwrap_err().code,
+            ErrorCode::Usage
+        );
+    }
+    let other = uuid::Uuid::new_v4().to_string();
+    assert_eq!(
+        query(0, 10, None, Some(&other)).unwrap_err().code,
+        ErrorCode::Conflict
+    );
+    assert_eq!(
+        query(0, 10, Some(&other), None).unwrap_err().code,
+        ErrorCode::NotFound
+    );
+    // An older report keeps every match inline and is paged from memory.
+    let legacy = super::complete_test_game_file_scan(
+        &catalog,
+        service.library(),
+        snapshot.report.candidates.clone(),
+    );
+    service
+        .library()
+        .replace_game_file_scan_snapshot(&legacy)
+        .unwrap();
+    let inline = query(1, 2, Some(&first_root.id), None).unwrap();
+    assert_eq!(inline.scan_id, None);
+    assert_eq!(inline.total, 4);
+    assert_eq!(inline.candidates.len(), 2);
+    assert_eq!(inline.next_offset, Some(3));
+    assert_eq!(
+        query(0, 10, None, Some(&scan_id)).unwrap_err().code,
+        ErrorCode::Conflict
+    );
+}
+
+#[test]
+fn a_busy_database_keeps_a_continuation_but_other_storage_faults_restart() {
+    let failure = |code: rusqlite::ffi::ErrorCode, extended: i32| {
+        rusqlite::Error::SqliteFailure(
+            rusqlite::ffi::Error {
+                code,
+                extended_code: extended,
+            },
+            None,
+        )
+    };
+    for (code, extended) in [
+        (rusqlite::ffi::ErrorCode::DatabaseBusy, 5),
+        (rusqlite::ffi::ErrorCode::DatabaseLocked, 6),
+    ] {
+        let error = super::storage_read(failure(code, extended));
+        assert_eq!(
+            error.details.get(super::RETRY_DETAIL).map(String::as_str),
+            Some("storage")
+        );
+    }
+    let corrupt = super::storage_read(failure(rusqlite::ffi::ErrorCode::DatabaseCorrupt, 11));
+    assert!(!corrupt.details.contains_key(super::RETRY_DETAIL));
+    let missing = super::storage_read(rusqlite::Error::QueryReturnedNoRows);
+    assert!(!missing.details.contains_key(super::RETRY_DETAIL));
 }

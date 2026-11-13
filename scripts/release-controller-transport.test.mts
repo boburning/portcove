@@ -185,7 +185,7 @@ void test("transport clock preserves provider-start budget across subprocesses a
     job_id: 4,
     job_name: "Coordinate application release",
     phase: "coordinator",
-    profile_ms: 170000,
+    profile_ms: 290000,
     run_attempt: 1,
     run_id: "123",
     started_at: "2026-10-20T00:00:00Z",
@@ -205,6 +205,36 @@ void test("transport clock preserves provider-start budget across subprocesses a
     () => controllerTransportClock(raw, "coordinator", identity, epoch, 600, 200000000000n),
     /exhausted/,
   );
+  const catalogClock = { ...clock, profile_ms: 290000, monotonic_deadline_ns: "300000000000" };
+  const catalog = { clock: catalogClock, sha256: sha(Buffer.from(JSON.stringify(catalogClock))) };
+  const catalogEnvironment = { ...identity, PORTCOVE_EXECUTION_PURPOSE: "catalog-publication" };
+  assert.equal(
+    controllerTransportClock(
+      catalog,
+      "coordinator",
+      catalogEnvironment,
+      epoch + 175000,
+      500,
+      175000000000n,
+    ),
+    115500,
+  );
+  assert.equal(
+    controllerTransportClock(catalog, "coordinator", identity, epoch + 175000, 500, 175000000000n),
+    115500,
+  );
+  assert.throws(
+    () =>
+      controllerTransportClock(
+        catalog,
+        "coordinator",
+        catalogEnvironment,
+        epoch + 290000,
+        500,
+        289000000000n,
+      ),
+    /exhausted/,
+  );
   for (const changed of [
     { ...raw, clock: { ...clock, profile_ms: 570000 } },
     { ...raw, sha256: "0".repeat(64) },
@@ -214,6 +244,66 @@ void test("transport clock preserves provider-start budget across subprocesses a
       /changed|identity/,
     );
 });
+void test("actual controller transport and standalone bridge use fixed Jobs SDK; retained clock loads no SDK", async (t) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "sdk-controller-transport-clock-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const phase = "payload";
+  await retainControllerJobSettlement(root, phase, 0, false);
+  const output = path.join(root, "output.txt");
+  const run = (script: string, args: string[], retained = false) => {
+    const entry = fileURLToPath(new URL(`./${script}.mts`, import.meta.url));
+    const source = `
+      import assert from 'node:assert/strict';
+      import { registerHooks } from 'node:module';
+      import { pathToFileURL } from 'node:url';
+      let requests = 0;
+      if (${JSON.stringify(retained)}) {
+        registerHooks({resolve(specifier,context,next){
+          assert.ok(!specifier.endsWith('release-custody-provider.mts'), 'retained clock loaded SDK');
+          return next(specifier,context);
+        }});
+      }
+      globalThis.fetch = async (input, init) => {
+        requests++;
+        assert.ok(!${JSON.stringify(retained)}, 'retained clock dispatched');
+        const url = new URL(input instanceof Request ? input.url : input);
+        assert.equal(url.origin, 'https://api.github.com');
+        assert.equal(url.pathname, '/repos/boburning/portcove/actions/runs/123/attempts/1/jobs');
+        assert.deepEqual(Object.fromEntries(url.searchParams), {page:'1',per_page:'100'});
+        assert.equal(new Headers(init.headers).get('authorization'), 'token fixed-controller-cli-fixture');
+        return Response.json({total_count:1,jobs:[{
+          id:4,run_id:123,run_attempt:1,head_sha:process.env.GITHUB_SHA,status:'in_progress',
+          name:'Sign admitted updater payloads',started_at:new Date(Date.now()-1000).toISOString(),
+        }]});
+      };
+      process.argv = [process.execPath, ${JSON.stringify(entry)}, ...${JSON.stringify(args)}];
+      process.on('beforeExit',()=>assert.equal(requests, ${retained ? 0 : 1}));
+      await import(pathToFileURL(process.argv[1]).href);
+    `;
+    return execFileSync(process.execPath, ["--input-type=module", "--eval", source], {
+      env: {
+        ...process.env,
+        ...identity,
+        RUNNER_TEMP: root,
+        GITHUB_OUTPUT: output,
+        GH_TOKEN: retained ? "" : "fixed-controller-cli-fixture",
+      },
+      encoding: "utf8",
+      timeout: 10000,
+    });
+  };
+  run("release-controller-transport", ["next", phase, "1"]);
+  const file = path.join(root, "controller-transport-payload-clock.json");
+  const retained = await readFile(file, "utf8");
+  assert.match(retained, /"job_id":4/u);
+  run("release-controller-transport", ["next", phase, "1"], true);
+  assert.equal(await readFile(file, "utf8"), retained);
+  run("release-control-step-bridge", [phase, "0"]);
+  const emitted = await readFile(output, "utf8");
+  assert.equal(emitted.split("\ndone\n").length - 1, 2);
+  assert.match(emitted, /ready=false/u);
+});
+
 void test("owned key client kernel identity handles spaces/parentheses and distinguishes exited state", () => {
   const fields = ["Z", ...Array.from({ length: 18 }, () => "0"), "12345", "0"];
   assert.deepEqual(inspectControllerKeyProcess(`42 (fixed (key) client) ${fields.join(" ")}`), {
@@ -317,7 +407,7 @@ void test(
           run_id: "123",
           run_attempt: 1,
           job_id: 4,
-          check_run_id: 5,
+          check_run_id: "5",
         },
       }),
     );
@@ -363,7 +453,7 @@ void test("actual local routing interleaves control and pending upload before th
         run_id: "123",
         run_attempt: 1,
         job_id: 4,
-        check_run_id: 5,
+        check_run_id: "5",
       };
     const bytes = Buffer.from(
       JSON.stringify({
@@ -631,6 +721,212 @@ void test("composite contains forty fixed slots with isolated key env and unchan
   assert.equal((source.match(/retention-days: 7/gu) ?? []).length, 80);
   assert(!source.includes("overwrite: true"));
   assert(!source.includes("GH_TOKEN"));
+});
+
+void test("catalog diagnostics retain only fixed refusal stages and no exception data", async (t) => {
+  const { retainCatalogCoordinatorRefusal } = await import("./release-control-step-bridge.mts");
+  const { retainControllerDiagnostics } = await import("./release-controller-diagnostics.mts");
+  const root = await mkdtemp(path.join(os.tmpdir(), "catalog-controller-diagnostics-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  await retainCatalogCoordinatorRefusal(root, "launch", "tool-custody-provider-before");
+  await assert.rejects(retainCatalogCoordinatorRefusal(root, "launch", "attested-worker"), {
+    code: "EEXIST",
+  });
+  const launch = "catalog-coordinator-launch-refusal.json";
+  const operation = "catalog-coordinator-operation-refusal.json";
+  await writeFile(
+    path.join(root, operation),
+    JSON.stringify({
+      schema_version: 1,
+      stage: "standalone-application-bootstrap-site",
+      authority: "none",
+      automatic_retry: false,
+      message: "fixture-private-exception",
+    }),
+  );
+  const output = await retainControllerDiagnostics(root, "coordinator");
+  assert.deepEqual(JSON.parse(await readFile(path.join(output, launch), "utf8")), {
+    schema_version: 1,
+    stage: "tool-custody-provider-before",
+    authority: "none",
+    automatic_retry: false,
+  });
+  assert.equal((await readdir(output)).includes(operation), false);
+  const manifest = JSON.parse(await readFile(path.join(output, "manifest.json"), "utf8")) as {
+    unavailable: { path: string; reason: string }[];
+  };
+  assert.deepEqual(
+    manifest.unavailable.find((entry) => entry.path === operation),
+    {
+      path: operation,
+      reason: "unreadable-or-invalid",
+    },
+  );
+});
+
+void test("coordinator transport refuses a retained bootstrap failure before successful settlement", async (t) => {
+  const {
+    applicationCoordinatorRefusal,
+    applicationCoordinatorRefusalFile,
+    CoordinatorRemoteError,
+  } = await import("./release-coordinator-errors.mts");
+  const root = await mkdtemp(path.join(os.tmpdir(), "coordinator-bootstrap-settlement-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  await retainControllerJobSettlement(root, "coordinator", 0, false);
+  await writeFile(
+    path.join(root, applicationCoordinatorRefusalFile),
+    JSON.stringify(
+      applicationCoordinatorRefusal(
+        new CoordinatorRemoteError("private", { phase: "bootstrap-worker-settlement" }),
+      ),
+    ),
+  );
+  await assert.rejects(
+    nextControllerTransport(root, "coordinator", 1, performance.now() + 5000),
+    /coordinator refused/,
+  );
+});
+
+void test(
+  "coordinator transport detects its exited original worker without waiting for its full budget",
+  { skip: process.platform !== "linux" },
+  async (t) => {
+    const root = await mkdtemp(path.join(os.tmpdir(), "coordinator-worker-ended-"));
+    t.after(() => rm(root, { recursive: true, force: true }));
+    const current = await observeLinuxControllerProcessStart(process.pid);
+    assert.ok(current);
+    await writeFile(
+      path.join(root, "controller-worker-coordinator-started.json"),
+      JSON.stringify({
+        operation: "coordinator",
+        phase: "coordinator",
+        pid: process.pid,
+        start_ticks: current.start_ticks === "1" ? "2" : "1",
+      }),
+    );
+    await assert.rejects(
+      nextControllerTransport(root, "coordinator", 1, performance.now() + 5000),
+      /exited without settlement/,
+    );
+    await retainControllerJobSettlement(root, "coordinator", 0, false);
+    assert.deepEqual(
+      await nextControllerTransport(root, "coordinator", 1, performance.now() + 5000),
+      { kind: "done" },
+    );
+  },
+);
+
+void test("application coordinator diagnostics retain a closed refusal without exception data", async (t) => {
+  const {
+    CoordinatorRemoteError,
+    applicationCoordinatorRefusal,
+    applicationCoordinatorRefusalFile,
+    requireApplicationCoordinatorRefusal,
+  } = await import("./release-coordinator-errors.mts");
+  const { retainControllerDiagnostics } = await import("./release-controller-diagnostics.mts");
+  const root = await mkdtemp(path.join(os.tmpdir(), "application-controller-diagnostics-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const known = applicationCoordinatorRefusal(
+    new CoordinatorRemoteError("fixture-private-exception", {
+      phase: "exact-windows-qualification",
+      retained_error: { secret: "fixture-private-value" },
+    }),
+  );
+  assert.deepEqual(known, {
+    schema_version: 1,
+    stage: "exact-windows-qualification",
+    error_type: "coordinator-remote",
+    authority: "none",
+    automatic_retry: false,
+  });
+  assert.equal(applicationCoordinatorRefusal(new Error("private")).stage, "fixed-entry");
+  const exchange = applicationCoordinatorRefusal(
+    new CoordinatorRemoteError("private", {
+      phase: "retained-application-review-claim",
+      retained_error: {
+        phase: "signing",
+        attempted_claim: false,
+        attempted_commit: false,
+        checkpoint: "private",
+        error: { message: "private" },
+      },
+    }),
+  );
+  assert.deepEqual(exchange.checkpoint_exchange, {
+    phase: "signing",
+    attempted_claim: false,
+    attempted_commit: false,
+  });
+  for (const phase of [
+    "renewal-current-tools",
+    "renewal-public-site",
+    "renewal-tuf-preparation",
+    "renewal-publication-inventory",
+    "actual-maintenance-controls",
+    "durable-maintenance-descriptor",
+    "metadata-context-preparation",
+    "existing-metadata-pending",
+    "metadata-pending-boundary",
+    "metadata-effect-boundary",
+    "metadata-owned-pending",
+    "metadata-checkpoint-controls",
+    "fixed-public-context-upload",
+    "metadata-upload-settlement",
+  ]) {
+    const refusal = applicationCoordinatorRefusal(
+      new CoordinatorRemoteError("private", {
+        phase,
+        retained_error: exchange.checkpoint_exchange,
+      }),
+    );
+    assert.equal(refusal.stage, phase);
+    assert.equal("checkpoint_exchange" in refusal, phase === "durable-maintenance-descriptor");
+    assert.doesNotThrow(() => requireApplicationCoordinatorRefusal(refusal));
+  }
+
+  assert.equal(
+    applicationCoordinatorRefusal(new CoordinatorRemoteError("private", { phase: "unknown" }))
+      .stage,
+    "fixed-entry",
+  );
+  for (const phase of [
+    "withdrawal-source-authority",
+    "withdrawal-journal-preimage",
+    "withdrawal-reader-identity",
+    "withdrawal-protection-observation",
+    "withdrawal-live-controls",
+    "withdrawal-checkpoint-authority",
+    "withdrawal-signed-checkpoint",
+  ]) {
+    const withdrawal = applicationCoordinatorRefusal(
+      new CoordinatorRemoteError("private", {
+        phase,
+        retained_error: { ...exchange.checkpoint_exchange, checkpoint: "private" },
+      }),
+    );
+    assert.equal(withdrawal.stage, phase);
+    assert.equal(JSON.stringify(withdrawal).includes("private"), false);
+    assert.deepEqual(
+      withdrawal.checkpoint_exchange,
+      phase === "withdrawal-signed-checkpoint" ? exchange.checkpoint_exchange : undefined,
+    );
+  }
+  const encoded = JSON.stringify(known);
+  await writeFile(
+    path.join(root, applicationCoordinatorRefusalFile),
+    `{"stage":"fixture-private-discarded-value",${encoded.slice(1)}`,
+  );
+  const output = await retainControllerDiagnostics(root, "coordinator");
+  const retained = await readFile(path.join(output, applicationCoordinatorRefusalFile), "utf8");
+  assert.equal(retained.includes("fixture-private-discarded-value"), false);
+  assert.deepEqual(JSON.parse(retained), known);
+  await rm(output, { recursive: true });
+  await writeFile(
+    path.join(root, applicationCoordinatorRefusalFile),
+    JSON.stringify({ ...known, message: "fixture-private-exception" }),
+  );
+  const invalid = await retainControllerDiagnostics(root, "coordinator");
+  assert.equal((await readdir(invalid)).includes(applicationCoordinatorRefusalFile), false);
 });
 
 void test("always-retained diagnostics select bounded public markers and preserve original failure state", async (t) => {

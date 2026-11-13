@@ -1,3 +1,4 @@
+import { selectedHostedNativePlatform } from "./release-authority-configuration-contract.mts";
 /** Integrity-only native request/capture contracts. No execution, issuer access,
  * acceptance receipt or imported report authority is created by this module. */
 import {
@@ -13,6 +14,7 @@ import {
   nativePrepublicationScenarios,
   nativeInitialPackageScenarios,
   inspectNativeQualificationAccount,
+  inspectNativeQualificationHarnessPath,
 } from "./release-native-qualification-contract.mts";
 import { releaseCanonicalDigest as digest } from "./release-canonical.mts";
 import { isRecord } from "./runtime-values.mts";
@@ -121,7 +123,7 @@ export function prepareHostedNativeStageRequest(
       const windows = platform === "windows-x86_64";
       if (host.account.kind !== (windows ? "windows-sid" : "linux-uid"))
         throw new Error("hosted native account platform differs");
-      const selected = authorities.hosted_native[platform];
+      const selected = selectedHostedNativePlatform(authorities, platform);
       return {
         producer: selected.producer,
         host: { ...host, minimum_platform: selected.minimum_platform, engine: selected.engine },
@@ -223,7 +225,41 @@ export function serializeHostedNativeStageCapture(
   );
 }
 
-function serializePreparedNativeStageCapture(prepared: NativeStageRequest, raw: unknown) {
+/** Fixed Windows pre-sign byte inspection for the native Actions path. It keeps
+ * the maintained process/scenario/teardown checks without reconstructing the
+ * retired coordinator configuration. This is integrity only, never admission. */
+export function serializeApplicationPreSignCapture(
+  raw: unknown,
+  expected: { request_sha256: string; harness: { path: string; sha256: string } },
+) {
+  const requestSha = sha(expected.request_sha256);
+  const harness = {
+    path: inspectNativeQualificationHarnessPath(expected.harness.path),
+    sha256: sha(expected.harness.sha256),
+  };
+  return serializePreparedNativeStageCapture(
+    {
+      request: {
+        platform_label: "windows-x86_64",
+        expected: { producer: { harness } },
+        required_scenarios: [...nativeQualificationScenarios["payload-signing"]],
+      },
+      request_sha256: requestSha,
+    },
+    raw,
+  );
+}
+
+type CaptureRequest = {
+  request_sha256: string;
+  request: {
+    platform_label: string;
+    expected: { producer: { harness: { path: string; sha256: string } } };
+    required_scenarios: readonly string[];
+  };
+};
+
+function serializePreparedNativeStageCapture(prepared: CaptureRequest, raw: unknown) {
   const request = prepared.request;
   exact(
     raw,

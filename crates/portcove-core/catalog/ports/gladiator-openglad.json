@@ -6,8 +6,9 @@
     "summary": "Explore Gladiator / OpenGLaD and follow the upstream project for requirements, downloads and setup.",
     "project_url": "https://github.com/openglad/openglad",
     "issue_number": 1917,
+    "listed_at": "2026-10-23",
     "availability": "packages",
-    "setup_url": "https://github.com/openglad/openglad/blob/v2.1092/README.md",
+    "setup_url": "https://github.com/openglad/openglad#readme",
     "artwork": {
       "game_id": 100047,
       "cover_id": 563025,
@@ -16,36 +17,97 @@
       "game_slug": "gladiator--1",
       "match_kind": "underlying-game"
     },
-    "release_url": "https://github.com/openglad/openglad/releases/tag/v2.1092",
+    "release_url": "https://github.com/openglad/openglad/releases",
     "manual_setup": {
       "steps": [
         {
           "title": "Start the game",
           "instruction": "The official archive includes the Gladiator campaigns and the native game. Choose Play after installation; no original commercial files or separate setup program are required. openscen.exe is the optional level editor, not this route’s play target."
+        },
+        {
+          "title": "Prepare your Apple silicon Mac",
+          "instruction": "The inspected ARM64 player needs macOS 26 and the Apple silicon Homebrew libraries libyaml, physfs, libzip and sdl3 under /opt/homebrew. Follow the upstream Mac setup for those libraries before Play. The managed player opens from its own folder and keeps your saves, campaigns and settings under ~/.openglad."
         }
       ],
-      "warnings": [],
-      "help_url": "https://github.com/openglad/openglad/blob/v2.1092/README.md"
+      "warnings": [
+        "Use a separately prepared copy for OPENGLAD_CONFIG_DIR or a custom Mac library search path. Keep the actual OpenGlad profile and its creating runtime before changing versions."
+      ],
+      "help_url": "https://github.com/openglad/openglad/blob/master/docs/INSTALL.md"
     },
     "original_game_title": "Gladiator"
   },
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],
-    "platforms": ["windows-x86-64", "linux-x86-64"],
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-aarch64"],
     "adapter": "native-portable",
+    "reviewed_package_layouts": {
+      "windows-x86-64": {
+        "directories": ["builtin", "cfg", "packs", "pix", "sound"],
+        "executables": ["openglad.exe", "openscen.exe"]
+      },
+      "linux-x86-64": {
+        "directories": ["builtin", "cfg", "packs", "pix", "sound"],
+        "executables": [
+          "openglad",
+          "openscen",
+          "sound/blast1.wav",
+          "sound/bolt1.wav",
+          "sound/boom.wav",
+          "sound/charge.wav",
+          "sound/clang.wav",
+          "sound/die1.wav",
+          "sound/die2.wav",
+          "sound/eat.wav",
+          "sound/explode1.wav",
+          "sound/faerie1.wav",
+          "sound/fwip.wav",
+          "sound/heal1.wav",
+          "sound/money.wav",
+          "sound/roar.wav",
+          "sound/teleport.wav",
+          "sound/twang.wav"
+        ]
+      },
+      "macos-aarch64": {
+        "directories": ["builtin", "cfg", "packs", "pix", "sound"],
+        "executables": [
+          "openglad",
+          "openscen",
+          "sound/blast1.wav",
+          "sound/bolt1.wav",
+          "sound/boom.wav",
+          "sound/charge.wav",
+          "sound/clang.wav",
+          "sound/die1.wav",
+          "sound/die2.wav",
+          "sound/eat.wav",
+          "sound/explode1.wav",
+          "sound/faerie1.wav",
+          "sound/fwip.wav",
+          "sound/heal1.wav",
+          "sound/money.wav",
+          "sound/roar.wav",
+          "sound/teleport.wav",
+          "sound/twang.wav"
+        ]
+      }
+    },
     "release": {
       "repository": "openglad/openglad",
       "asset_hints": {
         "windows-x86-64": ["openglad-windows-x86_64.zip"],
-        "linux-x86-64": ["openglad-linux-x86_64.tar.gz"]
+        "linux-x86-64": ["openglad-linux-x86_64.tar.gz"],
+        "macos-aarch64": ["openglad-macos-arm64.zip"]
       }
     },
     "executable_hints": {
       "windows-x86-64": ["openglad.exe"],
-      "linux-x86-64": ["openglad"]
+      "linux-x86-64": ["openglad"],
+      "macos-aarch64": ["openglad"]
     },
     "persistent_paths": [],
+    "external_profile_policy": "openglad-mac-v1",
     "presentation": {
       "installation_method": "portable-package",
       "source_requirements": [],

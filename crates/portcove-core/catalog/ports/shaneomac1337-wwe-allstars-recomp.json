@@ -3,7 +3,7 @@
   "listing": {
     "id": "shaneomac1337-wwe-allstars-recomp",
     "name": "WWE All Stars (WWE All Stars Recomp)",
-    "summary": "Upstream route: Upstream Windows ZIP includes runtime and first setup launcher. Setup imports/verifies own disc+TU2 and converts shaders/prepares pipelines, then game/wweallstars.exe runs. Release notification only checks, not downloads. Development source compilation is separate. Limits: Upstream only: Upstream match/control/shader-preparation claims. Full-game and multiplayer qualification not performed; release notification does not download updates. Windowsx64 Vulkan runtime/launcher builds from disc; keep gameplay claims and installer toolchain/download scope separate. Upstream platforms: Windows x64 Vulkan player ZIP. Source uses VS2026/ReXGlue; framework portability does not establish other players. Original data: Xbox360 WWE AllStars USA/Europe own ISO and supported input files. Exact source revision/hash and BIOS/firmware requirements not stated above remain Unknown in this review. Portcove setup/gameplay not verified.",
+    "summary": "A WWE All Stars Windows x64 Vulkan port with project-reported matches, controls and shader preparation. The ZIP includes the player and initial setup launcher: import and check your own USA/Europe Xbox 360 ISO and supported TU2, prepare shaders/pipelines, then use game/wweallstars.exe. Release notifications check for new versions but do not download them. Source development separately uses VS2026/ReXGlue; framework portability does not establish other players. Complete-game, multiplayer, exact accepted input hashes and BIOS/firmware requirements are unconfirmed. Portcove has not confirmed setup or gameplay.",
     "original_game_title": "WWE All Stars",
     "project_url": "https://github.com/shaneomac1337/WWE-AllStars-Recomp",
     "platforms": [],
@@ -17,7 +17,36 @@
       "game_slug": "wwe-all-stars",
       "match_kind": "underlying-game"
     },
-    "issue_number": 2812
+    "issue_number": 2812,
+    "listed_at": "2026-10-25",
+    "manual_setup": {
+      "help_url": "https://github.com/shaneomac1337/WWE-AllStars-Recomp/blob/34d7b71d926440262f14f6a6e2d9763494588498/launcher/release/README.txt",
+      "steps": [
+        {
+          "title": "Complete upstream setup before registration",
+          "instruction": "Use your independently permitted WWE All Stars Windows copy. The reviewed v1.7.0 route uses WWEAllStarsLauncher.exe to prepare your own USA/Europe Xbox 360 disc image and its mandatory Title Update 2 from your console; owned DLC is optional. Finish import, upstream verification and shader preparation outside Portcove. Keep the complete package and notices. Registration neither supplies the disc/update nor runs the source-development build route."
+        },
+        {
+          "title": "Select the supported direct player",
+          "instruction": "After successful upstream setup, select game/wweallstars.exe and use its game folder as working directory. Leave arguments empty. Upstream explicitly supports direct startup: this player finds the prepared folders relative to its own location and reads the launcher’s settings. Before setup it asks you to use the upstream launcher. Portcove does not rerun setup, reconstruct Title Update 2 or authenticate your original files."
+        },
+        {
+          "title": "Review registration and leave replacement upstream",
+          "instruction": "Review the selected native executable, working folder and literal arguments before the separate Play step. Only that process is supervised. Use upstream for settings, repair, DLC and runtime replacement outside Portcove Play, then review and relink changed player bytes. Removing the registration preserves every external file. Managed installation, import, updates, backup, rollback, save migration and deletion are not offered for this copy."
+        }
+      ],
+      "warnings": [
+        "Keep the project, runtime and component notices. The BSD project grant is separate from the AGPL server and from original game, update and DLC rights; no online service is configured here. Upstream match, GPU, multiplayer and Steam Deck claims are not Portcove observations. Exact-input authentication, save compatibility and Supported acceptance remain unqualified.",
+        "Keep the complete parent release folder containing game, gamedata, updatedata, userdata, cache, logs, mods and licenses.",
+        "Do not copy only game/wweallstars.exe or assume another ReXGlue title uses these same paths."
+      ],
+      "references": [
+        {
+          "title": "Preserve the portable root and custom paths",
+          "instruction": "Keep the complete parent release folder containing game, gamedata, updatedata, userdata, cache, logs, mods and licenses. Keep userdata/launcher-state.json and all saves/settings together, along with any selected external game-data, update-data or user-data folders. The direct player derives the normal portable root from its executable’s parent and writes session logs in the root logs folder. Preserve crash reports and shader caches too. Do not copy only game/wweallstars.exe or assume another ReXGlue title uses these same paths."
+        }
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

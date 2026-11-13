@@ -6,10 +6,12 @@ import { pagesRecoveryOperationFixture } from "./fixtures/release-pages-recovery
 import { createPagesProviderTransport } from "./release-pages-provider.mts";
 import { readPendingPagesPublication } from "./release-pages-recovery.mts";
 import {
+  assertApplicationPagesPreservedCatalog,
   inspectSettledPagesMetadataHandoff,
   publishedPagesMetadataFromCurrentFacts,
   recoverPublishedPagesMetadata,
 } from "./release-pages-metadata-recovery.mts";
+import { inspectSiteGeneration } from "./release-site-generation.mts";
 
 function fixture() {
   const metadata = metadataFixture();
@@ -64,29 +66,30 @@ void test("provider acknowledgement identity survives actual pending readback an
     generation: operation.site_expectation.site_generation_sha256,
   };
   const calls: string[] = [];
-  const provider = createPagesProviderTransport(".", {
+  const provider = createPagesProviderTransport({
     token: async () => "inert-controlled-token",
-    api: {
-      request(method, endpoint, body) {
-        calls.push(`${method} ${endpoint}`);
-        if (method === "POST") {
-          assert.deepEqual(body, {
-            artifact_id: expected.artifact_id,
-            pages_build_version: expected.generation,
-            oidc_token: "inert-controlled-token",
-          });
-          return {
-            status: 200,
-            headers: new Map<string, string>(),
-            body: {
-              id: expected.generation,
-              status_url: `https://api.github.com/repos/boburning/portcove/pages/deployments/${expected.generation}`,
-              page_url: "https://boburning.github.io/portcove/",
-            },
-          };
-        }
-        assert.equal(endpoint, `repos/boburning/portcove/pages/deployments/${expected.generation}`);
-        return { status: 200, headers: new Map<string, string>(), body: { status: "succeed" } };
+    operations: {
+      async create(body) {
+        calls.push("create");
+        assert.deepEqual(body, {
+          artifact_id: expected.artifact_id,
+          pages_build_version: expected.generation,
+          oidc_token: "inert-controlled-token",
+        });
+        return {
+          status: 200,
+          headers: new Map<string, string>(),
+          body: {
+            id: expected.generation,
+            status_url: `https://api.github.com/repos/boburning/portcove/pages/deployments/${expected.generation}`,
+            page_url: "https://boburning.github.io/portcove/",
+          },
+        };
+      },
+      async observe(id) {
+        assert.equal(id, expected.generation);
+        calls.push(`observe ${id}`);
+        return { status: 200, body: { status: "succeed" } };
       },
     },
   });
@@ -111,8 +114,8 @@ void test("provider acknowledgement identity survives actual pending readback an
   const published = publishedPagesMetadataFromCurrentFacts(descriptor, handoff);
   assert.equal(published.publication.remote_identity, completed.remote_identity);
   assert.equal(published.publication.site_generation_sha256, accepted.generation);
-  assert.equal(calls.filter((call) => call.startsWith("POST ")).length, 1);
-  assert.equal(calls.filter((call) => call.startsWith("GET ")).length, 2);
+  assert.equal(calls.filter((call) => call === "create").length, 1);
+  assert.equal(calls.filter((call) => call.startsWith("observe ")).length, 2);
   assert.equal(readback.evidence.evidence_scope, "injected-provider");
 });
 
@@ -135,6 +138,55 @@ void test("settled Pages handoff uses authenticated CURRENT facts, never unused 
     inspectSettledPagesMetadataHandoff({ ...input, published_metadata: published }),
     null,
   );
+});
+
+void test("successful app publication retains its native Pages ID through the metadata handoff", () => {
+  const { input, operation, descriptor } = fixture();
+  const effect = operation.completed_effects[0]!;
+  effect.remote_identity = "github-pages:boburning/portcove:acknowledged-deployment-123";
+  const succeeded = { ...operation, outcome: "succeeded", recovery: null };
+  const settledInput = { ...input, controller: { capacity_attempt: { operation: succeeded } } };
+  const handoff = inspectSettledPagesMetadataHandoff(settledInput)!;
+  assert.equal(handoff.deployment_id, "acknowledged-deployment-123");
+  assert.deepEqual(publishedPagesMetadataFromCurrentFacts(descriptor, handoff).publication, {
+    ...effect,
+    site_generation_sha256: operation.site_expectation.site_generation_sha256,
+  });
+  effect.remote_identity = "github-pages:another/repository:acknowledged-deployment-123";
+  assert.throws(
+    () => inspectSettledPagesMetadataHandoff(settledInput),
+    /deployment identity differs/u,
+  );
+});
+
+void test("application handoff verifies whole-site ancestry and exact preserved catalog bytes", () => {
+  const catalogFile = { path: "metadata/timestamp.json", bytes: 2, sha256: "2".repeat(64) };
+  const catalog = { root_sha256: "3".repeat(64), repository_sha256: capacityDigest([catalogFile]) };
+  const body = {
+    schema_version: 2,
+    previous_generation: "4".repeat(64),
+    application_root_sha256: "5".repeat(64),
+    catalog_root_sha256: catalog.root_sha256,
+    files: [
+      { path: ".nojekyll", bytes: 0, sha256: "6".repeat(64) },
+      { path: "application/metadata/timestamp.json", bytes: 1, sha256: "7".repeat(64) },
+      { ...catalogFile, path: `catalog/${catalogFile.path}` },
+    ],
+  };
+  const digest = capacityDigest(body);
+  const generation = inspectSiteGeneration({ ...body, generation: digest }, digest);
+  assertApplicationPagesPreservedCatalog(generation, body.previous_generation, catalog);
+  for (const [prior, component] of [
+    [null, catalog],
+    [body.previous_generation, null],
+    [body.previous_generation, { ...catalog, root_sha256: "8".repeat(64) }],
+    [body.previous_generation, { ...catalog, repository_sha256: "9".repeat(64) }],
+  ] as const) {
+    assert.throws(
+      () => assertApplicationPagesPreservedCatalog(generation, prior, component),
+      /changed the prior generation or catalog/u,
+    );
+  }
 });
 
 void test("settled selector refuses wrong old seed, receipt, current feed, and fabricated empty bootstrap", () => {

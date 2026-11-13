@@ -1,0 +1,105 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "alexbeav-medievil-ii-recomp-setup-kit",
+    "name": "MediEvil II (setup kit) / Alexbeav PSXRecomp",
+    "summary": "Portcove builds MediEvil II on Windows or Linux from the upstream setup kit with your own USA PlayStation disc and retail SCPH-1001 BIOS. The prebuilt player’s MediEvil II mods aren’t included. The Mac setup kit uses upstream preparation.",
+    "original_game_title": "MediEvil II",
+    "project_url": "https://github.com/alexbeavs-ps1-ports/medievil-ii-recomp",
+    "issue_number": 5299,
+    "listed_at": "2026-11-13",
+    "platforms": ["macos-x86-64", "macos-aarch64"],
+    "availability": "packages",
+    "setup_url": "https://github.com/alexbeavs-ps1-ports/medievil-ii-recomp#readme",
+    "artwork": {
+      "game_id": 4002,
+      "cover_id": 84942,
+      "image_id": "co1tji",
+      "image_sha256": "a7a6b4931e4693816a02c5e8bd22b7c6cfca8b7f6f4d58a2c65e9c45504c62ff",
+      "game_slug": "medievil-ii--1",
+      "match_kind": "underlying-game"
+    },
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Use the exact original files",
+          "instruction": "Use your own MediEvil II (USA) disc (SCUS-94564) with both of its tracks and your own retail SCPH-1001 BIOS. This setup kit doesn’t include OpenBIOS."
+        },
+        {
+          "title": "Set up the managed Windows or Linux player",
+          "instruction": "In Portcove, select the complete matching CHD and BIOS. Keep both original files in place. Portcove builds the player from the setup kit with its registered toolchain. Choose Play after the build finishes."
+        },
+        {
+          "title": "Prepare a separate Mac copy",
+          "instruction": "Choose the official Mac ZIP from the upstream releases. Use -macos-x64.zip for Intel or -macos-arm64.zip for Apple silicon. Extract the complete kit to a writable folder and follow its README-SETUP.txt, which asks for Python 3 and your own SCPH-1001 BIOS."
+        },
+        {
+          "title": "Build and add the completed Mac player",
+          "instruction": "Run MediEvil_II__Recompiled from the kit folder and choose Generate & rebuild. Keep the CUE and both BIN tracks together if using CUE/BIN. In Portcove, select build-release/MediEvil_II__Recompiled as the player and build-release as its start folder."
+        }
+      ],
+      "warnings": [
+        "This route doesn’t include the widescreen, frame-rate and control mods of the prebuilt MediEvil II player. Choose the prebuilt route if you want them.",
+        "Portcove checks the first data track and track count. Keep the complete disc intact.",
+        "Mac setup, replacement and backups belong to you and the upstream kit. Native setup, gameplay and populated-save behavior remain unverified."
+      ],
+      "help_url": "https://github.com/alexbeavs-ps1-ports/medievil-ii-recomp#readme",
+      "references": [
+        {
+          "title": "Keep the original files and your data",
+          "instruction": "Keep your disc and BIOS separately. Saves from the prebuilt player stay in that installation; this route doesn’t import them. For a Mac copy, close the game and back up the complete working folder and its saves, settings and installed mods before replacing the kit."
+        }
+      ]
+    },
+    "release_url": "https://github.com/alexbeavs-ps1-ports/medievil-ii-recomp/releases",
+    "download_asset_hints": {
+      "windows-x86-64": ["medievil-ii-recomp-", "-windows-x64.zip"],
+      "linux-x86-64": ["medievil-ii-recomp-", "-linux-x64.zip"],
+      "macos-x86-64": ["medievil-ii-recomp-", "-macos-x64.zip"],
+      "macos-aarch64": ["medievil-ii-recomp-", "-macos-arm64.zip"]
+    },
+    "recommended_download_channel": "stable"
+  },
+  "psx_managed_windows_v1": "split-mods",
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64", "linux-x86-64"],
+    "automated_tested_platforms": [],
+    "manually_validated_platforms": [],
+    "adapter": "psx-recomp-managed",
+    "release": {
+      "provider": "github",
+      "repository": "alexbeavs-ps1-ports/medievil-ii-recomp",
+      "asset_hints": {
+        "windows-x86-64": ["medievil-ii-recomp-", "-windows-x64.zip"],
+        "linux-x86-64": ["medievil-ii-recomp-", "-linux-x64.zip"]
+      }
+    },
+    "source_profile": "alexbeav-medievil-ii-recomp-usa-psx",
+    "executable_hints": {
+      "windows-x86-64": ["MediEvil_II__Recompiled.exe"],
+      "linux-x86-64": ["MediEvil_II__Recompiled"]
+    },
+    "presentation": {
+      "installation_method": "managed-recompilation",
+      "source_requirements": [
+        {
+          "role": "game",
+          "profile_id": "alexbeav-medievil-ii-recomp-usa-psx",
+          "label": "MediEvil II (USA) disc",
+          "verification": "catalog-identity"
+        },
+        {
+          "role": "bios",
+          "profile_id": "psx-scph-1001-bios",
+          "label": "PlayStation SCPH-1001 BIOS",
+          "verification": "catalog-identity"
+        }
+      ],
+      "saves_and_settings": "portcove-managed",
+      "manual_preparation": "Select your own MediEvil II (USA) complete CHD (SCUS-94564, 2 tracks) and retail SCPH-1001 BIOS. Portcove builds a private player from the upstream setup kit and retains its declared saves, settings and installed mods. Bundled mods belong to the runtime version; the prebuilt player’s MediEvil II mods aren’t part of this kit. Saves from the prebuilt MediEvil II route stay with that installation. Runtime rollback carries the current player data. Mac setup is upstream-owned."
+    },
+    "bios_source_profile": "psx-scph-1001-bios"
+  }
+}

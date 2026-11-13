@@ -271,6 +271,10 @@ async function runWindowsPublicUpdateJourney(
     authority: "none",
     native_acceptance: "not-established",
     phase: input.phase ?? "initial-v0-v1",
+    profile: {
+      library_root: environment.PORTCOVE_LIBRARY,
+      preferences_path: environment.PORTCOVE_PREFERENCES,
+    },
     actions,
   };
   report.harness = await readWindowsPublicExecutable(fileURLToPath(import.meta.url));

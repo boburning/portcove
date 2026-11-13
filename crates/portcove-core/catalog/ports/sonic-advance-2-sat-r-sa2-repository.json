@@ -3,9 +3,10 @@
   "listing": {
     "id": "sonic-advance-2-sat-r-sa2-repository",
     "name": "Sonic Advance 2 / SAT-R sa2 repository",
-    "summary": "Explore Sonic Advance 2 / SAT-R sa2 repository and follow the upstream project for requirements, downloads and setup.",
+    "summary": "Sonic Advance 2 SDL native build using your own supported ROM. Upstream documents separate Windows and Linux/macOS SDL outputs; its alternative Windows OpenGL target is documented as nonfunctional. Complete the title-specific SDL build before registering the prepared player.",
     "project_url": "https://github.com/SAT-R/sa2",
     "issue_number": 381,
+    "listed_at": "2026-10-23",
     "platforms": [],
     "availability": "source-only",
     "setup_url": "https://github.com/SAT-R/sa2#readme",
@@ -25,7 +26,7 @@
         },
         {
           "title": "Keep your files and update through upstream",
-          "instruction": "Use a separate folder you control and retain your working copy. An existing native player can use Portcove’s non-owning registration after the read-only executable review; choose Play separately. You or upstream keep runtime updates, original files, generated data, saves and settings. Portcove does not replace, back up or roll back this external runtime. Follow the selected upstream version’s instructions when changing it."
+          "instruction": "Keep the game in a separate folder you control, and retain a working copy. Review its executable in Portcove, then add it without changing its files. Choose Play separately when you are ready. You manage updates, original files, generated data, saves and settings. Portcove does not replace, back up or roll back this external copy. Follow the project’s instructions for the version you use when changing it."
         }
       ],
       "warnings": [],

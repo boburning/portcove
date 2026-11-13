@@ -1,3 +1,5 @@
+// The transport inventory in desktop_contract is one large json! literal.
+#![recursion_limit = "256"]
 mod adoption;
 pub mod application_update;
 pub mod application_update_apply;
@@ -31,7 +33,9 @@ pub mod application_update_trust;
 #[cfg(any(windows, test))]
 pub mod application_update_windows;
 mod artwork;
+mod automatic_snapshots;
 mod backup_review;
+mod bug_report;
 mod catalog;
 mod catalog_download;
 mod cli_context;
@@ -43,20 +47,27 @@ mod diagnostics_writer;
 mod external_runtime_commands;
 mod favorite_commands;
 mod frontend_diagnostics;
+mod game_settings_commands;
 mod game_updates;
+mod ghostship_recovery;
 mod host_startup;
 mod library_selection;
 mod library_transfer;
 mod managed_install_review;
+mod mod_setup_commands;
 mod organization_commands;
 mod output_location;
+mod portable_saves_commands;
 mod preparation;
+mod ready_notices;
 mod removal;
 #[cfg(any(windows, target_os = "linux"))]
 mod runtime_support;
 mod source_removal;
+pub mod steam_artwork;
 pub mod steam_entries;
 pub mod steam_entry_commands;
+mod steamgriddb;
 mod transport;
 mod webview_boundary;
 #[cfg(feature = "native-compatibility-qualification")]
@@ -81,17 +92,19 @@ use portcove_core::{
     ChildProcessPolicy, CompositeReleaseProvider, DoctorReport, GithubAuthStatus,
     GithubDeviceLogin, GithubDeviceLoginResult, GithubReleaseProvider, HostPreferenceStore,
     HostToolProbeResult, HostToolStatus, IdentifiedLaunchRequest, InstallPlan, InstallRecord,
-    LaunchStdio, Library, LibraryChangeObserver, LibraryMetadataFile, LibrarySelection,
-    LibrarySelectionSource, OperationCoordinator, OperationEvent, OperationResult, PortStatus,
-    PortcoveError, PortcoveService, ReleaseChannel, ReleaseProvider, SourceDiscoveryLimits,
-    SourceImportMode, SourceImportPlan, SourceImportResult, SourceInboxPaths,
-    SourceInboxResolution, SourceInspectionReport, SourceIntakeInspection, SourceRecord,
-    SourceRelinkPlan, UpdateCheck, UpdatePolicy, VerificationReport,
+    LaunchSessionView, LaunchStdio, Library, LibraryChangeObserver, LibraryMetadataFile,
+    LibrarySelection, LibrarySelectionSource, OperationCoordinator, OperationEvent,
+    OperationResult, PortStatus, PortcoveError, PortcoveService, ReleaseChannel, ReleaseProvider,
+    SourceDiscoveryLimits, SourceImportMode, SourceImportPlan, SourceImportResult,
+    SourceInboxPaths, SourceInboxResolution, SourceInspectionReport, SourceIntakeInspection,
+    SourceRecord, SourceRelinkPlan, UpdateCheck, UpdatePolicy, VerificationReport,
 };
 use serde::{Deserialize, Serialize};
 use tauri::Manager;
 use tauri_plugin_dialog::{DialogExt, MessageDialogButtons, MessageDialogKind};
-use transport::{DESKTOP_EVENT_LIBRARY_CHANGED, DESKTOP_EVENT_OPERATION, emit_desktop_event};
+use transport::{
+    DESKTOP_EVENT_LIBRARY_CHANGED, DESKTOP_EVENT_OPERATION, MAIN_WINDOW_LABEL, emit_desktop_event,
+};
 
 type LaunchObservation = (Library, String);
 type LaunchObserver =
@@ -272,9 +285,32 @@ fn github_status_observation(
     Ok(ready(state)?.github.auth_status())
 }
 
+/// Detail marking the placeholder held while the startup worker opens the
+/// library. Commands that need a library see an ordinary `state` refusal.
+const LIBRARY_INITIALIZING: &str = "library_initializing";
+
+/// Wakes `get_bootstrap_status` callers once the startup worker settles.
+static STARTUP_SETTLED: tokio::sync::Notify = tokio::sync::Notify::const_new();
+
+fn startup_pending() -> DesktopError {
+    PortcoveError::state("Portcove is still opening the library")
+        .detail(LIBRARY_INITIALIZING, "true")
+        .into()
+}
+
+fn is_startup_pending(initialization: &DesktopResult<ReadyDesktopState>) -> bool {
+    initialization
+        .as_ref()
+        .err()
+        .is_some_and(|error| error.details.contains_key(LIBRARY_INITIALIZING))
+}
+
 fn require_no_library_handoff(
     initialization: &DesktopResult<ReadyDesktopState>,
 ) -> DesktopResult<()> {
+    if is_startup_pending(initialization) {
+        return Err(PortcoveError::conflict("Portcove is still opening the library").into());
+    }
     if initialization.as_ref().err().is_some_and(|error| {
         error.details.contains_key("transfer_in_progress")
             || error.details.contains_key("library_switch_in_progress")
@@ -315,9 +351,26 @@ fn require_library_generation(actual: u64, expected: u64) -> DesktopResult<()> {
     )))
 }
 
+/// The window is shown before the library opens; this answer waits until the
+/// startup worker has settled, so the frontend keeps its loading state.
 #[tauri::command]
-fn get_bootstrap_status(state: tauri::State<'_, DesktopState>) -> BootstrapStatus {
-    bootstrap_status(&state)
+async fn get_bootstrap_status(
+    state: tauri::State<'_, DesktopState>,
+) -> Result<BootstrapStatus, ()> {
+    let state = state.inner().clone();
+    Ok(settled_bootstrap_status(&state).await)
+}
+
+async fn settled_bootstrap_status(state: &DesktopState) -> BootstrapStatus {
+    loop {
+        let settled = STARTUP_SETTLED.notified();
+        let (initialization, _) = initialization_snapshot(state);
+        if !is_startup_pending(&initialization) {
+            return bootstrap_status(state);
+        }
+        // The bounded wait also covers a wake-up that raced this check.
+        let _ = tokio::time::timeout(Duration::from_millis(250), settled).await;
+    }
 }
 
 #[tauri::command]
@@ -461,6 +514,17 @@ fn emit_operation(app: &tauri::AppHandle, event: OperationEvent) {
         emit_desktop_event::<portcove_core::OperationEvent>(app, DESKTOP_EVENT_OPERATION, event);
 }
 
+fn emit_install_operation(
+    app: &tauri::AppHandle,
+    on_event: &Option<tauri::ipc::Channel<OperationEvent>>,
+    event: OperationEvent,
+) {
+    if let Some(channel) = on_event {
+        let _ = channel.send(event.clone());
+    }
+    emit_operation(app, event);
+}
+
 #[tauri::command]
 async fn get_github_auth_status(
     state: tauri::State<'_, DesktopState>,
@@ -563,11 +627,13 @@ async fn get_activities(
 async fn get_workspace_snapshot(
     state: tauri::State<'_, DesktopState>,
     generation: u64,
+    known_catalog_digest: Option<String>,
 ) -> DesktopResult<DesktopWorkspaceSnapshot> {
     let state = state.inner().clone();
     blocking_worker(move || {
         let service = service_at_generation(&state, generation)?;
         let snapshot = workspace_snapshot_with_service(&service)?;
+        let snapshot = omit_known_catalog(snapshot, known_catalog_digest.as_deref())?;
         require_library_generation(state_generation(&state), generation)?;
         Ok(snapshot)
     })
@@ -614,6 +680,38 @@ fn workspace_changed_at_generation(state: &DesktopState, generation: u64) -> Des
     let changed = observer.changed().map_err(DesktopError::from)?;
     require_library_generation(state_generation(state), generation)?;
     Ok(changed)
+}
+
+/// Digest the catalog and listing documents exactly as they would cross IPC,
+/// and drop them when the caller already holds that digest. About 7 MB of JSON
+/// otherwise crosses IPC and is re-parsed and compared on the UI thread for
+/// every full workspace read.
+fn omit_known_catalog(
+    mut snapshot: DesktopWorkspaceSnapshot,
+    known_digest: Option<&str>,
+) -> DesktopResult<DesktopWorkspaceSnapshot> {
+    use sha2::{Digest, Sha256};
+    struct HashWriter(Sha256);
+    impl std::io::Write for HashWriter {
+        fn write(&mut self, bytes: &[u8]) -> std::io::Result<usize> {
+            self.0.update(bytes);
+            Ok(bytes.len())
+        }
+        fn flush(&mut self) -> std::io::Result<()> {
+            Ok(())
+        }
+    }
+    let mut writer = HashWriter(Sha256::new());
+    serde_json::to_writer(&mut writer, &(&snapshot.catalog, &snapshot.listing_catalog))
+        .map_err(|error| DesktopError::from(PortcoveError::from(error)))?;
+    let digest = hex::encode(writer.0.finalize());
+    if known_digest == Some(digest.as_str()) {
+        snapshot.catalog = None;
+        snapshot.listing_catalog = None;
+        snapshot.catalog_unchanged = true;
+    }
+    snapshot.catalog_digest = Some(digest);
+    Ok(snapshot)
 }
 
 fn workspace_snapshot_with_service(
@@ -692,6 +790,19 @@ async fn inspect_source(
 }
 
 #[tauri::command]
+async fn review_source_reuse(
+    state: tauri::State<'_, DesktopState>,
+    profile_id: String,
+    generation: u64,
+) -> DesktopResult<portcove_core::SourceReuseReview> {
+    let state = state.inner().clone();
+    blocking_service_at_generation(state, generation, move |service| {
+        service.review_source_reuse(&profile_id).map_err(Into::into)
+    })
+    .await
+}
+
+#[tauri::command]
 async fn inspect_source_intake(
     state: tauri::State<'_, DesktopState>,
     profile_id: String,
@@ -728,9 +839,14 @@ async fn plan_source_relink(
     state: tauri::State<'_, DesktopState>,
     profile_id: String,
     path: PathBuf,
+    generation: Option<u64>,
 ) -> DesktopResult<SourceRelinkPlan> {
     let state = state.inner().clone();
-    blocking_service(state, move |service| {
+    blocking_worker(move || {
+        let service = match generation {
+            Some(generation) => service_at_generation(&state, generation)?,
+            None => service(&state)?,
+        };
         service
             .plan_source_relink(&profile_id, &path)
             .map_err(Into::into)
@@ -744,9 +860,14 @@ async fn relink_source(
     profile_id: String,
     path: PathBuf,
     preview_sha256: String,
+    generation: Option<u64>,
 ) -> DesktopResult<SourceRecord> {
     let state = state.inner().clone();
-    blocking_service(state, move |service| {
+    blocking_worker(move || {
+        let service = match generation {
+            Some(generation) => service_at_generation(&state, generation)?,
+            None => service(&state)?,
+        };
         service
             .relink_source(&profile_id, &path, &preview_sha256)
             .map_err(Into::into)
@@ -819,6 +940,26 @@ async fn check_port(
 }
 
 #[tauri::command]
+async fn forecast_installed_update_checks(
+    state: tauri::State<'_, DesktopState>,
+) -> DesktopResult<portcove_core::UpdateCheckForecast> {
+    let state = state.inner().clone();
+    blocking_async_service(state, move |service| async move {
+        let installed = service
+            .statuses()?
+            .into_iter()
+            .filter(|status| status.active.is_some())
+            .map(|status| status.port_id)
+            .collect::<Vec<_>>();
+        service
+            .forecast_update_checks(installed)
+            .await
+            .map_err(Into::into)
+    })
+    .await
+}
+
+#[tauri::command]
 async fn check_installed(
     app: tauri::AppHandle,
     state: tauri::State<'_, DesktopState>,
@@ -831,16 +972,12 @@ async fn check_installed(
             .filter(|status| status.active.is_some())
             .map(|status| status.port_id)
             .collect::<Vec<_>>();
-        let total = installed.len() as u64;
         let operation = OperationCoordinator::new("check_installed", None);
+        // Core returns the complete batch. Keep feedback indeterminate until it
+        // settles rather than replaying per-item progress after the work ended.
         emit_operation(&app, operation.started());
         let mut outcomes = Vec::with_capacity(installed.len());
-        for (index, (port_id, result)) in service
-            .check_updates(installed)
-            .await?
-            .into_iter()
-            .enumerate()
-        {
+        for (port_id, result) in service.check_updates(installed).await? {
             outcomes.push(match result {
                 Ok(result) => BatchOutcome {
                     port_id,
@@ -855,15 +992,6 @@ async fn check_installed(
                     error: Some(error.into()),
                 },
             });
-            emit_operation(
-                &app,
-                operation.progress_with_unit(
-                    "check_installed",
-                    portcove_core::ProgressUnit::Ports,
-                    index as u64 + 1,
-                    Some(total),
-                ),
-            );
         }
         let success = outcomes.iter().all(|outcome| outcome.ok);
         emit_operation(
@@ -908,6 +1036,298 @@ async fn get_game_file_roots(
 ) -> DesktopResult<Vec<portcove_core::GameFileRoot>> {
     blocking_service_at_generation(state.inner().clone(), generation, move |service| {
         service.library().game_file_roots().map_err(Into::into)
+    })
+    .await
+}
+
+#[tauri::command]
+async fn get_library_memberships(
+    state: tauri::State<'_, DesktopState>,
+    generation: u64,
+) -> DesktopResult<Vec<portcove_core::LibraryMembership>> {
+    blocking_service_at_generation(state.inner().clone(), generation, move |service| {
+        service.library_memberships().map_err(Into::into)
+    })
+    .await
+}
+
+/// Saves reviewed games to the Library. Acquires, registers, installs and launches nothing.
+#[tauri::command]
+async fn add_games_to_library(
+    state: tauri::State<'_, DesktopState>,
+    generation: u64,
+    requests: Vec<portcove_core::LibraryMembershipRequest>,
+) -> DesktopResult<Vec<portcove_core::LibraryMembershipOutcome>> {
+    blocking_service_at_generation(state.inner().clone(), generation, move |service| {
+        service.add_games_to_library(&requests).map_err(Into::into)
+    })
+    .await
+}
+
+#[tauri::command]
+async fn remove_library_membership(
+    state: tauri::State<'_, DesktopState>,
+    generation: u64,
+    port_id: String,
+) -> DesktopResult<bool> {
+    blocking_service_at_generation(state.inner().clone(), generation, move |service| {
+        service
+            .remove_library_membership(&port_id)
+            .map_err(Into::into)
+    })
+    .await
+}
+
+/// Reviews first installs for the selected games. Changes nothing.
+#[tauri::command]
+async fn plan_install_batch(
+    state: tauri::State<'_, DesktopState>,
+    generation: u64,
+    port_ids: Vec<String>,
+) -> DesktopResult<portcove_core::InstallBatchReview> {
+    blocking_async_service_at_generation(
+        state.inner().clone(),
+        generation,
+        move |service| async move {
+            service
+                .plan_install_batch(&port_ids)
+                .await
+                .map_err(Into::into)
+        },
+    )
+    .await
+}
+
+/// Saves the reviewed games to the Library and records exactly them as one
+/// confirmed batch. Stores no authorization and runs nothing yet.
+#[tauri::command]
+async fn start_install_batch(
+    state: tauri::State<'_, DesktopState>,
+    generation: u64,
+    items: Vec<portcove_core::InstallBatchRequestItem>,
+) -> DesktopResult<portcove_core::InstallBatchRecord> {
+    blocking_service_at_generation(state.inner().clone(), generation, move |service| {
+        service
+            .start_install_batch(
+                &items,
+                portcove_core::LibraryMembershipOrigin::GameFileDiscovery,
+            )
+            .map_err(Into::into)
+    })
+    .await
+}
+
+/// Runs the batch's unstarted games once each. Every game re-plans and is
+/// freshly authorized before it runs; finished games are never repeated and no
+/// game is launched.
+#[tauri::command]
+async fn run_install_batch(
+    app: tauri::AppHandle,
+    webview: tauri::Webview,
+    state: tauri::State<'_, DesktopState>,
+    generation: u64,
+    batch_id: String,
+    on_event: Option<tauri::ipc::JavaScriptChannelId>,
+) -> DesktopResult<portcove_core::InstallBatchRecord> {
+    let on_event: Option<tauri::ipc::Channel<OperationEvent>> =
+        on_event.map(|id| id.channel_on(webview));
+    blocking_async_service_at_generation(
+        state.inner().clone(),
+        generation,
+        move |service| async move {
+            service
+                .run_install_batch(&batch_id, |event| {
+                    emit_install_operation(&app, &on_event, event)
+                })
+                .await
+                .map_err(Into::into)
+        },
+    )
+    .await
+}
+
+/// Batches with games that have not finished, newest first, so an interrupted
+/// batch can be continued after a restart.
+#[tauri::command]
+async fn get_unfinished_install_batches(
+    state: tauri::State<'_, DesktopState>,
+    generation: u64,
+) -> DesktopResult<Vec<portcove_core::InstallBatchRecord>> {
+    blocking_service_at_generation(state.inner().clone(), generation, move |service| {
+        service.unfinished_install_batches().map_err(Into::into)
+    })
+    .await
+}
+
+/// Stops games in the batch that have not started; a running install keeps its
+/// ordinary cancellation and cleanup boundaries.
+#[tauri::command]
+async fn cancel_install_batch(
+    state: tauri::State<'_, DesktopState>,
+    generation: u64,
+    batch_id: String,
+) -> DesktopResult<portcove_core::InstallBatchRecord> {
+    blocking_service_at_generation(state.inner().clone(), generation, move |service| {
+        service.cancel_install_batch(&batch_id).map_err(Into::into)
+    })
+    .await
+}
+
+/// Records the player's choice for one game. Discover-only is the default.
+#[tauri::command]
+async fn set_port_intent(
+    state: tauri::State<'_, DesktopState>,
+    generation: u64,
+    port_id: String,
+    mode: portcove_core::PortIntentMode,
+) -> DesktopResult<portcove_core::PortIntent> {
+    blocking_service_at_generation(state.inner().clone(), generation, move |service| {
+        service.set_port_intent(&port_id, mode).map_err(Into::into)
+    })
+    .await
+}
+
+#[tauri::command]
+async fn get_port_intents(
+    state: tauri::State<'_, DesktopState>,
+    generation: u64,
+) -> DesktopResult<Vec<portcove_core::PortIntent>> {
+    blocking_service_at_generation(state.inner().clone(), generation, move |service| {
+        service.port_intents().map_err(Into::into)
+    })
+    .await
+}
+
+/// Reassesses remembered choices against current files, catalog and tools. Reads only.
+#[tauri::command]
+async fn assess_port_intents(
+    state: tauri::State<'_, DesktopState>,
+    generation: u64,
+) -> DesktopResult<portcove_core::PortIntentAssessments> {
+    blocking_async_service_at_generation(
+        state.inner().clone(),
+        generation,
+        move |service| async move { service.assess_port_intents().await.map_err(Into::into) },
+    )
+    .await
+}
+
+#[tauri::command]
+async fn acknowledge_port_readiness(
+    state: tauri::State<'_, DesktopState>,
+    generation: u64,
+    acknowledgements: Vec<portcove_core::PortReadinessAcknowledgement>,
+) -> DesktopResult<()> {
+    blocking_service_at_generation(state.inner().clone(), generation, move |service| {
+        service
+            .acknowledge_port_readiness(&acknowledgements)
+            .map_err(Into::into)
+    })
+    .await
+}
+
+/// Turns automatic setup for one saved folder on (with its enrollment
+/// boundary) or off (`None`). Installed games are never changed.
+#[tauri::command]
+async fn set_root_setup_consent(
+    state: tauri::State<'_, DesktopState>,
+    generation: u64,
+    root_id: String,
+    enrollment: Option<portcove_core::RootSetupEnrollment>,
+) -> DesktopResult<Option<portcove_core::RootSetupConsent>> {
+    blocking_service_at_generation(state.inner().clone(), generation, move |service| {
+        match enrollment {
+            Some(enrollment) => service
+                .set_root_setup_consent(&root_id, enrollment)
+                .map(Some)
+                .map_err(Into::into),
+            None => service
+                .remove_root_setup_consent(&root_id)
+                .map(|_| None)
+                .map_err(Into::into),
+        }
+    })
+    .await
+}
+
+/// Chooses which game a folder sets up for files several games can use.
+#[tauri::command]
+async fn set_root_setup_implementation(
+    state: tauri::State<'_, DesktopState>,
+    generation: u64,
+    root_id: String,
+    profile_id: String,
+    port_id: String,
+) -> DesktopResult<portcove_core::RootSetupConsent> {
+    blocking_service_at_generation(state.inner().clone(), generation, move |service| {
+        service
+            .set_root_setup_implementation(&root_id, &profile_id, &port_id)
+            .map_err(Into::into)
+    })
+    .await
+}
+
+/// Chooses whether a folder's automatic setup keeps a local copy of each
+/// game's required files.
+#[tauri::command]
+async fn set_root_setup_local_copy(
+    state: tauri::State<'_, DesktopState>,
+    generation: u64,
+    root_id: String,
+    keep_local_copy: bool,
+) -> DesktopResult<portcove_core::RootSetupConsent> {
+    blocking_service_at_generation(state.inner().clone(), generation, move |service| {
+        service
+            .set_root_setup_local_copy(&root_id, keep_local_copy)
+            .map_err(Into::into)
+    })
+    .await
+}
+
+#[tauri::command]
+async fn get_root_setup_consents(
+    state: tauri::State<'_, DesktopState>,
+    generation: u64,
+) -> DesktopResult<Vec<portcove_core::RootSetupConsent>> {
+    blocking_service_at_generation(state.inner().clone(), generation, move |service| {
+        service.root_setup_consents().map_err(Into::into)
+    })
+    .await
+}
+
+/// Installs every set-up-when-ready game that is ready now, under the player's
+/// standing choice. Each game is re-planned and freshly authorized; none is launched.
+#[tauri::command]
+async fn run_standing_setup(
+    app: tauri::AppHandle,
+    webview: tauri::Webview,
+    state: tauri::State<'_, DesktopState>,
+    generation: u64,
+    on_event: Option<tauri::ipc::JavaScriptChannelId>,
+) -> DesktopResult<portcove_core::StandingSetupResult> {
+    let on_event: Option<tauri::ipc::Channel<OperationEvent>> =
+        on_event.map(|id| id.channel_on(webview));
+    blocking_async_service_at_generation(
+        state.inner().clone(),
+        generation,
+        move |service| async move {
+            service
+                .run_standing_setup(|event| emit_install_operation(&app, &on_event, event))
+                .await
+                .map_err(Into::into)
+        },
+    )
+    .await
+}
+
+#[tauri::command]
+async fn get_install_batch(
+    state: tauri::State<'_, DesktopState>,
+    generation: u64,
+    batch_id: String,
+) -> DesktopResult<Option<portcove_core::InstallBatchRecord>> {
+    blocking_service_at_generation(state.inner().clone(), generation, move |service| {
+        service.install_batch(&batch_id).map_err(Into::into)
     })
     .await
 }
@@ -975,6 +1395,36 @@ async fn scan_game_file_roots(
     .await
 }
 
+/// One page of the current saved-folder scan's recorded matches. Paging a
+/// scan that has since been replaced is a conflict, so the view reloads.
+#[tauri::command]
+async fn get_game_file_scan_matches(
+    state: tauri::State<'_, DesktopState>,
+    generation: u64,
+    query: portcove_core::GameFileScanMatchQuery,
+) -> DesktopResult<portcove_core::GameFileScanMatchPage> {
+    blocking_service_at_generation(state.inner().clone(), generation, move |service| {
+        service.game_file_scan_matches(&query).map_err(Into::into)
+    })
+    .await
+}
+
+/// The game-file profiles the current scan matched inside one saved folder,
+/// so its setup choices cover every match. Reads only.
+#[tauri::command]
+async fn get_game_file_root_match_profiles(
+    state: tauri::State<'_, DesktopState>,
+    generation: u64,
+    root_id: String,
+) -> DesktopResult<Vec<String>> {
+    blocking_service_at_generation(state.inner().clone(), generation, move |service| {
+        service
+            .game_file_root_match_profiles(&root_id)
+            .map_err(Into::into)
+    })
+    .await
+}
+
 #[tauri::command]
 async fn get_game_file_scan_snapshot(
     state: tauri::State<'_, DesktopState>,
@@ -1029,19 +1479,6 @@ async fn discover_sources(
             .discover_sources_with_progress(&request, |event| {
                 let _ = on_event.send(event);
             })
-            .map_err(Into::into)
-    })
-    .await
-}
-
-#[tauri::command]
-async fn get_source_inbox_paths(
-    state: tauri::State<'_, DesktopState>,
-    profile_id: String,
-) -> DesktopResult<SourceInboxPaths> {
-    blocking_service(state.inner().clone(), move |service| {
-        service
-            .source_inbox_paths(Some(&profile_id))
             .map_err(Into::into)
     })
     .await
@@ -1118,10 +1555,13 @@ fn plan_source_import_for(
         .map_err(Into::into)
 }
 
+// Tauri binds these named IPC arguments and injects the app, state and event channel.
+#[allow(clippy::too_many_arguments)]
 #[tauri::command]
 async fn import_source(
     app: tauri::AppHandle,
     state: tauri::State<'_, DesktopState>,
+    generation: u64,
     profile_id: String,
     path: PathBuf,
     mode: SourceImportMode,
@@ -1129,7 +1569,7 @@ async fn import_source(
     on_event: tauri::ipc::Channel<OperationEvent>,
 ) -> DesktopResult<Option<SourceImportResult>> {
     if mode == SourceImportMode::Move {
-        let reviewed = blocking_service(state.inner().clone(), {
+        let reviewed = blocking_service_at_generation(state.inner().clone(), generation, {
             let profile_id = profile_id.clone();
             let path = path.clone();
             move |service| plan_source_import_for(&service, &profile_id, &path, mode)
@@ -1154,7 +1594,35 @@ async fn import_source(
             return Ok(None);
         }
     }
-    blocking_service(state.inner().clone(), move |service| {
+    import_confirmed_source_at_generation(
+        state.inner().clone(),
+        generation,
+        profile_id,
+        path,
+        mode,
+        expected_plan,
+        move |event| {
+            let _ = on_event.send(event);
+        },
+    )
+    .await
+}
+
+// Move reaches this worker only after the native confirmation above. The worker
+// resolves and checks the original generation again, including after confirmation.
+async fn import_confirmed_source_at_generation<F>(
+    state: DesktopState,
+    generation: u64,
+    profile_id: String,
+    path: PathBuf,
+    mode: SourceImportMode,
+    expected_plan: String,
+    emit: F,
+) -> DesktopResult<Option<SourceImportResult>>
+where
+    F: FnMut(OperationEvent) + Send + 'static,
+{
+    blocking_service_at_generation(state, generation, move |service| {
         import_source_for(
             &service,
             &profile_id,
@@ -1162,9 +1630,7 @@ async fn import_source(
             mode,
             &expected_plan,
             mode == SourceImportMode::Move,
-            |event| {
-                let _ = on_event.send(event);
-            },
+            emit,
         )
         .map(Some)
     })
@@ -1239,12 +1705,19 @@ async fn set_policy(
 #[tauri::command]
 async fn install_port(
     app: tauri::AppHandle,
+    webview: tauri::Webview,
     state: tauri::State<'_, DesktopState>,
     input: InstallInput,
     generation: u64,
+    on_event: Option<tauri::ipc::JavaScriptChannelId>,
 ) -> DesktopResult<InstallRecord> {
+    let on_event: Option<tauri::ipc::Channel<OperationEvent>> =
+        on_event.map(|id| id.channel_on(webview));
     let state = state.inner().clone();
     blocking_async_service_at_generation(state, generation, move |service| async move {
+        let _source_reuse = input.source_reference.as_ref().map(|reference| {
+            service.lock_source_reuse(&input.port_id, reference, input.source.as_deref())
+        }).transpose()?;
         if service.catalog().port(&input.port_id)?.managed_shared_preferences.is_some() {
             if input.stage {
                 return Err(PortcoveError::unsupported("Install ReGaiden normally to review its Windows shared preferences. First-install staging is unavailable for this consent-bearing route.").into());
@@ -1257,20 +1730,21 @@ async fn install_port(
             let destination = scope.local_fallback_path.parent().ok_or_else(|| PortcoveError::verification("shared preferences installation location is missing"))?;
             let message = format!("Install {} {}\nLocation: {}\nOriginal game file: {}\n\n{}", service.catalog().port(&input.port_id)?.name, reviewed.plan.release.version, destination.display(), original.as_ref().map(|record| record.path.display().to_string()).unwrap_or_else(|| "Not registered".into()), scope.write_scope_disclosure());
             if !confirm_destructive(&app, "Allow ReGaiden's shared preferences?", message, "Accept scope and install").await {
-                return Err(PortcoveError::usage("shared preferences review was canceled").into());
+                return Err(PortcoveError::new(portcove_core::ErrorCode::Cancelled, "Shared preferences review cancelled. Nothing was changed.")
+                    .with_mutation_state(portcove_core::MutationState::NotStarted).into());
             }
             let authorization = service.authorize_game_install_with_shared_preferences_ack(&input.port_id, &reviewed.plan_sha256, Some(&reviewed.plan_sha256)).await?;
-            return service.apply_game_install(&input.port_id, &authorization.token, |event| emit_operation(&app, event)).await.map_err(Into::into);
+            return service.apply_game_install(&input.port_id, &authorization.token, |event| emit_install_operation(&app, &on_event, event)).await.map_err(Into::into);
         }
         service
             .install(
                 &input.port_id,
                 input.channel,
-                input.source.as_deref(),
+                if _source_reuse.is_some() { None } else { input.source.as_deref() },
                 input.bios.as_deref(),
                 !input.stage,
                 |event: OperationEvent| {
-                    emit_operation(&app, event);
+                    emit_install_operation(&app, &on_event, event);
                 },
             )
             .await
@@ -1329,6 +1803,9 @@ struct LaunchSupervisorRequest {
     port_id: String,
     source: Option<PathBuf>,
     arguments: Vec<String>,
+    /// Managed multi-disc choice; Core validates and records it.
+    #[serde(default)]
+    disc: Option<u32>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -1360,18 +1837,53 @@ async fn launch_port(
     port_id: String,
     source: Option<PathBuf>,
     arguments: Vec<String>,
+    disc: Option<u32>,
     generation: u64,
 ) -> DesktopResult<LaunchResult> {
     let worker_state = state.inner().clone();
     let (library, result) = tauri::async_runtime::spawn_blocking(move || {
         let library = library_at_generation(&worker_state, generation)?;
-        let result = request_supervised_launch(&library, port_id, source, arguments)?;
+        let result = request_supervised_launch(&library, port_id, source, arguments, disc)?;
         Ok::<_, DesktopError>((library, result))
     })
     .await
     .map_err(|error| DesktopError::from(PortcoveError::state(error.to_string())))??;
     observe_launch_completion(&app, state.inner(), library, result.session_id.clone())?;
     Ok(result)
+}
+
+/// The explained failure of a port's latest finished launch, or `None` when the
+/// latest launch succeeded, was cancelled, or has nothing worth explaining.
+#[tauri::command]
+async fn get_launch_failure(
+    state: tauri::State<'_, DesktopState>,
+    port_id: String,
+    generation: u64,
+) -> DesktopResult<Option<LaunchSessionView>> {
+    let state = state.inner().clone();
+    blocking_worker(move || {
+        let library = library_at_generation(&state, generation)?;
+        let view = library
+            .latest_finished_launch_session(&port_id)?
+            .map(LaunchSessionView::new)
+            .filter(|view| view.exit_explanation.is_some());
+        require_library_generation(state_generation(&state), generation)?;
+        Ok(view)
+    })
+    .await
+}
+
+/// Launch failures surface within seconds, so observe quickly at first and then
+/// back off while a game keeps running instead of reading SQLite four times a
+/// second for the whole play session.
+fn launch_observation_interval(since_last_launch: Duration) -> Duration {
+    if since_last_launch < Duration::from_secs(10) {
+        Duration::from_millis(250)
+    } else if since_last_launch < Duration::from_secs(60) {
+        Duration::from_secs(1)
+    } else {
+        Duration::from_secs(2)
+    }
 }
 
 fn observe_launch_completion(
@@ -1387,29 +1899,65 @@ fn observe_launch_completion(
         let (sender, receiver) = std::sync::mpsc::channel::<LaunchObservation>();
         let app = app.clone();
         thread::spawn(move || {
-            let mut pending = Vec::<(Library, String)>::new();
+            let mut pending = Vec::<(Library, String, std::cell::Cell<Option<u64>>)>::new();
+            let mut last_observation = std::time::Instant::now();
             loop {
-                match receiver.recv_timeout(Duration::from_millis(250)) {
-                    Ok(observation) => pending.push(observation),
-                    Err(std::sync::mpsc::RecvTimeoutError::Timeout) => {}
-                    Err(std::sync::mpsc::RecvTimeoutError::Disconnected) if pending.is_empty() => {
-                        break;
+                if pending.is_empty() {
+                    // Nothing to observe: wait for the next launch instead of polling.
+                    match receiver.recv() {
+                        Ok(observation) => {
+                            pending.push((
+                                observation.0,
+                                observation.1,
+                                std::cell::Cell::new(None),
+                            ));
+                            last_observation = std::time::Instant::now();
+                        }
+                        Err(std::sync::mpsc::RecvError) => break,
                     }
-                    Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => {}
+                } else {
+                    let interval = launch_observation_interval(last_observation.elapsed());
+                    match receiver.recv_timeout(interval) {
+                        Ok(observation) => {
+                            pending.push((
+                                observation.0,
+                                observation.1,
+                                std::cell::Cell::new(None),
+                            ));
+                            last_observation = std::time::Instant::now();
+                        }
+                        Err(std::sync::mpsc::RecvTimeoutError::Timeout) => {}
+                        Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => {
+                            thread::sleep(interval);
+                        }
+                    }
                 }
                 while let Ok(observation) = receiver.try_recv() {
-                    pending.push(observation);
+                    pending.push((observation.0, observation.1, std::cell::Cell::new(None)));
                 }
-                let completed =
-                    retain_launch_observations(&mut pending, |(library, request_id)| match library
-                        .launch_request(request_id)
-                    {
-                        Ok(Some(request)) if request.outcome.is_none() => {
-                            LaunchObservationState::Active
+                let completed = retain_launch_observations(
+                    &mut pending,
+                    |(library, request_id, last_sequence)| {
+                        let progress = launch_progress_path(library.root(), request_id);
+                        // Preparation progress (for example unpacking a disc image) is
+                        // reported by the supervisor process; relay each newer step to
+                        // the same operation event the UI already follows.
+                        if let Some(event) = read_launch_progress(&progress, last_sequence.get()) {
+                            last_sequence.set(Some(event.sequence));
+                            emit_operation(&app, event);
                         }
-                        Ok(_) => LaunchObservationState::Complete,
-                        Err(_) => LaunchObservationState::Retry,
-                    });
+                        match library.launch_request(request_id) {
+                            Ok(Some(request)) if request.outcome.is_none() => {
+                                LaunchObservationState::Active
+                            }
+                            Ok(_) => {
+                                let _ = fs::remove_file(&progress);
+                                LaunchObservationState::Complete
+                            }
+                            Err(_) => LaunchObservationState::Retry,
+                        }
+                    },
+                );
                 if completed {
                     let _ = emit_desktop_event::<()>(&app, DESKTOP_EVENT_LIBRARY_CHANGED, ());
                 }
@@ -1446,6 +1994,7 @@ fn request_supervised_launch(
     port_id: String,
     source: Option<PathBuf>,
     arguments: Vec<String>,
+    disc: Option<u32>,
 ) -> DesktopResult<LaunchResult> {
     let request_id = OperationCoordinator::new("launch-supervisor-request", None)
         .operation_id()
@@ -1462,6 +2011,7 @@ fn request_supervised_launch(
             port_id,
             source,
             arguments,
+            disc,
         },
     )?;
     let executable = std::env::current_exe().map_err(PortcoveError::from)?;
@@ -1536,6 +2086,34 @@ where
 
 fn response_path_for(request_path: &Path) -> PathBuf {
     request_path.with_extension("response.json")
+}
+
+/// Where the supervisor process leaves the latest launch-preparation event for the
+/// UI process. Ephemeral reporting only: it never carries a launch decision.
+fn progress_path_for(request_path: &Path) -> PathBuf {
+    request_path.with_extension("progress.json")
+}
+
+fn launch_progress_path(library_root: &Path, request_id: &str) -> PathBuf {
+    progress_path_for(
+        &library_root
+            .join("launch-requests")
+            .join(format!("{request_id}.json")),
+    )
+}
+
+/// The latest relayed event when it is newer than the last one already shown.
+/// A missing, oversized or malformed file is simply "nothing new".
+fn read_launch_progress(path: &Path, after_sequence: Option<u64>) -> Option<OperationEvent> {
+    const MAX_PROGRESS_BYTES: u64 = 16 * 1024;
+    let metadata = fs::metadata(path).ok()?;
+    if !metadata.is_file() || metadata.len() > MAX_PROGRESS_BYTES {
+        return None;
+    }
+    let event: OperationEvent = serde_json::from_slice(&fs::read(path).ok()?).ok()?;
+    after_sequence
+        .is_none_or(|seen| event.sequence > seen)
+        .then_some(event)
 }
 
 fn publish_json(path: &Path, value: &impl Serialize) -> DesktopResult<()> {
@@ -1860,13 +2438,19 @@ fn run_supervisor_request(request_path: &Path) -> i32 {
     let result = host_startup::open_library_at(&request.library_root)
         .and_then(PortcoveService::new)
         .and_then(|service| {
-            service.supervise_launch_identified(
+            let progress_path = progress_path_for(request_path);
+            service.supervise_launch_observed(
                 IdentifiedLaunchRequest {
                     request_id: &request.request_id,
                     port_id: &request.port_id,
                     source_override: request.source.as_deref(),
                     arguments: &request.arguments,
                     stdio: LaunchStdio::Null,
+                    disc: request.disc,
+                },
+                // Best-effort: a failed progress write never affects the launch.
+                &|event| {
+                    let _ = publish_json(&progress_path, &event);
                 },
                 |session| {
                     let _ = fs::remove_file(request_path);
@@ -1953,18 +2537,6 @@ async fn get_doctor_report(
         let report = service.doctor_with_preferences(preferences)?;
         require_library_generation(state_generation(&state), generation)?;
         Ok(report)
-    })
-    .await
-}
-
-#[tauri::command]
-async fn get_host_tools(
-    state: tauri::State<'_, DesktopState>,
-) -> DesktopResult<Vec<HostToolStatus>> {
-    let state = state.inner().clone();
-    blocking_worker(move || {
-        let preferences = state.preferences.as_ref().map_err(Clone::clone)?;
-        host_tools_for(preferences)
     })
     .await
 }
@@ -2124,11 +2696,13 @@ fn resolve_source_evidence_url(
 fn validate_external_url(service: &PortcoveService, url: &str) -> DesktopResult<()> {
     let known = matches!(
         url,
-        "https://github.com/boburning/portcove" | "https://github.com/login/device"
+        "https://github.com/boburning/portcove"
+            | "https://github.com/login/device"
+            | "https://github.com/boburning/portcove/blob/main/docs/UPGRADING.md#upgrade-portcove"
     ) || service.is_reviewed_resource_url(url)?;
     if !known {
         return Err(PortcoveError::usage(
-            "only reviewed project, setup, release, artwork and GitHub sign-in links may be opened",
+            "only reviewed project, setup, upgrade, release, artwork and GitHub sign-in links may be opened",
         )
         .into());
     }
@@ -2158,6 +2732,28 @@ async fn create_support_bundle(
     .await
 }
 
+/// Opens the host-chosen diagnostics directory that support reports are written
+/// to. The webview supplies no path, so this adds no new filesystem authority:
+/// it reuses the fixed-program directory opener on a directory the host already
+/// validated for export.
+#[tauri::command]
+async fn open_support_report_folder(
+    diagnostics: tauri::State<'_, diagnostics::HostDiagnostics>,
+) -> DesktopResult<()> {
+    let directory = diagnostics.directory.clone();
+    blocking_worker(move || open_support_report_directory(&directory?)).await
+}
+
+fn open_support_report_directory(directory: &Path) -> DesktopResult<()> {
+    if !directory.is_dir() {
+        return Err(PortcoveError::state(
+            "the support report folder is not available; create a new support report",
+        )
+        .into());
+    }
+    open_directory(directory)
+}
+
 fn support_bundle_for_state(
     state: &DesktopState,
     directory: &Path,
@@ -2180,7 +2776,9 @@ async fn export_library_metadata(
 ) -> DesktopResult<LibraryMetadataFile> {
     let state = state.inner().clone();
     blocking_service(state, move |service| {
-        service.write_library_metadata(&path).map_err(Into::into)
+        service
+            .write_library_metadata_from_picker(&path)
+            .map_err(Into::into)
     })
     .await
 }
@@ -2456,7 +3054,7 @@ fn dispatch_main_window<T, F>(label: &str, invocation: T, dispatch: F) -> Result
 where
     F: FnOnce(T) -> bool,
 {
-    if label == "main" {
+    if label == MAIN_WINDOW_LABEL {
         Ok(dispatch(invocation))
     } else {
         Err(invocation)
@@ -2471,7 +3069,9 @@ where
     move |invoke| {
         let label = invoke.message.webview_ref().label().to_owned();
         #[cfg(feature = "native-compatibility-qualification")]
-        if label == "main" && webview_boundary_qualification::handles(invoke.message.command()) {
+        if label == MAIN_WINDOW_LABEL
+            && webview_boundary_qualification::handles(invoke.message.command())
+        {
             return webview_boundary_qualification::dispatch(invoke);
         }
         match dispatch_main_window(&label, invoke, &handler) {
@@ -2538,35 +3138,12 @@ pub fn run() -> std::process::ExitCode {
     let configured_root = std::env::var_os("PORTCOVE_LIBRARY")
         .filter(|path| !path.is_empty())
         .map(PathBuf::from);
-    tracing::info!(
-        operation_id = "desktop-startup",
-        phase = "start",
-        message = "desktop initialization"
-    );
-    let initialization_result = preferences
-        .as_ref()
-        .map_err(Clone::clone)
-        .and_then(|store| initialize_desktop_with(store, configured_root));
-    tracing::info!(
-        operation_id = "desktop-startup",
-        phase = "complete",
-        success = initialization_result.is_ok(),
-        code = diagnostics::error_code_label(
-            initialization_result.as_ref().err().map(|error| error.code)
-        ),
-        message = "desktop initialization"
-    );
-    if let Err(error) = &initialization_result {
-        eprintln!(
-            "{}",
-            early_startup_message(EarlyStartupPhase::Library, error)
-        );
-    }
-    #[cfg(any(windows, target_os = "linux", target_os = "macos"))]
-    if initialization_result.is_ok() {
-        report_application_update_qualification_stage("desktop initialization");
-    }
-    let initialization = std::sync::Arc::new(std::sync::Mutex::new(initialization_result));
+    // Opening the library can migrate it and recover interrupted work. Do it
+    // on a worker after the window exists, so the player sees the loading
+    // state instead of no window at all.
+    let initialization = std::sync::Arc::new(std::sync::Mutex::new(Err(startup_pending())));
+    let startup_initialization = initialization.clone();
+    let startup_preferences = preferences.clone();
     let builder = tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(webview_boundary::init());
@@ -2588,6 +3165,22 @@ pub fn run() -> std::process::ExitCode {
             get_bootstrap_status,
             get_runtime_diagnostic_health,
             get_locale_preference,
+            game_settings_commands::get_game_settings,
+            game_settings_commands::get_port_capabilities,
+            game_settings_commands::review_game_setting,
+            game_settings_commands::apply_game_setting,
+            mod_setup_commands::get_mod_setups,
+            mod_setup_commands::create_default_mod_setup,
+            mod_setup_commands::copy_mod_setup,
+            mod_setup_commands::use_mod_setup,
+            mod_setup_commands::set_mod_package_enabled,
+            mod_setup_commands::add_mod_package,
+            mod_setup_commands::browse_provider_mods,
+            mod_setup_commands::get_provider_project,
+            mod_setup_commands::plan_provider_install,
+            mod_setup_commands::apply_provider_install,
+            mod_setup_commands::discard_provider_install,
+            mod_setup_commands::review_mod_package_code,
             favorite_commands::get_favorite_ports,
             favorite_commands::set_port_favorite,
             organization_commands::get_library_organization,
@@ -2613,6 +3206,8 @@ pub fn run() -> std::process::ExitCode {
             steam_entry_commands::apply_steam_entry,
             steam_entry_commands::preview_steam_batch_add,
             steam_entry_commands::apply_steam_batch_add,
+            steam_entry_commands::preview_steam_artwork,
+            steam_entry_commands::apply_steam_artwork,
             library_selection::get_library_identity,
             library_selection::get_default_library_root,
             library_selection::set_default_library,
@@ -2627,6 +3222,10 @@ pub fn run() -> std::process::ExitCode {
             catalog::compare_game_ports,
             catalog::get_catalog_status,
             catalog::get_listing_delivery_status,
+            catalog::get_official_catalog_review,
+            catalog::enable_official_catalog,
+            catalog::refresh_official_catalog,
+            catalog::refresh_official_definition,
             catalog::refresh_catalog_listings,
             catalog::get_engine_capabilities,
             catalog::check_definition_capabilities,
@@ -2662,30 +3261,64 @@ pub fn run() -> std::process::ExitCode {
             get_backups,
             create_backup,
             backup_review::preview_backup_action,
+            ghostship_recovery::plan_ghostship_legacy_recovery,
+            ghostship_recovery::recover_ghostship_legacy_data,
             artwork::get_artwork,
             artwork::get_artwork_thumbnail,
             artwork::get_catalog_media_thumbnail,
             artwork::import_artwork,
             artwork::reset_artwork,
+            steamgriddb::get_steamgriddb_key_status,
+            steamgriddb::set_steamgriddb_key,
+            steamgriddb::clear_steamgriddb_key,
+            steamgriddb::search_steamgriddb_games,
+            steamgriddb::get_steamgriddb_candidates,
+            steamgriddb::get_steamgriddb_preview,
+            steamgriddb::choose_steamgriddb_artwork,
             backup_review::restore_backup,
             backup_review::delete_backup,
+            portable_saves_commands::preview_portable_save_export,
+            portable_saves_commands::export_portable_saves,
+            portable_saves_commands::preview_portable_save_import,
+            portable_saves_commands::import_portable_saves,
             inspect_source,
+            review_source_reuse,
             inspect_source_intake,
             plan_source_relink,
             relink_source,
             verify_sources,
             check_port,
             check_installed,
+            forecast_installed_update_checks,
             add_source,
             get_game_file_roots,
+            get_library_memberships,
+            add_games_to_library,
+            remove_library_membership,
+            plan_install_batch,
+            start_install_batch,
+            run_install_batch,
+            get_unfinished_install_batches,
+            set_port_intent,
+            get_port_intents,
+            assess_port_intents,
+            acknowledge_port_readiness,
+            run_standing_setup,
+            set_root_setup_consent,
+            set_root_setup_implementation,
+            set_root_setup_local_copy,
+            get_root_setup_consents,
+            cancel_install_batch,
+            get_install_batch,
             add_game_file_root,
             relink_game_file_root,
             remove_game_file_root,
             scan_game_file_roots,
             get_game_file_scan_snapshot,
+            get_game_file_scan_matches,
+            get_game_file_root_match_profiles,
             refresh_game_file_query,
             discover_sources,
-            get_source_inbox_paths,
             open_source_inbox,
             scan_source_inbox,
             plan_source_import,
@@ -2699,6 +3332,9 @@ pub fn run() -> std::process::ExitCode {
             activate_port,
             rollback_port,
             adoption::preview_adoption,
+            adoption::inspect_launcher_library,
+            adoption::preview_adoption_batch,
+            adoption::adopt_batch,
             adoption::adopt_port,
             removal::preview_removal,
             removal::remove_port,
@@ -2723,8 +3359,15 @@ pub fn run() -> std::process::ExitCode {
             preparation::preview_preparation_cleanup,
             preparation::cleanup_preparation,
             launch_port,
+            automatic_snapshots::get_automatic_snapshots,
+            automatic_snapshots::set_automatic_snapshots,
+            ready_notices::get_ready_notices_enabled,
+            ready_notices::set_ready_notices_enabled,
+            bug_report::preview_bug_report,
+            bug_report::open_bug_report,
+            bug_report::submit_report,
+            get_launch_failure,
             get_doctor_report,
-            get_host_tools,
             set_host_tool_path,
             clear_host_tool_path,
             recheck_host_tool,
@@ -2734,6 +3377,7 @@ pub fn run() -> std::process::ExitCode {
             open_external_url,
             open_source_evidence,
             create_support_bundle,
+            open_support_report_folder,
             export_library_metadata,
             library_transfer::plan_library_move,
             library_transfer::plan_library_import,
@@ -2743,50 +3387,33 @@ pub fn run() -> std::process::ExitCode {
             library_transfer::recover_library_move,
             report_frontend_error,
         ]))
-        .setup(|app| {
+        .setup(move |app| {
             #[cfg(feature = "native-compatibility-qualification")]
             webview_boundary_qualification::validate_fixture()?;
-            #[cfg(any(windows, target_os = "linux", target_os = "macos"))]
-            report_application_update_qualification_stage("Tauri setup");
-            if let Some(window) = app.get_webview_window("main") {
+            if let Some(window) = app.get_webview_window(MAIN_WINDOW_LABEL) {
                 window.set_focus()?;
             }
-            let state = app.state::<DesktopState>();
-            match ready(&state) {
-                Ok(ready_state) => {
-                    for session in ready_state.library.launch_sessions()? {
-                        observe_launch_completion(
-                            app.handle(),
-                            state.inner(),
-                            ready_state.library.clone(),
-                            session.id,
-                        )
-                        .map_err(|error| std::io::Error::other(error.message))?;
+            let handle = app.handle().clone();
+            std::thread::Builder::new()
+                .name("portcove-startup".into())
+                .spawn(move || {
+                    let prepared = initialize_desktop_in_background(
+                        &startup_initialization,
+                        startup_preferences,
+                        configured_root,
+                        |initialization| prepare_desktop_startup(&handle, initialization),
+                    );
+                    if let Err(error) = prepared.and_then(|()| finish_desktop_startup(&handle)) {
+                        tracing::error!(
+                            component = "startup",
+                            phase = "after_initialization",
+                            success = false,
+                            message = "desktop startup could not finish"
+                        );
+                        eprintln!("Portcove desktop stopped: {error}");
+                        handle.exit(1);
                     }
-                    #[cfg(any(windows, target_os = "linux", target_os = "macos"))]
-                    reconcile_application_update_after_healthy_startup();
-                }
-                #[cfg(any(windows, target_os = "linux", target_os = "macos"))]
-                Err(error) => report_application_update_qualification_failure(
-                    "desktop initialization",
-                    &error.message,
-                ),
-                #[cfg(not(any(windows, target_os = "linux", target_os = "macos")))]
-                Err(_) => {}
-            }
-            #[cfg(feature = "application-update-qualification")]
-            if std::env::var_os("PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_EXIT").as_deref()
-                == Some(std::ffi::OsStr::new("after-reconciliation"))
-            {
-                app.handle().exit(0);
-                return Ok(());
-            }
-            application_update_commands::start_automatic_checks(
-                app.state::<application_update_commands::ApplicationUpdateCommandState>()
-                    .inner()
-                    .clone(),
-                app.handle().clone(),
-            );
+                })?;
             Ok(())
         })
         .build(tauri::generate_context!());
@@ -2805,6 +3432,139 @@ pub fn run() -> std::process::ExitCode {
         }
     }
     std::process::ExitCode::SUCCESS
+}
+
+type StartupResult = Result<(), Box<dyn std::error::Error>>;
+
+/// Opens the selected library on the startup worker, runs `prepare` while the
+/// placeholder still holds every library command back, and then publishes the
+/// result unless a later selection already replaced the placeholder. A panic
+/// still publishes a failure, so `get_bootstrap_status` always settles.
+fn initialize_desktop_in_background(
+    initialization: &std::sync::Mutex<DesktopResult<ReadyDesktopState>>,
+    preferences: DesktopResult<HostPreferenceStore>,
+    configured_root: Option<PathBuf>,
+    prepare: impl FnOnce(&DesktopResult<ReadyDesktopState>) -> StartupResult,
+) -> StartupResult {
+    struct Publication<'a> {
+        initialization: &'a std::sync::Mutex<DesktopResult<ReadyDesktopState>>,
+        value: Option<DesktopResult<ReadyDesktopState>>,
+    }
+    impl Drop for Publication<'_> {
+        fn drop(&mut self) {
+            let value = self.value.take().unwrap_or_else(|| {
+                Err(PortcoveError::state("Portcove could not finish opening the library").into())
+            });
+            match self.initialization.lock() {
+                Ok(mut current) if is_startup_pending(&current) => *current = value,
+                Ok(_) => {}
+                Err(_) => tracing::error!(
+                    component = "startup",
+                    phase = "publish",
+                    success = false,
+                    message = "desktop state lock was poisoned"
+                ),
+            }
+            STARTUP_SETTLED.notify_waiters();
+        }
+    }
+    let mut publication = Publication {
+        initialization,
+        value: None,
+    };
+    tracing::info!(
+        operation_id = "desktop-startup",
+        phase = "start",
+        message = "desktop initialization"
+    );
+    let initialization_result = preferences
+        .as_ref()
+        .map_err(Clone::clone)
+        .and_then(|store| initialize_desktop_with(store, configured_root));
+    tracing::info!(
+        operation_id = "desktop-startup",
+        phase = "complete",
+        success = initialization_result.is_ok(),
+        code = diagnostics::error_code_label(
+            initialization_result.as_ref().err().map(|error| error.code)
+        ),
+        message = "desktop initialization"
+    );
+    if let Err(error) = &initialization_result {
+        eprintln!(
+            "{}",
+            early_startup_message(EarlyStartupPhase::Library, error)
+        );
+    }
+    #[cfg(any(windows, target_os = "linux", target_os = "macos"))]
+    if initialization_result.is_ok() {
+        report_application_update_qualification_stage("desktop initialization");
+    }
+    let prepared = prepare(&initialization_result);
+    // A failure here exits the app; never show Workspace for that instant.
+    publication.value = Some(match &prepared {
+        Ok(()) => initialization_result,
+        Err(error) => Err(PortcoveError::state(format!(
+            "Portcove could not finish opening the library: {error}"
+        ))
+        .into()),
+    });
+    drop(publication);
+    prepared
+}
+
+/// Work that ran in Tauri setup before any command could be served: observe
+/// launches left running and reconcile a pending application update. It runs
+/// before the library is published, so no frontend read or update command can
+/// race the apply journal or a library switch.
+fn prepare_desktop_startup(
+    app: &tauri::AppHandle,
+    initialization: &DesktopResult<ReadyDesktopState>,
+) -> StartupResult {
+    #[cfg(any(windows, target_os = "linux", target_os = "macos"))]
+    report_application_update_qualification_stage("Tauri setup");
+    match initialization {
+        Ok(ready_state) => {
+            let state = app.state::<DesktopState>();
+            for session in ready_state.library.launch_sessions()? {
+                observe_launch_completion(
+                    app,
+                    state.inner(),
+                    ready_state.library.clone(),
+                    session.id,
+                )
+                .map_err(|error| std::io::Error::other(error.message))?;
+            }
+            #[cfg(any(windows, target_os = "linux", target_os = "macos"))]
+            reconcile_application_update_after_healthy_startup();
+        }
+        #[cfg(any(windows, target_os = "linux", target_os = "macos"))]
+        Err(error) => report_application_update_qualification_failure(
+            "desktop initialization",
+            &error.message,
+        ),
+        #[cfg(not(any(windows, target_os = "linux", target_os = "macos")))]
+        Err(_) => {}
+    }
+    Ok(())
+}
+
+/// After publication: the qualification exit and automatic update checks.
+fn finish_desktop_startup(app: &tauri::AppHandle) -> StartupResult {
+    #[cfg(feature = "application-update-qualification")]
+    if std::env::var_os("PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_EXIT").as_deref()
+        == Some(std::ffi::OsStr::new("after-reconciliation"))
+    {
+        app.exit(0);
+        return Ok(());
+    }
+    application_update_commands::start_automatic_checks(
+        app.state::<application_update_commands::ApplicationUpdateCommandState>()
+            .inner()
+            .clone(),
+        app.clone(),
+    );
+    Ok(())
 }
 
 #[cfg(test)]
@@ -2857,7 +3617,7 @@ mod tests {
         assert_eq!(secondary, Err("invocation"));
         assert_eq!(dispatches, 0);
 
-        let main = dispatch_main_window("main", "invocation", |_| {
+        let main = dispatch_main_window(MAIN_WINDOW_LABEL, "invocation", |_| {
             dispatches += 1;
             true
         });
@@ -2933,6 +3693,89 @@ mod tests {
         .await
         .unwrap();
         assert_eq!(actual_root, replacement_root);
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn source_import_keeps_reviewed_generation_through_dispatch_and_move_confirmation() {
+        for mode in [SourceImportMode::UseCurrentLocation, SourceImportMode::Move] {
+            let temporary = tempfile::tempdir().unwrap();
+            let original = initialize_desktop_at(Some(temporary.path().join("original"))).unwrap();
+            let original_library = original.library.clone();
+            let replacement =
+                initialize_desktop_at(Some(temporary.path().join("replacement"))).unwrap();
+            let replacement_library = replacement.library.clone();
+            let selected = temporary.path().join("selected.iso");
+            let bytes = b"owned source-import generation fixture";
+            std::fs::write(&selected, bytes).unwrap();
+            let profile = "opengoal-jak1-disc";
+            let state = DesktopState {
+                initialization: std::sync::Arc::new(std::sync::Mutex::new(Ok(original))),
+                preferences: HostPreferenceStore::new(temporary.path().join("preferences.json"))
+                    .map_err(DesktopError::from),
+                generation: std::sync::Arc::new(std::sync::atomic::AtomicU64::new(7)),
+                launch_observer: std::sync::Arc::new(std::sync::Mutex::new(None)),
+            };
+            let plan = plan_source_import_for(
+                &service_at_generation(&state, 7).unwrap(),
+                profile,
+                &selected,
+                mode,
+            )
+            .unwrap();
+            if mode == SourceImportMode::UseCurrentLocation {
+                // An otherwise identical Core plan is valid in both empty libraries.
+                // Only the captured host generation can fence a delayed UI request.
+                let other = PortcoveService::new(replacement_library.clone()).unwrap();
+                let other_plan = other.plan_source_import(profile, &selected, mode).unwrap();
+                assert_eq!(plan.plan_sha256, other_plan.plan_sha256);
+            }
+            let old_activities =
+                serde_json::to_value(original_library.activities(100).unwrap()).unwrap();
+            let new_activities =
+                serde_json::to_value(replacement_library.activities(100).unwrap()).unwrap();
+            let events = std::sync::Arc::new(std::sync::atomic::AtomicU64::new(0));
+            let observed = events.clone();
+            let mut request = Box::pin(import_confirmed_source_at_generation(
+                state.clone(),
+                7,
+                profile.into(),
+                selected.clone(),
+                mode,
+                plan.plan_sha256,
+                move |_| {
+                    observed.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                },
+            ));
+            {
+                let mut initialization = state.initialization.lock().unwrap();
+                if mode == SourceImportMode::UseCurrentLocation {
+                    let mut context =
+                        std::task::Context::from_waker(futures_util::task::noop_waker_ref());
+                    assert!(request.as_mut().poll(&mut context).is_pending());
+                }
+                // For Move this is the switch while native confirmation was open:
+                // its post-confirmation mutation request has not been dispatched yet.
+                *initialization = Ok(replacement);
+                state
+                    .generation
+                    .store(8, std::sync::atomic::Ordering::Release);
+            }
+            let error = request.await.unwrap_err();
+            assert_eq!(error.code, portcove_core::ErrorCode::Conflict);
+            assert!(error.message.contains("open library changed"));
+            assert_eq!(events.load(std::sync::atomic::Ordering::Relaxed), 0);
+            assert!(original_library.source(profile).unwrap().is_none());
+            assert!(replacement_library.source(profile).unwrap().is_none());
+            assert_eq!(
+                serde_json::to_value(original_library.activities(100).unwrap()).unwrap(),
+                old_activities
+            );
+            assert_eq!(
+                serde_json::to_value(replacement_library.activities(100).unwrap()).unwrap(),
+                new_activities
+            );
+            assert_eq!(std::fs::read(&selected).unwrap(), bytes);
+        }
     }
 
     #[tokio::test(flavor = "current_thread")]
@@ -3256,6 +4099,45 @@ mod tests {
     }
 
     #[test]
+    fn launch_preparation_progress_is_relayed_once_per_newer_event_and_tolerates_bad_files() {
+        let temporary = tempfile::tempdir().unwrap();
+        let request_path = temporary.path().join("launch-requests").join("abc.json");
+        let progress = progress_path_for(&request_path);
+        assert_eq!(progress, launch_progress_path(temporary.path(), "abc"));
+        assert!(progress.ends_with("abc.progress.json"));
+
+        // Missing, malformed and oversized files are simply "nothing new".
+        assert!(read_launch_progress(&progress, None).is_none());
+        fs::create_dir_all(progress.parent().unwrap()).unwrap();
+        fs::write(&progress, b"not json").unwrap();
+        assert!(read_launch_progress(&progress, None).is_none());
+        fs::write(&progress, vec![b' '; 20 * 1024]).unwrap();
+        assert!(read_launch_progress(&progress, None).is_none());
+
+        let operation = OperationCoordinator::new("launch", None);
+        let first = operation.progress_with_unit(
+            "disc.plan",
+            portcove_core::ProgressUnit::Indeterminate,
+            0,
+            None,
+        );
+        let second = operation.progress_with_unit(
+            "disc.extract",
+            portcove_core::ProgressUnit::Bytes,
+            5,
+            Some(10),
+        );
+        assert!(publish_json(&progress, &first).is_ok());
+        let seen = read_launch_progress(&progress, None).expect("the first event is new");
+        assert_eq!(seen.sequence, first.sequence);
+        // The same event is never relayed twice.
+        assert!(read_launch_progress(&progress, Some(seen.sequence)).is_none());
+        assert!(publish_json(&progress, &second).is_ok());
+        let next = read_launch_progress(&progress, Some(seen.sequence)).expect("a newer event");
+        assert_eq!(next.sequence, second.sequence);
+    }
+
+    #[test]
     fn external_links_are_limited_to_reviewed_https_destinations() {
         let temporary = tempfile::tempdir().unwrap();
         let service =
@@ -3264,6 +4146,7 @@ mod tests {
         for url in [
             "https://github.com/boburning/portcove",
             "https://github.com/login/device",
+            "https://github.com/boburning/portcove/blob/main/docs/UPGRADING.md#upgrade-portcove",
             &catalog.document().ports[0].project_url,
             "https://www.igdb.com/games/ship-of-harkinian",
         ] {
@@ -3275,10 +4158,32 @@ mod tests {
             "https://example.com",
             "https://github.com/login/device?redirect=elsewhere",
             "https://github.com/boburning/portcove.evil",
+            "https://github.com/boburning/portcove/blob/main/docs/UPGRADING.md?redirect=elsewhere#upgrade-portcove",
             "https://www.igdb.com/games/ship-of-harkinian?redirect=elsewhere",
             "https://www.igdb.com/games/unmapped-game",
         ] {
             assert!(validate_external_url(&service, url).is_err(), "{url}");
+        }
+    }
+
+    #[test]
+    fn canonical_repository_update_handoff_uses_reviewed_catalog_identity() {
+        let temporary = tempfile::tempdir().unwrap();
+        let service =
+            PortcoveService::new(Library::open(temporary.path().join("library")).unwrap()).unwrap();
+        for repository in ["Ghostship", "Starship"] {
+            let url = format!("https://github.com/HarbourMasters/{repository}/releases");
+            validate_external_url(&service, &url).unwrap();
+            for unrelated in [
+                format!("{url}?redirect=elsewhere"),
+                format!("{url}/download/unreviewed/game.exe"),
+                format!("https://github.com/ForeignOwner/{repository}/releases"),
+            ] {
+                assert!(
+                    validate_external_url(&service, &unrelated).is_err(),
+                    "{unrelated}"
+                );
+            }
         }
     }
 
@@ -3388,6 +4293,62 @@ mod tests {
             serde_json::to_value(desktop).unwrap(),
             serde_json::to_value(core).unwrap()
         );
+    }
+
+    #[test]
+    fn known_catalog_digest_omits_only_the_unchanged_documents() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let service = PortcoveService::new(library).unwrap();
+
+        let full =
+            omit_known_catalog(workspace_snapshot_with_service(&service).unwrap(), None).unwrap();
+        let digest = full.catalog_digest.clone().unwrap();
+        assert!(!full.catalog_unchanged);
+        assert!(full.catalog.is_some());
+
+        let stale = omit_known_catalog(
+            workspace_snapshot_with_service(&service).unwrap(),
+            Some("0000"),
+        )
+        .unwrap();
+        assert!(!stale.catalog_unchanged);
+        assert_eq!(stale.catalog_digest.as_deref(), Some(digest.as_str()));
+        assert!(stale.catalog.is_some());
+
+        let known = omit_known_catalog(
+            workspace_snapshot_with_service(&service).unwrap(),
+            Some(&digest),
+        )
+        .unwrap();
+        assert!(known.catalog_unchanged);
+        assert!(known.catalog.is_none() && known.listing_catalog.is_none());
+        assert_eq!(known.catalog_digest.as_deref(), Some(digest.as_str()));
+        let full_value = serde_json::to_value(&full).unwrap();
+        let known_value = serde_json::to_value(&known).unwrap();
+        assert_eq!(full_value["statuses"], known_value["statuses"]);
+        assert_eq!(full_value["sources"], known_value["sources"]);
+        assert!(known_value.get("catalog").is_none());
+        assert_eq!(known_value["catalog_unchanged"], true);
+    }
+
+    #[test]
+    fn support_report_folder_is_not_opened_when_the_directory_is_unavailable() {
+        let temporary = tempfile::tempdir().unwrap();
+        let missing = temporary.path().join("diagnostics");
+        let file = temporary.path().join("not-a-directory");
+        fs::write(&file, b"file").unwrap();
+
+        for path in [&missing, &file] {
+            let error = open_support_report_directory(path).unwrap_err();
+            assert!(
+                error
+                    .message
+                    .contains("support report folder is not available"),
+                "{}",
+                error.message
+            );
+        }
     }
 
     #[test]
@@ -3599,6 +4560,110 @@ mod tests {
 
         let cleared = clear_host_tool_for(&restarted, "chdman").unwrap();
         assert_ne!(cleared.source, Some(portcove_core::HostToolSource::Saved));
+    }
+
+    fn pending_state(preferences: std::path::PathBuf) -> DesktopState {
+        DesktopState {
+            initialization: std::sync::Arc::new(std::sync::Mutex::new(Err(startup_pending()))),
+            preferences: HostPreferenceStore::new(preferences).map_err(DesktopError::from),
+            generation: std::sync::Arc::new(std::sync::atomic::AtomicU64::new(1)),
+            launch_observer: std::sync::Arc::new(std::sync::Mutex::new(None)),
+        }
+    }
+
+    #[test]
+    fn bootstrap_status_waits_for_background_initialization() {
+        let temporary = tempfile::tempdir().unwrap();
+        let state = pending_state(temporary.path().join("preferences.json"));
+        assert!(service(&state).is_err());
+        assert!(require_no_library_handoff(&state.initialization.lock().unwrap()).is_err());
+        let runtime = tokio::runtime::Builder::new_current_thread()
+            .enable_time()
+            .build()
+            .unwrap();
+        let worker_state = state.clone();
+        let library = temporary.path().join("library");
+        let status = runtime.block_on(async {
+            let waiting = tokio::spawn({
+                let state = state.clone();
+                async move { settled_bootstrap_status(&state).await }
+            });
+            tokio::time::sleep(Duration::from_millis(50)).await;
+            assert!(
+                !waiting.is_finished(),
+                "status answered before startup settled"
+            );
+            let preparing_state = worker_state.clone();
+            std::thread::spawn(move || {
+                initialize_desktop_in_background(
+                    &worker_state.initialization,
+                    worker_state.preferences.clone(),
+                    Some(library),
+                    |initialization| {
+                        // Post-initialization work runs before publication.
+                        assert!(initialization.is_ok());
+                        assert!(is_startup_pending(
+                            &preparing_state.initialization.lock().unwrap()
+                        ));
+                        assert!(service(&preparing_state).is_err());
+                        Ok(())
+                    },
+                )
+                .unwrap();
+            })
+            .join()
+            .unwrap();
+            tokio::time::timeout(Duration::from_secs(30), waiting)
+                .await
+                .expect("status settles after initialization")
+                .unwrap()
+        });
+        assert!(status.ready, "{:?}", status.error);
+        assert!(status.library_root.is_some());
+        assert!(service(&state).is_ok());
+    }
+
+    #[test]
+    fn background_initialization_does_not_replace_a_settled_selection() {
+        let temporary = tempfile::tempdir().unwrap();
+        let state = pending_state(temporary.path().join("preferences.json"));
+        let chosen = initialize_desktop_at(Some(temporary.path().join("chosen"))).unwrap();
+        let chosen_root = chosen.library.root().to_path_buf();
+        *state.initialization.lock().unwrap() = Ok(chosen);
+        initialize_desktop_in_background(
+            &state.initialization,
+            state.preferences.clone(),
+            Some(temporary.path().join("startup")),
+            |_| Ok(()),
+        )
+        .unwrap();
+        assert_eq!(bootstrap_status(&state).library_root, Some(chosen_root));
+    }
+
+    #[test]
+    fn a_panicking_startup_worker_still_settles_bootstrap() {
+        let temporary = tempfile::tempdir().unwrap();
+        let state = pending_state(temporary.path().join("preferences.json"));
+        let worker_state = state.clone();
+        let library = temporary.path().join("library");
+        let panicked = std::thread::spawn(move || {
+            initialize_desktop_in_background(
+                &worker_state.initialization,
+                worker_state.preferences.clone(),
+                Some(library),
+                |_| panic!("simulated startup panic"),
+            )
+            .is_ok()
+        })
+        .join();
+        assert!(panicked.is_err());
+        let status = bootstrap_status(&state);
+        assert!(!status.ready);
+        assert!(!is_startup_pending(&state.initialization.lock().unwrap()));
+        assert_eq!(
+            status.error.unwrap().message,
+            "Portcove could not finish opening the library"
+        );
     }
 
     #[test]

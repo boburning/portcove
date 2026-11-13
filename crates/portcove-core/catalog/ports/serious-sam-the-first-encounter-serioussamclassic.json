@@ -17,6 +17,7 @@
       "match_kind": "underlying-game"
     },
     "issue_number": 2605,
+    "listed_at": "2026-10-25",
     "release_url": "https://github.com/tx00100xt/SeriousSamClassic/releases/tag/1.10.7",
     "download_asset_hints": {
       "windows-x86-64": ["SeriousSamClassic-", "-directx9-win64-bin.7z"]
@@ -33,17 +34,27 @@
           "instruction": "Use the complete SeriousSamClassic-1.10.7-directx9-win64-bin.7z archive. The matching x64/SamTFE/Bin/SeriousSam.exe is the player. Retain all corresponding SamTFE DLLs and resources alongside your matching original data; do not select the other encounter, editor, dedicated server or conversion tools. Register the prepared player and its upstream working game directory. Keep the complete prepared tree rather than extracting only the EXE."
         },
         {
-          "title": "Preserve the actual player data",
-          "instruction": "Preserve the complete working SamTFE game folder, actual user profiles, saves, configuration and any redirected/mod storage. The inspected package/source does not establish a universal migration contract or compatibility with another encounter/engine. Keep the creating runtime and data before upstream replacement."
+          "title": "Add the prepared Windows game",
+          "instruction": "On Windows, finish setup with the project’s tools before adding the game. Select the game executable and its working folder, and put each launch argument on a separate line. Choose Play separately when you are ready. You manage this game’s files, originals, saves and settings. Removing its registration leaves those external files in place. Portcove does not offer updates, backups, rollback, data migration or file deletion for this external copy. Close the game and keep a working copy and every data and profile folder before changing versions."
         },
         {
-          "title": "Keep external ownership and deliberate Play",
-          "instruction": "Finish upstream preparation before registration. Register the real player with its matching working directory and separate literal argument lines. Play is a separate explicit action. You and upstream own this runtime, original files, saves and configuration. Registration-only removal preserves these external files; managed Update, Backup, Rollback, migration and deletion are unavailable for them. Preserve the working runtime and every actual data/profile location with the game closed before upstream replacement. Other platforms require their own upstream flow."
+          "title": "Prepare the upstream Linux player",
+          "instruction": "Use the Linux AMD64 archive ending in -lnx-amd64-bin.tar.xz. Keep x64/SamTFE together and copy your own matching classic .gro files and the Help and Levels folders into that encounter folder. The player is x64/SamTFE/Bin/SeriousSam. Use glibc 2.34 or newer, system SDL2 and zlib. From that encounter's Bin directory, run LD_LIBRARY_PATH=. ./SeriousSam yourself. Keep your effective user profile."
         }
       ],
-      "warnings": [],
-      "help_url": "https://github.com/tx00100xt/SeriousSamClassic/blob/871c9ebf1af0a09a976a080cbdc2ab6e7a21ab57/README.md"
-    }
+      "warnings": [
+        "The inspected package/source does not establish a universal migration contract or compatibility with another encounter/engine. Keep the creating runtime and data before upstream replacement.",
+        "The inspected Intel Mac archive refers to the build machine for engine libraries and expects SDL2 at a system path. Keep using a working upstream build or wait for a compatible package."
+      ],
+      "help_url": "https://github.com/tx00100xt/SeriousSamClassic/blob/871c9ebf1af0a09a976a080cbdc2ab6e7a21ab57/README.md",
+      "references": [
+        {
+          "title": "Keep your existing game data",
+          "instruction": "Preserve the complete working SamTFE game folder, actual user profiles, saves, configuration and any redirected/mod storage. The inspected package/source does not establish a universal migration contract or compatibility with another encounter/engine. Keep the creating runtime and data before upstream replacement."
+        }
+      ]
+    },
+    "platforms": ["linux-x86-64"]
   },
   "upstream_lineage": {
     "format_version": 1,

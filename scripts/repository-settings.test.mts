@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
 import { readFile, readdir } from "node:fs/promises";
 import { spawnSync } from "node:child_process";
-import { copyFileSync, mkdirSync, mkdtempSync, rmSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { isBuiltin } from "node:module";
+import { readFixtureModuleClosure } from "./fixtures/module-closure.mts";
 import os from "node:os";
 import path from "node:path";
 import ruleset from "../.github/repository-ruleset.json" with { type: "json" };
@@ -25,27 +28,32 @@ function parameters(value: unknown, type: string) {
 }
 
 import test from "node:test";
+import type { RepositorySettingsOperations } from "./repository-settings-policy.mts";
+import { GitHubApiError } from "./github-operation.mts";
 
 import {
+  planReleaseRulesets,
   projectRuleset,
   repositoryApplyPlan,
   repositorySettingsMigration,
   rulesetMigration,
   validateRepositorySettings,
-} from "./repository-settings.mts";
+  reconcileRepositorySettings,
+} from "./repository-settings-policy.mts";
 
 void test("repository-settings help does not read artifacts or contact GitHub", (t) => {
   const root = mkdtempSync(path.join(os.tmpdir(), "portcove-repository-help-"));
   t.after(() => rmSync(root, { recursive: true, force: true }));
-  mkdirSync(path.join(root, "scripts"));
-  for (const file of [
-    "repository-settings.mts",
-    "runtime-values.mts",
-    "github-api.mts",
-    "release-readonly-child-environment.mts",
-    "release-coordinator-deadline.mts",
-  ])
-    copyFileSync(new URL(file, import.meta.url), path.join(root, "scripts", file));
+  const closure = readFixtureModuleClosure(
+    fileURLToPath(new URL("../", import.meta.url)),
+    ["scripts/repository-settings.mts"],
+    { includeDynamicImports: false },
+  );
+  assert.ok(closure.external.every(isBuiltin));
+  for (const module of closure.modules) {
+    mkdirSync(path.dirname(path.join(root, module.path)), { recursive: true });
+    writeFileSync(path.join(root, module.path), module.bytes);
+  }
   const result = spawnSync(
     process.execPath,
     [path.join(root, "scripts/repository-settings.mts"), "--help"],
@@ -75,6 +83,21 @@ void test("repository-settings help does not read artifacts or contact GitHub", 
   assert.equal(invalid.status, 1);
   assert.match(invalid.stderr, /Usage:/u);
   assert.doesNotMatch(invalid.stderr, /ENOENT/u);
+  mkdirSync(path.join(root, ".github"));
+  writeFileSync(path.join(root, ".github/repository-ruleset.json"), JSON.stringify(ruleset));
+  writeFileSync(path.join(root, ".github/repository-security.json"), JSON.stringify(security));
+  const local = spawnSync(
+    process.execPath,
+    [path.join(root, "scripts/repository-settings.mts"), "--validate"],
+    {
+      encoding: "utf8",
+      timeout: 5000,
+      env: { ...process.env, PATH: "" },
+      cwd: root,
+    },
+  );
+  assert.equal(local.status, 0, local.stderr);
+  assert.match(local.stdout, /artifacts are valid/u);
 });
 
 void test("checked-in repository settings enforce the exact main contract", () => {
@@ -306,5 +329,278 @@ void test("ruleset validation rejects malformed exclusion collections", () => {
       () => validateRepositorySettings(candidate, security),
       /include only refs\/heads\/main/,
     );
+  }
+});
+
+function settingsOperations(
+  options: {
+    outcome?: "applied-error" | "unapplied-error" | "lost-readback";
+    oldRuleset?: boolean;
+  } = {},
+) {
+  const calls: string[] = [];
+  let writes = 0;
+  let current = {
+    allow_auto_merge: false,
+    merge_commit_title: "MERGE_MESSAGE",
+    merge_commit_message: "PR_TITLE",
+  };
+  const desired = {
+    allow_auto_merge: security.allow_auto_merge,
+    merge_commit_title: security.merge_commit_title,
+    merge_commit_message: security.merge_commit_message,
+  };
+  const actualRuleset = structuredClone(ruleset);
+  if (options.oldRuleset)
+    parameters(actualRuleset, "required_status_checks").strict_required_status_checks_policy = true;
+  const api: RepositorySettingsOperations = {
+    async readRulesets() {
+      calls.push("rulesets");
+      if (writes && options.outcome === "lost-readback") throw new Error("readback unavailable");
+      return [{ id: 99, name: ruleset.name, target: ruleset.target }];
+    },
+    async readPrivateReporting() {
+      calls.push("security");
+      return { enabled: true };
+    },
+    async readRepository() {
+      calls.push("repository");
+      return { ...current };
+    },
+    async readRuleset(id) {
+      calls.push(`ruleset:${id}`);
+      return { ...structuredClone(actualRuleset), id };
+    },
+    async updateRuleset(id, payload) {
+      calls.push(`write-ruleset:${id}`);
+      writes++;
+      Object.assign(actualRuleset, payload);
+    },
+    async updateRepository(payload) {
+      calls.push("write-repository");
+      writes++;
+      if (options.outcome !== "unapplied-error") current = { ...current, ...record(payload) };
+      if (options.outcome)
+        throw new GitHubApiError("request_failed", "Ambiguous fixture write", {
+          status: 500,
+          requestId: "settings-write",
+        });
+    },
+    async enablePrivateReporting() {
+      calls.push("enable-private");
+      writes++;
+    },
+  };
+  return {
+    api,
+    calls,
+    desired,
+    get writes() {
+      return writes;
+    },
+  };
+}
+
+void test("settings plan and check use awaited operations and preserve JSON/guard contracts", async () => {
+  const f = settingsOperations();
+  const plan = await reconcileRepositorySettings(ruleset, security, "--plan", f.api);
+  assert.equal(plan.kind, "plan");
+  assert.deepEqual(f.calls, ["rulesets", "security", "repository", "ruleset:99"]);
+  assert.equal(f.writes, 0);
+  if (plan.kind === "plan")
+    assert.deepEqual(plan.output, {
+      ruleset: [],
+      repository: [
+        { path: "allow_auto_merge", from: false, to: security.allow_auto_merge },
+        { path: "merge_commit_title", from: "MERGE_MESSAGE", to: security.merge_commit_title },
+        { path: "merge_commit_message", from: "PR_TITLE", to: security.merge_commit_message },
+      ],
+      privateVulnerabilityReporting: [],
+    });
+  await assert.rejects(
+    reconcileRepositorySettings(ruleset, security, "--check", f.api),
+    /repository settings differ/u,
+  );
+  assert.equal(f.writes, 0);
+});
+
+void test("settings apply awaits writes and readback, reconciles once, and refuses unknown outcomes", async () => {
+  for (const outcome of [undefined, "applied-error", "unapplied-error", "lost-readback"] as const) {
+    const f = settingsOperations(outcome ? { outcome } : {});
+    const work = reconcileRepositorySettings(ruleset, security, "--apply", f.api);
+    if (outcome === "unapplied-error" || outcome === "lost-readback")
+      await assert.rejects(
+        work,
+        (error: unknown) =>
+          error instanceof GitHubApiError &&
+          error.code === "mutation_unknown" &&
+          error.status === 500 &&
+          error.requestId === "settings-write",
+      );
+    else assert.deepEqual(await work, { kind: "checked", repository: security.repository });
+    assert.equal(f.writes, 1);
+    assert.deepEqual(f.calls.slice(0, 5), [
+      "rulesets",
+      "security",
+      "repository",
+      "ruleset:99",
+      "write-repository",
+    ]);
+    assert.equal(f.calls[5], "rulesets");
+  }
+});
+
+void test("settings apply preserves protected identity and mutation sequencing", async () => {
+  const f = settingsOperations({ oldRuleset: true });
+  await reconcileRepositorySettings(ruleset, security, "--apply", f.api);
+  assert.deepEqual(f.calls, [
+    "rulesets",
+    "security",
+    "repository",
+    "ruleset:99",
+    "write-ruleset:99",
+    "write-repository",
+    "rulesets",
+    "security",
+    "repository",
+    "ruleset:99",
+  ]);
+  const invalid = settingsOperations();
+  invalid.api.readRulesets = async () => [
+    { id: 99, name: ruleset.name, target: ruleset.target },
+    { id: 100, name: ruleset.name, target: ruleset.target },
+  ];
+  await assert.rejects(
+    reconcileRepositorySettings(ruleset, security, "--apply", invalid.api),
+    /ambiguous/u,
+  );
+  assert.equal(invalid.writes, 0);
+});
+
+void test(
+  "settings readback waits for the actual asynchronous write to settle",
+  { timeout: 5000 },
+  async () => {
+    const f = settingsOperations();
+    const gate = Promise.withResolvers<void>(),
+      began = Promise.withResolvers<void>();
+    const update = f.api.updateRepository;
+    f.api.updateRepository = async (payload) => {
+      began.resolve();
+      await gate.promise;
+      return update(payload);
+    };
+    const work = reconcileRepositorySettings(ruleset, security, "--apply", f.api);
+    await began.promise;
+    let assertion: unknown;
+    try {
+      await new Promise<void>((resolve) => setImmediate(resolve));
+      assert.deepEqual(f.calls, ["rulesets", "security", "repository", "ruleset:99"]);
+    } catch (error) {
+      assertion = error;
+    } finally {
+      gate.resolve();
+    }
+    const result = await work;
+    if (assertion instanceof Error) throw assertion;
+    assert.deepEqual(result, { kind: "checked", repository: security.repository });
+    assert.equal(f.writes, 1);
+  },
+);
+
+void test("release ruleset migration expands live coverage before retiring equivalent policies", () => {
+  const source = { source: "boburning/portcove", source_type: "Repository" };
+  const branches = [
+    "refs/heads/portcove-production-coordinator-state",
+    "refs/heads/portcove-release-inputs",
+    "refs/heads/portcove-release-pause",
+  ];
+  const tags = Array.from(
+    { length: 67 },
+    (_, index) => `refs/tags/portcove-production-controller-test-r${index}`,
+  );
+  const refs = Object.fromEntries([...branches, ...tags].map((ref) => [ref, "a".repeat(40)]));
+  const make = (id: number, name: string, ref: string, rules: string[], actors: object[] = []) => ({
+    ...source,
+    id,
+    name,
+    target: ref.startsWith("refs/tags/") ? "tag" : "branch",
+    enforcement: "active",
+    conditions: { ref_name: { include: [ref], exclude: [] } },
+    rules: rules.map((type) => ({ type })),
+    bypass_actors: actors,
+  });
+  const writer = { actor_id: 5632044, actor_type: "Integration", bypass_mode: "always" };
+  const owner = { actor_id: 43177418, actor_type: "User", bypass_mode: "always" };
+  const versionTags = make(2, "Protect release tags", "refs/tags/v*", ["update", "deletion"]);
+  let inventory: Record<string, unknown>[] = [
+    { ...ruleset, ...source, id: 1 },
+    versionTags,
+    make(3, "Portcove publication pause owner update", branches[2]!, ["update"], [owner]),
+    ...branches
+      .slice(0, 2)
+      .map((ref, i) => make(4 + i, `old writer ${i}`, ref, ["update"], [writer])),
+    ...branches.map((ref, i) =>
+      make(6 + i, `old retention ${i}`, ref, ["creation", "deletion", "non_fast_forward"]),
+    ),
+    ...tags.map((ref, i) => make(9 + i, `old tag ${i}`, ref, ["creation", "update", "deletion"])),
+  ];
+  const missing = { ...refs };
+  delete missing[tags[0]!];
+  assert.throws(() => planReleaseRulesets(inventory, missing, ruleset), /absent or unverified/u);
+  const wrongWriter = structuredClone(inventory);
+  wrongWriter[3]!.bypass_actors = [{ ...writer, actor_id: 15368 }];
+  assert.throws(
+    () => planReleaseRulesets(wrongWriter, refs, ruleset),
+    /Unrecognized release ruleset/u,
+  );
+  for (const index of [0, 1]) {
+    const disabled = structuredClone(inventory);
+    disabled[index]!.enforcement = "disabled";
+    assert.throws(
+      () => planReleaseRulesets(disabled, refs, ruleset),
+      /differs|Unexpected drift|unexpected out-of-scope drift/u,
+    );
+  }
+  const extendedMain = structuredClone(inventory);
+  parameters(extendedMain[0], "pull_request").dismissal_restriction = true;
+  assert.throws(() => planReleaseRulesets(extendedMain, refs, ruleset), /unexpected parameters/u);
+  refs["refs/tags/v1.0.0"] = "b".repeat(40);
+  const original = planReleaseRulesets(inventory, refs, ruleset);
+  const revised = structuredClone(inventory);
+  revised[0]!.updated_at = "2026-11-11T00:00:00Z";
+  assert.notEqual(planReleaseRulesets(revised, refs, ruleset).observation, original.observation);
+  assert.equal(original.count, 75);
+  const actions: string[] = [];
+  for (let stage = 0; stage < 7; stage++) {
+    const { next } = planReleaseRulesets(inventory, refs, ruleset);
+    assert.ok(next);
+    actions.push(next.action);
+    if (next.action === "update") {
+      const index = inventory.findIndex((row) => row.id === next.id);
+      inventory[index] = { ...source, id: next.id, ...next.payload };
+    } else if (next.action === "create") {
+      assert.ok(inventory.length < 75);
+      inventory.push({ ...source, id: 76 + stage, ...next.payload });
+    } else {
+      const deleted = new Set(next.policies.map(({ id }) => id));
+      for (const id of next.replacements) assert.ok(inventory.some((row) => row.id === id));
+      inventory = inventory.filter((row) => !deleted.has(Number(row.id)));
+    }
+  }
+  assert.deepEqual(actions, ["update", "delete", "update", "delete", "create", "create", "delete"]);
+  const final = planReleaseRulesets(inventory, refs, ruleset);
+  assert.equal(final.count, 7);
+  assert.equal(final.next, null);
+  assert.notEqual(final.observation, original.observation);
+  assert.deepEqual(final.identities, original.identities);
+  assert.deepEqual(final.stable.immutable?.bypass_actors, []);
+  assert.deepEqual(final.stable.creator?.bypass_actors, [owner]);
+  assert.deepEqual(final.stable.creator?.rules, [{ type: "creation" }]);
+  for (const suffix of ["next-r1", "next-r2"]) {
+    refs[`refs/tags/portcove-production-controller-${suffix}`] = "b".repeat(40);
+    const successor = planReleaseRulesets(inventory, refs, ruleset);
+    assert.equal(successor.next, null);
+    assert.deepEqual(successor.stable, final.stable);
   }
 });

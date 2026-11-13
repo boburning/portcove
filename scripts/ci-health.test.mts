@@ -5,8 +5,17 @@ function required<T>(value: T | null | undefined): T {
 }
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
+import { readFileSync } from "node:fs";
 import test from "node:test";
-import { collectHistory, renderReport, summarizeAttempt, summarizeHistory } from "./ci-health.mts";
+import {
+  collectHistory,
+  createCiHistoryRequest,
+  renderReport,
+  summarizeAttempt,
+  summarizeHistory,
+  supersededStopStep,
+} from "./ci-health.mts";
+import { localDeveloperCredential } from "./github-cli.mts";
 import { buildWorkflowProvenance } from "./workflow-provenance.mts";
 
 const stamp = (seconds: number) => new Date(Date.UTC(2026, 8, 7) + seconds * 1000).toISOString();
@@ -90,6 +99,18 @@ void test("cancelled, failed and running attempts remain visible outside success
     failure: 1,
     in_progress: 1,
   });
+});
+
+void test("first-attempt pass rate excludes cancelled, running and rerun attempts", () => {
+  const summary = summarizeHistory([
+    attempt(),
+    attempt({ id: 2, conclusion: "failure" }),
+    attempt({ id: 3, conclusion: "cancelled" }),
+    attempt({ id: 4, status: "in_progress", conclusion: null }),
+    attempt({ id: 5, run_attempt: 2 }),
+  ]);
+  assert.deepEqual(summary.firstAttemptPass, { decided: 2, passed: 1, rate: 0.5 });
+  assert.equal(summarizeHistory([]).firstAttemptPass.rate, null);
 });
 
 void test("cancelled work retains executed cost and job failures without inferring supersession", () => {
@@ -529,13 +550,47 @@ void test("collector admits only digest-bound attempt provenance to equivalent c
     },
     checkoutSha: "a".repeat(40),
   });
-  const archive = storedZip(JSON.stringify(record));
-  const request: CiRequest = async (route, paginate, responseType) => {
-    if (route.includes("/workflows/")) return { workflow_runs: [{ id: 1, run_attempt: 1 }] };
-    if (route.includes("/jobs?")) return [{ total_count: 1, jobs: [job()] }];
-    if (route.includes("/artifacts?"))
-      return [
-        {
+  let archive = storedZip(JSON.stringify(record));
+  let credentialReads = 0,
+    deliveries = 0;
+  const deliveryStarted = Promise.withResolvers<void>(),
+    resumeDelivery = Promise.withResolvers<void>();
+  let holdDelivery = false;
+  const signed = "https://productionresultssa1.blob.core.windows.net/actions-results/ci?sig=inert";
+  const deadline = performance.now() + 10000;
+  const request = await createCiHistoryRequest({
+    repository: "example/repo",
+    deadline,
+    credential: localDeveloperCredential({
+      deadline,
+      environment: {},
+      resolve: async () => {
+        credentialReads++;
+        return "inert-ci-reader";
+      },
+    }),
+    fetch: async (input, init) => {
+      const request = new Request(input, init),
+        url = new URL(request.url);
+      assert.equal(request.method, "GET");
+      assert.equal(init?.redirect, "manual");
+      if (url.href === signed) {
+        assert.equal(request.headers.get("authorization"), null);
+        assert.equal(init?.credentials, "omit");
+        deliveries++;
+        if (holdDelivery) {
+          deliveryStarted.resolve();
+          await resumeDelivery.promise;
+        }
+        return new Response(new Uint8Array(archive));
+      }
+      assert.equal(url.origin, "https://api.github.com");
+      assert.equal(request.headers.get("authorization"), "token inert-ci-reader");
+      if (url.pathname.includes("/workflows/"))
+        return Response.json({ workflow_runs: [{ id: 1, run_attempt: 1 }] });
+      if (url.pathname.endsWith("/jobs")) return Response.json({ total_count: 1, jobs: [job()] });
+      if (url.pathname.endsWith("/artifacts"))
+        return Response.json({
           total_count: 1,
           artifacts: [
             {
@@ -546,19 +601,20 @@ void test("collector admits only digest-bound attempt provenance to equivalent c
               workflow_run: { id: 1, head_sha: "a".repeat(40) },
             },
           ],
-        },
-      ];
-    if (route.includes("/artifacts/9/zip")) {
-      assert.equal(responseType, "buffer");
-      return archive;
-    }
-    return run();
-  };
-  const report = await collectHistory(request, {
-    repository: "example/repo",
-    event: "push",
-    limit: 1,
+        });
+      if (url.pathname === "/repos/example/repo/actions/artifacts/9/zip")
+        return new Response(null, { status: 302, headers: { location: signed } });
+      assert.equal(url.pathname, "/repos/example/repo/actions/runs/1/attempts/1");
+      return Response.json(run());
+    },
   });
+  const collect = () =>
+    collectHistory(request, {
+      repository: "example/repo",
+      event: "push",
+      limit: 1,
+    });
+  const report = await collect();
   assert.equal(report.summary.provenance.verified, 1);
   assert.equal(report.summary.provenance.unknown, 0);
   assert.equal(report.summary.cohorts.length, 1);
@@ -566,6 +622,32 @@ void test("collector admits only digest-bound attempt provenance to equivalent c
     required(report.summary.cohorts[0]).name,
     new RegExp(`exact:${record.equivalent_cohort}`, "u"),
   );
+  assert.equal(credentialReads, 1);
+  assert.equal(deliveries, 1);
+  archive = Buffer.alloc(2 * 1024 * 1024 + 1);
+  await assert.rejects(collect(), /Invalid provenance artifact archive size/);
+  assert.equal(deliveries, 2, "the transfer cap is distinct from the parser cap");
+  await assert.rejects(request("repos/other/repo/actions/artifacts/9/zip", false, "buffer"), {
+    code: "request_refused",
+  });
+  assert.equal(credentialReads, 1);
+
+  holdDelivery = true;
+  const route = "repos/example/repo/actions/artifacts/9/zip";
+  const first = request(route, false, "buffer"),
+    second = request(route, false, "buffer");
+  try {
+    await Promise.race([
+      deliveryStarted.promise,
+      first.then(() => assert.fail("first transfer was not held")),
+    ]);
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    assert.equal(deliveries, 3, "only one archive transfer is in flight");
+  } finally {
+    resumeDelivery.resolve();
+    await Promise.all([first, second]);
+  }
+  assert.equal(deliveries, 4);
 });
 
 void test("non-text workflow timestamps remain unavailable instead of coerced durations", () => {
@@ -635,4 +717,27 @@ void test("nullable provider links and old artifacts preserve unknown provenance
     assert.equal(required(result.jobs[0]).url, null);
     assert.deepEqual(result.provenance, { status: "unknown", reason: expected });
   }
+});
+
+void test("first-attempt pass rate excludes attempts that stopped because a newer head superseded them", () => {
+  const stopped = summarizeAttempt(run({ id: 4, conclusion: "failure" }), [
+    job({
+      conclusion: "failure",
+      steps: [
+        {
+          name: supersededStopStep,
+          status: "completed",
+          conclusion: "failure",
+        },
+      ],
+    }),
+  ]);
+  const summary = summarizeHistory([
+    attempt({ id: 1 }),
+    attempt({ id: 2, conclusion: "failure" }),
+    stopped,
+  ]);
+  assert.deepEqual(summary.firstAttemptPass, { decided: 2, passed: 1, rate: 0.5 });
+  const workflow = readFileSync(new URL("../.github/workflows/ci.yml", import.meta.url), "utf8");
+  assert.ok(workflow.includes(`- name: ${supersededStopStep}\n`));
 });

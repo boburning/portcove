@@ -1,12 +1,24 @@
 import { createHash } from "node:crypto";
-import type { IncludedResponse } from "../github-api.mts";
+import type { IncludedResponse } from "../github-operation.mts";
 
 const gitOid = (kind: string, bytes: Buffer) =>
   createHash("sha1").update(`${kind} ${bytes.length}\0`).update(bytes).digest("hex");
-export function sourceFixtureCommit(tree: string, parents: string[], message: string) {
-  const actor = { name: "Fixture", email: "fixture@example.invalid", date: "2026-10-18T00:00:00Z" };
+export function sourceFixtureCommit(
+  tree: string,
+  parents: string[],
+  message: string,
+  prepared = false,
+) {
+  const actor = prepared
+    ? {
+        name: "Portcove version preparation",
+        email: "version-preparation@portcove.invalid",
+        date: "2026-10-18T00:00:00Z",
+      }
+    : { name: "Fixture", email: "fixture@example.invalid", date: "2026-10-18T00:00:00Z" };
+  const gitActor = `${actor.name} <${actor.email}> 1792281600 +0000`;
   const raw = Buffer.from(
-    `tree ${tree}\n${parents.map((id) => `parent ${id}\n`).join("")}author Fixture <fixture@example.invalid> 1792281600 +0000\ncommitter Fixture <fixture@example.invalid> 1792281600 +0000\n\n${message}`,
+    `tree ${tree}\n${parents.map((id) => `parent ${id}\n`).join("")}author ${gitActor}\ncommitter ${gitActor}\n\n${message}`,
   );
   return {
     sha: gitOid("commit", raw),

@@ -1,8 +1,10 @@
+import { inspectReleaseProfile, isInitialBetaReleaseProfile } from "./release-package-policy.mts";
 import { capacityDigest } from "./release-capacity.mts";
 import { inspectCoordinatorRemoteNamespace } from "./release-coordinator-remote.mts";
 import { CoordinatorRemoteError } from "./release-coordinator-errors.mts";
 import { classifyApplicationVersion } from "../apps/desktop/scripts/release-version-policy.mts";
 import { isRecord } from "./runtime-values.mts";
+import { createGitHubClient, type GitHubRequestPolicy } from "./github-client.mts";
 import { performance } from "node:perf_hooks";
 
 const repository = "boburning/portcove";
@@ -25,6 +27,7 @@ type Candidate = {
   remote_configuration: unknown;
   dispatch_actor_id: string;
   report_repair_sha256?: string;
+  release_profile?: string;
 };
 export async function dispatchPreparedReleaseCandidate(
   raw: Candidate,
@@ -83,7 +86,7 @@ async function observePreparedReleaseCandidate(
   const input = structuredClone(raw);
   if (
     Object.keys(input).sort().join(",") !==
-      `dispatch_actor_id,prepared_commit,remote_configuration,${input.report_repair_sha256 === undefined ? "" : "report_repair_sha256,"}version` ||
+      `dispatch_actor_id,prepared_commit,${input.release_profile === undefined ? "" : "release_profile,"}remote_configuration,${input.report_repair_sha256 === undefined ? "" : "report_repair_sha256,"}version` ||
     (input.report_repair_sha256 !== undefined &&
       !/^[a-f0-9]{64}$/u.test(input.report_repair_sha256)) ||
     !/^[a-f0-9]{40}$/u.test(input.prepared_commit) ||
@@ -95,10 +98,15 @@ async function observePreparedReleaseCandidate(
     /\s/u.test(credential)
   )
     throw new Error("prepared dispatch requires exact identities and dedicated credential");
+  const profile = inspectReleaseProfile(input.release_profile ?? "initial-beta-win-linux");
+  if (!isInitialBetaReleaseProfile(profile))
+    throw new Error("exact prepared initial beta profile required");
   const namespace = inspectCoordinatorRemoteNamespace(input.remote_configuration);
   const version = classifyApplicationVersion(input.version).version;
   const ref = `refs/tags/${namespace}-prepared/v${version}`;
   const workflowEndpoint = `/repos/${repository}/actions/workflows/release.yml`;
+  const runEndpoint = `/repos/${repository}/actions/runs/`;
+  const runInventory = `${workflowEndpoint}/runs?event=workflow_dispatch&head_sha=${input.prepared_commit}&per_page=100&page=`;
   const start = performance.now();
   if (phaseDeadline !== undefined && !Number.isFinite(phaseDeadline))
     throw new Error("prepared dispatch phase deadline invalid");
@@ -107,63 +115,80 @@ async function observePreparedReleaseCandidate(
     const left = Math.floor(deadline - performance.now());
     if (!Number.isFinite(deadline) || left < 1)
       throw new Error("prepared dispatch phase deadline exhausted");
-    return Math.min(15000, left);
   };
   remaining();
   let requests = 0;
-  const request = async (method: "GET" | "POST", endpoint: string, body?: unknown) => {
-    if (++requests > 16 || performance.now() - start > 120000)
-      throw new Error("prepared dispatch request or duration bound exceeded");
-    const response = await transport(`${origin}${endpoint}`, {
-      method,
-      redirect: "error",
-      signal: AbortSignal.timeout(remaining()),
+  let attempted = false;
+  let runId: number | null = null;
+  try {
+    const client = await createGitHubClient({
+      credential: { kind: "explicit", token: credential },
+      deadline,
+      maxBytes: maximumBytes,
+      fetch: transport,
       headers: {
-        authorization: `Bearer ${credential}`,
         accept: "application/vnd.github+json",
         "content-type": "application/json",
         "x-github-api-version": "2026-03-10",
       },
-      ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+      allowRequest(method, url) {
+        if (url.hash) return false;
+        if (method === "POST")
+          return url.pathname === `${workflowEndpoint}/dispatches` && !url.search;
+        return (
+          method === "GET" &&
+          ((!url.search &&
+            (url.pathname === workflowEndpoint ||
+              (url.pathname.startsWith(runEndpoint) &&
+                /^[1-9][0-9]*$/u.test(url.pathname.slice(runEndpoint.length))))) ||
+            (url.pathname === `${workflowEndpoint}/runs` &&
+              url.href.startsWith(`${origin}${runInventory}`) &&
+              /^(?:[1-9]|10)$/u.test(url.href.slice((origin + runInventory).length))))
+        );
+      },
+      reserve() {
+        if (requests >= 16) throw new Error("prepared dispatch request bound exceeded");
+        requests++;
+        return {
+          consumeBytes() {},
+          settle(observation) {
+            if (!observation.dispatched) requests--;
+          },
+        };
+      },
     });
-    try {
+    const request = async (
+      method: "GET" | "POST",
+      endpoint: string,
+      body?: Record<string, unknown>,
+    ) => {
       remaining();
-    } catch (error) {
-      await response.body?.cancel();
-      throw error;
-    }
-    if (response.status !== 200) throw new Error("prepared dispatch response status unsupported");
-    if (!response.body) throw new Error("prepared dispatch response body absent");
-    const reader = response.body.getReader();
-    const chunks: Uint8Array[] = [];
-    let bytes = 0;
-    try {
-      for (;;) {
-        const next = await reader.read();
-        remaining();
-        if (next.done) break;
-        const chunk: unknown = next.value;
-        if (!(chunk instanceof Uint8Array)) throw new Error("prepared dispatch body chunk invalid");
-        bytes += chunk.byteLength;
-        if (bytes > maximumBytes) throw new Error("prepared dispatch response exceeds byte bound");
-        chunks.push(chunk);
-      }
-    } finally {
-      await reader.cancel();
-    }
-    const rawBody = Buffer.concat(chunks);
-    const text = rawBody.toString("utf8");
-    if (!Buffer.from(text).equals(rawBody)) throw new Error("prepared dispatch body is not UTF-8");
-    const value: unknown = JSON.parse(text);
-    if (performance.now() - start > 120000) throw new Error("prepared dispatch readback expired");
-    if (!isRecord(value)) throw new Error("prepared dispatch record absent");
-    return value;
-  };
-  // Resolve the fixed workflow before the irreversible request. No caller
-  // workflow ID, URL, arbitrary ref, command or input map is accepted.
-  let attempted = false;
-  let runId: number | null = null;
-  try {
+      const policy: GitHubRequestPolicy = {
+        replay: "once",
+        attempts: 0,
+        observe(observation) {
+          if (method === "POST" && observation.dispatched) attempted = true;
+        },
+      };
+      const response = await client.request({
+        method,
+        url: `${origin}${endpoint}`,
+        ...(body === undefined ? {} : { data: body }),
+        request: { portcove: policy },
+      });
+      remaining();
+      if (response.status !== 200) throw new Error("prepared dispatch response status unsupported");
+      // The provider may label the JSON with its vendor media type. The SDK
+      // transport already checked the bounded bytes as UTF-8 before parsing.
+      const data: unknown = response.data;
+      const text = data instanceof ArrayBuffer ? Buffer.from(data).toString("utf8") : data;
+      const value: unknown = typeof text === "string" ? JSON.parse(text) : text;
+      remaining();
+      if (!isRecord(value)) throw new Error("prepared dispatch record absent");
+      return value;
+    };
+    // Resolve the fixed workflow before the irreversible request. No caller
+    // workflow ID, URL, arbitrary ref, command or input map is accepted.
     const workflow = await request("GET", workflowEndpoint);
     positive(workflow.id);
     if (workflow.path !== ".github/workflows/release.yml" || workflow.state !== "active")
@@ -171,26 +196,26 @@ async function observePreparedReleaseCandidate(
     if (existingRunId === null) {
       await beforeDispatch();
       remaining();
-      attempted = true;
       const acknowledgment = await request("POST", `${workflowEndpoint}/dispatches`, {
         ref: ref.slice("refs/tags/".length),
         inputs: {
-          release_profile: "initial-beta-win-linux",
+          release_profile: profile,
           ...(input.report_repair_sha256 === undefined
             ? {}
             : { report_only_repair: true, report_repair_sha256: input.report_repair_sha256 }),
         },
       });
       positive(acknowledgment.workflow_run_id);
-      runId = acknowledgment.workflow_run_id;
+      const acknowledgedRun = acknowledgment.workflow_run_id;
       if (
-        acknowledgment.run_url !== `${origin}/repos/${repository}/actions/runs/${runId}` ||
-        acknowledgment.html_url !== `https://github.com/${repository}/actions/runs/${runId}`
+        acknowledgment.run_url !== `${origin}${runEndpoint}${acknowledgedRun}` ||
+        acknowledgment.html_url !==
+          `https://github.com/${repository}/actions/runs/${acknowledgedRun}`
       )
         throw new Error("dispatch acknowledgment does not identify its exact fixed repository run");
+      runId = acknowledgedRun;
     } else if (existingRunId > 0) runId = existingRunId;
     else {
-      const route = `${workflowEndpoint}/runs?event=workflow_dispatch&head_sha=${input.prepared_commit}&per_page=100&page=`;
       const identities: {
         id: number;
         actor: string;
@@ -237,7 +262,7 @@ async function observePreparedReleaseCandidate(
         return { total: Number(record.total_count), rows };
       };
       for (let page = 1; page <= 10; page++) {
-        const record = pageIdentity(await request("GET", `${route}${page}`));
+        const record = pageIdentity(await request("GET", `${runInventory}${page}`));
         if (total === null) {
           total = record.total;
           first = capacityDigest(record);
@@ -255,7 +280,7 @@ async function observePreparedReleaseCandidate(
       }
       if (
         identities.length !== total ||
-        capacityDigest(pageIdentity(await request("GET", `${route}1`))) !== first
+        capacityDigest(pageIdentity(await request("GET", `${runInventory}1`))) !== first
       )
         throw new Error("dispatch recovery inventory incomplete or changed during pagination");
       const matches = identities.filter(
@@ -270,7 +295,7 @@ async function observePreparedReleaseCandidate(
         throw new Error("lost dispatch acknowledgment remains absent or ambiguous");
       runId = matches[0]!.id;
     }
-    const run = await request("GET", `/repos/${repository}/actions/runs/${runId}`);
+    const run = await request("GET", `${runEndpoint}${runId}`);
     if (
       run.id !== runId ||
       run.workflow_id !== workflow.id ||
@@ -298,7 +323,7 @@ async function observePreparedReleaseCandidate(
       repository_id: repositoryId,
       workflow_id: workflow.id,
       workflow: ".github/workflows/release.yml",
-      release_profile: "initial-beta-win-linux",
+      release_profile: profile,
       ref,
       prepared_commit: input.prepared_commit,
       actor_id: input.dispatch_actor_id,

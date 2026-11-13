@@ -166,7 +166,7 @@ function fixture(
     );
   const accepted = Buffer.from(JSON.stringify(catalog));
   const input = Buffer.from(`${JSON.stringify(catalog, null, 2)}\n`);
-  const source = join(catalogs, "catalog-current-authoring.json");
+  const source = join(catalogs, "catalog-fixture-input.json");
   writeFileSync(source, accepted);
   writeFileSync(join(catalogs, "catalog.json"), accepted);
   writeFileSync(
@@ -231,6 +231,7 @@ function fixture(
       const selected=basename(args.at(-1),'.json')===process.env.COST_FAIL_AT;
       const mode=selected?process.env.COST_MODE:'success';
       const data={format_version:1,input_sha256:createHash('sha256').update(bytes).digest('hex'),input_bytes:bytes.length,ports:[]};
+      data.scope=args.includes('--repository-authoring')&&mode!=='scope'?'repository-summary-policy':'runtime-admission';
       if(mode==='hash')data.input_sha256='0'.repeat(64);
       if(mode==='bytes')data.input_bytes++;
       if(mode==='refusal')return {status:7,signal:null,stdout:'',stderr:'inert declaration refusal'};
@@ -335,6 +336,11 @@ void test("proposal costs measure waiting with a monotonic clock and preserve ex
     assert.equal(checked.input_bytes, bytes.length);
     assert.equal(checked.validator_artifact_sha256, hash(readFileSync(f.cli)));
     const process = receipt(f, name);
+    assert.equal(process.repository_authoring, name !== "accepted");
+    assert.equal(
+      checked.scope,
+      name === "accepted" ? "runtime-admission" : "repository-summary-policy",
+    );
     assert.equal(process.status, 0);
     assert.ok(number(process.elapsed_ms) >= 100);
     assert.match(text(process.elapsed_boundary), /around validator spawnSync, including waiting/u);
@@ -349,6 +355,8 @@ for (const [mode, failAt, expected] of [
   ["timeout", "input", /Core refused input catalog declarations/u],
   ["hash", "input", /does not identify the checked input/u],
   ["bytes", "output", /does not identify the checked input/u],
+  ["scope", "input", /does not identify the checked input/u],
+  ["scope", "output", /does not identify the checked input/u],
 ] as const) {
   void test(`${mode} at ${failAt} retains measured attempt and stops without fabricated later phase costs`, (context) => {
     const f = fixture(context, mode, failAt);

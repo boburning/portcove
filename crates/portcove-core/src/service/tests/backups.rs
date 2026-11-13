@@ -1,5 +1,7 @@
 //! Complete backup lifecycle fixture family; production authority stays in its owner.
+use super::super::backups::{is_no_persistent_data, no_persistent_data};
 use super::*;
+use crate::VersionChangeKind;
 
 fn set_data_time(path: &Path, stamp: std::time::SystemTime) {
     fs::OpenOptions::new()
@@ -711,7 +713,7 @@ fn backup_create_assessment_preserves_direct_owned_root_without_runtime_substitu
     let library = Library::open(temporary.path().join("library")).unwrap();
     let mut service = PortcoveService::new(library.clone()).unwrap();
     // Exercise direct owned-data binding on every maintained host using an inert
-    // definition fixture. Snap64 has no macOS definition; this grants it no support.
+    // definition fixture. This fixture grants no port support.
     let port_id = "zelda64-recomp";
     let mut document = service.catalog().authoritative_document();
     document
@@ -1267,10 +1269,50 @@ fn restore_recovery_preserves_persisted_incompatible_family_payloads() {
         intent.paths.quarantine = Some(previous.clone());
         intent.preparation_process_quiesced = quiesced;
         intent.original_paths = original_paths;
-        store.put(&mut intent).unwrap();
-
-        // Exercise the persisted compatibility envelope, not only an in-memory guard.
-        let mut decoded = store.get(&intent.id).unwrap().unwrap();
+        if quiesced.is_some() {
+            assert_eq!(
+                store.put(&mut intent).unwrap_err().code,
+                crate::ErrorCode::State
+            );
+            let mut baseline = intent.clone();
+            baseline.preparation_process_quiesced = None;
+            store.put(&mut baseline).unwrap();
+            intent.updated_at = baseline.updated_at;
+            library
+                .connection()
+                .unwrap()
+                .execute(
+                    "UPDATE lifecycle_operations SET preparation_process_quiesced=?2 WHERE id=?1",
+                    rusqlite::params![intent.id, quiesced.map(i64::from)],
+                )
+                .unwrap();
+        } else {
+            store.put(&mut intent).unwrap();
+        }
+        let row_snapshot = || {
+            library
+                .connection()
+                .unwrap()
+                .query_row(
+                    "SELECT * FROM lifecycle_operations WHERE id=?1",
+                    [&intent.id],
+                    |row| {
+                        (0..row.as_ref().column_count())
+                            .map(|index| row.get::<_, rusqlite::types::Value>(index))
+                            .collect::<rusqlite::Result<Vec<_>>>()
+                    },
+                )
+                .unwrap()
+        };
+        let before = row_snapshot();
+        // Exercise both the persisted codec and the operation-specific guard.
+        let mut decoded = if quiesced.is_some() {
+            assert!(store.get(&intent.id).is_err());
+            assert!(service.recover_lifecycle_operations_for_test().is_err());
+            intent.clone()
+        } else {
+            store.get(&intent.id).unwrap().unwrap()
+        };
         let error = crate::recovery::recover_restore(&service, &store, &mut decoded).unwrap_err();
         assert_eq!(error.code, crate::ErrorCode::State, "{name}");
         assert!(
@@ -1278,7 +1320,13 @@ fn restore_recovery_preserves_persisted_incompatible_family_payloads() {
                 .message
                 .contains("incompatible identity or family payload")
         );
-        let retained = store.get(&intent.id).unwrap().unwrap();
+        assert_eq!(row_snapshot(), before);
+        let retained = if quiesced.is_some() {
+            assert!(store.get(&intent.id).is_err());
+            intent.clone()
+        } else {
+            store.get(&intent.id).unwrap().unwrap()
+        };
         assert_eq!(retained.phase, LifecyclePhase::MetadataCommitted);
         assert_eq!(retained.last_error, intent.last_error);
         assert_eq!(retained.preparation_process_quiesced, quiesced);
@@ -2316,6 +2364,11 @@ fn backup_inventory_isolates_every_damaged_entry_and_allows_new_backups() {
 fn unreadable_backup_manifest_is_reported_without_hiding_other_backups() {
     use std::os::unix::fs::PermissionsExt;
 
+    // SAFETY: geteuid takes no arguments and reads only the effective user ID.
+    if unsafe { libc::geteuid() } == 0 {
+        return;
+    }
+
     let temporary = tempfile::tempdir().unwrap();
     let library = Library::open(temporary.path().join("library")).unwrap();
     let user_root = library.user_dir("zelda64-recomp");
@@ -2395,9 +2448,29 @@ fn assert_backup_deletion_recovers_after_every_recorded_transition(point: Lifecy
     let error = delete_backup_authorized(&service, "zelda64-recomp", &backup.id).unwrap_err();
     assert!(error.message.contains("injected lifecycle failure"));
     let interrupted = service.list_backups("zelda64-recomp").unwrap();
+    // Until the backup has left view, the deletion holds the backup actions. After
+    // that, the next backup, restore, deletion or restart finishes it without a
+    // judgement call, so it holds nothing; doctor still lists it either way.
+    let backup_out_of_view = !matches!(
+        point,
+        LifecycleFaultPoint::DeleteBackupPrepared | LifecycleFaultPoint::DeleteBackupQuarantined
+    );
     assert_eq!(
         interrupted.state,
-        BackupInventoryState::RecoveryRequired,
+        if backup_out_of_view {
+            BackupInventoryState::Healthy
+        } else {
+            BackupInventoryState::RecoveryRequired
+        },
+        "{point:?}"
+    );
+    assert_eq!(
+        interrupted.create_assessment.availability == PortActionAvailability::Allowed,
+        backup_out_of_view,
+        "{point:?}"
+    );
+    assert!(
+        !service.repair_plan().unwrap().items.is_empty(),
         "{point:?}"
     );
 
@@ -2458,9 +2531,13 @@ fn backup_deletion_recovery_completes_a_partially_removed_quarantine() {
     let service = service_with_fault(library.clone(), LifecycleFaultPoint::DeleteBackupDeleting);
     let backup = service.create_backup("zelda64-recomp").unwrap();
     delete_backup_authorized(&service, "zelda64-recomp", &backup.id).unwrap_err();
-    let quarantine = service.list_backups("zelda64-recomp").unwrap().problems[0]
-        .path
-        .clone();
+    let quarantine = OperationStore::new(library.clone())
+        .all()
+        .unwrap()
+        .into_iter()
+        .find(|operation| operation.kind == LifecycleOperationKind::DeleteBackup)
+        .and_then(|operation| operation.paths.quarantine)
+        .unwrap();
     fs::remove_file(quarantine.join("data/save.dat")).unwrap();
 
     let recovered = service_with_release(library, "v1");
@@ -2732,16 +2809,53 @@ fn assert_backup_deletion_family_rejects_payload(variant: u8) {
         3 => operation.paths.staging = Some(temporary.path().join("unrelated")),
         _ => operation.original_paths.push(user_root.clone()),
     }
-    store.put(&mut operation).unwrap();
-    let persisted = store.get(&operation.id).unwrap().unwrap();
-    let before = format!("{persisted:?}");
+    let persisted = if variant <= 1 {
+        assert_eq!(
+            store.put(&mut operation).unwrap_err().code,
+            crate::ErrorCode::State
+        );
+        library
+            .connection()
+            .unwrap()
+            .execute(
+                "UPDATE lifecycle_operations SET preparation_process_quiesced=?2 WHERE id=?1",
+                rusqlite::params![
+                    operation.id,
+                    operation.preparation_process_quiesced.map(i64::from)
+                ],
+            )
+            .unwrap();
+        assert!(store.get(&operation.id).is_err());
+        operation.clone()
+    } else {
+        store.put(&mut operation).unwrap();
+        store.get(&operation.id).unwrap().unwrap()
+    };
+    let row_snapshot = || {
+        library
+            .connection()
+            .unwrap()
+            .query_row(
+                "SELECT * FROM lifecycle_operations WHERE id=?1",
+                [&operation.id],
+                |row| {
+                    (0..row.as_ref().column_count())
+                        .map(|index| row.get::<_, rusqlite::types::Value>(index))
+                        .collect::<rusqlite::Result<Vec<_>>>()
+                },
+            )
+            .unwrap()
+    };
+    let before = row_snapshot();
     let mut rejected = persisted.clone();
     crate::recovery::recover_backup_deletion(&service, &store, &mut rejected)
         .expect_err("incompatible deletion payload must not authorize recovery");
-    assert_eq!(
-        format!("{:?}", store.get(&operation.id).unwrap().unwrap()),
-        before
-    );
+    assert_eq!(row_snapshot(), before);
+    if variant <= 1 {
+        assert!(store.get(&operation.id).is_err());
+        assert!(service.recover_lifecycle_operations_for_test().is_err());
+        assert_eq!(row_snapshot(), before);
+    }
     assert_eq!(fs::read(backup.path.join("backup.json")).unwrap(), manifest);
     assert_eq!(fs::read(user_root.join("save.dat")).unwrap(), b"live");
     assert!(!quarantine.exists());
@@ -2948,4 +3062,746 @@ fn backup_deletion_family_recovers_legacy_partial_cleanup() {
     crate::recovery::recover_backup_deletion(&service, &store, &mut operation).unwrap();
     assert!(!quarantine.exists());
     assert!(store.get(&operation.id).unwrap().is_none());
+}
+
+// Automatic snapshots before a version change (#4879).
+
+const ZELDA: &str = "zelda64-recomp";
+
+/// Saves the active version wrote, which collection copies into the library.
+fn seed_saves(active_dir: &Path, bytes: &[u8]) {
+    fs::write(active_dir.join("general.json"), bytes).unwrap();
+    fs::write(active_dir.join(LAUNCH_MARKER), b"1").unwrap();
+}
+
+fn automatic_snapshots(service: &PortcoveService) -> Vec<BackupRecord> {
+    service
+        .list_backups(ZELDA)
+        .unwrap()
+        .backups
+        .into_iter()
+        .filter(|backup| backup.automatic.is_some())
+        .collect()
+}
+
+fn backup_activities(library: &Library) -> Vec<ActivityRecord> {
+    library
+        .activities(50)
+        .unwrap()
+        .into_iter()
+        .filter(|activity| activity.operation == ActivityOperation::Backup)
+        .collect()
+}
+
+struct FailSnapshotCopy;
+
+impl LifecycleFaultInjector for FailSnapshotCopy {
+    fn check(&self, point: LifecycleFaultPoint) -> Result<()> {
+        if point == LifecycleFaultPoint::BackupDataCopied {
+            return Err(PortcoveError::state("injected snapshot failure"));
+        }
+        Ok(())
+    }
+}
+
+#[test]
+fn rollback_takes_one_labelled_snapshot_of_the_latest_saves() {
+    let temporary = tempfile::tempdir().unwrap();
+    let library = Library::open(temporary.path().join("library")).unwrap();
+    register_zelda_install(&library, "v1", true);
+    let second = register_zelda_install(&library, "v2", true);
+    seed_saves(&second, b"latest-settings");
+    let service = PortcoveService::new(library.clone()).unwrap();
+
+    service.rollback(ZELDA).unwrap();
+
+    let snapshots = automatic_snapshots(&service);
+    assert_eq!(snapshots.len(), 1);
+    let label = snapshots[0].automatic.as_ref().unwrap();
+    assert_eq!(label.operation, VersionChangeKind::Rollback);
+    assert_eq!(label.from_version.as_deref(), Some("v2"));
+    assert_eq!(label.to_version, "v1");
+    assert_eq!(
+        fs::read(snapshots[0].path.join("data/general.json")).unwrap(),
+        b"latest-settings",
+        "the snapshot must hold what the game wrote most recently"
+    );
+    assert!(backup_activities(&library).iter().any(|activity| {
+        activity.status == ActivityStatus::Succeeded
+            && activity
+                .message
+                .as_deref()
+                .is_some_and(|message| message.contains("Automatic snapshot before rollback"))
+    }));
+}
+
+#[test]
+fn staged_activation_takes_one_snapshot_labelled_activation() {
+    let temporary = tempfile::tempdir().unwrap();
+    let library = Library::open(temporary.path().join("library")).unwrap();
+    let first = register_zelda_install(&library, "v1", true);
+    register_zelda_install(&library, "v2", false);
+    seed_saves(&first, b"before-activation");
+    let service = PortcoveService::new(library).unwrap();
+
+    service.activate_staged(ZELDA).unwrap();
+
+    let snapshots = automatic_snapshots(&service);
+    assert_eq!(snapshots.len(), 1);
+    let label = snapshots[0].automatic.as_ref().unwrap();
+    assert_eq!(label.operation, VersionChangeKind::Activation);
+    assert_eq!(label.from_version.as_deref(), Some("v1"));
+    assert_eq!(label.to_version, "v2");
+    assert_eq!(
+        fs::read(snapshots[0].path.join("data/general.json")).unwrap(),
+        b"before-activation"
+    );
+}
+
+#[cfg(all(target_os = "linux", target_arch = "x86_64"))]
+#[test]
+fn z2rs_automatic_snapshot_preserves_the_owned_fallback_only() {
+    let temporary = tempfile::tempdir().unwrap();
+    let library = Library::open(temporary.path().join("library")).unwrap();
+    let service = PortcoveService::new(library.clone()).unwrap();
+    let port = service.catalog().port("troyedwardsjr-z2rs").unwrap();
+    let artifact = ArtifactIdentity {
+        asset_name: "z2rs-0.5.2-x86_64-unknown-linux-gnu.tar.gz".into(),
+        sha256: hex::encode(Sha256::digest(b"inert z2rs runtime")),
+        size: 20,
+    };
+    let runtime = library.versions_dir().join(&port.id).join(&artifact.sha256);
+    fs::create_dir_all(&runtime).unwrap();
+    let player = runtime.join("z2rs");
+    let mut header = [0_u8; 20];
+    header[..6].copy_from_slice(b"\x7fELF\x02\x01");
+    header[16..20].copy_from_slice(&[3, 0, 0x3e, 0]);
+    fs::write(&player, header).unwrap();
+    crate::permissions::normalize_archive_entry(&player, false, true).unwrap();
+    let installed = register_existing_test_artifact_with_port(
+        &library, port, "v0.5.2", &runtime, artifact, true,
+    );
+    let fallback = library.user_dir(&port.id).join(".z2rs-data");
+    fs::create_dir_all(&fallback).unwrap();
+    fs::write(fallback.join("savestate1.z2snap"), b"owned fallback").unwrap();
+    let external = temporary.path().join("external-profile.z2snap");
+    fs::write(&external, b"external data").unwrap();
+
+    let _lock = library.try_lock_port(&port.id, "snapshot-test").unwrap();
+    service
+        .snapshot_before_version_change(
+            &port.id,
+            VersionChangeKind::Update,
+            &installed,
+            Some("v0.5.2"),
+            "v0.6.0",
+            false,
+        )
+        .unwrap();
+    let snapshots = service.list_backups(&port.id).unwrap().backups;
+    assert_eq!(snapshots.len(), 1);
+    assert!(snapshots[0].automatic.is_some());
+    let backup = snapshots[0].path.join("data");
+    assert_eq!(fs::read_dir(&backup).unwrap().count(), 1);
+    assert_eq!(
+        fs::read(backup.join(".z2rs-data/savestate1.z2snap")).unwrap(),
+        b"owned fallback"
+    );
+    assert_eq!(fs::read(external).unwrap(), b"external data");
+}
+
+#[tokio::test]
+async fn update_snapshots_once_per_version_change_and_not_when_only_staging() {
+    let temporary = tempfile::tempdir().unwrap();
+    let library = Library::open(temporary.path().join("library")).unwrap();
+    let first = register_zelda_install(&library, "v1", true);
+    register_zelda_install(&library, "v2", false);
+    seed_saves(&first, b"before-update");
+    let service = service_with_release(library, "v2");
+
+    // Staging an already-present version changes nothing, so nothing is snapshotted.
+    service
+        .update(ZELDA, None, None, false, |_| {})
+        .await
+        .unwrap();
+    assert!(automatic_snapshots(&service).is_empty());
+
+    service
+        .update(ZELDA, None, None, true, |_| {})
+        .await
+        .unwrap();
+    let snapshots = automatic_snapshots(&service);
+    assert_eq!(snapshots.len(), 1, "one version change, one snapshot");
+    let label = snapshots[0].automatic.as_ref().unwrap();
+    assert_eq!(label.operation, VersionChangeKind::Update);
+    assert_eq!(label.from_version.as_deref(), Some("v1"));
+    assert_eq!(label.to_version, "v2");
+}
+
+#[tokio::test]
+async fn update_that_reuses_a_retained_version_snapshots_before_activating_it() {
+    let temporary = tempfile::tempdir().unwrap();
+    let library = Library::open(temporary.path().join("library")).unwrap();
+    register_zelda_install(&library, "v1", true);
+    register_zelda_install(&library, "v2", true);
+    library.rollback(ZELDA).unwrap();
+    let active = library
+        .status(ZELDA, ReleaseChannel::Stable)
+        .unwrap()
+        .active
+        .unwrap();
+    seed_saves(&active.path, b"saves-on-v1");
+    let service = service_with_release(library, "v2");
+
+    service
+        .update(ZELDA, None, None, true, |_| {})
+        .await
+        .unwrap();
+
+    let snapshots = automatic_snapshots(&service);
+    assert_eq!(snapshots.len(), 1);
+    let label = snapshots[0].automatic.as_ref().unwrap();
+    assert_eq!(label.operation, VersionChangeKind::Update);
+    assert_eq!(label.from_version.as_deref(), Some("v1"));
+    assert_eq!(label.to_version, "v2");
+}
+
+#[test]
+fn no_managed_data_skips_the_snapshot_and_records_why() {
+    let temporary = tempfile::tempdir().unwrap();
+    let library = Library::open(temporary.path().join("library")).unwrap();
+    register_zelda_install(&library, "v1", true);
+    register_zelda_install(&library, "v2", true);
+    let service = PortcoveService::new(library.clone()).unwrap();
+
+    service.rollback(ZELDA).unwrap();
+
+    assert!(automatic_snapshots(&service).is_empty());
+    assert!(backup_activities(&library).iter().any(|activity| {
+        activity.status == ActivityStatus::Succeeded
+            && activity
+                .message
+                .as_deref()
+                .is_some_and(|message| message.contains("no saved data yet"))
+    }));
+}
+
+#[test]
+fn the_library_setting_turns_automatic_snapshots_off() {
+    let temporary = tempfile::tempdir().unwrap();
+    let library = Library::open(temporary.path().join("library")).unwrap();
+    register_zelda_install(&library, "v1", true);
+    let second = register_zelda_install(&library, "v2", true);
+    seed_saves(&second, b"saves");
+    library.set_automatic_snapshots(false).unwrap();
+    let service = PortcoveService::new(library.clone()).unwrap();
+
+    service.rollback(ZELDA).unwrap();
+
+    assert!(automatic_snapshots(&service).is_empty());
+    assert!(backup_activities(&library).is_empty());
+}
+
+#[test]
+fn a_failed_snapshot_stops_the_version_change_before_any_mutation() {
+    let temporary = tempfile::tempdir().unwrap();
+    let library = Library::open(temporary.path().join("library")).unwrap();
+    register_zelda_install(&library, "v1", true);
+    let second = register_zelda_install(&library, "v2", true);
+    seed_saves(&second, b"saves");
+    let service = PortcoveService::with_provider_and_faults(
+        library.clone(),
+        Arc::new(StaticReleaseProvider {
+            version: "v1".into(),
+        }),
+        Arc::new(FailSnapshotCopy),
+    )
+    .unwrap();
+
+    let error = service.rollback(ZELDA).unwrap_err();
+
+    assert!(
+        error.message.contains("injected snapshot failure"),
+        "{error:?}"
+    );
+    assert!(
+        error.message.contains("the version was not changed")
+            && error.message.contains("turn off automatic snapshots"),
+        "the player is told the version did not change and how to continue: {error:?}"
+    );
+    assert_eq!(
+        error.details.get("recovery_action").map(String::as_str),
+        Some("retry_or_disable_snapshots")
+    );
+    let status = library.status(ZELDA, ReleaseChannel::Stable).unwrap();
+    assert_eq!(
+        status.active.unwrap().version,
+        "v2",
+        "the version must not change"
+    );
+    assert_eq!(status.previous.unwrap().version, "v1");
+    assert!(
+        backup_activities(&library)
+            .iter()
+            .any(|activity| activity.status == ActivityStatus::Failed)
+    );
+    assert!(automatic_snapshots(&service).is_empty());
+}
+
+#[test]
+fn retention_keeps_the_newest_automatic_snapshots_and_never_removes_a_manual_one() {
+    let temporary = tempfile::tempdir().unwrap();
+    let library = Library::open(temporary.path().join("library")).unwrap();
+    register_zelda_install(&library, "v1", true);
+    let user = library.user_dir(ZELDA);
+    fs::create_dir_all(&user).unwrap();
+    fs::write(user.join("general.json"), b"saves").unwrap();
+    let service = PortcoveService::new(library.clone()).unwrap();
+    let active = service.status(ZELDA).unwrap().active.unwrap();
+    let manual = service.create_backup(ZELDA).unwrap();
+
+    for step in 2..=8 {
+        service
+            .snapshot_before_version_change(
+                ZELDA,
+                VersionChangeKind::Update,
+                &active,
+                Some("v1"),
+                &format!("v{step}"),
+                false,
+            )
+            .unwrap();
+    }
+
+    let inventory = service.list_backups(ZELDA).unwrap().backups;
+    let kept: Vec<_> = inventory
+        .iter()
+        .filter_map(|backup| backup.automatic.as_ref())
+        .map(|label| label.to_version.as_str())
+        .collect();
+    assert_eq!(
+        kept,
+        ["v8", "v7", "v6", "v5", "v4"],
+        "newest five, newest first"
+    );
+    assert!(
+        inventory
+            .iter()
+            .any(|backup| backup.id == manual.id && backup.automatic.is_none()),
+        "a manual snapshot is never pruned"
+    );
+    let refusal = service
+        .delete_automatic_backup_locked(ZELDA, &manual.id)
+        .unwrap_err();
+    assert!(refusal.message.contains("only an automatic snapshot"));
+}
+
+#[test]
+fn a_failed_snapshot_also_stops_staged_activation_before_any_mutation() {
+    let temporary = tempfile::tempdir().unwrap();
+    let library = Library::open(temporary.path().join("library")).unwrap();
+    let first = register_zelda_install(&library, "v1", true);
+    register_zelda_install(&library, "v2", false);
+    seed_saves(&first, b"saves");
+    let service = PortcoveService::with_provider_and_faults(
+        library.clone(),
+        Arc::new(StaticReleaseProvider {
+            version: "v1".into(),
+        }),
+        Arc::new(FailSnapshotCopy),
+    )
+    .unwrap();
+
+    let error = service.activate_staged(ZELDA).unwrap_err();
+
+    assert!(
+        error.message.contains("injected snapshot failure"),
+        "{error:?}"
+    );
+    assert!(
+        error.message.contains("the version was not changed")
+            && error.message.contains("turn off automatic snapshots"),
+        "the player is told the version did not change and how to continue: {error:?}"
+    );
+    assert_eq!(
+        error.details.get("recovery_action").map(String::as_str),
+        Some("retry_or_disable_snapshots")
+    );
+    let status = library.status(ZELDA, ReleaseChannel::Stable).unwrap();
+    assert_eq!(
+        status.active.unwrap().version,
+        "v1",
+        "activation must not happen"
+    );
+    assert_eq!(
+        status.staged.unwrap().version,
+        "v2",
+        "the staged version stays staged"
+    );
+    assert!(automatic_snapshots(&service).is_empty());
+}
+
+#[test]
+fn only_the_nothing_to_back_up_error_is_a_recorded_skip() {
+    let marked = no_persistent_data(ZELDA);
+    assert!(is_no_persistent_data(&marked));
+    // An unrelated not_found (catalog entry, install, directory) must still fail the change.
+    assert!(!is_no_persistent_data(&PortcoveError::not_found(
+        "no such port"
+    )));
+}
+
+/// Leaves a retention deletion interrupted mid-cleanup for `ZELDA`; returns its quarantine.
+fn seed_stuck_prune(library: &Library) -> std::path::PathBuf {
+    let store = OperationStore::new(library.clone());
+    let mut operation =
+        LifecycleOperation::new("stuck-prune", LifecycleOperationKind::DeleteBackup, ZELDA);
+    let original = library
+        .backups_dir()
+        .join(ZELDA)
+        .join(Uuid::new_v4().to_string());
+    let quarantine = original
+        .parent()
+        .unwrap()
+        .join(format!(".deleting-{}", operation.id));
+    operation.paths.final_path = Some(original);
+    operation.paths.quarantine = Some(quarantine.clone());
+    operation.last_error = Some("interrupted prune".into());
+    fs::create_dir_all(&quarantine).unwrap();
+    fs::write(quarantine.join("partial-data"), b"remaining").unwrap();
+    operation.phase = LifecyclePhase::CleanupPending;
+    store.put(&mut operation).unwrap();
+    quarantine
+}
+
+#[test]
+fn a_pending_retention_deletion_is_finished_instead_of_blocking_the_snapshot() {
+    let temporary = tempfile::tempdir().unwrap();
+    let library = Library::open(temporary.path().join("library")).unwrap();
+    register_zelda_install(&library, "v1", true);
+    let user = library.user_dir(ZELDA);
+    fs::create_dir_all(&user).unwrap();
+    fs::write(user.join("general.json"), b"saves").unwrap();
+    let service = PortcoveService::new(library.clone()).unwrap();
+    let active = service.status(ZELDA).unwrap().active.unwrap();
+    let quarantine = seed_stuck_prune(&library);
+    let store = OperationStore::new(library.clone());
+
+    service
+        .snapshot_before_version_change(
+            ZELDA,
+            VersionChangeKind::Update,
+            &active,
+            Some("v1"),
+            "v2",
+            false,
+        )
+        .expect("the leftover prune no longer blocks the version change");
+
+    assert!(!quarantine.exists());
+    assert!(store.get("stuck-prune").unwrap().is_none());
+    assert_eq!(automatic_snapshots(&service).len(), 1);
+}
+
+#[test]
+fn a_pending_retention_deletion_does_not_block_a_manual_backup() {
+    let temporary = tempfile::tempdir().unwrap();
+    let library = Library::open(temporary.path().join("library")).unwrap();
+    register_zelda_install(&library, "v1", true);
+    let user = library.user_dir(ZELDA);
+    fs::create_dir_all(&user).unwrap();
+    fs::write(user.join("general.json"), b"saves").unwrap();
+    let service = PortcoveService::new(library.clone()).unwrap();
+    let quarantine = seed_stuck_prune(&library);
+
+    let backup = service
+        .create_backup(ZELDA)
+        .expect("the leftover prune no longer blocks a manual backup");
+
+    assert!(backup.automatic.is_none());
+    assert!(!quarantine.exists());
+    assert!(
+        OperationStore::new(library)
+            .get("stuck-prune")
+            .unwrap()
+            .is_none()
+    );
+}
+
+/// Saves a player can later restore, plus one older snapshot of them.
+fn zelda_with_a_backup(library: &Library, service: &PortcoveService) -> (PathBuf, BackupRecord) {
+    register_zelda_install(library, "v1", true);
+    let user = library.user_dir(ZELDA).join("general.json");
+    fs::create_dir_all(user.parent().unwrap()).unwrap();
+    fs::write(&user, b"saves worth keeping").unwrap();
+    let backup = service.create_backup(ZELDA).unwrap();
+    fs::write(&user, b"progress after a bad update").unwrap();
+    (user, backup)
+}
+
+#[test]
+fn a_pending_retention_deletion_does_not_block_restoring_saves() {
+    let temporary = tempfile::tempdir().unwrap();
+    let library = Library::open(temporary.path().join("library")).unwrap();
+    let service = PortcoveService::new(library.clone()).unwrap();
+    let (user, backup) = zelda_with_a_backup(&library, &service);
+    let quarantine = seed_stuck_prune(&library);
+    let store = OperationStore::new(library.clone());
+
+    // The history the player sees offers Restore, Delete and Back up now.
+    let inventory = service.list_backups(ZELDA).unwrap();
+    assert_eq!(inventory.state, BackupInventoryState::Healthy);
+    assert!(inventory.problems.is_empty());
+    assert_eq!(
+        inventory.restore_assessment.availability,
+        PortActionAvailability::Allowed
+    );
+    assert_eq!(
+        inventory.create_assessment.availability,
+        PortActionAvailability::Allowed
+    );
+    // The review stays read-only and does not refuse.
+    let authorization = backup_authorization(&service, ZELDA, &backup.id, BackupAction::Restore);
+    assert!(store.get("stuck-prune").unwrap().is_some());
+
+    service
+        .restore_backup(ZELDA, &backup.id, &authorization.token)
+        .expect("the leftover prune no longer blocks a restore");
+
+    assert_eq!(fs::read(&user).unwrap(), b"saves worth keeping");
+    assert!(!quarantine.exists());
+    assert!(store.get("stuck-prune").unwrap().is_none());
+}
+
+#[test]
+fn a_pending_retention_deletion_does_not_block_deleting_a_backup() {
+    let temporary = tempfile::tempdir().unwrap();
+    let library = Library::open(temporary.path().join("library")).unwrap();
+    let service = PortcoveService::new(library.clone()).unwrap();
+    let (_, backup) = zelda_with_a_backup(&library, &service);
+    let quarantine = seed_stuck_prune(&library);
+
+    let authorization = backup_authorization(&service, ZELDA, &backup.id, BackupAction::Delete);
+    service
+        .delete_backup(ZELDA, &backup.id, &authorization.token)
+        .expect("the leftover prune no longer blocks deleting a backup");
+
+    assert!(!backup.path.exists());
+    assert!(!quarantine.exists());
+    assert!(
+        OperationStore::new(library)
+            .get("stuck-prune")
+            .unwrap()
+            .is_none()
+    );
+}
+
+#[test]
+fn a_deletion_that_cannot_finish_still_refuses_the_restore_and_keeps_the_saves() {
+    let temporary = tempfile::tempdir().unwrap();
+    let library = Library::open(temporary.path().join("library")).unwrap();
+    let service = PortcoveService::new(library.clone()).unwrap();
+    let (user, backup) = zelda_with_a_backup(&library, &service);
+    seed_stuck_prune(&library);
+    let store = OperationStore::new(library.clone());
+    // Reviewed while the deletion could still be finished...
+    let authorization = backup_authorization(&service, ZELDA, &backup.id, BackupAction::Restore);
+    // ...then both the visible and the quarantined copy exist: recovery must not guess.
+    let operation = store.get("stuck-prune").unwrap().unwrap();
+    let original = operation.paths.final_path.clone().unwrap();
+    fs::create_dir_all(&original).unwrap();
+    fs::write(original.join("partial-data"), b"visible").unwrap();
+    let review = service
+        .preview_backup_action(ZELDA, &backup.id, BackupAction::Restore)
+        .unwrap_err();
+    assert!(review.message.contains("unfinished backup deletion"));
+
+    let error = service
+        .restore_backup(ZELDA, &backup.id, &authorization.token)
+        .unwrap_err();
+
+    assert_eq!(error.code, crate::ErrorCode::Conflict);
+    assert!(
+        error.message.contains("unfinished backup deletion"),
+        "{error:?}"
+    );
+    assert_eq!(
+        error.details.get("recovery_action").map(String::as_str),
+        Some("restart_then_doctor")
+    );
+    assert_eq!(fs::read(&user).unwrap(), b"progress after a bad update");
+    assert!(store.get("stuck-prune").unwrap().is_some());
+    assert!(original.exists());
+}
+
+#[test]
+fn a_deletion_whose_backup_is_still_visible_keeps_restore_and_backup_on_hold() {
+    let temporary = tempfile::tempdir().unwrap();
+    let library = Library::open(temporary.path().join("library")).unwrap();
+    let service = PortcoveService::new(library.clone()).unwrap();
+    zelda_with_a_backup(&library, &service);
+    seed_stuck_prune(&library);
+    let store = OperationStore::new(library.clone());
+    let mut operation = store.get("stuck-prune").unwrap().unwrap();
+    fs::create_dir_all(operation.paths.final_path.as_ref().unwrap()).unwrap();
+    store.put(&mut operation).unwrap();
+
+    let inventory = service.list_backups(ZELDA).unwrap();
+
+    assert_eq!(inventory.state, BackupInventoryState::RecoveryRequired);
+    assert_eq!(
+        inventory.restore_assessment.reason,
+        PortActionReason::RecoveryRequired
+    );
+    assert_eq!(
+        inventory.create_assessment.reason,
+        PortActionReason::RecoveryRequired
+    );
+}
+
+#[test]
+fn a_deletion_that_failed_on_retry_holds_until_recovery_finishes_it() {
+    let temporary = tempfile::tempdir().unwrap();
+    let library = Library::open(temporary.path().join("library")).unwrap();
+    let service = PortcoveService::new(library.clone()).unwrap();
+    let (user, backup) = zelda_with_a_backup(&library, &service);
+    let quarantine = seed_stuck_prune(&library);
+    // Recovery refuses a quarantine holding an unauthorized runtime-safety copy,
+    // so the next action cannot finish this deletion.
+    let companion = quarantine.join(".portcove-ghostship-runtime-safety.json");
+    fs::write(&companion, b"{}").unwrap();
+    let held = |service: &PortcoveService| {
+        let inventory = service.list_backups(ZELDA).unwrap();
+        inventory.state == BackupInventoryState::RecoveryRequired
+            && inventory.restore_assessment.reason == PortActionReason::RecoveryRequired
+            && inventory.create_assessment.reason == PortActionReason::RecoveryRequired
+    };
+    assert!(held(&service), "the prediction matches recovery's refusal");
+    let preview = service
+        .preview_backup_action(ZELDA, &backup.id, BackupAction::Restore)
+        .unwrap_err();
+    assert!(preview.message.contains("unfinished backup deletion"));
+
+    // The next locked backup action (here Back up now) retries and fails.
+    let refusal = service.create_backup(ZELDA).unwrap_err();
+    assert!(refusal.message.contains("unfinished backup deletion"));
+    let operation = OperationStore::new(library.clone())
+        .get("stuck-prune")
+        .unwrap()
+        .unwrap();
+    assert!(
+        operation
+            .last_error
+            .as_deref()
+            .is_some_and(|error| error.starts_with("could not be finished on retry: ")),
+        "{operation:?}"
+    );
+
+    // Even once the cause is gone, a deletion that already failed on retry keeps
+    // holding until recovery finishes it, rather than promising the next action will.
+    fs::remove_file(&companion).unwrap();
+    assert!(held(&service));
+    // A startup attempt that fails also keeps holding.
+    fs::write(&companion, b"{}").unwrap();
+    let restarted = PortcoveService::new(library.clone()).unwrap();
+    assert!(held(&restarted));
+    assert!(
+        OperationStore::new(library.clone())
+            .get("stuck-prune")
+            .unwrap()
+            .unwrap()
+            .last_error
+            .is_some_and(|error| error.starts_with("could not be finished on retry: "))
+    );
+    fs::remove_file(&companion).unwrap();
+    let recovered = PortcoveService::new(library.clone()).unwrap();
+    assert!(!quarantine.exists());
+    let inventory = recovered.list_backups(ZELDA).unwrap();
+    assert_eq!(inventory.state, BackupInventoryState::Healthy);
+    assert_eq!(
+        inventory.restore_assessment.availability,
+        PortActionAvailability::Allowed
+    );
+    assert_eq!(fs::read(&user).unwrap(), b"progress after a bad update");
+}
+
+#[test]
+fn snapshot_failure_wording_leaves_errors_with_their_own_remedy_untouched() {
+    let hold = PortcoveError::conflict("unfinished backup restore; complete recovery first");
+    let explained = super::super::backups::explain_snapshot_failure(hold);
+    assert_eq!(
+        explained.message,
+        "unfinished backup restore; complete recovery first"
+    );
+    assert!(!explained.details.contains_key("recovery_action"));
+
+    let retained = PortcoveError::verification("preserve this runtime and review it");
+    let explained = super::super::backups::explain_snapshot_failure(retained);
+    assert_eq!(explained.message, "preserve this runtime and review it");
+    assert!(!explained.details.contains_key("recovery_action"));
+
+    let copy = super::super::backups::explain_snapshot_failure(PortcoveError::state("disk full"));
+    assert!(copy.message.contains("disk full."));
+    assert!(copy.message.contains("the version was not changed"));
+}
+
+/// A save file the player's account cannot read stops the rollback with an actionable
+/// message and leaves the version alone; once the file is readable again, retrying works
+/// and takes the snapshot. This runs the real copy path, not an injected fault.
+#[cfg(unix)]
+#[test]
+fn an_unreadable_save_stops_the_rollback_and_a_retry_succeeds_once_it_is_readable() {
+    use std::os::unix::fs::PermissionsExt;
+
+    let temporary = tempfile::tempdir().unwrap();
+    let library = Library::open(temporary.path().join("library")).unwrap();
+    register_zelda_install(&library, "v1", true);
+    register_zelda_install(&library, "v2", true);
+    let save = library.user_dir(ZELDA).join("general.json");
+    fs::create_dir_all(save.parent().unwrap()).unwrap();
+    fs::write(&save, b"progress").unwrap();
+    fs::set_permissions(&save, fs::Permissions::from_mode(0o000)).unwrap();
+    if fs::File::open(&save).is_ok() {
+        // Running with privileges that ignore file modes (for example as root).
+        fs::set_permissions(&save, fs::Permissions::from_mode(0o644)).unwrap();
+        return;
+    }
+    let service = PortcoveService::new(library.clone()).unwrap();
+
+    let error = service.rollback(ZELDA).unwrap_err();
+
+    assert!(
+        error
+            .message
+            .contains("could not back up this game's saves")
+            && error.message.contains("the version was not changed")
+            && error.message.contains("turn off automatic snapshots"),
+        "{error:?}"
+    );
+    let status = library.status(ZELDA, ReleaseChannel::Stable).unwrap();
+    assert_eq!(status.active.unwrap().version, "v2", "no version change");
+    assert!(automatic_snapshots(&service).is_empty());
+    assert!(
+        service.list_backups(ZELDA).unwrap().backups.is_empty(),
+        "no partial snapshot is published"
+    );
+
+    fs::set_permissions(&save, fs::Permissions::from_mode(0o644)).unwrap();
+    service.rollback(ZELDA).unwrap();
+
+    let snapshots = automatic_snapshots(&service);
+    assert_eq!(snapshots.len(), 1);
+    assert_eq!(
+        fs::read(snapshots[0].path.join("data/general.json")).unwrap(),
+        b"progress"
+    );
+    assert_eq!(
+        library
+            .status(ZELDA, ReleaseChannel::Stable)
+            .unwrap()
+            .active
+            .unwrap()
+            .version,
+        "v1"
+    );
 }

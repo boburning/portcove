@@ -8,9 +8,9 @@ import { after as afterAll, before as beforeAll, describe, test } from "node:tes
 import { spawnCommand } from "../../../scripts/dev-storage.mts";
 const root = fileURLToPath(new URL("../../..", import.meta.url));
 
-void describe("owned Windows probe fixture", () => {
-  // Compiler preparation has its own existing 30-second child budget; it must
-  // not consume Vitest's five-second per-behavior assertion budget.
+void describe("owned Windows probe fixture", { timeout: 240_000 }, () => {
+  // Cold hosted Windows compilation exceeded the former 30-second setup limit.
+  // Keep compiler, hook and suite budgets nested; probe calls retain five seconds.
   let probeOutput: string | undefined;
   let probeTool: string | undefined;
   beforeAll(
@@ -28,20 +28,24 @@ void describe("owned Windows probe fixture", () => {
           "-o",
           probeTool,
         ],
-        { encoding: "utf8", windowsHide: true, timeout: 30_000 },
+        { encoding: "utf8", windowsHide: true, timeout: 120_000 },
       );
       assert.equal(compiled.error, undefined);
       assert.equal(compiled.status, 0, compiled.stderr);
     },
+    { timeout: 150_000 },
+  );
+  afterAll(
+    async () => {
+      if (probeOutput) await rm(probeOutput, { recursive: true, force: true });
+    },
     { timeout: 30_000 },
   );
-  afterAll(async () => {
-    if (probeOutput) await rm(probeOutput, { recursive: true, force: true });
-  });
 
   void test(
     "Windows owned probe explicit mode works in empty isolated cwd and preserves the legacy mode route",
     {
+      timeout: 30_000,
       skip:
         process.platform !== "win32" &&
         "platform: win32; requires the compiled Windows probe fixture; route: ci.yml/windows_storage (native helper contracts)",

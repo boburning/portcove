@@ -273,7 +273,7 @@ void test("Rust action records consumed toolchain context and stops at each fail
     assert.equal(options.length, 3);
     assert.deepEqual(result.calls[1]?.arguments.toSorted(), ["--verbose", "--version"]);
     assert.deepEqual(result.calls[2]?.arguments, ["--version"]);
-    for (const value of [
+    const expectedContextValues: readonly string[] = [
       pin,
       components,
       "fixture-clippy,fixture-rustfmt,fixture-rust-analyzer",
@@ -284,7 +284,8 @@ void test("Rust action records consumed toolchain context and stops at each fail
       "7",
       "b".repeat(40),
       target || "host only",
-    ])
+    ];
+    for (const value of expectedContextValues)
       assert.ok(result.summary.includes(value), `RUST_CONTEXT_VALUE: ${value}`);
   }
   const bound = actionEnvironment(action, observed.outputs, {
@@ -421,11 +422,21 @@ void test("release, rehearsal and deep audit Rust callers preserve repository pi
     assert.ok(Array.isArray(owner.steps) && owner.steps.indexOf(shim) < owner.steps.indexOf(cache));
   }
 
+  // Pull request and feature-branch runs restore caches but never save them.
+  const mainSave = "save-if: ${{ github.ref == 'refs/heads/main' }}\n";
   for (const [file, name, cacheSetting] of [
-    ["release.yml", "validate", undefined],
-    ["linux-package-ownership-rehearsal.yml", "build", "key: linux-package-ownership-rehearsal"],
-    ["updater-artifact-rehearsal.yml", "packages", "key: updater-artifact-rehearsal"],
-    ["deep-quality.yml", "audit", "shared-key: deep-quality-ubuntu-22.04"],
+    [
+      "release.yml",
+      "validate",
+      "save-if: ${{ github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v') }}",
+    ],
+    [
+      "linux-package-ownership-rehearsal.yml",
+      "build",
+      `${mainSave}key: linux-package-ownership-rehearsal`,
+    ],
+    ["updater-artifact-rehearsal.yml", "packages", `${mainSave}key: updater-artifact-rehearsal`],
+    ["deep-quality.yml", "audit", `${mainSave}shared-key: deep-quality-ubuntu-22.04`],
   ] as const) {
     await t.test(`${file} ${name}`, async () => {
       const source = await readWorkflow(new URL(`../.github/workflows/${file}`, import.meta.url));
@@ -505,7 +516,7 @@ void test("CI toolchain caches retain exact repository version authorities", asy
       }
     }
   }
-  assert.equal(count, 8);
+  assert.equal(count, 9);
 });
 
 void test("Windows analyzer acquisition retains the exact pin and both mandatory gates", (t) => {

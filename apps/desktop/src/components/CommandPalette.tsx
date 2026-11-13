@@ -4,14 +4,23 @@ import type { LucideIcon } from "lucide-react";
 import { Search } from "lucide-react";
 import { Icon, NavigationHints, Shortcut } from "./ui";
 import { Dialog, DialogContent, DialogTitle } from "./ui/dialog";
+import { Trans } from "react-i18next";
+import { useAppTranslation } from "../localization";
+import { escapeKeyName } from "../keyboard-shortcuts";
+import { normalizeGameSearchText } from "../search-text";
 
 export interface PaletteCommand {
   id: string;
   label: string;
   description: string;
+  group?: string;
   icon: LucideIcon;
   shortcut?: string;
   keywords?: string;
+  /** Listed only once the player types a query, so long game lists do not bury navigation. */
+  searchOnly?: boolean;
+  /** False when the description is generic and should not widen search matches. */
+  matchDescription?: boolean;
   disabled?: boolean;
   action: () => void;
 }
@@ -37,6 +46,7 @@ function OpenCommandPalette({
   close: () => void;
 }) {
   const [query, setQuery] = useState("");
+  const { t } = useAppTranslation("commands");
   const [selectedId, setSelectedId] = useState<string>();
   const activeCommand = useRef<HTMLButtonElement>(null);
   const searchInput = useRef<HTMLInputElement>(null);
@@ -93,7 +103,7 @@ function OpenCommandPalette({
         aria-describedby={undefined}
       >
         <DialogTitle className="sr-only" id="command-palette-title">
-          Portcove commands
+          {t("palette.title")}
         </DialogTitle>
         <label className="palette-search grid min-h-[3.25rem] grid-cols-[auto_minmax(0,_1fr)_auto] items-center gap-3 bg-[var(--color-bg-inset)] p-[0_var(--space-4)] text-[var(--color-text-muted)] [border-bottom:1px_solid_var(--color-border)] focus-within:shadow-[inset_0_-2px_var(--color-focus)]">
           <Icon glyph={Search} />
@@ -104,7 +114,7 @@ function OpenCommandPalette({
             role="combobox"
             aria-expanded={filtered.length > 0}
             aria-autocomplete="list"
-            aria-label="Search commands"
+            aria-label={t("palette.search")}
             value={query}
             onChange={(event) => {
               const nextQuery = event.target.value;
@@ -143,58 +153,82 @@ function OpenCommandPalette({
             aria-activedescendant={
               filtered[activeIndex] ? `command-${filtered[activeIndex].id}` : undefined
             }
-            placeholder="Search actions and navigation"
+            placeholder={t("palette.placeholder")}
             autoComplete="off"
           />
-          <Shortcut>Esc</Shortcut>
+          <Shortcut>{escapeKeyName}</Shortcut>
         </label>
+        {filtered.length > 0 && (
+          <h3 className="m-0 px-5 pt-4 pb-2 text-[length:var(--text-xs)] font-medium text-[var(--color-text-muted)]">
+            {query.trim() ? t("palette.results") : t("palette.quickActions")}
+          </h3>
+        )}
         <div
           className="palette-results max-h-[min(27rem,_58vh)] overflow-auto p-2"
           id="command-palette-results"
           role={filtered.length ? "listbox" : undefined}
-          aria-label={filtered.length ? "Available commands" : undefined}
+          aria-label={filtered.length ? t("palette.available") : undefined}
         >
           {filtered.length === 0 ? (
             <p
               className="palette-empty m-0 p-8 text-center text-[var(--color-text-muted)]"
               role="status"
             >
-              {query.trim() ? `No command matches “${query}”.` : "No commands are available."}
+              {query.trim() ? (
+                // The typed query is an exact player value, never interpolated.
+                <Trans t={t} i18nKey="palette.noMatch" components={{ query: <bdi>{query}</bdi> }} />
+              ) : (
+                t("palette.empty")
+              )}
             </p>
           ) : (
-            filtered.map((command) => (
-              <Button
-                id={`command-${command.id}`}
-                role="option"
-                aria-selected={activeId === command.id}
-                data-focusable
-                key={command.id}
-                ref={activeId === command.id ? activeCommand : undefined}
-                onFocus={() => setSelectedId(command.id)}
-                variant={activeId === command.id ? "selected" : "ghost"}
-                className="palette-command grid w-full grid-cols-[auto_minmax(0,1fr)_auto] justify-start gap-3 px-3 py-2 text-start font-normal"
-                disabled={command.disabled}
-                onKeyDown={(event) => {
-                  if (
-                    event.key === "Enter" &&
-                    (event.repeat || event.nativeEvent.isComposing || event.keyCode === 229)
-                  )
-                    event.preventDefault();
-                }}
-                onMouseMove={() => setSelectedId(command.id)}
-                onClick={() => run(command)}
-              >
-                <span className="palette-command-icon grid h-[2rem] w-[2rem] [place-items:center] rounded-pc-sm bg-[var(--color-bg-raised)] text-[var(--color-interactive-text)]">
-                  <Icon glyph={command.icon} />
-                </span>
-                <span>
-                  <strong className="block text-[length:var(--text-sm)]">{command.label}</strong>
-                  <small className="mt-[0.15rem] block text-[length:var(--text-xs)] text-[var(--color-text-secondary)]">
-                    {command.description}
-                  </small>
-                </span>
-                {command.shortcut && <Shortcut>{command.shortcut}</Shortcut>}
-              </Button>
+            contiguousCommandGroups(filtered).map((group) => (
+              <div key={group.commands[0]!.id} role="group" aria-label={group.label}>
+                {group.label && (
+                  <div
+                    aria-hidden="true"
+                    className="px-3 pt-3 pb-2 text-[length:var(--text-xs)] font-medium text-[var(--color-text-muted)]"
+                  >
+                    {group.label}
+                  </div>
+                )}
+                {group.commands.map((command) => (
+                  <Button
+                    id={`command-${command.id}`}
+                    role="option"
+                    aria-selected={activeId === command.id}
+                    data-focusable
+                    key={command.id}
+                    ref={activeId === command.id ? activeCommand : undefined}
+                    onFocus={() => setSelectedId(command.id)}
+                    variant={activeId === command.id ? "selected" : "ghost"}
+                    className="palette-command grid w-full grid-cols-[auto_minmax(0,1fr)_auto] justify-start gap-3 px-3 py-2 text-start font-normal"
+                    disabled={command.disabled}
+                    onKeyDown={(event) => {
+                      if (
+                        event.key === "Enter" &&
+                        (event.repeat || event.nativeEvent.isComposing || event.keyCode === 229)
+                      )
+                        event.preventDefault();
+                    }}
+                    onMouseMove={() => setSelectedId(command.id)}
+                    onClick={() => run(command)}
+                  >
+                    <span className="palette-command-icon grid h-[2rem] w-[2rem] [place-items:center] text-[var(--color-text-muted)]">
+                      <Icon glyph={command.icon} />
+                    </span>
+                    <span>
+                      <strong className="block text-[length:var(--text-sm)]">
+                        {command.label}
+                      </strong>
+                      <small className="mt-[0.15rem] block text-[length:var(--text-xs)] text-[var(--color-text-secondary)]">
+                        {command.description}
+                      </small>
+                    </span>
+                    {command.shortcut && <Shortcut>{command.shortcut}</Shortcut>}
+                  </Button>
+                ))}
+              </div>
             ))
           )}
         </div>
@@ -207,15 +241,27 @@ function OpenCommandPalette({
 }
 
 export function filterCommands(commands: PaletteCommand[], query: string) {
-  const terms = query.trim().toLowerCase().split(/\s+/).filter(Boolean);
-  if (terms.length === 0) return commands;
+  const terms = normalizeGameSearchText(query.trim()).split(/\s+/).filter(Boolean);
+  if (terms.length === 0) return commands.filter((command) => !command.searchOnly);
   return commands.filter((command) => {
-    const haystack =
-      `${command.label} ${command.description} ${command.keywords ?? ""}`.toLowerCase();
-    return terms.every((term) => haystack.includes(term));
+    const searchable = normalizeGameSearchText(
+      `${command.label} ${command.matchDescription === false ? "" : command.description} ${command.keywords ?? ""}`,
+    );
+    return terms.every((term) => searchable.includes(term));
   });
 }
 
 function preferredCommandId(commands: PaletteCommand[]) {
   return commands.find((command) => !command.disabled)?.id;
+}
+
+// Presentation must never reorder the registry: repeated groups stay separate.
+export function contiguousCommandGroups(commands: PaletteCommand[]) {
+  const groups: { label: string | undefined; commands: PaletteCommand[] }[] = [];
+  for (const command of commands) {
+    const previous = groups[groups.length - 1];
+    if (previous && previous.label === command.group) previous.commands.push(command);
+    else groups.push({ label: command.group, commands: [command] });
+  }
+  return groups;
 }

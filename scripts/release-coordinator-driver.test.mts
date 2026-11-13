@@ -1,3 +1,4 @@
+import { isRecord } from "./runtime-values.mts";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { stripTypeScriptTypes } from "node:module";
@@ -7,21 +8,26 @@ import {
   inspectPreparedReceiptInventoryAdvance,
   selectCoordinatorPublicationBaseline,
   selectCoordinatorMetadataRenewal,
+  metadataRenewalInputIdentity,
+  matchesRetainedRenewalCapacityRebind,
   requireActualCoordinatorMetadataPreparation,
   coordinatorMaintenanceIdentity,
   coordinatorContinuationDeadline,
   coordinatorOriginalJobDeadline,
+  requestTrustedSemanticReview,
   selectCoordinatorPendingPagesRecovery,
   selectCoordinatorCandidateSigningRecovery,
   materializeCoordinatorPublishedSite,
   selectCoordinatorMetadataBootstrap,
   requireActualCoordinatorBootstrapPreparation,
 } from "./release-coordinator-driver.mts";
+import { inspectQualifiedApplicationReview } from "./release-authority-configuration-contract.mts";
 import { metadataFixture, metadataBootstrapFixture } from "./fixtures/release-metadata-fixture.mts";
 import { performance } from "node:perf_hooks";
 import { withCoordinatorDeadline } from "./release-coordinator-deadline.mts";
 import { releaseCanonicalDigest } from "./release-canonical.mts";
 import { pagesRecoveryOperationFixture } from "./fixtures/release-pages-recovery-fixture.mts";
+import { isApplicationReviewReleaseTag } from "./release-review-request.mts";
 
 void test("actual catalog receiver comparison refuses grant-only drift before inspection (controlled retained map)", async () => {
   const source = await readFile(
@@ -252,7 +258,7 @@ import { mkdtemp, rm, writeFile, readFile } from "node:fs/promises";
 import { createHash } from "node:crypto";
 import path from "node:path";
 import os from "node:os";
-import { capacityDigest } from "./release-capacity.mts";
+import { capacityDigest, slice4CapacityResourceDigest } from "./release-capacity.mts";
 import { requirePublishedCompleteSite } from "./release-site-readback.mts";
 
 void test("actual fixed initial helper awaits ordinal0 observation before authenticating continuation source (inert dependencies)", async (t) => {
@@ -412,7 +418,7 @@ void test("coordinator budget includes original job setup and refuses missing du
     started_at: "2026-10-20T00:00:00Z",
   };
   const inventory = { total_count: 1, jobs: [job] };
-  assert.equal(coordinatorOriginalJobDeadline(inventory, expected, now, 100), 50100);
+  assert.equal(coordinatorOriginalJobDeadline(inventory, expected, now, 100), 170100);
   for (const bad of [
     { ...inventory, total_count: 2 },
     { ...inventory, jobs: [job, job], total_count: 2 },
@@ -420,7 +426,7 @@ void test("coordinator budget includes original job setup and refuses missing du
     { ...inventory, jobs: [{ ...job, run_attempt: 2 }] },
     { ...inventory, jobs: [{ ...job, head_sha: "b".repeat(40) }] },
     { ...inventory, jobs: [{ ...job, started_at: "2026-10-20T00:03:00Z" }] },
-    { ...inventory, jobs: [{ ...job, started_at: "2026-10-19T23:59:00Z" }] },
+    { ...inventory, jobs: [{ ...job, started_at: "2026-10-19T23:57:00Z" }] },
   ])
     assert.throws(() => coordinatorOriginalJobDeadline(bad, expected, now, 100));
 });
@@ -675,6 +681,30 @@ void test("publication facts refuse missing tags, duplicate versions, changed pr
     /publication time/,
   );
 });
+void test("publication planning excludes metadata and rehearsal releases from the application baseline", () => {
+  const alpha = release("0.1.0-alpha.2", "2026-10-18T00:00:00Z");
+  const tags = [ref(alpha.tag_name, "a".repeat(40))];
+  const rows = [
+    alpha,
+    { ...alpha, id: 2, tag_name: `portcove-production-candidate-${"b".repeat(64)}` },
+    { ...alpha, id: 3, tag_name: "v0.0.0-rehearsal.123.1" },
+  ];
+  const now = "2026-10-20T00:00:00.000Z";
+  assert.deepEqual(
+    deriveCoordinatorPublication(tags, rows, [], now),
+    deriveCoordinatorPublication(tags, [alpha], [], now),
+  );
+  assert.throws(
+    () =>
+      deriveCoordinatorPublication(
+        tags,
+        [...rows, { ...alpha, id: 4, tag_name: "unknown" }],
+        [],
+        now,
+      ),
+    /unsupported tag scope/,
+  );
+});
 void test("late publication bracket permits only the exact two own immutable preparation receipts", () => {
   const candidate = {
     version: "0.1.0-alpha.3",
@@ -724,6 +754,104 @@ void test("late publication bracket permits only the exact two own immutable pre
   );
 });
 
+void test("exact qualified neutral review selection refuses ambiguous source and attempt", () => {
+  const exact = { source_commit: "a".repeat(40), run_id: 42407004590, run_attempt: 1 };
+  assert.deepEqual(inspectQualifiedApplicationReview(exact), exact);
+  for (const wrong of [
+    { ...exact, run_attempt: 0 },
+    { ...exact, run_attempt: 4 },
+    { ...exact, run_id: "42407004590" },
+    { ...exact, source_commit: "main" },
+    { ...exact, workflow: "qualification.yml" },
+  ])
+    assert.throws(() => inspectQualifiedApplicationReview(wrong), /request fields differ/u);
+});
+
+void test("exact qualified neutral request holds unsettled or unadopted state before source reads", async () => {
+  const source = await readFile(
+    new URL("./release-coordinator-driver.mts", import.meta.url),
+    "utf8",
+  );
+  const start = source.indexOf("async function requestTrustedSemanticReviewAt(");
+  const end = source.indexOf("/** Resolve the exact outstanding request", start);
+  assert.ok(start > 0 && end > start);
+  const checkpoint = "f".repeat(40);
+  let unresolved = false;
+  let active = false;
+  let adopted = false;
+  let catalog: Record<string, unknown> = {};
+  const run = runInNewContext(
+    stripTypeScriptTypes(source.slice(start, end)) + "; requestTrustedSemanticReviewAt;",
+    {
+      structuredClone,
+      project: "/test",
+      path,
+      inspectQualifiedApplicationReview,
+      assertOwnedUnlinkedPath: async () => {},
+      mkdtemp: async () => "/test/neutral",
+      inspectCoordinatorRemoteNamespace: () => "fixed",
+      recoverRemoteCoordinator: async () => ({
+        checkpoint,
+        input: { active_candidate: active ? {} : null, ...catalog },
+      }),
+      coordinatorHasUnresolvedEffect: () => unresolved,
+      selectCoordinatorPendingContextRecovery: () => null,
+      selectCoordinatorPendingPagesRecovery: () => null,
+      inspectSettledPagesMetadataHandoff: () => null,
+      selectCoordinatorCandidateSigningRecovery: () => null,
+      selectCoordinatorMetadataRenewal: () => "not-due",
+      inspectReleaseReviewRequest: () => null,
+      isRecord: (value: unknown) => typeof value === "object" && value !== null,
+      inspectPublishedMetadata: () => (adopted ? {} : null),
+      requireControllerJobSourceConfiguration: async () => ({
+        binding: {
+          purpose: "application",
+          namespace: "fixed",
+          qualified_application: {
+            source_commit: "a".repeat(40),
+            run_id: 42407004590,
+            run_attempt: 1,
+          },
+        },
+        recheck() {},
+      }),
+      capacityDigest: JSON.stringify,
+      retainedApplicationReviewClaim: { successor_ref: "refs/tags/recovery" },
+      CoordinatorRemoteError: Error,
+    },
+  ) as (...args: unknown[]) => Promise<{ decision: string; checkpoint: string }>;
+  const invoke = () =>
+    run(
+      "/test",
+      {
+        remote_configuration: {},
+        tools: {},
+        qualified_application: {
+          source_commit: "a".repeat(40),
+          run_id: 42407004590,
+          run_attempt: 1,
+        },
+      },
+      { journalTransport() {} },
+    );
+  assert.equal((await invoke()).decision, "held-unadopted-application-feed");
+  unresolved = true;
+  assert.equal((await invoke()).decision, "held-existing-release-operation");
+  unresolved = false;
+  active = true;
+  const held = await invoke();
+  assert.equal(held.decision, "held-existing-release-operation");
+  assert.equal(held.checkpoint, checkpoint);
+  active = false;
+  adopted = true;
+  for (const field of ["catalog_review_request", "catalog_publication"]) {
+    catalog = { [field]: {} };
+    const result = await invoke();
+    assert.equal(result.decision, "held-existing-catalog-operation");
+    assert.equal(result.checkpoint, checkpoint);
+  }
+});
+
 void test("fixed bundled coordinator caller rejects imported routing and expired inherited clock before effects", async () => {
   const { runFixedCoordinatorConfiguration } = await import("./release-coordinator-driver.mts");
   for (const raw of [
@@ -743,58 +871,43 @@ void test("fixed bundled coordinator caller rejects imported routing and expired
     );
 });
 
-void test("coordinator inherited phase caps the original-job lookup and refuses a late response", async () => {
-  const source = await readFile(
-    new URL("./release-coordinator-driver.mts", import.meta.url),
-    "utf8",
-  );
-  const start = source.indexOf("function coordinatorDeadline("),
-    end = source.indexOf("function coordinatorApi(", start);
-  assert.ok(start >= 0 && end > start);
-  let now = 100,
-    reads = 0;
-  const timeouts: number[] = [];
-  const clock = runInNewContext(
-    stripTypeScriptTypes(source.slice(start, end)) + "\ncoordinatorDeadline",
-    {
-      performance: { now: () => now },
-      Date,
-      Number,
-      Math,
-      Error,
-      project: process.cwd(),
-      process: {
-        env: { GITHUB_RUN_ID: "123", GITHUB_SHA: "a".repeat(40), GITHUB_RUN_ATTEMPT: "1" },
-      },
-      coordinatorOriginalJobDeadline: () => 1000,
-      createGitHubRunner: (settings: { timeoutMs: number }) => {
-        timeouts.push(settings.timeoutMs);
-        return () => {
-          reads++;
-          now += 10;
-        };
-      },
-      GitHubApiClient: class {
-        private runner: (args: string[], input: unknown) => unknown;
-        constructor(runner: (args: string[], input: unknown) => unknown) {
-          this.runner = runner;
-        }
-        request() {
-          this.runner([], undefined);
-          return { status: 200, body: {} };
-        }
-      },
-    },
-  ) as (deadline?: number) => { monotonicDeadline: number };
-  assert.throws(() => clock(100), /inherited deadline/);
+void test("coordinator inherited phase caps the original job response body", async (t) => {
+  const env = {
+    GH_TOKEN: "ghs_coordinator_clock_fixture",
+    GITHUB_RUN_ID: "123",
+    GITHUB_SHA: "a".repeat(40),
+    GITHUB_RUN_ATTEMPT: "1",
+  };
+  const previous = Object.entries(env).map(([key]) => [key, process.env[key]] as const);
+  Object.assign(process.env, env);
+  t.after(() => {
+    for (const [key, value] of previous) {
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
+  });
+
+  let reads = 0;
+  let signal: AbortSignal | undefined;
+  t.mock.method(globalThis, "fetch", async (_url: string, init?: RequestInit) => {
+    reads++;
+    signal = init?.signal ?? undefined;
+    return new Response(
+      new ReadableStream({
+        start(controller) {
+          controller.enqueue(new TextEncoder().encode('{"jobs":['));
+        },
+      }),
+      { headers: { "content-type": "application/json" } },
+    );
+  });
+  const request = (deadline: number) =>
+    requestTrustedSemanticReview(process.cwd(), { remote_configuration: {} }, deadline);
+  await assert.rejects(request(performance.now() - 1), /inherited deadline/);
   assert.equal(reads, 0);
-  assert.throws(() => clock(105), /inherited deadline/);
-  assert.deepEqual(timeouts, [5]);
+  await assert.rejects(request(performance.now() + 500), { code: "deadline_exceeded" });
   assert.equal(reads, 1);
-  now = 200;
-  const current = clock(250);
-  assert.equal(current.monotonicDeadline, 250);
-  assert.deepEqual(timeouts, [5, 50]);
+  assert.equal(signal?.aborted, true);
 });
 
 void test("candidate signing wake routing selects only publishing and promoting without changing state", () => {
@@ -826,6 +939,7 @@ void test("actual coordinator signing callgraph preserves initial0, original dea
     end = source.indexOf("/** A durable expected Pages generation", start);
   assert.ok(start > 0 && end > start);
   const calls: string[] = [];
+  const reads: number[] = [];
   let now = 10,
     drift = false;
   const deadline = 170000;
@@ -847,7 +961,13 @@ void test("actual coordinator signing callgraph preserves initial0, original dea
   };
   const controls = {
     evidence_scope: "github.com",
-    readMaintenance: () => ({ reader: reader.identity, stable: drift ? 2 : 1 }),
+    async readSdkMaintenance(allowance: unknown, options: { deadline: number; maxBytes: number }) {
+      assert.equal(allowance, undefined);
+      assert.equal(options.deadline, Math.min(deadline, now + 120000));
+      assert.equal(options.maxBytes, 2 * 1024 ** 2);
+      reads.push(options.deadline);
+      return { reader: reader.identity, stable: drift ? 2 : 1 };
+    },
   };
   const context = {
     selectCoordinatorCandidateSigningRecovery,
@@ -862,15 +982,18 @@ void test("actual coordinator signing callgraph preserves initial0, original dea
     readProductionControllerWorkflowBytes: async () => Buffer.from("fixed"),
     authenticateControlReaderJob: async () => reader,
     capacityDigest: JSON.stringify,
-    coordinatorApi: () => ({}),
-    authenticateCoordinatorInitialControls: async () => {
+    authenticateCoordinatorInitialControls: async (...args: unknown[]) => {
       calls.push("initial0");
+      assert.deepEqual(args.slice(5), ["application", "metadata-maintenance"]);
       return controls;
     },
     coordinatorMaintenanceIdentity: (value: unknown) => JSON.stringify(value),
     authenticateReleaseControlRound: async (...args: unknown[]) => {
       calls.push(`round${String(args[3])}`);
-      assert.equal((args[4] as { deadline: number }).deadline, deadline);
+      assert.deepEqual(
+        { ...(args[4] as object) },
+        { deadline, controlReader: "metadata-maintenance" },
+      );
       return controls;
     },
     authenticateCapacityExecutor: async () => {
@@ -909,7 +1032,11 @@ void test("actual coordinator signing callgraph preserves initial0, original dea
     checkpoint: "old",
     input: { active_candidate: { phase: "publishing" } },
   };
-  const budget = { monotonicDeadline: deadline, check: () => assert.ok(now < deadline) };
+  const budget = {
+    monotonicDeadline: deadline,
+    remaining: (maximum: number) => Math.min(maximum, deadline - now),
+    check: () => assert.ok(now < deadline),
+  };
   const held = await run("private", {}, recovered, budget);
   assert.equal(held.decision, "held-candidate-signing-tools");
   assert.deepEqual(calls, []);
@@ -923,6 +1050,7 @@ void test("actual coordinator signing callgraph preserves initial0, original dea
     "actual-receivers-and-Tough",
     "round1",
   ]);
+  assert.deepEqual(reads, [120010, 120010, 120010, 160020, 160020]);
   drift = true;
   // A changed maintenance observation during the same acquired source cannot be substituted.
   now = 10;
@@ -946,10 +1074,967 @@ void test("actual coordinator signing callgraph preserves initial0, original dea
   const wake = source.slice(source.indexOf("async function requestTrustedSemanticReviewAt("));
   assert.ok(
     wake.indexOf("selectCoordinatorMetadataRenewal(") <
-      wake.indexOf("selectCoordinatorCandidateSigningRecovery("),
+      wake.indexOf("if (!qualified && selectCoordinatorCandidateSigningRecovery("),
   );
   assert.ok(
-    wake.indexOf("selectCoordinatorCandidateSigningRecovery(") <
+    wake.indexOf("if (!qualified && selectCoordinatorCandidateSigningRecovery(") <
       wake.indexOf("const outstanding ="),
+  );
+});
+
+void test("actual context recovery awaits scoped maintenance through a refreshed round", async () => {
+  const source = await readFile(
+    new URL("./release-coordinator-driver.mts", import.meta.url),
+    "utf8",
+  );
+  const start = source.indexOf("async function recoverTrustedCoordinatorContext(");
+  const end = source.indexOf("export async function requestTrustedSemanticReview(", start);
+  assert.ok(start > 0 && end > start);
+  const reachedVerifier = new Error("reached the existing tool verifier");
+  const calls: string[] = [];
+  const selected = { operation: { id: "context" } };
+  const authorities = { namespace: "fixed" };
+  const admitted = { revision: "a", execution_ref: "refs/tags/fixed", run_id: 8, run_attempt: 1 };
+  const identity = { job_id: 9, check_run_id: "10" };
+  let now = 1000;
+  const controls = {
+    evidence_scope: "github.com",
+    async readSdkMaintenance(allowance: unknown, options: { deadline: number; maxBytes: number }) {
+      assert.equal(allowance, undefined);
+      assert.equal(options.deadline, 68000);
+      assert.equal(options.maxBytes, 2 * 1024 ** 2);
+      calls.push("sdk");
+      now = 41000;
+      return {
+        reader: identity,
+        pause: { publication_paused: false },
+        resource_policy_matches_controller: true,
+      };
+    },
+  };
+  const run = runInNewContext(
+    stripTypeScriptTypes(source.slice(start, end)) + "; recoverTrustedCoordinatorContext;",
+    {
+      selectCoordinatorPendingContextRecovery: () => selected,
+      retainedApplicationContextUpload: { checkpoint: "different" },
+      requireControllerApplicationCoordinatorPublicationAuthorities: async () => authorities,
+      inspectCoordinatorRemoteNamespace: () => "fixed",
+      receiveControllerTools: async () => ({}),
+      verifiedControllerToolPaths: async () => ({
+        identity: {
+          controller_revision: "a",
+          controller_ref: "refs/tags/fixed",
+          run_id: "8",
+          run_attempt: 1,
+        },
+      }),
+      readProductionControllerWorkflowBytes: async () => Buffer.from("fixed"),
+      authenticateControlReaderJob: async () => ({ admitted, identity }),
+      authenticateCoordinatorInitialControls: async (...args: unknown[]) => {
+        assert.deepEqual(args.slice(5), ["application", "metadata-maintenance"]);
+        calls.push("initial");
+        return controls;
+      },
+      authenticateReleaseControlRound: async (...args: unknown[]) => {
+        assert.equal(args[3], 1);
+        assert.deepEqual(
+          { ...(args[4] as object) },
+          { deadline: 70000, controlReader: "metadata-maintenance" },
+        );
+        calls.push("refresh");
+        return controls;
+      },
+      readRemoteCoordinatorSnapshot: async () => ({ checkpoint: "same", input: {} }),
+      coordinatorMaintenanceIdentity: JSON.stringify,
+      capacityDigest: JSON.stringify,
+      createHash() {
+        throw reachedVerifier;
+      },
+      path,
+      process: { env: {} },
+      performance: { now: () => now },
+    },
+  ) as (...args: unknown[]) => Promise<unknown>;
+  await assert.rejects(
+    run(
+      "/test",
+      {},
+      { checkpoint: "same", input: {} },
+      {
+        monotonicDeadline: 70000,
+        journalTransport: () => ({ credential: { token: "inert-context" }, deadline: 68000 }),
+        remaining: () => 68000 - now,
+        check() {},
+      },
+      {},
+    ),
+    reachedVerifier,
+  );
+  assert.deepEqual(calls, ["initial", "sdk", "refresh", "sdk"]);
+});
+
+void test("catalog coordinator reconstructs the appointed initial commit through the locked SDK", async (t) => {
+  const source = await readFile(
+    new URL("./release-coordinator-driver.mts", import.meta.url),
+    "utf8",
+  );
+  const start = source.indexOf("async function verifyCatalogCoordinatorBaseline(");
+  const end = source.indexOf("const metadataPreparations", start);
+  assert.ok(start > 0 && end > start);
+  const { sourceFixtureCommit } = await import("./fixtures/release-source-fixture.mts");
+  const { createReleaseCustodyProvider } = await import("./release-custody-provider.mts");
+  const { inspectRemoteCommitObject } = await import("./release-coordinator-recovery.mts");
+  const tree = "a".repeat(40);
+  const root = "b".repeat(64);
+  const record = sourceFixtureCommit(tree, [], "fixed catalog baseline");
+  let dispatches = 0;
+  let corrupt = false;
+  t.mock.method(
+    globalThis,
+    "fetch",
+    async (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
+      const request = new Request(input, init);
+      assert.equal(request.method, "GET");
+      assert.equal(
+        request.url,
+        `https://api.github.com/repos/boburning/portcove/git/commits/${record.sha}`,
+      );
+      assert.equal(request.headers.get("authorization"), "token inert-catalog-source");
+      dispatches++;
+      return Response.json(corrupt ? { ...record, message: "different bytes" } : record);
+    },
+  );
+  const run = runInNewContext(
+    stripTypeScriptTypes(source.slice(start, end)) + "; verifyCatalogCoordinatorBaseline;",
+    {
+      createReleaseCustodyProvider,
+      inspectRemoteCommitObject,
+      inspectCatalogInitialization: () => null,
+      readOnlyReleaseChildEnvironment: () => undefined,
+      fixedReleaseReaderToken: () => "inert-catalog-source",
+      assertCatalogSemanticPublishedBaseline: (
+        _opportunity: unknown,
+        _published: unknown,
+        initial: unknown,
+      ) => initial,
+    },
+  ) as (...args: unknown[]) => Promise<{ commit: string; tree: string; root_sha256: string }>;
+  const deadline = performance.now() + 5000;
+  const invoke = () =>
+    run(
+      {},
+      { published_metadata: {} },
+      {
+        catalog: { public_source: { commit: record.sha, root: { sha256: root } } },
+      },
+      { deadline, currentDeadline: () => deadline, maxBytes: 256 * 1024, guard() {} },
+    );
+  const result = await invoke();
+  assert.equal(result.commit, record.sha);
+  assert.equal(result.tree, tree);
+  assert.equal(result.root_sha256, root);
+  corrupt = true;
+  await assert.rejects(invoke(), /identity|hash|commit object/u);
+  assert.equal(dispatches, 2);
+});
+
+void test("neutral checkpoint reacquires expired protection before claim and refuses changed controls", async () => {
+  const source = await readFile(
+    new URL("./release-coordinator-driver.mts", import.meta.url),
+    "utf8",
+  );
+  const start = source.indexOf("function applicationReviewCheckpointControls(");
+  const end = source.indexOf("/** Withdraw one owner-appointed request", start);
+  assert.ok(start > 0 && end > start);
+  const subject = "a".repeat(64);
+  let now = Date.parse("2026-11-11T14:04:20.486Z");
+  const deadline = 180000;
+  const facts = (time: number, policy: string, round: number) => ({
+    phase: "coordinator",
+    purpose: "metadata-coordinator-controls",
+    resource_policy_matches_controller: true,
+    reader: { job_id: 123, expires_at: new Date(time + 90000).toISOString(), round },
+    protection: { observed_at: new Date(time).toISOString(), inventory_sha256: policy },
+    pause: { commit: "b".repeat(40), publication_paused: false },
+    capacity: { document_sha256: "c".repeat(64) },
+    facts_sha256: releaseCanonicalDigest({ time, policy, round }),
+  });
+  const reads: number[] = [];
+  const acquired: number[] = [];
+  let policy = "d".repeat(64);
+  const control = (time: number, round: number) => {
+    const observed = facts(time, policy, round);
+    return {
+      evidence_scope: "github.com",
+      async readSdkMaintenance(
+        allowance: unknown,
+        options: { deadline: number; maxBytes: number },
+      ) {
+        assert.equal(allowance, undefined);
+        assert.equal(options.deadline, deadline);
+        assert.equal(options.maxBytes, 16 * 1024 ** 2);
+        assert.ok(now < time + 60000, "expired observation cannot authorize an effect");
+        reads.push(round);
+        return observed;
+      },
+    };
+  };
+  const createControls = runInNewContext(
+    stripTypeScriptTypes(source.slice(start, end)) + "\napplicationReviewCheckpointControls",
+    {
+      Date: { now: () => now, parse: Date.parse },
+      path,
+      coordinatorMaintenanceIdentity,
+      async authenticateReleaseControlRound(
+        directory: string,
+        digest: string,
+        phase: string,
+        round: number,
+        options: { deadline: number; controlReader: string },
+      ) {
+        assert.equal(directory, `/inert/application-review-control-${round}`);
+        assert.equal(digest, subject);
+        assert.equal(phase, "coordinator");
+        assert.equal(options.deadline, deadline);
+        assert.equal(options.controlReader, "metadata-maintenance");
+        acquired.push(round);
+        return control(now, round);
+      },
+    },
+  ) as (...args: unknown[]) => () => Promise<void>;
+  let sourceReads = 0;
+  const recheck = createControls(
+    "/inert",
+    subject,
+    { monotonicDeadline: deadline, check() {} },
+    control(now, 0),
+    facts(now, policy, 0),
+    async () => {
+      sourceReads++;
+    },
+  );
+  await recheck();
+  now += 60023;
+  await recheck();
+  await recheck();
+  assert.deepEqual(acquired, [1]);
+  assert.deepEqual(reads, [0, 1, 1]);
+  now += 30000;
+  policy = "e".repeat(64);
+  await assert.rejects(recheck(), /checkpoint controls changed/u);
+  assert.deepEqual(acquired, [1, 2]);
+  assert.equal(sourceReads, 4);
+});
+
+void test("actual neutral review entry awaits fixed SDK source and complete inventory before unchanged decision", async (t) => {
+  const sourceUrl = new URL("./release-coordinator-driver.mts", import.meta.url);
+  const source = await readFile(sourceUrl, "utf8");
+  const start = source.indexOf("async function requestTrustedSemanticReviewAt(");
+  const end = source.indexOf("/** Resolve the exact outstanding request", start);
+  assert.ok(start > 0 && end > start);
+  const commit = "a".repeat(40);
+  const tree = "b".repeat(40);
+  const calls: string[] = [];
+  t.mock.method(
+    globalThis,
+    "fetch",
+    async (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
+      const request = new Request(input, init);
+      assert.equal(request.method, "GET");
+      assert.equal(request.headers.get("authorization"), "token inert-neutral-source");
+      const url = new URL(request.url);
+      assert.equal(url.origin, "https://api.github.com");
+      calls.push(url.pathname);
+      if (url.pathname.endsWith("/ref/heads/main"))
+        return Response.json({ ref: "refs/heads/main", object: { type: "commit", sha: commit } });
+      assert.ok(url.pathname.endsWith(`/commits/${commit}`));
+      return Response.json({ tree: { sha: tree } });
+    },
+  );
+  const tags = [{ name: "v1.2.3" }];
+  const releases = [{ id: 7, tag_name: "v1.2.3" }];
+  const deadline = performance.now() + 15000;
+  const { createGitHubClient } = await import("./github-client.mts");
+  const run = runInNewContext(
+    stripTypeScriptTypes(
+      source.slice(start, end).replace('await import("./github-client.mts")', "sdkModule"),
+    ) + "; requestTrustedSemanticReviewAt;",
+    {
+      structuredClone,
+      project: "/test",
+      assertOwnedUnlinkedPath: async () => {},
+      mkdtemp: async () => "/test/neutral",
+      path,
+      performance,
+      inspectCoordinatorRemoteNamespace: () => "fixed",
+      recoverRemoteCoordinator: async () => ({ checkpoint: commit, input: {} }),
+      selectCoordinatorPendingContextRecovery: () => null,
+      selectCoordinatorPendingPagesRecovery: () => null,
+      inspectSettledPagesMetadataHandoff: () => null,
+      selectCoordinatorMetadataBootstrap: () => "closed",
+      selectCoordinatorMetadataRenewal: () => "closed",
+      selectCoordinatorCandidateSigningRecovery: () => null,
+      inspectReleaseReviewRequest: () => null,
+      isRecord: (value: unknown) => typeof value === "object" && value !== null,
+      fixedReleaseReaderToken: () => "inert-neutral-source",
+      readOnlyReleaseChildEnvironment: () => ({}),
+      assertTrustedDirectNode() {
+        calls.push("direct");
+      },
+      sdkModule: { createGitHubClient },
+      CoordinatorRemoteError: Error,
+      createPublicationInventoryWithSdk: async (options: {
+        deadline: number;
+        maxBytes: number;
+        currentDeadline(): number;
+      }) => {
+        assert.equal(options.deadline, deadline);
+        assert.equal(options.maxBytes, 16 * 1024 ** 2);
+        assert.ok(options.currentDeadline() < deadline);
+        return {
+          async tags() {
+            calls.push("tags");
+            return tags;
+          },
+          async releases() {
+            calls.push("releases");
+            return releases;
+          },
+          async readAllocations(rows: unknown, namespace: string) {
+            assert.equal(rows, tags);
+            assert.equal(namespace, "fixed");
+            calls.push("allocations");
+            return { allocations: [] };
+          },
+        };
+      },
+      deriveCoordinatorPublication: () => ({ published_versions: ["1.2.3"] }),
+      isApplicationReviewReleaseTag,
+      selectCoordinatorPublicationBaseline: () => ({ release: releases[0], version: "1.2.3" }),
+      peelReleaseReference: () => commit,
+      inspectPublishedApplicationSourceWithSdk: async (
+        options: { requireDirect: boolean; deadline: number },
+        _configuration: unknown,
+        identity: { prepared_tree: string },
+      ) => {
+        assert.equal(options.requireDirect, true);
+        assert.equal(options.deadline, deadline);
+        assert.equal(identity.prepared_tree, tree);
+        calls.push("source-proof");
+        return { source_baseline: { commit } };
+      },
+    },
+  ) as (...args: unknown[]) => Promise<{ decision: string; authority: string }>;
+  const result = await run(
+    "/test",
+    { remote_configuration: {} },
+    {
+      monotonicDeadline: deadline,
+      journalTransport: () => ({ credential: { token: "inert-neutral-source" }, deadline }),
+      remaining: () => 2000,
+      check() {},
+    },
+  );
+  assert.equal(result.decision, "unchanged-published-source");
+  assert.equal(result.authority, "none");
+  assert.deepEqual(calls, [
+    "direct",
+    "/repos/boburning/portcove/git/ref/heads/main",
+    "tags",
+    "releases",
+    "allocations",
+    "direct",
+    `/repos/boburning/portcove/git/commits/${commit}`,
+    "source-proof",
+  ]);
+});
+
+void test("actual first bootstrap entry binds the preserved seed before local intent and publishes only through the owned signed session", async () => {
+  const text = await readFile(new URL("./release-coordinator-driver.mts", import.meta.url), "utf8");
+  const start = text.indexOf("async function prepareTrustedCoordinatorBootstrapAt("),
+    end = text.indexOf(
+      "export async function requireActualCoordinatorBootstrapPreparation(",
+      start,
+    ),
+    helperStart = text.indexOf("async function coordinatorCheckpointPublisher("),
+    helperEnd = text.indexOf("function guardedCoordinatorJournal(", helperStart);
+  assert.ok(start > 0 && end > start && helperStart > 0 && helperEnd > helperStart);
+  const prior = "a".repeat(40),
+    revision = "b".repeat(40),
+    next = "c".repeat(40);
+  const executor = {},
+    tools = {},
+    descriptor = {},
+    session = new WeakMap<object, { next_controls: (deadline: number) => Promise<unknown> }>();
+  const events: string[] = [];
+  const original = {
+    repository: "/inert/state.git",
+    checkpoint: prior,
+    input: {
+      controller: {
+        revision: prior,
+        capacity_attempt: { schema_version: 2, operation: null, prior_operations: [] },
+      },
+    },
+  };
+  const immutableSeed = structuredClone(original);
+  const reader = {
+    admitted: {
+      revision,
+      execution_ref: "refs/tags/portcove-production-controller-fixture",
+      actor_id: "1",
+      run_id: "2",
+      run_attempt: 1,
+    },
+    identity: { job_id: 3, check_run_id: "4" },
+  };
+  const facts = {
+    phase: "coordinator",
+    purpose: "metadata-coordinator-controls",
+    resource_policy_matches_controller: true,
+    reader: reader.identity,
+    protection: {},
+    pause: { publication_paused: false },
+    capacity: {},
+    capacity_source: { capacity: { schema_version: 2 } },
+  };
+  const controlReads: number[] = [];
+  const control = (originalDeadline: number) => ({
+    evidence_scope: "github.com",
+    async readSdkMaintenance(
+      _allowance: undefined,
+      request: { deadline: number; maxBytes?: number },
+    ) {
+      assert.ok(request.deadline <= originalDeadline);
+      await Promise.resolve();
+      controlReads.push(request.maxBytes ?? 256 * 1024);
+      return facts;
+    },
+  });
+  const fenceReads: number[] = [];
+  const publication = {
+    public_source: { commit: revision, initial_site_preimage: { path: "historical.json" } },
+    initial_site_preimage_sha256: "d".repeat(64),
+  };
+  const authority = {
+    namespace: "fixed",
+    configuration: {
+      schema_version: 4,
+      kind: "three-app-fixed-jobs-v1",
+      purpose: "application",
+      journal: { journal_seed: { checkpoint: prior } },
+    },
+    publication,
+  };
+  const bootstrapProvider = {};
+  const publicSource = {
+    files: new Map([["initial_site_preimage", Buffer.from("inert public history")]]),
+    publication: {
+      public_source: { commit: revision, initial_site_preimage: { path: "historical.json" } },
+    },
+    source_tree: "e".repeat(40),
+    historical: { observed_at: "2026-11-03T00:00:00Z" },
+  };
+  let refuseHistory = false;
+  const sandbox = {
+    isRecord: (await import("./runtime-values.mts")).isRecord,
+    inspectPublishedMetadata: () => null,
+    coordinatorHasUnresolvedEffect: () => false,
+    requireControllerApplicationCoordinatorPublicationAuthorities: async () => authority,
+    requireControllerApplicationCoordinatorAuthorities: async () => authority,
+    inspectCoordinatorRemoteNamespace: () => "fixed",
+    receiveControllerTools: async () => tools,
+    verifiedControllerToolPaths: async () => ({
+      identity: { controller_revision: revision, controller_ref: reader.admitted.execution_ref },
+      rust: "/inert/verifier",
+    }),
+    readProductionControllerWorkflowBytes: async () => Buffer.from("fixed source"),
+    authenticateControlReaderJob: async () => reader,
+    authenticateCoordinatorInitialControls: async (...args: unknown[]) => {
+      assert.deepEqual(args.slice(5), ["application", "metadata-maintenance"]);
+      const budget = args[4] as { monotonicDeadline: number };
+      return control(budget.monotonicDeadline);
+    },
+    coordinatorMaintenanceIdentity,
+    capacityDigest: releaseCanonicalDigest,
+    coordinatorBootstrapSourceProvider: async () => bootstrapProvider,
+    readBootstrapPublicSource: async (provider: object) => {
+      assert.equal(provider, bootstrapProvider);
+      return publicSource;
+    },
+    deriveMetadataBootstrapDescriptor: () => descriptor,
+    assertMetadataBootstrapBinding: () => {},
+    writeFile: async () => {},
+    prepareAuthenticatedMetadataBootstrap: async () => ({}),
+    readControllerToolFile: async () => Buffer.from("public verifier"),
+    createHash: (await import("node:crypto")).createHash,
+    inspectPreparedMetadataBootstrap: async () => ({
+      descriptor,
+      context: {},
+      prepared_root: "/inert",
+      files: [],
+    }),
+    bootstrapPreimageCatalogPins: () => null,
+    assertBootstrapSiteBaseline: () => {},
+    readConfiguredBootstrapSite: async (provider: object) => {
+      assert.equal(provider, bootstrapProvider);
+      return {};
+    },
+    authenticateReleaseControlRound: async (
+      _directory: string,
+      _digest: string,
+      phase: string,
+      _round: number,
+      options: { deadline: number; controlReader?: string },
+    ) => {
+      assert.equal(phase, "coordinator");
+      assert.equal(options.controlReader, "metadata-maintenance");
+      return control(options.deadline);
+    },
+    coordinatorContinuationDeadline,
+    assessBoundedCapacity: () => ({ eligibility: "eligible" }),
+    readRemoteCoordinatorSnapshot: async () => original,
+    controllerOidcSubject: (await import("./assembler-job-identity.mts")).controllerOidcSubject,
+    authenticateCapacityExecutor: async () => executor,
+    ensureOwnedCheckpointJournalHistory: async (
+      actual: object,
+      repository: string,
+      checkpoint: string,
+      guard: () => Promise<void>,
+    ) => {
+      assert.equal(actual, executor);
+      assert.equal(repository, original.repository);
+      assert.equal(checkpoint, prior);
+      await guard();
+      fenceReads.push(controlReads.length);
+      events.push("verify-original-history");
+      if (refuseHistory) throw new Error("retained history refused");
+      return true;
+    },
+    checkpointReleaseOpportunity: async (
+      repository: string,
+      checkpoint: string,
+      input: { controller: { revision: string } },
+    ) => {
+      assert.equal(repository, original.repository);
+      assert.equal(checkpoint, prior);
+      assert.equal(events.at(-1), "verify-original-history");
+      assert.equal(
+        input.controller.revision,
+        revision,
+        "first authorized child records the actual repaired controller source",
+      );
+      fenceReads.push(controlReads.length);
+      events.push("local-intent");
+      return { checkpoint: next };
+    },
+    publishOwnedSignedCoordinatorCheckpoint: async (
+      actual: object,
+      repository: string,
+      checkpoint: string,
+      guard: () => Promise<void>,
+    ) => {
+      assert.equal(actual, executor);
+      assert.equal(repository, original.repository);
+      assert.equal(checkpoint, next);
+      await guard();
+      assert.equal(events.at(-1), "local-intent");
+      fenceReads.push(controlReads.length);
+      events.push("signed-publication");
+      return { checkpoint };
+    },
+    guardedCoordinatorJournal: () =>
+      assert.fail("selected bootstrap must not construct a legacy transport"),
+    publishCoordinatorCheckpoint: () =>
+      assert.fail("selected bootstrap must not use a raw journal publisher"),
+    bootstrapPreparations: session,
+    performance,
+    path: (await import("node:path")).default,
+    process: { env: {} },
+    structuredClone,
+    Buffer,
+  };
+  const entry = runInNewContext(
+    stripTypeScriptTypes(text.slice(helperStart, helperEnd) + text.slice(start, end)) +
+      "\nprepareTrustedCoordinatorBootstrapAt",
+    sandbox,
+  ) as (
+    directory: string,
+    selected: unknown,
+    recovered: unknown,
+    budget: unknown,
+  ) => Promise<{ decision: string; checkpoint: string }>;
+  const deadline = performance.now() + 60000;
+  const budget = {
+    monotonicDeadline: deadline,
+    journalTransport: () => ({ credential: { token: "inert-bootstrap" }, deadline }),
+    check: () => {},
+    remaining: () => 60000,
+  };
+  const result = await entry(
+    "/inert",
+    { tools: { artifact: {}, bundle: {} }, remote_configuration: {} },
+    original,
+    budget,
+  );
+  assert.equal(result.decision, "metadata-bootstrap-prepared");
+  assert.equal(result.checkpoint, next);
+  assert.deepEqual(events, ["verify-original-history", "local-intent", "signed-publication"]);
+  assert.deepEqual(original, immutableSeed, "the original seed remains unchanged");
+  const large = 16 * 1024 ** 2;
+  const roundLimit = 256 * 1024;
+  const expectedReads = [large, roundLimit, large, roundLimit, large, large, large, large];
+  assert.deepEqual(controlReads, expectedReads);
+  assert.deepEqual(fenceReads, [6, 6, 8]);
+  const retained = session.get(result);
+  assert.ok(retained);
+  await retained.next_controls(budget.monotonicDeadline);
+  assert.deepEqual(controlReads, [...expectedReads, roundLimit]);
+  events.length = 0;
+  refuseHistory = true;
+  await assert.rejects(
+    entry(
+      "/inert",
+      { tools: { artifact: {}, bundle: {} }, remote_configuration: {} },
+      original,
+      budget,
+    ),
+    /retained history refused/,
+  );
+  assert.deepEqual(
+    events,
+    ["verify-original-history"],
+    "failed history permits no local intent or publication",
+  );
+});
+
+void test("actual Pages recovery awaits the same SDK controls at its journal fence", async () => {
+  const source = await readFile(
+    new URL("./release-coordinator-driver.mts", import.meta.url),
+    "utf8",
+  );
+  const start = source.indexOf("async function recoverTrustedCoordinatorPages(");
+  const end = source.indexOf("/** Routing only.", start);
+  assert.ok(start > 0 && end > start);
+  const calls: string[] = [];
+  const reader = {
+    admitted: {
+      revision: "a",
+      execution_ref: "refs/tags/fixed",
+      actor_id: "7",
+      run_id: 8,
+      run_attempt: 1,
+    },
+    identity: { job_id: 9, check_run_id: "10" },
+  };
+  const controls = {
+    evidence_scope: "github.com",
+    async readSdkMaintenance(allowance: unknown, options: { deadline: number }) {
+      assert.equal(allowance, undefined);
+      assert.equal(options.deadline, 70000);
+      calls.push("sdk");
+      return { reader: reader.identity };
+    },
+  };
+  const recover = runInNewContext(
+    stripTypeScriptTypes(source.slice(start, end)) + "\nrecoverTrustedCoordinatorPages",
+    {
+      selectCoordinatorPendingPagesRecovery: () => ({ operation: { id: "pages" }, expected: {} }),
+      requireControllerApplicationCoordinatorAuthorities: async () => ({ namespace: "fixed" }),
+      inspectCoordinatorRemoteNamespace: () => "fixed",
+      readProductionControllerWorkflowBytes: async () => Buffer.from("fixed"),
+      authenticateControlReaderJob: async () => reader,
+      authenticateCapacityExecutor: async () => ({}),
+      controllerOidcSubject: () => "fixed",
+      capacityDigest: JSON.stringify,
+      authenticateCoordinatorInitialControls: async (...args: unknown[]) => {
+        assert.deepEqual(args.slice(5), ["application", "metadata-maintenance"]);
+        return controls;
+      },
+      authenticateReleaseControlRound: async (...args: unknown[]) => {
+        assert.equal(args[3], 1);
+        assert.deepEqual(
+          { ...(args[4] as object) },
+          { deadline: 80000, controlReader: "metadata-maintenance" },
+        );
+        return controls;
+      },
+      coordinatorMaintenanceIdentity: JSON.stringify,
+      recoverPendingPagesPublication: async (...args: unknown[]) => {
+        await (args[4] as () => Promise<void>)();
+        await (args[5] as () => Promise<void>)();
+        return { settled: { checkpoint: "read-back" } };
+      },
+      path,
+      performance: { now: () => 1000 },
+      process: { env: {} },
+    },
+  ) as (...args: unknown[]) => Promise<Record<string, unknown>>;
+  const result = await recover(
+    "private",
+    {},
+    { checkpoint: "old", repository: "bare", input: {} },
+    {
+      monotonicDeadline: 80000,
+      remaining: () => 69000,
+      check() {},
+    },
+  );
+  assert.equal(result.checkpoint, "read-back");
+  assert.deepEqual(calls, ["sdk", "sdk", "sdk"]);
+});
+
+void test("coordinator journal rechecks its cutoff after the awaited SDK mutation controls", async () => {
+  const source = await readFile(
+    new URL("./release-coordinator-driver.mts", import.meta.url),
+    "utf8",
+  );
+  const start = source.indexOf("function guardedCoordinatorJournal(");
+  const end = source.indexOf("/** Provider inventory facts only", start);
+  assert.ok(start > 0 && end > start);
+  const calls: string[] = [];
+  const bind = runInNewContext(
+    stripTypeScriptTypes(source.slice(start, end)) + "; guardedCoordinatorJournal;",
+    {
+      createCoordinatorJournalApi: () => ({
+        async request(method: string) {
+          calls.push(method);
+        },
+        async graphql() {
+          calls.push("CAS");
+        },
+      }),
+    },
+  ) as (
+    directory: string,
+    budget: object,
+    controls: { readCurrent: () => Promise<void> },
+  ) => { request(method: string): Promise<void>; graphql(query: string): Promise<void> };
+  const ready = Promise.withResolvers<void>();
+  let expired = false;
+  const journal = bind(
+    "/inert",
+    {
+      monotonicDeadline: 100,
+      check() {
+        if (expired) throw new Error("original cutoff expired");
+      },
+    },
+    {
+      async readCurrent() {
+        calls.push("controls");
+        await ready.promise;
+      },
+    },
+  );
+  const pending = journal.request("POST");
+  assert.deepEqual(calls, ["controls"]);
+  expired = true;
+  ready.resolve();
+  await assert.rejects(pending, /original cutoff expired/u);
+  assert.deepEqual(calls, ["controls"]);
+  expired = false;
+  await journal.graphql("mutation { exactCAS }");
+  assert.deepEqual(calls, ["controls", "controls", "CAS"]);
+});
+
+void test("paused withdrawal rechecks the same controls and refreshes aging observations", async () => {
+  const source = await readFile(
+    new URL("./release-coordinator-driver.mts", import.meta.url),
+    "utf8",
+  );
+  const identityStart = source.indexOf("function maintenanceIdentity(");
+  const identityEnd = source.indexOf("/** Budget derivation", identityStart);
+  const start = source.indexOf("async function withdrawTrustedApplicationReview(");
+  const end = source.indexOf("/** Resolve the exact outstanding request", start);
+  const implementation = stripTypeScriptTypes(
+    source.slice(identityStart, identityEnd) + source.slice(start, end),
+  );
+  const withdrawal = { request_checkpoint: "parent", source_commit: "withdrawn" };
+  let now = 0;
+  let refreshes = 0;
+  let changeOnRefresh = false;
+  let published = false;
+  const observations = (round: number) => ({
+    async readSdkWithdrawal(commit: string) {
+      assert.equal(commit, withdrawal.source_commit);
+      return {
+        phase: "coordinator",
+        purpose: "metadata-coordinator-controls",
+        resource_policy_matches_controller: true,
+        reader: { round },
+        pause: {
+          publication_paused: true,
+          commit: changeOnRefresh && round > 0 ? "changed" : "closed",
+        },
+        protection: { observed_at: new Date(round === 0 ? 0 : now).toISOString() },
+        capacity: {},
+      };
+    },
+  });
+  const run = runInNewContext(`${implementation}; withdrawTrustedApplicationReview;`, {
+    path,
+    capacityDigest,
+    isRecord,
+    structuredClone,
+    process: { env: {} },
+    Date: { parse: Date.parse, now: () => now },
+    inspectCoordinatorRemoteNamespace: () => "portcove-production",
+    requireControllerJobSourceConfiguration: async () => ({
+      binding: {
+        purpose: "application",
+        namespace: "portcove-production",
+        review_withdrawal: withdrawal,
+      },
+      recheck() {},
+    }),
+    appendRetainedReviewWithdrawal: (prior: unknown, receipt: unknown) => {
+      assert.equal(prior, undefined);
+      return receipt;
+    },
+    matchesRetainedReviewWithdrawal: () => false,
+    matchesWithdrawnReviewRequest: () => true,
+    inspectReleaseReviewRequest: () => ({}),
+    coordinatorHasUnresolvedEffect: () => false,
+    selectCoordinatorPendingContextRecovery: () => null,
+    selectCoordinatorPendingPagesRecovery: () => null,
+    inspectSettledPagesMetadataHandoff: () => null,
+    selectCoordinatorCandidateSigningRecovery: () => null,
+    readProductionControllerWorkflowBytes: async () => Buffer.alloc(0),
+    authenticateControlReaderJob: async () => ({}),
+    authenticateCoordinatorInitialControls: async (...args: unknown[]) => {
+      assert.equal(args[6], "coordinator-application");
+      return observations(0);
+    },
+    authenticateReleaseControlRound: async (...args: unknown[]) => {
+      assert.equal(args[3], 1);
+      assert.equal((args[4] as { controlReader: string }).controlReader, "coordinator-application");
+      refreshes++;
+      return observations(1);
+    },
+    readRemoteCoordinatorSnapshot: async () => ({ checkpoint: "parent" }),
+    coordinatorCheckpointPublisher: async (...args: unknown[]) => {
+      assert.equal(args[8], true);
+      const controls = args[6] as { readCurrent(): Promise<void> };
+      await controls.readCurrent();
+      return async () => {
+        now = 30000;
+        await controls.readCurrent();
+        published = true;
+      };
+    },
+    checkpointReleaseOpportunity: async () => ({ checkpoint: "child" }),
+  }) as (...args: unknown[]) => Promise<{ decision: string }>;
+  const invoke = () =>
+    run(
+      "inert",
+      {},
+      { checkpoint: "parent", input: { controller: {} } },
+      withdrawal,
+      {
+        check() {},
+        monotonicDeadline: 100000,
+        journalTransport() {},
+      },
+      () => {},
+    );
+  assert.equal((await invoke()).decision, "review-withdrawn");
+  assert.equal(refreshes, 1);
+  assert.equal(published, true);
+
+  now = 0;
+  published = false;
+  changeOnRefresh = true;
+  await assert.rejects(invoke(), /controls changed before journal mutation/);
+  assert.equal(published, false);
+});
+
+void test("authenticated renewal reuse ignores only the journal observation clocks", () => {
+  const saved = {
+    now: "2026-11-10T09:06:43.487Z",
+    publication: { observed_at: "2026-11-10T09:06:43.487Z", complete: true },
+    metadata_renewal: { generated_at: "2026-11-10T09:06:10Z" },
+    controller: { capacity_attempt: { operation: null } },
+  };
+  const observed = structuredClone(saved);
+  observed.now = observed.publication.observed_at = "2026-11-10T12:43:45.742Z";
+  assert.equal(metadataRenewalInputIdentity(saved), metadataRenewalInputIdentity(observed));
+  for (const changed of [
+    { ...observed, publication: { ...observed.publication, complete: false } },
+    { ...observed, metadata_renewal: { generated_at: observed.now } },
+    { ...observed, controller: { capacity_attempt: { operation: "pending" } } },
+  ])
+    assert.notEqual(metadataRenewalInputIdentity(saved), metadataRenewalInputIdentity(changed));
+  assert.equal(saved.now, "2026-11-10T09:06:43.487Z");
+});
+
+void test("retained renewal admits only the exact live resource policy rebind", () => {
+  const originalPolicy = "b553063de9c8d9c6c6412fbed7b607bdc5a1bb509a06b38e4f25e2c68c0f7b38";
+  const boundary = { budget_usd: 0, stop_usage: true, resource_policy_sha256: originalPolicy };
+  const retained = {
+    now: "2026-11-10T09:06:43.487Z",
+    publication: { observed_at: "2026-11-10T09:06:43.487Z", complete: true },
+    metadata_renewal: { generated_at: "2026-11-10T09:06:10Z" },
+    controller: {
+      publication_paused: false,
+      capacity_attempt: {
+        schema_version: 2,
+        boundary,
+        ratification: {
+          active: true,
+          resource_policy_sha256: originalPolicy,
+          boundary_sha256: capacityDigest(boundary),
+        },
+        operation: null as string | null,
+        prior_operations: [] as string[],
+      },
+    },
+  };
+  const current = structuredClone(retained);
+  current.now = current.publication.observed_at = "2026-11-10T21:05:20.144Z";
+  const capacity = current.controller.capacity_attempt;
+  capacity.boundary.resource_policy_sha256 = slice4CapacityResourceDigest;
+  capacity.ratification.resource_policy_sha256 = slice4CapacityResourceDigest;
+  capacity.ratification.boundary_sha256 = capacityDigest(capacity.boundary);
+  assert.notEqual(metadataRenewalInputIdentity(retained), metadataRenewalInputIdentity(current));
+  assert.equal(matchesRetainedRenewalCapacityRebind(retained, current), true);
+  assert.equal(matchesRetainedRenewalCapacityRebind(retained, retained), false);
+  for (const change of [
+    (input: typeof current) => {
+      input.controller.capacity_attempt.boundary.stop_usage = false;
+    },
+    (input: typeof current) => {
+      input.controller.capacity_attempt.ratification.active = false;
+    },
+    (input: typeof current) => {
+      input.controller.capacity_attempt.ratification.boundary_sha256 = "a".repeat(64);
+    },
+    (input: typeof current) => {
+      input.controller.capacity_attempt.operation = "pending";
+    },
+    (input: typeof current) => {
+      input.controller.capacity_attempt.prior_operations.push("changed");
+    },
+    (input: typeof current) => {
+      input.controller.publication_paused = true;
+    },
+    (input: typeof current) => {
+      input.metadata_renewal.generated_at = input.now;
+    },
+    (input: typeof current) => {
+      input.publication.complete = false;
+    },
+  ]) {
+    const changed = structuredClone(current);
+    change(changed);
+    assert.equal(matchesRetainedRenewalCapacityRebind(retained, changed), false);
+  }
+  assert.equal(
+    current.controller.capacity_attempt.boundary.resource_policy_sha256,
+    slice4CapacityResourceDigest,
+  );
+  assert.equal(
+    retained.controller.capacity_attempt.boundary.resource_policy_sha256,
+    originalPolicy,
   );
 });

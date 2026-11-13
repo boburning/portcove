@@ -159,7 +159,7 @@ class PortcoveNativeWindows {
  static [bool]$fail=$false
  static [int]$actions=0
  static [IntPtr] GetFolderActionButton([IntPtr]$handle,[int]$process,[string]$action,[string]$title){
-  if($handle.ToInt32() -ne 7 -or $process -ne 42 -or $action -cne 'Cancel' -or $title -cnotin @('Select Folder','Choose game-file folder')){throw 'wrong native action context'}
+  if($handle.ToInt32() -ne 7 -or $process -ne 42 -or $action -cne 'Cancel' -or $title -cnotin @('Select Folder','Choose game files folder')){throw 'wrong native action context'}
   [PortcoveNativeWindows]::actions++;return [IntPtr]20
  }
  static [object[]] InspectEdits([IntPtr]$handle,[int]$process,[string]$title){
@@ -201,7 +201,7 @@ $pane=[pscustomobject]@{Current=[pscustomobject]@{ControlType=[System.Windows.Au
 $controls=@($pane);$fields=@();$actionButton=@()
 . ([scriptblock]::Create($guard))
 if($nativeAction.ToInt32() -ne 20 -or [PortcoveNativeWindows]::actions -ne 1){throw 'exact Pane fallback unavailable'}
-$ExpectedPickerTitle='Choose game-file folder';$observedWindow.Current.Name=$ExpectedPickerTitle
+$ExpectedPickerTitle='Choose game files folder';$observedWindow.Current.Name=$ExpectedPickerTitle
 . ([scriptblock]::Create($guard))
 if($nativeAction.ToInt32() -ne 20 -or [PortcoveNativeWindows]::actions -ne 2){throw 'game-file Pane fallback unavailable'}
 foreach($case in @('duplicate-pane','foreign-pane','mixed-action','wrong-title')){
@@ -308,6 +308,7 @@ void test("captured picker driver keeps explicit image and birth identity checks
 $ErrorActionPreference = 'Stop'
 $ast = [Management.Automation.Language.Parser]::ParseFile('${helper.replaceAll("'", "''")}', [ref]$null, [ref]$null)
 $guard = $ast.Find({ param($node) $node -is [Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq 'Assert-CapturedPickerDriver' }, $false)
+. '${path.join(path.dirname(helper), "native-process-tree.ps1").replaceAll("'", "''")}'
 . ([scriptblock]::Create($guard.Extent.Text))
 $DriverProcessId = $PID
 $process = [Diagnostics.Process]::GetCurrentProcess()
@@ -336,6 +337,36 @@ foreach ($call in $calls) {
   });
   assert.equal(result.status, 0, result.stderr);
   assert.match(result.stdout, /identity-preserved/);
+});
+
+void test("native game-file picker titles match the actual application dialog", async () => {
+  const picker = await readFile("apps/desktop/src/file-picker.ts", "utf8");
+  const title = picker.match(/export function pickGameFileFolder\([\s\S]*?title: "([^"]+)"/u)?.[1];
+  assert.ok(title, "Application folder picker title must be captured");
+  for (const helper of [
+    "desktop-native-confirmation.mts",
+    "native-confirmation.ps1",
+    "native-window-discovery.ps1",
+    "native-linux-folder-picker.py",
+  ]) {
+    const source = await readFile(path.join("apps/desktop/scripts", helper), "utf8");
+    assert.ok(source.includes(title), `${helper} must recognize the actual application dialog`);
+  }
+});
+
+void test("game-first adoption confirms the actual native copy title and button", async () => {
+  const adoption = await readFile("apps/desktop/src-tauri/src/adoption.rs", "utf8");
+  const confirmation = adoption.match(
+    /confirm_destructive\(\s*&app,\s*"([^"]+)",\s*message,\s*"([^"]+)"/u,
+  );
+  assert.ok(confirmation, "Actual adoption confirmation must be captured");
+  const scenario = await readFile(
+    "apps/desktop/scripts/desktop-game-first-installed-test.mts",
+    "utf8",
+  );
+  const caller = scenario.match(/await confirmNative\(\s*"([^"]+)",\s*"([^"]+)",\s*portId,/u);
+  assert.ok(caller, "Game-first copy must retain exact port identity confirmation");
+  assert.deepEqual(caller.slice(1), confirmation.slice(1));
 });
 
 async function isolatedConsumer(t: TestContext, fixture: string) {
@@ -897,7 +928,7 @@ $ast=[Management.Automation.Language.Parser]::ParseFile('PRODUCTION',[ref]$null,
 $guard=$ast.Find({param($node) $node -is [Management.Automation.Language.IfStatementAst] -and $node.Extent.Text.StartsWith('if ($PreparedRuntimeDirectory)') -and $node.Extent.Text.Contains('$expectedPreparedDirectory =')},$true).Extent.Text
 if(-not $guard){throw 'Actual picker preflight missing'}
 $ObservationPath=[IO.Path]::Combine('ROOT','fresh-observation.json')
-foreach($title in @('Select Folder','Choose game-file folder')){
+foreach($title in @('Select Folder','Choose game files folder')){
  $ExpectedPickerTitle=$title
  foreach($name in @('player-owned-runtime','real-prepared-runtime-dkc3-recomp','real-prepared-runtime-wave-race-64-racewave46','real-prepared-runtime-wave-race-64-recomp','selected-setup-inputs','connected-folder-extra','connected-folder-replacement','foreign','nested/selected-setup-inputs','../selected-setup-inputs')){
   $PreparedRuntimeDirectory=[IO.Path]::Combine('ROOT',$name);$rejected=$false
@@ -911,7 +942,7 @@ foreach($title in @('Select Folder','Choose game-file folder')){
 }
 Remove-Item -LiteralPath ([IO.Path]::Combine('ROOT','connected-folder-extra'))
 New-Item -ItemType Junction -Path ([IO.Path]::Combine('ROOT','connected-folder-extra')) -Target ([IO.Path]::Combine('ROOT','foreign')) | Out-Null
-$ExpectedPickerTitle='Choose game-file folder';$PreparedRuntimeDirectory=[IO.Path]::Combine('ROOT','connected-folder-extra');$rejected=$false
+$ExpectedPickerTitle='Choose game files folder';$PreparedRuntimeDirectory=[IO.Path]::Combine('ROOT','connected-folder-extra');$rejected=$false
 try{. ([scriptblock]::Create($guard))}catch{$rejected=$true}
 if(-not $rejected){throw 'Reparse fixture accepted'}
 'picker-preflight-contract-passed'
@@ -946,3 +977,67 @@ function arrayField(record: Record<string, unknown>, key: string): unknown[] {
   assert(Array.isArray(value));
   return value;
 }
+
+void test(
+  "file picker receipt requires owned readback and fresh dismissal after one Open",
+  { skip: process.platform !== "win32" },
+  async (t) => {
+    const root = await mkdtemp(path.join(os.tmpdir(), "pcv-file-picker-witness-"));
+    t.after(() => rm(root, { recursive: true, force: true }));
+    const fixture = path.join(root, "original.bin");
+    await writeFile(fixture, "owned");
+    const source = path
+      .resolve("apps/desktop/scripts/native-confirmation.ps1")
+      .replaceAll("'", "''");
+    const script = path.join(root, "witness.ps1");
+    await writeFile(
+      script,
+      `
+$ErrorActionPreference = 'Stop'
+Add-Type -AssemblyName UIAutomationClient
+Add-Type -AssemblyName UIAutomationTypes
+$ast = [Management.Automation.Language.Parser]::ParseFile('${source}', [ref]$null, [ref]$null)
+function Block([string]$marker) {
+    $node = $ast.Find({ param($n) $n -is [Management.Automation.Language.IfStatementAst] -and $n.Extent.Text.StartsWith('if ($FilePath)') -and $n.Extent.Text.Contains($marker) }, $true)
+    if (-not $node) { throw 'Production file-picker inventory changed' }
+    return [scriptblock]::Create($node.Extent.Text)
+}
+$inputBody = Block 'SetValue($selected)'
+$readbackBody = Block "Write-ObservationProgress 'file-input-readback'"
+$closeBody = Block '$closeDeadline ='
+function Assert-ExactConfirmationWindow { param($w) if ($w.Current.NativeWindowHandle -ne 7) { throw 'changed window' } }
+function Assert-LiveApplication { if ($script:case -eq 'changed-app') { throw 'changed application' } }
+function Write-ObservationProgress { param($stage) }
+function Get-OwnedConfirmationWindows {
+    $script:polls++
+    if ($script:case -eq 'still-open' -or ($script:case -eq 'valid' -and $script:polls -eq 1)) { [pscustomobject]@{ handle = 7 } }
+}
+$FilePath = '${fixture.replaceAll("'", "''")}'; $DirectoryPath = $null; $Title = 'Choose game files'; $Button = 'Open'; $applicationId = 42
+$window = [pscustomobject]@{ Current = [pscustomobject]@{ NativeWindowHandle = 7 } }; $selectedWindowHandle = 7
+foreach ($script:case in @('valid', 'foreign-field', 'ignored-set', 'changed-field', 'still-open', 'changed-app')) {
+    $script:polls = 0; $failed = $false
+    $field = [pscustomobject]@{ Current = [pscustomobject]@{ Name = 'File name:'; ControlType = [System.Windows.Automation.ControlType]::Edit; ProcessId = $(if ($script:case -eq 'foreign-field') { 99 } else { 42 }); Value = '' } }
+    $field | Add-Member ScriptMethod GetCurrentPattern { param($pattern) $this }
+    $field | Add-Member ScriptMethod SetValue { param($value) if ($script:case -ne 'ignored-set') { $this.Current.Value = $value } }
+    $children = @($field)
+    try {
+        . $inputBody
+        if ($script:case -eq 'changed-field') { $field.Current.Value = 'other' }
+        . $readbackBody
+        . $closeBody
+    } catch { $failed = $true }
+    if ($failed -ne ($script:case -ne 'valid')) { throw "Wrong verdict for $script:case" }
+    if ($script:case -eq 'valid' -and (-not $fileSelection.closed -or -not $fileSelection.field_readback_matches -or $script:polls -ne 2)) { throw 'Missing fresh dismissal/readback witness' }
+}
+Write-Output 'file-picker-witness-passed'
+`,
+    );
+    const result = spawnSync("pwsh", ["-NoProfile", "-File", script], {
+      encoding: "utf8",
+      timeout: 30_000,
+      windowsHide: true,
+    });
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+    assert.match(result.stdout, /file-picker-witness-passed/u);
+  },
+);

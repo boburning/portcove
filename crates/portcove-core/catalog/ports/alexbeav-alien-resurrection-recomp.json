@@ -15,7 +15,46 @@
       "game_slug": "alien-resurrection",
       "match_kind": "underlying-game"
     },
-    "issue_number": 428
+    "issue_number": 428,
+    "listed_at": "2026-10-23",
+    "platforms": ["macos-x86-64", "macos-aarch64"],
+    "download_asset_hints": {
+      "windows-x86-64": ["alien-resurrection-recomp-", "-windows-x64.zip"],
+      "linux-x86-64": ["alien-resurrection-recomp-", "-linux-x64.zip"],
+      "macos-x86-64": ["alien-resurrection-recomp-", "-macos-x64.zip"],
+      "macos-aarch64": ["alien-resurrection-recomp-", "-macos-arm64.zip"]
+    },
+    "setup_url": "https://github.com/alexbeavs-ps1-ports/alien-resurrection-recomp#readme",
+    "release_url": "https://github.com/alexbeavs-ps1-ports/alien-resurrection-recomp/releases",
+    "availability": "packages",
+    "recommended_download_channel": "stable",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Prepare the Mac tools and setup kit",
+          "instruction": "Choose the official Mac ZIP from the upstream releases. Use -macos-x64.zip for Intel or -macos-arm64.zip for Apple silicon. Extract the complete kit to a writable folder and follow its README-SETUP.txt. Put Xcode Command Line Tools, CMake, Ninja and Python 3.10 or newer on PATH. The inspected Mac setup host requires macOS 11 or newer. The bundled game and BIOS generators require macOS 15 or newer."
+        },
+        {
+          "title": "Supply your matching disc and BIOS",
+          "instruction": "Use your own European Alien Resurrection disc (SLES-02913) with all 4 tracks present. This kit requires your own retail SCPH-5552 BIOS dump. Keep the CUE and every referenced track together when using CUE/BIN."
+        },
+        {
+          "title": "Build and add the player on Mac",
+          "instruction": "Run Alien_Resurrection_Recompiled from the unpacked folder and follow Generate & rebuild. In Portcove, select build-release/Alien_Resurrection_Recompiled as the program and build-release as its start folder."
+        }
+      ],
+      "warnings": [
+        "Before replacing your kit, make a normal in-game save, close the game and keep the previous kit and memory cards. Upstream warns that save states may be incompatible across versions.",
+        "Portcove has not verified Mac setup, gameplay or save compatibility for this kit."
+      ],
+      "help_url": "https://github.com/alexbeavs-ps1-ports/alien-resurrection-recomp#readme",
+      "references": [
+        {
+          "title": "Updates and backups",
+          "instruction": "Keep the complete working folder and back up your disc image, BIOS, saves, settings and overlay captures before replacing the kit. Keep the player with the folder that built it."
+        }
+      ]
+    }
   },
   "integration": {
     "support_tier": "beta",
@@ -46,7 +85,12 @@
       "config.ini",
       "disc.cfg",
       "bios.cfg",
-      "mods",
+      "mods/installed",
+      "mods/packages",
+      "mods/.staging",
+      "mods/state.toml",
+      "mods/state.toml.tmp",
+      "mods/texture-packs",
       "overlay-captures",
       "overlay_captures.json",
       "overlay_captures.json.d",
@@ -58,7 +102,8 @@
       "psx_freeze_heartbeat.json.tmp",
       "psx_last_run_report.json",
       "psx_cps_exit_trace.json",
-      "netplay_lan_lobby.txt"
+      "netplay_lan_lobby.txt",
+      "psx_crash.txt"
     ],
     "runtime_mutable_file_patterns": [
       {

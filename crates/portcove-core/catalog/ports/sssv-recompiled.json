@@ -6,6 +6,7 @@
     "name": "Space Station Silicon Valley: Recompiled",
     "summary": "Native Space Station Silicon Valley recompilation.",
     "project_url": "https://github.com/Cellenseres/SSSV_Recomp",
+    "listed_at": "2026-10-23",
     "original_game_title": "Space Station Silicon Valley",
     "artwork": {
       "game_id": 3602,
@@ -31,7 +32,8 @@
         "linux-x86-64": ["Linux.tar.gz"],
         "macos-x86-64": ["macOS.zip"],
         "macos-aarch64": ["macOS.zip"]
-      }
+      },
+      "archive_file_links": true
     },
     "source_profile": "space-station-silicon-valley",
     "runtime_source_filename": "sssv.n64.us.1.0.z64",

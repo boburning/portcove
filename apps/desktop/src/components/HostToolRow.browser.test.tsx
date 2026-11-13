@@ -1,3 +1,4 @@
+import { captureParityState } from "../../test/parity-capture";
 import { controlledAct as act } from "../../test/controlled-react-act";
 import { render as renderComponent, cleanup, type RenderResult } from "vitest-browser-react";
 
@@ -89,8 +90,10 @@ describe("host-tool feedback identity", () => {
     await render();
     await click("Recheck");
     expect(container.textContent).toContain("Old executable failed");
+    await captureParityState("host-tool-probe-error");
     await render({ ...initial, path: "D:/Replacement/chdman.exe" });
     expect(container.textContent).not.toContain("Old executable failed");
+    await captureParityState("host-tool-replacement-cleared-error");
   });
 
   it.each(["success", "failure"] as const)(
@@ -153,6 +156,7 @@ describe("host-tool feedback identity", () => {
       recheck.click();
     });
     expect(actions.recheck).toHaveBeenCalledExactlyOnceWith(initial.id);
+    await captureParityState("host-tool-probe-pending");
     await act(async () => probe.resolve(result));
     expect(container.textContent).toContain(result.message);
   });
@@ -179,6 +183,7 @@ describe("host-tool feedback identity", () => {
     expect(reinspect).toHaveBeenCalledExactlyOnceWith();
     expect(container.textContent).toContain(result.message);
     expect(container.textContent).toContain(initial.path);
+    await captureParityState("host-tool-locate-committed");
   });
 
   it("does not attach committed Locate feedback to an unrelated replacement path", async () => {

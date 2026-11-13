@@ -1,3 +1,4 @@
+import { captureParityState } from "../../test/parity-capture";
 import { afterEach, beforeEach, expect, it, vi } from "vite-plus/test";
 import { page, userEvent } from "vite-plus/test/browser";
 import { cleanup, render } from "vitest-browser-react";
@@ -104,7 +105,9 @@ it("keeps long RTL engineering labels operable in a narrow settings state", asyn
     "language-settings/ar-XB/rtl/320",
     context,
   );
+  await captureParityState("language-settings-ar-XB-rtl");
   await picker.click();
+  await captureParityState("language-picker-ar-XB-rtl");
   await page.getByRole("option", { name: "English", exact: true }).click();
   await expect.poll(() => document.documentElement.dir).toBe("ltr");
   expect(api.setLocalePreference).toHaveBeenCalledWith("en");

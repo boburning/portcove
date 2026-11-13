@@ -67,6 +67,17 @@ function text(value: unknown): string {
   assert.ok(typeof value === "string");
   return value;
 }
+/** A workspace snapshot carries the whole catalog; reports retain its digest. */
+function workspaceEvidence<T extends { workspace: unknown }>(observation: T) {
+  const json = JSON.stringify(observation.workspace);
+  return {
+    ...observation,
+    workspace: {
+      sha256: createHash("sha256").update(json).digest("hex"),
+      json_bytes: Buffer.byteLength(json),
+    },
+  };
+}
 function success(value: unknown) {
   const result = object(value);
   assert.equal(result.ok, true, JSON.stringify(result));
@@ -74,6 +85,7 @@ function success(value: unknown) {
 }
 import { executeBrowserScript } from "./browser-script.mts";
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 
@@ -238,8 +250,8 @@ export async function preferencesRecoveryScenario({
         recovered,
         restarted,
         identity,
-        recoveredHost,
-        restartedHost,
+        recoveredHost: workspaceEvidence(recoveredHost),
+        restartedHost: workspaceEvidence(restartedHost),
         technicalRows,
         external_owned_repair: true,
         malformed_original_retained: true,
@@ -329,7 +341,7 @@ export async function bootstrapRecoveryScenario({
   await chooseOwnedLibrary("Choose Portcove library", "Cancel", "Folder", "startup-picker-cancel");
   await browser.wait(
     async () => {
-      const row = await browser.findElement(By.css(".bootstrap-error .button-row"));
+      const row = await browser.findElement(choose).findElement(By.xpath("parent::*[@aria-busy]"));
       return (
         (await row.getAttribute("aria-busy")) === "false" &&
         (await browser.findElement(choose).isEnabled()) &&
@@ -401,8 +413,8 @@ export async function bootstrapRecoveryScenario({
         cancelled,
         selected,
         restarted,
-        selectedWorkspace,
-        restartedWorkspace,
+        selectedWorkspace: workspaceEvidence(selectedWorkspace),
+        restartedWorkspace: workspaceEvidence(restartedWorkspace),
         invalid_target_preserved: true,
         cancelled_preferences_preserved: true,
         saved_preferences_preserved_after_restart: true,

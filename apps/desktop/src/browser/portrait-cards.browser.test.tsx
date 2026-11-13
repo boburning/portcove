@@ -516,7 +516,9 @@ async function assertPortraitLayout(
   expect(identitySpacing.filter(({ gap, maximumGap }) => gap < 0 || gap > maximumGap)).toEqual([]);
   const fallback = document.querySelectorAll<HTMLElement>(".collection-art")[4]!;
   expect(fallback.querySelector("img")).toBeNull();
-  const palette = getComputedStyle(fallback).getPropertyValue("--art-color");
+  const palette = getComputedStyle(fallback).getPropertyValue(
+    view === "library" ? "--color-bg-raised" : "--art-color",
+  );
   const control = document.createElement("div");
   control.style.backgroundColor = palette;
   document.body.append(control);
@@ -524,7 +526,9 @@ async function assertPortraitLayout(
     getComputedStyle(control).backgroundColor,
   );
   control.remove();
-  for (const favorite of document.querySelectorAll<HTMLElement>('[aria-label^="Favorite "]')) {
+  for (const favorite of document.querySelectorAll<HTMLElement>(
+    '.collection-art-action[aria-label^="Favorite "]',
+  )) {
     const card = favorite.closest("article") ?? favorite.parentElement!;
     const art = card.querySelector(".collection-art")!.getBoundingClientRect();
     const favoriteBounds = favorite.getBoundingClientRect();

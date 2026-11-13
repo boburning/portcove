@@ -4,7 +4,6 @@ import { observeVisibleTarget } from "./browser-readiness.mts";
 import { prepareCaptureTarget, requireUnchangedCaptureTarget } from "../test/capture-target.ts";
 import { errorMessage } from "../../../scripts/runtime-values.mts";
 import { executeBrowserScript } from "./browser-script.mts";
-import { gameIdentityLabel } from "../src/port-identity.ts";
 import {
   captureSettledVisual,
   observePreparationCompletion,
@@ -23,9 +22,13 @@ import {
   assertCompactReview,
   assertPrimaryReviewAction,
   captureAccessibilityReport,
+  clearCatalogFilters,
   reviewControls,
+  selectCatalogPort,
   selectPrimaryNavigation,
   selectGameFilesSettings,
+  setupConfirmButton,
+  setupReviewButton,
 } from "./desktop-review-controls.mts";
 
 import {
@@ -317,7 +320,7 @@ export async function selectedSetupCompletionScenario({
       const enlargedTargets: Readonly<Record<string, string>> = {
         "initial-folder-connection": '[aria-label="Connect your game files"] h2',
         "connected-folder-management": "#game-file-libraries-heading",
-        "selected-setup-prepared": "[data-task-owner] h2",
+        "selected-setup-prepared": '[data-task-owner] > [data-slot="current-state-summary"] h3',
         "selected-setup-queue-return": '[aria-label="Selected setup reviews"] > h3',
         "selected-setup-bios-queue-return": '[aria-label="Selected setup reviews"] > h3',
         "selected-setup-bios-settled-return": '[aria-label="Selected setup reviews"] > h3',
@@ -422,6 +425,7 @@ export async function selectedSetupCompletionScenario({
           prefix: "selected-setup",
           stage,
           baselineWidth,
+          artifacts,
         }),
       );
     };
@@ -591,49 +595,12 @@ export async function selectedSetupCompletionScenario({
           5_000,
         );
         await enlargedStage("choose-inputs");
-        await click(By.css('button[aria-label="Choose a game or port"]'));
-        const query = await browser.findElement(By.id("port-search"));
+        // Add games sends game choice to Discover, where the exact port is chosen.
+        await click(By.css('button[aria-label="Browse games"]'));
+        const query = await browser.wait(until.elementLocated(By.id("port-search")), 5_000);
         await query.sendKeys(port.name);
-        await browser.wait(until.elementLocated(By.css('[role="option"]')), 5_000);
-        const options = await browser.findElements(By.css('[role="option"]'));
-        const projectDescription = `Port project: ${port.name} · ${port.id}`;
-        const descriptions = await Promise.all(options.map((option) => option.getText()));
-        assert.equal(
-          descriptions.filter((text) => text.split(/\r?\n/u).includes(projectDescription)).length,
-          1,
-        );
-        async function highlightExactSetupProject() {
-          let highlightedExactPort = false;
-          for (let index = 0; index <= options.length; index++) {
-            await query.sendKeys(Key.ARROW_DOWN);
-            const activeId = await query.getAttribute("aria-activedescendant");
-            if (!activeId) continue;
-            const active = await browser.findElement(By.id(activeId));
-            if ((await active.getText()).split(/\r?\n/u).includes(projectDescription)) {
-              highlightedExactPort = true;
-              break;
-            }
-          }
-          assert.equal(
-            highlightedExactPort,
-            true,
-            "Keyboard selection must highlight the exact stable port project",
-          );
-        }
-        await highlightExactSetupProject();
-        await query.sendKeys(Key.ENTER);
-        await browser.wait(
-          async () => (await query.getAttribute("aria-expanded")) === "false",
-          5_000,
-        );
-        assert.equal(await query.getAttribute("value"), gameIdentityLabel(port));
-        // Reopen to observe the committed ID through the selected option, rather
-        // than inferring identity from a possibly duplicated display title.
-        await query.sendKeys(Key.ARROW_DOWN);
-        await browser.wait(
-          async () => (await query.getAttribute("aria-expanded")) === "true",
-          5_000,
-        );
+        await clearCatalogFilters(browser);
+        await selectCatalogPort(browser, port.id);
         {
           await browser.wait(
             () =>
@@ -644,38 +611,34 @@ export async function selectedSetupCompletionScenario({
             10_000,
           );
           const enlarged = await executeBrowserScript(browser, () => {
-            const input = document.querySelector<HTMLInputElement>("#port-search");
-            const list = document.getElementById(input?.getAttribute("aria-controls") ?? "");
-            const selectedOption = list?.querySelector('[role="option"][aria-selected="true"]');
-            const project = [...(selectedOption?.querySelectorAll("span") ?? [])]
-              .map((span) => span.textContent ?? "")
-              .find((text) => text.startsWith("Port project: "));
+            const detail = document.querySelector<HTMLElement>(
+              "[data-detail-workspace][data-detail-port-id]",
+            );
             return {
               width: innerWidth,
               height: innerHeight,
               client: document.documentElement.clientWidth,
               scroll: document.documentElement.scrollWidth,
-              query: input?.value,
-              selected: project?.slice(project.lastIndexOf(" · ") + 3),
-              selected_project: project,
+              query: document.querySelector<HTMLInputElement>("#port-search")?.value,
+              selected: detail?.dataset.detailPortId,
+              heading: detail?.querySelector("h1")?.textContent?.trim(),
             };
           });
           assert.ok(enlarged.width <= 240 && enlarged.scroll <= enlarged.client + 1);
-          assert.equal(enlarged.query, gameIdentityLabel(port));
+          assert.equal(enlarged.query, port.name);
           assert.equal(enlarged.selected, port.id);
-          assert.equal(enlarged.selected_project, projectDescription);
           const receipt = path.join(output, "add-games-native-400.json");
           await writeFile(receipt, JSON.stringify(enlarged, null, 2), { flag: "wx" });
           artifacts.push(receipt);
         }
-        await query.sendKeys(Key.ESCAPE);
+        // Add games keeps its workspace while the player browses elsewhere.
         await selectPrimaryNavigation(browser, "Settings");
         await selectPrimaryNavigation(browser, "Library");
-        assert.equal(
-          await browser.findElement(By.id("port-search")).getAttribute("value"),
-          gameIdentityLabel(port),
+        await browser.wait(
+          until.elementLocated(By.xpath('//h1[normalize-space(.)="Add games"]')),
+          5_000,
         );
-        await click(By.css('button[aria-label="Find games in a folder"]'));
+        await click(By.css('button[aria-label="Scan a folder"]'));
       }
       await browser.wait(until.elementLocated(By.id(setupHeading)), 5_000);
       await enlargedStage("scan-and-recognize");
@@ -838,6 +801,28 @@ export async function selectedSetupCompletionScenario({
 
       async function reviewSetupWithController() {
         await openInstall();
+        await browser.wait(
+          () =>
+            executeBrowserScript(
+              browser,
+              () => document.activeElement === document.getElementById("install-review-title"),
+            ),
+          5_000,
+          "The installation review must initially focus its heading",
+        );
+        // Enter the first action through native keyboard navigation before the
+        // existing action-to-action controller probe; never assign focus in JS.
+        await browser.actions().sendKeys(Key.TAB).perform();
+        await browser.wait(
+          async () =>
+            executeBrowserScript(
+              browser,
+              (control) => document.activeElement === control,
+              await browser.findElement(install),
+            ),
+          5_000,
+          "Tab from the review heading must reach the actual Install control",
+        );
         report.observations.controller_review = object(
           await browser.executeAsyncScript(
             async (
@@ -908,7 +893,9 @@ export async function selectedSetupCompletionScenario({
                 await frames(2);
                 const beforeDirection = document.activeElement;
                 if (beforeDirection !== installControl || !review.contains(installControl))
-                  throw new Error("Actual primary Install control must own initial review focus");
+                  throw new Error(
+                    "Actual primary Install control must retain keyboard entry focus",
+                  );
                 const from = installControl.getBoundingClientRect();
                 const to = cancelControl.getBoundingClientRect();
                 if (
@@ -1048,11 +1035,11 @@ export async function selectedSetupCompletionScenario({
       report.observations.installed = { activity: installedActivity, status: installed };
       await enlargedStage("installed-next-step");
 
-      await click(button("Review game preparation"));
+      await click(setupReviewButton());
       const preparationDialog = By.css('[aria-labelledby="preparation-review-title"]');
       await browser.wait(until.elementLocated(preparationDialog), 15_000);
       await browser.wait(
-        until.elementIsEnabled(await browser.findElement(button("Prepare game data"))),
+        until.elementIsEnabled(await browser.findElement(setupConfirmButton())),
         15_000,
       );
       await assertCompactReview(browser, '[aria-labelledby="preparation-review-title"]');
@@ -1071,7 +1058,7 @@ export async function selectedSetupCompletionScenario({
         requested_at: new Date().toISOString(),
       };
       report.observations.preparation_wait = preparationWait;
-      await click(button("Prepare game data"));
+      await click(setupConfirmButton());
       const completion = await browser.wait(
         () =>
           observePreparationCompletion({
@@ -1110,7 +1097,20 @@ export async function selectedSetupCompletionScenario({
         prepared,
         observations: report.observations,
       });
-      assert.equal(prepared.readiness?.source_assessment?.contract.state, "unreviewed_for_release");
+      // Ordinary status inspects metadata only; it does not verify current
+      // source bytes or evaluate a release compatibility contract.
+      const passiveReadiness = required(prepared.readiness);
+      assert.equal(passiveReadiness.launchable, true);
+      assert.deepEqual(passiveReadiness.blockers, []);
+      assert.equal(passiveReadiness.pending_setup, false);
+      assert.equal(passiveReadiness.source, "not_checked");
+      assert.deepEqual(passiveReadiness.source_assessment, {
+        health: "not_checked",
+        classification: { state: "not_evaluated" },
+        contract: { state: "not_evaluated" },
+        admission: { state: "not_evaluated" },
+        evidence: [],
+      });
       await browser.wait(until.elementLocated(button("Try launch")), 15_000);
       await browser.wait(
         until.elementIsEnabled(await browser.findElement(button("Try launch"))),
@@ -1119,11 +1119,11 @@ export async function selectedSetupCompletionScenario({
       report.observations.result_focus = await browser.wait(
         () => executeBrowserScript(browser, observeCompletionResultFocus, port.name),
         5_000,
-        "Preparation must restore natural focus to the next step when compatibility is unconfirmed",
+        "Preparation must restore natural focus to the current file summary when compatibility is unconfirmed",
       );
       assert.ok(report.observations.result_focus);
-      assert.equal(report.observations.result_focus.tag, "H2");
-      assert.equal(report.observations.result_focus.text, "Next step");
+      assert.equal(report.observations.result_focus.tag, "H3");
+      assert.equal(report.observations.result_focus.text, "Files need checking");
       await screenshot("selected-setup-prepared");
       await enlargedStage("prepared-completion");
       await click(By.css("[data-detail-back]"));
@@ -1195,12 +1195,29 @@ export async function selectedSetupCompletionScenario({
       await enlargedStage("returned-selection");
       await selectPrimaryNavigation(browser, "Settings");
       await selectGameFilesSettings(browser);
+      const sourceHealthRow = `.source-health-row[data-source-profile="${owned.profiles[0]}"]`;
+      await click(
+        By.xpath(
+          `//*[@data-source-profile="${owned.profiles[0]}" and contains(@class,"source-health-row")]//button[normalize-space(.)="Check file"]`,
+        ),
+      );
+      await browser.wait(
+        async () => {
+          const resultBadges = await browser.findElements(
+            By.css(`${sourceHealthRow} .source-result`),
+          );
+          const displayed = await Promise.all(resultBadges.map((badge) => badge.isDisplayed()));
+          return displayed.some(Boolean);
+        },
+        15_000,
+        "The explicitly requested source inspection must display its actual result for axe",
+      );
       const accessibilityFile = path.join(output, "selected-setup-completion-accessibility.json");
       await captureAccessibilityReport(browser, accessibilityFile, artifacts);
       const accessibilityValue: unknown = JSON.parse(await readFile(accessibilityFile, "utf8"));
       const accessibility = object(accessibilityValue);
       assert.ok(Array.isArray(accessibility.violations) && Array.isArray(accessibility.incomplete));
-      const resultBadges = await browser.findElements(By.css(".source-result"));
+      const resultBadges = await browser.findElements(By.css(`${sourceHealthRow} .source-result`));
       const displayedBadges = await Promise.all(resultBadges.map((badge) => badge.isDisplayed()));
       assert.ok(displayedBadges.some(Boolean), "An actual source result must be displayed for axe");
       const violations: unknown[] = accessibility.violations,

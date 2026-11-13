@@ -88,6 +88,7 @@ impl SupportBundleData {
         let RepairPlan {
             generated_at: _,
             items,
+            journal_diagnostics: _, // Preserve attention items; omit untrusted row observations.
         } = repair;
         Self(json!({
             "schema_version": 2,
@@ -156,6 +157,7 @@ public_enum!(tool_source, HostToolSource, Environment, Saved, Discovery);
 public_enum!(
     repair_kind,
     RepairItemKind,
+    MalformedJournal,
     RetainedPreparation,
     PartialOperation,
     CleanupPending,
@@ -167,6 +169,7 @@ public_enum!(
 public_enum!(
     operation,
     ActivityOperation,
+    SettingsChange,
     DownloadPackage,
     Prepare,
     UpdateCatalog,

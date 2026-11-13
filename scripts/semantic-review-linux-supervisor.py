@@ -49,10 +49,15 @@ RUNTIME = (
     "codex",
     "release-semantic-reader-server.mts",
     "release-semantic-reader-core.mts",
+    "release-semantic-source-limits.mts",
     "runtime-values.mts",
     "semantic-review-model-catalog.json",
 )
 INPUT_SMALL = ("manifest.json", "instructions.txt", "result-schema.json", "reader-launch.json")
+# Same exact retained blob as release-semantic-source-limits.mts.
+RETAINED_EVIDENCE_OID = "449f7e6a4361fadea0d092f3e42fb12128b0d17b"
+RETAINED_EVIDENCE_BYTES = 21_245_243
+RETAINED_EVIDENCE_SHA256 = "5faccbdea27aea41f6dbbac2a86ebeb1e57a7e3b97cc4002a8b5d3ba2248e3b7"
 SHA = re.compile(r"[a-f0-9]{64}\Z")
 
 
@@ -83,7 +88,7 @@ def decode_json(data):
         raise Refusal("invalid bounded UTF8 JSON") from error
 
 
-def read_regular(path, limit, owner=None):
+def read_regular(path, limit, owner=None, *, exact_size=True):
     flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_NONBLOCK", 0)
     fd = os.open(path, flags)
     try:
@@ -103,6 +108,7 @@ def read_regular(path, limit, owner=None):
             require(total <= limit, "file grew beyond bound")
             chunks.append(chunk)
         after = os.fstat(fd)
+        require(not exact_size or total == before.st_size, "bounded read did not match observed file size")
         require(
             (before.st_dev, before.st_ino, before.st_size, before.st_mtime_ns, before.st_ctime_ns)
             == (after.st_dev, after.st_ino, after.st_size, after.st_mtime_ns, after.st_ctime_ns),
@@ -128,9 +134,10 @@ def private_directory(path):
 
 
 def inspect_request(value):
+    require(isinstance(value, dict), "fixed request fields required")
+    shared = {"shared_runtime"} if value.get("shared_runtime") is True else set()
     require(
-        isinstance(value, dict)
-        and set(value)
+        set(value)
         == {
             "schema_version",
             "mode",
@@ -140,7 +147,7 @@ def inspect_request(value):
             "inputs_sha256",
             "timeout_seconds",
             "auth_cache",
-        },
+        } | shared,
         "fixed request fields required",
     )
     require(
@@ -220,13 +227,16 @@ def create_file(path, data):
         os.close(fd)
 
 
-def read_runtime(path, name):
+def read_runtime(path, name, owner=None):
     require(name in RUNTIME, "unknown fixed runtime refused")
+    if owner is not None:
+        expected_mode = 0o500 if name in ("node", "codex") else 0o400
+        require(stat.S_IMODE(path.lstat().st_mode) == expected_mode, "shared runtime file mode differs")
     # The retained Codex 0.162.0 package contains a 294410952-byte binary.
     # This is a read-only executable bound, not reviewer-writable capacity.
     if name == "semantic-review-model-catalog.json":
-        return read_regular(path, 128 * 1024)
-    return read_regular(path, (320 if name == "codex" else 256) * MIB)
+        return read_regular(path, 128 * 1024, owner)
+    return read_regular(path, (320 if name == "codex" else 256) * MIB, owner)
 
 
 def inspect_model_catalog(data):
@@ -251,14 +261,58 @@ def inspect_model_catalog(data):
     return data
 
 
+def read_frozen_input(file, relative, qualified_application=False):
+    if relative == f"objects/{RETAINED_EVIDENCE_OID}.data":
+        data = read_regular(file, RETAINED_EVIDENCE_BYTES)
+        git_identity = hashlib.sha1(f"blob {len(data)}\0".encode("ascii"), usedforsecurity=False)
+        git_identity.update(data)
+        require(
+            len(data) == RETAINED_EVIDENCE_BYTES
+            and git_identity.hexdigest() == RETAINED_EVIDENCE_OID
+            and hashlib.sha256(data).hexdigest() == RETAINED_EVIDENCE_SHA256,
+            "retained qualification blob identity differs",
+        )
+        return data
+    limit = 288 * MIB if relative == "reader-index.json" else 16 * MIB
+    if relative == "instructions.txt":
+        limit = MIB if qualified_application else 64 * 1024
+    if relative == "result-schema.json":
+        limit = 64 * 1024
+    if relative == "reader-launch.json":
+        limit = 4096
+    return read_regular(file, limit)
+
+
+def runtime_directory(request, root):
+    if not request.get("shared_runtime"):
+        return root / "runtime"
+    require(
+        re.fullmatch(r"r-[A-Za-z0-9_-]+", root.name)
+        and re.fullmatch(r"technical-[0-5]", root.parent.name)
+        and re.fullmatch(r"request-[a-f0-9]{64}", root.parent.parent.name)
+        and not os.path.lexists(root / "runtime"),
+        "shared runtime requires a fresh lane in the original review attempt",
+    )
+    shared = private_directory(root.parent / ".semantic-shared-runtime")
+    require(stat.S_IMODE(shared.lstat().st_mode) == 0o500, "shared runtime directory must be read-only")
+    return shared
+
+
 def inspect_files(request):
     root = private_directory(request["run_root"])
-    require(len(os.fsencode(root / "transport/control.sock")) < 104, "owned Unix socket path is too long")
     require(read_regular(root / ".portcove-semantic-review-owned", 128).strip(), "owned marker missing")
-    for name in ("runtime", "inputs", "capture"):
+    for name in ("inputs", "capture"):
         private_directory(root / name)
-    require(set(os.listdir(root / "runtime")) == set(RUNTIME), "unmanifested runtime entry refused")
-    inspect_model_catalog(read_runtime(root / "runtime/semantic-review-model-catalog.json", "semantic-review-model-catalog.json"))
+    runtime = private_directory(runtime_directory(request, root))
+    owner = os.getuid() if request.get("shared_runtime") else None
+    if owner is not None:
+        manifest = decode_json(read_regular(root / "inputs/manifest.json", 16 * MIB, owner))
+        require(
+            isinstance(manifest, dict) and manifest.get("qualified_application_comparison") is True,
+            "shared runtime requires a qualified application comparison",
+        )
+    require(set(os.listdir(runtime)) == set(RUNTIME), "unmanifested runtime entry refused")
+    inspect_model_catalog(read_runtime(runtime / "semantic-review-model-catalog.json", "semantic-review-model-catalog.json", owner))
     require(
         not any(
             (root / "capture" / name).exists()
@@ -268,9 +322,9 @@ def inspect_files(request):
     )
     observed = {}
     for name, digest in request["runtime_sha256"].items():
-        if name in ("node", "codex"):
-            require((root / "runtime" / name).stat().st_mode & 0o100, "fixed runtime is not executable")
-        data = read_runtime(root / "runtime" / name, name)
+        if owner is None and name in ("node", "codex"):
+            require((runtime / name).stat().st_mode & 0o100, "fixed runtime is not executable")
+        data = read_runtime(runtime / name, name, owner)
         require(hashlib.sha256(data).hexdigest() == digest, "fixed runtime hash differs")
         observed["runtime/" + name] = digest
     count, total, raw_total = 0, 0, 0
@@ -284,12 +338,7 @@ def inspect_files(request):
             file = Path(directory) / name
             relative = file.relative_to(root / "inputs").as_posix()
             require(relative in request["inputs_sha256"], "unmanifested input refused")
-            limit = 288 * MIB if relative == "reader-index.json" else 16 * MIB
-            if relative in ("instructions.txt", "result-schema.json"):
-                limit = 64 * 1024
-            if relative == "reader-launch.json":
-                limit = 4096
-            data = read_regular(file, limit)
+            data = read_frozen_input(file, relative, owner is not None)
             total += len(data)
             if relative.startswith("objects/"):
                 raw_total += len(data)
@@ -418,7 +467,7 @@ def bwrap_command(request, root, supervisor):
         "--tmpfs",
         "/w",
         "--ro-bind",
-        str(root / "runtime"),
+        str(runtime_directory(request, root)),
         "/runtime",
         "--ro-bind",
         str(root / "inputs"),
@@ -557,6 +606,23 @@ def forward(left, right, stopped, account):
                 event.data.sendall(data)
     finally:
         selector.close()
+
+
+@contextlib.contextmanager
+def transport_socket_directory(root):
+    transport = root / "transport"
+    transport.mkdir(mode=0o700)
+    fd = os.open(transport, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+    try:
+        info = os.fstat(fd)
+        require(
+            info.st_uid == os.getuid() and stat.S_IMODE(info.st_mode) == 0o700, "private transport directory required"
+        )
+        # Linux bind resolves this held directory without putting the full
+        # custody path in sockaddr_un. The sandbox still mounts transport.
+        yield Path("/proc/self/fd") / str(fd)
+    finally:
+        os.close(fd)
 
 
 class ProviderTunnel:
@@ -955,7 +1021,96 @@ def inspect_mounts(text):
     return sorted(writable)
 
 
-def codex_arguments(index_hash, mode):
+def reader_arguments(index_hash):
+    return [
+        "/runtime/node",
+        "--preserve-symlinks",
+        "--preserve-symlinks-main",
+        "/runtime/release-semantic-reader-server.mts",
+        "/inputs/reader-index.json",
+        index_hash,
+    ]
+
+
+def qualify_reader_handoff(index_hash):
+    protocol = "2025-06-18"
+    requests = (
+        {"jsonrpc": "2.0", "id": 0, "method": "initialize", "params": {"protocolVersion": protocol}},
+        {"jsonrpc": "2.0", "method": "notifications/initialized"},
+        {
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "tools/call",
+            "params": {
+                "name": "read",
+                "arguments": {"snapshot": "source", "path": "fixture.txt", "offset": 0, "length": 4096},
+            },
+        },
+    )
+    result = subprocess.run(
+        reader_arguments(index_hash),
+        input="".join(json.dumps(request) + "\n" for request in requests).encode(),
+        capture_output=True,
+        timeout=15,
+        check=False,
+    )
+    require(
+        result.returncode == 0
+        and not result.stderr
+        and len(result.stdout) <= 16 * 1024
+        and result.stdout.count(b"\n") == 2
+        and result.stdout.endswith(b"\n")
+        and b"\r" not in result.stdout,
+        "keyless reader transport refused",
+    )
+    initialized, read = map(decode_json, result.stdout[:-1].split(b"\n"))
+    require(
+        initialized == {
+            "jsonrpc": "2.0",
+            "id": 0,
+            "result": {
+                "protocolVersion": protocol,
+                "capabilities": {"tools": {}},
+                "serverInfo": {"name": "portcove_frozen_bundle", "version": "1"},
+            },
+        }
+        and isinstance(read, dict)
+        and set(read) == {"jsonrpc", "id", "result"}
+        and read["jsonrpc"] == "2.0"
+        and read["id"] == 1
+        and isinstance(read["result"], dict)
+        and set(read["result"]) == {"isError", "content"}
+        and read["result"]["isError"] is False,
+        "keyless reader handshake differs",
+    )
+    content = read["result"]["content"]
+    require(
+        isinstance(content, list)
+        and len(content) == 1
+        and isinstance(content[0], dict)
+        and set(content[0]) == {"type", "text"}
+        and content[0]["type"] == "text"
+        and isinstance(content[0]["text"], str),
+        "keyless reader content differs",
+    )
+    expected = b"inert fixture\n"
+    page = decode_json(content[0]["text"].encode())
+    require(
+        page == {
+            "bytes": len(expected),
+            "sha256": hashlib.sha256(expected).hexdigest(),
+            "offset": 0,
+            "encoding": "base64",
+            "data": base64.b64encode(expected).decode("ascii"),
+            "next": None,
+        },
+        "keyless reader fixture bytes differ",
+    )
+    print(json.dumps({"scope": "inert-linux-reader-handoff", "reader_sha256": index_hash}), flush=True)
+
+
+def codex_arguments(index_hash):
+    reader = reader_arguments(index_hash)
     command = [
         "/runtime/codex",
         "exec",
@@ -1009,20 +1164,12 @@ def codex_arguments(index_hash, mode):
         "--config",
         'model_catalog_json="/runtime/semantic-review-model-catalog.json"',
         "--config",
-        'mcp_servers.portcove_frozen_bundle.command="/runtime/node"',
+        "mcp_servers.portcove_frozen_bundle.command=" + json.dumps(reader[0]),
         "--config",
-        "mcp_servers.portcove_frozen_bundle.args="
-        + json.dumps(
-            [
-                "--preserve-symlinks",
-                "--preserve-symlinks-main",
-                "/runtime/release-semantic-reader-server.mts",
-                "/inputs/reader-index.json",
-                index_hash,
-            ]
-        ),
+        "mcp_servers.portcove_frozen_bundle.args=" + json.dumps(reader[1:]),
         "--config",
-        'mcp_servers.portcove_frozen_bundle.enabled_tools=["list","read","read_text","net_diff","search"]',
+        # The materialized index exposes only the tools of its exact protocol.
+        'mcp_servers.portcove_frozen_bundle.enabled_tools=["list","read","read_text","net_diff","search","read_page"]',
         "--config",
         'mcp_servers.portcove_frozen_bundle.omit_tools_from=["deferred","code_mode"]',
         "--config",
@@ -1032,9 +1179,7 @@ def codex_arguments(index_hash, mode):
         "--config",
         "mcp_servers.portcove_frozen_bundle.tool_timeout_sec=30",
     ]
-    if mode == "codex":
-        command += ["--output-schema", "/inputs/result-schema.json"]
-    return command + ["-"]
+    return command + ["--output-schema", "/inputs/result-schema.json", "-"]
 
 
 class InsideRelay:
@@ -1101,7 +1246,7 @@ def inside(mode):
         os.getcwd() == "/w" and os.environ.get("CODEX_HOME") == "/w/home/.codex",
         "fixed private entry environment differs",
     )
-    writable = inspect_mounts(read_regular("/proc/self/mountinfo", MIB).decode("ascii"))
+    writable = inspect_mounts(read_regular("/proc/self/mountinfo", MIB, exact_size=False).decode("ascii"))
     for name in ("home", "home/.codex", "home/.cache", "home/.config", "home/.local/share", "work", "tmp", "run"):
         Path("/w", name).mkdir(mode=0o700, parents=True, exist_ok=True)
     peer = socket.socket(socket.AF_UNIX, socket.SOCK_SEQPACKET)
@@ -1165,16 +1310,13 @@ def inside(mode):
             require(
                 isinstance(launch, dict) and SHA.fullmatch(launch.get("index_sha256", "")), "fixed reader hash missing"
             )
-            prompt = (
-                read_regular("/inputs/instructions.txt", MIB)
-                if mode == "codex"
-                else (
-                    b"This is an inert credential-free startup fixture, not a review. Do not use shell, files, "
-                    b'network or other tools. Reply exactly with the JSON object {"fixture":"inert"}.'
-                )
-            )
-            result = subprocess.run(codex_arguments(launch["index_sha256"], mode), input=prompt, check=False)
-            code = result.returncode
+            if mode == "codex-fixture":
+                qualify_reader_handoff(launch["index_sha256"])
+                code = 0
+            else:
+                prompt = read_regular("/inputs/instructions.txt", MIB)
+                result = subprocess.run(codex_arguments(launch["index_sha256"]), input=prompt, check=False)
+                code = result.returncode
             if mode == "codex" and code == 0:
                 descriptor = os.open("/w/home/.codex/auth.json", os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
                 info = os.fstat(descriptor)
@@ -1254,11 +1396,11 @@ def supervise(request):
                 }
             ).encode(),
         )
-        (root / "transport").mkdir(mode=0o700)
-        tunnel = ProviderTunnel(root / "transport/provider.sock")
-        listener = socket.socket(socket.AF_UNIX, socket.SOCK_SEQPACKET)
-        listener.bind(str(root / "transport/control.sock"))
-        os.chmod(root / "transport/control.sock", 0o600)
+        with transport_socket_directory(root) as transport:
+            tunnel = ProviderTunnel(transport / "provider.sock")
+            listener = socket.socket(socket.AF_UNIX, socket.SOCK_SEQPACKET)
+            listener.bind(str(transport / "control.sock"))
+            os.chmod(transport / "control.sock", 0o600)
         listener.listen(1)
         listener.setblocking(False)
         for name, filename in (("stdout", "stdout.jsonl"), ("stderr", "stderr.log")):
@@ -1306,7 +1448,7 @@ def supervise(request):
                     and all(value != namespace_identity()[name] for name, value in actual.items()),
                     "actual private namespaces differ",
                 )
-                mount_bytes = read_regular(f"/proc/{pid}/mountinfo", MIB)
+                mount_bytes = read_regular(f"/proc/{pid}/mountinfo", MIB, exact_size=False)
                 require(
                     inspect_mounts(mount_bytes.decode("ascii")) == packet["writable_mounts"],
                     "actual writable mount inventory differs",
@@ -1398,11 +1540,22 @@ def supervise(request):
         try:
             # Verify immutable custody again before accepting direct capture or
             # persisting a refresh. No imported event file can substitute.
+            runtime = runtime_directory(request, root)
+            owner = os.getuid() if request.get("shared_runtime") else None
+            if owner is not None:
+                require(set(os.listdir(runtime)) == set(RUNTIME), "unmanifested runtime entry refused")
             for name, digest in observed.items():
-                require(
-                    hashlib.sha256(read_regular(root / name, 288 * MIB)).hexdigest() == digest,
-                    "frozen runtime/input changed during attempt",
-                )
+                section, filename = name.split("/", 1)
+                observed_digest = hashlib.sha256(
+                    read_runtime(runtime / filename, filename, owner)
+                    if section == "runtime" and owner is not None
+                    else read_regular(root / name, 288 * MIB)
+                ).hexdigest()
+                # Only fixed names or a generic object category enter the refusal.
+                fixed = {"manifest.json", "instructions.txt", "reader-index.json",
+                         "reader-launch.json", "result-schema.json"}
+                member = name if section == "runtime" or filename in fixed else "inputs/object"
+                require(observed_digest == digest, f"frozen runtime/input changed during attempt: {member}")
             if request["mode"] == "codex" and result["failure"] is None:
                 require(
                     auth_refresh_allowed(result, auth_descriptors),

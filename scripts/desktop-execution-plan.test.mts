@@ -16,7 +16,12 @@ import { fileURLToPath } from "node:url";
 import { stripTypeScriptTypes } from "node:module";
 import { runTypeScriptInNewContext as runInNewContext } from "./test-source.mts";
 import { fileIdentity } from "./development-evidence.mts";
-import { planDesktopExecution, nativeTransportReceiptSources } from "./desktop-execution-plan.mts";
+import {
+  resolveDesktopHarnessSelection,
+  parseDesktopHarnessOptions,
+  planDesktopExecution,
+  nativeTransportReceiptSources,
+} from "./desktop-execution-plan.mts";
 import { resolveDesktopSelection, desktopHarnessDeadlineMs } from "./desktop-scenarios.mts";
 import { buildDesktopVerifyPlan } from "./desktop-verify.mts";
 import { runOwnedFixtureJourneys } from "../apps/desktop/scripts/desktop-owned-fixture-journeys.mts";
@@ -330,7 +335,12 @@ void test("execution planning preserves the independently reviewed pre-change or
         });
         assert.deepEqual(selection.selected_scenarios, row.options.scenarios);
         assert.deepEqual(selection.setup_scenarios, []);
-        assert.equal(desktopHarnessDeadlineMs(selection), 180_000);
+        // Saved-folder intake adds three picker reviews and two library handoffs.
+        // Keep the original oracle immutable and the ordinary completion budget intact.
+        assert.equal(
+          desktopHarnessDeadlineMs(selection),
+          row.options.scenarios[0] === "native-saved-folder-selected-setup" ? 600_000 : 180_000,
+        );
         const plan = planDesktopExecution(selection, { platform: baselinePlatform(row.platform) });
         assert.ok(plan.build.cliFeatures.includes("portcove-core/qualification-fixtures"));
         continue;
@@ -378,11 +388,16 @@ void test("execution planning preserves the independently reviewed pre-change or
             "native-late-listener-disposal",
             "native-host-publication-recovery",
             "native-real-prepared-runtime",
+            "native-registered-source-reuse",
             "native-linux-interrupted-preparation",
             "native-rejected-listener-registration",
             "native-interface-size",
             "native-library-layout",
             "native-update-acquisition-lifecycle",
+            "native-library-organization-restart",
+            "native-game-first-choice-and-restart",
+            "native-game-first-installed-picori",
+            "native-game-first-installed-mm",
           ].includes(id),
       ),
     });
@@ -392,9 +407,20 @@ void test("execution planning preserves the independently reviewed pre-change or
     assert.ok(selection.excluded_scenarios.includes("native-saved-folder-hash-resume"));
     assert.ok(!selection.selected_scenarios.includes("native-update-acquisition-lifecycle"));
     assert.ok(selection.excluded_scenarios.includes("native-update-acquisition-lifecycle"));
-    assert.deepEqual(historicalSelection(selection), row.selection);
+    assert.ok(!selection.selected_scenarios.includes("native-registered-source-reuse"));
+    assert.ok(selection.excluded_scenarios.includes("native-registered-source-reuse"));
+    assert.ok(!selection.selected_scenarios.includes("native-game-first-choice-and-restart"));
+    assert.ok(selection.excluded_scenarios.includes("native-game-first-choice-and-restart"));
+    // Keep the frozen oracle bytes. Local artwork now explicitly receives the
+    // private fixture its running-app catalog lookup has always required.
+    const artworkFixtureAdded =
+      selection.selected_scenarios.includes("native-local-artwork-picker-and-recovery") &&
+      !row.selection.prerequisites.includes("install-fixture");
+    const expectedSelection = structuredClone(row.selection);
+    if (artworkFixtureAdded) expectedSelection.prerequisites.push("install-fixture");
+    assert.deepEqual(historicalSelection(selection), expectedSelection);
     const plan = planDesktopExecution(selection, { platform: baselinePlatform(row.platform) });
-    assert.deepEqual(historicalSelection(plan.selection), row.selection);
+    assert.deepEqual(historicalSelection(plan.selection), expectedSelection);
     // Frozen oracle retains every historical input. Registry additions and
     // deduplication affect receipt identities only, never dispatch/acceptance.
     const actualInputs = plan.receiptInputs.map((input) =>
@@ -422,6 +448,11 @@ void test("execution planning preserves the independently reviewed pre-change or
           added === "apps/desktop/scripts/desktop-listener-lifetime-test.mts" ||
           (added === "apps/desktop/scripts/desktop-listener-lifetime-probe.mts" &&
             actualInputs.includes("apps/desktop/scripts/desktop-listener-lifetime-test.mts")) ||
+          (artworkFixtureAdded &&
+            [
+              "apps/desktop/scripts/desktop-install-fixture.mts",
+              "apps/desktop/scripts/desktop-install-test.mts",
+            ].includes(added)) ||
           added === nativeHelperRegistryPath ||
           (added === "apps/desktop/scripts/desktop-qualification-history-test.mts" &&
             row.platform === "linux" &&
@@ -432,6 +463,45 @@ void test("execution planning preserves the independently reviewed pre-change or
 
     if (!row.harness_admission.error) {
       const expectedSession = structuredClone(row.harness_admission);
+      const reviewedWorkflowSession =
+        row.platform === "win32" &&
+        selection.selected_scenarios.some((id) =>
+          [
+            "install-progress-cancellation",
+            "native-reviewed-existing-install-copy",
+            "native-library-move-invalidates-prior-reviews",
+            "native-contextual-cli-handoff",
+            "native-library-layout",
+            "native-staged-update-composition",
+            "native-local-artwork-picker-and-recovery",
+            "native-artwork-catalog-correction",
+            "appearance-restart",
+            "native-workspace-refresh-recovery",
+          ].includes(id),
+        );
+      Object.assign(expectedSession, { reviewedWorkflowSession });
+      // Retain the historical oracle while making interrupted recovery use the
+      // existing Windows identity capture and positive-exit custody owner.
+      if (
+        row.platform === "win32" &&
+        selection.selected_scenarios.includes("native-interrupted-preparation-recovery")
+      ) {
+        expectedSession.identityBoundSession = true;
+        if (expectedSession.cleanupName === "backup-focus")
+          expectedSession.cleanupName = "preparation-recovery";
+      }
+      // Keep the historical oracle; fixed Windows presentation/size acceptance
+      // now selects the existing identity-bound capture and positive-exit owner.
+      if (
+        row.platform === "win32" &&
+        (selection.profile === "presentation" ||
+          (selection.selected_scenarios.length === 1 &&
+            selection.selected_scenarios[0] === "native-interface-size"))
+      ) {
+        expectedSession.identityBoundSession = true;
+        if (expectedSession.cleanupName === "backup-focus")
+          expectedSession.cleanupName = "presentation";
+      }
       // Preserve the historical oracle while requiring positive cleanup for
       // #1168's owned retained-data backup creation journey on Windows.
       if (
@@ -440,6 +510,15 @@ void test("execution planning preserves the independently reviewed pre-change or
       ) {
         expectedSession.identityBoundSession = true;
         expectedSession.cleanupName = "backup-review";
+      }
+      // Native input-boundary checks intentionally extend this Windows journey;
+      // keep its historical oracle and require the existing positive-exit owner.
+      if (
+        row.platform === "win32" &&
+        selection.selected_scenarios.includes("native-saved-folder-selected-setup")
+      ) {
+        expectedSession.identityBoundSession = true;
+        expectedSession.cleanupName = "saved-folder-selected-setup";
       }
       // The retained oracle stays immutable; #244 deliberately adds positive
       // owned exit proof to the completion journey through the existing owner.
@@ -501,12 +580,19 @@ void test("execution planning preserves the independently reviewed pre-change or
         selection.selected_scenarios.includes("native-default-cover-cache-conditions")
       )
         expectedSession.historySession = true;
+      if (reviewedWorkflowSession) {
+        expectedSession.identityBoundSession = true;
+        if (expectedSession.cleanupName === "backup-focus")
+          expectedSession.cleanupName = "native-review";
+      }
       assert.deepEqual(plan.session, expectedSession);
     }
     assert.deepEqual(plan.build.cliFeatures, row.serialized_verify_plan.cli_features);
     assert.deepEqual(
       plan.build.qualificationFeatures,
-      row.serialized_verify_plan.qualification_features,
+      artworkFixtureAdded
+        ? ["qualification-fixtures"]
+        : row.serialized_verify_plan.qualification_features,
     );
     assert.deepEqual(
       plan.fixtureFamilies.filter((entry) => entry.family).map((entry) => entry.family),
@@ -529,6 +615,10 @@ void test("execution planning preserves the independently reviewed pre-change or
         ...structuredClone(row.serialized_verify_plan),
         harness_deadline_ms: desktopHarnessDeadlineMs(selection),
       }; // Deliberately retained pre-change deadline owner.
+      if (artworkFixtureAdded) {
+        expected.prerequisites.push("install-fixture");
+        expected.qualification_features = ["qualification-fixtures"];
+      }
       // This prerequisite now runs before lease/build; preserve the old oracle.
       Reflect.deleteProperty(actual, "frontend_command");
       // Admission metadata is independently checked by the current runner tests.
@@ -616,8 +706,18 @@ void test("selected setup completion requires identity-bound positive exit evide
       scenarios: ["native-saved-folder-selected-setup"],
       platform: "win32",
     }),
+    { platform: "win32" },
   );
-  assert.equal(discovery.session.identityBoundSession, false);
+  assert.equal(discovery.session.identityBoundSession, true);
+  assert.equal(discovery.session.cleanupName, "saved-folder-selected-setup");
+  assert.equal(desktopHarnessDeadlineMs(discovery.selection), 600_000);
+  assert.ok(
+    discovery.receiptInputs.some(
+      (input) =>
+        input.kind === "file" &&
+        input.path === "apps/desktop/scripts/desktop-source-intake-boundaries-test.mts",
+    ),
+  );
 });
 
 void test("preliminary review is isolated and retains positive cleanup without setup execution", () => {
@@ -883,6 +983,7 @@ void test("coordinator consumes supplied order and obtains browser at each invoc
       browser = "replacement";
     },
     selectedSetup: async (c) => {
+      assert.equal(typeof c.confirmNative, "function");
       assert.equal(c.browser, "replacement");
       trace.push("selected-setup");
     },
@@ -908,7 +1009,7 @@ void test("coordinator consumes supplied order and obtains browser at each invoc
     ...baseline.dispatch.families,
     baseline.dispatch.after,
   ]);
-  assert.equal(confirmationCalls, 1);
+  assert.equal(confirmationCalls, 2);
   // A supplied order must be consumed verbatim, never recreated from selection.
   const reversed = { fixtureFamilies: [...plan.fixtureFamilies].reverse() };
   const reversedTrace: string[] = [];
@@ -936,7 +1037,7 @@ void test("coordinator preserves gap position and leaves attempt attribution to 
     context: () => ({
       scenario: (id: string, action: () => unknown) => calls.push({ id, action }),
     }),
-    confirmNative: () => assert.fail("No preparation consent"),
+    confirmNative: () => () => assert.fail("No native interaction in this dispatch-only test"),
     recordKnownGap: (gap: KnownGap) => calls.push(gap),
   };
   const journeys: OwnedFixtureJourneys<
@@ -1286,7 +1387,7 @@ void test("acquisition qualification is isolated, builds the owned probe and pas
   assert.equal(plan.fixtures.owned, true);
   assert.equal(plan.fixtures.completionJourney, false);
   assert.equal(plan.session.identityBoundSession, true);
-  assert.equal(desktopHarnessDeadlineMs(selection), 720_000);
+  assert.equal(desktopHarnessDeadlineMs(selection), 1_200_000);
   assert.ok(
     plan.receiptInputs.some(
       (input) =>
@@ -1330,4 +1431,353 @@ void test("acquisition qualification is isolated, builds the owned probe and pas
     },
   );
   assert.equal(called, true);
+});
+
+void test("organization restart retains normal builds and requires owned host exit custody", () => {
+  const id = "native-library-organization-restart";
+  const platform = "win32";
+  const selection = resolveDesktopSelection({ scenarios: [id], platform });
+  const plan = planDesktopExecution(selection, { platform });
+  assert.deepEqual(selection.setup_scenarios, []);
+  assert.deepEqual(selection.prerequisites, ["desktop", "owned-fixture"]);
+  assert.deepEqual(selection.host_resources, ["native-desktop", "keyboard-pointer"]);
+  assert.deepEqual(plan.build.qualificationFeatures, []);
+  assert.equal(plan.session.identityBoundSession, true);
+  assert.equal(plan.session.cleanupName, "organization-restart");
+  assert.equal(plan.fixtures.owned, true);
+  assert.equal(plan.fixtures.steam, false);
+  assert.ok(familyMembers(plan, "preparation").some((member) => member.id === id));
+  for (const unsupported of ["linux", "darwin"] as const)
+    assert.throws(
+      () => resolveDesktopSelection({ scenarios: [id], platform: unsupported }),
+      /requires Windows/,
+    );
+  const combined = planDesktopExecution(
+    resolveDesktopSelection({
+      scenarios: [id, "native-backup-delete-focus"],
+      platform: "win32",
+    }),
+    { platform: "win32" },
+  );
+  assert.equal(combined.session.cleanupName, "backup-focus");
+});
+
+void test("game-first choice retains normal builds, its consumed inputs and existing restart custody", () => {
+  const id = "native-game-first-choice-and-restart";
+  const platform = "win32";
+  const selection = resolveDesktopSelection({ scenarios: [id], platform });
+  const plan = planDesktopExecution(selection, { platform });
+  assert.deepEqual(plan.build.cliFeatures, []);
+  assert.deepEqual(plan.build.qualificationFeatures, []);
+  assert.equal(plan.fixtures.owned, true);
+  assert.equal(plan.fixtures.install, false);
+  assert.equal(plan.fixtures.steam, false);
+  assert.equal(plan.session.reviewedWorkflowSession, true);
+  assert.equal(plan.session.identityBoundSession, true);
+  assert.equal(plan.session.cleanupName, "native-review");
+  assert.deepEqual(familyMembers(plan, "preparation"), [{ id, role: "selected" }]);
+  for (const input of [
+    "apps/desktop/scripts/desktop-game-first-test.mts",
+    "apps/desktop/src/interface-size-controller.ts",
+  ]) {
+    assert.equal(
+      plan.receiptInputs.filter((entry) => entry.kind === "file" && entry.path === input).length,
+      1,
+    );
+    // The preparation owner imports this module for all selections. Retain the
+    // actual loaded dependency even where the game-first scenario is unselected.
+    for (const profile of ["smoke", "presentation", "full"])
+      assert.equal(
+        planDesktopExecution(resolveDesktopSelection({ profile, platform }), {
+          platform,
+        }).receiptInputs.filter((entry) => entry.kind === "file" && entry.path === input).length,
+        1,
+      );
+  }
+});
+
+void test("fixed Windows presentation and sizing retain normal builds with positive exit custody", () => {
+  for (const options of [{ profile: "presentation" }, { scenarios: ["native-interface-size"] }]) {
+    const selection = resolveDesktopSelection({ ...options, platform: "win32" });
+    const plan = planDesktopExecution(selection, { platform: "win32" });
+    assert.equal(plan.session.identityBoundSession, true);
+    assert.equal(plan.session.cleanupName, "presentation");
+    assert.deepEqual(plan.build.qualificationFeatures, []);
+    assert.equal(plan.fixtures.owned, false);
+    assert.equal(plan.fixtures.steam, false);
+  }
+  for (const platform of ["linux", "darwin"] as const) {
+    const selection = resolveDesktopSelection({ profile: "presentation", platform });
+    assert.equal(planDesktopExecution(selection, { platform }).session.identityBoundSession, false);
+  }
+  const singleKeyboard = resolveDesktopSelection({
+    scenarios: ["keyboard-layout"],
+    platform: "win32",
+  });
+  assert.equal(
+    planDesktopExecution(singleKeyboard, { platform: "win32" }).session.identityBoundSession,
+    false,
+  );
+});
+
+void test("Windows interrupted preparation uses positive exit custody without qualification builds", () => {
+  for (const scenarios of [
+    ["native-interrupted-preparation-recovery"],
+    ["native-preparation-cancellation", "native-interrupted-preparation-recovery"],
+  ]) {
+    const plan = planDesktopExecution(resolveDesktopSelection({ scenarios, platform: "win32" }), {
+      platform: "win32",
+    });
+    assert.equal(plan.session.identityBoundSession, true);
+    assert.equal(plan.session.cleanupName, "preparation-recovery");
+    assert.deepEqual(plan.build.qualificationFeatures, []);
+    assert.equal(plan.fixtures.steam, false);
+  }
+  const cancellationOnly = planDesktopExecution(
+    resolveDesktopSelection({ scenarios: ["native-preparation-cancellation"], platform: "win32" }),
+    { platform: "win32" },
+  );
+  assert.equal(cancellationOnly.session.identityBoundSession, false);
+});
+
+void test("remaining reviewed Windows workflows use existing positive exit custody", () => {
+  for (const id of [
+    "install-progress-cancellation",
+    "native-reviewed-existing-install-copy",
+    "native-library-move-invalidates-prior-reviews",
+    "native-contextual-cli-handoff",
+    "native-library-layout",
+    "native-staged-update-composition",
+    "native-local-artwork-picker-and-recovery",
+    "native-artwork-catalog-correction",
+    "appearance-restart",
+    "native-workspace-refresh-recovery",
+  ]) {
+    for (const platform of ["win32", "darwin", "linux"] as const) {
+      const selection = resolveDesktopSelection({ scenarios: [id], platform });
+      const plan = planDesktopExecution(selection, { platform });
+      assert.equal(plan.session.reviewedWorkflowSession, platform === "win32");
+      assert.equal(plan.session.identityBoundSession, platform === "win32");
+      assert.equal(
+        plan.session.cleanupName,
+        platform === "win32" ? "native-review" : "backup-focus",
+      );
+    }
+  }
+  const combined = planDesktopExecution(
+    resolveDesktopSelection({
+      scenarios: ["native-library-layout", "native-game-update-review"],
+      platform: "win32",
+    }),
+    { platform: "win32" },
+  );
+  assert.equal(combined.session.reviewedWorkflowSession, true);
+  assert.equal(combined.session.cleanupName, "game-update-review");
+});
+
+void test("local artwork owns its exact private catalog fixture without enabling fixture CLI", () => {
+  const id = "native-local-artwork-picker-and-recovery";
+  const selections = [
+    resolveDesktopSelection({ scenarios: [id], platform: "win32" }),
+    resolveDesktopSelection({ profile: "artwork", platform: "win32" }),
+    resolveDesktopHarnessSelection(parseDesktopHarnessOptions(["--artwork-only"]).values),
+  ];
+  for (const selection of selections) {
+    const plan = planDesktopExecution(selection, { platform: "win32" });
+    assert.deepEqual(selection.selected_scenarios, [id]);
+    assert.deepEqual(selection.setup_scenarios, []);
+    assert.ok(selection.prerequisites.includes("install-fixture"));
+    assert.ok(selection.prerequisites.includes("native-dialog"));
+    assert.equal(plan.fixtures.install, true);
+    assert.equal(plan.fixtures.owned, true);
+    assert.ok(
+      plan.receiptInputs.some(
+        (input) =>
+          input.kind === "file" &&
+          input.path === "apps/desktop/scripts/desktop-install-fixture.mts",
+      ),
+    );
+    assert.deepEqual(plan.build.qualificationFeatures, ["qualification-fixtures"]);
+    assert.deepEqual(plan.build.cliFeatures, []);
+    assert.equal(plan.session.reviewedWorkflowSession, true);
+    assert.equal(plan.session.identityBoundSession, true);
+  }
+  for (const scenarios of [["empty-library"], ["native-artwork-catalog-correction"]]) {
+    const plan = planDesktopExecution(resolveDesktopSelection({ scenarios, platform: "win32" }), {
+      platform: "win32",
+    });
+    assert.equal(plan.fixtures.install, false);
+    assert.deepEqual(plan.build.qualificationFeatures, []);
+  }
+});
+
+void test("Picori private-input selection captures the normal CLI and every supplied byte without fixture authority", () => {
+  const id = "native-game-first-installed-picori";
+  const flags = [
+    "game-first-inputs",
+    "game-first-source",
+    "game-first-runtime",
+    "game-first-shapes",
+    "game-first-logic",
+    "game-first-archive",
+  ];
+  const args = [
+    "--scenario",
+    id,
+    "--preparation-cli",
+    "/cli.exe",
+    ...flags.flatMap((flag) => [`--${flag}`, `/${flag}`]),
+  ];
+  const { values } = parseDesktopHarnessOptions(args);
+  assert.equal(values["game-first-operator-observation"], false);
+  assert.equal(
+    parseDesktopHarnessOptions([...args, "--game-first-operator-observation"]).values[
+      "game-first-operator-observation"
+    ],
+    true,
+  );
+  if (process.platform === "win32") {
+    const resolved = resolveDesktopHarnessSelection(values);
+    assert.deepEqual(resolved.selected_scenarios, [id]);
+  }
+  const selection = resolveDesktopSelection({ scenarios: [id], platform: "win32" });
+  const plan = planDesktopExecution(selection, { platform: "win32" });
+  assert.equal(plan.fixtures.owned, false);
+  assert.equal(plan.fixtures.install, false);
+  assert.equal(plan.session.identityBoundSession, true);
+  assert.equal(plan.session.cleanupName, "game-first-installed-picori");
+  assert.deepEqual(plan.build.qualificationFeatures, []);
+  assert.deepEqual(plan.build.cliFeatures, []);
+  assert.ok(
+    plan.receiptInputs.some(
+      (input) => input.kind === "executable" && input.name === "preparation-cli",
+    ),
+  );
+  assert.ok(
+    !plan.receiptInputs.some(
+      (input) => input.kind === "executable" && input.name === "preparation-tool",
+    ),
+  );
+  assert.equal(
+    plan.receiptInputs.filter(
+      (input) =>
+        input.kind === "file" &&
+        input.path === "apps/desktop/scripts/desktop-runtime-exit-observation.mts",
+    ).length,
+    1,
+  );
+  assert.throws(
+    () =>
+      resolveDesktopHarnessSelection(
+        parseDesktopHarnessOptions([
+          "--scenario",
+          "empty-library",
+          "--game-first-operator-observation",
+        ]).values,
+      ),
+    /exact standalone/u,
+  );
+  for (const flag of flags)
+    assert.equal(
+      plan.receiptInputs.filter((input) => input.kind === "argument-file" && input.name === flag)
+        .length,
+      1,
+    );
+  assert.throws(
+    () =>
+      resolveDesktopHarnessSelection(
+        parseDesktopHarnessOptions(args.filter((_, index) => index < args.length - 2)).values,
+      ),
+    /requires --game-first-archive/u,
+  );
+  assert.throws(
+    () =>
+      resolveDesktopHarnessSelection(
+        parseDesktopHarnessOptions([...args, "--preparation-tool", "/probe.exe"]).values,
+      ),
+    /without a fixture tool/u,
+  );
+  assert.throws(
+    () =>
+      resolveDesktopHarnessSelection(
+        parseDesktopHarnessOptions([
+          "--scenario",
+          "empty-library",
+          "--game-first-inputs",
+          "/metadata",
+        ]).values,
+      ),
+    /exact standalone/u,
+  );
+});
+
+void test("MM selection binds only its normal CLI and exact private inputs", () => {
+  const id = "native-game-first-installed-mm";
+  const args = [
+    "--scenario",
+    id,
+    "--preparation-cli",
+    "/cli.exe",
+    "--game-first-mm-inputs",
+    "/metadata",
+    "--game-first-mm-source",
+    "/source",
+    "--game-first-operator-observation",
+  ];
+  const selection = resolveDesktopSelection({ scenarios: [id], platform: "win32" });
+  const plan = planDesktopExecution(selection, { platform: "win32" });
+  assert.equal(plan.fixtures.owned, false);
+  assert.equal(plan.fixtures.install, false);
+  assert.equal(plan.session.identityBoundSession, true);
+  assert.equal(plan.session.cleanupName, "game-first-installed-mm");
+  assert.deepEqual(plan.build.qualificationFeatures, []);
+  assert.deepEqual(plan.build.cliFeatures, []);
+  assert.ok(
+    plan.receiptInputs.some(
+      (input) => input.kind === "executable" && input.name === "preparation-cli",
+    ),
+  );
+  assert.ok(
+    !plan.receiptInputs.some(
+      (input) => input.kind === "executable" && input.name === "preparation-tool",
+    ),
+  );
+  for (const name of ["game-first-mm-inputs", "game-first-mm-source"])
+    assert.equal(
+      plan.receiptInputs.filter((input) => input.kind === "argument-file" && input.name === name)
+        .length,
+      1,
+    );
+  for (const file of [
+    "desktop-game-first-installed-mm-test.mts",
+    "desktop-game-first-installed-test.mts",
+    "desktop-runtime-exit-observation.mts",
+  ])
+    assert.equal(
+      plan.receiptInputs.filter(
+        (input) => input.kind === "file" && input.path === `apps/desktop/scripts/${file}`,
+      ).length,
+      1,
+    );
+  const resolve = (values: string[]) =>
+    resolveDesktopHarnessSelection(parseDesktopHarnessOptions(values).values);
+  if (process.platform === "win32") assert.deepEqual(resolve(args).selected_scenarios, [id]);
+  assert.throws(() => resolve(args.slice(0, -1)), /requires --game-first-operator-observation/u);
+  assert.throws(
+    () =>
+      resolve(args.filter((value) => value !== "--game-first-mm-source" && value !== "/source")),
+    /requires --game-first-mm-source/u,
+  );
+  assert.throws(
+    () => resolve([...args, "--preparation-tool", "/probe"]),
+    /without a fixture tool/u,
+  );
+  assert.throws(
+    () => resolve([...args, "--game-first-source", "/mixed"]),
+    /cannot consume Picori/u,
+  );
+  assert.throws(
+    () => resolve(["--scenario", "empty-library", "--game-first-mm-source", "/source"]),
+    /exact standalone/u,
+  );
 });

@@ -1,10 +1,18 @@
+import { createHash } from "node:crypto";
 import { readFileSync, mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { runCheckedGit } from "./checked-git.mts";
 import { RoadmapClient, portFieldInitialization, runDoctor, validateConfig } from "./roadmap.mts";
 import { qualificationCatalogObservation } from "./roadmap-qualification.mts";
-import { GitHubApiClient, GitHubApiError, sanitizeOperationError } from "./github-api.mts";
+import { GitHubApiError, sanitizeOperationError } from "./github-operation.mts";
+import {
+  createGitHubClient,
+  iterateGitHubPages,
+  type GitHubClientOptions,
+} from "./github-client.mts";
+import type { Octokit } from "@octokit/core";
+import { discoveryGitHubScope } from "./discovery-github.mts";
 import {
   collectRoadmapInventory,
   collectRoadmapInventoryWithRecollection,
@@ -12,11 +20,21 @@ import {
 } from "./roadmap-inventory.mts";
 import { runScopedDoctor } from "./roadmap-scoped.mts";
 import { DiscoveryBudget, createDiscoveryTransport } from "./discovery-budget.mts";
-import { investigateDiscoveryUpstream } from "./daily-discovery-sources.mts";
-import { assertDiscoveryIntakeIdentity, discoveryGameKey } from "./discovery-intake-identity.mts";
+import {
+  DiscoveryRepositoryUnavailable,
+  investigateDiscoveryUpstream,
+} from "./daily-discovery-sources.mts";
+import {
+  reconcileDiscoveryIntakeIdentity,
+  discoveryGameKey,
+} from "./discovery-intake-identity.mts";
 import { readCatalogSource } from "./catalog-authoring.mts";
 import { assessUpstreamLineage } from "./upstream-lineage.mts";
-import { discoveryPost } from "./discovery-mutation.mts";
+import {
+  discoveryPost,
+  recordDiscoveryComment,
+  assertDiscoveryCommentMayPost,
+} from "./discovery-mutation.mts";
 import { validateDiscoveryIntakeBody, discoveryInventoryCost } from "./daily-discovery-session.mts";
 import {
   renderPortIssueBody,
@@ -28,17 +46,12 @@ import {
 import { observationHash } from "./upstream-observer.mts";
 import { validateGitHubBody } from "./github-body-text.mts";
 import { isRecord } from "./runtime-values.mts";
-import type { RoadmapInventory } from "./roadmap-inventory.mts";
+import { hostedIntakeMaxPasses } from "./hosted-discovery-intake-runner.mts";
+import type { RoadmapInventory, RoadmapInventoryClient } from "./roadmap-inventory.mts";
 import type { AuthoredPort } from "./catalog-authoring.mts";
 
 export const hostedRequestMarker = "<!-- portcove-hosted-intake:v1 -->";
 
-export class HostedRoadmapClient extends RoadmapClient {
-  // The bounded transport accepts API calls only; reuse the complete schema reader.
-  override fieldList(number: number) {
-    return { fields: this.completeProjectContext(number).fields };
-  }
-}
 const receiptMarker = (id: number) => `<!-- portcove-hosted-intake-receipt:${id} -->`;
 const object = (v: unknown) => {
   if (!isRecord(v)) throw new Error("Expected structured intake data");
@@ -152,6 +165,7 @@ interface Comment {
   body: string;
   user: { login: string; type?: string };
   issue_url?: string;
+  updated_at?: string;
 }
 export function trustedHostedComment(raw: unknown, owner: string): Comment {
   const c = object(raw),
@@ -217,13 +231,13 @@ export function assertHostedCatalogIdentity(
       );
   }
 }
-export function assertHostedRecovery(
-  client: RoadmapClient,
+export async function assertHostedRecovery(
+  client: HostedRoadmapOperations,
   inventory: RoadmapInventory,
   number: number,
 ) {
   requireRoadmapInventory(inventory, client.config.repository, client, { planningIssue: number });
-  const issue = client.repositoryIssue(number);
+  const issue = await client.repositoryIssue(number);
   const assignees = object(issue).assignees;
   const rows = [...inventory.items, ...inventory.archivedItems].filter(
     (i) => i.content?.id === issue.node_id,
@@ -254,11 +268,31 @@ function compactDoctor(result: Awaited<ReturnType<typeof runScopedDoctor>>) {
     receipt_sha256: observationHash(result),
   };
 }
+type PlanSlot =
+  | Planned
+  | (Omit<Planned, "primary" | "evidence_sha256"> & {
+      primary: null;
+      evidence_sha256: null;
+    });
+const holdResume =
+  "Use owner process dispatch when the exact repository ID and primary evidence are accessible.";
+interface CandidateHold {
+  port_key: string;
+  repository_id: number;
+  upstream: string;
+  http_status: 404;
+  observed_at: string;
+  resume: string;
+}
 interface Delivery {
+  hold?: CandidateHold;
   status: string;
   created_issue?: number;
   item_id?: string;
   existing?: boolean;
+  canonical_issue?: number;
+  created_comment?: number;
+  observation_sha256?: string;
   fields?: Record<string, unknown>;
   doctor?: unknown;
 }
@@ -268,7 +302,8 @@ interface Receipt {
   request_sha256: string;
   investigator: string;
   plan_sha256: string;
-  plan: Planned[];
+  plan: PlanSlot[];
+  plan_encoding?: "proposal-bound-v1" | "proposal-bound-v2";
   delivery: Delivery[];
   status: string;
   head: string;
@@ -278,6 +313,7 @@ interface Receipt {
   observed_at?: string;
   doctor?: unknown;
   error?: unknown;
+  continuation?: string | null;
   body_request_comment?: number;
 }
 export function hostedBody(c: Candidate, request: number) {
@@ -289,7 +325,7 @@ export function hostedBody(c: Candidate, request: number) {
     blocker: c.resume,
   });
 }
-export function hostedPlanHash(requestHash: string, plan: Planned[]) {
+export function hostedPlanHash(requestHash: string, plan: PlanSlot[]) {
   return observationHash({
     request_sha256: requestHash,
     candidates: plan.map((p) => ({
@@ -316,7 +352,11 @@ function readHostedReceipt(
     stored.delivery.length !== proposal.candidates.length
   )
     throw new Error("Retained receipt body lineage or coverage differs");
-  if (stored.plan_encoding !== undefined && stored.plan_encoding !== "proposal-bound-v1")
+  if (
+    stored.plan_encoding !== undefined &&
+    stored.plan_encoding !== "proposal-bound-v1" &&
+    stored.plan_encoding !== "proposal-bound-v2"
+  )
     throw new Error("Unknown retained plan encoding");
   stored.plan = stored.plan.map((raw, index) => {
     const binding = object(raw),
@@ -324,7 +364,10 @@ function readHostedReceipt(
       body = hostedBody(candidate, bodyRequest);
     if (
       binding.body_sha256 !== observationHash(body) ||
-      binding.evidence_sha256 !== observationHash(binding.primary) ||
+      (binding.primary === null
+        ? stored.plan_encoding !== "proposal-bound-v2" || binding.evidence_sha256 !== null
+        : !isRecord(binding.primary) ||
+          binding.evidence_sha256 !== observationHash(binding.primary)) ||
       (stored.plan_encoding === undefined
         ? observationHash(binding.candidate) !== observationHash(candidate) || binding.body !== body
         : binding.candidate_index !== index || binding.port_key !== candidate.port_key)
@@ -340,13 +383,49 @@ function readHostedReceipt(
   });
   const receipt = stored as unknown as Receipt;
   const ids = new Set<number>();
-  for (const d of receipt.delivery) {
+  for (const [index, d] of receipt.delivery.entries()) {
     if (
       !d ||
-      !["prepared", "reviewed", "create-attempted", "created", "delivered"].includes(d.status) ||
-      (["created", "delivered"].includes(d.status) && !d.created_issue)
+      ![
+        "prepared",
+        "preflight",
+        "reviewed",
+        "create-attempted",
+        "created",
+        "delivered",
+        "existing",
+      ].includes(d.status) ||
+      (d.status === "delivered" && !d.created_issue) ||
+      (d.status === "created" && !d.created_issue && !(d.created_comment && d.canonical_issue))
     )
       throw new Error("Retained delivery state is incomplete");
+    const slot = receipt.plan[index]!;
+    if (d.hold) {
+      const c = slot.candidate;
+      const h = d.hold;
+      if (
+        receipt.plan_encoding !== "proposal-bound-v2" ||
+        !canHold(d) ||
+        h.port_key !== c.port_key ||
+        h.repository_id !== c.repository_id ||
+        h.upstream !== c.upstream ||
+        h.http_status !== 404 ||
+        h.resume !== holdResume ||
+        typeof h.observed_at !== "string" ||
+        !Number.isFinite(Date.parse(h.observed_at))
+      )
+        throw new Error("Retained candidate hold is invalid");
+    } else if (slot.primary === null || "hold" in d) {
+      throw new Error("Unbound primary requires a candidate hold");
+    }
+    if (d.canonical_issue !== undefined) positive(d.canonical_issue);
+    if (d.created_comment !== undefined) positive(d.created_comment);
+    if (d.status === "existing") {
+      positive(d.canonical_issue);
+      positive(d.created_comment);
+      if (!d.existing || d.created_issue || !/^[a-f0-9]{64}$/u.test(d.observation_sha256 ?? ""))
+        throw new Error("Retained existing-owner observation is incomplete");
+    }
     if (d.created_issue !== undefined) {
       positive(d.created_issue);
       if (ids.has(d.created_issue))
@@ -362,37 +441,215 @@ function readHostedReceipt(
     throw new Error("Changed proposal or invalid retained plan; preserve prior receipt");
   return receipt;
 }
-function receiptBody(r: Receipt) {
+function canHold(d: Delivery) {
+  return (
+    ["prepared", "preflight", "reviewed"].includes(d.status) &&
+    d.created_issue === undefined &&
+    d.created_comment === undefined &&
+    d.canonical_issue === undefined &&
+    !d.existing
+  );
+}
+function isDelivered(d: Delivery) {
+  return d.status === "delivered" || d.status === "existing";
+}
+function missingDeliveryProof(d: Delivery) {
+  if (!isDelivered(d) || !isRecord(d.doctor)) return true;
+  const doctor = d.doctor;
+  const issue = d.created_issue ?? d.canonical_issue;
+  if (
+    d.status === "delivered" &&
+    (!isRecord(d.fields) ||
+      Object.entries(portFieldInitialization(null)).some(
+        ([field, value]) => d.fields?.[field] !== value,
+      ))
+  )
+    return true;
+  return (
+    doctor.status !== "passed" ||
+    doctor.coverage !== "complete" ||
+    observationHash(doctor.issues) !== observationHash([issue]) ||
+    typeof doctor.receipt_sha256 !== "string" ||
+    !/^[a-f0-9]{64}$/u.test(doctor.receipt_sha256)
+  );
+}
+function deliveryCounts(delivery: readonly Delivery[], candidates = delivery.length) {
+  const delivered = delivery.filter((d) => d.status === "delivered").length;
+  const existing = delivery.filter((d) => d.status === "existing").length;
+  const held = delivery.filter((d) => d.hold).length;
+  return { delivered, existing, held, pending: candidates - delivered - existing };
+}
+/**
+ * One ordered candidate slot as its receipt records it: the proposal identity,
+ * the delivery state and the linked canonical issue (the created issue, or the
+ * verified existing owner). Clocks, doctors and evidence stay out of it.
+ */
+export interface HostedCandidateSlot {
+  candidate_index: number;
+  port_key: string;
+  repository_id: number;
+  upstream: string;
+  /** Null until a receipt is published. */
+  delivery_status: string | null;
+  linked_issue: number | null;
+  existing: boolean;
+  hold: { http_status: number; resume: string } | null;
+}
+function candidateSlots(proposal: Proposal, delivery: readonly Delivery[]): HostedCandidateSlot[] {
+  return proposal.candidates.map((candidate, index) => {
+    const d = delivery[index];
+    return {
+      candidate_index: index,
+      port_key: candidate.port_key,
+      repository_id: candidate.repository_id,
+      upstream: candidate.upstream,
+      delivery_status: d?.status ?? null,
+      linked_issue: d?.created_issue ?? d?.canonical_issue ?? null,
+      existing: d?.existing === true,
+      hold: d?.hold ? { http_status: d.hold.http_status, resume: d.hold.resume } : null,
+    };
+  });
+}
+const receiptByteLimit = 60_000;
+const projectItemIdJsonLimit = 256;
+const maxProviderId = Number.MAX_SAFE_INTEGER;
+const capacityHash = "a".repeat(64);
+const largestPrimary = {
+  repository_id: maxProviderId,
+  readme_commit: "a".repeat(40),
+  readme_blob: "a".repeat(40),
+  release_fingerprint: capacityHash,
+};
+
+function receiptProjectItemId(id: unknown) {
+  if (
+    typeof id !== "string" ||
+    !id ||
+    Buffer.byteLength(JSON.stringify(id)) > projectItemIdJsonLimit
+  )
+    throw new Error("Verified Project item ID is unavailable or exceeds the receipt bound");
+  return id;
+}
+
+function encodeReceipt(r: Receipt) {
   // Exact bodies are reconstructed from the hash-bound owner proposal. Do not
   // repeat its evidence in both candidate and rendered-body copies on the wire.
   const wire = {
     ...r,
-    plan_encoding: "proposal-bound-v1",
+    plan_encoding: r.plan_encoding ?? "proposal-bound-v1",
     plan: r.plan.map(({ candidate, body: _body, ...binding }, index) => ({
       ...binding,
       candidate_index: index,
       port_key: candidate.port_key,
     })),
   };
-  const body = `${receiptMarker(r.request_comment)}\nHosted intake **${r.status}**.\n\n\`\`\`json\n${JSON.stringify(wire, null, 2)}\n\`\`\``;
+  return `${receiptMarker(r.request_comment)}\nHosted intake **${r.status}**.\n\n\`\`\`json\n${JSON.stringify(wire, null, 2)}\n\`\`\``;
+}
+
+function receiptBody(r: Receipt) {
+  const body = encodeReceipt(r);
   validateGitHubBody(body);
-  if (Buffer.byteLength(body) > 60000)
+  if (Buffer.byteLength(body) > receiptByteLimit)
     throw new Error("Hosted receipt exceeds its bounded comment envelope");
   return body;
 }
+
+function receiptDiagnostic(error: unknown) {
+  const diagnostic = sanitizeOperationError(error);
+  if (Buffer.byteLength(JSON.stringify(diagnostic)) <= 3072) return diagnostic;
+  // Even the longest JSON escape uses six bytes per retained character.
+  return {
+    ...diagnostic,
+    message: `${Array.from(diagnostic.message).slice(0, 480).join("")} [truncated]`,
+  };
+}
+
+function assertReceiptCapacity(receipt: Receipt) {
+  const largestDelivery: Delivery = {
+    status: "create-attempted",
+    created_issue: maxProviderId,
+    item_id: "a".repeat(projectItemIdJsonLimit - 2),
+    existing: false,
+    canonical_issue: maxProviderId,
+    created_comment: maxProviderId,
+    observation_sha256: capacityHash,
+    fields: portFieldInitialization(null),
+    doctor: {
+      status: "passed",
+      coverage: "complete",
+      global_health: "not_evaluated",
+      issues: [maxProviderId],
+      checked_issue_count: maxProviderId,
+      receipt_sha256: capacityHash,
+    },
+  };
+  // Size the serialized shape, including indentation and retained holds. A
+  // previously unbound hold can later add a primary binding.
+  const capacity = encodeReceipt({
+    ...receipt,
+    plan: receipt.plan.map((slot) =>
+      slot.primary
+        ? slot
+        : {
+            ...slot,
+            primary: largestPrimary,
+            evidence_sha256: capacityHash,
+          },
+    ),
+    delivery: receipt.delivery.map(({ hold, ...delivery }, index) => {
+      const candidate = receipt.plan[index]!.candidate;
+      const held = {
+        ...delivery,
+        hold: hold ?? candidateHold(candidate),
+      };
+      const complete = { ...delivery, ...largestDelivery };
+      const bytes = (value: Delivery) =>
+        Buffer.byteLength(JSON.stringify(value, null, 2).replaceAll("\n", "\n    "));
+      return canHold(delivery) && bytes(held) > bytes(complete) ? held : complete;
+    }),
+  });
+  // Leave room for the run metadata, terminal diagnostic and full doctor.
+  if (Buffer.byteLength(capacity) + 4096 > receiptByteLimit)
+    throw new Error("Logical batch cannot retain complete delivery receipts");
+}
+
+function candidateHold(candidate: Candidate): CandidateHold {
+  return {
+    port_key: candidate.port_key,
+    repository_id: candidate.repository_id,
+    upstream: candidate.upstream,
+    http_status: 404,
+    observed_at: new Date().toISOString(),
+    resume: holdResume,
+  };
+}
+export type HostedRoadmapOperations = RoadmapInventoryClient &
+  Pick<
+    RoadmapClient,
+    | "viewList"
+    | "projectAudit"
+    | "repositoryIssues"
+    | "createPortIssue"
+    | "normalizePortIssue"
+    | "repositoryIssue"
+    | "executionIssue"
+    | "setItemFields"
+  >;
 export class HostedIntakeBridge {
   // Failed mutations remain sticky even if publishing a later diagnostic works.
   uncertainMutations = 0;
-  mutation<T>(action: () => T): T {
+  async mutation<T>(action: () => T | Promise<T>): Promise<T> {
     this.uncertainMutations++;
-    const result = action();
+    const result = await action();
     this.uncertainMutations--;
     return result;
   }
   continuation(error: unknown) {
     return this.uncertainMutations === 0 &&
       error instanceof GitHubApiError &&
-      ["inventory_changed", "repository_changed", "budget_exhausted"].includes(error.code)
+      ["inventory_changed", "repository_changed", "budget_exhausted", "quota_stale"].includes(
+        error.code,
+      )
       ? error.code === "budget_exhausted"
         ? "budget_exhausted"
         : "inventory_changed"
@@ -400,38 +657,77 @@ export class HostedIntakeBridge {
   }
   planningIssues = new Set<number>();
   inventoryRecollections = 0;
-  readonly client: RoadmapClient;
+  /** #177 identity and revision bracketing the last complete, unchanged comment read. */
+  queue: { node_id: string; comments: number; updated_at: string } | undefined;
+  /** The read-only status route's queue-derived request budget, when it applies. */
+  statusBudget: HostedStatusBudget | undefined;
+  readonly client: HostedRoadmapOperations;
+  readonly github: { project: Octokit; repository: Octokit };
   readonly head: string;
   readonly research: (repository: string) => ReturnType<typeof investigateDiscoveryUpstream>;
   readonly save: (name: string, value: unknown) => void;
-  readonly admitRecollection: (cache?: RoadmapInventory) => void;
+  readonly admitRecollection: (cache?: RoadmapInventory) => void | Promise<void>;
+  readonly admitWarmInventory: (cache: RoadmapInventory) => void | Promise<void>;
   constructor(
-    client: RoadmapClient,
+    client: HostedRoadmapOperations,
+    github: { project: Octokit; repository: Octokit },
     head: string,
     research: (repository: string) => ReturnType<typeof investigateDiscoveryUpstream>,
     save: (name: string, value: unknown) => void,
-    admitRecollection: (cache?: RoadmapInventory) => void = () => {
+    admitRecollection: (cache?: RoadmapInventory) => void | Promise<void> = () => {
       throw new Error("Inventory recollection admission is not configured");
     },
+    admitWarmInventory: (cache: RoadmapInventory) => void | Promise<void> = () => {},
   ) {
     this.client = client;
+    this.github = github;
     this.head = head;
     this.research = research;
     this.save = save;
     this.admitRecollection = admitRecollection;
+    this.admitWarmInventory = admitWarmInventory;
   }
   get prefix() {
     return `repos/${this.client.config.repository}/issues`;
   }
-  comments() {
-    const before = object(this.client.api.request("GET", `${this.prefix}/177`).body);
-    const comments = this.client.api
-      .paginateRest(`${this.prefix}/177/comments?per_page=20`, {
-        identity: (v) => object(v).id,
-        label: "complete hosted intake request and receipt inventory",
-      })
-      .map((v) => object(v) as unknown as Comment);
-    const after = object(this.client.api.request("GET", `${this.prefix}/177`).body);
+  private async issueComments(issue: number, perPage: number) {
+    if (!Number.isSafeInteger(issue) || issue < 1) throw new Error("Invalid comment owner");
+    const rows: unknown[] = [],
+      ids = new Set<number>();
+    for await (const page of iterateGitHubPages(this.github.project, {
+      url: `https://api.github.com/${this.prefix}/${issue}/comments?per_page=${perPage}`,
+      headers: { accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28" },
+    })) {
+      if (!Array.isArray(page.data)) throw new Error("Hosted comment inventory is incomplete");
+      for (const row of page.data as unknown[]) {
+        const id = positive(object(row).id);
+        if (ids.has(id)) throw new Error("Hosted comments contain duplicate identities");
+        ids.add(id);
+        rows.push(row);
+      }
+    }
+    return rows;
+  }
+  async comments() {
+    const before = object(
+      (
+        await this.github.project.request({
+          method: "GET",
+          url: new URL(`${this.prefix}/177`, "https://api.github.com/").href,
+        })
+      ).data,
+    );
+    const comments = (await this.issueComments(177, 20)).map(
+      (v) => object(v) as unknown as Comment,
+    );
+    const after = object(
+      (
+        await this.github.project.request({
+          method: "GET",
+          url: new URL(`${this.prefix}/177`, "https://api.github.com/").href,
+        })
+      ).data,
+    );
     if (
       typeof before.node_id !== "string" ||
       before.node_id !== after.node_id ||
@@ -448,11 +744,21 @@ export class HostedIntakeBridge {
       );
     if (after.comments !== comments.length)
       throw new Error("Hosted request comment inventory is incomplete");
+    this.queue = {
+      node_id: after.node_id,
+      comments: after.comments,
+      updated_at: after.updated_at,
+    };
     return comments;
   }
-  fresh(c: Comment) {
+  async fresh(c: Comment) {
     const got = object(
-      this.client.api.request("GET", `${this.prefix}/comments/${c.id}`).body,
+      (
+        await this.github.project.request({
+          method: "GET",
+          url: new URL(`${this.prefix}/comments/${c.id}`, "https://api.github.com/").href,
+        })
+      ).data,
     ) as unknown as Comment;
     if (
       got.id !== c.id ||
@@ -463,28 +769,39 @@ export class HostedIntakeBridge {
       throw new Error("Hosted request or receipt preimage changed; stop and reread");
     return got;
   }
-  persist(receipt: Receipt, prior?: Comment) {
+  async persist(receipt: Receipt, prior?: Comment) {
     receipt.observed_at = new Date().toISOString();
     this.save(`receipt-${receipt.request_comment}`, receipt);
     const body = receiptBody(receipt);
-    if (prior) this.fresh(prior);
-    return this.mutation(() => {
+    if (prior) await this.fresh(prior);
+    return await this.mutation(async () => {
       const got = object(
-        this.client.api.request(
-          prior ? "PATCH" : "POST",
-          prior ? `${this.prefix}/comments/${prior.id}` : `${this.prefix}/177/comments`,
-          { body },
-        ).body,
+        (
+          await this.github.repository.request({
+            method: prior ? "PATCH" : "POST",
+            url: new URL(
+              prior ? `${this.prefix}/comments/${prior.id}` : `${this.prefix}/177/comments`,
+              "https://api.github.com/",
+            ).href,
+            data: { body },
+          })
+        ).data,
       );
       const observed = object(
-        this.client.api.request("GET", `${this.prefix}/comments/${positive(got.id)}`).body,
+        (
+          await this.github.project.request({
+            method: "GET",
+            url: new URL(`${this.prefix}/comments/${positive(got.id)}`, "https://api.github.com/")
+              .href,
+          })
+        ).data,
       );
       if (observed.body !== body || object(observed.user).login !== "github-actions[bot]")
         throw new Error("Bot receipt publication/readback is unconfirmed; no further mutation");
       return observed as unknown as Comment;
     });
   }
-  diagnostic(request: Comment, error: unknown, all: Comment[]) {
+  async diagnostic(request: Comment, error: unknown, all: Comment[]) {
     const marker = `<!-- portcove-hosted-intake-diagnostic:${request.id} -->`;
     const rows = all.filter(
       (c) => c.user.login === "github-actions[bot]" && c.body.startsWith(marker),
@@ -499,26 +816,39 @@ export class HostedIntakeBridge {
       run: process.env.GITHUB_RUN_ID ?? "local",
       attempt: process.env.GITHUB_RUN_ATTEMPT ?? "1",
       error: sanitizeOperationError(error),
-      resume:
-        "Resolve the named failure, reread the exact proposal/plan and resume process; do not recapture an ambiguous creation.",
+      continuation: this.continuation(error),
+      resume: this.continuation(error)
+        ? "The executor continues this retained request within its finite deadline while progress is demonstrated. After that bound, retain it for the next existing intake event; do not recapture delivered identities."
+        : "Resolve the named failure and reread the exact proposal/plan before resuming; never repeat an ambiguous creation.",
     };
     const body = `${marker}\n\`\`\`json\n${JSON.stringify(diagnostic, null, 2)}\n\`\`\``;
-    if (previous) this.fresh(previous);
+    if (previous) await this.fresh(previous);
     const got = object(
-      this.client.api.request(
-        previous ? "PATCH" : "POST",
-        previous ? `${this.prefix}/comments/${previous.id}` : `${this.prefix}/177/comments`,
-        { body },
-      ).body,
+      (
+        await this.github.repository.request({
+          method: previous ? "PATCH" : "POST",
+          url: new URL(
+            previous ? `${this.prefix}/comments/${previous.id}` : `${this.prefix}/177/comments`,
+            "https://api.github.com/",
+          ).href,
+          data: { body },
+        })
+      ).data,
     );
     const after = object(
-      this.client.api.request("GET", `${this.prefix}/comments/${positive(got.id)}`).body,
+      (
+        await this.github.project.request({
+          method: "GET",
+          url: new URL(`${this.prefix}/comments/${positive(got.id)}`, "https://api.github.com/")
+            .href,
+        })
+      ).data,
     );
     if (after.body !== body || object(after.user).login !== "github-actions[bot]")
       throw new Error("Diagnostic publication readback is unconfirmed");
   }
-  primary(c: Candidate, request: number): Planned {
-    const primary = this.research(new URL(c.upstream).pathname.slice(1));
+  async primary(c: Candidate, request: number): Promise<Planned> {
+    const primary = await this.research(new URL(c.upstream).pathname.slice(1));
     if (
       primary.metadata.id !== c.repository_id ||
       normalizedUpstream(`https://github.com/${String(primary.metadata.full_name)}`) !==
@@ -531,6 +861,12 @@ export class HostedIntakeBridge {
       readme_blob: primary.readme.blob,
       release_fingerprint: primary.fingerprint,
     };
+    if (
+      typeof identity.readme_blob !== "string" ||
+      Buffer.byteLength(JSON.stringify(identity)) >
+        Buffer.byteLength(JSON.stringify(largestPrimary))
+    )
+      throw new Error("Primary binding exceeds the receipt bound");
     const body = hostedBody(c, request);
     validateDiscoveryIntakeBody(body, c.upstream, c.port_key);
     this.save(`primary-${request}-${c.port_key}`, primary);
@@ -542,14 +878,15 @@ export class HostedIntakeBridge {
       primary: identity,
     };
   }
-  inventory(cache?: RoadmapInventory, full = false) {
+  async inventory(cache?: RoadmapInventory, full = false) {
+    if (cache) await this.admitWarmInventory(cache);
     this.client._completeProjectContext = undefined;
     this.client._projectContext = undefined;
     let first: ReturnType<typeof sanitizeOperationError> | undefined;
-    return collectRoadmapInventoryWithRecollection(
+    return await collectRoadmapInventoryWithRecollection(
       this.client,
-      () =>
-        collectRoadmapInventory(
+      async () =>
+        await collectRoadmapInventory(
           this.client,
           cache,
           full
@@ -561,14 +898,14 @@ export class HostedIntakeBridge {
         ),
       this,
       {
-        before: (error) => {
+        before: async (error) => {
           first = sanitizeOperationError(error);
           this.save("inventory-recollection", {
             status: "pending",
             allowance: this.inventoryRecollections,
             first,
           });
-          this.admitRecollection(cache);
+          await this.admitRecollection(cache);
         },
         after: (status, error) =>
           this.save("inventory-recollection", {
@@ -586,8 +923,7 @@ export class HostedIntakeBridge {
     const records = readCatalogSource(
       fileURLToPath(new URL("../crates/portcove-core/catalog", import.meta.url)),
     ).records;
-    assertHostedCatalogIdentity(c, records, exclude);
-    assertDiscoveryIntakeIdentity(
+    const identity = reconcileDiscoveryIntakeIdentity(
       {
         repository: c.upstream,
         repository_id: c.repository_id,
@@ -598,15 +934,209 @@ export class HostedIntakeBridge {
       records,
       [],
     );
+    const owner =
+      identity.disposition === "Existing canonical owner" &&
+      identity.game_scope_known &&
+      identity.repository_identity_known
+        ? identity.issues[0]
+        : undefined;
+    if (identity.disposition !== "New canonical intake" && !owner)
+      throw new Error(
+        `Canonical discovery identity held: ${identity.disposition}; ${identity.reason}`,
+      );
+    assertHostedCatalogIdentity(c, records, owner ?? exclude);
     const duplicates = findPortIssueDuplicates(others, {
       title: c.title,
       upstream: c.upstream,
       portKey: c.port_key,
+      repositoryIdentity: { id: c.repository_id, game: c.game },
+      catalogRecords: records,
     });
-    if (duplicates.length)
+    if (duplicates.some((row) => row.issue.number !== owner))
       throw new Error(`Canonical duplicate: ${duplicates.map((x) => x.issue.number).join(", ")}`);
+    return owner;
   }
-  reconciliation(request: Comment, proposal: Proposal, all: Comment[]) {
+  async observeExisting(
+    request: Comment,
+    p: Planned,
+    d: Delivery,
+    owner: number,
+    inventory: RoadmapInventory,
+    persist: () => void | Promise<void>,
+  ) {
+    if (d.created_issue || (d.canonical_issue && d.canonical_issue !== owner))
+      throw new Error("Canonical owner changed during retained delivery");
+    const expected = inventory.issues.find((issue) => issue.number === owner);
+    const freshOwner = async () => {
+      const current = await this.client.repositoryIssue(owner);
+      if (
+        !expected ||
+        expected.id !== current.node_id ||
+        expected.body !== current.body ||
+        expected.title !== current.title ||
+        String(expected.state).toLowerCase() !== String(current.state).toLowerCase()
+      )
+        throw new Error("Existing canonical owner changed; preserve owner work");
+    };
+    await freshOwner();
+    this.planningIssues.add(owner);
+    const observation = { candidate: p.candidate, primary: p.primary };
+    const marker = `<!-- portcove-hosted-observation:${observationHash(observation)} -->`;
+    const body = `${marker}\nDated discovery observation from #177 for existing canonical owner #${owner}. Immutable repository ID and game scope match this owner; any proposed independent-implementation claim is superseded by that identity readback. Candidate prose below remains attributed investigator evidence, not verified qualification or a change to this owner's specification. No new implementation, catalog admission or planning change is claimed.\n\n\`\`\`json\n${JSON.stringify(observation, null, 2)}\n\`\`\``;
+    validateGitHubBody(body);
+    const rows = (await this.issueComments(owner, 100))
+      .map((value) => object(value) as unknown as Comment)
+      .filter((c) => c.user.login === "github-actions[bot]" && c.body.startsWith(marker));
+    if (rows.length > 1) throw new Error("Ambiguous existing-owner observation marker");
+    let comment = rows[0];
+    if (!comment) {
+      assertDiscoveryCommentMayPost(d);
+      await freshOwner();
+      await this.fresh(request);
+      d.canonical_issue = owner;
+      comment = await this.mutation(
+        async () =>
+          await discoveryPost(
+            d,
+            async () => {
+              const posted = object(
+                (
+                  await this.github.repository.request({
+                    method: "POST",
+                    url: new URL(`${this.prefix}/${owner}/comments`, "https://api.github.com/")
+                      .href,
+                    data: { body },
+                  })
+                ).data,
+              );
+              await recordDiscoveryComment(d, posted.id, persist);
+              return posted as unknown as Comment;
+            },
+            persist,
+          ),
+      );
+    }
+    const observed = object(
+      (
+        await this.github.project.request({
+          method: "GET",
+          url: new URL(`${this.prefix}/comments/${positive(comment.id)}`, "https://api.github.com/")
+            .href,
+        })
+      ).data,
+    ) as unknown as Comment;
+    if (
+      observed.body !== body ||
+      observed.user.login !== "github-actions[bot]" ||
+      observed.issue_url !== `https://api.github.com/${this.prefix}/${owner}` ||
+      (d.created_comment && d.created_comment !== observed.id)
+    )
+      throw new Error("Existing-owner observation readback differs");
+    await freshOwner();
+    d.canonical_issue = owner;
+    d.created_comment = observed.id;
+    d.observation_sha256 = observationHash(body);
+    d.existing = true;
+    const doctor = await runScopedDoctor(this.client.config, this.client, { issues: [owner] });
+    this.save(`doctor-${request.id}-${owner}`, doctor);
+    d.doctor = compactDoctor(doctor);
+    d.status = "existing";
+    await persist();
+  }
+  async status(request: Comment, all: Comment[]) {
+    trustedHostedComment(request, this.client.config.owner);
+    const proposal = parseHostedRequest(request.body);
+    const found = all.filter(
+      (c) => c.user.login === "github-actions[bot]" && c.body.startsWith(receiptMarker(request.id)),
+    );
+    if (found.length > 1) throw new Error("Ambiguous hosted receipt identity");
+    const lineage = await this.reconciliation(request, proposal, all);
+    const receipt = found[0]
+      ? readHostedReceipt(found[0], request, proposal, lineage?.bodyRequest ?? request.id)
+      : undefined;
+    const deliveries = receipt?.delivery ?? [];
+    const counts = deliveryCounts(deliveries, proposal.candidates.length);
+    const diagnostics = all.filter(
+      (c) =>
+        c.user.login === "github-actions[bot]" &&
+        c.body.startsWith(`<!-- portcove-hosted-intake-diagnostic:${request.id} -->`),
+    );
+    if (diagnostics.length > 1) throw new Error("Ambiguous hosted diagnostic identity");
+    let diagnostic: Record<string, unknown> | undefined;
+    const latestDiagnostic = diagnostics[0];
+    if (
+      latestDiagnostic &&
+      (!receipt ||
+        (receipt.status === "complete_with_holds" &&
+          Date.parse(latestDiagnostic.updated_at ?? "") >= Date.parse(receipt.observed_at ?? "")))
+    ) {
+      const match = latestDiagnostic.body.match(/```json\n([\s\S]+)\n```\s*$/u);
+      if (!match) throw new Error("Malformed hosted diagnostic");
+      const value = object(JSON.parse(match[1]!));
+      if (
+        value.request_comment === request.id &&
+        value.request_sha256 === observationHash(request.body)
+      )
+        diagnostic = value;
+    }
+    if (receipt?.status === "complete" || receipt?.status === "complete_with_holds") {
+      if (
+        (receipt.status === "complete"
+          ? counts.pending !== 0
+          : counts.held === 0 || counts.pending !== counts.held) ||
+        deliveries.some((d) => !d.hold && missingDeliveryProof(d))
+      )
+        throw new Error("Complete receipt lacks candidate-bound scoped doctors");
+      if (receipt.status === "complete" && proposal.candidates.length > 10) {
+        const doctor = receipt.doctor;
+        if (
+          !isRecord(doctor) ||
+          doctor.status !== "passed" ||
+          doctor.coverage !== "complete" ||
+          doctor.global_health !== "passed"
+        )
+          throw new Error("Complete logical batch lacks its required full doctor");
+      }
+    }
+    const error = receipt?.error ?? diagnostic?.error;
+    const failure = isRecord(error) ? error : undefined;
+    const legacyRecoverable =
+      typeof failure?.code === "string" &&
+      ["repository_changed", "inventory_changed", "budget_exhausted", "quota_stale"].includes(
+        failure.code,
+      );
+    const continuation =
+      receipt && "continuation" in receipt ? receipt.continuation : diagnostic?.continuation;
+    const recoverable =
+      continuation === undefined
+        ? legacyRecoverable
+        : typeof continuation === "string" &&
+          ["inventory_changed", "budget_exhausted"].includes(continuation);
+    return {
+      request_comment: request.id,
+      receipt_comment: found[0]?.id ?? null,
+      reconciles: proposal.reconcile?.request_comment ?? null,
+      body_request_comment: lineage?.bodyRequest ?? request.id,
+      status:
+        !receipt && !failure
+          ? "submitted"
+          : receipt?.status === "complete" || receipt?.status === "complete_with_holds"
+            ? receipt.status
+            : ((receipt?.status === "incomplete" || !receipt) && !recoverable) ||
+                (receipt?.status === "incomplete" &&
+                  deliveries.some((d) => d.status === "create-attempted"))
+              ? "blocked"
+              : "partial",
+      candidates: proposal.candidates.length,
+      ...counts,
+      full_doctor_required: proposal.candidates.length > 10,
+      doctor: receipt?.doctor ?? null,
+      last_error: failure ?? null,
+      observed_at: receipt?.observed_at ?? null,
+      slots: candidateSlots(proposal, deliveries),
+    };
+  }
+  async reconciliation(request: Comment, proposal: Proposal, all: Comment[]) {
     const ref = proposal.reconcile;
     if (!ref) return null;
     if (ref.request_comment >= request.id)
@@ -625,8 +1155,8 @@ export class HostedIntakeBridge {
       throw new Error("Ambiguous reconciliation source receipt identity");
     const source = trustedHostedComment(sources[0], this.client.config.owner),
       comment = receipts[0]!;
-    this.fresh(source);
-    this.fresh(comment);
+    await this.fresh(source);
+    await this.fresh(comment);
     const offset = source.body.indexOf(hostedRequestMarker);
     if (
       offset <= 0 ||
@@ -661,17 +1191,17 @@ export class HostedIntakeBridge {
       throw new Error("Reconciliation requires the exact incomplete partially created receipt");
     return { source, comment, receipt, bodyRequest };
   }
-  async process(request: Comment, all: Comment[]) {
+  async process(request: Comment, all: Comment[], { resumeHolds = false } = {}) {
     this.uncertainMutations = 0;
     trustedHostedComment(request, this.client.config.owner);
-    this.fresh(request);
+    await this.fresh(request);
     const proposal = parseHostedRequest(request.body);
-    const lineage = this.reconciliation(request, proposal, all);
+    const lineage = await this.reconciliation(request, proposal, all);
     const bodyRequest = lineage?.bodyRequest ?? request.id;
-    const freshLineage = () => {
+    const freshLineage = async () => {
       if (lineage) {
-        this.fresh(lineage.source);
-        this.fresh(lineage.comment);
+        await this.fresh(lineage.source);
+        await this.fresh(lineage.comment);
       }
     };
     const found = all.filter(
@@ -681,30 +1211,109 @@ export class HostedIntakeBridge {
     let prior = found[0];
     let receipt: Receipt | undefined;
     if (prior) {
-      this.fresh(prior);
+      await this.fresh(prior);
       receipt = readHostedReceipt(prior, request, proposal, bodyRequest);
-      if (receipt.status === "complete") return receipt;
+      if (receipt.status === "complete") {
+        if (receipt.plan_encoding === "proposal-bound-v2") await this.status(request, all);
+        return receipt;
+      }
+      if (receipt.status === "complete_with_holds" && !resumeHolds) {
+        await this.status(request, all);
+        return receipt;
+      }
     }
-    const plan = proposal.candidates.map((c) => this.primary(c, bodyRequest));
+    const delivery = structuredClone(
+      receipt?.delivery ??
+        lineage?.receipt.delivery ??
+        proposal.candidates.map((): Delivery => ({ status: "prepared" })),
+    );
+    const historical = new Set<number>();
+    const plan: PlanSlot[] = [];
+    for (const [index, candidate] of proposal.candidates.entries()) {
+      const d = delivery[index]!;
+      const previous = receipt?.plan[index];
+      if (
+        previous &&
+        ((d.hold && !resumeHolds) ||
+          (!lineage && receipt?.plan_encoding === "proposal-bound-v2" && isDelivered(d)))
+      ) {
+        if (isDelivered(d)) {
+          if (missingDeliveryProof(d)) throw new Error("Historical delivery lacks a scoped doctor");
+          historical.add(index);
+        }
+        plan.push(previous);
+        continue;
+      }
+      try {
+        const fresh = await this.primary(candidate, bodyRequest);
+        if (previous?.primary && previous.evidence_sha256 !== fresh.evidence_sha256)
+          throw new Error(
+            "Primary evidence changed since preparation; a fresh proposal is required",
+          );
+        plan.push(fresh);
+        delete d.hold;
+      } catch (error) {
+        if (
+          lineage ||
+          !(error instanceof DiscoveryRepositoryUnavailable) ||
+          error.repository !== new URL(candidate.upstream).pathname.slice(1)
+        )
+          throw error;
+        if (previous?.primary && isDelivered(d)) {
+          if (missingDeliveryProof(d)) throw new Error("Historical delivery lacks a scoped doctor");
+          historical.add(index);
+          plan.push(previous);
+          continue;
+        }
+        if (!canHold(d)) throw error;
+        d.hold = candidateHold(candidate);
+        const body = hostedBody(candidate, bodyRequest);
+        validateDiscoveryIntakeBody(body, candidate.upstream, candidate.port_key);
+        plan.push(
+          previous ?? {
+            candidate,
+            body,
+            body_sha256: observationHash(body),
+            primary: null,
+            evidence_sha256: null,
+          },
+        );
+      }
+    }
     this.planningIssues = new Set(
       (receipt?.delivery ?? lineage?.receipt.delivery ?? []).flatMap((d) =>
-        d.created_issue ? [d.created_issue] : [],
+        d.created_issue ? [d.created_issue] : d.canonical_issue ? [d.canonical_issue] : [],
       ),
     );
-    let inventory = this.inventory();
+    let inventory = await this.inventory();
+    for (const [index, slot] of plan.entries()) {
+      if (
+        delivery[index]!.hold &&
+        inventory.issues.some((issue) =>
+          issue.body?.includes(
+            `<!-- portcove-discovery-intake:hosted-${bodyRequest}-${slot.candidate.port_key} -->`,
+          ),
+        )
+      )
+        throw new Error("Held candidate has a retained creation marker; reconcile before resuming");
+    }
     if (!receipt) {
+      const owners = new Map<number, number>();
       for (const [index, p] of plan.entries()) {
+        if (delivery[index]!.hold) continue;
+        if (!p.primary) throw new Error("Eligible candidate has no primary binding");
         const marker = `<!-- portcove-discovery-intake:hosted-${bodyRequest}-${p.candidate.port_key} -->`;
         const recovered = inventory.issues.filter((i) => i.body?.includes(marker));
         if (recovered.length > 1) throw new Error("Ambiguous created issue marker");
-        this.duplicates(
+        const owner = this.duplicates(
           inventory,
           p,
           lineage?.receipt.delivery[index]?.created_issue ??
             (recovered[0] ? Number(recovered[0].number) : undefined),
         );
+        if (owner) owners.set(index, owner);
       }
-      freshLineage();
+      await freshLineage();
       receipt = {
         schema_version: 1,
         request_comment: request.id,
@@ -712,9 +1321,13 @@ export class HostedIntakeBridge {
         investigator: proposal.investigator,
         plan_sha256: hostedPlanHash(observationHash(request.body), plan),
         plan,
-        delivery: lineage
-          ? structuredClone(lineage.receipt.delivery)
-          : plan.map(() => ({ status: "prepared" })),
+        delivery: delivery.map((d, index) => {
+          const owner = owners.get(index);
+          return owner === undefined || lineage
+            ? d
+            : { ...d, canonical_issue: owner, existing: true };
+        }),
+        ...(delivery.some((d) => d.hold) ? { plan_encoding: "proposal-bound-v2" as const } : {}),
         ...(lineage ? { body_request_comment: bodyRequest } : {}),
         status: "prepared",
         head: this.head,
@@ -726,43 +1339,46 @@ export class HostedIntakeBridge {
           attempt: process.env.GITHUB_RUN_ATTEMPT ?? "1",
         },
       };
-      if (Buffer.byteLength(receiptBody(receipt)) + plan.length * 2048 + 4096 > 60000)
-        throw new Error(
-          "Logical batch cannot retain complete delivery receipts; reduce evidence text",
-        );
-      prior = this.persist(receipt);
+      assertReceiptCapacity(receipt);
+      prior = await this.persist(receipt);
     }
-    if (receipt.plan_sha256 !== hostedPlanHash(observationHash(request.body), plan))
-      throw new Error("Primary evidence changed since preparation; a fresh proposal is required");
-    freshLineage();
+    receipt.plan = plan;
+    receipt.plan_sha256 = hostedPlanHash(receipt.request_sha256, plan);
+    if (delivery.some((d) => d.hold)) receipt.plan_encoding = "proposal-bound-v2";
+    if (found.length) receipt.delivery = delivery;
+    await freshLineage();
     receipt.head = this.head;
     receipt.run = process.env.GITHUB_RUN_ID ?? "local";
     receipt.attempt = process.env.GITHUB_RUN_ATTEMPT ?? "1";
     receipt.status = "applying";
-    const persist = () => {
-      prior = this.persist(receipt, prior);
+    const persist = async () => {
+      prior = await this.persist(receipt, prior);
     };
-    persist();
+    await persist();
     try {
-      this.uncertainMutations++;
-      const writeProof = await probeHostedProjectWrite(this.client, 177);
-      this.uncertainMutations--;
-      this.save(`write-proof-${request.id}`, writeProof);
+      if (receipt.delivery.some((d, index) => !d.hold && !historical.has(index))) {
+        this.uncertainMutations++;
+        const writeProof = await probeHostedProjectWrite(this.client, 177);
+        this.uncertainMutations--;
+        this.save(`write-proof-${request.id}`, writeProof);
+      }
       // The same-option owner proof and receipt comments do not change this
       // projection. Refresh at the next actual mutation, not after no-op proof.
       let invalidated = false;
       for (const [index, p] of plan.entries()) {
         const d = receipt.delivery[index];
         if (!d) throw new Error("Retained delivery coverage differs");
+        if (d.hold || historical.has(index)) continue;
+        if (!p.primary) throw new Error("Eligible candidate has no primary binding");
         if (
-          d.created_issue &&
+          (d.created_issue || d.canonical_issue) &&
           (invalidated || Date.now() - Date.parse(inventory.observed_at) >= 90000)
         ) {
-          inventory = this.inventory(inventory);
+          inventory = await this.inventory(inventory);
           invalidated = false;
         }
-        this.fresh(request);
-        freshLineage();
+        await this.fresh(request);
+        await freshLineage();
         const marker = `<!-- portcove-discovery-intake:hosted-${bodyRequest}-${p.candidate.port_key} -->`;
         const recovered = inventory.issues.filter((i) => i.body?.includes(marker));
         if (recovered.length > 1) throw new Error("Ambiguous created issue marker");
@@ -771,15 +1387,23 @@ export class HostedIntakeBridge {
         if (!d.created_issue && recovered.length) {
           d.created_issue = Number(recovered[0]!.number);
           this.planningIssues.add(d.created_issue);
-          persist();
-          inventory = this.inventory(inventory);
+          await persist();
+          inventory = await this.inventory(inventory);
           invalidated = false;
         }
-        if (!d.created_issue && d.status === "create-attempted")
+        if (!d.created_issue && !d.canonical_issue && d.status === "create-attempted")
           throw new Error("Ambiguous issue POST without a confirmed marker; do not recapture");
-        this.duplicates(inventory, p, d.created_issue);
+        const owner = this.duplicates(inventory, p, d.created_issue);
+        if (owner) {
+          if (d.status === "preflight") d.status = "prepared";
+          await this.observeExisting(request, p, d, owner, inventory, persist);
+          invalidated = true;
+          continue;
+        }
+        if (d.canonical_issue)
+          throw new Error("Retained canonical ownership is no longer established");
         if (d.created_issue) {
-          const issue = assertHostedRecovery(this.client, inventory, d.created_issue);
+          const issue = await assertHostedRecovery(this.client, inventory, d.created_issue);
           if (issue.body !== p.body || issue.title !== `[Port] ${p.candidate.title}`)
             throw new Error("Created issue was revised; preserve owner changes and reconcile");
           const member = inventory.items.find((item) => item.content?.id === issue.node_id);
@@ -792,68 +1416,80 @@ export class HostedIntakeBridge {
           if (!ready) {
             // A real normalization consumes a fresh target preimage, even when
             // the earlier routing observation looked repairable.
-            inventory = this.inventory(inventory);
+            inventory = await this.inventory(inventory);
             invalidated = false;
-            const latest = assertHostedRecovery(this.client, inventory, d.created_issue);
+            const latest = await assertHostedRecovery(this.client, inventory, d.created_issue);
             if (latest.body !== p.body || latest.title !== `[Port] ${p.candidate.title}`)
               throw new Error("Created issue was revised; preserve owner changes and reconcile");
-            const normalized = this.mutation(() =>
-              this.client.normalizePortIssue({
-                number: d.created_issue!,
-                catalog: qualificationCatalogObservation(
-                  JSON.parse(
-                    readFileSync(
-                      new URL("../crates/portcove-core/catalog/catalog.json", import.meta.url),
-                      "utf8",
+            const normalized = await this.mutation(
+              async () =>
+                await this.client.normalizePortIssue({
+                  number: d.created_issue!,
+                  catalog: qualificationCatalogObservation(
+                    JSON.parse(
+                      readFileSync(
+                        new URL("../crates/portcove-core/catalog/catalog.json", import.meta.url),
+                        "utf8",
+                      ),
                     ),
                   ),
-                ),
-                inventory,
-              }),
+                  inventory,
+                  repositoryIdentity: { id: p.candidate.repository_id, game: p.candidate.game },
+                }),
             );
             invalidated = true;
-            d.item_id = normalized.itemId;
+            d.item_id = receiptProjectItemId(normalized.itemId);
           }
         } else {
-          // Persist the attempt before recollection: publishing it advances
-          // #177's revision, so the negative inventory must come afterwards.
-          d.status = "create-attempted";
-          persist();
-          try {
-            inventory = this.inventory(inventory);
-            invalidated = false;
-            this.fresh(request);
-            freshLineage();
-            this.duplicates(inventory, p);
-          } catch (error) {
-            d.status = "prepared"; // No POST has begun in this preflight.
-            persist();
-            throw error;
+          // Reserve room before publishing the checkpoint. A denial here is
+          // safe because no issue attempt has been recorded or dispatched.
+          await this.admitWarmInventory(inventory);
+          // Receipt updates change #177's revision but not its intake semantics.
+          // Keep the durable state resumable throughout the fresh negative inventory.
+          d.status = "preflight";
+          await persist();
+          inventory = await this.inventory(inventory);
+          invalidated = false;
+          await this.fresh(request);
+          await freshLineage();
+          const lateOwner = this.duplicates(inventory, p);
+          if (lateOwner) {
+            d.status = "prepared";
+            d.canonical_issue = lateOwner;
+            d.existing = true;
+            await persist();
+            await this.observeExisting(request, p, d, lateOwner, inventory, persist);
+            invalidated = true;
+            continue;
           }
-          this.mutation(() =>
-            discoveryPost(
-              d,
-              () =>
-                this.client.createPortIssue({
-                  title: p.candidate.title,
-                  upstream: p.candidate.upstream,
-                  portKey: p.candidate.port_key,
-                  body: p.body,
-                  inventory,
-                  onIssueCreated: (issue) => {
-                    d.created_issue = issue.number;
-                    this.planningIssues.add(issue.number);
-                    d.status = "created";
-                    persist();
-                  },
-                }),
-              () => this.save(`receipt-${request.id}`, receipt),
-            ),
+          d.status = "create-attempted";
+          await persist();
+          await this.mutation(
+            async () =>
+              await discoveryPost(
+                d,
+                async () =>
+                  await this.client.createPortIssue({
+                    title: p.candidate.title,
+                    upstream: p.candidate.upstream,
+                    portKey: p.candidate.port_key,
+                    body: p.body,
+                    inventory,
+                    repositoryIdentity: { id: p.candidate.repository_id, game: p.candidate.game },
+                    onIssueCreated: async (issue) => {
+                      d.created_issue = issue.number;
+                      this.planningIssues.add(issue.number);
+                      d.status = "created";
+                      await persist();
+                    },
+                  }),
+                () => this.save(`receipt-${request.id}`, receipt),
+              ),
           );
           invalidated = true;
         }
-        const issue = this.client.repositoryIssue(d.created_issue!);
-        const item = this.client.executionIssue(d.created_issue!).item;
+        const issue = await this.client.repositoryIssue(d.created_issue!);
+        const item = (await this.client.executionIssue(d.created_issue!)).item;
         if (issue.body !== p.body || item.content.id !== issue.node_id)
           throw new Error("Exact created body/item readback failed");
         const defaults = portFieldInitialization(null);
@@ -861,8 +1497,7 @@ export class HostedIntakeBridge {
           if (fieldValue(item, f) !== v) throw new Error(`Neutral intake field differs: ${f}`);
         if (fieldValue(item, "Release commitment"))
           throw new Error("Intake acquired a release commitment");
-        if (typeof item.id !== "string") throw new Error("Verified Project item ID is unavailable");
-        d.item_id = item.id;
+        d.item_id = receiptProjectItemId(item.id);
         d.fields = Object.fromEntries(Object.keys(defaults).map((f) => [f, fieldValue(item, f)]));
         const doctor = await runScopedDoctor(this.client.config, this.client, {
           issues: [d.created_issue!],
@@ -870,11 +1505,11 @@ export class HostedIntakeBridge {
         this.save(`doctor-${request.id}-${d.created_issue}`, doctor);
         d.doctor = compactDoctor(doctor);
         d.status = "delivered";
-        persist();
-        if (index === plan.length - 1 && plan.length > 10)
-          inventory = this.inventory(inventory, true);
+        await persist();
       }
-      if (plan.length > 10) {
+      const held = receipt.delivery.some((d) => d.hold);
+      if (!held && plan.length > 10) {
+        inventory = await this.inventory(inventory, true);
         const global = await runDoctor(this.client.config, this.client, {
           quiet: true,
           inventory,
@@ -887,14 +1522,16 @@ export class HostedIntakeBridge {
         };
         this.save(`global-doctor-${request.id}`, receipt.doctor);
       }
-      receipt.status = "complete";
+      receipt.status = held ? "complete_with_holds" : "complete";
       delete receipt.error;
-      persist();
+      delete receipt.continuation;
+      await persist();
     } catch (error) {
       receipt.status = "incomplete";
-      receipt.error = sanitizeOperationError(error);
+      receipt.error = receiptDiagnostic(error);
+      receipt.continuation = this.continuation(error);
       try {
-        persist();
+        await persist();
       } catch (publication) {
         this.save(`publication-failure-${request.id}`, sanitizeOperationError(publication));
       }
@@ -903,8 +1540,8 @@ export class HostedIntakeBridge {
     return receipt;
   }
 }
-export async function probeHostedProjectWrite(client: RoadmapClient, issue: number) {
-  const before = client.executionIssue(issue).item;
+export async function probeHostedProjectWrite(client: HostedRoadmapOperations, issue: number) {
+  const before = (await client.executionIssue(issue)).item;
   const priority = fieldValue(before, "Priority");
   if (
     before.content.number !== issue ||
@@ -919,8 +1556,8 @@ export async function probeHostedProjectWrite(client: RoadmapClient, issue: numb
     throw new Error("Write probe requires an authorized neutral Watchlist port with Priority None");
   const fields = client.config.fields.map((f) => [f.name, fieldValue(before, f.name) ?? null]);
   if (typeof before.id !== "string") throw new Error("Probe Project item ID is unavailable");
-  client.setItemFields(before.id, { Priority: priority });
-  const after = client.executionIssue(issue).item;
+  await client.setItemFields(before.id, { Priority: priority });
+  const after = (await client.executionIssue(issue)).item;
   if (
     before.id !== after.id ||
     before.content.id !== after.content.id ||
@@ -938,10 +1575,278 @@ export async function probeHostedProjectWrite(client: RoadmapClient, issue: numb
     doctor: await runScopedDoctor(client.config, client, { issues: [issue] }),
   };
 }
+export async function collectHostedRequests(
+  bridge: Pick<HostedIntakeBridge, "comments" | "continuation">,
+  initialize: () => void | Promise<void>,
+) {
+  try {
+    await initialize();
+    return { status: "collected" as const, comments: await bridge.comments() };
+  } catch (error) {
+    const continuation = bridge.continuation(error);
+    if (!continuation) throw error;
+    return { status: "held" as const, continuation, error: sanitizeOperationError(error) };
+  }
+}
+type HostedStatus = Awaited<ReturnType<HostedIntakeBridge["status"]>>;
+/** One marker-bearing owner request in the complete status read. */
+export type HostedRequestStatus =
+  | (HostedStatus & { withdrawn: boolean; superseded_by: number[] })
+  | {
+      request_comment: number;
+      withdrawn: boolean;
+      superseded_by: number[];
+      error: ReturnType<typeof sanitizeOperationError>;
+    };
+export interface HostedStatusAll {
+  /** #177 node, comment count and revision, plus a digest of every (comment id, body SHA-256). */
+  queue: { node_id: string; comments: number; updated_at: string; comments_sha256: string };
+  requests: HostedRequestStatus[];
+}
+
+/**
+ * Read-only status of every owner-authored #177 request the executor selects
+ * (`hostedRequestSelection`), from one complete drift-checked comment read. A withdrawn
+ * request keeps its exact original proposal after a prepended explanation and
+ * is classified from that retained proposal. A request whose own proposal,
+ * receipt or reconciliation cannot be validated is reported with its error;
+ * provider and budget failures fail the whole read.
+ */
+export async function hostedStatusAll(
+  bridge: Pick<HostedIntakeBridge, "comments" | "status" | "queue" | "client" | "statusBudget">,
+): Promise<HostedStatusAll> {
+  const all = await bridge.comments();
+  const queue = bridge.queue;
+  if (!queue) throw new Error("Hosted request queue identity is unavailable");
+  const owner = bridge.client.config.owner;
+  const selected = all.flatMap((comment) => {
+    const selection = hostedRequestSelection(comment, owner);
+    return selection ? [{ comment, ...selection }] : [];
+  });
+  bridge.statusBudget?.admitReconciliations(
+    selected.filter(({ request }) => reconciles(request.body)).length,
+  );
+  const rows: HostedRequestStatus[] = [];
+  for (const { comment, withdrawn, request } of selected) {
+    try {
+      const status = await bridge.status(request, all);
+      rows.push({ ...status, withdrawn, superseded_by: [] });
+    } catch (error) {
+      if (error instanceof GitHubApiError) throw error;
+      rows.push({
+        request_comment: comment.id,
+        withdrawn,
+        superseded_by: [],
+        error: sanitizeOperationError(error),
+      });
+    }
+  }
+  for (const row of rows)
+    if ("reconciles" in row && row.reconciles !== null)
+      rows
+        .find((source) => source.request_comment === row.reconciles)
+        ?.superseded_by.push(row.request_comment);
+  const digest = (value: string) => createHash("sha256").update(value).digest("hex");
+  return {
+    queue: {
+      ...queue,
+      comments_sha256: digest(
+        JSON.stringify(
+          all
+            .map((c) => [c.id, digest(typeof c.body === "string" ? c.body : "")] as const)
+            .sort((left, right) => left[0] - right[0]),
+        ),
+      ),
+    },
+    requests: rows,
+  };
+}
+
+/**
+ * The marker-bearing owner request a #177 comment carries, by the executor's own
+ * selection: an active request starts with the marker; a withdrawn request keeps
+ * exactly one marker after its prepended explanation, followed by its complete
+ * original proposal. Anything else, including prose that quotes the marker, is
+ * not a request.
+ */
+export function hostedRequestSelection(comment: Comment, owner: string) {
+  if (comment.user?.login !== owner || typeof comment.body !== "string") return null;
+  if (comment.body.startsWith(hostedRequestMarker)) return { withdrawn: false, request: comment };
+  const offset = comment.body.indexOf(hostedRequestMarker);
+  if (
+    offset <= 0 ||
+    comment.body.indexOf(hostedRequestMarker, offset + hostedRequestMarker.length) !== -1
+  )
+    return null;
+  const original = { ...comment, body: comment.body.slice(offset) };
+  try {
+    parseHostedRequest(original.body);
+  } catch {
+    return null;
+  }
+  return { withdrawn: true, request: original };
+}
+/** Whether a request's proposal names a reconciliation, which costs two exact reads. */
+function reconciles(body: string) {
+  try {
+    return parseHostedRequest(body).reconcile !== undefined;
+  } catch {
+    return false;
+  }
+}
+
+/** The repository's stable numeric identity, which GitHub list pagination links use. */
+const hostedRepositoryId = 1354613114;
+/** Bounded transport retries admitted on top of the planned reads. */
+export const hostedStatusRetryAllowance = 4;
+/** Absolute ceiling for one status read, whatever the #177 queue size. */
+export const hostedStatusRequestCeiling = 200;
+/**
+ * A status read's request budget, derived from the observed queue: the first
+ * #177 revision read is admitted; its comment count then admits one read per
+ * 20-comment page plus one, and the closing revision read; each reconciling
+ * request admits its two exact-comment reads. A small retry allowance is added,
+ * and a plan beyond the absolute ceiling fails before its next request.
+ */
+export class HostedStatusBudget {
+  used = 0;
+  planned = 1;
+  private sized = false;
+  readonly ceiling: number;
+  readonly retries: number;
+  constructor(ceiling = hostedStatusRequestCeiling, retries = hostedStatusRetryAllowance) {
+    this.ceiling = ceiling;
+    this.retries = retries;
+  }
+  get limit() {
+    return this.planned + this.retries;
+  }
+  /** Sizes the comment pages from the first revision read's comment count. */
+  observeQueue(comments: unknown) {
+    if (this.sized || !Number.isSafeInteger(comments) || (comments as number) < 0) return;
+    this.sized = true;
+    this.planned += Math.ceil((comments as number) / 20) + 1 + 1;
+  }
+  /** Admits the exact-comment reads of the requests that reconcile. */
+  admitReconciliations(count: number) {
+    this.planned += 2 * count;
+  }
+  reserve() {
+    if (this.limit > this.ceiling || ++this.used > this.limit)
+      throw new GitHubApiError(
+        "budget_exhausted",
+        `Hosted status read exceeded its budget (${this.used} of ${Math.min(this.limit, this.ceiling)} requests)`,
+      );
+  }
+}
+/**
+ * A status-only bridge: GET-only to #177, its comment list and exact comments,
+ * with a request budget derived from the observed queue. It needs no
+ * RoadmapClient connection, Project scope or write credential, and refuses
+ * research, saving and every write.
+ */
+export async function readOnlyHostedBridge(
+  config: { owner: string; repository: string },
+  options: Pick<GitHubClientOptions, "credential" | "deadline" | "fetch" | "environmentProxy"> & {
+    budget?: HostedStatusBudget;
+  },
+) {
+  const named = `/repos/${config.repository}/issues`;
+  const numeric = `/repositories/${hostedRepositoryId}/issues`;
+  const budget = options.budget ?? new HostedStatusBudget();
+  const sdk = await createGitHubClient({
+    ...options,
+    maxBytes: 4 * 1024 * 1024,
+    headers: { accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28" },
+    allowRequest: (method, url) =>
+      method === "GET" &&
+      (url.pathname === `${named}/177` ||
+        url.pathname === `${named}/177/comments` ||
+        // GitHub Link headers use the stable numeric repository path for list pages.
+        url.pathname === `${numeric}/177/comments` ||
+        new RegExp(`^${named}/comments/[1-9]\\d*$`, "u").test(url.pathname)),
+    reserve() {
+      budget.reserve();
+      return { consumeBytes() {}, settle() {} };
+    },
+  });
+  sdk.hook.after("request", (response, request) => {
+    if (new URL(String(request.url), "https://api.github.com/").pathname === `${named}/177`)
+      budget.observeQueue((response.data as { comments?: unknown } | null)?.comments);
+  });
+  const refuse = () => {
+    throw new Error("Status cannot research, save or write");
+  };
+  const bridge = new HostedIntakeBridge(
+    { config } as unknown as HostedRoadmapOperations,
+    { project: sdk, repository: sdk },
+    "status",
+    refuse,
+    refuse,
+  );
+  bridge.statusBudget = budget;
+  return bridge;
+}
+export async function connectHostedGitHub(
+  config: ConstructorParameters<typeof RoadmapClient>[0],
+  budget: DiscoveryBudget,
+  credentials: { project: string; repository: string },
+  options: Parameters<typeof discoveryGitHubScope>[2] = {},
+) {
+  if (!credentials.project || !credentials.repository)
+    throw new GitHubApiError(
+      "credential_unavailable",
+      "Dedicated Project and repository credentials are required",
+    );
+  const projectScope = discoveryGitHubScope(budget, credentials.project, options);
+  const repositoryScope = discoveryGitHubScope(budget, credentials.repository, options);
+  const project = await createGitHubClient(projectScope);
+  const repository = await createGitHubClient(repositoryScope);
+  const client = await RoadmapClient.connect(config, {
+    ...projectScope,
+    repositoryMutations: repositoryScope,
+  });
+  return { client, project, repository };
+}
 async function main() {
   const root = fileURLToPath(new URL("../", import.meta.url));
+  const config = validateConfig(
+    JSON.parse(readFileSync(path.join(root, ".github/roadmap.json"), "utf8")),
+  );
+  if (process.argv[2] === "status") {
+    const args = process.argv.slice(3);
+    const everything = args.length === 2 && args[0] === "--all" && args[1] === "--json";
+    if (
+      !everything &&
+      (args.length !== 3 ||
+        args[0] !== "--request" ||
+        args[2] !== "--json" ||
+        !/^[1-9]\d*$/u.test(args[1] ?? ""))
+    )
+      throw new Error(
+        "Usage: node scripts/hosted-discovery-intake.mts status (--request <comment-id> | --all) --json",
+      );
+    const { localDeveloperCredential } = await import("./github-cli.mts");
+    const deadline = performance.now() + 120_000;
+    const bridge = await readOnlyHostedBridge(config, {
+      credential: localDeveloperCredential({ deadline }),
+      deadline,
+    });
+    if (everything) {
+      console.log(JSON.stringify(await hostedStatusAll(bridge)));
+      return;
+    }
+    const id = positive(Number(args[1]));
+    const comments = await bridge.comments();
+    const request = comments.find((c) => c.id === id);
+    if (!request) throw new Error("Requested proposal is unavailable");
+    bridge.statusBudget?.admitReconciliations(reconciles(request.body) ? 1 : 0);
+    console.log(JSON.stringify(await bridge.status(request, comments)));
+    return;
+  }
   const pass = process.env.HOSTED_INTAKE_PASS ?? "1";
-  if (!/^[123]$/u.test(pass)) throw new Error("Invalid bounded intake pass");
+  if (!/^[1-9]\d?$/u.test(pass) || Number(pass) > hostedIntakeMaxPasses)
+    throw new Error("Invalid bounded intake pass");
   const directory = path.join(root, "work/hosted-discovery-intake", `pass-${pass}`);
   mkdirSync(directory, { recursive: true });
   const progress = new Map<number, string>();
@@ -955,7 +1860,13 @@ async function main() {
           delivery: Array.isArray(value.delivery)
             ? value.delivery.map((raw) => {
                 const d = object(raw);
-                return { status: d.status, issue: d.created_issue, item: d.item_id };
+                return {
+                  status: d.status,
+                  issue: d.created_issue,
+                  item: d.item_id,
+                  owner: d.canonical_issue,
+                  comment: d.created_comment,
+                };
               })
             : null,
           global: value.doctor !== undefined,
@@ -964,55 +1875,65 @@ async function main() {
     }
     writeFileSync(path.join(directory, `${name}.json`), JSON.stringify(value, null, 2));
   };
-  const config = validateConfig(
-    JSON.parse(readFileSync(path.join(root, ".github/roadmap.json"), "utf8")),
-  );
   const event: unknown = JSON.parse(readFileSync(process.env.GITHUB_EVENT_PATH ?? "", "utf8"));
   assertHostedEvent(event, process.env.GITHUB_EVENT_NAME ?? "", config.repository, config.owner);
   if (!process.env.GH_TOKEN || !process.env.REPOSITORY_TOKEN)
     throw new Error("Dedicated Project and repository credentials are required");
-  const budget = new DiscoveryBudget("cold", (usage) => save("budget", usage));
-  const project = createDiscoveryTransport(budget, process.env.GH_TOKEN);
-  const repository = createDiscoveryTransport(budget, process.env.REPOSITORY_TOKEN);
-  const api = new GitHubApiClient((args, input) => {
-    const endpoint = args[2] ?? "",
-      method = args[args.indexOf("--method") + 1];
-    const repoMutation =
-      args[0] === "api" &&
-      args[1] !== "graphql" &&
-      ["POST", "PATCH"].includes(method ?? "") &&
-      endpoint.startsWith(`repos/${config.repository}/issues`);
-    return (repoMutation ? repository : project).runner(args, input);
+  const budget = new DiscoveryBudget("hosted", (usage) => save("budget", usage));
+  const { client, project, repository } = await connectHostedGitHub(config, budget, {
+    project: process.env.GH_TOKEN,
+    repository: process.env.REPOSITORY_TOKEN,
   });
-  const client = new HostedRoadmapClient(config, api);
+  const http = createDiscoveryTransport(budget, process.env.GH_TOKEN);
   const head = runCheckedGit(["rev-parse", "HEAD"], { cwd: root }).trim();
-  const resources = object(object(api.request("GET", "rate_limit").body).resources);
-  for (const key of ["core", "graphql"]) {
-    const rate = object(resources[key]);
-    if (typeof rate.remaining !== "number" || typeof rate.reset !== "number")
-      throw new Error("Provider quota is unavailable");
-    budget.observeProvider({
-      resource: key,
-      remaining: rate.remaining,
-      resetAt: new Date(rate.reset * 1000).toISOString(),
-    });
-  }
+  const admitInventory = async (cache?: RoadmapInventory) => {
+    const cost = cache ? discoveryInventoryCost(cache) : { requests: 1, bytes: 1 };
+    // Leave enough existing capacity to restore prepared and publish a bounded
+    // receipt/diagnostic if preflight cannot fit; this is not a usage reset.
+    await budget.admit(cost.requests + 12, cost.bytes + 2 * 1024 * 1024);
+  };
   const bridge = new HostedIntakeBridge(
     client,
+    { project, repository },
     head,
-    (repo) => investigateDiscoveryUpstream({ api, budget, http: project, save }, repo),
+    async (repo) => await investigateDiscoveryUpstream({ sdk: project, budget, http, save }, repo),
     save,
-    (cache) => {
-      const cost = cache ? discoveryInventoryCost(cache) : { requests: 1, bytes: 1 };
-      budget.admit(cost.requests, cost.bytes);
-    },
+    admitInventory,
+    admitInventory,
   );
+  const settleAdmission = async () => {
+    const failures = await budget.drain();
+    if (failures.length) {
+      try {
+        save(
+          "admission-cleanup",
+          failures.map((error) => sanitizeOperationError(error)),
+        );
+      } catch (error) {
+        console.error(JSON.stringify(sanitizeOperationError(error)));
+      }
+    }
+  };
+  const initialize = async () => {
+    const resources = object(object((await project.request("GET /rate_limit")).data).resources);
+    for (const key of ["core", "graphql"]) {
+      const rate = object(resources[key]);
+      if (typeof rate.remaining !== "number" || typeof rate.reset !== "number")
+        throw new Error("Provider quota is unavailable");
+      budget.observeProvider({
+        resource: key,
+        remaining: rate.remaining,
+        resetAt: new Date(rate.reset * 1000).toISOString(),
+      });
+    }
+  };
   try {
     const inputs = object(event).inputs;
     if (
       process.env.HOSTED_INTAKE_MODE === "probe" ||
       (isRecord(inputs) && inputs.mode === "probe")
     ) {
+      await initialize();
       const issue = Number(
         process.env.HOSTED_INTAKE_PROBE || (isRecord(inputs) ? inputs.probe_issue : undefined),
       );
@@ -1025,29 +1946,31 @@ async function main() {
           run: process.env.GITHUB_RUN_ID,
           attempt: process.env.GITHUB_RUN_ATTEMPT,
         };
+        await settleAdmission();
         save("write-probe", result);
         console.log(JSON.stringify(result));
       } catch (error) {
+        await settleAdmission();
         save("write-probe", { status: "failed", head, error: sanitizeOperationError(error) });
         throw error;
       }
       return;
     }
-    let comments: Comment[];
-    try {
-      comments = bridge.comments();
-    } catch (error) {
-      if (!(error instanceof GitHubApiError) || error.code !== "inventory_changed") throw error;
+    const collected = await collectHostedRequests(bridge, initialize);
+    if (collected.status === "held") {
+      await settleAdmission();
       save("summary", {
         status: "incomplete",
         head,
         requests: 0,
         outcomes: [],
-        queue_continuation: "inventory_changed",
+        queue_continuation: collected.continuation,
+        error: collected.error,
       });
       process.exitCode = 1;
       return;
     }
+    const comments = collected.comments;
     const selected: unknown = process.env.HOSTED_INTAKE_REQUESTS
       ? JSON.parse(process.env.HOSTED_INTAKE_REQUESTS)
       : null;
@@ -1071,6 +1994,7 @@ async function main() {
             return request;
           });
     const outcomes: {
+      counts?: ReturnType<typeof deliveryCounts>;
       request: number;
       status: string;
       continuation: string | null;
@@ -1078,10 +2002,13 @@ async function main() {
     }[] = [];
     for (const c of requests) {
       try {
-        await bridge.process(c, comments);
+        const receipt = await bridge.process(c, comments, {
+          resumeHolds: process.env.GITHUB_EVENT_NAME === "workflow_dispatch",
+        });
         outcomes.push({
           request: c.id,
-          status: "complete",
+          status: receipt.status,
+          counts: deliveryCounts(receipt.delivery),
           continuation: null,
           progress: progress.get(c.id) ?? null,
         });
@@ -1089,7 +2016,7 @@ async function main() {
         let continuation = bridge.continuation(error);
         save(`failure-${c.id}`, sanitizeOperationError(error));
         try {
-          bridge.diagnostic(c, error, comments);
+          await bridge.diagnostic(c, error, comments);
         } catch (publication) {
           continuation = null;
           save(`publication-failure-${c.id}`, sanitizeOperationError(publication));
@@ -1102,7 +2029,8 @@ async function main() {
         });
       }
     }
-    const failed = outcomes.some((o) => o.status !== "complete");
+    const failed = outcomes.some((o) => o.status === "incomplete");
+    await settleAdmission();
     save("summary", {
       status: failed ? "incomplete" : "passed",
       head,
@@ -1111,11 +2039,13 @@ async function main() {
     });
     if (failed) process.exitCode = 1;
   } finally {
-    save("api-observations", api.observations);
+    await settleAdmission();
+    save("api-observations", budget.observations);
+    save("roadmap-observations", client.observations);
   }
 }
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url))
-  main().catch((error) => {
+  await main().catch((error) => {
     console.error(JSON.stringify(sanitizeOperationError(error)));
     process.exitCode = 1;
   });

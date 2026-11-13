@@ -24,10 +24,16 @@ stand in for complete release headers, candidate assets, Core eligibility or byt
 Invalid optional health evidence is preserved and falls back to a fresh primary
 lookup; conflicting trusted identities remain held.
 
-The `Configured upstream observer` workflow requests observations at 00:17,
-06:17, 12:17 and 18:17 UTC. Hosted scheduling can be delayed or skipped; this is
-a requested cadence, not a delivery guarantee. The configured baseline retains
-its cadence and twelve-hour freshness bound. Catalog sources use durable fair
+The `Configured upstream observer` workflow requests observations hourly at
+minute 31 UTC, away from the daily 09:23 upstream-health run and the :17 and :43
+schedules that share the repository token. Scheduled run 42484849060 on
+2026-11-08 used 744 requests and reported 4,026 remaining, so its observed hourly
+allowance was about 5,000. This is dated evidence, not a guaranteed limit. Hosted
+scheduling is delayed or dropped often on this repository: on 2026-11-08 the
+hourly `:43` cleanup schedule started about every four hours and the daily 09:23
+health run started near 16:00. This is a requested cadence, not a delivery
+guarantee, so each hosted run carries more work instead of relying on frequency. The configured baseline keeps its twelve-hour
+freshness bound and receives a turn in every opportunity. Catalog sources use durable fair
 turns, activity observations and staleness to admit work within the same job.
 Unknown activity uses the existing cadence; measured change intervals may defer
 quieter sources only inside the freshness margin. Manual dispatch remains
@@ -39,13 +45,30 @@ separately attributed and does not prove scheduled execution.
 pages and each release's complete asset collection. It preserves provider
 release order, draft/prerelease flags, numeric identities, tags, publication
 clocks, asset names, URLs, sizes and provider digest claims. It discards prose
-and recommendations. GitHub API redirects are refused; pagination links must
+and recommendations. Metadata API redirects are refused; pagination links must
 stay inside the exact collection, and asset URLs inside the configured
 repository and release. Duplicate IDs, malformed data and partial pagination
 fail the run. Every consumed page is revalidated after collection against its
 normalized observed facts and pagination links. Unrelated counters and prose
-cannot invalidate an otherwise unchanged release observation. The cache still
-binds each complete raw API response to its own digest and conditional header.
+cannot invalidate an otherwise unchanged release observation. New cached pages use
+the explicit `observer-facts-v1` representation: only the exact repository,
+release and asset fields consumed by these normalizers are retained. Release
+notes, author/uploader objects, unrelated counters and unused embedded assets are
+removed. This is a semantic projection, not lossless raw-response storage.
+The original `sha256` remains the canonical parsed-body identity and historical
+provenance; it cannot independently verify the removed raw body. The separate
+`facts_sha256` verifies the retained body, with its exact versioned field schema.
+ETags, Link headers, array order/count, accepted observation facts, cursors and
+clocks remain unchanged. Reuse compares normalized facts as well as original page
+identities and Link headers, including mixed raw/projected proofs. Asset pages
+remain bound to their matching release ID/tag. Historical conditional pages are checked under their original
+complete-cache or restart graph; replacement responses still match the current
+collected release headers. A changed fact schema needs a new
+projection revision and cannot silently gain evidence from an older projection.
+Legacy raw pages remain readable and their original body hashes and input bounds
+are checked before projection. Fresh responses are fully read, charged and
+validated before unused fields are removed. Independent declared-pin metadata
+checks, including embedded-asset completeness, retain their original raw inputs.
 GitHub offers
 no atomic repository snapshot: evidence therefore records the observation's
 start/end interval, and any detected change invalidates the entire attempt.
@@ -65,8 +88,13 @@ and performs no network requests. The format-1 result is exported by
 Format 2 adds explicit `channel-candidate-assets` coverage for catalog-scale
 observation. It retains every release header in provider order and identifies
 which release IDs have complete asset collections. An inert header-only probe
-asks the same Core projection for channel candidates; the observer then collects
-only those asset collections and revalidates all consumed pages. Missing candidate
+asks the same Core projection for channel candidates; the observer collects
+those asset collections and asks Core again until the current candidates are
+covered. NativePortable uses runtime's platform-stream predicate: a complete
+Linux-only player release can expose the preceding Windows candidate. Uncollected
+assets cannot establish another platform's stream. Each continuation retains
+the existing request, byte and time budgets and revalidates all consumed pages.
+Missing candidate
 coverage produces `release-asset-observation-incomplete`, never metadata eligibility.
 Unknown, repeated or foreign coverage IDs and asset payloads outside declared
 coverage are refused. Format 1 retains its existing full-asset semantics; existing
@@ -85,9 +113,30 @@ Each platform/channel projection retains the latest observed release, its
 channel candidate, latest metadata-eligible asset, and hold reasons. Core's
 existing prerelease policy recognizes RC/preview tags even when the provider's
 prerelease flag is false; Preview (`beta`) retains its existing stable fallback, while
-Rolling requires the catalog's explicit rolling tag. A held newest candidate
+Rolling requires the catalog's explicit rolling tag. A held newest applicable candidate
 does not fall through to an older release and call it current. Missing or
 ambiguous platform assets and absent provider SHA-256 claims remain held.
+When the runtime's supported checksum policy can supply the missing digest,
+Core returns exact release/asset dependencies rather than a manual task. The
+collector fetches those asset texts through GitHub's asset API, retains bounded
+UTF-8 facts and revalidates every used text. Both inspector and runtime share
+exact `<asset>.sha256` precedence, aggregate filename matching, all-source
+agreement, eight-source and one-MiB-per-source limits. Incomplete or conflicting
+text cannot produce an eligible asset.
+
+Checksum transport alone permits at most three redirects to the fixed GitHub
+asset delivery hosts. Each physical request consumes existing admission and
+each hop uses the remaining deadline. Operation-owned redirect progress resumes
+even with a one-request source quantum; API credentials never reach the CDN.
+The same checkpoint/cache preserves text and metadata. Changed dependencies reset
+validation order; unchanged fresh facts can be reprojected without changing their
+observation clock. Checksum metadata does not establish artifact-byte verification
+or protected acquisition/publication authority.
+
+These provider and text facts remain observations, never admitted artifact bytes.
+Actual acquisition retains exact installed artifact/provider identity and refuses
+changed bytes under that binding. A new rolling asset ID identifies distinct bytes;
+this observer does not rewrite the old installed identity or supply publication.
 The observed host archive flag is retained in the digested facts as maintenance
 information; it is not a hold by itself.
 The output includes the adapter capability and exact catalog-definition hash.
@@ -170,31 +219,109 @@ without repeating completed Core calls. Provider and Core clocks are never
 manufactured by a later resume.
 
 Request admission uses received provider capacity with a five-percent reserve,
-observed request cost, remaining runtime and fair source turns. Unknown quota uses
+observed request cost and remaining runtime. Sources serving at least one managed
+port go before listing-only sources while they have no recorded failure,
+because their releases can change what players install. Budget, cancellation and
+quota stops are partial progress and keep that priority; checkpoints record each
+exception's rule, and older entries without one keep it until their next attempt. Within each group,
+eligible sources without a recorded turn go first, then the least recently
+attempted sources. A completed managed source leaves the pending set until it is
+due again, and a managed source with a recorded failure rejoins ordinary
+rotation, so listing-only sources still receive turns. Each admitted source receives a turn large enough to finish a typical
+collection and validation (twice the per-collection page allowance plus four
+requests, within the per-operation request budget) rather than an equal split of
+the remaining capacity across every pending source, which rounded each turn down
+to a single request and completed almost nothing. Sources beyond the remaining
+capacity wait for a later batch in rotation order; early configured or
+scheduled-priority turns keep their existing page-allowance and half-capacity cap. Unknown quota uses
 the existing finite request envelope; it is not assumed available. Quantum/runtime
 exhaustion has no provider retry clock. Actual depletion and provider retry
 responses defer the shared provider until its reset. A budget-limited source with
 progress can receive another turn automatically while capacity remains. A failure
-isolates its source. New non-budget exceptions fail the job once; continuing
-exceptions and normal continuation remain visible without repeated notifications.
+isolates its source. A new non-budget exception fails the job once when its source
+serves a managed port, is the configured baseline, or is a scheduled priority
+scope; continuing exceptions and normal continuation remain visible without
+repeated notifications. Other listing-only exceptions are recorded in the report
+and checkpoint without failing the job, because they cannot change what players
+install. They use a separate exception key, so a listing that later gains a
+managed port still reports its unresolved rule once.
 
-The existing ten-minute hosted job establishes a nine-minute observation deadline
-before checkout and build, reserving the final minute for checkpoint and artifact
-publication. Accepted page, validation or Core progress can automatically start
-another operation within that opportunity; each operation keeps its existing
+After each hosted run, `scripts/upstream-relocation-candidates.mts` reads that
+run's summary and lists proposal-only relocation candidates in the step summary
+for repositories whose failure was `repository-unavailable` (404), `provider-transport`
+or `transport`. A first identity lookup reports HTTP 301 directly, while a source
+with a retained identity fails in its release listing, where the refused redirect
+surfaces as a transport failure. A summary without a failure list is reported as
+coverage unknown, and one failed lookup leaves only that repository `unknown`.
+The step runs after every retention step. For a 301 it reads the
+`Moved Permanently` body's numeric repository URL without following it, then
+makes one `/repositories/{id}` read for the current name. It compares that ID with
+the observer checkpoint's retained `repository_id`: `same-repository-renamed`
+means the numeric identities match; `different-repository`, `identity-unbound`,
+`name-reused`, `unavailable` and `unknown` keep the change unreviewed. The step
+continues on error and never changes the job result. Candidates grant no lineage,
+relocation, accounting or catalog authority; an accepted rename is still a
+reviewed catalog change, and qualification, holds and accepted bytes do not
+transfer by themselves. The same command accepts `--repository OWNER/NAME` for
+manual use.
+
+The owner-dispatched `Upstream relocation evidence` workflow
+(`scripts/upstream-relocation-evidence.mts`) gathers the provider facts a reviewed
+rename needs. It takes up to eight current names, each `OWNER/NAME` or
+`OWNER/NAME@TAG`. For each one it reads the repository identity and the first page
+of releases with their asset names. For a named tag it also reads that release and
+its complete asset collection, with release and asset facts and hashes produced
+by the observer's own fact functions. A reviewer can compare a reviewed pin's
+numeric release and asset identities, size and digest at the new name, and see the
+exact facts a rebinding would record. Redirects are refused, nothing is
+downloaded, the job has read-only repository permission, and the JSON report is
+retained as a run artifact. The evidence grants no lineage, relocation, selector,
+acquisition or accounting authority; any rebinding remains a reviewed accounting
+change.
+
+The forty-five-minute hosted job establishes a forty-minute observation deadline
+before checkout and build, reserving the final five minutes for checkpoint and
+artifact publication. Accepted page, validation or Core progress can automatically
+start another operation within that opportunity; each operation keeps its existing
 three-minute admission budget. Request counts and refreshed clocks alone cannot
-authorize another batch. Non-budget failures stay visible and are excluded from
+authorize another batch. A hosted opportunity's observation step spends at most 1,800 GitHub API
+requests, about a third of the observed hourly allowance, so upstream-health and
+other workflows sharing the token keep capacity. The ceiling is a hard total:
+each batch receives only the remaining allowance, and every GitHub request is
+admitted against it. GitLab and direct-manifest sources are counted but keep
+their own per-source bound, and checkpoint recovery, push admission and
+relocation proposals make separately bounded reads outside the step. A
+gap-filling push opportunity (below) spends at most 900, so a push followed by
+the next schedule within one hour stays near half of that allowance. Non-budget failures stay visible and are excluded from
 further attempts in that job. All batches share one aggregate handoff byte budget;
 input or inspector changes stop continuation and preserve earlier evidence. The
 standalone command without this explicit hosted deadline remains one bounded
 operation.
+
+The scheduled workflow can give one exact catalog source key an early
+collection turn alongside the configured source. It splits the existing
+early allowance between the due scopes and retains the ordinary rotation
+for the rest of the inventory. A selected completed scope can re-enter
+rotation once its provider observation expires, even if its completion-based
+due time is later. Freshness still uses the original provider validation
+clock, and retained checkpoints keep their existing configuration identities.
+
+The scheduled hosted opportunity gives Chameleon JP (#246) and OpenTyrian
+(#315) early turns using their exact configured source keys. These turns share
+the existing collection allowance with the configured Shipwright source and
+preserve the regular rotation and checkpoint handling. A due appointed GitHub source takes its bounded provider refresh even if a Core
+binding change also permits offline reprojection of earlier facts. An incomplete
+refresh retains the prior observation and freshness clock. Manual dispatch uses
+the ordinary rotation.
 
 The legacy `configured-upstream-observation-RUN-ATTEMPT` artifact retains exactly
 one `report.json` and its existing consumer/configuration binding. Catalog reports
 use a separate, uniquely owned handoff directory for each invocation, exported as
 `catalog-upstream-observations-RUN-ATTEMPT`. It contains inert observations and
 per-port Core policies for #246's existing supplied-observation → bounded-candidate
-path. Historical fallback policies retain their own facts/definition identities
+path. Source files carry their own coverage and consumer IDs. The legacy
+configured report carries its unmonitored inventory, and the catalog summary
+reports coverage across configured sources. Historical fallback policies retain their own facts/definition identities
 and are explicitly held as unknown current state. No automatic acceptance,
 publication, signing or player update eligibility follows from this handoff.
 
@@ -204,6 +331,83 @@ further bounded operations continue while actual quota and runtime remain.
 Failed reads without accepted page/Core progress are not immediately requeued.
 The new handoff has the existing sixteen-MiB response envelope as its aggregate
 byte budget, with four MiB reserved for the summary and one-day artifact retention.
+The output reserves eight MiB separately for a complete inert recovery snapshot.
+The four-MiB summary and eight-MiB standalone handoff limits still apply across
+all batches. Provider request and response budgets are unchanged.
+A hosted opportunity gives source handoffs thirty-two MiB in aggregate,
+proportionate to its forty-minute window; each source file keeps the eight-MiB
+standalone bound, within the sixteen-MiB per-file limit of the manual
+`prepare-port.mts --listing-observations` consumer. The
+snapshot contains the catalog scheduler and its referenced per-source checkpoints;
+it excludes reports, locks, temporary files and executables. Production format 4
+streams source checkpoint JSON records through one Brotli compressor, preserving
+cross-file redundancy that nested source gzip/base64 cannot share. A fixed binary
+magic and closed header of at most 512 bytes bind record count, complete framed
+byte count and SHA-256. The format 4 ZIP is limited to eight MiB, with sixteen KiB reserved for ZIP
+framing. Formats 1, 2 and 3 remain readable within their original four-MiB ZIP
+limit. Record, expansion and recovery metadata bounds are unchanged.
+
+Production snapshot collection projects every referenced GitHub source's legacy
+raw pages to the versioned fact representation before encoding. It validates
+the full original source and page bounds/digests first; a tiny resulting projection
+cannot admit an oversized original input. Each complete projected source must
+also fit the existing thirty-two-MiB write bound. Export leaves the original cache
+files untouched; ordinary observation migrates pages when saving its replacement
+checkpoint. All accepted observations, Core projections, source configurations,
+scheduler positions, validation cursors, page identities, counters and clocks are
+retained. Null caches keep their fresh-read fallback. There is no history reset.
+Collection metrics distinguish original logical bytes, projected `fact_json_bytes`
+and compressed stored bytes so metadata reduction is not reported as lost work.
+
+Each record has a closed name/length header of at most 512 bytes. Scope metadata
+comes first (at most four KiB), then the controller and only source paths appointed
+by its validated configuration graph. Names, counts and length bounds are admitted
+before allocating a body; duplicates, foreign paths, missing required sources,
+incomplete records and trailing compressed/decoded bytes refuse. Decompression
+uses backpressure and 64-KiB chunks, with one at-most-thirty-two-MiB record body.
+Each source passes ordinary complete checkpoint/configuration validation and is
+recompacted before retaining the next source. Exact reconstructed stored bytes,
+including scope metadata and paths, remain bounded to thirty-two MiB. The full
+logical transfer stream is never assembled in one buffer.
+
+The actual RFC7932 Brotli window header must request at most four MiB; nonstandard
+large-window mode is disabled. The one absolute collection deadline cancels both
+stream directions on timeout or any parser/budget refusal. Encoding uses quality
+six and a four-MiB window. Streaming codecs require a supported Node release
+containing the October 2026 decoder fix; the repository already pins Node24.22.2.
+No runtime pin, security credential or workflow permission is changed.
+
+The decoded **stored graph** remains bounded to thirty-two MiB. Large source
+checkpoints use lossless, tagged gzip/base64 storage wrappers inside that graph.
+Each wrapper has a closed schema, canonical encoding, declared decoded size and
+SHA-256; inflation cannot exceed the original thirty-two-MiB per-source reader
+limit. Nested wrappers and decoded non-source documents refuse. Normal complete
+checkpoint/configuration validation still follows decoding. Uncompressed legacy
+files remain valid; small or incompressible files need not be wrapped. A raw source
+larger than the original reader limit is refused even if it would compress well.
+
+The aggregate logical source JSON can exceed thirty-two MiB; it is never assembled
+as one expanded graph. Collection and validation decode one source at a time and
+retain only its stored representation. Atomic restoration writes those compact
+files, whose aggregate stored bytes remain within the graph bound. Runtime loads
+decode before continuation, progress-position and retired-cache ownership checks.
+Accepted provider facts and original page identities, clocks, Core cursors and
+configuration bindings remain unchanged. One absolute collection deadline covers
+codecs and graph validation. These codecs are lossless for the represented
+checkpoints; the explicit fact-page migration above removes unused raw metadata.
+Neither increases an existing physical input/output ceiling.
+
+Collection diagnostics distinguish actual input-file bytes, original logical JSON,
+projected fact JSON, stored JSON bytes, largest source and file count. Export logs separately report
+the complete stored graph, framed logical-transfer bytes and actual transferred bytes; controller size and
+compressed Actions-cache size alone cannot establish snapshot fit.
+
+If the lossless encoding cannot fit its reserve, publication fails visibly and
+the original checkpoints and cache remain retained. This is no increase to the
+request, runtime, response or
+aggregate output allowances, and does not guarantee capacity for every future
+catalog workset.
+
 A handoff that cannot fit the remaining batch stays checkpointed for a later
 automatic batch. An individual handoff exceeding the physical response envelope
 is explicitly held for a reviewed framed-handoff capability; it is not reported
@@ -229,14 +433,108 @@ per collection; retained pages do not consume another collection allowance.
 These bounds do not cap the total legitimate collection across resumed batches.
 Each batch also retains
 4 MiB per response, 16 MiB total response bytes and three minutes of observation.
-Transport/server failures allow two retries with bounded backoff; rate-limit
-responses defer to the provider retry clock rather than sleep through a job.
+Eligible transient transport/server failures use the configured GitHub SDK with
+at most two retries; smaller configured allowances remain effective. Cancellation,
+resource limits and invalid metadata remain terminal. Continued catalog batches
+retain the command's original monotonic deadline and exhausted logical-read
+allowances. Rate-limit responses respect provider waits and defer whenever those
+waits cannot fit the original bounds. The existing observer owns conditional
+cache reuse, facts digests, identity validation and complete-versus-prefix proofs;
+the SDK supplies bounded transport and request evidence.
 Conditional requests count against the request budget. No game artifact bytes
 are downloaded. The core input is bounded to 4 MiB, its process to thirty
 seconds, and the entire hosted job to ten minutes on one fixed Linux runner.
-Workflow concurrency permits one active run per ref. The scheduled upper bound
-is four jobs/forty runner-minutes daily, plus explicitly requested manual runs;
-actual usage is lower with a warm build cache. There are no agent/model calls.
+Only observing jobs share the per-ref concurrency slot, with one active and at
+most one pending. Hourly schedules and manual runs always observe. A merge to
+main starts an admission job that lets its run observe only to fill a schedule
+gap: when no schedule or push run of the observer observed, or is observing,
+within the last fifty-five minutes. Admission reads one ten-run page per trigger and the jobs of recent runs; a
+full page still inside the cooldown is incomplete coverage, and that or any
+read failure declines. A declined push run
+finishes without observing, so it neither consumes the slot nor displaces a
+pending scheduled observation. Actual usage is lower with a warm build cache.
+There are no agent/model calls.
+
+The main observer job has `contents: read` and `actions: read`; the latter permits
+retrieval of the preceding observer's checkpoint artifact. No write,
+signing or publication permission follows. The existing cache remains the fast
+path with its original thirty-two-MiB per-file reader limits. On complete cache
+loss, recovery admits only the same repository, workflow and default branch's
+completed producer from a natural schedule or a push to main, including a
+failed run carrying a complete snapshot. GitHub can skip scheduled runs for
+hours, so gap-filling push runs (above) keep progress continuous (#4779). Both triggers run main's reviewed workflow source. Recovery reads one
+provider-filtered inventory per trigger and merges them newest-first, so manual
+dispatches, fork pull requests and other triggers never enter it, consume its
+window or set its age boundary; a listed run whose trigger differs from its
+filter refuses. Each trigger's window must be complete or reach its own age
+boundary; one cannot certify the other. A push run within the
+recovery age without a snapshot is passed over, because declined push runs never
+observe; at the age boundary it reaches the same cutover check as a schedule, so
+missing history still requires explicit recovery. The producer's trigger is re-read after collection.
+Provider run/artifact identity, main ancestry, the exact configuration digest,
+artifact digest, archive structure and the complete checkpoint graph are checked
+before an absent checkpoint tree is published atomically. A partial or foreign
+cache is preserved and refused. Existing current catalog/Core scope and freshness
+checks still apply; restoration never refreshes an observation clock.
+
+Recovery has one at-most-sixty-second collection opportunity inside the
+forty-minute job opportunity, with finite metadata, compressed and expanded bytes
+and no automatic retry. Snapshots have one-day retention and a twenty-four-hour
+recovery-age bound. The deployment cutover explicitly records a new baseline only
+when trusted predecessor source shows no snapshot publisher; an older
+publisher is inspected even after artifact expiry. Missing post-cutover history,
+invalid or unavailable advertised artifacts and incomplete inventories require
+explicit recovery rather than a silent new baseline. Interrupted snapshot export
+does not erase the earlier cache or original failures. A later real scheduled
+run must demonstrate continued source/page/Core progress separately from fixture
+tests and an individual batch's `made_progress` field.
+
+The November 2 checkpoint-history loss's one approved fresh-baseline opportunity
+was consumed and has expired; it cannot be renewed. After snapshot export failures
+left no retained snapshot, the November 11 checkpoint-history loss has one
+explicitly owner-approved fresh-baseline opportunity (Related to #246), approved
+for the upstream source of the #4129 maintenance inventory. It is pinned in source
+to failed scheduled run `43116173426`, its original attempt/source/creation
+identity (`538ce14b`, `2026-11-11T22:58:46Z`), main ancestry anchor `d7f5e10b`,
+and the unchanged configuration digest. Only its first natural scheduled
+successor, attempt one, may initialize an entirely absent checkpoint tree. Every
+intervening scheduled status consumes that opportunity, including queued, failed
+and cancelled runs; reruns and manual dispatch cannot use it. The known
+predecessor must still be inside the existing twenty-four-hour recovery window. Provider-verified current
+run identity, complete ordered history, retained main ancestry, and exact-current-
+source Contents metadata bind the config and both catalog/listing input files.
+Their paths, regular-file type, size and locally computed Git blob identity must
+match. A final provider/run-history readback precedes an exclusive local consumption
+receipt and atomic publication. A failed publication retains that receipt.
+
+Valid surviving checkpoints take precedence. Partial trees, invalid/expired
+artifacts, unavailable metadata, quota/deadline exhaustion and changed inputs
+remain refusals; none enter this terminal missing-history initializer. A config
+change cannot turn missing history from an already deployed publisher into an
+initial baseline. There is no reusable flag, dispatch input, credential, new
+permission, schedule change or automatic reset path.
+
+The new controller starts with sequence zero, no source observations, no successful
+clocks and no provider/Core cursors. Validated historical `baseline` provenance
+records lost prior continuity, unknown initial freshness, the actual initializer
+and SHA-256 identities of its inputs. Ordinary later progress and snapshots retain
+that provenance without treating it as current eligibility or refreshing its
+clocks. Existing artifacts and failures remain evidence; fresh bounded reads must
+recollect every missing fact. The one-time opportunity is spent even if its first
+job fails, so another whole-history loss still requires an explicit decision.
+
+Discovery reads scheduled history in ten-record pages through the relevant age
+boundary, retaining the existing hundred-record ceiling. Every fetched page must
+match its declared count; totals, unique identities and descending creation order
+must remain consistent across pages. A bounded prefix that cannot establish the
+required history stays unknown rather than initializing a clean baseline.
+Ancestry reads use the comparison endpoint's second page: GitHub's file patches
+occur only on page one, while global status and merge-base identity still describe
+the same exact source comparison. No commit or file inventory is inferred from
+that partial page. Metadata logs retain the controlled route, response bytes,
+cumulative charged bytes and request count before the aggregate limit is checked.
+This reduces unrelated data transfer without raising the four-MiB metadata budget,
+relaxing ancestry or permitting missing post-cutover checkpoints to be ignored.
 
 Only checkpoint/report files enter the observation cache, scoped by config and
 ref; interrupted locks and temporary files do not. Reports have seven-day
@@ -279,6 +577,16 @@ under [QUALITY](QUALITY.md#required-hosted-baseline).
 The workflow's format-1 monitor report embeds the format-3 collection alongside
 batch selection and inventory history.
 
+GitHub metadata uses the configured Octokit integration, preserving this collector's
+single-attempt reads, explicit API/media headers and command-wide request, byte and
+monotonic time limits. A bounded redirect response can supply the existing reviewed
+repository-identity diagnostic; its Location is never followed. Failed body reads,
+resource refusal and command cancellation remain failures. A cancelled unfinished
+read does not publish a fresh provider observation. GitLab metadata and credential-free
+artifact HEAD requests retain their separate owner. Domain tests can provide narrow
+asynchronous metadata operations with explicit byte evidence; transport tests exercise
+the actual locked SDK.
+
 The inventory includes declared GitHub/GitLab repositories, current project
 locations, DirectManifest artifact locations and locatable historical
 qualification identities. Project and acquisition roles are explicit, so changing
@@ -291,7 +599,11 @@ may omit archive state; the report then records `archived: null`. Direct artifac
 and other project locations use credential-free HEAD requests. Matching declared
 size establishes endpoint reachability only. Historical release metadata retains
 exact refs and provider digest claims, with incomplete or contradictory asset
-collections remaining unknown. Metadata and HEAD never verify accepted bytes.
+collections remaining unknown. A reviewed GitHub pin can supply the publisher tag
+for a different retained install version when port, platform, repository, version
+and artifact digest all match. The observation requires the reviewed release ID
+and provider-reported digest, and keeps the original qualification scope.
+Metadata and HEAD never verify accepted bytes.
 
 The report separates two outcomes. `collection_status: complete` means the
 selected observations completed; a collected 404, redirect or identity change can
@@ -347,6 +659,18 @@ repository/platform declaration. Historical projection coverage does not claim
 that an old URL is currently monitored or that a new URL has reviewed numeric IDs. Missing, duplicate or unused projections fail. All reviewed policy
 facts and endpoint/source-archive checks remain in place.
 
+After a reviewed same-identity relocation (an accepted `upstream_lineage`
+relocation with an unchanged numeric repository ID), a rebound pin names the
+current repository and download URL. Its retained historical projection keeps
+the former path, because that projection is frozen with its source hash. The
+binding test pairs them by port, platform and historical contract hash, not by
+repository name. The reviewed `upstream_lineage` relocation and the pin's
+unchanged `repository_id` establish that both paths name the same repository.
+Rebinding requires
+read-only evidence that the reviewed repository, release and asset IDs, release
+facts, size and SHA-256 are unchanged at the new name; only the URL-bearing
+asset facts hash is recorded anew.
+
 The retained Star Fox `kandowontu/starfox-enhanced` 404 is an acquisition-endpoint
 condition. Its separately reviewed successor decision and current project
 location are reported from the authoring lineage records. The old endpoint stays
@@ -393,7 +717,7 @@ The coordinator validates the complete inventory and accounting policy before
 network work. It selects ports oldest-attempt-first and admits at most one
 individually oversized port alongside normally fitting scopes. Within that
 scope, locations rotate fairly across owners and oldest actual attempts. Each
-operation permits at most **320 requests**, **512 newly assessed locations**,
+operation permits at most **352 requests**, **512 newly assessed locations**,
 three minutes, fifteen seconds per request, one MiB per response and sixteen MiB
 consumed response bytes. Compatible completed locations may be replayed from the
 validated checkpoint without spending another operation slot or request; their
@@ -445,14 +769,22 @@ provides no durability or observation-frequency guarantee.
 
 The report states the total inventory, ports assessed this run, deferred and
 unassessed ports, and recent complete, recent partial, stale and unmonitored
-counts. Freshness is 24 hours and requires matching per-port health inputs and
-accounting policy. Main pushes skip matching recent complete observations;
+counts. The final report distinguishes ports selected across the session from
+the last batch and its budgets. Freshness is 24 hours and requires matching
+per-port health inputs and accounting policy. Main pushes skip matching recent complete observations;
 partial attempts remain due. Scheduled and manual runs reconsider their requested
 inventory and prioritize older attempts. Ports deferred entirely by time/request
 budgets or rate limits retain their earlier scheduling position for later batches.
 The daily schedule requests 09:23 UTC, subject to hosted scheduling delays.
-An earlier observation never counts as a current live probe. Retained conditions
-identify whether they were observed this run and whether their evidence is stale.
+A location replayed from a prior session keeps its original observation clock,
+even when its port is selected again. An observation made by an earlier batch
+of the current session still counts for that session when the final report
+contains the same incident, material facts and clock. Carrying either observation
+forward does not add another occurrence. The session's condition labels describe
+current observations. The nested collection retains its batch-local diagnostics
+and recovery counts, including incidents first reconstructed from prior progress.
+Retained conditions identify whether they were observed in the current session
+and whether their evidence is stale.
 
 Incident keys bind the port, location, operation, rule and relevant observation
 contract. Unchanged conditions retain first-seen time and recurrence without a
@@ -487,6 +819,13 @@ not selected in the current batch remains explicitly retained rather than
 freshly verified. The human summary is capped at 20 rows; the complete bounded
 JSON report remains the diagnostic record. Stale accepted-provider conditions
 cannot be silently hidden by a prior metadata-accounting result.
+
+The report's batch-level `recovery_evidence` joins each recorded recovery to the
+prior condition's exact location, contract, observation clocks and occurrence
+count. Endpoint recovery and provider-metadata recovery have separate kinds.
+The recovery timestamp comes from the matching observation, and reused
+observations retain their original clock. This evidence does not change which
+conditions recover or modify the checkpoint format.
 
 This is presentation-only triage of location observations. It does not infer
 an affected platform/variant when none was measured, available fallback,
@@ -539,7 +878,7 @@ inventory, accepted artifact or exception to required hosted validation.
 ### Growing monitoring inventories
 
 The monitor retains fair oldest-attempt rotation across bounded collector runs.
-The collector's 320-request and 512-new-location envelopes bound one operation,
+The collector's 352-request and 512-new-location envelopes bound one operation,
 not the logical catalog or retained cross-run history. Checkpoints use their
 existing 16 MiB physical envelope rather than separate 4,096-port, 8,192-record
 or 512-incident historical count ceilings. Input catalogs are bounded to 4 MiB,
@@ -636,16 +975,26 @@ account, signing authority or production activation is introduced.
 ## Descriptive consumers and accepted listing corrections
 
 The same scheduled coordinator also reads the reviewed listing directory. GitHub
-listing consumers share repository identity, conditional page collection, quotas,
+and supported public GitLab listing consumers share repository identity, conditional page collection, quotas,
 continuation and last-complete facts with operational consumers. A listing never
 needs an adapter or managed definition. Explicit consumer kind, declaration hash,
 projection implementation/schema-inventory hash and repository identity bind its
 scope. An accepted observation does not invalidate its unchanged declaration.
-Other descriptive providers remain outside this GitHub route; no absence claim
-is inferred for them.
+Only explicit credential-free HTTPS identities on github.com or gitlab.com enter
+the existing provider collectors. Unsupported hosts or source shapes are reported
+as observation unsupported, never as an empty release history. Existing GitLab
+metadata pagination proofs, request budgets, per-origin quotas and checkpoints
+also apply to listings; no new collector or per-title task is introduced.
 
 Descriptive consumers request complete asset collections for at most four newest
-published release headers. This is a bounded release window, not complete
+published release headers. GitLab uses exact tag identities and generic registry
+file IDs, sizes and provider digest claims through its existing collector. Release
+links without supported exact registry metadata leave asset coverage incomplete;
+no size, digest or acquisition permission is guessed. GitLab does not have a
+GitHub numeric release ID or provider prerelease flag; tags remain strings and
+its upcoming releases are excluded. Existing project/tag release references and
+Desktop identity keys are reused, without a parallel provider identity model. Listing format8 fences this provider shape;
+older readers retain their last accepted directory. This is a bounded release window, not complete
 repository history. Drafts are excluded. Release assets retain exact provider
 identities, names, URLs, sizes and optional digest claims. Authored literal
 filename hints can annotate platform candidates; these are neither compatibility
@@ -676,3 +1025,42 @@ observed headers trigger a bounded reconsideration report with its reason and
 resume condition. They establish neither package compatibility nor an accepted
 managed replacement. Marathon's archive-root/shared-profile contract and Super
 Metroid's build-specific quickstates retain their pins.
+
+## Release content scan
+
+The [`release-content-scan.yml`](../.github/workflows/release-content-scan.yml)
+workflow applies the automated half of the
+[rights basis for upstream-hosted packages](CATALOG.md#rights-basis-for-upstream-hosted-packages)
+([#5353](https://github.com/boburning/portcove/issues/5353)). Once a day it reads
+every unheld GitHub or GitLab listing that offers a download, finds the newest
+release in the listing's recommended channel and the single asset each
+platform's hints select, and downloads each asset it has not scanned before.
+`scripts/release-content-scan.mts` lists the package with `7z`, `tar` or
+`unsquashfs` and inspects the first bytes of up to 64 candidate files of at
+most 64 MiB each; `tar` stops at the first matching member. Nothing is extracted to run, executed or
+installed. Member names that a lister could read as an option, list file or
+wildcard are never passed to it, every lister call has a hard timeout, and
+encrypted archives fail instead of waiting for a password. A provider-published
+SHA-256 digest must match the downloaded bytes.
+
+`scripts/release-content-signals.mts` flags concrete game-data signals: ROM,
+disc and original executable files by name; copied cartridge headers by
+Nintendo's boot logo bytes; Nintendo 64 and iNES ROM headers, ISO 9660 (cooked
+or raw sectors), XEX and Xenia shader storage by content; and PlayStation BIOS
+images that are not OpenBIOS. Fonts, icons, launcher art and code are not
+signals. Homebrew ROMs and similar legitimate files can also match; a finding
+is review evidence, so a person confirms it and sets the listing's
+`download_block_reason` in a reviewed change.
+
+Each scanned asset is remembered in a cached checkpoint by rules version,
+provider, repository, tag, name and, where the provider gives them, digest or
+size, so a successfully scanned
+release is downloaded once; a rules change rescans. Each run has an asset
+budget that counts every attempt, a byte budget that counts failed transfers
+too, and a 75-minute deadline that also caps every download, listing and
+file read, so a slow package cannot outlast the job; the rest is reported as
+not scanned and
+continues in a later run. Each record notes candidate files it could not read
+or did not reach. The job summary lists findings first, each finding is also a
+workflow warning, and the report artifact keeps every record for 30 days.
+Nested archives and installers are listed only at their outer level.

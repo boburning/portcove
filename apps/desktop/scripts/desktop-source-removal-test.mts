@@ -119,6 +119,7 @@ export async function sourceRemovalScenario({
           prefix: "source-removal",
           stage,
           baselineWidth,
+          artifacts,
         }),
       );
     };

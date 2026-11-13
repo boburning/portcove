@@ -1,7 +1,8 @@
 import { defineConfig } from "vite-plus";
 import { registeredNodeCommand } from "./scripts/node-test-suites.mts";
 import { desktopProjects, testReporters } from "./scripts/frontend-tests.ts";
-import { checkStagedFiles } from "./scripts/viteplus-cli.mts";
+import { browserShardSequence } from "./scripts/browser-shard-balance.mts";
+import { checkStagedFiles, exactByteFormatInputs } from "./scripts/viteplus-cli.mts";
 
 export default defineConfig({
   defaultPackage: "./apps/desktop",
@@ -14,7 +15,8 @@ export default defineConfig({
       functions: ["cn", "cva"],
     },
     ignorePatterns: [
-      "vendor/rfd/**", // Preserve third-party bytes; provenance and GTK probes cover the backport.
+      // Exact trust, workflow and historical fixture bytes are digest-bound.
+      ...exactByteFormatInputs,
       "apps/desktop/node_modules/**",
       "apps/desktop/dist/**",
       "apps/desktop/src-tauri/gen/**",
@@ -25,7 +27,6 @@ export default defineConfig({
       ".codex-remote-attachments/**",
       ".fallow/**",
       ".fallow-review/**",
-      ".rscheck/**",
       ".tmp/**",
       "mutants.out/**",
       "mutants.out.old/**",
@@ -179,6 +180,8 @@ export default defineConfig({
           "typescript/no-misused-promises": "error",
           "typescript/no-namespace": "error",
           "typescript/no-non-null-asserted-optional-chain": "error",
+          // Keep this useful check explicit after its move to suspicious.
+          "typescript/no-non-null-asserted-nullish-coalescing": "error",
           "typescript/no-redundant-type-constituents": "error",
           "typescript/no-require-imports": "error",
           "typescript/no-this-alias": "error",
@@ -189,6 +192,7 @@ export default defineConfig({
           "typescript/no-unsafe-call": "error",
           "typescript/no-unsafe-declaration-merging": "error",
           "typescript/no-unsafe-enum-comparison": "error",
+          "typescript/no-unsafe-enum-assignment": "error",
           "typescript/no-unsafe-function-type": "error",
           "typescript/no-unsafe-member-access": "error",
           "typescript/no-unsafe-return": "error",
@@ -218,7 +222,12 @@ export default defineConfig({
       },
     ],
   },
-  test: { projects: desktopProjects, reporters: testReporters },
+  test: {
+    projects: desktopProjects,
+    reporters: testReporters,
+    // Hosted shard jobs split by recorded file duration instead of path hash.
+    ...browserShardSequence(),
+  },
   staged: { "*": { title: "Check staged files", task: (files) => checkStagedFiles(files) } },
   run: {
     tasks: {

@@ -1,19 +1,30 @@
+import {
+  fields,
+  pullMetadata,
+  checkMetadata,
+  statusMetadata,
+  assertWorkflow,
+  assertJob,
+  requiredContextsFromConfigs,
+} from "./pr-delivery-snapshot.mts";
+export { requiredContextsFromConfigs } from "./pr-delivery-snapshot.mts";
 import { isRecord, errorMessage } from "./runtime-values.mts";
 import { readFile, open, lstat } from "node:fs/promises";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { randomUUID, createHash } from "node:crypto";
 import { renderBoundedSummary, summarizeReport, retainReportSummary } from "./report-summary.mts";
-import { spawnSync } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { readClosingRelationships } from "./closure-intent.mts";
 import {
   assertSuccessfulWorkflowJobs,
+  checkPublicationPending,
   requiredCheckContexts,
   validateMergeCandidate,
   validateMergeMessage,
   validateMergeReadiness,
   validateMergedCommit,
+  validateCommitComposition,
   prepareMergeSnapshot,
   verifyMergeSnapshotReadback,
   readDeliverySnapshot,
@@ -25,14 +36,17 @@ export {
   validateMergeMessage,
   validateMergedCommit,
 } from "./pr-delivery-snapshot.mts";
-import type { GitHubRunner, OperationStatus } from "./github-api.mts";
+import type { OperationStatus } from "./github-operation.mts";
+import { createGitHubClient, iterateGitHubPages } from "./github-client.mts";
+import type { GitHubClientOptions } from "./github-client.mts";
+import type { Octokit } from "@octokit/core";
+import { localDeveloperCredential } from "./github-cli.mts";
 import type { RenovatePull, RenovateBaseEvidence } from "./renovate-fast-lane.mts";
 import {
-  GitHubApiClient,
-  createGitHubRunner,
+  GitHubApiError,
   githubOperationEnvelope,
   sanitizeOperationError,
-} from "./github-api.mts";
+} from "./github-operation.mts";
 import {
   classifyRenovateSnapshot,
   diagnoseRenovateReleaseAge,
@@ -56,6 +70,7 @@ export interface DeliveryPull extends Omit<RenovatePull, "head" | "base" | "body
 }
 export interface DeliveryCheckRun {
   id: number;
+  head_sha?: string;
   name: string;
   status: string;
   conclusion?: string | null;
@@ -146,153 +161,6 @@ export class DeliveryOutcomeError extends Error {
     this.operationEvidence = operationEvidence;
   }
 }
-function fields(
-  value: unknown,
-  shape: Readonly<
-    Record<string, "string" | "number" | "boolean" | "nullableString" | "nullableBoolean">
-  >,
-): asserts value is Record<string, unknown> {
-  if (!isRecord(value)) throw new Error("GitHub metadata is not an object");
-  for (const [key, type] of Object.entries(shape)) {
-    const field = value[key];
-    if (field === undefined) continue;
-    const valid =
-      type === "nullableString"
-        ? field === null || typeof field === "string"
-        : type === "nullableBoolean"
-          ? field === null || typeof field === "boolean"
-          : typeof field === type;
-    if (!valid) throw new Error(`GitHub ${key} metadata has an invalid type`);
-  }
-}
-function assertPullProjection(
-  value: unknown,
-  number: number,
-): asserts value is DeliveryPull & Record<string, unknown> {
-  fields(value, {
-    title: "string",
-    body: "nullableString",
-    commits: "number",
-    changed_files: "number",
-    html_url: "string",
-    merge_commit_sha: "nullableString",
-    draft: "boolean",
-    mergeable: "nullableBoolean",
-    merged: "boolean",
-    state: "string",
-  });
-  if (
-    !isRecord(value.head) ||
-    typeof value.head.sha !== "string" ||
-    !value.head.sha ||
-    !isRecord(value.base) ||
-    typeof value.base.sha !== "string" ||
-    !value.base.sha ||
-    value.number !== number
-  )
-    throw new Error(`pull request #${number} response is incomplete`);
-  fields(value.head, { ref: "string" });
-  fields(value.base, { ref: "string" });
-  if (value.user !== undefined && value.user !== null) fields(value.user, { login: "string" });
-  if (value.labels !== undefined) {
-    if (!Array.isArray(value.labels)) throw new Error("GitHub labels metadata is invalid");
-    const labels: unknown[] = value.labels;
-    for (const label of labels) fields(label, { name: "string" });
-  }
-  if (value.assignees !== undefined) {
-    if (!Array.isArray(value.assignees)) throw new Error("GitHub assignee metadata is invalid");
-    const assignees: unknown[] = value.assignees;
-    for (const assignee of assignees)
-      if (!isRecord(assignee) || typeof assignee.login !== "string")
-        throw new Error("GitHub assignee login is invalid");
-  }
-  // The above checks admit only the fields consumed by this delivery adapter;
-  // preserve other provider metadata without claiming its schema.
-}
-function pullMetadata(value: unknown, number: number): DeliveryPull {
-  assertPullProjection(value, number);
-  return value;
-}
-function checkMetadata(value: unknown): DeliveryCheckRun {
-  fields(value, { conclusion: "nullableString", html_url: "nullableString" });
-  if (
-    typeof value.id !== "number" ||
-    typeof value.name !== "string" ||
-    typeof value.status !== "string"
-  )
-    throw new Error("GitHub check-run metadata is incomplete");
-  return {
-    ...value,
-    id: value.id,
-    name: value.name,
-    status: value.status,
-    ...optionalCheckFields(value),
-  };
-}
-function optionalCheckFields(value: Record<string, unknown>): {
-  conclusion?: string | null;
-  html_url?: string | null;
-} {
-  const result: { conclusion?: string | null; html_url?: string | null } = {};
-  if (typeof value.conclusion === "string" || value.conclusion === null)
-    result.conclusion = value.conclusion;
-  if (typeof value.html_url === "string" || value.html_url === null)
-    result.html_url = value.html_url;
-  return result;
-}
-
-function statusMetadata(value: unknown): DeliveryStatus {
-  fields(value, { description: "nullableString", target_url: "nullableString" });
-  if (
-    typeof value.id !== "number" ||
-    typeof value.context !== "string" ||
-    typeof value.state !== "string"
-  )
-    throw new Error("GitHub status metadata is incomplete");
-  const result: DeliveryStatus = {
-    ...value,
-    id: value.id,
-    context: value.context,
-    state: value.state,
-  };
-  if (typeof value.description === "string" || value.description === null)
-    result.description = value.description;
-  if (typeof value.target_url === "string" || value.target_url === null)
-    result.target_url = value.target_url;
-  return result;
-}
-function assertWorkflow(value: unknown): asserts value is DeliveryWorkflow {
-  fields(value, {
-    conclusion: "nullableString",
-    name: "string",
-    html_url: "string",
-    created_at: "nullableString",
-    run_started_at: "nullableString",
-  });
-  if (
-    typeof value.id !== "number" ||
-    typeof value.run_attempt !== "number" ||
-    typeof value.head_sha !== "string" ||
-    typeof value.status !== "string"
-  )
-    throw new Error("GitHub workflow metadata is incomplete");
-}
-function assertJob(value: unknown): asserts value is DeliveryJob {
-  fields(value, {
-    conclusion: "nullableString",
-    check_run_url: "string",
-    completed_at: "nullableString",
-  });
-  if (
-    typeof value.id !== "number" ||
-    typeof value.run_id !== "number" ||
-    typeof value.run_attempt !== "number" ||
-    typeof value.head_sha !== "string" ||
-    typeof value.name !== "string" ||
-    typeof value.status !== "string"
-  )
-    throw new Error("GitHub job metadata is incomplete");
-}
 export interface DeliveryQueueSnapshot {
   pull: DeliveryPull;
   commits: { sha?: string; author?: { login?: string } | null }[];
@@ -303,13 +171,19 @@ export interface DeliveryQueueSnapshot {
   checkRuns?: DeliveryCheckRun[];
 }
 export interface DeliveryQueueClient {
-  branch(name: string): { commit: { sha: string } };
-  openRenovatePulls(): { number: number; head?: unknown }[];
-  renovateSnapshot(number: number, head: string, contexts: string[]): DeliveryQueueSnapshot;
+  branch(name: string): Promise<{ commit: { sha: string } }>;
+  openRenovatePulls(): Promise<{ number: number; head?: unknown }[]>;
+  renovateSnapshot(
+    number: number,
+    head: string,
+    contexts: string[],
+  ): Promise<DeliveryQueueSnapshot>;
   sourceWorkflowRuns(
     head: string,
-  ): (Pick<DeliveryWorkflow, "id" | "run_attempt" | "status"> &
-    Partial<Pick<DeliveryWorkflow, "name" | "conclusion" | "run_started_at" | "html_url">>)[];
+  ): Promise<
+    (Pick<DeliveryWorkflow, "id" | "run_attempt" | "status"> &
+      Partial<Pick<DeliveryWorkflow, "name" | "conclusion" | "run_started_at" | "html_url">>)[]
+  >;
 }
 
 export interface WatchContext {
@@ -323,12 +197,18 @@ export interface WatchState {
   contexts: WatchContext[];
   pull?: unknown;
   head?: string;
+  jobs?: DeliveryJob[];
 }
 export interface WatchClient {
   beginObservation?: () => void;
-  workflowRun(run: number): DeliveryWorkflow;
-  requiredCheckState(number: number, head: string, contexts: string[]): WatchState;
-  workflowJobs?(run: number, attempt: number): DeliveryJob[];
+  workflowRun(run: number): Promise<DeliveryWorkflow>;
+  requiredCheckState(
+    number: number,
+    head: string,
+    contexts: string[],
+    binding?: { run: number; attempt: number; observePublication?: true },
+  ): Promise<WatchState>;
+  workflowJobs?(run: number, attempt: number): Promise<DeliveryJob[]>;
 }
 export interface WatchObservation {
   format?: number;
@@ -430,36 +310,6 @@ function exactKeys(value: object | undefined, expected: string[], label: string)
     throw new Error(`${label} must contain exactly: ${wanted.join(", ")}`);
 }
 
-export function requiredContextsFromConfigs(ruleset: unknown, coverage: unknown): string[] {
-  const rules = isRecord(ruleset) && Array.isArray(ruleset.rules) ? ruleset.rules : [];
-  const values: unknown[] = rules;
-  const rule = values.find(
-    (candidate): candidate is Record<string, unknown> =>
-      isRecord(candidate) && candidate.type === "required_status_checks",
-  );
-  const parameters = isRecord(rule?.parameters) ? rule.parameters : undefined;
-  const entries = parameters?.required_status_checks;
-  const contexts: unknown[] = Array.isArray(entries)
-    ? entries.map((entry: unknown) => (isRecord(entry) ? entry.context : undefined))
-    : [];
-  if (
-    !contexts.length ||
-    !contexts.every(
-      (context): context is string => typeof context === "string" && Boolean(context),
-    ) ||
-    new Set(contexts).size !== contexts.length
-  )
-    throw new Error("repository ruleset required checks are incomplete");
-  const coverageContexts = isRecord(coverage) ? coverage.protected_contexts : undefined;
-  if (
-    !Array.isArray(coverageContexts) ||
-    !coverageContexts.every((value: unknown): value is string => typeof value === "string") ||
-    JSON.stringify([...contexts].sort()) !== JSON.stringify([...coverageContexts].sort())
-  )
-    throw new Error("repository ruleset and qualification protected contexts differ");
-  return contexts;
-}
-
 export function parsePullRequestReference(value: string | number) {
   const numeric = /^(\d+)$/u.exec(String(value));
   if (numeric && Number(numeric[1]) > 0) return Number(numeric[1]);
@@ -470,138 +320,253 @@ export function parsePullRequestReference(value: string | number) {
 }
 
 export class PullRequestDeliveryClient {
-  api: Pick<GitHubApiClient, "request" | "paginateRest" | "graphql">;
-  beginObservation?: () => void;
+  private observationDeadline = Infinity;
+  beginObservation() {
+    this.observationDeadline = (this.scope.now ?? performance.now.bind(performance))() + 60000;
+  }
+  private sdk: Octokit;
+  private scope: GitHubClientOptions;
+  private admitRepositoryId: (id: number) => void;
+  private repositoryId: Promise<number> | undefined;
   constructor(
-    api:
-      | GitHubRunner
-      | Pick<GitHubApiClient, "request" | "paginateRest" | "graphql"> = new GitHubApiClient(
-      createGitHubRunner({ cwd: projectRoot }),
-    ),
+    sdk: Octokit,
+    scope: GitHubClientOptions,
+    admitRepositoryId: (id: number) => void = () => {},
   ) {
-    this.api = typeof api === "function" ? new GitHubApiClient(api) : api;
+    this.sdk = sdk;
+    this.scope = scope;
+    this.admitRepositoryId = admitRepositoryId;
   }
 
-  request(method: string, endpoint: string, body: unknown = null): { body: unknown } {
-    return this.api.request(method, endpoint, body);
+  /** GitHub may link later pages through `/repositories/{id}/`. The id is bound
+   * once from an authenticated read of this repository, never from `Link`. */
+  private async bindRepositoryId() {
+    this.repositoryId ??= (async () => {
+      const body: unknown = (await this.request("GET", `repos/${repository}`)).data;
+      if (
+        !isRecord(body) ||
+        typeof body.id !== "number" ||
+        !Number.isSafeInteger(body.id) ||
+        body.id < 1 ||
+        typeof body.full_name !== "string" ||
+        body.full_name.toLowerCase() !== repository
+      )
+        throw new Error("Repository identity is incomplete or differs");
+      this.admitRepositoryId(body.id);
+      return body.id;
+    })();
+    try {
+      return await this.repositoryId;
+    } catch (error) {
+      this.repositoryId = undefined;
+      throw error;
+    }
   }
 
-  openRenovatePulls() {
-    return this.api
-      .paginateRest(`repos/${repository}/pulls?state=open&per_page=100`, {
-        select: (body) => body,
-        identity: (pull) =>
-          isRecord(pull) && Number.isSafeInteger(pull.number) ? String(pull.number) : null,
-        label: "open pull requests",
-      })
-      .flatMap((pull) => {
-        if (
-          !isRecord(pull) ||
-          !isRecord(pull.user) ||
-          typeof pull.user.login !== "string" ||
-          !["renovate[bot]", "app/renovate"].includes(pull.user.login)
-        )
-          return [];
-        if (typeof pull.number !== "number") throw new Error("Pull request number is unavailable");
-        return [{ ...pull, number: pull.number }];
-      });
+  static async connect(options: Partial<GitHubClientOptions> = {}, observationRequired = false) {
+    const deadline = options.deadline ?? performance.now() + 30 * 60000;
+    let bytes = 0;
+    let repositoryId: number | undefined;
+    const scope: GitHubClientOptions = {
+      credential: options.credential ?? localDeveloperCredential({ deadline }),
+      deadline,
+      requestTimeoutMs: 15000,
+      headers: { accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28" },
+      reserve: () => ({
+        consumeBytes(received) {
+          bytes += received;
+          if (bytes > 64 * 1024 * 1024)
+            throw new GitHubApiError("budget_exhausted", "Delivery metadata allowance exhausted");
+        },
+        settle() {},
+      }),
+      ...options,
+      allowRequest: (method, url) =>
+        ((method === "POST" && url.pathname === "/graphql") ||
+          (method === "GET" &&
+            (url.pathname === `/repos/${repository}` ||
+              url.pathname.startsWith(`/repos/${repository}/`))) ||
+          (method === "GET" &&
+            repositoryId !== undefined &&
+            url.pathname.startsWith(`/repositories/${repositoryId}/`)) ||
+          (method === "PUT" &&
+            new RegExp(`^/repos/${repository}/pulls/[1-9][0-9]*/merge$`, "u").test(
+              url.pathname,
+            ))) &&
+        options.allowRequest?.(method, url) !== false,
+    };
+    const sdk = await createGitHubClient({ ...scope, environmentProxy: true });
+    const client = new PullRequestDeliveryClient(sdk, scope, (id) => {
+      repositoryId = id;
+    });
+    if (observationRequired) client.observationDeadline = 0;
+    return client;
   }
 
-  pull(number: number) {
-    return pullMetadata(this.request("GET", `repos/${repository}/pulls/${number}`).body, number);
-  }
-
-  paginatedConnection(endpoint: string, key: string, identity: (value: unknown) => unknown) {
-    return this.api.paginateRest(endpoint, {
-      select: (body) => (isRecord(body) ? body[key] : undefined),
-      identity,
-      totalCount: (body) => {
-        if (!isRecord(body) || typeof body.total_count !== "number")
-          throw new Error(`${key} total is invalid`);
-        return body.total_count;
+  private async request(method: "GET" | "PUT", endpoint: string, data?: unknown) {
+    return await this.sdk.request({
+      method,
+      url: `https://api.github.com/${endpoint}`,
+      ...(data === undefined ? {} : { data }),
+      request: {
+        portcove: {
+          replay: method === "GET" ? "safe-read" : "once",
+          attempts: 0,
+          deadline: Math.min(this.scope.deadline, this.observationDeadline),
+        },
       },
-      label: key,
     });
   }
 
-  checkRuns(sha: string) {
-    return this.paginatedConnection(
-      `repos/${repository}/commits/${sha}/check-runs?filter=latest&per_page=100`,
-      "check_runs",
-      (run) => (isRecord(run) && Number.isSafeInteger(run.id) ? String(run.id) : null),
+  /** Delivery inventories retain stable totals and unique provider identities. */
+  private async collect(
+    endpoint: string,
+    identityKey: "id" | "number" | "filename" | "sha",
+    collectionKey?: string,
+  ) {
+    const records: unknown[] = [],
+      identities = new Set<string | number>();
+    let expected: number | undefined;
+    for await (const response of iterateGitHubPages(this.sdk, {
+      url: `https://api.github.com/${endpoint}`,
+      deadline: Math.min(this.scope.deadline, this.observationDeadline),
+      prepareRequest: async (url) => {
+        const parsed = new URL(url);
+        if (!parsed.pathname.startsWith("/repositories/")) return;
+        const prefix = `/repositories/${await this.bindRepositoryId()}/`;
+        // Another id stays unchanged, so admission refuses it.
+        if (!parsed.pathname.startsWith(prefix)) return;
+        // Some GitHub proxies refuse numeric-id paths; this bound id names this
+        // repository, so the same page is requested through its owner/name path.
+        parsed.pathname = `/repos/${repository}/${parsed.pathname.slice(prefix.length)}`;
+        return parsed.toString();
+      },
+    })) {
+      const body: unknown = response.data;
+      const values: unknown = collectionKey && isRecord(body) ? body[collectionKey] : body;
+      if (!Array.isArray(values)) throw new Error("Delivery collection response is incomplete");
+      if (collectionKey) {
+        const count = isRecord(body) ? body.total_count : undefined;
+        if (typeof count !== "number" || !Number.isSafeInteger(count) || count < 0)
+          throw new Error(`${collectionKey} total is invalid`);
+        expected ??= count;
+        if (count !== expected) throw new Error(`${collectionKey} total changed during pagination`);
+      }
+      for (const value of values as readonly unknown[]) {
+        const id = isRecord(value) ? value[identityKey] : null;
+        if (typeof id !== "string" && typeof id !== "number")
+          throw new Error("Delivery collection contains a missing or duplicate ID");
+        if (
+          (identityKey === "id" || identityKey === "number"
+            ? typeof id !== "number" || !Number.isSafeInteger(id) || id < 1
+            : typeof id !== "string" ||
+              !id ||
+              (identityKey === "sha" && !/^[0-9a-f]{40}$/u.test(id))) ||
+          identities.has(id)
+        )
+          throw new Error("Delivery collection contains a missing or duplicate ID");
+        identities.add(id);
+        records.push(value);
+      }
+      if (expected !== undefined && records.length > expected)
+        throw new Error("Delivery count exceeds reported total");
+    }
+    if (expected !== undefined && records.length !== expected)
+      throw new Error("Delivery count does not match reported total");
+    return records;
+  }
+
+  async openRenovatePulls() {
+    return (
+      await this.collect(`repos/${repository}/pulls?state=open&per_page=100`, "number")
+    ).flatMap((pull) => {
+      if (
+        !isRecord(pull) ||
+        !isRecord(pull.user) ||
+        typeof pull.user.login !== "string" ||
+        !["renovate[bot]", "app/renovate"].includes(pull.user.login)
+      )
+        return [];
+      if (typeof pull.number !== "number") throw new Error("Pull request number is unavailable");
+      return [{ ...pull, number: pull.number }];
+    });
+  }
+
+  async pull(number: number) {
+    return pullMetadata(
+      (await this.request("GET", `repos/${repository}/pulls/${number}`)).data,
+      number,
+    );
+  }
+
+  async checkRuns(sha: string) {
+    return (
+      await this.collect(
+        `repos/${repository}/commits/${sha}/check-runs?filter=all&per_page=100`,
+        "id",
+        "check_runs",
+      )
     ).map(checkMetadata);
   }
 
-  commitStatuses(sha: string) {
-    return this.paginatedConnection(
-      `repos/${repository}/commits/${sha}/status?per_page=100`,
-      "statuses",
-      (status) => (isRecord(status) && Number.isSafeInteger(status.id) ? String(status.id) : null),
+  async commitStatuses(sha: string) {
+    return (
+      await this.collect(`repos/${repository}/commits/${sha}/status?per_page=100`, "id", "statuses")
     ).map(statusMetadata);
   }
 
-  pullFiles(number: number) {
-    return this.api
-      .paginateRest(`repos/${repository}/pulls/${number}/files?per_page=100`, {
-        select: (body) => body,
-        identity: (file) =>
-          isRecord(file) && typeof file.filename === "string" ? file.filename : null,
-        label: "pull request files",
-      })
-      .map((file) => {
-        if (!isRecord(file) || typeof file.filename !== "string")
-          throw new Error("Pull request file identity is invalid");
-        const result: { filename: string; status?: string } = { ...file, filename: file.filename };
-        if (file.status !== undefined) {
-          if (typeof file.status !== "string")
-            throw new Error("Pull request file status is invalid");
-          result.status = file.status;
-        }
-        return result;
-      });
+  async pullFiles(number: number) {
+    return (
+      await this.collect(`repos/${repository}/pulls/${number}/files?per_page=100`, "filename")
+    ).map((file) => {
+      if (!isRecord(file) || typeof file.filename !== "string")
+        throw new Error("Pull request file identity is invalid");
+      const result: { filename: string; status?: string } = { ...file, filename: file.filename };
+      if (file.status !== undefined) {
+        if (typeof file.status !== "string") throw new Error("Pull request file status is invalid");
+        result.status = file.status;
+      }
+      return result;
+    });
   }
 
-  pullCommits(number: number) {
-    return this.api
-      .paginateRest(`repos/${repository}/pulls/${number}/commits?per_page=100`, {
-        select: (body) => body,
-        identity: (commit) =>
-          isRecord(commit) && typeof commit.sha === "string" && /^[0-9a-f]{40}$/u.test(commit.sha)
-            ? commit.sha
-            : null,
-        label: "pull request commits",
-      })
-      .map((commit) => {
-        if (!isRecord(commit) || typeof commit.sha !== "string")
-          throw new Error("Pull request commit identity is invalid");
-        fields(commit, {});
-        if (commit.author !== undefined && commit.author !== null)
-          fields(commit.author, { login: "string" });
-        if (commit.commit !== undefined) fields(commit.commit, { message: "string" });
-        const result: {
-          sha: string;
-          author?: { login?: string } | null;
-          commit?: { message?: string };
-        } = { ...commit, sha: commit.sha };
-        if (isRecord(commit.author))
-          result.author =
-            typeof commit.author.login === "string"
-              ? { ...commit.author, login: commit.author.login }
-              : { ...commit.author };
-        if (isRecord(commit.commit))
-          result.commit =
-            typeof commit.commit.message === "string"
-              ? { ...commit.commit, message: commit.commit.message }
-              : { ...commit.commit };
-        return result;
-      });
+  async pullCommits(number: number) {
+    return (
+      await this.collect(`repos/${repository}/pulls/${number}/commits?per_page=100`, "sha")
+    ).map((commit) => {
+      if (
+        !isRecord(commit) ||
+        typeof commit.sha !== "string" ||
+        !/^[0-9a-f]{40}$/u.test(commit.sha)
+      )
+        throw new Error("Pull request commit identity is invalid");
+      fields(commit, {});
+      if (commit.author !== undefined && commit.author !== null)
+        fields(commit.author, { login: "string" });
+      if (commit.commit !== undefined) fields(commit.commit, { message: "string" });
+      const result: {
+        sha: string;
+        author?: { login?: string } | null;
+        commit?: { message?: string };
+      } = { ...commit, sha: commit.sha };
+      if (isRecord(commit.author))
+        result.author =
+          typeof commit.author.login === "string"
+            ? { ...commit.author, login: commit.author.login }
+            : { ...commit.author };
+      if (isRecord(commit.commit))
+        result.commit =
+          typeof commit.commit.message === "string"
+            ? { ...commit.commit, message: commit.commit.message }
+            : { ...commit.commit };
+      return result;
+    });
   }
 
-  branch(name: string) {
-    const body = this.request(
-      "GET",
-      `repos/${repository}/branches/${encodeURIComponent(name)}`,
-    ).body;
+  async branch(name: string) {
+    const body: unknown = (
+      await this.request("GET", `repos/${repository}/branches/${encodeURIComponent(name)}`)
+    ).data;
     if (
       !isRecord(body) ||
       !isRecord(body.commit) ||
@@ -612,8 +577,9 @@ export class PullRequestDeliveryClient {
     return { ...body, commit: { ...body.commit, sha: body.commit.sha } };
   }
 
-  workflowRun(id: number) {
-    const body = this.request("GET", `repos/${repository}/actions/runs/${id}`).body;
+  async workflowRun(id: number) {
+    const body: unknown = (await this.request("GET", `repos/${repository}/actions/runs/${id}`))
+      .data;
     if (
       !isRecord(body) ||
       body.id !== id ||
@@ -626,11 +592,13 @@ export class PullRequestDeliveryClient {
     return body;
   }
 
-  sourceWorkflowRuns(sha: string) {
-    const runs = this.paginatedConnection(
-      `repos/${repository}/actions/runs?head_sha=${sha}&per_page=100`,
-      "workflow_runs",
-      (run) => (isRecord(run) && Number.isSafeInteger(run.id) ? String(run.id) : null),
+  async sourceWorkflowRuns(sha: string) {
+    const runs = (
+      await this.collect(
+        `repos/${repository}/actions/runs?head_sha=${sha}&per_page=100`,
+        "id",
+        "workflow_runs",
+      )
     ).map((run) => {
       assertWorkflow(run);
       return run;
@@ -640,35 +608,44 @@ export class PullRequestDeliveryClient {
     return runs;
   }
 
-  workflowJobs(run: number, _attempt: number) {
-    return this.paginatedConnection(
-      `repos/${repository}/actions/runs/${run}/jobs?filter=all&per_page=100`,
-      "jobs",
-      (job) => (isRecord(job) && Number.isSafeInteger(job.id) ? String(job.id) : null),
+  async workflowJobs(run: number, _attempt: number) {
+    return (
+      await this.collect(
+        `repos/${repository}/actions/runs/${run}/jobs?filter=all&per_page=100`,
+        "id",
+        "jobs",
+      )
     ).map((job) => {
       assertJob(job);
       return job;
     });
   }
 
-  requiredCheckState(number: number, head: string, requiredContexts: string[]) {
-    const pull = this.pull(number);
+  async requiredCheckState(
+    number: number,
+    head: string,
+    requiredContexts: string[],
+    binding?: { run: number; attempt: number; observePublication?: true },
+  ) {
+    const pull = await this.pull(number);
     if (pull.head.sha !== head)
       throw new Error(`pull request #${number} head changed: ${pull.head.sha} != ${head}`);
+    const jobs = binding ? await this.workflowJobs(binding.run, binding.attempt) : undefined;
     const contexts = requiredCheckContexts(
-      this.checkRuns(head),
-      this.commitStatuses(head),
+      await this.checkRuns(head),
+      await this.commitStatuses(head),
       requiredContexts,
+      binding && jobs ? { head, ...binding, jobs } : undefined,
     );
-    return { pull, head, contexts };
+    return { pull, head, contexts, ...(jobs ? { jobs } : {}) };
   }
 
-  renovateSnapshot(number: number, head: string, requiredContexts: string[]) {
-    const pull = this.pull(number);
-    const checkRuns = this.checkRuns(head);
-    const statuses = this.commitStatuses(head);
-    const commits = this.pullCommits(number);
-    const files = this.pullFiles(number);
+  async renovateSnapshot(number: number, head: string, requiredContexts: string[]) {
+    const pull = await this.pull(number);
+    const checkRuns = await this.checkRuns(head);
+    const statuses = await this.commitStatuses(head);
+    const commits = await this.pullCommits(number);
+    const files = await this.pullFiles(number);
     if (!Number.isSafeInteger(pull.commits) || commits.length !== pull.commits)
       throw new Error(
         `pull request commit inventory is incomplete: expected ${pull.commits ?? "unknown"}, observed ${commits.length}`,
@@ -684,22 +661,56 @@ export class PullRequestDeliveryClient {
       checkRuns,
       statuses,
       contexts: requiredCheckContexts(checkRuns, statuses, requiredContexts),
-      target: this.branch(pull.base.ref ?? ""),
+      target: await this.branch(pull.base.ref ?? ""),
     };
   }
 
-  merge(
+  async merge(
     number: number,
     head: string,
     requiredContexts: string[],
     closureIntent?: unknown,
     mergeMessage?: unknown,
+    binding?: { run: number; attempt: number },
+    composition?: { target: string; tree: string },
   ) {
-    const state = this.requiredCheckState(number, head, requiredContexts);
+    if (
+      composition &&
+      ![composition.target, composition.tree].every((sha) => /^[0-9a-f]{40}$/u.test(sha))
+    )
+      throw new Error("Merge --target and --tree must be 40-character SHAs");
+    const expected = composition && { head, ...composition };
+    const verifyWorkflow = async () => {
+      if (!binding) return;
+      if (
+        !Number.isSafeInteger(binding.run) ||
+        binding.run < 1 ||
+        !Number.isSafeInteger(binding.attempt) ||
+        binding.attempt < 1
+      )
+        throw new Error("Merge requires a positive run and attempt");
+      const workflow = await this.workflowRun(binding.run);
+      if (
+        workflow.id !== binding.run ||
+        workflow.head_sha !== head ||
+        workflow.run_attempt !== binding.attempt ||
+        workflow.status !== "completed" ||
+        workflow.conclusion !== "success"
+      )
+        throw new Error("Merge workflow source, attempt or successful completion differs");
+    };
+    await verifyWorkflow();
+    const state = await this.requiredCheckState(number, head, requiredContexts, binding);
     validateMergeReadiness(number, head, state.pull, state.contexts);
+    const targetRef = state.pull.base.ref;
+    if (expected) {
+      if (!targetRef) throw new Error("Merge target branch is unavailable");
+      if ((await this.branch(targetRef)).commit.sha !== expected.target)
+        throw new Error("Merge target differs from the reviewed composition");
+    }
     const message = validateMergeMessage(mergeMessage);
-    const closing = readClosingRelationships(this.api, repository, number);
-    const commits = this.pullCommits(number);
+    const closing = await readClosingRelationships(this.sdk, repository, number);
+    const commits = await this.pullCommits(number);
     validateMergeCandidate({
       number,
       head,
@@ -710,32 +721,49 @@ export class PullRequestDeliveryClient {
       closureIntent,
       mergeMessage: message,
     });
-    const refreshed = readClosingRelationships(this.api, repository, number);
+    const refreshed = await readClosingRelationships(this.sdk, repository, number);
     if (refreshed.fingerprint !== closing.fingerprint)
       throw new Error(
         "PR body or closing relationships changed before merge; refresh delivery review",
       );
+    await verifyWorkflow();
+    if (expected) {
+      const fresh = await this.pull(number);
+      validateMergeReadiness(number, head, fresh, state.contexts);
+      const ref = fresh.base.ref;
+      const previewSha = fresh.merge_commit_sha;
+      if (!ref || ref !== targetRef || !previewSha)
+        throw new Error("Merge target branch or preview is unavailable or changed");
+      if (fresh.body !== state.pull.body)
+        throw new Error("PR body changed before merge; refresh delivery review");
+      const preview = await this.request("GET", `repos/${repository}/git/commits/${previewSha}`);
+      validateCommitComposition(preview.data, expected, previewSha, false);
+      if ((await this.branch(ref)).commit.sha !== expected.target)
+        throw new Error("Merge target advanced before mutation; refresh the reviewed composition");
+    }
     let result: unknown = null;
     let requestError: unknown = null;
     try {
-      result = this.request("PUT", `repos/${repository}/pulls/${number}/merge`, {
-        merge_method: "squash",
-        sha: head,
-        commit_title: message.title,
-        commit_message: message.body,
-      }).body;
+      result = (
+        await this.request("PUT", `repos/${repository}/pulls/${number}/merge`, {
+          merge_method: "squash",
+          sha: head,
+          commit_title: message.title,
+          commit_message: message.body,
+        })
+      ).data;
     } catch (error) {
       requestError = error;
     }
     let readback;
     try {
-      readback = this.pull(number);
+      readback = await this.pull(number);
     } catch (error) {
       throw deliveryOutcomeError(
         "unknown",
         `merge outcome is unknown after ${requestError ? errorMessage(requestError) : "an unexpected response"}; ` +
           `remote readback failed: ${errorMessage(error)}`,
-        { pull_request: number, head },
+        { pull_request: number, head, ...(expected ? { expected_composition: expected } : {}) },
         error,
       );
     }
@@ -769,6 +797,7 @@ export class PullRequestDeliveryClient {
         {
           pull_request: number,
           head,
+          ...(expected ? { expected_composition: expected } : {}),
           remote: {
             merged: readback.merged,
             state: readback.state,
@@ -784,7 +813,7 @@ export class PullRequestDeliveryClient {
       mutation: unknown;
       pull: DeliveryPull;
       actual_commit: unknown;
-      closing: ReturnType<typeof readClosingRelationships> | null;
+      closing: Awaited<ReturnType<typeof readClosingRelationships>> | null;
     } = {
       mutation: result,
       pull: readback,
@@ -792,25 +821,30 @@ export class PullRequestDeliveryClient {
       closing: null,
     };
     try {
-      const actual = this.request(
-        "GET",
-        `repos/${repository}/git/commits/${readback.merge_commit_sha}`,
-      ).body;
+      const actual: unknown = (
+        await this.request("GET", `repos/${repository}/git/commits/${readback.merge_commit_sha}`)
+      ).data;
       closureReadback.actual_commit = actual;
       validateMergedCommit(actual, readback.merge_commit_sha, message);
-      const after = readClosingRelationships(this.api, repository, number);
+      const after = await readClosingRelationships(this.sdk, repository, number);
       closureReadback.closing = after;
       if (after.fingerprint !== closing.fingerprint)
         throw new Error("PR body or closing relationships changed across merge");
+      if (expected) {
+        if (readback.base.ref !== targetRef)
+          throw new Error("Merge landed on a different target branch");
+        validateCommitComposition(actual, expected, readback.merge_commit_sha, true);
+      }
     } catch (error) {
       throw deliveryOutcomeError(
         "unknown",
-        `Merge occurred; closure readback needs reconciliation: ${errorMessage(error)}`,
+        `Merge occurred; ${expected ? "composition or closure" : "closure"} readback needs reconciliation: ${errorMessage(error)}`,
         {
           pull_request: number,
           head,
           merge_commit_sha: readback.merge_commit_sha,
           closing,
+          ...(expected ? { expected_composition: expected } : {}),
           closure_readback: closureReadback,
         },
         error,
@@ -821,6 +855,7 @@ export class PullRequestDeliveryClient {
       readback,
       contexts: state.contexts,
       closing,
+      ...(expected ? { expected_composition: expected } : {}),
       closure_readback: closureReadback,
     };
   }
@@ -854,36 +889,18 @@ export function renovateCheckEnvelope<Evidence extends object>({
   });
 }
 
-// This read-only client bounds both each gh subprocess and all pages/reads in
-// one observation. Merge and other GitHub consumers keep their existing runner.
-export function createWatchClient({
-  now = Date.now,
-  spawn = spawnSync,
-}: {
-  now?: () => number;
-  spawn?: NonNullable<Parameters<typeof createGitHubRunner>[0]>["spawn"];
-} = {}) {
-  let collectionDeadline = 0;
-  const api = new GitHubApiClient(
-    createGitHubRunner({
-      cwd: projectRoot,
-      spawn: (command, args, options) => {
-        const remaining = collectionDeadline - now();
-        if (remaining <= 0) throw new Error("watch read collection exceeded its 60-second budget");
-        return spawn(command, args, {
-          ...options,
-          timeout: Math.min(15_000, remaining),
-          killSignal: "SIGKILL",
-        });
-      },
-    }),
-  );
-  const client = new PullRequestDeliveryClient(api);
-  return Object.assign(client, {
-    beginObservation() {
-      collectionDeadline = now() + 60_000;
+/** Each observation has its existing 60-second collection budget; the command
+ * deadline remains the original boundary across observations. */
+export async function createWatchClient(options: Partial<GitHubClientOptions> = {}) {
+  const client = await PullRequestDeliveryClient.connect(
+    {
+      ...options,
+      allowRequest: (method, url) =>
+        method === "GET" && options.allowRequest?.(method, url) !== false,
     },
-  });
+    true,
+  );
+  return client;
 }
 
 export function createWatchProgress(write: (text: string) => void) {
@@ -927,6 +944,32 @@ export function createWatchProgress(write: (text: string) => void) {
   };
 }
 
+function watchedOutcome(
+  context: WatchContext,
+  jobs: readonly DeliveryJob[] | undefined,
+  workflow: { run: number; attempt: number; status: string },
+) {
+  if (
+    context.outcome === "failure" &&
+    context.source === "check-run" &&
+    context.check_run_id !== undefined &&
+    workflow.status !== "completed" &&
+    jobs?.some(
+      (job) =>
+        job.name === context.context &&
+        job.run_id === workflow.run &&
+        job.status === "completed" &&
+        job.conclusion === context.conclusion &&
+        job.run_attempt > 0 &&
+        job.run_attempt < workflow.attempt &&
+        job.check_run_url ===
+          `https://api.github.com/repos/${repository}/check-runs/${context.check_run_id}`,
+    )
+  )
+    return "pending";
+  return context.outcome;
+}
+
 export async function watchRequiredChecks(
   client: WatchClient,
   {
@@ -955,6 +998,7 @@ export async function watchRequiredChecks(
     sleep ?? ((milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds)));
   let observed: DeliveryWorkflow | null = null;
   let state: WatchState | null = null;
+  let publicationRecheckUsed = false;
   const evidence = () => ({
     pull_request: number,
     head,
@@ -978,10 +1022,19 @@ export async function watchRequiredChecks(
   for (;;) {
     try {
       client.beginObservation?.();
-      observed = client.workflowRun(run);
-      state = client.requiredCheckState(number, head, requiredContexts);
+      observed = await client.workflowRun(run);
+      state = await client.requiredCheckState(number, head, requiredContexts, {
+        run,
+        attempt,
+        observePublication: true,
+      });
       try {
-        observe({ format: 1, kind: "delivery-observation", ...evidence() });
+        observe({
+          format: 1,
+          kind: "delivery-observation",
+          ...evidence(),
+          ...(state.jobs ? { jobs: state.jobs } : {}),
+        });
       } catch {
         /* Diagnostics cannot change monitoring. */
       }
@@ -1018,7 +1071,11 @@ export async function watchRequiredChecks(
         "watch run creation time or deadline is invalid",
         evidence(),
       );
-    const failures = state.contexts.filter((context) => context.outcome === "failure");
+    const workflow = { run, attempt, status: observed.status };
+    const { jobs } = state;
+    const failures = state.contexts.filter(
+      (context) => watchedOutcome(context, jobs, workflow) === "failure",
+    );
     if (failures.length)
       throw deliveryOutcomeError(
         "failed",
@@ -1027,6 +1084,9 @@ export async function watchRequiredChecks(
           .join(", ")}`,
         evidence(),
       );
+    const publicationPending = state.contexts.some(
+      (context) => context.conclusion === checkPublicationPending,
+    );
     if (observed.status === "completed") {
       if (observed.conclusion !== "success")
         throw deliveryOutcomeError(
@@ -1038,7 +1098,7 @@ export async function watchRequiredChecks(
         let jobs;
         try {
           if (!client.workflowJobs) throw new Error("watch job readback is unavailable");
-          jobs = client.workflowJobs(run, attempt);
+          jobs = await client.workflowJobs(run, attempt);
           try {
             observe({ format: 1, kind: "delivery-jobs", ...evidence(), jobs });
           } catch {
@@ -1059,7 +1119,7 @@ export async function watchRequiredChecks(
           throw deliveryOutcomeError("failed", errorMessage(error), evidence(), error);
         }
         try {
-          observed = client.workflowRun(run);
+          observed = await client.workflowRun(run);
         } catch (error) {
           throw deliveryOutcomeError(
             "failed",
@@ -1095,11 +1155,17 @@ export async function watchRequiredChecks(
           },
         };
       }
-      throw deliveryOutcomeError(
-        "failed",
-        "identified workflow succeeded but required exact-head gates remain missing or pending",
-        evidence(),
-      );
+      if (
+        state.contexts.some(
+          (context) =>
+            context.outcome !== "success" && context.conclusion !== checkPublicationPending,
+        )
+      )
+        throw deliveryOutcomeError(
+          "failed",
+          "identified workflow succeeded but required exact-head gates remain missing or pending",
+          evidence(),
+        );
     }
     if (now() >= deadlineMs)
       throw deliveryOutcomeError(
@@ -1110,11 +1176,13 @@ export async function watchRequiredChecks(
           .join(", ")}`,
         evidence(),
       );
-    await pause(Math.min(180_000, Math.max(0, deadlineMs - now())));
+    const interval = publicationPending && !publicationRecheckUsed ? 2_000 : 180_000;
+    publicationRecheckUsed ||= publicationPending;
+    await pause(Math.min(interval, Math.max(0, deadlineMs - now())));
   }
 }
 
-export function inspectRenovateQueue(
+export async function inspectRenovateQueue(
   client: DeliveryQueueClient,
   config: unknown,
   contexts: string[],
@@ -1122,12 +1190,13 @@ export function inspectRenovateQueue(
     options: Parameters<typeof inspectCurrentBase>[0],
   ) => RenovateBaseEvidence = inspectCurrentBase,
 ) {
-  const target = client.branch("main").commit.sha;
-  const candidates = client.openRenovatePulls().map((listed) => {
+  const target = (await client.branch("main")).commit.sha;
+  const candidates = [];
+  for (const listed of await client.openRenovatePulls()) {
     const head = isRecord(listed.head) ? listed.head.sha : undefined;
     if (typeof head !== "string" || !/^[0-9a-f]{40}$/u.test(head))
       throw new Error("queue candidate lacks exact head");
-    const snapshot = client.renovateSnapshot(listed.number, head, contexts);
+    const snapshot = await client.renovateSnapshot(listed.number, head, contexts);
     if (snapshot.pull.head.sha !== head || snapshot.target.commit.sha !== target)
       throw new Error("queue head or target changed; refresh once before selection");
     const updates = parseRenovateUpdates(snapshot.pull.body);
@@ -1160,7 +1229,7 @@ export function inspectRenovateQueue(
       !pending.length &&
       !agePending &&
       !["reject", "waiting"].includes(result.verdict);
-    return {
+    candidates.push({
       number: listed.number,
       head,
       target,
@@ -1178,9 +1247,8 @@ export function inspectRenovateQueue(
       release_age: age,
       release_age_diagnosis: ageDiagnosis,
       checks: snapshot.contexts,
-      runs: client
-        .sourceWorkflowRuns(head)
-        .map(({ id, run_attempt, name, status, conclusion, run_started_at, html_url }) => ({
+      runs: (await client.sourceWorkflowRuns(head)).map(
+        ({ id, run_attempt, name, status, conclusion, run_started_at, html_url }) => ({
           id,
           attempt: run_attempt,
           name,
@@ -1188,7 +1256,8 @@ export function inspectRenovateQueue(
           conclusion,
           started_at: run_started_at,
           url: html_url,
-        })),
+        }),
+      ),
       next_action: snapshot.pull.draft
         ? "Resume the current owner's draft after verifying actual writer release and the retained checkpoint."
         : failures.length
@@ -1204,8 +1273,8 @@ export function inspectRenovateQueue(
                   : result.verdict === "metadata-required"
                     ? `Verify actual writer activity and source ownership, then just renovate-check --pr ${listed.number} --head ${head}; final delivering-agent review and guarded merge follow only merge-ready.`
                     : "Verify actual writer activity and source ownership, inspect advisory/graph/features and select the existing local/hosted/behavior plan; independent review and guarded merge remain.",
-    };
-  });
+    });
+  }
   candidates.sort(
     (a, b) =>
       Number(b.path === "urgent-remediation-assessment") -
@@ -1368,7 +1437,13 @@ function assertInspectionPull(pull: DeliveryPull) {
 export async function inspectDelivery(
   client: Pick<
     PullRequestDeliveryClient,
-    "pull" | "branch" | "checkRuns" | "commitStatuses" | "workflowRun" | "beginObservation"
+    | "pull"
+    | "branch"
+    | "checkRuns"
+    | "commitStatuses"
+    | "workflowRun"
+    | "requiredCheckState"
+    | "beginObservation"
   >,
   {
     number,
@@ -1386,15 +1461,10 @@ export async function inspectDelivery(
 ) {
   client.beginObservation?.();
   try {
-    const pull = client.pull(number);
+    const pull = await client.pull(number);
     assertInspectionPull(pull);
     const ref = pull.base.ref!;
-    const target = client.branch(ref).commit.sha;
-    const checks = requiredCheckContexts(
-      client.checkRuns(pull.head.sha),
-      client.commitStatuses(pull.head.sha),
-      contexts,
-    ).map(({ context, outcome }) => ({ context, outcome }));
+    const target = (await client.branch(ref)).commit.sha;
     const observeReference = async (
       kind: "review" | "acceptance" | "watcher",
     ): Promise<InspectionEvidence> => {
@@ -1414,7 +1484,7 @@ export async function inspectDelivery(
         return { ...identity, state: "referenced", result: references.acceptance.result };
       const watcher = references.watcher;
       if (!watcher) throw new Error("watcher reference declaration is unavailable");
-      const run = client.workflowRun(watcher.run);
+      const run = await client.workflowRun(watcher.run);
       if (
         !["queued", "in_progress", "completed", "waiting", "requested", "pending"].includes(
           run.status,
@@ -1452,7 +1522,32 @@ export async function inspectDelivery(
     const review = await observeReference("review");
     const acceptance = await observeReference("acceptance");
     const watcher = await observeReference("watcher");
-    const after = client.pull(number);
+    const binding = references?.watcher;
+    let checks;
+    if (watcher.state === "referenced" && binding && watcher.status) {
+      const { run, attempt } = binding;
+      const state = await client.requiredCheckState(number, head, contexts, { run, attempt });
+      const refreshed = await client.workflowRun(run);
+      if (
+        refreshed.head_sha !== head ||
+        refreshed.run_attempt !== attempt ||
+        refreshed.status !== watcher.status ||
+        refreshed.conclusion !== watcher.conclusion
+      )
+        throw new Error("workflow changed during inspection");
+      const workflow = { run, attempt, status: refreshed.status };
+      checks = state.contexts.map((context) => ({
+        context: context.context,
+        outcome: watchedOutcome(context, state.jobs, workflow),
+      }));
+    } else {
+      checks = requiredCheckContexts(
+        await client.checkRuns(pull.head.sha),
+        await client.commitStatuses(pull.head.sha),
+        contexts,
+      ).map(({ context, outcome }) => ({ context, outcome }));
+    }
+    const after = await client.pull(number);
     assertInspectionPull(after);
     if (
       JSON.stringify([
@@ -1473,9 +1568,11 @@ export async function inspectDelivery(
           after.merge_commit_sha,
           after.mergeable,
         ]) ||
-      client.branch(ref).commit.sha !== target
+      (await client.branch(ref)).commit.sha !== target
     )
       throw new Error("source, target or pull request state changed during inspection");
+    if (watcher.state === "referenced" && binding && now() >= Date.parse(binding.deadline))
+      throw new Error("watcher deadline expired during inspection");
     const next_action = pull.merged
       ? "Reconcile the owning issue and Project against confirmed merge readback."
       : pull.state === "closed"
@@ -1488,10 +1585,12 @@ export async function inspectDelivery(
               ? "Resolve conflicts or unknown mergeability with the current owner."
               : checks.some((check) => check.outcome === "failure")
                 ? "Inspect failed exact-head jobs and retained evidence before any repair or retry."
-                : checks.some((check) => check.outcome !== "success")
+                : checks.some((check) => check.outcome !== "success") ||
+                    (watcher.state === "referenced" &&
+                      (watcher.status !== "completed" || watcher.conclusion !== "success"))
                   ? watcher.state === "referenced"
                     ? watcher.status === "completed"
-                      ? "Inspect the identified terminal workflow and missing or pending gates; its watcher cannot resume or renew the deadline."
+                      ? "Inspect the identified terminal workflow and its gates; its watcher cannot resume or renew the deadline."
                       : "Continue the existing source-bound watcher with its original run, attempt and deadline."
                     : "Inspect the retained source-head run and reconcile its watcher binding; do not resume a stale wait or renew its deadline."
                   : review.state !== "referenced" || review.result !== "clear"
@@ -1564,7 +1663,17 @@ const deliveryFlags: Readonly<Record<string, readonly string[]>> = {
   inspect: ["--pr", "--head", "--evidence-file", "--json", "--summary"],
   watch: ["--pr", "--head", "--run", "--attempt", "--deadline", "--json", "--progress"],
   "renovate-check": ["--pr", "--head", "--queue", "--json", "--summary"],
-  merge: ["--pr", "--head", "--closure-intent-file", "--merge-message-file", "--json"],
+  merge: [
+    "--pr",
+    "--head",
+    "--target",
+    "--tree",
+    "--run",
+    "--attempt",
+    "--closure-intent-file",
+    "--merge-message-file",
+    "--json",
+  ],
   "prepare-merge": [
     "--pr",
     "--head",
@@ -1692,6 +1801,8 @@ export function parseArguments(argv: string[]) {
     options[name] = value;
     index += 1;
   }
+  if (command === "merge" && Boolean(options["--target"]) !== Boolean(options["--tree"]))
+    throw new Error("Merge --target and --tree must be supplied together");
   return { command, options };
 }
 
@@ -1734,8 +1845,8 @@ async function main(argv: string[]) {
     const config: unknown = JSON.parse(
       await readFile(path.join(projectRoot, "renovate.json"), "utf8"),
     );
-    const queue = inspectRenovateQueue(
-      new PullRequestDeliveryClient(),
+    const queue = await inspectRenovateQueue(
+      await PullRequestDeliveryClient.connect(),
       config,
       await requiredContexts(),
     );
@@ -1830,8 +1941,13 @@ async function main(argv: string[]) {
   }
   const client =
     command === "watch" || command === "inspect"
-      ? createWatchClient()
-      : new PullRequestDeliveryClient();
+      ? await createWatchClient({
+          deadline:
+            command === "watch"
+              ? performance.now() + Date.parse(optionText(options, "--deadline")) - Date.now()
+              : performance.now() + 60000,
+        })
+      : await PullRequestDeliveryClient.connect();
   if (command === "inspect") {
     if (!Number.isSafeInteger(number))
       throw new Error("inspection PR number must be a safe positive integer");
@@ -1855,7 +1971,7 @@ async function main(argv: string[]) {
     const config: unknown = JSON.parse(
       await readFile(path.join(projectRoot, "renovate.json"), "utf8"),
     );
-    const snapshot = client.renovateSnapshot(number, head, contexts);
+    const snapshot = await client.renovateSnapshot(number, head, contexts);
     let baseEvidence: RenovateBaseEvidence;
     if (snapshot.pull.head.sha !== head) {
       baseEvidence = {
@@ -1995,12 +2111,20 @@ async function main(argv: string[]) {
     return;
   }
   if (command === "merge") {
-    const merged = client.merge(
+    if (Boolean(options["--run"]) !== Boolean(options["--attempt"]))
+      throw new Error("Merge --run and --attempt must be supplied together");
+    const merged = await client.merge(
       number,
       head,
       contexts,
       JSON.parse(await readFile(optionText(options, "--closure-intent-file"), "utf8")),
       JSON.parse(await readFile(optionText(options, "--merge-message-file"), "utf8")),
+      options["--run"]
+        ? { run: Number(options["--run"]), attempt: Number(options["--attempt"]) }
+        : undefined,
+      options["--target"]
+        ? { target: optionText(options, "--target"), tree: optionText(options, "--tree") }
+        : undefined,
     );
     const directory = path.join(projectRoot, "work/pr-delivery");
     const closureReceipt = retainMergeReceipt(directory, { number, head, ...merged });
@@ -2023,6 +2147,9 @@ async function main(argv: string[]) {
                 conclusion,
               })),
               remote_readback: true,
+              ...(merged.expected_composition
+                ? { expected_composition: merged.expected_composition }
+                : {}),
               closure_receipt: closureReceipt,
             },
           }),

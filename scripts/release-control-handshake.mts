@@ -4,11 +4,17 @@ import { crc32, inflateRawSync } from "node:zlib";
 import { writeFile } from "node:fs/promises";
 import path from "node:path";
 import { inspectBoundedZip } from "./bounded-zip.mts";
-import { readGitHubArtifactArchive } from "./github-binary.mts";
-import { GitHubApiClient, createGitHubRunner } from "./github-api.mts";
-import type { GitHubRestReader } from "./github-api.mts";
+import { setTimeout as delay } from "node:timers/promises";
+import { coordinatorCommandDeadline } from "./release-coordinator-deadline.mts";
+import {
+  fixedReleaseReaderToken,
+  readOnlyReleaseChildEnvironment,
+} from "./release-readonly-child-environment.mts";
+import { assertTrustedDirectNode } from "./release-direct-node-transport.mts";
+import type { GitHubRequestPolicy } from "./github-client.mts";
+import { GitHubApiError } from "./github-operation.mts";
 import { isRecord } from "./runtime-values.mts";
-import { readCompleteRunArtifactInventory } from "./release-run-artifact-inventory.mts";
+import { readCompleteRunArtifactInventoryAsync } from "./release-run-artifact-inventory.mts";
 import { productionControllerWorkflow } from "./production-controller-admission.mts";
 import {
   inspectReleaseControlPhase,
@@ -18,7 +24,7 @@ import {
 import type { ReleaseControlPhase } from "./release-control-phases.mts";
 
 const base = "repos/boburning/portcove";
-const maximum = 128 * 1024;
+export const controlArtifactMaximumBytes = 128 * 1024;
 const digest = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
 const proofs = new WeakSet<object>();
 function immutable<T>(value: T, depth = 0): T {
@@ -140,21 +146,30 @@ export async function waitForControlArtifact(
   role: Role,
   raw: ControlAttempt,
   options: {
-    api?: GitHubRestReader;
-    transport?: Pick<NonNullable<Parameters<typeof createGitHubRunner>[0]>, "spawn">;
-    download?: typeof readGitHubArtifactArchive;
+    read?: (endpoint: string) => Promise<{ status: number; body: unknown }>;
+    download?: (artifact: { id: number; bytes: number }, deadline: number) => Promise<Buffer>;
+    fetch?: typeof globalThis.fetch;
     now?: () => number;
     sleep?: (milliseconds: number) => Promise<void>;
     /** Caller may only tighten the existing finite wait, never extend it. */
     deadline?: number;
     phaseDeadline?: number;
+    onRefusal?: (receipt: {
+      stage: string;
+      polls: number;
+      api_requests: number;
+      elapsed_ms: number;
+    }) => void;
   } = {},
 ) {
+  options = { ...options };
   const input = attempt(raw);
   if (role === "observation" && input.round) inspectControlRound(input.round);
   const phaseProfile = releaseControlPhaseProfile(input.phase);
   const now = options.now ?? Date.now;
   const start = now();
+  const monotonicStart = performance.now();
+  const elapsed = () => (options.now ? now() - start : performance.now() - monotonicStart);
   if (
     options.deadline !== undefined &&
     (!Number.isSafeInteger(options.deadline) ||
@@ -168,9 +183,16 @@ export async function waitForControlArtifact(
   const limit =
     options.deadline === undefined ? 240000 : Math.min(240000, options.deadline - start);
   const phaseDeadline = options.phaseDeadline;
+  const enclosingDeadline = Math.min(
+    phaseDeadline ?? Infinity,
+    coordinatorCommandDeadline() ?? Infinity,
+  );
+  const deadline = Math.min(monotonicStart + limit, enclosingDeadline);
   const remaining = (maximum = 240000) => {
     const phase = phaseDeadline === undefined ? Infinity : phaseDeadline - performance.now();
-    const left = Math.floor(Math.min(limit - (now() - start), phase, maximum));
+    const left = Math.floor(
+      Math.min(limit - elapsed(), enclosingDeadline - performance.now(), maximum),
+    );
     if (
       !Number.isFinite(left) ||
       left < 1 ||
@@ -180,37 +202,42 @@ export async function waitForControlArtifact(
     return left;
   };
   remaining();
-  const api =
-    options.api ??
-    new GitHubApiClient((args, input) => {
-      const result = createGitHubRunner({
-        ...options.transport,
-        cwd: privateRoot,
-        maxBuffer: 512 * 1024,
-        timeoutMs: remaining(5000),
-      })([...args, "--hostname", "github.com"], input);
-      remaining();
-      return result;
-    });
-  const get = (endpoint: string) => {
+  const fetcher = options.fetch ?? globalThis.fetch;
+  const scoped = readOnlyReleaseChildEnvironment() !== undefined;
+  const fetch: typeof globalThis.fetch = (input, init) => {
+    if (scoped) assertTrustedDirectNode("control artifact reader");
+    return fetcher(input, init);
+  };
+  const charge = () => {
     remaining();
-    if (++requests > 256 || now() - start >= limit)
-      throw new Error("control handshake request or deadline bound exhausted");
-    const response = api.request("GET", `${base}/${endpoint}`);
+    if (requests >= 256) throw new Error("control handshake request or deadline bound exhausted");
+    requests++;
+  };
+  const reserve = () => {
+    charge();
+    return {
+      consumeBytes() {},
+      settle(observation: { dispatched: boolean }) {
+        if (!observation.dispatched) requests--;
+      },
+    };
+  };
+  let read = options.read;
+  const get = async (endpoint: string) => {
     remaining();
-    if (
-      response.status !== 200 ||
-      now() - start >= limit ||
-      Buffer.byteLength(JSON.stringify(response.body)) > 512 * 1024
-    )
+    if (options.read) charge();
+    if (!read) throw new Error("control handshake reader unavailable");
+    const response = await read(`${base}/${endpoint}`);
+    remaining();
+    if (response.status !== 200 || Buffer.byteLength(JSON.stringify(response.body)) > 512 * 1024)
       throw new Error("control handshake provider read unavailable or oversized");
     return response.body;
   };
-  const jobs = () => {
+  const jobs = async () => {
     const found: Record<string, unknown>[] = [];
     let total: unknown = null;
     for (let page = 1; page <= 4; page++) {
-      const body = get(
+      const body = await get(
         `actions/runs/${input.run_id}/attempts/${input.run_attempt}/jobs?per_page=100&page=${page}`,
       );
       if (
@@ -239,17 +266,79 @@ export async function waitForControlArtifact(
     }
     throw new Error("control producer job inventory omitted records");
   };
-  const inventory = () =>
-    readCompleteRunArtifactInventory((page) =>
-      get(`actions/runs/${input.run_id}/artifacts?per_page=100&page=${page}`),
+  const inventory = async () =>
+    (
+      await readCompleteRunArtifactInventoryAsync((page) =>
+        get(`actions/runs/${input.run_id}/artifacts?per_page=100&page=${page}`),
+      )
     ).artifacts;
+  const coordinatorRefresh = role === "ready" && input.phase === "coordinator" && input.round;
+  let recoveredInventoryRead = false;
+  const maximumUnavailableTransfers = 3;
+  let pendingTransfer: { id: number; digest: string; unavailable: number } | undefined;
+  const waitForPoll = async () => {
+    const wait = remaining(3000);
+    if (options.sleep) await options.sleep(wait);
+    else await delay(wait, undefined, { signal: AbortSignal.timeout(remaining()) });
+  };
   const name = controlHandshakeArtifactName(role, input);
+  const providerTimeout = input.phase === "coordinator" ? 15000 : 5000;
   let polls = 0;
+  let stage = "provider-setup";
   try {
+    const token = !read || !options.download ? fixedReleaseReaderToken() : "";
+    if (!read) {
+      const { createGitHubClient } = await import("./github-client.mts");
+      const client = await createGitHubClient({
+        credential: { kind: "explicit", token },
+        deadline,
+        requestTimeoutMs: providerTimeout,
+        maxBytes: 512 * 1024,
+        fetch,
+        reserve,
+        allowRequest(method, url) {
+          remaining();
+          return method === "GET" && url.pathname.startsWith(`/${base}/actions/`);
+        },
+      });
+      read = async (endpoint) => {
+        const policy: GitHubRequestPolicy = { replay: "once", attempts: 0 };
+        try {
+          const response = await client.request(`GET /${endpoint}`, {
+            request: { portcove: policy },
+          });
+          return { status: response.status, body: response.data as unknown };
+        } finally {
+          await policy.admissionSettled;
+        }
+      };
+    }
     while (++polls <= 81) {
-      const matches = inventory().filter((a) => a.name === name);
+      stage = "artifact-inventory";
+      let rows: Awaited<ReturnType<typeof inventory>>;
+      try {
+        rows = await inventory();
+      } catch (error) {
+        if (
+          !coordinatorRefresh ||
+          recoveredInventoryRead ||
+          !(error instanceof GitHubApiError) ||
+          !(
+            error.code === "deadline_exceeded" ||
+            [408, 500, 502, 503, 504].includes(error.status ?? 0)
+          )
+        )
+          throw error;
+        // A new bounded inventory read still requires the complete producer and
+        // artifact joins. A failed request never counts as an empty inventory.
+        recoveredInventoryRead = true;
+        await waitForPoll();
+        continue;
+      }
+      const matches = rows.filter((a) => a.name === name);
       if (matches.length > 1) throw new Error("control artifact name ambiguous");
-      const allJobs = jobs();
+      stage = "producer-inventory";
+      const allJobs = await jobs();
       const names =
         role === "ready" ? [phaseProfile.reader_name] : protectionObserverJobNames(input.phase);
       // Prefer the legacy phase-specific job if present. Old workflows also
@@ -271,7 +360,10 @@ export async function waitForControlArtifact(
           ))
       )
         throw new Error("control producer job failed, ended or differs");
+      if (!artifact && pendingTransfer)
+        throw new Error("control artifact disappeared while its archive was unavailable");
       if (artifact) {
+        stage = "artifact-identity";
         if (
           !job ||
           !isRecord(artifact.workflow_run) ||
@@ -282,19 +374,52 @@ export async function waitForControlArtifact(
           artifact.expired !== false ||
           !Number.isSafeInteger(artifact.size_in_bytes) ||
           Number(artifact.size_in_bytes) < 22 ||
-          Number(artifact.size_in_bytes) > maximum ||
+          Number(artifact.size_in_bytes) > controlArtifactMaximumBytes ||
           typeof artifact.digest !== "string" ||
           !/^sha256:[a-f0-9]{64}$/u.test(artifact.digest)
         )
           throw new Error("control artifact provider identity differs");
-        const zip = (options.download ?? readGitHubArtifactArchive)(
-          `${base}/actions/artifacts/${String(artifact.id)}/zip`,
-          {
-            cwd: privateRoot,
-            maxBytes: Number(artifact.size_in_bytes),
-            timeoutMs: remaining(5000),
-          },
-        );
+        stage = "artifact-transfer";
+        const transferDeadline = Math.min(deadline, performance.now() + remaining(providerTimeout));
+        const item = { id: Number(artifact.id), bytes: Number(artifact.size_in_bytes) };
+        if (
+          pendingTransfer &&
+          (pendingTransfer.id !== item.id || pendingTransfer.digest !== artifact.digest)
+        )
+          throw new Error("control artifact changed while its archive was unavailable");
+        let zip: Buffer;
+        try {
+          zip = options.download
+            ? await options.download(item, transferDeadline)
+            : await (
+                await import("./github-artifact-download.mts")
+              ).downloadGitHubArtifactArchive(`${base}/actions/artifacts/${item.id}/zip`, {
+                credential: { kind: "explicit", token },
+                deadline: transferDeadline,
+                maxBytes: item.bytes,
+                fetch,
+                lookup: { reserve },
+              });
+        } catch (error) {
+          // A just-listed coordinator control artifact can briefly 404 on its
+          // archive. Re-list and re-join the same artifact identity, boundedly.
+          if (
+            input.phase !== "coordinator" ||
+            !(error instanceof GitHubApiError) ||
+            error.status !== 404 ||
+            (pendingTransfer?.unavailable ?? 0) >= maximumUnavailableTransfers
+          )
+            throw error;
+          pendingTransfer = {
+            id: item.id,
+            digest: artifact.digest,
+            unavailable: (pendingTransfer?.unavailable ?? 0) + 1,
+          };
+          stage = "poll-wait";
+          await waitForPoll();
+          continue;
+        }
+        stage = "artifact-validation";
         remaining();
         await writeFile(path.join(privateRoot, `control-${role}.zip`), zip, {
           flag: "wx",
@@ -304,8 +429,8 @@ export async function waitForControlArtifact(
           throw new Error("control artifact archive changed");
         const member = `${role}-${input.phase}.json`;
         const parsed = inspectBoundedZip(zip, {
-          compressedBytes: maximum,
-          expandedBytes: maximum,
+          compressedBytes: controlArtifactMaximumBytes,
+          expandedBytes: controlArtifactMaximumBytes,
           files: 1,
           nameBytes: 64,
           allowedPaths: new Set([member]),
@@ -364,10 +489,12 @@ export async function waitForControlArtifact(
             !/^[a-f0-9]{64}$/u.test(body.facts_sha256))
         )
           throw new Error("reader prepared facts identity unavailable");
-        const after = inventory().filter((a) => a.name === name);
+        stage = "artifact-post-read";
+        const after = (await inventory()).filter((a) => a.name === name);
         if (after.length !== 1 || JSON.stringify(after[0]) !== JSON.stringify(artifact))
           throw new Error("control artifact changed during collection");
-        const finalJob = get(`actions/jobs/${String(job.id)}`);
+        stage = "producer-post-read";
+        const finalJob = await get(`actions/jobs/${String(job.id)}`);
         if (
           !isRecord(finalJob) ||
           ["id", "run_id", "run_attempt", "head_sha", "name", "check_run_url"].some(
@@ -388,7 +515,7 @@ export async function waitForControlArtifact(
           artifact: structuredClone(artifact),
           job: structuredClone(job),
           evidence_scope:
-            options.api || options.transport || options.download || options.now || options.sleep
+            options.read || options.fetch || options.download || options.now || options.sleep
               ? "injected-provider"
               : "github.com",
           association: "fixed-reviewed-workflow-exclusive-upload-route-and-provider-job-readback",
@@ -404,20 +531,27 @@ export async function waitForControlArtifact(
         remaining();
         return proof;
       }
-      await (options.sleep ?? ((ms) => new Promise((resolve) => setTimeout(resolve, ms))))(
-        remaining(3000),
-      );
+      stage = "poll-wait";
+      await waitForPoll();
     }
     throw new Error("control handshake poll count exhausted");
-  } catch {
+  } catch (error) {
+    const receipt = {
+      stage,
+      polls,
+      api_requests: requests,
+      elapsed_ms: Math.floor(elapsed()),
+      ...(error instanceof GitHubApiError && error.status !== null
+        ? { provider_status: error.status }
+        : {}),
+    };
+    options.onRefusal?.(receipt);
     await writeFile(
       path.join(privateRoot, `control-${role}-refusal.json`),
       JSON.stringify({
         role,
         attempt: input,
-        polls,
-        api_requests: requests,
-        elapsed_ms: now() - start,
+        ...receipt,
         authority: "none",
         automatic_retry: false,
       }),

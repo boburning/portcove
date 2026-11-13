@@ -3,10 +3,10 @@
   "listing": {
     "id": "body-harvest-recompiled",
     "name": "Body Harvest: Recompiled",
-    "summary": "Use a permitted Body Harvest player and select your own North American cartridge dump on first Play.",
+    "summary": "Select your own North American cartridge dump on first Play. Portcove can manage a separate Windows or Linux x86-64 runtime or launch a copy you prepared.",
     "project_url": "https://github.com/mcsoderh/BodyHarvestRecomp",
     "issue_number": 1448,
-    "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
+    "listed_at": "2026-10-23",
     "availability": "packages",
     "setup_url": "https://github.com/mcsoderh/BodyHarvestRecomp/blob/e90747cd09fd732340443c73ed0657eb9bee0fdf/README.md",
     "artwork": {
@@ -21,30 +21,88 @@
     "original_game_title": "Body Harvest",
     "download_asset_hints": {
       "windows-x86-64": ["BodyHarvestRecompiled-", "-Windows.zip"],
-      "linux-x86-64": ["BodyHarvestRecompiled-", "-Linux-X64.tar.gz"]
+      "linux-x86-64": ["BodyHarvestRecompiled-", "-Linux-X64.tar.gz"],
+      "macos-x86-64": ["BodyHarvestRecompiled-", "-macOS.zip"],
+      "macos-aarch64": ["BodyHarvestRecompiled-", "-macOS.zip"]
     },
     "manual_setup": {
       "steps": [
         {
           "title": "Keep a complete permitted player",
-          "instruction": "On Windows, select BodyHarvestRecompiled.exe in your existing permitted copy; on native Linux x64, select BodyHarvestRecompiled. Keep its complete extracted folder and supplied assets/libraries together as the working directory. macOS uses the upstream application bundle. Linux ARM64 and Flatpak are separate upstream packages and preparation routes; Windows launch details do not apply to them."
-        },
-        {
-          "title": "Select your original game on first Play",
-          "instruction": "Choose Play explicitly, then Load ROM in the player and select your own North American Body Harvest cartridge dump. Upstream accepts .z64, .n64 and .v64 byte orders, checks the game identity and remembers a normalized bh.us.z64 copy. The released player needs no separate compiler or original-game installer."
-        },
-        {
-          "title": "Preserve the actual profile and working copy",
-          "instruction": "You or upstream provide updates. Keep the complete copy and actual profile: normally %LOCALAPPDATA%\\BodyHarvestRecompiled, ~/.config/BodyHarvestRecompiled, or ~/Library/Application Support/BodyHarvestRecompiled. On Windows/native Linux, portable.txt uses the working folder; on macOS the marker and data belong beside the application bundle. Preserve the ROM copy, saves, settings, bindings and mods, including any APP_FOLDER_PATH override. These external files are outside Portcove backup and rollback."
+          "instruction": "On Windows, select BodyHarvestRecompiled.exe in your existing permitted copy; on native Linux x64, select BodyHarvestRecompiled. Keep its complete extracted folder and supplied assets/libraries together as the working directory. macOS uses the upstream application bundle. Linux ARM64 and Flatpak are separate upstream packages and preparation routes; Windows launch details do not apply to them. Choose Play explicitly, then Load ROM in the player and select your own North American Body Harvest cartridge dump. Upstream accepts .z64, .n64 and .v64 byte orders, checks the game identity and remembers a normalized bh.us.z64 copy. The released player needs no separate compiler or original-game installer."
         },
         {
           "title": "Keep Flatpak data with the actual profile",
           "instruction": "For an existing permitted Flatpak installation, follow upstream preparation and preserve the complete ~/.var/app/io.github.bodyharvestrecomp.bodyharvestrecomp folder alongside the actual profile. Its writable app area and normal/custom/portable profile can be different. Keep the working installation until its replacement is ready."
         }
       ],
-      "warnings": [],
-      "help_url": "https://github.com/mcsoderh/BodyHarvestRecomp/blob/e90747cd09fd732340443c73ed0657eb9bee0fdf/README.md"
+      "warnings": [
+        "On Windows/native Linux, portable.txt uses the working folder; on macOS the marker and data belong beside the application bundle. Preserve the ROM copy, saves, settings, bindings and mods, including any APP_FOLDER_PATH override. These external files are outside Portcove backup and rollback.",
+        "Use the complete upstream Mac application with its bundled libraries. The libraries in v1.0.0 target macOS 14 or later on both Mac architectures."
+      ],
+      "help_url": "https://github.com/mcsoderh/BodyHarvestRecomp/blob/e90747cd09fd732340443c73ed0657eb9bee0fdf/README.md",
+      "references": [
+        {
+          "title": "Preserve the actual profile and working copy",
+          "instruction": "You or upstream provide updates to a copy you prepared yourself. Portcove updates its managed Windows or Linux x86-64 runtime. Keep the complete external copy and actual profile: normally %LOCALAPPDATA%\\BodyHarvestRecompiled, ~/.config/BodyHarvestRecompiled, or ~/Library/Application Support/BodyHarvestRecompiled. On Windows/native Linux, portable.txt uses the working folder; on macOS the marker and data belong beside the application bundle. Preserve the ROM copy, saves, settings, bindings and mods, including any APP_FOLDER_PATH override. These external files are outside Portcove backup and rollback."
+        }
+      ]
     },
-    "download_block_reason": "The player links N64Recomp/RecompFrontend at b1a1477c6556aeb7ed45defbfb5924f721efebc1 without an established applicable grant for that separately authored component. Parent MIT/GPL notices and licensed nested libraries do not settle this scope. Keep an existing copy you are permitted to use. Reconsider fresh acquisition with attributable compatible permission or a released replacement of the affected component."
+    "platforms": ["macos-x86-64", "macos-aarch64"]
+  },
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64", "linux-x86-64"],
+    "adapter": "native-portable",
+    "release": {
+      "provider": "github",
+      "repository": "mcsoderh/BodyHarvestRecomp",
+      "asset_hints": {
+        "windows-x86-64": ["BodyHarvestRecompiled-", "-Windows.zip"],
+        "linux-x86-64": ["BodyHarvestRecompiled-", "-Linux-X64.tar.gz"]
+      }
+    },
+    "executable_hints": {
+      "windows-x86-64": ["BodyHarvestRecompiled.exe"],
+      "linux-x86-64": ["BodyHarvestRecompiled"]
+    },
+    "persistent_paths": [],
+    "presentation": {
+      "installation_method": "portable-package",
+      "source_requirements": [],
+      "saves_and_settings": "external-user-owned"
+    },
+    "external_profile_policy": "recomp-direct-v1",
+    "reviewed_package_layouts": {
+      "linux-x86-64": {
+        "directories": ["assets"],
+        "executables": ["bodyharvestrecompiled"]
+      },
+      "windows-x86-64": {
+        "directories": ["assets"],
+        "executables": ["bodyharvestrecompiled.exe"]
+      }
+    }
+  },
+  "route_facts_v1": {
+    "format_version": 1,
+    "prepared_player": {
+      "working_directory": "executable-parent",
+      "arguments": [],
+      "data_locations": [
+        "the actual BodyHarvestRecompiled profile, normally %LOCALAPPDATA%\\BodyHarvestRecompiled on Windows; the working folder for a Windows portable.txt copy; the real custom or platform-specific profile for other copies"
+      ]
+    },
+    "managed_native": {
+      "preparation": {
+        "title": "Set up the managed copy on first Play",
+        "instruction": "Use Load ROM to select your own North American Body Harvest cartridge dump. The player verifies and remembers a private copy in its profile, alongside settings and saves. Back up that profile separately before changing versions."
+      },
+      "warnings": [
+        "Use a separate upstream copy for portable.txt mode, an APP_FOLDER_PATH override, Linux ARM64, Flatpak or macOS. Managed and separately prepared copies can share the default profile.",
+        "The official Linux x86-64 package needs glibc 2.35 and system SDL2, GTK 3, FreeType and GCC runtime libraries."
+      ]
+    }
   }
 }

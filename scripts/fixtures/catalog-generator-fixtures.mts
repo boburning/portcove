@@ -14,6 +14,7 @@ import { tmpdir } from "node:os";
 import type { ArtworkCatalog } from "../inspect-igdb-artwork.mts";
 import { isRecord } from "../runtime-values.mts";
 import { authoringRecordFromPort } from "../catalog-authoring.mts";
+import { readFixtureModuleClosure } from "./module-closure.mts";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 export function requiredFixture<T>(value: T): NonNullable<T> {
@@ -95,36 +96,35 @@ export function run(...args: string[]) {
   return spawnSync(process.execPath, ["scripts/generate-catalog.mts", ...args], {
     cwd: root,
     encoding: "utf8",
-    // Complete historical comparisons exceed Node's default 1 MiB capture.
-    maxBuffer: 4 * 1024 * 1024,
+    // Keep a bounded capture with headroom for the complete historical comparison.
+    maxBuffer: 16 * 1024 * 1024,
   });
 }
 
 export function isolatedGenerator() {
   const scratch = mkdtempSync(join(tmpdir(), "portcove-generator-dispatch-"));
-  mkdirSync(join(scratch, "scripts"));
-  for (const name of [
-    "generate-catalog.mts",
-    "inspect-igdb-artwork.mts",
-    "runtime-values.mts",
-    "catalog-authoring.mts",
-    "upstream-lineage.mts",
-    "catalog-authoring-inspector.mts",
-    "maintainer-config.mts",
-  ])
-    copyFileSync(join(root, "scripts", name), join(scratch, "scripts", name));
-  const inventory = join(scratch, "apps", "desktop", "src", "catalog-values.generated.ts");
-  mkdirSync(dirname(inventory), { recursive: true });
-  copyFileSync(join(root, "apps", "desktop", "src", "catalog-values.generated.ts"), inventory);
+  for (const module of readFixtureModuleClosure(root, ["scripts/generate-catalog.mts"]).modules) {
+    const destination = join(scratch, module.path);
+    mkdirSync(dirname(destination), { recursive: true });
+    writeFileSync(destination, module.bytes);
+  }
   const catalogs = join(scratch, "crates", "portcove-core", "catalog");
   mkdirSync(catalogs, { recursive: true });
+  // The committed aggregate is a generated output. Fixtures edit a scratch copy of it
+  // and explode that into source records; production never reads an aggregate as source.
+  copyFileSync(join(catalogRoot, "catalog.json"), join(catalogs, "catalog-fixture-input.json"));
   for (const name of [
-    "catalog-current-authoring.json",
     "catalog-schema2-migration-fixture.json",
     "catalog-schema1-fixture.json",
     "catalog-legacy-additions-fixture.json",
   ])
     copyFileSync(join(catalogRoot, name), join(catalogs, name));
+  const testdata = join(scratch, "crates", "portcove-core", "src", "testdata");
+  mkdirSync(testdata, { recursive: true });
+  writeFileSync(
+    join(testdata, "retained-prepared-enrollment.json"),
+    '{"format_version":1,"cases":[]}',
+  );
   syncFixtureSource(catalogs);
   return {
     scratch,
@@ -143,7 +143,7 @@ export function isolatedGenerator() {
 
 function syncFixtureSource(catalogs: string) {
   const input = fixtureCatalog(
-    fixtureJson(readFileSync(join(catalogs, "catalog-current-authoring.json"))),
+    fixtureJson(readFileSync(join(catalogs, "catalog-fixture-input.json"))),
   );
   const shared: Record<string, unknown> = structuredClone(input);
   delete shared.ports;
@@ -170,7 +170,7 @@ export function proposalDecoderFixture(
 ) {
   const fixture = isolatedGenerator();
   if (editInput) {
-    const path = join(fixture.catalogs, "catalog-current-authoring.json");
+    const path = join(fixture.catalogs, "catalog-fixture-input.json");
     const input = fixtureCatalog(fixtureJson(readFileSync(path)));
     editInput(input, fixture.catalogs);
     writeFileSync(path, JSON.stringify(input));
@@ -222,9 +222,10 @@ export function proposalDecoderFixture(
       const bytes=readFileSync(args.at(-1));
       const sha256=createHash('sha256').update(bytes).digest('hex');
       const inspection=args.includes('inspect-proposal');
-      appendFileSync(process.env.FIXTURE_PROCESS_LOG,JSON.stringify({artifact,inspection})+'\\n');
+      const repository_authoring=args.includes('--repository-authoring');
+      appendFileSync(process.env.FIXTURE_PROCESS_LOG,JSON.stringify({artifact,inspection,repository_authoring})+'\\n');
       if(++calls===1 && inspection)writeFileSync(process.env.FIXTURE_SELECTED_CLI,'selected file changed after capture');
-      const data=inspection?{format_version:1,input_sha256:sha256,input_bytes:bytes.length,ports:[]}
+      const data=inspection?{format_version:1,input_sha256:sha256,input_bytes:bytes.length,ports:[],scope:repository_authoring?'repository-summary-policy':'runtime-admission'}
         :{selection:{sha256,byte_size:bytes.length,width:1,height:1,format:'jpeg'}};
       return {status:0,signal:null,stdout:JSON.stringify({data}),stderr:''};
     };
@@ -242,7 +243,7 @@ export function proposalDecoderFixture(
       pathToFileURL(preload).href,
       "scripts/generate-catalog.mts",
       mode,
-      join(fixture.catalogs, "catalog-current-authoring.json"),
+      join(fixture.catalogs, "catalog-fixture-input.json"),
       "--validator-cli",
       cli,
       "--output-dir",

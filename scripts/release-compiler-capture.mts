@@ -1,3 +1,4 @@
+import { readReleaseToolDependencies } from "./release-tool-dependencies.mts";
 import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
 import {
@@ -290,15 +291,18 @@ export async function captureReleaseCompiler(root: string, options: CompilerCapt
       ).toString("utf8"),
     );
   };
+  const tauriVersion = readReleaseToolDependencies(root).tauri;
   const cliManifest = path.join(path.dirname(cli), "package.json");
   const cliPackage = await readToolJson(cliManifest);
   if (
     !cliPackage ||
     typeof cliPackage !== "object" ||
     !("version" in cliPackage) ||
-    cliPackage.version !== "2.12.2"
+    cliPackage.version !== tauriVersion ||
+    !("name" in cliPackage) ||
+    cliPackage.name !== "@tauri-apps/cli"
   )
-    throw new Error("compiler requires repository-pinned Tauri CLI 2.12.2");
+    throw new Error("compiler Tauri CLI differs from the prepared checkout lock");
   // Dependency links may resolve to the owned shared dependency tree. Bind actual
   // executable bytes without pretending that this supplies OS isolation.
   if ((await readdir(path.dirname(cli))).some((name) => name.endsWith(".node")))
@@ -314,9 +318,11 @@ export async function captureReleaseCompiler(root: string, options: CompilerCapt
     !nativeManifest ||
     typeof nativeManifest !== "object" ||
     !("version" in nativeManifest) ||
-    nativeManifest.version !== "2.12.2"
+    nativeManifest.version !== tauriVersion ||
+    !("name" in nativeManifest) ||
+    nativeManifest.name !== nativePackage
   )
-    throw new Error("native Tauri binding does not match pinned CLI 2.12.2");
+    throw new Error("native Tauri binding differs from the prepared checkout lock");
   const environment: NodeJS.ProcessEnv = {
     ...releaseCompilerEnvironment(process.env),
     ...prepared.environment,
@@ -428,7 +434,7 @@ export async function captureReleaseCompiler(root: string, options: CompilerCapt
     public_inputs: prepared.receipt,
     input_members: before,
     node: { version: process.version },
-    tauri: { version: "2.12.2", native_package: nativePackage },
+    tauri: { version: tauriVersion, native_package: nativePackage },
     rust_toolchain: toolchain,
     tools: observedTools,
     invocation: {

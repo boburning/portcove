@@ -91,35 +91,42 @@ it.each(["dark", "light"])(
     await expect.element(toggle).toHaveAttribute("aria-pressed", "true");
     expect(document.activeElement).toBe(domToggle);
     expect(saved.get(1)?.has("absent-port")).toBe(true);
-    await userEvent.click(page.getByRole("button", { name: "Favorites (1)", exact: true }));
+    await userEvent.click(page.getByRole("button", { name: "Favorites 1", exact: true }));
     await expect
       .element(page.getByRole("button", { name: "Favorite Two independent port", exact: true }))
       .not.toBeInTheDocument();
     await userEvent.click(page.getByRole("button", { name: "Filters (0)", exact: true }));
-    await openFilterField("Release channels");
+    await openFilterField("Update channels");
     await userEvent.click(page.getByRole("checkbox", { name: "Stable (1)", exact: true }));
     await userEvent.keyboard("{Escape}");
     await userEvent.click(page.getByRole("button", { name: "Done", exact: true }));
     await expect
-      .element(page.getByRole("button", { name: "Remove Stable filter", exact: true }))
+      .element(
+        page.getByRole("button", { name: "Remove Update channels: Stable filter", exact: true }),
+      )
       .toBeVisible();
     await userEvent.click(page.getByRole("button", { name: "Filters (1)", exact: true }));
     await userEvent.click(page.getByRole("button", { name: "Clear filters", exact: true }));
     await userEvent.click(page.getByRole("button", { name: "Done", exact: true }));
     await expect
-      .element(page.getByRole("button", { name: "Remove Stable filter", exact: true }))
+      .element(
+        page.getByRole("button", { name: "Remove Update channels: Stable filter", exact: true }),
+      )
       .not.toBeInTheDocument();
     await expect
-      .element(page.getByRole("button", { name: "Favorites (1)", exact: true }))
+      .element(page.getByRole("button", { name: "Favorites 1", exact: true }))
       .toHaveAttribute("aria-pressed", "true");
     const details = page.getByRole("button").filter({
       has: page.getByRole("heading", { name: "One independent port", exact: true }),
     });
     await expect.element(details).toHaveAccessibleName(/^One independent port/);
-    await expect.element(details).toHaveAccessibleDescription(/Setup/);
+    // Unknown setup stays named as unknown on both the details action and its card.
+    await expect
+      .element(details)
+      .toHaveAccessibleDescription(/Managed setup: Can't check setup right now/);
     await expect
       .element(details.element().closest("article")!)
-      .toHaveAccessibleName(/^One independent port.*Setup/);
+      .toHaveAccessibleName(/^One independent port.*Can't check right now/);
     await userEvent.click(details);
     await userEvent.click(page.getByRole("button", { name: "Back to ports", exact: true }));
     await expect

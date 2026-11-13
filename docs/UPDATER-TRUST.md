@@ -36,6 +36,15 @@ action persists it; discarding changes has no host side effect, and reset return
 the missing-choice state. The Stable explanation promises only a newer eligible
 production release and never a downgrade. Automatic-mode disclosure names staging
 and makes safe exit or an explicit Restart to update action a separate apply boundary.
+When install eligibility is anything other than `eligible` (not configured,
+unavailable, or DEB/RPM package-managed), the Automatic choice is disabled, loses its
+Recommended tag and the mode group is described by one reason: this build can't
+install its own updates. The status panel keeps the per-installation guidance (the
+package source for DEB/RPM, the manual instructions otherwise); the reason does not
+claim that checks work, because a not-configured build cannot check. When Automatic
+is the saved or default draft it is shown as the disabled selection without its mode
+description; Save can still persist it. This is presentation only: choices are not
+rewritten and host preference semantics are unchanged (#5058 ST1).
 
 Starting with the first non-prerelease 1.x build, an installation with a saved
 Preview choice receives one production-channel offer. Use Stable performs a
@@ -610,6 +619,31 @@ assumed to select a newer root automatically. Persist root progression before us
 new authority. Preserve version floors across failed checks, channel changes and
 binary recovery. An interrupted update needs a fresh retry, not a replay reset.
 Deleting trust state is an explicit bootstrap/recovery trust operation.
+
+The production maintainer's explicit `historical-online-expired-v1` renewal
+policy authenticates an immutable served or unserved prior whose online roles
+expired. It requires the verified current public preimage or bounded native
+release lineage, and retains the original financial owner; it grants no client admission or publication authority. Root and pinned
+Targets must remain fresh. Signatures, complete retained history, exact records
+and payload registry, and version floors remain mandatory. The policy cannot
+add or withdraw application records, change offline anchors, or select online
+Targets renewal. New signing contexts and assembled repositories retain normal
+freshness checks and Safe validation. Ordinary renewal and all clients continue
+to reject expired metadata for admission.
+
+Before any non-bootstrap context reaches a signer, the key-free context job
+retains its full bounded file-inventory digest, context and record digests, Root,
+pinned Targets, prior repository, clock, versions and actual producer run/attempt
+in the original financial owner's native release notes. Existing source,
+preparation, registered runs and budget remain exact. A producer may reuse only
+those exact bytes. A fresh budgeted producer advances each online version one
+above the greater of the authenticated prior and retained reserved floors, with
+an actual context-step clock; it cannot reuse an expired first-run clock or
+reset the opportunity. Unuploaded or interrupted reservations remain retained.
+Carried artifacts retain their original context producer identity. These records
+neither authorize keys nor replace authentication and normal output freshness.
+They do not authorize replacing already-staged draft assets or refreshing an
+exact bootstrap appointment; those remain separate recovery boundaries.
 
 Maximum expiry windows are 48 hours for timestamp, seven days for snapshot/channel,
 90 days for release metadata and one year for root/delegation. Renew metadata

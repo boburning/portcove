@@ -2,6 +2,62 @@
 //! provider. Offline checks bind the hashed manifest to its registered artifact.
 use crate::{ArtifactIdentity, Platform, PortDefinition, PortcoveError, Result};
 
+/// Catalog-owned containment for a managed route whose upstream release still
+/// matches its selector but changed reviewed behavior. Ports absent from the
+/// catalog have no hold; their retained definitions keep their own checks.
+pub(crate) fn acquisition_hold<'a>(
+    catalog: &'a crate::Catalog,
+    port_id: &str,
+) -> Option<&'a crate::ManagedAcquisitionHold> {
+    catalog
+        .port(port_id)
+        .ok()?
+        .managed_acquisition_hold
+        .as_ref()
+}
+
+pub(crate) fn acquisition_hold_reason<'a>(
+    catalog: &'a crate::Catalog,
+    port_id: &str,
+) -> Option<&'a str> {
+    acquisition_hold(catalog, port_id).map(|hold| hold.reason.as_str())
+}
+
+/// The routes a catalog acquisition hold withdraws: fresh managed acquisition,
+/// whether a first install or an update. Shared by a library's action table and
+/// library-free target inspection so both report the same offering.
+pub(crate) fn hold_withdraws(action: crate::PortAction) -> bool {
+    matches!(
+        action,
+        crate::PortAction::Install | crate::PortAction::Update
+    )
+}
+
+pub(crate) fn require_acquisition_available(catalog: &crate::Catalog, port_id: &str) -> Result<()> {
+    match acquisition_hold_reason(catalog, port_id) {
+        Some(reason) => Err(PortcoveError::unsupported(reason)),
+        None => Ok(()),
+    }
+}
+
+pub(crate) fn require_managed_activation_available(
+    catalog: &crate::Catalog,
+    install: &crate::InstallRecord,
+) -> Result<()> {
+    let Some(hold) = acquisition_hold(catalog, &install.port_id) else {
+        return Ok(());
+    };
+    if hold.reviewed_artifacts.iter().any(|reviewed| {
+        reviewed.version == install.version
+            && reviewed
+                .sha256
+                .eq_ignore_ascii_case(&install.artifact.sha256)
+    }) {
+        return Ok(());
+    }
+    Err(PortcoveError::unsupported(hold.activation_reason.clone()))
+}
+
 pub(crate) fn requires_provider_resolution(port: &PortDefinition) -> bool {
     port.release.provider == crate::ReleaseSource::Github
         && (port.managed_initialization
@@ -9,7 +65,44 @@ pub(crate) fn requires_provider_resolution(port: &PortDefinition) -> bool {
             || port.managed_shared_preferences
                 == Some(crate::PreparedSharedPreferencesContract::GbRecompiledWindowsV1)
             || port.runtime_data_policy
-                == Some(crate::RuntimeDataPolicy::VersionLocalRetroAchievementsV1))
+                == Some(crate::RuntimeDataPolicy::VersionLocalRetroAchievementsV1)
+            || port.archive_data_compatibility_v1.is_some())
+}
+
+pub(crate) fn requires_provider_resolution_on(port: &PortDefinition, platform: Platform) -> bool {
+    port.release.requires_tar_xz(platform)
+        || crate::release::native_appimage(port, platform).is_some()
+        || requires_provider_resolution(port)
+}
+
+pub(crate) fn require_native_appimage_artifact(
+    port: &PortDefinition,
+    platform: Platform,
+    asset_name: &str,
+) -> Result<()> {
+    if !crate::native_temp::has_sibling_platforms(port)
+        && !matches!(
+            port.external_profile_policy,
+            Some(
+                crate::ExternalProfilePolicy::RecompAppimageV1
+                    | crate::ExternalProfilePolicy::VkquakeLinuxV1
+                    | crate::ExternalProfilePolicy::CorsixthLinuxV1
+                    | crate::ExternalProfilePolicy::OpenlocoUnixV1
+            )
+        )
+    {
+        return Ok(());
+    }
+    let appimage = asset_name.to_ascii_lowercase().ends_with(".appimage");
+    let expected = crate::release::native_appimage(port, platform);
+    if (appimage || expected.is_some())
+        && expected.is_none_or(|selector| !selector.matches(asset_name))
+    {
+        return Err(PortcoveError::verification(
+            "managed AppImage differs from its retained Linux asset declaration",
+        ));
+    }
+    Ok(())
 }
 
 pub(crate) fn validate_release_rules(port: &PortDefinition) -> Result<()> {
@@ -18,29 +111,33 @@ pub(crate) fn validate_release_rules(port: &PortDefinition) -> Result<()> {
         return Ok(());
     }
     if !requires_provider_resolution(port)
-        || port.platforms != [Platform::WindowsX86_64]
+        || (port.platforms != [Platform::WindowsX86_64]
+            && !crate::runtime_path_policy::has_staged_sibling_platforms(port))
         || !crate::definition_acquisition::valid_github_repository(&port.release.repository)
         || !port.release.direct.is_empty()
         || !port.release.curated.is_empty()
         || !port.release.managed_build.is_empty()
         || !port.release.user_prepared.is_empty()
-        || port
-            .release
-            .asset_hints
-            .get(&Platform::WindowsX86_64)
-            .is_none_or(|hints| hints.is_empty() || hints.iter().any(|hint| hint.trim().is_empty()))
+        || port.platforms.iter().any(|platform| {
+            port.release.asset_hints.get(platform).is_none_or(|hints| {
+                hints.is_empty() || hints.iter().any(|hint| hint.trim().is_empty())
+            })
+        })
     {
         return Err(PortcoveError::verification(
-            "runtime policy requires reviewed direct facts or reusable Windows GitHub package rules",
+            "runtime policy requires reviewed direct facts or reusable GitHub package rules for every platform",
         ));
     }
-    validate_executable(port)
+    for &platform in &port.platforms {
+        validate_executable(port, platform)?;
+    }
+    Ok(())
 }
 
-fn validate_executable(port: &PortDefinition) -> Result<()> {
+fn validate_executable(port: &PortDefinition, platform: Platform) -> Result<()> {
     let hints = port
         .executable_hints
-        .get(&Platform::WindowsX86_64)
+        .get(&platform)
         .ok_or_else(|| PortcoveError::verification("runtime policy has no reviewed executable"))?;
     let [executable] = hints.as_slice() else {
         return Err(PortcoveError::verification(
@@ -48,7 +145,7 @@ fn validate_executable(port: &PortDefinition) -> Result<()> {
         ));
     };
     crate::archive::validate_relative_path(executable, false)?;
-    if !executable.to_ascii_lowercase().ends_with(".exe") {
+    if platform == Platform::WindowsX86_64 && !executable.to_ascii_lowercase().ends_with(".exe") {
         return Err(PortcoveError::verification(
             "runtime policy requires a native Windows executable",
         ));
@@ -89,7 +186,7 @@ pub(crate) fn artifact(port: &PortDefinition) -> Result<(&str, ArtifactIdentity)
     let name =
         name.ok_or_else(|| PortcoveError::verification("runtime policy artifact name is missing"))?;
     crate::archive::validate_relative_path(name, false)?;
-    validate_executable(port)?;
+    validate_executable(port, Platform::WindowsX86_64)?;
     Ok((
         &release.version,
         ArtifactIdentity {
@@ -110,15 +207,19 @@ pub(crate) fn require_artifact(
         validate_release_rules(port)?;
         crate::archive::validate_relative_path(&actual.asset_name, false)?;
         let name = actual.asset_name.to_ascii_lowercase();
-        if platform != Some(Platform::WindowsX86_64)
-            || version.trim().is_empty()
+        let hints = platform
+            .filter(|platform| port.platforms.contains(platform))
+            .and_then(|platform| port.release.asset_hints.get(&platform));
+        if version.trim().is_empty()
             || actual.size == 0
             || actual.sha256.len() != 64
             || !actual.sha256.bytes().all(|byte| byte.is_ascii_hexdigit())
             || !name.ends_with(".zip")
-            || port.release.asset_hints[&Platform::WindowsX86_64]
-                .iter()
-                .any(|hint| !name.contains(&hint.to_ascii_lowercase()))
+            || hints.is_none_or(|hints| {
+                hints
+                    .iter()
+                    .any(|hint| !name.contains(&hint.to_ascii_lowercase()))
+            })
         {
             return Err(PortcoveError::verification(
                 "runtime policy artifact does not match its retained package rules",
@@ -145,6 +246,93 @@ pub(crate) fn require_artifact(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn staged_sibling_artifacts_follow_the_retained_platform_rules() {
+        let catalog = crate::Catalog::embedded().unwrap();
+        let port = catalog.port("super-metroid-recomp").unwrap();
+        let artifact = ArtifactIdentity {
+            asset_name: "supermetroid-0.4.4-linux-x64.zip".into(),
+            size: 14_938_225,
+            sha256: "4a7f0116c42460c4b0e9643225a2b27a3ff4d58ad3fd41cce49e59703b5f73a8".into(),
+        };
+        require_artifact(port, "v0.4.4", &artifact, Some(Platform::LinuxX86_64)).unwrap();
+        for platform in [
+            None,
+            Some(Platform::WindowsX86_64),
+            Some(Platform::MacosX86_64),
+            Some(Platform::MacosAarch64),
+        ] {
+            assert!(require_artifact(port, "v0.4.4", &artifact, platform).is_err());
+        }
+        let mut invalid = port.clone();
+        invalid.release.asset_hints.remove(&Platform::MacosAarch64);
+        assert!(validate_release_rules(&invalid).is_err());
+        invalid = port.clone();
+        invalid.archive_data_compatibility_v1 = None;
+        assert!(crate::runtime_path_policy::validate(&invalid).is_err());
+    }
+
+    #[test]
+    fn managed_acquisition_holds_follow_catalog_data_without_port_specific_code() {
+        let embedded = crate::Catalog::embedded().unwrap();
+        let mut document = embedded.authoritative_document();
+        let held = "open-nectar-pikmin";
+        let other = document
+            .ports
+            .iter()
+            .find(|port| port.id != held && port.managed_acquisition_hold.is_none())
+            .unwrap()
+            .id
+            .clone();
+        assert!(require_acquisition_available(&embedded, held).is_err());
+        assert!(require_acquisition_available(&embedded, &other).is_ok());
+
+        let hold = crate::ManagedAcquisitionHold {
+            reason: "held for review".into(),
+            activation_reason: "unreviewed package".into(),
+            reviewed_artifacts: vec![crate::ReviewedHoldArtifact {
+                version: "1.0.0".into(),
+                sha256: "b".repeat(64),
+            }],
+        };
+        for port in &mut document.ports {
+            if port.id == held {
+                port.managed_acquisition_hold = None;
+            } else if port.id == other {
+                port.managed_acquisition_hold = Some(hold.clone());
+            }
+        }
+        let changed =
+            crate::Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap();
+        assert!(require_acquisition_available(&changed, held).is_ok());
+        let refusal = require_acquisition_available(&changed, &other).unwrap_err();
+        assert_eq!(refusal.code, crate::ErrorCode::Unsupported);
+        assert!(require_acquisition_available(&changed, "not-in-catalog").is_ok());
+
+        let mut install = crate::InstallRecord {
+            id: "staged".into(),
+            port_id: other.clone(),
+            version: "1.0.0".into(),
+            path: std::path::PathBuf::from("staged"),
+            channel: crate::ReleaseChannel::Stable,
+            installed_at: 1,
+            verified: true,
+            staged: true,
+            artifact: crate::ArtifactIdentity {
+                asset_name: "port.zip".into(),
+                sha256: "B".repeat(64),
+                size: 1,
+            },
+            manifest_sha256: "a".repeat(64),
+            selected_executable: "port.exe".into(),
+            runtime: None,
+        };
+        assert!(require_managed_activation_available(&changed, &install).is_ok());
+        install.version = "1.0.1".into();
+        let refusal = require_managed_activation_available(&changed, &install).unwrap_err();
+        assert!(refusal.message.contains("unreviewed package"));
+    }
 
     const PORTS: [&str; 3] = [
         "the-force-engine-dark-forces",

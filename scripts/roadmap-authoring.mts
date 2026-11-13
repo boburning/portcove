@@ -1,12 +1,10 @@
 import { readFileSync } from "node:fs";
-import {
-  RoadmapClient,
-  validateConfig,
-  validateDurableIssueBody,
-  qualificationCatalogObservation,
-} from "./roadmap.mts";
-import type { RoadmapConfig, QualificationCatalogObservation } from "./roadmap.mts";
+import { RoadmapClient, validateConfig } from "./roadmap.mts";
+import type { RoadmapConfig } from "./roadmap.mts";
+import { validateDurableIssueBody } from "./roadmap-issue.mts";
 import type { RoadmapIssueItem } from "./roadmap-issue.mts";
+import { qualificationCatalogObservation } from "./roadmap-qualification.mts";
+import type { QualificationCatalogObservation } from "./roadmap-qualification.mts";
 import { evaluateScopedRoadmap, scopedIssueWithBlockers } from "./roadmap-scoped.mts";
 
 export function isRoadmapSpecification(issue: RoadmapIssueItem) {
@@ -25,6 +23,16 @@ function canonicalMarkers(body: string) {
     .sort();
 }
 
+export function validateRoadmapBodyChange(previousBody: string, body: string) {
+  const before = canonicalMarkers(previousBody);
+  const after = canonicalMarkers(body);
+  if (JSON.stringify(before) !== JSON.stringify(after))
+    throw new Error(
+      "Replacement changed or removed canonical identity markers; use the explicit normalization route for identity changes",
+    );
+  validateDurableIssueBody(body);
+}
+
 /** The same selected-record planning rules as doctor; never claims global uniqueness. */
 export function validateRoadmapReplacement(
   config: RoadmapConfig,
@@ -35,13 +43,7 @@ export function validateRoadmapReplacement(
 ) {
   if ((item.content?.body ?? item.body ?? "") !== previousBody)
     throw new Error("Roadmap body changed; refresh the issue and Project preimage");
-  const before = canonicalMarkers(previousBody);
-  const after = canonicalMarkers(body);
-  if (JSON.stringify(before) !== JSON.stringify(after))
-    throw new Error(
-      "Replacement changed or removed canonical identity markers; use the explicit normalization route for identity changes",
-    );
-  validateDurableIssueBody(body);
+  validateRoadmapBodyChange(previousBody, body);
   const proposed = {
     ...item,
     body,
@@ -50,7 +52,7 @@ export function validateRoadmapReplacement(
   evaluateScopedRoadmap(config, catalog, [proposed]);
 }
 
-export function validateLiveRoadmapReplacement(
+export async function validateLiveRoadmapReplacement(
   number: number,
   previousBody: string,
   body: string,
@@ -59,10 +61,20 @@ export function validateLiveRoadmapReplacement(
   const config = validateConfig(
     JSON.parse(readFileSync(new URL("../.github/roadmap.json", import.meta.url), "utf8")),
   );
-  const client = sharedClient ?? new RoadmapClient(config);
+  let client = sharedClient;
+  if (!client) {
+    const { localDeveloperCredential } = await import("./github-cli.mts");
+    const deadline = performance.now() + 120_000;
+    client = await RoadmapClient.connect(config, {
+      credential: localDeveloperCredential({ deadline, command: process.env.PORTCOVE_ROADMAP_GH }),
+      deadline,
+      failedReads: new Map(),
+      deferral: { primary: new Map(), secondary: 0 },
+    });
+  }
   if (JSON.stringify(client.config) !== JSON.stringify(config))
     throw new Error("Roadmap replacement client configuration differs");
-  const observed = client.executionIssue(number);
+  const observed = await client.executionIssue(number);
   const item = scopedIssueWithBlockers(observed.item, observed.relationships.blockedBy);
   const catalog = qualificationCatalogObservation(
     JSON.parse(

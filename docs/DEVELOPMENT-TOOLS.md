@@ -1,5 +1,63 @@
 # Development tools
 
+Start with [Frontend workflow](#frontend-workflow) for pinned tools and focused
+checks, [Warm single-session workflow](#warm-single-session-workflow) for pickup,
+and [Shared local resources](#shared-local-resources) before heavyweight work.
+[Quality](QUALITY.md#required-hosted-baseline) owns required validation and review;
+the detailed recipes and retained observations below do not add merge gates.
+
+## Dependency patches
+
+- **Tauri event registration.** The `@tauri-apps/api@2.12.4` patch releases the
+  callback allocated by a rejected `listen()` and rethrows the original error.
+  Both published entrypoints at 2.12.4 retain the refused handler.
+  `desktop-events.test.ts` uses the actual API with an emulated transport and
+  checks successful registration and unlisten alongside a refused registration.
+  Remove the patch when the selected upstream ESM and CommonJS entrypoints
+  pass the cleanup and live-listener controls. The existing native
+  rejected-registration and late-disposal scenarios exercise the WebView lifetime.
+  [Published API 2.12.4](https://www.npmjs.com/package/@tauri-apps/api/v/2.12.4)
+- **Localization lint.** The patch applies to `i18next-cli@>=1.82.4 <2` and
+  makes both primary-translation loaders try the configured string
+  `extract.defaultNS` before their existing namespace fallbacks. Unset and false
+  defaults use the original fallbacks. The workspace pins 1.85.0. Published
+  1.87.0 still misses Portcove's `settings.json` and accepts a missing nested
+  interpolation argument. The patched CLI rejects that fixture and accepts the
+  provided argument. A changed patch context or out-of-range version fails
+  installation. Remove the patch when the selected upstream CLI handles the
+  configured namespace and passes the existing nested missing/provided controls and
+  placeholder checks in `check-i18n-negative-fixture.mts`.
+  [Published CLI 1.87.0](https://www.npmjs.com/package/i18next-cli/v/1.87.0)
+- **Signing transport.** The `@sigstore/sign@5.1.0` patch routes signing
+  requests through the explicitly scoped Portcove transport. Published 5.1.0
+  owns its HTTP client and retry loop. The existing signing tests exercise scope
+  isolation, refusal outside a scope, bounded response handling and ordered
+  signing calls. Remove the patch when a supported SDK hook can carry that
+  transport for all signing requests while preserving refusal of ambient HTTP
+  and retry fallback. The regressions are in
+  `release-coordinator-checkpoint-signing.test.mts`.
+  [Published signing SDK 5.1.0](https://www.npmjs.com/package/@sigstore/sign/v/5.1.0)
+- **GTK dialog formatting.** Desktop's `tauri-plugin-dialog@2.8.4` requires RFD
+  `^0.17`. The vendored RFD 0.17.2 backports the literal GTK secondary-text
+  format fix published in RFD 0.18.0. The provenance contract checks the
+  publisher's files and the targeted change. The package rehearsal exercises
+  the actual GTK constructor. Check compatibility through the existing
+  dependency review when a fixed RFD 0.17 release appears or a supported dialog
+  release admits a fixed RFD version. Remove the vendor tree, source patch and
+  qualification inputs together after that graph passes the GTK and native
+  open/save/cancel/overwrite checks. [RFD release](https://github.com/PolyMeilex/rfd/releases/tag/0.18.0)
+  · [Backport qualification](https://github.com/boburning/portcove/pull/3948)
+  · [Dependency workflow](https://github.com/boburning/portcove/issues/1372)
+
+The narrow glob 13.0.6 and minimatch 10.2.6 security overrides remain in policy.
+The pinned Renovate 44.156.3 tooling client still declares those versions.
+The localization CLI consumes glob 14 and minimatch 11 directly. Validate the
+applicable overrides in each generated tooling-client graph.
+
+Root pnpm `patches/*.patch` changes, including removal, select the complete UI
+suite. Their bytes also invalidate format, UI and release evidence fingerprints.
+Unrelated files in that directory remain subject to unknown-input refusal.
+
 ## Verification input and execution identities
 
 `native-rejected-listener-registration` is a standalone Windows qualification
@@ -10,16 +68,6 @@ rejected handler and invoke callbacks settle, degraded live-update guidance and
 read-only refresh remain usable, and a genuine library-generation remount obtains
 a fresh listener without repeating preparation. This controlled invalid-input
 case does not establish natural transport loss or Linux listener qualification.
-
-The version-bound `@tauri-apps/api@2.12.4` patch releases only the callback allocated
-by a rejected `listen()` call and rethrows its original error. ESM and CommonJS
-entrypoints carry the same patch; successful registration and native unlisten
-retain upstream behavior. The maintained adapter regression uses the actual API
-package with an emulated transport. Review the patch and regression when updating
-that dependency; remove the patch only after equivalent upstream cleanup is proven.
-Root pnpm `patches/*.patch` changes, including removal, select the complete UI
-suite. Their bytes also invalidate format, UI and release evidence fingerprints; unrelated
-files in that directory remain subject to unknown-input refusal.
 
 The Windows/Linux native CLI wrapper captures declared inputs before importing
 the harness. Supported standalone products and cached drivers execute retained
@@ -142,6 +190,10 @@ current delivery observation. Optional hashed review/acceptance/watcher referenc
 are described in [contribution conventions](CONTRIBUTION-CONVENTIONS.md#review-and-merge).
 Missing or stale references stay unknown; the inspector performs no remote writes
 and establishes no new gate or approval authority.
+A current watcher reference lets inspection resolve checks against the same
+complete job lineage as the watcher. While a selective retry is active, an
+older failed check can wait for its replacement within the existing deadline.
+Current-attempt failures and failures on a terminal run remain actionable.
 
 Use one `just pr-watch` per source/run/attempt/deadline binding. Opt into
 `--progress` for change-only workflow/check observations on stderr while final
@@ -172,11 +224,43 @@ Use an available supported route under existing authorization. Report a missing
 operation precisely; tool names alone do not prove permission to execute it.
 
 The connector's REST surface may omit closing-issue relationships or Project
-fields. Use complete GraphQL coverage when available, or a direct GitHub UI
-observation paired with bracketing raw PR reads for the closing inventory.
-Issue bodies and REST issue reads cannot establish live Project fields. An
-unavailable or partial inventory remains unknown, with the exact missing
-observation recorded; do not silently substitute an empty array.
+fields. Use complete GraphQL coverage when available. Without GraphQL, the
+closing inventory can be reconstructed over REST. Its relationships are the
+closing keywords in the PR body; a keyword followed by any other reference-like
+text (markup, `GH-` shorthand, another URL form, a zero-padded number) refuses.
+The complete PR issue timeline
+(`GET /repos/{owner}/{repo}/issues/{n}/timeline?per_page=100&page=N`) must
+contain the head's `committed` event and no `connected` or `disconnected`
+event, because REST does not identify a manual Development link's counterpart.
+Completeness needs both the page sizes and the `Link` header: every page but the
+last is full and links the next, and the last is short and links none. Any such event, an unbound or partial timeline, or a PR
+change between the bracketing reads leaves the inventory unknown; use GraphQL or
+a direct GitHub UI observation paired with bracketing raw PR reads instead. The
+live merge helper falls back to this reconstruction only when GraphQL answers
+HTTP 403, including an exhausted rate limit; integrity failures and other
+errors never fall back. GitHub documents `connected` on pull request timelines,
+but not for a link from an issue in a repository the reader cannot see, so the
+reconstruction also requires the latest `closing-inventory` check run on the
+exact head (`GET /repos/{owner}/{repo}/commits/{head}/check-runs?check_name=closing-inventory&filter=all&per_page=100`)
+to have succeeded, from the GitHub Actions app, in a completed
+`pull_request_target` run of `.github/workflows/closing-inventory.yml` whose
+`pull_requests` lists exactly this pull request
+(`GET /repos/{owner}/{repo}/actions/runs?check_suite_id={suite}&per_page=1`);
+fork pull requests list none and refuse;
+see the [closure contract](CONTRIBUTION-CONVENTIONS.md#review-and-merge). Issue bodies and REST issue reads cannot
+establish live Project fields. An unavailable or partial inventory remains
+unknown, with the exact missing observation recorded; do not silently
+substitute an empty array.
+
+GitHub may link later REST pages through `/repositories/{id}/…` instead of
+`/repos/{owner}/{repo}/…`, for example check runs with `filter=all` beyond one
+100-result page. The delivery helper follows such a `Link` only after binding
+`{id}` from an authenticated `GET /repos/{owner}/{repo}` whose `full_name` is
+this repository, never from the `Link` itself. It then requests the same page,
+query unchanged, through `/repos/{owner}/{repo}/…`, because some proxies refuse
+numeric-id repository paths. A different id is refused as outside the admitted
+scope. The closing-inventory timeline reads take only the
+page number from `Link`, so they keep requesting the `/repos/` route.
 
 The existing delivery command has two offline operations for connector callers:
 
@@ -220,16 +304,16 @@ raw observations in one existing sixty-second window; validation also refuses
 evidence older than that window. Retain complete provider payloads rather than
 inventing success summaries.
 
-| Field                             | Required observation                                                                                                                                                                                                                                                        |
-| --------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `pull_before`, `pull_after`       | Raw PR reads bracketing collection, with stable source, target ref, state, preview, title, body and commit count.                                                                                                                                                           |
-| `target_before`, `target_after`   | Raw target-branch reads. Preparation matches the independently expected target; readback matches the actual merged commit. The PR's historical `base.sha` is not the live branch tip.                                                                                       |
-| `closing_before`, `closing_after` | Each supplies `observed_at`, `method` (`graphql` or `direct-ui-with-bracketing-rest`), `complete: true`, `number`, `head`, `title`, `body`, `total_count`, and unique `owner/repository#number` relationships. Both must match the raw PR and each other.                   |
-| `run_before`, `run_after`         | Preparation only: raw terminal workflow reads matching source, run, attempt and repository throughout collection.                                                                                                                                                           |
-| `preview`                         | Preparation only: raw provider Git commit object. Normally its parents/tree must match the current target/source and reviewed composition. A historical target is accepted only with actual local composition verification. This does not establish the actual CI checkout. |
-| `checks`, `statuses`, `jobs`      | Preparation only: complete unique-ID inventories with provider `total_count` and `check_runs`, `statuses`, or `jobs`; combined status also retains its `sha`. Collect every page and use the all-attempt job inventory for legitimate selective retry lineage.              |
-| `commits`                         | Preparation only: complete ordered candidate commit objects, preserving each full message and ending at the expected source.                                                                                                                                                |
-| `prepared`, `actual_commit`       | Readback only: the retained preparation output and the raw merged Git commit object. Parent, tree, message, PR and closing inventory must match the independently supplied expectations.                                                                                    |
+| Field                             | Required observation                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `pull_before`, `pull_after`       | Raw PR reads bracketing collection, with stable source, target ref, state, preview, title, body and commit count.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| `target_before`, `target_after`   | Raw target-branch reads. Preparation matches the independently expected target; readback matches the actual merged commit. The PR's historical `base.sha` is not the live branch tip.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| `closing_before`, `closing_after` | Each supplies `observed_at`, `method` (`graphql`, `direct-ui-with-bracketing-rest` or `rest-timeline`), `complete: true`, `number`, `head`, `title`, `body`, `total_count`, and unique `owner/repository#number` relationships. Both must match the raw PR and each other. `rest-timeline` also supplies `timeline_pages`: one `{ url, link, events }` per page, holding the exact `per_page=100&page=N` request URL, the raw `Link` header (or `null`) and the raw events. The helper derives the relationships from them and the body and refuses any difference. It also supplies `inventory_checks` and `inventory_runs`, the raw responses of the two `closing-inventory` reads above. |
+| `run_before`, `run_after`         | Preparation only: raw terminal workflow reads matching source, run, attempt and repository throughout collection.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| `preview`                         | Preparation only: raw provider Git commit object. Normally its parents/tree must match the current target/source and reviewed composition. A historical target is accepted only with actual local composition verification. This does not establish the actual CI checkout.                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| `checks`, `statuses`, `jobs`      | Preparation only: complete unique-ID inventories with provider `total_count` and `check_runs`, `statuses`, or `jobs`; combined status also retains its `sha`. Collect every page and use the all-attempt job inventory for legitimate selective retry lineage.                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| `commits`                         | Preparation only: complete ordered candidate commit objects, preserving each full message and ending at the expected source.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| `prepared`, `actual_commit`       | Readback only: the retained preparation output and the raw merged Git commit object. Parent, tree, message, PR and closing inventory must match the independently supplied expectations.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 
 Confirm actual independent review, owning acceptance, current repository rules,
 the authoritative CI workflow/path/event, and the tested CI checkout separately.
@@ -244,7 +328,13 @@ checked squash message. Source/target/body drift requires fresh reconciliation.
 There is no provider atomic precondition for closing relationships or target tip.
 
 After any merge response, including an error, collect fresh readback before
-considering another mutation. `verify-merge` requires the actual single-parent
+considering another mutation. GitHub clears a workflow run's `pull_requests` once
+the pull request merges, so preparation records the `closing-inventory` check
+suite it validated (`closing_inventory_suite`). A merged readback accepts that
+run's empty `pull_requests` only for that exact suite; any other run, a
+preparation without it (including GraphQL or direct-UI preparations, which
+record none, so their readback also uses GraphQL), or an unmerged pull request
+still refuses. `verify-merge` requires the actual single-parent
 squash, expected tree/message, merged PR, target branch and unchanged closing
 inventory. A failed or unavailable readback remains an unknown outcome: inspect
 the remote state and reconcile it without automatic retry or local cleanup.
@@ -350,20 +440,29 @@ tooling; and `apps/desktop/public` checks the raw theme bootstrap. Keep new file
 inside the appropriate includes and verify them through `pnpm check` (the
 existing Vite+ static workflow).
 
-CI keeps the complete validation plan and digest as workflow outputs. Child
+CI keeps the exact validation plan in an attempt-specific artifact and publishes
+its digest and compressed form as workflow outputs. The redundant uncompressed
+job output is omitted to stay within GitHub’s 1 MiB UTF-16 output quota. Child
 processes receive the same plan through `PORTCOVE_PLAN_GZIP_BASE64`, bounded to
-64 KiB before environment propagation and 1 MiB after inflation. This avoids
-Linux's per-environment-string execution limit on repository-wide changes.
+96 KiB before environment propagation and 1 MiB after inflation. The transport
+leaves 32 KiB below Linux’s per-string execution limit, including the variable
+name. This accommodates catalog-wide changes without oversized environment
+strings.
 Consumers still validate the plan, digest and source bindings; compression is
 only transport. Local legacy `PORTCOVE_PLAN_JSON` input remains supported, while
 ambiguous transports, corrupt data and excessive inflation are rejected.
 
+Stylelint 18 loads the typed configuration directly through Node's native type
+stripping. `lint:style` selects `scripts/stylelint-config.mts` explicitly and then
+checks semantic-color, important-declaration, gradient and invalid-value refusal
+controls with the same configuration. The recommended selector/value rules stay
+enabled; no JavaScript configuration bridge is needed.
+
 The compatibility inventory is exactly:
 
-| File                                     | Consumer requirement                                                                                                                      | Checking and validation                                                                           |
-| ---------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
-| `apps/desktop/public/theme-bootstrap.js` | Static HTML loads this public script before the application; Vite copies public files without transforming TypeScript.                    | Its public-directory project enables `checkJs`; theme bootstrap tests exercise the actual script. |
-| `apps/desktop/stylelint.config.mjs`      | Installed Cosmiconfig 9 rejects `.mts` configuration files. This one-line bridge loads the TypeScript implementation through native Node. | Root `checkJs`, the typed Stylelint configuration and actual `lint:style` execution.              |
+| File                                     | Consumer requirement                                                                                                   | Checking and validation                                                                           |
+| ---------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| `apps/desktop/public/theme-bootstrap.js` | Static HTML loads this public script before the application; Vite copies public files without transforming TypeScript. | Its public-directory project enables `checkJs`; theme bootstrap tests exercise the actual script. |
 
 The existing CI workflow contract checks this exact tracked JavaScript inventory.
 An additional compatibility file requires a concrete consumer reason and an
@@ -434,22 +533,56 @@ pnpm build
 
 Choose test commands by their runner and evidence scope:
 
-| Command                                           | Runner and evidence                                                                                                                                                            |
-| ------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `pnpm test`                                       | Vite+ `unit` project in Node; frontend logic and pure tooling tests.                                                                                                           |
-| `pnpm test:browser`                               | Vite+ `browser`, `browser-locale` and `browser-forced-colors` projects in headless Chromium; real DOM interactions and browser fixtures. Requires the browser bootstrap above. |
-| `just test-ui <literal-test-file> ...`            | Exact maintained unit/browser files; reconciles every requested file with actual execution.                                                                                    |
-| `just test-ui-related <literal-source-file> ...`  | Import-related unit/browser tests; an empty related selection falls back to the maintained frontend projects.                                                                  |
-| `pnpm test:native-tools`                          | Node compiler/shell integration tests; Rust probe and platform shell prerequisites apply.                                                                                      |
-| `pnpm exec vp test`                               | All four frontend projects: Node unit, Chromium browser, French/Auckland locale contracts and forced colors.                                                                   |
-| `just desktop-verify --list-scenarios` / `--plan` | Native harness inventory or execution plan; does not build or launch the app.                                                                                                  |
-| `just desktop-verify --scenario <id>`             | Runs the selected scenario in the native Tauri/WebView harness with its declared fixture and observations.                                                                     |
+| Command                                              | Runner and evidence                                                                                                                                                            |
+| ---------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `pnpm test`                                          | Vite+ `unit` project in Node; frontend logic and pure tooling tests.                                                                                                           |
+| `pnpm test:browser`                                  | Vite+ `browser`, `browser-locale` and `browser-forced-colors` projects in headless Chromium; real DOM interactions and browser fixtures. Requires the browser bootstrap above. |
+| `just test-ui <literal-test-file> ...`               | Exact maintained unit/browser files; reconciles every requested file with actual execution.                                                                                    |
+| `just test-ui-related <literal-source-file> ...`     | Import-related unit/browser tests; an empty related selection falls back to the maintained frontend projects.                                                                  |
+| `just test-ui --last-failed [literal-test-file ...]` | Developer feedback: replay complete files with recent known failures, or the full requested scope when history is unavailable. Omit files to consider all four projects.       |
+| `pnpm test:native-tools`                             | Node compiler/shell integration tests; Rust probe and platform shell prerequisites apply.                                                                                      |
+| `pnpm exec vp test`                                  | All four frontend projects: Node unit, Chromium browser, French/Auckland locale contracts and forced colors.                                                                   |
+| `just desktop-verify --list-scenarios` / `--plan`    | Native harness inventory or execution plan; does not build or launch the app.                                                                                                  |
+| `just desktop-verify --scenario <id>`                | Runs the selected scenario in the native Tauri/WebView harness with its declared fixture and observations.                                                                     |
 
 `pnpm test` covers only the unit project. Browser fixtures, compiler/shell
 contracts and native scenario observations each establish their stated scope;
 they do not establish installed-package, physical-device or human acceptance.
 Native scenarios can use inert fixtures; inspect the selected scenario's plan.
 The [native smoke workflow](#native-desktop-smoke-tests) describes that harness.
+
+Failed-file feedback uses Vitest 5.1's native results cache through its public
+API, rather than the raw `--last-failed` flag's cached test-name filter. Replaying
+the whole file includes renamed cases. Missing, incompatible, incomplete or older
+than six-hour records select the full requested scope; checkout/commit and
+configuration changes also invalidate older history. Added or moved tests have
+no record and force that fallback. Deleted tests are excluded by current discovery;
+an empty failure selection falls back to full execution. Cache paths must remain
+physically inside this checkout, and the resource wrapper serializes participating
+writers in one worktree. Other worktrees retain their own dependency/cache roots.
+No additional test-history files or per-iteration cache namespaces are created.
+The native cache is disposable with `pnpm exec vp test --clearCache`; run this
+only after this worktree's runners stop. Failed-file feedback is rejected in CI
+and coverage collection. Use ordinary `pnpm test`, `pnpm test:browser` and the
+complete-diff validation plan for acceptance.
+
+Vitest 5.1 also supports `--since-last-run` (`--sinceLastRun` in native CLI help),
+but its modification-time selection misses backdated checkouts/copies and new
+resources not loaded by the preceding run. Portcove does not enable it. Use
+`just test-ui-related <changed-source-file> ...` for iterative import-related
+feedback, exact files for closed selections, and full tests for shared/unknown
+impact. The [1.5 evaluation](qualification/viteplus-1.5-2026-11-04.md) records
+the release investigation, comparisons and deliberate deferrals.
+
+Browser projects retain request interception: the 1.5 comparison found slower
+warm runs with experimental import-map mocking. To investigate import maps with
+the pinned Chromium runtime, prefix the usual command with
+`PORTCOVE_BROWSER_IMPORT_MAP_MOCKS=1` on Linux/macOS, or set
+`$env:PORTCOVE_BROWSER_IMPORT_MAP_MOCKS = '1'` in PowerShell. Unset it (or use
+`0`) to restore interception. Browser API ports and Vite test-server ports are allocated by the
+OS; Tauri's development server retains port 1420. Upstream failure-only trace
+timelines complement the existing retained Playwright traces, screenshots and
+bounded case/run observations, including individual retry/repeat outcomes.
 
 Preview affected work, then choose literal files for focused feedback:
 
@@ -475,6 +608,14 @@ execute tests; they have no plan/list mode. Current shared test configuration is
 Selectors retain the deleted `apps/desktop/vitest.config.ts` and
 `apps/desktop/vitest.browser.config.ts` names for historical comparisons and both
 rename sides, so those changes still select full frontend tests and a build.
+
+For an exact browser timing assertion, dispatch the timed DOM events in the
+browser and advance the fake clock explicitly. Vitest Browser Mode advances
+fake timers while Playwright actions such as hover are pending, so an awaited
+hover can consume part of the interval being measured. The tooltip fixture
+parks the real pointer before mounting the triggers, then checks the 399 ms,
+400 ms, and adjacent-hover boundaries with controlled events. Run that fixture
+with `just test-ui src/browser/composition-feedback.browser.test.tsx`.
 
 For an opt-in ordering diagnostic, run a small literal family with an explicit
 unsigned 32-bit decimal seed:
@@ -551,6 +692,32 @@ Suite records retain nested hook failures; module records retain collection
 failures separately. A run context reports
 invalid/omitted diagnostics and unhandled errors. Diagnostics cannot replace the
 runner's original failure or exit.
+
+For a failed hosted frontend job, retain the complete log and inspect a compact
+excerpt before opening individual traces. With the run ID in `RUN_ID` and the
+failed producer job ID in `JOB_ID`, run this command from the repository root.
+
+```sh
+mkdir -p work
+log="work/frontend-${RUN_ID}-${JOB_ID}.log"
+gh run view "$RUN_ID" --job "$JOB_ID" --log > "$log" &&
+  jq -nRc '
+    def clip($n): (strings | .[:$n]) // "";
+    "Frontend test case observation: " as $marker
+    | limit(20; inputs
+      | index($marker) as $start
+      | select($start != null)
+      | .[($start + ($marker | length)):] | fromjson? | objects
+      | select(.outcome == "failed")
+      | {kind: (.kind | clip(16)), file: (.file | clip(160)), name: (.name | clip(160)),
+         message: ((.errors | arrays | .[0] | objects | .message) // "" | clip(240))})
+  ' "$log"
+```
+
+The excerpt shows up to 20 failed records and shortens displayed fields. If it
+is empty or lacks the cause, inspect the failing step, invocation context, and
+retained trace in the original evidence. Setup and collection can fail before
+a case record is emitted.
 
 Each invocation owns a fresh UUID; UUID plus observation index identifies a row.
 Definition hashes use project, repository-relative file, location and full name;
@@ -672,6 +839,9 @@ project-owned `.vite-hooks/pre-commit` checks staged whitespace, Node test
 registration and affected indexed catalog coherence, then runs
 `vp staged`. Its standard `vp check --fix` workflow formats, lints and stages
 safe fixes while lint-staged's backup and partial-staging isolation remain on.
+When any staged path ends in `.rs`, it also runs one read-only
+`cargo fmt --all -- --check` through the storage wrapper and refuses the commit,
+without rewriting files, until `cargo fmt --all` is run.
 Review the resulting diff before committing. Required CI and separate review
 remain independent gates.
 
@@ -687,6 +857,11 @@ shared source tables, generated projections and independent compatibility fixtur
 from the Git index. It shares the generator's authoring projection and
 independent compatibility expectations, preserves partial staging, and never
 regenerates or stages files. Unrelated commits skip this optional local check.
+`node scripts/catalog-staged-check.mts --resolve-conflicts` is the separate,
+explicit repair for merge or rebase conflicts in generated catalog aggregates: when
+only generated aggregates are unmerged it runs `generate-catalog.mts` and stages
+every generated output, and it refuses, changing nothing, while an authored source
+or any other path is still conflicted or if regeneration fails.
 
 Existing foreign hook managers are preserved by the installer. To replace an
 old Portcove Husky hook, inspect `git config --show-origin --get core.hooksPath`,
@@ -728,18 +903,42 @@ Complete each proposal through the existing Codex issue/PR delivery process:
    Existing Vite+ projects take the upstream version-only migration, not --full.
    Inspect every manifest, catalog, alias and override. Match the directly consumed
    browser provider to the target's bundled Vitest; verify every upgrade even when
-   the migrator updates it automatically.
+   the migrator updates it automatically. Coordinate the trusted Pack identity
+   in `scripts/release-controller-tools.mts`. Run the fixed controller Pack
+   identity test before publishing the upgrade.
 
-4. Preserve the 1440-minute/non-strict pnpm policy. Remove migrator-added
-   minimumReleaseAgeExclude entries for the bundle: non-strict resolution already
-   supports an explicit selection. Preserve allowBuilds restrictions and worktree
-   hook/signing adapters. Frozen-install, inspect `pnpm exec vp toolchain`, then
-   run checks, units/browser tests, build, affected cache/portability checks and
-   invalidated native acceptance.
+   `node --test --test-name-pattern="fixed controller Pack identity" scripts/release-controller-tools.test.mts`
+
+   Qualify the existing public controller tool build fixtures on Linux and
+   Windows. The builder, manifest producer and validator require that exact
+   identity.
+
+4. Preserve the 1440-minute/non-strict pnpm policy and remove migrator-added
+   `minimumReleaseAgeExclude` entries for the bundle. Preserve allowBuilds
+   restrictions and worktree hook/signing adapters. Run
+   `pnpm install --frozen-lockfile` against the final manifests and lockfile and
+   record its successful exit before publishing the candidate. If pnpm's
+   frozen-install policy rejects a release that is still too young, record the
+   release-age wait and defer the push until the package is eligible and the
+   same command passes. Inspect `pnpm exec vp toolchain`, then run checks,
+   units/browser tests, build, affected cache/portability checks and invalidated
+   native acceptance.
 5. Commit the coherent result in that worktree. Integrate it into the owned
-   proposal branch through normal Git merge and explicit conflict review; retain
-   the verified complete manifest/lock result. Obtain separate non-writing review,
-   complete exact-head CI, guarded merge and remote readback.
+   proposal branch through normal Git merge and explicit conflict review, keeping
+   the verified complete manifest/lock result. Before the first upgrade push,
+   run the hosted selector `node scripts/select-ci-plan.mts` locally with the
+   candidate's full committed diff. Use `GITHUB_EVENT_NAME=pull_request`,
+   `PORTCOVE_BASE_SHA` set to the reviewed target, `PORTCOVE_HEAD_SHA` set to the
+   candidate, and `GITHUB_SHA` set to the candidate if it already includes the
+   target or to the locally composed merge commit. Set
+   `PORTCOVE_FAST_VALIDATION_ACTIVATED=true` and
+   `PORTCOVE_PROSE_POLICY_ACTIVATED=true` as in the ordinary PR workflow.
+   Create `work/ci-plan` and set `GITHUB_OUTPUT` to an absolute file path there
+   to capture the selector's workflow outputs. Check
+   `work/ci-plan/validation-plan.json` for the expected obligations across the
+   full diff, including changes brought in from the proposal branch. Obtain
+   separate non-writing review, complete required CI on the published head, then
+   perform the guarded merge and remote readback.
 
 Repository postUpgradeTasks are not used: arbitrary commands are blocked by
 Renovate's default hosting policy, and no administrator allowedCommands support
@@ -781,16 +980,23 @@ Ordinary Windows CI compiles the workspace targets once, inventories the selecte
 tests, and transfers a pinned nextest archive to one through eight workers.
 `scripts/windows-rust-tests.mts` balances the current test identities using bounded
 historical timing hints from `.config/rust-test-timing-hints.json`; hints affect
-scheduling only. The independently discovered current inventory owns coverage,
+scheduling only. Refresh them by dispatching the `Refresh Rust timing hints` workflow with a recent
+hosted CI run ID: it downloads that run's `runtime-diagnostics-windows-*` artifacts and
+uploads the regenerated file as the `rust-test-timing-hints` artifact (read-only; commit
+it through the ordinary pull request route). The same generator runs locally with
+`node scripts/rust-timing-hints.mts generate <junit.xml>...`; `summary --timeout SECONDS`
+lists tests near a timeout, and CI prints that list for each Windows partition. The independently discovered current inventory owns coverage,
 including new tests without a timing hint. Each selected test belongs to exactly
 one nonempty partition. Workers verify the source, run and attempt, validation
 plan, compiler, nextest version, input digests and archive digest, then check the
 complete and selected inventories after remapping the extracted binaries. A
 missing or mismatched artifact or test inventory fails visibly.
 
-The `hosted-windows` profile uses four test slots; local execution retains two.
-Tests that previously reserved every slot still reserve every slot through
-`num-test-threads`. Live transport validation runs alongside the archive producer
+The `hosted-windows` profile uses four test slots and one automatic retry;
+local execution retains two slots and zero retries. Only exact cases that
+conflict with any concurrent disk or process work reserve every slot through
+`num-test-threads`; contending lifecycle families run one case at a time in
+serial nextest test groups. Live transport validation runs alongside the archive producer
 and workers. Its CLI and headless exporters share one explicit build and run from
 Cargo's executable artifacts; native Desktop parity retains its separate feature
 build. The required `rust` result waits for the build, all workers and transport
@@ -812,7 +1018,8 @@ transport build/run phases must be included when assessing total feedback time.
 Retain queue delay, cache state and summed runner time separately from elapsed
 critical-path time. The complete Rust feedback goal of less than ten minutes is
 a measurement target, not a new timeout or permission to omit coverage. Existing
-finite CI envelopes and zero automatic test retries remain in force.
+finite CI envelopes remain in force; the retry policy is owned by
+[timeout calibration](QUALITY.md#autonomous-test-timeout-calibration).
 
 The remaining full-workspace native/Intel and Windows workspace-other qualification
 jobs use `scripts/qualification-nextest.mts` with their original package scope,
@@ -894,8 +1101,10 @@ available declaration text; start records and repeated suite chunks do not
 count as executions. A successful native exit with missing, duplicate,
 contradictory or malformed results fails the join. An original failing status
 or process error remains primary. Native JSON is bounded to32MiB and selections
-to16,384 cases. Existing profiles, worker limits, deadlines, reservations and
-zero retries remain unchanged. Generic manual nextest commands retain their
+to16,384 cases. With the hosted profile's single retry, pinned nextest names
+a retried case's final terminal event `name#N`; the join binds it to the plain
+discovered identity, records `nextest_attempt`, lists passes after retry under
+`flaky` and prints them to stderr. Generic manual nextest commands retain their
 separate native reporting; these selected-caller records do not claim that route.
 
 The always-selected Node contract quartet retains decision and environment-isolation
@@ -994,19 +1203,113 @@ console.log('Literal `roadmap` and $(text)');
 
 For update/scan harness engineering, read [native IPC probes](reference/desktop-ipc-probes.md).
 
-## Bounded GitHub subprocess collection
+## Bounded GitHub metadata and retained CLI execution
 
-The shared GitHub API runner limits each ordinary `gh` subprocess to 15 seconds
-and 16 MiB of collected output. Timeout terminates that owned subprocess with
-`SIGKILL` and refuses its output, even if it contains complete JSON. It reports a
-sanitized failure without retrying. These are per-subprocess limits, not a deadline
-for an entire paginated inventory. The CI watcher's existing 60-second observation
-budget and retained execution deadline remain separate.
+The configured Octokit integration in `scripts/github-client.mts` collects each
+metadata body under a byte cap before SDK parsing, defaults to 16 MiB and a
+15-second request deadline, and retains an original monotonic operation deadline.
+A supplied collection deadline can shorten that request limit but cannot lengthen
+it or renew an exhausted logical request.
+The production `capture-port` path uses asynchronous REST inventory and intake;
+Aqua, handoff evidence, postmerge metadata, repository settings, CI-health,
+Roadmap inventories and mutations, body edits, delivery checks, source provenance,
+discovery and upstream preparation use the same factory. Ordinary pagination uses the SDK iterator while
+preserving raw response/count evidence and refusing synthetic empty results for
+HTTP 409. API-version headers remain owned by each caller. Configured upstream
+observation, fresh repository identity and checkpoint recovery also use the SDK,
+retaining their existing cache and completeness owners. Catalog health uses that
+SDK factory; remaining release caller families retain their bounded transports
+during #4319.
+Controller wake and the inert job-token dispatch fixture use asynchronous fixed-repository
+SDK operations, with frozen dependencies installed from the trusted selected checkout
+before credentialed scripts. Installation remains charged to the original provider-job
+55-second deadline. Complete acknowledged-run responses are retained before deadline
+refusal; incomplete streams supply no successful response evidence. Dispatch remains
+one attempt, with no automatic retry or release activation authority.
+Historical checkpoint and hosted native custody read exact attempt, job and
+source metadata through the SDK, retaining each proof's original deadline and
+the shared source/job request budget across later readback. Signature
+verification retains its separately bounded attestation subprocess.
+The verified publication controller uses SDK reads for its original provider job
+clock and retained upload locator, keeping the existing journal readback order.
+Publication result custody shares the bounded source, attempt, job and artifact
+metadata reader; refreshing its proof can only shorten the original deadline.
+Immutable Release custody also uses fixed SDK reads. The Release owner still
+requires the draft-inclusive inventory, exact version tag and asset readback
+before accepting an effect or reconciling an ambiguous mutation. Its fixed
+create, asset upload and publish effects use one SDK dispatch with the separate
+publication token. Redirects are refused, risk expiry is checked at dispatch,
+and a response alone never establishes settlement. Archive bytes remain with
+their existing owners.
+Signing-output and TUF role custody use the same SDK reader for sequential
+attempt, job and artifact checks around byte custody. A later role refresh
+can tighten the original deadline; archive reads and attestation keep their
+existing bounds and private execution environment.
+The maintained report
+publisher now uses SDK metadata operations and awaited replay/readback. Its trusted
+main checkout installs frozen dependencies before the credentialed steps. Existing
+artifact-byte downloads remain staged acquisition work under the same owner.
+
+Eligible reads have at most three total attempts; writes run once and require
+authoritative reconciliation after ambiguity. Reusing a logical request policy
+preserves exhausted allowances across recovery. Intentional inventory stability
+observations remain separate reads charged to the operation budget. Secondary
+limits defer across REST and GraphQL, using provider waits or increasing
+60/120-second fallback waits, subject to the original deadline.
+
+Explicit credentials never fall back to another source. Anonymous clients never
+inherit credentials. Eligible local tooling selects `GH_TOKEN`, then
+`GITHUB_TOKEN`, then resolves an existing `gh` login once per command; workflows
+must supply their credential. Retained attestation verification has its own
+bounded subprocess helper and cannot invoke `gh api`. Source-report and SBOM
+attestation verification use that retained path with the captured reader environment,
+original coordinator deadline and existing output limits. Timeout or output-limit
+failures cannot publish complete-looking proof; bounded diagnostics redact credentials
+before truncation. Pinned native verifier owners remain separate. Intel artifact cleanup is
+an explicit-credential workflow client: it completes each scoped SDK inventory
+before deletion, rereads identity and sends one DELETE followed by authoritative
+readback. Its trusted main workflow installs the locked packages before the token
+step. Existing cleanup eligibility and workflow permissions remain authoritative.
+Audit receipt discovery uses command-scoped SDK metadata reads and awaited
+identity/readback before importing evidence. Publication-source custody uses
+fixed SDK Git-object reads and pure queries with the captured job-reader token;
+exact object hashes, source closure and candidate-execution restrictions remain
+with the materializer. Trusted controller bundles include the locked SDK and
+refuse external runtime package imports. Native Check locator discovery awaits
+fixed source/App SDK reads, preserves complete stable inventories and returns inert
+locators only. Report authentication and native acceptance remain separate. Pages
+deployment creation and status readback use the configured SDK with one attempt
+and the existing final pre-POST guard. Recovery awaits provider/public-byte/provider
+observations and never treats absence as proof of no effect. Artifact-byte acquisition
+retains its existing bounded helper until its caller family migrates. The discovery
+worker now admits GitHub only for its original artifact ZIP byte route; external
+GET/HEAD provider reads remain separate from GitHub metadata.
+
+Discovery verifies its loaded bootstrap plus package manifests, lockfile,
+workspace and runtime inputs before and after refresh and dependency installation.
+A changed input requires restarting with current main. Frozen dependency setup
+uses the existing managed resource path, disables install hooks and receives no
+GitHub credentials; the SDK/session import and credential resolution follow it.
+The pre-install closure contains only repository modules and Node built-ins;
+checkpoint locking and canonical JSON hashing do not load the observer network client.
+
+Transport evidence is scoped to the command and distinguishes dispatched
+attempts. REST inventory owns cache validation and completeness. GraphQL callers
+needing headers use the raw configured SDK request path, without another request
+or a global last-response slot. Unsafe numeric JSON identifiers are refused
+before persisted JSON/hash boundaries rather than silently rounded.
 
 A timed-out mutation may already have reached GitHub. Delivery still requires
-remote state readback before any retry; unavailable readback remains an unknown
-outcome. A local timeout is neither rollback nor proof of server-side failure.
-No global GitHub CLI configuration or additional execution authority is required.
+remote state readback before any retry; unavailable readback remains unknown.
+
+Public operation errors retain the existing `code` and `message` fields. The
+shared sanitizer reads those fields without serializing thrown objects, SDK
+requests/responses or nested causes. It removes complete authorization values,
+supported GitHub token forms (including variable-length stateless installation
+tokens), URL credentials and sensitive query values. Credential-scoped callers
+can additionally supply known secret values for prefixless/encoded redaction.
+Safe provider explanations remain available; structured status, request and
+quota evidence stays with the owning operation's existing evidence contract.
 
 ## Hosted Cargo dependency validation
 
@@ -1088,7 +1391,13 @@ Frontend setup uses the pinned package-manager declaration and frozen lockfile;
 Core setup selects the existing Rust pin/components and cargo-nextest only.
 Daily keeps existing Aqua checksum/attestation and Cargo cache boundaries.
 
-The Linux package-ownership rehearsal gives its packaging-prerequisite APT install
+On pull requests, the Linux package-ownership rehearsal's cheap selection job
+skips the DEB/RPM build when only dependency manifests or lockfiles changed and
+their packaging closure did not: the `@tauri-apps/*` npm graph, and the Cargo.lock
+entries of the Desktop crate, Tauri, its WebView/window/dialog crates and the
+GTK/WebKit stack. Any other changed path, a new lockfile format or a parse failure
+keeps the rehearsal. A newer pull request revision cancels a superseded run.
+The rehearsal gives its packaging-prerequisite APT install
 a finite 600-second budget within a 30-minute step. The longer step covers the
 existing bounded index/mirror fallback and cleanup; an interrupted install still
 refuses a retry. Package/runtime assertions and the 45-minute build-job limit
@@ -1146,6 +1455,12 @@ disjoint dependency ownership. Install from the repository root with
 format:check`, `pnpm lint`, `pnpm build`, and `pnpm
 test` forward to the desktop package without creating another lockfile.
 
+For a manifest or lockfile change, preview the complete diff with
+`just local-check --plan`. Run
+`just test-node scripts/dependency-automation.test.mts` for early feedback on
+the root and desktop dependency inventories and their shared dependency set.
+Run the changed consumer's tests alongside it before publishing the candidate.
+
 On Windows, run `./scripts/bootstrap-quality-tools.ps1`. It downloads the exact
 Aqua release named by `.aqua-version` from Aqua's official release origin, verifies
 the checked-in architecture-specific SHA-256, and provisions checksum-locked Ruff,
@@ -1168,8 +1483,20 @@ stale machine `aqua.exe` cannot bypass the checkout's batch shim through native
 process lookup. Missing or mismatched cached inputs fail with the bootstrap
 repair command; commands do not install tools or change the persistent `PATH`.
 
-When an Aqua-managed package version changes in `aqua.yaml`, run
-`just aqua-integrity-update` before validation. The fixed-purpose updater invokes
+Aqua integrity reads bounded YAML through the existing `yaml` parser, so comments,
+quoting, key order and whitespace do not appoint tool authority. The semantic
+allowlist still requires one standard registry, exact known package versions and
+both checksum switches enabled. Duplicate keys, multiple documents, aliases,
+unknown tags and additional authority fields are refused; publisher-digest and
+checksum inventory verification remain separate and unchanged.
+
+When an Aqua-managed package version changes in `aqua.yaml`, or `.aqua-version`
+changes, run `just aqua-integrity-update` before validation. It first refreshes
+the `.config/tool-bootstrap.json` Aqua version, asset ids, sizes and SHA-256
+values from the publisher release for `.aqua-version`, refreshing only fields
+already recorded, so it needs no previously installed matching Aqua. The
+`--check` mode rejects a bootstrap identity that names another version. The
+fixed-purpose updater then invokes
 the pinned Aqua `update-checksum --prune` command against isolated staged copies,
 requires the exact maintained Windows, Linux, Intel macOS and Apple-silicon macOS
 asset inventory, and compares every generated package checksum with the matching
@@ -1188,6 +1515,41 @@ qualification group. Renovate does not independently advance the standard
 registry ref: if an actual tool update is unavailable in the pinned registry, or
 a compatibility, integrity, or security repair requires a registry change,
 advance that ref in the same reviewed change and run the integrity updater above.
+
+### Pin authority and Renovate proposals
+
+Each tool version has one canonical file that Renovate updates: `.node-version`,
+`package.json` `packageManager`, `rust-toolchain.toml` and
+`.github/quality-tools.json` (Rust quality tools and channel), `.aqua-version`,
+`aqua.yaml` and the reviewed `taiki-e/install-action` digest in CI. Consumers
+read those files rather than repeating versions. `node scripts/quality-tools.mts
+--validate` rejects a repeated quality-tool version in a governed consumer,
+including the cloud bootstrap.
+
+Bundled release code that cannot read repository files at runtime keeps a static
+copy only where `mirroredPins` in `scripts/quality-tools.mts` declares it. Each
+mirror has a Renovate regex manager for the same dependency, so the copy changes
+in the same proposal, and validation names any mirror that differs. Tests take
+versions from the manifest or the mirrored constant instead of literals, so a
+version-only proposal needs no test edits. Derived integrity data cannot come
+from Renovate itself. The `Renovate derived data repair` workflow runs on
+Renovate's own `aqua.yaml` or `.aqua-version` proposals. A read-only job refreshes
+the Aqua identity (`aqua-integrity.mts --update-bootstrap`), installs that pinned
+Aqua and regenerates `aqua-checksums.json` from publisher digests; because it runs
+the newly pinned, unreviewed Aqua, it never receives a write credential. A
+separate job runs no repository or Aqua code: it accepts exactly the two derived
+JSON files and pushes them with a dedicated GitHub App token, only if the branch
+still points at the regenerated head, so required CI runs on the repaired head.
+It ignores other authors, re-runs by others and its own pushes, and Renovate
+ignores its commit author (`gitIgnoredAuthors`). Until the App exists it changes nothing
+and its summary names `just aqua-integrity-update`, which the aqua-group proposal
+note also gives for manual repair.
+
+To enable it, the owner creates a GitHub App installed only on this repository
+with Contents read and write permission and no other permissions or events, saves
+its app ID as the repository variable `PORTCOVE_RENOVATE_REPAIR_APP_ID` and a
+private key as the secret `PORTCOVE_RENOVATE_REPAIR_APP_PRIVATE_KEY`. Branch
+protection that restricts pushes to `renovate/*` must allow that App.
 
 Linux and macOS retain `./scripts/bootstrap-quality-tools.sh`. Checkouts share an
 Aqua root when `.aqua-version`, `aqua.yaml`, `aqua-checksums.json` and the Aqua
@@ -1242,7 +1604,7 @@ hosted planning does not load audit or receipt orchestration.
 
 Local receipt runs observe only runtime fields consumed by their selected reusable
 domains. Repository-only receipts need Git/just identity and do not probe Cargo,
-nextest, rscheck, Aqua, PowerShell or pnpm. Non-reusable-only plans do not collect
+nextest, Aqua, PowerShell or pnpm. Non-reusable-only plans do not collect
 receipt inventories/runtime. This changes prerequisites and setup work, not
 selection or evidence admission: fingerprints retain every applicable field,
 failed stages do not become successful, and explicit audit still inventories all
@@ -1261,10 +1623,9 @@ only when that transport is needed.
 
 Pick up the owning specification once, implement with useful focused feedback,
 then freeze a coherent commit for separate review and exact-head CI in parallel.
-Supply the reviewer exact head/base/diff, relevant acceptance/contracts and known
-risks. Repair blocking findings and return the delta/affected interactions to the
-same reviewer. [Contribution conventions](CONTRIBUTION-CONVENTIONS.md#review-and-merge)
-owns review and merge; [pickup](PROJECT-GOVERNANCE.md#pickup-consumption-and-execution-upkeep)
+The [review and repair loop](QUALITY.md#review-and-repair-loop) owns the reviewer
+packet, findings and repair;
+[contribution conventions](CONTRIBUTION-CONVENTIONS.md#review-and-merge) owns merge; [pickup](PROJECT-GOVERNANCE.md#pickup-consumption-and-execution-upkeep)
 owns requirement refresh and interrupted-work preservation. Do not add a routine
 task-contract matrix or duplicate status narrative.
 
@@ -1427,6 +1788,96 @@ The separate `browser-locale` project assigns only `locale-input.browser.test.ts
 The static scenario page remains inert. Browser results are not native Tauri,
 WebView, controller, operating-system, or package qualification.
 
+## Agent model selection
+
+[AGENTS](../AGENTS.md#delegation-review-and-escalation) names the delegation
+responsibilities and [QUALITY](QUALITY.md#review-and-repair-loop) owns the review
+loop. This section is the single place for concrete model recommendations.
+
+### Current recommendations
+
+Recommendations as of 2026-11-13. They are starting assignments by
+responsibility, not claims of equivalent performance or compute across
+providers. The two visual-helper choices in particular are separate starting
+points, each to be evaluated on its own evidence.
+
+| Responsibility                      | Codex                   | Claude                      |
+| ----------------------------------- | ----------------------- | --------------------------- |
+| Implementation owner                | `gpt-6.1-sol`, medium   | `claude-opus-5-5`, medium   |
+| Independent reviewer                | `gpt-6.1-sol`, high     | `claude-opus-5-5`, high     |
+| Critical reviewer                   | `gpt-6-astra`, high     | `claude-fable-5-2`, high    |
+| Specialist (difficult problem)      | `gpt-6-astra`, high     | `claude-fable-5-2`, high    |
+| Research scout (bounded extraction) | `gpt-6-luna`, medium    | `claude-haiku-5-5`, medium  |
+| Visual helper (optional)            | `gpt-6.1-terra`, medium | `claude-sonnet-5-5`, medium |
+
+Documented availability, checked 2026-11-13: all eight models appear on
+the official [OpenAI models](https://developers.openai.com/api/docs/models) and
+[Claude models](https://platform.claude.com/docs/en/about-claude/models/overview)
+pages, none is on a listed retirement, and every listed model documents both
+`medium` and `high` effort. Observed access is narrower: the local Codex CLI
+0.164.0 model list cached 2026-10-25 offered `gpt-6.1-sol`, `gpt-6-astra` and
+`gpt-6-luna` but not `gpt-6.1-terra`; Claude Code 2.1.323 accepted and ran a
+delegated research scout requested as `haiku` at `medium` effort, without
+separately reporting the served model. When the client does not
+offer a listed model, use the closest model it offers in the same provider's
+tier for that responsibility and record the substitution.
+
+Default to the provider and environment selected for the session. Request each
+delegated assignment's model and effort through the client's native delegation
+where it supports them: Claude Code's Agent tool takes a model family alias
+(`opus`, `fable`, `sonnet`, `haiku`) and an `effort`; this table is the
+repository instruction that asks for that effort. When a client cannot select a
+model or effort for a subagent, the subagent runs on what it inherits; say so
+rather than claiming the recommended setting. Delegate only when the assignment
+is bounded and worth the coordination cost. Updated defaults apply to new
+assignments; ongoing work keeps its models unless the owner deliberately
+escalates or must transition.
+
+### What instructions control
+
+Repository Markdown guides model choice, delegation, review behavior, escalation
+and completion. It does not change the model of the already-running main session,
+create account access or spending authority, or enforce a filesystem sandbox. A
+documented model, effort or permission has taken effect only when the client
+reports it.
+
+A reviewer told not to write is _instructed_ non-writing. A _technically
+restricted_ reviewer lacks write tools or runs in a read-only sandbox. Claude
+Code's read-only agent types (for example `Explore`) omit edit and write tools
+but keep a shell and may keep write-capable MCP tools, so they are restricted
+from editing tools, not sandboxed. The built-in `Explore` and `Plan` agents also start without project instructions,
+so give them the packet in full. Codex documentation describes subagents as
+inheriting the parent session's sandbox, with no separate read-only reviewer
+sandbox; a Codex reviewer in a writable session is therefore instructed
+non-writing only. This was not observed here. Portcove's review policy
+requires a non-writing reviewer, not a particular enforcement mechanism: prefer a
+restricted agent type where one exists, and in every case confirm the reviewed
+head and `git status` are unchanged after review.
+
+No native agent configuration is checked in. Both clients load `AGENTS.md`.
+Claude Code's delegation was observed accepting a model alias, an effort and a
+read-only agent type. Codex documents per-spawn model and effort but no
+read-only reviewer sandbox, and neither was observed here; the post-review
+`git status` check covers that gap without new configuration. Claude Code reads
+`AGENTS.md` only when no `CLAUDE.md` applies: a `CLAUDE.md`, `.claude/CLAUDE.md`,
+personal `CLAUDE.local.md` or ancestor-directory `CLAUDE.md` suppresses it, as do
+instruction settings that select only `CLAUDE.md`. A Portcove `CLAUDE.md` or
+`CLAUDE.local.md` must import `@AGENTS.md` rather than copy the contract; check
+that an ancestor-directory file does not displace it. Add native configuration only for a demonstrated gap that
+Markdown cannot close, and record that gap with the change.
+
+### Keeping recommendations current
+
+During existing maintenance, not per issue, check official model releases,
+retirements and client capabilities. When a newer model may improve a
+responsibility, try it on a few representative Portcove tasks: a clean change and
+a known-defect example for reviewers, a bounded question for research. Compare
+correctness, missed substantive findings, false blockers, repair effort, time and
+actual usage where available. When the evidence supports a change, update the
+table, its date and the availability note in one commit whose message gives the
+rationale; version history retains the previous recommendation. No benchmark
+platform, scheduler or registry is maintained.
+
 ## Skills
 
 Repository-local skills under `.agents/skills` progressively load task-specific
@@ -1448,6 +1899,11 @@ Codex starts `run` with `tty:true` and keeps its returned session open through
 explicit `finish`; a noninteractive launch is refused before Git or API work.
 The runner retains provider-capacity probes and performs at most one semantic
 inventory reconciliation while preserving the original failure and retry limits.
+
+Claude Code discovers skills under `.claude/skills`. Each entry there mirrors one
+canonical skill's name and description and only routes to its `.agents/skills`
+file; `scripts/repository-skills.test.mts` requires the two sets to match. Change
+the canonical skill, then copy any changed trigger text to its pointer.
 
 The reusable Windows diagnostics skill is installed in the user's Codex skill
 directory and can be used outside Portcove. Keep a repository skill focused:
@@ -1859,8 +2315,12 @@ For an unavailable minimum-version host or Steam Deck, build the candidate at th
 exact revision with `VITE_PORTCOVE_DESIGN_COMPATIBILITY_FIXTURE=1`, retain the
 desktop executable/package and source revision, then run the same exact scenario
 through the platform route above. Record the artifact SHA-256, OS/architecture,
-WebView engine/version and result. Record initial-beta Windows and ordinary Linux negative/minimum evidence gaps
-under #993. Preserve macOS CI/build and bounded architecture compatibility work;
+WebView engine/version and result. Consume #993's completed stack evidence at its
+actual scope and record missing first-beta Windows negative/minimum evidence on
+the applicable acceptance owner. Retain Linux-only application gaps for the
+subsequent beta under #45/#46 and their existing component owners; useful shared
+engine/build checks remain required on their appropriate hosts. Preserve macOS
+CI/build and bounded architecture compatibility work;
 full Intel/Apple Silicon platform observations belong to #45/#226 during beta
 before 1.0, using appropriate native/hosted routes without owner-operated hardware. Steam Deck/SteamOS procedure
 preparation and actual-device evidence gaps belong to #51/#217 for the Public beta
@@ -1943,6 +2403,34 @@ Core import Published observer runs only in the fifth case. These are
 instrumented fixture process-loss observations, not OS shutdown, installed-release
 or Linux qualification; preserve failed or incomplete captures separately.
 
+`--scenario native-registered-source-reuse` is an opt-in standalone Windows
+journey using the normal catalog and ordinary managed releases for
+`2ship2harkinian` and `zelda64-recomp`. Set `PORTCOVE_SOURCE_REUSE_ORIGINAL` to an
+absolute Majora's Mask USA 1.0 ZIP. The existing Core preview checks identity
+before Desktop registers the owned copy once, reviews the alternative without
+another original picker, and exercises same-content moved-file repair and
+substituted-input refusal. Existing owned-session observations bind each actual
+managed launch and positive exit. These process observations do not establish
+runtime rendering, gameplay, unsupported-edition native acceptance or assistive
+technology behavior; retain those observations separately on the owning issue.
+Raw original and runtime files are private inputs, excluded from public artifacts.
+For actual runtime observation, optionally set
+`PORTCOVE_SOURCE_REUSE_RUNTIME_OBSERVATION=operator`. The same owned harness
+then waits at most 300 seconds for each exact game to exit while the operator
+observes and closes its window. It records identity-bound exit observations;
+operator close intent and usable rendering require separately retained UI
+observations. It does not fabricate an automatic close request or turn a failed
+Core outcome into success. Without this option, ordinary automatic close remains.
+Later independent observations can continue after a known nonzero game exit only
+after positive game/supervisor quiescence and unchanged registration/storage
+bytes. Such a Play failure still forces the final aggregate case to fail; source,
+security, cancellation and collection errors abort immediately.
+The real-input CLI preview and reinspection calls have a finite 60-second harness
+budget; ordinary metadata reads retain their 15-second default. A preparation
+failure before any driver/App launch records a separate prelaunch diagnostic,
+without claiming process-exit proof. Every attempted launch still requires the
+existing identity-bound positive cleanup before resource release.
+
 `--scenario native-real-prepared-runtime` is an opt-in standalone Windows journey
 for the two selected real user-prepared definitions, `dkc3-recomp` and
 `wave-race-64-racewave46`. Set `PORTCOVE_REAL_RUNTIME_INPUTS` to an absolute JSON
@@ -1963,6 +2451,94 @@ registration removal preserves the complete postgame inventory. Failure cleanup
 can signal only a separately captured, verified game process tree. This journey
 does not establish human gameplay, an installed package, Linux qualification or
 catalog support admission. Keep any earlier failed receipts and their limits.
+
+Game-first visual captures scroll to one complete identified target, then let the
+shared settled-capture owner wait for fresh, stable geometry before taking its
+single candidate image. Every observation still requires complete visibility;
+the before/after screenshot equality check rejects changes during capture.
+Capture readiness observes the comparison's existing disabled refresh control
+while its optional read is pending. A completed or failed read permits capture;
+ordinary player choice remains available throughout.
+
+`--scenario native-game-first-installed-picori` is an explicit standalone Windows
+journey through `just desktop-test` using normal products and catalog authority. Supply the normal CLI with
+`--preparation-cli` and six captured argument files: `--game-first-inputs`
+(version-1 metadata), `--game-first-source`, `--game-first-runtime`,
+`--game-first-shapes`, `--game-first-logic` and `--game-first-archive`.
+It requires no fixture tool or qualification catalog. Bounded regular-file
+verification prepares fresh owned copies, then ordinary source review and native
+copy confirmation create a managed installation. Upstream release identity stays
+separate from Core's adopted version. Library identity, favorite, Play routing,
+strict child/supervisor identity, ordinary close and restart retention are checked.
+`--game-first-operator-observation` selects the shared finite 300-second exit
+observer after strict game identity capture. The owner separately records actual
+game-window pixels and its supported close action during that interval; observing
+exit does not invent close intent or rendering. Without that flag, the existing
+identity-bound native close request remains the close mechanism.
+The same journey restarts only its owned application with a loopback refusal
+proxy. A new failed Picori update-check activity, its visible failure row and
+matching post-action proxy traffic are required before provider-unavailable
+preservation receives credit. That branch verifies another installed Play and
+retains its own launch/closure artifacts; local refusal without that evidence
+stays held. Cleanup restores the application environment and closes the proxy.
+This does not deny definition transports or establish total-network offline.
+Picori's generated asset directories can contain thousands of retained files.
+After game exit, the harness allows up to 1800 seconds for each authoritative
+collection result, polling every two seconds. Both normal and provider-unavailable
+launches must still finish successfully with exit code zero and positive process
+cleanup. Before game creation, each Picori start wait allows 3600 seconds because
+normal Core collects and restores the generated retained tree during preparation;
+the actual second launch exceeded the former 30-second harness wait while still
+preparing. MM retains its 30-second start wait. The finite 11700-second outer budget
+includes two 3600-second starts, two 1800-second collection observations, two
+300-second operator exit observations and 300 seconds for input custody/cleanup. These are
+harness limits; product deadlines and zero automatic retries remain unchanged.
+Keep the original 30-second launch-start and collection failures and 600-second recovery timeout
+as failed evidence, separately from any result under the calibrated limits.
+The owned data inventory allows 8192 entries per directory for Picori's observed
+5712-entry generated palette directory. Its 32768-file total, 256 MiB aggregate,
+64 MiB member, depth, link and file-hash checks remain unchanged.
+When comparing the runtime's retained data, select the required top-level retained
+roots before content inventory. Unrelated executable content is checked through its
+separate exact runtime identity; it does not widen the retained-data member limit.
+
+Game-first native readback compares independently issued status and workspace reads.
+A source import can commit after an internally consistent workspace snapshot returns.
+On disagreement, a fresh workspace read must independently confirm a relevant status
+transition before the harness repeats its full observation, at most three times and
+within the original library generation/root. Unexplained stable disagreements and
+malformed responses remain fatal; no player action is replayed.
+MM source-reuse readback preserves every registration identity field and one source
+record across both installs. Fresh verification may advance `updated_at`; that
+observation time must remain a finite integer and never regress between installs.
+A timestamp change alone does not prove compatibility; the ordinary per-port plan,
+admission and verified installation checks remain required.
+An installed Library card may correctly offer `Try launch` while compatibility is
+unconfirmed. The native MM check permits that caption or `Play` only with one
+installed target, Core's allowed launch action, no blockers/pending setup, and an
+enabled unique button; captures still require the exact observed caption at every
+size. Trial launch is not reclassified as confirmed compatibility.
+Actual runtime pixels require a
+separately bound game-window observation. Desktop screenshots, process liveness
+and accessibility reports do not establish rendering, gameplay, real saves,
+screen-reader use, total network offline or installed multi-implementation behavior.
+Missing observations remain explicit in the result; this case does not close #4154.
+
+`--scenario native-game-first-installed-mm` is a separate standalone Windows
+journey using normal Desktop, catalog and `--preparation-cli`. Supply
+`--game-first-mm-inputs` (version-1 metadata for `majoras-mask/ntsc-u-1-0`),
+`--game-first-mm-source` (the original big-endian ROM) and
+`--game-first-operator-observation`. Captured fingerprints establish input
+custody; Core still decides source admission and installation eligibility.
+The case scans and reviews the source through normal UI, installs both 2Ship
+and Zelda64 through their ordinary installation reviews, checks grouped choices,
+filters and separate title/action layouts, then launches the selected Zelda64
+installation once and verifies restart retention. Its 40-minute outer budget
+covers two bounded installations, source scanning, operator observation and
+cleanup; product deadlines remain unchanged. This case requires its own
+uncontended native window and applicable interaction authorization. Source tests
+and generated receipts do not establish native execution, runtime pixels,
+gameplay, real saves or completion of #4154.
 
 `--scenario native-direct-preparation-recovery` is an opt-in Windows journey
 through a real failed owned setup child. Its original source/runtime inputs and
@@ -2051,7 +2627,17 @@ Its format-2 registry gives each test file one ownership record with
 `[suite, position]` memberships; suites retain their existing runner arguments.
 Positions are unique nonnegative safe integers within a suite. Gaps allow new
 records without renumbering others, and independent positions preserve suites
-with different execution orders. Legacy format-1 inputs remain readable for
+with different execution orders.
+Optional `ordinary_families` membership on that same test record supplies the
+ordinary selector's shared contract families. Add/move a test in the registry;
+do not synchronize another filename array in `ordinary-validation.mts`.
+Semantic safety input-to-family relationships (such as process containment) stay
+explicit in the selector. Cargo's bounded offline `metadata --no-deps` output
+supplies ordinary workspace package names and locations for Rust inputs, with
+`RUSTUP_AUTO_INSTALL=0` so selection never provisions a missing toolchain; missing,
+ambiguous or unavailable metadata retains conservative unknown/workspace coverage.
+Prose-only selection does not invoke Cargo, and no dependency graph crawl or
+persistent package cache is introduced. Legacy format-1 inputs remain readable for
 existing callers and fixtures.
 
 Add, rename or remove the ownership record, then run `node scripts/node-test-suites.mts --write`
@@ -2406,6 +2992,10 @@ Unix stream socket whose peer matches the wrapper PID and supplied birth identit
 Readable EOF closes the group; unexpected bytes fail closed. Wrapper pipe loss
 closes that anchored group; reaper pipe
 loss makes the Node supervisor close its own group without inventing a receipt.
+While the payload runs, the reaper collects exited adopted children with
+nonblocking waits so their original process observers can confirm settlement.
+The direct Node supervisor remains unreaped to pin the original cleanup group;
+early child reaping does not publish a final cleanup receipt.
 The reaper stays outside the killed group, drains direct and adopted children, and
 publishes an atomic positive receipt only after actual group absence and completed
 reaping, within the existing five-second cleanup bound. If procfs omits
@@ -2493,6 +3083,12 @@ does not execute nextest.
 
 The core property tests generate archive-path aliases and digest/scope combinations.
 Run `cargo test -p portcove-core --lib property_` through the storage wrapper.
+For an opt-in Linux campaign against the ZIP, 7z, TAR.GZ and TAR.XZ download
+readers, the separate cargo-fuzz workspace in
+[`crates/portcove-core/fuzz`](../crates/portcove-core/fuzz/README.md) uses the
+optional `cargo-fuzz` pin, the dated coverage nightly and its own committed
+lockfile. It documents what its lock checks do and do not enforce. Ordinary checks do
+not build or run it.
 For an opt-in Windows Core path investigation, `just rust-coverage` uses the
 optional coverage tool pin and a separate dated nightly compiler with matching
 LLVM tools. It records discovery, original test outcomes, actual branch counters
@@ -2841,6 +3437,128 @@ no special risk flag is required. The known GLib error stays visible and remains
 a raw failed scan. Release expiry, tags, inventories and native source review
 belong exclusively to Linux release authorization; see [QUALITY](QUALITY.md).
 
+Portcove builds SQLite from the `libsqlite3-sys` source selected by `Cargo.lock`
+through rusqlite's `bundled` feature. Review the effective amalgamation when
+updating either crate. Keep the Windows canonical-path WAL fix and the
+[RUSTSEC-2026-0459](https://rustsec.org/advisories/RUSTSEC-2026-0459.html) fix
+in SQLite 3.54.0 or later, along with checked unsigned conversions and the
+connection limits used by Core.
+
+## Cloud agent sessions
+
+Disposable Linux x86_64 cloud containers, such as Claude Code cloud sessions,
+provision with `bash scripts/bootstrap-cloud-session.sh` from the checkout. It
+carries no versions of its own: Node comes from `.node-version` and the official
+`SHASUMS256.txt`, pnpm from `packageManager`, Rust from `rust-toolchain.toml`,
+required prebuilt Rust tools from `.github/quality-tools.json` checked against the
+install-action manifests at the digest CI reviews, Aqua from
+`.config/tool-bootstrap.json`, and remaining work from the existing bootstrap,
+browser and Linux desktop prerequisite commands. A cloud environment's setup
+script should only call it, so Renovate proposals never leave the environment
+behind. Each step reports separately, and the script exits 1 if any step failed;
+because the known limits below fail their steps, the setup script should report
+that status instead of stopping session start.
+
+A container starts with an empty `~/.portcove/resources` domain. When no
+`config.json` exists, the bootstrap runs the existing `retire-legacy-entrypoints`
+cutover, which verifies an empty domain before selecting coordinated admission.
+It never changes an existing configuration. Without it, every capacity-aware
+command waits for the full admission budget and then fails.
+
+The environment must allow `cdn.playwright.dev` and
+`playwright.download.prss.microsoft.com` for the pinned Chromium shell; package
+registries, `nodejs.org`, `raw.githubusercontent.com` and GitHub release downloads
+are otherwise sufficient. `browser:bootstrap` stops after a finite deadline and
+names those hosts instead of waiting silently. Browser tests honor an inherited
+`PLAYWRIGHT_BROWSERS_PATH`; an image that presets it to its own browsers must
+point it at the checkout's `work/browser-cache` in the environment settings, or
+browser projects look for a revision that the bootstrap did not install there.
+The bootstrap also installs the PowerShell version and SHA-256 pinned in
+`tools/containers/build/Dockerfile` and fetches complete Git history for a shallow
+clone.
+
+Release and native fixtures deliberately refuse root, Node processes that trust
+an egress proxy's injected CA settings (`NODE_OPTIONS=--use-openssl-ca`,
+`NODE_EXTRA_CA_CERTS`, `SSL_CERT_FILE`), inputs another user can write, and
+fixture commits altered by a global commit-signing configuration. Run offline
+Node and repository-tool validation as `bash scripts/cloud-test.sh <command>`.
+It refreshes a private copy of the working tree owned by the unprivileged
+`portcove-test` identity, which the bootstrap creates with its own resource
+domain and a neutral Git identity, and runs the command there with a minimal
+environment. It changes no fixture, policy or checkout permission. The command
+has no network or proxy access and shares installed dependencies and the browser
+cache read-only. The identity cannot traverse `/root`, so the bootstrap moves
+rustup's home and the Cargo `bin` directory to root-owned `/opt/portcove-rust`,
+leaving symlinks at the original paths; the wrapper runs offline `cargo`
+commands from there with its own `CARGO_HOME` and cannot change the toolchain.
+Fixtures that run `corepack pnpm` need the pinned pnpm and its native binary, so
+the bootstrap fetches them once into the identity's own caches, giving it only a
+copy of the trusted CA bundle. Run builds and networked commands directly.
+
+Known cloud limits remain visible in `just doctor`:
+
+- Ruff and actionlint need GitHub artifact attestation through the upstream
+  attestation API. Sessions whose GitHub access is limited to this repository
+  cannot reach that API, so Aqua refuses them; ShellCheck installs normally.
+  Checksum-only Aqua installation is not offered: their lint runs in hosted CI.
+  The bootstrap accepts only that exact refusal and reports it.
+- GitHub GraphQL is unavailable in Claude Code sessions. Dispatch
+  `roadmap-command.yml` through the REST workflow-dispatch API instead: it runs one
+  allowlisted `roadmap.mts` command from the reviewed default branch with the
+  Roadmap credential, for the repository owner only. Pass `command` and
+  `arguments` as a JSON array of strings, then read the run log. Reads and
+  single-item edits (`capture-port`, `capture-feature`, `normalize-port`,
+  `promote`, `set`, `move`) are allowed; bulk, structural and file-producing
+  commands and options stay local. Output files under `work/roadmap-*` are kept as
+  a run artifact. The owner gate is advisory like other workflows' gates, because
+  a writer can dispatch a modified workflow from another branch; storing
+  `PORTCOVE_ROADMAP_TOKEN` in an environment limited to `main` with required
+  reviewers makes it a hard boundary. Guarded merges reconstruct closing
+  relationships over REST (see the connector delivery route above): the live
+  `pr-delivery.mts` helper falls back automatically, and connector callers
+  collect `rest-timeline` observations for `prepare-merge`/`verify-merge`. A PR
+  with a manual Development link still needs a GraphQL-capable session.
+- The session's HTTPS proxy supplies its GitHub credential, so a direct
+  connection fails with `401 Bad credentials`. Node's `fetch` ignores
+  `HTTPS_PROXY` unless `NODE_USE_ENV_PROXY=1`, which a session cannot set on its
+  environment. Delivery helpers (`pr-delivery.mts`, `github-body.mts`) therefore
+  create their GitHub client with `environmentProxy: true`, which enables Node's
+  built-in proxy support when a proxy variable is present (`NO_PROXY` still
+  applies) and records `NODE_USE_ENV_PROXY=1` for the process. Release clients
+  never opt in, and release direct-transport guards refuse in a process that
+  has.
+- The daily discovery runner requires an interactive TTY and GraphQL; run it
+  locally.
+- Windows targets run on hosted runners. Pull request CI runs the
+  diff-selected fast Windows jobs, including the Windows helper contracts,
+  which only run there. For the qualification-mode Windows jobs on a pushed
+  branch, dispatch `qualification.yml` on that branch through the REST
+  workflow-dispatch API (`POST
+  /repos/{owner}/{repo}/actions/workflows/qualification.yml/dispatches` with
+  `{"ref": "BRANCH"}`) or the connector's workflow-run tool; it calls `ci.yml`
+  with `force_qualification: true`. Follow the
+  [manually requested qualification](CONTRIBUTION-CONVENTIONS.md#review-and-merge)
+  order, then read the run's jobs and logs over REST. Explicit native Windows
+  acceptance remains the separate `portcove-desktop-verification` route. Local
+  feedback stays optional.
+
+The storage preflight's default floor is 5 GiB; it gates starting a command, not
+the space a build then needs. On 2026-11-09 a cloud
+`cargo test --workspace --locked --no-run` from an empty `target` used about 18 GB
+of about 26 GB free, so a cold build on a nearly full disk can still run out of
+space after it starts. An earlier 20 GiB default matched that cold build but
+refused every later incremental run once `target` existed, so the Portcove cloud
+environment already set `PORTCOVE_MIN_FREE_GIB=6`. New runs start while at least
+the floor is free, and a run can use more after it starts. Browser projects retain raw traces under
+`work/bt` even after passing runs, and a complete browser run can write over
+10 GiB there. After confirming that the owning test process has exited and no
+failure evidence is needed, remove only that run's own `work/bt/run-*`
+directory. Reclaim build output through
+[checked cleanup](DEVELOPMENT-STORAGE.md#clean-up-verified-disposable-content):
+`just prune-incremental` first, or `just clean-build` once no build or editor
+process uses `target`. Prefer these over lowering the floor further or deleting
+evidence.
+
 ## Shared local resources
 
 Capacity and desktop exclusivity are separate. Participating same-user commands
@@ -2985,7 +3703,10 @@ custody. Windows process-identity inspection retains a finite 15-second harness
 budget under host I/O load; host release allows 65 seconds for its bounded
 remote cleanup probe and identity checks. Timeouts retain custody. The host adapter's --recover action consumes the original reference and
 invocation before using existing external-capacity recovery. Prelaunch recovery
-requires an explicit completion marker; PID absence alone is insufficient.
+requires an explicit completion marker. If registration is missing after launch,
+recovery requires positive Linux supervisor cleanup from the original pinned
+verifier, exit of the original Linux owner, and unchanged custody. The Windows
+reservation is released only after its original owner and lease are rechecked.
 
 Prepare the scoped [scratch profiles](DEVELOPMENT-STORAGE.md#machine-scratch-profiles),
 then run from the updated WSL checkout:

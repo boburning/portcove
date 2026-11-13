@@ -3,10 +3,11 @@
   "listing": {
     "id": "alexbeav-medievil-recomp",
     "name": "MediEvil / Alexbeav PSXRecomp",
-    "summary": "Upstream PlayStation setup package using your own matching disc and any required BIOS. Finish generation with upstream; that external copy keeps its own runtime updates and player data.",
+    "summary": "Build a native MediEvil player from your matching original PlayStation disc and BIOS.",
     "project_url": "https://github.com/alexbeavs-ps1-ports/medievil-recomp",
     "issue_number": 461,
-    "platforms": ["windows-x86-64", "linux-x86-64"],
+    "listed_at": "2026-10-23",
+    "platforms": ["macos-x86-64", "macos-aarch64"],
     "availability": "packages",
     "setup_url": "https://github.com/alexbeavs-ps1-ports/medievil-recomp#readme",
     "artwork": {
@@ -20,26 +21,128 @@
     "manual_setup": {
       "steps": [
         {
-          "title": "Download the upstream setup package",
-          "instruction": "Extract the complete official setup ZIP for your system into a separate writable folder you control. This is a setup package: its launcher prepares the game from your own matching disc through upstream generation/build. On Linux, follow the selected version\u2019s prerequisites, including CMake, Ninja, Python 3 and a C/C++ compiler where required; bundled Windows tools do not supply Linux tools. Downloading and extracting do not run a launcher, compiler or game. Native setup and gameplay remain unqualified by this handoff."
+          "title": "Use your original disc and BIOS",
+          "instruction": "Use your own MediEvil (USA) disc (SCUS-94227) with both its data and audio tracks, and your own retail SCPH-1001 BIOS. Keep the original files separately."
         },
         {
-          "title": "Supply the matching original files",
-          "instruction": "Follow the upstream guide for the version you downloaded. Use your own original in its supported image representation, keeping a CUE and every referenced track together when required, and supply your own BIOS whenever that guide requires it. Preserve the exact edition, disc layout and BIOS requirements in that guide; an included setup BIOS does not establish game compatibility."
+          "title": "Build the managed Windows or Linux player",
+          "instruction": "In Portcove, select the complete matching CHD and BIOS. Keep both files in place. Choose Play after Portcove builds the game."
         },
         {
-          "title": "Finish upstream setup, then add the player",
-          "instruction": "Deliberately open the supported upstream launcher when you are ready to generate/build from your own files. Follow that version\u2019s completed-player instructions and keep its runtime/compiler companions together. In Portcove choose the resulting native game executable or supported upstream launcher with its supplied working folder. If setup created it elsewhere, select that location. Saving launch details and Play are separate Portcove actions. You or upstream manage runtime updates, original files, saves and settings; these external files are outside Portcove-managed backups. Keep a working copy and its data before changing versions."
+          "title": "Prepare a separate Mac copy",
+          "instruction": "The current Intel and Apple Silicon generators require macOS 15 or later. Extract the matching official ZIP into a writable folder. Make the Xcode Command Line Tools, CMake, Ninja and Python 3 available for your architecture. Open the upstream MediEvil_Recompiled setup host and choose Generate & rebuild with the matching CUE, both BIN files and your retail BIOS."
+        },
+        {
+          "title": "Add the completed Mac player",
+          "instruction": "In Portcove, select build-release/MediEvil_Recompiled and use build-release as the start folder. Keep the complete working kit and its companion files. You manage replacement and backups for this copy."
         }
       ],
-      "warnings": [],
-      "help_url": "https://github.com/alexbeavs-ps1-ports/medievil-recomp#readme"
+      "warnings": [
+        "Portcove checks the first data track and track count. Keep the complete disc intact.",
+        "The game records offline diagnostics by default, including starting memory cards, settings and inputs. Turn off Input Recording to stop new recordings. Review diagnostic contents before sharing."
+      ],
+      "help_url": "https://github.com/alexbeavs-ps1-ports/medievil-recomp#readme",
+      "references": [
+        {
+          "title": "Keep your saves and diagnostics",
+          "instruction": "Close the game before backing up. Portcove retains the declared files of its managed Windows and Linux players. For a Mac copy, preserve the complete working folder, including saves, settings, installed mods and any diagnostic location named beside the player."
+        }
+      ]
     },
     "release_url": "https://github.com/alexbeavs-ps1-ports/medievil-recomp/releases",
     "download_asset_hints": {
       "windows-x86-64": ["medievil-recomp-", "-windows-x64.zip"],
-      "linux-x86-64": ["medievil-recomp-", "-linux-x64.zip"]
+      "linux-x86-64": ["medievil-recomp-", "-linux-x64.zip"],
+      "macos-x86-64": ["medievil-recomp-", "-macos-x64.zip"],
+      "macos-aarch64": ["medievil-recomp-", "-macos-arm64.zip"]
     },
-    "recommended_download_channel": "stable"
+    "recommended_download_channel": "stable",
+    "original_game_title": "MediEvil"
+  },
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64", "linux-x86-64"],
+    "automated_tested_platforms": [],
+    "manually_validated_platforms": [],
+    "adapter": "psx-recomp-managed",
+    "release": {
+      "provider": "github",
+      "repository": "alexbeavs-ps1-ports/medievil-recomp",
+      "asset_hints": {
+        "windows-x86-64": ["medievil-recomp-", "-windows-x64.zip"],
+        "linux-x86-64": ["medievil-recomp-", "-linux-x64.zip"]
+      }
+    },
+    "source_profile": "alexbeav-medievil-recomp-usa-psx",
+    "executable_hints": {
+      "windows-x86-64": ["MediEvil_Recompiled.exe"],
+      "linux-x86-64": ["MediEvil_Recompiled"]
+    },
+    "persistent_paths": [
+      "saves",
+      "settings.toml",
+      "settings.toml.bad",
+      "input.ini",
+      "keybinds.ini",
+      "config.ini",
+      "disc.cfg",
+      "bios.cfg",
+      "mods/installed",
+      "mods/packages",
+      "mods/.staging",
+      "mods/state.toml",
+      "mods/state.toml.tmp",
+      "mods/texture-packs",
+      "overlay-captures",
+      "overlay_captures.json",
+      "overlay_captures.json.d",
+      "overlay_captures.addendum.jsonl",
+      "diagnostics-location.txt"
+    ],
+    "runtime_mutable_paths": [
+      "cache",
+      "psx_freeze_heartbeat.json",
+      "psx_freeze_heartbeat.json.tmp",
+      "psx_last_run_report.json",
+      "psx_cps_exit_trace.json",
+      "netplay_lan_lobby.txt",
+      "psx_crash.txt"
+    ],
+    "runtime_mutable_file_patterns": [
+      {
+        "prefix": "psx_freeze_dump_psx-runtime_",
+        "suffix": ".json"
+      },
+      {
+        "prefix": "overlay_captures.json.",
+        "suffix": ".tmp"
+      }
+    ],
+    "launch_environment": {
+      "PSX_OVERLAY_CAPTURES": "build-portcove/overlay-captures/overlay_captures.json"
+    },
+    "launch_arguments": ["--no-launcher"],
+    "runtime_subdirectory": "build-portcove",
+    "presentation": {
+      "installation_method": "managed-recompilation",
+      "source_requirements": [
+        {
+          "role": "game",
+          "profile_id": "alexbeav-medievil-recomp-usa-psx",
+          "label": "MediEvil (USA) disc",
+          "verification": "catalog-identity"
+        },
+        {
+          "role": "bios",
+          "profile_id": "psx-scph-1001-bios",
+          "label": "PlayStation SCPH-1001 BIOS",
+          "verification": "catalog-identity"
+        }
+      ],
+      "saves_and_settings": "portcove-managed",
+      "manual_preparation": "Select your own complete MediEvil (USA) CHD (SCUS-94227, 2 tracks) and retail SCPH-1001 BIOS. Portcove builds a private Windows or Linux player and preserves the declared saves, settings, installed mods and in-folder diagnostics. Bundled mods belong to the runtime version. The default offline recorder includes starting memory cards, settings and inputs. Turn off Input Recording to stop new captures. Preserve any temporary-folder fallback captures separately. Runtime rollback carries current declared data. Mac setup remains yours to manage."
+    },
+    "bios_source_profile": "psx-scph-1001-bios"
   }
 }

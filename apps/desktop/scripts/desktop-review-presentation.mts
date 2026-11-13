@@ -36,7 +36,8 @@ export async function assertReviewFieldPresentation(
   assert.ok(parseFloat(fieldPresentation.borderWidth) >= 1, JSON.stringify(fieldPresentation));
   assert.notEqual(fieldPresentation.backgroundColor, "rgba(0, 0, 0, 0)");
   assert.notEqual(fieldPresentation.backgroundColor, fieldPresentation.dialogBackgroundColor);
-  assert.ok(Number(fieldPresentation.labelFontWeight) >= 700, JSON.stringify(fieldPresentation));
+  // Shared Field labels use the approved semibold presentation.
+  assert.ok(Number(fieldPresentation.labelFontWeight) >= 600, JSON.stringify(fieldPresentation));
   return fieldPresentation;
 }
 

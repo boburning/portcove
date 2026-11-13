@@ -17,7 +17,37 @@
       "game_slug": "the-operative-no-one-lives-forever",
       "match_kind": "underlying-game"
     },
-    "issue_number": 2902
+    "issue_number": 2902,
+    "listed_at": "2026-10-25",
+    "manual_setup": {
+      "help_url": "https://github.com/nolffan/nolfsrc/tree/6f61ddcfe33ff374f984264ff357a74a81291ffe",
+      "steps": [
+        {
+          "title": "Prepare the clean public modern copy with your own GOTY discs",
+          "instruction": "Use an already permitted complete native Windows NOLF Modern copy prepared from the clean public archive in a new empty directory with your own two European Game of the Year Edition disc images, corresponding to the documented redump discs 42823 and 42561. Complete upstream installation/checksum verification outside Portcove. The original-data-fetching rez submodule workflow is excluded. Other regions/editions do not inherit this setup. Nightly builds and alpha releases must be chosen deliberately; no original image, installer, compiler or game helper is run here."
+        },
+        {
+          "title": "Select the direct player that waits for the game",
+          "instruction": "Select normal NOLF.exe in the completed Windows game directory, keeping all companion binaries and established settings. The selected modern direct entry sets its working directory to its own folder and waits for its lithtech.exe child, retaining that process lifetime. NOLFLauncher.exe is the separate configuration launcher; do not substitute a setup batch file or a launcher that merely hands off and exits. Linux/macOS paths use Wine/Proton/CrossOver and are not native platform qualifications here."
+        },
+        {
+          "title": "Keep the whole creating installation and permitted components",
+          "instruction": "Retain Save/, autoexec.cfg, launcher.ini, nolfcmds.txt, logs including modern.log/nolfsrc.log, captures, custom files and the complete old installation. Upstream says each new archive is a whole installation, not an overlay patch; preserve the old copy and deliberately copy compatible saves into a separately completed new copy before relinking. Monolith/GameSpy, OpenMiles GPL, Bink/FFmpeg LGPL and DirectMusic have distinct terms; the upstream license notes retain distribution-compatibility questions. A public download or engine-code license is not a whole-package/IP grant, and this guide does not infer a blanket ban on an independently permitted copy."
+        },
+        {
+          "title": "Review the prepared player and launch details",
+          "instruction": "Finish setup with the project’s tools, then start and quit the permitted copy you intend to add. Keep its game executable, working folder and supported launch arguments. Review those details in Portcove and agree to launch them, then choose Play separately. Adding a copy does not confirm its original game files, gameplay or save compatibility."
+        },
+        {
+          "title": "Retain upstream replacement and external ownership",
+          "instruction": "Close every running copy of the game before changing files. Keep the working game version and every original-file, profile and data location it uses. Update it with the project’s tools, then review and select the changed executable in Portcove. You manage setup, replacement, file changes, data migration and recovery. Portcove monitors the process you selected; it does not restrict file access or prevent other copies from running. Removing the registration leaves external files in place. This route does not offer Portcove downloads, setup, updates, backups, rollback, data migration or external-file deletion."
+        }
+      ],
+      "warnings": [
+        "Use only a copy and components you are already permitted to use. Engine licensing does not grant original-game, music, mod, middleware or redistribution rights.",
+        "Before changing versions, keep a copy of the working game and every data and profile folder it uses. Another executable may use those same folders."
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

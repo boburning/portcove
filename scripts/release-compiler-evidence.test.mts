@@ -1,3 +1,6 @@
+import { loadQualityManifest } from "./quality-tools.mts";
+import { reviewedCargoDenyVersion } from "./dependency-security.mts";
+import { fixedReleaseToolDependencies } from "./release-tool-dependency-selection.mts";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import path from "node:path";
@@ -19,6 +22,9 @@ import {
 } from "./release-compiler-evidence.mts";
 import { projectWindowsNsisExecutable } from "./release-compiler-desktop.mts";
 import { controllerNodeVersion } from "./controller-node-runtime.mts";
+
+// Release evidence pins the manifest Rust channel; quality-tools --validate keeps them equal.
+const pinnedRust = (await loadQualityManifest()).rust.channel;
 const hash = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
 const roles = [
   "node",
@@ -36,7 +42,9 @@ const roles = [
 ];
 async function fixture(t: test.TestContext) {
   const f = await releasePublicBuildProvenanceFixture(t);
-  const evidence = collectReleaseRunEvidence(f.expected, { api: f.api });
+  const evidence = await collectReleaseRunEvidence(f.expected, {
+    read: async (endpoint) => f.api.request("GET", endpoint),
+  });
   const publicInputs = await verifyReleasePublicBuildInputs(f.root, f.binding, evidence, {
     download: f.download,
   });
@@ -79,15 +87,15 @@ async function fixture(t: test.TestContext) {
       input_members: publicInputs.compiler_inputs.find((item) => item.platform === platform)!
         .members,
       rust_toolchain: {
-        channel: "1.99.1",
+        channel: pinnedRust,
         cargo,
         rustc: nativePath.join(root, "tools/rustc"),
-        cargo_version: "cargo 1.99.1 (inert fixture)",
-        rustc_version: "rustc 1.99.1 (inert fixture)",
+        cargo_version: `cargo ${pinnedRust} (inert fixture)`,
+        rustc_version: `rustc ${pinnedRust} (inert fixture)`,
       },
       node: { version: `v${controllerNodeVersion}` },
       tauri: {
-        version: "2.12.2",
+        version: fixedReleaseToolDependencies().tauri,
         native_package: platform.startsWith("windows")
           ? "@tauri-apps/cli-win32-x64-msvc"
           : "@tauri-apps/cli-linux-x64-gnu",
@@ -172,6 +180,7 @@ async function fixture(t: test.TestContext) {
           interface: inter,
           source_commit: f.request.source_commit,
           source_tree: f.request.source_tree,
+          tauri_cli_version: fixedReleaseToolDependencies().tauri,
           run_id: "12345",
           run_attempt: 1,
           job,
@@ -283,6 +292,7 @@ async function fixture(t: test.TestContext) {
     cliPackages,
     reports,
     refresh,
+    readEvidence: f.options.evidence.read,
     options,
     collect: () =>
       collectReleaseCompilerEvidence(
@@ -310,6 +320,144 @@ void test("actual bounded report transport and complete cross-platform output/pa
     requireVerifiedReleaseCompilerEvidence(structuredClone(receipt)),
     /actual same-process/,
   );
+});
+
+void test("locked SDK report downloads share the admission reservation and deliver signed bytes anonymously", async (t) => {
+  const f = await fixture(t);
+  const routes: string[] = [];
+  const settled: { status: number | null; headers: Readonly<Record<string, string>> }[] = [];
+  const times: number[] = [];
+  let reserved = 0;
+  const deadline = performance.now() + 10000;
+  const fetcher: typeof globalThis.fetch = async (input, init) => {
+    const url = new URL(input instanceof Request ? input.url : input);
+    const headers = new Headers(init?.headers);
+    assert.equal(init?.redirect, "manual");
+    routes.push(url.hostname);
+    if (url.origin === "https://api.github.com") {
+      assert.equal(headers.get("authorization"), "token fixed-compiler-reader-fixture");
+      const id = /^\/repos\/boburning\/portcove\/actions\/artifacts\/(\d+)\/zip$/u.exec(
+        url.pathname,
+      )?.[1];
+      assert.ok(id);
+      return new Response(null, {
+        status: 302,
+        headers: {
+          location: `https://productionresultssa1.blob.core.windows.net/actions-results/${id}?sig=compiler-fixture`,
+          "x-github-request-id": "COMPILER-FIXTURE",
+        },
+      });
+    }
+    assert.equal(url.origin, "https://productionresultssa1.blob.core.windows.net");
+    assert.equal(init.credentials, "omit");
+    assert.equal(headers.has("authorization"), false);
+    return new Response(
+      f.options.download(
+        `repos/boburning/portcove/actions/artifacts/${url.pathname.split("/").at(-1)}/zip`,
+      ),
+    );
+  };
+  t.mock.method(globalThis, "fetch", fetcher);
+  const receipt = await collectReleaseCompilerEvidence(
+    f.root,
+    f.request,
+    f.evidence,
+    f.publicInputs,
+    f.cliPackages,
+    {},
+    {
+      preparedNamespace: f.options.preparedNamespace,
+      spawn: f.options.spawn,
+      transport: {
+        credential: { kind: "explicit", token: "fixed-compiler-reader-fixture" },
+        deadline,
+        lookup: () => ({
+          deadline,
+          reserve() {
+            reserved++;
+            return {
+              consumeBytes() {},
+              settle(observation) {
+                settled.push(observation);
+              },
+            };
+          },
+          elapsed(milliseconds) {
+            times.push(milliseconds);
+          },
+        }),
+      },
+    },
+  );
+  assert.equal(receipt.state, "verified-compiler-output-bindings");
+  assert.equal(receipt.evidence_scope, "injected-provider");
+  assert.equal(reserved, 4);
+  assert.equal(settled.length, 4);
+  assert.ok(
+    settled.every(
+      ({ status, headers }) =>
+        status === 302 &&
+        !("location" in headers) &&
+        headers["x-github-request-id"] === "COMPILER-FIXTURE",
+    ),
+  );
+  assert.equal(times.length, 4);
+  assert.deepEqual(
+    routes,
+    Array.from({ length: 4 }, () => [
+      "api.github.com",
+      "productionresultssa1.blob.core.windows.net",
+    ]).flat(),
+  );
+});
+
+void test("fresh compiler evidence uses actual locked SDK observations under the shared admission budget", async (t) => {
+  const f = await fixture(t);
+  const deadline = performance.now() + 10000;
+  let fetched = 0;
+  let reserved = 0;
+  const times: number[] = [];
+  const fetcher: typeof globalThis.fetch = async (input, init) => {
+    const url = new URL(input instanceof Request ? input.url : input);
+    assert.equal(url.origin, "https://api.github.com");
+    assert.equal(
+      new Headers(init?.headers).get("authorization"),
+      "token fixed-compiler-reader-fixture",
+    );
+    fetched++;
+    return Response.json((await f.readEvidence(url.href)).body);
+  };
+  t.mock.method(globalThis, "fetch", fetcher);
+  const receipt = await collectReleaseCompilerEvidence(
+    f.root,
+    f.request,
+    f.evidence,
+    f.publicInputs,
+    f.cliPackages,
+    {},
+    {
+      preparedNamespace: f.options.preparedNamespace,
+      transport: {
+        credential: { kind: "explicit", token: "fixed-compiler-reader-fixture" },
+        deadline,
+        lookup: () => ({
+          deadline,
+          reserve() {
+            reserved++;
+            return { consumeBytes() {}, settle() {} };
+          },
+          elapsed(milliseconds) {
+            times.push(milliseconds);
+          },
+        }),
+      },
+    },
+  );
+  assert.equal(receipt.state, "unknown");
+  assert.match(receipt.reason, /complete actual compiler report matrix/u);
+  assert.ok(fetched > 1);
+  assert.equal(reserved, fetched);
+  assert.equal(times.length, 1);
 });
 
 void test("schema3 desktop identity remains bound to the exact Windows interface and NSIS slot", async (t) => {
@@ -365,6 +513,20 @@ void test("changed inputs/job/source/refusal/target/tool/invocation and report l
   const f = await fixture(t);
   for (const item of f.reports)
     assert.equal(inspectReleaseCompilerReport(item.raw, item.expected).authority, "none");
+  const frozen = f.reports[0]!;
+  const alternate = frozen.expected.tauri_cli_version === "2.88.91" ? "2.88.92" : "2.88.91";
+  const alternateReport = { ...frozen.raw, tauri: { ...frozen.raw.tauri, version: alternate } };
+  assert.throws(
+    () => inspectReleaseCompilerReport(alternateReport, frozen.expected),
+    /pinned toolchain/u,
+  );
+  assert.equal(
+    inspectReleaseCompilerReport(alternateReport, {
+      ...frozen.expected,
+      tauri_cli_version: alternate,
+    }).authority,
+    "none",
+  );
   for (const change of [
     (raw: (typeof f.reports)[number]["raw"]) => {
       raw.node.version = `v${controllerNodeVersion.replace(/\d+$/u, (patch) => String(Number(patch) + 1))}`;
@@ -429,7 +591,7 @@ void test("existing bounded ZIP and attestation path carries same-job raw scanne
     exitCode: 1,
     unsoundAll: true,
     scope: "workspace-default-all-targets-all-checks",
-    toolVersion: "cargo-deny 0.20.2",
+    toolVersion: `cargo-deny ${reviewedCargoDenyVersion}`,
     sourceConfig: policy,
     executionConfig: policy,
     configSha256: policyHash,

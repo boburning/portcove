@@ -1,0 +1,145 @@
+{
+  "cancellation": {
+    "cancel": "Cancelar operación",
+    "finishing": "Finalizando de forma segura…",
+    "requested": "Cancelación solicitada",
+    "requestedBody": "Portcove se detendrá cuando el paso actual llegue a un punto seguro.",
+    "requesting": "Solicitando la cancelación…"
+  },
+  "diagnostic": {
+    "availabilityUnknown": "Se desconoce la disponibilidad actual del registro.",
+    "availabilityUnknownWithPrevious": "Se desconoce la disponibilidad actual del registro. Se muestra la última captura cargada; puede haber cambiado desde que se leyó.",
+    "cancelled": "Lectura del registro cancelada",
+    "clipboardUnavailable": "El portapapeles no está disponible. Selecciona y copia el registro conservado de abajo.",
+    "complete": "Ambos flujos de salida terminaron. La salida guardada se muestra abajo.",
+    "copied": "Copiado",
+    "copiedStatus": "Registro conservado copiado.",
+    "copy": "Copiar el registro conservado",
+    "incomplete": "Solo está disponible la salida guardada antes de la última observación. Puede faltar salida posterior.",
+    "lastSaved": "Último guardado: {{time}}",
+    "loadFailed": "No se pudo cargar el registro de preparación",
+    "manualCopy": "Registro conservado para copiar manualmente",
+    "none": "No hay ninguna captura de diagnóstico conservada. Es posible que haya detalles de actividad más antiguos en un informe de soporte con datos ocultos en Ajustes.",
+    "phase": {
+      "extract": "Preparando los archivos del juego",
+      "other": "Registro de preparación",
+      "setup": "Ejecutando la configuración del juego"
+    },
+    "reading": "Leyendo el registro conservado…",
+    "readingWithPrevious": "Leyendo el registro conservado… Se muestra la última captura cargada mientras se comprueba el registro actual.",
+    "refresh": "Actualizar el registro capturado",
+    "retry": "Reintentar la lectura del registro",
+    "stderr": "Error estándar",
+    "stderrEmpty": "No se capturó ningún error estándar.",
+    "stderrLabel": "Error estándar de la preparación",
+    "stdout": "Salida estándar",
+    "stdoutEmpty": "No se capturó ninguna salida estándar.",
+    "stdoutLabel": "Salida estándar de la preparación",
+    "truncated": "Se omitió parte de la salida porque superó el límite de captura de {{limit}} por flujo.",
+    "view": "Ver el registro de preparación"
+  },
+  "recovery": {
+    "checking": "Buscando trabajo sin terminar en la biblioteca…",
+    "cleanup": {
+      "again": "Volver a revisar",
+      "cancel": "Cancelar",
+      "checking": "Comprobando los archivos de configuración sin terminar…",
+      "clear": "Borrar el registro de la configuración sin terminar",
+      "clearing": "Borrando el registro de la configuración sin terminar…",
+      "close": "Cerrar",
+      "delete": "Eliminar los archivos de trabajo de la configuración",
+      "deleting": "Eliminando los archivos de trabajo de la configuración…",
+      "description": {
+        "clear": "No quedan archivos de trabajo de la configuración. Borra el registro de la configuración sin terminar y su ruta registrada, si existe.",
+        "delete": "Elimina los archivos de trabajo privados que dejó esta configuración sin terminar. Revisa primero la carpeta afectada y las ubicaciones conservadas.",
+        "inspect": "Revisa lo que queda de esta configuración y las ubicaciones registradas con ella. Abrir esta revisión no cambia archivos. La limpieza es una decisión aparte."
+      },
+      "failure": "No se aceptó la limpieza. El estado de recuperación conservado no cambia.",
+      "keep": "Conservar los archivos",
+      "reviewCleanup": "Revisar la limpieza…",
+      "title": {
+        "clear": "¿Borrar el registro de la configuración sin terminar?",
+        "delete": "¿Eliminar los archivos que dejó la configuración sin terminar?",
+        "inspect": "Archivos que dejó una configuración sin terminar"
+      }
+    },
+    "details": {
+      "cleanupLabel": "Cambios de la limpieza y datos conservados",
+      "clearScope": "No se encontraron archivos de trabajo de la configuración. La limpieza borra la ruta de configuración registrada, si existe, y su registro de recuperación obsoleto.",
+      "deleteScope": "Esto elimina solo la carpeta de trabajo de la configuración registrada y su registro de recuperación. Los archivos eliminados no se pueden recuperar. Si la limpieza se interrumpe, Portcove guarda la limpieza aceptada en su registro de recuperación y la vuelve a intentar cuando se reabre la biblioteca.",
+      "entries": "Entradas afectadas ({{total}})",
+      "folder": "Carpeta de trabajo de la configuración registrada",
+      "folderDelete": "Carpeta de trabajo de la configuración que se eliminará",
+      "inspectLabel": "Archivos de configuración conservados y ubicaciones registradas",
+      "kind": {
+        "file": "Archivo",
+        "folder": "Carpeta",
+        "special": "Enlace o entrada especial"
+      },
+      "locations": "Instalación, archivos del juego, partidas, copias de seguridad y registros",
+      "noEntries": "No se encontraron entradas privadas conservadas.",
+      "now": "Qué puedes hacer ahora",
+      "nowText": "Conserva los archivos y vuelve al juego para revisar sus siguientes pasos, o revisa la limpieza por separado. Al abrir la limpieza se vuelven a comprobar los archivos actuales antes de que decidas qué eliminar.",
+      "pathClear": "Ruta de configuración registrada que se borrará",
+      "remains": "Qué queda",
+      "remainsFiles": "La configuración dejó archivos de trabajo. Esta revisión no confirma que esos archivos estén completos ni listos para jugar.",
+      "remainsRecord": "No se encontraron archivos de trabajo privados. Queda un registro de configuración sin terminar.",
+      "stopClear": "Portcove debe confirmar que la configuración y los programas que inició se han detenido antes de borrar este registro.",
+      "stopDelete": "Portcove debe confirmar que la configuración y los programas que inició se han detenido antes de eliminar estos archivos.",
+      "stopInspect": "La configuración y los programas que inició deben haberse detenido antes de que pueda hacerse la limpieza.",
+      "task": "Tarea registrada: <id />"
+    },
+    "failed": "No se pudo actualizar la información de recuperación: <error />",
+    "failedRetained": "No se pudo actualizar la información de recuperación: <error /> La última comprobación completada sigue visible.",
+    "heading": "Trabajo sin terminar y recuperación",
+    "incomplete": "El registro de recuperación o las evaluaciones relacionadas están incompletos. El estado conservado necesita revisión; no se intentó ninguna reparación.",
+    "intro": "Despliega un elemento para ver su ubicación registrada y las indicaciones. Los enlaces de revisión no cambian archivos.",
+    "item": {
+      "location": "Ubicación registrada",
+      "nextStep": "Siguiente paso sugerido",
+      "noGuidance": "No se registraron indicaciones de recuperación.",
+      "noLocation": "No se registró ninguna ubicación.",
+      "observation": "Observación de diagnóstico",
+      "reference": "Referencia de la operación",
+      "reviewFiles": "Revisar los archivos de configuración sin terminar",
+      "summary": "<game /> · {{label}}"
+    },
+    "kind": {
+      "backupRecovery": "La recuperación de la copia de seguridad necesita revisión",
+      "cleanupPending": "Archivos sin terminar que necesitan revisión",
+      "degradedBackup": "La copia de seguridad necesita atención",
+      "malformedJournal": "Una operación sin terminar necesita revisión",
+      "missingFolder": "Falta la carpeta de juego registrada",
+      "orphanedFolder": "Carpeta de juego no registrada",
+      "partialOperation": "Operación sin terminar",
+      "retainedPreparation": "Archivos de configuración sin terminar",
+      "unknown": "La información de recuperación necesita revisión"
+    },
+    "label": "Trabajo sin terminar y recuperación",
+    "library": "Biblioteca",
+    "location": {
+      "backups": "Copias de seguridad",
+      "backupsPreserved": "Copias de seguridad conservadas",
+      "gameFiles": "Archivos originales del juego",
+      "gameFilesPreserved": "Archivos originales del juego conservados",
+      "installation": "Instalación original",
+      "installationPreserved": "Instalación original conservada",
+      "logs": "Registros",
+      "logsPreserved": "Registros conservados",
+      "savedData": "Datos guardados",
+      "savedDataPreserved": "Datos guardados conservados"
+    },
+    "navigation": {
+      "details": "Revisar los detalles del juego",
+      "installation": "Revisar la instalación del juego",
+      "saves": "Revisar las partidas y copias de seguridad",
+      "setup": "Revisar la configuración del juego",
+      "storage": "Revisar el almacenamiento de la biblioteca",
+      "task": "Ver el registro de la tarea relacionada"
+    },
+    "refresh": "Actualizar la información de recuperación",
+    "refreshing": "Actualizando la información de recuperación. La última comprobación completada sigue visible.",
+    "stale": "La información de recuperación está desactualizada. La última comprobación completada sigue visible.",
+    "unchecked": "La información de recuperación no se ha comprobado para el estado actual de la biblioteca."
+  }
+}

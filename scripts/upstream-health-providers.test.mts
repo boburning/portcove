@@ -644,3 +644,37 @@ void test("rate-limit fallback defers repeated runs while preserving comparison 
     );
   }
 });
+
+void test("SDK secondary-limit evidence defers the provider while ordinary forbidden responses do not", async () => {
+  for (const limited of [true, false]) {
+    let sends = 0;
+    const report = await collectRepositoryHealth(
+      {
+        ports: [
+          { id: "one", release: { repository: "owner/one" } },
+          { id: "two", release: { repository: "owner/two" } },
+        ],
+      },
+      {
+        now: () => healthTime,
+        fetch: async () => {
+          sends++;
+          return new Response(
+            JSON.stringify({
+              message: limited
+                ? "You have exceeded a secondary rate limit"
+                : "Resource not accessible by integration",
+            }),
+            { status: 403, headers: { "content-type": "application/json" } },
+          );
+        },
+      },
+    );
+    assert.equal(sends, limited ? 1 : 2);
+    assert.equal(report.observations[0]?.reason, limited ? "rate-limit" : "forbidden");
+    assert.equal(report.observations[0]?.http_status, 403);
+    if (limited)
+      assert.equal(report.provider_backoff.github, new Date(healthTime + 60000).toISOString());
+    else assert.equal(report.provider_backoff.github, undefined);
+  }
+});

@@ -3,7 +3,6 @@ import {
   requiredFixtureValue as required,
   fixtureObject as object,
 } from "./desktop-scenario-state.mts";
-import type { BinaryLike } from "node:crypto";
 import type { Locator, WebDriver } from "selenium-webdriver";
 import type { ScenarioContext } from "./desktop-scenario-context.mts";
 import type { ScenarioInvoke } from "./desktop-scenario-context.mts";
@@ -48,7 +47,8 @@ import { fileURLToPath } from "node:url";
 import { By, Key, until } from "selenium-webdriver";
 import { spawnCommand } from "../../../scripts/dev-storage.mts";
 
-const digest = (bytes: BinaryLike) => createHash("sha256").update(bytes).digest("hex");
+const digest = (bytes: string | NodeJS.ArrayBufferView) =>
+  createHash("sha256").update(bytes).digest("hex");
 
 export function repeatReviewedCatalogIntent(
   browser: WebDriver,
@@ -248,6 +248,9 @@ export async function artworkCorrectionScenario({
     const dialog = By.css('[aria-labelledby="catalog-update-title"]');
     const open = async () => {
       await click(By.xpath('//nav//button[contains(., "Settings")]'));
+      await click(
+        By.css('nav[aria-label="Settings categories"] button[aria-controls="settings-advanced"]'),
+      );
       await click(button("Manage catalog updates"));
       await browser.wait(until.elementLocated(dialog), 10000);
       await browser.wait(until.elementLocated(By.id("catalog-public-key")), 10000);

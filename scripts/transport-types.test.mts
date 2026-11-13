@@ -15,6 +15,30 @@ import {
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const desktop = path.join(root, "apps", "desktop");
 
+void test("described unconstrained values remain unknown without rewriting explicit object schemas", async () => {
+  const schema = {
+    item: {
+      type: "object",
+      required: ["value", "description", "record"],
+      properties: {
+        value: { description: "A saved scalar or a missing value." },
+        description: { type: "string" },
+        record: {
+          type: "object",
+          description: "An actual object.",
+          additionalProperties: { type: "string" },
+        },
+      },
+    },
+  };
+  const before = JSON.stringify(schema);
+  const rendered = await renderTransportTypes(schema);
+  assert.match(rendered, /value: unknown;/u);
+  assert.match(rendered, /description: string;/u);
+  assert.match(rendered, /\[k: string\]: string;/u);
+  assert.equal(JSON.stringify(schema), before);
+});
+
 void test("schema composition rejects conflicting definitions and external references", async () => {
   const first = { type: "object", $defs: { Value: { type: "string" } } };
   assert.throws(

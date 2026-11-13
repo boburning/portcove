@@ -1,13 +1,68 @@
 //! Catalog-owned rules for variable names in one persistent working directory.
 use std::{collections::BTreeSet, fs, path::Path};
 
-use crate::{PersistentFilePattern, PortDefinition, PortcoveError, Result};
+use crate::{
+    ExternalProfilePolicy, PersistentFilePattern, Platform, PortDefinition, PortcoveError, Result,
+};
 
 const MAX_DIRECTORY_ENTRIES: usize = 4096;
+
+/// Managed PS1 readers that keep an existing installation's retained scope
+/// while a newer definition adds an empty runtime-created directory path.
+pub(crate) const PSX_RETAINED_SCOPE_CAPABILITY: u32 = 3;
+/// The directory PSXRecomp `7192402` creates for player texture packs.
+pub(crate) const PSX_TEXTURE_PACKS: &str = "mods/texture-packs";
+
+/// A newer definition that only adds the texture-pack folder to a managed PS1
+/// installation's retained scope. The installation keeps its retained scope,
+/// so verification, collection and backup behave as before the folder was
+/// declared; installations created under the wider definition retain it.
+pub(crate) fn only_adds_psx_texture_packs(
+    retained: &PortDefinition,
+    current: &PortDefinition,
+) -> bool {
+    let added = current
+        .persistent_paths
+        .iter()
+        .filter(|path| !retained.persistent_paths.contains(path))
+        .collect::<Vec<_>>();
+    retained.adapter == crate::AdapterKind::PsxRecompManaged
+        && retained.persistent_file_patterns == current.persistent_file_patterns
+        && !added.is_empty()
+        && added.iter().all(|path| *path == PSX_TEXTURE_PACKS)
+        && retained
+            .persistent_paths
+            .iter()
+            .all(|path| current.persistent_paths.contains(path))
+        && !retained.persistent_paths.iter().any(|path| {
+            let path = path.to_lowercase();
+            Path::new(&path).starts_with(PSX_TEXTURE_PACKS)
+                || Path::new(PSX_TEXTURE_PACKS).starts_with(&path)
+        })
+}
+
+/// Entries declaring a path older managed PS1 readers would treat as a
+/// changed scope for existing installations.
+pub(crate) fn requires_psx_retained_scope(port: &PortDefinition) -> bool {
+    port.adapter == crate::AdapterKind::PsxRecompManaged
+        && port
+            .persistent_paths
+            .iter()
+            .any(|path| path == PSX_TEXTURE_PACKS)
+}
 const MAX_MATCHING_FILES: usize = 1024;
 
 /// Check one newly declared path without following links or scanning a tree.
 pub(crate) fn require_absent_path(root: &Path, relative: &str) -> Result<()> {
+    require_path(root, relative, true)
+}
+
+/// Existing or absent coordinates must have exact spelling and ordinary parents.
+pub(crate) fn require_exact_path(root: &Path, relative: &str) -> Result<()> {
+    require_path(root, relative, false)
+}
+
+fn require_path(root: &Path, relative: &str, absent: bool) -> Result<()> {
     crate::archive::validate_relative_path(relative, false)?;
     for ancestor in root.ancestors() {
         match fs::symlink_metadata(ancestor) {
@@ -59,6 +114,9 @@ pub(crate) fn require_absent_path(root: &Path, relative: &str) -> Result<()> {
             return Ok(());
         };
         if index + 1 == components.len() {
+            if !absent {
+                return crate::path::refuse_symlink_ancestors(&found);
+            }
             return Err(PortcoveError::conflict("a newly declared player-data path is already present; preserve it before changing versions")
                 .detail("path", found.display().to_string()));
         }
@@ -81,7 +139,7 @@ pub(crate) fn validate_mod_package_policy(port: &PortDefinition) -> Result<()> {
 }
 
 // Exact historical readers keep their creating contracts. Newer managed
-// recipes for these three identities require the same bounded data guard in
+// recipes for these identities require the same bounded data guard in
 // both independent-definition admission and actual lifecycle operations.
 const LEGACY_PACKAGE: &str = "42ada10579a00d266aa08a833054ea5fea87b64eef67d268b054525fd0f6be99";
 
@@ -96,13 +154,32 @@ pub(crate) fn legacy_direct_reader(port_id: &str) -> Option<(&'static str, &'sta
             "v0.1.4",
             "17629394f1e5704c962d4cff0d6bebe15b0a19f34e9aa690536f7a57dfdb3e07",
         )),
+        "super-metroid-recomp" => Some((
+            "v0.3.12",
+            "2b864f287e971f4ed8fa4205b69927ab43ecce5b1a4e79d08a8bd7530c3d87c9",
+        )),
         _ => None,
+    }
+}
+
+pub(crate) fn fresh_direct_data_guard_capability(port: &crate::PortDefinition) -> Option<u32> {
+    if crate::runtime_path_policy::has_staged_sibling_platforms(port) {
+        Some(crate::runtime_path_policy::minimum_capability(port))
+    } else if port.archive_data_transition_v1.is_some() {
+        Some(28)
+    } else if port.archive_data_compatibility_v1.is_some() {
+        Some(27)
+    } else {
+        requires_fresh_direct_data_guard(port).then_some(26)
     }
 }
 
 pub(crate) fn requires_fresh_direct_data_guard(port: &crate::PortDefinition) -> bool {
     if !ready_staged_archive(port) {
         return false;
+    }
+    if port.archive_data_compatibility_v1.is_some() {
+        return true;
     }
     let Some((version, sha256)) = legacy_direct_reader(&port.id) else {
         return false;
@@ -168,26 +245,36 @@ impl PersistentFilePattern {
             ));
         }
         crate::archive::validate_relative_path(&format!("{}x{}", self.prefix, self.suffix), false)?;
-        let suffix = self.suffix.to_ascii_lowercase();
-        if matches!(
-            suffix.rsplit('.').next(),
-            Some(
-                "exe"
-                    | "com"
-                    | "dll"
-                    | "so"
-                    | "dylib"
-                    | "appimage"
-                    | "jar"
-                    | "bat"
-                    | "cmd"
-                    | "ps1"
-                    | "sh"
-                    | "js"
-                    | "vbs"
-                    | "py"
-            )
-        ) {
+        let exact = self
+            .allow_empty_middle
+            .then(|| format!("{}{}", self.prefix, self.suffix));
+        if let Some(exact) = &exact {
+            crate::archive::validate_relative_path(exact, false)?;
+        }
+        if std::iter::once(self.suffix.as_str())
+            .chain(exact.as_deref())
+            .any(|name| {
+                matches!(
+                    name.to_ascii_lowercase().rsplit('.').next(),
+                    Some(
+                        "exe"
+                            | "com"
+                            | "dll"
+                            | "so"
+                            | "dylib"
+                            | "appimage"
+                            | "jar"
+                            | "bat"
+                            | "cmd"
+                            | "ps1"
+                            | "sh"
+                            | "js"
+                            | "vbs"
+                            | "py"
+                    )
+                )
+            })
+        {
             return Err(PortcoveError::usage(
                 "file patterns cannot select executable or script extensions",
             ));
@@ -196,8 +283,9 @@ impl PersistentFilePattern {
     }
 
     pub(crate) fn matches(&self, name: &str) -> bool {
+        let boundary = self.prefix.len() + self.suffix.len();
         !name.contains(['/', '\\'])
-            && name.len() > self.prefix.len() + self.suffix.len()
+            && (name.len() > boundary || (self.allow_empty_middle && name.len() == boundary))
             && name.starts_with(&self.prefix)
             && name.ends_with(&self.suffix)
     }
@@ -208,8 +296,59 @@ impl PersistentFilePattern {
     }
 }
 
+/// Original files for the OpenJK family are local only in the retained Windows
+/// layout. The reviewed Unix profiles own their originals outside the runtime.
+pub(crate) fn declared_paths(port: &PortDefinition, platform: Platform) -> &[String] {
+    if port.external_profile_policy == Some(ExternalProfilePolicy::OpenjkUnixV1)
+        && crate::native_external_profile::openjk::applies_to(platform)
+    {
+        &[]
+    } else {
+        &port.persistent_paths
+    }
+}
+
+pub(crate) fn local_declared_paths(port: &PortDefinition) -> Result<&[String]> {
+    if port.external_profile_policy == Some(ExternalProfilePolicy::OpenjkUnixV1) {
+        Ok(declared_paths(port, Platform::current()?))
+    } else {
+        Ok(&port.persistent_paths)
+    }
+}
+
+/// A persistent disc-image destination travels with its unpack marker. Without it the
+/// next version would hold the carried folder but not recognise it, and would unpack the
+/// disc image again, replacing the folder. Only a port that declares a disc image and
+/// keeps its destination persistent is affected; the marker is verified exactly as before.
+fn disc_source_marker(port: &PortDefinition) -> Result<Option<String>> {
+    let (Some(_), Some(filename)) = (&port.runtime_disc_image, &port.runtime_source_filename)
+    else {
+        return Ok(None);
+    };
+    let destination = port
+        .runtime_subdirectory
+        .as_deref()
+        .map(Path::new)
+        .unwrap_or_else(|| Path::new(""))
+        .join(filename);
+    let persistent = port.persistent_paths.iter().any(|path| {
+        let path = Path::new(path);
+        path == destination || (path.components().next().is_some() && destination.starts_with(path))
+    });
+    if !persistent {
+        return Ok(None);
+    }
+    let marker = crate::adapter::runtime_source_marker_path(&destination)?;
+    Ok(Some(
+        crate::path::unicode(&marker, "source marker")?.replace('\\', "/"),
+    ))
+}
+
 pub(crate) fn entries(port: &PortDefinition, roots: &[&Path]) -> Result<Vec<String>> {
-    let mut entries: BTreeSet<String> = port.persistent_paths.iter().cloned().collect();
+    let mut entries: BTreeSet<String> = local_declared_paths(port)?.iter().cloned().collect();
+    if let Some(marker) = disc_source_marker(port)? {
+        entries.insert(marker);
+    }
     if port.persistent_file_patterns.is_empty() {
         return Ok(entries.into_iter().collect());
     }
@@ -259,6 +398,63 @@ pub(crate) fn entries(port: &PortDefinition, roots: &[&Path]) -> Result<Vec<Stri
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Carrying the unpack marker is scoped to a persistent disc-image destination: every
+    /// other shipped port, including the other persistent-source and directory-source
+    /// routes, enumerates exactly its declared persistent paths as before.
+    #[test]
+    fn only_a_persistent_disc_image_destination_gains_the_unpack_marker() {
+        let catalog = crate::Catalog::embedded().unwrap();
+        let mut gained = Vec::new();
+        for port in catalog.ports() {
+            let declared: BTreeSet<String> = local_declared_paths(port)
+                .unwrap()
+                .iter()
+                .cloned()
+                .collect();
+            let listed: BTreeSet<String> = entries(port, &[]).unwrap().into_iter().collect();
+            if listed != declared {
+                assert!(listed.is_superset(&declared), "{}", port.id);
+                gained.push((
+                    port.id.clone(),
+                    listed.difference(&declared).cloned().collect::<Vec<_>>(),
+                ));
+            }
+        }
+        assert_eq!(
+            gained,
+            [(
+                "ace-combat-6-recomp".to_owned(),
+                vec!["assets.portcove-source.json".to_owned()]
+            )]
+        );
+        // A disc-image port that keeps its destination mutable (regenerated) is not changed.
+        let mut port = catalog.port("ace-combat-6-recomp").unwrap().clone();
+        port.persistent_paths.retain(|path| path != "assets");
+        assert!(
+            !entries(&port, &[])
+                .unwrap()
+                .iter()
+                .any(|path| path.ends_with(".portcove-source.json"))
+        );
+    }
+
+    #[test]
+    fn empty_middle_requires_explicit_file_pattern_opt_in() {
+        let original = serde_json::json!({"prefix":"demorec.","suffix":"1"});
+        let mut pattern: PersistentFilePattern = serde_json::from_value(original.clone()).unwrap();
+        assert_eq!(serde_json::to_value(&pattern).unwrap(), original);
+        assert!(!pattern.matches("demorec.1"));
+        assert!(pattern.matches("demorec.11"));
+        pattern.allow_empty_middle = true;
+        pattern.validate().unwrap();
+        assert!(pattern.matches("demorec.1"));
+        assert!(!pattern.matches("demorec.2"));
+        assert!(!pattern.matches("other/demorec.1"));
+        pattern.prefix = "unsafe.ex".into();
+        pattern.suffix = "e".into();
+        assert!(pattern.validate().is_err());
+    }
 
     #[test]
     fn empty_persistence_checks_preserve_files_directories_and_aliases() {
@@ -474,6 +670,7 @@ mod tests {
         port.runtime_mutable_file_patterns = vec![PersistentFilePattern {
             prefix: "psx_freeze_dump_".into(),
             suffix: ".json".into(),
+            allow_empty_middle: false,
         }];
         assert_eq!(entries(&port, &[root.path()]).unwrap(), ["tmc_test.sav"]);
         fs::create_dir(root.path().join("tmc_directory.sav")).unwrap();
@@ -499,7 +696,8 @@ mod tests {
             assert!(
                 PersistentFilePattern {
                     prefix: prefix.into(),
-                    suffix: suffix.into()
+                    suffix: suffix.into(),
+                    allow_empty_middle: false,
                 }
                 .validate()
                 .is_err()
@@ -509,10 +707,12 @@ mod tests {
             PersistentFilePattern {
                 prefix: "psx_freeze_dump_".into(),
                 suffix: ".json".into(),
+                allow_empty_middle: false,
             }
             .overlaps(&PersistentFilePattern {
                 prefix: "psx_freeze_dump_psx-runtime_".into(),
                 suffix: "_1.json".into(),
+                allow_empty_middle: false,
             })
         );
     }

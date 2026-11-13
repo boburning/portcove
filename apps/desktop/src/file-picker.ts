@@ -12,6 +12,15 @@ export function pickArtworkPath() {
   });
 }
 
+export function pickModPackagePath(packageTypes: string[]) {
+  return open({
+    title: "Choose a mod file",
+    multiple: false,
+    directory: false,
+    filters: [{ name: "Mod package", extensions: packageTypes }],
+  });
+}
+
 export async function pickSourcePath(
   profile: SourceProfile,
   currentPath: string,
@@ -78,7 +87,7 @@ export function pickInstallFolder(currentPath: string) {
 
 export function pickGameFileFolder(currentPath: string) {
   return open({
-    title: "Choose game-file folder",
+    title: "Choose game files folder",
     multiple: false,
     directory: true,
     ...(currentPath ? { defaultPath: currentPath } : {}),
@@ -123,7 +132,7 @@ export function pickHostToolExecutable(displayName: string, currentPath: string)
 
 export function pickMetadataExportPath() {
   return save({
-    title: "Export library metadata",
+    title: "Export library information",
     defaultPath: "portcove-library.json",
     filters: [{ name: "Portcove library metadata", extensions: ["json"] }],
   });
@@ -144,5 +153,22 @@ export function pickSignedCatalogPath() {
     multiple: false,
     directory: false,
     filters: [{ name: "Signed Portcove catalog", extensions: ["json"] }],
+  });
+}
+
+export function pickPortableSavesExportPath(defaultName: string) {
+  return save({
+    title: "Export saves",
+    defaultPath: defaultName,
+    filters: [{ name: "Portcove saves file", extensions: ["json"] }],
+  });
+}
+
+export function pickPortableSavesImportPath() {
+  return open({
+    title: "Import saves",
+    multiple: false,
+    directory: false,
+    filters: [{ name: "Portcove saves file", extensions: ["json"] }],
   });
 }

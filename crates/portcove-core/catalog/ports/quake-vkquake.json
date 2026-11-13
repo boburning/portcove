@@ -3,13 +3,42 @@
   "listing": {
     "id": "quake-vkquake",
     "name": "Quake (vkQuake)",
-    "summary": "Upstream route: Maintained Vulkan source port with recent Windows/Linux packages. Limits: Original data required; choose alongside other Quake implementations deliberately. Upstream platforms: Windows package, Linux AppImage/source routes and ARM64 Windows CI build configuration documented. Selected release package CPUs unknown in frozen evidence; Vulkan required. Original data: Original data required; choose alongside other Quake implementations deliberately. Portcove setup/gameplay not verified.",
+    "summary": "A Vulkan Quake engine for the classic base game on Windows or Linux x64. Use your own compatible Quake files or register a separately prepared copy.",
     "original_game_title": "Quake",
     "project_url": "https://github.com/Novum/vkQuake",
-    "platforms": [],
+    "platforms": ["macos-x86-64", "macos-aarch64"],
     "availability": "unknown",
     "setup_url": "https://github.com/Novum/vkQuake",
-    "issue_number": 2697
+    "issue_number": 2697,
+    "listed_at": "2026-10-25",
+    "manual_setup": {
+      "help_url": "https://github.com/Novum/vkQuake#installation",
+      "steps": [
+        {
+          "title": "Prepare the existing vkQuake copy",
+          "instruction": "Use a complete permitted Windows x64 copy with its matching libraries and your own compatible Quake data. Finish its upstream setup and start and quit it before registration. The ordinary prepared launch uses no arguments. Keep the actual working folder and any literal arguments already needed for store, expansion, mod, custom base-directory or multiuser choices."
+        },
+        {
+          "title": "Preserve both portable and discovered profile roots",
+          "instruction": "Standalone copies can write beneath the prepared base/game directories, but store selection or -multiuser uses the actual SDL vkQuake preference directory (normally APPDATA/vkQuake on Windows). Preserve that actual root and basedirs.txt, global vkQuake.cfg, game-local configs, saves/autosaves/screenshots/demos, all base/id1/mod files, the complete runtime and unknowns. Keep relevant existing Steam/GOG/Epic/Nightdive and Steam-userdata/custom roots too; another runtime folder is not proof of independent state."
+        }
+      ],
+      "warnings": [
+        "Use only a copy and content you are already permitted to use. These instructions do not establish permission for the original game or other components, or confirm the resulting game files.",
+        "These instructions do not confirm gameplay, saving, mods, network play, physical controls or behavior on other platforms.",
+        "Before updating the game, keep a recoverable copy of its working files and every location containing saved data. Another game folder may use the same profile."
+      ],
+      "references": [
+        {
+          "title": "Use an upstream Linux, Mac or Windows ARM64 package",
+          "instruction": "For a separately prepared Linux x86-64 copy, make the official AppImage executable and use a Vulkan-capable driver and AppImage FUSE support. Keep your own Quake data, lowercase id1 and pak filenames, and the actual game-data and preference locations. On Intel or Apple Silicon Mac, follow the upstream Mac Source Ports link, keep vkQuake.app together and put your own id1 folder beside it. On Windows ARM64, use the official windows_arm64 ZIP and keep vkQuake.exe and its libraries together with your own data. Maintain these copies upstream and preserve their actual game-data and preference locations."
+        }
+      ]
+    },
+    "release_url": "https://github.com/Novum/vkQuake/releases",
+    "download_asset_hints": {
+      "linux-x86-64": ["vkquake-", "-x86_64.appimage"]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,
@@ -22,5 +51,58 @@
       }
     },
     "decisions": []
+  },
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64", "linux-x86-64"],
+    "adapter": "native-portable",
+    "reviewed_package_layouts": {
+      "windows-x86-64": {
+        "directories": [],
+        "executables": ["vkquake.exe"]
+      }
+    },
+    "release": {
+      "provider": "github",
+      "repository": "Novum/vkQuake",
+      "asset_hints": {
+        "windows-x86-64": ["vkquake", "_windows_x64.zip"],
+        "linux-x86-64": ["vkquake-", "-x86_64.appimage"]
+      }
+    },
+    "executable_hints": {
+      "windows-x86-64": ["vkQuake.exe"],
+      "linux-x86-64": ["vkquake.AppImage"]
+    },
+    "launch_arguments": ["-basedir", ".", "-nosteam"],
+    "windows_runtime_path_policy": "printable-ascii-max-path",
+    "persistent_paths": ["id1", "vkQuake.cfg", "history.txt"],
+    "presentation": {
+      "installation_method": "portable-package",
+      "source_requirements": [],
+      "saves_and_settings": "portcove-managed",
+      "manual_preparation": "Before Play, copy your matching classic Quake id1 folder into the managed player’s working folder. Use lowercase id1 and pak filenames on Linux. Keep your originals separately. Linux needs a Vulkan-capable driver, glibc 2.34 or newer and AppImage FUSE support. Keep the AppImage intact. Portcove preserves the listed original files, saves and settings in the managed game folder. Use a separately prepared copy for store selection or a custom profile."
+    },
+    "external_profile_policy": "vkquake-linux-v1"
+  },
+  "route_facts_v1": {
+    "format_version": 1,
+    "prepared_player": {
+      "working_directory": "executable-parent",
+      "arguments": [],
+      "data_locations": [
+        "the actual prepared Quake directory and any store, multiuser or custom profile directories"
+      ]
+    },
+    "managed_native": {
+      "preparation": {
+        "title": "Copy your own classic Quake data beside the managed player",
+        "instruction": "Open the managed runtime folder and copy the id1 folder containing pak0.pak and pak1.pak from your own classic Quake installation beside vkQuake.exe before Play. Keep your original copy. Portcove starts the managed copy from this local base with Steam integration disabled."
+      },
+      "warnings": [
+        "A Vulkan-capable GPU and driver are required. Use a separately prepared copy for store discovery, rerelease data, expansions, mods, multiuser settings or custom base directories. Real save compatibility across versions remains unverified."
+      ]
+    }
   }
 }

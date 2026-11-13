@@ -1,3 +1,8 @@
+import {
+  catalogGuideCopyMaxBytes,
+  decodeGuideCopyBlob,
+  readGuideCopyBlob,
+} from "./catalog-guide-copy-impact.mts";
 import { errorMessage } from "./runtime-values.mts";
 import type { Stats } from "node:fs";
 import type { SpawnSyncOptions, SpawnSyncReturns } from "node:child_process";
@@ -14,7 +19,7 @@ import type {
 } from "./validation-evidence.mts";
 import type { PrerequisiteObservation } from "./dev-doctor.mts";
 export type { PrerequisiteObservation } from "./dev-doctor.mts";
-import { annotateNextest } from "./nextest-equivalence.mts";
+import { annotateChanges } from "./validation-change-proofs.mts";
 import { createHash } from "node:crypto";
 import { lstatSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
@@ -169,14 +174,21 @@ export function readChangeContext(base = "origin/main") {
     baseSha,
     headSha,
     mergeBase,
-    changes: annotateNextest(
+    changes: annotateChanges(
       [...tracked, ...untracked].map((c) => ({
         ...c,
         oldPath: c.previousPath ?? c.path,
         newPath: c.path,
       })),
-      (file) => git(["show", `${mergeBase}:${file}`]),
-      (file: string) => readFileSync(path.join(projectRoot, file), "utf8"),
+      (file) =>
+        decodeGuideCopyBlob(
+          runCheckedGit(["show", `${mergeBase}:${file}`], {
+            cwd: projectRoot,
+            encoding: "buffer",
+            maxBuffer: catalogGuideCopyMaxBytes,
+          }),
+        ),
+      (file: string) => readGuideCopyBlob(path.join(projectRoot, file)),
     ),
   };
 }
@@ -581,6 +593,7 @@ export function executePlanWithReceipts(
 }
 
 export function requireFocusedArguments(kind: string, args: string[]) {
+  if (kind === "test-ui" && args.length === 1 && args[0] === "--last-failed") return;
   const hasSelection =
     kind === "test-node"
       ? args.some((value) => /\.(?:test|integration\.test)\.(?:[cm]?[jt]s)$/.test(value))
@@ -622,13 +635,15 @@ function runFocusedCommand(kind: string, args: string[]) {
   } else if (kind === "test-ui-related") {
     plan = [uiRelatedCommand(resolveUiSelection(args, desktopRoot, "related"))];
   } else if (kind === "test-ui") {
-    const files = resolveUiSelection(args, desktopRoot);
+    const lastFailed = args[0] === "--last-failed";
+    const requested = lastFailed ? args.slice(1) : args;
+    const files = lastFailed && !requested.length ? [] : resolveUiSelection(requested, desktopRoot);
     plan = [
       command(
         "ui-explicit-tests",
         "literal UI test files and execution reconciliation",
         process.execPath,
-        ["scripts/run-ui-tests.mts", "exact", ...files],
+        ["scripts/run-ui-tests.mts", "exact", ...(lastFailed ? ["--last-failed"] : []), ...files],
         { cwd: projectRoot },
       ),
     ];
@@ -678,7 +693,7 @@ export async function main(
 ) {
   if (argv.includes("--help")) {
     console.log(
-      "usage: local-validation.mts [check [--base REV] [--plan|--preflight [--json] [--hosted-authority SHA --hosted-controller SHA --hosted-ref NAME]] [--fresh]|test-rust ARGS|test-ui FILES|test-ui-related FILES|test-node TESTS]",
+      "usage: local-validation.mts [check [--base REV] [--plan|--preflight [--json] [--hosted-authority SHA --hosted-controller SHA --hosted-ref NAME]] [--fresh]|test-rust ARGS|test-ui FILES|test-ui --last-failed [FILES]|test-ui-related FILES|test-node TESTS]",
     );
     return;
   }

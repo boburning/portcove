@@ -125,7 +125,7 @@ const render = async (generation = 1) => {
 };
 const button = (text: string) => {
   const element = [...document.querySelectorAll<HTMLButtonElement>("button")].find(
-    (item) => item.textContent?.trim() === text,
+    (item) => (item.getAttribute("aria-label") ?? item.textContent?.trim()) === text,
   );
   expect(element).toBeDefined();
   return element!;

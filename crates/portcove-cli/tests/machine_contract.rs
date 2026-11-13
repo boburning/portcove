@@ -8,6 +8,8 @@ use serde_json::Value;
 #[path = "machine_contract/preparation.rs"]
 mod preparation_contract;
 
+#[path = "machine_contract/profiles.rs"]
+mod profiles;
 #[path = "machine_contract/retained_builds.rs"]
 mod retained_build_contract;
 
@@ -31,6 +33,15 @@ mod game_comparison;
 
 #[path = "machine_contract/update_inventory.rs"]
 mod update_inventory;
+
+#[path = "machine_contract/launcher_library.rs"]
+mod launcher_library;
+
+#[path = "machine_contract/folder_setup.rs"]
+mod folder_setup;
+
+#[path = "machine_contract/ready_notices.rs"]
+mod ready_notices;
 
 #[cfg(all(windows, feature = "qualification-fixtures"))]
 #[path = "machine_contract/source_discovery.rs"]
@@ -94,14 +105,18 @@ fn game_file_query_uses_core_refresh_and_truthful_operation_events() {
     let port = catalog
         .ports()
         .iter()
-        .find(|port| {
-            port.source_profile.as_deref() == Some("ocarina-of-time")
+        .filter(|port| {
+            port.source_profile.is_some()
                 && port.release.provider != portcove_core::ReleaseSource::UserPrepared
                 && port.platforms.contains(&platform)
                 && port
                     .channels
                     .contains(&portcove_core::ReleaseChannel::Stable)
         })
+        // The real CLI reads the embedded catalog, so prefer the Ocarina of Time
+        // shape and fall back to another source-backed port where it is not
+        // offered for this host (macOS).
+        .min_by_key(|port| port.source_profile.as_deref() != Some("ocarina-of-time"))
         .unwrap();
     let mut results = Vec::new();
     for mode in ["--json", "--jsonl"] {
@@ -379,7 +394,7 @@ fn first_use_help_identifies_player_and_external_client_routes() {
     for (args, phrase) in [
         (
             &["source", "remove", "--help"][..],
-            "without deleting its file",
+            "without deleting the original files",
         ),
         (
             &["install", "--help"][..],
@@ -1818,6 +1833,73 @@ fn source_relink_requires_a_current_plan_and_preserves_registered_content() {
 }
 
 #[test]
+fn source_reuse_compiled_reader_retains_baseline_and_informational_edition_limits() {
+    let temporary = tempfile::tempdir().unwrap();
+    let library = temporary.path().join("library");
+    let source = temporary.path().join("controlled.z64");
+    let bytes = b"\x80\x37\x12\x40synthetic registered-source reuse fixture";
+    std::fs::write(&source, bytes).unwrap();
+    let added = portcove(
+        &library,
+        &[
+            "--json",
+            "source",
+            "add",
+            "majoras-mask",
+            source.to_str().unwrap(),
+        ],
+    );
+    assert!(added.status.success(), "{added:?}");
+    let before = json_stdout(&portcove(&library, &["--json", "source", "list"]))["data"].clone();
+    let result = portcove(&library, &["--json", "source", "reuse", "majoras-mask"]);
+    assert!(result.status.success(), "{result:?}");
+    let result = json_stdout(&result);
+    assert_eq!(result["schema_version"], portcove_core::API_SCHEMA_VERSION);
+    assert_eq!(result["command"], "source.reuse");
+    assert_eq!(result["data"]["reference"]["profile_id"], "majoras-mask");
+    assert_eq!(
+        result["data"]["reference"]["reference_sha256"]
+            .as_str()
+            .unwrap()
+            .len(),
+        64
+    );
+    for port in ["2ship2harkinian", "zelda64-recomp"] {
+        let app = result["data"]["applications"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|app| app["port_id"] == port)
+            .unwrap();
+        assert_eq!(
+            app["compatibility"], "potential",
+            "inert synthetic bytes are not a known original"
+        );
+        let inspected = result["data"]["inspection"]["applications"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|app| app["port_id"] == port)
+            .unwrap();
+        assert_eq!(inspected["contract"]["admission_mode"], "informational");
+        assert!(inspected["contract"]["evidence_gap"].is_string());
+    }
+    assert_eq!(
+        json_stdout(&portcove(&library, &["--json", "source", "list"]))["data"],
+        before
+    );
+    assert_eq!(std::fs::read(&source).unwrap(), bytes);
+    let capabilities = json_stdout(&portcove(&library, &["--json", "capabilities"]));
+    assert!(
+        capabilities["data"]["commands"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|command| command == "source.reuse")
+    );
+}
+
+#[test]
 fn source_inspect_is_read_only_complete_and_equivalent_across_output_modes() {
     let temporary = tempfile::tempdir().unwrap();
     let library = temporary.path().join("library");
@@ -2192,7 +2274,7 @@ fn saved_game_file_roots_survive_unavailability_and_relink_by_stable_identity() 
         &["--json", "source", "roots", "scan", "--max-entries", "4"],
     ));
     assert_eq!(scan["command"], "source.roots.scan");
-    assert_eq!(scan["data"]["format_version"], 12);
+    assert_eq!(scan["data"]["format_version"], 13);
     assert_eq!(scan["data"]["limits"]["max_entries"], 4);
     assert_eq!(scan["data"]["limits"]["max_depth"], 6);
     assert_eq!(scan["data"]["freshness"], "inputs_match");
@@ -2203,6 +2285,36 @@ fn saved_game_file_roots_survive_unavailability_and_relink_by_stable_identity() 
         scan["data"]["report"]["limits_reached"],
         serde_json::json!([])
     );
+
+    assert_eq!(scan["data"]["matches"]["exact_matches"], 0);
+    assert_eq!(scan["data"]["matches"]["preview_complete"], true);
+    let scan_id = scan["data"]["matches"]["scan_id"].as_str().unwrap();
+    let matches = json_stdout(&portcove(
+        &library,
+        &[
+            "--json",
+            "source",
+            "roots",
+            "matches",
+            "--limit",
+            "8",
+            "--root",
+            &first_id,
+            "--scan-id",
+            scan_id,
+        ],
+    ));
+    assert_eq!(matches["command"], "source.roots.matches");
+    assert_eq!(matches["data"]["scan_id"], scan_id);
+    assert_eq!(matches["data"]["kind"], "exact");
+    assert_eq!(matches["data"]["total"], 0);
+    assert_eq!(matches["data"]["candidates"], serde_json::json!([]));
+    assert_eq!(matches["data"]["next_offset"], Value::Null);
+    let refused = portcove(
+        &library,
+        &["--json", "source", "roots", "matches", "--limit", "0"],
+    );
+    assert!(!refused.status.success(), "{refused:?}");
 
     let snapshot = json_stdout(&portcove(
         &library,
@@ -2498,7 +2610,7 @@ fn doctor_has_human_output_snapshot() {
     let root = tempfile::tempdir().unwrap();
     let doctor = human_stdout(&portcove(root.path(), &["doctor"])).to_owned();
     assert!(doctor.starts_with("Portcove doctor\nPlatform:"));
-    assert!(doctor.contains("\nRepair review: no repairs needed."));
+    assert!(doctor.contains("\nRepair review: no repair items were recorded."));
 }
 
 #[test]
@@ -2979,8 +3091,9 @@ fn about_is_branded_for_people_and_structured_for_automation_without_opening_a_l
 #[test]
 fn status_disclosure_explains_real_core_decisions_without_changing_machine_output() {
     let root = tempfile::tempdir().unwrap();
-    let machine = json_stdout(&portcove(root.path(), &["--json", "status", "lighthouse"]));
-    let stream = json_stdout(&portcove(root.path(), &["--jsonl", "status", "lighthouse"]));
+    let port = offered_libultraship_port("lighthouse");
+    let machine = json_stdout(&portcove(root.path(), &["--json", "status", port]));
+    let stream = json_stdout(&portcove(root.path(), &["--jsonl", "status", port]));
     assert_eq!(machine["schema_version"], portcove_core::API_SCHEMA_VERSION);
     assert_eq!(stream["type"], "result");
     assert_eq!(machine["data"], stream["data"]);
@@ -2992,7 +3105,7 @@ fn status_disclosure_explains_real_core_decisions_without_changing_machine_outpu
         .unwrap();
     assert_eq!(install["availability"], "waiting");
     assert_eq!(install["reason"], "missing_source");
-    let output = portcove(root.path(), &["status", "lighthouse"]);
+    let output = portcove(root.path(), &["status", port]);
     let human = human_stdout(&output);
     assert!(
         human.contains(
@@ -3001,6 +3114,32 @@ fn status_disclosure_explains_real_core_decisions_without_changing_machine_outpu
         "actual CLI output has no explanation for the core's missing-game-files decision:\n{human}"
     );
     assert!(human.contains("EXTERNAL (USER-OWNED)"), "{human}");
+}
+
+/// `preferred` when the embedded catalog offers it on this host, otherwise the
+/// first source-backed stable port with the same adapter that does. The real
+/// CLI reads the embedded catalog, so a host the preferred port does not ship
+/// for (macOS) needs a sibling of the same shape rather than a skipped case.
+fn offered_libultraship_port(preferred: &str) -> &'static str {
+    static CATALOG: std::sync::OnceLock<portcove_core::Catalog> = std::sync::OnceLock::new();
+    let catalog = CATALOG.get_or_init(|| portcove_core::Catalog::embedded().unwrap());
+    let platform = portcove_core::Platform::current().unwrap();
+    let adapter = catalog.port(preferred).unwrap().adapter;
+    catalog
+        .ports()
+        .iter()
+        .filter(|port| {
+            port.adapter == adapter
+                && port.source_profile.is_some()
+                && port.platforms.contains(&platform)
+                && port
+                    .channels
+                    .contains(&portcove_core::ReleaseChannel::Stable)
+        })
+        .min_by_key(|port| port.id != preferred)
+        .unwrap()
+        .id
+        .as_str()
 }
 
 #[test]
@@ -3181,4 +3320,119 @@ fn catalog_detail_preserves_managed_output_machine_reads_and_a_player_file() {
         );
     }
     assert_eq!(std::fs::read(&player_file).unwrap(), player_bytes);
+}
+
+#[test]
+fn doctor_explains_malformed_journals_without_recovery_or_mutation() {
+    let temporary = tempfile::tempdir().unwrap();
+    let library = temporary.path().join("library");
+    drop(portcove_core::Library::open(&library).unwrap());
+    let sentinel = library.join("retained-sentinel");
+    std::fs::write(&sentinel, b"retained player bytes").unwrap();
+    let run = |args: &[&str]| {
+        Command::new(cli_binary())
+            .arg("--library")
+            .arg(&library)
+            .env(
+                "PORTCOVE_PREFERENCES",
+                temporary.path().join("preferences.json"),
+            )
+            .env(
+                "PORTCOVE_APPLICATION_RUNTIME_LOCK",
+                temporary.path().join("runtime.lock"),
+            )
+            .env_remove("GITHUB_TOKEN")
+            .env_remove("GH_TOKEN")
+            .env_remove("PORTCOVE_GITHUB_TOKEN")
+            .args(args)
+            .output()
+            .unwrap()
+    };
+    let db = rusqlite::Connection::open(library.join("portcove.sqlite3")).unwrap();
+    db.execute_batch(
+        "INSERT INTO lifecycle_operations(id,kind,port_id,phase,created_at,updated_at) VALUES
+      ('valid-pending','install','zelda64-recomp','preparing',1,2),
+      ('missing-payload','install','zelda64-recomp','prepared',3,4),
+      ('bad-acquisition','acquire_update','zelda64-recomp','preparing',5,6);",
+    )
+    .unwrap();
+    let rows = || {
+        let mut q = db
+            .prepare("SELECT * FROM lifecycle_operations ORDER BY rowid")
+            .unwrap();
+        q.query_map([], |row| {
+            (0..row.as_ref().column_count())
+                .map(|i| row.get::<_, rusqlite::types::Value>(i))
+                .collect::<rusqlite::Result<Vec<_>>>()
+        })
+        .unwrap()
+        .collect::<rusqlite::Result<Vec<_>>>()
+        .unwrap()
+    };
+    let before = rows();
+    assert!(
+        portcove_core::PortcoveService::new(portcove_core::Library::open(&library).unwrap())
+            .is_err()
+    );
+    for args in [vec!["--json", "doctor"], vec!["--jsonl", "doctor"]] {
+        let output = run(&args);
+        assert!(
+            output.status.success(),
+            "{}",
+            String::from_utf8_lossy(&output.stdout)
+        );
+        let value = json_stdout(&output);
+        assert_eq!(value["ok"], true);
+        let repair = &value["data"]["repair"];
+        assert!(
+            repair["items"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|item| item["operation_id"] == "valid-pending")
+        );
+        assert_eq!(repair["journal_diagnostics"]["enumeration_complete"], true);
+        assert_eq!(
+            repair["journal_diagnostics"]["problems"]
+                .as_array()
+                .unwrap()
+                .len(),
+            2
+        );
+        assert!(
+            repair["items"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|item| item["kind"] == "malformed_journal")
+        );
+    }
+    let human = run(&["doctor"]);
+    let text = human_stdout(&human);
+    assert!(text.contains("malformed journal"));
+    assert!(text.contains("requires review"));
+    assert!(!text.contains("no repairs needed"));
+    assert_eq!(rows(), before);
+    assert_eq!(std::fs::read(&sentinel).unwrap(), b"retained player bytes");
+    assert!(
+        portcove_core::PortcoveService::new(portcove_core::Library::open(&library).unwrap())
+            .is_err()
+    );
+
+    db.execute_batch("ALTER TABLE lifecycle_operations RENAME TO retained_unreadable_journal")
+        .unwrap();
+    let output = run(&["--json", "doctor"]);
+    assert!(!output.status.success());
+    let failure = json_stdout(&output);
+    assert_eq!(failure["ok"], false);
+    assert!(failure["data"].is_null());
+    assert_eq!(
+        db.query_row(
+            "SELECT count(*) FROM retained_unreadable_journal",
+            [],
+            |row| row.get::<_, i64>(0)
+        )
+        .unwrap(),
+        3
+    );
 }

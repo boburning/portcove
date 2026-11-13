@@ -1,5 +1,10 @@
 # Releasing Portcove
 
+Start with [Release task order](#release-task-order) for reusable instructions.
+The [upstream-first integration record](#upstream-first-release-integration)
+retains dated rehearsal inputs, failures and limits; it does not grant a new run
+or publication. Live scope and remaining acceptance belong to the owning issues.
+
 ## Release task order
 
 Use this route for the exact candidate and platforms being claimed. The current
@@ -7,6 +12,26 @@ Use this route for the exact candidate and platforms being claimed. The current
 and [protected tag/publication boundaries](#roadmap-readiness-snapshot) remain
 effective. Preparation, a successful rehearsal and an ordinary merge each retain
 their own scope; publication requires its existing explicit authority.
+
+The first public beta application release is Windows x86-64 only at the existing
+supported Windows/WebView2 baseline. Follow the
+[Windows/shared release boundary](DELIVERY.md#first-public-beta-host-boundary).
+Linux remains planned for a subsequent beta; retain its implementation, metadata
+and completed/unfinished evidence without requiring an unshipped Linux or macOS
+application artifact for this launch. Shared checks keep their appropriate hosts.
+The implemented `initial-beta-windows-x86_64-v1` reusable qualification profile
+has [explicit producer and consumer requirements](QUALITY.md#staged-audit-receipts).
+Its selection does not qualify actual candidate bytes or authorize publication.
+The `full` and historical `initial-beta-win-linux` paths retain their broader
+obligations. The Windows-first profile does not use the [#706 Linux disposition](releases/2026-10-14-linux-beta-risk-706.md).
+The original ordinary Linux x86-64 GNU scope permits one publication.
+The separate [initial-proof amendment](https://github.com/boburning/portcove/issues/706#issuecomment-6325645712)
+permits up to three total irreversible Linux public exposures only for its
+exact `initial-public-proof-three-total-v1` inputs and appointed controller.
+Both expire November 14, 2026 at 23:59 America/New_York
+(`2026-11-15T04:59:00Z`). Keep affected Linux candidates held while the finding
+remains unless they have an applicable disposition. Ordinary development
+continues under the separate scanner policy while #706 tracks remediation.
 
 ### Preflight
 
@@ -55,6 +80,220 @@ development-build game journey. Their build, environment, input and observation
 limits remain attached to those guides; neither is qualification of a new
 release or a production update feed.
 
+## Upstream-first release integration
+
+### Ordinary application publication
+
+GitHub Actions jobs, protected environment tags, concurrency, artifacts and
+attestations provide runner isolation, exact source admission, serialization and
+producer identity. GitHub Releases provides immutable payload custody after
+publication. Portcove verifies the approved source and version, exact package
+inventory and prepared Release before making it public. The independent semantic
+decision applies to the complete source delta. GitHub review and attestation can
+bind reviewer or producer identity. Portcove release policy determines which
+version that delta can receive.
+
+The maintained Tauri CLI builds the NSIS package and provides detached payload
+signatures. The installed client also authenticates signed TUF metadata and
+enforces freshness, replay refusal and release channel policy. That metadata
+and the isolated signing roles remain part of the application trust boundary.
+
+The native application release workflow stages and verifies draft assets before
+requesting the final protection observation. The same preparation boundary
+applies to ordinary Preview, metadata bootstrap, and metadata renewal. Renewal
+retains the exact serving predecessor and any bounded pending lineage with the
+attested prepared assets. The final job rechecks the live cohort, draft asset
+identities, pause and protection before publishing the immutable Release.
+Draft asset removal still requires its own fresh protection observation.
+
+The appointed r86 served metadata renewal uses the fixed role environments to sign only unchanged
+records into private attempt artifacts. The signer verifies the appointed source,
+live pause and budget, and exact context reservation before key use. Immutable
+publication and Pages each retain their fresh independent protection checks.
+
+Other metadata maintenance pairs each Releases, Preview and Stable
+signer with a separate observer for its phase and attempt. Each observer waits
+for the matching signing step before collecting the inventory. Other signing
+jobs may be queued or already settled. The signer verifies the receipt and its
+existing freshness limit before signing.
+
+Ordinary prepare reserves 157 minutes within an exact 160-minute spending
+appointment. Its source job has five minutes for qualification and comparison,
+and its seven isolated observers each have three minutes for collection and
+artifact handoff. The observed protection inventory still has to match at the
+write boundary. The handoff lasts at most 150 seconds for ordinary writes and
+240 seconds for payload signing, including verification of the unsigned package
+and native evidence. A fresh check immediately precedes the Tauri signing call.
+The account $0 Stop policy and other execution paths keep their existing limits.
+
+The first ordinary executable publication of a newly appointed controller uses
+the complete authenticated predecessor read from feed preparation. Under the
+shared publication concurrency group, the final guard checks the exact public
+marker between reads of the same settled serving actor. This keeps a repeated
+whole-site download out of the protection window. The publisher still checks the
+exact artifact, active admission, current pause, source and budget, and the
+fresh protection fingerprint after OIDC and before native create. The existing
+post-create and independent readback verify the complete successor byte set.
+Exceptional recovery retains its full predecessor and outcome checks.
+
+GitHub's Pages artifact action prepares the deployment archive. The maintained
+Pages deploy action handles native create, observation and cancellation, but
+exposes no hook between obtaining OIDC and issuing create. The bounded Pages
+API call retains that guard point. Native deployment identity, Actions admission
+and authenticated public bytes are separate evidence.
+
+### Operate the protected path
+
+- **Inspect.** Start at [#534](https://github.com/boburning/portcove/issues/534)
+  for the current appointment, active request and retained attempt. Match the
+  source, run and attempt to GitHub Actions. Read `publication.json` at the
+  exact `portcove-release-pause` branch tip and verify the tip stayed stable
+  during the read. Use authenticated public metadata and package readback to
+  determine what clients can actually consume.
+- **Pause and resume.** Use the existing
+  [owner-controlled pause](qualification/slice4-production-authorization-packet-2026-10-18.md#recommended-input-authorities-decision-d1).
+  The owner sets `publication_paused` to `true` to pause or `false` to resume
+  against the current preimage, then verifies the resulting ref and value.
+  The coordinator's `inspectRemoteCommitObject` rebuilds the pause commit from
+  the provider record. A signed commit keeps its offset in the signed payload.
+  An unsigned commit rebuilds only when its original offset is `+0000`, because
+  the record omits the offset. Use a signed web-editor commit or a Git Data API
+  commit with UTC `author` and `committer` dates; contents-API commits use the
+  client's local offset. An unreadable tip makes every coordinator read refuse,
+  including while paused. Replace it with a UTC commit that keeps the current
+  `publication_paused` value, and check the new tip with that reader before
+  dispatch.
+  Keep the admitted request, allocation and attempts intact. Before resuming,
+  verify the live appointment, protection, freshness, candidate or renewal
+  basis, and authority for the exact operation. Eligible work continues
+  through the appointed controller.
+- **Recover.** Reconcile the retained request and its last settled checkpoint
+  with current Release, Pages and serving-byte readback. The existing
+  [checkpoint recovery](#bounded-remote-checkpoint-recovery) supports snapshot
+  inspection and export. Follow the operation-specific continuation on #534
+  for live recovery. Preserve unknown effects until readback settles them.
+
+### November 4, 2026 rehearsal record
+
+The following records the rehearsal state and instructions at the inspected
+revision. Retain its exact sources, run identities, failures and constraints.
+Consult [#534](https://github.com/boburning/portcove/issues/534) for current
+production ownership and authorized continuation; this dated record does not
+schedule or authorize another execution.
+
+The November3 #534 reset retains Tauri NSIS packaging, detached payload verification,
+the authenticated TUF format and the installed updater. Native Actions jobs,
+concurrency, artifact identity, maintained attestations, draft-first immutable
+Releases and Pages handle execution and transfer. The parked storage-writer App
+expansion is unnecessary for this rehearsal; no App is created. Existing production
+custody, accounts, trust anchors, pause and journal remain preserved.
+
+The first connected [run41757452864/1](https://github.com/boburning/portcove/actions/runs/41757452864)
+passed package, provenance, disposable signing, local-feed installed updating and
+complete draft readback at sourceb9651dab. Its elevated Windows Server10.0.26100
+fixture demonstrated staging refusals, recovery, restart, preservation and uninstall
+cleanup. It did not establish ordinary-user/supported-client acceptance, immutable
+publication, public feed continuity or production readiness. Its retained screenshot
+also shows an interface-size confirmation warning. #52 and #246 remain separate.
+
+The first protected [run41778356884/1](https://github.com/boburning/portcove/actions/runs/41778356884)
+at source4d810380 passed package/provenance and the actual queued-duplicate refusal,
+then stopped before any baseline, release or installed execution. Its candidate
+repository exposed swapped Tough delegation arguments: generation2 was used as a
+signature threshold while metadata version stayed1. The corrected caller keeps
+one-key delegation thresholds independent from metadata versions, with actual
+version2/version3 repository consumption and immutable-retry coverage. Original
+failure, unsigned bytes, provenance and protectedr1 history remain retained.
+
+The protected r2 [run41788540335/1](https://github.com/boburning/portcove/actions/runs/41788540335)
+at source7a60432a passed package, provenance, signing, baseline, controlled installed
+updating, independent acceptance and immutable publication. Release433642404,
+`v0.0.0-rehearsal.41788540335.1`, has all15 verified immutable assets. The intended
+post-publication interruption preserved the authenticated empty HTTPS baseline.
+Its failed-only attempt2 stopped before transfer/feed effects: GitHub returned
+successful historical jobs with new IDs and attempt/display fields, but retained
+their original runner, timestamps and steps. Counting both observations duplicated
+about60minutes; actual executed time including the14-second refusal is about61.2.
+The original failures, certificates, signed bytes and baseline remain retained.
+
+The r5 replay is retired. Its immutable source and failure evidence remain
+available, and #534's maintained application qualification owns the unfinished
+uninstall-preservation and final public readback checks.
+[Recorded retirement decision](https://github.com/boburning/portcove/issues/4319#issuecomment-6699780365).
+
+The retired `upstream-release-rehearsal.yml` was a **fixed public-only diagnostic
+continuation** at `refs/tags/portcove-upstream-rehearsal-20261104r5`. It cannot build
+payloads or predecessors, generate signing keys, write a release or deploy a feed.
+It reuses the exact original r2 artifacts, manifest, acceptance certificate, public
+predecessor, Root, immutable release and already published candidate at
+`rehearsal/41788540335-1/application/`. Original product source7a60432a/producer
+identity remains distinct from the new executor/harness/run/final attestation.
+Historical main/r1/r2/r3/r4 attestations remain readable; execution is protectedr5
+and first-attempt only.
+
+The three serial caps are preflight3/public-installed15/readback5minutes.
+Accounting retains both original native attempts, settled r3 run41806364323/1,
+settled r4 run41811038103/1 and this sole new execution: five fixed observations,
+with every actual failure,
+cancellation and repeat counted under the unchanged cumulative application140
+ceiling. A copied successful row is charged once only with exact prior
+run/source/runner/time/step evidence completed before its authenticated later
+attempt started. Mutable IDs/display names and omitted runner-group fields do
+not establish another execution. Missing or inconsistent evidence refuses.
+The prior three-exposure limit was temporary rehearsal scaffolding, not a new
+owner resource appointment. This finite diagnostic repair adds only one execution;
+it introduces no retry service or automatic redispatch.
+
+The historical observation deadlines09:18:43Z and calibrated09:48:43Z remain in
+receipts. They are harness observation bounds, separate from actual application140
+execution, trust freshness, product deadlines and the historical semantic-owner
+clock. Native job timeouts and a finite read-only observer bound this diagnostic
+run; source repair/review/CI time does not repeatedly patch a UTC literal. No
+reservation, known headroom or paid fallback is inferred from the owner-confirmed
+account$0 Stop usage boundary.
+
+The preflight verifies both original failure boundaries, the settled r3/r4
+recovery successes, r3 feed success, exact native UI failure steps and skipped readbacks. It
+rechecks original certificates, all15 immutable asset bytes and all15 already
+published candidate-feed files. There is no rollback to the old empty baseline
+and no Pages writer, permission or deployment environment in this continuation.
+Only the new executor's exact protected tag/no-bypass rule needs reconciliation;
+existing r3 Pages and catalog deployment policies stay unchanged. Production
+routes stay held. Current404 observations do not explain #246's earlier failure.
+
+The r3 UI check timed out waiting for its fresh Stable caption. Earlier malformed
+payload refusals reached authenticated candidate handling. Its cause was initially
+unproven: failure captures were saved under the disposable lifecycle directory,
+but only the success-copy directory was uploaded. The diagnostic upload now
+retains JSON, PNG, log and HTML from either path even on failure. Assertions,
+UI waits, product behavior, installer bytes and cleanup remain unchanged.
+
+The r4 capture identifies the refusal: an empty local-payload override remains
+present after PowerShell 7.5+ converts `SetEnvironmentVariable(..., $null, ...)`
+to an empty value. Rust correctly observes `Some("")` and refuses the unavailable
+fixture payload. The harness now removes `Env:` entries and asserts all four
+transport overrides absent before public startup and renderer execution. Absent
+preimages are restored by removal too. The inert Windows regression executes the
+actual two clearing blocks with empty/nonempty seeds; it fails before this repair
+and passes afterward without executing an installer or application. The repaired
+harness reuses all original public product bytes and changes no updater behavior.
+
+A fresh Windows job consumes the original attested public predecessor, compiled
+HTTPS metadata and actual immutable GitHub payload through the installed UI. It
+receives no signing/OIDC credential or local feed/payload substitution. A separate
+fresh job inspects its actual source/harness, retained OS handles, settled child
+processes, preservation and uninstall, rechecks the public feed, and attests the
+new summary. This remains a controlled elevated Server fixture. #52's shared and
+ordinary native mechanisms are already accepted through #4003; actual production
+installed-client continuity, default-feature/package/feed/role joins and qualified
+cutover remain unfinished. #246 keeps its separate frozen client and open outcome.
+
+Source review, local fixtures, a disposable recovery or an ordinary merge grants
+no production unpause, private credential import, new App/key custody, account/Task
+activation or announcement. Complete existing-key production joins and retire the
+superseded active machinery only through the qualified replacement and existing
+authority. Preserve old journals, immutable artifacts and failures.
+
 ## Inactive Slice 4 input integration
 
 The prepared semantic input wire uses summary schema 2: the complete validated
@@ -77,6 +316,51 @@ source bytes need no exhaustive read. Delivery of evidence is necessary but
 does not establish sound semantic judgment or grant capture/issuer authority;
 unavailable evidence retains changes-required/refused outcomes. Existing
 production activation and storage holds remain separately owned.
+
+The existing Linux worker can be appointed for one exact qualified application
+request with a finite lane count and wall-clock window. Each proposal and
+complete-opportunity phase has its own frozen bundle and verified page plan.
+Each lane runs under the same independent producer in a separate settled
+invocation, and its reader exposes only its assigned exact pages. The fixed
+parent replays every captured page and requires the complete, nonduplicated
+union before a separate settled synthesis can decide the phase. The issuer
+still requires the direct capture and rereads retained lane evidence. A lane
+report, an imported transcript, or a byte-coverage receipt grants no authority.
+The ordinary worker window and catalog/default reader paths apply without the
+exact application appointment.
+Within one attempt, complete review may replay genuine proposal content lanes
+against its independently rebuilt byte-identical content plan. It reads the
+complete opportunity metadata in fresh invocations and makes a separate
+settled synthesis decision. Both phases retain their original captures.
+Qualified synthesis uses a bounded larger instruction envelope so its retained
+lane findings can reach the final reviewer intact. One supplemental application
+attempt requires a source-bound appointment for the exact third stop digest and
+settled readback of every original invocation. It preserves the original
+attempt anchor and possible Check effects still require GET-only reconciliation.
+
+If that supplemental attempt stops during the proposal with a custody refusal,
+one further source-bound continuation requires the exact third and fourth stop
+digests and an independently reviewed digest of the private prefix manifest.
+The continuation requires every original invocation to be settled and every
+original Check effect to be reconciled. It admits only the contiguous positive
+prefix of the fourth attempt, using the original invocation, request, isolation,
+and event identities. The worker rebuilds the proposal and its exact plan,
+checks the retained inputs and reader bytes, and replays the complete assigned
+responses. The refused lane runs again in a fresh invocation. Any changed or
+missing evidence refuses the continuation. Both syntheses and complete
+opportunity metadata still require fresh invocations. The prefix preflight has
+no authority to produce a Check or consume an attempt.
+
+A further source-bound continuation is limited to the case where the fourth
+attempt cleanly settled its final invocation but the reader rejected a page
+outside that lane. It pins the fourth stop, the original failed event capture,
+and a second reviewed manifest for its contiguous settled lanes. Both retained
+segments are replayed against the same proposal before running the refused lane
+again. Fresh projected application lanes expose only the numbered pages in
+their frozen assignment. The exact page bytes and complete response coverage
+remain mandatory. Legacy path-addressed captures are replayed against their
+original reader bytes. The ordinary reader and the fresh synthesis invocations
+retain their existing contracts.
 
 The prepared capacity configuration reader uses `portcove-release-pause` /
 `capacity.json`, verified raw Git objects and two exact-ref reads, with mandatory
@@ -431,6 +715,16 @@ Only verification accepts `--version` to check a historical fixture explicitly.
 Inventories are evidence, not trust roots or executable feeds. Altered/rebuilt
 packages require new verification and cannot inherit previous package evidence.
 
+When changing the release-tools CLI grammar or error output, run
+`just test-rust -p portcove-release-tools --test cli` against the built binary.
+The [CLI contract tests](../crates/portcove-release-tools/tests/cli.rs) cover
+help, argument refusal, and the lowercase `usage: portcove-release-tools`
+marker expected by the no-argument controller probes. Review output and exit
+status against the [Linux probe](../scripts/qualify-controller-tool-build.mts)
+and [Windows probe](../scripts/qualify-controller-tools-windows.mts). The
+[controller tool build fixture](../.github/workflows/controller-tool-build-fixture.yml)
+exercises the packaged binary on both platforms.
+
 `scripts/reconstruct-application-update-records.mts` is the offline bridge from
 those verified inventories to the application record schema. It accepts a bounded
 source descriptor, a separate reviewed eligibility map and an output directory:
@@ -628,6 +922,10 @@ SHA do not replace age authentication. Bundle size is at most 1 MiB and each
 private key at most 32 KiB. Caller custody callbacks must themselves be bounded
 and return a fresh transferred buffer; returned buffers are cleared after
 consumption. JavaScript heap strings do not provide guaranteed secure erasure.
+The recovery bootstrap retains its own pinned Aqua archive/source/version,
+separate from the ordinary quality manager's `.aqua-version`. Updating that
+quality manager cannot retarget recovery tools; recovery archive, checksum,
+binary-version and source-bound proof checks still run unchanged.
 
 `scripts/catalog-recovery-vault-cli.mts` accepts a closed public JSON configuration:
 
@@ -717,6 +1015,89 @@ Ciphertext-only transport may use a shared recovery volume: its bounded
 single-link/canonical read, retained digest and age authentication remain required,
 while Linux 0700/0600 custody requirements apply only to plaintext working and
 quarantine material. This adapter does not provision or copy to that storage.
+
+Ciphertext transport and held-file reads preserve filesystem identities as exact
+bigints, including NTFS/DrvFS inode values above JavaScript's safe integer range.
+Existing safe numeric identity descriptors remain accepted; unsafe numeric
+descriptors refuse rather than guessing the original identity. This does not
+change private custody appointment schemas or grant signing authority.
+
+Initial setup can back up the existing application and catalog keys together
+before signed Root/Targets metadata exists. The separate
+`initial-pre-payload-owner-passphrase-tty-v1` CLI profile uses the same vault
+engine, age process, private terminal, key inspectors and durable recovery
+boundary. Its public configuration replaces `configuration`,
+`app_public_captures` and `public_inputs` with an independently pinned
+`inventory: { "path": "/absolute/initial-inventory.json", "sha256": "REVIEWED_SHA256" }`;
+the inspector, tool/private parents and complete distinct `key_paths` stay explicit.
+It does not satisfy the existing catalog-only API or publication configuration.
+
+The closed `initial-pre-payload-key-custody-v1` inventory binds repository ID,
+source commit/tree, the initial creation receipt digest, exactly seven application
+and six catalog TUF public keys, and the two measured App/installation/SPKI tuples.
+Canonical Ed25519 public identities, complete roles and distinct material are
+checked before private reads. Each key is reprojected with the pinned inspector
+or captured App SPKI during backup and after authenticated decryption. Its
+explicit `payload_credential: "not-created-not-covered"` describes an initial
+snapshot, never completed production custody. Creating a payload credential later
+requires a separately reviewed complete backup generation; this snapshot cannot
+silently claim it is covered. No key is generated, signed, installed or appointed
+by an inventory, parser or backup.
+
+The create-only output is `initial-setup.age` plus its public completion receipt;
+restore uses a fresh quarantine directory. Missing/extra/aliased roles, changed
+inventory pins, wrong keys, foreign purpose and reused outputs refuse. The
+existing catalog profile and `catalog.age` wire format remain unchanged. Both
+profiles require the separate actual custody grant and local unrecorded passphrase
+entry; fixture or initial-backup success supplies no Root or publication authority.
+
+Complete release custody has the separate
+`complete-release-owner-passphrase-tty-v1` CLI profile. It retains the same
+inventory/inspector pins, explicit private paths, vault engine and terminal
+settlement. Its `complete-release-key-custody-v1` inventory retains the thirteen
+TUF and two App appointments, changes `payload_credential` to `"covered"`, and
+adds exactly one `application-payload` appointment through:
+
+```json
+{
+  "payload": {
+    "profile": "tauri-minisign-empty-password-v1",
+    "public_key_base64": "EXACT_TAURI_PUBLIC_FILE_CONTENT",
+    "public_key_sha256": "SHA256_OF_THAT_FILE",
+    "ed25519_public_key": "RAW_32_BYTE_PUBLIC_KEY_AS_64_LOWERCASE_HEX"
+  }
+}
+```
+
+This is the additional inventory fragment, not a complete configuration. The
+payload role ID uses the existing registry identity over decoded public-file
+bytes; `public_key_sha256` independently pins the outer file bytes. Public
+encoding, identity and distinctness from all TUF keys are checked before custody
+reads. `inspect-existing-payload-key CONFIG` then consumes the same bounded
+offline input reader and a strict schema-1 configuration with `profile`,
+`private_key` and `expected_public_key: { path, sha256, ed25519_public_key }`.
+It validates the appointed public input first, accepts only the pinned Minisign
+box algorithms and default 1,048,576-operation/32-MiB KDF parameters before
+decryption, and never prompts. A private process-local random sign/verify
+challenge establishes seed/public-key correspondence; extracting an embedded
+public half alone is insufficient. It exports only public identity, never the
+challenge, signature or private key, and writes no files.
+
+The empty inner-password profile covers only that explicit payload format.
+Actual key creation retains the existing approved interactive Tauri
+`signer generate -w NEW_PRIVATE_PATH` ceremony: no `--ci`, `--force`, password
+argument or inherited password variable. An owner may deliberately select empty
+inner input in the unrecorded terminal; this choice does not remove the separate
+retained outer age recovery phrase. Password-protected payload keys and other
+KDF settings are outside this profile. Delivery of this adapter never grants key
+creation, signing or publication.
+
+The complete create-only output is `complete-custody.age`; authenticated restore
+reprojects all sixteen private/public identities before writing any quarantine
+key. Catalog-only, initial pre-payload and complete plans/wire contexts refuse
+each other. Existing snapshots remain immutable and retain their original scope;
+complete custody still requires its own actual encrypted backup, ciphertext-only
+backup and verified restore. No restored key becomes an installed signer.
 
 For that explicitly selected profile, `top_level_targets_profile:
 "online-unchanged-authority-v1"` permits separately isolated Targets signing only
@@ -982,6 +1363,10 @@ credential path is active.
 
 ### Configuration-held fixed-controller source admission
 
+Appoint new controller tags using the permanent policy and exact-tag procedure
+in [Repository settings](REPOSITORY-SETTINGS.md#appointing-a-successor). Bind
+each held appointment to a fresh complete protection observation.
+
 `.github/workflows/application-update-production.yml` contains the complete fixed
 controller. Its secret-free admission job starts only with the existing admission
 configuration and exact configured revision/ref; every downstream role retains its
@@ -989,6 +1374,26 @@ own authenticated admission. The separate automatic wake starts only with its
 existing wake configuration. Neither source installation activates these settings,
 credentials, protected environments, signing or publication. See the
 [current controller integration](qualification/slice4-complete-controller-integration-2026-10-21.md).
+
+The wake also exposes a no-input manual trigger on protected `main`. An
+appointment can opt into it with the exact `manual_actor_id`, the nominated provider
+`manual_run_number` and a
+`manual_expires_at` at most 15 minutes after activation. That appointment
+selects one purpose and excludes automatic wakes until it is removed. The
+worker verifies the original GitHub run and triggering identity, refuses an
+earlier started wake or any receiver in the appointment window, and uses the
+same retained intent and single job-token dispatch. A named catalog wake can
+continue when main advances from the initiating commit if GitHub confirms
+ancestry and the live wake workflow retains the appointed digest. The worker
+rechecks the immutable controller tag and verifies the initiating workflow bytes
+independently. Application source selection still requires the exact main tip.
+The wake job has a
+two-minute ceiling. Preparation and dispatch use the same original provider
+job start and refuse after 115 seconds, including setup. The remaining five
+seconds are reserved for hosted receipt handling. The shared controller
+budgets include the wake and total 145 application minutes or 48 catalog
+minutes. The $0 Stop policy and mutual exclusion continue to apply. The exact
+workflow digest and selected authority require ratification before activation.
 
 The source-admission bootstrap uses three **public identity**
 variables: `PORTCOVE_CONTROLLER_REVISION`, `PORTCOVE_CONTROLLER_REF`, and
@@ -1023,9 +1428,55 @@ does not prove immutable tag rules, absence of bypass actors or production secre
 isolation. Actual platform enforcement must be independently provisioned and
 proven before any secret-bearing job executes. Installed role sources are not
 provider enforcement or grants. Actual host and issuer qualification, protected
-configuration, custody, eligible coordinator state and real Windows/Linux public
-recovery proof remain under #534. The existing canonical owner packet binds the
-final reviewed controller, configuration and exact protected grant before use.
+configuration, custody, eligible coordinator state and real public recovery
+proof for the selected application release profile remain under #534. The first
+Windows beta still requires its actual Windows/shared proof; Linux application
+recovery remains required for the retained broader profile and subsequent Linux
+release. The existing canonical owner packet binds the final reviewed
+controller, configuration and exact protected grant before use.
+
+### Dedicated fixed-job storage credential
+
+The selected `three-app-fixed-jobs-v1` authority kind retains full schema4 and
+journal schema3, with exactly three distinct App/installation pairs. It adds
+`journal.apps.storage_writer` and `journal.storage_setup_plan_sha256`; the latter
+binds the separately approved storage amendment. The original
+`journal.setup_plan_sha256` and exact empty seed remain unchanged. Full and
+journal kinds must agree. Historical two-App and legacy profiles retain their
+existing closed contracts; missing fields cannot select a weaker fallback.
+
+The storage App has Contents write/Metadata read for this repository only. Its
+provider token is repository-wide, not branch-scoped. Exact UPDATE bypass rules
+appoint it only on the input-store and namespace coordinator-state branches;
+creation, deletion and non-fast-forward retention have no bypass. Fresh isolated
+observer collection must prove the actual journal policy as well as the existing
+input/pause policy. Retention protection alone cannot satisfy this path.
+
+Each fixed writer obtains its token only after original source/job/phase
+admission and binds the actual App and installation outputs. The token remains
+separate from job/read/effect credentials. The maintained checkpoint adapter
+retains exact object/OID/CAS/deadline limits, including its auxiliary intent and
+proof refs; classification Check reads use the job token. Private keys stay in
+the fixed mint Action. Candidate, native, signing and reviewer children receive
+no storage credential. Missing or mixed credentials refuse without ambient or
+legacy fallback. Minted tokens use the Action's positive post-job cleanup.
+
+The setup-only `storage_writer` role requests only Contents write/Metadata read
+and uses its appointed loopback callback. It retains one operational RSA key in
+a distinct create-only private staging slot; filtered response receipts omit the
+PEM, unused OAuth/webhook secrets and callback code. Seal the key into the
+existing encrypted vault and ciphertext backup, verify only its new-key restore,
+and positively clean its private staging before activation. Full installation
+observation mints an unfiltered Metadata-read token solely to prove the complete
+repository selection. The new role omits that token from retention and requires
+acknowledged revocation, with a90-second observation/30-second cleanup reserve
+inside the original120-second setup bound. Existing two-role ceremonies remain
+consumed; no old key/account setup is repeated.
+
+Source installation supplies no provider enforcement, credential, signing or
+execution acceptance. Complete credential-free inner/outer setup probing before
+private registration/import, preserve the live journal and completed custody
+ceremonies, and retain the original production pause/activation prerequisites.
 
 ### Durable local coordinator checkpoints
 
@@ -1084,7 +1535,9 @@ not classification authority or a recurring personal approval requirement.
 This supplies nonproduction local persistence/refusal controls for #534. Trusted
 execution/principal enforcement, producer-job/attempt/artifact binding, isolated
 candidate runners/caches, protected remote durability, custody, signing/feed
-activation and actual Windows/Linux public recovery proof remain separate.
+activation and actual public recovery proof for the selected release profile
+remain separate. The Windows-only scope does not supply missing Windows proof
+or complete deferred Linux acceptance.
 
 ### Bounded no-spend attempt eligibility (Slice 4)
 
@@ -1098,6 +1551,24 @@ runners and pinned resource ceilings are a spending boundary, not positive
 headroom. Each operation must establish its own exact result; no successful
 operation grants availability for a subsequent effect. Source/configuration loss,
 revocation or boundary drift refuses, and unrelated admission holds remain holds.
+
+The selected `initial-beta-windows-x86_64-v1` controller graph declares a
+145-minute application ceiling and a separate 48-minute catalog alternative;
+these purposes are mutually exclusive. The workflow digest, complete allocation
+arrays and policy digest must match the exact appointed source. These ceilings
+are not measured runtime, free-provider headroom or a capacity reservation. The
+Windows owner retains its original 570,000 ms clock; a larger outer job ceiling
+never renews that clock, and late signing still refuses.
+
+Ordinary Windows source appointment covers twelve gates: the two runtime
+preparation entries, hosted bootstrap/runner/session/stage/proof, original
+PowerShell owner and recovery wrappers, the hosted-memory bridge, and the C#
+candidate launcher and candidate recovery helper. The owner verifies both launch
+and recovery availability before account effects. Diagnostic worker, owner,
+bridge, launcher and recovery guards remain separate, as do connected diagnostic
+launch and targeted access audit. A source appointment cannot supply the exact
+setup grant, configuration, producer identities, journal seed, protected job
+context or client trust binding; those are independently verified before effects.
 
 `release-capacity-operation.mts` is an inactive caller-owned library, with no CLI,
 credential discovery, dispatch, upload, signing or publication implementation.
@@ -1268,14 +1739,24 @@ Results identify the role as `package-aggregate-assembler`. Authenticated
 assembler and original compiler identities remain null. SBOM finalization and
 release authorization remain `not-evaluated`. There is no workflow, upload,
 attestation, signing, installation or publication activation. In particular,
-running the existing finalizer in a controller checkout would evaluate its
-Linux release gate against that checkout; this interface does not do so or
-bypass #706. A future finalizer still needs independently authenticated exact
+running the retained broader-profile finalizer in a controller checkout would
+evaluate its Linux release gate against that checkout; this interface does not
+do so or bypass #706. The Windows-only profile instead uses its source-bound
+non-authorizing audit assessment; that assessment grants no signing or
+publication authority and does not waive shared scan failures. A future
+finalizer still needs independently authenticated exact
 candidate/scan/publication evidence, applicable qualification, authenticated
 producing run/attempt/job and exact artifact/attestation binding through the
 existing protected architecture.
 
 ### Bounded artifact-to-aggregate integration
+
+The existing Windows/Linux profile below retains its exact broader package and
+evidence contract. The first Windows-only beta instead requires the additive
+`initial-beta-windows-x86_64-v1` path to be delivered, independently reviewed and
+qualified through the same machinery; its implementation and protected
+source/resource/activation holds are not satisfied by choosing a name or omitting
+Linux artifacts from the broader profile.
 
 The trusted `initial-beta-win-linux` profile declares exactly six distributions:
 Windows x86-64 current-user NSIS and CLI ZIP; ordinary Linux x86-64 AppImage,
@@ -1324,8 +1805,8 @@ selected objects before downloading and again before aggregate creation. Run
 identity and selected artifact metadata must remain unchanged. Run-level API
 objects still leave original producer jobs and attempts unknown.
 
-`scripts/github-binary.mts` pins transport to `github.com` and enforces byte and
-time limits in the subprocess before returning opaque bytes. Release downloads
+`scripts/github-artifact-download.mts` uses the scoped SDK for GitHub artifact
+lookup and streams the approved delivery with byte and deadline checks. Release downloads
 are bounded by their accepted byte counts, at most 512 MiB each, 2 GiB in total,
 and 120 seconds per download. Collection and assembly have a cooperative
 15-minute overall deadline. Audit reuse shares this transport while retaining
@@ -1499,6 +1980,7 @@ the association controls, not cryptographic or hosted attestation success.
 
 ### Read-only release-run evidence
 
+With the checkout’s frozen Node dependencies installed,
 `node scripts/release-run-evidence.mts REQUEST.json` collects bounded read-only
 API evidence for an exact completed current `Release` run and attempt. The
 request contains only schema version `1`, numeric `repository_id`, `run_id` and
@@ -1507,8 +1989,8 @@ hexadecimal digests (40, 40 and 64 characters). It verifies the commit/tree and
 workflow source bytes at that commit, reads every job page for that attempt and
 every artifact page for the run, then rechecks current run identity. A changed
 attempt, missing page, inconsistent total, duplicate identity or exhausted
-bound refuses the receipt. Bounds are 1,600 records per inventory, 40 GET
-requests, 120 seconds and 2 MiB per API reply.
+bound refuses the receipt. Bounds are 1,600 records per inventory, 40 dispatched
+GET attempts including retries, 120 seconds and 2 MiB per API reply.
 
 `node scripts/release-run-evidence.mts REQUEST.json ARTIFACT_ID RETAINED_FILE`
 also compares an already retained opaque file with that artifact's current
@@ -1516,10 +1998,10 @@ provider digest and exact byte count. Missing, expired or undigested artifacts
 refuse before file I/O. One regular-file handle streams at most 512 MiB using a
 64 KiB buffer plus a one-byte growth probe, checks mutation and SHA-256, then
 refreshes the complete API evidence and refuses changed run/artifact identity.
-Both collections and file comparison share a 40-request cap and cooperative
-120-second receipt/refusal deadline. An in-flight bounded `gh` call may finish
-after the deadline; filesystem I/O has no hard cancellation. This is not a
-process-termination guarantee. The receipt includes both complete API receipts
+Both collections and file comparison share the 40-attempt cap and original
+120-second deadline. The SDK applies that deadline to retry waits and response
+reads. Filesystem I/O is checked cooperatively before further work and before
+returning the receipt. The receipt includes both complete API receipts
 and their digests so its byte/metadata binding remains reviewable; it does not download, parse, extract
 or execute them. Provider upload size and digest describe the uploaded object
 in [GitHub's artifact uploader](https://github.com/actions/toolkit/blob/main/packages/artifact/src/internal/upload/upload-artifact.ts),
@@ -1602,6 +2084,21 @@ public `SHA256SUMS.txt`. Filename checks identify the expected package; the
 extracted executable inspection is the practical architecture evidence for the
 CLI. Desktop runtime and installed-package qualification remain separate.
 
+## Windows application cutover
+
+The held `application-release.yml` workflow qualifies the Windows x86-64
+application and stages the replacement production path. Qualification binds
+the exact workflow, source, run attempt and Windows packaging evidence. The
+canonical workflow schedules one Windows qualification per day on main when the
+existing application wake is active and the catalog appointment is idle. A
+manual qualification can still prepare an initial or recovery specimen. The
+automatic wake reads the newest exact-main qualification, and the source job
+independently rechecks its identity and the exact semantic decision.
+Production requires a separately appointed protected control ref, active
+configuration, spending appointment and unpaused publication. The existing
+`release.yml` tag and report-repair entry points stay in service through
+qualification and cutover review.
+
 ## Windows preflight
 
 From the repository root, run the complete local gate before creating a tag:
@@ -1662,7 +2159,12 @@ ordinary silent-install route performs these checks in a new isolated directory:
 
 Expected executable hashing reproduces Tauri's single fixed bundle-type marker
 substitution from `UNK` to `NSS` in memory; it compares the entire resulting file,
-and reports both raw and bundled hashes. Same-version build replacement is
+and reports both raw and bundled hashes. For a package deliberately produced with
+`tauri bundle --no-binary-patching`, select `-ExpectedBinaryPatching Skipped`
+and supply both `-ExpectedExecutablePath` and its lowercase raw
+`-ExpectedExecutableSha256`. That explicit mode compares the entire unchanged
+file and records the selected handling; the default remains `Applied`.
+Same-version build replacement is
 recorded separately from a future version-number upgrade, signed production
 validation, and interactive shell observations. The harness emits its structured
 result and can retain a phase journal at the explicit `-EvidencePath`; failed
@@ -1844,7 +2346,7 @@ secret-free reusable qualification and a three-platform build matrix plus the
 dedicated Intel producer in parallel. Release validation consumes and verifies
 the qualification plan digest and exact checkout before running the release
 audit profile, dependency audit, and live upstream checks. The reduced release
-audit profile retains dependency policy, rscheck, and release-unit coverage;
+audit profile retains dependency policy, Rust path portability, and release-unit coverage;
 qualification owns the remaining complete cross-platform inventory. The native Intel verifier starts as soon as
 that producer is complete, without waiting for unrelated platform builds. A
 fail-closed result gate requires qualification, release validation, every producer, and native Intel verification before
@@ -2008,25 +2510,83 @@ those per-release approvals requires a separately reviewed protected controller,
 bounded credentials, negative/recovery tests, and explicit authority; this
 packaging change does not grant it or introduce another manual gate.
 
+### Initial application feed recovery
+
+The protected `recover-bootstrap` mode resumes the initial metadata-only
+release 436818191 under a newly appointed controller. It reads the original
+immutable assets and authenticates both subjects against the original assembly
+attempt. It stages the same complete site, including the retained rehearsal
+files. Its preflight receipt records the repository, site URL, content
+generation, Pages artifact, build version and Actions run attempt before the
+feed job may create a native deployment.
+
+The recovery guard separately verifies the failed original Actions admission
+and the appointed serving deployment. Native cancellation requires an exact
+qualified operation ID. The original bootstrap build lookup has an opaque
+outcome, so recovery records it as unknown and brackets one identical-site
+continuation with bounded native observations, live prior-site verification
+and the existing shared publisher exclusion. A pending native operation or
+inconsistent public state stops this procedure. A new native success, exact
+anonymous public bytes, current authenticated metadata and independent
+settled-job readback are required for acceptance. Request evidence retains
+status codes and request IDs separately from the Actions admission. The prior
+operation's historical outcome remains unknown after a successful continuation.
+
+An expired role or a different site inventory requires a separately qualified
+successor. The recovery job uses its own finite reservation under application140
+and carries the original opportunity charges forward.
+
+The r28 recovery refused before native create when its protection observation
+exceeded 60 seconds. Its retained attempt artifact binds the exact failed
+admission and contains only native status requests. The r29 path authenticates
+that artifact during feed preparation and verifies both failed admissions.
+It runs one complete budget check after acquiring OIDC and preserves the
+original protection freshness deadline at the write boundary.
+
+In [r29](https://github.com/boburning/portcove/actions/runs/42403889193/attempts/1),
+Pages returned HTTP 200 to the native create and the worker refused the
+acknowledgement. The Actions job and admission record retain failure.
+Prior-feed discovery recognizes this exact settled actor when the native
+build lookup reports success. It requires the original immutable release,
+attested r27 assembly and exact public whole-site bytes. Application release
+preparation requires fresh role metadata. The protected `renew` mode can use
+this exact served cohort as a historical preimage after online roles expire.
+The pinned verifier requires fresh Root and offline Targets and preserves
+accepted records. The published successor must advance online role versions and
+expiry, pass normal freshness verification and preserve the rest of the site.
+Other failed admissions still refuse. The original r27 effect remains unknown.
+
+A fresh appointed controller can use its commit SHA for its first application
+feed effect. Preparation requires a complete empty Pages admission inventory
+for that SHA. The final guard rechecks the exact current admission as the only
+entry. An opaque native preimage remains unknown. If the single create returns
+HTTP 200 with an unrecognized acknowledgement, the controller can read the
+native result by that SHA. Advancement requires positive native status, the
+exact current Pages actor, fresh metadata and complete anonymous bytes. The
+readback job checks native success again after the feed job settles. A lost
+response cannot enter this recovery path.
+
 ## Upgrade acceptance and technical previews
 
-Public beta requires the complete verified application updater under
-[#52](https://github.com/boburning/portcove/issues/52): Windows per-user NSIS,
-ordinary Linux x86-64 AppImage. Installed macOS Intel/Apple Silicon bundle
-qualification (#45/#226) follows during beta, Required before 1.0. Shared mechanisms are implemented
-incrementally, with actual platform upgrade/recovery proof before the beta
-declaration. [#46](https://github.com/boburning/portcove/issues/46) retains later
-exact production package/upgrade/rehearsal evidence for 1.0; #52 does not wait
-for its post-beta closure. Neither macOS proof nor Deck qualification, including
-#535's Gaming Mode updater proof, blocks initial #52/Public beta acceptance.
-Deck owners remain high-priority
-Public beta follow-up (Beta 2) work under #51/#213–#217/#535, Required before 1.0.
-Until their actual-device matrix passes, the Linux build may be usable on SteamOS
-but Deck is unqualified; release prose must not claim official Deck/Gaming Mode
-support, all-port compatibility or Valve Verified. Windows/ordinary Linux safety and their
-actual installed upgrade/recovery proofs remain mandatory. Later support claims
-consume the same trust foundation and require their own exact platform evidence. RC stabilizes one exact
-candidate, not all development.
+The first Windows public beta requires the complete applicable Windows/shared
+verified updater under [#52](https://github.com/boburning/portcove/issues/52):
+Windows x86-64 current-user NSIS, the existing WebView2 baseline, actual installed
+upgrade/recovery, signatures, provenance, production feed continuity and safe
+preservation. Linux application/package/native acceptance is planned for a
+subsequent beta under existing #45/#46 and component owners, consuming completed
+#225 at its actual scope. It is not a prerequisite for this Windows launch.
+Shared mechanisms and shared or Windows-affecting defects remain required
+regardless of test execution OS.
+
+Installed macOS Intel/Apple Silicon bundle qualification (#45/#226) and Deck
+qualification (#51/#213–#217/#535) retain their existing later-beta and
+Required-before-1.0 commitments. Later Linux and other platform claims require
+their own exact native/package/updater evidence; no date or pass is supplied by
+this timing change. #46 retains final production package requalification for
+1.0; #52's independently finishable Windows/shared first-beta minimum does not
+wait for that later closure. Until the actual Deck matrix passes, an available
+Linux build is not official Deck/Gaming Mode support or Valve Verified evidence.
+RC stabilizes one exact candidate, not all development.
 
 The [delivery contract](DELIVERY.md) separates application/catalog/game updates,
 Stable/Preview eligibility, updater authenticity, SHA-256 reconciliation, OS
@@ -2044,8 +2604,10 @@ backed-up libraries. Record package hashes and the unassisted first-play/recover
 scenario outside the development checkout. A preview is not evidence of universal
 catalog or platform qualification, and its plan does not authorize publication.
 
-Missing required Windows/ordinary Linux evidence keeps initial Public beta open; it does not block
-independent implementation or an otherwise eligible incremental preview. A
+Missing required Windows/shared evidence keeps the first Windows Public beta
+open; missing Linux-only application evidence keeps its subsequent Linux
+acceptance open. Neither stops unrelated implementation or an otherwise
+eligible incremental preview. A
 successful manual reinstall cannot complete the baseline updater. DEB/RPM remain
 package-manager-mediated; standalone CLI self-updating and optional extra formats
 remain outside the baseline. Record exact unsupported paths and recovery limits.
@@ -2131,8 +2693,11 @@ same-process continuation. `requireActualCoordinatorMetadataPreparation` checks
 those original receipts, the unchanged published seed and descriptor, exact
 local/remote checkpoint, public generation marker and fresh controls before a
 fixed context producer may consume them. Its mode is explicitly `renewal`; an
-initial empty feed requires the separate bootstrap route. The original 170-second
-role deadline continues through this handoff. Serialized CLI output cannot
+initial empty feed requires the separate bootstrap route. The coordinator and
+its isolated protection observer each use five hosted minutes and a 290-second
+deadline from their own original job start. The coordinator handoff retains its
+240-second handshake cap, with at most 15 seconds for one provider request or
+artifact transfer. Its original deadline continues through this handoff. Serialized CLI output cannot
 recreate the private session or reset that budget.
 
 On a later renewal wake, the context continuation first reconciles the existing
@@ -2279,8 +2844,16 @@ its new complete hosted artifact and consolidated job wiring remain pending.
 Secret jobs must launch the authenticated bundle rather than install checkout
 dependencies or execute the unbundled entry. No role settings are activated.
 
-The dependency-free `release-controller-tool-launch.mts` implements that initial
-payload entry. It authenticates the tool artifact with the existing receiver,
+The current fixed workflow provisions the locked clock dependency before
+role credentials and obtains the original job deadline through the scoped SDK.
+Protected jobs then invoke their authenticated tool bundle. The
+[SDK source inventory](evidence/github-sdk-source-inventory-2026-11-04.md)
+tracks retained runtime and launcher retirement with #534.
+
+The earlier payload launcher contract remains in
+`release-controller-tool-launch.mts`. Its early clock is dependency-free.
+The current tool receiver uses the SDK for positive artifact acquisition.
+The launcher authenticates the tool artifact with the existing receiver,
 requires the running Node bytes to match the authenticated executable and imports
 only the fixed manifest-owned signing-controller bundle. That bundle performs
 its own actual receiver check to establish its module-private custody; no brand

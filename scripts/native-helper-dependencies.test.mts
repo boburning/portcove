@@ -53,6 +53,33 @@ void test("native TypeScript dependencies follow erased versus executed imports"
   ])
     assert.throws(() => nativeHelperSourceDependencies(file, source));
 });
+void test("isolated Linux Node bound uses the declared and captured runtime authority only", () => {
+  const file = prefix + "native-linux-isolated-session.mts";
+  assert.deepEqual(
+    nativeHelperSourceDependencies(
+      file,
+      'import { controllerNodeMaximumBytes } from "../../../scripts/controller-node-runtime.mts";',
+    ),
+    [],
+  );
+  assert.ok(nativeHelperSharedSources.includes("scripts/controller-node-runtime.mts"));
+  assert.throws(
+    () =>
+      nativeHelperSourceDependencies(
+        file,
+        'import { controllerNodeMaximumBytes } from "../../../scripts/unregistered-runtime.mts";',
+      ),
+    /Escaping native helper dependency/,
+  );
+  assert.throws(
+    () =>
+      nativeHelperSourceDependencies(
+        prefix + "native-linux-public-plan.mts",
+        'import { controllerNodeMaximumBytes } from "../../../scripts/controller-node-runtime.mts";',
+      ),
+    /Escaping native helper dependency/,
+  );
+});
 void test("GTK picker runtime imports are explicit and its source is a captured native input", async () => {
   const file = prefix + "native-linux-folder-picker.py";
   const source = await readFile(path.join(root, file), "utf8");
@@ -406,8 +433,12 @@ void test("native receipt capture binds schema validation and reproduction input
     "apps/desktop/scripts/desktop-scenario-outcomes.mts",
     "apps/desktop/scripts/desktop-review-presentation.mts",
     "apps/desktop/scripts/desktop-staged-layout.mts",
+    "apps/desktop/scripts/desktop-game-first-test.mts",
+    "scripts/desktop-game-first-installed-inputs.mts",
     "apps/desktop/scripts/transport-values.mts",
+    "apps/desktop/scripts/desktop-source-intake-boundaries-test.mts",
     "apps/desktop/src/port-identity.ts",
+    "apps/desktop/src/interface-size-controller.ts",
     "apps/desktop/src/transport-schemas.generated.json",
     "apps/desktop/src/transport-host-output.generated.json",
     "apps/desktop/package.json",

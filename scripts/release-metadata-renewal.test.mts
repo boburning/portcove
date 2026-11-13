@@ -5,11 +5,18 @@ import path from "node:path";
 import os from "node:os";
 import { createHash } from "node:crypto";
 import { performance } from "node:perf_hooks";
+import { isRecord } from "./runtime-values.mts";
 import { releaseCanonicalDigest as digest } from "./release-canonical.mts";
+import { applicationReleaseTrust } from "./application-release-policy.mts";
 import {
   prepareAuthenticatedMetadataRenewal,
   inspectPreparedMetadataRenewal,
 } from "./release-metadata-renewal.mts";
+import {
+  applicationContextPriorRepositorySha256,
+  applicationMetadataContextIdentity,
+} from "./application-release-context.mts";
+import { readBoundedReleaseContextFiles } from "./release-signing-context.mts";
 
 const sha = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
 void test("fixed verifier preparation refuses expired context deadline before file reads or tool launch", async (t) => {
@@ -31,8 +38,12 @@ async function fixture(t: test.TestContext) {
   await writeFile(path.join(prior, "metadata/timestamp.json"), bytes);
   const trusted = path.join(root, "root.json");
   await writeFile(trusted, bytes);
+  // This negative preparation fixture never executes a verifier. Do not use
+  // a large Node executable as a stand-in for the independently bounded Rust tool.
+  const verifier = path.join(root, "inert-renewal-verifier");
+  await writeFile(verifier, "inert verifier fixture\n", { flag: "wx", mode: 0o700 });
   const request = {
-    verifier: process.execPath,
+    verifier,
     verifier_sha256: "0".repeat(64),
     trusted_root: trusted,
     trusted_root_sha256: sha(bytes),
@@ -45,6 +56,19 @@ async function fixture(t: test.TestContext) {
   };
   return { root, prior, output, request };
 }
+void test("renewal refuses an ancestor of its public input and keeps sibling work separate", async (t) => {
+  const f = await fixture(t);
+  await assert.rejects(
+    prepareAuthenticatedMetadataRenewal({ ...f.request, output_parent: f.root }),
+    /renewal work overlaps public source/u,
+  );
+  await assert.rejects(
+    prepareAuthenticatedMetadataRenewal(f.request),
+    /qualified renewal verifier changed/u,
+  );
+  assert.deepEqual(await readdir(f.output), []);
+});
+
 void test("imported JSON cannot stand in for an actual private renewal preparation", async () => {
   await assert.rejects(
     inspectPreparedMetadataRenewal({
@@ -76,6 +100,25 @@ void test("unknown Targets mode and online mode without single-owner selection r
       }),
       /Targets|single-owner/,
     );
+  assert.deepEqual(await readdir(f.output), []);
+});
+void test("the appointed application Root does not opt into special renewal policies", async (t) => {
+  const f = await fixture(t);
+  const request = { ...f.request, trusted_root_sha256: applicationReleaseTrust.root.sha256 };
+  await assert.rejects(
+    prepareAuthenticatedMetadataRenewal({
+      ...request,
+      top_level_targets_profile: "online-unchanged-authority-v1",
+    }),
+    /online Targets requires explicit single-owner profile/,
+  );
+  await assert.rejects(
+    prepareAuthenticatedMetadataRenewal({
+      ...request,
+      prior_expiration_policy: "historical-online-expired-v1",
+    }),
+    /historical prior requires explicit single-owner offline-pinned profile/,
+  );
   assert.deepEqual(await readdir(f.output), []);
 });
 void test("wrong actual tool or independently ratified root refuses before creating outputs", async (t) => {
@@ -148,8 +191,83 @@ void test(
     const bound = await inspectPreparedMetadataRenewal(session);
     assert.equal(bound.descriptor_sha256, digest(bound.descriptor));
     assert.equal(bound.descriptor.prior_repository_sha256, digest(files));
+    const actualContext = await readBoundedReleaseContextFiles(bound.prepared_root);
+    assert.ok(actualContext.has("prior/repository-manifest.json"));
+    assert.equal(
+      applicationContextPriorRepositorySha256(actualContext),
+      digest(files),
+      "the real Rust context joins the public component without its internal manifest",
+    );
     assert.equal(bound.descriptor.current_versions.targets, bound.descriptor.next_versions.targets);
     await writeFile(path.join(bound.prepared_root, "renewal.json"), "changed fixture");
     await assert.rejects(inspectPreparedMetadataRenewal(session), /custody changed/);
   },
 );
+
+void test("actual Rust adapter authenticates expired online prior only under explicit historical policy", async (t) => {
+  const actualTool = process.env.PORTCOVE_TUF_RENEWAL_ADAPTER_TOOL;
+  const exported = process.env.PORTCOVE_TUF_HISTORICAL_ADAPTER_FIXTURE;
+  if (!actualTool || !exported)
+    return t.skip("explicit rebuilt Rust/public historical fixture required");
+  const f = await fixture(t);
+  // Overwrite the untrusted placeholder with exact public cryptographic bytes.
+  // No operational key material is exported.
+  await cp(path.join(exported, "prior"), f.prior, { recursive: true });
+  await cp(path.join(exported, "trusted-root.json"), f.request.trusted_root);
+  const files: { path: string; bytes: number; sha256: string }[] = [];
+  const walk = async (prefix: string) => {
+    for (const entry of await readdir(path.join(f.prior, prefix), { withFileTypes: true })) {
+      const name = prefix ? `${prefix}/${entry.name}` : entry.name;
+      if (entry.isDirectory()) await walk(name);
+      else {
+        const bytes = await readFile(path.join(f.prior, name));
+        files.push({ path: name, bytes: bytes.length, sha256: sha(bytes) });
+      }
+    }
+  };
+  await walk("");
+  files.sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0));
+  const request = {
+    ...f.request,
+    initial_root_profile: "single-owner-one-of-one-v1" as const,
+    verifier: actualTool,
+    verifier_sha256: sha(await readFile(actualTool)),
+    trusted_root_sha256: sha(await readFile(f.request.trusted_root)),
+    prior_repository_sha256: digest(files),
+    generated_at: new Date().toISOString().replace(/\.\d{3}Z$/u, "Z"),
+  };
+  await assert.rejects(prepareAuthenticatedMetadataRenewal(request));
+  const receipt = await prepareAuthenticatedMetadataRenewal({
+    ...request,
+    prior_expiration_policy: "historical-online-expired-v1",
+  });
+  const bound = await inspectPreparedMetadataRenewal(receipt);
+  assert.equal(bound.descriptor.schema_version, 3);
+  assert.equal(bound.descriptor.prior_repository_sha256, digest(files));
+  assert.equal(bound.descriptor.next_versions.timestamp, "2");
+  const context = await readBoundedReleaseContextFiles(bound.prepared_root);
+  assert.equal(applicationContextPriorRepositorySha256(context), digest(files));
+  const parsed: unknown = JSON.parse(context.get("context.json")!.toString());
+  assert.ok(isRecord(parsed));
+  assert.equal(parsed.prior_expiration_policy, "historical-online-expired-v1");
+  const floors = {
+    ...bound.descriptor.current_versions,
+    releases: "9007199254740993",
+    preview: "9007199254740993",
+    stable: "9007199254740993",
+    snapshot: "9007199254740993",
+    timestamp: "9007199254740993",
+  };
+  const reserved = await prepareAuthenticatedMetadataRenewal({
+    ...request,
+    prior_expiration_policy: "historical-online-expired-v1",
+    previous_reserved_versions: floors,
+  });
+  const advanced = await inspectPreparedMetadataRenewal(reserved);
+  assert.deepEqual(advanced.descriptor.reserved_version_floors, floors);
+  assert.equal(advanced.descriptor.next_versions.timestamp, "9007199254740994");
+  const advancedContext = applicationMetadataContextIdentity(
+    await readBoundedReleaseContextFiles(advanced.prepared_root),
+  );
+  assert.equal(advancedContext.versions.timestamp, "9007199254740994");
+});

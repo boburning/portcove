@@ -1,3 +1,4 @@
+import { controllerNodeMaximumBytes } from "./controller-node-runtime.mts";
 /** The fixed local loader joins this observation to protected setup custody.
  * A task description or this readback alone never grants native execution. */
 import { spawnSync } from "node:child_process";
@@ -89,9 +90,25 @@ function inspectExpected(raw: unknown) {
   exact(raw.powershell, "path,sha256");
   exact(
     raw.protected_paths,
-    isRecord(raw.protected_paths) && Object.hasOwn(raw.protected_paths, "public_boundary")
-      ? "authorities,boundary,capture,controller,descriptor,installation,native_issuer,public_boundary,source_reader,source_tool"
-      : "authorities,boundary,capture,controller,descriptor,installation,native_issuer,source_reader,source_tool",
+    [
+      "authorities",
+      "boundary",
+      "capture",
+      "controller",
+      "descriptor",
+      "installation",
+      "native_issuer",
+      "source_reader",
+      "source_tool",
+      ...(isRecord(raw.protected_paths) && Object.hasOwn(raw.protected_paths, "public_boundary")
+        ? ["public_boundary"]
+        : []),
+      ...(isRecord(raw.protected_paths) && Object.hasOwn(raw.protected_paths, "issuer_sdk")
+        ? ["issuer_sdk"]
+        : []),
+    ]
+      .sort()
+      .join(","),
   );
   const protectedPaths = Object.fromEntries(
     Object.entries(raw.protected_paths).map(([key, value]) => [key, winPath(value)]),
@@ -287,7 +304,7 @@ export function inspectNativeSchedulerObservation(
   };
 }
 
-export const nativeSchedulerNodeMaximumBytes = 128 * 1024 * 1024;
+export const nativeSchedulerNodeMaximumBytes = controllerNodeMaximumBytes;
 
 /** Bounded byte identity only; this helper grants no tool or scheduler authority. */
 export async function readNativeSchedulerToolDigest(filename: string, limit: number) {

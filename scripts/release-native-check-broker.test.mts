@@ -1,5 +1,12 @@
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
+import { mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
 import test from "node:test";
+import { setTimeout } from "node:timers/promises";
+import { fileURLToPath } from "node:url";
 import {
   inspectNativeIssuerBoundary,
   inspectNativeCheckAttempt,
@@ -7,12 +14,15 @@ import {
   prepareNativeCheckTransport,
 } from "./release-native-check-broker.mts";
 import { inspectSemanticIssuerRequest } from "./release-semantic-issuer-http.mts";
+import { runSemanticIssuerSdkRequest } from "./release-semantic-issuer-sdk-http.mts";
 import { releaseCanonicalDigest as digest } from "./release-canonical.mts";
 import { nativeQualificationFixture } from "./fixtures/native-qualification-fixture.mts";
 import { prepareNativeQualificationCheck } from "./release-native-acceptance.mts";
 import { nativeAuthorityConfigurationFixture } from "./fixtures/native-authority-configuration-fixture.mts";
 import { prepareNativeStageRequest } from "./release-native-stage-capture.mts";
 import { inspectNativeCheckRecoveryPlan } from "./release-native-candidate.mts";
+import { bundleSealedCheckSdkIssuer } from "./release-controller-tool-build.mts";
+import { sealedCheckSdkFilename, verifySealedCheckSdkBundle } from "./release-sealed-check-sdk.mts";
 
 void test("actual broker transport envelope round trips through the existing original-attempt recovery contract", () => {
   const report = nativeQualificationFixture(),
@@ -108,6 +118,213 @@ void test("fixed credential HTTP route binds native exact Check body and forbids
     { ...request, endpoint: "repos/boburning/portcove/releases" },
   ])
     assert.throws(() => inspectSemanticIssuerRequest(changed));
+});
+
+const successorCheck = prepareNativeQualificationCheck(nativeQualificationFixture()).body;
+const successorRequest = {
+  kind: "installation",
+  token: "inert-check-token",
+  configuration: {
+    app_id: 102,
+    installation_id: 202,
+    head: successorCheck.head_sha,
+    check_body_sha256: digest(successorCheck),
+  },
+  method: "POST",
+  endpoint: "repos/boburning/portcove/check-runs",
+  body: successorCheck,
+};
+
+void test("sealed SDK successor preserves fixed bearer routes and complete private HTTP evidence", async () => {
+  const app = { ...successorRequest, kind: "app", token: "inert.app.jwt", body: null };
+  const installation = { ...successorRequest, method: "GET", body: null };
+  const requestCases = [
+    { ...app, method: "GET", endpoint: "app" },
+    { ...app, method: "GET", endpoint: "app/installations/202" },
+    {
+      ...app,
+      endpoint: "app/installations/202/access_tokens",
+      body: { repository_ids: [1354613114], permissions: { checks: "write", metadata: "read" } },
+    },
+    { ...installation, endpoint: "installation/repositories?per_page=100" },
+    { ...installation, endpoint: "repos/boburning/portcove/check-runs/789" },
+    {
+      ...installation,
+      endpoint: `repos/boburning/portcove/commits/${successorCheck.head_sha}/check-suites?app_id=102&per_page=100&page=1`,
+    },
+    {
+      ...installation,
+      endpoint:
+        "repos/boburning/portcove/check-suites/789/check-runs?check_name=Portcove%20independent%20release%20semantic%20review&filter=all&per_page=100&page=10",
+    },
+    successorRequest,
+  ];
+  for (const request of requestCases) {
+    const statuses =
+      request === successorRequest ? [201, 403, 429, 503] : [request.method === "POST" ? 201 : 200];
+    for (const status of statuses) {
+      let dispatched = 0;
+      const providerBody = { token: "inert-private-pipe-token", nested: { label: "exact" } };
+      const expectedHeaders = new Headers({
+        "x-github-request-id": "inert-request",
+        "x-private-example": "must stay on the private pipe",
+        "content-type": "text/plain",
+      });
+      const result = await runSemanticIssuerSdkRequest(request, {
+        transport: async (input, init) => {
+          dispatched++;
+          const headers = new Headers(init?.headers);
+          assert.equal(headers.get("authorization"), `Bearer ${request.token}`);
+          assert.equal(headers.get("x-github-api-version"), "2026-03-10");
+          assert.equal(headers.get("user-agent"), "portcove-fixed-semantic-broker");
+          assert.equal(init?.method, request.method);
+          assert.equal(init?.redirect, "error");
+          assert.equal(input, `https://api.github.com/${request.endpoint}`);
+          assert.equal(
+            init?.body,
+            request.body === null ? undefined : JSON.stringify(request.body),
+          );
+          return new Response(JSON.stringify(providerBody), { status, headers: expectedHeaders });
+        },
+      });
+      assert.equal(dispatched, 1);
+      assert.deepEqual(result, { status, headers: [...expectedHeaders], body: providerBody });
+    }
+  }
+});
+
+void test("sealed SDK successor refuses changed authority, redirects and unavailable response bytes", async () => {
+  let dispatched = 0;
+  const transport: typeof fetch = async () => {
+    dispatched++;
+    throw new Error("not expected to dispatch");
+  };
+  await assert.rejects(
+    runSemanticIssuerSdkRequest(
+      { ...successorRequest, body: { ...successorCheck, name: "changed" } },
+      { transport },
+    ),
+    /escaped the fixed broker routes/u,
+  );
+  assert.equal(dispatched, 0);
+
+  const responses = [
+    () =>
+      new Response("inert redirect body", {
+        status: 302,
+        headers: { location: "https://elsewhere.invalid/" },
+      }),
+    () => new Response(new Uint8Array(2 * 1024 * 1024 + 1), { status: 400 }),
+    () => new Response("{ malformed inert-check-token", { status: 500 }),
+    () => new Response(Uint8Array.of(0xff), { status: 200 }),
+    () => new Response(null, { status: 304 }),
+  ];
+  for (const provider of responses) {
+    dispatched = 0;
+    await assert.rejects(
+      runSemanticIssuerSdkRequest(successorRequest, {
+        transport: async () => {
+          dispatched++;
+          return provider();
+        },
+      }),
+      /^Error: semantic credential HTTP transport failed; reconcile any attempted effect before retry$/u,
+    );
+    assert.equal(dispatched, 1);
+  }
+
+  let cancelled = false;
+  // The SDK timeout is unref'ed. Keep the fixture alive until the stalled
+  // response is cancelled under the shorter inherited deadline.
+  const keepAlive = setTimeout(100);
+  await assert.rejects(
+    runSemanticIssuerSdkRequest(successorRequest, {
+      deadline: performance.now() + 50,
+      transport: async () =>
+        new Response(
+          new ReadableStream<Uint8Array>({
+            start(controller) {
+              controller.enqueue(Buffer.from("{"));
+            },
+            cancel() {
+              cancelled = true;
+            },
+          }),
+        ),
+    }),
+    /semantic credential HTTP transport failed/u,
+  );
+  await keepAlive;
+  assert.equal(cancelled, true);
+});
+
+void test("sealed SDK successor and isolated bundle preserve the private CLI pipe", async (t) => {
+  const output = await mkdtemp(path.join(os.tmpdir(), "sealed-check-sdk-"));
+  t.after(() => rm(output, { recursive: true, force: true }));
+  const identity = await bundleSealedCheckSdkIssuer(
+    fileURLToPath(new URL("../", import.meta.url)),
+    output,
+  );
+  const bundle = sealedCheckSdkFilename;
+  assert.deepEqual(await readdir(output), ["scripts"]);
+  assert.deepEqual(await readdir(path.join(output, "scripts")), [bundle]);
+  const bytes = await readFile(path.join(output, "scripts", bundle));
+  assert.deepEqual(identity, {
+    bytes: bytes.length,
+    sha256: createHash("sha256").update(bytes).digest("hex"),
+  });
+  const verified = await verifySealedCheckSdkBundle(output, identity);
+  assert.equal(verified, path.join(output, "scripts", bundle));
+  await assert.rejects(verifySealedCheckSdkBundle(output, { ...identity, path: verified }));
+  const spawn = (entry: string, source: string, input: string) =>
+    spawnSync(
+      process.execPath,
+      ["--import", `data:text/javascript,${encodeURIComponent(source)}`, entry],
+      {
+        cwd: output,
+        input,
+        encoding: "utf8",
+        env: {
+          ...(process.env.SystemRoot ? { SystemRoot: process.env.SystemRoot } : {}),
+          LANG: "C.UTF-8",
+        },
+        timeout: 15_000,
+      },
+    );
+  const input = JSON.stringify(successorRequest);
+  const exactInput = " ".repeat(128 * 1024 - Buffer.byteLength(input)) + input;
+  const ok = `globalThis.fetch = async () => Response.json({ id: 789 }, { status: 201 });`;
+  const malformed = `globalThis.fetch = async () => new Response("{ malformed inert-check-token");`;
+  for (const entry of [
+    fileURLToPath(new URL("./release-semantic-issuer-sdk-http.mts", import.meta.url)),
+    verified,
+  ]) {
+    const success = spawn(entry, ok, exactInput);
+    assert.ifError(success.error);
+    assert.equal(success.status, 0, success.stderr);
+    assert.equal(success.stderr, "");
+    assert.deepEqual(JSON.parse(success.stdout), {
+      status: 201,
+      headers: [["content-type", "application/json"]],
+      body: { id: 789 },
+    });
+    for (const result of [spawn(entry, malformed, input), spawn(entry, ok, " " + exactInput)]) {
+      assert.ifError(result.error);
+      assert.equal(result.status, 1);
+      assert.equal(result.stdout, "");
+      assert.equal(
+        result.stderr,
+        "semantic credential HTTP transport failed; reconcile any attempted effect before retry\n",
+      );
+    }
+  }
+  const changed = Buffer.from(bytes);
+  changed[0] = (changed[0] ?? 0) ^ 1;
+  await writeFile(verified, changed);
+  await assert.rejects(
+    verifySealedCheckSdkBundle(output, identity),
+    /differs from installed custody/u,
+  );
 });
 
 void test("native handoff recovery preserves original phase and rejects truncated, repeated or changed attempts", async () => {

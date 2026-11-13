@@ -12,10 +12,12 @@ import {
 } from "lucide-react";
 import type { PaletteCommand } from "./components/CommandPalette";
 import { commandShortcut, useGlobalShortcuts } from "./keyboard-shortcuts";
+import type { CatalogEntry } from "./features/browsing/catalog-entry";
 import type { RecentPort, View } from "./view-model";
 
 interface CommandSurfaceOptions {
   recent?: RecentPort | undefined;
+  games?: readonly SearchableGame[];
   installedCount: number;
   busy: boolean;
   setView: (view: View) => void;
@@ -27,8 +29,26 @@ interface CommandSurfaceOptions {
   openUpdates?: () => void;
 }
 
+export interface SearchableGame {
+  port: CatalogEntry;
+  inLibrary: boolean;
+}
+
+/** Library-hidden games stay searchable, but only as Discover results (DESIGN-SYSTEM). */
+export function withLibraryVisibility(
+  games: readonly SearchableGame[],
+  hiddenPortIds: readonly string[] | undefined,
+): SearchableGame[] {
+  if (!hiddenPortIds?.length) return [...games];
+  const hidden = new Set(hiddenPortIds);
+  return games.map((game) =>
+    game.inLibrary && hidden.has(game.port.id) ? { ...game, inLibrary: false } : game,
+  );
+}
+
 export function commandSurfaceCommands({
   recent,
+  games = [],
   installedCount,
   busy,
   setView,
@@ -42,6 +62,7 @@ export function commandSurfaceCommands({
   return [
     {
       id: "library",
+      group: "Navigation",
       label: "Open library",
       description: "View installed ports and launch readiness",
       icon: Library,
@@ -51,7 +72,8 @@ export function commandSurfaceCommands({
     },
     {
       id: "catalog",
-      label: "Open Find games",
+      group: "Navigation",
+      label: "Open Discover",
       description: "Browse native game ports",
       icon: Boxes,
       shortcut: commandShortcut("2"),
@@ -60,6 +82,7 @@ export function commandSurfaceCommands({
     },
     {
       id: "search-library",
+      group: "Navigation",
       label: "Search library",
       description: "Find a game or port in your library",
       icon: Search,
@@ -67,13 +90,15 @@ export function commandSurfaceCommands({
     },
     {
       id: "search",
-      label: "Search Find games",
+      group: "Navigation",
+      label: "Search Discover",
       description: "Find a port by title, installation method, or platform",
       icon: Search,
       action: focusSearch,
     },
     {
       id: "updates",
+      group: "Navigation",
       label: "Open Activity",
       description: "Review tasks, history and recovery",
       icon: Download,
@@ -83,6 +108,7 @@ export function commandSurfaceCommands({
     },
     {
       id: "game-updates",
+      group: "Navigation",
       label: "Review game updates",
       description: "Open the Updates section in Activity",
       icon: Download,
@@ -91,6 +117,7 @@ export function commandSurfaceCommands({
     },
     {
       id: "check",
+      group: "Library actions",
       label: "Check installed ports for updates",
       description:
         installedCount === 0
@@ -107,6 +134,7 @@ export function commandSurfaceCommands({
     },
     {
       id: "adopt",
+      group: "Library actions",
       label: "Copy an existing installation",
       description: "Review and copy a supported installation into Portcove",
       icon: FolderSearch,
@@ -115,6 +143,7 @@ export function commandSurfaceCommands({
     },
     {
       id: "settings",
+      group: "Preferences",
       label: "Open settings",
       description: "Manage game files, GitHub, storage, and appearance",
       icon: Settings,
@@ -124,6 +153,7 @@ export function commandSurfaceCommands({
     },
     {
       id: "continue",
+      group: "Recent game",
       label: "Open recent game",
       description: recent
         ? `Open ${gameIdentityLabel(recent.port)}`
@@ -132,12 +162,27 @@ export function commandSurfaceCommands({
       disabled: !recent,
       action: () => recent && setSelectedId(recent.port.id),
     },
+    // Library games first so each group renders under one contiguous heading.
+    ...[...games.filter((game) => game.inLibrary), ...games.filter((game) => !game.inLibrary)].map(
+      ({ port, inLibrary }): PaletteCommand => ({
+        id: `game:${port.id}`,
+        group: inLibrary ? "Games in your library" : "Games in Discover",
+        label: gameIdentityLabel(port),
+        description: "Open game details",
+        icon: Gamepad2,
+        keywords: `${port.id} ${port.name}`,
+        searchOnly: true,
+        matchDescription: false,
+        action: () => setSelectedId(port.id),
+      }),
+    ),
   ];
 }
 
 export function useCommandSurface({
   view,
   recent,
+  games,
   installedCount,
   busy,
   setView,
@@ -148,6 +193,7 @@ export function useCommandSurface({
 }: {
   view: View;
   recent?: RecentPort | undefined;
+  games?: readonly SearchableGame[];
   installedCount: number;
   busy: boolean;
   setView: (view: View) => void;
@@ -175,6 +221,7 @@ export function useCommandSurface({
     () =>
       commandSurfaceCommands({
         recent,
+        ...(games ? { games } : {}),
         installedCount,
         busy,
         setView,
@@ -190,6 +237,7 @@ export function useCommandSurface({
       checkAll,
       focusLibrarySearch,
       focusSearch,
+      games,
       installedCount,
       openUpdates,
       recent,

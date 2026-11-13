@@ -14,14 +14,21 @@
     border-inline-end-color: var(--color-border-subtle);
   }
   .sidebar .nav-item[aria-current="page"] {
-    box-shadow: inset 3px 0 0 var(--color-interactive-border);
+    box-shadow: inset 3px 0 0 var(--color-interactive-text-strong);
+  }
+  @media (forced-colors: active) {
+    .sidebar .nav-item[aria-current="page"],
+    .settings-section-index button[aria-current="page"] {
+      border-inline-start: 4px solid Highlight;
+    }
   }
   .browse-navigation:has(
     :is([aria-label="Library quick views"], [aria-label="Discover collections"])
   ) {
     border-block-end: 1px solid var(--color-border-subtle);
   }
-  :is([aria-label="Library quick views"], [aria-label="Discover collections"]) > button {
+  :is([aria-label="Library quick views"], [aria-label="Discover collections"]) > button,
+  :where(.browse-navigation) .filter-row > button {
     min-block-size: 2.75rem;
     padding-inline: var(--space-3);
     border-radius: 0;
@@ -35,20 +42,125 @@
     > button[aria-pressed="true"]::after {
     border-color: var(--color-interactive-border);
   }
+  .browse-navigation .filter-row {
+    display: contents;
+  }
+  .page-header {
+    align-items: center;
+    margin-block-end: 1.625rem;
+  }
+  .page-header h1 {
+    font-size: 1.875rem;
+    font-weight: 600;
+    letter-spacing: -0.035em;
+    line-height: 1.2;
+  }
+  .page-header p {
+    font-size: var(--text-xs);
+    line-height: 1.5;
+    margin-block-start: 0.5rem;
+  }
+  .workspace-toolbar .command-trigger {
+    min-block-size: 2.5rem;
+    padding-inline: 0.75rem;
+    font-size: var(--text-xs);
+  }
+  .sidebar .nav-item {
+    font-size: var(--text-xs);
+  }
+  .sidebar .brand strong {
+    font-size: 1.5rem;
+    font-weight: 600;
+  }
+  .sidebar-collections {
+    margin-block-start: 1.75rem;
+    padding-inline: 0.25rem;
+  }
+  .sidebar-collections-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    margin-block-end: 0.5rem;
+    padding-inline-start: 0.75rem;
+    color: var(--color-text-muted);
+    font-size: var(--text-xs);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .sidebar-collections-heading > button:not(.sidebar-collections-create) {
+    width: 2rem;
+    min-height: 2rem;
+    padding: 0;
+    border-color: transparent;
+    background: transparent;
+    color: var(--color-text-muted);
+  }
+  .sidebar-collection {
+    display: flex;
+    width: 100%;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 0.625rem;
+    min-height: 2.5rem;
+    padding: 0.5rem 0.75rem;
+    text-align: start;
+    font-size: var(--text-xs);
+    color: var(--color-text-secondary);
+  }
+  .sidebar-collection > span {
+    flex: 1;
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+  .sidebar-collection > small {
+    font-size: var(--text-xs);
+    color: var(--color-text-muted);
+    font-variant-numeric: tabular-nums;
+  }
+  .sidebar-collections-empty {
+    padding: 0.5rem 0.75rem;
+    margin: 0;
+    font-size: var(--text-xs);
+    line-height: 1.5;
+    color: var(--color-text-muted);
+  }
+  .sidebar-bottom {
+    padding-block-start: 1.5rem;
+  }
+  .sidebar-library {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 1rem 0.5rem;
+    border-block-start: 1px solid var(--color-border-subtle);
+    font-size: var(--text-xs);
+    color: var(--color-text-secondary);
+  }
+  .sidebar-library > span:nth-child(2) {
+    flex: 1;
+    min-width: 0;
+  }
+  .sidebar-library small {
+    display: block;
+    margin-block-start: 0.25rem;
+    font-size: var(--text-xs);
+    color: var(--color-text-muted);
+  }
+  .sidebar-library-dot {
+    width: 5px;
+    height: 5px;
+    flex: none;
+    border-radius: 50%;
+    background: var(--color-success-text);
+  }
+  .compact-library-collections {
+    display: none;
+  }
   .sidebar .brand-avatar {
     border: 0;
     background: transparent;
     box-shadow: none;
-  }
-  @media (width <= 75rem) {
-    .workspace-main {
-      --workspace-inline: var(--space-6);
-    }
-  }
-  @media (width <= 65rem) {
-    .workspace-main {
-      --workspace-inline: var(--space-5);
-    }
   }
   @container update-entry (max-width: 48em) {
     .update-entry > .update-row {
@@ -70,6 +182,37 @@
       margin-block-end: 8px;
     }
   }
+  /* Short desktop windows (the 1280x720 reference) keep the first row's primary
+     actions on screen. Cover geometry is unchanged; only chrome rhythm and the
+     project's reserved second line tighten, and focus still reveals the full name. */
+  @media (height <= 760px) and (width >= 761px) {
+    .workspace-toolbar {
+      margin-block-end: var(--space-4);
+    }
+    [data-library-header] {
+      margin-block-end: 12px;
+    }
+    .browse-navigation {
+      margin-block-end: 8px;
+    }
+    .library-query-tools {
+      margin-block-end: 8px;
+    }
+    .collection-cover .collection-project {
+      min-block-size: 1.5em;
+      -webkit-line-clamp: 1;
+    }
+    /* The one-line project reveals its full name on hover as well as focus. */
+    .collection-cover .collection-identity:hover .collection-project {
+      display: block;
+      overflow: visible;
+      -webkit-line-clamp: unset;
+    }
+    .collection-cover .library-entry-footer {
+      margin-block-start: var(--space-1);
+      padding-block-start: var(--space-1);
+    }
+  }
   .interface-workspace > .app-shell {
     height: 100%;
   }
@@ -81,6 +224,12 @@
   }
 
   @media (width < 42rem) {
+    .compact-library-collections {
+      display: block;
+    }
+    .page-header:not([data-library-header]) h1 {
+      font-size: 1.65rem;
+    }
     html,
     body,
     #root {
@@ -99,42 +248,74 @@
       display: flex;
       height: auto;
       min-height: 100dvh;
-      flex-direction: column;
+      flex-direction: row;
+      align-items: flex-start;
     }
     .app-shell > .sidebar {
-      overflow: visible;
-      padding: var(--space-3) var(--space-4);
-      border-inline-end: 0;
-      border-block-end: 1px solid var(--color-border);
+      position: sticky;
+      inset-block-start: 0;
+      flex: 0 0 60px;
+      height: 100dvh;
+      overflow-y: auto;
+      padding: 20px 7px 0;
     }
     .sidebar-desktop {
+      display: contents;
+    }
+    .sidebar-desktop > .brand,
+    .sidebar-collections,
+    .sidebar-library,
+    .sidebar .controller-hint,
+    .sidebar .nav-item > b:not(.nav-status) {
       display: none;
+    }
+    .sidebar .nav-item {
+      position: relative;
+      justify-content: center;
+      padding-inline: 0;
+      gap: 0;
+    }
+    .sidebar .nav-label {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip-path: inset(50%);
+      white-space: nowrap;
+    }
+    .sidebar .nav-status {
+      position: absolute;
+      inset: 0 0 auto auto;
+      min-width: 16px;
+      padding-inline: 2px;
     }
     .sidebar-compact-header {
       display: flex;
-      padding-inline-end: calc(var(--control-height-lg) + var(--space-3));
+      flex-direction: column;
+      gap: 0;
+      padding-block-end: 25px;
     }
-    .app-shell > .workspace-main > .workspace-toolbar {
-      position: absolute;
-      z-index: 1;
-      inset-block-start: var(--space-3);
-      inset-inline-end: var(--space-4);
-      min-block-size: var(--control-height-lg);
-      margin: 0;
-      padding: 0;
-      border: 0;
-    }
-    .app-shell > .workspace-main > .workspace-toolbar > [aria-label="Current location"] {
+    .sidebar-compact-header > span {
       display: none;
     }
+    .app-shell > .workspace-main > .workspace-toolbar {
+      justify-content: space-between;
+      margin-block-end: var(--space-6);
+    }
+    .app-shell > .workspace-main > .workspace-toolbar > [aria-label="Current location"] {
+      display: flex;
+    }
     .app-shell > .workspace-main > .workspace-toolbar .command-trigger {
-      inline-size: var(--control-height-lg);
+      inline-size: auto;
+      min-inline-size: var(--control-height-lg);
       min-block-size: var(--control-height-lg);
       padding: 0;
+      border-color: transparent;
+      background: transparent;
     }
     .sidebar-compact-header .brand-avatar {
-      width: 30px;
-      height: 30px;
+      width: 32px;
+      height: 32px;
     }
     .navigation-sheet[data-slot="dialog-content"] {
       max-height: 100dvh;
@@ -148,7 +329,8 @@
       --workspace-inline: var(--space-4);
       min-width: 0;
       overflow: visible;
-      padding: var(--space-6) var(--workspace-inline) var(--space-4);
+      flex: 1 1 0;
+      padding: 0 var(--workspace-inline) var(--space-4);
     }
     .header-tools {
       width: 100%;
@@ -164,6 +346,13 @@
     }
     .settings-section-index {
       position: static;
+    }
+    .source-requirements-heading {
+      flex-wrap: wrap;
+    }
+    .source-requirement {
+      flex-direction: column;
+      align-items: stretch;
     }
     .appearance-options {
       grid-auto-flow: row;
@@ -214,21 +403,27 @@
     container-name: app-window;
   }
   @media (min-width: 672px) {
-    @container app-window (max-width: 80em) {
+    @container app-window (max-width: 47.5rem) {
+      .workspace-main {
+        --workspace-inline: var(--space-4);
+      }
       .app-shell {
-        grid-template-columns: var(--layout-sidebar-compact) minmax(0, 1fr);
+        grid-template-columns: 60px minmax(0, 1fr);
       }
       .app-shell > .sidebar {
-        padding-inline: 10px;
+        padding-inline: 6px;
       }
       .sidebar .brand {
         justify-content: center;
         padding-inline: 0;
+        padding-block-end: 25px;
       }
       .sidebar .brand-avatar {
         width: 36px;
         height: 36px;
       }
+      .sidebar-collections,
+      .sidebar-library,
       .sidebar .brand > div,
       .sidebar .nav-item > .shortcut,
       .sidebar .nav-item > b:not(.nav-status),
@@ -255,9 +450,221 @@
         clip-path: inset(50%);
         white-space: nowrap;
       }
+      .compact-library-collections {
+        display: block;
+      }
       .sidebar-footer > button {
         padding-inline: 8px;
       }
+    }
+  }
+}
+
+@layer utilities {
+  @media (width <= 30rem) {
+    .continue-card {
+      margin-block-end: var(--space-4);
+    }
+  }
+  @media (width <= 22rem) {
+    [data-library-header],
+    .continue-card,
+    .library-query-tools {
+      margin-block-end: var(--space-3);
+    }
+  }
+}
+
+@layer utilities {
+  .sidebar-compact-collections {
+    display: none;
+  }
+  .sidebar .nav-item > svg {
+    width: 18px;
+    height: 18px;
+  }
+  .sidebar-collections-heading:has(> .sidebar-collections-create) {
+    flex-wrap: wrap;
+  }
+  .sidebar-collections-create {
+    width: 100%;
+    justify-content: flex-start;
+    gap: 0.625rem;
+    margin-block-start: 4px;
+    padding: 8px 0;
+    border-color: transparent;
+    background: transparent;
+    color: var(--color-text-secondary);
+    font-size: var(--text-xs);
+    font-weight: 400;
+    text-align: start;
+    letter-spacing: normal;
+    text-transform: none;
+  }
+  .sidebar-collections-create:hover {
+    color: var(--color-text);
+    background: var(--color-bg-hover);
+  }
+  :is([aria-label="Library quick views"], [aria-label="Discover collections"]) {
+    gap: 24px;
+  }
+  :is([aria-label="Library quick views"], [aria-label="Discover collections"]) > button {
+    min-block-size: 44px;
+    padding: 0 0 14px;
+    border: 0;
+    font-weight: 400;
+  }
+  :is([aria-label="Library quick views"], [aria-label="Discover collections"]) > button::after {
+    inset-inline: 0;
+  }
+  /* Discover's Favorites view sits beside its collection tabs and reads as one of them. */
+  .browse-navigation .filter-row > button[data-favorites-filter] {
+    min-block-size: 44px;
+    padding: 0 0 14px;
+    border: 0;
+    border-radius: 0;
+    font-weight: 400;
+  }
+  .browse-navigation .filter-row > button[data-favorites-filter]::after {
+    inset-inline: 0;
+  }
+  /* Discover cards share Library's type weights instead of inheriting button weight. */
+  .discover-game :is(.collection-project, .readiness, .library-card-action),
+  .discover-game-actions > button {
+    font-weight: 400;
+  }
+  [data-library-header] [data-add-games-trigger] {
+    color: var(--color-text);
+    background: var(--color-bg-raised);
+    border-color: var(--color-control-border);
+    font-weight: 600;
+  }
+  @media (width < 42rem) {
+    .sidebar-compact-collections {
+      display: block;
+    }
+  }
+  @media (min-width: 672px) {
+    @container app-window (max-width: 47.5rem) {
+      .sidebar-compact-collections {
+        display: block;
+      }
+    }
+  }
+  @media (width <= 65rem) {
+    .sidebar-compact-collections > button {
+      width: 44px;
+      min-height: 44px;
+      padding: 0;
+      border-color: transparent;
+      background: transparent;
+      color: var(--color-text-secondary);
+    }
+    .sidebar-compact-collections > button > svg {
+      width: 18px;
+      height: 18px;
+    }
+    .sidebar-navigation-trigger {
+      width: 40px;
+      height: 40px;
+      padding: 0;
+    }
+    .workspace-toolbar > [aria-label="Current location"] > span:first-child,
+    .workspace-toolbar > [aria-label="Current location"] > span:nth-child(2),
+    .workspace-toolbar .command-trigger > kbd {
+      display: inline-flex;
+    }
+  }
+  @container library-query (max-width: 30rem) {
+    [aria-label="Library quick views"] {
+      gap: 0 8px;
+    }
+    [aria-label="Library quick views"] .browse-count {
+      display: none;
+    }
+  }
+}
+
+@layer utilities {
+  @container workspace-header (max-width: 20em) {
+    .workspace-toolbar > [aria-label="Current location"] > span:first-child,
+    .workspace-toolbar > [aria-label="Current location"] > span:nth-child(2),
+    .workspace-toolbar .command-trigger > kbd {
+      display: none;
+    }
+  }
+}
+
+@layer utilities {
+  @container app-window (47.5rem < width <= 56.25rem) {
+    .app-shell {
+      grid-template-columns: 10.25rem minmax(0, 1fr);
+    }
+    .workspace-main {
+      --workspace-inline: 1.5rem;
+    }
+  }
+  @media (width < 42rem) {
+    .sidebar .nav-item {
+      min-block-size: 44px;
+    }
+    .sidebar-bottom {
+      padding-block-end: 20px;
+    }
+    [data-library-header] {
+      align-items: flex-start;
+    }
+    [data-library-header] [data-add-games-trigger] {
+      min-block-size: 37px;
+    }
+  }
+  @media (width <= 359px) {
+    [data-library-header] {
+      flex-wrap: wrap;
+    }
+    .page-header[data-library-header] .header-tools {
+      justify-content: flex-start;
+      margin-inline-start: 0;
+    }
+  }
+  @container workspace-header (14rem < width <= 20em) {
+    .workspace-toolbar > [aria-label="Current location"] > span:first-child,
+    .workspace-toolbar > [aria-label="Current location"] > span:nth-child(2),
+    .workspace-toolbar .command-trigger > kbd {
+      display: inline-flex;
+    }
+  }
+}
+
+@layer utilities {
+  @container app-window (width <= 47.5rem) {
+    .sidebar .nav-item {
+      min-block-size: 44px;
+    }
+    .sidebar-bottom {
+      padding-block-end: 20px;
+    }
+  }
+}
+
+@layer utilities {
+  [data-library-header] {
+    flex-wrap: wrap;
+  }
+  [data-library-header] > :first-child {
+    flex: 1 0 min(100%, 8.5rem);
+  }
+  @media (width <= 359px) {
+    [data-library-header] > :first-child {
+      flex-basis: 100%;
+    }
+  }
+}
+
+@layer utilities {
+  @container app-window (width <= 47.5rem) {
+    .sidebar-navigation {
+      gap: 7px;
     }
   }
 }

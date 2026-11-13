@@ -1,3 +1,4 @@
+import { captureParityState } from "../../test/parity-capture";
 import { afterEach, beforeEach, expect, it, vi } from "vite-plus/test";
 import { page, userEvent } from "vite-plus/test/browser";
 import { cleanup, render } from "vitest-browser-react";
@@ -65,13 +66,16 @@ it.each([
     button.focus();
     await expect.element(reload).toHaveFocus();
     await userEvent.keyboard("{Tab}");
-    await expect.element(page.getByText("Display error details", { exact: true })).toHaveFocus();
+    await expect.element(page.getByText("Error details", { exact: true })).toHaveFocus();
     await userEvent.keyboard("{Enter}");
     const diagnostics = recovery.querySelector<HTMLTextAreaElement>("textarea")!;
     expect(diagnostics.value).toBe(message);
     await userEvent.keyboard("{Tab}");
     expect(document.activeElement).toBe(diagnostics);
     expect(diagnostics.scrollHeight - diagnostics.clientHeight).toBeGreaterThan(long ? 0 : -1);
+    await captureParityState(
+      `error-boundary-${long ? "long" : "short"}-${enlarged ? "200" : "100"}`,
+    );
     const endOfDetails = /Mac/u.test(navigator.platform)
       ? "{Meta>}{ArrowDown}{/Meta}"
       : "{Control>}{End}{/Control}";

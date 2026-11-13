@@ -229,6 +229,10 @@ export function extractDeclaredDesktopEvents(sourceText: string) {
   return declarations;
 }
 
+// Every Tauri emitter spelling. Only the adapter may call one, and it must target the main window.
+const directEmitCall = /\.emit(?:_to|_str|_str_to|_filter|_str_filter)?\s*(?=::|\()/gu;
+const qualifiedDirectEmit = /::\s*emit(?:_to|_str|_str_to|_filter|_str_filter)?\s*(?=::|\()/u;
+
 export function extractProducedDesktopEvents(
   sources: readonly string[],
   declarations: ReadonlyMap<string, string>,
@@ -237,9 +241,9 @@ export function extractProducedDesktopEvents(
   let directEmitCalls = 0;
   let emitterAdapters = 0;
   for (const sourceText of sources) {
-    if (/::\s*emit\s*(?=::|\()/u.test(sourceText))
+    if (qualifiedDirectEmit.test(sourceText))
       throw new Error("Tauri desktop event producers must route through emit_desktop_event");
-    const rawCalls = [...sourceText.matchAll(/\.emit\s*(?=::|\()/gu)].length;
+    const rawCalls = [...sourceText.matchAll(directEmitCall)].length;
     directEmitCalls += rawCalls;
     const isAdapter = /fn\s+emit_desktop_event\s*</u.test(sourceText);
     if (isAdapter) emitterAdapters += 1;
@@ -247,9 +251,12 @@ export function extractProducedDesktopEvents(
       throw new Error("Tauri desktop event producers must route through emit_desktop_event");
     if (
       isAdapter &&
-      (rawCalls !== 1 || !/app\.emit\s*\(\s*event\s*,\s*payload\s*\)/u.test(sourceText))
+      (rawCalls !== 1 ||
+        !/app\.emit_to\s*\(\s*MAIN_WINDOW_LABEL\s*,\s*event\s*,\s*payload\s*\)/u.test(sourceText))
     )
-      throw new Error("emit_desktop_event must contain the only direct Tauri emit call");
+      throw new Error(
+        "emit_desktop_event must contain the only direct Tauri emit call, targeted at MAIN_WINDOW_LABEL",
+      );
 
     const calls = [...sourceText.matchAll(/\bemit_desktop_event\s*::\s*</gu)].length;
     const parsed = [
@@ -819,6 +826,7 @@ function main() {
       "source_discovery_limits",
       "catalog_update_source",
       "definition_capability_request",
+      "game_setting_change",
     ].map((key) => [key, inputSchemas[key]]),
   );
   const inputPath = path.join(root, "apps", "desktop", "src", "transport-inputs.generated.json");

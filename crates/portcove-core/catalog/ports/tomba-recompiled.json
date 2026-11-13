@@ -6,6 +6,7 @@
     "name": "Tomba!: Recompiled",
     "summary": "Native Tomba! recompilation.",
     "project_url": "https://github.com/mstan/TombaRecomp",
+    "listed_at": "2026-10-23",
     "original_game_title": "Tomba!",
     "artwork": {
       "game_id": 4097,
@@ -20,25 +21,19 @@
   "integration": {
     "support_tier": "beta",
     "channels": ["beta"],
-    "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
+    "platforms": ["windows-x86-64"],
     "automated_tested_platforms": ["windows-x86-64"],
     "manually_validated_platforms": ["windows-x86-64"],
     "adapter": "psx-recomp-managed",
     "release": {
       "repository": "mstan/TombaRecomp",
       "asset_hints": {
-        "windows-x86-64": ["windows-x64"],
-        "linux-x86-64": ["linux-x64"],
-        "macos-x86-64": ["macos-x64"],
-        "macos-aarch64": ["macos-arm64"]
+        "windows-x86-64": ["windows-x64"]
       }
     },
     "source_profile": "tomba-psx",
     "executable_hints": {
-      "windows-x86-64": ["Tomba__Recompiled.exe"],
-      "linux-x86-64": ["Tomba__Recompiled"],
-      "macos-x86-64": ["Tomba__Recompiled"],
-      "macos-aarch64": ["Tomba__Recompiled"]
+      "windows-x86-64": ["Tomba__Recompiled.exe"]
     },
     "persistent_paths": [
       "saves",

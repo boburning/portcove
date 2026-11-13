@@ -103,6 +103,13 @@ function aquaToolPaths(command: string, environment: NodeJS.ProcessEnv) {
   }
 }
 
+/** The supported quality bootstrap entrypoint for the observed platform. */
+export function qualityBootstrapRemedy(platform: string = process.platform) {
+  return platform === "win32"
+    ? "./scripts/bootstrap-quality-tools.ps1"
+    : "bash scripts/bootstrap-quality-tools.sh";
+}
+
 function aquaDefinitions(
   environment: NodeJS.ProcessEnv,
   locate = true,
@@ -125,7 +132,7 @@ function aquaDefinitions(
         cachePackage: packageName,
         cacheVersion: version,
         paths: locate ? aquaToolPaths(command[0], environment) : [],
-        remediation: "./scripts/bootstrap-quality-tools.ps1",
+        remediation: qualityBootstrapRemedy(),
       };
     },
   );
@@ -286,7 +293,7 @@ export function cachedRustDefinition(
   cachePaths: Pick<ToolCachePaths, "cargoRoot">,
   platform = process.platform,
 ): ToolDefinition {
-  const binary = definition.id === "rscheck-cli" ? "rscheck" : definition.crate;
+  const binary = definition.crate;
   // Windows executable lookup can prefer an ambient .exe over a preceding .cmd shim.
   // Probe the bootstrap-owned versioned payload directly, and fail if it is absent.
   const command =
@@ -302,7 +309,7 @@ export function cachedRustDefinition(
   return {
     ...definition,
     command: [command, "--version"],
-    remediation: "./scripts/bootstrap-quality-tools.ps1",
+    remediation: qualityBootstrapRemedy(platform),
   };
 }
 
@@ -566,7 +573,7 @@ export async function collectSelectedPrerequisites(
           platform !== "win32" || (options.readToolState ?? readToolState)({ paths: cachePaths })
             ? "ok"
             : "unavailable",
-        remediation: "./scripts/bootstrap-quality-tools.ps1",
+        remediation: qualityBootstrapRemedy(platform),
       });
     else if (["tauri-driver", "native-driver"].includes(id) && platform !== "win32") {
       results.push({
@@ -835,7 +842,7 @@ export async function collectDoctor(options: DoctorOptions = {}): Promise<Doctor
       command: ["aqua", "--version"],
       version: aquaVersion,
       ...(process.platform === "win32" ? { paths: [cachePaths.aquaExecutable] } : {}),
-      remediation: "./scripts/bootstrap-quality-tools.ps1",
+      remediation: qualityBootstrapRemedy(),
     },
     ...aquaDefinitions(environment),
     process.platform === "win32"

@@ -622,6 +622,37 @@ pub(super) async fn validate_existing_repository(
     output: &Path,
     expected: ExpectedRepository<'_>,
 ) -> Result<(), TufRepositoryError> {
+    validate_repository_with_expiration(output, expected, tough::ExpirationEnforcement::Safe).await
+}
+
+/// Authenticate only a historical prior. The caller still authenticates its
+/// immutable origin and version floors; no new repository uses this policy.
+pub(super) async fn validate_historical_repository(
+    output: &Path,
+    expected: ExpectedRepository<'_>,
+) -> Result<(), TufRepositoryError> {
+    let root: Signed<Root> = serde_json::from_slice(expected.trusted_root)?;
+    let top = expected.offline_targets.ok_or_else(|| {
+        TufRepositoryError::Invalid("historical prior requires pinned Targets".into())
+    })?;
+    let targets: Signed<tough::schema::Targets> = serde_json::from_slice(top)?;
+    let now = Timestamp::now();
+    if root.signed.expires <= now || targets.signed.expires <= now {
+        return Err(TufRepositoryError::Invalid(
+            "historical prior cannot use expired Root or pinned Targets".into(),
+        ));
+    }
+    // Only the five historical online roles may be expired. All existing
+    // signature, hash, target, namespace, inventory and version checks remain.
+    validate_repository_with_expiration(output, expected, tough::ExpirationEnforcement::Unsafe)
+        .await
+}
+
+async fn validate_repository_with_expiration(
+    output: &Path,
+    expected: ExpectedRepository<'_>,
+    expiration: tough::ExpirationEnforcement,
+) -> Result<(), TufRepositoryError> {
     let ExpectedRepository {
         trusted_root,
         targets: expected_targets,
@@ -658,6 +689,8 @@ pub(super) async fn validate_existing_repository(
     let manifest: RepositoryManifest = serde_json::from_slice(&manifest_bytes)?;
     let mut files_without_manifest = report_files(output)?;
     files_without_manifest.retain(|file| file.path != "repository-manifest.json");
+    // Zero records is a valid offline initial repository. Existing-output
+    // identity and isolated production initial/prior-context guards still apply.
     if manifest.schema_version != 1
         || manifest.records != record_count
         || manifest.files != files_without_manifest
@@ -706,6 +739,7 @@ pub(super) async fn validate_existing_repository(
         Url::from_directory_path(&targets_root)
             .map_err(|_| TufRepositoryError::Invalid("repository target path is invalid".into()))?,
     )
+    .expiration_enforcement(expiration)
     .load()
     .await?;
     for (path, expected) in expected_targets {
@@ -794,10 +828,7 @@ pub(super) fn load_records(
         "reconstruction manifest",
     )?;
     let manifest: ReconstructionManifest = serde_json::from_slice(&manifest_bytes)?;
-    if manifest.schema_version != 1
-        || manifest.records.is_empty()
-        || manifest.records.len() > MAX_RECORDS
-    {
+    if manifest.schema_version != 1 || manifest.records.len() > MAX_RECORDS {
         return Err(TufRepositoryError::Invalid(
             "reconstruction manifest has an invalid schema or record count".into(),
         ));

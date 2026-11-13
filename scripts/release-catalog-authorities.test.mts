@@ -1,6 +1,14 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import test from "node:test";
+import { performance } from "node:perf_hooks";
+import { mkdtemp, rm } from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
+import { withReadOnlyReleaseChildren } from "./release-readonly-child-environment.mts";
+import { createFixedControlReadAllowance } from "./release-control-inputs.mts";
+import { createReleaseCustodyProvider } from "./release-custody-provider.mts";
+import { isRecord } from "./runtime-values.mts";
 import { withCoordinatorDeadline } from "./release-coordinator-deadline.mts";
 import { releaseCanonicalDigest as digest } from "./release-canonical.mts";
 import {
@@ -8,6 +16,7 @@ import {
   inspectReleaseAuthorityConfiguration,
   inspectBoundCatalogControllerAuthorities,
   requireControllerCatalogPublicationAuthorities,
+  requireControllerJobCredentialRoute,
   assertControllerCatalogPublisherScope,
   requireFixedControllerJobSourceConfiguration,
   requireCoordinatorAuthorityConfiguration,
@@ -17,6 +26,8 @@ import {
   admitProductionInputReader,
   admitProductionController,
   admitProductionCatalogController,
+  productionControllerWorkflow,
+  readProductionControllerWorkflowBytes,
 } from "./production-controller-admission.mts";
 import {
   authenticateCatalogControlReaderJob,
@@ -32,6 +43,9 @@ import {
   capacityDocumentFixture,
 } from "./fixtures/release-live-control-fixture.mts";
 import { selectedPublicationAuthoritiesFixture } from "./fixtures/checkpoint-proof-fixture.mts";
+import { controllerOidcSubject } from "./assembler-job-identity.mts";
+import { releaseControlPhaseProfile } from "./release-control-phases.mts";
+import { assemblerIdentityFixture, jwk } from "./fixtures/assembler-identity-fixture.mts";
 import { releaseControlInputsFixture } from "./fixtures/release-control-inputs-fixture.mts";
 
 function configuration() {
@@ -69,12 +83,15 @@ function configuration() {
     },
   };
 }
-function runtime(catalogCoverage = true) {
+function runtime(
+  catalogCoverage = true,
+  phase: "coordinator" | "catalog-timestamp" = "coordinator",
+) {
   const control = releaseControlInputsFixture(capacityDocumentFixture());
   const observation = catalogCoverage
     ? catalogProtectionFixture(control.head())
     : protectionFixture(control.head());
-  const actual = liveControlRuntimeFixture(observation, undefined, "coordinator", true);
+  const actual = liveControlRuntimeFixture(observation, undefined, phase, true);
   const config = configuration();
   config.apps.dispatch.actor_id = actual.policy.actor_id;
   const policy = {
@@ -276,8 +293,8 @@ void test("catalog OIDC control source is purpose-separated and retains existing
   assert.equal(controls.capacity_source.report.headroom, "unknown");
   assert.equal(controls.capacity_source.report.reservation, "none");
   assert.throws(() => source.read(f.control.api, {}), /application classification/);
-  assert.throws(() => source.readRequest(f.control.api, {}), /application request/);
-  assert.throws(() => source.readDisposition(f.control.api, {}), /application disposition/);
+  await assert.rejects(source.readSdkRequest({}), /scoped coordinator application/);
+  await assert.rejects(source.readSdkDisposition({}), /scoped coordinator application/);
   await assert.rejects(
     authenticateControlReaderJob(f.environment, f.actual.workflow, f.actual.options),
     /missing/,
@@ -294,6 +311,164 @@ void test("catalog OIDC control source is purpose-separated and retains existing
     /changed after ratification/,
   );
 });
+for (const phase of ["catalog-timestamp", "coordinator"] as const)
+  void test(`fixed catalog ${phase} maintenance joins SDK pause and capacity reads with original observer identity`, async (t) => {
+    const f = runtime(true, phase);
+    const { observerApi, ...options } = f.actual.options;
+    const original = await authenticateCatalogReleaseControlSource(
+      f.environment,
+      f.actual.workflow,
+      f.actual.options,
+    );
+    const expected = original.readMaintenance(f.control.api);
+    const routes: string[] = [];
+    let jobToken = "inert-catalog-controls";
+    let expireOnObserver = false;
+    let stallObserver = false;
+    t.mock.method(
+      globalThis,
+      "fetch",
+      async (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
+        const request = new Request(input, init);
+        const url = new URL(request.url);
+        assert.equal(url.origin, "https://api.github.com");
+        assert.equal(
+          request.headers.get("authorization"),
+          `token ${url.pathname.includes("/actions/jobs/") ? jobToken : "inert-catalog-controls"}`,
+        );
+        routes.push(url.pathname);
+        if (url.pathname === "/graphql") {
+          assert.equal(request.method, "POST");
+          const wire: unknown = await request.json();
+          assert.ok(isRecord(wire) && typeof wire.query === "string" && isRecord(wire.variables));
+          assert.equal(wire.variables.ref, "refs/heads/portcove-release-pause");
+          return Response.json({ data: f.control.api.graphql(wire.query, wire.variables).data });
+        }
+        assert.equal(request.method, "GET");
+        const route = url.pathname.slice(1) + url.search;
+        if (route.includes("/actions/jobs/")) {
+          if (stallObserver)
+            return new Response(new ReadableStream(), {
+              headers: { "content-type": "application/json" },
+            });
+          if (expireOnObserver) f.actual.advance(60001);
+          const job = observerApi.request("GET", route);
+          return Response.json(job.body, { status: job.status });
+        }
+        const result = f.control.api.request("GET", route);
+        return Response.json(result.body, { status: result.status ?? 500 });
+      },
+    );
+    const source = await authenticateCatalogReleaseControlSource(
+      { ...f.environment, GH_TOKEN: "inert-catalog-controls" },
+      f.actual.workflow,
+      { ...options, controlReader: "catalog-maintenance", deadline: performance.now() + 5000 },
+    );
+    await assert.rejects(source.readSdkMaintenance(), /scoped maintenance reader unavailable/u);
+    const reserve = createFixedControlReadAllowance();
+    const coordinator =
+      phase === "coordinator"
+        ? { deadline: performance.now() + 1000, signingContext: true as const }
+        : undefined;
+    const observed = await source.readSdkMaintenance(reserve, coordinator);
+    assert.equal(
+      observed.purpose,
+      phase === "coordinator" ? "catalog-coordinator-controls" : "catalog-signing-controls",
+    );
+    assert.equal(observed.facts_sha256, expected.facts_sha256);
+    assert.equal(routes[0], "/repos/boburning/portcove/actions/jobs/600");
+    assert.equal(routes.at(-1), routes[0]);
+    assert.equal(routes.filter((route) => route === "/graphql").length, 4);
+    assert.equal(f.control.mutations(), 0);
+    if (coordinator) {
+      const scoped = await mkdtemp(path.join(os.tmpdir(), "catalog-observer-"));
+      t.after(() => rm(scoped, { recursive: true, force: true }));
+      const previousToken = process.env.GH_TOKEN;
+      const mixed = await (async () => {
+        jobToken = "original-observer-scope";
+        process.env.GH_TOKEN = jobToken;
+        try {
+          return await withReadOnlyReleaseChildren(scoped, () =>
+            authenticateCatalogReleaseControlSource(
+              { ...f.environment, GH_TOKEN: "inert-catalog-controls" },
+              f.actual.workflow,
+              {
+                ...f.actual.options,
+                deadline: performance.now() + 3000,
+                catalogRecoveryObserver: true,
+              },
+            ),
+          );
+        } finally {
+          if (previousToken === undefined) delete process.env.GH_TOKEN;
+          else process.env.GH_TOKEN = previousToken;
+        }
+      })();
+      assert.equal(routes.at(-1), "/repos/boburning/portcove/actions/jobs/600");
+      const start = routes.length;
+      let dispatched = 0;
+      const reserveMixed = () => ({
+        consumeBytes() {},
+        settle(observation: { dispatched: boolean }) {
+          if (observation.dispatched) dispatched++;
+        },
+      });
+      await assert.rejects(
+        mixed.readCatalogRecoveryMaintenance("different-token", reserveMixed),
+        /original fixed maintenance reader/u,
+      );
+      assert.equal(routes.length, start);
+      const mixedFacts = await mixed.readCatalogRecoveryMaintenance(
+        "inert-catalog-controls",
+        reserveMixed,
+      );
+      assert.equal(mixedFacts.facts_sha256, expected.facts_sha256);
+      assert.equal(dispatched, routes.length - start - 1);
+      assert.ok(dispatched > 0);
+      assert.equal(routes.at(-1), "/repos/boburning/portcove/actions/jobs/600");
+      assert.equal(
+        routes.slice(start).filter((route) => route.includes("/actions/jobs/")).length,
+        1,
+      );
+      const beforeExhaustion = routes.length;
+      await assert.rejects(
+        mixed.readCatalogRecoveryMaintenance("inert-catalog-controls", () => {
+          throw new Error("catalog continuation read budget exhausted");
+        }),
+        /catalog continuation read budget exhausted/u,
+      );
+      assert.equal(routes.length, beforeExhaustion);
+      assert.throws(() => mixed.readMaintenance(f.control.api), /requires awaited readback/u);
+      jobToken = "inert-catalog-controls";
+      assert.equal(f.control.mutations(), 0);
+      const shared = createFixedControlReadAllowance();
+      const provider = await createReleaseCustodyProvider({
+        token: "inert-catalog-controls",
+        deadline: coordinator.deadline,
+        reserve: shared,
+      });
+      for (let count = 0; count < 32; count++) await provider.repository(coordinator.deadline);
+      const beforeRefusal = routes.length;
+      await assert.rejects(source.readSdkMaintenance(shared, coordinator), /read bound exhausted/u);
+      assert.equal(routes.length, beforeRefusal);
+
+      stallObserver = true;
+      await assert.rejects(
+        source.readSdkMaintenance(createFixedControlReadAllowance(), {
+          ...coordinator,
+          deadline: performance.now() + 150,
+        }),
+        /deadline|abort/u,
+      );
+      assert.equal(routes.at(-1), "/repos/boburning/portcove/actions/jobs/600");
+      stallObserver = false;
+    }
+    expireOnObserver = true;
+    await assert.rejects(
+      source.readSdkMaintenance(createFixedControlReadAllowance(), coordinator),
+      /fresh|expired/u,
+    );
+  });
 void test("selected full catalog controls retain actual fixed reader and isolated observer verification without a Classification App", async () => {
   const f = runtime();
   const configuration = selectedPublicationAuthoritiesFixture("catalog-publication");
@@ -377,6 +552,81 @@ void test("catalog live controls reject application-coverage observations rather
     ["portcove-release-pause"],
   );
   assert.equal(facts.authority, "none");
+});
+void test("fixed catalog source routing reads the actual signed job through the locked SDK", async (t) => {
+  const f = runtime();
+  const profile = releaseControlPhaseProfile("coordinator");
+  const identity = assemblerIdentityFixture(
+    {
+      aud: profile.reader_audience,
+      sub: controllerOidcSubject(f.policy.execution_ref, profile.reader_environment),
+      environment: profile.reader_environment,
+    },
+    {},
+    { workflow: productionControllerWorkflow, job: profile.reader_name, runAttempt: 1 },
+  );
+  const readerToken = "ghs_SYNTHETIC_CATALOG_SOURCE_READER";
+  const environment = {
+    ...f.environment,
+    PORTCOVE_EXECUTION_PURPOSE: "catalog-publication",
+    PORTCOVE_CATALOG_CONTROLLER_ADMISSION: JSON.stringify({
+      ...f.policy,
+      workflow_sha256: createHash("sha256")
+        .update(await readProductionControllerWorkflowBytes())
+        .digest("hex"),
+    }),
+    GH_TOKEN: readerToken,
+    ACTIONS_ID_TOKEN_REQUEST_URL: "https://fixture.actions.githubusercontent.com/oidc",
+    ACTIONS_ID_TOKEN_REQUEST_TOKEN: "inert-oidc-bearer",
+  };
+  for (const [key, value] of Object.entries(environment)) {
+    const previous = process.env[key];
+    if (value === undefined) delete process.env[key];
+    else process.env[key] = value;
+    t.after(() => {
+      if (previous === undefined) delete process.env[key];
+      else process.env[key] = previous;
+    });
+  }
+  const providerRoutes: string[] = [];
+  t.mock.method(
+    globalThis,
+    "fetch",
+    async (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
+      const url = new URL(input instanceof Request ? input.url : input);
+      const auth = new Headers(init?.headers).get("authorization");
+      if (url.origin === "https://fixture.actions.githubusercontent.com") {
+        assert.equal(url.searchParams.get("audience"), profile.reader_audience);
+        assert.equal(auth, "Bearer inert-oidc-bearer");
+        return Response.json({ value: identity.token });
+      }
+      if (url.origin === "https://token.actions.githubusercontent.com") {
+        assert.equal(url.pathname, "/.well-known/jwks");
+        assert.equal(auth, null);
+        return Response.json({ keys: [jwk] });
+      }
+      assert.equal(url.origin, "https://api.github.com");
+      assert.equal(auth, `token ${readerToken}`);
+      const page = url.searchParams.get("page");
+      const route = page ? `${url.pathname}?per_page=100&page=${page}` : url.pathname;
+      providerRoutes.push(route);
+      return Response.json(identity.metadata(route));
+    },
+  );
+  const routed = await requireControllerJobCredentialRoute("coordinator");
+  assert.equal(routed.route.purpose, "catalog-publication");
+  routed.recheck();
+  const catalog = await requireControllerCatalogPublicationAuthorities("coordinator");
+  assert.equal(catalog.configuration_sha256, f.policy.authority_configuration_sha256);
+  const run = "/repos/boburning/portcove/actions/runs/9988";
+  const expected = [
+    run,
+    `${run}/attempts/1/jobs?per_page=100&page=1`,
+    `${run}/attempts/1/jobs?per_page=100&page=2`,
+    "/repos/boburning/portcove/actions/jobs/501",
+    run,
+  ];
+  assert.deepEqual(providerRoutes, [...expected, ...expected]);
 });
 void test("catalog actual getter refuses missing protected configuration before any OIDC effect", async () => {
   const saved = process.env.PORTCOVE_CATALOG_AUTHORITIES;

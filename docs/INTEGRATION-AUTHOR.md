@@ -76,12 +76,16 @@ See [the CLI flow](CLI.md#using-the-cli) and
 
 Game-port release channels display as **Stable / Preview / Rolling**. Current game-port CLI inputs prefer `stable` / `preview` / `rolling`; `beta` remains a compatibility alias for `preview`. Both Preview spellings select the same existing stream. Canonical JSON, catalog, installation and preference values remain `stable` / `beta` / `rolling`; no serialized `preview` value or saved-choice migration is introduced. Copied commands and integrations may retain `beta` when the intended CLI's Preview input support is unverified, preserving supported older consumers. Changing the spelling does not select a different release. Offered channels, the selected stream and the actual upstream release are separate facts. Preview prefers eligible prereleases and can fall back to an eligible stable release; that fallback does not acquire an upstream Beta/Alpha designation. Original upstream tags/names, application Public beta milestones, qualification evidence and compatibility limitations retain their own meaning.
 
-New independently delivered fresh Sonic 3K, Sonic 1 and Mega Man X2 managed
-recipes require staged-source capability version 25 for their canonical-data
-isolation. Emit a requirement with minimum 25 and a compatible inclusive upper
-bound; older readers must refuse rather than apply the new recipe to retained
-data. Existing exact old Direct readers and retained projections keep their
-creating contracts. See [the definition contract](DEFINITION-DELIVERY.md#implemented-engine-capability-negotiation).
+Choose each engine-template requirement from the actual declared route and
+policy in [the owning definition contract](DEFINITION-DELIVERY.md#implemented-engine-capability-negotiation),
+then validate its interval through Core's existing capability and indexed-admission
+checks. For new indexed guarded ready routes, that contract requires a lower
+bound of 26 or later. The archive-data compatibility and reviewed historical
+Direct-transition contracts have their own requirements (27 and 28 respectively);
+they do not impose a universal minimum on every integration. Keep a compatible
+inclusive upper bound and refuse unsupported readers. Version-25 declarations,
+exact old Direct readers and retained projections preserve their creating
+contracts; do not rewrite retained data to match a new recipe.
 
 ## Discover and bind
 
@@ -118,7 +122,7 @@ program/argument objects, not shell command strings:
 Check the envelope's schema, command, `ok`, data/error and exit status. Negotiate
 only the required command names and formats: launch-only needs JSON plus raw
 `exec`, read-only library integration needs JSON, and lifecycle operations add
-JSONL. The reference supports API 42–57, 60–63 or 65–84/events 2–3; schema 50 advertises
+JSONL. The reference supports API 42–57, 60–63 or 65–89/events 2–3; schema 50 advertises
 the event authority as `operation_event_schema_version`, while the historical
 42–49 window retains its documented event-2 contract. Schema 51 replaces the
 activity array with a feed whose protected ID sets and completeness fields must
@@ -177,6 +181,17 @@ An incomplete bounded assessment cannot establish empty data or impose a new
 backup execution cap. The reference validates this contract on `backup.list`
 results, rejects it in older envelopes, and keeps private schemas 58/59 outside
 its accepted window. Source parity remains separate from installed updates.
+
+Backup inventory can additionally contain `protection`. Older responses may omit
+it; omission means unknown protection details, not an empty backup list. This
+optional descriptive output does not change the API version or any operation
+eligibility. Consume current/retained/effective declarations and metadata-only
+collection candidates separately from actual completed snapshots. Bind every
+installation identity and the selected library before presenting facts as current;
+retain stale/failed read states. `latest_completed_backup` is port-scoped history
+with a valid manifest, not a fresh payload-integrity check or proof of game-save
+compatibility. Current create/restore assessments and reviewed mutation protocols
+still govern actions.
 
 Runtime discovery is a trust boundary, not permission to execute the first file
 with a matching name. Ask the user to select or approve a verified compatible
@@ -264,11 +279,51 @@ builds or require clients to acquire compilers. See
 Clients display Core's complete current plan, acquisitions and capacity when
 offered, obtain its required consent and consume its action/readiness decisions.
 They must not execute catalog build instructions or derive eligibility from a
-historical recipe name. The maintained reference accepts API84 within its reviewed
-42–57, 60–63 or 65–84 membership and event schemas 2–3; unknown future APIs,
+historical recipe name. The maintained reference accepts API89 within its reviewed
+42–57, 60–63 or 65–89 membership and event schemas 2–3; unknown future APIs,
 unsupported required capabilities and unknown execution/ownership semantics
 remain refused. API or template negotiation alone grants no admission or operation
 authority.
+
+API89 adds provider attribution for chosen SteamGridDB images to
+`artwork_state` and the destination handoff (handoff schema 3); the reference
+client consumes neither.
+
+API88 adds provider-qualified GitLab release and registry-file references to
+self-service download selection. GitHub references remain numeric; GitLab
+references are explicit objects carrying project/tag and link/file identities.
+Pending setup records use format 2 for GitLab and retain omitted format 1 for
+GitHub. Consumers of these contracts must preserve and compare the complete
+references, reject mixed providers and unknown record formats, and obtain a
+fresh Core preview before download or registration. The reference Playnite
+client consumes none of those setup identities and exposes no setup command;
+its existing readiness and lifecycle decisions remain owned by Core. API88
+status can report an update as held with `route_not_offered` when a managed
+acquisition is on hold. The reference client displays the restriction and
+refuses to open update review. Event schemas remain independently negotiated
+at 2–3.
+
+API87 adds Core official-catalog review/enablement projections and Desktop-only
+setup commands bound to the compiled Root, fixed HTTPS source and current library.
+The reference client does not expose those commands, accept trust inputs or
+provision a library. Its existing CLI status, lifecycle and separately negotiated
+event contracts remain unchanged. Unknown API89 and consequential semantics
+remain refused; schema acceptance does not grant setup authority.
+
+API86 adds `source.reuse PROFILE_ID`: a read-only review of a saved registration,
+its baseline, per-integration listed identity or potential/incompatible/unavailable
+state, and remaining checks. Informational admission and its evidence gap remain
+explicit; a shared profile does not authorize another integration's edition.
+The Desktop's `review_source_reuse` binds the library generation. A returned
+`SourceRegistrationReference` binds the saved record and applicable catalog
+contracts; `InstallInput.sourceReference` requires the matching game-source
+profile, a fresh reinspection and the existing source lock throughout execution.
+It never registers an override or grants source, runtime or player-data ownership.
+Older hosts cannot produce this new review; consumers must not fall back to an
+unchecked installation when the command is unsupported. API/event/library and
+retained-definition versions are independent. Existing API84 evidence stays at
+its original executable/input scope. The Playnite reference retains its existing
+operations on API86; it does not expose Desktop's new source-reuse chooser.
 
 API79 adds the prepared `source_directory_environment` contract, requiring
 staged-source template18. Core authenticates declared relative-file-set members,
@@ -340,7 +395,7 @@ see [the managed contract and recovery path](reference/managed-regaiden.md).
 
 Current event records have **event schema 3 at the root**; they are not nested in API
 envelopes. A final root record has `type: "result"` and a negotiated API
-schema within the client's supported 42–57, 60–63 or 65–84 membership. Some
+schema within the client's supported 42–57, 60–63 or 65–89 membership. Some
 commands emit only the result. Track sequences per operation ID and parent IDs;
 do not fabricate progress when a phase or event is missing. A valid terminal
 result and matching exit status establish the command response; refresh core
@@ -389,8 +444,9 @@ claim for the core result.
 
 ## Destination-artwork handoff
 
-API 67 offers an optional, independently versioned `artwork_handoff_schema: 1`
-capability and the `artwork.handoff` / `artwork.handoff-bytes` commands. A destination
+API 67 introduced an optional, independently versioned `artwork_handoff_schema`
+capability and the `artwork.handoff` / `artwork.handoff-bytes` commands; current
+Core advertises and accepts only schema 3. A destination
 adapter such as #292 must negotiate all three before using them. API envelopes and
 operation events retain their existing versions; existing cover/detail clients
 and clients that ignore this optional capability remain compatible.
@@ -403,29 +459,40 @@ portcove --library C:\Games\Portcove --json --non-interactive artwork handoff-by
 Both commands are read-only observations, including startup: they perform no
 recovery, provider fetch, thumbnail-cache read/write or destination write. Core resolves
 the same current or retained admitted port as existing artwork reads. The metadata
-contains `handoff_schema`, exact library identity, port, semantic role, Cover choice
-and revision, selected SHA-256, tagged source provenance and tagged availability.
+contains `handoff_schema`, exact library identity, port, semantic role, the role's
+Cover or Detail choice and revision, selected SHA-256, tagged source provenance and tagged availability.
 Local provenance retains the full admitted asset even when its original is missing;
 catalog provenance retains the accepted IGDB game, cover, image, slug, match kind
 and digest. This distinguishes an underlying-game default from a port-specific one.
 
 The three static roles are `portrait_cover`, `landscape_cover` and `hero_banner`
-(CLI flags use hyphens). V1 offers accepted durable Cover originals as portrait
-content. Landscape and hero roles explicitly report `role_not_provided`; Detail
-dimensions never assign a destination role. Catalog defaults report
-`no_local_original`, even if a disposable display thumbnail exists. Missing or
-invalid selected originals report `selected_original_unavailable` while retaining
-the choice and provenance. Generated fallback also has no reusable original.
-Never stretch or destructively crop one role into another.
+(CLI flags use hyphens). Portrait content is the accepted durable Cover original.
+Schema 2 adds the hero role: it is bound to the Detail choice and offers the
+accepted Detail original only when that image is displayed wider than tall,
+including any embedded quarter-turn orientation; a selected
+Detail image that is not reports `selected_image_not_wide`, and no Detail import
+reports `no_local_original`. The landscape role explicitly reports
+`role_not_provided`. Catalog defaults report `no_local_original`, even if a
+disposable display thumbnail exists. Missing or invalid selected originals report
+`selected_original_unavailable` while retaining the choice and provenance.
+Generated fallback also has no reusable original. Never stretch or destructively
+crop one role into another; originals are exported unmodified.
+
+Schema 3 adds a required `attribution` array. It lists provider credits for the
+selected local image (provider, provider image and game IDs, role, author name,
+optional author Steam ID, CDN source URL and fetch time) and is empty for a purely
+local import and for every other source. A destination that presents the image
+should show the author credit; the credit grants no redistribution permission.
 
 The bytes command requires the previously observed library ID, choice revision and
 asset digest, rechecks them under the artwork lock, and returns the complete handoff
 plus an `original` JSON byte array. It reads the bounded regular original and checks
-its digest, decoded format and dimensions. Stale bindings fail and require a fresh
+its digest, decoded format and dimensions; for `hero_banner` it also refuses an
+original whose embedded orientation turns it a quarter turn. Stale bindings fail and require a fresh
 preview. Originals retain the existing 16 MiB limit; bound process output for JSON
 array expansion as well. Validate the handoff, byte count, digest and decode before
 storing a durable destination copy. Exported `destination_artwork_handoff` and
-`destination_artwork_bytes` schemas describe v1; the Core readers additionally reject
+`destination_artwork_bytes` schemas describe schema 3; the Core readers additionally reject
 contradictory identity/source/content combinations. Unknown versions, roles,
 provenance kinds or availability values require refusal, not inferred success.
 
@@ -573,3 +640,228 @@ capable action. [Architecture ownership](ARCHITECTURE.md#find-the-owning-boundar
 [platform/package limits](RELEASING.md#standalone-cli-integration-artifact) provide
 the subsystem and migration routes. No private source bytes, credentials or
 unredacted personal library paths belong in a public report.
+
+## Game-author descriptors
+
+This section concerns game authors, separately from the external-client CLI
+contract above. The native descriptor is the existing version-1 authored port
+record: `format_version`, `listing` and `integration`. It translates through
+`scripts/catalog-authoring.mts`; the captured compiled Core inspector owns
+catalog, original-file, preparation and launch validation. There is no second
+plugin runtime, catalog, trust store or executable-selection owner.
+
+The minimum useful integration supplies an explicit port/original-game identity,
+supported platform/package and executable selection, and any required existing
+source contract. Use literal existing launch arguments and declared contained
+data paths. Settings, save management and custom preparation are optional. A
+descriptor cannot make a weak source check, arbitrary command/environment,
+absolute path, script or unreviewed executable acceptable.
+
+The runnable examples share the same native validation path:
+
+- [Shipwright descriptor](../examples/integrations/shipwright/portcove.json), with
+  its existing Libultraship preparation and JSON configuration.
+- [Golden Balloon descriptor](../examples/integrations/golden-balloon/portcove.json),
+  with its existing source materialization/runtime subdirectory and INI app
+  preferences.
+- [Basic Shipwright descriptor](../examples/integrations/shipwright/basic.portcove.json),
+  deliberately without settings. This still proposes ordinary setup and launch.
+
+After building the repository's Core-backed CLI with the maintained development
+route, select its actual path; on Windows include `.exe`:
+
+```sh
+node scripts/port-descriptor.mts validate examples/integrations/shipwright/portcove.json --validator-cli target/debug/portcove --output-dir work/descriptor-shipwright
+node scripts/port-descriptor.mts validate examples/integrations/golden-balloon/portcove.json --validator-cli target/debug/portcove --output-dir work/descriptor-golden-balloon
+node scripts/port-descriptor.mts validate examples/integrations/shipwright/basic.portcove.json --validator-cli target/debug/portcove --output-dir work/descriptor-basic
+```
+
+Each output directory must be new. The tool captures the selected validator,
+exports its input schema, checks the basic proposal before optional settings,
+and retains exact input/validator identities, process receipts, a candidate-only
+`validated-descriptor.json` and a report. `--catalog-root` selects an explicit
+existing authoring/source-contract context; it never opens a player library.
+Capability-stripped compatibility inputs are validation evidence, not catalog
+replacements. The exported descriptor has no
+admission, installation, execution or publication authority. Existing accepted
+and retained definitions take precedence over any release-embedded or fetched
+descriptor. Local/community import and its separate trust decisions remain #268.
+
+Exit 0 means the declared capabilities were validated as proposals. Exit 2 means
+basic behavior validated but optional settings did not: read the diagnostic and
+retained Core process receipt, correct that field or omit the optional contract.
+An older captured Core schema cannot claim support for `game_settings` it does
+not implement. Invalid basic/source/launch semantics refuse basic validation.
+
+### Declaring release-bound settings
+
+`integration.game_settings` is optional operational definition data. Version 1
+declares exact Windows release/archive/source identities and evidence, explicit
+contained persistent configuration files, byte bounds, literal keys and bounded
+boolean/integer/decimal/enum choices and defaults. JSON keys are object-member
+components, not executable expressions. One INI key component means case-sensitive
+flat preferences. Two components mean a bounded section/key grammar with ASCII
+case-insensitive identities, including root dotted aliases. A file cannot mix
+these grammars. Sectioned files are UTF-8 without BOM/NUL, at most 32,767 bytes,
+128 entries, 127-byte flattened keys, 1,023-byte values and 1,155-byte physical
+lines. Malformed sections and duplicate declared identities refuse edits.
+Unrelated lines and comments remain intact; this is not universal INI support.
+An installation must retain the declaration; a current catalog advertisement
+cannot grant new file access to an older retained install.
+
+Compatible settings releases can use the existing package observation and
+preparation route instead of editing `integration.game_settings.releases`.
+The Shipwright authoring record declares a stable `settings_qualification_v1`
+policy: bounded relevant source regions, source-provider/submodule identities
+and configuration samples. Collection resolves the actual release tag and
+submodule commits through the shared GitHub client. Missing, ambiguous or changed
+regions stop settings qualification; unrelated code outside those regions does
+not invalidate that contract. There is no unrestricted version range.
+The storage region explicitly retains the reviewed direct-save and atomic-save
+implementations used by the two real upstream packages; that write-behavior
+change receives its own review and native controls. A new implementation hash is
+not silently accepted as routine version churn.
+
+`prepare-port.mts --settings-native-scope FILE` consumes ordinary observed release
+facts and a once-configured private input profile. The ordinary Core install plan
+discovers the stable Windows candidate; the shared metadata reader collects its
+complete exact release and asset inventory and Core checks the same artifact.
+Normal Core install/update provisions the disposable library. An explicit
+historical acceptance baseline uses the existing portable lifecycle example.
+No candidate receipt, release tag or
+release-specific library needs to be assembled by hand. It invokes Core's
+`catalog inspect-settings-qualification` and the existing qualification-report
+native route automatically. The generated `settings_observation_v1` retains
+the exact archive/source, policy, Core validator, complete probes and native
+evidence identities. Authoring projection adds its exact binding to generated
+definition data without changing the authored settings files or baseline release
+table. Replaying projection revalidates those same inputs and complete checks.
+The result remains an unsigned proposal for existing protected acceptance and
+definition publication. Only a normal accepted installation/update captures
+that declaration; current catalog refresh cannot enroll an old installation.
+
+The initial native adapter supports a Windows integer JSON control using the
+upstream Libultraship Sail loopback protocol. Its stable
+`configuration_scope: "working-directory-mirror"` policy requires the retained
+Core installation to identify a separate synchronized runtime configuration.
+If Core instead treats the package as writing directly to canonical user data,
+preparation reports a settings limitation before seeding or launching. The
+settings policy does not authorize new runtime data paths. Its private scope identifies a
+marked disposable qualification root, frozen first-party installer, lawful original
+and prepared input identities. The library and candidate configuration are derived
+inside that root. All paths and the CLI/archive/executable identities must match.
+The private profile has `format_version: 1`, `isolation_root`, `isolation_token`,
+`baseline_installer`, `baseline_installer_sha256`, `original: { path, sha256 }`
+and `prepared_files: [{ path, sha256, destination }]`. Prepared destinations must
+already belong to the authored persistent contract. The root marker
+`.portcove-settings-qualification.json` has `owner: "portcove-settings-qualification"`
+and the same `token`. These are stable local input/ownership facts, not a new
+per-release package table. Preserve failed checkpoints and unsettled ownership;
+never reuse a player's library for this profile.
+`qualification-report.mts --settings-case FILE` uses normal Core review/apply,
+reads the feature-only `game-settings qualification-scope` from the same retained
+Core editor context, initializes only missing canonical/runtime mirrors, refuses
+multi-link mutable files, checks unrelated values, launches through a durable Core request and verifies
+the socket peer against that exact child's PID, creation identity and executable.
+After loading value X it writes test-only disk value Y and requests a save through
+a fixed unrelated sentinel command; the real package must restore its loaded X
+in the actual runtime file. Positive normal Core launch completion must synchronize
+that file back to canonical storage before reset. The probe does not assume that
+canonical user data changes while the game runs.
+Only fixed sentinel and normal `quit` commands are sent. Positive Core exit,
+default reset and immutable verification are retained. This proves packaged
+configuration consumption, not audible amplitude or gameplay. It uses the
+existing native-session lock and preserves uncertain cleanup ownership.
+
+A private same-client acceptance run may set `transition_proof` to
+`"retain-baseline"` with an explicitly selected historical package. Its last
+engine-saved nondefault value and unrelated JSON marker become a byte-bound
+witness. Pass that witness as `transition_proof` in the same marked library
+and omit the release tag. Preparation checks both old mirrors before update and
+both successor mirrors before any probe writes. The successor first launches
+with the preserved value, then runs the normal editor probes and reset. The
+witness is private qualification evidence and grants no runtime data authority.
+
+Qualification-only candidate definitions and package facts are generated before
+testing, never hand-authored as accepted operational release entries. The
+existing portable lifecycle example's `--baseline-only --source PATH` mode
+admits the verified copy of the owned original through ordinary Core source
+validation and prepares a real historical package with positive verification
+before the normal provider advances
+the same client. Private original/prepared data must already be lawfully provisioned;
+the probe does not acquire it. Unsupported controls, missing native prerequisites
+or insufficient evidence produce a settings-only qualification limitation;
+basic package visibility and operations retain their own assessments. No new
+scheduler, publication authority or additional release gate is introduced.
+
+The inspected examples deliberately distinguish consumer representations:
+Shipwright 9.3.1's `CVars.gSettings.Volume.Master` is an integer percentage from
+0 to 100, default 40. Its pinned Libultraship loader distinguishes integers from
+floats. Golden Balloon 1.8.0's `mdkr64.ini` `[Audio]` / `MasterVolume`
+is an integer percentage from 0 to 100, default 100. Its interactive `--ui`
+shell exposes the settings overlay and publishes this setting to the audio
+consumer. On first use, select the already materialized `dkr-v80.z64` through
+Golden's normal ROM picker; the shell validates and remembers that selection in
+`mdkr64_app.ini`. It does not search the working directory. The
+[pinned argument dispatch](https://github.com/akratch/goldenballoon/blob/2b69e748ec04f87a4dc6f032c598726de1b0e813/platform/app/arg_triage.h)
+routes `--rom` directly to the engine without the shell or settings overlay;
+combining `--ui` and `--rom` does not establish supported ROM seeding.
+Both configuration writers create sibling OS-lock files. Declare the exact
+runtime-relative `mdkr64.ini.lock` and `mdkr64_app.ini.lock` leaves as runtime
+mutable paths, rather than treating the whole runtime directory as writable.
+The pinned [video configuration writer](https://github.com/akratch/goldenballoon/blob/2b69e748ec04f87a4dc6f032c598726de1b0e813/platform/video_config_runtime.c)
+and [shell preference writer](https://github.com/akratch/goldenballoon/blob/2b69e748ec04f87a4dc6f032c598726de1b0e813/platform/app/app_config.cpp)
+own these locks; they are runtime coordination files, not player preferences.
+Root `Audio.MasterVolume`
+is equivalent; duplicate dotted, sectioned or case aliases refuse edits.
+The earlier `mdkr64_app.ini` / `ui_scale` choice was shell-only and could not
+qualify this launch route. Native evidence must verify the package's executable
+and portable-marker location, resolved INI path, absence of higher-priority
+environment/CLI overrides, restart and actual consumer behavior. Their exact
+released source/asset identities are in the descriptors; another release or
+repacked asset must not inherit these settings by name alone.
+
+Descriptor validation is an internal partial delivery of #4156. It does not
+establish editable Desktop settings, safe read/review/apply/reset, write recovery
+or actual consumer execution. Those operations require their own implemented
+Core service, retained authority, current storage/preimage checks and actual
+Windows Desktop/consumer evidence. Validation receipts, source inspection and
+existing save evidence are not substitutes for that acceptance.
+
+### Interoperability decision
+
+Portcove does not adopt the `recomplauncher.json` wire schema in this version.
+The progressive author experience described by
+[RecompLauncher's developer guide at the inspected revision](https://github.com/elripalda/RecompLauncher/blob/6ab3f113934baae14cb2c1f4348ca61d16897f49/docs/DEVELOPERS.md)
+is useful context; Portcove instead reuses its implemented source, launch,
+preparation, authoring and retained-definition contracts. A competitor descriptor
+is not converted implicitly or given precedence. Arbitrary preparation programs,
+expanded home/config paths, unconstrained arguments/environment, file clearing,
+account/cloud actions and executable fallbacks are not interoperability grants.
+
+The inspected repository's license is
+[GPL version 3](https://github.com/elripalda/RecompLauncher/blob/6ab3f113934baae14cb2c1f4348ca61d16897f49/LICENSE).
+This is an attribution/license observation, not permission to copy its
+implementation or schema text. This native path uses neither. Maintaining even
+the narrow supported surface requires release-specific key/type/path and
+consumer checks, negative fixtures, and explicit review when upstream changes.
+No universal compatibility or upstream-adoption promise follows.
+
+For fitting ordinary work, prefer authoring-only `route_facts_v1`: a Windows
+prepared player basename, executable-parent working directory, literal arguments
+and actual external data locations. Source-free here means no Core source binding,
+not that the game requires no originals. Preserve upstream original-file setup,
+bespoke actions and immediate warnings. Managed facts currently cover only the
+existing NativePortable GitHub shape without a Core source binding. Other shapes
+keep their working route and specific limitation; do not infer operational facts
+from prose or expand the schema to fit them.
+
+Use the existing `prepare-port.mts` feedback and reviewed per-ID record, followed
+by `generate-catalog.mts`; shared explanations and distinct lifecycle entrypoints
+are generated. Reuse accepted inspections with the existing paired package
+observation options to derive descriptive metadata and expected member facts.
+Independent initial acceptance remains necessary. Covered ordinary releases use
+the existing dynamic resolver and applicable integrity checks, with no new
+version/applicability row, guide rewrite, wrapper or routine agent approval.
+See `crates/portcove-core/catalog/ports/nhl-94-genesis-ninety-four.json` for a
+prepared route retaining explicit retail-ROM and save/state limitations.

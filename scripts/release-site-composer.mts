@@ -9,7 +9,11 @@ import { capacityDigest } from "./release-capacity.mts";
 import { assertOwnedUnlinkedPath, releasePathContains } from "./release-path-safety.mts";
 import { isRecord } from "./runtime-values.mts";
 import { inspectTufPublicationFacts } from "./release-metadata-contract.mts";
-import { inspectSiteGeneration, isSafeSitePath } from "./release-site-generation.mts";
+import {
+  inspectSiteGeneration,
+  isSafeSitePath,
+  isRetainedApplicationRehearsalPath,
+} from "./release-site-generation.mts";
 import type { SiteGeneration } from "./release-site-generation.mts";
 export { isSafeSitePath } from "./release-site-generation.mts";
 
@@ -157,10 +161,36 @@ export async function readComposedCatalogSite(
   return { files, generation };
 }
 
-/** Filesystem composition only. Inputs here are NOT authenticated by a
- * self-consistent marker. The protected caller supplies the independently
- * authenticated previous generation and separately verified application tree.
- * Never use this low-level operation as admission or deployment authority. */
+type InitialRehearsal = { directory: string; inventory_sha256: string };
+
+async function readInitialRehearsal(
+  rehearsal: InitialRehearsal,
+  previous: string | null,
+  expectedPreviousGeneration: string | null,
+  outputParent: string,
+  deadline?: number,
+) {
+  if (
+    previous !== null ||
+    expectedPreviousGeneration !== null ||
+    !path.isAbsolute(rehearsal.directory) ||
+    !digest(rehearsal.inventory_sha256) ||
+    releasePathContains(rehearsal.directory, outputParent)
+  )
+    throw new Error("exact initial retained rehearsal preimage required");
+  const files = await tree(rehearsal.directory, deadline);
+  if (
+    (files.get(".nojekyll")?.length ?? 0) !== 0 ||
+    [...files.keys()].some(
+      (name) => name !== ".nojekyll" && !isRetainedApplicationRehearsalPath(name),
+    ) ||
+    capacityDigest(identities(files)) !== rehearsal.inventory_sha256
+  )
+    throw new Error("initial retained rehearsal differs from independently expected preimage");
+  return files;
+}
+
+/** Filesystem composition only. The protected caller authenticates every input. */
 export async function composeSiteFiles(request: {
   previous: string | null;
   expected_previous_generation: string | null;
@@ -168,6 +198,7 @@ export async function composeSiteFiles(request: {
   application_root_sha256: string;
   output_parent: string;
   deadline?: number;
+  initial_rehearsal?: InitialRehearsal;
 }) {
   remaining(request.deadline);
   if (
@@ -188,16 +219,25 @@ export async function composeSiteFiles(request: {
     )
   )
     throw new Error("site output would mutate its input tree");
-  const old = request.previous
-    ? await tree(request.previous, request.deadline)
-    : new Map<string, Buffer>();
+  const old = request.initial_rehearsal
+    ? await readInitialRehearsal(
+        request.initial_rehearsal,
+        request.previous,
+        request.expected_previous_generation,
+        request.output_parent,
+        request.deadline,
+      )
+    : request.previous
+      ? await tree(request.previous, request.deadline)
+      : new Map<string, Buffer>();
   for (const name of old.keys())
     if (
       name !== "publication.json" &&
       name !== ".nojekyll" &&
       !name.startsWith("application/metadata/") &&
       !name.startsWith("application/targets/") &&
-      !name.startsWith("catalog/")
+      !name.startsWith("catalog/") &&
+      !isRetainedApplicationRehearsalPath(name)
     )
       throw new Error("prior site has an unowned component; preserve and reconcile");
   const prior = request.previous ? inspectPrior(old, request.expected_previous_generation!) : null;
@@ -214,7 +254,11 @@ export async function composeSiteFiles(request: {
   if (prior?.schema_version === 2 && prior.catalog_root_sha256 === request.application_root_sha256)
     throw new Error("application and catalog roots must differ");
   const app = await tree(request.application, request.deadline);
-  const next: Files = new Map([...old].filter(([name]) => name.startsWith("catalog/")));
+  const next: Files = new Map(
+    [...old].filter(
+      ([name]) => name.startsWith("catalog/") || isRetainedApplicationRehearsalPath(name),
+    ),
+  );
   for (const [name, bytes] of app) {
     if (!name.startsWith("metadata/") && !name.startsWith("targets/")) {
       if (name === "repository-manifest.json") continue; // internal TUF inventory, never served
@@ -226,7 +270,9 @@ export async function composeSiteFiles(request: {
     throw new Error("application timestamp absent");
   for (const [name, bytes] of old) {
     if (
-      (name.startsWith("application/targets/") || /^application\/metadata\/\d+\./u.test(name)) &&
+      (name.startsWith("application/targets/") ||
+        /^application\/metadata\/\d+\./u.test(name) ||
+        isRetainedApplicationRehearsalPath(name)) &&
       !next.get(name)?.equals(bytes)
     )
       throw new Error(`immutable application history would be removed or changed: ${name}`);
@@ -294,6 +340,7 @@ export async function composeCatalogSiteFiles(request: {
   catalog_root_sha256: string;
   output_parent: string;
   deadline?: number;
+  initial_rehearsal?: InitialRehearsal;
 }) {
   remaining(request.deadline);
   if (
@@ -311,16 +358,25 @@ export async function composeCatalogSiteFiles(request: {
     )
   )
     throw new Error("exact independent catalog site identities unavailable");
-  const old = request.previous
-    ? await tree(request.previous, request.deadline)
-    : new Map<string, Buffer>();
+  const old = request.initial_rehearsal
+    ? await readInitialRehearsal(
+        request.initial_rehearsal,
+        request.previous,
+        request.expected_previous_generation,
+        request.output_parent,
+        request.deadline,
+      )
+    : request.previous
+      ? await tree(request.previous, request.deadline)
+      : new Map<string, Buffer>();
   for (const name of old.keys())
     if (
       name !== "publication.json" &&
       name !== ".nojekyll" &&
       !name.startsWith("application/metadata/") &&
       !name.startsWith("application/targets/") &&
-      !name.startsWith("catalog/")
+      !name.startsWith("catalog/") &&
+      !isRetainedApplicationRehearsalPath(name)
     )
       throw new Error("prior site has an unowned component");
   const prior = request.previous ? inspectPrior(old, request.expected_previous_generation!) : null;
@@ -340,7 +396,11 @@ export async function composeCatalogSiteFiles(request: {
   if (prior?.application_root_sha256 === request.catalog_root_sha256)
     throw new Error("application and catalog roots must differ");
   const catalog = await tree(request.catalog, request.deadline);
-  const next: Files = new Map([...old].filter(([name]) => name.startsWith("application/")));
+  const next: Files = new Map(
+    [...old].filter(
+      ([name]) => name.startsWith("application/") || isRetainedApplicationRehearsalPath(name),
+    ),
+  );
   for (const [name, bytes] of catalog) {
     if (!name.startsWith("metadata/") && !name.startsWith("targets/")) {
       if (name === "repository-manifest.json") continue;
@@ -352,6 +412,7 @@ export async function composeCatalogSiteFiles(request: {
   for (const [name, bytes] of old)
     if (
       (name.startsWith("application/") ||
+        isRetainedApplicationRehearsalPath(name) ||
         name.startsWith("catalog/targets/") ||
         /^catalog\/metadata\/\d+\./u.test(name)) &&
       !next.get(name)?.equals(bytes)

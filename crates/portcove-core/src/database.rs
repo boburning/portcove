@@ -5,7 +5,6 @@ use std::{
     time::{Duration, Instant},
 };
 
-use fs2::FileExt;
 use rusqlite::{Connection, OptionalExtension, Transaction, TransactionBehavior};
 
 use crate::{PortcoveError, Result};
@@ -14,7 +13,7 @@ use crate::{PortcoveError, Result};
 #[path = "database_concurrency_tests.rs"]
 mod concurrency_tests;
 
-pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 43;
+pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 56;
 
 struct Migration {
     version: i64,
@@ -282,7 +281,367 @@ const MIGRATIONS: &[Migration] = &[
         apply: migration_43,
         verify: verify_migration_43,
     },
+    Migration {
+        version: 44,
+        name: "owned game settings configuration changes",
+        apply: migration_44,
+        verify: verify_migration_44,
+    },
+    Migration {
+        version: 45,
+        name: "per-library automatic saved-data snapshots setting",
+        apply: migration_45,
+        verify: verify_migration_45,
+    },
+    Migration {
+        version: 46,
+        name: "stable local profiles and immutable revisions",
+        apply: migration_46,
+        verify: verify_migration_46,
+    },
+    Migration {
+        version: 47,
+        name: "selected profile owning live player data",
+        apply: migration_47,
+        verify: verify_migration_47,
+    },
+    Migration {
+        version: 48,
+        name: "explicit add-only library membership",
+        apply: migration_48,
+        verify: verify_migration_48,
+    },
+    Migration {
+        version: 49,
+        name: "confirmed first-install batches",
+        apply: migration_49,
+        verify: verify_migration_49,
+    },
+    Migration {
+        version: 50,
+        name: "remembered game intent",
+        apply: migration_50,
+        verify: verify_migration_50,
+    },
+    Migration {
+        version: 51,
+        name: "folder setup consent",
+        apply: migration_51,
+        verify: verify_migration_51,
+    },
+    Migration {
+        version: 52,
+        name: "artwork provider provenance",
+        apply: migration_52,
+        verify: verify_migration_52,
+    },
+    Migration {
+        version: 53,
+        name: "game-file observation reuse",
+        apply: migration_53,
+        verify: verify_migration_53,
+    },
+    Migration {
+        version: 54,
+        name: "saved-folder scan match rows",
+        apply: migration_54,
+        verify: verify_migration_54,
+    },
+    Migration {
+        version: 55,
+        name: "folder setup pass position",
+        apply: migration_55,
+        verify: verify_migration_55,
+    },
+    Migration {
+        version: 56,
+        name: "ready notice preference",
+        apply: migration_56,
+        verify: verify_migration_56,
+    },
 ];
+
+fn migration_56(transaction: &Transaction<'_>) -> Result<()> {
+    // One player preference: whether ready notices are shown. No row means
+    // shown. It never records a game choice, consent or authorization.
+    transaction.execute_batch(
+        "CREATE TABLE ready_notice_preference (
+            id INTEGER PRIMARY KEY CHECK(id=1),
+            enabled INTEGER NOT NULL CHECK(enabled IN (0,1)),
+            updated_at INTEGER NOT NULL
+        );",
+    )?;
+    verify_migration_56(transaction)
+}
+
+fn verify_migration_56(connection: &Connection) -> Result<()> {
+    require_columns(
+        connection,
+        "ready_notice_preference",
+        &["id", "enabled", "updated_at"],
+    )
+}
+
+fn migration_55(transaction: &Transaction<'_>) -> Result<()> {
+    // Where a folder's automatic setup stopped in its scan's matches, so the
+    // next pass continues there. Bookkeeping only, never consent: a different
+    // scan or a new choice starts again from the first match.
+    transaction.execute_batch(
+        "ALTER TABLE game_file_root_setup
+            ADD COLUMN pass_scan_id TEXT CHECK(pass_scan_id IS NULL OR length(pass_scan_id)=36);
+        ALTER TABLE game_file_root_setup
+            ADD COLUMN pass_offset INTEGER NOT NULL DEFAULT 0
+            CHECK(pass_offset BETWEEN 0 AND 100000);",
+    )?;
+    verify_migration_55(transaction)
+}
+
+fn verify_migration_55(connection: &Connection) -> Result<()> {
+    require_columns(
+        connection,
+        "game_file_root_setup",
+        &[
+            "root_id",
+            "updated_at",
+            "record_json",
+            "pass_scan_id",
+            "pass_offset",
+        ],
+    )
+}
+
+fn migration_54(transaction: &Transaction<'_>) -> Result<()> {
+    // Local, rebuildable evidence of one saved-folder scan's retained matches,
+    // bound to the published scan snapshot. A row is never admission: every
+    // match is re-verified from current bytes before registration or setup.
+    // Kind 0 is an exact source record; kind 1 a preliminary inspection.
+    transaction.execute_batch(
+        "CREATE TABLE game_file_scan_matches (
+            scan_id TEXT NOT NULL CHECK(length(scan_id)=36),
+            kind INTEGER NOT NULL CHECK(kind IN (0,1)),
+            ordinal INTEGER NOT NULL CHECK(ordinal BETWEEN 0 AND 99999),
+            profile_id TEXT NOT NULL CHECK(length(profile_id) BETWEEN 1 AND 256),
+            path TEXT NOT NULL CHECK(length(path) BETWEEN 1 AND 32768),
+            path_key TEXT NOT NULL CHECK(length(path_key) BETWEEN 1 AND 32768),
+            batch INTEGER NOT NULL CHECK(batch >= 1),
+            record_json TEXT NOT NULL CHECK(length(record_json) <= 262144),
+            PRIMARY KEY(scan_id, kind, ordinal),
+            UNIQUE(scan_id, kind, profile_id, path)
+        );
+        CREATE INDEX game_file_scan_matches_path
+            ON game_file_scan_matches(scan_id, path_key);",
+    )?;
+    verify_migration_54(transaction)
+}
+
+fn verify_migration_54(connection: &Connection) -> Result<()> {
+    require_columns(
+        connection,
+        "game_file_scan_matches",
+        &[
+            "scan_id",
+            "kind",
+            "ordinal",
+            "profile_id",
+            "path",
+            "path_key",
+            "batch",
+            "record_json",
+        ],
+    )?;
+    require_index(connection, "game_file_scan_matches_path")
+}
+
+fn migration_53(transaction: &Transaction<'_>) -> Result<()> {
+    // Local, rebuildable provenance for saved-folder scans. A row only lets a
+    // scan skip rehashing an unchanged file; it never admits a source.
+    transaction.execute_batch(
+        "CREATE TABLE game_file_observations (
+            path_key TEXT NOT NULL CHECK(length(path_key) BETWEEN 1 AND 32768),
+            representation TEXT NOT NULL CHECK(length(representation)<=4096),
+            path TEXT NOT NULL CHECK(length(path) BETWEEN 1 AND 32768),
+            stamp_json TEXT NOT NULL CHECK(length(stamp_json)<=4096),
+            inspector_version INTEGER NOT NULL,
+            identity_json TEXT NOT NULL CHECK(length(identity_json)<=16384),
+            observed_at INTEGER NOT NULL,
+            PRIMARY KEY(path_key, representation)
+        );",
+    )?;
+    verify_migration_53(transaction)
+}
+
+fn verify_migration_53(connection: &Connection) -> Result<()> {
+    require_columns(
+        connection,
+        "game_file_observations",
+        &[
+            "path_key",
+            "representation",
+            "path",
+            "stamp_json",
+            "inspector_version",
+            "identity_json",
+            "observed_at",
+        ],
+    )
+}
+
+fn migration_52(transaction: &Transaction<'_>) -> Result<()> {
+    // Who made a provider image and where it came from; never a selection,
+    // credential or permission record.
+    crate::artwork_store::migrate_providers(transaction)?;
+    verify_migration_52(transaction)
+}
+
+fn verify_migration_52(connection: &Connection) -> Result<()> {
+    require_columns(
+        connection,
+        "artwork_asset_providers",
+        &["asset_sha256", "provider", "asset_id", "record_json"],
+    )?;
+    require_columns(
+        connection,
+        "artwork_provider_only_assets",
+        &["asset_sha256"],
+    )
+}
+
+fn migration_51(transaction: &Transaction<'_>) -> Result<()> {
+    // Consent policy for automatic setup from one saved folder, with its
+    // enrollment boundary; never an authorization.
+    transaction.execute_batch(
+        "CREATE TABLE game_file_root_setup (
+            root_id TEXT PRIMARY KEY,
+            updated_at INTEGER NOT NULL,
+            record_json TEXT NOT NULL CHECK(length(record_json)<=524288)
+        );
+        CREATE TABLE game_file_root_setup_baseline (
+            root_id TEXT NOT NULL,
+            identity TEXT NOT NULL CHECK(length(identity) BETWEEN 1 AND 4352),
+            PRIMARY KEY(root_id, identity)
+        );",
+    )?;
+    verify_migration_51(transaction)
+}
+
+fn verify_migration_51(connection: &Connection) -> Result<()> {
+    require_columns(
+        connection,
+        "game_file_root_setup",
+        &["root_id", "updated_at", "record_json"],
+    )?;
+    require_columns(
+        connection,
+        "game_file_root_setup_baseline",
+        &["root_id", "identity"],
+    )
+}
+
+fn migration_50(transaction: &Transaction<'_>) -> Result<()> {
+    // Intent is consent policy and remembered choices, never an authorization.
+    transaction.execute_batch(
+        "CREATE TABLE port_intents (
+            port_id TEXT PRIMARY KEY CHECK(length(port_id) BETWEEN 1 AND 128),
+            updated_at INTEGER NOT NULL,
+            record_json TEXT NOT NULL CHECK(length(record_json)<=16384)
+        );",
+    )?;
+    verify_migration_50(transaction)
+}
+
+fn verify_migration_50(connection: &Connection) -> Result<()> {
+    require_columns(
+        connection,
+        "port_intents",
+        &["port_id", "updated_at", "record_json"],
+    )
+}
+
+fn migration_49(transaction: &Transaction<'_>) -> Result<()> {
+    // A batch associates reviewed plan digests with their outcomes. It stores no
+    // authorization and is never an installation or consent record.
+    transaction.execute_batch(
+        "CREATE TABLE install_batches (
+            id TEXT PRIMARY KEY CHECK(length(id)=36),
+            created_at INTEGER NOT NULL,
+            updated_at INTEGER NOT NULL,
+            record_json TEXT NOT NULL CHECK(length(record_json)<=524288)
+        );",
+    )?;
+    verify_migration_49(transaction)
+}
+
+fn verify_migration_49(connection: &Connection) -> Result<()> {
+    require_columns(
+        connection,
+        "install_batches",
+        &["id", "created_at", "updated_at", "record_json"],
+    )
+}
+
+fn migration_48(transaction: &Transaction<'_>) -> Result<()> {
+    // Membership is a saved selection, not an installation, registration or
+    // acquisition record. Retained provenance is display/explanation data only.
+    transaction.execute_batch(
+        "CREATE TABLE library_memberships (
+            port_id TEXT PRIMARY KEY CHECK(length(port_id) BETWEEN 1 AND 128),
+            added_at INTEGER NOT NULL,
+            record_json TEXT NOT NULL CHECK(length(record_json)<=16384)
+        );",
+    )?;
+    verify_migration_48(transaction)
+}
+
+fn verify_migration_48(connection: &Connection) -> Result<()> {
+    require_columns(
+        connection,
+        "library_memberships",
+        &["port_id", "added_at", "record_json"],
+    )
+}
+
+fn migration_47(transaction: &Transaction<'_>) -> Result<()> {
+    crate::profile::migrate_selection(transaction)?;
+    verify_migration_47(transaction)
+}
+
+fn verify_migration_47(connection: &Connection) -> Result<()> {
+    crate::profile::verify_selection_migration(connection)
+}
+
+fn migration_46(transaction: &Transaction<'_>) -> Result<()> {
+    crate::profile::migrate(transaction)?;
+    verify_migration_46(transaction)
+}
+
+fn verify_migration_46(connection: &Connection) -> Result<()> {
+    crate::profile::verify_migration(connection)
+}
+
+fn migration_45(transaction: &Transaction<'_>) -> Result<()> {
+    // On by default: existing libraries gain the protection without a decision.
+    transaction.execute_batch(
+        "ALTER TABLE library_identity ADD COLUMN automatic_snapshots INTEGER NOT NULL DEFAULT 1
+         CHECK(automatic_snapshots IN (0, 1));",
+    )?;
+    verify_migration_45(transaction)
+}
+
+fn verify_migration_45(connection: &Connection) -> Result<()> {
+    require_columns(connection, "library_identity", &["automatic_snapshots"])
+}
+
+fn migration_44(transaction: &Transaction<'_>) -> Result<()> {
+    transaction.execute_batch(
+        "ALTER TABLE lifecycle_operations ADD COLUMN game_settings_json TEXT
+         CHECK(game_settings_json IS NULL OR length(game_settings_json)<=16384);",
+    )?;
+    verify_migration_44(transaction)
+}
+
+fn verify_migration_44(connection: &Connection) -> Result<()> {
+    require_columns(connection, "lifecycle_operations", &["game_settings_json"])
+}
 
 fn migration_43(transaction: &Transaction<'_>) -> Result<()> {
     transaction
@@ -617,19 +976,12 @@ impl MigrationLock {
                 return Err(Self::timeout_error(&owner_path, timeout));
             }
             first_attempt = false;
-            match FileExt::try_lock_exclusive(&file) {
+            match file.try_lock() {
                 Ok(()) => break,
-                Err(error)
-                    if Self::is_contention(&error)
-                        || error.kind() == std::io::ErrorKind::Interrupted =>
-                {
-                    let remaining = timeout.saturating_sub(started.elapsed());
-                    if remaining.is_zero() {
-                        return Err(Self::timeout_error(&owner_path, timeout));
-                    }
-                    std::thread::sleep(MIGRATION_LOCK_POLL.min(remaining));
-                }
-                Err(error) => {
+                Err(std::fs::TryLockError::WouldBlock) => {}
+                Err(std::fs::TryLockError::Error(error))
+                    if error.kind() == std::io::ErrorKind::Interrupted => {}
+                Err(std::fs::TryLockError::Error(error)) => {
                     return Err(PortcoveError::state(
                         "could not acquire the library migration lock",
                     )
@@ -637,6 +989,11 @@ impl MigrationLock {
                     .detail("cause", error.to_string()));
                 }
             }
+            let remaining = timeout.saturating_sub(started.elapsed());
+            if remaining.is_zero() {
+                return Err(Self::timeout_error(&owner_path, timeout));
+            }
+            std::thread::sleep(MIGRATION_LOCK_POLL.min(remaining));
         }
 
         let owner = MigrationLockOwner {
@@ -653,12 +1010,6 @@ impl MigrationLock {
         // stale metadata must never become migration or lock-recovery authority.
         let _ = Self::publish_owner(&owner_path, &owner);
         Ok(Self { file })
-    }
-
-    fn is_contention(error: &std::io::Error) -> bool {
-        error
-            .raw_os_error()
-            .is_some_and(|code| Some(code) == fs2::lock_contended_error().raw_os_error())
     }
 
     fn publish_owner(path: &Path, owner: &MigrationLockOwner) -> Result<()> {
@@ -702,7 +1053,7 @@ impl MigrationLock {
 
 impl Drop for MigrationLock {
     fn drop(&mut self) {
-        let _ = FileExt::unlock(&self.file);
+        let _ = self.file.unlock();
     }
 }
 
@@ -973,6 +1324,8 @@ pub(crate) fn recreate_schema_33_fixture(root: &Path) -> Result<()> {
             let condition = match (table.as_str(), column.as_str()) {
                 // Schema 33 had no evidence of earlier authorization continuity.
                 ("definition_publisher_admission", "retained_launch_revision_floor") => continue,
+                // Schema 33 had no snapshot setting; the default (on) carries no state.
+                ("library_identity", "automatic_snapshots") => format!("{quoted_column}!=1"),
                 ("definition_publisher_admission", "launch_assessment_revision") => {
                     format!("{quoted_column}!=0")
                 }
@@ -1918,6 +2271,27 @@ mod tests {
 
     use super::*;
 
+    #[test]
+    fn bundled_sqlite_has_the_wal_fix_and_checks_unsigned_values() {
+        let temporary = tempdir().unwrap();
+        let connection = connect(temporary.path()).unwrap();
+        let version: String = connection
+            .query_row("SELECT sqlite_version()", [], |row| row.get(0))
+            .unwrap();
+        assert_eq!(version, rusqlite::version());
+        assert!(rusqlite::version_number() >= 3_054_000, "{version}");
+
+        let overflow = u64::try_from(i64::MAX).unwrap() + 1;
+        assert!(matches!(
+            connection.query_row("SELECT ?1", [overflow], |row| row.get::<_, i64>(0)),
+            Err(rusqlite::Error::ToSqlConversionFailure(_))
+        ));
+        assert!(matches!(
+            connection.query_row("SELECT -1", [], |row| row.get::<_, u64>(0)),
+            Err(rusqlite::Error::IntegralValueOutOfRange(0, -1))
+        ));
+    }
+
     fn prepare_root(root: &Path) {
         fs::create_dir_all(root.join("locks")).unwrap();
     }
@@ -2233,24 +2607,6 @@ mod tests {
                 .file_type()
                 .is_fifo()
         );
-    }
-
-    #[test]
-    fn migration_lock_classifies_only_the_os_contention_code() {
-        let contention = fs2::lock_contended_error();
-        assert!(MigrationLock::is_contention(&contention));
-        assert!(!MigrationLock::is_contention(&std::io::Error::new(
-            contention.kind(),
-            "same kind without the contention OS code",
-        )));
-        #[cfg(windows)]
-        for code in [6, 50] {
-            // Invalid-handle and unsupported-lock errors share the contention
-            // error's broad kind on Windows, but must retain their real cause.
-            let other = std::io::Error::from_raw_os_error(code);
-            assert_eq!(other.kind(), contention.kind());
-            assert!(!MigrationLock::is_contention(&other));
-        }
     }
 
     #[test]
@@ -2736,6 +3092,89 @@ mod tests {
         assert_eq!(remaining, 0);
     }
 
+    #[test]
+    fn settings_migration_preserves_schema_43_rows_and_nullable_absence() {
+        let temporary = tempdir().unwrap();
+        let root = temporary.path();
+        prepare_root(root);
+        migrate_to(root, 43).unwrap();
+        let connection = connect(root).unwrap();
+        connection.execute("INSERT INTO lifecycle_operations(id,kind,port_id,phase,original_paths_json,activate,created_at,updated_at,last_error) VALUES('retained-settings-migration-failure','install','shipwright','preparing','[]',0,1,2,'original failure remains failed')", []).unwrap();
+        let snapshot = |connection: &Connection| {
+            let mut statement = connection.prepare("SELECT * FROM lifecycle_operations WHERE id='retained-settings-migration-failure'").unwrap();
+            statement
+                .query_row([], |row| {
+                    (0..row.as_ref().column_count())
+                        .map(|index| row.get::<_, rusqlite::types::Value>(index))
+                        .collect::<rusqlite::Result<Vec<_>>>()
+                })
+                .unwrap()
+        };
+        let before = snapshot(&connection);
+        drop(connection);
+        migrate_to(root, 44).unwrap();
+        let connection = connect(root).unwrap();
+        let after = snapshot(&connection);
+        assert_eq!(&after[..before.len()], before.as_slice());
+        assert_eq!(after.last(), Some(&rusqlite::types::Value::Null));
+        assert_eq!(after.len(), before.len() + 1);
+        assert!(connection.execute("UPDATE lifecycle_operations SET game_settings_json=?1 WHERE id='retained-settings-migration-failure'", ["x".repeat(16385)]).is_err());
+        assert_eq!(snapshot(&connection), after);
+    }
+
+    #[test]
+    fn membership_migration_adds_an_empty_table_and_keeps_existing_state() {
+        let temporary = tempdir().unwrap();
+        let root = temporary.path();
+        prepare_root(root);
+        migrate_to(root, 47).unwrap();
+        let connection = connect(root).unwrap();
+        let identity: String = connection
+            .query_row("SELECT id FROM library_identity", [], |row| row.get(0))
+            .unwrap();
+        drop(connection);
+        migrate_to(root, 48).unwrap();
+        let connection = connect(root).unwrap();
+        let count: i64 = connection
+            .query_row("SELECT COUNT(*) FROM library_memberships", [], |row| {
+                row.get(0)
+            })
+            .unwrap();
+        let after: String = connection
+            .query_row("SELECT id FROM library_identity", [], |row| row.get(0))
+            .unwrap();
+        assert_eq!((count, after), (0, identity));
+    }
+
+    #[test]
+    fn snapshot_setting_migration_keeps_identity_and_defaults_existing_libraries_on() {
+        let temporary = tempdir().unwrap();
+        let root = temporary.path();
+        prepare_root(root);
+        migrate_to(root, 44).unwrap();
+        let connection = connect(root).unwrap();
+        let identity: String = connection
+            .query_row("SELECT id FROM library_identity", [], |row| row.get(0))
+            .unwrap();
+        drop(connection);
+        migrate_to(root, 45).unwrap();
+        let connection = connect(root).unwrap();
+        let (after, enabled): (String, i64) = connection
+            .query_row(
+                "SELECT id, automatic_snapshots FROM library_identity",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .unwrap();
+        assert_eq!(after, identity);
+        assert_eq!(enabled, 1);
+        assert!(
+            connection
+                .execute("UPDATE library_identity SET automatic_snapshots=2", [])
+                .is_err()
+        );
+    }
+
     macro_rules! historical_schema_tests {
         ($($name:ident: $version:literal),+ $(,)?) => {
             #[test]
@@ -2745,6 +3184,88 @@ mod tests {
             $(#[test]
             fn $name() { assert_historical_schema_upgrade($version); })+
         };
+    }
+
+    #[test]
+    fn scan_match_rows_migration_preserves_the_scan_snapshot_and_bounds_rows() {
+        let temporary = tempdir().unwrap();
+        let root = temporary.path();
+        prepare_root(root);
+        migrate_to(root, 53).unwrap();
+        let connection = connect(root).unwrap();
+        connection
+            .execute(
+                "INSERT INTO game_file_scan_state(singleton,snapshot_json) VALUES (1,'{\"kept\":true}')",
+                [],
+            )
+            .unwrap();
+        drop(connection);
+        migrate(root).unwrap();
+        let connection = connect(root).unwrap();
+        verify_migration_54(&connection).unwrap();
+        let kept: String = connection
+            .query_row(
+                "SELECT snapshot_json FROM game_file_scan_state WHERE singleton=1",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(kept, "{\"kept\":true}");
+        let scan = "00000000-0000-4000-8000-000000000000";
+        let insert = |kind: i64, ordinal: i64, path: &str, batch: i64, record: &str| {
+            connection.execute(
+                "INSERT INTO game_file_scan_matches(scan_id,kind,ordinal,profile_id,path,path_key,batch,record_json)
+                 VALUES (?1,?2,?3,'profile',?4,?4,?5,?6)",
+                rusqlite::params![scan, kind, ordinal, path, batch, record],
+            )
+        };
+        insert(0, 0, "game-a", 1, "{}").unwrap();
+        insert(1, 0, "game-a", 1, "{}").unwrap();
+        // The same profile and path is one row per kind and scan.
+        assert!(insert(0, 1, "game-a", 1, "{}").is_err());
+        assert!(insert(0, 0, "game-b", 1, "{}").is_err());
+        assert!(insert(2, 1, "game-b", 1, "{}").is_err());
+        assert!(insert(0, 100_000, "game-b", 1, "{}").is_err());
+        assert!(insert(0, 1, "game-b", 0, "{}").is_err());
+        assert!(insert(0, 1, "game-b", 1, &"x".repeat(262_145)).is_err());
+        insert(0, 1, "game-b", 2, &"x".repeat(262_144)).unwrap();
+    }
+
+    #[test]
+    fn folder_setup_pass_position_migration_keeps_choices_and_bounds_positions() {
+        let temporary = tempdir().unwrap();
+        let root = temporary.path();
+        prepare_root(root);
+        migrate_to(root, 54).unwrap();
+        let connection = connect(root).unwrap();
+        connection
+            .execute(
+                "INSERT INTO game_file_root_setup(root_id,updated_at,record_json) VALUES ('root',1,'{}')",
+                [],
+            )
+            .unwrap();
+        drop(connection);
+        migrate(root).unwrap();
+        let connection = connect(root).unwrap();
+        verify_migration_55(&connection).unwrap();
+        let kept: (String, Option<String>, i64) = connection
+            .query_row(
+                "SELECT record_json,pass_scan_id,pass_offset FROM game_file_root_setup WHERE root_id='root'",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+            )
+            .unwrap();
+        assert_eq!(kept, ("{}".to_owned(), None, 0));
+        let set = |scan: &str, offset: i64| {
+            connection.execute(
+                "UPDATE game_file_root_setup SET pass_scan_id=?1, pass_offset=?2 WHERE root_id='root'",
+                rusqlite::params![scan, offset],
+            )
+        };
+        set("00000000-0000-4000-8000-000000000000", 100_000).unwrap();
+        assert!(set("short", 0).is_err());
+        assert!(set("00000000-0000-4000-8000-000000000000", 100_001).is_err());
+        assert!(set("00000000-0000-4000-8000-000000000000", -1).is_err());
     }
 
     historical_schema_tests! {
@@ -2791,6 +3312,19 @@ mod tests {
         schema_40: 40,
         schema_41: 41,
         schema_42: 42,
+        schema_43: 43,
+        schema_44: 44,
+        schema_45: 45,
+        schema_46: 46,
+        schema_47: 47,
+        schema_48: 48,
+        schema_49: 49,
+        schema_50: 50,
+        schema_51: 51,
+        schema_52: 52,
+        schema_53: 53,
+        schema_54: 54,
+        schema_55: 55,
     }
 
     #[test]

@@ -1,0 +1,65 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "egg-of-time-chrono-trigger-nds",
+    "name": "Chrono Trigger (Nintendo DS) — Egg of Time",
+    "original_game_title": "Chrono Trigger",
+    "summary": "Build a native Chrono Trigger player from your own Nintendo DS cartridge dump using Egg of Time.",
+    "project_url": "https://github.com/power-pudu/egg-of-time",
+    "issue_number": 3740,
+    "listed_at": "2026-11-09",
+    "platforms": ["windows-x86-64", "linux-x86-64"],
+    "availability": "packages",
+    "release_url": "https://github.com/power-pudu/egg-of-time/releases",
+    "setup_url": "https://github.com/power-pudu/egg-of-time#readme",
+    "download_block_reason": "Portcove downloads are paused while the first-start build tools and recovery are being reviewed. The guide covers a copy you already trust and are permitted to use.",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Choose your original Nintendo DS game",
+          "instruction": "Use an unmodified .nds dump from your own cartridge. The accepted SHA-1 values are USA (YQUE) 11f9e8204e484eab42181b210c9f214584be75bf, Europe (YQUP) a6c69d789a6f2e31b27fba950423bea3c2f30a37, and Japan (YQUJ) afc91a3f1f6c1bd02845b76416239e4dabfae19f."
+        },
+        {
+          "title": "Start the Windows x64 package",
+          "instruction": "Use a trusted EggOfTime Windows x64 ZIP ending in -windows-x64.zip. Extract it into a writable folder and open Egg of Time.exe. The package includes the tools for the local first-start build."
+        },
+        {
+          "title": "Start the Linux x64 package",
+          "instruction": "The current Linux x64 packages need glibc 2.35 or newer, Python 3 and libcurl. They include Zig for the first-start build. The file picker uses xdg-desktop-portal or zenity. Extract the -linux-x64.tar.gz package and start Egg of Time from its folder, or make the separate x86-64 AppImage executable and open it."
+        },
+        {
+          "title": "Let Egg of Time build your game",
+          "instruction": "Choose the .nds file when asked and wait for the local build to finish. The launcher copies the original to rom/CT.nds. If the build fails, open game/build.log in the same data location."
+        }
+      ],
+      "warnings": [
+        "Use these steps with a copy you already trust and are permitted to use. Follow your operating system’s security prompts.",
+        "Keep your ROM, extracted assets, generated game code and saves private. Close Egg of Time and wait for any build to finish before replacing the package or copying its data.",
+        "The upstream macOS runtime compiles from source. Upstream lists a full Mac game build as untested."
+      ],
+      "help_url": "https://github.com/power-pudu/egg-of-time#readme",
+      "references": [
+        {
+          "title": "Find the data for your package",
+          "instruction": "For the Windows ZIP and Linux tarball, data stays beside the player. For the AppImage, keep EggOfTime under XDG_DATA_HOME or ~/.local/share/EggOfTime by default. Back up rom/CT.sav, rom/CT.state, eggoftime.ini, controls.ini and your mods before an update or a ROM region change."
+        },
+        {
+          "title": "Find the experimental Mac source instructions",
+          "instruction": "Use Building from source in the upstream guide. It lists CMake 3.25+, Ninja, a C11 compiler, Python with Capstone, SDL3, FFmpeg, system libcurl and ds-decomp 0.12.1. Follow the region-specific extraction and build instructions with your own original."
+        }
+      ]
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "egg-of-time-chrono-trigger-nds",
+    "origin": {
+      "project_url": "https://github.com/power-pudu/egg-of-time",
+      "repository": {
+        "host": "github.com",
+        "id": "1434821733"
+      }
+    },
+    "decisions": []
+  }
+}

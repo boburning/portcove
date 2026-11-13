@@ -7,7 +7,6 @@ import { registerHooks, syncBuiltinESMExports } from "node:module";
 import * as children from "node:child_process";
 import childProcess from "node:child_process";
 import * as identity from "../assembler-job-identity.mts";
-import * as github from "../github-api.mts";
 import * as journals from "../release-coordinator-journal-api.mts";
 import * as state from "../release-coordinator-state.mts";
 import * as remote from "../release-coordinator-remote.mts";
@@ -25,7 +24,7 @@ type Subject = Pick<
   | "recoverOwnedPublishedMetadata"
 >;
 interface ControlledDependencies {
-  provider: (...args: unknown[]) => unknown;
+  terminalJob: () => unknown;
   journalRequest: (...args: unknown[]) => unknown;
   journalGraphql: (...args: unknown[]) => unknown;
   snapshot: () => Promise<unknown>;
@@ -40,7 +39,16 @@ function controls() {
 const forbidden = () => {
   throw new Error("Uncontrolled process/provider work is forbidden");
 };
-globalThis.fetch = forbidden;
+globalThis.fetch = async (input, init) => {
+  const url = new URL(input instanceof Request ? input.url : input);
+  assert.equal(url.href, "https://api.github.com/repos/boburning/portcove/actions/jobs/42");
+  assert.equal(init?.method, "GET");
+  assert.equal(
+    new Headers(init.headers).get("authorization"),
+    "token ghs_SYNTHETIC_CAPACITY_READER",
+  );
+  return Response.json(controls().terminalJob());
+};
 process.kill = forbidden;
 // Constrain already-loaded dependency bindings as well as fresh module imports.
 for (const [name, value] of Object.entries(childProcess))
@@ -68,10 +76,19 @@ mock.module(new URL("../assembler-job-identity.mts", import.meta.url).href, {
       assert.equal(audience, expected.audience);
       return "inert-provider-identity";
     },
-    verifyCapacityExecutorJobIdentity: async (role: string, token: string, actual: unknown) => {
+    verifyCapacityExecutorJobIdentity: async (
+      role: string,
+      token: string,
+      actual: unknown,
+      options: Parameters<typeof identity.verifyCapacityExecutorJobIdentity>[3],
+    ) => {
       assert.equal(role, "coordinator");
       assert.equal(token, "inert-provider-identity");
       assert.deepEqual(actual, expected);
+      const transport = options?.transport;
+      assert.ok(transport && "sdkToken" in transport);
+      assert.equal(transport.sdkToken, "ghs_SYNTHETIC_CAPACITY_READER");
+      assert.ok(transport.deadline > performance.now());
       return {
         evidence_scope: "github.com",
         workflow_revision: expected.controller_revision,
@@ -84,17 +101,6 @@ mock.module(new URL("../assembler-job-identity.mts", import.meta.url).href, {
         actor_id: expected.actor_id,
         role,
       };
-    },
-  },
-});
-mock.module(new URL("../github-api.mts", import.meta.url).href, {
-  namedExports: {
-    ...github,
-    createGitHubRunner: forbidden,
-    GitHubApiClient: class {
-      request(...args: unknown[]) {
-        return controls().provider(...args);
-      }
     },
   },
 });
@@ -225,11 +231,7 @@ async function sharedRecovery(subject: Subject, omitGuard = false, journalMode =
   };
 
   active = {
-    provider: (...args) => {
-      const method = args[0];
-      assert.ok(typeof method === "string");
-      return api.request(method);
-    },
+    terminalJob: () => api.request("GET").body,
     journalRequest: (...args) => {
       const method = args[0];
       assert.ok(typeof method === "string");
@@ -265,6 +267,7 @@ async function sharedRecovery(subject: Subject, omitGuard = false, journalMode =
     component: "application" | "catalog" = "application",
     beforeMutation?: () => unknown,
   ) => {
+    process.env.GH_TOKEN = "ghs_SYNTHETIC_CAPACITY_READER";
     const session = await subject.authenticateCapacityExecutor("coordinator", expected, "inert");
     const guard = omitGuard ? undefined : beforeMutation;
     return component === "catalog"

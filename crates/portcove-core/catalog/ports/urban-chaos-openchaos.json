@@ -3,7 +3,7 @@
   "listing": {
     "id": "urban-chaos-openchaos",
     "name": "Urban Chaos (OpenChaos)",
-    "summary": "Research listing. Upstream route: Desktop native packages, owned-data setup and upstream end-to-end-play claim. Limits: Upstream says end-to-end playable; newer modernization with remaining bugs, not Portcove support. Upstream platforms: Windows x86-64 package; macOS Apple-Silicon ARM64 and Linux SteamDeck packages/builds documented. Linux selected artifact CPU not explicitly mapped in frozen release research. Original data: Supply an owned installed Urban Chaos (1999 PC) copy, from Steam, GOG or disc/disc image; OpenChaos requires the original files and includes no game assets. Retained README accepts any localization/language and places OpenChaos executable in the installed game folder. Exact retail patch fingerprint is not pinned; original executable/DLL-replacing mods are not supported. Portcove setup/gameplay not verified.",
+    "summary": "Research listing. Upstream route: Desktop native packages, owned-data setup and upstream end-to-end-play claim. Limits: Upstream says end-to-end playable; newer modernization with remaining bugs, not Portcove support. Upstream platforms: Windows x86-64 package; macOS Apple-Silicon ARM64 and Linux Steam Deck packages/builds documented. Linux selected artifact CPU not explicitly mapped in frozen release research. Original data: Supply an owned installed Urban Chaos (1999 PC) copy, from Steam, GOG or disc/disc image; OpenChaos requires the original files and includes no game assets. Retained README accepts any localization/language and places OpenChaos executable in the installed game folder. Exact retail patch fingerprint is not pinned; original executable/DLL-replacing mods are not supported. Portcove setup/gameplay not verified.",
     "original_game_title": "Urban Chaos",
     "project_url": "https://github.com/UltimaBeaR/OpenChaos",
     "platforms": [],
@@ -17,7 +17,51 @@
       "game_slug": "urban-chaos",
       "match_kind": "underlying-game"
     },
-    "issue_number": 2906
+    "issue_number": 2906,
+    "listed_at": "2026-10-25",
+    "manual_setup": {
+      "help_url": "https://github.com/UltimaBeaR/OpenChaos/tree/b893450a04c9ae2a7f6b6cf6eaefe10fcf2562ad",
+      "steps": [
+        {
+          "title": "Prepare the complete Urban Chaos copy upstream",
+          "instruction": "Use your own complete Urban Chaos (1999) Steam/GOG/disc installation and a permitted official OpenChaos Windows x64 copy. Upstream instructs copying ALL package contents into the existing game directory, then running OpenChaos.exe; the engine archive supplies no original game data. Preserve originals before overlaying it. Data mods and executable/DLL patches have different compatibility; do not remove existing user files to force this setup."
+        },
+        {
+          "title": "Select the native player in its original tree",
+          "instruction": "Select OpenChaos.exe with its established original-game directory as working directory, retaining DLLs and runtime files. This route requires completed upstream file placement rather than an original-data picker; a bare engine in an empty folder is not ready. Original config.ini still supplies language information."
+        },
+        {
+          "title": "Retain shared user data and every fallback",
+          "instruction": "Preserve the complete creating game directory and current account’s AppData/OpenChaos profile: OpenChaos.config.json, saves, OpenChaos.crash_log.txt, debug and custom files. Writes normally use that overlay and reads prefer it over original files; all copies share it. Failed SDL preference lookup, early crash handling or absolute paths can use the creating working directory or explicit paths instead. Retain every effective root, not only the normal profile. No migration or real-save compatibility is established."
+        },
+        {
+          "title": "Review the game program and launch details",
+          "instruction": "Finish upstream preparation and a normal start/quit with your permitted copy before attachment. Select the actual native player, its established working directory and supported literal arguments. Review the intent and consent, then choose Play separately. Registration is not game, original-data or save qualification."
+        },
+        {
+          "title": "Keep one replacement owner and preserve all data",
+          "instruction": "Close actual game instances before upstream changes. Preserve the whole creating runtime, every original/profile root and custom/unknown files, make deliberate compatible updates upstream, then review/relink a changed executable. Upstream/player owns preparation, replacement, migration and recovery. Portcove supervises the selected process; removing registration preserves external files. This route offers no Portcove-managed download, setup, update, backup, rollback, migration or external-file deletion."
+        }
+      ],
+      "warnings": [
+        "Use only content and a copy you are already permitted to use. Engine licensing does not grant original-game, music, mod or third-party rights.",
+        "Preserve complete creating runtimes and all effective player-data roots before changes; shared profiles are not isolated by another executable."
+      ],
+      "references": [
+        {
+          "title": "Set up a separate Linux copy",
+          "instruction": "Start with a complete copy of your original Urban Chaos PC folder, then overlay the full upstream OpenChaos v1.0.2 Linux x86-64 ZIP. Use glibc 2.38 or later, libstdc++ with GLIBCXX_3.4.32, libatomic.so.1 and libGL.so.1. OpenChaos.sh starts the OpenChaos player in that folder. Keep the original config.ini and your effective Linux data-home OpenChaos profile."
+        },
+        {
+          "title": "Set up a separate Apple silicon Mac copy",
+          "instruction": "Start with a complete copy of your original Urban Chaos PC folder, then overlay the full upstream OpenChaos v1.0.2 Apple silicon ZIP on macOS 15 or later. Review the publisher and your Mac’s download security prompts before choosing whether to run OpenChaos.command yourself. Upstream uses this launcher to set the working folder and remove quarantine from the player. Keep the original config.ini and your OpenChaos profile under Application Support."
+        },
+        {
+          "title": "Keep every location that receives progress",
+          "instruction": "Keep the effective OpenChaos profile, saves, settings and crash logs, the complete original and working game folders, and any files written to a custom location. Early crashes or failed profile lookup can leave files in the working folder. Linux and Mac setup and replacement are yours to manage."
+        }
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

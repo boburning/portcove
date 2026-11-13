@@ -1,0 +1,40 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "darkuni-mylifeking-recomp",
+    "name": "Final Fantasy Crystal Chronicles: My Life as a King (darkuni Recomp)",
+    "summary": "Player-managed My Life as a King setup using its own WiiWare WAD.",
+    "project_url": "https://github.com/darkuni/mylifeking-recomp",
+    "original_game_title": "Final Fantasy Crystal Chronicles: My Life as a King",
+    "issue_number": 4120,
+    "listed_at": "2026-11-08",
+    "platforms": ["windows-x86-64"],
+    "availability": "packages",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Prepare the WiiWare originals",
+          "instruction": "Keep the Windows x64 runtime and its DLLs together in a writable folder. Put your own NTSC-U My Life as a King base WAD (WFCE) there. Add the matching optional DLC WAD only if you have it."
+        },
+        {
+          "title": "Let the upstream player import the WADs",
+          "instruction": "Run mylifeking.exe from the upstream folder. The first launch populates game and, with matching DLC, game/dlc. Keep both original WADs separately from the generated files."
+        },
+        {
+          "title": "Preserve the upstream profile",
+          "instruction": "Keep nand, mylifeking.ini, the generated game folder and the creating runtime together."
+        }
+      ],
+      "warnings": [
+        "The package includes recompiled game code that the project license does not cover. Portcove downloads it only from the project’s own releases. You need your own original game files.",
+        "Keep the upstream folder outside the Portcove library. Close the game and its helpers before backing up or replacing the creating runtime and its data."
+      ],
+      "help_url": "https://github.com/darkuni/mylifeking-recomp/blob/e7f038a121f6b55622516b1c9cf7cd7518c258e9/README.md"
+    },
+    "release_url": "https://github.com/darkuni/mylifeking-recomp/releases",
+    "download_asset_hints": {
+      "windows-x86-64": ["MyLifeAsAKing-", "-win64.zip"]
+    },
+    "recommended_download_channel": "stable"
+  }
+}

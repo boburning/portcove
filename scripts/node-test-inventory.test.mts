@@ -438,9 +438,12 @@ void test("declared case routes require their selected Mac producer despite ordi
     requireNodeTestInventory([first], workflow, surfaces().local, "", JSON.stringify(value));
   };
   check();
+  check("owned", "macos-15");
   for (const mutation of [
     () => check("other"),
     () => check("owned", "windows-latest"),
+    () => check("owned", "macos-15-intel"),
+    () => check("owned", "macos-unverified"),
     () => check("owned", "macos-26", false),
   ])
     assert.throws(mutation, /Skip route has no complete intended producer/);
@@ -905,4 +908,31 @@ void test("native file and consumer changes always select their inventory contra
         ),
         JSON.stringify(change),
       );
+});
+
+void test("ordinary families follow each registered test through additions and moves", () => {
+  const record = (file: string) => ({
+    file,
+    memberships: [["contracts", 0]],
+    ordinary_families: ["containment"],
+  });
+  const registry = (entry: unknown) =>
+    JSON.stringify({
+      format_version: 2,
+      suites: { contracts: { arguments: ["--test"] } },
+      tests: [entry],
+    });
+  assert.deepEqual(
+    { ...parseNodeTestSuites(registry(record("scripts/new-safety.test.mts"))).ordinaryFamilies },
+    { containment: ["scripts/new-safety.test.mts"] },
+  );
+  assert.deepEqual(
+    { ...parseNodeTestSuites(registry(record("scripts/moved-safety.test.mts"))).ordinaryFamilies },
+    { containment: ["scripts/moved-safety.test.mts"] },
+  );
+  for (const families of [[], ["bad family"], ["containment", "containment"], [42]])
+    assert.throws(
+      () => parseNodeTestSuites(registry({ ...record(first), ordinary_families: families })),
+      /ordinary validation family/,
+    );
 });

@@ -1,3 +1,4 @@
+import { captureParityState } from "../../test/parity-capture";
 import { StrictMode } from "react";
 import { afterEach, beforeEach, expect, it, vi } from "vite-plus/test";
 import { page } from "vite-plus/test/browser";
@@ -152,7 +153,7 @@ it("exports only on request after failed library startup and leaves recovery ava
     </StrictMode>,
   );
   expect(create).not.toHaveBeenCalled();
-  const action = button("Create support bundle");
+  const action = button("Create a support report");
   await act(async () => {
     action.click();
     action.click();
@@ -163,7 +164,7 @@ it("exports only on request after failed library startup and leaves recovery ava
   expect(button("Choose library").disabled).toBe(false);
   expect(button("Use platform default").disabled).toBe(false);
   await act(async () => pending.resolve(bundle()));
-  expect(host.textContent).toContain("Support bundle saved to E:/diagnostics/نسخة/support.zip");
+  expect(host.textContent).toContain("Support report saved to E:/diagnostics/نسخة/support.zip");
   expect(host.textContent).toContain("The library database could not be read.");
   expect(host.textContent).toContain("Some diagnostics are partial or omitted.");
   expect(host.textContent).toContain("The library was unavailable during collection.");
@@ -173,8 +174,8 @@ it("exports only on request after failed library startup and leaves recovery ava
 
 it("shows retained sections, unknown contents and incomplete capture without claiming recovery", async () => {
   await root.rerender(<SupportBundleExport createSupportBundle={vi.fn(async () => bundle())} />);
-  await click("Create support bundle");
-  await page.getByText("View support bundle contents", { exact: true }).click();
+  await click("Create a support report");
+  await page.getByText("View support report contents", { exact: true }).click();
   for (const text of [
     "Startup diagnostics: Included",
     "System and library checks: Omitted",
@@ -184,14 +185,15 @@ it("shows retained sections, unknown contents and incomplete capture without cla
     "The diagnostic source was unavailable; its contents are unknown.",
     "Invalid records were omitted.",
     "Some records were omitted to stay within the record limit.",
-    "The retained capture may be missing later output.",
+    "Some later setup messages may be missing.",
     "Some captured output was omitted when the capture limit was reached.",
-    "An incomplete trailing record was omitted.",
+    "An unfinished log entry was left out.",
     "The diagnostic source could not be fully read; any missing contents are unknown.",
   ]) {
     await expect.element(page.getByText(text, { exact: true })).toBeVisible();
   }
   expect(host.textContent).not.toMatch(/complete diagnostics|library recovered|0 records/iu);
+  await captureParityState("support-bundle-partial-contents-fixture");
 });
 
 it("describes included sections as a bounded snapshot without claiming complete diagnostics", async () => {
@@ -201,11 +203,12 @@ it("describes included sections as a bounded snapshot without claiming complete 
     (section) => section.kind === "startup",
   );
   await root.rerender(<SupportBundleExport createSupportBundle={vi.fn(async () => exported)} />);
-  await click("Create support bundle");
+  await click("Create a support report");
   expect(host.textContent).toContain(
     "Only the available diagnostics within collection limits were saved.",
   );
   expect(host.textContent).not.toContain("Some diagnostics are partial or omitted.");
+  await captureParityState("support-bundle-export-receipt-fixture");
   expect(host.textContent).not.toContain("The library was unavailable");
   expect(host.textContent).not.toContain("complete diagnostics");
 });
@@ -222,11 +225,33 @@ it("uses the same receipt in Settings without refreshing diagnostic state", asyn
     />,
   );
   expect(create).not.toHaveBeenCalled();
-  await click("Create support bundle");
+  await click("Create a support report");
   expect(create).toHaveBeenCalledOnce();
   expect(refresh).not.toHaveBeenCalled();
   expect(host.textContent).toContain("Diagnostics are current.");
   expect(host.textContent).toContain("Some diagnostics are partial or omitted.");
+});
+
+it("opens the support report folder only after export and keeps the saved path when opening fails", async () => {
+  const open = vi
+    .spyOn(desktopApi, "openSupportReportFolder")
+    .mockRejectedValueOnce(new Error("no file manager"))
+    .mockResolvedValueOnce(undefined);
+  await root.rerender(<SupportBundleExport createSupportBundle={vi.fn(async () => bundle())} />);
+  expect(host.textContent).not.toContain("Open support report folder");
+  await click("Create a support report");
+  expect(open).not.toHaveBeenCalled();
+
+  await click("Open support report folder");
+  await vi.waitFor(() => expect(host.textContent).toContain("Couldn’t open the folder."));
+  expect(open).toHaveBeenCalledOnce();
+  expect(open).toHaveBeenCalledWith();
+  expect(host.textContent).toContain("Support report saved to E:/diagnostics/نسخة/support.zip");
+  expect(button("Create a support report").disabled).toBe(false);
+
+  await click("Open support report folder");
+  await vi.waitFor(() => expect(host.textContent).not.toContain("Couldn’t open the folder."));
+  expect(open).toHaveBeenCalledTimes(2);
 });
 
 it("keeps export failure separate from startup failure and retries without exposing raw error text", async () => {
@@ -239,15 +264,16 @@ it("keeps export failure separate from startup failure and retries without expos
     .mockRejectedValueOnce(failure)
     .mockResolvedValueOnce(bundle());
   await root.rerender(<BootstrapRecovery error={startupFailure()} />);
-  await click("Create support bundle");
-  expect(host.textContent).toContain("Support bundle export did not finish. Try again.");
+  await click("Create a support report");
+  expect(host.textContent).toContain("Support report export did not finish. Try again.");
   expect(host.textContent).toContain("The bundle destination could not be written.");
   expect(host.textContent).toContain("The library database could not be read.");
   expect(host.textContent).not.toContain("unrequested private export detail");
-  await click("Create support bundle");
+  await captureParityState("support-bundle-export-failed-fixture");
+  await click("Create a support report");
   expect(create).toHaveBeenCalledTimes(2);
-  expect(host.textContent).toContain("Support bundle saved to");
-  expect(host.textContent).not.toContain("Support bundle export did not finish");
+  expect(host.textContent).toContain("Support report saved to");
+  expect(host.textContent).not.toContain("Support report export did not finish");
   expect(host.textContent).toContain("The library database could not be read.");
 });
 
@@ -259,13 +285,13 @@ it.each(["unconfirmed", "unstructured failure"])(
     else create.mockRejectedValueOnce(new Error("unrequested private write detail"));
     create.mockResolvedValueOnce(bundle());
     await root.rerender(<SupportBundleExport createSupportBundle={create} />);
-    await click("Create support bundle");
-    expect(host.textContent).toContain("Support bundle export did not finish.");
-    expect(host.textContent).not.toContain("Support bundle saved to");
+    await click("Create a support report");
+    expect(host.textContent).toContain("Support report export did not finish.");
+    expect(host.textContent).not.toContain("Support report saved to");
     expect(host.textContent).not.toContain("unrequested private write detail");
-    expect(button("Create support bundle").disabled).toBe(false);
-    await click("Create support bundle");
-    expect(host.textContent).toContain("Support bundle saved to");
+    expect(button("Create a support report").disabled).toBe(false);
+    await click("Create a support report");
+    expect(host.textContent).toContain("Support report saved to");
   },
 );
 
@@ -282,10 +308,10 @@ it.each(["success", "failure"])(
       .mockReturnValueOnce(pending.promise)
       .mockResolvedValueOnce(replacement);
     await root.rerender(<App />);
-    await click("Create support bundle");
+    await click("Create a support report");
     await click("Use platform default");
-    expect(button("Create support bundle").disabled).toBe(false);
-    await click("Create support bundle");
+    expect(button("Create a support report").disabled).toBe(false);
+    await click("Create a support report");
     await act(async () => {
       if (outcome === "success") pending.resolve(bundle());
       else pending.reject(new Error("outgoing export failure"));
@@ -293,7 +319,7 @@ it.each(["success", "failure"])(
     expect(create).toHaveBeenCalledTimes(2);
     expect(host.textContent).toContain(replacement.path);
     expect(host.textContent).not.toContain(bundle().path);
-    expect(host.textContent).not.toContain("Support bundle export did not finish");
+    expect(host.textContent).not.toContain("Support report export did not finish");
     expect(host.textContent).not.toContain("outgoing export failure");
   },
 );
@@ -308,7 +334,7 @@ it("keeps a Unicode destination readable in a narrow reading flow", async () => 
         <SupportBundleExport createSupportBundle={vi.fn(async () => exported)} />
       </main>,
     );
-    await click("Create support bundle");
+    await click("Create a support report");
     const path = fixtureValue(host.querySelector('[role="status"] code'), "saved path");
     expect(path.textContent).toBe(exported.path);
     expect(path.getAttribute("dir")).toBe("ltr");
@@ -316,5 +342,33 @@ it("keeps a Unicode destination readable in a narrow reading flow", async () => 
     expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(241);
   } finally {
     await page.viewport(1280, 800);
+  }
+});
+
+it("renders the support report receipt in the current language and keeps the path exact", async () => {
+  const { initializeLocalization } = await import("../localization");
+  const localization = initializeLocalization(["en-US"]);
+  try {
+    await localization.changeLanguage("ar-XB");
+    const exported = bundle();
+    exported.path = "E:/diagnostics/{{section}}/support.zip";
+    await root.rerender(<SupportBundleExport createSupportBundle={vi.fn(async () => exported)} />);
+    await click("إنشاء تقرير دعم");
+    const status = fixtureValue(host.querySelector('[role="status"]'), "receipt");
+    expect(status.textContent).toBe(
+      `حُفظ تقرير الدعم في ${exported.path}. بعض التشخيصات جزئية أو محذوفة. راجع تفاصيل الجمع أدناه.`,
+    );
+    expect(status.querySelector("code")?.textContent).toBe(exported.path);
+    await page.getByText("عرض محتويات تقرير الدعم", { exact: true }).click();
+    for (const text of [
+      "تشخيصات بدء التشغيل: مُضمّن",
+      "فحوصات النظام والمكتبة: محذوف",
+      "لم يكن مصدر التشخيص متاحًا؛ محتوياته غير معروفة.",
+    ]) {
+      await expect.element(page.getByText(text, { exact: true })).toBeVisible();
+    }
+    expect(host.textContent).not.toContain("Support report");
+  } finally {
+    await localization.changeLanguage("en");
   }
 });

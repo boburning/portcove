@@ -1,4 +1,8 @@
-import { sourceProvenancePortIdentity } from "./roadmap-issue.mts";
+import {
+  sourceProvenancePortIdentity,
+  portRepositoryIds,
+  portGameKey as discoveryGameKey,
+} from "./roadmap-issue.mts";
 import type { RoadmapIssueItem } from "./roadmap-issue.mts";
 import type { AuthoredPort } from "./catalog-authoring.mts";
 import { assessUpstreamLineage } from "./upstream-lineage.mts";
@@ -9,12 +13,7 @@ import type {
 } from "./discovery-reconciliation.mts";
 import type { DiscoveryLead } from "./discovery-leads.mts";
 
-export const discoveryGameKey = (game: string) =>
-  game
-    .normalize("NFKD")
-    .replace(/\p{Mark}/gu, "")
-    .toLowerCase()
-    .replace(/[^\p{Letter}\p{Number}]/gu, "");
+export { discoveryGameKey };
 const github = (url: string) =>
   /^https:\/\/github\.com\/[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+\/?$/iu.test(url);
 const githubKey = (url: string) =>
@@ -41,7 +40,7 @@ export function reviewedDiscoveryFamilyAliases(body: string) {
 /** Additional duplicate protection only. Fresh complete issue coverage remains
  * mandatory at the caller; local lineage/cache observations cannot prove absence.
  */
-export function assertDiscoveryIntakeIdentity(
+export function reconcileDiscoveryIntakeIdentity(
   candidate: ReviewedDiscoveryIdentity,
   issues: readonly RoadmapIssueItem[],
   records: readonly AuthoredPort[],
@@ -73,17 +72,7 @@ export function assertDiscoveryIntakeIdentity(
     // Explicit reviewed family aliases are ownership evidence only. They do not
     // replace the primary upstream or admit executable trust/relocation history.
     const aliases = reviewedDiscoveryFamilyAliases(body);
-    const primaryBody = body
-      .split(/\r?\n/u)
-      .filter((line) => !line.startsWith("Reviewed source-family alias: "))
-      .join("\n");
-    const bodyIds = [
-      ...new Set(
-        [...primaryBody.matchAll(/GitHub repository ID:\s*(\d+)/giu)].map((match) =>
-          Number(match[1]),
-        ),
-      ),
-    ];
+    const bodyIds = portRepositoryIds(body);
     const game =
       authored?.listing.original_game_title ??
       body.match(/^Underlying game: \*\*([^*\r\n]{1,256})\*\*/mu)?.[1];
@@ -121,6 +110,23 @@ export function assertDiscoveryIntakeIdentity(
     }
   }
   const result = reconcileDiscoveryIdentity(candidate, canonical);
+  return {
+    ...result,
+    game_scope_known: canonical
+      .filter((row) => result.issues.includes(row.issue))
+      .every((row) => row.game_key !== undefined),
+    repository_identity_known: canonical
+      .filter((row) => result.issues.includes(row.issue))
+      .some((row) => row.repository_id === candidate.repository_id),
+  };
+}
+export function assertDiscoveryIntakeIdentity(
+  candidate: ReviewedDiscoveryIdentity,
+  issues: readonly RoadmapIssueItem[],
+  records: readonly AuthoredPort[],
+  leads: readonly DiscoveryLead[],
+) {
+  const result = reconcileDiscoveryIntakeIdentity(candidate, issues, records, leads);
   if (result.disposition !== "New canonical intake")
     throw new Error(
       `Canonical discovery identity held: ${result.disposition}; issues ${result.issues.join(", ") || "none"}; ${result.reason}`,

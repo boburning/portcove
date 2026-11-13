@@ -591,7 +591,7 @@ pub(crate) fn hash_stable_regular(
     Ok((inspected.sha256, size))
 }
 
-fn open_object(path: &Path, directory: bool) -> Result<fs::File> {
+pub(crate) fn open_object(path: &Path, directory: bool) -> Result<fs::File> {
     crate::path::refuse_symlink_ancestors(path)?;
     let metadata = fs::symlink_metadata(path)?;
     if (directory && !metadata.is_dir())
@@ -1563,6 +1563,12 @@ mod tests {
     #[test]
     fn registered_location_observer_refuses_inaccessible_directory_then_recovers() {
         use std::os::unix::fs::PermissionsExt;
+
+        // SAFETY: geteuid takes no arguments and reads only the effective user ID.
+        if unsafe { libc::geteuid() } == 0 {
+            return;
+        }
+
         let (_temporary, library, runtime, spec) = fixture();
         let record = location_record(&runtime, &spec, &library);
         let permissions = fs::metadata(&runtime).unwrap().permissions();

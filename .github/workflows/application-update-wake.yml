@@ -6,6 +6,7 @@ on:
       - main
   schedule:
     - cron: 17 */6 * * *
+  workflow_dispatch:
 permissions:
   contents: read
   actions: read
@@ -15,12 +16,23 @@ concurrency:
 jobs:
   wake:
     if: >-
-      ${{ (vars.PORTCOVE_CONTROLLER_WAKE != '' || vars.PORTCOVE_CATALOG_CONTROLLER_WAKE != '') &&
-      (vars.PORTCOVE_CONTROLLER_WAKE == '' || fromJSON(vars.PORTCOVE_CONTROLLER_WAKE).schema_version == 4) &&
+      ${{ ((github.event_name == 'workflow_dispatch' && github.actor_id == '43177418' &&
+      github.ref == 'refs/heads/main' && github.ref_protected && github.run_attempt == '1' &&
+      ((vars.PORTCOVE_CATALOG_CONTROLLER_WAKE == '' && vars.PORTCOVE_CONTROLLER_WAKE != '' &&
+      fromJSON(vars.PORTCOVE_CONTROLLER_WAKE).manual_actor_id == '43177418' &&
+      github.run_number == fromJSON(vars.PORTCOVE_CONTROLLER_WAKE).manual_run_number) ||
+      (vars.PORTCOVE_CONTROLLER_WAKE == '' && vars.PORTCOVE_CATALOG_CONTROLLER_WAKE != '' &&
+      fromJSON(vars.PORTCOVE_CATALOG_CONTROLLER_WAKE).manual_actor_id == '43177418' &&
+      github.run_number == fromJSON(vars.PORTCOVE_CATALOG_CONTROLLER_WAKE).manual_run_number))) ||
+      (github.event_name != 'workflow_dispatch' &&
+      (vars.PORTCOVE_CONTROLLER_WAKE == '' || !fromJSON(vars.PORTCOVE_CONTROLLER_WAKE).manual_actor_id) &&
+      (vars.PORTCOVE_CATALOG_CONTROLLER_WAKE == '' || !fromJSON(vars.PORTCOVE_CATALOG_CONTROLLER_WAKE).manual_actor_id))) &&
+      (vars.PORTCOVE_CONTROLLER_WAKE != '' || vars.PORTCOVE_CATALOG_CONTROLLER_WAKE != '') &&
+      (vars.PORTCOVE_CONTROLLER_WAKE == '' || (fromJSON(vars.PORTCOVE_CONTROLLER_WAKE).schema_version == 4 || fromJSON(vars.PORTCOVE_CONTROLLER_WAKE).schema_version == 5)) &&
       (vars.PORTCOVE_CATALOG_CONTROLLER_WAKE == '' || fromJSON(vars.PORTCOVE_CATALOG_CONTROLLER_WAKE).schema_version == 4) }}
     name: Wake fixed application controller
     runs-on: ubuntu-22.04
-    timeout-minutes: 1
+    timeout-minutes: 2
     permissions:
       contents: read
       actions: write
@@ -31,19 +43,30 @@ jobs:
             ${{ vars.PORTCOVE_CONTROLLER_WAKE != '' && fromJSON(vars.PORTCOVE_CONTROLLER_WAKE).revision ||
             fromJSON(vars.PORTCOVE_CATALOG_CONTROLLER_WAKE).revision }}
           persist-credentials: false
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115
+        with:
+          package_json_file: package.json
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
         with:
           node-version-file: .node-version
           package-manager-cache: false
+      - name: Install locked wake dependencies before credentials
+        run: pnpm install --frozen-lockfile --ignore-scripts --ignore-pnpmfile
       - name: Prepare immutable controller intent
         env:
           GH_HOST: github.com
           GH_TOKEN: ${{ github.token }}
           PORTCOVE_CONTROLLER_WAKE: ${{ vars.PORTCOVE_CONTROLLER_WAKE }}
+          PORTCOVE_APPLICATION_RELEASE_ACTIVE: ${{ vars.PORTCOVE_APPLICATION_RELEASE_ACTIVE }}
+          PORTCOVE_APPLICATION_RELEASE_REF: ${{ vars.PORTCOVE_APPLICATION_RELEASE_REF }}
+          PORTCOVE_APPLICATION_RELEASE_REVISION: ${{ vars.PORTCOVE_APPLICATION_RELEASE_REVISION }}
+          PORTCOVE_APPLICATION_RELEASE_SPENDING: ${{ vars.PORTCOVE_APPLICATION_RELEASE_SPENDING }}
+          PORTCOVE_APPLICATION_RELEASE_WORKFLOW_SHA256: ${{ vars.PORTCOVE_APPLICATION_RELEASE_WORKFLOW_SHA256 }}
           PORTCOVE_CATALOG_CONTROLLER_WAKE: ${{ vars.PORTCOVE_CATALOG_CONTROLLER_WAKE }}
         run: node scripts/release-controller-wake.mts --prepare
         id: prepare
       - name: Retain intent before any dispatch
+        if: steps.prepare.outputs.intent_ready != 'false'
         id: intent
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
@@ -53,10 +76,16 @@ jobs:
           overwrite: false
           retention-days: 7
       - name: Dispatch retained immutable controller intent
+        if: steps.prepare.outputs.intent_ready != 'false'
         env:
           GH_HOST: github.com
           GH_TOKEN: ${{ github.token }}
           PORTCOVE_CONTROLLER_WAKE: ${{ vars.PORTCOVE_CONTROLLER_WAKE }}
+          PORTCOVE_APPLICATION_RELEASE_ACTIVE: ${{ vars.PORTCOVE_APPLICATION_RELEASE_ACTIVE }}
+          PORTCOVE_APPLICATION_RELEASE_REF: ${{ vars.PORTCOVE_APPLICATION_RELEASE_REF }}
+          PORTCOVE_APPLICATION_RELEASE_REVISION: ${{ vars.PORTCOVE_APPLICATION_RELEASE_REVISION }}
+          PORTCOVE_APPLICATION_RELEASE_SPENDING: ${{ vars.PORTCOVE_APPLICATION_RELEASE_SPENDING }}
+          PORTCOVE_APPLICATION_RELEASE_WORKFLOW_SHA256: ${{ vars.PORTCOVE_APPLICATION_RELEASE_WORKFLOW_SHA256 }}
           PORTCOVE_WAKE_INTENT_ARTIFACT_ID: ${{ steps.intent.outputs.artifact-id }}
           PORTCOVE_WAKE_INTENT_ARTIFACT_SHA256: ${{ steps.intent.outputs.artifact-digest }}
           PORTCOVE_CATALOG_CONTROLLER_WAKE: ${{ vars.PORTCOVE_CATALOG_CONTROLLER_WAKE }}

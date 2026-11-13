@@ -170,3 +170,110 @@ before a visual claim. Codec unit PNGs, a file reference, truncated tool text or
 unreadable logs never establish native acceptance. Failure or an exceeded retention
 bound remains visible and incomplete. The proven reader route is not a promise that
 all future large logs will fit: complete real evidence recovery is an execution gate.
+
+## Normal-app presentation and interface sizing
+
+The fixed manual `presentation` operation in `native-design-compatibility.yml`
+uses two isolated standard public `windows-2022` jobs: the maintained
+`presentation` profile and the standalone `native-interface-size` scenario.
+The latter cannot share a selection/library with the profile. Each job records
+its exact source and hosted session before setup, uses the repository-pinned
+quality/native bootstrap and the normal `desktop-verify` plan/build/run owner,
+and retains existing resource, signature, process-identity and cleanup guards.
+The 60-minute job allocation leaves setup/build headroom without changing child
+or product deadlines. A failure in one selection does not cancel the other.
+
+The workflow accepts no command, scenario or source override for these jobs.
+On Windows these two fixed selections use the existing identity-bound driver
+capture, chronological process inventory and positive-exit owner before release;
+failure keeps the original evidence and cannot fall back to unchecked PID cleanup.
+A noninteractive desktop, unavailable supported WebView/driver or failed bootstrap
+stops that job with original evidence. The bounded lossless job-log codec retains
+one isolated run per job under its existing byte/file limits, with no cache or
+artifact upload. Recover each complete job log separately, verify its source and
+executable identities, and inspect the actual images before claiming appearance.
+A retention-bound refusal remains incomplete acceptance, never permission to
+omit screenshots or raise storage bounds silently.
+
+These runs observe the ordinary Tauri renderer and native keyboard/size controls.
+Injected controller and expanded-text cases remain synthetic input observations;
+they do not establish physical controller, installed-package, minimum-OS or game
+workflow acceptance. Owned lifecycle and screen-specific visual acceptance remain
+separate where required by the owning issue.
+
+## Fixed owned product workflow selections
+
+The manual `product-workflows` operation uses the same clean-source, interactive
+standard public Windows setup and native runner as `presentation`. A source-owned
+matrix contains fixed scenario arrays; no dispatch input supplies commands,
+scenario names or alternate source. Each group receives a fresh hosted machine
+and output/temp roots. At most four groups run concurrently, each with a finite
+60-minute outer allowance and unchanged native child deadlines.
+
+Six bounded groups retain the entire maintained `owned-lifecycle` selection and
+its dependency closure: ready/return/preferences, preparation recovery,
+backup/removal, singleton and batch Steam, source intake/removal/pickers, and
+adoption/library/CLI handoff. The fresh Steam group requires the retained singleton
+report to show the Settings integration entry and exactly one matching eligible
+installation; the broad-profile Manage fallback cannot qualify this group.
+The workflow contract resolves each group through
+the actual Windows scenario planner and checks the union against that profile.
+Separate fresh groups cover Library layout, collection/membership/favorite persistence
+through restart, selected setup completion, update
+acquisition, staged update composition, inert external-runtime registration,
+artwork picking, appearance restart/refresh recovery, and each of the three
+standalone startup-preferences/startup-library/library-switch recovery journeys.
+This preserves the planner's standalone and incompatible-fixture refusals.
+Public `windows-2022` registers WebView2 below the application's floor, so the
+application correctly refuses to start there. With owner approval (#4879: runtime
+provisioning 2026-11-12; the debugging-port policy and process auditing below
+2026-11-13), a group whose runtime is below the floor downloads Microsoft's Evergreen
+bootstrapper, requires a valid Microsoft Authenticode signature before running it,
+records its digest and the before/after runtime versions, and refuses to continue
+below the floor. Evergreen installs Microsoft's newest runtime, and driver
+bootstrap still requires the exactly matching `msedgedriver`. After Microsoft
+services WebView2 and before it publishes that driver, the exact match cannot be
+met (run 43338537697: runtime 157.0.4341.57, driver 404). The step after
+provisioning checks for that driver once a minute for at most 20 minutes, records
+`webview2-driver-availability.json` when it is available, and otherwise stops the
+group before bootstrap with the runtime version and a re-run instruction. On the elevated runner
+WebView2 ignores the driver's `WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS`, so the
+step also sets the WebView2 `AdditionalBrowserArguments` machine policy for
+`portcove-desktop.exe` to `--remote-debugging-port=0`; without it no session can
+be created. Groups also enable process-creation auditing, and a failed group
+prints bounded startup diagnostics, scenario failures and its largest retained
+outputs. The acquisition journey calibrates its WebDriver script budget from 15 s
+to 60 s for the debug build's IPC status reads, and its wait for a held fixture
+transfer to start from 10 s to 60 s, and its wait for each update check's review from
+15 s to 60 s; it records the slowest of each. Its
+pre-publication catalog copies stay SHA-256 bound but their raw bytes are not
+retained: three ~2.9 MB copies plus the journey's other ~7 MB of evidence exceed
+the unchanged 12 MiB bound. This makes the fixture
+observable; Server 2022 with a provisioned runtime is not the Windows 11 26H2
+first-beta baseline.
+The update-acquisition group also observes #4879's automatic snapshot surfaces
+after its real activating update of a played fixture: the review and rollback
+copy, exactly one Core snapshot labelled with the from/to versions that holds the
+played save, its Automatic label in history and in a cancelled restore review,
+and the per-library Settings control round-tripping through Core. Right after
+those checks, and before the later acquisitions and reviewed uninstall, it presses
+a real Restore previous version, which must keep the saves and add exactly one
+snapshot labelled as a rollback with the reverse versions, labelled in history and
+holding the current saves. The fixture save does not change between the update and
+the rollback, so the snapshot's bytes alone do not distinguish it from the update
+snapshot; its distinct identity and rollback label do. These are owned fixture observations, not real-save (#48) or human-comprehension acceptance.
+
+These scenarios exercise real Core/native mutations in disposable first-party
+fixtures. Streamed installation/update bytes, owned process launch and native
+backup/restore/removal remain distinct from gameplay. Steam uses an isolated
+synthetic profile and qualification-only closed-client observation; no actual
+Steam client is launched. External-runtime registration uses inert executable
+bytes and never claims to launch that game. Controlled read failures and injected
+input observations retain their fixture labels. No private originals, real user
+profile, release signing or physical controller are required by this selection.
+
+Every group keeps the existing bounded evidence codec and one-run rule. Splitting
+coverage does not relax any scenario assertion, process cleanup, source custody
+or retention limit. A real packet that exceeds the bound remains a failed
+retention obligation; recover and inspect each job's exact images independently.
+The operation supplies no required CI replacement or automatic acceptance claim.

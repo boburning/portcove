@@ -6,6 +6,7 @@
     "summary": "Explore Mercenaries: Playground of Destruction Recompiled (KraftMacAndChee) and follow the upstream project for requirements, downloads and setup.",
     "project_url": "https://github.com/KraftMacAndChee/Mercenaries-Recompiled",
     "issue_number": 1672,
+    "listed_at": "2026-10-23",
     "platforms": [],
     "availability": "unknown",
     "setup_url": "https://github.com/KraftMacAndChee/Mercenaries-Recompiled",
@@ -16,6 +17,7 @@
       "image_sha256": "6620dca4b4c3e2276f5fa141d8690ecbb56edc9d5aa53504afb06c062f615cf8",
       "game_slug": "mercenaries-playground-of-destruction",
       "match_kind": "underlying-game"
-    }
+    },
+    "download_block_reason": "Portcove downloads are paused because its current release package could not be identified for review. They can resume once that package is identified and reviewed."
   }
 }

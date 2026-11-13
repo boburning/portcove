@@ -1,3 +1,4 @@
+import { ArrowRight } from "lucide-react";
 import { useEffect, useId, useLayoutEffect, useRef, useState, type RefObject } from "react";
 import { desktopApi } from "../api";
 import type { GameUpdateAcquisition, GameUpdatePlan, PortStatus, UpdatePolicy } from "../types";
@@ -131,14 +132,14 @@ function gameUpdateCompletionMessage(
 ) {
   if (result && acquired)
     return acquired.phase === "acquired"
-      ? "Last command: Archive downloaded. Review again to prepare or install it. Your current version is unchanged."
-      : "Archive state recorded. Review its current state before continuing.";
+      ? "Update downloaded, not installed. Review it to finish setup or install it. Your current version is unchanged."
+      : "The download needs attention. Check its status before continuing.";
   if (result && selection.kind === "discard")
-    return "Last command: Archive discarded. Installed versions and saved data are unchanged.";
+    return "Downloaded update deleted. Installed versions and saved data are unchanged.";
   if (result && selection.kind === "apply")
     return selection.plan.activate
       ? "Update installed. Your previous version remains available."
-      : "Update kept for later. Your current version is unchanged.";
+      : "Update prepared for later. Your current version is unchanged.";
   return "The operation was not confirmed complete. Review the current state before retrying.";
 }
 
@@ -243,7 +244,7 @@ function useGameUpdateControl({
     ...targetInvocationContext("Download update archive", target, generation),
     operation: "acquire_game_update" as const,
   };
-  const discardContext = targetInvocationContext("Discard update archive", target, generation);
+  const discardContext = targetInvocationContext("Delete downloaded update", target, generation);
   const exclusiveBusy = updateInvocationBusy(owner, applyContext, fallbackBusy);
   const acquireBusy = updateInvocationBusy(owner, acquireContext, fallbackBusy);
   const [intent, setIntent] = useState<UpdateIntent>("install");
@@ -403,6 +404,7 @@ function useGameUpdateControl({
           };
           try {
             const command = await executeReviewedGameUpdate(selection, portId, generation, receive);
+            // oxlint-disable-next-line react/immutability -- oxc#28401: invocation-local binding.
             acquired = command.acquired;
             return command.value;
           } catch (value) {
@@ -544,17 +546,23 @@ export function GameUpdateControl(props: Parameters<typeof useGameUpdateControl>
       ref={actionRegion}
       tabIndex={-1}
       aria-label={
-        archiveOnly ? `Manage archive for ${gameName ?? props.portId}` : "Review game update"
+        archiveOnly
+          ? `Manage downloaded update for ${gameName ?? props.portId}`
+          : "Review game update"
       }
     >
-      {!compact && archiveOnly && <h3>Update archive</h3>}
+      {!compact && archiveOnly && <h3>Downloaded update</h3>}
       {completionNeedsRefresh && (
         <p role="status" className="my-3 text-xs text-pc-muted-foreground">
           The operation finished, but library status could not be refreshed. Refresh status before
           continuing.
         </p>
       )}
-      <RetainedUpdateArchive control={control} portId={props.portId} />
+      <RetainedUpdateArchive
+        control={control}
+        portId={props.portId}
+        currentVersion={props.currentVersion}
+      />
       {!archiveOnly && (
         <div
           className={plan ? "game-update-actions hidden" : "game-update-actions"}
@@ -572,6 +580,7 @@ export function GameUpdateControl(props: Parameters<typeof useGameUpdateControl>
               }}
             >
               {pending && selectedIntent === "install" ? "Checking update…" : "Update now"}
+              <ArrowRight aria-hidden="true" />
             </Button>
             {!existingArchive && (
               <Button
@@ -605,7 +614,7 @@ export function GameUpdateControl(props: Parameters<typeof useGameUpdateControl>
                 : "Prepare for later"}
             </Button>
             <p>
-              Prepare verified staged content without activating it. A downloaded archive still
+              Finish setting up the update without switching to it yet. A downloaded archive still
               needs preparation.
             </p>
           </details>
@@ -756,33 +765,38 @@ function GameUpdateAlternativeActions({
 function RetainedUpdateArchive({
   control,
   portId,
+  currentVersion,
 }: {
   control: ReturnType<typeof useGameUpdateControl>;
   portId: string;
+  currentVersion?: string | undefined;
 }) {
   const { acquisition, exclusiveBusy, pending, discardButton, reviewDiscard } = control;
   if (!acquisition) return null;
   return (
     <section
       className="my-3 rounded-pc-md border border-pc-border p-3"
-      aria-label="Retained update archive"
+      data-update-download
+      aria-label="Downloaded update"
     >
       <h4 className="text-sm">
         {acquisition.port_id === portId
           ? gameUpdateAcquisitionLabel(acquisition.phase)
-          : "Archive identity unavailable"}
+          : "Download identity unavailable"}
       </h4>
       <p className="mt-2 text-sm">
         {acquisition.release.version} ·{" "}
-        {releaseChannelPresentation(acquisition.release.channel).label}
+        {releaseChannelPresentation(acquisition.release.channel).label} ·{" "}
+        {formatBytes(acquisition.release.asset.size)}
       </p>
+      {currentVersion && <p className="mt-2 text-sm">Version you’re using: {currentVersion}</p>}
       <p className="mt-2 text-xs text-pc-muted-foreground">
-        An archive is separate from a prepared update. Downloading it does not prepare game files,
-        write saved data or change the current version.
+        Downloading an update leaves the installed version and its saves as they are. Prepare or
+        install the update separately.
       </p>
       <details className="mt-2 text-xs">
         <summary data-focusable className="cursor-pointer py-1">
-          Archive details
+          Download details
         </summary>
         <dl className="mt-2 grid gap-2 [overflow-wrap:anywhere]">
           <div>
@@ -812,7 +826,7 @@ function RetainedUpdateArchive({
             disabled={exclusiveBusy || pending}
             onClick={() => reviewDiscard(acquisition)}
           >
-            Discard archive…
+            Delete downloaded update…
           </Button>
         )}
     </section>
@@ -868,7 +882,7 @@ function GameUpdatePlanDialog({
         </DialogTitle>
         <DialogDescription id={descriptionId} className="mb-4 leading-relaxed">
           {downloadOnly
-            ? "Review the exact archive to download. Preparation and activation require another review."
+            ? "Review this download. Preparing or installing it is a separate step."
             : "Confirm the release and what happens to your active version before updating."}
         </DialogDescription>
         <GameUpdateReview
@@ -943,10 +957,10 @@ function GameUpdateDiscardDialog({
         }}
       >
         <DialogTitle ref={discardHeading} tabIndex={-1}>
-          Discard update archive?
+          Delete this downloaded update?
         </DialogTitle>
         <DialogDescription>
-          Discard only this retained archive. Installed versions, prepared updates and saved data
+          Delete only this downloaded update. Installed versions, prepared updates and saved data
           are unchanged.
         </DialogDescription>
         <dl className="my-4 grid gap-3 [overflow-wrap:anywhere]">
@@ -958,23 +972,28 @@ function GameUpdateDiscardDialog({
             <dt>Version</dt>
             <dd>{discardReview.release.version}</dd>
           </div>
-          <div>
-            <dt>Acquisition ID</dt>
-            <dd>
-              <code>{discardReview.id}</code>
-            </dd>
-          </div>
-          <div>
-            <dt>Archive SHA-256</dt>
-            <dd>
-              <code>{discardReview.release.asset.sha256}</code>
-            </dd>
-          </div>
         </dl>
+        <details>
+          <summary data-focusable>Technical details</summary>
+          <dl className="my-4 grid gap-3 wrap-anywhere">
+            <div>
+              <dt>Acquisition ID</dt>
+              <dd>
+                <code>{discardReview.id}</code>
+              </dd>
+            </div>
+            <div>
+              <dt>Archive SHA-256</dt>
+              <dd>
+                <code>{discardReview.release.asset.sha256}</code>
+              </dd>
+            </div>
+          </dl>
+        </details>
         {discardReview.id !== acquisition?.id && (
           <p role="status">
-            The retained archive changed. Keep this review closed and review the current archive
-            before discarding it.
+            The download changed. Close this dialog and review the current download before deleting
+            it.
           </p>
         )}
         <DialogFooter>
@@ -984,7 +1003,7 @@ function GameUpdateDiscardDialog({
             disabled={exclusiveBusy || pending || !perform || discardReview.id !== acquisition?.id}
             onClick={() => void discard()}
           >
-            {pending ? "Discarding archive…" : "Discard archive"}
+            {pending ? "Deleting download…" : "Delete download"}
           </Button>
           <Button
             data-focusable
@@ -992,7 +1011,7 @@ function GameUpdateDiscardDialog({
             disabled={pending}
             onClick={() => setDiscardReview(undefined)}
           >
-            Keep archive
+            Keep download
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -1082,7 +1101,7 @@ function GameUpdateReview({
     <div className="install-plan mt-[16px] grid grid-cols-1 [align-items:end] gap-[18px] rounded-pc-lg border border-pc-border bg-pc-surface p-[14px] @min-[32rem]/update-review:grid-cols-2">
       <p className="mb-[5px]">
         <span className="mb-2 block text-pc-muted-foreground">
-          Current version: {currentVersion ?? "Unavailable"}
+          Version you’re using: {currentVersion ?? "Unavailable"}
         </span>
         <span className="block text-pc-muted-foreground">Update candidate</span>
         <strong className="block text-[length:var(--text-sm)]">
@@ -1092,7 +1111,7 @@ function GameUpdateReview({
       </p>
       <p className="mb-[5px]">
         {plan.acquisition
-          ? "Use the retained archive after verifying its identity again. No new archive download is planned."
+          ? "Portcove will check and reuse the downloaded update."
           : plan.plan.action === "download"
             ? `${formatBytes(plan.plan.download_bytes)} to download`
             : plan.plan.action === "blocked_unverified"
@@ -1102,17 +1121,17 @@ function GameUpdateReview({
       {label && (
         <p className="col-span-full mb-[5px]">
           {downloadOnly
-            ? "Download only the immutable archive. Game files, installation folders, saved data and the active version stay unchanged. Preparing or installing requires a fresh review."
+            ? "Download this update for later. Your installed version and saves stay as they are."
             : plan.activate
-              ? "The verified update becomes active and the current version remains available for rollback."
-              : "This keeps the prepared update for later. Your current version stays unchanged."}{" "}
+              ? "Start using the new version. Portcove keeps the previous version. Check the restore options before switching back."
+              : "Set up the update for later and keep using your current version."}{" "}
           Saved update settings are unchanged.
         </p>
       )}
       {!label ? (
         <p className="mb-[5px]" role="status">
           {downloadOnly && (existingArchive || plan.acquisition)
-            ? "An archive is already retained. Review preparing or installing it, or discard it before another download."
+            ? "You already have a download. Prepare it, install it, or delete it before downloading another update."
             : gameUpdateHoldReason(plan)}
         </p>
       ) : null}
@@ -1122,11 +1141,15 @@ function GameUpdateReview({
         </p>
       ))}
       {plan.acquisition && (
-        <p className="col-span-full text-xs [overflow-wrap:anywhere]">
-          Selected archive: <code>{plan.acquisition.id}</code> · SHA-256{" "}
-          <code>{plan.acquisition.release.asset.sha256}</code>. This archive does not authorize
-          installation.
-        </p>
+        <details className="col-span-full text-xs [overflow-wrap:anywhere]">
+          <summary data-focusable>Download details</summary>
+          <p>
+            Download ID: <code>{plan.acquisition.id}</code>
+          </p>
+          <p>
+            SHA-256: <code>{plan.acquisition.release.asset.sha256}</code>
+          </p>
+        </details>
       )}
       {label && !downloadOnly && plan.activate && (
         <div className="col-span-full border-t border-pc-border pt-3 [overflow-wrap:anywhere]">
@@ -1135,9 +1158,10 @@ function GameUpdateReview({
             {plan.plan.output_location.user_data_root}
           </bdi>
           <p className="mt-2 mb-0">
-            Keeping the previous game version is separate from backing up saved data. Save
-            compatibility between versions is not checked here. Review backup options in Saves and
-            storage.
+            Unless you turned it off in Settings, or this game has no saves that Portcove manages,
+            Portcove first takes an automatic snapshot of its saves and settings. Keeping the
+            previous game version is separate from backing up saved data. Save compatibility between
+            versions is not checked here. Review backup options in Saves and storage.
           </p>
         </div>
       )}
@@ -1157,7 +1181,7 @@ function GameUpdateReview({
 function gameUpdateHoldReason(plan: GameUpdatePlan) {
   const assessment = plan.assessment;
   if (assessment?.action !== "update" || assessment.definition != null)
-    return "Current update availability is unavailable. Review it again before continuing.";
+    return "Portcove couldn’t check this update. Review it again before continuing.";
   if (assessment.availability === "not_offered" && assessment.reason === "already_registered")
     return "This verified release is already active.";
   if (assessment.availability === "waiting" && assessment.reason === "missing_source")
@@ -1166,5 +1190,5 @@ function gameUpdateHoldReason(plan: GameUpdatePlan) {
     return "Add the required BIOS before running this update.";
   if (assessment.availability === "held" && assessment.reason === "invalid_installation")
     return "An unverified local copy blocks this update. Verify or repair it first.";
-  return "Current update availability is unavailable. Review it again before continuing.";
+  return "Portcove couldn’t check this update. Review it again before continuing.";
 }

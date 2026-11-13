@@ -1,3 +1,4 @@
+import { readControllerNodeFile } from "./release-controller-tools.mts";
 /** Builtins-only entry into the fixed attested whole-site controller. */
 import path from "node:path";
 import { pathToFileURL, fileURLToPath } from "node:url";
@@ -40,9 +41,8 @@ export async function launchFixedSiteController(
     throw new Error("fixed site launcher fields differ");
   if (process.env.NODE_OPTIONS || process.env.NODE_PATH)
     throw new Error("site launcher forbids ambient Node hooks");
-  deadline = currentSiteJobDeadline(
+  deadline = await currentSiteJobDeadline(
     inspectAssemblerIdentityExpectation(input.identity),
-    parent,
     deadline,
   );
   const receipt = await receiveControllerTools(
@@ -53,8 +53,8 @@ export async function launchFixedSiteController(
   );
   const tools = await verifiedControllerToolPaths(receipt);
   if (
-    hash(await readControllerToolFile(process.execPath)) !==
-    hash(await readControllerToolFile(tools.node))
+    hash(await readControllerNodeFile(process.execPath)) !==
+    hash(await readControllerNodeFile(tools.node))
   )
     throw new Error("running Node differs from authenticated site controller");
   const entry = tools.entries["release-site-controller"];

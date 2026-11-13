@@ -4,8 +4,10 @@ import { useActionReview, type ReviewOutcome } from "../use-action-review";
 import { desktopApi } from "../api";
 import type { BackupAction, BackupRecord, BackupReview } from "../types";
 import { formatBytes } from "../view-model";
+import { automaticSnapshotLabel } from "../features/backups/snapshot-label";
 import { Button } from "./ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle } from "./ui/dialog";
+import { useAppTranslation } from "../localization";
 
 export type ApplyBackupAction = (
   backup: BackupRecord,
@@ -29,6 +31,7 @@ export function BackupReviewDialog({
   close: () => void;
   finalFocus?: React.ComponentProps<typeof DialogContent>["finalFocus"];
 }) {
+  const { t } = useAppTranslation("backups");
   const cancelButton = useRef<HTMLButtonElement>(null);
   const {
     preview: review,
@@ -42,8 +45,7 @@ export function BackupReviewDialog({
     load: () => desktopApi.previewBackupAction(backup.port_id, backup.id, action, generation),
     apply: (review) => apply(review.preview.backup, review.preview.preview_sha256),
     close,
-    failureMessage:
-      "The operation did not complete. Review the current backup and data before trying again.",
+    failureMessage: t("review.failure"),
   });
   const restore = action === "restore";
   return (
@@ -61,17 +63,15 @@ export function BackupReviewDialog({
         finalFocus={finalFocus}
       >
         <DialogTitle id="backup-review-title" className="mb-2 text-xl">
-          {restore ? "Review backup restore" : "Review backup deletion"}
+          {restore ? t("review.titleRestore") : t("review.titleDelete")}
         </DialogTitle>
         <DialogDescription id="backup-review-description" className="mb-4 leading-relaxed">
           {gameName && (
             <strong className="mb-2 block wrap-anywhere text-pc-foreground">{gameName}</strong>
           )}
-          {restore
-            ? "Replace this game's saved data with the selected snapshot."
-            : "Permanently remove only the selected saved-data snapshot."}
+          {restore ? t("review.descriptionRestore") : t("review.descriptionDelete")}
         </DialogDescription>
-        {pending === "review" && <p role="status">Checking the backup and current saved data…</p>}
+        {pending === "review" && <p role="status">{t("review.checking")}</p>}
         {review && <BackupReviewDetails review={review} />}
         <ActionReviewFailure error={error} />
         <DialogFooter className="mt-4">
@@ -82,7 +82,7 @@ export function BackupReviewDialog({
             disabled={pending === "apply"}
             onClick={dismiss}
           >
-            Cancel
+            {t("review.cancel")}
           </Button>
           {!review && (
             <Button
@@ -92,7 +92,7 @@ export function BackupReviewDialog({
                 void load();
               }}
             >
-              Review again
+              {t("review.reviewAgain")}
             </Button>
           )}
           {review && (
@@ -106,11 +106,11 @@ export function BackupReviewDialog({
             >
               {pending === "apply"
                 ? restore
-                  ? "Restoring backup…"
-                  : "Deleting backup…"
+                  ? t("review.restoring")
+                  : t("review.deleting")
                 : restore
-                  ? "Restore this backup"
-                  : "Delete this backup permanently"}
+                  ? t("review.applyRestore")
+                  : t("review.applyDelete")}
             </Button>
           )}
         </DialogFooter>
@@ -120,73 +120,65 @@ export function BackupReviewDialog({
 }
 
 function BackupReviewDetails({ review }: { review: BackupReview }) {
+  const { t } = useAppTranslation("backups");
   const { preview, port_name: portName, persistent_data_path: dataPath } = review;
   const { backup, action } = preview;
+  const automaticLabel = automaticSnapshotLabel(backup);
   return (
-    <section className="backup-review-details" aria-label="Backup changes and preserved data">
+    <section className="backup-review-details" aria-label={t("details.label")}>
       <p>
         <strong>
-          {portName} · {new Date(backup.created_at * 1000).toLocaleString()}
+          {/* Dates follow the system's regional format, separate from message language. */}
+          {t("details.heading", {
+            name: portName,
+            time: new Date(backup.created_at * 1000).toLocaleString(),
+          })}
         </strong>
         <br />
-        <small>Catalog ID: {backup.port_id}</small>
+        <small>{t("details.catalogId", { id: backup.port_id })}</small>
       </p>
       <p>
-        {backup.file_count} {backup.file_count === 1 ? "file" : "files"} ·{" "}
-        {formatBytes(backup.size)}
+        {t("details.summary", { count: backup.file_count, size: formatBytes(backup.size) })}
+        {automaticLabel && (
+          <>
+            <br />
+            <small className="[overflow-wrap:anywhere]" data-automatic-snapshot>
+              {automaticLabel}
+            </small>
+          </>
+        )}
       </p>
       <dl>
         <div>
-          <dt>Selected snapshot</dt>
-          <dd className="m-[var(--space-1)_0_var(--space-3)] [overflow-wrap:anywhere]">
+          <dt>{t("details.selectedBackup")}</dt>
+          <dd className="m-[var(--space-1)_0_var(--space-3)] [overflow-wrap:anywhere]" dir="ltr">
             {backup.path}
           </dd>
         </div>
         <div>
-          <dt>Saved-data folder</dt>
-          <dd className="m-[var(--space-1)_0_var(--space-3)] [overflow-wrap:anywhere]">
+          <dt>{t("details.dataFolder")}</dt>
+          <dd className="m-[var(--space-1)_0_var(--space-3)] [overflow-wrap:anywhere]" dir="ltr">
             {dataPath}
           </dd>
         </div>
       </dl>
       {action === "restore" ? (
         <>
-          <p>
-            The saved-data folder will contain this snapshot's data. The selected backup, other
-            backups and installed game versions are preserved.
-          </p>
+          <p>{t("details.restoreResult")}</p>
           <p>
             {preview.safety_backup_will_be_created
-              ? "Portcove will back up the current saved data before replacing it. Restore that safety backup to return to the previous data."
-              : "There is no current saved data to back up. A safety backup will not be created."}
+              ? t("details.safetyBackup")
+              : t("details.noSafetyBackup")}
           </p>
-          <p>
-            The game must be stopped. If its data changes after this review, review again before
-            restoring.
-          </p>
-          <p>
-            If interrupted, Portcove retains recovery data and checks the restore when the library
-            reopens. Review any recovery notice before another restore.
-          </p>
+          <p>{t("details.restoreStopped")}</p>
+          <p>{t("details.restoreInterrupted")}</p>
         </>
       ) : (
         <>
-          <p>Current saved data, other backups and installed game versions are preserved.</p>
-          {preview.retained_runtime_copy_will_be_deleted && (
-            <p>
-              This also permanently deletes the retained Ghostship 3.0.0 runtime saves/settings copy
-              stored with this backup.
-            </p>
-          )}
-          <p>
-            This snapshot cannot be recovered after deletion. No safety copy of the deleted snapshot
-            is created.
-          </p>
-          <p>
-            If interrupted, Portcove retains a deletion journal and reconciles the selected snapshot
-            when the library reopens. An interrupted deletion may finish; it is not a reversible
-            cancellation.
-          </p>
+          <p>{t("details.deletePreserved")}</p>
+          {preview.retained_runtime_copy_will_be_deleted && <p>{t("details.deleteRuntimeCopy")}</p>}
+          <p>{t("details.deleteIrreversible")}</p>
+          <p>{t("details.deleteInterrupted")}</p>
         </>
       )}
     </section>

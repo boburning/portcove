@@ -1,3 +1,4 @@
+import { captureParityState } from "../../test/parity-capture";
 import { afterEach, expect, it, vi } from "vite-plus/test";
 import { page } from "vite-plus/test/browser";
 import { cleanup, render } from "vitest-browser-react";
@@ -31,6 +32,25 @@ function guide(exportMetadata: () => Promise<LibraryMetadataFile | undefined>) {
   };
 }
 
+function expectSeparatedRecoverySteps() {
+  const steps = Array.from(document.querySelectorAll(".library-recovery details > section"));
+  expect(steps).toHaveLength(3);
+  for (const step of steps) {
+    const previous = step.previousElementSibling;
+    expect(previous).not.toBeNull();
+    expect(
+      step.getBoundingClientRect().top - previous!.getBoundingClientRect().bottom,
+    ).toBeGreaterThanOrEqual(23);
+    const children = Array.from(step.children);
+    for (let index = 1; index < children.length; index++) {
+      expect(
+        children[index]!.getBoundingClientRect().top -
+          children[index - 1]!.getBoundingClientRect().bottom,
+      ).toBeGreaterThanOrEqual(11);
+    }
+  }
+}
+
 it("keeps manual preparation distinct from checked restore and authority-changing Move", async () => {
   const fixture = guide(vi.fn(async () => undefined));
   await render(fixture.element);
@@ -50,7 +70,7 @@ it("keeps manual preparation distinct from checked restore and authority-changin
   expect(text).toContain("then opens the new copy");
   expect(text).toContain("retroachievements.credentials");
   expect(text).toContain("Checked restore and location changes refuse these files");
-  expect(text).toContain("Temporary files may remain");
+  expect(text).toContain("If Portcove names a remaining sign-in file");
   expect(document.querySelector('input[type="checkbox"]')).toBeNull();
   await expect
     .element(page.getByRole("button", { name: "Restore from a library copy" }))
@@ -58,9 +78,11 @@ it("keeps manual preparation distinct from checked restore and authority-changin
   await expect
     .element(page.getByRole("button", { name: "Change library location", exact: true }))
     .toBeEnabled();
+  expectSeparatedRecoverySteps();
+  await captureParityState("library-recovery-guide");
 });
 
-it("excludes duplicate export and reports only the metadata receipt, never a verified backup", async () => {
+it("excludes duplicate export and reports only the metadata receipt, never a backup", async () => {
   let finish!: (value: LibraryMetadataFile | undefined) => void;
   const exportMetadata = vi.fn(
     () =>
@@ -70,7 +92,7 @@ it("excludes duplicate export and reports only the metadata receipt, never a ver
   );
   await render(guide(exportMetadata).element);
   await page.getByText("Prepare a recovery copy", { exact: true }).click();
-  const action = page.getByRole("button", { name: "Export metadata", exact: true });
+  const action = page.getByRole("button", { name: "Export library information", exact: true });
   const button = action.element();
   if (!(button instanceof HTMLButtonElement)) throw new Error("Expected an export button");
   button.click();
@@ -91,11 +113,13 @@ it("recovers from export failure and treats picker cancellation as no new receip
     .mockResolvedValueOnce(undefined);
   await render(guide(exportMetadata).element);
   await page.getByText("Prepare a recovery copy", { exact: true }).click();
-  await page.getByRole("button", { name: "Export metadata", exact: true }).click();
+  await page.getByRole("button", { name: "Export library information", exact: true }).click();
   await expect.element(page.getByRole("alert")).toMatchTextContent("Disk unavailable");
-  await page.getByRole("button", { name: "Export metadata", exact: true }).click();
+  expectSeparatedRecoverySteps();
+  await captureParityState("library-metadata-export-failure");
+  await page.getByRole("button", { name: "Export library information", exact: true }).click();
   await expect
-    .element(page.getByRole("button", { name: "Export metadata", exact: true }))
+    .element(page.getByRole("button", { name: "Export library information", exact: true }))
     .toBeEnabled();
   expect(exportMetadata).toHaveBeenCalledTimes(2);
   expect(document.querySelector('[role="status"]')).toBeNull();
@@ -117,8 +141,9 @@ it.each(["dark", "light"])(
     document.head.append(overrides);
     try {
       expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(241);
+      expectSeparatedRecoverySteps();
       await expect
-        .element(page.getByRole("button", { name: "Export metadata", exact: true }))
+        .element(page.getByRole("button", { name: "Export library information", exact: true }))
         .toBeEnabled();
     } finally {
       overrides.remove();

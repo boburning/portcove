@@ -3,12 +3,12 @@
  * established by this module, a journal summary, or copied result JSON. */
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { spawnSync } from "node:child_process";
-import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
+import { mkdtemp, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { createGitHubRunner, GitHubApiClient } from "./github-api.mts";
-import type { GitHubRestReader } from "./github-api.mts";
-import { readGitHubReleaseAsset, readGitHubArtifactArchive } from "./github-binary.mts";
+import { createReleaseCustodyProvider } from "./release-custody-provider.mts";
+import type { CatalogAnchorMetadataProvider } from "./release-custody-provider.mts";
+import { downloadGitHubReleaseAsset } from "./github-artifact-download.mts";
+import { assertTrustedDirectNode } from "./release-direct-node-transport.mts";
 import {
   capacityDigest as digest,
   inspectCapacityOperation,
@@ -30,9 +30,14 @@ import {
   hydrateRetainedCoordinatorOperation,
   readRemoteCoordinatorSnapshot,
 } from "./release-coordinator-recovery.mts";
-import { withCoordinatorDeadline } from "./release-coordinator-deadline.mts";
+import {
+  coordinatorCommandDeadline,
+  withCoordinatorDeadline,
+} from "./release-coordinator-deadline.mts";
 import {
   capacityExecutorIdentity,
+  ensureOwnedCheckpointJournalHistory,
+  publishOwnedSignedCoordinatorCheckpoint,
   refreshCapacityExecutor,
   recoverOwnedCapacityEffect,
 } from "./release-capacity-executor.mts";
@@ -43,6 +48,7 @@ import {
   receiveSigningContextArtifact,
   requireReceivedSigningContext,
   requireRetainedSigningContext,
+  acquireSigningContextArchive,
   signingContextRemaining,
 } from "./release-signing-context-artifact.mts";
 import type { SigningContextArtifactExpected } from "./release-signing-context-artifact.mts";
@@ -57,7 +63,7 @@ import {
   requireRetainedActualTufPublication,
 } from "./release-tuf-publication.mts";
 import {
-  readCompleteRunArtifactInventory,
+  readCompleteRunArtifactInventoryAsync,
   inspectCompleteRunArtifactInventory,
 } from "./release-run-artifact-inventory.mts";
 import { releaseControlPhaseProfile } from "./release-control-phases.mts";
@@ -74,6 +80,7 @@ import {
   inspectRetainedResultOperation,
   publicationResultReadbackDestination,
   inspectPendingResultProvider,
+  acquirePendingResultArchive,
   readPendingResultArchive,
 } from "./release-pending-result-recovery.mts";
 import { inspectCandidateStageEvidence } from "./release-candidate-progress-contract.mts";
@@ -85,7 +92,6 @@ import {
   observePendingCandidateRelease,
 } from "./release-pending-release-recovery.mts";
 
-const base = "repos/boburning/portcove";
 const roles = ["releases", "preview", "stable", "snapshot", "timestamp"] as const;
 type Output = "payload" | "context" | (typeof roles)[number];
 type Operation = NonNullable<ReturnType<typeof inspectCapacityOperation>>;
@@ -330,9 +336,9 @@ export async function readCandidateSigningOperations(
   repository: string,
   input: unknown,
   active: Record<string, unknown>,
-  api?: GitHubRestReader,
+  provider?: CatalogAnchorMetadataProvider,
 ) {
-  return readOriginalSigningOperations(repository, input, active, api);
+  return readOriginalSigningOperations(repository, input, active, provider);
 }
 /** Data-only original receipt discovery through one narrowly inspected pending
  * Release intent. Every signing output must already be positively settled;
@@ -341,7 +347,7 @@ export async function readSigningOperationsForPendingRelease(
   repository: string,
   input: unknown,
   active: Record<string, unknown>,
-  api?: GitHubRestReader,
+  provider?: CatalogAnchorMetadataProvider,
 ) {
   assert.ok(
     isRecord(input) && isRecord(input.controller) && isRecord(input.controller.capacity_attempt),
@@ -350,13 +356,13 @@ export async function readSigningOperationsForPendingRelease(
     input.controller.capacity_attempt.operation,
     active,
   );
-  return readOriginalSigningOperations(repository, input, active, api, pending);
+  return readOriginalSigningOperations(repository, input, active, provider, pending);
 }
 async function readOriginalPublishedOperation(
   repository: string,
   input: Record<string, unknown>,
   active: Record<string, unknown>,
-  api: GitHubRestReader,
+  provider: CatalogAnchorMetadataProvider,
 ) {
   assert.ok(isRecord(input.controller) && isRecord(input.controller.capacity_attempt));
   const capacity = input.controller.capacity_attempt;
@@ -377,7 +383,7 @@ async function readOriginalPublishedOperation(
         try {
           raw = readRetainedCapacityOperation(repository, proof);
         } catch {
-          raw = await hydrateRetainedCoordinatorOperation(repository, proof, { api });
+          raw = await hydrateRetainedCoordinatorOperation(repository, proof, { provider });
         }
         const retained = inspectCapacityOperation(raw);
         if (retained && settled(retained)) candidates.push(retained);
@@ -402,7 +408,7 @@ async function readOriginalResultOperation(
   repository: string,
   input: Record<string, unknown>,
   active: Record<string, unknown>,
-  api: GitHubRestReader,
+  provider: CatalogAnchorMetadataProvider,
 ) {
   assert.ok(isRecord(input.controller) && isRecord(input.controller.capacity_attempt));
   const capacity = input.controller.capacity_attempt;
@@ -428,7 +434,7 @@ async function readOriginalResultOperation(
     try {
       raw = readRetainedCapacityOperation(repository, proof);
     } catch {
-      raw = await hydrateRetainedCoordinatorOperation(repository, proof, { api });
+      raw = await hydrateRetainedCoordinatorOperation(repository, proof, { provider });
     }
     return inspectRetainedResultOperation(raw, active);
   }
@@ -443,7 +449,7 @@ async function readOriginalSigningOperations(
   repository: string,
   input: unknown,
   active: Record<string, unknown>,
-  api?: GitHubRestReader,
+  provider?: CatalogAnchorMetadataProvider,
   pendingRelease?: Operation,
 ) {
   assert.ok(
@@ -481,11 +487,8 @@ async function readOriginalSigningOperations(
         try {
           retained = readRetainedCapacityOperation(repository, proof);
         } catch {
-          retained = await hydrateRetainedCoordinatorOperation(
-            repository,
-            proof,
-            api ? { api } : {},
-          );
+          if (!provider) throw new Error("retained signing receipt provider required");
+          retained = await hydrateRetainedCoordinatorOperation(repository, proof, { provider });
         }
         const parsed = inspectCapacityOperation(retained);
         assert.ok(parsed);
@@ -517,7 +520,7 @@ export interface CandidateSigningRecoveryRequest {
   checkpoint: string;
   remote_configuration: unknown;
 }
-/** Called only by the fixed coordinator under its original170s deadline and
+/** Called only by the fixed coordinator under its original job deadline and
  * actual control boundary. The callback refreshes that existing boundary;
  * neither it nor any returned locator can mint publication eligibility. */
 export async function recoverCandidateSigningCustody(
@@ -536,54 +539,54 @@ export async function recoverCandidateSigningCustody(
       /^[a-f0-9]{40}$/u.test(input.checkpoint),
   );
   return withCoordinatorDeadline(deadline, async () => {
+    const token = process.env.GH_TOKEN ?? "";
     const directory = await mkdtemp(path.join(parent, "candidate-signing-recovery-"));
-    const home = path.join(directory, "reader-home");
-    await mkdir(home, { mode: 0o700 });
-    const environment = Object.fromEntries(
-      Object.entries(process.env).filter(([key]) =>
-        ["PATH", "Path", "SystemRoot", "WINDIR", "GH_TOKEN"].includes(key),
-      ),
-    );
-    Object.assign(environment, {
-      HOME: home,
-      USERPROFILE: home,
-      TMP: home,
-      TEMP: home,
-      GH_CONFIG_DIR: home,
-      XDG_CONFIG_HOME: home,
-      GH_HOST: "github.com",
-      GH_PROMPT_DISABLED: "1",
-    });
-    const spawn: NonNullable<Parameters<typeof createGitHubRunner>[0]>["spawn"] = (
-      command,
-      args,
-      settings,
-    ) => spawnSync(command, args, { ...settings, env: environment });
     let checkpoint = input.checkpoint,
       phase = "current-coordinator";
     let requests = 0;
-    const api: GitHubRestReader = new GitHubApiClient((args, body) => {
-      if (++requests > 128) throw new Error("candidate signing discovery read bound exhausted");
-      const response = createGitHubRunner({
-        cwd: directory,
-        maxBuffer: 2 * 1024 ** 2,
-        timeoutMs: signingContextRemaining(deadline, 15000),
-        spawn,
-      })([...args, "--hostname", "github.com"], body);
-      signingContextRemaining(deadline, 15000);
-      return response;
-    });
-    const get = (suffix: string) => {
-      const response = api.request("GET", `${base}/${suffix}`);
-      assert.equal(response.status, 200, "original signing provider read unavailable");
-      return response.body;
+    const chargeRead = () => {
+      if (requests >= 128) throw new Error("candidate signing discovery read bound exhausted");
+      requests++;
+      return () => {
+        requests--;
+      };
     };
+    const readReleaseAsset = (id: number, bytes: number) =>
+      downloadGitHubReleaseAsset(id, {
+        credential: { kind: "explicit", token },
+        deadline: Math.min(
+          deadline,
+          coordinatorCommandDeadline() ?? Infinity,
+          performance.now() + 30000,
+        ),
+        maxBytes: bytes,
+        fetch(input, init) {
+          assertTrustedDirectNode("candidate recovery release asset");
+          return globalThis.fetch(input, init);
+        },
+        lookup: {
+          reserve() {
+            const release = chargeRead();
+            return {
+              consumeBytes() {},
+              settle(observation) {
+                if (!observation.dispatched) release();
+              },
+            };
+          },
+        },
+      });
     try {
       await verifiedControllerToolPaths(toolsReceipt);
       assert.equal((await refreshCapacityExecutor(executor)).role, "coordinator");
       const state = await recoverReleaseOpportunity(input.repository, checkpoint);
       const active = candidate(state.input.active_candidate);
       let originalCandidate = digest(active);
+      const checkpointControls = async () => {
+        signingContextRemaining(deadline, 15000);
+        await verifiedControllerToolPaths(toolsReceipt);
+        await freshBoundary();
+      };
       const guard = async () => {
         signingContextRemaining(deadline, 15000);
         await verifiedControllerToolPaths(toolsReceipt);
@@ -591,7 +594,7 @@ export async function recoverCandidateSigningCustody(
         const snapshot = await readRemoteCoordinatorSnapshot(
           directory,
           input.remote_configuration,
-          { transport: { cwd: directory, deadline, spawn } },
+          { transport: { credential: { token }, deadline } },
         );
         assert.equal(snapshot.checkpoint, checkpoint, "signing custody journal changed");
         assert.equal(
@@ -614,35 +617,46 @@ export async function recoverCandidateSigningCustody(
         currentOperation.destination.startsWith("github-release:boburning/portcove:")
           ? inspectPendingCandidateReleaseOperation(currentOperation, active)
           : undefined;
+      const metadata = await createReleaseCustodyProvider({
+        token,
+        deadline,
+        chargeRead,
+        afterRead: () => {
+          signingContextRemaining(deadline, 15000);
+        },
+      });
       const pendingResult = pendingRelease
         ? undefined
-        : await readOriginalResultOperation(input.repository, state.input, active, api);
+        : await readOriginalResultOperation(input.repository, state.input, active, metadata);
       const operations = pendingResult
         ? await readOriginalSigningOperations(
             input.repository,
             state.input,
             active,
-            api,
+            metadata,
             pendingResult,
           )
         : await (
             pendingRelease ? readSigningOperationsForPendingRelease : readCandidateSigningOperations
-          )(input.repository, state.input, active, api);
-      const observe = (operation: Operation, output: Exclude<Output, "payload">) => {
+          )(input.repository, state.input, active, metadata);
+      const observe = async (operation: Operation, output: Exclude<Output, "payload">) => {
         const producer = operation.executor_identity!;
         return inspectCandidateSigningProvider(
-          get(`actions/runs/${String(producer.run_id)}`),
-          get(`actions/runs/${String(producer.run_id)}/attempts/1`),
-          get(`actions/jobs/${String(producer.job_id)}`),
-          readCompleteRunArtifactInventory((page) =>
-            get(`actions/runs/${String(producer.run_id)}/artifacts?per_page=100&page=${page}`),
+          await metadata.run(String(producer.run_id)),
+          await metadata.attempt(String(producer.run_id), 1),
+          await metadata.job(Number(producer.job_id)),
+          await readCompleteRunArtifactInventoryAsync((page) =>
+            metadata.runArtifacts(String(producer.run_id), page),
           ),
           operation,
           active,
           output,
         );
       };
-      const settle = async (operation: Operation, observation: ReturnType<typeof observe>) => {
+      const settle = async (
+        operation: Operation,
+        observation: Awaited<ReturnType<typeof observe>>,
+      ) => {
         await guard();
         if (settled(operation)) return;
         const result = await recoverOwnedCapacityEffect(
@@ -650,7 +664,7 @@ export async function recoverCandidateSigningCustody(
           { ...input, checkpoint },
           async (pending) => {
             assert.equal(digest(pending), digest(operation), "different pending signing effect");
-            const again = observe(
+            const again = await observe(
               operation,
               operation.destination.endsWith(":payload-signing-context")
                 ? "context"
@@ -671,28 +685,20 @@ export async function recoverCandidateSigningCustody(
               },
             };
           },
+          undefined,
+          checkpointControls,
         );
         checkpoint = result.checkpoint;
         await guard();
       };
       phase = "original-context";
       const contextOperation = operations.get("context")!;
-      const contextBefore = observe(contextOperation, "context");
-      const bytes = readGitHubArtifactArchive(
-        `${base}/actions/artifacts/${contextBefore.artifact.id}/zip`,
-        {
-          cwd: directory,
-          maxBytes: contextBefore.artifact.bytes,
-          timeoutMs: signingContextRemaining(deadline, 30000),
-          spawn: (command, args, settings) =>
-            spawnSync(command, args, { ...settings, env: environment }),
-        },
-      );
-      assert.equal(
-        hash(bytes),
-        contextBefore.artifact.sha256,
-        "original opaque context digest differs",
-      );
+      const contextBefore = await observe(contextOperation, "context");
+      const bytes = await acquireSigningContextArchive(directory, contextBefore.artifact, {
+        token,
+        deadline: deadline,
+        charge: chargeRead,
+      });
       const inspected = inspectSigningContextArchive(bytes),
         manifest = inspected.manifest;
       assert.ok(
@@ -725,7 +731,7 @@ export async function recoverCandidateSigningCustody(
       const context = await receiveSigningContextArtifact(directory, contextLocator, deadline);
       await requireReceivedSigningContext(context, deadline);
       assert.equal(
-        digest(observe(contextOperation, "context")),
+        digest(await observe(contextOperation, "context")),
         digest(contextBefore),
         "context provider drifted",
       );
@@ -736,7 +742,7 @@ export async function recoverCandidateSigningCustody(
         phase = `original-${role}`;
         await guard();
         const operation = operations.get(role)!,
-          before = observe(operation, role),
+          before = await observe(operation, role),
           original = operation.executor_identity!;
         const locator: TufRoleArtifactExpected = {
           role,
@@ -770,7 +776,11 @@ export async function recoverCandidateSigningCustody(
           "role output belongs to another intent",
         );
         assert.ok(typeof outputManifest.pending.checkpoint === "string");
-        assert.equal(digest(observe(operation, role)), digest(before), "role provider drifted");
+        assert.equal(
+          digest(await observe(operation, role)),
+          digest(before),
+          "role provider drifted",
+        );
         await settle(operation, before);
         roleLocators.push(locator);
         roleReceipts.push(receipt);
@@ -793,7 +803,7 @@ export async function recoverCandidateSigningCustody(
           input.repository,
           state.input,
           active,
-          api,
+          metadata,
         );
         const expected = await derivePendingReleaseAssets(
           context,
@@ -803,17 +813,17 @@ export async function recoverCandidateSigningCustody(
           deadline,
         );
         const producer = pendingResult.executor_identity!;
-        const observeProvider = () =>
+        const observeProvider = async () =>
           inspectPendingResultProvider(
-            get(`actions/runs/${String(producer.run_id)}`),
-            get(`actions/runs/${String(producer.run_id)}/attempts/1`),
-            get(`actions/jobs/${String(producer.job_id)}`),
-            readCompleteRunArtifactInventory((page) =>
-              get(`actions/runs/${String(producer.run_id)}/artifacts?per_page=100&page=${page}`),
+            await metadata.run(String(producer.run_id)),
+            await metadata.attempt(String(producer.run_id), 1),
+            await metadata.job(Number(producer.job_id)),
+            await readCompleteRunArtifactInventoryAsync((page) =>
+              metadata.runArtifacts(String(producer.run_id), page),
             ),
             pendingResult,
           );
-        const commit = get(`git/commits/${producer.controller_revision}`);
+        const commit = await metadata.commit(producer.controller_revision);
         assert.ok(
           isRecord(commit) &&
             commit.sha === producer.controller_revision &&
@@ -822,16 +832,12 @@ export async function recoverCandidateSigningCustody(
             /^[a-f0-9]{40}$/u.test(commit.tree.sha),
         );
         const controllerTree = commit.tree.sha;
-        const providerBefore = observeProvider();
-        const archive = readGitHubArtifactArchive(
-          `${base}/actions/artifacts/${providerBefore.artifact.id}/zip`,
-          {
-            cwd: directory,
-            maxBytes: providerBefore.artifact.bytes,
-            timeoutMs: signingContextRemaining(deadline, 30000),
-            spawn: (command, args, settings) =>
-              spawnSync(command, args, { ...settings, env: environment }),
-          },
+        const providerBefore = await observeProvider();
+        const archive = await acquirePendingResultArchive(
+          providerBefore,
+          token,
+          deadline,
+          chargeRead,
         );
         signingContextRemaining(deadline, 15000);
         const observeRelease = async (record: Record<string, unknown>) => {
@@ -864,7 +870,7 @@ export async function recoverCandidateSigningCustody(
             source_commit: expected.source_commit,
             assets,
           };
-          const raw = readImmutableReleaseState(api, identity);
+          const raw = await readImmutableReleaseState(metadata, identity);
           const transition = proposeImmutableReleaseTransition(identity, raw.release, raw.assets);
           assert.equal(
             transition.decision,
@@ -873,13 +879,7 @@ export async function recoverCandidateSigningCustody(
           );
           if (transition.decision !== "complete") throw new Error("complete Release required");
           const sbomAsset = transition.assets.find((a) => a.filename === sbom.filename)!;
-          const sbomBytes = readGitHubReleaseAsset(`${base}/releases/assets/${sbomAsset.id}`, {
-            cwd: directory,
-            maxBytes: sbom.bytes,
-            timeoutMs: signingContextRemaining(deadline, 30000),
-            spawn: (command, args, settings) =>
-              spawnSync(command, args, { ...settings, env: environment }),
-          });
+          const sbomBytes = await readReleaseAsset(sbomAsset.id, sbom.bytes);
           assert.equal(sbomBytes.length, sbom.bytes);
           assert.equal(hash(sbomBytes), sbom.sha256);
           return {
@@ -912,7 +912,7 @@ export async function recoverCandidateSigningCustody(
               const again = await observe();
               assert.equal(digest(again.projection), digest(before.projection));
               assert.equal(
-                digest(observeProvider()),
+                digest(await observeProvider()),
                 digest(providerBefore),
                 "original result provider drifted",
               );
@@ -931,6 +931,8 @@ export async function recoverCandidateSigningCustody(
                     }),
               };
             },
+            undefined,
+            checkpointControls,
           );
           checkpoint = recovered.checkpoint;
         }
@@ -1013,15 +1015,29 @@ export async function recoverCandidateSigningCustody(
             const failedCandidate = { ...failed, report_repair: proof };
             const next = structuredClone(current.input);
             next.active_candidate = failedCandidate;
+            const signedJournal = await ensureOwnedCheckpointJournalHistory(
+              executor,
+              input.repository,
+              checkpoint,
+              checkpointControls,
+            );
             const saved = await checkpointReleaseOpportunity(input.repository, checkpoint, next);
             await guard();
             await refreshCapacityExecutor(executor);
-            await publishCoordinatorCheckpoint(
-              input.repository,
-              saved.checkpoint,
-              input.remote_configuration,
-              { api: createCoordinatorJournalApi(directory, deadline) },
-            );
+            if (signedJournal)
+              await publishOwnedSignedCoordinatorCheckpoint(
+                executor,
+                input.repository,
+                saved.checkpoint,
+                checkpointControls,
+              );
+            else
+              await publishCoordinatorCheckpoint(
+                input.repository,
+                saved.checkpoint,
+                input.remote_configuration,
+                { api: createCoordinatorJournalApi(directory, deadline) },
+              );
             checkpoint = saved.checkpoint;
             originalCandidate = digest(failedCandidate);
             await guard();
@@ -1049,25 +1065,17 @@ export async function recoverCandidateSigningCustody(
           deadline,
         );
         const producer = pendingRelease.executor_identity!;
-        const originalProducer = () =>
+        const originalProducer = async () =>
           inspectPendingReleaseProducer(
-            get(`actions/runs/${String(producer.run_id)}`),
-            get(`actions/runs/${String(producer.run_id)}/attempts/1`),
-            get(`actions/jobs/${String(producer.job_id)}`),
+            await metadata.run(String(producer.run_id)),
+            await metadata.attempt(String(producer.run_id), 1),
+            await metadata.job(Number(producer.job_id)),
             pendingRelease,
           );
         const observeRelease = () =>
-          observePendingCandidateRelease(api, pendingRelease, expected, (id, maximum) =>
-            readGitHubReleaseAsset(`${base}/releases/assets/${id}`, {
-              cwd: directory,
-              maxBytes: maximum,
-              timeoutMs: signingContextRemaining(deadline, 30000),
-              spawn: (command, args, settings) =>
-                spawnSync(command, args, { ...settings, env: environment }),
-            }),
-          );
+          observePendingCandidateRelease(metadata, pendingRelease, expected, readReleaseAsset);
         await guard();
-        const producerBefore = originalProducer();
+        const producerBefore = await originalProducer();
         const before = await observeRelease();
         await guard();
         const recovered = await recoverOwnedCapacityEffect(
@@ -1088,7 +1096,7 @@ export async function recoverCandidateSigningCustody(
               "original Release readback drifted",
             );
             assert.equal(
-              digest(originalProducer()),
+              digest(await originalProducer()),
               digest(producerBefore),
               "original publisher changed around readback",
             );
@@ -1106,6 +1114,8 @@ export async function recoverCandidateSigningCustody(
                   }),
             };
           },
+          undefined,
+          checkpointControls,
         );
         checkpoint = recovered.checkpoint;
         await guard();

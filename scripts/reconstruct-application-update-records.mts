@@ -1,4 +1,3 @@
-import type { BinaryLike } from "node:crypto";
 import type { ReleasePackagePolicy } from "./release-package-policy.mts";
 import type { UpdaterInventory } from "./updater-artifact-inventory.mts";
 interface ReconstructionOptions {
@@ -83,7 +82,7 @@ const limits = Object.freeze({
   payload: 2 * 1024 * 1024 * 1024,
 });
 
-function sha256(bytes: BinaryLike) {
+function sha256(bytes: string | NodeJS.ArrayBufferView) {
   return createHash("sha256").update(bytes).digest("hex");
 }
 

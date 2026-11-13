@@ -251,6 +251,16 @@
       "height": 962,
       "color_mode": "RGB",
       "sha256": "c20b79b0c36ea4a72fccd06d567c544155a95f4f014f1c729609d09bf104298e"
+    },
+    {
+      "id": "prototype-transparent-mascot-runtime",
+      "path": "apps/desktop/public/brand/icons/portcove-mascot-transparent.png",
+      "category": "approved_derivative",
+      "role": "Accepted prototype transparent mascot for sidebar identity, empty library, and About; exact supplied bytes",
+      "width": 1254,
+      "height": 1254,
+      "color_mode": "RGBA",
+      "sha256": "ba53e565053de95f35591467aa8fa54b5f271634ec36e9aab829b5fb74f5e6d7"
     }
   ],
   "vector_family": {

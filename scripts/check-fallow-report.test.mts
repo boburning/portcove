@@ -5,10 +5,15 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
+import manifest from "../package.json" with { type: "json" };
 
-import { evaluateFallowReport } from "./check-fallow-report.mts";
+import { evaluateFallowReport, reviewedFallowVersion } from "./check-fallow-report.mts";
 
 import { report } from "./fallow-test-fixture.mts";
+
+void test("reviewed Fallow report version matches the committed exact dependency", () => {
+  assert.equal(manifest.devDependencies.fallow, reviewedFallowVersion);
+});
 
 function requiredFixture<T>(value: T | undefined): T {
   assert.ok(value !== undefined);
@@ -77,10 +82,33 @@ void test("required-source read failures and empty analysis cannot qualify with 
 
 void test("future versions and schemas require explicit compatibility review", () => {
   for (const value of [
-    { ...report(), version: "3.34.2" },
-    { ...report(), schema_version: 15 },
+    { ...report(), version: "3.38.1" },
+    { ...report(), version: "3.39.1" },
+    { ...report(), schema_version: 14 },
+    { ...report(), schema_version: 16 },
   ])
     assert.throws(() => evaluateFallowReport(value), /Unsupported Fallow report/);
+});
+
+void test("partial runtime coverage remains unknown and cannot erase static qualification failures", () => {
+  const runtimeSummary = {
+    data_source: "cloud",
+    last_received_at: null,
+    functions_tracked: null,
+    functions_unhit: null,
+    coverage_percent: null,
+    capture_policy: "positive_only",
+  };
+  const value = report({ issues: 1, critical: 1 });
+  Object.assign(value.health, { runtime_coverage: { summary: runtimeSummary } });
+  const result = evaluateFallowReport(value, { requireParseGate: true });
+  assert.deepEqual(result.failures, [
+    "1 dead-code or dependency findings",
+    "1 critical complexity findings",
+  ]);
+  assert.equal(runtimeSummary.functions_tracked, null);
+  assert.equal(runtimeSummary.functions_unhit, null);
+  assert.equal(runtimeSummary.coverage_percent, null);
 });
 
 void test("malformed request-outcome containers cannot pass as an empty request inventory", () => {

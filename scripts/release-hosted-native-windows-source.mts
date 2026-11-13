@@ -1,3 +1,4 @@
+import { selectedHostedNativePlatform } from "./release-authority-configuration-contract.mts";
 /** Held source preparation only. Public observations cannot mint an original
  * parent, runtime or source receipt; no account or native candidate is executed. */
 import { nativeQualificationWorkerPath } from "./release-native-qualification-contract.mts";
@@ -15,6 +16,7 @@ import {
   readdirSync,
   realpathSync,
   writeSync,
+  type Stats,
 } from "node:fs";
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
@@ -275,6 +277,83 @@ export function inspectWindowsSourcePreparationInventory(
         bytes <= 512 * 1024 ** 2 && (info.isDirectory() || (info.isFile() && info.nlink === 1)),
       );
       if (info.isDirectory()) pending.push(filename);
+    }
+  }
+  return { entries: count, bytes };
+}
+
+function windowsPreparationLinkReplacement(
+  error: unknown,
+  filename: string,
+  requiredRoot: string,
+  live: boolean,
+  before: Stats,
+) {
+  if (
+    !live ||
+    filename === requiredRoot ||
+    !isRecord(error) ||
+    error.code !== "EBUSY" ||
+    !before.isDirectory() ||
+    before.isSymbolicLink()
+  )
+    return;
+  const after = lstatSync(filename);
+  return after.isSymbolicLink() ? after : undefined;
+}
+
+/** Live samples count link leaves without following them. Only the final
+ * settled dependency snapshot proves link targets and complete graph custody.
+ */
+export function inspectWindowsDependencyPreparationInventory(
+  root: string,
+  source: string,
+  active: () => void,
+  live = false,
+) {
+  const pending = [
+    root,
+    ...["node_modules", "apps/desktop/node_modules"].map((name) => path.join(source, name)),
+  ];
+  let count = 0,
+    bytes = 0;
+  while (pending.length) {
+    active();
+    const current = pending.pop()!,
+      info = lstatSync(current, { throwIfNoEntry: false });
+    assert.ok(++count <= 100000, "dependency preparation inventory entry bound exceeded");
+    if (!info) {
+      assert.notEqual(current, root, "required dependency preparation root disappeared");
+      continue;
+    }
+    bytes += info.size;
+    assert.ok(
+      bytes <= 2 * 1024 ** 3 &&
+        (info.isSymbolicLink() || info.isDirectory() || (info.isFile() && info.nlink === 1)),
+      "dependency preparation inventory exceeded",
+    );
+    if (info.isDirectory() && !info.isSymbolicLink()) {
+      let entries;
+      try {
+        entries = readdirSync(current);
+      } catch (error) {
+        if (windowsPreparationEntryDisappeared(error, current, root, live)) continue;
+        if (windowsPreparationDirectoryEnumerationDeferred(error, current, root, live)) continue;
+        const replacement = windowsPreparationLinkReplacement(error, current, root, live, info);
+        if (replacement) {
+          // pnpm may replace a staging directory with a junction during this sample.
+          // Count the refreshed leaf conservatively; never enumerate its target.
+          bytes += Math.max(0, replacement.size - info.size);
+          assert.ok(bytes <= 2 * 1024 ** 3, "dependency preparation inventory exceeded");
+          continue;
+        }
+        throw error;
+      }
+      assert.ok(
+        count + pending.length + entries.length <= 100000,
+        "dependency preparation inventory entry bound exceeded",
+      );
+      pending.push(...entries.map((name) => path.join(current, name)));
     }
   }
   return { entries: count, bytes };
@@ -560,41 +639,7 @@ async function acquireDependencies(planFile: string) {
   const inventory = (live = false) => {
     active();
     if (!created) return;
-    const pending = [
-      plan.root,
-      ...["node_modules", "apps/desktop/node_modules"].map((name) => path.join(plan.source, name)),
-    ];
-    let count = 0,
-      bytes = 0;
-    while (pending.length) {
-      active();
-      const current = pending.pop()!,
-        info = lstatSync(current, { throwIfNoEntry: false });
-      assert.ok(++count <= 100000);
-      if (!info) {
-        assert.notEqual(current, plan.root, "required dependency preparation root disappeared");
-        continue; // pnpm removes/renames live staging leaves; the final graph is strict.
-      }
-      bytes += info.size;
-      assert.ok(
-        bytes <= 2 * 1024 ** 3 &&
-          (info.isSymbolicLink() || info.isDirectory() || (info.isFile() && info.nlink === 1)),
-        "dependency preparation inventory exceeded",
-      );
-      if (info.isDirectory() && !info.isSymbolicLink()) {
-        let entries;
-        try {
-          entries = readdirSync(current);
-        } catch (error) {
-          if (windowsPreparationEntryDisappeared(error, current, plan.root, live)) continue;
-          if (windowsPreparationDirectoryEnumerationDeferred(error, current, plan.root, live))
-            continue;
-          throw error;
-        }
-        assert.ok(count + pending.length + entries.length <= 100000);
-        pending.push(...entries.map((name) => path.join(current, name)));
-      }
-    }
+    inspectWindowsDependencyPreparationInventory(plan.root, plan.source, active, live);
   };
   const environment = {
     SystemRoot: "C:\\Windows",
@@ -636,7 +681,7 @@ async function acquireDependencies(planFile: string) {
   created = true;
   phase("private-directory");
   const pnpmBefore = hash(await readControllerToolFile(plan.pnpm));
-  assert.equal((await command(plan.pnpm, ["--version"])).toString().trim(), nativePnpmVersion);
+  assert.equal((await command(plan.pnpm, ["--version"])).toString().trim(), nativePnpmVersion());
   phase("package-manager-version");
   await command(plan.pnpm, [
     "--dir",
@@ -872,7 +917,7 @@ async function prepareWindowsOperation(
     const root = path.join(parent.directory, `windows-${operation}`),
       entry = path.join(tools.root, "scripts/release-hosted-native-windows-source.bundle.mjs"),
       setup = path.join(tools.root, "scripts/release-hosted-native-windows-setup.cs.txt");
-    const selected = parent.configuration.hosted_native["windows-x86_64"].producer;
+    const selected = selectedHostedNativePlatform(parent.configuration, "windows-x86_64").producer;
     assert.equal(selected.harness.path, harness);
     const sourcePlan: Plan = {
       schema_version: 1,

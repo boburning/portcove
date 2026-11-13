@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { readFileSync, mkdtempSync, rmSync } from "node:fs";
+import { readFileSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
+import { spawnSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
 import { tmpdir } from "node:os";
 import { RoadmapBodyJournal, bodyOperationHash } from "./roadmap-body-progress.mts";
 import { continueRoadmapCapacity, roadmapQuotaDeferred } from "./roadmap-capacity-continuation.mts";
@@ -20,6 +22,44 @@ import { scopedIssueWithBlockers } from "./roadmap-scoped.mts";
 const config = validateConfig(
   JSON.parse(readFileSync(new URL("../.github/roadmap.json", import.meta.url), "utf8")),
 );
+
+void test("roadmap-edit check validates all local drafts before history publication", (t) => {
+  const directory = mkdtempSync(path.join(tmpdir(), "roadmap-body-check-"));
+  t.after(() => rmSync(directory, { recursive: true, force: true }));
+  const spec = path.join(directory, "spec.json");
+  const valid = path.join(directory, "valid.md");
+  const invalid = path.join(directory, "invalid.md");
+  const changed = path.join(directory, "changed.md");
+  const { body } = issue();
+  writeFileSync(valid, body);
+  writeFileSync(invalid, body.replace("## Required tests", "## Legacy heading"));
+  writeFileSync(changed, body + "\n<!-- portcove-port-key: changed -->");
+  const entry = (target: number, body_file: string) => ({
+    target,
+    body_file,
+    previous_body_file: valid,
+  });
+  const run = () =>
+    spawnSync(
+      process.execPath,
+      [
+        fileURLToPath(new URL("./roadmap-edit.mts", import.meta.url)),
+        "--spec-file",
+        spec,
+        "--check",
+      ],
+      { encoding: "utf8" },
+    );
+  writeFileSync(spec, JSON.stringify([entry(21, invalid), entry(22, changed)]));
+  const refused = run();
+  assert.equal(refused.status, 1);
+  assert.match(refused.stderr, /Issue #21.*Required tests/u);
+  assert.match(refused.stderr, /Issue #22.*canonical identity markers/u);
+  writeFileSync(spec, JSON.stringify([entry(21, valid)]));
+  const accepted = run();
+  assert.equal(accepted.status, 0, accepted.stderr);
+  assert.match(accepted.stdout, /Checked 1 proposed issue bodies locally/u);
+});
 
 void test("live authoring consumes the same enriched blocker memberships as scoped doctor", () => {
   const { item, body } = issue();
@@ -100,13 +140,13 @@ void test("explicit reconsideration fields pass without incidental resume verbs;
     );
   }
 });
-void test("production writer rejects lost metadata and identity before PATCH", () => {
+void test("production writer rejects lost metadata and identity before PATCH", async () => {
   const { item, body } = issue();
   let writes = 0;
   const api = {
-    request: (method: string) => {
+    request: async ({ method }: Parameters<BodyApi["request"]>[0]) => {
       if (method !== "GET") writes++;
-      return { body: { id: 1, number: 1, title: "[Port] Wave Race", body } };
+      return { data: { id: 1, number: 1, title: "[Port] Wave Race", body } };
     },
     validateRoadmapReplacement: (_number: number, previous: string, replacement: string) =>
       validateRoadmapReplacement(config, { ports: [] }, item, previous, replacement),
@@ -115,17 +155,17 @@ void test("production writer rejects lost metadata and identity before PATCH", (
     .replace(renderPortResearchDeclaration(), "")
     .replace("Not assigned (researched candidate)", "Unassigned");
   assert.throws(() => validateDurableIssueBody(missing), /research\/watchlist/);
-  assert.throws(
-    () =>
-      writeGitHubBody(
+  await assert.rejects(
+    async () =>
+      await writeGitHubBody(
         { operation: "issue-edit", target: 1, previousBody: body, body: missing },
         api,
       ),
     /research\/watchlist/,
   );
-  assert.throws(
-    () =>
-      writeGitHubBody(
+  await assert.rejects(
+    async () =>
+      await writeGitHubBody(
         {
           operation: "issue-edit",
           target: 1,
@@ -163,10 +203,10 @@ void test("invalid second batch proposal prevents every mutation and final audit
           : body,
       })),
       {
-        request: (method, endpoint) => {
+        request: async ({ method, url: endpoint }: Parameters<BodyApi["request"]>[0]) => {
           if (method !== "GET") writes++;
           const number = Number(endpoint.split("/").at(-1));
-          return { body: { id: number, number, title: "[Port] Wave Race", body: first.body } };
+          return { data: { id: number, number, title: "[Port] Wave Race", body: first.body } };
         },
         validateRoadmapReplacement: (number, previous, body) =>
           validateRoadmapReplacement(config, { ports: [] }, issue(number).item, previous, body),
@@ -195,7 +235,7 @@ void test("larger body batches retain scoped-check failures without a count-trig
         body: body + "\nAdditional evidence.",
       })),
       {
-        request: (method, endpoint, payload) => {
+        request: async ({ method, url: endpoint, data: payload }) => {
           const number = Number(endpoint.split("/").at(-1));
           if (method === "PATCH") {
             writes++;
@@ -208,7 +248,7 @@ void test("larger body batches retain scoped-check failures without a count-trig
             bodies.set(number, payload.body);
           }
           return {
-            body: { id: number, number, title: "[Port] Wave Race", body: bodies.get(number) },
+            data: { id: number, number, title: "[Port] Wave Race", body: bodies.get(number) },
           };
         },
         validateRoadmapReplacement: (number, previous, body) => {
@@ -240,7 +280,7 @@ function durableBodies(count: number) {
   const bodies = new Map(edits.map((edit) => [Number(edit.target), String(edit.previousBody)]));
   const writes = new Map<number, number>();
   const api: BodyApi = {
-    request: (method, endpoint, payload) => {
+    request: async ({ method, url: endpoint, data: payload }) => {
       const number = Number(endpoint.split("/").at(-1));
       if (method === "PATCH") {
         assert(payload && typeof payload === "object" && "body" in payload);
@@ -248,7 +288,7 @@ function durableBodies(count: number) {
         writes.set(number, (writes.get(number) ?? 0) + 1);
       }
       return {
-        body: { id: number + 1000, number, title: "Finite task", body: bodies.get(number) },
+        data: { id: number + 1000, number, title: "Finite task", body: bodies.get(number) },
       };
     },
     validateRoadmapReplacement: () => {},
@@ -339,13 +379,13 @@ void test("a completed body write with a lost response resumes readback without 
     let lost = true;
     const api: BodyApi = {
       ...h.api,
-      request: (method, ...args) => {
-        if (method === "PATCH" && lost) {
+      request: async (options) => {
+        if (options.method === "PATCH" && lost) {
           lost = false;
-          if (applied) h.api.request(method, ...args);
+          if (applied) await h.api.request(options);
           throw new Error("original mutation response lost");
         }
-        return h.api.request(method, ...args);
+        return await h.api.request(options);
       },
     };
     const run = () =>
@@ -445,4 +485,130 @@ void test("an exact desired body reached after staged preflight resumes without 
   assert.equal(result.results.length, 3);
   assert.equal(h.writes.has(1), false);
   assert.equal(h.writes.size, 2);
+});
+
+void test("command scope refuses an overlong or overrun quota wait without renewed credentials or requests", async (t) => {
+  const { createRoadmapRequestScope } = await import("./roadmap-capacity-continuation.mts");
+  const { localDeveloperCredential } = await import("./github-cli.mts");
+  const { createGitHubClient } = await import("./github-client.mts");
+  for (const overrun of [false, true])
+    await t.test(overrun ? "admitted wait overruns" : "required wait cannot fit", async () => {
+      let monotonic = 1000,
+        wall = Date.parse("2026-11-04T00:00:00Z"),
+        resolutions = 0,
+        requests = 0,
+        waits = 0;
+      const credential = localDeveloperCredential({
+        environment: {},
+        deadline: 101000,
+        resolve: async () => {
+          resolutions++;
+          return "synthetic-command-scope";
+        },
+      });
+      const scope = createRoadmapRequestScope({
+        allowMutations: true,
+        milliseconds: 100000,
+        credential,
+        now: () => monotonic,
+      });
+      const failure = roadmapQuotaDeferred(
+        "preflight",
+        {},
+        { remaining: 0, resetAt: new Date(wall + (overrun ? 1000 : 200000)).toISOString() },
+      );
+      await assert.rejects(
+        continueRoadmapCapacity(
+          async () => {
+            const client = await createGitHubClient({
+              ...scope,
+              wallNow: () => wall,
+              fetch: async (_url, init) => {
+                requests++;
+                assert.equal(init?.method, "GET");
+                return Response.json({ id: 1 });
+              },
+            });
+            await client.request("GET /rate_limit");
+            throw failure;
+          },
+          {
+            now: () => wall,
+            deadline: scope.deadline,
+            monotonicNow: scope.now,
+            wait: async (until) => {
+              waits++;
+              wall = until;
+              monotonic = scope.deadline + 1;
+            },
+          },
+        ),
+        (error) => error === failure,
+      );
+      assert.equal(waits, overrun ? 1 : 0);
+      assert.equal(requests, 1);
+      assert.equal(resolutions, 1);
+    });
+});
+
+void test("command scope retains cumulative bytes and recovery state across admitted quota windows", async () => {
+  const { createRoadmapRequestScope } = await import("./roadmap-capacity-continuation.mts");
+  const { localDeveloperCredential } = await import("./github-cli.mts");
+  const { createGitHubClient } = await import("./github-client.mts");
+  let monotonic = 1000,
+    wall = Date.parse("2026-11-04T00:00:00Z"),
+    resolutions = 0,
+    requests = 0,
+    windows = 0;
+  const scope = createRoadmapRequestScope({
+    allowMutations: true,
+    milliseconds: 100000,
+    maximumMetadataBytes: 12,
+    now: () => monotonic,
+    credential: localDeveloperCredential({
+      environment: {},
+      deadline: 101000,
+      resolve: async () => {
+        resolutions++;
+        return "synthetic-command-scope";
+      },
+    }),
+  });
+  const prior = { replay: "safe-read" as const, attempts: 3 };
+  scope.failedReads.set("earlier-exhausted-read", prior);
+  await assert.rejects(
+    continueRoadmapCapacity(
+      async () => {
+        windows++;
+        assert.equal(scope.failedReads.get("earlier-exhausted-read"), prior);
+        const client = await createGitHubClient({
+          ...scope,
+          wallNow: () => wall,
+          fetch: async () => {
+            requests++;
+            return Response.json({ id: 1 });
+          },
+        });
+        await client.request("GET /rate_limit");
+        throw roadmapQuotaDeferred(
+          "preflight",
+          {},
+          { remaining: 0, resetAt: new Date(wall + 1000).toISOString() },
+        );
+      },
+      {
+        now: () => wall,
+        deadline: scope.deadline,
+        monotonicNow: scope.now,
+        wait: async (until) => {
+          monotonic += until - wall;
+          wall = until;
+        },
+      },
+    ),
+    { code: "budget_exhausted" },
+  );
+  assert.equal(windows, 2);
+  assert.equal(requests, 2);
+  assert.equal(resolutions, 1);
 });

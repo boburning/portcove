@@ -218,6 +218,7 @@ function readCheckpoint(git: Git, commit: string) {
     state.previous === null &&
     (checked.input.review_request != null ||
       checked.input.review_disposition != null ||
+      checked.input.review_withdrawal != null ||
       checked.input.catalog_review_request != null ||
       checked.input.catalog_review_disposition != null)
   )
@@ -234,6 +235,26 @@ export function readRetainedCoordinatorCheckpoint(repository: string, checkpoint
     ...readCheckpoint(gitRepository(repository), checkpoint),
     authority: "none" as const,
   };
+}
+
+/** Advance only the owned local ref to previously hydrated claim bytes. The
+ * caller must bind the remote claim before any protected journal effect. */
+export async function stageRetainedCoordinatorClaim(
+  repository: string,
+  previous: string,
+  child: string,
+) {
+  identity(previous);
+  identity(child);
+  const git = gitRepository(repository);
+  const before = readCheckpoint(git, previous);
+  const checked = readCheckpoint(git, child);
+  if (checked.previous !== previous)
+    throw new Error("retained claim does not extend the owned local checkpoint");
+  transition(before, checked.input, previous);
+  const { verifies } = inspectCheckpoint(git, child);
+  await git.transaction([`update ${coordinatorStateRef} ${child} ${previous}`, ...verifies]);
+  return { checkpoint: child, input: checked.input };
 }
 
 /** Resolve public raw receipts referenced by a compact summary in this same
@@ -509,6 +530,7 @@ export async function checkpointReleaseOpportunity(
   else if (
     input.review_request != null ||
     input.review_disposition != null ||
+    input.review_withdrawal != null ||
     input.catalog_review_request != null ||
     input.catalog_review_disposition != null
   )

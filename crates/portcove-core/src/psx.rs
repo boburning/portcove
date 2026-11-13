@@ -3,19 +3,17 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use futures_util::StreamExt;
 use serde::{Deserialize, Serialize};
-use tokio::io::AsyncWriteExt;
 use uuid::Uuid;
 
 use crate::{
     ChildProcessClass, ChildProcessPolicy, Library, OperationCoordinator, OperationEvent,
-    OperationResult, Platform, PortcoveError, Result, SourceRecord,
-    adapter::hash_file,
-    archive::{extract_archive, validate_download_progress, validate_download_size},
+    OperationResult, Platform, PortcoveError, Result, SourceRecord, adapter::hash_file,
+    archive::extract_archive_with_checkpoint,
 };
 
 const TOOLCHAIN_VERSION: &str = "1.0.14";
+const APPLE_SYSTEM_BIN: &str = "/usr/bin";
 
 #[derive(Debug, Clone)]
 pub struct PsxManagedPreparation {
@@ -23,14 +21,20 @@ pub struct PsxManagedPreparation {
     pub bios: Option<SourceRecord>,
     pub source_paths: Vec<PathBuf>,
     pub runtime_source_directory: Option<PathBuf>,
+    /// Each disc's exact catalog track count, in disc order, for a
+    /// `runtime_source_directory` set; empty otherwise.
+    pub runtime_track_counts: Vec<u32>,
     pub toolchain_root: PathBuf,
     pub executable_basename: String,
+    /// The route persists split player mod paths rather than all of `mods`.
+    pub split_mod_packages: bool,
 }
 
 struct PreparationConfiguration<'a> {
     primary_source: &'a Path,
     source_paths: &'a [PathBuf],
     runtime_source_directory: Option<&'a Path>,
+    runtime_track_counts: &'a [u32],
     executable_basename: &'a str,
 }
 
@@ -71,11 +75,20 @@ impl<'a> PreparationConfiguration<'a> {
                 )
                 .detail("preparation_field", "runtime_source_directory"));
             }
+            if preparation.runtime_track_counts.len() != preparation.source_paths.len()
+                || preparation.runtime_track_counts.contains(&0)
+            {
+                return Err(PortcoveError::verification(
+                    "managed PS1 runtime materialization requires one track count per disc",
+                )
+                .detail("preparation_field", "runtime_track_counts"));
+            }
         }
         Ok(Self {
             primary_source,
             source_paths: &preparation.source_paths,
             runtime_source_directory,
+            runtime_track_counts: &preparation.runtime_track_counts,
             executable_basename: &preparation.executable_basename,
         })
     }
@@ -289,6 +302,45 @@ fn bios_config_value_end(tokens: &[ConfigToken], start: usize) -> Result<usize> 
     Ok(cursor)
 }
 
+/// The catalog BIOS profile a kit's own `[recompiler] bios_config` selects,
+/// when it names one of the reviewed retail images. Unknown or absent
+/// configurations return `None` and are left to the kit.
+fn kit_bios_profile(root: &Path) -> Result<Option<&'static str>> {
+    let Some(config) = bios_config_string(&root.join("game.toml"), "recompiler", "bios_config")?
+    else {
+        return Ok(None);
+    };
+    let stem = Path::new(config.trim())
+        .file_stem()
+        .and_then(|stem| stem.to_str())
+        .map(str::to_ascii_uppercase);
+    Ok(match stem.as_deref() {
+        Some("SCPH1001") => Some("psx-scph-1001-bios"),
+        Some("SCPH5552" | "SCPH5502") => Some("psx-scph-5552-bios"),
+        Some("SCPH5500") => Some("psx-scph-5500-bios"),
+        _ => None,
+    })
+}
+
+/// A kit configured for one reviewed retail BIOS must not be built with the
+/// image of another. Older frameworks stage whatever file they are given.
+fn require_kit_bios_profile(root: &Path, registered: &str) -> Result<()> {
+    if !matches!(
+        registered,
+        "psx-scph-1001-bios" | "psx-scph-5552-bios" | "psx-scph-5500-bios"
+    ) {
+        return Ok(());
+    }
+    match kit_bios_profile(root)? {
+        Some(expected) if expected != registered => Err(PortcoveError::install(
+            "this PS1 kit is set up for a different BIOS than the one this game needs, so nothing was installed or changed",
+        )
+        .detail("kit_bios_profile", expected)
+        .detail("registered_bios_profile", registered)),
+        _ => Ok(()),
+    }
+}
+
 fn staged_bios_path(root: &Path) -> Result<PathBuf> {
     let profile = bios_config_string(&root.join("game.toml"), "recompiler", "bios_config")?
         .map(|value| value.trim().to_owned())
@@ -407,15 +459,23 @@ where
     let destination = library
         .toolchains_dir()
         .join("cmake-clang-v1")
-        .join(TOOLCHAIN_VERSION);
-    if validate_toolchain(&destination, platform, artifact)? {
+        .join(toolchain_cache_coordinate(platform));
+    let destination_existed = destination.exists();
+    if validate_toolchain_with_checkpoint(&destination, platform, artifact, || {
+        operation.checkpoint()
+    })? {
+        require_macos_toolchain_executables(&destination, platform, operation)?;
         return Ok(destination);
+    }
+
+    if destination_existed {
+        refuse_unverified_mac_toolchain(&destination, platform)?;
     }
 
     let operation_root = library
         .staging_dir()
         .join(format!("psx-toolchain-{}", Uuid::new_v4()));
-    let guard = DirectoryGuard(operation_root.clone());
+    let guard = std::sync::Arc::new(DirectoryGuard(operation_root.clone()));
     let unpacked = operation_root.join("unpacked");
     fs::create_dir_all(&unpacked)?;
     let archive_path = operation_root.join(artifact.name);
@@ -423,61 +483,68 @@ where
         "https://github.com/TechnicallyComputers/retcomm-toolchains/releases/download/v{TOOLCHAIN_VERSION}/{}",
         artifact.name
     );
-    let client = reqwest::Client::builder()
-        .user_agent(concat!("Portcove/", env!("CARGO_PKG_VERSION")))
-        .build()
-        .map_err(|error| PortcoveError::network(error.to_string()))?;
-    let response = client
-        .get(url)
-        .send()
-        .await
-        .map_err(|error| PortcoveError::network(error.to_string()))?
-        .error_for_status()
-        .map_err(|error| PortcoveError::network(error.to_string()))?;
-    validate_download_progress(0, artifact.size)?;
-    let mut stream = response.bytes_stream();
-    let mut file = tokio::fs::File::create(&archive_path).await?;
-    let mut completed = 0_u64;
-    let mut reported = 0_u64;
-    while let Some(chunk) = stream.next().await {
-        let chunk = chunk.map_err(|error| PortcoveError::network(error.to_string()))?;
-        file.write_all(&chunk).await?;
-        completed += chunk.len() as u64;
-        validate_download_progress(completed, artifact.size)?;
-        if completed == artifact.size || completed.saturating_sub(reported) >= 1024 * 1024 {
-            emit(operation.progress_with_unit(
-                "psx-toolchain-download",
-                crate::ProgressUnit::Bytes,
-                completed,
-                Some(artifact.size),
-            ));
-            reported = completed;
+    let client = crate::install::default_download_client()?;
+    let asset = crate::ReleaseAsset {
+        name: artifact.name.into(),
+        url,
+        size: artifact.size,
+        sha256: artifact.sha256.into(),
+    };
+    crate::Installer::download_with_client(
+        &client,
+        &asset,
+        &archive_path,
+        operation,
+        &mut |mut event| {
+            if let crate::OperationEventKind::Progress {
+                phase, phase_id, ..
+            } = &mut event.event
+            {
+                *phase = "psx-toolchain-download".into();
+                *phase_id = Some(phase.clone());
+            }
+            emit(event);
+        },
+    )
+    .await?;
+    let extraction_guard = guard.clone();
+    let extraction_operation = operation.clone();
+    let extraction_root = unpacked.clone();
+    tokio::task::spawn_blocking(move || {
+        // Keep staging owned until extraction quiesces even if the caller drops its future.
+        let _guard = extraction_guard;
+        let operation = &extraction_operation;
+        let unpacked = extraction_root;
+        let (actual_sha256, actual_size) = crate::adapter::hash_file_bounded_with_checkpoint(
+            &archive_path,
+            artifact.size,
+            || operation.checkpoint(),
+        )?;
+        if actual_size != artifact.size || !actual_sha256.eq_ignore_ascii_case(artifact.sha256) {
+            return Err(PortcoveError::verification(
+                "PS1 toolchain failed its pinned artifact verification",
+            )
+            .detail("expected_sha256", artifact.sha256)
+            .detail("actual_sha256", actual_sha256)
+            .detail("expected_size", artifact.size.to_string())
+            .detail("actual_size", actual_size.to_string()));
         }
-    }
-    if completed != reported {
-        emit(operation.progress_with_unit(
-            "psx-toolchain-download",
-            crate::ProgressUnit::Bytes,
-            completed,
-            Some(artifact.size),
-        ));
-    }
-    file.flush().await?;
-    drop(file);
-    validate_download_size(completed, artifact.size)?;
-    let (actual_sha256, actual_size) = hash_file(&archive_path)?;
-    if actual_size != artifact.size || !actual_sha256.eq_ignore_ascii_case(artifact.sha256) {
-        return Err(PortcoveError::verification(
-            "PS1 toolchain failed its pinned artifact verification",
-        )
-        .detail("expected_sha256", artifact.sha256)
-        .detail("actual_sha256", actual_sha256)
-        .detail("expected_size", artifact.size.to_string())
-        .detail("actual_size", actual_size.to_string()));
-    }
 
-    extract_archive(&archive_path, &unpacked, artifact.name, artifact.size)?;
+        extract_archive_with_checkpoint(
+            &archive_path,
+            &unpacked,
+            artifact.name,
+            artifact.size,
+            &|| operation.checkpoint(),
+        )?;
+        Ok::<(), PortcoveError>(())
+    })
+    .await
+    .map_err(|error| {
+        PortcoveError::install(format!("PS1 toolchain extraction failed: {error}"))
+    })??;
     let pack_root = locate_pack_root(&unpacked)?;
+    require_macos_toolchain_executables(&pack_root, platform, operation)?;
     let critical_files = toolchain_file_identities(&pack_root, platform)?;
     let marker = ToolchainMarker {
         schema_version: 2,
@@ -491,18 +558,64 @@ where
         pack_root.join(".portcove-toolchain.json"),
         serde_json::to_vec_pretty(&marker)?,
     )?;
-    fs::create_dir_all(destination.parent().expect("toolchain has a parent"))?;
-    if destination.exists() {
-        fs::remove_dir_all(&destination)?;
+    publish_toolchain_cache(library, &pack_root, &destination, platform, operation).await?;
+    drop(guard);
+    Ok(destination)
+}
+
+async fn publish_toolchain_cache(
+    library: &Library,
+    pack_root: &Path,
+    destination: &Path,
+    platform: Platform,
+    operation: &OperationCoordinator,
+) -> Result<()> {
+    let artifact = toolchain_artifact(platform)?;
+    let started = std::time::Instant::now();
+    let _publication = loop {
+        operation.checkpoint()?;
+        match library.try_lock_psx_toolchain_publication() {
+            Ok(lock) => break lock,
+            Err(error)
+                if error.code == crate::ErrorCode::Conflict
+                    && started.elapsed() < std::time::Duration::from_secs(10) =>
+            {
+                tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+            }
+            Err(error) => return Err(error),
+        }
+    };
+
+    // Another title can publish the shared pack while this one downloads.
+    // Never replace a valid cache that its builder may already be using.
+    if validate_toolchain_with_checkpoint(destination, platform, artifact, || {
+        operation.checkpoint()
+    })? {
+        return require_macos_toolchain_executables(destination, platform, operation);
     }
-    crate::durability::rename_noreplace(&pack_root, &destination)?;
-    if !validate_toolchain(&destination, platform, artifact)? {
+    operation.checkpoint()?;
+    fs::create_dir_all(destination.parent().expect("toolchain has a parent"))?;
+    refuse_unverified_mac_toolchain(destination, platform)?;
+    if destination.exists() {
+        fs::remove_dir_all(destination)?;
+    }
+    crate::durability::rename_noreplace(pack_root, destination)?;
+    if !validate_toolchain(destination, platform, artifact)? {
         return Err(PortcoveError::verification(
             "installed PS1 toolchain did not pass its post-install checks",
         ));
     }
-    drop(guard);
-    Ok(destination)
+    Ok(())
+}
+
+fn refuse_unverified_mac_toolchain(destination: &Path, platform: Platform) -> Result<()> {
+    if matches!(platform, Platform::MacosAarch64 | Platform::MacosX86_64) && destination.exists() {
+        return Err(PortcoveError::conflict(
+            "The Mac PS1 toolchain cache is occupied by unverified content; preserve it for review",
+        )
+        .detail("directory", destination.display().to_string()));
+    }
+    Ok(())
 }
 
 pub(crate) fn prepare_install(
@@ -538,6 +651,7 @@ fn prepare_install_inner(
         .bios
         .as_ref()
         .map(|bios| {
+            require_kit_bios_profile(root, &bios.profile_id)?;
             let staged = staged_bios_path(root)?;
             if crate::path::resolve_existing_ancestor(&staged)? == fs::canonicalize(&bios.path)? {
                 return Err(PortcoveError::verification(
@@ -547,7 +661,8 @@ fn prepare_install_inner(
             Ok(staged)
         })
         .transpose()?;
-    let python = toolchain_python(&preparation.toolchain_root)?;
+    let platform = Platform::current()?;
+    let python = toolchain_python(&preparation.toolchain_root, platform)?;
     operation.checkpoint()?;
     let temporary = retained_source_workspace(root)?;
     let cue = materialize_managed_disc(
@@ -565,6 +680,7 @@ fn prepare_install_inner(
         &cue,
         preparation.bios.as_ref().map(|bios| bios.path.as_path()),
     )?;
+    require_macos_toolchain_executables(&preparation.toolchain_root, platform, operation)?;
     run_cli(
         &python,
         &cli,
@@ -579,6 +695,7 @@ fn prepare_install_inner(
     }
     rewrite_game_discs(&config, configuration.source_paths)?;
     let build_dir = root.join("build-portcove");
+    require_macos_toolchain_executables(&preparation.toolchain_root, platform, operation)?;
     run_cli(
         &python,
         &cli,
@@ -588,6 +705,10 @@ fn prepare_install_inner(
         operation,
         quiesced,
     )?;
+    require_no_fetched_overlay_toolchain(root, &build_dir)?;
+    if preparation.split_mod_packages {
+        require_no_build_staged_player_packages(&build_dir)?;
+    }
     let executable = platform_executable(&build_dir, configuration.executable_basename);
     if !executable.is_file() {
         return Err(PortcoveError::install(format!(
@@ -603,6 +724,8 @@ fn prepare_install_inner(
             relative,
             &preparation.source,
             configuration.source_paths,
+            configuration.runtime_track_counts,
+            None,
         )?
     } else {
         configuration.source_paths.to_vec()
@@ -637,7 +760,7 @@ pub(crate) fn rewrite_game_discs(config: &Path, sources: &[PathBuf]) -> Result<(
     }
     let body = fs::read_to_string(config)?;
     let (tokens, comments) = config_tokens(&body)?;
-    let (header_end, field) = config_disc_field(&body, &tokens)?;
+    let (header_end, field, companion) = config_disc_field(&body, &tokens)?;
     let newline = if body.contains("\r\n") { "\r\n" } else { "\n" };
     let sources = sources
         .iter()
@@ -650,7 +773,12 @@ pub(crate) fn rewrite_game_discs(config: &Path, sources: &[PathBuf]) -> Result<(
             )
         })
         .collect::<Result<Vec<_>>>()?;
-    let key = if sources.len() == 1 { "disc" } else { "discs" };
+    // A kit declaring both forms keeps both: the roster and its first disc.
+    let key = if sources.len() == 1 && companion.is_none() {
+        "disc"
+    } else {
+        "discs"
+    };
     let retained_comments = field
         .as_ref()
         .map(|(_, value)| {
@@ -661,12 +789,12 @@ pub(crate) fn rewrite_game_discs(config: &Path, sources: &[PathBuf]) -> Result<(
                 .collect::<Vec<_>>()
         })
         .unwrap_or_default();
-    let mut value = if sources.len() == 1 {
+    let mut value = if key == "disc" {
         sources[0].clone()
     } else {
         format!("[{newline}")
     };
-    if sources.len() > 1 {
+    if key == "discs" {
         for source in &sources {
             value.push_str(&format!("    {source},{newline}"));
         }
@@ -689,7 +817,18 @@ pub(crate) fn rewrite_game_discs(config: &Path, sources: &[PathBuf]) -> Result<(
     // the final newline are retained; comments within old values remain in order.
     // This is an editor for the fixed game/disc contract, not a TOML validator.
     let mut output = body.clone();
-    if let Some((old_key, old_value)) = field {
+    if let Some((_, companion_value)) = &companion {
+        // Replace the later span first so earlier offsets stay valid.
+        let (_, old_value) = field.as_ref().expect("a companion has a roster");
+        let mut spans = [
+            (old_value.clone(), value.as_str()),
+            (companion_value.clone(), sources[0].as_str()),
+        ];
+        spans.sort_by_key(|(range, _)| std::cmp::Reverse(range.start));
+        for (range, text) in spans {
+            output.replace_range(range, text);
+        }
+    } else if let Some((old_key, old_value)) = field {
         output.replace_range(old_value, &value);
         if config_key(&body, tokens_for_range(&tokens, &old_key))? != [key] {
             let replacement = match body.as_bytes()[old_key.start] {
@@ -714,6 +853,137 @@ pub(crate) fn rewrite_game_discs(config: &Path, sources: &[PathBuf]) -> Result<(
     }
     fs::write(config, output)?;
     Ok(())
+}
+
+/// Record a launch-time disc choice as PSXRecomp's own `[disc] selected`
+/// setting. The runtime derives both the mounted disc and its save-state disc
+/// scope from that 1-based index; a `--disc` override would mount the disc but
+/// keep the previous scope. Only the `selected` value span changes, or one line
+/// is added, so the player's other settings, comments and line endings remain.
+/// Representations this editor cannot place exactly are refused.
+pub(crate) fn select_settings_disc(settings: &Path, disc: u32) -> Result<()> {
+    crate::path::refuse_symlink_ancestors(settings)?;
+    let body = if settings.try_exists()? {
+        let bytes = crate::path::read_bounded_regular(settings, 256 * 1024)?;
+        String::from_utf8(bytes).map_err(|_| settings_error("it is not UTF-8"))?
+    } else {
+        String::new()
+    };
+    let output = settings_with_selected_disc(&body, disc)?;
+    crate::durability::write_bytes_atomically_with_prefix(
+        settings,
+        output.as_bytes(),
+        true,
+        Some(".portcove-settings-"),
+    )
+}
+
+fn settings_error(reason: &str) -> PortcoveError {
+    PortcoveError::launch(
+        "Portcove could not record the disc choice in this game's settings file. Start the game without a disc choice, or open the game once so it rewrites the file, then try again.",
+    )
+    .detail("settings_disc_reason", reason)
+}
+
+fn settings_with_selected_disc(body: &str, disc: u32) -> Result<String> {
+    let (tokens, _) = config_tokens(body).map_err(|_| settings_error("it is not valid TOML"))?;
+    let newline = if body.contains("\r\n") { "\r\n" } else { "\n" };
+    let mut section = Vec::new();
+    let mut header_end = None;
+    let mut selected = None;
+    let mut cursor = 0;
+    while cursor < tokens.len() {
+        if tokens[cursor].kind == ConfigTokenKind::Newline {
+            cursor += 1;
+            continue;
+        }
+        if tokens[cursor].kind == ConfigTokenKind::Symbol(b'[') {
+            let end = tokens[cursor..]
+                .iter()
+                .position(|token| token.kind == ConfigTokenKind::Newline)
+                .map_or(tokens.len(), |offset| cursor + offset);
+            let array = tokens
+                .get(cursor + 1)
+                .is_some_and(|token| token.kind == ConfigTokenKind::Symbol(b'['));
+            let delimiters = if array { 2 } else { 1 };
+            if end <= cursor + delimiters * 2
+                || !tokens[end - delimiters..end]
+                    .iter()
+                    .all(|token| token.kind == ConfigTokenKind::Symbol(b']'))
+            {
+                return Err(settings_error("a table header is invalid"));
+            }
+            section = config_key(body, &tokens[cursor + delimiters..end - delimiters])
+                .map_err(|_| settings_error("a table name is invalid"))?;
+            if section == ["disc"] {
+                if array || header_end.is_some() {
+                    return Err(settings_error("the disc table is ambiguous"));
+                }
+                header_end = Some(tokens.get(end).map_or(body.len(), |token| token.span.end));
+            } else if section.first().is_some_and(|name| name == "disc")
+                && (array || section.get(1).is_some_and(|name| name == "selected"))
+            {
+                return Err(settings_error("the disc table is ambiguous"));
+            }
+            cursor = end;
+            continue;
+        }
+        let start = cursor;
+        while cursor < tokens.len()
+            && !matches!(
+                tokens[cursor].kind,
+                ConfigTokenKind::Symbol(b'=') | ConfigTokenKind::Newline
+            )
+        {
+            cursor += 1;
+        }
+        if tokens
+            .get(cursor)
+            .is_none_or(|token| token.kind != ConfigTokenKind::Symbol(b'='))
+        {
+            return Err(settings_error("a setting has no value"));
+        }
+        let key = config_key(body, &tokens[start..cursor])
+            .map_err(|_| settings_error("a setting name is invalid"))?;
+        cursor += 1;
+        let value_start = cursor;
+        cursor = bios_config_value_end(&tokens, cursor)
+            .map_err(|_| settings_error("a setting value is invalid"))?;
+        if section.is_empty() && key.first().is_some_and(|name| name == "disc") {
+            return Err(settings_error("the disc table is not a plain table"));
+        }
+        if section != ["disc"] || key.first().is_none_or(|name| name != "selected") {
+            continue;
+        }
+        if key.len() != 1 || selected.is_some() {
+            return Err(settings_error("the selected disc is ambiguous"));
+        }
+        selected = Some(tokens[value_start].span.start..tokens[cursor - 1].span.end);
+    }
+
+    let mut output = body.to_owned();
+    let value = disc.to_string();
+    match (selected, header_end) {
+        (Some(span), _) => output.replace_range(span, &value),
+        (None, Some(end)) => {
+            let separator = if body[..end].ends_with('\n') {
+                ""
+            } else {
+                newline
+            };
+            output.insert_str(end, &format!("{separator}selected = {value}{newline}"));
+        }
+        (None, None) => {
+            if !output.is_empty() {
+                if !output.ends_with('\n') {
+                    output.push_str(newline);
+                }
+                output.push_str(newline);
+            }
+            output.push_str(&format!("[disc]{newline}selected = {value}{newline}"));
+        }
+    }
+    Ok(output)
 }
 
 #[derive(Clone, Copy, PartialEq)]
@@ -966,16 +1236,17 @@ fn config_key(body: &str, tokens: &[ConfigToken]) -> Result<Vec<String>> {
     Ok(parts)
 }
 
-type ConfigDiscField = (
-    usize,
-    Option<(std::ops::Range<usize>, std::ops::Range<usize>)>,
-);
+type ConfigDiscEntry = (std::ops::Range<usize>, std::ops::Range<usize>);
+/// The `[game]` header end, the disc field, and for PSXRecomp `7192402` kits
+/// that declare both forms, the singular `disc` beside the `discs` roster.
+type ConfigDiscField = (usize, Option<ConfigDiscEntry>, Option<ConfigDiscEntry>);
 
 fn config_disc_field(body: &str, tokens: &[ConfigToken]) -> Result<ConfigDiscField> {
     let mut cursor = 0;
     let mut in_game = false;
     let mut header_end = None;
-    let mut field = None;
+    let mut singular: Option<ConfigDiscEntry> = None;
+    let mut plural: Option<ConfigDiscEntry> = None;
     while cursor < tokens.len() {
         if tokens[cursor].kind == ConfigTokenKind::Newline {
             cursor += 1;
@@ -1055,20 +1326,28 @@ fn config_disc_field(body: &str, tokens: &[ConfigToken]) -> Result<ConfigDiscFie
                 .first()
                 .is_some_and(|key| matches!(key.as_str(), "disc" | "discs"))
         {
-            if key.len() != 1 || field.is_some() {
+            let is_plural = key[0] == "discs";
+            let slot = if is_plural {
+                &mut plural
+            } else {
+                &mut singular
+            };
+            if key.len() != 1 || slot.is_some() {
                 return Err(config_error("ambiguous disc field"));
             }
-            validate_disc_tokens(&tokens[value_start..cursor], key[0] == "discs")?;
-            field = Some((
+            validate_disc_tokens(&tokens[value_start..cursor], is_plural)?;
+            *slot = Some((
                 tokens[start].span.start..tokens[equals - 1].span.end,
                 tokens[value_start].span.start..tokens[cursor - 1].span.end,
             ));
         }
     }
-    Ok((
-        header_end.ok_or_else(|| config_error("missing game table"))?,
-        field,
-    ))
+    let header_end = header_end.ok_or_else(|| config_error("missing game table"))?;
+    Ok(match (singular, plural) {
+        // PSXRecomp reads `discs` when present; `disc` names disc 1.
+        (Some(singular), Some(plural)) => (header_end, Some(plural), Some(singular)),
+        (field, None) | (None, field) => (header_end, field, None),
+    })
 }
 
 fn validate_disc_tokens(tokens: &[ConfigToken], plural: bool) -> Result<()> {
@@ -1112,12 +1391,14 @@ fn materialize_runtime_raw_set(
     relative: &Path,
     source: &SourceRecord,
     source_paths: &[PathBuf],
+    track_counts: &[u32],
+    pinned_tool: Option<&Path>,
 ) -> Result<Vec<PathBuf>> {
     let relative_text = crate::path::unicode(relative, "managed PS1 runtime source")?;
     let normalized_relative = relative_text.replace('\\', "/");
     crate::archive::validate_relative_path(&normalized_relative, false)?;
     let destination = build_dir.join(relative);
-    crate::adapter::materialize_psx_cue_set(&source.path, &destination)?;
+    crate::adapter::materialize_psx_cue_set(&source.path, &destination, track_counts, pinned_tool)?;
 
     let mut runtime_sources = Vec::with_capacity(source_paths.len());
     let mut hashes = Vec::with_capacity(source_paths.len());
@@ -1134,9 +1415,18 @@ fn materialize_runtime_raw_set(
         hashes.push(sha256);
         total_size = total_size.saturating_add(size);
         let cue_filename = format!("disc-{:02}.cue", index + 1);
-        if !destination.join(&cue_filename).is_file() {
+        let cue = destination.join(&cue_filename);
+        if !cue.is_file() {
             return Err(PortcoveError::verification(format!(
                 "managed PS1 runtime source is missing {cue_filename}"
+            )));
+        }
+        // Only the data track is hash-bound; the cue must still name it first
+        // and carry the disc's exact catalog track count.
+        let (track_count, data_track) = crate::adapter::inspect_psx_cue(&cue)?;
+        if Some(&track_count) != track_counts.get(index) || data_track != materialized {
+            return Err(PortcoveError::verification(format!(
+                "managed PS1 runtime source {cue_filename} does not match its catalog tracks"
             )));
         }
         runtime_sources.push(PathBuf::from(format!(
@@ -1235,7 +1525,7 @@ fn rebuild_arguments(
     build_dir: &Path,
     executable_basename: &str,
 ) -> Result<Vec<String>> {
-    Ok(vec![
+    let mut arguments = vec![
         "rebuild".into(),
         "--config".into(),
         crate::path::unicode(config, "managed build config")?,
@@ -1257,7 +1547,18 @@ fn rebuild_arguments(
         // retained lifetime membership limit still applies to direct compilers.
         "--cmake-extra=-DCMAKE_C_COMPILER_LAUNCHER:STRING=".into(),
         "--cmake-extra=-DCMAKE_CXX_COMPILER_LAUNCHER:STRING=".into(),
-    ])
+    ];
+    let architecture = match Platform::current()? {
+        Platform::MacosAarch64 => Some("arm64"),
+        Platform::MacosX86_64 => Some("x86_64"),
+        _ => None,
+    };
+    if let Some(architecture) = architecture {
+        arguments.push(format!(
+            "--cmake-extra=-DCMAKE_OSX_ARCHITECTURES:STRING={architecture}"
+        ));
+    }
+    Ok(arguments)
 }
 
 fn run_cli(
@@ -1276,7 +1577,7 @@ fn run_cli(
         platform,
         toolchain_artifact(platform)?,
         || operation.checkpoint(),
-    )? || toolchain_python(toolchain_root)? != python
+    )? || toolchain_python(toolchain_root, platform)? != python
     {
         return Err(PortcoveError::verification(
             "managed PS1 builder requires its unchanged pinned toolchain",
@@ -1297,14 +1598,36 @@ fn run_cli(
         crate::path::refuse_symlink_ancestors(&path)?;
         fs::create_dir_all(path)?;
     }
-    let path = std::env::join_paths([
-        toolchain_root.join("bin"),
-        python
-            .parent()
-            .expect("bundled Python has a parent")
-            .to_path_buf(),
-    ])
-    .map_err(|_| PortcoveError::verification("pinned PS1 toolchain PATH is invalid"))?;
+    let macos = matches!(platform, Platform::MacosAarch64 | Platform::MacosX86_64);
+    let apple_tools = macos
+        .then(|| macos_toolchain_sdk(project_root, &environment_root, operation, quiesced))
+        .transpose()?;
+    let pack_bin = toolchain_root.join("bin");
+    let path = if let Some((_, compiler_bin)) = &apple_tools {
+        let system_bin = PathBuf::from(APPLE_SYSTEM_BIN);
+        for bin in [compiler_bin, &system_bin] {
+            for program in ["cmake", "ninja"] {
+                if bin.join(program).exists() {
+                    return Err(PortcoveError::verification(
+                        "Apple host tools would shadow a pinned PS1 build tool",
+                    )
+                    .detail("directory", bin.display().to_string())
+                    .detail("program", program));
+                }
+            }
+        }
+        vec![compiler_bin.clone(), system_bin, pack_bin]
+    } else {
+        vec![
+            pack_bin,
+            python
+                .parent()
+                .expect("bundled Python has a parent")
+                .to_path_buf(),
+        ]
+    };
+    let path = std::env::join_paths(path)
+        .map_err(|_| PortcoveError::verification("pinned PS1 toolchain PATH is invalid"))?;
     let mut command =
         ChildProcessPolicy::native_tool_spec(ChildProcessClass::ManagedBuilder, python)?;
     command
@@ -1333,6 +1656,14 @@ fn run_cli(
         .env("TEMP", environment_root.join("temp"))
         .env("TMP", environment_root.join("temp"))
         .env("TMPDIR", environment_root.join("temp"));
+    refuse_builder_downloads(&mut command);
+    if let Some((sdk, compiler_bin)) = apple_tools {
+        command
+            .env("CC", compiler_bin.join("clang"))
+            .env("CXX", compiler_bin.join("clang++"))
+            .env("SDKROOT", sdk)
+            .env("PYTHONDONTWRITEBYTECODE", "1");
+    }
     let previous_quiescence = *quiesced;
     *quiesced = false;
     let mut command_quiesced = false;
@@ -1388,6 +1719,189 @@ fn run_cli(
     )
 }
 
+/// Closed local proxy for the managed builder. PSXRecomp `7192402` stages an
+/// overlay toolchain on every rebuild by fetching Python (and building tcc on
+/// Linux) through urllib, whatever `--no-toolchain-download` says. Core admits
+/// no executable it has not verified, so every such request is refused at
+/// once; the kit logs the failure, finishes the build and the player
+/// interprets overlays. Environment proxies also take precedence over a
+/// Windows system proxy.
+const BUILDER_REFUSED_PROXY: &str = "http://127.0.0.1:9";
+
+fn refuse_builder_downloads(command: &mut crate::process::NativeToolLaunchSpec) {
+    // Python prefers lowercase names on Unix. Windows names are
+    // case-insensitive, so clear every spelling before setting one.
+    for name in ["https_proxy", "http_proxy", "no_proxy", "NO_PROXY"] {
+        command.env_remove(name);
+    }
+    for name in ["HTTPS_PROXY", "HTTP_PROXY"] {
+        command.env(name, BUILDER_REFUSED_PROXY);
+    }
+}
+
+/// The overlay toolchain folders a PSXRecomp `7192402` rebuild creates. The
+/// refused download leaves them empty; any file means the kit obtained tools
+/// another way (for example a pre-filled cache), which Core does not admit.
+fn require_no_fetched_overlay_toolchain(root: &Path, build_dir: &Path) -> Result<()> {
+    for folder in [
+        build_dir.join("overlay_toolchain"),
+        root.join(".cache").join("overlay-toolchain"),
+    ] {
+        if let Some(path) = first_entry_below(&folder)? {
+            return Err(PortcoveError::install(
+                "PS1 build obtained an unverified overlay toolchain, so nothing was installed or changed",
+            )
+            .detail("path", path.display().to_string()));
+        }
+    }
+    Ok(())
+}
+
+/// A split-scope route keeps player packages in `mods/packages`. A build that
+/// already put its own default packages there would have them collected as
+/// player data and later removed with it, so it is refused before anything is
+/// installed. Kits on the reviewed split frameworks stage defaults in
+/// `mods/bundled` instead.
+fn require_no_build_staged_player_packages(build_dir: &Path) -> Result<()> {
+    if let Some(path) = first_entry_below(&build_dir.join("mods").join("packages"))? {
+        return Err(PortcoveError::install(
+            "this PS1 kit puts its own mod packages where Portcove keeps your installed mods, so nothing was installed or changed",
+        )
+        .detail("path", path.display().to_string()));
+    }
+    Ok(())
+}
+
+/// The first file, link or other non-directory entry below `folder`, if any.
+fn first_entry_below(folder: &Path) -> Result<Option<PathBuf>> {
+    crate::path::refuse_symlink_ancestors(folder)?;
+    let mut pending = vec![folder.to_path_buf()];
+    while let Some(directory) = pending.pop() {
+        let entries = match fs::read_dir(&directory) {
+            Ok(entries) => entries,
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => continue,
+            Err(error) => return Err(error.into()),
+        };
+        for entry in entries {
+            let entry = entry?;
+            if entry.file_type()?.is_dir() {
+                pending.push(entry.path());
+            } else {
+                return Ok(Some(entry.path()));
+            }
+        }
+    }
+    Ok(None)
+}
+
+fn macos_toolchain_sdk(
+    project_root: &Path,
+    environment_root: &Path,
+    operation: &OperationCoordinator,
+    quiesced: &mut bool,
+) -> Result<(PathBuf, PathBuf)> {
+    let mut query = |program: &str, arguments: &[&str]| -> Result<PathBuf> {
+        let mut command = ChildProcessPolicy::native_tool_spec(
+            ChildProcessClass::ManagedBuilder,
+            Path::new(APPLE_SYSTEM_BIN).join(program),
+        )?;
+        command
+            .args(arguments)
+            .current_dir(project_root)
+            .env("PATH", APPLE_SYSTEM_BIN)
+            .env("HOME", environment_root.join("home"))
+            .env("TMPDIR", environment_root.join("temp"));
+        let started = std::time::Instant::now();
+        let previous_quiescence = *quiesced;
+        *quiesced = false;
+        let mut command_quiesced = false;
+        let mut captured = None;
+        let output = crate::tool_process::run_tool(
+            &mut command,
+            &|| {
+                operation.checkpoint()?;
+                if started.elapsed() >= std::time::Duration::from_secs(20) {
+                    return Err(PortcoveError::install(
+                        "Apple developer tool query timed out",
+                    ));
+                }
+                Ok(())
+            },
+            crate::tool_process::ToolProcessObserver {
+                quiesced: Some(&mut || {
+                    command_quiesced = true;
+                    Ok(())
+                }),
+                diagnostics: Some(crate::tool_process::ToolDiagnosticSink {
+                    activity_id: operation.operation_id(),
+                    phase: "install.ps1.apple-toolchain",
+                    record: &mut |snapshot| {
+                        captured = Some(snapshot.stdout.clone());
+                        Ok(())
+                    },
+                }),
+            },
+        );
+        *quiesced = previous_quiescence && command_quiesced;
+        let output = output.map_err(builder_supervision_error)?;
+        let stdout = captured.expect("supervisor provides final Apple tool capture");
+        let value = stdout.text.trim_end_matches(['\r', '\n']);
+        let path = PathBuf::from(value);
+        if !output.status.success()
+            || stdout.truncated
+            || value.contains(['\r', '\n'])
+            || !path.is_absolute()
+        {
+            return Err(PortcoveError::unsupported(
+                "Managed PS1 preparation on Mac needs selected Apple Command Line Tools or Xcode with the macOS SDK",
+            )
+            .detail("program", program)
+            .detail("output", output.output));
+        }
+        Ok(path)
+    };
+    let developer = query("xcode-select", &["--print-path"])?;
+    let developer = fs::canonicalize(developer)?;
+    let sdk = query(
+        "xcrun",
+        &["--no-cache", "--sdk", "macosx", "--show-sdk-path"],
+    )?;
+    let sdk = fs::canonicalize(sdk)?;
+    if !sdk.is_dir() || !sdk.starts_with(&developer) {
+        return Err(PortcoveError::verification(
+            "Apple selected SDK is outside its developer directory",
+        ));
+    }
+    let mut compiler_bin = None;
+    for compiler in ["clang", "clang++"] {
+        let path = query(
+            "xcrun",
+            &["--no-cache", "--sdk", "macosx", "--find", compiler],
+        )?;
+        let executable = fs::canonicalize(&path)?;
+        let bin = path.parent().ok_or_else(|| {
+            PortcoveError::verification("Apple selected compiler has no parent directory")
+        })?;
+        if !executable.is_file()
+            || !executable.starts_with(&developer)
+            || path.file_name() != Some(std::ffi::OsStr::new(compiler))
+            || compiler_bin
+                .as_deref()
+                .is_some_and(|selected| selected != bin)
+        {
+            return Err(PortcoveError::verification(
+                "Apple selected compiler is outside its developer directory",
+            )
+            .detail("compiler", compiler));
+        }
+        compiler_bin = Some(bin.to_path_buf());
+    }
+    Ok((
+        sdk,
+        compiler_bin.expect("both Apple compilers were checked"),
+    ))
+}
+
 fn toolchain_artifact(platform: Platform) -> Result<ToolchainArtifact> {
     match platform {
         Platform::WindowsX86_64 => Ok(ToolchainArtifact {
@@ -1440,7 +1954,7 @@ fn validate_toolchain_with_checkpoint(
     {
         return Ok(false);
     }
-    let Ok(python) = toolchain_python(root) else {
+    let Ok(python) = toolchain_python(root, platform) else {
         return Ok(false);
     };
     let paths = [
@@ -1490,10 +2004,10 @@ fn validate_toolchain_with_checkpoint(
 
 fn toolchain_file_identities(
     root: &Path,
-    _platform: Platform,
+    platform: Platform,
 ) -> Result<Vec<ToolchainFileIdentity>> {
     let paths = [
-        toolchain_python(root)?,
+        toolchain_python(root, platform)?,
         platform_executable(&root.join("bin"), "cmake"),
         platform_executable(&root.join("bin"), "ninja"),
         root.join("retcomm-toolchain.json"),
@@ -1523,17 +2037,97 @@ fn toolchain_file_identities(
     Ok(identities)
 }
 
-fn toolchain_python(root: &Path) -> Result<PathBuf> {
-    let candidates = if cfg!(windows) {
-        vec![root.join("python").join("python.exe")]
-    } else {
-        vec![
-            root.join("python").join("bin").join("python3"),
-            root.join("python").join("bin").join("python"),
-        ]
+fn toolchain_cache_coordinate(platform: Platform) -> String {
+    match platform {
+        Platform::MacosAarch64 => format!("{TOOLCHAIN_VERSION}-macos-arm64-native-python"),
+        Platform::MacosX86_64 => format!("{TOOLCHAIN_VERSION}-macos-x64-native-python"),
+        _ => TOOLCHAIN_VERSION.into(),
+    }
+}
+
+fn require_macos_toolchain_executables(
+    root: &Path,
+    platform: Platform,
+    operation: &OperationCoordinator,
+) -> Result<()> {
+    let (python_size, python_digest) = match platform {
+        Platform::MacosAarch64 => (
+            18_073_984,
+            "71720f1fc66989ebd691e81c96111b47ae6ff3f1a478666084d1cacbf0fccbf2",
+        ),
+        Platform::MacosX86_64 => (
+            18_494_104,
+            "998814918a46569ca4b8ee3b2fc75eef9d2079eee292f426e0a3472db8f73a91",
+        ),
+        _ => return Ok(()),
     };
-    candidates
-        .into_iter()
+    let bin = root.join("bin");
+    crate::path::refuse_symlink_ancestors(&bin)?;
+    for entry in fs::read_dir(&bin)? {
+        operation.checkpoint()?;
+        let entry = entry?;
+        if !matches!(
+            entry.file_name().to_str(),
+            Some("cmake" | "ninja" | "ccache")
+        ) {
+            return Err(PortcoveError::verification(
+                "Mac PS1 toolchain has an unexpected executable search entry",
+            )
+            .detail("path", entry.path().display().to_string()));
+        }
+    }
+    for (relative, size, digest) in [
+        (
+            toolchain_python_paths(platform)[0],
+            python_size,
+            python_digest,
+        ),
+        (
+            "bin/cmake",
+            23_876_688,
+            "84d61153cfcb96949945f6b04a57ec7e052aedf9580107acd5a2d9957e162e53",
+        ),
+        (
+            "bin/ccache",
+            5_122_216,
+            "1d8cc4e68ed61355bc9b29191e05fab2b764d98a41fed794e7d6a9d34b5c3735",
+        ),
+        (
+            "bin/ninja",
+            828_128,
+            "458cdf3a6cf289118da14cc897b5106d152c66545947329b016629d9df085815",
+        ),
+    ] {
+        let path = root.join(relative);
+        crate::path::refuse_symlink_ancestors(&path)?;
+        crate::permissions::require_platform_executable(&path, platform, "pinned PS1 tool")?;
+        let (actual_digest, actual_size) =
+            crate::adapter::hash_file_bounded_with_checkpoint(&path, size, || {
+                operation.checkpoint()
+            })?;
+        if actual_size != size || actual_digest != digest {
+            return Err(PortcoveError::verification(
+                "Mac PS1 tool executable differs from its pinned archive member",
+            )
+            .detail("member", relative));
+        }
+    }
+    Ok(())
+}
+
+fn toolchain_python_paths(platform: Platform) -> &'static [&'static str] {
+    match platform {
+        Platform::WindowsX86_64 => &["python/python.exe"],
+        Platform::LinuxX86_64 => &["python/bin/python3", "python/bin/python"],
+        Platform::MacosAarch64 => &["python/aarch64-apple-darwin/bin/python3"],
+        Platform::MacosX86_64 => &["python/x86_64-apple-darwin/bin/python3"],
+    }
+}
+
+fn toolchain_python(root: &Path, platform: Platform) -> Result<PathBuf> {
+    toolchain_python_paths(platform)
+        .iter()
+        .map(|relative| root.join(relative))
         .find(|path| path.is_file())
         .ok_or_else(|| {
             PortcoveError::verification("PS1 toolchain is missing its bundled Python runtime")
@@ -1577,12 +2171,22 @@ fn locate_pack_root(unpacked: &Path) -> Result<PathBuf> {
 pub(crate) fn bios_launch_fixture(
     root: &Path,
 ) -> (Library, crate::Catalog, crate::InstallRecord, SourceRecord) {
+    bios_launch_fixture_for(root, "psx-scph-1001-bios")
+}
+
+/// The same fixture with the inert BIOS registered under another retail
+/// profile, whose catalog identity is rebound to the fixture bytes.
+#[cfg(test)]
+pub(crate) fn bios_launch_fixture_for(
+    root: &Path,
+    profile_id: &str,
+) -> (Library, crate::Catalog, crate::InstallRecord, SourceRecord) {
     let library = Library::open(root.join("library")).unwrap();
     let path = root.join("original.BIN");
     fs::write(&path, b"inert owned BIOS fixture").unwrap();
     let (digest, size) = hash_file(&path).unwrap();
     let bios = SourceRecord {
-        profile_id: "psx-scph-1001-bios".into(),
+        profile_id: profile_id.into(),
         path,
         sha256: digest.clone(),
         size,
@@ -1666,6 +2270,66 @@ pub(crate) fn bios_launch_fixture(
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn settings_disc_choice_changes_only_the_selected_index() {
+        use super::settings_with_selected_disc as select;
+        assert_eq!(select("", 2).unwrap(), "[disc]\nselected = 2\n");
+        assert_eq!(
+            select("[video]\nrenderer = \"opengl\"", 3).unwrap(),
+            "[video]\nrenderer = \"opengl\"\n\n[disc]\nselected = 3\n"
+        );
+        assert_eq!(
+            select("[disc] # chosen\r\npath = \"a/disc-01.cue\"\r\n", 2).unwrap(),
+            "[disc] # chosen\r\nselected = 2\r\npath = \"a/disc-01.cue\"\r\n"
+        );
+        assert_eq!(select("[disc]", 2).unwrap(), "[disc]\nselected = 2\n");
+        assert_eq!(
+            select("[disc]\nselected = 1 # last\n[bios]\npath = \"x\"\n", 4).unwrap(),
+            "[disc]\nselected = 4 # last\n[bios]\npath = \"x\"\n"
+        );
+        // Another table's `selected`, or a dotted name under it, is not the disc.
+        assert_eq!(
+            select("[mods]\nselected = 9\n[disc.extra]\nselected = 8\n", 2).unwrap(),
+            "[mods]\nselected = 9\n[disc.extra]\nselected = 8\n\n[disc]\nselected = 2\n"
+        );
+        for refused in [
+            "disc = { selected = 1 }\n",
+            "disc.selected = 1\n",
+            "[[disc]]\nselected = 1\n",
+            "[disc]\n[disc]\n",
+            "[disc]\nselected = 1\nselected = 2\n",
+            "[disc]\nselected.x = 1\n",
+            "[disc.selected]\n",
+            "[disc\n",
+            "[disc]\nselected = \"unterminated\n",
+            "[disc]\nselected\n",
+        ] {
+            let error = select(refused, 2).unwrap_err();
+            assert_eq!(error.code, crate::ErrorCode::Launch, "{refused:?}");
+            assert!(
+                error.details.contains_key("settings_disc_reason"),
+                "{refused:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn settings_disc_choice_is_written_atomically_beside_the_player() {
+        let temporary = tempfile::tempdir().unwrap();
+        let settings = temporary.path().join("settings.toml");
+        super::select_settings_disc(&settings, 2).unwrap();
+        super::select_settings_disc(&settings, 1).unwrap();
+        assert_eq!(
+            std::fs::read_to_string(&settings).unwrap(),
+            "[disc]\nselected = 1\n"
+        );
+        assert_eq!(std::fs::read_dir(temporary.path()).unwrap().count(), 1);
+        std::fs::write(&settings, [0xff, 0xfe]).unwrap();
+        let error = super::select_settings_disc(&settings, 2).unwrap_err();
+        assert_eq!(error.code, crate::ErrorCode::Launch);
+        assert_eq!(std::fs::read(&settings).unwrap(), [0xff, 0xfe]);
+    }
+
     #[test]
     fn builder_error_mapping_preserves_bounded_proof_without_other_details() {
         let error = super::builder_supervision_error(
@@ -1922,10 +2586,12 @@ mod tests {
                 observed_identity: None,
             },
             bios: None,
+            runtime_track_counts: vec![1; source_paths.len()],
             source_paths,
             runtime_source_directory: None,
             toolchain_root: root.join("absent-owned-toolchain"),
             executable_basename: "owned-game".into(),
+            split_mod_packages: false,
         }
     }
 
@@ -2013,6 +2679,188 @@ mod tests {
                 &invalid,
                 "runtime_source_directory",
             );
+        }
+    }
+
+    /// A pinned stand-in for `chdman extractcd -sb`: one quoted FILE per track,
+    /// named `discTT.bin` beside the cue, with data bytes naming the input.
+    #[cfg(unix)]
+    fn split_track_chdman(root: &Path, tracks: u32) -> PathBuf {
+        use std::os::unix::fs::PermissionsExt;
+        let script = root.join("chdman-split-tracks");
+        let audio = if tracks == 2 {
+            "printf 'audio' > \"$dir/disc02.bin\"\nprintf 'FILE \"disc02.bin\" BINARY\\n  TRACK 02 AUDIO\\n    INDEX 00 00:00:00\\n    INDEX 01 00:02:00\\n' >> \"$cue\"\n"
+        } else {
+            ""
+        };
+        fs::write(
+            &script,
+            format!(
+                "#!/bin/sh\nwhile [ $# -gt 0 ]; do\n  case \"$1\" in\n    -i) input=\"$2\"; shift 2;;\n    -o) cue=\"$2\"; shift 2;;\n    *) shift;;\n  esac\ndone\ndir=\"${{cue%/*}}\"\nprintf 'data %s' \"${{input##*/}}\" > \"$dir/disc01.bin\"\nprintf 'FILE \"disc01.bin\" BINARY\\n  TRACK 01 MODE2/2352\\n    INDEX 01 00:00:00\\n' > \"$cue\"\n{audio}"
+            ),
+        )
+        .unwrap();
+        fs::set_permissions(&script, fs::Permissions::from_mode(0o755)).unwrap();
+        script
+    }
+
+    #[cfg(unix)]
+    fn owned_chd_set(root: &Path) -> (SourceRecord, Vec<PathBuf>) {
+        use sha2::Digest as _;
+        let source = root.join("owned-chds");
+        fs::create_dir(&source).unwrap();
+        for disc in 1..=2 {
+            fs::write(source.join(format!("disc-{disc:02}.chd")), b"inert chd").unwrap();
+        }
+        let source_paths = crate::adapter::psx_source_paths(&source, 2).unwrap();
+        // The verified identity covers only each disc's data track.
+        let data = source_paths
+            .iter()
+            .map(|path| {
+                let name = path.file_name().unwrap().to_str().unwrap();
+                format!("data {name}").into_bytes()
+            })
+            .collect::<Vec<_>>();
+        let hashes = data
+            .iter()
+            .map(|bytes| hex::encode(sha2::Sha256::digest(bytes)))
+            .collect::<Vec<_>>();
+        let (storage_sha256, storage_size) =
+            crate::adapter::source_storage_identity(&source).unwrap();
+        let record = SourceRecord {
+            profile_id: "owned-ps1-set".into(),
+            path: source,
+            sha256: crate::adapter::aggregate_sha256(&hashes),
+            size: data.iter().map(|bytes| bytes.len() as u64).sum(),
+            storage_sha256,
+            storage_size,
+            updated_at: Library::now(),
+            observed_identity: None,
+        };
+        (record, source_paths)
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn runtime_raw_sets_keep_every_track_and_hash_only_data_tracks() {
+        for tracks in [1_u32, 2] {
+            let temporary = tempfile::tempdir().unwrap();
+            let root = temporary.path();
+            let tool = split_track_chdman(root, tracks);
+            let (record, source_paths) = owned_chd_set(root);
+            let build = root.join("build-portcove");
+            fs::create_dir(&build).unwrap();
+            let sources = materialize_runtime_raw_set(
+                &build,
+                Path::new("runtime-discs"),
+                &record,
+                &source_paths,
+                &[tracks, tracks],
+                Some(&tool),
+            )
+            .unwrap();
+            assert_eq!(
+                sources,
+                [
+                    PathBuf::from("runtime-discs/disc-01.cue"),
+                    PathBuf::from("runtime-discs/disc-02.cue"),
+                ]
+            );
+            let set = build.join("runtime-discs");
+            let mut names = fs::read_dir(&set)
+                .unwrap()
+                .map(|entry| entry.unwrap().file_name().into_string().unwrap())
+                .collect::<Vec<_>>();
+            names.sort();
+            let mut expected = vec!["disc-01.bin", "disc-01.cue", "disc-02.bin", "disc-02.cue"];
+            if tracks == 2 {
+                expected.extend(["disc-01-t02.bin", "disc-02-t02.bin"]);
+                expected.sort();
+            }
+            assert_eq!(names, expected, "{tracks} tracks");
+            assert_eq!(
+                fs::read(set.join("disc-02.bin")).unwrap(),
+                b"data disc-02.chd"
+            );
+            if tracks == 2 {
+                assert_eq!(fs::read(set.join("disc-01-t02.bin")).unwrap(), b"audio");
+                assert_eq!(
+                    fs::read_to_string(set.join("disc-01.cue")).unwrap(),
+                    "FILE \"disc-01.bin\" BINARY\n  TRACK 01 MODE2/2352\n    INDEX 01 00:00:00\nFILE \"disc-01-t02.bin\" BINARY\n  TRACK 02 AUDIO\n    INDEX 00 00:00:00\n    INDEX 01 00:02:00\n"
+                );
+            }
+        }
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn runtime_raw_sets_refuse_a_track_count_or_data_identity_mismatch() {
+        let temporary = tempfile::tempdir().unwrap();
+        let root = temporary.path();
+        let (record, source_paths) = owned_chd_set(root);
+        let build = root.join("build-portcove");
+        let set = build.join("runtime-discs");
+        fs::create_dir_all(&set).unwrap();
+        fs::write(set.join("previous"), b"previous set").unwrap();
+        let staged_runtime_files = || {
+            fs::read_dir(&build)
+                .unwrap()
+                .map(|entry| entry.unwrap().path())
+                .filter(|path| path != &set)
+                .flat_map(|staging| fs::read_dir(staging).unwrap())
+                .map(|entry| entry.unwrap().file_name().into_string().unwrap())
+                .filter(|name| name.starts_with("disc-"))
+                .count()
+        };
+
+        // Two tracks against a catalog count of one fails before anything is
+        // staged, and the previous set is untouched.
+        let tool = split_track_chdman(root, 2);
+        let error = materialize_runtime_raw_set(
+            &build,
+            Path::new("runtime-discs"),
+            &record,
+            &source_paths,
+            &[1, 1],
+            Some(&tool),
+        )
+        .unwrap_err();
+        assert_eq!(error.code, crate::ErrorCode::SourceInvalid);
+        assert!(error.message.contains("the catalog expects 1"), "{error:?}");
+        assert_eq!(fs::read(set.join("previous")).unwrap(), b"previous set");
+        assert_eq!(staged_runtime_files(), 0);
+
+        // An audio track counted into the identity would no longer match.
+        let mut widened = record.clone();
+        widened.size += 2 * b"audio".len() as u64;
+        let error = materialize_runtime_raw_set(
+            &build,
+            Path::new("runtime-discs"),
+            &widened,
+            &source_paths,
+            &[2, 2],
+            Some(&tool),
+        )
+        .unwrap_err();
+        assert_eq!(error.code, crate::ErrorCode::Verification);
+    }
+
+    #[test]
+    fn managed_preparation_requires_one_exact_track_count_per_runtime_disc() {
+        let temporary = tempfile::tempdir().unwrap();
+        let mut preparation = preparation_input_fixture(temporary.path(), true);
+        preparation.runtime_source_directory = Some("owned/discs".into());
+        preparation.runtime_track_counts = vec![2, 2];
+        assert_eq!(
+            PreparationConfiguration::from_preparation(&preparation)
+                .unwrap()
+                .runtime_track_counts,
+            [2, 2]
+        );
+        for counts in [vec![], vec![2], vec![2, 0], vec![1, 1, 1]] {
+            let mut invalid = preparation.clone();
+            invalid.runtime_track_counts = counts;
+            assert_invalid_preparation_input(temporary.path(), &invalid, "runtime_track_counts");
         }
     }
 
@@ -2132,7 +2980,7 @@ mod tests {
     fn run_builder_fixture(root: &Path, operation: &OperationCoordinator) -> Result<()> {
         let toolchain = root.join("owned-toolchain");
         let python = if toolchain.join(".portcove-toolchain.json").is_file() {
-            toolchain_python(&toolchain).unwrap()
+            toolchain_python(&toolchain, Platform::current().unwrap()).unwrap()
         } else {
             let native = tempfile::tempdir().unwrap();
             let program = crate::test_fixture::build_probe(native.path());
@@ -2172,18 +3020,26 @@ mod tests {
         let observer = crate::PortcoveService::new(service.library().clone()).unwrap();
         let id = activity.id.clone();
         let ready = root.join("owned-builder-ready");
+        let started = Instant::now();
         let request = thread::spawn(move || {
-            let deadline = Instant::now() + Duration::from_secs(6);
+            // Mac preflight probes Apple tools before it spawns the builder.
+            let ready_budget = if cfg!(target_os = "macos") { 25 } else { 6 };
+            let deadline = Instant::now() + Duration::from_secs(ready_budget);
             while !ready.is_file() {
                 assert!(Instant::now() < deadline, "owned builder did not start");
                 thread::sleep(Duration::from_millis(5));
             }
+            let ready_at = Instant::now();
             observer.request_cancellation(&id).unwrap();
+            (ready_at, Instant::now())
         });
-        let started = Instant::now();
         let result = run_builder_fixture(&root, &operation);
-        let elapsed = started.elapsed();
-        request.join().unwrap();
+        let returned_at = Instant::now();
+        let (ready_at, acknowledged_at) = request
+            .join()
+            .unwrap_or_else(|_| panic!("owned builder readiness failed: {result:?}"));
+        let readiness_elapsed = ready_at.saturating_duration_since(started);
+        let cancellation_elapsed = returned_at.saturating_duration_since(acknowledged_at);
         assert_eq!(
             fs::read(&player_source).unwrap(),
             b"unchanged external source"
@@ -2192,12 +3048,18 @@ mod tests {
             operation.checkpoint().is_err(),
             "real cancellation was accepted"
         );
-        println!("phase={phase} elapsed={elapsed:?} result={result:?}");
+        println!(
+            "phase={phase} readiness={readiness_elapsed:?} cancellation={cancellation_elapsed:?} result={result:?}"
+        );
+        assert_eq!(
+            result.as_ref().unwrap_err().code,
+            crate::ErrorCode::Cancelled
+        );
         let result = service.finish_activity(activity, result);
         assert_eq!(result.unwrap_err().code, crate::ErrorCode::Cancelled);
         assert!(
-            elapsed < Duration::from_secs(2),
-            "builder ignored cancellation"
+            cancellation_elapsed < Duration::from_secs(2),
+            "builder ignored acknowledged cancellation"
         );
         assert!(!root.join("owned-builder-completed").exists());
     }
@@ -2210,6 +3072,135 @@ mod tests {
     #[test]
     fn managed_builder_rebuild_observes_active_cancellation() {
         assert_builder_cancellation("rebuild");
+    }
+
+    #[test]
+    fn managed_builder_refuses_every_download_through_a_closed_local_proxy() {
+        let mut command = crate::process::ChildProcessPolicy::native_tool_spec(
+            crate::process::ChildProcessClass::ManagedBuilder,
+            "python",
+        )
+        .unwrap();
+        command
+            .env("HTTPS_PROXY", "http://proxy.invalid:8080")
+            .env("https_proxy", "http://proxy.invalid:8080")
+            .env("no_proxy", "*")
+            .env("NO_PROXY", "*");
+        refuse_builder_downloads(&mut command);
+        let value = |name: &str| {
+            command
+                .environment
+                .iter()
+                .find(|(key, _)| key.as_os_str() == std::ffi::OsStr::new(name))
+                .map(|(_, value)| value.to_owned())
+        };
+        for name in ["HTTPS_PROXY", "HTTP_PROXY"] {
+            assert_eq!(value(name), Some(BUILDER_REFUSED_PROXY.into()), "{name}");
+        }
+        for name in ["NO_PROXY", "no_proxy", "https_proxy", "http_proxy"] {
+            assert_eq!(value(name), None, "{name}");
+        }
+    }
+
+    #[test]
+    fn split_scope_build_refuses_its_own_packages_in_the_player_folder() {
+        let temporary = tempfile::tempdir().unwrap();
+        let build = temporary.path().join("build-portcove");
+        require_no_build_staged_player_packages(&build).unwrap();
+        fs::create_dir_all(build.join("mods").join("packages").join("default")).unwrap();
+        fs::create_dir_all(build.join("mods").join("bundled").join("default")).unwrap();
+        fs::write(
+            build
+                .join("mods")
+                .join("bundled")
+                .join("default")
+                .join("manifest.toml"),
+            b"build-staged default",
+        )
+        .unwrap();
+        require_no_build_staged_player_packages(&build).unwrap();
+        let file = build
+            .join("mods")
+            .join("packages")
+            .join("default")
+            .join("manifest.toml");
+        fs::write(&file, b"kit default in the player folder").unwrap();
+        let error = require_no_build_staged_player_packages(&build).unwrap_err();
+        assert_eq!(error.code, crate::ErrorCode::Install);
+        assert_eq!(error.details["path"], file.display().to_string());
+    }
+
+    #[test]
+    fn a_kit_configured_for_another_retail_bios_is_refused() {
+        let temporary = tempfile::tempdir().unwrap();
+        let root = temporary.path();
+        // No configuration, or an unknown one, is left to the kit.
+        fs::write(root.join("game.toml"), "[game]\nname = 'fixture'\n").unwrap();
+        require_kit_bios_profile(root, "psx-scph-1001-bios").unwrap();
+        fs::write(
+            root.join("game.toml"),
+            "[recompiler]\nbios_config = 'psxrecomp/bios/custom.toml'\n",
+        )
+        .unwrap();
+        require_kit_bios_profile(root, "psx-scph-1001-bios").unwrap();
+        fs::write(
+            root.join("game.toml"),
+            "[recompiler]\nbios_config = 'psxrecomp/bios/SCPH5552.toml'\n",
+        )
+        .unwrap();
+        require_kit_bios_profile(root, "psx-scph-5552-bios").unwrap();
+        let error = require_kit_bios_profile(root, "psx-scph-1001-bios").unwrap_err();
+        assert_eq!(error.code, crate::ErrorCode::Install);
+        assert_eq!(error.details["kit_bios_profile"], "psx-scph-5552-bios");
+        assert_eq!(
+            error.details["registered_bios_profile"],
+            "psx-scph-1001-bios"
+        );
+        fs::write(
+            root.join("game.toml"),
+            "[recompiler]\nbios_config = 'psxrecomp/bios/SCPH1001.toml'\n",
+        )
+        .unwrap();
+        require_kit_bios_profile(root, "psx-scph-1001-bios").unwrap();
+        assert!(require_kit_bios_profile(root, "psx-scph-5552-bios").is_err());
+        assert!(require_kit_bios_profile(root, "psx-scph-5500-bios").is_err());
+        fs::write(
+            root.join("game.toml"),
+            "[recompiler]\nbios_config = 'psxrecomp/bios/SCPH5500.toml'\n",
+        )
+        .unwrap();
+        require_kit_bios_profile(root, "psx-scph-5500-bios").unwrap();
+        for other in ["psx-scph-1001-bios", "psx-scph-5552-bios"] {
+            let error = require_kit_bios_profile(root, other).unwrap_err();
+            assert_eq!(error.details["kit_bios_profile"], "psx-scph-5500-bios");
+            assert_eq!(error.details["registered_bios_profile"], other);
+        }
+    }
+
+    #[test]
+    fn managed_builder_refuses_any_fetched_overlay_toolchain_file() {
+        let temporary = tempfile::tempdir().unwrap();
+        let root = temporary.path();
+        let build = root.join("build-portcove");
+        fs::create_dir_all(build.join("overlay_toolchain")).unwrap();
+        fs::create_dir_all(root.join(".cache/overlay-toolchain/tcc_linux_build")).unwrap();
+        require_no_fetched_overlay_toolchain(root, &build).unwrap();
+        fs::remove_dir_all(root.join(".cache")).unwrap();
+        fs::remove_dir_all(build.join("overlay_toolchain")).unwrap();
+        require_no_fetched_overlay_toolchain(root, &build).unwrap();
+        for file in [
+            build.join("overlay_toolchain").join("compiler.txt"),
+            root.join(".cache")
+                .join("overlay-toolchain")
+                .join("python.zip"),
+        ] {
+            fs::create_dir_all(file.parent().unwrap()).unwrap();
+            fs::write(&file, b"unverified").unwrap();
+            let error = require_no_fetched_overlay_toolchain(root, &build).unwrap_err();
+            assert_eq!(error.code, crate::ErrorCode::Install);
+            assert_eq!(error.details["path"], file.display().to_string());
+            fs::remove_file(&file).unwrap();
+        }
     }
 
     #[test]
@@ -2534,11 +3525,7 @@ mod tests {
     pub(super) fn toolchain_fixture(root: &Path, program: Option<&Path>) -> PathBuf {
         let platform = Platform::current().unwrap();
         let artifact = toolchain_artifact(platform).unwrap();
-        let python = if cfg!(windows) {
-            root.join("python").join("python.exe")
-        } else {
-            root.join("python").join("bin").join("python3")
-        };
+        let python = root.join(toolchain_python_paths(platform)[0]);
         let cmake = platform_executable(&root.join("bin"), "cmake");
         let ninja = platform_executable(&root.join("bin"), "ninja");
         for (path, bytes) in [
@@ -2780,6 +3767,73 @@ mod tests {
         );
     }
 
+    #[cfg(not(target_os = "macos"))]
+    #[tokio::test]
+    async fn toolchain_publication_waits_for_and_reuses_a_valid_winner() {
+        let temporary = tempfile::tempdir().unwrap();
+        let root = temporary.path();
+        let library = Library::open(root.join("library")).unwrap();
+        let platform = Platform::current().unwrap();
+        let destination = library.toolchains_dir().join("test-publication");
+        let winner = library.staging_dir().join("winner");
+        let contender = library.staging_dir().join("contender");
+        toolchain_fixture(&winner, None);
+        toolchain_fixture(&contender, None);
+        fs::write(winner.join("origin"), b"winner").unwrap();
+        fs::write(contender.join("origin"), b"contender").unwrap();
+
+        let publication = library.try_lock_psx_toolchain_publication().unwrap();
+        let operation = OperationCoordinator::new("toolchain-publication", None);
+        let (result, ()) = tokio::join!(
+            publish_toolchain_cache(&library, &contender, &destination, platform, &operation),
+            async {
+                crate::durability::rename_noreplace(&winner, &destination).unwrap();
+                drop(publication);
+            }
+        );
+
+        result.unwrap();
+        assert_eq!(fs::read(destination.join("origin")).unwrap(), b"winner");
+        assert_eq!(fs::read(contender.join("origin")).unwrap(), b"contender");
+    }
+
+    #[test]
+    fn mac_toolchain_selects_its_native_python_and_keeps_legacy_cache_separate() {
+        let temporary = tempfile::tempdir().unwrap();
+        let root = temporary.path();
+        for path in [
+            "python/bin/python3",
+            "python/aarch64-apple-darwin/bin/python3",
+            "python/x86_64-apple-darwin/bin/python3",
+        ] {
+            let path = root.join(path);
+            fs::create_dir_all(path.parent().unwrap()).unwrap();
+            fs::write(path, b"fixture").unwrap();
+        }
+
+        let arm = Platform::MacosAarch64;
+        let intel = Platform::MacosX86_64;
+        let arm_python = root.join("python/aarch64-apple-darwin/bin/python3");
+        assert_eq!(toolchain_python(root, arm).unwrap(), arm_python);
+        assert_eq!(
+            toolchain_python(root, intel).unwrap(),
+            root.join("python/x86_64-apple-darwin/bin/python3"),
+        );
+        fs::remove_file(arm_python).unwrap();
+        assert!(toolchain_python(root, arm).is_err());
+
+        let arm_coordinate = toolchain_cache_coordinate(arm);
+        let intel_coordinate = toolchain_cache_coordinate(intel);
+        assert_ne!(arm_coordinate, intel_coordinate);
+        assert_ne!(arm_coordinate, TOOLCHAIN_VERSION);
+        assert_ne!(intel_coordinate, TOOLCHAIN_VERSION);
+        assert!(refuse_unverified_mac_toolchain(root, arm).is_err());
+        assert_eq!(
+            fs::read(root.join("python/bin/python3")).unwrap(),
+            b"fixture"
+        );
+    }
+
     #[test]
     fn pinned_toolchains_cover_every_platform() {
         for platform in [
@@ -2956,12 +4010,35 @@ mod tests {
     }
 
     #[test]
+    fn runtime_config_rewrite_keeps_both_fields_of_a_7192402_kit() {
+        // PSXRecomp 7192402 kits name disc 1 and the roster; the framework
+        // reads `discs` when present. Both are rewritten from verified sources.
+        let kit = "[game]\nname = \"Fixture\"\ndisc = \"disc/Fixture (Disc 1).cue\"\n# roster\ndiscs = [\n    \"disc/Fixture (Disc 1).cue\",\n    \"disc/Fixture (Disc 2).cue\",\n]\ndisc_serials = [\"A\", \"B\"]\n";
+        assert_eq!(
+            rewrite_config_fixture(kit, &["one.cue", "two.cue", "three.cue"]),
+            "[game]\nname = \"Fixture\"\ndisc = \"one.cue\"\n# roster\ndiscs = [\n    \"one.cue\",\n    \"two.cue\",\n    \"three.cue\",\n]\ndisc_serials = [\"A\", \"B\"]\n"
+        );
+        let single = "[game]\ndisc = \"disc/Azure.cue\"\ndiscs = [\"disc/Azure.cue\"]\n";
+        assert_eq!(
+            rewrite_config_fixture(single, &["only.cue"]),
+            "[game]\ndisc = \"only.cue\"\ndiscs = [\n    \"only.cue\",\n]\n"
+        );
+        // Either order works.
+        let reversed = "[game]\ndiscs = ['a.cue']\ndisc = 'a.cue'\n";
+        assert_eq!(
+            rewrite_config_fixture(reversed, &["x.cue", "y.cue"]),
+            "[game]\ndiscs = [\n    \"x.cue\",\n    \"y.cue\",\n]\ndisc = \"x.cue\"\n"
+        );
+    }
+
+    #[test]
     fn runtime_config_rewrite_rejects_ambiguous_or_unbounded_fields_without_writing() {
         let temporary = tempfile::tempdir().unwrap();
         let config = temporary.path().join("game.toml");
         for body in [
             "[runtime]\ndisc='old.cue'\n",
-            "[game]\ndisc='one.cue'\ndiscs=['two.cue']\n",
+            "[game]\ndisc='one.cue'\ndiscs=['two.cue']\ndisc='three.cue'\n",
+            "[game]\ndiscs=['one.cue']\ndisc='two.cue'\ndiscs=['three.cue']\n",
             "[game]\ndisc='one.cue'\n[ 'game' ]\ndisc='two.cue'\n",
             "[game]\ndisc = 42\n",
             "[game]\ndiscs = ['one.cue' 'two.cue']\n",

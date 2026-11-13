@@ -1,22 +1,28 @@
 import type { ProviderObservation } from "./upstream-observer.mts";
+import { ObservationFailure } from "./upstream-observer.mts";
 import assert from "node:assert/strict";
 import test from "node:test";
-import { GitHubApiError } from "./github-api.mts";
+import { GitHubApiError } from "./github-operation.mts";
 import { mkdtemp, mkdir, writeFile, readFile, readdir, rm } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   runCatalogUpstreams,
   runCatalogOpportunity,
+  hostedHandoffByteLimit,
   retireObserverConfigurations,
 } from "./observe-catalog-upstreams.mts";
 import {
   advanceObservation,
   catalogObservationDefinitionHashes,
+  validateObserverCheckpoint,
+  observerCheckpointByteLimit,
 } from "./observe-configured-upstream.mts";
 import {
   advanceCatalogObservations,
   catalogObservationSources,
+  newCatalogObserverCheckpoint,
+  validateCatalogObserverCheckpoint,
 } from "./catalog-upstream-observer.mts";
 import type {
   CatalogObservationOptions,
@@ -28,6 +34,28 @@ import {
   validateObserverConfig,
 } from "./upstream-observer.mts";
 import { config, release } from "./fixtures/upstream-observation-fixtures.mts";
+import {
+  collectObserverSnapshot,
+  publishObserverSnapshot,
+  readObserverSnapshotArchive,
+  encodeObserverSnapshot,
+  observerSnapshotLimit,
+  observerStreamingSnapshotLimit,
+  collectCompactObserverSnapshot,
+  encodeCompactObserverSnapshot,
+  recoverObserverCheckpoint,
+  validateObserverSnapshot,
+  encodeStreamingObserverSnapshot,
+  readRecoverableObserverSnapshotArchive,
+  collectFactObserverSnapshot,
+} from "./observer-checkpoint-artifact.mts";
+import {
+  decodeStoredObserverCheckpoint,
+  encodeStoredObserverCheckpoint,
+} from "./observer-checkpoint-storage.mts";
+import { isRecord } from "./runtime-values.mts";
+import { createAuditZip } from "./fixtures/audit-zip-fixture.mts";
+import { encodeObserverRecords } from "./observer-snapshot-records.mts";
 
 function harness(requests = 256) {
   let now = Date.parse("2026-10-27T00:00:00Z");
@@ -144,6 +172,742 @@ function harness(requests = 256) {
   };
 }
 
+void test("fresh-baseline provenance survives real bounded provider progress without supplying freshness", async () => {
+  const h = harness(2);
+  const prior = newCatalogObserverCheckpoint();
+  prior.baseline = {
+    id: "approved-baseline-fixture",
+    continuity: "lost",
+    initial_freshness: "unknown",
+    initialized_at: new Date(h.options.now!() - 1000).toISOString(),
+    producer: { run: 101, attempt: 1, source: "a".repeat(40) },
+    inputs: {
+      config_sha256: "a".repeat(64),
+      catalog_sha256: "b".repeat(64),
+      listings_sha256: "c".repeat(64),
+    },
+  };
+  const result = await advanceCatalogObservations(h.input, prior, h.options);
+  assert.deepEqual(result.checkpoint.baseline, prior.baseline);
+  assert.ok(result.checkpoint.sequence > 0);
+  assert.ok(h.states.size > 0);
+  for (const progress of Object.values(result.checkpoint.sources)) {
+    assert.notEqual(progress.completed_at, prior.baseline.initialized_at);
+    assert.notEqual(progress.freshness_observed_at, prior.baseline.initialized_at);
+  }
+  for (const change of [
+    { ...prior.baseline, continuity: "restored" },
+    { ...prior.baseline, completed_at: prior.baseline.initialized_at },
+    { ...prior.baseline, initialized_at: new Date(h.options.now!() + 1000).toISOString() },
+    { ...prior.baseline, inputs: { ...prior.baseline.inputs, catalog_sha256: "invalid" } },
+    { ...prior.baseline, producer: { ...prior.baseline.producer, attempt: 0 } },
+  ])
+    assert.throws(
+      () => validateCatalogObserverCheckpoint({ ...prior, baseline: change }, h.options.now!()),
+      /baseline provenance/,
+    );
+});
+
+void test("a separate batch recovers accepted provider pages and fair turns after complete cache loss", async (t) => {
+  const work = fileURLToPath(new URL("../work/", import.meta.url));
+  await mkdir(work, { recursive: true });
+  const root = await mkdtemp(path.join(work, "catalog-snapshot-test-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const h = harness(2);
+  let result = await advanceCatalogObservations(h.input, null, h.options);
+  const before = structuredClone(result.checkpoint);
+  assert.ok(h.states.size > 0);
+  assert.ok(result.report.pending_source_keys.length > 0);
+  assert.ok(
+    [...h.states.values()].some(
+      (value) =>
+        isRecord(value) &&
+        isRecord(value.continuation) &&
+        isRecord(value.continuation.pages) &&
+        Object.keys(value.continuation.pages).length > 0,
+    ),
+  );
+  const sourceTree = path.join(root, "work/upstream-observer");
+  await mkdir(path.join(sourceTree, "catalog"), { recursive: true });
+  await writeFile(path.join(sourceTree, "catalog/checkpoint.json"), JSON.stringify(before));
+  for (const [digest, value] of h.states) {
+    await mkdir(path.join(sourceTree, digest), { recursive: true });
+    await writeFile(path.join(sourceTree, digest, "checkpoint.json"), JSON.stringify(value));
+  }
+  const snapshot = await collectObserverSnapshot(root, "c".repeat(64), {
+    run: 101,
+    attempt: 1,
+    source: "a".repeat(40),
+  });
+  assert.ok(
+    Object.keys(snapshot.files).length > 1,
+    "Provider continuation must accompany the scheduler",
+  );
+  const transfer = await encodeStreamingObserverSnapshot(snapshot, Date.now() + 60000);
+  const archive = createAuditZip([["checkpoint.json", transfer.bytes]]);
+  const recovered = await readRecoverableObserverSnapshotArchive(
+    archive,
+    "c".repeat(64),
+    Date.now(),
+    Date.now() + 60000,
+  );
+  await rm(sourceTree, { recursive: true });
+  h.states.clear();
+  await publishObserverSnapshot(root, recovered);
+  for (const [name, value] of Object.entries(recovered.files)) {
+    assert.deepEqual(JSON.parse(await readFile(path.join(sourceTree, name), "utf8")), value);
+    assert.deepEqual(decodeStoredObserverCheckpoint(value), snapshot.files[name]);
+    if (name !== "catalog/checkpoint.json") h.states.set(name.split("/")[0]!, value);
+  }
+  let state = JSON.parse(
+    await readFile(path.join(sourceTree, "catalog/checkpoint.json"), "utf8"),
+  ) as CatalogObserverCheckpoint;
+  assert.deepEqual(state, before);
+  for (let batch = 0; batch < 24 && result.report.pending_source_keys.length > 0; batch++) {
+    h.tick();
+    result = await advanceCatalogObservations(h.input, state, h.options);
+    assert.ok(result.report.requests <= 2);
+    state = result.checkpoint;
+  }
+  assert.equal(result.report.pending_source_keys.length, 0);
+  assert.ok(state.sequence > before.sequence);
+  assert.equal(Object.values(state.sources).filter((source) => source.completed_at).length, 2);
+  const missing = structuredClone(snapshot);
+  delete missing.files[
+    Object.keys(missing.files).find((name) => name !== "catalog/checkpoint.json")!
+  ];
+  assert.throws(
+    () =>
+      readObserverSnapshotArchive(
+        createAuditZip([["checkpoint.json", JSON.stringify(missing)]]),
+        "c".repeat(64),
+        Date.now(),
+        Date.now() + 60000,
+      ),
+    /checkpoint missing/,
+  );
+});
+
+// Construct the historical raw-page representation explicitly. New observations
+// deliberately retain only consumed facts, but legacy recovery remains lossless.
+function legacyNotes(states: Map<string, unknown>, notes: string, assets = false) {
+  for (const value of states.values()) {
+    assert.ok(isRecord(value));
+    const complete = isRecord(value.last_complete) ? value.last_complete : null;
+    const cache = complete && isRecord(complete.cache) ? complete.cache : null;
+    for (const holder of [cache, value.continuation]) {
+      if (!isRecord(holder) || !isRecord(holder.pages)) continue;
+      for (const [url, page] of Object.entries(holder.pages)) {
+        assert.ok(isRecord(page));
+        delete page.representation;
+        delete page.facts_sha256;
+        if (Array.isArray(page.body) && (assets || new URL(url).pathname.endsWith("/releases")))
+          page.body = page.body.map((item: unknown) => {
+            assert.ok(isRecord(item));
+            return { ...item, body: notes };
+          });
+        page.sha256 = observationHash(page.body);
+      }
+    }
+  }
+}
+
+void test("production-shaped retained provider pages fit the fixed artifact reserve through lossless encoding", async (t) => {
+  const work = fileURLToPath(new URL("../work/", import.meta.url));
+  await mkdir(work, { recursive: true });
+  const root = await mkdtemp(path.join(work, "catalog-encoded-snapshot-test-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const h = harness(6),
+    originalFetch = h.options.fetch!;
+  // Real provider page bodies retain upstream release notes even though Core's
+  // normalized release facts exclude them. Multiple valid source checkpoints
+  // therefore exceed one response envelope without any individual file doing so.
+  const releaseNotes = Array.from(
+    { length: 18000 },
+    (_, i) =>
+      `Release note ${i}: preserve bounded collection, unchanged identity and all retained upstream metadata.`,
+  ).join("\n");
+  h.options.fetch = async (url, options) => {
+    const response = await originalFetch(url, options);
+    const body: unknown = await response.json();
+    if (!Array.isArray(body) || !new URL(url).pathname.endsWith("/releases"))
+      return new Response(JSON.stringify(body), { headers: response.headers });
+    return new Response(
+      JSON.stringify(
+        body.map((release: unknown) => {
+          assert.ok(isRecord(release));
+          return { ...release, body: releaseNotes };
+        }),
+      ),
+      { headers: response.headers },
+    );
+  };
+  let result = await advanceCatalogObservations(h.input, null, h.options);
+  for (
+    let seed = 0;
+    seed < 12 &&
+    [...h.states.values()].reduce<number>(
+      (sum, value) => sum + Buffer.byteLength(JSON.stringify(value)),
+      0,
+    ) <= observerSnapshotLimit;
+    seed++
+  ) {
+    h.tick();
+    result = await advanceCatalogObservations(h.input, result.checkpoint, h.options);
+    assert.ok(result.report.requests <= 6);
+  }
+  legacyNotes(h.states, releaseNotes);
+  const sourceTree = path.join(root, "work/upstream-observer");
+  await mkdir(path.join(sourceTree, "catalog"), { recursive: true });
+  await writeFile(
+    path.join(sourceTree, "catalog/checkpoint.json"),
+    JSON.stringify(result.checkpoint),
+  );
+  const originals = new Map<string, string>();
+  for (const [digest, value] of h.states) {
+    const bytes = JSON.stringify(value);
+    assert.ok(
+      Buffer.byteLength(bytes) <= observerSnapshotLimit,
+      "Each original source file fits the prior per-file export bound",
+    );
+    originals.set(`${digest}/checkpoint.json`, bytes);
+    await mkdir(path.join(sourceTree, digest), { recursive: true });
+    await writeFile(path.join(sourceTree, digest, "checkpoint.json"), bytes);
+  }
+  const combined = [...originals.values()].reduce(
+    (sum, bytes) => sum + Buffer.byteLength(bytes),
+    0,
+  );
+  assert.ok(
+    combined > observerSnapshotLimit,
+    "Reproduces the live aggregate overflow, rather than one oversized synthetic file",
+  );
+  const snapshot = await collectObserverSnapshot(root, "c".repeat(64), {
+    run: 101,
+    attempt: 1,
+    source: "a".repeat(40),
+  });
+  const encoded = encodeObserverSnapshot(snapshot, Date.now() + 60000);
+  assert.ok(encoded.decoded_bytes > observerSnapshotLimit);
+  assert.ok(encoded.bytes.length <= observerSnapshotLimit);
+  assert.equal(encoded.checkpoint_files, originals.size + 1);
+  for (const [name, bytes] of originals)
+    assert.equal(
+      await readFile(path.join(sourceTree, name), "utf8"),
+      bytes,
+      "Export never edits the source cache",
+    );
+  const recovered = readObserverSnapshotArchive(
+    createAuditZip([["checkpoint.json", encoded.bytes]]),
+    "c".repeat(64),
+    Date.now(),
+    Date.now() + 60000,
+  );
+  assert.deepEqual(recovered, snapshot);
+  await rm(sourceTree, { recursive: true });
+  h.states.clear();
+  await publishObserverSnapshot(root, recovered);
+  for (const [name, bytes] of originals) {
+    assert.equal(
+      await readFile(path.join(sourceTree, name), "utf8"),
+      bytes,
+      "All accepted page bodies and digests survive byte-for-byte",
+    );
+    h.states.set(name.split("/")[0]!, JSON.parse(bytes) as unknown);
+  }
+  // Match the live file-count shape, including valid retained configurations.
+  // These inert historical budgets alter only configuration identity; accepted
+  // provider pages, clocks and cursors are retained and independently validated.
+  const sourceProgress = Object.values(result.checkpoint.sources).find(
+    (progress) =>
+      progress.current_config &&
+      Buffer.byteLength(JSON.stringify(h.states.get(observationHash(progress.current_config)))) >
+        1024 * 1024,
+  )!;
+  const originalConfig = sourceProgress.current_config!;
+  const originalHash = observationHash(originalConfig);
+  const sourceBytes = JSON.stringify(h.states.get(originalHash));
+  const extra = 350 - originals.size;
+  for (let i = 0; i < extra; i++) {
+    const retained = validateObserverConfig({
+      ...originalConfig,
+      budget: { ...originalConfig.budget, duration_ms: 180000 - i - 1 },
+    });
+    const hash = observationHash(retained);
+    const value: unknown =
+      i < 10
+        ? JSON.parse(sourceBytes.replaceAll(originalHash, hash))
+        : {
+            format: 1,
+            config_sha256: hash,
+            completed_runs: 0,
+            first_complete_at: null,
+            last_complete: null,
+            exception: null,
+          };
+    validateObserverCheckpoint(value, retained);
+    sourceProgress.retired_configs.push(retained);
+    const bytes = JSON.stringify(value);
+    originals.set(`${hash}/checkpoint.json`, bytes);
+    await mkdir(path.join(sourceTree, hash), { recursive: true });
+    await writeFile(path.join(sourceTree, hash, "checkpoint.json"), bytes);
+  }
+  await writeFile(
+    path.join(sourceTree, "catalog/checkpoint.json"),
+    JSON.stringify(result.checkpoint),
+  );
+  const largeRawBytes = [...originals.values()].reduce(
+    (sum, value) => sum + Buffer.byteLength(value),
+    0,
+  );
+  assert.ok(largeRawBytes > observerCheckpointByteLimit);
+  assert.equal(originals.size + 1, 351);
+  await assert.rejects(
+    collectObserverSnapshot(root, "c".repeat(64), { run: 102, attempt: 1, source: "b".repeat(40) }),
+    /decoded snapshot exceeds/,
+  );
+  let metrics: Record<string, number> = {};
+  const compact = await collectCompactObserverSnapshot(
+    root,
+    "c".repeat(64),
+    { run: 102, attempt: 1, source: "b".repeat(40) },
+    Date.now(),
+    Date.now() + 60000,
+    (value) => {
+      metrics = { ...value };
+    },
+  );
+  assert.ok(metrics.logical_json_bytes! > observerCheckpointByteLimit);
+  assert.ok(metrics.stored_json_bytes! < observerCheckpointByteLimit);
+  const packed = encodeCompactObserverSnapshot(compact, Date.now() + 60000);
+  assert.ok(packed.bytes.length <= observerSnapshotLimit);
+  assert.ok(packed.decoded_bytes <= observerCheckpointByteLimit);
+  const foreign = structuredClone(compact);
+  const [firstName] = originals.keys();
+  const decodedSource = decodeStoredObserverCheckpoint(foreign.files[firstName!]);
+  assert.ok(isRecord(decodedSource));
+  foreign.files[firstName!] = encodeStoredObserverCheckpoint({
+    ...decodedSource,
+    config_sha256: "0".repeat(64),
+  });
+  assert.throws(
+    () => validateObserverSnapshot(foreign, "c".repeat(64), Date.now()),
+    /different observer configuration/,
+  );
+  const unpacked = readObserverSnapshotArchive(
+    createAuditZip([["checkpoint.json", packed.bytes]]),
+    "c".repeat(64),
+    Date.now(),
+    Date.now() + 60000,
+  );
+  assert.deepEqual(unpacked, compact);
+  for (const [name, bytes] of originals)
+    assert.equal(
+      await readFile(path.join(sourceTree, name), "utf8"),
+      bytes,
+      "Compaction leaves the original cache unchanged",
+    );
+  await rm(sourceTree, { recursive: true });
+  await publishObserverSnapshot(root, unpacked, Date.now() + 60000);
+  // The compatibility collector expands stored sources. Its aggregate budget
+  // must stop before decoding later files, rather than counting compressed bytes
+  // and only refusing after an oversized graph has already been materialized.
+  const lastName = [...originals.keys()].at(-1)!;
+  const lastPath = path.join(sourceTree, lastName);
+  const lastStored = await readFile(lastPath);
+  await writeFile(lastPath, "invalid later input");
+  await assert.rejects(
+    collectObserverSnapshot(root, "c".repeat(64), { run: 103, attempt: 1, source: "d".repeat(40) }),
+    /decoded snapshot exceeds checkpoint read envelope/,
+  );
+  assert.equal(await readFile(lastPath, "utf8"), "invalid later input");
+  await writeFile(lastPath, lastStored);
+  const cacheRead = await recoverObserverCheckpoint({
+    root,
+    config: "c".repeat(64),
+    current: { run: 103, attempt: 1, source: "d".repeat(40) },
+    deadline: Date.now() + 60000,
+    api: {
+      read: async (route) => {
+        assert.equal(
+          route,
+          "repos/boburning/portcove",
+          "Valid compact cache must not need artifact recovery",
+        );
+        const body = { id: 1354613114, full_name: "boburning/portcove", default_branch: "main" };
+        return {
+          status: 200,
+          headers: new Map(),
+          body,
+          bodyBytes: Buffer.byteLength(JSON.stringify(body)),
+        };
+      },
+    },
+  });
+  assert.deepEqual(cacheRead, { origin: "cache", sequence: result.checkpoint.sequence });
+  h.states.clear();
+  for (const [name, bytes] of originals) {
+    const stored: unknown = JSON.parse(await readFile(path.join(sourceTree, name), "utf8"));
+    assert.equal(
+      JSON.stringify(decodeStoredObserverCheckpoint(stored)),
+      bytes,
+      "Every complete accepted source document survives losslessly",
+    );
+    h.states.set(name.split("/")[0]!, stored);
+  }
+  console.log(
+    JSON.stringify({
+      fixture: "live-shaped-351-file-aggregate",
+      ...metrics,
+      artifact_bytes: packed.bytes.length,
+    }),
+  );
+  let state = result.checkpoint;
+  const sequenceBefore = state.sequence;
+  if (!result.report.pending_source_keys.length) {
+    h.advanceClock(7 * 3600000);
+    h.bumpRelease();
+  }
+  for (let batch = 0; batch < 24; batch++) {
+    h.tick();
+    result = await advanceCatalogObservations(h.input, state, h.options);
+    assert.ok(result.report.requests <= 6);
+    state = result.checkpoint;
+    if (!result.report.pending_source_keys.length) break;
+  }
+  assert.equal(result.report.pending_source_keys.length, 0);
+  assert.ok(state.sequence > sequenceBefore);
+  console.log(
+    JSON.stringify({
+      fixture: "production-shaped-checkpoint-encoding",
+      checkpoint_files: encoded.checkpoint_files,
+      decoded_bytes: encoded.decoded_bytes,
+      artifact_bytes: encoded.bytes.length,
+      artifact_byte_limit: observerStreamingSnapshotLimit,
+    }),
+  );
+});
+
+void test("419 source records stream globally when nested compressed snapshots exceed four MiB", async (t) => {
+  const root = await mkdtemp(
+    path.join(fileURLToPath(new URL("../work/", import.meta.url)), "catalog-record-snapshot-"),
+  );
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const h = harness(),
+    fetchOriginal = h.options.fetch!;
+  const entropy = Array.from({ length: 650 }, (_, i) => observationHash({ release_note: i })).join(
+    "",
+  );
+  const notes = entropy + "Preserve original provider metadata and continuation. ".repeat(1000);
+  h.options.fetch = async (url, options) => {
+    const response = await fetchOriginal(url, options),
+      body: unknown = await response.json();
+    return new Response(
+      JSON.stringify(
+        Array.isArray(body)
+          ? body.map((release: unknown) => {
+              assert.ok(isRecord(release));
+              return { ...release, body: notes };
+            })
+          : body,
+      ),
+      { headers: response.headers },
+    );
+  };
+  const result = await advanceCatalogObservations(h.input, null, h.options);
+  legacyNotes(h.states, notes, true);
+  const progress = Object.values(result.checkpoint.sources).find(
+    (p) => p.current_config && h.states.has(observationHash(p.current_config)),
+  )!;
+  const sourceConfig = progress.current_config!,
+    originalHash = observationHash(sourceConfig);
+  const originalBytes = JSON.stringify(h.states.get(originalHash));
+  const sourceTree = path.join(root, "work/upstream-observer");
+  const originals = new Map<string, string>();
+  await mkdir(path.join(sourceTree, "catalog"), { recursive: true });
+  for (const [hash, value] of h.states) {
+    const bytes = JSON.stringify(value);
+    originals.set(`${hash}/checkpoint.json`, observationHash(value));
+    await mkdir(path.join(sourceTree, hash), { recursive: true });
+    await writeFile(path.join(sourceTree, hash, "checkpoint.json"), bytes);
+  }
+  for (let i = 0, extra = 418 - originals.size; i < extra; i++) {
+    const retained = validateObserverConfig({
+      ...sourceConfig,
+      budget: { ...sourceConfig.budget, duration_ms: 180000 - i - 1 },
+    });
+    const hash = observationHash(retained),
+      value: unknown = JSON.parse(originalBytes.replaceAll(originalHash, hash));
+    validateObserverCheckpoint(value, retained);
+    progress.retired_configs.push(retained);
+    originals.set(`${hash}/checkpoint.json`, observationHash(value));
+    await mkdir(path.join(sourceTree, hash), { recursive: true });
+    await writeFile(path.join(sourceTree, hash, "checkpoint.json"), JSON.stringify(value));
+  }
+  await writeFile(
+    path.join(sourceTree, "catalog/checkpoint.json"),
+    JSON.stringify(result.checkpoint),
+  );
+  let metrics: Record<string, number> = {};
+  const compact = await collectCompactObserverSnapshot(
+    root,
+    "c".repeat(64),
+    { run: 110, attempt: 1, source: "a".repeat(40) },
+    Date.now(),
+    Date.now() + 60000,
+    (m) => {
+      metrics = { ...m };
+    },
+  );
+  assert.equal(Object.keys(compact.files).length, 419);
+  assert.ok(Buffer.byteLength(JSON.stringify(compact)) < observerCheckpointByteLimit);
+  assert.throws(
+    () => encodeCompactObserverSnapshot(compact, Date.now() + 60000),
+    /larger|envelope|buffer/i,
+  );
+  const encoded = await encodeStreamingObserverSnapshot(compact, Date.now() + 60000);
+  const archive = createAuditZip([["checkpoint.json", encoded.bytes]]);
+  assert.ok(archive.length <= observerSnapshotLimit);
+  const restored = await readRecoverableObserverSnapshotArchive(
+    archive,
+    "c".repeat(64),
+    Date.now(),
+    Date.now() + 60000,
+  );
+  const { files: compactFiles, ...scope } = compact;
+  const incomplete = await encodeObserverRecords(
+    (async function* () {
+      yield { name: "$snapshot", bytes: Buffer.from(JSON.stringify(scope)) };
+      yield {
+        name: "catalog/checkpoint.json",
+        bytes: Buffer.from(JSON.stringify(compactFiles["catalog/checkpoint.json"])),
+      };
+    })(),
+    {
+      member: observerSnapshotLimit - 16384,
+      record: observerCheckpointByteLimit,
+      records: 1000,
+      deadline: Date.now() + 60000,
+    },
+  );
+  await assert.rejects(
+    readRecoverableObserverSnapshotArchive(
+      createAuditZip([["checkpoint.json", incomplete.bytes]]),
+      "c".repeat(64),
+      Date.now(),
+      Date.now() + 60000,
+    ),
+    /referenced complete checkpoint missing/,
+  );
+  for (const [name, expected] of originals)
+    assert.equal(observationHash(decodeStoredObserverCheckpoint(restored.files[name])), expected);
+  await rm(sourceTree, { recursive: true });
+  await publishObserverSnapshot(root, restored, Date.now() + 60000);
+  h.states.clear();
+  for (const name of originals.keys())
+    h.states.set(
+      name.split("/")[0]!,
+      JSON.parse(await readFile(path.join(sourceTree, name), "utf8")) as unknown,
+    );
+  const continued = await advanceCatalogObservations(
+    h.input,
+    restored.files["catalog/checkpoint.json"],
+    h.options,
+  );
+  assert.deepEqual(continued.checkpoint.sources, result.checkpoint.sources);
+  console.log(
+    JSON.stringify({
+      fixture: "419-record-global-compression",
+      ...metrics,
+      framed_bytes: encoded.logical_transfer_bytes,
+      member_bytes: encoded.bytes.length,
+      archive_bytes: archive.length,
+    }),
+  );
+});
+
+const factGrowthTest =
+  "fact-only recovery supports 1295 distinct pending sources plus retained configurations within unchanged limits";
+// Two snapshot round trips and the legacy refusal share one fixture deadline.
+void test(factGrowthTest, { timeout: 60_000 }, async (t) => {
+  const root = await mkdtemp(
+    path.join(fileURLToPath(new URL("../work/", import.meta.url)), "catalog-fact-growth-"),
+  );
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const h = harness(4);
+  const seeded = await advanceCatalogObservations(h.input, null, h.options);
+  const template = Object.values(seeded.checkpoint.sources).find(
+    (source) => source.current_config && h.states.has(observationHash(source.current_config)),
+  )!;
+  const templateConfig = template.current_config!,
+    templateHash = observationHash(templateConfig);
+  const templateSource = h.states.get(templateHash);
+  assert.ok(isRecord(templateSource) && isRecord(templateSource.continuation));
+  // Seed a second accepted collection page from the maintained provider fixture;
+  // this regression measures graph persistence, not request admission.
+  const releaseRows = [release(2, { tag_name: "rolling" }), release(1)];
+  objectRecord(templateSource.continuation.pages)[
+    `https://api.github.com/repos/${templateConfig.repository}/releases?per_page=100&page=1`
+  ] = {
+    etag: '"fixture-release-page"',
+    link: "",
+    body: releaseRows,
+    sha256: observationHash(releaseRows),
+  };
+  objectRecord(templateSource.continuation.consumed).requests = 2;
+  assert.ok(Object.keys(objectRecord(templateSource.continuation.pages)).length >= 2);
+  const controller = structuredClone(seeded.checkpoint);
+  controller.sources = {};
+  const tree = path.join(root, "work/upstream-observer");
+  await mkdir(path.join(tree, "catalog"), { recursive: true });
+  const retained = new Map<
+    string,
+    { hashes: Record<string, string>; position: unknown; rawHash: string }
+  >();
+  async function writeSource(config: typeof templateConfig, index: number) {
+    const hash = observationHash(config);
+    const source = JSON.parse(
+      JSON.stringify(templateSource)
+        .replaceAll(templateHash, hash)
+        .replaceAll(templateConfig.repository, config.repository),
+    ) as Record<string, unknown>;
+    if (isRecord(source.exception)) {
+      source.exception.repository_id = config.repository_id;
+      source.exception.key = observationHash({
+        port_id: config.port_id,
+        repository_id: config.repository_id,
+        operation: "observe",
+        rule: source.exception.rule,
+      });
+    }
+    const continuation = objectRecord(source.continuation),
+      pages = objectRecord(continuation.pages);
+    const notes =
+      Array.from({ length: 128 }, (_, block) => observationHash({ index, block })).join("") +
+      "unused release notes and author metadata. ".repeat(900);
+    for (const [url, value] of Object.entries(pages)) {
+      const page = objectRecord(value);
+      if (new URL(url).pathname === `/repos/${config.repository}`)
+        objectRecord(page.body).id = config.repository_id;
+      if (Array.isArray(page.body))
+        page.body = page.body.map((row: unknown) => ({
+          ...objectRecord(row),
+          body: notes,
+          author: { login: `author-${index}` },
+        }));
+      delete page.representation;
+      delete page.facts_sha256;
+      page.sha256 = observationHash(page.body);
+    }
+    validateObserverCheckpoint(source, config);
+    const { pages: _pages, ...position } = continuation;
+    const bytes = JSON.stringify(source),
+      name = `${hash}/checkpoint.json`;
+    retained.set(name, {
+      position,
+      hashes: Object.fromEntries(
+        Object.entries(pages).map(([url, page]) => [url, String(objectRecord(page).sha256)]),
+      ),
+      rawHash: observationHash(source),
+    });
+    await mkdir(path.join(tree, hash), { recursive: true });
+    await writeFile(path.join(tree, name), bytes);
+  }
+  async function snapshot(stage: string) {
+    await writeFile(path.join(tree, "catalog/checkpoint.json"), JSON.stringify(controller));
+    let metrics: Record<string, number> = {};
+    const value = await collectFactObserverSnapshot(
+      root,
+      "c".repeat(64),
+      { run: 120, attempt: 1, source: "a".repeat(40) },
+      Date.now(),
+      Date.now() + 60000,
+      (m) => {
+        metrics = { ...m };
+      },
+    );
+    const encoded = await encodeStreamingObserverSnapshot(value, Date.now() + 60000);
+    assert.ok(
+      encoded.bytes.length < observerSnapshotLimit / 2,
+      "full modeled catalog retains substantial headroom within the old cap",
+    );
+    const restored = await readRecoverableObserverSnapshotArchive(
+      createAuditZip([["checkpoint.json", encoded.bytes]]),
+      "c".repeat(64),
+      Date.now(),
+      Date.now() + 60000,
+    );
+    assert.deepEqual(restored.files["catalog/checkpoint.json"], controller);
+    for (const [name, expected] of retained) {
+      const source = objectRecord(decodeStoredObserverCheckpoint(restored.files[name]));
+      const { pages, ...position } = objectRecord(source.continuation);
+      assert.deepEqual(position, expected.position);
+      for (const [url, hash] of Object.entries(expected.hashes)) {
+        const page = objectRecord(objectRecord(pages)[url]);
+        assert.equal(page.sha256, hash);
+        assert.equal(page.representation, "observer-facts-v1");
+        assert.equal(page.facts_sha256, observationHash(page.body));
+      }
+      assert.equal(
+        observationHash(JSON.parse(await readFile(path.join(tree, name), "utf8"))),
+        expected.rawHash,
+        "export preserves original cache files",
+      );
+    }
+    console.log(
+      JSON.stringify({
+        fixture: "distinct-source-fact-growth",
+        stage,
+        ...metrics,
+        member_bytes: encoded.bytes.length,
+      }),
+    );
+    return encoded.bytes.length;
+  }
+  function objectRecord(value: unknown): Record<string, unknown> {
+    assert.ok(isRecord(value));
+    return value;
+  }
+  for (let index = 0; index < 1295; index++) {
+    const repository = `fixture/repository-${index}`;
+    const config = validateObserverConfig({
+      ...templateConfig,
+      repository,
+      repository_id: 10000 + index,
+    });
+    const progress = structuredClone(template);
+    progress.repository = repository;
+    progress.repository_id = config.repository_id;
+    progress.current_config = config;
+    progress.last_complete_config = null;
+    progress.retired_configs = [];
+    progress.selection_progress = null;
+    progress.policy_progress = null;
+    controller.sources[observationHash({ provider: "github", repository })] = progress;
+    await writeSource(config, index);
+    if (index === 558) await snapshot("560-files");
+    if (index >= 559 && index % 3 === 0) {
+      const historical = validateObserverConfig({
+        ...config,
+        budget: { ...config.budget, duration_ms: config.budget.duration_ms - 1 },
+      });
+      progress.retired_configs.push(historical);
+      await writeSource(historical, index);
+    }
+  }
+  const projectedBytes = await snapshot("1295-sources-plus-retained-configurations");
+  const unprojected = await collectCompactObserverSnapshot(
+    root,
+    "c".repeat(64),
+    { run: 121, attempt: 1, source: "b".repeat(40) },
+    Date.now(),
+    Date.now() + 60000,
+  );
+  const encoded = await encodeStreamingObserverSnapshot(unprojected, Date.now() + 60000);
+  assert.ok(encoded.bytes.length > observerSnapshotLimit);
+  assert.ok(projectedBytes < encoded.bytes.length);
+});
+
 void test("reviewed declarations share provider collection while keeping port-specific Core projections and unsupported holds", async () => {
   const h = harness();
   const plan = catalogObservationSources(h.input);
@@ -200,6 +964,317 @@ void test("unknown quota admits finite batches, durable turns prevent starvation
   const unchanged = await advanceCatalogObservations(h.input, state, h.options);
   assert.equal(h.network.length, before);
   assert.deepEqual(unchanged.report.attempted_source_keys, []);
+});
+
+void test("a resumed opportunity gives untouched sources a turn before retrying attempted sources", async () => {
+  const h = harness(2);
+  const sources = catalogObservationSources(h.input).sources.sort((a, b) =>
+    a.key.localeCompare(b.key),
+  );
+  assert.equal(sources.length, 2);
+  const [attempted, untouched] = sources;
+  assert.ok(attempted && untouched);
+  const first = await advanceCatalogObservations(h.input, null, {
+    ...h.options,
+    excludedSources: new Set([untouched.key]),
+  });
+  assert.deepEqual(first.report.attempted_source_keys, [attempted.key]);
+  assert.equal(first.checkpoint.sources[untouched.key], undefined);
+  assert.equal(first.checkpoint.sources[attempted.key]?.completed_at, null);
+
+  const resumed = await advanceCatalogObservations(h.input, first.checkpoint, h.options);
+  assert.equal(resumed.report.attempted_source_keys[0], untouched.key);
+  assert.ok(resumed.report.requests <= 2);
+});
+
+void test("untouched managed sources are admitted before listing-only sources", async () => {
+  const h = harness();
+  const input = {
+    ...h.input,
+    listings: ["alpha", "beta", "gamma"].map((name) => ({
+      id: `listing-${name}`,
+      name: `Listing ${name}`,
+      summary: "Descriptive listing",
+      project_url: `https://github.com/listing-owner/${name}`,
+    })),
+  };
+  const sources = catalogObservationSources(input).sources;
+  const managed = sources.filter((source) => source.ports.some((port) => port.kind !== "listing"));
+  const listingOnly = sources.filter((source) =>
+    source.ports.every((port) => port.kind === "listing"),
+  );
+  assert.ok(managed.length > 0 && listingOnly.length === 3);
+  const result = await advanceCatalogObservations(input, null, h.options);
+  const order = result.report.attempted_source_keys;
+  const lastManaged = Math.max(...managed.map((source) => order.indexOf(source.key)));
+  const listingPositions = listingOnly
+    .map((source) => order.indexOf(source.key))
+    .filter((position) => position !== -1);
+  assert.ok(managed.every((source) => order.includes(source.key)));
+  assert.ok(listingPositions.every((position) => position > lastManaged));
+});
+
+void test("failing managed sources rejoin ordinary rotation instead of starving listings", async () => {
+  const h = harness();
+  const input = {
+    ...h.input,
+    listings: [
+      {
+        id: "listing-only",
+        name: "Listing only",
+        summary: "Descriptive listing",
+        project_url: "https://github.com/listing-owner/only",
+      },
+    ],
+  };
+  const sources = catalogObservationSources(input).sources;
+  const listing = sources.find((source) => source.ports.every((port) => port.kind === "listing"));
+  assert.ok(listing);
+  const first = await advanceCatalogObservations(input, null, {
+    ...h.options,
+    excludedSources: new Set([listing.key]),
+  });
+  const state = structuredClone(first.checkpoint);
+  for (const progress of Object.values(state.sources)) {
+    progress.exception_key = "f".repeat(64);
+    progress.exception_rule = "provider-transport";
+    progress.completed_at = null;
+    progress.next_due_at = null;
+    progress.attempted_sequence = state.sequence;
+  }
+  h.tick();
+  const next = await advanceCatalogObservations(input, state, h.options);
+  assert.equal(next.report.attempted_source_keys[0], listing.key);
+
+  // Budget stops are partial progress: the managed source keeps its priority.
+  const budget = structuredClone(state);
+  for (const progress of Object.values(budget.sources)) progress.exception_rule = "budget";
+  const resumed = await advanceCatalogObservations(input, budget, h.options);
+  assert.notEqual(resumed.report.attempted_source_keys[0], listing.key);
+
+  // Entries written before rules were recorded keep priority until reattempted.
+  const legacy = structuredClone(state);
+  for (const progress of Object.values(legacy.sources)) delete progress.exception_rule;
+  const legacyRun = await advanceCatalogObservations(input, legacy, h.options);
+  assert.notEqual(legacyRun.report.attempted_source_keys[0], listing.key);
+});
+
+void test("the configured source gets an early bounded turn without starving untouched sources", async () => {
+  const h = harness(2);
+  const sources = catalogObservationSources(h.input).sources.sort((a, b) =>
+    a.key.localeCompare(b.key),
+  );
+  const [untouched, configured] = sources;
+  assert.ok(untouched && configured);
+  const options = {
+    ...h.options,
+    config: validateObserverConfig({
+      ...h.options.config,
+      port_id: configured.ports[0]!.id,
+      repository: configured.repository,
+      repository_id: configured.repository === "owner/shared" ? 7 : 8,
+    }),
+  };
+  const simultaneous = await advanceCatalogObservations(h.input, null, {
+    ...options,
+    prioritizeConfigured: true,
+  });
+  assert.equal(simultaneous.report.attempted_source_keys[0], configured.key);
+  const first = await advanceCatalogObservations(h.input, null, {
+    ...options,
+    excludedSources: new Set([untouched.key]),
+    prioritizeConfigured: true,
+  });
+  assert.equal(first.report.attempted_source_keys[0], configured.key);
+  assert.equal(first.checkpoint.sources[untouched.key], undefined);
+  assert.ok(first.report.requests <= 2);
+
+  const next = await advanceCatalogObservations(h.input, first.checkpoint, {
+    ...options,
+    prioritizeConfigured: true,
+  });
+  assert.equal(next.report.attempted_source_keys[0], untouched.key);
+  assert.ok(next.report.requests <= 2);
+});
+
+void test("scarce capacity completes admitted sources instead of one request each", async () => {
+  const h = harness(40);
+  for (let index = 0; index < 60; index++)
+    h.input.ports.push({
+      id: `many-${index}`,
+      channels: ["stable"],
+      release: { repository: `owner/many-${index}` },
+    });
+  const result = await advanceCatalogObservations(h.input, null, h.options);
+  // Dividing 40 requests across 62 pending sources would admit one request per
+  // source and complete none. Depth-first turns finish admitted sources.
+  assert.ok(result.report.completed_source_keys.length > 0);
+  assert.ok(result.report.requests <= 40);
+});
+
+void test("an operation request limit caps admissions below the template budget (#4779)", async () => {
+  const h = harness(400);
+  for (let index = 0; index < 60; index++)
+    h.input.ports.push({
+      id: `limited-${index}`,
+      channels: ["stable"],
+      release: { repository: `owner/limited-${index}` },
+    });
+  const unlimited = await advanceCatalogObservations(h.input, null, h.options);
+  assert.ok(unlimited.report.requests > 40);
+  const limited = harness(400);
+  limited.input.ports.push(...h.input.ports.slice(limited.input.ports.length));
+  const result = await advanceCatalogObservations(limited.input, null, {
+    ...limited.options,
+    requestLimit: 40,
+  });
+  assert.ok(result.report.requests <= 40, String(result.report.requests));
+  assert.ok(result.report.attempted_source_keys.length > 0);
+  // Every provider request passes the capped admission.
+  assert.equal(limited.network.length, result.report.requests);
+});
+
+void test("the configured first turn admits a page set while other sources retain capacity", async () => {
+  const h = harness(8);
+  for (const name of ["extra-one", "extra-two"]) {
+    h.input.ports.push({
+      id: name,
+      channels: ["stable"],
+      release: { repository: `owner/${name}` },
+    });
+  }
+  const options = {
+    ...h.options,
+    config: validateObserverConfig({
+      ...h.options.config,
+      port_id: "stable-port",
+      repository: "owner/shared",
+      repository_id: 7,
+    }),
+    prioritizeConfigured: true,
+  };
+  const result = await advanceCatalogObservations(h.input, null, options);
+  assert.equal(
+    h.network.findIndex((request) => !request.includes("owner/shared")),
+    4,
+  );
+  assert.ok(result.report.attempted_source_keys.length > 1);
+  assert.ok(result.report.requests <= 8);
+});
+
+void test("both scheduled priority scopes refresh early without excluding normal turns", async () => {
+  const h = harness(64);
+  for (let index = 0; index < 32; index++) {
+    const port = `extra-${index}`;
+    h.input.ports.push({
+      id: port,
+      channels: ["stable"],
+      release: { repository: `owner/${port}` },
+    });
+  }
+  const { sources } = catalogObservationSources(h.input);
+  const selected = sources.find((source) => source.repository === "owner/other")!;
+  const companion = sources.find((source) => source.repository === "owner/extra-0")!;
+  const configured = sources.find((source) => source.repository === "owner/shared")!;
+  const options: CatalogObservationOptions = {
+    ...h.options,
+    repositoryId: async (source, transport) => {
+      if (source.key !== companion.key) return h.options.repositoryId(source, transport);
+      transport.admitRequest();
+      return 9;
+    },
+    fetch: (url, init) =>
+      new URL(url).pathname === "/repos/owner/extra-0"
+        ? Promise.resolve(
+            new Response(JSON.stringify({ id: 9, full_name: "owner/extra-0", archived: false }), {
+              headers: { "content-type": "application/json" },
+            }),
+          )
+        : h.options.fetch!(url, init),
+    config: validateObserverConfig({
+      ...h.options.config,
+      port_id: "stable-port",
+      repository: "owner/shared",
+      repository_id: 7,
+    }),
+  };
+  const first = await advanceCatalogObservations(h.input, null, {
+    ...options,
+    excludedSources: new Set(sources.filter((source) => source !== selected).map(({ key }) => key)),
+  });
+  const retained = await advanceCatalogObservations(h.input, first.checkpoint, {
+    ...options,
+    excludedSources: new Set(
+      sources.filter((source) => source !== companion).map(({ key }) => key),
+    ),
+  });
+  const progress = retained.checkpoint.sources[selected.key]!;
+  const oldObserved = progress.freshness_observed_at;
+  assert.ok(oldObserved);
+  const retainedConfig = progress.current_config;
+  h.advanceClock(13 * 3600000);
+  // A resumed validation can finish many hours after its first verified read.
+  progress.next_due_at = new Date(h.options.now!() + 3600000).toISOString();
+  retained.checkpoint.sources[companion.key]!.next_due_at = progress.next_due_at;
+
+  const result = await advanceCatalogObservations(h.input, retained.checkpoint, {
+    ...options,
+    prioritizeConfigured: true,
+    scheduledPrioritySources: new Set([selected.key, companion.key]),
+  });
+  const status = result.report.source_statuses.find(
+    ({ source_key }) => source_key === selected.key,
+  )!;
+  assert.ok(status.current_scope_complete);
+  assert.equal(status.stale, false);
+  assert.equal(status.observed_at, new Date(h.options.now!()).toISOString());
+  assert.notEqual(status.observed_at, oldObserved);
+  assert.deepEqual(result.checkpoint.sources[selected.key]!.current_config, retainedConfig);
+  const companionStatus = result.report.source_statuses.find(
+    ({ source_key }) => source_key === companion.key,
+  )!;
+  assert.ok(companionStatus.current_scope_complete);
+  assert.equal(companionStatus.observed_at, status.observed_at);
+  assert.deepEqual(
+    new Set(result.report.attempted_source_keys.slice(0, 3)),
+    new Set([configured.key, selected.key, companion.key]),
+  );
+  assert.ok(result.report.attempted_source_keys.length > 3);
+  assert.ok(result.report.requests <= 64);
+});
+
+void test("partial refresh keeps a stale selected scope pending until a later batch completes", async () => {
+  const h = harness();
+  h.input.ports = [h.input.ports[2]!];
+  const selected = catalogObservationSources(h.input).sources[0]!;
+  const first = await advanceCatalogObservations(h.input, null, h.options);
+  const progress = first.checkpoint.sources[selected.key]!;
+  const oldObserved = progress.freshness_observed_at;
+  assert.ok(oldObserved);
+  h.advanceClock((h.options.config.stale_after_hours + 1) * 3600000);
+  const nextDue = new Date(h.options.now!() + 3600000).toISOString();
+  progress.next_due_at = nextDue;
+  const options = { ...h.options, scheduledPrioritySources: new Set([selected.key]) };
+
+  h.setQuota(0);
+  const partial = await advanceCatalogObservations(h.input, first.checkpoint, {
+    ...options,
+    prioritizeConfigured: true,
+  });
+  assert.deepEqual(partial.report.attempted_source_keys, [selected.key]);
+  assert.deepEqual(partial.report.completed_source_keys, []);
+  assert.deepEqual(partial.report.pending_source_keys, [selected.key]);
+  assert.equal(partial.checkpoint.sources[selected.key]!.next_due_at, nextDue);
+  assert.equal(partial.checkpoint.sources[selected.key]!.freshness_observed_at, oldObserved);
+  assert.ok(h.exported.at(-1)![2].checkpoint.continuation);
+
+  h.advanceClock(2000);
+  h.setQuota(null);
+  const resumed = await advanceCatalogObservations(h.input, partial.checkpoint, options);
+  assert.deepEqual(resumed.report.completed_source_keys, [selected.key]);
+  assert.deepEqual(resumed.report.pending_source_keys, []);
+  assert.equal(resumed.report.source_statuses[0]!.stale, false);
+  assert.notEqual(resumed.report.source_statuses[0]!.observed_at, oldObserved);
 });
 
 void test("provider reserve stops work and later quota recovery resumes exact retained pages", async () => {
@@ -330,6 +1405,64 @@ void test("Core selection and policy projection resume exact per-port cursors ac
   assert.equal(h.exported.at(-1)![3].length, 40);
 });
 
+void test("nonempty asset selection preserves post-asset Core progress across finite invocations", async () => {
+  const h = harness();
+  h.input.ports = [h.input.ports[0]!];
+  h.options.config = validateObserverConfig({
+    ...h.options.config,
+    budget: { ...h.options.config.budget, duration_ms: 15000 },
+  });
+  const fetch = h.options.fetch!;
+  h.options.fetch = async (url, init) => {
+    if (new URL(url).pathname.endsWith("/releases/1/assets")) {
+      h.network.push(url);
+      return new Response(
+        JSON.stringify([
+          {
+            id: 10,
+            name: "player-windows.zip",
+            size: 16,
+            state: "uploaded",
+            digest: `sha256:${"a".repeat(64)}`,
+            created_at: "2026-09-09T12:00:00Z",
+            updated_at: "2026-09-09T12:00:00Z",
+            browser_download_url:
+              "https://github.com/owner/shared/releases/download/v1.0.0/player-windows.zip",
+          },
+        ]),
+        { headers: { "content-type": "application/json" } },
+      );
+    }
+    return fetch(url, init);
+  };
+  const project = h.options.project;
+  let calls = 0;
+  h.options.project = async (...args) => {
+    calls++;
+    const result = await project(...args);
+    h.tick();
+    return result;
+  };
+  let state: CatalogObserverCheckpoint | null = null;
+  let complete = false;
+  for (let batch = 0; batch < 6; batch++) {
+    const result = await advanceCatalogObservations(h.input, state, h.options);
+    state = result.checkpoint;
+    if (result.report.pending_source_keys.length === 0) {
+      complete = true;
+      break;
+    }
+  }
+  assert.ok(complete, "header-only probes must not overwrite a retained post-assets cursor");
+  assert.equal(calls, 3, "one header projection, one covered selection, one final policy");
+  const observed = h.exported.at(-1)![2].report.observation;
+  assert.ok(observed && isRecord(observed.facts));
+  assert.equal(
+    (observed.facts.releases as ProviderObservation["facts"]["releases"])[1]!.assets.length,
+    1,
+  );
+});
+
 void test("source byte admission includes identity lookups while smaller unrelated sources continue", async () => {
   const h = harness();
   h.options.repositoryId = async (source, transport) => {
@@ -359,6 +1492,92 @@ void test("new provider exceptions notify once and failed refresh retains every 
   assert.ok(shared[2].report.exception);
   const repeated = await advanceCatalogObservations(changed, failed.checkpoint, h.options);
   assert.equal(repeated.notify_exception, false);
+});
+
+void test("listing-only provider exceptions are reported without failing the job", async () => {
+  const h = harness();
+  const input = {
+    ...h.input,
+    listings: [
+      {
+        id: "listing-gone",
+        name: "Listing gone",
+        summary: "Descriptive listing",
+        project_url: "https://github.com/listing-owner/gone",
+      },
+    ],
+  };
+  const fetch = h.options.fetch!;
+  const result = await advanceCatalogObservations(input, null, {
+    ...h.options,
+    fetch: async (url, init) =>
+      url.includes("/listing-owner/gone")
+        ? new Response(JSON.stringify({ message: "Not Found" }), {
+            status: 404,
+            headers: { "content-type": "application/json" },
+          })
+        : fetch(url, init),
+  });
+  assert.ok(result.report.failures.some((failure) => failure.repository === "listing-owner/gone"));
+  assert.equal(result.notify_exception, false);
+});
+
+void test("scheduled priority and promoted listing exceptions still fail the job once", async () => {
+  const h = harness();
+  const listing = {
+    id: "listing-gone",
+    name: "Listing gone",
+    summary: "Descriptive listing",
+    project_url: "https://github.com/listing-owner/gone",
+  };
+  const input = { ...h.input, listings: [listing] };
+  const fetch = h.options.fetch!;
+  const repositoryId = h.options.repositoryId;
+  const options = {
+    ...h.options,
+    // A deleted repository fails its identity lookup before release collection.
+    repositoryId: async (...args: Parameters<typeof repositoryId>) => {
+      if (args[0].repository === "listing-owner/gone")
+        throw new ObservationFailure("provider-status", "provider returned HTTP 404");
+      return repositoryId(...args);
+    },
+    fetch: async (url: string, init: Parameters<typeof fetch>[1]) =>
+      url.includes("/listing-owner/gone")
+        ? new Response(JSON.stringify({ message: "Not Found" }), {
+            status: 404,
+            headers: { "content-type": "application/json" },
+          })
+        : fetch(url, init),
+  };
+  const key = catalogObservationSources(input).sources.find(
+    (source) => source.repository === "listing-owner/gone",
+  )!.key;
+  const priority = await advanceCatalogObservations(input, null, {
+    ...options,
+    scheduledPrioritySources: new Set([key]),
+    prioritizeConfigured: true,
+  });
+  assert.equal(priority.notify_exception, true);
+
+  const quiet = await advanceCatalogObservations(input, null, options);
+  assert.equal(quiet.notify_exception, false);
+  const promoted = {
+    ...input,
+    ports: [
+      ...input.ports,
+      { id: "listing-gone", channels: ["stable"], release: { repository: "listing-owner/gone" } },
+    ],
+  };
+  h.tick();
+  const state = structuredClone(quiet.checkpoint);
+  for (const progress of Object.values(state.sources)) progress.next_due_at = null;
+  const managed = await advanceCatalogObservations(promoted, state, {
+    ...options,
+    definitionHash: (portId: string) =>
+      observationHash(promoted.ports.find((port) => port.id === portId)),
+  });
+  assert.ok(managed.report.failures.some((failure) => failure.repository === "listing-owner/gone"));
+  assert.equal(managed.notify_exception, true);
 });
 
 void test("provider reset headers do not turn fair quantum exhaustion into provider backoff", async () => {
@@ -416,21 +1635,18 @@ void test("operational coordinator isolates handoff files, preserves failure not
       _directory: string,
       observation: Parameters<typeof h.options.project>[2],
     ) => h.options.project(config.port_id, config.repository_id, observation),
-    api: {
-      request: (_method: string, endpoint: string) => {
-        const repository = endpoint.replace("/repos/", "");
-        const body = {
-          id: repository === "owner/shared" ? 7 : 8,
-          full_name: repository,
-          archived: false,
-        };
-        return {
-          status: 200,
-          headers: new Map<string, string>(),
-          body,
-          bodyBytes: Buffer.byteLength(JSON.stringify(body)),
-        };
-      },
+    repositoryMetadata: async (repository: string) => {
+      const body = {
+        id: repository === "owner/shared" ? 7 : 8,
+        full_name: repository,
+        archived: false,
+      };
+      return {
+        status: 200,
+        headers: new Map<string, string>(),
+        body,
+        bodyBytes: Buffer.byteLength(JSON.stringify(body)),
+      };
     },
     log: () => {},
   };
@@ -447,6 +1663,7 @@ void test("operational coordinator isolates handoff files, preserves failure not
       "utf8",
     ),
   ) as Record<string, unknown>;
+  assert.equal(Object.hasOwn(initialHandoff, "unmonitored_port_ids"), false);
   assert.deepEqual(initialHandoff.descriptive_listing_preimages, {
     "stable-port": "74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b",
   });
@@ -490,7 +1707,7 @@ void test("operational coordinator isolates handoff files, preserves failure not
     release: { repository: "owner/unavailable" },
   });
   await writeFile(catalog, JSON.stringify(h.input));
-  runtime.api.request = () => {
+  runtime.repositoryMetadata = async () => {
     throw new GitHubApiError(
       "command_failed",
       "private transport detail must stay out of proposal evidence",
@@ -528,7 +1745,13 @@ void test("retired cache cleanup preserves live snapshots, contention, foreign f
   const checkpointFile = path.join(directory, "checkpoint.json");
   const reportFile = path.join(directory, "report.json");
   const statePath = path.join(root, "work/upstream-observer/catalog/checkpoint.json");
-  await writeFile(checkpointFile, JSON.stringify(snapshot.checkpoint));
+  const stored = encodeStoredObserverCheckpoint(snapshot.checkpoint);
+  assert.notDeepEqual(
+    stored,
+    snapshot.checkpoint,
+    "Cleanup exercises an actual compressed source document",
+  );
+  await writeFile(checkpointFile, JSON.stringify(stored));
   await writeFile(reportFile, JSON.stringify(snapshot.report));
   await writeFile(path.join(directory, "foreign.txt"), "preserve unrelated bytes");
   const cleanup = () =>
@@ -614,9 +1837,8 @@ void test("legacy artifact retains its original report shape while shared ports 
     now: h.options.now!,
     observer: { fetch: h.options.fetch! },
     log: () => {},
-    api: {
-      request: () => assert.fail("Reviewed legacy numeric identity needs no new baseline lookup"),
-    },
+    repositoryMetadata: async () =>
+      assert.fail("Reviewed legacy numeric identity needs no new baseline lookup"),
     project: async (_cli, source, _directory, observation) =>
       h.options.project(source.port_id, source.repository_id, observation),
   });
@@ -630,10 +1852,12 @@ void test("legacy artifact retains its original report shape while shared ports 
   assert.equal(legacyReport.config_sha256, observationHash(legacy));
   assert.equal(Object.hasOwn(legacyReport, "catalog_policies"), false);
   assert.equal(Object.hasOwn(legacyReport, "source_port_ids"), false);
+  assert.deepEqual(legacyReport.unmonitored_port_ids, ["rolling-port"]);
   const handoff = JSON.parse(
     await readFile(path.join(result.handoff_directory, `${observationHash(legacy)}.json`), "utf8"),
   ) as Record<string, unknown>;
   assert.ok(Array.isArray(handoff.catalog_policies) && handoff.catalog_policies.length === 2);
+  assert.equal(Object.hasOwn(handoff, "unmonitored_port_ids"), false);
 });
 
 void test("cumulative session bytes can exceed one source operation without unsafe reads or false completion", async () => {
@@ -709,6 +1933,48 @@ void test("a changed Core reprojects fresh complete facts without provider reads
       progress.last_complete_policies.every((policy) => policy.current_core_fixture === true),
     );
   }
+});
+
+void test("an appointed scheduled source refreshes when due even after a Core binding change", async () => {
+  const h = harness();
+  const first = await advanceCatalogObservations(h.input, null, h.options);
+  const selected = catalogObservationSources(h.input).sources.find(
+    (source) => source.repository === "owner/other",
+  )!;
+  const peer = catalogObservationSources(h.input).sources.find(
+    (source) => source.repository === "owner/shared",
+  )!;
+  const prior = first.checkpoint.sources[selected.key]!;
+  const due = Date.parse(prior.next_due_at!);
+  assert.ok(due > h.options.now!());
+  h.advanceClock(due - h.options.now!());
+  assert.ok(
+    due - Date.parse(prior.freshness_observed_at!) < h.options.config.stale_after_hours * 3600000,
+  );
+  h.bumpRelease();
+  const before = h.network.length;
+  const result = await advanceCatalogObservations(h.input, first.checkpoint, {
+    ...h.options,
+    policyIdentity: "b".repeat(64),
+    prioritizeConfigured: true,
+    scheduledPrioritySources: new Set([selected.key]),
+  });
+  assert.equal(result.report.attempted_source_keys[0], selected.key);
+  assert.ok(result.report.completed_source_keys.includes(selected.key));
+  assert.ok(h.network.length > before);
+  assert.ok(h.network.slice(before).every((url) => url.includes("owner/other")));
+  assert.notEqual(
+    result.checkpoint.sources[selected.key]!.last_complete_facts_sha256,
+    prior.last_complete_facts_sha256,
+  );
+  assert.equal(
+    result.checkpoint.sources[selected.key]!.freshness_observed_at,
+    new Date(due).toISOString(),
+  );
+  assert.equal(
+    result.checkpoint.sources[peer.key]!.freshness_observed_at,
+    first.checkpoint.sources[peer.key]!.freshness_observed_at,
+  );
 });
 
 void test("fresh fact reuse falls back to collection when current Core requires uncovered candidate assets", async () => {
@@ -797,7 +2063,10 @@ void test("provider fact reuse refuses missing page coverage, corrupt facts and 
     reusableProviderObservation(config, complete.observation, complete.cache, undefined, now),
   );
   const brokenCache = structuredClone(complete.cache) as {
-    pages: Record<string, { body: unknown; sha256: string; link: string; etag: string }>;
+    pages: Record<
+      string,
+      { body: unknown; sha256: string; facts_sha256?: string; link: string; etag: string }
+    >;
   };
   const assetPage = Object.keys(brokenCache.pages).find((url) => url.includes("/assets"))!;
   delete brokenCache.pages[assetPage];
@@ -841,13 +2110,17 @@ void test("known changed partial provider facts cannot be replaced by an older f
   const [, config, result] = h.exported.find(([source]) => source.repository === "owner/other")!;
   const state = structuredClone(result.checkpoint);
   const proof = state.last_complete!.cache as {
-    pages: Record<string, { body: unknown; sha256: string; link: string; etag: string }>;
+    pages: Record<
+      string,
+      { body: unknown; sha256: string; facts_sha256?: string; link: string; etag: string }
+    >;
   };
   const url = Object.keys(proof.pages).find((url) => /\/releases\?/.test(url))!;
   const page = structuredClone(proof.pages[url]!);
   const rows = page.body as { id: number; tag_name: string }[];
   rows.find((row) => row.id === 1)!.tag_name = "v1.1.0";
   page.sha256 = observationHash(rows);
+  page.facts_sha256 = observationHash(rows);
   state.continuation = {
     format: 1,
     config_sha256: observationHash(config),
@@ -910,7 +2183,7 @@ void test("a Core executable changed during projection cannot publish a complete
     now: h.options.now!,
     observer: { fetch: h.options.fetch! },
     log: () => {},
-    api: { request: () => assert.fail("Legacy exact source identity needs no lookup") },
+    repositoryMetadata: async () => assert.fail("Legacy exact source identity needs no lookup"),
     project: async (_cli, source, _directory, observation) => {
       await writeFile(cli, "changed mock Core identity");
       return h.options.project(source.port_id, source.repository_id, observation);
@@ -1209,6 +2482,35 @@ void test("hosted opportunity drains accepted progress without retrying failed s
   assert.deepEqual(result.report.completed_source_keys, ["large"]);
 });
 
+void test("hosted opportunity hands each batch only its remaining request allowance", async () => {
+  const { continueCatalogBatches } = await import("./catalog-observer-continuation.mts");
+  const limits: number[] = [];
+  const result = await continueCatalogBatches(
+    async (_excluded, requestLimit) => {
+      limits.push(requestLimit);
+      // A batch honours its allowance, as advanceCatalogObservations does.
+      return {
+        report: {
+          pending_source_keys: ["large"],
+          attempted_source_keys: ["large"],
+          completed_source_keys: [],
+          failures: [],
+          requests: Math.min(300, requestLimit),
+          response_bytes_charged: 10,
+        },
+        made_progress: true,
+        handoff_exhausted: false,
+        notify_exception: false,
+      };
+    },
+    { deadline: 100, now: () => 0, maxRequests: 1000 },
+  );
+  // The ceiling is a hard total, not an admission threshold (#4779).
+  assert.deepEqual(limits, [1000, 700, 400, 100]);
+  assert.equal(result.report.requests, 1000);
+  assert.deepEqual(result.report.pending_source_keys, ["large"]);
+});
+
 void test("opportunity refuses unknown capacity and stops on no accepted progress, byte exhaustion, deadline and cancellation", async () => {
   const { continueCatalogBatches } = await import("./catalog-observer-continuation.mts");
   const batch = {
@@ -1370,6 +2672,61 @@ void test("accepted checkpoint advancement ignores request counts, clocks, clear
   );
 });
 
+void test("hosted opportunity wires its request ceiling into every batch (#4779)", async (t) => {
+  const work = fileURLToPath(new URL("../work/", import.meta.url));
+  await mkdir(work, { recursive: true });
+  const root = await mkdtemp(path.join(work, "catalog-opportunity-test-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const h = harness(4);
+  await mkdir(path.join(root, "release"), { recursive: true });
+  await mkdir(path.join(root, "crates/portcove-core/catalog"), { recursive: true });
+  await writeFile(
+    path.join(root, "crates/portcove-core/catalog/listings.json"),
+    JSON.stringify({ format_version: 1, listings: [] }),
+  );
+  const cli = path.join(root, "inspector"),
+    catalog = path.join(root, "crates/portcove-core/catalog/catalog.json");
+  await writeFile(cli, "fixture inspector identity; native execution is mocked");
+  await writeFile(
+    path.join(root, "release/upstream-observer.json"),
+    JSON.stringify(h.options.config),
+  );
+  await writeFile(catalog, JSON.stringify(h.input));
+  const runtime = {
+    root,
+    deadline: h.options.now!() + 500000,
+    now: h.options.now!,
+    inspectCatalog: async () =>
+      new Map(h.input.ports.map((port) => [port.id, observationHash(port)])),
+    observer: { fetch: h.options.fetch!, sleep: h.options.sleep! },
+    project: async (
+      _cli: string,
+      config: Parameters<typeof h.options.load>[0],
+      _directory: string,
+      observation: Parameters<typeof h.options.project>[2],
+    ) => h.options.project(config.port_id, config.repository_id, observation),
+    repositoryMetadata: async (repository: string) => {
+      const body = {
+        id: repository === "owner/shared" ? 7 : 8,
+        full_name: repository,
+        archived: false,
+      };
+      return {
+        status: 200,
+        headers: new Map<string, string>(),
+        body,
+        bodyBytes: Buffer.byteLength(JSON.stringify(body)),
+      };
+    },
+    log: () => {},
+  };
+  // Each batch's template budget is 4 requests. Without the wiring, two batches
+  // would spend 8 against a ceiling of 6; with it the second receives only 2.
+  const result = await runCatalogOpportunity(["--cli", cli], { ...runtime, requestCeiling: 6 });
+  assert.ok(result.batches >= 2, String(result.batches));
+  assert.equal(result.report.requests, 6);
+});
+
 void test("hosted opportunity preserves one aggregate handoff and refuses changed catalog after accepted progress", async (t) => {
   const work = fileURLToPath(new URL("../work/", import.meta.url));
   await mkdir(work, { recursive: true });
@@ -1403,21 +2760,18 @@ void test("hosted opportunity preserves one aggregate handoff and refuses change
       _directory: string,
       observation: Parameters<typeof h.options.project>[2],
     ) => h.options.project(config.port_id, config.repository_id, observation),
-    api: {
-      request: (_method: string, endpoint: string) => {
-        const repository = endpoint.replace("/repos/", ""),
-          body = {
-            id: repository === "owner/shared" ? 7 : 8,
-            full_name: repository,
-            archived: false,
-          };
-        return {
-          status: 200,
-          headers: new Map<string, string>(),
-          body,
-          bodyBytes: Buffer.byteLength(JSON.stringify(body)),
-        };
-      },
+    repositoryMetadata: async (repository: string) => {
+      const body = {
+        id: repository === "owner/shared" ? 7 : 8,
+        full_name: repository,
+        archived: false,
+      };
+      return {
+        status: 200,
+        headers: new Map<string, string>(),
+        body,
+        bodyBytes: Buffer.byteLength(JSON.stringify(body)),
+      };
     },
     log: () => {},
   };
@@ -1434,6 +2788,13 @@ void test("hosted opportunity preserves one aggregate handoff and refuses change
     )
   ).reduce((sum, bytes) => sum + bytes.length, 0);
   assert.equal((result.summary as { artifact_bytes: number }).artifact_bytes, actualBytes);
+  // The hosted path wires its own aggregate handoff envelope into the summary.
+  assert.equal(
+    (result.summary as { artifact_byte_limit: number }).artifact_byte_limit,
+    hostedHandoffByteLimit +
+      h.options.config.budget.response_bytes +
+      observerStreamingSnapshotLimit,
+  );
   h.advanceClock(7 * 3600000);
   runtime.deadline = h.options.now!() + 500000;
   let changed = false;
@@ -1726,4 +3087,356 @@ void test("failed refresh invalidates only derived platform labels after authore
   assert.equal(candidate.upstream_observation.observed_at, fact.observed_at);
   assert.equal(candidate.upstream_observation.fresh_until, fact.fresh_until);
   assert.equal(candidate.upstream_observation.facts_sha256, fact.facts_sha256);
+});
+
+void test(
+  "repository identity lookup aborts the actual SDK fetch with its command",
+  { timeout: 30000 },
+  async (t) => {
+    for (const [name, run] of [
+      ["batch", runCatalogUpstreams],
+      ["opportunity", runCatalogOpportunity],
+    ] as const)
+      await t.test(name, async (t) => {
+        const work = fileURLToPath(new URL("../work/", import.meta.url));
+        await mkdir(work, { recursive: true });
+        const root = await mkdtemp(path.join(work, "catalog-identity-cancel-"));
+        t.after(() => rm(root, { recursive: true, force: true }));
+        const originalGh = process.env.GH_TOKEN,
+          originalGitHub = process.env.GITHUB_TOKEN;
+        process.env.GH_TOKEN = process.env.GITHUB_TOKEN = "synthetic-cancelled-identity";
+        t.after(() => {
+          if (originalGh === undefined) delete process.env.GH_TOKEN;
+          else process.env.GH_TOKEN = originalGh;
+          if (originalGitHub === undefined) delete process.env.GITHUB_TOKEN;
+          else process.env.GITHUB_TOKEN = originalGitHub;
+        });
+        const h = harness();
+        await mkdir(path.join(root, "release"), { recursive: true });
+        await mkdir(path.join(root, "crates/portcove-core/catalog"), { recursive: true });
+        await writeFile(
+          path.join(root, "release/upstream-observer.json"),
+          JSON.stringify(h.options.config),
+        );
+        await writeFile(
+          path.join(root, "crates/portcove-core/catalog/catalog.json"),
+          JSON.stringify({ ports: h.input.ports.slice(0, 1) }),
+        );
+        await writeFile(
+          path.join(root, "crates/portcove-core/catalog/listings.json"),
+          JSON.stringify({ format_version: 1, listings: [] }),
+        );
+        const cli = path.join(root, "inspector");
+        await writeFile(cli, "inert controlled inspector");
+        const controller = new AbortController();
+        let dispatched!: () => void,
+          drain!: () => void,
+          aborted = false,
+          calls = 0,
+          projections = 0;
+        const entered = new Promise<void>((resolve) => {
+          dispatched = resolve;
+        });
+        t.mock.method(
+          globalThis,
+          "fetch",
+          async (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
+            calls++;
+            const url =
+              input instanceof Request ? input.url : input instanceof URL ? input.href : input;
+            assert.equal(url, "https://api.github.com/repos/owner/shared");
+            assert.ok(init?.signal);
+            return await new Promise<Response>((_resolve, reject) => {
+              drain = () => reject(new Error("controlled fixture cleanup"));
+              init.signal!.addEventListener(
+                "abort",
+                () => {
+                  aborted = true;
+                  reject(init.signal!.reason);
+                },
+                { once: true },
+              );
+              dispatched();
+            });
+          },
+        );
+        const completed = run(["--cli", cli], {
+          root,
+          deadline: h.options.now!() + 60000,
+          now: h.options.now!,
+          observer: { signal: controller.signal },
+          inspectCatalog: async () =>
+            new Map(h.input.ports.map((port) => [port.id, observationHash(port)])),
+          project: async () => {
+            projections++;
+            assert.fail("cancelled identity cannot project facts");
+          },
+          log: () => {},
+        }).then(
+          (value) => ({ status: "resolved" as const, value }),
+          (error: unknown) => ({ status: "rejected" as const, error }),
+        );
+        try {
+          await Promise.race([
+            entered,
+            completed.then(() => assert.fail("identity did not reach the configured SDK")),
+          ]);
+          controller.abort();
+          assert.equal(aborted, true, "command cancellation must reach the pending SDK fetch");
+          const result = await completed;
+          assert.equal(calls, 1);
+          assert.equal(projections, 0);
+          if (result.status === "resolved")
+            assert.equal(result.value.report.failures[0]?.rule, "cancelled");
+          else
+            assert.ok(
+              result.error instanceof Error &&
+                "rule" in result.error &&
+                result.error.rule === "cancelled",
+            );
+        } finally {
+          controller.abort();
+          drain?.();
+          await completed;
+        }
+      });
+  },
+);
+
+void test("GitLab descriptive listings reuse the provider collector and export native tags plus exact registry candidates", async () => {
+  const h = harness();
+  const listing = {
+    id: "lab-description",
+    project_url: "https://gitlab.com/owner/subgroup/lab",
+    release_url: "https://gitlab.com/owner/subgroup/lab/-/releases",
+    availability: "unknown",
+    download_asset_hints: { "windows-x86-64": ["windows", "x64"] },
+  };
+  const catalog = { ports: [], listings: [listing] };
+  const calls: string[] = [];
+  let exported: unknown[] = [];
+  const result = await advanceCatalogObservations(catalog, null, {
+    ...h.options,
+    projectProvider: async () => {
+      throw new Error("Descriptive listing must never enter managed Core policy");
+    },
+    providerFetch: async (input, init) => {
+      const url = new URL(input instanceof Request ? input.url : input);
+      calls.push(url.href);
+      assert.equal(new Headers(init?.headers).get("authorization"), null);
+      const body = url.pathname.endsWith("/releases")
+        ? [
+            {
+              tag_name: "v1.2.0",
+              upcoming_release: false,
+              released_at: "2026-10-26T00:00:00Z",
+              assets: {
+                links: [
+                  {
+                    id: 5,
+                    url: "https://gitlab.com/owner/subgroup/lab/-/package_files/301/download",
+                  },
+                ],
+              },
+            },
+          ]
+        : url.pathname.endsWith("/packages")
+          ? [{ id: 101, name: "game", version: "1.2.0" }]
+          : url.pathname.endsWith("/package_files")
+            ? [
+                {
+                  id: 301,
+                  file_name: "game-windows-x64.zip",
+                  size: 42,
+                  file_sha256: "a".repeat(64),
+                },
+              ]
+            : { id: 27, path_with_namespace: "owner/subgroup/lab", archived: false };
+      return new Response(JSON.stringify(body), {
+        headers: { "x-page": "1", "x-per-page": "100", "x-next-page": "" },
+      });
+    },
+    exportProvider: async (_source, _observations, policies) => {
+      exported = policies;
+    },
+  });
+  assert.deepEqual(result.report.failures, []);
+  assert.equal(result.report.completed_source_keys.length, 1);
+  assert.equal(calls.length, 4);
+  assert.equal(exported.length, 1);
+  assert.ok(isRecord(exported[0]));
+  const policy = exported[0];
+  assert.equal(policy.authority, "descriptive-listing-observation-only");
+  assert.deepEqual(policy.projections, []);
+  assert.ok(isRecord(policy.listing_update));
+  assert.equal(policy.listing_update.availability, "unknown");
+  const observation = policy.listing_update.upstream_observation as Record<string, unknown>;
+  assert.equal(observation.provider, "gitlab");
+  assert.equal(observation.repository_id, 27);
+  assert.equal(observation.status, "complete");
+  const release = (observation.releases as Record<string, unknown>[])[0]!;
+  assert.deepEqual(release.id, { provider: "gitlab", project_id: 27, tag: "v1.2.0" });
+  assert.equal(release.release_url, "https://gitlab.com/owner/subgroup/lab/-/releases/v1.2.0");
+  assert.deepEqual(release.assets, [
+    {
+      id: 301,
+      name: "game-windows-x64.zip",
+      size: 42,
+      sha256: "a".repeat(64),
+      platform_hints: ["windows-x86-64"],
+      url: "https://gitlab.com/api/v4/projects/27/packages/generic/game/1.2.0/game-windows-x64.zip",
+    },
+  ]);
+});
+
+void test("descriptive provider identity refuses arbitrary hosts and reports unsupported observation without release absence", async () => {
+  const { listingProviderIdentity } = await import("./listing-upstream-observation.mts");
+  for (const project_url of [
+    "https://gitlab.com/owner/lab",
+    "https://gitlab.com/owner/lab.git",
+    "https://gitlab.com/owner/lab/-/releases/v1.0",
+  ]) {
+    assert.deepEqual(listingProviderIdentity({ project_url }), {
+      provider: "gitlab",
+      repository: "owner/lab",
+    });
+  }
+  assert.deepEqual(
+    listingProviderIdentity({ project_url: "https://gitlab.com/owner/subgroup/lab/-/releases/v1" }),
+    { provider: "gitlab", repository: "owner/subgroup/lab" },
+  );
+  for (const project_url of [
+    "https://gitlab.example.com/owner/lab",
+    "https://gitlab.com/owner/.git",
+    "https://gitlab.com.evil.test/owner/lab",
+    "https://user:pass@gitlab.com/owner/lab",
+    "https://gitlab.com:8443/owner/lab",
+    "https://gitlab.com/owner/lab?token=secret",
+    "https://gitlab.com/owner/lab/-/blob/main/file",
+  ]) {
+    assert.equal(listingProviderIdentity({ project_url }), null);
+    const result = catalogObservationSources({
+      ports: [],
+      listings: [{ id: "unsupported", project_url }],
+    });
+    assert.equal(result.sources.length, 0);
+    assert.equal(result.held[0]?.reason, "listing-provider-observation-unsupported");
+  }
+});
+
+void test("GitLab listing failures preserve last-good freshness and unsupported release links remain incomplete", async () => {
+  const { projectGitLabListingObservation, listingUpdatesForReport } =
+    await import("./listing-upstream-observation.mts");
+  const listing = {
+    id: "lab-description",
+    project_url: "https://gitlab.com/owner/lab",
+    availability: "unknown",
+  };
+  const facts = {
+    project: { id: 27, path_with_namespace: "owner/lab" },
+    releases: [
+      {
+        tag_name: "v1",
+        upcoming_release: false,
+        released_at: "2026-10-26T00:00:00Z",
+        assets: { links: [] },
+      },
+    ],
+    packages: [],
+    package_files: {},
+    coverage: { releases: true, packages: true },
+  };
+  const observation = {
+    format: 3,
+    authority: "provider-observation-only",
+    provider: "gitlab",
+    started_at: "2026-10-27T00:00:00Z",
+    completed_at: "2026-10-27T00:01:00Z",
+    facts,
+    facts_sha256: observationHash(facts),
+  };
+  for (const badRelease of [
+    null,
+    { ...facts.releases[0], upcoming_release: undefined },
+    { ...facts.releases[0], assets: {} },
+  ]) {
+    const badFacts = { ...facts, releases: [badRelease] };
+    assert.throws(
+      () =>
+        projectGitLabListingObservation(
+          listing,
+          { ...observation, facts: badFacts, facts_sha256: observationHash(badFacts) },
+          12,
+        ),
+      /invalid native/,
+    );
+  }
+  const policy = projectGitLabListingObservation(listing, observation, 12);
+  const current = policy.listing_update;
+  for (const rule of ["provider-transport", "provider-pagination", "provider-stale"]) {
+    const updates = listingUpdatesForReport(
+      [policy],
+      { exception: { rule } },
+      "2026-10-28T00:00:00Z",
+      { provider: "gitlab", repository: "owner/lab", ports: [{ listing: current }] },
+    );
+    assert.equal(updates[0]?.upstream_observation.provider, "gitlab");
+    assert.equal(updates[0]?.upstream_observation.observed_at, "2026-10-27T00:00:00Z");
+    assert.equal(updates[0]?.upstream_observation.fresh_until, "2026-10-27T12:00:00.000Z");
+    assert.equal(updates[0]?.availability, "unknown");
+  }
+  const incompleteFacts = structuredClone(facts);
+  (incompleteFacts.releases[0]!.assets.links as unknown[]).push({
+    id: 5,
+    url: "https://unknown.test/game.zip",
+  });
+  const incomplete = projectGitLabListingObservation(
+    listing,
+    { ...observation, facts: incompleteFacts, facts_sha256: observationHash(incompleteFacts) },
+    12,
+  );
+  assert.equal(incomplete.listing_update.upstream_observation.status, "incomplete");
+  assert.deepEqual(
+    (incomplete.listing_update.upstream_observation.releases as Record<string, unknown>[])[0]!
+      .assets,
+    [],
+  );
+  assert.throws(
+    () =>
+      projectGitLabListingObservation(
+        listing,
+        {
+          ...observation,
+          facts: { ...facts, coverage: {} },
+          facts_sha256: observationHash({ ...facts, coverage: {} }),
+        },
+        12,
+      ),
+    /Exact covered/,
+  );
+});
+
+void test("GitLab provider failures export a descriptive failure candidate without refreshing successful facts", async () => {
+  const h = harness();
+  const listing = {
+    id: "lab-description",
+    project_url: "https://gitlab.com/owner/lab",
+    availability: "unknown",
+  };
+  const failures: unknown[] = [];
+  const result = await advanceCatalogObservations({ ports: [], listings: [listing] }, null, {
+    ...h.options,
+    providerFetch: async () => {
+      throw new Error("bounded provider failure");
+    },
+    exportProvider: async (_source, observations, _policies, report) => {
+      assert.deepEqual(observations, []);
+      failures.push(report);
+    },
+  });
+  assert.equal(result.report.failures[0]?.rule, "provider-transport");
+  assert.deepEqual(failures, [{ exception: { rule: "provider-transport" } }]);
+  const state = Object.values(result.checkpoint.sources)[0]!;
+  assert.equal(state.freshness_observed_at, null);
+  assert.equal(state.last_complete_facts_sha256, null);
 });

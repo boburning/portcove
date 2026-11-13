@@ -92,11 +92,11 @@ async function restore(filter: CatalogQuery | "beta" | "all") {
 
 async function openChannelPanel() {
   const trigger = [...host.querySelectorAll<HTMLButtonElement>("button")].find((button) =>
-    /^Filters \(\d+\)$/.test(button.textContent?.trim() ?? ""),
+    /^Filters \(\d+\)$/.test(button.getAttribute("aria-label") ?? button.textContent?.trim() ?? ""),
   );
   expect(trigger).toBeDefined();
   if (trigger!.getAttribute("aria-expanded") !== "true") await act(async () => trigger!.click());
-  await openFilterField("Release channels");
+  await openFilterField("Update channels");
 }
 
 async function click(name: string) {
@@ -253,9 +253,9 @@ describe("Catalog channel controls", () => {
   });
   it("keeps Stable and Preview selected with compatible beta query values", async () => {
     await click("stable");
-    expect(visibleIds()).toEqual(["stable", "both"]);
+    expect(visibleIds()).toEqual(["both", "stable"]);
     await click("beta");
-    expect(visibleIds()).toEqual(["stable", "beta", "both"]);
+    expect(visibleIds()).toEqual(["beta", "both", "stable"]);
     expect(channelButton("stable").getAttribute("aria-checked")).toBe("true");
     expect(channelButton("beta").getAttribute("aria-checked")).toBe("true");
     expect(channelButton("rolling").getAttribute("aria-checked")).toBe("false");
@@ -267,7 +267,7 @@ describe("Catalog channel controls", () => {
     await click("stable");
     expect(visibleIds()).toEqual(["beta", "both"]);
     await click("beta");
-    expect(visibleIds()).toEqual(["stable", "beta", "rolling", "both"]);
+    expect(visibleIds()).toEqual(["beta", "both", "rolling", "stable"]);
     expect(
       shell.filter === "all" ||
         (typeof shell.filter !== "string" && !shell.filter.channels?.length),
@@ -275,7 +275,7 @@ describe("Catalog channel controls", () => {
     await click("rolling");
     await click("stable");
     await click("beta");
-    expect(visibleIds()).toEqual(["stable", "beta", "rolling", "both"]);
+    expect(visibleIds()).toEqual(["beta", "both", "rolling", "stable"]);
     await click("all");
     await openChannelPanel();
     for (const channel of ["stable", "beta", "rolling"])
@@ -286,7 +286,7 @@ describe("Catalog channel controls", () => {
     await restore("beta");
     expect(visibleIds()).toEqual(["beta", "both"]);
     await click("stable");
-    expect(visibleIds()).toEqual(["stable", "beta", "both"]);
+    expect(visibleIds()).toEqual(["beta", "both", "stable"]);
   });
 
   it("preserves other constraints for channel toggles and clears declared filters in the shared panel", async () => {
@@ -306,7 +306,7 @@ describe("Catalog channel controls", () => {
     expect(shell.filter).not.toBe("all");
     await click("all");
     expect(shell.filter).toBe("all");
-    expect(visibleIds()).toEqual(["stable", "beta", "rolling", "both"]);
+    expect(visibleIds()).toEqual(["beta", "both", "rolling", "stable"]);
     expect(
       shell.filter === "all" ||
         (typeof shell.filter !== "string" && !shell.filter.channels?.length),
@@ -321,7 +321,9 @@ describe("Catalog channel controls", () => {
     await restore(filter);
     expect(visibleIds()).toEqual([]);
     await openChannelPanel();
-    expect(host.querySelector('[role="alert"]')?.textContent).toContain("not supported");
+    expect(host.querySelector('[role="alert"]')?.textContent).toContain(
+      "These saved filters aren’t supported by this version of Portcove.",
+    );
     expect(channelButton("beta").matches(":disabled,[aria-disabled=true]")).toBe(true);
     await click("beta");
     expect(shell.filter).toEqual(filter);
@@ -333,17 +335,17 @@ describe("Catalog channel controls", () => {
   it("retains search, sort, selection and control focus without backend or network work", async () => {
     await act(async () => {
       shell.setQuery("port");
-      shell.setCatalogSort("name");
+      shell.setCatalogSort("name-desc");
       shell.setSelectedId("stable");
     });
     await openChannelPanel();
     channelButton("beta").focus();
     await click("beta");
     expect(document.activeElement).toBe(channelButton("beta"));
-    expect(shell).toMatchObject({ query: "port", catalogSort: "name", selectedId: "stable" });
-    expect(visibleIds()).toEqual(["beta", "both"]);
+    expect(shell).toMatchObject({ query: "port", catalogSort: "name-desc", selectedId: "stable" });
+    expect(visibleIds()).toEqual(["both", "beta"]);
     await click("stable");
-    expect(visibleIds()).toEqual(["beta", "both", "stable"]);
+    expect(visibleIds()).toEqual(["stable", "both", "beta"]);
     expect(invoke).not.toHaveBeenCalled();
     expect(fetchSpy).not.toHaveBeenCalled();
   });
@@ -393,7 +395,7 @@ describe("Catalog channel controls", () => {
       ),
     ).toEqual(["Beta port"]);
     await act(async () => shell.setView("catalog"));
-    expect(visibleIds()).toEqual(["stable", "beta", "both"]);
+    expect(visibleIds()).toEqual(["beta", "both", "stable"]);
     await act(async () => shell.setView("library"));
     await openAdvancedFilters();
     await expect.element(readiness).toHaveAccessibleName("Readiness Needs attention (1)");
@@ -440,8 +442,8 @@ it("feeds the accepted membership context consistently into results, counts and 
   await act(async () => root.render(<Fixture />));
   expect(document.body.textContent).toContain("Ports unavailable");
   expect(visibleIds()).toEqual([]);
-  expect(control("Remove In my library filter")).toBeDefined();
-  await act(async () => control("Remove In my library filter").click());
+  expect(control("Remove Library membership: In my library filter")).toBeDefined();
+  await act(async () => control("Remove Library membership: In my library filter").click());
   expect(visibleIds()).toEqual(["beta", "both"]);
   expect(shell.filter).toEqual({ version: 1, membership: [], channels: ["beta"] });
   expect(invoke).not.toHaveBeenCalled();
@@ -487,7 +489,7 @@ it("composes raw Core attention with readiness/channel counts and keeps unavaila
   await act(async () => root.render(<Fixture />));
   expect(document.body.textContent).toContain("Ports unavailable");
   expect(visibleIds()).toEqual([]);
-  await act(async () => control("Remove Finish setup filter").click());
+  await act(async () => control("Remove Installation attention: Finish setup filter").click());
   expect(visibleIds()).toEqual(["beta", "both"]);
   expect(shell.filter).toMatchObject({ attention: [], channels: ["beta"] });
   expect(invoke).not.toHaveBeenCalled();
@@ -563,7 +565,7 @@ it("feeds identity-matched staged updates into results/counts without update che
   membershipFacts = false;
   await act(async () => root.render(<Fixture />));
   expect(document.body.textContent).toContain("Ports unavailable");
-  await act(async () => control("Remove Matching update staged filter").click());
+  await act(async () => control("Remove Observed updates: Matching update staged filter").click());
   expect(visibleIds()).toEqual(["beta", "both"]);
   expect(invoke).not.toHaveBeenCalled();
   expect(fetchSpy).not.toHaveBeenCalled();

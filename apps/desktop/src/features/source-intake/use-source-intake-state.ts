@@ -3,7 +3,7 @@ import { gameIdentityLabel } from "../../port-identity";
 import type { SourceIntakeRequest } from "../../components/SourceIntake";
 import type { CatalogDocument } from "../../types";
 
-export function useSourceIntakeState(catalog: CatalogDocument | undefined) {
+export function useSourceIntakeState(catalog: CatalogDocument | undefined, generation: number) {
   const [request, setRequest] = useState<SourceIntakeRequest>();
   const open = useCallback(
     (portId: string, profileId: string, paths: string[] = []) => {
@@ -11,6 +11,7 @@ export function useSourceIntakeState(catalog: CatalogDocument | undefined) {
       const profile = catalog?.source_profiles?.find((candidate) => candidate.id === profileId);
       if (port && profile)
         setRequest({
+          generation,
           portId,
           portName: gameIdentityLabel(port),
           profile,
@@ -18,8 +19,8 @@ export function useSourceIntakeState(catalog: CatalogDocument | undefined) {
           paths,
         });
     },
-    [catalog],
+    [catalog, generation],
   );
   const close = useCallback(() => setRequest(undefined), []);
-  return { request, open, close };
+  return { request: request?.generation === generation ? request : undefined, open, close };
 }

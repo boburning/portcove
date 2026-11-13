@@ -125,33 +125,30 @@ function fixture() {
     ["actions/artifacts/9/zip", zip],
     ["actions/runs/42", run],
   ]);
-  const invoke = (command: string, args: string[], binary = false): string | Buffer => {
-    if (command === "gh") {
-      const route = args[1];
-      assert(route);
-      const value = responses.get(route.replace(`repos/${repository}/`, ""));
-      if (value === undefined) throw Error("unexpected route");
-      if (binary) {
-        assert(Buffer.isBuffer(value));
-        return value;
-      }
-      const serialized = JSON.stringify(value);
-      assert(typeof serialized === "string");
-      return serialized;
+  const read = async (route: string, binary = false): Promise<unknown> => {
+    const value = responses.get(route);
+    if (value === undefined) throw Error("unexpected route");
+    if (binary) {
+      assert(Buffer.isBuffer(value));
+      return Buffer.from(value);
     }
+    return structuredClone(value);
+  };
+  const git = (args: string[]) => {
     if (args[0] === "show") return workflow;
     if (args[0] === "rev-parse") return sha("f");
     if (args[0] === "cat-file") return "";
     throw Error("unexpected git");
   };
-  return { plan, invoke, responses, run, jobs, artifact, discoverPlan: () => plan };
+  return { plan, read, git, responses, run, jobs, artifact, discoverPlan: () => plan };
 }
 
-void test("trusted identical tested composition reuses explicit groups while current aggregates remain honest", () => {
+void test("trusted identical tested composition reuses explicit groups while current aggregates remain honest", async () => {
   const f = fixture();
-  const reuse = discoverPostmergeReuse(f.plan, {
+  const reuse = await discoverPostmergeReuse(f.plan, {
     event: "push",
-    invoke: f.invoke,
+    read: f.read,
+    git: f.git,
     discoverPlan: f.discoverPlan,
   });
   assert.ok(reuse);
@@ -168,7 +165,10 @@ void test("trusted identical tested composition reuses explicit groups while cur
     }),
     /reused CI 42/,
   );
-  assert.equal(discoverPostmergeReuse(f.plan, { event: "pull_request", invoke: f.invoke }), null);
+  assert.equal(
+    await discoverPostmergeReuse(f.plan, { event: "pull_request", read: f.read, git: f.git }),
+    null,
+  );
   assert.throws(() => validatePostmergeReuse({ ...reuse, checkout: sha("a") }, f.plan));
   assert.throws(() =>
     evaluateCiResults({
@@ -182,7 +182,7 @@ void test("trusted identical tested composition reuses explicit groups while cur
     }),
   );
 });
-void test("changed composition, direct push, pending/failing or incomplete provenance execute normally", () => {
+void test("changed composition, direct push, pending/failing or incomplete provenance execute normally", async () => {
   for (const mutate of [
     (f) => (f.run.conclusion = "failure"),
     (f) => (f.run.status = "in_progress"),
@@ -205,9 +205,10 @@ void test("changed composition, direct push, pending/failing or incomplete prove
     const f = fixture();
     mutate(f);
     assert.equal(
-      discoverPostmergeReuse(f.plan, {
+      await discoverPostmergeReuse(f.plan, {
         event: "push",
-        invoke: f.invoke,
+        read: f.read,
+        git: f.git,
         discoverPlan: f.discoverPlan,
       }),
       null,
@@ -215,13 +216,12 @@ void test("changed composition, direct push, pending/failing or incomplete prove
   }
   const f = fixture();
   assert.equal(
-    discoverPostmergeReuse(f.plan, {
+    await discoverPostmergeReuse(f.plan, {
       event: "push",
       discoverPlan: f.discoverPlan,
-      invoke: (c, args, b) =>
-        c === "git" && args[0] === "rev-parse" && args[1]?.startsWith(sha("c"))
-          ? sha("e")
-          : f.invoke(c, args, b),
+      read: f.read,
+      git: (args) =>
+        args[0] === "rev-parse" && args[1]?.startsWith(sha("c")) ? sha("e") : f.git(args),
     }),
     null,
   );
@@ -242,7 +242,7 @@ void test("changed composition, direct push, pending/failing or incomplete prove
   }
 });
 
-void test("malformed provider identities and artifact metadata always retain fresh execution", () => {
+void test("malformed provider identities and artifact metadata always retain fresh execution", async () => {
   const runsRoute = `actions/workflows/ci.yml/runs?head_sha=${sha("d")}&event=pull_request&per_page=20`;
   const mutate: readonly ((candidate: ReturnType<typeof fixture>) => unknown)[] = [
     (f) => f.responses.set(runsRoute, { workflow_runs: [null] }),
@@ -264,12 +264,134 @@ void test("malformed provider identities and artifact metadata always retain fre
     const f = fixture();
     alter(f);
     assert.equal(
-      discoverPostmergeReuse(f.plan, {
+      await discoverPostmergeReuse(f.plan, {
         event: "push",
-        invoke: f.invoke,
+        read: f.read,
+        git: f.git,
         discoverPlan: f.discoverPlan,
       }),
       null,
     );
+  }
+});
+
+void test("postmerge workflow installs locked dependencies before credentialed observation", async () => {
+  const { readFile } = await import("node:fs/promises");
+  const { parse } = await import("yaml");
+  const workflow: unknown = parse(
+    await readFile(new URL("../.github/workflows/ci.yml", import.meta.url), "utf8"),
+  );
+  const { isRecord } = await import("./runtime-values.mts");
+  assert.ok(isRecord(workflow) && isRecord(workflow.jobs) && isRecord(workflow.jobs.classify));
+  assert.ok(Array.isArray(workflow.jobs.classify.steps));
+  const steps = workflow.jobs.classify.steps.filter(isRecord);
+  const install = steps.findIndex(
+    (step) =>
+      step.run === "pnpm install --filter portcove-repository --frozen-lockfile --ignore-scripts",
+  );
+  const observe = steps.findIndex((step) => step.id === "plan");
+  assert.ok(install >= 0 && install < observe);
+  // Pull requests also install it so the classifier can read the live draft state.
+  assert.equal(
+    steps[install]?.if,
+    "github.event_name == 'push' || github.event_name == 'pull_request'",
+  );
+  assert.equal(steps[install]?.env, undefined);
+  const environment = steps[observe]?.env;
+  assert.ok(isRecord(environment) && environment.GH_TOKEN);
+});
+
+void test("production reuse acquires the exact artifact through Octokit and an anonymous byte transfer", async (t) => {
+  const f = fixture();
+  const token = "inert-postmerge-test-token";
+  const previous = process.env.GH_TOKEN;
+  process.env.GH_TOKEN = token;
+  t.after(() => {
+    if (previous === undefined) delete process.env.GH_TOKEN;
+    else process.env.GH_TOKEN = previous;
+  });
+  const delivery =
+    "https://productionresultssa10.blob.core.windows.net/actions-results/fixture.zip?sig=inert";
+  const seen: string[] = [];
+  t.mock.method(globalThis, "fetch", async (input: string | URL | Request, init?: RequestInit) => {
+    const url = new URL(input instanceof Request ? input.url : input);
+    assert.equal(init?.redirect, "manual");
+    const headers = new Headers(init?.headers);
+    if (url.href === delivery) {
+      assert.equal(headers.get("authorization"), null);
+      assert.equal(init?.credentials, "omit");
+      seen.push("signed-bytes");
+      return new Response(
+        Uint8Array.from((await f.read("actions/artifacts/9/zip", true)) as Buffer),
+      );
+    }
+    assert.equal(url.origin, "https://api.github.com");
+    assert.equal(headers.get("authorization"), `token ${token}`);
+    const route = url.pathname.slice(`/repos/${repository}/`.length) + url.search;
+    seen.push(route);
+    return route === "actions/artifacts/9/zip"
+      ? new Response(null, { status: 302, headers: { location: delivery } })
+      : Response.json(await f.read(route));
+  });
+  const reuse = await discoverPostmergeReuse(f.plan, {
+    event: "push",
+    git: f.git,
+    discoverPlan: f.discoverPlan,
+  });
+  assert.equal(reuse?.tested_checkout, sha("c"));
+  assert.deepEqual(seen, [
+    ...Array.from(f.responses.keys()).slice(0, -1),
+    "signed-bytes",
+    "actions/runs/42",
+  ]);
+});
+
+void test("artifact transport refuses foreign redirects, excess bytes and stalled streams", async () => {
+  const { downloadGitHubArtifactArchive } = await import("./github-artifact-download.mts");
+  const endpoint = "repos/boburning/portcove/actions/artifacts/9/zip";
+  const delivery =
+    "https://productionresultssa10.blob.core.windows.net/actions-results/fixture.zip?sig=inert";
+  for (const mode of ["foreign", "excess", "stalled"] as const) {
+    let calls = 0;
+    let cancelled = false;
+    const stream = new ReadableStream<Uint8Array>({
+      start(controller) {
+        if (mode === "excess") controller.enqueue(new Uint8Array(23));
+      },
+      cancel() {
+        cancelled = true;
+      },
+    });
+    // AbortSignal.timeout does not keep the test process alive by itself.
+    const keepAlive = setTimeout(() => {}, 250);
+    try {
+      await assert.rejects(
+        downloadGitHubArtifactArchive(endpoint, {
+          credential: { kind: "explicit", token: "inert-artifact-test-token" },
+          deadline: performance.now() + 100,
+          maxBytes: 22,
+          async fetch() {
+            calls++;
+            return calls === 1
+              ? new Response(null, {
+                  status: 302,
+                  headers: {
+                    location: mode === "foreign" ? "https://example.com/?sig=inert" : delivery,
+                  },
+                })
+              : new Response(stream);
+          },
+        }),
+        mode === "foreign"
+          ? /address refused/u
+          : mode === "excess"
+            ? /byte limit/u
+            : /deadline exhausted/u,
+      );
+      assert.equal(calls, mode === "foreign" ? 1 : 2);
+      assert.equal(cancelled, mode !== "foreign");
+    } finally {
+      clearTimeout(keepAlive);
+    }
   }
 });

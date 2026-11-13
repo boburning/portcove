@@ -1,1 +1,71 @@
-null
+{
+  "signed": {
+    "_type": "root",
+    "spec_version": "1.0.0",
+    "consistent_snapshot": true,
+    "version": 1,
+    "expires": "2027-10-30T15:29:53Z",
+    "keys": {
+      "fb5255c89b90cded62621172d8ee53ecf14df21f13f03ab011e761de2310ece0": {
+        "keytype": "ed25519",
+        "keyval": {
+          "public": "c4979ca99b9999d8bc12df230b0b09fc18578721b1e298f6bd558b922cd20cbd"
+        },
+        "scheme": "ed25519"
+      },
+      "d2c9f4cf8976997a80c080d80bc09b4c340687c8088d026b21dc13fa94ee0b0f": {
+        "keytype": "ed25519",
+        "keyval": {
+          "public": "51e776124a8223527df5df2141fa715196631096d4c9e081c4b33b767e088c31"
+        },
+        "scheme": "ed25519"
+      },
+      "a47550ead78c303da885fde344266db72cc542d1204e2fab98751aa4698e1b28": {
+        "keytype": "ed25519",
+        "keyval": {
+          "public": "dd42a1c6c1394ba66fb26f2f94ecb693925bd9101c4c83d0ca72cd4fad868f89"
+        },
+        "scheme": "ed25519"
+      },
+      "26fa409353f89350fd06cc51481089b69f80d2bba9dd2aa7a0ac5013837804d9": {
+        "keytype": "ed25519",
+        "keyval": {
+          "public": "79bebff8d180a0fd2eec239f4ecf6e96719b57b3b8c84af1531a8901ff2c6fbe"
+        },
+        "scheme": "ed25519"
+      }
+    },
+    "roles": {
+      "snapshot": {
+        "keyids": [
+          "26fa409353f89350fd06cc51481089b69f80d2bba9dd2aa7a0ac5013837804d9"
+        ],
+        "threshold": 1
+      },
+      "root": {
+        "keyids": [
+          "d2c9f4cf8976997a80c080d80bc09b4c340687c8088d026b21dc13fa94ee0b0f"
+        ],
+        "threshold": 1
+      },
+      "targets": {
+        "keyids": [
+          "fb5255c89b90cded62621172d8ee53ecf14df21f13f03ab011e761de2310ece0"
+        ],
+        "threshold": 1
+      },
+      "timestamp": {
+        "keyids": [
+          "a47550ead78c303da885fde344266db72cc542d1204e2fab98751aa4698e1b28"
+        ],
+        "threshold": 1
+      }
+    }
+  },
+  "signatures": [
+    {
+      "keyid": "d2c9f4cf8976997a80c080d80bc09b4c340687c8088d026b21dc13fa94ee0b0f",
+      "sig": "d6ee59937503c8d9b5e3b21a242d436012311a54c27d0e6c48d8d088cc7f2695f587bb877b3222ecf74ef5a7f5519740e70955841cc8ae7bfeb60ed928247700"
+    }
+  ]
+}

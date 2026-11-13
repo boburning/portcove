@@ -8,8 +8,9 @@ This contract supersedes the earlier staged UI delivery proposal. The owner requ
 - Identity and the current next action lead. Separate games, stable port IDs and variants. Keep red Play, quiet green checked readiness, blue selection and gold keyboard focus. Keep graphite/warm-light tokens, bundled Geist, Lucide controls and the approved crab assets.
 - Keep whole-image 2:3 collection frames, metadata outside artwork, compact wrapping rows and bounded detail/task artwork. Do not infer ownership, readiness, image crops or eligibility from appearance. Unclassified artwork retains its complete source image.
 - Use the existing workspace scroll owner and native sizing preference. Constrain reading/forms within the available workspace; never constrain its scrollbar to a stale width. Reflow navigation and task actions with no lost functionality at enlargement.
-- Add games offers intentions: choose a game/port, find games in a folder, or use an existing installation. Requirements determine the route; there is no universal six-step wizard. Preserve checked inputs and drafts across navigation.
+- Add games offers routes: Browse games (choosing happens in Discover), Scan a folder, or use an existing installation. Requirements determine the route; there is no universal six-step wizard. Preserve checked inputs and drafts across navigation.
 - Reviews group inputs, changes and running-work consequences. Focused decisions stay in dialogs; complex inventories and task accounts use workspace/disclosure surfaces. Keep full locations and native approval/plan binding. Keep Move materially distinct from keeping a location or copying files.
+- A finished setup or install hands a ready game back with "Title is ready to play." and Play only when current readiness and Core's launch assessment allow it; a successful launch shows no visible notice; one Cancel serves running setup on the game page.
 - Running work can be left where the existing invocation owner survives navigation. Continue browsing closes observation, not the task. Activity keeps the authoritative target and outcome; completion never steals focus from another workspace. Cancellation-requested is not cancellation-settled.
 - Game updates use one explicit immediate choice across detail, notices and Activity. Compact presentation and future policy do not choose a different action. A changed disposition needs a new plan. A staged update is distinct from the current playable version; game, app and catalog updates remain separate.
 - Activity is target-first, with attention/current/recent groupings derived from actual records. A read-only retained-work account exposes facts before a separate cleanup decision. Join only by authoritative operation identity. Do not invent universal retry/resume/rollback actions.
@@ -79,7 +80,7 @@ port remain distinct drafts, including a selected port outside filtered results.
 
 Settings uses open rows separated by rules. Wide layouts place an 11.875rem category
 column beside a reading column bounded at 47.5rem; below 65rem the categories form
-one horizontally scrollable strip. All seven panels stay mounted to preserve
+one horizontally scrollable strip. All eight panels stay mounted to preserve
 drafts and operations. Category focus reveals the selected heading and its outline
 below any sticky category strip, scrolling the existing workspace only as far as needed.
 
@@ -179,3 +180,22 @@ never an inferred progress phase. The reviewed external-to-managed transition
 creates and activates through its existing atomic owner; no pretend prepared-copy
 or return transition is displayed. Native, browser and real-file acceptance remain
 distinct, and live integration completion/evidence belongs to #3725.
+
+### Full-app prototype composition
+
+Collections are exposed in the desktop sidebar with the same ephemeral selection
+owner used by the compact picker. Settings includes a Controls category derived
+from the real keyboard registry and existing controller navigation; Steam uses
+the single-installation dialog for one eligible target and the batch owner for
+multiple targets. The implementation must not imply unsupported native toggles.
+
+Add games presents distinct intake routes without a fabricated fixed step count.
+Selected preparation identity comes from the existing task owner. Detail notices,
+version comparisons, backup summaries, gallery stages and management rows share
+the prototype composition while preserving their independent operational owners.
+A downloaded candidate keeps the current installation playable when Core permits
+it; presentation never turns a download into consent to apply it.
+
+Renderer comparison fixtures document visual behavior only. Native setup, launch,
+update, restore, Steam and interface-size acceptance require their maintained
+production checks; a diagnostic fixture is not evidence of successful native work.

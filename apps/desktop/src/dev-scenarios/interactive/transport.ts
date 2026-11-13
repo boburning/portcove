@@ -26,6 +26,51 @@ import type {
 } from "../../types";
 import type { OperationResult } from "../../transport-types.generated";
 
+function applyFixtureCollectionChange(
+  next: LibraryOrganization,
+  change: Extract<
+    OrganizationChange,
+    { kind: "upsert_collection" | "remove_collection" | "set_collection_port" }
+  >,
+  membership: (values: string[], id: string, included: boolean) => string[],
+  unsupported: (command: string) => never,
+) {
+  switch (change.kind) {
+    case "upsert_collection":
+      next.collections[change.collection_id] = {
+        name: change.name,
+        port_ids: next.collections[change.collection_id]?.port_ids ?? [],
+      };
+      break;
+    case "remove_collection":
+      delete next.collections[change.collection_id];
+      break;
+    case "set_collection_port": {
+      const collection = next.collections[change.collection_id];
+      if (!collection)
+        return unsupported("change_library_organization (missing fixture collection)");
+      collection.port_ids = membership(collection.port_ids, change.port_id, change.included);
+      break;
+    }
+  }
+}
+
+function applyFixtureSetupConfirmation(
+  next: LibraryOrganization,
+  change: Extract<OrganizationChange, { kind: "set_setup_confirmation" }>,
+) {
+  const confirmation = change.confirmation;
+  next.setup_confirmations = next.setup_confirmations.filter(
+    (item) =>
+      !(
+        item.port_id === confirmation.port_id &&
+        item.context.kind === confirmation.context.kind &&
+        item.context.installation_id === confirmation.context.installation_id
+      ),
+  );
+  if (change.confirmed) next.setup_confirmations.push(confirmation);
+}
+
 export const recoveryKey = "portcove.interactive.fixture-recovery";
 export function installInteractiveTransport(journey: Journey, refuse: (message: string) => void) {
   if (!import.meta.env.DEV || "__TAURI_INTERNALS__" in window || "__TAURI__" in window) {
@@ -75,6 +120,9 @@ export function installInteractiveTransport(journey: Journey, refuse: (message: 
       }
     | undefined;
   const calls: string[] = [];
+  // The library's snapshot setting, on by default like Core's.
+  let automaticSnapshots = true;
+  let readyNotices = true;
   const unsupported = (command: string): never => {
     const message = `Unsupported fixture action: ${command}. No native action was performed.`;
     refuse(message);
@@ -123,6 +171,54 @@ export function installInteractiveTransport(journey: Journey, refuse: (message: 
       requireArgs("get_library_organization", args, { generation });
       return structuredClone(organization);
     },
+    // The details page asks for the last failed launch of an installed game; the
+    // fixtures never run a game, so there is nothing to explain.
+    get_launch_failure: (args) => {
+      if (typeof args?.portId !== "string")
+        return unsupported("get_launch_failure (unexpected arguments)");
+      requireArgs("get_launch_failure", args, { portId: args.portId, generation });
+      return null;
+    },
+    // Fixtures never run a setup batch, so none is left unfinished.
+    get_unfinished_install_batches: (args) => {
+      requireArgs("get_unfinished_install_batches", args, { generation });
+      return [];
+    },
+    // Fixtures keep no remembered game choices, so nothing is assessed or set up.
+    get_port_intents: (args) => {
+      requireArgs("get_port_intents", args, { generation });
+      return [];
+    },
+    get_root_setup_consents: (args) => {
+      requireArgs("get_root_setup_consents", args, { generation });
+      return [];
+    },
+    assess_port_intents: (args) => {
+      requireArgs("assess_port_intents", args, { generation });
+      return { assessments: [], not_assessed: 0, ready_notices_enabled: readyNotices };
+    },
+    get_ready_notices_enabled: (args) => {
+      requireArgs("get_ready_notices_enabled", args, { generation });
+      return readyNotices;
+    },
+    set_ready_notices_enabled: (args) => {
+      if (typeof args?.enabled !== "boolean")
+        return unsupported("set_ready_notices_enabled (unexpected arguments)");
+      requireArgs("set_ready_notices_enabled", args, { enabled: args.enabled, generation });
+      readyNotices = args.enabled;
+      return readyNotices;
+    },
+    get_automatic_snapshots: (args) => {
+      requireArgs("get_automatic_snapshots", args, { generation });
+      return automaticSnapshots;
+    },
+    set_automatic_snapshots: (args) => {
+      if (typeof args?.enabled !== "boolean")
+        return unsupported("set_automatic_snapshots (unexpected arguments)");
+      requireArgs("set_automatic_snapshots", args, { enabled: args.enabled, generation });
+      automaticSnapshots = args.enabled;
+      return automaticSnapshots;
+    },
     change_library_organization: (args) => {
       if (args?.generation !== generation || args.expectedRevision !== organization.revision)
         return unsupported("change_library_organization (stale fixture choices)");
@@ -167,6 +263,11 @@ export function installInteractiveTransport(journey: Journey, refuse: (message: 
           );
       }
       switch (change.kind) {
+        case "set_preferred_implementation":
+          next.preferred_port_by_game ??= {};
+          if (change.port_id) next.preferred_port_by_game[change.game_id] = change.port_id;
+          else delete next.preferred_port_by_game[change.game_id];
+          break;
         case "set_followed_project":
         case "acknowledge_followed_release":
           applyFollowing(change);
@@ -181,40 +282,19 @@ export function installInteractiveTransport(journey: Journey, refuse: (message: 
           applySavedGroup(change);
           break;
         case "upsert_collection":
-          next.collections[change.collection_id] = {
-            name: change.name,
-            port_ids: next.collections[change.collection_id]?.port_ids ?? [],
-          };
-          break;
         case "remove_collection":
-          delete next.collections[change.collection_id];
+        case "set_collection_port":
+          applyFixtureCollectionChange(next, change, membership, unsupported);
           break;
-        case "set_collection_port": {
-          const collection = next.collections[change.collection_id];
-          if (!collection)
-            return unsupported("change_library_organization (missing fixture collection)");
-          collection.port_ids = membership(collection.port_ids, change.port_id, change.included);
-          break;
-        }
         case "set_update_notice":
           next.update_notices[change.port_id] = {
             ...change.choice,
             skipped_release: change.choice.skipped_release ?? null,
           };
           break;
-        case "set_setup_confirmation": {
-          const confirmation = change.confirmation;
-          next.setup_confirmations = next.setup_confirmations.filter(
-            (item) =>
-              !(
-                item.port_id === confirmation.port_id &&
-                item.context.kind === confirmation.context.kind &&
-                item.context.installation_id === confirmation.context.installation_id
-              ),
-          );
-          if (change.confirmed) next.setup_confirmations.push(confirmation);
+        case "set_setup_confirmation":
+          applyFixtureSetupConfirmation(next, change);
           break;
-        }
         default:
           return unsupported("change_library_organization (unknown fixture choice)");
       }
@@ -306,6 +386,19 @@ export function installInteractiveTransport(journey: Journey, refuse: (message: 
     refresh_catalog_listings: () => {
       throw new Error("Directory publication requires configured official authority.");
     },
+    get_official_catalog_review: () =>
+      ({
+        configured: false,
+        enabled: false,
+        source: null,
+        expected_plan: null,
+      }) satisfies Awaited<ReturnType<typeof desktopApi.officialCatalogReview>>,
+    enable_official_catalog: () => {
+      throw new Error("This scenario has no configured official catalog.");
+    },
+    refresh_official_catalog: () => {
+      throw new Error("This scenario has no configured official catalog.");
+    },
     get_catalog_status: (args) => {
       requireArgs("get_catalog_status", args, {});
       return {
@@ -317,6 +410,35 @@ export function installInteractiveTransport(journey: Journey, refuse: (message: 
         can_use_cached: false,
         state_sha256: "a".repeat(64),
       } satisfies Awaited<ReturnType<typeof desktopApi.catalogStatus>>;
+    },
+    // Fixture games have no reviewed mod contract, as most real games do not;
+    // the setups view then renders nothing.
+    get_mod_setups: (args) => {
+      const portId = requirePort("get_mod_setups", args);
+      return {
+        port_id: portId,
+        supported: false,
+        package_types: [],
+        later_mods_take_priority: false,
+        held_updates: [],
+        provider: null,
+        inventory: null,
+        live: null,
+      } satisfies Awaited<ReturnType<typeof desktopApi.modSetups>>;
+    },
+    get_port_capabilities: (args) => {
+      const snapshot = workspace(journey);
+      if (
+        !(
+          snapshot.catalog.ports.some((port) => port.id === args?.portId) ||
+          snapshot.listing_catalog?.listings.some((listing) => listing.id === args?.portId)
+        )
+      )
+        return unsupported("get_port_capabilities");
+      requireArgs("get_port_capabilities", args, { portId: args?.portId, generation });
+      // Optional read failure is a supported fixture state, not an unsupported
+      // action. These journeys do not reproduce Core's capability assessment.
+      throw new Error("Feature details are unavailable in this browser fixture.");
     },
     launch_port: (args) => {
       const status = workspace(journey).statuses.find((item) => item.port_id === args?.portId);
@@ -338,6 +460,7 @@ export function installInteractiveTransport(journey: Journey, refuse: (message: 
         generation,
         source: null,
         arguments: args.arguments,
+        disc: null,
       });
       return {
         processId: null,
@@ -443,7 +566,7 @@ export function installInteractiveTransport(journey: Journey, refuse: (message: 
       } satisfies GameComparison;
     },
     get_workspace_snapshot: (args) => {
-      requireArgs("get_workspace_snapshot", args, { generation });
+      requireArgs("get_workspace_snapshot", args, { generation, knownCatalogDigest: null });
       const snapshot = workspace(journey);
       snapshot.activities = feed();
       const [status] = snapshot.statuses;
@@ -538,6 +661,13 @@ export function installInteractiveTransport(journey: Journey, refuse: (message: 
         source: "anonymous",
       } satisfies Awaited<ReturnType<typeof desktopApi.githubAuthStatus>>;
     },
+    get_steamgriddb_key_status: (args) => {
+      requireArgs("get_steamgriddb_key_status", args, {});
+      // Fixtures never hold a player key, so SteamGridDB stays unconfigured.
+      return { configured: false } satisfies Awaited<
+        ReturnType<typeof desktopApi.steamGridDbKeyStatus>
+      >;
+    },
     get_application_update_preferences: (args) => {
       requireArgs("get_application_update_preferences", args, {});
       return {
@@ -609,6 +739,24 @@ export function installInteractiveTransport(journey: Journey, refuse: (message: 
       requireArgs("get_game_file_scan_snapshot", args, { generation });
       return null;
     },
+    // Fixtures publish no saved scan, so there are no recorded matches to page.
+    get_game_file_scan_matches: (args) => {
+      const query = args?.query as { kind?: string; offset?: number } | undefined;
+      requireArgs("get_game_file_scan_matches", args, { generation, query });
+      return {
+        scan_id: null,
+        kind: query?.kind === "preliminary" ? "preliminary" : "exact",
+        offset: query?.offset ?? 0,
+        total: 0,
+        candidates: [],
+        preliminary_selections: [],
+        next_offset: null,
+      };
+    },
+    get_game_file_root_match_profiles: (args) => {
+      requireArgs("get_game_file_root_match_profiles", args, { generation, rootId: args?.rootId });
+      return [];
+    },
     get_backups: (args) => {
       if (!workspace(journey).catalog.ports.some((port) => port.id === args?.portId))
         return unsupported("get_backups");
@@ -633,6 +781,21 @@ export function installInteractiveTransport(journey: Journey, refuse: (message: 
         problems: [],
         state: "healthy",
       } satisfies Awaited<ReturnType<typeof desktopApi.backups>>;
+    },
+    preview_portable_save_export: (args) => {
+      if (!workspace(journey).catalog.ports.some((port) => port.id === args?.portId))
+        return unsupported("preview_portable_save_export");
+      requireArgs("preview_portable_save_export", args, {
+        portId: args?.portId,
+        generation,
+      });
+      // Scenario ports have no reviewed portable-save contract.
+      return {
+        port_id: String(args?.portId),
+        files: [],
+        stays_local: [],
+        blockers: ["unqualified"],
+      } satisfies Awaited<ReturnType<typeof desktopApi.previewPortableSaveExport>>;
     },
     get_artwork: (args) => {
       if (

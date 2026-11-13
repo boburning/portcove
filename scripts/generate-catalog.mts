@@ -1,3 +1,6 @@
+import { renderRetainedPreparedTests } from "./catalog-retained-prepared.mts";
+import { acceptedPlayerRouteExpectations } from "./package-player-observation.mts";
+import { routeEnrollment, renderRouteTests } from "./catalog-route-facts.mts";
 import { coreProposalInspector } from "./catalog-authoring-inspector.mts";
 import type { ProposalReceipt } from "./catalog-authoring-inspector.mts";
 import {
@@ -33,9 +36,19 @@ interface Difference {
 type ProposalChecks = Record<"accepted" | "input" | "output", ProposalReceipt>;
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
 const catalogRoot = join(root, "crates", "portcove-core", "catalog");
-const sourcePath = join(catalogRoot, catalogSourceNames.operational);
 const outputPath = join(catalogRoot, "catalog.json");
 const listingsPath = join(catalogRoot, catalogSourceNames.listings);
+const enrollmentPath = join(catalogRoot, "route-enrollment.generated.json");
+const routeTestRoot = join(root, "crates", "portcove-core", "src", "testdata");
+const routeTestPaths = {
+  prepared: join(routeTestRoot, "prepared-route-tests.generated.rs"),
+  managed: join(routeTestRoot, "managed-route-tests.generated.rs"),
+  retained: join(routeTestRoot, "retained-prepared-tests.generated.rs"),
+};
+const acceptedRouteExpectationsPath = join(
+  routeTestRoot,
+  "accepted-route-expectations.generated.json",
+);
 const historicalPath = join(catalogRoot, "catalog-schema2-migration-fixture.json");
 
 function readJson(path: string): unknown {
@@ -186,6 +199,7 @@ function proposalChanges(before: CurrentCatalog, after: CurrentCatalog) {
           [
             "persistent_paths",
             "persistent_file_patterns",
+            "windows_shipwright_persistence",
             "mod_package_policy",
             "runtime_mutable_paths",
             "runtime_mutable_file_patterns",
@@ -204,6 +218,8 @@ function proposalChanges(before: CurrentCatalog, after: CurrentCatalog) {
             "executable_hints",
             "launch_environment",
             "launch_arguments",
+            "launch_disc_choice",
+            "windows_tracked_handoff",
             "runtime_subdirectory",
             "n64_runtime_at_executable_parent",
             "launch_from_install_root",
@@ -472,7 +488,7 @@ async function prepareArtworkProposal(fullProposal = false) {
     finishPhase("validator_capture");
     const accepted = inspectProposal.inspect("accepted", Buffer.from(JSON.stringify(current)));
     finishPhase("accepted_declarations");
-    const inputCheck = inspectProposal.inspect("input", captured.bytes);
+    const inputCheck = inspectProposal.inspect("input", captured.bytes, true);
     finishPhase("input_declarations");
     beforeChecks = {
       accepted,
@@ -506,7 +522,7 @@ async function prepareArtworkProposal(fullProposal = false) {
   const proposalBytes = Buffer.from(`${JSON.stringify(result.catalog, null, 2)}\n`);
   const proposalChecks =
     inspectProposal && beforeChecks
-      ? { ...beforeChecks, output: inspectProposal.inspect("output", proposalBytes) }
+      ? { ...beforeChecks, output: inspectProposal.inspect("output", proposalBytes, true) }
       : undefined;
   finishPhase("output_preparation_and_declarations");
   const compatibilityReview = fullProposal ? compatibilityFixtureReview(result.catalog) : undefined;
@@ -622,16 +638,29 @@ if (preparing) {
     );
   const output = serializeCurrentCatalog(current);
   const listingsOutput = `${JSON.stringify(authored.directory, null, 2)}\n`;
+  const enrollmentOutput = `${JSON.stringify(routeEnrollment(authored.records), null, 2)}\n`;
+  const routeTests = renderRouteTests(authored.records);
+  const retainedTests = renderRetainedPreparedTests(routeTestRoot);
+  const acceptedRouteExpectationsOutput = `${JSON.stringify(acceptedPlayerRouteExpectations(authored.records), null, 2)}\n`;
   if (process.argv.includes("--check")) {
     if (
+      readFileSync(acceptedRouteExpectationsPath, "utf8") !== acceptedRouteExpectationsOutput ||
+      readFileSync(routeTestPaths.prepared, "utf8") !== routeTests.prepared ||
+      readFileSync(routeTestPaths.managed, "utf8") !== routeTests.managed ||
+      readFileSync(routeTestPaths.retained, "utf8") !== retainedTests ||
+      readFileSync(enrollmentPath, "utf8") !== enrollmentOutput ||
       readFileSync(outputPath, "utf8") !== output ||
-      readFileSync(sourcePath, "utf8") !== output ||
       readFileSync(listingsPath, "utf8") !== listingsOutput
     ) {
       throw new Error("embedded catalog is stale; run node scripts/generate-catalog.mts");
     }
   } else {
-    writeFileSync(sourcePath, output);
+    mkdirSync(routeTestRoot, { recursive: true });
+    writeFileSync(acceptedRouteExpectationsPath, acceptedRouteExpectationsOutput);
+    writeFileSync(routeTestPaths.prepared, routeTests.prepared);
+    writeFileSync(routeTestPaths.managed, routeTests.managed);
+    writeFileSync(routeTestPaths.retained, retainedTests);
+    writeFileSync(enrollmentPath, enrollmentOutput);
     writeFileSync(outputPath, output);
     writeFileSync(listingsPath, listingsOutput);
   }

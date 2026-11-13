@@ -304,6 +304,7 @@ fn add_retained_references(
                 setup_id: (*setup_id).into(),
                 revision: 1,
                 build: crate::install::retained_build_identity_for_install(install).unwrap(),
+                history: Vec::new(),
                 created_at: 1,
                 updated_at: 1,
             }
@@ -1263,4 +1264,184 @@ fn a_self_consistent_manifest_cannot_select_an_undeclared_executable_on_import()
     .unwrap_err();
     assert!(error.message.contains("execution"), "{error}");
     assert!(!destination.exists());
+}
+
+fn add_profile(root: &Path, export: &Path, install_id: &str) -> LibraryMetadata {
+    let library = Library::open(root).unwrap();
+    let install = library
+        .all_installs()
+        .unwrap()
+        .into_iter()
+        .find(|install| install.id == install_id)
+        .unwrap();
+    let build = crate::install::retained_build_identity_for_install(&install).unwrap();
+    let mut profile = crate::profile::new_profile("starship", "Default", true);
+    profile.current_revision = 1;
+    let reference = crate::RetainedBuildReference {
+        id: uuid::Uuid::new_v4().to_string(),
+        setup_id: profile.id.clone(),
+        revision: 1,
+        build: build.clone(),
+        history: Vec::new(),
+        created_at: 1,
+        updated_at: 1,
+    };
+    let mut revision = crate::ProfileRevision {
+        profile_id: profile.id.clone(),
+        revision: 1,
+        parent_revision: None,
+        build,
+        originals: Vec::new(),
+        loader: None,
+        packages: Vec::new(),
+        orderings: Vec::new(),
+        settings: Default::default(),
+        save_group: uuid::Uuid::new_v4().to_string(),
+        limits: Vec::new(),
+        created_at: 1,
+        digest: String::new(),
+    };
+    crate::profile::seal(&mut revision).unwrap();
+    let mut connection = library.connection().unwrap();
+    let transaction = connection.transaction().unwrap();
+    crate::retained_build::restore_references(&transaction, &[reference]).unwrap();
+    crate::profile::write_profile(&transaction, &profile).unwrap();
+    crate::profile::write_revision(&transaction, &revision).unwrap();
+    transaction.commit().unwrap();
+    let metadata = PortcoveService::new(library)
+        .unwrap()
+        .export_library_metadata()
+        .unwrap();
+    fs::write(export, serde_json::to_vec_pretty(&metadata).unwrap()).unwrap();
+    metadata
+}
+
+#[test]
+fn import_carries_profiles_under_schema_six_and_rejects_forgery() {
+    let temp = tempfile::tempdir().unwrap();
+    let source = temp.path().join("source");
+    let export = temp.path().join("export.json");
+    let destination = temp.path().join("destination");
+    drop(fixture_library(&source, &[("active", false)]));
+    let metadata = add_profile(&source, &export, "active");
+    assert_eq!(metadata.schema_version, 6);
+    assert_eq!(metadata.profiles.len(), 1);
+    PortcoveService::plan_library_import(&export, &source, &destination).unwrap();
+
+    let mut cases = Vec::new();
+    let mut changed = metadata.clone();
+    changed.schema_version = 5;
+    cases.push(("older schema", changed));
+    let mut changed = metadata.clone();
+    changed.profiles[0].revisions[0].save_group = "tampered".into();
+    cases.push(("tampered digest", changed));
+    let mut changed = metadata.clone();
+    changed.retained_build_references.clear();
+    cases.push(("missing reference", changed));
+    let mut changed = metadata.clone();
+    changed.profiles[0].revisions.clear();
+    cases.push(("missing revisions", changed));
+    let mut changed = metadata.clone();
+    changed.profiles.push(changed.profiles[0].clone());
+    cases.push(("repeated profile", changed));
+    for (case, changed) in cases {
+        fs::write(&export, serde_json::to_vec_pretty(&changed).unwrap()).unwrap();
+        assert!(
+            PortcoveService::plan_library_import(&export, &source, &destination).is_err(),
+            "{case}"
+        );
+        assert!(!destination.exists(), "{case}");
+    }
+
+    // A faithful restore reproduces the exact profile, revisions and digests.
+    let restored = Library::open(temp.path().join("restored")).unwrap();
+    restore_metadata(&restored, &metadata).unwrap();
+    let exported = crate::profile::export(&restored.connection().unwrap()).unwrap();
+    assert_eq!(exported, metadata.profiles);
+}
+
+fn add_memberships(root: &Path, export: &Path) -> LibraryMetadata {
+    let library = Library::open(root).unwrap();
+    let request = |port: &str| crate::LibraryMembershipRequest {
+        port_id: port.into(),
+        origin: crate::LibraryMembershipOrigin::GameFileDiscovery,
+        sources: vec![crate::LibraryMembershipSource {
+            profile_id: "profile".into(),
+            sha256: "a".repeat(64),
+        }],
+    };
+    library
+        .add_library_memberships(
+            &[request("alpha"), request("beta")],
+            &std::collections::HashSet::new(),
+        )
+        .unwrap();
+    let metadata = PortcoveService::new(library)
+        .unwrap()
+        .export_library_metadata()
+        .unwrap();
+    fs::write(export, serde_json::to_vec_pretty(&metadata).unwrap()).unwrap();
+    metadata
+}
+
+#[test]
+fn import_carries_saved_library_entries_under_schema_seven_and_rejects_forgery() {
+    let temp = tempfile::tempdir().unwrap();
+    let source = temp.path().join("source");
+    let export = temp.path().join("export.json");
+    let destination = temp.path().join("destination");
+    drop(fixture_library(&source, &[("active", false)]));
+    let metadata = add_memberships(&source, &export);
+    assert_eq!(metadata.schema_version, 7);
+    assert_eq!(metadata.library_memberships.len(), 2);
+    PortcoveService::plan_library_import(&export, &source, &destination).unwrap();
+
+    let mut cases = Vec::new();
+    // An older reader contract would silently drop the entries.
+    let mut changed = metadata.clone();
+    changed.schema_version = 6;
+    cases.push(("older schema", changed));
+    let mut changed = metadata.clone();
+    changed
+        .library_memberships
+        .push(changed.library_memberships[0].clone());
+    cases.push(("repeated entry", changed));
+    let mut changed = metadata.clone();
+    changed.library_memberships[0].port_id = "Not A Port".into();
+    cases.push(("invalid port id", changed));
+    let mut changed = metadata.clone();
+    changed.library_memberships[0].sources[0].sha256 = "xyz".into();
+    cases.push(("invalid source digest", changed));
+    let mut changed = metadata.clone();
+    changed.library_memberships[0].format_version = 99;
+    cases.push(("unsupported format", changed));
+    for (case, changed) in cases {
+        fs::write(&export, serde_json::to_vec_pretty(&changed).unwrap()).unwrap();
+        assert!(
+            PortcoveService::plan_library_import(&export, &source, &destination).is_err(),
+            "{case}"
+        );
+        assert!(!destination.exists(), "{case}");
+    }
+
+    // A faithful restore reproduces the exact saved entries.
+    let restored = Library::open(temp.path().join("restored")).unwrap();
+    restore_metadata(&restored, &metadata).unwrap();
+    assert_eq!(
+        restored.library_memberships().unwrap(),
+        metadata.library_memberships
+    );
+}
+
+#[test]
+fn an_export_without_saved_library_entries_keeps_its_older_schema() {
+    let temp = tempfile::tempdir().unwrap();
+    let source = temp.path().join("source");
+    drop(fixture_library(&source, &[("active", false)]));
+    let metadata = PortcoveService::new(Library::open(&source).unwrap())
+        .unwrap()
+        .export_library_metadata()
+        .unwrap();
+    assert!(metadata.library_memberships.is_empty());
+    assert!(metadata.schema_version < 7);
 }

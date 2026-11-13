@@ -4,6 +4,24 @@ Use only the paragraphs relevant to the explicitly selected operation. The
 entrypoint and canonical QUALITY/CONTRIBUTION contracts own current routing;
 old blanket document-load and local-check wording below does not add a gate.
 
+For shared-volume recovery transport, establish the actual filesystem rather
+than inferring it from the host OS. Preserve exact 64-bit file identities through
+held reads; never reinterpret an unsafe recorded JavaScript number as an exact
+identity. Keep ciphertext transport separate from private custody appointments.
+
+For owner passphrase ceremonies, age can generate and display a phrase after
+empty input. Obtain a nonsecret acknowledgement that the owner retained the
+phrase before clearing its display. Keep phrases in age's private terminal;
+encrypted output alone does not qualify recovery without authenticated restore,
+private/public identity reprojection and an incorrect-input refusal observation.
+
+Keep inner signer passwords distinct from the outer recovery phrase. Preserve
+the owning tool's exact interactive generation procedure; an automated flag is
+not authorized merely because it produces a compatible key format. An explicitly
+chosen empty inner password may satisfy a procedure that permits it, while the
+outer recovery phrase still needs retention and authenticated restore. State
+the selected inspection profile and its unsupported password/KDF variants.
+
 For restricted reviewer preflights, launch/readiness exclusion and captured
 helper custody, use the shared [native boundary checks](../../portcove-desktop-verification/references/qualification-boundaries.md#platform-preflight-and-input-custody).
 
@@ -13,6 +31,13 @@ the observed failure. Separate required properties from implementation choices.
 Stop provisioning retries that produce no new diagnostic evidence; retain the
 failed attempt and exact owned-resource cleanup/resume state while independent
 work continues under its existing gates.
+
+For manual provider App setup, validate the selected manifest against provider
+constraints before the human window. A creation callback leaves installation
+pending: provide its authenticated installation URL, then verify the complete
+installation selection rather than a repository-narrowed token. Retain failed
+attempts; require a verified changed prerequisite and bounded reviewed recovery
+before resuming. Neither creation nor installation appoints production authority.
 
 For Windows storage fixtures, validate guards against actual provider values
 before side effects, preferring documented typed values to display labels.

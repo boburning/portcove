@@ -3,13 +3,55 @@
   "listing": {
     "id": "cave-story-nxengine-evo",
     "name": "Cave Story (NXEngine-evo)",
-    "summary": "Upstream route: Upgraded native engine with Windows/Linux/macOS releases. Limits: Separate from doukutsu-rs already tracked; check freeware-data packaging and supported translations. Upstream platforms: Windows/Linux/macOS runtime packages; exact selected package CPU architectures unknown in frozen research. Original data: Cave Story freeware data/preparation contract is Unknown in the retained NXEngine-evo README. Establish which original freeware release/localization and asset directory or separate data pack the chosen package needs, and whether those assets are already included. The README says its built-in data extractor was removed; do not infer that Cave Story+ data or another engine package is accepted. Portcove setup/gameplay not verified.",
+    "summary": "Use a complete permitted NXEngine-evo player for freeware Cave Story, keeping its prepared data, translations and profile together. Cave Story+ is a separate input. You and the project manage this external copy; Portcove has not confirmed setup or gameplay.",
     "original_game_title": "Cave Story",
     "project_url": "https://github.com/nxengine/nxengine-evo",
     "platforms": [],
     "availability": "unknown",
     "setup_url": "https://github.com/nxengine/nxengine-evo",
-    "issue_number": 2647
+    "issue_number": 2647,
+    "listed_at": "2026-10-25",
+    "manual_setup": {
+      "help_url": "https://github.com/nxengine/nxengine-evo/tree/761d86db42439d0a37239858d2e024dbc80fe601",
+      "steps": [
+        {
+          "title": "Prepare the supported freeware edition upstream",
+          "instruction": "Use a permitted complete official NXEngine-evo Windows copy with its accompanying data, DLLs and translations; the selected v2.6.5-1 packaging prepares the original freeware English Cave Story data upstream. Its removed built-in extractor does not mean a bare source tree is ready. Cave Story+ is a different input. Keep any permitted original data and completed conversion together; no extractor, compiler or game data download is run here."
+        },
+        {
+          "title": "Select the actual native player",
+          "instruction": "Select nx.exe from the complete NXEngine package with the package directory as working directory. Keep its data directory and any prepared language/mod overlay. Do not select the original Doukutsu.exe, an extractor, installer or build script."
+        },
+        {
+          "title": "Review launch details, then choose Play",
+          "instruction": "Finish upstream preparation and a normal start/quit with your permitted copy before attachment. Select the actual native player, its established working directory and supported literal arguments. Review the intent and consent, then choose Play separately. Registration is not game, original-data or save qualification."
+        },
+        {
+          "title": "Keep one replacement owner and preserve all data",
+          "instruction": "Close actual game instances before upstream changes. Preserve the whole creating runtime, every original/profile root and custom/unknown files, make deliberate compatible updates upstream, then review/relink a changed executable. Upstream/player owns preparation, replacement, migration and recovery. Portcove supervises the selected process; removing registration preserves external files. This route offers no Portcove-managed download, setup, update, backup, rollback, migration or external-file deletion."
+        }
+      ],
+      "warnings": [
+        "Use only content and a copy you are already permitted to use. Engine licensing does not grant original-game, music, mod or third-party rights.",
+        "Preserve complete creating runtimes and all effective player-data roots before changes; shared profiles are not isolated by another executable.",
+        "Preserve both effective locations before updates; a second executable may share profiles. The current Windows release lacks an independently published accepted digest for managed install; a freshly computed hash would not authenticate it."
+      ],
+      "references": [
+        {
+          "title": "Retain the actual profile and fallback",
+          "instruction": "Preserve the entire creating runtime/data/mods/translations and actual SDL nxengine preference directory, normally under the current account’s AppData. It holds settings.dat, profile.dat/profile2.dat and other slots, debug.log and mod-specific progress; overlays can change the data selected. If preference lookup fails paths can fall back to the working directory. Preserve both effective locations before updates; a second executable may share profiles. The current Windows release lacks an independently published accepted digest for managed install; a freshly computed hash would not authenticate it."
+        },
+        {
+          "title": "Use your permitted Linux copy",
+          "instruction": "The v2.6.5-1 x86-64 AppImage supplies its own launch environment. Open the complete AppImage yourself and keep the accompanying data, translations and mods. Preserve the effective SDL nxengine profile and any working-folder fallback. The AppImage setup has separate process supervision requirements."
+        },
+        {
+          "title": "Use your permitted Intel Mac copy",
+          "instruction": "The v2.6.5-1 DMG contains NXEngine.app for Intel Macs on macOS 10.14 or later. Copy the intact app out of the disk image and open it yourself after reviewing its publisher. Keep the effective SDL nxengine profile and any working-folder fallback as well as the complete player."
+        }
+      ]
+    },
+    "download_block_reason": "Use a complete copy you already have permission to use. The release packages include original Cave Story data whose distribution permission still needs verification."
   },
   "upstream_lineage": {
     "format_version": 1,

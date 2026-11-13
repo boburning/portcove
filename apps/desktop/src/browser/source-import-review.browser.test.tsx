@@ -117,16 +117,14 @@ it.each(["light", "dark"])(
       await expect.element(review).toMatchTextContent(containsText(profile.label));
       await expect
         .element(review)
-        .toMatchTextContent(
-          containsText("Structural admission alone does not establish an exact edition"),
-        );
+        .toMatchTextContent(containsText("These checks alone don’t identify the edition"));
       await expect.element(review).toMatchTextContent(containsText(source.path));
       await expect.element(review).toMatchTextContent(containsText(plan.destination));
       await expect.element(review).toMatchTextContent(containsText("Currently saved location"));
       await expect
         .element(review)
         .toMatchTextContent(
-          containsText(`Additional file data planned: ${mode === "copy" ? "64 B" : "0 B"}`),
+          containsText(`Additional space needed: ${mode === "copy" ? "64 B" : "0 B"}`),
         );
       const present =
         mode === "move"

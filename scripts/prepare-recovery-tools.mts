@@ -232,8 +232,9 @@ export async function prepareRecoveryTools(parent: string) {
   const config = await readFile(configPath, "utf8");
   const ledger = await readFile(path.join(path.dirname(configPath), "aqua-checksums.json"));
   const parsed = parseAquaConfig(config);
-  if ((await readFile(path.join(root, ".aqua-version"), "utf8")).trim() !== "v2.64.0")
-    throw new Error("recovery bootstrap requires reconciliation with pinned Aqua version");
+  // This dedicated manager is authenticated by recoveryToolPins below. A quality
+  // manager upgrade in .aqua-version neither retargets nor invalidates these
+  // separately pinned recovery bytes, archives, versions and proof checks.
   if (
     parsed.registryRef !== "v4.564.0" ||
     JSON.stringify(parsed.packages) !==

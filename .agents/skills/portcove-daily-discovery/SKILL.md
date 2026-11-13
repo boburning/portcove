@@ -7,7 +7,7 @@ metadata:
 ---
 
 Read [the daily investigation contract](../../../docs/DAILY-PORT-DISCOVERY.md).
-Apply its current #1422 owner amendment and the
+Apply the
 [upstream-first ownership boundary](../../../docs/CATALOG.md#integration-ownership)
 when investigating routes: a useful limited integration, upstream dependency or
 product deferral can replace disproportionate downstream engineering. Discovery
@@ -40,8 +40,8 @@ the complete inventory guards and records doctor `not_run`, scope `none`; neithe
 receipt proves a historical full-doctor acceptance requirement. Full doctor is
 for substantial Roadmap changes or release readiness, without a periodic audit.
 Port metadata does not require a separate model reviewer. Use the selected hosted
-investigator for hosted discovery; local collection and research can use
-GPT-6.1-Sol Medium. Software changes retain independent review and CI under QUALITY.
+investigator for hosted discovery; local collection and research use the research scout
+or implementation owner from [agent model selection](../../../docs/DEVELOPMENT-TOOLS.md#agent-model-selection). Software changes retain independent review and CI under QUALITY.
 Ordinary and cold budgets
 are selected by the runner. Retain an explicit continuation when work does not fit.
 The one permitted Project revision/count-drift recollection spends the existing delivery reserve
@@ -49,3 +49,7 @@ for one complete replacement inventory; it does not start a new delivery budget.
 This workflow researches metadata and applies authorized neutral intake or
 material factual updates. It does not implement, install, admit, qualify or
 publish ports, change release commitments, reverse deferrals or assign work.
+
+When drafting a listing summary or setup guide, collect precise evidence first.
+Write the player explanation separately. Use the existing warning and reference
+fields and follow [Content design](../../../docs/CONTENT-DESIGN.md).

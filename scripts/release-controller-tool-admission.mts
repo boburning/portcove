@@ -1,26 +1,33 @@
-import { spawnSync } from "node:child_process";
+import { fixedReleaseToolDependencies } from "./release-tool-dependency-selection.mts";
 import { performance } from "node:perf_hooks";
+import { setTimeout as delay } from "node:timers/promises";
 import { createHash } from "node:crypto";
-import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { crc32, inflateRawSync } from "node:zlib";
-import { createGitHubRunner, GitHubApiClient } from "./github-api.mts";
-import type { GitHubRestReader } from "./github-api.mts";
-import { readGitHubArtifactArchive } from "./github-binary.mts";
+import { assertTrustedDirectNode } from "./release-direct-node-transport.mts";
+import { coordinatorCommandDeadline } from "./release-coordinator-deadline.mts";
+import type { ReleaseArtifactMetadataProvider } from "./release-custody-provider.mts";
+import type { RetainedGitHubSpawn } from "./github-cli.mts";
+import type { SigningArchiveDownload } from "./release-signing-handoff.mts";
 import { verifyControllerArtifactStatement } from "./github-controller-attestation.mts";
 import { inspectBoundedZip } from "./bounded-zip.mts";
 import { isRecord } from "./runtime-values.mts";
+import { GitHubApiError } from "./github-operation.mts";
 import { productionControllerWorkflow } from "./production-controller-admission.mts";
 import {
   controllerToolPredicateType,
   windowsControllerToolPredicateType,
   controllerToolPlatformProfile,
   controllerToolEntries,
+  controllerToolZipMaximumBytes,
   inspectControllerToolArchive,
+  inspectControllerToolManifest,
   readControllerToolFile,
 } from "./release-controller-tools.mts";
 import {
   requestAssemblerToken,
+  jobIdentityRefusalCode,
   verifyControllerToolBootstrapJobIdentity,
   inspectAssemblerIdentityExpectation,
   controllerToolBootstrapProfile,
@@ -81,6 +88,28 @@ function predicateProfile(expected: ControllerToolArtifactExpected) {
     ? { schema_version: 2, platform: "windows-x86_64" }
     : { schema_version: 1 };
 }
+// An acknowledged upload can briefly be absent from the artifact REST API.
+async function readVisibleUpload<T>(
+  read: () => Promise<T>,
+  deadline: number,
+  waits: readonly number[],
+) {
+  for (const wait of waits) {
+    try {
+      return await read();
+    } catch (error) {
+      if (
+        !(error instanceof GitHubApiError) ||
+        error.status !== 404 ||
+        performance.now() + wait >= deadline
+      )
+        throw error;
+      await delay(wait);
+    }
+  }
+  return read();
+}
+
 function artifact(
   raw: unknown,
   expected: ControllerToolArtifactExpected,
@@ -99,7 +128,7 @@ function artifact(
     typeof raw.size_in_bytes !== "number" ||
     !Number.isSafeInteger(raw.size_in_bytes) ||
     raw.size_in_bytes < 22 ||
-    raw.size_in_bytes > (bundle ? 1024 ** 2 : 320 * 1024 ** 2) ||
+    raw.size_in_bytes > (bundle ? 1024 ** 2 : controllerToolZipMaximumBytes) ||
     !isRecord(raw.workflow_run) ||
     raw.workflow_run.id !== Number(expected.run_id) ||
     raw.workflow_run.repository_id !== 1354613114 ||
@@ -109,7 +138,11 @@ function artifact(
     throw new Error("controller tool artifact provider identity differs");
   return { id, bytes: raw.size_in_bytes, sha256 };
 }
-function runIdentity(raw: unknown, expected: ControllerToolArtifactExpected) {
+function inspectControllerToolRunIdentity(
+  raw: unknown,
+  expected: ControllerToolArtifactExpected,
+  liveCoordinator = false,
+) {
   if (
     !isRecord(raw) ||
     raw.id !== Number(expected.run_id) ||
@@ -117,7 +150,8 @@ function runIdentity(raw: unknown, expected: ControllerToolArtifactExpected) {
     raw.head_sha !== expected.controller_revision ||
     raw.path !== productionControllerWorkflow ||
     raw.event !== "workflow_dispatch" ||
-    !["in_progress", "completed"].includes(String(raw.status)) ||
+    (!(raw.status === "queued" && raw.conclusion === null && liveCoordinator) &&
+      !["in_progress", "completed"].includes(String(raw.status))) ||
     (raw.conclusion !== null && raw.conclusion !== "success") ||
     !isRecord(raw.repository) ||
     raw.repository.id !== 1354613114 ||
@@ -150,14 +184,20 @@ export async function verifiedControllerToolPaths(receipt: object) {
     if (bytes.length !== file.bytes || hash(bytes) !== file.sha256)
       throw new Error("verified controller tool changed before use");
   }
-  if (
-    hash(await readControllerToolFile(path.join(retained.tools, "manifest.json"), 65536)) !==
-    retained.manifest_sha256
-  )
+  const manifestBytes = await readControllerToolFile(
+    path.join(retained.tools, "manifest.json"),
+    65536,
+  );
+  if (hash(manifestBytes) !== retained.manifest_sha256)
     throw new Error("verified tool manifest changed");
+  const manifest = inspectControllerToolManifest(
+    JSON.parse(manifestBytes.toString("utf8")),
+    profile.platform,
+  );
   return Object.freeze({
     identity: Object.freeze(structuredClone(retained.expected)),
     platform: profile.platform,
+    tauri_cli_version: manifest.tauri_cli_version,
     root: retained.tools,
     node: path.join(retained.tools, `bin/node${profile.suffix}`),
     cli: path.join(retained.tools, `bin/portcove${profile.suffix}`),
@@ -187,6 +227,15 @@ export async function prepareControllerToolPredicate(
   raw: ControllerToolArtifactExpected,
   rawIdentity: unknown,
 ) {
+  const environment = { ...process.env };
+  const token = environment.GH_TOKEN ?? "";
+  const credential = { kind: "explicit", token } as const;
+  const inheritedDeadline = coordinatorCommandDeadline() ?? Infinity;
+  const deadline = (maximum: number) => Math.min(inheritedDeadline, performance.now() + maximum);
+  const directFetch: typeof globalThis.fetch = (input, init) => {
+    assertTrustedDirectNode("controller tool sender");
+    return globalThis.fetch(input, init);
+  };
   const expected = expectedInput(raw);
   const profile = toolProfile(expected);
   const identityExpected = inspectAssemblerIdentityExpectation(structuredClone(rawIdentity));
@@ -205,50 +254,79 @@ export async function prepareControllerToolPredicate(
   });
   let phase = "provider-before";
   try {
-    const runner = createGitHubRunner({ cwd: root, maxBuffer: 128 * 1024, timeoutMs: 15000 });
-    const api = new GitHubApiClient((args, input) =>
-      runner([...args, "--hostname", "github.com"], input),
-    );
-    const read = () => {
-      const response = api.request("GET", `${base}/actions/artifacts/${expected.artifact_id}`);
-      if (response.status !== 200) throw new Error("bootstrap upload metadata unavailable");
-      return artifact(response.body, expected, expected.artifact_id, expected.sha256);
+    const { createReleaseCustodyProvider } = await import("./release-custody-provider.mts");
+    const read = async (readDeadline = deadline(15000)) => {
+      const metadata = await createReleaseCustodyProvider({
+        token,
+        deadline: readDeadline,
+        maxBytes: 128 * 1024,
+        fetch: directFetch,
+      });
+      const data = await metadata.artifact(expected.artifact_id);
+      return artifact(data, expected, expected.artifact_id, expected.sha256);
     };
-    const before = read();
+    const visibilityDeadline = deadline(15000);
+    const before = await readVisibleUpload(
+      () => read(visibilityDeadline),
+      visibilityDeadline,
+      [500, 1500, 3000],
+    );
     await writeFile(path.join(attempt, "provider-before.json"), JSON.stringify(before), {
       flag: "wx",
       mode: 0o600,
     });
     phase = "opaque-upload-readback";
-    const archive = readGitHubArtifactArchive(`${base}/actions/artifacts/${before.id}/zip`, {
-      cwd: root,
-      maxBytes: before.bytes,
-      timeoutMs: 120000,
-    });
-    await writeFile(path.join(attempt, "uploaded.zip"), archive, { flag: "wx", mode: 0o600 });
-    if (archive.length !== before.bytes || hash(archive) !== before.sha256)
-      throw new Error("bootstrap upload ZIP changed");
+    const { downloadGitHubArtifactArchiveFile } = await import("./github-artifact-download.mts");
+    const archivePath = path.join(attempt, "uploaded.zip");
+    const archiveDeadline = deadline(120000);
+    await downloadGitHubArtifactArchiveFile(
+      `${base}/actions/artifacts/${before.id}/zip`,
+      archivePath,
+      {
+        credential,
+        deadline: archiveDeadline,
+        maxBytes: before.bytes,
+        fetch: directFetch,
+      },
+    );
+    const archive = await readControllerToolFile(archivePath, before.bytes);
+    if (
+      performance.now() >= archiveDeadline ||
+      archive.length !== before.bytes ||
+      hash(archive) !== before.sha256
+    )
+      throw new Error("bootstrap upload ZIP changed or exceeded its bound");
     const inspected = inspectControllerToolArchive(archive, {
+      dependencies: fixedReleaseToolDependencies(),
       source_commit: expected.controller_revision,
       source_tree: expected.source_tree,
       platform: profile.platform,
     });
-    phase = "fresh-producer-identity";
-    const token = await requestAssemblerToken(identityExpected.audience);
+    phase = "producer-token-request";
+    const oidc = await requestAssemblerToken(
+      identityExpected.audience,
+      environment,
+      globalThis.fetch,
+      deadline(15000),
+    );
+    phase = "producer-identity-verification";
     const identity = await verifyControllerToolBootstrapJobIdentity(
-      token,
+      oidc,
       identityExpected,
       {
-        transport: { cwd: root },
+        transport: { sdkToken: token, deadline: deadline(120000) },
       },
       profile.platform,
     );
+    phase = "producer-upload-identity-recheck";
     if (
       identity.evidence_scope !== "github.com" ||
       Date.now() >= Date.parse(identity.expires_at) ||
-      JSON.stringify(before) !== JSON.stringify(read())
+      JSON.stringify(before) !== JSON.stringify(await read()) ||
+      Date.now() >= Date.parse(identity.expires_at)
     )
       throw new Error("bootstrap identity/upload drifted");
+    phase = "producer-predicate-output";
     const predicate = {
       ...predicateProfile(expected),
       role: "fixed-controller-tools",
@@ -301,13 +379,40 @@ export async function prepareControllerToolPredicate(
       directory: attempt,
       authority: "none",
     };
-  } catch {
+  } catch (error) {
+    const identityRefusal = jobIdentityRefusalCode(error);
     await writeFile(
       path.join(attempt, "refusal.json"),
-      JSON.stringify({ directory: attempt, phase, authority: "none", automatic_retry: false }),
+      JSON.stringify({
+        directory: attempt,
+        phase,
+        ...(identityRefusal ? { identity_refusal: identityRefusal } : {}),
+        ...(error instanceof GitHubApiError && error.status
+          ? { provider_status: error.status }
+          : {}),
+        authority: "none",
+        automatic_retry: false,
+      }),
       { flag: "wx", mode: 0o600 },
     ).catch(() => {});
     throw new Error(`controller tool binding refused; retain ${attempt}`);
+  }
+}
+
+type ControllerToolCustodyPhase =
+  | "provider-before"
+  | "opaque-download"
+  | "archive-inspection"
+  | "pinned-attestation-verifier"
+  | "provider-after"
+  | "materialize-only-verified-tools";
+
+export class ControllerToolCustodyRefusal extends Error {
+  readonly phase: ControllerToolCustodyPhase;
+
+  constructor(directory: string, phase: ControllerToolCustodyPhase) {
+    super(`controller tool verification refused; retain ${directory}`);
+    this.phase = phase;
   }
 }
 
@@ -319,13 +424,40 @@ export async function receiveControllerTools(
   raw: ControllerToolArtifactExpected,
   rawBundle: { artifact_id: number; sha256: string },
   options: {
-    api?: GitHubRestReader;
-    download?: typeof readGitHubArtifactArchive;
-    spawn?: NonNullable<Parameters<typeof createGitHubRunner>[0]>["spawn"];
+    metadata?: ReleaseArtifactMetadataProvider;
+    download?: SigningArchiveDownload;
+    spawn?: RetainedGitHubSpawn;
+    fetch?: typeof globalThis.fetch;
     deadline?: number;
+    liveCoordinator?: { id: number; started_at: string };
   } = {},
 ) {
-  const deadline = options.deadline;
+  const {
+    liveCoordinator: rawLiveCoordinator,
+    metadata: injectedMetadata,
+    download: injectedDownload,
+    spawn,
+    fetch,
+  } = options;
+  const { deadline: requestedDeadline } = options;
+  const liveCoordinator = rawLiveCoordinator && structuredClone(rawLiveCoordinator);
+  if (
+    requestedDeadline !== undefined &&
+    (!Number.isFinite(requestedDeadline) ||
+      Math.floor(requestedDeadline - performance.now()) > 600000)
+  )
+    throw new Error("controller tool receiver phase deadline exhausted");
+  const inherited = coordinatorCommandDeadline();
+  const deadline =
+    inherited === undefined
+      ? requestedDeadline
+      : Math.min(inherited, requestedDeadline ?? Infinity);
+  const { PATH, SystemRoot, GH_TOKEN } = process.env;
+  const token = GH_TOKEN ?? "";
+  const directFetch: typeof globalThis.fetch = (input, init) => {
+    assertTrustedDirectNode("controller tool receiver");
+    return (fetch ?? globalThis.fetch)(input, init);
+  };
   const remaining = (maximum: number) => {
     const left = deadline === undefined ? maximum : Math.floor(deadline - performance.now());
     if (!Number.isFinite(left) || left < 1 || (deadline !== undefined && left > 600000))
@@ -347,13 +479,13 @@ export async function receiveControllerTools(
   const directory = await mkdtemp(
     path.join(parent, profile.platform === "windows-x86_64" ? "ctr-" : "controller-tool-receiver-"),
   );
-  let phase = "provider-before";
+  let phase: ControllerToolCustodyPhase = "provider-before";
   try {
     const home = path.join(directory, "reader-home");
     await mkdir(home, { mode: 0o700 });
     const environment = {
-      PATH: process.env.PATH,
-      SystemRoot: process.env.SystemRoot,
+      PATH,
+      SystemRoot,
       HOME: home,
       USERPROFILE: home,
       TEMP: home,
@@ -361,37 +493,33 @@ export async function receiveControllerTools(
       TMPDIR: home,
       GH_CONFIG_DIR: path.join(home, "gh"),
       GH_HOST: "github.com",
-      GH_TOKEN: process.env.GH_TOKEN,
+      GH_TOKEN,
     };
-    const runner = createGitHubRunner({
-      cwd: directory,
-      maxBuffer: 128 * 1024,
-      timeoutMs: 15000,
-      spawn: (command, args, settings) => {
-        const result = spawnSync(command, args, {
-          ...settings,
-          env: environment,
-          timeout: remaining(15000),
-        });
-        remaining(15000);
-        return result;
-      },
-    });
-    const api =
-      options.api ??
-      new GitHubApiClient((args, input) => runner([...args, "--hostname", "github.com"], input));
+    let provider = injectedMetadata;
+    if (!provider) {
+      const { createReleaseCustodyProvider } = await import("./release-custody-provider.mts");
+      provider = await createReleaseCustodyProvider({
+        token,
+        deadline: deadline ?? performance.now() + 600000,
+        maxBytes: 128 * 1024,
+        fetch: directFetch,
+      });
+    }
+    const metadata = provider;
     let requests = 0;
-    const get = (route: string) => {
+    // Only coordinator custody can need one extra active-job read per snapshot.
+    const requestLimit = liveCoordinator ? 16 : 14;
+    const get = async (read: () => Promise<unknown>) => {
       remaining(15000);
-      if (++requests > 12) throw new Error("bootstrap provider request bound exhausted");
-      const response = api.request("GET", `${base}/${route}`);
+      if (++requests > requestLimit) throw new Error("bootstrap provider request bound exhausted");
+      const body = await read();
       remaining(15000);
-      if (response.status !== 200 || Buffer.byteLength(JSON.stringify(response.body)) > 128 * 1024)
+      if (Buffer.byteLength(JSON.stringify(body)) > 128 * 1024)
         throw new Error("bootstrap provider unavailable");
-      return response.body;
+      return body;
     };
-    const sourceIdentity = () => {
-      const commit = get(`git/commits/${expected.controller_revision}`);
+    const sourceIdentity = async () => {
+      const commit = await get(() => metadata.commit(expected.controller_revision));
       if (
         !isRecord(commit) ||
         commit.sha !== expected.controller_revision ||
@@ -401,54 +529,110 @@ export async function receiveControllerTools(
         throw new Error("bootstrap source tree differs from provider commit");
       return { commit: commit.sha, tree: commit.tree.sha };
     };
-    const snapshot = () => ({
-      source: sourceIdentity(),
-      run: runIdentity(get(`actions/runs/${expected.run_id}`), expected),
-      attempt: runIdentity(
-        get(`actions/runs/${expected.run_id}/attempts/${expected.run_attempt}`),
+    let requiresLiveConfirmation = false;
+    const snapshot = async (initial = false) => {
+      const source = await sourceIdentity();
+      const rawRun = await get(() => metadata.run(expected.run_id));
+      const rawAttempt = await get(() => metadata.attempt(expected.run_id, expected.run_attempt));
+      const run = inspectControllerToolRunIdentity(rawRun, expected, liveCoordinator !== undefined);
+      const attempt = inspectControllerToolRunIdentity(
+        rawAttempt,
         expected,
-      ),
-      tools: artifact(
-        get(`actions/artifacts/${expected.artifact_id}`),
-        expected,
-        expected.artifact_id,
-        expected.sha256,
-      ),
-      bundle: artifact(
-        get(`actions/artifacts/${bundle.artifact_id}`),
-        expected,
-        bundle.artifact_id,
-        bundle.sha256,
-        true,
-      ),
-    });
-    const before = snapshot();
+        liveCoordinator !== undefined,
+      );
+      requiresLiveConfirmation ||=
+        (isRecord(rawRun) && rawRun.status === "queued") ||
+        (isRecord(rawAttempt) && rawAttempt.status === "queued");
+      if (liveCoordinator && requiresLiveConfirmation) {
+        if (
+          process.env.GITHUB_RUN_ID !== expected.run_id ||
+          process.env.GITHUB_RUN_ATTEMPT !== String(expected.run_attempt) ||
+          process.env.GITHUB_SHA !== expected.controller_revision ||
+          process.env.GITHUB_REF !== expected.controller_ref
+        )
+          throw new Error("queued tool run is not the live fixed coordinator attempt");
+        if (++requests > requestLimit)
+          throw new Error("bootstrap provider request bound exhausted");
+        const { readControlBridgeOriginalJob } = await import("./release-control-step-bridge.mts");
+        const { job } = await readControlBridgeOriginalJob("coordinator", process.env, deadline);
+        if (job.id !== liveCoordinator.id || job.started_at !== liveCoordinator.started_at)
+          throw new Error("exact active coordinator job changed during tool custody");
+        remaining(15000);
+      }
+      return {
+        source,
+        run,
+        attempt,
+        tools: artifact(
+          await get(() => metadata.artifact(expected.artifact_id)),
+          expected,
+          expected.artifact_id,
+          expected.sha256,
+        ),
+        bundle: artifact(
+          await (initial
+            ? readVisibleUpload(
+                () => get(() => metadata.artifact(bundle.artifact_id)),
+                Math.min(deadline ?? Infinity, performance.now() + 15000),
+                [500, 1500],
+              )
+            : get(() => metadata.artifact(bundle.artifact_id))),
+          expected,
+          bundle.artifact_id,
+          bundle.sha256,
+          true,
+        ),
+      };
+    };
+    const before = await snapshot(true);
     await writeFile(path.join(directory, "provider-before.json"), JSON.stringify(before), {
       flag: "wx",
       mode: 0o600,
     });
-    const download = (item: { id: number; bytes: number; sha256: string }) => {
-      const bytes = (options.download ?? readGitHubArtifactArchive)(
-        `${base}/actions/artifacts/${item.id}/zip`,
-        {
+    const download = async (item: { id: number; bytes: number; sha256: string }) => {
+      const endpoint = `${base}/actions/artifacts/${item.id}/zip`;
+      const transferDeadline = performance.now() + remaining(120000);
+      let bytes;
+      if (injectedDownload) {
+        bytes = await injectedDownload(endpoint, {
           cwd: directory,
           maxBytes: item.bytes,
           timeoutMs: remaining(120000),
-          spawn: (command, args, settings) =>
-            spawnSync(command, args, { ...settings, env: environment }),
-        },
-      );
+        });
+      } else {
+        const { downloadGitHubArtifactArchiveFile } =
+          await import("./github-artifact-download.mts");
+        const scratch = path.join(directory, `archive-${item.id}.zip`);
+        await downloadGitHubArtifactArchiveFile(endpoint, scratch, {
+          credential: { kind: "explicit", token },
+          deadline: transferDeadline,
+          maxBytes: item.bytes,
+          fetch: directFetch,
+        });
+        try {
+          remaining(120000);
+          bytes = await readControllerToolFile(scratch, item.bytes);
+        } finally {
+          await unlink(scratch);
+        }
+      }
       remaining(120000);
-      if (bytes.length !== item.bytes || hash(bytes) !== item.sha256)
-        throw new Error("bootstrap opaque archive differs");
+      if (
+        performance.now() >= transferDeadline ||
+        bytes.length !== item.bytes ||
+        hash(bytes) !== item.sha256
+      )
+        throw new Error("bootstrap opaque archive differs or exceeded its bound");
       return Buffer.from(bytes);
     };
     phase = "opaque-download";
-    const archive = download(before.tools),
-      bundleArchive = download(before.bundle);
+    const archive = await download(before.tools),
+      bundleArchive = await download(before.bundle);
     await writeFile(path.join(directory, "tools.zip"), archive, { flag: "wx", mode: 0o600 });
     await writeFile(path.join(directory, "bundle.zip"), bundleArchive, { flag: "wx", mode: 0o600 });
+    phase = "archive-inspection";
     const inspected = inspectControllerToolArchive(archive, {
+      dependencies: fixedReleaseToolDependencies(),
       source_commit: expected.controller_revision,
       source_tree: expected.source_tree,
       platform: profile.platform,
@@ -484,7 +668,7 @@ export async function receiveControllerTools(
       bundlePath,
       expected,
       profile.predicate_type,
-      { ...options, environment },
+      { ...(spawn ? { spawn } : {}), ...(deadline === undefined ? {} : { deadline }), environment },
     );
     if (
       statement._type !== "https://in-toto.io/Statement/v1" ||
@@ -541,8 +725,8 @@ export async function receiveControllerTools(
           : value;
     if (JSON.stringify(ordered(statement.predicate)) !== JSON.stringify(ordered(wanted)))
       throw new Error("bootstrap signed inventory/source/artifact association differs");
-    const producerJob = () => {
-      const job = get(`actions/jobs/${String(producer.job_id)}`);
+    const producerJob = async () => {
+      const job = await get(() => metadata.job(Number(producer.job_id)));
       if (
         !isRecord(job) ||
         job.id !== producer.job_id ||
@@ -562,11 +746,11 @@ export async function receiveControllerTools(
         throw new Error("bootstrap completed producer job/source/attempt differs");
       return job;
     };
-    const job = producerJob();
+    const job = await producerJob();
     phase = "provider-after";
     if (
-      JSON.stringify(before) !== JSON.stringify(snapshot()) ||
-      JSON.stringify(job) !== JSON.stringify(producerJob())
+      JSON.stringify(before) !== JSON.stringify(await snapshot()) ||
+      JSON.stringify(job) !== JSON.stringify(await producerJob())
     )
       throw new Error("bootstrap provider custody changed during verification");
     phase = "materialize-only-verified-tools";
@@ -590,7 +774,7 @@ export async function receiveControllerTools(
       manifest_sha256: inspected.manifest_sha256,
       producer: wanted.producer,
       evidence_scope:
-        options.api || options.download || options.spawn ? "injected-provider" : "github.com",
+        injectedMetadata || injectedDownload || spawn || fetch ? "injected-provider" : "github.com",
       qualification: "fixed-source tool artifact custody only",
       compile_acceptance: "not-established",
       authority: "none",
@@ -614,6 +798,6 @@ export async function receiveControllerTools(
       JSON.stringify({ directory, phase, authority: "none", automatic_retry: false }),
       { flag: "wx", mode: 0o600 },
     ).catch(() => {});
-    throw new Error(`controller tool verification refused; retain ${directory}`);
+    throw new ControllerToolCustodyRefusal(directory, phase);
   }
 }

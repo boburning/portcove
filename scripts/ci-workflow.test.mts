@@ -194,6 +194,7 @@ void test("full repository contracts run the bounded release evidence collector 
   const tokens = commandTokens(requiredFixture(commands[0]));
   assert.equal(tokens[0], "node");
   assert.deepEqual(tokens.filter((token) => token.startsWith("--")).sort(), [
+    "--experimental-test-module-mocks",
     "--test",
     "--test-reporter=./scripts/required-node-test-reporter.mts",
     "--test-timeout=30000",
@@ -209,8 +210,8 @@ void test("required CI keeps its cancellation and least-privilege contracts", ()
   assert.deepEqual(settings.permissions, { contents: "read" });
   assert.deepEqual(settings.concurrency, {
     group:
-      "ci-${{ inputs.force_qualification && format('qualification-{0}', github.ref) || github.event.pull_request.number || github.ref }}",
-    "cancel-in-progress": "${{ !inputs.force_qualification }}",
+      "ci-${{ inputs.force_qualification && format('qualification-{0}', github.ref) || github.event.pull_request.number && format('pr-{0}-{1}', github.event.pull_request.number, github.run_id) || github.ref }}",
+    "cancel-in-progress": "${{ !inputs.force_qualification && github.event_name != 'push' }}",
   });
   for (const name of [
     "rust_tests",
@@ -242,10 +243,17 @@ void test("required CI keeps its cancellation and least-privilege contracts", ()
           ? ["classify", "intel_build"]
           : ["classify"],
     );
-    assert.match(
-      String(owner.if),
-      /classify\.outputs\.mode == 'qualification'(?: && contains\(fromJSON\(needs\.classify\.outputs\.platforms_json\), 'macos-x86_64'\))?$/u,
-    );
+    if (name === "native_rust") {
+      assert.equal(
+        owner.if,
+        "needs.classify.outputs.mode == 'qualification' && (contains(fromJSON(needs.classify.outputs.platforms_json), 'linux-x86_64') || contains(fromJSON(needs.classify.outputs.platforms_json), 'macos-aarch64'))",
+      );
+    } else {
+      assert.match(
+        String(owner.if),
+        /classify\.outputs\.mode == 'qualification'(?: && contains\(fromJSON\(needs\.classify\.outputs\.platforms_json\), 'macos-x86_64'\))?$/u,
+      );
+    }
   }
   assert.match(classify, /fetch-depth: 0/);
   assert.match(classify, /node scripts\/select-ci-plan\.mts/);
@@ -329,9 +337,53 @@ void test("required CI keeps its cancellation and least-privilege contracts", ()
   );
   assert.equal(desktopScripts["format:check"], "vp -C ../.. fmt --check");
   assert.match(fastRustQuality, /frontend_tools == 'true'/);
-  assert.match(fastRust, /key: fast-rust-tests-/);
   assert.doesNotMatch(fastRustQuality, /cargo clippy/);
   assert.ok(isRecord(settings.jobs));
+  const jobs = settings.jobs;
+  const caches = (job: string) => {
+    const owner = jobs[job];
+    assert.ok(isRecord(owner) && Array.isArray(owner.steps));
+    return owner.steps.filter(
+      (step: unknown): step is Record<string, unknown> =>
+        isRecord(step) &&
+        typeof step.uses === "string" &&
+        step.uses.startsWith("Swatinem/rust-cache@"),
+    );
+  };
+  // The Windows build and transport jobs share one cache; only the superset
+  // workspace build saves it, and only on main, so pull requests never save.
+  // The shared key carries the root manifest: the action ignores `key` beside a shared key,
+  // and a build-profile change must not restore a cache built with the old profile.
+  assert.deepEqual(
+    caches("fast_rust").map((step) => step.with),
+    [
+      {
+        "shared-key": "fast-rust-windows-${{ hashFiles('Cargo.toml') }}",
+        "save-if": "${{ github.ref == 'refs/heads/main' }}",
+        "cache-on-failure": true,
+        key: "${{ hashFiles('Cargo.toml') }}",
+      },
+    ],
+  );
+  assert.deepEqual(
+    caches("fast_rust_transport").map((step) => step.with),
+    [
+      {
+        "shared-key": "fast-rust-windows-${{ hashFiles('Cargo.toml') }}",
+        "save-if": false,
+        key: "${{ hashFiles('Cargo.toml') }}",
+      },
+    ],
+  );
+  for (const job of Object.keys(jobs))
+    for (const step of caches(job)) {
+      assert.ok(isRecord(step.with), job);
+      assert.ok(
+        step.with["save-if"] === "${{ github.ref == 'refs/heads/main' }}" ||
+          (job === "fast_rust_transport" && step.with["save-if"] === false),
+        job,
+      );
+    }
   const qualityJob = settings.jobs.fast_rust_quality;
   assert.ok(isRecord(qualityJob) && Array.isArray(qualityJob.steps));
   const qualityCaches = qualityJob.steps.filter(
@@ -345,6 +397,7 @@ void test("required CI keeps its cancellation and least-privilege contracts", ()
       uses: "Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0",
       if: "contains(fromJSON(needs.classify.outputs.groups_json), 'rust')",
       with: {
+        "save-if": "${{ github.ref == 'refs/heads/main' }}",
         "cache-on-failure": true,
         key: "runtime-diagnostics-linux-${{ hashFiles('Cargo.toml') }}",
       },
@@ -572,6 +625,10 @@ void test("extracted validation evidence suite remains in hosted and repository 
 
 void test("hosted plans use bounded transport before checkout and retain the same qualification outputs", async () => {
   assert.doesNotMatch(workflow, /PORTCOVE_PLAN_JSON:/);
+  assert.doesNotMatch(workflow, /plan_json:/);
+  assert.doesNotMatch(qualificationWorkflow, /plan_json:/);
+  assert.match(classify, /path: work\/ci-plan\/validation-plan\.json/);
+  assert.match(classify, /name: validation-plan-.*github\.run_attempt/);
   assert.match(workflow, /plan_gzip_base64: \$\{\{ steps\.plan\.outputs\.plan_gzip_base64 \}\}/);
   assert.match(qualificationWorkflow, /jobs\.qualify\.outputs\.plan_gzip_base64/);
   const release = await readWorkflow(new URL("../.github/workflows/release.yml", import.meta.url));

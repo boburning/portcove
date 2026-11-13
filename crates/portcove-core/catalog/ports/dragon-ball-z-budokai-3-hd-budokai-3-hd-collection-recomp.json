@@ -6,6 +6,7 @@
     "summary": "Explore Dragon Ball Z: Budokai 3 HD / Budokai 3 HD Collection recomp and follow the upstream project for requirements, downloads and setup.",
     "project_url": "https://github.com/novapowers0/DBZ-Budokai-3-HD-Collection",
     "issue_number": 366,
+    "listed_at": "2026-10-23",
     "platforms": [],
     "availability": "unknown",
     "setup_url": "https://github.com/novapowers0/DBZ-Budokai-3-HD-Collection",
@@ -16,6 +17,39 @@
       "image_sha256": "d91f230d59b829b382f9e1420518b9ac71efff67776bfc3a577dd81b10a91517",
       "game_slug": "dragon-ball-z-budokai-hd-collection",
       "match_kind": "underlying-game"
+    },
+    "manual_setup": {
+      "help_url": "https://github.com/novapowers0/DBZ-Budokai-3-HD-Collection/blob/70e53af12a79e93a9fc2273cce875308b0ad7a99/README.md",
+      "steps": [
+        {
+          "title": "Keep a permitted complete native player",
+          "instruction": "Use an already working official v1.5.5.5 Windows x64 dbz3.exe and components you are independently permitted to use. Keep all matching runtime and GPU DLLs, and the graphics and VC++ prerequisites used by that installation. The project’s MIT licence does not grant rights to original media or every packaged component. Older v1.2.1 test results do not apply to this version. This game is Budokai 3 HD; do not select the HD Collection menu, Budokai 1 or another project."
+        },
+        {
+          "title": "Finish original selection and onboarding upstream",
+          "instruction": "Use your own Xbox 360 Budokai 3 HD US/NA or EU/PAL original. Keep the matching 4,890,624-byte yae3_xenon.xex or yae3_xenon_eu.xex and regional us/ or eu/ files, or the complete supported ISO at its current path. Compare the separate XEX and AFS hashes in the tagged baserom.md; a filename, menu match or short runtime checksum does not check the full disc. Complete the game’s picker, cache, region and settings setup before adding it to Portcove. The HD Collection root menu XEX, PS2 files and optional cross-game or modding tools are different inputs."
+        },
+        {
+          "title": "Select the normal completed application",
+          "instruction": "Select dbz3.exe itself with its writable installation folder as the working directory. A normally configured copy needs no arguments; keep any supported arguments or custom profile settings your working copy already needs. The launcher’s PLAY button starts the game inside this application; close the application to end the selected session. Finish original-file setup first: its missing-data picker can start another instance and close the selected one, which Portcove may not follow. Do not select diagnostic or automation modes, an SDK, a build script or a modding kit."
+        },
+        {
+          "title": "Review Play and manage updates yourself",
+          "instruction": "Review and consent to the selected executable, working directory and arguments, then choose Play separately. Portcove tracks the selected process; other game instances run separately and the game is not sandboxed. You and upstream manage preparation, repairs, profiles and updates. Close every game instance before changing files, keep the previous working runtime and current data, then relink and review the changed executable. Removing the registration leaves all external runtime, original and player files in place."
+        }
+      ],
+      "warnings": [
+        "Portcove has not confirmed this package’s gameplay, saves, mods or installed behavior. Optional online, cross-game, character and HD-mod features have their own setup and data-rights requirements.",
+        "Use upstream tools to check for updates, download mods and replace files. Portcove does not install, prepare, update, back up, roll back, migrate or delete this external copy. Keep a recoverable previous runtime and current player data before maintenance; replacing files may overwrite local changes.",
+        "Selecting original files can refresh the game’s private XEX and ISO caches. Portcove does not check or prepare those originals or manage this game’s installation.",
+        "Preserve the actual resolved fallback/custom roots separately; do not move data to force portability. Keep old state/mods with the creating runtime. Upstream normal close uses a hard process exit after its own session/log cleanup; no graceful save/load or cross-build compatibility guarantee follows."
+      ],
+      "references": [
+        {
+          "title": "Keep creating saves, configuration and custom content",
+          "instruction": "Preserve the whole runtime/original/ISO/extracted-data copy, dbz3_user.toml and backups, dbz3.toml, user_data/dbz3 saves/content/xex_cache/iso caches, mods/player edits, logs, res/custom data and all unknown files. The application uses executable-side user_data/dbz3 when writable, otherwise its actual platform user-folder/dbz3 fallback; an existing executable-side dbz3_user.toml can retain legacy settings. Preserve the actual resolved fallback/custom roots separately; do not move data to force portability. Keep old state/mods with the creating runtime. Upstream normal close uses a hard process exit after its own session/log cleanup; no graceful save/load or cross-build compatibility guarantee follows."
+        }
+      ]
     }
   }
 }

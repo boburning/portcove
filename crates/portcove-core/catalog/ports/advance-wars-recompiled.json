@@ -3,9 +3,10 @@
   "listing": {
     "id": "advance-wars-recompiled",
     "name": "Advance Wars Recompiled",
-    "summary": "Explore Advance Wars Recompiled and follow the upstream project for requirements, downloads and setup.",
+    "summary": "Experimental Advance Wars source-build route using your own USA Rev 1 GBA original. The documented Windows alpha needs local setup/build and has no audio. Register the finished native player, retaining the prepared project and its game input.",
     "project_url": "https://github.com/sp00nznet/advancewars",
     "issue_number": 166,
+    "listed_at": "2026-10-23",
     "platforms": [],
     "availability": "source-only",
     "setup_url": "https://github.com/sp00nznet/advancewars#readme",
@@ -25,11 +26,17 @@
         },
         {
           "title": "Keep your files and update through upstream",
-          "instruction": "Use a separate folder you control and retain your working copy. An existing native player can use Portcove’s non-owning registration after the read-only executable review; choose Play separately. You or upstream keep runtime updates, original files, generated data, saves and settings. Portcove does not replace, back up or roll back this external runtime. Follow the selected upstream version’s instructions when changing it."
+          "instruction": "Keep the game in a separate folder you control, and retain a working copy. Review its executable in Portcove, then add it without changing its files. Choose Play separately when you are ready. You manage updates, original files, generated data, saves and settings. Portcove does not replace, back up or roll back this external copy. Follow the project’s instructions for the version you use when changing it."
         }
       ],
       "warnings": [],
-      "help_url": "https://github.com/sp00nznet/advancewars#readme"
+      "help_url": "https://github.com/sp00nznet/advancewars/blob/cb3facb53b6be32e4fc37e04d849ff4dddbab05f/README.md",
+      "references": [
+        {
+          "title": "Keep the save next to the selected ROM",
+          "instruction": "Use your own Advance Wars USA Rev 1 ROM with SHA-1 15053499d5b3f49128a941d7f2d84876f5424d0c. The player derives the Flash save path from its ROM argument. With game/aw.gba this is game/aw.sav. Close the game and preserve both files and the creating runtime before replacing it. Keep locally generated game code private."
+        }
+      ]
     }
   }
 }

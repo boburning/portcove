@@ -1,0 +1,4196 @@
+{
+  "format_version": 1,
+  "kind": "dated four-title hybrid/compiled-source and completed-player evidence; not live planning or fleet acceptance",
+  "observation_date": "2026-10-30",
+  "owners": [2510, 2926, 1422],
+  "local_stack_parent_source": "4576fc66671da4b2b22cd07320eb47aa266b70f7",
+  "counts": {
+    "distinct_repository_commit_path_blob_bindings": 222,
+    "unique_content_blobs": 130,
+    "complete_tree_reference_roles": 10,
+    "distinct_commit_root_tree_bindings": 9,
+    "unique_root_tree_objects": 9
+  },
+  "selected_rows": [
+    {
+      "id": "star-fox-2-arwing2",
+      "canonical_issue": 1946,
+      "cohort": "original-524",
+      "historical_1422_member": false,
+      "canonical_body_sha256_at_pickup": "a62872ba4e8d5f0f1cef0dc05ec680dc92ad0fa736a6cc2a9798eccd1df35de5",
+      "planning_at_pickup": {
+        "Status": "Inbox",
+        "Priority": "None",
+        "Horizon": "Someday",
+        "Target release": "Unscheduled",
+        "Release commitment": null,
+        "Work type": "Port",
+        "Workstream": "Port catalog",
+        "Platform": "Unknown",
+        "Port stage": "Watchlist",
+        "Effort": "Unknown"
+      },
+      "context_observed_at": "2026-10-30T22:21:59.147Z",
+      "authored_sha256": "7e6f98dd4361a3fae5546cfaf513e298019c006bd4980746be4eaf8442646ebf",
+      "tag": "1.0",
+      "selected_tag_source": "f683ae57c05277aef1cd7e07ff30c3b6a4358a84",
+      "current_source": "f683ae57c05277aef1cd7e07ff30c3b6a4358a84",
+      "completed_entry": "installed Project Arwing (2).exe",
+      "normal_literal_arguments": [],
+      "publisher_assets": [
+        {
+          "id": 669829847,
+          "name": "arwing-linux-aarch64.AppImage",
+          "bytes": 7174664,
+          "digest": "sha256:0287844d8b11f9c737e40b38b0ee6dd5bf030e3ea99f739d03638af452e5b6f6"
+        },
+        {
+          "id": 669829744,
+          "name": "arwing-linux.AppImage",
+          "bytes": 8526328,
+          "digest": "sha256:a9ef897263af763bc711e7ae0305156c5b25a2c3141269a78ef6f2e7ac24d837"
+        },
+        {
+          "id": 669829602,
+          "name": "arwing-macos.dmg",
+          "bytes": 13817711,
+          "digest": "sha256:32a5d5b97db590eea8fb5fd4869cb362738ec5d03fc38a81a1a6dfc8207107ca"
+        },
+        {
+          "id": 669829496,
+          "name": "arwing.exe",
+          "bytes": 19237376,
+          "digest": "sha256:8dcaa2723e821a34dbc7657fe0c24461325ef27e8bcdad2b81326581f806ba4b"
+        }
+      ],
+      "acquisition_hold_present": false,
+      "offered_route": "already permitted working Windows selected-native intent/register/relink/restart/explicit selected-process Play/metadata-only preserving removal; original preparation/generation/installation/replacement external",
+      "game_package_original_execution_this_batch": "not_run",
+      "native_gameplay_state_installed_protected_this_batch": "not_evaluated"
+    },
+    {
+      "id": "go-go-ackman-go-go-ackman-recompiled",
+      "canonical_issue": 2881,
+      "cohort": "affected-312",
+      "historical_1422_member": false,
+      "canonical_body_sha256_at_pickup": "4a0680dbff48143d831a6a5ad904d0d6ccac0754905c9747f5a84747b080ce09",
+      "planning_at_pickup": {
+        "Status": "Inbox",
+        "Priority": "None",
+        "Horizon": "Someday",
+        "Target release": "Unscheduled",
+        "Release commitment": null,
+        "Work type": "Port",
+        "Workstream": "Port catalog",
+        "Platform": "Unknown",
+        "Port stage": "Watchlist",
+        "Effort": "Unknown"
+      },
+      "context_observed_at": "2026-10-30T22:22:00.469Z",
+      "authored_sha256": "11983c9780f1e126658f38ca1925d89680eadbb52900edc313e661e0681df00a",
+      "tag": "v1.0",
+      "selected_tag_source": "9f12ba1e59185e6fbe70eb7822338c7709f0c86a",
+      "current_source": "db9f16b5ae51719f0ec81f3f4bae63a5ef84348c",
+      "completed_entry": "AckmanRecomp.exe",
+      "normal_literal_arguments": [],
+      "publisher_assets": [
+        {
+          "id": 643174483,
+          "name": "GoGoAckmanRecompiled-1.0-Linux-x86_64.flatpak",
+          "bytes": 3279376,
+          "digest": "sha256:cc2488428e434469929f4ade68f59972e8b71c2cd163f46f7fb6400e38371548"
+        },
+        {
+          "id": 643141642,
+          "name": "GoGoAckmanRecompiled-1.0-Windows-x86-64.zip",
+          "bytes": 4157290,
+          "digest": "sha256:6bd5da0bc3c8f9c02aa9b4978288f2f933c44a9a643a8fd3bd0bd51cbddb8203"
+        }
+      ],
+      "acquisition_hold_present": true,
+      "offered_route": "already permitted working Windows selected-native intent/register/relink/restart/explicit selected-process Play/metadata-only preserving removal; original preparation/generation/installation/replacement external",
+      "game_package_original_execution_this_batch": "not_run",
+      "native_gameplay_state_installed_protected_this_batch": "not_evaluated"
+    },
+    {
+      "id": "strike-gunner-s-t-g-strike-gunner-stg-recomp",
+      "canonical_issue": 2713,
+      "cohort": "affected-312",
+      "historical_1422_member": false,
+      "canonical_body_sha256_at_pickup": "522070661b5f5129f52e02e7285f0a4d5a624402979d7f34f1dc34e21380acec",
+      "planning_at_pickup": {
+        "Status": "Inbox",
+        "Priority": "None",
+        "Horizon": "Someday",
+        "Target release": "Unscheduled",
+        "Release commitment": null,
+        "Work type": "Port",
+        "Workstream": "Port catalog",
+        "Platform": "Unknown",
+        "Port stage": "Watchlist",
+        "Effort": "Unknown"
+      },
+      "context_observed_at": "2026-10-30T22:22:01.352Z",
+      "authored_sha256": "b4285f2e608900c021472a031084fad4eb267b55c40f677cf37362cfb6408aba",
+      "tag": "v0.3.0",
+      "selected_tag_source": "cb6287f3f5a72fd3f33c2c97876b7e3800649a03",
+      "current_source": "f507564744619c791d8779e8f2e9c60e15c6bc5e",
+      "completed_entry": "completed build/StrikeGunnerSTGSNESRecomp.exe",
+      "normal_literal_arguments": [],
+      "publisher_assets": [
+        {
+          "id": 658201554,
+          "name": "strikegunnerstg-0.3.0-windows-x64.zip",
+          "bytes": 52178500,
+          "digest": "sha256:8538e523c1fa19b0c701a38ade4397c80c6736cf5800031d9c90ef73a126b2f5"
+        }
+      ],
+      "acquisition_hold_present": false,
+      "offered_route": "already permitted working Windows selected-native intent/register/relink/restart/explicit selected-process Play/metadata-only preserving removal; original preparation/generation/installation/replacement external",
+      "game_package_original_execution_this_batch": "not_run",
+      "native_gameplay_state_installed_protected_this_batch": "not_evaluated"
+    },
+    {
+      "id": "top-gear-snes-top-gear-for-windows",
+      "canonical_issue": 2905,
+      "cohort": "affected-312",
+      "historical_1422_member": false,
+      "canonical_body_sha256_at_pickup": "66724b56eca58ca50434954f85ac26b5b5b8248d877237b6d42690f7a3d370bd",
+      "planning_at_pickup": {
+        "Status": "Inbox",
+        "Priority": "None",
+        "Horizon": "Someday",
+        "Target release": "Unscheduled",
+        "Release commitment": null,
+        "Work type": "Port",
+        "Workstream": "Port catalog",
+        "Platform": "Unknown",
+        "Port stage": "Watchlist",
+        "Effort": "Unknown"
+      },
+      "context_observed_at": "2026-10-30T22:22:02.393Z",
+      "authored_sha256": "3bef9806f88442a4a6f1b37a07ac421c11a33ec670d4424ddd72ba462e1234c9",
+      "tag": "v0.1.3",
+      "selected_tag_source": "b91007aaf1bb95afa4c510d734f74455de48a770",
+      "current_source": "d390f2b2face6c478e0bf10f1896af0b82310c3e",
+      "completed_entry": "topgear.exe",
+      "normal_literal_arguments": ["one absolute owned USA ROM path"],
+      "publisher_assets": [
+        {
+          "id": 657942617,
+          "name": "topgear-pc-linux-x64.tar.gz",
+          "bytes": 2970370,
+          "digest": "sha256:067551de98e6a619665099bcba5d1c85dd87260a8ab9f6a43d320aae80245a3e"
+        },
+        {
+          "id": 657942622,
+          "name": "topgear-pc-windows-x64.zip",
+          "bytes": 3777640,
+          "digest": "sha256:3df17036004340fcc3c3a89cb2f408d14970d852ad2460beaafc80b5d2ae92a2"
+        }
+      ],
+      "acquisition_hold_present": false,
+      "offered_route": "already permitted working Windows selected-native intent/register/relink/restart/explicit selected-process Play/metadata-only preserving removal; original preparation/generation/installation/replacement external",
+      "game_package_original_execution_this_batch": "not_run",
+      "native_gameplay_state_installed_protected_this_batch": "not_evaluated"
+    }
+  ],
+  "source_packets": [
+    {
+      "canonical_issue": 1946,
+      "bindings": [
+        {
+          "repository": "carlosrmz009/arwing2",
+          "commit": "f683ae57c05277aef1cd7e07ff30c3b6a4358a84",
+          "path": ".github/workflows/build.yml",
+          "blob": "2f7de62a0d2194efb3ba75b2827032021e2ffcf7",
+          "bytes": 14638,
+          "sha256": "101533bac229d3fb967c83e1aadf28f81b43702010a3bd195ffffa6585923858",
+          "reference_roles": ["current", "tag"],
+          "retained_source_name": "current-.github__workflows__build.yml"
+        },
+        {
+          "repository": "carlosrmz009/arwing2",
+          "commit": "f683ae57c05277aef1cd7e07ff30c3b6a4358a84",
+          "path": "LICENSE",
+          "blob": "ff392f43a9aa92d7489301351ce9bfaac1f5d164",
+          "bytes": 1319,
+          "sha256": "238739f8f1ee2cf575ccb56553730561dbf35f0ecf6f6b58034a33a7adc8e512",
+          "reference_roles": ["current", "tag"],
+          "retained_source_name": "current-LICENSE"
+        },
+        {
+          "repository": "carlosrmz009/arwing2",
+          "commit": "f683ae57c05277aef1cd7e07ff30c3b6a4358a84",
+          "path": "README.md",
+          "blob": "3c111bc1af4c86fdef37f3edb556898bf8f444bf",
+          "bytes": 11786,
+          "sha256": "4c443185b4a71d2cb7627a300a87856b62284dd3b740f7377b47b600956c52fd",
+          "reference_roles": ["current", "tag"],
+          "retained_source_name": "current-README.md"
+        },
+        {
+          "repository": "carlosrmz009/arwing2",
+          "commit": "f683ae57c05277aef1cd7e07ff30c3b6a4358a84",
+          "path": "installer/arwing.c",
+          "blob": "2e473bda48270b3185f51b90b217bca8852ac201",
+          "bytes": 10396,
+          "sha256": "5c6e044f17441f15866ee91e3f6f5a413c68fdce779e966a3d2a178bb6853b9f",
+          "reference_roles": ["current", "tag"],
+          "retained_source_name": "current-installer__arwing.c"
+        },
+        {
+          "repository": "carlosrmz009/arwing2",
+          "commit": "f683ae57c05277aef1cd7e07ff30c3b6a4358a84",
+          "path": "src/app.c",
+          "blob": "074f09926344a1bba335b9ce1e9a2c3e38be220b",
+          "bytes": 15003,
+          "sha256": "dc09fbe06804f8e6c6cfccc96d5fdfe188a6ca8f6a29bb1bfd1b08488f6b4f26",
+          "reference_roles": ["current", "tag"],
+          "retained_source_name": "current-src__app.c"
+        },
+        {
+          "repository": "carlosrmz009/arwing2",
+          "commit": "f683ae57c05277aef1cd7e07ff30c3b6a4358a84",
+          "path": "src/app.h",
+          "blob": "2e703047412012d635117de67b7cca4388f72558",
+          "bytes": 3092,
+          "sha256": "c22982783948a2ebf569ac9228d7faa3b77a393a15b9cd9589f9cb253894c0aa",
+          "reference_roles": ["current", "tag"],
+          "retained_source_name": "current-src__app.h"
+        },
+        {
+          "repository": "carlosrmz009/arwing2",
+          "commit": "f683ae57c05277aef1cd7e07ff30c3b6a4358a84",
+          "path": "src/config.c",
+          "blob": "a581245712f023c725f6ad678df9468ba4c16aa4",
+          "bytes": 3720,
+          "sha256": "7a92f1acbf3a959c9f209739fa27fa978d99a4b8d6f23707814c211a5b8e06a2",
+          "reference_roles": ["current", "tag"],
+          "retained_source_name": "current-src__config.c"
+        },
+        {
+          "repository": "carlosrmz009/arwing2",
+          "commit": "f683ae57c05277aef1cd7e07ff30c3b6a4358a84",
+          "path": "src/cpu.c",
+          "blob": "a510f53ba5bb135032e48277a5ed8563996612e8",
+          "bytes": 9302,
+          "sha256": "c62dc993d950a7bad4aed80e34abf2483332d59e7bb9d21d41e51b02a70e4310",
+          "reference_roles": ["current", "tag"],
+          "retained_source_name": "current-src__cpu.c"
+        },
+        {
+          "repository": "carlosrmz009/arwing2",
+          "commit": "f683ae57c05277aef1cd7e07ff30c3b6a4358a84",
+          "path": "src/gsu.c",
+          "blob": "1374708b86aeb3be1493584bd53a34808654ae53",
+          "bytes": 6940,
+          "sha256": "9ee2c8651bbf4199d26e96224cda90b8eafca123fe951b862f7153468b620207",
+          "reference_roles": ["current", "tag"],
+          "retained_source_name": "current-src__gsu.c"
+        },
+        {
+          "repository": "carlosrmz009/arwing2",
+          "commit": "f683ae57c05277aef1cd7e07ff30c3b6a4358a84",
+          "path": "src/main.c",
+          "blob": "d77de6c4613b2e2fb78eb4a281d175e935e5e630",
+          "bytes": 10290,
+          "sha256": "da1e600618b720ac146ee17550e6271a2af18318029b7ac712a898ef032a90c1",
+          "reference_roles": ["current", "tag"],
+          "retained_source_name": "current-src__main.c"
+        },
+        {
+          "repository": "carlosrmz009/arwing2",
+          "commit": "f683ae57c05277aef1cd7e07ff30c3b6a4358a84",
+          "path": "src/recomp.h",
+          "blob": "4f29dd09f694b035c0b49709d5814af6dae8761b",
+          "bytes": 430,
+          "sha256": "7ef4f0807a799845e06e90ca77c5005f05a623c984b8156f6635d6eee31e8b8a",
+          "reference_roles": ["current", "tag"],
+          "retained_source_name": "current-src__recomp.h"
+        },
+        {
+          "repository": "carlosrmz009/arwing2",
+          "commit": "f683ae57c05277aef1cd7e07ff30c3b6a4358a84",
+          "path": "src/recomp_rt.c",
+          "blob": "838a1186e0495e850060aa8d76f04f1d144511f6",
+          "bytes": 1410,
+          "sha256": "584eb6f3277363ea8c1c581cf0ea7cabd7bc6bb03a4ed6fd205144a7ab10f5e0",
+          "reference_roles": ["current", "tag"],
+          "retained_source_name": "current-src__recomp_rt.c"
+        },
+        {
+          "repository": "carlosrmz009/arwing2",
+          "commit": "f683ae57c05277aef1cd7e07ff30c3b6a4358a84",
+          "path": "src/romwiz.c",
+          "blob": "9e9c5a86da3438861851d9d7fd30ede554f49fee",
+          "bytes": 4901,
+          "sha256": "b0c8ec6de2a7a0b1142ff4c18b04ff8715c0ac7641430228933d449d69921772",
+          "reference_roles": ["current", "tag"],
+          "retained_source_name": "current-src__romwiz.c"
+        },
+        {
+          "repository": "carlosrmz009/arwing2",
+          "commit": "f683ae57c05277aef1cd7e07ff30c3b6a4358a84",
+          "path": "src/update.c",
+          "blob": "c2e5557dcd3342d8d33feebc28847bb31fab7cce",
+          "bytes": 2981,
+          "sha256": "431fd5273ec4ee905eff83cda570d385adc2a7cc071e4eaf2f017b7d84d93ebc",
+          "reference_roles": ["current", "tag"],
+          "retained_source_name": "current-src__update.c"
+        },
+        {
+          "repository": "carlosrmz009/arwing2",
+          "commit": "f683ae57c05277aef1cd7e07ff30c3b6a4358a84",
+          "path": "src/win32.c",
+          "blob": "0597b48567c839bad764382d9b27c21ca661b7dc",
+          "bytes": 4837,
+          "sha256": "ab4b43974b9379afb2513838e448cf38a138d34f006c9aebfc5ff3b8ddb37b2d",
+          "reference_roles": ["current", "tag"],
+          "retained_source_name": "current-src__win32.c"
+        },
+        {
+          "repository": "carlosrmz009/arwing2",
+          "commit": "f683ae57c05277aef1cd7e07ff30c3b6a4358a84",
+          "path": "tools/build.py",
+          "blob": "5635f31a6307282b0cd11f9cd2f3268dc9d8c723",
+          "bytes": 1375,
+          "sha256": "59a57b4702c711a94a61f77816fefd4a065e2cc15d67feda626597a387874a69",
+          "reference_roles": ["current", "tag"],
+          "retained_source_name": "current-tools__build.py"
+        },
+        {
+          "repository": "carlosrmz009/arwing2",
+          "commit": "f683ae57c05277aef1cd7e07ff30c3b6a4358a84",
+          "path": "tools/extract.py",
+          "blob": "5f8bfb83c97a358253bf2c2b470b4c1e2080dc1f",
+          "bytes": 734,
+          "sha256": "1d48562bb4a292e15316206f9838b08fe9870141ec78fe795a05f1d5a6b5e098",
+          "reference_roles": ["current", "tag"],
+          "retained_source_name": "current-tools__extract.py"
+        },
+        {
+          "repository": "carlosrmz009/arwing2",
+          "commit": "f683ae57c05277aef1cd7e07ff30c3b6a4358a84",
+          "path": "tools/recomp.py",
+          "blob": "b4805cf95181b2038461b5b6bc00ad0e01fbac52",
+          "bytes": 15011,
+          "sha256": "35b413386a86a64d3af6fb0ed63dd12cf9e52c53bc41987c40ed2bbc0b626fbd",
+          "reference_roles": ["current", "tag"],
+          "retained_source_name": "current-tools__recomp.py"
+        }
+      ],
+      "complete_trees": [
+        {
+          "role": "current",
+          "commit": "f683ae57c05277aef1cd7e07ff30c3b6a4358a84",
+          "root_tree": "c1634ef6587ab09c3e983c9ee9748c522b7a60b3",
+          "entries": 113,
+          "truncated": false,
+          "sha256": "ffd22a0bb2359a656248d377efc537e0d440f889c76bfeb4c33d5139793d2ec9",
+          "retained_name": "current-tree.json",
+          "gitlinks": []
+        },
+        {
+          "role": "tag",
+          "commit": "f683ae57c05277aef1cd7e07ff30c3b6a4358a84",
+          "root_tree": "c1634ef6587ab09c3e983c9ee9748c522b7a60b3",
+          "entries": 113,
+          "truncated": false,
+          "sha256": "ffd22a0bb2359a656248d377efc537e0d440f889c76bfeb4c33d5139793d2ec9",
+          "retained_name": "tag-tree.json",
+          "gitlinks": []
+        }
+      ],
+      "retained_api_manifest": [
+        {
+          "retained_name": "current-.github__workflows__build.yml.api.json",
+          "bytes": 20456,
+          "sha256": "732af31474b12d53c372dcffb805f25db800f9e58fd7e0242181b6ca89794e19"
+        },
+        {
+          "retained_name": "current-LICENSE.api.json",
+          "bytes": 2103,
+          "sha256": "42200df6b3ee3eb91896974170495b56874a2facb90e8e372171365ccd68c836"
+        },
+        {
+          "retained_name": "current-LICENSE.api.json.observation.json",
+          "bytes": 129,
+          "sha256": "583779404a6014b522d0b33d5f42b2c4ff08570dc7fe66a5173075ec2669d748"
+        },
+        {
+          "retained_name": "current-README.md.api.json",
+          "bytes": 16524,
+          "sha256": "e05ba3c0c4cff93114a47ec68c90be768b56e4b6871521aa5c6969481ccbe2d9"
+        },
+        {
+          "retained_name": "current-README.md.api.json.observation.json",
+          "bytes": 129,
+          "sha256": "5977b3aedec103f722d9cef65444662aa885f22e5dbea03185c716c00a753e22"
+        },
+        {
+          "retained_name": "current-installer__arwing.c.api.json",
+          "bytes": 14612,
+          "sha256": "be14fddb6eda363a3267512fb906a9d9322e45608cbea21a01c302694730e4f6"
+        },
+        {
+          "retained_name": "current-src__app.c.api.json",
+          "bytes": 20956,
+          "sha256": "30a2209d65155b2e5fabd71f216b1ac0effe4075152728392b4ebe9a490036d4"
+        },
+        {
+          "retained_name": "current-src__app.h.api.json",
+          "bytes": 4545,
+          "sha256": "95e608a7f1edfe4588a39e5b268b1c110d29d87bf148c07391702d33b6b5e6c8"
+        },
+        {
+          "retained_name": "current-src__config.c.api.json",
+          "bytes": 5409,
+          "sha256": "1b56d111bc4fd2d8184cbddf4ccf6c22edc72bab9fd5ab3ade7176bb67322210"
+        },
+        {
+          "retained_name": "current-src__cpu.c.api.json",
+          "bytes": 13101,
+          "sha256": "b0a3bc9c1221947fd74c52541984b81ef0912c394649f4c4f7182cb36690ebb2"
+        },
+        {
+          "retained_name": "current-src__gsu.c.api.json",
+          "bytes": 9849,
+          "sha256": "e63bcdf9fbd4c903e6cbe7ea38df02bdbc7d3116d55dffbe8a30a6e6dcd0c583"
+        },
+        {
+          "retained_name": "current-src__main.c.api.json",
+          "bytes": 14462,
+          "sha256": "ccd5e659006d38ee72383068ac3414ee9f682f7c6ba427a7ef7a8bf888664b77"
+        },
+        {
+          "retained_name": "current-src__recomp.h.api.json",
+          "bytes": 878,
+          "sha256": "5d10525e2704a4fca6b6ac2df67c84867a44f50c229fba7de153423b15e696db"
+        },
+        {
+          "retained_name": "current-src__recomp_rt.c.api.json",
+          "bytes": 2227,
+          "sha256": "290b60f8936db539a8b84899e958b53b49dfe2ccb84d335fadc44ec5255ffa8c"
+        },
+        {
+          "retained_name": "current-src__romwiz.c.api.json",
+          "bytes": 7037,
+          "sha256": "48efbccc89d2dedcf7f9d7658b91020b57f86d64c40beee7802f0e93d88bb455"
+        },
+        {
+          "retained_name": "current-src__update.c.api.json",
+          "bytes": 4393,
+          "sha256": "bbff1e480b2a95c40a68f63d38f1aa244902da25d64a1b78018e89f0c65e8b73"
+        },
+        {
+          "retained_name": "current-src__win32.c.api.json",
+          "bytes": 6951,
+          "sha256": "bf591368b8dbb066768bb27e63a5ac9a2dad6e49cb13852626ff92cd555a5c4a"
+        },
+        {
+          "retained_name": "current-tools__build.py.api.json",
+          "bytes": 2181,
+          "sha256": "9ca1e7b40c58b4bd8c1607d46546629efa0e94e6f317022489e4402374fe01be"
+        },
+        {
+          "retained_name": "current-tools__extract.py.api.json",
+          "bytes": 1296,
+          "sha256": "a405cdfbe7a1288901c8ab7cc4d26413938b8d8ed09b8f5059dc1737a50907c5"
+        },
+        {
+          "retained_name": "current-tools__recomp.py.api.json",
+          "bytes": 20968,
+          "sha256": "c48b569c913c8e49609e8be0ad5e21f49cd58cefce750dd17f600b9fda5b4e16"
+        },
+        {
+          "retained_name": "current-tree.json",
+          "bytes": 25155,
+          "sha256": "ffd22a0bb2359a656248d377efc537e0d440f889c76bfeb4c33d5139793d2ec9"
+        },
+        {
+          "retained_name": "current-tree.json.observation.json",
+          "bytes": 141,
+          "sha256": "cd808368ed1ebb2d4b06f3d43c17b0d5cff1daba5947ba762137f1f99410cd28"
+        },
+        {
+          "retained_name": "current.json",
+          "bytes": 7660,
+          "sha256": "ee65c729f1caaab9089dacc6613c4bf49e885d7e85f212ad7127aa641bb37bdc"
+        },
+        {
+          "retained_name": "current.json.observation.json",
+          "bytes": 91,
+          "sha256": "b2e3be33d73ed88204161b1d7be92d635324c020ade8fa510081b8f2a1ecf929"
+        },
+        {
+          "retained_name": "release.json",
+          "bytes": 8864,
+          "sha256": "5dcd36c48b7a2b55ee54a413a3ecb31bbf0c6b36841cee50d842812195f3ff2c"
+        },
+        {
+          "retained_name": "release.json.observation.json",
+          "bytes": 94,
+          "sha256": "dc450cc5b6ff2225d3b6a500bd84068307b4aab660e24481ace863911c1dce8b"
+        },
+        {
+          "retained_name": "repository.json",
+          "bytes": 5223,
+          "sha256": "fc8713745e2b4feaf168b728a59dcc28452acd7dba635939a47686400d191794"
+        },
+        {
+          "retained_name": "repository.json.observation.json",
+          "bytes": 78,
+          "sha256": "3360e7aef7f5dadb6b47d217ea0e94c510b68bbbf9822758a1331a0b167a5b1e"
+        },
+        {
+          "retained_name": "source-manifest.json",
+          "bytes": 13837,
+          "sha256": "a9ff2bd3517d2f9be55e89e82a22cf5355c7efdd688f9b378acc8002461441d7"
+        },
+        {
+          "retained_name": "tag-.github__workflows__build.yml.api.json",
+          "bytes": 20456,
+          "sha256": "732af31474b12d53c372dcffb805f25db800f9e58fd7e0242181b6ca89794e19"
+        },
+        {
+          "retained_name": "tag-LICENSE.api.json",
+          "bytes": 2103,
+          "sha256": "42200df6b3ee3eb91896974170495b56874a2facb90e8e372171365ccd68c836"
+        },
+        {
+          "retained_name": "tag-LICENSE.api.json.observation.json",
+          "bytes": 129,
+          "sha256": "583779404a6014b522d0b33d5f42b2c4ff08570dc7fe66a5173075ec2669d748"
+        },
+        {
+          "retained_name": "tag-README.md.api.json",
+          "bytes": 16524,
+          "sha256": "e05ba3c0c4cff93114a47ec68c90be768b56e4b6871521aa5c6969481ccbe2d9"
+        },
+        {
+          "retained_name": "tag-README.md.api.json.observation.json",
+          "bytes": 129,
+          "sha256": "5977b3aedec103f722d9cef65444662aa885f22e5dbea03185c716c00a753e22"
+        },
+        {
+          "retained_name": "tag-installer__arwing.c.api.json",
+          "bytes": 14612,
+          "sha256": "be14fddb6eda363a3267512fb906a9d9322e45608cbea21a01c302694730e4f6"
+        },
+        {
+          "retained_name": "tag-src__app.c.api.json",
+          "bytes": 20956,
+          "sha256": "30a2209d65155b2e5fabd71f216b1ac0effe4075152728392b4ebe9a490036d4"
+        },
+        {
+          "retained_name": "tag-src__app.h.api.json",
+          "bytes": 4545,
+          "sha256": "95e608a7f1edfe4588a39e5b268b1c110d29d87bf148c07391702d33b6b5e6c8"
+        },
+        {
+          "retained_name": "tag-src__config.c.api.json",
+          "bytes": 5409,
+          "sha256": "1b56d111bc4fd2d8184cbddf4ccf6c22edc72bab9fd5ab3ade7176bb67322210"
+        },
+        {
+          "retained_name": "tag-src__cpu.c.api.json",
+          "bytes": 13101,
+          "sha256": "b0a3bc9c1221947fd74c52541984b81ef0912c394649f4c4f7182cb36690ebb2"
+        },
+        {
+          "retained_name": "tag-src__gsu.c.api.json",
+          "bytes": 9849,
+          "sha256": "e63bcdf9fbd4c903e6cbe7ea38df02bdbc7d3116d55dffbe8a30a6e6dcd0c583"
+        },
+        {
+          "retained_name": "tag-src__main.c.api.json",
+          "bytes": 14462,
+          "sha256": "ccd5e659006d38ee72383068ac3414ee9f682f7c6ba427a7ef7a8bf888664b77"
+        },
+        {
+          "retained_name": "tag-src__recomp.h.api.json",
+          "bytes": 878,
+          "sha256": "5d10525e2704a4fca6b6ac2df67c84867a44f50c229fba7de153423b15e696db"
+        },
+        {
+          "retained_name": "tag-src__recomp_rt.c.api.json",
+          "bytes": 2227,
+          "sha256": "290b60f8936db539a8b84899e958b53b49dfe2ccb84d335fadc44ec5255ffa8c"
+        },
+        {
+          "retained_name": "tag-src__romwiz.c.api.json",
+          "bytes": 7037,
+          "sha256": "48efbccc89d2dedcf7f9d7658b91020b57f86d64c40beee7802f0e93d88bb455"
+        },
+        {
+          "retained_name": "tag-src__update.c.api.json",
+          "bytes": 4393,
+          "sha256": "bbff1e480b2a95c40a68f63d38f1aa244902da25d64a1b78018e89f0c65e8b73"
+        },
+        {
+          "retained_name": "tag-src__win32.c.api.json",
+          "bytes": 6951,
+          "sha256": "bf591368b8dbb066768bb27e63a5ac9a2dad6e49cb13852626ff92cd555a5c4a"
+        },
+        {
+          "retained_name": "tag-tools__build.py.api.json",
+          "bytes": 2181,
+          "sha256": "9ca1e7b40c58b4bd8c1607d46546629efa0e94e6f317022489e4402374fe01be"
+        },
+        {
+          "retained_name": "tag-tools__extract.py.api.json",
+          "bytes": 1296,
+          "sha256": "a405cdfbe7a1288901c8ab7cc4d26413938b8d8ed09b8f5059dc1737a50907c5"
+        },
+        {
+          "retained_name": "tag-tools__recomp.py.api.json",
+          "bytes": 20968,
+          "sha256": "c48b569c913c8e49609e8be0ad5e21f49cd58cefce750dd17f600b9fda5b4e16"
+        },
+        {
+          "retained_name": "tag-tree.json",
+          "bytes": 25155,
+          "sha256": "ffd22a0bb2359a656248d377efc537e0d440f889c76bfeb4c33d5139793d2ec9"
+        },
+        {
+          "retained_name": "tag-tree.json.observation.json",
+          "bytes": 141,
+          "sha256": "cd808368ed1ebb2d4b06f3d43c17b0d5cff1daba5947ba762137f1f99410cd28"
+        },
+        {
+          "retained_name": "tag.json",
+          "bytes": 7660,
+          "sha256": "ee65c729f1caaab9089dacc6613c4bf49e885d7e85f212ad7127aa641bb37bdc"
+        },
+        {
+          "retained_name": "tag.json.observation.json",
+          "bytes": 90,
+          "sha256": "fe79653bd38cd661b7897966f77f638b25a8e1f5d127d2eb8426df727c3e1529"
+        }
+      ]
+    },
+    {
+      "canonical_issue": 2881,
+      "bindings": [
+        {
+          "repository": "catmidori/gogoackman1recomp",
+          "commit": "db9f16b5ae51719f0ec81f3f4bae63a5ef84348c",
+          "path": ".gitmodules",
+          "blob": "f10991b0cd46807cc76ceca32853f001750107c3",
+          "bytes": 219,
+          "sha256": "b8dcb4171b0a5a445c2c3a2712e09a55fe387b96b4dc8a72df4c37993bf9b107",
+          "reference_roles": ["current"],
+          "retained_source_name": "current-.gitmodules"
+        },
+        {
+          "repository": "catmidori/gogoackman1recomp",
+          "commit": "db9f16b5ae51719f0ec81f3f4bae63a5ef84348c",
+          "path": "CMakeLists.txt",
+          "blob": "417c75109d3b41d0bdc3a86c0bff441d959f2626",
+          "bytes": 17881,
+          "sha256": "da966eed712f99bf409d2734994e6e21614561a77c684603dff7815b34609a0f",
+          "reference_roles": ["current"],
+          "retained_source_name": "current-CMakeLists.txt"
+        },
+        {
+          "repository": "catmidori/gogoackman1recomp",
+          "commit": "db9f16b5ae51719f0ec81f3f4bae63a5ef84348c",
+          "path": "LICENSE",
+          "blob": "2e45aeab573f9b6fa4a80e1493f43b190e7fcc4e",
+          "bytes": 4304,
+          "sha256": "04421bb9d4c157edf5d2d591ef579355bf41468c436f07436870c9bd3ca88590",
+          "reference_roles": ["current"],
+          "retained_source_name": "current-LICENSE"
+        },
+        {
+          "repository": "catmidori/gogoackman1recomp",
+          "commit": "db9f16b5ae51719f0ec81f3f4bae63a5ef84348c",
+          "path": "README.md",
+          "blob": "39e312faf79c841c803326375ca7be9f074ab13e",
+          "bytes": 8000,
+          "sha256": "2a9a976e986b60235f823f91e4a384c66948bbd1ddd62b40f870afc470815a44",
+          "reference_roles": ["current"],
+          "retained_source_name": "current-README.md"
+        },
+        {
+          "repository": "catmidori/gogoackman1recomp",
+          "commit": "db9f16b5ae51719f0ec81f3f4bae63a5ef84348c",
+          "path": "docs/BUILDING.md",
+          "blob": "971c39db053882ff79aefa5147c6e3bc9906e745",
+          "bytes": 12166,
+          "sha256": "19ea94759391de3f00d7d03c4e880bfc9bf35dd7d183fd9301d23397b14363ae",
+          "reference_roles": ["current"],
+          "retained_source_name": "current-docs__BUILDING.md"
+        },
+        {
+          "repository": "catmidori/gogoackman1recomp",
+          "commit": "db9f16b5ae51719f0ec81f3f4bae63a5ef84348c",
+          "path": "framework.lock",
+          "blob": "63135495f9d09b8e05f3e485207e8a149536eed6",
+          "bytes": 41,
+          "sha256": "ab7bd4c9331e967d2a850617131996a269a8440bad241fc8abd746f7d0852bcb",
+          "reference_roles": ["current"],
+          "retained_source_name": "current-framework.lock"
+        },
+        {
+          "repository": "catmidori/gogoackman1recomp",
+          "commit": "db9f16b5ae51719f0ec81f3f4bae63a5ef84348c",
+          "path": "src/ackman_config.c",
+          "blob": "50202055fe52994ba0d29642e320b30af7227f2f",
+          "bytes": 14620,
+          "sha256": "367c668ea2578c93b078aa8f6ce849ab1454305f6077e024811c9579f7328ce5",
+          "reference_roles": ["current"],
+          "retained_source_name": "current-src__ackman_config.c"
+        },
+        {
+          "repository": "catmidori/gogoackman1recomp",
+          "commit": "db9f16b5ae51719f0ec81f3f4bae63a5ef84348c",
+          "path": "src/ackman_flow.c",
+          "blob": "5a51afef75604ab1c86092a4012a104375ad14a4",
+          "bytes": 4385,
+          "sha256": "bdc26df94c2554f700962adf9a91fed6c32b6b5b143afaf00423f5071b97cf9b",
+          "reference_roles": ["current"],
+          "retained_source_name": "current-src__ackman_flow.c"
+        },
+        {
+          "repository": "catmidori/gogoackman1recomp",
+          "commit": "db9f16b5ae51719f0ec81f3f4bae63a5ef84348c",
+          "path": "src/game_rtl.c",
+          "blob": "9b8c4849b1477385d08e2d22c5a7740d977a1776",
+          "bytes": 9455,
+          "sha256": "bbb1fd150a32e5876de6bf77338a9f6ed7d6c12431f135c24fed25588c3f4100",
+          "reference_roles": ["current"],
+          "retained_source_name": "current-src__game_rtl.c"
+        },
+        {
+          "repository": "catmidori/gogoackman1recomp",
+          "commit": "db9f16b5ae51719f0ec81f3f4bae63a5ef84348c",
+          "path": "src/game_rtl.h",
+          "blob": "aea68bba57f48071566c469fe0544ad52d720b79",
+          "bytes": 288,
+          "sha256": "bfb55625d3f025ce5b12d874ea088808aff659287b9e5524140e39f56f6b222c",
+          "reference_roles": ["current"],
+          "retained_source_name": "current-src__game_rtl.h"
+        },
+        {
+          "repository": "catmidori/gogoackman1recomp",
+          "commit": "db9f16b5ae51719f0ec81f3f4bae63a5ef84348c",
+          "path": "src/gen/bank00_v2.c",
+          "blob": "4c2d732611adc3544b7bbeb55af2f515d1a48840",
+          "bytes": 31242,
+          "sha256": "bc468cce5fdabcbb0d3c509f0822b8299651af81c32dc1cfd5419e339b98048a",
+          "reference_roles": ["current"],
+          "retained_source_name": "current-src__gen__bank00_v2.c"
+        },
+        {
+          "repository": "catmidori/gogoackman1recomp",
+          "commit": "db9f16b5ae51719f0ec81f3f4bae63a5ef84348c",
+          "path": "src/gen/bank80_v2.c",
+          "blob": "5e6e5ae30e326550074fe3e80d150baa865ad432",
+          "bytes": 299288,
+          "sha256": "0ccba8a03f311243a2a704302a1d297f42184daeb0a9637a45a0cea87633011f",
+          "reference_roles": ["current"],
+          "retained_source_name": "current-src__gen__bank80_v2.c"
+        },
+        {
+          "repository": "catmidori/gogoackman1recomp",
+          "commit": "db9f16b5ae51719f0ec81f3f4bae63a5ef84348c",
+          "path": "src/gen/banka2_v2.c",
+          "blob": "fbdd2c6990f3766dd1f8946b417f7150232546a6",
+          "bytes": 1338505,
+          "sha256": "944ec48a864c766c6e9738f09e5017f7f540e04c7dbaa3559b7e66cc96e16070",
+          "reference_roles": ["current"],
+          "retained_source_name": "current-src__gen__banka2_v2.c"
+        },
+        {
+          "repository": "catmidori/gogoackman1recomp",
+          "commit": "db9f16b5ae51719f0ec81f3f4bae63a5ef84348c",
+          "path": "src/gen/dispatch_v2.c",
+          "blob": "04bf8541ce9169f81b2ed7a5076cf1a53783eac9",
+          "bytes": 10761,
+          "sha256": "abb236aab05e7a2efdff9e3a70a8eebc1f42150ce15d436b8b72f45cc150b462",
+          "reference_roles": ["current"],
+          "retained_source_name": "current-src__gen__dispatch_v2.c"
+        },
+        {
+          "repository": "catmidori/gogoackman1recomp",
+          "commit": "db9f16b5ae51719f0ec81f3f4bae63a5ef84348c",
+          "path": "src/host_contract.c",
+          "blob": "5108ba900a50ac734bf0220424a9101f0650d365",
+          "bytes": 1110,
+          "sha256": "7e2264f7556663d2bb26ddf5398be9f00f6ecb598516f3a9de14413531d5936a",
+          "reference_roles": ["current"],
+          "retained_source_name": "current-src__host_contract.c"
+        },
+        {
+          "repository": "catmidori/gogoackman1recomp",
+          "commit": "db9f16b5ae51719f0ec81f3f4bae63a5ef84348c",
+          "path": "src/main.c",
+          "blob": "25cbb2d570f8d4ff3018df0cb537814d9c19c5af",
+          "bytes": 8964,
+          "sha256": "5ee658b175a5271d853a885ead15c77b33e672da550079f6734c795fdcd2c5f1",
+          "reference_roles": ["current"],
+          "retained_source_name": "current-src__main.c"
+        },
+        {
+          "repository": "catmidori/gogoackman1recomp",
+          "commit": "db9f16b5ae51719f0ec81f3f4bae63a5ef84348c",
+          "path": "src/recomp_menu_boot.c",
+          "blob": "5c776d68dc27775d63cecbc02327c4b30ad88e42",
+          "bytes": 11061,
+          "sha256": "168ffe46072502d9cab7fb068577a77fc2a1c71c78f5d5778cb081e105079baa",
+          "reference_roles": ["current"],
+          "retained_source_name": "current-src__recomp_menu_boot.c"
+        },
+        {
+          "repository": "catmidori/gogoackman1recomp",
+          "commit": "db9f16b5ae51719f0ec81f3f4bae63a5ef84348c",
+          "path": "src/recomp_menu_checkpoint.c",
+          "blob": "5bdbaa136477db50d16e488987d5cf218b7eb1ad",
+          "bytes": 1212,
+          "sha256": "39895b1e00fa5afa04577493f9001bb488b252f3078ddaec7fbdd0352f6fc567",
+          "reference_roles": ["current"],
+          "retained_source_name": "current-src__recomp_menu_checkpoint.c"
+        },
+        {
+          "repository": "catmidori/gogoackman1recomp",
+          "commit": "db9f16b5ae51719f0ec81f3f4bae63a5ef84348c",
+          "path": "src/recomp_menu_paths.c",
+          "blob": "16f6a81c49357210576c2175ae1fe9d319e752cb",
+          "bytes": 3659,
+          "sha256": "311c63908afd2977e1ad41a7d68e6c864fb2b8af7c67da62ef5c3a8421ec2c56",
+          "reference_roles": ["current"],
+          "retained_source_name": "current-src__recomp_menu_paths.c"
+        },
+        {
+          "repository": "catmidori/gogoackman1recomp",
+          "commit": "db9f16b5ae51719f0ec81f3f4bae63a5ef84348c",
+          "path": "src/rom_guard.c",
+          "blob": "06af47187795031de63bddfb36b494c93d936a64",
+          "bytes": 934,
+          "sha256": "9a0caa16993b0ecc8728c6fb4705b5895159cafb302d7bffcf3d67345267d408",
+          "reference_roles": ["current"],
+          "retained_source_name": "current-src__rom_guard.c"
+        },
+        {
+          "repository": "catmidori/gogoackman1recomp",
+          "commit": "9f12ba1e59185e6fbe70eb7822338c7709f0c86a",
+          "path": ".gitmodules",
+          "blob": "f10991b0cd46807cc76ceca32853f001750107c3",
+          "bytes": 219,
+          "sha256": "b8dcb4171b0a5a445c2c3a2712e09a55fe387b96b4dc8a72df4c37993bf9b107",
+          "reference_roles": ["tag"],
+          "retained_source_name": "tag-.gitmodules"
+        },
+        {
+          "repository": "catmidori/gogoackman1recomp",
+          "commit": "9f12ba1e59185e6fbe70eb7822338c7709f0c86a",
+          "path": "CMakeLists.txt",
+          "blob": "417c75109d3b41d0bdc3a86c0bff441d959f2626",
+          "bytes": 17881,
+          "sha256": "da966eed712f99bf409d2734994e6e21614561a77c684603dff7815b34609a0f",
+          "reference_roles": ["tag"],
+          "retained_source_name": "tag-CMakeLists.txt"
+        },
+        {
+          "repository": "catmidori/gogoackman1recomp",
+          "commit": "9f12ba1e59185e6fbe70eb7822338c7709f0c86a",
+          "path": "LICENSE",
+          "blob": "2e45aeab573f9b6fa4a80e1493f43b190e7fcc4e",
+          "bytes": 4304,
+          "sha256": "04421bb9d4c157edf5d2d591ef579355bf41468c436f07436870c9bd3ca88590",
+          "reference_roles": ["tag"],
+          "retained_source_name": "tag-LICENSE"
+        },
+        {
+          "repository": "catmidori/gogoackman1recomp",
+          "commit": "9f12ba1e59185e6fbe70eb7822338c7709f0c86a",
+          "path": "README.md",
+          "blob": "b2dd45d0818f4222d53e6c4ab64038cc9b18a57c",
+          "bytes": 8334,
+          "sha256": "1c867b165206f46f459f3826ab9ff3b67eea0265b9f67659348790f9230ed669",
+          "reference_roles": ["tag"],
+          "retained_source_name": "tag-README.md"
+        },
+        {
+          "repository": "catmidori/gogoackman1recomp",
+          "commit": "9f12ba1e59185e6fbe70eb7822338c7709f0c86a",
+          "path": "docs/BUILDING.md",
+          "blob": "971c39db053882ff79aefa5147c6e3bc9906e745",
+          "bytes": 12166,
+          "sha256": "19ea94759391de3f00d7d03c4e880bfc9bf35dd7d183fd9301d23397b14363ae",
+          "reference_roles": ["tag"],
+          "retained_source_name": "tag-docs__BUILDING.md"
+        },
+        {
+          "repository": "catmidori/gogoackman1recomp",
+          "commit": "9f12ba1e59185e6fbe70eb7822338c7709f0c86a",
+          "path": "framework.lock",
+          "blob": "63135495f9d09b8e05f3e485207e8a149536eed6",
+          "bytes": 41,
+          "sha256": "ab7bd4c9331e967d2a850617131996a269a8440bad241fc8abd746f7d0852bcb",
+          "reference_roles": ["tag"],
+          "retained_source_name": "tag-framework.lock"
+        },
+        {
+          "repository": "catmidori/gogoackman1recomp",
+          "commit": "9f12ba1e59185e6fbe70eb7822338c7709f0c86a",
+          "path": "src/ackman_config.c",
+          "blob": "50202055fe52994ba0d29642e320b30af7227f2f",
+          "bytes": 14620,
+          "sha256": "367c668ea2578c93b078aa8f6ce849ab1454305f6077e024811c9579f7328ce5",
+          "reference_roles": ["tag"],
+          "retained_source_name": "tag-src__ackman_config.c"
+        },
+        {
+          "repository": "catmidori/gogoackman1recomp",
+          "commit": "9f12ba1e59185e6fbe70eb7822338c7709f0c86a",
+          "path": "src/ackman_flow.c",
+          "blob": "5a51afef75604ab1c86092a4012a104375ad14a4",
+          "bytes": 4385,
+          "sha256": "bdc26df94c2554f700962adf9a91fed6c32b6b5b143afaf00423f5071b97cf9b",
+          "reference_roles": ["tag"],
+          "retained_source_name": "tag-src__ackman_flow.c"
+        },
+        {
+          "repository": "catmidori/gogoackman1recomp",
+          "commit": "9f12ba1e59185e6fbe70eb7822338c7709f0c86a",
+          "path": "src/game_rtl.c",
+          "blob": "9b8c4849b1477385d08e2d22c5a7740d977a1776",
+          "bytes": 9455,
+          "sha256": "bbb1fd150a32e5876de6bf77338a9f6ed7d6c12431f135c24fed25588c3f4100",
+          "reference_roles": ["tag"],
+          "retained_source_name": "tag-src__game_rtl.c"
+        },
+        {
+          "repository": "catmidori/gogoackman1recomp",
+          "commit": "9f12ba1e59185e6fbe70eb7822338c7709f0c86a",
+          "path": "src/game_rtl.h",
+          "blob": "aea68bba57f48071566c469fe0544ad52d720b79",
+          "bytes": 288,
+          "sha256": "bfb55625d3f025ce5b12d874ea088808aff659287b9e5524140e39f56f6b222c",
+          "reference_roles": ["tag"],
+          "retained_source_name": "tag-src__game_rtl.h"
+        },
+        {
+          "repository": "catmidori/gogoackman1recomp",
+          "commit": "9f12ba1e59185e6fbe70eb7822338c7709f0c86a",
+          "path": "src/gen/bank00_v2.c",
+          "blob": "4c2d732611adc3544b7bbeb55af2f515d1a48840",
+          "bytes": 31242,
+          "sha256": "bc468cce5fdabcbb0d3c509f0822b8299651af81c32dc1cfd5419e339b98048a",
+          "reference_roles": ["tag"],
+          "retained_source_name": "tag-src__gen__bank00_v2.c"
+        },
+        {
+          "repository": "catmidori/gogoackman1recomp",
+          "commit": "9f12ba1e59185e6fbe70eb7822338c7709f0c86a",
+          "path": "src/gen/bank80_v2.c",
+          "blob": "5e6e5ae30e326550074fe3e80d150baa865ad432",
+          "bytes": 299288,
+          "sha256": "0ccba8a03f311243a2a704302a1d297f42184daeb0a9637a45a0cea87633011f",
+          "reference_roles": ["tag"],
+          "retained_source_name": "tag-src__gen__bank80_v2.c"
+        },
+        {
+          "repository": "catmidori/gogoackman1recomp",
+          "commit": "9f12ba1e59185e6fbe70eb7822338c7709f0c86a",
+          "path": "src/gen/banka2_v2.c",
+          "blob": "fbdd2c6990f3766dd1f8946b417f7150232546a6",
+          "bytes": 1338505,
+          "sha256": "944ec48a864c766c6e9738f09e5017f7f540e04c7dbaa3559b7e66cc96e16070",
+          "reference_roles": ["tag"],
+          "retained_source_name": "tag-src__gen__banka2_v2.c"
+        },
+        {
+          "repository": "catmidori/gogoackman1recomp",
+          "commit": "9f12ba1e59185e6fbe70eb7822338c7709f0c86a",
+          "path": "src/gen/dispatch_v2.c",
+          "blob": "04bf8541ce9169f81b2ed7a5076cf1a53783eac9",
+          "bytes": 10761,
+          "sha256": "abb236aab05e7a2efdff9e3a70a8eebc1f42150ce15d436b8b72f45cc150b462",
+          "reference_roles": ["tag"],
+          "retained_source_name": "tag-src__gen__dispatch_v2.c"
+        },
+        {
+          "repository": "catmidori/gogoackman1recomp",
+          "commit": "9f12ba1e59185e6fbe70eb7822338c7709f0c86a",
+          "path": "src/host_contract.c",
+          "blob": "5108ba900a50ac734bf0220424a9101f0650d365",
+          "bytes": 1110,
+          "sha256": "7e2264f7556663d2bb26ddf5398be9f00f6ecb598516f3a9de14413531d5936a",
+          "reference_roles": ["tag"],
+          "retained_source_name": "tag-src__host_contract.c"
+        },
+        {
+          "repository": "catmidori/gogoackman1recomp",
+          "commit": "9f12ba1e59185e6fbe70eb7822338c7709f0c86a",
+          "path": "src/main.c",
+          "blob": "25cbb2d570f8d4ff3018df0cb537814d9c19c5af",
+          "bytes": 8964,
+          "sha256": "5ee658b175a5271d853a885ead15c77b33e672da550079f6734c795fdcd2c5f1",
+          "reference_roles": ["tag"],
+          "retained_source_name": "tag-src__main.c"
+        },
+        {
+          "repository": "catmidori/gogoackman1recomp",
+          "commit": "9f12ba1e59185e6fbe70eb7822338c7709f0c86a",
+          "path": "src/recomp_menu_boot.c",
+          "blob": "5c776d68dc27775d63cecbc02327c4b30ad88e42",
+          "bytes": 11061,
+          "sha256": "168ffe46072502d9cab7fb068577a77fc2a1c71c78f5d5778cb081e105079baa",
+          "reference_roles": ["tag"],
+          "retained_source_name": "tag-src__recomp_menu_boot.c"
+        },
+        {
+          "repository": "catmidori/gogoackman1recomp",
+          "commit": "9f12ba1e59185e6fbe70eb7822338c7709f0c86a",
+          "path": "src/recomp_menu_checkpoint.c",
+          "blob": "5bdbaa136477db50d16e488987d5cf218b7eb1ad",
+          "bytes": 1212,
+          "sha256": "39895b1e00fa5afa04577493f9001bb488b252f3078ddaec7fbdd0352f6fc567",
+          "reference_roles": ["tag"],
+          "retained_source_name": "tag-src__recomp_menu_checkpoint.c"
+        },
+        {
+          "repository": "catmidori/gogoackman1recomp",
+          "commit": "9f12ba1e59185e6fbe70eb7822338c7709f0c86a",
+          "path": "src/recomp_menu_paths.c",
+          "blob": "16f6a81c49357210576c2175ae1fe9d319e752cb",
+          "bytes": 3659,
+          "sha256": "311c63908afd2977e1ad41a7d68e6c864fb2b8af7c67da62ef5c3a8421ec2c56",
+          "reference_roles": ["tag"],
+          "retained_source_name": "tag-src__recomp_menu_paths.c"
+        },
+        {
+          "repository": "catmidori/gogoackman1recomp",
+          "commit": "9f12ba1e59185e6fbe70eb7822338c7709f0c86a",
+          "path": "src/rom_guard.c",
+          "blob": "06af47187795031de63bddfb36b494c93d936a64",
+          "bytes": 934,
+          "sha256": "9a0caa16993b0ecc8728c6fb4705b5895159cafb302d7bffcf3d67345267d408",
+          "reference_roles": ["tag"],
+          "retained_source_name": "tag-src__rom_guard.c"
+        },
+        {
+          "repository": "catmidori/gogoackman1recomp",
+          "commit": "9f12ba1e59185e6fbe70eb7822338c7709f0c86a",
+          "path": "cmake/AckmanPatches.cmake",
+          "blob": "4e78d8d105934a55e864f1d59e33541dc2cdc3c5",
+          "bytes": 3092,
+          "sha256": "f4f8a62454008010310e29810f79a6c68bd6d1c3b04d790c839e42e66ace9d06",
+          "reference_roles": ["tag"],
+          "retained_source_name": "tag-cmake__AckmanPatches.cmake"
+        },
+        {
+          "repository": "catmidori/gogoackman1recomp",
+          "commit": "9f12ba1e59185e6fbe70eb7822338c7709f0c86a",
+          "path": "patches/ackman-active-mods.patch",
+          "blob": "cabbfab20cad3e3c6a0a3a5b7ecd2147777ea3bf",
+          "bytes": 3052,
+          "sha256": "fd75966286e039a151c11b4ddd874ccdb4b960878e4355cb8c62f4e9362a06e5",
+          "reference_roles": ["tag"],
+          "retained_source_name": "tag-patches__ackman-active-mods.patch"
+        },
+        {
+          "repository": "catmidori/gogoackman1recomp",
+          "commit": "9f12ba1e59185e6fbe70eb7822338c7709f0c86a",
+          "path": "patches/ackman-alt-input.patch",
+          "blob": "b21f62b9d86592bba86af735eaa88b8c0385b659",
+          "bytes": 636,
+          "sha256": "83632b7c50ba57a65fa9c759a352b49a8c697bd664888ec35c88a46019073692",
+          "reference_roles": ["tag"],
+          "retained_source_name": "tag-patches__ackman-alt-input.patch"
+        },
+        {
+          "repository": "catmidori/gogoackman1recomp",
+          "commit": "9f12ba1e59185e6fbe70eb7822338c7709f0c86a",
+          "path": "patches/ackman-audio-load.patch",
+          "blob": "1cd4ba2055a2294506c35c30892259040d5e23c4",
+          "bytes": 4306,
+          "sha256": "a1404f4ffccbd0ab3e30744e581d645a4beeb111dba574046db7e42e133d2538",
+          "reference_roles": ["tag"],
+          "retained_source_name": "tag-patches__ackman-audio-load.patch"
+        },
+        {
+          "repository": "catmidori/gogoackman1recomp",
+          "commit": "9f12ba1e59185e6fbe70eb7822338c7709f0c86a",
+          "path": "patches/ackman-autosave.patch",
+          "blob": "00567cb3bcc533e19d2e1a9853ebc5cd41b48726",
+          "bytes": 659,
+          "sha256": "e0e5d85ab68996e5d95750308d077f6024ef3fe200fa1b4c0585f72b09f5c25b",
+          "reference_roles": ["tag"],
+          "retained_source_name": "tag-patches__ackman-autosave.patch"
+        },
+        {
+          "repository": "catmidori/gogoackman1recomp",
+          "commit": "9f12ba1e59185e6fbe70eb7822338c7709f0c86a",
+          "path": "patches/ackman-av-settings.patch",
+          "blob": "2d72ebada8953b4d1d8ff73ffc27668de13c635a",
+          "bytes": 12390,
+          "sha256": "24a6f94140560061733a6fb9d3f85a497be221eb0b1bc6c54401498ee7411892",
+          "reference_roles": ["tag"],
+          "retained_source_name": "tag-patches__ackman-av-settings.patch"
+        },
+        {
+          "repository": "catmidori/gogoackman1recomp",
+          "commit": "9f12ba1e59185e6fbe70eb7822338c7709f0c86a",
+          "path": "patches/ackman-config.patch",
+          "blob": "e68052f9cc41125288a30e53b4786ee4ba18f9ee",
+          "bytes": 42202,
+          "sha256": "b959ca22d7927fd276b2291deabecc1ed4ee6e9d7541abd1d4036ec511202967",
+          "reference_roles": ["tag"],
+          "retained_source_name": "tag-patches__ackman-config.patch"
+        },
+        {
+          "repository": "catmidori/gogoackman1recomp",
+          "commit": "9f12ba1e59185e6fbe70eb7822338c7709f0c86a",
+          "path": "patches/ackman-controls.patch",
+          "blob": "ea65231189a4889d892ea067e5ab6b4d667e7f17",
+          "bytes": 5864,
+          "sha256": "287880aa9db98ac4bd5e13b4f6d19fd816bb3b182245566050398d62c4ce7a16",
+          "reference_roles": ["tag"],
+          "retained_source_name": "tag-patches__ackman-controls.patch"
+        },
+        {
+          "repository": "catmidori/gogoackman1recomp",
+          "commit": "9f12ba1e59185e6fbe70eb7822338c7709f0c86a",
+          "path": "patches/ackman-device-events.patch",
+          "blob": "a8dfe119aebf74429a512c348973a50e642e2816",
+          "bytes": 4109,
+          "sha256": "0a3c42b518fa70064e3c0f9ccc22ac61679dbc7481d7a50ff8a6a6efa8364f2c",
+          "reference_roles": ["tag"],
+          "retained_source_name": "tag-patches__ackman-device-events.patch"
+        },
+        {
+          "repository": "catmidori/gogoackman1recomp",
+          "commit": "9f12ba1e59185e6fbe70eb7822338c7709f0c86a",
+          "path": "patches/ackman-dialog-pause.patch",
+          "blob": "4bec2453b22a5da72509350e0482abc8d17c4e27",
+          "bytes": 1516,
+          "sha256": "5c1f09b14db3b4742321c22c3b7801ce00569ec4f658a86e76a9f7e1dcd38bc4",
+          "reference_roles": ["tag"],
+          "retained_source_name": "tag-patches__ackman-dialog-pause.patch"
+        },
+        {
+          "repository": "catmidori/gogoackman1recomp",
+          "commit": "9f12ba1e59185e6fbe70eb7822338c7709f0c86a",
+          "path": "patches/ackman-gameplay-devices.patch",
+          "blob": "bf950a9b90abdeb5fe8d1759770cd49ae320c5fc",
+          "bytes": 1698,
+          "sha256": "50b75b2a153cc4b947595b83fe53965baa315fa8b6571d99ac8eb4fac23c8217",
+          "reference_roles": ["tag"],
+          "retained_source_name": "tag-patches__ackman-gameplay-devices.patch"
+        },
+        {
+          "repository": "catmidori/gogoackman1recomp",
+          "commit": "9f12ba1e59185e6fbe70eb7822338c7709f0c86a",
+          "path": "patches/ackman-graphics-coldboot.patch",
+          "blob": "46833a1e2225f01f6094454f53358eafffcf5453",
+          "bytes": 3971,
+          "sha256": "a23230882e884119158d38ed3150ac442b51d3820e9b9a8da42545c2ca0b71e6",
+          "reference_roles": ["tag"],
+          "retained_source_name": "tag-patches__ackman-graphics-coldboot.patch"
+        },
+        {
+          "repository": "catmidori/gogoackman1recomp",
+          "commit": "9f12ba1e59185e6fbe70eb7822338c7709f0c86a",
+          "path": "patches/ackman-hold-rewind.patch",
+          "blob": "b3042811a0cbfb94f7b0cd50d97b542be74bc020",
+          "bytes": 51018,
+          "sha256": "8bf4c8f82d2cf509cf70270b29670e8647f3221399ea2e9d789610458f4fbc97",
+          "reference_roles": ["tag"],
+          "retained_source_name": "tag-patches__ackman-hold-rewind.patch"
+        },
+        {
+          "repository": "catmidori/gogoackman1recomp",
+          "commit": "9f12ba1e59185e6fbe70eb7822338c7709f0c86a",
+          "path": "patches/ackman-host-report-gnu.patch",
+          "blob": "c1961838f806482102a676093463991755ef6338",
+          "bytes": 786,
+          "sha256": "02b87bfc8c8c94d7173e4a4dd8dfbf36524a273a48a690279e48230b8d9443dc",
+          "reference_roles": ["tag"],
+          "retained_source_name": "tag-patches__ackman-host-report-gnu.patch"
+        },
+        {
+          "repository": "catmidori/gogoackman1recomp",
+          "commit": "9f12ba1e59185e6fbe70eb7822338c7709f0c86a",
+          "path": "patches/ackman-hotkeys.patch",
+          "blob": "6292358da6d22b9c81a887f47c66cf381fb34dc7",
+          "bytes": 5785,
+          "sha256": "a5a9611dd0b981b06b5bc1c5eb4ffdb17af90b6c4421621869058c54fab916ba",
+          "reference_roles": ["tag"],
+          "retained_source_name": "tag-patches__ackman-hotkeys.patch"
+        },
+        {
+          "repository": "catmidori/gogoackman1recomp",
+          "commit": "9f12ba1e59185e6fbe70eb7822338c7709f0c86a",
+          "path": "patches/ackman-menu-loop.patch",
+          "blob": "2da56dfee1e8b0439246d1e073565c3964fb7668",
+          "bytes": 2926,
+          "sha256": "d42d0a69601054fe448b3aca7d2bbdef678145537f129d02db71ed537afd7012",
+          "reference_roles": ["tag"],
+          "retained_source_name": "tag-patches__ackman-menu-loop.patch"
+        },
+        {
+          "repository": "catmidori/gogoackman1recomp",
+          "commit": "9f12ba1e59185e6fbe70eb7822338c7709f0c86a",
+          "path": "patches/ackman-menu-settings.patch",
+          "blob": "ce72b510c85fce7171a9d84686a57f2aa4aae2b2",
+          "bytes": 14644,
+          "sha256": "3bbbcabde203fce5095db70fa10d3332da95739f52f5bd562c7f9621221ab1e3",
+          "reference_roles": ["tag"],
+          "retained_source_name": "tag-patches__ackman-menu-settings.patch"
+        },
+        {
+          "repository": "catmidori/gogoackman1recomp",
+          "commit": "9f12ba1e59185e6fbe70eb7822338c7709f0c86a",
+          "path": "patches/ackman-menu.patch",
+          "blob": "4e76ee493729aad849e6295acd3494f81a908593",
+          "bytes": 1396,
+          "sha256": "c1ebbac1dfe6d6c6a8ee690e8fbae0860a306c73d348aba55afc5bc5d8efb805",
+          "reference_roles": ["tag"],
+          "retained_source_name": "tag-patches__ackman-menu.patch"
+        },
+        {
+          "repository": "catmidori/gogoackman1recomp",
+          "commit": "9f12ba1e59185e6fbe70eb7822338c7709f0c86a",
+          "path": "patches/ackman-mod-catalog-shell.patch",
+          "blob": "7d80ab18389ee4896f539596deb2a373d4aec137",
+          "bytes": 1538,
+          "sha256": "aab8587f1ecfdcb258a7ab0e9a0e0fcc5c319f393d39cbd1b378bac974bdbea1",
+          "reference_roles": ["tag"],
+          "retained_source_name": "tag-patches__ackman-mod-catalog-shell.patch"
+        },
+        {
+          "repository": "catmidori/gogoackman1recomp",
+          "commit": "9f12ba1e59185e6fbe70eb7822338c7709f0c86a",
+          "path": "patches/ackman-obj-clamp.patch",
+          "blob": "b505b31f83b57fe7f2ca17f4e095b79f020428a3",
+          "bytes": 1361,
+          "sha256": "00154da982cee3895f88b93040916eeae45316c90395abcee15daf0c4f8170cc",
+          "reference_roles": ["tag"],
+          "retained_source_name": "tag-patches__ackman-obj-clamp.patch"
+        },
+        {
+          "repository": "catmidori/gogoackman1recomp",
+          "commit": "9f12ba1e59185e6fbe70eb7822338c7709f0c86a",
+          "path": "patches/ackman-osd-scale.patch",
+          "blob": "3d2f8d76a91ae4247ad292d33f20fef11fd30f87",
+          "bytes": 2447,
+          "sha256": "181b496fb5259fa02eb432c7c7b61f6d87668c7bdfc876ded5b04b2dabd92933",
+          "reference_roles": ["tag"],
+          "retained_source_name": "tag-patches__ackman-osd-scale.patch"
+        },
+        {
+          "repository": "catmidori/gogoackman1recomp",
+          "commit": "9f12ba1e59185e6fbe70eb7822338c7709f0c86a",
+          "path": "patches/ackman-overlay.patch",
+          "blob": "c8d79ea9edb03e47fd2252b40aae2c010a10e5b1",
+          "bytes": 1053,
+          "sha256": "d74196257ae273f7b2c5213ec473afed57f2c8e1420efb2cd4ba4e9b94c61964",
+          "reference_roles": ["tag"],
+          "retained_source_name": "tag-patches__ackman-overlay.patch"
+        },
+        {
+          "repository": "catmidori/gogoackman1recomp",
+          "commit": "9f12ba1e59185e6fbe70eb7822338c7709f0c86a",
+          "path": "patches/ackman-png-shader-tree.patch",
+          "blob": "db1e67e79d1d9e6a71ce6bc37bf0016bffe40a12",
+          "bytes": 3927,
+          "sha256": "ecda0a4892c9636f7bc1ecbc054e214e9187054bf933901224cabc68e12afd64",
+          "reference_roles": ["tag"],
+          "retained_source_name": "tag-patches__ackman-png-shader-tree.patch"
+        },
+        {
+          "repository": "catmidori/gogoackman1recomp",
+          "commit": "9f12ba1e59185e6fbe70eb7822338c7709f0c86a",
+          "path": "patches/ackman-raster.patch",
+          "blob": "bd4542f6063fd8f4b8d42415a302945431ae7da3",
+          "bytes": 5214,
+          "sha256": "b17a0ff85f9bc0bfe0cece340e516c587ed6d0595df6589bee829b9059159683",
+          "reference_roles": ["tag"],
+          "retained_source_name": "tag-patches__ackman-raster.patch"
+        },
+        {
+          "repository": "catmidori/gogoackman1recomp",
+          "commit": "9f12ba1e59185e6fbe70eb7822338c7709f0c86a",
+          "path": "patches/ackman-reset.patch",
+          "blob": "05fbac333958a617a3f44941f86e43e5eee6c565",
+          "bytes": 391,
+          "sha256": "850cec2b54d9ce4a68b1858f32ad496b0d50a3389b158c7c548c03d3afae5596",
+          "reference_roles": ["tag"],
+          "retained_source_name": "tag-patches__ackman-reset.patch"
+        },
+        {
+          "repository": "catmidori/gogoackman1recomp",
+          "commit": "9f12ba1e59185e6fbe70eb7822338c7709f0c86a",
+          "path": "patches/ackman-rumble.patch",
+          "blob": "8d8ad7e15d9510c91e1fc23657379880597833d4",
+          "bytes": 2854,
+          "sha256": "a04af256e4a549db1e63351b3d8de100024f3afa497d8b9621427590889d2e83",
+          "reference_roles": ["tag"],
+          "retained_source_name": "tag-patches__ackman-rumble.patch"
+        },
+        {
+          "repository": "catmidori/gogoackman1recomp",
+          "commit": "9f12ba1e59185e6fbe70eb7822338c7709f0c86a",
+          "path": "patches/ackman-safe-boot-raster.patch",
+          "blob": "4046fd376e5730c746c2ca70ffbe7b2408e8a30f",
+          "bytes": 8655,
+          "sha256": "39dd4cebb3b9e5efa8fc2fe684eb1e746a26413254af3e73f822693fc1adb626",
+          "reference_roles": ["tag"],
+          "retained_source_name": "tag-patches__ackman-safe-boot-raster.patch"
+        },
+        {
+          "repository": "catmidori/gogoackman1recomp",
+          "commit": "9f12ba1e59185e6fbe70eb7822338c7709f0c86a",
+          "path": "patches/ackman-sdl-menu.patch",
+          "blob": "b209e7910b978406877ed70a854d337e9bf50c7a",
+          "bytes": 2247,
+          "sha256": "b93d131a5e5e40aef9eb2bf7e686579556db247ef7e83c4945ecf73a199dd9c1",
+          "reference_roles": ["tag"],
+          "retained_source_name": "tag-patches__ackman-sdl-menu.patch"
+        },
+        {
+          "repository": "catmidori/gogoackman1recomp",
+          "commit": "9f12ba1e59185e6fbe70eb7822338c7709f0c86a",
+          "path": "patches/ackman-shaders-capture.patch",
+          "blob": "4b579f5ded6d012553682bac760ac0a9cfd7e52c",
+          "bytes": 16760,
+          "sha256": "17dca65a7568c34b3f59b94aa78f03b8505ccbe5b30f304f6c91c403b810a544",
+          "reference_roles": ["tag"],
+          "retained_source_name": "tag-patches__ackman-shaders-capture.patch"
+        },
+        {
+          "repository": "catmidori/gogoackman1recomp",
+          "commit": "9f12ba1e59185e6fbe70eb7822338c7709f0c86a",
+          "path": "patches/ackman-state.patch",
+          "blob": "bc4317bf87f26dc8587f8bb8214f7b5d7e41bde0",
+          "bytes": 1731,
+          "sha256": "ec712aca668003004f78bffa46dbbad0cdeac1da9d0a7c85bb244ede9d8757da",
+          "reference_roles": ["tag"],
+          "retained_source_name": "tag-patches__ackman-state.patch"
+        },
+        {
+          "repository": "catmidori/gogoackman1recomp",
+          "commit": "9f12ba1e59185e6fbe70eb7822338c7709f0c86a",
+          "path": "patches/ackman-system-shortcuts.patch",
+          "blob": "db28af598dc41818f3bbc7fc899b5f1284dbc700",
+          "bytes": 6589,
+          "sha256": "77ec06e5b99aff5aedf86917546ed4982173951bbec3f81d7950502673661ea0",
+          "reference_roles": ["tag"],
+          "retained_source_name": "tag-patches__ackman-system-shortcuts.patch"
+        },
+        {
+          "repository": "catmidori/gogoackman1recomp",
+          "commit": "9f12ba1e59185e6fbe70eb7822338c7709f0c86a",
+          "path": "patches/ackman-unified-state.patch",
+          "blob": "f3ed78116fa61178b3fc6737b3b637e871f75eae",
+          "bytes": 1692,
+          "sha256": "94100f1cc9843494dea26a4ce38c325cc40bbe4f3cd40aeef528807c91f883c6",
+          "reference_roles": ["tag"],
+          "retained_source_name": "tag-patches__ackman-unified-state.patch"
+        },
+        {
+          "repository": "catmidori/gogoackman1recomp",
+          "commit": "9f12ba1e59185e6fbe70eb7822338c7709f0c86a",
+          "path": "patches/clocked-beam.patch",
+          "blob": "2f18adbef7077105e9189e8a8e52a1439190e3f9",
+          "bytes": 868,
+          "sha256": "d67bf3d9e0de7bf0bc22a093a8a26198a15bf83b6e51888be66141a7f6d7d849",
+          "reference_roles": ["tag"],
+          "retained_source_name": "tag-patches__clocked-beam.patch"
+        },
+        {
+          "repository": "catmidori/gogoackman1recomp",
+          "commit": "9f12ba1e59185e6fbe70eb7822338c7709f0c86a",
+          "path": "patches/script-savestate.patch",
+          "blob": "0abe506114d4fe8054ba6702a27b33adaf3257fb",
+          "bytes": 1746,
+          "sha256": "af14f70523b046755126dbfb8b0b4d009c1bc468d4d1f8d5ba466f844cc43ea4",
+          "reference_roles": ["tag"],
+          "retained_source_name": "tag-patches__script-savestate.patch"
+        },
+        {
+          "repository": "catmidori/gogoackman1recomp",
+          "commit": "9f12ba1e59185e6fbe70eb7822338c7709f0c86a",
+          "path": "patches/timing-crossing.patch",
+          "blob": "fa0b211c8e28afd0c242101d90b4c6ac63fce4ec",
+          "bytes": 1140,
+          "sha256": "328647bd62e03a680f30345d7fb4f297763eca0efefe14e4035e452ff0dedf8d",
+          "reference_roles": ["tag"],
+          "retained_source_name": "tag-patches__timing-crossing.patch"
+        },
+        {
+          "repository": "catmidori/gogoackman1recomp",
+          "commit": "9f12ba1e59185e6fbe70eb7822338c7709f0c86a",
+          "path": "rom_identity.txt",
+          "blob": "7b60748ccd11bdc33ec20ce4988d8874e3f335bd",
+          "bytes": 1243,
+          "sha256": "bbf6dfb4d9eaa12a247141bd1c304feda6678ffe27864d41f7dd59aa822d3ece",
+          "reference_roles": ["tag"],
+          "retained_source_name": "tag-rom_identity.txt"
+        },
+        {
+          "repository": "catmidori/gogoackman1recomp",
+          "commit": "9f12ba1e59185e6fbe70eb7822338c7709f0c86a",
+          "path": "src/ackman_translation.h",
+          "blob": "ab3cab1486060432e3ebecc5a0b9a0394d1e4d9f",
+          "bytes": 854,
+          "sha256": "9716d0bdab2708cad4b38e90505ed62d4f2245bbcd6cb1e30535b49f03b2e043",
+          "reference_roles": ["tag"],
+          "retained_source_name": "tag-src__ackman_translation.h"
+        },
+        {
+          "repository": "catmidori/gogoackman1recomp",
+          "commit": "9f12ba1e59185e6fbe70eb7822338c7709f0c86a",
+          "path": "src/ackman_translation_data.h",
+          "blob": "5e3e815fe9c4ce6080c9942239fc30a0480d6629",
+          "bytes": 84347,
+          "sha256": "60f76ed6cd1afa86be932dc3e3fd9717b436f1c0edac706c3303b0941a141d35",
+          "reference_roles": ["tag"],
+          "retained_source_name": "tag-src__ackman_translation_data.h"
+        },
+        {
+          "repository": "catmidori/gogoackman1recomp",
+          "commit": "9f12ba1e59185e6fbe70eb7822338c7709f0c86a",
+          "path": "src/ackman_translation_ptbr.h",
+          "blob": "1aacbecca3dacfc0b8c2f295cd2225e11cf13ffd",
+          "bytes": 5137,
+          "sha256": "59fa7c6f7c17827939a1a015076343d0192681fcc1fa02e4f2c9ba9a6dd9fc5d",
+          "reference_roles": ["tag"],
+          "retained_source_name": "tag-src__ackman_translation_ptbr.h"
+        },
+        {
+          "repository": "catmidori/gogoackman1recomp",
+          "commit": "db9f16b5ae51719f0ec81f3f4bae63a5ef84348c",
+          "path": "cmake/AckmanPatches.cmake",
+          "blob": "4e78d8d105934a55e864f1d59e33541dc2cdc3c5",
+          "bytes": 3092,
+          "sha256": "f4f8a62454008010310e29810f79a6c68bd6d1c3b04d790c839e42e66ace9d06",
+          "reference_roles": ["current"],
+          "retained_source_name": "current-cmake__AckmanPatches.cmake"
+        },
+        {
+          "repository": "catmidori/gogoackman1recomp",
+          "commit": "db9f16b5ae51719f0ec81f3f4bae63a5ef84348c",
+          "path": "patches/ackman-active-mods.patch",
+          "blob": "cabbfab20cad3e3c6a0a3a5b7ecd2147777ea3bf",
+          "bytes": 3052,
+          "sha256": "fd75966286e039a151c11b4ddd874ccdb4b960878e4355cb8c62f4e9362a06e5",
+          "reference_roles": ["current"],
+          "retained_source_name": "current-patches__ackman-active-mods.patch"
+        },
+        {
+          "repository": "catmidori/gogoackman1recomp",
+          "commit": "db9f16b5ae51719f0ec81f3f4bae63a5ef84348c",
+          "path": "patches/ackman-alt-input.patch",
+          "blob": "b21f62b9d86592bba86af735eaa88b8c0385b659",
+          "bytes": 636,
+          "sha256": "83632b7c50ba57a65fa9c759a352b49a8c697bd664888ec35c88a46019073692",
+          "reference_roles": ["current"],
+          "retained_source_name": "current-patches__ackman-alt-input.patch"
+        },
+        {
+          "repository": "catmidori/gogoackman1recomp",
+          "commit": "db9f16b5ae51719f0ec81f3f4bae63a5ef84348c",
+          "path": "patches/ackman-audio-load.patch",
+          "blob": "1cd4ba2055a2294506c35c30892259040d5e23c4",
+          "bytes": 4306,
+          "sha256": "a1404f4ffccbd0ab3e30744e581d645a4beeb111dba574046db7e42e133d2538",
+          "reference_roles": ["current"],
+          "retained_source_name": "current-patches__ackman-audio-load.patch"
+        },
+        {
+          "repository": "catmidori/gogoackman1recomp",
+          "commit": "db9f16b5ae51719f0ec81f3f4bae63a5ef84348c",
+          "path": "patches/ackman-autosave.patch",
+          "blob": "00567cb3bcc533e19d2e1a9853ebc5cd41b48726",
+          "bytes": 659,
+          "sha256": "e0e5d85ab68996e5d95750308d077f6024ef3fe200fa1b4c0585f72b09f5c25b",
+          "reference_roles": ["current"],
+          "retained_source_name": "current-patches__ackman-autosave.patch"
+        },
+        {
+          "repository": "catmidori/gogoackman1recomp",
+          "commit": "db9f16b5ae51719f0ec81f3f4bae63a5ef84348c",
+          "path": "patches/ackman-av-settings.patch",
+          "blob": "2d72ebada8953b4d1d8ff73ffc27668de13c635a",
+          "bytes": 12390,
+          "sha256": "24a6f94140560061733a6fb9d3f85a497be221eb0b1bc6c54401498ee7411892",
+          "reference_roles": ["current"],
+          "retained_source_name": "current-patches__ackman-av-settings.patch"
+        },
+        {
+          "repository": "catmidori/gogoackman1recomp",
+          "commit": "db9f16b5ae51719f0ec81f3f4bae63a5ef84348c",
+          "path": "patches/ackman-config.patch",
+          "blob": "e68052f9cc41125288a30e53b4786ee4ba18f9ee",
+          "bytes": 42202,
+          "sha256": "b959ca22d7927fd276b2291deabecc1ed4ee6e9d7541abd1d4036ec511202967",
+          "reference_roles": ["current"],
+          "retained_source_name": "current-patches__ackman-config.patch"
+        },
+        {
+          "repository": "catmidori/gogoackman1recomp",
+          "commit": "db9f16b5ae51719f0ec81f3f4bae63a5ef84348c",
+          "path": "patches/ackman-controls.patch",
+          "blob": "ea65231189a4889d892ea067e5ab6b4d667e7f17",
+          "bytes": 5864,
+          "sha256": "287880aa9db98ac4bd5e13b4f6d19fd816bb3b182245566050398d62c4ce7a16",
+          "reference_roles": ["current"],
+          "retained_source_name": "current-patches__ackman-controls.patch"
+        },
+        {
+          "repository": "catmidori/gogoackman1recomp",
+          "commit": "db9f16b5ae51719f0ec81f3f4bae63a5ef84348c",
+          "path": "patches/ackman-device-events.patch",
+          "blob": "a8dfe119aebf74429a512c348973a50e642e2816",
+          "bytes": 4109,
+          "sha256": "0a3c42b518fa70064e3c0f9ccc22ac61679dbc7481d7a50ff8a6a6efa8364f2c",
+          "reference_roles": ["current"],
+          "retained_source_name": "current-patches__ackman-device-events.patch"
+        },
+        {
+          "repository": "catmidori/gogoackman1recomp",
+          "commit": "db9f16b5ae51719f0ec81f3f4bae63a5ef84348c",
+          "path": "patches/ackman-dialog-pause.patch",
+          "blob": "4bec2453b22a5da72509350e0482abc8d17c4e27",
+          "bytes": 1516,
+          "sha256": "5c1f09b14db3b4742321c22c3b7801ce00569ec4f658a86e76a9f7e1dcd38bc4",
+          "reference_roles": ["current"],
+          "retained_source_name": "current-patches__ackman-dialog-pause.patch"
+        },
+        {
+          "repository": "catmidori/gogoackman1recomp",
+          "commit": "db9f16b5ae51719f0ec81f3f4bae63a5ef84348c",
+          "path": "patches/ackman-gameplay-devices.patch",
+          "blob": "bf950a9b90abdeb5fe8d1759770cd49ae320c5fc",
+          "bytes": 1698,
+          "sha256": "50b75b2a153cc4b947595b83fe53965baa315fa8b6571d99ac8eb4fac23c8217",
+          "reference_roles": ["current"],
+          "retained_source_name": "current-patches__ackman-gameplay-devices.patch"
+        },
+        {
+          "repository": "catmidori/gogoackman1recomp",
+          "commit": "db9f16b5ae51719f0ec81f3f4bae63a5ef84348c",
+          "path": "patches/ackman-graphics-coldboot.patch",
+          "blob": "46833a1e2225f01f6094454f53358eafffcf5453",
+          "bytes": 3971,
+          "sha256": "a23230882e884119158d38ed3150ac442b51d3820e9b9a8da42545c2ca0b71e6",
+          "reference_roles": ["current"],
+          "retained_source_name": "current-patches__ackman-graphics-coldboot.patch"
+        },
+        {
+          "repository": "catmidori/gogoackman1recomp",
+          "commit": "db9f16b5ae51719f0ec81f3f4bae63a5ef84348c",
+          "path": "patches/ackman-hold-rewind.patch",
+          "blob": "b3042811a0cbfb94f7b0cd50d97b542be74bc020",
+          "bytes": 51018,
+          "sha256": "8bf4c8f82d2cf509cf70270b29670e8647f3221399ea2e9d789610458f4fbc97",
+          "reference_roles": ["current"],
+          "retained_source_name": "current-patches__ackman-hold-rewind.patch"
+        },
+        {
+          "repository": "catmidori/gogoackman1recomp",
+          "commit": "db9f16b5ae51719f0ec81f3f4bae63a5ef84348c",
+          "path": "patches/ackman-host-report-gnu.patch",
+          "blob": "c1961838f806482102a676093463991755ef6338",
+          "bytes": 786,
+          "sha256": "02b87bfc8c8c94d7173e4a4dd8dfbf36524a273a48a690279e48230b8d9443dc",
+          "reference_roles": ["current"],
+          "retained_source_name": "current-patches__ackman-host-report-gnu.patch"
+        },
+        {
+          "repository": "catmidori/gogoackman1recomp",
+          "commit": "db9f16b5ae51719f0ec81f3f4bae63a5ef84348c",
+          "path": "patches/ackman-hotkeys.patch",
+          "blob": "6292358da6d22b9c81a887f47c66cf381fb34dc7",
+          "bytes": 5785,
+          "sha256": "a5a9611dd0b981b06b5bc1c5eb4ffdb17af90b6c4421621869058c54fab916ba",
+          "reference_roles": ["current"],
+          "retained_source_name": "current-patches__ackman-hotkeys.patch"
+        },
+        {
+          "repository": "catmidori/gogoackman1recomp",
+          "commit": "db9f16b5ae51719f0ec81f3f4bae63a5ef84348c",
+          "path": "patches/ackman-menu-loop.patch",
+          "blob": "2da56dfee1e8b0439246d1e073565c3964fb7668",
+          "bytes": 2926,
+          "sha256": "d42d0a69601054fe448b3aca7d2bbdef678145537f129d02db71ed537afd7012",
+          "reference_roles": ["current"],
+          "retained_source_name": "current-patches__ackman-menu-loop.patch"
+        },
+        {
+          "repository": "catmidori/gogoackman1recomp",
+          "commit": "db9f16b5ae51719f0ec81f3f4bae63a5ef84348c",
+          "path": "patches/ackman-menu-settings.patch",
+          "blob": "ce72b510c85fce7171a9d84686a57f2aa4aae2b2",
+          "bytes": 14644,
+          "sha256": "3bbbcabde203fce5095db70fa10d3332da95739f52f5bd562c7f9621221ab1e3",
+          "reference_roles": ["current"],
+          "retained_source_name": "current-patches__ackman-menu-settings.patch"
+        },
+        {
+          "repository": "catmidori/gogoackman1recomp",
+          "commit": "db9f16b5ae51719f0ec81f3f4bae63a5ef84348c",
+          "path": "patches/ackman-menu.patch",
+          "blob": "4e76ee493729aad849e6295acd3494f81a908593",
+          "bytes": 1396,
+          "sha256": "c1ebbac1dfe6d6c6a8ee690e8fbae0860a306c73d348aba55afc5bc5d8efb805",
+          "reference_roles": ["current"],
+          "retained_source_name": "current-patches__ackman-menu.patch"
+        },
+        {
+          "repository": "catmidori/gogoackman1recomp",
+          "commit": "db9f16b5ae51719f0ec81f3f4bae63a5ef84348c",
+          "path": "patches/ackman-mod-catalog-shell.patch",
+          "blob": "7d80ab18389ee4896f539596deb2a373d4aec137",
+          "bytes": 1538,
+          "sha256": "aab8587f1ecfdcb258a7ab0e9a0e0fcc5c319f393d39cbd1b378bac974bdbea1",
+          "reference_roles": ["current"],
+          "retained_source_name": "current-patches__ackman-mod-catalog-shell.patch"
+        },
+        {
+          "repository": "catmidori/gogoackman1recomp",
+          "commit": "db9f16b5ae51719f0ec81f3f4bae63a5ef84348c",
+          "path": "patches/ackman-obj-clamp.patch",
+          "blob": "b505b31f83b57fe7f2ca17f4e095b79f020428a3",
+          "bytes": 1361,
+          "sha256": "00154da982cee3895f88b93040916eeae45316c90395abcee15daf0c4f8170cc",
+          "reference_roles": ["current"],
+          "retained_source_name": "current-patches__ackman-obj-clamp.patch"
+        },
+        {
+          "repository": "catmidori/gogoackman1recomp",
+          "commit": "db9f16b5ae51719f0ec81f3f4bae63a5ef84348c",
+          "path": "patches/ackman-osd-scale.patch",
+          "blob": "3d2f8d76a91ae4247ad292d33f20fef11fd30f87",
+          "bytes": 2447,
+          "sha256": "181b496fb5259fa02eb432c7c7b61f6d87668c7bdfc876ded5b04b2dabd92933",
+          "reference_roles": ["current"],
+          "retained_source_name": "current-patches__ackman-osd-scale.patch"
+        },
+        {
+          "repository": "catmidori/gogoackman1recomp",
+          "commit": "db9f16b5ae51719f0ec81f3f4bae63a5ef84348c",
+          "path": "patches/ackman-overlay.patch",
+          "blob": "c8d79ea9edb03e47fd2252b40aae2c010a10e5b1",
+          "bytes": 1053,
+          "sha256": "d74196257ae273f7b2c5213ec473afed57f2c8e1420efb2cd4ba4e9b94c61964",
+          "reference_roles": ["current"],
+          "retained_source_name": "current-patches__ackman-overlay.patch"
+        },
+        {
+          "repository": "catmidori/gogoackman1recomp",
+          "commit": "db9f16b5ae51719f0ec81f3f4bae63a5ef84348c",
+          "path": "patches/ackman-png-shader-tree.patch",
+          "blob": "db1e67e79d1d9e6a71ce6bc37bf0016bffe40a12",
+          "bytes": 3927,
+          "sha256": "ecda0a4892c9636f7bc1ecbc054e214e9187054bf933901224cabc68e12afd64",
+          "reference_roles": ["current"],
+          "retained_source_name": "current-patches__ackman-png-shader-tree.patch"
+        },
+        {
+          "repository": "catmidori/gogoackman1recomp",
+          "commit": "db9f16b5ae51719f0ec81f3f4bae63a5ef84348c",
+          "path": "patches/ackman-raster.patch",
+          "blob": "bd4542f6063fd8f4b8d42415a302945431ae7da3",
+          "bytes": 5214,
+          "sha256": "b17a0ff85f9bc0bfe0cece340e516c587ed6d0595df6589bee829b9059159683",
+          "reference_roles": ["current"],
+          "retained_source_name": "current-patches__ackman-raster.patch"
+        },
+        {
+          "repository": "catmidori/gogoackman1recomp",
+          "commit": "db9f16b5ae51719f0ec81f3f4bae63a5ef84348c",
+          "path": "patches/ackman-reset.patch",
+          "blob": "05fbac333958a617a3f44941f86e43e5eee6c565",
+          "bytes": 391,
+          "sha256": "850cec2b54d9ce4a68b1858f32ad496b0d50a3389b158c7c548c03d3afae5596",
+          "reference_roles": ["current"],
+          "retained_source_name": "current-patches__ackman-reset.patch"
+        },
+        {
+          "repository": "catmidori/gogoackman1recomp",
+          "commit": "db9f16b5ae51719f0ec81f3f4bae63a5ef84348c",
+          "path": "patches/ackman-rumble.patch",
+          "blob": "8d8ad7e15d9510c91e1fc23657379880597833d4",
+          "bytes": 2854,
+          "sha256": "a04af256e4a549db1e63351b3d8de100024f3afa497d8b9621427590889d2e83",
+          "reference_roles": ["current"],
+          "retained_source_name": "current-patches__ackman-rumble.patch"
+        },
+        {
+          "repository": "catmidori/gogoackman1recomp",
+          "commit": "db9f16b5ae51719f0ec81f3f4bae63a5ef84348c",
+          "path": "patches/ackman-safe-boot-raster.patch",
+          "blob": "4046fd376e5730c746c2ca70ffbe7b2408e8a30f",
+          "bytes": 8655,
+          "sha256": "39dd4cebb3b9e5efa8fc2fe684eb1e746a26413254af3e73f822693fc1adb626",
+          "reference_roles": ["current"],
+          "retained_source_name": "current-patches__ackman-safe-boot-raster.patch"
+        },
+        {
+          "repository": "catmidori/gogoackman1recomp",
+          "commit": "db9f16b5ae51719f0ec81f3f4bae63a5ef84348c",
+          "path": "patches/ackman-sdl-menu.patch",
+          "blob": "b209e7910b978406877ed70a854d337e9bf50c7a",
+          "bytes": 2247,
+          "sha256": "b93d131a5e5e40aef9eb2bf7e686579556db247ef7e83c4945ecf73a199dd9c1",
+          "reference_roles": ["current"],
+          "retained_source_name": "current-patches__ackman-sdl-menu.patch"
+        },
+        {
+          "repository": "catmidori/gogoackman1recomp",
+          "commit": "db9f16b5ae51719f0ec81f3f4bae63a5ef84348c",
+          "path": "patches/ackman-shaders-capture.patch",
+          "blob": "4b579f5ded6d012553682bac760ac0a9cfd7e52c",
+          "bytes": 16760,
+          "sha256": "17dca65a7568c34b3f59b94aa78f03b8505ccbe5b30f304f6c91c403b810a544",
+          "reference_roles": ["current"],
+          "retained_source_name": "current-patches__ackman-shaders-capture.patch"
+        },
+        {
+          "repository": "catmidori/gogoackman1recomp",
+          "commit": "db9f16b5ae51719f0ec81f3f4bae63a5ef84348c",
+          "path": "patches/ackman-state.patch",
+          "blob": "bc4317bf87f26dc8587f8bb8214f7b5d7e41bde0",
+          "bytes": 1731,
+          "sha256": "ec712aca668003004f78bffa46dbbad0cdeac1da9d0a7c85bb244ede9d8757da",
+          "reference_roles": ["current"],
+          "retained_source_name": "current-patches__ackman-state.patch"
+        },
+        {
+          "repository": "catmidori/gogoackman1recomp",
+          "commit": "db9f16b5ae51719f0ec81f3f4bae63a5ef84348c",
+          "path": "patches/ackman-system-shortcuts.patch",
+          "blob": "db28af598dc41818f3bbc7fc899b5f1284dbc700",
+          "bytes": 6589,
+          "sha256": "77ec06e5b99aff5aedf86917546ed4982173951bbec3f81d7950502673661ea0",
+          "reference_roles": ["current"],
+          "retained_source_name": "current-patches__ackman-system-shortcuts.patch"
+        },
+        {
+          "repository": "catmidori/gogoackman1recomp",
+          "commit": "db9f16b5ae51719f0ec81f3f4bae63a5ef84348c",
+          "path": "patches/ackman-unified-state.patch",
+          "blob": "f3ed78116fa61178b3fc6737b3b637e871f75eae",
+          "bytes": 1692,
+          "sha256": "94100f1cc9843494dea26a4ce38c325cc40bbe4f3cd40aeef528807c91f883c6",
+          "reference_roles": ["current"],
+          "retained_source_name": "current-patches__ackman-unified-state.patch"
+        },
+        {
+          "repository": "catmidori/gogoackman1recomp",
+          "commit": "db9f16b5ae51719f0ec81f3f4bae63a5ef84348c",
+          "path": "patches/clocked-beam.patch",
+          "blob": "2f18adbef7077105e9189e8a8e52a1439190e3f9",
+          "bytes": 868,
+          "sha256": "d67bf3d9e0de7bf0bc22a093a8a26198a15bf83b6e51888be66141a7f6d7d849",
+          "reference_roles": ["current"],
+          "retained_source_name": "current-patches__clocked-beam.patch"
+        },
+        {
+          "repository": "catmidori/gogoackman1recomp",
+          "commit": "db9f16b5ae51719f0ec81f3f4bae63a5ef84348c",
+          "path": "patches/script-savestate.patch",
+          "blob": "0abe506114d4fe8054ba6702a27b33adaf3257fb",
+          "bytes": 1746,
+          "sha256": "af14f70523b046755126dbfb8b0b4d009c1bc468d4d1f8d5ba466f844cc43ea4",
+          "reference_roles": ["current"],
+          "retained_source_name": "current-patches__script-savestate.patch"
+        },
+        {
+          "repository": "catmidori/gogoackman1recomp",
+          "commit": "db9f16b5ae51719f0ec81f3f4bae63a5ef84348c",
+          "path": "patches/timing-crossing.patch",
+          "blob": "fa0b211c8e28afd0c242101d90b4c6ac63fce4ec",
+          "bytes": 1140,
+          "sha256": "328647bd62e03a680f30345d7fb4f297763eca0efefe14e4035e452ff0dedf8d",
+          "reference_roles": ["current"],
+          "retained_source_name": "current-patches__timing-crossing.patch"
+        },
+        {
+          "repository": "catmidori/gogoackman1recomp",
+          "commit": "db9f16b5ae51719f0ec81f3f4bae63a5ef84348c",
+          "path": "rom_identity.txt",
+          "blob": "7b60748ccd11bdc33ec20ce4988d8874e3f335bd",
+          "bytes": 1243,
+          "sha256": "bbf6dfb4d9eaa12a247141bd1c304feda6678ffe27864d41f7dd59aa822d3ece",
+          "reference_roles": ["current"],
+          "retained_source_name": "current-rom_identity.txt"
+        },
+        {
+          "repository": "catmidori/gogoackman1recomp",
+          "commit": "db9f16b5ae51719f0ec81f3f4bae63a5ef84348c",
+          "path": "src/ackman_translation.h",
+          "blob": "ab3cab1486060432e3ebecc5a0b9a0394d1e4d9f",
+          "bytes": 854,
+          "sha256": "9716d0bdab2708cad4b38e90505ed62d4f2245bbcd6cb1e30535b49f03b2e043",
+          "reference_roles": ["current"],
+          "retained_source_name": "current-src__ackman_translation.h"
+        },
+        {
+          "repository": "catmidori/gogoackman1recomp",
+          "commit": "db9f16b5ae51719f0ec81f3f4bae63a5ef84348c",
+          "path": "src/ackman_translation_data.h",
+          "blob": "5e3e815fe9c4ce6080c9942239fc30a0480d6629",
+          "bytes": 84347,
+          "sha256": "60f76ed6cd1afa86be932dc3e3fd9717b436f1c0edac706c3303b0941a141d35",
+          "reference_roles": ["current"],
+          "retained_source_name": "current-src__ackman_translation_data.h"
+        },
+        {
+          "repository": "catmidori/gogoackman1recomp",
+          "commit": "db9f16b5ae51719f0ec81f3f4bae63a5ef84348c",
+          "path": "src/ackman_translation_ptbr.h",
+          "blob": "1aacbecca3dacfc0b8c2f295cd2225e11cf13ffd",
+          "bytes": 5137,
+          "sha256": "59fa7c6f7c17827939a1a015076343d0192681fcc1fa02e4f2c9ba9a6dd9fc5d",
+          "reference_roles": ["current"],
+          "retained_source_name": "current-src__ackman_translation_ptbr.h"
+        },
+        {
+          "repository": "catmidori/gogoackman1recomp",
+          "commit": "9f12ba1e59185e6fbe70eb7822338c7709f0c86a",
+          "path": "THIRD_PARTY_ATTRIBUTION.md",
+          "blob": "bbd848b7b4b51fd3ada44e2d524a8da799c2d3f0",
+          "bytes": 49160,
+          "sha256": "764f53305fc4e267cc161e3c1bc17bcb838546c61c9a2fafa82754aea29c64d5",
+          "reference_roles": ["tag"],
+          "retained_source_name": "tag-THIRD_PARTY_ATTRIBUTION.md"
+        },
+        {
+          "repository": "catmidori/gogoackman1recomp",
+          "commit": "db9f16b5ae51719f0ec81f3f4bae63a5ef84348c",
+          "path": "THIRD_PARTY_ATTRIBUTION.md",
+          "blob": "bbd848b7b4b51fd3ada44e2d524a8da799c2d3f0",
+          "bytes": 49160,
+          "sha256": "764f53305fc4e267cc161e3c1bc17bcb838546c61c9a2fafa82754aea29c64d5",
+          "reference_roles": ["current"],
+          "retained_source_name": "current-THIRD_PARTY_ATTRIBUTION.md"
+        },
+        {
+          "repository": "catmidori/gogoackman1recomp",
+          "commit": "9f12ba1e59185e6fbe70eb7822338c7709f0c86a",
+          "path": "THIRD_PARTY.md",
+          "blob": "7a59213a1c1752d4f511990ad36f7b7b137a7c7e",
+          "bytes": 922,
+          "sha256": "272ea6eaae9df7bc6932282e5ade21911e661b4b6644128c600a0210475854d1",
+          "reference_roles": ["tag"],
+          "retained_source_name": "tag-THIRD_PARTY.md"
+        },
+        {
+          "repository": "catmidori/gogoackman1recomp",
+          "commit": "9f12ba1e59185e6fbe70eb7822338c7709f0c86a",
+          "path": "src/ackman_ips.c",
+          "blob": "d9a1f4f10857a1c0008f783c94450cad190bf1c0",
+          "bytes": 3376,
+          "sha256": "169a55fa8ff682e83a57f5db4940fe0bb2a32ba75744afcf29c587c9375b5710",
+          "reference_roles": ["tag"],
+          "retained_source_name": "tag-src__ackman_ips.c"
+        },
+        {
+          "repository": "catmidori/gogoackman1recomp",
+          "commit": "9f12ba1e59185e6fbe70eb7822338c7709f0c86a",
+          "path": "src/ackman_menu.c",
+          "blob": "b8a0686770e566226338ac1b08c81b4fd6aa2a7d",
+          "bytes": 15836,
+          "sha256": "aac9cc84b0a63ac872056aca7b9cd5484ec7549035c578639a5114548e256181",
+          "reference_roles": ["tag"],
+          "retained_source_name": "tag-src__ackman_menu.c"
+        },
+        {
+          "repository": "catmidori/gogoackman1recomp",
+          "commit": "db9f16b5ae51719f0ec81f3f4bae63a5ef84348c",
+          "path": "THIRD_PARTY.md",
+          "blob": "7a59213a1c1752d4f511990ad36f7b7b137a7c7e",
+          "bytes": 922,
+          "sha256": "272ea6eaae9df7bc6932282e5ade21911e661b4b6644128c600a0210475854d1",
+          "reference_roles": ["current"],
+          "retained_source_name": "current-THIRD_PARTY.md"
+        },
+        {
+          "repository": "catmidori/gogoackman1recomp",
+          "commit": "db9f16b5ae51719f0ec81f3f4bae63a5ef84348c",
+          "path": "src/ackman_ips.c",
+          "blob": "d9a1f4f10857a1c0008f783c94450cad190bf1c0",
+          "bytes": 3376,
+          "sha256": "169a55fa8ff682e83a57f5db4940fe0bb2a32ba75744afcf29c587c9375b5710",
+          "reference_roles": ["current"],
+          "retained_source_name": "current-src__ackman_ips.c"
+        },
+        {
+          "repository": "catmidori/gogoackman1recomp",
+          "commit": "db9f16b5ae51719f0ec81f3f4bae63a5ef84348c",
+          "path": "src/ackman_menu.c",
+          "blob": "b8a0686770e566226338ac1b08c81b4fd6aa2a7d",
+          "bytes": 15836,
+          "sha256": "aac9cc84b0a63ac872056aca7b9cd5484ec7549035c578639a5114548e256181",
+          "reference_roles": ["current"],
+          "retained_source_name": "current-src__ackman_menu.c"
+        },
+        {
+          "repository": "RetroPortingToolKit/snesrecomp",
+          "commit": "e119994bcde03dec95f9ebaeeda305d72a6668b2",
+          "path": "LICENSE",
+          "blob": "6804d6f5cf1a102d5f8ed6dd6fe4df621ecf41f1",
+          "bytes": 3791,
+          "sha256": "b5cb175d55c9f49f0f532aff9d04424444f3354bc274fc4d0d726292701b8dfd",
+          "reference_roles": ["pinned-framework"],
+          "retained_source_name": "framework-LICENSE"
+        },
+        {
+          "repository": "RetroPortingToolKit/snesrecomp",
+          "commit": "e119994bcde03dec95f9ebaeeda305d72a6668b2",
+          "path": "runner/src/common_rtl.c",
+          "blob": "176a93fb80b6cd672aeb03df15b6a5bfcca2a556",
+          "bytes": 107718,
+          "sha256": "5744bc5cf77489e87d61180ea445715308c5027b5e42d005c64b65d232f5e8f3",
+          "reference_roles": ["pinned-framework"],
+          "retained_source_name": "framework-runner__src__common_rtl.c"
+        },
+        {
+          "repository": "RetroPortingToolKit/snesrecomp",
+          "commit": "e119994bcde03dec95f9ebaeeda305d72a6668b2",
+          "path": "runner/src/desktop/host_main.c",
+          "blob": "5ff2709b7447f3a17988b38e4f959627c3cb7db2",
+          "bytes": 157070,
+          "sha256": "96e5f9116d5702f3beb918e3d276586d7d7c1e514b0b74b621e2386b271953b9",
+          "reference_roles": ["pinned-framework"],
+          "retained_source_name": "framework-runner__src__desktop__host_main.c"
+        },
+        {
+          "repository": "RetroPortingToolKit/snesrecomp",
+          "commit": "e119994bcde03dec95f9ebaeeda305d72a6668b2",
+          "path": "runner/src/desktop/host_main.h",
+          "blob": "fd68e49dc767746395d360322c49f5bb791e02a4",
+          "bytes": 9208,
+          "sha256": "02c456dc62a6c27f0e84fddb93ea5bb765692cc2b37154809555cdfd77389f34",
+          "reference_roles": ["pinned-framework"],
+          "retained_source_name": "framework-runner__src__desktop__host_main.h"
+        },
+        {
+          "repository": "RetroPortingToolKit/snesrecomp",
+          "commit": "e119994bcde03dec95f9ebaeeda305d72a6668b2",
+          "path": "runner/src/desktop/mmx_config.c",
+          "blob": "ddcfdbcfde39de0960fa06a60d2da42d825c4abe",
+          "bytes": 34588,
+          "sha256": "8ddb10b60cdf5b4aea0114b596f811deb09e953b8a21bfb696510105c48d9a34",
+          "reference_roles": ["pinned-framework"],
+          "retained_source_name": "framework-runner__src__desktop__mmx_config.c"
+        },
+        {
+          "repository": "RetroPortingToolKit/snesrecomp",
+          "commit": "e119994bcde03dec95f9ebaeeda305d72a6668b2",
+          "path": "runner/src/launcher.c",
+          "blob": "44ce5e73cdc5699cdad45d61339b0eae33e54bbf",
+          "bytes": 5935,
+          "sha256": "34e2c01f3ffda94f8609231f3b1840b20b80fcd408423aceb8945dcb2e10321c",
+          "reference_roles": ["pinned-framework"],
+          "retained_source_name": "framework-runner__src__launcher.c"
+        },
+        {
+          "repository": "RetroPortingToolKit/snesrecomp",
+          "commit": "e119994bcde03dec95f9ebaeeda305d72a6668b2",
+          "path": "runner/src/setup_host_dispatch.c",
+          "blob": "066355d6851ccd973f3e9204e733766c089053a3",
+          "bytes": 1822,
+          "sha256": "0b5ab725cefb1f79f834010d29a8b97f2b215d468c16458600ffe1adb9b549f0",
+          "reference_roles": ["pinned-framework"],
+          "retained_source_name": "framework-runner__src__setup_host_dispatch.c"
+        },
+        {
+          "repository": "RetroPortingToolKit/snesrecomp",
+          "commit": "e119994bcde03dec95f9ebaeeda305d72a6668b2",
+          "path": "runner/src/snes/interp_bridge.c",
+          "blob": "dbff9dd5b71fbbe9d2517951033dacfa79dce76b",
+          "bytes": 165216,
+          "sha256": "9b60c571e6bbf9d4480a8ec2fa7829a6ffb1fb0ebae122819e7fe90c59481b57",
+          "reference_roles": ["pinned-framework"],
+          "retained_source_name": "framework-runner__src__snes__interp_bridge.c"
+        },
+        {
+          "repository": "RetroPortingToolKit/snesrecomp",
+          "commit": "e119994bcde03dec95f9ebaeeda305d72a6668b2",
+          "path": "runner/src/snes/interp_bridge.h",
+          "blob": "49231e67365d444c6fdd42ea93fef48b1698a857",
+          "bytes": 10052,
+          "sha256": "ae121005edc7d27393dca29bb579dece6a710c24724e90e45f3146906f402559",
+          "reference_roles": ["pinned-framework"],
+          "retained_source_name": "framework-runner__src__snes__interp_bridge.h"
+        },
+        {
+          "repository": "RetroPortingToolKit/snesrecomp",
+          "commit": "e119994bcde03dec95f9ebaeeda305d72a6668b2",
+          "path": "runner/src/util.c",
+          "blob": "71868b766e82ada08c92b0793903501510a74a05",
+          "bytes": 9050,
+          "sha256": "c563120643c9c93370f4082c956ce259dda2e03f9c5bf3ecdf20902dbc2bf8f1",
+          "reference_roles": ["pinned-framework"],
+          "retained_source_name": "framework-runner__src__util.c"
+        },
+        {
+          "repository": "RetroPortingToolKit/snesrecomp",
+          "commit": "e119994bcde03dec95f9ebaeeda305d72a6668b2",
+          "path": "runner/runner.cmake",
+          "blob": "1835dba00bea31172adbb19a3c87707eb282a59d",
+          "bytes": 56034,
+          "sha256": "a9117ea305257f016ddaf9c9d512a57a5ee89839fd572024277e6d35b8632ed2",
+          "reference_roles": ["pinned-framework"],
+          "retained_source_name": "framework-runner__runner.cmake"
+        },
+        {
+          "repository": "RetroPortingToolKit/snesrecomp",
+          "commit": "e119994bcde03dec95f9ebaeeda305d72a6668b2",
+          "path": "runner/src/cpu_state.c",
+          "blob": "56c922424d9d0292e6064a1452afb78e87538337",
+          "bytes": 56742,
+          "sha256": "8d8506945a40c060f0211e54fb2bfeceba994d5168278c3235e64e65f0067fb2",
+          "reference_roles": ["pinned-framework"],
+          "retained_source_name": "framework-runner__src__cpu_state.c"
+        }
+      ],
+      "complete_trees": [
+        {
+          "role": "current",
+          "commit": "db9f16b5ae51719f0ec81f3f4bae63a5ef84348c",
+          "root_tree": "9a34a871cbf2e277a82bb0d23337d75a5447ecec",
+          "entries": 406,
+          "truncated": false,
+          "sha256": "b55e7dbc160e3eda6810481c2c07451b18f1e763afaada491cd66f05d2194ca2",
+          "retained_name": "current-tree.json",
+          "gitlinks": [
+            {
+              "path": "external/imgui",
+              "sha": "f5befd2d29e66809cd1110a152e375a7f1981f06"
+            },
+            {
+              "path": "external/snesrecomp",
+              "sha": "e119994bcde03dec95f9ebaeeda305d72a6668b2"
+            }
+          ]
+        },
+        {
+          "role": "tag",
+          "commit": "9f12ba1e59185e6fbe70eb7822338c7709f0c86a",
+          "root_tree": "3740d90c1681238d91416c00b3fcb4c48543c92b",
+          "entries": 405,
+          "truncated": false,
+          "sha256": "47a429306c230866ae0dc3afc0fc9ed4d0e3ca68744f7626237dd2e388d4d593",
+          "retained_name": "tag-tree.json",
+          "gitlinks": [
+            {
+              "path": "external/imgui",
+              "sha": "f5befd2d29e66809cd1110a152e375a7f1981f06"
+            },
+            {
+              "path": "external/snesrecomp",
+              "sha": "e119994bcde03dec95f9ebaeeda305d72a6668b2"
+            }
+          ]
+        },
+        {
+          "role": "framework",
+          "commit": "e119994bcde03dec95f9ebaeeda305d72a6668b2",
+          "root_tree": "89062be80de253b639f6e715d70ba531ff6f48ef",
+          "entries": 824,
+          "truncated": false,
+          "sha256": "36e6026c904fd42d4ef1d3b80f5de981aaa4ee51b93fe415a9b27711d2849be1",
+          "retained_name": "framework-tree.json",
+          "gitlinks": [
+            {
+              "path": "lib/recomp-net",
+              "sha": "859ba28b93f7374f2ac1eb70d2171594c5cd4f4b"
+            },
+            {
+              "path": "lib/retcomm-rbengine",
+              "sha": "a7b98507a62fe00e5aec3b90c52a4134f3c174bc"
+            }
+          ]
+        }
+      ],
+      "retained_api_manifest": [
+        {
+          "retained_name": "attribution-manifest.json",
+          "bytes": 839,
+          "sha256": "70de35483925c6e92daec3f971c0cca1fc0db7477c5eda9b0473cfb8229b8fa2"
+        },
+        {
+          "retained_name": "current-.gitmodules.api.json",
+          "bytes": 594,
+          "sha256": "baa49a4a3947fa886f592b552ac9fd876ab91bd502b368bbffbc0fd05d754a72"
+        },
+        {
+          "retained_name": "current-CMakeLists.txt.api.json",
+          "bytes": 24934,
+          "sha256": "f9bec6d101399bfb6e26b629db413d84c62abb429be44fafd347848a432b102b"
+        },
+        {
+          "retained_name": "current-LICENSE.api.json",
+          "bytes": 6225,
+          "sha256": "cfe342637fb2e4af5b6f18b431c2a014b2ff75420fb73552269b7151d05d1e51"
+        },
+        {
+          "retained_name": "current-LICENSE.api.json.observation.json",
+          "bytes": 136,
+          "sha256": "6ad8e274652845b74540963ef686b8fdd18b6274ae25fd26763d1978f2ec9cb9"
+        },
+        {
+          "retained_name": "current-README.md.api.json",
+          "bytes": 11317,
+          "sha256": "9914ac6a327cb4af96fb1b7a2ae0235f718a0e0ebd619379009e2e9eeda2beb1"
+        },
+        {
+          "retained_name": "current-README.md.api.json.observation.json",
+          "bytes": 136,
+          "sha256": "6627f324e294a510d637c5586446b7493643e95bd7e623a718417498a078decc"
+        },
+        {
+          "retained_name": "current-THIRD_PARTY.md.api.json",
+          "bytes": 1566,
+          "sha256": "c50bcdf5187f4ee7b9109df3efbcb05a055e0d19aacb7faa660656fc94f345a6"
+        },
+        {
+          "retained_name": "current-THIRD_PARTY_ATTRIBUTION.md.api.json",
+          "bytes": 68028,
+          "sha256": "1dd88b3cdcb8e44b8bc592367f6bdff272a5e7d2f71e8a5bfabd92cada2e47f2"
+        },
+        {
+          "retained_name": "current-cmake__AckmanPatches.cmake.api.json",
+          "bytes": 4555,
+          "sha256": "a68aa912dc98aff87768f5831a8a778447df69532d08cf872aac32436f828534"
+        },
+        {
+          "retained_name": "current-docs__BUILDING.md.api.json",
+          "bytes": 17060,
+          "sha256": "e5ceca1d4a3c7a5f2546bde98413e10b476334f4f6c0b7ad1b1a7b1827e696c8"
+        },
+        {
+          "retained_name": "current-framework.lock.api.json",
+          "bytes": 349,
+          "sha256": "52fee6efa74b1f180db45505a12c14261633b49eb88aba82f4803cee706599f3"
+        },
+        {
+          "retained_name": "current-patches__ackman-active-mods.patch.api.json",
+          "bytes": 4501,
+          "sha256": "e02033713de2e42ba56d182e069cedf3e8d07c086e6b82c6b4c26a2aaafbe201"
+        },
+        {
+          "retained_name": "current-patches__ackman-alt-input.patch.api.json",
+          "bytes": 1170,
+          "sha256": "b94b180bafd1106fb0ea500fc56af461356a44c21baf6c879174f2277801f1df"
+        },
+        {
+          "retained_name": "current-patches__ackman-audio-load.patch.api.json",
+          "bytes": 6229,
+          "sha256": "22856b8227753be5a57aca973adcc28109f4c4c0084522b40ad636e072dbbac8"
+        },
+        {
+          "retained_name": "current-patches__ackman-autosave.patch.api.json",
+          "bytes": 1202,
+          "sha256": "3392c662862c589bb7a4fa8ede9b3987eeb994b5aa9ab833777cf1826f783a37"
+        },
+        {
+          "retained_name": "current-patches__ackman-av-settings.patch.api.json",
+          "bytes": 17366,
+          "sha256": "1a4382b59e14d538d06311b7309da75d212769b33561ef2013295c14bd8a88e4"
+        },
+        {
+          "retained_name": "current-patches__ackman-config.patch.api.json",
+          "bytes": 58442,
+          "sha256": "09edc5f8a3438eecd87f68eabc306746bac7496fb9b18412e3cdc356e858efc3"
+        },
+        {
+          "retained_name": "current-patches__ackman-controls.patch.api.json",
+          "bytes": 8375,
+          "sha256": "ce904e73185314def4e5c86aade9ef49fd0a45c2a1d84b0a4ead05be995dfc70"
+        },
+        {
+          "retained_name": "current-patches__ackman-device-events.patch.api.json",
+          "bytes": 5957,
+          "sha256": "97297df9765fe7695b5af36641d8f24dec5554a7b2065176fdd6753ed9f74fdd"
+        },
+        {
+          "retained_name": "current-patches__ackman-dialog-pause.patch.api.json",
+          "bytes": 2385,
+          "sha256": "bf5c48ac4df6dbca91c51ec91ab8c650510fa8920ae6f88f085c7c8fda6294aa"
+        },
+        {
+          "retained_name": "current-patches__ackman-gameplay-devices.patch.api.json",
+          "bytes": 2633,
+          "sha256": "fc0a9d5db568b3f972ba6a4e379efcf8278a90acf36915340365d4eb783f1d81"
+        },
+        {
+          "retained_name": "current-patches__ackman-graphics-coldboot.patch.api.json",
+          "bytes": 5767,
+          "sha256": "1c5a2809c255ac271ef474441def040897a2359ace38d3d7536b343b0e90f97b"
+        },
+        {
+          "retained_name": "current-patches__ackman-hold-rewind.patch.api.json",
+          "bytes": 70586,
+          "sha256": "90ef4c6048714a963830920e48659cf6fdd12c6f564dfe69f43033586fdf2060"
+        },
+        {
+          "retained_name": "current-patches__ackman-host-report-gnu.patch.api.json",
+          "bytes": 1376,
+          "sha256": "e1e9141816b710f75a98b15e1f5e614fd15ff5b8c8381c7dac41461ea7a95002"
+        },
+        {
+          "retained_name": "current-patches__ackman-hotkeys.patch.api.json",
+          "bytes": 8267,
+          "sha256": "c4f1ee3de1432f4f8890cb2cdc8cb28032a562ae3ad246463cee9c6537e458a3"
+        },
+        {
+          "retained_name": "current-patches__ackman-menu-loop.patch.api.json",
+          "bytes": 4329,
+          "sha256": "9a15dcad509c398e679ca9111be56686adfde9ead8cb475d02b05ed5a7e5c16c"
+        },
+        {
+          "retained_name": "current-patches__ackman-menu-settings.patch.api.json",
+          "bytes": 20474,
+          "sha256": "ef712066ae1478815cbbee3d405ddb97f266347d288af2fc22bbc9b07058eebe"
+        },
+        {
+          "retained_name": "current-patches__ackman-menu.patch.api.json",
+          "bytes": 2221,
+          "sha256": "218fe4e940a9c0626cff097ed877b70c3a0a4fdd1e4601ac891f042c3e19d5ff"
+        },
+        {
+          "retained_name": "current-patches__ackman-mod-catalog-shell.patch.api.json",
+          "bytes": 2415,
+          "sha256": "0ade0a94940651cdfac42ebb36070988bad700abaaa1814568039600694c738e"
+        },
+        {
+          "retained_name": "current-patches__ackman-obj-clamp.patch.api.json",
+          "bytes": 2171,
+          "sha256": "2360a5e7c8af0f862a43c5b95818bbaa33f099b4940650bafb263dd903db2456"
+        },
+        {
+          "retained_name": "current-patches__ackman-osd-scale.patch.api.json",
+          "bytes": 3667,
+          "sha256": "1599f2412fe72ca5aa9aa6c57108b9ba0e7556aeaa600371ff185ef2d80ed67b"
+        },
+        {
+          "retained_name": "current-patches__ackman-overlay.patch.api.json",
+          "bytes": 1745,
+          "sha256": "ebde30f6dc52afacd6168e282668b4c9a1b5dbf4d60be5aa972698613420fbcd"
+        },
+        {
+          "retained_name": "current-patches__ackman-png-shader-tree.patch.api.json",
+          "bytes": 5705,
+          "sha256": "4a6bd19e9afbcd670b210323ab334f7f62b86ede3933ea7cb3ec7d939224bf92"
+        },
+        {
+          "retained_name": "current-patches__ackman-raster.patch.api.json",
+          "bytes": 7477,
+          "sha256": "357285e815c88c9239693e5396b71f58de0203c358b68edc93f8ef7830a5186e"
+        },
+        {
+          "retained_name": "current-patches__ackman-reset.patch.api.json",
+          "bytes": 834,
+          "sha256": "b6227052e04fb5670e065749d1dfcf972f9f0feb684b0f72cc1027b1dfed9b5b"
+        },
+        {
+          "retained_name": "current-patches__ackman-rumble.patch.api.json",
+          "bytes": 4229,
+          "sha256": "7cf37cadbd62a44231ffde070ed34a76769448aaa7ee0cba0dc80ab13f42fbcc"
+        },
+        {
+          "retained_name": "current-patches__ackman-safe-boot-raster.patch.api.json",
+          "bytes": 12219,
+          "sha256": "e04072930055ee9c921986cb15617818a28582506aa603e6305065f81e9719a1"
+        },
+        {
+          "retained_name": "current-patches__ackman-sdl-menu.patch.api.json",
+          "bytes": 3389,
+          "sha256": "c180e40a681671b83259fc9238378a22e5b92a2131d3fa67f65babcf71316eec"
+        },
+        {
+          "retained_name": "current-patches__ackman-shaders-capture.patch.api.json",
+          "bytes": 23388,
+          "sha256": "bbf6b7b7232a802d83a8918d71f23d99bb8f532aaf64d8c2ba70419dd17679be"
+        },
+        {
+          "retained_name": "current-patches__ackman-state.patch.api.json",
+          "bytes": 2679,
+          "sha256": "abbecee7919ce78f2d279b6e453da71211729090aae422bad2f5c02d5535da33"
+        },
+        {
+          "retained_name": "current-patches__ackman-system-shortcuts.patch.api.json",
+          "bytes": 9375,
+          "sha256": "00b5572b6fedf5a113c8522944ace9de10cc50dda779defeff7107eb1786a838"
+        },
+        {
+          "retained_name": "current-patches__ackman-unified-state.patch.api.json",
+          "bytes": 2625,
+          "sha256": "717a4593af6a8685621be79fee951690838279cb90fc2ebbdc51ce82652f57bf"
+        },
+        {
+          "retained_name": "current-patches__clocked-beam.patch.api.json",
+          "bytes": 1492,
+          "sha256": "290c219f94e6c01caa2ee81472d83ea7daaa954e6f66d72a510c073ab96f7bcd"
+        },
+        {
+          "retained_name": "current-patches__script-savestate.patch.api.json",
+          "bytes": 2699,
+          "sha256": "f277d812310a08c34b0c37e70d26718505cd76979701387337b0c5261f1c6e52"
+        },
+        {
+          "retained_name": "current-patches__timing-crossing.patch.api.json",
+          "bytes": 1865,
+          "sha256": "f9e8ef47e5396d13fb4f3ee9c883ba3560e91e18adb82afcf52ae4f0fde2eba4"
+        },
+        {
+          "retained_name": "current-rom_identity.txt.api.json",
+          "bytes": 2009,
+          "sha256": "a49ba4fb041873ed582fcb3666f7d725753e2e33a3d1b7c35b4488db39e3a497"
+        },
+        {
+          "retained_name": "current-src__ackman_config.c.api.json",
+          "bytes": 20440,
+          "sha256": "f85fabd6a1a00b886ecc3ae409fba4f6a7bd7df77c97d07a73dfeefa15353b88"
+        },
+        {
+          "retained_name": "current-src__ackman_flow.c.api.json",
+          "bytes": 6337,
+          "sha256": "503788e9ca4a54a93f9518386ffc006b2df53a8236a805158772a47a04cf6b5a"
+        },
+        {
+          "retained_name": "current-src__ackman_ips.c.api.json",
+          "bytes": 4949,
+          "sha256": "b048b07f9f41ce9c9d8dfb8daafa04981c8abc033e978f92c0d0731d59ac1d91"
+        },
+        {
+          "retained_name": "current-src__ackman_menu.c.api.json",
+          "bytes": 22114,
+          "sha256": "51b898256f07d95455e934ba0d1b0852d796099a46d88b042e522c34dcb6141f"
+        },
+        {
+          "retained_name": "current-src__ackman_translation.h.api.json",
+          "bytes": 1470,
+          "sha256": "c8bf69c22a78d6429fa96d0f2b7f847817d93675e81e6716604a8a7c153f3259"
+        },
+        {
+          "retained_name": "current-src__ackman_translation_data.h.api.json",
+          "bytes": 116508,
+          "sha256": "a962f7fd7f29fb464427e7bb2615e7bef6c266de1283dce9e5d3815d9045cd18"
+        },
+        {
+          "retained_name": "current-src__ackman_translation_ptbr.h.api.json",
+          "bytes": 7375,
+          "sha256": "d45b29f7ef231b3466c32f1277a1b505803fae1d9dff4358d66e82173ce6c03d"
+        },
+        {
+          "retained_name": "current-src__game_rtl.c.api.json",
+          "bytes": 13323,
+          "sha256": "645d11f8e15651f64fc583e766106d9d8932da3b33e6f86ee4ad1b1f6c947543"
+        },
+        {
+          "retained_name": "current-src__game_rtl.h.api.json",
+          "bytes": 690,
+          "sha256": "0933ab168408b4c0a37c6af026cfdfad385dc75047527880012d62427387cd72"
+        },
+        {
+          "retained_name": "current-src__gen__bank00_v2.c.api.json",
+          "bytes": 43340,
+          "sha256": "65403cb3759ef6f1cb030fef9cd5878fe207fb6401eddb052a2222ec805a84d3"
+        },
+        {
+          "retained_name": "current-src__gen__bank80_v2.c.api.json",
+          "bytes": 412649,
+          "sha256": "d62cfb566d50dc3d20ac99b2d98195950334b45a55806991b3c03090205472f8"
+        },
+        {
+          "retained_name": "current-src__gen__banka2_v2.c.api.json",
+          "bytes": 1844462,
+          "sha256": "bd3e1db0cf1c23e67301ca42f7349224cfe3aa4df7de762eb5375e4e15a11bde"
+        },
+        {
+          "retained_name": "current-src__gen__dispatch_v2.c.api.json",
+          "bytes": 15122,
+          "sha256": "a611272b69bb73d0e43c74d86c2f560dba6751c5c526507c0fe1e87f43d5e39d"
+        },
+        {
+          "retained_name": "current-src__host_contract.c.api.json",
+          "bytes": 1823,
+          "sha256": "adda83732a823240c4094a23487f7cf395b85a16bced5ca2b0c81b3415b979db"
+        },
+        {
+          "retained_name": "current-src__main.c.api.json",
+          "bytes": 12645,
+          "sha256": "fdc107aca4cce60cf145f93b50f0929edbef0b51d41ab6d10695d7b52f0be722"
+        },
+        {
+          "retained_name": "current-src__recomp_menu_boot.c.api.json",
+          "bytes": 15534,
+          "sha256": "1ebab713d3950b19240e1088344ed8197c42623469e7ed4f44e21bad2adcdbb5"
+        },
+        {
+          "retained_name": "current-src__recomp_menu_checkpoint.c.api.json",
+          "bytes": 1963,
+          "sha256": "71d416e41edd03c16767a3acf1146c46a94d789acc3a02a93ae4084c4fa5fb9c"
+        },
+        {
+          "retained_name": "current-src__recomp_menu_paths.c.api.json",
+          "bytes": 5337,
+          "sha256": "68ec086498a2bc256c1537f9808ca855bdf5c78183cf400a070204911b9f2726"
+        },
+        {
+          "retained_name": "current-src__rom_guard.c.api.json",
+          "bytes": 1582,
+          "sha256": "4cfec8a879a94389bef35201486661a1474ffae745e0f47020d26b6e27a6bece"
+        },
+        {
+          "retained_name": "current-tree.json",
+          "bytes": 101324,
+          "sha256": "b55e7dbc160e3eda6810481c2c07451b18f1e763afaada491cd66f05d2194ca2"
+        },
+        {
+          "retained_name": "current-tree.json.observation.json",
+          "bytes": 148,
+          "sha256": "b3ce5bc5067f20c41a231ad91d35dce040636c81ee380c54dc73bb8388a9953b"
+        },
+        {
+          "retained_name": "current.json",
+          "bytes": 5760,
+          "sha256": "9b0377c67a76cdb7c679c4c5bac5e10b9497a84aa902149c183e46fff343e044"
+        },
+        {
+          "retained_name": "current.json.observation.json",
+          "bytes": 98,
+          "sha256": "18907db4027a6bbdf7397d9cc89f72fbdf419a3fe4df9696fb4e04c970dcd45e"
+        },
+        {
+          "retained_name": "framework-LICENSE.api.json",
+          "bytes": 5522,
+          "sha256": "a8e995054014970d8c06350ceb4d9aabd496ea7f226032c29daff476542a7841"
+        },
+        {
+          "retained_name": "framework-commit.json",
+          "bytes": 26020,
+          "sha256": "0b5b2015d995db9b5bd90b21e8496e2735505c61a65e796cd92ff5c62c3b0eb4"
+        },
+        {
+          "retained_name": "framework-manifest.json",
+          "bytes": 5091,
+          "sha256": "e7e9e6250c1025fcb4f8d6c975b0c7f439e0f55dc509aeddd0289673f25fb787"
+        },
+        {
+          "retained_name": "framework-runner__runner.cmake.api.json",
+          "bytes": 77501,
+          "sha256": "855af0d4c43079bf688be4601b09d3a267736586c94c4ee1f617607e1ea65f4d"
+        },
+        {
+          "retained_name": "framework-runner__src__common_rtl.c.api.json",
+          "bytes": 148710,
+          "sha256": "5d1a831ef71231eb085d61c6debdc5de7ba9559346579368301898504c94cd5c"
+        },
+        {
+          "retained_name": "framework-runner__src__cpu_state.c.api.json",
+          "bytes": 78475,
+          "sha256": "48bb047ab8209c6fa6bdcc075505541d15f21a7cc27f730e08391f01d3897e57"
+        },
+        {
+          "retained_name": "framework-runner__src__desktop__host_main.c.api.json",
+          "bytes": 216708,
+          "sha256": "0d02ff3ccc81df1980687e4cc3677e747fc7fa77f15a2ef33d6a3f517513e504"
+        },
+        {
+          "retained_name": "framework-runner__src__desktop__host_main.h.api.json",
+          "bytes": 12986,
+          "sha256": "a9b8ef2545b91921b2f422f9d93418e032750ab45367fb301810c54bc42a0382"
+        },
+        {
+          "retained_name": "framework-runner__src__desktop__mmx_config.c.api.json",
+          "bytes": 47955,
+          "sha256": "b4a13e02369632757df81de87ff2a58f0c1672c12e4cf4b509c83fd63447237a"
+        },
+        {
+          "retained_name": "framework-runner__src__launcher.c.api.json",
+          "bytes": 8476,
+          "sha256": "406dc242ef16938e9921a18b1eb34878caa7ef4642ddca0a7308fd837bc3d9d9"
+        },
+        {
+          "retained_name": "framework-runner__src__setup_host_dispatch.c.api.json",
+          "bytes": 2810,
+          "sha256": "3f404060d573965e27824c5582ad7704dba5ebced7fdbc1b53877a1019b030d1"
+        },
+        {
+          "retained_name": "framework-runner__src__snes__interp_bridge.c.api.json",
+          "bytes": 227930,
+          "sha256": "7b74389bb29ba224bfd211cb47dac737dff704057f5dd9d98f9c7a0427c060a4"
+        },
+        {
+          "retained_name": "framework-runner__src__snes__interp_bridge.h.api.json",
+          "bytes": 14149,
+          "sha256": "6aca40bdb0568cc871a194f79157736213334ed5ea0454ed5a3daf641a942d4a"
+        },
+        {
+          "retained_name": "framework-runner__src__util.c.api.json",
+          "bytes": 12768,
+          "sha256": "d0ef93f42d419b388d1d2e6a9cd4d75502c4066efc2c9fdfc3d6af2e23ea9bd6"
+        },
+        {
+          "retained_name": "framework-tree.json",
+          "bytes": 206341,
+          "sha256": "36e6026c904fd42d4ef1d3b80f5de981aaa4ee51b93fe415a9b27711d2849be1"
+        },
+        {
+          "retained_name": "release.json",
+          "bytes": 6048,
+          "sha256": "84a28ff04a3a7c3744072635dc5500384b50941a57b26a903be514e3ef46a485"
+        },
+        {
+          "retained_name": "release.json.observation.json",
+          "bytes": 101,
+          "sha256": "b6508358157c5312c376cde2c4d8c15cf0340dbed0099aa36f07676d96476872"
+        },
+        {
+          "retained_name": "repository.json",
+          "bytes": 5736,
+          "sha256": "88e31d9afff27087bed1c35a96358c182d0fb017f9e274639dc71a0d681a1778"
+        },
+        {
+          "retained_name": "repository.json.observation.json",
+          "bytes": 85,
+          "sha256": "8ce35d6d75a6d4ff4108b108fe62ac2c8d5ddf99f7d07ea72e0c66332a1774fc"
+        },
+        {
+          "retained_name": "source-manifest.json",
+          "bytes": 52481,
+          "sha256": "8101211e1df09dce21ac78e8496cce0849a699203a797dcf6fe24be4d29875eb"
+        },
+        {
+          "retained_name": "tag-.gitmodules.api.json",
+          "bytes": 594,
+          "sha256": "baa49a4a3947fa886f592b552ac9fd876ab91bd502b368bbffbc0fd05d754a72"
+        },
+        {
+          "retained_name": "tag-CMakeLists.txt.api.json",
+          "bytes": 24934,
+          "sha256": "f9bec6d101399bfb6e26b629db413d84c62abb429be44fafd347848a432b102b"
+        },
+        {
+          "retained_name": "tag-LICENSE.api.json",
+          "bytes": 6225,
+          "sha256": "cfe342637fb2e4af5b6f18b431c2a014b2ff75420fb73552269b7151d05d1e51"
+        },
+        {
+          "retained_name": "tag-LICENSE.api.json.observation.json",
+          "bytes": 136,
+          "sha256": "6ad8e274652845b74540963ef686b8fdd18b6274ae25fd26763d1978f2ec9cb9"
+        },
+        {
+          "retained_name": "tag-README.md.api.json",
+          "bytes": 11777,
+          "sha256": "982d71a5066ba8ea909942610f7df69a287df91e3cb2a8c527ac837a0dc2fc9d"
+        },
+        {
+          "retained_name": "tag-README.md.api.json.observation.json",
+          "bytes": 136,
+          "sha256": "c8f6cd44f8faa4a7318f57df10bce864404d6bb93ec44dc2fb81ba6d3899e4ee"
+        },
+        {
+          "retained_name": "tag-THIRD_PARTY.md.api.json",
+          "bytes": 1566,
+          "sha256": "c50bcdf5187f4ee7b9109df3efbcb05a055e0d19aacb7faa660656fc94f345a6"
+        },
+        {
+          "retained_name": "tag-THIRD_PARTY_ATTRIBUTION.md.api.json",
+          "bytes": 68028,
+          "sha256": "1dd88b3cdcb8e44b8bc592367f6bdff272a5e7d2f71e8a5bfabd92cada2e47f2"
+        },
+        {
+          "retained_name": "tag-cmake__AckmanPatches.cmake.api.json",
+          "bytes": 4555,
+          "sha256": "a68aa912dc98aff87768f5831a8a778447df69532d08cf872aac32436f828534"
+        },
+        {
+          "retained_name": "tag-docs__BUILDING.md.api.json",
+          "bytes": 17060,
+          "sha256": "e5ceca1d4a3c7a5f2546bde98413e10b476334f4f6c0b7ad1b1a7b1827e696c8"
+        },
+        {
+          "retained_name": "tag-framework.lock.api.json",
+          "bytes": 349,
+          "sha256": "52fee6efa74b1f180db45505a12c14261633b49eb88aba82f4803cee706599f3"
+        },
+        {
+          "retained_name": "tag-patches__ackman-active-mods.patch.api.json",
+          "bytes": 4501,
+          "sha256": "e02033713de2e42ba56d182e069cedf3e8d07c086e6b82c6b4c26a2aaafbe201"
+        },
+        {
+          "retained_name": "tag-patches__ackman-alt-input.patch.api.json",
+          "bytes": 1170,
+          "sha256": "b94b180bafd1106fb0ea500fc56af461356a44c21baf6c879174f2277801f1df"
+        },
+        {
+          "retained_name": "tag-patches__ackman-audio-load.patch.api.json",
+          "bytes": 6229,
+          "sha256": "22856b8227753be5a57aca973adcc28109f4c4c0084522b40ad636e072dbbac8"
+        },
+        {
+          "retained_name": "tag-patches__ackman-autosave.patch.api.json",
+          "bytes": 1202,
+          "sha256": "3392c662862c589bb7a4fa8ede9b3987eeb994b5aa9ab833777cf1826f783a37"
+        },
+        {
+          "retained_name": "tag-patches__ackman-av-settings.patch.api.json",
+          "bytes": 17366,
+          "sha256": "1a4382b59e14d538d06311b7309da75d212769b33561ef2013295c14bd8a88e4"
+        },
+        {
+          "retained_name": "tag-patches__ackman-config.patch.api.json",
+          "bytes": 58442,
+          "sha256": "09edc5f8a3438eecd87f68eabc306746bac7496fb9b18412e3cdc356e858efc3"
+        },
+        {
+          "retained_name": "tag-patches__ackman-controls.patch.api.json",
+          "bytes": 8375,
+          "sha256": "ce904e73185314def4e5c86aade9ef49fd0a45c2a1d84b0a4ead05be995dfc70"
+        },
+        {
+          "retained_name": "tag-patches__ackman-device-events.patch.api.json",
+          "bytes": 5957,
+          "sha256": "97297df9765fe7695b5af36641d8f24dec5554a7b2065176fdd6753ed9f74fdd"
+        },
+        {
+          "retained_name": "tag-patches__ackman-dialog-pause.patch.api.json",
+          "bytes": 2385,
+          "sha256": "bf5c48ac4df6dbca91c51ec91ab8c650510fa8920ae6f88f085c7c8fda6294aa"
+        },
+        {
+          "retained_name": "tag-patches__ackman-gameplay-devices.patch.api.json",
+          "bytes": 2633,
+          "sha256": "fc0a9d5db568b3f972ba6a4e379efcf8278a90acf36915340365d4eb783f1d81"
+        },
+        {
+          "retained_name": "tag-patches__ackman-graphics-coldboot.patch.api.json",
+          "bytes": 5767,
+          "sha256": "1c5a2809c255ac271ef474441def040897a2359ace38d3d7536b343b0e90f97b"
+        },
+        {
+          "retained_name": "tag-patches__ackman-hold-rewind.patch.api.json",
+          "bytes": 70586,
+          "sha256": "90ef4c6048714a963830920e48659cf6fdd12c6f564dfe69f43033586fdf2060"
+        },
+        {
+          "retained_name": "tag-patches__ackman-host-report-gnu.patch.api.json",
+          "bytes": 1376,
+          "sha256": "e1e9141816b710f75a98b15e1f5e614fd15ff5b8c8381c7dac41461ea7a95002"
+        },
+        {
+          "retained_name": "tag-patches__ackman-hotkeys.patch.api.json",
+          "bytes": 8267,
+          "sha256": "c4f1ee3de1432f4f8890cb2cdc8cb28032a562ae3ad246463cee9c6537e458a3"
+        },
+        {
+          "retained_name": "tag-patches__ackman-menu-loop.patch.api.json",
+          "bytes": 4329,
+          "sha256": "9a15dcad509c398e679ca9111be56686adfde9ead8cb475d02b05ed5a7e5c16c"
+        },
+        {
+          "retained_name": "tag-patches__ackman-menu-settings.patch.api.json",
+          "bytes": 20474,
+          "sha256": "ef712066ae1478815cbbee3d405ddb97f266347d288af2fc22bbc9b07058eebe"
+        },
+        {
+          "retained_name": "tag-patches__ackman-menu.patch.api.json",
+          "bytes": 2221,
+          "sha256": "218fe4e940a9c0626cff097ed877b70c3a0a4fdd1e4601ac891f042c3e19d5ff"
+        },
+        {
+          "retained_name": "tag-patches__ackman-mod-catalog-shell.patch.api.json",
+          "bytes": 2415,
+          "sha256": "0ade0a94940651cdfac42ebb36070988bad700abaaa1814568039600694c738e"
+        },
+        {
+          "retained_name": "tag-patches__ackman-obj-clamp.patch.api.json",
+          "bytes": 2171,
+          "sha256": "2360a5e7c8af0f862a43c5b95818bbaa33f099b4940650bafb263dd903db2456"
+        },
+        {
+          "retained_name": "tag-patches__ackman-osd-scale.patch.api.json",
+          "bytes": 3667,
+          "sha256": "1599f2412fe72ca5aa9aa6c57108b9ba0e7556aeaa600371ff185ef2d80ed67b"
+        },
+        {
+          "retained_name": "tag-patches__ackman-overlay.patch.api.json",
+          "bytes": 1745,
+          "sha256": "ebde30f6dc52afacd6168e282668b4c9a1b5dbf4d60be5aa972698613420fbcd"
+        },
+        {
+          "retained_name": "tag-patches__ackman-png-shader-tree.patch.api.json",
+          "bytes": 5705,
+          "sha256": "4a6bd19e9afbcd670b210323ab334f7f62b86ede3933ea7cb3ec7d939224bf92"
+        },
+        {
+          "retained_name": "tag-patches__ackman-raster.patch.api.json",
+          "bytes": 7477,
+          "sha256": "357285e815c88c9239693e5396b71f58de0203c358b68edc93f8ef7830a5186e"
+        },
+        {
+          "retained_name": "tag-patches__ackman-reset.patch.api.json",
+          "bytes": 834,
+          "sha256": "b6227052e04fb5670e065749d1dfcf972f9f0feb684b0f72cc1027b1dfed9b5b"
+        },
+        {
+          "retained_name": "tag-patches__ackman-rumble.patch.api.json",
+          "bytes": 4229,
+          "sha256": "7cf37cadbd62a44231ffde070ed34a76769448aaa7ee0cba0dc80ab13f42fbcc"
+        },
+        {
+          "retained_name": "tag-patches__ackman-safe-boot-raster.patch.api.json",
+          "bytes": 12219,
+          "sha256": "e04072930055ee9c921986cb15617818a28582506aa603e6305065f81e9719a1"
+        },
+        {
+          "retained_name": "tag-patches__ackman-sdl-menu.patch.api.json",
+          "bytes": 3389,
+          "sha256": "c180e40a681671b83259fc9238378a22e5b92a2131d3fa67f65babcf71316eec"
+        },
+        {
+          "retained_name": "tag-patches__ackman-shaders-capture.patch.api.json",
+          "bytes": 23388,
+          "sha256": "bbf6b7b7232a802d83a8918d71f23d99bb8f532aaf64d8c2ba70419dd17679be"
+        },
+        {
+          "retained_name": "tag-patches__ackman-state.patch.api.json",
+          "bytes": 2679,
+          "sha256": "abbecee7919ce78f2d279b6e453da71211729090aae422bad2f5c02d5535da33"
+        },
+        {
+          "retained_name": "tag-patches__ackman-system-shortcuts.patch.api.json",
+          "bytes": 9375,
+          "sha256": "00b5572b6fedf5a113c8522944ace9de10cc50dda779defeff7107eb1786a838"
+        },
+        {
+          "retained_name": "tag-patches__ackman-unified-state.patch.api.json",
+          "bytes": 2625,
+          "sha256": "717a4593af6a8685621be79fee951690838279cb90fc2ebbdc51ce82652f57bf"
+        },
+        {
+          "retained_name": "tag-patches__clocked-beam.patch.api.json",
+          "bytes": 1492,
+          "sha256": "290c219f94e6c01caa2ee81472d83ea7daaa954e6f66d72a510c073ab96f7bcd"
+        },
+        {
+          "retained_name": "tag-patches__script-savestate.patch.api.json",
+          "bytes": 2699,
+          "sha256": "f277d812310a08c34b0c37e70d26718505cd76979701387337b0c5261f1c6e52"
+        },
+        {
+          "retained_name": "tag-patches__timing-crossing.patch.api.json",
+          "bytes": 1865,
+          "sha256": "f9e8ef47e5396d13fb4f3ee9c883ba3560e91e18adb82afcf52ae4f0fde2eba4"
+        },
+        {
+          "retained_name": "tag-rom_identity.txt.api.json",
+          "bytes": 2009,
+          "sha256": "a49ba4fb041873ed582fcb3666f7d725753e2e33a3d1b7c35b4488db39e3a497"
+        },
+        {
+          "retained_name": "tag-src__ackman_config.c.api.json",
+          "bytes": 20440,
+          "sha256": "f85fabd6a1a00b886ecc3ae409fba4f6a7bd7df77c97d07a73dfeefa15353b88"
+        },
+        {
+          "retained_name": "tag-src__ackman_flow.c.api.json",
+          "bytes": 6337,
+          "sha256": "503788e9ca4a54a93f9518386ffc006b2df53a8236a805158772a47a04cf6b5a"
+        },
+        {
+          "retained_name": "tag-src__ackman_ips.c.api.json",
+          "bytes": 4949,
+          "sha256": "b048b07f9f41ce9c9d8dfb8daafa04981c8abc033e978f92c0d0731d59ac1d91"
+        },
+        {
+          "retained_name": "tag-src__ackman_menu.c.api.json",
+          "bytes": 22114,
+          "sha256": "51b898256f07d95455e934ba0d1b0852d796099a46d88b042e522c34dcb6141f"
+        },
+        {
+          "retained_name": "tag-src__ackman_translation.h.api.json",
+          "bytes": 1470,
+          "sha256": "c8bf69c22a78d6429fa96d0f2b7f847817d93675e81e6716604a8a7c153f3259"
+        },
+        {
+          "retained_name": "tag-src__ackman_translation_data.h.api.json",
+          "bytes": 116508,
+          "sha256": "a962f7fd7f29fb464427e7bb2615e7bef6c266de1283dce9e5d3815d9045cd18"
+        },
+        {
+          "retained_name": "tag-src__ackman_translation_ptbr.h.api.json",
+          "bytes": 7375,
+          "sha256": "d45b29f7ef231b3466c32f1277a1b505803fae1d9dff4358d66e82173ce6c03d"
+        },
+        {
+          "retained_name": "tag-src__game_rtl.c.api.json",
+          "bytes": 13323,
+          "sha256": "645d11f8e15651f64fc583e766106d9d8932da3b33e6f86ee4ad1b1f6c947543"
+        },
+        {
+          "retained_name": "tag-src__game_rtl.h.api.json",
+          "bytes": 690,
+          "sha256": "0933ab168408b4c0a37c6af026cfdfad385dc75047527880012d62427387cd72"
+        },
+        {
+          "retained_name": "tag-src__gen__bank00_v2.c.api.json",
+          "bytes": 43340,
+          "sha256": "65403cb3759ef6f1cb030fef9cd5878fe207fb6401eddb052a2222ec805a84d3"
+        },
+        {
+          "retained_name": "tag-src__gen__bank80_v2.c.api.json",
+          "bytes": 412649,
+          "sha256": "d62cfb566d50dc3d20ac99b2d98195950334b45a55806991b3c03090205472f8"
+        },
+        {
+          "retained_name": "tag-src__gen__banka2_v2.c.api.json",
+          "bytes": 1844462,
+          "sha256": "bd3e1db0cf1c23e67301ca42f7349224cfe3aa4df7de762eb5375e4e15a11bde"
+        },
+        {
+          "retained_name": "tag-src__gen__dispatch_v2.c.api.json",
+          "bytes": 15122,
+          "sha256": "a611272b69bb73d0e43c74d86c2f560dba6751c5c526507c0fe1e87f43d5e39d"
+        },
+        {
+          "retained_name": "tag-src__host_contract.c.api.json",
+          "bytes": 1823,
+          "sha256": "adda83732a823240c4094a23487f7cf395b85a16bced5ca2b0c81b3415b979db"
+        },
+        {
+          "retained_name": "tag-src__main.c.api.json",
+          "bytes": 12645,
+          "sha256": "fdc107aca4cce60cf145f93b50f0929edbef0b51d41ab6d10695d7b52f0be722"
+        },
+        {
+          "retained_name": "tag-src__recomp_menu_boot.c.api.json",
+          "bytes": 15534,
+          "sha256": "1ebab713d3950b19240e1088344ed8197c42623469e7ed4f44e21bad2adcdbb5"
+        },
+        {
+          "retained_name": "tag-src__recomp_menu_checkpoint.c.api.json",
+          "bytes": 1963,
+          "sha256": "71d416e41edd03c16767a3acf1146c46a94d789acc3a02a93ae4084c4fa5fb9c"
+        },
+        {
+          "retained_name": "tag-src__recomp_menu_paths.c.api.json",
+          "bytes": 5337,
+          "sha256": "68ec086498a2bc256c1537f9808ca855bdf5c78183cf400a070204911b9f2726"
+        },
+        {
+          "retained_name": "tag-src__rom_guard.c.api.json",
+          "bytes": 1582,
+          "sha256": "4cfec8a879a94389bef35201486661a1474ffae745e0f47020d26b6e27a6bece"
+        },
+        {
+          "retained_name": "tag-tree.json",
+          "bytes": 101094,
+          "sha256": "47a429306c230866ae0dc3afc0fc9ed4d0e3ca68744f7626237dd2e388d4d593"
+        },
+        {
+          "retained_name": "tag-tree.json.observation.json",
+          "bytes": 148,
+          "sha256": "cb328d8c8d70a813ef768edaf3e9ece9598cf56fa4ec86afc80666faf00c33ea"
+        },
+        {
+          "retained_name": "tag.json",
+          "bytes": 6494,
+          "sha256": "f33a7ee220d7c1e0b2cd8cded5cb5fb0e64b9a0ee2c2d6e17195429d552612f8"
+        },
+        {
+          "retained_name": "tag.json.observation.json",
+          "bytes": 98,
+          "sha256": "53263f4f3761d253e709b6a61bc71a75b1ab381a29a5df8e525573d0ce060c82"
+        }
+      ]
+    },
+    {
+      "canonical_issue": 2713,
+      "bindings": [
+        {
+          "repository": "SlippyGetBackHere/Strike-Gunner-STG-Recomp",
+          "commit": "f507564744619c791d8779e8f2e9c60e15c6bc5e",
+          "path": ".gitmodules",
+          "blob": "e57b81774854d0e368540b8469e0e75c54852fb4",
+          "bytes": 243,
+          "sha256": "2520d621560fe3a566cd5c22fb793fd9530136fb55759fdeb6ac8532c34b7bb9",
+          "reference_roles": ["current"],
+          "retained_source_name": "current-.gitmodules"
+        },
+        {
+          "repository": "SlippyGetBackHere/Strike-Gunner-STG-Recomp",
+          "commit": "f507564744619c791d8779e8f2e9c60e15c6bc5e",
+          "path": "CMakeLists.txt",
+          "blob": "dc08583b65baff540430f1985d7b7c1261c1b725",
+          "bytes": 8003,
+          "sha256": "6fd37555d3cef088ac40b6face8c07d03e8605469897eb9e9e82a145e3934e6d",
+          "reference_roles": ["current"],
+          "retained_source_name": "current-CMakeLists.txt"
+        },
+        {
+          "repository": "SlippyGetBackHere/Strike-Gunner-STG-Recomp",
+          "commit": "f507564744619c791d8779e8f2e9c60e15c6bc5e",
+          "path": "KNOWN_ISSUES.md",
+          "blob": "db82bc8c033ab8ebb07c655ef3bdb0541bc188fc",
+          "bytes": 3457,
+          "sha256": "23d923b3fe9675803ace1d2d94b541aedaa632938b5618f28cf59fe74913e326",
+          "reference_roles": ["current"],
+          "retained_source_name": "current-KNOWN_ISSUES.md"
+        },
+        {
+          "repository": "SlippyGetBackHere/Strike-Gunner-STG-Recomp",
+          "commit": "f507564744619c791d8779e8f2e9c60e15c6bc5e",
+          "path": "LICENSE",
+          "blob": "6804d6f5cf1a102d5f8ed6dd6fe4df621ecf41f1",
+          "bytes": 3791,
+          "sha256": "b5cb175d55c9f49f0f532aff9d04424444f3354bc274fc4d0d726292701b8dfd",
+          "reference_roles": ["current"],
+          "retained_source_name": "current-LICENSE"
+        },
+        {
+          "repository": "SlippyGetBackHere/Strike-Gunner-STG-Recomp",
+          "commit": "f507564744619c791d8779e8f2e9c60e15c6bc5e",
+          "path": "PLAYING.md",
+          "blob": "d50441554fabfe8eb63e71c4e5fff8b0b419d454",
+          "bytes": 7671,
+          "sha256": "41eb0167ff97806b9adc25e6c5902f6896b3cc0529c21ba785ee3f6bdf57c51a",
+          "reference_roles": ["current"],
+          "retained_source_name": "current-PLAYING.md"
+        },
+        {
+          "repository": "SlippyGetBackHere/Strike-Gunner-STG-Recomp",
+          "commit": "f507564744619c791d8779e8f2e9c60e15c6bc5e",
+          "path": "README.md",
+          "blob": "9e60d9bc98d5dc5ba3f64bdcefccd577bc39c732",
+          "bytes": 14342,
+          "sha256": "4c110c2c67ea2f680b9a6e6445ec5de8d59be21784141b08898456f459c8667b",
+          "reference_roles": ["current"],
+          "retained_source_name": "current-README.md"
+        },
+        {
+          "repository": "SlippyGetBackHere/Strike-Gunner-STG-Recomp",
+          "commit": "f507564744619c791d8779e8f2e9c60e15c6bc5e",
+          "path": "framework_pins.txt",
+          "blob": "efac2593155db3d688a46ea005e30ba791eabacb",
+          "bytes": 213,
+          "sha256": "c7c7da587407d0be1c0722766a5948a87f0e0455304457c8b9f413b9cfb2ff33",
+          "reference_roles": ["current"],
+          "retained_source_name": "current-framework_pins.txt"
+        },
+        {
+          "repository": "SlippyGetBackHere/Strike-Gunner-STG-Recomp",
+          "commit": "f507564744619c791d8779e8f2e9c60e15c6bc5e",
+          "path": "rom_identity.txt",
+          "blob": "d1c8e7a0ef3a5a756bd6b895a2c590d53ee5cdaf",
+          "bytes": 1266,
+          "sha256": "7e89aacace9a7bf6e3852f200eae41d123e4abc1f69dbeebd5e0979b3b2b066c",
+          "reference_roles": ["current"],
+          "retained_source_name": "current-rom_identity.txt"
+        },
+        {
+          "repository": "SlippyGetBackHere/Strike-Gunner-STG-Recomp",
+          "commit": "f507564744619c791d8779e8f2e9c60e15c6bc5e",
+          "path": "scripts/package_release.sh",
+          "blob": "56cc92b3cf90c34cc9decfece4f17cdeab4dd6e6",
+          "bytes": 4617,
+          "sha256": "4b69ce5d69d0401facb016bcf574bb5a4f1cfb7b4d4328ea825763abb62823f5",
+          "reference_roles": ["current"],
+          "retained_source_name": "current-scripts__package_release.sh"
+        },
+        {
+          "repository": "SlippyGetBackHere/Strike-Gunner-STG-Recomp",
+          "commit": "f507564744619c791d8779e8f2e9c60e15c6bc5e",
+          "path": "src/game_rtl.c",
+          "blob": "307d0ae65041dae8f7db3cecf288130443ab8d7b",
+          "bytes": 16082,
+          "sha256": "e2709aedaf49d81e024d762842b708289e3da673053373f3b00b1beea88be731",
+          "reference_roles": ["current"],
+          "retained_source_name": "current-src__game_rtl.c"
+        },
+        {
+          "repository": "SlippyGetBackHere/Strike-Gunner-STG-Recomp",
+          "commit": "f507564744619c791d8779e8f2e9c60e15c6bc5e",
+          "path": "src/game_rtl.h",
+          "blob": "394c4d716c3ef0d38b36ed93f98fd1f35ee4c764",
+          "bytes": 1478,
+          "sha256": "da8723113b5a00487c5531b650dbfdc00c8a33f60296eade5ba12cfbd55a2af7",
+          "reference_roles": ["current"],
+          "retained_source_name": "current-src__game_rtl.h"
+        },
+        {
+          "repository": "SlippyGetBackHere/Strike-Gunner-STG-Recomp",
+          "commit": "f507564744619c791d8779e8f2e9c60e15c6bc5e",
+          "path": "src/gen_stubs.c",
+          "blob": "214923a033f8032e1678e1903876d2e2ccb93dd3",
+          "bytes": 4180,
+          "sha256": "562f666b670347830874d39bd43c688d715c0d2a7e3004c7d122ca849577b9d4",
+          "reference_roles": ["current"],
+          "retained_source_name": "current-src__gen_stubs.c"
+        },
+        {
+          "repository": "SlippyGetBackHere/Strike-Gunner-STG-Recomp",
+          "commit": "f507564744619c791d8779e8f2e9c60e15c6bc5e",
+          "path": "src/host_contract.c",
+          "blob": "93c55e1f25634fe08d7779ff91b76abb7d81bc40",
+          "bytes": 1176,
+          "sha256": "e30f409cffc1924353178bad643ce0eb55eecea98be173ce2cc0d6adab569da8",
+          "reference_roles": ["current"],
+          "retained_source_name": "current-src__host_contract.c"
+        },
+        {
+          "repository": "SlippyGetBackHere/Strike-Gunner-STG-Recomp",
+          "commit": "f507564744619c791d8779e8f2e9c60e15c6bc5e",
+          "path": "src/main.c",
+          "blob": "7e95586c6f1fbbc5a858afeb88a917030a3eac6d",
+          "bytes": 3064,
+          "sha256": "64159e4097dca88d829dd8de337a0b444018ba842edf5903b009fbaa5428fdcc",
+          "reference_roles": ["current"],
+          "retained_source_name": "current-src__main.c"
+        },
+        {
+          "repository": "SlippyGetBackHere/Strike-Gunner-STG-Recomp",
+          "commit": "f507564744619c791d8779e8f2e9c60e15c6bc5e",
+          "path": "tools/regen.sh",
+          "blob": "b63473ab250b1fe119a98801a1efab8a63ca7692",
+          "bytes": 4266,
+          "sha256": "78ca373dd187032a51a9acaf867cb454552ea2d98cb88fd8250bcd846ef4d1a7",
+          "reference_roles": ["current"],
+          "retained_source_name": "current-tools__regen.sh"
+        },
+        {
+          "repository": "SlippyGetBackHere/Strike-Gunner-STG-Recomp",
+          "commit": "cb6287f3f5a72fd3f33c2c97876b7e3800649a03",
+          "path": ".gitmodules",
+          "blob": "e57b81774854d0e368540b8469e0e75c54852fb4",
+          "bytes": 243,
+          "sha256": "2520d621560fe3a566cd5c22fb793fd9530136fb55759fdeb6ac8532c34b7bb9",
+          "reference_roles": ["tag"],
+          "retained_source_name": "tag-.gitmodules"
+        },
+        {
+          "repository": "SlippyGetBackHere/Strike-Gunner-STG-Recomp",
+          "commit": "cb6287f3f5a72fd3f33c2c97876b7e3800649a03",
+          "path": "CMakeLists.txt",
+          "blob": "dc08583b65baff540430f1985d7b7c1261c1b725",
+          "bytes": 8003,
+          "sha256": "6fd37555d3cef088ac40b6face8c07d03e8605469897eb9e9e82a145e3934e6d",
+          "reference_roles": ["tag"],
+          "retained_source_name": "tag-CMakeLists.txt"
+        },
+        {
+          "repository": "SlippyGetBackHere/Strike-Gunner-STG-Recomp",
+          "commit": "cb6287f3f5a72fd3f33c2c97876b7e3800649a03",
+          "path": "KNOWN_ISSUES.md",
+          "blob": "db82bc8c033ab8ebb07c655ef3bdb0541bc188fc",
+          "bytes": 3457,
+          "sha256": "23d923b3fe9675803ace1d2d94b541aedaa632938b5618f28cf59fe74913e326",
+          "reference_roles": ["tag"],
+          "retained_source_name": "tag-KNOWN_ISSUES.md"
+        },
+        {
+          "repository": "SlippyGetBackHere/Strike-Gunner-STG-Recomp",
+          "commit": "cb6287f3f5a72fd3f33c2c97876b7e3800649a03",
+          "path": "LICENSE",
+          "blob": "6804d6f5cf1a102d5f8ed6dd6fe4df621ecf41f1",
+          "bytes": 3791,
+          "sha256": "b5cb175d55c9f49f0f532aff9d04424444f3354bc274fc4d0d726292701b8dfd",
+          "reference_roles": ["tag"],
+          "retained_source_name": "tag-LICENSE"
+        },
+        {
+          "repository": "SlippyGetBackHere/Strike-Gunner-STG-Recomp",
+          "commit": "cb6287f3f5a72fd3f33c2c97876b7e3800649a03",
+          "path": "PLAYING.md",
+          "blob": "d50441554fabfe8eb63e71c4e5fff8b0b419d454",
+          "bytes": 7671,
+          "sha256": "41eb0167ff97806b9adc25e6c5902f6896b3cc0529c21ba785ee3f6bdf57c51a",
+          "reference_roles": ["tag"],
+          "retained_source_name": "tag-PLAYING.md"
+        },
+        {
+          "repository": "SlippyGetBackHere/Strike-Gunner-STG-Recomp",
+          "commit": "cb6287f3f5a72fd3f33c2c97876b7e3800649a03",
+          "path": "README.md",
+          "blob": "ba397c5d2e353e996005dd1e1a021b0d97ec5ea7",
+          "bytes": 14182,
+          "sha256": "d2e4e36c0dd31e67fc729a183f4c514768bd8bcb35aaa3ba21cac9545c1a1425",
+          "reference_roles": ["tag"],
+          "retained_source_name": "tag-README.md"
+        },
+        {
+          "repository": "SlippyGetBackHere/Strike-Gunner-STG-Recomp",
+          "commit": "cb6287f3f5a72fd3f33c2c97876b7e3800649a03",
+          "path": "framework_pins.txt",
+          "blob": "efac2593155db3d688a46ea005e30ba791eabacb",
+          "bytes": 213,
+          "sha256": "c7c7da587407d0be1c0722766a5948a87f0e0455304457c8b9f413b9cfb2ff33",
+          "reference_roles": ["tag"],
+          "retained_source_name": "tag-framework_pins.txt"
+        },
+        {
+          "repository": "SlippyGetBackHere/Strike-Gunner-STG-Recomp",
+          "commit": "cb6287f3f5a72fd3f33c2c97876b7e3800649a03",
+          "path": "rom_identity.txt",
+          "blob": "d1c8e7a0ef3a5a756bd6b895a2c590d53ee5cdaf",
+          "bytes": 1266,
+          "sha256": "7e89aacace9a7bf6e3852f200eae41d123e4abc1f69dbeebd5e0979b3b2b066c",
+          "reference_roles": ["tag"],
+          "retained_source_name": "tag-rom_identity.txt"
+        },
+        {
+          "repository": "SlippyGetBackHere/Strike-Gunner-STG-Recomp",
+          "commit": "cb6287f3f5a72fd3f33c2c97876b7e3800649a03",
+          "path": "scripts/package_release.sh",
+          "blob": "56cc92b3cf90c34cc9decfece4f17cdeab4dd6e6",
+          "bytes": 4617,
+          "sha256": "4b69ce5d69d0401facb016bcf574bb5a4f1cfb7b4d4328ea825763abb62823f5",
+          "reference_roles": ["tag"],
+          "retained_source_name": "tag-scripts__package_release.sh"
+        },
+        {
+          "repository": "SlippyGetBackHere/Strike-Gunner-STG-Recomp",
+          "commit": "cb6287f3f5a72fd3f33c2c97876b7e3800649a03",
+          "path": "src/game_rtl.c",
+          "blob": "307d0ae65041dae8f7db3cecf288130443ab8d7b",
+          "bytes": 16082,
+          "sha256": "e2709aedaf49d81e024d762842b708289e3da673053373f3b00b1beea88be731",
+          "reference_roles": ["tag"],
+          "retained_source_name": "tag-src__game_rtl.c"
+        },
+        {
+          "repository": "SlippyGetBackHere/Strike-Gunner-STG-Recomp",
+          "commit": "cb6287f3f5a72fd3f33c2c97876b7e3800649a03",
+          "path": "src/game_rtl.h",
+          "blob": "394c4d716c3ef0d38b36ed93f98fd1f35ee4c764",
+          "bytes": 1478,
+          "sha256": "da8723113b5a00487c5531b650dbfdc00c8a33f60296eade5ba12cfbd55a2af7",
+          "reference_roles": ["tag"],
+          "retained_source_name": "tag-src__game_rtl.h"
+        },
+        {
+          "repository": "SlippyGetBackHere/Strike-Gunner-STG-Recomp",
+          "commit": "cb6287f3f5a72fd3f33c2c97876b7e3800649a03",
+          "path": "src/gen_stubs.c",
+          "blob": "214923a033f8032e1678e1903876d2e2ccb93dd3",
+          "bytes": 4180,
+          "sha256": "562f666b670347830874d39bd43c688d715c0d2a7e3004c7d122ca849577b9d4",
+          "reference_roles": ["tag"],
+          "retained_source_name": "tag-src__gen_stubs.c"
+        },
+        {
+          "repository": "SlippyGetBackHere/Strike-Gunner-STG-Recomp",
+          "commit": "cb6287f3f5a72fd3f33c2c97876b7e3800649a03",
+          "path": "src/host_contract.c",
+          "blob": "93c55e1f25634fe08d7779ff91b76abb7d81bc40",
+          "bytes": 1176,
+          "sha256": "e30f409cffc1924353178bad643ce0eb55eecea98be173ce2cc0d6adab569da8",
+          "reference_roles": ["tag"],
+          "retained_source_name": "tag-src__host_contract.c"
+        },
+        {
+          "repository": "SlippyGetBackHere/Strike-Gunner-STG-Recomp",
+          "commit": "cb6287f3f5a72fd3f33c2c97876b7e3800649a03",
+          "path": "src/main.c",
+          "blob": "7e95586c6f1fbbc5a858afeb88a917030a3eac6d",
+          "bytes": 3064,
+          "sha256": "64159e4097dca88d829dd8de337a0b444018ba842edf5903b009fbaa5428fdcc",
+          "reference_roles": ["tag"],
+          "retained_source_name": "tag-src__main.c"
+        },
+        {
+          "repository": "SlippyGetBackHere/Strike-Gunner-STG-Recomp",
+          "commit": "cb6287f3f5a72fd3f33c2c97876b7e3800649a03",
+          "path": "tools/regen.sh",
+          "blob": "b63473ab250b1fe119a98801a1efab8a63ca7692",
+          "bytes": 4266,
+          "sha256": "78ca373dd187032a51a9acaf867cb454552ea2d98cb88fd8250bcd846ef4d1a7",
+          "reference_roles": ["tag"],
+          "retained_source_name": "tag-tools__regen.sh"
+        },
+        {
+          "repository": "SlippyGetBackHere/snesrecomp",
+          "commit": "ae8d20cfddcc2d40104b73ff59abec68946d242d",
+          "path": "LICENSE",
+          "blob": "6804d6f5cf1a102d5f8ed6dd6fe4df621ecf41f1",
+          "bytes": 3791,
+          "sha256": "b5cb175d55c9f49f0f532aff9d04424444f3354bc274fc4d0d726292701b8dfd",
+          "reference_roles": ["pinned-framework"],
+          "retained_source_name": "framework-LICENSE"
+        },
+        {
+          "repository": "SlippyGetBackHere/snesrecomp",
+          "commit": "ae8d20cfddcc2d40104b73ff59abec68946d242d",
+          "path": "runner/src/beam_frame_driver.c",
+          "blob": "d6086b35636afd4f484e1e757af5e3938721f3ac",
+          "bytes": 10580,
+          "sha256": "bfda741f7d82667c40e1ab9f9c4dabf5de0943e8104688fc35caea0e87d339ee",
+          "reference_roles": ["pinned-framework"],
+          "retained_source_name": "framework-runner__src__beam_frame_driver.c"
+        },
+        {
+          "repository": "SlippyGetBackHere/snesrecomp",
+          "commit": "ae8d20cfddcc2d40104b73ff59abec68946d242d",
+          "path": "runner/src/common_rtl.c",
+          "blob": "22491ad9a65f63055dacdd5a280822ca7b52da4c",
+          "bytes": 117565,
+          "sha256": "f03c48cd417af21becfe8f77b43a8fc146a7315df3e34002cecc8b2bd98c7603",
+          "reference_roles": ["pinned-framework"],
+          "retained_source_name": "framework-runner__src__common_rtl.c"
+        },
+        {
+          "repository": "SlippyGetBackHere/snesrecomp",
+          "commit": "ae8d20cfddcc2d40104b73ff59abec68946d242d",
+          "path": "runner/src/desktop/host_main.c",
+          "blob": "d751679d773fb34b5b62b954e21c3c0adf2014e7",
+          "bytes": 204585,
+          "sha256": "64ec96b7432c44795461dffea977428c3e36e12e0964436f2cc248aaaf65857d",
+          "reference_roles": ["pinned-framework"],
+          "retained_source_name": "framework-runner__src__desktop__host_main.c"
+        },
+        {
+          "repository": "SlippyGetBackHere/snesrecomp",
+          "commit": "ae8d20cfddcc2d40104b73ff59abec68946d242d",
+          "path": "runner/src/desktop/host_main.h",
+          "blob": "b47e386a7a3482c930f1dd24908de3eb784c9760",
+          "bytes": 12541,
+          "sha256": "cf393b2bd5bea4c1a311a1200a89b909c881302e7802feaca723a66c1b82b2cb",
+          "reference_roles": ["pinned-framework"],
+          "retained_source_name": "framework-runner__src__desktop__host_main.h"
+        },
+        {
+          "repository": "SlippyGetBackHere/snesrecomp",
+          "commit": "ae8d20cfddcc2d40104b73ff59abec68946d242d",
+          "path": "runner/src/desktop/mmx_config.c",
+          "blob": "728e9327ee580c83155957f8b10cc14b491c4e2a",
+          "bytes": 42240,
+          "sha256": "1bf6aa390f954a8c02107828655d80eaca63d9064226c86d12b245e3bbb4c7e3",
+          "reference_roles": ["pinned-framework"],
+          "retained_source_name": "framework-runner__src__desktop__mmx_config.c"
+        },
+        {
+          "repository": "SlippyGetBackHere/snesrecomp",
+          "commit": "ae8d20cfddcc2d40104b73ff59abec68946d242d",
+          "path": "runner/src/generic_frame_driver.c",
+          "blob": "008426a75fade99dc3161bbd524042efb6b203e0",
+          "bytes": 7226,
+          "sha256": "68941e372788669beff01b5c61c226d7a168c3843e1d5aaaf2d914f8ed812a17",
+          "reference_roles": ["pinned-framework"],
+          "retained_source_name": "framework-runner__src__generic_frame_driver.c"
+        },
+        {
+          "repository": "SlippyGetBackHere/snesrecomp",
+          "commit": "ae8d20cfddcc2d40104b73ff59abec68946d242d",
+          "path": "runner/src/launcher.c",
+          "blob": "44ce5e73cdc5699cdad45d61339b0eae33e54bbf",
+          "bytes": 5935,
+          "sha256": "34e2c01f3ffda94f8609231f3b1840b20b80fcd408423aceb8945dcb2e10321c",
+          "reference_roles": ["pinned-framework"],
+          "retained_source_name": "framework-runner__src__launcher.c"
+        },
+        {
+          "repository": "SlippyGetBackHere/snesrecomp",
+          "commit": "ae8d20cfddcc2d40104b73ff59abec68946d242d",
+          "path": "runner/src/setup_host_dispatch.c",
+          "blob": "066355d6851ccd973f3e9204e733766c089053a3",
+          "bytes": 1822,
+          "sha256": "0b5ab725cefb1f79f834010d29a8b97f2b215d468c16458600ffe1adb9b549f0",
+          "reference_roles": ["pinned-framework"],
+          "retained_source_name": "framework-runner__src__setup_host_dispatch.c"
+        },
+        {
+          "repository": "SlippyGetBackHere/snesrecomp",
+          "commit": "ae8d20cfddcc2d40104b73ff59abec68946d242d",
+          "path": "runner/src/snes/interp_bridge.c",
+          "blob": "9ef71f456f20dc80bfc4bfb630309798b84a0e07",
+          "bytes": 197680,
+          "sha256": "ba147623a64b1f05398bf44545c8e0862a3d790a8ba3831bff5a1a2bd20c58d2",
+          "reference_roles": ["pinned-framework"],
+          "retained_source_name": "framework-runner__src__snes__interp_bridge.c"
+        },
+        {
+          "repository": "SlippyGetBackHere/snesrecomp",
+          "commit": "ae8d20cfddcc2d40104b73ff59abec68946d242d",
+          "path": "runner/src/snes/interp_bridge.h",
+          "blob": "e01e3ba5b97012b404c4fe1e53d59f2d5ad5746a",
+          "bytes": 16064,
+          "sha256": "0e2346c9ee2c8d5fb4a404a227362016d87fa316f8b407ce2902c2cc45758e10",
+          "reference_roles": ["pinned-framework"],
+          "retained_source_name": "framework-runner__src__snes__interp_bridge.h"
+        },
+        {
+          "repository": "SlippyGetBackHere/snesrecomp",
+          "commit": "ae8d20cfddcc2d40104b73ff59abec68946d242d",
+          "path": "runner/src/util.c",
+          "blob": "71868b766e82ada08c92b0793903501510a74a05",
+          "bytes": 9050,
+          "sha256": "c563120643c9c93370f4082c956ce259dda2e03f9c5bf3ecdf20902dbc2bf8f1",
+          "reference_roles": ["pinned-framework"],
+          "retained_source_name": "framework-runner__src__util.c"
+        },
+        {
+          "repository": "SlippyGetBackHere/snesrecomp",
+          "commit": "ae8d20cfddcc2d40104b73ff59abec68946d242d",
+          "path": "runner/runner.cmake",
+          "blob": "d0f8fab6ab15674faa3aff666b403e87dee28bd3",
+          "bytes": 60717,
+          "sha256": "c6be8f16da2fe448b19dc708401b2943a68fb57e5a337dee4d2736e26d73322a",
+          "reference_roles": ["pinned-framework"],
+          "retained_source_name": "framework-runner__runner.cmake"
+        },
+        {
+          "repository": "SlippyGetBackHere/snesrecomp",
+          "commit": "ae8d20cfddcc2d40104b73ff59abec68946d242d",
+          "path": "runner/src/cpu_state.c",
+          "blob": "c35247f5eac1e703f42687cc4beacf5454fcc5c7",
+          "bytes": 61234,
+          "sha256": "265061c79e4e04cfcfcda247f222d55e92a2cc20ed62b859cd005504602bc499",
+          "reference_roles": ["pinned-framework"],
+          "retained_source_name": "framework-runner__src__cpu_state.c"
+        }
+      ],
+      "complete_trees": [
+        {
+          "role": "current",
+          "commit": "f507564744619c791d8779e8f2e9c60e15c6bc5e",
+          "root_tree": "145e611aad0247adb89874ba0ced9eb30ae33928",
+          "entries": 91,
+          "truncated": false,
+          "sha256": "f91049c7ffe2cdc7743c4bd00a24964df2c1d4fd5a225acae5f7d62bcff2490d",
+          "retained_name": "current-tree.json",
+          "gitlinks": [
+            {
+              "path": "recomp-ui",
+              "sha": "41c88ffea852b970af8d50312620b17404e455ad"
+            },
+            {
+              "path": "snesrecomp",
+              "sha": "ae8d20cfddcc2d40104b73ff59abec68946d242d"
+            }
+          ]
+        },
+        {
+          "role": "tag",
+          "commit": "cb6287f3f5a72fd3f33c2c97876b7e3800649a03",
+          "root_tree": "71c3d09f8412b1edc3b04c216acc074bd07375c4",
+          "entries": 91,
+          "truncated": false,
+          "sha256": "4b811d410706e90605c1f7d39d64c60a3a71b6042f7ff5b783272bf0f73e1952",
+          "retained_name": "tag-tree.json",
+          "gitlinks": [
+            {
+              "path": "recomp-ui",
+              "sha": "41c88ffea852b970af8d50312620b17404e455ad"
+            },
+            {
+              "path": "snesrecomp",
+              "sha": "ae8d20cfddcc2d40104b73ff59abec68946d242d"
+            }
+          ]
+        },
+        {
+          "role": "framework",
+          "commit": "ae8d20cfddcc2d40104b73ff59abec68946d242d",
+          "root_tree": "e5ea44b392c5ba787345983d334ed116e4782867",
+          "entries": 991,
+          "truncated": false,
+          "sha256": "139b95f8bb7c00927f2169c4823e6a9ff54d6466e9e28744f8352f8bca7d8314",
+          "retained_name": "framework-tree.json",
+          "gitlinks": [
+            {
+              "path": "lib/recomp-net",
+              "sha": "21414dc15d3282839b3c8a6f1454a110355e9959"
+            },
+            {
+              "path": "lib/retcomm-rbengine",
+              "sha": "2a03e73693acee0fb78076ea058642c931bef12e"
+            }
+          ]
+        }
+      ],
+      "retained_api_manifest": [
+        {
+          "retained_name": "current-.gitmodules.api.json",
+          "bytes": 643,
+          "sha256": "38c5d332a2703bc2585243bfb2ff5153d3ce002c970f455578556c5198d44e4e"
+        },
+        {
+          "retained_name": "current-CMakeLists.txt.api.json",
+          "bytes": 11336,
+          "sha256": "1a1c2f2308c2752e34358cec91257e3e758f22d7568c58a8f926caf80fc439c8"
+        },
+        {
+          "retained_name": "current-KNOWN_ISSUES.md.api.json",
+          "bytes": 5074,
+          "sha256": "6b8a39004141beac3aa2e49b08b3447e55153456de6f1c3d8f4346b4c886dba9"
+        },
+        {
+          "retained_name": "current-LICENSE.api.json",
+          "bytes": 5534,
+          "sha256": "09729e07d4731204df64ebe8f132ed3afdcd90dfa436731bb39613a4c7189e5d"
+        },
+        {
+          "retained_name": "current-LICENSE.api.json.observation.json",
+          "bytes": 151,
+          "sha256": "8e97c6f4355bdfbda82214569934b1108ea6268367c19be1f5fab2774bbecff9"
+        },
+        {
+          "retained_name": "current-PLAYING.md.api.json",
+          "bytes": 10878,
+          "sha256": "18a0fcac9010ae13f41d67278d7cb7a614b037125112ff7a8b18dea5e48c7503"
+        },
+        {
+          "retained_name": "current-README.md.api.json",
+          "bytes": 20071,
+          "sha256": "7493e31aa2acc76146402e91d855039f156b825c2c1b89659656a8bef9c16cac"
+        },
+        {
+          "retained_name": "current-README.md.api.json.observation.json",
+          "bytes": 151,
+          "sha256": "fbea749ce26ab9efadd42350d6f93df97d6690318236417e479d79a7932598b5"
+        },
+        {
+          "retained_name": "current-framework_pins.txt.api.json",
+          "bytes": 601,
+          "sha256": "132cbae6c933484e6849d238e3643ec84115cc76bf16a1dfd0aefed95801b135"
+        },
+        {
+          "retained_name": "current-rom_identity.txt.api.json",
+          "bytes": 2054,
+          "sha256": "7b714e570fd90036ccb07dadaa0cf2949bcec8ab5a584c38852420aae82b927c"
+        },
+        {
+          "retained_name": "current-scripts__package_release.sh.api.json",
+          "bytes": 6670,
+          "sha256": "38a0a3afb40ef69ef225f9d7827a53ca4aed345ebac7d8e13c2476287d6ad086"
+        },
+        {
+          "retained_name": "current-src__game_rtl.c.api.json",
+          "bytes": 22469,
+          "sha256": "3f1da28e4abd2fd9f58c5d9aa145bd22e2137647d2dd270e2463a18c757c8a9b"
+        },
+        {
+          "retained_name": "current-src__game_rtl.h.api.json",
+          "bytes": 2346,
+          "sha256": "58e3a83acb8176fdb99ce5f882742c5b31d7c0f670dada8c9fe4349783708b06"
+        },
+        {
+          "retained_name": "current-src__gen_stubs.c.api.json",
+          "bytes": 6070,
+          "sha256": "cd17c59fe527c7e0671760d21fb7dd7d31b3654f989bb75e8503dc28104cf472"
+        },
+        {
+          "retained_name": "current-src__host_contract.c.api.json",
+          "bytes": 1930,
+          "sha256": "2c84e175fb42d4fba2acf89abe390687434f2f7a2c970fd5d28afb4aff07ba8b"
+        },
+        {
+          "retained_name": "current-src__main.c.api.json",
+          "bytes": 4534,
+          "sha256": "e8f8f87e382998caaffd5fd6bc16a6d700f017ad6a86b52c7fafdd89f99129bb"
+        },
+        {
+          "retained_name": "current-tools__regen.sh.api.json",
+          "bytes": 6186,
+          "sha256": "c48b15db505d04b7d5353da73350b0fce3a91e5336949b78118007eaaa60cc74"
+        },
+        {
+          "retained_name": "current-tree.json",
+          "bytes": 23168,
+          "sha256": "f91049c7ffe2cdc7743c4bd00a24964df2c1d4fd5a225acae5f7d62bcff2490d"
+        },
+        {
+          "retained_name": "current-tree.json.observation.json",
+          "bytes": 163,
+          "sha256": "c465e3275b5bbcee50a74361cc776972f98c64504df3531f0bb044a31ed24126"
+        },
+        {
+          "retained_name": "current.json",
+          "bytes": 6767,
+          "sha256": "37bda825dcf3973a8242eb9d657ed4683d96476278fdf1347c8c28fc4756738d"
+        },
+        {
+          "retained_name": "current.json.observation.json",
+          "bytes": 113,
+          "sha256": "bd6ac235ee436378fd0e68728223f79bda736c855f95fdc6d3d9d14ba3dff3b2"
+        },
+        {
+          "retained_name": "framework-LICENSE.api.json",
+          "bytes": 5520,
+          "sha256": "fee4af8567a330768cc2be8e1938c8b78641ae12e195cf5e6d91f6314da1d4fc"
+        },
+        {
+          "retained_name": "framework-commit.json",
+          "bytes": 19352,
+          "sha256": "071bd3d8e8992c96dc3a3fd38876171d3853c246a626b276db6d0ae43cae83ce"
+        },
+        {
+          "retained_name": "framework-manifest.json",
+          "bytes": 5939,
+          "sha256": "71a841df2d8dd60f0cf881ba8d2a7ddb55f49b88412ed7fdba5404b5f7717e6f"
+        },
+        {
+          "retained_name": "framework-runner__runner.cmake.api.json",
+          "bytes": 83951,
+          "sha256": "c34a6fc524c4371b0de833b083c1923ed70eecd5fd5962fb213c4fb5a5aeff72"
+        },
+        {
+          "retained_name": "framework-runner__src__beam_frame_driver.c.api.json",
+          "bytes": 14875,
+          "sha256": "1494193d918e5ab0bc671acf3413c854a468df65347b91afb4dff515ba478fb8"
+        },
+        {
+          "retained_name": "framework-runner__src__common_rtl.c.api.json",
+          "bytes": 162278,
+          "sha256": "bd008261844547a0370670681a769eddb80106e4d505ddc57a8353a496485b9c"
+        },
+        {
+          "retained_name": "framework-runner__src__cpu_state.c.api.json",
+          "bytes": 84665,
+          "sha256": "dcc8662dc60abdf4d918177726eddf4a1ff5938f38b13b9a43d5c6343ecbb0dc"
+        },
+        {
+          "retained_name": "framework-runner__src__desktop__host_main.c.api.json",
+          "bytes": 282170,
+          "sha256": "a7cbb3818953a10db6bca1c26077e3c1460791ba54b7d9da4f7e21fa9fb19a78"
+        },
+        {
+          "retained_name": "framework-runner__src__desktop__host_main.h.api.json",
+          "bytes": 17577,
+          "sha256": "4d54114e13a540d2c5b386d63c178faac8e57586cd995710ff3086ad7f7bbbde"
+        },
+        {
+          "retained_name": "framework-runner__src__desktop__mmx_config.c.api.json",
+          "bytes": 58493,
+          "sha256": "cab8a5b8c4651a701257fd310d543482f96e238fd9fa14dea8e20dac91704f3a"
+        },
+        {
+          "retained_name": "framework-runner__src__generic_frame_driver.c.api.json",
+          "bytes": 10252,
+          "sha256": "aa27383c41f64f45af6307bc2e0338770917ee5854bf8f573d86b12a6394d969"
+        },
+        {
+          "retained_name": "framework-runner__src__launcher.c.api.json",
+          "bytes": 8474,
+          "sha256": "91b0970616d9964139aed7ce6873f8c02238f288d12c34265fd6cf526b589871"
+        },
+        {
+          "retained_name": "framework-runner__src__setup_host_dispatch.c.api.json",
+          "bytes": 2808,
+          "sha256": "47136dc4c5329d5017768e6a7fbbef927517bbfb126f4a19f32c9658a053cb0a"
+        },
+        {
+          "retained_name": "framework-runner__src__snes__interp_bridge.c.api.json",
+          "bytes": 272658,
+          "sha256": "89a6ed17dc71bacb3f03c620b575b1572d4384adfa444b86054fc25f355cb6f1"
+        },
+        {
+          "retained_name": "framework-runner__src__snes__interp_bridge.h.api.json",
+          "bytes": 22429,
+          "sha256": "cfd144df9a074ae4034d84b0a55e3c9285380d443bc9d17a8ebc21b06880bcb3"
+        },
+        {
+          "retained_name": "framework-runner__src__util.c.api.json",
+          "bytes": 12766,
+          "sha256": "c898a3102605e799bc56525b383680b69675356c836669030d099afb729fb02a"
+        },
+        {
+          "retained_name": "framework-tree.json",
+          "bytes": 246202,
+          "sha256": "139b95f8bb7c00927f2169c4823e6a9ff54d6466e9e28744f8352f8bca7d8314"
+        },
+        {
+          "retained_name": "release.json",
+          "bytes": 4912,
+          "sha256": "fe4068ee9e274201ea2e700dcc013c634a77d434f79493ca13cadb99e1cc50c8"
+        },
+        {
+          "retained_name": "release.json.observation.json",
+          "bytes": 116,
+          "sha256": "4dc2ee23f3327a14b655d3109b5179abc8f94b371ebabd0dbafd2baa6076ac82"
+        },
+        {
+          "retained_name": "repository.json",
+          "bytes": 6396,
+          "sha256": "7a21a1b03decafac4f0e60eef96d395963c9ca131ec8026d3ffcd0765327f9ff"
+        },
+        {
+          "retained_name": "repository.json.observation.json",
+          "bytes": 100,
+          "sha256": "a20a909c4cb0b4fc39d7aa98dacd0f36d347d7be517fa8d78649f7edff81042a"
+        },
+        {
+          "retained_name": "source-manifest.json",
+          "bytes": 12265,
+          "sha256": "47f09a755b6d02af8e1ca7ea8bda5b2aec1b21795057d01462b6fa44fd5d2464"
+        },
+        {
+          "retained_name": "tag-.gitmodules.api.json",
+          "bytes": 643,
+          "sha256": "38c5d332a2703bc2585243bfb2ff5153d3ce002c970f455578556c5198d44e4e"
+        },
+        {
+          "retained_name": "tag-CMakeLists.txt.api.json",
+          "bytes": 11336,
+          "sha256": "1a1c2f2308c2752e34358cec91257e3e758f22d7568c58a8f926caf80fc439c8"
+        },
+        {
+          "retained_name": "tag-KNOWN_ISSUES.md.api.json",
+          "bytes": 5074,
+          "sha256": "6b8a39004141beac3aa2e49b08b3447e55153456de6f1c3d8f4346b4c886dba9"
+        },
+        {
+          "retained_name": "tag-LICENSE.api.json",
+          "bytes": 5534,
+          "sha256": "09729e07d4731204df64ebe8f132ed3afdcd90dfa436731bb39613a4c7189e5d"
+        },
+        {
+          "retained_name": "tag-LICENSE.api.json.observation.json",
+          "bytes": 151,
+          "sha256": "8e97c6f4355bdfbda82214569934b1108ea6268367c19be1f5fab2774bbecff9"
+        },
+        {
+          "retained_name": "tag-PLAYING.md.api.json",
+          "bytes": 10878,
+          "sha256": "18a0fcac9010ae13f41d67278d7cb7a614b037125112ff7a8b18dea5e48c7503"
+        },
+        {
+          "retained_name": "tag-README.md.api.json",
+          "bytes": 19853,
+          "sha256": "8092cc5820207ed520eb3807bbb589af3e60892ca959f3e5331df20d58885699"
+        },
+        {
+          "retained_name": "tag-README.md.api.json.observation.json",
+          "bytes": 151,
+          "sha256": "20a2483dc40b3818fa0549c5e93271f0f1bf019305d9b59f622825587fc9c83b"
+        },
+        {
+          "retained_name": "tag-framework_pins.txt.api.json",
+          "bytes": 601,
+          "sha256": "132cbae6c933484e6849d238e3643ec84115cc76bf16a1dfd0aefed95801b135"
+        },
+        {
+          "retained_name": "tag-rom_identity.txt.api.json",
+          "bytes": 2054,
+          "sha256": "7b714e570fd90036ccb07dadaa0cf2949bcec8ab5a584c38852420aae82b927c"
+        },
+        {
+          "retained_name": "tag-scripts__package_release.sh.api.json",
+          "bytes": 6670,
+          "sha256": "38a0a3afb40ef69ef225f9d7827a53ca4aed345ebac7d8e13c2476287d6ad086"
+        },
+        {
+          "retained_name": "tag-src__game_rtl.c.api.json",
+          "bytes": 22469,
+          "sha256": "3f1da28e4abd2fd9f58c5d9aa145bd22e2137647d2dd270e2463a18c757c8a9b"
+        },
+        {
+          "retained_name": "tag-src__game_rtl.h.api.json",
+          "bytes": 2346,
+          "sha256": "58e3a83acb8176fdb99ce5f882742c5b31d7c0f670dada8c9fe4349783708b06"
+        },
+        {
+          "retained_name": "tag-src__gen_stubs.c.api.json",
+          "bytes": 6070,
+          "sha256": "cd17c59fe527c7e0671760d21fb7dd7d31b3654f989bb75e8503dc28104cf472"
+        },
+        {
+          "retained_name": "tag-src__host_contract.c.api.json",
+          "bytes": 1930,
+          "sha256": "2c84e175fb42d4fba2acf89abe390687434f2f7a2c970fd5d28afb4aff07ba8b"
+        },
+        {
+          "retained_name": "tag-src__main.c.api.json",
+          "bytes": 4534,
+          "sha256": "e8f8f87e382998caaffd5fd6bc16a6d700f017ad6a86b52c7fafdd89f99129bb"
+        },
+        {
+          "retained_name": "tag-tools__regen.sh.api.json",
+          "bytes": 6186,
+          "sha256": "c48b15db505d04b7d5353da73350b0fce3a91e5336949b78118007eaaa60cc74"
+        },
+        {
+          "retained_name": "tag-tree.json",
+          "bytes": 23168,
+          "sha256": "4b811d410706e90605c1f7d39d64c60a3a71b6042f7ff5b783272bf0f73e1952"
+        },
+        {
+          "retained_name": "tag-tree.json.observation.json",
+          "bytes": 163,
+          "sha256": "4db91a5a4c6c29191463b43664ca80ff11e798c5a721e77a26f93743488678b6"
+        },
+        {
+          "retained_name": "tag.json",
+          "bytes": 7959,
+          "sha256": "2c8fa8a1ee91d4b6fc1dcf22f02de4d35141ff907ae830820b4ea6add94b1a5a"
+        },
+        {
+          "retained_name": "tag.json.observation.json",
+          "bytes": 115,
+          "sha256": "4a258e219fedb9cc241340fd36a3caba2a9b4d34e641582b1cfcb10b07b6ced5"
+        }
+      ]
+    },
+    {
+      "canonical_issue": 2905,
+      "bindings": [
+        {
+          "repository": "thebradshaw/topgear-pc",
+          "commit": "d390f2b2face6c478e0bf10f1896af0b82310c3e",
+          "path": "CMakeLists.txt",
+          "blob": "96a24272b7453d4705be5c6de99027db1e55a7fe",
+          "bytes": 9645,
+          "sha256": "2953652f141eb50655f548617afea91cc8721298fa753b63a839637b8a0419a5",
+          "reference_roles": ["current"],
+          "retained_source_name": "current-CMakeLists.txt"
+        },
+        {
+          "repository": "thebradshaw/topgear-pc",
+          "commit": "d390f2b2face6c478e0bf10f1896af0b82310c3e",
+          "path": "README.md",
+          "blob": "411f5f61b468dd59c7884578d4f38fcd0e35248f",
+          "bytes": 9667,
+          "sha256": "380b19555f6acb4112a1bd49baee117d067395fe01e53cbfabf91da6f3107e12",
+          "reference_roles": ["current"],
+          "retained_source_name": "current-README.md"
+        },
+        {
+          "repository": "thebradshaw/topgear-pc",
+          "commit": "d390f2b2face6c478e0bf10f1896af0b82310c3e",
+          "path": "src/game.c",
+          "blob": "e4c8bf0355740fae635a41cf92b36ae6e442fb54",
+          "bytes": 9141,
+          "sha256": "7b88785715a270df9f34b3d6e42a62b69506853846ede396abec2c2ec871f0c0",
+          "reference_roles": ["current"],
+          "retained_source_name": "current-src__game.c"
+        },
+        {
+          "repository": "thebradshaw/topgear-pc",
+          "commit": "d390f2b2face6c478e0bf10f1896af0b82310c3e",
+          "path": "src/game.h",
+          "blob": "c4fcdc79a58f0254dad5a11a8f1aceacdb3797ef",
+          "bytes": 4507,
+          "sha256": "2475b61aeae4b2029eec66759f7eee271aa012715e5fd8124d1620c4e7c8dffb",
+          "reference_roles": ["current"],
+          "retained_source_name": "current-src__game.h"
+        },
+        {
+          "repository": "thebradshaw/topgear-pc",
+          "commit": "d390f2b2face6c478e0bf10f1896af0b82310c3e",
+          "path": "src/launcher.c",
+          "blob": "6936f49290c086ce306cde041e83a2fdf5af5781",
+          "bytes": 28010,
+          "sha256": "fe9992ea5385a575ce139be20195c91b4289734fe7c587f71a2aca55e57b0685",
+          "reference_roles": ["current"],
+          "retained_source_name": "current-src__launcher.c"
+        },
+        {
+          "repository": "thebradshaw/topgear-pc",
+          "commit": "d390f2b2face6c478e0bf10f1896af0b82310c3e",
+          "path": "src/main.c",
+          "blob": "8e9ee3b0b254ff909b70a140c38b771333e0fe29",
+          "bytes": 48633,
+          "sha256": "3e66ce3247341be295b44af98144b28d20f2311107fc222ed0da437faf5e7e24",
+          "reference_roles": ["current"],
+          "retained_source_name": "current-src__main.c"
+        },
+        {
+          "repository": "thebradshaw/topgear-pc",
+          "commit": "d390f2b2face6c478e0bf10f1896af0b82310c3e",
+          "path": "src/port/menu_flow.c",
+          "blob": "4c4288b713d06729827e2ea6c94c277961d48d4d",
+          "bytes": 39923,
+          "sha256": "8836cf7c33b29e22664fe247dae827498daa3b1dcf79bfd52bc247736faa5a31",
+          "reference_roles": ["current"],
+          "retained_source_name": "current-src__port__menu_flow.c"
+        },
+        {
+          "repository": "thebradshaw/topgear-pc",
+          "commit": "d390f2b2face6c478e0bf10f1896af0b82310c3e",
+          "path": "src/port/port.c",
+          "blob": "c6eee3cad14695a9136b5da1776f6275f86ad9a3",
+          "bytes": 4824,
+          "sha256": "750d5a2bde8aa9cc620003f1a31b4cafc487c1ef5aa3803d904b4b2a9c616f5a",
+          "reference_roles": ["current"],
+          "retained_source_name": "current-src__port__port.c"
+        },
+        {
+          "repository": "thebradshaw/topgear-pc",
+          "commit": "d390f2b2face6c478e0bf10f1896af0b82310c3e",
+          "path": "src/port/program.c",
+          "blob": "94810628d91fa1b347e052f2f8da2ba52ff608cf",
+          "bytes": 16523,
+          "sha256": "06e28a1968ab8c239d782141ffc7f762e671abcb308e60cd13ee628007ea993d",
+          "reference_roles": ["current"],
+          "retained_source_name": "current-src__port__program.c"
+        },
+        {
+          "repository": "thebradshaw/topgear-pc",
+          "commit": "d390f2b2face6c478e0bf10f1896af0b82310c3e",
+          "path": "src/port/registry.c",
+          "blob": "98851cb202e01ac9afd273c44be607cedb8baaca",
+          "bytes": 20122,
+          "sha256": "5bc868d59e03bf3eedac6a07ae8054357ae7aca38c56cd5673294b07304a2a3f",
+          "reference_roles": ["current"],
+          "retained_source_name": "current-src__port__registry.c"
+        },
+        {
+          "repository": "thebradshaw/topgear-pc",
+          "commit": "d390f2b2face6c478e0bf10f1896af0b82310c3e",
+          "path": "src/rom.c",
+          "blob": "ef350fd5b3082440fa698594945bf57653f2ab41",
+          "bytes": 1765,
+          "sha256": "ed4fecb1dff12143ac3104763dea5e363ca2e7adff1d1e23d22e4dca345192f3",
+          "reference_roles": ["current"],
+          "retained_source_name": "current-src__rom.c"
+        },
+        {
+          "repository": "thebradshaw/topgear-pc",
+          "commit": "b91007aaf1bb95afa4c510d734f74455de48a770",
+          "path": "CMakeLists.txt",
+          "blob": "96a24272b7453d4705be5c6de99027db1e55a7fe",
+          "bytes": 9645,
+          "sha256": "2953652f141eb50655f548617afea91cc8721298fa753b63a839637b8a0419a5",
+          "reference_roles": ["tag"],
+          "retained_source_name": "tag-CMakeLists.txt"
+        },
+        {
+          "repository": "thebradshaw/topgear-pc",
+          "commit": "b91007aaf1bb95afa4c510d734f74455de48a770",
+          "path": "README.md",
+          "blob": "411f5f61b468dd59c7884578d4f38fcd0e35248f",
+          "bytes": 9667,
+          "sha256": "380b19555f6acb4112a1bd49baee117d067395fe01e53cbfabf91da6f3107e12",
+          "reference_roles": ["tag"],
+          "retained_source_name": "tag-README.md"
+        },
+        {
+          "repository": "thebradshaw/topgear-pc",
+          "commit": "b91007aaf1bb95afa4c510d734f74455de48a770",
+          "path": "src/game.c",
+          "blob": "e4c8bf0355740fae635a41cf92b36ae6e442fb54",
+          "bytes": 9141,
+          "sha256": "7b88785715a270df9f34b3d6e42a62b69506853846ede396abec2c2ec871f0c0",
+          "reference_roles": ["tag"],
+          "retained_source_name": "tag-src__game.c"
+        },
+        {
+          "repository": "thebradshaw/topgear-pc",
+          "commit": "b91007aaf1bb95afa4c510d734f74455de48a770",
+          "path": "src/game.h",
+          "blob": "c4fcdc79a58f0254dad5a11a8f1aceacdb3797ef",
+          "bytes": 4507,
+          "sha256": "2475b61aeae4b2029eec66759f7eee271aa012715e5fd8124d1620c4e7c8dffb",
+          "reference_roles": ["tag"],
+          "retained_source_name": "tag-src__game.h"
+        },
+        {
+          "repository": "thebradshaw/topgear-pc",
+          "commit": "b91007aaf1bb95afa4c510d734f74455de48a770",
+          "path": "src/launcher.c",
+          "blob": "6936f49290c086ce306cde041e83a2fdf5af5781",
+          "bytes": 28010,
+          "sha256": "fe9992ea5385a575ce139be20195c91b4289734fe7c587f71a2aca55e57b0685",
+          "reference_roles": ["tag"],
+          "retained_source_name": "tag-src__launcher.c"
+        },
+        {
+          "repository": "thebradshaw/topgear-pc",
+          "commit": "b91007aaf1bb95afa4c510d734f74455de48a770",
+          "path": "src/main.c",
+          "blob": "8e9ee3b0b254ff909b70a140c38b771333e0fe29",
+          "bytes": 48633,
+          "sha256": "3e66ce3247341be295b44af98144b28d20f2311107fc222ed0da437faf5e7e24",
+          "reference_roles": ["tag"],
+          "retained_source_name": "tag-src__main.c"
+        },
+        {
+          "repository": "thebradshaw/topgear-pc",
+          "commit": "b91007aaf1bb95afa4c510d734f74455de48a770",
+          "path": "src/port/menu_flow.c",
+          "blob": "4c4288b713d06729827e2ea6c94c277961d48d4d",
+          "bytes": 39923,
+          "sha256": "8836cf7c33b29e22664fe247dae827498daa3b1dcf79bfd52bc247736faa5a31",
+          "reference_roles": ["tag"],
+          "retained_source_name": "tag-src__port__menu_flow.c"
+        },
+        {
+          "repository": "thebradshaw/topgear-pc",
+          "commit": "b91007aaf1bb95afa4c510d734f74455de48a770",
+          "path": "src/port/port.c",
+          "blob": "c6eee3cad14695a9136b5da1776f6275f86ad9a3",
+          "bytes": 4824,
+          "sha256": "750d5a2bde8aa9cc620003f1a31b4cafc487c1ef5aa3803d904b4b2a9c616f5a",
+          "reference_roles": ["tag"],
+          "retained_source_name": "tag-src__port__port.c"
+        },
+        {
+          "repository": "thebradshaw/topgear-pc",
+          "commit": "b91007aaf1bb95afa4c510d734f74455de48a770",
+          "path": "src/port/program.c",
+          "blob": "94810628d91fa1b347e052f2f8da2ba52ff608cf",
+          "bytes": 16523,
+          "sha256": "06e28a1968ab8c239d782141ffc7f762e671abcb308e60cd13ee628007ea993d",
+          "reference_roles": ["tag"],
+          "retained_source_name": "tag-src__port__program.c"
+        },
+        {
+          "repository": "thebradshaw/topgear-pc",
+          "commit": "b91007aaf1bb95afa4c510d734f74455de48a770",
+          "path": "src/port/registry.c",
+          "blob": "98851cb202e01ac9afd273c44be607cedb8baaca",
+          "bytes": 20122,
+          "sha256": "5bc868d59e03bf3eedac6a07ae8054357ae7aca38c56cd5673294b07304a2a3f",
+          "reference_roles": ["tag"],
+          "retained_source_name": "tag-src__port__registry.c"
+        },
+        {
+          "repository": "thebradshaw/topgear-pc",
+          "commit": "b91007aaf1bb95afa4c510d734f74455de48a770",
+          "path": "src/rom.c",
+          "blob": "ef350fd5b3082440fa698594945bf57653f2ab41",
+          "bytes": 1765,
+          "sha256": "ed4fecb1dff12143ac3104763dea5e363ca2e7adff1d1e23d22e4dca345192f3",
+          "reference_roles": ["tag"],
+          "retained_source_name": "tag-src__rom.c"
+        }
+      ],
+      "complete_trees": [
+        {
+          "role": "current",
+          "commit": "d390f2b2face6c478e0bf10f1896af0b82310c3e",
+          "root_tree": "6158b775e45ed3ba03296fc31a12a445019d6034",
+          "entries": 134,
+          "truncated": false,
+          "sha256": "8336018569f45dcaa9aa372053823040abc407b925e58d66d6e2aa0013326534",
+          "retained_name": "current-tree.json",
+          "gitlinks": []
+        },
+        {
+          "role": "tag",
+          "commit": "b91007aaf1bb95afa4c510d734f74455de48a770",
+          "root_tree": "a048bfe628c29ec5abe6808ab9e6bd4790a84b76",
+          "entries": 133,
+          "truncated": false,
+          "sha256": "deab341aaba884c2a645030aeeea6c24ce552467c8374d1e7cd9a7a392080331",
+          "retained_name": "tag-tree.json",
+          "gitlinks": []
+        }
+      ],
+      "retained_api_manifest": [
+        {
+          "retained_name": "current-CMakeLists.txt.api.json",
+          "bytes": 13578,
+          "sha256": "abfc3f8f3287815d7a8a26d4e8ef51d2f0b03be6bc4bd4a89ede32002822600c"
+        },
+        {
+          "retained_name": "current-README.md.api.json",
+          "bytes": 13610,
+          "sha256": "2e842ec573bbc6c98478686f2e7442aa34c29447f8de9eda3600a23e25e06712"
+        },
+        {
+          "retained_name": "current-README.md.api.json.observation.json",
+          "bytes": 131,
+          "sha256": "79942022c2df3bb46700bf14384d970f5bcb314fd0882b5a6c5bae1bd1127ba0"
+        },
+        {
+          "retained_name": "current-src__game.c.api.json",
+          "bytes": 12884,
+          "sha256": "279f3cecf277ea827e758b13d15e55c0f25127f2ec4be5fb3bcc467db8938444"
+        },
+        {
+          "retained_name": "current-src__game.h.api.json",
+          "bytes": 6502,
+          "sha256": "8a2e039d4a726f32f45493bb57f614f4c86192b2da4b9eeb6f3df8d71d68284a"
+        },
+        {
+          "retained_name": "current-src__launcher.c.api.json",
+          "bytes": 38883,
+          "sha256": "81adc6a51aeb04c6430451c4e983233e0ed880c28aaf923da14dbbdf2e622372"
+        },
+        {
+          "retained_name": "current-src__main.c.api.json",
+          "bytes": 67295,
+          "sha256": "15bb00bd620a8674e95438ab18075fee51bcc4579aa9f1744ff4f6a32e27030e"
+        },
+        {
+          "retained_name": "current-src__port__menu_flow.c.api.json",
+          "bytes": 55297,
+          "sha256": "ee4b896907c72c3ffa3b77781b3d737810bc8ed4c53fd5e63021b21a41e0c188"
+        },
+        {
+          "retained_name": "current-src__port__port.c.api.json",
+          "bytes": 6936,
+          "sha256": "e16688379311dcf31713d6992eec563bd58cbdf87510c1548fbf326808226512"
+        },
+        {
+          "retained_name": "current-src__port__program.c.api.json",
+          "bytes": 23057,
+          "sha256": "ee4eaf3f918d69a54cb731c8ad38a9e5e872d096e61e6eee48b3efb9c56c1df5"
+        },
+        {
+          "retained_name": "current-src__port__registry.c.api.json",
+          "bytes": 28017,
+          "sha256": "d953efd8fd386815e9c729214498311c38a9347065d72dec173ae5a81a68ff13"
+        },
+        {
+          "retained_name": "current-src__rom.c.api.json",
+          "bytes": 2724,
+          "sha256": "5b0c76911ddff967e1a2818320908ea3d71559d05d18be0bf43e4682aa32b2a9"
+        },
+        {
+          "retained_name": "current-tree.json",
+          "bytes": 31443,
+          "sha256": "8336018569f45dcaa9aa372053823040abc407b925e58d66d6e2aa0013326534"
+        },
+        {
+          "retained_name": "current-tree.json.observation.json",
+          "bytes": 143,
+          "sha256": "15fb1bcae57f16fb9e953c375a66156fc0521f93d66dfc187e7725e7f9536cc8"
+        },
+        {
+          "retained_name": "current.json",
+          "bytes": 5399,
+          "sha256": "01d7175f2677062dd478d962fb97ec6ceef6fd2eb4091f7a33d54ba6046f35b7"
+        },
+        {
+          "retained_name": "current.json.observation.json",
+          "bytes": 93,
+          "sha256": "b86ed0096b78c728f1cd3b2714a58f2b47324274f9cd6a4124963079cd2db429"
+        },
+        {
+          "retained_name": "release.json",
+          "bytes": 6562,
+          "sha256": "73d6b5b7188d57ef5d744df6775ea3992716ff39c58a42d0266e80984500690d"
+        },
+        {
+          "retained_name": "release.json.observation.json",
+          "bytes": 96,
+          "sha256": "f8df5d98322207e07558a7a08912adde2325dc71e6d864ed67c48e7bad0de043"
+        },
+        {
+          "retained_name": "repository.json",
+          "bytes": 5324,
+          "sha256": "129f0dc053b4b12916aee94e5d1d86010ba03b6154566d5ee1b46631f7ac4931"
+        },
+        {
+          "retained_name": "repository.json.observation.json",
+          "bytes": 80,
+          "sha256": "273db2449ae4df8357885c3eea99c0b144f0d8952a033398cff71440cba251a7"
+        },
+        {
+          "retained_name": "source-manifest.json",
+          "bytes": 8551,
+          "sha256": "1792d7eedc45ff980b62bf5a4910b681d5884d43c751c65936c13708cc72eef8"
+        },
+        {
+          "retained_name": "tag-CMakeLists.txt.api.json",
+          "bytes": 13578,
+          "sha256": "abfc3f8f3287815d7a8a26d4e8ef51d2f0b03be6bc4bd4a89ede32002822600c"
+        },
+        {
+          "retained_name": "tag-README.md.api.json",
+          "bytes": 13610,
+          "sha256": "2e842ec573bbc6c98478686f2e7442aa34c29447f8de9eda3600a23e25e06712"
+        },
+        {
+          "retained_name": "tag-README.md.api.json.observation.json",
+          "bytes": 131,
+          "sha256": "79942022c2df3bb46700bf14384d970f5bcb314fd0882b5a6c5bae1bd1127ba0"
+        },
+        {
+          "retained_name": "tag-src__game.c.api.json",
+          "bytes": 12884,
+          "sha256": "279f3cecf277ea827e758b13d15e55c0f25127f2ec4be5fb3bcc467db8938444"
+        },
+        {
+          "retained_name": "tag-src__game.h.api.json",
+          "bytes": 6502,
+          "sha256": "8a2e039d4a726f32f45493bb57f614f4c86192b2da4b9eeb6f3df8d71d68284a"
+        },
+        {
+          "retained_name": "tag-src__launcher.c.api.json",
+          "bytes": 38883,
+          "sha256": "81adc6a51aeb04c6430451c4e983233e0ed880c28aaf923da14dbbdf2e622372"
+        },
+        {
+          "retained_name": "tag-src__main.c.api.json",
+          "bytes": 67295,
+          "sha256": "15bb00bd620a8674e95438ab18075fee51bcc4579aa9f1744ff4f6a32e27030e"
+        },
+        {
+          "retained_name": "tag-src__port__menu_flow.c.api.json",
+          "bytes": 55297,
+          "sha256": "ee4b896907c72c3ffa3b77781b3d737810bc8ed4c53fd5e63021b21a41e0c188"
+        },
+        {
+          "retained_name": "tag-src__port__port.c.api.json",
+          "bytes": 6936,
+          "sha256": "e16688379311dcf31713d6992eec563bd58cbdf87510c1548fbf326808226512"
+        },
+        {
+          "retained_name": "tag-src__port__program.c.api.json",
+          "bytes": 23057,
+          "sha256": "ee4eaf3f918d69a54cb731c8ad38a9e5e872d096e61e6eee48b3efb9c56c1df5"
+        },
+        {
+          "retained_name": "tag-src__port__registry.c.api.json",
+          "bytes": 28017,
+          "sha256": "d953efd8fd386815e9c729214498311c38a9347065d72dec173ae5a81a68ff13"
+        },
+        {
+          "retained_name": "tag-src__rom.c.api.json",
+          "bytes": 2724,
+          "sha256": "5b0c76911ddff967e1a2818320908ea3d71559d05d18be0bf43e4682aa32b2a9"
+        },
+        {
+          "retained_name": "tag-tree.json",
+          "bytes": 31210,
+          "sha256": "deab341aaba884c2a645030aeeea6c24ce552467c8374d1e7cd9a7a392080331"
+        },
+        {
+          "retained_name": "tag-tree.json.observation.json",
+          "bytes": 143,
+          "sha256": "05177bada0cc6bf7113c56a029063d25c624cac50a713709c25d43af1fc9fc2c"
+        },
+        {
+          "retained_name": "tag.json",
+          "bytes": 10602,
+          "sha256": "8b462d25aa88e9b3d3146ebc99c03f1b43e7f056fe89213a38530aad1c775f66"
+        },
+        {
+          "retained_name": "tag.json.observation.json",
+          "bytes": 95,
+          "sha256": "bd0bef5ef6b90462dd7c07e87ce11b664a200661f9b0501045b1a2760d8cd21b"
+        }
+      ]
+    }
+  ],
+  "ackman_source_dispatch_facts": {
+    "selected_source": "9f12ba1e59185e6fbe70eb7822338c7709f0c86a",
+    "dispatch_addresses": 73,
+    "non_null_mx_slots": 89,
+    "distinct_referenced_bodies": 89,
+    "classification": "source-evidenced reachable compiled game dispatch with active interpreter/hardware; not measured runtime coverage or actual game execution",
+    "all_referenced_bodies_have_selected_source_definitions": true
+  },
+  "known_conditions": [
+    "Arwing current/tag are the same source; duplicate reference-role observations are deduplicated by repository/commit/path/blob. Its rolling1.0 tag/assets are replaceable; installer arwing.exe is not installed Project Arwing (2).exe. Profile/legacy migration and installer-based updater remain upstream-owned.",
+    "Strike Gunner v0.3.0 is a setup/source package, not an immutable ready-native artifact. Complete Generate/rebuild outside Core; select finished build/StrikeGunnerSTGSNESRecomp.exe and preserve its creating build/profile/original.",
+    "Top Gear races are translated C, menus/some routines remain LakeSnes. Select direct game plus absolute original argument, not background-dispatching settings launcher; retain actual SDL profile and recording fallback.",
+    "Ackman source dispatch reachability is established by actual CMake/compiled-body/bridge consumers; native runtime fraction and game execution remain unmeasured. Its normal watchdog supervisor waits for child/recovery; no private-child bypass is offered.",
+    "Ackman source compiles an English IPS-derived translation table plus English/PTBR metadata. Full PTBR patch payload embedding is not established by the metadata header. Project/framework grants exclude external translation/audio rights. Exact selected-package/component applicability and permission remain a fresh-acquisition condition; no unacquired-asset contents certificate or blanket private-use prohibition."
+  ],
+  "limits": [
+    "No game package/original/ROM/private save/helper/compiler/game acquired or executed. Source/authoring/eventual inert native probes are not package/original/generated-code/gameplay/save/state/mod/installed/human/physical/other-platform/protected qualification.",
+    "Complete primary/pinned framework trees and selected consumed local patches are not exhaustive transitive dependency/component compliance inspection or source-to-binary certification.",
+    "No Core generation/installer/activation/update/rollback/migration/deletion, Supported promotion, new identity/strict definition/release commitment or family framework. Existing accepted artwork/lineage and all272 strict definitions/source contracts preserved. Full Required umbrella scope remains open."
+  ],
+  "delivery_authority": "Final PR/individual receipts own exact source/base/composition, independent review, five exact-head contexts, case/artifact inventories, guarded merge/readback and canonical dispositions."
+}

@@ -3,7 +3,8 @@
 use portcove_core::{
     Catalog, RetainedBuildAvailability, RetainedBuildBindingPreview, RetainedBuildGap,
     RetainedBuildIdentity, RetainedBuildInventory, RetainedBuildReference,
-    RetainedBuildRemovalPreview, RetainedBuildResolution,
+    RetainedBuildRemovalPreview, RetainedBuildResolution, RetainedBuildRetirementPreview,
+    RetainedBuildRevision,
 };
 
 use crate::human::{clean, platform_name, port_name, utc_time};
@@ -140,6 +141,12 @@ pub(crate) fn inventory(value: &RetainedBuildInventory, catalog: &Catalog) -> St
                 .iter()
                 .map(|id| format!("setup {}", clean(id))),
         );
+        reasons.extend(
+            build
+                .offered_by
+                .iter()
+                .map(|id| format!("recovery offered by setup {}", clean(id))),
+        );
         lines.push(if reasons.is_empty() {
             "Retention references: none; cleanup eligibility is checked separately.".into()
         } else {
@@ -170,6 +177,15 @@ pub(crate) fn resolution(value: &RetainedBuildResolution, catalog: &Catalog) -> 
     let mut lines = vec![availability(value.availability).into()];
     lines.extend(reference_lines(&value.reference, catalog));
     gap_lines(value.gap.as_ref(), &mut lines);
+    for entry in &value.history {
+        lines.push(format!(
+            "Offered recovery revision {}: install {} · {}",
+            entry.revision.revision,
+            clean(&entry.revision.build.install_id),
+            availability(entry.availability)
+        ));
+        gap_lines(entry.gap.as_ref(), &mut lines);
+    }
     lines.push("The setup reference protects this exact build from cleanup. Current launch and preparation checks still apply.".into());
     lines.join("\n")
 }
@@ -222,6 +238,40 @@ pub(crate) fn removal_preview(value: &RetainedBuildRemovalPreview, catalog: &Cat
 pub(crate) fn removed(value: &RetainedBuildReference, catalog: &Catalog) -> String {
     let mut lines = vec!["Retained-build reference removed".into()];
     lines.extend(reference_lines(value, catalog));
+    lines.push("Build files and player data remain in place. Later cleanup rechecks every remaining protection.".into());
+    lines.join("\n")
+}
+
+fn revision_lines(value: &RetainedBuildRevision, catalog: &Catalog) -> Vec<String> {
+    let mut lines = vec![format!(
+        "Recovery revision {} (superseded {})",
+        value.revision,
+        utc_time(value.superseded_at)
+    )];
+    lines.extend(identity_lines(&value.build, catalog));
+    lines
+}
+
+pub(crate) fn retirement_preview(
+    value: &RetainedBuildRetirementPreview,
+    catalog: &Catalog,
+) -> String {
+    let mut lines = vec![format!(
+        "Review ending recovery offer for setup {}",
+        clean(&value.setup_id)
+    )];
+    lines.extend(revision_lines(&value.revision, catalog));
+    lines.extend([
+        format!("Review SHA-256: {}", clean(&value.preview_sha256)),
+        "Stops offering this earlier build for recovery. Build files and player data stay in place.".into(),
+        "Other setup references, the current binding and lifecycle protections still apply to later cleanup.".into(),
+    ]);
+    lines.join("\n")
+}
+
+pub(crate) fn retired(value: &RetainedBuildRevision, catalog: &Catalog) -> String {
+    let mut lines = vec!["Recovery revision retired".into()];
+    lines.extend(revision_lines(value, catalog));
     lines.push("Build files and player data remain in place. Later cleanup rechecks every remaining protection.".into());
     lines.join("\n")
 }

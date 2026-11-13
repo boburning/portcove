@@ -11,7 +11,7 @@ import type { HeavyProcessRecord } from "./heavy-rust-test-lock.mts";
 import { spawn, execFileSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { lstatSync, readFileSync, writeFileSync, mkdtempSync, rmSync } from "node:fs";
-import { readFile, mkdir, writeFile } from "node:fs/promises";
+import { lstat, readFile, mkdir, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -40,7 +40,9 @@ const verifiedLauncher = [
   'const file=p.join(root,f.path);let at=file;while(at!==root){if(fs.lstatSync(at).isSymbolicLink())throw Error("Linked bridge closure");at=p.dirname(at);}',
   'const s=fs.lstatSync(file);if(!s.isFile()||s.size>1048576||(total+=s.size)>8388608)throw Error("Bridge closure exceeds bound");if(hash(fs.readFileSync(file))!==f.sha256)throw Error("Bridge module identity differs");}',
   'if(!names.has(p.relative(root,entry).split(p.sep).join("/")))throw Error("Unbound bridge entry");',
-  "process.argv=[process.execPath,entry,action,...args];await import(u.pathToFileURL(entry).href);",
+  'if(action==="--owner-stopped"){const [pid,identity]=args;if(process.platform!=="linux"||args.length!==2||!/^\\d{1,10}$/.test(pid)||Number(pid)<1||!identity.startsWith("linux:"))throw Error("Invalid Linux owner check");',
+  'const lock=await import(u.pathToFileURL(entry).href);if(lock.readProcessIdentity(Number(pid))===identity)throw Error("Original Linux owner remains live; retain custody");console.log("stopped");}',
+  "else{process.argv=[process.execPath,entry,action,...args];await import(u.pathToFileURL(entry).href);}",
 ].join("\n");
 
 export function bridgeLaunchArguments(
@@ -203,16 +205,8 @@ function parseExternal(value: unknown): ExternalCustody {
   return value as unknown as ExternalCustody;
 }
 
-function remoteProbe(external: ExternalCustody, phase: string, expected?: unknown) {
-  const request = Buffer.from(
-    JSON.stringify({
-      custodyFile: external.custodyFile,
-      invocation: external.invocation,
-      phase,
-      expected,
-    }),
-  ).toString("base64url");
-  const result = execFileSync(
+function runRemoteBridge(external: ExternalCustody, entry: string, action: string, args: string[]) {
+  return execFileSync(
     "wsl.exe",
     [
       "--distribution",
@@ -223,13 +217,51 @@ function remoteProbe(external: ExternalCustody, phase: string, expected?: unknow
       external.bridge.user,
       "--exec",
       external.bridge.node,
-      ...bridgeLaunchArguments(external.bridge.probe, external.bridge.closureSha256, "--probe", [
-        request,
-      ]),
+      ...bridgeLaunchArguments(entry, external.bridge.closureSha256, action, args),
     ],
     { encoding: "utf8", timeout: 30_000, maxBuffer: wireLimit, windowsHide: true },
   );
+}
+
+function remoteProbe(external: ExternalCustody, phase: string, expected?: unknown) {
+  const request = Buffer.from(
+    JSON.stringify({
+      custodyFile: external.custodyFile,
+      invocation: external.invocation,
+      phase,
+      expected,
+    }),
+  ).toString("base64url");
+  const result = runRemoteBridge(external, external.bridge.probe, "--probe", [request]);
   return parseCustody(JSON.parse(result));
+}
+
+function requireRemoteOwnerStopped(external: ExternalCustody, owner: HeavyProcessRecord) {
+  const entry = path.posix.join(
+    path.posix.dirname(external.bridge.probe),
+    "heavy-rust-test-lock.mts",
+  );
+  const result = runRemoteBridge(external, entry, "--owner-stopped", [
+    String(owner.pid),
+    owner.identity,
+  ]);
+  if (result.trim() !== "stopped") throw new Error("Original Linux owner settlement unavailable");
+}
+
+/** Use the original closure's existing cleanup check after an unacknowledged launch. */
+export function proveUnboundLinuxRecovery(
+  probe: (phase: "prelaunch-release" | "release", expected?: Custody) => Custody,
+  requireOwnerStopped: (owner: HeavyProcessRecord) => void,
+) {
+  try {
+    probe("prelaunch-release");
+    return;
+  } catch {
+    // The local supervisor may have started before host registration completed.
+  }
+  const settled = probe("release");
+  requireOwnerStopped(settled.owner);
+  probe("release", settled);
 }
 
 export async function verifyHostReference(value: unknown) {
@@ -595,14 +627,27 @@ async function main() {
         path.join(resourceDomainRoot(), reference.slots[0]!.name),
       );
       const external = parseExternal(owner.external);
-      try {
-        const binding: unknown = JSON.parse(await readFile(external.binding, "utf8"));
-        remoteProbe(external, "release", binding);
-      } catch (error) {
-        if (errorCode(error) !== "ENOENT") throw error;
-        remoteProbe(external, "prelaunch-release");
-      }
-      console.log(await reconcileExternalCapacity(reference, external, () => true));
+      const journal = await reconcileExternalCapacity(reference, external, async () => {
+        await verifyHostReference(value);
+        const binding = await readFile(external.binding, "utf8").catch((error: unknown) => {
+          if (errorCode(error) !== "ENOENT") throw error;
+          return undefined;
+        });
+        if (binding === undefined) {
+          proveUnboundLinuxRecovery(
+            (phase, expected) => remoteProbe(external, phase, expected),
+            (owner) => requireRemoteOwnerStopped(external, owner),
+          );
+          const appeared = await lstat(external.binding).catch((error: unknown) => {
+            if (errorCode(error) !== "ENOENT") throw error;
+            return undefined;
+          });
+          if (appeared)
+            throw new Error("Host registration appeared during recovery; retain custody");
+        } else remoteProbe(external, "release", JSON.parse(binding));
+        return true;
+      });
+      console.log(journal);
     } else throw new Error("Unknown host bridge action");
   }
 }

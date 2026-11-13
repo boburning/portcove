@@ -195,7 +195,7 @@ export async function stageReleaseArtifact(
   rawRequest: unknown,
   platform: string,
   archiveIdentity: unknown,
-  options: { exactProducerAttempt?: boolean } = {},
+  options: { exactProducerAttempt?: boolean; deadline?: number } = {},
 ) {
   const started = performance.now();
   const exactProducerAttempt = options.exactProducerAttempt === true;
@@ -205,7 +205,7 @@ export async function stageReleaseArtifact(
     rawArchive,
     archiveIdentity,
   );
-  const deadline = started + 10 * 60 * 1000;
+  const deadline = Math.min(started + 10 * 60 * 1000, options.deadline ?? Infinity);
   const active = () => {
     if (performance.now() >= deadline)
       throw new Error("release artifact staging deadline exhausted");

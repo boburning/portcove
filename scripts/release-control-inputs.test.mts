@@ -3,7 +3,10 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import test from "node:test";
 import { execFileSync } from "node:child_process";
-import { mkdir, copyFile, writeFile, readFile } from "node:fs/promises";
+import { mkdir, appendFile, writeFile, readFile, access } from "node:fs/promises";
+import { isBuiltin } from "node:module";
+import { fileURLToPath } from "node:url";
+import { readFixtureModuleClosure } from "./fixtures/module-closure.mts";
 import os from "node:os";
 import path from "node:path";
 import {
@@ -20,7 +23,12 @@ import {
 import { createReleaseReviewRequest } from "./release-review-request.mts";
 import {
   observeReleaseInputProtections,
+  createApplicationProtectionObservationReader,
+  createProtectionObservationReader,
   requireReleaseInputWriterPolicy,
+  requireApplicationReleaseProtectionDigest,
+  bootstrapProtectionFingerprints,
+  bootstrapProtectionRulesetFieldFingerprints,
   requireReleaseImmutabilityPolicy,
 } from "./release-input-protections.mts";
 import { capacityDigest } from "./release-capacity.mts";
@@ -185,7 +193,7 @@ void test("immutable conflicts, CAS refusal and ambiguous acknowledgment never o
   );
   assert.equal(recovered.mutations(), 1);
 });
-void test("isolated observer only GETs and refuses hidden bypass, inherited coverage and drift", () => {
+void test("isolated observer only GETs and refuses hidden bypass, inherited coverage and drift", async () => {
   for (const fault of [
     "",
     "bypass",
@@ -194,53 +202,62 @@ void test("isolated observer only GETs and refuses hidden bypass, inherited cove
     "release-ok",
     "release-disabled",
     "release-drift",
+    "release-rule-drift",
   ]) {
     let refReads = 0;
     let settingReads = 0;
+    let ruleReads = 0;
     const publication = fault.startsWith("release-");
-    const api = {
-      request(method: string, endpoint: string) {
-        assert.equal(method, "GET");
-        let body: unknown;
-        const rule = {
-          id: 1,
-          source_type: fault === "inherited" ? "Organization" : "Repository",
-          source: "boburning/portcove",
-          enforcement: "active",
-          conditions: {
-            ref_name: { include: ["refs/heads/portcove-release-inputs"], exclude: [] },
-          },
-          bypass_actors: [],
-          rules: [{ type: "update" }],
+    const read = async (endpoint: string) => {
+      let body: unknown;
+      const rule = {
+        id: 1,
+        source_type: fault === "inherited" ? "Organization" : "Repository",
+        source: "boburning/portcove",
+        enforcement: "active",
+        conditions: {
+          ref_name: { include: ["refs/heads/portcove-release-inputs"], exclude: [] },
+        },
+        bypass_actors: [],
+        rules: [{ type: "update" }],
+      };
+      if (endpoint === "repos/boburning/portcove")
+        body = { id: 1354613114, full_name: "boburning/portcove" };
+      else if (endpoint.endsWith("/immutable-releases")) {
+        settingReads++;
+        body = {
+          enabled:
+            fault !== "release-disabled" && !(fault === "release-drift" && settingReads === 2),
+          enforced_by_owner: false,
         };
-        if (endpoint === "repos/boburning/portcove")
-          body = { id: 1354613114, full_name: "boburning/portcove" };
-        else if (endpoint.endsWith("/immutable-releases")) {
-          settingReads++;
-          body = {
-            enabled:
-              fault !== "release-disabled" && !(fault === "release-drift" && settingReads === 2),
-            enforced_by_owner: false,
-          };
-        } else if (endpoint.includes("/rulesets?")) body = [rule];
-        else if (endpoint.includes("/rulesets/1?"))
-          body = fault === "bypass" ? { ...rule, bypass_actors: undefined } : rule;
-        else if (endpoint.includes("/git/ref/heads/")) {
-          refReads++;
-          body = {
-            ref: `refs/heads/${endpoint.split("/").at(-1)}`,
-            object: { type: "commit", sha: fault === "drift" && refReads > 2 ? after : before },
-          };
-        } else if (endpoint.includes("/rules/branches/")) body = [{ type: "update" }];
-        else if (endpoint.includes("/protection")) body = { enforce_admins: { enabled: true } };
-        else throw new Error("unexpected observer route");
-        return { status: 200, headers: new Map<string, string>(), body };
-      },
+      } else if (endpoint.includes("/rulesets?")) body = [rule];
+      else if (endpoint.includes("/rulesets/1?")) {
+        ruleReads++;
+        body =
+          fault === "bypass"
+            ? { ...rule, bypass_actors: undefined }
+            : fault === "release-rule-drift" && ruleReads === 2
+              ? { ...rule, enforcement: "evaluate" }
+              : rule;
+      } else if (endpoint.includes("/git/ref/heads/")) {
+        refReads++;
+        body = {
+          ref: `refs/heads/${endpoint.split("/").at(-1)}`,
+          object: { type: "commit", sha: fault === "drift" && refReads > 2 ? after : before },
+        };
+      } else if (endpoint.includes("/rules/branches/")) body = [{ type: "update" }];
+      else if (endpoint.includes("/protection")) body = { enforce_admins: { enabled: true } };
+      else throw new Error("unexpected observer route");
+      return { status: 200, body };
     };
-    if ((fault && !publication) || fault === "release-drift")
-      assert.throws(() => observeReleaseInputProtections(api, { releasePublication: publication }));
+    if ((fault && !publication) || fault === "release-drift" || fault === "release-rule-drift")
+      await assert.rejects(
+        observeReleaseInputProtections(read, { releasePublication: publication }),
+      );
     else {
-      const result = observeReleaseInputProtections(api, { releasePublication: publication });
+      const result = await observeReleaseInputProtections(read, {
+        releasePublication: publication,
+      });
       assert.equal(result.admission, "hold");
       assert.equal(result.enforcement, "uninterpreted");
       if (fault === "release-ok") {
@@ -250,6 +267,143 @@ void test("isolated observer only GETs and refuses hidden bypass, inherited cove
     }
   }
 });
+
+void test("application neutral and publication read complete live-size protection inventories while isolating Contents ref credentials", async (t) => {
+  const rules = Array.from({ length: 63 }, (_, index) => ({
+    id: index + 1,
+    source_type: "Repository",
+    source: "boburning/portcove",
+    enforcement: "active",
+    conditions: {},
+    bypass_actors: [],
+    rules: [],
+  }));
+  const counts = { ref: 0, protection: 0 };
+  let detailReads = 0;
+  let maximumDetailReads = 0;
+  t.mock.method(globalThis, "fetch", async (input: unknown, init: RequestInit) => {
+    assert.equal(init.method, "GET");
+    assert.equal(typeof input, "string");
+    const url = new URL(String(input));
+    assert.equal(url.origin, "https://api.github.com");
+    const endpoint = url.pathname;
+    const branch =
+      /^\/repos\/boburning\/portcove\/git\/ref\/heads\/(portcove-release-inputs|portcove-release-pause)$/u.exec(
+        endpoint,
+      )?.[1];
+    const credential = new Headers(init.headers).get("authorization");
+    if (branch) {
+      assert.equal(credential, "token inert-contents-reader");
+      counts.ref++;
+      return Response.json({
+        ref: "refs/heads/" + branch,
+        object: { type: "commit", sha: "a".repeat(40) },
+      });
+    }
+    assert.equal(credential, "token inert-protection-reader");
+    counts.protection++;
+    if (endpoint.endsWith("/portcove"))
+      return Response.json({ id: 1354613114, full_name: "boburning/portcove" });
+    if (endpoint.endsWith("/rulesets")) return Response.json(rules);
+    const rule = /\/rulesets\/(\d+)$/u.exec(endpoint)?.[1];
+    if (rule) {
+      assert.equal(url.search, "?includes_parents=true");
+      maximumDetailReads = Math.max(maximumDetailReads, ++detailReads);
+      await new Promise<void>((resolve) => setImmediate(resolve));
+      detailReads--;
+      return Response.json(rules[Number(rule) - 1]);
+    }
+    if (endpoint.endsWith("/git/ref/heads/portcove-production-coordinator-state"))
+      return Response.json({
+        ref: "refs/heads/portcove-production-coordinator-state",
+        object: { type: "commit", sha: "b".repeat(40) },
+      });
+    if (endpoint.includes("/rules/branches/")) return Response.json([]);
+    assert.ok(endpoint.endsWith("/immutable-releases"));
+    return Response.json({ enabled: true, enforced_by_owner: false });
+  });
+  const read = await createApplicationProtectionObservationReader({
+    token: "inert-protection-reader",
+    refToken: "inert-contents-reader",
+    deadline: performance.now() + 10_000,
+    maxBytes: 4 * 1024 ** 2,
+    guard() {},
+  });
+  for (const releasePublication of [false, true]) {
+    counts.ref = counts.protection = maximumDetailReads = 0;
+    const result = await observeReleaseInputProtections(read, {
+      releasePublication,
+      journalNamespace: "portcove-production",
+    });
+    assert.deepEqual(result.inventory.rulesets, rules);
+    assert.equal(result.inventory.branches.length, 3);
+    assert.equal(maximumDetailReads, 4);
+    assert.equal(detailReads, 0);
+    assert.equal(Object.hasOwn(result.inventory, "immutable_releases"), releasePublication);
+    assert.deepEqual(counts, { ref: 4, protection: releasePublication ? 139 : 137 });
+    assert.equal(result.api_requests, releasePublication ? 143 : 141);
+  }
+});
+
+for (const applicationCoordinator of [undefined, true] as const) {
+  const batchSize = applicationCoordinator ? 8 : 4;
+  void test(
+    `application rule-detail batches of ${batchSize} drain on refusal and reject duplicate identities`,
+    { timeout: 5000 },
+    async () => {
+      const rules = Array.from({ length: 10 }, (_, index) => ({
+        id: index + 1,
+        source_type: "Repository",
+        source: "boburning/portcove",
+        enforcement: "active",
+        conditions: {},
+        bypass_actors: [],
+        rules: [],
+      }));
+      const started = Promise.withResolvers<void>();
+      const release = Promise.withResolvers<void>();
+      const dispatches: number[] = [];
+      let duplicate = false;
+      let finished = 0;
+      const read = async (endpoint: string) => {
+        if (endpoint.endsWith("/portcove"))
+          return { status: 200, body: { id: 1354613114, full_name: "boburning/portcove" } };
+        if (endpoint.includes("/rulesets?"))
+          return { status: 200, body: duplicate ? [...rules, rules[0]] : rules };
+        const rule = /\/rulesets\/(\d+)\?includes_parents=true$/u.exec(endpoint)?.[1];
+        assert.ok(rule);
+        dispatches.push(Number(rule));
+        if (dispatches.length === batchSize) started.resolve();
+        if (rule === "1") return { status: 403, body: {} };
+        await release.promise;
+        finished++;
+        return { status: 200, body: rules[Number(rule) - 1] };
+      };
+      const options = applicationCoordinator
+        ? { applicationCoordinator }
+        : { releasePublication: true };
+      const expected = rules.slice(0, batchSize).map((rule) => rule.id);
+      let settled = false;
+      const observation = observeReleaseInputProtections(read, options).finally(() => {
+        settled = true;
+      });
+      await started.promise;
+      assert.deepEqual(dispatches, expected);
+      await new Promise<void>((resolve) => setImmediate(resolve));
+      assert.equal(settled, false);
+      release.resolve();
+      await assert.rejects(observation, /protection response unavailable/u);
+      assert.equal(finished, batchSize - 1);
+      assert.deepEqual(dispatches, expected);
+      duplicate = true;
+      await assert.rejects(
+        observeReleaseInputProtections(read, options),
+        /inventory pages incomplete or duplicated/u,
+      );
+      assert.deepEqual(dispatches, expected);
+    },
+  );
+}
 
 void test("release immutability requires fresh complete isolated setting, not an imported enabled flag", () => {
   const now = Date.now();
@@ -274,11 +428,170 @@ void test("release immutability requires fresh complete isolated setting, not an
     assert.throws(() => requireReleaseImmutabilityPolicy(value, now));
 });
 
+void test("bootstrap appointment binds protection and refs across observer principals", () => {
+  const now = Date.now();
+  const ruleset = {
+    id: 42,
+    created_at: "2026-10-28T07:42:05.000-04:00",
+    updated_at: "2026-11-06T20:45:09.273-05:00",
+    bypass_actors: [{ actor_id: 7, actor_type: "Integration", bypass_mode: "always" }],
+    rules: [{ type: "deletion" }],
+    current_user_can_bypass: "always",
+  };
+  const pauseRef = (sha: string) => ({
+    branch: "portcove-release-pause",
+    effective_rules: [],
+    ref: {
+      object: { sha, url: `https://api.github.com/repos/boburning/portcove/git/commits/${sha}` },
+    },
+  });
+  const inventory = {
+    immutable_releases: { enabled: true, enforced_by_owner: false },
+    rulesets: [ruleset],
+    branches: [pauseRef("a".repeat(40))],
+  };
+  const proof = (value: typeof inventory) => ({
+    schema_version: 1,
+    repository_id: 1354613114,
+    coverage: "current-repository-input-branches-and-release-immutability",
+    observed_at: new Date(now).toISOString(),
+    inventory: value,
+    inventory_sha256: capacityDigest(value),
+  });
+  const owner = proof(inventory);
+  const observer = proof({
+    ...inventory,
+    rulesets: [
+      {
+        ...ruleset,
+        created_at: "2026-10-28T11:42:05.000Z",
+        updated_at: "2026-11-07T01:45:09.273Z",
+        current_user_can_bypass: "never",
+      },
+    ],
+  });
+  const appointed = requireApplicationReleaseProtectionDigest(owner, true, now);
+  const fingerprints = bootstrapProtectionFingerprints(owner);
+  assert.deepEqual(bootstrapProtectionFingerprints(observer), fingerprints);
+  const fields = bootstrapProtectionRulesetFieldFingerprints(owner);
+  assert.deepEqual(bootstrapProtectionRulesetFieldFingerprints(observer), fields);
+  const actorsChanged = bootstrapProtectionRulesetFieldFingerprints(
+    proof({ ...inventory, rulesets: [{ ...ruleset, bypass_actors: [] }] }),
+  );
+  assert.notEqual(actorsChanged.fields.bypass_actors, fields.fields.bypass_actors);
+  assert.deepEqual(
+    {
+      ...actorsChanged,
+      fields: { ...actorsChanged.fields, bypass_actors: fields.fields.bypass_actors },
+    },
+    fields,
+  );
+  const changedRef = bootstrapProtectionFingerprints(
+    proof({
+      ...inventory,
+      branches: [pauseRef("b".repeat(40))],
+    }),
+  );
+  assert.notEqual(changedRef.refs, fingerprints.refs);
+  assert.deepEqual({ ...changedRef, refs: fingerprints.refs }, fingerprints);
+  assert.equal(fingerprints.ruleset_count, 1);
+  for (const digest of [
+    fingerprints.rulesets,
+    fingerprints.refs,
+    fingerprints.effective,
+    fingerprints.settings,
+  ])
+    assert.match(digest, /^[a-f0-9]{64}$/u);
+
+  assert.equal(requireApplicationReleaseProtectionDigest(observer, true, now), appointed);
+  for (const updated_at of ["2026-11-07T01:45:09.274Z", "2026-11-07T01:45:09.273-05:00"]) {
+    assert.notEqual(
+      requireApplicationReleaseProtectionDigest(
+        proof({
+          ...inventory,
+          rulesets: [{ ...ruleset, updated_at }],
+        }),
+        true,
+        now,
+      ),
+      appointed,
+    );
+  }
+  for (const updated_at of [
+    "2026-02-30T01:45:09.273Z",
+    "2026-11-07T01:45:09.2734Z",
+    "2026-11-07T01:45:09.273",
+  ]) {
+    assert.throws(
+      () =>
+        requireApplicationReleaseProtectionDigest(
+          proof({
+            ...inventory,
+            rulesets: [{ ...ruleset, updated_at }],
+          }),
+          true,
+          now,
+        ),
+      /bootstrap ruleset timestamp is malformed/u,
+    );
+  }
+  assert.equal(
+    requireApplicationReleaseProtectionDigest(owner, false, now),
+    owner.inventory_sha256,
+  );
+  assert.notEqual(
+    requireApplicationReleaseProtectionDigest(observer, false, now),
+    owner.inventory_sha256,
+  );
+  for (const changed of [
+    { ...inventory, rulesets: [{ ...ruleset, bypass_actors: [] }] },
+    { ...inventory, rulesets: [{ ...ruleset, rules: [] }] },
+    { ...inventory, branches: [pauseRef("b".repeat(40))] },
+  ])
+    assert.notEqual(
+      requireApplicationReleaseProtectionDigest(proof(changed), true, now),
+      appointed,
+    );
+  assert.throws(() =>
+    requireApplicationReleaseProtectionDigest(
+      { ...owner, inventory: observer.inventory },
+      true,
+      now,
+    ),
+  );
+  assert.throws(() => requireApplicationReleaseProtectionDigest(owner, true, now + 60_001));
+  assert.throws(() => requireApplicationReleaseProtectionDigest(owner, false, now + 78_627));
+  for (const age of [78_627, 150_000]) {
+    assert.equal(
+      requireApplicationReleaseProtectionDigest(owner, false, now + age, "hosted-write"),
+      owner.inventory_sha256,
+    );
+  }
+  for (const age of [-1, 150_001]) {
+    assert.throws(() =>
+      requireApplicationReleaseProtectionDigest(owner, false, now + age, "hosted-write"),
+    );
+  }
+  assert.throws(() => requireApplicationReleaseProtectionDigest(owner, true, now, "hosted-write"));
+  assert.equal(
+    requireApplicationReleaseProtectionDigest(owner, false, now + 240_000, "application-payload"),
+    owner.inventory_sha256,
+  );
+  for (const age of [-1, 240_001])
+    assert.throws(() =>
+      requireApplicationReleaseProtectionDigest(owner, false, now + age, "application-payload"),
+    );
+  assert.throws(() =>
+    requireApplicationReleaseProtectionDigest(owner, true, now, "application-payload"),
+  );
+});
+
 void test("writer policy requires fresh exact per-ref principals and unbypassable immutable ref rules", () => {
   const names = ["portcove-release-inputs", "portcove-release-pause"];
   const rulesets = names.flatMap((branch, index) => [
     {
       id: index * 2 + 1,
+      target: "branch",
       enforcement: "active",
       conditions: { ref_name: { include: [`refs/heads/${branch}`], exclude: [] } },
       rules: [{ type: "update" }],
@@ -292,6 +605,7 @@ void test("writer policy requires fresh exact per-ref principals and unbypassabl
     },
     {
       id: index * 2 + 2,
+      target: "branch",
       enforcement: "active",
       conditions: { ref_name: { include: [`refs/heads/${branch}`], exclude: [] } },
       rules: ["creation", "deletion", "non_fast_forward"].map((type) => ({ type })),
@@ -346,95 +660,119 @@ void test("writer policy requires fresh exact per-ref principals and unbypassabl
   assert.throws(() => requireReleaseInputWriterPolicy(make(), 202));
 });
 
-void test("held CLI source admission runs without installed dependencies and refuses before credential operations", async (context) => {
-  const root = disposableDirectory(context, path.join(os.tmpdir(), "portcove-input-admission-"));
-  await mkdir(path.join(root, "scripts"));
-  await mkdir(path.join(root, ".github/workflows"), { recursive: true });
-  for (const file of [
-    "release-reviewed-inputs.mts",
-    "release-control-phases.mts",
-    "assembler-job-identity.mts",
-    "production-controller-admission.mts",
-    "github-api.mts",
-    "release-readonly-child-environment.mts",
-    "release-coordinator-deadline.mts",
-    "release-signing-job-budget.mts",
-    "release-authority-configuration.mts",
-    "release-authority-configuration-contract.mts",
-    "release-catalog-publication-contract.mts",
-    "release-metadata-contract.mts",
-    "controller-node-runtime.mts",
-    "release-canonical.mts",
-    "release-coordinator-namespace.mts",
-    "linux-beta-risk-706-profile.mts",
-    "release-native-qualification-contract.mts",
-    "runtime-values.mts",
-    "release-coordinator-errors.mts",
-    "release-input-protections.mts",
-    "release-classification-contract.mts",
-    "release-classification-principal.mts",
-  ])
-    await copyFile(new URL(file, import.meta.url), path.join(root, "scripts", file));
-  const workflow = Buffer.from("fixed inert source fixture\n");
-  await writeFile(path.join(root, ".github/workflows/release-reviewed-inputs.yml"), workflow);
-  const ref = "refs/tags/portcove-production-controller-fixture";
-  const policy = {
-    schema_version: 1,
-    mode: "admission-only",
-    execution_ref: ref,
-    revision: source,
-    workflow_sha256: createHash("sha256").update(workflow).digest("hex"),
-    actor_id: "43177418",
-  };
-  const env = {
-    ...process.env,
-    GH_TOKEN: undefined,
-    GITHUB_TOKEN: undefined,
-    PORTCOVE_CONTROL_APP_TOKEN: undefined,
-    GITHUB_ACTIONS: "true",
-    GITHUB_SERVER_URL: "https://github.com",
-    GITHUB_API_URL: "https://api.github.com",
-    GITHUB_REPOSITORY: "boburning/portcove",
-    GITHUB_REPOSITORY_ID: "1354613114",
-    GITHUB_EVENT_NAME: "workflow_dispatch",
-    GITHUB_REF: ref,
-    GITHUB_REF_TYPE: "tag",
-    GITHUB_REF_PROTECTED: "true",
-    GITHUB_SHA: source,
-    GITHUB_WORKFLOW_SHA: source,
-    GITHUB_WORKFLOW_REF: `boburning/portcove/.github/workflows/release-reviewed-inputs.yml@${ref}`,
-    GITHUB_ACTOR: "boburning",
-    GITHUB_ACTOR_ID: "43177418",
-    GITHUB_TRIGGERING_ACTOR: "boburning",
-    GITHUB_RUN_ID: "9988",
-    GITHUB_RUN_ATTEMPT: "1",
-    GITHUB_JOB: "admission",
-    RUNNER_ENVIRONMENT: "github-hosted",
-    PORTCOVE_CONTROLLER_REVISION: source,
-    PORTCOVE_CONTROLLER_REF: ref,
-    PORTCOVE_CONTROLLER_ADMISSION: JSON.stringify(policy),
-    RUNNER_TEMP: root,
-  };
-  const result: unknown = JSON.parse(
-    execFileSync(
-      process.execPath,
-      [path.join(root, "scripts/release-reviewed-inputs.mts"), "admission"],
-      { env, encoding: "utf8" },
-    ),
+async function copyAdmissionModules(sourceRoot: string, destination: string) {
+  // Admission and held persistence refusal stop before later dynamic production
+  // imports. Runtime-selected workflow bytes remain an explicit inert fixture.
+  const inventory = readFixtureModuleClosure(sourceRoot, ["scripts/release-reviewed-inputs.mts"], {
+    includeDynamicImports: false,
+  });
+  assert.ok(inventory.external.every(isBuiltin), inventory.external.join(", "));
+  for (const module of inventory.modules) {
+    const target = path.join(destination, module.path);
+    await mkdir(path.dirname(target), { recursive: true });
+    await writeFile(target, module.bytes, { flag: "wx" });
+  }
+  return inventory;
+}
+
+void test("held admission fixture refuses transitive external packages before copying", async (context) => {
+  const source = disposableDirectory(context, path.join(os.tmpdir(), "portcove-input-packages-"));
+  const destination = disposableDirectory(context, path.join(os.tmpdir(), "portcove-input-copy-"));
+  await mkdir(path.join(source, "scripts"));
+  await writeFile(
+    path.join(source, "scripts/release-reviewed-inputs.mts"),
+    'import "./helper.mts";\n',
   );
-  assert.ok(result);
-  assert.throws(() =>
-    execFileSync(
-      process.execPath,
-      [path.join(root, "scripts/release-reviewed-inputs.mts"), "persist"],
-      { env, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] },
-    ),
-  );
-  assert.match(
-    await readFile(path.join(root, "release-reviewed-inputs-persist.jsonl"), "utf8"),
-    /"status":"refused"/,
-  );
+  await writeFile(path.join(source, "scripts/helper.mts"), 'import "forbidden-fixture-package";\n');
+  await assert.rejects(copyAdmissionModules(source, destination), /forbidden-fixture-package/);
+  await assert.rejects(access(path.join(destination, "scripts")), { code: "ENOENT" });
 });
+
+for (const addedHelper of [false, true])
+  void test(`held CLI source admission runs without installed dependencies and refuses before credential operations${addedHelper ? " with a new transitive helper" : ""}`, async (context) => {
+    const root = disposableDirectory(context, path.join(os.tmpdir(), "portcove-input-admission-"));
+    const repository = fileURLToPath(new URL("..", import.meta.url));
+    if (addedHelper) {
+      const staging = disposableDirectory(
+        context,
+        path.join(os.tmpdir(), "portcove-input-source-"),
+      );
+      await copyAdmissionModules(repository, staging);
+      // Change a transitive dependency, not the fixture entry list. The fresh
+      // isolated copy must discover, copy and load the new relative helper.
+      await appendFile(
+        path.join(staging, "scripts/runtime-values.mts"),
+        '\nimport "./fixture-added/helper.mts";\n',
+      );
+      await mkdir(path.join(staging, "scripts/fixture-added"));
+      await writeFile(path.join(staging, "scripts/fixture-added/helper.mts"), "export {};\n");
+      const inventory = await copyAdmissionModules(staging, root);
+      assert.ok(
+        inventory.modules.some((module) => module.path === "scripts/fixture-added/helper.mts"),
+      );
+    } else await copyAdmissionModules(repository, root);
+    await assert.rejects(access(path.join(root, "node_modules")), { code: "ENOENT" });
+    await mkdir(path.join(root, ".github/workflows"), { recursive: true });
+    const workflow = Buffer.from("fixed inert source fixture\n");
+    await writeFile(path.join(root, ".github/workflows/release-reviewed-inputs.yml"), workflow);
+    const ref = "refs/tags/portcove-production-controller-fixture";
+    const policy = {
+      schema_version: 1,
+      mode: "admission-only",
+      execution_ref: ref,
+      revision: source,
+      workflow_sha256: createHash("sha256").update(workflow).digest("hex"),
+      actor_id: "43177418",
+    };
+    const env = {
+      ...process.env,
+      GH_TOKEN: undefined,
+      GITHUB_TOKEN: undefined,
+      PORTCOVE_CONTROL_APP_TOKEN: undefined,
+      GITHUB_ACTIONS: "true",
+      GITHUB_SERVER_URL: "https://github.com",
+      GITHUB_API_URL: "https://api.github.com",
+      GITHUB_REPOSITORY: "boburning/portcove",
+      GITHUB_REPOSITORY_ID: "1354613114",
+      GITHUB_EVENT_NAME: "workflow_dispatch",
+      GITHUB_REF: ref,
+      GITHUB_REF_TYPE: "tag",
+      GITHUB_REF_PROTECTED: "true",
+      GITHUB_SHA: source,
+      GITHUB_WORKFLOW_SHA: source,
+      GITHUB_WORKFLOW_REF: `boburning/portcove/.github/workflows/release-reviewed-inputs.yml@${ref}`,
+      GITHUB_ACTOR: "boburning",
+      GITHUB_ACTOR_ID: "43177418",
+      GITHUB_TRIGGERING_ACTOR: "boburning",
+      GITHUB_RUN_ID: "9988",
+      GITHUB_RUN_ATTEMPT: "1",
+      GITHUB_JOB: "admission",
+      RUNNER_ENVIRONMENT: "github-hosted",
+      PORTCOVE_CONTROLLER_REVISION: source,
+      PORTCOVE_CONTROLLER_REF: ref,
+      PORTCOVE_CONTROLLER_ADMISSION: JSON.stringify(policy),
+      RUNNER_TEMP: root,
+    };
+    const result: unknown = JSON.parse(
+      execFileSync(
+        process.execPath,
+        [path.join(root, "scripts/release-reviewed-inputs.mts"), "admission"],
+        { cwd: root, env, encoding: "utf8", timeout: 10000 },
+      ),
+    );
+    assert.ok(result);
+    assert.throws(() =>
+      execFileSync(
+        process.execPath,
+        [path.join(root, "scripts/release-reviewed-inputs.mts"), "persist"],
+        { cwd: root, env, encoding: "utf8", timeout: 10000, stdio: ["ignore", "pipe", "pipe"] },
+      ),
+    );
+    assert.match(
+      await readFile(path.join(root, "release-reviewed-inputs-persist.jsonl"), "utf8"),
+      /"status":"refused"/,
+    );
+  });
 
 void test("protection expiry during source acquisition refuses immediately before CAS with zero mutations", () => {
   const f = fixture();
@@ -521,4 +859,40 @@ void test("legacy persisted classification refuses consumption and is never over
   assert.throws(() => readReviewedClassification(f.api, config, opportunity));
   assert.throws(() => persistReviewedClassification(f.api, config, opportunity, 303, () => {}));
   assert.equal(f.mutations(), 1);
+});
+
+void test("fixed protection reader uses the explicit observer credential and exact GET scope", async (t) => {
+  let dispatches = 0;
+  let guards = 0;
+  const deadline = performance.now() + 5000;
+  const read = await createProtectionObservationReader({
+    token: "inert-protection-observer",
+    deadline,
+    maxBytes: 4 * 1024 ** 2,
+    requestTimeoutMs: 30000,
+    guard: () => {
+      guards++;
+    },
+  });
+  t.mock.method(
+    globalThis,
+    "fetch",
+    async (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
+      const request = new Request(input, init);
+      dispatches++;
+      assert.equal(request.url, "https://api.github.com/repos/boburning/portcove");
+      assert.equal(request.method, "GET");
+      assert.equal(request.headers.get("authorization"), "token inert-protection-observer");
+      assert.equal(guards, 1);
+      return Response.json({ id: 1354613114 });
+    },
+  );
+  await assert.rejects(async () => read("repos/boburning/elsewhere", deadline), /unscoped route/u);
+  assert.equal(dispatches, 0);
+  assert.deepEqual(await read("repos/boburning/portcove", deadline), {
+    status: 200,
+    body: { id: 1354613114 },
+  });
+  assert.equal(dispatches, 1);
+  assert.equal(guards, 2);
 });

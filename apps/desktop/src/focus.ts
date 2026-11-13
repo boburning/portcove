@@ -34,6 +34,38 @@ export function focusAndReveal(item: HTMLElement | null | undefined) {
   if (item && region) regionFocus.set(region, item);
   item?.focus({ preventScroll: true });
   item?.scrollIntoView({ block: "nearest", inline: "nearest" });
+  if (item) containWithinScroller(item);
+}
+
+/**
+ * Browsers round scroll positions to whole pixels, which can leave a control with a
+ * fractional height clipped by less than a pixel after a "nearest" reveal. Nudge the
+ * nearest vertical scroller outward so the revealed control is fully contained.
+ */
+function containWithinScroller(item: HTMLElement) {
+  let scroller = item.parentElement;
+  while (scroller && scroller !== document.body) {
+    const { overflowY } = getComputedStyle(scroller);
+    if (/(auto|scroll|overlay)/u.test(overflowY) && scroller.scrollHeight > scroller.clientHeight)
+      break;
+    scroller = scroller.parentElement;
+  }
+  const target = scroller && scroller !== document.body ? scroller : document.scrollingElement;
+  if (!target) return;
+  const bounds =
+    target === document.scrollingElement
+      ? { top: 0, bottom: window.innerHeight }
+      : target.getBoundingClientRect();
+  const visibleTop = bounds.top + (target === document.scrollingElement ? 0 : target.clientTop);
+  const visibleBottom = visibleTop + target.clientHeight;
+  const rect = item.getBoundingClientRect();
+  if (rect.height > target.clientHeight) return;
+  // Only a sub-pixel residual is corrected; anything larger belongs to the browser's
+  // own reveal or to deliberate scroll restoration and is left untouched.
+  const below = rect.bottom - visibleBottom;
+  const above = visibleTop - rect.top;
+  if (below > 0 && below < 1) target.scrollTop += 1;
+  else if (above > 0 && above < 1) target.scrollTop -= 1;
 }
 
 export function focusRegion(name: "sidebar" | "workspace") {
@@ -54,7 +86,9 @@ export function cyclePrimaryNavigation(offset: number, navigate?: (offset: numbe
   if (navigationScope() !== document) return;
   const navigation = document.querySelector<HTMLElement>("nav[aria-label='Primary navigation']");
   if (!navigation) return;
-  const items = focusableControls(navigation);
+  const items = focusableControls(navigation).filter((item) =>
+    item.hasAttribute("data-navigation-destination"),
+  );
   // Compact navigation exposes a dialog trigger instead of visible destination
   // controls. Its owning app changes routes through the same callback as clicks.
   if (items.length === 0) {

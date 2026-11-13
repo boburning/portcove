@@ -1,5 +1,5 @@
 use std::{
-    collections::BTreeMap,
+    collections::{BTreeMap, BTreeSet},
     fs,
     io::Read,
     path::{Path, PathBuf},
@@ -14,12 +14,19 @@ use crate::{Library, PortcoveError, PortcoveService, Result};
 
 mod destination;
 mod igdb_cache;
+pub(crate) mod steamgriddb;
 pub use destination::{
     ARTWORK_HANDOFF_SCHEMA, DestinationArtworkBytes, DestinationArtworkContent,
     DestinationArtworkHandoff, DestinationArtworkRole, DestinationArtworkSource,
     DestinationArtworkUnavailableReason,
 };
 pub use igdb_cache::IGDB_ARTWORK_WORK_LIMIT;
+pub use steamgriddb::{
+    STEAMGRIDDB_API_ORIGIN, STEAMGRIDDB_KEY_PREFERENCES_URL, SteamGridDbAuthor,
+    SteamGridDbCandidate, SteamGridDbFailure, SteamGridDbGame, SteamGridDbKeyStatus,
+    clear_steamgriddb_key, search_steamgriddb_games, set_steamgriddb_key, steamgriddb_candidates,
+    steamgriddb_credit_url, steamgriddb_key_status, steamgriddb_preview,
+};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
@@ -66,11 +73,59 @@ pub struct ArtworkChoice {
     pub asset_sha256: Option<String>,
 }
 
+/// A remote provider an image was chosen from; a local import has none.
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, JsonSchema,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum ArtworkProvider {
+    Steamgriddb,
+}
+
+impl ArtworkProvider {
+    pub(crate) fn key(self) -> &'static str {
+        match self {
+            Self::Steamgriddb => "steamgriddb",
+        }
+    }
+}
+
+/// Where a provider image came from and who made it. Recorded per origin, never
+/// replaced by a later identical import, and shown wherever the image is credited.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ArtworkAttribution {
+    pub provider: ArtworkProvider,
+    /// The provider's identity for this image.
+    pub asset_id: u64,
+    /// The provider's game the image was listed under; a proposal, not port identity.
+    pub game_id: u64,
+    pub role: DestinationArtworkRole,
+    pub author_name: String,
+    pub author_steam64: Option<String>,
+    pub source_url: String,
+    pub fetched_at: i64,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ArtworkProviderRecord {
+    pub asset_sha256: String,
+    pub attribution: ArtworkAttribution,
+}
+
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct ArtworkMetadata {
     pub assets: Vec<LocalArtworkAsset>,
     pub choices: Vec<ArtworkChoice>,
+    /// Provider provenance; present only under library metadata schema 8.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub providers: Vec<ArtworkProviderRecord>,
+    /// Assets that exist only because a provider image was chosen; no local import
+    /// of the same bytes was made. Present only under library metadata schema 8.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub provider_only_assets: Vec<String>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
@@ -114,6 +169,28 @@ pub struct ArtworkState {
     pub reason: Option<String>,
     pub resolved_source: ArtworkResolvedSource,
     pub generated_fallback: GeneratedArtworkFallback,
+    /// Provider credits for the selected image; empty for a purely local import.
+    pub attribution: Vec<ArtworkAttribution>,
+}
+
+/// The destination role a provider image is chosen for in each local slot.
+pub(crate) fn provider_role(slot: ArtworkSlot) -> DestinationArtworkRole {
+    match slot {
+        ArtworkSlot::Cover => DestinationArtworkRole::PortraitCover,
+        ArtworkSlot::Detail => DestinationArtworkRole::HeroBanner,
+    }
+}
+
+pub(crate) enum IngestOrigin {
+    Local,
+    Provider(ArtworkAttribution),
+}
+
+pub(crate) struct IngestedArtwork<'a> {
+    pub(crate) bytes: &'a [u8],
+    pub(crate) decoded: &'a crate::artwork_image::DecodedArtwork,
+    pub(crate) original_name: String,
+    pub(crate) origin: IngestOrigin,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
@@ -181,6 +258,74 @@ impl PortcoveService {
         Err(unknown)
     }
 
+    /// Content identities of remote originals that a currently resolvable port
+    /// still references: the current catalog plus the retained installed,
+    /// registered and unfinished-setup identities that `artwork_port` serves.
+    fn referenced_remote_originals(&self) -> Result<BTreeSet<String>> {
+        fn add(referenced: &mut BTreeSet<String>, listing: &crate::PortListing) {
+            referenced.extend(listing.artwork.iter().map(|art| art.image_sha256.clone()));
+            referenced.extend(listing.media.iter().map(|asset| asset.sha256.clone()));
+        }
+        let mut referenced = BTreeSet::new();
+        for listing in self.catalog().listings() {
+            add(&mut referenced, listing);
+        }
+        let connection = self.library().connection()?;
+        let mut retained: BTreeSet<String> = Library::installs_from(&connection)?
+            .into_iter()
+            .map(|install| install.port_id)
+            .collect();
+        retained.extend(Library::external_runtime_port_ids_from(&connection)?);
+        retained.extend(
+            Self::pending_setups_from(&connection)?
+                .into_iter()
+                .map(|record| record.port_id),
+        );
+        drop(connection);
+        for port_id in retained {
+            if self.catalog().listing(&port_id).is_ok() {
+                continue;
+            }
+            match self.artwork_port(&port_id) {
+                Ok(listing) => add(&mut referenced, &listing),
+                // An identity with no resolvable listing presents no remote image.
+                Err(error) if error.code == crate::ErrorCode::NotFound => {}
+                Err(error) => return Err(error),
+            }
+        }
+        Ok(referenced)
+    }
+
+    /// Publishes a verified remote original under the artwork lock and retires
+    /// cached remote originals that no resolvable port references any more,
+    /// such as a cover replaced or withdrawn by a signed catalog correction.
+    /// When references cannot be established, every existing entry is retained.
+    pub(crate) fn publish_remote_original(
+        &self,
+        path: &Path,
+        pending_name: &str,
+        bytes: &[u8],
+    ) -> Result<()> {
+        let referenced = match self.referenced_remote_originals() {
+            Ok(referenced) => Some(referenced),
+            Err(error) => {
+                tracing::warn!(
+                    code = ?error.code,
+                    "artwork cache retained every remote original: references unavailable"
+                );
+                None
+            }
+        };
+        publish_cache_file(
+            self.library(),
+            path,
+            pending_name,
+            crate::artwork_image::MAX_ORIGINAL_BYTES,
+            bytes,
+            referenced.as_ref(),
+        )
+    }
+
     pub fn artwork(&self, port_id: &str, slot: ArtworkSlot) -> Result<ArtworkState> {
         let port = self.artwork_port(port_id)?;
         self.artwork_for_listing(&port, slot)
@@ -200,6 +345,10 @@ impl PortcoveService {
             .as_deref()
             .map(|id| crate::artwork_store::asset(&transaction, id))
             .transpose()?;
+        let attribution = match &selection {
+            Some(asset) => crate::artwork_store::attributions(&transaction, &asset.sha256)?,
+            None => Vec::new(),
+        };
         transaction.commit()?;
         let generated_fallback = generated_fallback(port_id, &port.name, slot)?;
         let (availability, reason, resolved_source) = match &selection {
@@ -240,6 +389,7 @@ impl PortcoveService {
             reason,
             resolved_source,
             generated_fallback,
+            attribution,
         })
     }
 
@@ -262,8 +412,118 @@ impl PortcoveService {
             .and_then(|name| name.to_str())
             .ok_or_else(|| PortcoveError::usage("artwork needs a Unicode filename"))?
             .to_owned();
+        self.ingest_artwork(
+            &port,
+            slot,
+            IngestedArtwork {
+                bytes: &bytes,
+                decoded: &decoded,
+                original_name,
+                origin: IngestOrigin::Local,
+            },
+            expected_revision,
+        )
+    }
+
+    /// Choose one SteamGridDB image for a port's slot. Cover takes the portrait
+    /// role and Detail the hero role. The candidate is re-resolved with the
+    /// player's key and fetched before the artwork lock or any transaction is
+    /// taken; the revision checks during ingestion then reject a stale choice.
+    pub fn choose_steamgriddb_artwork(
+        &self,
+        port_id: &str,
+        slot: ArtworkSlot,
+        game_id: u64,
+        candidate_id: u64,
+        expected_revision: u64,
+    ) -> Result<ArtworkState> {
+        let port = self.artwork_port(port_id)?;
+        let fetched =
+            steamgriddb::fetch_chosen_candidate(game_id, provider_role(slot), candidate_id)?;
+        self.choose_fetched_artwork(&port, slot, game_id, fetched, expected_revision)
+    }
+
+    pub(crate) fn choose_fetched_artwork(
+        &self,
+        port: &crate::PortListing,
+        slot: ArtworkSlot,
+        game_id: u64,
+        fetched: steamgriddb::FetchedCandidate,
+        expected_revision: u64,
+    ) -> Result<ArtworkState> {
+        let steamgriddb::FetchedCandidate { candidate, bytes } = fetched;
+        if candidate.role != provider_role(slot) {
+            return Err(PortcoveError::verification(
+                "the SteamGridDB image was listed for a different artwork role",
+            ));
+        }
+        // The shared decode refuses animated PNGs, which also covers images the
+        // provider's static filter missed.
+        let decoded = crate::artwork_image::decode(&bytes)?;
+        let listed_format = match candidate.mime.as_str() {
+            "image/png" => ArtworkImageFormat::Png,
+            "image/jpeg" => ArtworkImageFormat::Jpeg,
+            _ => {
+                return Err(PortcoveError::verification(
+                    "the SteamGridDB image type is not supported",
+                ));
+            }
+        };
+        if decoded.format != listed_format
+            || decoded.width != candidate.width
+            || decoded.height != candidate.height
+        {
+            return Err(PortcoveError::verification(
+                "the SteamGridDB image differs from its listing; the current artwork was kept",
+            ));
+        }
+        let extension = match decoded.format {
+            ArtworkImageFormat::Png => "png",
+            ArtworkImageFormat::Jpeg => "jpg",
+        };
+        let attribution = ArtworkAttribution {
+            provider: ArtworkProvider::Steamgriddb,
+            asset_id: candidate.id,
+            game_id,
+            role: candidate.role,
+            author_name: candidate.author.name,
+            author_steam64: candidate.author.steam64,
+            source_url: candidate.url,
+            fetched_at: Library::now(),
+        };
+        crate::artwork_store::validate_attribution(&attribution)?;
+        let _guard = self.library().try_lock_artwork()?;
+        self.ingest_artwork(
+            port,
+            slot,
+            IngestedArtwork {
+                bytes: &bytes,
+                decoded: &decoded,
+                original_name: format!("steamgriddb-{}.{extension}", candidate.id),
+                origin: IngestOrigin::Provider(attribution),
+            },
+            expected_revision,
+        )
+    }
+
+    /// The single ingestion path for local and provider images. The caller holds
+    /// the artwork lock and has already read and decoded bounded bytes.
+    pub(crate) fn ingest_artwork(
+        &self,
+        port: &crate::PortListing,
+        slot: ArtworkSlot,
+        image: IngestedArtwork<'_>,
+        expected_revision: u64,
+    ) -> Result<ArtworkState> {
+        let port_id = port.id.as_str();
+        let IngestedArtwork {
+            bytes,
+            decoded,
+            original_name,
+            origin,
+        } = image;
         let proposed = LocalArtworkAsset {
-            sha256: crate::signed_catalog::digest(&bytes),
+            sha256: crate::signed_catalog::digest(bytes),
             original_name,
             format: decoded.format,
             byte_size: bytes.len() as u64,
@@ -276,9 +536,27 @@ impl PortcoveService {
         let transaction = connection.transaction()?;
         crate::artwork_store::require_revision(&transaction, port_id, slot, expected_revision)?;
         crate::artwork_store::check_capacity(&transaction, &proposed)?;
+        let existed = crate::artwork_store::asset_exists(&transaction, &proposed.sha256)?;
         // Reserve durable inventory before publishing bytes. Interruption leaves
         // a tracked unused asset that can be retried or explicitly removed.
         crate::artwork_store::write_asset(&transaction, &proposed)?;
+        match origin {
+            IngestOrigin::Local => {
+                crate::artwork_store::record_local_origin(&transaction, &proposed.sha256)?
+            }
+            IngestOrigin::Provider(attribution) => {
+                crate::artwork_store::write_provider(
+                    &transaction,
+                    &ArtworkProviderRecord {
+                        asset_sha256: proposed.sha256.clone(),
+                        attribution,
+                    },
+                )?;
+                if !existed {
+                    crate::artwork_store::mark_provider_only(&transaction, &proposed.sha256)?;
+                }
+            }
+        }
         transaction.commit()?;
         let path = original_path(self.library(), &proposed.sha256)?;
         ensure_parent(&path)?;
@@ -295,7 +573,7 @@ impl PortcoveService {
                 self.library(),
                 &proposed.sha256,
                 &path,
-                &bytes,
+                bytes,
             )?;
         }
         let transaction = connection.transaction()?;
@@ -317,7 +595,7 @@ impl PortcoveService {
             &proposed.sha256,
             &decoded.thumbnail,
         );
-        self.artwork_for_listing(&port, slot)
+        self.artwork_for_listing(port, slot)
     }
 
     pub fn reset_artwork(
@@ -372,7 +650,7 @@ impl PortcoveService {
                                 "the artwork choice changed during cover retrieval",
                             ));
                         }
-                        publish_igdb_original(self.library(), artwork, original)
+                        self.publish_igdb_original(artwork, original)
                     })?;
                 let connection = self.library().connection()?;
                 let current = crate::artwork_store::require_revision(
@@ -489,6 +767,7 @@ impl PortcoveService {
             "DELETE FROM artwork_thumbnails WHERE asset_sha256=?1",
             [asset_sha256],
         )?;
+        crate::artwork_store::remove_asset_provenance(&transaction, asset_sha256)?;
         transaction.execute("DELETE FROM artwork_assets WHERE sha256=?1", [asset_sha256])?;
         transaction.commit()?;
         Ok(())
@@ -558,6 +837,7 @@ fn publish_thumbnail_file(library: &Library, id: &str, bytes: &[u8]) -> Result<(
         "pending-thumbnail",
         crate::artwork_image::MAX_THUMBNAIL_BYTES,
         bytes,
+        None,
     )
 }
 
@@ -567,13 +847,39 @@ pub(crate) fn publish_cache_file(
     pending_name: &str,
     maximum_bytes: u64,
     bytes: &[u8],
+    referenced_remote: Option<&BTreeSet<String>>,
 ) -> Result<()> {
     if bytes.len() as u64 > maximum_bytes {
         return Err(PortcoveError::verification(
             "artwork cache entry exceeds its byte limit",
         ));
     }
-    let files = cache_files(library)?;
+    let mut files = cache_files(library)?;
+    if let Some(referenced) = referenced_remote {
+        // Remote originals are digest-named. Local-import thumbnails and
+        // interrupted staging keep their own repair paths.
+        let mut kept = Vec::with_capacity(files.len());
+        for (existing, size) in files {
+            let remote = matches!(
+                existing
+                    .extension()
+                    .and_then(|extension| extension.to_str()),
+                Some("jpg" | "image")
+            );
+            let unreferenced = existing
+                .file_stem()
+                .and_then(|stem| stem.to_str())
+                .is_some_and(|stem| !referenced.contains(stem));
+            // A stale entry that cannot be removed now (for example, held open
+            // by another process) stays for a later publication or the size
+            // bound; it never fails this verified publication.
+            if !(remote && unreferenced && existing != path) || fs::remove_file(&existing).is_err()
+            {
+                kept.push((existing, size));
+            }
+        }
+        files = kept;
+    }
     let mut total = files
         .iter()
         .filter(|(existing, _)| existing != path)
@@ -941,18 +1247,18 @@ fn igdb_original_path(library: &Library, artwork: &crate::IgdbArtwork) -> Result
     Ok(path)
 }
 
-fn publish_igdb_original(
-    library: &Library,
-    artwork: &crate::IgdbArtwork,
-    original: &[u8],
-) -> Result<()> {
-    publish_cache_file(
-        library,
-        &igdb_original_path(library, artwork)?,
-        "pending-igdb-original",
-        crate::artwork_image::MAX_ORIGINAL_BYTES,
-        original,
-    )
+impl PortcoveService {
+    pub(crate) fn publish_igdb_original(
+        &self,
+        artwork: &crate::IgdbArtwork,
+        original: &[u8],
+    ) -> Result<()> {
+        self.publish_remote_original(
+            &igdb_original_path(self.library(), artwork)?,
+            "pending-igdb-original",
+            original,
+        )
+    }
 }
 
 fn igdb_cache_id(artwork: &crate::IgdbArtwork) -> String {

@@ -19,37 +19,31 @@ async function provider() {
         return [
           pathname,
           {
-            status: 200,
-            body: {
-              type: "file",
-              path: pathname,
-              encoding: "base64",
-              size: bytes.length,
-              content: bytes.toString("base64"),
-              sha: createHash("sha1")
-                .update(Buffer.from(`blob ${bytes.length}\0`))
-                .update(bytes)
-                .digest("hex"),
-            },
+            type: "file",
+            path: pathname,
+            encoding: "base64",
+            size: bytes.length,
+            content: bytes.toString("base64"),
+            sha: createHash("sha1")
+              .update(Buffer.from(`blob ${bytes.length}\0`))
+              .update(bytes)
+              .digest("hex"),
           },
         ] satisfies [
           typeof pathname,
           {
-            status: number;
-            body: {
-              type: string;
-              path: string;
-              encoding: string;
-              size: number;
-              content: string;
-              sha: string;
-            };
+            type: string;
+            path: string;
+            encoding: string;
+            size: number;
+            content: string;
+            sha: string;
           },
         ];
       }),
     ),
   );
-  return (pathname: (typeof nativeCompatibilitySourcePaths)[number]) =>
+  return async (pathname: (typeof nativeCompatibilitySourcePaths)[number]) =>
     structuredClone(responses.get(pathname)!);
 }
 
@@ -57,7 +51,7 @@ void test("provider source reads retain the exact four immutable inputs and refu
   const directory = disposableDirectory(t, path.join(os.tmpdir(), "native-source-provider-"));
   const read = await provider(),
     seen: string[] = [];
-  const result = await retainNativeSourceDeclarations(directory, (pathname) => {
+  const result = await retainNativeSourceDeclarations(directory, async (pathname) => {
     seen.push(pathname);
     return read(pathname);
   });
@@ -77,30 +71,29 @@ void test("provider source reads retain the exact four immutable inputs and refu
 
 void test("wrong path, size, blob identity, encoding and unavailable provider cannot supply declarations", async (t) => {
   const read = await provider();
-  for (const fault of ["path", "size", "sha", "encoding", "content", "status"] as const) {
+  for (const fault of ["path", "size", "sha", "encoding", "content", "unavailable"] as const) {
     const directory = disposableDirectory(t, path.join(os.tmpdir(), "native-source-refusal-"));
     await assert.rejects(
-      retainNativeSourceDeclarations(directory, (pathname) => {
-        const response = read(pathname);
+      retainNativeSourceDeclarations(directory, async (pathname) => {
+        const response = await read(pathname);
         switch (fault) {
           case "path":
-            response.body.path = "foreign/path" as typeof response.body.path;
+            response.path = "foreign/path" as typeof response.path;
             break;
           case "size":
-            response.body.size++;
+            response.size++;
             break;
           case "sha":
-            response.body.sha = "0".repeat(40);
+            response.sha = "0".repeat(40);
             break;
           case "encoding":
-            response.body.encoding = "utf8";
+            response.encoding = "utf8";
             break;
           case "content":
-            response.body.content = "!";
+            response.content = "!";
             break;
-          case "status":
-            response.status = 404;
-            break;
+          case "unavailable":
+            return undefined;
         }
         return response;
       }),
@@ -111,38 +104,32 @@ void test("wrong path, size, blob identity, encoding and unavailable provider ca
 void test("non-inline contents resolve only their exact immutable blob within the file budget", async (t) => {
   const read = await provider();
   const pathname = nativeCompatibilitySourcePaths[2];
-  const original = read(pathname);
-  const metadata = {
-    ...original,
-    body: { ...original.body, encoding: "none", content: "" },
-  };
+  const original = await read(pathname);
+  const metadata = { ...original, encoding: "none", content: "" };
   const blob = {
-    status: 200,
-    body: {
-      sha: original.body.sha,
-      size: original.body.size,
-      encoding: "base64",
-      content: original.body.content,
-    },
+    sha: original.sha,
+    size: original.size,
+    encoding: "base64",
+    content: original.content,
   };
-  const contents = (name: (typeof nativeCompatibilitySourcePaths)[number]) =>
+  const contents = async (name: (typeof nativeCompatibilitySourcePaths)[number]) =>
     name === pathname ? structuredClone(metadata) : read(name);
   const directory = disposableDirectory(t, path.join(os.tmpdir(), "native-source-blob-"));
   const requested: string[] = [];
-  const result = await retainNativeSourceDeclarations(directory, contents, (sha) => {
+  const result = await retainNativeSourceDeclarations(directory, contents, async (sha) => {
     requested.push(sha);
     return structuredClone(blob);
   });
-  assert.deepEqual(requested, [original.body.sha]);
-  assert.equal(result.files.find((file) => file.path === pathname)?.bytes, original.body.size);
+  assert.deepEqual(requested, [original.sha]);
+  assert.equal(result.files.find((file) => file.path === pathname)?.bytes, original.size);
   assert.deepEqual(
     await readFile(path.join(directory, "native-source-2.bin")),
-    Buffer.from(original.body.content, "base64"),
+    Buffer.from(original.content, "base64"),
   );
   assert.equal(result.authority, "none");
   for (const fault of [
     "missing",
-    "status",
+    "unavailable",
     "sha",
     "size",
     "encoding",
@@ -154,41 +141,41 @@ void test("non-inline contents resolve only their exact immutable blob within th
     switch (fault) {
       case "missing":
         break;
-      case "status":
-        changed.status = 404;
-        break;
+
       case "sha":
-        changed.body.sha = "0".repeat(40);
+        changed.sha = "0".repeat(40);
         break;
       case "size":
-        changed.body.size++;
+        changed.size++;
         break;
       case "encoding":
-        changed.body.encoding = "utf8";
+        changed.encoding = "utf8";
         break;
       case "content":
-        changed.body.content = "!";
+        changed.content = "!";
         break;
       case "oversized":
-        changed.body.content = "A".repeat(2 * nativeSourceDeclarationByteLimit(pathname) + 1);
+        changed.content = "A".repeat(2 * nativeSourceDeclarationByteLimit(pathname) + 1);
         break;
     }
     await assert.rejects(
       retainNativeSourceDeclarations(
         target,
         contents,
-        fault === "missing" ? undefined : () => changed,
+        fault === "missing"
+          ? undefined
+          : async () => (fault === "unavailable" ? undefined : changed),
       ),
     );
   }
   const oversized = structuredClone(metadata);
-  oversized.body.size = nativeSourceDeclarationByteLimit(pathname) + 1;
+  oversized.size = nativeSourceDeclarationByteLimit(pathname) + 1;
   let blobReads = 0;
   await assert.rejects(
     retainNativeSourceDeclarations(
       disposableDirectory(t, path.join(os.tmpdir(), "native-source-blob-size-")),
-      (name) => (name === pathname ? oversized : read(name)),
-      () => {
+      async (name) => (name === pathname ? oversized : read(name)),
+      async () => {
         blobReads++;
         return blob;
       },

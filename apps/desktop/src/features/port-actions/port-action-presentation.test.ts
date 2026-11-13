@@ -1,6 +1,6 @@
 import { fixtureValue } from "../../test-fixtures";
 import { expect, it } from "vite-plus/test";
-import { portStatus } from "../../test-fixtures";
+import { installedLaunchStatus, portStatus } from "../../test-fixtures";
 import type { PortStatus } from "../../types";
 import {
   catalogSetupPresentation,
@@ -164,7 +164,8 @@ it.each(
     portActionPresentation({ ...portStatus(), port_actions } as PortStatus, "rollback"),
   ).toEqual({
     blocked: true,
-    reason: "Current rollback availability is unavailable. Refresh the workspace to check again.",
+    reason:
+      "Portcove couldn’t check whether you can restore the previous version. Refresh to check again.",
   });
 });
 
@@ -212,12 +213,18 @@ it.each([
   ],
   ["publisher_scope_required", "This publisher is not approved for this port."],
   ["engine_capability_required", "This version of Portcove cannot use this route."],
-  ["ownership_migration_required", "An existing installation needs ownership review."],
+  [
+    "ownership_migration_required",
+    "Review which installation Portcove would manage before continuing.",
+  ],
   ["metadata_replay", "The catalog update is older than the accepted version."],
   ["refresh_incomplete", "The catalog update did not finish."],
   ["metadata_stale", "The catalog information needs refreshing."],
   ["recorded_identity_changed", "The accepted file identity changed."],
-  ["authenticated_integrity_required", "The required file integrity evidence is missing."],
+  [
+    "authenticated_integrity_required",
+    "Portcove is missing the expected verification for this download.",
+  ],
   ["local_integrity_failed", "A required local file check failed."],
   ["mandatory_check_failed", "A required check failed."],
   ["source_identity_mismatch", "The game files do not match the required edition."],
@@ -324,7 +331,7 @@ it.each([
   const status = { ...portStatus(), ...partial } as PortStatus;
   expect(portActionPresentation(status, "install")).toEqual({
     blocked: true,
-    reason: "Current setup availability is unavailable. Refresh the workspace to check again.",
+    reason: "Portcove couldn’t check whether setup can continue. Refresh to check again.",
   });
 });
 
@@ -446,7 +453,7 @@ it.each([
   "preserves malformed/legacy/future/contradictory setup projection as unknown: %j",
   (port_actions) => {
     const status = { ...portStatus(), port_actions } as PortStatus;
-    expect(catalogSetupPresentation(status).label).toBe("Setup status unknown");
+    expect(catalogSetupPresentation(status).label).toBe("Can't check right now");
   },
 );
 
@@ -514,7 +521,7 @@ it.each([
     const action = portActionPresentation(status, "launch");
     expect(action.blocked).toBe(true);
     expect(action.reason).toBe(
-      "The selected game-file format cannot be used by this runtime. Select and validate the required format before playing.",
+      "This game program can’t use that file format. Choose and check a file in the required format.",
     );
     expect(installedCardInputPresentation(status)?.reasons).toEqual([action.reason]);
   },
@@ -674,4 +681,40 @@ it("ignores malformed input entries without coercing them into reason codes", ()
     },
   } as unknown as PortStatus;
   expect(installedCardInputPresentation(status)).toBeUndefined();
+});
+
+it("asks to reconnect a disconnected saved folder instead of reporting deleted files", () => {
+  const status = withAssessment({
+    action: "launch",
+    availability: "waiting",
+    reason: "missing_source",
+  });
+  expect(portActionPresentation(status, "launch").reason).toBe("Required game files are missing.");
+  const disconnected = {
+    ...status,
+    readiness: {
+      ...status.readiness!,
+      blockers: ["missing_source" as const],
+      source_folder_unavailable: "N:/Games",
+    },
+  };
+  expect(portActionPresentation(disconnected, "launch")).toEqual({
+    blocked: true,
+    reason: "Connect N:/Games to play.",
+  });
+});
+
+it("labels the installed card with the disconnected folder, not missing files", () => {
+  const status = {
+    ...installedLaunchStatus({
+      launchable: false,
+      blockers: ["missing_source"],
+      pending_setup: false,
+      source_folder_unavailable: "\\\\?\\UNC\\nas\\games",
+    }),
+  };
+  const card = installedCardInputPresentation(status);
+  expect(card?.label).toBe("Game-file folder disconnected");
+  expect(JSON.stringify(card)).toContain("Connect \\\\\\\\nas\\\\games to play.");
+  expect(JSON.stringify(card)).not.toContain("select and review");
 });

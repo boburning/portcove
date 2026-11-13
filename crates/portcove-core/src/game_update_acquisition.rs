@@ -1,24 +1,17 @@
 //! Immutable update bytes. This journal never owns installed runtime or player data.
 use super::*;
+use crate::operation::acquisition::{AcquisitionJournal, AcquisitionOperation, root};
+#[cfg(test)]
+use crate::operation::acquisition::{
+    MAX_BYTES, MAX_RECORD_BYTES, MAX_RECORDS, require_capacity, validate_journal,
+};
 use crate::{GameUpdateAcquisition, GameUpdateAcquisitionPhase as Phase};
+#[cfg(test)]
 use rusqlite::Connection;
 use std::{
-    collections::HashMap,
     fs::OpenOptions,
     io::{Read, Write},
 };
-
-const MAX_RECORD_BYTES: usize = 64 * 1024;
-const MAX_RECORDS: usize = 256;
-const MAX_BYTES: u64 = 8 * 1024 * 1024 * 1024;
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub(crate) struct AcquisitionJournal {
-    pub view: GameUpdateAcquisition,
-    pub definition_sha256: String,
-    pub assets: Vec<crate::ReleaseAsset>,
-}
 
 /// Ephemeral validated input lease. Neither its files nor a retained journal grants authority.
 pub(crate) struct AcquiredInputs {
@@ -37,15 +30,6 @@ impl AcquiredInputs {
     }
 }
 
-fn root(library: &Library, id: &str) -> Result<PathBuf> {
-    Uuid::parse_str(id).map_err(|_| PortcoveError::verification("invalid acquisition ID"))?;
-    let root = library
-        .downloads_dir()
-        .join("update-acquisition-v1")
-        .join(id);
-    refuse_symlink_ancestors(&root)?;
-    Ok(root)
-}
 fn definition_digest(port: &PortDefinition) -> Result<String> {
     Ok(crate::signed_catalog::digest(&serde_json::to_vec(port)?))
 }
@@ -62,163 +46,6 @@ fn file(root: &Path, index: usize) -> PathBuf {
     root.join(format!("{index}.archive"))
 }
 
-pub(crate) fn decode_journal(json: Option<&str>) -> Result<Option<AcquisitionJournal>> {
-    json.map(|json| {
-        if json.len() > MAX_RECORD_BYTES {
-            return Err(PortcoveError::verification(
-                "acquisition record exceeds its byte bound",
-            ));
-        }
-        Ok(serde_json::from_str(json)?)
-    })
-    .transpose()
-}
-pub(crate) fn validate_journal(library: &Library, operation: &LifecycleOperation) -> Result<()> {
-    if operation.kind != LifecycleOperationKind::AcquireUpdate {
-        return if operation.update_acquisition.is_none() {
-            Ok(())
-        } else {
-            Err(PortcoveError::verification(
-                "another lifecycle family cannot own update acquisition",
-            ))
-        };
-    }
-    let payload = operation
-        .update_acquisition
-        .as_ref()
-        .ok_or_else(|| PortcoveError::verification("acquisition lost its typed journal"))?;
-    let bytes = payload.assets.iter().try_fold(0_u64, |total, asset| {
-        crate::archive::validate_download_progress(0, asset.size)?;
-        if asset.size == 0 {
-            return Err(PortcoveError::verification(
-                "immutable acquisition requires an independently bounded nonzero asset size",
-            ));
-        }
-        if asset.sha256.len() != 64 || !asset.sha256.bytes().all(|byte| byte.is_ascii_hexdigit()) {
-            return Err(PortcoveError::verification(
-                "acquisition requires an independently expected SHA-256",
-            ));
-        }
-        total
-            .checked_add(asset.size)
-            .ok_or_else(|| PortcoveError::verification("acquisition capacity overflow"))
-    })?;
-    let staging_matches = match operation.paths.staging.as_deref() {
-        Some(staging) if staging.is_absolute() => {
-            refuse_symlink_ancestors(staging)?;
-            let expected = root(library, &operation.id)?;
-            // Reopening a Windows library through its verbatim alias keeps the same owner.
-            crate::path::normalized_absolute(staging, "acquisition staging")?
-                == crate::path::normalized_absolute(&expected, "owned acquisition staging")?
-        }
-        _ => false,
-    };
-    if operation.id != payload.view.id
-        || operation.port_id != payload.view.port_id
-        || !staging_matches
-        || operation.phase != LifecyclePhase::Preparing
-        || operation.activate
-        || operation.install.is_some()
-        || operation.relocation.is_some()
-        || operation.source_import.is_some()
-        || operation.preparation.is_some()
-        || operation.ghostship_recovery.is_some()
-        || operation.backup_deletion.is_some()
-        || operation.preparation_process_quiesced.is_some()
-        || operation.external_registration_sha256.is_some()
-        || operation.paths.final_path.is_some()
-        || operation.paths.quarantine.is_some()
-        || !operation.original_paths.is_empty()
-        || !(1..=2).contains(&payload.assets.len())
-        || payload.assets[0] != payload.view.release.asset
-        || bytes > MAX_BYTES
-        || payload.definition_sha256.len() != 64
-    {
-        return Err(PortcoveError::verification(
-            "acquisition journal has foreign ownership, paths or intent",
-        ));
-    }
-    Ok(())
-}
-
-/// Serialized with insertion/update: partial reservations and every bundled asset count.
-pub(crate) fn require_capacity(
-    connection: &Connection,
-    operation: &LifecycleOperation,
-    json: Option<&str>,
-) -> Result<()> {
-    let Some(json) = json else {
-        return Ok(());
-    };
-    if json.len() > MAX_RECORD_BYTES {
-        return Err(PortcoveError::conflict("acquisition record exceeds 64 KiB"));
-    }
-    let mut statement = connection.prepare("SELECT id,port_id,update_acquisition_json FROM lifecycle_operations WHERE kind='acquire_update' AND id<>?1 LIMIT 257")?;
-    let rows = statement.query_map([&operation.id], |row| {
-        Ok((
-            row.get::<_, String>(0)?,
-            row.get::<_, String>(1)?,
-            row.get::<_, Option<String>>(2)?,
-        ))
-    })?;
-    let payload = operation
-        .update_acquisition
-        .as_ref()
-        .expect("validated acquisition");
-    let mut bytes = payload.assets.iter().map(|asset| asset.size).sum::<u64>();
-    let mut count = 1;
-    for row in rows {
-        let (_, port_id, json) = row?;
-        if port_id == operation.port_id {
-            return Err(PortcoveError::conflict(
-                "discard the existing acquired archive before downloading another update",
-            ));
-        }
-        let other = decode_journal(json.as_deref())?
-            .ok_or_else(|| PortcoveError::verification("acquisition reservation is missing"))?;
-        count += 1;
-        for asset in other.assets {
-            bytes = bytes.saturating_add(asset.size);
-        }
-    }
-    if count > MAX_RECORDS || bytes > MAX_BYTES {
-        return Err(PortcoveError::conflict(
-            "retained acquisitions exceed 256 records or 8 GiB; discard an owned archive before retrying",
-        ));
-    }
-    Ok(())
-}
-
-pub(crate) fn views_from(
-    connection: &Connection,
-) -> Result<HashMap<String, GameUpdateAcquisition>> {
-    let mut statement = connection.prepare("SELECT id,port_id,update_acquisition_json FROM lifecycle_operations WHERE kind='acquire_update' LIMIT 257")?;
-    let rows = statement.query_map([], |row| {
-        Ok((
-            row.get::<_, String>(0)?,
-            row.get::<_, String>(1)?,
-            row.get::<_, Option<String>>(2)?,
-        ))
-    })?;
-    let mut result = HashMap::new();
-    for row in rows {
-        let (id, port_id, json) = row?;
-        let payload = decode_journal(json.as_deref())?
-            .ok_or_else(|| PortcoveError::verification("acquisition state is missing"))?;
-        if payload.view.id != id
-            || Uuid::parse_str(&id).is_err()
-            || payload.view.port_id != port_id
-            || result.len() >= MAX_RECORDS
-            || result.insert(port_id, payload.view).is_some()
-        {
-            return Err(PortcoveError::verification(
-                "acquisition inventory has duplicate or over-bound owners",
-            ));
-        }
-    }
-    Ok(result)
-}
-
 impl PortcoveService {
     /// Optimistic read-only review: immutable transfer never needs the runtime mutation lock.
     /// Execution repeats these facts under its separate acquisition-owner lock.
@@ -226,7 +53,9 @@ impl PortcoveService {
         &self,
         port_id: &str,
     ) -> Result<crate::GameUpdatePlan> {
-        let reviewed = self.plan_game_update_locked(port_id, false).await?;
+        let reviewed = self
+            .plan_game_update_with_data_locked(port_id, false, false)
+            .await?;
         self.require_acquisition_plan(&reviewed)?;
         Ok(reviewed)
     }
@@ -302,7 +131,7 @@ impl PortcoveService {
                 #[cfg(test)]
                 eprintln!("immutable acquisition phase: fresh review ({:?})", observed.elapsed());
                 let reviewed = operation
-                    .interruptible(self.plan_game_update_locked(port_id, false))
+                    .interruptible(self.plan_game_update_with_data_locked(port_id, false, false))
                     .await?;
                 #[cfg(test)]
                 eprintln!("immutable acquisition phase: current-runtime verification and authorization ({:?})", observed.elapsed());
@@ -323,18 +152,12 @@ impl PortcoveService {
                     created_at: now,
                     updated_at: now,
                 };
-                let mut record = LifecycleOperation::new(
-                    &activity.id,
-                    LifecycleOperationKind::AcquireUpdate,
-                    port_id,
-                );
-                record.paths.staging = Some(root(&self.library, &activity.id)?);
-                record.update_acquisition = Some(AcquisitionJournal {
+                let mut record = AcquisitionOperation::reserve(&self.library, AcquisitionJournal {
                     view,
                     definition_sha256: definition_digest(self.catalog.port(port_id)?)?,
                     assets: assets_for(&reviewed.plan),
-                });
-                store.put(&mut record)?;
+                })?;
+                record.persist(&store)?;
                 #[cfg(test)]
                 eprintln!("immutable acquisition phase: bounded reservation persisted ({:?})", observed.elapsed());
                 journal = Some(record);
@@ -345,15 +168,12 @@ impl PortcoveService {
             fs::create_dir_all(private.parent().expect("acquisition parent"))?;
             refuse_symlink_ancestors(&private)?;
             fs::create_dir(&private)?;
-            let reserved = record
-                .update_acquisition
-                .as_ref()
-                .expect("journal")
+            let reserved = record.payload()
                 .assets
                 .iter()
                 .map(|asset| asset.size)
                 .sum::<u64>();
-            if fs2::available_space(&private)? < reserved {
+            if fs4::available_space(&private)? < reserved {
                 return Err(PortcoveError::conflict(
                     "insufficient free space for immutable update archives",
                 ));
@@ -395,14 +215,8 @@ impl PortcoveService {
                 .await?;
             #[cfg(test)]
             eprintln!("immutable acquisition phase: archive verification and durability ({:?})", observed.elapsed());
-            record
-                .update_acquisition
-                .as_mut()
-                .expect("journal")
-                .view
-                .phase = Phase::Verifying;
-            store.put(record)?;
-            let payload = record.update_acquisition.as_ref().expect("journal");
+            record.advance(Phase::Verifying, None, &store)?;
+            let payload = record.payload();
             for (index, asset) in payload.assets.iter().enumerate() {
                 let archive = file(&private, index);
                 verify_archive(&archive, asset, &operation)?;
@@ -415,29 +229,19 @@ impl PortcoveService {
             operation.begin_publication()?;
             #[cfg(test)]
             eprintln!("immutable acquisition phase: acquired publication ({:?})", observed.elapsed());
-            let payload = record.update_acquisition.as_mut().expect("journal");
-            payload.view.phase = Phase::Acquired;
-            payload.view.updated_at = Library::now();
-            store.put(record)?;
-            Ok(record
-                .update_acquisition
-                .as_ref()
-                .expect("journal")
-                .view
-                .clone())
+            record.advance(Phase::Acquired, None, &store)?;
+            Ok(record.payload().view.clone())
         }
         .await;
         if result.is_err()
             && let Some(record) = journal.as_mut()
+            && let Err(error) = record.advance(
+                Phase::AttentionRequired,
+                result.as_ref().err().map(ToString::to_string),
+                &store,
+            )
         {
-            if let Some(payload) = &mut record.update_acquisition {
-                payload.view.phase = Phase::AttentionRequired;
-                payload.view.updated_at = Library::now();
-            }
-            record.last_error = result.as_ref().err().map(ToString::to_string);
-            if let Err(error) = store.put(record) {
-                tracing::warn!(%error,"unable to record acquisition attention state; retained journal remains recoverable");
-            }
+            tracing::warn!(%error,"unable to record acquisition attention state; retained journal remains recoverable");
         }
         let result = self.finish_activity(activity, result);
         emit(operation.finished(OperationResult::from_result(&result)));
@@ -455,9 +259,12 @@ impl PortcoveService {
             &self.catalog,
             &port.id,
         )?;
-        if scope.is_some() || crate::managed_runtime_policy::requires_provider_resolution(port) {
+        let platform = Platform::current()?;
+        if scope.is_some()
+            || crate::managed_runtime_policy::requires_provider_resolution_on(port, platform)
+        {
             let resolution = operation
-                .interruptible(self.resolve_release(port, release.channel, Platform::current()?))
+                .interruptible(self.resolve_release(port, release.channel, platform))
                 .await?;
             if resolution.release != *release {
                 return Err(PortcoveError::conflict(
@@ -488,14 +295,13 @@ impl PortcoveService {
         let record = OperationStore::new(self.library.clone())
             .get(&view.id)?
             .ok_or_else(|| PortcoveError::conflict("acquisition changed during review"))?;
-        let payload = record
-            .update_acquisition
-            .as_ref()
-            .filter(|_| {
-                record.kind == LifecycleOperationKind::AcquireUpdate
-                    && record.port_id == view.port_id
-            })
-            .ok_or_else(|| PortcoveError::conflict("acquisition owner changed; review again"))?;
+        let record = AcquisitionOperation::decode(&self.library, record)?;
+        if record.port_id() != view.port_id {
+            return Err(PortcoveError::conflict(
+                "acquisition owner changed; review again",
+            ));
+        }
+        let payload = record.payload();
         Ok(
             (payload.definition_sha256 == definition_digest(self.catalog.port(&plan.port_id)?)?
                 && payload.assets == assets_for(plan))
@@ -515,14 +321,13 @@ impl PortcoveService {
         let record = OperationStore::new(self.library.clone())
             .get(&view.id)?
             .ok_or_else(|| PortcoveError::conflict("acquired update disappeared; review again"))?;
-        let payload = record
-            .update_acquisition
-            .as_ref()
-            .filter(|_| {
-                record.kind == LifecycleOperationKind::AcquireUpdate
-                    && record.port_id == view.port_id
-            })
-            .ok_or_else(|| PortcoveError::conflict("acquisition owner changed; review again"))?;
+        let record = AcquisitionOperation::decode(&self.library, record)?;
+        if record.port_id() != view.port_id {
+            return Err(PortcoveError::conflict(
+                "acquisition owner changed; review again",
+            ));
+        }
+        let payload = record.payload();
         if payload.view != *view
             || payload.definition_sha256 != definition_digest(self.catalog.port(&view.port_id)?)?
             || payload.assets != assets_for(&reviewed.plan)
@@ -563,7 +368,8 @@ impl PortcoveService {
         let Some(record) = store.get(acquisition_id)? else {
             return Err(PortcoveError::not_found("acquisition no longer exists"));
         };
-        if record.kind != LifecycleOperationKind::AcquireUpdate || record.port_id != port_id {
+        let record = AcquisitionOperation::decode(&self.library, record)?;
+        if record.port_id() != port_id {
             return Err(PortcoveError::verification(
                 "acquisition belongs to another resource",
             ));
@@ -571,10 +377,7 @@ impl PortcoveService {
         validate_private_files(&self.library, &record)?;
         let private = root(&self.library, acquisition_id)?;
         if private.exists() {
-            let payload = record
-                .update_acquisition
-                .as_ref()
-                .expect("validated journal");
+            let payload = record.payload();
             for index in 0..payload.assets.len() {
                 let path = file(&private, index);
                 if path.try_exists()? {
@@ -595,26 +398,24 @@ impl PortcoveService {
     pub(crate) fn recover_game_update_acquisition(
         &self,
         store: &OperationStore,
-        candidate: &LifecycleOperation,
+        candidate: &AcquisitionOperation,
     ) -> Result<()> {
-        let _owner = match self.library.try_lock_activity(&candidate.id) {
+        let _owner = match self.library.try_lock_activity(candidate.id()) {
             Ok(guard) => guard,
             Err(error) if error.code == crate::ErrorCode::Conflict => return Ok(()),
             Err(error) => return Err(error),
         };
-        let Some(mut current) = store.get(&candidate.id)? else {
+        let Some(current) = store.get(candidate.id())? else {
             return Ok(());
         };
-        if current.created_at != candidate.created_at
-            || current.kind != candidate.kind
-            || current.port_id != candidate.port_id
+        if current.created_at != candidate.created_at()
+            || current.kind != LifecycleOperationKind::AcquireUpdate
+            || current.port_id != candidate.port_id()
         {
             return Ok(());
         }
-        let payload = current
-            .update_acquisition
-            .as_mut()
-            .expect("validated journal");
+        let mut current = AcquisitionOperation::decode(&self.library, current)?;
+        let payload = current.payload();
         if payload.view.phase == Phase::Acquired || payload.view.phase == Phase::AttentionRequired {
             let status = if payload.view.phase == Phase::Acquired {
                 ActivityStatus::Succeeded
@@ -623,25 +424,21 @@ impl PortcoveService {
             };
             finish_if_running(
                 &self.library,
-                &current.id,
+                current.id(),
                 status,
-                current.last_error.as_deref().unwrap_or(
+                current.last_error().unwrap_or(
                     "Archive download completed; a fresh review is required before preparation",
                 ),
             )?;
             return Ok(());
         }
-        payload.view.phase = Phase::AttentionRequired;
-        payload.view.updated_at = Library::now();
-        current.last_error = Some("Archive acquisition was interrupted. Discard this exact private archive and review a new download; no runtime was prepared or activated.".into());
-        store.put(&mut current)?;
+        current.advance(Phase::AttentionRequired, Some("Archive acquisition was interrupted. Discard this exact private archive and review a new download; no runtime was prepared or activated.".into()), store)?;
         finish_if_running(
             &self.library,
-            &current.id,
+            current.id(),
             ActivityStatus::Failed,
             current
-                .last_error
-                .as_deref()
+                .last_error()
                 .unwrap_or("Archive acquisition requires attention"),
         )?;
         Ok(())
@@ -697,15 +494,28 @@ pub(crate) fn copy_archive(
     asset: &crate::ReleaseAsset,
     operation: &OperationCoordinator,
 ) -> Result<()> {
-    verify_archive(source, asset, operation)?;
+    use sha2::{Digest, Sha256};
+    // The source shape checks match `verify_archive`; its digest is computed
+    // over the exact bytes copied instead of in a separate full read. The
+    // installer hashes the private destination again before any use, so that
+    // remains the binding check of what was written.
+    refuse_symlink_ancestors(source)?;
+    let metadata = fs::symlink_metadata(source)?;
+    if !metadata.is_file() || metadata.file_type().is_symlink() {
+        return Err(PortcoveError::verification(
+            "acquired archive is not a regular file",
+        ));
+    }
+    crate::archive::validate_download_size(metadata.len(), asset.size)?;
     refuse_symlink_ancestors(destination)?;
     let mut input = fs::File::open(source)?;
     let mut output = OpenOptions::new()
         .create_new(true)
         .write(true)
         .open(destination)?;
+    let mut digest = Sha256::new();
     let mut bytes = 0_u64;
-    let mut buffer = [0; 64 * 1024];
+    let mut buffer = vec![0; 1024 * 1024];
     loop {
         operation.checkpoint()?;
         let count = input.read(&mut buffer)?;
@@ -714,16 +524,23 @@ pub(crate) fn copy_archive(
         }
         bytes = bytes.saturating_add(count as u64);
         crate::archive::validate_download_progress(bytes, asset.size)?;
+        digest.update(&buffer[..count]);
         output.write_all(&buffer[..count])?;
     }
+    crate::archive::validate_download_size(bytes, asset.size)?;
+    if !hex::encode(digest.finalize()).eq_ignore_ascii_case(&asset.sha256) {
+        drop(output);
+        let _ = fs::remove_file(destination);
+        return Err(PortcoveError::verification(
+            "acquired archive failed expected SHA-256 verification",
+        ));
+    }
     output.sync_all()?;
-    drop(output);
-    verify_archive(destination, asset, operation)
+    Ok(())
 }
 
-fn validate_private_files(library: &Library, record: &LifecycleOperation) -> Result<()> {
-    validate_journal(library, record)?;
-    let private = root(library, &record.id)?;
+fn validate_private_files(library: &Library, record: &AcquisitionOperation) -> Result<()> {
+    let private = root(library, record.id())?;
     if !private.try_exists()? {
         return Ok(());
     }
@@ -733,10 +550,7 @@ fn validate_private_files(library: &Library, record: &LifecycleOperation) -> Res
             "acquisition root is not an owned directory",
         ));
     }
-    let payload = record
-        .update_acquisition
-        .as_ref()
-        .expect("validated journal");
+    let payload = record.payload();
     let members = fs::read_dir(&private)?
         .take(payload.assets.len() + 3)
         .collect::<std::io::Result<Vec<_>>>()?;
@@ -748,7 +562,7 @@ fn validate_private_files(library: &Library, record: &LifecycleOperation) -> Res
     if members.is_empty() {
         return Ok(());
     }
-    let expected = serde_json::to_vec(&(record.id.as_str(), record.port_id.as_str()))?;
+    let expected = serde_json::to_vec(&(record.id(), record.port_id()))?;
     let marker = private.join("owner.json");
     let has_owner = marker.try_exists()?;
     if has_owner && crate::path::read_bounded_regular(&marker, 1024)? != expected {

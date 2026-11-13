@@ -41,14 +41,10 @@ Existing Alpha 1 libraries can be carried forward with the documented
 
 ### For players
 
-- Browse a catalog of native ports and manage them as one library. Explicitly
-  check game-file availability for a selected route, platform and channel, then
-  combine current observations with catalog filters. Details explain the same
-  observation; setup and launch still use their ordinary reviews.
+- Browse a catalog of native ports and manage them as one library. Find ports that can use your game files, then check what each one needs.
 - Keep managed versions side by side so updates can be saved for later, installed,
   checked, or rolled back.
-- Install suitable upstream portable packages with the same managed update and
-  recovery lifecycle. Upstream software can handle its own first-launch setup;
+- Install supported downloads, keep older versions, and switch back when needed. Upstream software can handle its own first-launch setup;
   installation review explains who updates the runtime and where player data lives.
 - Get a recommended upstream release, package and download folder for simpler
   setup routes, or register an existing installation while keeping its files and
@@ -62,8 +58,7 @@ Existing Alpha 1 libraries can be carried forward with the documented
   requires separate authorization. Portcove checks known exact identities and
   records a local baseline to detect later changes.
 - Check downloaded files against the expected checksum before installing them.
-  Current hosted releases use provider digests or checksum sidecars; accepted
-  direct manifests pin exact artifacts. Catalog-curated acquisition is planned
+  Catalog-curated acquisition is planned
   under [#315](https://github.com/boburning/portcove/issues/315).
 - Keep the saved data declared for a port, such as its known save, settings, and
   mod locations, separately from installed versions; back up and restore that
@@ -106,6 +101,15 @@ A port appearing in the catalog does **not** mean every platform has completed h
 
 Current priorities and blockers live in the public [Portcove Roadmap](https://github.com/users/boburning/projects/1). The meaning of Alpha, Beta, RC, and V1 lives in [docs/ROADMAP.md](docs/ROADMAP.md). The catalog can continue growing without turning every newly discovered port into a V1 blocker.
 
+The **first public beta application release targets Windows x86-64 only**, at the
+existing supported Windows/WebView2 baseline. Linux is planned for a subsequent
+beta; its implementation, support data and completed evidence remain retained.
+Shared correctness and security checks still apply wherever they run. This changes
+the application host commitment, not the original platforms of the games in the
+catalog. The [release boundary](docs/DELIVERY.md#first-public-beta-host-boundary)
+describes the remaining qualification and publication requirements. No public beta
+or new platform qualification is claimed here.
+
 ## Download the technical alpha
 
 For the graphical app, choose a **Desktop** package for your operating system
@@ -144,8 +148,8 @@ app, **Review install** presents the plan inline, and the launch action is
 below and a separate installation-review dialog.
 
 1. Open **Portcove Desktop** and choose the local library you intend to use.
-2. Open **Port catalog**, choose a port, and read its game-file requirements and
-   recorded platform evidence. A catalog entry alone does not establish support.
+2. Open **Discover**, choose a game, and check which original files the port
+   needs and whether it has been tested on your system.
 3. Choose your own required game files, or enter their local path. Portcove
    checks them locally when you continue installation. An unsupported or changed
    input needs attention; do not substitute another edition blindly.
@@ -169,16 +173,20 @@ selected package's `--help` and capabilities before using a newer command. The
 [CLI task guide](docs/CLI.md) separates current source behavior from published
 preview limitations.
 
-| Task                        | Start here                                                                                                      | What the result means                                                                                                                                         |
-| --------------------------- | --------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Inspect a library or port   | Open Library/game details, or run `portcove status PORT_ID`.                                                    | Current installation and action assessments; reading them does not authorize or execute a change.                                                             |
-| Check installed files       | Run `portcove verify PORT_ID`.                                                                                  | Installed files are compared with their recorded identities. This does not test gameplay or save compatibility.                                               |
-| Check original game files   | Use Game files in Settings, or `portcove source inspect PROFILE_ID` and `portcove source verify PROFILE_ID`.    | Inspection and baseline comparison are distinct from compatibility with a particular installed release. Original bytes and the saved baseline stay unchanged. |
-| Check for a game update     | Run `portcove check PORT_ID`, or use the game's update check.                                                   | An update check does not install it. Review the current release, policy and consequences before installation or activation.                                   |
-| Protect managed saved data  | Use the port's backups, or `portcove backup create PORT_ID` followed by `portcove backup list PORT_ID`.         | The backup covers declared managed saved data, not the game download or original inputs. Restore replaces the affected current saved data after review.       |
-| Correct a moved game file   | Use Update file location in Game files, or the [reviewed relink route](docs/CLI.md#find-and-relink-game-files). | The new location must still match the registered content; relinking does not move files or accept changed bytes.                                              |
-| Recover an interrupted task | Read Activity and `portcove doctor`, then follow the operation's reported recovery action.                      | Diagnosis does not itself resume or clean up an operation. Retained files or an unknown outcome need the specific supported recovery.                         |
-| Upgrade Portcove itself     | Follow [application upgrade and recovery](docs/UPGRADING.md).                                                   | Published Alpha 2 upgrades are manual. An application update is separate from a game update or catalog refresh.                                               |
+| Task                        | Start here                                                                                                      | What the result means                                                                                                                                                                                                                                     |
+| --------------------------- | --------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Inspect a library or port   | Open Library/game details, or run `portcove status PORT_ID`.                                                    | See which version is installed and which actions are available. This leaves your files as they are.                                                                                                                                                       |
+| Check installed files       | Run `portcove verify PORT_ID`.                                                                                  | Installed files are compared with their recorded identities. This does not test gameplay or save compatibility.                                                                                                                                           |
+| Check original game files   | Use Game files in Settings, or `portcove source inspect PROFILE_ID` and `portcove source verify PROFILE_ID`.    | Identify the files or check whether they changed. These checks leave the files as they are and do not test a game version.                                                                                                                                |
+| Check for a game update     | Run `portcove check PORT_ID`, or use the game's update check.                                                   | Checking for an update leaves your current version in use. Review the update before installing it.                                                                                                                                                        |
+| Protect managed saved data  | Use the port's backups, or `portcove backup create PORT_ID` followed by `portcove backup list PORT_ID`.         | Check which saves and settings are included. Portcove also snapshots them automatically before an update, activation or rollback, and keeps the newest five per game. Back up your original files separately. Review which files a restore would replace. |
+| Correct a moved game file   | Use Update file location in Game files, or the [reviewed relink route](docs/CLI.md#find-and-relink-game-files). | The new location must still match the registered content; relinking does not move files or accept changed bytes.                                                                                                                                          |
+| Recover an interrupted task | Read Activity and `portcove doctor`, then follow the operation's reported recovery action.                      | Diagnosis does not itself resume or clean up an operation. Retained files or an unknown outcome need the specific supported recovery.                                                                                                                     |
+| Report a problem            | Use Report a problem or send feedback in a game's details. You review the full text, then send it.              | Nothing is sent until you choose: from your GitHub account when signed in, on GitHub, or as copied text. Folder paths and your user name are replaced, and no saves or game files are attached.                                                           |
+| Upgrade Portcove itself     | Follow [application upgrade and recovery](docs/UPGRADING.md).                                                   | Published Alpha 2 upgrades are manual. An application update is separate from a game update or catalog refresh.                                                                                                                                           |
+
+See [feedback and triage](docs/ROADMAP.md#feedback-and-triage) for reporting a
+problem or sending feedback from Portcove or directly on GitHub.
 
 Bulk `check --all`, `reconcile --all` and `update --all` continue after a
 per-port failure and report each outcome. A completed batch can contain failed
@@ -186,13 +194,25 @@ ports; inspect every result. `reconcile` follows each saved update policy and
 can download or activate a release, while `check` only checks. Saving a policy
 does not execute it.
 
-Cancellation is a request. Downloads and hashing stop cooperatively; a current
-conversion or build step may need to settle, and an admitted publication can
-finish. Wait for the operation's terminal result and read any recovery guidance.
+Some steps can’t stop immediately. Wait for the task to finish cancelling and
+check any recovery instructions.
 See [safe cancellation](docs/CLI.md#cancel-work-safely) and
 [interrupted library transfers](docs/CLI.md#recover-an-interrupted-transfer).
 Desktop and CLI share library locks and recovery rules; close other clients
 before a whole-library transfer.
+
+### If a game won’t start
+
+When the last launch of an installed game closed with an error, its details page
+says what the failure most likely means, shows the exit code so you can copy it,
+and suggests one next step. The wording is a hint, not a diagnosis: Portcove
+explains only a short list of common Windows exit codes (a missing DLL or
+runtime, a wrong-architecture or damaged DLL, a crash, a game that stopped
+itself, a DLL that failed to start). Any other code is shown as “The game closed
+with an error.” with nothing guessed. Nothing appears after a normal exit or
+when you stop the game yourself. “Restore previous version” appears only when
+Portcove still keeps one. The same explanation is in `launch show --json` as
+`exit_explanation`; see the [CLI guide](docs/CLI.md).
 
 ### Optional disc tools
 
@@ -231,7 +251,16 @@ bypass their checks or change a port's support evidence.
 
 ## Catalog and support
 
-The catalog changes too quickly for a hand-maintained count or title list here. Browse it in the desktop app, through the CLI, or directly in [`catalog.json`](crates/portcove-core/catalog/catalog.json).
+Browse the complete descriptive directory in Desktop's Discover or with:
+
+```text
+portcove catalog listings
+```
+
+Listings include projects without managed definitions. Visibility does not imply
+managed installation, compatible originals, gameplay qualification or supported
+update/backup ownership. Inspect a managed definition's declared requirements and
+current evidence through the narrower operational commands:
 
 ```text
 portcove catalog list
@@ -239,7 +268,43 @@ portcove catalog show <port-id>
 portcove --json catalog export
 ```
 
-Each entry records its upstream project, platforms, release channels, required local files, executable layout, user-data paths, and current test evidence. Stable, Preview, and Rolling are game-port release channels—not quality ratings. Preview retains the `beta` command and serialized value. See [docs/CATALOG.md](docs/CATALOG.md) for the full policy.
+Contributors author `crates/portcove-core/catalog/ports/<stable-id>.json` through
+the [per-ID authoring workflow](docs/CATALOG.md#adding-or-changing-a-port).
+Their descriptive `listing` and optional strict `integration` generate
+[`listings.json`](crates/portcove-core/catalog/listings.json) and
+[`catalog.json`](crates/portcove-core/catalog/catalog.json); edit the records rather
+than these aggregates. Operational definitions record platforms, channels,
+required local files, executable layout, user-data paths and qualification facts.
+
+Stable, Preview, and Rolling are game-port release channels—not quality ratings. Preview retains the `beta` command and serialized value. See [docs/CATALOG.md](docs/CATALOG.md) for the full policy.
+
+### Compare implementations of a game
+
+Discover groups projects only through reviewed game identities. Open a comparison
+or **Why this port?** to inspect source editions, platform requirements, evidence
+and limitations. A recommended starting point appears only when scoped evidence
+supports it; sparse and single-project cases do not imply “best.” Changing the
+comparison never changes an installed project, original files, saves or channels.
+
+Search by the original game's title or a project's name. For games with several
+implementations, **Use** saves your deliberate project choice in the current
+library. Discover and Library keep the other implementations available; each
+retains its own original-file requirements, releases and installation. Viewing an
+alternative does not change your choice. A single implementation or an entry
+without a reviewed game identity opens directly.
+
+Library offers the chosen implementation's existing actions, or the sole installed
+implementation when the choice is unambiguous. If several installed alternatives
+need a choice, select one deliberately. Filters match an actual implementation;
+a saved choice outside those filters stays saved. A removed choice asks you to
+choose again. Missing optional comparison information does not prevent an
+installed game's supported offline Play path. Choosing a project never transfers
+saves or replaces another installation.
+
+Explicitly follow independent projects for locally deduplicated release notices
+when refreshed; use the **Followed** filter to find them. There is no mandatory
+account, telemetry or background notification service. CLI users can run
+`portcove --json catalog compare PORT_ID` for the same Core result.
 
 ## Build from source
 
@@ -347,15 +412,3 @@ scope; it does not guarantee every port, platform or personal library.
 
 See the [contributor workflow](CONTRIBUTING.md), [quality checks](docs/QUALITY.md),
 [architecture](docs/ARCHITECTURE.md) and [documentation index](docs/README.md).
-
-### Compare implementations of a game
-
-Discover groups projects only through reviewed game identities. Open a comparison
-or **Why this port?** to inspect source editions, platform requirements, evidence
-and limitations. A recommended starting point appears only when scoped evidence
-supports it; sparse and single-project cases do not imply “best.” Changing the
-comparison never changes an installed project, original files, saves or channels.
-Explicitly follow independent projects for locally deduplicated release notices
-when refreshed; use the **Followed** filter to find them. There is no mandatory
-account, telemetry or background notification service. CLI users can run
-`portcove --json catalog compare PORT_ID` for the same Core result.

@@ -1,3 +1,10 @@
+import { createReleaseCustodyProvider } from "./release-custody-provider.mts";
+import {
+  fixedReleaseReaderToken,
+  readOnlyReleaseChildEnvironment,
+} from "./release-readonly-child-environment.mts";
+import { coordinatorCommandDeadline } from "./release-coordinator-deadline.mts";
+import { assertTrustedDirectNode } from "./release-direct-node-transport.mts";
 import { createHash } from "node:crypto";
 import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
 import path from "node:path";
@@ -17,12 +24,12 @@ import {
   materializePublishedCompleteSite,
   materializePublishedCatalogCompleteSite,
 } from "./release-site-readback.mts";
-import { createGitHubRunner, GitHubApiClient, sanitizeOperationError } from "./github-api.mts";
-import { readGitHubArtifactArchive } from "./github-binary.mts";
+import { sanitizeOperationError } from "./github-operation.mts";
+import { downloadGitHubArtifactArchiveFile } from "./github-artifact-download.mts";
 import { inspectBoundedZip } from "./bounded-zip.mts";
 import { crc32, inflateRawSync } from "node:zlib";
 import { isRecord } from "./runtime-values.mts";
-import { capacityDigest } from "./release-capacity.mts";
+import { capacityDigest, inspectCapacityExecutorIdentity } from "./release-capacity.mts";
 import { recoverReleaseOpportunity } from "./release-coordinator-state.mts";
 import {
   recordPublishedApplicationSiteMetadata,
@@ -35,6 +42,7 @@ import {
   inspectCatalogTufPublicationFacts,
 } from "./release-catalog-metadata-contract.mts";
 import {
+  catalogPagesReadbackId,
   inspectCatalogCapacitySubject,
   inspectCatalogPublicationDescriptor,
   inspectCatalogInitialization,
@@ -42,8 +50,14 @@ import {
 } from "./release-catalog-publication-contract.mts";
 import { publishCoordinatorCheckpoint } from "./release-coordinator-remote.mts";
 import {
+  createLegacySiteCheckpointApi,
+  guardCoordinatorJournalWrites,
+} from "./release-coordinator-journal-api.mts";
+import {
   capacityExecutorIdentity,
   executeOwnedCapacityEffect,
+  ensureOwnedCheckpointJournalHistory,
+  publishOwnedSignedCoordinatorCheckpoint,
   refreshCapacityExecutor,
   recoverOwnedPublishedMetadata,
   recoverOwnedPublishedCatalogMetadata,
@@ -184,6 +198,9 @@ interface PrivateDeployment {
     prior: ReturnType<typeof currentPublishedSite>;
     initialization?: NonNullable<ReturnType<typeof inspectCatalogInitialization>>;
     bootstrap_readback_sha256?: string;
+    initial_rehearsal_inventory_sha256?: string;
+    pages_admission_id?: number;
+    bootstrap_executor?: Awaited<ReturnType<typeof authenticateCapacityExecutor>>;
   };
   previous_generation: Composed["generation"] | null;
   prior_public_readback?: { generation: string; evidence_sha256: string };
@@ -253,10 +270,6 @@ interface SiteUploadExpected {
 export async function verifyUploadedSiteArchive(
   session: DeploymentSession,
   rawExpected: SiteUploadExpected,
-  options: {
-    api?: Pick<GitHubApiClient, "request">;
-    download?: typeof readGitHubArtifactArchive;
-  } = {},
 ) {
   const prepared = sessions.get(session);
   if (!prepared || prepared.catalog?.recovery_only)
@@ -272,22 +285,27 @@ export async function verifyUploadedSiteArchive(
     !/^[a-f0-9]{40}$/u.test(expected.controller_revision)
   )
     throw new Error("site artifact provider identity unavailable");
-  const api =
-    options.api ??
-    new GitHubApiClient((args, input) =>
-      createGitHubRunner({
-        cwd: prepared.directory,
-        timeoutMs: remaining(prepared.deadline, 15000),
-        maxBuffer: 128 * 1024,
-      })([...args, "--hostname", "github.com"], input),
-    );
-  const endpoint = `repos/boburning/portcove/actions/artifacts/${expected.artifact_id}`;
-  const identity = () => {
-    remaining(prepared.deadline, 15000);
-    const response = api.request("GET", endpoint);
-    remaining(prepared.deadline, 15000);
-    if (response.status !== 200) throw new Error("site artifact provider readback unavailable");
-    const value = response.body;
+  const token = fixedReleaseReaderToken();
+  const scoped = readOnlyReleaseChildEnvironment() !== undefined;
+  const deadline = Math.min(
+    prepared.deadline ?? performance.now() + 150000,
+    coordinatorCommandDeadline() ?? Infinity,
+  );
+  const fetcher = globalThis.fetch;
+  const fetch: typeof globalThis.fetch = (input, init) => {
+    if (scoped) assertTrustedDirectNode("site upload archive");
+    return fetcher(input, init);
+  };
+  const metadata = await createReleaseCustodyProvider({
+    token,
+    deadline,
+    maxBytes: 128 * 1024,
+    fetch,
+  });
+  const identity = async () => {
+    remaining(deadline, 15000);
+    const value = await metadata.artifact(expected.artifact_id);
+    remaining(deadline, 15000);
     if (
       !isRecord(value) ||
       value.id !== expected.artifact_id ||
@@ -313,32 +331,39 @@ export async function verifyUploadedSiteArchive(
       sha256: value.digest.slice(7),
     };
   };
-  const before = identity();
+  const before = await identity();
   const attempt = await mkdtemp(path.join(prepared.directory, "upload-readback-"));
   await writeFile(path.join(attempt, "provider-before.json"), JSON.stringify(before), {
     flag: "wx",
     mode: 0o600,
   });
   try {
-    const bytes = (options.download ?? readGitHubArtifactArchive)(`${endpoint}/zip`, {
-      cwd: prepared.directory,
-      maxBytes: before.bytes,
-      timeoutMs: remaining(prepared.deadline, 120000),
-    });
-    await writeFile(path.join(attempt, "uploaded.zip"), bytes, { flag: "wx", mode: 0o600 });
-    remaining(prepared.deadline, 15000);
+    const file = path.join(attempt, "uploaded.zip");
+    await downloadGitHubArtifactArchiveFile(
+      `repos/boburning/portcove/actions/artifacts/${before.id}/zip`,
+      file,
+      {
+        credential: { kind: "explicit", token },
+        maxBytes: before.bytes,
+        deadline: performance.now() + remaining(deadline, 120000),
+        fetch,
+      },
+    );
+    remaining(deadline, 15000);
+    const bytes = await readControllerToolFile(file, before.bytes);
+    remaining(deadline, 15000);
     if (bytes.length !== before.bytes || hash(bytes) !== before.sha256)
       throw new Error("site artifact provider archive bytes differ");
     inspectSiteArtifactArchive(bytes, {
       bytes: prepared.archive_bytes,
       sha256: prepared.archive_sha256,
     });
-    if (JSON.stringify(before) !== JSON.stringify(identity()))
+    if (JSON.stringify(before) !== JSON.stringify(await identity()))
       throw new Error("site artifact changed during independent download");
     const upload = {
       artifact_id: before.id,
       archive_sha256: before.sha256,
-      evidence_scope: options.api || options.download ? "injected-provider" : "github.com",
+      evidence_scope: "github.com" as const,
       run_id: expected.run_id,
       run_attempt: expected.run_attempt,
       controller_revision: expected.controller_revision,
@@ -660,6 +685,7 @@ async function retainPreparedSiteDeployment(
 export async function prepareCatalogSiteDeploymentFromActualRepository(
   assembly: object,
   raw: { repository: string; checkpoint: string; output_parent: string; deadline: number },
+  executor?: Awaited<ReturnType<typeof authenticateCapacityExecutor>>,
 ) {
   const request = structuredClone(raw);
   remaining(request.deadline, 15000);
@@ -721,9 +747,23 @@ export async function prepareCatalogSiteDeploymentFromActualRepository(
         : null
     : null;
   if (prior && !previous) throw new Error("current whole site has no appointed component");
+  const initialReadback = initialization
+    ? await readCatalogDeploymentBootstrap(
+        subject,
+        facts,
+        initialization,
+        request.output_parent,
+        deadline,
+        executor,
+      )
+    : null;
+  const rehearsal = initialReadback?.rehearsal;
+  if (rehearsal && (!executor || rehearsal.admission_id === undefined))
+    throw new Error("catalog rehearsal Pages admission unavailable");
   const composed = await composeCatalogSiteFiles({
     previous: previous?.directory ?? null,
     expected_previous_generation: prior?.generation_sha256 ?? null,
+    ...(rehearsal ? { initial_rehearsal: rehearsal } : {}),
     catalog: actual.repository,
     catalog_root_sha256: facts.root_sha256,
     output_parent: request.output_parent,
@@ -753,7 +793,20 @@ export async function prepareCatalogSiteDeploymentFromActualRepository(
   Object.freeze(generation);
   const session: DeploymentSession = Object.freeze({ kind: "prepared-catalog-site-deployment" });
   sessions.set(session, {
-    catalog: { assembly, subject, facts, prior, ...(initialization ? { initialization } : {}) },
+    catalog: {
+      assembly,
+      subject,
+      facts,
+      prior,
+      ...(initialization ? { initialization } : {}),
+      ...(rehearsal && executor && rehearsal.admission_id !== undefined
+        ? {
+            initial_rehearsal_inventory_sha256: rehearsal.inventory_sha256,
+            pages_admission_id: rehearsal.admission_id,
+            bootstrap_executor: executor,
+          }
+        : {}),
+    },
     deadline,
     generation,
     previous_generation: previous ? structuredClone(previous.generation) : null,
@@ -905,7 +958,7 @@ export async function recoverPublishedCatalogSiteHandoff(
   session: DeploymentSession,
   executor: Awaited<ReturnType<typeof authenticateCapacityExecutor>>,
   raw: { repository: string; checkpoint: string; remote_configuration: unknown },
-  guards?: { refresh: () => Promise<void>; beforeMutation: () => void },
+  guards?: { refresh: () => Promise<void>; beforeMutation: () => Promise<void> },
 ) {
   const prepared = sessions.get(session);
   if (
@@ -923,6 +976,15 @@ export async function recoverPublishedCatalogSiteHandoff(
   )
     throw new Error("catalog recovery requires current control mutation guards");
   await guards.refresh();
+  const checkpointControls = async () => {
+    await guards.beforeMutation();
+  };
+  const signedJournal = await ensureOwnedCheckpointJournalHistory(
+    executor,
+    raw.repository,
+    raw.checkpoint,
+    checkpointControls,
+  );
   return recoverOwnedPublishedCatalogMetadata(
     executor,
     raw,
@@ -937,14 +999,27 @@ export async function recoverPublishedCatalogSiteHandoff(
       if (
         !isRecord(effect) ||
         typeof operation.id !== "string" ||
-        effect.remote_identity !==
-          `github-pages:boburning/portcove:${prepared.generation.generation}` ||
+        typeof effect.remote_identity !== "string" ||
         expected.site_generation_sha256 !== prepared.generation.generation ||
         capacityDigest(inspectCatalogCapacitySubject(operation.catalog_publication).descriptor) !==
           capacityDigest(catalog.subject)
       )
         throw new Error("catalog handoff differs from original exact Pages settlement");
+      const identity = {
+        id: catalogPagesReadbackId(expected, effect.remote_identity, true),
+        artifact_id: expected.artifact_id,
+        controller_revision: inspectCapacityExecutorIdentity(operation.executor_identity)
+          .controller_revision,
+        generation: expected.site_generation_sha256,
+      };
+      const provider = createPagesProviderTransport({}, prepared.deadline);
+      const before = await provider.observe(identity);
+      if (before.status !== "succeed")
+        throw new Error("original catalog Pages deployment is not observed successful");
       const readback = await readBackSiteDeployment(session);
+      const after = await provider.observe(identity);
+      if (capacityDigest(after) !== capacityDigest(before))
+        throw new Error("original catalog Pages deployment changed during handoff readback");
       await recheckCatalogDeployment(prepared);
       const directory = await mkdtemp(path.join(prepared.directory, "catalog-handoff-readback-"));
       await writeFile(
@@ -952,6 +1027,7 @@ export async function recoverPublishedCatalogSiteHandoff(
         JSON.stringify({
           operation_id: operation.id,
           original_effect: effect,
+          provider: after,
           public_readback: readback,
           provider_mutations: 0,
           authority: "none",
@@ -986,7 +1062,8 @@ export async function recoverPublishedCatalogSiteHandoff(
         },
       };
     },
-    guards.beforeMutation,
+    signedJournal ? undefined : { readCurrent: guards.beforeMutation },
+    signedJournal ? checkpointControls : undefined,
   );
 }
 
@@ -1045,6 +1122,50 @@ export async function readBackSiteDeployment(session: DeploymentSession) {
   return readPublicApplicationSite(prepared.generation, prepared.deadline);
 }
 
+async function readCatalogDeploymentBootstrap(
+  subject: ReturnType<typeof inspectCatalogPublicationDescriptor>,
+  facts: ReturnType<typeof inspectCatalogTufPublicationFacts>,
+  initialization: NonNullable<ReturnType<typeof inspectCatalogInitialization>>,
+  privateParent: string,
+  deadline: number,
+  executor?: Awaited<ReturnType<typeof authenticateCapacityExecutor>>,
+  admissionId?: number,
+) {
+  const provider = await createReleaseCustodyProvider({
+    token: (readOnlyReleaseChildEnvironment() ?? process.env).GH_TOKEN ?? "",
+    deadline,
+    maxBytes: 512 * 1024,
+  });
+  const identity = executor ? await refreshCapacityExecutor(executor) : undefined;
+  if (identity && identity.role !== "site-publication")
+    throw new Error("catalog rehearsal requires the site publication executor");
+  const readback = await readConfiguredCatalogBootstrapSite(
+    provider,
+    new Date().toISOString(),
+    deadline,
+    privateParent,
+    identity && {
+      role: "site-publication",
+      selection: "serving",
+      source: identity.controller_revision,
+      ref: identity.execution_ref,
+      run_id: identity.run_id,
+      run_attempt: identity.run_attempt,
+      job_id: identity.job_id,
+      ...(admissionId === undefined ? {} : { deployment_id: admissionId }),
+    },
+  );
+  if (
+    readback.configuration_sha256 !== subject.publisher_configuration_sha256 ||
+    readback.root_sha256 !== facts.root_sha256 ||
+    readback.source.source_tree !== initialization.source_tree ||
+    readback.setup_plan_sha256 !== initialization.setup_plan_sha256 ||
+    readback.historical_preimage_sha256 !== initialization.initial_site_preimage_sha256
+  )
+    throw new Error("catalog bootstrap configuration changed");
+  return readback;
+}
+
 /** Heavy acquisition precedes the fresh observer handshake. This receipt is
  * private continuation state; a later marker bracket cannot create it. */
 export async function verifyPriorPublicSite(session: DeploymentSession) {
@@ -1054,27 +1175,21 @@ export async function verifyPriorPublicSite(session: DeploymentSession) {
     if (catalog.prior !== null)
       throw new Error("existing site cannot use catalog bootstrap absence");
     const deadline = prepared.deadline!;
-    const api = new GitHubApiClient((args, body) =>
-      createGitHubRunner({
-        cwd: prepared.directory,
-        timeoutMs: remaining(deadline, 15000),
-        maxBuffer: 512 * 1024,
-      })([...args, "--hostname", "github.com"], body),
-    );
-    const readback = await readConfiguredCatalogBootstrapSite(
-      api,
-      new Date().toISOString(),
+    if (!catalog.initialization) throw new Error("catalog bootstrap initialization missing");
+    const readback = await readCatalogDeploymentBootstrap(
+      catalog.subject,
+      catalog.facts,
+      catalog.initialization,
+      prepared.directory,
       deadline,
+      catalog.bootstrap_executor,
+      catalog.pages_admission_id,
     );
     if (
-      readback.configuration_sha256 !== catalog.subject.publisher_configuration_sha256 ||
-      readback.root_sha256 !== catalog.facts.root_sha256 ||
-      !catalog.initialization ||
-      readback.source.source_tree !== catalog.initialization.source_tree ||
-      readback.setup_plan_sha256 !== catalog.initialization.setup_plan_sha256 ||
-      readback.historical_preimage_sha256 !== catalog.initialization.initial_site_preimage_sha256
+      readback.rehearsal?.inventory_sha256 !== catalog.initial_rehearsal_inventory_sha256 ||
+      readback.rehearsal?.admission_id !== catalog.pages_admission_id
     )
-      throw new Error("catalog bootstrap configuration changed");
+      throw new Error("catalog bootstrap rehearsal inventory changed");
     catalog.bootstrap_readback_sha256 = capacityDigest(readback);
     await writeFile(
       path.join(prepared.directory, `initial-catalog-readback-${performance.now()}.json`),
@@ -1089,24 +1204,19 @@ export async function verifyPriorPublicSite(session: DeploymentSession) {
     const { metadata } = await requireInitialSiteContext(prepared.bootstrap.tuf, deadline);
     if (capacityDigest(metadata.facts.descriptor) !== prepared.bootstrap.descriptor_sha256)
       throw new Error("initial site setup descriptor changed");
-    const api = new GitHubApiClient((args, body) => {
-      remaining(deadline, 15000);
-      const result = createGitHubRunner({
-        cwd: prepared.directory,
-        timeoutMs: remaining(deadline, 15000),
-        maxBuffer: 512 * 1024,
-      })([...args, "--hostname", "github.com"], body);
-      remaining(deadline, 15000);
-      return result;
+    const provider = await createReleaseCustodyProvider({
+      token: (readOnlyReleaseChildEnvironment() ?? process.env).GH_TOKEN ?? "",
+      deadline,
+      maxBytes: 512 * 1024,
     });
     const readback = prepared.bootstrap.catalog_site
       ? await readConfiguredCatalogOnlyBootstrapSite(
-          api,
+          provider,
           metadata.previous_site_pins,
           prepared.bootstrap.catalog_site,
           deadline,
         )
-      : await readConfiguredBootstrapSite(api, deadline);
+      : await readConfiguredBootstrapSite(provider, deadline);
     if (
       prepared.bootstrap.catalog_site &&
       (!("catalog_readback_sha256" in metadata.facts) ||
@@ -1159,6 +1269,7 @@ export async function publishPreparedSiteDeployment(
   const prepared = sessions.get(session);
   if (
     !prepared ||
+    prepared.deadline === undefined ||
     prepared.catalog?.recovery_only ||
     !prepared.upload ||
     prepared.upload.evidence_scope !== "github.com"
@@ -1342,20 +1453,13 @@ export async function publishPreparedSiteDeployment(
       throw new Error("new-candidate feed risk expiry unavailable");
   }
   await readRelease();
-  const api = new GitHubApiClient((args, body) =>
-    createGitHubRunner({
-      cwd: prepared.directory,
-      timeoutMs: remaining(prepared.deadline, 15000),
-      maxBuffer: 2 * 1024 * 1024,
-    })([...args, "--hostname", "github.com"], body),
-  );
   const readBoundary = async () => {
     remaining(prepared.deadline, 15000);
     requireControls(currentControls, "site-publication");
     if (catalog) await recheckCatalogDeployment(prepared);
     const facts = !maintenance
-      ? currentControls.read(api, frozen)
-      : currentControls.readMaintenance(api);
+      ? await currentControls.readSdkApplicationControls(frozen)
+      : await currentControls.readSdkMaintenance();
     remaining(prepared.deadline, 15000);
     if (
       facts.pause.publication_paused !== false ||
@@ -1365,7 +1469,7 @@ export async function publishPreparedSiteDeployment(
       throw new Error("fresh actual publication controls hold the site attempt");
     return structuredClone(facts.capacity_source.capacity.boundary);
   };
-  const provider = createPagesProviderTransport(prepared.directory, {}, prepared.deadline);
+  const provider = createPagesProviderTransport({}, prepared.deadline);
   if (provider.evidence_scope !== "github.com")
     throw new Error("actual Pages provider transport required");
   const result = await executeOwnedCapacityEffect(
@@ -1434,11 +1538,11 @@ export async function publishPreparedSiteDeployment(
         );
         await write("acknowledgement.json", accepted);
         const deadline = Math.min(performance.now() + 150_000, prepared.deadline ?? Infinity);
-        let status: ReturnType<typeof provider.observe> | null = null;
+        let status: Awaited<ReturnType<typeof provider.observe>> | null = null;
         for (let count = 0; count < 30; count++) {
           if (performance.now() >= deadline)
             throw new Error("Pages observation deadline exhausted; retain pending intent");
-          status = provider.observe({
+          status = await provider.observe({
             id: accepted.id,
             artifact_id: accepted.artifact_id,
             controller_revision: accepted.controller_revision,
@@ -1482,6 +1586,9 @@ export async function publishPreparedSiteDeployment(
         throw new Error(`site publication stopped; preserve and reconcile ${attempt}`);
       }
     },
+    async () => {
+      await readBoundary();
+    },
   );
   // Provider completion and journal settlement are already retained. A later
   // state-handoff failure cannot authorize another deployment; the coordinator
@@ -1489,12 +1596,41 @@ export async function publishPreparedSiteDeployment(
   await refreshCapacityExecutor(executor);
   await renewControls();
   await readBoundary();
-  await publishCoordinatorCheckpoint(
+  const checkpointControls = async () => {
+    await readBoundary();
+  };
+  const signedJournal = await ensureOwnedCheckpointJournalHistory(
+    executor,
     input.repository,
     result.checkpoint,
-    input.remote_configuration,
-    { api },
+    checkpointControls,
   );
+  const journalRemote = signedJournal
+    ? {
+        publish: async (checkpoint: string) => {
+          return publishOwnedSignedCoordinatorCheckpoint(
+            executor,
+            input.repository,
+            checkpoint,
+            checkpointControls,
+          );
+        },
+      }
+    : {
+        configuration: input.remote_configuration,
+        api: guardCoordinatorJournalWrites(
+          createLegacySiteCheckpointApi(prepared.directory, prepared.deadline),
+          { readCurrent: checkpointControls },
+        ),
+      };
+  if ("publish" in journalRemote) await journalRemote.publish(result.checkpoint);
+  else
+    await publishCoordinatorCheckpoint(
+      input.repository,
+      result.checkpoint,
+      input.remote_configuration,
+      { api: journalRemote.api },
+    );
   remaining(prepared.deadline, 15000);
   const settled = await recoverReleaseOpportunity(input.repository, result.checkpoint);
   const controller = settled.input.controller;
@@ -1548,7 +1684,7 @@ export async function publishPreparedSiteDeployment(
             remote_identity: effect.remote_identity,
           },
         },
-        { remote: { configuration: input.remote_configuration, api } },
+        { remote: journalRemote },
       )
     : await recordPublishedApplicationSiteMetadata(
         input.repository,
@@ -1558,7 +1694,7 @@ export async function publishPreparedSiteDeployment(
           operation_id: result.operation_id,
           publication,
         },
-        { remote: { configuration: input.remote_configuration, api } },
+        { remote: journalRemote },
       );
   remaining(prepared.deadline, 15000);
   if (!("durable_checkpoint" in advanced) || advanced.durable_checkpoint !== advanced.checkpoint)

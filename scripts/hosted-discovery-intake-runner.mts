@@ -6,10 +6,13 @@ import { isRecord } from "./runtime-values.mts";
 
 interface Outcome {
   request: number;
-  status: "complete" | "incomplete";
+  status: "complete" | "complete_with_holds" | "incomplete";
+  counts?: { delivered: number; existing: number; held: number; pending: number };
   continuation: "inventory_changed" | "budget_exhausted" | null;
   progress: string | null;
 }
+export const hostedIntakeMaxPasses = 12;
+const hostedIntakeDeadlineMs = 90 * 60000;
 export function readHostedOutcomes(raw: unknown): Outcome[] {
   if (
     !isRecord(raw) ||
@@ -26,40 +29,70 @@ export function readHostedOutcomes(raw: unknown): Outcome[] {
       !Number.isSafeInteger(value.request) ||
       value.request < 1 ||
       seen.has(value.request) ||
-      !["complete", "incomplete"].includes(String(value.status)) ||
+      !["complete", "complete_with_holds", "incomplete"].includes(String(value.status)) ||
       ![null, "inventory_changed", "budget_exhausted"].includes(value.continuation as null) ||
       !(
         value.progress === null ||
         (typeof value.progress === "string" && /^[a-f0-9]{64}$/u.test(value.progress))
       ) ||
-      (value.status === "complete" && value.continuation !== null)
+      (value.status !== "incomplete" && value.continuation !== null) ||
+      (value.counts !== undefined &&
+        (!isRecord(value.counts) ||
+          !["delivered", "existing", "held", "pending"].every((key) => {
+            const count = (value.counts as Record<string, unknown>)[key];
+            return Number.isSafeInteger(count) && Number(count) >= 0;
+          }) ||
+          Number(value.counts.held) > Number(value.counts.pending))) ||
+      (value.status === "complete_with_holds" &&
+        (!isRecord(value.counts) ||
+          !Number.isSafeInteger(value.counts.held) ||
+          Number(value.counts.held) < 1 ||
+          value.counts.pending !== value.counts.held))
     )
       throw new Error("Invalid intake continuation outcome");
     seen.add(value.request);
     return value as unknown as Outcome;
   });
-  if ((raw.status === "passed") !== outcomes.every((o) => o.status === "complete"))
+  if ((raw.status === "passed") !== outcomes.every((o) => o.status !== "incomplete"))
     throw new Error("Intake summary disagrees with affected outcomes");
   return outcomes;
 }
 
 /** Existing receipts remain the only durable queue. These are finite job passes,
  * not a scheduler, HTTP retry loop or alternative planning authority. */
-export function runHostedIntakePasses(run: (pass: number, requests: number[] | null) => unknown) {
+export function runHostedIntakePasses(
+  run: (pass: number, requests: number[] | null, remainingMs: number) => unknown,
+  now = Date.now,
+) {
   const retained = new Map<number, Outcome>();
+  const stalls = new Map<number, number>();
+  const deadline = now() + hostedIntakeDeadlineMs;
   let requests: number[] | null = null;
   let queuePending = false;
-  for (let pass = 1; pass <= 3; pass++) {
-    const report = run(pass, requests);
-    queuePending = isRecord(report) && report.queue_continuation === "inventory_changed";
-    if (isRecord(report) && report.queue_continuation === "inventory_changed") {
+  let queueMovements = 0;
+  let stopReason = "pass_limit";
+  for (let pass = 1; pass <= hostedIntakeMaxPasses; pass++) {
+    const remainingMs = deadline - now();
+    if (remainingMs <= 0) {
+      stopReason = "deadline";
+      break;
+    }
+    const report = run(pass, requests, remainingMs);
+    queuePending = isRecord(report) && report.queue_continuation !== undefined;
+    if (isRecord(report) && queuePending) {
       if (
+        typeof report.queue_continuation !== "string" ||
+        !["inventory_changed", "budget_exhausted"].includes(report.queue_continuation) ||
         report.status !== "incomplete" ||
         report.requests !== 0 ||
         !Array.isArray(report.outcomes) ||
         report.outcomes.length
       )
         throw new Error("Malformed queue continuation");
+      if (++queueMovements >= 3) {
+        stopReason = "stalled";
+        break;
+      }
       continue;
     }
     const outcomes = readHostedOutcomes(report);
@@ -73,23 +106,34 @@ export function runHostedIntakePasses(run: (pass: number, requests: number[] | n
       const previous = retained.get(outcome.request);
       // A fresh envelope cannot fix work whose replay consumed the whole next
       // envelope without advancing. Preserve the actual pending result.
-      const stalled =
-        outcome.continuation === "budget_exhausted" &&
-        previous?.continuation === "budget_exhausted" &&
+      const unchanged =
+        outcome.continuation &&
+        previous?.continuation === outcome.continuation &&
         previous.progress === outcome.progress;
+      const count = unchanged ? (stalls.get(outcome.request) ?? 0) + 1 : 0;
+      stalls.set(outcome.request, count);
+      const stalled = count >= (outcome.continuation === "budget_exhausted" ? 1 : 2);
       retained.set(outcome.request, outcome);
       if (outcome.continuation && !stalled) next.push(outcome.request);
     }
-    if (!next.length || pass === 3) break;
+    if (!next.length) {
+      stopReason = outcomes.every((o) => o.status !== "incomplete")
+        ? "complete"
+        : "blocked_or_stalled";
+      break;
+    }
     // Give requests at the exhausted tail first access to the next envelope.
     requests = next.reverse();
   }
   const outcomes = [...retained.values()];
   return {
     status:
-      !queuePending && outcomes.every((o) => o.status === "complete") ? "passed" : "incomplete",
+      stopReason === "complete" && !queuePending && outcomes.every((o) => o.status !== "incomplete")
+        ? "passed"
+        : "incomplete",
     outcomes,
     queue_pending: queuePending,
+    stop_reason: stopReason,
   };
 }
 
@@ -98,6 +142,7 @@ export function runHostedIntakeWorker(
   directory: string,
   pass: number,
   requests: number[] | null,
+  remainingMs = hostedIntakeDeadlineMs,
 ) {
   const summary = path.join(directory, `pass-${pass}`, "summary.json");
   // A stale file must never stand in for a worker that crashed or was killed.
@@ -108,7 +153,7 @@ export function runHostedIntakeWorker(
     {
       cwd: root,
       stdio: "inherit",
-      timeout: 31 * 60000,
+      timeout: Math.min(31 * 60000, remainingMs),
       killSignal: "SIGKILL",
       env: {
         ...process.env,
@@ -137,10 +182,31 @@ function main() {
   const root = fileURLToPath(new URL("../", import.meta.url));
   const directory = path.join(root, "work/hosted-discovery-intake");
   mkdirSync(directory, { recursive: true });
-  const result = runHostedIntakePasses((pass, requests) =>
-    runHostedIntakeWorker(root, directory, pass, requests),
+  const result = runHostedIntakePasses((pass, requests, remainingMs) =>
+    runHostedIntakeWorker(root, directory, pass, requests, remainingMs),
   );
   writeFileSync(path.join(directory, "summary.json"), JSON.stringify(result, null, 2));
+  if (process.env.GITHUB_STEP_SUMMARY) {
+    const rows = result.outcomes.flatMap(({ request, status, counts }) =>
+      counts
+        ? [
+            `| ${request} | ${status} | ${counts.delivered} | ${counts.existing} | ${counts.held} | ${counts.pending} |`,
+          ]
+        : [`| ${request} | ${status} | — | — | — | — |`],
+    );
+    writeFileSync(
+      process.env.GITHUB_STEP_SUMMARY,
+      [
+        "## Hosted discovery intake",
+        "",
+        "| Proposal comment | Result | Delivered | Existing | Held | Pending |",
+        "| --- | --- | ---: | ---: | ---: | ---: |",
+        ...rows,
+        "",
+      ].join("\n"),
+      { flag: "a" },
+    );
+  }
   if (result.status !== "passed") process.exitCode = 1;
 }
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

@@ -6,6 +6,7 @@
     "name": "SpaghettiKart",
     "summary": "Native Mario Kart 64 port from HarbourMasters.",
     "project_url": "https://github.com/HarbourMasters/SpaghettiKart",
+    "listed_at": "2026-10-23",
     "original_game_title": "Mario Kart 64",
     "artwork": {
       "game_id": 350955,
@@ -37,9 +38,9 @@
     "runtime_source_filename": "baserom.us.z64",
     "executable_hints": {
       "windows-x86-64": ["Spaghettify.exe", "spaghettikart.exe"],
-      "linux-x86-64": ["spaghettikart"],
-      "macos-x86-64": ["spaghettikart"],
-      "macos-aarch64": ["spaghettikart"]
+      "linux-x86-64": ["spaghettikart", "spaghetti.appimage"],
+      "macos-x86-64": ["spaghettikart", "Spaghettify"],
+      "macos-aarch64": ["spaghettikart", "Spaghettify"]
     },
     "persistent_paths": [
       "mods",

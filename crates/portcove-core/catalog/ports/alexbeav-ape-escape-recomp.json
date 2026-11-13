@@ -4,7 +4,7 @@
   "listing": {
     "id": "alexbeav-ape-escape-recomp",
     "name": "Ape Escape / Alexbeav PSXRecomp",
-    "summary": "Native Ape Escape recompilation from Alexbeav’s PSXRecomp project.",
+    "summary": "Build and play Ape Escape on Windows or Linux with your own matching single-track USA PlayStation disc and retail SCPH-1001 BIOS. The Mac setup kit uses upstream preparation.",
     "project_url": "https://github.com/Alexbeav/ape-escape-recomp",
     "original_game_title": "Ape Escape",
     "artwork": {
@@ -15,12 +15,50 @@
       "game_slug": "ape-escape",
       "match_kind": "underlying-game"
     },
-    "issue_number": 424
+    "issue_number": 424,
+    "listed_at": "2026-10-23",
+    "platforms": ["macos-x86-64", "macos-aarch64"],
+    "download_asset_hints": {
+      "windows-x86-64": ["Ape-Escape-Recomp-", "-windows-x64.zip"],
+      "linux-x86-64": ["Ape-Escape-Recomp-", "-linux-x64.zip"],
+      "macos-x86-64": ["Ape-Escape-Recomp-", "-macos-x64.zip"],
+      "macos-aarch64": ["Ape-Escape-Recomp-", "-macos-arm64.zip"]
+    },
+    "setup_url": "https://github.com/alexbeavs-ps1-ports/ape-escape-recomp#readme",
+    "release_url": "https://github.com/alexbeavs-ps1-ports/ape-escape-recomp/releases",
+    "availability": "packages",
+    "recommended_download_channel": "stable",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Prepare the Mac toolchain and setup kit",
+          "instruction": "Install Xcode Command Line Tools, CMake, Ninja and Python 3. Verify that the tools are on PATH, then unpack the official Intel or Apple Silicon ZIP that matches your Mac into a separate writable folder."
+        },
+        {
+          "title": "Supply your original files",
+          "instruction": "Use your original single-track USA disc (SCUS-94423). Follow the kit’s README-SETUP.txt for the image format and the BIOS it needs."
+        },
+        {
+          "title": "Build and add the prepared player",
+          "instruction": "From the unpacked folder, run Ape_Escape_Recompiled and follow its Generate & rebuild wizard. In Portcove, select build-release/Ape_Escape_Recompiled as the program and build-release as the start folder. Keep the external runtime and use upstream instructions for replacement."
+        }
+      ],
+      "warnings": [
+        "Mac setup uses the upstream kit and your local toolchain. Mac build, gameplay and populated saves remain unobserved."
+      ],
+      "help_url": "https://github.com/alexbeavs-ps1-ports/ape-escape-recomp#readme",
+      "references": [
+        {
+          "title": "Updates and backups",
+          "instruction": "Preserve the entire working folder with its saves, settings, overlay captures, original disc files and any required BIOS. Keep a copy of the creating runtime before updating the kit."
+        }
+      ]
+    }
   },
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],
-    "platforms": ["windows-x86-64"],
+    "platforms": ["windows-x86-64", "linux-x86-64"],
     "automated_tested_platforms": [],
     "manually_validated_platforms": [],
     "adapter": "psx-recomp-managed",
@@ -28,12 +66,14 @@
       "provider": "github",
       "repository": "alexbeavs-ps1-ports/ape-escape-recomp",
       "asset_hints": {
-        "windows-x86-64": ["Ape-Escape-Recomp-", "-windows-x64.zip"]
+        "windows-x86-64": ["Ape-Escape-Recomp-", "-windows-x64.zip"],
+        "linux-x86-64": ["Ape-Escape-Recomp-", "-linux-x64.zip"]
       }
     },
     "source_profile": "ape-escape-psx",
     "executable_hints": {
-      "windows-x86-64": ["Ape_Escape_Recompiled.exe"]
+      "windows-x86-64": ["Ape_Escape_Recompiled.exe"],
+      "linux-x86-64": ["Ape_Escape_Recompiled"]
     },
     "persistent_paths": [
       "saves",
@@ -43,7 +83,12 @@
       "config.ini",
       "disc.cfg",
       "bios.cfg",
-      "mods",
+      "mods/installed",
+      "mods/packages",
+      "mods/.staging",
+      "mods/state.toml",
+      "mods/state.toml.tmp",
+      "mods/texture-packs",
       "overlay-captures"
     ],
     "runtime_mutable_paths": [
@@ -52,7 +97,8 @@
       "psx_freeze_heartbeat.json.tmp",
       "psx_last_run_report.json",
       "psx_cps_exit_trace.json",
-      "netplay_lan_lobby.txt"
+      "netplay_lan_lobby.txt",
+      "psx_crash.txt"
     ],
     "runtime_mutable_file_patterns": [
       {
@@ -63,7 +109,7 @@
     "launch_environment": {
       "PSX_OVERLAY_CAPTURES": "build-portcove/overlay-captures/overlay_captures.json"
     },
-    "launch_arguments": ["--no-launcher", "--bios", "bios/openbios.bin"],
+    "launch_arguments": ["--no-launcher"],
     "runtime_subdirectory": "build-portcove",
     "presentation": {
       "installation_method": "managed-recompilation",
@@ -73,10 +119,17 @@
           "profile_id": "ape-escape-psx",
           "label": "Ape Escape (USA) disc",
           "verification": "catalog-identity"
+        },
+        {
+          "role": "bios",
+          "profile_id": "psx-scph-1001-bios",
+          "label": "PlayStation SCPH-1001 BIOS",
+          "verification": "catalog-identity"
         }
       ],
       "saves_and_settings": "portcove-managed",
-      "manual_preparation": "Provide your own matching single-disc CHD. This Windows v0.3.6 route uses bundled OpenBIOS and skips the setup launcher when playing. Generation, runtime, lifecycle and gameplay are untested. Preserve the title GPL, framework PolyForm Noncommercial and UI/OpenBIOS MIT terms; their notices grant no rights to retail game data or generated retail content."
-    }
+      "manual_preparation": "Provide your own matching single-disc CHD and retail SCPH-1001 BIOS. The managed Windows and Linux routes build with that BIOS and skip the setup launcher when playing. A copy installed with the bundled OpenBIOS keeps it until you update; the update needs your SCPH-1001 BIOS. Generation, runtime, lifecycle and gameplay are untested. Preserve the title GPL, framework PolyForm Noncommercial and UI/OpenBIOS MIT terms; their notices grant no rights to retail game data or generated retail content."
+    },
+    "bios_source_profile": "psx-scph-1001-bios"
   }
 }

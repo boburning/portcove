@@ -1,0 +1,56 @@
+{
+  "kind": "dated provider metadata, no executable or gameplay qualification",
+  "observed_at": "2026-10-31T20:29:46.482940+00:00",
+  "repository": "djultra64/Power-Dozer",
+  "release": {
+    "id": 410159926,
+    "tag_name": "v0.84",
+    "draft": false,
+    "prerelease": false,
+    "published_at": "2026-10-12T04:24:48Z",
+    "assets": [
+      {
+        "id": 632650079,
+        "name": "power-dozer-v0.84-linux-x86_64.tar.gz",
+        "browser_download_url": "https://github.com/djultra64/Power-Dozer/releases/download/v0.84/power-dozer-v0.84-linux-x86_64.tar.gz",
+        "size": 18788674,
+        "digest": "sha256:56b342f4209544634d7f8debffd3f6bc5d79afcd8e196726436cf46d80f8d5f6"
+      },
+      {
+        "id": 632650074,
+        "name": "power-dozer-v0.84-linux-x86_64.tar.gz.sha256",
+        "browser_download_url": "https://github.com/djultra64/Power-Dozer/releases/download/v0.84/power-dozer-v0.84-linux-x86_64.tar.gz.sha256",
+        "size": 104,
+        "digest": "sha256:a28e68af24fdb41c9b862501b796f37c078db6ecd5d2bef1c797987e3ee833e2"
+      },
+      {
+        "id": 633621849,
+        "name": "power-dozer-v0.84-source.tar.gz",
+        "browser_download_url": "https://github.com/djultra64/Power-Dozer/releases/download/v0.84/power-dozer-v0.84-source.tar.gz",
+        "size": 23473804,
+        "digest": "sha256:fc04a9613d765fcccf70af4bba55a59bb0796764136c48f3eb28124f6182cf71"
+      },
+      {
+        "id": 633621859,
+        "name": "power-dozer-v0.84-source.tar.gz.sha256",
+        "browser_download_url": "https://github.com/djultra64/Power-Dozer/releases/download/v0.84/power-dozer-v0.84-source.tar.gz.sha256",
+        "size": 98,
+        "digest": "sha256:b3a1567c63000e54605a34a60795c36398ae215891e7f67416d3eee3c9f02e70"
+      },
+      {
+        "id": 633621837,
+        "name": "power-dozer-v0.84-windows-x86_64.zip",
+        "browser_download_url": "https://github.com/djultra64/Power-Dozer/releases/download/v0.84/power-dozer-v0.84-windows-x86_64.zip",
+        "size": 14232529,
+        "digest": "sha256:5b25d339376065442d82972917c921fa25f3b9e2f5bb87252389a993a4723533"
+      },
+      {
+        "id": 633621845,
+        "name": "power-dozer-v0.84-windows-x86_64.zip.sha256",
+        "browser_download_url": "https://github.com/djultra64/Power-Dozer/releases/download/v0.84/power-dozer-v0.84-windows-x86_64.zip.sha256",
+        "size": 103,
+        "digest": "sha256:2a28ab11222d1f56ff6b30fc34df7733bfde892565c6c84476159234f4875d33"
+      }
+    ]
+  }
+}

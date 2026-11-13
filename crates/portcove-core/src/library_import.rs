@@ -41,10 +41,11 @@ impl PortabilityCatalogs {
             absolute.path = root.join(relative);
             if let Some(references) = references.get(install.id.as_str()) {
                 let identity = crate::install::retained_build_identity_for_install(&absolute)?;
-                if references
-                    .iter()
-                    .any(|reference| reference.build != identity)
-                {
+                if references.iter().any(|reference| {
+                    reference
+                        .retained_builds()
+                        .any(|build| build.install_id == install.id && *build != identity)
+                }) {
                     return Err(PortcoveError::verification(
                         "retained build reference differs from its verified installation contract",
                     )
@@ -82,10 +83,25 @@ impl PortabilityCatalogs {
                         );
                         admissions.push(admission);
                     } else {
-                        crate::signed_catalog::validate_installed_port_contract(
-                            catalog.port(&install.port_id)?,
-                            embedded.port(&install.port_id)?,
-                        )?;
+                        let retained_port = catalog.port(&install.port_id)?;
+                        let embedded_port = embedded.port(&install.port_id)?;
+                        if embedded_port.windows_shipwright_persistence
+                            && !retained_port.windows_shipwright_persistence
+                        {
+                            // Compare the historical contract against the old
+                            // operational shape, leaving the retained bytes intact.
+                            let mut historical = embedded_port.clone();
+                            historical.windows_shipwright_persistence = false;
+                            crate::signed_catalog::validate_installed_port_contract(
+                                retained_port,
+                                &historical,
+                            )?;
+                        } else {
+                            crate::signed_catalog::validate_installed_port_contract(
+                                retained_port,
+                                embedded_port,
+                            )?;
+                        }
                     }
                     catalog
                 }
@@ -330,7 +346,7 @@ impl PortcoveService {
                     .ok_or_else(|| PortcoveError::state("import content size overflowed"))
             },
         )?;
-        let available_bytes = fs2::available_space(
+        let available_bytes = fs4::available_space(
             destination_root
                 .parent()
                 .ok_or_else(|| PortcoveError::usage("import destination needs a parent"))?,
@@ -386,7 +402,7 @@ pub(crate) fn validate_metadata(
     metadata: &LibraryMetadata,
     catalogs: &PortabilityCatalogs,
 ) -> Result<()> {
-    if !matches!(metadata.schema_version, 1..=5) {
+    if !matches!(metadata.schema_version, 1..=8) {
         return Err(PortcoveError::unsupported(
             "unsupported library metadata schema",
         ));
@@ -418,7 +434,14 @@ pub(crate) fn validate_metadata(
         _ => artwork_expected.as_slice(),
     };
     match (&metadata.artwork, metadata.schema_version) {
-        (Some(artwork), 3..=5) => {
+        (Some(artwork), 3..=8) => {
+            if metadata.schema_version < 8
+                && (!artwork.providers.is_empty() || !artwork.provider_only_assets.is_empty())
+            {
+                return Err(PortcoveError::verification(
+                    "artwork provider provenance requires library metadata schema 8",
+                ));
+            }
             crate::artwork_store::validate_metadata_with(artwork, |port_id| {
                 catalogs.require_port(port_id)
             })?
@@ -538,7 +561,19 @@ pub(crate) fn validate_metadata(
 fn retained_references_by_install(
     metadata: &LibraryMetadata,
 ) -> Result<BTreeMap<&str, Vec<&crate::RetainedBuildReference>>> {
-    if !metadata.retained_build_references.is_empty() && metadata.schema_version != 5 {
+    if !metadata.profiles.is_empty() && !matches!(metadata.schema_version, 6..=8) {
+        return Err(PortcoveError::verification(
+            "profiles require library metadata schema 6",
+        ));
+    }
+    if !metadata.library_memberships.is_empty() && !matches!(metadata.schema_version, 7 | 8) {
+        return Err(PortcoveError::verification(
+            "library memberships require library metadata schema 7",
+        ));
+    }
+    crate::library_membership::validate_export(&metadata.library_memberships)?;
+    crate::profile::validate_export(&metadata.profiles, &metadata.retained_build_references)?;
+    if !metadata.retained_build_references.is_empty() && !matches!(metadata.schema_version, 5..=8) {
         return Err(PortcoveError::verification(
             "retained build references require library metadata schema 5",
         ));
@@ -568,19 +603,21 @@ fn retained_references_by_install(
                 "library metadata repeats a retained build reference or setup binding",
             ));
         }
-        if installs
-            .get(reference.build.install_id.as_str())
-            .is_none_or(|install| !install.verified || !reference.build.matches_install(install))
-        {
-            return Err(PortcoveError::verification(
-                "retained build reference does not match an exported installation",
-            )
-            .detail("reference_id", &reference.id));
+        for build in reference.retained_builds() {
+            if installs
+                .get(build.install_id.as_str())
+                .is_none_or(|install| !install.verified || !build.matches_install(install))
+            {
+                return Err(PortcoveError::verification(
+                    "retained build reference does not match an exported installation",
+                )
+                .detail("reference_id", &reference.id));
+            }
+            references
+                .entry(build.install_id.as_str())
+                .or_default()
+                .push(reference);
         }
-        references
-            .entry(reference.build.install_id.as_str())
-            .or_default()
-            .push(reference);
     }
     Ok(references)
 }

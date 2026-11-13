@@ -29,6 +29,7 @@ import {
   bridgeMessages,
   serveHostBridge,
   probeLinuxCustody,
+  proveUnboundLinuxRecovery,
   verifyBridgedCapacity,
   verifyHostReference,
   acquireBridgedCapacity,
@@ -406,6 +407,15 @@ void test(
       () => probeLinuxCustody(file, custody.invocation, "release"),
       /cleanup is not proven/u,
     );
+    const recoverWithoutHostBinding = () =>
+      proveUnboundLinuxRecovery(
+        (phase, expected) => probeLinuxCustody(file, custody.invocation, phase, expected),
+        (owner) => {
+          if (readProcessIdentity(owner.pid) === owner.identity)
+            throw new Error("Original Linux owner remains live; retain custody");
+        },
+      );
+    assert.throws(recoverWithoutHostBinding, /cleanup is not proven/u);
     assert.throws(
       () =>
         probeLinuxCustody(file, custody.invocation, "release", {
@@ -421,8 +431,14 @@ void test(
         child: { ...custody.child, pid: 2147483647, identity: "linux:absent" },
       }),
     );
+    assert.throws(recoverWithoutHostBinding, /owner remains live/u);
     const stopped = probeLinuxCustody(file, custody.invocation, "release");
     assert.equal(stopped.child?.pid, 2147483647);
+    await writeFile(
+      file,
+      JSON.stringify({ ...stopped, owner: { pid: 2147483647, identity: "linux:absent-owner" } }),
+    );
+    recoverWithoutHostBinding();
     await writeFile(file, JSON.stringify({ ...stopped, cleanupParent: { dev: 0, ino: 0 } }));
     assert.throws(
       () => probeLinuxCustody(file, custody.invocation, "release"),
@@ -857,10 +873,26 @@ void test("external recovery is proof-bound and resumes partial release without 
     original.push({ slot, bytes });
   }
   await assert.rejects(
+    // @ts-expect-error Node callers can omit the required callback.
+    reconcileExternalCapacity(lease.reference, external, undefined, { root }),
+    /stopped proof required/,
+  );
+  await assert.rejects(
     reconcileExternalCapacity(lease.reference, external, async () => false, { root }),
     /not proven stopped/,
   );
-  await reconcileExternalCapacity(lease.reference, external, async () => true, { root });
+  const journal = await reconcileExternalCapacity(
+    lease.reference,
+    external,
+    async () => {
+      const recoveryDirectory = path.join(root, "recovery");
+      assert.ok((await readdir(recoveryDirectory)).some((name) => name.endsWith(".json.lock")));
+      assert.equal((await observeCapacity({ root })).running.length, 2);
+      return true;
+    },
+    { root },
+  );
+  assert.equal(typeof journal, "string");
   // Reconstitute precisely the interrupted-release state: first slot gone, second
   // original token still present. The durable decision already exists.
   const retained = original[1];

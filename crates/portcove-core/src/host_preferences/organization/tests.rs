@@ -8,6 +8,81 @@ fn hidden(port: &str) -> OrganizationChange {
 }
 
 #[test]
+fn explicit_implementation_choice_survives_restart_and_never_changes_other_library_choices() {
+    let temp = tempfile::tempdir().unwrap();
+    let path = temp.path().join("preferences.json");
+    let id = uuid::Uuid::new_v4().simple().to_string();
+    let other = uuid::Uuid::new_v4().simple().to_string();
+    let store = HostPreferenceStore::new(path.clone()).unwrap();
+    let initial = store
+        .change_library_organization(&id, 0, hidden("unrelated"))
+        .unwrap();
+    let selected = store
+        .change_library_organization(
+            &id,
+            initial.revision,
+            OrganizationChange::SetPreferredImplementation {
+                game_id: "majoras-mask".into(),
+                port_id: Some("2ship2harkinian".into()),
+            },
+        )
+        .unwrap();
+    let restarted = HostPreferenceStore::new(path.clone()).unwrap();
+    assert_eq!(restarted.library_organization(&id).unwrap(), selected);
+    assert_eq!(
+        selected.preferred_port_by_game["majoras-mask"],
+        "2ship2harkinian"
+    );
+    assert!(selected.hidden_port_ids.contains("unrelated"));
+    assert!(
+        restarted
+            .library_organization(&other)
+            .unwrap()
+            .preferred_port_by_game
+            .is_empty()
+    );
+    let bytes = fs::read(&path).unwrap();
+    assert!(
+        restarted
+            .change_library_organization(
+                &id,
+                initial.revision,
+                OrganizationChange::SetPreferredImplementation {
+                    game_id: "majoras-mask".into(),
+                    port_id: Some("zelda64-recomp".into())
+                }
+            )
+            .is_err()
+    );
+    assert_eq!(fs::read(&path).unwrap(), bytes);
+    assert!(
+        restarted
+            .change_library_organization(
+                &id,
+                selected.revision,
+                OrganizationChange::SetPreferredImplementation {
+                    game_id: "majoras-mask".into(),
+                    port_id: Some("invalid/id".into())
+                }
+            )
+            .is_err()
+    );
+    assert_eq!(fs::read(&path).unwrap(), bytes);
+    let cleared = restarted
+        .change_library_organization(
+            &id,
+            selected.revision,
+            OrganizationChange::SetPreferredImplementation {
+                game_id: "majoras-mask".into(),
+                port_id: None,
+            },
+        )
+        .unwrap();
+    assert!(cleared.preferred_port_by_game.is_empty());
+    assert_eq!(cleared.hidden_port_ids, selected.hidden_port_ids);
+}
+
+#[test]
 fn organization_survives_restart_move_and_preserves_unknown_records() {
     let temp = tempfile::tempdir().unwrap();
     let root = temp.path().join("library");

@@ -15,6 +15,33 @@ const input = {
   remote_configuration: { schema_version: 1, namespace: "portcove-fixture" },
   dispatch_actor_id: "1234",
 };
+void test("prepared transport preserves the explicit Windows profile and rejects widening or alias before provider calls", async () => {
+  const p = provider();
+  const profile = "initial-beta-windows-x86_64-v1";
+  const result = await dispatchPreparedReleaseCandidate(
+    { ...input, release_profile: profile },
+    "inert-fixture-token",
+    async () => {},
+    p.transport,
+  );
+  assert.equal(result.evidence.release_profile, profile);
+  assert.deepEqual(p.calls.find((call) => call.method === "POST")?.body, {
+    ref: "portcove-fixture-prepared/v0.19.0-preview.1",
+    inputs: { release_profile: profile },
+  });
+  for (const invalid of ["full", "initial-beta-windows", "windows-x86_64"]) {
+    const refused = provider();
+    await assert.rejects(
+      dispatchPreparedReleaseCandidate(
+        { ...input, release_profile: invalid },
+        "inert-fixture-token",
+        async () => {},
+        refused.transport,
+      ),
+    );
+    assert.equal(refused.calls.length, 0);
+  }
+});
 void test("dispatch phase deadline refuses expired reads and a late guard before any POST", async (t) => {
   let clock = 1000;
   t.mock.method(performance, "now", () => clock);
@@ -59,6 +86,34 @@ void test("dispatch phase deadline refuses expired reads and a late guard before
     ["GET", "GET"],
   );
 });
+void test("a deadline crossed between final control and SDK dispatch prevents the prepared POST", async (t) => {
+  let clock = 1000;
+  t.mock.method(performance, "now", () => clock);
+  const fixture = provider();
+  const advanceClock = (after: number) => {
+    if (after === 0) clock = 2001;
+    else queueMicrotask(() => advanceClock(after - 1));
+  };
+  await assert.rejects(
+    dispatchPreparedReleaseCandidate(
+      input,
+      "fixture-token",
+      async () => advanceClock(4),
+      fixture.transport,
+      2000,
+    ),
+    (error: unknown) => {
+      assert.ok(error instanceof CoordinatorRemoteError);
+      assert.ok(isRecord(error.evidence));
+      assert.equal(error.evidence.mutation_attempted, false);
+      return true;
+    },
+  );
+  assert.deepEqual(
+    fixture.calls.map(({ method }) => method),
+    ["GET"],
+  );
+});
 function provider(mode = "success") {
   const calls: { url: string; method: string; body: unknown }[] = [];
   const transport: typeof fetch = async (raw, init) => {
@@ -68,12 +123,13 @@ function provider(mode = "success") {
     const body: unknown = init?.body ? JSON.parse(init.body) : null;
     calls.push({ url, method, body });
     assert.equal(new Headers(init?.headers).get("x-github-api-version"), "2026-03-10");
-    assert.equal(init?.redirect, "error");
+    assert.equal(init?.redirect, "manual");
     if (url.endsWith("/release.yml"))
       return Response.json({ id: 999, path: ".github/workflows/release.yml", state: "active" });
     if (url.endsWith("/dispatches")) {
       if (mode === "lost") throw new Error("credential-super-secret must not escape");
       if (mode === "legacy") return new Response(null, { status: 204 });
+      if (mode === "unbound") return Response.json({ workflow_run_id: 42 });
       return Response.json({
         workflow_run_id: 42,
         run_url: "https://api.github.com/repos/boburning/portcove/actions/runs/42",
@@ -107,7 +163,13 @@ void test("one immutable prepared tag dispatch binds documented acknowledgment a
       assert.equal(fixture.calls.length, 1);
       guard++;
     },
-    fixture.transport,
+    async (route, options) => {
+      const result = await fixture.transport(route, options);
+      return new Response(result.body, {
+        status: result.status,
+        headers: { "content-type": "application/vnd.github+json" },
+      });
+    },
   );
   assert.equal(guard, 1);
   assert.equal(result.remote_identity, "github-actions:boburning/portcove:run:42:attempt:1");
@@ -119,7 +181,7 @@ void test("one immutable prepared tag dispatch binds documented acknowledgment a
   });
 });
 void test("dispatch never retries lost acknowledgment, unsupported status or mismatched actual run", async () => {
-  for (const mode of ["lost", "legacy", "attempt", "source", "actor"]) {
+  for (const mode of ["lost", "legacy", "unbound", "attempt", "source", "actor"]) {
     const fixture = provider(mode);
     await assert.rejects(
       dispatchPreparedReleaseCandidate(
@@ -132,6 +194,10 @@ void test("dispatch never retries lost acknowledgment, unsupported status or mis
         assert.ok(error instanceof CoordinatorRemoteError);
         assert.ok(isRecord(error.evidence));
         assert.equal(error.evidence.mutation_attempted, true);
+        assert.equal(
+          error.evidence.acknowledged_run_id,
+          ["lost", "legacy", "unbound"].includes(mode) ? null : 42,
+        );
         assert.equal(JSON.stringify(error).includes("credential-super-secret"), false);
         return true;
       },
@@ -139,6 +205,49 @@ void test("dispatch never retries lost acknowledgment, unsupported status or mis
     assert.equal(fixture.calls.filter((call) => call.method === "POST").length, 1);
   }
 });
+void test("an inherited deadline cancels a partial POST response without replay or accepted acknowledgment", async () => {
+  const fixture = provider();
+  let posts = 0;
+  let cancelled = false;
+  const transport: typeof fetch = async (raw, init) => {
+    if (init?.method !== "POST") return fixture.transport(raw, init);
+    posts++;
+    const body = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(Buffer.from('{"workflow_run_id":42'));
+      },
+      cancel() {
+        cancelled = true;
+      },
+    });
+    return new Response(body, { headers: { "content-type": "application/json" } });
+  };
+  const keepAlive = setInterval(() => {}, 1000);
+  try {
+    await assert.rejects(
+      dispatchPreparedReleaseCandidate(
+        input,
+        "fixture-token",
+        async () => {},
+        transport,
+        performance.now() + 250,
+      ),
+      (error: unknown) => {
+        assert.ok(error instanceof CoordinatorRemoteError);
+        assert.ok(isRecord(error.evidence));
+        assert.equal(error.evidence.mutation_attempted, true);
+        assert.equal(error.evidence.acknowledged_run_id, null);
+        assert.equal(error.evidence.automatic_retry, false);
+        return true;
+      },
+    );
+    assert.equal(posts, 1);
+    assert.equal(cancelled, true);
+  } finally {
+    clearInterval(keepAlive);
+  }
+});
+
 void test("late control refusal performs zero POST and reports refusal before effect", async () => {
   const fixture = provider();
   await assert.rejects(

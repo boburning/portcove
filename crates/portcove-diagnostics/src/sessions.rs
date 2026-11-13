@@ -65,6 +65,7 @@ pub(crate) struct Allocation {
     pub(crate) directory: PathBuf,
     lease: File,
     marker: Marker,
+    marker_file: File,
 }
 
 impl Allocation {
@@ -77,6 +78,7 @@ impl Allocation {
             ),
             directory: self.directory,
             marker: self.marker,
+            initial_marker: Some(self.marker_file),
         }
     }
 }
@@ -85,11 +87,19 @@ struct SessionSink {
     inner: FileSink,
     directory: PathBuf,
     marker: Marker,
+    initial_marker: Option<File>,
 }
 
 impl DiagnosticSink for SessionSink {
     fn initialize(&mut self) -> Result<(), SinkError> {
-        self.inner.initialize()
+        self.inner.initialize()?;
+        if let Some(file) = self.initial_marker.take() {
+            // Keep storage flush latency off the bootstrap caller. The leased
+            // worker must make the marker durable before accepting any log bytes.
+            sync_marker(&self.directory.join(SESSION_MARKER), &file)
+                .map_err(|error| SinkError::from_io(FailureStage::Open, error))?;
+        }
+        Ok(())
     }
     fn write_record(&mut self, record: &[u8]) -> Result<(), SinkError> {
         self.inner.write_record(record)
@@ -149,19 +159,29 @@ fn read_marker(directory: &Path) -> io::Result<Option<Marker>> {
     Ok(Some(marker))
 }
 
-fn write_marker(directory: &Path, marker: &Marker) -> io::Result<()> {
-    let path = directory.join(SESSION_MARKER);
-    let mut file = open_owned(&path, false)?;
+fn stage_marker(path: &Path, marker: &Marker) -> io::Result<File> {
+    let mut file = open_owned(path, false)?;
     let bytes = serde_json::to_vec(marker).map_err(|_| invalid())?;
     if bytes.len() as u64 > MARKER_BYTES {
         return Err(invalid());
     }
-    validate_held(&path, &file)?;
+    validate_held(path, &file)?;
     file.set_len(0)?;
     file.seek(SeekFrom::Start(0))?;
     file.write_all(&bytes)?;
+    validate_held(path, &file)?;
+    Ok(file)
+}
+
+fn sync_marker(path: &Path, file: &File) -> io::Result<()> {
+    validate_held(path, file)?;
     file.sync_data()?;
-    validate_held(&path, &file)
+    validate_held(path, file)
+}
+
+fn write_marker(directory: &Path, marker: &Marker) -> io::Result<()> {
+    let path = directory.join(SESSION_MARKER);
+    sync_marker(&path, &stage_marker(&path, marker)?)
 }
 
 fn lock_slot(root: &Path, name: &str, create: bool) -> io::Result<Option<Slot>> {
@@ -190,6 +210,12 @@ fn lock_slot(root: &Path, name: &str, create: bool) -> io::Result<Option<Slot>> 
             bytes = bytes.saturating_add(file.metadata()?.len());
         }
     }
+    if let Some(file) =
+        inspect_optional(&directory.join(portcove_core::runtime_diagnostics::PANIC_RECORD_NAME))?
+    {
+        has_logs = true;
+        bytes = bytes.saturating_add(file.metadata()?.len());
+    }
     // An unmarked namespace may contain user/older-version files. Do not adopt
     // or erase them merely because their leaf names resemble ours.
     if marker.is_none() && has_logs {
@@ -211,6 +237,12 @@ fn clear_slot(slot: &mut Slot) -> io::Result<()> {
             index,
         ))?;
     }
+    validate_held(&slot.directory.join(writer::WRITER_LOCK_NAME), &slot.lease)?;
+    safe_remove(
+        &slot
+            .directory
+            .join(portcove_core::runtime_diagnostics::PANIC_RECORD_NAME),
+    )?;
     validate_held(&slot.directory.join(writer::WRITER_LOCK_NAME), &slot.lease)?;
     safe_remove(&slot.directory.join(SESSION_MARKER))?;
     slot.bytes = 0;
@@ -324,14 +356,15 @@ fn allocate_at(
             started_at_ms: now_ms,
             complete: false,
         };
-        if write_marker(&slot.directory, &marker).is_err() {
+        let Ok(marker_file) = stage_marker(&slot.directory.join(SESSION_MARKER), &marker) else {
             continue;
-        }
+        };
         return (
             Some(Allocation {
                 directory: slot.directory,
                 lease: slot.lease,
                 marker,
+                marker_file,
             }),
             report,
             previous,

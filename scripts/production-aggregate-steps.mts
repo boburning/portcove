@@ -1,3 +1,4 @@
+import { isInitialBetaReleaseProfile } from "./release-package-policy.mts";
 import { appendFile, mkdtemp, open, writeFile } from "node:fs/promises";
 import { createHash } from "node:crypto";
 import path from "node:path";
@@ -118,7 +119,7 @@ async function inspectReservedAggregate(
 ) {
   const descriptor = inspectAggregateDescriptor(rawDescriptor);
   const { accepted } = await inspectTrustedAssemblyInput(descriptor.assembly);
-  if (accepted.release_profile === "initial-beta-win-linux" && !accepted.public_build_inputs)
+  if (isInitialBetaReleaseProfile(accepted.release_profile) && !accepted.public_build_inputs)
     throw new Error("protected beta assembly requires independently bound public build inputs");
   if (
     !isRecord(rawState) ||

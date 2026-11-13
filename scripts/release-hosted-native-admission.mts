@@ -1,7 +1,9 @@
+import { applicationReleaseProfile } from "./release-authority-configuration-contract.mts";
+import { nativePlatformsForReleaseProfile } from "./release-package-policy.mts";
+import { isInitialBetaReleaseProfile } from "./release-package-policy.mts";
 /** Selected source-bound pre-sign reader. The transferred proof is inert until
  * the actual receiver verifies it; no locator may appoint source or authority. */
 import { createHash } from "node:crypto";
-import { spawnSync } from "node:child_process";
 import { performance } from "node:perf_hooks";
 import { isDeepStrictEqual } from "node:util";
 import {
@@ -24,7 +26,7 @@ import { collectHostedNativeReleaseQualification } from "./release-hosted-native
 import { requireNativeReleaseQualificationPair } from "./release-native-admission.mts";
 import { coordinatorCommandTimeout } from "./release-coordinator-deadline.mts";
 import { isRecord } from "./runtime-values.mts";
-import { createGitHubRunner, GitHubApiClient } from "./github-api.mts";
+import { createReleaseCustodyProvider } from "./release-custody-provider.mts";
 import { readOnlyReleaseChildEnvironment } from "./release-readonly-child-environment.mts";
 import { readHostedNativeProofArtifact } from "./release-hosted-native-artifact.mts";
 
@@ -42,10 +44,14 @@ export async function deriveHostedNativePayloadOpportunities(
     structuredClone(rawAssembly),
   );
   if (
-    accepted.release_profile !== "initial-beta-win-linux" ||
-    !isDeepStrictEqual([...labels].sort(), ["linux-x86_64", "windows-x86_64"]) ||
+    accepted.release_profile !== applicationReleaseProfile(configuration) ||
+    !isInitialBetaReleaseProfile(accepted.release_profile) ||
+    !isDeepStrictEqual(
+      [...labels].sort(),
+      [...nativePlatformsForReleaseProfile(accepted.release_profile)].sort(),
+    ) ||
     !Array.isArray(archives) ||
-    archives.length !== 2
+    archives.length !== labels.length
   )
     throw new Error("selected hosted native reader requires the complete fixed platform pair");
   const seen = new Set<number>();
@@ -99,9 +105,15 @@ export async function deriveHostedNativePublicationOpportunities(
   rawJourneys: unknown,
 ) {
   const journeys: unknown = structuredClone(rawJourneys);
+  const opportunities = await deriveHostedNativePayloadOpportunities(
+    rawAuthorities,
+    rawAssembly,
+    rawArchives,
+  );
+
   if (
     !Array.isArray(journeys) ||
-    journeys.length !== 2 ||
+    journeys.length !== opportunities.length ||
     journeys.some(
       (value: unknown) =>
         !isRecord(value) ||
@@ -109,14 +121,9 @@ export async function deriveHostedNativePublicationOpportunities(
         !["windows-x86_64", "linux-x86_64"].includes(String(value.platform_label)),
     ) ||
     new Set(journeys.map((value: unknown) => (isRecord(value) ? value.platform_label : null)))
-      .size !== 2
+      .size !== opportunities.length
   )
     throw new Error("exact independently derived native publication journey pair required");
-  const opportunities = await deriveHostedNativePayloadOpportunities(
-    rawAuthorities,
-    rawAssembly,
-    rawArchives,
-  );
   return opportunities.map((opportunity) => {
     const value: unknown = journeys.find(
       (entry: unknown) => isRecord(entry) && entry.platform_label === opportunity.platform_label,
@@ -136,7 +143,7 @@ export async function deriveHostedNativePublicationOpportunities(
 }
 
 function transfers(raw: unknown) {
-  if (!Array.isArray(raw) || raw.length !== 2)
+  if (!Array.isArray(raw) || ![1, 2].includes(raw.length))
     throw new Error("two original native proof transfers required");
   const captured = raw.map((value: unknown) => {
     if (
@@ -164,7 +171,7 @@ function transfers(raw: unknown) {
     return { locator, files };
   });
   if (
-    new Set(captured.map((entry) => entry.locator.platform_label)).size !== 2 ||
+    new Set(captured.map((entry) => entry.locator.platform_label)).size !== captured.length ||
     captured.some(
       (entry) => !["windows-x86_64", "linux-x86_64"].includes(String(entry.locator.platform_label)),
     )
@@ -246,6 +253,17 @@ async function collectConfiguredHostedNativePair(
   const configuration = inspectSelectedPublicationAuthorityConfiguration(view.configuration);
   if (configuration.purpose !== "application")
     throw new Error("selected native application source required");
+  const expectedPlatforms = nativePlatformsForReleaseProfile(
+    applicationReleaseProfile(configuration),
+  );
+  if (
+    supplied &&
+    (supplied.length !== expectedPlatforms.length ||
+      supplied.some(
+        (entry) => !expectedPlatforms.some((platform) => platform === entry.locator.platform_label),
+      ))
+  )
+    throw new Error("native transfer platform differs from ratified release profile");
   const opportunities =
     stage === "payload-signing"
       ? await deriveHostedNativePayloadOpportunities(configuration, assembly, archives)
@@ -261,40 +279,37 @@ async function collectConfiguredHostedNativePair(
   const workflowDigest = createHash("sha256").update(workflow).digest("hex");
   const captured =
     supplied ??
-    (() => {
+    (await (async () => {
       const runId = view.source.run_id;
       if (typeof runId !== "string")
         throw new Error("native artifact discovery requires the original source run");
-      const environment = readOnlyReleaseChildEnvironment();
-      if (!environment)
-        throw new Error("native artifact discovery requires isolated reader credentials");
-      const api = new GitHubApiClient((args, input) => {
-        active();
-        const result = createGitHubRunner({
-          cwd: outputParent,
-          timeoutMs: Math.max(1, Math.floor(Math.min(30000, deadline - performance.now()))),
-          maxBuffer: 2 * 1024 * 1024,
-          spawn: (command, values, settings) =>
-            spawnSync(command, values, { ...settings, env: environment }),
-        })([...args, "--hostname", "github.com"], input);
-        active();
-        return result;
+      const token = readOnlyReleaseChildEnvironment()?.GH_TOKEN;
+      if (!token) throw new Error("native artifact discovery requires isolated reader credentials");
+      const metadata = await createReleaseCustodyProvider({
+        token,
+        deadline,
+        requestTimeoutMs: 30000,
       });
-      return opportunities.map((opportunity) =>
-        readHostedNativeProofArtifact(
-          api,
-          {
-            controller_revision: view.source.controller_revision,
-            run_id: runId,
-            run_attempt: view.source.run_attempt,
-            platform_label: opportunity.platform_label,
-            stage: opportunity.stage,
-          },
-          outputParent,
-          deadline,
-        ),
-      );
-    })();
+      const found = [];
+      for (const opportunity of opportunities) {
+        active();
+        found.push(
+          await readHostedNativeProofArtifact(
+            metadata,
+            {
+              controller_revision: view.source.controller_revision,
+              run_id: runId,
+              run_attempt: view.source.run_attempt,
+              platform_label: opportunity.platform_label,
+              stage: opportunity.stage,
+            },
+            deadline,
+            { token },
+          ),
+        );
+      }
+      return found;
+    })());
   const receipts = [];
   for (const opportunity of opportunities) {
     const transfer = captured.find(

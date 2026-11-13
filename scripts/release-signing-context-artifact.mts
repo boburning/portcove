@@ -1,13 +1,13 @@
+import { inspectPublicBuildInputBinding } from "./release-public-build-binding-contract.mts";
 /** Fixed public context handoff. Hashes and ZIP parsing alone establish no
  * eligibility: only the existing controller attestation/provider join may admit
  * a transferred context, and each role still needs its own fresh controls. */
 import { createHash } from "node:crypto";
-import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { crc32, inflateRawSync } from "node:zlib";
 import { performance } from "node:perf_hooks";
 import { setTimeout as delay } from "node:timers/promises";
-import { spawnSync } from "node:child_process";
 import { inspectBoundedZip } from "./bounded-zip.mts";
 import { releaseCanonicalDigest as digest } from "./release-canonical.mts";
 import {
@@ -17,15 +17,23 @@ import {
 } from "./release-signing-context.mts";
 import {
   requireCoordinatorSigningContext,
+  readPreparedCoordinatorSigningContext,
   readCoordinatorSigningContextFiles,
 } from "./release-metadata-signing-context.mts";
 import { inspectMetadataSigningBinding } from "./release-metadata-signing-contract.mts";
 import { assertOwnedUnlinkedPath } from "./release-path-safety.mts";
 import { isRecord } from "./runtime-values.mts";
 import { inspectHostedNativeTransportIdentities } from "./release-hosted-native-proof-contract.mts";
-import { createGitHubRunner, GitHubApiClient } from "./github-api.mts";
-import type { GitHubRestReader } from "./github-api.mts";
-import { readGitHubArtifactArchive } from "./github-binary.mts";
+import {
+  createReleaseCustodyProvider,
+  type ReleaseArtifactMetadataProvider,
+} from "./release-custody-provider.mts";
+import type { RetainedGitHubSpawn } from "./github-cli.mts";
+import { readOnlyReleaseChildEnvironment } from "./release-readonly-child-environment.mts";
+import { downloadGitHubArtifactArchiveFile } from "./github-artifact-download.mts";
+import { coordinatorCommandDeadline } from "./release-coordinator-deadline.mts";
+import { assertTrustedDirectNode } from "./release-direct-node-transport.mts";
+import type { SigningArchiveDownload } from "./release-signing-handoff.mts";
 import {
   inspectAssemblerIdentityExpectation,
   requestAssemblerToken,
@@ -222,8 +230,19 @@ export function inspectSigningContextArchive(raw: Buffer) {
         ? "aggregate_sha256,native_proofs,pending_obligations,records_sha256,run_attempt,run_id,sbom_sha256,signatures_sha256,source_commit,source_tree,version"
         : "aggregate_sha256,native_checks,pending_obligations,records_sha256,run_attempt,run_id,sbom_sha256,signatures_sha256,source_commit,source_tree,version",
     );
-    if (Object.hasOwn(manifest.binding, "native_proofs"))
-      inspectHostedNativeTransportIdentities(manifest.binding.native_proofs);
+    if (Object.hasOwn(manifest.binding, "native_proofs")) {
+      const assembly =
+        isRecord(manifest.facts) && isRecord(manifest.facts.assembly)
+          ? manifest.facts.assembly
+          : null;
+      const profile = assembly?.release_profile ?? "initial-beta-win-linux";
+      if (profile === "initial-beta-windows-x86_64-v1") {
+        if (assembly?.schema_version !== 3)
+          throw new Error("Windows context requires bound public input assembly");
+        inspectPublicBuildInputBinding(assembly.public_build_inputs, profile);
+      }
+      inspectHostedNativeTransportIdentities(manifest.binding.native_proofs, profile);
+    }
     for (const name of ["aggregate_sha256", "records_sha256", "sbom_sha256", "signatures_sha256"])
       sha(manifest.binding[name]);
   }
@@ -411,7 +430,10 @@ const requireProducerContext = async (kind: ContextKind, receipt: object) => {
     : requireCoordinatorSigningContext(receipt);
 };
 async function prepareContextArtifact(kind: ContextKind, contextReceipt: object, parent: string) {
-  const context = await requireProducerContext(kind, contextReceipt);
+  const context =
+    kind === "metadata-signing-context"
+      ? await readPreparedCoordinatorSigningContext(contextReceipt)
+      : await requireProducerContext(kind, contextReceipt);
   const bootstrap =
     kind === "metadata-signing-context" && "mode" in context && context.mode === "bootstrap";
   if (!context.previous_site && !bootstrap && kind !== "catalog-signing-context")
@@ -466,7 +488,9 @@ async function prepareContextArtifact(kind: ContextKind, contextReceipt: object,
       flag: "wx",
       mode: 0o600,
     });
-    await requireProducerContext(kind, contextReceipt);
+    if (kind === "metadata-signing-context")
+      await readPreparedCoordinatorSigningContext(contextReceipt);
+    else await requireProducerContext(kind, contextReceipt);
     const receipt = Object.freeze({
       kind: "actual-signing-context-upload",
       name: `${signingContextArtifactRoute(kind).prefix}-${tools.run_id}-${tools.run_attempt}`,
@@ -591,6 +615,72 @@ export async function handoffSigningContextArtifact(
   }
 }
 
+export async function acquireSigningContextArchive(
+  directory: string,
+  item: { id: number; bytes: number; sha256: string },
+  options: {
+    token: string;
+    deadline: number;
+    fetch?: typeof globalThis.fetch | undefined;
+    charge?: (() => () => void) | undefined;
+    download?: SigningArchiveDownload | undefined;
+  },
+) {
+  const { token, fetch, charge, download } = options;
+  const deadline = Math.min(
+    options.deadline,
+    performance.now() + 30000,
+    coordinatorCommandDeadline() ?? Infinity,
+  );
+  const endpoint = `repos/boburning/portcove/actions/artifacts/${item.id}/zip`;
+  let bytes;
+  if (download) {
+    bytes = await download(endpoint, {
+      cwd: directory,
+      maxBytes: item.bytes,
+      timeoutMs: signingContextRemaining(deadline, 30000),
+    });
+  } else {
+    signingContextRemaining(deadline, 30000);
+    const scratch = path.join(directory, `context-download-${item.id}.zip`);
+    await downloadGitHubArtifactArchiveFile(endpoint, scratch, {
+      credential: { kind: "explicit", token },
+      deadline,
+      maxBytes: item.bytes,
+      fetch(input, init) {
+        assertTrustedDirectNode("signing context archive");
+        return (fetch ?? globalThis.fetch)(input, init);
+      },
+      ...(charge
+        ? {
+            lookup: {
+              reserve() {
+                const release = charge();
+                return {
+                  consumeBytes() {},
+                  settle(observation) {
+                    if (!observation.dispatched) release();
+                  },
+                };
+              },
+            },
+          }
+        : {}),
+    });
+    try {
+      signingContextRemaining(deadline, 30000);
+      bytes = await readControllerToolFile(scratch, item.bytes);
+    } finally {
+      await unlink(scratch);
+    }
+  }
+  signingContextRemaining(deadline, 30000);
+  if (bytes.length !== item.bytes || hash(bytes) !== item.sha256)
+    throw new Error("context opaque archive byte identity differs");
+  signingContextRemaining(deadline, 30000);
+  return Buffer.from(bytes);
+}
+
 /** Only the fixed payload producer may describe the actual uploaded context.
  * The returned predicate is still unsigned data until actions/attest signs it. */
 export async function prepareSigningContextPredicate(
@@ -600,6 +690,8 @@ export async function prepareSigningContextPredicate(
   deadline: number,
 ) {
   signingContextRemaining(deadline, 15000);
+  const readerEnvironment = readOnlyReleaseChildEnvironment();
+  const readerToken = (readerEnvironment ?? process.env).GH_TOKEN ?? "";
   const owned = prepared.get(receipt);
   if (!owned) throw new Error("actual private signing context upload required");
   const uploaded = structuredClone(rawUploaded),
@@ -618,23 +710,16 @@ export async function prepareSigningContextPredicate(
     expectedIdentity.run_attempt !== controller.run_attempt
   )
     throw new Error("context producer identity differs from fixed controller tools");
-  const api = new GitHubApiClient((args, input) =>
-    createGitHubRunner({
-      cwd: owned.directory,
-      timeoutMs: signingContextRemaining(deadline, 15000),
-      maxBuffer: 128 * 1024,
-    })([...args, "--hostname", "github.com"], input),
-  );
-  const read = () => {
+  const metadata = await createReleaseCustodyProvider({
+    token: readerToken,
+    deadline,
+    maxBytes: 128 * 1024,
+  });
+  const read = async () => {
     signingContextRemaining(deadline, 15000);
-    const response = api.request(
-      "GET",
-      `repos/boburning/portcove/actions/artifacts/${uploaded.artifact_id}`,
-    );
+    const raw = await metadata.artifact(uploaded.artifact_id);
     signingContextRemaining(deadline, 15000);
-    const raw = response.body;
     if (
-      response.status !== 200 ||
       !isRecord(raw) ||
       raw.id !== uploaded.artifact_id ||
       raw.name !==
@@ -654,18 +739,11 @@ export async function prepareSigningContextPredicate(
       throw new Error("context uploaded artifact identity differs");
     return { id: raw.id, bytes: raw.size_in_bytes, sha256: uploaded.sha256 };
   };
-  const before = read();
-  const archive = readGitHubArtifactArchive(
-    `repos/boburning/portcove/actions/artifacts/${before.id}/zip`,
-    {
-      cwd: owned.directory,
-      maxBytes: before.bytes,
-      timeoutMs: signingContextRemaining(deadline, 30000),
-    },
-  );
-  signingContextRemaining(deadline, 15000);
-  if (archive.length !== before.bytes || hash(archive) !== before.sha256)
-    throw new Error("context uploaded archive bytes differ");
+  const before = await read();
+  const archive = await acquireSigningContextArchive(owned.directory, before, {
+    token: readerToken,
+    deadline,
+  });
   const inspected = inspectSigningContextArchive(archive);
   if (
     inspected.manifest_sha256 !== owned.manifest_sha256 ||
@@ -682,19 +760,19 @@ export async function prepareSigningContextPredicate(
         signal: AbortSignal.timeout(signingContextRemaining(deadline, 15000)),
       }),
   );
+  const options = {
+    transport: { sdkToken: readerToken, requireDirect: readerEnvironment !== undefined, deadline },
+  };
   const identity = await (owned.kind === "release-signing-context"
-    ? verifyPayloadSignerJobIdentity(token, expectedIdentity, {
-        transport: { cwd: owned.directory, deadline },
-      })
-    : verifyCapacityExecutorJobIdentity("coordinator", token, expectedIdentity, {
-        transport: { cwd: owned.directory, deadline },
-      }));
+    ? verifyPayloadSignerJobIdentity(token, expectedIdentity, options)
+    : verifyCapacityExecutorJobIdentity("coordinator", token, expectedIdentity, options));
   signingContextRemaining(deadline, 15000);
   await requireProducerContext(owned.kind, owned.context);
   if (
     identity.evidence_scope !== "github.com" ||
     Date.now() >= Date.parse(identity.expires_at) ||
-    digest(before) !== digest(read())
+    digest(before) !== digest(await read()) ||
+    Date.now() >= Date.parse(identity.expires_at)
   )
     throw new Error("context producer or uploaded custody changed");
   const predicate = {
@@ -781,7 +859,7 @@ type Received = {
   files: { path: string; bytes: number; sha256: string }[];
   public_evidence: { path: string; bytes: number; sha256: string }[];
   active: () => void;
-  refresh: () => void;
+  refresh: () => Promise<void>;
   tighten: (deadline: number) => void;
 };
 const received = new WeakMap<object, Received>();
@@ -789,9 +867,10 @@ const received = new WeakMap<object, Received>();
 /** Actual fixed-controller attestation + complete byte custody. This transfers
  * pre-sign context provenance only, never an imported release-admitted brand. */
 type ContextReceiverOptions = {
-  api?: GitHubRestReader;
-  download?: typeof readGitHubArtifactArchive;
-  spawn?: NonNullable<Parameters<typeof createGitHubRunner>[0]>["spawn"];
+  metadata?: ReleaseArtifactMetadataProvider;
+  fetch?: typeof globalThis.fetch;
+  download?: SigningArchiveDownload;
+  spawn?: RetainedGitHubSpawn;
 };
 export function receiveSigningContextArtifact(
   parent: string,
@@ -826,49 +905,56 @@ async function receiveContextArtifact(
 ) {
   const expected = expectedInput(rawExpected);
   signingContextRemaining(deadline, 15000);
-  const injected =
-    options.api !== undefined || options.download !== undefined || options.spawn !== undefined;
-  const apiOption = options.api ? { request: options.api.request.bind(options.api) } : undefined,
-    download = options.download ?? readGitHubArtifactArchive,
-    verifierSpawn = options.spawn;
+  const { metadata: injectedMetadata, download, spawn: verifierSpawn, fetch } = options;
+  const injected = !!(injectedMetadata || options.download || verifierSpawn || fetch);
+  const metadataOption = injectedMetadata && {
+    commit: injectedMetadata.commit.bind(injectedMetadata),
+    run: injectedMetadata.run.bind(injectedMetadata),
+    attempt: injectedMetadata.attempt.bind(injectedMetadata),
+    job: injectedMetadata.job.bind(injectedMetadata),
+    artifact: injectedMetadata.artifact.bind(injectedMetadata),
+  };
+  const { PATH, SystemRoot, GH_TOKEN } = process.env;
   const directory = await mkdtemp(path.join(parent, "signing-context-receiver-"));
   let phase = "provider-before";
   try {
     const home = path.join(directory, "reader-home");
     await mkdir(home, { mode: 0o700 });
     const environment = {
-      PATH: process.env.PATH,
-      SystemRoot: process.env.SystemRoot,
+      PATH,
+      SystemRoot,
       HOME: home,
       USERPROFILE: home,
       TEMP: home,
       TMP: home,
-      GH_TOKEN: process.env.GH_TOKEN,
+      GH_TOKEN,
       GH_HOST: "github.com",
       GH_PROMPT_DISABLED: "1",
     };
     let requests = 0;
-    const api =
-      apiOption ??
-      new GitHubApiClient((args, input) =>
-        createGitHubRunner({
-          cwd: directory,
-          timeoutMs: signingContextRemaining(deadline, 15000),
-          maxBuffer: 2 * 1024 * 1024,
-          spawn: (command, argv, settings) =>
-            spawnSync(command, argv, { ...settings, env: environment }),
-        })([...args, "--hostname", "github.com"], input),
-      );
-    const get = (suffix: string) => {
+    const metadata =
+      metadataOption ??
+      (await createReleaseCustodyProvider({
+        token: GH_TOKEN ?? "",
+        deadline,
+        currentDeadline: () => deadline,
+        ...(fetch ? { fetch } : {}),
+      }));
+    const charge = () => {
       signingContextRemaining(deadline, 15000);
-      // One original phase only: initial12 + at most62 six-GET refreshes. The
-      // fixed five-role/assembly/native/Release graph requires more than48;
-      // neither later getters nor retained-proof reads reset this counter.
-      if (++requests > 384) throw new Error("context complete provider readback budget exceeded");
-      const response = api.request("GET", `repos/boburning/portcove/${suffix}`);
+      // Both archive lookups and later getters share the original phase.
+      // Retained-proof reads do not reset this counter.
+      if (requests >= 384) throw new Error("context complete provider readback budget exceeded");
+      requests++;
+      return () => {
+        requests--;
+      };
+    };
+    const get = async (read: () => Promise<unknown>) => {
+      charge();
+      const raw = await read();
       signingContextRemaining(deadline, 15000);
-      if (response.status !== 200) throw new Error("context provider response unavailable");
-      return response.body;
+      return raw;
     };
     const controller = {
       controller_revision: expected.controller_revision,
@@ -908,8 +994,8 @@ async function receiveContextArtifact(
         throw new Error("context controller run/source/attempt differs");
       return { id: raw.id, attempt: raw.run_attempt, source: raw.head_sha };
     };
-    const artifact = (item: { id: number; sha256: string }, bundle: boolean) => {
-      const raw = get(`actions/artifacts/${item.id}`);
+    const artifact = async (item: { id: number; sha256: string }, bundle: boolean) => {
+      const raw = await get(() => metadata.artifact(item.id));
       if (
         !isRecord(raw) ||
         raw.id !== item.id ||
@@ -931,8 +1017,8 @@ async function receiveContextArtifact(
         throw new Error("context artifact provider identity differs");
       return { id: item.id, bytes: raw.size_in_bytes, sha256: item.sha256 };
     };
-    const snapshot = () => {
-      const source = get(`git/commits/${expected.controller_revision}`);
+    const snapshot = async () => {
+      const source = await get(() => metadata.commit(expected.controller_revision));
       if (
         !isRecord(source) ||
         source.sha !== expected.controller_revision ||
@@ -942,33 +1028,28 @@ async function receiveContextArtifact(
         throw new Error("context controller source tree differs");
       return {
         source: { commit: source.sha, tree: source.tree.sha },
-        run: run(get(`actions/runs/${expected.run_id}`)),
-        attempt: run(get(`actions/runs/${expected.run_id}/attempts/${expected.run_attempt}`)),
-        artifact: artifact(expected.artifact, false),
-        bundle: artifact(expected.bundle, true),
+        run: run(await get(() => metadata.run(expected.run_id))),
+        attempt: run(await get(() => metadata.attempt(expected.run_id, expected.run_attempt))),
+        artifact: await artifact(expected.artifact, false),
+        bundle: await artifact(expected.bundle, true),
       };
     };
-    const before = snapshot();
+    const before = await snapshot();
     await writeFile(path.join(directory, "provider-before.json"), JSON.stringify(before), {
       flag: "wx",
       mode: 0o600,
     });
-    const acquire = (item: { id: number; bytes: number; sha256: string }) => {
-      const bytes = download(`repos/boburning/portcove/actions/artifacts/${item.id}/zip`, {
-        cwd: directory,
-        maxBytes: item.bytes,
-        timeoutMs: signingContextRemaining(deadline, 30000),
-        spawn: (command, argv, settings) =>
-          spawnSync(command, argv, { ...settings, env: environment }),
-      });
-      signingContextRemaining(deadline, 15000);
-      if (bytes.length !== item.bytes || hash(bytes) !== item.sha256)
-        throw new Error("context opaque archive byte identity differs");
-      return Buffer.from(bytes);
-    };
     phase = "opaque-download";
-    const archive = acquire(before.artifact),
-      bundleArchive = acquire(before.bundle);
+    const acquire = (item: { id: number; bytes: number; sha256: string }) =>
+      acquireSigningContextArchive(directory, item, {
+        token: GH_TOKEN ?? "",
+        deadline,
+        fetch,
+        charge,
+        download,
+      });
+    const archive = await acquire(before.artifact),
+      bundleArchive = await acquire(before.bundle);
     await writeFile(path.join(directory, "context.zip"), archive, { flag: "wx", mode: 0o600 });
     await writeFile(path.join(directory, "bundle.zip"), bundleArchive, { flag: "wx", mode: 0o600 });
     const inspected = inspectSigningContextArchive(archive);
@@ -1053,8 +1134,8 @@ async function receiveContextArtifact(
     };
     if (digest(statement.predicate) !== digest(wanted))
       throw new Error("context signed predicate association differs");
-    const readJob = () => {
-      const job = get(`actions/jobs/${String(producer.job_id)}`);
+    const readJob = async () => {
+      const job = await get(() => metadata.job(Number(producer.job_id)));
       if (
         !isRecord(job) ||
         job.id !== producer.job_id ||
@@ -1070,15 +1151,15 @@ async function receiveContextArtifact(
         throw new Error("context completed payload producer identity differs");
       return job;
     };
-    const job = readJob();
-    const refresh = () => {
-      const current = snapshot(),
-        currentJob = readJob();
+    const job = await readJob();
+    const refresh = async () => {
+      const current = await snapshot(),
+        currentJob = await readJob();
       if (digest(current) !== digest(before) || digest(currentJob) !== digest(job))
         throw new Error("context provider custody changed");
       return { ...current, producer: currentJob };
     };
-    const after = refresh();
+    const after = await refresh();
     const statementBytes = Buffer.from(JSON.stringify(statement)),
       providerBytes = Buffer.from(JSON.stringify(after));
     await writeFile(path.join(directory, "verified-statement.json"), statementBytes, {
@@ -1135,7 +1216,9 @@ async function receiveContextArtifact(
         active: () => {
           signingContextRemaining(deadline, 15000);
         },
-        refresh,
+        refresh: async () => {
+          await refresh();
+        },
         tighten: (phaseDeadline) => {
           signingContextRemaining(phaseDeadline, 15000);
           deadline = Math.min(deadline, phaseDeadline);
@@ -1181,7 +1264,7 @@ async function readReceivedSigningContext(
     digest(actual.files)
   )
     throw new Error("authenticated signing context retained inventory changed");
-  if (provider === "fresh") actual.refresh();
+  if (provider === "fresh") await actual.refresh();
   actual.active();
   return Object.freeze({
     directory: actual.directory,

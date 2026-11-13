@@ -1,9 +1,11 @@
+import { captureParityState } from "../../test/parity-capture";
 import { cleanup, render, type RenderResult } from "vitest-browser-react";
 import { afterEach, beforeEach, expect, it, vi } from "vite-plus/test";
 import { page } from "vite-plus/test/browser";
 import { desktopApi } from "../api";
 import { failureReport, portDefinition } from "../test-fixtures";
 import type { InstallRecord, ManagedRouteChangePreview } from "../types";
+import { gameIdentityLabel } from "../port-identity";
 import { ManagedRouteChangeControl } from "./ManagedRouteChange";
 
 const port = { ...portDefinition(), adapter: "native-portable" as const };
@@ -113,6 +115,7 @@ it("reviews a separate managed copy before consent and leaves Play explicit", as
   expect(dialog).toBeDefined();
   expect(dialog!.left).toBeGreaterThanOrEqual(0);
   expect(dialog!.right).toBeLessThanOrEqual(360);
+  await captureParityState("managed-route-change-reviewed-fixture");
   await page.getByRole("button", { name: "Create managed copy" }).click();
   expect(apply).toHaveBeenCalledExactlyOnceWith(port.id, "reviewed-route", 7);
   expect(changed).toHaveBeenCalledOnce();
@@ -138,6 +141,7 @@ it("shows the Core hold while keeping the current copy intact", async () => {
     .toBeVisible();
   await expect.element(page.getByRole("button", { name: "Create managed copy" })).toBeDisabled();
   expect(apply).not.toHaveBeenCalled();
+  await captureParityState("managed-route-change-refused-fixture");
   await page.getByRole("button", { name: "Cancel", exact: true }).click();
   await expect
     .element(page.getByRole("button", { name: "Review a Portcove-managed copy…" }))
@@ -163,6 +167,7 @@ it("retains a committed failure until the player refreshes the authoritative ins
     .element(page.getByRole("button", { name: "Refresh current installation" }))
     .toBeVisible();
   expect(document.body.textContent).not.toContain("Create managed copy");
+  await captureParityState("managed-route-change-committed-failure-fixture");
   await page.getByRole("button", { name: "Refresh current installation" }).click();
   expect(changed).toHaveBeenCalledOnce();
 });
@@ -182,4 +187,57 @@ it.each([
   await expect.element(page.getByRole("button", { name: "Create managed copy" })).toBeDisabled();
   expect(document.body.textContent).not.toContain("external saves are not copied");
   expect(apply).not.toHaveBeenCalled();
+});
+
+it("keeps authored save consequences visible before creating a managed copy", async () => {
+  const warned = {
+    ...port,
+    presentation: {
+      ...port.presentation!,
+      manual_setup: {
+        steps: [{ title: "Choose the player", instruction: "Keep the complete package." }],
+        warnings: ["Back up shared saves before switching installations."],
+        references: [
+          { title: "Inspected version", instruction: "The old version used profile/save.bin." },
+        ],
+      },
+    },
+  };
+  await root.rerender(<ManagedRouteChangeControl port={warned} generation={7} busy={false} />);
+  await page.getByRole("button", { name: "Review a Portcove-managed copy…" }).click();
+  const warning = page.getByText("Back up shared saves before switching installations.", {
+    exact: true,
+  });
+  await expect.element(warning).toBeVisible();
+  expect(warning.element().closest("details")).toBeNull();
+  const confirm = page.getByRole("button", { name: "Create managed copy", exact: true });
+  expect(
+    Boolean(
+      warning.element().compareDocumentPosition(confirm.element()) &
+      Node.DOCUMENT_POSITION_FOLLOWING,
+    ),
+  ).toBe(true);
+});
+
+it("reviews the managed copy in the current language with exact paths", async () => {
+  const { initializeLocalization } = await import("../localization");
+  const localization = initializeLocalization(["en-US"]);
+  try {
+    await localization.changeLanguage("ar-XB");
+    vi.mocked(desktopApi.previewManagedRouteChange).mockResolvedValue({
+      ...preview,
+      current_registration: { ...preview.current_registration, path: "C:/{{path}}/Sample" },
+    });
+    await root.rerender(<ManagedRouteChangeControl port={port} generation={7} busy={false} />);
+    await page.getByRole("button", { name: "مراجعة نسخة يديرها Portcove…" }).click();
+    await expect.element(page.getByRole("dialog")).toBeVisible();
+    await expect.element(page.getByRole("button", { name: "إنشاء نسخة مُدارة" })).toBeVisible();
+    expect(document.body.textContent).toContain("مجلد التثبيت الجديد: E:/Portcove/versions/sample");
+    expect(document.querySelector("[role=dialog] bdi")?.textContent).toBe(gameIdentityLabel(port));
+    const codes = [...document.querySelectorAll("[role=dialog] code")].map((n) => n.textContent);
+    expect(codes).toContain("C:/{{path}}/Sample");
+    expect(document.body.textContent).not.toContain("Create managed copy");
+  } finally {
+    await localization.changeLanguage("en");
+  }
 });

@@ -1,43 +1,89 @@
 import {
   inspectCompleteRunArtifactInventory,
-  readCompleteRunArtifactInventory,
+  readCompleteRunArtifactInventoryAsync,
 } from "./release-run-artifact-inventory.mts";
 /** Bounded renewal-context reconciliation. Journal receipts, public artifacts
  * and completed producer identity remain separate from current controls. */
 import path from "node:path";
-import { mkdtemp, mkdir, writeFile } from "node:fs/promises";
-import { spawnSync } from "node:child_process";
+import { mkdtemp, writeFile } from "node:fs/promises";
 import { createHash } from "node:crypto";
 import { isRecord } from "./runtime-values.mts";
 import { releaseCanonicalDigest as digest } from "./release-canonical.mts";
-import { GitHubApiClient, createGitHubRunner } from "./github-api.mts";
-import { readGitHubArtifactArchive } from "./github-binary.mts";
+import { createReleaseCustodyProvider } from "./release-custody-provider.mts";
 import { readControllerToolFile } from "./release-controller-tools.mts";
 import { inspectCapacityOperation, inspectCompactCapacityOperations } from "./release-capacity.mts";
+import {
+  fixedReleaseReaderToken,
+  readOnlyReleaseChildEnvironment,
+} from "./release-readonly-child-environment.mts";
 import { readRetainedCapacityOperation } from "./release-coordinator-state.mts";
 import {
   readRemoteCoordinatorSnapshot,
   hydrateRetainedCoordinatorOperation,
 } from "./release-coordinator-recovery.mts";
-import { withCoordinatorDeadline } from "./release-coordinator-deadline.mts";
+import {
+  coordinatorCommandDeadline,
+  withCoordinatorDeadline,
+} from "./release-coordinator-deadline.mts";
 import {
   requireCoordinatorSigningContext,
+  readPreparedCoordinatorSigningContext,
   readCoordinatorSigningContextFiles,
 } from "./release-metadata-signing-context.mts";
 import {
   inspectSigningContextArchive,
   receiveMetadataSigningContextArtifact,
   requireReceivedSigningContext,
+  acquireSigningContextArchive,
   signingContextArchiveLimits,
   signingContextRemaining,
 } from "./release-signing-context-artifact.mts";
 import { productionControllerWorkflow } from "./production-controller-admission.mts";
+import { retainedApplicationContextUpload as retainedUnattemptedUpload } from "./release-coordinator-checkpoint-authentication.mts";
 const hash = (value: Buffer) => createHash("sha256").update(value).digest("hex");
 function metadataDestination(descriptor: unknown) {
   return `github-actions:boburning/portcove:metadata-${isRecord(descriptor) && descriptor.kind === "application-tuf-initial-bootstrap" ? "bootstrap" : "renewal"}-context`;
 }
 type Context = Awaited<ReturnType<typeof requireCoordinatorSigningContext>>;
 type Operation = NonNullable<ReturnType<typeof inspectCapacityOperation>>;
+
+const retainedUnattemptedEvidence = digest(retainedUnattemptedUpload);
+
+function matchesRetainedUnattemptedUpload(operation: Operation) {
+  const pin = retainedUnattemptedUpload;
+  const executor = operation.executor_identity;
+  return (
+    operation.id === pin.operation_id &&
+    operation.before_checkpoint === pin.previous &&
+    operation.kind === "upload" &&
+    operation.destination === "github-actions:boburning/portcove:metadata-renewal-context" &&
+    operation.completed_effects.length === 0 &&
+    operation.metadata_renewal?.transient_retries === 0 &&
+    operation.metadata_renewal.substantive_repairs === 0 &&
+    executor?.role === "coordinator" &&
+    executor.actor_id === "41898282" &&
+    executor.workflow === productionControllerWorkflow &&
+    executor.check_run_id === String(pin.job_id) &&
+    executor.controller_revision === pin.revision &&
+    executor.execution_ref === pin.ref &&
+    executor.run_id === pin.run_id &&
+    executor.run_attempt === 1 &&
+    executor.job_id === pin.job_id
+  );
+}
+
+function settledRetainedUnattemptedUpload(operation: Operation) {
+  return (
+    matchesRetainedUnattemptedUpload(operation) &&
+    operation.outcome === "recovered" &&
+    operation.recovery?.resolution === "effect-not-applied" &&
+    operation.recovery.checkpoint === retainedUnattemptedUpload.checkpoint &&
+    operation.recovery.evidence_sha256 === retainedUnattemptedEvidence &&
+    isRecord(operation.recovery.executor_identity) &&
+    operation.recovery.executor_identity.role === "coordinator" &&
+    operation.recovery.executor_identity.execution_ref === retainedUnattemptedUpload.successor_ref
+  );
+}
 function originalProducer(operation: Operation) {
   const raw = operation.executor_identity;
   if (!raw) throw new Error("metadata context original executor missing");
@@ -90,15 +136,21 @@ export function inspectMetadataContextRetryOperation(raw: unknown, descriptor: u
       : operation.metadata_renewal?.descriptor_sha256) !== digest(descriptor) ||
     !operation.executor_identity ||
     operation.executor_identity.role !== "coordinator" ||
-    !["succeeded", "recovered"].includes(operation.outcome) ||
-    (operation.outcome === "recovered" && operation.recovery?.resolution !== "effect-completed") ||
-    operation.completed_effects.length !== 1 ||
-    !/^github-actions:boburning\/portcove:artifact:[1-9][0-9]{0,15}$/u.test(
-      operation.completed_effects[0]!.remote_identity,
-    )
+    (!settledRetainedUnattemptedUpload(operation) && !hasSettledContextArtifact(operation))
   )
     throw new Error("metadata context retry requires one exact settled upload");
   return operation;
+}
+
+function hasSettledContextArtifact(operation: Operation) {
+  return (
+    ["succeeded", "recovered"].includes(operation.outcome) &&
+    (operation.outcome !== "recovered" || operation.recovery?.resolution === "effect-completed") &&
+    operation.completed_effects.length === 1 &&
+    /^github-actions:boburning\/portcove:artifact:[1-9][0-9]{0,15}$/u.test(
+      operation.completed_effects[0]!.remote_identity,
+    )
+  );
 }
 
 /** Integrity only. An unresolved upload can be read back, never retried, by
@@ -166,7 +218,13 @@ export async function readMetadataContextRetryReceipt(repository: string, proof:
   try {
     return readRetainedCapacityOperation(repository, proof);
   } catch {
-    return hydrateRetainedCoordinatorOperation(repository, proof);
+    const environment = readOnlyReleaseChildEnvironment() ?? process.env;
+    const provider = await createReleaseCustodyProvider({
+      token: environment.GH_TOKEN ?? "",
+      deadline: coordinatorCommandDeadline() ?? performance.now() + 45000,
+      maxBytes: 256 * 1024,
+    });
+    return hydrateRetainedCoordinatorOperation(repository, proof, { provider });
   }
 }
 
@@ -223,7 +281,7 @@ function inspectMetadataContextProvider(
   rawJob: unknown,
   rawArtifacts: unknown,
   operation: Operation,
-  controller: Context["tools"]["identity"],
+  controller: Pick<Context["tools"]["identity"], "controller_revision" | "controller_ref">,
 ) {
   const producer = originalProducer(operation);
   if (
@@ -326,6 +384,128 @@ function inspectMetadataContextProvider(
   };
 }
 
+function metadataReadbackProvider(token: string, deadline: number, limitError: string) {
+  // Two complete metadata observations share fourteen reads. The opaque archive has its own single lookup.
+  let reads = 0;
+  return createReleaseCustodyProvider({
+    token,
+    deadline,
+    chargeRead() {
+      if (++reads > 14) throw new Error(limitError);
+      signingContextRemaining(deadline, 15000);
+    },
+  });
+}
+
+async function readMetadataProviderSnapshot(
+  provider: Awaited<ReturnType<typeof metadataReadbackProvider>>,
+  producer: ReturnType<typeof originalProducer>,
+  deadline: number,
+) {
+  const raw = {
+    run: await provider.run(producer.run_id),
+    attempt: await provider.attempt(producer.run_id, 1),
+    job: await provider.job(producer.job_id),
+    artifacts: await readCompleteRunArtifactInventoryAsync((page) =>
+      provider.runArtifacts(producer.run_id, page),
+    ),
+  };
+  signingContextRemaining(deadline, 15000);
+  return raw;
+}
+
+/** Reobserve the original terminal attempt and exact reviewed diagnostics. The
+ * returned data has no write authority. Only the existing signed recovery CAS
+ * can settle the pending operation, and it must retain the original intent. */
+export async function readRetainedUnattemptedMetadataUpload(
+  checkpoint: string,
+  rawOperation: unknown,
+  descriptor: unknown,
+  directory: string,
+  deadline: number,
+) {
+  const pin = retainedUnattemptedUpload;
+  if (checkpoint !== pin.checkpoint) return;
+  const operation = inspectPendingMetadataContextUpload(rawOperation, descriptor);
+  if (!matchesRetainedUnattemptedUpload(operation))
+    throw new Error("retained unattempted upload identity differs");
+  const producer = originalProducer(operation);
+  const token = fixedReleaseReaderToken();
+  const provider = await metadataReadbackProvider(
+    token,
+    deadline,
+    "unattempted upload read limit exhausted",
+  );
+  const before = await readMetadataProviderSnapshot(provider, producer, deadline);
+  const selected = inspectMetadataContextProvider(
+    before.run,
+    before.attempt,
+    before.job,
+    before.artifacts,
+    operation,
+    { controller_revision: pin.revision, controller_ref: pin.ref },
+  );
+  const rows = inspectCompleteRunArtifactInventory(before.artifacts).artifacts;
+  const diagnostics = rows.filter(
+    (row) =>
+      isRecord(row) && row.name === `trusted-controller-diagnostics-coordinator-${pin.run_id}-1`,
+  );
+  const row = diagnostics[0];
+  if (
+    selected.artifact ||
+    selected.bundle ||
+    ![before.run, before.attempt].every(
+      (run) =>
+        isRecord(run) &&
+        run.conclusion === "failure" &&
+        run.head_branch === pin.ref.slice(10) &&
+        isRecord(run.actor) &&
+        run.actor.id === 41898282 &&
+        isRecord(run.triggering_actor) &&
+        run.triggering_actor.id === 41898282,
+    ) ||
+    !isRecord(before.job) ||
+    before.job.conclusion !== "failure" ||
+    diagnostics.length !== 1 ||
+    !isRecord(row) ||
+    row.id !== pin.diagnostics_id ||
+    row.expired !== false ||
+    row.size_in_bytes !== pin.diagnostics_bytes ||
+    row.digest !== `sha256:${pin.diagnostics_sha256}` ||
+    !isRecord(row.workflow_run) ||
+    String(row.workflow_run.id) !== pin.run_id ||
+    row.workflow_run.repository_id !== 1354613114 ||
+    row.workflow_run.head_repository_id !== 1354613114 ||
+    row.workflow_run.head_sha !== pin.revision ||
+    row.workflow_run.head_branch !== pin.ref.slice(10)
+  )
+    throw new Error("retained unattempted upload diagnostics differ");
+  const archive = await acquireSigningContextArchive(
+    directory,
+    {
+      id: pin.diagnostics_id,
+      bytes: pin.diagnostics_bytes,
+      sha256: pin.diagnostics_sha256,
+    },
+    { token, deadline },
+  );
+  const after = await readMetadataProviderSnapshot(provider, producer, deadline);
+  if (digest(before) !== digest(after))
+    throw new Error("retained unattempted upload provider inventory changed");
+  await writeFile(path.join(directory, "original-upload-diagnostics.zip"), archive, {
+    flag: "wx",
+    mode: 0o600,
+  });
+  await writeFile(path.join(directory, "original-upload-provider.json"), JSON.stringify(before), {
+    flag: "wx",
+    mode: 0o600,
+  });
+  return {
+    resolution: "effect-not-applied" as const,
+    evidence_sha256: retainedUnattemptedEvidence,
+  };
+}
+
 /** Public custody readback only. The fixed coordinator must independently
  * derive `current` from its actual tools, ratified anchors and Tough prior;
  * only its existing authenticated recovery executor may settle the result. */
@@ -344,48 +524,9 @@ export async function readPendingMetadataContextUpload(
   signingContextRemaining(deadline, 15000);
   const operation = inspectPendingMetadataContextUpload(rawOperation, descriptor),
     producer = originalProducer(operation),
-    directory = await mkdtemp(path.join(parent, "pending-context-readback-")),
-    home = path.join(directory, "reader-home");
-  await mkdir(home, { mode: 0o700 });
-  const environment = {
-    PATH: process.env.PATH,
-    SystemRoot: process.env.SystemRoot,
-    HOME: home,
-    USERPROFILE: home,
-    TEMP: home,
-    TMP: home,
-    GH_CONFIG_DIR: home,
-    GH_TOKEN: process.env.GH_TOKEN,
-    GH_HOST: "github.com",
-    GH_PROMPT_DISABLED: "1",
-  };
-  let reads = 0;
-  const api = new GitHubApiClient((args, input) => {
-    if (++reads > 14) throw new Error("pending metadata readback limit exhausted");
-    const result = createGitHubRunner({
-      cwd: directory,
-      timeoutMs: signingContextRemaining(deadline, 15000),
-      maxBuffer: 2 * 1024 ** 2,
-      spawn: (command, argv, settings) =>
-        spawnSync(command, argv, { ...settings, env: environment }),
-    })([...args, "--hostname", "github.com"], input);
-    signingContextRemaining(deadline, 15000);
-    return result;
-  });
-  const get = (suffix: string) => {
-    const result = api.request("GET", `repos/boburning/portcove/${suffix}`);
-    if (result.status !== 200) throw new Error("pending metadata provider read unavailable");
-    return result.body;
-  };
-  const snapshot = () => {
-    const raw = {
-      run: get(`actions/runs/${producer.run_id}`),
-      attempt: get(`actions/runs/${producer.run_id}/attempts/1`),
-      job: get(`actions/jobs/${producer.job_id}`),
-      artifacts: readCompleteRunArtifactInventory((page) =>
-        get(`actions/runs/${producer.run_id}/artifacts?per_page=100&page=${page}`),
-      ),
-    };
+    directory = await mkdtemp(path.join(parent, "pending-context-readback-"));
+  const snapshot = async (provider: Awaited<ReturnType<typeof metadataReadbackProvider>>) => {
+    const raw = await readMetadataProviderSnapshot(provider, producer, deadline);
     return {
       raw,
       selected: inspectPendingMetadataContextProvider(
@@ -401,26 +542,24 @@ export async function readPendingMetadataContextUpload(
   };
   let phase = "terminal-original-provider";
   try {
-    const before = snapshot(),
+    const token = fixedReleaseReaderToken();
+    const provider = await metadataReadbackProvider(
+      token,
+      deadline,
+      "pending metadata readback limit exhausted",
+    );
+    const before = await snapshot(provider),
       artifact = before.selected.artifact!;
     await writeFile(path.join(directory, "provider-before.json"), JSON.stringify(before.raw), {
       flag: "wx",
       mode: 0o600,
     });
     phase = "opaque-public-context";
-    const archive = readGitHubArtifactArchive(
-      `repos/boburning/portcove/actions/artifacts/${artifact.id}/zip`,
-      {
-        cwd: directory,
-        maxBytes: artifact.bytes,
-        timeoutMs: signingContextRemaining(deadline, 30000),
-        spawn: (command, argv, settings) =>
-          spawnSync(command, argv, { ...settings, env: environment }),
-      },
-    );
+    const archive = await acquireSigningContextArchive(directory, artifact, {
+      token,
+      deadline,
+    });
     signingContextRemaining(deadline, 15000);
-    if (archive.length !== artifact.bytes || hash(archive) !== artifact.sha256)
-      throw new Error("pending metadata archive bytes changed");
     await writeFile(path.join(directory, "original-context.zip"), archive, {
       flag: "wx",
       mode: 0o600,
@@ -477,7 +616,7 @@ export async function readPendingMetadataContextUpload(
     )
       throw new Error("pending metadata partial receipt differs from exact readback");
     phase = "terminal-provider-after";
-    const after = snapshot();
+    const after = await snapshot(provider);
     if (digest(before.raw) !== digest(after.raw))
       throw new Error("pending metadata provider changed");
     await writeFile(path.join(directory, "provider-after.json"), JSON.stringify(after.raw), {
@@ -516,7 +655,7 @@ export async function readPendingMetadataContextUpload(
 }
 
 export async function reconcileCoordinatorSigningContext(actualContext: object, parent: string) {
-  const context = await requireCoordinatorSigningContext(actualContext);
+  const context = await readPreparedCoordinatorSigningContext(actualContext);
   return withCoordinatorDeadline(context.deadline, () =>
     reconcileAt(actualContext, context, parent),
   );
@@ -526,54 +665,22 @@ async function reconcileAt(actualContext: object, context: Context, parent: stri
   const state = await readRemoteCoordinatorSnapshot(
     parent,
     { schema_version: 1, namespace: context.namespace },
-    { transport: { cwd: parent, deadline } },
+    {
+      transport: {
+        credential: { token: (readOnlyReleaseChildEnvironment() ?? process.env).GH_TOKEN ?? "" },
+        deadline,
+      },
+    },
   );
   if (state.checkpoint !== context.checkpoint) throw new Error("metadata retry checkpoint changed");
   const operation = await priorOperation(context, state.input);
   if (!operation) return { decision: "new" as const };
-  const directory = await mkdtemp(path.join(parent, "metadata-context-recovery-")),
-    home = path.join(directory, "reader-home");
-  await mkdir(home, { mode: 0o700 });
-  const environment = {
-    PATH: process.env.PATH,
-    SystemRoot: process.env.SystemRoot,
-    HOME: home,
-    USERPROFILE: home,
-    TEMP: home,
-    TMP: home,
-    GH_CONFIG_DIR: home,
-    GH_TOKEN: process.env.GH_TOKEN,
-    GH_HOST: "github.com",
-    GH_PROMPT_DISABLED: "1",
-  };
-  let reads = 0;
-  const api = new GitHubApiClient((args, input) => {
-    if (++reads > 14) throw new Error("metadata retry read limit exhausted");
-    const result = createGitHubRunner({
-      cwd: directory,
-      timeoutMs: signingContextRemaining(deadline, 15000),
-      maxBuffer: 2 * 1024 ** 2,
-      spawn: (command, argv, settings) =>
-        spawnSync(command, argv, { ...settings, env: environment }),
-    })([...args, "--hostname", "github.com"], input);
-    signingContextRemaining(deadline, 15000);
-    return result;
-  });
-  const get = (suffix: string) => {
-    const response = api.request("GET", `repos/boburning/portcove/${suffix}`);
-    if (response.status !== 200) throw new Error("metadata retry provider read unavailable");
-    return response.body;
-  };
+  if (settledRetainedUnattemptedUpload(operation))
+    return { decision: "transient-recovery" as const, recovery: "transient" as const };
+  const directory = await mkdtemp(path.join(parent, "metadata-context-recovery-"));
   const producer = originalProducer(operation);
-  const snapshot = () => {
-    const raw = {
-      run: get(`actions/runs/${producer.run_id}`),
-      attempt: get(`actions/runs/${producer.run_id}/attempts/1`),
-      job: get(`actions/jobs/${producer.job_id}`),
-      artifacts: readCompleteRunArtifactInventory((page) =>
-        get(`actions/runs/${producer.run_id}/artifacts?per_page=100&page=${page}`),
-      ),
-    };
+  const snapshot = async (provider: Awaited<ReturnType<typeof metadataReadbackProvider>>) => {
+    const raw = await readMetadataProviderSnapshot(provider, producer, deadline);
     return {
       raw,
       selected: inspectMetadataContextRetryProvider(
@@ -588,7 +695,13 @@ async function reconcileAt(actualContext: object, context: Context, parent: stri
   };
   let phase = "terminal-original-provider";
   try {
-    const before = snapshot();
+    const token = fixedReleaseReaderToken();
+    const provider = await metadataReadbackProvider(
+      token,
+      deadline,
+      "metadata retry read limit exhausted",
+    );
+    const before = await snapshot(provider);
     await writeFile(path.join(directory, "provider-before.json"), JSON.stringify(before.raw), {
       flag: "wx",
       mode: 0o600,
@@ -604,19 +717,11 @@ async function reconcileAt(actualContext: object, context: Context, parent: stri
       !bundle.expired
     ) {
       phase = "original-opaque-context";
-      const archive = readGitHubArtifactArchive(
-        `repos/boburning/portcove/actions/artifacts/${artifact.id}/zip`,
-        {
-          cwd: directory,
-          maxBytes: artifact.bytes,
-          timeoutMs: signingContextRemaining(deadline, 30000),
-          spawn: (command, argv, settings) =>
-            spawnSync(command, argv, { ...settings, env: environment }),
-        },
-      );
+      const archive = await acquireSigningContextArchive(directory, artifact, {
+        token,
+        deadline,
+      });
       signingContextRemaining(deadline, 15000);
-      if (archive.length !== artifact.bytes || hash(archive) !== artifact.sha256)
-        throw new Error("metadata retry opaque context changed");
       await writeFile(path.join(directory, "original-context.zip"), archive, {
         flag: "wx",
         mode: 0o600,
@@ -664,7 +769,7 @@ async function reconcileAt(actualContext: object, context: Context, parent: stri
         throw new Error("metadata retry attestation differs from settled receipt");
     }
     phase = "terminal-provider-after";
-    const after = snapshot();
+    const after = await snapshot(provider);
     if (digest(before.raw) !== digest(after.raw))
       throw new Error("metadata retry provider inventory changed");
     await writeFile(path.join(directory, "provider-after.json"), JSON.stringify(after.raw), {

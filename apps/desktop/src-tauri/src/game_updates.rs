@@ -58,9 +58,11 @@ pub(crate) async fn apply_game_update(
                 )
                 .await
                 {
-                    return Err(portcove_core::PortcoveError::usage(
-                        "shared preferences review was canceled",
-                    ));
+                    return Err(portcove_core::PortcoveError::new(
+                        portcove_core::ErrorCode::Cancelled,
+                        "Shared preferences review cancelled. Nothing was changed.",
+                    )
+                    .with_mutation_state(portcove_core::MutationState::NotStarted));
                 }
                 Some(expected_plan.as_str())
             } else {

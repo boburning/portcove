@@ -1,3 +1,4 @@
+import { initializeLocalization } from "./localization";
 import { usesUserSelectedRuntime } from "./shared/external-runtime-trust";
 import {
   evaluateCatalogQuery,
@@ -18,6 +19,7 @@ import type {
 } from "./types";
 import { portActionPresentation } from "./features/port-actions/port-action-presentation";
 import { gameTitle, gameIdentityLabel } from "./port-identity";
+import { normalizeGameSearchText } from "./search-text";
 
 const unfinishedActivityAfterSeconds = 24 * 60 * 60;
 
@@ -109,11 +111,12 @@ export function progressPresentation(
   const unknown = {
     label: presentation.label,
     detail:
-      unit === "bytes"
+      presentation.explanation ??
+      (unit === "bytes"
         ? "Total size not yet known."
         : unit === "ports"
           ? "Port total not yet known."
-          : "Progress total not yet known.",
+          : "Progress total not yet known."),
   };
   if (operation?.type === "message")
     return { label: presentation.label, detail: operation.message };
@@ -137,6 +140,8 @@ type ProgressUnit = "bytes" | "ports" | "items";
 type OperationPresentation = {
   label: string;
   indeterminate: string;
+  /** Shown for a step that has no countable total, after the label states what is happening. */
+  explanation?: string;
 };
 
 function operationPresentation(value: string): OperationPresentation {
@@ -145,8 +150,30 @@ function operationPresentation(value: string): OperationPresentation {
     download_package: { label: "Downloading upstream package" },
     copy: { label: "Copying game files" },
     "psx-toolchain-download": { label: "Downloading preparation tools" },
+    "disc.identify": {
+      label: "Checking your disc image",
+      explanation: "Making sure it is the right game and region.",
+    },
+    "disc.plan": {
+      label: "Reading the disc contents",
+      explanation: "Listing the files on the disc before unpacking.",
+    },
+    "disc.free-space": {
+      label: "Checking free space",
+      explanation: "Making sure there is room for the unpacked files.",
+    },
+    "disc.extract": { label: "Unpacking game files" },
+    "disc.verify": {
+      label: "Verifying game files",
+      explanation: "Checking that the unpacked files are intact.",
+    },
+    "disc.activate": {
+      label: "Finishing game file setup",
+      explanation: "Switching to the unpacked files.",
+    },
     "Checking installed ports": { label: "Checking installed ports" },
     "Applying update policies": { label: "Applying update settings" },
+    settings_change: { label: "Saving game setting" },
     install: { label: "Installing game" },
     update: { label: "Updating game" },
     prepare: { label: "Preparing game" },
@@ -158,7 +185,7 @@ function operationPresentation(value: string): OperationPresentation {
     backup: { label: "Backup in progress" },
     restore: { label: "Restoring saved data" },
     rollback: { label: "Restoring previous version" },
-    activate: { label: "Activating staged version" },
+    activate: { label: "Switching to the prepared version" },
     adopt: { label: "Copying existing installation" },
     remove: { label: "Removing managed files" },
     move_library: { label: "Moving library" },
@@ -180,29 +207,16 @@ function operationPresentation(value: string): OperationPresentation {
 }
 
 function progressDetail(completed: number, total: number, unit: ProgressUnit | undefined) {
-  if (unit === "bytes") return `${formatBytes(completed)} of ${formatBytes(total)}`;
-  const count = `${completed.toLocaleString()} of ${total.toLocaleString()}`;
-  if (unit === "ports") return `${count} ${total === 1 ? "port" : "ports"}`;
-  if (unit === "items") return `${count} ${total === 1 ? "item" : "items"}`;
-  return count;
-}
-
-type CountMessages = Partial<Record<"one" | "two" | "few" | "many", string>> & {
-  zero: string;
-  other: string;
-  unknown: string;
-};
-
-/** Complete messages use the UI language, currently English, for numbers and plurals. */
-export function formatCountMessage(
-  count: number | null | undefined,
-  messages: CountMessages,
-  locale = "en",
-) {
-  if (count == null || !Number.isSafeInteger(count) || count < 0) return messages.unknown;
-  const category = count === 0 ? "zero" : new Intl.PluralRules(locale).select(count);
-  const message = messages[category] ?? messages.other;
-  return message.replaceAll("{count}", new Intl.NumberFormat(locale).format(count));
+  const t = initializeLocalization().t;
+  if (unit === "bytes")
+    return t("progressBytes", {
+      ns: "counts",
+      completed: formatBytes(completed),
+      total: formatBytes(total),
+    });
+  if (unit === "ports") return t("progressPorts", { ns: "counts", count: total, completed });
+  if (unit === "items") return t("progressItems", { ns: "counts", count: total, completed });
+  return t("progressCount", { ns: "counts", completed, total });
 }
 
 export type View = "library" | "catalog" | "updates" | "settings";
@@ -258,14 +272,14 @@ export const installationMethodLabels: Record<
   NonNullable<PortDefinition["presentation"]>["installation_method"],
   string
 > = {
-  "portable-package": "Portable upstream package",
+  "portable-package": "Download and install",
   "portable-recompilation": "Portable native recompilation",
   "staged-game-files": "Prepared game files beside the port",
   "referenced-disc": "Original disc referenced at launch",
   "generated-game-data": "Generated game data",
   "upstream-setup": "Managed upstream setup",
   "managed-recompilation": "Managed native recompilation",
-  "user-prepared-runtime": "User-prepared external runtime",
+  "user-prepared-runtime": "Use an installation you set up yourself",
 };
 
 export function installationMethodLabel(port: CatalogEntry) {
@@ -521,8 +535,16 @@ function catalogRank(port: CatalogEntry, status: PortStatus | undefined, platfor
 function visibleInView(port: CatalogEntry, statuses: ReadonlyMap<string, PortStatus>, view: View) {
   const status = statuses.get(port.id);
   return (
-    view !== "library" || Boolean(status?.active || status?.external_runtime || port.pendingSetup)
+    view !== "library" ||
+    Boolean(
+      status?.active || status?.external_runtime || port.pendingSetup || isSavedLibraryEntry(port),
+    )
   );
+}
+
+/** An explicit add-only Library entry. It is not an installation and never counts as one. */
+function isSavedLibraryEntry(port: CatalogEntry) {
+  return Boolean(port.listingStatus?.library_membership);
 }
 
 function needsAttention(readiness: PortReadiness) {
@@ -544,10 +566,6 @@ function searchableText(port: CatalogEntry) {
   return normalizeGameSearchText(
     `${gameTitle(port)} ${port.name} ${port.presentation?.variant_label ?? ""} ${port.summary} ${port.id} ${installationMethod} ${port.platforms.join(" ")} ${port.platforms.map(platformLabel).join(" ")}`,
   );
-}
-
-function normalizeGameSearchText(value: string): string {
-  return value.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
 }
 
 export function errorText(error: unknown) {

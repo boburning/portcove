@@ -1,4 +1,5 @@
 /** Installed-parent compiler input custody, separate from hosted admission. */
+import { readReleaseToolDependencies } from "./release-tool-dependencies.mts";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { mkdir, writeFile } from "node:fs/promises";
@@ -9,7 +10,6 @@ import { isRecord } from "./runtime-values.mts";
 import { requireActualPublicJourneySource } from "./release-native-public-pair.mts";
 import { readReleaseCompilerReportArchive } from "./release-compiler-report-archive.mts";
 import { inspectReleaseCompilerReport } from "./release-compiler-evidence.mts";
-import { collectReleaseRunEvidence } from "./release-run-evidence.mts";
 import {
   selectPublicBuildInputBinding,
   verifyReleasePublicBuildInputs,
@@ -17,7 +17,7 @@ import {
 import { verifyReleaseSourceAttestation } from "./release-source-attestation.mts";
 import {
   prepareReleaseCompilerSourceClosure,
-  inspectPreparedCompilerSource,
+  inspectPreparedCompilerSourceAsync,
   compareCompilerClosure,
 } from "./release-compiler-source.mts";
 import { readBoundedPublicBuildInputFile } from "./release-public-build-inputs.mts";
@@ -172,10 +172,14 @@ export async function collectActualPublicWindowsCompilerIdentity(
     { git: git.path },
   );
   await retain("compiler-source-closure.json", Buffer.from(JSON.stringify(closure)));
-  inspectPreparedCompilerSource(selected.source.api, identity.allocation);
-  await compareCompilerClosure(closure, directory, identity.allocation.source_tree, {
-    api: selected.source.api,
+  const { read, deadline } = await selected.source.compilerSourceReader(selected.deadline);
+  await inspectPreparedCompilerSourceAsync(read, identity.allocation, deadline);
+  await compareCompilerClosure(closure, identity.allocation.source_tree, {
+    readTree: async (sha) =>
+      (await read(`repos/boburning/portcove/git/trees/${sha}`, deadline)).body,
   });
+  const tauriVersion = readReleaseToolDependencies(selected.parent.controller_root).tauri;
+  await selected.source.recheck();
   const capture = await readBoundedPublicBuildInputFile(
     selected.parent.controller_root,
     "scripts/release-compiler-capture.mts",
@@ -196,8 +200,8 @@ export async function collectActualPublicWindowsCompilerIdentity(
     tree: identity.source_tree,
     workflow_sha256: hash(workflow),
   };
-  const readEvidence = () => collectReleaseRunEvidence(request, { api: selected.source.api });
-  const evidence = readEvidence();
+  const readEvidence = () => selected.source.collectEvidence(request);
+  const evidence = await readEvidence();
   assert.ok(
     evidence.run.event === "workflow_dispatch" &&
       evidence.run.status === "completed" &&
@@ -206,6 +210,7 @@ export async function collectActualPublicWindowsCompilerIdentity(
   const binding = selectPublicBuildInputBinding(config.public_build_inputs, evidence);
   const publicInputs = await verifyReleasePublicBuildInputs(directory, binding, evidence, {
     download: selected.source.download,
+    deadline: selected.deadline,
   });
   for (const artifact of binding.artifacts) {
     const filename = path.join(publicInputs.directory, `${artifact.platform}.zip`);
@@ -242,7 +247,7 @@ export async function collectActualPublicWindowsCompilerIdentity(
           artifact.bytes >= 22 &&
           artifact.bytes <= 2 * 1024 * 1024,
       );
-      const archive = selected.source.download(
+      const archive = await selected.source.download(
         `repos/boburning/portcove/actions/artifacts/${artifact.id}/zip`,
         { cwd: directory, maxBytes: artifact.bytes, timeoutMs: remainingNativeParentBudget(30000) },
       );
@@ -256,6 +261,7 @@ export async function collectActualPublicWindowsCompilerIdentity(
         interface: inter,
         source_commit: identity.source_commit,
         source_tree: identity.source_tree,
+        tauri_cli_version: tauriVersion,
         run_id: identity.run_id,
         run_attempt: identity.run_attempt,
         job: jobs[0]!,
@@ -334,7 +340,7 @@ export async function collectActualPublicWindowsCompilerIdentity(
     sha256: hash(verifiedBytes),
   });
   const { observed_at: _before, ...before } = evidence;
-  const { observed_at: _after, ...after } = readEvidence();
+  const { observed_at: _after, ...after } = await readEvidence();
   assert.ok(
     isDeepStrictEqual(before, after),
     "public compiler provider changed during acquisition",

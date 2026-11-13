@@ -26,6 +26,8 @@ import { OperationProgress } from "./OperationProgress";
 import type { LucideIcon } from "lucide-react";
 import {
   AlertTriangle,
+  ArrowRight,
+  Play,
   Check,
   CircleMinus,
   Download,
@@ -49,9 +51,8 @@ import type {
 } from "../types";
 import { EmptyState, Icon } from "./ui";
 import { Button } from "./ui/button";
-import { CurrentStateSummary } from "./ui/patterns";
 import { useEffect, useId, useRef, useState } from "react";
-import type { UpdateBatchRead } from "../features/port-updates/use-update-center";
+import type { SignInOffer, UpdateBatchRead } from "../features/port-updates/use-update-center";
 import type { ActivitySettingsTarget } from "../features/app-shell/focus-settings-target";
 import {
   presentPortAction,
@@ -96,7 +97,10 @@ const updateStateClass =
 const libraryActivitySettingsTargets: Partial<
   Record<
     ActivityOperation,
-    Exclude<ActivitySettingsTarget, "source-profile" | "library-storage" | "application-updates">
+    Exclude<
+      ActivitySettingsTarget,
+      "source-profile" | "library-storage" | "application-updates" | "diagnostics"
+    >
   >
 > = {
   discover_sources: "discover-sources",
@@ -116,6 +120,9 @@ function useUpdateCenter({
   batchRead,
   busy,
   checkAll,
+  signInOffer,
+  onCheckAnyway,
+  onDismissSignInOffer,
   onSelect,
   onOpenSettings,
   generation,
@@ -126,6 +133,7 @@ function useUpdateCenter({
   refreshDiagnostics,
   cleanupChanged = refreshDiagnostics,
   reviewedActivityId,
+  reviewedActivityRequest,
   onReviewActivity,
   perform,
   onLaunch,
@@ -144,6 +152,8 @@ function useUpdateCenter({
   refreshDiagnostics: () => Promise<unknown>;
   cleanupChanged?: () => Promise<unknown>;
   reviewedActivityId?: string | undefined;
+  /** Increments for each explicit reveal request, so repeats focus the row again. */
+  reviewedActivityRequest?: number | undefined;
   onReviewActivity?: (activityId: string) => void;
   perform?: Perform | undefined;
   onLaunch?: ((portId: string) => void) | undefined;
@@ -157,6 +167,9 @@ function useUpdateCenter({
   batchRead?: UpdateBatchRead;
   busy?: string | undefined;
   checkAll: () => void | Promise<void>;
+  signInOffer?: SignInOffer | undefined;
+  onCheckAnyway?: (() => void | Promise<void>) | undefined;
+  onDismissSignInOffer?: (() => void) | undefined;
   onSelect: (portId: string, originKey?: string, destination?: DetailDestination) => void;
   onOpenSettings: (target: ActivitySettingsTarget, sourceProfileId?: string) => void;
 }) {
@@ -171,14 +184,30 @@ function useUpdateCenter({
   const updateReviewOwner = useRef<string | undefined>(undefined);
   useEffect(() => {
     if (!reviewedActivity) return;
-    const frame = window.requestAnimationFrame(() => {
-      const row = [...document.querySelectorAll<HTMLElement>("[data-activity-id]")].find(
-        (element) => element.dataset.activityId === reviewedActivity.id,
-      );
-      if (row) focusAndReveal(row);
-    });
-    return () => window.cancelAnimationFrame(frame);
+    return focusActivityRow(reviewedActivity.id);
   }, [reviewedActivity]);
+  // "Show task" while Activity is already open changes only the reviewed ID; reveal
+  // that row then. Mounting with a retained ID does not move focus.
+  const revealedFromElsewhere = useRef({
+    id: reviewedActivityId,
+    request: reviewedActivityRequest,
+  });
+  useEffect(() => {
+    const previous = revealedFromElsewhere.current;
+    if (previous.id === reviewedActivityId && previous.request === reviewedActivityRequest) return;
+    revealedFromElsewhere.current = { id: reviewedActivityId, request: reviewedActivityRequest };
+    if (!reviewedActivityId) return;
+    return focusActivityRow(reviewedActivityId);
+  }, [reviewedActivityId, reviewedActivityRequest]);
+  // Recovery's own Review action focuses the row once; record the ID it hands to the
+  // shell so the prop change it causes is not revealed a second time.
+  const reviewActivity = (id: string) => {
+    if (onReviewActivity) {
+      revealedFromElsewhere.current = { id, request: reviewedActivityRequest };
+      onReviewActivity(id);
+    }
+    setReviewedActivity((previous) => ({ id, request: (previous?.request ?? 0) + 1 }));
+  };
   useEffect(() => {
     const refreshNow = () => setNowSeconds(Date.now() / 1000);
     refreshNow();
@@ -255,6 +284,9 @@ function useUpdateCenter({
     batchRead,
     busy,
     checkAll,
+    signInOffer,
+    onCheckAnyway,
+    onDismissSignInOffer,
     onSelect,
     onOpenSettings,
     generation,
@@ -276,7 +308,7 @@ function useUpdateCenter({
     earlierBatch,
     nowSeconds,
     reviewedActivity,
-    setReviewedActivity,
+    reviewActivity,
     reviewingUpdate,
     setReviewingUpdate,
     updateReviewOwner,
@@ -318,27 +350,30 @@ function renderUpdateCheckToolbar(model: ReturnType<typeof useUpdateCenter>) {
       className="update-toolbar mb-3.5 flex flex-wrap items-stretch justify-between gap-5 max-[75rem]:flex-col max-[75rem]:items-start"
       data-focus-group
     >
-      <CurrentStateSummary
-        title={
-          model.installed.length === 0
+      <div className="update-check-summary">
+        <h2>
+          {model.installed.length === 0
             ? "No managed installations to check"
             : model.failedInstalled > 0
               ? "Some update checks failed"
               : model.checked.length === 0
                 ? "Updates not checked"
-                : `${model.available}${model.complete ? "" : "+"} updates available${model.earlierBatch ? " at last check" : ""}`
-        }
-      >
+                : `${model.available}${model.complete ? "" : "+"} ${model.available === 1 && model.complete ? "update" : "updates"} available${model.earlierBatch ? " at last check" : ""}`}
+        </h2>
         <p className="text-sm text-pc-muted-foreground">
-          {model.checked.length} of {model.installed.length} installed ports have a check result.
-          Unchecked or failed ports may still have updates.
+          {model.checked.length} of {model.installed.length} installed{" "}
+          {model.installed.length === 1 ? "port has" : "ports have"} a check result. Unchecked or
+          failed ports may still have updates.
         </p>
-      </CurrentStateSummary>
+      </div>
       <UpdateCheckControl
         busy={model.busy}
         status={model.batchRead?.status}
         hasInstalled={model.installed.length > 0}
         checkAll={model.checkAll}
+        signInOffer={model.signInOffer}
+        onCheckAnyway={model.onCheckAnyway}
+        onDismissSignInOffer={model.onDismissSignInOffer}
       />
     </div>
   );
@@ -388,7 +423,7 @@ function renderInstalledUpdateHeader({ model, port, status, state }: InstalledUp
       <div className="update-title min-w-0">
         <strong className="block text-sm">{gameTitle(port)}</strong>
         <small className="block text-xs text-pc-muted-foreground">{gameProjectLabel(port)}</small>
-        <small className="mt-1 block text-xs text-[var(--color-text-secondary)] capitalize">
+        <small className="mt-1 block text-xs text-[var(--color-text-secondary)]">
           {releaseChannelPresentation(status.channel).label} · {policyLabel(status.update_policy)}
         </small>
       </div>
@@ -399,9 +434,9 @@ function renderInstalledUpdateHeader({ model, port, status, state }: InstalledUp
           model.effectiveCheck(port.id)?.update_available &&
           model.effectiveCheck(port.id)?.release?.version && (
             <>
-              <span aria-hidden> → </span>
+              <Icon glyph={ArrowRight} size="sm" />
               <span className="sr-only">; offered version: </span>
-              {model.effectiveCheck(port.id)?.release?.version}
+              <strong>{model.effectiveCheck(port.id)?.release?.version}</strong>
             </>
           )}
       </div>
@@ -465,6 +500,7 @@ function renderInstalledUpdateActions({
             title={action.assessment.reason}
             onClick={() => model.onLaunch?.(port.id)}
           >
+            <Play className="size-3.5" fill="currentColor" aria-hidden="true" />
             {hasUnconfirmedLaunchInput(status, port) ? "Try launch" : "Play"}
           </Button>
         )}
@@ -511,7 +547,219 @@ function renderInstalledUpdateFailure({ port, outcome, failure }: InstalledUpdat
   );
 }
 
-function UpdateCenterView(model: ReturnType<typeof useUpdateCenter>) {
+type UpdateCenterModel = ReturnType<typeof useUpdateCenter>;
+
+function countActivityTasks(model: UpdateCenterModel) {
+  const feed = model.activityFeed;
+  return new Set([
+    ...(feed?.current_activity_ids ?? []),
+    ...(feed?.attention_required_activity_ids ?? []),
+    ...(feed?.recovery_required_activity_ids ?? []),
+    ...model.activities
+      .filter(
+        (activity) =>
+          ["running", "unfinished", "failed", "unknown"].includes(
+            activityPresentationState(activity, model.nowSeconds),
+          ) || Boolean(activity.failure),
+      )
+      .map((activity) => activity.id),
+  ]).size;
+}
+
+function activitySectionCounts(model: UpdateCenterModel) {
+  const feed = model.activityFeed;
+  const taskCount = countActivityTasks(model);
+  const historyCount = model.activities.filter(
+    (activity) =>
+      !["running", "unfinished"].includes(activityPresentationState(activity, model.nowSeconds)),
+  ).length;
+  const boundedCount = (count: number, complete: boolean | undefined) =>
+    complete ? String(count) : count > 0 ? `${count}+` : "—";
+  return {
+    tasks: {
+      value: taskCount > 0 ? boundedCount(taskCount, feed?.active_and_actionable_complete) : "—",
+      description:
+        taskCount === 0
+          ? "No task count is established by the loaded activity records."
+          : feed?.active_and_actionable_complete
+            ? `${taskCount} recorded tasks and attention items in the loaded activity snapshot.`
+            : `Activity snapshot coverage is incomplete. ${taskCount} recorded tasks and attention items.`,
+    },
+    updates: {
+      value: model.earlierBatch ? "—" : boundedCount(model.available, model.complete),
+      description: model.earlierBatch
+        ? `${model.available} updates at last check. Current results are unavailable or still being checked.`
+        : model.complete
+          ? `${model.available} updates available at last check.`
+          : `Update coverage is incomplete. ${model.available} known updates available at last check.`,
+    },
+    history: {
+      value: historyCount > 0 ? boundedCount(historyCount, feed?.terminal_history_complete) : "—",
+      description:
+        historyCount === 0
+          ? "No history count is established by the loaded activity records."
+          : feed?.terminal_history_complete
+            ? `${historyCount} history records in the loaded activity snapshot.`
+            : `${historyCount} loaded history records. History coverage is incomplete.`,
+    },
+  };
+}
+
+function GameUpdatesContent({ model }: { model: UpdateCenterModel }) {
+  return (
+    <>
+      {renderUpdateCheckToolbar(model)}
+      <UpdateBatchNotice read={model.batchRead} />
+      <details className="update-check-details">
+        <summary>About update checks</summary>
+        <p>
+          Checking does not install. Review an update before downloading or installing; Play uses
+          your current version.
+        </p>
+        <h3>Update statistics</h3>
+        {model.renderStatistics()}
+        <p className="update-explainer mb-4 text-xs leading-[var(--leading-comfortable)] text-pc-muted-foreground">
+          Looking for Portcove or catalog updates?{" "}
+          <Button
+            data-focusable
+            variant="link"
+            size="xs"
+            onClick={() => model.onOpenSettings("application-updates")}
+          >
+            Open Portcove update settings
+          </Button>
+        </p>
+      </details>
+      {model.installed.length > 0 && (
+        <p className="update-explainer mb-4 text-xs leading-[var(--leading-comfortable)] text-pc-muted-foreground">
+          {model.earlierBatch ? "Earlier update results cover " : "Update results cover "}
+          {model.checked.length} of {model.installed.length} installed{" "}
+          {model.installed.length === 1 ? "port" : "ports"}.
+          {model.latestSavedCheck > 0 &&
+            ` Latest saved check: ${formatActivityTime(model.latestSavedCheck)}.`}
+        </p>
+      )}
+      {model.installed.length === 0 && model.retainedArchives.length > 0 ? (
+        <p className="mb-5 text-sm text-pc-muted-foreground">
+          No managed installations can be updated here. Retained archives can still be reviewed and
+          discarded below.
+        </p>
+      ) : model.installed.length === 0 ? (
+        <EmptyState
+          icon={RefreshCw}
+          eyebrow="UPDATE CENTER"
+          title="No managed installations to check"
+          description={
+            model.external.length > 0
+              ? "Registered runtimes are updated externally. Install a managed port or copy in an existing installation to check it for updates here."
+              : "Install a port or copy in an existing installation first. Portcove will then show its update channel, update setting, latest available release, and previous installed version here."
+          }
+        />
+      ) : (
+        <div className="update-list grid max-w-5xl gap-3" data-focus-group>
+          {model.installed.map((port) => renderInstalledUpdateRow(model, port))}
+        </div>
+      )}
+      {model.retainedArchives.length > 0 && (
+        <section className="mt-7" aria-label="Downloaded updates">
+          <h3 className="mb-3 text-base">Downloaded updates</h3>
+          <p className="mb-4 text-sm text-pc-muted-foreground">
+            Archives remain recorded separately from installations. These records offer archive
+            cleanup; preparing or installing an update requires an available managed installation
+            and a fresh review.
+          </p>
+          <div className="grid gap-4" data-focus-group>
+            {model.retainedArchives.map((status) => {
+              const entry = model.activityPorts.find((port) => port.id === status.port_id);
+              const displayName = entry ? gameIdentityLabel(entry) : undefined;
+              return (
+                <article
+                  key={status.port_id}
+                  data-retained-update-archive-port-id={status.port_id}
+                  className="min-w-0 rounded-pc-lg border border-pc-border bg-pc-surface p-5"
+                >
+                  <h4 className="text-base">{displayName ?? status.port_id}</h4>
+                  {displayName && (
+                    <p className="mt-1 text-xs [overflow-wrap:anywhere] text-pc-muted-foreground">
+                      {status.port_id}
+                    </p>
+                  )}
+                  <GameUpdateControl
+                    portId={status.port_id}
+                    gameName={displayName}
+                    generation={model.generation}
+                    policy={status.update_policy}
+                    busy={Boolean(model.busy)}
+                    perform={model.perform}
+                    status={status}
+                    archiveOnly
+                    compact
+                  />
+                </article>
+              );
+            })}
+          </div>
+        </section>
+      )}
+      {model.external.length > 0 && (
+        <section className="external-update-section mt-6" aria-label="Externally updated games">
+          <h3 className="mb-2 text-base">Externally updated games</h3>
+          <p className="update-explainer mb-4 text-xs leading-[var(--leading-comfortable)] text-pc-muted-foreground">
+            You prepare updates for these registered runtimes outside Portcove. Open a game to
+            review its saved location and launch details.
+          </p>
+          <div className="update-list grid gap-2" data-focus-group>
+            {model.external.map((port) => {
+              const runtime = model.statuses.get(port.id)!.external_runtime!;
+              return (
+                <button
+                  data-focusable
+                  data-detail-origin={`updates:external:${port.id}`}
+                  className={updateRowClass}
+                  key={port.id}
+                  onClick={() => model.onSelect(port.id, `updates:external:${port.id}`)}
+                >
+                  <ArtworkImage port={port} quietFallback className="update-artwork" />
+                  <div className="update-title min-w-0">
+                    <strong className="block text-sm">{gameTitle(port)}</strong>
+                    <small className="block text-xs text-pc-muted-foreground">
+                      {gameProjectLabel(port)}
+                    </small>
+                    <small className="mt-1 block text-xs text-[var(--color-text-secondary)]">
+                      Registered user-prepared runtime
+                    </small>
+                  </div>
+                  <div className="update-versions grid min-w-0 grid-cols-2 gap-3.5 max-[65rem]:grid-cols-1 max-[65rem]:gap-2">
+                    <div className="update-version min-w-0">
+                      <small className="mt-1 block text-xs text-[var(--color-text-secondary)]">
+                        {runtime.user_selected ? "Update ownership" : "Registered version"}
+                      </small>
+                      <span className="mt-[3px] block text-sm [overflow-wrap:anywhere] text-[var(--color-text-secondary)]">
+                        {runtime.user_selected ? "You or the upstream launcher" : runtime.version}
+                      </span>
+                    </div>
+                  </div>
+                  <span className="external-update-action grid justify-items-end gap-3">
+                    <span className={`${updateStateClass} ${updateStateTones.muted}`}>
+                      Updated externally
+                    </span>
+                    <span className="inline-flex items-center gap-2 text-xs font-medium text-pc-interactive-foreground">
+                      View game <Icon glyph={ArrowRight} size="sm" />
+                    </span>
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </section>
+      )}
+    </>
+  );
+}
+
+function UpdateCenterView(model: UpdateCenterModel) {
+  const countId = useId();
+  const counts = activitySectionCounts(model);
   return (
     <Tabs.Root
       render={<section className="update-center" data-activity-section={model.selectedSection} />}
@@ -534,162 +782,31 @@ function UpdateCenterView(model: ReturnType<typeof useUpdateCenter>) {
             key={value}
             value={value}
             data-focusable
+            aria-describedby={`${countId}-${value}`}
             render={<Button variant="ghost" className="activity-tab" />}
           >
             {label}
+            <span
+              className="activity-tab-count"
+              aria-hidden="true"
+              title={counts[value].description}
+            >
+              {counts[value].value}
+            </span>
+            <span id={`${countId}-${value}`} hidden>
+              {counts[value].description}
+            </span>
           </Tabs.Tab>
         ))}
       </Tabs.List>
       <Tabs.Panel value="updates" keepMounted aria-label="Game updates">
-        <h2 className="mb-5 text-lg">Game updates</h2>
-        {renderUpdateCheckToolbar(model)}
-        <UpdateBatchNotice read={model.batchRead} />
-        <details className="mb-4">
-          <summary className="cursor-pointer py-2 text-sm">Update statistics</summary>
-          {model.renderStatistics()}
-        </details>
-        <p className="update-explainer mb-4 text-xs leading-[var(--leading-comfortable)] text-pc-muted-foreground">
-          Checking does not install. Review an update before downloading or installing; Play uses
-          your current version.
-        </p>
-        <p className="update-explainer mb-4 text-xs leading-[var(--leading-comfortable)] text-pc-muted-foreground">
-          Looking for Portcove or catalog updates?{" "}
-          <Button
-            data-focusable
-            variant="link"
-            size="xs"
-            onClick={() => model.onOpenSettings("application-updates")}
-          >
-            Open Portcove update settings
-          </Button>
-        </p>
-        {model.installed.length > 0 && (
-          <p className="update-explainer mb-4 text-xs leading-[var(--leading-comfortable)] text-pc-muted-foreground">
-            {model.earlierBatch ? "Earlier update results cover " : "Update results cover "}
-            {model.checked.length} of {model.installed.length} installed{" "}
-            {model.installed.length === 1 ? "port" : "ports"}.
-            {model.latestSavedCheck > 0 &&
-              ` Latest saved check: ${formatActivityTime(model.latestSavedCheck)}.`}
-          </p>
-        )}
-        {model.installed.length === 0 && model.retainedArchives.length > 0 ? (
-          <p className="mb-5 text-sm text-pc-muted-foreground">
-            No managed installations can be updated here. Retained archives can still be reviewed
-            and discarded below.
-          </p>
-        ) : model.installed.length === 0 ? (
-          <EmptyState
-            icon={RefreshCw}
-            eyebrow="UPDATE CENTER"
-            title="No managed installations to check"
-            description={
-              model.external.length > 0
-                ? "Registered runtimes are updated externally. Install a managed port or copy in an existing installation to check it for updates here."
-                : "Install a port or copy in an existing installation first. Portcove will then show its update channel, update setting, latest available release, and previous installed version here."
-            }
-          />
-        ) : (
-          <div className="update-list grid max-w-5xl gap-3" data-focus-group>
-            {model.installed.map((port) => renderInstalledUpdateRow(model, port))}
-          </div>
-        )}
-        {model.retainedArchives.length > 0 && (
-          <section className="mt-7" aria-label="Retained update archives">
-            <h3 className="mb-3 text-base">Retained update archives</h3>
-            <p className="mb-4 text-sm text-pc-muted-foreground">
-              Archives remain recorded separately from installations. These records offer archive
-              cleanup; preparing or installing an update requires an available managed installation
-              and a fresh review.
-            </p>
-            <div className="grid gap-4" data-focus-group>
-              {model.retainedArchives.map((status) => {
-                const entry = model.activityPorts.find((port) => port.id === status.port_id);
-                const displayName = entry ? gameIdentityLabel(entry) : undefined;
-                return (
-                  <article
-                    key={status.port_id}
-                    data-retained-update-archive-port-id={status.port_id}
-                    className="min-w-0 rounded-pc-lg border border-pc-border bg-pc-surface p-5"
-                  >
-                    <h4 className="text-base">{displayName ?? status.port_id}</h4>
-                    {displayName && (
-                      <p className="mt-1 text-xs [overflow-wrap:anywhere] text-pc-muted-foreground">
-                        {status.port_id}
-                      </p>
-                    )}
-                    <GameUpdateControl
-                      portId={status.port_id}
-                      gameName={displayName}
-                      generation={model.generation}
-                      policy={status.update_policy}
-                      busy={Boolean(model.busy)}
-                      perform={model.perform}
-                      status={status}
-                      archiveOnly
-                      compact
-                    />
-                  </article>
-                );
-              })}
-            </div>
-          </section>
-        )}
-        {model.external.length > 0 && (
-          <section className="external-update-section mt-6" aria-label="Externally updated games">
-            <h3 className="mb-2 text-base">Externally updated games</h3>
-            <p className="update-explainer mb-4 text-xs leading-[var(--leading-comfortable)] text-pc-muted-foreground">
-              You prepare updates for these registered runtimes outside Portcove. Open a game to
-              review its saved location and launch details.
-            </p>
-            <div className="update-list grid gap-2" data-focus-group>
-              {model.external.map((port) => {
-                const runtime = model.statuses.get(port.id)!.external_runtime!;
-                return (
-                  <button
-                    data-focusable
-                    data-detail-origin={`updates:external:${port.id}`}
-                    className={updateRowClass}
-                    key={port.id}
-                    onClick={() => model.onSelect(port.id, `updates:external:${port.id}`)}
-                  >
-                    <ArtworkImage port={port} quietFallback className="update-artwork" />
-                    <div className="update-title min-w-0">
-                      <strong className="block text-sm">{gameTitle(port)}</strong>
-                      <small className="block text-xs text-pc-muted-foreground">
-                        {gameProjectLabel(port)}
-                      </small>
-                      <small className="mt-1 block text-xs text-[var(--color-text-secondary)] capitalize">
-                        Registered user-prepared runtime
-                      </small>
-                    </div>
-                    <div className="update-versions grid min-w-0 grid-cols-2 gap-3.5 max-[65rem]:grid-cols-1 max-[65rem]:gap-2">
-                      <div className="update-version min-w-0">
-                        <small className="mt-1 block text-xs text-[var(--color-text-secondary)] capitalize">
-                          {runtime.user_selected ? "Update ownership" : "Registered version"}
-                        </small>
-                        <span className="mt-[3px] block text-sm [overflow-wrap:anywhere] text-[var(--color-text-secondary)]">
-                          {runtime.user_selected ? "You or the upstream launcher" : runtime.version}
-                        </span>
-                      </div>
-                    </div>
-                    <span className={`${updateStateClass} ${updateStateTones.muted}`}>
-                      Updated externally
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          </section>
-        )}
+        <GameUpdatesContent model={model} />
       </Tabs.Panel>
       <Tabs.Panel
         value={model.selectedSection === "history" ? "history" : "tasks"}
         keepMounted
         aria-label="Tasks and history"
       >
-        <h2 className="mb-5 text-lg">
-          {model.selectedSection === "history" ? "History" : "Tasks"}
-        </h2>
         <div
           hidden={model.selectedSection === "history"}
           inert={model.selectedSection === "history" ? true : undefined}
@@ -706,13 +823,7 @@ function UpdateCenterView(model: ReturnType<typeof useUpdateCenter>) {
             onSelect={model.onSelect}
             onOpenStorage={() => model.onOpenSettings("library-storage")}
             availableActivityIds={new Set(model.activities.map((activity) => activity.id))}
-            onReviewActivity={(id) => {
-              model.onReviewActivity?.(id);
-              model.setReviewedActivity((previous) => ({
-                id,
-                request: (previous?.request ?? 0) + 1,
-              }));
-            }}
+            onReviewActivity={model.reviewActivity}
           />
         </div>
         <ActivityHistory
@@ -740,11 +851,17 @@ function UpdateCheckControl({
   status,
   hasInstalled,
   checkAll,
+  signInOffer,
+  onCheckAnyway,
+  onDismissSignInOffer,
 }: {
   busy?: string | undefined;
   status?: UpdateBatchRead["status"] | undefined;
   hasInstalled: boolean;
   checkAll: () => void | Promise<void>;
+  signInOffer?: SignInOffer | undefined;
+  onCheckAnyway?: (() => void | Promise<void>) | undefined;
+  onDismissSignInOffer?: (() => void) | undefined;
 }) {
   const pendingCheck = useRef<typeof checkAll | undefined>(undefined);
   const labelId = useId();
@@ -775,6 +892,26 @@ function UpdateCheckControl({
               : "Check installed ports for updates"}
         </span>
       </Button>
+      {signInOffer && (
+        <div
+          role="status"
+          className="basis-full text-xs leading-[var(--leading-comfortable)] text-pc-muted-foreground"
+        >
+          <p>
+            Checking every installed port may use about {signInOffer.countedRequests} GitHub
+            requests, and about {signInOffer.remainingRequests} are left without signing in. Signing
+            in under Settings raises that allowance. Nothing is checked until you choose.
+          </p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            <Button data-focusable variant="outline" onClick={() => void onCheckAnyway?.()}>
+              Check anyway
+            </Button>
+            <Button data-focusable variant="ghost" onClick={() => onDismissSignInOffer?.()}>
+              Not now
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -906,7 +1043,7 @@ function ActivityHistory({
     <section className="activity-history" data-record-view={mode}>
       <div className="activity-heading mb-3 flex items-end justify-between gap-4">
         <div>
-          <h3 className="text-sm">Task records and diagnostics</h3>
+          <h2>{mode === "history" ? "Task history" : "Current tasks"}</h2>
         </div>
         <small className="text-xs text-pc-muted-foreground">
           {activityFeed ? (
@@ -923,25 +1060,26 @@ function ActivityHistory({
             "Activity from the CLI and desktop appears here."
           )}
         </small>
+        {mode === "history" && (
+          <Button variant="outline" size="sm" onClick={() => onOpenSettings("diagnostics")}>
+            Diagnostics
+          </Button>
+        )}
       </div>
       {shownActivities.length === 0 && (
-        <div className="activity-empty flex items-center gap-3 p-4 text-start text-xs text-pc-muted-foreground">
-          <span className="text-pc-interactive-foreground">
-            <Icon glyph={History} />
-          </span>
-          <div>
-            <strong className="block text-pc-secondary-foreground">
-              {mode === "history"
-                ? "No finished tasks in these records"
-                : "No current tasks in these records"}
-            </strong>
-            <span className="mt-1 block">
-              {mode === "history"
-                ? "Recorded installs, updates, checks and failures appear here when they finish."
-                : "Installs, updates, checks and items needing attention appear here. Finished records are in History."}
-            </span>
-          </div>
-        </div>
+        <EmptyState
+          icon={History}
+          title={
+            mode === "history"
+              ? "No finished tasks in these records"
+              : "No current tasks in these records"
+          }
+          description={
+            mode === "history"
+              ? "Recorded installs, updates, checks and failures appear here when they finish."
+              : "Installs, updates, checks and items needing attention appear here. Finished records are in History."
+          }
+        />
       )}
       <div className="activity-list grid gap-1.5">
         {groups
@@ -1065,13 +1203,11 @@ function ActivityRow({
         {presentation.label}
       </span>
       {presentation.state === "unfinished" && (
-        <p className={activityDetailsClass}>
-          This task has not reported completion. Review its details before retrying.
-        </p>
+        <UnfinishedActivity activity={activity} target={target} onSelect={onSelect} />
       )}
       {activity.status === "running" && operation && operation.type !== "finished" && (
         <div className={activityDetailsClass}>
-          <OperationProgress operation={operation} busy={activity.operation} />
+          <OperationProgress operation={operation} busy={activity.operation} embedded />
         </div>
       )}
       {activity.operation === "launch" && presentation.state === "succeeded" && (
@@ -1107,7 +1243,7 @@ function ActivityRow({
   );
 }
 
-function ActivityFailure({
+function UnfinishedActivity({
   activity,
   target,
   onSelect,
@@ -1117,22 +1253,63 @@ function ActivityFailure({
   onSelect: (portId: string, originKey?: string) => void;
 }) {
   return (
+    <div className={activityDetailsClass}>
+      <p>
+        This task didn’t report whether it finished.{" "}
+        {activity.liveness !== "interrupted" && "It may still be running in another window. "}
+        {target.portId
+          ? "Check the game’s current state before trying again."
+          : "Review its details before trying again."}
+      </p>
+      {/* A read-only look at current state; it never repeats the task. */}
+      {target.portId && !activity.failure && (
+        <Button
+          data-focusable
+          variant="link"
+          size="sm"
+          aria-label={`Check game: ${target.label}`}
+          data-detail-origin={`updates:activity:${activity.id}:check`}
+          onClick={() => onSelect(target.portId!, `updates:activity:${activity.id}:check`)}
+        >
+          Check game
+        </Button>
+      )}
+    </div>
+  );
+}
+
+function ActivityFailure({
+  activity,
+  target,
+  onSelect,
+}: {
+  activity: ActivityRecord;
+  target: ReturnType<typeof activityTarget>;
+  onSelect: (portId: string, originKey?: string) => void;
+}) {
+  const actions = activity.failure?.presentation.recovery_actions;
+  const reviewLabel = actions?.includes("review_preparation")
+    ? "Review setup"
+    : actions?.includes("review_current_state")
+      ? "Review game"
+      : undefined;
+  return (
     <>
       {activity.failure ? (
         <div className={activityDetailsClass}>
           <p>{activity.failure.presentation.summary}</p>
-          {activity.failure.presentation.recovery_actions.includes("review_preparation") &&
-            target.portId && (
-              <Button
-                data-focusable
-                variant="link"
-                size="sm"
-                data-detail-origin={`updates:activity:${activity.id}:review`}
-                onClick={() => onSelect(target.portId!, `updates:activity:${activity.id}:review`)}
-              >
-                Review setup
-              </Button>
-            )}
+          {reviewLabel && target.portId && (
+            <Button
+              data-focusable
+              variant="link"
+              size="sm"
+              aria-label={`${reviewLabel}: ${target.label}`}
+              data-detail-origin={`updates:activity:${activity.id}:review`}
+              onClick={() => onSelect(target.portId!, `updates:activity:${activity.id}:review`)}
+            >
+              {reviewLabel}
+            </Button>
+          )}
           <FailureDetails
             presentation={activity.failure.presentation}
             code={activity.failure.code}
@@ -1140,7 +1317,7 @@ function ActivityFailure({
         </div>
       ) : (
         activity.message && (
-          <p className={activityDetailsClass}>More details may be available in a support bundle.</p>
+          <p className={activityDetailsClass}>More details may be available in a support report.</p>
         )
       )}
     </>
@@ -1229,6 +1406,7 @@ function activityTarget(
 
 function operationLabel(operation: ActivityOperation) {
   const labels: Record<ActivityOperation, string> = {
+    settings_change: "Game setting change",
     relink_external: "Change game folder",
     download_package: "Upstream package download",
     prepare: "Game-data setup",
@@ -1304,7 +1482,7 @@ function activityPresentation(activity: ActivityRecord, nowSeconds: number) {
   return {
     state: "running",
     label: "In progress",
-    time: "In progress",
+    time: `Started ${formatActivityTime(activity.started_at)}`,
     icon: LoaderCircle,
   };
 }
@@ -1385,4 +1563,14 @@ function updateState(
       tone: "available",
     };
   return { label: "No update found at last check", tone: "current" };
+}
+
+function focusActivityRow(id: string) {
+  const frame = window.requestAnimationFrame(() => {
+    const row = [...document.querySelectorAll<HTMLElement>("[data-activity-id]")].find(
+      (element) => element.dataset.activityId === id,
+    );
+    if (row) focusAndReveal(row);
+  });
+  return () => window.cancelAnimationFrame(frame);
 }

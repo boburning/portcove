@@ -6,6 +6,7 @@
     "summary": "Play Warcraft II with Wargus and the Stratagus engine using your original game files.",
     "project_url": "https://github.com/Wargus/wargus",
     "issue_number": 1904,
+    "listed_at": "2026-10-23",
     "platforms": ["windows-x86-64"],
     "availability": "packages",
     "setup_url": "https://wargus.github.io/",
@@ -30,11 +31,27 @@
         },
         {
           "title": "Use the installed player",
-          "instruction": "Finish Portcove setup with the installed wargus.exe and its folder. Keep your Wargus game data and user settings backed up when applying upstream updates."
+          "instruction": "Select the installed player in Portcove, using its own folder as the start folder. Review the launch details and add the game, then choose Play."
+        },
+        {
+          "title": "Keep the complete prepared runtime",
+          "instruction": "Finish extraction with upstream before registration. Keep wargus.exe, its matching Stratagus engine, DLLs, scripts, campaigns and extraction tools together; the portable setup includes these components. Select wargus.exe with its installed folder as working directory and leave arguments empty for the normal game. Do not select the downloaded setup program, wartool.exe, a converter, the MIDI helper or uninstaller. The documented Windows launcher waits for its engine; Portcove supervises the selected launcher rather than adopting arbitrary replacement processes."
         }
       ],
-      "warnings": [],
-      "help_url": "https://wargus.github.io/"
+      "warnings": [
+        "Preserve the complete actual locations with the creating runtime. Upstream version checks can trigger in-place extraction or migration; back up before changing versions and do not infer older-save, mod or expansion compatibility."
+      ],
+      "help_url": "https://wargus.github.io/",
+      "references": [
+        {
+          "title": "Preserve converted data and player settings",
+          "instruction": "Keep your original DOS or Battle.net/GOG inputs and the complete actual converted-data directory. A portable-install marker can keep data in the application folder; otherwise the launcher can use Documents/Stratagus/data.Wargus. An existing local data set can also be reused. Engine preferences, logs and saves can use the application/data folder or Documents/Stratagus, and a deliberate -u option changes the user directory."
+        },
+        {
+          "title": "Updates and backups",
+          "instruction": "Close the game before using its setup or update tools. Back up your converted data, settings and saves first. Review the changed launch details before playing again. Portcove leaves this installation’s files in place when you remove the entry and does not update or back them up."
+        }
+      ]
     },
     "download_asset_hints": {
       "windows-x86-64": ["Wargus-portable-", ".exe"]

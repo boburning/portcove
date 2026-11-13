@@ -1,18 +1,26 @@
+import { isRecord } from "./runtime-values.mts";
 /** Ordinary credential-free hosted build fixture. Never a production tool route. */
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { spawn, spawnSync } from "node:child_process";
-import { lstat, mkdir, writeFile } from "node:fs/promises";
+import { lstat, mkdir, readFile, writeFile } from "node:fs/promises";
 import { performance } from "node:perf_hooks";
 import { homedir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import {
+  applicationToolFiles,
+  receiveApplicationToolArchive,
+  stageApplicationTools,
+} from "./application-release-tools.mts";
+import { createAuditZip } from "./fixtures/audit-zip-fixture.mts";
 import { buildControllerTools } from "./release-controller-tool-build.mts";
 import {
   controllerToolEntries,
   controllerToolChildren,
   controllerCompilerSourceAsset,
   controllerNativeDriverVersion,
+  controllerToolFileMaximumBytes,
   readControllerToolFile,
 } from "./release-controller-tools.mts";
 import { inspectReleaseCompilerSourceClosure } from "./release-compiler-source-closure.mts";
@@ -29,6 +37,20 @@ import {
 } from "./release-native-runtime-support.mts";
 import { inspectLinuxSupervisor } from "./run-rust-tests.mts";
 import { readProcessIdentity } from "./heavy-rust-test-lock.mts";
+
+/** Ordinary fixture allowance, separate from protected production job clocks.
+ * Completed cold builds reached 243109ms on shared hosted runners. Six minutes
+ * leaves finite variance headroom within the existing fifteen-minute job. */
+export const controllerFixtureBuildAllowanceMilliseconds = 360000;
+
+export function assertControllerFixtureBuildBudget(milliseconds: number) {
+  assert.ok(
+    Number.isSafeInteger(milliseconds) &&
+      milliseconds >= 0 &&
+      milliseconds <= controllerFixtureBuildAllowanceMilliseconds,
+    "cold fixed tool build exceeds its preparation allowance",
+  );
+}
 
 /** Bound JSON escape expansion as well as process output; preserve full-byte identity. */
 function boundedFixtureOutput(value: string) {
@@ -159,7 +181,7 @@ export async function qualifyNativeChildren(
       assert.ok(registered, "fixed prepared reaper registration missing");
       await writeFile(gate, "go", { flag: "wx", mode: 0o600 });
       const result = await finished;
-      assert.equal(result.error, undefined, result.error?.message);
+      assert.equal(result.error, undefined, String(result.error?.message ?? ""));
       assert.equal(result.code, 0, stderr);
       assert.equal(expired, false);
       assert.ok(outputBytes <= 65536);
@@ -220,6 +242,101 @@ export async function qualifyNativeChildren(
   };
 }
 
+/** Public failure metadata only. Never emit error text, paths, stdout or credentials. */
+export function controllerFixtureFailureAnnotation(
+  phase: string,
+  error: unknown,
+  buildMilliseconds: number | null,
+) {
+  const phases = new Set([
+    "source",
+    "fixed-node-runtime",
+    "actual-fixed-build",
+    "opaque-tool-readback",
+    "actual-compiler-source-closure",
+    "actual-node-runtime",
+    "actual-native-package-manager",
+    "actual-frozen-native-dependencies",
+    "actual-native-webdriver",
+    "actual-tauri-addon-help",
+    "actual-bundle-refusal-smoke",
+    "actual-fixed-native-worker-source-refusal",
+    "actual-fixed-native-child-refusal",
+    "actual-native-runtime-chain",
+    "actual-rust-refusal-smoke",
+    "actual-core-cli-inert-inspection",
+    "actual-connected-disposable-release",
+    "cold-build-budget",
+    "complete",
+  ]);
+  const codes = new Set([
+    "ERR_ASSERTION",
+    "ENOENT",
+    "EACCES",
+    "EROFS",
+    "ENOSPC",
+    "EIO",
+    "ENOMEM",
+    "ETIMEDOUT",
+    "ERR_MODULE_NOT_FOUND",
+    "ERR_UNKNOWN_BUILTIN_MODULE",
+  ]);
+  const bootstrapPhases = new Set([
+    "source-before",
+    "source-assets",
+    "fixed-native-package-manager",
+    "fixed-microsoft-webview-driver",
+    "fixed-node-bundles",
+    "fixed-rust-build",
+    "fixed-native-webdriver-build",
+    "tool-inventory",
+    "fixed-native-support-product",
+    "fixed-compiler-source-closure",
+    "complete",
+  ]);
+  let code = "unclassified";
+  let site: { file: string; line: number; column: number } | null = null;
+  let bootstrapPhase: string | null = null;
+  try {
+    let current: unknown = error;
+    const visited = new Set<object>();
+    for (let depth = 0; depth < 4 && isRecord(current) && !visited.has(current); depth++) {
+      visited.add(current);
+      const observedBootstrapPhase: unknown = current.controllerBootstrapPhase;
+      if (typeof observedBootstrapPhase === "string" && bootstrapPhases.has(observedBootstrapPhase))
+        bootstrapPhase = observedBootstrapPhase;
+      const observedCode: unknown = current.code;
+      if (typeof observedCode === "string" && codes.has(observedCode)) code = observedCode;
+      const stack: unknown = current instanceof Error ? current.stack : undefined;
+      if (typeof stack === "string") {
+        const match = stack
+          .slice(0, 16384)
+          .match(
+            /\/(qualify-controller-tool-build|release-controller-tool-build|release-controller-tools)\.mts:([0-9]{1,6}):([0-9]{1,4})/u,
+          );
+        if (match && Number(match[2]) > 0 && Number(match[3]) > 0)
+          site = { file: `${match[1]}.mts`, line: Number(match[2]), column: Number(match[3]) };
+      }
+      current = current.cause;
+    }
+  } catch {
+    // A hostile error getter must not replace the original producer failure.
+  }
+  return `::error title=Controller fixture refused::${JSON.stringify({
+    phase: phases.has(phase) ? phase : "unknown",
+    bootstrap_phase: bootstrapPhase,
+    code,
+    site,
+    build_milliseconds:
+      typeof buildMilliseconds === "number" &&
+      Number.isSafeInteger(buildMilliseconds) &&
+      buildMilliseconds >= 0 &&
+      buildMilliseconds <= 3600000
+        ? buildMilliseconds
+        : null,
+  })}`;
+}
+
 async function main() {
   const source = fileURLToPath(new URL("..", import.meta.url));
   const temp = process.env.RUNNER_TEMP;
@@ -273,9 +390,70 @@ async function main() {
     buildMilliseconds = Math.ceil(performance.now() - buildStarted);
     builtDirectory = built.directory;
     await record("manifest.json", built.manifest);
+    const applicationExecution = {
+      source: expected.commit,
+      ref: "refs/tags/portcove-production-controller-windows-fixture",
+      run_id: process.env.GITHUB_RUN_ID ?? "1",
+      run_attempt: 1,
+    };
+    const applicationTools = path.join(built.directory, "application-fixture-produced");
+    await stageApplicationTools(
+      applicationExecution,
+      applicationTools,
+      path.join(built.tools, "bin/portcove-release-tools"),
+    );
+    const members = await Promise.all(
+      [...applicationToolFiles, "tools.json"].map(
+        async (name) => [name, await readFile(path.join(applicationTools, name))] as const,
+      ),
+    );
+    const applicationArchive = createAuditZip(members);
+    const applicationScratch = path.join(built.directory, "application-fixture-scratch");
+    await mkdir(applicationScratch);
+    await writeFile(path.join(applicationScratch, "archive.zip"), applicationArchive);
+    await writeFile(
+      path.join(applicationScratch, "metadata.json"),
+      JSON.stringify({
+        id: 1,
+        expired: false,
+        name: `application-tools-${applicationExecution.run_id}-1`,
+        size_in_bytes: applicationArchive.length,
+        digest: "sha256:" + createHash("sha256").update(applicationArchive).digest("hex"),
+        workflow_run: {
+          id: Number(applicationExecution.run_id),
+          head_sha: expected.commit,
+          repository_id: 1354613114,
+        },
+      }),
+    );
+    const applicationReceived = path.join(built.directory, "application-fixture-received");
+    const received = await receiveApplicationToolArchive(
+      applicationReceived,
+      applicationExecution,
+      1,
+      applicationScratch,
+    );
+    const receivedCliVersion = spawnSync(
+      process.execPath,
+      [path.join(applicationReceived, "tauri.js"), "--version"],
+      { encoding: "utf8", env: {}, timeout: 10_000 },
+    );
+    assert.equal(receivedCliVersion.status, 0);
+    assert.equal(receivedCliVersion.stdout.trim(), `tauri-cli ${built.manifest.tauri_cli_version}`);
+    await record("application-tools.json", {
+      status: "pass",
+      source: expected,
+      tauri: built.manifest.tauri_cli_version,
+      files: received,
+      authority: "none",
+    });
+
     phase = "opaque-tool-readback";
     for (const file of built.manifest.files) {
-      const bytes = await readControllerToolFile(path.join(built.tools, file.path));
+      const bytes = await readControllerToolFile(
+        path.join(built.tools, file.path),
+        controllerToolFileMaximumBytes(file.path),
+      );
       assert.equal(bytes.length, file.bytes);
       assert.equal(createHash("sha256").update(bytes).digest("hex"), file.sha256);
     }
@@ -366,8 +544,8 @@ async function main() {
     const workspace = inspectNativeDependencyWorkspace(
       await readControllerToolFile(path.join(nativeSource, "pnpm-workspace.yaml"), 65536),
     );
-    const toolIdentity = async (filename: string) => {
-      const bytes = await readControllerToolFile(filename);
+    const toolIdentity = async (filename: string, maximum = 128 * 1024 ** 2) => {
+      const bytes = await readControllerToolFile(filename, maximum);
       return {
         path: filename,
         bytes: bytes.length,
@@ -392,7 +570,7 @@ async function main() {
       broker_identity: readProcessIdentity(process.pid, { platform: "linux" }),
       deadline_ns: String(process.hrtime.bigint() + 90_000_000_000n),
       tools: {
-        node: await toolIdentity(node),
+        node: await toolIdentity(node, controllerToolFileMaximumBytes("bin/node")),
         driver: await toolIdentity(path.join(built.tools, "bin/tauri-driver")),
       },
       context: {
@@ -500,7 +678,7 @@ async function main() {
     const version = tauri(["--version"]);
     assert.equal(version.error, undefined);
     assert.equal(version.status, 0);
-    assert.equal(version.stdout.trim(), "tauri-cli 2.12.2");
+    assert.equal(version.stdout.trim(), `tauri-cli ${built.manifest.tauri_cli_version}`);
     const signHelp = tauri(["signer", "sign", "--help"]);
     assert.equal(signHelp.error, undefined);
     assert.equal(signHelp.status, 0);
@@ -657,13 +835,9 @@ async function main() {
       throw new Error("connected disposable release fixture refused");
     }
     phase = "cold-build-budget";
-    // The held production job retains its four-minute ceiling. Reserve thirty
-    // seconds for checkout/dependency setup/upload; this measured build is not
-    // a guarantee of later operation availability or full-job completion.
-    assert.ok(
-      buildMilliseconds <= 210000,
-      "cold fixed tool build exceeds its preparation allowance",
-    );
+    // This ordinary completion observation does not establish production timing
+    // or tool acceptance; protected jobs retain their own clocks and admission.
+    assertControllerFixtureBuildBudget(buildMilliseconds);
     phase = "complete";
     await record("result.json", {
       schema_version: 1,
@@ -673,7 +847,7 @@ async function main() {
       built_directory: builtDirectory,
       build_work: buildWork,
       build_milliseconds: buildMilliseconds,
-      build_allowance_milliseconds: 210000,
+      build_allowance_milliseconds: controllerFixtureBuildAllowanceMilliseconds,
       build_profile: "controller-tools",
       tool_build_observation: {
         scope: "builder entry through complete inventory; cold workflow setup excluded",
@@ -700,6 +874,7 @@ async function main() {
       authority: "none",
     });
   } catch (error: unknown) {
+    console.error(controllerFixtureFailureAnnotation(phase, error, buildMilliseconds));
     await record("result.json", {
       schema_version: 1,
       status: "fail",
@@ -708,7 +883,7 @@ async function main() {
         error instanceof Error ? error.message : "unknown fixture failure",
       ),
       build_milliseconds: buildMilliseconds,
-      build_allowance_milliseconds: 210000,
+      build_allowance_milliseconds: controllerFixtureBuildAllowanceMilliseconds,
       build_profile: "controller-tools",
       node_runtime: nodeRuntime,
       built_directory: builtDirectory,

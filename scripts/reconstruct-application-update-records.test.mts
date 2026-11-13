@@ -1,6 +1,5 @@
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
-import type { BinaryLike } from "node:crypto";
 import { createHash } from "node:crypto";
 import { mkdir, mkdtemp, readFile, rm, unlink, writeFile } from "node:fs/promises";
 import os from "node:os";
@@ -40,7 +39,7 @@ function jsonObject(bytes: Buffer | undefined): Record<string, unknown> {
   return object(value);
 }
 
-function digest(bytes: BinaryLike) {
+function digest(bytes: string | NodeJS.ArrayBufferView) {
   return createHash("sha256").update(bytes).digest("hex");
 }
 

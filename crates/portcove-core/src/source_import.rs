@@ -476,10 +476,10 @@ impl PortcoveService {
                     .iter()
                     .any(|operation| operation.id == activity.id)
                 {
-                    emit(
-                        coordinator
-                            .message("error", "Source import paused in a recoverable state."),
-                    );
+                    emit(coordinator.message(
+                        "error",
+                        "Adding game files paused. Recovery information has been kept.",
+                    ));
                     Err(error.detail("import_id", &activity.id).detail(
                         "recovery_action",
                         "restart Portcove to resume source import",
@@ -1580,7 +1580,7 @@ fn require_capacity(destination: &Path, required: u64) -> Result<()> {
     let parent = destination
         .parent()
         .ok_or_else(|| PortcoveError::state("Source Inbox destination has no parent"))?;
-    let available = fs2::available_space(parent)?;
+    let available = fs4::available_space(parent)?;
     if available < required {
         return Err(PortcoveError::conflict(
             "Source Inbox destination does not have enough free space",

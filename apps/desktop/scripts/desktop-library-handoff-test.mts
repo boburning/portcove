@@ -241,19 +241,81 @@ export async function libraryHandoffScenario({
     });
     artifacts.push(reviewImage);
     await click(button("Copy and switch"));
-    const after = await browser.wait(async () => {
-      const observed = await bootstrap();
-      const expected = await realpath(destination).catch(() => undefined);
-      const actual = observed.library_root
-        ? await realpath(observed.library_root).catch(() => undefined)
-        : undefined;
-      return observed.ready &&
-        observed.generation > before.generation &&
-        expected !== undefined &&
-        actual === expected
-        ? observed
-        : false;
-    }, 15_000);
+    const after = await browser
+      .wait(async () => {
+        const observed = await bootstrap();
+        const expected = await realpath(destination).catch(() => undefined);
+        const actual = observed.library_root
+          ? await realpath(observed.library_root).catch(() => undefined)
+          : undefined;
+        return observed.ready &&
+          observed.generation > before.generation &&
+          expected !== undefined &&
+          actual === expected
+          ? observed
+          : false;
+      }, 15_000)
+      .catch(async (failure: unknown) => {
+        try {
+          const dialog = await executeBrowserScript(browser, () => {
+            const element = globalThis.document.querySelector(
+              '[aria-labelledby="move-library-title"]',
+            );
+            return {
+              present: Boolean(element),
+              text: element?.textContent?.trim().slice(0, 16_000),
+              alerts: [...(element?.querySelectorAll('[role="alert"]') ?? [])]
+                .slice(0, 8)
+                .map((alert) => alert.textContent?.trim().slice(0, 1000)),
+              technical: [...(element?.querySelectorAll(".failure-details pre") ?? [])]
+                .slice(0, 4)
+                .map((details) => details.textContent?.trim().slice(0, 8192)),
+              buttons: [...(element?.querySelectorAll<HTMLButtonElement>("button") ?? [])]
+                .slice(0, 16)
+                .map((button) => ({
+                  label: button.textContent?.trim().slice(0, 160),
+                  disabled: button.disabled,
+                  ariaBusy: button.getAttribute("aria-busy"),
+                })),
+            };
+          }).then(
+            (value) => ({ value }),
+            (error) => ({ error: String(error).slice(0, 1000) }),
+          );
+          const current = await bootstrap().then(
+            (value) => ({ value }),
+            (error) => ({ error: String(error).slice(0, 1000) }),
+          );
+          const witness = path.join(output, "library-move-first-handoff-failure-witness.json");
+          await writeFile(
+            witness,
+            JSON.stringify(
+              {
+                observed_at: new Date().toISOString(),
+                diagnostic_only: true,
+                atomic_snapshot: false,
+                expected_source: source,
+                expected_destination: destination,
+                before_generation: before.generation,
+                original_failure: String(failure),
+                dialog,
+                bootstrap: current,
+                interpretation:
+                  "Sequential read-only observations after the failed wait. Technical details retain the renderer's typed failure projection when present; neither these details nor bootstrap identify the lease holder or reconstruct overlapping command lifetimes.",
+              },
+              null,
+              2,
+            ),
+            { flag: "wx" },
+          );
+          artifacts.push(witness);
+        } catch (witnessFailure) {
+          console.error(
+            `Could not retain library-move failure witness: ${String(witnessFailure).slice(0, 280)}`,
+          );
+        }
+        throw failure;
+      });
     assert.ok(after);
     assert.equal(await realpath(required(after.library_root)), await realpath(destination));
     const identityAfter = transportValue(

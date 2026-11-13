@@ -1,4 +1,7 @@
+import { inspectReleaseReviewWithdrawal } from "./release-review-withdrawal.mts";
+import { inspectPublicBuildConfiguration } from "./release-public-build-binding-contract.mts";
 import { createHash } from "node:crypto";
+import { nativePlatformsForReleaseProfile } from "./release-package-policy.mts";
 /** Closed configuration/source contracts only. No environment reads or live controller execution. */
 import { releaseCanonicalDigest } from "./release-canonical.mts";
 import { isRecord } from "./runtime-values.mts";
@@ -307,10 +310,16 @@ export type ReleaseAuthorityConfiguration = ReturnType<typeof inspectReleaseAuth
  * migrate explicitly; parsing this record appoints no key or provider role. */
 export function inspectFixedJobJournalAuthorities(raw: unknown) {
   const value: unknown = structuredClone(raw);
-  exact(value, "apps,journal_seed,kind,namespace,repository_id,schema_version,setup_plan_sha256");
+  if (!isRecord(value)) throw new Error("selected journal record required");
+  const storageApp = value.kind === "three-app-fixed-jobs-v1";
+  exact(
+    value,
+    "apps,journal_seed,kind,namespace,repository_id,schema_version,setup_plan_sha256" +
+      (storageApp ? ",storage_setup_plan_sha256" : ""),
+  );
   if (
     value.schema_version !== 3 ||
-    value.kind !== "two-app-fixed-jobs-v1" ||
+    (!storageApp && value.kind !== "two-app-fixed-jobs-v1") ||
     value.repository_id !== 1354613114 ||
     Buffer.byteLength(JSON.stringify(value)) > 32768
   )
@@ -319,7 +328,10 @@ export function inspectFixedJobJournalAuthorities(raw: unknown) {
     schema_version: 1,
     namespace: value.namespace,
   });
-  exact(value.apps, "protection_observer,semantic");
+  exact(
+    value.apps,
+    storageApp ? "protection_observer,semantic,storage_writer" : "protection_observer,semantic",
+  );
   const inspectApp = (rawApp: unknown) => {
     exact(rawApp, "app_id,installation_id");
     return { app_id: positive(rawApp.app_id), installation_id: positive(rawApp.installation_id) };
@@ -327,20 +339,25 @@ export function inspectFixedJobJournalAuthorities(raw: unknown) {
   const apps = {
     semantic: inspectApp(value.apps.semantic),
     protection_observer: inspectApp(value.apps.protection_observer),
+    ...(storageApp ? { storage_writer: inspectApp(value.apps.storage_writer) } : {}),
   };
+  const identities = Object.values(apps);
   if (
-    new Set([15368, apps.semantic.app_id, apps.protection_observer.app_id]).size !== 3 ||
-    apps.semantic.installation_id === apps.protection_observer.installation_id
+    new Set([15368, ...identities.map((app) => app.app_id)]).size !== identities.length + 1 ||
+    new Set(identities.map((app) => app.installation_id)).size !== identities.length
   )
     throw new Error("selected App identities are conflated with each other or generic Actions");
+  if (storageApp && value.storage_setup_plan_sha256 === value.setup_plan_sha256)
+    throw new Error("storage amendment must remain separate from the original setup plan");
   exact(value.journal_seed, "checkpoint,state_sha256");
   return {
     schema_version: 3 as const,
-    kind: "two-app-fixed-jobs-v1" as const,
+    kind: storageApp ? ("three-app-fixed-jobs-v1" as const) : ("two-app-fixed-jobs-v1" as const),
     repository_id: 1354613114 as const,
     namespace,
     apps,
     setup_plan_sha256: hex(value.setup_plan_sha256, 64),
+    ...(storageApp ? { storage_setup_plan_sha256: hex(value.storage_setup_plan_sha256, 64) } : {}),
     journal_seed: {
       checkpoint: hex(value.journal_seed.checkpoint, 40),
       state_sha256: hex(value.journal_seed.state_sha256, 64),
@@ -348,8 +365,9 @@ export function inspectFixedJobJournalAuthorities(raw: unknown) {
   };
 }
 
-function inspectSelectedHostedNative(raw: unknown) {
-  exact(raw, [...platforms].sort().join(","));
+function inspectSelectedHostedNative(raw: unknown, profile: unknown = "initial-beta-win-linux") {
+  const selected = nativePlatformsForReleaseProfile(profile);
+  exact(raw, [...selected].sort().join(","));
   const inspectPlatform = (platform: (typeof platforms)[number]) => {
     const value = raw[platform];
     exact(value, "compatibility,engine,minimum_platform,producer");
@@ -386,8 +404,32 @@ function inspectSelectedHostedNative(raw: unknown) {
   };
   return {
     "windows-x86_64": inspectPlatform("windows-x86_64"),
-    "linux-x86_64": inspectPlatform("linux-x86_64"),
+    ...(selected.length === 2 ? { "linux-x86_64": inspectPlatform("linux-x86_64") } : {}),
   };
+}
+
+export type QualifiedApplicationReview = {
+  source_commit: string;
+  run_id: number;
+  run_attempt: number;
+};
+
+export function inspectQualifiedApplicationReview(raw: unknown): QualifiedApplicationReview {
+  if (
+    !isRecord(raw) ||
+    Object.keys(raw).sort().join(",") !== "run_attempt,run_id,source_commit" ||
+    typeof raw.source_commit !== "string" ||
+    !/^[a-f0-9]{40}$/u.test(raw.source_commit) ||
+    typeof raw.run_id !== "number" ||
+    !Number.isSafeInteger(raw.run_id) ||
+    raw.run_id < 1 ||
+    typeof raw.run_attempt !== "number" ||
+    !Number.isSafeInteger(raw.run_attempt) ||
+    raw.run_attempt < 1 ||
+    raw.run_attempt > 3
+  )
+    throw new Error("exact qualified application request fields differ");
+  return { source_commit: raw.source_commit, run_id: raw.run_id, run_attempt: raw.run_attempt };
 }
 
 /** Full purpose-scoped selected record. Two measured Apps belong only to its
@@ -413,7 +455,12 @@ export function inspectSelectedPublicationAuthorityConfiguration(raw: unknown) {
             "hosted_native",
             "native_prepublication_profile",
             "publication",
+            ...(Object.hasOwn(value, "release_profile")
+              ? ["public_build_inputs", "release_profile"]
+              : []),
             ...(Object.hasOwn(value, "linux_risk_profile") ? ["linux_risk_profile"] : []),
+            ...(Object.hasOwn(value, "qualified_application") ? ["qualified_application"] : []),
+            ...(Object.hasOwn(value, "review_withdrawal") ? ["review_withdrawal"] : []),
           ]
         : ["catalog"]),
     ]
@@ -422,15 +469,42 @@ export function inspectSelectedPublicationAuthorityConfiguration(raw: unknown) {
   );
   if (
     value.schema_version !== 4 ||
-    value.kind !== "two-app-fixed-jobs-v1" ||
+    !["two-app-fixed-jobs-v1", "three-app-fixed-jobs-v1"].includes(String(value.kind)) ||
     Buffer.byteLength(JSON.stringify(value)) > 32768
   )
     throw new Error("selected full authority profile or bound differs");
   const journal = inspectFixedJobJournalAuthorities(value.journal);
-  const common = { schema_version: 4 as const, kind: "two-app-fixed-jobs-v1" as const, journal };
+  if (value.kind !== journal.kind) throw new Error("selected full and journal profiles differ");
+  const common = { schema_version: 4 as const, kind: journal.kind, journal };
   if (application) {
+    if (
+      Object.hasOwn(value, "release_profile") &&
+      value.release_profile !== "initial-beta-windows-x86_64-v1"
+    )
+      throw new Error("selected application release profile differs");
+    if (value.release_profile !== undefined && value.linux_risk_profile !== undefined)
+      throw new Error("Windows-only application profile cannot select Linux publication risk");
+    const qualified = Object.hasOwn(value, "qualified_application")
+      ? inspectQualifiedApplicationReview(value.qualified_application)
+      : undefined;
+    const withdrawal = inspectReleaseReviewWithdrawal(value.review_withdrawal);
+    if (
+      Object.hasOwn(value, "review_withdrawal") &&
+      (!withdrawal || qualified || value.release_profile !== "initial-beta-windows-x86_64-v1")
+    )
+      throw new Error("review withdrawal requires a separate appointed Windows coordinator");
+    if (qualified && value.release_profile !== "initial-beta-windows-x86_64-v1")
+      throw new Error(
+        "qualified neutral selection requires appointed Windows application authority",
+      );
     if (value.native_prepublication_profile !== nativePrepublicationProfile)
       throw new Error("selected native prepublication profile differs");
+    const publicInputs =
+      value.release_profile === undefined
+        ? undefined
+        : inspectPublicBuildConfiguration(value.public_build_inputs);
+    if (publicInputs && publicInputs.release_profile !== value.release_profile)
+      throw new Error("selected application public build profile differs");
     const publication = inspectPublicationAuthorities(value.publication, 2);
     if (publication.setup_plan_sha256 !== journal.setup_plan_sha256)
       throw new Error("selected publication setup differs from journal setup");
@@ -439,7 +513,15 @@ export function inspectSelectedPublicationAuthorityConfiguration(raw: unknown) {
       purpose: "application" as const,
       publication,
       native_prepublication_profile: nativePrepublicationProfile,
-      hosted_native: inspectSelectedHostedNative(value.hosted_native),
+      ...(value.release_profile === undefined
+        ? {}
+        : {
+            release_profile: "initial-beta-windows-x86_64-v1" as const,
+            public_build_inputs: publicInputs!,
+          }),
+      hosted_native: inspectSelectedHostedNative(value.hosted_native, value.release_profile),
+      ...(qualified ? { qualified_application: qualified } : {}),
+      ...(withdrawal ? { review_withdrawal: withdrawal } : {}),
       ...(value.linux_risk_profile === undefined
         ? {}
         : {
@@ -476,6 +558,40 @@ export function inspectBoundSelectedPublicationAuthorities(
   };
 }
 
+/** Exact profile from the independently source-bound authority record. Legacy
+ * records retain their historical platform pair; payloads cannot select it. */
+export function applicationReleaseProfile(raw: unknown) {
+  if (isRecord(raw) && raw.schema_version === 4) {
+    const selected = inspectSelectedPublicationAuthorityConfiguration(raw);
+    if (selected.purpose !== "application") throw new Error("application profile source required");
+    return selected.release_profile ?? "initial-beta-win-linux";
+  }
+  inspectReleaseAuthorityConfiguration(raw);
+  return "initial-beta-win-linux" as const;
+}
+
+export function applicationPublicBuildInputs(raw: unknown) {
+  if (isRecord(raw) && raw.schema_version === 4) {
+    const selected = inspectSelectedPublicationAuthorityConfiguration(raw);
+    if (selected.purpose !== "application")
+      throw new Error("application public input source required");
+    return selected.public_build_inputs;
+  }
+  inspectReleaseAuthorityConfiguration(raw);
+  return undefined;
+}
+
+export function selectedHostedNativePlatform(
+  configuration: ReturnType<typeof inspectSelectedPublicationAuthorityConfiguration>,
+  platform: (typeof platforms)[number],
+) {
+  if (configuration.purpose !== "application")
+    throw new Error("application native profile required");
+  const selected = configuration.hosted_native[platform];
+  if (!selected) throw new Error("native platform is outside ratified application release profile");
+  return selected;
+}
+
 function boundInputRoles(
   raw: unknown,
   source: ReturnType<typeof admitProductionInputReader>,
@@ -486,6 +602,17 @@ function boundInputRoles(
     const observer = selected.configuration.journal.apps.protection_observer;
     return {
       classification_transport: "fixed-job" as const,
+      ...(selected.configuration.purpose === "application" &&
+      selected.configuration.review_withdrawal
+        ? { review_withdrawal: true as const }
+        : {}),
+      storage_journal:
+        selected.configuration.journal.apps.storage_writer === undefined
+          ? undefined
+          : {
+              namespace: selected.configuration.journal.namespace,
+              writer_app_id: selected.configuration.journal.apps.storage_writer.app_id,
+            },
       protection_app_id: observer.app_id,
       protection_installation_id: observer.installation_id,
       configuration_sha256: selected.configuration_sha256,
@@ -497,6 +624,7 @@ function boundInputRoles(
       : inspectBoundCatalogControllerAuthorities(raw, source);
   return {
     classification_transport: "legacy-app" as const,
+    storage_journal: undefined,
     protection_app_id: legacy.apps.protection_observer.app_id,
     protection_installation_id: legacy.apps.protection_observer.installation_id,
     configuration_sha256: source.authority_configuration_sha256!,
@@ -524,16 +652,23 @@ export function requireFixedControllerJobSourceConfiguration(
   requireAdmittedProductionSource(source, releaseControlPhaseProfile(phase).reader_job, purpose);
   const selected =
     isRecord(raw) && (raw.schema_version === 4 || raw.kind === "two-app-fixed-jobs-v1");
-  const namespace = selected
-    ? inspectBoundSelectedPublicationAuthorities(raw, source, purpose).configuration.journal
-        .namespace
+  const appointed = selected
+    ? inspectBoundSelectedPublicationAuthorities(raw, source, purpose).configuration
+    : undefined;
+  const namespace = appointed
+    ? appointed.journal.namespace
     : (purpose === "application"
         ? inspectBoundControllerAuthorities(JSON.stringify(raw), source)
         : inspectBoundCatalogControllerAuthorities(raw, source)
       ).namespace;
+  const qualified =
+    appointed?.purpose === "application" ? appointed.qualified_application : undefined;
+  const withdrawal = appointed?.purpose === "application" ? appointed.review_withdrawal : undefined;
   return Object.freeze({
     purpose,
     namespace,
+    ...(withdrawal ? { review_withdrawal: Object.freeze(withdrawal) } : {}),
+    ...(qualified ? { qualified_application: Object.freeze(qualified) } : {}),
     actor_id: source.actor_id,
     authority_configuration_sha256: source.authority_configuration_sha256!,
     grant_sha256: source.grant_sha256!,

@@ -5,11 +5,22 @@ import { crc32, inflateRawSync } from "node:zlib";
 import { inspectBoundedZip } from "./bounded-zip.mts";
 import { isRecord } from "./runtime-values.mts";
 import { inspectReleaseCompilerSourceClosure } from "./release-compiler-source-closure.mts";
-import { controllerNodeVersion } from "./controller-node-runtime.mts";
+import { controllerNodeVersion, controllerNodeMaximumBytes } from "./controller-node-runtime.mts";
 export const controllerCompilerSourceAsset = "compiler-source-closure.json";
 export const controllerToolSourceAssetMaximumBytes = 128 * 1024;
+// Hosted Linux reached 337,645,161 bytes, with up to about 443 KiB difference
+// between ordinary and protected builds of the same source, and 338,702,629
+// bytes once the CLI gained mod providers and recipes (#5005). The owner chose
+// about 5 MiB of headroom so ordinary CLI growth does not need a recalibration.
+export const controllerToolExpandedMaximumBytes = 328 * 1024 ** 2;
+const controllerToolManifestMaximumBytes = 64 * 1024;
+// Protected uploads use ZIP Store. The 41-member r31 archive had 6,686
+// framing bytes. Reserve a finite 16 KiB for the closed member inventory.
+export const controllerToolZipMaximumBytes =
+  controllerToolExpandedMaximumBytes + controllerToolManifestMaximumBytes + 16 * 1024;
 /** Same reviewed dependency as the maintained desktop bootstrap. */
 export const controllerNativeDriverVersion = "2.0.6";
+// Trusted controller identity, independent of the source being bundled.
 export const controllerToolEntries = Object.freeze([
   "production-controller-admission",
   "release-control-ready",
@@ -35,7 +46,10 @@ export const controllerToolChildren = Object.freeze([
 ] as const);
 export const controllerToolAssets = Object.freeze([
   "deny.toml",
+  ".github/workflows/application-release.yml",
+  ".github/workflows/application-release-package.yml",
   ".github/workflows/application-update-production.yml",
+  ".github/workflows/ci.yml",
   ".github/workflows/release.yml",
   ".github/repository-ruleset.json",
   ".github/qualification-coverage.json",
@@ -45,6 +59,7 @@ export const controllerToolAssets = Object.freeze([
   "scripts/qualify-hosted-native-linux.py",
   "scripts/native-qualification-linux-supervisor.py",
   "scripts/prepare-hosted-native-linux-installation.py",
+  "scripts/semantic-source-git.py",
 ] as const);
 export const controllerToolPaths = Object.freeze(
   [
@@ -127,53 +142,70 @@ export function controllerToolPlatformProfile(platform: ControllerToolPlatform) 
   });
 }
 const hash = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
+/** Closed inventory identity, never a basename inferred from an untrusted path. */
+export function controllerToolFileMaximumBytes(name: string) {
+  return name === "bin/node" || name === "bin/node.exe"
+    ? controllerNodeMaximumBytes
+    : 128 * 1024 ** 2;
+}
+export async function readControllerNodeFile(filename: string) {
+  return readControllerToolFile(filename, controllerNodeMaximumBytes);
+}
 export async function readControllerToolFile(
   filename: string,
   maximum = 128 * 1024 ** 2,
-  expected?: { dev: number; ino: number; uid: number; nlink: number },
+  expected?: {
+    dev: number | bigint;
+    ino: number | bigint;
+    uid: number | bigint;
+    nlink: number | bigint;
+  },
 ) {
+  const identityFields = ["dev", "ino", "uid", "nlink"] as const;
+  // Preserve exact fs identities. An old rounded numeric descriptor cannot be
+  // repaired by coercion: only safe numbers or original bigint values qualify.
+  const identities = expected
+    ? identityFields.map((key) => {
+        const value = expected[key];
+        if (typeof value === "bigint") return value;
+        if (!Number.isSafeInteger(value)) throw new Error("tool file held identity differs");
+        return BigInt(value);
+      })
+    : undefined;
   const file = await open(
     filename,
     constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK,
   );
   try {
-    const before = await file.stat();
-    if (!before.isFile() || before.size < 1 || before.size > maximum)
-      throw new Error("tool file exceeds regular-file bound");
-    const identityFields = ["dev", "ino", "uid", "nlink"] as const;
+    const before = await file.stat({ bigint: true });
     if (
-      expected &&
-      identityFields.some(
-        (key) =>
-          !Number.isSafeInteger(expected[key]) ||
-          !Number.isSafeInteger(before[key]) ||
-          before[key] !== expected[key],
-      )
+      !Number.isSafeInteger(maximum) ||
+      maximum < 1 ||
+      !before.isFile() ||
+      before.size < 1n ||
+      before.size > BigInt(maximum)
     )
+      throw new Error("tool file exceeds regular-file bound");
+    if (identities && identityFields.some((key, index) => before[key] !== identities[index]))
       throw new Error("tool file held identity differs");
-    const output = Buffer.alloc(before.size + 1);
+    const output = Buffer.alloc(Number(before.size) + 1);
     let length = 0;
     while (length < output.length) {
       const next = await file.read(output, length, output.length - length);
       if (!next.bytesRead) break;
       length += next.bytesRead;
     }
-    const after = await file.stat();
+    const after = await file.stat({ bigint: true });
     if (
-      length !== before.size ||
+      BigInt(length) !== before.size ||
       before.size !== after.size ||
       before.dev !== after.dev ||
       before.ino !== after.ino ||
-      before.mtimeMs !== after.mtimeMs ||
-      before.ctimeMs !== after.ctimeMs
+      before.mtimeNs !== after.mtimeNs ||
+      before.ctimeNs !== after.ctimeNs
     )
       throw new Error("tool file changed during acquisition");
-    if (
-      expected &&
-      identityFields.some(
-        (key) => !Number.isSafeInteger(after[key]) || after[key] !== expected[key],
-      )
-    )
+    if (identities && identityFields.some((key, index) => after[key] !== identities[index]))
       throw new Error("tool file held identity changed");
     return output.subarray(0, length);
   } finally {
@@ -197,8 +229,10 @@ export function inspectControllerToolManifest(
     value.schema_version !== profile.schema_version ||
     value.platform !== profile.platform ||
     value.node_version !== controllerNodeVersion ||
-    value.bundler !== "vite-plus@1.4.0" ||
-    value.tauri_cli_version !== "2.12.2" ||
+    typeof value.bundler !== "string" ||
+    !/^vite-plus@\d+\.\d+\.\d+$/u.test(value.bundler) ||
+    typeof value.tauri_cli_version !== "string" ||
+    !/^\d+\.\d+\.\d+$/u.test(value.tauri_cli_version) ||
     typeof value.source_commit !== "string" ||
     !/^[a-f0-9]{40}$/.test(value.source_commit) ||
     typeof value.source_tree !== "string" ||
@@ -216,7 +250,7 @@ export function inspectControllerToolManifest(
       typeof file.bytes !== "number" ||
       !Number.isSafeInteger(file.bytes) ||
       file.bytes < 1 ||
-      file.bytes > 128 * 1024 ** 2 ||
+      file.bytes > controllerToolFileMaximumBytes(profile.paths[index]!) ||
       typeof file.sha256 !== "string" ||
       !/^[a-f0-9]{64}$/.test(file.sha256)
     )
@@ -224,30 +258,36 @@ export function inspectControllerToolManifest(
     total += file.bytes;
     return { path: profile.paths[index]!, bytes: file.bytes, sha256: file.sha256 };
   });
-  if (total > 320 * 1024 ** 2) throw new Error("controller tool expanded bytes exceed bound");
+  if (total > controllerToolExpandedMaximumBytes)
+    throw new Error("controller tool expanded bytes exceed bound");
   return {
     schema_version: profile.schema_version,
     source_commit: value.source_commit,
     source_tree: value.source_tree,
     platform: profile.platform,
     node_version: controllerNodeVersion,
-    bundler: "vite-plus@1.4.0",
-    tauri_cli_version: "2.12.2",
+    bundler: value.bundler,
+    tauri_cli_version: value.tauri_cli_version,
     files,
   };
 }
 /** No extraction: every opaque byte is checked before any receiver file write. */
 export function inspectControllerToolArchive(
   raw: Buffer,
-  expected: { source_commit: string; source_tree: string; platform?: ControllerToolPlatform },
+  expected: {
+    source_commit: string;
+    source_tree: string;
+    platform?: ControllerToolPlatform;
+    dependencies?: { bundler: string; tauri: string };
+  },
 ) {
   const profile = controllerToolPlatformProfile(expected.platform ?? "linux-x86_64");
-  if (!Buffer.isBuffer(raw) || raw.length < 22 || raw.length > 320 * 1024 ** 2)
+  if (!Buffer.isBuffer(raw) || raw.length < 22 || raw.length > controllerToolZipMaximumBytes)
     throw new Error("controller tool ZIP exceeds compressed bound");
   const archive = Buffer.from(raw);
   const { entries } = inspectBoundedZip(archive, {
-    compressedBytes: 320 * 1024 ** 2,
-    expandedBytes: 320 * 1024 ** 2 + 65536,
+    compressedBytes: controllerToolZipMaximumBytes,
+    expandedBytes: controllerToolExpandedMaximumBytes + controllerToolManifestMaximumBytes,
     files: profile.paths.length + 1,
     nameBytes: 128,
     allowedPaths: new Set([...profile.paths, "manifest.json"]),
@@ -267,7 +307,7 @@ export function inspectControllerToolArchive(
       throw new Error("controller tool ZIP member differs");
     return bytes;
   };
-  const manifestBytes = read("manifest.json", 65536);
+  const manifestBytes = read("manifest.json", controllerToolManifestMaximumBytes);
   const manifest = inspectControllerToolManifest(
     JSON.parse(manifestBytes.toString("utf8")),
     profile.platform,
@@ -277,6 +317,12 @@ export function inspectControllerToolArchive(
     manifest.source_tree !== expected.source_tree
   )
     throw new Error("controller tool source/tree differs");
+  if (
+    expected.dependencies &&
+    (manifest.bundler !== expected.dependencies.bundler ||
+      manifest.tauri_cli_version !== expected.dependencies.tauri)
+  )
+    throw new Error("controller tool dependencies differ from fixed checkout");
   const files = new Map<string, Buffer>([["manifest.json", manifestBytes]]);
   for (const file of manifest.files) {
     const bytes = read(file.path, file.bytes);

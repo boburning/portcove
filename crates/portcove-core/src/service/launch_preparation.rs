@@ -19,6 +19,9 @@ pub(super) struct ManagedLaunchInputs {
     qualification: InstallQualification,
     source: Option<SourceRecord>,
     bios: Option<SourceRecord>,
+    /// A registered optional game source was changed or unreadable, so this launch
+    /// proceeds without it and unpacks nothing.
+    optional_source_skipped: bool,
 }
 
 impl PortcoveService {
@@ -68,10 +71,17 @@ impl PortcoveService {
         self.managed_install_root(&port.id, &active.path)?;
         crate::preparation::require_manual_setup(port, active)?;
         checkpoint()?;
-        let executable =
-            Installer::new(self.library.clone())?.verify_critical(active, &qualification)?;
+        // This early pass only refuses a launch before player data moves. The
+        // pre-spawn `verify_critical` in `prepare_launch_for_install` re-hashes
+        // every byte after restoration, so unchanged files may reuse digests.
+        let executable = {
+            let _preview = crate::adapter::preview_digest::PreviewScope::enter();
+            Installer::new(self.library.clone())?.verify_critical(active, &qualification)?
+        };
         crate::runtime_path_policy::check_executable(port, Platform::current()?, &executable)?;
         checkpoint()?;
+        let self_contained = crate::preparation::self_contained_launch(&self.library, port, active);
+        let mut optional_source_skipped = false;
         let source = if let Some(path) = source_override {
             let profile_id = port.source_profile.as_deref().ok_or_else(|| {
                 PortcoveError::usage(format!("{} does not accept a source override", port.name))
@@ -87,11 +97,44 @@ impl PortcoveService {
             );
             checkpoint()?;
             source
+        } else if self_contained {
+            // The installed data holds every game input; the original is
+            // needed only to repair, rebuild or prepare again.
+            None
         } else if let Some(profile) = &port.source_profile {
-            if self.library.source(profile)?.is_some() {
-                Some(self.verified_source_record_with_checkpoint(&catalog, profile, &checkpoint)?)
-            } else {
-                None
+            match self.library.source(profile)? {
+                // An optional source whose file has gone is treated as absent: nothing is
+                // unpacked and the runtime and its persistent files stay as they are.
+                Some(record)
+                    if port.optional_game_source && super::source_file_is_gone(&record.path) =>
+                {
+                    None
+                }
+                Some(_) => {
+                    match self.verified_source_record_with_checkpoint(
+                        &catalog,
+                        profile,
+                        &checkpoint,
+                    ) {
+                        Ok(record) => Some(record),
+                        // A changed or unreadable optional source is not used; cancellation
+                        // and conflicts still end the launch (an I/O failure is a state error).
+                        Err(error)
+                            if port.optional_game_source
+                                && matches!(
+                                    error.code,
+                                    crate::ErrorCode::Verification
+                                        | crate::ErrorCode::SourceInvalid
+                                        | crate::ErrorCode::State
+                                ) =>
+                        {
+                            optional_source_skipped = true;
+                            None
+                        }
+                        Err(error) => return Err(error),
+                    }
+                }
+                None => None,
             }
         } else {
             None
@@ -125,7 +168,12 @@ impl PortcoveService {
             self.managed_launch_context(catalog.definition_selection(&port.id), active)?,
         )?;
         if crate::preparation::managed_install(port, active) {
-            self.validate_preparation_receipt(port, active, source.as_ref())?;
+            let receipt_source = if source_override.is_none() && self_contained {
+                crate::preparation::ReceiptSource::NotConsulted
+            } else {
+                source.as_ref().into()
+            };
+            self.validate_preparation_receipt(port, active, receipt_source)?;
             if !Installer::new(self.library.clone())?
                 .verify_managed(active, &qualification)?
                 .valid
@@ -140,9 +188,11 @@ impl PortcoveService {
             qualification,
             source,
             bios,
+            optional_source_skipped,
         })
     }
 
+    #[cfg(test)]
     pub(super) fn prepare_launch_for_install(
         &self,
         port: &PortDefinition,
@@ -150,11 +200,35 @@ impl PortcoveService {
         source_override: Option<&Path>,
         operation: Option<&OperationCoordinator>,
     ) -> Result<crate::LaunchSpec> {
+        self.prepare_launch_for_install_observed(
+            port,
+            active,
+            source_override,
+            None,
+            operation,
+            None,
+        )
+    }
+
+    /// As `prepare_launch_for_install`, also delivering the launch activity's
+    /// preparation events (currently disc-image unpacking phases) to `events`.
+    /// `disc` records a managed PS1 disc choice as the game's selected disc;
+    /// `None` writes nothing.
+    pub(super) fn prepare_launch_for_install_observed(
+        &self,
+        port: &PortDefinition,
+        active: &InstallRecord,
+        source_override: Option<&Path>,
+        disc: Option<u32>,
+        operation: Option<&OperationCoordinator>,
+        events: Option<&dyn Fn(crate::OperationEvent)>,
+    ) -> Result<crate::LaunchSpec> {
         let ManagedLaunchInputs {
             catalog,
             qualification,
             source,
             bios,
+            optional_source_skipped,
         } = self.observe_managed_launch_inputs(port, active, source_override, operation)?;
         let port = catalog.port(&active.port_id)?;
         let checkpoint = || operation.map_or(Ok(()), OperationCoordinator::checkpoint);
@@ -166,12 +240,31 @@ impl PortcoveService {
         }
         self.prepare_ghostship_legacy_archive(active)?;
         checkpoint()?;
+        // Adopt a menu reorder from the collected data, then write the selected
+        // revision's mod list so the build loads exactly that order.
+        self.prepare_native_mod_list_locked(&port.id)?;
         self.restore_user_data_to(port, &active.path)?;
+        crate::profile_deploy::clear_restore_pending(&self.library.user_dir(&port.id))?;
         checkpoint()?;
         self.recheck_launch_bios(&catalog, port, active, bios.as_ref(), &checkpoint)?;
         let selected_executable =
             Installer::new(self.library.clone())?.verify_critical(active, &qualification)?;
         checkpoint()?;
+        if let (true, Some(operation), Some(events)) = (optional_source_skipped, operation, events)
+        {
+            events(operation.message(
+                "warning",
+                "The saved game source changed or cannot be read, so Portcove is using the game files it already unpacked.",
+            ));
+        }
+        let disc_reported = std::cell::Cell::new(false);
+        let report_disc =
+            |phase: crate::adapter::DiscUnpackPhase, completed: u64, total: Option<u64>| {
+                if let (Some(operation), Some(events)) = (operation, events) {
+                    disc_reported.set(true);
+                    events(disc_unpack_event(operation, phase, completed, total));
+                }
+            };
         let mut spec = crate::adapter::standard(port.adapter).prepare_launch_with_executable(
             crate::LaunchSpecRequest {
                 library: &self.library,
@@ -181,6 +274,7 @@ impl PortcoveService {
                 selected_executable: &selected_executable,
                 source: source.as_ref().map(|record| record.path.as_path()),
                 source_record: source.as_ref(),
+                disc_progress: Some(crate::adapter::DiscProgressSink(&report_disc)),
             },
             &checkpoint,
         )?;
@@ -205,6 +299,20 @@ impl PortcoveService {
         self.refresh_upstream_setup_manifest(port, active, &spec.working_directory)?;
         crate::preparation::require_manual_setup(port, active)?;
         checkpoint()?;
+        if let Some(disc) = disc {
+            // Last, after every refusal: the count comes from the retained
+            // contract, and the disc files were hash-checked with the other
+            // critical paths by `verify_critical` above. The choice lands in the
+            // restored settings; if the game then fails to start, the next
+            // preparation collects it, so it still becomes the saved disc.
+            crate::adapter::record_managed_psx_disc_choice(&catalog, port, &spec, disc)?;
+        }
+        if let (true, Some(operation), Some(events)) = (disc_reported.get(), operation, events) {
+            // Preparation is over and the game starts next: supersede the last
+            // unpacking step so an observer does not keep showing it while the
+            // launch activity stays open for the whole play session.
+            events(preparation_finished_event(operation));
+        }
         Ok(spec)
     }
     fn recheck_launch_bios(
@@ -238,9 +346,89 @@ impl PortcoveService {
     }
 }
 
+/// The launch activity's event once preparation is done and the game is starting.
+fn preparation_finished_event(operation: &OperationCoordinator) -> crate::OperationEvent {
+    operation.progress_with_unit("launch", crate::ProgressUnit::Indeterminate, 0, None)
+}
+
+/// The launch activity's event for one disc-unpacking step. Extract carries
+/// bytes; every other phase is a single indeterminate step.
+fn disc_unpack_event(
+    operation: &OperationCoordinator,
+    phase: crate::adapter::DiscUnpackPhase,
+    completed: u64,
+    total: Option<u64>,
+) -> crate::OperationEvent {
+    match phase {
+        crate::adapter::DiscUnpackPhase::Extract => {
+            operation.progress_with_unit(phase.id(), crate::ProgressUnit::Bytes, completed, total)
+        }
+        _ => operation.progress_with_unit(phase.id(), crate::ProgressUnit::Indeterminate, 0, None),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn disc_unpack_phases_become_stable_launch_progress_events() {
+        use crate::adapter::DiscUnpackPhase::*;
+        let operation = OperationCoordinator::new("launch", None);
+        let events: Vec<_> = [
+            (Identify, 0, None),
+            (Plan, 0, None),
+            (FreeSpace, 0, None),
+            (Extract, 0, Some(8)),
+            (Extract, 5, Some(8)),
+            (Extract, 8, Some(8)),
+            (Verify, 0, None),
+            (Activate, 0, None),
+        ]
+        .into_iter()
+        .map(|(phase, done, total)| disc_unpack_event(&operation, phase, done, total))
+        .collect();
+        assert!(
+            events
+                .windows(2)
+                .all(|pair| pair[0].sequence < pair[1].sequence)
+        );
+        let shaped: Vec<_> = events
+            .iter()
+            .map(|event| match &event.event {
+                crate::OperationEventKind::Progress {
+                    phase_id,
+                    unit,
+                    completed,
+                    total,
+                    ..
+                } => (phase_id.clone().unwrap(), *unit, *completed, *total),
+                other => panic!("unexpected event {other:?}"),
+            })
+            .collect();
+        let bytes = Some(crate::ProgressUnit::Bytes);
+        let step = Some(crate::ProgressUnit::Indeterminate);
+        let finished = preparation_finished_event(&operation);
+        assert!(finished.sequence > events.last().unwrap().sequence);
+        assert!(matches!(
+            &finished.event,
+            crate::OperationEventKind::Progress { phase_id: Some(id), unit, .. }
+                if id == "launch" && *unit == Some(crate::ProgressUnit::Indeterminate)
+        ));
+        assert_eq!(
+            shaped,
+            [
+                ("disc.identify".to_owned(), step, 0, None),
+                ("disc.plan".to_owned(), step, 0, None),
+                ("disc.free-space".to_owned(), step, 0, None),
+                ("disc.extract".to_owned(), bytes, 0, Some(8)),
+                ("disc.extract".to_owned(), bytes, 5, Some(8)),
+                ("disc.extract".to_owned(), bytes, 8, Some(8)),
+                ("disc.verify".to_owned(), step, 0, None),
+                ("disc.activate".to_owned(), step, 0, None),
+            ]
+        );
+    }
 
     fn check_source_cancellation_in_second_pass(route: &str) {
         use sha2::{Digest, Sha256};

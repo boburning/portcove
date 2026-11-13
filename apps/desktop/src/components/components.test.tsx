@@ -134,6 +134,7 @@ describe("desktop components", () => {
       "game-files",
       "updates",
       "integrations",
+      "controls",
       "advanced",
       "about",
     ]);
@@ -163,8 +164,11 @@ describe("desktop components", () => {
     expect(groupMarkup("updates")).toContain('class="settings-section-description ');
     expect(groupMarkup("updates")).toContain('class="settings-section-content ');
     expect(groupMarkup("integrations")).toContain("GitHub connection");
+    expect(groupMarkup("integrations")).toContain("Steam shortcuts");
+    expect(groupMarkup("controls")).toContain("Keyboard shortcuts");
+    expect(groupMarkup("controls")).toContain("Controller navigation");
     const advanced = groupMarkup("advanced");
-    expect(advanced.indexOf("Create support bundle")).toBeLessThan(
+    expect(advanced.indexOf("Create a support report")).toBeLessThan(
       advanced.indexOf("Original game files stay local"),
     );
     expect(advanced).toContain("Custom catalog sources");
@@ -187,12 +191,13 @@ describe("desktop components", () => {
     );
     const groups = [
       ["appearance", "library-storage", 2],
-      ["library-storage", "game-files", 3],
+      ["library-storage", "game-files", 4],
       ["game-files", "updates", 3],
-      ["updates", "integrations", 2],
-      ["integrations", "advanced", 1],
-      ["advanced", "about", 3],
-      ["about", null, 1],
+      ["updates", "integrations", 3],
+      ["integrations", "controls", 3],
+      ["controls", "advanced", 2],
+      ["advanced", "about", 4],
+      ["about", null, 2],
     ] as const;
     for (const [id, next, rowCount] of groups) {
       const start = html.indexOf(`data-settings-group="${id}"`);
@@ -208,16 +213,27 @@ describe("desktop components", () => {
     );
     expect(appearance.indexOf("Color theme")).toBeLessThan(appearance.indexOf("Language"));
     expect(html.indexOf("Library at startup")).toBeLessThan(html.indexOf("Files and capacity"));
-    expect(html.indexOf("Game-file libraries")).toBeLessThan(html.indexOf("Game files and BIOS"));
+    const libraryStorage = html.slice(
+      html.indexOf('data-settings-group="library-storage"'),
+      html.indexOf('data-settings-group="game-files"'),
+    );
+    expect(libraryStorage).toContain("Snapshot saved data before version changes");
+    expect(html).toContain("Folders Portcove scans");
+    expect(html.indexOf("Folders Portcove scans")).toBeLessThan(
+      html.indexOf("Game files and BIOS"),
+    );
     expect(html.indexOf("Game files and BIOS")).toBeLessThan(html.indexOf("Disc tools"));
-    expect(html.indexOf("Portcove updates")).toBeLessThan(html.indexOf("Game catalog"));
+    expect(html.indexOf("Portcove updates")).toBeLessThan(html.indexOf("Official catalog updates"));
+    expect(html.indexOf("Official catalog updates")).toBeLessThan(html.indexOf("Game catalog"));
     expect(advanced.indexOf("metadata may remain")).toBeLessThan(
-      advanced.indexOf(">Create support bundle</button>"),
+      advanced.indexOf(">Create a support report</button>"),
     );
     expect(advanced).toContain("Original game files stay local");
-    expect(html.slice(html.indexOf('data-settings-group="about"'))).toContain(
-      "Open project repository",
-    );
+    expect(advanced).toContain("Report a problem or send feedback");
+    const about = html.slice(html.indexOf('data-settings-group="about"'));
+    expect(about).toContain("Open project repository");
+    expect(about).toContain("Licensed under MIT or Apache-2.0.");
+    expect(about).toContain("Open diagnostics");
   });
 
   it("keeps an untested port in the default catalog", () => {
@@ -244,9 +260,9 @@ describe("desktop components", () => {
     const details = renderToStaticMarkup(
       <DetailPanel port={untestedPort} sourcePath="" setSourcePath={vi.fn()} actions={actions} />,
     );
-    expect(details).toContain("Legacy port-wide automated tests");
-    expect(details).toContain("Legacy port-wide hands-on tests");
-    expect(details).toContain("No legacy platform coverage recorded");
+    expect(details).toContain("Earlier automated tests");
+    expect(details).toContain("Earlier hands-on tests");
+    expect(details).toContain("No earlier platform tests recorded");
   });
 
   it("keeps retired-upstream maintenance distinct from Portcove support", () => {
@@ -282,7 +298,7 @@ describe("desktop components", () => {
       "<small>Catalog designation (not a test result)</small>Stable",
     );
     expect(html.replace(/ class="[^"]*"/gu, "")).toContain(
-      "<small>Available release channels</small>Stable",
+      "<small>Available update channels</small>Stable",
     );
     expect(html).toContain("Portcove uses the pinned release recorded in the catalog");
     expect(html).not.toContain("no upstream fixes or support");

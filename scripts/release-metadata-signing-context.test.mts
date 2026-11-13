@@ -1,3 +1,4 @@
+import { isDeepStrictEqual } from "node:util";
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { mkdtemp, readdir, rm, readFile } from "node:fs/promises";
@@ -171,7 +172,11 @@ void test("serialized coordinator results or caller pending cannot mint context 
     prepareCoordinatorSigningContext(imported, parent, performance.now() + 1000),
     /same-process/,
   );
-  await assert.rejects(completeCoordinatorSigningContext(imported, parent), /same-process/);
+  const { applicationCoordinatorRefusal } = await import("./release-coordinator-errors.mts");
+  await assert.rejects(
+    completeCoordinatorSigningContext(imported, parent),
+    (error) => applicationCoordinatorRefusal(error).stage === "metadata-context-preparation",
+  );
   await assert.rejects(requireCoordinatorSigningContext(imported), /actual coordinator/);
   await assert.rejects(readCoordinatorSigningContextFiles(imported), /actual coordinator/);
   await assert.rejects(
@@ -347,7 +352,8 @@ void test("actual metadata controller boundary binds maintained Git pending befo
   const { checkpointReleaseOpportunity, recoverReleaseOpportunity } =
     await import("./release-coordinator-state.mts");
   const { runBoundedMetadataBootstrapOperation } = await import("./release-capacity-operation.mts");
-  const { inspectCapacityOperation } = await import("./release-capacity.mts");
+  const { inspectCapacityOperation, retainedRenewalCapacityRebind } =
+    await import("./release-capacity.mts");
   const { isRecord } = await import("./runtime-values.mts");
   const repository = await mkdtemp(path.join(os.tmpdir(), "metadata-pending-"));
   t.after(() => rm(repository, { recursive: true, force: true }));
@@ -509,11 +515,13 @@ void test("actual metadata controller boundary binds maintained Git pending befo
   sandbox.requireCoordinatorSigningContext = async () => {
     const state = await recoverReleaseOpportunity(repository, observedCheckpoint);
     await bindings.verifyState(owned, state);
-    return { capacity_source: { capacity: { boundary: capacity.boundary } } } as never;
+    return { capacity_source: { capacity } } as never;
   };
   const boundaryStart = controllerSource.indexOf("async (pending) => {"),
     boundaryEnd = controllerSource.indexOf("\n        async (pending) =>", boundaryStart);
   assert(boundaryStart > 0 && boundaryEnd > boundaryStart);
+  const controllerInvocation = { mode: "bootstrap", checkpoint: first.checkpoint };
+  const controllerIdentity = { controller_ref: identity.execution_ref };
   const callback = runInNewContext(
     stripTypeScriptTypes(
       "const callback=" +
@@ -524,10 +532,25 @@ void test("actual metadata controller boundary binds maintained Git pending befo
       ...bindings,
       receipt,
       executor,
+      phase: "fixture",
       deadline: performance.now() + 20000,
       requireCoordinatorSigningContext: sandbox.requireCoordinatorSigningContext,
+      current: controllerInvocation,
+      identity: controllerIdentity,
+      retainedRenewalCapacityRebind,
     },
   ) as (p?: object) => Promise<unknown>;
+  assert.deepEqual(await callback(), capacity.boundary);
+  controllerInvocation.mode = "renewal";
+  controllerInvocation.checkpoint = retainedRenewalCapacityRebind.checkpoint;
+  controllerIdentity.controller_ref = retainedRenewalCapacityRebind.execution_ref;
+  assert.deepEqual(structuredClone(await callback()), {
+    boundary: capacity.boundary,
+    ratification: capacity.ratification,
+  });
+  controllerInvocation.mode = "bootstrap";
+  controllerInvocation.checkpoint = first.checkpoint;
+  controllerIdentity.controller_ref = identity.execution_ref;
   const wrapper = take(
     executorSource,
     "const readOwnedBoundary: CapacityBoundaryReader =",
@@ -629,22 +652,35 @@ void test("metadata context rechecks maintenance after slow current-state/public
     "utf8",
   );
   const start = source.indexOf("export async function requireCoordinatorSigningContext("),
-    end = source.indexOf("\nexport async function readCoordinatorSigningContextFiles", start);
-  assert(start > 0 && end > start);
+    end = source.indexOf("\nexport async function readCoordinatorSigningContextFiles", start),
+    snapshotStart = source.indexOf("async function snapshot("),
+    snapshotEnd = source.indexOf("\nasync function verifyState(", snapshotStart);
+  assert(start > 0 && end > start && snapshotStart > 0 && snapshotEnd > snapshotStart);
   let clock = 59000;
   const reads: number[] = [];
   const receipt = {},
+    credential = { token: "inert-retained-metadata-reader" },
     owned = {
       deadline: 100000,
-      session: { mode: "bootstrap", tools: {}, preparation: {} },
+      credential,
+      session: {
+        mode: "bootstrap",
+        namespace: "portcove-production",
+        tools: {},
+        preparation: {},
+      },
       descriptor: {},
       directory: "inert",
       files: [],
       bootstrap_observed: 59000,
     };
-  const getter = runInNewContext(
-    stripTypeScriptTypes(source.slice(start, end).replace("export ", "")) +
-      "\nrequireCoordinatorSigningContext",
+  let stateReads = 0;
+  const entry = runInNewContext(
+    stripTypeScriptTypes(
+      source.slice(snapshotStart, snapshotEnd) +
+        source.slice(start, end).replaceAll(/^export /gmu, ""),
+    ) +
+      "\n({getter: requireCoordinatorSigningContext, checkpointControls: requireCoordinatorSigningCheckpointControls})",
     {
       contexts: new WeakMap([[receipt, owned]]),
       performance: { now: () => clock },
@@ -659,14 +695,204 @@ void test("metadata context rechecks maintenance after slow current-state/public
         if (clock >= 60000) throw new Error("original maintenance observation expired");
         return {};
       },
-      snapshot: async () => {
+      readRemoteCoordinatorSnapshot: async (
+        directory: string,
+        configuration: { namespace: string },
+        options: { transport: { credential: unknown; deadline: number; cwd?: string } },
+      ) => {
+        assert.equal(directory, owned.directory);
+        assert.equal(configuration.namespace, owned.session.namespace);
+        assert.equal(options.transport.credential, credential);
+        assert.equal(options.transport.deadline, 80000);
+        assert.equal(options.transport.cwd, undefined);
+        stateReads++;
         clock = 61000;
         return {};
       },
       verifyState: async () => {},
       structuredClone,
+      path,
     },
-  ) as (r: object) => Promise<unknown>;
-  await assert.rejects(getter(receipt), /maintenance observation expired/);
-  assert.deepEqual(reads, [59000, 61000]);
+  ) as {
+    getter: (r: object, deadline: number) => Promise<unknown>;
+    checkpointControls: (r: object) => Promise<void>;
+  };
+  await assert.rejects(entry.getter(receipt, 80000), /maintenance observation expired/);
+  assert.deepEqual(reads, [61000]);
+  assert.equal(stateReads, 1);
+  clock = 59000;
+  reads.length = 0;
+  await entry.checkpointControls(receipt);
+  assert.equal(
+    stateReads,
+    1,
+    "checkpoint state remains owned by the signed journal, not the stale context head",
+  );
+  assert.deepEqual(reads, [59000]);
+  clock = 61000;
+  await assert.rejects(entry.checkpointControls(receipt), /maintenance observation expired/);
+});
+
+void test("renewal context reuses the verified observer without extending its lifetime", async () => {
+  const { stripTypeScriptTypes } = await import("node:module");
+  const { runInNewContext } = await import("node:vm");
+  const source = await readFile(
+    new URL("./release-metadata-signing-context.mts", import.meta.url),
+    "utf8",
+  );
+  const start = source.indexOf("const maintenanceRefreshMilliseconds"),
+    end = source.indexOf("async function snapshot(", start);
+  assert(start >= 0 && end > start);
+  const epoch = Date.parse("2026-11-10T14:21:30Z");
+  let clock = 10_000;
+  const reads: string[] = [];
+  const facts = { pause: { publication_paused: false }, capacity: {} };
+  const reader = (name: string) => ({
+    evidence_scope: "github.com",
+    async readSdkMaintenance(_: undefined, options: { deadline: number; signingContext: true }) {
+      assert.equal(options.deadline, 100_000);
+      assert.equal(options.signingContext, true);
+      reads.push(name);
+      return { ...facts, resource_policy_matches_controller: true };
+    },
+  });
+  const session = {
+    mode: "renewal",
+    controls: reader("retained live read"),
+    async next_controls() {
+      reads.push("new observation");
+      return reader("refreshed live read");
+    },
+  };
+  const { seed, check } = runInNewContext(
+    stripTypeScriptTypes(source.slice(start, end)) +
+      "\n({seed: renewalControlObservation, check: controls})",
+    {
+      Date: { now: () => epoch + clock, parse: Date.parse },
+      performance: { now: () => clock },
+      isDeepStrictEqual,
+    },
+  ) as {
+    seed: (input: typeof session, observedAt: string) => object;
+    check: (owned: object) => Promise<unknown>;
+  };
+  const observedAt = new Date(epoch).toISOString();
+  const owned = { session, deadline: 100_000, control_facts: facts, ...seed(session, observedAt) };
+  clock = 44_999;
+  await check(owned);
+  assert.deepEqual(reads, ["retained live read"]);
+  clock = 45_000;
+  await check(owned);
+  assert.deepEqual(reads, ["retained live read", "new observation", "refreshed live read"]);
+});
+
+void test("metadata assembly retains private byte custody without repeating live controls, while effect reads stay fresh", async () => {
+  const { stripTypeScriptTypes } = await import("node:module");
+  const { runInNewContext } = await import("node:vm");
+  const source = await readFile(
+    new URL("./release-metadata-signing-context.mts", import.meta.url),
+    "utf8",
+  );
+  const start = source.indexOf("export async function readPreparedCoordinatorSigningContext(");
+  assert(start > 0);
+  const files = new Map([["context.json", Buffer.from("original")]]);
+  const fileInventory = (input: ReadonlyMap<string, Buffer>) =>
+    [...input].map(([name, bytes]) => ({ name, bytes: bytes.toString("hex") }));
+  const descriptor = { kind: "application-tuf-metadata-renewal" };
+  const receipt = Object.freeze({ authority: "none" });
+  const current = {
+    pause: { publication_paused: false },
+    capacity: {},
+    capacity_source: { capacity: {} },
+  };
+  const owned = {
+    deadline: performance.now() + 20000,
+    session: {
+      mode: "renewal",
+      tools: {},
+      preparation: {},
+      complete_site: {},
+      namespace: "fixture",
+      repository: "fixture",
+      checkpoint: "a".repeat(40),
+    },
+    directory: "/inert/context",
+    descriptor,
+    files: fileInventory(files),
+    current,
+    facts: {},
+    binding: {},
+  };
+  let liveReads = 0,
+    journalReads = 0,
+    publicReads = 0,
+    changed = false,
+    expired = false;
+  const sandbox = {
+    contexts: new WeakMap([[receipt, owned]]),
+    remaining: () => {
+      if (expired) throw new Error("original deadline exhausted");
+    },
+    verifiedControllerToolPaths: async () => ({ identity: {} }),
+    inspectPreparedMetadataRenewal: async () => ({ descriptor }),
+    inspectPreparedMetadataBootstrap: async () => {
+      throw new Error("wrong mode");
+    },
+    requirePublishedCompleteSite: async () => ({ generation: "retained", pins: {} }),
+    readBoundedReleaseContextFiles: async () => files,
+    inventory: fileInventory,
+    digest,
+    snapshot: async () => {
+      journalReads++;
+      return {};
+    },
+    verifyState: async () => {},
+    readPublicApplicationSiteMarker: async () => {
+      publicReads++;
+    },
+    controls: async () => {
+      liveReads++;
+      if (changed) throw new Error("controls changed");
+      return current;
+    },
+    structuredClone,
+    path,
+    performance,
+  };
+  const api = runInNewContext(
+    stripTypeScriptTypes(source.slice(start).replaceAll("export ", "")) +
+      "\n({readPreparedCoordinatorSigningContext,requireCoordinatorSigningContext,readCoordinatorSigningContextFiles})",
+    sandbox,
+  ) as {
+    readPreparedCoordinatorSigningContext: (
+      r: object,
+    ) => Promise<{ facts: Record<string, unknown> }>;
+    requireCoordinatorSigningContext: (r: object) => Promise<unknown>;
+    readCoordinatorSigningContextFiles: (r: object) => Promise<unknown>;
+  };
+  for (let n = 0; n < 3; n++) {
+    const prepared = await api.readPreparedCoordinatorSigningContext(receipt);
+    prepared.facts.modified = true;
+    await api.readCoordinatorSigningContextFiles(receipt);
+  }
+  assert.deepEqual([liveReads, journalReads, publicReads], [0, 0, 0]);
+  assert.deepEqual(owned.facts, {});
+  await api.requireCoordinatorSigningContext(receipt);
+  assert.deepEqual([liveReads, journalReads, publicReads], [1, 1, 1]);
+  changed = true;
+  await assert.rejects(api.requireCoordinatorSigningContext(receipt), /controls changed/);
+  await assert.rejects(
+    api.readPreparedCoordinatorSigningContext({ ...receipt }),
+    /actual coordinator/,
+  );
+  files.set("context.json", Buffer.from("substituted"));
+  await assert.rejects(
+    api.readPreparedCoordinatorSigningContext(receipt),
+    /retained bytes changed/,
+  );
+  await assert.rejects(api.readCoordinatorSigningContextFiles(receipt), /retained bytes changed/);
+  files.set("context.json", Buffer.from("original"));
+  expired = true;
+  await assert.rejects(api.readPreparedCoordinatorSigningContext(receipt), /original deadline/);
+  await assert.rejects(api.requireCoordinatorSigningContext(receipt), /original deadline/);
 });

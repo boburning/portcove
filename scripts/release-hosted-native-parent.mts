@@ -1,3 +1,5 @@
+import { applicationReleaseProfile } from "./release-authority-configuration-contract.mts";
+import { nativePlatformsForReleaseProfile } from "./release-package-policy.mts";
 /** Actual fixed-parent source/issuer binding only. This is not a candidate
  * invocation, OS boundary, native result, reservation or signing capability. */
 import { createHash } from "node:crypto";
@@ -19,7 +21,10 @@ import {
   requireVerifiedHostedNativeJobIdentity,
 } from "./assembler-job-identity.mts";
 import { inspectHostedNativeProducer } from "./release-hosted-native-proof-contract.mts";
-import { withReadOnlyReleaseChildren } from "./release-readonly-child-environment.mts";
+import {
+  fixedReleaseReaderToken,
+  withReadOnlyReleaseChildren,
+} from "./release-readonly-child-environment.mts";
 import { readControllerToolFile } from "./release-controller-tools.mts";
 
 const sourceKeys = [
@@ -116,6 +121,12 @@ export async function createActualHostedNativeParentSource(
   if (bound.configuration.purpose !== "application")
     throw new Error("native application parent source required");
   if (
+    !nativePlatformsForReleaseProfile(applicationReleaseProfile(bound.configuration)).some(
+      (value) => value === platform,
+    )
+  )
+    throw new Error("native platform is outside ratified application release profile");
+  if (
     !path.isAbsolute(parent) ||
     (await realpath(parent)) !== path.resolve(parent) ||
     !(await lstat(parent)).isDirectory()
@@ -161,7 +172,11 @@ export async function createActualHostedNativeParentSource(
       );
       active();
       return verifyHostedNativeJobIdentity(platform, token, expected, {
-        transport: { cwd: directory, deadline: identityDeadline },
+        transport: {
+          sdkToken: fixedReleaseReaderToken(),
+          requireDirect: true,
+          deadline: identityDeadline,
+        },
       });
     });
     active();

@@ -1,3 +1,4 @@
+import { captureParityState } from "../../test/parity-capture";
 import { controlledAct as act } from "../../test/controlled-react-act";
 import { render as renderComponent, cleanup, type RenderResult } from "vitest-browser-react";
 
@@ -76,10 +77,34 @@ it("reviews exact paths and safety-backup behavior before a bound restore", asyn
   );
   expect(document.body.textContent).toContain("game must be stopped");
   expect(document.body.textContent).toContain("retains recovery data");
+  await captureParityState("backup-restore-reviewed-fixture");
   await expect.poll(() => document.activeElement?.textContent).toBe("Cancel");
   await click("Restore this backup");
   expect(apply).toHaveBeenCalledWith(review.preview.backup, "reviewed-data");
   expect(close).toHaveBeenCalledOnce();
+});
+
+it("tells the player when the reviewed backup is an automatic snapshot", async () => {
+  const automatic = {
+    ...review.preview.backup,
+    automatic: { operation: "rollback" as const, from_version: "2.0", to_version: "1.9" },
+  };
+  vi.spyOn(desktopApi, "previewBackupAction").mockResolvedValue({
+    ...review,
+    preview: { ...review.preview, backup: automatic },
+  });
+  await root.rerender(
+    <BackupReviewDialog
+      backup={automatic}
+      action="restore"
+      generation={7}
+      apply={vi.fn()}
+      close={vi.fn()}
+    />,
+  );
+  expect(document.body.textContent).toContain(
+    "Automatic snapshot before restoring a previous version (2.0 to 1.9)",
+  );
 });
 
 it("explains permanent deletion and can dismiss without authorizing it", async () => {
@@ -110,7 +135,8 @@ it("explains permanent deletion and can dismiss without authorizing it", async (
   expect(document.body.textContent).toContain(
     "permanently deletes the retained Ghostship 3.0.0 runtime saves/settings copy",
   );
-  expect(document.body.textContent).toContain("not a reversible cancellation");
+  expect(document.body.textContent).toContain("Cancellation does not restore a deleted backup.");
+  await captureParityState("backup-delete-reviewed-fixture");
   await click("Cancel");
   expect(close).toHaveBeenCalledOnce();
   expect(apply).not.toHaveBeenCalled();
@@ -155,12 +181,14 @@ it("requires a fresh review after a changed selection fails and rejects duplicat
   );
   await click("Restore this backup");
   expect(document.body.textContent).toContain("Restoring backup…");
+  await captureParityState("backup-restore-pending-fixture");
   await click("Restoring backup…");
   await click("Cancel");
   expect(apply).toHaveBeenCalledOnce();
   expect(close).not.toHaveBeenCalled();
   await act(async () => finish(false));
   expect(document.body.querySelector('[role="alert"]')?.textContent).toContain("did not complete");
+  await captureParityState("backup-restore-failed-fixture");
   expect(document.body.textContent).not.toContain("Restore this backup");
   await click("Review again");
   expect(preview).toHaveBeenCalledTimes(2);

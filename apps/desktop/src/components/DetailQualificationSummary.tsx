@@ -1,20 +1,52 @@
+import type { TFunction } from "i18next";
+import type { ReactNode } from "react";
+import { Trans } from "react-i18next";
+import { useAppTranslation } from "../localization";
 import { MetadataGrid } from "./ui/patterns";
 import type { PortDefinition, SourceInspectionReport } from "../types";
 import type { SourceEvidence, SourceVariant } from "../transport-types.generated";
 import { platformLabel } from "../view-model";
 
-const kindLabels = {
-  structural_check: "Structural check",
-  automated_lifecycle: "Automated lifecycle",
-  hands_on: "Hands-on observation",
-  known_failure: "Known failure",
-};
-const outcomeLabels = {
-  passed: "Passed",
-  failed: "Failed",
-  not_run: "Not run",
-  unknown: "Outcome unknown",
-};
+/** Unknown Core values fall back to explicit unknown labels. */
+function kindLabel(t: TFunction<"gameFiles">, kind: string): string {
+  switch (kind) {
+    case "structural_check":
+      return t("testResults.kind.structural");
+    case "automated_lifecycle":
+      return t("testResults.kind.automated");
+    case "hands_on":
+      return t("testResults.kind.handsOn");
+    case "known_failure":
+      return t("testResults.kind.knownFailure");
+    default:
+      return t("testResults.kind.unknown");
+  }
+}
+
+function outcomeLabel(t: TFunction<"gameFiles">, outcome: string): string {
+  switch (outcome) {
+    case "passed":
+      return t("testResults.outcome.passed");
+    case "failed":
+      return t("testResults.outcome.failed");
+    case "not_run":
+      return t("testResults.outcome.notRun");
+    default:
+      return t("testResults.outcome.unknown");
+  }
+}
+
+function sectionLabel(
+  t: TFunction<"gameFiles">,
+  technical: boolean,
+  role: "game" | "bios",
+): string {
+  if (technical)
+    return role === "game"
+      ? t("testResults.section.technicalGame")
+      : t("testResults.section.technicalBios");
+  return role === "game" ? t("testResults.section.game") : t("testResults.section.bios");
+}
 
 export function DetailQualificationSummary({
   port,
@@ -27,30 +59,27 @@ export function DetailQualificationSummary({
   biosInspection?: SourceInspectionReport | undefined;
   technical?: boolean;
 }) {
+  const { t } = useAppTranslation("gameFiles");
   return (
     <>
       {!technical && (
         <div className="metadata grid grid-cols-[1fr_1fr] gap-[10px]">
           <span className="min-w-0 rounded-pc-md bg-[var(--color-bg-subtle)] p-[12px] text-[length:var(--text-xs)] [overflow-wrap:anywhere] text-[var(--color-text-secondary)]">
             <small className="mb-[5px] block text-[var(--color-text-muted)]">
-              Legacy port-wide automated tests
+              {t("testResults.earlierAutomated")}
             </small>
-            {legacyCoverage(port.platforms, port.automated_tested_platforms)}
+            {legacyCoverage(t, port.platforms, port.automated_tested_platforms)}
           </span>
           <span className="min-w-0 rounded-pc-md bg-[var(--color-bg-subtle)] p-[12px] text-[length:var(--text-xs)] [overflow-wrap:anywhere] text-[var(--color-text-secondary)]">
             <small className="mb-[5px] block text-[var(--color-text-muted)]">
-              Legacy port-wide hands-on tests
+              {t("testResults.earlierHandsOn")}
             </small>
-            {legacyCoverage(port.platforms, port.manually_validated_platforms)}
+            {legacyCoverage(t, port.platforms, port.manually_validated_platforms)}
           </span>
         </div>
       )}
       {!technical && (
-        <p className="text-sm text-pc-muted-foreground">
-          Recorded history, not a fresh check of your current files, release or device. Structural
-          and lifecycle passes do not establish gameplay or permission to launch. Legacy platform
-          coverage does not identify an exact artifact, edition or file format.
-        </p>
+        <p className="text-sm text-pc-muted-foreground">{t("testResults.earlierNote")}</p>
       )}
       {(["game", "bios"] as const).map((role) => {
         const profile = role === "game" ? port.source_profile : port.bios_source_profile;
@@ -91,18 +120,12 @@ export function DetailQualificationSummary({
           );
         });
         return (
-          <section
-            key={role}
-            aria-label={`${technical ? "Technical recorded" : "Recorded"} ${role === "game" ? "game-file" : "BIOS"} checks`}
-          >
+          <section key={role} aria-label={sectionLabel(t, technical, role)}>
             <h3 className="text-sm font-medium">
-              {role === "game" ? "Game-file" : "BIOS"} recorded observations
+              {role === "game" ? t("testResults.heading.game") : t("testResults.heading.bios")}
             </h3>
             {!application ? (
-              <p>
-                File-check report unavailable for this requirement. Catalog evidence may still
-                exist.
-              </p>
+              <p>{t("testResults.reportUnavailable")}</p>
             ) : (
               <>
                 {records?.length ? (
@@ -118,17 +141,14 @@ export function DetailQualificationSummary({
                     ))}
                   </ul>
                 ) : (
-                  <p>No matching recorded observations supplied by this report.</p>
+                  <p>{t("testResults.noRecords")}</p>
                 )}
                 {records?.length !== application.qualification.exact_records.length && (
-                  <p>Some recorded scopes could not be verified for this requirement.</p>
+                  <p>{t("testResults.unverifiedScopes")}</p>
                 )}
               </>
             )}
-            <p className="text-sm text-pc-muted-foreground">
-              Current applicability is unknown: this view has no current device, artifact or
-              inspection freshness context.
-            </p>
+            <p className="text-sm text-pc-muted-foreground">{t("testResults.notConfirmed")}</p>
           </section>
         );
       })}
@@ -145,32 +165,36 @@ function RecordedObservation({
   technical: boolean;
   variants: SourceVariant[];
 }) {
+  const { t } = useAppTranslation("gameFiles");
   const identity =
     record.scope.variant.state === "exact" ? record.scope.variant.identity : undefined;
-  const edition = recordedEdition(record, variants);
+  const edition = recordedEdition(record, variants) ?? t("testResults.notRecorded");
+  const notRecorded = t("testResults.notRecorded");
   const observedAt = new Date(record.observed_at * 1000);
   return (
     <div className="grid gap-1 text-sm break-words">
       <strong>
-        {kindLabels[record.kind] ?? "Check kind unknown"} ·{" "}
-        {outcomeLabels[record.outcome] ?? "Outcome unknown"}
+        {t("testResults.kindOutcome", {
+          kind: kindLabel(t, record.kind),
+          outcome: outcomeLabel(t, record.outcome),
+        })}
       </strong>
-      <p>{record.method || "Method not recorded"}</p>
+      <p>{record.method || t("testResults.methodNotRecorded")}</p>
       <MetadataGrid className="qualification-grid max-[760px]:grid-cols-[1fr]">
         <div className="min-w-0 rounded-pc-md bg-[var(--color-bg-inset)] p-2">
-          <dt>Recorded platform</dt>
+          <dt>{t("testResults.field.platform")}</dt>
           <dd>{platformLabel(record.scope.platform)}</dd>
         </div>
         <div className="min-w-0 rounded-pc-md bg-[var(--color-bg-inset)] p-2">
-          <dt>Observed date (UTC)</dt>
+          <dt>{t("testResults.field.observed")}</dt>
           <dd>
             {Number.isNaN(observedAt.getTime())
-              ? "Not recorded"
+              ? notRecorded
               : observedAt.toISOString().slice(0, 10)}
           </dd>
         </div>
         <div className="min-w-0 rounded-pc-md bg-[var(--color-bg-inset)] p-2">
-          <dt>Recorded edition and format</dt>
+          <dt>{t("testResults.field.edition")}</dt>
           <dd>
             {technical && identity
               ? `${identity.game_id} · ${identity.variant_id} · ${identity.representation_id}`
@@ -178,28 +202,26 @@ function RecordedObservation({
           </dd>
         </div>
         <div className="min-w-0 rounded-pc-md bg-[var(--color-bg-inset)] p-2">
-          <dt>Recorded release</dt>
-          <dd>{record.scope.upstream_ref || "Not recorded — scope unknown"}</dd>
+          <dt>{t("testResults.field.release")}</dt>
+          <dd>{record.scope.upstream_ref || notRecorded}</dd>
         </div>
         {technical && (
           <div className="min-w-0 rounded-pc-md bg-[var(--color-bg-inset)] p-2">
-            <dt>Recorded contract</dt>
-            <dd>{record.scope.contract_id || "Not recorded — scope unknown"}</dd>
+            <dt>{t("testResults.field.contract")}</dt>
+            <dd>{record.scope.contract_id || notRecorded}</dd>
           </div>
         )}
         {technical && (
           <div className="min-w-0 rounded-pc-md bg-[var(--color-bg-inset)] p-2">
-            <dt>Recorded check version</dt>
-            <dd>{record.scope.check_version || "Not recorded — scope unknown"}</dd>
+            <dt>{t("testResults.field.checkVersion")}</dt>
+            <dd>{record.scope.check_version || notRecorded}</dd>
           </div>
         )}
         {technical && (
           <div className="min-w-0 rounded-pc-md bg-[var(--color-bg-inset)] p-2">
-            <dt>Recorded artifact SHA-256</dt>
+            <dt>{t("testResults.field.artifact")}</dt>
             <dd>
-              <code className="break-all">
-                {record.scope.artifact_sha256 || "Not recorded — scope unknown"}
-              </code>
+              <code className="break-all">{record.scope.artifact_sha256 || notRecorded}</code>
             </dd>
           </div>
         )}
@@ -207,8 +229,8 @@ function RecordedObservation({
       {!technical && (
         <p>
           {record.scope.check_version && record.scope.artifact_sha256
-            ? "Artifact and check identities recorded in Technical details."
-            : "Artifact or check identity not recorded — scope unknown."}
+            ? t("testResults.detailsAvailable")
+            : t("testResults.detailsMissing")}
         </p>
       )}
     </div>
@@ -232,20 +254,30 @@ function recordedEdition(record: SourceEvidence, variants: SourceVariant[]) {
         ]
           .filter(Boolean)
           .join(" · ")
-      : "Not recorded — scope unknown";
+      : undefined;
   return edition;
 }
 
 function legacyCoverage(
+  t: TFunction<"gameFiles">,
   supported: PortDefinition["platforms"],
   completed: PortDefinition["platforms"],
-) {
+): ReactNode {
   const completedSet = new Set(completed);
   const recorded = supported.filter((platform) => completedSet.has(platform));
-  if (recorded.length === 0) return "No legacy platform coverage recorded";
+  if (recorded.length === 0) return t("testResults.noEarlierTests");
   const unrecorded = supported.filter((platform) => !completedSet.has(platform));
+  // Platform labels are shared view-model data joined as a list.
   const completedLabel = recorded.map((platform) => platformLabel(platform)).join(" · ");
-  return unrecorded.length === 0
-    ? completedLabel
-    : `${completedLabel} · Not recorded: ${unrecorded.map((platform) => platformLabel(platform)).join(" · ")}`;
+  if (unrecorded.length === 0) return completedLabel;
+  return (
+    <Trans
+      t={t}
+      i18nKey="testResults.partialCoverage"
+      components={{
+        recorded: <>{completedLabel}</>,
+        missing: <>{unrecorded.map((platform) => platformLabel(platform)).join(" · ")}</>,
+      }}
+    />
+  );
 }

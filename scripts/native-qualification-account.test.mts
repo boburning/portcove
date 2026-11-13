@@ -73,7 +73,7 @@ function actualDiagnosticOwnerEnvironment(directory: string): NodeJS.ProcessEnv 
   return result;
 }
 
-void test("actual bridge entry separates held production from fixed diagnostic scope before input reads", () => {
+void test("bridge entry keeps diagnostic scope independent of an explicit held-production fixture", () => {
   const source = readFileSync(
     new URL("./native-qualification-account-bridge.ps1", import.meta.url),
     "utf8",
@@ -81,11 +81,13 @@ void test("actual bridge entry separates held production from fixed diagnostic s
   const boundary = source.indexOf("# This is fixed owner-side launch plumbing");
   assert.ok(boundary > 0);
   const prefix = source.slice(0, boundary);
-  assert.equal(prefix.split("$hostedCandidateExecutionAuthorized = $false").length, 2);
+  assert.equal(prefix.split("$hostedCandidateExecutionAuthorized = $true").length, 2);
   assert.equal(prefix.split("$hostedDiagnosticCandidateExecutionAuthorized = $false").length, 2);
   const script = String.raw`
 $ErrorActionPreference='Stop'
 $original=[Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($env:PORTCOVE_TEST_BRIDGE_PREFIX))
+# Deliberately revoke ordinary source authority only inside this inert entry fixture.
+$original=$original.Replace('$hostedCandidateExecutionAuthorized = $true','$hostedCandidateExecutionAuthorized = $false')
 $activated=$original.Replace('$hostedDiagnosticCandidateExecutionAuthorized = $false','$hostedDiagnosticCandidateExecutionAuthorized = $true')
 # Inert entry-only fixture. No owner identity, ACL, credential, account, group or candidate operation is evaluated.
 $activated=$activated.Replace('[Environment]::OSVersion.Platform -ne [PlatformID]::Win32NT','$false')
@@ -141,14 +143,19 @@ void test(
   () => {
     const script = String.raw`
 $ErrorActionPreference='Stop'
-Add-Type -TypeDefinition ([IO.File]::ReadAllText($env:PORTCOVE_TEST_NATIVE_HELPER))
+$helperSource=[IO.File]::ReadAllText($env:PORTCOVE_TEST_NATIVE_HELPER)
+$appointedCandidate='public static bool HostedCandidateExecutionAuthorized { get { return true; } }'
+if($helperSource.Split($appointedCandidate).Count -ne 2){throw 'Expected exact appointed candidate source'}
+# Owned inert fixture only: preserve the false-gate refusal without executing a candidate.
+$helperSource=$helperSource.Replace($appointedCandidate,$appointedCandidate.Replace('true','false'))
+Add-Type -TypeDefinition $helperSource
 if ([Portcove.NativeQualification.AccountLauncher]::HostedCandidateExecutionAuthorized) { throw 'Candidate source hold changed' }
 $refused=$false
 try { [Portcove.NativeQualification.AccountLauncher]::StartHostedCandidateVerifiedInGroup($null,$null,$null,$null,$null,$null,$null,$null,$false,$null) | Out-Null }
 catch { if (-not $_.Exception.Message.Contains('awaits separate owner authority')) { throw }; $refused=$true }
 if (-not $refused) { throw 'Candidate launcher accepted an unowned group' }
 $refused=$false
-try { & ([scriptblock]::Create([IO.File]::ReadAllText($env:PORTCOVE_TEST_NATIVE_BRIDGE))) -Configuration 'C:\portcove-nonexistent-held-input.json' -ExpectedConfigurationSha256 ('a'*64) -InvocationId ('b'*64) -HostedMemoryContext @{} }
+try { & ([scriptblock]::Create(([IO.File]::ReadAllText($env:PORTCOVE_TEST_NATIVE_BRIDGE)).Replace('$hostedCandidateExecutionAuthorized = $true','$hostedCandidateExecutionAuthorized = $false'))) -Configuration 'C:\portcove-nonexistent-held-input.json' -ExpectedConfigurationSha256 ('a'*64) -InvocationId ('b'*64) -HostedMemoryContext @{} }
 catch { if (-not $_.Exception.Message.Contains('awaits separate candidate execution authority')) { throw }; $refused=$true }
 if (-not $refused) { throw 'Memory bridge reached an input or credential operation' }
 Write-Output 'hosted-candidate-held-before-effects'
@@ -567,7 +574,12 @@ function runMemoryBridgeFixture(context: test.TestContext, mutate: boolean, diag
   const script = String.raw`
 $ErrorActionPreference='Stop'
 Add-Type -TypeDefinition ([IO.File]::ReadAllText($env:PORTCOVE_TEST_NATIVE_SETUP))
-Add-Type -TypeDefinition ([IO.File]::ReadAllText($env:PORTCOVE_TEST_NATIVE_HELPER))
+$helperSource=[IO.File]::ReadAllText($env:PORTCOVE_TEST_NATIVE_HELPER)
+$appointedCandidate='public static bool HostedCandidateExecutionAuthorized { get { return true; } }'
+if($helperSource.Split($appointedCandidate).Count -ne 2){throw 'Expected exact appointed candidate source'}
+# Owned inert fixture only: preserve the false-gate refusal without executing a candidate.
+$helperSource=$helperSource.Replace($appointedCandidate,$appointedCandidate.Replace('true','false'))
+Add-Type -TypeDefinition $helperSource
 if ([Portcove.NativeQualification.AccountLauncher]::HostedCandidateExecutionAuthorized) { throw 'Candidate launcher must stay held' }
 $owner=[Security.Principal.WindowsIdentity]::GetCurrent().User.Value
 $root=Join-Path $env:PORTCOVE_TEST_NATIVE_ROOT 'controller'
@@ -582,11 +594,13 @@ if($mutation){
  $source=$source.Replace('[Diagnostics.Stopwatch]::GetTimestamp()','[Portcove.MemoryBridgeClock]::Now')
 }
 $diagnostic=$env:PORTCOVE_TEST_NATIVE_DIAGNOSTIC -ceq 'true'
-$held=if($diagnostic){'$hostedDiagnosticCandidateExecutionAuthorized = $false'}else{'$hostedCandidateExecutionAuthorized = $false'}
-if($source.Split($held).Count -ne 2){throw 'Expected one shipping memory hold'}
-# Only this disposable bridge copy exercises the owner-memory loop. C# launch stays false.
-[IO.File]::WriteAllText($bridge,$source.Replace($held,$held.Replace('$false','$true')))
-$helper=Join-Path $scripts 'native-qualification-account.cs.txt';[IO.File]::Copy($env:PORTCOVE_TEST_NATIVE_HELPER,$helper)
+$held=if($diagnostic){'$hostedDiagnosticCandidateExecutionAuthorized = $false'}else{'$hostedCandidateExecutionAuthorized = $true'}
+if($source.Split($held).Count -ne 2){throw 'Expected one exact memory source gate'}
+# Only the diagnostic gate changes in its disposable copy; ordinary source is appointed.
+# The C# candidate launcher is explicitly disabled above for both inert fixture paths.
+$enabled=if($diagnostic){$held.Replace('$false','$true')}else{$held}
+[IO.File]::WriteAllText($bridge,$source.Replace($held,$enabled))
+$helper=Join-Path $scripts 'native-qualification-account.cs.txt';[IO.File]::WriteAllText($helper,$helperSource)
 $capture=Join-Path $root 'capture';[Portcove.HostedNative.Setup]::Directory($capture,$owner,$null,$false)
 $nonce='b'*64;$sid='S-1-5-21-100-200-300-9999'
 $configuration=[ordered]@{schema_version=1;broker_sid=$owner;account_sid=$sid;account_name='PortcoveNativeQual';profile_root=(Join-Path $root 'profile');work_root=(Join-Path $root 'work');capture_root=$capture;helper_sha256=(Get-FileHash $helper).Hash.ToLowerInvariant();controller_root=$root}
@@ -630,9 +644,13 @@ try {
   return
  }
  $client=[IO.Pipes.NamedPipeClientStream]::new('.','PortcoveNative_'+$nonce,[IO.Pipes.PipeDirection]::InOut,[IO.Pipes.PipeOptions]::Asynchronous)
- try{$client.Connect(5000)}catch{
+ # Starting the runspace and connecting consume the same original fixture budget.
+ $remainingMs=[int][Math]::Floor(1000.0*($memory.deadline_ticks-[Diagnostics.Stopwatch]::GetTimestamp())/$memory.frequency)
+ if($remainingMs -le 0){throw 'Fixture bridge original deadline exhausted before connect'}
+ try{$client.Connect($remainingMs)}catch{
   if($pending.IsCompleted){$null=$worker.EndInvoke($pending);throw ('Fixture bridge exited before connection: '+($worker.Streams.Error|Out-String))}
-  throw
+  $prepared=[IO.File]::Exists((Join-Path $capture 'bridge-state.json'))
+  throw "Fixture bridge did not connect within its original deadline (state file created: $prepared)"
  }
  [Portcove.NativeQualification.OwnerCommandReader]::VerifyServer($client.SafePipeHandle.DangerousGetHandle(),[uint32]$PID,[long]$memory.owner_created_filetime)
  $command=[ordered]@{schema_version=1;invocation_id=$nonce;sequence=1;operation='finish';id='fixture-empty-finish';launch=$null;target=$null}
@@ -912,7 +930,7 @@ void test(
     assert.ok(completionStart > 0 && completionEnding.endsWith("}"));
     const completionProgram = stripTypeScriptTypes(
       "(async () => {\n" + completionEnding.slice(0, -1) + "\n})()",
-      { mode: "transform" },
+      { mode: "strip" },
     );
     const continuity = parseYaml(
       readFileSync(
@@ -1317,7 +1335,7 @@ void test(
           env: fixtureEnvironment,
         },
       );
-      assert.equal(result.error, undefined, result.error?.message);
+      assert.equal(result.error, undefined, String(result.error?.message ?? ""));
       assert.equal(result.status, 1, result.stderr);
       assert.equal(
         existsSync(poisonMarker),

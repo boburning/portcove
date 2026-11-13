@@ -6,6 +6,7 @@
     "name": "Goemon 64 Recompiled",
     "summary": "Native Mystical Ninja recompilation.",
     "project_url": "https://github.com/klorfmorf/Goemon64Recomp",
+    "listed_at": "2026-10-23",
     "original_game_title": "Mystical Ninja Starring Goemon",
     "artwork": {
       "game_id": 330074,
@@ -20,20 +21,25 @@
   "integration": {
     "support_tier": "beta",
     "channels": ["beta"],
-    "platforms": ["windows-x86-64", "linux-x86-64"],
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
     "adapter": "n64-recomp-portable",
     "automated_tested_platforms": ["windows-x86-64"],
     "manually_validated_platforms": ["windows-x86-64"],
     "release": {
       "repository": "klorfmorf/Goemon64Recomp",
       "asset_hints": {
-        "linux-x86-64": ["Linux-X64"]
-      }
+        "linux-x86-64": ["Linux-X64"],
+        "macos-x86-64": ["macOS-Release.zip"],
+        "macos-aarch64": ["macOS-Release.zip"]
+      },
+      "archive_file_links": true
     },
     "source_profile": "goemon-64",
     "executable_hints": {
       "windows-x86-64": ["Goemon64Recompiled.exe"],
-      "linux-x86-64": ["Goemon64Recompiled"]
+      "linux-x86-64": ["Goemon64Recompiled"],
+      "macos-x86-64": ["Goemon64Recompiled"],
+      "macos-aarch64": ["Goemon64Recompiled"]
     },
     "persistent_paths": [
       "mods",

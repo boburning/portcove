@@ -3,9 +3,10 @@
   "listing": {
     "id": "star-fox-64-starfox64recomp",
     "name": "Star Fox 64 / Starfox64Recomp",
-    "summary": "Explore Star Fox 64 / Starfox64Recomp and follow the upstream project for requirements, downloads and setup.",
+    "summary": "Star Fox 64 / Starfox64Recomp for your own North American revision 1.1 original. Keep the complete Windows runtime and its profile together. Portcove does not manage replacing it.",
     "project_url": "https://gitlab.com/sonicdcer/Starfox64Recomp",
     "issue_number": 333,
+    "listed_at": "2026-10-23",
     "platforms": ["windows-x86-64"],
     "availability": "packages",
     "setup_url": "https://gitlab.com/sonicdcer/Starfox64Recomp/-/blob/061d4c8050c07bcac09a4074657ec4e49a1504b9/README.md",
@@ -18,26 +19,33 @@
       "match_kind": "underlying-game"
     },
     "release_url": "https://gitlab.com/sonicdcer/Starfox64Recomp/-/releases",
-    "download_block_reason": "Portcove downloads are paused until the applicable grant for the included Chiaro fonts is established. The font notices identify Fontworks Japan; the project code license does not settle that separate grant. Keep an existing permitted copy. Reconsider when upstream provides the applicable grant or an appropriately licensed replacement package.",
     "manual_setup": {
       "help_url": "https://gitlab.com/sonicdcer/Starfox64Recomp/-/blob/061d4c8050c07bcac09a4074657ec4e49a1504b9/README.md",
       "warnings": [
-        "Portcove downloads are paused until the applicable grant for the included Chiaro fonts is established. The font notices identify Fontworks Japan; the project code license does not settle that separate grant. Keep an existing permitted copy. Reconsider when upstream provides the applicable grant or an appropriately licensed replacement package."
+        "The package includes Chiaro fonts by Fontworks that the project license does not cover. Portcove downloads it only from the project’s own releases. You need your own original game files.",
+        "Close the game and preserve its original, saves, settings and mods at the actual current profile location.",
+        "Keep the old working copy until the successor can read your data. Removing registration preserves every external file. External registration does not provide managed Update, Backup or Rollback."
       ],
       "steps": [
         {
-          "title": "Keep a complete permitted copy",
-          "instruction": "Keep the complete upstream Windows runtime together with its assets and DLLs. The player is Starfox64Recompiled.exe; select that existing executable and use its containing folder as the working directory. Retain any existing portable.txt choice. Registration preserves external ownership and does not execute setup or the game."
+          "title": "Keep the complete runtime together",
+          "instruction": "Keep the complete upstream Windows runtime together with its assets and DLLs. The player is Starfox64Recompiled.exe; select that executable and use its containing folder as the working directory. Retain any existing portable.txt choice. Registration preserves external ownership and does not execute setup or the game."
         },
         {
           "title": "Supply your original when you choose Play",
           "instruction": "Save the reviewed launch details, then choose Play explicitly. The upstream player selects and validates your own matching North American revision 1.1 Star Fox 64 original; keep it available and follow its edition checks. No local compiler or separate installer is needed for the reviewed Windows package."
-        },
+        }
+      ],
+      "references": [
         {
           "title": "Preserve the actual profile before updating",
           "instruction": "You or upstream replace this external runtime. Close the game and preserve its original, saves, settings and mods at the actual current profile location. Windows normally uses %LOCALAPPDATA%/Starfox64Recompiled/; portable.txt mode instead uses the working folder beside the runtime. Keep the old working copy until the successor can read your data. Removing registration preserves every external file. External registration does not provide managed Update, Backup or Rollback."
         }
       ]
-    }
+    },
+    "download_asset_hints": {
+      "windows-x86-64": ["Starfox64Recompiled-", "-Windows-RelWithDebInfo"]
+    },
+    "recommended_download_channel": "stable"
   }
 }

@@ -1,9 +1,10 @@
 import { capacityDigest } from "./release-capacity.mts";
+import { verifyRetainedApplicationCapacityStop } from "./release-semantic-runtime.mts";
 import { createCatalogReviewRequest } from "./release-catalog-review-request.mts";
 import { reviewFrozenCatalogCoordinatorRequest } from "./release-semantic-request-pipeline.mts";
 import assert from "node:assert/strict";
 import { execFileSync, spawnSync } from "node:child_process";
-import { mkdtemp, rm, mkdir, writeFile, readFile } from "node:fs/promises";
+import { mkdtemp, rm, mkdir, writeFile, readFile, chmod, symlink } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -22,6 +23,11 @@ import { releaseSourceFixture } from "./fixtures/release-source-fixture.mts";
 import { inspectRemoteCommitObject } from "./release-coordinator-recovery.mts";
 import { createReleaseReviewRequest } from "./release-review-request.mts";
 import {
+  sealedCheckSdkFilename,
+  verifyLinuxSealedCheckSdkBundle,
+} from "./release-sealed-check-sdk.mts";
+import {
+  assertRetainedApplicationPrelaunchLocation,
   claimSemanticTechnicalAttempt,
   inspectSemanticTechnicalRecovery,
 } from "./release-semantic-worker-recovery.mts";
@@ -89,6 +95,290 @@ void test("persistent technical exclusion resumes pre-launch failure twice, reta
   );
   await writeFile(path.join(first, "expected-check.json"), "original");
   await assert.rejects(claimSemanticTechnicalAttempt(another, "a".repeat(64)), /GET-only/);
+});
+
+void test("supplemental application claims require exact prior stops and preserve the original anchor", async (t) => {
+  const parent = await mkdtemp(path.join(os.tmpdir(), "semantic-supplemental-"));
+  t.after(() => rm(parent, { recursive: true, force: true }));
+  const requestId = "b".repeat(64);
+  const request = path.join(parent, `request-${requestId}`);
+  await mkdir(request);
+  let stop = "";
+  for (let index = 0; index < 3; index++) {
+    const current = await claimSemanticTechnicalAttempt(request, "a".repeat(64), {
+      request_id: requestId,
+      max_lanes: 400,
+    });
+    stop = JSON.stringify({
+      outcome: "technical-failure",
+      invocations: [],
+      application_partition_request_id: requestId,
+    });
+    await writeFile(path.join(current, "technical-stop.json"), stop);
+  }
+  const scope = { request_id: requestId, max_lanes: 400, retry_stop_sha256: "c".repeat(64) };
+  await assert.rejects(
+    claimSemanticTechnicalAttempt(request, "a".repeat(64), scope),
+    /stop differs/,
+  );
+  scope.retry_stop_sha256 = createHash("sha256").update(stop).digest("hex");
+  await assert.rejects(
+    claimSemanticTechnicalAttempt(request, "a".repeat(64), {
+      ...scope,
+      continuation_stop_sha256: "d".repeat(64),
+    }),
+    /requires 4 original claims/,
+  );
+  const orphan = path.join(request, "technical-2", "r-unlisted");
+  await mkdir(orphan);
+  await assert.rejects(
+    claimSemanticTechnicalAttempt(request, "a".repeat(64), scope),
+    /inventory differs/,
+  );
+  await rm(orphan, { recursive: true });
+  const next = await claimSemanticTechnicalAttempt(request, "a".repeat(64), scope);
+  assert.equal(path.basename(next), "technical-3");
+  assert.equal(
+    await readFile(`${request}.attempts.jsonl`, "utf8"),
+    "technical-0\ntechnical-1\ntechnical-2\ntechnical-3\n",
+  );
+  await assert.rejects(
+    claimSemanticTechnicalAttempt(request, "a".repeat(64), scope),
+    /budget exhausted/,
+  );
+
+  const continuationStop = stop + "\n";
+  const continuation = {
+    ...scope,
+    continuation_stop_sha256: createHash("sha256").update(continuationStop).digest("hex"),
+  };
+  const nextStop = path.join(next, "technical-stop.json");
+  await writeFile(nextStop, stop);
+  await assert.rejects(
+    claimSemanticTechnicalAttempt(request, "a".repeat(64), continuation),
+    /stop differs/,
+  );
+  await writeFile(nextStop, continuationStop);
+  await assert.rejects(
+    claimSemanticTechnicalAttempt(request, "a".repeat(64), {
+      ...continuation,
+      retry_stop_sha256: "d".repeat(64),
+    }),
+    /stop differs/,
+  );
+  await mkdir(path.join(next, "r-unlisted"));
+  await assert.rejects(
+    claimSemanticTechnicalAttempt(request, "a".repeat(64), continuation),
+    /inventory differs/,
+  );
+  await rm(path.join(next, "r-unlisted"), { recursive: true });
+  await writeFile(path.join(next, "expected-check.json"), "original");
+  await assert.rejects(
+    claimSemanticTechnicalAttempt(request, "a".repeat(64), continuation),
+    /GET-only/,
+  );
+  await rm(path.join(next, "expected-check.json"));
+  assert.equal(
+    path.basename(await claimSemanticTechnicalAttempt(request, "a".repeat(64), continuation)),
+    "technical-4",
+  );
+  assert.equal(
+    await readFile(`${request}.attempts.jsonl`, "utf8"),
+    "technical-0\ntechnical-1\ntechnical-2\ntechnical-3\ntechnical-4\n",
+  );
+  await assert.rejects(
+    claimSemanticTechnicalAttempt(request, "a".repeat(64), continuation),
+    /budget exhausted/,
+  );
+
+  const fourth = path.join(request, "technical-4");
+  const fourthStop = continuationStop + "\n";
+  const fifth = {
+    ...continuation,
+    next_stop_sha256: createHash("sha256").update(fourthStop).digest("hex"),
+  };
+  await writeFile(path.join(fourth, "technical-stop.json"), continuationStop);
+  await assert.rejects(
+    claimSemanticTechnicalAttempt(request, "a".repeat(64), fifth),
+    /stop differs/,
+  );
+  await writeFile(path.join(fourth, "technical-stop.json"), fourthStop);
+  await assert.rejects(
+    claimSemanticTechnicalAttempt(request, "a".repeat(64), {
+      ...scope,
+      next_stop_sha256: fifth.next_stop_sha256,
+    }),
+    /partition scope differs/,
+  );
+  await assert.rejects(
+    claimSemanticTechnicalAttempt(request, "a".repeat(64), {
+      ...fifth,
+      continuation_stop_sha256: "f".repeat(64),
+    }),
+    /stop differs/,
+  );
+  const unlisted = path.join(fourth, "r-unlisted");
+  await mkdir(unlisted);
+  await assert.rejects(
+    claimSemanticTechnicalAttempt(request, "a".repeat(64), fifth),
+    /inventory differs/,
+  );
+  await rm(unlisted, { recursive: true });
+  for (let index = 0; index <= 4; index++) {
+    const locator = path.join(request, `technical-${index}`, "expected-check.json");
+    await writeFile(locator, "original");
+    await assert.rejects(claimSemanticTechnicalAttempt(request, "a".repeat(64), fifth), /GET-only/);
+    await rm(locator);
+  }
+  assert.equal(
+    path.basename(await claimSemanticTechnicalAttempt(request, "a".repeat(64), fifth)),
+    "technical-5",
+  );
+  assert.equal(
+    await readFile(`${request}.attempts.jsonl`, "utf8"),
+    "technical-0\ntechnical-1\ntechnical-2\ntechnical-3\ntechnical-4\ntechnical-5\n",
+  );
+  await assert.rejects(
+    claimSemanticTechnicalAttempt(request, "a".repeat(64), fifth),
+    /budget exhausted/,
+  );
+});
+
+void test("early application continuation binds the second stop and uses the original last claim", async (t) => {
+  const parent = await mkdtemp(path.join(os.tmpdir(), "semantic-bridge-continuation-"));
+  t.after(() => rm(parent, { recursive: true, force: true }));
+  const requestId = "c".repeat(64);
+  const request = path.join(parent, `request-${requestId}`);
+  await mkdir(request);
+  const scope = { request_id: requestId, max_lanes: 400 };
+  const continuation = { ...scope, continuation_stop_sha256: "d".repeat(64) };
+  await assert.rejects(
+    claimSemanticTechnicalAttempt(request, "a".repeat(64), continuation),
+    /requires exactly two original claims/,
+  );
+  for (let index = 0; index < 2; index++) {
+    const attempt = await claimSemanticTechnicalAttempt(request, "a".repeat(64), scope);
+    await writeFile(
+      path.join(attempt, "technical-stop.json"),
+      JSON.stringify({
+        outcome: "technical-failure",
+        invocations: [],
+        application_partition_request_id: requestId,
+        index,
+      }),
+    );
+  }
+  const second = path.join(request, "technical-1");
+  await assert.rejects(
+    claimSemanticTechnicalAttempt(request, "a".repeat(64), continuation),
+    /stop differs/,
+  );
+  continuation.continuation_stop_sha256 = createHash("sha256")
+    .update(await readFile(path.join(second, "technical-stop.json")))
+    .digest("hex");
+  await writeFile(path.join(second, "expected-check.json"), "retained");
+  await assert.rejects(
+    claimSemanticTechnicalAttempt(request, "a".repeat(64), continuation),
+    /GET-only/,
+  );
+  await rm(path.join(second, "expected-check.json"));
+  assert.equal(
+    path.basename(await claimSemanticTechnicalAttempt(request, "a".repeat(64), continuation)),
+    "technical-2",
+  );
+  assert.equal(
+    await readFile(`${request}.attempts.jsonl`, "utf8"),
+    "technical-0\ntechnical-1\ntechnical-2\n",
+  );
+  await assert.rejects(
+    claimSemanticTechnicalAttempt(request, "a".repeat(64), continuation),
+    /budget exhausted/,
+  );
+
+  const thirdStop = JSON.stringify({
+    outcome: "technical-failure",
+    invocations: [],
+    application_partition_request_id: requestId,
+  });
+  const third = path.join(request, "technical-2");
+  await writeFile(path.join(third, "technical-stop.json"), thirdStop);
+  const providerContinuation = {
+    ...continuation,
+    next_stop_sha256: createHash("sha256").update(thirdStop).digest("hex"),
+  };
+  await assert.rejects(
+    claimSemanticTechnicalAttempt(request, "a".repeat(64), {
+      ...providerContinuation,
+      next_stop_sha256: "f".repeat(64),
+    }),
+    /stop differs/,
+  );
+  await writeFile(path.join(third, "expected-check.json"), "retained");
+  await assert.rejects(
+    claimSemanticTechnicalAttempt(request, "a".repeat(64), providerContinuation),
+    /GET-only/,
+  );
+  await rm(path.join(third, "expected-check.json"));
+  assert.equal(
+    path.basename(
+      await claimSemanticTechnicalAttempt(request, "a".repeat(64), providerContinuation),
+    ),
+    "technical-3",
+  );
+  assert.equal(
+    await readFile(`${request}.attempts.jsonl`, "utf8"),
+    "technical-0\ntechnical-1\ntechnical-2\ntechnical-3\n",
+  );
+  await assert.rejects(
+    claimSemanticTechnicalAttempt(request, "a".repeat(64), providerContinuation),
+    /budget exhausted/,
+  );
+});
+
+void test("retained application prelaunch refuses an alternate canonical path or an invocation sibling", () => {
+  const request = "request-b59b5c190f4933ff6f26ef05b0f5fd137b9da2e0e5114d2499a678f2a918b7be";
+  const root = `/home/boburning/portcove-semantic/private/production-semantic-output/${request}/technical-0`;
+  const copied = `/copied/${request}/technical-0`;
+  assert.doesNotThrow(() =>
+    assertRetainedApplicationPrelaunchLocation(root, root, ["source.git", "r-eqdehy"]),
+  );
+  assert.throws(
+    () => assertRetainedApplicationPrelaunchLocation(copied, copied, ["r-eqdehy"]),
+    /path differs/,
+  );
+  assert.throws(
+    () => assertRetainedApplicationPrelaunchLocation(root, copied, ["r-eqdehy"]),
+    /path differs/,
+  );
+  assert.throws(
+    () => assertRetainedApplicationPrelaunchLocation(root, root, ["r-eqdehy", "r-unexpected"]),
+    /invocation sibling/,
+  );
+});
+
+void test("retained application prelaunch exception cannot consume substituted custody or a possible Check", async (t) => {
+  const parent = await mkdtemp(path.join(os.tmpdir(), "semantic-prelaunch-"));
+  t.after(() => rm(parent, { recursive: true, force: true }));
+  const request = path.join(
+    parent,
+    "request-b59b5c190f4933ff6f26ef05b0f5fd137b9da2e0e5114d2499a678f2a918b7be",
+  );
+  await mkdir(request, { mode: 0o700 });
+  const attempt = await claimSemanticTechnicalAttempt(request, "a".repeat(64));
+  const invocation = path.join(attempt, "r-eqdehy");
+  const capture = path.join(invocation, "capture");
+  await mkdir(capture, { recursive: true, mode: 0o700 });
+  await mkdir(path.join(invocation, "inputs"), { mode: 0o700 });
+  await mkdir(path.join(invocation, "runtime"), { mode: 0o700 });
+  await writeFile(path.join(invocation, ".portcove-semantic-review-owned"), "substituted", {
+    mode: 0o600,
+  });
+  await writeFile(path.join(capture, "invocation.json"), "{}", { mode: 0o600 });
+  await writeFile(path.join(capture, "linux-request.json"), "{}", { mode: 0o600 });
+  await assert.rejects(claimSemanticTechnicalAttempt(request, "a".repeat(64)), /path differs/);
+  await writeFile(path.join(attempt, "expected-check.json"), "possible POST", { mode: 0o600 });
+  await assert.rejects(claimSemanticTechnicalAttempt(request, "a".repeat(64)), /GET-only/);
+  assert.equal(await readFile(`${request}.attempts.jsonl`, "utf8"), "technical-0\n");
 });
 
 function configuration() {
@@ -159,6 +449,59 @@ void test("selected semantic worker needs only the independent issuer and refuse
   ])
     assert.throws(() => inspectSemanticWorkerConfiguration(bad));
 });
+
+void test("semantic setup appoints exactly one issuer command and carries its SDK identity to the unit", () => {
+  const raw = selectedConfiguration();
+  const { http_modules_sha256, ...issuer } = raw.issuer;
+  const bundle = { bytes: 100, sha256: "a".repeat(64) };
+  const selected = { ...raw, issuer: { ...issuer, issuer_sdk_bundle: bundle } };
+  const actual = inspectSemanticWorkerConfiguration(selected).issuer;
+  assert.ok("issuer_sdk_bundle" in actual);
+  assert.deepEqual(actual.issuer_sdk_bundle, bundle);
+  assert.doesNotThrow(() =>
+    renderSemanticWorkerUnits(selected, "/owned/config.json", "a".repeat(64), "/owned/controller"),
+  );
+  for (const change of [
+    { ...selected.issuer, http_modules_sha256 },
+    { ...selected.issuer, issuer_sdk_bundle: { ...bundle, path: "/mutable/other.mjs" } },
+    { ...selected.issuer, issuer_sdk_bundle: { ...bundle, bytes: 0 } },
+  ])
+    assert.throws(() => inspectSemanticWorkerConfiguration({ ...selected, issuer: change }));
+});
+
+void test(
+  "Linux semantic SDK receiver refuses changed bytes, modes and links",
+  {
+    skip: process.platform !== "linux" || !process.getuid?.(),
+  },
+  async (t) => {
+    const root = await mkdtemp(path.join(os.homedir(), ".portcove-sealed-check-test-"));
+    t.after(() => rm(root, { recursive: true, force: true }));
+    const scripts = path.join(root, "scripts");
+    await mkdir(scripts, { mode: 0o700 });
+    const file = path.join(scripts, sealedCheckSdkFilename);
+    const bytes = Buffer.from("inert");
+    const identity = {
+      bytes: bytes.length,
+      sha256: createHash("sha256").update(bytes).digest("hex"),
+    };
+    await writeFile(file, bytes, { mode: 0o600 });
+    assert.equal(verifyLinuxSealedCheckSdkBundle(root, identity), file);
+    await writeFile(file, "other");
+    assert.throws(
+      () => verifyLinuxSealedCheckSdkBundle(root, identity),
+      /differs from installed custody/u,
+    );
+    await writeFile(file, bytes);
+    await chmod(file, 0o644);
+    assert.throws(() => verifyLinuxSealedCheckSdkBundle(root, identity), /file custody differs/u);
+    await rm(file);
+    const target = path.join(root, "original");
+    await writeFile(target, bytes, { mode: 0o600 });
+    await symlink(target, file);
+    assert.throws(() => verifyLinuxSealedCheckSdkBundle(root, identity));
+  },
+);
 void test("worker setup excludes supplied outcomes/backends and separates the fixed issuer from source/reviewer inputs", () => {
   const raw = configuration();
   const result = inspectSemanticWorkerConfiguration(raw);
@@ -173,6 +516,86 @@ void test("worker setup excludes supplied outcomes/backends and separates the fi
   assert.match(units.service, /Type=oneshot/u);
   assert.match(units.service, /Restart=no/u);
   assert.match(units.service, /KillMode=control-group/u);
+  assert.match(units.service, /TimeoutStartSec=2700/u);
+  const partition = { request_id: "e".repeat(64), max_lanes: 350, wall_seconds: 172800 };
+  const partitionSetup = { ...raw, application_partition: partition };
+  assert.deepEqual(
+    inspectSemanticWorkerConfiguration(partitionSetup).application_partition,
+    partition,
+  );
+  assert.match(
+    renderSemanticWorkerUnits(
+      partitionSetup,
+      "/owned/config.json",
+      "a".repeat(64),
+      "/owned/controller",
+    ).service,
+    /TimeoutStartSec=172800/u,
+  );
+  const continuation = {
+    ...partition,
+    retry_stop_sha256: "b".repeat(64),
+    continuation_stop_sha256: "c".repeat(64),
+    continuation_prefix_sha256: "d".repeat(64),
+  };
+  assert.deepEqual(
+    inspectSemanticWorkerConfiguration({ ...raw, application_partition: continuation })
+      .application_partition,
+    continuation,
+  );
+  const next = {
+    ...continuation,
+    next_stop_sha256: "f".repeat(64),
+    next_prefix_sha256: "1".repeat(64),
+  };
+  assert.deepEqual(
+    inspectSemanticWorkerConfiguration({ ...raw, application_partition: next })
+      .application_partition,
+    next,
+  );
+  const { retry_stop_sha256: _legacyRetry, ...providerContinuation } = next;
+  assert.deepEqual(
+    inspectSemanticWorkerConfiguration({ ...raw, application_partition: providerContinuation })
+      .application_partition,
+    providerContinuation,
+  );
+  const capacity = {
+    ...providerContinuation,
+    capacity_prefix_sha256: "2".repeat(64),
+    capacity_stop_sha256: "3".repeat(64),
+  };
+  assert.deepEqual(
+    inspectSemanticWorkerConfiguration({ ...raw, application_partition: capacity })
+      .application_partition,
+    capacity,
+  );
+  for (const invalid of [
+    null,
+    { ...partition, request_id: "latest" },
+    { ...capacity, capacity_stop_sha256: "invalid" },
+    { ...next, capacity_stop_sha256: capacity.capacity_stop_sha256 },
+    { ...partition, max_lanes: 513 },
+    { ...partition, wall_seconds: 259201 },
+    { ...partition, continuation_stop_sha256: "c".repeat(64) },
+    { ...partition, continuation_prefix_sha256: "d".repeat(64) },
+    { ...continuation, retry_stop_sha256: undefined },
+    { ...continuation, continuation_stop_sha256: 1 },
+    { ...continuation, continuation_prefix_sha256: "invalid" },
+    { ...continuation, next_stop_sha256: next.next_stop_sha256 },
+    { ...continuation, next_prefix_sha256: next.next_prefix_sha256 },
+    {
+      ...partition,
+      next_stop_sha256: next.next_stop_sha256,
+      next_prefix_sha256: next.next_prefix_sha256,
+    },
+    { ...next, next_stop_sha256: "invalid" },
+    { ...next, next_prefix_sha256: 1 },
+    { ...next, continuation_prefix_sha256: undefined },
+    { ...partition, decision: "accepted" },
+  ])
+    assert.throws(() =>
+      inspectSemanticWorkerConfiguration({ ...raw, application_partition: invalid }),
+    );
   assert.match(units.timer, /OnUnitInactiveSec=5min/u);
   assert.equal(units.initial_state.setup_grant_sha256, raw.setup_grant_sha256);
   assert.throws(() =>
@@ -319,6 +742,7 @@ void test("actual worker entry dispatches the initial probe before all credentia
     import assert from 'node:assert/strict'; import {registerHooks} from 'node:module'; import {createHash} from 'node:crypto';
     const sha=x=>createHash('sha256').update(x).digest('hex');
     const worker=${JSON.stringify(worker)};
+    const {inspectLinuxQualificationConfiguration}=await import(new URL('./qualify-semantic-linux.mts',worker));
     const runtime={schema_version:1,output_parent:'/private/output',node_executable:'/private/node',codex_executable:'/private/codex',node_sha256:sha('node'),codex_sha256:'3'.repeat(64),supervisor_sha256:'4'.repeat(64),tools_sha256:{python:'5'.repeat(64),bwrap:'6'.repeat(64),systemd_run:'7'.repeat(64),systemctl:'8'.repeat(64)}};
     const config={schema_version:1,kind:'portcove-initial-semantic-boundary-probe',initial_setup_probe:true,worker_revision:'a'.repeat(40),setup_grant_sha256:'b'.repeat(64),source_git_sha256:sha('git'),output_parent:runtime.output_parent,runtime};
     const raw=Buffer.from(JSON.stringify(config)), hash=sha(raw), files=new Map(), dirs=new Set(); let launches=0;
@@ -331,7 +755,10 @@ void test("actual worker entry dispatches the initial probe before all credentia
       async readdir(){return [{name:'q-fixed1',isDirectory:()=>true,isSymbolicLink:()=>false}];},
       async read(root,name){if(name==='semantic-setup-probe.json')return raw;if(name==='worker-state.json')return Buffer.from(JSON.stringify(state));if(root==='/usr/bin'&&name==='git')return Buffer.from('git');if(name==='isolation.json')return Buffer.from(JSON.stringify(isolation));if(name==='node'||name.endsWith('node.exe'))return Buffer.from('node');throw new Error('Unexpected read '+root+'/'+name);},
       git(_name,args){return args.includes('rev-parse')?'a'.repeat(40):'';},
-      async resource(profile,node,args,options){launches++;assert.equal(profile,'analysis');assert.equal(node,runtime.node_executable);assert.equal(args[1],'fixture');assert.ok(args[0].endsWith('/scripts/qualify-semantic-linux.mts'));assert.ok(options.queueDeadline>performance.now());assert.equal(options.environment.GH_TOKEN,undefined);assert.equal(options.environment.OPENAI_API_KEY,undefined);return 0;}
+      async resource(profile,node,args,options){launches++;assert.equal(profile,'analysis');assert.equal(node,runtime.node_executable);assert.equal(args[1],'fixture');assert.ok(args[0].endsWith('/scripts/qualify-semantic-linux.mts'));
+        const qualification=inspectLinuxQualificationConfiguration(JSON.parse(files.get(args[2])));
+        assert.equal(qualification.output_parent,'/private/output/initial-setup-probe');
+        assert.ok(options.queueDeadline>performance.now());assert.equal(options.environment.GH_TOKEN,undefined);assert.equal(options.environment.OPENAI_API_KEY,undefined);return 0;}
     };
     const data=s=>'data:text/javascript,'+encodeURIComponent(s);
     registerHooks({resolve(spec,context,next){if(context.parentURL===worker){
@@ -534,4 +961,49 @@ void test("actual proposal pipeline freezes real Git inputs then refuses an unqu
     /request superseded/,
   );
   assert.equal(reads, 0);
+});
+
+void test("capacity continuation excludes an invocation with payload evidence", async (t) => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), "semantic-capacity-stop-"));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const requestId = "d".repeat(64);
+  const parent = path.join(directory, `request-${requestId}`);
+  const attempt = path.join(parent, "technical-3");
+  const invocation = { schema_version: 1, id: "c0000000-0000-4000-8000-000000000000" };
+  const root = path.join(attempt, "r-fixture");
+  const capture = path.join(root, "capture");
+  for (const name of [parent, attempt, root, capture, path.join(root, "inputs")])
+    await mkdir(name, { mode: 0o700 });
+  const request = JSON.stringify({
+    schema_version: 1,
+    mode: "codex",
+    run_root: root,
+    shared_runtime: true,
+  });
+  const terminal = JSON.stringify({
+    phase: "stopped-retain-state-no-retry",
+    request_id: requestId,
+    evidence: {
+      category: "Error",
+      message: "Resource queue observation deadline reached; no payload started",
+    },
+  });
+  const digest = (input: string) => createHash("sha256").update(input).digest("hex");
+  await writeFile(path.join(capture, "invocation.json"), JSON.stringify(invocation));
+  await writeFile(path.join(root, ".portcove-semantic-review-owned"), invocation.id);
+  await writeFile(path.join(capture, "linux-request.json"), request);
+  await writeFile(path.join(attempt, "worker-attempt.jsonl"), terminal + "\n");
+  const locator = { root, invocation_sha256: capacityDigest(invocation) };
+  const evidence = { log_sha256: digest(terminal + "\n"), request_sha256: digest(request) };
+  await verifyRetainedApplicationCapacityStop(attempt, requestId, locator, evidence);
+  await assert.rejects(
+    verifyRetainedApplicationCapacityStop(attempt, requestId, locator, {
+      ...evidence,
+      request_sha256: "0".repeat(64),
+    }),
+  );
+  await writeFile(path.join(capture, "stdout.jsonl"), "");
+  await assert.rejects(
+    verifyRetainedApplicationCapacityStop(attempt, requestId, locator, evidence),
+  );
 });

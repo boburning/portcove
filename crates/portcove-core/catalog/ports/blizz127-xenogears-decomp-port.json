@@ -6,6 +6,7 @@
     "summary": "Explore the experimental Linux Xenogears port and prepare a permitted copy with your own USA disc.",
     "project_url": "https://github.com/Blizz127/xenogears-decomp-port",
     "issue_number": 1909,
+    "listed_at": "2026-10-23",
     "platforms": ["linux-x86-64"],
     "availability": "packages",
     "setup_url": "https://github.com/Blizz127/xenogears-decomp-port/blob/33a7260a242b23079836a178943ce8b8e25325b6/README.md",

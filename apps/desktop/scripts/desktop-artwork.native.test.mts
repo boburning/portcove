@@ -3,7 +3,7 @@ import test from "node:test";
 import { runInNewContext } from "node:vm";
 import { runDesktopModuleFixture } from "../../../scripts/fixtures/desktop-module-fixture.mts";
 type Artwork = typeof import("./desktop-artwork-test.mts");
-type ArtworkReader = "readArtworkFallback" | "readArtworkGeometry";
+type ArtworkReader = "readArtworkFallback" | "readArtworkGeometry" | "waitForArtworkImage";
 function runContract(options?: {
   alias?: ArtworkReader;
   disabled?: ArtworkReader;
@@ -195,16 +195,100 @@ async function artworkContract(subject: Artwork) {
     (error) => error === probeFailure,
   );
   assert.equal(removed, true, "color probe cleanup must run when style observation fails");
+
+  // A lazy foreground does not exist until its stable outer hero is revealed.
+  // An already-rendered wide preview keeps the ordinary default anchor route.
+  let revealed = false;
+  let imagePresent = true;
+  let decoded = true;
+  const revealFrame = {
+    scrollIntoView: () => {
+      revealed = true;
+    },
+  };
+  const hero = ".game-hero-detail";
+  const heroImage = `${hero} .game-hero-foreground img`;
+  const wideImage = ".wide-artwork img";
+  const visibilityDocument = {
+    querySelector: (selector: string) => {
+      assert.ok(selector === heroImage || selector === wideImage);
+      return revealed && imagePresent
+        ? { complete: decoded, naturalWidth: decoded ? 384 : 0 }
+        : null;
+    },
+  };
+  const visibilityBrowser = {
+    findElements: async (locator: unknown) => {
+      assert.ok(locator !== null && typeof locator === "object");
+      const value: unknown = Reflect.get(locator, "value");
+      return value === hero ||
+        value === ".wide-artwork" ||
+        (revealed && value === `${hero} .game-hero-foreground`)
+        ? [revealFrame]
+        : [];
+    },
+    executeScript: async (callback: unknown, ...args: unknown[]) => {
+      assert.ok(typeof callback === "function" || typeof callback === "string");
+      const value: unknown = runInNewContext(
+        typeof callback === "string"
+          ? `(function(){${callback}})(...args)`
+          : `(${callback.toString()})(...args)`,
+        { document: visibilityDocument, args },
+        { timeout: 1000 },
+      );
+      return value;
+    },
+    wait: async (condition: unknown, deadline: number, message?: string): Promise<unknown> => {
+      assert.equal(deadline, 10_000, "Retain the finite artwork wait budget");
+      let result: unknown;
+      if (typeof condition === "function") result = await Reflect.apply(condition, undefined, []);
+      else {
+        assert.ok(condition !== null && typeof condition === "object");
+        // The existing isolated module fixture represents elementLocated as
+        // its inert locator; no real Selenium package crosses that boundary.
+        if (Reflect.get(condition, "using") === "css selector") {
+          result = (await visibilityBrowser.findElements(condition))[0];
+        } else {
+          const evaluate: unknown = Reflect.get(condition, "fn");
+          assert.ok(typeof evaluate === "function");
+          result = await Reflect.apply(evaluate, condition, [visibilityBrowser]);
+        }
+      }
+      if (!result) throw new Error(message ?? "Artwork reveal anchor unavailable");
+      return result;
+    },
+  };
+  const waitImage = async (selector: string, anchor?: string): Promise<unknown> => {
+    const value: unknown = Reflect.apply(subject.waitForArtworkImage, undefined, [
+      visibilityBrowser,
+      selector,
+      anchor,
+    ]);
+    return value;
+  };
+  await waitImage(heroImage, hero);
+  assert.equal(revealed, true, "Reveal actual lazy hero before reading its foreground");
+  revealed = false;
+  await assert.rejects(waitImage(heroImage), /Artwork reveal anchor unavailable/);
+  await waitImage(wideImage);
+  assert.equal(revealed, true);
+  imagePresent = false;
+  await assert.rejects(waitImage(heroImage, hero), /Core thumbnail must render/);
+  imagePresent = true;
+  decoded = false;
+  await assert.rejects(waitImage(heroImage, hero), /Core thumbnail must render/);
 }
 void test("serialized local artwork fallback preserves generated identity and geometry", () => {
   assert.match(runContract(), /ARTWORK_CONTRACT_OK/u);
   assert.match(runContract({ alias: "readArtworkFallback" }), /ARTWORK_CONTRACT_OK/u);
   assert.match(runContract({ alias: "readArtworkGeometry" }), /ARTWORK_CONTRACT_OK/u);
+  assert.match(runContract({ alias: "waitForArtworkImage" }), /ARTWORK_CONTRACT_OK/u);
 });
 void test("artwork observations reject disabled production callbacks by their behavioral assertions", () => {
   for (const [disabled, expected] of [
     ["readArtworkFallback", "Generated artwork fallback observation"],
     ["readArtworkGeometry", "Measured artwork geometry"],
+    ["waitForArtworkImage", "Reveal actual lazy hero before reading its foreground"],
   ] as const) {
     assert.match(runContract({ disabled, expected }), /ARTWORK_EXPECTED_BEHAVIORAL_REJECTION/u);
   }

@@ -3,35 +3,54 @@
   "listing": {
     "id": "lostartefacts-trx",
     "name": "Tomb Raider I-III / TRX (LostArtefacts)",
-    "summary": "Set up Tomb Raider I–III with the upstream TRX Windows installer and your original game files.",
+    "summary": "Set up Tomb Raider I–III with TRX and the original files for the games you own.",
     "project_url": "https://github.com/LostArtefacts/TRX",
     "issue_number": 1898,
-    "platforms": ["windows-x86-64"],
+    "listed_at": "2026-10-23",
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
     "availability": "packages",
     "setup_url": "https://github.com/LostArtefacts/TRX/blob/develop/docs/trx/INSTALLING.md",
     "release_url": "https://github.com/LostArtefacts/TRX/releases",
     "manual_setup": {
       "steps": [
         {
-          "title": "Run the upstream Windows installer",
-          "instruction": "Open the download folder and run the Windows Installer EXE yourself. Choose a separate TRX folder and the game packs you want."
+          "title": "Windows installer setup",
+          "instruction": "Run the upstream Windows Installer EXE. Choose a separate TRX folder and the packs you want. Point it to your supported Steam, GOG or disc installation for each game. In Portcove, select the installed TRX.exe and use its containing folder as the start folder."
         },
         {
-          "title": "Select your original game files",
-          "instruction": "Use the installer’s supported Steam, GOG or disc locations for the corresponding Tomb Raider games. Let it arrange the required files; the portable ZIP needs manual game-specific placement instead."
+          "title": "Windows portable ZIP setup",
+          "instruction": "For manual setup, open the upstream release page and choose the combined Windows ZIP. Extract it into a new writable folder. Follow the upstream file map to copy your own original files into the correct games/<game-id>/ folders. Select TRX.exe and its containing folder. Keep the complete extracted package with the player."
         },
         {
-          "title": "Choose the installed player",
-          "instruction": "Finish Portcove setup with the installed TRX.exe and its folder. Keep game files, cfg, saves, screenshots and any custom profile folders backed up when applying upstream updates."
+          "title": "Linux x86-64 setup",
+          "instruction": "Extract the complete Linux x64 ZIP into a new writable folder. Follow the same upstream file map for your own originals. Select the TRX executable in the extracted folder and use that folder as the start folder."
+        },
+        {
+          "title": "Intel and Apple Silicon Mac setup",
+          "instruction": "Mount the universal Mac DMG, copy TRX.app to Applications, and open the installed app once as described by upstream. Use the upstream manual setup guide to place the original game files under the corresponding Contents/Resources/games/<game-id>/ folders. Open TRX.app from Applications to play."
         }
       ],
       "warnings": [
-        "The three games keep their corresponding original-data requirements. Installing the engine does not supply ownership of commercial game data."
+        "The three games keep their corresponding original-data requirements. Installing the engine does not supply ownership of commercial game data.",
+        "Keep game files, cfg, saves, screenshots and any custom profile folders backed up when applying upstream updates."
       ],
-      "help_url": "https://github.com/LostArtefacts/TRX/blob/develop/docs/trx/INSTALLING.md"
+      "help_url": "https://github.com/LostArtefacts/TRX/blob/develop/docs/trx/INSTALLING.md",
+      "references": [
+        {
+          "title": "Preserve the TRX game data and profiles",
+          "instruction": "Keep a backup of your original game files, cfg, saves, screenshots and any custom profile directories before replacing the runtime. On Mac, preserve any original game files or player data stored inside the bundle before replacing TRX.app. The upstream guide explains migration from the older combined layout."
+        },
+        {
+          "title": "Keep a working copy before updating",
+          "instruction": "Extract each new ZIP into a separate folder. Follow the upstream file map for the originals you supply and keep the build-provided files with their version. Preserve saves, screenshots, configuration and any paths selected through TRX_DIR or the documented TRX path overrides before switching your registration."
+        }
+      ]
     },
     "download_asset_hints": {
-      "windows-x86-64": ["TRX-", "-Windows_Installer.exe"]
+      "windows-x86-64": ["TRX-", "-Windows_Installer.exe"],
+      "linux-x86-64": ["TRX-", "-Linux.zip"],
+      "macos-x86-64": ["TRX-", "-Mac.dmg"],
+      "macos-aarch64": ["TRX-", "-Mac.dmg"]
     }
   }
 }

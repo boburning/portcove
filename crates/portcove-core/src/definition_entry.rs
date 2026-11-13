@@ -7,6 +7,19 @@ use crate::{
     DefinitionContentIndex, PortDefinition, PortcoveError, Result, check_definition_capabilities,
 };
 
+pub(crate) fn require_indexed_persistence(port: &PortDefinition) -> Result<()> {
+    if port
+        .persistent_file_patterns
+        .iter()
+        .any(|pattern| pattern.allow_empty_middle)
+    {
+        return Err(PortcoveError::unsupported(
+            "empty-middle persistent file patterns are currently embedded-only",
+        ));
+    }
+    Ok(())
+}
+
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 struct EntryDocument {
@@ -150,10 +163,165 @@ impl DefinitionContentIndex {
                 "entry port identity or complete typed projection is invalid",
             ));
         }
+        require_indexed_persistence(&port)?;
         if !retained && !port.release.managed_build.is_empty() {
             return Err(crate::cartridge_build::retired_creation());
         }
         let adapter = serde_json::to_value(port.adapter)?;
+        if (!retained && !port.reviewed_package_layouts.is_empty())
+            || crate::package_layout::layout_capability(&port)
+                == crate::package_layout::MACOS_LIBRARY_FILTER_CAPABILITY
+        {
+            let minimum = crate::package_layout::layout_capability(&port);
+            crate::package_layout::validate(&port)?;
+            if port.adapter != crate::AdapterKind::NativePortable
+                || !document.required_capabilities.iter().any(|requirement| {
+                    requirement.template == "native-portable"
+                        && requirement.minimum_version >= minimum
+                })
+            {
+                return Err(PortcoveError::verification(format!(
+                    "reviewed package layouts require native-portable capability version {minimum}",
+                )));
+            }
+        }
+        if crate::native_temp::has_sibling_platforms(&port)
+            && !document.required_capabilities.iter().any(|requirement| {
+                requirement.template == "native-portable" && requirement.minimum_version >= 10
+            })
+        {
+            return Err(PortcoveError::verification(
+                "native original-file siblings with Windows temporary data require capability version 10",
+            ));
+        }
+        if let Some(policy) = port.external_profile_policy {
+            let minimum = crate::native_external_profile::minimum_capability(policy);
+            if !document.required_capabilities.iter().any(|requirement| {
+                requirement.template == "native-portable" && requirement.minimum_version >= minimum
+            }) {
+                return Err(PortcoveError::verification(format!(
+                    "managed external profile guards require native capability version {minimum}"
+                )));
+            }
+        }
+        if port.release.linux_tar_xz
+            && !document.required_capabilities.iter().any(|requirement| {
+                requirement.template == "native-portable" && requirement.minimum_version >= 8
+            })
+        {
+            return Err(PortcoveError::verification(
+                "managed Linux TAR.XZ requires native capability version 8",
+            ));
+        }
+        if !port.release.tar_xz_platforms.is_empty() {
+            crate::runtime::validate_platform_tar_xz(&port)?;
+            let (template, minimum) = if port.adapter == crate::AdapterKind::NativePortable {
+                (
+                    "native-portable",
+                    crate::runtime::NATIVE_MAC_BUNDLE_TAR_XZ_CAPABILITY,
+                )
+            } else {
+                (
+                    "generated-cache",
+                    crate::runtime::GENERATED_CACHE_TAR_XZ_CAPABILITY,
+                )
+            };
+            if !document.required_capabilities.iter().any(|requirement| {
+                requirement.template == template && requirement.minimum_version >= minimum
+            }) {
+                return Err(PortcoveError::verification(format!(
+                    "managed Mac TAR.XZ requires {template} capability version {minimum}",
+                )));
+            }
+        }
+        if port.portable_marker_file.is_some()
+            && !document.required_capabilities.iter().any(|requirement| {
+                requirement.template == "native-portable" && requirement.minimum_version >= 19
+            })
+        {
+            return Err(PortcoveError::verification(
+                "named portable marker files require native capability version 19",
+            ));
+        }
+        if port.linux_portable_data_directory.is_some()
+            && !document.required_capabilities.iter().any(|requirement| {
+                requirement.template == "native-portable"
+                    && requirement.minimum_version >= crate::native_portable_data::NATIVE_CAPABILITY
+            })
+        {
+            return Err(PortcoveError::verification(
+                "Linux portable data directories require native capability version 25",
+            ));
+        }
+        if !port.runtime_subdirectory_by_platform.is_empty()
+            && !document.required_capabilities.iter().any(|requirement| {
+                requirement.template == "n64-recomp-portable"
+                    && requirement.minimum_version
+                        >= crate::runtime::N64_PLATFORM_RUNTIME_SUBDIRECTORY_CAPABILITY
+            })
+        {
+            return Err(PortcoveError::verification(
+                "platform runtime subdirectories require n64-recomp-portable capability version 6",
+            ));
+        }
+        // Readers without the tracked handoff would drop the field and collect
+        // player data while a successor still runs, so they must refuse it.
+        if port.windows_tracked_handoff
+            && !document.required_capabilities.iter().any(|requirement| {
+                requirement.template == "native-portable"
+                    && requirement.minimum_version
+                        >= crate::launch::TRACKED_HANDOFF_NATIVE_CAPABILITY
+            })
+        {
+            return Err(PortcoveError::verification(format!(
+                "Windows tracked handoff requires native capability version {}",
+                crate::launch::TRACKED_HANDOFF_NATIVE_CAPABILITY
+            )));
+        }
+        if port.release.grant_declared_executable {
+            let (template, minimum) = match port.adapter {
+                crate::AdapterKind::NativePortable => (
+                    "native-portable",
+                    if retained {
+                        22
+                    } else {
+                        crate::package_layout::native_executable_grant_capability(&port)
+                    },
+                ),
+                crate::AdapterKind::LibultrashipPortable => ("libultraship-portable", 4),
+                crate::AdapterKind::GeneratedCache => ("generated-cache", 2),
+                _ => {
+                    return Err(PortcoveError::verification(
+                        "granting a declared executable is supported only by native, libultraship and generated-cache definitions",
+                    ));
+                }
+            };
+            if !document.required_capabilities.iter().any(|requirement| {
+                requirement.template == template && requirement.minimum_version >= minimum
+            }) {
+                return Err(PortcoveError::verification(format!(
+                    "granting a declared executable requires {template} capability version {minimum}"
+                )));
+            }
+        }
+        if port.release.archive_file_links {
+            let (template, minimum) = match port.adapter {
+                crate::AdapterKind::NativePortable => ("native-portable", 14),
+                crate::AdapterKind::N64RecompPortable => ("n64-recomp-portable", 5),
+                _ => {
+                    return Err(PortcoveError::verification(
+                        "archive file links are supported only by native and N64 recomp definitions",
+                    ));
+                }
+            };
+            if !document.required_capabilities.iter().any(|requirement| {
+                requirement.template == template && requirement.minimum_version >= minimum
+            }) {
+                return Err(PortcoveError::verification(format!(
+                    "packages relying on archive file links require {template} capability version {minimum}"
+                )));
+            }
+        }
         if port.n64_runtime_at_executable_parent
             && !document.required_capabilities.iter().any(|requirement| {
                 requirement.template == "n64-recomp-portable" && requirement.minimum_version >= 4
@@ -161,6 +329,26 @@ impl DefinitionContentIndex {
         {
             return Err(PortcoveError::verification(
                 "executable-parent N64 runtime and data preservation require capability version 4",
+            ));
+        }
+        if port.runtime_disc_image.is_some()
+            && !document.required_capabilities.iter().any(|requirement| {
+                requirement.template == "staged-source-portable"
+                    && requirement.minimum_version >= 30
+            })
+        {
+            return Err(PortcoveError::verification(
+                "disc-image unpacking requires staged-source capability version 30",
+            ));
+        }
+        if port.optional_game_source
+            && !document.required_capabilities.iter().any(|requirement| {
+                requirement.template == "staged-source-portable"
+                    && requirement.minimum_version >= 31
+            })
+        {
+            return Err(PortcoveError::verification(
+                "an optional game source requires staged-source capability version 31",
             ));
         }
         if port.mod_package_policy.is_some()
@@ -210,16 +398,16 @@ impl DefinitionContentIndex {
                 "manual native setup progress requires capability version 2",
             ));
         }
-        if !retained
-            && crate::persistence::requires_fresh_direct_data_guard(&port)
+        if let Some(version) = crate::persistence::fresh_direct_data_guard_capability(&port)
+            && !retained
             && !document.required_capabilities.iter().any(|requirement| {
                 requirement.template == "staged-source-portable"
-                    && requirement.minimum_version >= 25
+                    && requirement.minimum_version >= version
             })
         {
-            return Err(PortcoveError::verification(
-                "fresh Direct reader data isolation requires staged-source capability version 25",
-            ));
+            return Err(PortcoveError::verification(format!(
+                "fresh Direct reader data isolation requires staged-source capability version {version}",
+            )));
         }
         if !retained
             && crate::persistence::ready_staged_archive(&port)
@@ -240,6 +428,17 @@ impl DefinitionContentIndex {
         {
             return Err(PortcoveError::verification(
                 "new managed PS1 entries require package-preserving activation capability version 2",
+            ));
+        }
+        if crate::persistence::requires_psx_retained_scope(&port)
+            && !document.required_capabilities.iter().any(|requirement| {
+                requirement.template == "psx-recomp-managed"
+                    && requirement.minimum_version
+                        >= crate::persistence::PSX_RETAINED_SCOPE_CAPABILITY
+            })
+        {
+            return Err(PortcoveError::verification(
+                "managed PS1 entries with a texture-pack folder require retained-scope capability version 3",
             ));
         }
         if port
@@ -311,25 +510,25 @@ impl DefinitionContentIndex {
                 "managed TFE initialization requires staged-source capability version 12",
             ));
         }
+        if port.windows_shipwright_persistence
+            && !document.required_capabilities.iter().any(|requirement| {
+                requirement.template == "libultraship-portable" && requirement.minimum_version >= 3
+            })
+        {
+            return Err(PortcoveError::verification(
+                "Shipwright working-directory persistence requires libultraship-portable capability version 3",
+            ));
+        }
         if port.windows_runtime_path_policy.is_some()
             && !document.required_capabilities.iter().any(|requirement| {
-                requirement.template
-                    == if port.adapter == crate::AdapterKind::NativePortable {
-                        "native-portable"
-                    } else {
-                        "staged-source-portable"
-                    }
+                requirement.template == crate::runtime_path_policy::capability_template(&port)
                     && requirement.minimum_version
                         >= crate::runtime_path_policy::minimum_capability(&port)
             })
         {
             return Err(PortcoveError::verification(format!(
                 "Windows runtime paths require {} capability version {}",
-                if port.adapter == crate::AdapterKind::NativePortable {
-                    "native-portable"
-                } else {
-                    "staged-source-portable"
-                },
+                crate::runtime_path_policy::capability_template(&port),
                 crate::runtime_path_policy::minimum_capability(&port)
             )));
         }

@@ -15,6 +15,7 @@ need only the repository-selected Node and existing host capabilities.
 
 ```powershell
 just container-doctor
+node scripts/container-browser.mts smoke --commit <commit>
 just container-browser --commit <full-40-character-commit>
 just container-browser --commit <commit> --mode exact --files src/browser/controlled-react-act.browser.test.tsx
 just container-browser --commit <commit> --mode probe
@@ -26,10 +27,28 @@ just container-clean --older-than-hours 72 --apply
 Without Just, use `node scripts/container-browser.mts doctor`, `run`, `export`
 or `clean` with the same arguments. No global Vite+ or Corepack is required
 by this host route. The deliberately failing `probe` command returns nonzero.
-`exact` uses the maintained literal-file selector; the default `suite` runs
-the canonical browser and forced-colors projects freshly.
+`exact` accepts literal desktop test files. Put every option before `--files`.
+The host checks that each path is a regular test file in the selected Git commit
+before Docker admission. The guest resolves Vitest project membership from
+the selected source and uses the maintained exact selector to reconcile
+executed files. The default `suite` runs the canonical browser and
+forced-colors projects freshly.
 
 `--commit` is mandatory and names a full committed SHA available locally.
+Run `smoke` after changing workspace transfer or ownership. It uses the shared
+BuildKit copy and Git guard with the pinned base, without running the system
+installer, downloading Chromium, loading an image or starting a task.
+The result and bounded build log remain in its staging run directory.
+
+Use `--compare-commit <sha>` in exact mode for a cold system layer followed by a distinct
+committed control. Both builds use distinct prepared-image tags. The first
+rebuilds the system stage. Use a source-only control with
+identical tool inputs. Check both build logs for the actual system-layer
+execution and cache hit. An admission failure stops the pair before the
+second request. Run `node scripts/resource-status.mts` before a native comparison if the host queue is
+already occupied. A reservation awaiting quiescence proof points to
+[owner recovery](owned-resource-recovery.md).
+
 Unpushed commits work without publication. Dirty current work is refused
 unless the caller explicitly supplies `--exclude-dirty`; excluded paths are
 disclosed and remain untested. Nothing commits, stashes, resets, pushes or
@@ -66,11 +85,15 @@ match the selected source catalog. The complete
 committed source, including manifests, lockfile, patches and lifecycle scripts,
 participates in preparation. Git rejects tracked or
 untracked source changes after preparation and immediately before fresh tests.
+The full Git status scan has a three-minute limit for cold workspace copies.
 Ignored generated dependencies, caches and output remain separate. Frozen
-installation and the maintained provider compatibility check precede
-Playwright's own system-library installer and
-canonical Chromium headless-shell bootstrap. No Rust or packaging toolchain is
-added. The upstream image's sudo facility is removed before task execution.
+installation and the maintained provider compatibility check resolve the exact
+`playwright-core` package and Node executable. BuildKit keys the system-library
+step to the pinned base and that installer and runtime payload. A source-only
+change still prepares its own verified workspace and can reuse the system
+layer when those inputs match. Chromium headless-shell bootstrap remains bound
+to the selected workspace. The system layer removes the upstream image's sudo
+facility before task execution.
 
 Prepared images are specific to the source commit/tree, base, architecture,
 recipe/entry/integrity-guard bytes and workspace owner. Adapter files enter
@@ -106,17 +129,25 @@ and published evidence each have a 10 GiB admission budget. Images have a
 10 GiB individual/40 GiB aggregate budget, with an additional conservative
 80 GiB global-image admission limit to account for shared base downloads.
 Global build-cache observation reserves
-headroom within a 40 GiB admission budget. These disk limits are admission and
+headroom within a 40 GiB admission budget. The doctor reports observed usage,
+the reserved headroom for one build and the limit. Compare the projected
+usage after the first build before starting a pair. Admission checks fresh
+usage again before each build and preserves the figures on refusal.
+These disk limits are admission and
 post-operation refusal controls, not filesystem quotas or limits on other users.
 The existing minimum-free-space floor also applies to physical Windows and Linux
 storage. Exceeding a budget preserves resources and blocks further preparation;
 it never triggers machine-wide pruning.
 
 Staging and recovery state live under `work/container-browser/<run-UUID>`.
+On a fresh image build, the adapter prints the path to `build.log` and writes
+BuildKit output there as it arrives within the existing command output limit.
 Verified exports go to the existing retained-evidence location, under
 `container-browser/<run-UUID>`, outside checkout cleanup roots. Logs, traces,
 screenshots, commands, source/environment identities and hashed publication
-inventory remain available on failure. An interrupted export preserves the
+inventory remain available on failure. The browser command log records
+timestamped Playwright launches, Vitest server readiness and browser API
+connections. Missing milestones remain absent when the run fails before them. An interrupted export preserves the
 container and partial copies; `container-export --run` attempts a separate
 no-clobber publication. A later passing run has a new UUID and cannot replace
 an earlier failure.

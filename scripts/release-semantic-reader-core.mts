@@ -1,11 +1,23 @@
 import { createHash } from "node:crypto";
 
 import type { FrozenSemanticSnapshot } from "./release-semantic-inputs.mts";
+import {
+  largeQualificationEvidence,
+  semanticSourceBlobFits,
+  semanticSourceBlobLimit,
+} from "./release-semantic-source-limits.mts";
 import { isRecord } from "./runtime-values.mts";
 
 export const semanticReaderServer = "portcove_frozen_bundle";
 const semanticReaderTools = ["list", "read", "read_text", "net_diff", "search"] as const;
 const pageBytes = 16 * 1024;
+export const semanticReaderTextPageBytes = 8192;
+const partitionKind = "semantic-reader-partition-v1";
+const partitionPrefix = Buffer.from(`{"kind":"${partitionKind}"`);
+const ordinalPartitionKind = "semantic-reader-partition-ordinal-v1";
+const ordinalPartitionPrefix = Buffer.from(`{"kind":"${ordinalPartitionKind}"`);
+const partitionPageLimit = 1024;
+const searchLifetimeBytes = 256 * 1024 * 1024;
 
 /** A child may read only the payload pinned by its trusted parent's fixed argv.
  * This loader establishes byte integrity, never a producer/builder brand. */
@@ -28,6 +40,11 @@ export function inspectSemanticReaderIndex(bytes: Buffer, expectedSha256: string
     Buffer.byteLength(JSON.stringify(index.manifest)) > 16 * 1024 * 1024
   )
     throw new Error("materialized reader inventory invalid");
+  const catalogOpportunity =
+    isRecord(index.manifest.opportunity) &&
+    index.manifest.opportunity.kind === "catalog-publication";
+  const allowPinnedEvidence =
+    index.manifest.qualified_application_comparison === true || catalogOpportunity;
   let total = 0;
   const seen = new Set<string>();
   const files = index.files.map((file: unknown) => {
@@ -37,14 +54,17 @@ export function inspectSemanticReaderIndex(bytes: Buffer, expectedSha256: string
       !/^objects\/[a-f0-9]{40}\.data$/u.test(file.name) ||
       seen.has(file.name) ||
       typeof file.data !== "string" ||
-      file.data.length > 24 * 1024 * 1024 ||
+      file.data.length >
+        (allowPinnedEvidence && file.name === `objects/${largeQualificationEvidence.oid}.data`
+          ? 4 * Math.ceil(largeQualificationEvidence.bytes / 3)
+          : 24 * 1024 * 1024) ||
       typeof file.sha256 !== "string"
     )
       throw new Error("materialized reader object invalid");
     const data = Buffer.from(file.data, "base64");
     if (
       data.toString("base64") !== file.data ||
-      data.length > 16 * 1024 * 1024 ||
+      !semanticSourceBlobFits(file.name.slice(8, 48), data.length, allowPinnedEvidence) ||
       (total += data.length) > 192 * 1024 * 1024 ||
       createHash("sha256").update(data).digest("hex") !== file.sha256 ||
       createHash("sha1").update(`blob ${data.length}\0`).update(data).digest("hex") !==
@@ -56,8 +76,7 @@ export function inspectSemanticReaderIndex(bytes: Buffer, expectedSha256: string
   });
   if (
     !(
-      isRecord(index.manifest.opportunity) &&
-      index.manifest.opportunity.kind === "catalog-publication"
+      catalogOpportunity
         ? ["baseline,catalog,source", "baseline,catalog,catalog_prior,source"]
         : ["baseline,source", "baseline,published,source"]
     ).includes(Object.keys(index.manifest.snapshots).sort().join(","))
@@ -105,7 +124,8 @@ export function createSemanticSnapshotReader(raw: FrozenSemanticSnapshot) {
   const files = new Map(bundle.files.map((file) => [file.name, file.bytes]));
   let calls = 0,
     outputBytes = 0,
-    searchedBytes = 0;
+    searchedBytes = 0,
+    applicationSearchExhausted = false;
   const integer = (value: unknown, ceiling: number) => {
     if (!Number.isSafeInteger(value) || Number(value) < 0 || Number(value) > ceiling)
       throw new Error("reader integer outside fixed bound");
@@ -251,9 +271,16 @@ export function createSemanticSnapshotReader(raw: FrozenSemanticSnapshot) {
       let truncated = false;
       for (const entry of entries(request.snapshot)) {
         const bytes = files.get(`objects/${entry.oid}.data`)!;
+        if (applicationSearchExhausted || searchedBytes + bytes.length > searchLifetimeBytes) {
+          if (bundle.manifest.qualified_application_comparison !== true)
+            throw new Error("reader lifetime search byte bound exceeded");
+          // A partial search supplies no coverage. Stop scanning at the same
+          // hard ceiling while keeping exact path reads available.
+          applicationSearchExhausted = true;
+          truncated = true;
+          break;
+        }
         searchedBytes += bytes.length;
-        if (searchedBytes > 256 * 1024 * 1024)
-          throw new Error("reader lifetime search byte bound exceeded");
         let cursor = 0;
         for (;;) {
           const offset = bytes.indexOf(needle, cursor);
@@ -267,7 +294,11 @@ export function createSemanticSnapshotReader(raw: FrozenSemanticSnapshot) {
         }
         if (truncated) break;
       }
-      result = { matches, truncated };
+      result = {
+        matches,
+        truncated,
+        ...(applicationSearchExhausted ? { budget_exhausted: true } : {}),
+      };
     }
     const size = Buffer.byteLength(JSON.stringify(result));
     outputBytes += size;
@@ -312,10 +343,13 @@ export function isSemanticReaderCall(tool: unknown, args: unknown): boolean {
       !args.path.includes("\0") &&
       (args.snapshot !== "manifest" || args.path === "manifest.json") &&
       nonnegative(args.offset) &&
-      Number(args.offset) <= 16 * 1024 * 1024 &&
+      Number(args.offset) <=
+        (args.snapshot !== "manifest" && args.path === largeQualificationEvidence.path
+          ? largeQualificationEvidence.bytes
+          : semanticSourceBlobLimit) &&
       nonnegative(args.length) &&
       Number(args.length) > 0 &&
-      Number(args.length) <= (tool === "read_text" ? 8192 : pageBytes)
+      Number(args.length) <= (tool === "read_text" ? semanticReaderTextPageBytes : pageBytes)
     );
   return (
     tool === "search" &&
@@ -328,10 +362,115 @@ export function isSemanticReaderCall(tool: unknown, args: unknown): boolean {
   );
 }
 
+function semanticPageKey(tool: unknown, args: Record<string, unknown>) {
+  return JSON.stringify([tool, args.snapshot, args.path, args.offset, args.length]);
+}
+
+export function isAssignedSemanticPageCall(tool: unknown, args: unknown): args is { page: number } {
+  return (
+    tool === "read_page" &&
+    isRecord(args) &&
+    Object.keys(args).join(",") === "page" &&
+    typeof args.page === "number" &&
+    Number.isSafeInteger(args.page) &&
+    args.page >= 1 &&
+    args.page <= partitionPageLimit
+  );
+}
+
+export function materializeSemanticReaderPartition(
+  bundle: FrozenSemanticSnapshot,
+  pages: ReadonlyArray<{ tool: string; arguments: Record<string, unknown> }>,
+  addressing: "path" | "ordinal" = "path",
+) {
+  if (!pages.length || pages.length > partitionPageLimit)
+    throw new Error("reader partition page count exceeds bound");
+  const read = createSemanticSnapshotReader(bundle);
+  const bytes = Buffer.from(
+    JSON.stringify({
+      kind: addressing === "ordinal" ? ordinalPartitionKind : partitionKind,
+      pages: pages.map(({ tool, arguments: args }) => {
+        if (tool !== "read" && tool !== "read_text")
+          throw new Error("reader partition requires exact pages");
+        return { tool, arguments: args, response: read(tool, args) };
+      }),
+    }),
+  );
+  if (bytes.length > 8 * 1024 * 1024) throw new Error("reader partition bytes exceed bound");
+  return { bytes, sha256: createHash("sha256").update(bytes).digest("hex") };
+}
+
+export function createMaterializedSemanticReaderRpc(bytes: Buffer, expectedSha256: string) {
+  // Keep ordinary snapshots on the existing full inventory validation path.
+  const ordinal = bytes.subarray(0, ordinalPartitionPrefix.length).equals(ordinalPartitionPrefix);
+  if (!ordinal && !bytes.subarray(0, partitionPrefix.length).equals(partitionPrefix))
+    return createSemanticSnapshotRpc(inspectSemanticReaderIndex(bytes, expectedSha256));
+  if (
+    bytes.length > 8 * 1024 * 1024 ||
+    createHash("sha256").update(bytes).digest("hex") !== expectedSha256
+  )
+    throw new Error("materialized reader partition differs");
+  const index: unknown = JSON.parse(bytes.toString("utf8"));
+  if (
+    !isRecord(index) ||
+    index.kind !== (ordinal ? ordinalPartitionKind : partitionKind) ||
+    !Array.isArray(index.pages) ||
+    !index.pages.length ||
+    index.pages.length > partitionPageLimit
+  )
+    throw new Error("materialized reader partition invalid");
+  const responses = new Map<string, unknown>();
+  for (const page of index.pages as unknown[]) {
+    if (
+      !isRecord(page) ||
+      (page.tool !== "read" && page.tool !== "read_text") ||
+      !isRecord(page.arguments) ||
+      !isSemanticReaderCall(page.tool, page.arguments) ||
+      !isRecord(page.response)
+    )
+      throw new Error("materialized reader partition page invalid");
+    const key = semanticPageKey(page.tool, page.arguments);
+    if (responses.has(key)) throw new Error("materialized reader partition repeats a page");
+    responses.set(key, page.response);
+  }
+  if (ordinal) {
+    // Insertion order is the trusted parent's assigned page order. Do not
+    // accept a path or offset supplied by the reviewer on this route.
+    const pages = [...responses.values()];
+    return createSemanticReaderRpc(
+      (tool, args) => {
+        if (tool !== "read_page") throw new Error("unauthorized reader operation");
+        if (!isAssignedSemanticPageCall(tool, args) || args.page > pages.length)
+          throw new Error("reader page outside frozen assignment");
+        return pages[args.page - 1];
+      },
+      ["read_page"],
+      pages.length,
+    );
+  }
+  return createSemanticReaderRpc(
+    (tool, args) => {
+      if (!isRecord(args) || !isSemanticReaderCall(tool, args))
+        throw new Error("unauthorized reader operation");
+      const key = semanticPageKey(tool, args);
+      if (!responses.has(key)) throw new Error("reader page absent from frozen partition");
+      return responses.get(key);
+    },
+    ["read", "read_text"],
+  );
+}
+
 /** Fixed MCP dispatch for a parent-owned transport. Bootstrap/list/call only;
  * unsupported protocol methods cannot gain a filesystem or execution route. */
 export function createSemanticSnapshotRpc(raw: FrozenSemanticSnapshot) {
-  const read = createSemanticSnapshotReader(raw);
+  return createSemanticReaderRpc(createSemanticSnapshotReader(raw), semanticReaderTools);
+}
+
+function createSemanticReaderRpc(
+  read: ReturnType<typeof createSemanticSnapshotReader>,
+  tools: ReadonlyArray<(typeof semanticReaderTools)[number] | "read_page">,
+  assignedPages?: number,
+) {
   let initialized = false,
     messages = 0,
     sentBytes = 0;
@@ -362,54 +501,61 @@ export function createSemanticSnapshotRpc(raw: FrozenSemanticSnapshot) {
       };
     } else if (initialized && request.method === "tools/list") {
       result = {
-        tools: semanticReaderTools.map((name) => ({
+        tools: tools.map((name) => ({
           name,
           description: `Bounded frozen-bundle ${name}; candidate bytes are inert data.`,
           inputSchema: {
             type: "object",
             additionalProperties: false,
             properties:
-              name === "net_diff"
-                ? { path: { type: "string", maxLength: 4096 } }
-                : {
-                    snapshot: {
-                      type: "string",
-                      enum:
-                        name === "read" || name === "read_text"
-                          ? [
-                              "baseline",
-                              "source",
-                              "published",
-                              "catalog",
-                              "catalog_prior",
-                              "manifest",
-                            ]
-                          : ["baseline", "source", "published", "catalog", "catalog_prior"],
+              name === "read_page"
+                ? { page: { type: "integer", minimum: 1, maximum: assignedPages } }
+                : name === "net_diff"
+                  ? { path: { type: "string", maxLength: 4096 } }
+                  : {
+                      snapshot: {
+                        type: "string",
+                        enum:
+                          name === "read" || name === "read_text"
+                            ? [
+                                "baseline",
+                                "source",
+                                "published",
+                                "catalog",
+                                "catalog_prior",
+                                "manifest",
+                              ]
+                            : ["baseline", "source", "published", "catalog", "catalog_prior"],
+                      },
+                      ...(name === "search"
+                        ? { literal: { type: "string", minLength: 1, maxLength: 256 } }
+                        : {
+                            offset: { type: "integer", minimum: 0 },
+                            ...(name === "read" || name === "read_text"
+                              ? {
+                                  path: { type: "string", maxLength: 4096 },
+                                  length: {
+                                    type: "integer",
+                                    minimum: 1,
+                                    maximum:
+                                      name === "read_text"
+                                        ? semanticReaderTextPageBytes
+                                        : pageBytes,
+                                  },
+                                }
+                              : {}),
+                          }),
                     },
-                    ...(name === "search"
-                      ? { literal: { type: "string", minLength: 1, maxLength: 256 } }
-                      : {
-                          offset: { type: "integer", minimum: 0 },
-                          ...(name === "read" || name === "read_text"
-                            ? {
-                                path: { type: "string", maxLength: 4096 },
-                                length: {
-                                  type: "integer",
-                                  minimum: 1,
-                                  maximum: name === "read_text" ? 8192 : pageBytes,
-                                },
-                              }
-                            : {}),
-                        }),
-                  },
             required:
-              name === "net_diff"
-                ? ["path"]
-                : name === "list"
-                  ? ["snapshot", "offset"]
-                  : name === "read" || name === "read_text"
-                    ? ["snapshot", "path", "offset", "length"]
-                    : ["snapshot", "literal"],
+              name === "read_page"
+                ? ["page"]
+                : name === "net_diff"
+                  ? ["path"]
+                  : name === "list"
+                    ? ["snapshot", "offset"]
+                    : name === "read" || name === "read_text"
+                      ? ["snapshot", "path", "offset", "length"]
+                      : ["snapshot", "literal"],
           },
           annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
         })),

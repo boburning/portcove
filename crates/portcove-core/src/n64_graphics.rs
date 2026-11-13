@@ -7,7 +7,9 @@ pub(crate) fn validate(port: &PortDefinition) -> Result<()> {
     if !port.n64_windows_initial_d3d12 {
         return Ok(());
     }
-    let prefix = port.runtime_subdirectory.as_deref().unwrap_or("");
+    let prefix = port
+        .runtime_subdirectory_for(Platform::WindowsX86_64)
+        .unwrap_or("");
     if port.adapter != AdapterKind::N64RecompPortable
         || !port.portable_marker
         || !port.platforms.contains(&Platform::WindowsX86_64)
@@ -105,6 +107,7 @@ mod tests {
             selected_executable: &executable,
             source: None,
             source_record: None,
+            disc_progress: None,
         };
         let adapter = AdapterRegistry.get(AdapterKind::N64RecompPortable);
         assert_eq!(

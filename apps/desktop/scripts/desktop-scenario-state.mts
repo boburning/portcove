@@ -19,7 +19,11 @@ export type FixtureSpawn = (
   args: readonly string[],
   options: SpawnSyncOptionsWithStringEncoding,
 ) => FixtureProcessResult;
-export type FixtureCommand = (args: readonly string[], selectedLibrary?: string) => unknown;
+export type FixtureCommand = (
+  args: readonly string[],
+  selectedLibrary?: string,
+  options?: { timeoutMs?: number },
+) => unknown;
 // Owned native fixture state shared across scenario orderings.
 import assert from "node:assert/strict";
 import path from "node:path";
@@ -41,13 +45,40 @@ export function fixtureSuccess(value: unknown) {
   return reply.value;
 }
 
+export function ownedFixtureObservationCommand(
+  { cli, library, output }: Omit<OwnedFixtureContext, "catalogPath">,
+  portIds: readonly string[],
+  refusalMessage: string,
+) {
+  const core = ownedFixtureCommand({ cli, library, output });
+  return (args: readonly string[]) => {
+    assert.ok(
+      (args.length === 2 &&
+        ["status", "paths"].includes(String(args[0])) &&
+        portIds.some((id) => id === args[1])) ||
+        (args.length === 3 && args[0] === "launch" && args[1] === "show"),
+      refusalMessage,
+    );
+    return core(args);
+  };
+}
+
 // Optional native fixtures use their own CLI/library, never the application's adapter.
 export function ownedFixtureCommand(
   { cli, library, output, catalogPath }: OwnedFixtureContext,
   spawn: FixtureSpawn = spawnCommand,
 ): FixtureCommand {
-  return (args: readonly string[], selectedLibrary = library) => {
-    const timeout = args[0] === "adopt" ? 60_000 : 15_000;
+  return (args: readonly string[], selectedLibrary = library, { timeoutMs } = {}) => {
+    const timeout =
+      timeoutMs === undefined
+        ? args[0] === "adopt" || args[0] === "remove"
+          ? 60_000
+          : 15_000
+        : timeoutMs;
+    assert.ok(
+      Number.isSafeInteger(timeout) && timeout > 0,
+      "Fixture timeout must be a finite positive integer",
+    );
     const started = performance.now();
     let result: FixtureProcessResult | undefined;
     try {
@@ -55,6 +86,8 @@ export function ownedFixtureCommand(
         encoding: "utf8",
         windowsHide: true,
         timeout,
+        // The complete embedded catalog exceeds Node's default 1 MiB buffer.
+        ...(args[0] === "catalog" && args[1] === "list" ? { maxBuffer: 8 * 1024 * 1024 } : {}),
         env: {
           ...process.env,
           ...(catalogPath === undefined ? {} : { PORTCOVE_QUALIFICATION_CATALOG: catalogPath }),
@@ -80,7 +113,7 @@ export function ownedFixtureCommand(
         },
       );
     }
-    assert.equal(result.status, 0, result.stderr || result.stdout || undefined);
+    assert.equal(result.status, 0, result.stderr || result.stdout || "");
     assert.equal(typeof result.stdout, "string", "Owned CLI response must contain JSON text");
     assert(typeof result.stdout === "string");
     const response: unknown = JSON.parse(result.stdout);

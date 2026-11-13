@@ -20,7 +20,8 @@ import { receiveControllerTools } from "./release-controller-tool-admission.mts"
 import type { ControllerToolArtifactExpected } from "./release-controller-tool-admission.mts";
 import { receiveTufRoleArtifact } from "./release-tuf-role-artifact.mts";
 import { inspectAssemblerIdentityExpectation } from "./assembler-job-identity.mts";
-import { currentSiteJobDeadline } from "./release-site-job-budget.mts";
+import { fixedReleaseReaderToken } from "./release-readonly-child-environment.mts";
+import { currentControllerJobDeadline } from "./release-signing-job-budget.mts";
 import { requireControllerApplicationJobPublicationAuthorities } from "./release-authority-configuration.mts";
 import {
   recoverRemoteCoordinator,
@@ -48,7 +49,6 @@ import {
   refreshCapacityExecutor,
 } from "./release-capacity-executor.mts";
 import { authenticateReleaseControlRound } from "./release-live-control-admission.mts";
-import { GitHubApiClient, createGitHubRunner } from "./github-api.mts";
 import { readControllerToolFile } from "./release-controller-tools.mts";
 
 function remaining(deadline: number, maximum = 15000) {
@@ -117,7 +117,7 @@ export async function runFixedMetadataSiteConfiguration(
   )
     throw new Error("metadata site invocation is not its original fixed job");
   remaining(phaseDeadline);
-  const deadline = currentSiteJobDeadline(identity, parent, phaseDeadline);
+  const deadline = await currentControllerJobDeadline("site-publication", identity, phaseDeadline);
   const toolsInput = input.tools,
     roleInputs: unknown[] = input.roles;
   return withCoordinatorDeadline(deadline, async () => {
@@ -166,7 +166,7 @@ export async function runMetadataSitePublicationController(
     !["renewal", "bootstrap"].includes(String(tuf.context.manifest.facts.mode))
   )
     throw new Error("metadata site actual context/current tools differ");
-  const deadline = currentSiteJobDeadline(identity, outputParent, phaseDeadline);
+  const deadline = await currentControllerJobDeadline("site-publication", identity, phaseDeadline);
   return withCoordinatorDeadline(deadline, async () => {
     const authorities =
         await requireControllerApplicationJobPublicationAuthorities("site-publication"),
@@ -174,8 +174,9 @@ export async function runMetadataSitePublicationController(
     const directory = await mkdtemp(path.join(outputParent, "metadata-site-controller-"));
     let stage = "current-metadata-journal";
     try {
+      const transport = { credential: { token: fixedReleaseReaderToken() }, deadline };
       const recovered = await recoverRemoteCoordinator(directory, remote, {
-        transport: { cwd: directory, deadline },
+        transport,
       });
       let checkpoint = recovered.checkpoint;
       const selected = inspectMetadataSiteReservation(recovered.input, tuf.context.manifest);
@@ -243,16 +244,6 @@ export async function runMetadataSitePublicationController(
           deadline,
         ),
         executorIdentity = capacityExecutorIdentity(executor);
-      const api = new GitHubApiClient((args, input) => {
-        remaining(deadline);
-        const result = createGitHubRunner({
-          cwd: directory,
-          timeoutMs: remaining(deadline),
-          maxBuffer: 2 * 1024 ** 2,
-        })([...args, "--hostname", "github.com"], input);
-        remaining(deadline);
-        return result;
-      });
       let round = 0;
       const fresh = async () => {
         if (++round > 5) throw new Error("metadata site control-round limit exhausted");
@@ -264,21 +255,27 @@ export async function runMetadataSitePublicationController(
           digest({ descriptor: selected.descriptor, generation: prepared.generation.generation }),
           "site-publication",
           round,
-          { deadline },
+          { deadline, controlReader: "site-maintenance" },
         );
         if (source.evidence_scope !== "github.com")
           throw new Error("actual metadata site controls required");
         return source;
       };
       let controls = await fresh();
+      const checkpointControls = async () => {
+        const observed = await controls.readSdkMaintenance();
+        if (observed.pause.publication_paused || !observed.resource_policy_matches_controller)
+          throw new Error("metadata publication held by current maintenance controls");
+        remaining(deadline);
+      };
       const boundary = async () => {
         const state = await readRemoteCoordinatorSnapshot(directory, remote, {
-          transport: { cwd: directory, deadline },
+          transport,
         });
         const current = inspectMetadataSiteReservation(state.input, tuf.context.manifest);
         if (current.candidate_sha256 !== selected.candidate_sha256)
           throw new Error("metadata renewal cannot change the active release candidate");
-        const observed = controls.readMaintenance(api);
+        const observed = await controls.readSdkMaintenance();
         if (observed.pause.publication_paused || !observed.resource_policy_matches_controller)
           throw new Error("metadata publication held by current maintenance controls");
         remaining(deadline);
@@ -351,10 +348,11 @@ export async function runMetadataSitePublicationController(
             evidence_sha256: digest(upload),
           };
         },
+        checkpointControls,
       );
       checkpoint = uploaded.checkpoint;
       const settled = await readRemoteCoordinatorSnapshot(directory, remote, {
-        transport: { cwd: directory, deadline },
+        transport,
       });
       if (settled.checkpoint !== checkpoint)
         throw new Error("metadata site upload settlement changed");
@@ -379,7 +377,7 @@ export async function runMetadataSitePublicationController(
       );
       remaining(deadline);
       const completed = await readRemoteCoordinatorSnapshot(directory, remote, {
-          transport: { cwd: directory, deadline },
+          transport,
         }),
         published = inspectPublishedMetadata(completed.input.published_metadata);
       if (

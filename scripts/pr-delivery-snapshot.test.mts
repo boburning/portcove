@@ -538,6 +538,134 @@ void test("complete direct closing observations never default missing relationsh
   );
 });
 
+void test("REST timeline closing observations are derived by the helper and fail closed", () => {
+  const pageUrl = (page: number) =>
+    `https://api.github.com/repos/${repository}/issues/7/timeline?per_page=100&page=${page}`;
+  const pages = (...events: unknown[][]) =>
+    events.map((page, index) => ({
+      url: pageUrl(index + 1),
+      link:
+        index < events.length - 1
+          ? `<https://api.github.com/repositories/1/issues/7/timeline?per_page=100&page=${index + 2}>; rel="next"`
+          : null,
+      events: page,
+    }));
+  const committed = { event: "committed", sha: head };
+  const full = () => Array.from({ length: 100 }, () => ({ event: "commented" }));
+  const snapshot = (change: Record<string, unknown> = {}) => {
+    const value = fixture();
+    const rest = (closing: Record<string, unknown>) => ({
+      ...closing,
+      method: "rest-timeline",
+      timeline_pages: pages([committed, { event: "cross-referenced" }]),
+      inventory_checks: {
+        total_count: 1,
+        check_runs: [
+          {
+            id: 90,
+            name: "closing-inventory",
+            head_sha: head,
+            status: "completed",
+            conclusion: "success",
+            app: { slug: "github-actions" },
+            check_suite: { id: 91 },
+          },
+        ],
+      },
+      inventory_runs: {
+        total_count: 1,
+        workflow_runs: [
+          {
+            check_suite_id: 91,
+            path: ".github/workflows/closing-inventory.yml",
+            event: "pull_request_target",
+            status: "completed",
+            conclusion: "success",
+            pull_requests: [{ number: 7 }],
+          },
+        ],
+      },
+      ...change,
+    });
+    return {
+      ...value,
+      closing_before: rest(value.closing_before),
+      closing_after: rest(value.closing_after),
+    };
+  };
+  const prepared = prepareMergeSnapshot(snapshot(), expected);
+  assert.deepEqual(prepared.closure_targets, [repository + "#123"]);
+  assert.equal(
+    prepared.closing_fingerprint,
+    prepareMergeSnapshot(fixture(), expected).closing_fingerprint,
+    "REST and directly observed inventories of the same candidate share one fingerprint",
+  );
+  assert.doesNotThrow(() =>
+    prepareMergeSnapshot(snapshot({ timeline_pages: pages(full(), [committed]) }), expected),
+  );
+  const unlinked = pages(full(), [committed]).map((page) => ({ ...page, link: null }));
+  const defaultSize = pages([committed]).map((page) => ({
+    ...page,
+    url: page.url.replace("per_page=100", "per_page=30"),
+  }));
+  const otherPull = pages([committed]).map((page) => ({
+    ...page,
+    url: page.url.replace("/issues/7/", "/issues/8/"),
+  }));
+  for (const [change, pattern] of [
+    [{ timeline_pages: pages(full(), [committed, { event: "connected" }]) }, /manual Development/],
+    [{ timeline_pages: pages([committed, { event: "disconnected" }]) }, /manual Development/],
+    [{ timeline_pages: pages([{ event: "commented" }]) }, /not bound to the pull request head/],
+    [{ timeline_pages: unlinked }, /incomplete/],
+    [{ timeline_pages: pages([committed, ...full().slice(1)]) }, /incomplete/],
+    [
+      {
+        timeline_pages: pages(full(), [committed]).map((page, index) =>
+          index === 0 ? { ...page, link: page.link?.replace('rel="next"', "rel=next") } : page,
+        ),
+      },
+      /link is invalid/,
+    ],
+    [{ timeline_pages: defaultSize }, /incomplete/],
+    [{ timeline_pages: otherPull }, /incomplete/],
+    [{ timeline_pages: pages([committed]).map(({ events }) => events) }, /incomplete/],
+    [{ timeline_pages: undefined }, /incomplete/],
+    [{ timeline_pages: pages(["not an event"]) }, /incomplete/],
+    [{ relationships: [], total_count: 0 }, /differs from its raw REST timeline/],
+    [{ inventory_checks: undefined }, /check list is incomplete/],
+    // filter=all keeps every attempt; past one page the latest run is unknown,
+    // so a truncated list refuses rather than judging "latest" on a partial read.
+    [
+      {
+        inventory_checks: {
+          total_count: 101,
+          check_runs: Array.from({ length: 100 }, (_, index) => ({
+            id: 90 + index,
+            name: "closing-inventory",
+            head_sha: head,
+            status: "completed",
+            conclusion: "success",
+            app: { slug: "github-actions" },
+            check_suite: { id: 91 },
+          })),
+        },
+      },
+      /check list is incomplete/,
+    ],
+    [{ inventory_runs: { total_count: 0, workflow_runs: [] } }, /trusted default-branch workflow/],
+  ] as const)
+    assert.throws(() => prepareMergeSnapshot(snapshot(change), expected), pattern);
+  const value = fixture();
+  assert.throws(
+    () =>
+      prepareMergeSnapshot(
+        { ...value, closing_after: { ...value.closing_after, timeline_pages: pages([committed]) } },
+        expected,
+      ),
+    /Only rest-timeline/,
+  );
+});
+
 void test("snapshot freshness covers start, completion, validation and both closing observations", () => {
   for (const change of [
     { started_at: "2026-10-22T19:58:59Z" },
@@ -641,7 +769,7 @@ void test("selective retry retains independent successful earlier jobs but never
   value.jobs.total_count++;
   assert.throws(
     () => prepareMergeSnapshot(value, { ...expected, attempt: 2 }),
-    /identified run attempt/,
+    /job has no check observation/,
   );
 });
 
@@ -887,4 +1015,194 @@ void test("snapshot CLI prepares and verifies offline without gh or a mutation p
   } finally {
     rmSync(directory, { recursive: true, force: true });
   }
+});
+
+void test("complete replay snapshot retains both attempts and selects exact authoritative checks", () => {
+  const value = fixture();
+  value.run_before.run_attempt = value.run_after.run_attempt = 2;
+  const newer = {
+    ...value.jobs.jobs[0]!,
+    id: 300,
+    run_attempt: 2,
+    check_run_url: `https://api.github.com/repos/${repository}/check-runs/300`,
+  };
+  value.jobs.jobs.push(newer);
+  value.jobs.total_count++;
+  value.checks.check_runs.push({ ...value.checks.check_runs[0]!, id: 300 });
+  value.checks.total_count++;
+  const original = structuredClone(value);
+  const result = prepareMergeSnapshot(value, { ...expected, attempt: 2 });
+  assert.equal(result.attempt, 2);
+  assert.deepEqual(value, original, "complete raw snapshot must remain unchanged");
+  const cases: ((v: typeof value) => void)[] = [
+    (v) => {
+      v.checks.check_runs.at(-1)!.conclusion = v.jobs.jobs.at(-1)!.conclusion = "failure";
+    },
+    (v) => {
+      v.checks.check_runs.at(-1)!.conclusion = v.jobs.jobs.at(-1)!.conclusion = "cancelled";
+    },
+    (v) => {
+      v.checks.check_runs.at(-1)!.status = v.jobs.jobs.at(-1)!.status = "in_progress";
+      v.checks.check_runs.at(-1)!.conclusion = null;
+      v.jobs.jobs.at(-1)!.conclusion = "";
+    },
+    (v) => {
+      v.jobs.jobs.at(-1)!.run_id++;
+    },
+    (v) => {
+      v.jobs.jobs.at(-1)!.head_sha = target;
+    },
+    (v) => {
+      v.jobs.jobs.at(-1)!.run_attempt = 3;
+    },
+    (v) => {
+      v.jobs.jobs.at(-1)!.run_attempt = 0;
+    },
+    (v) => {
+      v.jobs.jobs.at(-1)!.run_attempt = 1;
+    },
+    (v) => {
+      v.jobs.jobs.at(-1)!.check_run_url = "https://api.github.com/repos/other/repo/check-runs/300";
+    },
+    (v) => {
+      v.jobs.jobs.at(-1)!.id = v.jobs.jobs[0]!.id;
+    },
+    (v) => {
+      v.checks.check_runs.at(-1)!.id = 999;
+    },
+    (v) => {
+      v.statuses.statuses.push({ id: 99, context: "catalog", state: "success" });
+      v.statuses.total_count++;
+    },
+    (v) => {
+      v.jobs.total_count++;
+    },
+    (v) => {
+      v.checks.total_count++;
+    },
+    (v) => {
+      v.checks.check_runs.splice(4, 1);
+      v.checks.total_count--;
+      v.jobs.jobs.splice(4, 1);
+      v.jobs.total_count--;
+    },
+  ];
+  for (const mutate of cases) {
+    const rejected = structuredClone(original);
+    mutate(rejected);
+    assert.throws(() => prepareMergeSnapshot(rejected, { ...expected, attempt: 2 }));
+  }
+});
+
+void test("a merged readback accepts its prepared closing-inventory run after GitHub clears pull_requests", () => {
+  const timeline = [
+    {
+      url: `https://api.github.com/repos/${repository}/issues/7/timeline?per_page=100&page=1`,
+      link: null,
+      events: [{ event: "committed", sha: head }, { event: "cross-referenced" }],
+    },
+  ];
+  const evidence = (suite: number, pulls: unknown[]) => ({
+    method: "rest-timeline",
+    timeline_pages: structuredClone(timeline),
+    inventory_checks: {
+      total_count: 1,
+      check_runs: [
+        {
+          id: 90,
+          name: "closing-inventory",
+          head_sha: head,
+          status: "completed",
+          conclusion: "success",
+          app: { slug: "github-actions" },
+          check_suite: { id: suite },
+        },
+      ],
+    },
+    inventory_runs: {
+      total_count: 1,
+      workflow_runs: [
+        {
+          check_suite_id: suite,
+          path: ".github/workflows/closing-inventory.yml",
+          event: "pull_request_target",
+          status: "completed",
+          conclusion: "success",
+          pull_requests: pulls,
+        },
+      ],
+    },
+  });
+  const withEvidence = <T extends { closing_before: object; closing_after: object }>(
+    value: T,
+    suite: number,
+    pulls: unknown[],
+  ) => ({
+    ...value,
+    closing_before: { ...value.closing_before, ...evidence(suite, pulls) },
+    closing_after: { ...value.closing_after, ...evidence(suite, pulls) },
+  });
+
+  // Preparation records the run it validated while the run still listed this pull request.
+  const prepare = withEvidence(fixture(), 91, [{ number: 7 }]);
+  const prepared = prepareMergeSnapshot(prepare, expected);
+  assert.equal(prepared.closing_inventory_suite, 91);
+  // A pre-merge run that lists no pull request still proves nothing.
+  assert.throws(
+    () => prepareMergeSnapshot(withEvidence(fixture(), 91, []), expected),
+    /did not run for this pull request/,
+  );
+
+  const base = readback();
+  const merged = (suite: number, pulls: unknown[], preparedSuite: unknown = 91) =>
+    withEvidence(
+      { ...base, prepared: { ...prepared, closing_inventory_suite: preparedSuite } },
+      suite,
+      pulls,
+    );
+  assert.equal(verifyMergeSnapshotReadback(merged(91, []), expected).observation, "complete");
+  // The listing GitHub returned before the merge remains acceptable.
+  assert.equal(
+    verifyMergeSnapshotReadback(merged(91, [{ number: 7 }]), expected).observation,
+    "complete",
+  );
+  // Another run, or a preparation that bound none, cannot vouch for the merged pull request.
+  assert.throws(
+    () => verifyMergeSnapshotReadback(merged(92, []), expected),
+    /did not run for this pull request/,
+  );
+  assert.throws(
+    () => verifyMergeSnapshotReadback(merged(91, [], null), expected),
+    /did not run for this pull request/,
+  );
+  assert.throws(
+    () => verifyMergeSnapshotReadback(merged(91, [{ number: 8 }]), expected),
+    /did not run for this pull request/,
+  );
+  // An unmerged pull request never gets the empty-list allowance.
+  const open = merged(91, []);
+  const unmerged = { ...open.pull_before, state: "open", merged: false };
+  assert.throws(
+    () =>
+      verifyMergeSnapshotReadback(
+        { ...open, pull_before: unmerged, pull_after: structuredClone(unmerged) },
+        expected,
+      ),
+    // Closing validation runs before the merge-state check, so only the gate itself can
+    // produce this refusal; without it the empty list would pass and a later check would fail.
+    /did not run for this pull request/,
+  );
+  // Both bracketing observations must come from one closing-inventory run.
+  const mixed = withEvidence(fixture(), 91, [{ number: 7 }]);
+  assert.throws(
+    () =>
+      prepareMergeSnapshot(
+        {
+          ...mixed,
+          closing_after: { ...mixed.closing_after, ...evidence(92, [{ number: 7 }]) },
+        },
+        expected,
+      ),
+    /Closing inventory evidence changed during collection/,
+  );
 });

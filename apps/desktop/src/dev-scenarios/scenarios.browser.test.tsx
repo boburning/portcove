@@ -28,7 +28,7 @@ describe("static development scenarios", () => {
 
   it("uses current product presentation as positive controls", () => {
     expect(renderScenario("ready-game")).toContain("Play");
-    expect(renderScenario("filtered-empty-library")).toContain("No matching library entries");
+    expect(renderScenario("filtered-empty-library")).toContain("Nothing in your library matches");
     const unavailableLibrary = renderScenario("unavailable-library");
     expect(unavailableLibrary).toContain("Library information could not be loaded");
     expect(unavailableLibrary).toContain("Initial scenario library load failed");
@@ -37,7 +37,9 @@ describe("static development scenarios", () => {
     expect(unavailableLibrary).not.toContain("your last install");
     expect(unavailableLibrary).not.toContain("source changed since registration");
     const partialSuccess = renderScenario("partial-success");
-    expect(partialSuccess).toContain("Change saved; review the current state");
+    expect(partialSuccess).toContain(
+      "Your change was saved. Check the result before trying again.",
+    );
     expect(partialSuccess).not.toContain("Portcove couldn’t finish that action");
     expect(partialSuccess).toContain("The change was saved");
     expect(partialSuccess).toContain("The change was saved");
@@ -100,7 +102,7 @@ describe("static development scenarios", () => {
     expect(installationReview).toContain("Install · 64.0 MiB");
     expect(installationReview).not.toContain("Installation and version");
     expect(installationReview).toContain('class="detail-panel ');
-    expect(installationReview).not.toContain('aria-label="Release channel filters"');
+    expect(installationReview).not.toContain('aria-label="Update channel filters"');
     expect(installationReview).not.toContain('class="port-grid"');
     const spaceBlocked = renderScenario("installation-review-space-blocked");
     expect(spaceBlocked).toContain(

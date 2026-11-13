@@ -1,3 +1,4 @@
+import { captureParityState } from "../../test/parity-capture";
 import { controlledAct as act } from "../../test/controlled-react-act";
 import { render as renderComponent, cleanup, type RenderResult } from "vitest-browser-react";
 import { useRef, useState } from "react";
@@ -145,6 +146,7 @@ describe("Storage locations", () => {
     );
     expect(switchLibrary).not.toHaveBeenCalled();
     await expect.poll(() => document.activeElement).toBe(button("Keep current library"));
+    await captureParityState("library-switch-review");
     await click("Keep current library");
     expect(document.activeElement).toBe(trigger);
     expect(document.body.querySelector('[role="dialog"]')).toBeNull();
@@ -182,6 +184,7 @@ describe("Storage locations", () => {
       "If host preferences are damaged or from a newer format",
     );
     expect(reset).not.toHaveBeenCalled();
+    await captureParityState("library-default-review");
     await click("Open default library");
     expect(reset).toHaveBeenCalledTimes(1);
     expect(document.activeElement).toBe(button("Use default library"));
@@ -203,6 +206,7 @@ describe("Storage locations", () => {
     await click("Use default library");
     expect(document.body.querySelector('[role="dialog"]')).toBeNull();
     expect(document.body.textContent).toContain("Default location unavailable");
+    await captureParityState("library-default-unresolved");
     expect(reset).not.toHaveBeenCalled();
   });
 
@@ -252,10 +256,12 @@ describe("Storage locations", () => {
     expect(alert?.textContent).toContain("couldn't confirm whether anything changed");
     expect(alert?.textContent).not.toContain("No files were changed");
     expect(alert?.querySelector("details")?.open).toBe(false);
+    await captureParityState("library-switch-refusal");
     await act(async () => {
       alert?.querySelector("summary")?.click();
     });
     expect(alert?.querySelector("details")?.open).toBe(true);
+    await captureParityState("library-switch-refusal-details");
     expect(switchLibrary).toHaveBeenCalledTimes(1);
     await click("Choose another library");
     expect(document.body.querySelector('[role="alert"]')).toBeNull();
@@ -282,6 +288,7 @@ describe("Storage locations", () => {
     await click("Choose another library");
     await click("Switch library");
     expect(button("Switching…").disabled).toBe(true);
+    await captureParityState("library-switch-busy");
     await act(async () => {
       document.body.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
     });
@@ -289,6 +296,7 @@ describe("Storage locations", () => {
     await act(async () => rejectSwitch(new Error("selected library is unavailable")));
     expect(document.body.querySelector('[role="dialog"]')).toBeNull();
     expect(document.body.textContent).toContain("selected library is unavailable");
+    await captureParityState("library-switch-failed");
     expect(document.activeElement).toBe(trigger);
     expect(switchLibrary).toHaveBeenCalledTimes(1);
     await click("Choose another library");

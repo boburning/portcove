@@ -56,7 +56,7 @@ function compareProposal(before: FixtureCatalog, after: FixtureCatalog) {
     join(fixture.catalogs, "catalog-schema2-migration-fixture.json"),
     JSON.stringify(before),
   );
-  writeFileSync(join(fixture.catalogs, "catalog-current-authoring.json"), JSON.stringify(after));
+  writeFileSync(join(fixture.catalogs, "catalog-fixture-input.json"), JSON.stringify(after));
   const result = fixture.run("--compare-historical");
   assert.equal(result.status, 0, result.stderr);
   return comparisonReport(fixtureJson(result.stdout));
@@ -271,7 +271,7 @@ void test("proposal identity report refuses duplicate historical identities inst
     join(fixture.catalogs, "catalog-schema2-migration-fixture.json"),
     JSON.stringify(before),
   );
-  writeFileSync(join(fixture.catalogs, "catalog-current-authoring.json"), JSON.stringify(after));
+  writeFileSync(join(fixture.catalogs, "catalog-fixture-input.json"), JSON.stringify(after));
   const result = fixture.run("--compare-historical");
   assert.notEqual(result.status, 0);
   assert.match(
@@ -322,7 +322,7 @@ void test("proposal identity report leaves similarly named unknown presentation 
 
 void test("semantic diff retains own fields colliding with Object.prototype", () => {
   const fixture = isolatedGenerator();
-  const currentPath = join(fixture.catalogs, "catalog-current-authoring.json");
+  const currentPath = join(fixture.catalogs, "catalog-fixture-input.json");
   const before = readFileSync(currentPath, "utf8");
   writeFileSync(join(fixture.catalogs, "catalog-schema2-migration-fixture.json"), before);
   const current = fixtureJson(before);

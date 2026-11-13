@@ -5,6 +5,10 @@ import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { isRecord } from "./runtime-values.mts";
 import {
+  inspectSealedCheckSdkIdentity,
+  sealedCheckSdkFilename,
+} from "./release-sealed-check-sdk.mts";
+import {
   readBoundedPublicBuildInputFile,
   inspectPublicBuildInputIdentity,
 } from "./release-public-build-inputs.mts";
@@ -54,6 +58,9 @@ export function inspectLocalNativeSetup(raw: unknown) {
       "scheduler_identity",
       "schema_version",
       "setup_grant_sha256",
+      ...(isRecord(value) && Object.hasOwn(value, "issuer_sdk_bundle")
+        ? ["issuer_sdk_bundle"]
+        : []),
       ...(isRecord(value) && value.schema_version === 2 ? ["public_journey"] : []),
     ]
       .sort()
@@ -129,6 +136,9 @@ export function inspectLocalNativeSetup(raw: unknown) {
       name: value.scheduler_identity.name,
     },
     capture_root: canonical(value.capture_root, windows),
+    ...(Object.hasOwn(value, "issuer_sdk_bundle")
+      ? { issuer_sdk_bundle: inspectSealedCheckSdkIdentity(value.issuer_sdk_bundle) }
+      : {}),
     ...(publicJourney ? { public_journey: publicJourney } : {}),
   };
 }
@@ -356,6 +366,8 @@ async function readPinnedLocalNativeSetupBytes(configurationPath: string, expect
     await linuxOwnerPath(descriptor.capture_root, true);
     await linuxOwnerPath(transport.source_read_token);
     await linuxOwnerPath(transport.native_issuer.private_key);
+    if (descriptor.issuer_sdk_bundle)
+      await linuxOwnerPath(path.join(checkout, "scripts", sealedCheckSdkFilename));
     await linuxOwnerPath(transport.github_cli.path);
     if (transport.post_sign_verifier) await linuxOwnerPath(transport.post_sign_verifier.path);
   }

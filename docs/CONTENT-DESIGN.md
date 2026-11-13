@@ -9,6 +9,15 @@ and limits without creating a new readiness, trust or recovery decision.
 
 ## Start with the player's task
 
+Lead with the situation, then its consequence and next action. Put paths, hashes,
+test environments and engineering evidence in named optional details unless they
+are needed to choose safely. “Why this port?” begins with gameplay, controls,
+setup and limitations; it is not a technical report. State a relevant uncertainty
+once, beside the decision it affects. A downloaded update, a prepared version,
+and the version used by Play are separate states. Hiding an update notice never
+means preventing the update. A library information export contains no games,
+saves or backups; never label it as a library backup.
+
 Name the object and next action before implementation detail. Use “game” for
 playing or managing saved data, “port” for an implementation or catalog entry,
 and the precise file or installation when its identity matters. Use **Game
@@ -39,6 +48,33 @@ The general description is “Install, update, and play native game ports.”
 Explain an individual route's limitations at its controls. Avoid promotional
 claims such as “verified ports” or an implication that every port has automatic
 installation, saved-data management or completed gameplay testing.
+
+## Write from the evidence
+
+Gather the facts first. Record the actual state, file effects, permissions and
+version scope with their evidence. Then write what the player needs to know at
+that decision. Keep required warnings visible before the affected action. Keep
+build times, test history, hashes and internal state codes in the appropriate
+reference or details. Keep exact filenames, paths, commands and arguments in
+the instructions when the player needs them there.
+
+Use **original game files** for a ROM, disc image or assets, **game program** or
+**installed game files** for runnable software, and **saves and settings** for
+player data. Name BIOS, mods and caches separately when they have different
+requirements. A saved file location is a reference. A port is a project for a
+game. A version is a release of that project. Describe a copy outside
+Portcove’s management as an **installation you maintain**.
+
+| Situation                                       | Wording to replace                                                           | Wording supported by the example state                                                                  |
+| ----------------------------------------------- | ---------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| A normal port needs the original game           | A long release-inspection report in the summary                              | “A native port of the original adventure. You’ll need the original game files to set it up.”            |
+| An experimental project is listed for reference | Build times, keys and unmeasured performance estimates in the browse summary | “An experimental Linux port built from your own game files. Build and run it with the project’s tools.” |
+| An existing installation needs to be added      | “Consent to the execution intent.”                                           | “Review the program, start folder and launch options. Add the game to Portcove, then choose Play.”      |
+| Basic checks passed and the edition is unknown  | “Source admitted.”                                                           | “Basic file checks passed. Portcove couldn’t identify the edition.”                                     |
+| A preference write lost its reply               | “Your choice was not saved.”                                                 | “Portcove couldn’t confirm that your choice was saved. Refresh choices to check.”                       |
+
+Treat the examples as explanations of specific facts. Use the actual project,
+file, version and available controls for each task.
 
 ## Name the property checked
 
@@ -116,6 +152,48 @@ Controls name their immediate action and object. **Review installation** opens
 a review; **Install** applies the reviewed action. **Copy launch command** must
 copy an actual launch command, while a command with unresolved prerequisites
 is a **command template**. A review label must not conceal immediate mutation.
+
+### Shared action vocabulary
+
+This is the target vocabulary: use one concise verb per actual route. These are
+presentation names, not a requirement to merge routes: managed installation,
+player-managed setup, import, repair and reuse of original files keep their own
+authority and effects.
+
+| Action                                 | Use when                                                                                                                                                                          |
+| -------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Install**                            | A Portcove-managed installation is available and the review is complete.                                                                                                          |
+| **Choose file / Choose files**         | Required original game files or BIOS are missing for the selected route.                                                                                                          |
+| **Finish setup**                       | The port is installed and Core reports remaining setup; card, detail, review title and confirmation use it.                                                                       |
+| **Play**                               | The current readiness assessment permits launch. Name the game in repeated controls.                                                                                              |
+| **Try launch**                         | Launch is permitted but an input is not yet confirmed.                                                                                                                            |
+| **Start setup**                        | Launch is permitted and the game opens into its own first-run setup.                                                                                                              |
+| **Check again** / **Refresh** + object | A failed, unknown or stale read can be refreshed; it reads state and repeats no mutation. Name the object when it is not obvious (“Refresh backup history”, “Check setup again”). |
+| **Repair / Import / Open installer**   | That is the actual operation.                                                                                                                                                     |
+
+Player-facing setup states use these names; internal distinctions stay in
+details. **Setup needed** pairs with **Finish setup**. **Can't check right now**
+replaces “Setup status unknown” and “Readiness unavailable”: the state stays
+unknown, **Check again** rereads it as the primary action, and Install or Finish
+setup is shown as a secondary control until the read succeeds. A missing input
+names what the player owns (“You need your own copy of Title (System)”), not the
+requirement's role; unknown titles stay generic. The setup review leads with
+**Uses**, **Starts from** (the current installation; the result goes in a new
+folder beside it) and **Needs** (“At least …”), one reassurance that original files are
+not changed, and keeps activation, rollback and interruption behavior in a
+closed “Setup and recovery details” disclosure; full paths stay visible (#5058 S1, S2, S5, S6).
+
+The card, detail action, review title and confirmation name the same action.
+One screen offers one primary control per review; subordinate controls (for
+example, changing an input file) remain. Repeated controls carry the game, and a
+variant when needed, in their accessible name, with the visible label as its
+prefix (“Play: Title · Project”).
+
+Count and name entities that exist. Library entries can include several ports
+for one game, so Library counts read “N in your library” rather than “games” or
+“library entries”. Filters use player concepts: **Runs on**, **Available for this
+device** (acquisition availability, not a claim that the game works), **Original
+system** and **Update channels**.
 
 Search and view controls name their actual reset scope. **Clear search** clears
 text; **Clear filters** clears the described filters. **Reset view** explains the
@@ -222,7 +300,33 @@ generated provenance records verbatim; new terminology guidance belongs outside
 those records. Stable docs describe shipped behavior; an explicitly labeled ADR
 can record a future decision without presenting it as an implemented command.
 
+## Where to edit copy
+
+- Desktop components and presentation helpers own controls, tooltips, accessible
+  names and state-specific explanations. Update the feature’s existing resources
+  and engineering locale when the message is localized.
+- Core owns file check, reuse, and shared failure outcomes. Follow a message to
+  its Desktop and CLI consumers when it is shown directly. The CLI human
+  renderer and Tauri host own their additional summaries and native prompts.
+- Author browse summaries and setup guides in the per-port catalog record.
+  Generate the catalogs from those records. Playnite reads those guides and
+  owns its additional wording in the C# management window.
+- Player docs describe the controls and release they apply to. Keep literal
+  commands, documented option spellings and machine contracts compatible.
+
+Static checks can flag a few phrases with a reliably better player equivalent.
+Review the rendered task for meaning, warning order, keyboard access and narrow
+layouts. Check that unavailable, empty and previously loaded results remain
+distinct. Where an action can lose its acknowledgement, verify the readback
+path and make sure the UI does not claim that the operation failed.
+
 ## Review a changed task path
+
+Review internal terms such as Core, artifact, baseline, admission, execution
+intent and operation hold when they appear in ordinary player copy. Translate
+the actual object and consequence; do not globally rename machine values,
+technical details, project names or historical evidence. Use the existing copy
+lint and ordinary review to catch recurrence; no separate approval is needed.
 
 Read the complete entry → review → result → recovery route in rendered form,
 including links and long values. Verify claims against the owning source and

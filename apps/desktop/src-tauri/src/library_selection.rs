@@ -163,7 +163,7 @@ fn same_existing_library(current: &std::path::Path, target: &std::path::Path) ->
     }
 }
 
-fn wait_for_outgoing_library(root: &std::path::Path) -> portcove_core::Result<()> {
+pub(crate) fn wait_for_outgoing_library(root: &std::path::Path) -> portcove_core::Result<()> {
     // The in-progress state stops new readers. Give already-dispatched short
     // reads time to release their shared lease before opening another library.
     const DRAIN_LIMIT: Duration = Duration::from_secs(2);

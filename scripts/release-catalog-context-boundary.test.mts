@@ -271,13 +271,20 @@ void test("actual context getter checks renewed maintenance only after delayed s
     ),
     start = source.indexOf("async function readContext("),
     end = source.indexOf("export async function readActualCatalogSigningContextFiles(", start),
+    snapshotStart = source.indexOf("async function snapshot("),
+    snapshotEnd = source.indexOf(
+      "export async function prepareActualCatalogSigningContext(",
+      snapshotStart,
+    ),
     receipt = {},
     descriptor = catalogPublicationFixture();
+  assert(start >= 0 && end > start && snapshotStart >= 0 && snapshotEnd > snapshotStart);
   let now = 59000,
     eligible = true,
     returns = 0;
   const calls: string[] = [],
     tools = {},
+    credential = { token: "inert-retained-catalog-reader" },
     inspectionReceipt = {};
   const maintenance = () => ({
     pause: {},
@@ -286,6 +293,7 @@ void test("actual context getter checks renewed maintenance only after delayed s
   });
   const owned = {
     deadline: 170000,
+    credential,
     configuration_sha256: "fixed",
     facts: { descriptor, semantic_proof_sha256: "proof" },
     binding: {},
@@ -306,7 +314,8 @@ void test("actual context getter checks renewed maintenance only after delayed s
       next_controls: async () => {
         calls.push("renew");
         return {
-          readMaintenance: () => {
+          readSdkMaintenance: async (_reserve: unknown, options: { deadline: number }) => {
+            assert.equal(options.deadline, owned.deadline);
             calls.push("maintenance-LAST");
             if (!eligible) throw new Error("expired final controls");
             return maintenance();
@@ -315,13 +324,17 @@ void test("actual context getter checks renewed maintenance only after delayed s
       },
     },
     source: {
-      readMaintenance: () => {
+      readSdkMaintenance: async (_reserve: unknown, options: { deadline: number }) => {
+        assert.equal(options.deadline, owned.deadline);
         calls.push("old-maintenance");
         return maintenance();
       },
     },
   };
-  const run = runInNewContext(stripTypeScriptTypes(source.slice(start, end)) + "\nreadContext", {
+  const contextSource = stripTypeScriptTypes(
+    source.slice(snapshotStart, snapshotEnd) + source.slice(start, end),
+  );
+  const run = runInNewContext(contextSource + "\nreadContext", {
     contexts: new WeakMap([[receipt, owned]]),
     path,
     performance: { now: () => now },
@@ -340,10 +353,29 @@ void test("actual context getter checks renewed maintenance only after delayed s
     }),
     readCatalogPublicationBundle: async () => new Map(),
     assertControllerCatalogPublisherScope: () => {},
-    apiFor: () => ({}),
-    verifyState: async () => {
+    createFixedControlReadAllowance: () => () => ({}),
+    assertCatalogPublicationBaseline: () => descriptor,
+    readRemoteCoordinatorSnapshot: async (
+      directory: string,
+      configuration: { namespace: string },
+      options: {
+        transport: {
+          credential: unknown;
+          deadline: number;
+          requireDirect: boolean;
+          cwd?: string;
+        };
+      },
+    ) => {
+      assert.equal(directory, owned.directory);
+      assert.equal(configuration.namespace, owned.session.namespace);
+      assert.equal(options.transport.credential, credential);
+      assert.equal(options.transport.deadline, owned.deadline);
+      assert.equal(options.transport.requireDirect, true);
+      assert.equal(options.transport.cwd, undefined);
       calls.push("state");
       now = 61000;
+      return { checkpoint: owned.session.checkpoint, input: { catalog_publication: descriptor } };
     },
     requirePublishedCatalogCompleteSite: async () => {
       calls.push("site");
@@ -387,6 +419,7 @@ void test("actual catalog role guard puts delayed Check and checkpoint reads bef
       capacity: {},
       resource_policy_matches_controller: true,
     };
+  const allowance = () => {};
   const run = runInNewContext(
     stripTypeScriptTypes(`let source, round=0, observed=-Infinity; ${source.slice(start, end)}`) +
       "\nguard",
@@ -405,6 +438,7 @@ void test("actual catalog role guard puts delayed Check and checkpoint reads bef
       manifest: { facts_sha256: "facts", previous_site_pins: {} },
       admitted: { control_facts: { pause: {}, capacity: {} } },
       coordinator: {},
+      transport: { credential: { token: "inert-catalog-reader" }, deadline: 115000 },
       active: () => {
         assert.ok(now < 115000);
         return 15000;
@@ -416,14 +450,25 @@ void test("actual catalog role guard puts delayed Check and checkpoint reads bef
       requireControllerCatalogJobAuthorities: async () => ({
         configuration_sha256: "fixed",
       }),
-      readRemoteCoordinatorSnapshot: async () => {
+      readRemoteCoordinatorSnapshot: async (
+        _directory: string,
+        _coordinator: unknown,
+        options: unknown,
+      ) => {
+        assert.equal(
+          JSON.stringify(options),
+          JSON.stringify({
+            transport: { credential: { token: "inert-catalog-reader" }, deadline: 115000 },
+          }),
+        );
         events.push("checkpoint");
         now = 61000;
         return {};
       },
       reservation: () => {},
-      fixedApi: () => ({}),
-      recheckCatalogSemanticProof: () => {
+      createFixedControlReadAllowance: () => allowance,
+      recheckFixedCatalogSemanticProof: async (...args: unknown[]) => {
+        assert.equal(args.at(-1), allowance);
         events.push("Check");
         now = 61000;
       },
@@ -431,7 +476,8 @@ void test("actual catalog role guard puts delayed Check and checkpoint reads bef
         events.push("renew");
         return {
           evidence_scope: "github.com",
-          readMaintenance: () => {
+          readSdkMaintenance: async (reserve: unknown) => {
+            assert.equal(reserve, allowance);
             events.push("maintenance-LAST");
             if (!eligible) throw new Error("final protection expired");
             return current;

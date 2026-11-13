@@ -33,8 +33,8 @@ fn fixture() -> (tempfile::TempDir, PortcoveService, CatalogDownloadRequest) {
     fs::create_dir(&parent).unwrap();
     let request = CatalogDownloadRequest {
         port_id: "directory-download-fixture".into(),
-        release_id: 7,
-        asset_id: 11,
+        release_id: 7.into(),
+        asset_id: 11.into(),
         destination_parent: fs::canonicalize(parent).unwrap(),
         extract_archive: true,
     };
@@ -50,6 +50,100 @@ fn archive() -> Vec<u8> {
         .write_all(b"Follow the upstream setup instructions.")
         .unwrap();
     writer.finish().unwrap().into_inner()
+}
+
+#[test]
+fn legacy_catalog_artifact_json_keeps_pre_gitlab_numeric_wire_representation() {
+    // Candidate field order and numeric IDs at baseline5821d359, independent of
+    // the new provider-qualified model and its constructors.
+    let original = r#"{"release_id":7,"asset_id":11,"release_tag":"v1","release_url":"https://github.com/owner/game/releases/tag/v1","name":"game.zip","size":1,"download_url":"https://github.com/owner/game/releases/download/v1/game.zip","sha256":null,"can_extract":true}"#;
+    let candidate: CatalogDownloadCandidate = serde_json::from_str(original).unwrap();
+    assert_eq!(serde_json::to_string(&candidate).unwrap(), original);
+}
+
+#[test]
+fn pending_catalog_record_formats_preserve_legacy_and_refuse_missing_or_foreign_versions() {
+    let (_temporary, service, request) = fixture();
+    let (mut record, _stage, _preview) = intent(&service, &request);
+    let legacy = serde_json::to_string(&record).unwrap();
+    assert!(
+        !serde_json::from_str::<Value>(&legacy)
+            .unwrap()
+            .as_object()
+            .unwrap()
+            .contains_key("format_version")
+    );
+    let decoded: PendingSetupRecord = serde_json::from_str(&legacy).unwrap();
+    assert_eq!(decoded.format_version, 1);
+    validate_record(&decoded).unwrap();
+
+    record.artifact.release_id =
+        CatalogDownloadReleaseId::Foreign(CatalogForeignReleaseId::Gitlab {
+            project_id: 42,
+            tag: "v1".into(),
+        });
+    record.artifact.asset_id = CatalogDownloadAssetId::Foreign(CatalogForeignAssetId::Gitlab {
+        project_id: 42,
+        tag: "v1".into(),
+        link_id: 11,
+        file_id: 17,
+    });
+    // Missing foreign format defaults to the old format and must not be adopted.
+    assert!(validate_record(&record).is_err());
+    record.format_version = 2;
+    // Foreign identities cannot relabel a retained GitHub listing or URL.
+    assert!(validate_record(&record).is_err());
+    record.listing.project_url = "https://gitlab.com/owner/game".into();
+    record.listing.release_url = Some("https://gitlab.com/owner/game/-/releases".into());
+    record.artifact.release_url = "https://gitlab.com/owner/game/-/releases/v1".into();
+    record.artifact.download_url =
+        "https://gitlab.com/owner/game/-/package_files/17/download".into();
+    record.artifact.sha256 = Some(record.archive_sha256.clone());
+    validate_record(&record).unwrap();
+    let valid = record.clone();
+    for url in [
+        "https://gitlab.com/owner/other/-/package_files/17/download",
+        "https://gitlab.com/owner/game/-/package_files/18/download",
+        "https://gitlab.com/owner/game/-/package_files/17/download?token=secret",
+        "https://gitlab.com@attacker.invalid/owner/game/-/package_files/17/download",
+        "https://gitlab.com/api/v4/projects/43/packages/generic/game/v1/game.zip",
+        "https://gitlab.com/api/v4/projects/42/packages/generic/game/v2/game.zip",
+        "https://gitlab.com/api/v4/projects/42/packages/generic/game/v1/other.zip",
+        "https://gitlab.com/owner/game/-/uploads/anything/game.zip",
+        "http://gitlab.com/owner/game/-/package_files/17/download",
+    ] {
+        record.artifact.download_url = url.into();
+        assert!(validate_record(&record).is_err(), "{url}");
+    }
+    record = valid.clone();
+    for url in [
+        "https://gitlab.com/api/v4/projects/42/packages/generic/game/v1/game.zip",
+        "https://gitlab.com/api/v4/projects/owner%2Fgame/packages/generic/game/1/game.zip",
+    ] {
+        record.artifact.download_url = url.into();
+        validate_record(&record).unwrap();
+    }
+    record = valid.clone();
+    record.artifact.sha256 = None;
+    assert!(validate_record(&record).is_err());
+    record = valid.clone();
+    record.archive_sha256 = "b".repeat(64);
+    assert!(validate_record(&record).is_err());
+    record = valid.clone();
+    record.artifact.size = 0;
+    assert!(validate_record(&record).is_err());
+    record = valid;
+    let foreign = serde_json::to_value(&record).unwrap();
+    assert_eq!(foreign["format_version"], 2);
+    // The historical reader requires numeric IDs. It cannot mistake this record
+    // for GitHub even if a caller strips the explicit record-format field.
+    assert!(serde_json::from_value::<u64>(foreign["artifact"]["release_id"].clone()).is_err());
+    assert!(serde_json::from_value::<u64>(foreign["artifact"]["asset_id"].clone()).is_err());
+    record.format_version = 3;
+    assert!(validate_record(&record).is_err());
+    record.format_version = 2;
+    record.artifact.release_tag = "different".into();
+    assert!(validate_record(&record).is_err());
 }
 
 #[tokio::test]
@@ -89,7 +183,7 @@ async fn catalog_default_candidates_use_recommendation_and_explicit_choices_win(
         )
         .await
         .unwrap();
-    assert_eq!(recommended.selected_release_id, Some(9));
+    assert_eq!(recommended.selected_release_id, Some(9.into()));
     assert_eq!(recommended.candidates[0].asset_id, 22);
     let explicit = service
         .catalog_download_options_with_provider(
@@ -100,7 +194,7 @@ async fn catalog_default_candidates_use_recommendation_and_explicit_choices_win(
         )
         .await
         .unwrap();
-    assert_eq!(explicit.selected_release_id, Some(7));
+    assert_eq!(explicit.selected_release_id, Some(7.into()));
     let historical = service
         .catalog_download_options_with_provider(
             &request.port_id,
@@ -110,7 +204,7 @@ async fn catalog_default_candidates_use_recommendation_and_explicit_choices_win(
         )
         .await
         .unwrap();
-    assert_eq!(historical.selected_release_id, Some(7));
+    assert_eq!(historical.selected_release_id, Some(7.into()));
     assert!(service.pending_setups().unwrap().is_empty());
 }
 
@@ -508,12 +602,19 @@ async fn authored_download_restriction_blocks_options_preview_and_mutation_befor
 }
 
 async fn assert_embedded_player_download_holds(ids: &[&str]) {
+    assert_embedded_listing_download_holds(ids, true).await;
+}
+
+async fn assert_embedded_listing_download_holds(ids: &[&str], expected_manual_setup: bool) {
     for &id in ids {
         let (_temporary, mut service, mut request) = fixture();
         service.catalog = Catalog::embedded().unwrap();
         request.port_id = id.into();
         assert!(service.catalog.port(id).is_err());
-        assert!(service.catalog.listing(id).unwrap().manual_setup.is_some());
+        assert_eq!(
+            service.catalog.listing(id).unwrap().manual_setup.is_some(),
+            expected_manual_setup
+        );
         let reason = service
             .catalog
             .listing(id)
@@ -574,6 +675,64 @@ async fn embedded_mmx_source_player_keeps_package_hold_before_network() {
 }
 
 #[tokio::test]
+async fn embedded_retained_acquisition_holds_refuse_before_network() {
+    assert_embedded_listing_download_holds(
+        &["pokemon-yellow-recomp", "zelda-link-s-awakening-dx-hd"],
+        false,
+    )
+    .await;
+    assert_embedded_player_download_holds(&[
+        "star-wars-shadows-of-the-empire-n64-sote-recomp",
+        "egg-of-time-chrono-trigger-nds",
+        "star-wars-tie-fighter-opentie",
+        "destinity13-timesplitters-2-ps2-slus20314-native-linux",
+    ])
+    .await;
+}
+
+#[tokio::test]
+async fn gitlab_listings_offer_upstream_release_downloads() {
+    assert_embedded_listing_downloads_offered(&[
+        "mario-kart-64-mariokart64recomp",
+        "star-fox-64-starfox64recomp",
+    ]);
+}
+
+#[tokio::test]
+async fn embedded_ps1_selected_package_permission_holds_refuse_before_network() {
+    assert_embedded_player_download_holds(&[
+        "rage-racer-rage-racer-pc",
+        "x-men-mutant-academy-2-xmen-mutant-academy-2-pc",
+    ])
+    .await;
+}
+
+#[tokio::test]
+async fn embedded_vandal_component_permission_hold_refuses_before_network() {
+    assert_embedded_listing_download_holds(&["vandal-hearts-vandalhearts-pcport"], false).await;
+}
+
+#[tokio::test]
+async fn embedded_skate3_package_use_hold_refuses_before_network() {
+    assert_embedded_listing_download_holds(&["skate-3-recomp"], true).await;
+}
+
+#[tokio::test]
+async fn embedded_dprecomp_shader_component_hold_refuses_before_network() {
+    assert_embedded_listing_download_holds(&["deadly-premonition-dprecomp"], true).await;
+}
+
+#[tokio::test]
+async fn embedded_kameo_linked_binary_permission_hold_refuses_before_network() {
+    assert_embedded_listing_download_holds(&["kameo-repowered"], true).await;
+}
+
+#[tokio::test]
+async fn embedded_ackman_translation_component_hold_refuses_before_network() {
+    assert_embedded_listing_download_holds(&["go-go-ackman-go-go-ackman-recompiled"], true).await;
+}
+
+#[tokio::test]
 async fn newly_restricted_listing_invalidates_an_earlier_download_review_without_publication() {
     let (_temporary, mut service, request) = fixture();
     let upstream = GithubFixture::new(archive(), None, None);
@@ -614,6 +773,16 @@ struct GithubFixture {
 
 impl GithubFixture {
     fn new(bytes: Vec<u8>, digest: Option<String>, sidecar: Option<String>) -> Self {
+        Self::for_repository("owner/game", bytes, digest, sidecar)
+    }
+
+    fn for_repository(
+        repository: &str,
+        bytes: Vec<u8>,
+        digest: Option<String>,
+        sidecar: Option<String>,
+    ) -> Self {
+        let release_path = format!("/repos/{repository}/releases");
         let listener = TcpListener::bind("127.0.0.1:0").unwrap();
         listener.set_nonblocking(true).unwrap();
         let origin = format!("http://{}", listener.local_addr().unwrap());
@@ -697,9 +866,9 @@ impl GithubFixture {
                         .cloned()
                         .unwrap_or_else(|| thread_assets.lock().unwrap().clone());
                     page_bytes(&inventory)
-                } else if path == "/repos/owner/game/releases/7" {
+                } else if path == format!("{release_path}/7") {
                     serde_json::to_vec(&thread_releases.lock().unwrap()[0]).unwrap()
-                } else if path.starts_with("/repos/owner/game/releases?") {
+                } else if path.starts_with(&format!("{release_path}?")) {
                     page_bytes(&thread_releases.lock().unwrap())
                 } else if path == "/download/game.zip" {
                     bytes.clone()
@@ -955,6 +1124,137 @@ async fn download_without_published_digest_retains_honest_provenance_and_non_own
 }
 
 #[tokio::test]
+async fn sevenz_download_extracts_inert_payload_and_never_publishes_crc_or_cancel_failures() {
+    for mode in ["valid", "crc", "cancel"] {
+        let (_temporary, service, request) = fixture();
+        let bytes = if mode == "crc" {
+            crate::archive::sevenz::bad_crc_fixture()
+        } else {
+            crate::archive::sevenz::inert_fixture()
+        };
+        // The complete outer digest is authentic even in the damaged-payload
+        // case: the inner decoder's integrity failure must still prevent publication.
+        let digest = format!("sha256:{}", crate::signed_catalog::digest(&bytes));
+        let github = GithubFixture::new(bytes, Some(digest), None);
+        github.assets.lock().unwrap()[0]["name"] = json!("player-windows-x64.7z");
+        let preview = service
+            .catalog_download_preview_with_provider(&request, &github.provider)
+            .await
+            .unwrap();
+        assert!(preview.artifact.can_extract);
+        assert_eq!(preview.artifact.name, "player-windows-x64.7z");
+        let mut cancelled = false;
+        let result = service
+            .download_catalog_package_with_provider(
+                &request,
+                &preview.preview_sha256,
+                |event| {
+                    if mode == "cancel"
+                        && !cancelled
+                        && matches!(event.event, crate::OperationEventKind::Progress { .. })
+                    {
+                        service.request_cancellation(&event.operation_id).unwrap();
+                        cancelled = true;
+                    }
+                },
+                &github.provider,
+            )
+            .await;
+        if mode == "valid" {
+            let pending = result.unwrap();
+            assert_eq!(pending.state, PendingSetupState::Downloaded);
+            assert_eq!(
+                fs::read(pending.path.join("readme.txt")).unwrap(),
+                b"Follow the upstream setup instructions."
+            );
+            assert!(pending.path.join("assets").is_dir());
+            assert!(service.library.all_installs().unwrap().is_empty());
+        } else {
+            let error = result.unwrap_err();
+            assert_eq!(
+                error.code,
+                if mode == "cancel" {
+                    crate::ErrorCode::Cancelled
+                } else {
+                    crate::ErrorCode::Verification
+                }
+            );
+            assert!(!preview.destination_path.exists());
+            assert!(
+                service
+                    .pending_setups()
+                    .unwrap()
+                    .iter()
+                    .all(|p| p.state != PendingSetupState::Downloaded)
+            );
+            assert!(
+                !fs::read_dir(&request.destination_parent).unwrap().any(|e| e
+                    .unwrap()
+                    .file_name()
+                    .to_string_lossy()
+                    .starts_with(".portcove-download-"))
+            );
+        }
+        assert_eq!(cancelled, mode == "cancel");
+    }
+}
+
+#[tokio::test]
+async fn tar_xz_download_publishes_only_a_verified_external_setup() {
+    assert_tar_xz_download(false).await;
+}
+
+#[tokio::test]
+async fn tar_xz_download_retains_failure_without_publication() {
+    assert_tar_xz_download(true).await;
+}
+
+async fn assert_tar_xz_download(invalid: bool) {
+    let (_temporary, service, request) = fixture();
+    let mut bytes = crate::archive::xz_fixture();
+    if invalid {
+        *bytes.last_mut().unwrap() ^= 1;
+    }
+    let digest = format!("sha256:{}", crate::signed_catalog::digest(&bytes));
+    let github = GithubFixture::new(bytes, Some(digest), None);
+    github.assets.lock().unwrap()[0]["name"] = json!("player-linux-x86_64.tar.xz");
+    let preview = service
+        .catalog_download_preview_with_provider(&request, &github.provider)
+        .await
+        .unwrap();
+    assert!(preview.artifact.can_extract);
+    let result = service
+        .download_catalog_package_with_provider(
+            &request,
+            &preview.preview_sha256,
+            |_| {},
+            &github.provider,
+        )
+        .await;
+    assert!(service.library.all_installs().unwrap().is_empty());
+    if invalid {
+        assert_eq!(result.unwrap_err().code, crate::ErrorCode::Verification);
+        assert!(!preview.destination_path.exists());
+        let pending = service.pending_setups().unwrap();
+        let [pending] = pending.as_slice() else {
+            panic!("expected a retained failure record");
+        };
+        assert_eq!(pending.state, PendingSetupState::AttentionRequired);
+        assert_eq!(pending.path, preview.destination_path);
+        assert!(
+            fs::read_dir(&request.destination_parent)
+                .unwrap()
+                .next()
+                .is_none()
+        );
+    } else {
+        let pending = result.unwrap();
+        assert_eq!(pending.state, PendingSetupState::Downloaded);
+        assert_eq!(fs::read(pending.path.join("player")).unwrap(), b"player");
+    }
+}
+
+#[tokio::test]
 async fn complete_asset_endpoint_supplies_checksum_and_conflicts_fail_before_publication() {
     let (_temporary, service, request) = fixture();
     let bytes = archive();
@@ -1092,14 +1392,15 @@ fn intent(
         .tempdir_in(&request.destination_parent)
         .unwrap();
     let record = PendingSetupRecord {
+        format_version: 1,
         id: Uuid::new_v4().to_string(),
         port_id: request.port_id.clone(),
         listing: service.catalog.listing(&request.port_id).unwrap().clone(),
         path: service.download_destination(request).unwrap(),
         state: PendingSetupState::AttentionRequired,
         artifact: CatalogDownloadCandidate {
-            release_id: request.release_id,
-            asset_id: request.asset_id,
+            release_id: request.release_id.clone(),
+            asset_id: request.asset_id.clone(),
             release_tag: "v1".into(),
             release_url: "https://github.com/owner/game/releases/tag/v1".into(),
             name: "game.zip".into(),
@@ -1277,7 +1578,7 @@ fn restart_finishes_proven_handoff_but_never_adopts_or_deletes_a_collision() {
     // A different operation with an occupied destination cannot interpret those
     // existing user bytes as its own published folder, even on restart.
     let mut another = request.clone();
-    another.asset_id = 22;
+    another.asset_id = 22.into();
     let (other, stage, _) = intent(&service, &another);
     fs::create_dir(&other.path).unwrap();
     fs::write(other.path.join("keep.dat"), b"mine").unwrap();
@@ -1300,74 +1601,192 @@ fn restart_finishes_proven_handoff_but_never_adopts_or_deletes_a_collision() {
     );
 }
 
+fn with_gitlab_identity(mut record: PendingSetupRecord) -> PendingSetupRecord {
+    record.format_version = 2;
+    record.listing.project_url = "https://gitlab.com/owner/game".into();
+    record.listing.release_url = Some("https://gitlab.com/owner/game/-/releases".into());
+    record.artifact.release_id =
+        CatalogDownloadReleaseId::Foreign(CatalogForeignReleaseId::Gitlab {
+            project_id: 42,
+            tag: "v1".into(),
+        });
+    record.artifact.asset_id = CatalogDownloadAssetId::Foreign(CatalogForeignAssetId::Gitlab {
+        project_id: 42,
+        tag: "v1".into(),
+        link_id: 11,
+        file_id: 17,
+    });
+    record.artifact.release_url = "https://gitlab.com/owner/game/-/releases/v1".into();
+    record.artifact.download_url =
+        "https://gitlab.com/owner/game/-/package_files/17/download".into();
+    record.artifact.sha256 = Some(record.archive_sha256.clone());
+    record
+}
+
+#[test]
+fn gitlab_pending_restart_preserves_retained_provider_at_each_publication_phase() {
+    for phase in ["preparing", "publication-intent", "downloaded"] {
+        let (_temporary, service, request) = fixture();
+        let (mut record, stage, review) = intent(&service, &request);
+        record = with_gitlab_identity(record);
+        let request = CatalogDownloadRequest {
+            release_id: record.artifact.release_id.clone(),
+            asset_id: record.artifact.asset_id.clone(),
+            ..request
+        };
+        record.path = service.download_destination(&request).unwrap();
+        assert!(
+            record
+                .path
+                .file_name()
+                .unwrap()
+                .to_str()
+                .unwrap()
+                .contains("gitlab-")
+        );
+        if phase != "preparing" {
+            let payload = stage.path().join("payload");
+            fs::create_dir(&payload).unwrap();
+            fs::write(payload.join("keep.dat"), b"user handoff").unwrap();
+            crate::durability::write_json_atomically(
+                &payload.join(RECEIPT_NAME),
+                &PublicationReceipt {
+                    format_version: 1,
+                    pending_id: record.id.clone(),
+                    port_id: record.port_id.clone(),
+                    preview_sha256: review,
+                    archive_sha256: record.archive_sha256.clone(),
+                },
+                false,
+            )
+            .unwrap();
+            crate::durability::rename_noreplace(&payload, &record.path).unwrap();
+        }
+        if phase == "downloaded" {
+            record.state = PendingSetupState::Downloaded;
+        }
+        service
+            .update_catalog_download(&record, phase, phase == "downloaded")
+            .unwrap();
+        drop(stage);
+        // Startup has an unrelated embedded catalog. Only the retained snapshot
+        // can interpret this record; it must not refresh or relabel its source.
+        let reopened = PortcoveService::new(service.library.clone()).unwrap();
+        let pending = reopened.pending_setups().unwrap().pop().unwrap();
+        assert_eq!(pending.format_version, 2);
+        assert_eq!(pending.artifact, record.artifact);
+        assert_eq!(pending.listing, record.listing);
+        assert_eq!(pending.path, record.path);
+        assert_eq!(
+            pending.state,
+            if phase == "preparing" {
+                PendingSetupState::AttentionRequired
+            } else {
+                PendingSetupState::Downloaded
+            }
+        );
+        assert!(reopened.library.all_installs().unwrap().is_empty());
+        assert!(
+            reopened
+                .library
+                .external_runtime_with_port(&record.port_id)
+                .unwrap()
+                .is_none()
+        );
+        reopened
+            .forget_pending_setup(&record.port_id, &record.id)
+            .unwrap();
+        if phase != "preparing" {
+            assert_eq!(
+                fs::read(record.path.join("keep.dat")).unwrap(),
+                b"user handoff"
+            );
+        }
+    }
+}
+
 #[test]
 fn continuation_registration_uses_retained_listing_and_consumes_only_matching_pending_identity() {
-    let (_temporary, mut service, request) = fixture();
-    let (record, stage, _) = intent(&service, &request);
-    // Upstream's native installer can place the executable elsewhere. The
-    // explicit user intent binds that exact executable and CWD, not an inferred
-    // relationship to the downloaded package's folder.
-    let working = request.destination_parent.join("upstream-installed");
-    fs::create_dir(&working).unwrap();
-    let executable = crate::test_fixture::build_probe(&working);
-    fs::write(working.join("save.dat"), b"mine").unwrap();
-    let preview = service
-        .preview_user_selected_runtime(&record.port_id, &executable, &working, &[])
-        .unwrap();
-    let authorization = service
-        .authorize_user_selected_runtime(
-            &record.port_id,
-            &executable,
-            &working,
-            &[],
-            &preview.preview_sha256,
-        )
-        .unwrap();
-    service
-        .forget_pending_setup(&record.port_id, &record.id)
-        .unwrap();
-    let (replacement, replacement_stage, _) = intent(&service, &request);
-    assert!(
+    for foreign in [false, true] {
+        let (_temporary, mut service, request) = fixture();
+        let (mut record, stage, _) = intent(&service, &request);
+        if foreign {
+            record = with_gitlab_identity(record);
+            service
+                .update_catalog_download(&record, "publication-intent", false)
+                .unwrap();
+        }
+        // Upstream's native installer can place the executable elsewhere. The
+        // explicit user intent binds that exact executable and CWD, not an inferred
+        // relationship to the downloaded package's folder.
+        let working = request.destination_parent.join("upstream-installed");
+        fs::create_dir(&working).unwrap();
+        let executable = crate::test_fixture::build_probe(&working);
+        fs::write(working.join("save.dat"), b"mine").unwrap();
+        let preview = service
+            .preview_user_selected_runtime(&record.port_id, &executable, &working, &[])
+            .unwrap();
+        let authorization = service
+            .authorize_user_selected_runtime(
+                &record.port_id,
+                &executable,
+                &working,
+                &[],
+                &preview.preview_sha256,
+            )
+            .unwrap();
         service
+            .forget_pending_setup(&record.port_id, &record.id)
+            .unwrap();
+        let (mut replacement, replacement_stage, _) = intent(&service, &request);
+        if foreign {
+            replacement = with_gitlab_identity(replacement);
+            service
+                .update_catalog_download(&replacement, "publication-intent", false)
+                .unwrap();
+        }
+        assert!(
+            service
+                .register_user_selected_runtime(
+                    &record.port_id,
+                    &executable,
+                    &working,
+                    &[],
+                    &authorization.token
+                )
+                .is_err()
+        );
+        assert_eq!(service.pending_setups().unwrap()[0].id, replacement.id);
+        service.catalog =
+            Catalog::from_json(r#"{"schema_version":1,"source_profiles":[],"ports":[]}"#).unwrap();
+        let preview = service
+            .preview_user_selected_runtime(&record.port_id, &executable, &working, &[])
+            .unwrap();
+        let authorization = service
+            .authorize_user_selected_runtime(
+                &record.port_id,
+                &executable,
+                &working,
+                &[],
+                &preview.preview_sha256,
+            )
+            .unwrap();
+        let selected = service
             .register_user_selected_runtime(
                 &record.port_id,
                 &executable,
                 &working,
                 &[],
-                &authorization.token
+                &authorization.token,
             )
-            .is_err()
-    );
-    assert_eq!(service.pending_setups().unwrap()[0].id, replacement.id);
-    service.catalog =
-        Catalog::from_json(r#"{"schema_version":1,"source_profiles":[],"ports":[]}"#).unwrap();
-    let preview = service
-        .preview_user_selected_runtime(&record.port_id, &executable, &working, &[])
-        .unwrap();
-    let authorization = service
-        .authorize_user_selected_runtime(
-            &record.port_id,
-            &executable,
-            &working,
-            &[],
-            &preview.preview_sha256,
-        )
-        .unwrap();
-    let selected = service
-        .register_user_selected_runtime(
-            &record.port_id,
-            &executable,
-            &working,
-            &[],
-            &authorization.token,
-        )
-        .unwrap();
-    assert_eq!(selected.port_id, record.port_id);
-    assert!(service.pending_setups().unwrap().is_empty());
-    assert!(service.library.all_installs().unwrap().is_empty());
-    assert_eq!(fs::read(working.join("save.dat")).unwrap(), b"mine");
-    assert!(executable.exists());
-    assert!(stage.path().exists() && replacement_stage.path().exists());
+            .unwrap();
+        assert_eq!(selected.port_id, record.port_id);
+        assert!(service.pending_setups().unwrap().is_empty());
+        assert!(service.library.all_installs().unwrap().is_empty());
+        assert_eq!(fs::read(working.join("save.dat")).unwrap(), b"mine");
+        assert!(executable.exists());
+        assert!(stage.path().exists() && replacement_stage.path().exists());
+    }
 }
 
 #[test]
@@ -1570,4 +1989,652 @@ async fn replacement_download_keeps_current_registration_until_reviewed_relink()
         changed.archive_sha256.is_empty(),
         "external replacement is not authenticated ownership"
     );
+}
+
+#[tokio::test]
+async fn ambermoon_bundled_content_acquisition_hold_keeps_permitted_copy_guide_before_network() {
+    assert_embedded_player_download_holds(&["ambermoon-ambermoon-net"]).await;
+}
+
+#[tokio::test]
+async fn n64hub_super_smash_bros_n64_usa_recomp_upstream_release_download_4337() {
+    assert_embedded_resolved_frontend_download(
+        "n64hub-super-smash-bros-n64-usa-recomp",
+        "v0.1.12",
+        "SmashBrosRecompiled-v0.1.12-windows-x64.zip",
+        None,
+    )
+    .await;
+}
+#[tokio::test]
+async fn n64hub_rayman_2_recomp_n64_usa_upstream_release_download_4335() {
+    assert_embedded_resolved_frontend_download(
+        "n64hub-rayman-2-recomp-n64-usa",
+        "v0.1.15",
+        "Rayman2Recompiled-v0.1.15-windows-x64.zip",
+        None,
+    )
+    .await;
+}
+
+#[tokio::test]
+async fn tekrantgaming_muppet_racemania_recompiled_upstream_release_download_4130() {
+    assert_embedded_resolved_frontend_download(
+        "tekrantgaming-muppet-racemania-recompiled",
+        "v1.0.0",
+        "MuppetRaceManiaRecompiled-v1.0.0-windows-x64.zip",
+        None,
+    )
+    .await;
+}
+
+#[tokio::test]
+async fn tomba_2_disc_derived_cache_hold_keeps_prepared_guide_before_network() {
+    assert_embedded_player_download_holds(&["tomba-2-recompiled"]).await;
+}
+
+#[tokio::test]
+async fn wetrix_bundled_content_acquisition_hold_keeps_permitted_copy_guide_before_network() {
+    assert_embedded_player_download_holds(&["scottjco-wetrix-n64-usa-rev0-recomp"]).await;
+}
+
+#[tokio::test]
+async fn embedded_metroid_prime_excluded_game_sdk_hold_keeps_prepared_guide_before_network() {
+    assert_embedded_player_download_holds(&["odrannnn-metroidprimeport"]).await;
+}
+
+#[tokio::test]
+async fn embedded_re_cherry_selected_component_hold_keeps_prepared_guide_before_network() {
+    assert_embedded_player_download_holds(&["lollipop-chainsaw-re-cherry"]).await;
+}
+
+#[tokio::test]
+async fn embedded_nxengine_and_head_coach_hold_fresh_download_before_network() {
+    assert_embedded_player_download_holds(&[
+        "cave-story-nxengine-evo",
+        "nfl-head-coach-09-nfl-head-coach-09-static-recomp",
+    ])
+    .await;
+}
+
+// Synthetic first-party bytes exercise the real listing/provider contracts;
+// they are not an upstream package, permission or gameplay observation.
+async fn assert_embedded_resolved_frontend_download(
+    id: &str,
+    tag: &str,
+    asset_name: &str,
+    expected_adapter: Option<crate::AdapterKind>,
+) {
+    let (_temporary, mut service, mut request) = fixture();
+    service.catalog = Catalog::embedded().unwrap();
+    request.port_id = id.into();
+    assert_eq!(
+        service.catalog.port(id).ok().map(|port| port.adapter),
+        expected_adapter
+    );
+    let listing = service.catalog.listing(id).unwrap();
+    assert!(listing.manual_setup.is_some());
+    assert!(listing.download_block_reason.is_none());
+    let repository = crate::release::catalog_download_repository(
+        listing
+            .release_url
+            .as_deref()
+            .unwrap_or(&listing.project_url),
+    )
+    .unwrap();
+    let expected_channel = if matches!(
+        id,
+        "danielgomesvieira2000-beetle-adventure-racing-recomp" | "snowboard-kids"
+    ) {
+        ReleaseChannel::Beta
+    } else {
+        ReleaseChannel::Stable
+    };
+    assert_eq!(
+        service.catalog_download_channel(id).unwrap(),
+        expected_channel
+    );
+    let bytes = archive();
+    let expected = crate::signed_catalog::digest(&bytes);
+    let github =
+        GithubFixture::for_repository(&repository, bytes, Some(format!("sha256:{expected}")), None);
+    github.assets.lock().unwrap()[0]["name"] = json!(asset_name);
+    // The actual Beetle release is labelled alpha but is not API-prerelease.
+    github.releases.lock().unwrap()[0]["tag_name"] = json!(tag);
+    let options = service
+        .catalog_download_options_with_provider(id, None, None, Some(&github.provider))
+        .await
+        .unwrap();
+    assert!(options.allowed);
+    assert_eq!(options.selected_release_id, Some(7.into()));
+    assert_eq!(options.candidates.len(), 1);
+    assert_eq!(options.candidates[0].name, asset_name);
+    assert_eq!(
+        options.candidates[0].sha256.as_deref(),
+        Some(expected.as_str())
+    );
+    let coverage = options.coverage.unwrap();
+    assert!(coverage.release_history_complete && coverage.candidates_complete);
+    assert_eq!(
+        options.recommended_asset_id,
+        (Platform::current().unwrap() == Platform::WindowsX86_64).then_some(11.into())
+    );
+    assert!(service.pending_setups().unwrap().is_empty());
+    let preview = service
+        .catalog_download_preview_with_provider(&request, &github.provider)
+        .await
+        .unwrap();
+    assert_eq!(preview.artifact.name, asset_name);
+    assert_eq!(preview.artifact.sha256.as_deref(), Some(expected.as_str()));
+    assert!(!preview.destination_path.exists());
+    let pending = service
+        .download_catalog_package_with_provider(
+            &request,
+            &preview.preview_sha256,
+            |_| {},
+            &github.provider,
+        )
+        .await
+        .unwrap();
+    assert_eq!(pending.port_id, id);
+    assert_eq!(pending.state, PendingSetupState::Downloaded);
+    assert_eq!(pending.archive_sha256, expected);
+    assert_eq!(pending.artifact.sha256.as_deref(), Some(expected.as_str()));
+    assert_eq!(
+        fs::read(pending.path.join("readme.txt")).unwrap(),
+        b"Follow the upstream setup instructions."
+    );
+    assert_eq!(
+        service.pending_setups().unwrap().as_slice(),
+        std::slice::from_ref(&pending)
+    );
+    assert!(service.library.all_installs().unwrap().is_empty());
+    assert!(
+        service
+            .library
+            .status(id, expected_channel)
+            .unwrap()
+            .external_runtime
+            .is_none()
+    );
+    assert!(service.require_no_pending_setup(id).is_err());
+    assert!(github.requests.load(Ordering::SeqCst) > 0);
+}
+
+#[tokio::test]
+async fn dahsidiabdallah_conkerbfdreloaded_resolved_frontend_download_1806() {
+    assert_embedded_resolved_frontend_download(
+        "dahsidiabdallah-conkerbfdreloaded",
+        "v1.4.7",
+        "ConkerBFDReloaded-v1.4.7-Windows.zip",
+        None,
+    )
+    .await;
+}
+
+#[tokio::test]
+async fn danielgomesvieira2000_beetle_adventure_racing_recomp_resolved_frontend_download_1800() {
+    assert_embedded_resolved_frontend_download(
+        "danielgomesvieira2000-beetle-adventure-racing-recomp",
+        "v0.4.2-alpha",
+        "beetle-adventure-racing-recomp-v0.4.2-alpha-windows-x64.zip",
+        None,
+    )
+    .await;
+}
+
+#[tokio::test]
+async fn body_harvest_recompiled_resolved_frontend_download_1448() {
+    assert_embedded_resolved_frontend_download(
+        "body-harvest-recompiled",
+        "v1.0.0",
+        "BodyHarvestRecompiled-v1.0.0-Windows.zip",
+        Some(crate::AdapterKind::NativePortable),
+    )
+    .await;
+}
+
+#[tokio::test]
+async fn cbfd_recompiled_sciaschi_original_code_hold_before_network_1216() {
+    assert_embedded_player_download_holds(&["cbfd-recompiled-sciaschi"]).await;
+}
+
+#[tokio::test]
+async fn snowboard_kids_upstream_release_download_1354() {
+    assert_embedded_resolved_frontend_download(
+        "snowboard-kids",
+        "v0.9.0-beta.1",
+        "SnowboardKidsRecompiled-0.9.0-beta.1-Windows-x86_64.zip",
+        None,
+    )
+    .await;
+}
+
+#[tokio::test]
+async fn cdlewis_snowboardkids_recomp_upstream_release_download_1886() {
+    assert_embedded_resolved_frontend_download(
+        "cdlewis-snowboardkids-recomp",
+        "v1.0.9",
+        "SnowboardKidsRecompiled-Windows.zip",
+        None,
+    )
+    .await;
+}
+
+#[tokio::test]
+async fn vidanox_banjotooierecompiled_upstream_release_download_1795() {
+    assert_embedded_resolved_frontend_download(
+        "vidanox-banjotooierecompiled",
+        "v1.0.1",
+        "BanjoTooieRecompiled-windows-x64.zip",
+        None,
+    )
+    .await;
+}
+
+#[tokio::test]
+async fn blast_corps_blastcorps_recompiled_upstream_release_download_2558() {
+    assert_embedded_resolved_frontend_download(
+        "blast-corps-blastcorps-recompiled",
+        "1.1.1",
+        "BlastCorpsRecompiled-1.1.1-Windows-RelWithDebInfo.zip",
+        None,
+    )
+    .await;
+}
+
+#[tokio::test]
+async fn final_fantasy_tactics_finfantacrecomp_component_hold_before_network_327() {
+    assert_embedded_player_download_holds(&["final-fantasy-tactics-finfantacrecomp"]).await;
+}
+
+#[tokio::test]
+async fn silent_hill_silent_hill_decomp_pc_branch_component_hold_before_network_351() {
+    assert_embedded_player_download_holds(&["silent-hill-silent-hill-decomp-pc-branch"]).await;
+}
+
+#[tokio::test]
+async fn tenchu_stealth_assassins_tenchu_sa_recomp_offers_upstream_release_download_353() {
+    assert_embedded_listing_downloads_offered(&["tenchu-stealth-assassins-tenchu-sa-recomp"]);
+}
+
+#[tokio::test]
+async fn dead_rising_2_case_west_recomp_libxlive_hold_before_network_1122() {
+    assert_embedded_player_download_holds(&["dead-rising-2-case-west-recomp"]).await;
+}
+
+#[tokio::test]
+async fn exit_shared_release_keeps_title_recommendations_distinct_362_363() {
+    for (id, expected_id) in [
+        ("exit-rexglue-exit-exit1", 11),
+        ("exit-2-rexglue-exit-exit2", 12),
+    ] {
+        let (_temporary, mut service, _request) = fixture();
+        service.catalog = Catalog::embedded().unwrap();
+        let repository = "FluffyQuack/ReXGlue-EXIT";
+        let bytes = archive();
+        let expected = crate::signed_catalog::digest(&bytes);
+        let github = GithubFixture::for_repository(
+            repository,
+            bytes,
+            Some(format!("sha256:{expected}")),
+            None,
+        );
+        let template = github.assets.lock().unwrap()[0].clone();
+        let names = [
+            "EXIT1-Recomp.zip",
+            "EXIT2-Recomp.zip",
+            "rexglue-sdk-0.9.1-linux-amd64.zip",
+            "rexglue-sdk-0.9.1-win-amd64.zip",
+        ];
+        *github.assets.lock().unwrap() = names
+            .iter()
+            .enumerate()
+            .map(|(index, name)| {
+                let mut asset = template.clone();
+                asset["id"] = json!(11 + index);
+                asset["name"] = json!(name);
+                asset
+            })
+            .collect();
+        github.releases.lock().unwrap()[0]["tag_name"] = json!("v0.9.1");
+        let options = service
+            .catalog_download_options_with_provider(id, None, None, Some(&github.provider))
+            .await
+            .unwrap();
+        assert!(options.allowed);
+        assert_eq!(options.candidates.len(), 4);
+        if Platform::current().unwrap() == Platform::WindowsX86_64 {
+            assert_eq!(options.recommended_asset_id, Some(expected_id.into()));
+        }
+        // Recommendations do not filter the explicit generic-download choices.
+        for name in names {
+            assert!(options.candidates.iter().any(|asset| asset.name == name));
+        }
+        assert!(service.pending_setups().unwrap().is_empty());
+    }
+}
+
+#[tokio::test]
+async fn dead_rising_2_case_zero_recomp_libxlive_hold_before_network_1121() {
+    assert_embedded_player_download_holds(&["dead-rising-2-case-zero-recomp"]).await;
+}
+
+#[tokio::test]
+async fn condemned_2_bloodshot_condemned2recomp_component_hold_before_network_361() {
+    assert_embedded_player_download_holds(&["condemned-2-bloodshot-condemned2recomp"]).await;
+}
+
+#[tokio::test]
+async fn silent_hill_downpour_downpourrecomp_component_hold_before_network_358() {
+    assert_embedded_player_download_holds(&["silent-hill-downpour-downpourrecomp"]).await;
+}
+
+// Tier-3 rights policy: these upstream releases bundle only code, so the
+// listing download route is offered again (synthetic bytes, real contracts).
+#[tokio::test]
+async fn tony_hawks_project_8_recomp_upstream_release_download_1125() {
+    assert_embedded_resolved_frontend_download(
+        "tony-hawks-project-8-recomp",
+        "v0.3.0",
+        "Project8Recomp-v0.3.0-windows-x86_64.zip",
+        None,
+    )
+    .await;
+}
+
+#[tokio::test]
+async fn pilotwings_64_dgv_recomp_upstream_release_download_1275() {
+    assert_embedded_resolved_frontend_download(
+        "pilotwings-64-dgv-recomp",
+        "v0.1.1",
+        "Pilotwings64Recomp-0.1.1-windows-x64.zip",
+        None,
+    )
+    .await;
+}
+
+#[tokio::test]
+async fn darkuni_afterburner_climax_recomp_upstream_release_download_4134() {
+    assert_embedded_resolved_frontend_download(
+        "darkuni-afterburner-climax-recomp",
+        "v1.1.0",
+        "AfterBurnerClimax-v1.1.0-win64.zip",
+        None,
+    )
+    .await;
+}
+
+#[tokio::test]
+async fn darkuni_lode_runner_2009_xbla_rexglue_upstream_release_download_4216() {
+    assert_embedded_resolved_frontend_download(
+        "darkuni-lode-runner-2009-xbla-rexglue",
+        "v1.0.1",
+        "lode_runner-v1.0.1-win-amd64.zip",
+        None,
+    )
+    .await;
+}
+
+#[tokio::test]
+async fn darkuni_outrun_arcade_recomp_upstream_release_download_4133() {
+    assert_embedded_resolved_frontend_download(
+        "darkuni-outrun-arcade-recomp",
+        "v1.0.1",
+        "outrun_arcade-v1.0.1-win-amd64.zip",
+        None,
+    )
+    .await;
+}
+
+#[tokio::test]
+async fn darkuni_poker_smash_recomp_upstream_release_download_4122() {
+    assert_embedded_resolved_frontend_download(
+        "darkuni-poker-smash-recomp",
+        "v1.0.0",
+        "PokerSmash-v1.0.0-win64.zip",
+        None,
+    )
+    .await;
+}
+
+#[tokio::test]
+async fn mgrayd_fable2pubgames_recomp_upstream_release_download_3995() {
+    assert_embedded_resolved_frontend_download(
+        "mgrayd-fable2pubgames-recomp",
+        "v0.1.0",
+        "Fable2PubGames-Recomp-v0.1.0-win-x64.zip",
+        None,
+    )
+    .await;
+}
+
+#[tokio::test]
+async fn sonic_free_riders_recompiled_component_hold_before_network_1450() {
+    assert_embedded_player_download_holds(&["sonic-free-riders-recompiled"]).await;
+}
+
+#[tokio::test]
+async fn unchiga_yu_gi_oh_forbidden_memories_recompiled_component_hold_before_network_1910() {
+    assert_embedded_player_download_holds(&["unchiga-yu-gi-oh-forbidden-memories-recompiled"])
+        .await;
+}
+
+#[tokio::test]
+async fn james2doyle_ffta_recomp_upstream_release_download_2824() {
+    assert_embedded_resolved_frontend_download(
+        "james2doyle-ffta-recomp",
+        "v2.1",
+        "FFTARecomp-v2.1-windows-x64.zip",
+        None,
+    )
+    .await;
+}
+
+#[tokio::test]
+async fn kingdom_hearts_chain_of_memories_gba_rekhcom_component_hold_before_network_2586() {
+    assert_embedded_player_download_holds(&["kingdom-hearts-chain-of-memories-gba-rekhcom"]).await;
+}
+
+#[tokio::test]
+async fn vibecodekun_shantaerecomp_upstream_release_download_1881() {
+    assert_embedded_resolved_frontend_download(
+        "vibecodekun-shantaerecomp",
+        "v0.2.0",
+        "shantae-recomp-0.2.0-windows-x64.zip",
+        None,
+    )
+    .await;
+}
+
+#[tokio::test]
+async fn x_men_mutant_academy_2_xmen_mutant_academy_2_pc_component_hold_before_network_356() {
+    assert_embedded_player_download_holds(&["x-men-mutant-academy-2-xmen-mutant-academy-2-pc"])
+        .await;
+}
+
+#[tokio::test]
+async fn eternal_darkness_sanity_s_requiem_eternal_darkness_recomp_component_hold_before_network_2570()
+ {
+    assert_embedded_player_download_holds(&[
+        "eternal-darkness-sanity-s-requiem-eternal-darkness-recomp",
+    ])
+    .await;
+}
+
+#[tokio::test]
+async fn geometry_wars_retro_evolved_2_geometry_wars_2_recompiled_upstream_release_download_2577() {
+    assert_embedded_resolved_frontend_download(
+        "geometry-wars-retro-evolved-2-geometry-wars-2-recompiled",
+        "v0.6.1",
+        "GeometryWarsRetroEvolved2-v0.6.1-windows-x64.zip",
+        None,
+    )
+    .await;
+}
+
+#[tokio::test]
+async fn hard_corps_uprising_hard_corps_uprising_recompiled_upstream_release_download_2581() {
+    assert_embedded_resolved_frontend_download(
+        "hard-corps-uprising-hard-corps-uprising-recompiled",
+        "v0.7.1",
+        "HardCorpsUprising-v0.7.1-windows-x64.zip",
+        None,
+    )
+    .await;
+}
+
+#[tokio::test]
+async fn crackdown_crackdown_recompiled_upstream_release_download_2559() {
+    assert_embedded_resolved_frontend_download(
+        "crackdown-crackdown-recompiled",
+        "v0.6.2",
+        "Crackdown-v0.6.2-windows-x64.zip",
+        None,
+    )
+    .await;
+}
+
+#[tokio::test]
+async fn crazyriddler_finesthourremastered_component_hold_before_network_2785() {
+    assert_embedded_player_download_holds(&["crazyriddler-finesthourremastered"]).await;
+}
+
+#[tokio::test]
+async fn elmasas_lcs_recomp_component_hold_before_network_1836() {
+    assert_embedded_player_download_holds(&["elmasas-lcs-recomp"]).await;
+}
+
+#[tokio::test]
+async fn kirby1237_parappatherapperrecomp_upstream_release_download_1864() {
+    assert_embedded_resolved_frontend_download(
+        "kirby1237-parappatherapperrecomp",
+        "v0.1.1",
+        "prtr-v0.1.1-windows-x64.zip",
+        None,
+    )
+    .await;
+}
+
+#[tokio::test]
+async fn nevercookfirst_dimensionsrecomp_component_hold_before_network_1817() {
+    assert_embedded_player_download_holds(&["nevercookfirst-dimensionsrecomp"]).await;
+}
+
+#[tokio::test]
+async fn eandis_sdoj_recomp_upstream_release_download_1880() {
+    assert_embedded_resolved_frontend_download(
+        "eandis-sdoj-recomp",
+        "v1.51.4",
+        "sdoj.recomp.1.51.4.win-amd64.zip",
+        None,
+    )
+    .await;
+}
+
+#[tokio::test]
+async fn mercenaries_playground_of_destruction_kraftmacandchee_component_hold_before_network_1672()
+{
+    assert_embedded_listing_download_holds(
+        &["mercenaries-playground-of-destruction-kraftmacandchee"],
+        false,
+    )
+    .await;
+}
+
+#[tokio::test]
+async fn jhdev2006_super_mario_world_remastered_public_component_hold_before_network_1891() {
+    assert_embedded_player_download_holds(&["jhdev2006-super-mario-world-remastered-public"]).await;
+}
+
+#[tokio::test]
+async fn def_jam_vendetta_playstation_2_def_jam_vendetta_recompiled_upstream_release_download_2561()
+{
+    assert_embedded_resolved_frontend_download(
+        "def-jam-vendetta-playstation-2-def-jam-vendetta-recompiled",
+        "v0.6.2",
+        "Def-Jam-Vendetta-Recompiled-Windows.zip",
+        None,
+    )
+    .await;
+}
+
+#[tokio::test]
+async fn gran_turismo_4_playstation_2_gt4recomp_offers_upstream_release_download_2579() {
+    assert_embedded_listing_downloads_offered(&["gran-turismo-4-playstation-2-gt4recomp"]);
+}
+
+#[tokio::test]
+async fn djultra64_clayfighter64_component_hold_before_network_2830() {
+    assert_embedded_player_download_holds(&["djultra64-clayfighter64"]).await;
+}
+
+// Rights model (2026-11-13): these listings offer the upstream's own release
+// again. Synthetic bytes exercise the real listing/provider contracts.
+#[tokio::test]
+async fn darkuni_chocobo_dungeon_recomp_upstream_release_download_4131() {
+    assert_embedded_resolved_frontend_download(
+        "darkuni-chocobo-dungeon-recomp",
+        "v1.1",
+        "ChocoboDungeon-v1.1-win64.zip",
+        None,
+    )
+    .await;
+}
+#[tokio::test]
+async fn darkuni_mylifedarklord_recomp_upstream_release_download_4121() {
+    assert_embedded_resolved_frontend_download(
+        "darkuni-mylifedarklord-recomp",
+        "v0.2",
+        "MyLifeAsADarklord-v0.2-win64.zip",
+        None,
+    )
+    .await;
+}
+#[tokio::test]
+async fn darkuni_mylifeking_recomp_upstream_release_download_4120() {
+    assert_embedded_resolved_frontend_download(
+        "darkuni-mylifeking-recomp",
+        "v0.5",
+        "MyLifeAsAKing-v0.5-win64.zip",
+        None,
+    )
+    .await;
+}
+#[tokio::test]
+async fn darkuni_target_terror_wii_recomp_upstream_release_download_4178() {
+    assert_embedded_resolved_frontend_download(
+        "darkuni-target-terror-wii-recomp",
+        "v1.0",
+        "TargetTerror-v1.0-win64.zip",
+        None,
+    )
+    .await;
+}
+#[tokio::test]
+async fn hybrid_heaven_ogdanimal_upstream_release_download_2546() {
+    assert_embedded_resolved_frontend_download(
+        "hybrid-heaven-ogdanimal",
+        "v1.0.1",
+        "HybridHeaven-1.0.1-windows-x64.zip",
+        None,
+    )
+    .await;
+}
+
+/// Listings whose upstream route cannot use the GitHub synthetic fixture
+/// (Linux-only, GitLab-hosted or installer packages) still offer downloads.
+fn assert_embedded_listing_downloads_offered(ids: &[&str]) {
+    let catalog = Catalog::embedded().unwrap();
+    for &id in ids {
+        let listing = catalog.listing(id).unwrap();
+        assert!(listing.download_block_reason.is_none(), "{id}");
+        assert!(listing.release_url.is_some(), "{id}");
+        assert!(!listing.download_asset_hints.is_empty(), "{id}");
+    }
+}
+
+#[tokio::test]
+async fn pokeplatinum_copied_cartridge_header_hold_before_network_373() {
+    assert_embedded_player_download_holds(&["pokemon-platinum-pokeplatinum-pc-port-lead"]).await;
 }

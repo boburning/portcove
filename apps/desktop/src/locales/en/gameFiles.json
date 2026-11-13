@@ -1,0 +1,306 @@
+{
+  "controls": {
+    "cancel": "Cancel game-file filter check",
+    "channel": "Channel",
+    "check": "Check game-file filters",
+    "checking": "Checking game-file filters…",
+    "description": "Check game files for this setup option, platform and channel. Changing filters alone does not scan files or install anything.",
+    "legend": "Game files to check",
+    "platform": "Platform",
+    "route": "Setup option"
+  },
+  "failure": {
+    "catalogMismatch": "The complete game-file observation no longer matches this context. Check again.",
+    "catalogTooLarge": "This catalog is too large to check all game files at once. Game-file filters are unavailable.",
+    "selectionMismatch": "The game-file observation no longer matches this selection. Check again."
+  },
+  "filterObservation": {
+    "completeSet": "Complete set: <identity/>",
+    "heading": "Game-file filter results",
+    "scope": "These results are used by catalog filters. Setup and launch perform their own checks."
+  },
+  "filters": {
+    "additionalCatalog": "Additional restored filters remain active. Reset catalog filters to remove them.",
+    "additionalLibrary": "Additional restored filters remain active. Reset library filters to remove them.",
+    "additionalNote": "Additional restored filters are active; open Filters to review or reset them.",
+    "advanced": "Advanced filters",
+    "advancedNote": "Setup and installation filters must all match the same way of installing or setting up a game. Projects with unknown facts aren’t counted as matches.",
+    "all": "All",
+    "chip": "{{group}}: {{value}}",
+    "clear": "Clear filters",
+    "countKnownUnknown": "{{known}} known; {{unknown}} unknown",
+    "countUnavailable": "unavailable",
+    "done": "Done",
+    "group": {
+      "attention": "Installation attention",
+      "channels": "Update channels",
+      "gameFiles": "Game files",
+      "installationMethods": "Setup methods",
+      "membership": "Library membership",
+      "originalSystems": "Original system",
+      "platforms": "Runs on",
+      "portOptions": "Port options",
+      "updates": "Observed updates"
+    },
+    "headingDiscover": "Discover filters",
+    "headingLibrary": "Library filters",
+    "help": {
+      "attention": "Recorded needs for the current installation. Unavailable details remain unknown.",
+      "gameFiles": "Uses the same setup or installation as your other filters. Changed or unreadable files need checking; they are not counted as missing.",
+      "membership": "Includes managed installations, registered runtimes and downloads awaiting setup. Membership does not imply readiness.",
+      "platforms": "Package targets, not tested device compatibility. Available for this device uses this PC’s platform; Intel and Apple silicon remain distinct.",
+      "updates": "Uses the current installation’s last check and matching verified staged update. Choosing a filter does not check for updates."
+    },
+    "howBody": "Choose one or more options. Results match at least one option in each selected group.",
+    "howSummary": "How filters work",
+    "needsContextCatalog": "These restored filters need unavailable local context. Reset catalog filters to choose a supported query.",
+    "needsContextLibrary": "These restored filters need unavailable local context. Reset library filters to choose a supported query.",
+    "optionLabel": "{{option}} ({{amount}})",
+    "panelLabel": "Filter options",
+    "removeChip": "Remove {{group}}: {{value}} filter",
+    "restoredNote": "Open Filters to review or reset the restored query.",
+    "reviewRestored": "Review restored query",
+    "selectedCount": "{{total}} selected",
+    "trigger": "Filters",
+    "triggerLabel": "Filters ({{total}})",
+    "unknownFacts_one": "{{count}} project has unknown facts for these filters. Choose All ports or clear these filters to find it.",
+    "unknownFacts_other": "{{count}} projects have unknown facts for these filters. Choose All ports or clear these filters to find them.",
+    "unsupportedCatalog": "These restored filters are not supported. Reset catalog filters to choose a supported query.",
+    "unsupportedLibrary": "These restored filters are not supported. Reset library filters to choose a supported query.",
+    "value": {
+      "finishSetup": "Finish setup",
+      "inLibrary": "In my library",
+      "missingBios": "Missing BIOS",
+      "missingRuntime": "Missing runtime",
+      "missingSource": "Missing game files",
+      "multiplePorts": "Multiple ports",
+      "notInLibrary": "Not in my library",
+      "repairNeeded": "Repair needed",
+      "singlePort": "Single port",
+      "thisDevice": "Available for this device",
+      "updateAvailable": "Available at last check",
+      "updateStaged": "Matching update staged"
+    }
+  },
+  "folderSetup": {
+    "chooseGame": "Choose a game",
+    "existingAndFuture": {
+      "detail": "Portcove installs each eligible game once its files and requirements are ready. It never starts a game.",
+      "label": "Set up eligible games already here and any added later"
+    },
+    "failed_one": "<game/> didn't finish setting up after {{count}} try: <reason/>. Portcove tries again when the game's files or setup change.",
+    "failed_other": "<game/> didn't finish setting up after {{count}} tries: <reason/>. Portcove tries again when the game's files or setup change.",
+    "futureOnly": {
+      "detail": "Portcove remembers every file in this folder now and leaves those games alone, even if it recognizes them later.",
+      "label": "Only set up games added later"
+    },
+    "keepLocalCopy": {
+      "detail": "Use this for a network or removable drive. Applies to games set up from now on. Only the files each game needs are copied; nothing in this folder is moved or deleted.",
+      "label": "Keep a copy of each game's files on this computer"
+    },
+    "legend": "Automatic setup from this folder",
+    "off": {
+      "detail": "Portcove only shows what it finds here.",
+      "label": "Don't set up games from this folder automatically"
+    },
+    "sharedFiles": "More than one game can use some files here. Choose which one to set up; until you do, Portcove waits."
+  },
+  "intent": {
+    "discoverOnly": {
+      "detail": "Portcove doesn't notify you about this game or install it.",
+      "label": "Only show it in discovery"
+    },
+    "failed": "The last automatic setup didn't finish: <reason/>. Portcove tries again when the game's files, catalog or requirements change.",
+    "ignored": {
+      "detail": "Portcove doesn't suggest, notify about or set up this game.",
+      "label": "Ignore this game"
+    },
+    "legend": "When this game's files are ready",
+    "notify": {
+      "detail": "Portcove tells you when it can be installed, and again only if its setup changes. Nothing is installed.",
+      "label": "Tell me when it's ready"
+    },
+    "setUpWhenReady": {
+      "detail": "Portcove installs it without asking again once its files and requirements are ready. It never starts the game. Choose another option to stop.",
+      "label": "Set it up when it's ready"
+    },
+    "uninstalled": "You uninstalled this game, so Portcove won't set it up or notify you about it until you choose an option again.",
+    "useAgain": "Use “{{choice}}” again"
+  },
+  "preliminary": {
+    "check": "Check these files",
+    "description": "These files are not exact matches. Validation has not run, and compatibility is not confirmed. Review a selection before deciding whether to save its location.",
+    "heading": "Preliminary selections",
+    "inconsistent": "Selection details are unavailable or inconsistent. Search again before reviewing this file.",
+    "label": "Preliminary game-file selections",
+    "notValidated": "Validation has not run."
+  },
+  "query": {
+    "cancel": "Cancel game-file check",
+    "channelScope": "Channel: <channel/>. This check observes connected files; setup and launch still require their own reviews and prerequisites.",
+    "check": "Check files for this option",
+    "checking": "Checking game files…",
+    "heading": "Game files for this setup or launch option",
+    "label": "Selected route game files",
+    "platform": "Target platform",
+    "route": "Setup or launch option"
+  },
+  "ready": {
+    "dismiss": "Dismiss <game/>",
+    "heading": "Ready for you",
+    "installable": "<game/> is ready to install.",
+    "label": "Games ready for you",
+    "reviewSetup": "Review <game/> setup",
+    "reviewUpdate": "Review <game/> update",
+    "update": "<game/> has an update available: <version/>. Nothing was downloaded or changed.",
+    "updateUnknownVersion": "<game/> has an update available: a newer version. Nothing was downloaded or changed."
+  },
+  "readyNotices": {
+    "control": "Tell me when games I chose to hear about are ready",
+    "description": "Turn this off to stop ready-game notices. Your choice for each game and any automatic setup stay as they are. Turn it back on to hear about games that are ready and that you haven't been told about yet.",
+    "heading": "Ready-game notices",
+    "readFailed": "Couldn't check the ready-game notice setting.",
+    "retry": "Try again",
+    "saveFailed": "Couldn't save the ready-game notice setting."
+  },
+  "reason": {
+    "completeCompatibleObservation": "A complete set of compatible game files was found for this setup or launch option.",
+    "contractNotReviewed": "File requirements have not been reviewed for this setup or launch option.",
+    "explicitEmptyRequirements": "This action needs no files added to Portcove. The game may still ask for original files.",
+    "identityNotAdmitted": "These game files have not been accepted for this setup or launch option.",
+    "noConnectedRegistration": "No saved game-file location is connected for this setup or launch option.",
+    "observationStale": "The file-check result is out of date. Check again.",
+    "observationUnavailable": "No current file-check result is available.",
+    "profileContextChanged": "The selected game files or setup option changed. Check again.",
+    "releaseNotBound": "We haven’t confirmed whether this file-check result applies to the selected version.",
+    "routeNotOffered": "The selected route is not offered.",
+    "sourceNeedsChecking": "The connected files need checking.",
+    "storageAbsenceUnconfirmed": "Portcove could not confirm whether the files are present. They are not confirmed missing.",
+    "variantNotSupported": "The observed file variant does not match this route."
+  },
+  "reuse": {
+    "check": "Check saved game files",
+    "choose": "Choose saved files",
+    "choosePort": "Choose a port for these files",
+    "error": {
+      "locationChanged": "The saved file location changed. Refresh before updating it.",
+      "profileMissing": "Refresh the library to review this file's requirements.",
+      "registrationChanged": "The saved game-file location changed. Refresh the library and check it again.",
+      "repairFailed": "<core/> Location repair needs the same original content. Choose the moved original; check different files separately."
+    },
+    "heading": "Use saved original files",
+    "intro": "Choose original files you’ve already added to see which ports may use them. The files stay where they are.",
+    "label": "Reuse saved game files",
+    "noPorts": "No ports offer file reuse here. Open the game’s page to check its other setup options.",
+    "refreshFirst": "Refresh the library before using these saved files.",
+    "repair": "Repair moved file location",
+    "repaired": "Location repaired. The saved original-file identity is unchanged: <path/>",
+    "reviewSetup": "Review <name/> setup using these files",
+    "select": "Saved game files",
+    "viewRequirements": "View <name/> requirements"
+  },
+  "route": {
+    "externalLaunch": "Existing installation launch",
+    "externalRegistration": "Existing installation setup",
+    "managedInstall": "Managed setup",
+    "managedLaunch": "Managed launch"
+  },
+  "setupReviews": {
+    "add": "Add {{total}} selected to Library",
+    "choiceNote_one": "One game has more than one version that can use the same files. Select the version you want; selecting all leaves them out.",
+    "choiceNote_other": "{{count}} games have more than one version that can use the same files. Select the version you want; selecting all leaves them out.",
+    "clear": "Clear setup selection",
+    "counts": "<status>{{selected}} selected</status> · {{eligible}} eligible",
+    "countsWithChoice_one": "<status>{{selected}} selected</status> · {{eligible}} eligible · {{count}} game needs a version choice",
+    "countsWithChoice_other": "<status>{{selected}} selected</status> · {{eligible}} eligible · {{count}} games need a version choice",
+    "heading": "Select games for setup review",
+    "intro": "Select games to review their setup, one at a time or together. Selecting a game doesn't register files or install anything.",
+    "label": "Selected setup reviews",
+    "remove": "Remove <name/> from selection",
+    "returnNote": "Return here after each review to continue.",
+    "review": "Review <name/> setup",
+    "reviewInstall": "Review installing {{total}} selected",
+    "selectAll": "Select all {{total}} eligible",
+    "selectMore": "Select {{total}} more eligible",
+    "unavailable": "Setup review is unavailable in the current view. Refresh the workspace and folders, or check game details for remaining requirements.",
+    "unvalidated": "Validation has not run for a selected input. Review setup requirements before continuing."
+  },
+  "state": {
+    "filesAvailable": "Compatible complete files available",
+    "filesMissing": "Files missing",
+    "needsChecking": "Needs checking",
+    "noFilesRequired": "No files to add in Portcove",
+    "unavailableContext": "Unavailable context"
+  },
+  "summary": {
+    "cancelled": "The latest check was cancelled. No current file check is available.",
+    "catalogHistory": "Catalog check history",
+    "catalogScope_one": "Catalog ({{count}} port)",
+    "catalogScope_other": "Catalog ({{count}} ports)",
+    "checkingCatalog": "Checking game files for the catalog…",
+    "checkingSelected": "Checking game files for this setup…",
+    "expired": "The file check expired. Check again.",
+    "expiredCatalog": "The previous file check expired. To check again, open Filters → Check game-file filters.",
+    "expiredSelected": "The previous file check expired. Use Check files for this option to check again.",
+    "failed": "The latest check failed. No current file check is available.",
+    "informationalCatalog": "The previous check is informational only. To check again, open Filters → Check game-file filters.",
+    "informationalSelected": "The previous check is informational only. Use Check files for this option to check again.",
+    "lastChecked": "Last checked: <time/>",
+    "missingCatalog": "Check game files before using game-file filters.",
+    "missingSelected": "No current game-file check for this selection. Check again.",
+    "previousCheck": "Previous check: <time/>",
+    "readyCatalog": "Game-file checks are ready to use in Filters.",
+    "readySelected": "Game-file check is current.",
+    "selectedHistory": "Selected-route check history",
+    "selectedScope": "Selected port",
+    "waiting": "Waiting for the previous check to finish."
+  },
+  "testResults": {
+    "detailsAvailable": "Download and test details are available in Technical details.",
+    "detailsMissing": "The tested download or test version wasn’t recorded.",
+    "earlierAutomated": "Earlier automated tests",
+    "earlierHandsOn": "Earlier hands-on tests",
+    "earlierNote": "These are earlier test results. Passing automated checks doesn’t confirm that the game plays correctly. These platform results don’t identify the exact download, edition or file format tested.",
+    "field": {
+      "artifact": "Recorded artifact SHA-256",
+      "checkVersion": "Recorded check version",
+      "contract": "Recorded contract",
+      "edition": "Recorded edition and format",
+      "observed": "Observed date (UTC)",
+      "platform": "Recorded platform",
+      "release": "Recorded release"
+    },
+    "heading": {
+      "bios": "BIOS recorded observations",
+      "game": "Game-file recorded observations"
+    },
+    "kind": {
+      "automated": "Automated lifecycle",
+      "handsOn": "Hands-on observation",
+      "knownFailure": "Known failure",
+      "structural": "Structural check",
+      "unknown": "Check kind unknown"
+    },
+    "kindOutcome": "{{kind}} · {{outcome}}",
+    "methodNotRecorded": "Method not recorded",
+    "noEarlierTests": "No earlier platform tests recorded",
+    "noRecords": "No matching recorded observations supplied by this report.",
+    "notConfirmed": "We haven’t confirmed whether these test results apply to your files, game version, or device.",
+    "notRecorded": "Not recorded",
+    "outcome": {
+      "failed": "Failed",
+      "notRun": "Not run",
+      "passed": "Passed",
+      "unknown": "Outcome unknown"
+    },
+    "partialCoverage": "<recorded/> · Not recorded: <missing/>",
+    "reportUnavailable": "File-check report unavailable for this requirement. Catalog evidence may still exist.",
+    "section": {
+      "bios": "Recorded BIOS checks",
+      "game": "Recorded game-file checks",
+      "technicalBios": "Technical recorded BIOS checks",
+      "technicalGame": "Technical recorded game-file checks"
+    },
+    "unverifiedScopes": "Some recorded scopes could not be verified for this requirement."
+  }
+}

@@ -51,16 +51,28 @@ test("synthetic viewport retention preserves complete observations, prefixes and
       );
       assert.deepEqual(await readFile(file), original);
     }
+    const artifacts: string[] = [];
     await assert.rejects(
       retainNativeEnlargement({ ...observed(), scroll: 242 }, window(), {
         output,
         prefix: "source-removal",
         stage: "invalid",
         baselineWidth: 960,
+        artifacts,
       }),
       /Horizontal overflow at invalid/,
     );
-    assert.equal((await readdir(output)).length, 2);
+    const diagnostic = path.join(output, "source-removal-400-invalid-failure.json");
+    assert.deepEqual(artifacts, [diagnostic]);
+    assert.deepEqual(JSON.parse(await readFile(diagnostic, "utf8")), {
+      ...observed(),
+      scroll: 242,
+      nativeWindow: window(),
+      baselineWidth: 960,
+      accepted: false,
+      failure: "AssertionError [ERR_ASSERTION]: Horizontal overflow at invalid",
+    });
+    assert.equal((await readdir(output)).length, 3);
   } finally {
     await rm(output, { recursive: true, force: true });
   }

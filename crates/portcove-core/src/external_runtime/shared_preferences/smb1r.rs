@@ -58,39 +58,9 @@ pub(super) fn resolve() -> Result<crate::SharedPreferencesReview> {
 /// let the game write outside the separately acknowledged directory.
 #[cfg(any(windows, test))]
 fn check_shared_tree(root: &std::path::Path) -> Result<()> {
-    if !super::check_path(root, true)? {
-        return Ok(());
-    }
-    let mut pending = vec![(root.to_path_buf(), 0_usize)];
-    let mut entries = 0_usize;
-    while let Some((directory, depth)) = pending.pop() {
-        if depth >= 32 || !super::check_path(&directory, true)? {
-            return Err(PortcoveError::verification(
-                "SMB1R shared directory changed or exceeds its metadata depth budget",
-            ));
-        }
-        for entry in std::fs::read_dir(&directory)? {
-            entries += 1;
-            if entries > 65_536 {
-                return Err(PortcoveError::verification(
-                    "SMB1R shared directory exceeds its metadata entry budget",
-                ));
-            }
-            let entry = entry?;
-            let path = entry.path();
-            let directory = entry.file_type()?.is_dir();
-            vanilla_entry(root, &path, directory)?;
-            if !super::check_path(&path, directory)? {
-                return Err(PortcoveError::verification(
-                    "SMB1R shared directory changed during metadata inspection",
-                ));
-            }
-            if directory {
-                pending.push((path, depth + 1));
-            }
-        }
-    }
-    Ok(())
+    super::check_bounded_tree(root, "SMB1R shared directory", |path, directory| {
+        vanilla_entry(root, path, directory)
+    })
 }
 
 /// Existing optional imports can execute Godot constructors or scenes even when

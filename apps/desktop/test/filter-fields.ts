@@ -23,20 +23,21 @@ export async function openFilterField(label: string) {
 }
 
 function filterFieldForChoice(name: string) {
-  if (/^(Windows|Linux|Apple silicon|Intel Mac|For this device) \(/.test(name)) return "Target OS";
-  if (/^(Stable|Preview|Rolling) \(/.test(name)) return "Release channels";
+  if (/^(Windows|Linux|Apple silicon|Intel Mac|Available for this device) \(/.test(name))
+    return "Runs on";
+  if (/^(Stable|Preview|Rolling) \(/.test(name)) return "Update channels";
   if (/^(In my library|Not in my library) \(/.test(name)) return "Library membership";
   if (/^(Available at last check|Matching update staged) \(/.test(name)) return "Observed updates";
   if (/^(Missing game files|Missing BIOS|Missing runtime|Repair needed|Finish setup) \(/.test(name))
     return "Installation attention";
-  if (/^(Portable upstream package|Original disc referenced at launch) \(/.test(name))
+  if (/^(Download and install|Original disc referenced at launch) \(/.test(name))
     return "Setup methods";
   if (
     /^(Compatible complete files available|Files missing|Needs checking|No files to add in Portcove|Unavailable context) \(/.test(
       name,
     )
   )
-    return "Game files for the observed route";
+    return "Game files";
   throw new Error(`No test fixture field registered for ${name}`);
 }
 

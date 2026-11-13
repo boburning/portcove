@@ -34,6 +34,19 @@ pub struct LaunchSpecRequest<'a> {
     pub selected_executable: &'a Path,
     pub source: Option<&'a Path>,
     pub source_record: Option<&'a SourceRecord>,
+    /// Observes a disc-image unpacking while preparing this launch. Reporting
+    /// only: it never grants authority and is ignored by every other adapter path.
+    pub(crate) disc_progress: Option<DiscProgressSink<'a>>,
+}
+
+/// `report(phase, completed, total)`; bytes are carried only by `Extract`.
+#[derive(Clone, Copy)]
+pub(crate) struct DiscProgressSink<'a>(pub(crate) &'a dyn Fn(DiscUnpackPhase, u64, Option<u64>));
+
+impl std::fmt::Debug for DiscProgressSink<'_> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str("DiscProgressSink")
+    }
 }
 
 pub trait Adapter: Send + Sync {
@@ -86,6 +99,7 @@ pub trait Adapter: Send + Sync {
                 selected_executable: &executable,
                 source,
                 source_record: source_record.as_ref(),
+                disc_progress: None,
             },
             &|| Ok(()),
         )
@@ -106,13 +120,33 @@ pub(crate) fn standard(kind: AdapterKind) -> impl Adapter {
     StandardAdapter(kind)
 }
 
+/// Create a declared named portable marker only when it is missing. An existing regular
+/// file is the engine's own configuration and is never truncated; anything else refuses.
+fn create_missing_portable_marker_file(working_directory: &Path, name: &str) -> Result<()> {
+    let marker = working_directory.join(name);
+    match std::fs::symlink_metadata(&marker) {
+        Ok(metadata) if metadata.file_type().is_file() => Ok(()),
+        Ok(_) => Err(PortcoveError::launch(format!(
+            "portable marker {name} is not a regular file"
+        ))),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+            std::fs::OpenOptions::new()
+                .write(true)
+                .create_new(true)
+                .open(&marker)?;
+            Ok(())
+        }
+        Err(error) => Err(error.into()),
+    }
+}
+
 pub(crate) fn launch_working_directory(
-    kind: AdapterKind,
     port: &PortDefinition,
     install_root: &Path,
     executable: &Path,
+    platform: Platform,
 ) -> Result<PathBuf> {
-    if let Some(relative) = &port.runtime_subdirectory {
+    if let Some(relative) = port.runtime_subdirectory_for(platform) {
         let directory = install_root.join(relative);
         if !directory.is_dir() || !executable.starts_with(&directory) {
             return Err(PortcoveError::launch(format!(
@@ -121,15 +155,12 @@ pub(crate) fn launch_working_directory(
             )));
         }
         Ok(directory)
-    } else if port.launch_from_install_root
-        || (kind == AdapterKind::N64RecompPortable && !port.n64_runtime_at_executable_parent)
-    {
-        Ok(install_root.to_path_buf())
     } else {
         Ok(crate::runtime::working_root_for_executable(
             port,
             install_root,
             executable,
+            platform,
         ))
     }
 }
@@ -205,6 +236,7 @@ impl Adapter for StandardAdapter {
                 selected_executable: &executable,
                 source,
                 source_record: source_record.as_ref(),
+                disc_progress: None,
             },
             &|| Ok(()),
         )
@@ -268,10 +300,17 @@ impl Adapter for StandardAdapter {
                 crate::path::unicode(&cache, "cache")?,
             );
         }
+        let working_directory =
+            launch_working_directory(port, install_root, &executable, platform)?;
         if self.0 == AdapterKind::LibultrashipPortable {
-            environment.insert("SHIP_HOME".into(), user_data_path.clone());
+            let ship_home =
+                if crate::installed_mutability::declared_shipwright_persistence(port, platform) {
+                    crate::path::unicode(&working_directory, "Shipwright working data")?
+                } else {
+                    user_data_path.clone()
+                };
+            environment.insert("SHIP_HOME".into(), ship_home);
         }
-        let working_directory = launch_working_directory(self.0, port, install_root, &executable)?;
         let immutable_managed_psx_source = self.0 == AdapterKind::PsxRecompManaged
             && port.runtime_source_materialization == Some(RuntimeSourceMaterialization::PsxRawSet);
         if !immutable_managed_psx_source
@@ -349,6 +388,25 @@ impl Adapter for StandardAdapter {
         };
         let mut arguments = port.launch_arguments.clone();
         arguments.extend(adapter_arguments);
+        if platform == Platform::LinuxX86_64
+            && port.external_profile_policy == Some(crate::ExternalProfilePolicy::Doom3LinuxV1)
+        {
+            arguments.extend(
+                crate::native_external_profile::doom3_linux::LAUNCH_ARGUMENTS.map(String::from),
+            );
+        }
+        if platform == Platform::LinuxX86_64
+            && port.external_profile_policy == Some(crate::ExternalProfilePolicy::VkquakeLinuxV1)
+        {
+            // Keep the same managed data root if a compatible package enables DO_USERDIRS.
+            arguments.extend(["-userdir".into(), ".".into()]);
+        }
+        if platform == Platform::LinuxX86_64
+            && port.external_profile_policy == Some(crate::ExternalProfilePolicy::JgrppLinuxV1)
+        {
+            // Use the default XDG profile and the reviewed package search roots.
+            arguments.push("-X".into());
+        }
         for recipe in port.release.managed_build.values() {
             recipe.require_runtime_environment()?;
         }
@@ -356,6 +414,12 @@ impl Adapter for StandardAdapter {
             fixed_arguments_only: port.managed_initialization.is_some()
                 || port.managed_shared_preferences.is_some()
                 || port.runtime_data_policy.is_some()
+                || crate::native_portable_data::directory_name(port, platform).is_some()
+                || port.external_profile_policy.is_some_and(|policy| {
+                    crate::native_external_profile::applies_to(policy, platform)
+                })
+                || (platform != Platform::WindowsX86_64
+                    && crate::native_temp::has_sibling_platforms(port))
                 || port
                     .release
                     .managed_build
@@ -400,7 +464,11 @@ impl Adapter for StandardAdapter {
             ));
         }
         let executable = selected_executable.to_path_buf();
-        let working_directory = launch_working_directory(self.0, port, install_root, &executable)?;
+        let working_directory =
+            launch_working_directory(port, install_root, &executable, platform)?;
+        if let Some(name) = crate::native_portable_data::directory_name(port, platform) {
+            crate::native_portable_data::prepare(install_root, &executable, name, checkpoint)?;
+        }
         let retained_setup_is_current = self.0 == AdapterKind::UpstreamManagedSetup
             && !crate::preparation::managed(port)
             && retain_completed_upstream_setup(request, &working_directory, checkpoint)?;
@@ -411,6 +479,7 @@ impl Adapter for StandardAdapter {
         std::fs::create_dir_all(&user_data)?;
         crate::native_temp::prepare(
             port,
+            platform,
             install_root,
             &working_directory,
             &executable,
@@ -438,6 +507,9 @@ impl Adapter for StandardAdapter {
         if self.0 == AdapterKind::N64RecompPortable || port.portable_marker {
             std::fs::write(working_directory.join("portable.txt"), b"")?;
         }
+        if let Some(name) = &port.portable_marker_file {
+            create_missing_portable_marker_file(&working_directory, name)?;
+        }
         let sealed_source = crate::preparation::source::sealed(library, port, install_root)?;
         let immutable_managed_psx_source = self.0 == AdapterKind::PsxRecompManaged
             && port.runtime_source_materialization == Some(RuntimeSourceMaterialization::PsxRawSet);
@@ -461,30 +533,36 @@ impl Adapter for StandardAdapter {
             let materialization = port
                 .runtime_source_materialization
                 .unwrap_or(RuntimeSourceMaterialization::N64BigEndian);
-            if let Some(record) = request.source_record {
-                if record.path != source {
-                    return Err(PortcoveError::verification(
-                        "runtime source does not match its admitted record",
-                    ));
+            let forward = |phase: DiscUnpackPhase, completed: u64, total: Option<u64>| {
+                if let Some(sink) = request.disc_progress {
+                    (sink.0)(phase, completed, total);
                 }
-                prepare_admitted_runtime_source(
-                    record,
-                    &stored_source,
-                    materialization,
-                    &port.runtime_source_hashes,
-                    None,
-                    checkpoint,
-                    crate::tool_process::ToolProcessObserver::default(),
-                )?;
-            } else {
-                prepare_runtime_source(
-                    source,
-                    &stored_source,
-                    materialization,
-                    &port.runtime_source_hashes,
-                    checkpoint,
-                )?;
-            }
+            };
+            let disc = port.runtime_disc_image.as_ref().map(|profile| DiscUnpack {
+                profile,
+                report: &forward,
+            });
+            let input = match request.source_record {
+                Some(record) => {
+                    if record.path != source {
+                        return Err(PortcoveError::verification(
+                            "runtime source does not match its admitted record",
+                        ));
+                    }
+                    RuntimeSourceInput::Admitted(record)
+                }
+                None => RuntimeSourceInput::Legacy(source),
+            };
+            prepare_runtime_source_input(
+                input,
+                &stored_source,
+                materialization,
+                &port.runtime_source_hashes,
+                None,
+                checkpoint,
+                crate::tool_process::ToolProcessObserver::default(),
+                disc.as_ref(),
+            )?;
             checkpoint()?;
         }
         (self.0 == AdapterKind::PsxRecompManaged)
@@ -739,6 +817,80 @@ pub(crate) fn prepare_runtime_source_with_tool(
         pinned_host_tool,
         checkpoint,
         observer,
+        None,
+    )
+}
+
+/// Phases of a disc-image unpacking, in the order they are reported.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum DiscUnpackPhase {
+    Identify,
+    Plan,
+    FreeSpace,
+    Extract,
+    Verify,
+    Activate,
+}
+
+impl DiscUnpackPhase {
+    /// Stable machine id shared with operation events and CLI phase names.
+    pub(crate) fn id(self) -> &'static str {
+        match self {
+            Self::Identify => "disc.identify",
+            Self::Plan => "disc.plan",
+            Self::FreeSpace => "disc.free-space",
+            Self::Extract => "disc.extract",
+            Self::Verify => "disc.verify",
+            Self::Activate => "disc.activate",
+        }
+    }
+}
+
+/// Passes an extract report only when the whole percent changes, so a multi-GB
+/// image yields at most 101 reports however many chunks it copies. The first
+/// report and the final one (`completed == total`) are always passed.
+#[derive(Default)]
+pub(crate) struct ExtractProgressCoalescer(std::cell::Cell<Option<u64>>);
+
+impl ExtractProgressCoalescer {
+    pub(crate) fn admit(&self, completed: u64, total: u64) -> bool {
+        let percent = if total == 0 {
+            100
+        } else {
+            (u128::from(completed) * 100 / u128::from(total)).min(100) as u64
+        };
+        let changed = self.0.get() != Some(percent);
+        self.0.set(Some(percent));
+        changed
+    }
+}
+
+/// Catalog-declared disc-image facts plus an optional progress observer.
+/// `report(phase, completed, total)` carries bytes only for `Extract`.
+pub(crate) struct DiscUnpack<'a> {
+    pub(crate) profile: &'a crate::DiscImageProfile,
+    pub(crate) report: &'a dyn Fn(DiscUnpackPhase, u64, Option<u64>),
+}
+
+#[cfg(test)]
+pub(crate) fn prepare_disc_runtime_source(
+    source: &Path,
+    destination: &Path,
+    materialization: RuntimeSourceMaterialization,
+    required_hashes: &BTreeMap<String, String>,
+    pinned_host_tool: Option<&Path>,
+    disc: &DiscUnpack<'_>,
+    checkpoint: &dyn Fn() -> Result<()>,
+) -> Result<()> {
+    prepare_runtime_source_input(
+        RuntimeSourceInput::Legacy(source),
+        destination,
+        materialization,
+        required_hashes,
+        pinned_host_tool,
+        checkpoint,
+        crate::tool_process::ToolProcessObserver::default(),
+        Some(disc),
     )
 }
 
@@ -759,6 +911,7 @@ pub(crate) fn prepare_admitted_runtime_source(
         pinned_host_tool,
         checkpoint,
         observer,
+        None,
     )
 }
 
@@ -767,6 +920,7 @@ enum RuntimeSourceInput<'a> {
     Admitted(&'a SourceRecord),
 }
 
+#[allow(clippy::too_many_arguments)]
 fn prepare_runtime_source_input(
     input: RuntimeSourceInput<'_>,
     destination: &Path,
@@ -775,6 +929,7 @@ fn prepare_runtime_source_input(
     pinned_host_tool: Option<&Path>,
     checkpoint: &dyn Fn() -> Result<()>,
     observer: crate::tool_process::ToolProcessObserver<'_>,
+    disc: Option<&DiscUnpack<'_>>,
 ) -> Result<()> {
     let (source, admitted_zip) = match input {
         RuntimeSourceInput::Legacy(path) => (path, None),
@@ -798,7 +953,9 @@ fn prepare_runtime_source_input(
     let destination_ready = match materialization {
         RuntimeSourceMaterialization::PsxBinCue
         | RuntimeSourceMaterialization::PsxRawSet
-        | RuntimeSourceMaterialization::StfsDirectory => destination.is_dir(),
+        | RuntimeSourceMaterialization::StfsDirectory
+        | RuntimeSourceMaterialization::XdvdfsDirectory
+        | RuntimeSourceMaterialization::Iso9660Directory => destination.is_dir(),
         _ => destination.is_file(),
     };
     let reusable = destination_ready
@@ -844,7 +1001,7 @@ fn prepare_runtime_source_input(
         RuntimeSourceMaterialization::PsxRawSet => materialize_psx_set(
             source,
             destination,
-            false,
+            None,
             pinned_host_tool,
             checkpoint,
             observer,
@@ -854,6 +1011,24 @@ fn prepare_runtime_source_input(
         }
         RuntimeSourceMaterialization::StfsDirectory => {
             materialize_stfs_directory(source, destination, required_hashes, checkpoint)?
+        }
+        RuntimeSourceMaterialization::XdvdfsDirectory
+        | RuntimeSourceMaterialization::Iso9660Directory => {
+            let disc = disc.ok_or_else(|| {
+                PortcoveError::usage("disc-image unpacking requires its catalog disc-image profile")
+            })?;
+            materialize_disc_directory(
+                source,
+                destination,
+                materialization,
+                required_hashes,
+                pinned_host_tool,
+                disc,
+                checkpoint,
+                observer,
+            )?;
+            // The staged tree was verified before it replaced the runtime; the
+            // shared post-step below re-reads only the anchors.
         }
     }
     checkpoint()?;
@@ -1085,6 +1260,190 @@ fn materialize_stfs_directory(
     replaced
 }
 
+#[allow(clippy::too_many_arguments)]
+fn materialize_disc_directory(
+    source: &Path,
+    destination: &Path,
+    materialization: RuntimeSourceMaterialization,
+    required_hashes: &BTreeMap<String, String>,
+    pinned_host_tool: Option<&Path>,
+    disc: &DiscUnpack<'_>,
+    checkpoint: &dyn Fn() -> Result<()>,
+    observer: crate::tool_process::ToolProcessObserver<'_>,
+) -> Result<()> {
+    use crate::disc_filesystem::{DiscImage, ensure_free_space};
+    let format = materialization
+        .disc_image_format()
+        .ok_or_else(|| PortcoveError::usage("not a disc-image materialization"))?;
+    if format != disc.profile.format || required_hashes.is_empty() {
+        return Err(PortcoveError::usage(
+            "disc-image unpacking requires a matching format and at least one anchor hash",
+        ));
+    }
+    let parent = destination
+        .parent()
+        .ok_or_else(|| PortcoveError::state("disc-image destination has no parent directory"))?;
+    crate::path::refuse_symlink_ancestors(parent)?;
+    std::fs::create_dir_all(parent)?;
+    // Staging left behind by an interrupted unpacking is never reused.
+    if let Ok(entries) = std::fs::read_dir(parent) {
+        for entry in entries.flatten() {
+            if entry
+                .file_name()
+                .to_string_lossy()
+                .starts_with(".portcove-disc-")
+            {
+                let path = entry.path();
+                let _ = if path.is_dir() {
+                    std::fs::remove_dir_all(&path)
+                } else {
+                    std::fs::remove_file(&path)
+                };
+            }
+        }
+    }
+    let report = |phase: DiscUnpackPhase| {
+        (disc.report)(phase, 0, None);
+        checkpoint()
+    };
+
+    // A CHD is first turned into a private ISO beside the destination; it is
+    // removed on every path, and is never the registered source.
+    let mut staged_iso = None;
+    let mut staged_cd = None;
+    let is_chd = source
+        .extension()
+        .and_then(|value| value.to_str())
+        .is_some_and(|value| value.eq_ignore_ascii_case("chd"));
+    if is_chd && format != crate::DiscImageFormat::Iso9660 {
+        return Err(PortcoveError::source(
+            "only PlayStation 2 and PSP images can be read from a CHD",
+        ));
+    }
+    let container = if is_chd {
+        crate::disc_filesystem::DiscContainer::Plain
+    } else {
+        crate::disc_filesystem::sniff_container(source)?
+    };
+    let is_cso = container == crate::disc_filesystem::DiscContainer::Cso;
+    if is_cso && format != crate::DiscImageFormat::Iso9660 {
+        return Err(PortcoveError::source(
+            "only PlayStation 2 and PSP images can be read from a CSO",
+        ));
+    }
+    let temporary = parent.join(format!(".portcove-disc-{}", Uuid::new_v4()));
+    let outcome = (|| -> Result<()> {
+        let image_path = if is_cso {
+            // A CSO is inflated to a private ISO beside the destination, removed on every
+            // path and never the registered source; the unpack then reads that ISO.
+            let header = crate::disc_filesystem::cso_header(source)?;
+            if header.total_bytes
+                > disc
+                    .profile
+                    .max_image_bytes
+                    .min(crate::disc_filesystem::MAX_IMAGE_BYTES)
+            {
+                return Err(PortcoveError::source(
+                    "the disc image is larger than this port allows",
+                )
+                .with_known_cause(crate::failure::KnownFailureCause::DiscImageLimit));
+            }
+            ensure_free_space(parent, header.total_bytes.saturating_mul(2))?;
+            let iso = parent.join(format!(".portcove-disc-{}.iso", Uuid::new_v4()));
+            staged_iso = Some(iso.clone());
+            crate::disc_filesystem::expand_cso(source, &header, &iso, checkpoint)?;
+            iso
+        } else if is_chd {
+            let logical = crate::disc_filesystem::chd_logical_bytes(source)?;
+            let cd = crate::disc_filesystem::chd_is_cd(source)?;
+            // A CD's logical size counts 2448-byte frames; its ISO (2048 per sector) is
+            // bounded exactly when the track is converted, so only a DVD is checked here.
+            if !cd
+                && logical
+                    > disc
+                        .profile
+                        .max_image_bytes
+                        .min(crate::disc_filesystem::MAX_IMAGE_BYTES)
+            {
+                return Err(PortcoveError::source(
+                    "the disc image is larger than this port allows",
+                )
+                .with_known_cause(crate::failure::KnownFailureCause::DiscImageLimit));
+            }
+            // The private ISO and the unpacked tree coexist until the ISO is removed.
+            ensure_free_space(parent, logical.saturating_mul(2))?;
+            let iso = parent.join(format!(".portcove-disc-{}.iso", Uuid::new_v4()));
+            staged_iso = Some(iso.clone());
+            if cd {
+                // A CD-type CHD (many PS2 CDs): extract the CD privately, then convert its
+                // first data track to a plain ISO. Both are removed on every path.
+                let scratch = parent.join(format!(".portcove-disc-{}-cd", Uuid::new_v4()));
+                staged_cd = Some(scratch.clone());
+                let cue = materialize_psx_chd_with_tool(
+                    source,
+                    &scratch,
+                    pinned_host_tool,
+                    checkpoint,
+                    observer,
+                )?;
+                let (name, mode) = crate::disc_filesystem::first_cd_track(
+                    &std::fs::read_to_string(&cue).map_err(|_| {
+                        PortcoveError::source("the CD image's cue sheet is not readable")
+                    })?,
+                )?;
+                crate::disc_filesystem::cd_track_to_iso(
+                    &scratch.join(name),
+                    mode,
+                    &iso,
+                    disc.profile.max_image_bytes,
+                    checkpoint,
+                )?;
+            } else {
+                extract_chd_dvd(source, &iso, pinned_host_tool, checkpoint, observer)?;
+            }
+            iso
+        } else {
+            source.to_path_buf()
+        };
+        report(DiscUnpackPhase::Identify)?;
+        let mut image = DiscImage::open(&image_path, format, disc.profile.max_image_bytes)?;
+        crate::disc_product::require_product_code(
+            &mut image,
+            format,
+            &disc.profile.product_codes,
+            checkpoint,
+        )?;
+        report(DiscUnpackPhase::Plan)?;
+        let plan = image.plan(checkpoint)?;
+        report(DiscUnpackPhase::FreeSpace)?;
+        ensure_free_space(parent, plan.expanded_bytes)?;
+        checkpoint()?;
+        let coalesce = ExtractProgressCoalescer::default();
+        if coalesce.admit(0, plan.expanded_bytes) {
+            (disc.report)(DiscUnpackPhase::Extract, 0, Some(plan.expanded_bytes));
+        }
+        image.extract(&plan, &temporary, checkpoint, &|done, total| {
+            if coalesce.admit(done, total) {
+                (disc.report)(DiscUnpackPhase::Extract, done, Some(total));
+            }
+        })?;
+        report(DiscUnpackPhase::Verify)?;
+        verify_runtime_source_hashes(&temporary, required_hashes, checkpoint)?;
+        report(DiscUnpackPhase::Activate)?;
+        replace_directory_transactional(&temporary, destination)
+    })();
+    if let Some(iso) = staged_iso {
+        let _ = std::fs::remove_file(iso);
+    }
+    if let Some(scratch) = staged_cd {
+        let _ = std::fs::remove_dir_all(scratch);
+    }
+    if outcome.is_err() {
+        let _ = std::fs::remove_dir_all(&temporary);
+    }
+    outcome
+}
+
 fn verify_runtime_source_hashes(
     destination: &Path,
     required_hashes: &BTreeMap<String, String>,
@@ -1230,6 +1589,96 @@ fn managed_psx_materialized_discs(
     Ok(cues)
 }
 
+/// Discs a player may choose at launch for a managed multi-disc PS1 install.
+///
+/// The count comes from the given (retained, verified) catalog's source
+/// profile, never from the install directory: the catalog admits a
+/// `psx-raw-set` managed route only with at least two discs of one exact track
+/// count each, and installation materializes exactly one `disc-NN` cue and
+/// data-track pair per profile disc, with any further tracks as
+/// `disc-NN-tTT.bin`.
+/// Only definitions with a reviewed `launch_disc_choice` offer a choice.
+pub(crate) fn managed_psx_selectable_discs(
+    catalog: &crate::Catalog,
+    port: &PortDefinition,
+) -> Option<u32> {
+    if port.adapter != AdapterKind::PsxRecompManaged
+        || port.runtime_source_materialization != Some(RuntimeSourceMaterialization::PsxRawSet)
+        || port.launch_disc_choice != Some(crate::LaunchDiscChoice::PsxSettingsSelected)
+    {
+        return None;
+    }
+    let profile = catalog
+        .source_profile(port.source_profile.as_deref()?)
+        .ok()?;
+    let count = profile.disc.as_ref()?.discs.len();
+    (count >= 2).then(|| u32::try_from(count).ok()).flatten()
+}
+
+/// Refuses a launch disc selection the effective contract cannot honour.
+pub(crate) fn require_managed_psx_disc_selection(
+    catalog: &crate::Catalog,
+    port: &PortDefinition,
+    disc: u32,
+) -> Result<()> {
+    let Some(count) = managed_psx_selectable_discs(catalog, port) else {
+        return Err(PortcoveError::unsupported(format!(
+            "{} does not offer a disc choice. Only installed games with more than one disc do.",
+            port.name
+        )));
+    };
+    if disc == 0 || disc > count {
+        return Err(PortcoveError::usage(format!(
+            "Choose a disc from 1 to {count} for {}.",
+            port.name
+        ))
+        .detail("selectable_discs", count.to_string())
+        .detail("requested_disc", disc.to_string()));
+    }
+    Ok(())
+}
+
+/// Records a chosen disc as the PSXRecomp runtime's own `[disc] selected`
+/// setting beside the prepared player, the route its settings document for an
+/// external launcher. The runtime then mounts that disc from the generated
+/// roster and scopes save states to it. A `--disc` override is not used: it
+/// mounts the disc but keeps the previously saved save-state scope.
+///
+/// The settings file is restored player data; the choice persists like a
+/// choice made in the upstream launcher and is captured with the session.
+pub(crate) fn record_managed_psx_disc_choice(
+    catalog: &crate::Catalog,
+    port: &PortDefinition,
+    spec: &LaunchSpec,
+    disc: u32,
+) -> Result<()> {
+    require_managed_psx_disc_selection(catalog, port, disc)?;
+    let present = managed_psx_materialized_discs(port, &spec.working_directory)
+        .map_err(|error| {
+            PortcoveError::launch(format!(
+                "Disc {disc} of {} is missing from the installed game. Repair the game, then try again.",
+                port.name
+            ))
+            .detail("disc_materialization", error.message)
+        })?
+        .len();
+    if usize::try_from(disc).map_or(true, |disc| disc > present) {
+        return Err(PortcoveError::launch(format!(
+            "Disc {disc} of {} is missing from the installed game. Repair the game, then try again.",
+            port.name
+        )));
+    }
+    // The runtime reads settings.toml beside its own executable.
+    let player_directory = spec
+        .executable
+        .parent()
+        .filter(|parent| *parent == spec.working_directory)
+        .ok_or_else(|| {
+            PortcoveError::state("managed PS1 player is not in its runtime directory")
+        })?;
+    crate::psx::select_settings_disc(&player_directory.join("settings.toml"), disc)
+}
+
 fn prepare_managed_psx_runtime_config(
     working_directory: &Path,
     discs: &[PathBuf],
@@ -1261,7 +1710,7 @@ fn is_numbered_psx_cue(name: &str) -> bool {
         && bytes[7..].eq_ignore_ascii_case(b".cue")
 }
 
-fn runtime_source_marker_path(destination: &Path) -> Result<PathBuf> {
+pub(crate) fn runtime_source_marker_path(destination: &Path) -> Result<PathBuf> {
     let name = destination
         .file_name()
         .and_then(|value| value.to_str())
@@ -1379,6 +1828,14 @@ fn copy_runtime_reader(
 #[path = "source_conversion_tests.rs"]
 mod source_conversion_tests;
 
+#[cfg(test)]
+#[path = "disc_materialization_tests.rs"]
+mod disc_materialization_tests;
+
+#[cfg(test)]
+#[path = "psx_cue_set_tests.rs"]
+mod psx_cue_set_tests;
+
 fn materialize_ps2_iso(
     source: &Path,
     destination: &Path,
@@ -1400,6 +1857,18 @@ fn materialize_ps2_iso(
         )));
     }
     let temporary = destination.with_extension(format!("tmp-{}.iso", Uuid::new_v4()));
+    extract_chd_dvd(source, &temporary, pinned_tool, checkpoint, observer)?;
+    replace_atomic(&temporary, destination)
+}
+
+/// Produce a DVD ISO from a CHD with the locally supplied `chdman`.
+fn extract_chd_dvd(
+    source: &Path,
+    temporary: &Path,
+    pinned_tool: Option<&Path>,
+    checkpoint: &dyn Fn() -> Result<()>,
+    observer: crate::tool_process::ToolProcessObserver<'_>,
+) -> Result<()> {
     let program = pinned_tool
         .map(Path::to_path_buf)
         .map_or_else(resolve_chdman, Ok)?;
@@ -1409,7 +1878,7 @@ fn materialize_ps2_iso(
         .arg("-i")
         .arg(source)
         .arg("-o")
-        .arg(&temporary);
+        .arg(temporary);
     let output = crate::tool_process::run_tool(&mut command, checkpoint, observer)?;
     if !output.status.success() {
         // Retain the private partial output for the lifecycle owner to review.
@@ -1425,7 +1894,7 @@ fn materialize_ps2_iso(
             "chdman completed without producing a PS2 ISO",
         ));
     }
-    replace_atomic(&temporary, destination)
+    Ok(())
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -1482,8 +1951,9 @@ fn retain_completed_upstream_setup(
             != std::fs::canonicalize(request.selected_executable)?
         || crate::retained_build::references_from(&connection)?
             .iter()
-            .filter(|reference| reference.build.install_id == install.id)
-            .any(|reference| reference.build != identity)
+            .flat_map(|reference| reference.retained_builds())
+            .filter(|build| build.install_id == install.id)
+            .any(|build| *build != identity)
     {
         return Err(PortcoveError::verification(
             "legacy setup differs from its retained build identity",
@@ -1808,21 +2278,33 @@ fn materialize_psx_bin_cue(
     replace_directory_transactional(&temporary, destination)
 }
 
-pub(crate) fn materialize_psx_cue_set(source: &Path, destination: &Path) -> Result<()> {
+/// Managed PS1 readers that keep every track of a multi-track disc set.
+pub(crate) const PSX_MULTI_TRACK_SET_CAPABILITY: u32 = 4;
+
+/// Extracts a managed disc set with a rewritten cue per disc. `track_counts`
+/// holds each disc's exact catalog track count, in disc order.
+pub(crate) fn materialize_psx_cue_set(
+    source: &Path,
+    destination: &Path,
+    track_counts: &[u32],
+    pinned_tool: Option<&Path>,
+) -> Result<()> {
     materialize_psx_set(
         source,
         destination,
-        true,
-        None,
+        Some(track_counts),
+        pinned_tool,
         &|| Ok(()),
         crate::tool_process::ToolProcessObserver::default(),
     )
 }
 
+/// `retained_tracks` is `None` for a staged set, which keeps only each disc's
+/// data track, and each disc's exact track count for a managed cue set.
 fn materialize_psx_set(
     source: &Path,
     destination: &Path,
-    retain_cues: bool,
+    retained_tracks: Option<&[u32]>,
     pinned_tool: Option<&Path>,
     checkpoint: &dyn Fn() -> Result<()>,
     mut observer: crate::tool_process::ToolProcessObserver<'_>,
@@ -1840,6 +2322,11 @@ fn materialize_psx_set(
             "multi-disc PS1 runtime extraction requires at least two CHDs: {}",
             source.display()
         )));
+    }
+    if retained_tracks.is_some_and(|counts| counts.len() != sources.len()) {
+        return Err(PortcoveError::verification(
+            "managed PS1 disc set does not match its catalog disc count",
+        ));
     }
     let parent = destination
         .parent()
@@ -1875,40 +2362,14 @@ fn materialize_psx_set(
             // A later command cannot erase an earlier uncertain process owner.
             all_tools_quiesced &= command_quiesced;
             let cue = cue?;
-            let (track_count, data_track) = inspect_psx_cue(&cue)?;
-            let bin_name = format!("disc-{:02}.bin", index + 1);
-            let bin_destination = temporary.join(&bin_name);
-            std::fs::rename(&data_track, &bin_destination)?;
-            if retain_cues {
-                if track_count != 1 {
-                    return Err(PortcoveError::source(format!(
-                        "managed PS1 runtime source requires one data track per disc; {} has {track_count}",
-                        source.display()
-                    )));
-                }
-                let cue_body = std::fs::read_to_string(&cue)?;
-                let mut file_lines = 0_u32;
-                let rewritten = cue_body
-                    .lines()
-                    .map(|line| {
-                        if line.trim_start().starts_with("FILE ") {
-                            file_lines += 1;
-                            format!("FILE \"{bin_name}\" BINARY")
-                        } else {
-                            line.to_string()
-                        }
-                    })
-                    .collect::<Vec<_>>()
-                    .join("\n");
-                if file_lines != 1 {
-                    return Err(PortcoveError::source(format!(
-                        "managed PS1 cue sheet must contain exactly one FILE entry: {}",
-                        cue.display()
-                    )));
-                }
-                std::fs::write(
-                    temporary.join(format!("disc-{:02}.cue", index + 1)),
-                    format!("{rewritten}\n"),
+            if let Some(track_counts) = retained_tracks {
+                place_psx_cue_disc(&cue, &temporary, index + 1, track_counts[index])
+                    .map_err(|error| error.detail("disc", (index + 1).to_string()))?;
+            } else {
+                let (_, data_track) = inspect_psx_cue(&cue)?;
+                std::fs::rename(
+                    &data_track,
+                    temporary.join(format!("disc-{:02}.bin", index + 1)),
                 )?;
             }
             std::fs::remove_dir_all(&extracted)?;
@@ -2053,7 +2514,169 @@ impl AdapterRegistry {
 }
 
 pub(crate) fn hash_file(path: &Path) -> Result<(String, u64)> {
-    hash_file_with_checkpoint(path, || Ok(()))
+    let mut file = File::open(path)?;
+    let before = preview_digest::Fingerprint::of(&file);
+    if let Some(cached) = before
+        .as_ref()
+        .and_then(|fingerprint| preview_digest::lookup(path, fingerprint))
+    {
+        return Ok(cached);
+    }
+    let digest = hash_reader_with_checkpoint(&mut file, || Ok(()))?;
+    if let Some(before) = before
+        && preview_digest::Fingerprint::of(&file).as_ref() == Some(&before)
+    {
+        preview_digest::record(path, before, &digest);
+    }
+    Ok(digest)
+}
+
+/// Read-only previews (status hydration and rollback availability) run full
+/// integrity verification for every retained install on every refresh. Inside
+/// an explicit [`preview_digest::PreviewScope`] a file whose identity metadata
+/// is unchanged since a completed hash reuses that digest. Outside a scope —
+/// installation, activation, rollback execution and launch — every call hashes
+/// the current bytes, so executable trust and execution-time integrity are
+/// unchanged; a preview can only be corrected by that execution-time check.
+pub(crate) mod preview_digest {
+    use std::{
+        cell::Cell,
+        collections::HashMap,
+        fs::File,
+        path::{Path, PathBuf},
+        sync::Mutex,
+        time::SystemTime,
+    };
+
+    const CAPACITY: usize = 50_000;
+
+    #[derive(Debug, Clone, PartialEq, Eq)]
+    pub(crate) struct Fingerprint {
+        len: u64,
+        modified: Option<SystemTime>,
+        created: Option<SystemTime>,
+        #[cfg(unix)]
+        identity: (u64, u64, i64, i64),
+        /// Volume serial, file index and change time: a same-size copy that
+        /// preserves LastWriteTime (and tunnels CreationTime) still differs.
+        #[cfg(windows)]
+        identity: (u32, u64, i64),
+    }
+
+    impl Fingerprint {
+        pub(crate) fn of(file: &File) -> Option<Self> {
+            let metadata = file.metadata().ok()?;
+            if !metadata.is_file() {
+                return None;
+            }
+            Some(Self {
+                len: metadata.len(),
+                modified: metadata.modified().ok(),
+                created: metadata.created().ok(),
+                #[cfg(unix)]
+                identity: {
+                    use std::os::unix::fs::MetadataExt;
+                    (
+                        metadata.dev(),
+                        metadata.ino(),
+                        metadata.ctime(),
+                        metadata.ctime_nsec(),
+                    )
+                },
+                #[cfg(windows)]
+                identity: windows_identity(file)?,
+            })
+        }
+    }
+
+    #[cfg(windows)]
+    fn windows_identity(file: &File) -> Option<(u32, u64, i64)> {
+        use std::os::windows::io::AsRawHandle;
+        use windows_sys::Win32::Storage::FileSystem::{
+            BY_HANDLE_FILE_INFORMATION, FILE_BASIC_INFO, FileBasicInfo, GetFileInformationByHandle,
+            GetFileInformationByHandleEx,
+        };
+        let handle = file.as_raw_handle();
+        // SAFETY: the handle belongs to `file` for the duration of both calls,
+        // and each output buffer has the exact size the API is given.
+        unsafe {
+            let mut information: BY_HANDLE_FILE_INFORMATION = std::mem::zeroed();
+            if GetFileInformationByHandle(handle as _, &mut information) == 0 {
+                return None;
+            }
+            let mut basic: FILE_BASIC_INFO = std::mem::zeroed();
+            if GetFileInformationByHandleEx(
+                handle as _,
+                FileBasicInfo,
+                std::ptr::from_mut(&mut basic).cast(),
+                std::mem::size_of::<FILE_BASIC_INFO>() as u32,
+            ) == 0
+            {
+                return None;
+            }
+            let index = (u64::from(information.nFileIndexHigh) << 32)
+                | u64::from(information.nFileIndexLow);
+            Some((information.dwVolumeSerialNumber, index, basic.ChangeTime))
+        }
+    }
+
+    type Entry = (Fingerprint, String, u64);
+    static DIGESTS: Mutex<Option<HashMap<PathBuf, Entry>>> = Mutex::new(None);
+
+    thread_local! {
+        static ACTIVE: Cell<bool> = const { Cell::new(false) };
+    }
+
+    /// Enables digest reuse on this thread until dropped.
+    /// Not `Send`: the scope must stay on the thread whose verification it
+    /// relaxes, so it can never be moved onto other work across an `.await`.
+    pub(crate) struct PreviewScope {
+        previous: bool,
+        _thread_bound: std::marker::PhantomData<*const ()>,
+    }
+
+    impl PreviewScope {
+        pub(crate) fn enter() -> Self {
+            Self {
+                previous: ACTIVE.with(|active| active.replace(true)),
+                _thread_bound: std::marker::PhantomData,
+            }
+        }
+    }
+
+    impl Drop for PreviewScope {
+        fn drop(&mut self) {
+            ACTIVE.with(|active| active.set(self.previous));
+        }
+    }
+
+    pub(crate) fn lookup(path: &Path, fingerprint: &Fingerprint) -> Option<(String, u64)> {
+        if !ACTIVE.with(Cell::get) {
+            return None;
+        }
+        let digests = DIGESTS.lock().ok()?;
+        let (recorded, sha256, size) = digests.as_ref()?.get(path)?;
+        (recorded == fingerprint).then(|| (sha256.clone(), *size))
+    }
+
+    /// Every completed, metadata-stable hash refreshes the entry, so a strict
+    /// execution-time hash also corrects what later previews observe.
+    pub(crate) fn record(path: &Path, fingerprint: Fingerprint, digest: &(String, u64)) {
+        if fingerprint.len != digest.1 {
+            return;
+        }
+        let Ok(mut digests) = DIGESTS.lock() else {
+            return;
+        };
+        let digests = digests.get_or_insert_with(HashMap::new);
+        if digests.len() >= CAPACITY && !digests.contains_key(path) {
+            digests.clear();
+        }
+        digests.insert(
+            path.to_path_buf(),
+            (fingerprint, digest.0.clone(), digest.1),
+        );
+    }
 }
 
 pub(crate) fn hash_file_with_checkpoint(
@@ -3184,7 +3807,7 @@ fn resolve_host_tool_path(
     crate::host_tools::require_path(&status, &candidates)
 }
 
-pub(crate) fn inspect_psx_cue(cue: &Path) -> Result<(u32, PathBuf)> {
+fn read_psx_cue(cue: &Path) -> Result<String> {
     let mut body = String::new();
     File::open(cue)?
         .take(64 * 1024 + 1)
@@ -3194,6 +3817,128 @@ pub(crate) fn inspect_psx_cue(cue: &Path) -> Result<(u32, PathBuf)> {
             "cue sheet exceeds its bounded metadata size",
         ));
     }
+    Ok(body)
+}
+
+/// One track file of a managed disc: its extracted name and its runtime name.
+#[derive(Debug, PartialEq, Eq)]
+pub(crate) struct PsxTrackFile {
+    pub extracted: String,
+    pub runtime: String,
+}
+
+/// Rewrites an extracted cue sheet for disc `disc` of a managed set.
+///
+/// Every FILE entry must name a distinct single-component file and carry
+/// exactly one TRACK, and the sheet must hold exactly `expected_tracks`
+/// tracks. The data track becomes `disc-NN.bin` and track TT becomes
+/// `disc-NN-tTT.bin`; every other line, including INDEX, PREGAP and POSTGAP,
+/// is kept in order.
+pub(crate) fn rewrite_psx_cue(
+    body: &str,
+    disc: usize,
+    expected_tracks: u32,
+) -> Result<(String, Vec<PsxTrackFile>)> {
+    let mut files: Vec<PsxTrackFile> = Vec::new();
+    let mut tracks_per_file = Vec::new();
+    let mut tracks = 0_u32;
+    let mut lines = Vec::new();
+    for line in body.lines() {
+        let trimmed = line.trim_start();
+        if let Some(value) = trimmed.strip_prefix("FILE ") {
+            let extracted = value
+                .trim_start()
+                .strip_prefix('"')
+                .and_then(|value| value.split_once('"'))
+                .map(|(name, _)| name)
+                .ok_or_else(|| PortcoveError::source("cue sheet FILE entry is not quoted"))?;
+            if extracted.is_empty()
+                || extracted.contains(['/', '\\', ':'])
+                || matches!(extracted, "." | "..")
+            {
+                return Err(PortcoveError::source(
+                    "cue sheet contains an unsafe FILE path",
+                ));
+            }
+            // Windows names are case-insensitive, so compare ASCII case-free.
+            if files
+                .iter()
+                .any(|file| file.extracted.eq_ignore_ascii_case(extracted))
+            {
+                return Err(PortcoveError::source(
+                    "cue sheet names one track file twice",
+                ));
+            }
+            let runtime = if files.is_empty() {
+                format!("disc-{disc:02}.bin")
+            } else {
+                format!("disc-{disc:02}-t{:02}.bin", files.len() + 1)
+            };
+            lines.push(format!("FILE \"{runtime}\" BINARY"));
+            files.push(PsxTrackFile {
+                extracted: extracted.to_owned(),
+                runtime,
+            });
+            tracks_per_file.push(0_u32);
+            continue;
+        }
+        if trimmed.starts_with("TRACK ") {
+            tracks += 1;
+            match tracks_per_file.last_mut() {
+                Some(count) => *count += 1,
+                None => {
+                    return Err(PortcoveError::source(
+                        "cue sheet has a TRACK before its FILE entry",
+                    ));
+                }
+            }
+        }
+        lines.push(line.to_owned());
+    }
+    if tracks != expected_tracks {
+        return Err(PortcoveError::source(format!(
+            "disc {disc} has {tracks} tracks; the catalog expects {expected_tracks}"
+        )));
+    }
+    if files.is_empty() || tracks_per_file.iter().any(|count| *count != 1) {
+        return Err(PortcoveError::source(
+            "managed PS1 cue sheet must name one file per track",
+        ));
+    }
+    Ok((format!("{}\n", lines.join("\n")), files))
+}
+
+/// Moves one extracted disc's track files into the staged set beside its
+/// rewritten `disc-NN.cue`.
+fn place_psx_cue_disc(
+    cue: &Path,
+    destination: &Path,
+    disc: usize,
+    expected_tracks: u32,
+) -> Result<()> {
+    let (rewritten, files) = rewrite_psx_cue(&read_psx_cue(cue)?, disc, expected_tracks)?;
+    let extracted = cue.parent().unwrap_or_else(|| Path::new(""));
+    for file in &files {
+        let path = extracted.join(&file.extracted);
+        if !std::fs::symlink_metadata(&path).is_ok_and(|metadata| metadata.is_file()) {
+            return Err(PortcoveError::source(format!(
+                "cue track file does not exist: {}",
+                path.display()
+            )));
+        }
+    }
+    for file in &files {
+        std::fs::rename(
+            extracted.join(&file.extracted),
+            destination.join(&file.runtime),
+        )?;
+    }
+    std::fs::write(destination.join(format!("disc-{disc:02}.cue")), rewritten)?;
+    Ok(())
+}
+
+pub(crate) fn inspect_psx_cue(cue: &Path) -> Result<(u32, PathBuf)> {
+    let body = read_psx_cue(cue)?;
     let track_count = body
         .lines()
         .filter(|line| line.trim_start().starts_with("TRACK "))
@@ -3333,6 +4078,35 @@ pub(crate) fn walk_files(root: &Path) -> Result<Vec<PathBuf>> {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn named_portable_marker_is_created_once_and_never_truncated() {
+        let temporary = tempfile::tempdir().unwrap();
+        create_missing_portable_marker_file(temporary.path(), "engine_portable.ini").unwrap();
+        let marker = temporary.path().join("engine_portable.ini");
+        assert_eq!(std::fs::read(&marker).unwrap(), b"");
+        std::fs::write(&marker, b"[Settings]\nplayer=1\n").unwrap();
+        create_missing_portable_marker_file(temporary.path(), "engine_portable.ini").unwrap();
+        assert_eq!(
+            std::fs::read(&marker).unwrap(),
+            b"[Settings]\nplayer=1\n",
+            "an existing configuration must survive every launch"
+        );
+    }
+
+    #[test]
+    fn named_portable_marker_refuses_a_directory_and_a_link() {
+        let temporary = tempfile::tempdir().unwrap();
+        std::fs::create_dir(temporary.path().join("as_directory.ini")).unwrap();
+        assert!(create_missing_portable_marker_file(temporary.path(), "as_directory.ini").is_err());
+        #[cfg(unix)]
+        {
+            let target = temporary.path().join("target.ini");
+            std::fs::write(&target, b"x").unwrap();
+            std::os::unix::fs::symlink(&target, temporary.path().join("link.ini")).unwrap();
+            assert!(create_missing_portable_marker_file(temporary.path(), "link.ini").is_err());
+        }
+    }
+
     use super::*;
     use crate::Catalog;
 
@@ -3403,6 +4177,7 @@ mod tests {
                         selected_executable: &executable,
                         source: Some(&source),
                         source_record: None,
+                        disc_progress: None,
                     },
                     &|| Ok(()),
                 )
@@ -3434,6 +4209,7 @@ mod tests {
             selected_executable: &executable,
             source: None,
             source_record: None,
+            disc_progress: None,
         };
         let checkpoint = || {
             Err(PortcoveError::new(
@@ -3861,6 +4637,7 @@ mod tests {
             setup_id: "customized".into(),
             revision: 1,
             build: crate::install::retained_build_identity_for_install(&install).unwrap(),
+            history: Vec::new(),
             created_at: 1,
             updated_at: 1,
         };
@@ -3896,6 +4673,7 @@ mod tests {
                         selected_executable: &executable,
                         source: source.map(|record| record.path.as_path()),
                         source_record: source,
+                        disc_progress: None,
                     },
                     &|| Ok(()),
                 )
@@ -4112,6 +4890,7 @@ mod tests {
                     selected_executable: &executable,
                     source: Some(&source),
                     source_record: None,
+                    disc_progress: None,
                 },
                 &|| Ok(()),
             )
@@ -4220,6 +4999,7 @@ mod tests {
             selected_executable: &executable,
             source: Some(&source),
             source_record: Some(&source_record),
+            disc_progress: None,
         };
         let planned = plan_libultraship_source(request, false).unwrap();
         assert!(matches!(&planned, LibultrashipSourcePlan::Archived { .. }));
@@ -4379,6 +5159,7 @@ mod tests {
             selected_executable: temporary.path(),
             source: Some(&source),
             source_record: Some(&admitted),
+            disc_progress: None,
         };
         let no_source = plan_libultraship_source(
             LaunchSpecRequest {
@@ -4557,6 +5338,7 @@ mod tests {
             selected_executable: &executable,
             source: Some(&source),
             source_record: None,
+            disc_progress: None,
         };
         let adapter = AdapterRegistry.get(AdapterKind::PsxRecompManaged);
         let before = launch_fixture_inventory(temporary.path());
@@ -4564,8 +5346,10 @@ mod tests {
             .launch_spec_with_executable(request, &|| Ok(()))
             .unwrap();
         assert_eq!(launch_fixture_inventory(temporary.path()), before);
+        // The fixture's Mortal Kombat 4 route skips the setup launcher.
+        assert_eq!(planned.arguments[0], "--no-launcher");
         assert_eq!(
-            &planned.arguments[4..],
+            &planned.arguments[5..],
             &["--bios", psx_launch_path(&bios.path).unwrap().as_str()]
         );
         for _ in 0..2 {
@@ -4751,7 +5535,7 @@ mod tests {
     fn ace_combat_3_japan_uses_generated_runtime_and_registered_bios_coordinates() {
         let temporary = tempfile::tempdir().unwrap();
         let (library, catalog, mut install, bios) =
-            crate::psx::bios_launch_fixture(temporary.path());
+            crate::psx::bios_launch_fixture_for(temporary.path(), "psx-scph-5500-bios");
         let port = catalog
             .port("alexbeav-ace-combat-3-electrosphere-recomp")
             .unwrap();
@@ -4847,6 +5631,55 @@ mod tests {
                         .replace('\\', "\\\\")
                 )
             );
+        }
+        // A disc choice becomes the runtime's own `[disc] selected` setting
+        // beside the player; launch arguments stay fixed, with no `--disc`.
+        assert_eq!(managed_psx_selectable_discs(&catalog, port), Some(2));
+        let settings = runtime.join("settings.toml");
+        assert!(!settings.exists());
+        record_managed_psx_disc_choice(&catalog, port, &spec, 2).unwrap();
+        assert_eq!(
+            std::fs::read_to_string(&settings).unwrap(),
+            "[disc]\nselected = 2\n"
+        );
+        assert!(!spec.arguments.iter().any(|argument| argument == "--disc"));
+        std::fs::write(
+            &settings,
+            "# kept\r\n[video]\r\nrenderer = \"opengl\"\r\n\r\n[disc]\r\npath = \"C:/old/disc-02.cue\"\r\nselected = 2 # kept\r\n",
+        )
+        .unwrap();
+        record_managed_psx_disc_choice(&catalog, port, &spec, 1).unwrap();
+        assert_eq!(
+            std::fs::read_to_string(&settings).unwrap(),
+            "# kept\r\n[video]\r\nrenderer = \"opengl\"\r\n\r\n[disc]\r\npath = \"C:/old/disc-02.cue\"\r\nselected = 1 # kept\r\n"
+        );
+        for refused in [0, 3] {
+            let error = record_managed_psx_disc_choice(&catalog, port, &spec, refused).unwrap_err();
+            assert_eq!(error.code, crate::ErrorCode::Usage, "{error}");
+            assert!(error.to_string().contains("Choose a disc from 1 to 2"));
+        }
+        std::fs::remove_file(raw_set.join("disc-02.bin")).unwrap();
+        let error = record_managed_psx_disc_choice(&catalog, port, &spec, 2).unwrap_err();
+        assert_eq!(error.code, crate::ErrorCode::Launch, "{error}");
+        assert!(error.to_string().starts_with("Disc 2 of "), "{error}");
+        assert!(error.details.contains_key("disc_materialization"));
+        assert!(
+            std::fs::read_to_string(&settings)
+                .unwrap()
+                .contains("selected = 1 # kept")
+        );
+        std::fs::write(raw_set.join("disc-02.bin"), [2]).unwrap();
+        for other in [
+            "zelda64-recomp",
+            "alexbeav-alundra-recomp",
+            "ace-combat-3-electrosphere-usa-ace-combat-3-usa-recomp",
+            // Multi-disc, but its runtime's disc setting is not source-reviewed.
+            "final-fantasy-vii-recompiled",
+        ] {
+            let other = catalog.port(other).unwrap();
+            assert_eq!(managed_psx_selectable_discs(&catalog, other), None);
+            let error = require_managed_psx_disc_selection(&catalog, other, 1).unwrap_err();
+            assert_eq!(error.code, crate::ErrorCode::Unsupported, "{error}");
         }
         std::fs::write(&bios.path, b"changed BIOS").unwrap();
         assert!(

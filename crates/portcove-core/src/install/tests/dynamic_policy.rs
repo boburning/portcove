@@ -4,6 +4,92 @@ use crate::{Catalog, ReleaseChannel, ReleaseProvider, ReleaseSource};
 
 const ID: &str = "wave-race-64-racewave46";
 
+#[test]
+fn recorded_github_asset_identity_rejects_changed_bytes_but_keeps_new_rolling_bindings_distinct() {
+    let temporary = tempfile::tempdir().unwrap();
+    let root = temporary.path().join("payload");
+    fs::create_dir_all(&root).unwrap();
+    fs::write(
+        root.join("game.exe"),
+        b"MZ inert first-party manifest fixture",
+    )
+    .unwrap();
+    let mut qualification = InstallQualification::test("game.exe");
+    let catalog = qualification
+        .retained_contract
+        .as_ref()
+        .unwrap()
+        .catalog("sample")
+        .unwrap();
+    let port = catalog.port("sample").unwrap();
+    let release = ResolvedRelease {
+        version: "v1".into(),
+        channel: ReleaseChannel::Stable,
+        published_at: None,
+        asset: ReleaseAsset {
+            name: "fixture.zip".into(),
+            url: "https://github.com/official/project/releases/download/rolling/fixture.zip".into(),
+            size: 32,
+            sha256: "a".repeat(64),
+        },
+    };
+    let identity = crate::definition_acquisition::GithubArtifactIdentity {
+        repository: port.release.repository.clone(),
+        repository_id: 1,
+        release_id: 2,
+        asset_id: 3,
+        tag: "rolling".into(),
+    };
+    let mut proof = crate::ScopedResolvedRelease::legacy(release.clone())
+        .for_selection(port, Platform::WindowsX86_64, ReleaseChannel::Stable)
+        .unwrap();
+    proof.github_identity = Some(identity.clone());
+    qualification = qualification.with_acquisition_resolution(proof).unwrap();
+    let (installer, install) = create_test_install(&root, &qualification);
+    installer.library.register_install(&install, true).unwrap();
+    assert_eq!(
+        verified_manifest(&install)
+            .unwrap()
+            .github_artifact_identity,
+        Some(identity.clone())
+    );
+    installer
+        .require_github_artifact_identity("sample", &release, Some(&identity))
+        .unwrap();
+    let mut changed = release.clone();
+    changed.asset.sha256 = "b".repeat(64);
+    assert!(
+        installer
+            .require_github_artifact_identity("sample", &changed, Some(&identity))
+            .is_err()
+    );
+    let mut successor = identity.clone();
+    successor.asset_id = 4;
+    installer
+        .require_github_artifact_identity("sample", &changed, Some(&successor))
+        .unwrap();
+    let mut rebound = identity.clone();
+    rebound.release_id = 5;
+    assert!(
+        installer
+            .require_github_artifact_identity("sample", &release, Some(&rebound))
+            .is_err()
+    );
+    rebound = identity.clone();
+    rebound.repository_id = 6;
+    assert!(
+        installer
+            .require_github_artifact_identity("sample", &release, Some(&rebound))
+            .is_err()
+    );
+    assert_eq!(
+        verified_manifest(&install)
+            .unwrap()
+            .github_artifact_identity,
+        Some(identity)
+    );
+}
+
 fn catalog() -> Catalog {
     let mut document = Catalog::embedded().unwrap().authoritative_document();
     let port = document
@@ -223,4 +309,59 @@ async fn immutable_bytes_cannot_bypass_dynamic_runtime_provider_proof() {
     );
     assert_eq!(std::fs::read_dir(private).unwrap().count(), 0);
     assert!(library.all_installs().unwrap().is_empty());
+}
+
+#[test]
+fn native10_appimage_requires_provider_selection_and_exact_retained_asset() {
+    let catalog = Catalog::embedded().unwrap();
+    let id = "diablo-devilutionx";
+    let port = catalog.port(id).unwrap();
+    let platform = Platform::LinuxX86_64;
+    let expected = "devilutionx-linux-x86_64.appimage";
+    let release = ResolvedRelease {
+        version: "1.5.5".into(),
+        channel: ReleaseChannel::Stable,
+        published_at: None,
+        asset: ReleaseAsset {
+            name: expected.into(),
+            url: "https://upstream.invalid/devilutionx-linux-x86_64.appimage".into(),
+            size: 42,
+            sha256: "a".repeat(64),
+        },
+    };
+    let qualification = || InstallQualification::from_catalog(&catalog, id, platform).unwrap();
+    let unresolved = crate::ScopedResolvedRelease::legacy(release.clone());
+    assert!(
+        qualification()
+            .with_acquisition_resolution(unresolved)
+            .is_err()
+    );
+    for selected in [Platform::WindowsX86_64, platform] {
+        let resolved = crate::ScopedResolvedRelease::legacy(release.clone())
+            .for_selection(port, selected, release.channel)
+            .unwrap();
+        assert_eq!(
+            qualification()
+                .with_acquisition_resolution(resolved)
+                .is_ok(),
+            selected == platform
+        );
+    }
+    for (selected, name, allowed) in [
+        (platform, expected, true),
+        (platform, "devilutionx-linux-x86_64.tar.xz", false),
+        (platform, "other.appimage", false),
+        (Platform::WindowsX86_64, expected, false),
+        (
+            Platform::WindowsX86_64,
+            "devilutionx-windows-x86_64.zip",
+            true,
+        ),
+    ] {
+        assert_eq!(
+            crate::managed_runtime_policy::require_native_appimage_artifact(port, selected, name)
+                .is_ok(),
+            allowed
+        );
+    }
 }

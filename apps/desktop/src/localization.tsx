@@ -1,5 +1,5 @@
 import { DirectionProvider } from "@base-ui/react/direction-provider";
-import i18next, { type i18n } from "i18next";
+import i18next, { type i18n, type Namespace } from "i18next";
 import {
   I18nextProvider,
   initReactI18next,
@@ -16,9 +16,72 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import englishApplicationUpdate from "./locales/en/applicationUpdate.json";
+import englishCatalogUpdates from "./locales/en/catalogUpdates.json";
+import englishRemoval from "./locales/en/removal.json";
+import englishBackups from "./locales/en/backups.json";
+import englishGameSettings from "./locales/en/gameSettings.json";
+import englishOrganization from "./locales/en/organization.json";
+import englishLauncherImport from "./locales/en/launcherImport.json";
+import englishCli from "./locales/en/cli.json";
+import englishInstallation from "./locales/en/installation.json";
+import englishDetail from "./locales/en/detail.json";
+import englishGameUpdates from "./locales/en/gameUpdates.json";
+import englishLaunch from "./locales/en/launch.json";
+import englishWorkspace from "./locales/en/workspace.json";
+import englishReport from "./locales/en/report.json";
+import englishBrowsing from "./locales/en/browsing.json";
+import englishCommands from "./locales/en/commands.json";
+import englishOperations from "./locales/en/operations.json";
+import englishCommon from "./locales/en/common.json";
+import englishGameFiles from "./locales/en/gameFiles.json";
+import englishCounts from "./locales/en/counts.json";
 import englishSettings from "./locales/en/settings.json";
+import englishShell from "./locales/en/shell.json";
+import engineeringApplicationUpdate from "./locales/ar-XB/applicationUpdate.json";
+import engineeringCatalogUpdates from "./locales/ar-XB/catalogUpdates.json";
+import engineeringRemoval from "./locales/ar-XB/removal.json";
+import engineeringBackups from "./locales/ar-XB/backups.json";
+import engineeringGameSettings from "./locales/ar-XB/gameSettings.json";
+import engineeringOrganization from "./locales/ar-XB/organization.json";
+import engineeringLauncherImport from "./locales/ar-XB/launcherImport.json";
+import engineeringCli from "./locales/ar-XB/cli.json";
+import engineeringInstallation from "./locales/ar-XB/installation.json";
+import engineeringDetail from "./locales/ar-XB/detail.json";
+import engineeringGameUpdates from "./locales/ar-XB/gameUpdates.json";
+import engineeringLaunch from "./locales/ar-XB/launch.json";
+import engineeringWorkspace from "./locales/ar-XB/workspace.json";
+import engineeringReport from "./locales/ar-XB/report.json";
+import engineeringBrowsing from "./locales/ar-XB/browsing.json";
+import engineeringCommands from "./locales/ar-XB/commands.json";
+import engineeringOperations from "./locales/ar-XB/operations.json";
+import engineeringCommon from "./locales/ar-XB/common.json";
+import engineeringGameFiles from "./locales/ar-XB/gameFiles.json";
 import engineeringSettings from "./locales/ar-XB/settings.json";
+import engineeringShell from "./locales/ar-XB/shell.json";
 import type { LocalePreferenceSnapshot } from "./types";
+import draftSpanishSettings from "./locales/es/settings.json";
+import draftSpanishCounts from "./locales/es/counts.json";
+import draftSpanishShell from "./locales/es/shell.json";
+import draftSpanishApplicationUpdate from "./locales/es/applicationUpdate.json";
+import draftSpanishCatalogUpdates from "./locales/es/catalogUpdates.json";
+import draftSpanishRemoval from "./locales/es/removal.json";
+import draftSpanishBackups from "./locales/es/backups.json";
+import draftSpanishGameSettings from "./locales/es/gameSettings.json";
+import draftSpanishOrganization from "./locales/es/organization.json";
+import draftSpanishLauncherImport from "./locales/es/launcherImport.json";
+import draftSpanishCli from "./locales/es/cli.json";
+import draftSpanishInstallation from "./locales/es/installation.json";
+import draftSpanishDetail from "./locales/es/detail.json";
+import draftSpanishGameUpdates from "./locales/es/gameUpdates.json";
+import draftSpanishLaunch from "./locales/es/launch.json";
+import draftSpanishWorkspace from "./locales/es/workspace.json";
+import draftSpanishReport from "./locales/es/report.json";
+import draftSpanishBrowsing from "./locales/es/browsing.json";
+import draftSpanishCommands from "./locales/es/commands.json";
+import draftSpanishOperations from "./locales/es/operations.json";
+import draftSpanishCommon from "./locales/es/common.json";
+import draftSpanishGameFiles from "./locales/es/gameFiles.json";
 
 const supportedLocales = ["en", "ar-XB"] as const;
 export type SupportedLocale = (typeof supportedLocales)[number];
@@ -83,17 +146,174 @@ export function assertCatalog(
 
 export function initializeLocalization(initialLocales = systemLocales()): i18n {
   assertCatalog(englishSettings);
+  assertCatalog(englishCounts, "counts");
+  assertCatalog(englishShell, "shell");
+  assertCatalog(englishApplicationUpdate, "applicationUpdate");
+  assertCatalog(englishCatalogUpdates, "catalogUpdates");
+  assertCatalog(englishRemoval, "removal");
+  assertCatalog(englishBackups, "backups");
+  assertCatalog(englishGameSettings, "gameSettings");
+  assertCatalog(englishOrganization, "organization");
+  assertCatalog(englishLauncherImport, "launcherImport");
+  assertCatalog(englishCli, "cli");
+  assertCatalog(englishInstallation, "installation");
+  assertCatalog(englishDetail, "detail");
+  assertCatalog(englishGameUpdates, "gameUpdates");
+  assertCatalog(englishLaunch, "launch");
+  assertCatalog(englishWorkspace, "workspace");
+  assertCatalog(englishReport, "report");
+  assertCatalog(englishBrowsing, "browsing");
+  assertCatalog(englishCommands, "commands");
+  assertCatalog(englishOperations, "operations");
+  assertCatalog(englishCommon, "common");
+  assertCatalog(englishGameFiles, "gameFiles");
   assertCatalog(engineeringSettings);
+  assertCatalog(engineeringShell, "shell");
+  assertCatalog(engineeringApplicationUpdate, "applicationUpdate");
+  assertCatalog(engineeringCatalogUpdates, "catalogUpdates");
+  assertCatalog(engineeringRemoval, "removal");
+  assertCatalog(engineeringBackups, "backups");
+  assertCatalog(engineeringGameSettings, "gameSettings");
+  assertCatalog(engineeringOrganization, "organization");
+  assertCatalog(engineeringLauncherImport, "launcherImport");
+  assertCatalog(engineeringCli, "cli");
+  assertCatalog(engineeringInstallation, "installation");
+  assertCatalog(engineeringDetail, "detail");
+  assertCatalog(engineeringGameUpdates, "gameUpdates");
+  assertCatalog(engineeringLaunch, "launch");
+  assertCatalog(engineeringWorkspace, "workspace");
+  assertCatalog(engineeringReport, "report");
+  assertCatalog(engineeringBrowsing, "browsing");
+  assertCatalog(engineeringCommands, "commands");
+  assertCatalog(engineeringOperations, "operations");
+  assertCatalog(engineeringCommon, "common");
+  assertCatalog(engineeringGameFiles, "gameFiles");
+  assertCatalog(draftSpanishSettings, "es.settings");
+  assertCatalog(draftSpanishCounts, "es.counts");
+  assertCatalog(draftSpanishShell, "es.shell");
+  assertCatalog(draftSpanishApplicationUpdate, "es.applicationUpdate");
+  assertCatalog(draftSpanishCatalogUpdates, "es.catalogUpdates");
+  assertCatalog(draftSpanishRemoval, "es.removal");
+  assertCatalog(draftSpanishBackups, "es.backups");
+  assertCatalog(draftSpanishGameSettings, "es.gameSettings");
+  assertCatalog(draftSpanishOrganization, "es.organization");
+  assertCatalog(draftSpanishLauncherImport, "es.launcherImport");
+  assertCatalog(draftSpanishCli, "es.cli");
+  assertCatalog(draftSpanishInstallation, "es.installation");
+  assertCatalog(draftSpanishDetail, "es.detail");
+  assertCatalog(draftSpanishGameUpdates, "es.gameUpdates");
+  assertCatalog(draftSpanishLaunch, "es.launch");
+  assertCatalog(draftSpanishWorkspace, "es.workspace");
+  assertCatalog(draftSpanishReport, "es.report");
+  assertCatalog(draftSpanishBrowsing, "es.browsing");
+  assertCatalog(draftSpanishCommands, "es.commands");
+  assertCatalog(draftSpanishOperations, "es.operations");
+  assertCatalog(draftSpanishCommon, "es.common");
+  assertCatalog(draftSpanishGameFiles, "es.gameFiles");
   if (!i18next.isInitialized) {
     void i18next.use(initReactI18next).init({
       lng: resolveLocale(null, initialLocales),
       fallbackLng: "en",
-      supportedLngs: [...supportedLocales],
-      ns: ["settings"],
+      supportedLngs: [...supportedLocales, "es"],
+      ns: [
+        "settings",
+        "counts",
+        "shell",
+        "applicationUpdate",
+        "catalogUpdates",
+        "removal",
+        "backups",
+        "gameSettings",
+        "organization",
+        "launcherImport",
+        "cli",
+        "installation",
+        "detail",
+        "gameUpdates",
+        "launch",
+        "workspace",
+        "report",
+        "browsing",
+        "commands",
+        "operations",
+        "common",
+        "gameFiles",
+      ],
       defaultNS: "settings",
       resources: {
-        en: { settings: englishSettings },
-        "ar-XB": { settings: engineeringSettings },
+        en: {
+          settings: englishSettings,
+          counts: englishCounts,
+          shell: englishShell,
+          applicationUpdate: englishApplicationUpdate,
+          catalogUpdates: englishCatalogUpdates,
+          removal: englishRemoval,
+          backups: englishBackups,
+          gameSettings: englishGameSettings,
+          organization: englishOrganization,
+          launcherImport: englishLauncherImport,
+          cli: englishCli,
+          installation: englishInstallation,
+          detail: englishDetail,
+          gameUpdates: englishGameUpdates,
+          launch: englishLaunch,
+          workspace: englishWorkspace,
+          report: englishReport,
+          browsing: englishBrowsing,
+          commands: englishCommands,
+          operations: englishOperations,
+          common: englishCommon,
+          gameFiles: englishGameFiles,
+        },
+        "ar-XB": {
+          settings: engineeringSettings,
+          shell: engineeringShell,
+          applicationUpdate: engineeringApplicationUpdate,
+          catalogUpdates: engineeringCatalogUpdates,
+          removal: engineeringRemoval,
+          backups: engineeringBackups,
+          gameSettings: engineeringGameSettings,
+          organization: engineeringOrganization,
+          launcherImport: engineeringLauncherImport,
+          cli: engineeringCli,
+          installation: engineeringInstallation,
+          detail: engineeringDetail,
+          gameUpdates: engineeringGameUpdates,
+          launch: engineeringLaunch,
+          workspace: engineeringWorkspace,
+          report: engineeringReport,
+          browsing: engineeringBrowsing,
+          commands: engineeringCommands,
+          operations: engineeringOperations,
+          common: engineeringCommon,
+          gameFiles: engineeringGameFiles,
+        },
+        // Unreviewed draft pilot (#1028): bundled for review and engineering
+        // fixtures only. resolveLocale never selects it and the picker omits it.
+        es: {
+          settings: draftSpanishSettings,
+          counts: draftSpanishCounts,
+          shell: draftSpanishShell,
+          applicationUpdate: draftSpanishApplicationUpdate,
+          catalogUpdates: draftSpanishCatalogUpdates,
+          removal: draftSpanishRemoval,
+          backups: draftSpanishBackups,
+          gameSettings: draftSpanishGameSettings,
+          organization: draftSpanishOrganization,
+          launcherImport: draftSpanishLauncherImport,
+          cli: draftSpanishCli,
+          installation: draftSpanishInstallation,
+          detail: draftSpanishDetail,
+          gameUpdates: draftSpanishGameUpdates,
+          launch: draftSpanishLaunch,
+          workspace: draftSpanishWorkspace,
+          report: draftSpanishReport,
+          browsing: draftSpanishBrowsing,
+          commands: draftSpanishCommands,
+          operations: draftSpanishOperations,
+          common: draftSpanishCommon,
+          gameFiles: draftSpanishGameFiles,
+        },
       },
       initAsync: false,
       returnEmptyString: false,
@@ -177,6 +397,7 @@ export function LocalizationProvider({
       }
     })();
     return () => {
+      // oxlint-disable-next-line react/immutability -- oxc#28401: effect-local binding.
       active = false;
     };
   }, [api, apply]);
@@ -228,6 +449,16 @@ export function LocalizationProvider({
   );
 }
 
+/**
+ * Feature translation bound to the module-initialized instance, so migrated
+ * surfaces (including render recovery outside the provider) never fall back to
+ * raw keys. Locale changes on the shared instance still re-render consumers.
+ * Invariant: the global instance is the only runtime i18next instance.
+ */
+export function useAppTranslation<const N extends Namespace>(ns: N) {
+  return useTranslation(ns, { i18n: i18next });
+}
+
 export function useLocalization(): LocalizationState &
   Pick<UseTranslationResponse<"settings", undefined>, "t" | "i18n" | "ready"> {
   const state = useContext(LocalizationContext);
@@ -238,4 +469,32 @@ export function useLocalization(): LocalizationState &
     i18n: translation.i18n,
     ready: translation.ready,
   };
+}
+
+// Only availability validation is application policy. i18next owns phrases,
+// zero overrides, plural selection, interpolation and number formatting.
+type CountMessageKey = {
+  [K in keyof typeof englishCounts]: K extends `${infer Key}_unknown` ? Key : never;
+}[keyof typeof englishCounts];
+
+type AvailableCount = number | null | undefined;
+export function countMessage(
+  count: AvailableCount,
+  key: "examinedEntries",
+  values: { bytes: string },
+): string;
+export function countMessage(
+  count: AvailableCount,
+  key: Exclude<CountMessageKey, "examinedEntries">,
+): string;
+export function countMessage(
+  count: AvailableCount,
+  key: CountMessageKey,
+  values?: { bytes: string },
+) {
+  const instance = initializeLocalization();
+  const bytes = values?.bytes ?? ""; // Required by the examinedEntries overload.
+  return count == null || !Number.isSafeInteger(count) || count < 0
+    ? instance.t(`${key}_unknown`, { ns: "counts", bytes })
+    : instance.t(key, { ns: "counts", count, bytes });
 }

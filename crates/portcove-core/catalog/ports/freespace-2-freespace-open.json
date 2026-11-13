@@ -3,7 +3,7 @@
   "listing": {
     "id": "freespace-2-freespace-open",
     "name": "FreeSpace 2 (FreeSpace Open)",
-    "summary": "Upstream route: Active source-port engine with current Win/Linux/macOS assets. Limits: Established engine with current release-candidate assets; select stable/RC channel deliberately and preserve launcher ownership. Upstream platforms: Current Windows/Linux/macOS FreeSpaceOpen engine assets; choose launcher/engine separately. Selected package CPU architectures unknown in frozen audit. Original data: FreeSpace 2 original-data contract remains Unknown in the retained engine README. Establish whether the selected FS2 Open/launcher route needs an owned FreeSpace 2 retail installation or a separately licensed standalone campaign, and the exact accepted edition/patch and asset acquisition layout. Engine or launcher availability alone does not supply retail game assets. Portcove setup/gameplay not verified.",
+    "summary": "Prepare FreeSpace Open with your own FreeSpace 2 retail v1.2 files using the official installation guide. A separately licensed standalone campaign is a different setup. Windows, Linux and macOS engine downloads are separate from launchers; choose the correct CPU and stable or release-candidate channel. This guide uses Windows release candidate 26.2.0-RC3. Portcove has not confirmed setup or gameplay.",
     "original_game_title": "FreeSpace 2",
     "project_url": "https://github.com/scp-fs2open/fs2open.github.com",
     "platforms": [],
@@ -17,7 +17,40 @@
       "game_slug": "freespace-2",
       "match_kind": "underlying-game"
     },
-    "issue_number": 2677
+    "issue_number": 2677,
+    "listed_at": "2026-10-25",
+    "manual_setup": {
+      "help_url": "https://github.com/scp-fs2open/fs2open.github.com/tree/feed085710869ccd8d998fc07a04ffccc8ed479a",
+      "steps": [
+        {
+          "title": "Prepare the FreeSpace 2 retail route upstream",
+          "instruction": "Use your own complete FreeSpace 2 retail v1.2 data, prepared using the official FreeSpace installation guide. Keep the retail VP files in the actual game root, including root_fs2.vp, smarty_fs2.vp, sparky_fs2.vp, sparky_hi_fs2.vp, stu_fs2.vp, tango1_fs2.vp, tango2_fs2.vp, tango3_fs2.vp and warble_fs2.vp, with permitted cutscenes in data/movies. Preserve complete originals. A separately licensed standalone campaign is a different setup and does not supply the FreeSpace 2 campaign."
+        },
+        {
+          "title": "Select the actual player and CPU build",
+          "instruction": "Prepare a complete official Windows FreeSpace Open player copy compatible with your CPU and data, keeping its DLLs. The reviewed release_26_2_0-RC3 is a release candidate; choose that channel deliberately. The inspected x64 SSE2 package’s normal player is fs2_open_26_2_0_RC3_x64_SSE2.exe; select the actual compatible fs2_open player executable from your prepared copy, not FRED, a dedicated server, installer or mod manager. Keep the retail root as working directory and the established literal -mod and other supported arguments. Launcher-only setup is not reproduced by selecting an engine executable."
+        },
+        {
+          "title": "Check the prepared copy before registration",
+          "instruction": "Finish setup with the project’s tools, then start and quit the copy you intend to add. Keep its game executable, working folder and supported launch arguments. Review those details in Portcove and agree to launch them, then choose Play separately. Adding a copy does not confirm its original game files, gameplay or save compatibility."
+        },
+        {
+          "title": "Keep updates and removal under the existing owner",
+          "instruction": "Close every running copy of the game before changing files. Keep the working game version and every data and profile folder recoverable. Update it with the project’s tools, then review and select the changed executable in Portcove before choosing Play. You manage setup, updates, file changes, data migration and recovery. Portcove monitors the process you selected; it does not prevent other copies from running or restrict the game’s file access. Removing the registration leaves external files in place. This route does not offer Portcove downloads, setup, updates, backups, rollback, data migration or external-file deletion."
+        }
+      ],
+      "warnings": [
+        "Use only a copy and content you are already permitted to use. Engine licensing does not grant rights to original game assets, music, mods or bundled components.",
+        "Before updating the game, keep a copy of its working files and every location containing saved data. Choosing a different executable does not give it a separate profile.",
+        "Retain the effective preferences root, cmdline_fso.cfg, logs, captures, custom and unknown files. Preserve any launcher-provided environment; attaching a standalone player does not reconstruct it."
+      ],
+      "references": [
+        {
+          "title": "Retain all creating data and preference roots",
+          "instruction": "Keep the complete game root, data, mods, launcher settings and all actual player/pilot/campaign files. Current FreeSpace Open normally uses the current account’s AppData/HardLightProductions/FreeSpaceOpen preferences on Windows. FSO_PREFERENCES_PATH can redirect it; -portable_mode uses local paths, and legacy settings or failed profile lookup can change the effective location. Retain the effective preferences root, cmdline_fso.cfg, logs, captures, custom and unknown files. Preserve any launcher-provided environment; attaching a standalone player does not reconstruct it."
+        }
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

@@ -1,4 +1,5 @@
 import { gzipSync } from "node:zlib";
+import { createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
 import { errorCode } from "./runtime-values.mts";
 import type { ValidationChangeInput, ValidationPlan, ValidationGroup } from "./validation-plan.mts";
@@ -134,68 +135,95 @@ void test("native source declaration ownership follows additions, deletions and 
   assert.deepEqual(unrelated.groups, ["rust", "rust-quality"]);
 });
 
-void test("qualification profile is digest-bound and cannot satisfy a different expected profile", () => {
-  const beta = discoverCiPlan({
-    eventName: "workflow_dispatch",
-    checkoutSha: sha("d"),
-    forceQualification: true,
-    qualificationCaller: "release",
-    callerWorkflow: "release.yml",
-    releaseProfile: "initial-beta-win-linux",
-  });
-  assert.equal(
-    validateQualificationBinding({
-      plan: beta,
-      digest: beta.digest,
-      checkout: sha("d"),
-      releaseProfile: "initial-beta-win-linux",
-    }),
-    beta,
-  );
-  assert.throws(
-    () => validateQualificationBinding({ plan: beta, digest: beta.digest, checkout: sha("d") }),
-    /profile mismatch/,
-  );
-  const full = discoverCiPlan({
-    eventName: "workflow_call",
-    checkoutSha: sha("d"),
-    forceQualification: true,
-  });
-  assert.throws(
-    () =>
+for (const profile of ["initial-beta-win-linux", "initial-beta-windows-x86_64-v1"] as const) {
+  void test(`${profile} is digest-bound and cannot satisfy a different expected profile`, () => {
+    const beta = discoverCiPlan({
+      eventName: "workflow_dispatch",
+      checkoutSha: sha("d"),
+      forceQualification: true,
+      qualificationCaller: "release",
+      callerWorkflow: "release.yml",
+      releaseProfile: profile,
+    });
+    assert.equal(
       validateQualificationBinding({
-        plan: full,
-        digest: full.digest,
+        plan: beta,
+        digest: beta.digest,
         checkout: sha("d"),
-        releaseProfile: "initial-beta-win-linux",
+        releaseProfile: profile,
       }),
-    /profile mismatch/,
-  );
-  assert.throws(
-    () =>
-      validateQualificationBinding({
-        plan: full,
-        digest: full.digest,
-        checkout: sha("d"),
-        releaseProfile: "foreign",
-      }),
-    /unknown/,
-  );
-  assert.throws(
-    () => validateValidationPlan({ ...beta, release_profile: undefined }),
-    /profile|digest/,
-  );
-  for (const mutation of [
-    { release_profile: "foreign" },
-    { release_profile: "full" },
-    { mode: "fast", qualification_required: false },
-    { reason: "schedule" },
-    { groups: beta.groups.filter((group) => group !== "catalog") },
-    { platforms: qualificationPlatforms },
-    { release_profile: undefined },
-  ])
-    assert.throws(() => validateValidationPlan(redigest({ ...beta, ...mutation })));
-});
+      beta,
+    );
+    for (const override of [
+      { digest: undefined },
+      { digest: "f".repeat(64) },
+      { checkout: undefined },
+      { checkout: sha("e") },
+      {
+        releaseProfile:
+          profile === "initial-beta-win-linux"
+            ? "initial-beta-windows-x86_64-v1"
+            : "initial-beta-win-linux",
+      },
+    ]) {
+      assert.throws(() =>
+        validateQualificationBinding({
+          plan: beta,
+          digest: beta.digest,
+          checkout: sha("d"),
+          releaseProfile: profile,
+          ...override,
+        }),
+      );
+    }
+    assert.throws(
+      () => validateQualificationBinding({ plan: beta, digest: beta.digest, checkout: sha("d") }),
+      /profile mismatch/,
+    );
+    const full = discoverCiPlan({
+      eventName: "workflow_call",
+      checkoutSha: sha("d"),
+      forceQualification: true,
+    });
+    assert.throws(
+      () =>
+        validateQualificationBinding({
+          plan: full,
+          digest: full.digest,
+          checkout: sha("d"),
+          releaseProfile: profile,
+        }),
+      /profile mismatch/,
+    );
+    assert.throws(
+      () =>
+        validateQualificationBinding({
+          plan: full,
+          digest: full.digest,
+          checkout: sha("d"),
+          releaseProfile: "foreign",
+        }),
+      /unknown/,
+    );
+    assert.throws(
+      () => validateValidationPlan({ ...beta, release_profile: undefined }),
+      /profile|digest/,
+    );
+    for (const mutation of [
+      { release_profile: null },
+      { release_profile: "foreign" },
+      { release_profile: "full" },
+      { mode: "fast", qualification_required: false },
+      { reason: "schedule" },
+      { groups: beta.groups.filter((group) => group !== "catalog") },
+      { platforms: qualificationPlatforms },
+      { platforms: ["windows-aarch64"] },
+      { platforms: [] },
+      { release_profile: undefined },
+    ])
+      assert.throws(() => validateValidationPlan(redigest({ ...beta, ...mutation })));
+  });
+}
 
 void test("regular executable modes route by ownership while nonregular inputs block", () => {
   for (const modes of [
@@ -273,6 +301,8 @@ void test("scoped beta matcher and Roadmap release consumer retain protected qua
 void test("coordinator state and remote transport retain protected release qualification ownership", () => {
   for (const file of [
     "scripts/release-checkpoint-job-identity.mts",
+    "scripts/release-custody-provider.mts",
+    "scripts/release-wake-provider.mts",
     "scripts/release-coordinator-checkpoint-authentication.mts",
     "scripts/release-coordinator-checkpoint-authentication.test.mts",
     "scripts/release-coordinator-checkpoint-signing.mts",
@@ -292,7 +322,6 @@ void test("coordinator state and remote transport retain protected release quali
     "scripts/release-artifact-archive.mts",
     "scripts/release-artifact-assembly.mts",
     "scripts/bounded-zip.mts",
-    "scripts/github-binary.mts",
     "scripts/assembler-job-identity.mts",
     "scripts/trusted-aggregate-attestation.mts",
     "scripts/production-aggregate-steps.mts",
@@ -524,6 +553,35 @@ void test("large plans cross native process environments without losing paths, d
   }
 });
 
+void test("a catalog-wide plan retains every identity through the bounded environment transport", () => {
+  const changes = Array.from({ length: 1100 }, (_, index) => {
+    const name = createHash("sha256").update(String(index)).digest("hex").slice(0, 32);
+    return change(`crates/portcove-core/catalog/ports/${name}.json`);
+  });
+  const expected = plan(changes);
+  const encoded = encodeValidationPlanEnvironment(expected);
+  assert.ok(encoded.length > 64 * 1024, "reproduce the catalog-wide transport overflow");
+  assert.ok(encoded.length < 96 * 1024, "retain headroom below the native exec limit");
+  const script = `import { readValidationPlanInput, validateValidationPlan } from ${JSON.stringify(new URL("./validation-plan.mts", import.meta.url).href)}; console.log(JSON.stringify(validateValidationPlan(readValidationPlanInput())));`;
+  const result = spawnSync(process.execPath, ["--input-type=module", "-e", script], {
+    env: { ...process.env, PORTCOVE_PLAN_JSON: undefined, PORTCOVE_PLAN_GZIP_BASE64: encoded },
+    encoding: "utf8",
+    windowsHide: true,
+    timeout: 30_000,
+    maxBuffer: 2 * 1024 * 1024,
+  });
+  assert.ifError(result.error);
+  assert.equal(result.status, 0, result.stderr);
+  assert.deepEqual(validateValidationPlan(JSON.parse(result.stdout)), expected);
+  assert.throws(
+    () =>
+      encodeValidationPlanEnvironment(
+        plan([...changes, ...changes.map((entry) => change(entry.newPath + ".extra"))]),
+      ),
+    /transport limit|JSON byte limit/,
+  );
+});
+
 void test("plan environment transport rejects ambiguity, corrupt encoding and bounded inflation before validation", () => {
   const expected = plan([change("apps/desktop/src/App.tsx")]);
   const encoded = encodeValidationPlanEnvironment(expected);
@@ -535,7 +593,7 @@ void test("plan environment transport rejects ambiguity, corrupt encoding and bo
       }),
     /ambiguous/,
   );
-  for (const value of ["", "?", "AAAA", "AA=A", "A".repeat(64 * 1024 + 4)])
+  for (const value of ["", "?", "AAAA", "AA=A", "A".repeat(96 * 1024 + 4)])
     assert.throws(() => readValidationPlanInput({ PORTCOVE_PLAN_GZIP_BASE64: value }));
   for (const bytes of [Buffer.from([0xff]), Buffer.from("{invalid")])
     assert.throws(() =>
@@ -591,5 +649,16 @@ void test("both version runtime adapters inherit protected policy across lifecyc
       assert.equal(selected.qualification_required, original.qualification_required);
       assert.deepEqual(selected.platforms, original.platforms);
     }
+  }
+});
+
+void test("copy producers select their owned hosted contracts without a Desktop source edit", () => {
+  for (const [path, group] of [
+    ["integrations/playnite/ManagementWindow.cs", "rust"],
+    ["crates/portcove-core/src/failure.rs", "rust"],
+    ["crates/portcove-cli/src/human.rs", "rust"],
+    ["crates/portcove-core/catalog/ports/bountyhunterkanden-secondhunt.json", "catalog"],
+  ] as const) {
+    assert.ok(plan([change(path)]).groups.includes(group), path);
   }
 });

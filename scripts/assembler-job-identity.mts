@@ -1,6 +1,9 @@
 import { createPublicKey, verify } from "node:crypto";
 import { performance } from "node:perf_hooks";
 import { createGitHubRunner, GitHubApiClient } from "./github-api.mts";
+import type { GitHubRequestPolicy } from "./github-client.mts";
+import { assertTrustedDirectNode } from "./release-direct-node-transport.mts";
+import { coordinatorCommandDeadline } from "./release-coordinator-deadline.mts";
 import {
   productionControllerWorkflow,
   admittedProductionObserverProfile,
@@ -67,6 +70,19 @@ export function controllerOidcSubject(ref: string, environment?: ControllerOidcE
     throw new Error("controller OIDC environment is unsupported");
   return `${controllerOidcSubjectPrefix}:${environment === undefined ? `ref:${ref}` : `environment:${environment}`}`;
 }
+// Keep diagnostic metadata separate from errors and their existing messages.
+const jobIdentityRefusals = new WeakMap<object, string>();
+function markJobIdentityRefusal<T>(error: T, code: string): T {
+  if (typeof error === "object" && error !== null && !jobIdentityRefusals.has(error))
+    jobIdentityRefusals.set(error, code);
+  return error;
+}
+function jobIdentityRefusal(code: string, message: string) {
+  return markJobIdentityRefusal(new Error(message), code);
+}
+export function jobIdentityRefusalCode(error: unknown) {
+  return typeof error === "object" && error !== null ? jobIdentityRefusals.get(error) : undefined;
+}
 type JobIdentityProfile = {
   workflow: string;
   job: string;
@@ -92,6 +108,14 @@ const protectionProfile = {
   environment: "production-release-protection-observer",
 } satisfies JobIdentityProfile;
 type Spawn = NonNullable<NonNullable<Parameters<typeof createGitHubRunner>[0]>["spawn"]>;
+type IdentityTransport =
+  | { cwd: string; spawn?: Spawn; deadline?: number }
+  | {
+      sdkToken: string;
+      requireDirect?: boolean;
+      deadline: number;
+      read?: (route: string, deadline: number) => Promise<unknown>;
+    };
 
 export interface AssemblerIdentityExpectation {
   audience: string;
@@ -127,13 +151,16 @@ async function providerKeys(timeoutMs = 15_000): Promise<unknown> {
     redirect: "error",
     signal: AbortSignal.timeout(timeoutMs),
   });
-  if (response.status !== 200 || !response.body) throw new Error("OIDC provider keys unavailable");
+  if (response.status !== 200 || !response.body)
+    throw jobIdentityRefusal("provider-keys", "OIDC provider keys unavailable");
   const parts: Buffer[] = [];
   let size = 0;
   for await (const chunk of response.body as AsyncIterable<unknown>) {
-    if (!(chunk instanceof Uint8Array)) throw new Error("OIDC key response is not byte data");
+    if (!(chunk instanceof Uint8Array))
+      throw jobIdentityRefusal("provider-keys", "OIDC key response is not byte data");
     size += chunk.byteLength;
-    if (size > 128 * 1024) throw new Error("OIDC provider keys exceed their byte bound");
+    if (size > 128 * 1024)
+      throw jobIdentityRefusal("provider-keys", "OIDC provider keys exceed their byte bound");
     parts.push(Buffer.from(chunk));
   }
   return record(Buffer.concat(parts));
@@ -186,29 +213,48 @@ async function verifyJobIdentity(
   token: string,
   rawExpected: unknown,
   options: {
-    transport?: { cwd: string; spawn?: Spawn; deadline?: number };
+    transport?: IdentityTransport;
     readKeys?: () => Promise<unknown>;
   } = {},
 ) {
   const expected = inspectAssemblerIdentityExpectation(rawExpected);
   if (expected.subject !== controllerOidcSubject(expected.controller_ref, profile.environment))
-    throw new Error("independently expected OIDC subject differs from the fixed role");
-  if (!options.transport) throw new Error("assembler identity transport is unconfigured");
+    throw jobIdentityRefusal(
+      "expected-subject",
+      "independently expected OIDC subject differs from the fixed role",
+    );
+  const transport = options.transport && { ...options.transport };
+  if (!transport)
+    throw jobIdentityRefusal(
+      "transport-unconfigured",
+      "assembler identity transport is unconfigured",
+    );
+  const phaseDeadline = transport.deadline;
+  const readKeys = options.readKeys;
   const remaining = () => {
-    if (options.transport?.deadline === undefined) return 15000;
-    const value = Math.ceil(options.transport.deadline - performance.now());
-    if (!Number.isFinite(options.transport.deadline) || value < 1 || value > 600000)
-      throw new Error("assembler identity total phase deadline exhausted");
+    if (phaseDeadline === undefined) return 15000;
+    const value = Math.ceil(phaseDeadline - performance.now());
+    if (!Number.isFinite(phaseDeadline) || value < 1 || value > 600000)
+      throw jobIdentityRefusal("deadline", "assembler identity total phase deadline exhausted");
     return Math.min(15000, value);
   };
   remaining();
   if (typeof token !== "string" || Buffer.byteLength(token) > 16 * 1024)
-    throw new Error("OIDC token exceeds its byte bound");
+    throw jobIdentityRefusal("token-envelope", "OIDC token exceeds its byte bound");
   const parts = token.split(".");
-  if (parts.length !== 3) throw new Error("OIDC token has an invalid form");
-  const header = record(decoded(parts[0]!));
-  const claims = record(decoded(parts[1]!));
-  const signature = decoded(parts[2]!);
+  if (parts.length !== 3)
+    throw jobIdentityRefusal("token-envelope", "OIDC token has an invalid form");
+  const { header, claims, signature } = (() => {
+    try {
+      return {
+        header: record(decoded(parts[0]!)),
+        claims: record(decoded(parts[1]!)),
+        signature: decoded(parts[2]!),
+      };
+    } catch (error) {
+      throw markJobIdentityRefusal(error, "token-encoding");
+    }
+  })();
   if (
     header.alg !== "RS256" ||
     header.typ !== "JWT" ||
@@ -217,12 +263,20 @@ async function verifyJobIdentity(
     header.kid.length > 256 ||
     Object.keys(header).some((key) => !["alg", "typ", "kid", "x5t", "x5t#S256"].includes(key))
   )
-    throw new Error("OIDC header or key selection is unsupported");
+    throw jobIdentityRefusal("token-header", "OIDC header or key selection is unsupported");
   const started = performance.now();
-  const keys = await (options.readKeys ?? (() => providerKeys(remaining())))();
+  let keys: unknown;
+  try {
+    keys = await (readKeys ?? (() => providerKeys(remaining())))();
+  } catch (error) {
+    throw markJobIdentityRefusal(error, "provider-keys");
+  }
   remaining();
   if (!isRecord(keys) || !Array.isArray(keys.keys) || keys.keys.length < 1 || keys.keys.length > 16)
-    throw new Error("OIDC provider key inventory is incomplete or oversized");
+    throw jobIdentityRefusal(
+      "provider-keys",
+      "OIDC provider key inventory is incomplete or oversized",
+    );
   const matches = keys.keys.filter((key: unknown) => isRecord(key) && key.kid === header.kid);
   const key: unknown = matches[0];
   if (
@@ -236,10 +290,19 @@ async function verifyJobIdentity(
     typeof key.e !== "string" ||
     key.e.length > 16
   )
-    throw new Error("OIDC provider signing key is missing or ambiguous");
-  decoded(key.n);
-  decoded(key.e);
-  const publicKey = createPublicKey({ key: { kty: "RSA", n: key.n, e: key.e }, format: "jwk" });
+    throw jobIdentityRefusal(
+      "provider-key-selection",
+      "OIDC provider signing key is missing or ambiguous",
+    );
+  const publicKey = (() => {
+    try {
+      decoded(key.n);
+      decoded(key.e);
+      return createPublicKey({ key: { kty: "RSA", n: key.n, e: key.e }, format: "jwk" });
+    } catch (error) {
+      throw markJobIdentityRefusal(error, "provider-key-material");
+    }
+  })();
   const bits = publicKey.asymmetricKeyDetails?.modulusLength;
   if (
     typeof bits !== "number" ||
@@ -247,7 +310,7 @@ async function verifyJobIdentity(
     bits > 4096 ||
     !verify("RSA-SHA256", Buffer.from(`${parts[0]}.${parts[1]}`), publicKey, signature)
   )
-    throw new Error("OIDC signature verification failed");
+    throw jobIdentityRefusal("token-signature", "OIDC signature verification failed");
   const now = Math.floor(Date.now() / 1000);
   if (
     ![claims.exp, claims.nbf, claims.iat].every(
@@ -262,8 +325,8 @@ async function verifyJobIdentity(
     claims.exp <= claims.iat ||
     claims.nbf > claims.exp
   )
-    throw new Error("OIDC time bounds are invalid or expired");
-  const required: Record<string, string> = {
+    throw jobIdentityRefusal("token-time", "OIDC time bounds are invalid or expired");
+  const required = {
     iss: issuer,
     aud: expected.audience,
     sub: expected.subject,
@@ -282,44 +345,152 @@ async function verifyJobIdentity(
     run_id: expected.run_id,
     run_attempt: String(expected.run_attempt),
   };
+  const mismatch = Object.entries(required).find(([name, value]) => claims[name] !== value);
+  if (mismatch)
+    throw jobIdentityRefusal(
+      `claim-${mismatch[0]}`,
+      "signed OIDC claims differ from the expected direct controller job",
+    );
   if (
-    Object.entries(required).some(([name, value]) => claims[name] !== value) ||
-    (profile.environment === undefined
+    profile.environment === undefined
       ? Object.hasOwn(claims, "environment")
-      : claims.environment !== profile.environment) ||
-    Object.hasOwn(claims, "job_workflow_ref") ||
-    Object.hasOwn(claims, "job_workflow_sha") ||
-    typeof claims.check_run_id !== "string" ||
-    !/^[1-9][0-9]{0,15}$/u.test(claims.check_run_id)
+      : claims.environment !== profile.environment
   )
-    throw new Error("signed OIDC claims differ from the expected direct controller job");
+    throw jobIdentityRefusal("claim-environment", "signed OIDC job environment differs");
+  // A direct job may repeat the workflow identity in the executing-job claims.
+  // A partial pair or a different executing workflow cannot satisfy this profile.
+  if (
+    (Object.hasOwn(claims, "job_workflow_ref") || Object.hasOwn(claims, "job_workflow_sha")) &&
+    (claims.job_workflow_ref !== required.workflow_ref ||
+      claims.job_workflow_sha !== required.workflow_sha)
+  )
+    throw jobIdentityRefusal("claim-reusable-workflow", "signed OIDC job is not direct");
+  if (typeof claims.check_run_id !== "string" || !/^[1-9][0-9]{0,15}$/u.test(claims.check_run_id))
+    throw jobIdentityRefusal("claim-check_run_id", "signed OIDC check-run ID is invalid");
   const expires = claims.exp;
   const checkRunId = claims.check_run_id;
-  const transport = options.transport;
-  const api = new GitHubApiClient((args, input) =>
-    createGitHubRunner({
-      cwd: transport.cwd,
-      ...(transport.spawn ? { spawn: transport.spawn } : {}),
-      maxBuffer: 2 * 1024 * 1024,
-      timeoutMs: remaining(),
-    })([...args, "--hostname", "github.com"], input),
+  const runPath = `/actions/runs/${expected.run_id}`;
+  const jobsPath = `${runPath}/attempts/${expected.run_attempt}/jobs`;
+  const sdkTransport = "sdkToken" in transport ? transport : undefined;
+  const sdkDeadline = Math.min(
+    started + 120_000,
+    phaseDeadline ?? Infinity,
+    coordinatorCommandDeadline() ?? Infinity,
+    performance.now() + (expires * 1000 - Date.now()),
   );
   let requests = 0;
-  const get = (suffix: string) => {
+  const checkBudget = () => {
     remaining();
-    if (++requests > 20 || performance.now() - started > 120_000 || Date.now() / 1000 >= expires)
-      throw new Error("assembler identity collection deadline exhausted");
-    const reply = api.request("GET", `repos/${repository}${suffix}`);
+    if (requests >= 20 || performance.now() - started >= 120_000 || Date.now() / 1000 >= expires)
+      throw jobIdentityRefusal("deadline", "assembler identity collection deadline exhausted");
+  };
+  const read = await (async () => {
+    if ("cwd" in transport) {
+      const api = new GitHubApiClient((args, input) =>
+        createGitHubRunner({
+          cwd: transport.cwd,
+          ...(transport.spawn ? { spawn: transport.spawn } : {}),
+          maxBuffer: 2 * 1024 * 1024,
+          timeoutMs: remaining(),
+        })([...args, "--hostname", "github.com"], input),
+      );
+      return (suffix: string) => {
+        requests++;
+        const reply = api.request("GET", `repos/${repository}${suffix}`);
+        if (reply.status !== 200)
+          throw jobIdentityRefusal(
+            "provider-read",
+            "assembler identity response unavailable, expired or late",
+          );
+        return reply.body;
+      };
+    }
+    if (transport.read) {
+      const fixtureRead = transport.read;
+      return (suffix: string) => {
+        requests++;
+        return fixtureRead(suffix, sdkDeadline);
+      };
+    }
+    const { createGitHubClient } = await import("./github-client.mts");
+    const client = await createGitHubClient({
+      credential: { kind: "explicit", token: transport.sdkToken },
+      deadline: sdkDeadline,
+      maxBytes: 2 * 1024 * 1024,
+      ...(transport.requireDirect
+        ? {
+            fetch(input, init) {
+              assertTrustedDirectNode("fixed job identity");
+              return globalThis.fetch(input, init);
+            },
+          }
+        : {}),
+      allowRequest: (method, url) => {
+        if (method !== "GET") return false;
+        if (url.pathname === `/repos/${repository}${jobsPath}`)
+          return (
+            url.searchParams.size === 2 &&
+            url.searchParams.get("per_page") === "100" &&
+            /^(?:[1-9]|1[0-6])$/u.test(url.searchParams.get("page") ?? "")
+          );
+        return (
+          !url.search &&
+          (url.pathname === `/repos/${repository}${runPath}` ||
+            /^\/repos\/boburning\/portcove\/actions\/jobs\/[1-9][0-9]{0,15}$/u.test(url.pathname))
+        );
+      },
+      reserve() {
+        checkBudget();
+        requests++;
+        return {
+          consumeBytes() {},
+          settle(observation) {
+            if (!observation.dispatched) requests--;
+          },
+        };
+      },
+    });
+    return async (suffix: string) => {
+      const policy: GitHubRequestPolicy = { replay: "once", attempts: 0 };
+      try {
+        const reply = await client.request(`GET /repos/${repository}${suffix}`, {
+          request: { portcove: policy },
+        });
+        if (reply.status !== 200)
+          throw jobIdentityRefusal(
+            "provider-read",
+            "assembler identity response unavailable, expired or late",
+          );
+        return reply.data as unknown;
+      } finally {
+        await policy.admissionSettled;
+      }
+    };
+  })().catch((error: unknown) => {
+    throw markJobIdentityRefusal(error, "provider-reader-setup");
+  });
+  const get = async (suffix: string) => {
+    checkBudget();
+    if (sdkTransport && performance.now() >= sdkDeadline)
+      throw jobIdentityRefusal("deadline", "assembler identity collection deadline exhausted");
+    let body: unknown;
+    try {
+      body = await read(suffix);
+    } catch (error) {
+      throw markJobIdentityRefusal(error, "provider-read");
+    }
     remaining();
     if (
-      reply.status !== 200 ||
-      performance.now() - started > 120_000 ||
-      Date.now() / 1000 >= expires
+      performance.now() - started >= 120_000 ||
+      Date.now() / 1000 >= expires ||
+      (sdkTransport && performance.now() >= sdkDeadline)
     )
-      throw new Error("assembler identity response unavailable, expired or late");
-    return reply.body;
+      throw jobIdentityRefusal(
+        "provider-read",
+        "assembler identity response unavailable, expired or late",
+      );
+    return body;
   };
-  const runPath = `/actions/runs/${expected.run_id}`;
   const runIdentity = (value: unknown) => {
     if (
       !isRecord(value) ||
@@ -331,28 +502,30 @@ async function verifyJobIdentity(
       (value.path !== profile.workflow &&
         value.path !== `${profile.workflow}@${expected.controller_ref}`) ||
       value.event !== "workflow_dispatch" ||
-      value.status !== "in_progress" ||
       !isRecord(value.repository) ||
       value.repository.id !== repositoryId ||
       value.repository.full_name !== repository ||
       !isRecord(value.head_repository) ||
       value.head_repository.id !== repositoryId
     )
-      throw new Error("assembler run identity differs");
+      throw jobIdentityRefusal("provider-run", "assembler run identity differs");
+    // The aggregate run state does not identify a particular job. Require
+    // the signed Check's exact job to be in progress in both provider reads.
+    if ((value.status !== "queued" && value.status !== "in_progress") || value.conclusion != null)
+      throw jobIdentityRefusal("provider-run", "assembler attempt is not active");
     return {
       id: value.id,
       attempt: value.run_attempt,
       sha: value.head_sha,
       path: value.path,
       event: value.event,
-      status: value.status,
     };
   };
-  const before = runIdentity(get(runPath));
+  const before = runIdentity(await get(runPath));
   const jobs: Record<string, unknown>[] = [];
   let total: number | null = null;
   for (let page = 1; page <= 16; page++) {
-    const value = get(`${runPath}/attempts/${expected.run_attempt}/jobs?per_page=100&page=${page}`);
+    const value = await get(`${jobsPath}?per_page=100&page=${page}`);
     if (
       !isRecord(value) ||
       typeof value.total_count !== "number" ||
@@ -363,7 +536,10 @@ async function verifyJobIdentity(
       !Array.isArray(value.jobs) ||
       value.jobs.length > 100
     )
-      throw new Error("assembler attempt job inventory is incomplete");
+      throw jobIdentityRefusal(
+        "provider-job-inventory",
+        "assembler attempt job inventory is incomplete",
+      );
     total = value.total_count;
     for (const job of value.jobs) {
       if (
@@ -375,15 +551,21 @@ async function verifyJobIdentity(
         job.run_attempt !== expected.run_attempt ||
         job.head_sha !== expected.controller_revision
       )
-        throw new Error("assembler attempt job identity differs");
+        throw jobIdentityRefusal(
+          "provider-job-inventory",
+          "assembler attempt job identity differs",
+        );
       jobs.push(job);
     }
     if (jobs.length === total) break;
     if (jobs.length > total || value.jobs.length !== 100 || page === 16)
-      throw new Error("assembler attempt job pages are incomplete");
+      throw jobIdentityRefusal(
+        "provider-job-inventory",
+        "assembler attempt job pages are incomplete",
+      );
   }
   if (new Set(jobs.map((job) => job.id)).size !== jobs.length)
-    throw new Error("duplicate assembler job identity");
+    throw jobIdentityRefusal("provider-job-inventory", "duplicate assembler job identity");
   const matching = jobs.filter(
     (job) =>
       job.check_run_url === `https://api.github.com/repos/${repository}/check-runs/${checkRunId}`,
@@ -400,11 +582,15 @@ async function verifyJobIdentity(
     !job ||
     typeof job.id !== "number" ||
     job.status !== "in_progress" ||
+    job.conclusion != null ||
     job.name !== profile.job ||
     !labelsMatch(job)
   )
-    throw new Error("signed check-run identity does not identify one active trusted assembly job");
-  const refreshed = get(`/actions/jobs/${job.id}`);
+    throw jobIdentityRefusal(
+      "provider-job-selection",
+      "signed check-run identity does not identify one active trusted assembly job",
+    );
+  const refreshed = await get(`/actions/jobs/${job.id}`);
   if (
     !isRecord(refreshed) ||
     refreshed.id !== job.id ||
@@ -414,17 +600,23 @@ async function verifyJobIdentity(
     refreshed.check_run_url !== job.check_run_url ||
     refreshed.name !== job.name ||
     refreshed.status !== "in_progress" ||
+    refreshed.conclusion != null ||
     !labelsMatch(refreshed)
   )
-    throw new Error("selected assembler job changed during collection");
-  const after = runIdentity(get(runPath));
+    throw jobIdentityRefusal(
+      "provider-job-recheck",
+      "selected assembler job changed during collection",
+    );
+  const after = runIdentity(await get(runPath));
   if (JSON.stringify(before) !== JSON.stringify(after))
-    throw new Error("assembler run changed during collection");
+    throw jobIdentityRefusal("provider-run-recheck", "assembler run changed during collection");
   const result = {
     schema_version: 1,
     kind: "oidc-job-identity-only",
     evidence_scope:
-      options.readKeys || options.transport.spawn ? "injected-provider" : "github.com",
+      readKeys || ("cwd" in transport ? transport.spawn : transport.read)
+        ? "injected-provider"
+        : "github.com",
     repository_id: repositoryId,
     repository,
     workflow: profile.workflow,

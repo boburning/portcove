@@ -1,11 +1,14 @@
+import { reviewedCargoDenyVersion } from "./dependency-security.mts";
 import { catalogQualificationSummary } from "./roadmap-qualification.mts";
 import { validateApproval706 } from "./linux-beta-risk-706.mts";
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 
 import {
   analyzeReleaseReadiness,
+  inspectReadinessReleaseProfile,
   renderReadinessSummary,
   completionEvidenceLinks,
   dependencyCycles,
@@ -389,8 +392,150 @@ void test("snapshot output is confined to docs/releases", () => {
     },
   });
   const items = () => [item(49, [706]), item(706)];
+  const windowsProfile = "initial-beta-windows-x86_64-v1";
+  void test("explicit Windows readiness excludes only canonical Linux auto-promotion and retains its planned disclosure", () => {
+    let approvalReads = 0;
+    const unusedApproval = new Proxy(
+      {},
+      {
+        get() {
+          approvalReads++;
+          throw new Error("Linux approval must not be consumed");
+        },
+      },
+    );
+    const input = items();
+    const result = analyzeReleaseReadiness(input, "Public beta", {
+      releaseProfile: windowsProfile,
+      risk706Approval: unusedApproval,
+    });
+    assert.equal(approvalReads, 0);
+    assert.equal(result.releaseProfile, windowsProfile);
+    assert.equal(result.ready, true);
+    assert.deepEqual(result.effectiveRequired, []);
+    assert.deepEqual(result.excludedLinuxRisk706, input);
+    assert.deepEqual(result.planned, input);
+    assert.deepEqual(result.pendingRiskDispositions, []);
+    assert.equal(result.candidateDisposition706, null);
+    assert.match(renderReadinessSummary(result), /initial-beta-windows-x86_64-v1/);
+    assert.match(renderReadinessSummary(result), /excluded from automatic promotion/);
+    assert.match(renderReadinessSummary(result), /No Linux risk disposition is consumed/);
+    assert.ok(input.every((i) => i.status === "Blocked" && i["release commitment"] === "Planned"));
+    const full = analyzeReleaseReadiness(input, "Public beta");
+    const historical = analyzeReleaseReadiness(input, "Public beta", {
+      releaseProfile: "initial-beta-win-linux",
+    });
+    for (const broader of [full, historical]) {
+      assert.equal(broader.ready, false);
+      assert.equal(broader.effectiveRequired.length, 2);
+      assert.equal(broader.pendingRiskDispositions.length, 2);
+      assert.deepEqual(broader.excludedLinuxRisk706, []);
+    }
+  });
+  void test("Windows readiness preserves explicit Required roots, genuine Linux dependencies and shared security", () => {
+    const root = { ...item(100, [49]), platform: "Windows", "release commitment": "Required" };
+    const result = analyzeReleaseReadiness([root, ...items()], "Public beta", {
+      releaseProfile: windowsProfile,
+    });
+    assert.equal(result.ready, false);
+    assert.deepEqual(
+      new Set(result.effectiveRequired.map((i) => fixtureValue(i.content).number)),
+      new Set([49, 100, 706]),
+    );
+    assert.equal(result.unfinishedRequired.length, 3);
+    assert.equal(result.dependencyConflicts.length, 2);
+    assert.deepEqual(result.excludedLinuxRisk706, []);
+    for (const input of [
+      [{ ...item(49), "release commitment": "Required" }],
+      [item(99)],
+      [{ ...item(49), platform: "Windows" }],
+      [{ ...item(49), content: { ...item(49).content, url: "https://example.test/issues/49" } }],
+    ]) {
+      const refused = analyzeReleaseReadiness(input, "Public beta", {
+        releaseProfile: windowsProfile,
+      });
+      assert.equal(refused.ready, false);
+      assert.deepEqual(refused.excludedLinuxRisk706, []);
+    }
+  });
+  void test("readiness profile cannot alias platforms, change milestone scope or consume Linux risk evidence", () => {
+    assert.deepEqual(
+      parseArguments([
+        "readiness",
+        "--release",
+        "Public beta",
+        "--release-profile",
+        windowsProfile,
+      ]),
+      {
+        command: "readiness",
+        options: { "--release": "Public beta", "--release-profile": windowsProfile },
+        positionals: [],
+      },
+    );
+    assert.throws(() => parseArguments(["readiness", "--release-profile"]), /requires a value/);
+    for (const suffix of ["=refused", "=", "=full=refused"]) {
+      const parsed = parseArguments([
+        "readiness",
+        "--release",
+        "Public beta",
+        `--release-profile=${windowsProfile}${suffix}`,
+      ]);
+      assert.equal(parsed.options["--release-profile"], `${windowsProfile}${suffix}`);
+      assert.throws(
+        () => inspectReadinessReleaseProfile(parsed.options["--release-profile"], "Public beta"),
+        /profile/,
+      );
+    }
+    assert.equal(
+      parseArguments(["context", "--runner=literal=value"]).options["--runner"],
+      "literal=value",
+    );
+    for (const profile of [
+      "unknown",
+      "initial-beta-windows",
+      "initial-beta-windows-aarch64-v1",
+      "",
+      null,
+    ])
+      assert.throws(
+        () => analyzeReleaseReadiness(items(), "Public beta", { releaseProfile: profile }),
+        /profile/,
+      );
+    assert.throws(() => inspectReadinessReleaseProfile(windowsProfile, "1.0"), /Public beta/);
+    assert.throws(
+      () => inspectReadinessReleaseProfile(windowsProfile, "Public beta", true),
+      /cannot consume/,
+    );
+    for (const packet of [{}, false, "refused"])
+      assert.throws(
+        () =>
+          analyzeReleaseReadiness(items(), "Public beta", {
+            releaseProfile: windowsProfile,
+            risk706Evidence: packet,
+          }),
+        /cannot consume/,
+      );
+    assert.throws(
+      () =>
+        analyzeReleaseReadiness(items(), "Public beta", {
+          releaseProfile: windowsProfile,
+          candidateIssues: [49],
+        }),
+      /candidate issue scope/,
+    );
+  });
   function evidence() {
-    const policy = { ...canonicalApproval, firstPublicationTag: "v0.1.0-beta.1" };
+    const scannerPolicy = readFileSync(new URL("../deny.toml", import.meta.url), "utf8");
+    // This synthetic release evidence binds the configuration exercised by the
+    // test. The committed approval retains its historical policy digest.
+    const policy = {
+      ...canonicalApproval,
+      firstPublicationTag: "v0.1.0-beta.1",
+      policySha256: createHash("sha256")
+        .update(scannerPolicy.replaceAll("\r\n", "\n"))
+        .digest("hex"),
+    };
     const candidate = {
       head: "a".repeat(40),
       lockSha256: "b".repeat(64),
@@ -431,9 +576,9 @@ void test("snapshot output is confined to docs/releases", () => {
           unsoundAll: true,
           configSha256: policy.policySha256,
           sourceConfigSha256: policy.policySha256,
-          sourceConfig: readFileSync(new URL("../deny.toml", import.meta.url), "utf8"),
-          executionConfig: readFileSync(new URL("../deny.toml", import.meta.url), "utf8"),
-          toolVersion: "cargo-deny 0.20.2",
+          sourceConfig: scannerPolicy,
+          executionConfig: scannerPolicy,
+          toolVersion: `cargo-deny ${reviewedCargoDenyVersion}`,
           scope: "workspace-default-all-targets-all-checks",
           stdout: "",
           stderr: [diagnostic, { type: "summary", fields: summary }]

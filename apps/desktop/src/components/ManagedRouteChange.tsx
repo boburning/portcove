@@ -1,4 +1,7 @@
+import { AuthoredSetupWarnings } from "./AuthoredSetupWarnings";
 import { useId, useRef, useState } from "react";
+import { Trans } from "react-i18next";
+import { useAppTranslation } from "../localization";
 import { desktopApi } from "../api";
 import { gameIdentityLabel } from "../port-identity";
 import type { PortDefinition } from "../types";
@@ -18,11 +21,12 @@ type Props = {
 };
 
 export function ManagedRouteChangeControl(props: Props) {
+  const { t } = useAppTranslation("installation");
   const [open, setOpen] = useState(false);
   return (
     <>
       <Button data-focusable variant="outline" disabled={props.busy} onClick={() => setOpen(true)}>
-        Review a Portcove-managed copy…
+        {t("managedRoute.open")}
       </Button>
       {open && <ManagedRouteChangeDialog {...props} close={() => setOpen(false)} />}
     </>
@@ -35,6 +39,7 @@ function useManagedRouteChangeDialog({
   onChanged,
   close,
 }: Props & { close: () => void }) {
+  const { t } = useAppTranslation("installation");
   const cancel = useRef<HTMLButtonElement>(null);
   const descriptionId = useId();
   const [optionsOpen, setOptionsOpen] = useState(false);
@@ -48,8 +53,7 @@ function useManagedRouteChangeDialog({
       return true;
     },
     close,
-    failureMessage:
-      "The route change was not confirmed. Review the current installation before trying again.",
+    failureMessage: t("managedRoute.failure"),
   });
   const committed = failurePresentation(error)?.mutation_state === "committed";
   const preservesExternalData =
@@ -87,6 +91,7 @@ function ManagedRouteChangeDialogView({
   cancel,
   ...model
 }: ReturnType<typeof useManagedRouteChangeDialog>) {
+  const { t } = useAppTranslation("installation");
   return (
     <Dialog
       open
@@ -99,26 +104,26 @@ function ManagedRouteChangeDialogView({
         showCloseButton={false}
         aria-describedby={model.descriptionId}
       >
-        <DialogTitle>Use a managed copy of {gameIdentityLabel(model.port)}?</DialogTitle>
+        <DialogTitle>
+          <Trans
+            t={t}
+            i18nKey="managedRoute.title"
+            components={{ name: <bdi>{gameIdentityLabel(model.port)}</bdi> }}
+          />
+        </DialogTitle>
         <DialogDescription id={model.descriptionId}>
-          Portcove prepares a separate copy and switches to it only after verification. Your current
-          registration stays usable until then, and its external files stay where they are.
+          {t("managedRoute.description")}
         </DialogDescription>
-        {model.pending === "review" && (
-          <p role="status">Checking the recommended release and destination…</p>
-        )}
+        {model.pending === "review" && <p role="status">{t("managedRoute.checking")}</p>}
         {<ManagedRoutePreview {...{ model }} />}
         {!model.committed && (
           <details onToggle={(event) => model.setOptionsOpen(event.currentTarget.open)}>
             <summary data-focusable className="cursor-pointer">
-              Change release or location
+              {t("managedRoute.options")}
             </summary>
             {model.optionsOpen && (
               <div className="mt-3 grid gap-4">
-                <p>
-                  These choices are saved for future managed installs. They do not move or change
-                  your external files.
-                </p>
+                <p>{t("managedRoute.optionsNote")}</p>
                 {model.preview && (
                   <ReleaseChannelControl
                     channels={model.port.channels}
@@ -143,7 +148,7 @@ function ManagedRouteChangeDialogView({
                   portId={model.port.id}
                   gameName={gameIdentityLabel(model.port)}
                   generation={model.generation}
-                  busy={model.pending ? "Reviewing managed copy" : undefined}
+                  busy={model.pending ? t("managedRoute.reviewing") : undefined}
                   onChanged={() => void model.review()}
                   onApplying={model.setOptionsApplying}
                 />
@@ -160,7 +165,7 @@ function ManagedRouteChangeDialogView({
             disabled={model.pending === "apply" || model.optionsApplying}
             onClick={model.dismiss}
           >
-            Cancel
+            {t("managedRoute.cancel")}
           </Button>
           {model.committed ? (
             <Button
@@ -170,7 +175,7 @@ function ManagedRouteChangeDialogView({
                 model.close();
               }}
             >
-              Refresh current installation
+              {t("managedRoute.refresh")}
             </Button>
           ) : model.preview ? (
             <Button
@@ -184,7 +189,7 @@ function ManagedRouteChangeDialogView({
               }
               onClick={() => void model.execute()}
             >
-              {model.pending === "apply" ? "Preparing managed copy…" : "Create managed copy"}
+              {model.pending === "apply" ? t("managedRoute.preparing") : t("managedRoute.create")}
             </Button>
           ) : (
             <Button
@@ -192,7 +197,7 @@ function ManagedRouteChangeDialogView({
               disabled={Boolean(model.pending)}
               onClick={() => void model.review()}
             >
-              Check again
+              {t("managedRoute.checkAgain")}
             </Button>
           )}
         </DialogFooter>
@@ -204,6 +209,7 @@ function ManagedRouteChangeDialogView({
 function ManagedRoutePreview({
   model,
 }: Pick<{ model: Omit<ReturnType<typeof useManagedRouteChangeDialog>, "cancel"> }, "model">) {
+  const { t } = useAppTranslation("installation");
   return (
     model.preview && (
       <div className="grid min-w-0 gap-3 wrap-anywhere">
@@ -213,34 +219,37 @@ function ManagedRoutePreview({
           {formatBytes(model.preview.installation.download_bytes)}
         </p>
         <p>
-          New runtime location:{" "}
-          <code>{model.preview.installation.output_location.effective_output_directory}</code>
+          <Trans
+            t={t}
+            i18nKey="managedRoute.folder"
+            components={{
+              path: (
+                <code>{model.preview.installation.output_location.effective_output_directory}</code>
+              ),
+            }}
+          />
         </p>
+        <AuthoredSetupWarnings warnings={model.port.presentation?.manual_setup?.warnings} />
         {model.setup && (
           <p>
             <strong>{model.setup.title}.</strong> {model.setup.instruction}
           </p>
         )}
         {model.preservesExternalData ? (
-          <p>
-            Portcove updates the new runtime and preserves its declared data. Your external saves
-            are not copied. A game that uses an upstream profile may still read the same profile
-            when you choose Play; keep a separate backup of that data.
-          </p>
+          <p>{t("managedRoute.preserves")}</p>
         ) : (
-          <p role="alert">
-            This proposed change has different file or data handling. Keep your current copy and
-            update Portcove before reviewing it again.
-          </p>
+          <p role="alert">{t("managedRoute.differentHandling")}</p>
         )}
         <details>
           <summary data-focusable className="cursor-pointer">
-            Files and recovery details
+            {t("managedRoute.recoverySummary")}
           </summary>
           <p className="mt-2">
-            Your previous files remain at <code>{model.preview.current_registration.path}</code>.
-            You can keep using them separately. The saved update policy stays in effect; Play
-            remains a separate action.
+            <Trans
+              t={t}
+              i18nKey="managedRoute.previousFiles"
+              components={{ path: <code>{model.preview.current_registration.path}</code> }}
+            />
           </p>
           {model.port.presentation?.manual_preparation && (
             <p className="mt-2">{model.port.presentation.manual_preparation}</p>

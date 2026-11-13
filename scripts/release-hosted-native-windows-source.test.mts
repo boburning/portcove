@@ -1,3 +1,4 @@
+import { nativePnpmVersion } from "./release-pnpm-runtime.mts";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
@@ -304,7 +305,7 @@ void test("Windows dependency child keeps startup homes outside its fresh DACL t
   mkdirSync(path.join(tools, "bin"));
   writeFileSync(
     path.join(source, "package.json"),
-    JSON.stringify({ packageManager: "pnpm@12.16.1" }),
+    JSON.stringify({ packageManager: `pnpm@${nativePnpmVersion()}` }),
     { mode: 0o600 },
   );
   writeFileSync(path.join(source, "apps/desktop/package.json"), "{}", { mode: 0o600 });
@@ -347,7 +348,7 @@ void test("Windows dependency child keeps startup homes outside its fresh DACL t
     hook = path.join(root, "controlled-startup.mjs");
   writeFileSync(
     hook,
-    `import assert from 'node:assert/strict';import {registerHooks} from 'node:module';import {EventEmitter} from 'node:events';import fs from 'node:fs';import path from 'node:path';Object.defineProperties(process,{platform:{value:'win32'},arch:{value:'x64'}});const plan=JSON.parse(fs.readFileSync(${JSON.stringify(plan)},'utf8'));globalThis.startupPeer=(exe,args,options)=>{const child=new EventEmitter();child.stdout=new EventEmitter();child.stderr=new EventEmitter();child.kill=()=>true;queueMicrotask(()=>{try{if(exe.endsWith('pwsh.exe')){for(const key of ['HOME','USERPROFILE','XDG_CONFIG_HOME','XDG_CACHE_HOME','XDG_DATA_HOME','TEMP','TMP'])assert.equal(options.env[key],path.dirname(plan.root));assert.equal(fs.existsSync(plan.root),false,'startup must not precreate the DACL target');fs.mkdirSync(plan.root)}else{assert.equal(exe,plan.pnpm);assert.equal(options.env.HOME,plan.root);if(args[0]==='--version')child.stdout.emit('data',Buffer.from('12.16.1'));else{assert.ok(args.includes('--frozen-lockfile')&&args.includes('--ignore-scripts')&&args.includes('--ignore-pnpmfile'));fs.mkdirSync(path.join(plan.source,'node_modules'));fs.mkdirSync(path.join(plan.source,'apps/desktop/node_modules'));fs.writeFileSync(path.join(plan.source,'node_modules/inert'),'fixture',{mode:0o600})}}child.emit('close',0,null)}catch(error){child.emit('error',error);child.emit('close',1,null)}});return child};registerHooks({resolve(s,c,next){if(c.parentURL===${JSON.stringify(module.href)}&&s==='node:child_process')return {url:'startup-peer:spawn',shortCircuit:true};return next(s,c)},load(u,c,next){if(u==='startup-peer:spawn')return {format:'module',source:'export const spawn=globalThis.startupPeer;',shortCircuit:true};return next(u,c)}});`,
+    `import assert from 'node:assert/strict';import {registerHooks} from 'node:module';import {EventEmitter} from 'node:events';import fs from 'node:fs';import path from 'node:path';Object.defineProperties(process,{platform:{value:'win32'},arch:{value:'x64'}});const plan=JSON.parse(fs.readFileSync(${JSON.stringify(plan)},'utf8'));globalThis.startupPeer=(exe,args,options)=>{const child=new EventEmitter();child.stdout=new EventEmitter();child.stderr=new EventEmitter();child.kill=()=>true;queueMicrotask(()=>{try{if(exe.endsWith('pwsh.exe')){for(const key of ['HOME','USERPROFILE','XDG_CONFIG_HOME','XDG_CACHE_HOME','XDG_DATA_HOME','TEMP','TMP'])assert.equal(options.env[key],path.dirname(plan.root));assert.equal(fs.existsSync(plan.root),false,'startup must not precreate the DACL target');fs.mkdirSync(plan.root)}else{assert.equal(exe,plan.pnpm);assert.equal(options.env.HOME,plan.root);if(args[0]==='--version')child.stdout.emit('data',Buffer.from(${JSON.stringify(nativePnpmVersion())}));else{assert.ok(args.includes('--frozen-lockfile')&&args.includes('--ignore-scripts')&&args.includes('--ignore-pnpmfile'));fs.mkdirSync(path.join(plan.source,'node_modules'));fs.mkdirSync(path.join(plan.source,'apps/desktop/node_modules'));fs.writeFileSync(path.join(plan.source,'node_modules/inert'),'fixture',{mode:0o600})}}child.emit('close',0,null)}catch(error){child.emit('error',error);child.emit('close',1,null)}});return child};registerHooks({resolve(s,c,next){if(c.parentURL===${JSON.stringify(module.href)}&&s==='node:child_process')return {url:'startup-peer:spawn',shortCircuit:true};return next(s,c)},load(u,c,next){if(u==='startup-peer:spawn')return {format:'module',source:'export const spawn=globalThis.startupPeer;',shortCircuit:true};return next(u,c)}});`,
     { mode: 0o600 },
   );
   const result = spawnSync(
@@ -510,4 +511,31 @@ void test("Windows live dependency enumeration defers only an inspected busy dir
     () => windowsPreparationDirectoryEnumerationDeferred(busy, child, root, true),
     /ENOENT/u,
   );
+});
+
+void test("Windows dependency sampling reclassifies only live directory-to-link replacements without traversing them", () => {
+  const fixture = fileURLToPath(new URL("./fixtures/windows-dependency-live.mts", import.meta.url));
+  const result = spawnSync(process.execPath, [fixture], {
+    encoding: "utf8",
+    timeout: 30_000,
+    maxBuffer: 64 * 1024,
+  });
+  assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
+  const report: unknown = JSON.parse(result.stdout);
+  assert.ok(isRecord(report));
+  assert.deepEqual(report.cases, [
+    "live-link",
+    "settled",
+    "root",
+    "EACCES",
+    "EPERM",
+    "EIO",
+    "file",
+    "initial-lstat",
+    "hardlink",
+    "expired",
+    "count",
+    "link-bytes",
+    "missing-root",
+  ]);
 });

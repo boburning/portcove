@@ -1,3 +1,7 @@
+import { validateGitHubBody } from "./github-body-text.mts";
+import { assessUpstreamLineage } from "./upstream-lineage.mts";
+import type { AuthoredPort } from "./catalog-authoring.mts";
+
 export function diagnosticText(value: unknown): string {
   return String(value);
 }
@@ -73,6 +77,12 @@ export function normalizePortKey(value: unknown) {
 export function normalizedPortTitle(value: unknown) {
   return normalizePortKey(diagnosticText(value ?? "").replace(portTitlePrefix, ""));
 }
+export const portGameKey = (game: string) =>
+  game
+    .normalize("NFKD")
+    .replace(/\p{Mark}/gu, "")
+    .toLowerCase()
+    .replace(/[^\p{Letter}\p{Number}]/gu, "");
 
 export function normalizedUpstream(value: unknown) {
   try {
@@ -182,6 +192,17 @@ export function sourceProvenancePortIdentity(issue: RoadmapIssueItem) {
 export function sourceProvenancePortIssues(issues: readonly RoadmapIssueItem[] | null | undefined) {
   return discoveredPortIssues(issues);
 }
+export function portRepositoryIds(body: string) {
+  const primary = body
+    .split(/\r?\n/u)
+    .filter((line) => !line.startsWith("Reviewed source-family alias: "))
+    .join("\n");
+  return [
+    ...new Set(
+      [...primary.matchAll(/GitHub repository ID:\s*(\d+)/giu)].map((match) => Number(match[1])),
+    ),
+  ];
+}
 
 export function findPortIssueDuplicates(
   issues: readonly RoadmapIssueItem[] | null | undefined,
@@ -190,25 +211,67 @@ export function findPortIssueDuplicates(
     upstream,
     catalogId,
     portKey,
+    repositoryIdentity,
+    catalogRecords,
   }: {
     title: string;
     upstream: string;
     catalogId?: string | null | undefined;
     portKey?: string | null | undefined;
+    repositoryIdentity?: { id: number; game: string } | undefined;
+    catalogRecords?: readonly AuthoredPort[] | undefined;
   },
 ) {
   const candidateTitle = normalizedPortTitle(title);
   const candidateUpstream = normalizedUpstream(upstream);
   const candidateKey = portKey ? normalizePortKey(portKey) : null;
   const candidateIdentity = catalogId ?? candidateKey ?? candidateTitle;
+  if (
+    repositoryIdentity &&
+    (!Number.isSafeInteger(repositoryIdentity.id) ||
+      repositoryIdentity.id <= 0 ||
+      !repositoryIdentity.game.trim())
+  )
+    throw new Error("Invalid primary repository/game identity");
   const matches = [];
   for (const issue of discoveredPortIssues(issues)) {
     const reasons = [];
     const { ids, keys, upstreams, title: titleIdentity } = portIdentity(issue);
+    const body = itemBody(issue);
+    const bodyIds = portRepositoryIds(body);
+    const authored = catalogRecords?.find(
+      (record) => record.listing.issue_number === issueNumber(issue),
+    );
+    const history = authored ? assessUpstreamLineage(authored).history : [];
+    const repositoryIds = [
+      ...new Set([
+        ...bodyIds,
+        ...history.flatMap((row) =>
+          row.repository?.host === "github.com" ? [Number(row.repository.id)] : [],
+        ),
+      ]),
+    ];
+    const knownUpstreams = [
+      ...upstreams,
+      ...history.map((row) => normalizedUpstream(row.project_url)),
+    ];
+    const knownGame =
+      authored?.listing.original_game_title ??
+      body.match(/^Underlying game: \*\*([^*\r\n]{1,256})\*\*/mu)?.[1];
+    const separateIdentity =
+      repositoryIdentity &&
+      bodyIds.length <= 1 &&
+      repositoryIds.length > 0 &&
+      repositoryIds.every((id) => Number.isSafeInteger(id) && id > 0) &&
+      ((!repositoryIds.includes(repositoryIdentity.id) &&
+        !knownUpstreams.includes(candidateUpstream)) ||
+        (repositoryIds.includes(repositoryIdentity.id) &&
+          knownGame &&
+          portGameKey(knownGame) !== portGameKey(repositoryIdentity.game)));
     const issueIdentity = ids[0] ?? keys[0] ?? titleIdentity;
     if (catalogId && ids.includes(catalogId)) reasons.push(`catalog ID ${catalogId}`);
     if (candidateKey && keys.includes(candidateKey)) reasons.push(`port key ${candidateKey}`);
-    if (candidateTitle && titleIdentity === candidateTitle)
+    if (candidateTitle && titleIdentity === candidateTitle && !separateIdentity)
       reasons.push(`normalized title ${candidateTitle}`);
     if (
       candidateUpstream &&
@@ -346,4 +409,75 @@ export function blockingNodes(
     return Array.isArray(value);
   }
   return isList(value) ? value : (value?.nodes ?? []);
+}
+
+const durableIssueHeadings = [
+  "User outcome",
+  "Current behavior and evidence",
+  "Scope",
+  "Non-goals",
+  "Acceptance criteria",
+  "Required tests",
+  "Documentation impact",
+  "Dependencies and blockers",
+  "Completion evidence",
+];
+export const neutralPortFields = Object.freeze({
+  Status: "Inbox",
+  Priority: "None",
+  Horizon: "Someday",
+  "Target release": "Unscheduled",
+  "Work type": "Port",
+  Workstream: "Port catalog",
+  Platform: "Unknown",
+  "Port stage": "Watchlist",
+  Effort: "Unknown",
+});
+
+export function validateDurableIssueBody(body: unknown) {
+  if (typeof body !== "string" || !body.trim())
+    throw new Error("durable issue body must be a non-empty string");
+  validateGitHubBody(body);
+  const missing = durableIssueHeadings.filter((heading: string) => {
+    const match = body.match(
+      new RegExp(`^## ${heading.replace(/[.*+?^${}()|[\\]\\]/g, "\\$&")}\\s*$`, "im"),
+    );
+    if (!match) return true;
+    const start = (match.index ?? 0) + match[0].length;
+    const next = body.slice(start).search(/^##\s/m);
+    const content = body.slice(start, next < 0 ? undefined : start + next).trim();
+    return !content || /^(?:pending|tbd|todo)[.!]?$/i.test(content.replace(/^[-*]\s*/, ""));
+  });
+  if (missing.length)
+    throw new Error(`durable issue specification is incomplete: ${missing.join(", ")}`);
+  if (
+    body.includes(portMarker) &&
+    portCatalogMarkers(body).length === 0 &&
+    !isNonCatalogResearchBody(body)
+  )
+    throw new Error(
+      "Non-catalog port issue must identify research/watchlist status and disclaim support",
+    );
+  return body;
+}
+
+/** Shared canonical admission; transport and verified-inventory ownership stay
+ * with the caller. A matching title alone never establishes upstream identity. */
+export function prepareCanonicalPortIssue(
+  input: Parameters<typeof findPortIssueDuplicates>[1] & { body?: string | undefined },
+  issues: readonly RoadmapIssueItem[],
+  catalogRecords?: readonly AuthoredPort[],
+) {
+  const duplicates = findPortIssueDuplicates(issues, { ...input, catalogRecords });
+  if (duplicates.length)
+    throw new Error(
+      `port already has a durable issue: ${duplicates
+        .map((match) => `${itemUrl(match.issue)} (${match.reasons.join(", ")})`)
+        .join("; ")}`,
+    );
+  const body = input.body ?? renderPortIssueBody(input);
+  validateDurableIssueBody(body);
+  if (reconcilePortIssueMarkers(body, input) !== body)
+    throw new Error("Intake body differs from reviewed canonical markers");
+  return { title: `[Port] ${input.title}`, body };
 }

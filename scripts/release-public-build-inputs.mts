@@ -1,3 +1,5 @@
+import { inspectPublicBuildInputIdentity } from "./release-public-build-binding-contract.mts";
+export { inspectPublicBuildInputIdentity } from "./release-public-build-binding-contract.mts";
 import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
 import { appendFile, lstat, mkdir, mkdtemp, open, readdir, writeFile } from "node:fs/promises";
@@ -31,16 +33,6 @@ function exact(
 /** Public bytes are authorized only by the separately ratified immutable commit
  * and manifest digest. Parsing or copying them creates no new publisher authority.
  * TUF signature/expiry validation remains owned by the maintained runtime. */
-export function inspectPublicBuildInputIdentity(revision: unknown, digest: unknown) {
-  if (
-    typeof revision !== "string" ||
-    !/^[a-f0-9]{40}$/u.test(revision) ||
-    typeof digest !== "string" ||
-    !/^[a-f0-9]{64}$/u.test(digest)
-  )
-    throw new Error("ratified public configuration commit and manifest SHA-256 are required");
-  return { revision, digest };
-}
 
 export async function readBoundedPublicBuildInputFile(
   root: string,

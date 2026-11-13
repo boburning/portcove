@@ -3,9 +3,10 @@
   "listing": {
     "id": "alexbeav-medievil-ii-recomp",
     "name": "MediEvil II / Alexbeav PSXRecomp",
-    "summary": "Explore MediEvil II / Alexbeav PSXRecomp and follow the upstream project for requirements, downloads and setup.",
+    "summary": "Play MediEvil II on Windows with the prebuilt player, which includes OpenBIOS and MediEvil II widescreen, frame-rate and control mods. You need your own USA PlayStation disc.",
     "project_url": "https://github.com/alexbeavs-ps1-ports/medievil-ii-recomp",
     "issue_number": 459,
+    "listed_at": "2026-10-23",
     "availability": "packages",
     "setup_url": "https://github.com/alexbeavs-ps1-ports/medievil-ii-recomp/blob/v0.2.4-alpha/README.md",
     "artwork": {

@@ -12,15 +12,18 @@ import {
   expiry706,
   target706,
   decide706,
+  decisionInputs706,
   candidate706,
   validateApproval706,
   assessDispatchedBuild706,
   dispatchedBuildAssessment706,
   inspectCompilerRiskAssessment706,
+  releaseAuditDisposition,
 } from "./linux-beta-risk-706.mts";
 
 import { createHash } from "node:crypto";
-import { parseDependencyScan } from "./dependency-security.mts";
+import { parseDependencyScan, reviewedCargoDenyVersion } from "./dependency-security.mts";
+import { withReadOnlyReleaseChildren } from "./release-readonly-child-environment.mts";
 
 const scannerPolicy = readFileSync(new URL("../deny.toml", import.meta.url), "utf8");
 
@@ -289,7 +292,7 @@ function input() {
       sourceConfigSha256: approval.policySha256,
       sourceConfig: scannerPolicy,
       executionConfig: scannerPolicy,
-      toolVersion: "cargo-deny 0.20.2",
+      toolVersion: `cargo-deny ${reviewedCargoDenyVersion}`,
       scope: "workspace-default-all-targets-all-checks",
       stdout: "",
       stderr: output(),
@@ -370,6 +373,113 @@ void test("dispatched build measures changed native source without appointing a 
       }),
     /blocking finding/u,
   );
+});
+
+void test("Windows release audit dispatch retains the full scan without Linux approval or a native graph", async (t) => {
+  const dir = mkdtempSync(path.join(os.tmpdir(), "portcove-windows-release-audit-"));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const value = input();
+  const lock = "retained full-workspace lock\n";
+  writeFileSync(path.join(dir, "Cargo.lock"), lock);
+  writeFileSync(path.join(dir, "deny.toml"), scannerPolicy);
+  const scan = {
+    ...value.scan,
+    lockSha256: createHash("sha256").update(lock).digest("hex"),
+  };
+  const assess = (observed: unknown = scan) =>
+    releaseAuditDisposition({
+      root: dir,
+      head: value.candidate.head,
+      scan: observed,
+      environment: {
+        GITHUB_EVENT_NAME: "workflow_dispatch",
+        PORTCOVE_RELEASE_PROFILE: "initial-beta-windows-x86_64-v1",
+      },
+      now: value.now,
+    });
+  // No .git, Linux approval file, reviewed native baseline or cargo metadata
+  // exists here. Execute the same disposition function used by the real audit.
+  const result = await assess();
+  assert.equal(result.suffix, "build-assessment.json");
+  assert.ok("release_profile" in result.decision);
+  assert.equal(result.decision.authority, "none");
+  assert.equal(result.decision.releaseAuthorization, "not-evaluated");
+  assert.equal(result.decision.scanPassed, false);
+  assert.equal(result.decision.scanExitCode, 1);
+  assert.equal(result.decision.knownFinding, "RUSTSEC-2024-0429");
+  assert.equal(result.decision.release_profile, "initial-beta-windows-x86_64-v1");
+  assert.equal(result.decision.scanScope, "workspace-default-all-targets-all-checks");
+  assert.equal("dependencyGraphSha256" in result.decision, false);
+  for (const changed of [
+    { head: "f".repeat(40) },
+    { lockSha256: "f".repeat(64) },
+    { completedAt: "2026-10-15T23:44:59.000Z" },
+    { completedAt: "2026-10-16T00:00:01.000Z" },
+    { complete: false },
+    { scope: "Windows-only" },
+    { executionConfig: "changed" },
+    { exitCode: 0 },
+  ])
+    await assert.rejects(() => assess({ ...scan, ...changed }));
+  const warning = {
+    severity: "warning",
+    code: "unmaintained",
+    advisory: { id: "RUSTSEC-2024-0370", package: "proc-macro-error" },
+  };
+  const warnings = (entry: unknown) => ({
+    ...scan,
+    stderr: output([finding, entry], {
+      ...summary,
+      advisories: { ...summary.advisories, warnings: 1 },
+    }),
+  });
+  await assess(warnings(warning));
+  await assert.rejects(
+    () =>
+      assess(
+        warnings({
+          ...warning,
+          advisory: { ...warning.advisory, id: "RUSTSEC-OTHER" },
+        }),
+      ),
+    /another advisory/u,
+  );
+  await assert.rejects(
+    () => assess(warnings({ ...warning, code: "changed" })),
+    /another advisory/u,
+  );
+  const clean = await assess({
+    ...scan,
+    exitCode: 0,
+    stderr: output([], {
+      ...summary,
+      advisories: { errors: 0, warnings: 0, notes: 0, helps: 0 },
+    }),
+  });
+  assert.ok("release_profile" in clean.decision);
+  assert.equal(clean.decision.scanPassed, true);
+  assert.equal(clean.decision.releaseAuthorization, "not-evaluated");
+  for (const environment of [
+    { GITHUB_EVENT_NAME: "push", PORTCOVE_RELEASE_PROFILE: "initial-beta-windows-x86_64-v1" },
+    { GITHUB_EVENT_NAME: "workflow_dispatch", PORTCOVE_RELEASE_PROFILE: "full" },
+    { GITHUB_EVENT_NAME: "workflow_dispatch", PORTCOVE_RELEASE_PROFILE: "initial-beta-win-linux" },
+    {
+      GITHUB_EVENT_NAME: "workflow_dispatch",
+      PORTCOVE_RELEASE_PROFILE: "initial-beta-windows-x86_64-v2",
+    },
+  ]) {
+    await assert.rejects(
+      () =>
+        releaseAuditDisposition({
+          root: dir,
+          head: value.candidate.head,
+          scan,
+          environment,
+          now: value.now,
+        }),
+      /git|repository/u,
+    );
+  }
 });
 
 void test("strict clean remediation remains build-only without requiring an exception profile", () => {
@@ -641,7 +751,7 @@ void test("execution failure, wrong candidate, green/incomplete coverage and ext
       x.scan.configSha256 = "f".repeat(64);
     },
     (x) => {
-      x.scan.toolVersion = "cargo-deny 0.20.3";
+      x.scan.toolVersion = `cargo-deny ${reviewedCargoDenyVersion}-unreviewed`;
     },
     (x) => {
       x.scan.head = "e".repeat(40);
@@ -701,6 +811,185 @@ void test("all four scanner checks must complete with consistent summary account
     parseDependencyScan("", output() + "\n" + JSON.stringify({ type: "summary", fields: summary })),
   );
   assert.throws(() => parseDependencyScan("", output([], summary)), /mismatch/);
+});
+
+void test("clean release scans never load the SDK or require a workflow token", (t) => {
+  const dir = mkdtempSync(path.join(os.tmpdir(), "portcove-706-clean-sdk-"));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  mkdirSync(path.join(dir, ".github"));
+  writeFileSync(path.join(dir, ".github/linux-beta-risk-706.json"), JSON.stringify(approval));
+  const lock = "version = 4\n";
+  writeFileSync(path.join(dir, "Cargo.lock"), lock);
+  writeFileSync(path.join(dir, "deny.toml"), scannerPolicy);
+  const scan = {
+    ...input().scan,
+    lockSha256: createHash("sha256").update(lock).digest("hex"),
+    completedAt: new Date().toISOString(),
+    exitCode: 0,
+    stderr: output([], { ...summary, advisories: { ...summary.advisories, errors: 0 } }),
+  };
+  const cargo = {
+    packages: [{ id: "desktop", name: "portcove-desktop", version: "0.1.0", source: null }],
+    resolve: { nodes: [{ id: "desktop", features: [], deps: [] }] },
+  };
+  const moduleUrl = new URL("./linux-beta-risk-706.mts", import.meta.url).href;
+  execFileSync(
+    process.execPath,
+    [
+      "--input-type=module",
+      "-e",
+      `
+    import assert from 'node:assert/strict';
+    import cp from 'node:child_process';
+    import {registerHooks, syncBuiltinESMExports} from 'node:module';
+    registerHooks({resolve(specifier, context, next) {
+      assert.doesNotMatch(specifier, /octokit|github-client|release-publication-inventory/);
+      return next(specifier, context);
+    }});
+    cp.execFileSync = (name, args) => {
+      if (name === 'git' && args[0] === 'rev-parse') return ${JSON.stringify(candidate.head)};
+      if (name === 'git' && ['status', 'cat-file', 'diff', 'ls-tree'].includes(args[0])) return '';
+      if (name === 'cargo' && args[0] === 'metadata') return ${JSON.stringify(JSON.stringify(cargo))};
+      throw new Error('Unexpected external command');
+    };
+    syncBuiltinESMExports();
+    globalThis.fetch = () => { throw new Error('Clean scan attempted a provider read'); };
+    const {releaseSecurity} = await import(${JSON.stringify(moduleUrl)});
+    const result = await releaseSecurity(process.cwd(), ${JSON.stringify(scan)}, 'v0.1.0-beta.1');
+    assert.equal(result.disposition, 'clean-scan');
+  `,
+    ],
+    {
+      cwd: dir,
+      env: {
+        ...process.env,
+        GITHUB_ACTIONS: "true",
+        GITHUB_SHA: candidate.head,
+        GH_TOKEN: "",
+        GITHUB_TOKEN: "",
+        RUSTFLAGS: "",
+        CARGO_ENCODED_RUSTFLAGS: "",
+        CARGO_BUILD_RUSTFLAGS: "",
+        RUSTC_BOOTSTRAP: "",
+        RUSTC_WRAPPER: "",
+      },
+      timeout: 15_000,
+      windowsHide: true,
+    },
+  );
+});
+
+void test("legacy risk authorization reads complete SDK release and eligible asset pages in order", async (t) => {
+  const dir = mkdtempSync(path.join(os.tmpdir(), "portcove-706-sdk-"));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  mkdirSync(path.join(dir, ".github"));
+  writeFileSync(path.join(dir, ".github/linux-beta-risk-706.json"), JSON.stringify(approval));
+  for (const name of [
+    "GH_TOKEN",
+    "GITHUB_TOKEN",
+    "GITHUB_ACTIONS",
+    "NODE_USE_ENV_PROXY",
+    "NODE_EXTRA_CA_CERTS",
+  ] as const) {
+    const value = process.env[name];
+    t.after(() => {
+      if (value === undefined) delete process.env[name];
+      else process.env[name] = value;
+    });
+  }
+  process.env.GH_TOKEN = "legacy-risk-gh";
+  process.env.GITHUB_TOKEN = "legacy-risk-github";
+  delete process.env.GITHUB_ACTIONS;
+  process.env.NODE_USE_ENV_PROXY = "1";
+  const prefix = "https://api.github.com/repos/boburning/portcove/releases";
+  const routes = [
+    `${prefix}?per_page=100`,
+    "https://api.github.com/repositories/1354613114/releases?per_page=100&page=2",
+    `${prefix}/81/assets?per_page=100`,
+    `${prefix}/81/assets?per_page=100&page=2`,
+  ];
+  const recent = {
+    id: 81,
+    draft: false,
+    tag_name: approval.firstPublicationTag,
+    published_at: "2026-10-17T00:00:00Z",
+    assets: [],
+  };
+  const pages = [
+    [recent, { id: 82, draft: true }],
+    [
+      {
+        id: 80,
+        draft: false,
+        tag_name: "v0.1.0-alpha.1",
+        published_at: "2026-10-14T00:00:00Z",
+        assets: [],
+      },
+    ],
+    [{ id: 10, name: "checksums.txt" }],
+    [{ id: 11, name: "Portcove_0.1.0-beta.1_amd64.AppImage" }],
+  ];
+  const seen: { url: string; auth: string | null }[] = [];
+  let invalidAssetLink = false;
+  t.mock.method(globalThis, "fetch", (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
+    const request = new Request(input, init);
+    assert.equal(request.method, "GET");
+    assert.equal(init?.redirect, "manual");
+    const index = seen.length;
+    assert.equal(request.url, routes[index]);
+    seen.push({ url: request.url, auth: request.headers.get("authorization") });
+    const next = index === 0 || index === 2 ? routes[index + 1] : null;
+    const link = invalidAssetLink && index === 2 ? "https://unadmitted.example/assets" : next;
+    return Promise.resolve(
+      Response.json(pages[index], {
+        headers: link ? { link: `<${link}>; rel="next"` } : {},
+      }),
+    );
+  });
+  const scan = { ...input().scan, completedAt: "2026-10-18T00:00:00Z" };
+  const collect = () =>
+    decisionInputs706(dir, scan, scan.completedAt, "release", approval.firstPublicationTag, {
+      ...candidate,
+      native: [],
+      sourceNativeInputsSha256: "d".repeat(64),
+    });
+  const evidence = await collect();
+  assert.deepEqual(
+    seen.map(({ url }) => url),
+    routes,
+  );
+  assert.ok(seen.every(({ auth }) => auth === "token legacy-risk-gh"));
+  assert.deepEqual(evidence.releases[0]?.assets, [...pages[2]!, ...pages[3]!]);
+  assert.equal(decide706(evidence).disposition, "accepted-risk");
+
+  seen.length = 0;
+  delete process.env.GH_TOKEN;
+  await collect();
+  assert.ok(seen.every(({ auth }) => auth === "token legacy-risk-github"));
+  seen.length = 0;
+  process.env.GITHUB_ACTIONS = "true";
+  await assert.rejects(collect, /explicit fixed-job reader transport token required/u);
+  assert.deepEqual(seen, []);
+
+  process.env.GH_TOKEN = "legacy-risk-workflow";
+  invalidAssetLink = true;
+  await assert.rejects(collect, /release inventory pagination changed scope/u);
+  assert.deepEqual(
+    seen.map(({ url }) => url),
+    routes.slice(0, 3),
+  );
+  assert.ok(seen.every(({ auth }) => auth === "token legacy-risk-workflow"));
+
+  seen.length = 0;
+  invalidAssetLink = false;
+  await withReadOnlyReleaseChildren(dir, async () => {
+    await assert.rejects(collect, /trusted direct Node runtime/u);
+    assert.deepEqual(seen, []);
+    delete process.env.NODE_USE_ENV_PROXY;
+    process.env.NODE_EXTRA_CA_CERTS = path.join(dir, "unadmitted-ca.pem");
+    await assert.rejects(collect, /trusted direct Node runtime/u);
+    assert.deepEqual(seen, []);
+  });
 });
 
 void test("qualification cannot allocate a publication and the second tag is always refused", () => {

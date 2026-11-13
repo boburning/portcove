@@ -44,8 +44,8 @@ describe("backup inventory read owner", () => {
   let state!: ReturnType<typeof usePortBackups>;
   let setError: ReturnType<typeof vi.fn<(error?: string) => void>>;
 
-  function Fixture({ portId }: { portId?: string }) {
-    state = usePortBackups(portId, setError);
+  function Fixture({ portId, refreshIdentity }: { portId?: string; refreshIdentity?: unknown }) {
+    state = usePortBackups(portId, setError, refreshIdentity);
     return <span>{state.inventory.port_id}</span>;
   }
 
@@ -276,5 +276,30 @@ describe("backup inventory read owner", () => {
     await act(async () => root?.render(<Fixture portId="game" />));
     expect(state.readState).toMatchObject({ status: "failed", hasInventory: false });
     expect(setError).toHaveBeenCalledExactlyOnceWith("read could not start");
+  });
+  it("refreshes on return to the visible window and retains stale facts if that read fails", async () => {
+    const next = deferred<BackupInventory>();
+    vi.spyOn(desktopApi, "backups")
+      .mockResolvedValueOnce(inventory("game", "first-backup"))
+      .mockReturnValueOnce(next.promise);
+    await act(async () => root?.render(<Fixture portId="game" />));
+    await act(async () => window.dispatchEvent(new Event("focus")));
+    expect(state.readState).toMatchObject({ status: "pending", hasInventory: true });
+    expect(state.backups[0]?.id).toBe("first-backup");
+    await act(async () => next.reject(new Error("return read failed")));
+    expect(state.readState).toMatchObject({ status: "failed", hasInventory: true });
+    expect(state.backups[0]?.id).toBe("first-backup");
+  });
+
+  it("rechecks a changed workspace identity without accepting its obsolete request", async () => {
+    const old = deferred<BackupInventory>();
+    vi.spyOn(desktopApi, "backups")
+      .mockReturnValueOnce(old.promise)
+      .mockResolvedValueOnce(inventory("game", "current-backup"));
+    await act(async () => root?.render(<Fixture portId="game" refreshIdentity="old" />));
+    await act(async () => root?.render(<Fixture portId="game" refreshIdentity="current" />));
+    expect(state.backups[0]?.id).toBe("current-backup");
+    await act(async () => old.resolve(inventory("game", "obsolete-backup")));
+    expect(state.backups[0]?.id).toBe("current-backup");
   });
 });

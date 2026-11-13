@@ -117,7 +117,7 @@ describe("desktop components", () => {
     expect(html).toMatch(/<button[^>]*data-variant="ghost"[^>]*class="[^"]*bg-transparent/u);
     expect(html).toMatch(
       new RegExp(
-        `<button[^>]*data-variant="outline"[^>]*aria-label="Commands ${commandShortcut("K")}: open command palette"`,
+        `<button[^>]*data-variant="outline"[^>]*aria-label="Search games and pages ${commandShortcut("K")}: open command palette"`,
         "u",
       ),
     );
@@ -128,12 +128,15 @@ describe("desktop components", () => {
     expect(html).toContain("Problem");
     expect(html).toContain("C:/Portcove");
     expect(html).toContain("width:50%");
-    expect(html).toContain("/brand/icons/portcove-mascot-head-256.png");
+    expect(html).not.toContain("/brand/icons/portcove-mascot-head-256.png");
     expect(html).toContain("About Portcove");
     expect(html).toContain("Install, update, and play native game ports.");
-    expect(html).toContain("/brand/mascot/portcove-mascot-v2-front.png");
-    expect(html).toContain(">Version</dt>");
-    expect(html).toContain(desktopPackage.version);
+    expect(html).toContain("/brand/icons/portcove-mascot-transparent.png");
+    expect(html).toMatch(/<h2[^>]*aria-label="About Portcove"[^>]*>Portcove<\/h2>/u);
+    expect(html).toContain(`<h3>Portcove ${desktopPackage.version}</h3>`);
+    expect(html).toContain("Licensed under MIT or Apache-2.0.");
+    expect(html).toContain("Open project repository");
+    expect(html).toContain("Open diagnostics");
   });
 
   it("keeps page introductions concise without losing catalog count or controls", () => {
@@ -169,7 +172,7 @@ describe("desktop components", () => {
         <WorkspaceToolbar view={view} onOpenCommands={vi.fn()} />,
       );
       expect(toolbar).toContain(
-        `aria-label="Commands ${commandShortcut("K")}: open command palette"`,
+        `aria-label="Search games and pages ${commandShortcut("K")}: open command palette"`,
       );
       expect(toolbar).toContain('aria-label="Current location"');
     }
@@ -257,11 +260,15 @@ describe("desktop components", () => {
     expect(html).toContain("1.0 TiB total storage capacity");
     expect(html).toContain('aria-label="Available capacity on the library volume"');
     expect(html).toContain("width:50%");
-    expect(html).toContain("Installed application files are kept separate from saves and settings");
+    expect(html).toContain(
+      "Check Saves &amp; backups on each game’s page for its save locations and backup options.",
+    );
     expect(html).toContain(
       "Metadata records installed versions, saved file locations and settings",
     );
-    expect(html).toMatch(/<button[^>]*data-variant="outline"[^>]*>Export metadata<\/button>/u);
+    expect(html).toMatch(
+      /<button[^>]*data-variant="outline"[^>]*>Export library information<\/button>/u,
+    );
     expect(html).not.toContain("recovery-safe");
   });
 
@@ -336,7 +343,9 @@ describe("desktop components", () => {
     expect(html).toContain("Not found");
     expect(html).toContain("C:/Tools/chdman.exe");
     expect(html).toContain("E:/Missing/DolphinTool.exe");
-    expect(html).toContain("Future tool was not found. Choose its executable to continue.");
+    expect(html).toContain(
+      "Portcove couldn’t find Future tool. If it’s installed, choose its program file.",
+    );
     expect(html).toContain("Environment variable: PORTCOVE_FUTURE_TOOL");
     expect(html).toContain("Tool details");
     expect(html).toContain("Official site");
@@ -374,16 +383,16 @@ describe("desktop components", () => {
       <SettingsView createSupportBundle={vi.fn()} refreshDiagnostics={vi.fn()} />,
     );
 
-    expect(html).toContain("Create support bundle");
+    expect(html).toContain("Create a support report");
     expect(html).toContain("Game-file contents and saved credentials are excluded");
     expect(html).toContain("paths, file names, and other metadata may remain");
-    expect(html).toContain("Review the bundle before sharing it");
+    expect(html).toContain("Review the support report before sharing it");
     expect(html).toContain("Examples of details that may remain");
     expect(html).toMatch(
-      /<p>[^<]*Game-file contents and saved credentials are excluded[^<]*paths, file names, and other metadata may remain[^<]*Review the bundle before sharing it\.<\/p>\s*<details>/u,
+      /<p>[^<]*Game-file contents and saved credentials are excluded[^<]*paths, file names, and other metadata may remain[^<]*Review the support report before sharing it\.<\/p>\s*<details>/u,
     );
     expect(html).toMatch(
-      /<button[^>]*data-variant="outline"[^>]*>Create support bundle<\/button>/u,
+      /<button[^>]*data-variant="outline"[^>]*>Create a support report<\/button>/u,
     );
     expect(html).toContain("Checking disc-tool availability");
     expect(html).toContain(
@@ -559,6 +568,7 @@ describe("desktop components", () => {
       "game-files",
       "updates",
       "integrations",
+      "controls",
       "advanced",
       "about",
     ]) {
@@ -566,10 +576,11 @@ describe("desktop components", () => {
       expect(html).toContain(`id="settings-${id}-heading"`);
       expect(index).toContain(`aria-controls="settings-${id}"`);
     }
-    expect(index?.match(/data-slot="button"/gu)).toHaveLength(7);
+    expect(index?.match(/data-slot="button"/gu)).toHaveLength(8);
     expect(index?.match(/aria-current="page"/gu)).toHaveLength(1);
     expect(index).toContain("Library and storage");
     expect(index).toContain("Updates");
+    expect(index).toContain("Keyboard and controller");
   });
 
   it("hides unavailable device sign-in without exposing build configuration", () => {
@@ -628,7 +639,7 @@ describe("desktop components", () => {
       profile_id: source.profile_id,
       health: "current",
       state_code: "recognized_exact",
-      summary: "The source matches one exact catalog identity.",
+      summary: "These files match a recognized edition.",
       next_action: "Review the dependent port requirements before setup.",
       registered: source,
       applications: [],
@@ -676,7 +687,7 @@ describe("desktop components", () => {
     expect(verified).toContain("Exact match");
     expect(verified).toContain("Sample cartridge");
     expect(verified).not.toContain("Saved game-file requirement unavailable");
-    expect(verified).toContain("Full identity and evidence");
+    expect(verified).toContain("File details and test results");
     expect(verified).toContain("D:/ROMs/sample.z64");
     expect(verified).toContain("Update file location");
     expect(verified).toMatch(
@@ -728,7 +739,7 @@ describe("desktop components", () => {
     expect(html).not.toContain(">Update file location</button>");
     expect(html).toContain("Review saved location removal");
     expect(html).not.toContain("Remove saved location…");
-    expect(html).not.toContain('aria-label="Saved-location removal impact"');
+    expect(html).not.toContain('aria-label="Review removal of the saved file location"');
     expect(html).toContain("Needs attention");
     expect(html).not.toContain("Checking identity");
   });
@@ -818,7 +829,7 @@ describe("desktop components", () => {
       "No ports in your library yet. File requirements will appear here after you add a port.",
     );
     expect(noInstalledPorts).not.toMatch(/class="[^"]*source-requirements[^"]*\bcomplete\b/u);
-    expect(complete).toContain("No missing game-file requirements are recorded");
+    expect(complete).toContain("No missing original game files are currently listed");
     expect(complete).not.toContain("Required file locations are saved");
     expect(complete).toMatch(/class="[^"]*source-requirements[^"]*\bcomplete\b/u);
     expect(complete).toContain("No game files or BIOS files have been added yet");

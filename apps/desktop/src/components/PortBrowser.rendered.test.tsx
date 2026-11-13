@@ -55,10 +55,10 @@ describe("desktop components", () => {
             loading={false}
           />,
         );
-      expect(render(base)).not.toContain("Archive downloaded");
+      expect(render(base)).not.toContain("Update downloaded, not installed");
       expect(render(base)).not.toContain("Update saved for later");
       const downloaded = render({ ...base, acquisition });
-      expect(downloaded).toContain("Archive downloaded");
+      expect(downloaded).toContain("Update downloaded, not installed");
       expect(downloaded).not.toContain("Update saved for later");
       expect(downloaded).toContain("Ready to play");
       const prepared = render({
@@ -68,7 +68,7 @@ describe("desktop components", () => {
       expect(prepared).toContain(
         view === "library" ? "Update saved for later" : "Update saved for later",
       );
-      expect(prepared).not.toContain("Archive downloaded");
+      expect(prepared).not.toContain("Update downloaded, not installed");
     },
   );
 
@@ -230,6 +230,47 @@ describe("desktop components", () => {
     ).toBe(expectedAvailable);
   });
 
+  it("counts Discover cards as games while Library keeps its separate-port count", () => {
+    const originalGame = {
+      format_version: 1,
+      id: "shared-game",
+      evidence_urls: [],
+      source_editions: [],
+    };
+    const presentation = {
+      ...port.presentation!,
+      original_game_title: "Shared",
+      original_game: originalGame,
+    };
+    const grouped = [
+      { ...port, id: "shared-one", name: "Shared one", presentation },
+      { ...port, id: "shared-two", name: "Shared two", presentation },
+    ];
+    const ungrouped = { ...port, id: "solo", name: "Solo port" };
+    const count = (view: "catalog" | "library", ports: (typeof port)[]) => {
+      const html = renderToStaticMarkup(
+        <PortBrowser
+          view={view}
+          ports={ports}
+          statuses={new Map()}
+          overview={{ installed: 0, ready: 0, needsSetup: 0, staged: 0 }}
+          filter="all"
+          setFilter={vi.fn()}
+          onSelect={vi.fn()}
+          loading={false}
+        />,
+      );
+      return /<p[^>]*aria-label="Search results"[^>]*>([^<]*)<\/p>/u.exec(html)?.[1];
+    };
+    // One card per game: two ports of one game plus one ungrouped port are two games.
+    expect(count("catalog", [...grouped, ungrouped])).toBe("2 games");
+    expect(count("catalog", grouped)).toBe("1 game");
+    expect(count("catalog", [ungrouped])).toBe("1 game");
+    expect(count("library", [...grouped, ungrouped])).toBe(
+      "1 game + 1 ungrouped project · 3 matching ports",
+    );
+  });
+
   it("renders port cards and empty states", () => {
     const overview = { installed: 0, ready: 0, needsSetup: 0, staged: 0 };
     const cards = renderToStaticMarkup(
@@ -266,6 +307,8 @@ describe("desktop components", () => {
         filter="all"
         setFilter={vi.fn()}
         onSelect={vi.fn()}
+        onDiscover={vi.fn()}
+        onBrowseCatalog={vi.fn()}
         loading={false}
       />,
     );
@@ -296,8 +339,10 @@ describe("desktop components", () => {
     );
     expect(cards).toContain("Sample Port");
     expect(cards).toContain("Catalog order");
+    // Without a device target, the default order is explained rather than left implicit.
+    expect(cards).toContain("Games appear in catalog order.");
     expect(cards).toContain("Sort");
-    expect(cards).toContain("Setup status unknown");
+    expect(cards).toContain("Can&#x27;t check right now");
     expect(cards).toContain("Installation status unknown");
     expect(cards).toContain("Windows");
     expect(cards).not.toContain(port.summary);
@@ -308,21 +353,31 @@ describe("desktop components", () => {
     expect(empty).toContain("No games match the current filters and view.");
     expect(empty).not.toContain("The catalog itself has not been changed.");
     expect(empty).toContain("Reset view");
-    expect(emptyLibrary).toContain("/brand/mascot/portcove-mascot-v2-front.png");
+    expect(emptyLibrary).toContain("/brand/icons/portcove-mascot-transparent.png");
     expect(emptyLibrary).toContain('aria-hidden="true"');
     expect(emptyLibrary).toContain("Your library is empty");
-    expect(emptyLibrary).toContain("using your original files");
-    expect(emptyLibrary).toContain("Add games");
+    // First run explains Portcove plainly and leads with Discover.
+    expect(emptyLibrary).toContain("community-made versions of games, called ports");
+    expect(emptyLibrary).toContain("doesn’t upload them");
+    expect(emptyLibrary).toContain("your own copy of the original game");
+    const firstRunButtons = [...emptyLibrary.matchAll(/<button\b[^>]*>[\s\S]*?<\/button>/gu)].map(
+      ([button]) => button,
+    );
+    expect(firstRunButtons[0]).toContain("Browse games");
+    expect(firstRunButtons[0]).toContain('data-variant="primary"');
+    expect(firstRunButtons.find((button) => button.includes("Add games"))).toContain(
+      'data-variant="outline"',
+    );
     expect(emptyLibrary).not.toContain('aria-label="Library readiness"');
     expect(emptyLibrary).not.toContain('aria-label="Library filters"');
     expect(emptyLibrary).toContain("copy a supported installation");
     expect(emptyLibrary.toLowerCase()).not.toContain("adopt");
     expect(emptyLibrary).not.toContain("Reset view");
-    expect(filteredEmptyLibrary).toContain("No matching library entries");
+    expect(filteredEmptyLibrary).toContain("Nothing in your library matches");
     expect(filteredEmptyLibrary).toContain('aria-label="Library filters"');
     expect(filteredEmptyLibrary).toContain("Reset view");
     expect(filteredEmptyLibrary).toContain(
-      "Reset filters, quick views and collection selection to browse again.",
+      "Reset search, filters, quick views and collection selection to browse again.",
     );
     expect(filteredEmptyLibrary).not.toContain("Your installed ports are still in this library.");
     expect(filteredEmptyLibrary).not.toContain("Your library is empty");
@@ -385,7 +440,7 @@ describe("desktop components", () => {
       />,
     );
     expect(html).toContain("Ready to play");
-    expect(html).toContain(`aria-label="View details for ${port.name} ${port.name}"`);
+    expect(html).toContain(`aria-label="View details for ${port.name}"`);
     expect(html).not.toContain(">Details</button>");
     expect(html).toContain(`aria-label="More actions for ${port.name}"`);
     expect(html).toContain('data-slot="button"');
@@ -394,9 +449,10 @@ describe("desktop components", () => {
       .match(/<button\b[^>]*>[\s\S]*?<\/button>/gu)
       ?.find((button) => button.endsWith(">Play</button>"));
     expect(play).toBeDefined();
-    expect(play).toContain('data-variant="outline"');
-    expect(play).not.toContain('data-variant="primary"');
-    expect(html).not.toContain("Release channel: Stable");
+    // Ready cards lead with the signature red Play, named for the game.
+    expect(play).toContain('data-variant="primary"');
+    expect(play).toMatch(/aria-label="Play: [^"]+"/u);
+    expect(html).not.toContain("Update channel: Stable");
     expect(html).toMatch(/<article class="port-card [^"]*\bport-card-library\b/u);
     expect(html).toContain(">Play</button>");
     expect(html).not.toMatch(/<button[^>]*class="port-card/u);
@@ -482,7 +538,7 @@ describe("desktop components", () => {
       label: "Runtime required",
       action: "View installation",
     },
-    { readiness: null, label: "Readiness unavailable", action: "View installation" },
+    { readiness: null, label: "Can't check right now", action: "View installation" },
   ] satisfies { readiness: PortStatus["readiness"]; label: string; action: string }[])(
     "prioritizes a prepared update while retaining $label eligibility and exact installation review in Discover",
     ({ readiness, label, action }) => {
@@ -511,7 +567,9 @@ describe("desktop components", () => {
       )?.[0];
       expect(card).toBeDefined();
       expect(card).toContain("Sample Port");
-      expect(card?.includes(`${label}</span>`)).toBe(label !== "Ready to play");
+      expect(card?.includes(`${label.replaceAll("'", "&#x27;")}</span>`)).toBe(
+        label !== "Ready to play",
+      );
       expect(card).toContain("Update saved for later</span>");
       expect(card).toContain(`${action}<`);
       expect(card).toContain(`data-detail-origin="catalog:card:${port.id}:details"`);

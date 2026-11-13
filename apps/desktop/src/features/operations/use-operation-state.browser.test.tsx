@@ -21,9 +21,11 @@ const openActivity = vi.fn();
 function Fixture({
   generation = 7,
   activities = [],
+  onActivity = false,
 }: {
   generation?: number;
   activities?: ActivityRecord[];
+  onActivity?: boolean;
 }) {
   state = useOperationState({
     refresh,
@@ -37,6 +39,7 @@ function Fixture({
       dismissInvocation={state.dismissInvocation}
       clearError={() => state.setError(undefined)}
       openActivity={openActivity}
+      onActivity={onActivity}
     />
   );
 }
@@ -212,6 +215,37 @@ it("offers an exact Activity link only for an explicitly supplied identity", asy
   )!;
   await act(async () => exact.click());
   expect(openActivity).toHaveBeenLastCalledWith("owned-activity-record");
+});
+
+it("reveals a known task instead of re-opening Activity while Activity is open", async () => {
+  await act(async () => root.render(<Fixture onActivity />));
+  const listed = deferred<void>();
+  const unlisted = deferred<void>();
+  let running!: Promise<unknown>;
+  await act(async () => {
+    running = Promise.all([
+      state.perform("prepare", () => listed.promise, {
+        context: { ...context("A"), activityId: "owned-activity-record" },
+      }),
+      state.perform("check", () => unlisted.promise, { context: context("B", "Check") }),
+    ]);
+  });
+  const groups = [...host.querySelectorAll<HTMLElement>("[data-invocation-id]")];
+  const text = groups.map((group) => group.textContent ?? "").join(" ");
+  // Progress stays visible: Activity's other tabs may not list either task.
+  expect(text).toContain("Prepare · Game A");
+  expect(text).toContain("Check · Game B");
+  const labels = [...host.querySelectorAll<HTMLButtonElement>("button")].map(
+    (button) => button.textContent,
+  );
+  expect(labels).toEqual(["Show task"]);
+  await act(async () => host.querySelector<HTMLButtonElement>("button")!.click());
+  expect(openActivity).toHaveBeenLastCalledWith("owned-activity-record");
+  await act(async () => {
+    listed.resolve();
+    unlisted.resolve();
+    await running;
+  });
 });
 
 it("refuses a same-target same-turn submission while allowing another explicit target", async () => {
@@ -472,7 +506,9 @@ it("releases local exclusion when diagnostic invalidation fails after a committe
     outcome: "succeeded",
     refreshFailure: problem,
   });
-  expect(host.textContent).toContain("current state could not be refreshed");
+  expect(host.textContent).toContain(
+    "The action finished, but Portcove couldn’t refresh this screen.",
+  );
   await act(async () => {
     expect(
       await state.perform("check", () => Promise.resolve("new check"), {

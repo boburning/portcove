@@ -3,24 +3,190 @@
  * identity. A stopped producer never causes unused observation rounds to wait. */
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { appendFile, open } from "node:fs/promises";
+import { appendFile, open, writeFile } from "node:fs/promises";
 import { performance } from "node:perf_hooks";
 import { setTimeout as delay } from "node:timers/promises";
 import { createHash } from "node:crypto";
 import { readControllerToolFile } from "./release-controller-tools.mts";
 import { releasePathContains, assertOwnedUnlinkedPath } from "./release-path-safety.mts";
-import { inspectReleaseControlPhase } from "./release-control-phases.mts";
+import {
+  coordinatorJobBudgetMilliseconds,
+  inspectReleaseControlPhase,
+} from "./release-control-phases.mts";
 import { controlHandshakeArtifactName, inspectControlRound } from "./release-control-handshake.mts";
 import { productionControllerWorkflow } from "./production-controller-admission.mts";
 import { isRecord } from "./runtime-values.mts";
 import { releaseControlPhaseProfile } from "./release-control-phases.mts";
-import { GitHubApiClient, createGitHubRunner } from "./github-api.mts";
+import { assertTrustedDirectNode } from "./release-direct-node-transport.mts";
+import { fixedReleaseReaderToken } from "./release-readonly-child-environment.mts";
+
+const catalogRefusalStages = {
+  launch: [
+    "source-admission",
+    "job-clock",
+    "tool-custody",
+    "tool-custody-provider-before",
+    "tool-custody-opaque-download",
+    "tool-custody-archive-inspection",
+    "tool-custody-pinned-attestation-verifier",
+    "tool-custody-provider-after",
+    "tool-custody-materialize-only-verified-tools",
+    "attested-worker",
+    "worker-settlement",
+  ],
+  operation: [
+    "actual-catalog-admission",
+    "catalog-reader-identity",
+    "catalog-tool-custody",
+    "catalog-journal-recovery",
+    "standalone-application-bootstrap-readback",
+    "standalone-application-bootstrap-site",
+    "standalone-application-bootstrap-TUF",
+    "standalone-application-bootstrap-recheck",
+    "standalone-application-bootstrap-observer",
+    "standalone-application-bootstrap-inventory",
+    "standalone-application-bootstrap-CAS",
+    "standalone-application-bootstrap-journal-readback",
+    "fixed-inert-source-and-Core",
+    "selected-independent-Check",
+    "neutral-request-control-and-CAS",
+    "retained-chameleon-review-claim",
+  ],
+} as const;
+type CatalogRefusalLayer = keyof typeof catalogRefusalStages;
+export type CatalogCoordinatorRefusalStage<Layer extends CatalogRefusalLayer> =
+  (typeof catalogRefusalStages)[Layer][number];
+
+export const catalogRefusalFile = (layer: CatalogRefusalLayer) =>
+  `catalog-coordinator-${layer}-refusal.json`;
+
+const checkpointExchangePhases = [
+  "preimage",
+  "checkpoint-objects",
+  "claim",
+  "signing",
+  "proof-objects",
+  "commit",
+] as const;
+const signingProgressPhases = ["request", "control", "dispatch", "response", "receipt"] as const;
+
+export function inspectCheckpointSigningProgress(raw: unknown) {
+  if (!isRecord(raw)) return;
+  const { request, phase, completed_requests, response_status } = raw;
+  if (
+    Object.keys(raw).sort().join(",") !==
+      (response_status === undefined
+        ? "completed_requests,phase,request"
+        : "completed_requests,phase,request,response_status") ||
+    (completed_requests !== 0 && completed_requests !== 1 && completed_requests !== 2) ||
+    request !== (completed_requests === 0 ? "fulcio" : "rekor") ||
+    typeof phase !== "string" ||
+    !(signingProgressPhases as readonly string[]).includes(phase) ||
+    (response_status !== undefined &&
+      (typeof response_status !== "number" ||
+        !Number.isInteger(response_status) ||
+        response_status < 100 ||
+        response_status > 599 ||
+        (phase !== "response" && phase !== "receipt")))
+  )
+    return;
+  return {
+    request,
+    phase: phase as (typeof signingProgressPhases)[number],
+    completed_requests,
+    ...(response_status === undefined ? {} : { response_status }),
+  };
+}
+
+type CatalogCheckpointRefusal = {
+  phase: (typeof checkpointExchangePhases)[number];
+  attempted_claim: boolean;
+  attempted_commit: boolean;
+  signer?: "identity-not-attempted" | "signing-effect-unknown";
+  signer_progress?: NonNullable<ReturnType<typeof inspectCheckpointSigningProgress>>;
+};
+export function inspectCatalogCheckpointRefusal(
+  raw: unknown,
+): CatalogCheckpointRefusal | undefined {
+  if (!isRecord(raw)) return;
+  const { phase, attempted_claim, attempted_commit, signer } = raw;
+  const signerProgress = inspectCheckpointSigningProgress(raw.signer_progress);
+  if (
+    typeof phase !== "string" ||
+    !(checkpointExchangePhases as readonly string[]).includes(phase) ||
+    typeof attempted_claim !== "boolean" ||
+    typeof attempted_commit !== "boolean" ||
+    (signer !== undefined &&
+      signer !== "identity-not-attempted" &&
+      signer !== "signing-effect-unknown") ||
+    (raw.signer_progress !== undefined && (signer !== "signing-effect-unknown" || !signerProgress))
+  )
+    return;
+  return {
+    phase: phase as CatalogCheckpointRefusal["phase"],
+    attempted_claim,
+    attempted_commit,
+    ...(signer === undefined ? {} : { signer }),
+    ...(signerProgress === undefined ? {} : { signer_progress: signerProgress }),
+  };
+}
+
+export function requireCatalogRefusal(layer: CatalogRefusalLayer, raw: unknown) {
+  const stages: readonly string[] = catalogRefusalStages[layer];
+  if (
+    !isRecord(raw) ||
+    Object.keys(raw).sort().join(",") !==
+      (raw.checkpoint_exchange === undefined
+        ? "authority,automatic_retry,schema_version,stage"
+        : "authority,automatic_retry,checkpoint_exchange,schema_version,stage") ||
+    (raw.checkpoint_exchange !== undefined &&
+      (layer !== "operation" ||
+        raw.stage !== "standalone-application-bootstrap-CAS" ||
+        !inspectCatalogCheckpointRefusal(raw.checkpoint_exchange) ||
+        !isRecord(raw.checkpoint_exchange) ||
+        Object.keys(raw.checkpoint_exchange).sort().join(",") !==
+          [
+            "attempted_claim",
+            "attempted_commit",
+            "phase",
+            ...(raw.checkpoint_exchange.signer === undefined ? [] : ["signer"]),
+            ...(raw.checkpoint_exchange.signer_progress === undefined ? [] : ["signer_progress"]),
+          ].join(","))) ||
+    raw.schema_version !== 1 ||
+    raw.authority !== "none" ||
+    raw.automatic_retry !== false ||
+    typeof raw.stage !== "string" ||
+    !stages.includes(raw.stage)
+  )
+    throw new Error("catalog refusal is not a fixed public stage record");
+}
+
+export async function retainCatalogCoordinatorRefusal<Layer extends CatalogRefusalLayer>(
+  root: string,
+  layer: Layer,
+  stage: CatalogCoordinatorRefusalStage<Layer>,
+  checkpointExchange?: CatalogCheckpointRefusal,
+) {
+  if (!path.isAbsolute(root)) throw new Error("owned catalog refusal root required");
+  const record = {
+    schema_version: 1,
+    stage,
+    authority: "none",
+    automatic_retry: false,
+    ...(checkpointExchange === undefined ? {} : { checkpoint_exchange: checkpointExchange }),
+  };
+  requireCatalogRefusal(layer, record);
+  await writeFile(path.join(root, catalogRefusalFile(layer)), JSON.stringify(record), {
+    flag: "wx",
+    mode: 0o600,
+  });
+}
 
 const hash = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
-/** Runtime budget metadata only, never proof of role authority. */
-export function controlBridgeOriginalDeadline(
+function controlBridgeOriginalJob(
   raw: unknown,
   rawPhase: unknown,
+  environment: NodeJS.ProcessEnv,
   now = Date.now(),
   monotonic = performance.now(),
 ) {
@@ -32,7 +198,7 @@ export function controlBridgeOriginalDeadline(
       : phase === "admission"
         ? 535000
         : phase === "coordinator"
-          ? 170000
+          ? coordinatorJobBudgetMilliseconds
           : phase === "release-publication"
             ? 350000
             : phase === "site-publication"
@@ -65,10 +231,10 @@ export function controlBridgeOriginalDeadline(
   if (
     matches.length !== 1 ||
     !isRecord(job) ||
-    String(job.run_id) !== process.env.GITHUB_RUN_ID ||
+    String(job.run_id) !== environment.GITHUB_RUN_ID ||
     job.run_attempt !== 1 ||
-    process.env.GITHUB_RUN_ATTEMPT !== "1" ||
-    job.head_sha !== process.env.GITHUB_SHA ||
+    environment.GITHUB_RUN_ATTEMPT !== "1" ||
+    job.head_sha !== environment.GITHUB_SHA ||
     job.status !== "in_progress" ||
     typeof job.started_at !== "string"
   )
@@ -76,7 +242,66 @@ export function controlBridgeOriginalDeadline(
   const left = Date.parse(job.started_at) + milliseconds - now;
   if (!Number.isFinite(left) || left <= 0 || left > milliseconds || !Number.isFinite(monotonic))
     throw new Error("original fixed readiness job deadline exhausted or future dated");
-  return monotonic + left;
+  return { deadline: monotonic + left, job: { id: Number(job.id), started_at: job.started_at } };
+}
+
+/** Runtime budget metadata only, never proof of role authority. */
+export function controlBridgeOriginalDeadline(
+  raw: unknown,
+  phase: unknown,
+  now = Date.now(),
+  monotonic = performance.now(),
+) {
+  return controlBridgeOriginalJob(raw, phase, process.env, now, monotonic).deadline;
+}
+
+/** One observation of the original fixed attempt. Keep provider loading off
+ * retained-clock and pure readiness paths. */
+export async function readControlBridgeOriginalJob(
+  rawPhase: unknown,
+  environment: NodeJS.ProcessEnv = process.env,
+  receiverDeadline?: number,
+) {
+  const phase = inspectReleaseControlPhase(rawPhase);
+  const original = {
+    GITHUB_RUN_ID: environment.GITHUB_RUN_ID,
+    GITHUB_RUN_ATTEMPT: environment.GITHUB_RUN_ATTEMPT,
+    GITHUB_SHA: environment.GITHUB_SHA,
+    GITHUB_REF: environment.GITHUB_REF,
+  };
+  const run = original.GITHUB_RUN_ID ?? "";
+  if (
+    !/^[1-9][0-9]{0,15}$/u.test(run) ||
+    original.GITHUB_RUN_ATTEMPT !== "1" ||
+    !/^[a-f0-9]{40}$/u.test(original.GITHUB_SHA ?? "") ||
+    !/^refs\/tags\/portcove-production-controller-[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/u.test(
+      original.GITHUB_REF ?? "",
+    )
+  )
+    throw new Error("fixed readiness current source/run/ref required");
+  const token = fixedReleaseReaderToken();
+  const deadline = Math.min(performance.now() + 15000, receiverDeadline ?? Infinity);
+  const { createReleaseCustodyProvider } = await import("./release-custody-provider.mts");
+  const provider = await createReleaseCustodyProvider({
+    token,
+    deadline,
+    ...(receiverDeadline === undefined
+      ? {}
+      : {
+          fetch(input, init) {
+            assertTrustedDirectNode("controller tool live receiver");
+            return globalThis.fetch(input, init);
+          },
+        }),
+  });
+  const response = await provider.jobs(run, 1, 1);
+  if (
+    performance.now() >= deadline ||
+    response.next !== null ||
+    Object.entries(original).some(([key, value]) => process.env[key] !== value)
+  )
+    throw new Error("original readiness job observation unavailable");
+  return controlBridgeOriginalJob(response.body, phase, original);
 }
 export function inspectControlStepReadiness(
   raw: unknown,
@@ -116,9 +341,11 @@ export function inspectControlStepReadiness(
     raw.producer.controller_ref !== expected.ref ||
     String(raw.producer.run_id) !== expected.run_id ||
     raw.producer.run_attempt !== 1 ||
-    ![raw.producer.job_id, raw.producer.check_run_id].every(
-      (x) => typeof x === "number" && Number.isSafeInteger(x) && x > 0,
-    ) ||
+    typeof raw.producer.job_id !== "number" ||
+    !Number.isSafeInteger(raw.producer.job_id) ||
+    raw.producer.job_id < 1 ||
+    typeof raw.producer.check_run_id !== "string" ||
+    !/^[1-9][0-9]{0,15}$/u.test(raw.producer.check_run_id) ||
     typeof raw.facts_sha256 !== "string" ||
     !/^[a-f0-9]{64}$/u.test(raw.facts_sha256)
   )
@@ -255,35 +482,16 @@ if (
 }
 async function runControlBridgeCli() {
   try {
-    if (process.argv.length !== 4 || !process.env.RUNNER_TEMP || !process.env.GITHUB_OUTPUT)
-      throw new Error("fixed readiness bridge requires phase/ordinal and Actions output");
-    if (
-      !/^[1-9][0-9]{0,15}$/u.test(process.env.GITHUB_RUN_ID ?? "") ||
-      !/^[a-f0-9]{40}$/u.test(process.env.GITHUB_SHA ?? "")
-    )
-      throw new Error("fixed readiness current source/run required");
     const runnerRoot = process.env.RUNNER_TEMP;
-    const api = new GitHubApiClient((args, body) =>
-      createGitHubRunner({
-        cwd: runnerRoot,
-        timeoutMs: 15000,
-        maxBuffer: 2 * 1024 ** 2,
-      })([...args, "--hostname", "github.com"], body),
-    );
-    const response = api.request(
-      "GET",
-      `repos/boburning/portcove/actions/runs/${process.env.GITHUB_RUN_ID}/attempts/1/jobs?per_page=100`,
-    );
-    if (response.status !== 200) throw new Error("original readiness job observation unavailable");
-    const deadline = controlBridgeOriginalDeadline(response.body, process.argv[2]);
-    const route = await controlReadyUploadRoute(
-      process.env.RUNNER_TEMP,
-      process.argv[2],
-      Number(process.argv[3]),
-      deadline,
-    );
+    const output = process.env.GITHUB_OUTPUT;
+    const phase = inspectReleaseControlPhase(process.argv[2]);
+    const index = Number(process.argv[3]);
+    if (process.argv.length !== 4 || !runnerRoot || !output)
+      throw new Error("fixed readiness bridge requires phase/ordinal and Actions output");
+    const { deadline } = await readControlBridgeOriginalJob(phase);
+    const route = await controlReadyUploadRoute(runnerRoot, phase, index, deadline);
     await appendFile(
-      process.env.GITHUB_OUTPUT,
+      output,
       route.ready ? `ready=true\npath=${route.path}\nname=${route.name}\n` : "ready=false\n",
     );
   } catch {

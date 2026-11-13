@@ -452,7 +452,7 @@ export function startWindowsUpdateExitObservation(script: string, args: string[]
 }
 
 function installedUpdatePid(value: unknown, message?: string): number {
-  assert.ok(typeof value === "number" && Number.isSafeInteger(value) && value > 0, message);
+  assert.ok(typeof value === "number" && Number.isSafeInteger(value) && value > 0, message ?? "");
   return value;
 }
 export function readWindowsUpdateProcessMarker(value: unknown): WindowsUpdateProcessMarker {

@@ -23,7 +23,7 @@ import {
   authenticateCapturedSemanticDisposition,
 } from "./release-semantic-issuer.mts";
 import type { SemanticIssuerCustody } from "./release-semantic-issuer.mts";
-import type { GitHubRestReader } from "./github-api.mts";
+import type { GitHubRestReader } from "./github-operation.mts";
 import { inspectReleaseReviewRequest } from "./release-review-request.mts";
 import { capacityDigest } from "./release-capacity.mts";
 
@@ -116,11 +116,12 @@ export async function reviewFrozenCoordinatorRequest(
       },
     },
     namespace,
+    request,
   );
   await configuration.guard();
   let accepted: Awaited<ReturnType<typeof runSemanticRuntime>>;
   try {
-    accepted = await runSemanticRuntime(bundle, configuration.runtime);
+    accepted = await runSemanticRuntime(bundle, configuration.runtime, proposalCapture);
   } catch (error) {
     // This accepts only an actual settled structured negative runtime result.
     // Startup/auth/parse/teardown failures have no such private provenance and

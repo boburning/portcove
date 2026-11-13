@@ -70,6 +70,53 @@ void test("Rust schema numeric and enum constraints remain active", () => {
   }, /Missing Rust transport schema/);
 });
 
+void test("Rust double settings annotations retain finite numeric validation without coercion", () => {
+  const value = {
+    port_id: "owned-fixture",
+    install_id: "retained-install",
+    available: true,
+    reason: null,
+    files: [
+      {
+        id: "preferences",
+        path: "preferences.json",
+        available: true,
+        reason: null,
+        configuration_sha256: "a".repeat(64),
+        settings: [
+          {
+            id: "scale",
+            label: "Scale",
+            value: 1.25,
+            value_type: {
+              kind: "number",
+              minimum: 0.5,
+              maximum: 2.5,
+              step: 0.25,
+              default: 1.25,
+            },
+          },
+        ],
+      },
+    ],
+  };
+  const before = structuredClone(value);
+  assert.equal(transportValue("game_settings_view", value), value);
+  assert.deepEqual(value, before);
+  for (const field of ["minimum", "maximum", "step", "default"]) {
+    for (const scalar of ["1.25", null, NaN, Infinity, -Infinity]) {
+      const invalid = structuredClone(value);
+      Object.assign(invalid.files[0]!.settings[0]!.value_type, { [field]: scalar });
+      const original = structuredClone(invalid);
+      assert.throws(
+        () => transportValue("game_settings_view", invalid),
+        /Invalid game_settings_view/,
+      );
+      assert.deepEqual(invalid, original);
+    }
+  }
+});
+
 void test("Rust uint16 recommendation fields preserve integer bounds without coercion", () => {
   const raw: unknown = comparisonFixture();
   const base = transportValue("game_comparison", raw);

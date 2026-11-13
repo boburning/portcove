@@ -7,6 +7,7 @@
     "summary": "Use a permitted existing re3 player with your own original PC game data.",
     "project_url": "https://github.com/leanndroguedes/re3-19feb21",
     "issue_number": 2852,
+    "listed_at": "2026-10-26",
     "availability": "packages",
     "setup_url": "https://github.com/leanndroguedes/re3-19feb21/blob/e35c56ceb3eea3c3ccda1cc4e6645e901787d70a/README.md",
     "manual_setup": {
@@ -14,18 +15,23 @@
         {
           "title": "Use your existing player for this game",
           "instruction": "Use an existing re3 copy you are permitted to use with your own original PC Grand Theft Auto III assets. Select re3.exe on Windows or the native re3 executable on Linux and use that game’s root folder as its working directory. Keep its renderer/audio dependencies and data together. The other game’s executable, console originals and Definitive Edition are not substitutes."
-        },
+        }
+      ],
+      "warnings": [
+        "This game-specific re3_v1.0 README places user files (saves and settings) in the game root and uses re3.ini. Back up the complete working game folder and any custom user-file location before an upstream update or modification. Do not assume compatibility with original-game or other fork saves.",
+        "Portcove does not supply a new binary, establish a code-licence grant or build and repair this archived engine."
+      ],
+      "help_url": "https://github.com/leanndroguedes/re3-19feb21/blob/e35c56ceb3eea3c3ccda1cc4e6645e901787d70a/README.md",
+      "references": [
         {
           "title": "Keep saves and settings with the working copy",
           "instruction": "This game-specific re3_v1.0 README places user files (saves and settings) in the game root and uses re3.ini. Back up the complete working game folder and any custom user-file location before an upstream update or modification. Do not assume compatibility with original-game or other fork saves. Portcove preserves external ownership and supplies no managed update, backup or rollback."
         },
         {
           "title": "Preserve the archived implementation identity",
-          "instruction": "Both games share one archived source repository but remain distinct catalog identities and canonical owners. This guide records conditional existing-copy use; it does not offer a new binary, claim an accepted code license or repair/build this archived engine."
+          "instruction": "Grand Theft Auto III and Vice City share an archived source repository but use separate players and game data. These instructions cover an existing copy you are permitted to use. Portcove does not supply a new binary, establish a code-licence grant or build and repair this archived engine."
         }
-      ],
-      "warnings": [],
-      "help_url": "https://github.com/leanndroguedes/re3-19feb21/blob/e35c56ceb3eea3c3ccda1cc4e6645e901787d70a/README.md"
+      ]
     },
     "platforms": ["windows-x86-64", "linux-x86-64"],
     "download_block_reason": "Fresh acquisition/build qualification remains unresolved: the archived game-specific source explicitly declines to give the code a license. Reconsider when the canonical owner accepts an authorized exact implementation and original-PC-input route. Conditional registration of a permitted existing copy does not resolve that hold.",

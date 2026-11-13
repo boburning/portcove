@@ -11,19 +11,33 @@
       "steps": [
         {
           "title": "Extract the port",
-          "instruction": "Extract the complete official v1.0.2 Windows ZIP into a writable folder outside your Portcove library."
+          "instruction": "Use an already permitted copy of the complete official v1.0.2 Windows ZIP. Extract it into a writable folder outside your Portcove library."
         },
         {
           "title": "Keep saves beside the game",
           "instruction": "Create an empty file named portable.txt beside WaveRace64Recomp.exe. It is not included in the download."
         },
         {
-          "title": "Connect your game files",
-          "instruction": "Choose and check your own supported Wave Race 64 original in Portcove, then choose the extracted port folder below for review."
+          "title": "Select your original game file",
+          "instruction": "Choose and check your own supported Wave Race 64 original in Portcove, then choose the extracted port folder for review."
         }
       ],
       "warnings": [
         "Keep portable.txt when updating this folder so the game continues to use its local saves and settings."
+      ],
+      "references": [
+        {
+          "title": "Prepare a separate upstream Linux copy",
+          "instruction": "For an already permitted Linux x64 package, keep the files together in a writable folder. Install the system SDL2, GTK 3, FreeType and Vulkan dependencies named in its README. Run WaveRace64Recomp.sh and select your own Wave Race 64 USA Rev A original. The inspected Linux executable requires glibc 2.43 and libstdc++ with GLIBCXX_3.4.32."
+        },
+        {
+          "title": "Preserve the Linux profile",
+          "instruction": "Keep the creating runtime, original and actual profile. Linux uses XDG_DATA_HOME/WaveRace64Recomp, usually ~/.local/share/WaveRace64Recomp. A portable.txt beside the player instead keeps data there. This Linux setup stays under upstream and player ownership."
+        },
+        {
+          "title": "Keep upstream permission and registration separate",
+          "instruction": "The official frontend has since published a GPLv3 grant for the same code. The selected releases still have separate translated title code and component conditions. Use an independently permitted copy. Portcove’s Windows review accepts the existing player-owned folder."
+        }
       ]
     },
     "artwork": {
@@ -34,7 +48,10 @@
       "game_slug": "wave-race-64",
       "match_kind": "underlying-game"
     },
-    "issue_number": 553
+    "issue_number": 553,
+    "listed_at": "2026-10-23",
+    "platforms": ["linux-x86-64"],
+    "download_block_reason": "Fresh Portcove downloads are held for the selected packages while the applicable basis for translated title code and the component conditions in the bundled notices remain unresolved. The later GPLv3 grant covers the official frontend code; it does not resolve those separate conditions. Independently permitted copies retain their own setup route."
   },
   "integration": {
     "support_tier": "beta",

@@ -21,6 +21,7 @@ import {
   payloadOriginalJobDeadline,
   classificationOriginalJobDeadline,
   buildingOriginalJobDeadline,
+  coordinatorProtectionOriginalJobDeadline,
 } from "./release-signing-job-budget.mts";
 import { releaseControlPhaseProfile } from "./release-control-phases.mts";
 const ref = "refs/tags/portcove-production-controller-test",
@@ -33,6 +34,34 @@ const ref = "refs/tags/portcove-production-controller-test",
     run_id: "12345",
     run_attempt: 1,
   };
+void test("coordinator observer retains the original five-minute job origin", () => {
+  const start = Date.parse("2026-11-08T12:05:20Z");
+  const revision = "a".repeat(40);
+  const inventory = {
+    total_count: 1,
+    jobs: [
+      {
+        id: 2,
+        run_id: 1,
+        run_attempt: 1,
+        head_sha: revision,
+        status: "in_progress",
+        name: "Observe application coordinator protections",
+        started_at: new Date(start).toISOString(),
+      },
+    ],
+  };
+  const expected = { run_id: "1", controller_revision: revision };
+  assert.equal(
+    coordinatorProtectionOriginalJobDeadline(inventory, expected, start + 175000, 1000),
+    116000,
+  );
+  assert.throws(
+    () => coordinatorProtectionOriginalJobDeadline(inventory, expected, start + 290000, 1000),
+    /original TUF job budget exhausted/u,
+  );
+});
+
 void test("fixed role job budget includes setup time and refuses partial, stale, duplicate or cross-role provider jobs", () => {
   const started = Date.parse("2026-10-20T00:00:00Z");
   for (const role of ["releases", "preview", "stable", "snapshot", "timestamp"] as const) {
@@ -326,6 +355,47 @@ void test("closed fixed DAG serialization cannot substitute arbitrary tool, cont
     "portcove-production",
   );
   assert.equal("identity" in coordinator, false);
+  const nomination = { source_commit: "a".repeat(40), run_id: 42407004590, run_attempt: 1 };
+  const nominatedInput = {
+    ...input,
+    operation: "coordinator",
+    admission_configuration: {
+      ...input.admission_configuration,
+      release_profile: "initial-beta-windows-x86_64-v1",
+      public_build_inputs: {},
+    },
+    appointed_qualified_application: nomination,
+  };
+  assert.deepEqual(prepareFixedControllerConfiguration(nominatedInput), {
+    ...coordinator,
+    qualified_application: nomination,
+  });
+  for (const changed of [
+    { ...nominatedInput, operation: "building" },
+    { ...nominatedInput, publication_purpose: "catalog-publication" },
+    { ...nominatedInput, operation: "tuf-snapshot" },
+    {
+      ...nominatedInput,
+      admission_configuration: { ...nominatedInput.admission_configuration, schema_version: 2 },
+    },
+    {
+      ...nominatedInput,
+      appointed_qualified_application: { ...nomination, source_commit: "main" },
+    },
+  ])
+    assert.throws(() => prepareFixedControllerConfiguration(changed), /qualified/u);
+  assert.throws(
+    () =>
+      prepareFixedControllerConfiguration({
+        ...input,
+        operation: "coordinator",
+        admission_configuration: {
+          ...nominatedInput.admission_configuration,
+          qualified_application: nomination,
+        },
+      }),
+    /not accepted from coordinator configuration/u,
+  );
   const { projectFixedControllerJobOutputs } = await import("./release-controller-job-output.mts");
   const oldContext = { ...context, run_id: "12344" };
   const retainedRoles = roles.map((role, index) => ({
@@ -471,6 +541,44 @@ void test("fixed job adapter and source bootstrap refuse unknown operations with
   for (const value of ["root", {}, { entry: "candidate.mjs" }])
     await assert.rejects(launchFixedControllerJob(value), /fixed complete controller operation/);
   assert.deepEqual(await readdir(root), []);
+});
+
+void test("coordinator bootstrap failures retain a public stage and settle the waiting action", async (t) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "fixed-controller-bootstrap-refusal-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const source = new URL("./release-controller-job-bootstrap.mts", import.meta.url).href;
+  const { stdout } = await promisify(execFile)(
+    process.execPath,
+    [
+      "--input-type=module",
+      "-e",
+      `import assert from 'node:assert/strict';
+       import {readFile} from 'node:fs/promises';
+       const {launchFixedControllerJob}=await import(${JSON.stringify(source)});
+       const root=process.env.RUNNER_TEMP;
+       await assert.rejects(launchFixedControllerJob('coordinator'), /forbids inherited/);
+       const refusal=await readFile(root+'/application-coordinator-operation-refusal.json','utf8');
+       assert.deepEqual(JSON.parse(refusal),{schema_version:1,stage:'bootstrap-source-admission',error_type:'coordinator-remote',authority:'none',automatic_retry:false});
+       assert.ok(!refusal.includes('fixture-private-bootstrap-key'));
+       assert.deepEqual(JSON.parse(await readFile(root+'/controller-job-settlement-coordinator.json','utf8')),{exit_code:1,requires_attestation:false});
+       await assert.rejects(launchFixedControllerJob('coordinator'), /forbids inherited/);
+       assert.equal(await readFile(root+'/application-coordinator-operation-refusal.json','utf8'),refusal);
+       console.log('retained bootstrap refusal and settlement');`,
+    ],
+    {
+      env: {
+        ...process.env,
+        RUNNER_TEMP: root,
+        PORTCOVE_EXECUTION_PURPOSE: "application",
+        PORTCOVE_ROLE_KEY: "fixture-private-bootstrap-key",
+        PORTCOVE_STORAGE_APP_TOKEN: "",
+      },
+      timeout: 15000,
+      maxBuffer: 16384,
+      windowsHide: true,
+    },
+  );
+  assert.match(stdout, /retained bootstrap refusal and settlement/);
 });
 
 void test("same-job aggregate outputs carry exact original custody to the maintained payload locator", async () => {
@@ -768,4 +876,105 @@ void test("actual TUF pre-key guard checks controls last after slow reservation 
     }),
     ["current", "stale-controls", "expired-after-controls"],
   );
+});
+
+void test("fixed controller clocks use bounded one-shot SDK jobs reads and the scoped credential", async (t) => {
+  const { currentCatalogJobDeadline, currentControllerJobDeadline } =
+    await import("./release-signing-job-budget.mts");
+  const { withReadOnlyReleaseChildren } = await import("./release-readonly-child-environment.mts");
+  const { releaseControlPhaseProfile } = await import("./release-control-phases.mts");
+  const identity = {
+    run_id: "123",
+    run_attempt: 1,
+    controller_revision: "a".repeat(40),
+    controller_ref: "refs/heads/main",
+  };
+  const environment = {
+    GITHUB_RUN_ID: identity.run_id,
+    GITHUB_RUN_ATTEMPT: "1",
+    GITHUB_SHA: identity.controller_revision,
+    GITHUB_REF: identity.controller_ref,
+    GH_TOKEN: "inert-clock-job-token",
+  };
+  const prior = new Map(Object.keys(environment).map((key) => [key, process.env[key]]));
+  Object.assign(process.env, environment);
+  t.after(() => {
+    for (const [key, value] of prior) {
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
+  });
+  let next = false;
+  let role:
+    | "coordinator"
+    | "catalog-definitions"
+    | "building"
+    | "payload"
+    | "tuf-releases"
+    | "site-publication" = "coordinator";
+  let requests = 0;
+  let started = new Date(Date.now() - 1000).toISOString();
+  t.mock.method(globalThis, "fetch", async (input: string | URL | Request, init?: RequestInit) => {
+    requests++;
+    const url = new URL(input instanceof Request ? input.url : input);
+    assert.equal(url.origin, "https://api.github.com");
+    assert.equal(url.pathname, "/repos/boburning/portcove/actions/runs/123/attempts/1/jobs");
+    assert.deepEqual(Object.fromEntries(url.searchParams), { per_page: "100", page: "1" });
+    assert.equal(init?.method, "GET");
+    assert.equal(new Headers(init?.headers).get("authorization"), "token inert-clock-job-token");
+    return Response.json(
+      {
+        total_count: 1,
+        jobs: [
+          {
+            id: 1,
+            run_id: 123,
+            run_attempt: 1,
+            head_sha: identity.controller_revision,
+            status: "in_progress",
+            started_at: started,
+            name:
+              role === "building"
+                ? "Authenticate release control inputs"
+                : releaseControlPhaseProfile(role).reader_name,
+          },
+        ],
+      },
+      next ? { headers: { link: `<${url.href.replace("page=1", "page=2")}>; rel="next"` } } : {},
+    );
+  });
+  const deadline = performance.now() + 15000;
+  assert.equal(await currentControllerJobDeadline("coordinator", identity, deadline), deadline);
+  next = true;
+  await assert.rejects(
+    currentControllerJobDeadline("coordinator", identity, deadline),
+    /original controller job budget unavailable/u,
+  );
+  const scoped = await mkdtemp(path.join(os.tmpdir(), "sdk-clock-scope-"));
+  t.after(() => rm(scoped, { force: true, recursive: true }));
+  next = false;
+  role = "catalog-definitions";
+  await withReadOnlyReleaseChildren(scoped, async () => {
+    process.env.GH_TOKEN = "inert-ambient-replacement";
+    assert.equal(await currentCatalogJobDeadline(role, identity, deadline), deadline);
+    for (const operation of ["building", "payload", "tuf-releases", "site-publication"] as const) {
+      role = operation;
+      assert.equal(await currentControllerJobDeadline(operation, identity, deadline), deadline);
+    }
+    role = "building";
+    const wall = Date.now();
+    started = new Date(wall - 500000).toISOString();
+    const before = performance.now();
+    const original = await currentControllerJobDeadline("building", identity, before + 405000);
+    assert.ok(original >= before + (wall + 25000 - Date.now()));
+    assert.ok(original <= performance.now() + 25000);
+    started = new Date(wall - 526000).toISOString();
+    await assert.rejects(
+      currentControllerJobDeadline("building", identity, performance.now() + 405000),
+      /original TUF job budget exhausted/u,
+    );
+  });
+  delete process.env.GH_TOKEN;
+  await assert.rejects(currentControllerJobDeadline("coordinator", identity, deadline));
+  assert.equal(requests, 9);
 });

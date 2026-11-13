@@ -15,7 +15,7 @@
     "apps/desktop/vite.config.ts",
     "apps/desktop/i18next.config.ts",
     "apps/desktop/i18next.invalid.config.ts",
-    "apps/desktop/stylelint.config.mjs",
+    "apps/desktop/scripts/stylelint-config.mts",
     "scripts/frontend-tests.ts",
     "scripts/browser-traces.ts"
   ],

@@ -1,0 +1,1141 @@
+{
+  "format_version": 1,
+  "kind": "Dated source/operation candidate evidence; issues and Project remain acceptance/planning authority",
+  "observed_at": "2026-11-03T04:12:39.515426+00:00",
+  "owners": [1422, 2510, 2926],
+  "base": "938abc43c80f3b14b795c702d7e4bc2a57e43d4f",
+  "counts": {
+    "substantive_port_changes": 9,
+    "new_managed_offers": 1,
+    "fully_completed_outcomes": 0,
+    "direct_required_beta_outcomes_resolved": 0,
+    "whole_required_parent_or_cohort_completed": 0,
+    "original524_members": 6,
+    "affected312_members": 3,
+    "roadmap22_members": 0,
+    "historical1422_overlap_not_additive": 2
+  },
+  "ports": [
+    {
+      "id": "earthbound-recomp",
+      "canonical_issue": 173,
+      "owner": "https://github.com/boburning/portcove/issues/173",
+      "cohort": "original-524",
+      "historical_1422_member": true,
+      "authored_path": "crates/portcove-core/catalog/ports/earthbound-recomp.json",
+      "authored_sha256": "5bcb48bbf558399e27dc67c3d069deb0f3ae717860cdd4db706e54537f39ad71",
+      "route_and_change": "Upstream-prepared existing player",
+      "upstream": "nickclyde/EarthBoundRecomp",
+      "source": "fe1155dc26ffc40df36a8003dd0e639e17af3349",
+      "launch_contract": "build/EarthBoundRecomp.exe; project-root CWD; one literal owned USA original path",
+      "limitations": "Prototype is LLE-first, not a complete static recompilation. Preserve the whole project, selected original, configured writes and historical failed/private managed evidence. No upstream compile/game execution.",
+      "controls": [
+        "service::user_selected::tests::prepared_guide_adoption_173_project_working_directory"
+      ],
+      "controls_status": "authored, not yet executed at evidence preparation",
+      "full_finite_closure": "conditional on complete owner-specific evidence, actual control execution, final independent review, exact-head CI, guarded delivery and canonical/Project readback; no current closure claim",
+      "prior_integration_preserved": true,
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": []
+    },
+    {
+      "id": "gundam-wing-endless-duel-recomp",
+      "canonical_issue": 330,
+      "owner": "https://github.com/boburning/portcove/issues/330",
+      "cohort": "original-524",
+      "historical_1422_member": true,
+      "authored_path": "crates/portcove-core/catalog/ports/gundam-wing-endless-duel-recomp.json",
+      "authored_sha256": "16fc2778602d0a224f3f8dcf6ff421bd2bc06cc03a6772c45b03e5612d3a6b2a",
+      "route_and_change": "Upstream-prepared existing player",
+      "upstream": "TechnicallyComputers/GundamWingEndlessDuelSNESRecomp",
+      "source": "f2d774e05fbf6fc04642992f8d57a1305f077334",
+      "launch_contract": "Prepared GundamWingEndlessDuelSNESRecomp.exe; exe-parent CWD; --no-launcher then one literal Japanese original path",
+      "limitations": "Generate and Build remains upstream/manual. Select the completed game, not the setup host. Keep original SHA, project/config/keybinds/state paths, old managed readers and historical failures. Current large setup pack metadata is not a new inspected package.",
+      "controls": ["service::user_selected::tests::prepared_guide_adoption_330_completed_game"],
+      "controls_status": "authored, not yet executed at evidence preparation",
+      "full_finite_closure": "conditional on complete owner-specific evidence, actual control execution, final independent review, exact-head CI, guarded delivery and canonical/Project readback; no current closure claim",
+      "prior_integration_preserved": false,
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": []
+    },
+    {
+      "id": "opencommunityedition-opence",
+      "canonical_issue": 1849,
+      "owner": "https://github.com/boburning/portcove/issues/1849",
+      "cohort": "original-524",
+      "historical_1422_member": false,
+      "authored_path": "crates/portcove-core/catalog/ports/opencommunityedition-opence.json",
+      "authored_sha256": "f1590563e4b7e80c0cef1dd01178a1169e0048c459c9903893f1822f5f6cac06",
+      "route_and_change": "Upstream-owned existing player",
+      "upstream": "OpenCommunityEdition/OpenCE",
+      "source": "899219cc0a14b03bc12f0517a1e9ee4c37158af8",
+      "launch_contract": "halo.exe; completed-copy CWD; empty arguments",
+      "limitations": "Current build337 source replaces the prior guide source. Updater can replace runtime and start a successor; perform replacement outside selected Play and relink changed bytes. Preserve actual Windows AppData/halo and all selected data/save/log/map override roots. Own Xbox data required; old build276 package inspection remains historical.",
+      "controls": ["service::user_selected::tests::prepared_guide_adoption_1849"],
+      "controls_status": "authored, not yet executed at evidence preparation",
+      "full_finite_closure": "conditional on complete owner-specific evidence, actual control execution, final independent review, exact-head CI, guarded delivery and canonical/Project readback; no current closure claim",
+      "prior_integration_preserved": true,
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": []
+    },
+    {
+      "id": "sdlpal-sdlpal",
+      "canonical_issue": 1878,
+      "owner": "https://github.com/boburning/portcove/issues/1878",
+      "cohort": "original-524",
+      "historical_1422_member": false,
+      "authored_path": "crates/portcove-core/catalog/ports/sdlpal-sdlpal.json",
+      "authored_sha256": "115075f613fe2487dded9243d28e61710467d04a34e2f80af490c39420a7d027",
+      "route_and_change": "New managed Native MinGW runtime with manual relative data setup",
+      "upstream": "sdlpal/sdlpal",
+      "source": "366bc366cbfa0b34c66b0c19171ab05d1643adfd",
+      "launch_contract": "sdlpal.exe; exe-parent CWD; empty arguments; explicit relative GamePath and SavePath before first Play",
+      "limitations": "Managed paths are sdlpal.cfg,data,saves. Runtime install does not authenticate original files, enforce readiness or establish gameplay. Keep DOS/Win95 data and saves edition-matched. Custom/external paths keep upstream-owned registration. Earlier rejected cfg-only proposal and failures remain preserved.",
+      "controls": [
+        "service::native_portable::tests::native_engine_adoption_1878",
+        "release::tests::unchanged_definition::native_engine_selection_1878",
+        "service::user_selected::tests::prepared_guide_adoption_1878_external_copy_preserves_managed_offer"
+      ],
+      "controls_status": "authored, not yet executed at evidence preparation",
+      "full_finite_closure": "conditional on complete owner-specific evidence, actual control execution, final independent review, exact-head CI, guarded delivery and canonical/Project readback; no current closure claim",
+      "prior_integration_preserved": false,
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "original_game_title_fact": "The Legend of Sword and Fairy, already identified by the existing listing summary and underlying-game artwork identity; operational admission now carries the required explicit field."
+    },
+    {
+      "id": "wargus-wargus",
+      "canonical_issue": 1904,
+      "owner": "https://github.com/boburning/portcove/issues/1904",
+      "cohort": "original-524",
+      "historical_1422_member": false,
+      "authored_path": "crates/portcove-core/catalog/ports/wargus-wargus.json",
+      "authored_sha256": "e8693b6ec7b61ea13b06bda8869c3593da40ef24664d5eb372e847ff3066565a",
+      "route_and_change": "Upstream-owned installed player",
+      "upstream": "Wargus/wargus",
+      "source": "420efb4256574ca2afb995ea3badfea542c416ac",
+      "launch_contract": "wargus.exe; installed-player CWD; empty arguments",
+      "limitations": "Portable EXE is NSIS setup, not the player. Finish permitted Warcraft II/expansion preparation upstream. Real portable-install marker selects local data; otherwise preserve actual Documents/Stratagus data.Wargus and engine user root, including any -u override. Windows launcher waits for engine.",
+      "controls": ["service::user_selected::tests::prepared_guide_adoption_1904"],
+      "controls_status": "authored, not yet executed at evidence preparation",
+      "full_finite_closure": "conditional on complete owner-specific evidence, actual control execution, final independent review, exact-head CI, guarded delivery and canonical/Project readback; no current closure claim",
+      "prior_integration_preserved": true,
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": []
+    },
+    {
+      "id": "wargus-war1gus",
+      "canonical_issue": 1905,
+      "owner": "https://github.com/boburning/portcove/issues/1905",
+      "cohort": "original-524",
+      "historical_1422_member": false,
+      "authored_path": "crates/portcove-core/catalog/ports/wargus-war1gus.json",
+      "authored_sha256": "38162c6c196bbc082659a12671692c12bdb4d2e046ba1058518f92a0d683924c",
+      "route_and_change": "Upstream-owned installed player",
+      "upstream": "Wargus/war1gus",
+      "source": "c2a6013c879deb8a5dfd1e5202e9debb8fda047c",
+      "launch_contract": "war1gus.exe; installed-player CWD; empty arguments",
+      "limitations": "Finish permitted Warcraft I DOS/GOG preparation upstream; other editions and prior known failures remain distinct. NSIS setup and extractors are not player choices. Preserve actual local or Documents/Stratagus/data.War1gus data and engine user root. Windows launcher waits for engine.",
+      "controls": ["service::user_selected::tests::prepared_guide_adoption_1905"],
+      "controls_status": "authored, not yet executed at evidence preparation",
+      "full_finite_closure": "conditional on complete owner-specific evidence, actual control execution, final independent review, exact-head CI, guarded delivery and canonical/Project readback; no current closure claim",
+      "prior_integration_preserved": true,
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": []
+    },
+    {
+      "id": "star-wars-jedi-knight-jedi-academy-single-player-and-multiplayer-openjk-openjo",
+      "canonical_issue": 2612,
+      "owner": "https://github.com/boburning/portcove/issues/2612",
+      "cohort": "affected-312",
+      "historical_1422_member": false,
+      "authored_path": "crates/portcove-core/catalog/ports/star-wars-jedi-knight-jedi-academy-single-player-and-multiplayer-openjk-openjo.json",
+      "authored_sha256": "9ef8cc4592ae63e016ca7cec090e1114248eeb0bd6fcb77814c11cf2ce79063d",
+      "route_and_change": "External multiplayer beside unchanged managed-SP offer",
+      "upstream": "JACoders/OpenJK",
+      "source": "260c59c2907187af555a676fe0cc798893bf7757",
+      "launch_contract": "openjk.x86_64.exe; complete external GameData CWD; +set,s_UseOpenAL,0 as three literal arguments",
+      "limitations": "Retain all four original PK3s and current x64 dependencies; legacy EAX/OpenAL companions are x86, so use software SDL audio. VC++v14 x64 prerequisite remains external. Preserve actual homepath, config/demos/downloads/logs/mods. One canonical ID supports one installation/registration per library; no simultaneous managedSP/externalMP or MP inside the Core-owned SP tree.",
+      "controls": [
+        "service::user_selected::tests::prepared_guide_adoption_2612_multiplayer_preserves_managed_sp"
+      ],
+      "controls_status": "authored, not yet executed at evidence preparation",
+      "full_finite_closure": "conditional on complete owner-specific evidence, actual control execution, final independent review, exact-head CI, guarded delivery and canonical/Project readback; no current closure claim",
+      "prior_integration_preserved": true,
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": []
+    },
+    {
+      "id": "3d-pinball-for-windows-space-cadet-spacecadetpinball",
+      "canonical_issue": 2553,
+      "owner": "https://github.com/boburning/portcove/issues/2553",
+      "cohort": "affected-312",
+      "historical_1422_member": false,
+      "authored_path": "crates/portcove-core/catalog/ports/3d-pinball-for-windows-space-cadet-spacecadetpinball.json",
+      "authored_sha256": "5e932863b3ebcca4be6c0969c7b8118402915dda31b07c5ebac3c9e59121452a",
+      "route_and_change": "Existing Space Cadet player",
+      "upstream": "k4zmu2a/SpaceCadetPinball",
+      "source": "6a30ccbef12c7b7781ccf89788d77461fa20a90a",
+      "launch_contract": "SpaceCadetPinball.exe; intended resource-folder CWD; empty arguments",
+      "limitations": "Exact Release2.1.0 source: current working folder wins resource search; CADET.DAT normally precedes PINBALL.DAT, with preference override. Preserve complete imgui_pb.ini options/highscores/checksum in shared SDL preferences. Separate runtime copies do not isolate profiles or import original registry scores. Windows/fullTilt resources remain user-owned.",
+      "controls": ["service::user_selected::tests::prepared_guide_adoption_2553"],
+      "controls_status": "authored, not yet executed at evidence preparation",
+      "full_finite_closure": "conditional on complete owner-specific evidence, actual control execution, final independent review, exact-head CI, guarded delivery and canonical/Project readback; no current closure claim",
+      "prior_integration_preserved": true,
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": []
+    },
+    {
+      "id": "re-volt-rvgl",
+      "canonical_issue": 2705,
+      "owner": "https://github.com/boburning/portcove/issues/2705",
+      "cohort": "affected-312",
+      "historical_1422_member": false,
+      "authored_path": "crates/portcove-core/catalog/ports/re-volt-rvgl.json",
+      "authored_sha256": "dddc614789e454b552c24cc4a0ee8f80801600434815af34dd870481eb4796b7",
+      "route_and_change": "Upstream-owned RVGL Launcher or completed player",
+      "upstream": "RVGL",
+      "source": "23.1030a1 documented current Windows player; launcher docs observed2026-11-03",
+      "launch_contract": "rvgl_launcher.exe; completed launcher CWD; empty arguments; direct native copy retains its own established details",
+      "limitations": "Official launcher remains minimized during gameplay; Portcove supervises the selected process, not an arbitrary detached successor. Retain actual base/preference paths, profiles/config, times/replays/captures/logs and launcher preset roots. Upstream Repair/Uninstall differs from Portcove preserving registration removal. Content availability grants no original or third-party asset rights.",
+      "controls": ["service::user_selected::tests::prepared_guide_adoption_2705_launcher"],
+      "controls_status": "authored, not yet executed at evidence preparation",
+      "full_finite_closure": "conditional on complete owner-specific evidence, actual control execution, final independent review, exact-head CI, guarded delivery and canonical/Project readback; no current closure claim",
+      "prior_integration_preserved": true,
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "primary_evidence_urls": [
+        "https://re-volt.gitlab.io/rvgl-launcher/playing.html",
+        "https://re-volt.gitlab.io/rvgl-docs/general.html",
+        "https://re-volt.gitlab.io/rvgl-launcher/installing.html",
+        "https://gitlab.com/re-volt/rvgl-launcher/-/raw/master/rv_launcher/rvl_gui/main_app.py"
+      ]
+    }
+  ],
+  "source_bindings": {
+    "earthbound": {
+      "source": "fe1155dc26ffc40df36a8003dd0e639e17af3349",
+      "rows": [
+        {
+          "file": "earthbound-tools__regen.sh.json",
+          "blob": "da350d05f3d98a5e3168842a558aca6fe34ee085",
+          "sha256": "601350c03a0c727d0f7da144e89f552dac386e05338de0e09bca38036c5db3fa",
+          "bytes": 852
+        },
+        {
+          "file": "earthbound-README.md.json",
+          "blob": "4b56db1c21726ff53f37b63fd82700d1bc44227d",
+          "sha256": "b61e002eb8cb076702b8fd61b2993e1c6e859d2a77be7004415d1cbed895736f",
+          "bytes": 3022
+        },
+        {
+          "file": "earthbound-src__main.c.json",
+          "blob": "0a61ffbf6d66b21a6ab69990a1f5cae084a6bd80",
+          "sha256": "3e7fc9228744a5eeac334a86f503757db72adb6fe01ef33d63f9f6af34e9dec3",
+          "bytes": 37781
+        },
+        {
+          "file": "earthbound-.gitmodules.json",
+          "blob": "39dadc4a046b7c33e8f2a134ae492971a204fbc3",
+          "sha256": "7471c0770f6f5f85ffacc6a5cdd4033dab97502a19698f7f720545db6a0f78d1",
+          "bytes": 91
+        },
+        {
+          "file": "earthbound-CMakeLists.txt.json",
+          "blob": "6ca27c8e9d36d514d0109fd5fb7d286da76384d6",
+          "sha256": "8fa3b0d8eccf09b106733582f5350e036f0500fb1711545dd740d08dd7712e68",
+          "bytes": 2175
+        }
+      ],
+      "scope": "Exact selected public source text only; no upstream generation/build/game/original execution and no full static recompilation claim"
+    },
+    "opence": {
+      "source": "899219cc0a14b03bc12f0517a1e9ee4c37158af8",
+      "tag": "build-337",
+      "rows": [
+        {
+          "file": "opence-port__linux__src__port_config.c.json",
+          "blob": "8588a6157804260975ee4d33f3c89031e9f40bd2",
+          "sha256": "99d5b0ce5fd4d1ead083b13d7dcbf1e6317e9ef4047495b5381a83d9f77ea78f",
+          "bytes": 136331
+        },
+        {
+          "file": "opence-port__linux__README.md.json",
+          "blob": "3aa9192b79536f24f06150d516d728bc0a1400bf",
+          "sha256": "c9b790a724949b40eeb86f7d1e6cbd9338ec29798e3cb9076e34e124ee4b2fcf",
+          "bytes": 183869
+        },
+        {
+          "file": "opence-README.md.json",
+          "blob": "9287b5029355e6bbc2fc18959835ea244a2062cc",
+          "sha256": "639ecfcafec91f490ecf4a3140f6a57ea82a5f9da0bc765d2dbbc93f0bf8395d",
+          "bytes": 20553
+        },
+        {
+          "file": "opence-port__windows__src__win32_update.c.json",
+          "blob": "8a65d3a1c872ccc85b9b38d695663af62c109665",
+          "sha256": "5aac18901b384bc24a1fec581fed96f5dcf79a5b35fb757ea949aff46b964e58",
+          "bytes": 12982
+        },
+        {
+          "file": "opence-port__windows__src__win32_files.c.json",
+          "blob": "be9b041588f2738aedb38cc1924d1c29f2f0e52b",
+          "sha256": "209712676e7cf2139dcd606b8f2072a84c81d42cf37fbae21bbd56155e8f7e0c",
+          "bytes": 8811
+        },
+        {
+          "file": "opence-LICENSE.json",
+          "blob": "be3f7b28e564e7dd05eaf59d64adba1a4065ac0e",
+          "sha256": "0d96a4ff68ad6d4b6f1f30f713b18d5184912ba8dd389f86aa7710db079abcb0",
+          "bytes": 34523
+        }
+      ],
+      "scope": "Exact selected public source blobs; no current package contents or ABI claim"
+    },
+    "openjk": {
+      "source": "260c59c2907187af555a676fe0cc798893bf7757",
+      "rows": [
+        {
+          "file": "openjk-codemp__client__cl_main.cpp.json",
+          "blob": "d6b36887c0bf0d52dde90a70b25e2d95436162a0",
+          "sha256": "dc41b5b2d975cf7c727ec5c9e4fef1e129bf35e81e3f0044ccc04795aa4e7fd8",
+          "bytes": 107750
+        },
+        {
+          "file": "openjk-codemp__qcommon__common.cpp.json",
+          "blob": "d8c901d294fe64544a838ca79b286fb18d12060b",
+          "sha256": "f9d92cb7580c5416a21180c16d5d33f83641d89e78d361b844c06ba6c6afdabf",
+          "bytes": 46450
+        },
+        {
+          "file": "openjk-codemp__qcommon__files.cpp.json",
+          "blob": "9529217d756b5b248f55a81bc9c9d98f062f2c22",
+          "sha256": "6e135bcc13bd3585b3241608f68ac9c5e3787bfa131d90d0a1b29f31449b927a",
+          "bytes": 113734
+        },
+        {
+          "file": "openjk-codemp__client__cl_ui.cpp.json",
+          "blob": "76feaffae7c806613f91c5e6b553ec7642eacf26",
+          "sha256": "e7b31fcee65aceea1bf8d31c5c4e9855600a2cbd9ee669c124b950d0ea6bea71",
+          "bytes": 1889
+        },
+        {
+          "file": "openjk-codemp__client__cl_parse.cpp.json",
+          "blob": "379c458ee1219c9bee361481bb8136cac28e555f",
+          "sha256": "73aa31a95296c88c5eb8b5fa51518a6b8f854a3575cfdd7f0b26cbe710e3da1a",
+          "bytes": 21887
+        }
+      ]
+    },
+    "sdlpal_first_party_writer_scope": {
+      "source": "366bc366cbfa0b34c66b0c19171ab05d1643adfd",
+      "rows": [
+        {
+          "path": "game.c",
+          "blob": "3552cab43b96ba2cf12a54230955fadf59e20346",
+          "sha256": "6d38dc4289642fb686cd36a41e49d360c05895bd319661ef9bba65b6a32cb1e5",
+          "bytes": 1874
+        },
+        {
+          "path": "global.c",
+          "blob": "2e81e457e5829d394cc3f61f160a76c43c2f627c",
+          "sha256": "62ba893c3e329999ff2c2b33bfda27f3dd6f826a4f418057bcfb34274763c2f2",
+          "bytes": 54495
+        },
+        {
+          "path": "main.c",
+          "blob": "fd8561fbbbe295c7bc4717e9c10e68bfa80df93b",
+          "sha256": "d53026c644ec4c5a000979b3dfdaf3cfb750d54c610667ece20f1c490847719a",
+          "bytes": 12327
+        },
+        {
+          "path": "palcfg.c",
+          "blob": "a6f4a2a2a302e489ec790d64ccacb74bbc74642d",
+          "sha256": "902110f7b8b9352f81fbee55e4dbdaa9784b999869d196c218d5a679b97fca15",
+          "bytes": 37417
+        },
+        {
+          "path": "palcfg.h",
+          "blob": "bcb45115712522e87b6db334cd98d2efbef86aed",
+          "sha256": "3822cc7bc8f82fd873fc2b3be6a3c0371a921bb43c00a459aeb64883a960d240",
+          "bytes": 7471
+        },
+        {
+          "path": "SDL_stbimage.h",
+          "blob": "141ad3ef986af87fe9566f7d948dedf7e142afcc",
+          "sha256": "0e44a9f4cf2ba6147437dc388436c8703445c66cef2754efc17747ecf83779c8",
+          "bytes": 20383
+        },
+        {
+          "path": "ascii.h",
+          "blob": "b66274377413bfd9429e2bcdcef6be3733344300",
+          "sha256": "0be0b169b6596a61a2f60a40b0319763b5ba3139aee4120f5020617b8751d733",
+          "bytes": 43957
+        },
+        {
+          "path": "audio.c",
+          "blob": "401bdb58caf687adcf91844d8b9f4581ff6770d5",
+          "sha256": "8fe50ee6675ae7784e7da249c5da87f6285af131c299e7072d3b2c72109f0f96",
+          "bytes": 14844
+        },
+        {
+          "path": "audio.h",
+          "blob": "5a899a30270aa1a40a2488cca02839213714e5f1",
+          "sha256": "718ee578f63948b1e15d7cc115efe783565996a9bcb833cdf36b67c7b2eec240",
+          "bytes": 3895
+        },
+        {
+          "path": "aviplay.c",
+          "blob": "ec0e90532cf02fb55552669bfe47a1fef2240f34",
+          "sha256": "b0313423ee807df2aafb97a458d1432bcfb4370e864aa4097b6465d0764d304a",
+          "bytes": 22640
+        },
+        {
+          "path": "aviplay.h",
+          "blob": "5813779f5044a9a0a10f989d91bb2a1fa2d74594",
+          "sha256": "319b5820e2997a66af046026218605ab57a2ca389fc9d2472f139bfb20befdda",
+          "bytes": 1203
+        },
+        {
+          "path": "battle.c",
+          "blob": "f68e9e546254491f8d6b01cfeaeeff45c5ede7ce",
+          "sha256": "b8521d46d824f2d2267239163153a8a8e003192f5fb1f935d825e78de88f0890",
+          "bytes": 49450
+        },
+        {
+          "path": "battle.h",
+          "blob": "fae00252a44e751fdc8d2369c813e180590d87dc",
+          "sha256": "23e6d27458a9fc0cfeff8cfb9d467aeb4339d5195cd8f382bf9760382c351246",
+          "bytes": 9332
+        },
+        {
+          "path": "codepage.h",
+          "blob": "705d16c3060d8a6428fe3bd2521dda9f73d8f4cf",
+          "sha256": "d0d2b8824cea5d57fd82d9a35cfb0ab0c5349be23af90c3126450281d28b3a45",
+          "bytes": 413192
+        },
+        {
+          "path": "common.h",
+          "blob": "7d8340a9ef5794be9600bcc8e4cd18194e4900d2",
+          "sha256": "6239fb228ca5284eec2b520dba41e2e4795dc804af2be5c20e83762db20fe3e8",
+          "bytes": 7217
+        },
+        {
+          "path": "defines.h",
+          "blob": "f0c6eb4fda85c85e4a22aec79018b3f291625cfa",
+          "sha256": "6ab074fa2407ea656ccd05ccab752e627cbaf62efcbf59e9b8a0f0d208c6689f",
+          "bytes": 977
+        },
+        {
+          "path": "ending.c",
+          "blob": "2c9140997ff94e932bdd5c2a0d4dccb2f43f5e8e",
+          "sha256": "d7f7d4332af7db4dc052e4a7dab95516cf9de08b11b0c32df13eaf223ce977c8",
+          "bytes": 10766
+        },
+        {
+          "path": "ending.h",
+          "blob": "9a9358590a1f5042285fccf6722f6ab5b50eb5b8",
+          "sha256": "e860f0861fd2628cb0c1f1a6313f3f7b284c6ae950d67ade8c6098d7e45be728",
+          "bytes": 1266
+        },
+        {
+          "path": "fight.c",
+          "blob": "3baa9b1ac86e3e727a78572eee7acadd58130271",
+          "sha256": "86641acc00ed0501b572450b4a98ba7cba27e6139a0f4030c273f88837c9a816",
+          "bytes": 144742
+        },
+        {
+          "path": "fight.h",
+          "blob": "5d9718c8ec9cee07fc1d11e90b2355ac7d8bbff2",
+          "sha256": "a661234c480bb7757510a233ae0dc6bb348e94ba60822190405806e04c7fafdd",
+          "bytes": 1992
+        },
+        {
+          "path": "font.c",
+          "blob": "db8ce00d39a3af938e336b2cc625b2307b73b4bc",
+          "sha256": "3bfcb89f3a17404b3fb1c068b33180adc8e16c8d6c98e9a8559cefbfa496195f",
+          "bytes": 16397
+        },
+        {
+          "path": "font.h",
+          "blob": "64bb7f797ff831c85000764d35b1dd5511c8e400",
+          "sha256": "f098989aaca2c184850bf32ef9519123e89ca873c0b8179a31e2a07ef2544681",
+          "bytes": 2306
+        },
+        {
+          "path": "game.h",
+          "blob": "3e21e43ab6814838a6b883fb60aa6f586dd4b213",
+          "sha256": "c2db6775bcc3d928d33433fdfe4d1d13eacb77254da3f5a5ad828a3912ba4059",
+          "bytes": 1020
+        },
+        {
+          "path": "global.h",
+          "blob": "87bca99c3fa2523327098122d8c5e248b47d296a",
+          "sha256": "7df6ddfbecd8852c64ea5db461cfecbd36bc612ebbefa2912f81bd01f19df249",
+          "bytes": 25072
+        },
+        {
+          "path": "glslp.c",
+          "blob": "6f83d655219a7a275f23cff022856846468439b7",
+          "sha256": "9e1178ae2270b23d28882ceb93bf7636c6601eb24eb44c1dff4503a37cbc6497",
+          "bytes": 22705
+        },
+        {
+          "path": "glslp.h",
+          "blob": "e3b96f1ae1b113434d7954baaee7dcfee4e4bece",
+          "sha256": "9bd0a9cb1384d5f8a5ee7b95ca91b37713f3bcbbf97b2d9aa28a5afe46a90075",
+          "bytes": 3438
+        },
+        {
+          "path": "input.c",
+          "blob": "b930a1c955c658f843a2c33a0ea016242270accd",
+          "sha256": "78a3c63cdd47a1631072f41954f4b4e5e8972edaa9ec2ece301270c3c9bd6caf",
+          "bytes": 29328
+        },
+        {
+          "path": "input.h",
+          "blob": "939ff3b9227aa92cc6b77abf12c6b1440334b2a1",
+          "sha256": "d48c52a628aef21f30a18a34d8893a3011b0444682b867e2fa7699f886fdbeb7",
+          "bytes": 2375
+        },
+        {
+          "path": "itemmenu.c",
+          "blob": "f4308b7f601c2fb48da1f561756cbb55689ef921",
+          "sha256": "8e1186752d6c5d42ae5d4fe3e71ea5a6d2fbe18a275c63a4bb85d16b0e64c51d",
+          "bytes": 12791
+        },
+        {
+          "path": "itemmenu.h",
+          "blob": "8348869121b79c802ba3a63103244a9a90ca22c7",
+          "sha256": "171134ac975e70c14db338a3fb9cd868f80719efd013bda6c20f89a8656037ff",
+          "bytes": 1203
+        },
+        {
+          "path": "magicmenu.c",
+          "blob": "acdc59b510e6d309d9fe8684311aac51279ee1c2",
+          "sha256": "87e271c52df17c0a1966c68c280bbe91fc4b542e6da6658508fd6614276ab1d7",
+          "bytes": 12159
+        },
+        {
+          "path": "magicmenu.h",
+          "blob": "9ae3755b519470e3625c273cb3637039566e7b1d",
+          "sha256": "83142f30a8905e1db34fb53be11d6bc28d3c1ee77b5b0c8532bcd23f5b662073",
+          "bytes": 1243
+        },
+        {
+          "path": "main.h",
+          "blob": "b031c2a0c5dbf8fc4c3f0220d2d48d6662a6d50b",
+          "sha256": "ea43b931fc9096871d8a1df0091c085bea2a17e70ab7aeb560f75bf305a22ca3",
+          "bytes": 1535
+        },
+        {
+          "path": "map.c",
+          "blob": "6ea403097b1bfab17ff63c81f44d84b62d6c2920",
+          "sha256": "1db5b9115ece1a4db3b4394c9f0fa2302060c66a6378715f88ecc6ad925705f1",
+          "bytes": 8136
+        },
+        {
+          "path": "map.h",
+          "blob": "15992f588f1e11dc3abb603a5fb1fed25a98db99",
+          "sha256": "1b47e8f6e7717c1303244654420eb1015dde6737eb241f8d23e7f8c2c4646b71",
+          "bytes": 3246
+        },
+        {
+          "path": "midi.c",
+          "blob": "56aab40b1a12ddcddd09381bd2ef1c759b98e42d",
+          "sha256": "29004165cd117bad5023efefd47ffc506639953fe0458b3ab4860c06277ff7e9",
+          "bytes": 2416
+        },
+        {
+          "path": "midi.h",
+          "blob": "ccfddb256bd5bdda2feac3a902a6cd2de87ff38c",
+          "sha256": "bdf9e93c5b6299a1ecb04648f186c1adf6e36c600c02a305c0217164f9de3f67",
+          "bytes": 1608
+        },
+        {
+          "path": "midi_timidity.c",
+          "blob": "4e749aedcedea777ec9997ac0f3f7befd470c42e",
+          "sha256": "addab2680392b4691478a224637d3720eb23c97e23b0973748dcbdc4ae4de459",
+          "bytes": 3668
+        },
+        {
+          "path": "midi_tsf.c",
+          "blob": "371a9fff9f5f30f536148830404fa7619f0fc66a",
+          "sha256": "ba0b032e1c797ac43422c337a462a3784088c49534a98a0920b49873868c95c7",
+          "bytes": 5857
+        },
+        {
+          "path": "mini_glloader.c",
+          "blob": "d3a803a8416d031d66669678cc855ee2cdceff69",
+          "sha256": "d8d7b6ae6e5c9a8cede041d843ca5f8634c25e962434724d4e6ec94cd88c371b",
+          "bytes": 5474
+        },
+        {
+          "path": "mini_glloader.h",
+          "blob": "35230311acd3d70ce4e3aa9fad5a5de9c6e5e543",
+          "sha256": "3fb2643508d7170217f4295678efb09245b3edc62423dd8ddcdce1a05a669600",
+          "bytes": 4445
+        },
+        {
+          "path": "mp3play.c",
+          "blob": "db1ab4a31b7549ee7d83bc8a52eb813e54c6fc41",
+          "sha256": "e24a5227955968c2f233475abf110c58b575510ead4ff902299f8eccc3fa709c",
+          "bytes": 2884
+        },
+        {
+          "path": "oggplay.c",
+          "blob": "e1676952ac9cbe961fc4756c0e07dd85c148b75c",
+          "sha256": "8bd324eaf6bb16f12bce250de21ec310daf59ae7e11024696f529a578a3efdca",
+          "bytes": 14776
+        },
+        {
+          "path": "opusplay.c",
+          "blob": "4995fa5afa7279d2ab1984c1a27da39c355dcd90",
+          "sha256": "ef4540c144436c7699889dcb3d60c1e5e9c7677637401705ecf17688281f7709",
+          "bytes": 9060
+        },
+        {
+          "path": "overlay.c",
+          "blob": "1ae6811a7f6dbc3419675170415b84d571b32def",
+          "sha256": "93ac43e5da91fcbd6cb75d01e01caf6fd612fc88cddef91218ad1bf1a3d0b9ad",
+          "bytes": 549978
+        },
+        {
+          "path": "palcommon.c",
+          "blob": "c17d66a5a9ca1a2b015e3fde3094aa17bd432f2b",
+          "sha256": "3da01b99e097a724bf6a7c6bbdf914744d627214cabe39eddb41904e176b9fc7",
+          "bytes": 23866
+        },
+        {
+          "path": "palcommon.h",
+          "blob": "aef23429000a7be43b8d91cd0afb766034c09d85",
+          "sha256": "b07361e2ea86be662cb8c53f07c55a3cae534afbb32b5e02eb54e21c0291acd3",
+          "bytes": 6765
+        },
+        {
+          "path": "palette.c",
+          "blob": "b0237b7d05c4089d10126afc40383d37a7974640",
+          "sha256": "06e392c2159e6638e86e19bdb37502e268901165afbf7b8c6ab89ce0e3902b1f",
+          "bytes": 13758
+        },
+        {
+          "path": "palette.h",
+          "blob": "d14da400de13c09b73e5b8dae3c5921c4371db0e",
+          "sha256": "73b4c6bf8bae3fbe1e36fd7547c2f26126046dd5c10cf2c4fd60d95be4f08f2f",
+          "bytes": 1566
+        },
+        {
+          "path": "play.c",
+          "blob": "1519016374f70cde2729a72e3b8cbf46b6d2886e",
+          "sha256": "48c5255d582170db83cfb7d5eb22a383fd6b586d953b1831111a16c85c6085ba",
+          "bytes": 14648
+        },
+        {
+          "path": "play.h",
+          "blob": "f0cebeb69cedbbd3d5c45386eb30b5423378e00f",
+          "sha256": "5b23a8611a4a668cdd08c319b92a8c3d653ad78b577867fe56970802a90ed9b1",
+          "bytes": 1192
+        },
+        {
+          "path": "players.h",
+          "blob": "a46bbf3dbdbcc3181e9c64ff49142a147a2c0781",
+          "sha256": "31861069555a303af8664ffbd288a1af2d9b1412b970b5555cd75bc673403af8",
+          "bytes": 1722
+        },
+        {
+          "path": "res.c",
+          "blob": "b4ae929e8de5209528b3f4d00ebd8cbf92bb4e0a",
+          "sha256": "7e755eb2881aa804863d883f80b765c6912dad2bf75a787c6d38389b45f1c8a9",
+          "bytes": 8520
+        },
+        {
+          "path": "res.h",
+          "blob": "645a4e6988433185a5c816d2ef89c9cf3e56a37a",
+          "sha256": "b847b24e341cfcf36d61af69d89a1a90cde0487f7451415da03f4d10c9419807",
+          "bytes": 1560
+        },
+        {
+          "path": "resampler.c",
+          "blob": "9e7037b6499c37a3f363043408b7da0f175e7118",
+          "sha256": "f5100c5c71e7684bd43c5a45a1f99079fd3b2adadb43209508a1d0561a118e2f",
+          "bytes": 24096
+        },
+        {
+          "path": "resampler.h",
+          "blob": "8a6ea94a6805d23aec52de5e0dbcbd3209e0af89",
+          "sha256": "297b11861c09b6b167b0cf8f9724baafd7e124cd5be4b86076040812d267443b",
+          "bytes": 2310
+        },
+        {
+          "path": "riff.h",
+          "blob": "a1ca6b840bbb4a6e6e7e7bfc8ec14f2bcb72e8a7",
+          "sha256": "d583bcb24bfe9a48ad63014272dff298de32554cf698cbe7f09c73259035370c",
+          "bytes": 5771
+        },
+        {
+          "path": "rixplay.cpp",
+          "blob": "ef1101fe24776dacf238e885bae63a4d6ed63295",
+          "sha256": "e25f16a02f497506205a9c94835612f9a26ceb8478b128a6d601ade8a6aa3db0",
+          "bytes": 12510
+        },
+        {
+          "path": "rngplay.c",
+          "blob": "396da2efe092a36c61a3911efa6a7012592ba757",
+          "sha256": "2f9edcd24106629fa55e4bdce18cdf191cccb590088414acf85a70269125ff01",
+          "bytes": 10972
+        },
+        {
+          "path": "rngplay.h",
+          "blob": "1a8fa7f03e897f9845db45606349383e56a095be",
+          "sha256": "72cd8cf6473abb40c495b99fd5ab0e0f9d3544e4915eac43f330f39be73fb674",
+          "bytes": 1055
+        },
+        {
+          "path": "scene.c",
+          "blob": "cd71e3f6716d35ddf9f7b6cd7a6433df4d305386",
+          "sha256": "e90beb096ab176d4dd20b1a18bbf848e8127f63df8c72d92923f4fc64ac3afcf",
+          "bytes": 21417
+        },
+        {
+          "path": "scene.h",
+          "blob": "2cbc1759b76a271ed7ecd2f1b2e94d0d01e6c26d",
+          "sha256": "78779c335c8fceed55bfadbb60b00ee65178e2d39e05b14a36000e28bb190008",
+          "bytes": 1484
+        },
+        {
+          "path": "script.c",
+          "blob": "f46ed9ec98679905d9d67df09f75796922564f4e",
+          "sha256": "46ff63675228c69f0d1fd7509b25714d4a9e125ab105ecdb1180fdad223c2e77",
+          "bytes": 98247
+        },
+        {
+          "path": "script.h",
+          "blob": "032330bffcc224f1e054240cd274007da377e5b1",
+          "sha256": "408fdd7b1c5200997661ed66b9ebb80a421845fde6cd792688f0bf90a8a68c2a",
+          "bytes": 1214
+        },
+        {
+          "path": "sound.c",
+          "blob": "220467f951746fe8c509176aec0da0c70f3f5141",
+          "sha256": "a1ac3809f702d3ab0445c677315b534aee20f69e68d30078531719e1b520600c",
+          "bytes": 26673
+        },
+        {
+          "path": "stb_image.h",
+          "blob": "76e649d16ee93e439a37736bdfb302e5ff6e451b",
+          "sha256": "8ca8f6c0024d6d0bd6b623d204f264afe13a3c6b17444862021c4b4d25cfa419",
+          "bytes": 260288
+        },
+        {
+          "path": "text.c",
+          "blob": "318ae32b4656899fa72c090c31c1ccefe9614442",
+          "sha256": "d260c4f288d093c3761b8cb241a08610e5ec022c47ce2d98e615b0d1e47aa49c",
+          "bytes": 61734
+        },
+        {
+          "path": "text.h",
+          "blob": "0ffa6e46ccc2a7bbf0c268c04dcef6c7eb42ab9f",
+          "sha256": "007713860579a83e4508edf2767dc57ba257ecd6eea506a9d4e4464722436a9d",
+          "bytes": 4229
+        },
+        {
+          "path": "tml.h",
+          "blob": "4a40ae3fe63cc002be3d109be7901eb99bee9351",
+          "sha256": "9a271fa36186132fef59521ba59124548cf87345722ebc8944a03d9ba12889dd",
+          "bytes": 19548
+        },
+        {
+          "path": "tsf.h",
+          "blob": "de48af73392bc48ddb3152e111eaec8a94f75a03",
+          "sha256": "abd5300b02442ed14671c9091252252d2488d02f0dd0d38c867c19f61092fe77",
+          "bytes": 79947
+        },
+        {
+          "path": "ui.c",
+          "blob": "207e413c989bd2d08ba1c8826344fdacbbf02abc",
+          "sha256": "1b5df5c3ff3df45bdbdd2264a4d4198a5d7a2e1e6e2067c39253dbdf41d6a32d",
+          "bytes": 20450
+        },
+        {
+          "path": "ui.h",
+          "blob": "0a3949350c7914eab7494d41595ab7a2d3c99788",
+          "sha256": "ac19ae13f5be51965ea49e8682e823d1ba3e7e78d25eed01e64fe0c895513afa",
+          "bytes": 7708
+        },
+        {
+          "path": "uibattle.c",
+          "blob": "63a815e0b118302ac4aea0a1e8da794a974d7c8f",
+          "sha256": "0001d9f3d0eea46592e98c085bfafa0c750b6c13f08f600403d590e7c3da8a4c",
+          "bytes": 49811
+        },
+        {
+          "path": "uibattle.h",
+          "blob": "1702e006ad9c08cc953afaaaa2063f0e1b36b6f2",
+          "sha256": "2dd62fabe4b185c6290c1339908faac2c8247e1e6506c4187fa9f709db4972be",
+          "bytes": 4115
+        },
+        {
+          "path": "uigame.c",
+          "blob": "f27db813f4533ccdd986c7af729c5e25c06825d8",
+          "sha256": "f1977664b045dc2eee3c9393ee1a7f94ddf08189193ac9498d9fba04a6625f26",
+          "bytes": 53749
+        },
+        {
+          "path": "uigame.h",
+          "blob": "604f9c1c5361d3a91faf9b242d00094347aa783b",
+          "sha256": "032e9f80a1ef3bbb9d51dcd64252596b00627afb89ee129b941913f6e90811a5",
+          "bytes": 1550
+        },
+        {
+          "path": "util.c",
+          "blob": "d34de240d217a864a305a97e4c862b2bfb562c92",
+          "sha256": "d3ae1cbfc0165a9494debbd3f6156e4b206b67531b531a75681ca6665229afa1",
+          "bytes": 20823
+        },
+        {
+          "path": "util.h",
+          "blob": "0dab9d2f15d61241776e1aa6375243a8320a22ba",
+          "sha256": "56f9ee838b6f1e8802b5210f11d9729852b5b32fc076d432931b2031bbbd711e",
+          "bytes": 6386
+        },
+        {
+          "path": "video.c",
+          "blob": "4a6651b8e95c54a7257e6c66c0d355f1567c4d49",
+          "sha256": "5feb5edb0ced38d5261a7e1c6b144c182501ed9ffbd6df503c35b5f25c936bec",
+          "bytes": 32849
+        },
+        {
+          "path": "video.h",
+          "blob": "a5c70b03eeae0e7b0e4e30989ff2eb708597440c",
+          "sha256": "8a2704b68047c6c0f000a0498b2c9a873eb3b9faa41958748ef34fb17c4dc6b0",
+          "bytes": 2865
+        },
+        {
+          "path": "video_glsl.c",
+          "blob": "dc1af3eddb87613e9e0b7204bd79f7a46e296c4e",
+          "sha256": "d3219dc4af68cd1f9e7b88e81d5e43e08287b7410ada8c8a8af126b677806235",
+          "bytes": 48164
+        },
+        {
+          "path": "video_glsl.h",
+          "blob": "8129c8795a612a260d5e2000d5820af563cc592a",
+          "sha256": "745cc185ca8ffc90a9b08a1637147c989cfaeba09d5af15ffa3cbdff24b8621f",
+          "bytes": 1330
+        },
+        {
+          "path": "yj1.c",
+          "blob": "2bfb348af8e56e6fd24366b0e5a8171cb5fdb413",
+          "sha256": "a498af844a043caa1618831fecb23c020fd96264b2a3acaca53590fd87d7d296",
+          "bytes": 11595
+        }
+      ],
+      "count": 83,
+      "scope": "All first-party root C/C++/headers except four generated glyph tables, plus separately retained Windows platform/config files. Third-party codec implementations, generated glyph tables and other platform frontends are not claimed audited by this selection.",
+      "excluded_generated_tables": [
+        "fontglyph.h",
+        "fontglyph_cn.h",
+        "fontglyph_jp.h",
+        "fontglyph_tw.h"
+      ]
+    }
+  },
+  "sdlpal_artifact": {
+    "id": 264188556,
+    "name": "sdlpal-win32-mingw.zip",
+    "size": 2683645,
+    "digest": "sha256:375f04ebe1f3c68080dc3827254b41bc85d9475b4f3b38c3e913fcfaddabed0d",
+    "browser_download_url": "https://github.com/sdlpal/sdlpal/releases/download/v3.0.2025.0616/sdlpal-win32-mingw.zip"
+  },
+  "sdlpal_package_observation_reused": "classic-engine-managed-and-upstream-routes-2026-10-26.json: unchanged authenticated asset264188556, single sdlpal.exe PE32, no originals; current metadata refreshed, not new runtime execution",
+  "sdlpal_writer_map": [
+    {
+      "path": "sdlpal.cfg",
+      "source": "palcfg.c:394,633,669-674; win32/win32.cpp:143-192",
+      "scope": "runtime-local cfg; both qualified relative paths differ from defaults and are retained by SaveConfig; dialog preserves typed relative GamePath unless user browses elsewhere"
+    },
+    {
+      "path": "saves/<slot>.rpg",
+      "source": "global.c:571,791; uigame.c:28",
+      "scope": "explicit relative SavePath before first session and after restart"
+    },
+    {
+      "path": "saves/<timestamp>.bmp",
+      "source": "video.c:1003-1025",
+      "scope": "screenshot SavePath, not arbitrary runtime CWD"
+    },
+    {
+      "path": "data/sdlpal.log",
+      "source": "util.c:475-545,946-958; palcfg.c:83,436,674; main.c:531-533",
+      "scope": "optional LogFileName=sdlpal.log is GamePath-relative; no default log file; other destinations external"
+    },
+    {
+      "path": "data/sdlpal.glslp",
+      "source": "video_glsl.c:39,1034,1156; util.c:475-545",
+      "scope": "optional shader intermediate through GamePath-relative writer; shader resources constrained to data. Default qualified config disables experimental GLSL."
+    }
+  ],
+  "openjk_mp_static_import_scope": {
+    "observed_at": "2026-11-03T01:45:57.891728+00:00",
+    "source": "260c59c2907187af555a676fe0cc798893bf7757",
+    "asset_id": 597802024,
+    "sha256": "a88727208476ac4b3f2f3f4d182cd63b9a77c33d33171a66feda8084a331e385",
+    "current_publisher_identity_unchanged": true,
+    "rows": [
+      {
+        "member": "EaxMan.dll",
+        "sha256": "92a519c03e772fde33a299651510aa82cebfb66dd1efaec7467ce18c6365ca00",
+        "format": "pei-i386",
+        "imports": ["KERNEL32.dll", "ADVAPI32.dll", "ole32.dll"],
+        "diagnostic_bytes": 51745,
+        "diagnostic_sha256": "ee029788129cd413cc0f5fa9900d2ccdf51282a5af5ef6606c5288f6032a1259"
+      },
+      {
+        "member": "OpenAL32.dll",
+        "sha256": "a0c5bb9c962a1653dfee9b8ac312cc8bfdde80d6a51f69693203726af8d50809",
+        "format": "pei-i386",
+        "imports": ["KERNEL32.dll", "WINMM.dll", "USER32.dll", "ole32.dll"],
+        "diagnostic_bytes": 127493,
+        "diagnostic_sha256": "eff29e3c1f985272f46b23e0f3757d1c1f0fcb8f4796479f7777e504282b2ce6"
+      },
+      {
+        "member": "OpenJK/cgamex86_64.dll",
+        "sha256": "aed9f9d39b40f1bf4b44caa54e81fa8eea6b54c22f3d9d7095b59e6c3a50afea",
+        "format": "pei-x86-64",
+        "imports": [
+          "VCRUNTIME140.dll",
+          "api-ms-win-crt-convert-l1-1-0.dll",
+          "api-ms-win-crt-math-l1-1-0.dll",
+          "api-ms-win-crt-string-l1-1-0.dll",
+          "api-ms-win-crt-stdio-l1-1-0.dll",
+          "api-ms-win-crt-utility-l1-1-0.dll",
+          "api-ms-win-crt-runtime-l1-1-0.dll",
+          "KERNEL32.dll"
+        ],
+        "diagnostic_bytes": 938295,
+        "diagnostic_sha256": "447d7f13afa02cbc12179331b0d6bea08ecd3264d681235317c47d5d78649cac"
+      },
+      {
+        "member": "OpenJK/jampgamex86_64.dll",
+        "sha256": "0e7d4da2a7550737e81bb27a86e194df90bdb231b8c1f86d423db4c62c87ded2",
+        "format": "pei-x86-64",
+        "imports": [
+          "VCRUNTIME140.dll",
+          "api-ms-win-crt-utility-l1-1-0.dll",
+          "api-ms-win-crt-string-l1-1-0.dll",
+          "api-ms-win-crt-convert-l1-1-0.dll",
+          "api-ms-win-crt-math-l1-1-0.dll",
+          "api-ms-win-crt-stdio-l1-1-0.dll",
+          "api-ms-win-crt-time-l1-1-0.dll",
+          "api-ms-win-crt-runtime-l1-1-0.dll",
+          "KERNEL32.dll"
+        ],
+        "diagnostic_bytes": 1473876,
+        "diagnostic_sha256": "ca235d773476a98ae2da69fff4fa9a11fdcae179b95e6a60d96aadc7221f1c5c"
+      },
+      {
+        "member": "OpenJK/uix86_64.dll",
+        "sha256": "662bf01922d5d0c0b510f26c4abe346e8cd55f544885dc4fe778e10df4c49dc5",
+        "format": "pei-x86-64",
+        "imports": [
+          "VCRUNTIME140.dll",
+          "api-ms-win-crt-convert-l1-1-0.dll",
+          "api-ms-win-crt-math-l1-1-0.dll",
+          "api-ms-win-crt-string-l1-1-0.dll",
+          "api-ms-win-crt-stdio-l1-1-0.dll",
+          "api-ms-win-crt-runtime-l1-1-0.dll",
+          "api-ms-win-crt-heap-l1-1-0.dll",
+          "api-ms-win-crt-utility-l1-1-0.dll",
+          "KERNEL32.dll"
+        ],
+        "diagnostic_bytes": 528632,
+        "diagnostic_sha256": "21e2cbd3afa44bce5bab9051dadf211083189f46e8691737786e4c72f8c5f0f5"
+      },
+      {
+        "member": "SDL2.dll",
+        "sha256": "aae1e2c1a5a2a360be4d849a503ced184425913f89b5f5967ac7231281970d0b",
+        "format": "pei-x86-64",
+        "imports": [
+          "ADVAPI32.dll",
+          "GDI32.dll",
+          "IMM32.dll",
+          "KERNEL32.dll",
+          "msvcrt.dll",
+          "ole32.dll",
+          "OLEAUT32.dll",
+          "SETUPAPI.dll",
+          "SHELL32.dll",
+          "USER32.dll",
+          "VERSION.dll",
+          "WINMM.dll"
+        ],
+        "diagnostic_bytes": 1276167,
+        "diagnostic_sha256": "79cbcb8abdd71fd20141a0d6542ee98a0bf7ba56f4d855ebb29d669b395297e3"
+      },
+      {
+        "member": "openjk.x86_64.exe",
+        "sha256": "8b017b8449f53b64e5e3a6c9a23b7e096d86f38c3632a3c49585cd921d6f928e",
+        "format": "pei-x86-64",
+        "imports": [
+          "WINMM.dll",
+          "WSOCK32.dll",
+          "SDL2.dll",
+          "KERNEL32.dll",
+          "USER32.dll",
+          "SHELL32.dll",
+          "ADVAPI32.dll",
+          "MSVCP140.dll",
+          "VCRUNTIME140.dll",
+          "VCRUNTIME140_1.dll",
+          "api-ms-win-crt-string-l1-1-0.dll",
+          "api-ms-win-crt-stdio-l1-1-0.dll",
+          "api-ms-win-crt-math-l1-1-0.dll",
+          "api-ms-win-crt-runtime-l1-1-0.dll",
+          "api-ms-win-crt-convert-l1-1-0.dll",
+          "api-ms-win-crt-utility-l1-1-0.dll",
+          "api-ms-win-crt-time-l1-1-0.dll",
+          "api-ms-win-crt-heap-l1-1-0.dll",
+          "api-ms-win-crt-filesystem-l1-1-0.dll",
+          "api-ms-win-crt-locale-l1-1-0.dll"
+        ],
+        "diagnostic_bytes": 1550688,
+        "diagnostic_sha256": "5eeff811b05997223f20fc05cace2f736902fbd2a86242e84db9549e519fbbee"
+      },
+      {
+        "member": "rd-rend2_x86_64.dll",
+        "sha256": "f450c799d515f172fe6e950d60c7cfc1c8d2b42347794a9dc041b788dc387ea4",
+        "format": "pei-x86-64",
+        "imports": [
+          "OPENGL32.dll",
+          "MSVCP140.dll",
+          "VCRUNTIME140.dll",
+          "VCRUNTIME140_1.dll",
+          "api-ms-win-crt-runtime-l1-1-0.dll",
+          "api-ms-win-crt-utility-l1-1-0.dll",
+          "api-ms-win-crt-string-l1-1-0.dll",
+          "api-ms-win-crt-math-l1-1-0.dll",
+          "api-ms-win-crt-stdio-l1-1-0.dll",
+          "api-ms-win-crt-convert-l1-1-0.dll",
+          "api-ms-win-crt-time-l1-1-0.dll",
+          "api-ms-win-crt-heap-l1-1-0.dll",
+          "api-ms-win-crt-environment-l1-1-0.dll",
+          "KERNEL32.dll"
+        ],
+        "diagnostic_bytes": 1255686,
+        "diagnostic_sha256": "e3a1ba1aa97be606cf8a37ec8c3b0666620371b679f5f1da3146dea4ece43edf"
+      },
+      {
+        "member": "rd-vanilla_x86_64.dll",
+        "sha256": "a8a85b4caffafa83d8063eb9ae31fdf2eb103354b71bde59c1dab9cbb58bd99f",
+        "format": "pei-x86-64",
+        "imports": [
+          "OPENGL32.dll",
+          "MSVCP140.dll",
+          "VCRUNTIME140.dll",
+          "VCRUNTIME140_1.dll",
+          "api-ms-win-crt-runtime-l1-1-0.dll",
+          "api-ms-win-crt-utility-l1-1-0.dll",
+          "api-ms-win-crt-string-l1-1-0.dll",
+          "api-ms-win-crt-math-l1-1-0.dll",
+          "api-ms-win-crt-stdio-l1-1-0.dll",
+          "api-ms-win-crt-time-l1-1-0.dll",
+          "api-ms-win-crt-convert-l1-1-0.dll",
+          "api-ms-win-crt-environment-l1-1-0.dll",
+          "api-ms-win-crt-heap-l1-1-0.dll",
+          "KERNEL32.dll"
+        ],
+        "diagnostic_bytes": 1098546,
+        "diagnostic_sha256": "5422a9e1df6495f28a4c47951b12038583807e38dfcac853467b16225606ae3e"
+      }
+    ],
+    "imports_not_satisfied_by_selected_packaged_dll_basenames": [
+      "advapi32.dll",
+      "api-ms-win-crt-convert-l1-1-0.dll",
+      "api-ms-win-crt-environment-l1-1-0.dll",
+      "api-ms-win-crt-filesystem-l1-1-0.dll",
+      "api-ms-win-crt-heap-l1-1-0.dll",
+      "api-ms-win-crt-locale-l1-1-0.dll",
+      "api-ms-win-crt-math-l1-1-0.dll",
+      "api-ms-win-crt-runtime-l1-1-0.dll",
+      "api-ms-win-crt-stdio-l1-1-0.dll",
+      "api-ms-win-crt-string-l1-1-0.dll",
+      "api-ms-win-crt-time-l1-1-0.dll",
+      "api-ms-win-crt-utility-l1-1-0.dll",
+      "gdi32.dll",
+      "imm32.dll",
+      "kernel32.dll",
+      "msvcp140.dll",
+      "msvcrt.dll",
+      "ole32.dll",
+      "oleaut32.dll",
+      "opengl32.dll",
+      "setupapi.dll",
+      "shell32.dll",
+      "user32.dll",
+      "vcruntime140.dll",
+      "vcruntime140_1.dll",
+      "version.dll",
+      "winmm.dll",
+      "wsock32.dll"
+    ],
+    "tool": "/usr/bin/objdump -p; data-file parsing only",
+    "scope": "Nine named MP/renderer/SDL/legacy-audio components selected from the retained bounded eighteen-entry package. Static PE/import evidence, not actual DLL resolution, ABI, renderer, native launch or gameplay; no upstream payload execution"
+  },
+  "bounded_selection": {
+    "supplied_identities": 80,
+    "observed_open": 75,
+    "observed_closed": 5,
+    "authored_proposals": 9,
+    "remaining_unfinished": 66,
+    "scope": "Retained exact identities and canonical bodies, not a recrawl or a global readiness census. Existing non-owning component delivery does not satisfy explicit stronger managed-fitting acceptance.",
+    "new_hold_receipts": [
+      "https://github.com/boburning/portcove/issues/2866#issuecomment-6592945529",
+      "https://github.com/boburning/portcove/issues/2747#issuecomment-6595153769",
+      "https://github.com/boburning/portcove/issues/2643#issuecomment-6595231529",
+      "https://github.com/boburning/portcove/issues/2644#issuecomment-6595232044",
+      "https://github.com/boburning/portcove/issues/2645#issuecomment-6595232547",
+      "https://github.com/boburning/portcove/issues/2646#issuecomment-6595233073",
+      "https://github.com/boburning/portcove/issues/2648#issuecomment-6595233595",
+      "https://github.com/boburning/portcove/issues/2649#issuecomment-6595234109",
+      "https://github.com/boburning/portcove/issues/2650#issuecomment-6595234637"
+    ]
+  },
+  "review": "Early bounded nonwriting reviews found conditional design fit for Gundam/Academy and SDLPal. They did not grant closure/final qualification. uHexen managed component evidence remains held. Final exact-source independent review belongs to PR.",
+  "validation": "Combined generation/coherence/format and per-ID authored structure passed at checkpoint. New owned controls and maintained complete-diff hosted qualification remain pending. No upstream player/helper/original, game or native Desktop execution.",
+  "scope_preservation": "All858 frozen identities remain; no Required hold weakened or owner scope moved; no Supported promotion or native/gameplay assertion. SDLPal new offer preserves creating external registrations; eight other current integrations remain unchanged except Gundam manual-preparation presentation.",
+  "rvgl_primary_documentation": [
+    {
+      "name": "playing",
+      "url": "https://re-volt.gitlab.io/rvgl-launcher/playing.html",
+      "observed_at": "2026-11-03T04:20:06.744406+00:00",
+      "bytes": 13287,
+      "sha256": "9dd70a24ed512dfe7e9ff5564b0442180e16de921b1b9f06711f46acdb640e0d",
+      "scope": "Dated primary publisher documentation readback; not program execution, immutable runtime build attestation or authority for private/original inputs."
+    },
+    {
+      "name": "general",
+      "url": "https://re-volt.gitlab.io/rvgl-docs/general.html",
+      "observed_at": "2026-11-03T04:20:07.091610+00:00",
+      "bytes": 51212,
+      "sha256": "dca0d20889ae2c736699009b77aa4d68e648d2b29372be2f8a20081c337b5603",
+      "scope": "Dated primary publisher documentation readback; not program execution, immutable runtime build attestation or authority for private/original inputs."
+    },
+    {
+      "name": "installing",
+      "url": "https://re-volt.gitlab.io/rvgl-launcher/installing.html",
+      "observed_at": "2026-11-03T04:20:07.301337+00:00",
+      "bytes": 15841,
+      "sha256": "b6abece24fbb87645912ffab13fa62c0e252bc25541862fa9b6f9f6e944e7535",
+      "scope": "Dated primary publisher documentation readback; not program execution, immutable runtime build attestation or authority for private/original inputs."
+    },
+    {
+      "name": "main-app",
+      "url": "https://gitlab.com/re-volt/rvgl-launcher/-/raw/master/rv_launcher/rvl_gui/main_app.py",
+      "observed_at": "2026-11-03T04:20:07.609332+00:00",
+      "bytes": 17902,
+      "sha256": "a4768a57169a1fd637789bbc2fdddad15aa947eaeb14382d2640ca6924fa1989",
+      "scope": "Dated primary publisher documentation readback; not program execution, immutable runtime build attestation or authority for private/original inputs."
+    }
+  ],
+  "rvgl_primary_documentation_scope": "Exact retained public publisher bytes: playing/lifetime, general/base+preferences+profiles, installation/update/repair, launcher Open Data/Config Folder actions. Dated documentation readback, not compiled launcher or game execution. Raw-markup phrase assertion failure retained; after HTML text normalization the same required facts were verified without running scripts.",
+  "initial_authored_checkpoint": "70c8cdeffe488da64497c75833f05f0a8cef58bc"
+}

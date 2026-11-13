@@ -3,15 +3,15 @@
   "listing": {
     "id": "hybrid-heaven-ogdanimal",
     "name": "Hybrid Heaven: Recompiled (ogdanimal)",
-    "summary": "Hybrid Heaven on Windows, Linux and Android, using your own USA cartridge dump. Upstream performs first-launch setup; existing permitted copies keep their own updates and player data.",
+    "summary": "Hybrid Heaven on Windows, Linux and Android, using your own USA cartridge dump. Upstream performs first-launch setup; updates and player data stay with your copy.",
     "original_game_title": "Hybrid Heaven",
     "project_url": "https://github.com/ogdanimal/HybridHeaven-Recomp",
     "issue_number": 2546,
+    "listed_at": "2026-10-25",
     "availability": "packages",
     "platforms": ["windows-x86-64", "linux-x86-64"],
     "release_url": "https://github.com/ogdanimal/HybridHeaven-Recomp/releases",
     "setup_url": "https://github.com/ogdanimal/HybridHeaven-Recomp/blob/431720eac60bb0508ea5c4b4aec88d47fa7bc79e/README.md",
-    "download_block_reason": "Portcove downloads are paused until redistribution permission for the included Chiaro fonts is established. The reviewed package identifies Fontworks Japan as their owner; the project code license does not establish that separate font grant. Keep an existing permitted copy. Reconsider when upstream supplies the applicable grant or publishes a package using appropriately licensed replacement fonts.",
     "download_asset_hints": {
       "windows-x86-64": ["HybridHeaven-", "-windows-x64.zip"],
       "linux-x86-64": ["HybridHeaven-", "-linux-x86_64.tar.gz"]
@@ -20,11 +20,11 @@
     "manual_setup": {
       "help_url": "https://github.com/ogdanimal/HybridHeaven-Recomp/blob/431720eac60bb0508ea5c4b4aec88d47fa7bc79e/README.md",
       "warnings": [
-        "Portcove downloads are paused until redistribution permission for the included Chiaro fonts is established. The reviewed package identifies Fontworks Japan as their owner; the project code license does not establish that separate font grant. Keep an existing permitted copy. Reconsider when upstream supplies the applicable grant or publishes a package using appropriately licensed replacement fonts."
+        "The package includes Chiaro fonts by Fontworks that the project license does not cover. Portcove downloads it only from the project’s own releases. You need your own original game files."
       ],
       "steps": [
         {
-          "title": "Keep a permitted complete copy",
+          "title": "Keep the complete package",
           "instruction": "Keep the complete upstream package in a folder you control. The reviewed Windows player is HybridHeavenRecompiled.exe; on Linux it is HybridHeavenRecompiled and needs Vulkan, SDL2 and GTK 3. Keep assets beside the player and use that folder as its working directory. Android APK installation remains an upstream device setup route."
         },
         {

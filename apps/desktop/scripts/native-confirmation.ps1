@@ -12,7 +12,7 @@ param(
     [Parameter(Mandatory, ParameterSetName='Observation')][ValidatePattern('^[0-9]+$')][string]$ExpectedDriverStartedFiletime,
     [Parameter(Mandatory, ParameterSetName='Observation')][string]$ObservationPath,
     [Parameter(ParameterSetName='Observation')][string]$PreparedRuntimeDirectory,
-    [Parameter(ParameterSetName='Observation')][ValidateSet('Select Folder', 'Choose game-file folder')][string]$ExpectedPickerTitle = 'Select Folder'
+    [Parameter(ParameterSetName='Observation')][ValidateSet('Select Folder', 'Choose game files folder')][string]$ExpectedPickerTitle = 'Select Folder'
 )
 $ErrorActionPreference = 'Stop'
 $script:lastNativeStage = 'setup'
@@ -54,7 +54,7 @@ function Get-NativeFailureEvidence([Management.Automation.ErrorRecord]$Record) {
         'candidate-descendants-ready', 'candidate-text-ready', 'timeout-roots-start',
         'timeout-nested-start', 'button-descendants-start', 'button-descendants-ready',
         'target-identity-rechecked', 'screenshot-preparation-start', 'screenshot-written',
-        'observation-complete')
+        'observation-complete', 'file-input-readback', 'file-picker-close')
     $stage = if ($script:lastNativeStage -cin $stages) { $script:lastNativeStage } else { 'unknown' }
     $types = @('System.Exception', 'System.InvalidOperationException', 'System.ArgumentException',
         'System.IO.IOException', 'System.UnauthorizedAccessException',
@@ -110,10 +110,11 @@ function Write-ObservationProgress([string]$Stage) {
         [IO.File]::AppendAllText($progressPath, "$record`n")
     }
 }
+. (Join-Path $PSScriptRoot 'native-process-tree.ps1')
 function Assert-CapturedPickerDriver([string]$DriverPath, [string]$DriverStartedFiletime) {
     $capturedDriver = [Diagnostics.Process]::GetProcessById($DriverProcessId)
     if ($capturedDriver.StartTime.ToUniversalTime().ToFileTimeUtc().ToString() -ne $DriverStartedFiletime -or
-        -not [string]::Equals($capturedDriver.MainModule.FileName, $DriverPath, [StringComparison]::OrdinalIgnoreCase)) {
+        -not (Test-SameNativePath @($capturedDriver.MainModule.FileName, $DriverPath))) {
         throw 'Captured picker driver identity changed; no input permitted.'
     }
 }
@@ -123,7 +124,7 @@ if ($ObservePicker) {
         -not [IO.Directory]::Exists([IO.Path]::GetDirectoryName($ObservationPath))) { throw 'Picker observation requires a fresh owned output file.' }
     Assert-CapturedPickerDriver $ExpectedDriverPath $ExpectedDriverStartedFiletime
     if ($PreparedRuntimeDirectory) {
-        $allowedNames = if ($ExpectedPickerTitle -ceq 'Choose game-file folder') {
+        $allowedNames = if ($ExpectedPickerTitle -ceq 'Choose game files folder') {
             @('selected-setup-inputs', 'connected-folder-extra', 'connected-folder-replacement')
         } else { @('player-owned-runtime', 'real-prepared-runtime-dkc3-recomp', 'real-prepared-runtime-wave-race-64-racewave46') }
         $outputDirectory = [IO.Path]::GetFullPath([IO.Path]::GetDirectoryName($ObservationPath))
@@ -142,7 +143,6 @@ Write-ObservationProgress 'automation-assemblies-start'
 Add-Type -AssemblyName UIAutomationClient
 Add-Type -AssemblyName UIAutomationTypes
 Write-ObservationProgress 'automation-assemblies-ready'
-. (Join-Path $PSScriptRoot 'native-process-tree.ps1')
 if ($ObservePicker) {
     . (Join-Path $PSScriptRoot 'native-window-discovery.ps1')
 }
@@ -369,8 +369,10 @@ if ($FilePath) {
     $selected = (Resolve-Path -LiteralPath $FilePath).Path
     if (-not [IO.File]::Exists($selected)) { throw 'Owned picker fixture is not a file.' }
     $fields = @($children | Where-Object { $_.Current.ControlType -eq [System.Windows.Automation.ControlType]::Edit -and $_.Current.Name -eq 'File name:' })
-    if ($fields.Count -ne 1) { throw 'Expected one exact file-name field in the owned artwork picker.' }
-    $fields[0].GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern).SetValue($selected)
+    if ($fields.Count -ne 1 -or $fields[0].Current.ProcessId -ne $applicationId) { throw 'Expected one exact owned file-name field.' }
+    $fileValue = $fields[0].GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern)
+    $fileValue.SetValue($selected)
+    if ($fileValue.Current.Value -cne $selected) { throw 'Owned file-name field did not retain the selected path.' }
 }
 if ($DirectoryPath) {
     Assert-ExactConfirmationWindow $window
@@ -416,7 +418,7 @@ if ($Button -ne '__observe__' -and -not $nativeLibraryButton) {
             continue
         }
         $window = $freshTargets[0].window
-        if ($DirectoryPath -and $window.Current.NativeWindowHandle -ne $selectedWindowHandle) {
+        if (($DirectoryPath -or $FilePath) -and $window.Current.NativeWindowHandle -ne $selectedWindowHandle) {
             throw 'Owned picker window changed after selection; no input permitted.'
         }
         $children = $freshTargets[0].children
@@ -483,14 +485,39 @@ public static class PortcoveConsentWindow {
         })
     }
 }
+$fileSelection = $null
+if ($FilePath) {
+    Write-ObservationProgress 'file-input-readback'
+    Assert-ExactConfirmationWindow $window
+    $freshFields = @($children | Where-Object { $_.Current.ControlType -eq [System.Windows.Automation.ControlType]::Edit -and $_.Current.Name -eq 'File name:' })
+    if ($freshFields.Count -ne 1 -or $freshFields[0].Current.ProcessId -ne $applicationId -or
+        $freshFields[0].GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern).Current.Value -cne $selected) {
+        throw 'Owned file-name field changed before Open; no input permitted.'
+    }
+    $fileSelection = [pscustomobject]@{ field_readback_matches = $true; window_handle = $selectedWindowHandle; closed = $false; close_samples = @() }
+}
 Write-ObservationProgress 'observation-complete'
 if ($Button -ne '__observe__') {
     if ($nativeLibraryButton) {
         Invoke-NativeLibraryPickerButton $nativeLibraryWindowHandle $nativeLibraryButton
     } else {
         Assert-ExactConfirmationWindow $window
-        if ($DirectoryPath -and $buttons[0].Current.ProcessId -ne $applicationId) { throw 'Owned library picker button identity changed; no input permitted.' }
+        if (($DirectoryPath -or $FilePath) -and $buttons[0].Current.ProcessId -ne $applicationId) { throw 'Owned library picker button identity changed; no input permitted.' }
         $buttons[0].GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
     }
 }
-[pscustomobject]@{ application_pid = $applicationId; driver_pid = $DriverProcessId; application_path = $applicationFull; title = $Title; window_scope = $windowScope; button = $Button; text = $text; selected_file = $FilePath; selected_directory = $DirectoryPath; screenshot = $screenshotObservation } | ConvertTo-Json -Depth 4 -Compress
+if ($FilePath) {
+    Write-ObservationProgress 'file-picker-close'
+    $closeDeadline = [DateTime]::UtcNow.AddSeconds(3)
+    do {
+        Assert-LiveApplication
+        # Re-enumerate owned windows. A saved UIA element can outlive its dialog.
+        # A replacement dialog with the same exact title is also unresolved.
+        $livePickers = @(Get-OwnedConfirmationWindows)
+        $fileSelection.close_samples += [pscustomobject]@{ at = [DateTime]::UtcNow.ToString('o'); owned_picker_count = $livePickers.Count }
+        if ($livePickers.Count -eq 0) { $fileSelection.closed = $true; break }
+        Start-Sleep -Milliseconds 100
+    } while ([DateTime]::UtcNow -lt $closeDeadline)
+    if (-not $fileSelection.closed) { throw 'Owned file picker did not close after one Open action.' }
+}
+[pscustomobject]@{ application_pid = $applicationId; driver_pid = $DriverProcessId; application_path = $applicationFull; title = $Title; window_scope = $windowScope; button = $Button; text = $text; selected_file = $FilePath; selected_directory = $DirectoryPath; file_selection = $fileSelection; screenshot = $screenshotObservation } | ConvertTo-Json -Depth 4 -Compress

@@ -1,4 +1,9 @@
-import { capacityDigest } from "./release-capacity.mts";
+import {
+  appendRetainedReviewWithdrawal,
+  inspectRetainedReviewWithdrawals,
+  matchesWithdrawnReviewRequest,
+} from "./release-review-withdrawal.mts";
+import { capacityDigest, inspectCapacityOperation } from "./release-capacity.mts";
 import { isRecord } from "./runtime-values.mts";
 import {
   classifyApplicationVersion,
@@ -6,6 +11,15 @@ import {
 } from "../apps/desktop/scripts/release-version-policy.mts";
 
 const scope = "portcove-release-net-tree-delta-v1";
+/** These fixed namespaces contain metadata and rehearsal custody, not an
+ * eligible production executable predecessor. */
+export function isApplicationReviewReleaseTag(tag: string) {
+  return (
+    !/^portcove-production-candidate-(?:[a-f0-9]{40}|[a-f0-9]{64})$/u.test(tag) &&
+    !/^v0\.0\.0-rehearsal\.[1-9][0-9]*\.[1-9][0-9]*$/u.test(tag)
+  );
+}
+
 export interface ReleaseReviewRequest {
   schema_version: 1;
   kind: "application-release-semantic-review";
@@ -19,6 +33,7 @@ export interface ReleaseReviewRequest {
   change_set_sha256: string;
   requested_channel: "preview";
   request_id: string;
+  qualified_application?: { run_id: number; run_attempt: number };
 }
 function sha(value: unknown, length: number) {
   if (typeof value !== "string" || value.length !== length || !/^[a-f0-9]+$/u.test(value))
@@ -29,7 +44,10 @@ export function inspectReleaseReviewRequest(raw: unknown): ReleaseReviewRequest 
   if (raw === undefined || raw === null) return null;
   if (
     !isRecord(raw) ||
-    Object.keys(raw).sort().join(",") !==
+    Object.keys(raw)
+      .filter((key) => key !== "qualified_application")
+      .sort()
+      .join(",") !==
       "base_commit,base_version,before_checkpoint,change_set_scope,change_set_sha256,kind,request_id,requested_at,requested_channel,schema_version,source_commit,source_tree" ||
     raw.schema_version !== 1 ||
     raw.kind !== "application-release-semantic-review" ||
@@ -50,6 +68,19 @@ export function inspectReleaseReviewRequest(raw: unknown): ReleaseReviewRequest 
     new Date(raw.requested_at).toISOString() !== raw.requested_at
   )
     throw new Error("neutral review request timestamp invalid");
+  const qualification = raw.qualified_application;
+  if (
+    Object.hasOwn(raw, "qualified_application") &&
+    (!isRecord(qualification) ||
+      Object.keys(qualification).sort().join(",") !== "run_attempt,run_id" ||
+      typeof qualification.run_id !== "number" ||
+      !Number.isSafeInteger(qualification.run_id) ||
+      qualification.run_id < 1 ||
+      typeof qualification.run_attempt !== "number" ||
+      !Number.isSafeInteger(qualification.run_attempt) ||
+      qualification.run_attempt < 1)
+  )
+    throw new Error("neutral review qualification identity differs");
   const { request_id, ...identity } = raw;
   if (capacityDigest(identity) !== request_id)
     throw new Error("neutral review request does not bind exact frozen inputs");
@@ -66,6 +97,12 @@ export function inspectReleaseReviewRequest(raw: unknown): ReleaseReviewRequest 
     requested_at: raw.requested_at,
     requested_channel: "preview",
     request_id: sha(request_id, 64),
+    ...(isRecord(qualification) && {
+      qualified_application: {
+        run_id: Number(qualification.run_id),
+        run_attempt: Number(qualification.run_attempt),
+      },
+    }),
   };
 }
 
@@ -80,10 +117,14 @@ export function createReleaseReviewRequest(raw: {
   change_set_sha256: string;
   before_checkpoint: string;
   requested_at: string;
+  qualified_application?: ReleaseReviewRequest["qualified_application"];
 }) {
   const input = structuredClone(raw);
   if (
-    Object.keys(input).sort().join(",") !==
+    Object.keys(input)
+      .filter((key) => key !== "qualified_application")
+      .sort()
+      .join(",") !==
     "base_commit,base_version,before_checkpoint,change_set_sha256,requested_at,source_commit,source_tree"
   )
     throw new Error("neutral review request source fields differ");
@@ -248,6 +289,42 @@ export function validateReleaseReviewRequestTransition(
   const after = inspectReleaseReviewRequest(next.review_request);
   const oldDisposition = inspectReleaseReviewDisposition(previous.review_disposition);
   const disposition = inspectReleaseReviewDisposition(next.review_disposition);
+  const withdrawals = inspectRetainedReviewWithdrawals(next.review_withdrawal);
+  if (
+    capacityDigest(previous.review_withdrawal ?? null) !==
+    capacityDigest(next.review_withdrawal ?? null)
+  ) {
+    const withdrawal = withdrawals.at(-1);
+    if (
+      !withdrawal ||
+      !before ||
+      next.review_request !== null ||
+      withdrawal.request_checkpoint !== checkpoint ||
+      !matchesWithdrawnReviewRequest(withdrawal, before) ||
+      previous.active_candidate !== null ||
+      !isRecord(previous.controller) ||
+      !isRecord(previous.controller.capacity_attempt) ||
+      previous.metadata_renewal != null ||
+      previous.catalog_publication != null
+    )
+      throw new Error("review withdrawal requires the exact paused request preimage");
+    const operation = inspectCapacityOperation(
+      previous.controller.capacity_attempt.operation ?? null,
+    );
+    if (operation && !["succeeded", "recovered"].includes(operation.outcome ?? ""))
+      throw new Error("review withdrawal cannot cross an unresolved release effect");
+    const expected = {
+      ...previous,
+      controller: { ...previous.controller, publication_paused: true },
+      review_request: null,
+      review_withdrawal: appendRetainedReviewWithdrawal(previous.review_withdrawal, withdrawal),
+    };
+    if (capacityDigest(expected) !== capacityDigest(next))
+      throw new Error("review withdrawal cannot change release state or accounting");
+    return;
+  }
+  if (withdrawals.some((withdrawal) => after?.source_commit === withdrawal.source_commit))
+    throw new Error("withdrawn application source cannot be requested again");
   if (
     capacityDigest(before) === capacityDigest(after) &&
     capacityDigest(oldDisposition) === capacityDigest(disposition)
@@ -256,6 +333,13 @@ export function validateReleaseReviewRequestTransition(
   if (capacityDigest(previous.active_candidate) !== capacityDigest(next.active_candidate))
     throw new Error("review request transition cannot allocate or change active candidate");
   if (!before && after) {
+    if (
+      previous.catalog_review_request != null ||
+      previous.catalog_publication != null ||
+      next.catalog_review_request != null ||
+      next.catalog_publication != null
+    )
+      throw new Error("application review requires the existing catalog operation to settle");
     if (after.before_checkpoint !== checkpoint || after.requested_at !== next.now)
       throw new Error("review request requires its exact preceding checkpoint and frozen clock");
     if (

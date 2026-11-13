@@ -7,7 +7,6 @@ use std::{
 };
 
 use directories::ProjectDirs;
-use fs2::FileExt;
 use rusqlite::{
     Connection, OptionalExtension, TransactionBehavior, limits::Limit, params, params_from_iter,
 };
@@ -68,10 +67,25 @@ fn external_runtime_row_sha256(port_id: &str, record: &str, catalog: &str) -> Re
 /// envelope for opt-in selectors; legacy registrations keep their original shape.
 fn encode_external_catalog(catalog: &Catalog, port_id: &str) -> Result<String> {
     if catalog.is_user_selected_listing(port_id) {
+        let mut listing = catalog.listing(port_id)?.clone();
+        // The first-listed date is directory-level recency, not part of what a retained
+        // selection must preserve. Keeping it would put a field that earlier strict readers
+        // do not know inside an envelope version they still accept.
+        listing.listed_at = None;
         return Ok(serde_json::to_string(&RetainedUserSelectedListing {
             format: USER_SELECTED_LISTING_FORMAT.into(),
-            format_version: 1,
-            listing: catalog.listing(port_id)?.clone(),
+            format_version: if listing.compatibility.is_some() {
+                3
+            } else if listing
+                .manual_setup
+                .as_ref()
+                .is_some_and(|guide| !guide.references.is_empty())
+            {
+                2
+            } else {
+                1
+            },
+            listing,
         })?);
     }
     let port = catalog.port(port_id)?;
@@ -94,7 +108,17 @@ fn decode_external_catalog(content: &str, port_id: &str) -> Result<Catalog> {
     if value.get("format").and_then(serde_json::Value::as_str) == Some(USER_SELECTED_LISTING_FORMAT)
     {
         let retained: RetainedUserSelectedListing = serde_json::from_value(value)?;
-        if retained.format_version != 1 || retained.listing.id != port_id {
+        let has_references = retained
+            .listing
+            .manual_setup
+            .as_ref()
+            .is_some_and(|guide| !guide.references.is_empty());
+        if !matches!(retained.format_version, 1..=3)
+            || (retained.format_version == 3 && retained.listing.compatibility.is_none())
+            || (retained.format_version < 3 && retained.listing.compatibility.is_some())
+            || (retained.format_version == 1 && has_references)
+            || retained.listing.id != port_id
+        {
             return Err(PortcoveError::verification(
                 "retained listing version or port identity is not supported",
             ));
@@ -309,7 +333,7 @@ fn status_ports_per_query(connection: &Connection) -> Result<usize> {
 
 impl Drop for PortOperationGuard {
     fn drop(&mut self) {
-        let _ = FileExt::unlock(&self.file);
+        let _ = self.file.unlock();
     }
 }
 
@@ -428,6 +452,8 @@ pub(crate) struct HttpCacheEntry {
     pub etag: Option<String>,
     pub last_modified: Option<String>,
     pub body: String,
+    /// Unix seconds when the provider last confirmed this response.
+    pub updated_at: i64,
 }
 
 // Account for the actual response and its key/index/validator metadata instead
@@ -700,8 +726,8 @@ impl Library {
     pub fn storage_summary(&self) -> Result<StorageSummary> {
         Ok(StorageSummary {
             library_root: self.root.clone(),
-            volume_total_bytes: fs2::total_space(&self.root)?,
-            volume_available_bytes: fs2::available_space(&self.root)?,
+            volume_total_bytes: fs4::total_space(&self.root)?,
+            volume_available_bytes: fs4::available_space(&self.root)?,
         })
     }
     pub fn versions_dir(&self) -> PathBuf {
@@ -883,6 +909,13 @@ impl Library {
         })
     }
 
+    pub(crate) fn try_lock_psx_toolchain_publication(&self) -> Result<PortOperationGuard> {
+        crate::path::refuse_symlink_ancestors(&self.locks_dir().join("psx-toolchain.lock"))?;
+        Ok(PortOperationGuard {
+            file: self.acquire_lock("psx-toolchain", "PS1 toolchain", "publish-toolchain")?,
+        })
+    }
+
     pub(crate) fn try_lock_port_for_launch_recovery(
         &self,
         port_id: &str,
@@ -905,6 +938,83 @@ impl Library {
 
     pub(crate) fn require_no_ghostship_recovery(&self, port_id: &str) -> Result<()> {
         self.require_ghostship_recovery_owner(port_id, None)
+    }
+
+    pub(crate) fn try_lock_port_for_settings_recovery(
+        &self,
+        port_id: &str,
+        operation_id: &str,
+    ) -> Result<PortOperationGuard> {
+        let owned: bool = self.connection()?.query_row(
+            "SELECT EXISTS(SELECT 1 FROM lifecycle_operations WHERE id=?1 AND port_id=?2 AND kind='settings_change')",
+            rusqlite::params![operation_id, port_id], |row| row.get(0),
+        )?;
+        if !owned {
+            return Err(PortcoveError::verification(
+                "settings recovery has no matching owner",
+            ));
+        }
+        self.lock_port(port_id, "settings-recovery", None, Some(operation_id))
+    }
+
+    pub(crate) fn require_no_settings_recovery(&self, port_id: &str) -> Result<()> {
+        self.require_settings_recovery_owner(port_id, None)
+    }
+
+    pub(crate) fn require_no_archive_data_transition(&self, port_id: &str) -> Result<()> {
+        self.require_archive_data_transition_owner(port_id, None)
+    }
+
+    fn require_archive_data_transition_owner(
+        &self,
+        port_id: &str,
+        allowed: Option<&str>,
+    ) -> Result<()> {
+        let blocked: bool = self.connection()?.query_row(
+            "SELECT EXISTS(SELECT 1 FROM lifecycle_operations WHERE port_id=?1 AND kind='archive_data_transition' AND (?2 IS NULL OR id<>?2))",
+            rusqlite::params![port_id, allowed], |row| row.get(0),
+        )?;
+        if blocked {
+            return Err(PortcoveError::conflict(
+                "player-data transition recovery must finish before another operation; preserve its runtime, receipts and recovery directory",
+            ));
+        }
+        Ok(())
+    }
+
+    pub(crate) fn try_lock_port_for_archive_data_transition(
+        &self,
+        port_id: &str,
+        operation_id: &str,
+    ) -> Result<PortOperationGuard> {
+        let owned: bool = self.connection()?.query_row(
+            "SELECT EXISTS(SELECT 1 FROM lifecycle_operations WHERE id=?1 AND port_id=?2 AND kind='archive_data_transition')",
+            rusqlite::params![operation_id, port_id], |row| row.get(0),
+        )?;
+        if !owned {
+            return Err(PortcoveError::verification(
+                "data transition recovery has no matching owner",
+            ));
+        }
+        self.lock_port(
+            port_id,
+            "archive-data-transition-recovery",
+            None,
+            Some(operation_id),
+        )
+    }
+
+    fn require_settings_recovery_owner(&self, port_id: &str, allowed: Option<&str>) -> Result<()> {
+        let blocked: bool = self.connection()?.query_row(
+            "SELECT EXISTS(SELECT 1 FROM lifecycle_operations WHERE port_id=?1 AND kind='settings_change' AND (?2 IS NULL OR id<>?2))",
+            rusqlite::params![port_id, allowed], |row| row.get(0),
+        )?;
+        if blocked {
+            return Err(PortcoveError::conflict(
+                "configuration recovery must finish before another operation",
+            ));
+        }
+        Ok(())
     }
 
     fn require_ghostship_recovery_owner(
@@ -938,6 +1048,8 @@ impl Library {
             .acquire_lock(&key, port_id, operation)
             .map_err(|error| error.detail("port_id", port_id))?;
         self.require_ghostship_recovery_owner(port_id, allowed_operation_id)?;
+        self.require_settings_recovery_owner(port_id, allowed_operation_id)?;
+        self.require_archive_data_transition_owner(port_id, allowed_operation_id)?;
         if let Some(session) = self.launch_session_for_port(port_id)?
             && Some(session.id.as_str()) != allowed_session_id
         {
@@ -971,8 +1083,8 @@ impl Library {
             .read(true)
             .write(true)
             .open(self.locks_dir().join(format!("{key}.lock")))?;
-        if let Err(error) = file.try_lock_exclusive() {
-            if error.kind() == fs2::lock_contended_error().kind() {
+        if let Err(error) = file.try_lock() {
+            if matches!(error, std::fs::TryLockError::WouldBlock) {
                 return Err(PortcoveError::conflict(format!(
                     "{target} is busy in another Portcove process"
                 ))
@@ -980,7 +1092,7 @@ impl Library {
                 .detail("resource_id", target)
                 .detail("operation", operation));
             }
-            return Err(error.into());
+            return Err(std::io::Error::from(error).into());
         }
         Ok(file)
     }
@@ -1166,18 +1278,31 @@ impl Library {
         status: ActivityStatus,
         message: &str,
     ) -> Result<()> {
-        let recorded: String = self.connection()?.query_row(
+        self.finish_activity_once_with_report(id, status, message, None)
+    }
+
+    pub(crate) fn finish_activity_once_with_report(
+        &self,
+        id: &str,
+        status: ActivityStatus,
+        message: &str,
+        failure: Option<&crate::FailureReport>,
+    ) -> Result<()> {
+        let mut connection = self.connection()?;
+        let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
+        let recorded: String = transaction.query_row(
             "SELECT status FROM activity_history WHERE id=?1",
             [id],
             |row| row.get(0),
         )?;
         if recorded == "running" {
-            self.finish_activity(id, status, Some(message))?;
+            Self::finish_activity_report_on(&transaction, id, status, Some(message), failure)?;
         } else if recorded != status.to_string() {
             return Err(PortcoveError::conflict(
                 "activity has a conflicting terminal outcome",
             ));
         }
+        transaction.commit()?;
         Ok(())
     }
 
@@ -1217,15 +1342,13 @@ impl Library {
         let path = self.locks_dir().join(format!("{key}.lock"));
         crate::path::refuse_symlink_ancestors(&path)?;
         let file = OpenOptions::new().read(true).write(true).open(&path)?;
-        match file.try_lock_exclusive() {
+        match file.try_lock() {
             Ok(()) => {
-                FileExt::unlock(&file)?;
+                file.unlock()?;
                 Ok(crate::ActivityLiveness::Interrupted)
             }
-            Err(error) if error.kind() == fs2::lock_contended_error().kind() => {
-                Ok(crate::ActivityLiveness::Active)
-            }
-            Err(error) => Err(error.into()),
+            Err(std::fs::TryLockError::WouldBlock) => Ok(crate::ActivityLiveness::Active),
+            Err(std::fs::TryLockError::Error(error)) => Err(error.into()),
         }
     }
 
@@ -1518,6 +1641,22 @@ impl Library {
         Ok(())
     }
 
+    /// Replaces the explanation of an unfinished session, for example the game
+    /// processes a tracked handoff still waits for. Finishing replaces it.
+    pub(crate) fn note_active_launch_session(&self, id: &str, message: &str) -> Result<()> {
+        let changed = self.connection()?.execute(
+            "UPDATE launch_sessions SET message=?2, updated_at=?3
+             WHERE id=?1 AND outcome IS NULL",
+            params![id, message, Self::now()],
+        )?;
+        if changed == 0 {
+            return Err(PortcoveError::state(format!(
+                "launch session {id} was not found"
+            )));
+        }
+        Ok(())
+    }
+
     pub(crate) fn finish_launch_session(
         &self,
         id: &str,
@@ -1610,13 +1749,37 @@ impl Library {
         row.map(parse_launch_session).transpose()
     }
 
+    /// The most recently finished launch session for a port, if any. Callers
+    /// decide whether its outcome is worth showing.
+    pub fn latest_finished_launch_session(
+        &self,
+        port_id: &str,
+    ) -> Result<Option<LaunchSessionRecord>> {
+        let row = self
+            .connection()?
+            .query_row(
+                "SELECT id, port_id, install_id, install_root, supervisor_pid,
+                        supervisor_identity, child_pid, child_identity, phase, outcome,
+                        exit_code, message, started_at, updated_at, finished_at, owner_kind
+                 FROM launch_sessions WHERE port_id=?1 AND outcome IS NOT NULL
+                 ORDER BY finished_at DESC, started_at DESC, id DESC LIMIT 1",
+                [port_id],
+                launch_session_row,
+            )
+            .optional()?;
+        row.map(parse_launch_session).transpose()
+    }
+
     pub(crate) fn active_launch_session(&self, id: &str) -> Result<Option<LaunchSessionRecord>> {
         Ok(self
             .launch_request(id)?
             .filter(|session| session.outcome.is_none()))
     }
 
-    fn launch_session_for_port(&self, port_id: &str) -> Result<Option<LaunchSessionRecord>> {
+    pub(crate) fn launch_session_for_port(
+        &self,
+        port_id: &str,
+    ) -> Result<Option<LaunchSessionRecord>> {
         let row = self
             .connection()?
             .query_row(
@@ -1637,13 +1800,14 @@ impl Library {
         prune_http_cache(&transaction)?;
         let cached = transaction
             .query_row(
-                "SELECT etag, last_modified, body FROM github_http_cache WHERE url=?1",
+                "SELECT etag, last_modified, body, updated_at FROM github_http_cache WHERE url=?1",
                 [url],
                 |row| {
                     Ok(HttpCacheEntry {
                         etag: row.get(0)?,
                         last_modified: row.get(1)?,
                         body: row.get(2)?,
+                        updated_at: row.get(3)?,
                     })
                 },
             )
@@ -1853,6 +2017,28 @@ impl Library {
                 |row| row.get(0),
             )
             .map_err(Into::into)
+    }
+
+    /// Whether Portcove snapshots managed saved data before a version change.
+    /// Per library, on by default, and it travels with the library.
+    pub fn automatic_snapshots_enabled(&self) -> Result<bool> {
+        let enabled: i64 = self.connection()?.query_row(
+            "SELECT automatic_snapshots FROM library_identity WHERE singleton=1",
+            [],
+            |row| row.get(0),
+        )?;
+        Ok(enabled != 0)
+    }
+
+    pub fn set_automatic_snapshots(&self, enabled: bool) -> Result<()> {
+        let changed = self.connection()?.execute(
+            "UPDATE library_identity SET automatic_snapshots=?1 WHERE singleton=1",
+            [i64::from(enabled)],
+        )?;
+        if changed != 1 {
+            return Err(PortcoveError::state("library identity is missing"));
+        }
+        Ok(())
     }
 
     pub(crate) fn output_roots(&self) -> Result<Vec<OutputRootRecord>> {
@@ -2644,7 +2830,7 @@ impl Library {
             return Ok((Vec::new(), metrics));
         }
         metrics.record_query();
-        let acquisitions = crate::service::game_update_acquisition::views_from(connection)?;
+        let acquisitions = crate::operation::acquisition::views_from(connection)?;
         let mut ports = ports.to_vec();
         if include_acquisition_owners {
             let mut missing = acquisitions
@@ -3115,13 +3301,117 @@ mod tests {
         assert!(decode_external_catalog(&content, "another-project").is_err());
         let value: serde_json::Value = serde_json::from_str(&content).unwrap();
         for (field, changed) in [
-            ("format_version", serde_json::json!(2)),
+            ("format_version", serde_json::json!(3)),
             ("ports", serde_json::json!([])),
             ("trusted", serde_json::json!(true)),
         ] {
             let mut invalid = value.clone();
             invalid[field] = changed;
             assert!(decode_external_catalog(&invalid.to_string(), "inert-project").is_err());
+        }
+    }
+
+    #[test]
+    fn a_retained_selection_does_not_carry_the_directory_first_listed_date() {
+        let listing: crate::PortListing = serde_json::from_value(serde_json::json!({
+            "id":"dated-project", "name":"Dated project", "summary":"No operational integration.",
+            "project_url":"https://example.com/upstream", "listed_at":"2026-11-09"
+        }))
+        .unwrap();
+        let catalog = Catalog::for_user_selected_listing(listing).unwrap();
+        let content = encode_external_catalog(&catalog, "dated-project").unwrap();
+        // An earlier strict reader must still be able to read the retained entry.
+        assert!(!content.contains("listed_at"), "{content}");
+        let retained = decode_external_catalog(&content, "dated-project").unwrap();
+        assert!(
+            retained
+                .listing("dated-project")
+                .unwrap()
+                .listed_at
+                .is_none()
+        );
+    }
+
+    #[test]
+    fn referenced_listing_retains_notes_with_an_explicit_reader_fence() {
+        let listing = Catalog::embedded()
+            .unwrap()
+            .listing("syphon-filter-sf-pc-port")
+            .unwrap()
+            .clone();
+        let expected = listing.manual_setup.clone();
+        let catalog = Catalog::for_user_selected_listing(listing).unwrap();
+        let content = encode_external_catalog(&catalog, "syphon-filter-sf-pc-port").unwrap();
+        let mut value: serde_json::Value = serde_json::from_str(&content).unwrap();
+        assert_eq!(value["format_version"], 2);
+        let restored = decode_external_catalog(&content, "syphon-filter-sf-pc-port").unwrap();
+        assert_eq!(
+            restored
+                .listing("syphon-filter-sf-pc-port")
+                .unwrap()
+                .manual_setup,
+            expected
+        );
+        value["format_version"] = 1.into();
+        assert!(decode_external_catalog(&value.to_string(), "syphon-filter-sf-pc-port").is_err());
+    }
+
+    #[test]
+    fn advisory_listing_retains_inert_payload_with_an_explicit_reader_fence() {
+        let mut listing = Catalog::embedded()
+            .unwrap()
+            .listing("shipwright")
+            .unwrap()
+            .clone();
+        listing.compatibility = Some(serde_json::json!({"format_version": 99, "future": true}));
+        let catalog = Catalog::for_user_selected_listing(listing.clone()).unwrap();
+        let content = encode_external_catalog(&catalog, "shipwright").unwrap();
+        let mut value: serde_json::Value = serde_json::from_str(&content).unwrap();
+        assert_eq!(value["format_version"], 3);
+        let restored = decode_external_catalog(&content, "shipwright").unwrap();
+        assert_eq!(
+            restored.listing("shipwright").unwrap().compatibility,
+            listing.compatibility
+        );
+        for version in [1, 2, 4] {
+            value["format_version"] = version.into();
+            assert!(decode_external_catalog(&value.to_string(), "shipwright").is_err());
+        }
+    }
+
+    #[test]
+    fn retained_gitlab_listings_preserve_legacy_envelopes_and_combined_advice() {
+        let listing: crate::PortListing = serde_json::from_value(serde_json::json!({
+            "id":"retained-gitlab", "name":"Retained GitLab fixture", "summary":"Descriptive evidence only.",
+            "project_url":"https://gitlab.com/example/game", "platforms":[],
+            "upstream_observation":crate::test_fixture::gitlab_listing_observation()
+        })).unwrap();
+        for version in [1, 2, 3] {
+            let mut listing = listing.clone();
+            if version == 2 {
+                listing.manual_setup = Some(serde_json::from_value(serde_json::json!({
+                    "steps":[{"title":"Prepare", "instruction":"Follow upstream instructions."}], "warnings":[],
+                    "references":[{"title":"Historical context", "instruction":"Keep release-specific evidence scoped."}]
+                })).unwrap());
+            }
+            if version == 3 {
+                listing.compatibility =
+                    Some(serde_json::json!({"format_version":99,"future":true}));
+            }
+            let catalog = Catalog::for_user_selected_listing(listing.clone()).unwrap();
+            let encoded = encode_external_catalog(&catalog, &listing.id).unwrap();
+            let mut value: serde_json::Value = serde_json::from_str(&encoded).unwrap();
+            assert_eq!(value["format_version"], version);
+            let restored = decode_external_catalog(&encoded, &listing.id).unwrap();
+            assert_eq!(restored.listing_document().format_version, 8);
+            assert_eq!(restored.listing(&listing.id).unwrap(), &listing);
+            assert!(restored.port(&listing.id).is_err());
+            if version == 3 {
+                for older in [1, 2] {
+                    value["format_version"] = older.into();
+                    assert!(decode_external_catalog(&value.to_string(), &listing.id).is_err());
+                }
+            }
         }
     }
 
@@ -3678,6 +3968,86 @@ mod tests {
                 .unwrap(),
             1
         );
+    }
+
+    #[test]
+    fn automatic_snapshots_default_on_and_the_choice_survives_reopen() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path()).unwrap();
+        assert!(library.automatic_snapshots_enabled().unwrap());
+        library.set_automatic_snapshots(false).unwrap();
+        assert!(!library.automatic_snapshots_enabled().unwrap());
+        drop(library);
+        let reopened = Library::open(temporary.path()).unwrap();
+        assert!(!reopened.automatic_snapshots_enabled().unwrap());
+        reopened.set_automatic_snapshots(true).unwrap();
+        assert!(reopened.automatic_snapshots_enabled().unwrap());
+    }
+
+    #[test]
+    fn latest_finished_launch_session_is_per_port_newest_and_ignores_unfinished() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path()).unwrap();
+        let session = |id: &str, port: &str, started: i64| -> LaunchSessionRecord {
+            serde_json::from_value(serde_json::json!({
+                "id": id, "port_id": port, "install_id": "install",
+                "install_root": temporary.path().join("install"),
+                "supervisor_pid": 1, "phase": "running",
+                "started_at": started, "updated_at": started,
+            }))
+            .unwrap()
+        };
+        let finish = |id: &str, outcome: &str, code: i32, at: i64| {
+            library
+                .connection()
+                .unwrap()
+                .execute(
+                    "UPDATE launch_sessions SET outcome=?2, exit_code=?3, finished_at=?4 WHERE id=?1",
+                    params![id, outcome, code, at],
+                )
+                .unwrap();
+        };
+        assert!(
+            library
+                .latest_finished_launch_session("alpha")
+                .unwrap()
+                .is_none()
+        );
+        library
+            .create_launch_session(&session("old", "alpha", 1))
+            .unwrap();
+        finish("old", "failed", 3, 11);
+        library
+            .create_launch_session(&session("other", "beta", 5))
+            .unwrap();
+        finish("other", "failed", 9, 12);
+        assert_eq!(
+            library
+                .latest_finished_launch_session("alpha")
+                .unwrap()
+                .unwrap()
+                .id,
+            "old"
+        );
+        library
+            .create_launch_session(&session("running", "alpha", 6))
+            .unwrap();
+        assert_eq!(
+            library
+                .latest_finished_launch_session("alpha")
+                .unwrap()
+                .unwrap()
+                .id,
+            "old",
+            "an unfinished session must not hide the last finished one"
+        );
+        finish("running", "succeeded", 0, 13);
+        let latest = library
+            .latest_finished_launch_session("alpha")
+            .unwrap()
+            .unwrap();
+        assert_eq!(latest.id, "running");
+        assert_eq!(latest.outcome, Some(LaunchSessionOutcome::Succeeded));
     }
 
     #[test]

@@ -6,6 +6,7 @@
     "summary": "Explore Knuckles' Chaotix Recompiled and follow the upstream project for requirements, downloads and setup.",
     "project_url": "https://github.com/YuutaTsubasa/ChaotixRecompiled",
     "issue_number": 1534,
+    "listed_at": "2026-10-23",
     "availability": "packages",
     "setup_url": "https://github.com/YuutaTsubasa/ChaotixRecompiled/blob/v0.14.0/README.md",
     "artwork": {
@@ -32,18 +33,20 @@
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],
-    "platforms": ["windows-x86-64", "linux-x86-64"],
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-aarch64"],
     "adapter": "native-portable",
     "release": {
       "repository": "YuutaTsubasa/ChaotixRecompiled",
       "asset_hints": {
         "windows-x86-64": ["chaotixrecompiled-", "-windows-x64.zip"],
-        "linux-x86-64": ["chaotixrecompiled-", "-linux-x64.tar.gz"]
+        "linux-x86-64": ["chaotixrecompiled-", "-linux-x64.tar.gz"],
+        "macos-aarch64": ["chaotixrecompiled-", "-macos-arm64.zip"]
       }
     },
     "executable_hints": {
       "windows-x86-64": ["ChaotixRecompiled.exe"],
-      "linux-x86-64": ["ChaotixRecompiled"]
+      "linux-x86-64": ["ChaotixRecompiled"],
+      "macos-aarch64": ["ChaotixRecompiled.app/Contents/MacOS/ChaotixRecompiled"]
     },
     "persistent_paths": [
       "Game",
@@ -62,7 +65,21 @@
       "installation_method": "portable-package",
       "source_requirements": [],
       "saves_and_settings": "external-user-owned",
-      "manual_preparation": "On first Play, select your own supported Knuckles’ Chaotix ROM from the setup page. The game validates and installs its own copy. Configure controls and compatible mods through upstream menus. The default Windows storage is AppData/ChaotixRecompiled/ChaotixRecompiled, outside Portcove backups. Saves, settings, imported ROM, mods and recordings remain there across runtime updates. The source also has a current-folder fallback; its declared data directories are preserved if present. Save states are tied to the ROM, patches and program version. Use an external registration for custom launch flags or a custom data root. Existing external copies keep their files and runtime update owner. Play has not been tested through Portcove. Linux normally uses ~/.local/share/ChaotixRecompiled/ChaotixRecompiled. Keep the packaged SDL3 and SDL3_ttf libraries beside the executable; the game needs those companion files. Play has not been tested through Portcove on Linux."
+      "manual_preparation": "On first Play, select your own supported Knuckles’ Chaotix ROM from the setup page. The game validates and installs its own copy. Configure controls and compatible mods through upstream menus. The default Windows storage is AppData/ChaotixRecompiled/ChaotixRecompiled, outside Portcove backups. Saves, settings, imported ROM, mods and recordings remain there across runtime updates. The source also has a current-folder fallback; its declared data directories are preserved if present. Save states are tied to the ROM, patches and program version. Use an external registration for custom launch flags or a custom data root. Existing external copies keep their files and runtime update owner. Play has not been tested through Portcove. Linux normally uses ~/.local/share/ChaotixRecompiled/ChaotixRecompiled. Keep the packaged SDL3 and SDL3_ttf libraries beside the executable; the game needs those companion files. Play has not been tested through Portcove on Linux. On an Apple silicon Mac, the app needs macOS 11 or later and normally uses ~/Library/Application Support/ChaotixRecompiled/ChaotixRecompiled. Upstream signs this build ad hoc without notarization; follow its Mac instructions if Gatekeeper blocks it. Play has not been tested through Portcove on a Mac."
+    },
+    "reviewed_package_layouts": {
+      "windows-x86-64": {
+        "directories": ["tools"],
+        "executables": ["chaotixrecompiled.exe"]
+      },
+      "linux-x86-64": {
+        "directories": [],
+        "executables": ["chaotixrecompiled", "libsdl3.so.0", "libsdl3_ttf.so.0"]
+      },
+      "macos-aarch64": {
+        "directories": ["chaotixrecompiled.app", "licenses"],
+        "executables": ["chaotixrecompiled.app/contents/macos/chaotixrecompiled"]
+      }
     }
   }
 }

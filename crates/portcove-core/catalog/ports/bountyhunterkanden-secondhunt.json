@@ -3,7 +3,7 @@
   "listing": {
     "id": "bountyhunterkanden-secondhunt",
     "name": "Metroid Prime Hunters (Second Hunt)",
-    "summary": "Upstream route: Upstream runtime package for Second Hunt; use own game files per documented setup, with upstream/player owning installation and runtime replacement. Observed release artifacts are evidence, not operational package selection or Portcove support. Limits: Upstream only: Upstream claims campaign completion/crossplay. Optional imported Metroid content has separate inputs; no independent campaign/device test here. SecondHunt fork of NoneGiven/MphRead, game-native engine; compare parent existing ownership before standalone issue. Windows/Android beta; original campaign/multiplayer claims attributed. Upstream platforms: Windows x64/Android ARM64 beta runtimes from MphRead C# recreation. Exact OS minimums beyond reviewed docs Unknown. Original data: Own MetroidPrimeHunters NintendoDS USA v1.0 orv1.1, gamecodeAMHE; other regions unsupported. Optional additional content requires own MetroidPrime1/2/3/Trilogy discs or Prime4Beyond Switch files/keys, but these are not required for base Hunters. Exact baseROM hashes/BIOS requirements remain Unknown here. Portcove setup/gameplay not verified.",
+    "summary": "Second Hunt is a Windows port of Metroid Prime Hunters that uses your own USA Nintendo DS ROM. Set it up with the project’s tools, then add the prepared program to Portcove.",
     "original_game_title": "Metroid Prime Hunters",
     "project_url": "https://github.com/BountyHunterKanden/SecondHunt",
     "platforms": [],
@@ -17,7 +17,43 @@
       "game_slug": "metroid-prime-hunters",
       "match_kind": "underlying-game"
     },
-    "issue_number": 2845
+    "issue_number": 2845,
+    "listed_at": "2026-10-25",
+    "manual_setup": {
+      "help_url": "https://github.com/BountyHunterKanden/SecondHunt/blob/6a41f47fa6ed580c0b3ff8f90b2f841acd1d738c/src/SecondHunt.Desktop/dist/README.txt",
+      "steps": [
+        {
+          "title": "Set up Second Hunt",
+          "instruction": "Use a complete official Windows copy you have permission to use for personal, noncommercial play. You need Windows 10 or 11 (x64), OpenGL 3.3 or newer, and your own Metroid Prime Hunters USA .nds (AMHE, revision 0/v1.0 or revision 1/v1.1). Open the program after taking the precautions above. Choose or drop your ROM in Second Hunt and let it finish extracting the game files."
+        },
+        {
+          "title": "Add the game program to Portcove",
+          "instruction": "Choose SecondHunt.exe from the complete release folder. Keep all supplied files and notices with it. Set the start folder to that same folder and leave the arguments blank. Review the launch details, add the game, then choose Play."
+        }
+      ],
+      "warnings": [
+        "Before opening Second Hunt v0.4.2-beta on Windows, keep recovery copies outside its entire program folder and its update and staging folders. Every normal startup can delete files ending in .old or .old followed by digits (such as .old1) anywhere inside the program folder, including portable saves stored there.",
+        "Use a separate test copy. Portcove has not tested setup, gameplay or saving with this release."
+      ],
+      "references": [
+        {
+          "title": "Preserve the whole effective data root",
+          "instruction": "The public default is %LOCALAPPDATA%/Second Hunt, distinct from development MPH Recomp. Preserve game/files and .extracted, recomp_settings.json, saves/, mods/, cache/, crash/, logs/, replays/imports and all other established state under that root. portable.txt beside the exe selects data/ beside it; the supported --data argument selects its exact full path instead. Preserve the chosen root and any original or imported external sources without inferring another MphRead fork’s saves, migration or compatibility. This guide does not import/export DS saves or promise cross-version/mod save compatibility."
+        },
+        {
+          "title": "Windows release and file checks",
+          "instruction": "The v0.4.2-beta tag points to 6a41f47fa6ed580c0b3ff8f90b2f841acd1d738c. Startup cleanup was inspected in that source. The release ZIP and program were not inspected or run. The ROM picker checks the header game code and revision byte and creates game/.extracted. This does not identify the ROM by its full hash or establish entitlement."
+        },
+        {
+          "title": "Updates and recovery",
+          "instruction": "Update this installation through Second Hunt outside Portcove. If its updater replaces the program or restarts it with --after-update, let it finish and review the changed program in Portcove before playing again. Close all game and helper processes before replacing files. Portcove leaves external files in place when you remove the entry and does not update, back up, restore or migrate this installation."
+        },
+        {
+          "title": "Optional content and license terms",
+          "instruction": "The base Hunters route does not require Prime1/2/3/Trilogy discs, Prime4Beyond files/keys or optional imported characters/music/arenas. Each additional source has its own ownership/permission requirements. Online/LAN/voice/chat/profile sharing and replay-preparation workers are upstream features, not qualifications or operations offered through this guide. Replay preparation can use background helper invocations; close all actual players/helpers/successors before replacement or another attachment. Second Hunt original post-October20 code/art/documents uses PolyForm Strict with additional personal/noncommercial private modification permission and a redistribution prohibition; MphRead-derived and earlier MIT parts and third-party components retain their own terms. Official licensor-published builds are distinguished in that license; do not mirror or redistribute a copy through this guide. These terms grant no Nintendo/game rights."
+        }
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

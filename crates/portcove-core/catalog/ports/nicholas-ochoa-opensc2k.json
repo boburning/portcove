@@ -6,6 +6,7 @@
     "summary": "Build cities in OpenSC2K using your SimCity 2000 Special Edition game files.",
     "project_url": "https://github.com/OpenSC2K/OpenSC2K",
     "issue_number": 1858,
+    "listed_at": "2026-10-23",
     "availability": "packages",
     "setup_url": "https://github.com/OpenSC2K/OpenSC2K/blob/main/docs/install.md",
     "artwork": {
@@ -18,7 +19,10 @@
     },
     "release_url": "https://github.com/OpenSC2K/OpenSC2K/releases",
     "download_asset_hints": {
-      "windows-x86-64": ["OpenSC2K-", "windows-x64-portable.zip"]
+      "windows-x86-64": ["OpenSC2K-", "windows-x64-portable.zip"],
+      "linux-x86-64": ["OpenSC2K-", "-linux-x64.tar.gz"],
+      "macos-x86-64": ["OpenSC2K-", "-macos-universal.dmg"],
+      "macos-aarch64": ["OpenSC2K-", "-macos-universal.dmg"]
     },
     "manual_setup": {
       "steps": [
@@ -29,14 +33,34 @@
         {
           "title": "Keep your existing copy available",
           "instruction": "For an existing upstream installation, select OpenSC2K.exe and its folder. Portable copies use the data folder beside the player; standard Windows copies use the OpenSC2K Godot user profile. Keep the profile used by that copy when updating it."
+        },
+        {
+          "title": "Install the Linux x64 player",
+          "instruction": "Install the official x64 archive through Portcove. On first Play, use the same original SimCity 2000 import. Portcove prepares the portable data folder beside OpenSC2K.x86_64. Keep existing standard Linux profiles with their existing copies. For an external x64 or ARM64 copy, extract the complete archive and keep the PCK, shared libraries and bundled SoundFont beside the player."
+        },
+        {
+          "title": "Copy the upstream Mac app to Applications",
+          "instruction": "Open the universal Mac DMG and drag OpenSC2K.app to Applications. Keep the app intact and preserve its OpenSC2K Godot profile when updating it."
+        },
+        {
+          "title": "Choose the Windows on Arm package",
+          "instruction": "On Windows on Arm, extract the ARM64 portable ZIP into its own writable folder. Run its OpenSC2K.exe and keep its PCK, DLLs and data folder together."
         }
       ],
       "warnings": [
-        "Extended .sc2x cities cannot be opened by the original game. Keep backup copies of your cities."
+        "Extended .sc2x cities cannot be opened by the original game. Keep backup copies of your cities.",
+        "Save cities normally before backing up. Recent autosaves live in OpenSC2K Autosaves under the system temporary directory and upstream prunes older autosaves. Preserve the profile and any custom save or export locations used by your copy."
       ],
-      "help_url": "https://github.com/OpenSC2K/OpenSC2K/blob/main/docs/install.md"
+      "help_url": "https://github.com/OpenSC2K/OpenSC2K/blob/main/docs/install.md",
+      "references": [
+        {
+          "title": "Check the inspected desktop packages",
+          "instruction": "The inspected v0.3.0 Linux x64 and ARM64 archives include runtime modules that need glibc 2.35 and a bundled MIDI library that needs glibc 2.38. Use glibc 2.38 or later for the complete bundled package. The universal Mac app requires macOS 11 on Intel or macOS 13 on Apple Silicon. Linux standard copies use the Godot profile by default. The Mac app always uses that profile. You and upstream maintain external Linux, Mac and Windows on Arm copies."
+        }
+      ]
     },
-    "original_game_title": "SimCity 2000"
+    "original_game_title": "SimCity 2000",
+    "platforms": ["macos-x86-64", "macos-aarch64"]
   },
   "upstream_lineage": {
     "format_version": 1,
@@ -90,23 +114,26 @@
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],
-    "platforms": ["windows-x86-64"],
+    "platforms": ["windows-x86-64", "linux-x86-64"],
     "adapter": "native-portable",
     "release": {
       "repository": "OpenSC2K/OpenSC2K",
       "asset_hints": {
-        "windows-x86-64": ["OpenSC2K-", "windows-x64-portable.zip"]
+        "windows-x86-64": ["OpenSC2K-", "windows-x64-portable.zip"],
+        "linux-x86-64": ["OpenSC2K-", "-linux-x64.tar.gz"]
       }
     },
     "executable_hints": {
-      "windows-x86-64": ["OpenSC2K.exe"]
+      "windows-x86-64": ["OpenSC2K.exe"],
+      "linux-x86-64": ["OpenSC2K.x86_64"]
     },
     "persistent_paths": ["data"],
     "presentation": {
       "installation_method": "portable-package",
       "source_requirements": [],
       "saves_and_settings": "portcove-managed",
-      "manual_preparation": "On first Play, select SIMCITY.EXE from your SimCity 2000 Special Edition for Windows 95 (1996), with its companion files. Keep those originals for later pack re-import prompts. Portcove updates this portable runtime and preserves only its data folder: imported packs, settings and ordinary saved cities, scenarios, scripts and SCURK files. Temporary autosaves in the system temporary folder, custom save/export/pack/SoundFont locations, Godot logs and the original installation remain external and outside these backups. Save cities normally before backup. Runtime rollback keeps current declared data; it does not rewind cities or guarantee older-version compatibility. Existing external copies keep their own ownership and profiles."
-    }
+      "manual_preparation": "On first Play, select SIMCITY.EXE from your SimCity 2000 Special Edition for Windows 95 (1996), with its companion files. Keep those originals for later pack re-import prompts. Portcove updates this portable runtime and preserves its data folder on Windows and Linux: imported packs, settings and ordinary saved cities, scenarios, scripts and SCURK files. Temporary autosaves in the system temporary folder, custom save/export/pack/SoundFont locations, Godot logs and the original installation remain external and outside these backups. Save cities normally before backup. Runtime rollback keeps current declared data; it does not rewind cities or guarantee older-version compatibility. On Linux, Portcove prepares that directory beside the managed player before Play. Existing external copies keep their own ownership and profiles."
+    },
+    "linux_portable_data_directory": "data"
   }
 }

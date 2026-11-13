@@ -10,6 +10,8 @@ on:
         options:
           [
             compatibility,
+            presentation,
+            product-workflows,
             linux-namespace-preflight,
             linux-package-boundary,
             linux-preparation-continuity,
@@ -72,7 +74,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
-      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
         with:
           package_json_file: package.json
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
@@ -83,6 +85,7 @@ jobs:
       - uses: ./.github/actions/setup-rust
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
+          save-if: ${{ github.ref == 'refs/heads/main' }}
           cache-on-failure: true
           key: native-design-compatibility-${{ inputs.runner }}-${{ hashFiles('Cargo.lock') }}
       - run: pnpm install --frozen-lockfile
@@ -196,7 +199,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
-      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
         with:
           package_json_file: package.json
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
@@ -220,6 +223,7 @@ jobs:
         run: node scripts/desktop-linux-media.mts --prepare
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
+          save-if: ${{ github.ref == 'refs/heads/main' }}
           key: linux-package-boundary
           cache-on-failure: true
       - name: Install existing Linux native prerequisites
@@ -282,7 +286,7 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
-      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
         with:
           package_json_file: package.json
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
@@ -463,7 +467,7 @@ jobs:
           if (-not $identity.user_interactive -or $identity.session_id -le 0) {
             throw 'Hosted interactive desktop is unavailable; preserve the feasibility failure.'
           }
-      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
         with:
           package_json_file: package.json
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
@@ -475,7 +479,7 @@ jobs:
         shell: pwsh
         run: node scripts/quality-tools.mts --github-output >> $env:GITHUB_OUTPUT
       - name: Provision existing pinned prebuilt quality tools
-        uses: taiki-e/install-action@86f7a0ffb25f40114606501a311ebcfaf882ea32 # v2.88.0
+        uses: taiki-e/install-action@c509219cf42fba86913069efd0ade2458c59337b # v2.90.1
         with:
           tool: ${{ steps.native-quality-pins.outputs.required_prebuilt }}
       - name: Install locked packages and existing pinned native tools
@@ -493,6 +497,430 @@ jobs:
           just desktop-verify --scenario native-backup-delete-focus --require-clean
           if ($LASTEXITCODE -ne 0) { throw 'Native acceptance failed; retain original evidence.' }
       - name: Retain lossless native evidence in ordinary job logs
+        if: always()
+        shell: pwsh
+        run: |
+          node scripts/native-backup-evidence.mts emit "$env:PORTCOVE_OUTPUT_DIR"
+          if ($LASTEXITCODE -ne 0) { throw 'Required evidence retention failed.' }
+
+  presentation:
+    if: ${{ inputs.operation == 'presentation' && inputs.runner == 'windows-2022' && !inputs.edge_driver_proof && github.repository == 'boburning/portcove' && github.event.repository.visibility == 'public' }}
+    name: native-presentation (${{ matrix.selection }})
+    runs-on: windows-2022
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        selection: [presentation, interface-size]
+    env:
+      PORTCOVE_OUTPUT_DIR: ${{ github.workspace }}/work/native-presentation-${{ matrix.selection }}
+      PORTCOVE_TEMP_DIR: ${{ github.workspace }}/work/temp/native-presentation-${{ matrix.selection }}
+      pnpm_config_store_dir: ${{ github.workspace }}/work/pnpm-store
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Bind clean source and interactive hosted session before setup
+        shell: pwsh
+        env:
+          NATIVE_SELECTION: ${{ matrix.selection }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          New-Item -ItemType Directory -Path $env:PORTCOVE_OUTPUT_DIR | Out-Null
+          $source = (git rev-parse HEAD).Trim()
+          if ($LASTEXITCODE -ne 0 -or $source -cne $env:GITHUB_SHA) { throw 'Native source identity differs.' }
+          $status = git status --porcelain=v1 --untracked-files=all
+          if ($LASTEXITCODE -ne 0 -or $status) { throw 'Native source must be clean.' }
+          $identity = [ordered]@{
+            source_head = $source
+            workflow = $env:GITHUB_WORKFLOW_REF
+            selection = $env:NATIVE_SELECTION
+            run_id = $env:GITHUB_RUN_ID
+            run_attempt = $env:GITHUB_RUN_ATTEMPT
+            image_os = $env:ImageOS
+            image_version = $env:ImageVersion
+            os = [Runtime.InteropServices.RuntimeInformation]::OSDescription
+            session_id = [Diagnostics.Process]::GetCurrentProcess().SessionId
+            user_interactive = [Environment]::UserInteractive
+            scope = 'Normal Tauri application in an isolated hosted development fixture; no physical controller, installed package or minimum OS claim.'
+          }
+          $identity | ConvertTo-Json | Set-Content "$env:PORTCOVE_OUTPUT_DIR/host.json"
+          if (-not $identity.user_interactive -or $identity.session_id -le 0) {
+            throw 'Hosted interactive desktop is unavailable; preserve the feasibility failure.'
+          }
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+        with:
+          package_json_file: package.json
+          cache: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+          package-manager-cache: false
+      - uses: ./.github/actions/setup-rust
+      - name: Read existing prebuilt quality-tool pins
+        id: native-quality-pins
+        shell: pwsh
+        run: node scripts/quality-tools.mts --github-output >> $env:GITHUB_OUTPUT
+      - name: Provision existing pinned prebuilt quality tools
+        uses: taiki-e/install-action@c509219cf42fba86913069efd0ade2458c59337b # v2.90.1
+        with:
+          tool: ${{ steps.native-quality-pins.outputs.required_prebuilt }}
+      - name: Install locked packages and existing pinned native tools
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          pnpm install --frozen-lockfile
+          if ($LASTEXITCODE -ne 0) { throw 'Locked package installation failed.' }
+          ./scripts/bootstrap-quality-tools.ps1 -Desktop
+          if ($LASTEXITCODE -ne 0) { throw 'Pinned native bootstrap failed.' }
+      - name: Observe the maintained normal-app presentation profile
+        if: matrix.selection == 'presentation'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $env:PATH = "$PWD/work/tool-bin;$env:PATH"
+          just desktop-verify --profile presentation --require-clean --plan
+          if ($LASTEXITCODE -ne 0) { throw 'Presentation plan failed.' }
+          just desktop-verify --profile presentation --require-clean
+          if ($LASTEXITCODE -ne 0) { throw 'Native presentation failed; retain original evidence.' }
+      - name: Observe standalone native interface sizing
+        if: matrix.selection == 'interface-size'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $env:PATH = "$PWD/work/tool-bin;$env:PATH"
+          just desktop-verify --scenario native-interface-size --require-clean --plan
+          if ($LASTEXITCODE -ne 0) { throw 'Interface-size plan failed.' }
+          just desktop-verify --scenario native-interface-size --require-clean
+          if ($LASTEXITCODE -ne 0) { throw 'Native interface sizing failed; retain original evidence.' }
+      - name: Retain bounded lossless native evidence in ordinary job logs
+        if: always()
+        shell: pwsh
+        run: |
+          node scripts/native-backup-evidence.mts emit "$env:PORTCOVE_OUTPUT_DIR"
+          if ($LASTEXITCODE -ne 0) { throw 'Required evidence retention failed.' }
+
+  product_workflows:
+    if: ${{ inputs.operation == 'product-workflows' && inputs.runner == 'windows-2022' && !inputs.edge_driver_proof && github.repository == 'boburning/portcove' && github.event.repository.visibility == 'public' }}
+    name: native-product-workflows (${{ matrix.selection }})
+    runs-on: windows-2022
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        include:
+          - selection: owned-ready
+            scenarios:
+              - native-external-cli-reconciliation
+              - native-ready-detail-composition
+              - native-game-return-continuity
+              - native-game-update-review
+              - native-missing-readiness-recovery
+              - native-retained-contract-repair-state
+              - native-update-settings-save-without-execution
+              - native-release-channel-selection-and-restart
+          - selection: owned-recovery
+            scenarios:
+              - native-preparation-cancellation
+              - native-interrupted-preparation-recovery
+          - selection: owned-backups
+            scenarios:
+              - native-reviewed-backup-restore-and-delete
+              - native-reviewed-installed-game-removal
+          - selection: owned-steam
+            scenarios:
+              - native-reviewed-steam-entry-add-and-remove
+              - native-reviewed-steam-batch-add
+          - selection: owned-sources
+            scenarios:
+              - native-source-intake-and-discovery-dialogs
+              - native-primary-file-pickers
+              - native-reviewed-source-reference-removal
+          - selection: owned-handoff
+            scenarios:
+              - native-reviewed-existing-install-copy
+              - native-library-move-invalidates-prior-reviews
+              - native-contextual-cli-handoff
+          - selection: library-layout
+            scenarios:
+              - native-library-layout
+          - selection: library-organization
+            scenarios:
+              - native-library-organization-restart
+          - selection: selected-setup
+            scenarios:
+              - native-selected-setup-completion
+          - selection: update-acquisition
+            scenarios:
+              - native-update-acquisition-lifecycle
+          - selection: staged-update
+            scenarios:
+              - native-staged-update-composition
+          - selection: external-runtime
+            scenarios:
+              - native-external-runtime-review
+          - selection: artwork
+            scenarios:
+              - native-local-artwork-picker-and-recovery
+          - selection: restart
+            scenarios:
+              - appearance-restart
+              - native-workspace-refresh-recovery
+          - selection: startup-preferences
+            scenarios:
+              - native-startup-preferences-recovery
+          - selection: startup-library
+            scenarios:
+              - native-startup-library-recovery
+          - selection: library-switch
+            scenarios:
+              - native-library-switch-recovery
+    env:
+      PORTCOVE_OUTPUT_DIR: ${{ github.workspace }}/work/native-product-workflows-${{ matrix.selection }}
+      PORTCOVE_TEMP_DIR: ${{ github.workspace }}/work/temp/native-product-workflows-${{ matrix.selection }}
+      NATIVE_SCENARIOS: ${{ toJSON(matrix.scenarios) }}
+      pnpm_config_store_dir: ${{ github.workspace }}/work/pnpm-store
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Bind clean source and interactive hosted session before setup
+        shell: pwsh
+        env:
+          NATIVE_SELECTION: ${{ matrix.selection }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          New-Item -ItemType Directory -Path $env:PORTCOVE_OUTPUT_DIR | Out-Null
+          $source = (git rev-parse HEAD).Trim()
+          if ($LASTEXITCODE -ne 0 -or $source -cne $env:GITHUB_SHA) { throw 'Native source identity differs.' }
+          $status = git status --porcelain=v1 --untracked-files=all
+          if ($LASTEXITCODE -ne 0 -or $status) { throw 'Native source must be clean.' }
+          $identity = [ordered]@{
+            source_head = $source
+            workflow = $env:GITHUB_WORKFLOW_REF
+            selection = $env:NATIVE_SELECTION
+            requested_scenarios = @($env:NATIVE_SCENARIOS | ConvertFrom-Json)
+            run_id = $env:GITHUB_RUN_ID
+            run_attempt = $env:GITHUB_RUN_ATTEMPT
+            image_os = $env:ImageOS
+            image_version = $env:ImageVersion
+            os = [Runtime.InteropServices.RuntimeInformation]::OSDescription
+            session_id = [Diagnostics.Process]::GetCurrentProcess().SessionId
+            user_interactive = [Environment]::UserInteractive
+            scope = 'Normal Tauri application in an isolated hosted development fixture; no physical controller, installed package or minimum OS claim.'
+          }
+          $identity | ConvertTo-Json | Set-Content "$env:PORTCOVE_OUTPUT_DIR/host.json"
+          if (-not $identity.user_interactive -or $identity.session_id -le 0) {
+            throw 'Hosted interactive desktop is unavailable; preserve the feasibility failure.'
+          }
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+        with:
+          package_json_file: package.json
+          cache: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+          package-manager-cache: false
+      - uses: ./.github/actions/setup-rust
+      - name: Read existing prebuilt quality-tool pins
+        id: native-quality-pins
+        shell: pwsh
+        run: node scripts/quality-tools.mts --github-output >> $env:GITHUB_OUTPUT
+      - name: Provision existing pinned prebuilt quality tools
+        uses: taiki-e/install-action@c509219cf42fba86913069efd0ade2458c59337b # v2.90.1
+        with:
+          tool: ${{ steps.native-quality-pins.outputs.required_prebuilt }}
+      # Owner-approved on 2026-11-12 for #4879: windows-2022 registers WebView2
+      # 131, below the application's floor, so Portcove correctly refuses to
+      # start. Update to the serviced Evergreen runtime before bootstrap selects
+      # the matching driver. Microsoft's Authenticode signature is verified
+      # before execution; Server 2022 remains no supported-baseline claim.
+      # The WebView2 debugging-port policy set below and the process-creation
+      # auditing of the next step were owner-approved on 2026-11-13 for #4879.
+      - name: Provision the serviced Evergreen WebView2 runtime
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Import-Module ./scripts/windows-webview-driver-policy.psm1
+          $minimum = [string]((Get-Content apps/desktop/src-tauri/tauri.conf.json -Raw | ConvertFrom-Json).bundle.windows.minimumWebview2Version)
+          if ($minimum -notmatch '^\d+\.\d+\.\d+\.\d+$') { throw 'Application WebView2 floor is unreadable.' }
+          $before = Get-WebViewRuntimeVersion
+          $record = [ordered]@{ minimum = $minimum; before = $before }
+          if ([version]$before -lt [version]$minimum) {
+            $installer = Join-Path $env:RUNNER_TEMP 'MicrosoftEdgeWebview2Setup.exe'
+            Invoke-WebRequest -Uri 'https://go.microsoft.com/fwlink/p/?LinkId=2124703' -OutFile $installer -UseBasicParsing
+            $signature = Get-AuthenticodeSignature -LiteralPath $installer
+            if ($signature.Status -ne 'Valid' -or $signature.SignerCertificate.Subject -notmatch 'O=Microsoft Corporation') {
+              throw "Evergreen bootstrapper signature is not a valid Microsoft signature: $($signature.Status)"
+            }
+            $record.installer_sha256 = (Get-FileHash -Algorithm SHA256 -LiteralPath $installer).Hash
+            $record.installer_signer = $signature.SignerCertificate.Subject
+            $process = Start-Process -FilePath $installer -ArgumentList '/silent', '/install' -Wait -PassThru
+            $record.installer_exit_code = $process.ExitCode
+            if ($process.ExitCode -ne 0) { throw "Evergreen bootstrapper exited $($process.ExitCode)." }
+          }
+          $record.after = Get-WebViewRuntimeVersion
+          $record | ConvertTo-Json | Set-Content "$env:PORTCOVE_OUTPUT_DIR/webview2-runtime.json"
+          $record | ConvertTo-Json
+          if ([version]$record.after -lt [version]$minimum) {
+            throw "WebView2 $($record.after) remains below the application floor $minimum."
+          }
+          # The elevated hosted runner's WebView2 ignores msedgedriver's
+          # WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS, so no DevTools endpoint opens.
+          # On this disposable runner only, the machine policy supplies the
+          # automation port for the development executable the harness launches.
+          $policy = 'HKLM:\SOFTWARE\Policies\Microsoft\Edge\WebView2\AdditionalBrowserArguments'
+          New-Item -Path $policy -Force | Out-Null
+          New-ItemProperty -Path $policy -Name 'portcove-desktop.exe' -Value '--remote-debugging-port=0' -PropertyType String -Force | Out-Null
+      # Evergreen may install a runtime whose exactly matching msedgedriver
+      # Microsoft has not made available yet. Driver bootstrap keeps the exact match;
+      # this bounded wait turns that window into one actionable outcome.
+      - name: Wait for the exactly matching msedgedriver
+        timeout-minutes: 21
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Import-Module ./scripts/windows-webview-driver-policy.psm1
+          $version = Get-WebViewRuntimeVersion
+          if ($version -notmatch '^\d+\.\d+\.\d+\.\d+$') { throw 'WebView2 runtime version is unreadable.' }
+          $url = "https://msedgedriver.microsoft.com/$version/edgedriver_win64.zip"
+          $deadline = (Get-Date).AddMinutes(20)
+          $attempts = 0
+          while ($true) {
+            $attempts++
+            try {
+              $status = (Invoke-WebRequest -Uri $url -Method Head -MaximumRedirection 0 -UseBasicParsing -TimeoutSec 30).StatusCode
+            } catch {
+              $response = $_.Exception.Response
+              if ($null -eq $response) { throw "msedgedriver $version availability check failed: $($_.Exception.Message)" }
+              $status = [int]$response.StatusCode
+            }
+            if ($status -eq 200) { break }
+            if ($status -ne 404) { throw "msedgedriver $version availability check returned HTTP $status." }
+            # Decide before sleeping so the last check always ends inside the step timeout.
+            if ((Get-Date).AddSeconds(60) -ge $deadline) {
+              throw "Microsoft has not made msedgedriver $version available for the serviced WebView2 $version after $attempts checks over 20 minutes. Re-run this job once it is available."
+            }
+            Start-Sleep -Seconds 60
+          }
+          [ordered]@{ version = $version; url = $url; attempts = $attempts } |
+            ConvertTo-Json | Set-Content "$env:PORTCOVE_OUTPUT_DIR/webview2-driver-availability.json"
+      - name: Install locked packages and existing pinned native tools
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          pnpm install --frozen-lockfile
+          if ($LASTEXITCODE -ne 0) { throw 'Locked package installation failed.' }
+          ./scripts/bootstrap-quality-tools.ps1 -Desktop
+          if ($LASTEXITCODE -ne 0) { throw 'Pinned native bootstrap failed.' }
+      # Diagnostics only: record process creation with command lines so a
+      # failed session shows how the application and WebView2 were launched.
+      - name: Record process creation for failure diagnostics
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          auditpol /set /subcategory:"Process Creation" /success:enable | Out-Null
+          if ($LASTEXITCODE -ne 0) { throw 'Process-creation auditing could not be enabled.' }
+          New-Item -Path 'HKLM:\Software\Microsoft\Windows\CurrentVersion\Policies\System\Audit' -Force | Out-Null
+          New-ItemProperty -Path 'HKLM:\Software\Microsoft\Windows\CurrentVersion\Policies\System\Audit' -Name ProcessCreationIncludeCmdLine_Enabled -Value 1 -PropertyType DWord -Force | Out-Null
+      - name: Plan and observe the fixed owned product scenarios
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $env:PATH = "$PWD/work/tool-bin;$env:PATH"
+          $selectedScenarios = @($env:NATIVE_SCENARIOS | ConvertFrom-Json)
+          if ($selectedScenarios.Count -eq 0) { throw 'Fixed scenario selection is missing.' }
+          $scenarioArguments = @()
+          foreach ($scenario in $selectedScenarios) {
+            if ($scenario -isnot [string] -or $scenario -cnotmatch '^[a-z][a-z0-9-]+$') { throw 'Invalid fixed scenario name.' }
+            $scenarioArguments += @('--scenario', $scenario)
+          }
+          just desktop-verify @scenarioArguments --require-clean --plan
+          if ($LASTEXITCODE -ne 0) { throw 'Owned product scenario plan failed.' }
+          just desktop-verify @scenarioArguments --require-clean
+          if ($LASTEXITCODE -ne 0) { throw 'Owned native product scenario failed; retain original evidence.' }
+      # Read-only failure diagnostics: the application's own bounded host
+      # diagnostics and Windows' record of an application exit, which the
+      # driver-side evidence cannot observe.
+      - name: Print application startup diagnostics after a failure
+        if: failure()
+        timeout-minutes: 5
+        shell: pwsh
+        run: |
+          $roots = @($env:PORTCOVE_OUTPUT_DIR, $env:PORTCOVE_TEMP_DIR, (Join-Path $env:LOCALAPPDATA 'Portcove')) |
+            Where-Object { $_ -and (Test-Path -LiteralPath $_) }
+          foreach ($root in $roots) {
+            Get-ChildItem -LiteralPath $root -Recurse -Directory -Filter diagnostics -ErrorAction SilentlyContinue |
+              Select-Object -First 8 | ForEach-Object {
+                Get-ChildItem -LiteralPath $_.FullName -Recurse -File -ErrorAction SilentlyContinue |
+                  Where-Object { $_.Length -le 4MB -and $_.Extension -in '.json', '.jsonl', '.log', '.txt' } |
+                  Select-Object -First 16 | ForEach-Object {
+                    "==== $($_.FullName) ($($_.Length) bytes)"
+                    Get-Content -LiteralPath $_.FullName -Tail 200 | ForEach-Object { $_.Substring(0, [Math]::Min(2000, $_.Length)) }
+                  }
+              }
+          }
+          "==== Scenario report failures and largest retained outputs"
+          if ($env:PORTCOVE_OUTPUT_DIR -and (Test-Path -LiteralPath $env:PORTCOVE_OUTPUT_DIR)) {
+            Get-ChildItem -LiteralPath $env:PORTCOVE_OUTPUT_DIR -Recurse -File -Filter '*.json' -ErrorAction SilentlyContinue |
+              Where-Object { $_.Directory.Name -eq 'native' -and $_.Length -le 4MB } | ForEach-Object {
+                $report = try { Get-Content -LiteralPath $_.FullName -Raw | ConvertFrom-Json } catch { $null }
+                if ($report -and ($report.PSObject.Properties.Name -contains 'failure')) {
+                  "-- $($_.Name)"
+                  foreach ($name in 'failure', 'failure_stack', 'cleanup_failure') {
+                    $value = [string]$report.$name
+                    if ($value) { "${name}: $($value.Substring(0, [Math]::Min(4000, $value.Length)))" }
+                  }
+                }
+              }
+            Get-ChildItem -LiteralPath $env:PORTCOVE_OUTPUT_DIR -Recurse -File -ErrorAction SilentlyContinue |
+              Sort-Object Length -Descending | Select-Object -First 15 |
+              ForEach-Object { "$($_.Length) $($_.FullName.Substring($env:PORTCOVE_OUTPUT_DIR.Length))" }
+            $nativeTotal = (Get-ChildItem -LiteralPath $env:PORTCOVE_OUTPUT_DIR -Recurse -File -ErrorAction SilentlyContinue |
+              Where-Object { $_.Directory.Name -eq 'native' -and $_.Extension -in '.json', '.jsonl', '.log', '.png' } | Measure-Object Length -Sum).Sum
+            "native evidence total bytes: $nativeTotal"
+          }
+          "==== DevToolsActivePort files written anywhere the WebView may have used"
+          @($env:PORTCOVE_OUTPUT_DIR, $env:PORTCOVE_TEMP_DIR, $env:LOCALAPPDATA, $env:RUNNER_TEMP) | Where-Object { $_ -and (Test-Path -LiteralPath $_) } | ForEach-Object {
+            Get-ChildItem -LiteralPath $_ -Recurse -File -Filter DevToolsActivePort -Force -ErrorAction SilentlyContinue |
+              Select-Object -First 10 | ForEach-Object { "$($_.FullName) $($_.LastWriteTimeUtc.ToString('o'))" }
+          }
+          "==== Edge and WebView2 policies"
+          foreach ($key in 'HKLM:\SOFTWARE\Policies\Microsoft\Edge', 'HKLM:\SOFTWARE\Policies\Microsoft\Edge\WebView2', 'HKLM:\SOFTWARE\Policies\Microsoft\EdgeUpdate', 'HKCU:\SOFTWARE\Policies\Microsoft\Edge') {
+            if (Test-Path $key) { "-- $key"; Get-ItemProperty -Path $key | Format-List * | Out-String -Width 200 }
+            Get-ChildItem -Path $key -Recurse -ErrorAction SilentlyContinue | ForEach-Object { "-- $($_.Name)"; $_ | Get-ItemProperty | Format-List * | Out-String -Width 200 }
+          }
+          "==== WEBVIEW2 environment"
+          Get-ChildItem env: | Where-Object Name -like 'WEBVIEW2*' | Format-Table -AutoSize | Out-String -Width 200
+          "==== Process creation: application, WebView2 and drivers"
+          Get-WinEvent -FilterHashtable @{ LogName = 'Security'; Id = 4688; StartTime = (Get-Date).AddHours(-2) } -MaxEvents 4000 -ErrorAction SilentlyContinue |
+            ForEach-Object {
+              $data = @{}; ([xml]$_.ToXml()).Event.EventData.Data | ForEach-Object { $data[$_.Name] = $_.'#text' }
+              $toPid = { param($hex) try { [Convert]::ToInt32([string]$hex, 16) } catch { -1 } }
+              [pscustomobject]@{ Time = $_.TimeCreated.ToString('o'); Pid = (& $toPid $data.NewProcessId); ParentPid = (& $toPid $data.ProcessId); Image = $data.NewProcessName; Parent = $data.ParentProcessName; CommandLine = $data.CommandLine }
+            } |
+            Where-Object { "$($_.Image)|$($_.Parent)" -match '\\msedgewebview2\.exe|\\msedgedriver\.exe|tauri-driver|Portcove-Retained-Evidence' -and "$($_.Image)" -notmatch '\\conhost\.exe$' } |
+            Sort-Object Time | Select-Object -Last 80 |
+            ForEach-Object { "$($_.Time) pid=$($_.Pid) parent=$($_.ParentPid) $($_.Image) <- $($_.Parent)`n    $("$($_.CommandLine)".Substring(0, [Math]::Min(700, "$($_.CommandLine)".Length)))" }
+          "==== Windows Application log errors since job start"
+          Get-WinEvent -FilterHashtable @{ LogName = 'Application'; Level = 1, 2; StartTime = (Get-Date).AddHours(-2) } -MaxEvents 30 -ErrorAction SilentlyContinue |
+            ForEach-Object { "$($_.TimeCreated.ToString('o')) $($_.ProviderName) $($_.Id)`n    $("$($_.Message)".Substring(0, [Math]::Min(1500, "$($_.Message)".Length)))" }
+      - name: Require the isolated singleton Settings entry evidence
+        if: matrix.selection == 'owned-steam'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $runs = @(Get-ChildItem -LiteralPath "$env:PORTCOVE_OUTPUT_DIR/desktop-verify" -Directory)
+          if ($runs.Count -ne 1) { throw 'Exactly one isolated native run is required.' }
+          $report = Get-Content -LiteralPath (Join-Path $runs[0].FullName 'native/steam-entry-result.json') -Raw | ConvertFrom-Json
+          $eligible = @($report.eligible_installed_port_ids)
+          if ($report.entry_route -cne 'settings-integrations' -or $eligible.Count -ne 1 -or $eligible[0] -cne $report.port_id) {
+            throw 'The singleton Steam lane must exercise the actual Settings entry with one eligible installation.'
+          }
+      - name: Retain bounded lossless native evidence in ordinary job logs
         if: always()
         shell: pwsh
         run: |
@@ -615,7 +1043,7 @@ jobs:
           if (-not $identity.user_interactive -or $identity.session_id -le 0) {
             throw 'Hosted interactive desktop is unavailable; preserve the feasibility failure.'
           }
-      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
         with:
           package_json_file: package.json
       - uses: ./.github/actions/setup-rust
@@ -692,7 +1120,7 @@ jobs:
         run: node controller/scripts/workflow-provenance.mts hosted-validation prepare
       - name: Expose verified source package-manager pin
         run: cp -- source/package.json package.json
-      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
         with:
           package_json_file: package.json
           cache: false
@@ -711,13 +1139,9 @@ jobs:
         working-directory: source
         run: bash ./scripts/install-linux-desktop-prerequisites.sh
       - name: Install source pinned prebuilt tools
-        uses: taiki-e/install-action@86f7a0ffb25f40114606501a311ebcfaf882ea32 # v2.88.0
+        uses: taiki-e/install-action@c509219cf42fba86913069efd0ade2458c59337b # v2.90.1
         with:
           tool: ${{ steps.local-pins.outputs.required_prebuilt }}
-      - name: Install source pinned rscheck
-        uses: taiki-e/install-action@86f7a0ffb25f40114606501a311ebcfaf882ea32 # v2.88.0
-        with:
-          tool: ${{ steps.local-pins.outputs.rscheck_spec }}
       - name: Read source aqua pin
         id: local-aqua
         working-directory: source
@@ -772,7 +1196,7 @@ jobs:
         run: node controller/scripts/workflow-provenance.mts hosted-validation prepare
       - name: Expose verified source package-manager pin
         run: cp -- source/package.json package.json
-      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
         with:
           package_json_file: package.json
           cache: false
@@ -791,13 +1215,9 @@ jobs:
         working-directory: source
         run: bash ./scripts/install-linux-desktop-prerequisites.sh
       - name: Install source pinned prebuilt tools
-        uses: taiki-e/install-action@86f7a0ffb25f40114606501a311ebcfaf882ea32 # v2.88.0
+        uses: taiki-e/install-action@c509219cf42fba86913069efd0ade2458c59337b # v2.90.1
         with:
           tool: ${{ steps.local-pins.outputs.required_prebuilt }}
-      - name: Install source pinned rscheck
-        uses: taiki-e/install-action@86f7a0ffb25f40114606501a311ebcfaf882ea32 # v2.88.0
-        with:
-          tool: ${{ steps.local-pins.outputs.rscheck_spec }}
       - name: Read source aqua pin
         id: local-aqua
         working-directory: source
@@ -850,7 +1270,7 @@ jobs:
         run: node controller/scripts/workflow-provenance.mts hosted-validation prepare
       - name: Expose verified source package-manager pin
         run: cp -- source/package.json package.json
-      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
         with:
           package_json_file: package.json
           cache: false
@@ -869,13 +1289,9 @@ jobs:
         working-directory: source
         run: bash ./scripts/install-linux-desktop-prerequisites.sh
       - name: Install source pinned prebuilt tools
-        uses: taiki-e/install-action@86f7a0ffb25f40114606501a311ebcfaf882ea32 # v2.88.0
+        uses: taiki-e/install-action@c509219cf42fba86913069efd0ade2458c59337b # v2.90.1
         with:
           tool: ${{ steps.local-pins.outputs.required_prebuilt }}
-      - name: Install source pinned rscheck
-        uses: taiki-e/install-action@86f7a0ffb25f40114606501a311ebcfaf882ea32 # v2.88.0
-        with:
-          tool: ${{ steps.local-pins.outputs.rscheck_spec }}
       - name: Read source aqua pin
         id: local-aqua
         working-directory: source
@@ -928,7 +1344,7 @@ jobs:
         run: node controller/scripts/workflow-provenance.mts hosted-validation prepare
       - name: Expose verified source package-manager pin
         run: cp -- source/package.json package.json
-      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
         with:
           package_json_file: package.json
           cache: false
@@ -947,13 +1363,9 @@ jobs:
         working-directory: source
         run: bash ./scripts/install-linux-desktop-prerequisites.sh
       - name: Install source pinned prebuilt tools
-        uses: taiki-e/install-action@86f7a0ffb25f40114606501a311ebcfaf882ea32 # v2.88.0
+        uses: taiki-e/install-action@c509219cf42fba86913069efd0ade2458c59337b # v2.90.1
         with:
           tool: ${{ steps.local-pins.outputs.required_prebuilt }}
-      - name: Install source pinned rscheck
-        uses: taiki-e/install-action@86f7a0ffb25f40114606501a311ebcfaf882ea32 # v2.88.0
-        with:
-          tool: ${{ steps.local-pins.outputs.rscheck_spec }}
       - name: Read source aqua pin
         id: local-aqua
         working-directory: source

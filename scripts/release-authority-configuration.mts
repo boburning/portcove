@@ -1,3 +1,4 @@
+import { applicationReleaseProfile } from "./release-authority-configuration-contract.mts";
 import { releaseCanonicalDigest } from "./release-canonical.mts";
 import { isRecord } from "./runtime-values.mts";
 import {
@@ -6,6 +7,7 @@ import {
   inspectControllerPurposePhase,
 } from "./release-control-phases.mts";
 import type { CapacityExecutorRole } from "./assembler-job-identity.mts";
+import type { inspectReleaseReviewWithdrawal } from "./release-review-withdrawal.mts";
 import { performance } from "node:perf_hooks";
 import {
   coordinatorCommandTimeout,
@@ -54,23 +56,29 @@ async function readControllerJobSourceConfiguration(
     throw new Error("complete fixed job source configuration unavailable");
   const configuration: unknown = JSON.parse(raw);
   const deadline = performance.now() + coordinatorCommandTimeout(15000);
-  const workflow = await readProductionControllerWorkflowBytes();
+  const catalog = purpose === "catalog-publication";
   let source;
-  if (purpose === "catalog-publication") {
-    const { authenticateCatalogControlReaderJob } =
-      await import("./release-live-control-admission.mts");
-    const actual = await authenticateCatalogControlReaderJob(environment, workflow, {
+  if (catalog || (isRecord(configuration) && configuration.kind === "three-app-fixed-jobs-v1")) {
+    const readers = await import("./release-live-control-admission.mts");
+    const authenticate = catalog
+      ? readers.authenticateCatalogControlReaderJob
+      : readers.authenticateControlReaderJob;
+    const actual = await authenticate(environment, await readProductionControllerWorkflowBytes(), {
       phase,
       deadline,
     });
     if (actual.identity.evidence_scope !== "github.com")
-      throw new Error("actual catalog OIDC identity required");
+      throw new Error(
+        catalog
+          ? "actual catalog OIDC identity required"
+          : "actual storage writer job OIDC identity required before credential routing",
+      );
     source = actual.admitted;
   } else {
     source = admitProductionInputReader(
       environment.PORTCOVE_CONTROLLER_ADMISSION,
       environment,
-      workflow,
+      await readProductionControllerWorkflowBytes(),
       phase,
     );
   }
@@ -120,8 +128,14 @@ export async function requireControllerJobCredentialRoute(rawPhase: unknown) {
     route: Object.freeze({
       phase,
       purpose: view.purpose,
+      ...(view.purpose === "application"
+        ? { release_profile: applicationReleaseProfile(view.configuration) }
+        : {}),
       credential_transport:
         view.configuration.schema_version === 4 ? ("fixed-job" as const) : ("legacy-app" as const),
+      ...("journal" in view.configuration && view.configuration.journal.apps.storage_writer
+        ? { storage_writer: { ...view.configuration.journal.apps.storage_writer } }
+        : {}),
       source: view.source,
     }),
     recheck: captured.recheck,
@@ -199,7 +213,16 @@ async function readControllerSelectedAuthoritySource(role: CapacityExecutorRole)
   return { configuration, purpose, source } as const;
 }
 
-export async function requireControllerFixedJobJournalAuthorities(role: CapacityExecutorRole) {
+export async function requireControllerFixedJobJournalAuthorities(
+  role: CapacityExecutorRole,
+): Promise<{
+  configuration: ReturnType<typeof inspectBoundFixedJobJournalAuthorities>;
+  purpose: ReturnType<typeof inspectControllerExecutionPurpose>;
+  source: Awaited<ReturnType<typeof readControllerSelectedAuthoritySource>>["source"];
+  configuration_sha256: string;
+  authority_configuration_sha256?: string;
+  review_withdrawal?: NonNullable<ReturnType<typeof inspectReleaseReviewWithdrawal>>;
+}> {
   const { configuration, purpose, source } = await readControllerSelectedAuthoritySource(role);
   const raw: unknown = JSON.parse(configuration);
   if (isRecord(raw) && raw.schema_version === 4) {
@@ -210,6 +233,11 @@ export async function requireControllerFixedJobJournalAuthorities(role: Capacity
       source,
       configuration_sha256: selected.journal_configuration_sha256,
       authority_configuration_sha256: selected.configuration_sha256,
+      ...(role === "coordinator" &&
+        selected.configuration.purpose === "application" &&
+        selected.configuration.review_withdrawal && {
+          review_withdrawal: selected.configuration.review_withdrawal,
+        }),
     };
   }
   const selected = inspectBoundFixedJobJournalAuthorities(configuration, source, purpose);

@@ -1,3 +1,4 @@
+import { captureParityState } from "../../test/parity-capture";
 import { controlledAct as act } from "../../test/controlled-react-act";
 import { render as renderComponent, cleanup, type RenderResult } from "vitest-browser-react";
 
@@ -119,7 +120,7 @@ it("lists every affected path, removed settings and preserved data before explic
     `all installed versions of ${port.name} managed by Portcove`,
     "release-channel and update-policy settings",
     "original folders",
-    "Your saved data, backups, and game files are kept",
+    "Portcove keeps the saved data and backups listed here, and your original game files.",
     "reinstall it or copy an existing installation",
     "retains a recovery journal",
     "interrupted deletion may finish",
@@ -127,6 +128,7 @@ it("lists every affected path, removed settings and preserved data before explic
     expect(dialog().textContent).toContain(text);
   expect(dialog().textContent).toContain("original folders used for copied installations");
   expect(dialog().textContent?.toLowerCase()).not.toContain("adoption");
+  await captureParityState("removal-reviewed-fixture");
   await expect.poll(() => document.activeElement?.textContent).toBe("Cancel");
   await click("Uninstall all versions");
   expect(apply).toHaveBeenCalledExactlyOnceWith("reviewed-installations");
@@ -175,8 +177,10 @@ it("blocks duplicate removal and requires a new review after failure", async () 
   await click("Cancel");
   expect(apply).toHaveBeenCalledOnce();
   expect(close).not.toHaveBeenCalled();
+  await captureParityState("removal-pending-fixture");
   await act(async () => finish(false));
   expect(dialog().querySelector('[role="alert"]')?.textContent).toContain("did not complete");
+  await captureParityState("removal-failed-fixture");
   expect(
     [...dialog().querySelectorAll("button")].some(
       (button) => button.textContent === "Uninstall all versions",
@@ -211,4 +215,32 @@ it("ignores a late review from the previous library", async () => {
   expect(dialog().textContent).toContain("new-library/versions/current");
   expect(dialog().textContent).not.toContain("external/versions/retained");
   expect(apply).not.toHaveBeenCalled();
+});
+
+it("re-renders an unconfirmed removal failure in the current language", async () => {
+  const { initializeLocalization } = await import("../localization");
+  const localization = initializeLocalization(["en-US"]);
+  vi.spyOn(desktopApi, "previewRemoval").mockResolvedValue(review);
+  await root.rerender(
+    <RemovalReviewDialog
+      port={port}
+      generation={7}
+      apply={vi.fn().mockResolvedValue(false)}
+      close={vi.fn()}
+    />,
+  );
+  await click("Uninstall all versions");
+  const alert = () => dialog().querySelector('[role="alert"]')?.textContent ?? "";
+  expect(alert()).toContain("Removal did not complete");
+  try {
+    await act(async () => {
+      await localization.changeLanguage("ar-XB");
+    });
+    await expect.poll(alert).toContain("لم تكتمل الإزالة");
+  } finally {
+    await act(async () => {
+      await localization.changeLanguage("en");
+    });
+  }
+  await expect.poll(alert).toContain("Removal did not complete");
 });

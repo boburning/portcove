@@ -289,7 +289,8 @@ impl PortcoveService {
         journal.preparation_process_quiesced = Some(true);
         journal.activate = true;
         let store = OperationStore::new(self.library().clone());
-        store.put(&mut journal)?;
+        let mut journal = crate::operation::publication::PublicationJournal::begin(journal)?;
+        journal.persist(&store)?;
         self.check_lifecycle_fault(LifecycleFaultPoint::PreparationJournaled)?;
         crate::path::refuse_symlink_ancestors(&prepared.operation_root)?;
         fs::create_dir_all(
@@ -303,7 +304,7 @@ impl PortcoveService {
         let payload = prepared.operation_root.join("payload");
         emit(operation.message(
             "info",
-            "Copying the reviewed installation into private preparation",
+            "Copying the reviewed installation into a setup working folder",
         ));
         crate::transfer_copy::copy_reviewed_tree(
             &original.path,
@@ -373,13 +374,11 @@ impl PortcoveService {
         .map_err(|error| error.detail("preparation_phase", "bind manifest"))?;
         self.check_lifecycle_fault(LifecycleFaultPoint::PreparationOutputsValidated)?;
         install.path = destination;
-        journal.install = Some(install.clone());
         operation.begin_publication()?;
-        journal.phase = LifecyclePhase::Prepared;
-        store.put(&mut journal)?;
+        journal.prepare(install.clone(), &store)?;
         self.check_lifecycle_fault(LifecycleFaultPoint::PreparationPrepared)?;
         emit(operation.message("info", "Publishing the verified prepared installation"));
-        recover(self, &store, &mut journal)?;
+        recover(self, &store, &mut journal.into_record())?;
         Ok(install)
     }
 
@@ -412,16 +411,19 @@ impl PortcoveService {
                 Installer::new(self.library().clone())?.verify_critical(&copied, &qualification)?;
             }
             let working = crate::adapter::launch_working_directory(
-                port.adapter,
                 &port,
                 payload,
                 &payload.join(&plan.inputs.install.selected_executable),
+                plan.inputs.host,
             )?;
             let quiesced = std::cell::Cell::new(true);
             if inputs.conversion_tool.is_some() {
                 record_preparation_process_quiescence(self, operation.operation_id(), false)?;
             }
-            emit(operation.message("info", "Materializing the reviewed runtime originals"));
+            emit(operation.message(
+                "info",
+                "Preparing the reviewed original game files for this installation",
+            ));
             let result = super::source::materialize(
                 &catalog,
                 &port,
@@ -542,7 +544,7 @@ impl PortcoveService {
                 "conversion tool changed before preparation",
             ));
         }
-        emit(operation.message("info", "Materializing the reviewed source"));
+        emit(operation.message("info", "Preparing the reviewed game files"));
         if plan.inputs.conversion_tool.is_some() {
             record_preparation_process_quiescence(self, operation.operation_id(), false)?;
         }
@@ -806,9 +808,14 @@ pub(super) fn setup_output_root(
     selected_executable: &Path,
 ) -> Result<PathBuf> {
     if port.adapter == crate::AdapterKind::UpstreamManagedSetup
-        && port.runtime_subdirectory.is_some()
+        && port.declares_runtime_subdirectory()
     {
-        crate::adapter::launch_working_directory(port.adapter, port, payload, selected_executable)
+        crate::adapter::launch_working_directory(
+            port,
+            payload,
+            selected_executable,
+            crate::Platform::current()?,
+        )
     } else {
         Ok(payload.to_path_buf())
     }

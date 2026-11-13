@@ -57,7 +57,11 @@ async function encodeFiles(root: string, files: string[]) {
       "Invalid owned evidence path",
     );
     const metadata = await lstat(file);
-    assert.ok(metadata.isFile() && metadata.size <= byteLimit, "Non-regular or excessive evidence");
+    // Name the owned path and size so a retention failure is actionable from the job log.
+    assert.ok(
+      metadata.isFile() && metadata.size <= byteLimit,
+      `Non-regular or excessive evidence: ${name} (${metadata.isFile() ? `${metadata.size} bytes` : "not a regular file"}; limit ${byteLimit} bytes)`,
+    );
     const bytes = await readFile(file);
     total += bytes.length;
     assert.ok(total <= byteLimit, "Native evidence exceeds its explicit retention bound");

@@ -25,8 +25,11 @@ import {
 import type { NativeRuntimeCustody } from "./release-native-runtime-custody.mts";
 import { readProcessIdentity } from "./heavy-rust-test-lock.mts";
 import { errorCode, isRecord } from "./runtime-values.mts";
-import { GitHubApiClient, createGitHubRunner } from "./github-api.mts";
-import { waitForNativePostSignReadiness } from "./release-native-postsign-readiness.mts";
+import {
+  createNativePostSignReader,
+  waitForNativePostSignReadiness,
+} from "./release-native-postsign-readiness.mts";
+import { coordinatorCommandDeadline } from "./release-coordinator-deadline.mts";
 
 type Stage = "pre-sign" | "post-sign";
 type WorkflowPlatform = "linux-x86_64" | "windows-x86_64";
@@ -81,14 +84,18 @@ async function context(selected: Stage, platform: WorkflowPlatform = "linux-x86_
       ? `.pcn-${scope.binding.slice(0, 32)}`
       : `.portcove-native-${scope.identity.run_id}-${scope.identity.run_attempt}-${scope.identity.controller_revision}`,
   );
-  const deadline = currentNativeJobDeadline(
-    platform,
-    scope.identity,
-    repository,
-    performance.now() + 570000,
-    scope.source,
-    scope.workflow,
-  );
+  const ceiling = performance.now() + 570000;
+  const deadline = windows
+    ? await (
+        await import("./release-signing-job-budget.mts")
+      ).currentWindowsNativeJobDeadline(scope.identity, ceiling, scope.source, scope.workflow)
+    : await currentNativeJobDeadline(
+        platform,
+        scope.identity,
+        ceiling,
+        scope.source,
+        scope.workflow,
+      );
   const prefix = windows ? "portcove-native-windows-workflow" : "portcove-native-workflow";
   const intent = path.join(scope.temporary, `${prefix}-start.json`);
   const started = path.join(scope.temporary, `${prefix}-started.json`);
@@ -531,39 +538,30 @@ export async function startHostedLinuxWorkflowPostSign() {
   };
   try {
     const active = () => fence(c, before);
-    const api = new GitHubApiClient((args, input) => {
-      active();
-      const remaining = Math.min(
-        c.deadline - performance.now(),
-        Number(before.end - process.hrtime.bigint()) / 1e6,
-      );
-      assert.ok(remaining >= 1);
-      return createGitHubRunner({
-        cwd: repository,
-        timeoutMs: Math.min(15000, Math.floor(remaining)),
-        maxBuffer: 2 * 1024 ** 2,
-      })([...args, "--hostname", "github.com"], input);
-    });
+    active();
+    const deadline = Math.min(
+      c.deadline,
+      performance.now() + Number(before.end - process.hrtime.bigint()) / 1e6,
+      coordinatorCommandDeadline() ?? Infinity,
+    );
+    const remaining = Math.floor(deadline - performance.now());
+    assert.ok(remaining >= 1);
+    const signal = AbortSignal.timeout(remaining);
+    const read = await createNativePostSignReader(
+      c.scope.identity.run_id,
+      deadline,
+      active,
+      (status) => {
+        lastStatus = status;
+      },
+    );
     await waitForNativePostSignReadiness({
       run: c.scope.identity.run_id,
       revision: c.scope.identity.controller_revision,
       active,
-      read: () => {
-        const result = api.request(
-          "GET",
-          `repos/boburning/portcove/actions/runs/${c.scope.identity.run_id}/attempts/1/jobs?per_page=100`,
-        );
-        lastStatus = result.status ?? null;
-        active();
-        assert.equal(result.status, 200);
-        assert.ok(
-          !result.headers.get("link"),
-          "native prerequisite inventory requires one complete page",
-        );
-        return result.body;
-      },
+      read,
       retain: retainObservation,
-      pause: () => delay(5000),
+      pause: () => delay(5000, undefined, { signal }),
     });
   } catch (error) {
     await retainObservation({

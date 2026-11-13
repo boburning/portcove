@@ -18,7 +18,6 @@ import {
   inspectSitePublicationExpectation,
   inspectCapacityOperation,
 } from "./release-capacity.mts";
-import { createGitHubRunner, GitHubApiClient } from "./github-api.mts";
 import { publishCoordinatorCheckpoint } from "./release-coordinator-remote.mts";
 import {
   recoverReleaseOpportunity,
@@ -44,10 +43,19 @@ import {
   createCheckpointJobTokenApi,
   createCheckpointHistoryReader,
 } from "./release-coordinator-journal-api.mts";
-import { withCoordinatorDeadline } from "./release-coordinator-deadline.mts";
+import {
+  coordinatorCommandDeadline,
+  withCoordinatorDeadline,
+} from "./release-coordinator-deadline.mts";
+import { createReleaseCustodyProvider } from "./release-custody-provider.mts";
+import { assertTrustedDirectNode } from "./release-direct-node-transport.mts";
 import { inspectControllerExecutionPurpose } from "./release-control-phases.mts";
 import { inspectCoordinatorRemoteNamespace } from "./release-coordinator-namespace.mts";
-import { withReadOnlyReleaseChildren } from "./release-readonly-child-environment.mts";
+import {
+  fixedReleaseReaderToken,
+  readOnlyReleaseChildEnvironment,
+  withReadOnlyReleaseChildren,
+} from "./release-readonly-child-environment.mts";
 import type { CapacityBoundaryReader } from "./release-capacity-operation.mts";
 import type { CapacityOperationOptions } from "./release-capacity-operation.mts";
 import {
@@ -91,6 +99,7 @@ interface PrivateSession {
   requiresSignedJournal: boolean;
   journalBinding?: "binding" | "bound" | "stopped";
   journal?: {
+    claimedChild?: string;
     configuration: Awaited<
       ReturnType<
         typeof import("./release-authority-configuration.mts").requireControllerFixedJobJournalAuthorities
@@ -116,7 +125,12 @@ export function inspectSelectedJournalRequirement(environment: Readonly<NodeJS.P
     throw new Error("protected journal configuration exceeds bounds");
   const record: unknown = JSON.parse(raw);
   if (!isRecord(record)) throw new Error("protected journal configuration schema differs");
-  if (record.schema_version === 3 || record.kind === "two-app-fixed-jobs-v1") return true;
+  if (
+    record.schema_version === 3 ||
+    record.kind === "two-app-fixed-jobs-v1" ||
+    record.kind === "three-app-fixed-jobs-v1"
+  )
+    return true;
   if (
     purpose === "application" &&
     (record.schema_version === 1 || record.schema_version === 2) &&
@@ -160,14 +174,15 @@ export function requireOwnedCapacityPendingBoundary(session: ExecutorSession, re
 async function observe(
   role: CapacityExecutorRole,
   expected: ReturnType<typeof inspectAssemblerIdentityExpectation>,
-  directory: string,
   deadline?: number,
 ): Promise<CapacityExecutorIdentity> {
   if (expected.audience !== audience)
     throw new Error("capacity executor audience differs from its fixed role");
+  const sdkToken = fixedReleaseReaderToken();
+  const requireDirect = readOnlyReleaseChildEnvironment() !== undefined;
   const token = await requestAssemblerToken(audience, process.env, fetch, deadline);
   const actual = await verifyCapacityExecutorJobIdentity(role, token, expected, {
-    transport: { cwd: directory, ...(deadline === undefined ? {} : { deadline }) },
+    transport: { sdkToken, requireDirect, deadline: deadline ?? performance.now() + 120000 },
   });
   if (actual.evidence_scope !== "github.com")
     throw new Error("capacity executor requires actual provider identity");
@@ -195,7 +210,7 @@ export async function authenticateCapacityExecutor(
 ): Promise<ExecutorSession> {
   const requiresSignedJournal = inspectSelectedJournalRequirement({ ...process.env });
   const expected = inspectAssemblerIdentityExpectation(structuredClone(rawExpected));
-  const identity = await observe(role, expected, directory, deadline);
+  const identity = await observe(role, expected, deadline);
   const session: ExecutorSession = Object.freeze({ kind: "authenticated-capacity-executor" });
   sessions.set(session, {
     role,
@@ -225,7 +240,7 @@ export function capacityExecutorIdentity(session: ExecutorSession): CapacityExec
 export async function refreshCapacityExecutor(session: ExecutorSession) {
   const value = sessions.get(session);
   if (!value) throw new Error("imported executor sessions cannot execute or recover");
-  const actual = await observe(value.role, value.expected, value.directory, value.deadline);
+  const actual = await observe(value.role, value.expected, value.deadline);
   if (capacityDigest(actual) !== capacityDigest(value.identity))
     throw new Error("capacity executor identity changed during the attempt");
   value.observed = performance.now();
@@ -257,7 +272,17 @@ export async function createOwnedCheckpointSigningApi(
     exportCoordinatorCheckpoint(repository, expected),
   );
   capacityExecutorIdentity(session);
-  return createCheckpointJobTokenApi(value.directory, checkpoint, frozenConfiguration, deadline);
+  if (value.requiresSignedJournal && value.journalBinding !== "bound")
+    throw new Error("selected checkpoint credential requires authenticated bound journal history");
+  const storage = value.journal?.configuration.configuration.apps.storage_writer;
+  return createCheckpointJobTokenApi(
+    value.directory,
+    checkpoint,
+    frozenConfiguration,
+    deadline,
+    storage,
+    value.journal?.claimedChild !== undefined,
+  );
 }
 
 /** First join for the selected profile. This reads actual protected source
@@ -269,6 +294,7 @@ export async function authenticateOwnedCheckpointJournalHistory(
   session: ExecutorSession,
   repository: string,
   expected: string,
+  claimedChild?: string,
 ) {
   const value = sessions.get(session);
   if (!value || value.deadline === undefined)
@@ -284,7 +310,12 @@ export async function authenticateOwnedCheckpointJournalHistory(
   try {
     const result = await withCoordinatorDeadline(value.journalDeadline, () =>
       withReadOnlyReleaseChildren(value.directory, () =>
-        authenticateOwnedCheckpointJournalHistoryWithinScope(session, repository, expected),
+        authenticateOwnedCheckpointJournalHistoryWithinScope(
+          session,
+          repository,
+          expected,
+          claimedChild,
+        ),
       ),
     );
     value.journalBinding = "bound";
@@ -300,20 +331,34 @@ async function authenticateOwnedCheckpointJournalHistoryWithinScope(
   session: ExecutorSession,
   repository: string,
   expected: string,
+  claimedChild?: string,
 ) {
   // Load the selected composition only when this admitted path is invoked.
   // Eager initialization would create a cycle through existing signing-context
   // adapters in isolated controller bundles, even for a credential-free refusal.
   const { requireControllerFixedJobJournalAuthorities } =
     await import("./release-authority-configuration.mts");
-  const { authenticateFixedJobCoordinatorHistory } =
-    await import("./release-coordinator-checkpoint-authentication.mts");
+  const {
+    authenticateFixedJobCoordinatorHistory,
+    isRetainedApplicationReviewClaimScope,
+    isRetainedApplicationRenewalClaimScope,
+  } = await import("./release-coordinator-checkpoint-authentication.mts");
   const value = sessions.get(session)!;
   const deadline = value.journalDeadline!;
   capacityExecutorIdentity(session);
   const selected = await requireControllerFixedJobJournalAuthorities(value.role);
   const identity = await refreshCapacityExecutor(session);
   const source = selected.source;
+  if (
+    claimedChild !== undefined &&
+    (value.role !== "coordinator" ||
+      (selected.purpose !== "catalog-publication" &&
+        (selected.purpose !== "application" ||
+          ![isRetainedApplicationReviewClaimScope, isRetainedApplicationRenewalClaimScope].some(
+            (matches) => matches(expected, claimedChild, source.execution_ref, source.run_attempt),
+          ))))
+  )
+    throw new Error("only the selected coordinator can resume its exact authenticated claim");
   if (
     identity.controller_revision !== source.revision ||
     identity.execution_ref !== source.execution_ref ||
@@ -326,7 +371,7 @@ async function authenticateOwnedCheckpointJournalHistoryWithinScope(
   const configuration = { schema_version: 1, namespace: selected.configuration.namespace };
   const checkpoint = await exportCoordinatorCheckpoint(repository, expected);
   const reader = createCheckpointHistoryReader(value.directory, expected, configuration, deadline);
-  reader.assertCurrentUnclaimedHead();
+  await reader.assertCurrentHead(claimedChild);
   const history = await authenticateFixedJobCoordinatorHistory(
     value.directory,
     checkpoint,
@@ -334,14 +379,22 @@ async function authenticateOwnedCheckpointJournalHistoryWithinScope(
     source,
     deadline,
     reader.api,
+    selected.review_withdrawal,
+    value.role === "coordinator" ? selected.purpose : undefined,
   );
   await exportCoordinatorCheckpoint(repository, expected);
-  reader.assertCurrentUnclaimedHead();
+  await reader.assertCurrentHead(claimedChild);
   const current = await requireControllerFixedJobJournalAuthorities(value.role);
   capacityExecutorIdentity(session);
   if (capacityDigest(current) !== capacityDigest(selected))
     throw new Error("selected journal configuration/source changed during authentication");
-  value.journal = { configuration: selected, checkpoint: expected, busy: false, stopped: false };
+  value.journal = {
+    configuration: selected,
+    checkpoint: expected,
+    busy: false,
+    stopped: false,
+    ...(claimedChild === undefined ? {} : { claimedChild }),
+  };
   return {
     checkpoint: expected,
     history: history.kind,
@@ -545,6 +598,8 @@ async function publishOwnedSignedCoordinatorCheckpointWithinScope(
         return identity;
       };
       const identity = await refresh();
+      if (journal.claimedChild !== undefined && expected !== journal.claimedChild)
+        throw new Error("selected checkpoint differs from owned adoption claim");
       if (expected === journal.checkpoint) {
         if (native)
           throw new Error("prepared native phase requires its new exact child checkpoint");
@@ -554,7 +609,7 @@ async function publishOwnedSignedCoordinatorCheckpointWithinScope(
           configuration,
           value.journalDeadline!,
         );
-        reader.assertCurrentUnclaimedHead();
+        await reader.assertCurrentHead();
         return { checkpoint: expected, changed: false, authority: "none" as const };
       }
       const checkpoint = await withCoordinatorDeadline(value.journalDeadline!, () =>
@@ -597,6 +652,7 @@ async function publishOwnedSignedCoordinatorCheckpointWithinScope(
         value.journalDeadline!,
         {
           api,
+          ...(journal.claimedChild === undefined ? {} : { resumeClaim: true }),
           ...(native ? { nativeCustody: native.custody } : {}),
           async refresh() {
             await refresh();
@@ -604,6 +660,7 @@ async function publishOwnedSignedCoordinatorCheckpointWithinScope(
         },
       );
       journal.checkpoint = result.checkpoint;
+      delete journal.claimedChild;
       if (native) delete value.nativeCheckpoint;
       return result;
     });
@@ -858,11 +915,11 @@ export function inspectCapacityExecutorSubject(
 
 /** One transport choice for effects and explicit recovery. The selected source
  * cannot borrow a legacy credential or guard in place of authenticated history. */
-function ownedCheckpointTransport(
+async function ownedCheckpointTransport(
   session: ExecutorSession,
   input: { repository: string; checkpoint: string; remote_configuration: unknown },
   beforeCheckpointMutation?: () => Promise<void>,
-  beforeLegacyMutation?: () => void,
+  beforeLegacyMutation?: RecoveryMutationControls,
   purpose?: "application" | "catalog-publication",
 ) {
   const value = sessions.get(session)!;
@@ -871,6 +928,20 @@ function ownedCheckpointTransport(
   let remote: NonNullable<CapacityOperationOptions["remote"]>;
   value.requiresSignedJournal ||= inspectSelectedJournalRequirement({ ...process.env });
   if (value.requiresSignedJournal || value.journalBinding !== undefined) {
+    if (value.journalBinding === undefined) {
+      if (typeof beforeCheckpointMutation !== "function" || beforeLegacyMutation !== undefined)
+        throw new Error(
+          "selected journal requires original live checkpoint controls before history binding",
+        );
+      // This is the existing private operation owner, before any local intent
+      // or provider effect. Stopped/ambiguous sessions never enter this branch.
+      await ensureOwnedCheckpointJournalHistory(
+        session,
+        input.repository,
+        input.checkpoint,
+        beforeCheckpointMutation,
+      );
+    }
     if (
       value.journalBinding !== "bound" ||
       !value.journal ||
@@ -985,7 +1056,7 @@ async function executeOwnedCapacityEffectWithinScope(
   let ownedId: string | null = null;
   const captured: { completed?: { remote_identity: string; evidence_sha256: string } } = {};
   try {
-    const { remote, publish } = ownedCheckpointTransport(
+    const { remote, publish } = await ownedCheckpointTransport(
       session,
       input,
       beforeCheckpointMutation,
@@ -1126,45 +1197,60 @@ async function executeOwnedCapacityEffectWithinScope(
  * immutable controller must positively establish the requested resolution. */
 /** Provider reads share the actual executor's original phase clock. This
  * transport carries no executor authority and never extends a retained session. */
-export function capacityRecoveryProviderApi(value: { directory: string; deadline?: number }) {
-  const remaining = () => {
-    if (value.deadline !== undefined && !Number.isFinite(value.deadline))
-      throw new Error("capacity recovery phase deadline invalid");
-    const timeout =
-      value.deadline === undefined
-        ? 15000
-        : Math.floor(Math.min(15000, value.deadline - performance.now()));
-    if (timeout < 1) throw new Error("capacity recovery phase deadline exhausted");
-    return timeout;
+export function capacityRecoveryJobReader(value: { deadline?: number }) {
+  const original = value.deadline;
+  if (original !== undefined && !Number.isFinite(original))
+    throw new Error("capacity recovery phase deadline invalid");
+  const token = fixedReleaseReaderToken();
+  const direct = readOnlyReleaseChildEnvironment() !== undefined;
+  return async (job: number) => {
+    if (!Number.isSafeInteger(job) || job < 1)
+      throw new Error("exact capacity recovery job required");
+    const deadline = Math.min(
+      original ?? Infinity,
+      coordinatorCommandDeadline() ?? Infinity,
+      performance.now() + 15000,
+    );
+    if (deadline <= performance.now())
+      throw new Error("capacity recovery phase deadline exhausted");
+    const provider = await createReleaseCustodyProvider({
+      token,
+      deadline,
+      ...(direct
+        ? {
+            fetch(input, init) {
+              assertTrustedDirectNode("capacity recovery reader");
+              return globalThis.fetch(input, init);
+            },
+          }
+        : {}),
+    });
+    return provider.job(job);
   };
-  return new GitHubApiClient((args, body) => {
-    const result = createGitHubRunner({
-      cwd: value.directory,
-      timeoutMs: remaining(),
-      maxBuffer: 2 * 1024 * 1024,
-    })([...args, "--hostname", "github.com"], body);
-    remaining();
-    return result;
-  });
 }
 
-/** The actual caller supplies a synchronous recheck of its current authenticated
- * controls. GET-only recovery is separate from every journal mutation. */
-function recoveryJournalApi(value: PrivateSession, beforeMutation?: () => void) {
+export type RecoveryMutationControls = (() => void) | { readCurrent: () => Promise<void> };
+
+/** GET-only recovery remains independent. Explicit SDK control reads must be
+ * awaited immediately before the corresponding journal write. */
+function recoveryJournalApi(value: PrivateSession, beforeMutation?: RecoveryMutationControls) {
   const journal = createCoordinatorJournalApi(value.directory, value.deadline);
-  const guard = () => {
-    if (beforeMutation && beforeMutation() !== undefined)
-      throw new Error("recovery mutation guard must complete synchronously");
+  const guarded = <T,>(write: () => Promise<T>) => {
+    if (typeof beforeMutation === "function") {
+      if (beforeMutation() !== undefined)
+        throw new Error("recovery mutation guard must complete synchronously");
+    } else if (beforeMutation) {
+      return beforeMutation.readCurrent().then(write);
+    }
+    return write();
   };
   return {
-    request: (...args: Parameters<typeof journal.request>) => {
-      if (args[0] !== "GET") guard();
-      return journal.request(...args);
-    },
-    graphql: (...args: Parameters<typeof journal.graphql>) => {
-      if (/^\s*mutation\b/u.test(args[0])) guard();
-      return journal.graphql(...args);
-    },
+    request: (...args: Parameters<typeof journal.request>) =>
+      args[0] === "GET" ? journal.request(...args) : guarded(() => journal.request(...args)),
+    graphql: (...args: Parameters<typeof journal.graphql>) =>
+      /^\s*mutation\b/u.test(args[0])
+        ? guarded(() => journal.graphql(...args))
+        : journal.graphql(...args),
   };
 }
 export async function recoverOwnedCapacityEffect(
@@ -1172,7 +1258,7 @@ export async function recoverOwnedCapacityEffect(
     Parameters<typeof recoverOwnedCapacityEffectWithinScope>[0],
     Parameters<typeof recoverOwnedCapacityEffectWithinScope>[1],
     Parameters<typeof recoverOwnedCapacityEffectWithinScope>[2],
-    beforeMutation?: () => void,
+    beforeMutation?: RecoveryMutationControls,
     /** Selected signed journal: actual live controls; fourth guard is legacy only. */
     beforeCheckpointMutation?: () => Promise<void>,
   ]
@@ -1204,7 +1290,7 @@ async function recoverOwnedCapacityEffectWithinScope(
     completed_effect?: { remote_identity: string; evidence_sha256: string };
   }>,
   admittedAggregate = false,
-  beforeMutation?: () => void,
+  beforeMutation?: RecoveryMutationControls,
   beforeCheckpointMutation?: () => Promise<void>,
 ) {
   const value = sessions.get(session);
@@ -1225,8 +1311,8 @@ async function recoverOwnedCapacityEffectWithinScope(
     throw new Error("executor is busy or stopped; retain original recovery evidence");
   state.busy = true;
   try {
-    const api = capacityRecoveryProviderApi(value);
-    const { remote, publish } = ownedCheckpointTransport(
+    const readJob = capacityRecoveryJobReader(value);
+    const { remote, publish } = await ownedCheckpointTransport(
       session,
       input,
       beforeCheckpointMutation,
@@ -1263,14 +1349,9 @@ async function recoverOwnedCapacityEffectWithinScope(
       throw new Error("admitted aggregate recovery cannot resolve another effect");
     if (original.job_id === executorIdentity.job_id && original.run_id === executorIdentity.run_id)
       throw new Error("live executor cannot appoint itself as terminal-job recovery");
-    const terminal = () => {
-      const response = api.request(
-        "GET",
-        `repos/boburning/portcove/actions/jobs/${String(original.job_id)}`,
-      );
-      const job = response.body;
+    const terminal = async () => {
+      const job = await readJob(Number(original.job_id));
       if (
-        response.status !== 200 ||
         !isRecord(job) ||
         job.id !== original.job_id ||
         String(job.run_id) !== original.run_id ||
@@ -1284,7 +1365,7 @@ async function recoverOwnedCapacityEffectWithinScope(
       )
         throw new Error("original exact executor is not observed terminal; recovery remains held");
     };
-    terminal();
+    await terminal();
     const resolution = structuredClone(await readback(structuredClone(operation)));
     if (
       !["evidence_sha256,resolution", "completed_effect,evidence_sha256,resolution"].includes(
@@ -1305,7 +1386,7 @@ async function recoverOwnedCapacityEffectWithinScope(
     )
       throw new Error("actual recovery readback is incomplete");
     await refreshCapacityExecutor(session);
-    terminal();
+    await terminal();
     await publish(input.checkpoint);
     const settled = await recordCapacityReadback(
       input.repository,
@@ -1337,7 +1418,7 @@ export async function recoverOwnedPublishedMetadata(
   session: ExecutorSession,
   raw: { repository: string; checkpoint: string; remote_configuration: unknown },
   readback: (operation: Readonly<Record<string, unknown>>) => Promise<unknown>,
-  beforeMutation?: () => void,
+  beforeMutation?: RecoveryMutationControls,
   beforeCheckpointMutation?: () => Promise<void>,
 ) {
   const value = sessions.get(session);
@@ -1359,7 +1440,7 @@ export async function recoverOwnedPublishedCatalogMetadata(
   session: ExecutorSession,
   raw: { repository: string; checkpoint: string; remote_configuration: unknown },
   readback: (operation: Readonly<Record<string, unknown>>) => Promise<unknown>,
-  beforeMutation?: () => void,
+  beforeMutation?: RecoveryMutationControls,
   beforeCheckpointMutation?: () => Promise<void>,
 ) {
   const value = sessions.get(session);
@@ -1380,7 +1461,7 @@ async function recoverOwnedPublishedMetadataWithinScope(
   raw: { repository: string; checkpoint: string; remote_configuration: unknown },
   readback: (operation: Readonly<Record<string, unknown>>) => Promise<unknown>,
   component: "application" | "catalog" = "application",
-  beforeMutation?: () => void,
+  beforeMutation?: RecoveryMutationControls,
   beforeCheckpointMutation?: () => Promise<void>,
 ) {
   const value = sessions.get(session);
@@ -1395,8 +1476,8 @@ async function recoverOwnedPublishedMetadataWithinScope(
   if (state.busy || state.failed) throw new Error("recovery executor is busy or stopped");
   state.busy = true;
   try {
-    const api = capacityRecoveryProviderApi(value);
-    const { remote, publish } = ownedCheckpointTransport(
+    const readJob = capacityRecoveryJobReader(value);
+    const { remote, publish } = await ownedCheckpointTransport(
       session,
       input,
       beforeCheckpointMutation,
@@ -1436,14 +1517,9 @@ async function recoverOwnedPublishedMetadataWithinScope(
       (original.run_id === current.run_id && original.job_id === current.job_id)
     )
       throw new Error("separate terminal site publisher required");
-    const terminal = () => {
-      const result = api.request(
-        "GET",
-        `repos/boburning/portcove/actions/jobs/${String(original.job_id)}`,
-      );
-      const job = result.body;
+    const terminal = async () => {
+      const job = await readJob(Number(original.job_id));
       if (
-        result.status !== 200 ||
         !isRecord(job) ||
         job.id !== original.job_id ||
         String(job.run_id) !== original.run_id ||
@@ -1457,7 +1533,7 @@ async function recoverOwnedPublishedMetadataWithinScope(
       )
         throw new Error("original exact publisher is not observed terminal");
     };
-    terminal();
+    await terminal();
     const observed = await readback(structuredClone(operation));
     if (
       component === "catalog" &&
@@ -1495,7 +1571,7 @@ async function recoverOwnedPublishedMetadataWithinScope(
     )
       throw new Error("public readback differs from exact settled effect");
     await refreshCapacityExecutor(session);
-    terminal();
+    await terminal();
     await publish(input.checkpoint);
     const recovered =
       component === "catalog"

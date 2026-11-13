@@ -82,6 +82,7 @@ for (const theme of ["dark", "light"] as const) {
       <>
         <Button variant="primary">Play</Button>
         <Button variant="ghost">Neutral</Button>
+        <Button variant="outline">Outline</Button>
         <Button variant="selected">Selected</Button>
       </>,
     );
@@ -100,11 +101,13 @@ for (const theme of ["dark", "light"] as const) {
     for (const [name, token] of [
       ["Play", "--color-primary-active"],
       ["Neutral", "--color-bg-active"],
+      ["Outline", "--color-bg-active"],
       ["Selected", "--color-interactive-active"],
     ] as const) {
       const action = page.getByRole("button", { name, exact: true });
       await userEvent.tab();
       await expect.element(action).toHaveFocus();
+      await userEvent.hover(action.element());
       await userEvent.keyboard("{Space>}");
       try {
         await expect

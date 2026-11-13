@@ -3,9 +3,10 @@
   "listing": {
     "id": "virtual-hydlide-saturn-pc",
     "name": "Virtual Hydlide (Saturn PC)",
-    "summary": "Explore Virtual Hydlide (Saturn PC) and follow the upstream project for requirements, downloads and setup.",
+    "summary": "Experimental Virtual Hydlide native source route for your own complete Europe MK-81380 V1.000 CUE/BIN track set. It needs upstream compiler/SDL3 preparation and the extracted game data plus audio. Register only a prepared native game output with its creating working directory.",
     "project_url": "https://github.com/vs-sr-dev/pc-virtualhydlide",
     "issue_number": 1579,
+    "listed_at": "2026-10-23",
     "platforms": [],
     "availability": "source-only",
     "setup_url": "https://github.com/vs-sr-dev/pc-virtualhydlide#readme",
@@ -25,7 +26,7 @@
         },
         {
           "title": "Keep your files and update through upstream",
-          "instruction": "Use a separate folder you control and retain your working copy. An existing native player can use Portcove’s non-owning registration after the read-only executable review; choose Play separately. You or upstream keep runtime updates, original files, generated data, saves and settings. Portcove does not replace, back up or roll back this external runtime. Follow the selected upstream version’s instructions when changing it."
+          "instruction": "Keep the game in a separate folder you control, and retain a working copy. Review its executable in Portcove, then add it without changing its files. Choose Play separately when you are ready. You manage updates, original files, generated data, saves and settings. Portcove does not replace, back up or roll back this external copy. Follow the project’s instructions for the version you use when changing it."
         }
       ],
       "warnings": [],

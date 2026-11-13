@@ -1,15 +1,22 @@
+import { applicationReleaseProfile } from "./release-authority-configuration-contract.mts";
+import { nativePlatformsForReleaseProfile } from "./release-package-policy.mts";
 /** Actual hosted transport authentication. Wire parsing is deliberately separate
  * from this private, same-process receipt. No imported or injected proof can
  * acquire a native admission brand. This does not execute the native producer. */
 import { createHash } from "node:crypto";
-import { spawnSync } from "node:child_process";
 import { chmod, lstat, mkdtemp, realpath, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { performance } from "node:perf_hooks";
 import { isDeepStrictEqual } from "node:util";
-import { createGitHubRunner, GitHubApiClient } from "./github-api.mts";
-import type { GitHubRestReader } from "./github-api.mts";
-import { verifyControllerArtifactVerification } from "./github-controller-attestation.mts";
+import { createReleaseCustodyProvider } from "./release-custody-provider.mts";
+import type {
+  HistoricalJobProvider,
+  HostedNativeSourceProvider,
+} from "./release-custody-provider.mts";
+import {
+  parseControllerWitnessedTime,
+  verifyControllerArtifactVerification,
+} from "./github-controller-attestation.mts";
 import { productionControllerWorkflow } from "./production-controller-admission.mts";
 import {
   verifyHistoricalHostedNativeJob,
@@ -52,7 +59,7 @@ type Retained = {
   active: () => void;
   deadline: number;
   observeJob: () => ReturnType<typeof verifyHistoricalHostedNativeJob>;
-  job: ReturnType<typeof verifyHistoricalHostedNativeJob>;
+  job: Awaited<ReturnType<typeof verifyHistoricalHostedNativeJob>>;
   stopped: boolean;
 };
 const receipts = new WeakMap<object, Retained>();
@@ -102,7 +109,7 @@ type HostedNativeProofArguments = [
   deadline: number,
   options?: {
     attestation?: NonNullable<Parameters<typeof verifyControllerArtifactVerification>[5]>;
-    api?: GitHubRestReader;
+    provider?: HistoricalJobProvider & HostedNativeSourceProvider;
   },
 ];
 /** Current settled stage only; the original provider job may remain alive for
@@ -132,7 +139,7 @@ async function collectHostedNativeProof(
   deadline: number,
   options: {
     attestation?: NonNullable<Parameters<typeof verifyControllerArtifactVerification>[5]>;
-    api?: GitHubRestReader;
+    provider?: HistoricalJobProvider & HostedNativeSourceProvider;
   } = {},
 ) {
   // All caller-controlled inputs are snapshotted before the first await.
@@ -144,7 +151,7 @@ async function collectHostedNativeProof(
     throw new Error(
       "Server continuity cannot supply native/client-minimum acceptance; separate Windows client qualification required",
     );
-  const injected = options.attestation !== undefined || options.api !== undefined;
+  const injected = options.attestation !== undefined || options.provider !== undefined;
   const attestation =
     options.attestation === undefined
       ? undefined
@@ -164,7 +171,7 @@ async function collectHostedNativeProof(
   active();
   if (deadline - performance.now() > 120000)
     throw new Error("hosted native verification requires a bounded original deadline");
-  const suppliedApi = options.api;
+  const suppliedProvider = options.provider;
   if (
     !path.isAbsolute(directory) ||
     (await realpath(directory)) !== path.resolve(directory) ||
@@ -177,31 +184,14 @@ async function collectHostedNativeProof(
   const filenames = Object.fromEntries(
     keys.map((key) => [key, path.join(capture, `${key}.json`)]),
   ) as Retained["filenames"];
-  const baseApi =
-    suppliedApi ??
-    new GitHubApiClient((args, input) => {
-      active();
-      return createGitHubRunner({
-        cwd: capture,
-        spawn: (command, values, settings) =>
-          spawnSync(command, values, { ...settings, env: environment }),
-        maxBuffer: 2 * 1024 * 1024,
-        timeoutMs: Math.min(30000, Math.ceil(deadline - performance.now())),
-      })([...args, "--hostname", "github.com"], input);
-    });
   let requests = 0;
-  const api: GitHubRestReader = {
-    request(method, route) {
-      active();
-      if (method !== "GET" || ++requests > 50)
-        throw new Error("hosted native provider read bound exhausted");
-      const result = baseApi.request(method, route);
-      active();
-      if (result.status !== 200) throw new Error("hosted native provider read unavailable");
-      return result;
-    },
+  const read = async <T,>(operation: () => Promise<T>) => {
+    active();
+    if (++requests > 50) throw new Error("hosted native provider read bound exhausted");
+    const result = await operation();
+    active();
+    return result;
   };
-  const get = (suffix: string) => api.request("GET", `repos/boburning/portcove/${suffix}`).body;
   const retain = async (name: string, value: unknown) => {
     await writeFile(path.join(capture, name), JSON.stringify(value), { flag: "wx", mode: 0o600 });
     active();
@@ -222,11 +212,23 @@ async function collectHostedNativeProof(
     }
     await retain("expected.json", expected);
     phase = "source";
+    const provider =
+      suppliedProvider ??
+      (await createReleaseCustodyProvider({
+        token: environment.GH_TOKEN ?? "",
+        deadline,
+        requestTimeoutMs: 30000,
+      }));
+    const jobProvider: HistoricalJobProvider = {
+      attempt: (run, attempt) => read(() => provider.attempt(run, attempt)),
+      jobs: (run, attempt, page) => read(() => provider.jobs(run, attempt, page)),
+      job: (id) => read(() => provider.job(id)),
+    };
     for (const [name, source] of [
       ["producer", prepared.report.producer],
       ["candidate", prepared.report.candidate],
     ] as const) {
-      const commit = get(`git/commits/${source.source_commit}`);
+      const commit = await read(() => provider.commit(source.source_commit));
       await retain(`${name}-source.json`, commit);
       if (
         !isRecord(commit) ||
@@ -252,7 +254,7 @@ async function collectHostedNativeProof(
         65536,
       ],
     ] as const) {
-      const item = get(`contents/${filename}?ref=${revision}`);
+      const item = await read(() => provider.file(filename, revision));
       await retain(`${name}-source.json`, item);
       if (
         !isRecord(item) ||
@@ -296,18 +298,16 @@ async function collectHostedNativeProof(
       verified.verifiedTimestamps.length > 8
     )
       throw new Error("hosted native verified statement or timestamp bound differs");
-    const times = verified.verifiedTimestamps.map((value: unknown) =>
-      instant(isRecord(value) ? value.timestamp : null),
-    );
+    const times = verified.verifiedTimestamps.map(parseControllerWitnessedTime);
     const observeJob = () =>
       (purpose !== "historical" ? verifyHostedNativePhaseJob : verifyHistoricalHostedNativeJob)(
         prepared.report.platform_label,
         prepared.producer,
         Math.max(...times),
-        { cwd: capture, deadline, api },
+        { deadline, provider: jobProvider },
       );
     phase = purpose !== "historical" ? "settled-phase-job" : "historical-job";
-    const job = observeJob();
+    const job = await observeJob();
     const start = instant(prepared.report.runtime.started_at),
       end = instant(prepared.report.runtime.teardown.completed_at);
     if (
@@ -443,7 +443,7 @@ async function readActiveBoundHostedNativeQualification(bound: Retained) {
   }
   const prepared = inspectHostedNativeProofFiles(files, bound.authorities, bound.expected.producer);
   association(prepared, bound.expected);
-  const observed = bound.observeJob();
+  const observed = await bound.observeJob();
   if (
     !isDeepStrictEqual(observed.witnessed_interval, bound.job.witnessed_interval) ||
     (bound.job.completed_at !== null && bound.job.completed_at !== observed.completed_at)
@@ -484,12 +484,15 @@ async function readActiveBoundHostedNativeQualification(bound: Retained) {
 export async function prepareHostedNativeCustody(rawReceipts: readonly object[]) {
   const pair = (value: unknown): value is readonly object[] =>
     Array.isArray(value) &&
-    value.length === 2 &&
+    [1, 2].includes(value.length) &&
     value.every((entry: unknown) => typeof entry === "object" && entry !== null);
-  if (!pair(rawReceipts) || rawReceipts[0] === rawReceipts[1])
+  if (!pair(rawReceipts) || new Set(rawReceipts).size !== rawReceipts.length)
     throw new Error("actual separate hosted native pair required for custody");
   const captured = [...rawReceipts];
-  const proofs = [];
+  const proofs: {
+    report: VerifiedHostedNativeQualification;
+    bound: NonNullable<ReturnType<typeof receipts.get>>;
+  }[] = [];
   for (const receipt of captured) {
     const report = await verifiedHostedNativeReleaseQualification(receipt),
       bound = receipts.get(receipt);
@@ -498,7 +501,14 @@ export async function prepareHostedNativeCustody(rawReceipts: readonly object[])
     proofs.push({ report, bound });
   }
   proofs.sort((a, b) => a.report.platform_label.localeCompare(b.report.platform_label));
-  if (!isDeepStrictEqual(proofs[0]!.bound.authorities, proofs[1]!.bound.authorities))
+  if (
+    proofs.length !==
+      nativePlatformsForReleaseProfile(applicationReleaseProfile(proofs[0]!.bound.authorities))
+        .length ||
+    proofs.some(
+      (proof) => !isDeepStrictEqual(proofs[0]!.bound.authorities, proof.bound.authorities),
+    )
+  )
     throw new Error("hosted native custody configuration pair differs");
   const bytes = Buffer.from(
     JSON.stringify({

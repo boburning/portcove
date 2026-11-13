@@ -80,7 +80,8 @@ it.each(["future_kind", "constructor", "__proto__"])("uses a neutral label for %
       ports={[]}
     />,
   );
-  expect(html).toContain("Library · Recovery information needs review");
+  // The game name is direction-isolated so RTL locales keep its order.
+  expect(html).toContain("<bdi>Library</bdi> · Recovery information needs review");
   expect(html).toContain("No location was recorded.");
   expect(html).toContain("No recovery guidance was recorded.");
   expect(html).not.toContain("raw-machine-secret");

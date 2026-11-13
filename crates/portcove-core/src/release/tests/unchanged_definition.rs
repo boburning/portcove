@@ -42,6 +42,604 @@ fn observed_rollout_releases(id: &str) -> Vec<serde_json::Value> {
 }
 
 #[tokio::test]
+async fn opensc2k_selects_linux_tarballs_with_an_unchanged_definition() {
+    let catalog = crate::Catalog::embedded().unwrap();
+    let port = catalog.port("nicholas-ochoa-opensc2k").unwrap();
+    let mut previous = port.clone();
+    previous.linux_portable_data_directory = None;
+    let key =
+        |port| ReleaseSelectionCacheKey::new(port, ReleaseChannel::Stable, Platform::LinuxX86_64);
+    assert_ne!(key(port), key(&previous));
+    let current = "OpenSC2K-0.3.0-linux-x64.tar.gz";
+    let successor = "OpenSC2K-0.3.1-linux-x64.tar.gz";
+    let digest = "ae590f1972bab10de02334219426c9916de6e2c528fa65709d2b22bdf1bd952c";
+    let mut published = asset(current, None);
+    published["digest"] = serde_json::json!(format!("sha256:{digest}"));
+    published["size"] = serde_json::json!(57_273_526);
+    let (root, requests, server) = serve_http(vec![
+        metadata(),
+        releases(&[release("v0.3.0", vec![published])]),
+        metadata(),
+        releases(&[release(
+            "v0.3.1",
+            vec![
+                asset("OpenSC2K-0.3.1-linux-arm64.tar.gz", Some('b')),
+                asset("OpenSC2K-0.3.1-windows-x64-portable.zip", Some('c')),
+                asset("OpenSC2K-0.3.1-macos-universal.dmg", Some('d')),
+                asset("OpenSC2K-0.3.1-linux-x64.tar.gz.zip", Some('e')),
+                asset("mirror-OpenSC2K-0.3.1-linux-x64.tar.gz", Some('f')),
+                asset("OpenSC2K-experimental-linux-x64.tar.gz", Some('e')),
+                asset(successor, Some('a')),
+            ],
+        )]),
+    ]);
+    for (name, expected, root) in [
+        (current, digest.to_string(), root.clone()),
+        (successor, "a".repeat(64), root),
+    ] {
+        let resolved = GithubReleaseProvider::with_api_root(root)
+            .unwrap()
+            .resolve(port, ReleaseChannel::Stable, Platform::LinuxX86_64)
+            .await
+            .unwrap();
+        assert_eq!(resolved.asset.name, name);
+        assert_eq!(resolved.asset.sha256, expected);
+    }
+    server.join().unwrap();
+    assert_eq!(requests.try_iter().count(), 4);
+}
+
+#[tokio::test]
+async fn openmohaa_unix_selects_official_zip_and_compatible_successor() {
+    let id = "medal-of-honor-allied-assault-openmohaa";
+    let catalog = crate::Catalog::embedded().unwrap();
+    let port = catalog.port(id).unwrap();
+    let fixtures: serde_json::Value = serde_json::from_str(include_str!(
+        "../../testdata/native-engine-adoption-2026-11-02.json"
+    ))
+    .unwrap();
+    let case = fixtures["cases"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|case| case["port_id"] == id)
+        .unwrap();
+    let observed = &case["release"];
+    let assets = observed["assets"].as_array().unwrap();
+    let next = release(
+        "v0.82.2",
+        assets
+            .iter()
+            .map(|original| {
+                let name = original["name"]
+                    .as_str()
+                    .unwrap()
+                    .replace("v0.82.1", "v0.82.2");
+                asset(&name, Some('b'))
+            })
+            .collect(),
+    );
+    for (platform, suffix, digest) in [
+        (
+            Platform::LinuxX86_64,
+            "-linux-amd64.zip",
+            "57692d057a684afb7f7e91a61fcd8c062b29ab1b639f27453830084a88cd653c",
+        ),
+        (
+            Platform::MacosX86_64,
+            "-macos-multiarch-arm64-x86_64.zip",
+            "dd590e887078912e0bd80ad3e9d414ef7611faada064e7e49b4c3eafa59e579a",
+        ),
+        (
+            Platform::MacosAarch64,
+            "-macos-multiarch-arm64-x86_64.zip",
+            "dd590e887078912e0bd80ad3e9d414ef7611faada064e7e49b4c3eafa59e579a",
+        ),
+    ] {
+        let (root, requests, server) = serve_http(vec![
+            metadata(),
+            releases(std::slice::from_ref(observed)),
+            metadata(),
+            releases(std::slice::from_ref(&next)),
+        ]);
+        let provider = GithubReleaseProvider::with_api_root(root.clone()).unwrap();
+        let baseline = provider
+            .resolve(port, ReleaseChannel::Stable, platform)
+            .await
+            .unwrap();
+        assert_eq!(baseline.asset.name, format!("openmohaa-v0.82.1{suffix}"));
+        assert_eq!(baseline.asset.sha256, digest);
+        let successor = GithubReleaseProvider::with_api_root(root)
+            .unwrap()
+            .resolve(port, ReleaseChannel::Stable, platform)
+            .await
+            .unwrap();
+        assert_eq!(successor.asset.name, format!("openmohaa-v0.82.2{suffix}"));
+        assert_eq!(successor.asset.sha256, "b".repeat(64));
+        server.join().unwrap();
+        assert_eq!(requests.try_iter().count(), 4);
+    }
+}
+
+#[test]
+fn openmohaa_unix_selector_cannot_reuse_a_broader_cached_release() {
+    let catalog = crate::Catalog::embedded().unwrap();
+    let port = catalog
+        .port("medal-of-honor-allied-assault-openmohaa")
+        .unwrap();
+    let mut broader = port.clone();
+    broader.external_profile_policy = None;
+    let channel = ReleaseChannel::Stable;
+    let key = |port, platform| ReleaseSelectionCacheKey::new(port, channel, platform);
+    for platform in [
+        Platform::LinuxX86_64,
+        Platform::MacosX86_64,
+        Platform::MacosAarch64,
+    ] {
+        assert_ne!(key(port, platform), key(&broader, platform));
+    }
+    assert_eq!(
+        key(port, Platform::WindowsX86_64),
+        key(&broader, Platform::WindowsX86_64)
+    );
+}
+
+#[test]
+fn openjo_unix_selector_cannot_reuse_a_broader_cached_release() {
+    let catalog = crate::Catalog::embedded().unwrap();
+    let port = catalog
+        .port("star-wars-jedi-knight-ii-jedi-outcast-single-player-openjk-openjo")
+        .unwrap();
+    let mut broader = port.clone();
+    broader.external_profile_policy = None;
+    let key =
+        |port, platform| ReleaseSelectionCacheKey::new(port, ReleaseChannel::Rolling, platform);
+    for platform in [
+        Platform::LinuxX86_64,
+        Platform::MacosX86_64,
+        Platform::MacosAarch64,
+    ] {
+        assert_ne!(key(port, platform), key(&broader, platform));
+    }
+    assert_eq!(
+        key(port, Platform::WindowsX86_64),
+        key(&broader, Platform::WindowsX86_64)
+    );
+}
+
+#[tokio::test]
+async fn quake_linux_selects_the_official_package_and_compatible_successor() {
+    let catalog = crate::Catalog::embedded().unwrap();
+    for (id, current, next, alternatives, digest, size) in [
+        (
+            "quake-ironwail",
+            "ironwail-0.8.2-linux-x64.tar.gz",
+            "ironwail-0.8.3-linux-x64.tar.gz",
+            [
+                "ironwail-0.8.3-win64.zip",
+                "ironwail-0.8.3-linux-arm64.tar.gz",
+                "ironwail-0.8.3-linux-x64.tar.gz.zip",
+                "mirror-ironwail-0.8.3-linux-x64.tar.gz",
+            ],
+            "fcb0219d13c50f64728892f0558b4761ba5578319a6cc01021fad981c6333aa5",
+            592_534,
+        ),
+        (
+            "quake-vkquake",
+            "vkQuake-1.37.0-x86_64.AppImage",
+            "vkQuake-1.38.0-x86_64.AppImage",
+            [
+                "vkQuake-1.38.0_windows_x64.zip",
+                "vkQuake-1.38.0-aarch64.AppImage",
+                "vkQuake-1.38.0-x86_64.AppImage.zip",
+                "mirror-vkQuake-1.38.0-x86_64.AppImage",
+            ],
+            "abf8546316997d16b86fea242d90afc8203fecb9e5016d6262f7bec1f36a5a9e",
+            9_538_040,
+        ),
+    ] {
+        let port = catalog.port(id).unwrap();
+        let mut broad = port.clone();
+        broad.external_profile_policy = None;
+        let key =
+            |port, platform| ReleaseSelectionCacheKey::new(port, ReleaseChannel::Stable, platform);
+        assert_ne!(
+            key(port, Platform::LinuxX86_64),
+            key(&broad, Platform::LinuxX86_64)
+        );
+        assert_eq!(
+            key(port, Platform::WindowsX86_64),
+            key(&broad, Platform::WindowsX86_64)
+        );
+        let mut observed = asset(current, None);
+        observed["digest"] = serde_json::json!(format!("sha256:{digest}"));
+        observed["size"] = serde_json::json!(size);
+        let mut next_assets = vec![asset(next, Some('a'))];
+        next_assets.extend(alternatives.map(|name| asset(name, Some('b'))));
+        let (root, requests, server) = serve_http(vec![
+            metadata(),
+            releases(&[release(current.split('-').nth(1).unwrap(), vec![observed])]),
+            metadata(),
+            releases(&[release(next.split('-').nth(1).unwrap(), next_assets)]),
+        ]);
+        for (name, expected, root) in [
+            (current, digest.to_string(), root.clone()),
+            (next, "a".repeat(64), root),
+        ] {
+            let release = GithubReleaseProvider::with_api_root(root)
+                .unwrap()
+                .resolve(port, ReleaseChannel::Stable, Platform::LinuxX86_64)
+                .await
+                .unwrap();
+            assert_eq!(release.asset.name, name);
+            assert_eq!(release.asset.sha256, expected);
+        }
+        server.join().unwrap();
+        assert_eq!(requests.try_iter().count(), 4);
+    }
+}
+
+#[tokio::test]
+async fn profile_siblings_select_official_archives_and_compatible_successors() {
+    let catalog = crate::Catalog::embedded().unwrap();
+    for (id, platform, current, successor, digest, size) in [
+        (
+            "corsixth-corsixth",
+            Platform::LinuxX86_64,
+            "CorsixTH-v0.70.2-x86_64.AppImage",
+            "CorsixTH-v0.70.3-x86_64.AppImage",
+            "106aa756cfbd59be153067f63fa8ac8b2090996752853cd4f03d03425011237e",
+            82_872_824,
+        ),
+        (
+            "openloco-openloco",
+            Platform::LinuxX86_64,
+            "OpenLoco-v26.09-linux-x64.AppImage",
+            "OpenLoco-v26.10.1-linux-x64.AppImage",
+            "353750c8cee127aa24ce2e3cc7e8233c14fe37362bd62f6b3c3d6887a7d16fb3",
+            17_680_888,
+        ),
+        (
+            "openloco-openloco",
+            Platform::MacosAarch64,
+            "OpenLoco-v26.09-macos-arm64.zip",
+            "OpenLoco-v26.10-macos-arm64.zip",
+            "15cd95be662810cae3a16bc8053b2cb3cd2bc680fc29ac486322c3e00fe6da1e",
+            17_557_193,
+        ),
+    ] {
+        let port = catalog.port(id).unwrap();
+        let mut broad = port.clone();
+        broad.external_profile_policy = None;
+        let key = |port| ReleaseSelectionCacheKey::new(port, ReleaseChannel::Stable, platform);
+        assert_ne!(key(port), key(&broad));
+        let mut published = asset(current, None);
+        published["digest"] = serde_json::json!(format!("sha256:{digest}"));
+        published["size"] = serde_json::json!(size);
+        let (root, requests, server) = serve_http(vec![
+            metadata(),
+            releases(&[release(current.split('-').nth(1).unwrap(), vec![published])]),
+            metadata(),
+            releases(&[release(
+                successor.split('-').nth(1).unwrap(),
+                vec![
+                    asset(successor, Some('a')),
+                    asset(&format!("mirror-{successor}"), Some('b')),
+                    asset(&format!("{successor}.zip"), Some('c')),
+                ],
+            )]),
+        ]);
+        for (name, expected, root) in [
+            (current, digest.to_string(), root.clone()),
+            (successor, "a".repeat(64), root),
+        ] {
+            let resolved = GithubReleaseProvider::with_api_root(root)
+                .unwrap()
+                .resolve(port, ReleaseChannel::Stable, platform)
+                .await
+                .unwrap();
+            assert_eq!(resolved.asset.name, name);
+            assert_eq!(resolved.asset.sha256, expected);
+        }
+        server.join().unwrap();
+        assert_eq!(requests.try_iter().count(), 4);
+    }
+}
+
+#[tokio::test]
+async fn archive_siblings_select_two_compatible_publisher_releases() {
+    let catalog = crate::Catalog::embedded().unwrap();
+    for (id, platform, releases_to_check) in [
+        (
+            "jgrennison-openttd-patches",
+            Platform::LinuxX86_64,
+            [
+                (
+                    "jgrpp-0.73.4",
+                    "openttd-jgrpp-0.73.4-linux-generic-amd64.tar.xz",
+                    "9df78eaa8157fff3c310345554b34dbd3ecc6d14e3988f91e3c25b5330940511",
+                ),
+                (
+                    "jgrpp-0.73.5",
+                    "openttd-jgrpp-0.73.5-linux-generic-amd64.tar.xz",
+                    "2de4dc6fa93115ddc4c2ff58f6a70e78056e726a182d2f986a06c0f07227097d",
+                ),
+            ],
+        ),
+        (
+            "gladiator-openglad",
+            Platform::MacosAarch64,
+            [
+                (
+                    "v2.1097",
+                    "openglad-macos-arm64.zip",
+                    "09ada009f20138f1c592a4edb93809aafcc7058290034ce462e2e71b4028ed89",
+                ),
+                (
+                    "v2.1098",
+                    "openglad-macos-arm64.zip",
+                    "037fbef7fac1460235b39fb923515b72ef7f784967a2f6b6f62194a7b5353a71",
+                ),
+            ],
+        ),
+    ] {
+        let port = catalog.port(id).unwrap();
+        let mut broad = port.clone();
+        broad.external_profile_policy = None;
+        let key = |port| ReleaseSelectionCacheKey::new(port, ReleaseChannel::Stable, platform);
+        assert_ne!(key(port), key(&broad));
+        for (tag, name, digest) in releases_to_check {
+            let mut published = asset(name, None);
+            published["digest"] = serde_json::json!(format!("sha256:{digest}"));
+            let (root, requests, server) = serve_http(vec![
+                metadata(),
+                releases(&[release(
+                    tag,
+                    vec![asset(&format!("mirror-{name}"), Some('b')), published],
+                )]),
+            ]);
+            let resolved = GithubReleaseProvider::with_api_root(root)
+                .unwrap()
+                .resolve(port, ReleaseChannel::Stable, platform)
+                .await
+                .unwrap();
+            assert_eq!(resolved.asset.name, name);
+            assert_eq!(resolved.asset.sha256, digest);
+            server.join().unwrap();
+            assert_eq!(requests.try_iter().count(), 2);
+        }
+    }
+}
+
+#[tokio::test]
+async fn recomp_appimages_select_the_direct_linux_asset_and_compatible_successor() {
+    let catalog = crate::Catalog::embedded().unwrap();
+    for (id, name, tag, size, sha256) in [
+        (
+            "thatguymcd-glover-r",
+            "Glover-R",
+            "v1.0.1",
+            18_987_512_u64,
+            "765325f48cbe2fc4646a638faf75d971c7f122980b08b6bdedb148a8513296ca",
+        ),
+        (
+            "rocket-robot-on-wheels-rocket-r",
+            "Rocket-R",
+            "v.1.0.1",
+            21_637_624_u64,
+            "82048c0d7a8ab5555ea5f663cde7cec1563f799913ed390b12d0f6e35d9618ee",
+        ),
+    ] {
+        let port = catalog.port(id).unwrap();
+        let platform = Platform::LinuxX86_64;
+        let current_name = format!("{name}-1.0.1-Linux-x86_64.AppImage");
+        let next_name = format!("{name}-1.0.2-Linux-x86_64.AppImage");
+        let mut observed = asset(&current_name, None);
+        observed["size"] = serde_json::json!(size);
+        observed["digest"] = serde_json::json!(format!("sha256:{sha256}"));
+        let current = release(tag, vec![observed]);
+        let wrong = [
+            format!("{name}-1.0.2-Linux-aarch64.AppImage"),
+            format!("{name}-1.0.2-Linux-x86_64-SteamDeck.AppImage"),
+            format!("{name}-1.0.2-Linux-x86_64-Portable.tar.gz"),
+            format!("{name}-debug-1.0.2-Linux-x86_64.AppImage"),
+        ];
+        let mut next_assets = vec![asset(&next_name, Some('a'))];
+        next_assets.extend(wrong.iter().map(|name| asset(name, Some('b'))));
+        let next = release("v1.0.2", next_assets);
+        let (root, _, server) = serve_http(vec![
+            metadata(),
+            releases(&[current]),
+            metadata(),
+            releases(&[next]),
+        ]);
+        let observed = GithubReleaseProvider::with_api_root(root.clone())
+            .unwrap()
+            .resolve(port, ReleaseChannel::Stable, platform)
+            .await
+            .unwrap();
+        assert_eq!(observed.asset.name, current_name);
+        assert_eq!(observed.asset.size, size);
+        assert_eq!(observed.asset.sha256, sha256);
+        let successor = GithubReleaseProvider::with_api_root(root)
+            .unwrap()
+            .resolve(port, ReleaseChannel::Stable, platform)
+            .await
+            .unwrap();
+        assert_eq!(successor.asset.name, next_name);
+        assert_eq!(successor.asset.sha256, "a".repeat(64));
+        assert!(crate::managed_runtime_policy::requires_provider_resolution_on(port, platform));
+        for name in wrong {
+            assert!(
+                crate::managed_runtime_policy::require_native_appimage_artifact(
+                    port, platform, &name
+                )
+                .is_err()
+            );
+        }
+        crate::managed_runtime_policy::require_native_appimage_artifact(port, platform, &next_name)
+            .unwrap();
+        server.join().unwrap();
+    }
+}
+
+#[tokio::test]
+async fn openrct2_both_mac_architectures_follow_the_official_universal_bundle() {
+    let catalog = crate::Catalog::embedded().unwrap();
+    let port = catalog.port("openrct2-openrct2").unwrap();
+    let archive = "OpenRCT2-v0.5.7-macos-universal.zip";
+    let sha256 = "fd71e17c8ee5e8bd5887e2b1e269d7bdd0c7cee056997cdc6b55813ed395fed3";
+    let mut observed = asset(archive, None);
+    observed["size"] = serde_json::json!(115_868_444_u64);
+    observed["digest"] = serde_json::json!(format!("sha256:{sha256}"));
+    let current = release(
+        "v0.5.7",
+        vec![
+            observed,
+            asset("OpenRCT2-v0.5.7-windows-portable-x64.zip", Some('a')),
+            asset("OpenRCT2-v0.5.7-Linux-bookworm-x86_64.tar.gz", Some('b')),
+        ],
+    );
+    let successor_name = "OpenRCT2-v0.5.8-macos-universal.zip";
+    let successor = release(
+        "v0.5.8",
+        vec![
+            asset(successor_name, Some('c')),
+            asset("OpenRCT2-v0.5.8-macos-arm64.zip", Some('d')),
+            asset("OpenRCT2-v0.5.8-macos-universal.dmg", Some('e')),
+        ],
+    );
+    for platform in [Platform::MacosX86_64, Platform::MacosAarch64] {
+        let (root, _, server) = serve_http(vec![
+            metadata(),
+            releases(std::slice::from_ref(&current)),
+            metadata(),
+            releases(std::slice::from_ref(&successor)),
+        ]);
+        let old = GithubReleaseProvider::with_api_root(root.clone())
+            .unwrap()
+            .resolve(port, ReleaseChannel::Stable, platform)
+            .await
+            .unwrap();
+        assert_eq!(old.asset.name, archive);
+        assert_eq!(old.asset.size, 115_868_444);
+        assert_eq!(old.asset.sha256, sha256);
+        let next = GithubReleaseProvider::with_api_root(root)
+            .unwrap()
+            .resolve(port, ReleaseChannel::Stable, platform)
+            .await
+            .unwrap();
+        assert_eq!(next.asset.name, successor_name);
+        assert_eq!(next.asset.sha256, "c".repeat(64));
+        server.join().unwrap();
+    }
+}
+
+#[tokio::test]
+async fn native10_original_sibling_assets_follow_stable_successors() {
+    let catalog = crate::Catalog::embedded().unwrap();
+    for (record, ids, routes, tag) in [
+        (
+            include_str!("../../testdata/bstone-release-selection-2026-10-29.json"),
+            [
+                "blake-stone-aliens-of-gold-bstone",
+                "blake-stone-planet-strike-bstone",
+            ],
+            &[
+                (Platform::LinuxX86_64, "bstone-1.3.4+e65a6b40-Linux.zip"),
+                (Platform::MacosX86_64, "bstone-1.3.4+e65a6b40-Darwin.zip"),
+            ][..],
+            "v1.3.5",
+        ),
+        (
+            include_str!("../../testdata/devilution-release-selection-2026-10-29.json"),
+            ["diablo-devilutionx", "diablo-hellfire-devilutionx"],
+            &[(Platform::LinuxX86_64, "devilutionx-linux-x86_64.appimage")][..],
+            "1.5.6",
+        ),
+    ] {
+        let captured: serde_json::Value = serde_json::from_str(record).unwrap();
+        let observed = &captured["release"];
+        let mut next = observed.clone();
+        next["tag_name"] = serde_json::json!(tag);
+        for row in next["assets"].as_array_mut().unwrap() {
+            let name = row["name"]
+                .as_str()
+                .unwrap()
+                .replace("1.3.4+e65a6b40", "1.3.5+01234567");
+            *row = asset(&name, Some('c'));
+        }
+        for id in ids {
+            let port = catalog.port(id).unwrap();
+            for &(platform, name) in routes {
+                let selected = observed["assets"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .find(|row| row["name"] == name)
+                    .unwrap();
+                let (root, _, server) = serve_http(vec![
+                    metadata(),
+                    releases(std::slice::from_ref(observed)),
+                    metadata(),
+                    releases(std::slice::from_ref(&next)),
+                ]);
+                let current = GithubReleaseProvider::with_api_root(root.clone())
+                    .unwrap()
+                    .resolve(port, ReleaseChannel::Stable, platform)
+                    .await
+                    .unwrap();
+                assert_eq!(current.asset.name, name);
+                assert_eq!(current.asset.size, selected["size"].as_u64().unwrap());
+                assert_eq!(
+                    format!("sha256:{}", current.asset.sha256),
+                    selected["digest"]
+                );
+                let successor = GithubReleaseProvider::with_api_root(root)
+                    .unwrap()
+                    .resolve(port, ReleaseChannel::Stable, platform)
+                    .await
+                    .unwrap();
+                assert_eq!(successor.version, tag);
+                assert_eq!(
+                    successor.asset.name,
+                    name.replace("1.3.4+e65a6b40", "1.3.5+01234567")
+                );
+                assert_eq!(successor.asset.sha256, "c".repeat(64));
+                server.join().unwrap();
+            }
+        }
+    }
+}
+
+#[test]
+fn native10_appimage_selector_refuses_archive_fallback_and_legacy_routes() {
+    let catalog = crate::Catalog::embedded().unwrap();
+    let mut port = catalog.port("diablo-devilutionx").unwrap().clone();
+    let platform = Platform::LinuxX86_64;
+    let assets = serde_json::from_value::<Vec<GithubAsset>>(serde_json::json!([
+        asset("devilutionx-linux-x86_64.tar.gz", Some('d')),
+        asset(
+            "devilutionx-linux-x86_64.appimage.unreviewed.appimage",
+            Some('d')
+        ),
+    ]))
+    .unwrap();
+    assert_eq!(
+        choose_asset(&port, platform, &assets).unwrap_err().code,
+        crate::ErrorCode::NotFound
+    );
+    let appimage = serde_json::from_value::<GithubAsset>(asset(
+        "devilutionx-linux-x86_64.appimage",
+        Some('d'),
+    ))
+    .unwrap();
+    assert!(choose_asset(&port, platform, std::slice::from_ref(&appimage)).is_ok());
+    port.windows_temp_directory = None;
+    assert!(choose_asset(&port, platform, std::slice::from_ref(&appimage)).is_err());
+}
+
+#[tokio::test]
 async fn bstone_definitions_keep_win64_identity_and_refuse_unqualified_metadata() {
     let catalog = crate::Catalog::embedded().unwrap();
     let captured: serde_json::Value = serde_json::from_str(include_str!(
@@ -706,6 +1304,14 @@ async fn unchanged_authored_rules_follow_versioned_packages_after_cache_expiry_a
             "v0.1.2",
             "BombermanRecomp-windows-x64-v0.1.2.zip",
         ),
+        // v0.5.1 is a controlled successor, not a published-release claim.
+        (
+            "goldeneye-007-n64-pc-port",
+            "v0.5.0",
+            "goldeneye-pc-port-0.5.0-win64.zip",
+            "v0.5.1",
+            "goldeneye-pc-port-0.5.1-win64.zip",
+        ),
     ] {
         // Use each adopted route’s actual shipped rules unchanged.
         let port = catalog.port(id).unwrap();
@@ -1105,6 +1711,30 @@ async fn successor_resolution_refuses_lost_variant_ambiguity_wrong_architecture_
             );
         }
     }
+}
+
+#[tokio::test]
+async fn a_renamed_successor_asset_fails_closed_instead_of_falling_back_to_the_previous_release() {
+    let port = variant_port();
+    let old = release(
+        "v1.0.0",
+        vec![asset("Game-hd-v1.0.0-windows-x64.zip", Some('a'))],
+    );
+    // The successor keeps the platform tokens but upstream renamed the product, so
+    // the reviewed selector no longer matches. The route stays unavailable until a
+    // reviewed definition change; it never resolves to the older release.
+    let renamed = release(
+        "v2.0.0",
+        vec![asset("NewName-hd-v2.0.0-windows-x64.zip", Some('b'))],
+    );
+    let (api_root, _, server) = serve_http(vec![metadata(), releases(&[renamed, old])]);
+    let failure = GithubReleaseProvider::with_api_root(api_root)
+        .unwrap()
+        .resolve(&port, ReleaseChannel::Stable, Platform::WindowsX86_64)
+        .await
+        .unwrap_err();
+    server.join().unwrap();
+    assert_eq!(failure.code, crate::ErrorCode::NotFound);
 }
 
 #[tokio::test]
@@ -1819,4 +2449,794 @@ async fn retained_releases_expose_old_filename_pins_without_guessing_a_successor
     assert_eq!(failure.code, crate::ErrorCode::NotFound);
     assert_eq!(serde_json::to_vec(&port).unwrap(), definition);
     server.join().unwrap();
+}
+
+#[tokio::test]
+async fn power_dozer_unchanged_definition_selects_windows_runtime_and_refuses_unsafe_variants_2557()
+{
+    let catalog = crate::Catalog::embedded().unwrap();
+    let port = catalog.port("blast-corps-power-dozer").unwrap();
+    let definition = serde_json::to_value(port).unwrap();
+    let captured: serde_json::Value = serde_json::from_str(include_str!(
+        "../../testdata/blast-corps-release-selection-2026-10-31.json"
+    ))
+    .unwrap();
+    let observed = &captured["release"];
+    let name = "power-dozer-v0.84-windows-x86_64.zip";
+    let selected = observed["assets"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|asset| asset["name"] == name)
+        .unwrap();
+    let mut next = observed.clone();
+    next["tag_name"] = serde_json::json!("v0.85");
+    for asset in next["assets"].as_array_mut().unwrap() {
+        let name = asset["name"].as_str().unwrap().replace("v0.84", "v0.85");
+        asset["name"] = serde_json::json!(name);
+        asset["browser_download_url"] =
+            serde_json::json!(format!("https://downloads.example.invalid/{name}"));
+        asset["digest"] = serde_json::json!(format!("sha256:{}", "b".repeat(64)));
+    }
+    let (root, requests, server) = serve_http(vec![
+        metadata(),
+        releases(std::slice::from_ref(observed)),
+        metadata(),
+        releases(&[next]),
+    ]);
+    let old = GithubReleaseProvider::with_api_root(root.clone())
+        .unwrap()
+        .resolve(port, ReleaseChannel::Stable, Platform::WindowsX86_64)
+        .await
+        .unwrap();
+    assert_eq!(old.version, "v0.84");
+    assert_eq!(old.asset.name, name);
+    assert_eq!(old.asset.size, 14_232_529);
+    assert_eq!(
+        old.asset.sha256,
+        "5b25d339376065442d82972917c921fa25f3b9e2f5bb87252389a993a4723533"
+    );
+    let next = GithubReleaseProvider::with_api_root(root)
+        .unwrap()
+        .resolve(port, ReleaseChannel::Stable, Platform::WindowsX86_64)
+        .await
+        .unwrap();
+    assert_eq!(next.version, "v0.85");
+    assert_eq!(next.asset.name, "power-dozer-v0.85-windows-x86_64.zip");
+    assert_eq!(next.asset.sha256, "b".repeat(64));
+    server.join().unwrap();
+    assert_eq!(requests.try_iter().count(), 4);
+    for mutation in [
+        "wrong-cpu",
+        "wrong-platform",
+        "ambiguous",
+        "missing-integrity",
+    ] {
+        let mut player = selected.clone();
+        match mutation {
+            "wrong-cpu" => {
+                player["name"] = serde_json::json!("power-dozer-v0.85-windows-arm64.zip")
+            }
+            "wrong-platform" => {
+                player["name"] = serde_json::json!("power-dozer-v0.85-linux-x86_64.zip")
+            }
+            "missing-integrity" => player["digest"] = serde_json::Value::Null,
+            _ => {}
+        }
+        let mut candidates = vec![player.clone()];
+        if mutation == "ambiguous" {
+            player["name"] = serde_json::json!("power-dozer-v0.85-alternate-windows-x86_64.zip");
+            candidates.push(player);
+        }
+        let (root, _, server) =
+            serve_http(vec![metadata(), releases(&[release("v0.85", candidates)])]);
+        let error = GithubReleaseProvider::with_api_root(root)
+            .unwrap()
+            .resolve(port, ReleaseChannel::Stable, Platform::WindowsX86_64)
+            .await
+            .unwrap_err();
+        assert_eq!(
+            error.code,
+            match mutation {
+                "ambiguous" => crate::ErrorCode::Conflict,
+                "missing-integrity" => crate::ErrorCode::Verification,
+                _ => crate::ErrorCode::NotFound,
+            },
+            "{mutation}"
+        );
+        server.join().unwrap();
+    }
+    assert_eq!(serde_json::to_value(port).unwrap(), definition);
+}
+
+// Observed complete release metadata; all successors/refusals are controlled
+// provider fixtures and do not inherit original, native or save qualification.
+async fn assert_native_engine_adoption_selection(id: &str) {
+    let corpus: serde_json::Value = serde_json::from_str(include_str!(
+        "../../testdata/native-engine-adoption-2026-11-02.json"
+    ))
+    .unwrap();
+    let case = corpus["cases"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|case| case["port_id"] == id)
+        .unwrap();
+    let catalog = crate::Catalog::embedded().unwrap();
+    let port = catalog.port(id).unwrap();
+    let definition = serde_json::to_value(port).unwrap();
+    let channel = if case["channel"] == "rolling" {
+        ReleaseChannel::Rolling
+    } else {
+        ReleaseChannel::Stable
+    };
+    assert!(port.channels.contains(&channel), "{id}");
+    let observed = &case["release"];
+    let name = case["selected_asset"].as_str().unwrap();
+    let scenarios: serde_json::Value = serde_json::from_str(include_str!(
+        "../../testdata/native-engine-release-scenarios.json"
+    ))
+    .unwrap();
+    let scenario = &scenarios[case["repository"].as_str().unwrap()];
+    let player_scenario = &scenario["players"][name];
+    let selected = observed["assets"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|asset| asset["name"] == name)
+        .unwrap();
+    let mut successor = observed.clone();
+    let original_tag = observed["tag_name"].as_str().unwrap();
+    let next_tag = scenario["successor_tag"].as_str().unwrap();
+    successor["tag_name"] = serde_json::json!(next_tag);
+    let assets = successor["assets"].as_array_mut().unwrap();
+    let next_names = scenario["successor_asset_names"].as_array().unwrap();
+    assert_eq!(
+        assets.len(),
+        next_names.len(),
+        "{id}: complete successor inventory"
+    );
+    for (asset, next) in assets.iter_mut().zip(next_names) {
+        let next = next.as_str().unwrap();
+        asset["name"] = serde_json::json!(next);
+        asset["browser_download_url"] =
+            serde_json::json!(format!("https://downloads.example.invalid/{next}"));
+        asset["digest"] = serde_json::json!(format!("sha256:{}", "b".repeat(64)));
+    }
+    let (root, requests, server) = serve_http(vec![
+        metadata(),
+        releases(std::slice::from_ref(observed)),
+        metadata(),
+        releases(&[successor]),
+    ]);
+    let baseline = GithubReleaseProvider::with_api_root(root.clone())
+        .unwrap()
+        .resolve(port, channel, Platform::WindowsX86_64)
+        .await
+        .unwrap();
+    assert_eq!(baseline.version, original_tag, "{id}");
+    assert_eq!(baseline.asset.name, name, "{id}");
+    assert_eq!(
+        baseline.asset.size,
+        selected["size"].as_u64().unwrap(),
+        "{id}"
+    );
+    assert_eq!(
+        baseline.asset.sha256,
+        case["archive_sha256"].as_str().unwrap(),
+        "{id}"
+    );
+    let next = GithubReleaseProvider::with_api_root(root)
+        .unwrap()
+        .resolve(port, channel, Platform::WindowsX86_64)
+        .await
+        .unwrap();
+    assert_eq!(next.version, next_tag, "{id}");
+    assert_eq!(
+        next.asset.name,
+        player_scenario["successor_asset"].as_str().unwrap(),
+        "{id}"
+    );
+    assert_eq!(next.asset.sha256, "b".repeat(64), "{id}");
+    assert_ne!(
+        next.asset.sha256, baseline.asset.sha256,
+        "{id}: rebuilt tags bind changed bytes"
+    );
+    server.join().unwrap();
+    assert_eq!(requests.try_iter().count(), 4, "{id}");
+    for mutation in [
+        "wrong-cpu",
+        "wrong-platform",
+        "ambiguous",
+        "missing-integrity",
+    ] {
+        let mut player = selected.clone();
+        let original_name = player["name"].as_str().unwrap().to_owned();
+        let mutated = match mutation {
+            "wrong-cpu" => player_scenario["wrong_cpu"].as_str().unwrap(),
+            "wrong-platform" => player_scenario["wrong_platform"].as_str().unwrap(),
+            _ => &original_name,
+        };
+        player["name"] = serde_json::json!(mutated);
+        if mutation == "missing-integrity" {
+            player["digest"] = serde_json::Value::Null;
+        }
+        let mut assets = vec![player.clone()];
+        if mutation == "ambiguous" {
+            player["id"] = serde_json::json!(999_999_999);
+            let ambiguous = player_scenario["ambiguous_asset"].as_str().unwrap();
+            player["name"] = serde_json::json!(ambiguous);
+            player["browser_download_url"] =
+                serde_json::json!(format!("https://downloads.example.invalid/{ambiguous}"));
+            assets.push(player);
+        }
+        let (root, _, server) =
+            serve_http(vec![metadata(), releases(&[release(original_tag, assets)])]);
+        let failure = GithubReleaseProvider::with_api_root(root)
+            .unwrap()
+            .resolve(port, channel, Platform::WindowsX86_64)
+            .await
+            .unwrap_err();
+        assert_eq!(
+            failure.code,
+            match mutation {
+                "ambiguous" => crate::ErrorCode::Conflict,
+                "missing-integrity" => crate::ErrorCode::Verification,
+                _ => crate::ErrorCode::NotFound,
+            },
+            "{id}: {mutation}"
+        );
+        server.join().unwrap();
+    }
+    assert_eq!(
+        serde_json::to_value(port).unwrap(),
+        definition,
+        "{id}: provider observations grant no qualification"
+    );
+}
+
+#[tokio::test]
+async fn native_engine_selection_1878() {
+    assert_native_engine_adoption_selection("sdlpal-sdlpal").await;
+}
+
+#[tokio::test]
+async fn native_engine_selection_2567() {
+    assert_native_engine_adoption_selection("doom-3-classic-dhewm3").await;
+}
+
+#[tokio::test]
+async fn native_engine_selection_2568() {
+    assert_native_engine_adoption_selection("doom-3-resurrection-of-evil-classic-dhewm3").await;
+}
+
+#[tokio::test]
+async fn native_engine_selection_2565() {
+    assert_native_engine_adoption_selection(
+        "doom-3-classic-dude-doom-3-unified-development-engine",
+    )
+    .await;
+}
+
+#[tokio::test]
+async fn native_engine_selection_2566() {
+    assert_native_engine_adoption_selection(
+        "doom-3-resurrection-of-evil-classic-dude-doom-3-unified-development-engine",
+    )
+    .await;
+}
+
+#[tokio::test]
+async fn native_engine_selection_2592() {
+    assert_native_engine_adoption_selection("medal-of-honor-allied-assault-openmohaa").await;
+}
+
+#[tokio::test]
+async fn native_engine_selection_2593() {
+    assert_native_engine_adoption_selection("medal-of-honor-allied-assault-spearhead-openmohaa")
+        .await;
+}
+
+#[tokio::test]
+async fn native_engine_selection_2594() {
+    assert_native_engine_adoption_selection("medal-of-honor-allied-assault-breakthrough-openmohaa")
+        .await;
+}
+
+#[tokio::test]
+async fn native_engine_selection_2611() {
+    assert_native_engine_adoption_selection(
+        "star-wars-jedi-knight-ii-jedi-outcast-single-player-openjk-openjo",
+    )
+    .await;
+}
+
+#[tokio::test]
+async fn native_engine_selection_2612() {
+    assert_native_engine_adoption_selection(
+        "star-wars-jedi-knight-jedi-academy-single-player-and-multiplayer-openjk-openjo",
+    )
+    .await;
+}
+
+#[derive(serde::Deserialize)]
+struct ManagedPsxArchiveExpectation {
+    serial: String,
+    revision: Option<String>,
+    track_count: u32,
+    track_sha1: String,
+    track_sha256: Option<String>,
+    generated_executable: String,
+    #[serde(default)]
+    openbios: bool,
+    bios_profile: Option<String>,
+    #[serde(default)]
+    crash_diagnostic: bool,
+    #[serde(default)]
+    split_mod_paths: bool,
+    /// The observed release ran with the kit's bundled OpenBIOS. Its game
+    /// evidence stays exact, but the retail BIOS contract is bound only to
+    /// the later reviewed kits that require that BIOS.
+    #[serde(default)]
+    retail_bios_from_later_release: bool,
+    #[serde(default)]
+    extra_persistent_paths: Vec<String>,
+}
+
+impl ManagedPsxArchiveExpectation {
+    fn assert_contract(
+        &self,
+        catalog: &crate::Catalog,
+        port: &crate::PortDefinition,
+        platform: Platform,
+        version: &str,
+        artifact_sha256: &str,
+        observed_release: bool,
+    ) {
+        let id = &port.id;
+        let source_catalog = catalog.source_catalog().unwrap();
+        let bios_id = self
+            .bios_profile
+            .as_deref()
+            .or((!self.openbios).then_some("psx-scph-1001-bios"));
+        assert!(
+            !self.retail_bios_from_later_release || (self.bios_profile.is_some() && !self.openbios),
+            "{id}: a later retail BIOS binding needs an explicit retail profile"
+        );
+        assert_eq!(port.adapter, crate::AdapterKind::PsxRecompManaged, "{id}");
+        assert_eq!(port.bios_source_profile.as_deref(), bios_id, "{id}");
+        let executable = match platform {
+            Platform::LinuxX86_64 => self.generated_executable.strip_suffix(".exe").unwrap(),
+            _ => &self.generated_executable,
+        };
+        assert_eq!(
+            port.executable_hints[&platform],
+            [executable],
+            "{id}: {platform:?} generated player"
+        );
+        assert_eq!(
+            port.runtime_subdirectory.as_deref(),
+            Some("build-portcove"),
+            "{id}"
+        );
+        let arguments = if self.openbios {
+            ["--no-launcher", "--bios", "bios/openbios.bin"].as_slice()
+        } else {
+            ["--no-launcher"].as_slice()
+        };
+        assert_eq!(port.launch_arguments, arguments, "{id}");
+        for owned in [
+            "saves",
+            "settings.toml",
+            "bios.cfg",
+            "disc.cfg",
+            "overlay-captures",
+        ]
+        .into_iter()
+        .chain(self.extra_persistent_paths.iter().map(String::as_str))
+        {
+            assert!(
+                port.persistent_paths.iter().any(|path| path == owned),
+                "{id}: {owned}"
+            );
+            assert!(
+                !port.runtime_mutable_paths.iter().any(|path| path == owned),
+                "{id}: {owned}"
+            );
+        }
+        if self.crash_diagnostic {
+            assert!(
+                port.runtime_mutable_paths
+                    .iter()
+                    .any(|path| path == "psx_crash.txt"),
+                "{id}: crash diagnostic"
+            );
+            assert!(
+                !port
+                    .persistent_paths
+                    .iter()
+                    .any(|path| path == "psx_crash.txt"),
+                "{id}: crash diagnostic must not enter backups"
+            );
+        }
+        if self.split_mod_paths {
+            let is_mod_path = |path: &str| path == "mods" || path.starts_with("mods/");
+            let actual: std::collections::BTreeSet<_> = port
+                .persistent_paths
+                .iter()
+                .map(String::as_str)
+                .filter(|path| is_mod_path(path))
+                .collect();
+            assert_eq!(
+                actual,
+                std::collections::BTreeSet::from([
+                    "mods/.staging",
+                    "mods/installed",
+                    "mods/packages",
+                    "mods/state.toml",
+                    "mods/state.toml.tmp",
+                    "mods/texture-packs",
+                ]),
+                "{id}: split player mod paths"
+            );
+            assert!(
+                !port
+                    .runtime_mutable_paths
+                    .iter()
+                    .any(|path| is_mod_path(path)),
+                "{id}: bundled mods must remain verified runtime files"
+            );
+        }
+        let profile_id = port.source_profile.as_deref().unwrap();
+        let profile = source_catalog
+            .identities
+            .iter()
+            .find(|profile| profile.id == profile_id)
+            .unwrap();
+        let [variant] = profile.variants.as_slice() else {
+            panic!("{id}: expected one original variant")
+        };
+        assert_eq!(variant.product_codes, [self.serial.as_str()], "{id}");
+        assert_eq!(variant.revision, self.revision, "{id}");
+        let [representation] = variant.representations.as_slice() else {
+            panic!("{id}: expected one original representation")
+        };
+        assert_eq!(representation.extensions, ["chd"], "{id}");
+        let crate::SourceRepresentationKind::OpticalTrackSet {
+            track_counts,
+            identities,
+        } = &representation.kind
+        else {
+            panic!("{id}: expected an optical track set")
+        };
+        assert_eq!(track_counts, &[self.track_count], "{id}");
+        let [track] = identities.as_slice() else {
+            panic!("{id}: expected one track identity")
+        };
+        assert_eq!(
+            track.sha1.as_deref(),
+            Some(self.track_sha1.as_str()),
+            "{id}"
+        );
+        assert_eq!(
+            track.sha256.as_deref(),
+            self.track_sha256.as_deref(),
+            "{id}"
+        );
+        let requirements = [
+            (crate::PortSourceRole::Game, Some(profile_id)),
+            (crate::PortSourceRole::Bios, bios_id),
+        ];
+        for (role, expected_profile) in requirements {
+            let contract = source_catalog
+                .contracts
+                .iter()
+                .find(|contract| contract.port_id == *id && contract.role == role);
+            let Some(expected_profile) = expected_profile else {
+                assert!(
+                    contract.is_none(),
+                    "{id}: unexpected {role:?} source contract"
+                );
+                continue;
+            };
+            let contract = contract.unwrap();
+            assert_eq!(contract.profile_id, expected_profile, "{id}: {role:?}");
+            assert_eq!(
+                contract.admission_mode,
+                crate::CatalogAdmissionMode::Enforced,
+                "{id}: {role:?}"
+            );
+            assert_eq!(contract.release_policy, None, "{id}: {role:?}");
+            let bound = observed_release
+                && !(role == crate::PortSourceRole::Bios && self.retail_bios_from_later_release);
+            assert_eq!(
+                contract.applies_to_release(version, artifact_sha256),
+                bound,
+                "{id}: exact source evidence for {role:?} on {version}"
+            );
+        }
+    }
+}
+
+#[tokio::test]
+async fn portable_engine_linux_siblings_select_player_archives() {
+    let catalog = crate::Catalog::embedded().unwrap();
+    let cases = [
+        (
+            "gunstar-heroes-gunstars",
+            "v0.2.2",
+            "gunstars-0.2.2-linux-x64.tar.gz",
+            "gunstars-0.2.2-windows-x64.zip",
+            "gunstars-0.2.2-macos-universal.zip",
+            "gunstar",
+        ),
+        (
+            "vyruz-destruction-of-the-untel-empire-openvyruz",
+            "v1.1.0",
+            "OpenVyruz-v1.1.0-linux-x64.tar.gz",
+            "OpenVyruz-v1.1.0-windows-x64.zip",
+            "SHA256SUMS.txt",
+            "Vyruz",
+        ),
+        (
+            "elraro-atomic-bomberman",
+            "v1.0",
+            "atomic-bomberman-modern-linux-x86_64.tar.gz",
+            "atomic-bomberman-modern-windows-x64.zip",
+            "atomic-bomberman-server-linux-x86_64.tar.gz",
+            "atomic",
+        ),
+        (
+            "atlantis-the-lost-tales-atlantis-native",
+            "v0.6.0",
+            "atlantis-native-linux-x64.tar.gz",
+            "atlantis-native-windows-x64.zip",
+            "atlantis-native-linux-arm64.tar.gz",
+            "atlantis-native",
+        ),
+    ];
+    for (id, tag, linux, windows, other, executable) in cases {
+        let port = catalog.port(id).unwrap();
+        assert_eq!(port.adapter, crate::AdapterKind::NativePortable, "{id}");
+        assert_eq!(port.executable_hints[&Platform::LinuxX86_64], [executable]);
+        let observed = [release(
+            tag,
+            vec![
+                asset(other, Some('a')),
+                asset(windows, Some('b')),
+                asset(linux, Some('c')),
+            ],
+        )];
+        for (platform, name) in [
+            (Platform::LinuxX86_64, linux),
+            (Platform::WindowsX86_64, windows),
+        ] {
+            let (root, requests, server) = serve_http(vec![metadata(), releases(&observed)]);
+            let selected = GithubReleaseProvider::with_api_root(root)
+                .unwrap()
+                .resolve(port, ReleaseChannel::Stable, platform)
+                .await
+                .unwrap();
+            assert_eq!(selected.version, tag, "{id} on {platform:?}");
+            assert_eq!(selected.asset.name, name, "{id} on {platform:?}");
+            server.join().unwrap();
+            assert_eq!(requests.try_iter().count(), 2, "{id}");
+        }
+    }
+}
+
+#[test]
+fn native_linux_tar_xz_selection_keeps_the_windows_archive_and_cache_identity() {
+    let catalog = crate::Catalog::embedded().unwrap();
+    for (id, prefix) in [
+        ("star-wars-x-wing-openxw", "openxw"),
+        ("star-wars-x-wing-alliance-openxwa", "openxwa"),
+        (
+            "star-wars-x-wing-vs-tie-fighter-balance-of-power-openxvt",
+            "openxvt",
+        ),
+    ] {
+        let port = catalog.port(id).unwrap();
+        let linux = Platform::LinuxX86_64;
+        let windows = Platform::WindowsX86_64;
+        assert!(port.release.requires_tar_xz(linux));
+        let inventory = [
+            format!("{prefix}-1.0-linux-x86_64-release.tar.xz"),
+            format!("{prefix}-1.0-linux-x86_64-release.tar.xz.zip"),
+            format!("{prefix}-1.0-linux-aarch64-release.tar.xz"),
+            format!("{prefix}-1.0-windows-x86_64-release.zip"),
+        ]
+        .map(|name| serde_json::from_value::<GithubAsset>(asset(&name, Some('a'))).unwrap());
+        assert_eq!(
+            choose_asset(port, linux, &inventory).unwrap().name,
+            inventory[0].name
+        );
+        assert!(choose_asset(port, linux, &inventory[1..]).is_err());
+        assert_eq!(
+            choose_asset(port, windows, &inventory).unwrap().name,
+            inventory[3].name
+        );
+
+        let mut legacy = port.clone();
+        legacy.release.linux_tar_xz = false;
+        assert!(choose_asset(&legacy, linux, &inventory[..1]).is_err());
+        assert_eq!(
+            ReleaseSelectionCacheKey::new(port, ReleaseChannel::Stable, windows),
+            ReleaseSelectionCacheKey::new(&legacy, ReleaseChannel::Stable, windows)
+        );
+        assert_ne!(
+            ReleaseSelectionCacheKey::new(port, ReleaseChannel::Stable, linux),
+            ReleaseSelectionCacheKey::new(&legacy, ReleaseChannel::Stable, linux)
+        );
+    }
+}
+
+#[tokio::test]
+async fn windows_archive_selection_advances_from_shared_release_inventories() {
+    #[derive(serde::Deserialize)]
+    struct Case {
+        inventory: String,
+        repository_id: Option<u64>,
+        selected_assets: Vec<String>,
+        #[serde(default)]
+        linux_selected_assets: Vec<String>,
+        #[serde(default)]
+        macos_x86_64_selected_assets: Vec<String>,
+        #[serde(default)]
+        macos_aarch64_selected_assets: Vec<String>,
+        channel: Option<ReleaseChannel>,
+        #[serde(default)]
+        mutable_tag_snapshots: bool,
+        managed_psx: Option<ManagedPsxArchiveExpectation>,
+    }
+
+    #[derive(serde::Deserialize)]
+    struct OtherZipAsset {
+        inventory: String,
+        release_index: usize,
+        asset: String,
+    }
+
+    #[derive(serde::Deserialize)]
+    struct Corpus {
+        cases: std::collections::BTreeMap<String, Case>,
+        inventories: std::collections::BTreeMap<String, Vec<serde_json::Value>>,
+        other_zip_assets: Vec<OtherZipAsset>,
+    }
+
+    let catalog = crate::Catalog::embedded().unwrap();
+    let Corpus {
+        cases,
+        inventories,
+        other_zip_assets,
+    } = serde_json::from_str(include_str!(
+        "../../testdata/windows-archive-release-selection.json"
+    ))
+    .unwrap();
+    assert!(!cases.is_empty());
+    let mut enrolled = std::collections::BTreeSet::new();
+    let mut selected_zips = std::collections::BTreeSet::new();
+    for (id, case) in cases {
+        let port = catalog.port(&id).unwrap();
+        assert_eq!(
+            case.managed_psx.is_some(),
+            port.adapter == crate::AdapterKind::PsxRecompManaged,
+            "{id}: managed PSX expectation enrollment"
+        );
+        let channel = case.channel.unwrap_or(ReleaseChannel::Stable);
+        assert!(port.channels.contains(&channel), "{id}: enrolled channel");
+        if case.mutable_tag_snapshots {
+            assert_eq!(channel, ReleaseChannel::Rolling);
+            assert!(port.release.rolling_tag.is_some());
+        }
+        let definition = serde_json::to_value(port).unwrap();
+        let observed = &inventories[&case.inventory];
+        assert!(observed.len() >= 2, "{id}");
+        assert_eq!(observed.len(), case.selected_assets.len(), "{id}");
+        let platforms = [
+            (Platform::WindowsX86_64, case.selected_assets),
+            (Platform::LinuxX86_64, case.linux_selected_assets),
+            (Platform::MacosX86_64, case.macos_x86_64_selected_assets),
+            (Platform::MacosAarch64, case.macos_aarch64_selected_assets),
+        ];
+        for (platform, names) in platforms {
+            if names.is_empty() {
+                continue;
+            }
+            assert_eq!(observed.len(), names.len(), "{id} on {platform:?}");
+            for (index, name) in names.iter().enumerate() {
+                let release = &observed[index];
+                let tag = release["tag_name"].as_str().unwrap();
+                let expected = release["assets"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .find(|asset| asset["name"].as_str() == Some(name))
+                    .unwrap();
+                assert!(
+                    enrolled.insert((id.clone(), platform, index)),
+                    "{id}: duplicate release selection enrollment at {index}"
+                );
+                if name.ends_with(".zip") {
+                    selected_zips.insert((case.inventory.clone(), index, name.clone()));
+                }
+                // A rolling tag's later observation replaces its previous snapshot.
+                // Stable releases remain visible together in the upstream inventory.
+                let first = if case.mutable_tag_snapshots { index } else { 0 };
+                let visible = observed[first..=index]
+                    .iter()
+                    .rev()
+                    .cloned()
+                    .collect::<Vec<_>>();
+                let repository = match case.repository_id {
+                    Some(id) => ok_json(
+                        &serde_json::json!({"id":id,"archived":false}).to_string(),
+                        "",
+                    ),
+                    None => metadata(),
+                };
+                let (root, requests, server) = serve_http(vec![repository, releases(&visible)]);
+                let selected = GithubReleaseProvider::with_api_root(root)
+                    .unwrap()
+                    .resolve(port, channel, platform)
+                    .await
+                    .unwrap();
+                assert_eq!(selected.version, tag, "{id}");
+                assert_eq!(&selected.asset.name, name, "{id}");
+                assert_eq!(
+                    selected.asset.size,
+                    expected["size"].as_u64().unwrap(),
+                    "{id}"
+                );
+                assert_eq!(
+                    selected.asset.sha256,
+                    expected["digest"]
+                        .as_str()
+                        .unwrap()
+                        .strip_prefix("sha256:")
+                        .unwrap(),
+                    "{id}"
+                );
+                if let Some(contract) = &case.managed_psx {
+                    contract.assert_contract(
+                        &catalog,
+                        port,
+                        platform,
+                        &selected.version,
+                        &selected.asset.sha256,
+                        index == 0,
+                    );
+                }
+                server.join().unwrap();
+                assert_eq!(requests.try_iter().count(), 2, "{id}");
+            }
+        }
+        assert_eq!(serde_json::to_value(port).unwrap(), definition, "{id}");
+    }
+    let mut other_zips = std::collections::BTreeSet::new();
+    for asset in other_zip_assets {
+        assert!(other_zips.insert((asset.inventory, asset.release_index, asset.asset)));
+    }
+    for (group, observed) in inventories {
+        for (index, release) in observed.iter().enumerate() {
+            for asset in release["assets"].as_array().unwrap() {
+                let name = asset["name"].as_str().unwrap();
+                if name.ends_with(".zip") {
+                    let key = (group.clone(), index, name.to_owned());
+                    assert!(
+                        selected_zips.remove(&key) ^ other_zips.remove(&key),
+                        "{key:?}"
+                    );
+                }
+            }
+        }
+    }
+    assert!(
+        selected_zips.is_empty(),
+        "unmatched selected ZIPs: {selected_zips:?}"
+    );
+    assert!(
+        other_zips.is_empty(),
+        "unmatched other ZIPs: {other_zips:?}"
+    );
 }

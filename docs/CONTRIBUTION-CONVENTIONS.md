@@ -6,6 +6,13 @@ turning writing style into a merge gate. `.github/pr-conventions.json` is the
 machine-readable contract; `just pr-check <number-or-url>` reports advisory
 findings against a live pull request.
 
+The live reader uses the shared configured GitHub SDK. It awaits repository
+metadata and commit pages in sequence and refuses incomplete or changing commit
+inventories. Pure convention checks and offline fixtures do not construct a
+network client. The advisory workflow selects trusted base source and installs
+its frozen package set before the step-scoped GitHub credential is supplied;
+variable pull-request inputs remain environment data.
+
 ## Titles and authored commits
 
 Use `type(scope): imperative summary` for pull request titles and commit
@@ -91,20 +98,30 @@ only conflicting work. The narrow verified Renovate review exception is owned by
 Applicable review, required exact-head CI, explicit acceptance and guarded
 merge remain required. Local feedback follows [QUALITY](QUALITY.md#required-hosted-baseline).
 
-Record the reviewed source head, target tip used for the comparison, and actual
-merge-base. If `main` advances without changing the source head, do not imply the
-later target revision was tested. An unrelated target advance does not by itself
-require a rebase, a full rerun, or a replacement review. A relevant dependency,
-schema, generated contract, patch, or policy interaction does require focused
-reconciliation.
+When queuing qualification, compose the pinned source head with the pinned
+target commit (for example, with `git merge-tree --write-tree TARGET SOURCE`).
+Record both SHAs, the merge-base and the resulting tree alongside the check
+evidence. Refresh the live `main` tip immediately before the guarded merge. If it
+advanced, recompute the composition against the new target and inspect the
+target delta for interactions with the reviewed change. Keep evidence tied to
+the tree it covered. An unrelated advance can keep the existing review and
+checks. A relevant dependency, schema, generated contract, patch or policy
+interaction requires focused reconciliation before merge.
 Review may begin on an exact local commit and complete before expensive final
-qualification. Blocking findings identify a concrete correctness, security,
-data-loss, compatibility, or acceptance defect; a promised safety hole remains
-substantive even when current configuration does not exercise it. Cosmetic
-preferences, speculative generalization, and unrelated cleanup are nonblocking
-unless acceptance says otherwise. Repairs return to the same reviewer for the
-delta and affected interactions where practical. A new substantive finding still
-blocks; there is no cycle count that creates approval.
+qualification. [QUALITY](QUALITY.md#review-and-repair-loop) owns the reviewer,
+packet, finding classes, repair and escalation loop; a promised safety hole
+remains substantive even when current configuration does not exercise it, and
+there is no cycle count that creates approval.
+
+Keep a pull request in draft while review or repairs can still change its head.
+A draft run defers the eight Windows Rust test partitions
+([QUALITY](QUALITY.md#test-latency-and-reliability)), which are most of a Rust
+run's hosted runner time; every push to a ready pull request runs them again and
+lengthens the runner queue for every other candidate. Publish related repair
+commits in one push. Mark the pull request ready when review findings are repaired
+and its head is the one intended for merge, so the partitions run once on that
+head. Return a ready pull request to draft before pushing further source changes.
+This is delivery pacing: it changes no required context, review or acceptance.
 Before merging, refetch the pull request, confirm its current head still equals
 the reviewed head, confirm required checks and conflict-free mergeability, and
 use the guarded command below. A changed source head requires applicable
@@ -167,8 +184,17 @@ checkpoint. The watcher neither dispatches nor retries a run, and success does
 not supply review, native, installed-app or merge authority. Once
 the pull request is ready, conflict-free, reviewed under its applicable contract, authorized,
 and all exact-head contexts are successful, use
-`just pr-merge-rest --pr <number-or-url> --head <reviewed-head> --closure-intent-file <intent.json> --merge-message-file <message.json>` for the routine
-immediate squash merge. It freezes and rechecks the source SHA and required
+`just pr-merge-rest --pr <number-or-url> --head <reviewed-head> --target <reviewed-target> --tree <reviewed-tree> --closure-intent-file <intent.json> --merge-message-file <message.json>` for the routine
+immediate squash merge. Supply the independently reviewed target and composed
+tree together. The helper checks the current GitHub preview and target tip
+before submission, then verifies the actual squash parent and tree. If the
+target advances during the request, GitHub's source SHA precondition can still
+allow the squash. The helper retains the actual commit and expected composition
+for reconciliation in that case. Existing invocations may omit both options.
+After a selective retry, also supply the successful
+workflow's `--run <id> --attempt <number>`. This joins complete check and job
+inventories across attempts and checks that the identified workflow remains
+successfully completed before the merge request. It freezes and rechecks the source SHA and required
 contexts, submits that exact SHA, and reads the remote state back before any
 retry or local cleanup. Server-enforced review threads, permissions and
 repository rules remain in force; the helper is a mechanism, not review or
@@ -187,7 +213,20 @@ manual links, and checks the body, candidate commit messages and explicit squash
 message. The message JSON contains `title` and `body`; those checked values are
 submitted as the actual merge message and verified afterward. Body and linked
 issue changes matter even at an unchanged source SHA. Unknown inventory refuses
-delivery. An ambiguous mutation or changed post-merge state requires readback
+delivery. Without GraphQL the guard reconstructs the inventory over REST
+([connector delivery observations](DEVELOPMENT-TOOLS.md#connector-delivery-observations))
+and refuses any visible manual link. It also requires a successful
+`closing-inventory` check run for this pull request on its exact head: a
+trusted `pull_request_target` workflow that reads GitHub's GraphQL inventory
+and fails on any relationship the body's closing keywords do not name or that
+the inventory's count shows is hidden from the workflow token. Whether that
+count includes issues in repositories the token cannot read is not documented
+by GitHub, so a manual link to such an issue remains UNKNOWN to REST. A manual
+link added, or a body changed by a workflow token, after the check last ran can
+also escape it. Link work through closing keywords and deliver a PR with any
+manual link from a GraphQL-capable session. On 2026-11-09 all 221 issues GitHub
+reported as linked to a pull request here were keyword links, with no manual
+link events. An ambiguous mutation or changed post-merge state requires readback
 and reconciliation, never an automatic retry or reopening.
 
 These safeguards cover supported writers and guarded delivery. They do not

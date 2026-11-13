@@ -1,0 +1,677 @@
+import { useState } from "react";
+import { afterEach, beforeEach, expect, it, vi } from "vite-plus/test";
+import { page, userEvent } from "vite-plus/test/browser";
+import { cleanup, render } from "vitest-browser-react";
+import { installedLaunchStatus, portDefinition, portStatus } from "../../test-fixtures";
+import type { LibraryOrganization, OrganizationChange } from "../../types";
+import { OrganizationControls, type Organization } from "../organization/OrganizationControls";
+import { GroupedLibrary } from "./GroupedLibrary";
+import { GroupedDiscover } from "./GroupedDiscover";
+import { desktopApi } from "../../api";
+import { useOrganization } from "../organization/use-organization";
+import { PortBrowser } from "../../components/PortBrowser";
+import { install } from "../../dev-scenarios/interactive/scenarios";
+import { browserFixture } from "../../../test/browser-fixture";
+import "../../styles/index.css";
+
+let fixture: ReturnType<typeof browserFixture>;
+beforeEach(() => {
+  fixture = browserFixture({ viewport: true, attributes: ["data-theme"], styles: ["zoom"] });
+});
+afterEach(async () => {
+  await cleanup();
+  vi.restoreAllMocks();
+  await fixture.dispose();
+});
+const first = {
+  ...portDefinition(),
+  id: "first-port",
+  name: "First project",
+  presentation: {
+    original_game_title: "Original game",
+    original_game: {
+      format_version: 1,
+      id: "original-game",
+      evidence_urls: [],
+      source_editions: [],
+    },
+  },
+};
+const second = {
+  ...first,
+  id: "second-port",
+  name: "Second project",
+  presentation: first.presentation,
+};
+const empty: LibraryOrganization = {
+  revision: 0,
+  collections: {},
+  followed_port_ids: [],
+  followed_release_acknowledgments: {},
+  hidden_port_ids: [],
+  saved_game_ids: [],
+  update_notices: {},
+  setup_confirmations: [],
+};
+
+it("requires an acknowledged choice, retains alternatives and targets the chosen stable port", async () => {
+  const launch = vi.fn();
+  const open = vi.fn();
+  let accept!: (accepted: boolean) => void;
+  const write = vi.fn(
+    () =>
+      new Promise<boolean>((resolve) => {
+        accept = resolve;
+      }),
+  );
+  function Fixture() {
+    const [snapshot, setSnapshot] = useState(empty);
+    const organization: Organization = {
+      snapshot,
+      busy: false,
+      failure: undefined,
+      refresh: async () => true,
+      commit: async (change: OrganizationChange) => {
+        const accepted = await write();
+        if (accepted && change.kind === "set_preferred_implementation" && change.port_id)
+          setSnapshot({
+            ...snapshot,
+            revision: snapshot.revision + 1,
+            preferred_port_by_game: { [change.game_id]: change.port_id },
+          });
+        return accepted;
+      },
+    };
+    return (
+      <GroupedLibrary
+        all={[first, second]}
+        matching={[first, second]}
+        statuses={new Map()}
+        organization={organization}
+        onSelect={open}
+        renderPort={(port) => (
+          <button
+            onClick={() => {
+              launch(port.id);
+            }}
+          >
+            Play {port.name}
+          </button>
+        )}
+      />
+    );
+  }
+  await render(<Fixture />);
+  expect(document.querySelectorAll("[data-library-game-id]")).toHaveLength(1);
+  expect(document.body.textContent).toContain(
+    "Check its setup instructions for shared save locations before switching.",
+  );
+  expect(document.body.textContent).not.toContain("Play First project");
+  await page.getByRole("button", { name: "Choose Second project", exact: true }).first().click();
+  expect(document.body.textContent).not.toContain("Play Second project");
+  accept(false);
+  await expect
+    .element(page.getByRole("alert"))
+    .toHaveTextContent(
+      "Portcove couldn’t confirm that your choice was saved. Refresh choices to check.",
+    );
+  expect(launch).not.toHaveBeenCalled();
+  await page.getByRole("button", { name: "Refresh choices" }).click();
+  await page.getByRole("button", { name: "Choose Second project", exact: true }).first().click();
+  accept(true);
+  await expect.element(page.getByRole("button", { name: "Play Second project" })).toBeVisible();
+  await expect
+    .poll(() => document.activeElement?.getAttribute("data-library-game-id"))
+    .toBe("game:original-game");
+  await page.getByRole("button", { name: "Play Second project" }).click();
+  expect(launch).toHaveBeenCalledExactlyOnceWith("second-port");
+  const alternatives = document.querySelector("details")!;
+  alternatives.open = true;
+  await page.getByRole("button", { name: "View First project" }).click();
+  expect(open).toHaveBeenCalledExactlyOnceWith("first-port", "library:alternative:first-port");
+});
+
+it("keeps the actual filter match visible without replacing a filtered-out saved choice", async () => {
+  const commit = vi.fn();
+  const open = vi.fn();
+  const organization: Organization = {
+    snapshot: { ...empty, preferred_port_by_game: { "original-game": "first-port" } },
+    busy: false,
+    failure: undefined,
+    refresh: async () => true,
+    commit,
+  };
+  await render(
+    <GroupedLibrary
+      all={[first, second]}
+      matching={[second]}
+      statuses={new Map()}
+      organization={organization}
+      onSelect={open}
+      renderPort={() => <button>Unexpected Play</button>}
+    />,
+  );
+  expect(document.body.textContent).toContain("outside these filters");
+  expect(document.body.textContent).toContain("1 matching");
+  expect(document.body.textContent).not.toContain("Unexpected Play");
+  expect(commit).not.toHaveBeenCalled();
+  document.querySelector("details")!.open = true;
+  await page.getByRole("button", { name: "View Second project" }).click();
+  expect(open).toHaveBeenCalledExactlyOnceWith("second-port", "library:alternative:second-port");
+});
+
+it("single unresolved identities need no selector or preference service and remain keyboard reachable", async () => {
+  const single = { ...portDefinition(), id: "unresolved", name: "Standalone project" };
+  const open = vi.fn();
+  await render(
+    <GroupedLibrary
+      all={[single]}
+      matching={[single]}
+      statuses={new Map([[single.id, portStatus()]])}
+      onSelect={open}
+      renderPort={(port) => (
+        <button
+          onClick={() => {
+            open(port.id);
+          }}
+        >
+          Set up {port.name}
+        </button>
+      )}
+    />,
+  );
+  expect(document.querySelector("details")).toBeNull();
+  const action = page.getByRole("button", { name: "Set up Standalone project" });
+  action.element().focus();
+  await userEvent.keyboard("{Enter}");
+  expect(open).toHaveBeenCalledExactlyOnceWith("unresolved");
+});
+
+it("does not silently substitute a sole explicit-game survivor for a stale saved implementation", async () => {
+  await render(
+    <GroupedLibrary
+      all={[first]}
+      matching={[first]}
+      statuses={new Map()}
+      organization={{
+        snapshot: { ...empty, preferred_port_by_game: { "original-game": "second-port" } },
+        busy: false,
+        failure: undefined,
+        refresh: async () => true,
+        commit: async () => false,
+      }}
+      onSelect={vi.fn()}
+      renderPort={() => <button>Unexpected Play</button>}
+    />,
+  );
+  expect(document.body.textContent).toContain("no longer in this game group");
+  expect(document.body.textContent).not.toContain("Unexpected Play");
+});
+
+it("a completed choice never navigates from a dismissed comparison", async () => {
+  let finish!: (accepted: boolean) => void;
+  const commit = vi.fn(
+    () =>
+      new Promise<boolean>((resolve) => {
+        finish = resolve;
+      }),
+  );
+  const select = vi.fn();
+  await render(
+    <GroupedDiscover
+      all={[first, second]}
+      matching={[first, second]}
+      statuses={new Map()}
+      onSelect={select}
+      onFavoriteToggle={vi.fn()}
+      organization={{
+        snapshot: empty,
+        busy: false,
+        failure: undefined,
+        refresh: async () => true,
+        commit,
+      }}
+    />,
+  );
+  await page.getByRole("button", { name: "Compare ports", exact: true }).click();
+  await page.getByRole("button", { name: "Choose Second project", exact: true }).click();
+  await userEvent.keyboard("{Escape}");
+  await expect.element(page.getByRole("dialog")).not.toBeInTheDocument();
+  finish(true);
+  await expect.poll(() => select.mock.calls.length).toBe(0);
+  expect(commit).toHaveBeenCalledExactlyOnceWith({
+    kind: "set_preferred_implementation",
+    game_id: "original-game",
+    port_id: "second-port",
+  });
+});
+
+it("reads back a committed port choice after its acknowledgement is lost", async () => {
+  let stored = empty;
+  const read = vi
+    .spyOn(desktopApi, "organizationPreferences")
+    .mockImplementation(async () => stored);
+  const write = vi.spyOn(desktopApi, "changeOrganization").mockImplementation(async () => {
+    stored = { ...empty, revision: 1, preferred_port_by_game: { "original-game": "second-port" } };
+    throw new Error("Response lost after saving");
+  });
+  function Fixture() {
+    const organization = useOrganization(1);
+    return (
+      <GroupedLibrary
+        all={[first, second]}
+        matching={[first, second]}
+        statuses={new Map()}
+        organization={organization}
+        onSelect={vi.fn()}
+        renderPort={(port) => <button>Play {port.name}</button>}
+      />
+    );
+  }
+  await render(<Fixture />);
+  await page
+    .getByRole("button", { name: /^(Choose|Use) Second project$/ })
+    .first()
+    .click();
+  await expect.element(page.getByRole("alert")).toMatchTextContent(/couldn’t confirm/);
+  await expect
+    .element(page.getByRole("button", { name: "Play Second project" }))
+    .not.toBeInTheDocument();
+  await page.getByRole("button", { name: "Refresh choices" }).click();
+  await expect.element(page.getByRole("button", { name: "Play Second project" })).toBeVisible();
+  expect(read).toHaveBeenCalledTimes(2);
+  expect(write).toHaveBeenCalledTimes(1);
+});
+
+it("re-enables an unsaved choice after a shared reload confirms the same revision", async () => {
+  vi.spyOn(desktopApi, "organizationPreferences")
+    .mockResolvedValueOnce(empty)
+    .mockRejectedValueOnce(new Error("Choices could not be read"))
+    .mockResolvedValue({ ...empty });
+  const write = vi
+    .spyOn(desktopApi, "changeOrganization")
+    .mockRejectedValue(new Error("Choice was not stored"));
+  function Fixture() {
+    const organization = useOrganization(1);
+    return (
+      <>
+        <OrganizationControls
+          organization={organization}
+          selected="all"
+          onSelect={vi.fn()}
+          discover={false}
+        />
+        <GroupedLibrary
+          all={[first, second]}
+          matching={[first, second]}
+          statuses={new Map()}
+          organization={organization}
+          onSelect={vi.fn()}
+          renderPort={(port) => <button>Play {port.name}</button>}
+        />
+      </>
+    );
+  }
+  await render(<Fixture />);
+  const choice = page.getByRole("button", { name: /^(Choose|Use) Second project$/ }).first();
+  await choice.click();
+  await expect.element(choice).toBeDisabled();
+  await page.getByRole("button", { name: "Collections", exact: true }).click();
+  const collections = page.getByRole("group", { name: "Library collections" });
+  const reload = collections.getByRole("button", { name: "Reload choices", exact: true });
+  await reload.click();
+  await expect
+    .element(collections.getByRole("alert"))
+    .toMatchTextContent(
+      /^Saved choices could not be refreshed\. Showing your last confirmed choices\./,
+    );
+  await expect.element(choice).toBeDisabled();
+  await reload.click();
+  await expect.element(collections.getByRole("alert")).not.toBeInTheDocument();
+  await userEvent.keyboard("{Escape}");
+  await expect.element(choice).toBeEnabled();
+  await expect.element(page.getByText(/couldn’t confirm that your choice/)).not.toBeInTheDocument();
+  await expect
+    .element(page.getByRole("button", { name: "Play Second project" }))
+    .not.toBeInTheDocument();
+  expect(write).toHaveBeenCalledTimes(1);
+});
+
+it("keeps the busy choice focusable and never steals focus after the player moves away", async () => {
+  vi.spyOn(desktopApi, "organizationPreferences").mockResolvedValue(empty);
+  let finish!: (snapshot: LibraryOrganization) => void;
+  const write = vi.spyOn(desktopApi, "changeOrganization").mockReturnValue(
+    new Promise((resolve) => {
+      finish = resolve;
+    }),
+  );
+  function Fixture() {
+    const organization = useOrganization(1);
+    return (
+      <>
+        <button>Other action</button>
+        <GroupedLibrary
+          all={[first, second]}
+          matching={[first, second]}
+          statuses={new Map()}
+          organization={organization}
+          onSelect={vi.fn()}
+          renderPort={(port) => <button>Play {port.name}</button>}
+        />
+      </>
+    );
+  }
+  await render(<Fixture />);
+  const choice = page.getByRole("button", { name: "Choose Second project", exact: true }).first();
+  await expect.element(choice).toBeEnabled();
+  await choice.click();
+  await expect.element(choice).toHaveAttribute("aria-busy", "true");
+  await expect.element(choice).toHaveFocus();
+  const other = page.getByRole("button", { name: "Other action", exact: true });
+  await other.click();
+  finish({ ...empty, revision: 1, preferred_port_by_game: { "original-game": "second-port" } });
+  await expect.element(page.getByRole("button", { name: "Play Second project" })).toBeVisible();
+  await expect.element(other).toHaveFocus();
+  expect(write).toHaveBeenCalledExactlyOnceWith(
+    0,
+    { kind: "set_preferred_implementation", game_id: "original-game", port_id: "second-port" },
+    1,
+  );
+});
+
+it.each([
+  { layout: "covers", width: 1280, theme: "dark", zoom: 1 },
+  { layout: "rows", width: 1280, theme: "light", zoom: 1 },
+  { layout: "covers", width: 360, theme: "dark", zoom: 1.3 },
+  { layout: "rows", width: 360, theme: "light", zoom: 1.3 },
+] as const)(
+  "keeps grouped Library $layout/$theme/$width at $zoom readable without guessing a Play target",
+  async ({ layout, width, theme, zoom }) => {
+    await page.viewport(width, 900);
+    document.documentElement.dataset.theme = theme;
+    document.documentElement.style.zoom = String(zoom);
+    const launch = vi.fn();
+    const statuses = new Map(
+      [first, second].map((port) => [
+        port.id,
+        {
+          ...portStatus(),
+          port_id: port.id,
+          active: { ...install, id: `owned-${port.id}`, port_id: port.id },
+          readiness: { launchable: true, blockers: [], pending_setup: false },
+        },
+      ]),
+    );
+    await render(
+      <PortBrowser
+        view="library"
+        collectionLayout={layout}
+        catalogUniverse={[first, second]}
+        ports={[first, second]}
+        statuses={statuses}
+        overview={{ installed: 2, ready: 2, needsSetup: 0, staged: 0 }}
+        filter="all"
+        setFilter={vi.fn()}
+        loading={false}
+        onSelect={vi.fn()}
+        onContinue={launch}
+        organization={{
+          snapshot: empty,
+          busy: false,
+          failure: undefined,
+          commit: async () => false,
+          refresh: async () => true,
+        }}
+      />,
+    );
+    await expect
+      .element(page.getByRole("heading", { name: "Original game", exact: true }))
+      .toBeVisible();
+    expect(document.querySelectorAll(".collection-entry")).toHaveLength(1);
+    expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(innerWidth + 1);
+    const artwork = document.querySelector<HTMLElement>(".collection-art")!;
+    expect(artwork.getBoundingClientRect().width).toBeGreaterThan(0);
+    await expect
+      .element(page.getByRole("button", { name: "Play", exact: true }))
+      .not.toBeInTheDocument();
+    expect(launch).not.toHaveBeenCalled();
+    await page.screenshot({
+      path: `../../../../../outputs/ui-refinement/grouped-library-${layout}-${theme}-${width}-${zoom}.png`,
+    });
+  },
+);
+
+it("presents grouped Discover cards and the comparison in the active locale", async () => {
+  const { initializeLocalization } = await import("../../localization");
+  const localization = initializeLocalization(["en-US"]);
+  try {
+    await render(
+      <GroupedDiscover
+        all={[first, second]}
+        matching={[first, second]}
+        statuses={new Map()}
+        onSelect={vi.fn()}
+        onFavoriteToggle={vi.fn()}
+      />,
+    );
+    expect(document.querySelector("article")?.getAttribute("aria-label")).toBe(
+      "Original game. 2 separate port projects; 2 matching.",
+    );
+    await localization.changeLanguage("ar-XB");
+    await expect
+      .poll(() => document.querySelector("article")?.getAttribute("aria-label"))
+      .toBe("Original game. مشروعان منفصلان؛ 2 مطابقة.");
+    expect(document.querySelector("section")?.getAttribute("aria-label")).toBe("اكتشاف الألعاب");
+    expect(document.body.textContent).toContain(
+      "قارن المنافذ المطابقة لمعرفة متطلبات الإعداد وحالة التثبيت الخاصة بكل منها.",
+    );
+    await page.getByRole("button", { name: "مقارنة المنافذ", exact: true }).click();
+    await expect
+      .poll(() => document.querySelector("[role=dialog]")?.textContent)
+      .toContain("قارن متطلبات الإعداد للمنافذ (2).");
+    const dialog = document.querySelector("[role=dialog]")?.textContent;
+    expect(dialog).toContain("من يتولى التحديثات");
+    expect(dialog).toContain("الجهة المسؤولة عن التثبيت غير معروفة.");
+  } finally {
+    await localization.changeLanguage("en");
+  }
+});
+
+it("names a chosen port in a multi-port group with its matching project and action", async () => {
+  const { initializeLocalization } = await import("../../localization");
+  const localization = initializeLocalization(["en-US"]);
+  try {
+    await render(
+      <GroupedDiscover
+        all={[first, second]}
+        matching={[first]}
+        statuses={new Map()}
+        onSelect={vi.fn()}
+        onFavoriteToggle={vi.fn()}
+      />,
+    );
+    const identity = () =>
+      document.querySelector(".discover-game-identity")?.getAttribute("aria-label") ?? "";
+    expect(identity()).toMatch(
+      /^Original game 2 separate port projects\. Matching port: First project\. .+\. View port$/u,
+    );
+    expect(document.body.textContent).toContain("Matching port: First project");
+    expect(document.body.textContent).toContain("Compare all 2");
+    await localization.changeLanguage("ar-XB");
+    await expect
+      .poll(identity)
+      .toMatch(/^Original game مشروعان منفصلان\. المنفذ المطابق: First project\. .+\. عرض المنفذ$/u);
+    expect(document.querySelector(".discover-game-observation bdi")?.textContent).toBe(
+      "First project",
+    );
+  } finally {
+    await localization.changeLanguage("en");
+  }
+});
+
+it("on a known device, replaces Discover platform chips with an exception for excluded ports", async () => {
+  const windowsOnly = { ...portDefinition(), id: "windows-only", name: "Windows only" };
+  const linuxOnly = {
+    ...portDefinition(),
+    id: "linux-only",
+    name: "Linux only",
+    platforms: ["linux-x86-64" as const],
+  };
+  const unlisted = { ...portDefinition(), id: "unlisted", name: "Unlisted", platforms: [] };
+  const ports = [windowsOnly, linuxOnly, unlisted];
+  const card = (id: string) =>
+    [...document.querySelectorAll<HTMLElement>(".discover-game")].find((item) =>
+      (JSON.parse(item.dataset.discoverPortIds!) as string[]).includes(id),
+    )!;
+  const platformChips = (id: string) =>
+    [...card(id).querySelectorAll('[title="Runs on"]')].map((chip) => chip.textContent?.trim());
+  const screen = await render(
+    <GroupedDiscover
+      all={ports}
+      matching={ports}
+      statuses={new Map()}
+      onSelect={vi.fn()}
+      onFavoriteToggle={vi.fn()}
+      devicePlatform="windows-x86-64"
+    />,
+  );
+  for (const id of ["windows-only", "linux-only", "unlisted"])
+    expect(platformChips(id)).toEqual([]);
+  // Only a port whose listed platforms exclude this device names the exception.
+  expect(card("linux-only").textContent).toContain("Not available for Windows");
+  expect(card("windows-only").textContent).not.toContain("Not available for");
+  // An unlisted platform is unknown, not a known exclusion.
+  expect(card("unlisted").textContent).not.toContain("Not available for");
+
+  await screen.rerender(
+    <GroupedDiscover
+      all={ports}
+      matching={ports}
+      statuses={new Map()}
+      onSelect={vi.fn()}
+      onFavoriteToggle={vi.fn()}
+    />,
+  );
+  // Without a known device, every card keeps listing its platforms.
+  expect(platformChips("windows-only")).toEqual(["Windows"]);
+  expect(platformChips("linux-only")).toEqual(["Linux"]);
+  expect(document.body.textContent).not.toContain("Not available for");
+});
+
+it("names the device exception in the active locale", async () => {
+  const { initializeLocalization } = await import("../../localization");
+  const localization = initializeLocalization(["en-US"]);
+  const linuxOnly = {
+    ...portDefinition(),
+    id: "linux-only",
+    name: "Linux only",
+    platforms: ["linux-x86-64" as const],
+  };
+  try {
+    await render(
+      <GroupedDiscover
+        all={[linuxOnly]}
+        matching={[linuxOnly]}
+        statuses={new Map()}
+        onSelect={vi.fn()}
+        onFavoriteToggle={vi.fn()}
+        devicePlatform="macos-aarch64"
+      />,
+    );
+    expect(document.body.textContent).toContain("Not available for Apple silicon");
+    await localization.changeLanguage("es");
+    await expect
+      .poll(() => document.body.textContent)
+      .toContain("No disponible para Apple silicon");
+  } finally {
+    await localization.changeLanguage("en");
+  }
+});
+
+it("omits empty rows from a single-port review while a comparison keeps every row aligned", async () => {
+  const bare = {
+    ...first,
+    platforms: [],
+    channels: [],
+    presentation: { ...first.presentation, source_requirements: [] },
+  };
+  const rows = () => [...document.querySelectorAll("[role=dialog] h4")].map((h) => h.textContent);
+  const dialogText = () => document.querySelector("[role=dialog]")?.textContent ?? "";
+
+  const single = await render(
+    <GroupedDiscover
+      all={[bare]}
+      matching={[bare]}
+      statuses={new Map([[bare.id, { ...portStatus(), port_id: bare.id }]])}
+      onSelect={vi.fn()}
+      onFavoriteToggle={vi.fn()}
+    />,
+  );
+  await page.getByRole("button", { name: "Why this port?", exact: true }).click();
+  await expect.element(page.getByRole("dialog")).toBeVisible();
+  // No setup method, no listed files and no installation: nothing to show for those rows.
+  expect(rows()).not.toContain("How to set it up");
+  expect(rows()).not.toContain("Required files");
+  expect(rows()).not.toContain("Who handles updates");
+  expect(dialogText()).not.toContain("No platform is listed.");
+  expect(dialogText()).not.toContain("No update channel is listed.");
+  expect(dialogText()).not.toContain("Unavailable in this catalog");
+  await userEvent.keyboard("{Escape}");
+  await expect.element(page.getByRole("dialog")).not.toBeInTheDocument();
+
+  // A single port with values keeps those rows.
+  const described = {
+    ...first,
+    presentation: {
+      ...first.presentation,
+      installation_method: "portable-package" as const,
+      source_requirements: [
+        {
+          role: "game" as const,
+          profile_id: "fixture-copy",
+          label: "Your fixture copy",
+          verification: "catalog-identity" as const,
+        },
+      ],
+    },
+  };
+  await single.rerender(
+    <GroupedDiscover
+      all={[described]}
+      matching={[described]}
+      statuses={new Map([[described.id, installedLaunchStatus()]])}
+      onSelect={vi.fn()}
+      onFavoriteToggle={vi.fn()}
+    />,
+  );
+  await page.getByRole("button", { name: "Why this port?", exact: true }).click();
+  await expect.element(page.getByRole("dialog")).toBeVisible();
+  expect(rows()).toEqual(
+    expect.arrayContaining(["How to set it up", "Required files", "Who handles updates"]),
+  );
+  expect(dialogText()).toContain("Download and install");
+  expect(dialogText()).toContain("Your fixture copy");
+  await userEvent.keyboard("{Escape}");
+  await expect.element(page.getByRole("dialog")).not.toBeInTheDocument();
+
+  // Two ports keep every row, including the absences, so they line up for comparison.
+  const other = { ...bare, id: "other-port", name: "Other project" };
+  await single.rerender(
+    <GroupedDiscover
+      all={[bare, other]}
+      matching={[bare, other]}
+      statuses={new Map()}
+      onSelect={vi.fn()}
+      onFavoriteToggle={vi.fn()}
+    />,
+  );
+  await page.getByRole("button", { name: "Compare ports", exact: true }).click();
+  await expect.element(page.getByRole("dialog")).toBeVisible();
+  const headings = rows();
+  for (const row of ["How to set it up", "Required files", "Who handles updates"])
+    expect(headings.filter((heading) => heading === row)).toHaveLength(2);
+  expect(dialogText().split("No platform is listed.")).toHaveLength(3);
+  expect(dialogText().split("No update channel is listed.")).toHaveLength(3);
+  expect(dialogText()).toContain("Unavailable in this catalog");
+  expect(dialogText()).toContain("Requirements are not listed here.");
+});

@@ -3,7 +3,7 @@
   "listing": {
     "id": "need-for-speed-ii-special-edition-nfsiise",
     "name": "Need for Speed II: Special Edition (NFSIISE)",
-    "summary": "Research listing. Upstream route: Cross-platform wrapper with Windows/Linux releases and original game support. Limits: Scope review: wrapper rather than full source reconstruction; exact source binaries/assets and architecture mapping. Upstream platforms: Windows x86 runtime/DLL route and native Unix/Linux/macOS source build (macOS up to Mojave). Exact non-Windows host CPUs unknown in frozen evidence. Original data: Supply original Need for Speed II Special Edition game data, including fedata and gamedata directories placed in the port game directory as documented by upstream. This is the Special Edition data contract, not ordinary NFS II or NFS III. Exact supported disc language/patch and original binary fingerprint remain Unknown in the retained README. Portcove setup/gameplay not verified.",
+    "summary": "Research listing. Upstream route: Cross-platform wrapper with Windows/Linux releases and original game support. Limits: This is a wrapper around retained original code, rather than a complete source reconstruction. Exact original binaries, assets and host architecture must match the project’s requirements. Upstream platforms: Windows x86 runtime/DLL route and native Unix/Linux/macOS source build (macOS up to Mojave). Exact non-Windows host CPUs unknown in frozen evidence. Original data: Supply original Need for Speed II Special Edition game data, including fedata and gamedata directories placed in the port game directory as documented by upstream. This is the Special Edition data contract, not ordinary NFS II or NFS III. Exact supported disc language/patch and original binary fingerprint remain Unknown in the retained README. Portcove setup/gameplay not verified.",
     "original_game_title": "Need for Speed II: Special Edition",
     "project_url": "https://github.com/zaps166/NFSIISE",
     "platforms": [],
@@ -17,7 +17,37 @@
       "game_slug": "need-for-speed-ii-special-edition",
       "match_kind": "underlying-game"
     },
-    "issue_number": 2886
+    "issue_number": 2886,
+    "listed_at": "2026-10-25",
+    "manual_setup": {
+      "help_url": "https://github.com/zaps166/NFSIISE/tree/6fc5caf24e9cf3d411da3ea87552babaf09253a6",
+      "steps": [
+        {
+          "title": "Prepare the exact Special Edition wrapper upstream",
+          "instruction": "Use a permitted complete Windows x86 NFSIISE v1.4.0-style copy with its matching 32-bit SDL2/OpenGL dependencies and your own Need for Speed II Special Edition fedata and gamedata trees. Ordinary Need for Speed II and NFS III are different inputs. The project combines retained original code with a modern wrapper; it is not a generic 64-bit rebuild. Complete upstream setup first; the selected release has no independently published accepted digest for managed install."
+        },
+        {
+          "title": "Select the native player and creating directory",
+          "instruction": "Select the prepared nfs2se.exe with the full Need For Speed II SE directory as working directory, retaining runtime files, nfs2se.conf.template and established options. A clean/open-config batch file or source-generation/compiler helper is not the player. Selecting one executable does not reconstruct an installer’s registry or dependency changes."
+        },
+        {
+          "title": "Retain both profile and original fallback data",
+          "instruction": "Keep the entire creating game directory, original fedata/gamedata, replay and custom/unknown files, plus the effective current account AppData/.nfs2se directory: config, save, stats including stats/prh, tmptrk and nfs2se.conf. The source copies the template on first use; only a usable profile config activates remapping of those original Win32 paths. Without it, writes can remain in the creating game paths. Preserve both effective locations and compatible old engine before changes; exact language/patch and real-save compatibility remain unobserved."
+        },
+        {
+          "title": "Review the prepared player and launch details",
+          "instruction": "Finish setup with the project’s tools, then start and quit the permitted copy you intend to add. Keep its game executable, working folder and supported launch arguments. Review those details in Portcove and agree to launch them, then choose Play separately. Adding a copy does not confirm its original game files, gameplay or save compatibility."
+        },
+        {
+          "title": "Retain upstream replacement and external ownership",
+          "instruction": "Close every running copy of the game before changing files. Keep the working game version and every original-file, profile and data location it uses. Update it with the project’s tools, then review and select the changed executable in Portcove. You manage setup, replacement, file changes, data migration and recovery. Portcove monitors the process you selected; it does not restrict file access or prevent other copies from running. Removing the registration leaves external files in place. This route does not offer Portcove downloads, setup, updates, backups, rollback, data migration or external-file deletion."
+        }
+      ],
+      "warnings": [
+        "Use only a copy and components you are already permitted to use. Engine licensing does not grant original-game, music, mod, middleware or redistribution rights.",
+        "Before changing versions, keep a copy of the working game and every data and profile folder it uses. Another executable may use those same folders."
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

@@ -1,0 +1,1686 @@
+{
+  "format_version": 1,
+  "kind": "dated classic-PC prepared-player source evidence; not live planning or fleet acceptance",
+  "observation_date": "2026-10-30",
+  "owners": [2510, 2926, 1422],
+  "counts": {
+    "distinct_repository_commit_path_blob_bindings": 81,
+    "unique_content_blobs": 76,
+    "complete_tree_reference_roles": 9,
+    "unique_root_tree_objects": 6
+  },
+  "selected_rows": [
+    {
+      "canonical_issue": 1975,
+      "id": "star-wars-tie-fighter-opentie",
+      "cohort": "original-524",
+      "historical_1422_member": false,
+      "completed_entry": "OpenTIE.exe",
+      "tag": "v0.0.7",
+      "tag_source": "8b24fb9ea9a06fd5f5dc9a675d6287fd71ef1c11",
+      "current_source": "8b24fb9ea9a06fd5f5dc9a675d6287fd71ef1c11",
+      "authored_sha256": "4bf1be2efcb8fc83431bd405f34f2a15e6157ee88c0460807e2da51fce3ac1e0",
+      "canonical_body_sha256_at_pickup": "15579523d657acb97fc5a6ab3f41244742e7510d33f15d50acac1dd6f95e0607",
+      "planning_at_pickup": {
+        "Status": "Inbox",
+        "Priority": "None",
+        "Horizon": "Someday",
+        "Target release": "Unscheduled",
+        "Release commitment": null,
+        "Work type": "Port",
+        "Workstream": "Port catalog",
+        "Platform": "Unknown",
+        "Port stage": "Watchlist",
+        "Effort": "Unknown"
+      },
+      "context_observed_at": "2026-10-30T22:42:29.771Z",
+      "publisher_assets": [
+        {
+          "id": 610309102,
+          "name": "opentie-0.0.7-linux-x86_64-release.tar.xz",
+          "bytes": 4624284,
+          "digest": "sha256:f68230a698f2a4a70ccf00d0dd9575e26a9f6da6ffcda00499a0c0605b286e63"
+        },
+        {
+          "id": 610309208,
+          "name": "opentie-0.0.7-macos-arm64-release.dmg",
+          "bytes": 6418063,
+          "digest": "sha256:8c45af5165e85be56864c4ca60afe81fa4601c61193af0094921f5913d0839f1"
+        },
+        {
+          "id": 610309028,
+          "name": "opentie-0.0.7-windows-x86_64-release.zip",
+          "bytes": 15004783,
+          "digest": "sha256:1943eeb5192b70d032c1298386862ad159f2e2643071fb4b998a72bd93e1138f"
+        }
+      ],
+      "offered_route": "already permitted prepared Windows native copy: exact intent/consent/register/relink/restart/separate selected-process Play/registration-only preserving removal",
+      "game_package_original_execution": "not_run"
+    },
+    {
+      "canonical_issue": 1635,
+      "id": "total-annihilation-open-annihilation",
+      "cohort": "original-524",
+      "historical_1422_member": false,
+      "completed_entry": "open-annihilation.exe",
+      "tag": "v0.8.7",
+      "tag_source": "5fbdd16fe30758a31a0f4f713fc45093fc0c32ea",
+      "current_source": "5fbdd16fe30758a31a0f4f713fc45093fc0c32ea",
+      "authored_sha256": "fa29ce89be405540784328eade90a043a2bd1fcd4d3aa99780f9a214dd04fba8",
+      "canonical_body_sha256_at_pickup": "816be768dd605d05ded9c3b90356de56eaf80989806f46d4b894949af51f31a0",
+      "planning_at_pickup": {
+        "Status": "Inbox",
+        "Priority": "None",
+        "Horizon": "Someday",
+        "Target release": "Unscheduled",
+        "Release commitment": null,
+        "Work type": "Port",
+        "Workstream": "Port catalog",
+        "Platform": "Unknown",
+        "Port stage": "Watchlist",
+        "Effort": "Unknown"
+      },
+      "context_observed_at": "2026-10-30T22:42:31.790Z",
+      "publisher_assets": [
+        {
+          "id": 690792055,
+          "name": "open-annihilation-v0.8.7-linux-arm64.zip",
+          "bytes": 22930656,
+          "digest": "sha256:95fd7ac8cb9e982ce2481ab3cb8ea66c93f05f47c6098e4f9a1948cc58bb38a9"
+        },
+        {
+          "id": 690792052,
+          "name": "open-annihilation-v0.8.7-linux-armhf.zip",
+          "bytes": 19844942,
+          "digest": "sha256:8512a4853c121c2cc25cf383872e83b8084348d1a97d146d23a9dc9b2f5f2da4"
+        },
+        {
+          "id": 690792048,
+          "name": "open-annihilation-v0.8.7-linux-x86_64.zip",
+          "bytes": 23816438,
+          "digest": "sha256:bcf6835e5fb9dc5fe1fb68ec4e31ca42e24b89e711cfdacccc639c6630ff2320"
+        },
+        {
+          "id": 690792046,
+          "name": "open-annihilation-v0.8.7-macos-universal.pkg",
+          "bytes": 34295901,
+          "digest": "sha256:018bf1e4b5b4e47129ceab06e47a072eb75a8d5ef9e974528bc7921d19831421"
+        },
+        {
+          "id": 690792047,
+          "name": "open-annihilation-v0.8.7-macos-universal.zip",
+          "bytes": 34390113,
+          "digest": "sha256:f3cc4d39f1d290c37888566c374bcb7e4fe359eab47de72d69c7ef8b746b0fa6"
+        },
+        {
+          "id": 690792133,
+          "name": "open-annihilation-v0.8.7-steam-deck.zip",
+          "bytes": 24970190,
+          "digest": "sha256:6f08fb746dcf52ccf1df236039be0bf4269557dc7b8f36474af6656fd7b4c3c3"
+        },
+        {
+          "id": 690792138,
+          "name": "open-annihilation-v0.8.7-windows-95-setup.exe",
+          "bytes": 27418369,
+          "digest": "sha256:0e2ad33e1a22be686b92c28812461198ffdb3f8d93c249a2991f87a128c2d0af"
+        },
+        {
+          "id": 690792159,
+          "name": "open-annihilation-v0.8.7-windows-95.zip",
+          "bytes": 36656981,
+          "digest": "sha256:cc0006f59443083d4de575d56712f04e95c77ad2c8109623688b6d3a1ab07906"
+        },
+        {
+          "id": 690792163,
+          "name": "open-annihilation-v0.8.7-windows-arm64-setup.exe",
+          "bytes": 14481389,
+          "digest": "sha256:cc01ffb35d1b6bd22086788785e464b4bc95816afa7f597fecf7f0312fbef4ff"
+        },
+        {
+          "id": 690792170,
+          "name": "open-annihilation-v0.8.7-windows-arm64.zip",
+          "bytes": 21815543,
+          "digest": "sha256:d0618d76585c3c84ba3343731f50ed56d2c9c5c80bc561215a6df754ddf0de4e"
+        },
+        {
+          "id": 690792221,
+          "name": "open-annihilation-v0.8.7-windows-x64-setup.exe",
+          "bytes": 16510123,
+          "digest": "sha256:8f18f10eb7bd575bd9df2235d2375fd0936604e7c8aa25bd0000bd5e3a99991a"
+        },
+        {
+          "id": 690792223,
+          "name": "open-annihilation-v0.8.7-windows-x64.zip",
+          "bytes": 23375208,
+          "digest": "sha256:6e87cdc6bdc4f371092566f0325b62b53540c4abf7031d7450020020cf35bfac"
+        },
+        {
+          "id": 690792234,
+          "name": "open-annihilation-v0.8.7-windows-x86-setup.exe",
+          "bytes": 18177429,
+          "digest": "sha256:5d5d5e3d46000fb5b438ed147c6b2a7ad71b887a6429a8b54df341597adfe964"
+        },
+        {
+          "id": 690792239,
+          "name": "open-annihilation-v0.8.7-windows-x86.zip",
+          "bytes": 24890131,
+          "digest": "sha256:4804905e6f31c4645a40e6623601cc5797ff32139d46ec7072a26dd3de40df93"
+        }
+      ],
+      "offered_route": "already permitted prepared Windows native copy: exact intent/consent/register/relink/restart/separate selected-process Play/registration-only preserving removal",
+      "game_package_original_execution": "not_run"
+    },
+    {
+      "canonical_issue": 1636,
+      "id": "woody-woodpecker-woodyre",
+      "cohort": "original-524",
+      "historical_1422_member": false,
+      "completed_entry": "WoodyRE.exe",
+      "tag": "v1.0.11",
+      "tag_source": "02c2bb830accb8b60ee6c2f2cb52cdc7cdb4a914",
+      "current_source": "02c2bb830accb8b60ee6c2f2cb52cdc7cdb4a914",
+      "authored_sha256": "e922f25c17020babf41b2b5e5a850c62d24429b82e85e4bd45731ef6bbce017f",
+      "canonical_body_sha256_at_pickup": "fbbd3b32d2d84a0692e5d5face7df7921354b5ec88265c700d32866d0e594721",
+      "planning_at_pickup": {
+        "Status": "Inbox",
+        "Priority": "None",
+        "Horizon": "Someday",
+        "Target release": "Unscheduled",
+        "Release commitment": null,
+        "Work type": "Port",
+        "Workstream": "Port catalog",
+        "Platform": "Unknown",
+        "Port stage": "Watchlist",
+        "Effort": "Unknown"
+      },
+      "context_observed_at": "2026-10-30T22:42:32.843Z",
+      "publisher_assets": [
+        {
+          "id": 653402428,
+          "name": "WoodyRE-v1.0.11-linux-x86_64.tar.gz",
+          "bytes": 527365,
+          "digest": "sha256:373ce82b137e16c22fdcad588af45e298fb9b0732bb283db04f4b02cacc6519c"
+        },
+        {
+          "id": 653402423,
+          "name": "WoodyRE-v1.0.11-switch.zip",
+          "bytes": 2965780,
+          "digest": "sha256:9d7fc891800b909f7576559477846a0485a5ef712e0a2e93a5db5f3a2b687c12"
+        },
+        {
+          "id": 653402421,
+          "name": "WoodyRE-v1.0.11.apk",
+          "bytes": 5131058,
+          "digest": "sha256:a749e381b05ac3d825b36f5d46ed03bfde50446af8bba0857f916e7c0471aa33"
+        },
+        {
+          "id": 653402424,
+          "name": "WoodyRE-v1.0.11.zip",
+          "bytes": 709520,
+          "digest": "sha256:7abebb5bb81c0d08614184ca4c00786106c37a31ea97d56771b8f0c90b81dcd4"
+        }
+      ],
+      "offered_route": "already permitted prepared Windows native copy: exact intent/consent/register/relink/restart/separate selected-process Play/registration-only preserving removal",
+      "game_package_original_execution": "not_run"
+    }
+  ],
+  "source_packets": [
+    {
+      "owner": "1975",
+      "complete_trees": [
+        {
+          "role": "current",
+          "commit": "8b24fb9ea9a06fd5f5dc9a675d6287fd71ef1c11",
+          "tree": "34826ef97c0dae024d7da06e22d75d075cddce1c",
+          "entries": 778,
+          "truncated": false,
+          "response_sha256": "2fc6ee7bca91ee08448f6ce606f31dc3475bb6fd7d5b675316b8b022f633c7e1",
+          "gitlinks": [
+            {
+              "path": "aeron",
+              "sha": "6187f38bb417ebbf1fcfc775eb67a5d4b34e6689"
+            },
+            {
+              "path": "src/imuse",
+              "sha": "09d3da46e004413635a58a8646fa01a27bc745b1"
+            },
+            {
+              "path": "src/landru",
+              "sha": "bbc73c360f7ccf97b87687c3201abab2af0b0fac"
+            }
+          ]
+        },
+        {
+          "role": "tag",
+          "commit": "8b24fb9ea9a06fd5f5dc9a675d6287fd71ef1c11",
+          "tree": "34826ef97c0dae024d7da06e22d75d075cddce1c",
+          "entries": 778,
+          "truncated": false,
+          "response_sha256": "2fc6ee7bca91ee08448f6ce606f31dc3475bb6fd7d5b675316b8b022f633c7e1",
+          "gitlinks": [
+            {
+              "path": "aeron",
+              "sha": "6187f38bb417ebbf1fcfc775eb67a5d4b34e6689"
+            },
+            {
+              "path": "src/imuse",
+              "sha": "09d3da46e004413635a58a8646fa01a27bc745b1"
+            },
+            {
+              "path": "src/landru",
+              "sha": "bbc73c360f7ccf97b87687c3201abab2af0b0fac"
+            }
+          ]
+        }
+      ],
+      "bindings": [
+        {
+          "repository": "elyosh/OpenTIE",
+          "commit": "8b24fb9ea9a06fd5f5dc9a675d6287fd71ef1c11",
+          "path": "README.md",
+          "blob": "71cfaf718a7ddeefb6a965da93c52b25b2aeb415",
+          "bytes": 5560,
+          "sha256": "16d97cc39d88bee1eba9c5b1ab8f59ca83738608713dc67c8c652ed7cc81dd8a",
+          "reference_roles": ["current", "tag"],
+          "retained_source_name": "tag--README.md"
+        },
+        {
+          "repository": "elyosh/OpenTIE",
+          "commit": "8b24fb9ea9a06fd5f5dc9a675d6287fd71ef1c11",
+          "path": "LICENSE",
+          "blob": "f288702d2fa16d3cdf0035b15a9fcbc552cd88e7",
+          "bytes": 35149,
+          "sha256": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986",
+          "reference_roles": ["current", "tag"],
+          "retained_source_name": "tag--LICENSE"
+        },
+        {
+          "repository": "elyosh/OpenTIE",
+          "commit": "8b24fb9ea9a06fd5f5dc9a675d6287fd71ef1c11",
+          "path": "CMakeLists.txt",
+          "blob": "2fb122c780385c35ad6a1cd0fe9f75c146b0e14b",
+          "bytes": 26110,
+          "sha256": "c9298a24e2469091ad1193588e9ab4f033051df2477b27717e8771bbceb84749",
+          "reference_roles": ["current", "tag"],
+          "retained_source_name": "tag--CMakeLists.txt"
+        },
+        {
+          "repository": "elyosh/OpenTIE",
+          "commit": "8b24fb9ea9a06fd5f5dc9a675d6287fd71ef1c11",
+          "path": "src/tie_app/CMakeLists.txt",
+          "blob": "920f0933bae2b2b3ae5dd8e85d331db13281e5f0",
+          "bytes": 6526,
+          "sha256": "f3b7e7ba6cca3c79eccf4afea22d7c3764839d14d59b83a0943be343ddfa725b",
+          "reference_roles": ["current", "tag"],
+          "retained_source_name": "tag--src__tie_app__CMakeLists.txt"
+        },
+        {
+          "repository": "elyosh/OpenTIE",
+          "commit": "8b24fb9ea9a06fd5f5dc9a675d6287fd71ef1c11",
+          "path": "src/tie_app/main.c",
+          "blob": "725fcd181c5273a1f2680b3960a401eb590c4ca5",
+          "bytes": 1929,
+          "sha256": "cfe5823475385cd500e28f7e30ca42200e2b4c5fd29bf657219a4947a8029aa9",
+          "reference_roles": ["current", "tag"],
+          "retained_source_name": "tag--src__tie_app__main.c"
+        },
+        {
+          "repository": "elyosh/OpenTIE",
+          "commit": "8b24fb9ea9a06fd5f5dc9a675d6287fd71ef1c11",
+          "path": "src/tie_app/config/app_config.c",
+          "blob": "d643e7d3e055e11026a4c83bdacd545603751d17",
+          "bytes": 66525,
+          "sha256": "86813b323ecb2e9cbb64d52634eeb8d2905423b0f21958edaaf845d30b196582",
+          "reference_roles": ["current", "tag"],
+          "retained_source_name": "tag--src__tie_app__config__app_config.c"
+        },
+        {
+          "repository": "elyosh/OpenTIE",
+          "commit": "8b24fb9ea9a06fd5f5dc9a675d6287fd71ef1c11",
+          "path": "src/tie_app/config/app_config.h",
+          "blob": "936cca022770a1c86646ff69905aa69fa4da5e50",
+          "bytes": 6753,
+          "sha256": "f3a1ba9b11dd2a3d89c62c0a26c50071b700017a9377544e46fa616aa3cf809e",
+          "reference_roles": ["current", "tag"],
+          "retained_source_name": "tag--src__tie_app__config__app_config.h"
+        },
+        {
+          "repository": "elyosh/OpenTIE",
+          "commit": "8b24fb9ea9a06fd5f5dc9a675d6287fd71ef1c11",
+          "path": "src/tie_app/setup/installation.c",
+          "blob": "315614e7a2a21c01dd4908432d12bba41850d35c",
+          "bytes": 7972,
+          "sha256": "af093a20432d977cd4e302901204c05eb30a03ad387c5b67e8cc4807726cd6bd",
+          "reference_roles": ["current", "tag"],
+          "retained_source_name": "tag--src__tie_app__setup__installation.c"
+        },
+        {
+          "repository": "elyosh/OpenTIE",
+          "commit": "8b24fb9ea9a06fd5f5dc9a675d6287fd71ef1c11",
+          "path": "src/tie_app/setup/installation.h",
+          "blob": "9fb62f84732c9e7b77d455c345d5282ac41da425",
+          "bytes": 1368,
+          "sha256": "6b2fd3242e4adfaeca0e811ace425de64181e7d967942534fd05b031e5da60de",
+          "reference_roles": ["current", "tag"],
+          "retained_source_name": "tag--src__tie_app__setup__installation.h"
+        },
+        {
+          "repository": "elyosh/OpenTIE",
+          "commit": "8b24fb9ea9a06fd5f5dc9a675d6287fd71ef1c11",
+          "path": "src/tie_runtime/runtime/profile.c",
+          "blob": "4567308a30946b2457c57d3e942e62e351a4278a",
+          "bytes": 6429,
+          "sha256": "71948773afb6840bc380e7c848950d9ee71f917514e45e7d1cc0d5b4a673c574",
+          "reference_roles": ["current", "tag"],
+          "retained_source_name": "tag--src__tie_runtime__runtime__profile.c"
+        },
+        {
+          "repository": "elyosh/OpenTIE",
+          "commit": "8b24fb9ea9a06fd5f5dc9a675d6287fd71ef1c11",
+          "path": "src/tie_runtime/runtime/profile.h",
+          "blob": "cf67a7d51495b3d3c03665eb8f4cf12465b8555b",
+          "bytes": 1225,
+          "sha256": "73abf48ef81c1fecde12e9317caf104016ca11b445f86629b787a73a84342ed0",
+          "reference_roles": ["current", "tag"],
+          "retained_source_name": "tag--src__tie_runtime__runtime__profile.h"
+        },
+        {
+          "repository": "elyosh/OpenTIE",
+          "commit": "8b24fb9ea9a06fd5f5dc9a675d6287fd71ef1c11",
+          "path": "src/tie_runtime/runtime/replay_save_task.c",
+          "blob": "806d8461bdc02cc45dda1dfaa482cadb99f0ca72",
+          "bytes": 2420,
+          "sha256": "7d21ff7742791322e379b9cfc4ea34b8f270fd8532be54dc0c765b15286f5669",
+          "reference_roles": ["current", "tag"],
+          "retained_source_name": "tag--src__tie_runtime__runtime__replay_save_task.c"
+        },
+        {
+          "repository": "elyosh/OpenTIE",
+          "commit": "8b24fb9ea9a06fd5f5dc9a675d6287fd71ef1c11",
+          "path": "src/tie_app/settings/launch_options.c",
+          "blob": "c37e19f5afcbba644b2ef1acaeef8e2841005ae5",
+          "bytes": 4277,
+          "sha256": "b346d55f3127d4acac6aa5420165afcba6faf19e5ee5f347b3e4638b65858782",
+          "reference_roles": ["current", "tag"],
+          "retained_source_name": "tag--src__tie_app__settings__launch_options.c"
+        },
+        {
+          "repository": "elyosh/OpenTIE",
+          "commit": "8b24fb9ea9a06fd5f5dc9a675d6287fd71ef1c11",
+          "path": "packaging/windows/README.md",
+          "blob": "d0d037bda98f549fe3e08194ebe3b9a707a60608",
+          "bytes": 3773,
+          "sha256": "9ff7d922e7d5bd6f0c133c5882f42f818ca4a91925fde61427e8a8e45984adb5",
+          "reference_roles": ["current", "tag"],
+          "retained_source_name": "tag--packaging__windows__README.md"
+        },
+        {
+          "repository": "elyosh/OpenTIE",
+          "commit": "8b24fb9ea9a06fd5f5dc9a675d6287fd71ef1c11",
+          "path": ".gitmodules",
+          "blob": "66e94daf1d6053a4437c1879af71e86f5c9e0766",
+          "bytes": 246,
+          "sha256": "bfe3003cc862a4b4e3e1580855e0022bd6903ce66103a47505411e1d8c085aa4",
+          "reference_roles": ["current", "tag"],
+          "retained_source_name": "tag--.gitmodules"
+        },
+        {
+          "repository": "elyosh/OpenTIE",
+          "commit": "8b24fb9ea9a06fd5f5dc9a675d6287fd71ef1c11",
+          "path": "src/tie_app/application.c",
+          "blob": "a8f83321365d075e0b86dbbc9bde02a2986bc82a",
+          "bytes": 18362,
+          "sha256": "91552f58556f3c67ed37f6bfd381ebb529e75e54643aec02d5dc64512ca00972",
+          "reference_roles": ["current", "tag"],
+          "retained_source_name": "tag--src__tie_app__application.c"
+        },
+        {
+          "repository": "elyosh/OpenTIE",
+          "commit": "8b24fb9ea9a06fd5f5dc9a675d6287fd71ef1c11",
+          "path": "src/tie_runtime/storage/storage.c",
+          "blob": "4a22377f532e03268e6e3ac68a7fbdd692927748",
+          "bytes": 7443,
+          "sha256": "fafe9fc4941aafa00ff971c2904a29a5db4c0ac57b98eac75a39bf7de416a92a",
+          "reference_roles": ["current", "tag"],
+          "retained_source_name": "tag--src__tie_runtime__storage__storage.c"
+        },
+        {
+          "repository": "elyosh/OpenTIE",
+          "commit": "8b24fb9ea9a06fd5f5dc9a675d6287fd71ef1c11",
+          "path": "src/tie_runtime/storage/storage.h",
+          "blob": "0ed1e872a22d73e413d243968f469f4912dfb8fe",
+          "bytes": 2434,
+          "sha256": "09e40c0945d8e450734d2c48eb7e9cc3a026a0521fbb56c3738f9cebd9717885",
+          "reference_roles": ["current", "tag"],
+          "retained_source_name": "tag--src__tie_runtime__storage__storage.h"
+        },
+        {
+          "repository": "elyosh/OpenTIE",
+          "commit": "8b24fb9ea9a06fd5f5dc9a675d6287fd71ef1c11",
+          "path": "src/tie_runtime/storage/pilot_storage.c",
+          "blob": "5cbd41aa0de96152d984835c7378464e6b3a69d2",
+          "bytes": 4630,
+          "sha256": "09f1612a4393128d7eeec118c895529e4d31db98d13ad9e7228b8c22513c7db5",
+          "reference_roles": ["current", "tag"],
+          "retained_source_name": "tag--src__tie_runtime__storage__pilot_storage.c"
+        },
+        {
+          "repository": "elyosh/OpenTIE",
+          "commit": "8b24fb9ea9a06fd5f5dc9a675d6287fd71ef1c11",
+          "path": "src/tie_app/setup/installation_ui.c",
+          "blob": "b7f826aee85b368c7dcb0d8b117e986a4489158a",
+          "bytes": 280,
+          "sha256": "21e91e4177c411afd9bd41257af45aedd396a3937deea58cff08b2ada3b43a86",
+          "reference_roles": ["current", "tag"],
+          "retained_source_name": "tag--src__tie_app__setup__installation_ui.c"
+        },
+        {
+          "repository": "elyosh/OpenTIE",
+          "commit": "8b24fb9ea9a06fd5f5dc9a675d6287fd71ef1c11",
+          "path": "src/tie_runtime/storage/mission_records.c",
+          "blob": "944e07b73ac58aa9d28b202ca6db4246399a0d47",
+          "bytes": 9119,
+          "sha256": "4fd145aaff5b5fa9ea0e54d2e8376ceec52f0ede144e4abc7c898fd9e6257426",
+          "reference_roles": ["current", "tag"],
+          "retained_source_name": "tag--src__tie_runtime__storage__mission_records.c"
+        }
+      ],
+      "retained_metadata": [
+        {
+          "name": "current-LICENSE.api.json",
+          "bytes": 48713,
+          "sha256": "58f3a005e4afe5019e9bf3ad08c8088ec49b699227df606635673669b57548e3"
+        },
+        {
+          "name": "current-LICENSE.api.json.observation.json",
+          "bytes": 123,
+          "sha256": "266dcc808e62e828b5c463ca41225cb6d1bac63a9b3f3a38e5f3b689d84a088d"
+        },
+        {
+          "name": "current-README.md.api.json",
+          "bytes": 7944,
+          "sha256": "7c60b7feaf7aed507df646bb288b3a26ecdba52b14f863c9d09696ad4cee9fac"
+        },
+        {
+          "name": "current-README.md.api.json.observation.json",
+          "bytes": 123,
+          "sha256": "d870947118961b00c2f014272e70a024d28d69864de4b946f641ae0098eaa41d"
+        },
+        {
+          "name": "current-tree.json",
+          "bytes": 181737,
+          "sha256": "2fc6ee7bca91ee08448f6ce606f31dc3475bb6fd7d5b675316b8b022f633c7e1"
+        },
+        {
+          "name": "current-tree.json.observation.json",
+          "bytes": 135,
+          "sha256": "8847ba587ab94cd5bc14b9f053bdc5fe49f2b5cd384b59abb9af0f9945e3e301"
+        },
+        {
+          "name": "current.json",
+          "bytes": 52207,
+          "sha256": "defa31dc54d521bdf41e69eb80b0a11a548ca0157185b947bffbd1a5acd91c9f"
+        },
+        {
+          "name": "current.json.observation.json",
+          "bytes": 85,
+          "sha256": "297f328d1d07536eff9bd5b4f1419e5d28d8037544684b497637a88d4340a697"
+        },
+        {
+          "name": "release.json",
+          "bytes": 6678,
+          "sha256": "ad14949e3368e6c0679d6b4f404333387ceb4da3331cce90de2b31f047d80d34"
+        },
+        {
+          "name": "release.json.observation.json",
+          "bytes": 88,
+          "sha256": "7e595cda8ec367b582355bd0bf9b205d9e115b6fcc3b908fc753a4ff740ded1c"
+        },
+        {
+          "name": "repository.json",
+          "bytes": 5058,
+          "sha256": "180180905713aa61ccd17754a3a542c7b10fe9ffe8cb0ff1cc334077bc7c574e"
+        },
+        {
+          "name": "repository.json.observation.json",
+          "bytes": 72,
+          "sha256": "6330d6a581368e977225828726e9fe098ea4c17b746605fec704743b45b7df4e"
+        },
+        {
+          "name": "source-manifest.json",
+          "bytes": 9646,
+          "sha256": "dc04dd60d9f8d1981231cbbfbe85a3fbe3537639b63f89afe79aba581bae9647"
+        },
+        {
+          "name": "tag-LICENSE.api.json",
+          "bytes": 48713,
+          "sha256": "58f3a005e4afe5019e9bf3ad08c8088ec49b699227df606635673669b57548e3"
+        },
+        {
+          "name": "tag-LICENSE.api.json.observation.json",
+          "bytes": 123,
+          "sha256": "266dcc808e62e828b5c463ca41225cb6d1bac63a9b3f3a38e5f3b689d84a088d"
+        },
+        {
+          "name": "tag-README.md.api.json",
+          "bytes": 7944,
+          "sha256": "7c60b7feaf7aed507df646bb288b3a26ecdba52b14f863c9d09696ad4cee9fac"
+        },
+        {
+          "name": "tag-README.md.api.json.observation.json",
+          "bytes": 123,
+          "sha256": "d870947118961b00c2f014272e70a024d28d69864de4b946f641ae0098eaa41d"
+        },
+        {
+          "name": "tag-tree.json",
+          "bytes": 181737,
+          "sha256": "2fc6ee7bca91ee08448f6ce606f31dc3475bb6fd7d5b675316b8b022f633c7e1"
+        },
+        {
+          "name": "tag-tree.json.observation.json",
+          "bytes": 135,
+          "sha256": "8847ba587ab94cd5bc14b9f053bdc5fe49f2b5cd384b59abb9af0f9945e3e301"
+        },
+        {
+          "name": "tag.json",
+          "bytes": 52207,
+          "sha256": "defa31dc54d521bdf41e69eb80b0a11a548ca0157185b947bffbd1a5acd91c9f"
+        },
+        {
+          "name": "tag.json.observation.json",
+          "bytes": 87,
+          "sha256": "370ce171b1893a6a01574d2e1f6a684bdb9c8a81c67ee0991a54668a923440cb"
+        }
+      ]
+    },
+    {
+      "owner": "1635",
+      "complete_trees": [
+        {
+          "role": "current",
+          "commit": "5fbdd16fe30758a31a0f4f713fc45093fc0c32ea",
+          "tree": "c50d1394f4ead1cf1de6945479a3a93d33bd14ec",
+          "entries": 5769,
+          "truncated": false,
+          "response_sha256": "bdef332b3f72f234fee19d1861e635d6301294e332a0e70785e7c24550516deb",
+          "gitlinks": []
+        },
+        {
+          "role": "tag",
+          "commit": "5fbdd16fe30758a31a0f4f713fc45093fc0c32ea",
+          "tree": "c50d1394f4ead1cf1de6945479a3a93d33bd14ec",
+          "entries": 5769,
+          "truncated": false,
+          "response_sha256": "bdef332b3f72f234fee19d1861e635d6301294e332a0e70785e7c24550516deb",
+          "gitlinks": []
+        }
+      ],
+      "bindings": [
+        {
+          "repository": "open-annihilation/open-annihilation",
+          "commit": "5fbdd16fe30758a31a0f4f713fc45093fc0c32ea",
+          "path": "README.md",
+          "blob": "bd8b1d3d32017a0ca205f481c45c43f2a01c0a16",
+          "bytes": 24324,
+          "sha256": "b7d5f84a7b3f3285603cc3daba27b04802bb1a77b4a639d86ca7cb51a7500b2c",
+          "reference_roles": ["current", "tag"],
+          "retained_source_name": "tag--README.md"
+        },
+        {
+          "repository": "open-annihilation/open-annihilation",
+          "commit": "5fbdd16fe30758a31a0f4f713fc45093fc0c32ea",
+          "path": "LICENSE",
+          "blob": "f288702d2fa16d3cdf0035b15a9fcbc552cd88e7",
+          "bytes": 35149,
+          "sha256": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986",
+          "reference_roles": ["current", "tag"],
+          "retained_source_name": "tag--LICENSE"
+        },
+        {
+          "repository": "open-annihilation/open-annihilation",
+          "commit": "5fbdd16fe30758a31a0f4f713fc45093fc0c32ea",
+          "path": "CMakeLists.txt",
+          "blob": "a26c2fc968dc89037100459eb28b34daddafb2f0",
+          "bytes": 366501,
+          "sha256": "386460a032284ba63979aca1ba9b9e06f30a020ff4a986869d50b0a0a2cbf197",
+          "reference_roles": ["current", "tag"],
+          "retained_source_name": "tag--CMakeLists.txt"
+        },
+        {
+          "repository": "open-annihilation/open-annihilation",
+          "commit": "5fbdd16fe30758a31a0f4f713fc45093fc0c32ea",
+          "path": "docs/installation/windows.md",
+          "blob": "37b0dc030cf6874e4b623fc5243a6f179f81e47a",
+          "bytes": 17671,
+          "sha256": "e48b08a25568764bf2f4258f088ea87125c47091d624702163b28caf8e3f5868",
+          "reference_roles": ["current", "tag"],
+          "retained_source_name": "tag--docs__installation__windows.md"
+        },
+        {
+          "repository": "open-annihilation/open-annihilation",
+          "commit": "5fbdd16fe30758a31a0f4f713fc45093fc0c32ea",
+          "path": "docs/command-line.md",
+          "blob": "1878a0b6be7383f63f2043e98595b6668a578556",
+          "bytes": 107345,
+          "sha256": "5c1ea7dbacc4a657581cbc89dd1b9addb8496aeb15bbff42f13b92903856abe2",
+          "reference_roles": ["current", "tag"],
+          "retained_source_name": "tag--docs__command-line.md"
+        },
+        {
+          "repository": "open-annihilation/open-annihilation",
+          "commit": "5fbdd16fe30758a31a0f4f713fc45093fc0c32ea",
+          "path": "docs/updates.md",
+          "blob": "efcd9311edf1dd69c3a641735aa6974c1ec6298e",
+          "bytes": 21543,
+          "sha256": "f8a91cb53c4ff00afb74f32ccbec5747425aa14e5551850643dd078981506345",
+          "reference_roles": ["current", "tag"],
+          "retained_source_name": "tag--docs__updates.md"
+        },
+        {
+          "repository": "open-annihilation/open-annihilation",
+          "commit": "5fbdd16fe30758a31a0f4f713fc45093fc0c32ea",
+          "path": "docs/saves.md",
+          "blob": "a1c3a5c0eb2cc39cca8d5b1a74ac745c695b4fed",
+          "bytes": 4266,
+          "sha256": "4fb32bc1e83ae50bf95799ec36b66abfb7fbb75c56cc65f5b6c539f77f826529",
+          "reference_roles": ["current", "tag"],
+          "retained_source_name": "tag--docs__saves.md"
+        },
+        {
+          "repository": "open-annihilation/open-annihilation",
+          "commit": "5fbdd16fe30758a31a0f4f713fc45093fc0c32ea",
+          "path": "src/app/main.cpp",
+          "blob": "0b7c991db57d5ad34e69a66b88ede493e8d26137",
+          "bytes": 122753,
+          "sha256": "c72501be4be15d00288a4f318cacb976056f841e95447f1ba106fe73659fb477",
+          "reference_roles": ["current", "tag"],
+          "retained_source_name": "tag--src__app__main.cpp"
+        },
+        {
+          "repository": "open-annihilation/open-annihilation",
+          "commit": "5fbdd16fe30758a31a0f4f713fc45093fc0c32ea",
+          "path": "src/app/content/src/updates.cpp",
+          "blob": "264b114110a52dae13c6fd31ddf22b2d4825cd84",
+          "bytes": 18164,
+          "sha256": "1807f3a0b84b5335bd3764b8d12cf90d65616912d89c0fbf75d5bf3393c066f8",
+          "reference_roles": ["current", "tag"],
+          "retained_source_name": "tag--src__app__content__src__updates.cpp"
+        },
+        {
+          "repository": "open-annihilation/open-annihilation",
+          "commit": "5fbdd16fe30758a31a0f4f713fc45093fc0c32ea",
+          "path": "src/app/content/include/oa/app/content/updates.hpp",
+          "blob": "e84a39747fba5174d1c0cc35e6ae6fd5e0e71a82",
+          "bytes": 9383,
+          "sha256": "4117423944733a77cfe90f5457644ef346e46672a65e2c3fa77490b64351594a",
+          "reference_roles": ["current", "tag"],
+          "retained_source_name": "tag--src__app__content__include__oa__app__content__updates.hpp"
+        },
+        {
+          "repository": "open-annihilation/open-annihilation",
+          "commit": "5fbdd16fe30758a31a0f4f713fc45093fc0c32ea",
+          "path": "packaging/windows/open-annihilation.nsi",
+          "blob": "9b2784f7cf0b776607c44d2905c2578b9dfe9590",
+          "bytes": 20695,
+          "sha256": "ab38404b7b98dd7061bad6ffd54b2ee9a83e35788c315f4fe96a0f8b554e8b39",
+          "reference_roles": ["current", "tag"],
+          "retained_source_name": "tag--packaging__windows__open-annihilation.nsi"
+        },
+        {
+          "repository": "open-annihilation/open-annihilation",
+          "commit": "5fbdd16fe30758a31a0f4f713fc45093fc0c32ea",
+          "path": "src/app/runtime_update.cpp",
+          "blob": "c90d72481c632ac13e29868871c6a27ef583b3a8",
+          "bytes": 28660,
+          "sha256": "657e5fa6866f32edca0e7d05a375c980bedb52ed6e9943f3de17cb8988f2bb63",
+          "reference_roles": ["current", "tag"],
+          "retained_source_name": "tag--src__app__runtime_update.cpp"
+        },
+        {
+          "repository": "open-annihilation/open-annihilation",
+          "commit": "5fbdd16fe30758a31a0f4f713fc45093fc0c32ea",
+          "path": "src/app/runtime_update_install.cpp",
+          "blob": "7e92169ee7c1bde3ab6905fa0ba2a74e083033fd",
+          "bytes": 110190,
+          "sha256": "6d959d4236f7c3d606a59f5ec213241d76f4c58863ead5dcdccf012ca26fc9e4",
+          "reference_roles": ["current", "tag"],
+          "retained_source_name": "tag--src__app__runtime_update_install.cpp"
+        },
+        {
+          "repository": "open-annihilation/open-annihilation",
+          "commit": "5fbdd16fe30758a31a0f4f713fc45093fc0c32ea",
+          "path": "src/app/runtime_update_start.hpp",
+          "blob": "1510ae7bd0f63fe73deace3ca0a61b73d52e3931",
+          "bytes": 2281,
+          "sha256": "7512c007010d94e73f60bb36e43c2412e98f75bd36d417476c40ffa0f903d915",
+          "reference_roles": ["current", "tag"],
+          "retained_source_name": "tag--src__app__runtime_update_start.hpp"
+        },
+        {
+          "repository": "open-annihilation/open-annihilation",
+          "commit": "5fbdd16fe30758a31a0f4f713fc45093fc0c32ea",
+          "path": "src/app/update/README.md",
+          "blob": "f0e59c007355c61277f3b5bed449cb0d16c20b32",
+          "bytes": 8015,
+          "sha256": "d62bbaf499f29c48f72e7f19ecd19778000aa199c4e587c3e74e9ffcbc2927a6",
+          "reference_roles": ["current", "tag"],
+          "retained_source_name": "tag--src__app__update__README.md"
+        },
+        {
+          "repository": "open-annihilation/open-annihilation",
+          "commit": "5fbdd16fe30758a31a0f4f713fc45093fc0c32ea",
+          "path": "src/app/startup.cpp",
+          "blob": "4a6369eab6b1b2bf286cfec45d171c1634202fae",
+          "bytes": 112782,
+          "sha256": "29e9c08335a3d709c0975301cff89f95f39acb58469346f5aa9dcfd0a0417d5e",
+          "reference_roles": ["current", "tag"],
+          "retained_source_name": "tag--src__app__startup.cpp"
+        },
+        {
+          "repository": "open-annihilation/open-annihilation",
+          "commit": "5fbdd16fe30758a31a0f4f713fc45093fc0c32ea",
+          "path": "src/app/user_folder.cpp",
+          "blob": "28dd1d14a939f5c5540b97c75dd835b51d85aa5d",
+          "bytes": 28672,
+          "sha256": "714690f76b773aa82212fc8393b9f8f81ea6fe23bba98930ea3f982703753ba9",
+          "reference_roles": ["current", "tag"],
+          "retained_source_name": "tag--src__app__user_folder.cpp"
+        },
+        {
+          "repository": "open-annihilation/open-annihilation",
+          "commit": "5fbdd16fe30758a31a0f4f713fc45093fc0c32ea",
+          "path": "src/app/runtime_user_folder.cpp",
+          "blob": "6c5f4a86dd2b699c60c33191f745bab3888d9ce8",
+          "bytes": 13324,
+          "sha256": "f7c1f7b3eab1346b10fdf8d7b66349b72ac705027c0a8cdf431b1a85cfdfaa5b",
+          "reference_roles": ["current", "tag"],
+          "retained_source_name": "tag--src__app__runtime_user_folder.cpp"
+        },
+        {
+          "repository": "open-annihilation/open-annihilation",
+          "commit": "5fbdd16fe30758a31a0f4f713fc45093fc0c32ea",
+          "path": "src/platform/preferences/README.md",
+          "blob": "fda8e4d533981c806504f16715f77f9c1062adf8",
+          "bytes": 29444,
+          "sha256": "e6724a938c43e048c6d3d80fffd973932838cd343b802878ff5f2d87b086d38d",
+          "reference_roles": ["current", "tag"],
+          "retained_source_name": "tag--src__platform__preferences__README.md"
+        },
+        {
+          "repository": "open-annihilation/open-annihilation",
+          "commit": "5fbdd16fe30758a31a0f4f713fc45093fc0c32ea",
+          "path": "src/platform/preferences/src/preferences.cpp",
+          "blob": "04143bbfc7c986f312c0cacedd2de6f43f90fde0",
+          "bytes": 16655,
+          "sha256": "f6df6428a8f9ba2fd97a8ce1b53c404a3724bd3e1caaa4dfcfee0a7e6dc9f7fe",
+          "reference_roles": ["current", "tag"],
+          "retained_source_name": "tag--src__platform__preferences__src__preferences.cpp"
+        },
+        {
+          "repository": "open-annihilation/open-annihilation",
+          "commit": "5fbdd16fe30758a31a0f4f713fc45093fc0c32ea",
+          "path": "src/app/runtime_update_check.cpp",
+          "blob": "4ea55be3d005f6647f7c52450502ebf95e3ae5e5",
+          "bytes": 18541,
+          "sha256": "8bc82f45271bd4073992f96e7763ca494ab2c29ab295bbdff129ad45c07f4c8e",
+          "reference_roles": ["current", "tag"],
+          "retained_source_name": "tag--src__app__runtime_update_check.cpp"
+        },
+        {
+          "repository": "open-annihilation/open-annihilation",
+          "commit": "5fbdd16fe30758a31a0f4f713fc45093fc0c32ea",
+          "path": "src/app/runtime_update_install_check.cpp",
+          "blob": "8596d7831f886c29c2211e68fdcd22ebdac89b4e",
+          "bytes": 38542,
+          "sha256": "fa49f557b9ab0b0b627ee0b9ab45ceef53696c748c57531c6c85990a283f1ad0",
+          "reference_roles": ["current", "tag"],
+          "retained_source_name": "tag--src__app__runtime_update_install_check.cpp"
+        },
+        {
+          "repository": "open-annihilation/open-annihilation",
+          "commit": "5fbdd16fe30758a31a0f4f713fc45093fc0c32ea",
+          "path": "COPYRIGHT",
+          "blob": "3fc38e81fb0d16d0089f97e54da26d101abea3bc",
+          "bytes": 1127,
+          "sha256": "3769f329e8dd8e76ca624ff2d81e14de6e6e2ae93d79dd876f6facec618979eb",
+          "reference_roles": ["current", "tag"],
+          "retained_source_name": "tag--COPYRIGHT"
+        },
+        {
+          "repository": "open-annihilation/open-annihilation",
+          "commit": "5fbdd16fe30758a31a0f4f713fc45093fc0c32ea",
+          "path": "REUSE.toml",
+          "blob": "539e1313a70d628edefe64fb8f9a9cf77c30822d",
+          "bytes": 8894,
+          "sha256": "724054e7259a5931e7654c65652469fc20843b2da2461a23ec03a19e0b2419c3",
+          "reference_roles": ["current", "tag"],
+          "retained_source_name": "tag--REUSE.toml"
+        },
+        {
+          "repository": "open-annihilation/open-annihilation",
+          "commit": "5fbdd16fe30758a31a0f4f713fc45093fc0c32ea",
+          "path": "src/app/runtime_content.cpp",
+          "blob": "d6239e4da4d4c7298ed325bb890bd51a33455f88",
+          "bytes": 15347,
+          "sha256": "ad2642a2cf14eaf575ea35478fdbaa24046213250440949cc0a5874b50cc067b",
+          "reference_roles": ["current", "tag"],
+          "retained_source_name": "tag--src__app__runtime_content.cpp"
+        },
+        {
+          "repository": "open-annihilation/open-annihilation",
+          "commit": "5fbdd16fe30758a31a0f4f713fc45093fc0c32ea",
+          "path": "src/ui/engine-settings/src/updates_page.cpp",
+          "blob": "c75f7f2ce605e664f4e2dcb644837d36e29c6979",
+          "bytes": 37343,
+          "sha256": "53d66818eb1197b7d82c7a18d9554e8d945159e3b77213db0624ae217d2164b4",
+          "reference_roles": ["current", "tag"],
+          "retained_source_name": "tag--src__ui__engine-settings__src__updates_page.cpp"
+        },
+        {
+          "repository": "open-annihilation/open-annihilation",
+          "commit": "5fbdd16fe30758a31a0f4f713fc45093fc0c32ea",
+          "path": "src/ui/engine-settings/src/updates_page.hpp",
+          "blob": "703fa40e71011ec85f1383d2a7d8b8deedeeef58",
+          "bytes": 7468,
+          "sha256": "fe373c38b2f80eeb517ab72a01209653aa3cf6a6661832ec4d0bf36de3a53c53",
+          "reference_roles": ["current", "tag"],
+          "retained_source_name": "tag--src__ui__engine-settings__src__updates_page.hpp"
+        },
+        {
+          "repository": "open-annihilation/open-annihilation",
+          "commit": "5fbdd16fe30758a31a0f4f713fc45093fc0c32ea",
+          "path": "src/app/content/src/settings.cpp",
+          "blob": "aabb86f0defaa540ab82dfd83fbe46158fc3786f",
+          "bytes": 10541,
+          "sha256": "6fbcfc668533dbb7cc4f1daf26bd96d37a50e085da32800db1602ac023df418c",
+          "reference_roles": ["current", "tag"],
+          "retained_source_name": "tag--src__app__content__src__settings.cpp"
+        },
+        {
+          "repository": "open-annihilation/open-annihilation",
+          "commit": "5fbdd16fe30758a31a0f4f713fc45093fc0c32ea",
+          "path": "src/ui/engine-settings/src/content_page.cpp",
+          "blob": "5e889797cc22e2ed923547f864bdf05a7d41cc84",
+          "bytes": 6363,
+          "sha256": "37142f69529e4881ea47233b7fc95438f14b35a99339c5c40aaa48388588aee8",
+          "reference_roles": ["current", "tag"],
+          "retained_source_name": "tag--src__ui__engine-settings__src__content_page.cpp"
+        },
+        {
+          "repository": "open-annihilation/open-annihilation",
+          "commit": "5fbdd16fe30758a31a0f4f713fc45093fc0c32ea",
+          "path": "ATTRIBUTIONS.md",
+          "blob": "cf24fbfc7cd2cda80ad4fe02f3fcdbad402b2ba3",
+          "bytes": 20247,
+          "sha256": "786b92fac3a3977c90a95bd427186537f5b0b78c1a71d1dd686001af9ee09dec",
+          "reference_roles": ["current", "tag"],
+          "retained_source_name": "tag--ATTRIBUTIONS.md"
+        },
+        {
+          "repository": "open-annihilation/open-annihilation",
+          "commit": "5fbdd16fe30758a31a0f4f713fc45093fc0c32ea",
+          "path": "licenses/LicenseRef-OpenAnnihilation-Branding.txt",
+          "blob": "d7557289c1ee2d2da3754c641d30fbb88b8feb0d",
+          "bytes": 968,
+          "sha256": "9249942e951436ee7ee69ee50c3e3d8223a875d2be652e17db34254f99dc8f5b",
+          "reference_roles": ["current", "tag"],
+          "retained_source_name": "tag--licenses__LicenseRef-OpenAnnihilation-Branding.txt"
+        },
+        {
+          "repository": "open-annihilation/open-annihilation",
+          "commit": "5fbdd16fe30758a31a0f4f713fc45093fc0c32ea",
+          "path": "src/app/content/src/service.cpp",
+          "blob": "79ec8002197d618f748e8b610d6fe270a8a319c8",
+          "bytes": 14980,
+          "sha256": "fbe329352cd681e7f0094bd3ac61e2a54c62460a93fa7b77d03bd0beb7a8e479",
+          "reference_roles": ["current", "tag"],
+          "retained_source_name": "tag--src__app__content__src__service.cpp"
+        }
+      ],
+      "retained_metadata": [
+        {
+          "name": "current-LICENSE.api.json",
+          "bytes": 48734,
+          "sha256": "646d4ec8a601dd902aca72f928bd03fc6c09b92a7f42f3df9a9db5cfe4341b38"
+        },
+        {
+          "name": "current-LICENSE.api.json.observation.json",
+          "bytes": 144,
+          "sha256": "a09afa48f92f074f2646af805078bcfc4219d9e70612142f0d321a0066fa913c"
+        },
+        {
+          "name": "current-README.md.api.json",
+          "bytes": 33816,
+          "sha256": "78438da09628752bb9128e35c97aa330f3f610c416d0a43853e5cf7aed062fef"
+        },
+        {
+          "name": "current-README.md.api.json.observation.json",
+          "bytes": 144,
+          "sha256": "6dbf8e270415c27d42d1651da748a4140f7b6c2c1eabfb51dac7bb6b17316023"
+        },
+        {
+          "name": "current-tree.json",
+          "bytes": 1510520,
+          "sha256": "bdef332b3f72f234fee19d1861e635d6301294e332a0e70785e7c24550516deb"
+        },
+        {
+          "name": "current-tree.json.observation.json",
+          "bytes": 156,
+          "sha256": "d1f9170645b85149a9b187286955baeb1cbc7c6810df70b9e191c522d86db3ff"
+        },
+        {
+          "name": "current.json",
+          "bytes": 1276834,
+          "sha256": "eb9b6b21a64253a51ddf23ce10dc0a2bab55dc0765ae0337e3a2050c8d073779"
+        },
+        {
+          "name": "current.json.observation.json",
+          "bytes": 106,
+          "sha256": "39767dde118cb3be5010918e37778eb4108e0c8d9015602b2a012b6d2f515bbf"
+        },
+        {
+          "name": "release.json",
+          "bytes": 60943,
+          "sha256": "d204315004ce034fa425f4f93adcf5882cfcac10b85740d4f5b60036a4ccfa6b"
+        },
+        {
+          "name": "release.json.observation.json",
+          "bytes": 109,
+          "sha256": "8c3dd6dc53ea9777b0ff547160e43e3bb957896bdef6dbe9f92502828c22a44e"
+        },
+        {
+          "name": "repository.json",
+          "bytes": 7538,
+          "sha256": "5122dd5c00911552fcf27455abedacbd0e043890de96dded2293244e22dcb922"
+        },
+        {
+          "name": "repository.json.observation.json",
+          "bytes": 93,
+          "sha256": "dc58798ab7a5e77f6f15648fb7f383ece9ae7e70e1406ef6fbddfea92a591785"
+        },
+        {
+          "name": "source-manifest.json",
+          "bytes": 14869,
+          "sha256": "fa90920d9f2d1de60df55e0642fb96ff49cefb34baf3cee4c98739570970121b"
+        },
+        {
+          "name": "tag-LICENSE.api.json",
+          "bytes": 48734,
+          "sha256": "646d4ec8a601dd902aca72f928bd03fc6c09b92a7f42f3df9a9db5cfe4341b38"
+        },
+        {
+          "name": "tag-LICENSE.api.json.observation.json",
+          "bytes": 144,
+          "sha256": "a09afa48f92f074f2646af805078bcfc4219d9e70612142f0d321a0066fa913c"
+        },
+        {
+          "name": "tag-README.md.api.json",
+          "bytes": 33816,
+          "sha256": "78438da09628752bb9128e35c97aa330f3f610c416d0a43853e5cf7aed062fef"
+        },
+        {
+          "name": "tag-README.md.api.json.observation.json",
+          "bytes": 144,
+          "sha256": "6dbf8e270415c27d42d1651da748a4140f7b6c2c1eabfb51dac7bb6b17316023"
+        },
+        {
+          "name": "tag-tree.json",
+          "bytes": 1510520,
+          "sha256": "bdef332b3f72f234fee19d1861e635d6301294e332a0e70785e7c24550516deb"
+        },
+        {
+          "name": "tag-tree.json.observation.json",
+          "bytes": 156,
+          "sha256": "d1f9170645b85149a9b187286955baeb1cbc7c6810df70b9e191c522d86db3ff"
+        },
+        {
+          "name": "tag.json",
+          "bytes": 1276834,
+          "sha256": "eb9b6b21a64253a51ddf23ce10dc0a2bab55dc0765ae0337e3a2050c8d073779"
+        },
+        {
+          "name": "tag.json.observation.json",
+          "bytes": 108,
+          "sha256": "6bebfc527ce8b6138f98d2db865b26c412cfbdfecfa579dd410b18374ded47b6"
+        }
+      ]
+    },
+    {
+      "owner": "1636",
+      "complete_trees": [
+        {
+          "role": "current",
+          "commit": "02c2bb830accb8b60ee6c2f2cb52cdc7cdb4a914",
+          "tree": "338713bf9ceda498fc689113fd4da2a848b85ef8",
+          "entries": 260,
+          "truncated": false,
+          "response_sha256": "7fe78456be323ab352078947e1ae1a2f6714c23c3abdc415370c1e7cfac13627",
+          "gitlinks": []
+        },
+        {
+          "role": "tag",
+          "commit": "02c2bb830accb8b60ee6c2f2cb52cdc7cdb4a914",
+          "tree": "338713bf9ceda498fc689113fd4da2a848b85ef8",
+          "entries": 260,
+          "truncated": false,
+          "response_sha256": "7fe78456be323ab352078947e1ae1a2f6714c23c3abdc415370c1e7cfac13627",
+          "gitlinks": []
+        }
+      ],
+      "bindings": [
+        {
+          "repository": "jjmhalew/WoodyRE",
+          "commit": "02c2bb830accb8b60ee6c2f2cb52cdc7cdb4a914",
+          "path": "README.md",
+          "blob": "d6c3e6f913588d7c203766feea29eac2acaaeb68",
+          "bytes": 20286,
+          "sha256": "132c593a6d0d696caf66f65b16aeb54dbc7534124257a85bd808fa2151119075",
+          "reference_roles": ["current", "tag"],
+          "retained_source_name": "tag--README.md"
+        },
+        {
+          "repository": "jjmhalew/WoodyRE",
+          "commit": "02c2bb830accb8b60ee6c2f2cb52cdc7cdb4a914",
+          "path": "LICENSE",
+          "blob": "f288702d2fa16d3cdf0035b15a9fcbc552cd88e7",
+          "bytes": 35149,
+          "sha256": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986",
+          "reference_roles": ["current", "tag"],
+          "retained_source_name": "tag--LICENSE"
+        },
+        {
+          "repository": "jjmhalew/WoodyRE",
+          "commit": "02c2bb830accb8b60ee6c2f2cb52cdc7cdb4a914",
+          "path": "src/main_engine.c",
+          "blob": "411f0b3a13b9a6b4ab3c10004523b08265b082b2",
+          "bytes": 409091,
+          "sha256": "7de52915f75ccae01598884dabfe97cd05807c485c0d4ae270f076fa7e2e2ebe",
+          "reference_roles": ["current", "tag"],
+          "retained_source_name": "tag--src__main_engine.c"
+        },
+        {
+          "repository": "jjmhalew/WoodyRE",
+          "commit": "02c2bb830accb8b60ee6c2f2cb52cdc7cdb4a914",
+          "path": "src/plat_sdl.c",
+          "blob": "ad53a9e05ddf30178b5044fccb98ddceae600a87",
+          "bytes": 17664,
+          "sha256": "cd6180b70ae7a1c114662894bfc5a0895e85cbdf9e6f23c2cd89e0c81727bf44",
+          "reference_roles": ["current", "tag"],
+          "retained_source_name": "tag--src__plat_sdl.c"
+        },
+        {
+          "repository": "jjmhalew/WoodyRE",
+          "commit": "02c2bb830accb8b60ee6c2f2cb52cdc7cdb4a914",
+          "path": "src/datasetup.c",
+          "blob": "0978765581c40035e509713e7bec0d7bf9c9ea09",
+          "bytes": 14945,
+          "sha256": "8ec1028f70d57ce3d9c00251ef5251edd8edbd1ca265c2f008166f33d1249c04",
+          "reference_roles": ["current", "tag"],
+          "retained_source_name": "tag--src__datasetup.c"
+        },
+        {
+          "repository": "jjmhalew/WoodyRE",
+          "commit": "02c2bb830accb8b60ee6c2f2cb52cdc7cdb4a914",
+          "path": "src/datasetup.h",
+          "blob": "7f95fe93fdc4c2c34d31dfcd7c7e57c03996ecb4",
+          "bytes": 1412,
+          "sha256": "964747233bca9d336002accef5f4081af572d05fb829f226bc40b0323e75c4a3",
+          "reference_roles": ["current", "tag"],
+          "retained_source_name": "tag--src__datasetup.h"
+        },
+        {
+          "repository": "jjmhalew/WoodyRE",
+          "commit": "02c2bb830accb8b60ee6c2f2cb52cdc7cdb4a914",
+          "path": "tools/native/bundle.c",
+          "blob": "749fb8c3f15bf90bc7d2a127723c99ad2859ae88",
+          "bytes": 7281,
+          "sha256": "7418c82fa6244cfe3db13d4e5e621c2626ec1590d4466537769a88a63a797003",
+          "reference_roles": ["current", "tag"],
+          "retained_source_name": "tag--tools__native__bundle.c"
+        },
+        {
+          "repository": "jjmhalew/WoodyRE",
+          "commit": "02c2bb830accb8b60ee6c2f2cb52cdc7cdb4a914",
+          "path": "build.bat",
+          "blob": "f9e5c2b5c6261503736df7730c2187b04d3c80cb",
+          "bytes": 4307,
+          "sha256": "8efc77e9875473b0c2caa0428d6271c9e5eee0b4d2ed15d1a7797282d94f7a5c",
+          "reference_roles": ["current", "tag"],
+          "retained_source_name": "tag--build.bat"
+        },
+        {
+          "repository": "jjmhalew/WoodyRE",
+          "commit": "02c2bb830accb8b60ee6c2f2cb52cdc7cdb4a914",
+          "path": ".github/workflows/build.yml",
+          "blob": "937e7baac7671d4c1a667104645c62e6b3272c08",
+          "bytes": 7260,
+          "sha256": "38fb2f58cd5956c4c1a0c37f1d40417798005a64c2135434f6f6099ac8fc2d37",
+          "reference_roles": ["current", "tag"],
+          "retained_source_name": "tag--.github__workflows__build.yml"
+        }
+      ],
+      "retained_metadata": [
+        {
+          "name": "current-LICENSE.api.json",
+          "bytes": 48715,
+          "sha256": "4c400a69eee9749a53b0879c0233d2a2ebbe85f335e5eb02dfef3e4532af53d3"
+        },
+        {
+          "name": "current-LICENSE.api.json.observation.json",
+          "bytes": 125,
+          "sha256": "a7588b6d5455059342b4f5ec03197a38644fa001ec699383d4b24d9f4e2e7ac2"
+        },
+        {
+          "name": "current-README.md.api.json",
+          "bytes": 28233,
+          "sha256": "892342a994d3d6c63267dbfa08fb913bf6cb2629019e48906faf81c19326cbbb"
+        },
+        {
+          "name": "current-README.md.api.json.observation.json",
+          "bytes": 125,
+          "sha256": "3f863aae6b0d2f352f6ed9e7def72f8a5c5bdd9dd5f5d8733f90c73b9260fdc5"
+        },
+        {
+          "name": "current-tree.json",
+          "bytes": 59018,
+          "sha256": "7fe78456be323ab352078947e1ae1a2f6714c23c3abdc415370c1e7cfac13627"
+        },
+        {
+          "name": "current-tree.json.observation.json",
+          "bytes": 137,
+          "sha256": "a9de7dd027be22a126e7607386a6aa267023bdd6df2a7c8733aa05c9a3d8d4f1"
+        },
+        {
+          "name": "current.json",
+          "bytes": 4796,
+          "sha256": "a77a9c36ce579562a83abf346c098cb41487229c61be74619a3f0675ed4c5ce0"
+        },
+        {
+          "name": "current.json.observation.json",
+          "bytes": 89,
+          "sha256": "16108c26901ed6e6bf37e9cfc0bbd6db64a8762fe94b197d4c5086526c4c889c"
+        },
+        {
+          "name": "release.json",
+          "bytes": 9914,
+          "sha256": "adb9cb3ab888d82048609a808a76eb8bbd6605218cf8161d8759458f88b5052a"
+        },
+        {
+          "name": "release.json.observation.json",
+          "bytes": 90,
+          "sha256": "34243099dc9f060d941a1ab57fe89caa290959ec984b7992f92f29a0e03af2be"
+        },
+        {
+          "name": "repository.json",
+          "bytes": 5433,
+          "sha256": "7052e15e2391c50847a7b3821a7efdc456e56162cb08b27d16458a60169ece23"
+        },
+        {
+          "name": "repository.json.observation.json",
+          "bytes": 74,
+          "sha256": "74586dec4661f48266a3f74c089811eec3606596854aa17d505b7d3b1da8c71b"
+        },
+        {
+          "name": "source-manifest.json",
+          "bytes": 3957,
+          "sha256": "d00b95c825d3a7f1495f324bdc68807f4eec051f1e4b622b766cee8c3800a141"
+        },
+        {
+          "name": "tag-LICENSE.api.json",
+          "bytes": 48715,
+          "sha256": "4c400a69eee9749a53b0879c0233d2a2ebbe85f335e5eb02dfef3e4532af53d3"
+        },
+        {
+          "name": "tag-LICENSE.api.json.observation.json",
+          "bytes": 125,
+          "sha256": "a7588b6d5455059342b4f5ec03197a38644fa001ec699383d4b24d9f4e2e7ac2"
+        },
+        {
+          "name": "tag-README.md.api.json",
+          "bytes": 28233,
+          "sha256": "892342a994d3d6c63267dbfa08fb913bf6cb2629019e48906faf81c19326cbbb"
+        },
+        {
+          "name": "tag-README.md.api.json.observation.json",
+          "bytes": 125,
+          "sha256": "3f863aae6b0d2f352f6ed9e7def72f8a5c5bdd9dd5f5d8733f90c73b9260fdc5"
+        },
+        {
+          "name": "tag-tree.json",
+          "bytes": 59018,
+          "sha256": "7fe78456be323ab352078947e1ae1a2f6714c23c3abdc415370c1e7cfac13627"
+        },
+        {
+          "name": "tag-tree.json.observation.json",
+          "bytes": 137,
+          "sha256": "a9de7dd027be22a126e7607386a6aa267023bdd6df2a7c8733aa05c9a3d8d4f1"
+        },
+        {
+          "name": "tag.json",
+          "bytes": 4796,
+          "sha256": "a77a9c36ce579562a83abf346c098cb41487229c61be74619a3f0675ed4c5ce0"
+        },
+        {
+          "name": "tag.json.observation.json",
+          "bytes": 90,
+          "sha256": "72ac28f4454b07f6ec47c0dbf2561597db806d22ed86ee1217f9e4591120479e"
+        }
+      ]
+    },
+    {
+      "owner": "1537",
+      "complete_trees": [
+        {
+          "role": "current",
+          "commit": "f641f17bc72c7227f5bf30ee170bfc4b8b2d52e6",
+          "tree": "1b9f78a73c366c6517372f204f36b732aed78cfc",
+          "entries": 101,
+          "truncated": false,
+          "response_sha256": "2195d5c552003eab087f50f1a98e54bd210dd1e76fbe3dd8677ae12d0685790f",
+          "gitlinks": [
+            {
+              "path": "kit",
+              "sha": "eb32cc42623e0e9e868b9d27423a57d5a5cba56b"
+            }
+          ]
+        },
+        {
+          "role": "tag",
+          "commit": "1909d97f6c50e38751a0e35cb1f68c39c5e60a6c",
+          "tree": "9818e3bed3caff47b540f830cb80cb4fdabe6cd9",
+          "entries": 569,
+          "truncated": false,
+          "response_sha256": "7925d278513f89b820fda670ea6f678ebe2e2f0812b4b0989bf37f3101ac6337",
+          "gitlinks": []
+        }
+      ],
+      "bindings": [
+        {
+          "repository": "veritr1x/populous-recomp",
+          "commit": "1909d97f6c50e38751a0e35cb1f68c39c5e60a6c",
+          "path": "README.md",
+          "blob": "79d30dcaec48c95b2c2fab820395ab4bc9f4b3e5",
+          "bytes": 4759,
+          "sha256": "b22a23b3d1acabe6931beba29fbfc13cf9222076f84af6000b8052a6c02e5bb3",
+          "reference_roles": ["tag"],
+          "retained_source_name": "tag--README.md"
+        },
+        {
+          "repository": "veritr1x/populous-recomp",
+          "commit": "1909d97f6c50e38751a0e35cb1f68c39c5e60a6c",
+          "path": "LICENSE",
+          "blob": "0dbf3687a61dc192f502ad41eb87122c28afb468",
+          "bytes": 1205,
+          "sha256": "bb9b50ab8aa46182372d754e1ce174d5479dfe3512590eaf1cc76b5bfed3bff2",
+          "reference_roles": ["tag"],
+          "retained_source_name": "tag--LICENSE"
+        },
+        {
+          "repository": "veritr1x/populous-recomp",
+          "commit": "1909d97f6c50e38751a0e35cb1f68c39c5e60a6c",
+          "path": "NOTICE",
+          "blob": "2df83dd86ca5ca2eb363091fd5d3bd2e3a9f59c2",
+          "bytes": 2566,
+          "sha256": "bfd5c1572ec8918a28bc2e4174ea673993a1011e5a7d8161164f8e9dfa33339e",
+          "reference_roles": ["tag"],
+          "retained_source_name": "tag--NOTICE"
+        },
+        {
+          "repository": "veritr1x/populous-recomp",
+          "commit": "1909d97f6c50e38751a0e35cb1f68c39c5e60a6c",
+          "path": "CMakeLists.txt",
+          "blob": "dd03aae0e50c3be8287ace884ac1df1b00416ce6",
+          "bytes": 2474,
+          "sha256": "bd0ab56b374590c74618d078dceb9bd2fe3022f9aa9a1333a993356e38cb97b5",
+          "reference_roles": ["tag"],
+          "retained_source_name": "tag--CMakeLists.txt"
+        },
+        {
+          "repository": "veritr1x/populous-recomp",
+          "commit": "1909d97f6c50e38751a0e35cb1f68c39c5e60a6c",
+          "path": "src/recomp/host/sdl/main.cpp",
+          "blob": "4ce225e9bfa13402ecb304222a9c2cd427c86c97",
+          "bytes": 47369,
+          "sha256": "f54ab544a1a212b1a71b6e2969f7d9265844896ac27c2bf2a6bc219412181554",
+          "reference_roles": ["tag"],
+          "retained_source_name": "tag--src__recomp__host__sdl__main.cpp"
+        },
+        {
+          "repository": "veritr1x/populous-recomp",
+          "commit": "1909d97f6c50e38751a0e35cb1f68c39c5e60a6c",
+          "path": "src/recomp/runtime/profile.cpp",
+          "blob": "889afe3a5a93be2cde133e22bbd71c22c883a725",
+          "bytes": 5000,
+          "sha256": "c2000a835002c94d6d3daf384368d6b8e4e7e97c71783b9291ff12e20a3f5050",
+          "reference_roles": ["tag"],
+          "retained_source_name": "tag--src__recomp__runtime__profile.cpp"
+        },
+        {
+          "repository": "veritr1x/populous-recomp",
+          "commit": "1909d97f6c50e38751a0e35cb1f68c39c5e60a6c",
+          "path": "src/recomp/runtime/profile.h",
+          "blob": "c13ec2874b0acf32ed91744c35f992d1fe42e657",
+          "bytes": 1122,
+          "sha256": "c59833fa11a439c2fc5903fdc3cb2d3b4f3bed24847126e54ff76971580cdeb1",
+          "reference_roles": ["tag"],
+          "retained_source_name": "tag--src__recomp__runtime__profile.h"
+        },
+        {
+          "repository": "veritr1x/populous-recomp",
+          "commit": "1909d97f6c50e38751a0e35cb1f68c39c5e60a6c",
+          "path": "tools/recomp/package.py",
+          "blob": "2390871b3815a6c191759c6bee504ae36266a900",
+          "bytes": 3783,
+          "sha256": "8aeab71ae621489d3cd5e0b2c39d2fbad26dd79d802666cb472c96076d785e98",
+          "reference_roles": ["tag"],
+          "retained_source_name": "tag--tools__recomp__package.py"
+        },
+        {
+          "repository": "veritr1x/populous-recomp",
+          "commit": "1909d97f6c50e38751a0e35cb1f68c39c5e60a6c",
+          "path": "tools/recomp/finish_bundle.py",
+          "blob": "f9823b7450c5f59f439615407137238e2c6db521",
+          "bytes": 2949,
+          "sha256": "21a5f001f42977a531fe7ffbbed8617c22feaf35f9a214e89407ba427eab6685",
+          "reference_roles": ["tag"],
+          "retained_source_name": "tag--tools__recomp__finish_bundle.py"
+        },
+        {
+          "repository": "veritr1x/populous-recomp",
+          "commit": "f641f17bc72c7227f5bf30ee170bfc4b8b2d52e6",
+          "path": "README.md",
+          "blob": "76b56484ea8e914f007dcf5c8fa3b4797cf6bd20",
+          "bytes": 4484,
+          "sha256": "e2d5c74d5206835edc6b6e410bc91d10992b89862ce58e890ee5afa44a54a06d",
+          "reference_roles": ["current"],
+          "retained_source_name": "current--README.md"
+        },
+        {
+          "repository": "veritr1x/populous-recomp",
+          "commit": "f641f17bc72c7227f5bf30ee170bfc4b8b2d52e6",
+          "path": "LICENSE",
+          "blob": "0dbf3687a61dc192f502ad41eb87122c28afb468",
+          "bytes": 1205,
+          "sha256": "bb9b50ab8aa46182372d754e1ce174d5479dfe3512590eaf1cc76b5bfed3bff2",
+          "reference_roles": ["current"],
+          "retained_source_name": "current--LICENSE"
+        },
+        {
+          "repository": "veritr1x/populous-recomp",
+          "commit": "f641f17bc72c7227f5bf30ee170bfc4b8b2d52e6",
+          "path": "NOTICE",
+          "blob": "2df83dd86ca5ca2eb363091fd5d3bd2e3a9f59c2",
+          "bytes": 2566,
+          "sha256": "bfd5c1572ec8918a28bc2e4174ea673993a1011e5a7d8161164f8e9dfa33339e",
+          "reference_roles": ["current"],
+          "retained_source_name": "current--NOTICE"
+        }
+      ],
+      "retained_metadata": [
+        {
+          "name": "current-LICENSE.api.json",
+          "bytes": 1952,
+          "sha256": "9a86901747ebde6c687bc33bf41dae5c801fa43527b164c5cc2a9870c1e9e666"
+        },
+        {
+          "name": "current-LICENSE.api.json.observation.json",
+          "bytes": 133,
+          "sha256": "1c897c0b79d65cf2089940ccc8e9da491a1e1622df59039e94bd0c903b70486e"
+        },
+        {
+          "name": "current-NOTICE.api.json",
+          "bytes": 3830,
+          "sha256": "ada3b169cbe5ecf5d2e5a80bc65fcc869162943f7b093f4946cb13fa26dc0990"
+        },
+        {
+          "name": "current-NOTICE.api.json.observation.json",
+          "bytes": 133,
+          "sha256": "230a7c57c4b8f90ad64686ef5c9adb4c2311d01567b41db499b49ca138d1becb"
+        },
+        {
+          "name": "current-README.md.api.json",
+          "bytes": 6470,
+          "sha256": "c98307a183465a02a428ca7f0299a3954f66887b42c6d73dd204c98774d1b094"
+        },
+        {
+          "name": "current-README.md.api.json.observation.json",
+          "bytes": 133,
+          "sha256": "20a8f7de9b934bbbd10b016dd96ce60459099fc983454b6f0af776d988a48fd9"
+        },
+        {
+          "name": "current-tree.json",
+          "bytes": 23497,
+          "sha256": "2195d5c552003eab087f50f1a98e54bd210dd1e76fbe3dd8677ae12d0685790f"
+        },
+        {
+          "name": "current-tree.json.observation.json",
+          "bytes": 145,
+          "sha256": "e40702630186e5f296c97e4b2c26de96609c82898d095596b547e70694b39b4d"
+        },
+        {
+          "name": "current.json",
+          "bytes": 5021,
+          "sha256": "e6c309edffa8b111d5e282856914d93de2dee681f776f902c68ca8c7e7f44d2d"
+        },
+        {
+          "name": "current.json.observation.json",
+          "bytes": 95,
+          "sha256": "af7a19c70435ad4df0b99a7b296f7d44dc4c360d69756fd9312ea0e765ec5adf"
+        },
+        {
+          "name": "recent-releases-first10.json",
+          "bytes": 11387,
+          "sha256": "bfa758d25cd39b7878f5b506302fddb822acd435bfae187fcb767ce81d49f79c"
+        },
+        {
+          "name": "recent-releases-first10.json.observation.json",
+          "bytes": 103,
+          "sha256": "7577097c794871e5b99a11829531f9dc16658de0b7812b175d6210735deb4e79"
+        },
+        {
+          "name": "release.json",
+          "bytes": 12544,
+          "sha256": "7e9ef39f6a23b0a4a15d98f61faf348652753da2ab1df1941a90ce3b57ea2492"
+        },
+        {
+          "name": "release.json.observation.json",
+          "bytes": 124,
+          "sha256": "e959ba10329a948e78cac53a3763644a66677fdf7bd700a93054c3f821a6de5e"
+        },
+        {
+          "name": "repository.json",
+          "bytes": 5644,
+          "sha256": "955166555538060eacdea02de72ee13e2038311a3567753d3a0c9867869ed0b3"
+        },
+        {
+          "name": "repository.json.observation.json",
+          "bytes": 82,
+          "sha256": "6605c91396ae561e4f28366f554b0bc542a9cdb20cf975195ec6ad58f3ace241"
+        },
+        {
+          "name": "source-manifest.json",
+          "bytes": 5414,
+          "sha256": "456d517bb17f0f5e602ea7ee5559c70aaf1da02bc71d849435aa236ab2dccdc3"
+        },
+        {
+          "name": "tag-LICENSE.api.json",
+          "bytes": 1952,
+          "sha256": "9a86901747ebde6c687bc33bf41dae5c801fa43527b164c5cc2a9870c1e9e666"
+        },
+        {
+          "name": "tag-LICENSE.api.json.observation.json",
+          "bytes": 133,
+          "sha256": "1c897c0b79d65cf2089940ccc8e9da491a1e1622df59039e94bd0c903b70486e"
+        },
+        {
+          "name": "tag-NOTICE.api.json",
+          "bytes": 3830,
+          "sha256": "ada3b169cbe5ecf5d2e5a80bc65fcc869162943f7b093f4946cb13fa26dc0990"
+        },
+        {
+          "name": "tag-NOTICE.api.json.observation.json",
+          "bytes": 133,
+          "sha256": "230a7c57c4b8f90ad64686ef5c9adb4c2311d01567b41db499b49ca138d1becb"
+        },
+        {
+          "name": "tag-README.md.api.json",
+          "bytes": 6850,
+          "sha256": "dd8e4d1b178cda8a403753774da1d049fc9b72c07d76de269675971a8f4158ef"
+        },
+        {
+          "name": "tag-README.md.api.json.observation.json",
+          "bytes": 133,
+          "sha256": "1d5de1890d350fd88d0467edec2c371f66894695392a8d99528c5572dd8a2a7f"
+        },
+        {
+          "name": "tag-tree.json",
+          "bytes": 139530,
+          "sha256": "7925d278513f89b820fda670ea6f678ebe2e2f0812b4b0989bf37f3101ac6337"
+        },
+        {
+          "name": "tag-tree.json.observation.json",
+          "bytes": 145,
+          "sha256": "d0d20332288d7295ee9df1c4a43f18ee1e2d8661c8b4ccd44c8f3f1434a46409"
+        },
+        {
+          "name": "tag.json",
+          "bytes": 9986,
+          "sha256": "13e2ba2544e88c59080ae6961bf6064e0e82034d208f6887d4d857310042485b"
+        },
+        {
+          "name": "tag.json.observation.json",
+          "bytes": 97,
+          "sha256": "19be2e76597ee86e0146e696d2e9526e4cd4056757633026355daae48d7307bf"
+        }
+      ]
+    },
+    {
+      "owner": "aeron",
+      "complete_trees": [
+        {
+          "role": "bound",
+          "commit": "6187f38bb417ebbf1fcfc775eb67a5d4b34e6689",
+          "tree": "257947d2d695a6f66df02d2bc8d9b2a2312762f4",
+          "entries": 614,
+          "truncated": false,
+          "response_sha256": "cf24c5df9b318dcbfd9f40f3050b5decdbe1a85b49407060cd96a9bc85274759",
+          "gitlinks": []
+        }
+      ],
+      "bindings": [
+        {
+          "repository": "elyosh/aeron",
+          "commit": "6187f38bb417ebbf1fcfc775eb67a5d4b34e6689",
+          "path": "LICENSE",
+          "blob": "f288702d2fa16d3cdf0035b15a9fcbc552cd88e7",
+          "bytes": 35149,
+          "sha256": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986",
+          "reference_roles": ["bound"],
+          "retained_source_name": "bound--LICENSE"
+        },
+        {
+          "repository": "elyosh/aeron",
+          "commit": "6187f38bb417ebbf1fcfc775eb67a5d4b34e6689",
+          "path": "src/paths.c",
+          "blob": "95a4cddbf3af533f819f6c0c138e44a2d6881605",
+          "bytes": 772,
+          "sha256": "401bce44870de19b3c3adb48f5f1711ce0a0a638e9cf2c636bbfa3bde8e163ca",
+          "reference_roles": ["bound"],
+          "retained_source_name": "bound--src__paths.c"
+        },
+        {
+          "repository": "elyosh/aeron",
+          "commit": "6187f38bb417ebbf1fcfc775eb67a5d4b34e6689",
+          "path": "include/aeron/paths.h",
+          "blob": "5dfbf133f8ea31005461fc6481ee5e25d16eb308",
+          "bytes": 609,
+          "sha256": "12882b62d96072460827166b997653f9eb90d64d1265ac16e01629735ae87c37",
+          "reference_roles": ["bound"],
+          "retained_source_name": "bound--include__aeron__paths.h"
+        },
+        {
+          "repository": "elyosh/aeron",
+          "commit": "6187f38bb417ebbf1fcfc775eb67a5d4b34e6689",
+          "path": "src/vfs.c",
+          "blob": "593875c379f24a7a68675908b43c967775d70211",
+          "bytes": 29863,
+          "sha256": "b2f3bd9674b8a296df3135d7366a916103583c95e2eea2b2cdb49604f2f3a279",
+          "reference_roles": ["bound"],
+          "retained_source_name": "bound--src__vfs.c"
+        },
+        {
+          "repository": "elyosh/aeron",
+          "commit": "6187f38bb417ebbf1fcfc775eb67a5d4b34e6689",
+          "path": "include/aeron/vfs.h",
+          "blob": "d929add78950b509fe7b42f28ca3b316512a605a",
+          "bytes": 6941,
+          "sha256": "f06a77ab101eba9a693a90ace0bdf7792ed3364a4119b729fad0ea5626cf73cc",
+          "reference_roles": ["bound"],
+          "retained_source_name": "bound--include__aeron__vfs.h"
+        },
+        {
+          "repository": "elyosh/Aeron",
+          "commit": "6187f38bb417ebbf1fcfc775eb67a5d4b34e6689",
+          "path": "src/aeron.c",
+          "blob": "2a0a48372123bcf5037e6f2cb181db99748b13bf",
+          "bytes": 4085,
+          "sha256": "56e107b58a2b3affcc1add052dad076541ba46425a2b853dbd8891abe66529d7",
+          "reference_roles": ["bound"],
+          "retained_source_name": "bound--src__aeron.c"
+        },
+        {
+          "repository": "elyosh/Aeron",
+          "commit": "6187f38bb417ebbf1fcfc775eb67a5d4b34e6689",
+          "path": "CMakeLists.txt",
+          "blob": "945ed48a8409bc3d2f856f589ad4a441b60f824c",
+          "bytes": 34669,
+          "sha256": "a8c99f00c978d73aff25f92805ec1de38a750945df7be95ccc9ebe7d91a4cab7",
+          "reference_roles": ["bound"],
+          "retained_source_name": "bound--CMakeLists.txt"
+        }
+      ],
+      "retained_metadata": [
+        {
+          "name": "bound-tree.json",
+          "bytes": 145393,
+          "sha256": "cf24c5df9b318dcbfd9f40f3050b5decdbe1a85b49407060cd96a9bc85274759"
+        },
+        {
+          "name": "bound.json",
+          "bytes": 5450,
+          "sha256": "c43a25d9bbadca6af638cfc9f5279a96e13641ea09f1cf8be7b2c28493b1b35b"
+        },
+        {
+          "name": "repository.json",
+          "bytes": 4960,
+          "sha256": "d33669a578d17cdf21934d08083ea48b2d7c11a0a7b55efa4d620d2340ff074d"
+        },
+        {
+          "name": "source-manifest.json",
+          "bytes": 2659,
+          "sha256": "b366f050d1b8bb55d56e0d52b1eb7f621012c9212f7285550498586124574e7e"
+        }
+      ]
+    }
+  ],
+  "source_conditions": [
+    "OpenTIE normal entry calls in-process application/frame loop and shutdown. Exact title org/app config flows through bound Aeron initialization to SDL_GetPrefPath; temporary root defaults to actual user root. Original-data picker/pilot import and older keyboard/controller config changes remain upstream-owned. SDL/OS redirected or fallback placement is not inferred from a guessed fixed path.",
+    "Open Annihilation runtime update Never and separate content-update Never are distinct. Never does not remove scheduled installs, pending recovery or the startup failed-start rollback guard. Require settled upstream main-menu start/quit and no pending install/recovery before selecting the native player. Deliberate self-update/recovery hands off to detached oa-update; Core does not adopt it. Automatic old save/recording moves and every actual profile/update history remain external.",
+    "WoodyRE data_find can change CWD between writable executable-side and LocalAppData roots; explicit original-data argument or WOODY_DATA bypass that automatic location selection. Source normal WinMain/main runs to same-process cleanup. Original save import/old format conversion are source behavior, not save acceptance. Private standalone bundle embeds original material and is not offered as redistributed content."
+  ],
+  "unchanged_hold": {
+    "canonical_issue": 1537,
+    "id": "populous-the-beginning-recomp",
+    "disposition": "unchanged historical Windows release-to-source binding and generated-original-code permission condition; no new Windows guide",
+    "historical_asset_name": "PopRecomp-latest-4-gb450dfa-windows-x64.zip",
+    "selected_tag_source": "1909d97f6c50e38751a0e35cb1f68c39c5e60a6c",
+    "current_source": "f641f17bc72c7227f5bf30ee170bfc4b8b2d52e6",
+    "reason": "Historical release b450dfa filename/body is not bound to moving latest1909d97 or currentf641f17. Current README macOS/iPad plus kit submodule does not establish current Windows support or acquire/sign/publish authority. Earlier NOTICE describes distributed translated original code while current README excludes generated code; attribution/operation-specific applicability remains unresolved, not a blanket private-use ban."
+  },
+  "limits": [
+    "Selected source consumers and complete root tree metadata are not exhaustive transitive dependency compliance, acquired package/original/generated output integrity or immutable source-to-binary proof.",
+    "No game package/original/private save/compiler/helper/installer/game acquired or executed. Inert native probes do not establish game/save/state/mod/network/installed Desktop/physical/human/other-platform/protected acceptance.",
+    "All272 strict definitions, catalog identity sets, accepted artwork and lineage preserved; only three manual guides/generated projections plus three complete existing native helper cases. No Core-managed setup/content import/update/backup/rollback/migration/deletion, Supported promotion, new family infrastructure or Required scope/commitment reduction."
+  ],
+  "delivery_authority": "Final PR and individual receipts own actual source/base/composition, independent review, five exact-head contexts, actual case/artifact inventories, guarded merge/readback and canonical dispositions."
+}

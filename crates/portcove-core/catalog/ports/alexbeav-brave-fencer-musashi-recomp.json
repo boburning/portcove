@@ -15,7 +15,45 @@
       "game_slug": "brave-fencer-musashi",
       "match_kind": "underlying-game"
     },
-    "issue_number": 429
+    "issue_number": 429,
+    "listed_at": "2026-10-23",
+    "platforms": ["macos-x86-64", "macos-aarch64"],
+    "download_asset_hints": {
+      "windows-x86-64": ["brave-fencer-musashi-recomp-", "-windows-x64.zip"],
+      "linux-x86-64": ["brave-fencer-musashi-recomp-", "-linux-x64.zip"],
+      "macos-x86-64": ["brave-fencer-musashi-recomp-", "-macos-x64.zip"],
+      "macos-aarch64": ["brave-fencer-musashi-recomp-", "-macos-arm64.zip"]
+    },
+    "setup_url": "https://github.com/alexbeavs-ps1-ports/brave-fencer-musashi-recomp#readme",
+    "release_url": "https://github.com/alexbeavs-ps1-ports/brave-fencer-musashi-recomp/releases",
+    "availability": "packages",
+    "recommended_download_channel": "stable",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Prepare the Mac toolchain and setup kit",
+          "instruction": "Install Xcode Command Line Tools, CMake, Ninja and Python 3. Verify that the tools are on PATH, then unpack the official Intel or Apple Silicon ZIP that matches your Mac into a separate writable folder."
+        },
+        {
+          "title": "Supply your original files",
+          "instruction": "Use your original four-track USA SLUS-00726 disc, keeping its complete CUE and every referenced track together. This kit requires your own retail SCPH-1001 BIOS dump. Follow the kit’s README-SETUP.txt for the image format and BIOS options."
+        },
+        {
+          "title": "Build and add the prepared player",
+          "instruction": "From the unpacked folder, run Brave_Fencer_Musashi_Recompiled and follow its Generate & rebuild wizard. In Portcove, select build-release/Brave_Fencer_Musashi_Recompiled as the program and build-release as the start folder. Keep the external runtime and use upstream instructions for replacement."
+        }
+      ],
+      "warnings": [
+        "Mac setup uses the upstream kit and your local toolchain. Mac build, gameplay and populated saves remain unobserved."
+      ],
+      "help_url": "https://github.com/alexbeavs-ps1-ports/brave-fencer-musashi-recomp#readme",
+      "references": [
+        {
+          "title": "Updates and backups",
+          "instruction": "Preserve the entire working folder with its saves, settings, overlay captures, original disc files and any required BIOS. Keep a copy of the creating runtime before updating the kit."
+        }
+      ]
+    }
   },
   "integration": {
     "support_tier": "beta",
@@ -46,7 +84,12 @@
       "config.ini",
       "disc.cfg",
       "bios.cfg",
-      "mods",
+      "mods/installed",
+      "mods/packages",
+      "mods/.staging",
+      "mods/state.toml",
+      "mods/state.toml.tmp",
+      "mods/texture-packs",
       "overlay-captures",
       "overlay_captures.json",
       "overlay_captures.json.d",

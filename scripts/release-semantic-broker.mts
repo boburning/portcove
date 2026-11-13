@@ -1,3 +1,4 @@
+import { performance } from "node:perf_hooks";
 import { observeHostedReleaseApp } from "./release-hosted-app-setup.mts";
 import { inspectCatalogReviewRequest } from "./release-catalog-review-request.mts";
 import { readIndependentCatalogSemanticDisposition } from "./release-semantic-disposition-reader.mts";
@@ -138,6 +139,11 @@ function requireIssuer(
 ) {
   return observeHostedReleaseApp("semantic", config, { app: appApi, installation: api });
 }
+function requirePartitionPostWindow(capture: { partition_evidence?: { deadline: number } }) {
+  const deadline = capture.partition_evidence?.deadline;
+  if (deadline !== undefined && (!Number.isFinite(deadline) || performance.now() >= deadline))
+    throw new Error("semantic partition opportunity window exhausted before Check POST");
+}
 /** No CLI/default credential lookup. The fixed provisioned caller must supply
  * an exact grant/custody guard and separated App/installation clients. Mere
  * token availability is not authority. Capture provenance cannot be imported.
@@ -186,7 +192,9 @@ export async function publishSemanticCapture(
     const clients = await options.authenticateIssuer();
     requireIssuer(clients.installation, clients.app, config);
     await verifyCapture(capture);
+    requirePartitionPostWindow(frozen);
     await record("post-intent");
+    requirePartitionPostWindow(frozen);
     posted = true;
     const response = clients.installation.request("POST", request.endpoint, request.body);
     await record("post-response-observed", {
@@ -308,7 +316,9 @@ export async function publishSemanticDispositionCapture(
     const clients = await options.authenticateIssuer();
     requireIssuer(clients.installation, clients.app, config);
     await requireDirectSemanticDispositionCapture(capture);
+    requirePartitionPostWindow(frozen);
     await record("post-intent");
+    requirePartitionPostWindow(frozen);
     posted = true;
     const response = clients.installation.request("POST", request.endpoint, request.body);
     await record("post-response-observed", {

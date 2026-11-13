@@ -1,0 +1,85 @@
+name: Feedback
+description: Tell us where Portcove was hard, slow or confusing, or what you wanted it to do.
+title: "[Feedback] "
+labels:
+  - needs-triage
+projects:
+  - boburning/1
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for trying Portcove. Use this form when something worked but was hard, slow or
+        confusing, or for an idea. If something broke or behaved incorrectly, use **Bug report**
+        instead. Replies and links to related work appear on this issue.
+  - type: dropdown
+    id: journey
+    attributes:
+      label: What were you trying to do?
+      options:
+        - Find a game or choose a port
+        - Set up game files
+        - Install a game
+        - Play a game
+        - Update a game
+        - Recover, back up or restore
+        - Move from another launcher
+        - Use mods
+        - Change settings
+        - Something else
+    validations:
+      required: true
+  - type: dropdown
+    id: outcome
+    attributes:
+      label: How far did you get?
+      options:
+        - I couldn't finish
+        - I finished, but it was difficult
+        - I finished, but it was confusing
+        - This is an idea or request
+    validations:
+      required: true
+  - type: textarea
+    id: happened
+    attributes:
+      label: What happened?
+      description: Describe what you did and where it got hard. Screenshots help.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect or want instead?
+  - type: input
+    id: game
+    attributes:
+      label: Game, if it was about one
+  - type: input
+    id: version
+    attributes:
+      label: Portcove version
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Platform
+      options:
+        - Windows
+        - Linux
+        - Steam Deck
+        - macOS Intel
+        - macOS Apple Silicon
+        - Multiple platforms
+        - Not applicable
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: Portcove details
+      description: Optional. Portcove can fill this in. Remove personal folder paths and other private details before posting.
+  - type: textarea
+    id: notes
+    attributes:
+      label: Anything else?
+      description: Optional. This issue is public, so leave out private details.

@@ -31,23 +31,22 @@ import {
   assertMetadataBootstrapBinding,
 } from "./release-metadata-contract.mts";
 
-// Complete held-controller proposal. Its changed digest requires initial owner
+// Exact delivered controller and wake policy. Its digest requires owner
 // ratification; historical observations do not cover this workflow. These are
 // ceilings/estimates, never remaining storage, a reservation or a billing quote.
 export const slice4CapacityResources = Object.freeze({
   contract: "slice4-no-spend-v1",
-  aggregate_workflow_sha256: "dba706a16fefa22a4e5e717e9840c6692dbaed7cb51ca7f66c6e17b5f2c70efc",
-  input_workflow_sha256: "dba706a16fefa22a4e5e717e9840c6692dbaed7cb51ca7f66c6e17b5f2c70efc",
-  aggregate_job_minutes: Object.freeze([1, 4, 2, 4, 3, 9, 2, 10, 10, 2, 2, 2, 2, 2, 6, 5]),
-  input_job_minutes: Object.freeze([2, 2, 3, 10, 5]),
-  wake_workflow_sha256: "015dc72a5574e4ec35333ed4c9f73be9641e9b8caf1e3c2b6a5899599a4ddd5c",
-  wake_job_minutes: Object.freeze([1]),
-  declared_job_minutes: 89,
-  catalog_job_minutes: Object.freeze([1, 4, 2, 3, 2, 2, 2, 2, 5]),
-  catalog_observer_job_minutes: Object.freeze([3, 8, 5]),
-  catalog_declared_job_minutes: 40,
-  purpose_accounting: "mutually-exclusive-max-application89-catalog40",
-  // Separate candidate-workflow repair jobs; never enlarge the controller DAG.
+  aggregate_workflow_sha256: "ae780affa5cff58dd88250b3575d6948ed6608a47b3175492cf56fff3a5d90fb",
+  input_workflow_sha256: "ae780affa5cff58dd88250b3575d6948ed6608a47b3175492cf56fff3a5d90fb",
+  aggregate_job_minutes: Object.freeze([1, 12, 1, 1, 22, 5, 9, 2, 10, 2, 2, 2, 2, 2, 6, 5, 35]),
+  input_job_minutes: Object.freeze([2, 2, 5, 10, 5]),
+  wake_workflow_sha256: "ec80d6a425606410828763a81fc726f739278f9918c10c13ab13246770d1c604",
+  wake_job_minutes: Object.freeze([2]),
+  declared_job_minutes: 145,
+  catalog_job_minutes: Object.freeze([1, 8, 1, 5, 2, 2, 2, 2, 5]),
+  catalog_observer_job_minutes: Object.freeze([5, 8, 5]),
+  catalog_declared_job_minutes: 48,
+  purpose_accounting: "mutually-exclusive-max-application145-catalog48",
   report_repair_job_minutes: 2,
   report_repair_attempts_per_candidate: 2,
   report_repair_maximum_job_minutes_per_candidate: 4,
@@ -55,27 +54,25 @@ export const slice4CapacityResources = Object.freeze({
   input_concurrency: "application-update-production-controller",
   wake_concurrency: "portcove-application-controller-wake",
   cancel_in_progress: false,
-  total_job_minutes: 100,
+  total_job_minutes: 145,
   retention_days: 7,
-  archive_bytes: 512 * 1024 * 1024,
-  total_archive_bytes: 2 * 1024 * 1024 * 1024,
-  assembly_file_bytes: 512 * 1024 * 1024,
-  total_assembly_bytes: 2 * 1024 * 1024 * 1024,
-  // Three control sources plus at most eighty ready/observation pairs:
-  // four initial+14 phases, five TUF phases of three, and five site rounds.
+  archive_bytes: 536870912,
+  total_archive_bytes: 2147483648,
+  assembly_file_bytes: 536870912,
+  total_assembly_bytes: 2147483648,
   input_receipts: 163,
-  input_receipt_bytes: 128 * 1024,
+  input_receipt_bytes: 131072,
   diagnostic_artifacts: 13,
   diagnostic_files_per_artifact: 66,
   diagnostic_file_bytes: 65536,
   diagnostic_manifest_bytes: 65536,
   native_presign_receipts: 1,
   native_presign_receipt_bytes: 65536,
-  native_presign_response_bytes: 2 * 1024 * 1024,
+  native_presign_response_bytes: 2097152,
   native_presign_maximum_gets: 120,
   native_presign_poll_milliseconds: 5000,
   wake_receipts: 2,
-  wake_receipt_bytes: 1024 * 1024,
+  wake_receipt_bytes: 1048576,
   shared_cache: false,
   enlarged_cache: false,
   paid_fallback: false,
@@ -83,6 +80,38 @@ export const slice4CapacityResources = Object.freeze({
   unrelated_evidence_deletion: false,
 });
 export const slice4CapacityResourceDigest = capacityDigest(slice4CapacityResources);
+
+export const retainedRenewalCapacityRebind = Object.freeze({
+  execution_ref: "refs/tags/portcove-production-controller-20261110r76",
+  checkpoint: "ef9b0664069a9c2dff4a9cf18ce86b3d964a4ac8",
+  original_policy_sha256: "b553063de9c8d9c6c6412fbed7b607bdc5a1bb509a06b38e4f25e2c68c0f7b38",
+});
+
+/** Replace only the resource binding of the exact retained operation. The
+ * authenticated live boundary and ratification must equal this projection. */
+export function retainedRenewalCapacityBinding(prior: unknown, live: unknown) {
+  if (
+    !isRecord(prior) ||
+    !isRecord(prior.boundary) ||
+    !isRecord(prior.ratification) ||
+    prior.boundary.resource_policy_sha256 !==
+      retainedRenewalCapacityRebind.original_policy_sha256 ||
+    prior.ratification.resource_policy_sha256 !==
+      retainedRenewalCapacityRebind.original_policy_sha256 ||
+    prior.ratification.boundary_sha256 !== capacityDigest(prior.boundary) ||
+    !isRecord(live)
+  )
+    return null;
+  const boundary = { ...prior.boundary, resource_policy_sha256: slice4CapacityResourceDigest };
+  const ratification = {
+    ...prior.ratification,
+    resource_policy_sha256: slice4CapacityResourceDigest,
+    boundary_sha256: capacityDigest(boundary),
+  };
+  const expected = { boundary, ratification };
+  return capacityDigest(live) === capacityDigest(expected) ? expected : null;
+}
+
 function exact(value: unknown, keys: string): asserts value is Record<string, unknown> {
   if (!isRecord(value) || Object.keys(value).sort().join(",") !== keys)
     throw new Error("bounded capacity schema differs");

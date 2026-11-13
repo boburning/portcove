@@ -116,6 +116,24 @@ interface MonitorReport {
     latest_collection_status: "complete" | "partial";
   })[];
   collection: Collection;
+  recovery_evidence: {
+    kind: "endpoint" | "provider-metadata";
+    incident: Pick<
+      Incident,
+      | "key"
+      | "port_id"
+      | "provider"
+      | "location"
+      | "release_ref"
+      | "rule"
+      | "first_seen"
+      | "observed_at"
+      | "occurrences"
+      | "observation_contract_sha256"
+    >;
+    recovered_observed_at: string;
+    reused_observation: boolean;
+  }[];
   session?: {
     batches: {
       batch: number;
@@ -392,6 +410,15 @@ function locationKey(location: unknown): string {
   });
 }
 
+function incidentLocationKey(incident: Incident): string {
+  return locationKey({
+    provider: incident.provider,
+    repository: incident.location,
+    release_ref: incident.release_ref,
+    port_ids: [incident.port_id],
+  });
+}
+
 function requestedIds(catalog: Catalog, scope: HealthMonitorScope): string[] {
   const ids = catalog.ports.map((port) => port.id);
   if (
@@ -595,14 +622,8 @@ export async function advanceHealthMonitor(
     const retained = (incidentHistory.get(health.port_id)?.canonical_incidents ?? []).filter(
       (incident) =>
         !resolved.has(incident.key) &&
-        currentLocations.get(
-          locationKey({
-            provider: incident.provider,
-            repository: incident.location,
-            release_ref: incident.release_ref,
-            port_ids: [incident.port_id],
-          }),
-        ) === incident.observation_contract_sha256,
+        currentLocations.get(incidentLocationKey(incident)) ===
+          incident.observation_contract_sha256,
     );
     const incidents = new Map(retained.map((incident) => [incident.key, incident]));
     for (const incident of health.canonical_incidents) incidents.set(incident.key, incident);
@@ -700,6 +721,54 @@ export async function advanceHealthMonitor(
   const checkpoint = isTrustedHealthExecution(execution)
     ? validateCheckpoint(candidate, completed)
     : null;
+  const replayedLocations = new Set(collection.continuation?.reused_location_keys);
+  const endpointRecoveries = new Set(collection.resolved_incidents);
+  const metadataRecoveries = new Set(collection.assessment_recovered_incidents);
+  const recoveryEvidence: MonitorReport["recovery_evidence"] = [];
+  for (const port of previous?.incident_history ?? []) {
+    for (const incident of port.canonical_incidents) {
+      if (!resolved.has(incident.key)) continue;
+      const key = incidentLocationKey(incident);
+      const observation = freshObservations.get(key);
+      if (
+        !observation?.port_ids.includes(incident.port_id) ||
+        observation.observation_contract_sha256 !== incident.observation_contract_sha256
+      )
+        throw new Error("Recovery is missing its matching location observation");
+      const {
+        key: incidentKey,
+        port_id,
+        provider,
+        location,
+        release_ref,
+        rule,
+        first_seen,
+        observed_at,
+        occurrences,
+        observation_contract_sha256,
+      } = incident;
+      const evidence = {
+        incident: {
+          key: incidentKey,
+          port_id,
+          provider,
+          location,
+          release_ref,
+          rule,
+          first_seen,
+          observed_at,
+          occurrences,
+          observation_contract_sha256,
+        },
+        recovered_observed_at: observation.observed_at,
+        reused_observation: replayedLocations.has(key),
+      };
+      if (endpointRecoveries.has(incident.key))
+        recoveryEvidence.push({ kind: "endpoint", ...evidence });
+      if (metadataRecoveries.has(incident.key))
+        recoveryEvidence.push({ kind: "provider-metadata", ...evidence });
+    }
+  }
   const report: MonitorReport = {
     format_version: 1,
     authority:
@@ -714,20 +783,25 @@ export async function advanceHealthMonitor(
       oversized_port_ids: oversized,
     },
     inventory,
+    recovery_evidence: recoveryEvidence,
     known_conditions: portHealth.flatMap((port) => {
       const attempt = applicable(port.port_id);
       if (!attempt) return [];
-      return port.canonical_incidents.map((incident) => ({
-        ...incident,
-        observed_this_run: selectedSet.has(port.port_id),
-        changed_in_this_run: selectedSet.has(port.port_id) && incident.notify,
-        freshness:
-          completed - Date.parse(attempt.freshness_observed_at ?? attempt.attempted_at) >
-          healthFreshnessMs
-            ? "stale"
-            : "fresh",
-        latest_collection_status: attempt.collection_status,
-      }));
+      return port.canonical_incidents.map((incident) => {
+        const observedHere =
+          selectedSet.has(port.port_id) && !replayedLocations.has(incidentLocationKey(incident));
+        return {
+          ...incident,
+          observed_this_run: observedHere,
+          changed_in_this_run: observedHere && incident.notify,
+          freshness:
+            completed - Date.parse(attempt.freshness_observed_at ?? attempt.attempted_at) >
+            healthFreshnessMs
+              ? "stale"
+              : "fresh",
+          latest_collection_status: attempt.collection_status,
+        };
+      });
     }),
     collection,
   };
@@ -757,6 +831,10 @@ export async function drainHealthMonitor(
   const { sessionDeadline, onBatch, ...monitorOptions } = options;
   const now = monitorOptions.now ?? Date.now;
   const started = now();
+  const operationMonotonicDeadline = Math.min(
+    monitorOptions.operationMonotonicDeadline ?? Infinity,
+    performance.now() + sessionDeadline - started,
+  );
   if (!Number.isFinite(sessionDeadline) || sessionDeadline <= started)
     throw new Error("Health session runtime unavailable");
   let state = checkpoint;
@@ -764,6 +842,8 @@ export async function drainHealthMonitor(
   let requests = 0;
   let responseBytes = 0;
   const retcommIds = new Set<string>();
+  const selectedInSession = new Set<string>();
+  let sessionConditions = new Map<string, MonitorReport["known_conditions"][number]>();
   let result: Awaited<ReturnType<typeof advanceHealthMonitor>>;
   const batches: {
     batch: number;
@@ -777,10 +857,34 @@ export async function drainHealthMonitor(
       ...monitorOptions,
       continueDueOnly: count > 0,
       operationDeadline: sessionDeadline,
+      operationMonotonicDeadline,
       sessionStartedAt: started,
     });
     for (const id of result.retcomm_port_ids) retcommIds.add(id);
     result.retcomm_port_ids = [...retcommIds];
+    for (const id of result.report.batch.selected_port_ids) selectedInSession.add(id);
+    const inventory = result.report.inventory;
+    inventory.assessed_this_run_port_ids = [...selectedInSession];
+    inventory.unassessed_this_run_port_ids = inventory.unassessed_this_run_port_ids.filter(
+      (id) => !selectedInSession.has(id),
+    );
+
+    // Later batches can replay or omit an earlier location. Carry forward only
+    // the exact condition already observed by this session.
+    const currentConditions = new Map<string, MonitorReport["known_conditions"][number]>();
+    for (const condition of result.report.known_conditions) {
+      const earlier = sessionConditions.get(condition.key);
+      if (
+        !condition.observed_this_run &&
+        earlier?.material_sha256 === condition.material_sha256 &&
+        earlier.observed_at === condition.observed_at
+      ) {
+        condition.observed_this_run = true;
+        condition.changed_in_this_run = earlier.changed_in_this_run;
+      }
+      if (condition.observed_this_run) currentConditions.set(condition.key, condition);
+    }
+    sessionConditions = currentConditions;
     count += 1;
     requests += result.report.collection.consumed.requests;
     responseBytes += result.report.collection.consumed.response_bytes;
@@ -828,13 +932,14 @@ export function renderHealthMonitorSummary(report: MonitorReport): string {
   const { collection, inventory, batch } = report;
   const triage = classifyHealthConditions(report.known_conditions);
   const { routine, ordered: incidents, changed, continuing } = triage;
+  const selectedCount = inventory.assessed_this_run_port_ids.length;
 
   const lines = [
     "## Upstream health observation",
     "",
-    `Collection: **${cell(collection.collection_status)}**. ${batch.selected_port_ids.length}/${inventory.total_ports} ports assessed in this run; ${batch.deferred_port_ids.length} deferred by the batch budget.`,
+    `${report.session ? "Final batch" : "Collection"}: **${cell(collection.collection_status)}**. ${batch.selected_port_ids.length}/${inventory.total_ports} ports selected; ${batch.deferred_port_ids.length} deferred by the batch budget.`,
     "",
-    `Tracked conditions: **${changed.length} new or changed**, **${continuing.length} continuing**, **${collection.resolved_incidents.length} endpoint recoveries**, **${collection.assessment_recovered_incidents.length} metadata assessments recovered**. A completed observation does not establish installability or accepted artifact bytes.`,
+    `Tracked conditions: **${changed.length} new or changed**, **${continuing.length} continuing**. ${report.session ? "Final batch recorded" : "Collection recorded"} **${collection.resolved_incidents.length} endpoint recoveries**, **${collection.assessment_recovered_incidents.length} metadata assessments recovered**. A completed observation does not establish installability or accepted artifact bytes.`,
     "",
     `Inventory history: ${inventory.fresh_complete_port_ids.length} recent complete collections; ${inventory.fresh_partial_port_ids.length} recent partial attempts; ${inventory.stale_port_ids.length} stale; ${inventory.unmonitored_port_ids.length} without applicable observations. Freshness window: 24 hours.`,
     "",
@@ -843,7 +948,7 @@ export function renderHealthMonitorSummary(report: MonitorReport): string {
   if (report.session)
     lines.push(
       "",
-      `Session: ${report.session.batches.length} independently bounded batches; ${report.session.requests} requests and ${report.session.response_bytes} response bytes. Endpoint clocks retain their original observation times; complete coverage is a freshness window, not an atomic global snapshot.`,
+      `Session: ${selectedCount}/${inventory.total_ports} ports selected across the session in ${report.session.batches.length} independently bounded batches, with ${report.session.requests} requests and ${report.session.response_bytes} response bytes. Endpoint clocks retain their original observation times; complete coverage is a freshness window, not an atomic global snapshot.`,
     );
   if (incidents.length)
     lines.push(
@@ -887,7 +992,7 @@ export function renderHealthMonitorSummary(report: MonitorReport): string {
       "",
       `**Scopes requiring endpoint continuation:** ${batch.oversized_port_ids.map(cell).join(", ")}. Each admitted operation is bounded; incomplete obligations remain visible.`,
     );
-  if (!batch.selected_port_ids.length)
+  if (selectedCount === 0)
     lines.push(
       "",
       "No live upstream requests were selected. Existing history is not a fresh inventory observation.",

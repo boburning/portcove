@@ -104,6 +104,28 @@ void test("held B stage ABI fixes package leaves and rejects imported execution 
     },
   };
   assert.ok(inspectHostedWindowsWorkerRequest(publication).predecessor);
+  const publicRoot = "C:\\attempt\\ordinary-public-initial";
+  const publicWorker = {
+    ...raw,
+    stage: "ordinary-public-initial",
+    binding: file(`${publicRoot}\\capture\\account-binding.json`),
+    capture_root: `${publicRoot}\\capture`,
+    work_root: `${publicRoot}\\work`,
+    package: { ...raw.package, path: `${publicRoot}\\readonly\\predecessor.exe` },
+    public_inputs: file(`${publicRoot}\\readonly\\public-inputs.json`),
+  };
+  assert.deepEqual(
+    inspectHostedWindowsWorkerRequest(publicWorker).public_inputs,
+    publicWorker.public_inputs,
+  );
+  for (const bad of [
+    { ...publicWorker, public_inputs: undefined },
+    { ...publicWorker, public_inputs: file(`${publicRoot}\\work\\public-inputs.json`) },
+    { ...publicWorker, predecessor: publicWorker.package },
+    { ...publicWorker, stage: "payload-signing" },
+  ])
+    assert.throws(() => inspectHostedWindowsWorkerRequest(bad));
+
   for (const bad of [
     { ...raw, callback: "caller" },
     { ...raw, remaining_milliseconds: 570001 },
@@ -114,12 +136,12 @@ void test("held B stage ABI fixes package leaves and rejects imported execution 
     { ...raw, abi: "imported-success" },
   ])
     assert.throws(() => inspectHostedWindowsWorkerRequest(bad));
-  await assert.rejects(
-    runHostedWindowsWorkerStage("never-read", "invalid"),
-    /awaits separate authority/u,
-  );
+  await assert.rejects(runHostedWindowsWorkerStage("never-read", "invalid"), {
+    code: "ERR_ASSERTION",
+  });
   assert.equal(readHostedWindowsWorkerAbi().abi, hostedWindowsWorkerAbi);
   assert.equal(readHostedWindowsWorkerAbi().authority, "none");
+  assert.equal(readHostedWindowsWorkerAbi().execution_authorized, true);
 });
 void test("owner QPC deadline consumes the original parent budget and cannot renew at a later stage", () => {
   const fixed = hostedWindowsOwnerDeadline("10000000000000000", 10_000_000, 570000, 2500);

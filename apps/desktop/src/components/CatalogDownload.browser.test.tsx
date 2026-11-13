@@ -8,7 +8,7 @@ import { desktopApi } from "../api";
 import { catalogEntries } from "../features/browsing/catalog-entry";
 import type { Perform, PerformOptions } from "../features/operations/use-operation-state";
 import { pickInstallFolder, pickHostToolExecutable } from "../file-picker";
-import { portStatus } from "../test-fixtures";
+import { portDefinition, portStatus } from "../test-fixtures";
 import type {
   CatalogDownloadCandidate,
   CatalogDownloadCandidates,
@@ -261,7 +261,7 @@ it("keeps a recommendation beyond eight packages and an explicitly selected alte
       ),
     ).toBe(true),
   );
-  await click("Other and uncertain downloads");
+  await click("Other downloads — compatibility not confirmed");
   await page.getByRole("combobox", { name: /^Package/ }).click();
   await page.getByRole("option", { name: /alternative-8.zip/ }).click();
   await click("Show recommended packages");
@@ -306,7 +306,7 @@ it("retains a deliberate older release and package across refresh", async () => 
   await click("Change download options");
   await page.getByRole("combobox", { name: /^Release v/ }).click();
   await page.getByRole("option", { name: /v1.1/ }).click();
-  await click("Other and uncertain downloads");
+  await click("Other downloads — compatibility not confirmed");
   await page.getByRole("combobox", { name: /^Package/ }).click();
   await page.getByRole("option", { name: /game-variant.zip/ }).click();
   await click("Check downloads again");
@@ -333,7 +333,7 @@ it("requires a new choice when an explicitly selected package disappears", async
   });
   await click("Check downloads again");
   await click("Change download options");
-  await click("Other and uncertain downloads");
+  await click("Other downloads — compatibility not confirmed");
   await page.getByRole("combobox", { name: /^Package/ }).click();
   await page.getByRole("option", { name: /variant.zip/ }).click();
   vi.mocked(desktopApi.catalogDownloadCandidates).mockResolvedValue(candidates);
@@ -342,6 +342,96 @@ it("requires a new choice when an explicitly selected package disappears", async
   await expect
     .element(page.getByRole("button", { name: "Review download", exact: true }))
     .toBeDisabled();
+});
+
+it("passes independently decoded GitLab references through review and explicit download", async () => {
+  const release = { provider: "gitlab" as const, project_id: 42, tag: "v1/日本" };
+  const asset = { ...release, link_id: 7, file_id: 17 };
+  const selected = { ...selection, release_id: release, asset_id: asset };
+  const file = {
+    ...artifact,
+    release_id: release,
+    asset_id: asset,
+    release_tag: release.tag,
+    sha256: "b".repeat(64),
+  };
+  const checked = { ...preview, request: selected, artifact: file };
+  const offered: CatalogDownloadCandidates = {
+    ...candidates,
+    releases: [{ id: release, tag: release.tag, preview: false, assets_complete: true }],
+    selected_release_id: release,
+    recommended_asset_id: asset,
+    candidates: [file],
+    packages: [{ asset_id: asset, suitability: "suitable", reason: "Reviewed package." }],
+  };
+  // Independent objects model separate decoded IPC replies, without shared identity.
+  vi.mocked(desktopApi.catalogDownloadCandidates).mockResolvedValue(structuredClone(offered));
+  vi.mocked(desktopApi.previewCatalogDownload).mockResolvedValue(structuredClone(checked));
+  vi.mocked(desktopApi.downloadCatalogPackage).mockResolvedValue({
+    ...saved,
+    artifact: file,
+    format_version: 2,
+  });
+  await click("Check upstream downloads");
+  await click("Review download");
+  expect(desktopApi.previewCatalogDownload).toHaveBeenCalledExactlyOnceWith(selected, 9);
+  expect(desktopApi.downloadCatalogPackage).not.toHaveBeenCalled();
+  await click("Download");
+  expect(desktopApi.downloadCatalogPackage).toHaveBeenCalledExactlyOnceWith(
+    selected,
+    checked.preview_sha256,
+    9,
+    reportEvent,
+  );
+  expect(desktopApi.registerUserSelectedRuntime).not.toHaveBeenCalled();
+});
+
+it("requires fresh review when a GitLab link is reuploaded as a different registry file", async () => {
+  const release = { provider: "gitlab" as const, project_id: 42, tag: "v1" };
+  const asset = { ...release, link_id: 7, file_id: 17 };
+  const alternative = { ...release, link_id: 8, file_id: 19 };
+  const response = {
+    ...candidates,
+    releases: [{ id: release, tag: release.tag, preview: false, assets_complete: true }],
+    selected_release_id: release,
+    recommended_asset_id: alternative,
+    candidates: [
+      { ...artifact, release_id: release, asset_id: asset, release_tag: release.tag },
+      {
+        ...artifact,
+        name: "alternative.zip",
+        release_id: release,
+        asset_id: alternative,
+        release_tag: release.tag,
+      },
+    ],
+    packages: [asset, alternative].map((asset_id) => ({
+      asset_id,
+      suitability: "suitable" as const,
+      reason: "Reviewed package.",
+    })),
+  };
+  vi.mocked(desktopApi.catalogDownloadCandidates).mockResolvedValue(response);
+  await click("Check upstream downloads");
+  await click("Change download options");
+  await page.getByRole("combobox", { name: /^Package/ }).click();
+  await page.getByRole("option", { name: /game.zip/ }).click();
+  const reuploaded = { ...asset, file_id: 18 };
+  vi.mocked(desktopApi.catalogDownloadCandidates).mockResolvedValue({
+    ...response,
+    candidates: [
+      { ...artifact, release_id: release, asset_id: reuploaded, release_tag: release.tag },
+      response.candidates[1]!,
+    ],
+    packages: [{ ...response.packages[0]!, asset_id: reuploaded }, response.packages[1]!],
+  });
+  await click("Check downloads again");
+  expect(document.body.textContent).toContain("Your selected package is no longer available");
+  await expect
+    .element(page.getByRole("button", { name: "Review download", exact: true }))
+    .toBeDisabled();
+  expect(desktopApi.previewCatalogDownload).not.toHaveBeenCalled();
+  expect(desktopApi.downloadCatalogPackage).not.toHaveBeenCalled();
 });
 
 it("suggests Core's native target and preserves a manual installation outside the download folder", async () => {
@@ -374,7 +464,7 @@ it("suggests Core's native target and preserves a manual installation outside th
   await expect
     .element(page.getByRole("button", { name: "Finish adding game", exact: true }))
     .toBeVisible();
-  expect(document.querySelector('input[aria-label="Working directory"]')).toBeNull();
+  expect(document.querySelector('input[aria-label="Start in folder"]')).toBeNull();
   expect(document.body.textContent).not.toContain("Continue setup");
   expect(desktopApi.discoverSetupLaunchTargets).toHaveBeenCalledExactlyOnceWith(
     listing.id,
@@ -384,12 +474,12 @@ it("suggests Core's native target and preserves a manual installation outside th
   vi.mocked(pickHostToolExecutable).mockResolvedValue("C:/Games/Harbor/Harbor.exe");
   await click("Change launch details");
   await click("Choose game executable…");
-  expect(document.body.textContent).toContain("Executable: C:/Games/Harbor/Harbor.exe");
+  expect(document.body.textContent).toContain("Game program: C:/Games/Harbor/Harbor.exe");
   expect(
-    document.querySelector<HTMLInputElement>('input[aria-label="Working directory"]')?.value,
+    document.querySelector<HTMLInputElement>('input[aria-label="Start in folder"]')?.value,
   ).toBe("C:/Games/Harbor");
   await click("Refresh launch suggestions");
-  expect(document.body.textContent).toContain("Executable: C:/Games/Harbor/Harbor.exe");
+  expect(document.body.textContent).toContain("Game program: C:/Games/Harbor/Harbor.exe");
   expect(desktopApi.downloadCatalogPackage).not.toHaveBeenCalled();
 });
 
@@ -789,11 +879,11 @@ it("resumes durable downloads and binds folder/reminder operations to the exact 
     saved.id,
     9,
   );
-  await click("Remove setup entry…");
+  await click("Remove setup reminder…");
   expect(document.body.textContent).toContain("all files inside it stay where they are");
   expect(desktopApi.forgetPendingSetup).not.toHaveBeenCalled();
   await click("Cancel");
-  await click("Remove setup entry…");
+  await click("Remove setup reminder…");
   await click("Remove setup entry");
   expect(desktopApi.forgetPendingSetup).toHaveBeenCalledExactlyOnceWith(listing.id, saved.id, 9);
 });
@@ -866,16 +956,14 @@ it("counts a pending listing under Needs attention beside a ready registration w
   await openAdvancedFilters();
   const readiness = page.getByRole("combobox", { name: /^Readiness / });
   await expect.element(readiness).toHaveAccessibleName("Readiness All (2)");
-  await expect.element(page.getByRole("button", { name: "Play", exact: true })).toBeVisible();
+  await expect.element(page.getByRole("button", { name: /^Play: / })).toBeVisible();
   await readiness.click();
   await expect.element(page.getByRole("option", { name: "Ready (1)", exact: true })).toBeVisible();
   await page.getByRole("option", { name: "Needs attention (1)", exact: true }).click();
   await expect.element(readiness).toHaveAccessibleName("Readiness Needs attention (1)");
   expect(document.body.textContent).toContain("Downloaded · setup needed");
   expect(document.body.textContent).not.toContain(readyListing.name);
-  await expect
-    .element(page.getByRole("button", { name: "Play", exact: true }))
-    .not.toBeInTheDocument();
+  await expect.element(page.getByRole("button", { name: /^Play: / })).not.toBeInTheDocument();
   await click("Continue setup");
   expect(select.mock.calls[0]?.[0]).toBe(listing.id);
   expect(launch).not.toHaveBeenCalled();
@@ -1033,7 +1121,7 @@ it("starts with the reviewed preview channel and retains an explicit stable choi
     "beta",
   );
   await click("Change download options");
-  await page.getByRole("combobox", { name: /^Release channel/ }).click();
+  await page.getByRole("combobox", { name: /^Update channel/ }).click();
   await page.getByRole("option", { name: "Stable", exact: true }).click();
   await expect.element(page.getByText("game.zip · 2.0 KiB", { exact: true })).toBeVisible();
   expect(desktopApi.catalogDownloadCandidates).toHaveBeenLastCalledWith(
@@ -1176,7 +1264,7 @@ it("retains a manually selected setup target and literal arguments across remoun
   await click("Choose game executable…");
   await click("Change launch details");
   await page
-    .getByRole("textbox", { name: "Working directory", exact: true })
+    .getByRole("textbox", { name: "Start in folder", exact: true })
     .fill("C:/Upstream data");
   await page.getByText("Advanced launch options", { exact: true }).click();
   await page
@@ -1204,4 +1292,246 @@ it("retains a manually selected setup target and literal arguments across remoun
   );
   expect(pickHostToolExecutable).toHaveBeenCalledOnce();
   expect(document.body.textContent).toContain(executable);
+});
+
+it("keeps authored save warnings visible before reviewing a download", async () => {
+  const warned = catalogEntries(
+    undefined,
+    {
+      format_version: 6,
+      listings: [
+        {
+          ...listing,
+          manual_setup: {
+            steps: [{ title: "Choose the player", instruction: "Extract the complete package." }],
+            warnings: ["Back up the shared save folder separately."],
+            references: [
+              { title: "Inspected version", instruction: "Version one used profile/save.bin." },
+            ],
+          },
+        },
+      ],
+    },
+    [],
+    [],
+  )[0]!;
+  await root.rerender(
+    <CatalogDownloadControl entry={warned} generation={9} busy={false} perform={perform} />,
+  );
+  await click("Check upstream downloads");
+  const warning = page.getByText("Back up the shared save folder separately.", { exact: true });
+  await expect.element(warning).toBeVisible();
+  expect(warning.element().closest("details")).toBeNull();
+  expect(warning.element().closest("ol")).toBeNull();
+  expect(desktopApi.downloadCatalogPackage).not.toHaveBeenCalled();
+});
+
+it("uses only explicit listing guidance inside non-owning download and executable selection", async () => {
+  const managed: ReturnType<typeof portDefinition> = {
+    ...portDefinition(),
+    id: listing.id,
+    presentation: {
+      installation_method: "portable-package",
+      saves_and_settings: "portcove-managed",
+      source_requirements: [],
+      manual_setup: {
+        steps: [
+          {
+            title: "Managed instructions",
+            instruction: "MANAGED CONTRACT MUST STAY IN MANAGED DETAILS",
+          },
+        ],
+        warnings: [],
+      },
+    },
+  };
+  const listed = {
+    ...listing,
+    manual_setup: {
+      steps: [
+        {
+          title: "Upstream instructions",
+          instruction: "Prepare the external copy using its official guide.",
+        },
+      ],
+      warnings: ["Protect external saves yourself."],
+    },
+  };
+  const status = { ...portStatus(), port_id: listing.id };
+  const ownEntry = {
+    ...managed,
+    definition: managed,
+    listing: listed,
+    listingStatus: {
+      port_id: listing.id,
+      status,
+      actions: [{ action: "attach-existing" as const, allowed: true }],
+    },
+  };
+  await root.rerender(
+    <SelfServiceSetup
+      entry={ownEntry}
+      status={status}
+      generation={9}
+      perform={perform}
+      onChanged={changed}
+    />,
+  );
+  await expect
+    .element(page.getByRole("button", { name: "Use an existing installation", exact: true }))
+    .toBeEnabled();
+  await click("Use an existing installation");
+  await expect
+    .element(page.getByRole("heading", { name: "Use your existing installation" }))
+    .toBeVisible();
+  expect(document.body.textContent).not.toContain("MANAGED CONTRACT MUST STAY IN MANAGED DETAILS");
+  expect(document.body.textContent).toContain(
+    "Prepare the external copy using its official guide.",
+  );
+  expect(managed.presentation?.manual_setup?.steps[0]?.instruction).toBe(
+    "MANAGED CONTRACT MUST STAY IN MANAGED DETAILS",
+  );
+  const withoutGuide: PortListing = { ...listed };
+  delete withoutGuide.manual_setup;
+  await root.rerender(
+    <SelfServiceSetup
+      entry={{ ...ownEntry, listing: withoutGuide }}
+      status={status}
+      generation={9}
+      perform={perform}
+      onChanged={changed}
+    />,
+  );
+  expect(document.body.textContent).not.toContain("MANAGED CONTRACT MUST STAY IN MANAGED DETAILS");
+});
+
+it("separates stable update navigation, selected-package notes and historical setup evidence", async () => {
+  const historical = `${listing.project_url}/blob/v0.9/README.md`;
+  vi.mocked(desktopApi.catalogDownloadCandidates).mockResolvedValue({
+    ...candidates,
+    upstream_url: `${listing.project_url}/releases/tag/v0.9`,
+  });
+  await root.rerender(
+    <ListingDetailPanel
+      entry={{
+        ...entry,
+        listing: {
+          ...listing,
+          release_url: `${listing.project_url}/releases/tag/v0.9`,
+          setup_url: historical,
+        },
+      }}
+      status={status}
+      generation={9}
+      perform={perform}
+      onChanged={changed}
+      close={vi.fn()}
+    />,
+  );
+  await expect
+    .element(page.getByRole("link", { name: "Upstream releases", exact: true }))
+    .toHaveAttribute("href", `${listing.project_url}/releases`);
+  await expect
+    .element(page.getByRole("link", { name: "Setup instructions", exact: true }))
+    .toHaveAttribute("href", historical);
+  await expect
+    .element(page.getByRole("link", { name: "View upstream releases", exact: true }))
+    .toHaveAttribute("href", `${listing.project_url}/releases`);
+  await click("Change download options");
+  await expect
+    .element(page.getByRole("link", { name: "Release notes and requirements", exact: true }))
+    .toHaveAttribute("href", artifact.release_url);
+});
+
+it("renders accepted GitLab listing observations through the shared descriptive detail", async () => {
+  const observedAt = new Date().toISOString();
+  const observedListing: PortListing = {
+    ...listing,
+    project_url: "https://gitlab.com/example/subgroup/game",
+    release_url: "https://gitlab.com/example/subgroup/game/-/releases",
+    download_asset_hints: { "windows-x86-64": ["windows", "x64"] },
+    upstream_observation: {
+      provider: "gitlab",
+      repository: "example/subgroup/game",
+      repository_id: 7,
+      status: "complete",
+      attempted_at: observedAt,
+      observed_at: observedAt,
+      fresh_until: new Date(Date.now() + 3600000).toISOString(),
+      facts_sha256: "a".repeat(64),
+      release_limit: 4,
+      releases: [
+        {
+          id: { provider: "gitlab", project_id: 7, tag: "v1" },
+          version: "v1",
+          release_url: "https://gitlab.com/example/subgroup/game/-/releases/v1",
+          published_at: "2026-10-26T00:00:00Z",
+          provider_prerelease: false,
+          assets_complete: true,
+          assets: [
+            {
+              id: 21,
+              name: "game-windows-x64.zip",
+              url: "https://gitlab.com/api/v4/projects/7/packages/generic/game/1/game-windows-x64.zip",
+              size: 42,
+              sha256: "b".repeat(64),
+              platform_hints: ["windows-x86-64"],
+            },
+          ],
+        },
+      ],
+    },
+  };
+  await root.rerender(
+    <ListingDetailPanel
+      entry={{ ...entry, listing: observedListing }}
+      status={status}
+      generation={9}
+      perform={perform}
+      onChanged={changed}
+      close={vi.fn()}
+    />,
+  );
+  await page.getByRole("tab", { name: "Overview", exact: true }).click();
+  const evidence = page.getByRole("region", {
+    name: "Project information and checks",
+    exact: true,
+  });
+  await evidence
+    .getByText("Project status and compatibility qualifications", { exact: true })
+    .click();
+  await expect
+    .element(evidence.getByText("Package candidates observed", { exact: true }))
+    .toBeVisible();
+  await evidence.getByText("Release window and package candidates", { exact: true }).click();
+  await expect
+    .element(evidence.getByRole("link", { name: "v1", exact: true }))
+    .toHaveAttribute("href", "https://gitlab.com/example/subgroup/game/-/releases/v1");
+  await expect.element(evidence.getByText("game-windows-x64.zip", { exact: false })).toBeVisible();
+  expect(desktopApi.downloadCatalogPackage).not.toHaveBeenCalled();
+});
+
+it("shows the saved-download setup state in the current language with an exact path", async () => {
+  const { initializeLocalization } = await import("../localization");
+  const localization = initializeLocalization(["en-US"]);
+  try {
+    await localization.changeLanguage("ar-XB");
+    await root.rerender(
+      <SelfServiceSetup
+        entry={{ ...entry, pendingSetup: saved }}
+        status={status}
+        generation={9}
+        perform={perform}
+        onChanged={changed}
+      />,
+    );
+    await expect.element(page.getByRole("region", { name: "الإعداد والتشغيل" })).toBeInTheDocument();
+    expect(document.body.textContent).toContain("تم التنزيل · أكمل الإعداد");
+    expect(document.body.textContent).toContain("تنزيلك جاهز للإعداد.");
+    const paths = [...document.querySelectorAll("code")].map((node) => node.textContent);
+    expect(paths).toContain(saved.path);
+    expect(document.body.textContent).not.toContain("Downloaded · finish setup");
+  } finally {
+    await localization.changeLanguage("en");
+  }
 });

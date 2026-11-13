@@ -3,9 +3,10 @@
   "listing": {
     "id": "sonic-unleashed-recompiled",
     "name": "Sonic Unleashed Recompiled",
-    "summary": "Explore Sonic Unleashed Recompiled and follow the upstream project for requirements, downloads and setup.",
+    "summary": "Prepared-copy Sonic Unleashed native route using your own US/EU Xbox 360 base game and matching-region required Title Update. Japanese, PS3 and Wii editions are different inputs; DLC is optional. Complete the upstream installer before registering the existing player; this route does not authenticate a fresh managed download.",
     "project_url": "https://github.com/hedge-dev/UnleashedRecomp",
     "issue_number": 126,
+    "listed_at": "2026-10-23",
     "platforms": [],
     "availability": "unknown",
     "setup_url": "https://github.com/hedge-dev/UnleashedRecomp",
@@ -16,6 +17,30 @@
       "image_sha256": "f6a5e21c272dc44262fc053e5e56608331bbb8fdcb59c0caa18c49d3bdf299fb",
       "game_slug": "unleashed-recompiled",
       "match_kind": "port"
+    },
+    "manual_setup": {
+      "help_url": "https://github.com/hedge-dev/UnleashedRecomp/tree/325e4d34a0adaa34808b7212594c0f25b88bfb96",
+      "steps": [
+        {
+          "title": "Prepare your own international Xbox 360 game upstream",
+          "instruction": "Use your legally obtained US or EU Sonic Unleashed Xbox 360 base game plus its matching-region required Title Update. The Japanese, PS3 and Wii editions are not this contract; DLC is optional. Use upstream’s normal in-process installer: Add Files accepts dumped Xbox 360 containers/images; Add Folder accepts the exact requested raw content directory and does not recursively search for it. Modified inputs are rejected upstream. Core does not acquire or authenticate these originals, apply title updates or build the port."
+        },
+        {
+          "title": "Select the established Unleashed player",
+          "instruction": "Use the completed UnleashedRecomp.exe with its installation directory as the established working directory. The selected source defaults game content to the current working directory, so an arbitrary working directory is not equivalent. Preserve the existing package and completed installer outputs. The reviewed v1.0.3 Windows asset has no published GitHub digest: this guide does not authenticate or enroll a fresh managed download."
+        },
+        {
+          "title": "Add the completed native player, then choose Play",
+          "instruction": "Finish setup with the project’s tools, then select the Windows game executable, working folder and supported launch arguments in Portcove. Review and agree to those details, then choose Play separately. Keep the complete package together and close the game and companion programs before changing files. You manage this external copy; Portcove does not replace it or back up, convert, migrate or delete its data. Removing its registration leaves those files in place. Source review and automated registration checks do not confirm an installed game session, successful forced exit, gameplay or save compatibility."
+        },
+        {
+          "title": "Retain upstream ownership and every effective profile",
+          "instruction": "Upstream remains the single engine/data-preparation owner. Preserve the complete creating installation, original base/update/DLC inputs, mods and all effective profiles before deliberate compatible changes. Default Windows settings are in the Roaming AppData UnleashedRecomp directory, with config.toml and save/SYS-DATA; a portable.txt beside the player switches the profile to its executable directory. Hedge Mod Manager can redirect saves, including mlsave or another configured path. Preserve both old/new roots before changing portable mode. A failed Windows known-folder lookup can leave relative profile paths, so preserve the actual effective location. Upstream’s version-replacement guidance is not a Portcove promise of cross-version save or mod compatibility; relink and review any changed selected executable."
+        }
+      ],
+      "warnings": [
+        "Before changing versions, keep a copy of the working game and all original files, profiles, mods, generated caches and custom data locations. Another executable may use the same saved data."
+      ]
     }
   }
 }

@@ -19,10 +19,84 @@ import { tmpdir } from "node:os";
 import test from "node:test";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { configureHooks } from "./hooks-install.mts";
-import { stagedFileBatches, vitePlusCommand } from "./viteplus-cli.mts";
+import {
+  checkStagedFiles,
+  stagedFileBatches,
+  stagedVitePlusChecks,
+  vitePlusCommand,
+} from "./viteplus-cli.mts";
 import { readFixtureModuleClosure } from "./fixtures/module-closure.mts";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
+void test("staged checks preserve declared exact-byte inputs while retaining lint and types", () => {
+  const ordinary = "scripts/regular.mts",
+    exact = ".github/workflows/application-update-production.yml";
+  assert.deepEqual(stagedVitePlusChecks([ordinary, path.join(root, exact)], root), [
+    ["check", "--fix", "--", ordinary],
+    ["check", "--fix", "--no-fmt", "--", path.join(root, exact)],
+  ]);
+  for (const nearMiss of [
+    "vendor/rfd-lookalike/source.rs",
+    "nested/" + exact,
+    "../" + exact,
+    "scripts/fixtures/release-resource-baseline-20261103-other/file.json",
+  ])
+    assert.deepEqual(stagedVitePlusChecks([nearMiss], root), [["check", "--fix", "--", nearMiss]]);
+  for (const file of ["vendor/rfd/source.rs", "release/bootstrap-public-inputs/input.json"])
+    assert.deepEqual(stagedVitePlusChecks([file], root), [
+      ["check", "--fix", "--no-fmt", "--", file],
+    ]);
+});
+function fakeStagedSpawn(cargo: "missing" | "formatted" | "unformatted") {
+  const calls: string[][] = [];
+  const spawn = ((command: string, args: readonly string[]) => {
+    calls.push([command, ...args]);
+    if (command === "cargo")
+      return cargo === "missing" ? { error: new Error("spawn cargo ENOENT") } : { status: 0 };
+    if (args.includes("fmt")) return { status: cargo === "formatted" ? 0 : 1 };
+    return { status: 0 };
+  }) as unknown as typeof spawnSync;
+  const fmtRuns = () => calls.filter((call) => call.includes("fmt"));
+  return { spawn, calls, fmtRuns };
+}
+
+void test("staged Rust files trigger exactly one read-only cargo fmt check", () => {
+  const fake = fakeStagedSpawn("formatted");
+  const files = Array.from({ length: 300 }, (_, i) => `crates/x/${i}-${"y".repeat(60)}.rs`);
+  checkStagedFiles(files, root, fake.spawn);
+  assert.ok(stagedFileBatches(files).length > 1);
+  assert.equal(fake.fmtRuns().length, 1);
+  assert.deepEqual(
+    fake.fmtRuns()[0]?.slice(-6),
+    ["run", "--", "cargo", "fmt", "--all", "--"].concat("--check").slice(-6),
+  );
+});
+
+void test("staged checks without Rust files never run cargo fmt", () => {
+  const fake = fakeStagedSpawn("unformatted");
+  checkStagedFiles(["scripts/a.mts", "docs/rs.md", "src/notrs"], root, fake.spawn);
+  assert.equal(fake.fmtRuns().length, 0);
+  assert.equal(fake.calls.filter(([command]) => command === "cargo").length, 0);
+});
+
+void test("a failing staged cargo fmt check names the repair command", () => {
+  const fake = fakeStagedSpawn("unformatted");
+  assert.throws(
+    () => checkStagedFiles(["crates/a/src/lib.rs"], root, fake.spawn),
+    /run `cargo fmt --all`.*stage it and commit again/,
+  );
+  assert.equal(fake.fmtRuns().length, 1);
+});
+
+void test("a missing cargo gives an actionable staged Rust format error", () => {
+  const fake = fakeStagedSpawn("missing");
+  assert.throws(
+    () => checkStagedFiles(["crates/a/src/lib.rs"], root, fake.spawn),
+    /needs cargo on PATH\. Install the Rust toolchain/,
+  );
+  assert.equal(fake.fmtRuns().length, 0);
+});
+
 void test("staged batches preserve literal paths beyond Windows shell limits", () => {
   const files = Array.from(
     { length: 180 },
@@ -146,10 +220,16 @@ void test("hook fixture runtime dependencies match the independently reviewed mo
     [
       "apps/desktop/src/catalog-values.generated.ts",
       "scripts/bounded-summary.mts",
+      "scripts/catalog-advisories.mts",
       "scripts/catalog-authoring.mts",
+      "scripts/catalog-psx-managed-windows.mts",
+      "scripts/catalog-route-facts.mts",
       "scripts/catalog-staged-check.mts",
       "scripts/development-evidence.mts",
       "scripts/fallow-summary.mts",
+      "scripts/github-client.mts",
+      "scripts/github-operation.mts",
+      "scripts/json-values.mts",
       "scripts/native-helper-dependencies.mts",
       "scripts/nextest-outcomes.mts",
       "scripts/nextest-skip-routes.mts",
@@ -157,6 +237,7 @@ void test("hook fixture runtime dependencies match the independently reviewed mo
       "scripts/node-test-inventory.mts",
       "scripts/node-test-suites.json",
       "scripts/node-test-suites.mts",
+      "scripts/package-player-observation.mts",
       "scripts/precommit.mts",
       "scripts/qualification-coverage.mts",
       "scripts/qualification-nextest.mts",
@@ -165,6 +246,7 @@ void test("hook fixture runtime dependencies match the independently reviewed mo
       "scripts/retained-evidence.mts",
       "scripts/runtime-values.mts",
       "scripts/rustdoc-outcomes.mts",
+      "scripts/settings-qualification.mts",
       "scripts/upstream-lineage.mts",
       "scripts/validation-platforms.mts",
       "scripts/viteplus-cli.mts",
@@ -399,7 +481,7 @@ void test(
         },
       ),
     );
-    assert.equal(setup.status, 0, setup.stderr || setup.error?.message);
+    assert.equal(setup.status, 0, setup.stderr || setup.error?.message || "");
     const core = git(cwd, "--exec-path").trim();
     const gitPath =
       process.platform === "win32" ? path.resolve(core, "../../bin/git.exe") : "/usr/bin/git";
@@ -429,7 +511,11 @@ void test(
         }),
       );
     const success = commit();
-    assert.equal(success.status, 0, success.stderr || success.stdout || success.error?.message);
+    assert.equal(
+      success.status,
+      0,
+      success.stderr || success.stdout || success.error?.message || "",
+    );
     git(cwd, "config", "extensions.worktreeConfig", "true");
     const sibling = `${cwd}-linked`;
     git(cwd, "worktree", "add", "-qb", "runtime-linked", sibling);
@@ -439,7 +525,7 @@ void test(
     writeFileSync(path.join(sibling, "sample.js"), "export const linked = true;\n");
     git(sibling, "add", "sample.js");
     const linked = commit(sibling);
-    assert.equal(linked.status, 0, linked.stderr || linked.stdout || linked.error?.message);
+    assert.equal(linked.status, 0, linked.stderr || linked.stdout || linked.error?.message || "");
     writeFileSync(path.join(cwd, ".node-version"), "0.0.0\n");
     const stale = commit();
     assert.notEqual(stale.status, 0);
@@ -461,7 +547,7 @@ void test(
     assert.equal(
       refreshed.status,
       0,
-      refreshed.stderr || refreshed.stdout || refreshed.error?.message,
+      refreshed.stderr || refreshed.stdout || refreshed.error?.message || "",
     );
     assert.equal(git(cwd, "show", "HEAD:sample.js"), "export const refreshed = true;\n");
     unlinkSync(path.join(cwd, ".vite-hooks/_/portcove-node"));

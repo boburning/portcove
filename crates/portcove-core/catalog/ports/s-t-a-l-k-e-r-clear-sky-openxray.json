@@ -17,6 +17,7 @@
       "match_kind": "underlying-game"
     },
     "issue_number": 2708,
+    "listed_at": "2026-10-25",
     "release_url": "https://github.com/OpenXRay/xray-16/releases/tag/latest-nightly",
     "download_asset_hints": {
       "windows-x86-64": ["OpenXRay.Release.Master.Gold.64-bit.7z"]
@@ -33,18 +34,35 @@
           "instruction": "Follow the upstream Windows installation guide for the exact selected release. The inspected latest-nightly OpenXRay.Release.Master.Gold.64-bit.7z contains the x64 bin/xrEngine.exe player. Follow the Clear Sky instructions: extract bin from the engine archive and apply the matching nightly Clear Sky gamedata patch. The older December 2021 RC1 patch is different; do not mix it with nightly. Register the prepared bin/xrEngine.exe using the working directory and arguments of the upstream installation. Keep its companion DLLs; do not register a helper or replace a live original installation."
         },
         {
-          "title": "Preserve the actual player data",
-          "instruction": "Preserve the actual app_data_root selected by that installation’s fsgame.ltx, all saves/configuration/logs and the complete working original/runtime copy. Locations and mod requirements can vary. Upstream warns that incompatible or malformed mods can fail; neither save migration nor mod compatibility is established by registration."
-        },
-        {
-          "title": "Keep external ownership and deliberate Play",
-          "instruction": "Finish upstream preparation before registration. Register the real player with its matching working directory and separate literal argument lines. Play is a separate explicit action. You and upstream own this runtime, original files, saves and configuration. Registration-only removal preserves these external files; managed Update, Backup, Rollback, migration and deletion are unavailable for them. Preserve the working runtime and every actual data/profile location with the game closed before upstream replacement. Other platforms require their own upstream flow."
+          "title": "Add the game and manage your files",
+          "instruction": "Finish setup with the project’s tools before adding the game. Select the game executable and its working folder, and put each launch argument on a separate line. Choose Play separately when you are ready. You manage this game’s files, originals, saves and settings. Removing its registration leaves those external files in place. Portcove does not offer updates, backups, rollback, data migration or file deletion for this external copy. Close the game and keep a working copy and every data and profile folder before changing versions."
         }
       ],
       "warnings": [
-        "Nightly preparation and the matching Clear Sky patch are upstream-owned. No original-game setup, gameplay or mod compatibility was observed."
+        "Nightly preparation and the matching Clear Sky patch are upstream-owned. No original-game setup, gameplay or mod compatibility was observed.",
+        "Preserve the actual app_data_root selected by that installation’s fsgame.ltx, all saves/configuration/logs and the complete working original/runtime copy.",
+        "Upstream warns that incompatible or malformed mods can fail; neither save migration nor mod compatibility is established by registration.",
+        "OpenXRay does not load saves created by the original Clear Sky engine. Keep your original saves and create a separate OpenXRay profile."
       ],
-      "help_url": "https://github.com/OpenXRay/xray-16/wiki/How-to-install-and-play"
+      "help_url": "https://github.com/OpenXRay/xray-16/wiki/How-to-install-and-play",
+      "references": [
+        {
+          "title": "Keep your existing game data",
+          "instruction": "Preserve the actual app_data_root selected by that installation’s fsgame.ltx, all saves/configuration/logs and the complete working original/runtime copy. Locations and mod requirements can vary. Upstream warns that incompatible or malformed mods can fail; neither save migration nor mod compatibility is established by registration."
+        },
+        {
+          "title": "Prepare the Linux player yourself",
+          "instruction": "Use the upstream portable instructions with your own Clear Sky 1.5.10 files. On x86-64 or ARM64 with glibc 2.38 or later, make the complete upstream CI AppImage executable and open that file. For a separately prepared portable tree, keep its engine libraries and resources together and open bin/xr_3da. Use -cs plus -fsltx and the absolute path to your config for either player."
+        },
+        {
+          "title": "Prepare the matching Mac build yourself",
+          "instruction": "The inspected upstream CI ZIPs are for Intel or Apple silicon on macOS 14 or later. Keep bin/xr_3da and share/openxray. Use the architecture-matched Homebrew dependencies in the upstream setup instructions, including sdl2-compat, and your own Clear Sky 1.5.10 resources. Start bin/xr_3da from the prepared folder containing bin and share. Use -cs plus -fsltx and the absolute path to your config."
+        },
+        {
+          "title": "Keep the effective profile for this copy",
+          "instruction": "Keep the complete engine and original files and the actual app_data_root defined by the selected fsgame.ltx. The CI packages and source instructions describe player-managed setup. Confirm a normal start and quit before attaching any prepared native player."
+        }
+      ]
     }
   },
   "upstream_lineage": {

@@ -42,8 +42,7 @@ import {
   executeOwnedCapacityEffect,
 } from "./release-capacity-executor.mts";
 import { authenticateReleaseControlRound } from "./release-live-control-admission.mts";
-import { createGitHubRunner, GitHubApiClient } from "./github-api.mts";
-import { releaseControlRefQuery } from "./release-control-inputs.mts";
+import { fixedReleaseReaderToken } from "./release-readonly-child-environment.mts";
 import { releaseCanonicalDigest as digest } from "./release-canonical.mts";
 import {
   recoverRemoteCoordinator,
@@ -53,7 +52,7 @@ import { requireReservedAggregate } from "./production-aggregate-steps.mts";
 import { receiveIsolatedRoleKey } from "./release-role-key-channel.mts";
 import { handoffSigningOutput } from "./release-signing-handoff.mts";
 import { isRecord } from "./runtime-values.mts";
-import { currentTufJobDeadline } from "./release-signing-job-budget.mts";
+import { currentControllerJobDeadline } from "./release-signing-job-budget.mts";
 import {
   inspectMetadataSigningBinding,
   inspectMetadataSigningReservation,
@@ -170,8 +169,9 @@ export async function runTufRoleController(
   let progress = "current-reservation";
   try {
     const coordinator = { schema_version: 1, namespace: authorities.namespace },
+      transport = { credential: { token: fixedReleaseReaderToken() }, deadline },
       recovered = await recoverRemoteCoordinator(directory, coordinator, {
-        transport: { cwd: directory, deadline },
+        transport,
       });
     let checkpoint = recovered.checkpoint;
     const descriptor = () =>
@@ -213,39 +213,15 @@ export async function runTufRoleController(
           String(manifest.facts_sha256),
           phase,
           round,
-          { deadline },
+          { deadline, controlReader: metadata ? "tuf-maintenance" : "tuf-application" },
         );
         observed = performance.now();
       }
       if (source.evidence_scope !== "github.com")
         throw new Error("actual TUF control source required");
-      let reads = 0;
-      const client = new GitHubApiClient((args, input) => {
-        if (++reads > 32) throw new Error("TUF role control read budget exhausted");
-        const response = createGitHubRunner({
-          cwd: directory,
-          maxBuffer: 2 * 1024 ** 2,
-          timeoutMs: signingContextRemaining(deadline, 15000),
-        })([...args, "--hostname", "github.com"], input);
-        active();
-        return response;
-      });
-      const api = {
-        request(method: string, endpoint: string, body?: unknown) {
-          if (
-            method !== "GET" ||
-            body !== undefined ||
-            !endpoint.startsWith("repos/boburning/portcove/")
-          )
-            throw new Error("TUF role controls require fixed GET reads");
-          return client.request(method, endpoint);
-        },
-        graphql(query: string, variables: Record<string, unknown>) {
-          if (query !== releaseControlRefQuery) throw new Error("TUF role control query differs");
-          return client.graphql(query, variables);
-        },
-      };
-      const current = metadata ? source.readMaintenance(api) : source.read(api, facts.opportunity);
+      const current = metadata
+        ? await source.readSdkMaintenance()
+        : await source.readSdkApplicationControls(facts.opportunity);
       if (
         current.pause.publication_paused ||
         !current.resource_policy_matches_controller ||
@@ -265,7 +241,7 @@ export async function runTufRoleController(
       for (const dependency of capturedDependencies)
         await requireRetainedTufRoleArtifact(dependency, deadline);
       const snapshot = await readRemoteCoordinatorSnapshot(directory, coordinator, {
-        transport: { cwd: directory, deadline },
+        transport,
       });
       await reservation(snapshot);
       await fresh();
@@ -350,6 +326,9 @@ export async function runTufRoleController(
           remote_identity: `github-actions:boburning/portcove:artifact:${handoff.artifact.id}`,
           evidence_sha256: digest(handoff),
         };
+      },
+      async () => {
+        await fresh();
       },
     );
     if (!envelope || !handoff || !ownedPending)
@@ -501,10 +480,9 @@ export async function runFixedTufRoleConfiguration(
     dependencies = tufRoleDependencies(role);
   if (value.dependencies.length !== dependencies.length)
     throw new Error("exact role dependency locators required");
-  const deadline = currentTufJobDeadline(
-    role,
+  const deadline = await currentControllerJobDeadline(
+    `tuf-${role}`,
     inspectAssemblerIdentityExpectation(value.identity),
-    parent,
     processDeadline,
   );
   const toolsReceipt = await receiveControllerTools(

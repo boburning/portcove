@@ -34,14 +34,19 @@ export function ArtworkProvider({
   listings?: CatalogListingDocument | undefined;
   children: ReactNode;
 }) {
-  const catalogArtworkKey = JSON.stringify([
-    catalog?.ports.map(({ id, presentation }) => [
-      id,
-      presentation?.artwork,
-      presentation?.media,
-    ]) ?? [],
-    listings?.listings.map(({ id, artwork, media }) => [id, artwork, media]) ?? [],
-  ]);
+  // Workspace reads share unchanged catalog references, so serialize only on change.
+  const catalogArtworkKey = useMemo(
+    () =>
+      JSON.stringify([
+        catalog?.ports.map(({ id, presentation }) => [
+          id,
+          presentation?.artwork,
+          presentation?.media,
+        ]) ?? [],
+        listings?.listings.map(({ id, artwork, media }) => [id, artwork, media]) ?? [],
+      ]),
+    [catalog, listings],
+  );
   const cache = useMemo(
     () => new ArtworkCache(generation, catalogArtworkKey),
     [generation, catalogArtworkKey],
@@ -111,6 +116,7 @@ export function useCatalogMedia(
     interest.current = visible ? media : undefined;
     if (media && visible) cache?.loadMedia(portId, media, () => current);
     return () => {
+      // oxlint-disable-next-line react/immutability -- oxc#28401: effect-local binding.
       current = false;
       interest.current = undefined;
     };

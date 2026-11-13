@@ -2,8 +2,20 @@
 use std::path::Path;
 
 use crate::{
-    AdapterKind, Platform, PortDefinition, PortcoveError, Result, WindowsRuntimePathPolicy,
+    AdapterKind, Platform, PortDefinition, PortcoveError, ReleaseSource, Result,
+    WindowsRuntimePathPolicy,
 };
+
+pub(crate) fn has_staged_sibling_platforms(port: &PortDefinition) -> bool {
+    port.windows_runtime_path_policy == Some(WindowsRuntimePathPolicy::PrintableAsciiMaxPath)
+        && port.platforms.len() > 1
+        && port.platforms.contains(&Platform::WindowsX86_64)
+        && port.release.provider == ReleaseSource::Github
+        && crate::persistence::ready_staged_archive(port)
+        && port.source_profile.is_some()
+        && !port.runtime_source_hashes.is_empty()
+        && port.archive_data_compatibility_v1.is_some()
+}
 
 pub(crate) fn validate(port: &PortDefinition) -> Result<()> {
     if port.windows_runtime_path_policy == Some(WindowsRuntimePathPolicy::PrintableAsciiMaxPath)
@@ -23,8 +35,13 @@ pub(crate) fn validate(port: &PortDefinition) -> Result<()> {
         };
     }
     if port.windows_runtime_path_policy == Some(WindowsRuntimePathPolicy::RelativeFileMaxPath) {
-        return if port.adapter == AdapterKind::NativePortable
-            && port.platforms == [Platform::WindowsX86_64]
+        let supported_route = (port.adapter == AdapterKind::NativePortable
+            && (port.platforms == [Platform::WindowsX86_64]
+                || crate::native_temp::has_sibling_platforms(port)
+                || windows_with_checked_tar_xz_siblings(port)))
+            || (port.adapter == AdapterKind::LibultrashipPortable
+                && port.platforms.contains(&Platform::WindowsX86_64));
+        return if supported_route
             && port.setup_executable_hints.is_empty()
             && port.release.user_prepared.is_empty()
             && port.release.managed_build.is_empty()
@@ -32,7 +49,7 @@ pub(crate) fn validate(port: &PortDefinition) -> Result<()> {
             Ok(())
         } else {
             Err(PortcoveError::usage(
-                "relative Windows file access requires a Windows-only native archive without preparation helpers",
+                "relative Windows file access requires a native archive or a Windows-capable Libultraship archive without preparation helpers",
             ))
         };
     }
@@ -55,13 +72,14 @@ pub(crate) fn validate(port: &PortDefinition) -> Result<()> {
         && port.setup_executable_hints.is_empty();
     if port.windows_runtime_path_policy.is_some()
         && !cvlod_source
+        && !has_staged_sibling_platforms(port)
         && (port.platforms != [Platform::WindowsX86_64]
             || port.adapter != AdapterKind::StagedSourcePortable
             || !port.setup_executable_hints.is_empty()
             || !port.release.managed_build.is_empty())
     {
         return Err(PortcoveError::usage(
-            "Windows runtime path policy requires a Windows-only staged-source route without a setup executable or managed build, or the fixed CVLoD source recipe",
+            "Windows runtime path policy requires a Windows-only staged-source route, an original-bound staged archive with sibling platforms, or the fixed CVLoD source recipe",
         ));
     }
     if port.windows_runtime_path_policy.is_some()
@@ -76,18 +94,42 @@ pub(crate) fn validate(port: &PortDefinition) -> Result<()> {
     Ok(())
 }
 
+/// The Windows rule still applies only to its native archive. Siblings must
+/// use the independently validated Linux or Mac TAR.XZ contracts.
+fn windows_with_checked_tar_xz_siblings(port: &PortDefinition) -> bool {
+    port.platforms.contains(&Platform::WindowsX86_64)
+        && port.platforms.contains(&Platform::LinuxX86_64)
+        && port.release.linux_tar_xz
+        && port.platforms.iter().all(|platform| {
+            matches!(platform, Platform::WindowsX86_64 | Platform::LinuxX86_64)
+                || crate::runtime::native_mac_bundle_tar_xz(port, *platform)
+        })
+}
+
 pub(crate) fn minimum_capability(port: &PortDefinition) -> u32 {
-    if port.adapter == AdapterKind::NativePortable {
+    if port.adapter == AdapterKind::LibultrashipPortable {
+        2
+    } else if port.adapter == AdapterKind::NativePortable {
         if port.windows_runtime_path_policy == Some(WindowsRuntimePathPolicy::PrintableAsciiMaxPath)
         {
             7
         } else {
             4
         }
+    } else if has_staged_sibling_platforms(port) {
+        29
     } else if port.release.user_prepared.is_empty() {
         11
     } else {
         17
+    }
+}
+
+pub(crate) fn capability_template(port: &PortDefinition) -> &'static str {
+    match port.adapter {
+        AdapterKind::NativePortable => "native-portable",
+        AdapterKind::LibultrashipPortable => "libultraship-portable",
+        _ => "staged-source-portable",
     }
 }
 

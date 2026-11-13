@@ -94,7 +94,7 @@ for (const [name, editInput, editExpected] of [
     const output = join(fixture.catalogs, "catalog.json");
     const before = readFileSync(join(catalogRoot, "catalog.json"));
     writeFileSync(output, before);
-    const inputPath = join(fixture.catalogs, "catalog-current-authoring.json");
+    const inputPath = join(fixture.catalogs, "catalog-fixture-input.json");
     const expectedPath = join(fixture.catalogs, "catalog-legacy-additions-fixture.json");
     if (editInput) {
       const input = fixtureCatalog(fixtureJson(readFileSync(inputPath)));
@@ -141,6 +141,10 @@ void test("reuse-only full proposal retains declaration checks without initializ
   assert.equal(existsSync(join(fixture.output, "scratch")), false);
   assert.equal(fixture.processes.length, 3);
   assert.ok(fixture.processes.every(({ inspection }) => inspection));
+  assert.deepEqual(
+    fixture.processes.map(({ repository_authoring }) => repository_authoring),
+    [false, true, true],
+  );
   const evidence = fixtureJson(readFileSync(join(fixture.output, "proposal-evidence.json")));
   const expected = createHash("sha256").update(fixture.original).digest("hex");
   for (const receipt of Object.values(record(evidence.checks)))
@@ -197,7 +201,7 @@ void test("ordinary generator prepares one complete retained batch and refuses o
   const before = readFileSync(join(catalogRoot, "catalog.json"), "utf8");
   const args = [
     "--prepare-artwork",
-    join(catalogRoot, "catalog-current-authoring.json"),
+    join(catalogRoot, "catalog.json"),
     "--output-dir",
     output,
     // This zero-request control must never discover the maintainer's account.
@@ -228,7 +232,7 @@ void test("explicit IGDB hero preparation retains unknown acquisition when its s
   const output = join(scratch, "proposal");
   const result = run(
     "--prepare-artwork",
-    join(catalogRoot, "catalog-current-authoring.json"),
+    join(catalogRoot, "catalog.json"),
     "--output-dir",
     output,
     "--credentials-file",

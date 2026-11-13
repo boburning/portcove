@@ -33,6 +33,7 @@ fn doctor_fixture() -> DoctorReport {
             official_url: "https://private-unexported-url.example/".into(),
         }],
         repair: RepairPlan {
+            journal_diagnostics: None,
             generated_at: 10,
             items: vec![RepairItem {
                 kind: RepairItemKind::CleanupPending,

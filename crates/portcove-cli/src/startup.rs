@@ -62,6 +62,14 @@ pub(super) fn startup_mode(command: &Commands) -> StartupMode {
             | ArtworkCommand::HandoffBytes { .. }
             | ArtworkCommand::Show { .. }
             | ArtworkCommand::Unused => ReadOnly,
+            ArtworkCommand::Steamgriddb { command } => match command {
+                SteamGridDbCommand::Status
+                | SteamGridDbCommand::Search { .. }
+                | SteamGridDbCommand::Candidates { .. } => ReadOnly,
+                SteamGridDbCommand::SetKey { .. }
+                | SteamGridDbCommand::ClearKey
+                | SteamGridDbCommand::Choose { .. } => Recovering,
+            },
             ArtworkCommand::Import { .. }
             | ArtworkCommand::Reset { .. }
             | ArtworkCommand::ClearCache
@@ -78,16 +86,37 @@ pub(super) fn startup_mode(command: &Commands) -> StartupMode {
             | BackupCommand::Restore { .. }
             | BackupCommand::GhostshipLegacyRecover { .. } => Recovering,
         },
+        Commands::GameSettings { command } => match command {
+            #[cfg(feature = "qualification-fixtures")]
+            GameSettingsCommand::QualificationScope { .. } => ReadOnly,
+            GameSettingsCommand::List { .. } | GameSettingsCommand::Review(_) => ReadOnly,
+            GameSettingsCommand::Apply { .. } => Recovering,
+        },
+        Commands::Saves { command } => match command {
+            SavesCommand::ExportPreview { .. }
+            | SavesCommand::ImportPreview { .. }
+            | SavesCommand::FolderStatus { .. }
+            | SavesCommand::FolderPullPreview { .. } => ReadOnly,
+            SavesCommand::Export { .. }
+            | SavesCommand::Import { .. }
+            | SavesCommand::FolderPush { .. }
+            | SavesCommand::FolderPull { .. }
+            | SavesCommand::FolderSetAside { .. } => Recovering,
+        },
         Commands::Catalog { command } => match command {
             CatalogCommand::Compare { .. }
             | CatalogCommand::List
-            | CatalogCommand::Export
-            | CatalogCommand::Listings
+            | CatalogCommand::Export { .. }
+            | CatalogCommand::Listings { .. }
             | CatalogCommand::InspectListings { .. }
             | CatalogCommand::Show { .. }
             | CatalogCommand::Status
             | CatalogCommand::ListingStatus
-            | CatalogCommand::InspectProposal { .. } => ReadOnly,
+            | CatalogCommand::InspectProposal { .. }
+            | CatalogCommand::InspectTargets { .. }
+            | CatalogCommand::InspectDefinitionDelivery
+            | CatalogCommand::InspectPackageLayout { .. }
+            | CatalogCommand::InspectSettingsQualification { .. } => ReadOnly,
             CatalogCommand::InspectDefinitionPublication { .. } => ReadOnly,
             CatalogCommand::DefinitionAuthority { apply, .. }
             | CatalogCommand::Update { apply, .. } => apply_mode(*apply),
@@ -102,9 +131,10 @@ pub(super) fn startup_mode(command: &Commands) -> StartupMode {
             | CatalogCommand::UseEmbedded { .. } => Recovering,
         },
         Commands::Source { command } => match command {
-            SourceCommand::List | SourceCommand::Inspect { .. } | SourceCommand::Verify(_) => {
-                ReadOnly
-            }
+            SourceCommand::List
+            | SourceCommand::Inspect { .. }
+            | SourceCommand::Reuse { .. }
+            | SourceCommand::Verify(_) => ReadOnly,
             SourceCommand::Relink { apply, .. } => apply_mode(*apply),
             SourceCommand::Discover(_)
             | SourceCommand::Add { .. }
@@ -116,7 +146,10 @@ pub(super) fn startup_mode(command: &Commands) -> StartupMode {
                 SourceInboxCommand::Open { .. } | SourceInboxCommand::Scan(_) => Recovering,
             },
             SourceCommand::Roots { command } => match command {
-                GameFileRootCommand::List | GameFileRootCommand::Snapshot => ReadOnly,
+                GameFileRootCommand::List
+                | GameFileRootCommand::Snapshot
+                | GameFileRootCommand::Matches(_)
+                | GameFileRootCommand::Profiles { .. } => ReadOnly,
                 GameFileRootCommand::Scan(_)
                 | GameFileRootCommand::Add { .. }
                 | GameFileRootCommand::Relink { .. }
@@ -137,6 +170,13 @@ pub(super) fn startup_mode(command: &Commands) -> StartupMode {
             | ExternalCommand::Remove { .. }
             | ExternalCommand::Relink { .. } => Recovering,
         },
+        Commands::Profile { command } => {
+            if command.mutates() {
+                Recovering
+            } else {
+                ReadOnly
+            }
+        }
         Commands::Setup { command } => match command {
             crate::setup::SetupCommand::Candidates { .. }
             | crate::setup::SetupCommand::Targets { .. }
@@ -150,10 +190,12 @@ pub(super) fn startup_mode(command: &Commands) -> StartupMode {
             | InstallationCommand::Retained { .. }
             | InstallationCommand::Reference { .. }
             | InstallationCommand::ReferencePlan { .. }
-            | InstallationCommand::ReferenceRemovalPlan { .. } => ReadOnly,
+            | InstallationCommand::ReferenceRemovalPlan { .. }
+            | InstallationCommand::ReferenceRetirePlan { .. } => ReadOnly,
             InstallationCommand::Run { .. }
             | InstallationCommand::ReferenceBind { .. }
-            | InstallationCommand::ReferenceRemove { .. } => Recovering,
+            | InstallationCommand::ReferenceRemove { .. }
+            | InstallationCommand::ReferenceRetire { .. } => Recovering,
             #[cfg(feature = "qualification-fixtures")]
             InstallationCommand::QualificationUpdatePlan { .. } => ReadOnly,
             #[cfg(feature = "qualification-fixtures")]
@@ -173,6 +215,26 @@ pub(super) fn startup_mode(command: &Commands) -> StartupMode {
         },
         Commands::Launch { command } => match command {
             LaunchCommand::Show { .. } | LaunchCommand::Recover { .. } => Recovering,
+        },
+        Commands::Games { command } => match command {
+            GamesCommand::List
+            | GamesCommand::BatchPlan { .. }
+            | GamesCommand::BatchShow { .. }
+            | GamesCommand::Intents
+            | GamesCommand::Notices { state: None }
+            | GamesCommand::FolderSetups => ReadOnly,
+            GamesCommand::Add { .. }
+            | GamesCommand::Remove { .. }
+            | GamesCommand::BatchRun { .. }
+            | GamesCommand::BatchResume { .. }
+            | GamesCommand::BatchCancel { .. }
+            | GamesCommand::Intent { .. }
+            | GamesCommand::Notices { state: Some(_) }
+            | GamesCommand::IntentsAcknowledge { .. }
+            | GamesCommand::SetupReady
+            | GamesCommand::FolderSetup { .. }
+            | GamesCommand::FolderSetupChoose { .. }
+            | GamesCommand::FolderSetupCopy { .. } => Recovering,
         },
         // These commands return before shared service construction. Preserve the
         // historical policy bit without moving their own dispatch/constructors.
@@ -203,13 +265,20 @@ pub(super) fn startup_mode(command: &Commands) -> StartupMode {
         Commands::Policy { command } => match command {
             PolicyCommand::Set { .. } => Recovering,
         },
-        Commands::Status { .. }
+        Commands::PortCapabilities { .. }
+        | Commands::Status { .. }
         | Commands::Storage
         | Commands::Doctor
         | Commands::Plan { .. }
         | Commands::Paths { .. }
         | Commands::RemovePreview { .. }
+        | Commands::LauncherLibrary {
+            command: LauncherLibraryCommand::Inspect { .. },
+        }
         | Commands::Capabilities => ReadOnly,
+        Commands::LauncherLibrary {
+            command: LauncherLibraryCommand::Adopt { .. },
+        } => Recovering,
         Commands::Cancel { .. }
         | Commands::About
         | Commands::Check(_)
@@ -323,10 +392,14 @@ mod tests {
     #[test]
     fn parsed_leaf_policy_matches_prechange_oracle() {
         let observations = [
+            "launcher-library inspect --launcher quiver dir",
             "artwork handoff p --role portrait-cover",
             "artwork handoff-bytes p --role portrait-cover --expected-library-id l --expected-revision 1 --expected-asset-sha256 a",
             "artwork show p",
             "artwork unused",
+            "artwork steamgriddb status",
+            "artwork steamgriddb search name",
+            "artwork steamgriddb candidates 1 --role portrait-cover",
             "auth status",
             "backup list p",
             "catalog list",
@@ -334,17 +407,21 @@ mod tests {
             "catalog show p",
             "catalog status",
             "catalog inspect-proposal file",
+            "catalog inspect-package-layout file --platform windows-x86-64 --size 1 --sha256 hash",
             "catalog inspect-definition-publication directory",
             "catalog definition-authority",
             "catalog update --file file",
             "source list",
             "source inspect p",
+            "source reuse p",
             "source verify p",
             "source relink p file",
             "source inbox path p",
             "source inbox import p file",
             "source roots list",
             "source roots snapshot",
+            "source roots matches",
+            "source roots profiles --root r",
             "external preview p dir",
             "external removal-preview p",
             "installation plan p",
@@ -368,6 +445,9 @@ mod tests {
             "artwork reset p",
             "artwork clear-cache",
             "artwork remove-unused hash",
+            "artwork steamgriddb set-key --stdin",
+            "artwork steamgriddb clear-key",
+            "artwork steamgriddb choose p --game 1 --candidate 2",
             "auth login",
             "auth set-token --stdin",
             "auth logout",
@@ -431,6 +511,7 @@ mod tests {
             "reconcile",
             "install p",
             "adopt dir --port p",
+            "launcher-library adopt --launcher quiver dir --yes",
             "ensure p",
             "update p",
             "verify p",

@@ -1,4 +1,5 @@
 import { readWorkflow } from "./ci-workflow-fixture.mts";
+import { DESKTOP_PROFILES, resolveDesktopSelection } from "./desktop-scenarios.mts";
 import { isRecord } from "./runtime-values.mts";
 import { workflowJobs } from "./qualification-coverage.mts";
 import assert from "node:assert/strict";
@@ -16,6 +17,9 @@ import {
   nativeCompatibilityRunner,
   desktopScripts,
 } from "./ci-workflow-fixture.mts";
+
+// Independently expected contract pin; Renovate updates it with the Action group.
+const reviewedInstallAction = "taiki-e/install-action@c509219cf42fba86913069efd0ade2458c59337b"; // v2.90.1
 
 void test("candidate consumer selects only existing selected, compiled and history jobs", () => {
   const jobs = workflowJobs(nativeDesignCompatibilityWorkflow);
@@ -135,14 +139,14 @@ void test("hosted backup focus is manual-only, pinned, isolated and retains real
   assert.doesNotMatch(requiredFixture(windows.split("    steps:")[0]), /\$\{\{ runner\./);
   assert.match(windows, /id: native-quality-pins/);
   assert.match(windows, /node scripts\/quality-tools.mts --github-output >> \$env:GITHUB_OUTPUT/);
-  assert.match(windows, /taiki-e\/install-action@86f7a0ffb25f40114606501a311ebcfaf882ea32/);
+  assert.match(windows, new RegExp(reviewedInstallAction, "u"));
   assert.match(windows, /tool: \$\{\{ steps.native-quality-pins.outputs.required_prebuilt \}\}/);
   const quality = workflowJob("backup_focus", source);
   assert.ok(Array.isArray(quality.steps));
   const qualitySteps = quality.steps.filter(isRecord);
   const provisioning = qualitySteps.findIndex(
     (step) =>
-      step.uses === "taiki-e/install-action@86f7a0ffb25f40114606501a311ebcfaf882ea32" &&
+      step.uses === reviewedInstallAction &&
       isRecord(step.with) &&
       step.with.tool === "${{ steps.native-quality-pins.outputs.required_prebuilt }}",
   );
@@ -181,6 +185,223 @@ void test("hosted backup focus is manual-only, pinned, isolated and retains real
 
   assert.match(source, /if: always\(\)[\s\S]*native-backup-evidence.mts emit/);
   assert.match(source, /if \(\$LASTEXITCODE -ne 0\) \{ throw 'Required evidence retention failed/);
+});
+
+void test("normal-app presentation uses fixed isolated Windows selections and bounded evidence", () => {
+  const source = nativeDesignCompatibilityWorkflow;
+  const job = workflowJob("presentation", source);
+  const section = workflowJobSource(source, "presentation");
+  assert.equal(job["runs-on"], "windows-2022");
+  assert.equal(job["timeout-minutes"], 60);
+  assert.equal(
+    job.if,
+    "${{ inputs.operation == 'presentation' && inputs.runner == 'windows-2022' && !inputs.edge_driver_proof && github.repository == 'boburning/portcove' && github.event.repository.visibility == 'public' }}",
+  );
+  assert.ok(isRecord(job.strategy) && isRecord(job.strategy.matrix));
+  assert.equal(job.strategy["fail-fast"], false);
+  assert.deepEqual(job.strategy.matrix.selection, ["presentation", "interface-size"]);
+  assert.ok(isRecord(job.env));
+  assert.equal(
+    job.env.PORTCOVE_OUTPUT_DIR,
+    "${{ github.workspace }}/work/native-presentation-${{ matrix.selection }}",
+  );
+  assert.equal(
+    job.env.PORTCOVE_TEMP_DIR,
+    "${{ github.workspace }}/work/temp/native-presentation-${{ matrix.selection }}",
+  );
+  assert.ok(Array.isArray(job.steps));
+  const steps = job.steps.filter(isRecord);
+  const bootstrap = steps.findIndex(
+    (step) =>
+      typeof step.run === "string" && step.run.includes("bootstrap-quality-tools.ps1 -Desktop"),
+  );
+  assert.ok(bootstrap >= 0);
+  for (const [selection, arguments_] of [
+    ["presentation", "--profile presentation"],
+    ["interface-size", "--scenario native-interface-size"],
+  ]) {
+    const index = steps.findIndex((step) => step.if === `matrix.selection == '${selection}'`);
+    assert.ok(index > bootstrap);
+    const step = requiredFixture(steps[index]);
+    assert.equal(typeof step.run, "string");
+    assert.ok(!("continue-on-error" in step));
+    const commands = executableLines(String(step.run)).filter((line) =>
+      line.startsWith("just desktop-verify"),
+    );
+    assert.deepEqual(commands, [
+      `just desktop-verify ${arguments_} --require-clean --plan`,
+      `just desktop-verify ${arguments_} --require-clean`,
+    ]);
+  }
+  const retention = requiredFixture(steps.at(-1));
+  assert.equal(retention.if, "always()");
+  assert.match(String(retention.run), /native-backup-evidence\.mts emit/);
+  assert.match(String(retention.run), /if \(\$LASTEXITCODE -ne 0\) \{ throw/);
+  assert.match(section, /persist-credentials: false/);
+  assert.match(section, /\$source -cne \$env:GITHUB_SHA/);
+  assert.match(section, /-not \$identity.user_interactive/);
+  assert.doesNotMatch(
+    section,
+    /upload-artifact|rust-cache|actions\/cache|cache: pnpm|VITE_PORTCOVE_DESIGN_COMPATIBILITY_FIXTURE|secrets\.|inputs\.(?:focus_head|execution_binding)/,
+  );
+});
+
+void test("fixed native product groups preserve owned lifecycle coverage and isolation constraints", () => {
+  const source = nativeDesignCompatibilityWorkflow;
+  const job = workflowJob("product_workflows", source);
+  const section = workflowJobSource(source, "product_workflows");
+  assert.equal(job["runs-on"], "windows-2022");
+  assert.equal(job["timeout-minutes"], 60);
+  assert.equal(
+    job.if,
+    "${{ inputs.operation == 'product-workflows' && inputs.runner == 'windows-2022' && !inputs.edge_driver_proof && github.repository == 'boburning/portcove' && github.event.repository.visibility == 'public' }}",
+  );
+  assert.ok(isRecord(job.strategy) && isRecord(job.strategy.matrix));
+  assert.equal(job.strategy["fail-fast"], false);
+  assert.equal(job.strategy["max-parallel"], 4);
+  const groups = job.strategy.matrix.include;
+  assert.ok(Array.isArray(groups));
+  assert.deepEqual(
+    groups.map((group: unknown) => {
+      assert.ok(isRecord(group));
+      return group.selection;
+    }),
+    [
+      "owned-ready",
+      "owned-recovery",
+      "owned-backups",
+      "owned-steam",
+      "owned-sources",
+      "owned-handoff",
+      "library-layout",
+      "library-organization",
+      "selected-setup",
+      "update-acquisition",
+      "staged-update",
+      "external-runtime",
+      "artwork",
+      "restart",
+      "startup-preferences",
+      "startup-library",
+      "library-switch",
+    ],
+  );
+  const ownedCoverage = new Set<string>();
+  for (const group of groups) {
+    assert.ok(isRecord(group) && typeof group.selection === "string");
+    assert.ok(Array.isArray(group.scenarios) && group.scenarios.length > 0);
+    const scenarios: string[] = group.scenarios.map((scenario: unknown) => {
+      assert.ok(typeof scenario === "string");
+      assert.match(scenario, /^[a-z][a-z0-9-]+$/u);
+      return scenario;
+    });
+    const selection = resolveDesktopSelection({ scenarios, platform: "win32" });
+    assert.deepEqual(selection.known_gaps, []);
+    assert.deepEqual(selection.requested_scenarios, scenarios);
+    if (group.selection.startsWith("owned-"))
+      for (const scenario of [...selection.selected_scenarios, ...selection.setup_scenarios])
+        ownedCoverage.add(scenario);
+  }
+  assert.deepEqual([...ownedCoverage].sort(), [...DESKTOP_PROFILES["owned-lifecycle"]].sort());
+  assert.ok(isRecord(job.env));
+  assert.equal(job.env.NATIVE_SCENARIOS, "${{ toJSON(matrix.scenarios) }}");
+  assert.equal(
+    job.env.PORTCOVE_OUTPUT_DIR,
+    "${{ github.workspace }}/work/native-product-workflows-${{ matrix.selection }}",
+  );
+  assert.equal(
+    job.env.PORTCOVE_TEMP_DIR,
+    "${{ github.workspace }}/work/temp/native-product-workflows-${{ matrix.selection }}",
+  );
+  assert.match(section, /persist-credentials: false/);
+  assert.match(section, /\$source -cne \$env:GITHUB_SHA/);
+  assert.match(section, /-not \$identity.user_interactive/);
+  assert.match(section, /bootstrap-quality-tools\.ps1 -Desktop/);
+  assert.ok(Array.isArray(job.steps));
+  const steps = job.steps.filter(isRecord);
+  const execution = requiredFixture(
+    steps.find((step) => typeof step.run === "string" && step.run.includes("@scenarioArguments")),
+  );
+  assert.ok(!("continue-on-error" in execution));
+  assert.deepEqual(
+    executableLines(String(execution.run)).filter((line) => line.startsWith("just desktop-verify")),
+    [
+      "just desktop-verify @scenarioArguments --require-clean --plan",
+      "just desktop-verify @scenarioArguments --require-clean",
+    ],
+  );
+  const singleton = requiredFixture(
+    steps.find((step) => step.if === "matrix.selection == 'owned-steam'"),
+  );
+  assert.match(String(singleton.run), /steam-entry-result\.json/);
+  assert.match(String(singleton.run), /entry_route -cne 'settings-integrations'/);
+  assert.match(String(singleton.run), /\$eligible.Count -ne 1/);
+  assert.match(String(singleton.run), /\$eligible\[0\] -cne \$report.port_id/);
+  const retention = requiredFixture(steps.at(-1));
+  assert.equal(retention.if, "always()");
+  assert.match(String(retention.run), /native-backup-evidence\.mts emit/);
+  assert.doesNotMatch(
+    section,
+    /upload-artifact|rust-cache|actions\/cache|cache: pnpm|VITE_PORTCOVE_DESIGN_COMPATIBILITY_FIXTURE|secrets\.|inputs\.(?:focus_head|execution_binding)|Invoke-Expression/,
+  );
+});
+
+// A fixed game release-channel scenario is input data, not publication authority.
+// Exempt only that exact matrix value; executable fields and triggers stay checked.
+function assertNonPublishingNativeWorkflow(configuration: unknown): void {
+  const inspected: unknown = structuredClone(configuration);
+  assert.ok(isRecord(inspected) && isRecord(inspected.jobs));
+  const product = inspected.jobs.product_workflows;
+  if (isRecord(product) && isRecord(product.strategy) && isRecord(product.strategy.matrix)) {
+    const rows = product.strategy.matrix.include;
+    if (Array.isArray(rows)) {
+      for (const row of rows) {
+        if (isRecord(row) && row.selection === "owned-ready" && Array.isArray(row.scenarios)) {
+          row.scenarios = row.scenarios.map((scenario: unknown) =>
+            scenario === "native-release-channel-selection-and-restart"
+              ? "reviewed-game-channel-scenario"
+              : scenario,
+          );
+        }
+      }
+    }
+  }
+  assert.doesNotMatch(JSON.stringify(inspected), /release|publish|deploy|"schedule"\s*:/i);
+}
+
+void test("non-publishing policy permits only the fixed game channel matrix value", () => {
+  const configuration: unknown = parseDocument(nativeDesignCompatibilityWorkflow).toJS();
+  assert.doesNotThrow(() => assertNonPublishingNativeWorkflow(configuration));
+  for (const mutation of [
+    { on: { schedule: [{ cron: "0 0 * * *" }] } },
+    { jobs: { unsafe: { steps: [{ run: "gh release create v1" }] } } },
+    { jobs: { unsafe: { steps: [{ run: "pnpm publish" }] } } },
+    { jobs: { unsafe: { steps: [{ uses: "example/deploy@fixed" }] } } },
+    {
+      jobs: {
+        unsafe: { steps: [{ run: "native-release-channel-selection-and-restart" }] },
+      },
+    },
+    {
+      jobs: {
+        product_workflows: {
+          strategy: {
+            matrix: { include: [{ selection: "owned-ready", scenarios: ["publish"] }] },
+          },
+        },
+      },
+    },
+  ]) {
+    assert.ok(isRecord(configuration) && isRecord(configuration.jobs));
+    const jobs = configuration.jobs;
+    assert.throws(() =>
+      assertNonPublishingNativeWorkflow({
+        ...configuration,
+        ...mutation,
+        jobs: { ...jobs, ...("jobs" in mutation ? mutation.jobs : {}) },
+      }),
+    );
+  }
 });
 
 void test("native design compatibility remains explicit, isolated, and non-publishing", () => {
@@ -263,7 +484,7 @@ void test("native design compatibility remains explicit, isolated, and non-publi
   );
   assert.match(nativeDesignCompatibilityWorkflow, /--features native-compatibility-qualification/);
   assert.match(nativeDesignCompatibilityWorkflow, /tauri\.native-compatibility\.conf\.json/);
-  assert.doesNotMatch(nativeDesignCompatibilityWorkflow, /release|publish|deploy|schedule:/i);
+  assertNonPublishingNativeWorkflow(configuration);
   assert.match(nativeCompatibilityRunner, /createHash\("sha256"\)/);
   assert.match(nativeCompatibilityRunner, /"result\.json"/);
   assert.match(
@@ -272,7 +493,7 @@ void test("native design compatibility remains explicit, isolated, and non-publi
   );
   assert.equal(
     desktopScripts["lint:style"],
-    'stylelint --config stylelint.config.mjs --max-warnings 0 "src/**/*.css"',
+    'stylelint --config scripts/stylelint-config.mts --max-warnings 0 "src/**/*.css" && node scripts/check-stylelint-config.mts',
   );
 });
 
@@ -410,6 +631,14 @@ function assertOriginalControllerImportSetup(job: Record<string, unknown>) {
       installationIndex < accountIndex,
     "actual pinned Node and locked dependencies must precede original-C fixture",
   );
+  const discoveryIndex = index(
+    "Test discovery state replacement under actual Windows reader sharing",
+  );
+  if (discoveryIndex !== -1)
+    assert.ok(
+      installationIndex < discoveryIndex,
+      "SDK imports must be available before the filtered discovery test loads",
+    );
   const manager: unknown = steps[managerIndex],
     installation: unknown = steps[installationIndex],
     node: unknown = steps[nodeIndex];
@@ -421,7 +650,7 @@ function assertOriginalControllerImportSetup(job: Record<string, unknown>) {
       isRecord(node.with),
   );
   assert.equal(node.with["node-version-file"], ".node-version");
-  assert.equal(manager.uses, "pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413");
+  assert.equal(manager.uses, "pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115");
   assert.equal(manager.with.package_json_file, "package.json");
   assert.equal(typeof installation.run, "string");
   assert.deepEqual(executableLines(String(installation.run)), [

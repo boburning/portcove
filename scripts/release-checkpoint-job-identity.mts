@@ -1,8 +1,8 @@
 /** Historical provider custody only. No expired OIDC token, latest-attempt
  * substitution, successful-effect inference, or current execution authority. */
 import { performance } from "node:perf_hooks";
-import { createGitHubRunner, GitHubApiClient, nextLink } from "./github-api.mts";
-import type { GitHubRestReader } from "./github-api.mts";
+import { createReleaseCustodyProvider } from "./release-custody-provider.mts";
+import type { HistoricalJobProvider } from "./release-custody-provider.mts";
 import {
   capacityExecutorJobProfile,
   hostedNativeJobProfile,
@@ -11,12 +11,14 @@ import {
 } from "./assembler-job-identity.mts";
 import type { CapacityExecutorRole } from "./assembler-job-identity.mts";
 import { isRecord } from "./runtime-values.mts";
-import { spawnSync } from "node:child_process";
-import { readOnlyReleaseChildEnvironment } from "./release-readonly-child-environment.mts";
 
 const repository = "boburning/portcove";
 const repositoryId = 1354613114;
-type Spawn = NonNullable<NonNullable<Parameters<typeof createGitHubRunner>[0]>["spawn"]>;
+type HistoricalJobTransport = {
+  deadline: number;
+  token?: string;
+  provider?: HistoricalJobProvider;
+};
 
 export interface HistoricalCheckpointJob {
   controller_revision: string;
@@ -51,7 +53,7 @@ export function verifyHistoricalCheckpointJob(
   role: CapacityExecutorRole,
   rawExpected: HistoricalCheckpointJob,
   witnessedAt: number,
-  transport: { cwd: string; deadline: number; spawn?: Spawn; api?: GitHubRestReader },
+  transport: HistoricalJobTransport,
 ) {
   return verifyHistoricalFixedJob(
     capacityExecutorJobProfile(role),
@@ -65,13 +67,13 @@ export function verifyHistoricalCheckpointJob(
 
 /** Historical custody of a completed fixed native parent. This authenticates
  * neither its report/capture nor an installation, minimum OS or native result. */
-export function verifyHistoricalHostedNativeJob(
+export async function verifyHistoricalHostedNativeJob(
   platform: "windows-x86_64" | "linux-x86_64",
   rawExpected: HistoricalCheckpointJob,
   witnessedAt: number,
-  transport: { cwd: string; deadline: number; spawn?: Spawn; api?: GitHubRestReader },
+  transport: HistoricalJobTransport,
 ) {
-  const { role: _role, ...observed } = verifyHistoricalFixedJob(
+  const { role: _role, ...observed } = await verifyHistoricalFixedJob(
     hostedNativeJobProfile(platform),
     platform,
     rawExpected,
@@ -89,13 +91,13 @@ export function verifyHistoricalHostedNativeJob(
 /** Provider custody for an already signed, settled native STAGE in its original
  * live job. The caller must separately authenticate the report and teardown.
  * This neither completes the job nor establishes the full same-client journey. */
-export function verifyHostedNativePhaseJob(
+export async function verifyHostedNativePhaseJob(
   platform: "windows-x86_64" | "linux-x86_64",
   rawExpected: HistoricalCheckpointJob,
   witnessedAt: number,
-  transport: { cwd: string; deadline: number; spawn?: Spawn; api?: GitHubRestReader },
+  transport: HistoricalJobTransport,
 ) {
-  const { role: _role, ...observed } = verifyHistoricalFixedJob(
+  const { role: _role, ...observed } = await verifyHistoricalFixedJob(
     hostedNativeJobProfile(platform),
     platform,
     rawExpected,
@@ -112,7 +114,7 @@ export function verifyHostedNativePhaseJob(
   };
 }
 
-function verifyHistoricalFixedJob<
+async function verifyHistoricalFixedJob<
   Role extends CapacityExecutorRole | "windows-x86_64" | "linux-x86_64",
 >(
   profile:
@@ -121,9 +123,11 @@ function verifyHistoricalFixedJob<
   role: Role,
   rawExpected: HistoricalCheckpointJob,
   witnessedAt: number,
-  transport: { cwd: string; deadline: number; spawn?: Spawn; api?: GitHubRestReader },
+  transport: HistoricalJobTransport,
   purpose: "checkpoint" | "completed-native" | "settled-native-phase",
 ) {
+  rawExpected = structuredClone(rawExpected);
+  transport = { ...transport };
   const expected = inspectAssemblerIdentityExpectation({
     audience: "audience" in profile ? profile.audience : "portcove-capacity-executor",
     subject: controllerOidcSubject(rawExpected.controller_ref, profile.environment),
@@ -148,34 +152,22 @@ function verifyHistoricalFixedJob<
     transport.deadline - started > 120000
   )
     throw new Error("historical checkpoint requires the original bounded deadline");
-  const remaining = () => {
-    const value = Math.floor(Math.min(15000, transport.deadline - performance.now()));
-    if (value < 1) throw new Error("historical checkpoint job deadline exhausted");
-    return value;
+  const active = () => {
+    if (transport.deadline - performance.now() < 1)
+      throw new Error("historical checkpoint job deadline exhausted");
   };
-  const api =
-    transport.api ??
-    new GitHubApiClient((args, body) =>
-      createGitHubRunner({
-        cwd: transport.cwd,
-        spawn:
-          transport.spawn ??
-          ((command, args, settings) =>
-            spawnSync(command, args, {
-              ...settings,
-              env: readOnlyReleaseChildEnvironment() ?? process.env,
-            })),
-        maxBuffer: 2 * 1024 * 1024,
-        timeoutMs: remaining(),
-      })([...args, "--hostname", "github.com"], body),
-    );
+  const provider =
+    transport.provider ??
+    (await createReleaseCustodyProvider({
+      token: transport.token ?? "",
+      deadline: transport.deadline,
+    }));
   let requests = 0;
-  const get = (suffix: string) => {
-    remaining();
+  const get = async <T,>(read: () => Promise<T>) => {
+    active();
     if (++requests > 20) throw new Error("historical checkpoint job request bound exhausted");
-    const response = api.request("GET", `repos/${repository}${suffix}`);
-    remaining();
-    if (response.status !== 200) throw new Error("historical checkpoint provider read unavailable");
+    const response = await read();
+    active();
     return response;
   };
   const attemptPath = `/actions/runs/${expected.run_id}/attempts/${expected.run_attempt}`;
@@ -208,13 +200,13 @@ function verifyHistoricalFixedJob<
     )
       throw new Error("historical checkpoint attempt identity differs");
   };
-  inspectAttempt(get(attemptPath).body);
+  inspectAttempt(await get(() => provider.attempt(expected.run_id, expected.run_attempt)));
   const jobs: Record<string, unknown>[] = [];
   let total: number | null = null;
   for (let page = 1; page <= 16; page++) {
-    const response = get(`${attemptPath}/jobs?per_page=100&page=${page}`);
-    const raw = response.body;
-    const next = nextLink(response.headers);
+    const { body: raw, next } = await get(() =>
+      provider.jobs(expected.run_id, expected.run_attempt, page),
+    );
     if (next !== null) {
       const url = new URL(next);
       const suffix = `${attemptPath}/jobs`;
@@ -340,13 +332,13 @@ function verifyHistoricalFixedJob<
   if (matches.length !== 1 || matches[0]!.id !== rawExpected.job_id)
     throw new Error("historical checkpoint selected job is absent or ambiguous");
   const before = inspectJob(matches[0]);
-  const after = inspectJob(get(`/actions/jobs/${rawExpected.job_id}`).body);
+  const after = inspectJob(await get(() => provider.job(rawExpected.job_id)));
   if (
     before.started_at !== after.started_at ||
     (before.completed_at !== null && before.completed_at !== after.completed_at)
   )
     throw new Error("historical checkpoint job interval changed during readback");
-  inspectAttempt(get(attemptPath).body);
+  inspectAttempt(await get(() => provider.attempt(expected.run_id, expected.run_attempt)));
   return {
     controller_revision: expected.controller_revision,
     controller_ref: expected.controller_ref,
@@ -358,8 +350,7 @@ function verifyHistoricalFixedJob<
     ...after,
     role,
     requests,
-    evidence_scope:
-      transport.api || transport.spawn ? ("injected-provider" as const) : ("github.com" as const),
+    evidence_scope: transport.provider ? ("injected-provider" as const) : ("github.com" as const),
     environment_evidence: "not-independently-observed" as const,
     required_environment: profile.environment,
     required_signer_confinement: "pinned-workflow-live-gate" as const,

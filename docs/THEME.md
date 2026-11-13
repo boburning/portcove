@@ -49,6 +49,22 @@ are editable design decisions. Preserve identity, accessible contrast and domain
 meaning while changing them. No separately maintained JSON/TypeScript token
 registry or immutable numeric palette test is required.
 
+The shared semantic foundation follows the accepted prototype's neutral and
+selection palette in both themes: dark surfaces use graphite with cool blue
+selection, while light surfaces use warm off-white with softer neutral dividers.
+General dividers are separate from control boundaries. Dark control boundaries
+retain their contrast-qualified value rather than copying the prototype's weaker
+strong divider. Brand/status primitives and the distinct gold focus indicator
+retain their meanings. Portaled controls consume these same root aliases.
+
+Library supporting copy uses the existing secondary-text role, and the selected
+navigation stripe uses selection foreground. Success/warning text aliases follow
+the accepted reference in both themes, including shared surfaces and portals;
+brand primitives, operation meaning, qualified control boundaries and gold focus
+are preserved. Library art uses a dedicated decorative translucent-border alias,
+separate from control boundaries. Role changes remain subject to the maintained
+text/state/focus contrast pairs and affected accessibility checks.
+
 ## Semantic roles and interaction
 
 | Role                        | Treatment and meaning                                                          |
@@ -65,9 +81,13 @@ registry or immutable numeric palette test is required.
 | Unknown/disabled            | Neutral; never inferred success                                                |
 | Artwork                     | Separate surfaces suitable for letterboxing and fallback lettering             |
 
-Stable game-port channels are green, Preview (`beta`) blue and Rolling attention
-gold. A channel does not establish support, readiness, qualification or upstream
-health. Current/completed application updates are green, availability gold,
+Game-port identity chips use Stable green (`#22C55E`), Preview (`beta`) amber
+(`#F59E0B`) and Rolling blue (`#3B82F6`), owned by
+[`identity-style.ts`](../apps/desktop/src/features/identity/identity-style.ts).
+This decorative identity palette is separate from semantic status badges and the
+selection, gold keyboard/controller focus, success and danger roles owned by the
+shared tokens and controls. Preserve labels and non-color cues. A channel does
+not establish support, readiness, qualification or upstream health. Current/completed application updates are green, availability gold,
 verified/staged blue, and failure/recovery red. Source support, informational,
 unreviewed and incompatible facts remain separate labeled states. Core owns
 those facts; controls do not invent eligibility or storage thresholds.
@@ -125,9 +145,11 @@ the applied size for the session. A native failure retains the last confirmed
 preference and exposes retry/reset without asserting an unobserved actual size.
 
 `styles/adaptive.css`, assembled by the existing stylesheet entry, owns the
-shared below-48rem reading flow. Navigation wraps in the document, the workspace
-does not require a side pane, Settings navigation stops sticking, and shared
-dialog footers remain in their scrolling flow. The native 960 by 640 minimum
+shared responsive reading flow. The compact shell retains a 60px icon navigation
+rail; below 42rem the workspace scrolls in document flow beside it. The rail's
+navigation sheet retains full destination labels and focus restoration, and
+compact collection controls stay in the workspace. Settings navigation stops
+sticking, and shared dialog footers remain in their scrolling flow. The native 960 by 640 minimum
 stays intact. Actual 320 CSS-pixel and 240 by 160 authored-content checks are
 distinct from observing native 400-percent zoom and other platforms. These
 layouts do not announce phone-platform support.
@@ -139,7 +161,7 @@ queries respond to available component space; viewport queries own shell changes
 Artwork fitting/lettering has a local layered CSS Module beside Artwork.tsx.
 Do not recreate a global feature stylesheet through imported fragments.
 
-Vite+ 1.4.0 owns the toolchain. Tailwind 4.3.3 generates utilities with optimization
+Vite+ 1.5.0 owns the toolchain. Tailwind 4.3.4 generates utilities with optimization
 disabled; Vite performs full Lightning CSS transformation and minification.
 Processing CSS, minifier CSS and JavaScript targets explicitly match Chrome 111
 and Safari 16.4. Production scan exclusions are independent of module tree shaking.

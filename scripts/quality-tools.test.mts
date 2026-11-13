@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { spawnSync } from "node:child_process";
 import {
@@ -9,14 +10,26 @@ import {
   rmSync,
   writeFileSync,
   symlinkSync,
+  lstatSync,
+  statSync,
+  readFileSync,
 } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import test from "node:test";
 
-import { findStaleConsumerPins, githubOutputs, validateQualityManifest } from "./quality-tools.mts";
 import {
+  findStaleConsumerPins,
+  githubOutputs,
+  findMirroredPinDrift,
+  installActionDigest,
+  mirroredPins,
+  prebuiltInstallPlan,
+  validateQualityManifest,
+} from "./quality-tools.mts";
+import {
+  deriveAquaBootstrap,
   parseAquaConfig,
   parseReleaseChecksumId,
   requireStableNonReleaseEntries,
@@ -230,11 +243,16 @@ install_tool 'fixture-tool|1.2.3|fixture-tool --version'
 
 void test("quality manifest owns exact unique Rust pins and workflow outputs", () => {
   assert.doesNotThrow(() => validateQualityManifest(manifest));
+  // Tool order and membership are the contract; versions follow the manifest so
+  // a Renovate version bump needs no test edit.
+  const spec = (id: string) => {
+    const tool = manifest.tools.find((candidate) => candidate.id === id);
+    assert.ok(tool, `quality manifest must pin ${id}`);
+    return `${tool.crate}@${tool.version}`;
+  };
   assert.deepEqual(githubOutputs(manifest), {
-    required_prebuilt: "just@1.58.0,cargo-shear@1.13.4,cargo-deny@0.20.2,cargo-nextest@0.9.100",
-    required_all:
-      "just@1.58.0,cargo-shear@1.13.4,cargo-deny@0.20.2,rscheck-cli@0.1.0,cargo-nextest@0.9.100",
-    rscheck_spec: "rscheck-cli@0.1.0",
+    required_prebuilt: ["just", "cargo-shear", "cargo-deny", "cargo-nextest"].map(spec).join(","),
+    required_all: ["just", "cargo-shear", "cargo-deny", "cargo-nextest"].map(spec).join(","),
   });
 });
 
@@ -452,6 +470,7 @@ void test("Aqua checksum entries reject absent, non-text and empty retained iden
 void test("bootstrap pins use verified official Windows download origins", () => {
   const pins = readToolPins();
   assert.ok(pins.bootstrap.aqua && pins.bootstrap.desktop);
+  assert.equal(pins.bootstrap.aqua.version, pins.aquaVersion);
   assert.equal(
     pins.bootstrap.aqua.release_base,
     "https://github.com/aquaproj/aqua/releases/download",
@@ -715,3 +734,450 @@ $results | ConvertTo-Json -Depth 6 -Compress
     assert.equal(observations.filter((entry) => isRecord(entry) && entry.failed).length, 4);
   },
 );
+
+void test("Aqua configuration accepts semantic YAML formatting and rejects unsupported authority", async () => {
+  const aqua = await readFile(new URL("../aqua.yaml", import.meta.url), "utf8");
+  const expected = parseAquaConfig(aqua);
+  const packages = expected.packages.map(({ name, version }) => ({ name: `${name}@${version}` }));
+  const reformatted = JSON.stringify({
+    packages,
+    checksum: { require_checksum: true, enabled: true },
+    registries: [{ ref: expected.registryRef, type: "standard" }],
+  });
+  assert.deepEqual(parseAquaConfig(reformatted), expected);
+  assert.deepEqual(parseAquaConfig(aqua.replaceAll("\n", "\r\n")), expected);
+  assert.deepEqual(
+    parseAquaConfig(
+      "# ordinary comment\n" +
+        aqua.replace(/^#.*\n/u, "").replace("type: standard", 'type: "standard" # comment'),
+    ),
+    expected,
+  );
+  const invalid = [
+    "%YAML 1.1\n---\n" + aqua,
+    aqua.replace("require_checksum: true", ""),
+    aqua + "\n---\n{}",
+    aqua.replace("enabled: true", "enabled: true\n  enabled: true"),
+    aqua.replace("enabled: true", 'enabled: "true"'),
+    aqua.replace("require_checksum: true", "require_checksum: false"),
+    aqua.replace("type: standard", "type: local"),
+    aqua.replace("type: standard", "type: standard\n    url: https://example.com"),
+    aqua.replace("ref: ", "ref: !untrusted "),
+    aqua
+      .replace("enabled: true", "enabled: &flag true")
+      .replace("require_checksum: true", "require_checksum: *flag"),
+    aqua.replace("packages:", "unknown: true\npackages:"),
+    aqua.replace(/@[^\s]+/u, "@latest"),
+    aqua.replace("astral-sh/ruff", "unknown/tool"),
+    aqua.replace("packages:", "packages: []\nignored:"),
+    aqua + "\n" + "#".repeat(64 * 1024),
+    aqua.replace("packages:", "packages: ["),
+  ];
+  for (const input of invalid) assert.throws(() => parseAquaConfig(input));
+  const ledger: unknown = JSON.parse(
+    await readFile(new URL("../aqua-checksums.json", import.meta.url), "utf8"),
+  );
+  assert.throws(
+    () =>
+      validateAquaChecksumLedger(
+        parseAquaConfig(aqua.replace(/ref: \S+/u, "ref: changed-registry-ref")),
+        ledger,
+      ),
+    /drifted/u,
+  );
+  const duplicate = structuredClone(packages);
+  duplicate.push(packages[0]!);
+  assert.throws(
+    () =>
+      parseAquaConfig(
+        JSON.stringify({
+          registries: [{ type: "standard", ref: expected.registryRef }],
+          checksum: { enabled: true, require_checksum: true },
+          packages: duplicate,
+        }),
+      ),
+    /duplicates/u,
+  );
+});
+
+void test("cloud prebuilt tools resolve from the CI-reviewed install-action manifest", async () => {
+  const workflow = await readFile(new URL("../.github/workflows/ci.yml", import.meta.url), "utf8");
+  const digest = installActionDigest(workflow);
+  assert.match(digest, /^[0-9a-f]{40}$/u);
+  assert.throws(
+    () => installActionDigest(`${workflow}\nuses: taiki-e/install-action@${"0".repeat(40)}\n`),
+    /one reviewed/u,
+  );
+  const prebuilt = manifest.tools.filter(
+    (tool) => tool.tier === "required" && tool.ci_install === "prebuilt",
+  );
+  const sha = (seed: string) => createHash("sha256").update(seed).digest("hex");
+  const manifests = Object.fromEntries(
+    prebuilt.map((tool) => [
+      tool.crate,
+      {
+        template: {
+          x86_64_linux_musl: {
+            url: `https://github.com/example/${tool.crate}/releases/download/\${version}/${tool.crate}.tar.gz`,
+            ...(tool.crate === "cargo-deny" ? { bin: "nested-${version}/cargo-deny" } : {}),
+          },
+        },
+        [tool.version]: { x86_64_linux_musl: { hash: sha(tool.crate) } },
+      },
+    ]),
+  );
+  const plan = prebuiltInstallPlan(manifest, manifests, ["x86_64_linux_musl"]);
+  assert.deepEqual(
+    plan.map(({ id, version }) => `${id}@${version}`),
+    prebuilt.map((tool) => `${tool.id}@${tool.version}`),
+  );
+  for (const entry of plan) {
+    assert.ok(entry.url.includes(`/download/${entry.version}/`));
+    assert.equal(entry.sha256, sha(entry.id));
+  }
+  const deny = plan.find((entry) => entry.id === "cargo-deny");
+  assert.ok(deny, "cargo-deny must remain a required prebuilt tool for this fixture");
+  assert.equal(deny.member, `nested-${deny.version}/cargo-deny`);
+
+  const first = prebuilt[0]!;
+  const withoutRelease = { ...manifests, [first.crate]: { template: {} } };
+  assert.throws(
+    () => prebuiltInstallPlan(manifest, withoutRelease, ["x86_64_linux_musl"]),
+    /no .* release/u,
+  );
+  for (const unsafe of [
+    { url: "http://github.com/a.tar.gz" },
+    { url: "https://example.com/a.tar.gz" },
+    { url: "https://github.com/a.zip" },
+    { url: "https://github.com/a.tar.gz", bin: "../escape" },
+  ]) {
+    const entry = {
+      template: { x86_64_linux_musl: unsafe },
+      [first.version]: manifests[first.crate]![first.version],
+    };
+    assert.throws(
+      () =>
+        prebuiltInstallPlan(manifest, { ...manifests, [first.crate]: entry }, [
+          "x86_64_linux_musl",
+        ]),
+      /checksummed GitHub release archive/u,
+    );
+  }
+  const weak = {
+    ...manifests[first.crate],
+    [first.version]: { x86_64_linux_musl: { hash: "abc" } },
+  };
+  assert.throws(
+    () =>
+      prebuiltInstallPlan(manifest, { ...manifests, [first.crate]: weak }, ["x86_64_linux_musl"]),
+    /checksummed/u,
+  );
+});
+
+void test("Aqua bootstrap identity is derived from the publisher release for .aqua-version", async () => {
+  const bootstrap: unknown = JSON.parse(
+    await readFile(new URL("../.config/tool-bootstrap.json", import.meta.url), "utf8"),
+  );
+  assert.ok(isRecord(bootstrap) && isRecord(bootstrap.aqua) && isRecord(bootstrap.aqua.artifacts));
+  const version = String(bootstrap.aqua.version);
+  const asRelease = (tag: string, artifacts: Record<string, unknown>) => ({
+    tag_name: tag,
+    assets: Object.values(artifacts).map((artifact, index) => {
+      assert.ok(isRecord(artifact));
+      return {
+        name: artifact.archive,
+        id: artifact.asset_id ?? 1000 + index,
+        size: artifact.bytes ?? 2000 + index,
+        digest: `sha256:${String(artifact.sha256).toLowerCase()}`,
+      };
+    }),
+  });
+  assert.deepEqual(
+    deriveAquaBootstrap(bootstrap, version, asRelease(version, bootstrap.aqua.artifacts)),
+    bootstrap,
+    "current publisher identity must reproduce the reviewed bootstrap exactly",
+  );
+  const next = "v99.0.0";
+  const bumped = asRelease(next, bootstrap.aqua.artifacts);
+  for (const asset of bumped.assets) {
+    asset.id = Number(asset.id) + 1;
+    asset.size = Number(asset.size) + 1;
+    asset.digest = `sha256:${"a".repeat(64)}`;
+  }
+  const derived = deriveAquaBootstrap(bootstrap, next, bumped);
+  assert.equal(derived.aqua.version, next);
+  const reviewed: Record<string, unknown> = bootstrap.aqua.artifacts;
+  for (const [platform, artifact] of Object.entries(derived.aqua.artifacts)) {
+    const recorded: unknown = reviewed[platform];
+    assert.ok(isRecord(artifact) && isRecord(recorded));
+    assert.deepEqual(Object.keys(artifact).sort(), Object.keys(recorded).sort());
+    assert.equal(artifact.sha256, "A".repeat(64));
+    if ("bytes" in recorded) assert.equal(artifact.bytes, Number(recorded.bytes) + 1);
+  }
+  assert.throws(() => deriveAquaBootstrap(bootstrap, next, asRelease(version, {})), /missing/u);
+  const missingDigest = asRelease(next, bootstrap.aqua.artifacts);
+  missingDigest.assets[0]!.digest = "";
+  assert.throws(() => deriveAquaBootstrap(bootstrap, next, missingDigest), /digest is missing/u);
+  const duplicate = asRelease(next, bootstrap.aqua.artifacts);
+  duplicate.assets.push(duplicate.assets[0]!);
+  assert.throws(() => deriveAquaBootstrap(bootstrap, next, duplicate), /ambiguous/u);
+});
+
+void test("mirrored release pins must match the manifest and cannot silently disappear", async () => {
+  const files = Object.fromEntries(
+    await Promise.all(
+      mirroredPins.map(
+        async ({ file }) =>
+          [file, await readFile(new URL(`../${file}`, import.meta.url), "utf8")] as const,
+      ),
+    ),
+  );
+  assert.deepEqual(findMirroredPinDrift(manifest, files), []);
+  for (const { file } of mirroredPins) {
+    const missing = { ...files, [file]: "" };
+    assert.match(findMirroredPinDrift(manifest, missing).join("\n"), /no longer records/u);
+    const stale = { ...files, [file]: files[file]!.replace(/\d+\.\d+\.\d+/gu, "0.0.1") };
+    assert.match(findMirroredPinDrift(manifest, stale).join("\n"), /records .* 0\.0\.1;/u);
+  }
+});
+
+void test("Renovate derived-data repair keeps its write token away from regenerated code", async () => {
+  const text = await readFile(
+    new URL("../.github/workflows/renovate-derived-data.yml", import.meta.url),
+    "utf8",
+  );
+  const workflow: unknown = (await import("yaml")).parse(text);
+  assert.ok(isRecord(workflow) && isRecord(workflow.jobs));
+  assert.deepEqual(workflow.permissions, { contents: "read" });
+  const { regenerate, publish } = workflow.jobs;
+  assert.ok(isRecord(regenerate) && isRecord(publish));
+  assert.ok(
+    typeof publish.if === "string" &&
+      publish.if.includes("github.triggering_actor == 'renovate[bot]'"),
+    "re-runs by others cannot publish",
+  );
+  for (const guard of [
+    "github.event.pull_request.head.repo.full_name == github.repository",
+    "startsWith(github.head_ref, 'renovate/')",
+    "github.event.pull_request.user.login == 'renovate[bot]'",
+    "github.actor == 'renovate[bot]'",
+    "github.triggering_actor == 'renovate[bot]'",
+  ])
+    assert.ok(typeof regenerate.if === "string" && regenerate.if.includes(guard), guard);
+  const steps = (job: Record<string, unknown>) =>
+    (Array.isArray(job.steps) ? job.steps : []).filter(isRecord);
+  const runs = (job: Record<string, unknown>) =>
+    steps(job).map((step) => (typeof step.run === "string" ? step.run : ""));
+
+  // The regenerate job executes the newly pinned Aqua, so it holds no write credential.
+  const regenerateText = JSON.stringify(regenerate);
+  assert.doesNotMatch(regenerateText, /secrets\.|create-github-app-token|steps\.app/u);
+  for (const step of steps(regenerate))
+    if (typeof step.uses === "string" && step.uses.startsWith("actions/checkout@")) {
+      assert.ok(isRecord(step.with));
+      assert.equal(step.with["persist-credentials"], false);
+      assert.equal(step.with.ref, "${{ github.event.pull_request.head.sha }}");
+    }
+  const regenerateRuns = runs(regenerate);
+  const position = (matches: (run: string) => boolean) => regenerateRuns.findIndex(matches);
+  const identity = position((run) => run.includes("aqua-integrity.mts --update-bootstrap"));
+  const install = position((run) => run.includes("bootstrap-ci-aqua-linux.sh"));
+  const checksums = position((run) => /aqua-integrity\.mts --update$/mu.test(run.trim()));
+  assert.ok(
+    identity >= 0 && identity < install && install < checksums,
+    "identity, install, checksums",
+  );
+
+  // The publish job runs no repository, package or Aqua code with the App token.
+  const publishRuns = runs(publish).join("\n");
+  assert.doesNotMatch(
+    publishRuns,
+    /(?:^|[;&|(]|\bthen|\bdo)\s*(?:node|pnpm|npm|npx|aqua|just|bash|sh|\.\/scripts)\b/mu,
+    "the publish job invokes no repository, package or Aqua code",
+  );
+  assert.match(publishRuns, /--force-with-lease="refs\/heads\/\$HEAD_REF:\$HEAD_SHA"/u);
+  for (const step of steps(publish))
+    if (typeof step.uses === "string" && step.uses.startsWith("actions/checkout@")) {
+      assert.ok(isRecord(step.with));
+      assert.equal(step.with["persist-credentials"], false);
+      assert.equal(step.with.token, undefined);
+    }
+  for (const run of [...regenerateRuns, ...runs(publish)])
+    assert.doesNotMatch(run, /\$\{\{/u, "untrusted values reach scripts only through env");
+});
+
+void test("cloud bootstrap accepts only the exact Ruff and actionlint attestation refusal", () => {
+  const esc = "\u001b";
+  const install = (name: string, error = "verify GitHub Artifact Attestations") =>
+    `Nov  9 01:13:15.068 ${esc}[91mERR${esc}[0m install the package ${esc}[2mpackage_name=${esc}[0m${name} ${esc}[2merror=${esc}[0m"verify the asset: ${error}"`;
+  const summary = `${esc}[91mERR${esc}[0m aqua failed program=aqua error="install packages: it failed to install some packages"`;
+  const gh =
+    "Error: HTTP 403: GitHub access to this repository is not enabled for this session. (https://api.github.com/repos/astral-sh/ruff/attestations/sha256:00)";
+  const warning = `${esc}[93mWRN${esc}[0m execute gh attestation verify package_name=astral-sh/ruff error="exit status 1"`;
+  const cases: [string, string[], boolean][] = [
+    [
+      "real refusal",
+      [warning, gh, install("astral-sh/ruff"), install("rhysd/actionlint"), summary],
+      true,
+    ],
+    [
+      "sigstore roots blocked",
+      [
+        "error creating Sigstore verifier: no valid Sigstore verifiers could be initialized",
+        install("rhysd/actionlint"),
+        summary,
+      ],
+      true,
+    ],
+    ["other package", [install("astral-sh/ruff"), install("koalaman/shellcheck"), summary], false],
+    ["lookalike package", [install("astral-sh/ruff-evil"), summary], false],
+    ["other cause", [install("astral-sh/ruff", "checksum mismatch"), summary], false],
+    [
+      "extra error",
+      [
+        install("astral-sh/ruff"),
+        `${esc}[91mERR${esc}[0m create a link package_name=foo/bar`,
+        summary,
+      ],
+      false,
+    ],
+    [
+      "logfmt error",
+      [install("astral-sh/ruff"), 'level=error msg="download failed"', summary],
+      false,
+    ],
+    ["no install line", [gh, summary], false],
+  ];
+  const directory = mkdtempSync(path.join(os.tmpdir(), "portcove-aqua-log-"));
+  try {
+    for (const [label, lines, accepted] of cases) {
+      const log = path.join(directory, `${label.replaceAll(" ", "-")}.log`);
+      writeFileSync(log, `${lines.join("\n")}\n`);
+      const result = spawnSync(
+        "bash",
+        [
+          "-c",
+          'source scripts/bootstrap-cloud-session.sh && aqua_failure_is_attestation_only "$1"',
+          "test",
+          log,
+        ],
+        { cwd: fileURLToPath(new URL("..", import.meta.url)), encoding: "utf8" },
+      );
+      assert.equal(result.status === 0, accepted, `${label}: ${result.stderr}`);
+    }
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+function runCloudLinkFixture(
+  helper: "share_directory" | "link_node_tools",
+  source: string,
+  target: string,
+  suffix = "",
+) {
+  const windows = process.platform === "win32";
+  const paths = windows
+    ? 'source_path=$(cygpath -u -- "$1"); target_path=$(cygpath -u -- "$2")'
+    : "source_path=$1; target_path=$2";
+  return spawnSync(
+    "bash",
+    [
+      "-ec",
+      `source scripts/bootstrap-cloud-session.sh; ${paths}; ${helper} "$source_path$3" "$target_path"`,
+      "test",
+      source,
+      target,
+      suffix,
+    ],
+    {
+      cwd: fileURLToPath(new URL("..", import.meta.url)),
+      encoding: "utf8",
+      // Git Bash normally deep-copies ln -s targets. Exercise real symlinks
+      // on the Windows runner just as the Linux cloud bootstrap does.
+      env: windows ? { ...process.env, MSYS: "winsymlinks:nativestrict" } : process.env,
+    },
+  );
+}
+
+function assertCloudLink(
+  link: string,
+  target: string,
+  message = `Expected ${link} to link to ${target}`,
+) {
+  assert.ok(lstatSync(link).isSymbolicLink(), message);
+  assert.equal(realpathSync(link), realpathSync(target), message);
+}
+
+void test("cloud bootstrap shares a directory by symlink and converges or refuses on rerun", () => {
+  const directory = realpathSync(mkdtempSync(path.join(os.tmpdir(), "portcove-share-directory-")));
+  const share = (source: string, target: string, suffix?: string) =>
+    runCloudLinkFixture("share_directory", source, target, suffix);
+  try {
+    const source = path.join(directory, "home", ".rustup");
+    const target = path.join(directory, "shared", "rustup");
+    mkdirSync(path.join(source, "toolchains"), { recursive: true });
+    mkdirSync(path.dirname(target));
+    writeFileSync(path.join(source, "settings.toml"), "default = 1\n");
+
+    assert.equal(
+      share(source, target, "//").status,
+      0,
+      "a trailing slash still links the original path",
+    );
+    assertCloudLink(source, target);
+    assert.equal(readFileSync(path.join(source, "settings.toml"), "utf8"), "default = 1\n");
+    assert.equal(share(source, target).status, 0, "a rerun is a no-op");
+
+    rmSync(source);
+    assert.equal(share(source, target).status, 0, "an interrupted move is completed by linking");
+    assertCloudLink(source, target);
+
+    const other = path.join(directory, "home", ".cargo-bin");
+    mkdirSync(other);
+    const refusedTarget = share(other, target);
+    assert.notEqual(refusedTarget.status, 0);
+    assert.match(refusedTarget.stderr, /already exists/u);
+    assert.ok(statSync(other).isDirectory(), "an existing target is never overwritten");
+
+    const foreign = path.join(directory, "home", "foreign");
+    symlinkSync(other, foreign, "dir");
+    assert.match(share(foreign, target).stderr, /links elsewhere/u);
+    assert.match(
+      share(path.join(directory, "missing"), path.join(directory, "absent")).stderr,
+      /unexpected layout/u,
+    );
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+void test("cloud bootstrap links only the tools the pinned Node distribution ships", () => {
+  const directory = realpathSync(mkdtempSync(path.join(os.tmpdir(), "portcove-node-tools-")));
+  try {
+    const destination = path.join(directory, "node");
+    const bin = path.join(directory, "link");
+    mkdirSync(path.join(destination, "bin"), { recursive: true });
+    mkdirSync(bin);
+    for (const tool of ["node", "npm", "npx"]) {
+      writeFileSync(path.join(destination, "bin", tool), "");
+    }
+    // The environment's own corepack, as an image with an older Node provides it.
+    const imageCorepack = path.join(directory, "image-corepack");
+    writeFileSync(imageCorepack, "");
+    symlinkSync(imageCorepack, path.join(bin, "corepack"));
+
+    const result = runCloudLinkFixture("link_node_tools", destination, bin);
+    assert.equal(result.status, 0, result.stderr);
+    for (const tool of ["node", "npm", "npx"]) {
+      assertCloudLink(path.join(bin, tool), path.join(destination, "bin", tool));
+    }
+    assertCloudLink(
+      path.join(bin, "corepack"),
+      imageCorepack,
+      "a tool the pinned distribution lacks is never replaced by a dangling link",
+    );
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});

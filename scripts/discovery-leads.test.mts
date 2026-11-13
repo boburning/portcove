@@ -1,3 +1,4 @@
+import { fixtureGitHub } from "./fixtures/github-sdk-fixtures.mts";
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
@@ -96,7 +97,7 @@ void test("Switch searches preserve old pagination and carry their supported ord
   assert.equal(parseLeadState(JSON.parse(JSON.stringify(state))).next_family, 0);
   assert.equal(leadFamilyIds.length, 28);
 });
-void test("resource-admitted six-page batches rotate all families and preserve exact windows and HTTP ordering", (t) => {
+void test("resource-admitted six-page batches rotate all families and preserve exact windows and HTTP ordering", async (t) => {
   const root = mkdtempSync(path.join(os.tmpdir(), "discovery-switch-rotation-"));
   t.after(() => rmSync(root, { recursive: true, force: true }));
   let state = parseLeadState(undefined);
@@ -104,7 +105,7 @@ void test("resource-admitted six-page batches rotate all families and preserve e
   for (let run = 0; run < 5; run++) {
     const session = Object.create(DiscoverySession.prototype) as DiscoverySession;
     const budget = new DiscoveryBudget("ordinary");
-    budget.reserveDelivery(178, 1024); // Six pages fit before the investigation reserve.
+    await budget.reserveDelivery(178, 1024); // Six pages fit before the investigation reserve.
     Object.assign(session, {
       stateDir: root,
       runDir: root,
@@ -125,30 +126,30 @@ void test("resource-admitted six-page batches rotate all families and preserve e
       searches: 0,
       leadCollectionAttempted: false,
       researchedLeads: new Set<number>(),
-      source: {
-        api: {
-          request: (_method: string, endpoint: string) => {
-            budget.charge("GET", endpoint, 1, 100, "200");
-            if (endpoint.includes("/releases?")) return { body: [] };
-            const plan = nextLeadPage(session.leads, session.journal.started_at);
-            const params = new URL(endpoint, "https://api.github.com/").searchParams;
-            assert.equal(params.get("q"), plan.query);
-            assert.equal(params.get("sort"), plan.sort ?? null);
-            assert.equal(params.get("order"), plan.sort ? "desc" : null);
-            assert.equal(params.get("per_page"), "50");
-            requests.push({ family: plan.family, page: plan.page });
-            const start = leadFamilyIds.indexOf(plan.family) * 1000 + (plan.page - 1) * 50 + 1;
-            return {
-              body: page(
-                Array.from({ length: 50 }, (_, i) => item(start + i)),
-                150,
-              ),
-            };
-          },
-        },
+    });
+    Object.defineProperty(session, "source", {
+      configurable: true,
+      value: {
+        budget,
+        sdk: await fixtureGitHub(({ endpoint }) => {
+          budget.charge("GET", endpoint, 1, 100, "200");
+          if (endpoint.includes("/releases?")) return [];
+          const plan = nextLeadPage(session.leads, session.journal.started_at);
+          const params = new URL(endpoint, "https://api.github.com/").searchParams;
+          assert.equal(params.get("q"), plan.query);
+          assert.equal(params.get("sort"), plan.sort ?? null);
+          assert.equal(params.get("order"), plan.sort ? "desc" : null);
+          assert.equal(params.get("per_page"), "50");
+          requests.push({ family: plan.family, page: plan.page });
+          const start = leadFamilyIds.indexOf(plan.family) * 1000 + (plan.page - 1) * 50 + 1;
+          return page(
+            Array.from({ length: 50 }, (_, i) => item(start + i)),
+            150,
+          );
+        }),
       },
     });
-    session.discover();
+    await session.discover();
     assert.equal(session.searches, 6);
     const evidence = JSON.parse(readFileSync(path.join(root, "lead-search-1.json"), "utf8")) as {
       sort: string;
@@ -173,7 +174,7 @@ void test("resource-admitted six-page batches rotate all families and preserve e
   );
   assert.equal(state.slices["new-recompiled"]?.until, now);
 });
-void test("current, capped and typed-drift skips cannot hide a due Switch topic tail", (t) => {
+void test("current, capped and typed-drift skips cannot hide a due Switch topic tail", async (t) => {
   const root = mkdtempSync(path.join(os.tmpdir(), "discovery-switch-skips-"));
   t.after(() => rmSync(root, { recursive: true, force: true }));
   let leads = parseLeadState(undefined);
@@ -210,25 +211,25 @@ void test("current, capped and typed-drift skips cannot hide a due Switch topic 
     searches: 0,
     leadCollectionAttempted: false,
     researchedLeads: new Set<number>(),
-    source: {
-      api: {
-        request: (_method: string, endpoint: string) => {
-          budget.charge("GET", endpoint, 1, 100, "200");
-          if (endpoint.includes("/releases?")) return { body: [] };
-          const plan = nextLeadPage(session.leads, now);
-          requested.push(plan.family);
-          if (plan.family === "new-recompiled") return { body: page([item(99999)], 52) };
-          return {
-            body: page(
-              Array.from({ length: 50 }, (_, i) => item(1000 + (plan.page - 1) * 50 + i)),
-              300,
-            ),
-          };
-        },
-      },
+  });
+  Object.defineProperty(session, "source", {
+    configurable: true,
+    value: {
+      budget,
+      sdk: await fixtureGitHub(({ endpoint }) => {
+        budget.charge("GET", endpoint, 1, 100, "200");
+        if (endpoint.includes("/releases?")) return [];
+        const plan = nextLeadPage(session.leads, now);
+        requested.push(plan.family);
+        if (plan.family === "new-recompiled") return page([item(99999)], 52);
+        return page(
+          Array.from({ length: 50 }, (_, i) => item(1000 + (plan.page - 1) * 50 + i)),
+          300,
+        );
+      }),
     },
   });
-  session.discover();
+  await session.discover();
   assert.deepEqual(requested, [
     "new-recompiled",
     ...Array<string>(6).fill("changed-switch-topics"),
@@ -244,7 +245,7 @@ void test("current, capped and typed-drift skips cannot hide a due Switch topic 
   assert.deepEqual(session.leads.records["99999"]?.search_families, ["new-recompiled"]);
 });
 for (const driftingFamilies of [1, 2, 4])
-  void test(`${driftingFamilies} drifting search families cannot starve healthy searches and rotation`, (t) => {
+  void test(`${driftingFamilies} drifting search families cannot starve healthy searches and rotation`, async (t) => {
     const root = mkdtempSync(path.join(os.tmpdir(), "discovery-drift-"));
     t.after(() => rmSync(root, { recursive: true, force: true }));
     const session = Object.create(DiscoverySession.prototype) as DiscoverySession;
@@ -279,23 +280,22 @@ for (const driftingFamilies of [1, 2, 4])
       searches: 0,
       leadCollectionAttempted: false,
       researchedLeads: new Set<number>(),
-      source: {
-        api: {
-          request: (_method: string, endpoint: string) => {
-            budget.charge("GET", endpoint, 1, 100, "200");
-            if (endpoint.includes("/releases?")) return { body: [] };
-            requests.push(endpoint);
-            return {
-              body:
-                requests.length <= driftingFamilies
-                  ? page([item(99 + requests.length)], 52)
-                  : page([]),
-            };
-          },
-        },
+    });
+    Object.defineProperty(session, "source", {
+      configurable: true,
+      value: {
+        budget,
+        sdk: await fixtureGitHub(({ endpoint }) => {
+          budget.charge("GET", endpoint, 1, 100, "200");
+          if (endpoint.includes("/releases?")) return [];
+          requests.push(endpoint);
+          return requests.length <= driftingFamilies
+            ? page([item(99 + requests.length)], 52)
+            : page([]);
+        }),
       },
     });
-    session.discover();
+    await session.discover();
     assert.equal(
       requests.length,
       leadFamilyIds.length,
@@ -328,7 +328,7 @@ for (const driftingFamilies of [1, 2, 4])
       "bounded partial search effort permits rotation",
     );
     const calls = requests.length;
-    session.discover();
+    await session.discover();
     assert.equal(requests.length, calls, "repeat discover does not retry any page");
   });
 void test("Brawl missed by newest-ten remains discoverable and queued across paginated runs", () => {
@@ -561,14 +561,14 @@ void test("metadata query scopes preserve old pagination and game signals outran
   assert.equal(pendingLeads(state)[0]?.repository, "josiahg2502-glitch/BrawlRecompiled");
   assert.ok(state.records["1"], "noisy old leads are retained rather than silently deleted");
 });
-void test("runner charges complementary pages, guards rotation and retains queue across restart", (t) => {
+void test("runner charges complementary pages, guards rotation and retains queue across restart", async (t) => {
   const root = mkdtempSync(path.join(os.tmpdir(), "discovery-leads-"));
   t.after(() => rmSync(root, { recursive: true, force: true }));
   const run = path.join(root, "run");
   mkdirSync(run);
   const session = Object.create(DiscoverySession.prototype) as DiscoverySession;
   const budget = new DiscoveryBudget("ordinary");
-  budget.reserveDelivery(60, 1024);
+  await budget.reserveDelivery(60, 1024);
   let calls = 0;
   Object.assign(session, {
     stateDir: root,
@@ -584,29 +584,31 @@ void test("runner charges complementary pages, guards rotation and retains queue
     leadCollectionAttempted: false,
     researchedLeads: new Set(),
     journal: { format: 1, started_at: now, notes: [], candidates: {}, evidence: {} },
-    source: {
-      api: {
-        request: (_method: string, endpoint: string) => {
-          if (endpoint.includes("/releases?")) {
-            budget.charge("GET", endpoint, 1, 2, "200");
-            return { body: [] };
-          }
-          calls++;
-          assert.doesNotMatch(
-            endpoint,
-            /sort=created/u,
-            "repository search must not rely on an unsupported sort field",
-          );
-          const body = page([item(calls)]);
-          budget.charge("GET", "search/repositories", 1, 100, "200");
-          return { body };
-        },
-      },
+  });
+  Object.defineProperty(session, "source", {
+    configurable: true,
+    value: {
+      budget,
+      sdk: await fixtureGitHub(({ endpoint }) => {
+        if (endpoint.includes("/releases?")) {
+          budget.charge("GET", endpoint, 1, 2, "200");
+          return [];
+        }
+        calls++;
+        assert.doesNotMatch(
+          endpoint,
+          /sort=created/u,
+          "repository search must not rely on an unsupported sort field",
+        );
+        const body = page([item(calls)]);
+        budget.charge("GET", "search/repositories", 1, 100, "200");
+        return body;
+      }),
     },
   });
-  assert.equal("status" in session.recheck() ? "deferred" : "unexpected", "deferred");
+  assert.equal("status" in (await session.recheck()) ? "deferred" : "unexpected", "deferred");
   assert.equal(calls, 0);
-  session.discover();
+  await session.discover();
   assert.equal(calls, leadFamilyIds.length);
   assert.equal(budget.usage.requests, leadFamilyIds.length + 4);
   assert.equal(
@@ -614,7 +616,7 @@ void test("runner charges complementary pages, guards rotation and retains queue
     false,
     "page collection alone cannot complete discovery",
   );
-  assert.equal("status" in session.recheck() ? "deferred" : "unexpected", "deferred");
+  assert.equal("status" in (await session.recheck()) ? "deferred" : "unexpected", "deferred");
   session.researchedLeads.add(1);
   session.researchedLeads.add(2);
   assert.equal(session.leadWorkComplete(), true);
@@ -671,13 +673,20 @@ void test("runner charges complementary pages, guards rotation and retains queue
   const config = JSON.parse(
     readFileSync(new URL("../.github/roadmap.json", import.meta.url), "utf8"),
   ) as RoadmapConfig;
-  const recovered = new DiscoverySession(root, run, config, "fixture-token", now, "fixture-head");
+  const recovered = await DiscoverySession.open(
+    root,
+    run,
+    config,
+    "fixture-token",
+    new Date().toISOString(),
+    "fixture-head",
+  );
   assert.equal(recovered.leads.records["2"]?.status, "held");
   assert.equal(recovered.leads.records["2"]?.research?.evidence_id, "retained-2");
   const restored = parseLeadState(JSON.parse(JSON.stringify(session.leads)));
   assert.equal(pendingLeads(restored, new Set(), Date.parse(now)).length, leadFamilyIds.length - 3);
   const constrained = new DiscoveryBudget("ordinary");
-  constrained.reserveDelivery(190, 1024);
+  await constrained.reserveDelivery(190, 1024);
   Object.assign(session, {
     budget: constrained,
     leadFamilies: new Set(),
@@ -687,7 +696,7 @@ void test("runner charges complementary pages, guards rotation and retains queue
     leadPages: 0,
     leads: parseLeadState(undefined),
   });
-  session.discover();
+  await session.discover();
   assert.equal(calls, leadFamilyIds.length, "reserve refusal must happen before HTTP");
   assert.equal(session.leadWorkComplete(), false);
 });

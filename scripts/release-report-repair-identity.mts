@@ -1,3 +1,8 @@
+import {
+  inspectSelectedPublicationAuthorityConfiguration,
+  applicationReleaseProfile,
+} from "./release-authority-configuration-contract.mts";
+import { inspectReleaseProfile } from "./release-package-policy.mts";
 /** Read-only acknowledgement of a report-only workflow invocation. This never
  * grants admission, signing custody or publication eligibility. */
 import assert from "node:assert/strict";
@@ -13,7 +18,6 @@ import {
   inspectPublicationReportRepair,
   reportRepairDispatchDestination,
 } from "./release-report-repair-contract.mts";
-import { createGitHubRunner, GitHubApiClient } from "./github-api.mts";
 
 export function inspectReportRepairIdentity(
   raw: unknown,
@@ -59,24 +63,39 @@ export function inspectReportRepairIdentity(
   assert.equal(environment.GITHUB_REPOSITORY_ID, "1354613114");
   assert.equal(environment.GITHUB_EVENT_NAME, "workflow_dispatch");
   assert.equal(environment.GITHUB_RUN_ATTEMPT, "1");
-  assert.equal(environment.PORTCOVE_RELEASE_PROFILE, "initial-beta-win-linux");
   assert.equal(environment.GITHUB_SHA, candidate.prepared_commit);
   const authorities: unknown = JSON.parse(environment.PORTCOVE_RELEASE_AUTHORITIES ?? "null");
-  assert.ok(
-    isRecord(authorities) &&
+  assert.ok(isRecord(authorities));
+  const selected =
+    authorities.schema_version === 4
+      ? inspectSelectedPublicationAuthorityConfiguration(authorities)
+      : null;
+  if (selected) assert.equal(selected.purpose, "application");
+  else
+    assert.ok(
       authorities.repository_id === 1354613114 &&
-      isRecord(authorities.apps) &&
-      isRecord(authorities.apps.dispatch),
+        isRecord(authorities.apps) &&
+        isRecord(authorities.apps.dispatch),
+    );
+  const actor = selected
+    ? operation.executor_identity.actor_id
+    : isRecord(authorities.apps) && isRecord(authorities.apps.dispatch)
+      ? authorities.apps.dispatch.actor_id
+      : undefined;
+  assert.ok(typeof actor === "string" && /^[1-9][0-9]*$/u.test(actor));
+  assert.equal(
+    inspectReleaseProfile(environment.PORTCOVE_RELEASE_PROFILE),
+    selected ? applicationReleaseProfile(selected) : "initial-beta-win-linux",
   );
   const namespace = inspectCoordinatorRemoteNamespace({
     schema_version: 1,
-    namespace: authorities.namespace,
+    namespace: selected ? selected.journal.namespace : authorities.namespace,
   });
   assert.equal(
     environment.GITHUB_REF,
     `refs/tags/${namespace}-prepared/v${String(candidate.version)}`,
   );
-  assert.equal(environment.GITHUB_ACTOR_ID, authorities.apps.dispatch.actor_id);
+  assert.equal(environment.GITHUB_ACTOR_ID, actor);
   assert.equal(
     environment.GITHUB_WORKFLOW_REF,
     `boburning/portcove/.github/workflows/release.yml@${environment.GITHUB_REF}`,
@@ -96,8 +115,8 @@ export function inspectReportRepairIdentity(
   assert.equal(run.head_branch, environment.GITHUB_REF.slice("refs/tags/".length));
   assert.equal(run.run_attempt, 1);
   assert.ok(["in_progress", "completed"].includes(String(run.status)));
-  assert.equal(String(run.actor.id), authorities.apps.dispatch.actor_id);
-  assert.equal(String(run.triggering_actor.id), authorities.apps.dispatch.actor_id);
+  assert.equal(String(run.actor.id), actor);
+  assert.equal(String(run.triggering_actor.id), actor);
   assert.equal(run.display_title, `Report repair ${digest(proof)}`);
   assert.ok(Array.isArray(operation.completed_effects) && operation.completed_effects.length <= 1);
   if (operation.completed_effects.length === 1) {
@@ -124,45 +143,52 @@ export function inspectReportRepairIdentity(
   };
 }
 
-async function main() {
-  const env = { ...process.env },
-    start = performance.now(),
-    deadline = start + 60000;
+export async function acknowledgeReportRepairIdentity(
+  environment: Readonly<NodeJS.ProcessEnv>,
+  readSnapshot: (
+    ...args: Parameters<typeof readRemoteCoordinatorSnapshot>
+  ) => Promise<{ checkpoint: string; input: unknown }> = readRemoteCoordinatorSnapshot,
+) {
+  const env = { ...environment };
+  const deadline = performance.now() + 60000;
   assert.ok(/^[a-f0-9]{64}$/u.test(env.PORTCOVE_REPORT_REPAIR_SHA256 ?? ""));
-  assert.ok(/^[1-9][0-9]*$/u.test(env.GITHUB_RUN_ID ?? ""));
+  const runId = env.GITHUB_RUN_ID;
+  assert.ok(runId && /^[1-9][0-9]*$/u.test(runId));
   const authorities: unknown = JSON.parse(env.PORTCOVE_RELEASE_AUTHORITIES ?? "null");
   assert.ok(isRecord(authorities));
-  const configuration = { schema_version: 1, namespace: authorities.namespace };
+  const selected =
+    authorities.schema_version === 4
+      ? inspectSelectedPublicationAuthorityConfiguration(authorities)
+      : null;
+  if (selected) assert.equal(selected.purpose, "application");
+  const configuration = {
+    schema_version: 1,
+    namespace: selected ? selected.journal.namespace : authorities.namespace,
+  };
   inspectCoordinatorRemoteNamespace(configuration);
-  const snapshot = await readRemoteCoordinatorSnapshot(process.cwd(), configuration, {
-    transport: { cwd: process.cwd(), deadline },
-  });
-  const api = new GitHubApiClient((args, input) => {
-    const timeoutMs = Math.floor(Math.min(15000, deadline - performance.now()));
-    assert.ok(timeoutMs > 0);
-    return createGitHubRunner({ cwd: process.cwd(), maxBuffer: 2 * 1024 * 1024, timeoutMs })(
-      [...args, "--hostname", "github.com"],
-      input,
-    );
-  });
-  const route = `repos/boburning/portcove/actions/runs/${env.GITHUB_RUN_ID}`;
-  const observed = api.request("GET", route);
-  assert.equal(observed.status, 200);
-  inspectReportRepairIdentity(snapshot.input, env, observed.body);
-  const again = await readRemoteCoordinatorSnapshot(process.cwd(), configuration, {
-    transport: { cwd: process.cwd(), deadline },
-  });
+  const token = env.GH_TOKEN ?? "";
+  assert.ok(
+    token && token.length <= 16384 && !/\s/u.test(token),
+    "fixed report reader unavailable",
+  );
+  const transport = { credential: { token }, deadline };
+  const snapshot = await readSnapshot(process.cwd(), configuration, { transport });
+  const { createReleaseCustodyProvider } = await import("./release-custody-provider.mts");
+  const provider = await createReleaseCustodyProvider({ token, deadline });
+  inspectReportRepairIdentity(snapshot.input, env, await provider.run(runId));
+  const again = await readSnapshot(process.cwd(), configuration, { transport });
   assert.equal(again.checkpoint, snapshot.checkpoint);
   assert.equal(digest(again.input), digest(snapshot.input));
   assert.ok(performance.now() < deadline && env.GITHUB_OUTPUT);
   await appendFile(env.GITHUB_OUTPUT, "report_only_repair=true\n");
 }
+
 if (
   process.argv[1] &&
   /(?:^|[\\/])release-report-repair-identity\.mts$/u.test(process.argv[1]) &&
   path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)
 )
-  void main().catch(() => {
+  void acknowledgeReportRepairIdentity(process.env).catch(() => {
     console.error("report-only dispatch identity refused; retain current journal intent");
     process.exitCode = 1;
   });

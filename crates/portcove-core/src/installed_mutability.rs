@@ -3,6 +3,86 @@
 
 use crate::{InstallQualification, InstallRecord, Installer, Platform, PortDefinition, Result};
 
+pub(crate) fn validate_shipwright_persistence(port: &PortDefinition) -> Result<()> {
+    if port.windows_shipwright_persistence
+        && (port.id != "shipwright"
+            || port.adapter != crate::AdapterKind::LibultrashipPortable
+            || !port.platforms.contains(&Platform::WindowsX86_64)
+            || port.release.provider != crate::ReleaseSource::Github
+            || !port
+                .release
+                .repository
+                .eq_ignore_ascii_case("HarbourMasters/Shipwright")
+            || port.channels != [crate::ReleaseChannel::Stable]
+            || port.user_data_environment.is_some()
+            || port.runtime_data_policy.is_some()
+            || port.archive_data_compatibility_v1.is_some()
+            || !port.bundled_runtime.is_empty()
+            || !port.release.user_prepared.is_empty()
+            || !port.release.managed_build.is_empty()
+            || crate::preparation::managed(port)
+            || port.declares_runtime_subdirectory()
+            || port.launch_from_install_root
+            || !port.launch_arguments.is_empty()
+            || !port.launch_environment.is_empty()
+            || port
+                .executable_hints
+                .get(&Platform::WindowsX86_64)
+                .is_none_or(|names| {
+                    names.is_empty()
+                        || names
+                            .iter()
+                            .any(|name| !matches!(name.as_str(), "soh.exe" | "shipwright.exe"))
+                })
+            || !port
+                .persistent_paths
+                .iter()
+                .any(|path| path == "shipofharkinian.json"))
+    {
+        return Err(crate::PortcoveError::verification(
+            "Shipwright working-directory persistence requires the official Windows portable package route and its canonical settings path",
+        ));
+    }
+    Ok(())
+}
+
+pub(crate) fn declared_shipwright_persistence(port: &PortDefinition, platform: Platform) -> bool {
+    platform == Platform::WindowsX86_64 && port.windows_shipwright_persistence
+}
+
+pub(crate) fn require_shipwright_release(
+    port: &PortDefinition,
+    platform: Platform,
+    version: &str,
+    channel: crate::ReleaseChannel,
+    asset_name: &str,
+) -> Result<()> {
+    if !declared_shipwright_persistence(port, platform) {
+        return Ok(());
+    }
+    let mut parts = version.split('.');
+    let stable_major_nine = parts.next() == Some("9")
+        && (0..2).all(|_| {
+            parts.next().is_some_and(|part| {
+                !part.is_empty() && part.bytes().all(|byte| byte.is_ascii_digit())
+            })
+        })
+        && parts.next().is_none();
+    let asset = asset_name.to_ascii_lowercase();
+    if channel != crate::ReleaseChannel::Stable
+        || !stable_major_nine
+        || asset
+            .strip_prefix("soh-")
+            .and_then(|name| name.strip_suffix("-win64.zip"))
+            .is_none_or(|name| name.is_empty())
+    {
+        return Err(crate::PortcoveError::conflict(
+            "Shipwright package is outside the reviewed stable Windows 9.x portable data contract. Keep existing runtime data until the new package is reviewed.",
+        ).with_known_cause(crate::failure::KnownFailureCause::PortableDataContractChanged));
+    }
+    Ok(())
+}
+
 pub(crate) fn checked_port(
     installer: &Installer,
     install: &InstallRecord,
@@ -10,8 +90,37 @@ pub(crate) fn checked_port(
     current: &PortDefinition,
     platform: Platform,
 ) -> Result<PortDefinition> {
-    let mut current = current.clone();
+    require_shipwright_release(
+        retained,
+        platform,
+        &install.version,
+        install.channel,
+        &install.artifact.asset_name,
+    )?;
+    let declared_shipwright = declared_shipwright_persistence(retained, platform);
     let shipwright = shipwright_windows_cwd_persistence(retained, install, platform);
+    // Both the exact historical correction and the declared rule derive only
+    // reviewed paths from the creating contract.
+    let mut current = if shipwright {
+        retained.clone()
+    } else {
+        current.clone()
+    };
+    if operational_compatibility(retained) != operational_compatibility(&current) {
+        let mut without_settings_drift = current.clone();
+        without_settings_drift
+            .game_settings
+            .clone_from(&retained.game_settings);
+        if operational_compatibility(retained) != operational_compatibility(&without_settings_drift)
+        {
+            return Ok(retained.clone());
+        }
+        // Optional settings do not rebind an installed definition. Preserve
+        // its complete authority, then independently apply only the existing
+        // exact-artifact correction below, with all manifest/shape checks.
+        // In particular, current-only path additions are not borrowed here.
+        current = retained.clone();
+    }
     if shipwright {
         for path in ["Save", "SoHTimeSplitData.json"] {
             if !current
@@ -32,14 +141,10 @@ pub(crate) fn checked_port(
                 .push("logs/Ship of Harkinian.log".into());
         }
     }
-    let mut retained_baseline = retained.clone();
-    let mut current_baseline = current.clone();
-    retained_baseline.persistent_paths.clear();
-    retained_baseline.runtime_mutable_paths.clear();
-    current_baseline.persistent_paths.clear();
-    current_baseline.runtime_mutable_paths.clear();
-    if serde_json::to_value(&retained_baseline)? != serde_json::to_value(&current_baseline)? {
-        return Ok(retained.clone());
+    if crate::persistence::only_adds_psx_texture_packs(retained, &current) {
+        current
+            .persistent_paths
+            .clone_from(&retained.persistent_paths);
     }
     if !retained
         .persistent_paths
@@ -62,6 +167,11 @@ pub(crate) fn checked_port(
         .clone_from(&current.runtime_mutable_paths);
     let candidate_qualification = InstallQualification::from_port(&candidate, platform)?;
     if !installer.permits_additive_mutability(install, &original, &candidate_qualification)? {
+        if declared_shipwright {
+            return Err(crate::PortcoveError::verification(
+                "Shipwright package contents overlap its retained working-directory data paths",
+            ));
+        }
         return Ok(retained.clone());
     }
     if shipwright {
@@ -82,16 +192,194 @@ pub(crate) fn shipwright_windows_cwd_persistence(
     install: &InstallRecord,
     platform: Platform,
 ) -> bool {
-    // Official 9.3.1 portable Win64 uses CWD/Save, not SHIP_HOME. Neither a
-    // future version nor another Libultraship payload inherits this evidence.
+    // The exact 9.3.1 correction remains the reader for historical declarations.
+    // Fresh official packages retain the separately reviewed creating contract.
     platform == Platform::WindowsX86_64
         && port.id == "shipwright"
         && install.port_id == port.id
         && port.adapter == crate::AdapterKind::LibultrashipPortable
         && port.user_data_environment.is_none()
-        && install.version == "9.3.1"
-        && install.artifact.asset_name == "SoH-Dewey-Bravo-Win64.zip"
-        && install.artifact.size == 72_980_600
-        && install.artifact.sha256
-            == "429292a0bfbdfcda283b33c1538ecdc49163b9ed53e8702cac80b2489d9fe26c"
+        && (port.windows_shipwright_persistence
+            || (install.version == "9.3.1"
+                && install.artifact.asset_name == "SoH-Dewey-Bravo-Win64.zip"
+                && install.artifact.size == 72_980_600
+                && install.artifact.sha256
+                    == "429292a0bfbdfcda283b33c1538ecdc49163b9ed53e8702cac80b2489d9fe26c"))
+}
+
+/// Compare the retained execution/authority contract, excluding only display
+/// metadata (including the legacy support tier, qualification and maintenance observations) and the two
+/// additive path lists proved separately above. Release
+/// locations, channel/platform policy, source/preparation and launch
+/// inputs remain operational. Exhaustive field handling makes schema additions
+/// require a classification here rather than silently expanding an allowlist.
+fn operational_compatibility(port: &PortDefinition) -> serde_json::Value {
+    let PortDefinition {
+        id,
+        name: _,
+        summary: _,
+        project_url: _,
+        support_tier: _,
+        channels,
+        platforms,
+        automated_tested_platforms: _,
+        manually_validated_platforms: _,
+        adapter,
+        release,
+        bundled_runtime,
+        source_profile,
+        bios_source_profile,
+        executable_hints,
+        persistent_paths: _,
+        persistent_file_patterns,
+        archive_data_compatibility_v1,
+        archive_data_transition_v1,
+        runtime_mutable_paths: _,
+        runtime_mutable_file_patterns,
+        windows_runtime_path_policy,
+        windows_temp_directory,
+        portable_marker,
+        portable_marker_file,
+        linux_portable_data_directory,
+        n64_windows_initial_d3d12,
+        n64_runtime_at_executable_parent,
+        managed_initialization,
+        runtime_data_policy,
+        external_profile_policy,
+        windows_shipwright_persistence,
+        windows_tracked_handoff,
+        mod_package_policy,
+        game_settings,
+        managed_shared_preferences,
+        managed_shared_preferences_save_id,
+        source_environment,
+        user_data_environment,
+        launch_environment,
+        launch_arguments,
+        runtime_subdirectory,
+        runtime_subdirectory_by_platform,
+        runtime_source_filename,
+        runtime_source_materialization,
+        runtime_source_hashes,
+        runtime_disc_image,
+        optional_game_source,
+        runtime_source_set,
+        launch_disc_choice,
+        launch_from_install_root,
+        setup_executable_hints,
+        setup_arguments,
+        setup_marker,
+        setup_output_paths,
+        upstream_status: _,
+        managed_acquisition_hold: _,
+        reviewed_package_layouts: _,
+        presentation: _,
+    } = port;
+    let mut compatibility = serde_json::json!({
+        "id": id,
+        "channels": channels,
+        "platforms": platforms,
+        "adapter": adapter,
+        "release": release,
+        "bundled_runtime": bundled_runtime,
+        "source_profile": source_profile,
+        "bios_source_profile": bios_source_profile,
+        "executable_hints": executable_hints,
+        "persistent_file_patterns": persistent_file_patterns,
+        "archive_data_compatibility_v1": archive_data_compatibility_v1,
+        "archive_data_transition_v1": archive_data_transition_v1,
+        "runtime_mutable_file_patterns": runtime_mutable_file_patterns,
+        "windows_runtime_path_policy": windows_runtime_path_policy,
+        "windows_temp_directory": windows_temp_directory,
+        "portable_marker": portable_marker,
+        "n64_windows_initial_d3d12": n64_windows_initial_d3d12,
+        "n64_runtime_at_executable_parent": n64_runtime_at_executable_parent,
+        "managed_initialization": managed_initialization,
+        "runtime_data_policy": runtime_data_policy,
+        "external_profile_policy": external_profile_policy,
+        "windows_shipwright_persistence": windows_shipwright_persistence,
+        "mod_package_policy": mod_package_policy,
+        "game_settings": game_settings,
+        "managed_shared_preferences": managed_shared_preferences,
+        "managed_shared_preferences_save_id": managed_shared_preferences_save_id,
+        "source_environment": source_environment,
+        "user_data_environment": user_data_environment,
+        "launch_environment": launch_environment,
+        "launch_arguments": launch_arguments,
+        "runtime_subdirectory": runtime_subdirectory,
+        "runtime_subdirectory_by_platform": runtime_subdirectory_by_platform,
+        "runtime_source_filename": runtime_source_filename,
+        "runtime_source_materialization": runtime_source_materialization,
+        "runtime_source_hashes": runtime_source_hashes,
+        "runtime_source_set": runtime_source_set,
+        "launch_from_install_root": launch_from_install_root,
+        "setup_executable_hints": setup_executable_hints,
+        "setup_arguments": setup_arguments,
+        "setup_marker": setup_marker,
+        "setup_output_paths": setup_output_paths,
+    });
+    // Only a declared marker joins the identity, so existing retained contracts keep theirs.
+    if let Some(marker) = portable_marker_file {
+        compatibility["portable_marker_file"] = serde_json::json!(marker);
+    }
+    if let Some(directory) = linux_portable_data_directory {
+        compatibility["linux_portable_data_directory"] = serde_json::json!(directory);
+    }
+    // Likewise, disc-image unpacking limits and game identifiers join only when declared.
+    if let Some(image) = runtime_disc_image {
+        compatibility["runtime_disc_image"] = serde_json::json!(image);
+    }
+    // A launch disc choice changes what launch writes, so it joins when declared.
+    if let Some(choice) = launch_disc_choice {
+        compatibility["launch_disc_choice"] = serde_json::json!(choice);
+    }
+    if *optional_game_source {
+        compatibility["optional_game_source"] = serde_json::json!(true);
+    }
+    // A tracked handoff changes how long a session holds the installation.
+    if *windows_tracked_handoff {
+        compatibility["windows_tracked_handoff"] = serde_json::json!(true);
+    }
+    compatibility
+}
+
+#[cfg(test)]
+mod marker_identity_tests {
+    use super::*;
+
+    #[test]
+    fn a_named_portable_marker_joins_the_retained_identity_only_when_declared() {
+        let catalog = crate::Catalog::embedded().unwrap();
+        let mut port = catalog.ports()[0].clone();
+        port.portable_marker_file = None;
+        let without = operational_compatibility(&port);
+        assert!(
+            without.get("portable_marker_file").is_none(),
+            "existing retained contracts must keep their exact identity"
+        );
+        port.portable_marker_file = Some("engine_portable.ini".into());
+        let with = operational_compatibility(&port);
+        assert_eq!(with["portable_marker_file"], "engine_portable.ini");
+        let mut stripped = with.clone();
+        stripped
+            .as_object_mut()
+            .unwrap()
+            .remove("portable_marker_file");
+        assert_eq!(stripped, without);
+    }
+
+    #[test]
+    fn a_windows_tracked_handoff_joins_the_retained_identity_only_when_declared() {
+        let catalog = crate::Catalog::embedded().unwrap();
+        let mut port = catalog.port("zelda64-recomp").unwrap().clone();
+        let without = operational_compatibility(&port);
+        assert!(without.get("windows_tracked_handoff").is_none());
+        port.windows_tracked_handoff = true;
+        let mut with = operational_compatibility(&port);
+        assert_eq!(with["windows_tracked_handoff"], true);
+        with.as_object_mut()
+            .unwrap()
+            .remove("windows_tracked_handoff");
+        assert_eq!(with, without);
+    }
 }

@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import test from "node:test";
 import { spawnSync } from "node:child_process";
+import { readCatalogSource } from "./catalog-authoring.mts";
 
 import {
   requiredFixture,
@@ -23,10 +24,10 @@ void test("ordinary generation refuses an unreviewed identity before replacing e
   const original = readFileSync(join(catalogRoot, "catalog.json"));
   writeFileSync(output, original);
   const input = fixtureCatalog(
-    fixtureJson(readFileSync(join(fixture.catalogs, "catalog-current-authoring.json"))),
+    fixtureJson(readFileSync(join(fixture.catalogs, "catalog-fixture-input.json"))),
   );
   input.ports.push({ ...requiredFixture(input.ports[0]), id: "unreviewed-fixture-port" });
-  writeFileSync(join(fixture.catalogs, "catalog-current-authoring.json"), JSON.stringify(input));
+  writeFileSync(join(fixture.catalogs, "catalog-fixture-input.json"), JSON.stringify(input));
   const result = fixture.run();
   assert.notEqual(result.status, 0);
   assert.match(result.stderr, /compatibility fixture.*unreviewed-fixture-port/u);
@@ -53,7 +54,7 @@ void test("malformed generator mode arguments refuse before embedded catalog wri
   assert.equal(ordinary.status, 0, ordinary.stderr);
   assert.equal(
     readFileSync(embedded, "utf8"),
-    `${JSON.stringify(fixtureJson(readFileSync(join(fixture.catalogs, "catalog-current-authoring.json"))), null, 2)}\n`,
+    `${JSON.stringify(fixtureJson(readFileSync(join(fixture.catalogs, "catalog-fixture-input.json"))), null, 2)}\n`,
   );
 });
 
@@ -85,7 +86,7 @@ void test("captured proposal bytes remain exact after the caller path changes", 
 
 void test("full preparation requires an explicit validator and preserves prior output and authoring", () => {
   const scratch = mkdtempSync(join(tmpdir(), "portcove-proposal-refusal-"));
-  const input = join(catalogRoot, "catalog-current-authoring.json");
+  const input = join(catalogRoot, "catalog.json");
   const before = readFileSync(input);
   const output = join(scratch, "output");
   const missing = run("--prepare-proposal", input, "--output-dir", output);
@@ -111,16 +112,17 @@ void test("full preparation requires an explicit validator and preserves prior o
   assert.deepEqual(readFileSync(input), before);
 });
 
-void test("current schema-2 authoring deterministically owns the embedded catalog", () => {
+void test("current versioned authoring deterministically owns the embedded catalog", () => {
   const result = run("--check");
   assert.equal(result.status, 0, result.stderr);
 
+  // The embedded catalog is a pure projection of the authored per-port sources.
   const current = fixtureCatalog(
-    fixtureJson(readFileSync(join(catalogRoot, "catalog-current-authoring.json"), "utf8")),
+    fixtureJson(JSON.stringify(readCatalogSource(catalogRoot).catalog)),
   );
   const embedded = fixtureJson(readFileSync(join(catalogRoot, "catalog.json"), "utf8"));
   assert.deepEqual(embedded, current);
-  assert.equal(current.schema_version, 2);
+  assert.equal(current.schema_version, 3);
   assert.equal("source_profiles" in current, false);
 
   const portIds = new Set(current.ports.map((port) => port.id));
@@ -143,7 +145,7 @@ void test("proposal artwork retains accepted listing covers without widening ope
   // Materialize the operational fixture before adding a separately authored
   // listing. Invoke directly below so the historical fixture sync cannot erase it.
   assert.equal(fixture.run().status, 0);
-  const accepted = readFileSync(join(fixture.catalogs, "catalog-current-authoring.json"));
+  const accepted = readFileSync(join(fixture.catalogs, "catalog-fixture-input.json"));
   const mapping = {
     game_id: 987654321,
     cover_id: 576176,
@@ -237,10 +239,7 @@ void test("proposal artwork retains accepted listing covers without widening ope
       assert.notEqual(observation.reason, "accepted-mapping-reused");
       assert.equal(requiredFixture(prepared.ports.at(-1)).presentation?.artwork, undefined);
     }
-    assert.deepEqual(
-      readFileSync(join(fixture.catalogs, "catalog-current-authoring.json")),
-      accepted,
-    );
+    assert.deepEqual(readFileSync(join(fixture.catalogs, "catalog-fixture-input.json")), accepted);
     if (mode === "ordinary") {
       assert.equal(record(evidence.provider_metrics).game_requests, 0);
       assert.equal(record(evidence.provider_metrics).authentication_requests, 0);

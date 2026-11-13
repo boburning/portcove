@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { performance } from "node:perf_hooks";
 import test from "node:test";
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import os from "node:os";
@@ -29,6 +29,11 @@ import {
 } from "./release-semantic-inputs.mts";
 import {
   inspectSemanticRuntimeEvents,
+  createSemanticPartitionObservationInspector,
+  planQualifiedApplicationSemanticPartitions,
+  requireMatchingSemanticContentLanes,
+  runSemanticRuntime,
+  semanticObservationRanges,
   inspectSemanticFixtureEvents,
   requireDirectSemanticCapture,
   requireLinuxSemanticSettlement,
@@ -39,7 +44,10 @@ import {
   prepareCapturedSemanticDisposition,
   requireDirectSemanticDispositionCapture,
 } from "./release-semantic-runtime.mts";
-import { createReleaseReviewRequest } from "./release-review-request.mts";
+import {
+  createReleaseReviewRequest,
+  inspectReleaseReviewRequest,
+} from "./release-review-request.mts";
 import { inspectSemanticProposalResult } from "./release-semantic-proposal.mts";
 import { prepareSemanticReviewHandoff } from "./release-semantic-review.mts";
 import {
@@ -59,6 +67,8 @@ import {
 } from "./release-semantic-reader.mts";
 import {
   inspectSemanticReaderIndex,
+  createMaterializedSemanticReaderRpc,
+  materializeSemanticReaderPartition,
   createSemanticSnapshotReader,
 } from "./release-semantic-reader-core.mts";
 import { isRecord } from "./runtime-values.mts";
@@ -106,6 +116,15 @@ function fullInstallationFixture(role: HostedReleaseAppRole = "semantic") {
         },
         { status: 201 },
       );
+    }
+    if (options.method === "DELETE") {
+      assert.equal(role, "storage_writer");
+      assert.equal(endpoint, "installation/token");
+      assert.equal(
+        new Headers(options.headers).get("authorization"),
+        "Bearer inert-full-installation-token",
+      );
+      return new Response(null, { status: 204 });
     }
     assert.equal(options.method, "GET");
     if (endpoint.startsWith("installation/")) {
@@ -425,6 +444,57 @@ void test("App registration directly captures one conversion and authenticates t
   assert.equal(f.calls.length, 2);
 });
 
+void test("App registration refuses a conversion redirect and retains no redirect address", async () => {
+  const f = appRegistrationFixture();
+  const redirect = "https://elsewhere.invalid/private-redirect?signature=inert";
+  let requests = 0;
+  const capture = createAppRegistrationCapture({
+    ...f.options,
+    transport: async (input, init) => {
+      requests++;
+      assert.equal(input, `https://api.github.com/app-manifests/${appCode}/conversions`);
+      assert.equal(init?.redirect, "error");
+      assert.equal(new Headers(init?.headers).has("authorization"), false);
+      return new Response(null, { status: 302, headers: { location: redirect } });
+    },
+  });
+  await assert.rejects(capture(appCallback), (error: unknown) => {
+    assert.ok(error instanceof Error);
+    assert.match(
+      error.message,
+      /registration body or private retention failed|registration response incomplete or refused/u,
+    );
+    assert.ok(!error.message.includes(redirect) && !error.message.includes(appCode));
+    return true;
+  });
+  assert.equal(requests, 1);
+  assert.equal(f.record("conversion-response.json").status, 302);
+  assert.ok(!f.privateFiles.has("result.json"));
+  for (const bytes of f.privateFiles.values()) assert.ok(!bytes.includes(Buffer.from(redirect)));
+  await assert.rejects(capture(appCallback), /already consumed/u);
+  assert.equal(requests, 1);
+});
+
+void test("registration retains exact provider status 300 body before refusing", async () => {
+  const f = appRegistrationFixture();
+  const body = Buffer.from(' {"message":"Multiple Choices"}\n');
+  let requests = 0;
+  const capture = createAppRegistrationCapture({
+    ...f.options,
+    transport: async (_input, init) => {
+      requests++;
+      assert.equal(init?.redirect, "error");
+      return new Response(body, { status: 300 });
+    },
+  });
+  await assert.rejects(capture(appCallback), /registration response incomplete or refused/u);
+  assert.equal(requests, 1);
+  assert.deepEqual(f.privateFiles.get("conversion.body"), body);
+  assert.equal(f.record("conversion-response.json").status, 300);
+  assert.equal(f.record("conversion-response.json").complete, true);
+  assert.equal(f.privateFiles.has("result.json"), false);
+});
+
 void test("App conversion retains wrong-owner or expanded-permission effects without installing or retrying", async () => {
   for (const change of [
     { owner: { id: 1, login: "other" } },
@@ -462,6 +532,54 @@ void test("ambiguous conversion preserves pending intent and refuses a second PO
   assert.equal(f.record("conversion-transport.json").effect, "unknown");
   await assert.rejects(capture(appCallback), /already consumed/u);
   assert.equal(posts, 1);
+});
+
+void test("registration timeout retains a partial body without certifying EOF", async (t) => {
+  const f = appRegistrationFixture();
+  const prefix = Buffer.from('{"id":123');
+  const now = Date.now.bind(Date);
+  const deadline = now() + 30000;
+  let offset = 0;
+  t.mock.method(Date, "now", () => now() + offset);
+  let calls = 0,
+    cancelled = false;
+  const capture = createAppRegistrationCapture({
+    ...f.options,
+    deadline,
+    store: {
+      ...f.options.store,
+      async write(name, bytes) {
+        await f.options.store.write(name, bytes);
+        if (name === "conversion-intent.json") offset = deadline - now() - 250;
+      },
+    },
+    transport: async () => {
+      calls++;
+      return new Response(
+        new ReadableStream<Uint8Array>({
+          start(controller) {
+            controller.enqueue(prefix);
+          },
+          cancel() {
+            cancelled = true;
+          },
+        }),
+        { status: 201 },
+      );
+    },
+  });
+  const keepAlive = setTimeout(() => {}, 5000);
+  try {
+    await assert.rejects(capture(appCallback), /deadline expired|response incomplete/u);
+  } finally {
+    clearTimeout(keepAlive);
+  }
+  assert.equal(calls, 1);
+  assert.equal(cancelled, true);
+  assert.deepEqual(f.privateFiles.get("conversion.body"), prefix);
+  assert.equal(f.record("conversion-response.json").status, 201);
+  assert.equal(f.record("conversion-response.json").complete, false);
+  assert.equal(f.privateFiles.has("result.json"), false);
 });
 
 void test("registration preserves incomplete and oversized private response prefixes and stops", async () => {
@@ -564,12 +682,22 @@ void test("registration page/callback/replay path captures privately and leaves 
       await page.text(),
       /form method="post" action="https:\/\/github.com\/settings\/apps\/new/u,
     );
+    assert.match(await page.text(), /Portcove Semantic Producer/u);
     const wrong = await get(appCallback.url.replace(appState, "b".repeat(64)));
     assert.equal(wrong.status, 400);
     assert.equal(f.calls.length, 0);
     const completed = await get(appCallback.url);
     assert.equal(completed.status, 200);
-    assert(!(await completed.text()).includes("PRIVATE KEY"));
+    const body = await completed.text();
+    assert.match(body, /App created\. Install it next\./u);
+    assert.match(
+      body,
+      /href="https:\/\/github.com\/apps\/portcove-inert-producer\/installations\/new"/u,
+    );
+    assert.match(body, /Only select repositories/u);
+    assert.match(body, /boburning\/portcove/u);
+    for (const privateValue of ["PRIVATE KEY", "inert-private-client-secret", appCode, appState])
+      assert(!body.includes(privateValue));
     const replay = await get(appCallback.url);
     assert.equal(replay.status, 409);
     assert.equal(finishes, 1);
@@ -705,9 +833,15 @@ function hostedAppReadback(role: HostedReleaseAppRole, appId = 123, installation
 void test("selected two-App manifests have exact permissions and no OAuth or webhook work", () => {
   const semantic = prepareHostedReleaseAppManifest("semantic");
   const observer = prepareHostedReleaseAppManifest("protection_observer");
+  assert.equal(semantic.name, "Portcove Semantic Producer");
+  assert.equal(observer.name, "Portcove Protection Observer");
   assert.deepEqual(semantic.default_permissions, { checks: "write", metadata: "read" });
   assert.deepEqual(observer.default_permissions, { administration: "write", metadata: "read" });
   for (const manifest of [semantic, observer]) {
+    assert(
+      manifest.name.length <= 34,
+      "GitHub App names must fit the provider's 34-character limit",
+    );
     assert.equal(manifest.public, false);
     assert.equal(manifest.hook_attributes.active, false);
     assert.deepEqual(manifest.default_events, []);
@@ -1008,10 +1142,12 @@ void test("App JWT uses the selected public key, RS256 and a bounded clock windo
 
 void test("fixed Linux parent preserves verifiable resource receipts without ambient credentials", () => {
   const inherited = '{"receipt":"inert existing reservation"}';
+  const host = '{"reference":"inert host receipt","invocation":"inert invocation"}';
   assert.deepEqual(
     semanticSupervisorEnvironment({
       HOME: "/home/reviewer",
       PORTCOVE_RESOURCE_RESERVATION: inherited,
+      PORTCOVE_HOST_RESOURCE: host,
       PORTCOVE_NATIVE_SESSION_LOCK_TOKEN: "inert-native",
       GH_TOKEN: "never-forward",
       OPENAI_API_KEY: "never-forward",
@@ -1025,6 +1161,7 @@ void test("fixed Linux parent preserves verifiable resource receipts without amb
       PATH: "/maintained/toolchain/bin:/usr/bin:/bin",
       LANG: "C.UTF-8",
       PORTCOVE_RESOURCE_RESERVATION: inherited,
+      PORTCOVE_HOST_RESOURCE: host,
       PORTCOVE_NATIVE_SESSION_LOCK_TOKEN: "inert-native",
     },
   );
@@ -1207,6 +1344,7 @@ function fixture() {
     id: 1,
     draft: false,
     tag_name: "v0.1.0-alpha.2",
+    immutable: true,
     published_at: "2026-01-01T00:00:00Z",
   };
   const api = {
@@ -1329,6 +1467,357 @@ void test("frozen source collection binds actual Git blobs, publication and comp
     source_tree: opportunity.source_tree,
     change_set_sha256: opportunity.change_set_sha256,
   });
+  const identity = {
+    before_checkpoint: request.before_checkpoint,
+    requested_at: request.requested_at,
+    base_commit: request.base_commit,
+    base_version: request.base_version,
+    source_commit: request.source_commit,
+    source_tree: request.source_tree,
+    change_set_sha256: request.change_set_sha256,
+  };
+  const qualified = createReleaseReviewRequest({
+    ...identity,
+    qualified_application: { run_id: 42407004590, run_attempt: 1 },
+  });
+  assert.notEqual(qualified.request_id, request.request_id);
+  assert.throws(
+    () =>
+      inspectReleaseReviewRequest({
+        ...qualified,
+        qualified_application: { run_id: 42407004590, run_attempt: 2 },
+      }),
+    /bind exact frozen inputs/,
+  );
+  const evidence = { classification: "fixture", compatibility: "fixture only" };
+  assert.equal(
+    prepareFrozenSemanticInputs(api, root, opportunity, evidence, undefined, qualified).manifest
+      .source.change_set_sha256,
+    qualified.change_set_sha256,
+  );
+  const qualifiedProposal = prepareFrozenSemanticProposalInputs(api, root, qualified);
+  const input = { phase: "proposal" as const, bundle: qualifiedProposal };
+  const limits = {
+    page_bytes: 128,
+    lane_raw_bytes: 256,
+    lane_response_bytes: 2048,
+    lane_calls: 3,
+    lanes: 64,
+  };
+  const plan = planQualifiedApplicationSemanticPartitions(input, limits);
+  assert.deepEqual(planQualifiedApplicationSemanticPartitions(input, limits), plan);
+  const { plan_sha256, ...planIdentity } = plan;
+  assert.equal(plan_sha256, capacityDigest(planIdentity));
+  assert.equal(plan.authority, "none");
+  assert.equal(plan.bundle_sha256, qualifiedProposal.bundle_sha256);
+  assert.ok(plan.lanes.length > 1);
+  const projected = materializeSemanticReaderPartition(qualifiedProposal, plan.lanes[0]!.pages);
+  const partitionRpc = createMaterializedSemanticReaderRpc(projected.bytes, projected.sha256);
+  assert.throws(() => createMaterializedSemanticReaderRpc(projected.bytes, "a".repeat(64)));
+  partitionRpc({
+    jsonrpc: "2.0",
+    id: 1,
+    method: "initialize",
+    params: { protocolVersion: "2025-03-26" },
+  });
+  const direct = createSemanticSnapshotReader(qualifiedProposal);
+  const call = (page: { tool: string; arguments: Record<string, unknown> }) =>
+    partitionRpc({
+      jsonrpc: "2.0",
+      id: 2,
+      method: "tools/call",
+      params: {
+        name: page.tool,
+        arguments: page.arguments,
+      },
+    });
+  for (const page of plan.lanes[0]!.pages) {
+    assert.deepEqual(call(page)?.result, {
+      isError: false,
+      content: [{ type: "text", text: JSON.stringify(direct(page.tool, page.arguments)) }],
+    });
+  }
+  assert.throws(() => call(plan.lanes[1]!.pages[0]!), /absent from frozen partition/);
+  const union = new Map<string, Set<number>>();
+  for (const lane of plan.lanes) {
+    assert.ok(lane.pages.length <= limits.lane_calls);
+    assert.ok(lane.raw_bytes <= limits.lane_raw_bytes);
+    assert.ok(lane.response_bytes <= limits.lane_response_bytes);
+    for (const {
+      arguments: { snapshot, path, offset, length },
+    } of lane.pages) {
+      const key = `${snapshot}:${path}`;
+      const offsets = union.get(key) ?? new Set<number>();
+      for (let byte = offset; byte < offset + length; byte++) {
+        assert.equal(offsets.has(byte), false, "partition page overlaps an earlier page");
+        offsets.add(byte);
+      }
+      union.set(key, offsets);
+    }
+  }
+  for (const { snapshot, path, start, end } of semanticObservationRanges(qualifiedProposal))
+    for (let byte = start; byte < end; byte++)
+      assert.equal(union.get(`${snapshot}:${path}`)?.delete(byte), true, "partition coverage gap");
+  assert.ok([...union.values()].every((offsets) => offsets.size === 0));
+  for (const invalid of [
+    { ...limits, lanes: 0 },
+    { ...limits, lanes: 1 },
+    { ...limits, lane_calls: 1025 },
+    { ...limits, lane_response_bytes: 1 },
+  ])
+    assert.throws(() => planQualifiedApplicationSemanticPartitions(input, invalid), /budget/);
+  assert.throws(
+    () => planQualifiedApplicationSemanticPartitions({ phase: "complete", bundle }, limits),
+    /qualified application/,
+  );
+  assert.throws(
+    () =>
+      planQualifiedApplicationSemanticPartitions(
+        { ...input, bundle: { ...qualifiedProposal } },
+        limits,
+      ),
+    /imported or changed/,
+  );
+  const inspector = createSemanticPartitionObservationInspector(input, limits);
+  const laneEvents = (
+    lane: number,
+    pages = plan.lanes[lane]!.pages,
+    report = { schema_version: 1, lane, plan_sha256, findings: "Inert fixture finding" },
+    replacement?: string,
+    sessionLane = lane,
+    readBundle = qualifiedProposal as Parameters<typeof createSemanticSnapshotReader>[0],
+    assignedOrdinal?: (index: number) => number,
+  ) => {
+    const reader = createSemanticSnapshotReader(readBundle);
+    return Buffer.from(
+      [
+        {
+          type: "thread.started",
+          thread_id: `00000000-0000-4000-8000-${sessionLane.toString(16).padStart(12, "0")}`,
+        },
+        { type: "turn.started" },
+        ...pages.flatMap(({ tool, arguments: args }, index) => {
+          const item = {
+            id: `lane-page-${index}`,
+            type: "mcp_tool_call",
+            server: "portcove_frozen_bundle",
+            tool: assignedOrdinal ? "read_page" : tool,
+            arguments: assignedOrdinal ? { page: assignedOrdinal(index) } : args,
+          };
+          const text = replacement ?? JSON.stringify(reader(tool, args));
+          return [
+            { type: "item.started", item: { ...item, status: "in_progress" } },
+            {
+              type: "item.completed",
+              item: { ...item, status: "completed", result: { content: [{ type: "text", text }] } },
+            },
+          ];
+        }),
+        { type: "item.completed", item: { type: "agent_message", text: JSON.stringify(report) } },
+        { type: "turn.completed" },
+      ]
+        .map((event) => JSON.stringify(event))
+        .join("\n"),
+    );
+  };
+  const ordinalEvents = (ordinal: (index: number) => number) =>
+    laneEvents(0, undefined, undefined, undefined, 0, undefined, ordinal);
+  const ordinalCapture = ordinalEvents((index) => index + 1);
+  assert.equal(inspector.inspectLane(0, ordinalCapture, undefined, true).lane, 0);
+  assert.throws(() => inspector.inspectLane(0, ordinalCapture), /unauthorized reader/);
+  assert.throws(
+    () => inspector.inspectLane(0, laneEvents(0), undefined, true),
+    /unauthorized reader/,
+  );
+  assert.throws(
+    () =>
+      inspector.inspectLane(
+        0,
+        ordinalEvents(() => plan.lanes[0]!.pages.length + 1),
+        undefined,
+        true,
+      ),
+    /foreign page ordinal/,
+  );
+  assert.throws(
+    () =>
+      inspector.inspectLane(
+        0,
+        ordinalEvents(() => 1),
+        undefined,
+        true,
+      ),
+    /duplicate or foreign/,
+  );
+  const findings = plan.lanes.map((_, lane) => inspector.inspectLane(lane, laneEvents(lane)));
+  const unionReceipt = inspector.inspectUnion(findings);
+  assert.equal(unionReceipt.authority, "none");
+  assert.equal(unionReceipt.plan_sha256, plan_sha256);
+  assert.deepEqual(inspector.inspectUnion([...findings].reverse()), unionReceipt);
+  assert.throws(() => inspector.inspectUnion(findings.slice(1)), /omits planned/);
+  assert.throws(() => inspector.inspectUnion([findings[0]!, ...findings]), /reused/);
+  assert.throws(
+    () => inspector.inspectUnion([{ ...findings[0]! }, ...findings.slice(1)]),
+    /copied/,
+  );
+  assert.throws(
+    () =>
+      inspector.inspectUnion([
+        findings[0]!,
+        inspector.inspectLane(1, laneEvents(1, undefined, undefined, undefined, 0)),
+        ...findings.slice(2),
+      ]),
+    /session was reused/,
+  );
+  assert.throws(() => inspector.inspectLane(0, laneEvents(0, [])), /every exact page/);
+  assert.throws(() => inspector.inspectLane(1, laneEvents(0)), /does not bind the exact lane/);
+  assert.throws(
+    () =>
+      inspector.inspectLane(
+        0,
+        laneEvents(
+          0,
+          plan.lanes[0]!.pages.map(() => plan.lanes[0]!.pages[0]!),
+        ),
+      ),
+    /duplicate or foreign/,
+  );
+  assert.throws(
+    () => inspector.inspectLane(0, laneEvents(0, undefined, undefined, "{}")),
+    /observation differs/,
+  );
+  const retained = "x".repeat(2099);
+  assert.equal(
+    inspector.inspectLane(
+      0,
+      laneEvents(0, undefined, {
+        schema_version: 1,
+        lane: 0,
+        plan_sha256,
+        findings: retained,
+      }),
+    ).findings,
+    retained,
+  );
+  assert.throws(
+    () =>
+      inspector.inspectLane(
+        0,
+        laneEvents(0, undefined, {
+          schema_version: 1,
+          lane: 0,
+          plan_sha256,
+          findings: "x".repeat(2400),
+        }),
+      ),
+    /exceeds the retained report envelope/,
+  );
+  assert.throws(() => requireDirectSemanticCapture(unionReceipt as never), /imported/);
+  await assert.rejects(requireDirectSemanticProposalCapture(findings[0]), /imported/);
+  findings[0]!.findings = "modified";
+  assert.throws(() => inspector.inspectUnion(findings), /copied, changed/);
+
+  const completeBundle = prepareFrozenSemanticInputs(
+    api,
+    root,
+    opportunity,
+    evidence,
+    undefined,
+    qualified,
+  );
+  await assert.rejects(
+    runSemanticRuntime(
+      completeBundle,
+      { backend: "linux-rootless", application_partition: {} } as never,
+      { review: { outcome: "proposed", opportunity } } as never,
+    ),
+    /genuine same-attempt proposal capture/,
+  );
+  const completeInspector = createSemanticPartitionObservationInspector(
+    { phase: "complete", bundle: completeBundle },
+    limits,
+  );
+  const complete = completeInspector.plan;
+  assert.notEqual(complete.plan_sha256, plan.plan_sha256);
+  const reuse = requireMatchingSemanticContentLanes(plan, complete, limits.lanes);
+  assert.ok(reuse.size > 0 && reuse.size < complete.lanes.length);
+  assert.throws(
+    () => requireMatchingSemanticContentLanes(plan, complete, plan.lanes.length),
+    /combined lane count/,
+  );
+  const truncated = structuredClone(complete);
+  truncated.lanes[reuse.keys().next().value!]!.pages.pop();
+  assert.throws(
+    () => requireMatchingSemanticContentLanes(plan, truncated, limits.lanes),
+    /plan differs/,
+  );
+  const completeFindings = complete.lanes.map((lane, index) => {
+    const old = reuse.get(index);
+    if (old === undefined) {
+      assert.ok(lane.pages.every((page) => page.arguments.snapshot === "manifest"));
+      return completeInspector.inspectLane(
+        index,
+        laneEvents(
+          index,
+          lane.pages,
+          {
+            schema_version: 1,
+            lane: index,
+            plan_sha256: complete.plan_sha256,
+            findings: "Fresh metadata fixture",
+          },
+          undefined,
+          1024 + index,
+          completeBundle,
+        ),
+      );
+    }
+    const original = { bundle_sha256: plan.bundle_sha256, plan_sha256, lane: old };
+    const inspected = completeInspector.inspectLane(index, laneEvents(old), original);
+    assert.deepEqual(inspected.reused_from, original);
+    assert.throws(
+      () =>
+        completeInspector.inspectLane(index, laneEvents(old, undefined, undefined, "{}"), original),
+      /observation differs/,
+    );
+    assert.throws(
+      () => completeInspector.inspectLane(index, laneEvents(old, []), original),
+      /every exact page/,
+    );
+    return inspected;
+  });
+  assert.throws(
+    () =>
+      completeInspector.inspectLane(0, laneEvents(0), {
+        bundle_sha256: plan.bundle_sha256,
+        plan_sha256,
+        lane: 0,
+      }),
+    /metadata requires a fresh lane/,
+  );
+  assert.throws(() => completeInspector.inspectUnion(completeFindings.slice(1)), /omits planned/);
+  assert.equal(completeInspector.inspectUnion(completeFindings).authority, "none");
+  qualifiedProposal.manifest.evidence.compatibility = "modified";
+  assert.throws(
+    () => planQualifiedApplicationSemanticPartitions(input, limits),
+    /imported or changed/,
+  );
+  assert.throws(
+    () =>
+      prepareFrozenSemanticInputs(
+        api,
+        root,
+        opportunity,
+        evidence,
+        undefined,
+        createReleaseReviewRequest({
+          ...identity,
+          source_tree: "f".repeat(40),
+          qualified_application: qualified.qualified_application,
+        }),
+      ),
+    /differs from the frozen review request/,
+  );
   const proposedInputs = prepareFrozenSemanticProposalInputs(api, root, request);
   assert.equal(
     requireFrozenSemanticProposalInputs(proposedInputs).manifest.opportunity.request_id,
@@ -1578,6 +2067,44 @@ void test("only explicit complete-opportunity acceptance passes event integrity;
     files: [before.file, after.file],
   } as unknown as Parameters<typeof inspectSemanticRuntimeEvents>[1];
 
+  const appended = blob(before.file.bytes.toString("utf8") + "new_line();\n");
+  const normalized = blob("fn main() { published_behavior(); }\n");
+  const appendedManifest = {
+    ...manifest,
+    snapshots: {
+      ...manifest.snapshots,
+      source: [{ path: "app.rs", oid: appended.oid, mode: "100644" }],
+      published: [{ path: "app.rs", oid: normalized.oid, mode: "100644" }],
+    },
+  };
+  const appendedBundle = {
+    ...bundle,
+    manifest: appendedManifest,
+    bundle_sha256: capacityDigest(appendedManifest),
+    files: [before.file, appended.file, normalized.file],
+  } as unknown as typeof bundle;
+  const ranges = [...semanticObservationRanges(appendedBundle)];
+  assert.ok(
+    ranges.some(
+      ({ snapshot, path, start, end }) =>
+        snapshot === "baseline" &&
+        path === "app.rs" &&
+        start === 0 &&
+        end === before.file.bytes.length,
+    ),
+    "require the last old line when the change starts at EOF",
+  );
+  assert.ok(
+    ranges.some(
+      ({ snapshot, path, start, end }) =>
+        snapshot === "published" &&
+        path === "app.rs" &&
+        start === 0 &&
+        end === normalized.file.bytes.length,
+    ),
+    "preserve the prior-published normalization range",
+  );
+
   const result = {
     schema_version: 1,
     outcome: "accepted",
@@ -1640,6 +2167,36 @@ void test("only explicit complete-opportunity acceptance passes event integrity;
       },
     ];
   };
+  const appendedResult = {
+    ...result,
+    bundle_sha256: appendedBundle.bundle_sha256,
+  };
+  const appendedEvidence = [
+    ...readEvents("manifest", "manifest.json", Buffer.from(JSON.stringify(appendedManifest))),
+    ...readEvents(
+      "source",
+      "app.rs",
+      appended.file.bytes,
+      appended.file.bytes.length - before.file.bytes.length,
+      before.file.bytes.length,
+    ),
+    ...readEvents("published", "app.rs", normalized.file.bytes),
+  ];
+  assert.throws(
+    () => inspectSemanticRuntimeEvents(events(appendedResult, appendedEvidence), appendedBundle),
+    /lacks relevant frozen evidence: baseline:app.rs/,
+  );
+  assert.equal(
+    inspectSemanticRuntimeEvents(
+      events(appendedResult, [
+        ...appendedEvidence,
+        ...readEvents("baseline", "app.rs", before.file.bytes),
+      ]),
+      appendedBundle,
+    ).report,
+    appendedResult.report,
+  );
+
   const metadata = readEvents("manifest", "manifest.json", Buffer.from(JSON.stringify(manifest)));
   const meaningful = [
     ...metadata,
@@ -2153,6 +2710,89 @@ void test("selected issuer identity is closed, purpose-specific and cannot add a
     assert.throws(() => inspectSemanticIssuerConfiguration(bad));
 });
 
+void test("storage-writer installation CLI reaches the source guard before private setup", () => {
+  const entry = new URL("./observe-hosted-release-app-installation.mts", import.meta.url);
+  const source = "a".repeat(40);
+  const output = execFileSync(
+    process.execPath,
+    [
+      "--input-type=module",
+      "-e",
+      `
+      import { registerHooks } from "node:module";
+      import { fileURLToPath } from "node:url";
+      const entry = ${JSON.stringify(entry.href)};
+      const source = ${JSON.stringify(source)};
+      registerHooks({ resolve(spec, context, next) {
+        if (context.parentURL === entry && spec === "./register-hosted-release-app.mts") {
+          const guard = "export function requireOrdinaryHostedAppSetupSource(source) { console.log(source); process.exit(0); }";
+          return { url: "data:text/javascript," + encodeURIComponent(guard), shortCircuit: true };
+        }
+        return next(spec, context);
+      } });
+      process.argv = [process.execPath, fileURLToPath(entry), "--role", "storage_writer",
+        "--expected-source", source, "--registration-source", source];
+      await import(entry);
+      `,
+    ],
+    { encoding: "utf8", timeout: 15000, windowsHide: true },
+  );
+  assert.equal(output.trim(), source);
+});
+
+void test("ordinary App setup CLIs load the SDK after source verification and before private setup", () => {
+  for (const name of ["register-hosted-release-app", "observe-hosted-release-app-installation"]) {
+    const entry = new URL(`./${name}.mts`, import.meta.url);
+    const registration = new URL("./register-hosted-release-app.mts", import.meta.url);
+    const source = "a".repeat(40);
+    const result = spawnSync(
+      process.execPath,
+      [
+        "--input-type=module",
+        "-e",
+        `
+      import { registerHooks } from "node:module";
+      import { fileURLToPath } from "node:url";
+      const entry = ${JSON.stringify(entry.href)};
+      const registration = ${JSON.stringify(registration.href)};
+      const source = ${JSON.stringify(source)};
+      const data = (module) => ({ url: "data:text/javascript," + encodeURIComponent(module), shortCircuit: true });
+      delete process.env.GITHUB_ACTIONS;
+      delete process.env.SUDO_UID;
+      Object.defineProperty(process, "platform", { value: "linux" });
+      process.getuid = () => 1000;
+      registerHooks({ resolve(spec, context, next) {
+        if (context.parentURL === registration) {
+          if (spec === "node:os") return data("export const userInfo = () => ({username:'boburning', homedir:'/home/boburning'});");
+          if (spec === "node:child_process") return data(
+            "export function execFileSync(_git, args) { if (args.includes('rev-parse')) return " + JSON.stringify(source) +
+            "; if (args.includes('status')) { console.log('source-verified'); return ''; } throw new Error('unexpected Git operation'); }");
+          if (spec === "node:http") return data("export function createServer() { console.log('listener-created'); throw new Error('unexpected listener'); }");
+        }
+        if (spec === "@octokit/core") {
+          console.log("sdk-import");
+          throw new Error("private package-loader diagnostic");
+        }
+        if (spec === "./release-owned-capture-store.mts") return data(
+          "export async function createAppRegistrationStore() { console.log('store-created'); throw new Error('unexpected store'); }" +
+          "export function createCheckpointSigningStore() {} export function createHostedNativeProofStore() {} export function syncRegistrationDirectory() {}");
+        return next(spec, context);
+      } });
+      process.argv = [process.execPath, fileURLToPath(entry), "--role", "storage_writer", "--expected-source", source,
+        ...(entry === registration ? [] : ["--registration-source", source])];
+      await import(entry);
+      `,
+      ],
+      { encoding: "utf8", timeout: 15000, windowsHide: true },
+    );
+    assert.ifError(result.error);
+    assert.equal(result.status, 1, result.stderr);
+    assert.deepEqual(result.stdout.trim().split("\n"), ["source-verified", "sdk-import"]);
+    assert.match(result.stderr, /^The locked GitHub SDK is unavailable\./u);
+    assert.doesNotMatch(result.stderr, /private package-loader diagnostic/u);
+  }
+});
+
 void test("selected actual broker control flow publishes and reconciles both purposes with controlled capture/provider boundaries only", async (t) => {
   const directory = await mkdtemp(path.join(os.tmpdir(), "selected-semantic-broker-"));
   t.after(() => rm(directory, { recursive: true, force: true }));
@@ -2242,4 +2882,122 @@ void test("selected actual broker control flow publishes and reconciles both pur
     actual_runtime: false,
     actual_provider: false,
   });
+});
+
+void test("new storage App manifest and observed identity keep the exact separately approved permission/callback boundary", () => {
+  const manifest = prepareHostedReleaseAppManifest("storage_writer");
+  assert.equal(manifest.name, "Portcove production storage writer");
+  assert.ok(manifest.name.length <= 34);
+  assert.deepEqual(manifest.default_permissions, { contents: "write", metadata: "read" });
+  assert.equal(manifest.redirect_url, "http://127.0.0.1:1456/github-app/manifest-callback");
+  assert.equal(manifest.public, false);
+  assert.equal(manifest.hook_attributes.active, false);
+  assert.deepEqual(manifest.default_events, []);
+  assert.equal(manifest.request_oauth_on_install, false);
+  const callback = {
+    ...appCallback,
+    url: `/github-app/manifest-callback?code=${appCode}&state=${appState}`,
+  };
+  assert.equal(inspectAppRegistrationCallback("storage_writer", appState, callback), appCode);
+  assert.throws(() => inspectAppRegistrationCallback("semantic", appState, callback));
+  const s = hostedAppReadback("semantic"),
+    o = hostedAppReadback("protection_observer", 124, 457),
+    w = hostedAppReadback("storage_writer", 125, 458);
+  const semantic = observeHostedReleaseApp("semantic", s.expected, s.clients),
+    observer = observeHostedReleaseApp("protection_observer", o.expected, o.clients),
+    writer = observeHostedReleaseApp("storage_writer", w.expected, w.clients);
+  assert.equal(
+    inspectHostedReleaseAppSeparation(semantic, observer, writer).storage_writer?.app_id,
+    125,
+  );
+  assert.throws(() =>
+    inspectHostedReleaseAppSeparation(semantic, observer, { ...writer, app_id: semantic.app_id }),
+  );
+  assert.throws(() =>
+    inspectHostedReleaseAppSeparation(semantic, observer, {
+      ...writer,
+      installation_id: observer.installation_id,
+    }),
+  );
+  w.values.app = { ...w.app, permissions: { ...w.app.permissions, checks: "write" } };
+  assert.throws(
+    () => observeHostedReleaseApp("storage_writer", w.expected, w.clients),
+    /boundary differs/,
+  );
+});
+void test("storage App capture keeps its one key privately and omits unused OAuth/webhook material and callback code", async () => {
+  const f = appRegistrationFixture();
+  const app = { ...f.app, permissions: { contents: "write", metadata: "read" } };
+  const capture = createAppRegistrationCapture({
+    ...f.options,
+    role: "storage_writer",
+    transport: async (_url, options) =>
+      options?.method === "POST"
+        ? Response.json(
+            {
+              ...app,
+              pem: f.pem,
+              client_secret: "unused-oauth-secret",
+              webhook_secret: "unused-webhook-secret",
+            },
+            { status: 201 },
+          )
+        : Response.json(app),
+  });
+  const result = await capture({
+    ...appCallback,
+    url: `/github-app/manifest-callback?code=${appCode}&state=${appState}`,
+  });
+  assert.equal(result.role, "storage_writer");
+  assert.equal(f.privateFiles.get("app.pem")!.toString(), f.pem);
+  const body = f.privateFiles.get("conversion.body")!.toString();
+  assert.ok(!body.includes("PRIVATE KEY"));
+  assert.ok(!body.includes("unused-oauth-secret") && !body.includes("unused-webhook-secret"));
+  assert.equal(f.record("conversion-response.json").encoding, "storage-app-allowlist");
+  assert.equal(Object.hasOwn(f.record("conversion-intent.json"), "code"), false);
+  assert.ok(!JSON.stringify(result).includes("PRIVATE KEY"));
+});
+void test("storage installation observation revokes its unfiltered metadata token and retains no usable token", async () => {
+  const f = fullInstallationFixture("storage_writer");
+  const result = await observeHostedAppInstallationScope(
+    "storage_writer",
+    Buffer.from(f.registration.pem),
+    f.expected,
+    f.registration.options.store,
+    { fetch: f.transport },
+  );
+  assert.equal(result.installation_repository_scope, "full-installation-observed");
+  assert.equal(result.metadata_token_revoked, true);
+  assert.equal(result.api_requests, 9);
+  assert.equal(f.calls.filter((c) => c.options.method === "POST").length, 1);
+  assert.equal(f.calls.filter((c) => c.options.method === "DELETE").length, 1);
+  for (const bytes of f.registration.privateFiles.values())
+    assert.ok(!bytes.includes(Buffer.from("inert-full-installation-token")));
+});
+void test("storage installation refusal still revokes its metadata token and preserves both failures if cleanup also refuses", async () => {
+  for (const cleanupFails of [false, true]) {
+    const f = fullInstallationFixture("storage_writer");
+    const transport: typeof fetch = async (url, options) => {
+      assert(typeof url === "string");
+      if (url.includes("/installation/repositories"))
+        return Response.json({ total_count: 2, repositories: [] });
+      if (cleanupFails && options?.method === "DELETE") return new Response(null, { status: 403 });
+      return f.transport(url, options);
+    };
+    await assert.rejects(
+      observeHostedAppInstallationScope(
+        "storage_writer",
+        Buffer.from(f.registration.pem),
+        f.expected,
+        f.registration.options.store,
+        { fetch: transport },
+      ),
+      (error: unknown) =>
+        cleanupFails
+          ? error instanceof AggregateError && error.errors.length === 2
+          : error instanceof Error && /exactly boburning/.test(error.message),
+    );
+    assert.ok(f.registration.privateFiles.has("metadata-token-revocation.json"));
+    assert.ok(!f.registration.privateFiles.has("result.json"));
+  }
 });

@@ -82,6 +82,7 @@ export function useGameComparison({
       if (active) return load(false);
     });
     return () => {
+      // oxlint-disable-next-line react/immutability -- oxc#28401: effect-local binding.
       active = false;
       sequence.current += 1;
     };

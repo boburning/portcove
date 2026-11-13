@@ -2,7 +2,8 @@ import { afterEach, expect, it, vi } from "vite-plus/test";
 import { page } from "vite-plus/test/browser";
 import { cleanup, render } from "vitest-browser-react";
 import axe from "axe-core";
-import { PageHeader, Sidebar, WorkspaceToolbar } from "./Chrome";
+import { portDefinition, sourceProfile } from "../test-fixtures";
+import { PageHeader, SettingsView, Sidebar, WorkspaceToolbar } from "./Chrome";
 import { observeVisibleTarget } from "../../scripts/browser-readiness.mts";
 import { prepareCaptureTarget } from "../../test/capture-target";
 
@@ -11,6 +12,105 @@ afterEach(async () => {
   vi.restoreAllMocks();
   delete document.documentElement.dataset.theme;
 });
+
+it.for([240, 320, 960])(
+  "keeps newly missing source requirements within the Settings viewport at %ipx",
+  async (width) => {
+    await page.viewport(width, width === 960 ? 640 : 160);
+    expect(innerWidth).toBe(width);
+    const port = {
+      ...portDefinition(),
+      name: "Jak and Daxter: The Precursor Legacy · OpenGOAL: Jak and Daxter",
+    };
+    const profile = {
+      ...sourceProfile(),
+      label: "Jak and Daxter retail disc validated by the pinned OpenGOAL extractor",
+    };
+    const registered = {
+      profile_id: profile.id,
+      path: "D:/Owned game files/source.iso",
+      sha256: "a".repeat(64),
+      size: 1024,
+      storage_sha256: "a".repeat(64),
+      storage_size: 1024,
+      updated_at: 1,
+    };
+    const addSource = vi.fn();
+    const shared = {
+      category: "game-files" as const,
+      sourceProfiles: [profile],
+      sourceRequirementsState: "available" as const,
+      installedCount: 1,
+      addSource,
+    };
+    const content = (missing: boolean) => (
+      <div className="interface-root">
+        <div className="interface-workspace">
+          <div className="app-shell grid h-[100vh] grid-cols-[var(--layout-sidebar)_minmax(0,_1fr)]">
+            <aside className="sidebar" aria-hidden="true" />
+            <main className="workspace-main min-h-0 w-full min-w-0 overflow-auto">
+              <SettingsView
+                {...shared}
+                sources={missing ? [] : [registered]}
+                sourceNeeds={
+                  missing
+                    ? [
+                        {
+                          profile,
+                          requiredBy: [
+                            { portId: port.id, portName: port.name, role: "Game files" },
+                          ],
+                        },
+                      ]
+                    : []
+                }
+              />
+            </main>
+          </div>
+        </div>
+      </div>
+    );
+    const view = await render(content(false));
+    const viewport = () => ({
+      client: document.documentElement.clientWidth,
+      scroll: document.documentElement.scrollWidth,
+    });
+    expect(viewport().scroll).toBeLessThanOrEqual(viewport().client + 1);
+    await view.rerender(content(true));
+    await expect
+      .element(page.getByRole("button", { name: "Add game files", exact: true }))
+      .toBeVisible();
+    const measurement = {
+      width,
+      ...viewport(),
+      rows: [
+        ...document.querySelectorAll<HTMLElement>(
+          ".source-requirements, .source-requirements-heading, .source-requirement",
+        ),
+      ].map((element) => ({
+        className: element.className,
+        width: element.getBoundingClientRect().width,
+        scroll: element.scrollWidth,
+        children: [...element.children].map((child) => ({
+          text: child.textContent,
+          width: child.getBoundingClientRect().width,
+        })),
+      })),
+    };
+    expect(document.querySelectorAll(".source-requirement")).toHaveLength(1);
+    for (const row of document.querySelectorAll<HTMLElement>(
+      ".source-requirements, .source-requirement",
+    )) {
+      expect(row.scrollWidth, JSON.stringify(measurement)).toBeLessThanOrEqual(row.clientWidth + 1);
+    }
+    expect(viewport().scroll, JSON.stringify(measurement)).toBeLessThanOrEqual(
+      viewport().client + 1,
+    );
+    await page.getByRole("button", { name: "Add game files", exact: true }).click();
+    expect(addSource).toHaveBeenCalledExactlyOnceWith(profile, false);
+    expect(viewport().scroll).toBeLessThanOrEqual(viewport().client + 1);
+  },
+);
 
 for (const platform of ["Win32", "MacIntel"]) {
   for (const width of [960, 1280]) {
@@ -21,7 +121,7 @@ for (const platform of ["Win32", "MacIntel"]) {
       await render(<WorkspaceToolbar view="library" onOpenCommands={onOpenCommands} />);
       const shortcut = platform === "MacIntel" ? "Command K" : "Ctrl K";
       const button = page.getByRole("button", {
-        name: `Commands ${shortcut}: open command palette`,
+        name: `Search games and pages ${shortcut}: open command palette`,
         exact: true,
       });
       await expect.element(button).toBeVisible();
@@ -50,7 +150,9 @@ it("keeps the actual workspace Commands trigger available on compact detail navi
       <PageHeader view="catalog" query="" setQuery={() => {}} />
     </>,
   );
-  const commands = page.getByRole("button", { name: /^Commands .*open command palette$/ });
+  const commands = page.getByRole("button", {
+    name: /^Search games and pages .*open command palette$/,
+  });
   await expect.element(commands).toBeVisible();
   expect(document.querySelectorAll(".command-trigger")).toHaveLength(1);
   expect(document.querySelector('[aria-label="Current location"]')?.textContent).toContain(
@@ -87,7 +189,9 @@ it("retains an explicitly requested standalone PageHeader Commands control", asy
   await render(
     <PageHeader view="library" query="" setQuery={() => {}} onOpenCommands={onOpenCommands} />,
   );
-  await page.getByRole("button", { name: /^Commands .*open command palette$/ }).click();
+  await page
+    .getByRole("button", { name: /^Search games and pages .*open command palette$/ })
+    .click();
   expect(onOpenCommands).toHaveBeenCalledTimes(1);
 });
 
@@ -158,3 +262,29 @@ it("visual capture accepts decorative art, rejects hidden and clipped ancestors,
     host.remove();
   }
 });
+
+for (const count of [1, 2]) {
+  it(`opens the correct Steam review workflow for ${count} installed entries and restores focus`, async () => {
+    await render(
+      <SettingsView
+        category="integrations"
+        steamPorts={Array.from({ length: count }, (_, index) => ({
+          ...portDefinition(),
+          id: `steam-${index}`,
+        }))}
+      />,
+    );
+    const trigger = page.getByRole("button", { name: "Choose games for Steam…", exact: true });
+    await trigger.click();
+    await expect
+      .element(
+        page.getByRole("heading", {
+          name: count === 1 ? "Manage Steam shortcut" : "Add selected games to Steam",
+          exact: true,
+        }),
+      )
+      .toBeVisible();
+    await page.getByRole("button", { name: "Cancel", exact: true }).click();
+    await expect.element(trigger).toHaveFocus();
+  });
+}

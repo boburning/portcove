@@ -3,7 +3,7 @@
   "listing": {
     "id": "fallout-fallout-community-edition",
     "name": "Fallout (Fallout Community Edition)",
-    "summary": "Upstream route: Upstream calls it fully working; downloadable Windows/Linux/macOS builds. Limits: Upstream calls Fallout Community Edition fully working; original game data required and general mod compatibility not implied. Upstream platforms: Windows/Linux/macOS runtime packages; native Intel and Apple-Silicon macOS documented. Windows/Linux selected package CPU architectures unknown in frozen research. Original data: Owned original Fallout installation; do not imply base-game mods all work. Portcove setup/gameplay not verified.",
+    "summary": "Use Fallout Community Edition 1.1.0 in your own complete supported Windows game installation. Keep fallout.cfg, original game files, music and every save location. You and upstream manage setup, updates and saved data; Portcove can register and launch the prepared player. Original-game rights and mod or save compatibility are separate requirements.",
     "original_game_title": "Fallout",
     "project_url": "https://github.com/alexbatalov/fallout1-ce",
     "platforms": [],
@@ -17,7 +17,45 @@
       "game_slug": "fallout-a-post-nuclear-role-playing-game",
       "match_kind": "underlying-game"
     },
-    "issue_number": 2573
+    "issue_number": 2573,
+    "listed_at": "2026-10-25",
+    "manual_setup": {
+      "help_url": "https://github.com/alexbatalov/fallout1-ce/tree/a8c37ea47f3dd1c60bd1fa56b82e688ab4643856",
+      "steps": [
+        {
+          "title": "Use the actual Community Edition player",
+          "instruction": "Keep a complete already permitted Fallout Community Edition 1.1.0 Windows x64 copy and its supported original Fallout installation. Upstream documents fallout-ce.exe as the drop-in player in that game folder. Select it directly, not the original DOS/Windows executable, installer or another mod engine. Native Windows entry runs the game in the selected process; it uses the shared GNW95MUTEX and can decline to start when another such instance exists."
+        },
+        {
+          "title": "Prepare original data with upstream tools",
+          "instruction": "Finish the upstream setup using your own complete supported original game installation, with original master.dat/critter.dat, patch/data/music and all other necessary files. Keep the whole working game and data rather than reconstruct a guessed minimal folder. Start/quit upstream normally before registration. Portcove does not import or authenticate those originals or private outputs."
+        },
+        {
+          "title": "Preserve the established working directory and config",
+          "instruction": "Select the actual game folder as working directory and preserve supported existing literal arguments. Windows entry does not change directory for you. fallout.cfg is located using the executable path; actual master/critter DAT, patch and music locations can be relative or custom absolute paths. Keep the exact established paths rather than rewriting a host root or forcing a new portable profile. Review consent and choose Play separately."
+        },
+        {
+          "title": "Keep the separate license and asset boundaries",
+          "instruction": "The selected engine uses Sustainable Use License 1.0, not GPL/MIT. Its personal/noncommercial/internal-business scope, free noncommercial distribution conditions and notices remain applicable. This guide adds no general commercial, original-asset, mod, repackaging or redistribution grant; attach only a copy you are already permitted to use."
+        },
+        {
+          "title": "Update the game and remove its registration",
+          "instruction": "Close every running copy before changing external files. You manage setup, game replacement, profile changes, data migration and recovery. Keep the working game version and every data folder, update it with the project’s tools, then review and select the changed executable before choosing Play. Portcove monitors only the process you selected and agreed to launch. It does not prevent other copies from running, restrict file access or take over unrelated helpers or replacement processes. Removing the registration leaves external files in place. This route does not offer Portcove downloads, setup, updates, backups, rollback, data migration or deletion."
+        }
+      ],
+      "warnings": [
+        "Use only a copy and content you are already permitted to use. These instructions do not establish permission for the original game or other components, or confirm the resulting game files.",
+        "These instructions do not confirm gameplay, saving, mods, network play, physical controls or behavior on other platforms.",
+        "Before updating the game, keep a recoverable copy of its working files and every location containing saved data. Another game folder may use the same profile.",
+        "Retain every configured external root and old creating copy; another executable directory alone does not prove save or instance isolation. No arbitrary Fallout mod or cross-version save compatibility is established."
+      ],
+      "references": [
+        {
+          "title": "Keep all actual save and data roots",
+          "instruction": "Preserve the complete external runtime/original data, fallout.cfg, actual master_patches/data root including SAVEGAME and slot contents, music, mods, screenshots/logs and unknown files. Retain every configured external root and old creating copy; another executable directory alone does not prove save or instance isolation. No arbitrary Fallout mod or cross-version save compatibility is established."
+        }
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

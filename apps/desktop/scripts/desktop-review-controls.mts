@@ -9,6 +9,20 @@ import { writeFile } from "node:fs/promises";
 import axe from "axe-core";
 import { By, Key, until } from "selenium-webdriver";
 
+/** Reveal the retained log through its real enclosing disclosure. */
+export async function preparationLogControl(browser: WebDriver, row: WebElement) {
+  const taskDetails = await row.findElement(
+    By.xpath('.//summary[normalize-space(.)="Task details"]'),
+  );
+  const details = await taskDetails.findElement(By.xpath(".."));
+  if ((await details.getAttribute("open")) === null) await clickVisible(browser, taskDetails);
+  const log = await row.findElement(
+    By.xpath('.//summary[normalize-space(.)="View preparation log"]'),
+  );
+  await browser.wait(until.elementIsVisible(log), 5_000);
+  return log;
+}
+
 /** Reveal the real panel through its tab; scrolling cannot reveal hidden content. */
 export async function revealDetailSection(
   browser: WebDriver,
@@ -83,6 +97,21 @@ async function catalogPortGroup(browser: WebDriver, portId: string): Promise<Web
 
 /** Use the real single-port action or comparison dialog, never a direct state change. */
 export async function selectCatalogPort(browser: WebDriver, portId: string) {
+  // Search and filter results re-render after input, which can replace the
+  // located group between lookup and click. Opening a port's detail is
+  // non-mutating, so re-locate a bounded number of times on a stale reference.
+  for (let attempt = 1; ; attempt++) {
+    try {
+      return await selectCatalogPortOnce(browser, portId);
+    } catch (error) {
+      if (!(error instanceof Error && error.name === "StaleElementReferenceError") || attempt >= 3)
+        throw error;
+      await new Promise((resolve) => setTimeout(resolve, 250));
+    }
+  }
+}
+
+async function selectCatalogPortOnce(browser: WebDriver, portId: string) {
   const group = await catalogPortGroup(browser, portId);
   const matching = decodeDiscoverPortIds(
     await group.getAttribute("data-discover-matching-port-ids"),
@@ -123,7 +152,7 @@ export async function catalogResultPortIds(browser: WebDriver): Promise<string[]
 
 export async function openCatalogFilters(browser: WebDriver) {
   const trigger = await browser.wait(
-    until.elementLocated(By.xpath('//button[starts-with(normalize-space(.),"Filters (")]')),
+    until.elementLocated(By.xpath('//button[starts-with(@aria-label,"Filters (")]')),
     15_000,
   );
   if ((await trigger.getAttribute("aria-expanded")) !== "true")
@@ -251,14 +280,27 @@ export async function selectPrimaryNavigation(
   const locator = By.xpath(
     `//nav[@aria-label="Primary navigation"]//button[.//span[normalize-space(.)="${label}"]]`,
   );
-  const visibleDestination = async () => {
+  const renderedDestination = async () => {
     for (const candidate of await browser.findElements(locator)) {
-      if (await candidate.isDisplayed()) return candidate;
+      // A wide navigation item can be clipped by document scrolling. Choose its
+      // rendered route before clickVisible reveals it; responsive display:none
+      // destinations still require the shipping narrow sheet.
+      if (
+        await executeBrowserScript(
+          browser,
+          (element) =>
+            element.getClientRects().length > 0 &&
+            getComputedStyle(element).visibility !== "hidden" &&
+            !element.closest("[hidden], [inert]"),
+          candidate,
+        )
+      )
+        return candidate;
     }
     return undefined;
   };
   await browser.wait(until.elementLocated(By.css('nav[aria-label="Primary navigation"]')), 15_000);
-  let destination = await visibleDestination();
+  let destination = await renderedDestination();
   if (!destination) {
     const trigger = await browser.wait(
       until.elementLocated(By.css('button[aria-label="Open navigation"]')),
@@ -266,7 +308,7 @@ export async function selectPrimaryNavigation(
     );
     await clickVisible(browser, trigger);
     await browser.wait(async () => {
-      destination = await visibleDestination();
+      destination = await renderedDestination();
       return Boolean(destination);
     }, 5_000);
   }
@@ -281,6 +323,18 @@ export async function selectPrimaryNavigation(
     "The narrow navigation sheet must close after choosing a destination",
   );
 }
+
+// The detail hero, the Game files review opener and the review confirmation all
+// read "Finish setup"; these name the tab's opener and the dialog's confirmation
+// by their owning region instead of by label alone.
+export const setupReviewButton = () =>
+  By.xpath(
+    '//section[@aria-label="Finish setup"]//button[normalize-space(.)="Finish setup" and not(@hidden) and not(ancestor::*[@hidden or @inert])]',
+  );
+export const setupConfirmButton = () =>
+  By.xpath(
+    '//*[@aria-labelledby="preparation-review-title"]//button[normalize-space(.)="Finish setup"]',
+  );
 
 export function reviewControls(browser: WebDriver) {
   return {
@@ -375,6 +429,20 @@ export async function assertCompactReview(browser: WebDriver, selector: string) 
                 element.getBoundingClientRect().right > bounds.right + 1,
             )
             .slice(0, 30)
+            .map(geometry),
+          // Outermost page elements past the viewport, outside the review, so a
+          // page-level reflow failure names its source.
+          pageOverflowing: [...document.body.querySelectorAll("*")]
+            .filter(
+              (element) =>
+                !review.contains(element) &&
+                element.getBoundingClientRect().right > window.innerWidth + 1 &&
+                !(
+                  element.parentElement &&
+                  element.parentElement.getBoundingClientRect().right > window.innerWidth + 1
+                ),
+            )
+            .slice(0, 10)
             .map(geometry),
         },
       };
@@ -483,7 +551,12 @@ export async function observeAccessibility(browser: WebDriver): Promise<unknown>
       typeof injected.run !== "function"
     )
       throw new Error("Accessibility engine was not injected");
-    const result: unknown = Reflect.apply(injected.run, injected, []);
+    // Full node detail only where a finding is reported: passing rules keep one
+    // example node each, so a whole-catalog page stays inside the evidence bound.
+    const result: unknown = Reflect.apply(injected.run, injected, [
+      document,
+      { resultTypes: ["violations", "incomplete"] },
+    ]);
     return Promise.resolve(result).then(done);
   });
 }

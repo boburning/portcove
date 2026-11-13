@@ -10,6 +10,7 @@ import { isRecord } from "./runtime-values.mts";
 
 import { readFile, mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
 import test from "node:test";
+import { runInNewContext } from "node:vm";
 
 import { parseDocument } from "yaml";
 import { spawnSync } from "node:child_process";
@@ -318,7 +319,7 @@ void test("screenshot-only diagnostic is manual, preserves failure guards and ve
       isRecord(step) && step.name === "Verify all three packets and original step outcomes",
   );
   assert.ok(isRecord(final) && typeof final.run === "string");
-  assert.match(final.run, /attempts\/\$GITHUB_RUN_ATTEMPT\/jobs\?per_page=100/u);
+  assert.match(final.run, /"\$RUNNER_TEMP\/browser-custody-jobs\.json"/u);
   assert.match(
     final.run,
     /browser-runtime\.mts verify-screenshot-only work\/downloaded-browser-custody/u,
@@ -356,7 +357,6 @@ void test("maintained first-party sources default to checked TypeScript", () => 
   assert.equal(inventory.status, 0, inventory.stderr);
   assert.deepEqual(inventory.stdout.split("\0").filter(Boolean).sort(), [
     "apps/desktop/public/theme-bootstrap.js",
-    "apps/desktop/stylelint.config.mjs",
   ]);
 });
 
@@ -697,7 +697,34 @@ for (const closeFails of [false, true]) {
 
 void test("native recovery and Unix custody changes retain macOS no-global portability coverage", () => {
   const job = workflowJob("frontend_portability");
-  assert.equal(job["runs-on"], "macos-26");
+  assert.equal(job["runs-on"], "macos-15");
+  assert.ok(Array.isArray(job.steps));
+  const hostStep: unknown = job.steps.find(
+    (step) => isRecord(step) && step.name === "Verify the contributor route has no global Vite+",
+  );
+  assert.ok(isRecord(hostStep) && typeof hostStep.run === "string");
+  const guard = hostStep.run.match(/^node -e '([^']+)'$/mu)?.[1];
+  assert.ok(guard);
+  assert.match(hostStep.run, /^sw_vers$/mu);
+  const observations: string[] = [];
+  runInNewContext(guard, {
+    process: { platform: "darwin", arch: "arm64" },
+    console: { log: (value: string) => observations.push(value) },
+  });
+  assert.deepEqual(JSON.parse(observations[0]!), { platform: "darwin", arch: "arm64" });
+  for (const process of [
+    { platform: "linux", arch: "arm64" },
+    { platform: "darwin", arch: "x64" },
+    { platform: "win32", arch: "x64" },
+  ])
+    assert.throws(
+      () =>
+        runInNewContext(guard, {
+          process,
+          console: { log: () => assert.fail("refused host logged success") },
+        }),
+      /Expected macOS ARM64/u,
+    );
   assert.equal(job["timeout-minutes"], 25);
   assert.ok(typeof job.if === "string");
   const ordinaryInputs = Array.from(
@@ -732,7 +759,7 @@ const frontendToolInputs = [
 function assertFrontendToolInputs(tasks: unknown) {
   assert.ok(isRecord(tasks));
   for (const [name, input] of frontendToolInputs) {
-    const task = tasks[name];
+    const task: unknown = tasks[name];
     assert.ok(isRecord(task));
     const commands: unknown[] = Array.isArray(task.command) ? task.command : [task.command];
     const invocations = commands.flatMap((command) => {
@@ -771,7 +798,7 @@ void test("actual frontend task inputs tolerate declaration layout and reject mi
   const copyTasks = (): Record<string, unknown> =>
     Object.fromEntries(
       [...new Set(frontendToolInputs.map(([name]) => name))].map((name) => {
-        const task = tasks[name];
+        const task: unknown = tasks[name];
         assert.ok(isRecord(task));
         return [
           name,
@@ -939,3 +966,92 @@ void test(
     }
   },
 );
+
+void test("browser shards, the main frontend job and the gate share one classifier flag", () => {
+  const settings: unknown = parseDocument(workflow, { uniqueKeys: true }).toJS();
+  assert.ok(isRecord(settings) && isRecord(settings.jobs));
+  const jobs = settings.jobs;
+  const flag = "${{ needs.classify.outputs.frontend_browser_shards }}";
+  const record = (value: unknown) => {
+    assert.ok(isRecord(value));
+    return value;
+  };
+
+  const classify = record(jobs.classify);
+  assert.equal(
+    record(classify.outputs).frontend_browser_shards,
+    "${{ steps.plan.outputs.frontend_browser_shards }}",
+  );
+
+  // The main job learns from the same flag that gates the shard job.
+  const main = record(jobs.fast_frontend);
+  assert.equal(record(main.env).PORTCOVE_FRONTEND_BROWSER_SHARDED, flag);
+
+  const shard = record(jobs.fast_frontend_browser);
+  assert.equal(shard.needs, "classify");
+  assert.equal(shard["runs-on"], main["runs-on"]);
+  const condition = String(shard.if);
+  assert.match(condition, /needs\.classify\.outputs\.mode == 'fast'/u);
+  assert.match(
+    condition,
+    /contains\(fromJSON\(needs\.classify\.outputs\.groups_json\), 'frontend'\)/u,
+  );
+  assert.match(
+    condition,
+    /!contains\(fromJSON\(needs\.classify\.outputs\.reused_groups\), 'frontend'\)/u,
+  );
+  assert.match(condition, /needs\.classify\.outputs\.frontend_browser_shards == 'true'/u);
+
+  // Every shard must run: the count is the matrix length, never a separate constant.
+  const strategy = record(shard.strategy);
+  assert.equal(strategy["fail-fast"], false);
+  const shards: unknown = record(strategy.matrix).shard;
+  assert.ok(Array.isArray(shards) && shards.length >= 2);
+  assert.deepEqual(
+    shards,
+    shards.map((_: unknown, index: number) => index + 1),
+  );
+  assert.equal(
+    record(shard.env).PORTCOVE_BROWSER_SHARD,
+    "${{ matrix.shard }}/${{ strategy.job-total }}",
+  );
+  assert.equal(
+    record(shard.env).PORTCOVE_PLAN_GZIP_BASE64,
+    record(main.env).PORTCOVE_PLAN_GZIP_BASE64,
+  );
+  assert.ok(Array.isArray(shard.steps));
+  const commands = shard.steps.map((step: unknown) => {
+    const run = record(step).run;
+    return typeof run === "string" ? run : "";
+  });
+  assert.equal(
+    commands.filter((run: string) => run.includes("ci-baseline.mts frontend-browser")).length,
+    1,
+  );
+  assert.ok(
+    shard.steps.some(
+      (step: unknown) =>
+        record(step).uses === "./.github/actions/retain-browser-diagnostics" &&
+        record(step).if === "always()" &&
+        String(record(record(step).with).name).includes("${{ matrix.shard }}"),
+    ),
+    "every shard retains its own browser diagnostics",
+  );
+
+  // The required frontend gate waits for the shards and demands their result.
+  const gate = record(jobs.frontend);
+  assert.ok(Array.isArray(gate.needs) && gate.needs.includes("fast_frontend_browser"));
+  assert.ok(Array.isArray(gate.steps));
+  const gateEnv = gate.steps
+    .map((step: unknown) => record(step).env)
+    .find((env: unknown) => isRecord(env) && env.PORTCOVE_GROUP === "frontend");
+  assert.ok(isRecord(gateEnv));
+  assert.equal(gateEnv.PORTCOVE_FRONTEND_BROWSER_SHARDED, flag);
+  assert.equal(
+    gateEnv.PORTCOVE_TARGETED_RESULTS,
+    '{"fast_frontend_browser":"${{ needs.fast_frontend_browser.result }}"}',
+  );
+
+  // Qualification keeps its complete, unsharded producer.
+  assert.ok(!JSON.stringify(jobs.frontend_full).includes("fast_frontend_browser"));
+});

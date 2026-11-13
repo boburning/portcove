@@ -247,9 +247,9 @@ it.each(["dark", "light"])(
       .filter({ has: page.getByRole("heading", { name: "Complete game", exact: true }) });
     await userEvent.click(card);
     await expect
-      .element(page.getByRole("region", { name: "Catalog game-file observation" }))
+      .element(page.getByRole("region", { name: "Game-file filter results" }))
       .toBeInTheDocument();
-    const explanation = document.querySelector('[aria-label="Catalog game-file observation"]')!;
+    const explanation = document.querySelector('[aria-label="Game-file filter results"]')!;
     expect(explanation.textContent).toContain("Managed setup · Windows · Stable");
     expect(explanation.textContent).toContain("profile / variant / complete-set");
     await expect
@@ -260,7 +260,7 @@ it.each(["dark", "light"])(
     await userEvent.keyboard("{Enter}");
     await expect.element(card).toHaveFocus();
     await expect
-      .element(button("Remove Compatible complete files available filter"))
+      .element(button("Remove Game files: Compatible complete files available filter"))
       .toBeInTheDocument();
     await userEvent.fill(page.getByRole("textbox", { name: "Search catalog" }), "no match");
     await openAdvancedFilters("Filters (1)");
@@ -281,17 +281,17 @@ it("retains unavailable choices across library invalidation, persistence and iso
   await closeFilters();
   await openDiscoverPort("checking");
   await expect
-    .element(page.getByRole("region", { name: "Catalog game-file observation" }))
+    .element(page.getByRole("region", { name: "Game-file filter results" }))
     .toBeInTheDocument();
-  expect(
-    document.querySelector('[aria-label="Catalog game-file observation"]')?.textContent,
-  ).toContain("files are not confirmed missing");
+  expect(document.querySelector('[aria-label="Game-file filter results"]')?.textContent).toContain(
+    "They are not confirmed missing.",
+  );
   await userEvent.click(button("Invalidate library observation"));
   await expect
-    .element(page.getByRole("region", { name: "Catalog game-file observation" }))
+    .element(page.getByRole("region", { name: "Game-file filter results" }))
     .not.toBeInTheDocument();
   await userEvent.click(button("Back to previous workspace"));
-  await expect.element(button("Remove Needs checking filter")).toBeInTheDocument();
+  await expect.element(button("Remove Game files: Needs checking filter")).toBeInTheDocument();
   await openAdvancedFilters("Filters (1)");
   await expect
     .element(await filterChoice("Needs checking (unavailable)"))
@@ -304,12 +304,14 @@ it("retains unavailable choices across library invalidation, persistence and iso
   flushSync(() => root.unmount());
   root = createRoot(host);
   flushSync(() => root.render(<Fixture />));
-  await expect.element(button("Remove Needs checking filter")).toBeInTheDocument();
+  await expect.element(button("Remove Game files: Needs checking filter")).toBeInTheDocument();
   noAdditionalChecks();
   document
-    .querySelector<HTMLButtonElement>('button[aria-label="Remove Needs checking filter"]')!
+    .querySelector<HTMLButtonElement>(
+      'button[aria-label="Remove Game files: Needs checking filter"]',
+    )!
     .focus();
-  await expect.element(button("Remove Needs checking filter")).toHaveFocus();
+  await expect.element(button("Remove Game files: Needs checking filter")).toHaveFocus();
   await userEvent.keyboard("{Enter}");
   await expect.element(button("Filters (0)")).toHaveFocus();
 });
@@ -325,7 +327,7 @@ it.each(["dark", "light"])(
     await closeFilters();
     await openDiscoverPort("complete");
     await expect.element(page.getByLabelText("Catalog check history")).toBeInTheDocument();
-    await userEvent.click(button("Check selected route game files"));
+    await userEvent.click(button("Check files for this option"));
     await expect.element(page.getByLabelText("Selected-route check history")).toBeInTheDocument();
     await userEvent.click(button("Back to previous workspace"));
     await openDiscoverPort("complete");
@@ -358,7 +360,7 @@ it.each(["dark", "light"])(
     monotonic.mockReturnValue(301001);
     flushSync(() => root.render(<Fixture />));
     await expect
-      .element(page.getByRole("region", { name: "Catalog game-file observation" }))
+      .element(page.getByRole("region", { name: "Game-file filter results" }))
       .not.toBeInTheDocument();
     const metadata = document.querySelector('[aria-label="Catalog check history"]')!;
     expect(metadata.textContent).toContain("Previous check");

@@ -1,10 +1,7 @@
 import { openSync, fstatSync, readFileSync, closeSync, writeSync } from "node:fs";
 import path from "node:path";
 import { isRecord } from "./runtime-values.mts";
-import {
-  createSemanticSnapshotRpc,
-  inspectSemanticReaderIndex,
-} from "./release-semantic-reader-core.mts";
+import { createMaterializedSemanticReaderRpc } from "./release-semantic-reader-core.mts";
 
 // Fixed stdio child. No caller-selected tools, paths, URLs, imports or commands.
 // Parent supplies one protected payload path and its independently held hash.
@@ -20,12 +17,14 @@ try {
 } finally {
   closeSync(descriptor);
 }
-const dispatch = createSemanticSnapshotRpc(inspectSemanticReaderIndex(bytes, process.argv[3]!));
+const dispatch = createMaterializedSemanticReaderRpc(bytes, process.argv[3]!);
 // Refuse a bounded individual request without dropping its transport. Only
 // fixed public reasons are returned; lifetime/resource failures remain terminal.
 const requestRefusals = new Set([
   "unauthorized reader operation",
   "reader path absent from frozen snapshot",
+  "reader page absent from frozen partition",
+  "reader page outside frozen assignment",
   "path is not in the frozen net delta",
   "unsupported frozen-reader transport metadata",
   "unauthorized reader protocol operation",

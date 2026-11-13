@@ -28,7 +28,7 @@ export interface UpstreamLineage {
   origin: UpstreamIdentity;
   decisions: LineageDecision[];
 }
-interface PortIdentity {
+export interface PortIdentity {
   listing: { id: string; project_url: string; issue_number?: number };
   upstream_lineage?: UpstreamLineage;
 }
@@ -314,6 +314,22 @@ export function checkLineageChange(before: PortIdentity, after: PortIdentity) {
   return proposed;
 }
 
+/**
+ * The implementation identities a record retains: one URL key and, when known,
+ * one immutable repository key per upstream in its lineage history, each
+ * scoped to the lineage target. A record without lineage retains none.
+ */
+export function lineageIdentityKeys(record: PortIdentity) {
+  const lineage = record.upstream_lineage;
+  if (!lineage) return [];
+  return assessUpstreamLineage(record).history.flatMap((upstream) => [
+    `url:${identityUrl(upstream.project_url)}:${lineage.target_key}`,
+    ...(upstream.repository
+      ? [`repository:${upstream.repository.host}:${upstream.repository.id}:${lineage.target_key}`]
+      : []),
+  ]);
+}
+
 /** Known aliases are unique per target, while separate games may share one repository. */
 export function checkLineageIdentities(records: readonly PortIdentity[]) {
   const issues = new Map<number, string>();
@@ -343,18 +359,11 @@ export function checkLineageIdentities(records: readonly PortIdentity[]) {
           "Parallel implementation destination differs from its retained upstream identity.",
         );
     }
-    for (const upstream of assessment.history) {
-      const keys = [`url:${identityUrl(upstream.project_url)}:${lineage.target_key}`];
-      if (upstream.repository)
-        keys.push(
-          `repository:${upstream.repository.host}:${upstream.repository.id}:${lineage.target_key}`,
-        );
-      for (const key of keys) {
-        const existing = identities.get(key);
-        if (existing && existing !== id)
-          throw new Error(`Duplicate upstream implementation for ${existing} and ${id}.`);
-        identities.set(key, id);
-      }
+    for (const key of lineageIdentityKeys(record)) {
+      const existing = identities.get(key);
+      if (existing && existing !== id)
+        throw new Error(`Duplicate upstream implementation for ${existing} and ${id}.`);
+      identities.set(key, id);
     }
   }
 }

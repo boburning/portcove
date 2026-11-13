@@ -11,80 +11,30 @@ pub(crate) fn recover_published_install(
     store: &OperationStore,
     operation: &mut LifecycleOperation,
 ) -> Result<()> {
-    if let Some(expected) = &operation.external_registration_sha256
-        && (operation.kind != LifecycleOperationKind::Install
-            || !operation.activate
-            || expected.len() != 64
-            || !expected
-                .bytes()
-                .all(|byte| byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase()))
-    {
-        return Err(PortcoveError::state(
-            "external replacement journal has an invalid owner or registration identity",
-        ));
-    }
-    // Recovery holds the journal owner's lock, not a lock inferred from its payload.
-    // Verify that authority before publishing, registering, or cleaning any tree.
-    if let Some(install) = &operation.install
-        && install.port_id != operation.port_id
-    {
-        return Err(PortcoveError::state(
-            "publication install owner differs from its journal owner",
-        ));
-    }
-    if let (Some(install), Some(destination)) = (&operation.install, &operation.paths.final_path)
-        && destination != &install.path
-    {
-        return Err(PortcoveError::state(
-            "publication install destination differs from its journal destination",
-        ));
-    }
-    if matches!(
-        operation.kind,
-        LifecycleOperationKind::Install | LifecycleOperationKind::Adopt
-    ) && operation.preparation.is_some()
-    {
-        return Err(PortcoveError::state(
-            "publication operation kind does not own its preparation payload",
-        ));
-    }
-    if matches!(
-        operation.kind,
-        LifecycleOperationKind::Install | LifecycleOperationKind::Adopt
-    ) && (operation.relocation.is_some()
-        || operation.source_import.is_some()
-        || !operation.original_paths.is_empty()
-        || operation.paths.quarantine.is_some())
-    {
-        return Err(PortcoveError::state(
-            "publication journal contains another lifecycle family's intent",
-        ));
-    }
+    // Failed private installation cleanup has no published install payload. Its
+    // existing cancellation interpreter owns that separate terminal path.
     if operation.phase == LifecyclePhase::CleanupPending && operation.install.is_none() {
+        crate::operation::publication::validate_envelope(operation)?;
         return crate::cancellation::discard_private_install_with_faults(
             &service.library,
             operation,
             service.lifecycle_faults(),
         );
     }
-    if operation.phase == LifecyclePhase::Preparing {
-        return Err(PortcoveError::state(
-            "private preparation was interrupted before validation",
-        ));
-    }
-    let install = operation.install.clone().ok_or_else(|| {
-        PortcoveError::state("recoverable publication is missing its install record")
-    })?;
-    let staging = operation.paths.staging.clone().ok_or_else(|| {
-        PortcoveError::state("recoverable publication is missing its staging path")
-    })?;
+    let mut operation =
+        crate::operation::publication::PublicationOperation::decode(&service.library, operation)?;
+    let install = operation
+        .install
+        .as_ref()
+        .expect("checked publication")
+        .clone();
+    let staging = operation
+        .paths
+        .staging
+        .as_ref()
+        .expect("checked publication")
+        .clone();
     let payload = staging.join("payload");
-    crate::output_root::validate_staging_path(
-        &service.library,
-        &operation.port_id,
-        &operation.id,
-        &staging,
-    )?;
     if operation.kind == LifecycleOperationKind::Adopt {
         crate::runtime_data_policy::refuse_sensitive_tree(&staging)?;
         crate::runtime_data_policy::refuse_sensitive_tree(&install.path)?;
@@ -122,7 +72,7 @@ pub(crate) fn recover_published_install(
                 })
             {
                 service.require_ghostship_staged_preparation_compatibility(
-                    operation,
+                    &operation,
                     &inspected,
                     active_version,
                 )?;
@@ -146,7 +96,7 @@ pub(crate) fn recover_published_install(
                         "prepared payload no longer matches its manifest",
                     ));
                 }
-                require_install_publication_authority(service, operation, &staged)?;
+                require_install_publication_authority(service, &operation, &staged)?;
                 crate::install::check_retained_runtime_paths(&staged, &install.path)?;
                 fs::create_dir_all(
                     install
@@ -157,7 +107,7 @@ pub(crate) fn recover_published_install(
                 crate::durability::rename_noreplace(&payload, &install.path)?;
             }
             (false, true) => {
-                require_install_publication_authority(service, operation, &install)?;
+                require_install_publication_authority(service, &operation, &install)?;
                 crate::install::check_retained_runtime_paths(&install, &install.path)?;
             }
             (true, true) => {
@@ -171,9 +121,7 @@ pub(crate) fn recover_published_install(
                 ));
             }
         }
-        operation.phase = LifecyclePhase::PayloadPublished;
-        operation.last_error = None;
-        store.put(operation)?;
+        operation.advance(LifecyclePhase::PayloadPublished, store)?;
         if operation.kind == LifecycleOperationKind::Prepare {
             service.check_lifecycle_fault(
                 crate::operation::LifecycleFaultPoint::PreparationPublished,
@@ -190,7 +138,7 @@ pub(crate) fn recover_published_install(
                 "published payload no longer matches its manifest",
             ));
         }
-        require_install_publication_authority(service, operation, &install)?;
+        require_install_publication_authority(service, &operation, &install)?;
         if operation.kind == LifecycleOperationKind::Prepare {
             let plan = operation.preparation.as_ref().ok_or_else(|| {
                 PortcoveError::state("prepared publication is missing its reviewed inputs")
@@ -207,6 +155,10 @@ pub(crate) fn recover_published_install(
                 .as_ref()
                 .is_some_and(|active| active.id == install.id)
             {
+                crate::managed_runtime_policy::require_managed_activation_available(
+                    service.catalog(),
+                    &install,
+                )?;
                 service.recover_managed_route_publication(&install, expected)?;
             } else if status.external_runtime.is_some() {
                 return Err(PortcoveError::conflict(
@@ -220,6 +172,10 @@ pub(crate) fn recover_published_install(
                 .active
                 .is_some_and(|active| active.id == install.id);
             if operation.activate && !already_active {
+                crate::managed_runtime_policy::require_managed_activation_available(
+                    service.catalog(),
+                    &install,
+                )?;
                 let installer = Installer::new(service.library.clone())?;
                 match installer.retained_catalog(&install)? {
                     Some(catalog)
@@ -249,9 +205,7 @@ pub(crate) fn recover_published_install(
                 .library
                 .register_install(&install, operation.activate)?;
         }
-        operation.phase = LifecyclePhase::MetadataCommitted;
-        operation.last_error = None;
-        store.put(operation)?;
+        operation.advance(LifecyclePhase::MetadataCommitted, store)?;
         if operation.kind == LifecycleOperationKind::Prepare {
             service.check_lifecycle_fault(
                 crate::operation::LifecycleFaultPoint::PreparationRegistered,
@@ -276,7 +230,7 @@ pub(crate) fn recover_published_install(
             {
                 crate::legacy_cartridge_cleanup::unlink_published_private_wininet_junction(
                     &service.library,
-                    operation,
+                    &operation,
                     &staging,
                 )?;
             }
@@ -497,7 +451,10 @@ pub(crate) fn recover_restore(
     let previous = restore.previous_data.clone();
     if restore.phase == RestorePhase::ReadyToPublish {
         if staged.exists() {
+            service.require_restore_snapshot_authority(operation, &staged)?;
             service.require_psx_restore_preflight(&operation.port_id, &staged)?;
+        } else if user_root.exists() {
+            service.require_restore_snapshot_authority(operation, &user_root)?;
         }
         if restore.replaces_existing_data {
             match (staged.exists(), user_root.exists(), previous.exists()) {
@@ -530,6 +487,7 @@ pub(crate) fn recover_restore(
         restore.phase,
         RestorePhase::Published | RestorePhase::Committed | RestorePhase::CleanupPending
     ) {
+        service.require_restore_snapshot_authority(operation, &user_root)?;
         service.synchronize_restored_user_data(&operation.port_id)?;
     }
     if restore.phase == RestorePhase::Published {
@@ -816,6 +774,10 @@ pub(crate) fn recover_activation(
                     "the staged install changed while activation was interrupted",
                 ));
             }
+            crate::managed_runtime_policy::require_managed_activation_available(
+                service.catalog(),
+                &install,
+            )?;
             service.require_ghostship_install_data_compatibility(
                 &install,
                 status.active.as_ref().map(|active| active.version.as_str()),
