@@ -87,6 +87,7 @@ mod preparation;
 mod process;
 mod provider_observation;
 mod providers;
+mod target_inspection;
 pub use provider_observation::inspect_provider_observation;
 mod disc_filesystem;
 mod disc_product;
@@ -417,6 +418,10 @@ pub use support_bundle_export::{
     SupportBundleReason, SupportBundleRequest, SupportBundleScope, SupportBundleSection,
     SupportBundleSectionKind, SupportBundleSectionStatus, export_support_bundle,
     prepare_support_log_directory,
+};
+pub use target_inspection::{
+    CatalogPresence, INSPECTABLE_PLATFORMS, MAX_INSPECTED_PORTS, PortTargetInspection,
+    TargetInspection, TargetRoute, TargetRoutes, Unassessed, inspect_targets,
 };
 pub use thunderstore::ThunderstoreClient;
 pub use types::*;
