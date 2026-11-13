@@ -529,7 +529,7 @@ fn owned_preparation(args: &[String]) {
         let positions = args.iter().enumerate().filter(|(_, arg)| *arg == "--owned-fixture-mode").map(|(index, _)| index).collect::<Vec<_>>();
         assert_eq!(positions.len(), 1, "duplicate owned fixture mode");
         let mode = args.get(positions[0] + 1).expect("missing owned fixture mode");
-        assert!(["success", "missing-marker", "unowned-output", "save-change", "executable-change", "failure", "wait"].contains(&mode.as_str()), "unknown owned fixture mode");
+        assert!(["success", "missing-marker", "unowned-output", "save-change", "executable-change", "failure", "wait", "hold"].contains(&mode.as_str()), "unknown owned fixture mode");
         mode.clone()
     } else {
         let Ok(mode) = fs::read_to_string("owned-setup-mode") else {

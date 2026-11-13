@@ -174,8 +174,7 @@ function ownedRuntimePicker(
           ? ["-PreparedRuntimeDirectory", directoryPath]
           : []),
       ],
-      // Covers the script's 30 s appearance poll and its observation.
-      { encoding: "utf8", windowsHide: true, timeout: 45_000 },
+      { encoding: "utf8", windowsHide: true, timeout: 15_000 },
     );
     return retainPickerResult({ output, artifacts }, name, before, result);
   };
