@@ -499,7 +499,9 @@ The payload replaces its shell with `exec` so runner cancellation reaches the
 supervised controller. GitHub may report the deadline as `cancelled`; the verifier
 requires its exact timeout annotation as well as the owned-process drain receipt.
 Main CI bounds metadata/aggregate jobs at 15 minutes, ordinary producers at
-45 minutes, and exhaustive producers at 120 minutes. Windows helpers have
+45 minutes, and exhaustive producers at 120 minutes. The Windows Rust build has
+60 minutes: with the optimized test profile a cold build took up to 37 minutes
+(run 43352622836) and a root-manifest edit forces one until `main` saves the cache. Windows helpers have
 15 minutes: run 43296962076 attempt 1 reached the earlier 10-minute limit in its last
 step on a slow runner and passed its one re-run in 8 minutes. The macOS no-global frontend route allows
 25 minutes for cold provider setup, its full browser stages and evidence retention;

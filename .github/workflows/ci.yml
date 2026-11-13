@@ -237,7 +237,11 @@ jobs:
           node scripts/check-ci-prose.mts
 
   fast_rust:
-    timeout-minutes: 45
+    # With the optimized test profile a cold workspace build compiles for 33.8 to 35.5
+    # minutes (43352707453, 43352622836, 43359545707; 37.0 minute job) and a root-manifest
+    # edit forces one until main saves the cache. A runner 25% slower would pass 45.
+    # Warm builds take 13 to 22 minutes. Finite room only; no step or assertion changes.
+    timeout-minutes: 60
     name: fast-rust-build (windows-x86_64)
     needs: classify
     outputs:
