@@ -339,6 +339,24 @@ node scripts/maintenance-inventory.mts collect --cli target/release/portcove --a
   - whether the latest Core run assessed it.
 - Search covers subject, name, game, target key and state. The page embeds only
   the fields it renders; `inventory.json` keeps every explanation.
+- **Games and implementations.** The report's universe (`universe` in
+  `inventory.json`, `scripts/maintenance-universe.mts`) lists every known
+  identity from facts the store already holds:
+  - `port:<id>` from authored records, with its canonical issue;
+  - `implementation:<key>` from each record's validated lineage history, using
+    the lineage contract's own keys (`lineageIdentityKeys`);
+  - `issue:<n>` for issues that name catalog IDs or port keys, so an
+    uncataloged implementation is searchable without a catalog entry;
+  - `intake:<request>` with its candidate port keys and linked work;
+  - `definition:<namespace>/<id>` from the publication source.
+
+  Canonical work, retained implementations, accepted fork, alternative and
+  independent decisions, and intake links are edges, never merges. Names and
+  titles only label entries. A record whose lineage does not validate keeps its
+  entry with an `identity_gap`. Entries sharing a lineage target group as one
+  game. The page searches entries by identity, name, game, port key or
+  relationship.
+
 - Each subject shows when it was last verified separately from when it last
   materially changed. Its policy, input digest and explanation come from the
   latest applicable assessment.

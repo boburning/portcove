@@ -30,6 +30,7 @@ import {
   runSql,
 } from "./maintenance-store.mts";
 import { portCatalogMarkers, portKeyMarkers } from "./roadmap-issue.mts";
+import { buildUniverse, type UniverseEntry } from "./maintenance-universe.mts";
 import {
   attentionConditions,
   readReleaseHealth,
@@ -1459,6 +1460,22 @@ SELECT json_build_object(
               WHERE r.source = 'definition-publication' AND r.coverage <> 'in_progress'
               ORDER BY o.subject_key, r.acquisition DESC, o.observation_id DESC) p
       WHERE p.payload <> portcove_maintenance.absent_payload()),
+  'universe_inputs', json_build_object(
+    'records', (SELECT coalesce(json_agg(lc.payload -> 'authored_record' ORDER BY lc.subject_key), '[]')
+                  FROM latest_catalog lc
+                 WHERE lc.payload <> portcove_maintenance.absent_payload()
+                   AND jsonb_typeof(lc.payload -> 'authored_record') = 'object'),
+    'issues', (SELECT coalesce(json_object_agg('issue:' || (i.payload ->> 'number'), i.payload), '{}')
+                 FROM present_issue i),
+    'intake', (SELECT coalesce(json_object_agg(h.subject_key, h.payload), '{}')
+                 FROM latest_hosted h WHERE h.payload <> portcove_maintenance.absent_payload()),
+    'definitions', (SELECT coalesce(json_agg(p.subject_key ORDER BY p.subject_key), '[]')
+      FROM (SELECT DISTINCT ON (o.subject_key) o.subject_key, o.payload
+              FROM portcove_maintenance.observations o
+              JOIN portcove_maintenance.collection_runs r ON r.run_id = o.run_id
+             WHERE r.source = 'definition-publication' AND r.coverage <> 'in_progress'
+             ORDER BY o.subject_key, r.acquisition DESC, o.observation_id DESC) p
+     WHERE p.payload <> portcove_maintenance.absent_payload())),
   'generation', (SELECT coalesce(max(acquisition), 0) FROM portcove_maintenance.collection_runs
       WHERE coverage <> 'in_progress'),
   'runs', (SELECT coalesce(json_agg(r ORDER BY r.source, r.acquisition DESC), '[]') FROM (
@@ -1546,6 +1563,11 @@ export interface InventoryReport {
    */
   generation: number;
   scope: "declared-sample" | "complete-authored-catalog";
+  /**
+   * Every known game and implementation from canonical identities, with their
+   * relationships as edges. Absent from reports made before #4129's universe.
+   */
+  universe?: UniverseEntry[];
   publication: {
     status: "unknown" | "observed";
     reason: string;
@@ -1572,6 +1594,12 @@ export interface HostedIntakeEntry {
 export function buildReport(environment: NodeJS.ProcessEnv, now = new Date()): InventoryReport {
   const data = JSON.parse(runSql(environment, reportQuery).trim()) as {
     generation: number;
+    universe_inputs: {
+      records: Parameters<typeof buildUniverse>[0]["records"];
+      issues: Record<string, unknown>;
+      intake: Record<string, unknown>;
+      definitions: string[];
+    };
     runs: unknown[];
     subjects: unknown[];
     unassessed_gaps: { subject_key: string; code: string; message: string }[];
@@ -1633,6 +1661,12 @@ export function buildReport(environment: NodeJS.ProcessEnv, now = new Date()): I
     generated_at: now.toISOString(),
     generation: data.generation,
     scope: catalogScope,
+    universe: buildUniverse({
+      records: data.universe_inputs.records,
+      issues: new Map(Object.entries(data.universe_inputs.issues)),
+      intake: new Map(Object.entries(data.universe_inputs.intake)),
+      definitions: data.universe_inputs.definitions,
+    }),
     publication: publicationRun
       ? {
           status: "observed",
@@ -1809,6 +1843,17 @@ export function renderHtml(report: InventoryReport) {
       }),
     ),
     unassessed_gaps: report.unassessed_gaps ?? [],
+    universe: (report.universe ?? []).map(
+      ({ key, kind, name, game, target_key, port_keys, relations, identity_gap }) => ({
+        key,
+        kind,
+        label: [name, game].filter(Boolean).join(" — "),
+        target_key,
+        port_keys,
+        relations: relations.map(({ type, key: related }) => `${type} ${related}`),
+        identity_gap,
+      }),
+    ),
   };
   const embedded = JSON.stringify(view).replace(/</gu, "\\u003c");
   return `<!doctype html>
@@ -1848,6 +1893,11 @@ ${report.unsupported_sources
 </tbody></table>
 ${hostedIntakeSection(report)}
 <p>Next actions are executor handoffs. Disabled: ${escapeHtml(disabledCapabilities.join("; "))}.</p>
+<h2>Games and implementations</h2>
+<p>Every known port, implementation identity, issue-only implementation, intake request and definition. Related entries are linked, never merged; names are labels, not identity.</p>
+<label for="universe-search">Search games and implementations</label>
+<input id="universe-search" type="search" placeholder="Name, game, port key or identity">
+<table><thead><tr><th>Identity</th><th>Kind</th><th>Name and game</th><th>Port keys</th><th>Related</th></tr></thead><tbody id="universe"></tbody></table>
 <h2>Subjects</h2>
 <label for="search">Search</label>
 <input id="search" type="search" placeholder="Port ID or state">
@@ -1872,6 +1922,21 @@ function render(filter) {
 }
 document.getElementById("search").addEventListener("input", (event) => render(event.target.value.trim().toLowerCase()));
 render("");
+const universe = document.getElementById("universe");
+function renderUniverse(filter) {
+  universe.replaceChildren();
+  const entries = report.universe ?? [];
+  for (const entry of entries) {
+    const text = [entry.key, entry.label, entry.target_key, ...entry.port_keys, ...entry.relations].join(" ").toLowerCase();
+    if (filter && !text.includes(filter)) continue;
+    const row = universe.insertRow();
+    for (const value of [entry.key, entry.kind, entry.label || "unnamed", entry.port_keys.join(", "), [...entry.relations, ...(entry.identity_gap ? ["identity unknown: " + entry.identity_gap] : [])].join("; ")])
+      row.insertCell().textContent = value;
+  }
+  if (!entries.length) universe.insertRow().insertCell().textContent = "No identities observed yet.";
+}
+document.getElementById("universe-search").addEventListener("input", (event) => renderUniverse(event.target.value.trim().toLowerCase()));
+renderUniverse("");
 </script>
 </body>
 </html>
