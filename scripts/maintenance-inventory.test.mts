@@ -2113,7 +2113,7 @@ void test(
     );
     assert.match(
       runs[0]!.revision,
-      /^cli-sha256:[0-9a-f]{64};source=unrecorded;producer-sha256=[0-9a-f]{16}$/u,
+      /^cli-sha256:[0-9a-f]{64};source=unrecorded;producer-sha256=[0-9a-f]{16};binding=unverified$/u,
       "bound to the assessing Core binary, with its unrecorded source visible",
     );
     const inventory = buildReport(store.owner);
@@ -2171,7 +2171,10 @@ void test(
         `SELECT source_revision FROM portcove_maintenance.collection_runs
           WHERE run_id = portcove_maintenance.latest_run('core-port-capabilities-${hostPlatform()}');`,
       ).trim(),
-      new RegExp(`^cli-sha256:[0-9a-f]{64};source=${head};producer-sha256=[0-9a-f]{16}$`, "u"),
+      new RegExp(
+        `^cli-sha256:[0-9a-f]{64};source=${head};producer-sha256=[0-9a-f]{16};binding=(verified|unverified)$`,
+        "u",
+      ),
     );
     assert.equal(transitions(), transitionsBefore, "a new binding is not a material change");
     // The source binding is verified only for a clean checkout's own revision, the
@@ -2198,27 +2201,33 @@ void test(
         }),
       );
       await all(true);
-      return JSON.parse(
-        runSql(
-          store.owner,
-          `SELECT json_build_object('binding', o.scope ->> 'cli_source_binding', 'revision', o.input_revision)
+      const row = runSql(
+        store.owner,
+        `SELECT json_build_object('binding', o.scope ->> 'cli_source_binding', 'revision', o.input_revision)
              FROM portcove_maintenance.observations o
             WHERE o.run_id = portcove_maintenance.latest_run('core-port-capabilities-${hostPlatform()}')
               AND o.subject_key = 'port:2ship2harkinian';`,
-        ),
-      ) as { binding: string; revision: string };
+      ).trim();
+      return (row ? JSON.parse(row) : null) as { binding: string; revision: string } | null;
     };
-    assert.equal((await binding({}, "a")).binding, clean ? "verified" : "unverified");
-    assert.equal((await binding({ catalog_override: true }, "b")).binding, "unverified");
+    assert.equal((await binding({}, "a"))?.binding, clean ? "verified" : "unverified");
+    // The same output from a different build writes no observation; the verifying
+    // run still states that build's binding, and the report shows it.
+    await binding({ features: ["qualification-fixtures"] }, "a");
+    const verifiedBy = (
+      buildReport(store.owner).subjects as { port_key: string; verified_by: string }[]
+    ).find(({ port_key }) => port_key === "port:2ship2harkinian")?.verified_by;
+    assert.match(verifiedBy ?? "", /;binding=unverified$/u);
+    assert.equal((await binding({ catalog_override: true }, "b"))?.binding, "unverified");
     assert.equal(
-      (await binding({ features: ["qualification-fixtures"] }, "c")).binding,
+      (await binding({ features: ["qualification-fixtures"] }, "c"))?.binding,
       "unverified",
     );
     const malformed = await binding({ source_revision: "x".repeat(150) }, "d");
-    assert.equal(malformed.binding, "unverified");
+    assert.equal(malformed?.binding, "unverified");
     assert.match(
-      malformed.revision,
-      /;source=unrecorded;producer-sha256=[0-9a-f]{16}$/u,
+      malformed?.revision ?? "",
+      /;source=unrecorded;producer-sha256=[0-9a-f]{16};binding=unverified$/u,
       "an invalid revision is never stored",
     );
     // A failed inspection is its own failed run; the earlier facts stay current.

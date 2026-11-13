@@ -304,10 +304,10 @@ interface Route {
   features: Feature[];
 }
 
-/** Project Core's report without reinterpreting it: routes, features, modes and Core's own words. */
 /** Bump when `capabilityResult` changes how a Core report becomes a state or explanation. */
 export const capabilityProjectionVersion = 1;
 
+/** Project Core's report without reinterpreting it: routes, features, modes and Core's own words. */
 export function capabilityResult(observation: CapabilityObservation) {
   if (!observation.ok)
     return {
@@ -867,9 +867,19 @@ export function collectionSql(input: {
   // The policy names only this projection of Core's report: the assessment input is
   // Core's own output, so any change in Core behavior is a new input and a new
   // assessment, while a rebuild with identical behavior writes no new rows.
+  // Verified only for a clean checkout's own revision, the compiled catalog and no
+  // behavior-changing features; otherwise the build's claim stays a claim. The run
+  // carries it, so the verifying run states it even when no observation changed.
+  const sourceBinding =
+    input.producer?.source_revision === input.revision &&
+    input.coreSourceClean === true &&
+    !input.producer.catalog_override &&
+    input.producer.features.length === 0
+      ? "verified"
+      : "unverified";
   const coreRevision = `cli-sha256:${input.cliSha256}${
     input.producer
-      ? `;source=${input.producer.source_revision ?? "unrecorded"};producer-sha256=${sha256(canonicalJson(input.producer)).slice(0, 16)}`
+      ? `;source=${input.producer.source_revision ?? "unrecorded"};producer-sha256=${sha256(canonicalJson(input.producer)).slice(0, 16)};binding=${sourceBinding}`
       : ""
   }`;
   const policy = `port-capabilities;api=${input.apiSchema};projection=${capabilityProjectionVersion}`;
@@ -947,15 +957,7 @@ export function collectionSql(input: {
         source: coreSource,
         host_platform: input.platform,
         isolation: isolationScope,
-        // Verified only for a clean checkout's own revision, the compiled catalog
-        // and no behavior-changing features; otherwise the build's claim stays a claim.
-        cli_source_binding:
-          input.producer?.source_revision === input.revision &&
-          input.coreSourceClean === true &&
-          !input.producer.catalog_override &&
-          input.producer.features.length === 0
-            ? "verified"
-            : "unverified",
+        cli_source_binding: sourceBinding,
       },
       revision: coreRevision,
       payload: capabilityFact,
@@ -1712,6 +1714,9 @@ SELECT json_build_object(
         -- Last material transition, separate from the latest applicable assessment and verification.
         c.updated_at AS changed_at, c.updated_at, c.assessment_id AS transition_assessment_id,
         c.applicable_assessment_id AS assessment_id, c.verified_at, c.verified_run_id,
+        -- The binary, source and binding of the run that last verified this subject.
+        (SELECT r.source_revision FROM portcove_maintenance.collection_runs r
+          WHERE r.run_id = c.verified_run_id) AS verified_by,
         (SELECT json_agg(json_build_object('sequence', t.sequence, 'state', t.state, 'recorded_at', t.recorded_at,
                  'returns_to_earlier_result', t.returns_to_earlier_result) ORDER BY t.sequence)
            FROM portcove_maintenance.subject_transitions t WHERE t.subject_key = c.subject_key) AS history,
