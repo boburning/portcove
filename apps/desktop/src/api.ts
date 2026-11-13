@@ -153,6 +153,12 @@ export type DesktopArtworkThumbnail = Pick<ArtworkThumbnail, "asset_sha256" | "c
   png_base64: string;
 };
 
+/** Explicit player choices bound into a reviewed save import. */
+export interface PortableSaveChoices {
+  removeLocalOnlySaves: boolean;
+  replaceDivergedProgress: boolean;
+}
+
 export const desktopApi = {
   gameSettings: (portId: string, generation: number) =>
     invoke<import("./types").GameSettingsView>("get_game_settings", { portId, generation }),
@@ -738,6 +744,49 @@ export const desktopApi = {
     invoke<RestoreResult | null>("restore_backup", {
       portId,
       backupId,
+      expectedPreview,
+      generation,
+    }),
+  previewPortableSaveExport: (portId: string, generation: number) =>
+    invoke<import("./types").PortableSaveExportPreview>("preview_portable_save_export", {
+      portId,
+      generation,
+    }),
+  exportPortableSaves: (
+    portId: string,
+    path: string,
+    expectedContent: string,
+    generation: number,
+  ) =>
+    invoke<import("./types").PortableSaveExportResult>("export_portable_saves", {
+      portId,
+      path,
+      expectedContent,
+      generation,
+    }),
+  previewPortableSaveImport: (
+    portId: string,
+    path: string,
+    choices: PortableSaveChoices,
+    generation: number,
+  ) =>
+    invoke<import("./types").PortableSaveImportPreview>("preview_portable_save_import", {
+      portId,
+      path,
+      ...choices,
+      generation,
+    }),
+  importPortableSaves: (
+    portId: string,
+    path: string,
+    choices: PortableSaveChoices,
+    expectedPreview: string,
+    generation: number,
+  ) =>
+    invoke<import("./types").PortableSaveImportResult | null>("import_portable_saves", {
+      portId,
+      path,
+      ...choices,
       expectedPreview,
       generation,
     }),

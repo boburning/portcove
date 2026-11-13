@@ -57,6 +57,7 @@ mod managed_install_review;
 mod mod_setup_commands;
 mod organization_commands;
 mod output_location;
+mod portable_saves_commands;
 mod preparation;
 mod removal;
 #[cfg(any(windows, target_os = "linux"))]
@@ -3220,6 +3221,10 @@ pub fn run() -> std::process::ExitCode {
             artwork::reset_artwork,
             backup_review::restore_backup,
             backup_review::delete_backup,
+            portable_saves_commands::preview_portable_save_export,
+            portable_saves_commands::export_portable_saves,
+            portable_saves_commands::preview_portable_save_import,
+            portable_saves_commands::import_portable_saves,
             inspect_source,
             review_source_reuse,
             inspect_source_intake,

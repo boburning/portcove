@@ -105,6 +105,10 @@ export type CatalogBrowsingContext = CatalogBrowsingSnapshot["contexts"][number]
 export type LocalePreferenceSnapshot = Generated.TransportOutputs["desktop_locale_preference"];
 
 export type BackupRecord = Generated.TransportOutputs["backup"];
+export type PortableSaveExportPreview = Generated.TransportOutputs["portable_save_export_preview"];
+export type PortableSaveExportResult = Generated.TransportOutputs["portable_save_export_result"];
+export type PortableSaveImportPreview = Generated.TransportOutputs["portable_save_import_preview"];
+export type PortableSaveImportResult = Generated.TransportOutputs["portable_save_import_result"];
 
 export type { BackupProblem } from "./transport-types.generated";
 
