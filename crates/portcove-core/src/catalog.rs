@@ -5966,9 +5966,15 @@ mod tests {
             assert_eq!(contracts.len(), 2);
             for contract in contracts {
                 assert_eq!(contract["admission_mode"], "enforced");
-                assert_eq!(contract["authority_ref"], commit);
+                // The reviewed v0.1.1 kits stay first. The v0.1.2 kits that
+                // replaced SCPH-5552 with SCPH-1001 are appended after them,
+                // and the BIOS binding is now reviewed at that later commit.
+                let applicability = contract["applicability"].as_array().unwrap();
+                assert_eq!(applicability.len(), 4, "{id}");
+                assert_eq!(applicability[2]["upstream_ref"], "v0.1.2");
+                assert_eq!(applicability[3]["upstream_ref"], "v0.1.2");
                 assert_eq!(
-                    contract["applicability"],
+                    serde_json::json!(applicability[..2]),
                     serde_json::json!([
                         { "upstream_ref": "v0.1.1", "artifact_sha256": sha256 },
                         {
@@ -5978,6 +5984,7 @@ mod tests {
                     ])
                 );
                 if contract["role"] == "game" {
+                    assert_eq!(contract["authority_ref"], commit);
                     assert_eq!(contract["profile_id"], profile_id);
                     assert_eq!(
                         contract["supported_variant_ids"],
@@ -5985,10 +5992,11 @@ mod tests {
                     );
                 } else {
                     assert_eq!(contract["role"], "bios");
-                    assert_eq!(contract["profile_id"], "psx-scph-5552-bios");
+                    assert_ne!(contract["authority_ref"], commit);
+                    assert_eq!(contract["profile_id"], "psx-scph-1001-bios");
                     assert_eq!(
                         contract["supported_variant_ids"],
-                        serde_json::json!(["europe-v3-0"])
+                        serde_json::json!(["legacy-accepted"])
                     );
                 }
             }
@@ -6052,7 +6060,12 @@ mod tests {
                 "config.ini",
                 "disc.cfg",
                 "bios.cfg",
-                "mods",
+                "mods/installed",
+                "mods/packages",
+                "mods/.staging",
+                "mods/state.toml",
+                "mods/state.toml.tmp",
+                "mods/texture-packs",
                 "overlay-captures",
                 "overlay_captures.json",
                 "overlay_captures.json.d",
@@ -6061,6 +6074,8 @@ mod tests {
                 assert!(port.persistent_paths.iter().any(|p| p == owned));
                 assert!(!port.runtime_mutable_paths.iter().any(|p| p == owned));
             }
+            // Each runtime version keeps its own build-staged mods/bundled.
+            assert!(!port.persistent_paths.iter().any(|p| p == "mods"));
             assert!(port.runtime_mutable_paths.iter().any(|p| p == "cache"));
             let fallback_temp = port
                 .runtime_mutable_file_patterns
@@ -6081,7 +6096,7 @@ mod tests {
             assert!(port.runtime_source_materialization.is_none());
             assert_eq!(
                 port.bios_source_profile.as_deref(),
-                Some("psx-scph-5552-bios")
+                Some("psx-scph-1001-bios")
             );
         }
     }

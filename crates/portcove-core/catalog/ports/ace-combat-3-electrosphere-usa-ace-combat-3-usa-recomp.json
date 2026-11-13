@@ -3,7 +3,7 @@
   "listing": {
     "id": "ace-combat-3-electrosphere-usa-ace-combat-3-usa-recomp",
     "name": "Ace Combat 3: Electrosphere — USA / Ace Combat 3 USA Recomp",
-    "summary": "Fly combat missions in Ace Combat 3 using your own matching USA PlayStation disc.",
+    "summary": "Fly combat missions in Ace Combat 3 using your own matching USA PlayStation disc and retail SCPH-1001 BIOS.",
     "project_url": "https://github.com/alexbeavs-ps1-ports/ace-combat-3-electrosphere-usa-recomp",
     "issue_number": 328,
     "listed_at": "2026-10-23",
@@ -18,11 +18,11 @@
         },
         {
           "title": "Supply the matching original files",
-          "instruction": "For upstream setup use your own USA SLUS-00972 disc in the upstream kit’s supported image format. For CUE/BIN, keep the complete CUE and every referenced track. Use the kit’s bundled OpenBIOS. Keep the complete original separately from generated files."
+          "instruction": "For upstream setup use your own USA SLUS-00972 disc in the upstream kit’s supported image format. For CUE/BIN, keep the complete CUE and every referenced track. Use your own retail SCPH-1001 BIOS, as the kit’s README-SETUP.txt describes. Keep the complete original separately from generated files."
         },
         {
           "title": "Prepare an independent Mac copy",
-          "instruction": "Choose the Intel or Apple Silicon setup ZIP for your Mac. Follow the upstream toolchain instructions for Python 3, CMake, Ninja and the selected Apple Clang and SDK. Finish the Generate & rebuild wizard outside Portcove with your own USA SLUS-00972 disc and the kit’s bundled OpenBIOS. Keep the completed build-release/Ace_Combat_3__Electrosphere__USA__Recompiled with its matching config and data. Mac runtime replacement remains upstream-owned."
+          "instruction": "Choose the Intel or Apple Silicon setup ZIP for your Mac. Follow the upstream toolchain instructions for Python 3, CMake, Ninja and the selected Apple Clang and SDK. Finish the Generate & rebuild wizard outside Portcove with your own USA SLUS-00972 disc and the BIOS that the kit’s README-SETUP.txt names. Keep the completed build-release/Ace_Combat_3__Electrosphere__USA__Recompiled with its matching config and data. Mac runtime replacement remains upstream-owned."
         },
         {
           "title": "Build the game and add it to Portcove",
@@ -84,7 +84,12 @@
       "config.ini",
       "disc.cfg",
       "bios.cfg",
-      "mods",
+      "mods/installed",
+      "mods/packages",
+      "mods/.staging",
+      "mods/state.toml",
+      "mods/state.toml.tmp",
+      "mods/texture-packs",
       "overlay-captures",
       "overlay_captures.json",
       "overlay_captures.json.d",
@@ -112,7 +117,7 @@
     "launch_environment": {
       "PSX_OVERLAY_CAPTURES": "build-portcove/overlay-captures/overlay_captures.json"
     },
-    "launch_arguments": ["--no-launcher", "--bios", "bios/openbios.bin"],
+    "launch_arguments": ["--no-launcher"],
     "runtime_subdirectory": "build-portcove",
     "presentation": {
       "installation_method": "managed-recompilation",
@@ -122,10 +127,17 @@
           "profile_id": "ace-combat-3-electrosphere-usa-ace-combat-3-usa-recomp-usa-psx",
           "label": "Ace Combat 3: Electrosphere (USA) disc",
           "verification": "catalog-identity"
+        },
+        {
+          "role": "bios",
+          "profile_id": "psx-scph-1001-bios",
+          "label": "PlayStation SCPH-1001 BIOS",
+          "verification": "catalog-identity"
         }
       ],
       "saves_and_settings": "portcove-managed",
-      "manual_preparation": "Provide your own matching one-track USA CHD (SLUS-00972). Portcove checks the track count and the first data-track SHA-1, then prepares the private runtime with the kit’s bundled OpenBIOS. Play starts the generated player. Keep your original files separately. Native gameplay and save compatibility remain unverified."
-    }
+      "manual_preparation": "Provide your own matching one-track USA CHD (SLUS-00972) and retail SCPH-1001 BIOS. Portcove checks the track count and the first data-track SHA-1, then prepares the private runtime with that BIOS. A copy installed with the bundled OpenBIOS keeps it until you update; the update needs your SCPH-1001 BIOS. Play starts the generated player. Keep your original disc and BIOS separately. Native gameplay and save compatibility remain unverified."
+    },
+    "bios_source_profile": "psx-scph-1001-bios"
   }
 }
