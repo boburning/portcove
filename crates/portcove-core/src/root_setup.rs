@@ -637,17 +637,27 @@ impl PortcoveService {
         let roots = self.library.game_file_roots()?;
         let mut waiting = Vec::new();
         let mut started = 0;
-        let mut considered = 0;
-        let mut reads = 0;
-        let mut examined = 0;
-        for consent in consents {
-            // An unavailable folder is not deleted content; it simply waits.
-            let Some(root) = roots.iter().find(|root| {
-                root.id == consent.root_id
-                    && root.availability == crate::GameFileRootAvailability::Available
-            }) else {
-                continue;
-            };
+        // An unavailable folder is not deleted content; it simply waits.
+        let available = consents
+            .into_iter()
+            .filter_map(|consent| {
+                roots
+                    .iter()
+                    .find(|root| {
+                        root.id == consent.root_id
+                            && root.availability == crate::GameFileRootAvailability::Available
+                    })
+                    .map(|root| (consent, root))
+            })
+            .collect::<Vec<_>>();
+        // Each folder gets an equal share of the pass, so a large folder can
+        // never keep another from moving forward.
+        let folders = available.len().max(1);
+        let share = |bound: usize| (bound / folders).max(1);
+        for (consent, root) in available {
+            let mut considered = 0;
+            let mut reads = 0;
+            let mut examined = 0;
             // Matches are read in pages from the scan's rows, so a folder's
             // match beyond the report preview is still reached. Each pass
             // continues where the last one stopped and starts over after the
@@ -656,7 +666,8 @@ impl PortcoveService {
                 .library
                 .root_setup_pass_offset(&root.id, scan_id.as_deref())?;
             let mut offset = Some(resumed);
-            while let Some(start) = offset {
+            let mut stopped = false;
+            'folder: while let Some(start) = offset {
                 let page = match self.game_file_scan_matches(&crate::GameFileScanMatchQuery {
                     scan_id: scan_id.clone(),
                     kind: crate::GameFileScanMatchKind::Exact,
@@ -671,17 +682,23 @@ impl PortcoveService {
                 };
                 offset = page.next_offset;
                 for (position, candidate) in (start..).zip(&page.candidates) {
-                    if started >= MAX_ROOT_SETUPS_PER_PASS
-                        || considered >= MAX_ROOT_CANDIDATES_PER_PASS
-                        || reads >= MAX_ROOT_BOUNDARY_READS_PER_PASS
-                        || examined >= MAX_ROOT_MATCHES_EXAMINED_PER_PASS
+                    let pass_full = started >= MAX_ROOT_SETUPS_PER_PASS;
+                    if pass_full
+                        || considered >= share(MAX_ROOT_CANDIDATES_PER_PASS)
+                        || reads >= share(MAX_ROOT_BOUNDARY_READS_PER_PASS)
+                        || examined >= share(MAX_ROOT_MATCHES_EXAMINED_PER_PASS)
                     {
                         self.library.set_root_setup_pass_offset(
                             &root.id,
                             scan_id.as_deref(),
                             position,
                         )?;
-                        return Ok(waiting);
+                        if pass_full {
+                            return Ok(waiting);
+                        }
+                        // This folder's share is used; the next folder goes on.
+                        stopped = true;
+                        break 'folder;
                     }
                     if !candidate.path.starts_with(&root.path) {
                         continue;
@@ -745,7 +762,7 @@ impl PortcoveService {
                 }
             }
             // Every remaining match was reached; the next pass starts over.
-            if resumed != 0 {
+            if !stopped && resumed != 0 {
                 self.library
                     .set_root_setup_pass_offset(&root.id, scan_id.as_deref(), 0)?;
             }
@@ -1407,6 +1424,59 @@ mod tests {
         assert!(folder.pass().await.batches.is_empty());
         assert!(!folder.installed());
         // The next pass continues past the matches already looked at.
+        assert_eq!(folder.pass().await.batches.len(), 1);
+        assert!(folder.installed());
+    }
+
+    #[tokio::test]
+    async fn a_large_folder_never_keeps_another_from_moving_forward() {
+        let folder = folder();
+        let other_path = folder.root.parent().unwrap().join("more games");
+        std::fs::create_dir(&other_path).unwrap();
+        let other = folder
+            .service
+            .library()
+            .add_game_file_root(&other_path)
+            .unwrap();
+        // Folders take their turn in a fixed order; the large one goes first.
+        let (large, small) = if folder.root_id < other.id {
+            (
+                (folder.root_id.clone(), folder.root.clone()),
+                (other.id, other.path),
+            )
+        } else {
+            (
+                (other.id, other.path),
+                (folder.root_id.clone(), folder.root.clone()),
+            )
+        };
+        let existing = (0..MAX_ROOT_MATCHES_EXAMINED_PER_PASS + 10)
+            .map(|index| SourceRecord {
+                path: large.1.join(format!("a-old-{index:05}.z64")),
+                ..folder.file_in(&large.1, "a-old.z64", 'a')
+            })
+            .collect::<Vec<_>>();
+        folder.scanned(existing.clone());
+        for (root_id, _) in [&large, &small] {
+            folder
+                .service
+                .set_root_setup_consent(root_id, RootSetupEnrollment::FutureOnly)
+                .unwrap();
+            folder
+                .service
+                .set_root_setup_implementation(root_id, &folder.profile, PORT)
+                .unwrap();
+        }
+        let later = folder.file_in(&small.1, "z-new.z64", 'b');
+        folder.in_use(&later);
+        let mut candidates = existing;
+        candidates.push(later);
+        crate::source_discovery::publish_test_game_file_scan_rows(
+            folder.service.catalog(),
+            folder.service.library(),
+            candidates,
+        );
+        // The small folder's new game is set up in the same pass.
         assert_eq!(folder.pass().await.batches.len(), 1);
         assert!(folder.installed());
     }

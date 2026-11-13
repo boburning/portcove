@@ -898,9 +898,14 @@ changes. Each pass plans at most 32 folder files and looks up at most 4,096
 matches. Matches the library already settles, such as installed games or
 games waiting for the player's choice, cost no planning, so they don't hold
 back a new file elsewhere in the folder. Checking whether a file was already
-there reads at most about 8,192 files and folder entries per pass. Each pass
-continues where the folder's last pass stopped and starts over after the last
-match, a new scan or a changed folder choice, so every match is reached. Turning automatic
+there reads at most about 8,192 files and folder entries per pass. Each available folder gets an equal share of
+these bounds, and each pass continues where that folder's last pass stopped. It
+starts over after the folder's last match, after a new scan, when automatic
+setup is turned on again or changes which files it includes, and after the
+folder is relinked, so every match is reached. Picking which game to set up
+keeps the position. Scans saved before format 13 have no stored matches and
+start from the first match each pass until the folders are scanned again.
+Turning automatic
 setup off takes effect before the next file is registered or installed, even
 during a pass. An unavailable folder waits and keeps its setting. Removing a folder ends its automatic setup.
 `games folder-setups` lists folders with automatic setup turned on, their
