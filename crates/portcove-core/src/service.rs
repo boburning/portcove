@@ -1960,13 +1960,10 @@ impl PortcoveService {
                 )
             })
             .transpose()?;
-        // An optional source that is not registered, or whose file has gone, never blocks:
-        // the unpacked runtime stays as it is. A source that changed or cannot be read still does.
-        let source_blocking = if port.optional_game_source
-            && matches!(
-                source,
-                Some(SourceHealth::Unregistered | SourceHealth::Missing)
-            ) {
+        // An optional source never blocks launching, whatever its health: the unpacked
+        // runtime stays as it is, and a source that is gone, changed or unreadable is only
+        // not used (Play reports that it was skipped).
+        let source_blocking = if port.optional_game_source {
             None
         } else {
             source
@@ -3737,6 +3734,19 @@ impl PortcoveService {
                         error
                     }
                 }),
+            // A registered optional source that changed or cannot be read (an I/O failure
+            // is a state error) is not used; cancellation and conflicts still end setup.
+            Err(error)
+                if port.optional_game_source
+                    && matches!(
+                        error.code,
+                        crate::ErrorCode::Verification
+                            | crate::ErrorCode::SourceInvalid
+                            | crate::ErrorCode::State
+                    ) =>
+            {
+                Ok(None)
+            }
             Err(error) => Err(error),
         }
     }
@@ -18135,11 +18145,10 @@ fn main() {
         }
     }
 
-    /// A registered optional source that changed or cannot be read still holds Play (it is
-    /// only an unregistered or vanished one that does not), and a path that fails for any
-    /// reason other than not being found is never treated as gone.
+    /// A registered optional source that changed or cannot be read never holds Play, and a
+    /// path that fails for any reason other than not being found is never treated as gone.
     #[test]
-    fn a_changed_or_unreadable_optional_source_still_blocks() {
+    fn a_changed_or_unreadable_optional_source_never_blocks() {
         let temporary = tempfile::tempdir().unwrap();
         let library = Library::open(temporary.path().join("library")).unwrap();
         let image = temporary.path().join("fixture.iso");
@@ -18171,9 +18180,11 @@ fn main() {
         // Changed: a different size than the registered baseline.
         let original = fs::read(&image).unwrap();
         fs::write(&image, b"changed").unwrap();
-        assert!(blockers(&service).contains(&LaunchBlocker::ChangedSource));
+        assert!(
+            !blockers(&service).contains(&LaunchBlocker::ChangedSource),
+            "a changed optional source never blocks Play"
+        );
         fs::write(&image, &original).unwrap();
-        assert!(!blockers(&service).contains(&LaunchBlocker::ChangedSource));
 
         #[cfg(unix)]
         {
@@ -18183,8 +18194,8 @@ fn main() {
             let readable = fs::File::open(&image).is_ok();
             let blocked = blockers(&service).contains(&LaunchBlocker::UnreadableSource);
             fs::set_permissions(&image, fs::Permissions::from_mode(0o644)).unwrap();
-            // Running as a user that bypasses file permissions cannot make a file unreadable.
-            assert!(readable || blocked, "an unreadable optional source blocks");
+            let _ = readable;
+            assert!(!blocked, "an unreadable optional source never blocks Play");
 
             // A permission failure on the path is not "gone"; only NotFound is. (A user that
             // bypasses file permissions, such as root, cannot produce the failure: skip then.)
@@ -18279,6 +18290,38 @@ fn main() {
             service
                 .prepare_launch_for_install(&port, &install, None, None)
                 .unwrap();
+            assert_eq!(
+                fs::read(root.join("assets/extra.file")).unwrap(),
+                b"added by the player"
+            );
+            assert!(
+                !root.join("assets/default.xex").exists(),
+                "nothing is unpacked"
+            );
+
+            // Registered, then the file changes: Play still proceeds with the files already
+            // unpacked, says so, and removes nothing.
+            optional_disc_image(&image);
+            service.register_source(PROFILE, &image).unwrap();
+            fs::write(&image, b"no longer the registered disc image").unwrap();
+            let operation = crate::OperationCoordinator::new("launch", None);
+            let messages = std::cell::RefCell::new(Vec::new());
+            let observe = |event: crate::OperationEvent| {
+                if let crate::OperationEventKind::Message { message, .. } = event.event {
+                    messages.borrow_mut().push(message);
+                }
+            };
+            service
+                .prepare_launch_for_install_observed(
+                    &port,
+                    &install,
+                    None,
+                    None,
+                    Some(&operation),
+                    Some(&observe),
+                )
+                .unwrap();
+            assert_eq!(messages.borrow().len(), 1, "the skipped source is reported");
             assert_eq!(
                 fs::read(root.join("assets/extra.file")).unwrap(),
                 b"added by the player"
