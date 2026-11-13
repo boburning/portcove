@@ -8,6 +8,7 @@ import { isDiscoveryCache } from "./discovery-cache.mts";
 export const discoveryProfiles = {
   ordinary: { requests: 200, bytes: 20 * 1024 * 1024, milliseconds: 30 * 60000 },
   cold: { requests: 300, bytes: 64 * 1024 * 1024, milliseconds: 30 * 60000 },
+  hosted: { requests: 300, bytes: 128 * 1024 * 1024, milliseconds: 30 * 60000 },
 } as const;
 export type DiscoveryProfile = keyof typeof discoveryProfiles;
 // Planning headroom, not an atomic reservation or a bound on provider query cost.
@@ -230,7 +231,7 @@ export class DiscoveryBudget {
     if (left.milliseconds <= 0 || requests > left.requests || bytes > left.bytes)
       throw new GitHubApiError(
         "budget_exhausted",
-        "Discovery budget cannot admit the complete operation",
+        `Discovery budget cannot admit the complete operation (${this.usage.profile}: requests needed ${requests}, available ${left.requests}; bytes needed ${bytes}, available ${left.bytes}, limit ${this.limits.bytes}; milliseconds available ${left.milliseconds})`,
       );
   }
   async reserveDelivery(requests: number, bytes: number) {

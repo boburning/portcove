@@ -1879,7 +1879,7 @@ async function main() {
   assertHostedEvent(event, process.env.GITHUB_EVENT_NAME ?? "", config.repository, config.owner);
   if (!process.env.GH_TOKEN || !process.env.REPOSITORY_TOKEN)
     throw new Error("Dedicated Project and repository credentials are required");
-  const budget = new DiscoveryBudget("cold", (usage) => save("budget", usage));
+  const budget = new DiscoveryBudget("hosted", (usage) => save("budget", usage));
   const { client, project, repository } = await connectHostedGitHub(config, budget, {
     project: process.env.GH_TOKEN,
     repository: process.env.REPOSITORY_TOKEN,
