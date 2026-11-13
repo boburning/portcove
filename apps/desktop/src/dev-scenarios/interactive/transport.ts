@@ -122,6 +122,7 @@ export function installInteractiveTransport(journey: Journey, refuse: (message: 
   const calls: string[] = [];
   // The library's snapshot setting, on by default like Core's.
   let automaticSnapshots = true;
+  let readyNotices = true;
   const unsupported = (command: string): never => {
     const message = `Unsupported fixture action: ${command}. No native action was performed.`;
     refuse(message);
@@ -194,7 +195,18 @@ export function installInteractiveTransport(journey: Journey, refuse: (message: 
     },
     assess_port_intents: (args) => {
       requireArgs("assess_port_intents", args, { generation });
-      return { assessments: [], not_assessed: 0 };
+      return { assessments: [], not_assessed: 0, ready_notices_enabled: readyNotices };
+    },
+    get_ready_notices_enabled: (args) => {
+      requireArgs("get_ready_notices_enabled", args, { generation });
+      return readyNotices;
+    },
+    set_ready_notices_enabled: (args) => {
+      if (typeof args?.enabled !== "boolean")
+        return unsupported("set_ready_notices_enabled (unexpected arguments)");
+      requireArgs("set_ready_notices_enabled", args, { enabled: args.enabled, generation });
+      readyNotices = args.enabled;
+      return readyNotices;
     },
     get_automatic_snapshots: (args) => {
       requireArgs("get_automatic_snapshots", args, { generation });

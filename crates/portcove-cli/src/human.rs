@@ -1083,16 +1083,26 @@ fn port_readiness_line(assessment: &portcove_core::PortIntentAssessment) -> Stri
     line
 }
 
+pub(crate) fn ready_notices(enabled: bool) -> String {
+    if enabled {
+        "Ready notices are on. Games you chose to be told about are reported when they become ready."
+            .to_owned()
+    } else {
+        "Ready notices are off. No game is reported as newly ready, and no game's choice or automatic setup changed. Turn them back on with `portcove games notices on`."
+            .to_owned()
+    }
+}
+
 pub(crate) fn port_intent_assessments(value: &portcove_core::PortIntentAssessments) -> String {
     if value.assessments.is_empty() && value.not_assessed == 0 {
         return "No game has a notify or set-up-when-ready choice. Discover-only is the default."
             .to_owned();
     }
-    let mut lines = value
-        .assessments
-        .iter()
-        .map(port_readiness_line)
-        .collect::<Vec<_>>();
+    let mut lines = Vec::new();
+    if !value.ready_notices_enabled {
+        lines.push(ready_notices(false));
+    }
+    lines.extend(value.assessments.iter().map(port_readiness_line));
     if value.not_assessed > 0 {
         lines.push(format!(
             "{} more choices were not assessed; one pass covers the first 512 choices by game ID.",

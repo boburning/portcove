@@ -13,7 +13,7 @@ use crate::{PortcoveError, Result};
 #[path = "database_concurrency_tests.rs"]
 mod concurrency_tests;
 
-pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 53;
+pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 54;
 
 struct Migration {
     version: i64,
@@ -341,7 +341,34 @@ const MIGRATIONS: &[Migration] = &[
         apply: migration_53,
         verify: verify_migration_53,
     },
+    Migration {
+        version: 54,
+        name: "ready notice preference",
+        apply: migration_54,
+        verify: verify_migration_54,
+    },
 ];
+
+fn migration_54(transaction: &Transaction<'_>) -> Result<()> {
+    // One player preference: whether ready notices are shown. No row means
+    // shown. It never records a game choice, consent or authorization.
+    transaction.execute_batch(
+        "CREATE TABLE ready_notice_preference (
+            id INTEGER PRIMARY KEY CHECK(id=1),
+            enabled INTEGER NOT NULL CHECK(enabled IN (0,1)),
+            updated_at INTEGER NOT NULL
+        );",
+    )?;
+    verify_migration_54(transaction)
+}
+
+fn verify_migration_54(connection: &Connection) -> Result<()> {
+    require_columns(
+        connection,
+        "ready_notice_preference",
+        &["id", "enabled", "updated_at"],
+    )
+}
 
 fn migration_53(transaction: &Transaction<'_>) -> Result<()> {
     // Local, rebuildable provenance for saved-folder scans. A row only lets a

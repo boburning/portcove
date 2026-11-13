@@ -4,7 +4,10 @@ import { desktopApi } from "../api";
 import { useAppTranslation } from "../localization";
 import type { PortDefinition, PortIntentAssessment } from "../types";
 import { Button } from "./ui/button";
-import { onStandingSetupPass } from "../features/game-file-discovery/use-standing-setup";
+import {
+  onReadyNoticePreferenceChange,
+  onStandingSetupPass,
+} from "../features/game-file-discovery/use-standing-setup";
 
 /**
  * Games the player asked to hear about that became ready to install. Core
@@ -48,7 +51,13 @@ export function ReadyGameNotices({
     void assess();
     // Reassess after each standing-setup pass, which follows catalog, file and
     // choice changes.
-    return onStandingSetupPass(() => void assess());
+    const stopPass = onStandingSetupPass(() => void assess());
+    // Turning notices on or off reassesses at once; Core decides what is shown.
+    const stopPreference = onReadyNoticePreferenceChange(() => void assess());
+    return () => {
+      stopPass();
+      stopPreference();
+    };
   }, [generation]);
 
   if (!ready.length) return null;

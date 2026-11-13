@@ -216,6 +216,7 @@ pub(super) fn startup_mode(command: &Commands) -> StartupMode {
             | GamesCommand::BatchPlan { .. }
             | GamesCommand::BatchShow { .. }
             | GamesCommand::Intents
+            | GamesCommand::Notices { state: None }
             | GamesCommand::FolderSetups => ReadOnly,
             GamesCommand::Add { .. }
             | GamesCommand::Remove { .. }
@@ -223,6 +224,7 @@ pub(super) fn startup_mode(command: &Commands) -> StartupMode {
             | GamesCommand::BatchResume { .. }
             | GamesCommand::BatchCancel { .. }
             | GamesCommand::Intent { .. }
+            | GamesCommand::Notices { state: Some(_) }
             | GamesCommand::IntentsAcknowledge { .. }
             | GamesCommand::SetupReady
             | GamesCommand::FolderSetup { .. }

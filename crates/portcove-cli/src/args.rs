@@ -756,6 +756,13 @@ pub(crate) enum GamesCommand {
     },
     /// Reassess remembered choices against current files, catalog and tools; changes nothing.
     Intents,
+    /// Show or change whether ready notices are shown. Never changes a game's choice or
+    /// automatic setup.
+    Notices {
+        /// on or off. Omit to show the current setting without changing it.
+        #[arg(value_enum)]
+        state: Option<NoticeState>,
+    },
     /// Mark ready games as seen so the same opportunity is not reported again.
     IntentsAcknowledge {
         /// Ready game and plan digest from `games intents`, as PORT_ID=PLAN_SHA256. Repeat per game.
@@ -792,6 +799,12 @@ pub(crate) enum GamesCommand {
 pub(crate) enum FolderSetupMode {
     ExistingAndFuture,
     FutureOnly,
+    Off,
+}
+
+#[derive(Debug, Clone, Copy, ValueEnum)]
+pub(crate) enum NoticeState {
+    On,
     Off,
 }
 

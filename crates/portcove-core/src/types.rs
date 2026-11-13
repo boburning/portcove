@@ -2464,6 +2464,7 @@ impl CapabilityDocument {
                 "games.batch-show".into(),
                 "games.intent".into(),
                 "games.intents".into(),
+                "games.notices".into(),
                 "games.intents-acknowledge".into(),
                 "games.setup-ready".into(),
                 "games.folder-setup".into(),

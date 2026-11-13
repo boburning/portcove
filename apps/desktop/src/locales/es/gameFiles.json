@@ -153,6 +153,14 @@
     "update": "<game/> tiene una actualización disponible: <version/>. No se descargó ni cambió nada.",
     "updateUnknownVersion": "<game/> tiene una actualización disponible: una versión más reciente. No se descargó ni cambió nada."
   },
+  "readyNotices": {
+    "control": "Avísame cuando estén listos los juegos de los que elegí recibir avisos",
+    "description": "Desactívalo para dejar de recibir avisos de juegos listos. Tu elección para cada juego y la configuración automática no cambian. Vuelve a activarlo para enterarte de los juegos que están listos y de los que aún no te hemos avisado.",
+    "heading": "Avisos de juegos listos",
+    "readFailed": "No se pudo comprobar el ajuste de avisos de juegos listos.",
+    "retry": "Reintentar",
+    "saveFailed": "No se pudo guardar el ajuste de avisos de juegos listos."
+  },
   "reason": {
     "completeCompatibleObservation": "Se encontró un conjunto completo de archivos del juego compatibles para esta opción de configuración o inicio.",
     "contractNotReviewed": "Los requisitos de archivos no se han revisado para esta opción de configuración o inicio.",

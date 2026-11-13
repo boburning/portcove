@@ -566,6 +566,7 @@ pub fn export_transport_schemas() -> Value {
             "source_verification_outcome": output::<SourceBatchOutcome>(),
             "launch_result": output::<LaunchResult>(),
             "automatic_snapshots_enabled": output::<bool>(),
+            "ready_notices_enabled": output::<bool>(),
             "bug_report_draft": output::<portcove_core::BugReportDraft>(),
             "bug_report_link": output::<portcove_core::BugReportLink>(),
             "submitted_report": output::<portcove_core::SubmittedReport>(),

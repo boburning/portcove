@@ -14,6 +14,17 @@ export function onStandingSetupPass(listener: () => void) {
   return () => events.removeEventListener("pass", listener);
 }
 
+/** Tell views that the player turned ready notices on or off, so they reassess. */
+export function announceReadyNoticePreferenceChange() {
+  events.dispatchEvent(new Event("notices"));
+}
+
+/** Runs `listener` after the ready-notice setting changes. */
+export function onReadyNoticePreferenceChange(listener: () => void) {
+  events.addEventListener("notices", listener);
+  return () => events.removeEventListener("notices", listener);
+}
+
 /** Identity of the registered files, so a refresh that changed none triggers no pass. */
 export function sourcesKey(sources: readonly { profile_id: string; sha256: string }[]) {
   return sources.map((source) => `${source.profile_id}:${source.sha256}`).join("\n");

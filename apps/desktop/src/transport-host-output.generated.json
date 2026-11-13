@@ -9009,11 +9009,17 @@
         "format": "uint32",
         "minimum": 0,
         "type": "integer"
+      },
+      "ready_notices_enabled": {
+        "default": true,
+        "description": "Whether the player wants ready notices. While off, a game set to be\ntold is never reported as newly ready; nothing about its choice or its\nreadiness changes, and set-up-when-ready games are unaffected.",
+        "type": "boolean"
       }
     },
     "required": [
       "assessments",
-      "not_assessed"
+      "not_assessed",
+      "ready_notices_enabled"
     ],
     "title": "PortIntentAssessments",
     "type": "object"
@@ -9291,6 +9297,11 @@
     ],
     "title": "PreparationCleanupPreview",
     "type": "object"
+  },
+  "ready_notices_enabled": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "boolean",
+    "type": "boolean"
   },
   "reconcile_outcome": {
     "$defs": {
