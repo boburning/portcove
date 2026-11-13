@@ -91,10 +91,64 @@ not automatically low risk. This policy refactor itself requires independent rev
 
 State the review performed briefly in the PR description. No certificate, score
 or exception form is needed. Blocking findings identify a concrete correctness,
-security, data-loss, compatibility or acceptance defect. Cosmetic preference and
-speculative unrelated cleanup are nonblocking unless acceptance requires them.
+security, data-loss, compatibility or acceptance defect. Cosmetic preference,
+speculative generalization and unrelated cleanup are nonblocking unless acceptance requires them.
 Repair review can examine the delta and affected interactions; harmless amendments
 do not require a new reviewer or a repeated complete investigation.
+
+### Review and repair loop
+
+Where independent review is required, the implementation owner runs one loop:
+implementation, independent review, evidence-based repair, then reassessment.
+It adds no approval stage and does not replace required CI, explicit acceptance,
+guarded merge, readback or targeted reconciliation.
+
+**Reviewer.** Use a fresh reviewer that did not help design or implement the
+candidate and does not write to it. Choose its capability by consequence:
+substantive behavior uses an independent reviewer; update/catalog trust,
+credentials, signing, destructive or data-loss paths and validation/merge
+authority use a critical reviewer from the start, without waiting for a cheaper review to miss
+something. [Agent model selection](DEVELOPMENT-TOOLS.md#agent-model-selection)
+lists current models and distinguishes an instructed non-writing reviewer from a
+technically restricted one; the owner confirms the reviewed head and worktree are
+unchanged afterward.
+
+**Packet.** Give the reviewer the owning issue and acceptance criteria, the exact
+candidate head (and target when composed), the change context and known
+consequential decisions, the verification actually executed with its results,
+and known limitations or skipped checks. The reviewer may inspect further source,
+tests and contracts when the packet is insufficient, reports findings in the
+classes below, and says what it did not examine.
+
+**Findings.** Each finding is one of:
+
+- _Confirmed defect_: a concrete failure mechanism or acceptance gap with
+  supporting evidence such as a cited path, a focused reproduction or a probe.
+  These block under the [review scope](#review-scope) criteria.
+- _Refuted claim_: a suspected problem the evidence shows does not occur.
+- _Unresolved question_: something the reviewer could not settle. It names the
+  evidence that would settle it. It does not block as a defect, but the owner
+  obtains that evidence or treats the affected acceptance as not yet met.
+- _Advisory suggestion_: nonblocking improvement.
+
+Missing evidence is not a pass: an absent result, a skipped check, a timeout or an
+empty review leaves the affected claim unknown.
+
+**Repair and reassessment.** The owner repairs confirmed defects, or records
+evidence that refutes them, and returns the delta and affected interactions to
+the same reviewer where practical. A new substantive finding still blocks.
+
+**Escalation.** When repeated attempts at the same failure make no progress,
+change approach: narrow it with a discriminating reproduction, investigate the
+underlying contract, or delegate a bounded specialist assignment. An attempt
+limit prompts that change; it never converts an unresolved blocker into approval.
+Record the blocker and resume condition under
+[blocked-work preservation](PROJECT-GOVERNANCE.md#pickup-consumption-and-execution-upkeep)
+when it cannot be resolved in the session.
+
+Use the existing issue and PR description for evidence: the PR states the
+reviewer responsibility, the model and effort requested (and the served model
+where the client reports it), the reviewed head and the result. No separate receipt or report is required for ordinary work.
 
 ## Canonical commands
 

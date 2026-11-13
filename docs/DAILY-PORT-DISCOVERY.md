@@ -309,7 +309,7 @@ actual supported automation interface and installed schedules, including the
 historical `portcove-weekly-port-discovery-and-candidate-recheck`. Never infer
 active scheduling from a saved prompt or old receipt. Preserve a suitable
 existing time; otherwise use configurable 09:00 America/New_York daily.
-Choose a suitable model within existing spending authority. Use the existing
+Choose models by responsibility from [agent model selection](DEVELOPMENT-TOOLS.md#agent-model-selection) within existing spending authority. Use the existing
 Codex subscription and supported scheduler only, with no new service, Actions
 schedule, broader credentials or spending. Test manually before enabling
 unattended writes. Verify identity, enabled state, local timezone/next run,
@@ -354,7 +354,8 @@ These bound individual batches, not total legitimate work. Search, investigation
 intake and quiet recheck counts have no separate throughput ceiling.
 
 Use the selected hosted investigator for hosted discovery; local collection,
-comparison and research can use GPT-6.1-Sol Medium. Port metadata has no separate
+comparison and research use the research scout or implementation owner from
+[agent model selection](DEVELOPMENT-TOOLS.md#agent-model-selection). Port metadata has no separate
 model-review gate. Respect stricter provider and
 runtime limits. Retain pending identities, exact pages/paths and resume conditions
 before exhaustion. A logical candidate journal is admitted in prefixes, each
