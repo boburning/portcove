@@ -58,7 +58,10 @@ env:
 # waiting for the superseded run's gate jobs to drain; ci-supersede.yml cancels the old run.
 concurrency:
   group: ci-${{ inputs.force_qualification && format('qualification-{0}', github.ref) || github.event.pull_request.number && format('pr-{0}-{1}', github.event.pull_request.number, github.run_id) || github.ref }}
-  cancel-in-progress: ${{ !inputs.force_qualification }}
+  # A main run finishes even when the next merge lands: it is the only run that saves the
+  # shared Rust caches, and a cancelled one validates nothing. A later merge waits as the
+  # one pending run and replaces any older pending run.
+  cancel-in-progress: ${{ !inputs.force_qualification && github.event_name != 'push' }}
 
 jobs:
   classify:
@@ -739,7 +742,10 @@ jobs:
     needs: classify
     if: needs.classify.outputs.windows_helpers == 'true'
     runs-on: windows-latest
-    timeout-minutes: 10
+    # 43296962076/a1 reached 10m in its last step with every step 15 to 25% slower than
+    # 43244889351 (8m19s) and passed its one re-run in 8m. Finite room for a slow
+    # runner; no step limit, assertion or cleanup changes.
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
