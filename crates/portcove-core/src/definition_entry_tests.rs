@@ -348,6 +348,7 @@ fn openomf_appimage_requires_27_in_fresh_and_retained_readers() {
     windows.release.asset_hints.remove(&linux);
     windows.executable_hints.remove(&linux);
     windows.external_profile_policy = None;
+    windows.reviewed_package_layouts.clear();
 
     for (definition, minimum, accepted) in
         [(&windows, 2, true), (port, 26, false), (port, 27, true)]

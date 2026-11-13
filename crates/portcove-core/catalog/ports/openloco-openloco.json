@@ -69,6 +69,16 @@
       "saves_and_settings": "external-user-owned",
       "manual_preparation": "On first Play, select your original Locomotion installation containing Data/g1.DAT. Keep it outside the managed runtime. Linux x64 uses the official AppImage with FUSE support and glibc 2.28 or newer. The Apple Silicon bundle requires macOS 15 or newer. Keep the full engine package together. Back up your external OpenLoco profile separately. On Windows it normally lives under AppData. On Linux it lives under XDG_CONFIG_HOME or the account home’s .config directory. On Mac it lives under Library/Application Support in the account home. Use a separately prepared copy for custom or relative save and landscape locations. Keep your player files and originals outside the library. Portcove replaces its engine and leaves those player files in place."
     },
-    "external_profile_policy": "openloco-unix-v1"
+    "external_profile_policy": "openloco-unix-v1",
+    "reviewed_package_layouts": {
+      "windows-x86-64": {
+        "directories": ["data"],
+        "executables": ["openloco.exe"]
+      },
+      "macos-aarch64": {
+        "directories": ["contents"],
+        "executables": ["contents/macos/openloco"]
+      }
+    }
   }
 }
