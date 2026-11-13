@@ -122,6 +122,12 @@
       ],
       "saves_and_settings": "portcove-managed",
       "manual_preparation": "Select a folder or ZIP containing your complete matching DIABDAT.MPQ through the original-file chooser. This managed offer accepts the reviewed complete original set; other editions, the shareware demo and optional class archives use the separate upstream-owned route. Originals are not included. Upstream may also read recognized outside data locations; Core does not own or back up those files. Portcove prepares verified immutable copies under originals beside the player, and keeps settings, characters, stash, screenshots, demos and temporary data under the separate profile folder. Play uses the selected Diablo mode. Keep Diablo and Hellfire in their own entries and profiles; character conversion, cross-mode saves and older-reader compatibility are not established. Do not change this entry’s original set in place. Existing registrations stay externally owned; this offer does not adopt their populated runtime, original files or profile. Use a separate library or independently owned upstream copy for another original set, profile or owner. Preserve the creating runtime and current profile before changing versions. Outside-tree paths and unclaimed inside-tree modifications are outside this managed scope and can hold maintenance. Removal preserves the declared profile and external originals; retained profile data requires its creating contract before reuse."
+    },
+    "reviewed_package_layouts": {
+      "windows-x86-64": {
+        "directories": ["license"],
+        "executables": ["devilutionx.exe"]
+      }
     }
   }
 }

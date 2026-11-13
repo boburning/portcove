@@ -82,6 +82,10 @@
       "linux-x86-64": {
         "directories": [],
         "executables": ["rsdkv4"]
+      },
+      "windows-x86-64": {
+        "directories": [],
+        "executables": ["rsdkv4.exe"]
       }
     }
   }

@@ -78,6 +78,12 @@
       "source_requirements": [],
       "saves_and_settings": "external-user-owned",
       "manual_preparation": "The official packages include the freeware One Must Fall 2097 resources. Choose Play after installation. The Windows ZIP includes an ARM64 player alongside the managed x86-64 executable. The managed Linux route uses the stable x86-64 AppImage and its bundled resources. OpenOMF keeps configuration and state in its external profile, normally AppData/OpenOMF on Windows or ~/.local/share/OpenOMF on Linux. On Linux, explicit XDG_CONFIG_HOME and XDG_STATE_HOME select their own absolute locations, and XDG_DATA_HOME can change the SDL preference root. Back up settings, saves, scores, screenshots, recordings and user mods separately. Use a separately prepared copy for custom OpenOMF overrides or alternate resources. Package resources and bundled mods stay with their installed version."
+    },
+    "reviewed_package_layouts": {
+      "windows-x86-64": {
+        "directories": ["mods", "resources", "shaders"],
+        "executables": ["openomf.exe", "openomf_arm64.exe"]
+      }
     }
   }
 }

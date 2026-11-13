@@ -56422,6 +56422,16 @@
             }
           ]
         }
+      },
+      "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [
+            "license"
+          ],
+          "executables": [
+            "devilutionx.exe"
+          ]
+        }
       }
     },
     {
@@ -56571,6 +56581,16 @@
           "image_sha256": "f25ea27b3ab864556a725c9b3bbb13a00d0ff763c747f3fb8815c2154fc70dba",
           "game_slug": "diablo-hellfire",
           "match_kind": "underlying-game"
+        }
+      },
+      "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [
+            "license"
+          ],
+          "executables": [
+            "devilutionx.exe"
+          ]
         }
       }
     },
@@ -63338,6 +63358,19 @@
           "game_slug": "one-must-fall-2097",
           "match_kind": "underlying-game"
         }
+      },
+      "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [
+            "mods",
+            "resources",
+            "shaders"
+          ],
+          "executables": [
+            "openomf.exe",
+            "openomf_arm64.exe"
+          ]
+        }
       }
     },
     {
@@ -63577,7 +63610,25 @@
           "match_kind": "underlying-game"
         }
       },
-      "external_profile_policy": "openloco-unix-v1"
+      "external_profile_policy": "openloco-unix-v1",
+      "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [
+            "data"
+          ],
+          "executables": [
+            "openloco.exe"
+          ]
+        },
+        "macos-aarch64": {
+          "directories": [
+            "contents"
+          ],
+          "executables": [
+            "contents/macos/openloco"
+          ]
+        }
+      }
     },
     {
       "id": "openrct2-openrct2",
@@ -67068,6 +67119,14 @@
           "game_slug": "sonic-cd--1",
           "match_kind": "underlying-game"
         }
+      },
+      "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [],
+          "executables": [
+            "rsdkv3.exe"
+          ]
+        }
       }
     },
     {
@@ -67156,6 +67215,12 @@
           "directories": [],
           "executables": [
             "rsdkv4"
+          ]
+        },
+        "windows-x86-64": {
+          "directories": [],
+          "executables": [
+            "rsdkv4.exe"
           ]
         }
       }
@@ -67246,6 +67311,12 @@
           "directories": [],
           "executables": [
             "rsdkv4"
+          ]
+        },
+        "windows-x86-64": {
+          "directories": [],
+          "executables": [
+            "rsdkv4.exe"
           ]
         }
       }
