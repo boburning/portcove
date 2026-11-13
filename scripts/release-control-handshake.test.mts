@@ -183,22 +183,44 @@ void test("coordinator transfer 404 stays bounded, identity-bound and coordinato
   assert.equal(phases[0]?.stage, "artifact-transfer");
   assert.equal(phases[0]?.provider_status, 404);
 
-  const changed = await fixture(t, "ready", "coordinator");
-  let first = true;
+  for (const change of ["digest", "id"] as const) {
+    const changed = await fixture(t, "ready", "coordinator");
+    const archive = await changed.options.download();
+    let changedDownloads = 0;
+    await assert.rejects(
+      waitForControlArtifact(changed.root, "ready", changed.input, {
+        ...changed.options,
+        download: async () => {
+          if (++changedDownloads === 1) {
+            if (change === "digest") changed.artifact.digest = `sha256:${"0".repeat(64)}`;
+            else changed.artifact.id += 1;
+            return missing();
+          }
+          return archive;
+        },
+      }),
+      /handoff refused/u,
+    );
+    assert.equal(changedDownloads, 1, `${change} change must refuse before another download`);
+  }
+
+  const vanished = await fixture(t, "ready", "coordinator");
+  let vanishedDownloads = 0;
+  const vanishedPhases: Record<string, unknown>[] = [];
   await assert.rejects(
-    waitForControlArtifact(changed.root, "ready", changed.input, {
-      ...changed.options,
+    waitForControlArtifact(vanished.root, "ready", vanished.input, {
+      ...vanished.options,
       download: async () => {
-        if (first) {
-          first = false;
-          changed.artifact.digest = `sha256:${"0".repeat(64)}`;
-          return missing();
-        }
-        throw new Error("changed artifact must not be downloaded");
+        vanishedDownloads++;
+        vanished.missing(Number.MAX_SAFE_INTEGER);
+        return missing();
       },
+      onRefusal: (receipt) => vanishedPhases.push(receipt),
     }),
     /handoff refused/u,
   );
+  assert.equal(vanishedDownloads, 1);
+  assert.equal(vanishedPhases[0]?.polls, 2, "a vanished pending artifact refuses on the next poll");
 
   const other = await fixture(t, "observation", "payload");
   let otherDownloads = 0;

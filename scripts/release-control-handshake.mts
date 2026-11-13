@@ -360,6 +360,8 @@ export async function waitForControlArtifact(
           ))
       )
         throw new Error("control producer job failed, ended or differs");
+      if (!artifact && pendingTransfer)
+        throw new Error("control artifact disappeared while its archive was unavailable");
       if (artifact) {
         stage = "artifact-identity";
         if (
