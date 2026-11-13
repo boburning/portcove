@@ -350,6 +350,21 @@ export function matchesRetainedNativeAdoptionPredecessor(
   source: { workflow_sha256: string },
   purpose: "application" | "catalog-publication" | undefined,
 ) {
+  const settled = retainedCatalogNativeAdoptionClaim;
+  if (checkpoint.checkpoint === settled.child) {
+    return (
+      purpose === "catalog-publication" &&
+      source.workflow_sha256 === retainedApplicationContextSettlement.workflow_sha256 &&
+      checkpoint.previous === settled.previous &&
+      producer.controller_revision === "d7f5e10b7644e9d2b8c8823c39c6175a9b3efdb3" &&
+      producer.controller_ref === settled.successor_ref &&
+      producer.workflow_sha256 === source.workflow_sha256 &&
+      producer.run_id === "43127719974" &&
+      producer.run_attempt === 1 &&
+      producer.job_id === "130886155058" &&
+      producer.check_run_id === "130886155058"
+    );
+  }
   return (
     purpose === "catalog-publication" &&
     source.workflow_sha256 === retainedApplicationContextSettlement.workflow_sha256 &&

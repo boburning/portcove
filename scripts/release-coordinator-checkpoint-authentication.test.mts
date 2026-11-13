@@ -1220,6 +1220,37 @@ void test("only the catalog coordinator can read the exact signed application re
     );
 });
 
+void test("catalog adoption authenticates the settled native predecessor's exact proof producer", () => {
+  const checkpoint = {
+    checkpoint: "d23b4f108b03ecd81c1696a407c740ca24e5d705",
+    previous: "006439a83c66cc3c1fa3fa142d7e4a6ed27f8553",
+  };
+  const source = {
+    workflow_sha256: "ae780affa5cff58dd88250b3575d6948ed6608a47b3175492cf56fff3a5d90fb",
+  };
+  const producer = {
+    controller_revision: "d7f5e10b7644e9d2b8c8823c39c6175a9b3efdb3",
+    controller_ref: "refs/tags/portcove-production-controller-catalog-adoption-settle-20261111",
+    workflow_sha256: source.workflow_sha256,
+    run_id: "43127719974",
+    run_attempt: 1,
+    job_id: "130886155058",
+    check_run_id: "130886155058",
+  };
+  assert.ok(
+    matchesRetainedNativeAdoptionPredecessor(checkpoint, producer, source, "catalog-publication"),
+  );
+  assert.ok(!matchesRetainedNativeAdoptionPredecessor(checkpoint, producer, source, "application"));
+  assert.ok(
+    !matchesRetainedNativeAdoptionPredecessor(
+      checkpoint,
+      { ...producer, run_id: "43069742240" },
+      source,
+      "catalog-publication",
+    ),
+  );
+});
+
 void test("r69 can resume only the signed r68 application renewal descriptor", () => {
   const checkpoint = {
     checkpoint: "86407ae8bca924200aba304340f33076e635b6e7",
