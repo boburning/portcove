@@ -1,5 +1,47 @@
 {
   "cases": {
+    "alexbeav-vib-ribbon-recomp": {
+      "inventory": "alexbeav-vib-ribbon-recomp",
+      "selected_assets": [
+        "vib-ribbon-0.1.3-windows-x64.zip",
+        "vib-ribbon-999.123.456-windows-x64.zip"
+      ],
+      "linux_selected_assets": [
+        "vib-ribbon-0.1.3-linux-x64.zip",
+        "vib-ribbon-999.123.456-linux-x64.zip"
+      ],
+      "managed_psx": {
+        "serial": "SCES-02873",
+        "track_count": 8,
+        "track_sha1": "a2ba376167bda9ed03ab89a11ade12410d75ede7",
+        "track_sha256": null,
+        "generated_executable": "Vib_Ribbon_Recompiled.exe",
+        "bios_profile": "psx-scph-5552-bios",
+        "crash_diagnostic": true,
+        "split_mod_paths": true
+      }
+    },
+    "alexbeav-wipeout-xl-recomp": {
+      "inventory": "alexbeav-wipeout-xl-recomp",
+      "selected_assets": [
+        "wipeout-xl-0.1.3-windows-x64.zip",
+        "wipeout-xl-999.123.456-windows-x64.zip"
+      ],
+      "linux_selected_assets": [
+        "wipeout-xl-0.1.3-linux-x64.zip",
+        "wipeout-xl-999.123.456-linux-x64.zip"
+      ],
+      "managed_psx": {
+        "serial": "SCUS-94351",
+        "track_count": 12,
+        "track_sha1": "5694008c30fa9896d17afdd6281e4bebb9f63953",
+        "track_sha256": null,
+        "generated_executable": "Wipeout_XL_Recompiled.exe",
+        "bios_profile": "psx-scph-1001-bios",
+        "crash_diagnostic": true,
+        "split_mod_paths": true
+      }
+    },
     "sonic-the-hedgehog-2013-mobile-edition-rsdkv4-decompilation": {
       "inventory": "rsdkv4",
       "repository_id": 321543928,
@@ -1766,6 +1808,158 @@
     }
   },
   "inventories": {
+    "alexbeav-vib-ribbon-recomp": [
+      {
+        "id": 443996689,
+        "tag_name": "v0.1.3",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-11-13T08:40:53Z",
+        "assets": [
+          {
+            "id": 742971027,
+            "name": "RELEASE-MANIFEST.json",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/vib-ribbon-recomp/releases/download/v0.1.3/RELEASE-MANIFEST.json",
+            "size": 3896,
+            "digest": "sha256:ae01e28755ec271a90d690bcedaf2b008ddf54ade992e8f178ec0d519e246eb1"
+          },
+          {
+            "id": 742971029,
+            "name": "SHA256SUMS.txt",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/vib-ribbon-recomp/releases/download/v0.1.3/SHA256SUMS.txt",
+            "size": 392,
+            "digest": "sha256:c39d9ac2307fa1f774c40e350894c4e8e2b23c8009bfcacda15110ea1862c311"
+          },
+          {
+            "id": 742928286,
+            "name": "vib-ribbon-0.1.3-linux-x64.zip",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/vib-ribbon-recomp/releases/download/v0.1.3/vib-ribbon-0.1.3-linux-x64.zip",
+            "size": 45747744,
+            "digest": "sha256:592127d16136d4566011b0dc4b9fdcfcf154d36209f9f4ee02c4738c416c11d1"
+          },
+          {
+            "id": 742928281,
+            "name": "vib-ribbon-0.1.3-macos-arm64.zip",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/vib-ribbon-recomp/releases/download/v0.1.3/vib-ribbon-0.1.3-macos-arm64.zip",
+            "size": 44098429,
+            "digest": "sha256:3f8d5adfc3752b3e8d3a24deeaef1481a9d45698cab969526d8d2938ac1692f5"
+          },
+          {
+            "id": 742928282,
+            "name": "vib-ribbon-0.1.3-macos-x64.zip",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/vib-ribbon-recomp/releases/download/v0.1.3/vib-ribbon-0.1.3-macos-x64.zip",
+            "size": 44887492,
+            "digest": "sha256:c7262bd8a262029362afd717e46b20ef00e640dbc131ef9bc08301b143b51c7d"
+          },
+          {
+            "id": 742928280,
+            "name": "vib-ribbon-0.1.3-windows-x64.zip",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/vib-ribbon-recomp/releases/download/v0.1.3/vib-ribbon-0.1.3-windows-x64.zip",
+            "size": 47813200,
+            "digest": "sha256:e094bb10827603989dc4144fdea3a8c98e6b46168a94ba934eaaaa9e93204c34"
+          }
+        ]
+      },
+      {
+        "id": 999880001,
+        "tag_name": "v999.123.456",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2027-01-01T00:00:00Z",
+        "assets": [
+          {
+            "id": 999880010,
+            "name": "vib-ribbon-999.123.456-windows-x64.zip",
+            "browser_download_url": "https://downloads.example.invalid/vib-ribbon-999.123.456-windows-x64.zip",
+            "size": 12345678,
+            "digest": "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+          },
+          {
+            "id": 999880011,
+            "name": "vib-ribbon-999.123.456-linux-x64.zip",
+            "browser_download_url": "https://downloads.example.invalid/vib-ribbon-999.123.456-linux-x64.zip",
+            "size": 12345678,
+            "digest": "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+          }
+        ]
+      }
+    ],
+    "alexbeav-wipeout-xl-recomp": [
+      {
+        "id": 443946886,
+        "tag_name": "v0.1.3",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-11-13T07:44:00Z",
+        "assets": [
+          {
+            "id": 742783266,
+            "name": "RELEASE-MANIFEST.json",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/wipeout-xl-recomp/releases/download/v0.1.3/RELEASE-MANIFEST.json",
+            "size": 3896,
+            "digest": "sha256:25fb9fb162776e5654991e39cc7c2cdbf3f0422fb33eb7b446d35c07a9d1703a"
+          },
+          {
+            "id": 742783268,
+            "name": "SHA256SUMS.txt",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/wipeout-xl-recomp/releases/download/v0.1.3/SHA256SUMS.txt",
+            "size": 392,
+            "digest": "sha256:66dde818cfb2a0537153ef9610812df8fee8508ee947014abaed471ed9e91228"
+          },
+          {
+            "id": 742761301,
+            "name": "wipeout-xl-0.1.3-linux-x64.zip",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/wipeout-xl-recomp/releases/download/v0.1.3/wipeout-xl-0.1.3-linux-x64.zip",
+            "size": 45749290,
+            "digest": "sha256:ea1d16a1269007b189c3684d107ab6568e70637b36b17a9764af75ac6f4a4e53"
+          },
+          {
+            "id": 742761297,
+            "name": "wipeout-xl-0.1.3-macos-arm64.zip",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/wipeout-xl-recomp/releases/download/v0.1.3/wipeout-xl-0.1.3-macos-arm64.zip",
+            "size": 44100602,
+            "digest": "sha256:bdfb91d5707d3503de2619563322119c32162829ff9eb7ec167b6c22c50b4056"
+          },
+          {
+            "id": 742761296,
+            "name": "wipeout-xl-0.1.3-macos-x64.zip",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/wipeout-xl-recomp/releases/download/v0.1.3/wipeout-xl-0.1.3-macos-x64.zip",
+            "size": 44889672,
+            "digest": "sha256:eeb24d9447d335b388436aed19eec675865a23c6a32bbdb01d06d837a7502ebd"
+          },
+          {
+            "id": 742761302,
+            "name": "wipeout-xl-0.1.3-windows-x64.zip",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/wipeout-xl-recomp/releases/download/v0.1.3/wipeout-xl-0.1.3-windows-x64.zip",
+            "size": 47815842,
+            "digest": "sha256:24f566068202d31f2cee7f7068ba8de636168e39cdcf1b95cb7dac43d9c62625"
+          }
+        ]
+      },
+      {
+        "id": 999880002,
+        "tag_name": "v999.123.456",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2027-01-01T00:00:00Z",
+        "assets": [
+          {
+            "id": 999880020,
+            "name": "wipeout-xl-999.123.456-windows-x64.zip",
+            "browser_download_url": "https://downloads.example.invalid/wipeout-xl-999.123.456-windows-x64.zip",
+            "size": 12345678,
+            "digest": "sha256:2222222222222222222222222222222222222222222222222222222222222222"
+          },
+          {
+            "id": 999880021,
+            "name": "wipeout-xl-999.123.456-linux-x64.zip",
+            "browser_download_url": "https://downloads.example.invalid/wipeout-xl-999.123.456-linux-x64.zip",
+            "size": 12345678,
+            "digest": "sha256:2222222222222222222222222222222222222222222222222222222222222222"
+          }
+        ]
+      }
+    ],
     "rsdkv4": [
       {
         "id": 259036513,
@@ -11380,6 +11574,26 @@
       "inventory": "yakumo",
       "release_index": 1,
       "asset": "yakumo-0.7.6-windows-x86_64.zip"
+    },
+    {
+      "inventory": "alexbeav-vib-ribbon-recomp",
+      "release_index": 0,
+      "asset": "vib-ribbon-0.1.3-macos-arm64.zip"
+    },
+    {
+      "inventory": "alexbeav-vib-ribbon-recomp",
+      "release_index": 0,
+      "asset": "vib-ribbon-0.1.3-macos-x64.zip"
+    },
+    {
+      "inventory": "alexbeav-wipeout-xl-recomp",
+      "release_index": 0,
+      "asset": "wipeout-xl-0.1.3-macos-arm64.zip"
+    },
+    {
+      "inventory": "alexbeav-wipeout-xl-recomp",
+      "release_index": 0,
+      "asset": "wipeout-xl-0.1.3-macos-x64.zip"
     }
   ]
 }
