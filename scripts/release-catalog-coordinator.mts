@@ -100,6 +100,7 @@ import { CoordinatorRemoteError } from "./release-coordinator-errors.mts";
 import {
   retainedCatalogForwardAdoptionClaim,
   retainedCatalogNativeAdoptionClaim,
+  retainedCatalogV13AdoptionClaim,
 } from "./release-coordinator-checkpoint-authentication.mts";
 import {
   checkpointReleaseOpportunity,
@@ -449,6 +450,7 @@ export async function runFixedCatalogCoordinatorConfiguration(
         const statePin = [
           retainedCatalogForwardAdoptionClaim,
           retainedCatalogNativeAdoptionClaim,
+          retainedCatalogV13AdoptionClaim,
         ].find(({ child }) => child === claimedChild);
         if (statePin) {
           const exact = await exportCoordinatorCheckpoint(recovered.repository, statePin.child);
