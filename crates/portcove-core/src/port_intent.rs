@@ -1029,11 +1029,7 @@ mod tests {
         assert_eq!(off.assessments[0].mode, PortIntentMode::Notify);
         assert!(!off.assessments[0].newly_ready);
         assert_eq!(
-            service
-                .port_intent(PORT)
-                .unwrap()
-                .unwrap()
-                .acknowledged_plan_sha256,
+            service.port_intents().unwrap()[0].acknowledged_plan_sha256,
             None
         );
         // Turning it on again announces the still-unannounced game once.

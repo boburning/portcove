@@ -973,7 +973,6 @@ export type ApplicationUpdateInstallEligibility =
   "eligible" | "package-managed-deb" | "package-managed-rpm" | "not-configured" | "unavailable";
 export type ApplicationUpdateRecoveryArea = "schedule" | "staging" | "apply";
 export type OutputDesktopAutomaticSnapshotsEnabled = boolean;
-export type OutputDesktopReadyNoticesEnabled = boolean;
 export type InstallBatchItemState = ("queued" | "running" | "failed" | "cancelled") | "ready" | "held" | "interrupted";
 export type OutputDesktopInstallBatches = InstallBatchRecord[];
 export type LibraryMembershipOutcomeKind = "added" | "already_saved" | "already_in_library";
@@ -1287,8 +1286,8 @@ export interface TransportOutputs {
   desktop_port_intent_assessments: OutputDesktopPortIntentAssessments;
   desktop_port_intents: OutputDesktopPortIntents;
   desktop_preparation_cleanup_preview: OutputPreparationCleanupPreview;
+  desktop_ready_notices_enabled: OutputDesktopAutomaticSnapshotsEnabled;
   desktop_reconcile_outcome: OutputReconcileBatchOutcome;
-  desktop_ready_notices_enabled: OutputDesktopReadyNoticesEnabled;
   desktop_root_setup_consent: OutputDesktopRootSetupConsent;
   desktop_root_setup_consents: OutputDesktopRootSetupConsents;
   desktop_setup_launch_targets: OutputSetupLaunchTargets;
