@@ -352,11 +352,13 @@ void test("required CI keeps its cancellation and least-privilege contracts", ()
   };
   // The Windows build and transport jobs share one cache; only the superset
   // workspace build saves it, and only on main, so pull requests never save.
+  // The shared key carries the root manifest: the action ignores `key` beside a shared key,
+  // and a build-profile change must not restore a cache built with the old profile.
   assert.deepEqual(
     caches("fast_rust").map((step) => step.with),
     [
       {
-        "shared-key": "fast-rust-windows",
+        "shared-key": "fast-rust-windows-${{ hashFiles('Cargo.toml') }}",
         "save-if": "${{ github.ref == 'refs/heads/main' }}",
         "cache-on-failure": true,
         key: "${{ hashFiles('Cargo.toml') }}",
@@ -367,7 +369,7 @@ void test("required CI keeps its cancellation and least-privilege contracts", ()
     caches("fast_rust_transport").map((step) => step.with),
     [
       {
-        "shared-key": "fast-rust-windows",
+        "shared-key": "fast-rust-windows-${{ hashFiles('Cargo.toml') }}",
         "save-if": false,
         key: "${{ hashFiles('Cargo.toml') }}",
       },
