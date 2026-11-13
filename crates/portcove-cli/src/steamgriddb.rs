@@ -222,16 +222,29 @@ pub(crate) fn listing_report(report: &SteamGridDbListingReport) -> String {
         Some(SteamGridDbCheckStop::RateLimited {
             retry_after_seconds: Some(seconds),
         }) => format!(
-            "\n\nSteamGridDB asked Portcove to slow down, so the check stopped early.\nNext step: Run the check again in {seconds} seconds."
+            "\n\nSteamGridDB asked Portcove to slow down, so the check stopped early.\nNext step: Run the check again in {}.",
+            wait_text(*seconds)
         ),
         Some(SteamGridDbCheckStop::RateLimited { .. }) => "\n\nSteamGridDB asked Portcove to slow down, so the check stopped early.\nNext step: Run the check again later.".into(),
         Some(SteamGridDbCheckStop::KeyRejected) => "\n\nSteamGridDB rejected your saved API key, so the check stopped early.\nNext step: Replace it with `portcove artwork steamgriddb set-key`.".into(),
+        Some(SteamGridDbCheckStop::Unavailable) => "\n\nSteamGridDB could not be reached, so the check stopped early.\nNext step: Run the check again later.".into(),
         None => String::new(),
     };
+    let count = report.images.len();
     format!(
-        "SteamGridDB listing check: {} images\n\n{lines}\n\nThis check only reports. Every image, credit and choice was kept, and nothing changed in Steam.{stopped}",
-        report.images.len()
+        "SteamGridDB listing check: {count} {}\n\n{lines}\n\nThis check only reports. Every image, credit and choice was kept, and nothing changed in Steam.{stopped}",
+        if count == 1 { "image" } else { "images" }
     )
+}
+
+/// A Retry-After wait in the largest whole unit a player would read.
+fn wait_text(seconds: u64) -> String {
+    let (amount, unit) = match seconds {
+        0..=119 => (seconds.max(1), "second"),
+        120..=7199 => (seconds.div_ceil(60), "minute"),
+        _ => (seconds.div_ceil(3600), "hour"),
+    };
+    format!("{amount} {unit}{}", if amount == 1 { "" } else { "s" })
 }
 
 #[cfg(test)]
@@ -413,5 +426,39 @@ mod tests {
         assert!(text.contains("not confirmed (SteamGridDB did not find the game)"));
         assert!(text.contains("Every image, credit and choice was kept"));
         assert!(text.contains("again in 30 seconds"));
+        assert!(text.starts_with("SteamGridDB listing check: 4 images"));
+        let one = |stopped| {
+            listing_report(&SteamGridDbListingReport {
+                checked_at: 0,
+                images: vec![image(
+                    5,
+                    SteamGridDbListingStatus::Unknown,
+                    Some(SteamGridDbUnknownReason::CheckStopped),
+                    SteamGridDbSourceStatus::NotChecked,
+                )],
+                stopped,
+            })
+        };
+        assert!(one(None).starts_with("SteamGridDB listing check: 1 image\n"));
+        assert!(one(Some(SteamGridDbCheckStop::KeyRejected)).contains("set-key"));
+        assert!(one(Some(SteamGridDbCheckStop::Unavailable)).contains("could not be reached"));
+        assert!(
+            one(Some(SteamGridDbCheckStop::RateLimited {
+                retry_after_seconds: None
+            }))
+            .contains("again later")
+        );
+        assert!(one(None).contains("not confirmed (the check stopped first)"));
+        for (seconds, text) in [
+            (0, "1 second"),
+            (1, "1 second"),
+            (90, "90 seconds"),
+            (120, "2 minutes"),
+            (3600, "60 minutes"),
+            (7200, "2 hours"),
+            (86_400, "24 hours"),
+        ] {
+            assert_eq!(wait_text(seconds), text);
+        }
     }
 }

@@ -1398,12 +1398,17 @@ and `limit`, carries `data` and the same `total`, every entry has a readable ID,
 the unique IDs seen equal `total`. Anything else is `unknown` with an
 `unknown_reason`: `incomplete_listing`, `too_many_images` (more than 1,000),
 `game_not_found` (a 404 is never read as a withdrawal), `request_limit`,
-`check_stopped`, `unavailable` or `invalid_response`. For `not_listed` and
-`game_not_found` images, `source` reports what the image server answers for the
-stored URL without your key: `served`, `gone` (404 or 410) or `unknown`. One check
-makes at most 120 SteamGridDB API requests and 60 image-server requests, spaced
-250 ms apart. A rate limit or a rejected key ends the check, reported in `stopped`;
-results already read are kept and the rest are `check_stopped`. A library with no
+`check_stopped`, `unavailable` or `invalid_response`. Only a 404 for the first page
+is `game_not_found`; one for a later page is `incomplete_listing`. For `not_listed`
+and `game_not_found` images, `source` reports what the image server answers for the
+stored URL without your key: `served`, `gone` (404 or 410) or `unknown`. It is
+`not_checked` for listed images and for any image not probed before the check
+stopped. One check makes at most 120 SteamGridDB API requests and 60 image-server
+requests, spaced 250 ms apart. A rate limit, a rejected key, or two unreachable
+listings in a row end the check, reported in `stopped` as `rate_limited`,
+`key_rejected` or `unavailable`; results already read are kept and the rest are
+`check_stopped`. Groups are read in a fixed order, so a library with more than 120
+listings reports the same remainder as `request_limit` on every run. A library with no
 SteamGridDB images makes no request and needs no key.
 
 ## Export and restore a library

@@ -764,12 +764,14 @@ picker's lossy one and matches raw IDs only. It accepts absence only from a list
 whose pages echo the request, carry `data` and a stable `total`, and whose unique IDs
 equal `total`. Everything else, including a game 404, is unknown. Absent images get a
 keyless image-server probe. Each check has a request budget (120 API, 60 image
-server), 250 ms spacing, and an early stop on a rate limit or a rejected key. Recording
+server), 250 ms spacing, and an early stop on a rate limit, a rejected key or two
+unreachable listings in a row. It reads its snapshot in one read transaction, so a
+concurrent choice or removal cannot make a healthy library fail verification. Recording
 and eviction need two independent signals and come in a later #527 slice.
 
 The CLI's `artwork steamgriddb` commands are thin adapters:
-lookups run on a blocking task, and `choose` runs Core's fetch and ingestion in place
-on a runtime worker thread (`block_in_place`).
+lookups run on a blocking task, and `choose` and `check-listings`, which borrow the
+service, run in place on a runtime worker thread (`block_in_place`).
 
 Desktop exposes the same Core functions through thin Tauri commands. Settings →
 Integrations saves or removes the player's key; the key is passed to Core once and

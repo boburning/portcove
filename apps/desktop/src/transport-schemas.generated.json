@@ -65698,6 +65698,20 @@
               "reason"
             ],
             "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "description": "SteamGridDB was unreachable for consecutive listings.",
+            "properties": {
+              "reason": {
+                "const": "unavailable",
+                "type": "string"
+              }
+            },
+            "required": [
+              "reason"
+            ],
+            "type": "object"
           }
         ]
       },

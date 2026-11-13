@@ -21,6 +21,9 @@ const MAX_CHECK_API_REQUESTS: u32 = 120;
 const MAX_CHECK_SOURCE_PROBES: u32 = 60;
 /// Spacing between consecutive requests of one check.
 const CHECK_PACE: Duration = Duration::from_millis(250);
+/// Consecutive unreachable listings after which a check stops instead of
+/// spending its budget against an outage.
+const MAX_CONSECUTIVE_UNAVAILABLE: u32 = 2;
 
 /// Whether SteamGridDB's own listing still includes a stored image.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
@@ -85,6 +88,8 @@ pub enum SteamGridDbCheckStop {
     RateLimited { retry_after_seconds: Option<u64> },
     /// SteamGridDB rejected the player's saved key.
     KeyRejected,
+    /// SteamGridDB was unreachable for consecutive listings.
+    Unavailable,
 }
 
 /// Report only: nothing in the library, its files or Steam changes.
@@ -249,6 +254,7 @@ pub(crate) fn check_listings(
         subjects.len()
     ];
     let mut stopped = None;
+    let mut unavailable = 0;
     for (query, members) in &groups {
         let listing = match verified_listing(transport, key, query, &mut budget) {
             Ok(listing) => listing,
@@ -257,6 +263,14 @@ pub(crate) fn check_listings(
                 break;
             }
         };
+        if matches!(
+            listing,
+            GroupListing::Unknown(SteamGridDbUnknownReason::Unavailable)
+        ) {
+            unavailable += 1;
+        } else {
+            unavailable = 0;
+        }
         for &index in members {
             listings[index] = match &listing {
                 GroupListing::Ids(ids) if ids.contains(&subjects[index].attribution.asset_id) => {
@@ -265,6 +279,10 @@ pub(crate) fn check_listings(
                 GroupListing::Ids(_) => (SteamGridDbListingStatus::NotListed, None),
                 GroupListing::Unknown(reason) => (SteamGridDbListingStatus::Unknown, Some(*reason)),
             };
+        }
+        if unavailable >= MAX_CONSECUTIVE_UNAVAILABLE {
+            stopped = Some(SteamGridDbCheckStop::Unavailable);
+            break;
         }
     }
     let mut sources = vec![SteamGridDbSourceStatus::NotChecked; subjects.len()];
@@ -329,7 +347,10 @@ fn verified_listing(
         match response.status {
             200 => {}
             401 | 403 => return Err(SteamGridDbCheckStop::KeyRejected),
-            404 => return Ok(GroupListing::Unknown(Reason::GameNotFound)),
+            // Only a first-page 404 says anything about the game; a later one
+            // means the listing changed under the check.
+            404 if page == 0 => return Ok(GroupListing::Unknown(Reason::GameNotFound)),
+            404 => return Ok(GroupListing::Unknown(Reason::IncompleteListing)),
             429 => {
                 return Err(SteamGridDbCheckStop::RateLimited {
                     retry_after_seconds: retry_after_seconds(response.retry_after.as_deref()),

@@ -2943,6 +2943,79 @@ fn provider_candidate(
 }
 
 #[test]
+fn listing_check_subjects_carry_the_stored_image_facts() {
+    use crate::DestinationArtworkRole as Role;
+    let temp = tempfile::tempdir().unwrap();
+    let service = open_service(&temp.path().join("library"));
+    let port = service.artwork_port("zelda64-recomp").unwrap();
+    service
+        .choose_fetched_artwork(
+            &port,
+            ArtworkSlot::Cover,
+            42,
+            provider_candidate(
+                7,
+                Role::PortraitCover,
+                12,
+                24,
+                "image/png",
+                encoded(12, 24, image::ImageFormat::Png),
+            ),
+            0,
+        )
+        .unwrap();
+    service
+        .choose_fetched_artwork(
+            &port,
+            ArtworkSlot::Detail,
+            42,
+            provider_candidate(
+                8,
+                Role::HeroBanner,
+                64,
+                20,
+                "image/jpeg",
+                encoded(64, 20, image::ImageFormat::Jpeg),
+            ),
+            0,
+        )
+        .unwrap();
+    let before = service.export_library_metadata().unwrap();
+    let mut connection = service.library().connection().unwrap();
+    let transaction = connection.transaction().unwrap();
+    let metadata = crate::artwork_store::snapshot(&transaction).unwrap();
+    transaction.commit().unwrap();
+    let mut subjects: Vec<_> = crate::artwork::steamgriddb::check_subjects(&metadata)
+        .into_iter()
+        .map(|subject| {
+            (
+                subject.attribution.asset_id,
+                subject.attribution.game_id,
+                subject.image,
+            )
+        })
+        .collect();
+    subjects.sort_by_key(|subject| subject.0);
+    assert_eq!(
+        subjects,
+        [
+            (7, 42, Some((12, 24, crate::ArtworkImageFormat::Png))),
+            (8, 42, Some((64, 20, crate::ArtworkImageFormat::Jpeg))),
+        ]
+    );
+    // A library without stored provider images is checked without a key or request.
+    let empty = tempfile::tempdir().unwrap();
+    let report = open_service(&empty.path().join("library"))
+        .check_steamgriddb_listings()
+        .unwrap();
+    assert!(report.images.is_empty() && report.stopped.is_none());
+    assert_eq!(
+        service.export_library_metadata().unwrap().artwork,
+        before.artwork
+    );
+}
+
+#[test]
 fn chosen_provider_images_keep_attribution_through_identical_local_imports() {
     use crate::DestinationArtworkRole as Role;
     let temp = tempfile::tempdir().unwrap();

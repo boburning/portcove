@@ -972,6 +972,9 @@ export type SteamGridDbCheckStop =
     }
   | {
       reason: "key_rejected";
+    }
+  | {
+      reason: "unavailable";
     };
 export type OutputDesktopAdoptionBatchResult = AdoptionBatchResult | null;
 export type OutputDesktopApplicationUpdateCheckPhase = "checking" | "acquiring-and-verifying" | "staged" | "complete";

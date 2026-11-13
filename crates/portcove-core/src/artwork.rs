@@ -461,9 +461,14 @@ impl PortcoveService {
     /// are unchanged, and the artwork lock is never taken, so the network work
     /// never blocks choosing or importing artwork.
     pub fn check_steamgriddb_listings(&self) -> Result<steamgriddb::SteamGridDbListingReport> {
+        // One read transaction gives a consistent snapshot while choices and
+        // removals continue; no write or artwork lock is taken.
         let metadata = {
-            let connection = self.library().connection()?;
-            crate::artwork_store::snapshot(&connection)?
+            let mut connection = self.library().connection()?;
+            let transaction = connection.transaction()?;
+            let metadata = crate::artwork_store::snapshot(&transaction)?;
+            transaction.commit()?;
+            metadata
         };
         steamgriddb::check_stored_listings(steamgriddb::check_subjects(&metadata), Library::now())
     }

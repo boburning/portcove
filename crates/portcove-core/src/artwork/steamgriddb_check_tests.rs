@@ -7,6 +7,8 @@ use crate::ArtworkProvider;
 struct Scripted {
     api: RefCell<VecDeque<(u16, Option<&'static str>, String)>>,
     image_status: u16,
+    /// Per-probe statuses used before `image_status`; 0 is a transport error.
+    image_statuses: RefCell<VecDeque<u16>>,
     paths: RefCell<Vec<String>>,
     images: RefCell<Vec<(String, u64)>>,
 }
@@ -21,6 +23,7 @@ impl Scripted {
                     .collect(),
             ),
             image_status,
+            image_statuses: RefCell::new(VecDeque::new()),
             paths: RefCell::new(Vec::new()),
             images: RefCell::new(Vec::new()),
         }
@@ -36,6 +39,9 @@ impl SteamGridDbTransport for Scripted {
             .borrow_mut()
             .pop_front()
             .expect("an unexpected provider request");
+        if status == 0 {
+            return Err(SteamGridDbFailure::Unavailable.into());
+        }
         Ok(TransportResponse {
             status,
             retry_after: retry_after.map(str::to_owned),
@@ -45,8 +51,16 @@ impl SteamGridDbTransport for Scripted {
 
     fn fetch_image(&self, url: &str, max_bytes: u64) -> Result<TransportResponse> {
         self.images.borrow_mut().push((url.to_owned(), max_bytes));
+        let status = self
+            .image_statuses
+            .borrow_mut()
+            .pop_front()
+            .unwrap_or(self.image_status);
+        if status == 0 {
+            return Err(SteamGridDbFailure::Unavailable.into());
+        }
         Ok(TransportResponse {
-            status: self.image_status,
+            status,
             retry_after: None,
             body: Vec::new(),
         })
@@ -359,6 +373,146 @@ fn an_empty_library_needs_no_key_and_makes_no_request() {
             images: Vec::new(),
             stopped: None,
         }
+    );
+}
+
+#[test]
+fn answers_after_the_first_page_never_read_as_a_missing_game() {
+    let first: Vec<u64> = (1..=50).collect();
+    for (status, expected) in [
+        (404, Some(R::IncompleteListing)),
+        (502, Some(R::Unavailable)),
+        (0, Some(R::Unavailable)),
+    ] {
+        let transport = Scripted::new(vec![page(0, 60, &first), (status, String::new())], 200);
+        let report = run(&transport, vec![portrait(99, 7)]);
+        assert_eq!(outcome(&report, 0), (L::Unknown, expected, S::NotChecked));
+        assert_eq!(report.stopped, None);
+    }
+    for status in [401, 403] {
+        let transport = Scripted::new(vec![page(0, 60, &first), (status, String::new())], 200);
+        let report = run(&transport, vec![portrait(99, 7)]);
+        assert_eq!(report.stopped, Some(SteamGridDbCheckStop::KeyRejected));
+        assert_eq!(
+            outcome(&report, 0),
+            (L::Unknown, Some(R::CheckStopped), S::NotChecked)
+        );
+    }
+}
+
+#[test]
+fn page_shape_limits_are_enforced() {
+    let too_many: Vec<u64> = (1..=51).collect();
+    let duplicate_within_page = page(0, 2, &[4, 4]);
+    for (response, reason) in [
+        (page(0, 51, &too_many), R::InvalidResponse),
+        (duplicate_within_page, R::IncompleteListing),
+        (page(0, 0, &[1]), R::IncompleteListing),
+    ] {
+        let transport = Scripted::new(vec![response], 404);
+        let report = run(&transport, vec![portrait(9, 7)]);
+        assert_eq!(
+            outcome(&report, 0),
+            (L::Unknown, Some(reason), S::NotChecked)
+        );
+    }
+}
+
+#[test]
+fn exact_page_multiples_need_no_extra_request() {
+    for pages in [1_u64, 2, 20] {
+        let total = pages * 50;
+        let responses = (0..pages)
+            .map(|index| {
+                let ids: Vec<u64> = (index * 50 + 1..=index * 50 + 50).collect();
+                page(index, total, &ids)
+            })
+            .collect();
+        let transport = Scripted::new(responses, 404);
+        let report = run(&transport, vec![portrait(total, 7)]);
+        assert_eq!(outcome(&report, 0), (L::Listed, None, S::NotChecked));
+        assert_eq!(transport.paths.borrow().len() as u64, pages);
+    }
+}
+
+#[test]
+fn consecutive_unreachable_listings_stop_the_check() {
+    let transport = Scripted::new(vec![(503, String::new()), (0, String::new())], 200);
+    let report = run(
+        &transport,
+        vec![portrait(1, 7), portrait(2, 8), portrait(3, 9)],
+    );
+    assert_eq!(report.stopped, Some(SteamGridDbCheckStop::Unavailable));
+    assert_eq!(
+        outcome(&report, 0),
+        (L::Unknown, Some(R::Unavailable), S::NotChecked)
+    );
+    assert_eq!(
+        outcome(&report, 1),
+        (L::Unknown, Some(R::Unavailable), S::NotChecked)
+    );
+    assert_eq!(
+        outcome(&report, 2),
+        (L::Unknown, Some(R::CheckStopped), S::NotChecked)
+    );
+    assert_eq!(transport.paths.borrow().len(), 2);
+
+    // One unreachable listing between readable ones does not stop the check.
+    let transport = Scripted::new(
+        vec![(503, String::new()), page(0, 1, &[2]), (503, String::new())],
+        200,
+    );
+    let report = run(
+        &transport,
+        vec![portrait(1, 7), portrait(2, 8), portrait(3, 9)],
+    );
+    assert_eq!(report.stopped, None);
+    assert_eq!(outcome(&report, 1), (L::Listed, None, S::NotChecked));
+}
+
+#[test]
+fn a_budget_exhausted_mid_listing_discards_partial_pages() {
+    let ids: Vec<u64> = (1..=50).collect();
+    let groups = MAX_CHECK_API_REQUESTS as u64 - 1;
+    let mut responses: Vec<_> = (0..groups).map(|_| page(0, 1, &[1])).collect();
+    responses.push(page(0, 100, &ids));
+    let transport = Scripted::new(responses, 200);
+    let mut subjects: Vec<_> = (0..groups).map(|game| portrait(1, game + 1)).collect();
+    // The last group's image is on its first page, but the listing never completes.
+    subjects.push(portrait(5, 10_000));
+    let report = run(&transport, subjects);
+    assert_eq!(
+        outcome(&report, groups as usize),
+        (L::Unknown, Some(R::RequestLimit), S::NotChecked)
+    );
+}
+
+#[test]
+fn source_probes_classify_answers_and_respect_their_budget() {
+    let probes = MAX_CHECK_SOURCE_PROBES as usize;
+    let transport = Scripted::new(vec![page(0, 0, &[])], 200);
+    *transport.image_statuses.borrow_mut() = [410, 403, 503, 0, 200].into_iter().collect();
+    let mut subjects: Vec<_> = (1..=probes as u64 + 2).map(|id| portrait(id, 7)).collect();
+    subjects[0].attribution.source_url = "https://example.com/1.png".into();
+    let report = run(&transport, subjects);
+    // A source outside the image host is never requested.
+    assert_eq!(outcome(&report, 0), (L::NotListed, None, S::Unknown));
+    let statuses: Vec<_> = report.images[1..6]
+        .iter()
+        .map(|image| image.source)
+        .collect();
+    assert_eq!(
+        statuses,
+        [S::Gone, S::Unknown, S::Unknown, S::Unknown, S::Served]
+    );
+    assert_eq!(transport.images.borrow().len(), probes);
+    assert_eq!(report.images[probes + 1].source, S::Unknown);
+    assert!(
+        transport
+            .images
+            .borrow()
+            .iter()
+            .all(|(url, max)| url.starts_with("https://cdn2.steamgriddb.com/") && *max == 1)
     );
 }
 
