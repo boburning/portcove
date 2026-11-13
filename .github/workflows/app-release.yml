@@ -192,6 +192,7 @@ jobs:
           else
             echo "::error::Could not read the release state: $view"; exit 1
           fi
+          case "$state" in missing|draft|published) ;; *) echo "::error::Unexpected release state: $state"; exit 1 ;; esac
           if [ "$state" = missing ]; then
             flags=()
             [ "${{ needs.plan.outputs.prerelease }}" = true ] && flags+=(--prerelease)
