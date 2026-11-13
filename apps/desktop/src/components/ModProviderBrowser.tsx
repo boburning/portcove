@@ -342,58 +342,16 @@ export function ModProviderBrowser(props: Props) {
           </ActionRow>
         </section>
       ) : page ? (
-        <section aria-label={t("mods.browse.modsLabel", { provider })} className="grid gap-2">
-          {pageStale && <p className="text-sm">{pageStale}</p>}
-          {page.page.projects.length === 0 ? (
-            <p className="text-sm">{t("mods.browse.noMods")}</p>
-          ) : (
-            <ul className="m-0 grid list-none gap-1 p-0">
-              {page.page.projects.map((entry) => (
-                <li
-                  key={entry.project_id}
-                  className="flex flex-wrap items-center gap-2 text-sm [overflow-wrap:anywhere]"
-                >
-                  <span className="min-w-0 flex-1">
-                    <Trans
-                      t={t}
-                      i18nKey={entry.version ? "mods.browse.entryVersion" : "mods.browse.entry"}
-                      components={{
-                        name: <bdi>{entry.name}</bdi>,
-                        version: <bdi>{entry.version ?? ""}</bdi>,
-                      }}
-                    />
-                  </span>
-                  <Button
-                    variant="outline"
-                    disabled={locked}
-                    onClick={() => showProject(entry.project_id)}
-                  >
-                    {t("mods.browse.showFiles", { name: entry.name })}
-                  </Button>
-                </li>
-              ))}
-            </ul>
-          )}
-          <ActionRow>
-            <Button
-              variant="outline"
-              disabled={locked || page.page.page <= 1}
-              onClick={() => showPage(page.page.page - 1)}
-            >
-              {t("mods.browse.previous")}
-            </Button>
-            <Button
-              variant="outline"
-              disabled={locked || page.page.complete || page.page.page >= page.last_page}
-              onClick={() => showPage(page.page.page + 1)}
-            >
-              {t("mods.browse.next")}
-            </Button>
-            <Button variant="outline" disabled={Boolean(working)} onClick={() => setOpen(false)}>
-              {t("mods.browse.close")}
-            </Button>
-          </ActionRow>
-        </section>
+        <ProviderProjectList
+          page={page}
+          stale={pageStale}
+          provider={provider}
+          locked={locked}
+          working={Boolean(working)}
+          showProject={showProject}
+          showPage={showPage}
+          close={() => setOpen(false)}
+        />
       ) : working ? null : (
         <ActionRow>
           <Button variant="outline" disabled={disabled} onClick={() => showPage(1)}>
@@ -503,5 +461,81 @@ function ProviderInstallDetails({
         </Notice>
       )}
     </>
+  );
+}
+
+function ProviderProjectList({
+  page,
+  stale,
+  provider,
+  locked,
+  working,
+  showProject,
+  showPage,
+  close,
+}: {
+  page: ProviderBrowsePage;
+  stale: string | undefined;
+  provider: string;
+  locked: boolean;
+  working: boolean;
+  showProject: (id: string) => void;
+  showPage: (number: number) => void;
+  close: () => void;
+}) {
+  const { t } = useAppTranslation("gameSettings");
+  return (
+    <section aria-label={t("mods.browse.modsLabel", { provider })} className="grid gap-2">
+      {stale && <p className="text-sm">{stale}</p>}
+      {page.page.projects.length === 0 ? (
+        <p className="text-sm">{t("mods.browse.noMods")}</p>
+      ) : (
+        <ul className="m-0 grid list-none gap-1 p-0">
+          {page.page.projects.map((entry) => (
+            <li
+              key={entry.project_id}
+              className="flex flex-wrap items-center gap-2 text-sm [overflow-wrap:anywhere]"
+            >
+              <span className="min-w-0 flex-1">
+                <Trans
+                  t={t}
+                  i18nKey={entry.version ? "mods.browse.entryVersion" : "mods.browse.entry"}
+                  components={{
+                    name: <bdi>{entry.name}</bdi>,
+                    version: <bdi>{entry.version ?? ""}</bdi>,
+                  }}
+                />
+              </span>
+              <Button
+                variant="outline"
+                disabled={locked}
+                onClick={() => showProject(entry.project_id)}
+              >
+                {t("mods.browse.showFiles", { name: entry.name })}
+              </Button>
+            </li>
+          ))}
+        </ul>
+      )}
+      <ActionRow>
+        <Button
+          variant="outline"
+          disabled={locked || page.page.page <= 1}
+          onClick={() => showPage(page.page.page - 1)}
+        >
+          {t("mods.browse.previous")}
+        </Button>
+        <Button
+          variant="outline"
+          disabled={locked || page.page.complete || page.page.page >= page.last_page}
+          onClick={() => showPage(page.page.page + 1)}
+        >
+          {t("mods.browse.next")}
+        </Button>
+        <Button variant="outline" disabled={working} onClick={close}>
+          {t("mods.browse.close")}
+        </Button>
+      </ActionRow>
+    </section>
   );
 }

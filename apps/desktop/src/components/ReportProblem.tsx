@@ -209,35 +209,7 @@ export function ReportProblem({
   const draft = phase.kind === "ready" || phase.kind === "opening" ? phase : undefined;
   const shown: ReportKind | undefined =
     phase.kind === "closed" || phase.kind === "choosing" ? report : (phase.report ?? report);
-  const title =
-    shown === "problem"
-      ? t("problem.title")
-      : shown === "feedback"
-        ? t("feedback.title")
-        : t("choice.title");
-  const description =
-    shown === "problem"
-      ? t("problem.description")
-      : shown === "feedback"
-        ? t("feedback.description")
-        : t("choice.description");
-  const copiedMessage = (kind: ReportKind, reason: CopyReason) =>
-    reason === "asked"
-      ? t("copy.copied")
-      : kind === "feedback"
-        ? t("feedback.copied")
-        : t("problem.copied");
-  const copyFailedMessage = (kind: ReportKind, reason: CopyReason) =>
-    reason === "asked"
-      ? t("copy.failed")
-      : kind === "feedback"
-        ? t("feedback.copyFailed")
-        : t("problem.copyFailed");
-  const finished =
-    phase.kind === "copied" ||
-    phase.kind === "copy_failed" ||
-    phase.kind === "failed" ||
-    phase.kind === "submitted";
+  const { title, description, finished } = reportPresentation(t, phase, shown);
   const edit = (id: string, value: string) => {
     if (!draft) return;
     const known = draft.fields.some((field) => field.id === id);
@@ -299,11 +271,11 @@ export function ReportProblem({
             <p role="status">{t("send.done", { number: phase.issue.number })}</p>
           )}
           {phase.kind === "copied" && (
-            <p role="status">{copiedMessage(phase.report, phase.reason)}</p>
+            <p role="status">{copiedMessage(t, phase.report, phase.reason)}</p>
           )}
           {phase.kind === "copy_failed" && (
             <div className="grid gap-2">
-              <p role="alert">{copyFailedMessage(phase.report, phase.reason)}</p>
+              <p role="alert">{copyFailedMessage(t, phase.report, phase.reason)}</p>
               <textarea className={textareaClassName} readOnly value={phase.text} />
             </div>
           )}
@@ -359,6 +331,42 @@ export function ReportProblem({
     </>
   );
 }
+
+type ReportTranslation = ReturnType<typeof useAppTranslation<"report">>["t"];
+
+function reportPresentation(t: ReportTranslation, phase: Phase, shown: ReportKind | undefined) {
+  const title =
+    shown === "problem"
+      ? t("problem.title")
+      : shown === "feedback"
+        ? t("feedback.title")
+        : t("choice.title");
+  const description =
+    shown === "problem"
+      ? t("problem.description")
+      : shown === "feedback"
+        ? t("feedback.description")
+        : t("choice.description");
+  const finished =
+    phase.kind === "copied" ||
+    phase.kind === "copy_failed" ||
+    phase.kind === "failed" ||
+    phase.kind === "submitted";
+  return { title, description, finished };
+}
+
+const copiedMessage = (t: ReportTranslation, kind: ReportKind, reason: CopyReason) =>
+  reason === "asked"
+    ? t("copy.copied")
+    : kind === "feedback"
+      ? t("feedback.copied")
+      : t("problem.copied");
+const copyFailedMessage = (t: ReportTranslation, kind: ReportKind, reason: CopyReason) =>
+  reason === "asked"
+    ? t("copy.failed")
+    : kind === "feedback"
+      ? t("feedback.copyFailed")
+      : t("problem.copyFailed");
 
 function ReportDraftFields({
   draft,

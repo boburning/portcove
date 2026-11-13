@@ -169,6 +169,37 @@ function SelectedFilterChip({
   );
 }
 
+function useFilterPanel() {
+  const [open, setOpen] = useState(false);
+  const panelId = useId();
+  const trigger = useRef<HTMLButtonElement>(null);
+  const heading = useRef<HTMLHeadingElement>(null);
+  const panel = useRef<HTMLElement>(null);
+  const close = useCallback(() => {
+    setOpen(false);
+    trigger.current?.focus();
+  }, []);
+  useEffect(() => {
+    if (!open) return;
+    heading.current?.focus();
+    const escape = (event: KeyboardEvent) => {
+      if (
+        event.key !== "Escape" ||
+        event.defaultPrevented ||
+        !(event.target instanceof Node) ||
+        !panel.current?.contains(event.target)
+      )
+        return;
+      event.preventDefault();
+      event.stopPropagation();
+      close();
+    };
+    document.addEventListener("keydown", escape);
+    return () => document.removeEventListener("keydown", escape);
+  }, [open, close]);
+  return { open, setOpen, panelId, trigger, heading, panel, close };
+}
+
 /** Presentation of declarations and Core observations; the evaluator owns matching/counts. */
 export function CatalogFilters({
   candidates,
@@ -209,33 +240,7 @@ export function CatalogFilters({
       values: filterOptionsFor(group.key, candidates ?? [], queryFromFilter(filter), context),
     })),
   ];
-  const [open, setOpen] = useState(false);
-  const panelId = useId();
-  const trigger = useRef<HTMLButtonElement>(null);
-  const heading = useRef<HTMLHeadingElement>(null);
-  const panel = useRef<HTMLElement>(null);
-  const close = useCallback(() => {
-    setOpen(false);
-    trigger.current?.focus();
-  }, []);
-  useEffect(() => {
-    if (!open) return;
-    heading.current?.focus();
-    const escape = (event: KeyboardEvent) => {
-      if (
-        event.key !== "Escape" ||
-        event.defaultPrevented ||
-        !(event.target instanceof Node) ||
-        !panel.current?.contains(event.target)
-      )
-        return;
-      event.preventDefault();
-      event.stopPropagation();
-      close();
-    };
-    document.addEventListener("keydown", escape);
-    return () => document.removeEventListener("keydown", escape);
-  }, [open, close]);
+  const { open, setOpen, panelId, trigger, heading, panel, close } = useFilterPanel();
   const query = queryFromFilter(filter);
   const result = evaluateCatalogQuery(candidates ?? [], query, context);
   const editable = result.state === "matched";

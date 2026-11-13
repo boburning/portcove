@@ -239,7 +239,17 @@ function usePortBrowserFocus() {
       )?.focus();
     });
   }, []);
-  return { browserOwner, browserRoot, filterButton, restoreAfter };
+  const prepareSearchFocusRestore = () => {
+    const owner = browserOwner.current;
+    const origin = document.activeElement;
+    return () =>
+      window.requestAnimationFrame(() => {
+        if (owner.closed || browserOwner.current !== owner) return;
+        if (document.activeElement !== origin && document.activeElement !== document.body) return;
+        (document.querySelector<HTMLInputElement>("#port-search") ?? filterButton.current)?.focus();
+      });
+  };
+  return { browserRoot, filterButton, restoreAfter, prepareSearchFocusRestore };
 }
 
 function usePortBrowser({
@@ -322,7 +332,8 @@ function usePortBrowser({
     if (organizationSelection) organizationSelection.onChange(value);
     else setOrganizationViews((current) => ({ ...current, [organizationKey]: value }));
   };
-  const { browserOwner, browserRoot, filterButton, restoreAfter } = usePortBrowserFocus();
+  const { browserRoot, filterButton, restoreAfter, prepareSearchFocusRestore } =
+    usePortBrowserFocus();
   // Card callbacks keep their identity across renders so memoized cards can skip
   // unrelated workspace updates; each call still uses the latest owner handler.
   const stableSelect = useLatestCallback(onSelect);
@@ -400,16 +411,11 @@ function usePortBrowser({
     declaredCandidates,
   });
   const reset = () => {
-    const owner = browserOwner.current;
-    const origin = document.activeElement;
+    const restoreSearch = prepareSearchFocusRestore();
     favorites?.setOnly(false);
     setOrganizationView("all");
     clearFilters?.();
-    window.requestAnimationFrame(() => {
-      if (owner.closed || browserOwner.current !== owner) return;
-      if (document.activeElement !== origin && document.activeElement !== document.body) return;
-      (document.querySelector<HTMLInputElement>("#port-search") ?? filterButton.current)?.focus();
-    });
+    restoreSearch();
   };
   const constrained =
     organizationView !== "all" ||
@@ -1889,17 +1895,7 @@ function CollectionResultSummary({
     | "overview"
   >;
 }) {
-  const constrainedLibrary =
-    model.view === "library" && (model.constrained || model.query.trim().length > 0);
-  const count = constrainedLibrary
-    ? libraryResultCount(model.visiblePorts.length, model.overview.installed)
-    : model.resultCount;
-  // The unfiltered library total already appears under the page heading.
-  const showCount = model.view !== "library" || constrainedLibrary || model.resultsUnavailable;
-  const hasContext =
-    model.organizationView !== "all" ||
-    (model.libraryReadiness !== "all" && model.view === "library") ||
-    Boolean(model.collectionLayoutFailure);
+  const { constrainedLibrary, count, showCount, hasContext } = collectionSummary(model);
   if (!showCount && !hasContext) return null;
   return (
     <div className="collection-result-summary">
@@ -1926,6 +1922,21 @@ function CollectionResultSummary({
       )}
     </div>
   );
+}
+
+function collectionSummary(model: Parameters<typeof CollectionResultSummary>[0]["model"]) {
+  const constrainedLibrary =
+    model.view === "library" && (model.constrained || model.query.trim().length > 0);
+  const count = constrainedLibrary
+    ? libraryResultCount(model.visiblePorts.length, model.overview.installed)
+    : model.resultCount;
+  // The unfiltered library total already appears under the page heading.
+  const showCount = model.view !== "library" || constrainedLibrary || model.resultsUnavailable;
+  const hasContext =
+    model.organizationView !== "all" ||
+    (model.libraryReadiness !== "all" && model.view === "library") ||
+    Boolean(model.collectionLayoutFailure);
+  return { constrainedLibrary, count, showCount, hasContext };
 }
 
 function collectionViewLabel(

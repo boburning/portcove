@@ -352,63 +352,93 @@ export function SteamEntryDialog({
               </Button>
             </>
           )}
-          {review && (
-            <>
-              <Button
-                data-focusable
-                variant="outline"
-                disabled={Boolean(pending)}
-                onClick={() => void loadReview(review.operation)}
-              >
-                {review.steam_client_state === "running" ? "Check again" : "Check shortcuts again"}
-              </Button>
-              {review.writes_required && (
-                <Button
-                  data-focusable
-                  variant={review.operation === "remove" ? "destructive" : "primary"}
-                  disabled={Boolean(pending) || review.steam_client_state !== "closed"}
-                  onClick={() => void apply()}
-                >
-                  {pending === "apply"
-                    ? "Applying reviewed change…"
-                    : review.operation === "remove"
-                      ? "Remove shortcut"
-                      : "Add or repair shortcut"}
-                </Button>
-              )}
-            </>
-          )}
-          {artworkReview && (
-            <>
-              <Button
-                data-focusable
-                variant="outline"
-                disabled={Boolean(pending)}
-                onClick={() => void loadArtworkReview(artworkReview.operation)}
-              >
-                Check again
-              </Button>
-              {artworkReview.writes_required && (
-                <Button
-                  data-focusable
-                  variant={
-                    artworkReview.operation.kind === "remove_owned" ? "destructive" : "primary"
-                  }
-                  disabled={Boolean(pending) || artworkReview.steam_client_state !== "closed"}
-                  onClick={() => void applyArtwork()}
-                >
-                  {pending === "apply"
-                    ? "Applying reviewed change…"
-                    : artworkReview.operation.kind === "remove_owned"
-                      ? "Remove Portcove artwork"
-                      : "Update Steam artwork"}
-                </Button>
-              )}
-            </>
-          )}
+          <SteamReviewActions
+            review={review}
+            artworkReview={artworkReview}
+            pending={pending}
+            reloadEntry={(operation) => void loadReview(operation)}
+            applyEntry={() => void apply()}
+            reloadArtwork={(operation) => void loadArtworkReview(operation)}
+            applyArtwork={() => void applyArtwork()}
+          />
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+function SteamReviewActions({
+  review,
+  artworkReview,
+  pending,
+  reloadEntry,
+  applyEntry,
+  reloadArtwork,
+  applyArtwork,
+}: {
+  review: SteamEntryReview | undefined;
+  artworkReview: SteamArtworkReview | undefined;
+  pending: "review" | "apply" | undefined;
+  reloadEntry: (operation: SteamEntryOperation) => void;
+  applyEntry: () => void;
+  reloadArtwork: (operation: SteamArtworkOperation) => void;
+  applyArtwork: () => void;
+}) {
+  return (
+    <>
+      {review && (
+        <>
+          <Button
+            data-focusable
+            variant="outline"
+            disabled={Boolean(pending)}
+            onClick={() => reloadEntry(review.operation)}
+          >
+            {review.steam_client_state === "running" ? "Check again" : "Check shortcuts again"}
+          </Button>
+          {review.writes_required && (
+            <Button
+              data-focusable
+              variant={review.operation === "remove" ? "destructive" : "primary"}
+              disabled={Boolean(pending) || review.steam_client_state !== "closed"}
+              onClick={() => applyEntry()}
+            >
+              {pending === "apply"
+                ? "Applying reviewed change…"
+                : review.operation === "remove"
+                  ? "Remove shortcut"
+                  : "Add or repair shortcut"}
+            </Button>
+          )}
+        </>
+      )}
+      {artworkReview && (
+        <>
+          <Button
+            data-focusable
+            variant="outline"
+            disabled={Boolean(pending)}
+            onClick={() => reloadArtwork(artworkReview.operation)}
+          >
+            Check again
+          </Button>
+          {artworkReview.writes_required && (
+            <Button
+              data-focusable
+              variant={artworkReview.operation.kind === "remove_owned" ? "destructive" : "primary"}
+              disabled={Boolean(pending) || artworkReview.steam_client_state !== "closed"}
+              onClick={() => applyArtwork()}
+            >
+              {pending === "apply"
+                ? "Applying reviewed change…"
+                : artworkReview.operation.kind === "remove_owned"
+                  ? "Remove Portcove artwork"
+                  : "Update Steam artwork"}
+            </Button>
+          )}
+        </>
+      )}
+    </>
   );
 }
 

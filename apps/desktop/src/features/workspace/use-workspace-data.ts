@@ -55,6 +55,20 @@ interface WorkspaceRead {
   needsRecovery: boolean;
 }
 
+function canRefreshActivities(
+  previous: WorkspaceRead,
+  ownChange: boolean,
+  externalChange: boolean,
+) {
+  return (
+    (!ownChange || previous.needsRecovery) &&
+    (previous.needsRecovery ||
+      externalChange ||
+      document.hidden ||
+      Date.now() - previous.fullReadAt < 60_000)
+  );
+}
+
 async function probeWorkspaceChange(
   libraryGeneration: number,
   localWrites: { current: { revision: number; at: number } },
@@ -280,13 +294,7 @@ export function usePortcoveData(libraryGeneration = 0) {
         // A change coinciding with this window's own writes only needs a fresh read;
         // other commits (CLI or another process) still run orphan discovery first.
         const externalChange = (changed && !ownChange) || deferredDue;
-        if (
-          (!ownChange || previous.needsRecovery) &&
-          (previous.needsRecovery ||
-            externalChange ||
-            document.hidden ||
-            Date.now() - previous.fullReadAt < 60_000)
-        ) {
+        if (canRefreshActivities(previous, ownChange, externalChange)) {
           let activities = previous.activities;
           let activityReadSucceeded = false;
           try {

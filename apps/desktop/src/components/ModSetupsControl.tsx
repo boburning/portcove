@@ -50,7 +50,7 @@ function nativeListMessage(
   }
 }
 
-function BoundModSetupsControl({ portId, generation, busy }: Props) {
+function useModSetupInventory(portId: string, generation: number, busy: boolean) {
   const { t } = useAppTranslation("gameSettings");
   const [view, setView] = useState<ModSetupsView>();
   // The app-owned mismatch is a code translated at render; Core failure text stays verbatim.
@@ -63,24 +63,6 @@ function BoundModSetupsControl({ portId, generation, busy }: Props) {
   // False from a change until the view is read again, so no control acts on a
   // revision the change has replaced.
   const [fresh, setFresh] = useState(true);
-  const [browserBusy, setBrowserBusy] = useState(false);
-  const [copyName, setCopyName] = useState("");
-  // A chosen package that runs code waits here for the player's explicit choice.
-  const [codeReview, setCodeReview] = useState<{
-    profileId: string;
-    path: string;
-    review: ModCodeReview;
-  }>();
-  const copyId = useId();
-  const headingId = useId();
-  // A picker answer that arrives after this view was replaced is dropped.
-  const alive = useRef(true);
-  useEffect(() => {
-    alive.current = true;
-    return () => {
-      alive.current = false;
-    };
-  }, []);
   useEffect(() => {
     if (busy) return;
     let current = true;
@@ -128,6 +110,56 @@ function BoundModSetupsControl({ portId, generation, busy }: Props) {
     return succeeded;
   };
 
+  return {
+    view,
+    error,
+    outcome,
+    working,
+    fresh,
+    reread,
+    perform,
+    setWorking,
+    setOutcome,
+    setFailure,
+    setFresh,
+    setRequest,
+  };
+}
+
+function BoundModSetupsControl({ portId, generation, busy }: Props) {
+  const { t } = useAppTranslation("gameSettings");
+  const {
+    view,
+    error,
+    outcome,
+    working,
+    fresh,
+    reread,
+    perform,
+    setWorking,
+    setOutcome,
+    setFailure,
+    setFresh,
+    setRequest,
+  } = useModSetupInventory(portId, generation, busy);
+  const [browserBusy, setBrowserBusy] = useState(false);
+  const [copyName, setCopyName] = useState("");
+  // A chosen package that runs code waits here for the player's explicit choice.
+  const [codeReview, setCodeReview] = useState<{
+    profileId: string;
+    path: string;
+    review: ModCodeReview;
+  }>();
+  const copyId = useId();
+  const headingId = useId();
+  // A picker answer that arrives after this view was replaced is dropped.
+  const alive = useRef(true);
+  useEffect(() => {
+    alive.current = true;
+    return () => {
+      alive.current = false;
+    };
+  }, []);
   if (!view && error)
     return (
       <section aria-labelledby={headingId}>
@@ -147,25 +179,9 @@ function BoundModSetupsControl({ portId, generation, busy }: Props) {
   // review always lands on the setup and revision it was made for.
   const locked = working || !fresh || browserBusy;
 
-  const setups = view.inventory?.profiles ?? [];
-  const selectedId = view.live?.profile_id ?? undefined;
-  const selected = setups.find((entry) => entry.profile.id === selectedId);
+  const { setups, selectedId, selected, heldUpdates, onOtherBuild, blocked } =
+    currentModSetup(view);
   const nativeMessage = nativeListMessage(t, view.live);
-  const heldUpdates = (view.held_updates ?? []).filter((held) => held.profile_id === selectedId);
-  // The default setup follows the game's current build; any other setup stays
-  // on the exact build it was made with, so a different current build (after
-  // an update or a rollback) offers a copy on that build instead. The notice
-  // describes the revision launches use.
-  const onOtherBuild = Boolean(
-    selected &&
-    !selected.profile.is_default &&
-    view.current_install_id &&
-    view.live?.revision === selected.revision.revision &&
-    selected.revision.build.install_id !== view.current_install_id,
-  );
-  const blocked = Boolean(
-    view.live && (view.live.unmanaged.length > 0 || view.live.changed_owned.length > 0),
-  );
 
   return (
     <section aria-labelledby={headingId} className="grid gap-3">
@@ -475,6 +491,29 @@ function BoundModSetupsControl({ portId, generation, busy }: Props) {
       )}
     </section>
   );
+}
+
+function currentModSetup(view: ModSetupsView) {
+  const setups = view.inventory?.profiles ?? [];
+  const selectedId = view.live?.profile_id ?? undefined;
+  const selected = setups.find((entry) => entry.profile.id === selectedId);
+  const heldUpdates = (view.held_updates ?? []).filter((held) => held.profile_id === selectedId);
+  // The default setup follows the game's current build; any other setup stays
+  // on the exact build it was made with, so a different current build (after
+  // an update or a rollback) offers a copy on that build instead. The notice
+  // describes the revision launches use.
+  const onOtherBuild = Boolean(
+    selected &&
+    !selected.profile.is_default &&
+    view.current_install_id &&
+    view.live?.revision === selected.revision.revision &&
+    selected.revision.build.install_id !== view.current_install_id,
+  );
+  const blocked = Boolean(
+    view.live && (view.live.unmanaged.length > 0 || view.live.changed_owned.length > 0),
+  );
+
+  return { setups, selectedId, selected, heldUpdates, onOtherBuild, blocked };
 }
 
 /** Packages in the setup's priority order: the last one wins when two overlap. */
