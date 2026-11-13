@@ -1562,6 +1562,87 @@ void test("Core CLI and native WebDriver are mandatory content; changed or missi
       );
   }
 });
+void test("queued controller tool custody requires an exact active receiver on both reads", async (t) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "controller-tools-live-receiver-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const f = fixture();
+  let projectedStatus = "queued";
+  const metadata = {
+    ...f.options.metadata,
+    async run(id: string) {
+      return { ...(await f.options.metadata.run(id)), status: projectedStatus };
+    },
+    async attempt(id: string, attempt: number) {
+      return { ...(await f.options.metadata.attempt(id, attempt)), status: projectedStatus };
+    },
+  };
+  const environment = {
+    GH_TOKEN: "inert-test-token",
+    GITHUB_RUN_ID: f.expected.run_id,
+    GITHUB_RUN_ATTEMPT: String(f.expected.run_attempt),
+    GITHUB_SHA: f.expected.controller_revision,
+    GITHUB_REF: f.expected.controller_ref,
+  };
+  const prior = Object.fromEntries(Object.keys(environment).map((key) => [key, process.env[key]]));
+  Object.assign(process.env, environment);
+  t.after(() => {
+    for (const [key, value] of Object.entries(prior)) {
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
+  });
+  let observations = 0;
+  let settleAfter = Infinity;
+  const started_at = new Date(Date.now() - 1000).toISOString();
+  const liveCoordinator = { id: 91, started_at };
+  const deadline = performance.now() + 20000;
+  t.mock.method(globalThis, "fetch", async (input: string | URL | Request, init?: RequestInit) => {
+    observations++;
+    if (observations === settleAfter) projectedStatus = "in_progress";
+    const url = new URL(input instanceof Request ? input.url : input);
+    assert.equal(url.origin, "https://api.github.com");
+    assert.equal(
+      url.pathname,
+      `/repos/boburning/portcove/actions/runs/${f.expected.run_id}/attempts/1/jobs`,
+    );
+    assert.equal(init?.method, "GET");
+    return Response.json({
+      total_count: 1,
+      jobs: [
+        {
+          ...liveCoordinator,
+          run_id: Number(f.expected.run_id),
+          run_attempt: f.expected.run_attempt,
+          head_sha: f.expected.controller_revision,
+          name: "Coordinate application release",
+          status: observations > settleAfter ? "completed" : "in_progress",
+        },
+      ],
+    });
+  });
+  await assert.rejects(
+    receiveControllerTools(root, f.expected, f.bundle, { ...f.options, metadata }),
+    { phase: "provider-before" },
+  );
+  await receiveControllerTools(root, f.expected, f.bundle, {
+    ...f.options,
+    metadata,
+    liveCoordinator,
+    deadline,
+  });
+  assert.equal(observations, 2);
+  settleAfter = observations + 1;
+  await assert.rejects(
+    receiveControllerTools(root, f.expected, f.bundle, {
+      ...f.options,
+      metadata,
+      liveCoordinator,
+      deadline,
+    }),
+    { phase: "provider-after" },
+  );
+});
+
 void test("tool acquisition retains the phase deadline before outputs and after provider reads", async (t) => {
   const root = await mkdtemp(path.join(os.tmpdir(), "controller-tools-deadline-"));
   t.after(() => rm(root, { recursive: true, force: true }));

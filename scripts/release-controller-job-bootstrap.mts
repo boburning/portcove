@@ -22,6 +22,7 @@ import {
   CoordinatorRemoteError,
 } from "./release-coordinator-errors.mts";
 import {
+  readControlBridgeOriginalJob,
   retainCatalogCoordinatorRefusal,
   type CatalogCoordinatorRefusalStage,
 } from "./release-control-step-bridge.mts";
@@ -85,7 +86,10 @@ export async function launchFixedControllerJob(rawOperation: unknown) {
           path.join(root, applicationCoordinatorRefusalFile),
           applicationCoordinatorRefusal(
             new CoordinatorRemoteError("fixed controller bootstrap refused", {
-              phase: `bootstrap-${stage}`,
+              phase:
+                error instanceof ControllerToolCustodyRefusal
+                  ? `bootstrap-tool-custody-${error.phase}`
+                  : `bootstrap-${stage}`,
             }),
           ),
         ).catch(() => {});
@@ -159,11 +163,11 @@ async function launchControllerWorker(
     run_attempt: Number(environment.GITHUB_RUN_ATTEMPT),
   };
   stage("job-clock");
-  const deadline = await currentControllerJobDeadline(
-    rawOperation,
-    identity,
-    performance.now() + 570000,
-  );
+  const originalCoordinator =
+    rawOperation === "coordinator" ? await readControlBridgeOriginalJob("coordinator") : undefined;
+  const deadline =
+    originalCoordinator?.deadline ??
+    (await currentControllerJobDeadline(rawOperation, identity, performance.now() + 570000));
   const artifact = {
       ...identity,
       source_tree: hex(needs.tool_bootstrap.outputs.source_tree, 40),
@@ -177,7 +181,10 @@ async function launchControllerWorker(
     parent = environment.RUNNER_TEMP;
   return withCoordinatorDeadline(deadline, async () => {
     stage("tool-custody");
-    const receipt = await receiveControllerTools(parent, artifact, bundle, { deadline });
+    const receipt = await receiveControllerTools(parent, artifact, bundle, {
+      deadline,
+      ...(originalCoordinator ? { liveCoordinator: originalCoordinator.job } : {}),
+    });
     source.recheck();
     const tools = await verifiedControllerToolPaths(receipt);
     source.recheck();
