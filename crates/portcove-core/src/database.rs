@@ -13,7 +13,7 @@ use crate::{PortcoveError, Result};
 #[path = "database_concurrency_tests.rs"]
 mod concurrency_tests;
 
-pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 55;
+pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 56;
 
 struct Migration {
     version: i64,
@@ -353,7 +353,34 @@ const MIGRATIONS: &[Migration] = &[
         apply: migration_55,
         verify: verify_migration_55,
     },
+    Migration {
+        version: 56,
+        name: "ready notice preference",
+        apply: migration_56,
+        verify: verify_migration_56,
+    },
 ];
+
+fn migration_56(transaction: &Transaction<'_>) -> Result<()> {
+    // One player preference: whether ready notices are shown. No row means
+    // shown. It never records a game choice, consent or authorization.
+    transaction.execute_batch(
+        "CREATE TABLE ready_notice_preference (
+            id INTEGER PRIMARY KEY CHECK(id=1),
+            enabled INTEGER NOT NULL CHECK(enabled IN (0,1)),
+            updated_at INTEGER NOT NULL
+        );",
+    )?;
+    verify_migration_56(transaction)
+}
+
+fn verify_migration_56(connection: &Connection) -> Result<()> {
+    require_columns(
+        connection,
+        "ready_notice_preference",
+        &["id", "enabled", "updated_at"],
+    )
+}
 
 fn migration_55(transaction: &Transaction<'_>) -> Result<()> {
     // Where a folder's automatic setup stopped in its scan's matches, so the
@@ -3297,6 +3324,7 @@ mod tests {
         schema_52: 52,
         schema_53: 53,
         schema_54: 54,
+        schema_55: 55,
     }
 
     #[test]

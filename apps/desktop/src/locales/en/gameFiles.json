@@ -155,6 +155,14 @@
     "update": "<game/> has an update available: <version/>. Nothing was downloaded or changed.",
     "updateUnknownVersion": "<game/> has an update available: a newer version. Nothing was downloaded or changed."
   },
+  "readyNotices": {
+    "control": "Tell me when games I chose to hear about are ready",
+    "description": "Turn this off to stop ready-game notices. Your choice for each game and any automatic setup stay as they are. Turn it back on to hear about games that are ready and that you haven't been told about yet.",
+    "heading": "Ready-game notices",
+    "readFailed": "Couldn't check the ready-game notice setting.",
+    "retry": "Try again",
+    "saveFailed": "Couldn't save the ready-game notice setting."
+  },
   "reason": {
     "completeCompatibleObservation": "A complete set of compatible game files was found for this setup or launch option.",
     "contractNotReviewed": "File requirements have not been reviewed for this setup or launch option.",

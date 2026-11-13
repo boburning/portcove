@@ -1741,6 +1741,18 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
                     human::port_intent_assessments(value)
                 })?;
             }
+            GamesCommand::Notices { state } => {
+                if let Some(state) = state {
+                    service.set_ready_notices_enabled(matches!(state, NoticeState::On))?;
+                }
+                let enabled = service.ready_notices_enabled()?;
+                render_read_success(
+                    mode,
+                    "games.notices",
+                    serde_json::json!({"ready_notices_enabled": enabled}),
+                    |_| human::ready_notices(enabled),
+                )?;
+            }
             GamesCommand::IntentsAcknowledge { items } => {
                 let acknowledgements = items
                     .iter()
@@ -3770,6 +3782,7 @@ fn command_name(command: &Commands) -> &'static str {
             GamesCommand::BatchShow { .. } => "games.batch-show",
             GamesCommand::Intent { .. } => "games.intent",
             GamesCommand::Intents => "games.intents",
+            GamesCommand::Notices { .. } => "games.notices",
             GamesCommand::IntentsAcknowledge { .. } => "games.intents-acknowledge",
             GamesCommand::SetupReady => "games.setup-ready",
             GamesCommand::FolderSetup { .. } => "games.folder-setup",
@@ -5278,6 +5291,7 @@ mod tests {
             "games.batch-show",
             "games.intent",
             "games.intents",
+            "games.notices",
             "games.intents-acknowledge",
             "games.setup-ready",
             "games.folder-setup",

@@ -116,6 +116,7 @@ beforeEach(async () => {
   vi.spyOn(desktopApi, "scanGameFileRoots").mockResolvedValue(snapshot);
   vi.spyOn(desktopApi, "importSource");
   vi.spyOn(desktopApi, "rootSetupConsents").mockResolvedValue([]);
+  vi.spyOn(desktopApi, "readyNoticesEnabled").mockResolvedValue(true);
   vi.spyOn(desktopApi, "gameFileRootMatchProfiles").mockResolvedValue([]);
   vi.mocked(picker.pickGameFileFolder).mockResolvedValue("E:/More Games");
   const host = document.createElement("div");

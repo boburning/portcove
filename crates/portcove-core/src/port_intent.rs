@@ -153,6 +153,15 @@ pub struct PortIntentAssessments {
     pub assessments: Vec<PortIntentAssessment>,
     /// Intents left for a later pass because one pass is bounded.
     pub not_assessed: u32,
+    /// Whether the player wants ready notices. While off, a game set to be
+    /// told is never reported as newly ready; nothing about its choice or its
+    /// readiness changes, and set-up-when-ready games are unaffected.
+    #[serde(default = "ready_notices_default")]
+    pub ready_notices_enabled: bool,
+}
+
+fn ready_notices_default() -> bool {
+    true
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
@@ -267,6 +276,34 @@ impl Library {
                 }
             })
             .collect())
+    }
+
+    /// Whether ready notices are shown. On unless the player turned them off.
+    pub fn ready_notices_enabled(&self) -> Result<bool> {
+        let enabled: Option<i64> = self
+            .connection()?
+            .query_row(
+                "SELECT enabled FROM ready_notice_preference WHERE id=1",
+                [],
+                |row| row.get(0),
+            )
+            .optional()?;
+        Ok(enabled != Some(0))
+    }
+
+    /// Turns ready notices on or off. Changes no game's choice and
+    /// acknowledges nothing, so turning them on again announces games that are
+    /// ready and were not yet announced.
+    pub fn set_ready_notices_enabled(&self, enabled: bool) -> Result<()> {
+        let mut connection = self.connection()?;
+        let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
+        transaction.execute(
+            "INSERT INTO ready_notice_preference(id,enabled,updated_at) VALUES (1,?1,?2)
+             ON CONFLICT(id) DO UPDATE SET enabled=excluded.enabled, updated_at=excluded.updated_at",
+            params![i64::from(enabled), Self::now()],
+        )?;
+        transaction.commit()?;
+        Ok(())
     }
 
     pub fn port_intent(&self, port_id: &str) -> Result<Option<PortIntent>> {
@@ -415,6 +452,15 @@ impl PortcoveService {
         self.library.port_intents()
     }
 
+    /// Whether ready notices are shown; see [`Library::ready_notices_enabled`].
+    pub fn ready_notices_enabled(&self) -> Result<bool> {
+        self.library.ready_notices_enabled()
+    }
+
+    pub fn set_ready_notices_enabled(&self, enabled: bool) -> Result<()> {
+        self.library.set_ready_notices_enabled(enabled)
+    }
+
     /// The channel and registered copies a new choice is made with.
     fn intent_binding(
         &self,
@@ -490,13 +536,21 @@ impl PortcoveService {
             })
             .collect::<Vec<_>>();
         let not_assessed = intents.len().saturating_sub(MAX_PORT_INTENT_ASSESSMENTS);
+        let ready_notices_enabled = self.library.ready_notices_enabled()?;
         let mut assessments = Vec::new();
         for intent in intents.into_iter().take(MAX_PORT_INTENT_ASSESSMENTS) {
-            assessments.push(self.assess_port_intent(&intent).await);
+            let mut assessment = self.assess_port_intent(&intent).await;
+            // Only a notice is withheld. Readiness, the choice and any
+            // set-up-when-ready game stay exactly as they were.
+            if !ready_notices_enabled && assessment.mode == PortIntentMode::Notify {
+                assessment.newly_ready = false;
+            }
+            assessments.push(assessment);
         }
         Ok(PortIntentAssessments {
             assessments,
             not_assessed: u32::try_from(not_assessed).unwrap_or(u32::MAX),
+            ready_notices_enabled,
         })
     }
 
@@ -954,6 +1008,67 @@ mod tests {
         let pass = service.run_standing_setup(|_| {}).await.unwrap();
         assert!(pass.batches.is_empty());
         assert!(service.status(PORT).unwrap().active.is_none());
+    }
+
+    #[tokio::test]
+    async fn turning_ready_notices_off_withholds_only_the_notice() {
+        let (_temporary, service) = ready_service().await;
+        assert!(service.ready_notices_enabled().unwrap());
+        service
+            .set_port_intent(PORT, PortIntentMode::Notify)
+            .unwrap();
+        service.set_ready_notices_enabled(false).unwrap();
+        assert!(!service.ready_notices_enabled().unwrap());
+        let off = service.assess_port_intents().await.unwrap();
+        assert!(!off.ready_notices_enabled);
+        // The game is still ready and still set to be told; only the notice is withheld.
+        assert!(matches!(
+            off.assessments[0].readiness,
+            PortReadiness::Ready { .. }
+        ));
+        assert_eq!(off.assessments[0].mode, PortIntentMode::Notify);
+        assert!(!off.assessments[0].newly_ready);
+        assert_eq!(
+            service.port_intents().unwrap()[0].acknowledged_plan_sha256,
+            None
+        );
+        // Turning it on again announces the still-unannounced game once.
+        service.set_ready_notices_enabled(true).unwrap();
+        let on = service.assess_port_intents().await.unwrap();
+        assert!(on.ready_notices_enabled);
+        assert!(on.assessments[0].newly_ready);
+    }
+
+    #[tokio::test]
+    async fn turning_ready_notices_off_never_stops_a_set_up_when_ready_install() {
+        let (_temporary, service) = ready_service().await;
+        service
+            .set_port_intent(PORT, PortIntentMode::SetUpWhenReady)
+            .unwrap();
+        service.set_ready_notices_enabled(false).unwrap();
+        let pass = service.run_standing_setup(|_| {}).await.unwrap();
+        assert_eq!(pass.batches.len(), 1);
+        assert!(service.status(PORT).unwrap().active.is_some());
+    }
+
+    #[tokio::test]
+    async fn the_ready_notice_preference_survives_reopening_the_library() {
+        let temporary = tempfile::tempdir().unwrap();
+        let path = temporary.path().join("library");
+        {
+            let library = Library::open(&path).unwrap();
+            assert!(library.ready_notices_enabled().unwrap());
+            library.set_ready_notices_enabled(false).unwrap();
+        }
+        let library = Library::open(&path).unwrap();
+        assert!(!library.ready_notices_enabled().unwrap());
+        library.set_ready_notices_enabled(true).unwrap();
+        assert!(
+            Library::open(&path)
+                .unwrap()
+                .ready_notices_enabled()
+                .unwrap()
+        );
     }
 
     #[tokio::test]

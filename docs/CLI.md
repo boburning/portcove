@@ -872,6 +872,14 @@ the Library and installs it without another confirmation when it is ready.
 an authorization. Adding a folder or saving a game never chooses a mode for
 you, and choosing another mode withdraws standing setup.
 
+`games notices` shows whether ready notices are on; `games notices off` turns
+them off in one step and `games notices on` turns them back on. Notices are on
+by default, but only a game you chose `notify` for is ever reported. While they
+are off, `games intents` reports no game as newly ready and says so; no game's
+choice, readiness or acknowledgement changes, so turning notices on again
+reports ready games you were not yet told about, once each. Turning notices off
+never starts or stops automatic setup, which is withdrawn per game or per folder.
+
 A notify or set-up-when-ready choice remembers the game's release channel and
 the registered copy of its own files at the moment you choose. (Shared
 prerequisites such as a BIOS are checked by the ordinary install review.) If a

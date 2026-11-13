@@ -59,6 +59,7 @@ mod organization_commands;
 mod output_location;
 mod portable_saves_commands;
 mod preparation;
+mod ready_notices;
 mod removal;
 #[cfg(any(windows, target_os = "linux"))]
 mod runtime_support;
@@ -3352,6 +3353,8 @@ pub fn run() -> std::process::ExitCode {
             launch_port,
             automatic_snapshots::get_automatic_snapshots,
             automatic_snapshots::set_automatic_snapshots,
+            ready_notices::get_ready_notices_enabled,
+            ready_notices::set_ready_notices_enabled,
             bug_report::preview_bug_report,
             bug_report::open_bug_report,
             bug_report::submit_report,

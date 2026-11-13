@@ -4,7 +4,10 @@ import { desktopApi } from "../api";
 import { useAppTranslation } from "../localization";
 import type { PortDefinition, PortIntentAssessment } from "../types";
 import { Button } from "./ui/button";
-import { onStandingSetupPass } from "../features/game-file-discovery/use-standing-setup";
+import {
+  onReadyNoticePreferenceChange,
+  onStandingSetupPass,
+} from "../features/game-file-discovery/use-standing-setup";
 
 /**
  * Games the player asked to hear about that became ready to install. Core
@@ -23,16 +26,19 @@ export function ReadyGameNotices({
   const [ready, setReady] = useState<PortIntentAssessment[]>([]);
   const { t } = useAppTranslation("gameFiles");
   const owner = useRef(generation);
+  const latest = useRef(0);
   useEffect(() => {
     owner.current = generation;
   }, [generation]);
   useEffect(() => {
     const expected = generation;
-    const assess = () =>
-      desktopApi
+    const assess = () => {
+      const call = ++latest.current;
+      return desktopApi
         .assessPortIntents(expected)
         .then((assessed) => {
-          if (owner.current !== expected) return;
+          // Only the most recent assessment may replace what is shown.
+          if (owner.current !== expected || latest.current !== call) return;
           setReady(
             assessed.assessments.filter(
               (item) =>
@@ -45,10 +51,17 @@ export function ReadyGameNotices({
           );
         })
         .catch(() => undefined);
+    };
     void assess();
     // Reassess after each standing-setup pass, which follows catalog, file and
     // choice changes.
-    return onStandingSetupPass(() => void assess());
+    const stopPass = onStandingSetupPass(() => void assess());
+    // Turning notices on or off reassesses at once; Core decides what is shown.
+    const stopPreference = onReadyNoticePreferenceChange(() => void assess());
+    return () => {
+      stopPass();
+      stopPreference();
+    };
   }, [generation]);
 
   if (!ready.length) return null;

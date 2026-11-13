@@ -1290,6 +1290,7 @@ export interface TransportOutputs {
   desktop_port_intent_assessments: OutputDesktopPortIntentAssessments;
   desktop_port_intents: OutputDesktopPortIntents;
   desktop_preparation_cleanup_preview: OutputPreparationCleanupPreview;
+  desktop_ready_notices_enabled: OutputDesktopAutomaticSnapshotsEnabled;
   desktop_reconcile_outcome: OutputReconcileBatchOutcome;
   desktop_root_setup_consent: OutputDesktopRootSetupConsent;
   desktop_root_setup_consents: OutputDesktopRootSetupConsents;
@@ -6078,6 +6079,12 @@ export interface OutputDesktopPortIntentAssessments {
    * Intents left for a later pass because one pass is bounded.
    */
   not_assessed: number;
+  /**
+   * Whether the player wants ready notices. While off, a game set to be
+   * told is never reported as newly ready; nothing about its choice or its
+   * readiness changes, and set-up-when-ready games are unaffected.
+   */
+  ready_notices_enabled: boolean;
   [k: string]: unknown;
 }
 export interface PortIntentAssessment {

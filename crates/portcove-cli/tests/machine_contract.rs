@@ -40,6 +40,9 @@ mod launcher_library;
 #[path = "machine_contract/folder_setup.rs"]
 mod folder_setup;
 
+#[path = "machine_contract/ready_notices.rs"]
+mod ready_notices;
+
 #[cfg(all(windows, feature = "qualification-fixtures"))]
 #[path = "machine_contract/source_discovery.rs"]
 mod source_discovery_contract;

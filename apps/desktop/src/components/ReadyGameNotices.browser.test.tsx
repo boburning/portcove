@@ -14,6 +14,7 @@ const ports = [
 
 const assessed: PortIntentAssessments = {
   not_assessed: 0,
+  ready_notices_enabled: true,
   assessments: [
     {
       port_id: "new-game",

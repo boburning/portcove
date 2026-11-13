@@ -1235,6 +1235,10 @@ export const desktopApi = {
     invoke<boolean>("get_automatic_snapshots", { generation }),
   setAutomaticSnapshots: (enabled: boolean, generation: number) =>
     invoke<boolean>("set_automatic_snapshots", { enabled, generation }),
+  readyNoticesEnabled: (generation: number) =>
+    invoke<boolean>("get_ready_notices_enabled", { generation }),
+  setReadyNoticesEnabled: (enabled: boolean, generation: number) =>
+    invoke<boolean>("set_ready_notices_enabled", { enabled, generation }),
   previewBugReport: (portId: string | undefined, generation: number, kind: ReportKind) =>
     invoke<BugReportDraft>("preview_bug_report", { portId: portId ?? null, generation, kind }),
   /** Opens the reviewed form, or only returns its text when `copyOnly` is set. */
