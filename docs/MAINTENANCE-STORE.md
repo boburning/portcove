@@ -683,8 +683,9 @@ node scripts/maintenance-inventory.mts handoffs --record
     No plan is added while any operation of the handoff is `dispatched` or
     `ambiguous`; that one resolves only through its original executor's
     receipt. Characters
-    the identity check refuses (such as `@`) map to `.`. An ID over 200
-    characters replaces the source with a SHA-256 prefix.
+    the identity check refuses (such as `@`) map to `.`. An ID that would
+    exceed 200 characters (190 when it names the assessment, leaving room for
+    the suffix) replaces the source with a SHA-256 prefix.
   - It moves each planned handoff operation whose subject has moved on (cleared,
     a newer condition, or a newer applicable assessment) from `planned` to
     `abandoned` at revision + 1, and plans its replacement in the same pass.

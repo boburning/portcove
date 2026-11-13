@@ -239,6 +239,8 @@ $$;
 -- never names a failed run, even one still in progress when it verified.
 CREATE INDEX subject_transitions_verified_run
   ON portcove_maintenance.subject_transitions (verified_run_id);
+CREATE INDEX subject_current_verified_run
+  ON portcove_maintenance.subject_current (verified_run_id);
 
 CREATE FUNCTION portcove_maintenance.guard_failed_verifier() RETURNS trigger
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog, pg_temp AS $$
