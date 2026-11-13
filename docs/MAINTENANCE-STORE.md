@@ -242,8 +242,9 @@ PORTCOVE_MAINTENANCE_DATABASE_URL="$RESTORE_TARGET_URL" node scripts/maintenance
   one, with client tools of that version: an older `pg_restore` refuses a newer
   custom-format archive (PostgreSQL 16 refuses the 1.16 archives that
   PostgreSQL 18 writes). The production backup records its server version in
-  the manifest (`server_version_num`); install that major's client and server
-  from the PostgreSQL project repository on the restore host.
+  the manifest (`server_version_num`); install that major (or a newer one),
+  client and server, from the PostgreSQL project repository on the restore
+  host.
 - Collectors finish runs under the default READ COMMITTED isolation, so the
   derived observed count includes every committed observation of the run.
 - `backup` writes to a temporary sibling directory and renames it only when
@@ -328,9 +329,11 @@ node scripts/maintenance-inventory.mts report --output work/maintenance-report/2
     report's own generation time; over 36 hours (the schedule is daily) or never
     read is flagged stale. `definition-delivery` counts only a verified read as
     good and records anything else (such as nothing served yet) as a failed
-    run, so its freshness is its latest attempt and the page says when no
-    verified read exists; the Definition publication section shows what was
-    last verified. The page states the oldest data age, names stale
+    run, so its freshness is its latest serving observation (verified, not
+    served, incomplete or expired); an outage or a failed tool does not count.
+    The page shows when it was last verified and last observed, and the
+    oldest data age excludes it; the Definition publication section shows what
+    was last verified. The page states the oldest data age, names stale
     sources, and shows each source's age; stale facts stay current and visible,
     never treated as absent.
 

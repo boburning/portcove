@@ -1197,7 +1197,7 @@ void test(
     );
     assert.ok(healthAge?.attempted_at && healthAge.last_good_at);
     assert.ok(Date.parse(healthAge.attempted_at) > Date.parse(healthAge.last_good_at));
-    assert.match(renderHtml(afterHealthFailure), /Data age: the oldest last good source read is/u);
+    assert.match(renderHtml(afterHealthFailure), /Data age: the oldest last good source read/u);
     const shipHealth = (
       afterHealthFailure.subjects as { port_key: string; latest_health_gap: string | null }[]
     ).find(({ port_key }) => port_key === "port:2ship2harkinian");
@@ -2942,7 +2942,8 @@ void test("source freshness ages the last good read against the report and flags
       ["never", null, true],
     ],
   );
-  // A verified-only source with nothing served yet is as fresh as its latest attempt.
+  // A verified-only source is as fresh as its latest serving observation;
+  // failed attempts (an outage or a failed tool) never make it fresh.
   assert.deepEqual(
     sourceFreshness(
       [
@@ -2950,16 +2951,26 @@ void test("source freshness ages the last good read against the report and flags
           source: "definition-delivery",
           attempted_at: "2026-11-13T06:00:00.000Z",
           last_good_at: null,
+          observed_at: "2026-11-13T06:00:00.000Z",
+        },
+        {
+          source: "definition-delivery",
+          attempted_at: "2026-11-13T11:00:00.000Z",
+          last_good_at: "2026-11-03T12:00:00.000Z",
+          observed_at: "2026-11-03T12:00:00.000Z",
         },
       ],
       now,
-    ).map(({ age_hours, attempt_age_hours, verified_only, stale }) => [
+    ).map(({ age_hours, observation_age_hours, verified_only, stale }) => [
       age_hours,
-      attempt_age_hours,
+      observation_age_hours,
       verified_only,
       stale,
     ]),
-    [[null, 6, true, false]],
+    [
+      [null, 6, true, false],
+      [240, 240, true, true],
+    ],
   );
 });
 

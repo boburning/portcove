@@ -1952,10 +1952,15 @@ SELECT json_build_object(
                FROM portcove_maintenance.reconsiderations
               WHERE status <> 'pending' ORDER BY resolved_at DESC LIMIT 200)) x),
   -- Per source: the latest attempt and the latest read that did not fail.
+  -- A serving observation (verified, or a typed not-served, incomplete or expired
+  -- result) observes the source; an outage or a failed tool does not.
   'freshness', (SELECT coalesce(json_agg(json_build_object('source', f.source, 'attempted_at', f.attempted_at,
-        'last_good_at', f.last_good_at) ORDER BY f.source), '[]')
+        'last_good_at', f.last_good_at, 'observed_at', f.observed_at) ORDER BY f.source), '[]')
       FROM (SELECT source, max(completed_at) AS attempted_at,
-                   max(completed_at) FILTER (WHERE coverage IN ('complete', 'partial')) AS last_good_at
+                   max(completed_at) FILTER (WHERE coverage IN ('complete', 'partial')) AS last_good_at,
+                   max(completed_at) FILTER (WHERE coverage IN ('complete', 'partial')
+                     OR (coverage = 'failed' AND gaps -> 0 ->> 'code' IN ('not_served', 'incomplete', 'expired')))
+                     AS observed_at
               FROM portcove_maintenance.collection_runs
              WHERE coverage <> 'in_progress' GROUP BY source) f),
   'generation', (SELECT coalesce(max(acquisition), 0) FROM portcove_maintenance.collection_runs
@@ -2186,8 +2191,9 @@ export const staleSourceHours = 36;
 /**
  * Sources whose only good read is a verified one: any other outcome (such as
  * nothing served yet) is recorded as a failed run with its reason. Their
- * freshness is the latest attempt; the source's own section shows what was
- * last verified.
+ * freshness is their latest serving observation (verified, not served,
+ * incomplete or expired); an outage or failed tool is not one. The source's own
+ * section shows what was last verified.
  */
 const verifiedOnlySources = new Set(["definition-delivery"]);
 
@@ -2198,16 +2204,23 @@ export interface SourceFreshness {
   last_good_at: string | null;
   /** Hours from the last good read to this report's generation; null when never read. */
   age_hours: number | null;
-  /** Hours from the latest attempt to this report's generation. */
-  attempt_age_hours: number | null;
-  /** Only a verified read counts as good; its freshness is the latest attempt. */
+  /** The latest typed serving observation, for verified-only sources. */
+  observed_at: string | null;
+  /** Hours from that observation to this report's generation. */
+  observation_age_hours: number | null;
+  /** Only a verified read counts as good; freshness is the latest serving observation. */
   verified_only: boolean;
   stale: boolean;
 }
 
 /** Ages each source's last good read against the report's own generation time. */
 export function sourceFreshness(
-  rows: readonly { source: string; attempted_at: string | null; last_good_at: string | null }[],
+  rows: readonly {
+    source: string;
+    attempted_at: string | null;
+    last_good_at: string | null;
+    observed_at?: string | null;
+  }[],
   generatedAt: Date,
 ): SourceFreshness[] {
   const hours = (value: string | null) => {
@@ -2216,17 +2229,18 @@ export function sourceFreshness(
       ? Math.max(0, Math.round(((generatedAt.getTime() - time) / 3_600_000) * 10) / 10)
       : null;
   };
-  return rows.map(({ source, attempted_at, last_good_at }) => {
+  return rows.map(({ source, attempted_at, last_good_at, observed_at = null }) => {
     const age_hours = hours(last_good_at);
-    const attempt_age_hours = hours(attempted_at);
+    const observation_age_hours = hours(observed_at);
     const verified_only = verifiedOnlySources.has(source);
-    const freshest = verified_only ? attempt_age_hours : age_hours;
+    const freshest = verified_only ? observation_age_hours : age_hours;
     return {
       source,
       attempted_at,
       last_good_at,
       age_hours,
-      attempt_age_hours,
+      observed_at,
+      observation_age_hours,
       verified_only,
       stale: freshest === null || freshest > staleSourceHours,
     };
@@ -2316,7 +2330,12 @@ export function buildReport(environment: NodeJS.ProcessEnv, now = new Date()): I
       intake: Record<string, unknown>;
     };
     runs: unknown[];
-    freshness: { source: string; attempted_at: string | null; last_good_at: string | null }[];
+    freshness: {
+      source: string;
+      attempted_at: string | null;
+      last_good_at: string | null;
+      observed_at: string | null;
+    }[];
     subjects: unknown[];
     unassessed_gaps: { subject_key: string; code: string; message: string }[];
     publication: { definition: string; facts: unknown }[];
@@ -2502,8 +2521,15 @@ function failedAttempt(report: InventoryReport, name: string) {
 function sourceAge(report: InventoryReport, source: string) {
   const entry = report.freshness?.find((value) => value.source === source);
   if (!entry) return "";
-  if (entry.verified_only && entry.age_hours === null)
-    return `<span${entry.stale ? ' class="unknown"' : ""}>no verified read yet; latest attempt ${escapeHtml(entry.attempt_age_hours ?? "unknown")} h ago</span>`;
+  if (entry.verified_only) {
+    const observed =
+      entry.observation_age_hours === null
+        ? "no serving observation yet"
+        : `latest serving observation ${entry.observation_age_hours} h ago`;
+    const verified =
+      entry.age_hours === null ? "no verified read yet" : `last verified ${entry.age_hours} h ago`;
+    return `<span${entry.stale ? ' class="unknown"' : ""}>${escapeHtml(`${verified}; ${observed}`)}${entry.stale ? " (stale)" : ""}</span>`;
+  }
   if (entry.age_hours === null) return '<span class="unknown">never read successfully</span>';
   const age = `${entry.age_hours} h`;
   return entry.stale ? `<span class="unknown">${escapeHtml(age)} (stale)</span>` : escapeHtml(age);
@@ -2518,7 +2544,7 @@ function freshnessSummary(report: InventoryReport) {
     verified_only || age_hours === null ? [] : [age_hours],
   );
   const oldest = ages.length ? Math.max(...ages) : null;
-  return `<p>Data age: the oldest last good source read is ${
+  return `<p>Data age: the oldest last good source read (excluding verified-only sources such as definition-delivery, aged by their serving observation) is ${
     oldest === null ? "unknown" : escapeHtml(`${oldest} h`)
   } before this report. ${
     stale.length
