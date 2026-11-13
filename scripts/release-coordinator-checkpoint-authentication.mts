@@ -193,6 +193,7 @@ export function matchesRetainedV13ReviewWithdrawalHandoff(
     [
       "refs/tags/portcove-production-controller-windows-20261113-withdraw-29f33f57",
       "refs/tags/portcove-production-controller-windows-20261113-withdraw-29f33f57-r2",
+      "refs/tags/portcove-production-controller-windows-20261113-withdraw-29f33f57-r3",
     ].includes(source.execution_ref) &&
     source.workflow_sha256 === workflow &&
     withdrawal !== null &&

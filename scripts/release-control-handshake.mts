@@ -12,6 +12,7 @@ import {
 } from "./release-readonly-child-environment.mts";
 import { assertTrustedDirectNode } from "./release-direct-node-transport.mts";
 import type { GitHubRequestPolicy } from "./github-client.mts";
+import { GitHubApiError } from "./github-operation.mts";
 import { isRecord } from "./runtime-values.mts";
 import { readCompleteRunArtifactInventoryAsync } from "./release-run-artifact-inventory.mts";
 import { productionControllerWorkflow } from "./production-controller-admission.mts";
@@ -271,6 +272,13 @@ export async function waitForControlArtifact(
         get(`actions/runs/${input.run_id}/artifacts?per_page=100&page=${page}`),
       )
     ).artifacts;
+  const coordinatorRefresh = role === "ready" && input.phase === "coordinator" && input.round;
+  let recoveredInventoryRead = false;
+  const waitForPoll = async () => {
+    const wait = remaining(3000);
+    if (options.sleep) await options.sleep(wait);
+    else await delay(wait, undefined, { signal: AbortSignal.timeout(remaining()) });
+  };
   const name = controlHandshakeArtifactName(role, input);
   const providerTimeout = input.phase === "coordinator" ? 15000 : 5000;
   let polls = 0;
@@ -305,7 +313,27 @@ export async function waitForControlArtifact(
     }
     while (++polls <= 81) {
       stage = "artifact-inventory";
-      const matches = (await inventory()).filter((a) => a.name === name);
+      let rows: Awaited<ReturnType<typeof inventory>>;
+      try {
+        rows = await inventory();
+      } catch (error) {
+        if (
+          !coordinatorRefresh ||
+          recoveredInventoryRead ||
+          !(error instanceof GitHubApiError) ||
+          !(
+            error.code === "deadline_exceeded" ||
+            [408, 500, 502, 503, 504].includes(error.status ?? 0)
+          )
+        )
+          throw error;
+        // A new bounded inventory read still requires the complete producer and
+        // artifact joins. A failed request never counts as an empty inventory.
+        recoveredInventoryRead = true;
+        await waitForPoll();
+        continue;
+      }
+      const matches = rows.filter((a) => a.name === name);
       if (matches.length > 1) throw new Error("control artifact name ambiguous");
       stage = "producer-inventory";
       const allJobs = await jobs();
@@ -474,13 +502,19 @@ export async function waitForControlArtifact(
         return proof;
       }
       stage = "poll-wait";
-      const wait = remaining(3000);
-      if (options.sleep) await options.sleep(wait);
-      else await delay(wait, undefined, { signal: AbortSignal.timeout(remaining()) });
+      await waitForPoll();
     }
     throw new Error("control handshake poll count exhausted");
-  } catch {
-    const receipt = { stage, polls, api_requests: requests, elapsed_ms: Math.floor(elapsed()) };
+  } catch (error) {
+    const receipt = {
+      stage,
+      polls,
+      api_requests: requests,
+      elapsed_ms: Math.floor(elapsed()),
+      ...(error instanceof GitHubApiError && error.status !== null
+        ? { provider_status: error.status }
+        : {}),
+    };
     options.onRefusal?.(receipt);
     await writeFile(
       path.join(privateRoot, `control-${role}-refusal.json`),
