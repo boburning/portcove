@@ -42,7 +42,7 @@ impl SteamGridDbTransport for Fixture {
         })
     }
 
-    fn fetch_image(&self, url: &str) -> Result<TransportResponse> {
+    fn fetch_image(&self, url: &str, _max_bytes: u64) -> Result<TransportResponse> {
         self.images.borrow_mut().push(url.to_owned());
         Ok(TransportResponse {
             status: self.image.0,

@@ -871,11 +871,51 @@ describe("SteamGridDB picker", () => {
     await vi.waitFor(() =>
       expect(container.querySelector("#steamgriddb-search-cover")).not.toBeNull(),
     );
-    await click("cover", "Search");
-    await vi.waitFor(() => expect(container.textContent).toContain("Try again in 30 seconds"));
-    expect(choose).not.toHaveBeenCalled();
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "Date"] });
+    try {
+      await click("cover", "Search");
+      await vi.waitFor(() => expect(container.textContent).toContain("Try again in 30 seconds."));
+      expect(choose).not.toHaveBeenCalled();
+      // SteamGridDB's retry guidance holds both Search and Try again.
+      expect(button("cover", "Try again").disabled).toBe(true);
+      expect(button("cover", "Search").disabled).toBe(true);
+      await act(async () => {
+        vi.advanceTimersByTime(30_001);
+      });
+      expect(button("cover", "Try again").disabled).toBe(false);
+    } finally {
+      vi.useRealTimers();
+    }
     search.mockResolvedValueOnce([]);
     await click("cover", "Try again");
     await vi.waitFor(() => expect(container.textContent).toContain("No SteamGridDB games matched"));
+  });
+
+  it("does not refetch a failed preview when the same images are shown again", async () => {
+    vi.spyOn(desktopApi, "steamGridDbKeyStatus").mockResolvedValue({ configured: true });
+    vi.spyOn(desktopApi, "searchSteamGridDbGames").mockResolvedValue([
+      { id: 77, name: "Preview Game", verified: false },
+    ]);
+    vi.spyOn(desktopApi, "steamGridDbCandidates").mockResolvedValue([
+      { ...candidate(901), thumb: "https://cdn2.steamgriddb.com/thumb/901-failing.png" },
+    ]);
+    const preview = vi
+      .spyOn(desktopApi, "steamGridDbPreview")
+      .mockRejectedValue({ code: "not_found", message: "this preview is no longer available" });
+    await render();
+    await open();
+    await click("cover", "Find on SteamGridDB");
+    await vi.waitFor(() =>
+      expect(container.querySelector("#steamgriddb-search-cover")).not.toBeNull(),
+    );
+    await click("cover", "Search");
+    await vi.waitFor(() => expect(container.textContent).toContain("Preview Game"));
+    await click("cover", "Preview Game");
+    await vi.waitFor(() => expect(container.textContent).toContain("Preview unavailable"));
+    expect(preview).toHaveBeenCalledTimes(1);
+    await click("cover", "Back to matches");
+    await click("cover", "Preview Game");
+    await vi.waitFor(() => expect(container.textContent).toContain("Preview unavailable"));
+    expect(preview).toHaveBeenCalledTimes(1);
   });
 });

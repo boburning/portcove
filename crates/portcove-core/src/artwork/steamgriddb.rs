@@ -107,7 +107,8 @@ impl From<SteamGridDbFailure> for PortcoveError {
 /// can never reach the image host.
 pub(crate) trait SteamGridDbTransport {
     fn get(&self, path_and_query: &str, key: &str) -> Result<TransportResponse>;
-    fn fetch_image(&self, url: &str) -> Result<TransportResponse>;
+    /// `max_bytes` is enforced while reading; one extra byte reveals overflow.
+    fn fetch_image(&self, url: &str, max_bytes: u64) -> Result<TransportResponse>;
 }
 
 /// A chosen image re-resolved from the provider, with its bounded bytes.
@@ -139,7 +140,8 @@ pub(crate) fn fetch_candidate(
     if !is_image_url(&candidate.url) {
         return Err(SteamGridDbFailure::InvalidResponse.into());
     }
-    let response = transport.fetch_image(&candidate.url)?;
+    let response =
+        transport.fetch_image(&candidate.url, crate::artwork_image::MAX_ORIGINAL_BYTES)?;
     match response.status {
         200 => {}
         404 => {
@@ -195,7 +197,7 @@ pub(crate) fn preview(transport: &impl SteamGridDbTransport, thumb_url: &str) ->
             "previews come only from SteamGridDB's image server",
         ));
     }
-    let response = transport.fetch_image(thumb_url)?;
+    let response = transport.fetch_image(thumb_url, MAX_PREVIEW_BYTES as u64)?;
     match response.status {
         200 => {}
         404 => {
@@ -533,13 +535,13 @@ impl SteamGridDbTransport for HttpTransport {
         })
     }
 
-    fn fetch_image(&self, url: &str) -> Result<TransportResponse> {
-        self.fetch(url)
+    fn fetch_image(&self, url: &str, max_bytes: u64) -> Result<TransportResponse> {
+        self.fetch(url, max_bytes)
     }
 }
 
 impl HttpTransport {
-    fn fetch(&self, url: &str) -> Result<TransportResponse> {
+    fn fetch(&self, url: &str, max_bytes: u64) -> Result<TransportResponse> {
         if !is_image_url(url) {
             return Err(SteamGridDbFailure::InvalidResponse.into());
         }
@@ -559,7 +561,7 @@ impl HttpTransport {
         use std::io::Read;
         // The cap is enforced while reading; one extra byte detects overflow.
         response
-            .take(crate::artwork_image::MAX_ORIGINAL_BYTES + 1)
+            .take(max_bytes.saturating_add(1))
             .read_to_end(&mut body)
             .map_err(|_| PortcoveError::from(SteamGridDbFailure::Unavailable))?;
         Ok(TransportResponse {

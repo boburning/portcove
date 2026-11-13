@@ -7,11 +7,32 @@ import type {
   SteamGridDbGame,
   SteamGridDbKeyStatus,
 } from "../types";
+import { countMessage } from "../localization";
 import { errorText, failurePresentation } from "../view-model";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 
 const PAGE = 12;
+/** A failed preview is not refetched for this long, across picker remounts. */
+const FAILED_PREVIEW_MS = 5 * 60 * 1000;
+const PREVIEW_CACHE_LIMIT = 200;
+const previews = new Map<string, { image?: string; failedAt?: number }>();
+/** Previews pause after SteamGridDB asks Portcove to slow down. */
+const previewPause = { until: 0 };
+
+function rememberPreview(url: string, entry: { image?: string; failedAt?: number }) {
+  previews.delete(url);
+  previews.set(url, entry);
+  if (previews.size > PREVIEW_CACHE_LIMIT) previews.delete(previews.keys().next().value!);
+}
+
+function retryAfterMs(error: unknown) {
+  if (typeof error !== "object" || !error || !("details" in error)) return 0;
+  const seconds = Number(
+    (error as { details?: Record<string, string> }).details?.retry_after_seconds,
+  );
+  return Number.isSafeInteger(seconds) && seconds > 0 ? seconds * 1000 : 0;
+}
 
 /** The destination role each local slot takes from SteamGridDB. */
 export function steamGridDbRole(slot: ArtworkSlot): DestinationArtworkRole {
@@ -29,9 +50,11 @@ export function steamGridDbErrorText(error: unknown) {
   if (presentation?.presentation_key.startsWith("credential_store_")) return presentation.summary;
   if (typeof error === "object" && error && "message" in error) {
     const value = error as { message: unknown; details?: Record<string, string> };
-    const seconds = value.details?.retry_after_seconds;
+    const seconds = Number(value.details?.retry_after_seconds);
     const message = String(value.message);
-    return seconds ? `${message}. Try again in ${seconds} seconds.` : message;
+    return Number.isSafeInteger(seconds) && seconds > 0
+      ? `${message}. ${countMessage(seconds, "retryAfterSeconds")}`
+      : message;
   }
   return errorText(error);
 }
@@ -60,7 +83,15 @@ export function SteamGridDbPicker({
   const [shown, setShown] = useState(PAGE);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string>();
+  /** Milliseconds SteamGridDB asked Portcove to wait before another request. */
+  const [blockedFor, setBlockedFor] = useState(0);
+  const blocked = blockedFor > 0;
   const request = useRef(0);
+  useEffect(() => {
+    if (!blocked) return;
+    const timer = setTimeout(() => setBlockedFor(0), blockedFor);
+    return () => clearTimeout(timer);
+  }, [blocked, blockedFor]);
   const mounted = useRef(true);
   useEffect(() => {
     mounted.current = true;
@@ -82,7 +113,12 @@ export function SteamGridDbPicker({
       const value = await work();
       if (mounted.current && id === request.current) apply(value);
     } catch (value) {
-      if (mounted.current && id === request.current) setError(steamGridDbErrorText(value));
+      if (mounted.current && id === request.current) {
+        setError(steamGridDbErrorText(value));
+        // Honor SteamGridDB's own retry guidance before allowing another request.
+        const wait = retryAfterMs(value);
+        if (wait > 0) setBlockedFor(wait);
+      }
     } finally {
       if (mounted.current && id === request.current) setLoading(false);
     }
@@ -139,7 +175,7 @@ export function SteamGridDbPicker({
           variant="outline"
           size="sm"
           type="submit"
-          disabled={loading || !term.trim()}
+          disabled={loading || blocked || !term.trim()}
         >
           Search
         </Button>
@@ -173,6 +209,10 @@ export function SteamGridDbPicker({
               variant="link"
               size="sm"
               onClick={() => {
+                // Supersede any listing still in flight for the abandoned game.
+                request.current += 1;
+                setLoading(false);
+                setError(undefined);
                 setGame(undefined);
                 setCandidates(undefined);
               }}
@@ -220,7 +260,7 @@ export function SteamGridDbPicker({
             data-focusable
             variant="outline"
             size="sm"
-            disabled={loading}
+            disabled={loading || blocked}
             onClick={() => (game ? pickGame(game) : term.trim() && search())}
           >
             Try again
@@ -240,19 +280,40 @@ function CandidateButton({
   disabled: boolean;
   choose: () => void;
 }) {
-  const [preview, setPreview] = useState<string>();
-  const [failed, setFailed] = useState(false);
+  const [cached] = useState(() => previews.get(candidate.thumb));
+  const [preview, setPreview] = useState<string | undefined>(cached?.image);
+  // A remembered failure shows immediately; the effect decides whether it expired.
+  const [failed, setFailed] = useState(cached?.failedAt !== undefined);
   useEffect(() => {
-    let current = true;
+    if (preview) return;
+    const entry = previews.get(candidate.thumb);
+    const now = Date.now();
+    if (entry?.failedAt !== undefined && now - entry.failedAt < FAILED_PREVIEW_MS) return;
+    const live = { current: true };
+    if (previewPause.until > now) {
+      rememberPreview(candidate.thumb, { failedAt: now });
+      void Promise.resolve().then(() => live.current && setFailed(true));
+      return () => {
+        live.current = false;
+      };
+    }
     desktopApi
       .steamGridDbPreview(candidate.thumb)
-      .then((value) => current && setPreview(`data:image/png;base64,${value.png_base64}`))
-      // A failed preview is not retried while this list is shown.
-      .catch(() => current && setFailed(true));
+      .then((value) => {
+        const image = `data:image/png;base64,${value.png_base64}`;
+        rememberPreview(candidate.thumb, { image });
+        if (live.current) setPreview(image);
+      })
+      .catch((value: unknown) => {
+        const wait = retryAfterMs(value);
+        if (wait > 0) previewPause.until = Date.now() + wait;
+        rememberPreview(candidate.thumb, { failedAt: Date.now() });
+        if (live.current) setFailed(true);
+      });
     return () => {
-      current = false;
+      live.current = false;
     };
-  }, [candidate.thumb]);
+  }, [candidate.thumb, preview]);
   const label = `Use image by ${candidate.author.name}, ${candidate.width} by ${candidate.height}`;
   return (
     <Button

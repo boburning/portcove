@@ -116,9 +116,11 @@ export function SteamGridDbSettings() {
         </Button>
       )}
       <p className="text-[length:var(--text-sm)] text-[var(--color-text-muted)]">
-        Portcove contacts SteamGridDB only when you search or choose an image. It sends the game
-        name you search for and SteamGridDB game and image IDs. Your key goes only to SteamGridDB's
-        API, never to its image server. Your files, game paths and library stay on this device.
+        Portcove contacts SteamGridDB only when you use Find on SteamGridDB: to search, list a
+        game's images, show their previews or download the image you choose. Those requests send the
+        name you search for, SteamGridDB game and image IDs, and ordinary connection details such as
+        your IP address. Your key goes only to SteamGridDB's API, never to its image server. Your
+        files, game paths and library stay on this device.
       </p>
       {message && <p role="status">{message}</p>}
       {error && <p role="alert">{error}</p>}
