@@ -144,7 +144,9 @@ pub(super) fn startup_mode(command: &Commands) -> StartupMode {
                 SourceInboxCommand::Open { .. } | SourceInboxCommand::Scan(_) => Recovering,
             },
             SourceCommand::Roots { command } => match command {
-                GameFileRootCommand::List | GameFileRootCommand::Snapshot => ReadOnly,
+                GameFileRootCommand::List
+                | GameFileRootCommand::Snapshot
+                | GameFileRootCommand::Matches(_) => ReadOnly,
                 GameFileRootCommand::Scan(_)
                 | GameFileRootCommand::Add { .. }
                 | GameFileRootCommand::Relink { .. }
@@ -413,6 +415,7 @@ mod tests {
             "source inbox import p file",
             "source roots list",
             "source roots snapshot",
+            "source roots matches",
             "external preview p dir",
             "external removal-preview p",
             "installation plan p",

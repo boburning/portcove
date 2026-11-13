@@ -1414,6 +1414,8 @@ pub(crate) enum GameFileRootCommand {
     Scan(GameFileRootScanArgs),
     /// Read the last completed scan and whether its inputs still match.
     Snapshot,
+    /// Read the last scan's recorded matches one page at a time.
+    Matches(GameFileRootMatchesArgs),
     /// Save one available folder; adding the same folder again is idempotent.
     Add {
         /// Available folder to remember for future scans; adding it does not register its files.
@@ -1431,6 +1433,48 @@ pub(crate) enum GameFileRootCommand {
         /// Saved folder ID from `source roots list`; paths alone are not folder identities.
         root_id: String,
     },
+}
+
+#[derive(Debug, Clone, Copy, ValueEnum)]
+pub(crate) enum GameFileScanMatchKindArg {
+    Exact,
+    Preliminary,
+}
+
+#[derive(Debug, Args)]
+pub(crate) struct GameFileRootMatchesArgs {
+    /// Exact candidates, or preliminary selections whose validator has not run.
+    #[arg(long, value_enum, default_value = "exact")]
+    pub(crate) kind: GameFileScanMatchKindArg,
+    /// Matches to skip, from an earlier page's next offset.
+    #[arg(long, default_value_t = 0)]
+    pub(crate) offset: u32,
+    /// Matches on this page, 1 to 512.
+    #[arg(long, default_value_t = 64)]
+    pub(crate) limit: u32,
+    /// Only matches inside this saved folder ID from `source roots list`.
+    #[arg(long = "root")]
+    pub(crate) root_id: Option<String>,
+    /// Scan ID from an earlier page; a scan replaced since then is refused.
+    #[arg(long)]
+    pub(crate) scan_id: Option<String>,
+}
+
+impl GameFileRootMatchesArgs {
+    pub(crate) fn query(self) -> portcove_core::GameFileScanMatchQuery {
+        portcove_core::GameFileScanMatchQuery {
+            scan_id: self.scan_id,
+            kind: match self.kind {
+                GameFileScanMatchKindArg::Exact => portcove_core::GameFileScanMatchKind::Exact,
+                GameFileScanMatchKindArg::Preliminary => {
+                    portcove_core::GameFileScanMatchKind::Preliminary
+                }
+            },
+            offset: self.offset,
+            limit: self.limit,
+            root_id: self.root_id,
+        }
+    }
 }
 
 #[derive(Debug, Args)]

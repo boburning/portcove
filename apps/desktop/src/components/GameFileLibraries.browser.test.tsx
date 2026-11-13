@@ -2092,3 +2092,162 @@ it("offers keeping a local copy only once automatic setup is on, and saves the c
   expect(copyBox()?.checked).toBe(true);
   expect(document.body.textContent).toContain("nothing in this folder is moved or deleted");
 });
+
+function storedMatchesSnapshot(): GameFileScanSnapshot {
+  return {
+    ...snapshot,
+    report: { ...snapshot.report, limits_reached: [] },
+    matches: {
+      scan_id: "00000000-0000-4000-8000-000000000001",
+      exact_matches: 3,
+      preliminary_selections: 0,
+      preview_complete: false,
+    },
+  };
+}
+
+it("counts every stored match and shows more of them a page at a time", async () => {
+  const stored = storedMatchesSnapshot();
+  vi.mocked(desktopApi.gameFileScanSnapshot).mockResolvedValue(stored);
+  const later = (name: string): SourceRecord => ({ ...savedCandidate, path: `D:/Games/${name}` });
+  const pages = vi
+    .spyOn(desktopApi, "gameFileScanMatches")
+    .mockResolvedValueOnce({
+      scan_id: stored.matches!.scan_id,
+      kind: "exact",
+      offset: 1,
+      total: 3,
+      candidates: [later("second.z64")],
+      preliminary_selections: [],
+      next_offset: 2,
+    })
+    .mockResolvedValueOnce({
+      scan_id: stored.matches!.scan_id,
+      kind: "exact",
+      offset: 2,
+      total: 3,
+      candidates: [later("third.z64")],
+      preliminary_selections: [],
+      next_offset: null,
+    });
+  await click("Refresh folders");
+  expect(document.body.textContent).toContain("Found 3 exact matches.");
+  expect(document.body.textContent).toContain("Showing 1 of 3 matches.");
+  expect(document.body.textContent).not.toContain("D:/Games/second.z64");
+  await click("Show more matches");
+  expect(pages).toHaveBeenLastCalledWith(
+    { scan_id: stored.matches!.scan_id, kind: "exact", offset: 1, limit: 64 },
+    1,
+  );
+  expect(document.body.textContent).toContain("D:/Games/second.z64");
+  expect(document.body.textContent).toContain("Showing 2 of 3 matches.");
+  await click("Show more matches");
+  expect(pages).toHaveBeenLastCalledWith(
+    { scan_id: stored.matches!.scan_id, kind: "exact", offset: 2, limit: 64 },
+    1,
+  );
+  expect(document.body.textContent).toContain("D:/Games/third.z64");
+  expect(document.body.textContent).not.toContain("Showing");
+  expect(document.querySelector("[data-match-preview-notice]")).toBeNull();
+  expect(
+    [...document.querySelectorAll("button")].some(
+      (item) => item.textContent === "Show more matches",
+    ),
+  ).toBe(false);
+  expect(desktopApi.importSource).not.toHaveBeenCalled();
+});
+
+it("reloads the saved scan instead of mixing pages when a newer scan replaced it", async () => {
+  const stored = storedMatchesSnapshot();
+  vi.mocked(desktopApi.gameFileScanSnapshot).mockResolvedValue(stored);
+  const conflict = Object.assign(new Error("the saved scan changed; reload its matches"), {
+    code: "conflict",
+  });
+  vi.spyOn(desktopApi, "gameFileScanMatches").mockRejectedValue(conflict);
+  await click("Refresh folders");
+  const reads = vi.mocked(desktopApi.gameFileScanSnapshot).mock.calls.length;
+  const replaced: GameFileScanSnapshot = {
+    ...stored,
+    matches: {
+      ...stored.matches!,
+      scan_id: "00000000-0000-4000-8000-000000000002",
+      exact_matches: 1,
+      preview_complete: true,
+    },
+  };
+  vi.mocked(desktopApi.gameFileScanSnapshot).mockResolvedValue(replaced);
+  await click("Show more matches");
+  await vi.waitFor(() =>
+    expect(vi.mocked(desktopApi.gameFileScanSnapshot).mock.calls.length).toBeGreaterThan(reads),
+  );
+  await vi.waitFor(() => expect(document.body.textContent).toContain("Found 1 exact match."));
+  expect(document.body.textContent).not.toContain("Show more matches");
+});
+
+it("explains a scan that stopped at its safety limit for matches", async () => {
+  const limited: GameFileScanSnapshot = {
+    ...storedMatchesSnapshot(),
+    report: { ...snapshot.report, limits_reached: ["candidates"] },
+    coverage: {
+      batch_entries_examined: 1,
+      batches: 4,
+      can_resume: false,
+      entries_relisted: 0,
+      frontier_exhausted: false,
+      metadata_checks: 2,
+      observations_reused: 0,
+      pending_directories: 1,
+      prior_member_rechecks: 0,
+      remaining_entries: null,
+      restart_required: false,
+    },
+  };
+  vi.mocked(desktopApi.gameFileScanSnapshot).mockResolvedValue(limited);
+  await click("Refresh folders");
+  expect(document.body.textContent).toContain("reached its safety limit for matches");
+  expect(document.body.textContent).toContain("The matches found so far were kept.");
+  expect(document.body.textContent).not.toContain("Continue scan");
+});
+
+it("drops earlier pages when a continued scan keeps its ID but changes its preview", async () => {
+  const stored = storedMatchesSnapshot();
+  vi.mocked(desktopApi.gameFileScanSnapshot).mockResolvedValue(stored);
+  const later = (name: string): SourceRecord => ({ ...savedCandidate, path: `D:/Games/${name}` });
+  const pages = vi.spyOn(desktopApi, "gameFileScanMatches").mockResolvedValueOnce({
+    scan_id: stored.matches!.scan_id,
+    kind: "exact",
+    offset: 1,
+    total: 3,
+    candidates: [later("second.z64")],
+    preliminary_selections: [],
+    next_offset: 2,
+  });
+  await click("Refresh folders");
+  await click("Show more matches");
+  expect(document.body.textContent).toContain("D:/Games/second.z64");
+  // The same scan continues: its preview now holds two matches of four.
+  const continued: GameFileScanSnapshot = {
+    ...stored,
+    report: { ...stored.report, candidates: [savedCandidate, later("second.z64")] },
+    matches: { ...stored.matches!, exact_matches: 4 },
+  };
+  vi.mocked(desktopApi.gameFileScanSnapshot).mockResolvedValue(continued);
+  await click("Refresh folders");
+  expect(document.body.textContent).toContain("Showing 2 of 4 matches.");
+  // The earlier page is not appended again, so nothing is shown twice.
+  expect(document.body.textContent?.split("D:/Games/second.z64").length).toBe(2);
+  pages.mockResolvedValueOnce({
+    scan_id: stored.matches!.scan_id,
+    kind: "exact",
+    offset: 2,
+    total: 4,
+    candidates: [later("third.z64")],
+    preliminary_selections: [],
+    next_offset: 3,
+  });
+  await click("Show more matches");
+  expect(pages).toHaveBeenLastCalledWith(
+    { scan_id: stored.matches!.scan_id, kind: "exact", offset: 2, limit: 64 },
+    1,
+  );
+});

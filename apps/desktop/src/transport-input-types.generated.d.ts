@@ -42,6 +42,7 @@ export type CatalogForeignReleaseId = {
   provider: "gitlab";
   tag: string;
 };
+export type GameFileScanMatchKind = "exact" | "preliminary";
 export type InputDesktopInstallBatchRequestItems = InstallBatchRequestItem[];
 export type LibraryMembershipOrigin = "game_file_discovery" | "manual";
 export type InputDesktopLibraryMembershipRequests = LibraryMembershipRequest[];
@@ -155,6 +156,7 @@ export interface TransportInputs {
   desktop_catalog_download_request: InputDesktopCatalogDownloadRequest;
   desktop_game_comparison_request: InputDesktopGameComparisonRequest;
   desktop_game_file_query_request: InputGameFileQueryRequest;
+  desktop_game_file_scan_match_query: InputDesktopGameFileScanMatchQuery;
   desktop_install_batch_request_items: InputDesktopInstallBatchRequestItems;
   desktop_install_input: InputDesktopInstallInput;
   desktop_library_membership_requests: InputDesktopLibraryMembershipRequests;
@@ -287,6 +289,26 @@ export interface InputDesktopGameComparisonRequest {
    * presence describes a hypothetical source context, not a fresh file verification.
    */
   source_profile_ids?: string[] | null;
+}
+/**
+ * One page of the current saved-folder scan's retained matches.
+ */
+export interface InputDesktopGameFileScanMatchQuery {
+  kind: GameFileScanMatchKind;
+  /**
+   * 1 to 512 matches.
+   */
+  limit: number;
+  offset?: number;
+  /**
+   * Only matches inside this saved folder.
+   */
+  root_id?: string | null;
+  /**
+   * The scan the caller is paging; a different current scan is a conflict.
+   */
+  scan_id?: string | null;
+  [k: string]: unknown;
 }
 export interface InstallBatchRequestItem {
   /**

@@ -109,6 +109,8 @@ import type {
   LibraryMembershipRequest,
   GameFileQueryRefreshRequest,
   GameFileQuerySnapshot,
+  GameFileScanMatchPage,
+  GameFileScanMatchQuery,
   GameFileScanSnapshot,
   HostToolProbeResult,
   HostToolStatus,
@@ -905,6 +907,8 @@ export const desktopApi = {
   },
   gameFileScanSnapshot: (generation: number) =>
     invoke<GameFileScanSnapshot | null>("get_game_file_scan_snapshot", { generation }),
+  gameFileScanMatches: (query: GameFileScanMatchQuery, generation: number) =>
+    invoke<GameFileScanMatchPage>("get_game_file_scan_matches", { query, generation }),
   refreshGameFileQuery: (
     request: GameFileQueryRefreshRequest,
     generation: number,

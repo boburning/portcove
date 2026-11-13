@@ -41,6 +41,8 @@ pub const MAX_ROOT_SETUPS_PER_PASS: usize = 4;
 pub const MAX_ROOT_SETUP_BASELINE: usize = 200_000;
 /// Matched files a pass plans or checks for folder consent; later passes continue.
 const MAX_ROOT_CANDIDATES_PER_PASS: usize = 32;
+/// Matches read per page while looking for a folder's candidates.
+const ROOT_MATCH_PAGE: u32 = 64;
 const MAX_BASELINE_DEPTH: usize = 32;
 const MAX_ROOT_SETUP_FAILURES: usize = 256;
 const MAX_ROOT_SETUP_WAITING: usize = 64;
@@ -583,6 +585,7 @@ impl PortcoveService {
         let Some(snapshot) = self.game_file_scan_snapshot()? else {
             return Ok(Vec::new());
         };
+        let scan_id = snapshot.matches.map(|matches| matches.scan_id);
         let roots = self.library.game_file_roots()?;
         let mut waiting = Vec::new();
         let mut started = 0;
@@ -595,59 +598,78 @@ impl PortcoveService {
             }) else {
                 continue;
             };
-            for candidate in &snapshot.report.candidates {
-                if started >= MAX_ROOT_SETUPS_PER_PASS || considered >= MAX_ROOT_CANDIDATES_PER_PASS
-                {
-                    return Ok(waiting);
-                }
-                if !candidate.path.starts_with(&root.path) {
-                    continue;
-                }
-                // Checking the boundary reads the file (or game folder), so it
-                // counts toward the per-pass bound.
-                considered += 1;
-                if !self.still_enrolled(&root.id, &root.path, candidate)? {
-                    continue;
-                }
-                let port_id = match self.root_candidate(&consent, candidate, busy, handled) {
-                    RootCandidate::Skip => continue,
-                    RootCandidate::Waiting(item) => {
-                        if waiting.len() < MAX_ROOT_SETUP_WAITING {
-                            waiting.push(item);
-                        }
+            // Matches are read in pages from the scan's rows, so a folder's
+            // match beyond the report preview is still reached.
+            let mut offset = Some(0);
+            while let Some(start) = offset {
+                let page = match self.game_file_scan_matches(&crate::GameFileScanMatchQuery {
+                    scan_id: scan_id.clone(),
+                    kind: crate::GameFileScanMatchKind::Exact,
+                    offset: start,
+                    limit: ROOT_MATCH_PAGE,
+                    root_id: Some(root.id.clone()),
+                }) {
+                    Ok(page) => page,
+                    // A newer scan replaced this one; the next pass reads it.
+                    Err(error) if error.code == crate::ErrorCode::Conflict => return Ok(waiting),
+                    Err(error) => return Err(error),
+                };
+                offset = page.next_offset;
+                for candidate in &page.candidates {
+                    if started >= MAX_ROOT_SETUPS_PER_PASS
+                        || considered >= MAX_ROOT_CANDIDATES_PER_PASS
+                    {
+                        return Ok(waiting);
+                    }
+                    if !candidate.path.starts_with(&root.path) {
                         continue;
                     }
-                    RootCandidate::Setup { port_id } => port_id,
-                };
-                let outcome = match self
-                    .root_setup_one(&root.id, &root.path, candidate, &port_id, emit)
-                    .await
-                {
-                    Ok(outcome) => outcome,
-                    Err(error) => RootSetupOutcome::Failed(error.message),
-                };
-                match outcome {
-                    RootSetupOutcome::Started(record) => {
-                        handled.insert(port_id);
-                        started += 1;
-                        batches.push(record);
+                    // Checking the boundary reads the file (or game folder), so it
+                    // counts toward the per-pass bound.
+                    considered += 1;
+                    if !self.still_enrolled(&root.id, &root.path, candidate)? {
+                        continue;
                     }
-                    // Another copy of the same game's files may still work.
-                    RootSetupOutcome::Waiting(reason) => {
-                        if waiting.len() < MAX_ROOT_SETUP_WAITING {
-                            waiting.push(RootSetupWaiting {
-                                root_id: root.id.clone(),
-                                profile_id: candidate.profile_id.clone(),
-                                port_id: Some(port_id),
-                                reason,
-                            });
+                    let port_id = match self.root_candidate(&consent, candidate, busy, handled) {
+                        RootCandidate::Skip => continue,
+                        RootCandidate::Waiting(item) => {
+                            if waiting.len() < MAX_ROOT_SETUP_WAITING {
+                                waiting.push(item);
+                            }
+                            continue;
                         }
+                        RootCandidate::Setup { port_id } => port_id,
+                    };
+                    let outcome = match self
+                        .root_setup_one(&root.id, &root.path, candidate, &port_id, emit)
+                        .await
+                    {
+                        Ok(outcome) => outcome,
+                        Err(error) => RootSetupOutcome::Failed(error.message),
+                    };
+                    match outcome {
+                        RootSetupOutcome::Started(record) => {
+                            handled.insert(port_id);
+                            started += 1;
+                            batches.push(record);
+                        }
+                        // Another copy of the same game's files may still work.
+                        RootSetupOutcome::Waiting(reason) => {
+                            if waiting.len() < MAX_ROOT_SETUP_WAITING {
+                                waiting.push(RootSetupWaiting {
+                                    root_id: root.id.clone(),
+                                    profile_id: candidate.profile_id.clone(),
+                                    port_id: Some(port_id),
+                                    reason,
+                                });
+                            }
+                        }
+                        RootSetupOutcome::Failed(reason) => {
+                            handled.insert(port_id.clone());
+                            failures.push(crate::StandingSetupFailure { port_id, reason });
+                        }
+                        RootSetupOutcome::Skipped => {}
                     }
-                    RootSetupOutcome::Failed(reason) => {
-                        handled.insert(port_id.clone());
-                        failures.push(crate::StandingSetupFailure { port_id, reason });
-                    }
-                    RootSetupOutcome::Skipped => {}
                 }
             }
         }
@@ -1131,6 +1153,40 @@ mod tests {
             folder.service.status(PORT).unwrap().active.unwrap().id,
             installed
         );
+    }
+
+    #[tokio::test]
+    async fn a_folder_match_beyond_the_scan_preview_is_still_set_up() {
+        let folder = folder();
+        let file = folder.file("game.z64", 'a');
+        folder.in_use(&file);
+        // Matches in another folder fill the report preview, so this folder's
+        // match is only reachable through the scan's stored pages.
+        let elsewhere = folder.root.parent().unwrap().join("elsewhere");
+        let mut candidates = (0..600)
+            .map(|index| SourceRecord {
+                path: elsewhere.join(format!("other-{index:03}.z64")),
+                ..file.clone()
+            })
+            .collect::<Vec<_>>();
+        candidates.push(file.clone());
+        let snapshot = crate::source_discovery::publish_test_game_file_scan_rows(
+            folder.service.catalog(),
+            folder.service.library(),
+            candidates,
+        );
+        assert!(!snapshot.matches.unwrap().preview_complete);
+        assert!(
+            snapshot
+                .report
+                .candidates
+                .iter()
+                .all(|candidate| candidate.path != file.path)
+        );
+        folder.consent(RootSetupEnrollment::ExistingAndFuture);
+        let first = folder.pass().await;
+        assert_eq!(first.batches.len(), 1, "{first:?}");
+        assert!(folder.installed());
     }
 
     #[tokio::test]

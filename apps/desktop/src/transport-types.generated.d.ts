@@ -675,11 +675,12 @@ export type GameFileQueryState =
   "files_available" | "files_missing" | "needs_checking" | "no_files_required" | "unavailable_context";
 export type GameFileRootAvailability = "available" | "unavailable";
 export type OutputGameFileRoots = GameFileRoot[];
-export type OutputGameFileScanSnapshot = GameFileScanSnapshot | null;
-export type GameFileScanFreshness = "inputs_match" | "inputs_changed";
 export type SourceDigestAlgorithm = "sha1" | "sha256" | "crc32";
 export type SourceComponentKind = "file_set_member" | "optical_disc";
 export type SourceValidatorResult = "not_run" | "passed" | "failed" | "missing_tool";
+export type GameFileScanMatchKind = "exact" | "preliminary";
+export type OutputGameFileScanSnapshot = GameFileScanSnapshot | null;
+export type GameFileScanFreshness = "inputs_match" | "inputs_changed";
 export type SourceDiscoveryLimit = "entries" | "depth" | "file_size" | "hash_bytes" | "candidates";
 export type InstallPlanAction = "already_active" | "use_staged" | "reuse_retained" | "blocked_unverified" | "download";
 export type SourceRequirementRole = "game_source" | "bios";
@@ -1139,6 +1140,8 @@ export interface TransportOutputs {
   game_file_query_request: OutputGameFileQueryRequest;
   game_file_query_snapshot: OutputGameFileQuerySnapshot;
   game_file_roots: OutputGameFileRoots;
+  game_file_scan_match_page: OutputGameFileScanMatchPage;
+  game_file_scan_match_query: OutputGameFileScanMatchQuery;
   game_file_scan_snapshot: OutputGameFileScanSnapshot;
   game_install_plan: GameInstallPlan;
   game_setting_change: GameSettingChange;
@@ -1270,6 +1273,7 @@ export interface TransportOutputs {
   desktop_game_comparison: OutputGameComparison;
   desktop_game_file_query_snapshot: OutputGameFileQuerySnapshot;
   desktop_game_file_roots: OutputGameFileRoots;
+  desktop_game_file_scan_match_page: OutputGameFileScanMatchPage;
   desktop_game_file_scan_snapshot: OutputGameFileScanSnapshot;
   desktop_install_batch: InstallBatchRecord;
   desktop_install_batch_review: OutputDesktopInstallBatchReview;
@@ -3500,59 +3504,20 @@ export interface GameFileRoot {
   updated_at: number;
   [k: string]: unknown;
 }
-export interface GameFileScanSnapshot {
-  catalog_sha256: string;
-  completed_at: number;
-  continuation?: unknown;
-  coverage?: GameFileScanCoverage | null;
-  format_version: number;
-  freshness: GameFileScanFreshness;
-  limits: SourceDiscoveryLimits | null;
-  report: SourceDiscoveryReport;
-  roots: GameFileRoot[];
-  [k: string]: unknown;
-}
-export interface GameFileScanCoverage {
-  batch_entries_examined: number;
-  batches: number;
-  can_resume: boolean;
-  entries_relisted: number;
-  frontier_exhausted: boolean;
-  metadata_checks: number;
-  /**
-   * File identities (one per file and representation) reused because the
-   * recorded metadata and inspector version still match. Never admission.
-   */
-  observations_reused: number;
-  pending_directories: number;
-  prior_member_rechecks: number;
-  remaining_entries: number | null;
-  restart_required: boolean;
-  [k: string]: unknown;
-}
-export interface SourceDiscoveryLimits {
-  max_candidates: number;
-  max_depth: number;
-  max_entries: number;
-  max_file_bytes: number;
-  max_hash_bytes: number;
-  [k: string]: unknown;
-}
-export interface SourceDiscoveryReport {
+export interface OutputGameFileScanMatchPage {
   candidates: SourceRecord[];
-  entries_examined: number;
-  files_hashed: number;
-  hash_bytes: number;
-  issues: SourceDiscoveryIssue[];
-  issues_omitted: number;
-  limits_reached: SourceDiscoveryLimit[];
+  kind: GameFileScanMatchKind;
+  next_offset: number | null;
+  offset: number;
+  preliminary_selections: SourceInspection[];
   /**
-   * Preliminary selections are not exact matches and their pinned validator has not run.
+   * Absent when the current report keeps every match inline.
    */
-  preliminary_selections?: SourceInspection[];
-  searched_profiles: string[];
-  searched_roots: string[];
-  symlinks_skipped: number;
+  scan_id: string | null;
+  /**
+   * Matches of this kind (inside `root_id`, when given).
+   */
+  total: number;
   [k: string]: unknown;
 }
 export interface SourceRecord {
@@ -3606,12 +3571,6 @@ export interface ObservedSourceValidator {
   tool_id: string;
   [k: string]: unknown;
 }
-export interface SourceDiscoveryIssue {
-  message: string;
-  path: string | null;
-  profile_id: string | null;
-  [k: string]: unknown;
-}
 /**
  * Facts returned by read-only inspection. A record is present only when the
  * admission state permits existing callers to register or use the source.
@@ -3626,6 +3585,108 @@ export interface SourceInspection {
   profile_id: string;
   record: SourceRecord | null;
   validator?: ObservedSourceValidator | null;
+  [k: string]: unknown;
+}
+/**
+ * One page of the current saved-folder scan's retained matches.
+ */
+export interface OutputGameFileScanMatchQuery {
+  kind: GameFileScanMatchKind;
+  /**
+   * 1 to 512 matches.
+   */
+  limit: number;
+  offset: number;
+  /**
+   * Only matches inside this saved folder.
+   */
+  root_id?: string | null;
+  /**
+   * The scan the caller is paging; a different current scan is a conflict.
+   */
+  scan_id?: string | null;
+  [k: string]: unknown;
+}
+export interface GameFileScanSnapshot {
+  catalog_sha256: string;
+  completed_at: number;
+  continuation?: unknown;
+  coverage?: GameFileScanCoverage | null;
+  format_version: number;
+  freshness: GameFileScanFreshness;
+  limits: SourceDiscoveryLimits | null;
+  /**
+   * Where the scan's retained matches live. When present, the report's
+   * `candidates` and `preliminary_selections` are only a bounded preview
+   * and every match is read in pages. Absent means every match is inline
+   * in the report (older formats).
+   */
+  matches?: GameFileScanMatchSummary | null;
+  report: SourceDiscoveryReport;
+  roots: GameFileRoot[];
+  [k: string]: unknown;
+}
+export interface GameFileScanCoverage {
+  batch_entries_examined: number;
+  batches: number;
+  can_resume: boolean;
+  entries_relisted: number;
+  frontier_exhausted: boolean;
+  metadata_checks: number;
+  /**
+   * File identities (one per file and representation) reused because the
+   * recorded metadata and inspector version still match. Never admission.
+   */
+  observations_reused: number;
+  pending_directories: number;
+  prior_member_rechecks: number;
+  remaining_entries: number | null;
+  restart_required: boolean;
+  [k: string]: unknown;
+}
+export interface SourceDiscoveryLimits {
+  max_candidates: number;
+  max_depth: number;
+  max_entries: number;
+  max_file_bytes: number;
+  max_hash_bytes: number;
+  [k: string]: unknown;
+}
+/**
+ * Totals for one saved-folder scan's retained matches. The preview in the
+ * report holds the first matches in page order, exact matches first.
+ */
+export interface GameFileScanMatchSummary {
+  exact_matches: number;
+  preliminary_selections: number;
+  /**
+   * Whether the report's preview holds every retained match.
+   */
+  preview_complete: boolean;
+  scan_id: string;
+  [k: string]: unknown;
+}
+export interface SourceDiscoveryReport {
+  candidates: SourceRecord[];
+  entries_examined: number;
+  files_hashed: number;
+  hash_bytes: number;
+  issues: SourceDiscoveryIssue[];
+  issues_omitted: number;
+  limits_reached: SourceDiscoveryLimit[];
+  /**
+   * Preliminary selections are not exact matches and their pinned validator has not run.
+   */
+  preliminary_selections?: SourceInspection[];
+  searched_profiles: string[];
+  searched_roots: string[];
+  symlinks_skipped: number;
+  [k: string]: unknown;
+}
+export interface SourceDiscoveryIssue {
+  message: string;
+  path: string | null;
+  profile_id: string | null;
   [k: string]: unknown;
 }
 /**

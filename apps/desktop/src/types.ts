@@ -161,6 +161,8 @@ export type GameFileQuerySnapshot = Generated.TransportOutputs["game_file_query_
 export type GameFileScanSnapshot = NonNullable<
   Generated.TransportOutputs["game_file_scan_snapshot"]
 >;
+export type GameFileScanMatchPage = Generated.TransportOutputs["desktop_game_file_scan_match_page"];
+export type GameFileScanMatchQuery = Requests.TransportInputs["desktop_game_file_scan_match_query"];
 
 export type { ObservedSourceDigest } from "./transport-types.generated";
 

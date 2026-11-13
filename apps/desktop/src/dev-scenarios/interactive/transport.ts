@@ -720,6 +720,20 @@ export function installInteractiveTransport(journey: Journey, refuse: (message: 
       requireArgs("get_game_file_scan_snapshot", args, { generation });
       return null;
     },
+    // Fixtures publish no saved scan, so there are no recorded matches to page.
+    get_game_file_scan_matches: (args) => {
+      const query = args?.query as { kind?: string; offset?: number } | undefined;
+      requireArgs("get_game_file_scan_matches", args, { generation, query });
+      return {
+        scan_id: null,
+        kind: query?.kind === "preliminary" ? "preliminary" : "exact",
+        offset: query?.offset ?? 0,
+        total: 0,
+        candidates: [],
+        preliminary_selections: [],
+        next_offset: null,
+      };
+    },
     get_backups: (args) => {
       if (!workspace(journey).catalog.ports.some((port) => port.id === args?.portId))
         return unsupported("get_backups");
