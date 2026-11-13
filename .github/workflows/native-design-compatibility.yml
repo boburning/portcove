@@ -800,7 +800,8 @@ jobs:
             }
             if ($status -eq 200) { break }
             if ($status -ne 404) { throw "msedgedriver $version availability check returned HTTP $status." }
-            if ((Get-Date) -ge $deadline) {
+            # Decide before sleeping so the last check always ends inside the step timeout.
+            if ((Get-Date).AddSeconds(60) -ge $deadline) {
               throw "Microsoft has not made msedgedriver $version available for the serviced WebView2 $version after $attempts checks over 20 minutes. Re-run this job once it is available."
             }
             Start-Sleep -Seconds 60
