@@ -363,17 +363,38 @@ export const servedNativeBootstrapRenewal = {
   settled_operation_id: "f7468b3daade44b98d7dde0af13f6cc81bbdc03d8b9c838ff8336e0a3a73e542",
 } as const;
 
-export function isServedNativeBootstrapRenewalPreimage(input: Record<string, unknown>) {
+/** Served feed recovery retains the same signed journal preimage as v8. */
+export const servedV13BootstrapRenewal = {
+  ...servedNativeBootstrapRenewal,
+  run_id: "43350005289",
+  feed_job_id: "131648693360",
+  revision: "0c333d8e9d8d402f488975312f43c27097154afe",
+  ref: "refs/tags/portcove-production-controller-windows-20261113r87",
+  release_id: 442923418,
+  opportunity: "7db3dcbe2c276d6240e6ec6dccfcd813b4877fc51243d0487314849dbd0138c4",
+  generation: "deff5ba394373775c3f19d5ee9c44222484be8e2a58397826e6bd45c8bb40fc6",
+  publication_sha256: "891b3fb0373165adef0513f9c5c072d62cecb53cfcb694f953d5be1098abc33a",
+  prior_repository_sha256: "666abbccb87032ddd004bdeff0b70a3b7a01288baa21adb9811c8c1f9d753489",
+} as const;
+
+export function isServedNativeBootstrapRenewalPreimage(
+  input: Record<string, unknown>,
+  renewal:
+    | typeof servedNativeBootstrapRenewal
+    | typeof servedV13BootstrapRenewal = servedNativeBootstrapRenewal,
+) {
   const published = inspectPublishedMetadata(input.published_metadata);
   const controller = input.controller;
   const capacity = isRecord(controller) ? controller.capacity_attempt : null;
   const operation = isRecord(capacity) ? capacity.operation : null;
-  const prior = standaloneBootstrapForwardAdoption;
-  const renewal = servedNativeBootstrapRenewal;
+  const v13 = renewal === servedV13BootstrapRenewal;
+  const prior = v13 ? servedNativeBootstrapRenewal : standaloneBootstrapForwardAdoption;
   return (
     published?.standalone_bootstrap_run === prior.run_id &&
     published.repository_sha256 === renewal.prior_repository_sha256 &&
-    digest(input.metadata_renewal ?? null) === renewal.superseded_descriptor_sha256 &&
+    (v13
+      ? input.metadata_renewal === null
+      : digest(input.metadata_renewal ?? null) === renewal.superseded_descriptor_sha256) &&
     isRecord(operation) &&
     operation.id === renewal.settled_operation_id &&
     operation.kind === "upload" &&
@@ -435,12 +456,13 @@ function matchesStandaloneBootstrapPublication(
       publication.site_generation_sha256 === standaloneBootstrapAdoption.generation &&
       digest(facts) === standaloneBootstrapAdoption.publication_sha256
     );
-  if (run === servedNativeBootstrapRenewal.run_id)
-    return (
-      job === servedNativeBootstrapRenewal.feed_job_id &&
-      publication.site_generation_sha256 === servedNativeBootstrapRenewal.generation &&
-      digest(facts) === servedNativeBootstrapRenewal.publication_sha256
-    );
+  for (const native of [servedNativeBootstrapRenewal, servedV13BootstrapRenewal])
+    if (run === native.run_id)
+      return (
+        job === native.feed_job_id &&
+        publication.site_generation_sha256 === native.generation &&
+        digest(facts) === native.publication_sha256
+      );
   if (run === standaloneBootstrapForwardAdoption.run_id)
     return (
       job === standaloneBootstrapForwardAdoption.feed_job_id &&
@@ -501,19 +523,21 @@ export function validatePublishedMetadataTransition(
     const { operation_id, expires } = after;
     const selected = standaloneBootstrapAdoption;
     const forward = after.standalone_bootstrap_run === standaloneBootstrapForwardAdoption.run_id;
-    const native = after.standalone_bootstrap_run === servedNativeBootstrapRenewal.run_id;
+    const native = [servedNativeBootstrapRenewal, servedV13BootstrapRenewal].find(
+      (candidate) => candidate.run_id === after.standalone_bootstrap_run,
+    );
     if (native) {
       const priorController = previous.controller;
       const priorCapacity = isRecord(priorController) ? priorController.capacity_attempt : null;
       const nextController = next.controller;
       const nextCapacity = isRecord(nextController) ? nextController.capacity_attempt : null;
       if (
-        !isServedNativeBootstrapRenewalPreimage(previous) ||
+        !isServedNativeBootstrapRenewalPreimage(previous, native) ||
         !isRecord(priorCapacity) ||
         !isRecord(nextCapacity) ||
         digest(priorCapacity.operation) !== digest(nextCapacity.operation) ||
         !isRecord(operation) ||
-        operation.id !== servedNativeBootstrapRenewal.settled_operation_id ||
+        operation.id !== native.settled_operation_id ||
         operation.outcome !== "recovered" ||
         digest(operation.recovery) !==
           digest(isRecord(priorCapacity.operation) ? priorCapacity.operation.recovery : null) ||
