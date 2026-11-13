@@ -16,13 +16,13 @@
       "steps": [
         {
           "title": "Prepare the game",
-          "instruction": "Keep the complete package for your system together. On Windows it needs Windows 10 or 11 (x64) with OpenGL 3.3 or newer. Optional upscalers require OpenGL 4.3. Use your own USA (SLUS-01237) or Europe (SCES-02008) PlayStation CUE/BIN with the matching regional game build. Open the launcher (MuppetRaceMania.exe on Windows) and choose Play to select your disc. Finish that setup before adding the launcher to Portcove. The launcher starts the player for the selected region."
+          "instruction": "Keep the complete package for your system together. On Windows it needs Windows 10 or 11 (x64) with OpenGL 3.3 or newer. Optional upscalers require OpenGL 4.3. Use your own USA (SLUS-01237) or Europe (SCES-02008) PlayStation CUE/BIN with the matching regional game build. Open the launcher (MuppetRaceMania.exe on Windows or the MuppetRaceManiaRecompiled AppImage on Linux) and choose Play to select your disc. Finish that setup before adding the launcher to Portcove. The launcher starts the player for the selected region."
         }
       ],
       "warnings": [
         "Keep the launcher and its matching regional game files together. When Play returns you to the launcher, close the launcher to end the Portcove session.",
         "Portcove opens the launcher without startup updates. To update, close the Portcove Play session, then open the upstream launcher separately.",
-        "The package includes recompiled game code that the project license does not cover. Portcove downloads it only from the project’s own releases. You need your own original game files."
+        "The package includes recompiled game code, the game logo in its launcher and an unlicensed project layer that the project license does not cover. Portcove downloads it only from the project’s own releases. You need your own original game files."
       ]
     },
     "release_url": "https://github.com/TekRantGaming/muppet-racemania-recompiled/releases",

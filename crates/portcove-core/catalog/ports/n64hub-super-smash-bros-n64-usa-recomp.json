@@ -16,7 +16,7 @@
       "steps": [
         {
           "title": "Prepare the game",
-          "instruction": "Keep the complete package for your system together. On Windows, install the Microsoft Visual C++ 2015–2022 Redistributable (x64) if needed. Open the player (SmashBrosRecompiled.exe on Windows), choose Load ROM and select your own 16 MiB, big-endian Super Smash Bros. USA .z64 (SHA-1 e2929e10fccc0aa84e5776227e798abc07cedabf). Choose Start Game."
+          "instruction": "Keep the complete package for your system together. On Windows, install the Microsoft Visual C++ 2015–2022 Redistributable (x64) if needed. Open the player (SmashBrosRecompiled.exe on Windows or SmashBrosRecompiled on Linux), choose Load ROM and select your own 16 MiB, big-endian Super Smash Bros. USA .z64 (SHA-1 e2929e10fccc0aa84e5776227e798abc07cedabf). Choose Start Game."
         }
       ],
       "warnings": [

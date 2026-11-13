@@ -39,7 +39,7 @@
         }
       ],
       "warnings": [
-        "Use only a copy, components and originals you are permitted to use. Bounded package/PE inspection and owned-probe controls do not establish native gameplay, real-save compatibility, installed Desktop, other-platform or Supported acceptance.",
+        "Bounded package/PE inspection and owned-probe controls do not establish native gameplay, real-save compatibility, installed Desktop, other-platform or Supported acceptance.",
         "Otherwise a writable executable directory becomes the save root and can copy older saves into it when pd.ini is absent. An unwritable installation can retain the legacy working-directory or per-user fallback. Keep every actual old and current root, pd.ini, EEPROM, player/progress files, Combat Simulator setups, mods, added content, screenshots, recordings and upstream backups. The startup log names the effective base/save directories; preserve any custom paths independently. A package-folder copy alone is not a complete backup when a different root is active.",
         "Ordinary stock-format setups can remain readable by the stock port, but setups with more than eight simulants and moved-stat formats need compatible versions. Returning to an older executable does not convert or rewind those files. Preserve the whole creating runtime and data before switching channels, mods or versions; no cross-version or stock/fork save conversion is qualified."
       ],

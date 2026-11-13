@@ -16,7 +16,7 @@
       "steps": [
         {
           "title": "Prepare the game",
-          "instruction": "Keep the complete package for your system together. On Windows, install the Microsoft Visual C++ 2015–2022 Redistributable (x64) if needed. Open the player (Rayman2Recompiled.exe on Windows), choose Load ROM and select your own 32 MiB, big-endian Rayman 2 USA .z64 (SHA-1 50558356b059ad3fbaf5fe95380512b9dceaaf52). Choose Start Game."
+          "instruction": "Keep the complete package for your system together. On Windows, install the Microsoft Visual C++ 2015–2022 Redistributable (x64) if needed. Open the player (Rayman2Recompiled.exe on Windows or Rayman2Recompiled on Linux), choose Load ROM and select your own 32 MiB, big-endian Rayman 2 USA .z64 (SHA-1 50558356b059ad3fbaf5fe95380512b9dceaaf52). Choose Start Game."
         }
       ],
       "warnings": [

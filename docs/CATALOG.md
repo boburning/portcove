@@ -116,7 +116,7 @@ upstream itself publishes and holds a package only for concrete reasons.
 | 4    | Re-hosting, mirroring or caching packages for redistribution                                                                                                             | Not offered                                                                                                                                    |
 
 - **Recorded notes, not holds.** Recompiled, translated or inherited game
-  program code without a grant, bundled fonts of any licence, icons, launcher
+  program code without a grant, bundled fonts of any licence that are not extracted from the game, icons, launcher
   art such as box art and logos, unlicensed helper code, forks or launchers,
   and an unlicensed own layer are recorded as known limitations in the
   listing's warning. Portcove never re-hosts them; the upstream that
@@ -133,11 +133,12 @@ upstream itself publishes and holds a package only for concrete reasons.
   as symbol names and offsets is code, not game data; contents the player's
   original generates on first run are not bundled. A package whose contents
   are unknown stays held until they are listed.
-- **Listing downloads.** For a listing without a managed integration, tier 3
+- **Listing downloads.** For a listing without a managed integration, or a platform its managed
+  integration does not cover, tier 3
   also covers the ordinary listing download from the upstream's own releases.
   Its accepted identity is that release location, checked against the
   provider's published digest when there is one. Later releases stay offered
-  unless one bundles game data, or a verified
+  unless one bundles game data or a verified
   rights-holder request arrives; either restores the listing's
   `download_block_reason`. A listing hold applies to every platform of the
   port, so a port keeps its hold while one platform's route, such as an
@@ -597,9 +598,12 @@ the supported codecs, framing and resource limits. Managed package selection
 retains its separate reader-capability and per-title admission rules.
 
 Review the actual linked or vendored components and their attributable grants,
-including packaged fonts. A parent's license, a published archive or resemblance
-to another project does not settle a separately authored component's permission.
-Retain a named acquisition condition at its exact operation scope. When fresh
+including packaged fonts, and record what they are. A parent's license, a
+published archive or resemblance to another project does not settle a separately
+authored component's permission; under the
+[rights basis](#rights-basis-for-upstream-hosted-packages) an unresolved
+component grant is a recorded note, not an acquisition hold. Retain a named
+acquisition condition at its exact operation scope. When fresh
 self-service acquisition is held, the authored listing can set
 `download_block_reason` to a bounded practical explanation and reconsideration
 condition. This restriction requires listing format 2 or later; Core refuses download options,

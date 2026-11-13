@@ -23,7 +23,7 @@
       "steps": [
         {
           "title": "Complete supported preparation upstream",
-          "instruction": "Keep the complete shantae-recomp package for your system with its matching runtime libraries, assets, shaders, notices and any selected patches. On Windows, normal players use shantae.exe and the supported first-run ROM chooser; upstream owns preparation and replacement. The title’s PolyForm Noncommercial grant does not replace separately named engine, UI, shader, font or original-game terms."
+          "instruction": "Keep the complete shantae-recomp package for your system with its matching runtime libraries, assets, shaders, notices and any selected patches. Normal players use shantae.exe on Windows or shantae on Linux and the supported first-run ROM chooser; upstream owns preparation and replacement. The title’s PolyForm Noncommercial grant does not replace separately named engine, UI, shader, font or original-game terms."
         },
         {
           "title": "Keep your matching original",
@@ -31,7 +31,7 @@
         },
         {
           "title": "Add the supported prepared player",
-          "instruction": "Select shantae.exe with its complete package directory as working directory and no arguments. The pinned native runtime runs the pre-boot launcher and game in-process for the normal session. Keep the supported public launcher entry and complete package; no private runner or per-title wrapper is introduced."
+          "instruction": "Select shantae.exe (shantae on Linux) with its complete package directory as working directory and no arguments. The pinned native runtime runs the pre-boot launcher and game in-process for the normal session. Keep the supported public launcher entry and complete package; no private runner or per-title wrapper is introduced."
         },
         {
           "title": "Start any additional game sessions separately",

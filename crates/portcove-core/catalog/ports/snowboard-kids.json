@@ -3,7 +3,7 @@
   "listing": {
     "id": "snowboard-kids",
     "name": "Snowboard Kids (SnowboardKids-Recomp)",
-    "summary": "Explore Snowboard Kids (SnowboardKids-Recomp) and follow the upstream project for requirements, downloads and setup.",
+    "summary": "A native Snowboard Kids port with Windows and Linux beta packages. Select your own USA cartridge dump on first Play.",
     "project_url": "https://github.com/HikariLucy/SnowboardKids-Recomp",
     "issue_number": 1354,
     "listed_at": "2026-10-23",
@@ -23,7 +23,7 @@
       "steps": [
         {
           "title": "Keep the complete package for your system",
-          "instruction": "Keep the Snowboard Kids (HikariLucy) package files together. On Windows, that is SnowboardKidsEngine.exe, the matching modules/snowboardkids-us/SnowboardKidsGame.dll, assets and runtime DLLs together. The published beta has a precompiled module; normal players do not compile anything. If your copy instead requires module generation or repair, finish that supported preparation upstream before attachment."
+          "instruction": "Keep the Snowboard Kids (HikariLucy) package files together. On Windows, that is SnowboardKidsEngine.exe, the matching modules/snowboardkids-us/SnowboardKidsGame.dll, assets and runtime DLLs; on Linux, SnowboardKidsEngine, modules/snowboardkids-us/SnowboardKidsGame.so and assets. The published beta has a precompiled module; normal players do not compile anything. If your copy instead requires module generation or repair, finish that supported preparation upstream before attachment."
         },
         {
           "title": "Select your own supported original on Play",
@@ -31,7 +31,7 @@
         },
         {
           "title": "Review the game, working folder and launch details",
-          "instruction": "Select the completed native SnowboardKidsEngine.exe with the established package root as working directory and only its supported literal arguments. Review the launch details, add the game, then choose Play. Keep one upstream/player owner for preparation and runtime replacement. Removing the registration preserves every external file; Core supplies no external update, backup, rollback, conversion, migration or deletion."
+          "instruction": "Select the completed native SnowboardKidsEngine.exe (SnowboardKidsEngine on Linux) with the established package root as working directory and only its supported literal arguments. Review the launch details, add the game, then choose Play. Keep one upstream/player owner for preparation and runtime replacement. Removing the registration preserves every external file; Core supplies no external update, backup, rollback, conversion, migration or deletion."
         }
       ],
       "warnings": [

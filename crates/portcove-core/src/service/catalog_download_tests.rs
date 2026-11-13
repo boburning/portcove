@@ -691,7 +691,7 @@ async fn embedded_retained_acquisition_holds_refuse_before_network() {
 }
 
 #[tokio::test]
-async fn gitlab_font_offers_remain_before_provider_selection_or_network_listing_download_offered() {
+async fn gitlab_listings_offer_upstream_release_downloads() {
     assert_embedded_listing_downloads_offered(&[
         "mario-kart-64-mariokart64recomp",
         "star-fox-64-starfox64recomp",
@@ -2254,8 +2254,7 @@ async fn silent_hill_silent_hill_decomp_pc_branch_component_hold_before_network_
 }
 
 #[tokio::test]
-async fn tenchu_stealth_assassins_tenchu_sa_recomp_component_offer_before_network_353_listing_download_offered()
- {
+async fn tenchu_stealth_assassins_tenchu_sa_recomp_offers_upstream_release_download_353() {
     assert_embedded_listing_downloads_offered(&["tenchu-stealth-assassins-tenchu-sa-recomp"]);
 }
 
@@ -2561,8 +2560,7 @@ async fn def_jam_vendetta_playstation_2_def_jam_vendetta_recompiled_upstream_rel
 }
 
 #[tokio::test]
-async fn gran_turismo_4_playstation_2_gt4recomp_component_offer_before_network_2579_listing_download_offered()
- {
+async fn gran_turismo_4_playstation_2_gt4recomp_offers_upstream_release_download_2579() {
     assert_embedded_listing_downloads_offered(&["gran-turismo-4-playstation-2-gt4recomp"]);
 }
 

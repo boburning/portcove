@@ -7,6 +7,7 @@
     "project_url": "https://github.com/lethal-guitar/RigelEngine",
     "issue_number": 1877,
     "listed_at": "2026-10-23",
+    "platforms": ["macos-x86-64"],
     "availability": "packages",
     "setup_url": "https://github.com/lethal-guitar/RigelEngine#running-rigelengine",
     "artwork": {
@@ -34,7 +35,7 @@
         },
         {
           "title": "Add the game and manage your files",
-          "instruction": "Complete the upstream setup in your permitted working copy before registration. Select the actual RigelEngine.exe and its containing folder as the working directory; keep every packaged companion. Leave arguments empty for the normal upstream startup flow, or supply separate literal arguments only when deliberately following that version’s documented options. Registration binds your explicit executable, folder and arguments with consent; Play is a separate action. You and upstream own runtime replacement, original files, saves, settings and profiles. Close the game and preserve every actual data/profile location and the working player before upstream updates. Registration-only removal preserves all external files. Managed Install, Update, Backup, Rollback, migration and external deletion are unavailable."
+          "instruction": "Complete the upstream setup in your working copy before registration. Select the actual RigelEngine.exe and its containing folder as the working directory; keep every packaged companion. Leave arguments empty for the normal upstream startup flow, or supply separate literal arguments only when deliberately following that version’s documented options. Registration binds your explicit executable, folder and arguments with consent; Play is a separate action. You and upstream own runtime replacement, original files, saves, settings and profiles. Close the game and preserve every actual data/profile location and the working player before upstream updates. Registration-only removal preserves all external files. Managed Install, Update, Backup, Rollback, migration and external deletion are unavailable."
         }
       ],
       "warnings": [

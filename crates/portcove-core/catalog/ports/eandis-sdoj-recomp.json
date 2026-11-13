@@ -30,7 +30,7 @@
         },
         {
           "title": "Select the completed normal player",
-          "instruction": "Select DoDonPachi SaiDaiOuJou.exe, use its complete containing package directory as working directory and leave arguments empty. Keep the successful game_data/ tree, matching runtime companions and settings together. Do not select extract-xiso or a setup/build script. The native app owns its ordinary window/game loop; saving launch details and Play are separate actions. First-run setup, extraction and any optional settings-restart successor remain outside this completed-player route; close actual successors before maintenance or another attachment."
+          "instruction": "Select DoDonPachi SaiDaiOuJou.exe (DoDonPachi SaiDaiOuJou on Linux), use its complete containing package directory as working directory and leave arguments empty. Keep the successful game_data/ tree, matching runtime companions and settings together. Do not select extract-xiso or a setup/build script. The native app owns its ordinary window/game loop; saving launch details and Play are separate actions. First-run setup, extraction and any optional settings-restart successor remain outside this completed-player route; close actual successors before maintenance or another attachment."
         },
         {
           "title": "Leave notifications and runtime replacement with upstream",
@@ -41,7 +41,7 @@
         "Disc and Games-on-Demand use different original/TU checks; wrong or incomplete data is not an interchangeable source. Keep the complete chosen renderer variant and meet its upstream GPU/runtime requirements. Altered input/render-lag options require a restart; no actual gameplay, performance or save-compatibility assurance is supplied by this guide.",
         "Back up the complete creating package, saidaioujou_recomp_tu1.toml, game_data/, user_data/ (including saves/content, caches and updater metadata) and logs before upstream startup, repair or replacement.",
         "Upstream refuses incomplete or unsupported nonempty game_data rather than merging it; keep staged originals/recovery data outside disposable setup destinations. No cross-edition or cross-version save/mod compatibility is promised.",
-        "The package includes statically recompiled game code that the project license does not cover. Portcove downloads it only from the project’s own releases. You need your own original game files."
+        "The package includes statically recompiled game code, icon art and an unlicensed project layer that the project license does not cover. Portcove downloads it only from the project’s own releases. You need your own original game files."
       ],
       "help_url": "https://github.com/eandis/SDOJ-Recomp/blob/cf0afe107d02fa16980e8c8f90a5969aafac81a7/README.md",
       "references": [

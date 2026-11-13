@@ -3,7 +3,7 @@
   "listing": {
     "id": "crackdown-crackdown-recompiled",
     "name": "Crackdown (Crackdown Recompiled)",
-    "summary": "Add a prepared Crackdown Windows copy, preserving its exact original-data requirements, upstream-owned updates and separate base/TU6 save generations.",
+    "summary": "Add a prepared Crackdown copy from the Windows package or Linux AppImage, preserving its exact original-data requirements, upstream-owned updates and separate base/TU6 save generations.",
     "original_game_title": "Crackdown",
     "project_url": "https://github.com/saulob/crackdown-xbox360-recompiled",
     "issue_number": 2559,
@@ -16,11 +16,11 @@
       "steps": [
         {
           "title": "Finish exact original-disc setup upstream",
-          "instruction": "Use the complete Windows package and your own original, unupdated Crackdown Xbox360 retail disc: title4D5307DC, Default.xex14,270,464bytes, SHA-256 7AAA7A8920D1C3C737E58CF583DEBAFE6013BE0A96BEC3EC136E5DE7E3377E5A. Complete upstream ISO/extracted-folder validation and installation until Ready to play; game/ is adjacent and $SystemUpdate is unnecessary. No disc extraction, original acquisition, compilation or installer is invoked by this registration."
+          "instruction": "Use the complete Windows package or Linux AppImage and your own original, unupdated Crackdown Xbox360 retail disc: title4D5307DC, Default.xex14,270,464bytes, SHA-256 7AAA7A8920D1C3C737E58CF583DEBAFE6013BE0A96BEC3EC136E5DE7E3377E5A. Complete upstream ISO/extracted-folder validation and installation until Ready to play; game/ is adjacent and $SystemUpdate is unnecessary. No disc extraction, original acquisition, compilation or installer is invoked by this registration."
         },
         {
           "title": "Select the prepared native game entry",
-          "instruction": "Select crackdown.exe, its complete containing writable package directory and no arguments for ordinary Play. Keep the matching SDK/runtime/GPU DLLs, launcher resources, game data, configuration and notices together. The embedded launcher calls the native ReXApp game path in-process. Review and consent to the exact executable/CWD/arguments, then request Play separately. Windows10/11 x64, Direct3D12 and the applicable VC++ x64 runtime remain upstream prerequisites; Linux/AppImage is separate."
+          "instruction": "Select crackdown.exe, its complete containing writable package directory and no arguments for ordinary Play. Keep the matching SDK/runtime/GPU DLLs, launcher resources, game data, configuration and notices together. The embedded launcher calls the native ReXApp game path in-process. Review and consent to the exact executable/CWD/arguments, then request Play separately. Windows10/11 x64, Direct3D12 and the applicable VC++ x64 runtime remain upstream prerequisites. The Linux AppImage needs no Windows runtime."
         },
         {
           "title": "Complete restarts and updates outside attachment",

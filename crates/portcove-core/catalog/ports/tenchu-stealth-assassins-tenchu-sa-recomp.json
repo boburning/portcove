@@ -54,7 +54,7 @@
       "help_url": "https://github.com/Heromachine/Tenchu-SA-Recomp/releases/tag/v0.1.0"
     },
     "download_asset_hints": {
-      "linux-x86-64": ["TenchuSARecomp-", "-x86_64.AppImage"]
+      "linux-x86-64": ["TenchuSARecomp-", "-linux-x64.zip"]
     },
     "recommended_download_channel": "stable"
   }

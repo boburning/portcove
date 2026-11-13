@@ -11268,7 +11268,7 @@
         "steps": [
           {
             "title": "Finish the upstream setup package first",
-            "instruction": "Use the complete official setup package for your system (Windows x64, Linux x64, or macOS on Apple Silicon or Intel) in a separate writable folder. Its root executable is a setup host, not the completed player. Deliberately finish upstream Generate & Build with your own matching originals and its required tools before adding the player. The existing Linux setup download remains separate: use the complete Linux package and this version’s prerequisites, including CMake, Ninja, Python 3 and a C/C++ compiler where required; bundled Windows tools do not supply Linux tools. The Windows completed-player steps here do not qualify a Linux player. The standalone flow is supported; RetComM is an optional upstream manager. Portcove does not start a compiler, helper or installer while discovering a launch target."
+            "instruction": "Use the complete official setup package for your system (Windows x64, Linux x64, or macOS on Apple Silicon or Intel) in a separate writable folder. Its root executable is a setup host, not the completed player. Deliberately finish upstream Generate & Build with your own matching originals and its required tools before adding the player. On Linux, install this version’s prerequisites, including CMake, Ninja, Python 3 and a C/C++ compiler where required; bundled Windows tools do not supply Linux tools. The Windows completed-player steps here do not qualify a Linux player. The standalone flow is supported; RetComM is an optional upstream manager. Portcove does not start a compiler, helper or installer while discovering a launch target."
           },
           {
             "title": "Keep both USA discs and your BIOS",
@@ -17748,6 +17748,12 @@
       "setup_url": "https://github.com/tmcleroy/cps2recomp/blob/6f3c37f5808268e4525c81f1419f65dca43e6f39/games/avsp/README.md",
       "issue_number": 2769,
       "listed_at": "2026-10-25",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ],
       "release_url": "https://github.com/tmcleroy/cps2recomp/releases",
       "recommended_download_channel": "beta",
       "download_asset_hints": {
@@ -17772,11 +17778,11 @@
           },
           {
             "title": "Prepare the shared launcher and this game",
-            "instruction": "Extract the complete official Preview package for your system: CPS2Recomp-windows-x64.zip, CPS2Recomp-linux-x86_64.tar.gz, or the universal CPS2Recomp-macos.zip with CPS-2 Recomp.app. Keep cps2recomp-launcher (cps2recomp-launcher.exe on Windows), every game program and all packaged companions together. Run the upstream launcher deliberately, choose your ROM folder or this game’s exact set, then finish its settings before registering the player. Register cps2recomp-launcher.exe with the CPS2Recomp folder as working directory. Enter two literal argument lines: --play then avsp. The launcher owns this game’s configuration and child programs; do not register a source archive, update manifest or arbitrary other game executable."
+            "instruction": "Extract the complete official Preview package for your system: CPS2Recomp-windows-x64.zip, CPS2Recomp-linux-x86_64.tar.gz, or the universal CPS2Recomp-macos.zip with CPS-2 Recomp.app. Keep cps2recomp-launcher (cps2recomp-launcher.exe on Windows), every game program and all packaged companions together. Run the upstream launcher deliberately, choose your ROM folder or this game’s exact set, then finish its settings before registering the player. Register the launcher for your system with the CPS2Recomp folder as working directory: cps2recomp-launcher.exe on Windows or cps2recomp-launcher on Linux. On macOS, register CPS-2 Recomp.app. Enter two literal argument lines: --play then avsp. The launcher owns this game’s configuration and child programs; do not register a source archive, update manifest or arbitrary other game executable."
           },
           {
             "title": "Add the game and manage updates",
-            "instruction": "The project’s shared launcher checks for updates and can replace the collection after its games close. Before using its update controls, keep a copy of the working game files and profile. Add this external copy to Portcove, then choose Play separately when you are ready. Removing its registration leaves the package, originals and profiles in place. Portcove does not offer updates, backups, rollback, data migration or deletion for these files. Other platforms need their own supported package and application instructions."
+            "instruction": "The project’s shared launcher checks for updates and can replace the collection after its games close. Before using its update controls, keep a copy of the working game files and profile. Add this external copy to Portcove, then choose Play separately when you are ready. Removing its registration leaves the package, originals and profiles in place. Portcove does not offer updates, backups, rollback, data migration or deletion for these files."
           }
         ],
         "warnings": [
@@ -17791,10 +17797,7 @@
             "instruction": "Use the launcher’s Your files / Show controls to find its folder and each game’s data folder. Windows normally stores game data under %APPDATA%/<Game>/. A portable.txt file beside the launcher selects CPS2Recomp/user/, with separate launcher and game subfolders. Close all games and launchers before copying settings, save states, board memory, custom colours, scores, soundtrack files and logs. The launcher offers the initial copy to portable mode; Portcove does not move that data. Removing portable.txt changes where future sessions store data without moving existing files. Keep both locations and the working game version until the replacement works. Save-state compatibility and importing existing data have not been confirmed."
           }
         ]
-      },
-      "platforms": [
-        "windows-x86-64"
-      ]
+      }
     },
     {
       "id": "cps2recomp-cadillacs-and-dinosaurs",
@@ -17814,6 +17817,12 @@
       },
       "issue_number": 2770,
       "listed_at": "2026-10-25",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ],
       "release_url": "https://github.com/tmcleroy/cps2recomp/releases",
       "recommended_download_channel": "beta",
       "download_asset_hints": {
@@ -17838,11 +17847,11 @@
           },
           {
             "title": "Prepare the shared launcher and this game",
-            "instruction": "Extract the complete official Preview package for your system: CPS2Recomp-windows-x64.zip, CPS2Recomp-linux-x86_64.tar.gz, or the universal CPS2Recomp-macos.zip with CPS-2 Recomp.app. Keep cps2recomp-launcher (cps2recomp-launcher.exe on Windows), every game program and all packaged companions together. Run the upstream launcher deliberately, choose your ROM folder or this game’s exact set, then finish its settings before registering the player. Register cps2recomp-launcher.exe with the CPS2Recomp folder as working directory. Enter two literal argument lines: --play then dino. The launcher owns this game’s configuration and child programs; do not register a source archive, update manifest or arbitrary other game executable."
+            "instruction": "Extract the complete official Preview package for your system: CPS2Recomp-windows-x64.zip, CPS2Recomp-linux-x86_64.tar.gz, or the universal CPS2Recomp-macos.zip with CPS-2 Recomp.app. Keep cps2recomp-launcher (cps2recomp-launcher.exe on Windows), every game program and all packaged companions together. Run the upstream launcher deliberately, choose your ROM folder or this game’s exact set, then finish its settings before registering the player. Register the launcher for your system with the CPS2Recomp folder as working directory: cps2recomp-launcher.exe on Windows or cps2recomp-launcher on Linux. On macOS, register CPS-2 Recomp.app. Enter two literal argument lines: --play then dino. The launcher owns this game’s configuration and child programs; do not register a source archive, update manifest or arbitrary other game executable."
           },
           {
             "title": "Add the game and manage updates",
-            "instruction": "The project’s shared launcher checks for updates and can replace the collection after its games close. Before using its update controls, keep a copy of the working game files and profile. Add this external copy to Portcove, then choose Play separately when you are ready. Removing its registration leaves the package, originals and profiles in place. Portcove does not offer updates, backups, rollback, data migration or deletion for these files. Other platforms need their own supported package and application instructions."
+            "instruction": "The project’s shared launcher checks for updates and can replace the collection after its games close. Before using its update controls, keep a copy of the working game files and profile. Add this external copy to Portcove, then choose Play separately when you are ready. Removing its registration leaves the package, originals and profiles in place. Portcove does not offer updates, backups, rollback, data migration or deletion for these files."
           }
         ],
         "warnings": [
@@ -17857,10 +17866,7 @@
             "instruction": "Use the launcher’s Your files / Show controls to find its folder and each game’s data folder. Windows normally stores game data under %APPDATA%/<Game>/. A portable.txt file beside the launcher selects CPS2Recomp/user/, with separate launcher and game subfolders. Close all games and launchers before copying settings, save states, board memory, custom colours, scores, soundtrack files and logs. The launcher offers the initial copy to portable mode; Portcove does not move that data. Removing portable.txt changes where future sessions store data without moving existing files. Keep both locations and the working game version until the replacement works. Save-state compatibility and importing existing data have not been confirmed."
           }
         ]
-      },
-      "platforms": [
-        "windows-x86-64"
-      ]
+      }
     },
     {
       "id": "cps2recomp-marvel-super-heroes",
@@ -17880,6 +17886,12 @@
       },
       "issue_number": 2764,
       "listed_at": "2026-10-25",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ],
       "release_url": "https://github.com/tmcleroy/cps2recomp/releases",
       "recommended_download_channel": "beta",
       "download_asset_hints": {
@@ -17904,11 +17916,11 @@
           },
           {
             "title": "Prepare the shared launcher and this game",
-            "instruction": "Extract the complete official Preview package for your system: CPS2Recomp-windows-x64.zip, CPS2Recomp-linux-x86_64.tar.gz, or the universal CPS2Recomp-macos.zip with CPS-2 Recomp.app. Keep cps2recomp-launcher (cps2recomp-launcher.exe on Windows), every game program and all packaged companions together. Run the upstream launcher deliberately, choose your ROM folder or this game’s exact set, then finish its settings before registering the player. Register cps2recomp-launcher.exe with the CPS2Recomp folder as working directory. Enter two literal argument lines: --play then msh. The launcher owns this game’s configuration and child programs; do not register a source archive, update manifest or arbitrary other game executable."
+            "instruction": "Extract the complete official Preview package for your system: CPS2Recomp-windows-x64.zip, CPS2Recomp-linux-x86_64.tar.gz, or the universal CPS2Recomp-macos.zip with CPS-2 Recomp.app. Keep cps2recomp-launcher (cps2recomp-launcher.exe on Windows), every game program and all packaged companions together. Run the upstream launcher deliberately, choose your ROM folder or this game’s exact set, then finish its settings before registering the player. Register the launcher for your system with the CPS2Recomp folder as working directory: cps2recomp-launcher.exe on Windows or cps2recomp-launcher on Linux. On macOS, register CPS-2 Recomp.app. Enter two literal argument lines: --play then msh. The launcher owns this game’s configuration and child programs; do not register a source archive, update manifest or arbitrary other game executable."
           },
           {
             "title": "Add the game and manage updates",
-            "instruction": "The project’s shared launcher checks for updates and can replace the collection after its games close. Before using its update controls, keep a copy of the working game files and profile. Add this external copy to Portcove, then choose Play separately when you are ready. Removing its registration leaves the package, originals and profiles in place. Portcove does not offer updates, backups, rollback, data migration or deletion for these files. Other platforms need their own supported package and application instructions."
+            "instruction": "The project’s shared launcher checks for updates and can replace the collection after its games close. Before using its update controls, keep a copy of the working game files and profile. Add this external copy to Portcove, then choose Play separately when you are ready. Removing its registration leaves the package, originals and profiles in place. Portcove does not offer updates, backups, rollback, data migration or deletion for these files."
           }
         ],
         "warnings": [
@@ -17923,10 +17935,7 @@
             "instruction": "Use the launcher’s Your files / Show controls to find its folder and each game’s data folder. Windows normally stores game data under %APPDATA%/<Game>/. A portable.txt file beside the launcher selects CPS2Recomp/user/, with separate launcher and game subfolders. Close all games and launchers before copying settings, save states, board memory, custom colours, scores, soundtrack files and logs. The launcher offers the initial copy to portable mode; Portcove does not move that data. Removing portable.txt changes where future sessions store data without moving existing files. Keep both locations and the working game version until the replacement works. Save-state compatibility and importing existing data have not been confirmed."
           }
         ]
-      },
-      "platforms": [
-        "windows-x86-64"
-      ]
+      }
     },
     {
       "id": "cps2recomp-street-fighter-alpha",
@@ -17938,6 +17947,12 @@
       "setup_url": "https://github.com/tmcleroy/cps2recomp/blob/6f3c37f5808268e4525c81f1419f65dca43e6f39/games/sfa/README.md",
       "issue_number": 2762,
       "listed_at": "2026-10-25",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ],
       "release_url": "https://github.com/tmcleroy/cps2recomp/releases",
       "recommended_download_channel": "beta",
       "download_asset_hints": {
@@ -17962,11 +17977,11 @@
           },
           {
             "title": "Prepare the shared launcher and this game",
-            "instruction": "Extract the complete official Preview package for your system: CPS2Recomp-windows-x64.zip, CPS2Recomp-linux-x86_64.tar.gz, or the universal CPS2Recomp-macos.zip with CPS-2 Recomp.app. Keep cps2recomp-launcher (cps2recomp-launcher.exe on Windows), every game program and all packaged companions together. Run the upstream launcher deliberately, choose your ROM folder or this game’s exact set, then finish its settings before registering the player. Register cps2recomp-launcher.exe with the CPS2Recomp folder as working directory. Enter two literal argument lines: --play then sfa. The launcher owns this game’s configuration and child programs; do not register a source archive, update manifest or arbitrary other game executable."
+            "instruction": "Extract the complete official Preview package for your system: CPS2Recomp-windows-x64.zip, CPS2Recomp-linux-x86_64.tar.gz, or the universal CPS2Recomp-macos.zip with CPS-2 Recomp.app. Keep cps2recomp-launcher (cps2recomp-launcher.exe on Windows), every game program and all packaged companions together. Run the upstream launcher deliberately, choose your ROM folder or this game’s exact set, then finish its settings before registering the player. Register the launcher for your system with the CPS2Recomp folder as working directory: cps2recomp-launcher.exe on Windows or cps2recomp-launcher on Linux. On macOS, register CPS-2 Recomp.app. Enter two literal argument lines: --play then sfa. The launcher owns this game’s configuration and child programs; do not register a source archive, update manifest or arbitrary other game executable."
           },
           {
             "title": "Add the game and manage updates",
-            "instruction": "The project’s shared launcher checks for updates and can replace the collection after its games close. Before using its update controls, keep a copy of the working game files and profile. Add this external copy to Portcove, then choose Play separately when you are ready. Removing its registration leaves the package, originals and profiles in place. Portcove does not offer updates, backups, rollback, data migration or deletion for these files. Other platforms need their own supported package and application instructions."
+            "instruction": "The project’s shared launcher checks for updates and can replace the collection after its games close. Before using its update controls, keep a copy of the working game files and profile. Add this external copy to Portcove, then choose Play separately when you are ready. Removing its registration leaves the package, originals and profiles in place. Portcove does not offer updates, backups, rollback, data migration or deletion for these files."
           }
         ],
         "warnings": [
@@ -17981,10 +17996,7 @@
             "instruction": "Use the launcher’s Your files / Show controls to find its folder and each game’s data folder. Windows normally stores game data under %APPDATA%/<Game>/. A portable.txt file beside the launcher selects CPS2Recomp/user/, with separate launcher and game subfolders. Close all games and launchers before copying settings, save states, board memory, custom colours, scores, soundtrack files and logs. The launcher offers the initial copy to portable mode; Portcove does not move that data. Removing portable.txt changes where future sessions store data without moving existing files. Keep both locations and the working game version until the replacement works. Save-state compatibility and importing existing data have not been confirmed."
           }
         ]
-      },
-      "platforms": [
-        "windows-x86-64"
-      ]
+      }
     },
     {
       "id": "cps2recomp-street-fighter-alpha-2",
@@ -17996,6 +18008,12 @@
       "setup_url": "https://github.com/tmcleroy/cps2recomp/blob/6f3c37f5808268e4525c81f1419f65dca43e6f39/games/sfa2/README.md",
       "issue_number": 2763,
       "listed_at": "2026-10-25",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ],
       "release_url": "https://github.com/tmcleroy/cps2recomp/releases",
       "recommended_download_channel": "beta",
       "download_asset_hints": {
@@ -18020,11 +18038,11 @@
           },
           {
             "title": "Prepare the shared launcher and this game",
-            "instruction": "Extract the complete official Preview package for your system: CPS2Recomp-windows-x64.zip, CPS2Recomp-linux-x86_64.tar.gz, or the universal CPS2Recomp-macos.zip with CPS-2 Recomp.app. Keep cps2recomp-launcher (cps2recomp-launcher.exe on Windows), every game program and all packaged companions together. Run the upstream launcher deliberately, choose your ROM folder or this game’s exact set, then finish its settings before registering the player. Register cps2recomp-launcher.exe with the CPS2Recomp folder as working directory. Enter two literal argument lines: --play then sfa2. The launcher owns this game’s configuration and child programs; do not register a source archive, update manifest or arbitrary other game executable."
+            "instruction": "Extract the complete official Preview package for your system: CPS2Recomp-windows-x64.zip, CPS2Recomp-linux-x86_64.tar.gz, or the universal CPS2Recomp-macos.zip with CPS-2 Recomp.app. Keep cps2recomp-launcher (cps2recomp-launcher.exe on Windows), every game program and all packaged companions together. Run the upstream launcher deliberately, choose your ROM folder or this game’s exact set, then finish its settings before registering the player. Register the launcher for your system with the CPS2Recomp folder as working directory: cps2recomp-launcher.exe on Windows or cps2recomp-launcher on Linux. On macOS, register CPS-2 Recomp.app. Enter two literal argument lines: --play then sfa2. The launcher owns this game’s configuration and child programs; do not register a source archive, update manifest or arbitrary other game executable."
           },
           {
             "title": "Add the game and manage updates",
-            "instruction": "The project’s shared launcher checks for updates and can replace the collection after its games close. Before using its update controls, keep a copy of the working game files and profile. Add this external copy to Portcove, then choose Play separately when you are ready. Removing its registration leaves the package, originals and profiles in place. Portcove does not offer updates, backups, rollback, data migration or deletion for these files. Other platforms need their own supported package and application instructions."
+            "instruction": "The project’s shared launcher checks for updates and can replace the collection after its games close. Before using its update controls, keep a copy of the working game files and profile. Add this external copy to Portcove, then choose Play separately when you are ready. Removing its registration leaves the package, originals and profiles in place. Portcove does not offer updates, backups, rollback, data migration or deletion for these files."
           }
         ],
         "warnings": [
@@ -18039,10 +18057,7 @@
             "instruction": "Use the launcher’s Your files / Show controls to find its folder and each game’s data folder. Windows normally stores game data under %APPDATA%/<Game>/. A portable.txt file beside the launcher selects CPS2Recomp/user/, with separate launcher and game subfolders. Close all games and launchers before copying settings, save states, board memory, custom colours, scores, soundtrack files and logs. The launcher offers the initial copy to portable mode; Portcove does not move that data. Removing portable.txt changes where future sessions store data without moving existing files. Keep both locations and the working game version until the replacement works. Save-state compatibility and importing existing data have not been confirmed."
           }
         ]
-      },
-      "platforms": [
-        "windows-x86-64"
-      ]
+      }
     },
     {
       "id": "cps2recomp-super-gem-fighter-mini-mix",
@@ -18054,6 +18069,12 @@
       "setup_url": "https://github.com/tmcleroy/cps2recomp/blob/6f3c37f5808268e4525c81f1419f65dca43e6f39/games/pocket_fighter/README.md",
       "issue_number": 2780,
       "listed_at": "2026-10-25",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ],
       "release_url": "https://github.com/tmcleroy/cps2recomp/releases",
       "recommended_download_channel": "beta",
       "download_asset_hints": {
@@ -18078,11 +18099,11 @@
           },
           {
             "title": "Prepare the shared launcher and this game",
-            "instruction": "Extract the complete official Preview package for your system: CPS2Recomp-windows-x64.zip, CPS2Recomp-linux-x86_64.tar.gz, or the universal CPS2Recomp-macos.zip with CPS-2 Recomp.app. Keep cps2recomp-launcher (cps2recomp-launcher.exe on Windows), every game program and all packaged companions together. Run the upstream launcher deliberately, choose your ROM folder or this game’s exact set, then finish its settings before registering the player. Register cps2recomp-launcher.exe with the CPS2Recomp folder as working directory. Enter two literal argument lines: --play then pocket_fighter. The launcher owns this game’s configuration and child programs; do not register a source archive, update manifest or arbitrary other game executable."
+            "instruction": "Extract the complete official Preview package for your system: CPS2Recomp-windows-x64.zip, CPS2Recomp-linux-x86_64.tar.gz, or the universal CPS2Recomp-macos.zip with CPS-2 Recomp.app. Keep cps2recomp-launcher (cps2recomp-launcher.exe on Windows), every game program and all packaged companions together. Run the upstream launcher deliberately, choose your ROM folder or this game’s exact set, then finish its settings before registering the player. Register the launcher for your system with the CPS2Recomp folder as working directory: cps2recomp-launcher.exe on Windows or cps2recomp-launcher on Linux. On macOS, register CPS-2 Recomp.app. Enter two literal argument lines: --play then pocket_fighter. The launcher owns this game’s configuration and child programs; do not register a source archive, update manifest or arbitrary other game executable."
           },
           {
             "title": "Add the game and manage updates",
-            "instruction": "The project’s shared launcher checks for updates and can replace the collection after its games close. Before using its update controls, keep a copy of the working game files and profile. Add this external copy to Portcove, then choose Play separately when you are ready. Removing its registration leaves the package, originals and profiles in place. Portcove does not offer updates, backups, rollback, data migration or deletion for these files. Other platforms need their own supported package and application instructions."
+            "instruction": "The project’s shared launcher checks for updates and can replace the collection after its games close. Before using its update controls, keep a copy of the working game files and profile. Add this external copy to Portcove, then choose Play separately when you are ready. Removing its registration leaves the package, originals and profiles in place. Portcove does not offer updates, backups, rollback, data migration or deletion for these files."
           }
         ],
         "warnings": [
@@ -18097,10 +18118,7 @@
             "instruction": "Use the launcher’s Your files / Show controls to find its folder and each game’s data folder. Windows normally stores game data under %APPDATA%/<Game>/. A portable.txt file beside the launcher selects CPS2Recomp/user/, with separate launcher and game subfolders. Close all games and launchers before copying settings, save states, board memory, custom colours, scores, soundtrack files and logs. The launcher offers the initial copy to portable mode; Portcove does not move that data. Removing portable.txt changes where future sessions store data without moving existing files. Keep both locations and the working game version until the replacement works. Save-state compatibility and importing existing data have not been confirmed."
           }
         ]
-      },
-      "platforms": [
-        "windows-x86-64"
-      ]
+      }
     },
     {
       "id": "cps2recomp-super-puzzle-fighter-ii-turbo",
@@ -18112,6 +18130,12 @@
       "setup_url": "https://github.com/tmcleroy/cps2recomp/blob/6f3c37f5808268e4525c81f1419f65dca43e6f39/games/puzzle_fighter/README.md",
       "issue_number": 2765,
       "listed_at": "2026-10-25",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ],
       "release_url": "https://github.com/tmcleroy/cps2recomp/releases",
       "recommended_download_channel": "beta",
       "download_asset_hints": {
@@ -18136,11 +18160,11 @@
           },
           {
             "title": "Prepare the shared launcher and this game",
-            "instruction": "Extract the complete official Preview package for your system: CPS2Recomp-windows-x64.zip, CPS2Recomp-linux-x86_64.tar.gz, or the universal CPS2Recomp-macos.zip with CPS-2 Recomp.app. Keep cps2recomp-launcher (cps2recomp-launcher.exe on Windows), every game program and all packaged companions together. Run the upstream launcher deliberately, choose your ROM folder or this game’s exact set, then finish its settings before registering the player. Register cps2recomp-launcher.exe with the CPS2Recomp folder as working directory. Enter two literal argument lines: --play then puzzle_fighter. The launcher owns this game’s configuration and child programs; do not register a source archive, update manifest or arbitrary other game executable."
+            "instruction": "Extract the complete official Preview package for your system: CPS2Recomp-windows-x64.zip, CPS2Recomp-linux-x86_64.tar.gz, or the universal CPS2Recomp-macos.zip with CPS-2 Recomp.app. Keep cps2recomp-launcher (cps2recomp-launcher.exe on Windows), every game program and all packaged companions together. Run the upstream launcher deliberately, choose your ROM folder or this game’s exact set, then finish its settings before registering the player. Register the launcher for your system with the CPS2Recomp folder as working directory: cps2recomp-launcher.exe on Windows or cps2recomp-launcher on Linux. On macOS, register CPS-2 Recomp.app. Enter two literal argument lines: --play then puzzle_fighter. The launcher owns this game’s configuration and child programs; do not register a source archive, update manifest or arbitrary other game executable."
           },
           {
             "title": "Add the game and manage updates",
-            "instruction": "The project’s shared launcher checks for updates and can replace the collection after its games close. Before using its update controls, keep a copy of the working game files and profile. Add this external copy to Portcove, then choose Play separately when you are ready. Removing its registration leaves the package, originals and profiles in place. Portcove does not offer updates, backups, rollback, data migration or deletion for these files. Other platforms need their own supported package and application instructions."
+            "instruction": "The project’s shared launcher checks for updates and can replace the collection after its games close. Before using its update controls, keep a copy of the working game files and profile. Add this external copy to Portcove, then choose Play separately when you are ready. Removing its registration leaves the package, originals and profiles in place. Portcove does not offer updates, backups, rollback, data migration or deletion for these files."
           }
         ],
         "warnings": [
@@ -18155,10 +18179,7 @@
             "instruction": "Use the launcher’s Your files / Show controls to find its folder and each game’s data folder. Windows normally stores game data under %APPDATA%/<Game>/. A portable.txt file beside the launcher selects CPS2Recomp/user/, with separate launcher and game subfolders. Close all games and launchers before copying settings, save states, board memory, custom colours, scores, soundtrack files and logs. The launcher offers the initial copy to portable mode; Portcove does not move that data. Removing portable.txt changes where future sessions store data without moving existing files. Keep both locations and the working game version until the replacement works. Save-state compatibility and importing existing data have not been confirmed."
           }
         ]
-      },
-      "platforms": [
-        "windows-x86-64"
-      ]
+      }
     },
     {
       "id": "cps2recomp-vampire-hunter-2",
@@ -18170,6 +18191,12 @@
       "setup_url": "https://github.com/tmcleroy/cps2recomp/blob/6f3c37f5808268e4525c81f1419f65dca43e6f39/games/vhunt2/README.md",
       "issue_number": 2782,
       "listed_at": "2026-10-25",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ],
       "release_url": "https://github.com/tmcleroy/cps2recomp/releases",
       "recommended_download_channel": "beta",
       "download_asset_hints": {
@@ -18194,11 +18221,11 @@
           },
           {
             "title": "Prepare the shared launcher and this game",
-            "instruction": "Extract the complete official Preview package for your system: CPS2Recomp-windows-x64.zip, CPS2Recomp-linux-x86_64.tar.gz, or the universal CPS2Recomp-macos.zip with CPS-2 Recomp.app. Keep cps2recomp-launcher (cps2recomp-launcher.exe on Windows), every game program and all packaged companions together. Run the upstream launcher deliberately, choose your ROM folder or this game’s exact set, then finish its settings before registering the player. Register cps2recomp-launcher.exe with the CPS2Recomp folder as working directory. Enter two literal argument lines: --play then vhunt2. The launcher owns this game’s configuration and child programs; do not register a source archive, update manifest or arbitrary other game executable."
+            "instruction": "Extract the complete official Preview package for your system: CPS2Recomp-windows-x64.zip, CPS2Recomp-linux-x86_64.tar.gz, or the universal CPS2Recomp-macos.zip with CPS-2 Recomp.app. Keep cps2recomp-launcher (cps2recomp-launcher.exe on Windows), every game program and all packaged companions together. Run the upstream launcher deliberately, choose your ROM folder or this game’s exact set, then finish its settings before registering the player. Register the launcher for your system with the CPS2Recomp folder as working directory: cps2recomp-launcher.exe on Windows or cps2recomp-launcher on Linux. On macOS, register CPS-2 Recomp.app. Enter two literal argument lines: --play then vhunt2. The launcher owns this game’s configuration and child programs; do not register a source archive, update manifest or arbitrary other game executable."
           },
           {
             "title": "Add the game and manage updates",
-            "instruction": "The project’s shared launcher checks for updates and can replace the collection after its games close. Before using its update controls, keep a copy of the working game files and profile. Add this external copy to Portcove, then choose Play separately when you are ready. Removing its registration leaves the package, originals and profiles in place. Portcove does not offer updates, backups, rollback, data migration or deletion for these files. Other platforms need their own supported package and application instructions."
+            "instruction": "The project’s shared launcher checks for updates and can replace the collection after its games close. Before using its update controls, keep a copy of the working game files and profile. Add this external copy to Portcove, then choose Play separately when you are ready. Removing its registration leaves the package, originals and profiles in place. Portcove does not offer updates, backups, rollback, data migration or deletion for these files."
           }
         ],
         "warnings": [
@@ -18213,10 +18240,7 @@
             "instruction": "Use the launcher’s Your files / Show controls to find its folder and each game’s data folder. Windows normally stores game data under %APPDATA%/<Game>/. A portable.txt file beside the launcher selects CPS2Recomp/user/, with separate launcher and game subfolders. Close all games and launchers before copying settings, save states, board memory, custom colours, scores, soundtrack files and logs. The launcher offers the initial copy to portable mode; Portcove does not move that data. Removing portable.txt changes where future sessions store data without moving existing files. Keep both locations and the working game version until the replacement works. Save-state compatibility and importing existing data have not been confirmed."
           }
         ]
-      },
-      "platforms": [
-        "windows-x86-64"
-      ]
+      }
     },
     {
       "id": "cps2recomp-vampire-savior",
@@ -18228,6 +18252,12 @@
       "setup_url": "https://github.com/tmcleroy/cps2recomp/blob/6f3c37f5808268e4525c81f1419f65dca43e6f39/games/vampire_savior/README.md",
       "issue_number": 2766,
       "listed_at": "2026-10-25",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ],
       "release_url": "https://github.com/tmcleroy/cps2recomp/releases",
       "recommended_download_channel": "beta",
       "download_asset_hints": {
@@ -18252,11 +18282,11 @@
           },
           {
             "title": "Prepare the shared launcher and this game",
-            "instruction": "Extract the complete official Preview package for your system: CPS2Recomp-windows-x64.zip, CPS2Recomp-linux-x86_64.tar.gz, or the universal CPS2Recomp-macos.zip with CPS-2 Recomp.app. Keep cps2recomp-launcher (cps2recomp-launcher.exe on Windows), every game program and all packaged companions together. Run the upstream launcher deliberately, choose your ROM folder or this game’s exact set, then finish its settings before registering the player. Register cps2recomp-launcher.exe with the CPS2Recomp folder as working directory. Enter two literal argument lines: --play then vampire_savior. The launcher owns this game’s configuration and child programs; do not register a source archive, update manifest or arbitrary other game executable."
+            "instruction": "Extract the complete official Preview package for your system: CPS2Recomp-windows-x64.zip, CPS2Recomp-linux-x86_64.tar.gz, or the universal CPS2Recomp-macos.zip with CPS-2 Recomp.app. Keep cps2recomp-launcher (cps2recomp-launcher.exe on Windows), every game program and all packaged companions together. Run the upstream launcher deliberately, choose your ROM folder or this game’s exact set, then finish its settings before registering the player. Register the launcher for your system with the CPS2Recomp folder as working directory: cps2recomp-launcher.exe on Windows or cps2recomp-launcher on Linux. On macOS, register CPS-2 Recomp.app. Enter two literal argument lines: --play then vampire_savior. The launcher owns this game’s configuration and child programs; do not register a source archive, update manifest or arbitrary other game executable."
           },
           {
             "title": "Add the game and manage updates",
-            "instruction": "The project’s shared launcher checks for updates and can replace the collection after its games close. Before using its update controls, keep a copy of the working game files and profile. Add this external copy to Portcove, then choose Play separately when you are ready. Removing its registration leaves the package, originals and profiles in place. Portcove does not offer updates, backups, rollback, data migration or deletion for these files. Other platforms need their own supported package and application instructions."
+            "instruction": "The project’s shared launcher checks for updates and can replace the collection after its games close. Before using its update controls, keep a copy of the working game files and profile. Add this external copy to Portcove, then choose Play separately when you are ready. Removing its registration leaves the package, originals and profiles in place. Portcove does not offer updates, backups, rollback, data migration or deletion for these files."
           }
         ],
         "warnings": [
@@ -18271,10 +18301,7 @@
             "instruction": "Use the launcher’s Your files / Show controls to find its folder and each game’s data folder. Windows normally stores game data under %APPDATA%/<Game>/. A portable.txt file beside the launcher selects CPS2Recomp/user/, with separate launcher and game subfolders. Close all games and launchers before copying settings, save states, board memory, custom colours, scores, soundtrack files and logs. The launcher offers the initial copy to portable mode; Portcove does not move that data. Removing portable.txt changes where future sessions store data without moving existing files. Keep both locations and the working game version until the replacement works. Save-state compatibility and importing existing data have not been confirmed."
           }
         ]
-      },
-      "platforms": [
-        "windows-x86-64"
-      ]
+      }
     },
     {
       "id": "cps2recomp-vampire-savior-2",
@@ -18286,6 +18313,12 @@
       "setup_url": "https://github.com/tmcleroy/cps2recomp/blob/6f3c37f5808268e4525c81f1419f65dca43e6f39/games/vsav2/README.md",
       "issue_number": 2767,
       "listed_at": "2026-10-25",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ],
       "release_url": "https://github.com/tmcleroy/cps2recomp/releases",
       "recommended_download_channel": "beta",
       "download_asset_hints": {
@@ -18310,11 +18343,11 @@
           },
           {
             "title": "Prepare the shared launcher and this game",
-            "instruction": "Extract the complete official Preview package for your system: CPS2Recomp-windows-x64.zip, CPS2Recomp-linux-x86_64.tar.gz, or the universal CPS2Recomp-macos.zip with CPS-2 Recomp.app. Keep cps2recomp-launcher (cps2recomp-launcher.exe on Windows), every game program and all packaged companions together. Run the upstream launcher deliberately, choose your ROM folder or this game’s exact set, then finish its settings before registering the player. Register cps2recomp-launcher.exe with the CPS2Recomp folder as working directory. Enter two literal argument lines: --play then vsav2. The launcher owns this game’s configuration and child programs; do not register a source archive, update manifest or arbitrary other game executable."
+            "instruction": "Extract the complete official Preview package for your system: CPS2Recomp-windows-x64.zip, CPS2Recomp-linux-x86_64.tar.gz, or the universal CPS2Recomp-macos.zip with CPS-2 Recomp.app. Keep cps2recomp-launcher (cps2recomp-launcher.exe on Windows), every game program and all packaged companions together. Run the upstream launcher deliberately, choose your ROM folder or this game’s exact set, then finish its settings before registering the player. Register the launcher for your system with the CPS2Recomp folder as working directory: cps2recomp-launcher.exe on Windows or cps2recomp-launcher on Linux. On macOS, register CPS-2 Recomp.app. Enter two literal argument lines: --play then vsav2. The launcher owns this game’s configuration and child programs; do not register a source archive, update manifest or arbitrary other game executable."
           },
           {
             "title": "Add the game and manage updates",
-            "instruction": "The project’s shared launcher checks for updates and can replace the collection after its games close. Before using its update controls, keep a copy of the working game files and profile. Add this external copy to Portcove, then choose Play separately when you are ready. Removing its registration leaves the package, originals and profiles in place. Portcove does not offer updates, backups, rollback, data migration or deletion for these files. Other platforms need their own supported package and application instructions."
+            "instruction": "The project’s shared launcher checks for updates and can replace the collection after its games close. Before using its update controls, keep a copy of the working game files and profile. Add this external copy to Portcove, then choose Play separately when you are ready. Removing its registration leaves the package, originals and profiles in place. Portcove does not offer updates, backups, rollback, data migration or deletion for these files."
           }
         ],
         "warnings": [
@@ -18329,10 +18362,7 @@
             "instruction": "Use the launcher’s Your files / Show controls to find its folder and each game’s data folder. Windows normally stores game data under %APPDATA%/<Game>/. A portable.txt file beside the launcher selects CPS2Recomp/user/, with separate launcher and game subfolders. Close all games and launchers before copying settings, save states, board memory, custom colours, scores, soundtrack files and logs. The launcher offers the initial copy to portable mode; Portcove does not move that data. Removing portable.txt changes where future sessions store data without moving existing files. Keep both locations and the working game version until the replacement works. Save-state compatibility and importing existing data have not been confirmed."
           }
         ]
-      },
-      "platforms": [
-        "windows-x86-64"
-      ]
+      }
     },
     {
       "id": "cps2recomp-vampire-savior-definitive",
@@ -18344,6 +18374,12 @@
       "setup_url": "https://github.com/tmcleroy/cps2recomp/blob/6f3c37f5808268e4525c81f1419f65dca43e6f39/games/vsav_definitive/README.md",
       "issue_number": 2768,
       "listed_at": "2026-10-25",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ],
       "release_url": "https://github.com/tmcleroy/cps2recomp/releases",
       "recommended_download_channel": "beta",
       "download_asset_hints": {
@@ -18368,11 +18404,11 @@
           },
           {
             "title": "Prepare the shared launcher and this game",
-            "instruction": "Extract the complete official Preview package for your system: CPS2Recomp-windows-x64.zip, CPS2Recomp-linux-x86_64.tar.gz, or the universal CPS2Recomp-macos.zip with CPS-2 Recomp.app. Keep cps2recomp-launcher (cps2recomp-launcher.exe on Windows), every game program and all packaged companions together. Run the upstream launcher deliberately, choose your ROM folder or this game’s exact set, then finish its settings before registering the player. Register cps2recomp-launcher.exe with the CPS2Recomp folder as working directory. Enter two literal argument lines: --play then vsav_definitive. The launcher owns this game’s configuration and child programs; do not register a source archive, update manifest or arbitrary other game executable."
+            "instruction": "Extract the complete official Preview package for your system: CPS2Recomp-windows-x64.zip, CPS2Recomp-linux-x86_64.tar.gz, or the universal CPS2Recomp-macos.zip with CPS-2 Recomp.app. Keep cps2recomp-launcher (cps2recomp-launcher.exe on Windows), every game program and all packaged companions together. Run the upstream launcher deliberately, choose your ROM folder or this game’s exact set, then finish its settings before registering the player. Register the launcher for your system with the CPS2Recomp folder as working directory: cps2recomp-launcher.exe on Windows or cps2recomp-launcher on Linux. On macOS, register CPS-2 Recomp.app. Enter two literal argument lines: --play then vsav_definitive. The launcher owns this game’s configuration and child programs; do not register a source archive, update manifest or arbitrary other game executable."
           },
           {
             "title": "Add the game and manage updates",
-            "instruction": "The project’s shared launcher checks for updates and can replace the collection after its games close. Before using its update controls, keep a copy of the working game files and profile. Add this external copy to Portcove, then choose Play separately when you are ready. Removing its registration leaves the package, originals and profiles in place. Portcove does not offer updates, backups, rollback, data migration or deletion for these files. Other platforms need their own supported package and application instructions."
+            "instruction": "The project’s shared launcher checks for updates and can replace the collection after its games close. Before using its update controls, keep a copy of the working game files and profile. Add this external copy to Portcove, then choose Play separately when you are ready. Removing its registration leaves the package, originals and profiles in place. Portcove does not offer updates, backups, rollback, data migration or deletion for these files."
           }
         ],
         "warnings": [
@@ -18387,10 +18423,7 @@
             "instruction": "Use the launcher’s Your files / Show controls to find its folder and each game’s data folder. Windows normally stores game data under %APPDATA%/<Game>/. A portable.txt file beside the launcher selects CPS2Recomp/user/, with separate launcher and game subfolders. Close all games and launchers before copying settings, save states, board memory, custom colours, scores, soundtrack files and logs. The launcher offers the initial copy to portable mode; Portcove does not move that data. Removing portable.txt changes where future sessions store data without moving existing files. Keep both locations and the working game version until the replacement works. Save-state compatibility and importing existing data have not been confirmed."
           }
         ]
-      },
-      "platforms": [
-        "windows-x86-64"
-      ]
+      }
     },
     {
       "id": "cps2recomp-x-men-vs-street-fighter",
@@ -18410,6 +18443,12 @@
       },
       "issue_number": 2781,
       "listed_at": "2026-10-25",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ],
       "release_url": "https://github.com/tmcleroy/cps2recomp/releases",
       "recommended_download_channel": "beta",
       "download_asset_hints": {
@@ -18434,11 +18473,11 @@
           },
           {
             "title": "Prepare the shared launcher and this game",
-            "instruction": "Extract the complete official Preview package for your system: CPS2Recomp-windows-x64.zip, CPS2Recomp-linux-x86_64.tar.gz, or the universal CPS2Recomp-macos.zip with CPS-2 Recomp.app. Keep cps2recomp-launcher (cps2recomp-launcher.exe on Windows), every game program and all packaged companions together. Run the upstream launcher deliberately, choose your ROM folder or this game’s exact set, then finish its settings before registering the player. Register cps2recomp-launcher.exe with the CPS2Recomp folder as working directory. Enter two literal argument lines: --play then xmvsf. The launcher owns this game’s configuration and child programs; do not register a source archive, update manifest or arbitrary other game executable."
+            "instruction": "Extract the complete official Preview package for your system: CPS2Recomp-windows-x64.zip, CPS2Recomp-linux-x86_64.tar.gz, or the universal CPS2Recomp-macos.zip with CPS-2 Recomp.app. Keep cps2recomp-launcher (cps2recomp-launcher.exe on Windows), every game program and all packaged companions together. Run the upstream launcher deliberately, choose your ROM folder or this game’s exact set, then finish its settings before registering the player. Register the launcher for your system with the CPS2Recomp folder as working directory: cps2recomp-launcher.exe on Windows or cps2recomp-launcher on Linux. On macOS, register CPS-2 Recomp.app. Enter two literal argument lines: --play then xmvsf. The launcher owns this game’s configuration and child programs; do not register a source archive, update manifest or arbitrary other game executable."
           },
           {
             "title": "Add the game and manage updates",
-            "instruction": "The project’s shared launcher checks for updates and can replace the collection after its games close. Before using its update controls, keep a copy of the working game files and profile. Add this external copy to Portcove, then choose Play separately when you are ready. Removing its registration leaves the package, originals and profiles in place. Portcove does not offer updates, backups, rollback, data migration or deletion for these files. Other platforms need their own supported package and application instructions."
+            "instruction": "The project’s shared launcher checks for updates and can replace the collection after its games close. Before using its update controls, keep a copy of the working game files and profile. Add this external copy to Portcove, then choose Play separately when you are ready. Removing its registration leaves the package, originals and profiles in place. Portcove does not offer updates, backups, rollback, data migration or deletion for these files."
           }
         ],
         "warnings": [
@@ -18453,15 +18492,12 @@
             "instruction": "Use the launcher’s Your files / Show controls to find its folder and each game’s data folder. Windows normally stores game data under %APPDATA%/<Game>/. A portable.txt file beside the launcher selects CPS2Recomp/user/, with separate launcher and game subfolders. Close all games and launchers before copying settings, save states, board memory, custom colours, scores, soundtrack files and logs. The launcher offers the initial copy to portable mode; Portcove does not move that data. Removing portable.txt changes where future sessions store data without moving existing files. Keep both locations and the working game version until the replacement works. Save-state compatibility and importing existing data have not been confirmed."
           }
         ]
-      },
-      "platforms": [
-        "windows-x86-64"
-      ]
+      }
     },
     {
       "id": "crackdown-crackdown-recompiled",
       "name": "Crackdown (Crackdown Recompiled)",
-      "summary": "Add a prepared Crackdown Windows copy, preserving its exact original-data requirements, upstream-owned updates and separate base/TU6 save generations.",
+      "summary": "Add a prepared Crackdown copy from the Windows package or Linux AppImage, preserving its exact original-data requirements, upstream-owned updates and separate base/TU6 save generations.",
       "original_game_title": "Crackdown",
       "project_url": "https://github.com/saulob/crackdown-xbox360-recompiled",
       "issue_number": 2559,
@@ -18477,11 +18513,11 @@
         "steps": [
           {
             "title": "Finish exact original-disc setup upstream",
-            "instruction": "Use the complete Windows package and your own original, unupdated Crackdown Xbox360 retail disc: title4D5307DC, Default.xex14,270,464bytes, SHA-256 7AAA7A8920D1C3C737E58CF583DEBAFE6013BE0A96BEC3EC136E5DE7E3377E5A. Complete upstream ISO/extracted-folder validation and installation until Ready to play; game/ is adjacent and $SystemUpdate is unnecessary. No disc extraction, original acquisition, compilation or installer is invoked by this registration."
+            "instruction": "Use the complete Windows package or Linux AppImage and your own original, unupdated Crackdown Xbox360 retail disc: title4D5307DC, Default.xex14,270,464bytes, SHA-256 7AAA7A8920D1C3C737E58CF583DEBAFE6013BE0A96BEC3EC136E5DE7E3377E5A. Complete upstream ISO/extracted-folder validation and installation until Ready to play; game/ is adjacent and $SystemUpdate is unnecessary. No disc extraction, original acquisition, compilation or installer is invoked by this registration."
           },
           {
             "title": "Select the prepared native game entry",
-            "instruction": "Select crackdown.exe, its complete containing writable package directory and no arguments for ordinary Play. Keep the matching SDK/runtime/GPU DLLs, launcher resources, game data, configuration and notices together. The embedded launcher calls the native ReXApp game path in-process. Review and consent to the exact executable/CWD/arguments, then request Play separately. Windows10/11 x64, Direct3D12 and the applicable VC++ x64 runtime remain upstream prerequisites; Linux/AppImage is separate."
+            "instruction": "Select crackdown.exe, its complete containing writable package directory and no arguments for ordinary Play. Keep the matching SDK/runtime/GPU DLLs, launcher resources, game data, configuration and notices together. The embedded launcher calls the native ReXApp game path in-process. Review and consent to the exact executable/CWD/arguments, then request Play separately. Windows10/11 x64, Direct3D12 and the applicable VC++ x64 runtime remain upstream prerequisites. The Linux AppImage needs no Windows runtime."
           },
           {
             "title": "Complete restarts and updates outside attachment",
@@ -19054,7 +19090,7 @@
           }
         ],
         "warnings": [
-          "Use only a copy, components and originals you are permitted to use. Bounded package/PE inspection and owned-probe controls do not establish native gameplay, real-save compatibility, installed Desktop, other-platform or Supported acceptance.",
+          "Bounded package/PE inspection and owned-probe controls do not establish native gameplay, real-save compatibility, installed Desktop, other-platform or Supported acceptance.",
           "Otherwise a writable executable directory becomes the save root and can copy older saves into it when pd.ini is absent. An unwritable installation can retain the legacy working-directory or per-user fallback. Keep every actual old and current root, pd.ini, EEPROM, player/progress files, Combat Simulator setups, mods, added content, screenshots, recordings and upstream backups. The startup log names the effective base/save directories; preserve any custom paths independently. A package-folder copy alone is not a complete backup when a different root is active.",
           "Ordinary stock-format setups can remain readable by the stock port, but setups with more than eight simulants and moved-stat formats need compatible versions. Returning to an older executable does not convert or rewind those files. Preserve the whole creating runtime and data before switching channels, mods or versions; no cross-version or stock/fork save conversion is qualified."
         ],
@@ -23705,7 +23741,7 @@
           },
           {
             "title": "Select the completed normal player",
-            "instruction": "Select DoDonPachi SaiDaiOuJou.exe, use its complete containing package directory as working directory and leave arguments empty. Keep the successful game_data/ tree, matching runtime companions and settings together. Do not select extract-xiso or a setup/build script. The native app owns its ordinary window/game loop; saving launch details and Play are separate actions. First-run setup, extraction and any optional settings-restart successor remain outside this completed-player route; close actual successors before maintenance or another attachment."
+            "instruction": "Select DoDonPachi SaiDaiOuJou.exe (DoDonPachi SaiDaiOuJou on Linux), use its complete containing package directory as working directory and leave arguments empty. Keep the successful game_data/ tree, matching runtime companions and settings together. Do not select extract-xiso or a setup/build script. The native app owns its ordinary window/game loop; saving launch details and Play are separate actions. First-run setup, extraction and any optional settings-restart successor remain outside this completed-player route; close actual successors before maintenance or another attachment."
           },
           {
             "title": "Leave notifications and runtime replacement with upstream",
@@ -23716,7 +23752,7 @@
           "Disc and Games-on-Demand use different original/TU checks; wrong or incomplete data is not an interchangeable source. Keep the complete chosen renderer variant and meet its upstream GPU/runtime requirements. Altered input/render-lag options require a restart; no actual gameplay, performance or save-compatibility assurance is supplied by this guide.",
           "Back up the complete creating package, saidaioujou_recomp_tu1.toml, game_data/, user_data/ (including saves/content, caches and updater metadata) and logs before upstream startup, repair or replacement.",
           "Upstream refuses incomplete or unsupported nonempty game_data rather than merging it; keep staged originals/recovery data outside disposable setup destinations. No cross-edition or cross-version save/mod compatibility is promised.",
-          "The package includes statically recompiled game code that the project license does not cover. Portcove downloads it only from the project’s own releases. You need your own original game files."
+          "The package includes statically recompiled game code, icon art and an unlicensed project layer that the project license does not cover. Portcove downloads it only from the project’s own releases. You need your own original game files."
         ],
         "help_url": "https://github.com/eandis/SDOJ-Recomp/blob/cf0afe107d02fa16980e8c8f90a5969aafac81a7/README.md",
         "references": [
@@ -26810,7 +26846,7 @@
     {
       "id": "geometry-wars-retro-evolved-2-geometry-wars-2-recompiled",
       "name": "Geometry Wars: Retro Evolved 2 (Geometry Wars 2 Recompiled)",
-      "summary": "Prepared Windows Geometry Wars 2 copy using your own matching XBLA package. Upstream owns setup, runtime replacement and portable player data; Portcove can record the ordinary native player separately from Play.",
+      "summary": "Prepared Geometry Wars 2 copy, from the Windows package or Linux AppImage, using your own matching XBLA package. Upstream owns setup, runtime replacement and portable player data; Portcove can record the ordinary native player separately from Play.",
       "original_game_title": "Geometry Wars: Retro Evolved 2",
       "project_url": "https://github.com/saulob/geometry-wars-retro-evolved-2-recompiled",
       "platforms": [
@@ -26841,11 +26877,11 @@
           },
           {
             "title": "Add the prepared native player",
-            "instruction": "Choose geometry_wars_retro_evolved_2.exe with its containing package folder as the working folder and no arguments for ordinary Play. Its built-in launcher starts the game in the same native process. Finish setup and any update or setting that requires Restart before adding or starting a tracked session; Restart and the separate updater may replace the process. Saving launch details and Play are separate actions. Use the actual selected copy, not a guessed path."
+            "instruction": "Choose geometry_wars_retro_evolved_2.exe (on Linux, the GeometryWarsRetroEvolved2Recompiled AppImage) with its containing package folder as the working folder and no arguments for ordinary Play. Its built-in launcher starts the game in the same native process. Finish setup and any update or setting that requires Restart before adding or starting a tracked session; Restart and the separate updater may replace the process. Saving launch details and Play are separate actions. Use the actual selected copy, not a guessed path."
           }
         ],
         "warnings": [
-          "This guidance follows upstream source and release descriptions. Portcove has not inspected the package or tested launch, gameplay, saving or updates. Experimental Linux AppImages are a separate route.",
+          "This guidance follows upstream source and release descriptions. Portcove has not inspected the package or tested launch, gameplay, saving or updates. Upstream calls its Linux AppImages experimental.",
           "Before the first upstream startup, back up the legacy Documents/geometry_wars_retro_evolved_2 profile and any portable user_data/ profile separately. When upstream migrates legacy data, it moves the legacy folder by rename, or uses a staged verified copy and then removes the legacy folder after activation; successful migration does not leave the old profile in place. A failed migration falls back to the legacy root for that run and retries on the next startup. If only legacy cleanup fails after activation, portable user_data/ stays active and the legacy folder may remain. An unwritable portable root can also fall back to the system root. --user_data_root=<folder> selects that root without migration; --cache_root can select a separate cache. Preserve every active root and the separate backups. Portcove does not own these external files or promise backup, rollback, save compatibility or deletion.",
           "The package includes an unlicensed TRG launcher that the project license does not cover. Portcove downloads it only from the project’s own releases. You need your own original game files."
         ],
@@ -27313,6 +27349,10 @@
       "project_url": "https://github.com/jkdansereau/goldeneye-pc-port",
       "issue_number": 1129,
       "listed_at": "2026-10-23",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
       "availability": "packages",
       "setup_url": "https://github.com/jkdansereau/goldeneye-pc-port#readme",
       "artwork": {
@@ -27361,10 +27401,7 @@
           "-linux-x86_64.tar.gz"
         ]
       },
-      "recommended_download_channel": "stable",
-      "platforms": [
-        "windows-x86-64"
-      ]
+      "recommended_download_channel": "stable"
     },
     {
       "id": "goldeneye-007-xbla-recomp",
@@ -29010,7 +29047,7 @@
     {
       "id": "hard-corps-uprising-hard-corps-uprising-recompiled",
       "name": "Hard Corps: Uprising (Hard Corps: Uprising Recompiled)",
-      "summary": "Prepared Windows Hard Corps: Uprising copy using your own matching XBLA package. Keep upstream setup, optional DLC, runtime replacement and player data outside Portcove management.",
+      "summary": "Prepared Hard Corps: Uprising copy, from the Windows package or Linux AppImage, using your own matching XBLA package. Keep upstream setup, optional DLC, runtime replacement and player data outside Portcove management.",
       "original_game_title": "Hard Corps: Uprising",
       "project_url": "https://github.com/saulob/hard-corps-uprising-recompiled",
       "platforms": [
@@ -29041,7 +29078,7 @@
           },
           {
             "title": "Add the prepared native player",
-            "instruction": "Select hard_corps_uprising.exe, its containing package folder as working folder, and no arguments for ordinary Play. The embedded launcher resumes the native game in-process. Complete installation, updates and settings that require Restart outside a tracked session: Restart explicitly starts a successor process and exits this one, and the separate updater is not a game entry. Saving launch details and Play are separate Portcove actions."
+            "instruction": "Select hard_corps_uprising.exe (on Linux, the HardCorpsUprisingRecompiled AppImage), its containing package folder as working folder, and no arguments for ordinary Play. The embedded launcher resumes the native game in-process. Complete installation, updates and settings that require Restart outside a tracked session: Restart explicitly starts a successor process and exits this one, and the separate updater is not a game entry. Saving launch details and Play are separate Portcove actions."
           },
           {
             "title": "Keep upstream ownership and all active data roots",
@@ -29049,7 +29086,7 @@
           }
         ],
         "warnings": [
-          "This guidance follows upstream release descriptions and source. Portcove has not inspected the archive or tested gameplay, saving or updates. The experimental native Linux AppImage is a separate route.",
+          "This guidance follows upstream release descriptions and source. Portcove has not inspected the archive or tested gameplay, saving or updates. Upstream calls its native Linux AppImage experimental.",
           "The package includes an unlicensed TRG launcher that the project license does not cover. Portcove downloads it only from the project’s own releases. You need your own original game files."
         ],
         "help_url": "https://github.com/saulob/hard-corps-uprising-recompiled#readme"
@@ -31316,7 +31353,7 @@
           },
           {
             "title": "Attach the actual native player",
-            "instruction": "Select FFTARecomp.exe with its complete creating package directory as working directory and no extra arguments for the normal in-process launch screen. The inspected title runs that screen and game in the same process; it does not hand the game to a detached launcher. Retain only the supported literal arguments your working setup actually requires, including existing --save/--save-path and --state-dir choices. Do not select a tool or start a separate compiler/helper."
+            "instruction": "Select FFTARecomp.exe (on Linux, the FFTARecomp AppImage) with its complete creating package directory as working directory and no extra arguments for the normal in-process launch screen. The inspected title runs that screen and game in the same process; it does not hand the game to a detached launcher. Retain only the supported literal arguments your working setup actually requires, including existing --save/--save-path and --state-dir choices. Do not select a tool or start a separate compiler/helper."
           },
           {
             "title": "Review launch details, then choose Play",
@@ -32284,6 +32321,12 @@
       "project_url": "https://github.com/Keriew/augustus",
       "issue_number": 1793,
       "listed_at": "2026-10-23",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ],
       "availability": "packages",
       "setup_url": "https://github.com/Keriew/augustus#running-the-game",
       "artwork": {
@@ -32321,7 +32364,7 @@
           },
           {
             "title": "Add the game and manage your files",
-            "instruction": "Complete the upstream setup in your permitted working copy before registration. Select the actual augustus.exe and its containing folder as the working directory; keep every packaged companion. Leave arguments empty for the normal upstream startup flow, or supply separate literal arguments only when deliberately following that version’s documented options. Registration binds your explicit executable, folder and arguments with consent; Play is a separate action. You and upstream own runtime replacement, original files, saves, settings and profiles. Close the game and preserve every actual data/profile location and the working player before upstream updates. Registration-only removal preserves all external files. Managed Install, Update, Backup, Rollback, migration and external deletion are unavailable."
+            "instruction": "Complete the upstream setup in your working copy before registration. Select the actual augustus.exe and its containing folder as the working directory; keep every packaged companion. Leave arguments empty for the normal upstream startup flow, or supply separate literal arguments only when deliberately following that version’s documented options. Registration binds your explicit executable, folder and arguments with consent; Play is a separate action. You and upstream own runtime replacement, original files, saves, settings and profiles. Close the game and preserve every actual data/profile location and the working player before upstream updates. Registration-only removal preserves all external files. Managed Install, Update, Backup, Rollback, migration and external deletion are unavailable."
           }
         ],
         "warnings": [
@@ -32341,10 +32384,7 @@
           }
         ]
       },
-      "original_game_title": "Caesar III",
-      "platforms": [
-        "windows-x86-64"
-      ]
+      "original_game_title": "Caesar III"
     },
     {
       "id": "kevinfoley-herculan",
@@ -32956,7 +32996,7 @@
           },
           {
             "title": "Choose the completed ordinary native program",
-            "instruction": "Select PaRappaTheRapper_Recompiled.exe in the complete creating player directory, set that directory as working directory and leave arguments empty for normal launcher/gameplay. Keep its matching game.toml, runtime companions, bundled OpenBIOS, input.ini, mods and overlay tools/data together. The selected framework’s launcher and game run within the same native program; do not choose Retro Launcher, a PowerShell timing experiment, codegen helper, setup-only placeholder, diagnostic or netplay mode. Review and consent to the selected launch details, then choose Play separately."
+            "instruction": "Select PaRappaTheRapper_Recompiled.exe (PaRappaTheRapper_Recompiled on Linux) in the complete creating player directory, set that directory as working directory and leave arguments empty for normal launcher/gameplay. Keep its matching game.toml, runtime companions, bundled OpenBIOS, input.ini, mods and overlay tools/data together. The selected framework’s launcher and game run within the same native program; do not choose Retro Launcher, a PowerShell timing experiment, codegen helper, setup-only placeholder, diagnostic or netplay mode. Review and consent to the selected launch details, then choose Play separately."
           },
           {
             "title": "Preserve every effective player root before first startup",
@@ -32977,7 +33017,7 @@
         ],
         "warnings": [
           "Preserve separate profile backups before upstream legacy-state migration or rebuild/replacement.",
-          "The package includes libretro-sourced PaRappa box art that the project license does not cover. Portcove downloads it only from the project’s own releases. You need your own original game files."
+          "The package includes libretro-sourced PaRappa box art and recompiled BIOS backend code that the project license does not cover. Portcove downloads it only from the project’s own releases. You need your own original game files."
         ]
       },
       "release_url": "https://github.com/kirby1237/PaRappaTheRapperRecomp/releases",
@@ -33579,6 +33619,10 @@
       "project_url": "https://github.com/lethal-guitar/RigelEngine",
       "issue_number": 1877,
       "listed_at": "2026-10-23",
+      "platforms": [
+        "windows-x86-64",
+        "macos-x86-64"
+      ],
       "availability": "packages",
       "setup_url": "https://github.com/lethal-guitar/RigelEngine#running-rigelengine",
       "artwork": {
@@ -33610,7 +33654,7 @@
           },
           {
             "title": "Add the game and manage your files",
-            "instruction": "Complete the upstream setup in your permitted working copy before registration. Select the actual RigelEngine.exe and its containing folder as the working directory; keep every packaged companion. Leave arguments empty for the normal upstream startup flow, or supply separate literal arguments only when deliberately following that version’s documented options. Registration binds your explicit executable, folder and arguments with consent; Play is a separate action. You and upstream own runtime replacement, original files, saves, settings and profiles. Close the game and preserve every actual data/profile location and the working player before upstream updates. Registration-only removal preserves all external files. Managed Install, Update, Backup, Rollback, migration and external deletion are unavailable."
+            "instruction": "Complete the upstream setup in your working copy before registration. Select the actual RigelEngine.exe and its containing folder as the working directory; keep every packaged companion. Leave arguments empty for the normal upstream startup flow, or supply separate literal arguments only when deliberately following that version’s documented options. Registration binds your explicit executable, folder and arguments with consent; Play is a separate action. You and upstream own runtime replacement, original files, saves, settings and profiles. Close the game and preserve every actual data/profile location and the working player before upstream updates. Registration-only removal preserves all external files. Managed Install, Update, Backup, Rollback, migration and external deletion are unavailable."
           }
         ],
         "warnings": [
@@ -33625,10 +33669,7 @@
           }
         ]
       },
-      "original_game_title": "Duke Nukem II",
-      "platforms": [
-        "windows-x86-64"
-      ]
+      "original_game_title": "Duke Nukem II"
     },
     {
       "id": "libre40-eu-maxwelllucas-army-of-two-the-40th-day",
@@ -38264,7 +38305,7 @@
         "steps": [
           {
             "title": "Prepare the game",
-            "instruction": "Keep the complete package for your system together. On Windows, install the Microsoft Visual C++ 2015–2022 Redistributable (x64) if needed. Open the player (Rayman2Recompiled.exe on Windows), choose Load ROM and select your own 32 MiB, big-endian Rayman 2 USA .z64 (SHA-1 50558356b059ad3fbaf5fe95380512b9dceaaf52). Choose Start Game."
+            "instruction": "Keep the complete package for your system together. On Windows, install the Microsoft Visual C++ 2015–2022 Redistributable (x64) if needed. Open the player (Rayman2Recompiled.exe on Windows or Rayman2Recompiled on Linux), choose Load ROM and select your own 32 MiB, big-endian Rayman 2 USA .z64 (SHA-1 50558356b059ad3fbaf5fe95380512b9dceaaf52). Choose Start Game."
           },
           {
             "title": "Select the prepared player",
@@ -38408,7 +38449,7 @@
         "steps": [
           {
             "title": "Prepare the game",
-            "instruction": "Keep the complete package for your system together. On Windows, install the Microsoft Visual C++ 2015–2022 Redistributable (x64) if needed. Open the player (SmashBrosRecompiled.exe on Windows), choose Load ROM and select your own 16 MiB, big-endian Super Smash Bros. USA .z64 (SHA-1 e2929e10fccc0aa84e5776227e798abc07cedabf). Choose Start Game."
+            "instruction": "Keep the complete package for your system together. On Windows, install the Microsoft Visual C++ 2015–2022 Redistributable (x64) if needed. Open the player (SmashBrosRecompiled.exe on Windows or SmashBrosRecompiled on Linux), choose Load ROM and select your own 16 MiB, big-endian Super Smash Bros. USA .z64 (SHA-1 e2929e10fccc0aa84e5776227e798abc07cedabf). Choose Start Game."
           },
           {
             "title": "Select the prepared player",
@@ -43596,7 +43637,7 @@
           }
         ]
       },
-      "download_block_reason": "Portcove downloads are paused because the release packages include header.bin, a copy of the original Pokémon Platinum cartridge header with the Nintendo logo data. Reconsider when upstream publishes a package that creates it from your own original. You can add a complete copy you are permitted to use."
+      "download_block_reason": "Portcove downloads are paused because the release packages include header.bin, a copy of the original Pokémon Platinum cartridge header with the Nintendo logo data. They can resume when upstream publishes a package that creates it from your own original. You can add a complete copy you are permitted to use."
     },
     {
       "id": "pokemon-ruby-gen1recomp",
@@ -49540,7 +49581,7 @@
     {
       "id": "snowboard-kids",
       "name": "Snowboard Kids (SnowboardKids-Recomp)",
-      "summary": "Explore Snowboard Kids (SnowboardKids-Recomp) and follow the upstream project for requirements, downloads and setup.",
+      "summary": "A native Snowboard Kids port with Windows and Linux beta packages. Select your own USA cartridge dump on first Play.",
       "project_url": "https://github.com/HikariLucy/SnowboardKids-Recomp",
       "issue_number": 1354,
       "listed_at": "2026-10-23",
@@ -49563,7 +49604,7 @@
         "steps": [
           {
             "title": "Keep the complete package for your system",
-            "instruction": "Keep the Snowboard Kids (HikariLucy) package files together. On Windows, that is SnowboardKidsEngine.exe, the matching modules/snowboardkids-us/SnowboardKidsGame.dll, assets and runtime DLLs together. The published beta has a precompiled module; normal players do not compile anything. If your copy instead requires module generation or repair, finish that supported preparation upstream before attachment."
+            "instruction": "Keep the Snowboard Kids (HikariLucy) package files together. On Windows, that is SnowboardKidsEngine.exe, the matching modules/snowboardkids-us/SnowboardKidsGame.dll, assets and runtime DLLs; on Linux, SnowboardKidsEngine, modules/snowboardkids-us/SnowboardKidsGame.so and assets. The published beta has a precompiled module; normal players do not compile anything. If your copy instead requires module generation or repair, finish that supported preparation upstream before attachment."
           },
           {
             "title": "Select your own supported original on Play",
@@ -49571,7 +49612,7 @@
           },
           {
             "title": "Review the game, working folder and launch details",
-            "instruction": "Select the completed native SnowboardKidsEngine.exe with the established package root as working directory and only its supported literal arguments. Review the launch details, add the game, then choose Play. Keep one upstream/player owner for preparation and runtime replacement. Removing the registration preserves every external file; Core supplies no external update, backup, rollback, conversion, migration or deletion."
+            "instruction": "Select the completed native SnowboardKidsEngine.exe (SnowboardKidsEngine on Linux) with the established package root as working directory and only its supported literal arguments. Review the launch details, add the game, then choose Play. Keep one upstream/player owner for preparation and runtime replacement. Removing the registration preserves every external file; Core supplies no external update, backup, rollback, conversion, migration or deletion."
           }
         ],
         "warnings": [
@@ -54511,7 +54552,7 @@
         "steps": [
           {
             "title": "Prepare the game",
-            "instruction": "Keep the complete package for your system together. On Windows it needs Windows 10 or 11 (x64) with OpenGL 3.3 or newer. Optional upscalers require OpenGL 4.3. Use your own USA (SLUS-01237) or Europe (SCES-02008) PlayStation CUE/BIN with the matching regional game build. Open the launcher (MuppetRaceMania.exe on Windows) and choose Play to select your disc. Finish that setup before adding the launcher to Portcove. The launcher starts the player for the selected region."
+            "instruction": "Keep the complete package for your system together. On Windows it needs Windows 10 or 11 (x64) with OpenGL 3.3 or newer. Optional upscalers require OpenGL 4.3. Use your own USA (SLUS-01237) or Europe (SCES-02008) PlayStation CUE/BIN with the matching regional game build. Open the launcher (MuppetRaceMania.exe on Windows or the MuppetRaceManiaRecompiled AppImage on Linux) and choose Play to select your disc. Finish that setup before adding the launcher to Portcove. The launcher starts the player for the selected region."
           },
           {
             "title": "Select the prepared player",
@@ -54521,7 +54562,7 @@
         "warnings": [
           "Keep the launcher and its matching regional game files together. When Play returns you to the launcher, close the launcher to end the Portcove session.",
           "Portcove opens the launcher without startup updates. To update, close the Portcove Play session, then open the upstream launcher separately.",
-          "The package includes recompiled game code that the project license does not cover. Portcove downloads it only from the project’s own releases. You need your own original game files."
+          "The package includes recompiled game code, the game logo in its launcher and an unlicensed project layer that the project license does not cover. Portcove downloads it only from the project’s own releases. You need your own original game files."
         ],
         "references": [
           {
@@ -54745,7 +54786,7 @@
       "download_asset_hints": {
         "linux-x86-64": [
           "TenchuSARecomp-",
-          "-x86_64.AppImage"
+          "-linux-x64.zip"
         ]
       },
       "recommended_download_channel": "stable"
@@ -60126,7 +60167,7 @@
         "steps": [
           {
             "title": "Complete supported preparation upstream",
-            "instruction": "Keep the complete shantae-recomp package for your system with its matching runtime libraries, assets, shaders, notices and any selected patches. On Windows, normal players use shantae.exe and the supported first-run ROM chooser; upstream owns preparation and replacement. The title’s PolyForm Noncommercial grant does not replace separately named engine, UI, shader, font or original-game terms."
+            "instruction": "Keep the complete shantae-recomp package for your system with its matching runtime libraries, assets, shaders, notices and any selected patches. Normal players use shantae.exe on Windows or shantae on Linux and the supported first-run ROM chooser; upstream owns preparation and replacement. The title’s PolyForm Noncommercial grant does not replace separately named engine, UI, shader, font or original-game terms."
           },
           {
             "title": "Keep your matching original",
@@ -60134,7 +60175,7 @@
           },
           {
             "title": "Add the supported prepared player",
-            "instruction": "Select shantae.exe with its complete package directory as working directory and no arguments. The pinned native runtime runs the pre-boot launcher and game in-process for the normal session. Keep the supported public launcher entry and complete package; no private runner or per-title wrapper is introduced."
+            "instruction": "Select shantae.exe (shantae on Linux) with its complete package directory as working directory and no arguments. The pinned native runtime runs the pre-boot launcher and game in-process for the normal session. Keep the supported public launcher entry and complete package; no private runner or per-title wrapper is introduced."
           },
           {
             "title": "Start any additional game sessions separately",

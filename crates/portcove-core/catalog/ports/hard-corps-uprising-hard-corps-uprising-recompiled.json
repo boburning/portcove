@@ -3,7 +3,7 @@
   "listing": {
     "id": "hard-corps-uprising-hard-corps-uprising-recompiled",
     "name": "Hard Corps: Uprising (Hard Corps: Uprising Recompiled)",
-    "summary": "Prepared Windows Hard Corps: Uprising copy using your own matching XBLA package. Keep upstream setup, optional DLC, runtime replacement and player data outside Portcove management.",
+    "summary": "Prepared Hard Corps: Uprising copy, from the Windows package or Linux AppImage, using your own matching XBLA package. Keep upstream setup, optional DLC, runtime replacement and player data outside Portcove management.",
     "original_game_title": "Hard Corps: Uprising",
     "project_url": "https://github.com/saulob/hard-corps-uprising-recompiled",
     "platforms": ["windows-x86-64", "linux-x86-64"],
@@ -31,7 +31,7 @@
         },
         {
           "title": "Add the prepared native player",
-          "instruction": "Select hard_corps_uprising.exe, its containing package folder as working folder, and no arguments for ordinary Play. The embedded launcher resumes the native game in-process. Complete installation, updates and settings that require Restart outside a tracked session: Restart explicitly starts a successor process and exits this one, and the separate updater is not a game entry. Saving launch details and Play are separate Portcove actions."
+          "instruction": "Select hard_corps_uprising.exe (on Linux, the HardCorpsUprisingRecompiled AppImage), its containing package folder as working folder, and no arguments for ordinary Play. The embedded launcher resumes the native game in-process. Complete installation, updates and settings that require Restart outside a tracked session: Restart explicitly starts a successor process and exits this one, and the separate updater is not a game entry. Saving launch details and Play are separate Portcove actions."
         },
         {
           "title": "Keep upstream ownership and all active data roots",
@@ -39,7 +39,7 @@
         }
       ],
       "warnings": [
-        "This guidance follows upstream release descriptions and source. Portcove has not inspected the archive or tested gameplay, saving or updates. The experimental native Linux AppImage is a separate route.",
+        "This guidance follows upstream release descriptions and source. Portcove has not inspected the archive or tested gameplay, saving or updates. Upstream calls its native Linux AppImage experimental.",
         "The package includes an unlicensed TRG launcher that the project license does not cover. Portcove downloads it only from the project’s own releases. You need your own original game files."
       ],
       "help_url": "https://github.com/saulob/hard-corps-uprising-recompiled#readme"

@@ -31,7 +31,7 @@
         },
         {
           "title": "Choose the completed ordinary native program",
-          "instruction": "Select PaRappaTheRapper_Recompiled.exe in the complete creating player directory, set that directory as working directory and leave arguments empty for normal launcher/gameplay. Keep its matching game.toml, runtime companions, bundled OpenBIOS, input.ini, mods and overlay tools/data together. The selected framework’s launcher and game run within the same native program; do not choose Retro Launcher, a PowerShell timing experiment, codegen helper, setup-only placeholder, diagnostic or netplay mode. Review and consent to the selected launch details, then choose Play separately."
+          "instruction": "Select PaRappaTheRapper_Recompiled.exe (PaRappaTheRapper_Recompiled on Linux) in the complete creating player directory, set that directory as working directory and leave arguments empty for normal launcher/gameplay. Keep its matching game.toml, runtime companions, bundled OpenBIOS, input.ini, mods and overlay tools/data together. The selected framework’s launcher and game run within the same native program; do not choose Retro Launcher, a PowerShell timing experiment, codegen helper, setup-only placeholder, diagnostic or netplay mode. Review and consent to the selected launch details, then choose Play separately."
         },
         {
           "title": "Preserve every effective player root before first startup",
@@ -52,7 +52,7 @@
       ],
       "warnings": [
         "Preserve separate profile backups before upstream legacy-state migration or rebuild/replacement.",
-        "The package includes libretro-sourced PaRappa box art that the project license does not cover. Portcove downloads it only from the project’s own releases. You need your own original game files."
+        "The package includes libretro-sourced PaRappa box art and recompiled BIOS backend code that the project license does not cover. Portcove downloads it only from the project’s own releases. You need your own original game files."
       ]
     },
     "release_url": "https://github.com/kirby1237/PaRappaTheRapperRecomp/releases",
