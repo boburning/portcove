@@ -150,7 +150,7 @@ export function FolderSetupChoice({
       {consent && (
         <label
           className="flex cursor-pointer items-start gap-3"
-          aria-label="Keep a copy of each game's files on this computer"
+          aria-label={t("folderSetup.keepLocalCopy.label")}
         >
           <input
             type="checkbox"
@@ -163,10 +163,9 @@ export function FolderSetupChoice({
             }}
           />
           <span>
-            <strong>Keep a copy of each game's files on this computer</strong>
+            <strong>{t("folderSetup.keepLocalCopy.label")}</strong>
             <span id={`${name}-copy`} className="block text-pc-muted-foreground">
-              Use this for a network or removable drive. Applies to games set up from now on. Only
-              the files each game needs are copied; nothing in this folder is moved or deleted.
+              {t("folderSetup.keepLocalCopy.detail")}
             </span>
           </span>
         </label>

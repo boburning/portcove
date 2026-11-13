@@ -94,6 +94,10 @@
       "detail": "Portcove remembers every file in this folder now and leaves those games alone, even if it recognizes them later.",
       "label": "Only set up games added later"
     },
+    "keepLocalCopy": {
+      "detail": "Use this for a network or removable drive. Applies to games set up from now on. Only the files each game needs are copied; nothing in this folder is moved or deleted.",
+      "label": "Keep a copy of each game's files on this computer"
+    },
     "legend": "Automatic setup from this folder",
     "off": {
       "detail": "Portcove only shows what it finds here.",
