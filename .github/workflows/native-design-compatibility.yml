@@ -775,6 +775,39 @@ jobs:
           $policy = 'HKLM:\SOFTWARE\Policies\Microsoft\Edge\WebView2\AdditionalBrowserArguments'
           New-Item -Path $policy -Force | Out-Null
           New-ItemProperty -Path $policy -Name 'portcove-desktop.exe' -Value '--remote-debugging-port=0' -PropertyType String -Force | Out-Null
+      # Evergreen may install a runtime whose exactly matching msedgedriver
+      # Microsoft has not made available yet. Driver bootstrap keeps the exact match;
+      # this bounded wait turns that window into one actionable outcome.
+      - name: Wait for the exactly matching msedgedriver
+        timeout-minutes: 21
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Import-Module ./scripts/windows-webview-driver-policy.psm1
+          $version = Get-WebViewRuntimeVersion
+          if ($version -notmatch '^\d+\.\d+\.\d+\.\d+$') { throw 'WebView2 runtime version is unreadable.' }
+          $url = "https://msedgedriver.microsoft.com/$version/edgedriver_win64.zip"
+          $deadline = (Get-Date).AddMinutes(20)
+          $attempts = 0
+          while ($true) {
+            $attempts++
+            try {
+              $status = (Invoke-WebRequest -Uri $url -Method Head -MaximumRedirection 0 -UseBasicParsing -TimeoutSec 30).StatusCode
+            } catch {
+              $response = $_.Exception.Response
+              if ($null -eq $response) { throw "msedgedriver $version availability check failed: $($_.Exception.Message)" }
+              $status = [int]$response.StatusCode
+            }
+            if ($status -eq 200) { break }
+            if ($status -ne 404) { throw "msedgedriver $version availability check returned HTTP $status." }
+            # Decide before sleeping so the last check always ends inside the step timeout.
+            if ((Get-Date).AddSeconds(60) -ge $deadline) {
+              throw "Microsoft has not made msedgedriver $version available for the serviced WebView2 $version after $attempts checks over 20 minutes. Re-run this job once it is available."
+            }
+            Start-Sleep -Seconds 60
+          }
+          [ordered]@{ version = $version; url = $url; attempts = $attempts } |
+            ConvertTo-Json | Set-Content "$env:PORTCOVE_OUTPUT_DIR/webview2-driver-availability.json"
       - name: Install locked packages and existing pinned native tools
         shell: pwsh
         run: |
