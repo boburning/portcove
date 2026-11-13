@@ -1427,6 +1427,7 @@
             "each host platform keeps its own assessment history, gaps and latest run",
             "release health records coverage, quiet recurrence and needs-attention conditions",
             "release content shows findings from partial runs and opens handoffs only after complete runs",
+            "packages the scan could not inspect are shown and open the release-content handoff",
             "a finding on a port with deferred targets is visible from the latest scan's gap",
             "upstream observations record coverage, quiet recurrence, attention and failed reads",
             "hosted intake records requests, quiet recurrence, attention, gaps and failed reads",

@@ -304,7 +304,7 @@ void test("upstream exceptions and hosted intake requests become handoffs by the
   ]);
 });
 
-void test("release-content findings become routine handoffs that never write a hold", () => {
+void test("release-content findings and uninspected packages become routine handoffs that never write a hold", () => {
   const finding = (platform: string) => ({
     platform,
     repository: "up/alpha",
@@ -317,10 +317,28 @@ void test("release-content findings become routine handoffs that never write a h
   const handoffs = releaseContentHandoffs(
     new Map<string, unknown>([
       ["port:alpha", { findings: [finding("linux-x86-64")], unscannable: [] }],
-      // A clean port and an unscannable target are facts, not attention.
+      // Coverage notes are facts, not attention.
       [
         "port:beta",
-        { findings: [], unscannable: [{ platform: "linux-x86-64", code: "no-release" }] },
+        {
+          findings: [],
+          unscannable: [
+            { platform: "linux-x86-64", code: "no-release" },
+            { platform: "windows-x86-64", code: "no-single-asset" },
+          ],
+        },
+      ],
+      // A package the scan could not inspect needs the same review.
+      [
+        "port:gamma",
+        {
+          findings: [],
+          unscannable: [
+            { platform: "linux-x86-64", code: "digest-mismatch" },
+            { platform: "macos-arm64", code: "no-release" },
+            { platform: "windows-x86-64", code: "unlistable" },
+          ],
+        },
       ],
     ]),
   );
@@ -328,7 +346,18 @@ void test("release-content findings become routine handoffs that never write a h
     {
       kind: "release-content-finding",
       source: "port:alpha",
-      condition: { findings: [finding("linux-x86-64")] },
+      condition: { findings: [finding("linux-x86-64")], unscannable: [] },
+    },
+    {
+      kind: "release-content-finding",
+      source: "port:gamma",
+      condition: {
+        findings: [],
+        unscannable: [
+          { platform: "linux-x86-64", code: "digest-mismatch" },
+          { platform: "windows-x86-64", code: "unlistable" },
+        ],
+      },
     },
   ]);
   const entry = handoffEntry("release-content-finding")!;
@@ -337,9 +366,10 @@ void test("release-content findings become routine handoffs that never write a h
   assert.equal(entry.workflow?.trigger, "schedule");
   assert.match(entry.action, /download_block_reason/u);
   assert.match(entry.action, /never writes a hold/u);
+  assert.match(entry.action, /inspects manually any package the scan could not read/u);
   assert.match(
     entry.receipt,
-    /no longer reports the finding; a held listing leaves the scan targets/u,
+    /no longer reports the finding or the not-scannable package; a held listing leaves the scan targets/u,
   );
   const text = nextAction({
     subject_key: handoffSubject("release-content-finding", "port:alpha"),

@@ -531,7 +531,12 @@ A digest-verified report from scheduled run 43066038874 (2026-11-11) covered
   failures). Persistent codes are deterministic for the same release and
   limits: `no-release` and `no-single-asset` (nothing to download),
   `release-unavailable` (a redirect, 404 or 410), `asset-too-large`,
-  `digest-mismatch`, `encrypted-archive` and `unlistable`. Any other shape or
+  `digest-mismatch`, `encrypted-archive` and `unlistable`. The scan's
+  checkpoint remembers `asset-too-large`, `digest-mismatch` and
+  `encrypted-archive` for a downloaded asset and does not fetch it again for
+  the same release; `unlistable` is re-checked on every run, because a lister
+  or environment fault can cause it too
+  ([scan](UPSTREAM-OBSERVATIONS.md#release-content-scan)). Any other shape or
   code is unsupported and fails the read.
 - **Stored facts:** a port is a `port:<id>` fact only when none of its targets
   is deferred. The fact keeps each finding's platform, repository, tag, asset,
@@ -552,6 +557,15 @@ A digest-verified report from scheduled run 43066038874 (2026-11-11) covered
   findings on its deferral gap. A finding is therefore visible from a `partial`
   run, marked as not yet covering every target of the listing. A failed latest
   read is named while the stored findings stay visible.
+  - The section's "Not scannable" list shows every persistent not-scanned
+    target (listing, platform and code), from the stored facts and the
+    deferral gap.
+  - `digest-mismatch` (which can also mean altered bytes), `encrypted-archive`,
+    `unlistable`, `asset-too-large` and `release-unavailable` leave a package
+    nobody has inspected. They are listed under "Needs attention" as
+    `release content not scannable: <platform> <code>`.
+  - `no-release` and `no-single-asset` mean there is no package. They are
+    coverage notes and are never attention.
 - **Authority:** a finding is review evidence and never writes a hold. A person
   confirms it, and a reviewed catalog change sets the listing's
   `download_block_reason` under the
@@ -868,7 +882,7 @@ kind in code; it is never stored. Each entry names:
 | `upstream-observer-exception` | The observer's recorded rule and resume condition and a fix PR; `gh workflow run configured-upstream-observer.yml --ref main`                                     | Routine    | The next completed checkpoint snapshot                              |
 | `hosted-intake-blocked`       | `status --request <id> --json`; an owner reconciliation only when primary evidence changed, otherwise owner `process` dispatch ([route](DAILY-PORT-DISCOVERY.md)) | Owner only | A new bot receipt on #177                                           |
 | `hosted-intake-holds`         | `gh workflow run hosted-discovery-intake.yml --ref main -f mode=process`                                                                                          | Owner only | A new bot receipt on #177                                           |
-| `release-content-finding`     | A person confirms the flagged files, then a reviewed catalog PR sets `download_block_reason` when it is game data; no dispatch is offered                         | Routine    | The next scheduled main release-content scan no longer reports it   |
+| `release-content-finding`     | A person confirms the flagged files or inspects a package the scan could not read, then a reviewed catalog PR sets `download_block_reason` when it is game data   | Routine    | The next scheduled main release-content scan no longer reports it   |
 
 A test parses every referenced workflow and checks its name, trigger and input
 names against the registry.
@@ -919,9 +933,11 @@ subjects it did observe.
   - Hosted intake: the receipt comment, reconciliation and blocker code, or each
     held candidate's index, port key, repository ID, HTTP status and resume.
   - Release content: each stored finding's platform, repository, tag, asset,
-    SHA-256, rules version and signals. Only the stored facts of a `complete`
-    run decide it, so a finding opens no handoff while any target is
-    deferred; a held listing leaves the scan and its handoff clears.
+    SHA-256, rules version and signals, and the platform and code of each
+    not-scannable target that needs attention (coverage notes excluded). Only
+    the stored facts of a `complete` run decide it, so nothing opens a handoff
+    while any target is deferred; a held listing leaves the scan and its
+    handoff clears.
 - The assessment, transition and notification statements are the store's
   ordinary ones, so the existing guards apply. An unchanged condition resolves to
   the same assessment and records nothing. A changed condition is a new

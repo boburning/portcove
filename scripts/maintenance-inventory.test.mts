@@ -1459,6 +1459,67 @@ void test(
 );
 
 void test(
+  "packages the scan could not inspect are shown and open the release-content handoff",
+  { skip: server.skip ?? false, timeout: 240_000 },
+  async (context) => {
+    const fixture = postgresFixture(context, server.directory!);
+    const store = fixture.start("content-unscannable");
+    migrate(store.owner);
+    const { cli, responses } = stubCli(fixture.root);
+    writeFileSync(responses, JSON.stringify({ "2ship2harkinian": report("automatic") }));
+    const target = (platform: string, code: string) => ({
+      id: "2ship2harkinian",
+      platform,
+      code,
+      reason: `synthetic ${code}`,
+    });
+    await collect({
+      cli,
+      all: true,
+      ports: ["2ship2harkinian"],
+      releaseContent: () =>
+        Promise.resolve({
+          revision: `release-content-scan-run:1-1@${"c".repeat(40)}#sha256:${"d".repeat(64)}`,
+          report: scanReport({
+            scanned: [],
+            reused: 0,
+            reused_targets: [],
+            findings: [],
+            unscanned: [
+              target("linux-x86-64", "digest-mismatch"),
+              target("windows-x86-64", "no-single-asset"),
+            ],
+          }),
+        }),
+      environment: store.owner,
+      runner: "fixture",
+    });
+    const inventory = buildReport(store.owner);
+    assert.deepEqual(
+      inventory.handoffs?.map(({ kind, condition }) => [kind, condition]),
+      [
+        [
+          "release-content-finding",
+          { findings: [], unscannable: [{ platform: "linux-x86-64", code: "digest-mismatch" }] },
+        ],
+      ],
+    );
+    const html = renderHtml(inventory);
+    assert.ok(html.includes("release content not scannable: linux-x86-64 digest-mismatch"));
+    assert.ok(!html.includes("release content not scannable: windows-x86-64"));
+    assert.match(html, /<h3>Not scannable<\/h3>/u);
+    assert.match(
+      html,
+      /<td>linux-x86-64<\/td><td><code>digest-mismatch<\/code><\/td><td><span class="unknown">needs attention: a package exists that the scan could not inspect<\/span><\/td><td>release-content-finding: A person confirms/u,
+    );
+    assert.match(
+      html,
+      /<td>windows-x86-64<\/td><td><code>no-single-asset<\/code><\/td><td>coverage note: no package to scan<\/td><td><\/td>/u,
+    );
+  },
+);
+
+void test(
   "a finding on a port with deferred targets is visible from the latest scan's gap",
   { skip: server.skip ?? false, timeout: 240_000 },
   async (context) => {

@@ -1,10 +1,18 @@
 import assert from "node:assert/strict";
-import { writeFile } from "node:fs/promises";
+import { existsSync } from "node:fs";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
 import test from "node:test";
 import {
+  type Runner,
   type ScanDependencies,
   type UpstreamRelease,
+  RECORDED_FAILURES,
   ScanError,
+  hostedDependencies,
+  main,
+  readCheckpoint,
   channelRelease,
   listerFailure,
   permanentRelease,
@@ -434,6 +442,34 @@ void test("a persistent download failure is remembered and not fetched again for
       ["gitlab", "no-single-asset"],
     ],
   );
+  // An unlistable package is persistent for coverage but re-checked each run, since a
+  // lister or environment fault can cause it; each retry still spends the budgets.
+  assert.deepEqual(
+    [...RECORDED_FAILURES],
+    ["asset-too-large", "digest-mismatch", "encrypted-archive"],
+  );
+  const unlistable: ScanDependencies = {
+    ...deps,
+    async list() {
+      throw new ScanError("unlistable", "lister exited with status 2");
+    },
+  };
+  const firstUnlistable = await scan(targets, new Map(), unlistable);
+  assert.equal(firstUnlistable.failures.size, 0);
+  calls.length = 0;
+  const again = await scan(targets, firstUnlistable.checkpoint, unlistable, {
+    failures: firstUnlistable.failures,
+    maxAssets: 1,
+  });
+  assert.ok(calls.includes("download Code-1-windows-x64.zip"), "downloaded again");
+  assert.deepEqual(
+    again.report.unscanned.map(({ id, code }) => [id, code]),
+    [
+      ["code-only", "unlistable"],
+      ["header", "asset-budget"],
+      ["gitlab", "no-single-asset"],
+    ],
+  );
   // A transient failure is never remembered.
   const transient = await scan(targets, new Map(), {
     ...deps,
@@ -529,4 +565,103 @@ void test("a package whose reads the deadline cut is retried instead of recorded
   assert.equal(checkpoint.size, 0);
   assert.ok(report.unscanned.some((entry) => entry.reason.includes("cut by the time budget")));
   assert.ok(report.unscanned.some(({ code }) => code === "time-cut"));
+});
+
+void test("the hosted release read reports a redirect, 404 or 410 as unavailable without following it", async (context) => {
+  const seen: (RequestInit | undefined)[] = [];
+  let status = 301;
+  context.mock.method(globalThis, "fetch", async (_url: unknown, init?: RequestInit) => {
+    seen.push(init);
+    return new Response(status === 200 ? "[]" : null, { status });
+  });
+  const github = scanTargets(listings)[0]!;
+  const gitlab = scanTargets(listings)[2]!;
+  const outcome = async (target: typeof github) => {
+    try {
+      await hostedDependencies("token").releases(target);
+      return "ok";
+    } catch (error) {
+      return error instanceof ScanError ? error.code : "deferred";
+    }
+  };
+  for (const [code, expected] of [
+    [301, "release-unavailable"],
+    [404, "release-unavailable"],
+    [410, "release-unavailable"],
+    [500, "release-read-failed"],
+    [403, "release-read-failed"],
+    [200, "ok"],
+  ] as const) {
+    status = code;
+    assert.equal(await outcome(github), expected, String(code));
+  }
+  status = 404;
+  assert.equal(await outcome(gitlab), "release-unavailable");
+  assert.ok(seen.every((init) => init?.redirect === "manual"));
+});
+
+void test("a transfer that curl stops at --max-filesize is too large; other transfer failures are retried", async () => {
+  const failing = (fields: Record<string, unknown>): Runner =>
+    (async () => {
+      throw Object.assign(new Error("Command failed: curl"), fields);
+    }) as unknown as Runner;
+  const asset = { name: "a.zip", url: "https://example.invalid/a.zip", size: null, digest: null };
+  const outcome = async (fields: Record<string, unknown>) => {
+    try {
+      await hostedDependencies(undefined, failing(fields)).download(
+        asset,
+        "unused",
+        10,
+        Date.now() + 60_000,
+      );
+      return "ok";
+    } catch (error) {
+      return error instanceof ScanError ? error.code : "deferred";
+    }
+  };
+  assert.equal(await outcome({ code: 63, killed: false, signal: null }), "asset-too-large");
+  assert.equal(await outcome({ code: 22, killed: false, signal: null }), "deferred");
+  assert.equal(await outcome({ code: null, killed: true, signal: "SIGKILL" }), "deferred");
+});
+
+void test("the CLI keeps only current, remembered failures and refuses a scan with no targets", async (context) => {
+  const { RULES_VERSION } = await import("./release-content-signals.mts");
+  const dir = await mkdtemp(path.join(os.tmpdir(), "release-scan-cli-"));
+  context.after(() => rm(dir, { recursive: true, force: true }));
+  const checkpoint = path.join(dir, "checkpoint.json");
+  const current = `r${RULES_VERSION}|github|up/a|v1|a.zip|10`;
+  await writeFile(
+    checkpoint,
+    JSON.stringify({
+      format_version: 1,
+      records: [
+        { key: current, rules: RULES_VERSION, signals: [] },
+        { key: "r0|github|up/a|v1|a.zip|10", rules: 0, signals: [] },
+      ],
+      failures: [
+        { key: current, code: "encrypted-archive", max_asset_bytes: 100 },
+        { key: `${current}|b`, code: "unlistable", max_asset_bytes: 100 },
+        { key: "r0|github|up/a|v1|a.zip|10", code: "digest-mismatch", max_asset_bytes: 100 },
+        { key: `${current}|c`, code: "asset-too-large", max_asset_bytes: "big" },
+      ],
+    }),
+  );
+  const loaded = await readCheckpoint(checkpoint);
+  assert.deepEqual([...loaded.records.keys()], [current]);
+  assert.deepEqual(
+    [...loaded.failures.values()].map(({ key, code }) => [key, code]),
+    [[current, "encrypted-archive"]],
+  );
+  const missing = await readCheckpoint(path.join(dir, "absent.json"));
+  assert.equal(missing.records.size + missing.failures.size, 0);
+  assert.equal((await readCheckpoint("-")).records.size, 0);
+
+  const empty = path.join(dir, "listings.json");
+  await writeFile(empty, "{}");
+  const output = path.join(dir, "report.json");
+  await assert.rejects(
+    main(["scan", "--listings", empty, "--checkpoint", "-", "--output", output]),
+    /The listings offer no scan targets/u,
+  );
+  assert.equal(existsSync(output), false, "no report is written");
 });

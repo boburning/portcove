@@ -104,11 +104,15 @@ export interface ScanFailure {
   max_asset_bytes: number;
 }
 
-const RECORDED_FAILURES: readonly UnscannedCode[] = [
+/**
+ * Persistent download failures the checkpoint remembers. `unlistable` is
+ * persistent for coverage but re-checked each run, because a lister or
+ * environment fault can cause it as well as the package.
+ */
+export const RECORDED_FAILURES: readonly UnscannedCode[] = [
   "asset-too-large",
   "digest-mismatch",
   "encrypted-archive",
-  "unlistable",
 ];
 
 /** A failure whose cause the scan knows; any other error is a deferred `scan-failed`. */
@@ -459,7 +463,10 @@ export function listerFailure(error: unknown, sevenZip = false): unknown {
     : new ScanError("unlistable", `the lister exited with status ${failure.code}`);
 }
 
-export const hostedDependencies = (token?: string): ScanDependencies => ({
+/** The child-process runner the hosted listers use; tests pass their own. */
+export type Runner = typeof run;
+
+export const hostedDependencies = (token?: string, exec: Runner = run): ScanDependencies => ({
   async releases(target) {
     if (target.provider === "github") {
       const list = (await json(
@@ -496,7 +503,7 @@ export const hostedDependencies = (token?: string): ScanDependencies => ({
     }));
   },
   async download(asset, file, maxBytes, stopAt) {
-    await run(
+    await exec(
       "curl",
       [
         "-fsSL",
@@ -523,7 +530,7 @@ export const hostedDependencies = (token?: string): ScanDependencies => ({
     const timeout = callTimeout(TOOL_TIMEOUT_MS, stopAt);
     if (lower.endsWith(".appimage")) {
       const offset = await squashfsOffset(file);
-      const { stdout } = await run("unsquashfs", ["-o", String(offset), "-lls", file], {
+      const { stdout } = await exec("unsquashfs", ["-o", String(offset), "-lls", file], {
         timeout,
       }).catch((error: unknown) => {
         throw listerFailure(error);
@@ -531,13 +538,13 @@ export const hostedDependencies = (token?: string): ScanDependencies => ({
       return parseUnsquashfs(String(stdout));
     }
     if (/\.(tar\.gz|tgz|tar\.xz|txz)$/.test(lower)) {
-      const { stdout } = await run("tar", ["-tvf", file], { timeout }).catch((error: unknown) => {
+      const { stdout } = await exec("tar", ["-tvf", file], { timeout }).catch((error: unknown) => {
         throw listerFailure(error);
       });
       return parseTarVerbose(String(stdout));
     }
     // A dummy password makes encrypted archives fail instead of waiting for input.
-    const { stdout } = await run("7z", ["l", "-ba", "-slt", "-pportcove-scan", "--", file], {
+    const { stdout } = await exec("7z", ["l", "-ba", "-slt", "-pportcove-scan", "--", file], {
       timeout,
     }).catch((error: unknown) => {
       throw listerFailure(error, true);
@@ -559,7 +566,7 @@ export const hostedDependencies = (token?: string): ScanDependencies => ({
       else if (offset) args = ["unsquashfs", ["-o", offset, "-cat", file, member]];
       else args = ["7z", ["e", "-so", "-pportcove-scan", "--", file, member]];
       try {
-        const { stdout } = await run(args[0], args[1], {
+        const { stdout } = await exec(args[0], args[1], {
           timeout: callTimeout(TOOL_TIMEOUT_MS, stopAt),
           encoding: "buffer",
           maxBuffer: Math.max(entry.size, HEAD_BYTES) + 1024,
@@ -667,7 +674,33 @@ export const escapeCommand = (text: string) =>
 
 // ---- Command line -----------------------------------------------------------
 
-async function main(argv: string[]) {
+/** The checkpoint's scanned records and remembered failures under the current rules. */
+export async function readCheckpoint(file: string | undefined) {
+  const records = new Map<string, ScanRecord>();
+  const failures = new Map<string, ScanFailure>();
+  if (!file || file === "-") return { records, failures };
+  try {
+    const stored = JSON.parse(await readFile(file, "utf8")) as {
+      records?: ScanRecord[];
+      failures?: ScanFailure[];
+    };
+    for (const record of stored.records ?? [])
+      if (record.rules === RULES_VERSION) records.set(record.key, record);
+    for (const failure of stored.failures ?? [])
+      if (
+        typeof failure.key === "string" &&
+        failure.key.startsWith(`r${RULES_VERSION}|`) &&
+        RECORDED_FAILURES.includes(failure.code) &&
+        Number.isSafeInteger(failure.max_asset_bytes)
+      )
+        failures.set(failure.key, failure);
+  } catch {
+    // A missing or unreadable checkpoint scans from scratch.
+  }
+  return { records, failures };
+}
+
+export async function main(argv: string[]) {
   const option = (name: string) => {
     const at = argv.indexOf(name);
     return at >= 0 ? argv[at + 1] : undefined;
@@ -692,29 +725,7 @@ async function main(argv: string[]) {
     process.exit(2);
   }
   const targets = scanTargets(JSON.parse(await readFile(option("--listings")!, "utf8")));
-  const checkpointPath = option("--checkpoint");
-  const previous = new Map<string, ScanRecord>();
-  const failures = new Map<string, ScanFailure>();
-  if (checkpointPath && checkpointPath !== "-") {
-    try {
-      const stored = JSON.parse(await readFile(checkpointPath, "utf8")) as {
-        records?: ScanRecord[];
-        failures?: ScanFailure[];
-      };
-      for (const record of stored.records ?? [])
-        if (record.rules === RULES_VERSION) previous.set(record.key, record);
-      for (const failure of stored.failures ?? [])
-        if (
-          typeof failure.key === "string" &&
-          failure.key.startsWith(`r${RULES_VERSION}|`) &&
-          RECORDED_FAILURES.includes(failure.code) &&
-          Number.isSafeInteger(failure.max_asset_bytes)
-        )
-          failures.set(failure.key, failure);
-    } catch {
-      // A missing or unreadable checkpoint scans from scratch.
-    }
-  }
+  const { records: previous, failures } = await readCheckpoint(option("--checkpoint"));
   const numeric = (name: string) => {
     const value = option(name);
     if (value === undefined) return undefined;

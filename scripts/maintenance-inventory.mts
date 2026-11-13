@@ -48,6 +48,7 @@ import {
   releaseContentAttention,
   releaseContentFacts,
   releaseContentFindings,
+  releaseContentUnscannable,
   type ReleaseContentInput,
 } from "./maintenance-release-content.mts";
 import {
@@ -3066,10 +3067,31 @@ function releaseContentSection(report: InventoryReport) {
   const attempt = failedAttempt(report, "release-content");
   const seen = new Set<string>();
   const rows: string[] = [];
+  const unscannable: string[] = [];
   for (const subject of report.subjects as Record<string, unknown>[]) {
     const port = String(subject.port_key);
     if (seen.has(port)) continue;
     seen.add(port);
+    const listing = `${escapeHtml(port)}${
+      (subject.identity as { name?: string } | undefined)?.name
+        ? `<br>${escapeHtml((subject.identity as { name: string }).name)}`
+        : ""
+    }`;
+    for (const target of releaseContentUnscannable(
+      subject.release_content,
+      subject.latest_content_gap,
+    ))
+      unscannable.push(
+        `<tr><td>${listing}</td><td>${escapeHtml(target.platform)}</td><td><code>${escapeHtml(target.code)}</code></td><td>${
+          target.attention
+            ? '<span class="unknown">needs attention: a package exists that the scan could not inspect</span>'
+            : "coverage note: no package to scan"
+        }</td><td>${
+          target.attention
+            ? escapeHtml(nextActions(report, port, subject.subject_key).join("; "))
+            : ""
+        }</td></tr>`,
+      );
     const stored = new Set(
       releaseContentFindings(subject.release_content).map(
         ({ platform, asset, sha256: digest }) => `${platform}\t${asset}\t${digest}`,
@@ -3102,6 +3124,15 @@ ${
 ${rows.join("\n")}
 </tbody></table>`
     : "<p>No flagged release packages.</p>"
+}
+<h3>Not scannable</h3>
+<p>Targets no run scans under the current release and limits. A digest mismatch, an encrypted or unlistable archive, an asset over the size limit or an unavailable release leaves a package nobody has inspected, so it needs the same review; no release or no single hinted asset is a coverage note.</p>
+${
+  unscannable.length
+    ? `<table><thead><tr><th>Listing</th><th>Platform</th><th>Code</th><th>Meaning</th><th>Next action</th></tr></thead><tbody>
+${unscannable.join("\n")}
+</tbody></table>`
+    : "<p>No not-scannable targets.</p>"
 }`;
 }
 

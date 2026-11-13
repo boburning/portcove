@@ -4,6 +4,7 @@ import {
   releaseContentAttention,
   releaseContentFacts,
   releaseContentFindings,
+  releaseContentUnscannable,
 } from "./maintenance-release-content.mts";
 import { PERSISTENT_UNSCANNED, targetsDigest } from "./release-content-scan.mts";
 
@@ -174,6 +175,30 @@ void test("every persistent scan code is a stored unscannable target", () => {
     [...PERSISTENT_UNSCANNED],
   );
   assert.ok(!gaps.some(({ subject_key }) => subject_key === "port:eta"));
+});
+
+void test("every not-scannable target is shown; packages nobody inspected need attention", () => {
+  const value = report();
+  value.unscanned.push(
+    unscanned("epsilon", "linux-x86-64", "encrypted-archive"),
+    unscanned("delta", "windows-x86-64", "no-release"),
+  );
+  const { facts, gaps } = releaseContentFacts(bound(value));
+  const delta = facts.get("port:delta");
+  assert.deepEqual(releaseContentUnscannable(delta), [
+    { platform: "linux-x86-64", code: "asset-too-large", attention: true },
+    { platform: "windows-x86-64", code: "no-release", attention: false },
+  ]);
+  assert.deepEqual(releaseContentAttention(delta), [
+    "release content not scannable: linux-x86-64 asset-too-large",
+  ]);
+  assert.deepEqual(releaseContentAttention(facts.get("port:gamma")), [], "a coverage note only");
+  // A deferred port's persistent targets are visible from its gap.
+  const epsilon = gaps.find(({ subject_key }) => subject_key === "port:epsilon")!;
+  assert.deepEqual(releaseContentAttention(null, epsilon), [
+    "release content not scannable: linux-x86-64 encrypted-archive",
+  ]);
+  assert.equal(releaseContentUnscannable(epsilon, epsilon).length, 1, "shown once");
 });
 
 void test("an unsupported or inconsistent report is refused", () => {

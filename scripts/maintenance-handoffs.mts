@@ -18,7 +18,10 @@ import { MaintenanceStoreError, runSql } from "./maintenance-store.mts";
 import { attentionConditions } from "./maintenance-release-health.mts";
 import { upstreamExceptions } from "./maintenance-upstream.mts";
 import { hostedIntakeAttention, type HostedIntakeFact } from "./maintenance-hosted-intake.mts";
-import { releaseContentFindings } from "./maintenance-release-content.mts";
+import {
+  releaseContentFindings,
+  releaseContentUnscannable,
+} from "./maintenance-release-content.mts";
 import { originalLocationReasons } from "./upstream-location-reasons.mts";
 import { isRecord } from "./runtime-values.mts";
 
@@ -176,9 +179,9 @@ export const handoffRegistry: readonly HandoffEntry[] = [
     kind: "release-content-finding",
     source: "release-content",
     action:
-      "A person confirms the flagged files against the package. If it bundles original game data, a reviewed catalog change sets the listing's download_block_reason (docs/CATALOG.md#rights-basis-for-upstream-hosted-packages); the finding itself never writes a hold.",
+      "A person confirms the flagged files against the package, and inspects manually any package the scan could not read (digest mismatch, encrypted, unlistable, over the size limit or release unavailable). If it bundles original game data, a reviewed catalog change sets the listing's download_block_reason (docs/CATALOG.md#rights-basis-for-upstream-hosted-packages); the scan itself never writes a hold.",
     invocation:
-      "Review the finding's package entries in the scan report, then a reviewed catalog PR setting download_block_reason when it is game data; the next scheduled run of release-content-scan.yml on main reports the result",
+      "Review the finding's package entries in the scan report, or download and inspect the unscannable package, then a reviewed catalog PR setting download_block_reason when it is game data; the next scheduled run of release-content-scan.yml on main reports the result",
     authority: "routine",
     executor: "release-content-scan.yml",
     workflow: {
@@ -188,7 +191,7 @@ export const handoffRegistry: readonly HandoffEntry[] = [
       inputs: [],
     },
     receipt:
-      "The next scheduled main release-content scan report no longer reports the finding; a held listing leaves the scan targets.",
+      "The next scheduled main release-content scan report no longer reports the finding or the not-scannable package; a held listing leaves the scan targets.",
     dispatch: "disabled",
     disabled_reason:
       "Confirming game data needs a person to review the package, the hold is a reviewed catalog change, and only a scheduled main report counts (a dispatched scan is never read as the receipt); no executor is authorized to open or merge that change unattended.",
@@ -371,12 +374,16 @@ export function hostedIntakeHandoffs(facts: ReadonlyMap<string, unknown>): Hando
   return result;
 }
 
-/** Flagged release packages per port, from stored facts only. */
+/** Flagged release packages and packages the scan could not inspect, per port, from stored facts only. */
 export function releaseContentHandoffs(facts: ReadonlyMap<string, unknown>): HandoffCondition[] {
   const result: HandoffCondition[] = [];
   for (const [source, payload] of facts) {
     const findings = releaseContentFindings(payload);
-    if (findings.length)
+    // Coverage notes (no release, no single asset) are not attention.
+    const unscannable = releaseContentUnscannable(payload)
+      .filter(({ attention }) => attention)
+      .map(({ platform, code }) => ({ platform, code }));
+    if (findings.length || unscannable.length)
       result.push({
         kind: "release-content-finding",
         source,
@@ -392,6 +399,7 @@ export function releaseContentHandoffs(facts: ReadonlyMap<string, unknown>): Han
               signals: signals.map(({ path, kind, reason }) => ({ path, kind, reason })),
             }),
           ),
+          unscannable,
         },
       });
   }

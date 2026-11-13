@@ -65,6 +65,8 @@ export interface ReleaseContentGap {
   message: string;
   deferred: { platform: string; code: string }[];
   findings: ContentFinding[];
+  /** Persistent not-scanned targets this report already has for the port. */
+  unscannable: { platform: string; code: string }[];
 }
 
 const text = (value: unknown): value is string => typeof value === "string" && value.length > 0;
@@ -189,6 +191,7 @@ export function releaseContentFacts(report: unknown) {
           .join(", ")}); prior facts stay current.`,
         deferred: pending,
         findings: found,
+        unscannable: ordered(unscannable.get(id)),
       });
     else facts.set(`port:${id}`, { findings: found, unscannable: ordered(unscannable.get(id)) });
   }
@@ -303,12 +306,50 @@ export function releaseContentFindings(payload: unknown, gap?: unknown): Content
   });
 }
 
-/** "Needs attention" text for each flagged package. */
+/**
+ * Not-scannable codes that are only coverage notes: the listing's channel has
+ * no release, or its hints select no single asset, so there is no package.
+ */
+export const benignUnscannable: readonly string[] = ["no-release", "no-single-asset"];
+
+export interface UnscannableTarget {
+  platform: string;
+  code: string;
+  /** False for a coverage note; true when a package exists that nobody has inspected. */
+  attention: boolean;
+}
+
+/**
+ * A port's persistent not-scanned targets, from its stored facts and from the
+ * latest scan's deferral gap. Every one is shown; all but the coverage notes
+ * need attention, because a package exists that the scan could not inspect
+ * (`digest-mismatch` may also mean the bytes were altered).
+ */
+export function releaseContentUnscannable(payload: unknown, gap?: unknown): UnscannableTarget[] {
+  const listed = (value: unknown) => {
+    const list = (value as { unscannable?: unknown } | null | undefined)?.unscannable;
+    return Array.isArray(list) ? (list as { platform: string; code: string }[]) : [];
+  };
+  const seen = new Set<string>();
+  return [...listed(payload), ...listed(gap)].flatMap(({ platform, code }) => {
+    const key = `${platform}\t${code}`;
+    if (seen.has(key)) return [];
+    seen.add(key);
+    return [{ platform, code, attention: !benignUnscannable.includes(code) }];
+  });
+}
+
+/** "Needs attention" text for each flagged package and each package the scan could not inspect. */
 export function releaseContentAttention(payload: unknown, gap?: unknown) {
-  return releaseContentFindings(payload, gap).map(
-    (entry) =>
-      `release content: ${entry.platform} ${entry.tag} ${entry.asset} (${entry.signals
-        .map(({ path, reason }) => `${path}: ${reason}`)
-        .join("; ")})`,
-  );
+  return [
+    ...releaseContentFindings(payload, gap).map(
+      (entry) =>
+        `release content: ${entry.platform} ${entry.tag} ${entry.asset} (${entry.signals
+          .map(({ path, reason }) => `${path}: ${reason}`)
+          .join("; ")})`,
+    ),
+    ...releaseContentUnscannable(payload, gap)
+      .filter(({ attention }) => attention)
+      .map(({ platform, code }) => `release content not scannable: ${platform} ${code}`),
+  ];
 }
