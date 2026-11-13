@@ -19,6 +19,8 @@ import { postgresFixture, postgresServer } from "./fixtures/postgres-cluster.mts
 import {
   deferralChanges,
   deliveryFacts,
+  reassessmentTriggers,
+  subjectReassessment,
   sourceFreshness,
   subjectFilterSource,
   qualificationSummary,
@@ -42,6 +44,7 @@ import {
   takeIssueCredential,
   writeReport,
   type DefinitionDeliveryInspection,
+  type SubjectReassessment,
   type InventoryReport,
 } from "./maintenance-inventory.mts";
 import type { UpstreamInput } from "./maintenance-upstream.mts";
@@ -897,8 +900,12 @@ void test(
     const current = (environment: NodeJS.ProcessEnv) =>
       runSql(
         environment,
-        `SELECT json_agg(json_build_object('subject', c.subject_key, 'result', c.result_digest) ORDER BY c.subject_key)
-           FROM portcove_maintenance.subject_current c WHERE c.subject_key LIKE 'port:2ship2harkinian@%';`,
+        // The whole applicable assessment agrees, not only its result.
+        `SELECT json_agg(json_build_object('subject', c.subject_key, 'result', c.result_digest,
+             'state', a.state, 'policy', a.policy_version, 'input', a.input_digest) ORDER BY c.subject_key)
+           FROM portcove_maintenance.subject_current c
+           JOIN portcove_maintenance.assessments a ON a.assessment_id = c.applicable_assessment_id
+          WHERE c.subject_key LIKE 'port:2ship2harkinian@%';`,
       ).trim();
     assert.equal(current(incremental.owner), current(direct.owner));
     assert.equal(
@@ -2346,6 +2353,13 @@ void test(
     );
     await assert.rejects(readTargetRoutes(cli, ["2ship2harkinian"]), /unsupported|format/iu);
     assert.match(renderHtml(inventory), /Offered for a fresh library/u);
+    // Each subject names when its inputs last changed, from stored observations.
+    const shipInputs = (
+      inventory.subjects as { port_key: string; reassessment: SubjectReassessment }[]
+    ).find(({ port_key }) => port_key === "port:2ship2harkinian")?.reassessment;
+    assert.ok(shipInputs?.catalog_changed_at && shipInputs.core_output_changed_at);
+    assert.ok(shipInputs.inputs_unchanged_since && shipInputs.last_verified_at);
+    assert.match(renderHtml(inventory), /Inputs last changed/u);
     assert.equal(
       targetSummary({
         presence: "not_found",
@@ -2915,4 +2929,28 @@ void test("source freshness ages the last good read against the report and flags
       ["never", null, true],
     ],
   );
+});
+
+void test("each subject names its assessment inputs, when they last changed and what reassesses it", () => {
+  assert.deepEqual(
+    subjectReassessment({
+      platform: "linux-x86-64",
+      assessed_at: "2026-11-10T00:00:00Z",
+      verified_at: "2026-11-13T00:00:00Z",
+      observations: [
+        { source: "catalog-records", observed_at: "2026-11-01T00:00:00Z" },
+        { source: "core-port-capabilities-linux-x86-64", observed_at: "2026-11-10T00:00:00Z" },
+        // Another host's Core output is never this subject's input.
+        { source: "core-port-capabilities-windows-x86-64", observed_at: "2026-11-12T00:00:00Z" },
+      ],
+    }),
+    {
+      depends_on: ["catalog-records", "core-port-capabilities-linux-x86-64", "assessment policy"],
+      catalog_changed_at: "2026-11-01T00:00:00Z",
+      core_output_changed_at: "2026-11-10T00:00:00Z",
+      inputs_unchanged_since: "2026-11-10T00:00:00Z",
+      last_verified_at: "2026-11-13T00:00:00Z",
+    },
+  );
+  assert.equal(reassessmentTriggers.length, 3);
 });

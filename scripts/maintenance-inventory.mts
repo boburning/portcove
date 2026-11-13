@@ -2125,6 +2125,50 @@ export function deferralChanges(
   });
 }
 
+/**
+ * What a subject's Core assessment depends on and what would reassess it.
+ * Every complete run re-reads Core for every port, but only a change in one of
+ * these inputs records a new assessment; only a changed result records a
+ * transition. Rebuilds, failed and partial runs record neither.
+ */
+export const reassessmentTriggers = [
+  "its catalog fact changes (authored record, operational definition or scoped qualification at the pinned revision)",
+  "Core's output for the port changes (embedded catalog and listings, Core code, catalog-wide hold policy, or clock-dated recommendation observations)",
+  "the assessment policy changes (Core API schema or projection version)",
+] as const;
+
+export interface SubjectReassessment {
+  depends_on: string[];
+  /** When the catalog fact last changed: its latest changes-only observation. */
+  catalog_changed_at: string | null;
+  /** When Core's output for this port and platform last changed. */
+  core_output_changed_at: string | null;
+  /** The applicable assessment's time: its inputs are unchanged since then. */
+  inputs_unchanged_since: string | null;
+  /** The latest Core run that re-read the subject and found the same inputs. */
+  last_verified_at: string | null;
+}
+
+/** Derives a subject's reassessment basis from its stored provenance and observations. */
+export function subjectReassessment(subject: {
+  platform?: string | null;
+  assessed_at?: string | null;
+  verified_at?: string | null;
+  observations?: { source: string; observed_at: string }[] | null;
+}): SubjectReassessment {
+  const observed = (source: string) =>
+    (subject.observations ?? []).find((observation) => observation.source === source)
+      ?.observed_at ?? null;
+  const core = subject.platform ? coreSourceName(subject.platform) : null;
+  return {
+    depends_on: ["catalog-records", ...(core ? [core] : []), "assessment policy"],
+    catalog_changed_at: observed("catalog-records"),
+    core_output_changed_at: core ? observed(core) : null,
+    inputs_unchanged_since: subject.assessed_at ?? null,
+    last_verified_at: subject.verified_at ?? null,
+  };
+}
+
 /** A source older than this, relative to the report, is flagged stale (the schedule is daily). */
 export const staleSourceHours = 36;
 
@@ -2375,6 +2419,7 @@ export function buildReport(environment: NodeJS.ProcessEnv, now = new Date()): I
       const target = subject.identity?.target_key;
       return {
         ...subject,
+        reassessment: subjectReassessment(subject as Parameters<typeof subjectReassessment>[0]),
         alternatives: target
           ? (byTarget.get(target) ?? []).filter((key) => key !== subject.port_key)
           : [],
@@ -2618,7 +2663,7 @@ export function qualificationSummary(fact: TargetRoutesFact | null | undefined) 
 export const subjectFilterSource = `function subjectRowText(subject) {
   return [subject.subject_key, subject.name, subject.game, subject.target_key,
     ...(subject.alternatives || []), subject.state, subject.verified_at, subject.changed_at,
-    ...(subject.work || []), subject.upstream, subject.offered, subject.qualified,
+    ...(subject.work || []), subject.inputs, subject.upstream, subject.offered, subject.qualified,
     subject.latest_health_gap, ...(subject.attention || []), ...(subject.next_actions || []),
     subject.latest_core_gap ? subject.latest_core_gap.code : ""]
     .filter((value) => typeof value === "string" && value).join(" ").toLowerCase();
@@ -2666,7 +2711,17 @@ export function renderHtml(report: InventoryReport) {
         upstream,
         latest_upstream_gap,
         target_routes,
+        reassessment,
       }) => ({
+        inputs: (() => {
+          const value = reassessment as SubjectReassessment | undefined;
+          if (!value) return null;
+          return [
+            `catalog fact changed ${value.catalog_changed_at ?? "never observed"}`,
+            `Core output changed ${value.core_output_changed_at ?? "never observed"}`,
+            `assessed on these inputs ${value.inputs_unchanged_since ?? "never"}`,
+          ].join("; ");
+        })(),
         offered: targetSummary(target_routes as TargetRoutesFact | null | undefined),
         qualified: qualificationSummary(target_routes as TargetRoutesFact | null | undefined),
         attention: [
@@ -2774,6 +2829,7 @@ ${hostedIntakeSection(report)}
 <input id="universe-search" type="search" placeholder="Name, game, port key or identity">
 <table><thead><tr><th>Identity</th><th>Kind</th><th>Name and game</th><th>Port keys</th><th>Related</th></tr></thead><tbody id="universe"></tbody></table>
 <h2>Subjects</h2>
+<p>Every complete run re-reads Core for every port. A port is reassessed, recording a new assessment, only when ${reassessmentTriggers.map(escapeHtml).join("; or ")}. Only a changed result records a change; rebuilds and failed or partial runs record nothing. "Last verified" is the latest run that re-read the port and found the same inputs.</p>
 <form id="filters" role="search" onsubmit="return false">
 <label for="search">Search every column</label>
 <input id="search" type="search" placeholder="Port, game, issue, upstream, offering, attention or action">
@@ -2786,7 +2842,7 @@ ${hostedIntakeSection(report)}
 <label><input id="attention" type="checkbox"> Needs attention or has a next action</label>
 </form>
 <p id="shown" aria-live="polite"></p>
-<table><thead><tr><th>Subject</th><th>Name and game</th><th>Alternatives</th><th>Core assessment</th><th>Changes</th><th>Last verified</th><th>Last changed</th><th>Latest Core run</th><th>Work</th><th>Upstream</th><th>Offered for a fresh library</th><th>Qualification for the offered artifact (Core)</th><th>Needs attention</th><th>Next action</th></tr></thead><tbody id="subjects"></tbody></table>
+<table><thead><tr><th>Subject</th><th>Name and game</th><th>Alternatives</th><th>Core assessment</th><th>Changes</th><th>Last verified</th><th>Last changed</th><th>Inputs last changed</th><th>Latest Core run</th><th>Work</th><th>Upstream</th><th>Offered for a fresh library</th><th>Qualification for the offered artifact (Core)</th><th>Needs attention</th><th>Next action</th></tr></thead><tbody id="subjects"></tbody></table>
 <script id="inventory" type="application/json">${embedded}</script>
 <script>
 const report = JSON.parse(document.getElementById("inventory").textContent);
@@ -2821,7 +2877,7 @@ function render() {
       ? "not assessed: " + subject.latest_core_gap.code
       : subject.latest_core_run === "assessed" ? "assessed"
       : subject.latest_core_run === "removed" ? "removed from the catalog" : "not in latest run";
-    for (const value of [subject.subject_key, [subject.name, subject.game].filter(Boolean).join(" — "), (subject.alternatives ?? []).join(", "), subject.state, String(subject.sequence), subject.verified_at, subject.changed_at, gap, (subject.work ?? []).join("; ") || "no linked issue observed", subject.upstream || "not observed", subject.offered || "not observed", subject.qualified || "not observed", [subject.latest_health_gap ? "health not fresh: " + subject.latest_health_gap : "", ...(subject.attention ?? [])].filter(Boolean).join("; "), (subject.next_actions ?? []).join("; ")])
+    for (const value of [subject.subject_key, [subject.name, subject.game].filter(Boolean).join(" — "), (subject.alternatives ?? []).join(", "), subject.state, String(subject.sequence), subject.verified_at, subject.changed_at, subject.inputs || "not observed", gap, (subject.work ?? []).join("; ") || "no linked issue observed", subject.upstream || "not observed", subject.offered || "not observed", subject.qualified || "not observed", [subject.latest_health_gap ? "health not fresh: " + subject.latest_health_gap : "", ...(subject.attention ?? [])].filter(Boolean).join("; "), (subject.next_actions ?? []).join("; ")])
       row.insertCell().textContent = value;
   }
   document.getElementById("shown").textContent = shown + " of " + allSubjects.length + " subjects shown.";

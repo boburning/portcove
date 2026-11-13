@@ -136,6 +136,23 @@ in this section runs unchanged against any PostgreSQL host and generic runner.
   transaction runs at `READ COMMITTED`, so its checks see every run committed
   while it waited for its locks.
 
+- **Reassessment.** Every complete collection re-reads Core for every authored
+  port; with unchanged inputs that only re-verifies (`verified_run_id`,
+  `verified_at`). A new assessment is recorded only when the subject's catalog
+  fact changes (authored record, operational definition or scoped
+  qualification at the pinned revision), Core's output for the port changes
+  (embedded catalog and listings, Core code, catalog-wide hold policy, the
+  platform, or recommendation observations Core filters by the current time),
+  or the assessment policy changes (API schema or projection version). Only a
+  changed result records a transition. Rebuilds, failed and partial runs record
+  neither. The report shows each subject's `reassessment`: what it depends on,
+  when its catalog fact and Core output last changed, since when its inputs are
+  unchanged and when it was last re-verified.
+  - Selective reuse (skipping Core for unchanged inputs) is not built: Core is
+    rebuilt from a new commit almost every day, its output depends on the
+    current time, so no sound reuse key would match, and the full read fits the
+    collection budget (about 350 s of a 40-minute step). Reconsider only if the
+    collection approaches its budget.
 - **Reconsiderations.** Typed as `technical_hold`, `intentional_deferral`,
   `upstream_change` or `evidence_refresh`, each with the owner or policy reference
   required to revisit it. Conditions are immutable, and an intentional deferral is
