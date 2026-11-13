@@ -16,7 +16,6 @@ import stat
 import sys
 import time
 
-
 # Fetch and enumerate one extra commit so the application reader detects overflow.
 APPLICATION_HISTORY_PROBE = 3201
 
