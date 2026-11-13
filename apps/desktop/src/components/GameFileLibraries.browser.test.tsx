@@ -2157,6 +2157,74 @@ it("counts every stored match and shows more of them a page at a time", async ()
   expect(desktopApi.importSource).not.toHaveBeenCalled();
 });
 
+it("reviews and adds games whose matches were shown beyond the scan preview", async () => {
+  const stored = storedMatchesSnapshot();
+  vi.mocked(desktopApi.gameFileScanSnapshot).mockResolvedValue(stored);
+  const paged: SourceRecord = {
+    ...savedCandidate,
+    profile_id: "paged",
+    path: "D:/Games/paged.z64",
+    sha256: "c".repeat(64),
+  };
+  vi.spyOn(desktopApi, "gameFileScanMatches").mockResolvedValue({
+    scan_id: stored.matches!.scan_id,
+    kind: "exact",
+    offset: 1,
+    total: 2,
+    candidates: [paged],
+    preliminary_selections: [],
+    next_offset: null,
+  });
+  vi.spyOn(desktopApi, "addGamesToLibrary").mockResolvedValue([]);
+  const port = {
+    ...portDefinition(),
+    id: "paged-port",
+    name: "Paged port",
+    source_profile: "paged",
+  };
+  const status = {
+    ...portStatus(),
+    port_id: port.id,
+    port_actions: [
+      {
+        action: "install" as const,
+        availability: "allowed" as const,
+        reason: "available" as const,
+      },
+    ],
+  };
+  await root.rerender(
+    <SetupReviewSelectionProvider>
+      <GameFileLibraries
+        generation={1}
+        ports={[port]}
+        profiles={[{ ...sourceProfile(), id: "paged" }]}
+        registeredSources={[paged]}
+        statuses={new Map([[port.id, status]])}
+        onOpenPort={vi.fn()}
+      />
+    </SetupReviewSelectionProvider>,
+  );
+  await click("Refresh folders");
+  expect(document.querySelectorAll("[data-setup-review-port]")).toHaveLength(0);
+  await click("Show more matches");
+  expect(document.querySelectorAll("[data-setup-review-port]")).toHaveLength(1);
+  await act(async () =>
+    document.querySelector<HTMLInputElement>("[data-setup-review-port]")!.click(),
+  );
+  await click("Add 1 selected to Library");
+  expect(desktopApi.addGamesToLibrary).toHaveBeenCalledWith(
+    [
+      {
+        port_id: port.id,
+        origin: "game_file_discovery",
+        sources: [{ profile_id: "paged", sha256: paged.sha256 }],
+      },
+    ],
+    1,
+  );
+});
+
 it("reloads the saved scan instead of mixing pages when a newer scan replaced it", async () => {
   const stored = storedMatchesSnapshot();
   vi.mocked(desktopApi.gameFileScanSnapshot).mockResolvedValue(stored);

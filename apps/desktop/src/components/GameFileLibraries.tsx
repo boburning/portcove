@@ -399,10 +399,11 @@ function useMoreMatches(
   };
 }
 
+type ShownMatches = ReturnType<typeof useMoreMatches>;
+
 function CompletedScan({
   snapshot,
-  generation,
-  onReload,
+  more,
   readConfirmed,
   roots,
   ports,
@@ -416,8 +417,7 @@ function CompletedScan({
   review,
 }: {
   snapshot?: GameFileScanSnapshot | null | undefined;
-  generation: number;
-  onReload: () => void;
+  more: ShownMatches;
   readConfirmed: boolean;
   roots?: GameFileRoot[] | undefined;
   ports: PortDefinition[];
@@ -430,7 +430,6 @@ function CompletedScan({
   busy: boolean;
   review: (candidate: Pick<SourceRecord, "profile_id" | "path">) => void;
 }) {
-  const more = useMoreMatches(snapshot, generation, onReload);
   const report = snapshot?.report;
   if (!snapshot || !report) return null;
   const coverage = snapshot.coverage;
@@ -846,6 +845,13 @@ export function GameFileLibraries({
   const [error, setError] = useState<string>();
   const view = useSavedFolderView(generation, setError);
   const { roots, snapshot, readConfirmed, refresh, refreshRoots, acceptRootPreflight } = view;
+  // Every match the player has seen: the snapshot preview plus pages shown
+  // with Show more. Adding, setup reviews and folder choices use the same set.
+  const more = useMoreMatches(snapshot, generation, () => void refresh(true).catch(() => {}));
+  const shownCandidates = [...(snapshot?.report.candidates ?? []), ...more.candidates];
+  const shownPreliminary = snapshot
+    ? [...(snapshot.report.preliminary_selections ?? []), ...more.preliminary]
+    : undefined;
   const owner = useRef<number | undefined>(undefined);
   useLayoutEffect(() => {
     owner.current = generation;
@@ -1048,7 +1054,7 @@ export function GameFileLibraries({
     run("Adding to Library…", async () => {
       const requests = portIds.map((portId) => {
         const port = ports.find((candidate) => candidate.id === portId);
-        const reviewed = (snapshot?.report.candidates ?? []).filter(
+        const reviewed = shownCandidates.filter(
           (candidate) => port?.source_profile === candidate.profile_id,
         );
         return {
@@ -1184,8 +1190,7 @@ export function GameFileLibraries({
   const renderCompletedScan = () => (
     <CompletedScan
       snapshot={snapshot}
-      generation={generation}
-      onReload={() => void refresh(true).catch(() => {})}
+      more={more}
       readConfirmed={readConfirmed}
       roots={roots}
       ports={ports}
@@ -1203,8 +1208,8 @@ export function GameFileLibraries({
     <GameFileSetupReviews
       ports={ports}
       statuses={statuses}
-      candidates={scanning ? liveCandidates : (snapshot?.report.candidates ?? [])}
-      preliminarySelections={scanning ? [] : snapshot?.report.preliminary_selections}
+      candidates={scanning ? liveCandidates : shownCandidates}
+      preliminarySelections={scanning ? [] : shownPreliminary}
       registeredSources={registeredSources}
       current={
         refreshConfirmed &&
@@ -1292,7 +1297,7 @@ export function GameFileLibraries({
             root={root}
             generation={generation}
             ports={ports}
-            candidates={(snapshot?.report.candidates ?? []).filter((candidate) =>
+            candidates={shownCandidates.filter((candidate) =>
               isInsideFolder(candidate.path, root.path),
             )}
             disabled={Boolean(busy) || scanning}
