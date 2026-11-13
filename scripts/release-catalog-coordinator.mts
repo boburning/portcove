@@ -937,9 +937,13 @@ export async function runFixedCatalogCoordinatorConfiguration(
                 },
               },
         };
+        const planningClock = new Date().toISOString();
         if (
-          planReleaseOpportunity({ ...next, now: new Date().toISOString() }).action !==
-          "catalog-review-request"
+          planReleaseOpportunity({
+            ...next,
+            now: planningClock,
+            publication: { ...publication, observed_at: planningClock },
+          }).action !== "catalog-review-request"
         )
           return held(
             directory,
@@ -1007,14 +1011,22 @@ export async function runFixedCatalogCoordinatorConfiguration(
           )
             throw new Error("catalog negative selected proof changed before mutation");
         }
-        if (
-          reviewClaim &&
-          planReleaseOpportunity({ ...next, now: new Date().toISOString() }).action !==
-            "catalog-review-request"
-        )
-          throw new Error(
-            "retained Chameleon review request no longer has current scheduling eligibility",
+        if (reviewClaim) {
+          const currentClock = new Date().toISOString();
+          const currentPublication = deriveCoordinatorPublication(
+            currentTags,
+            currentReleases,
+            currentAllocations,
+            currentClock,
           );
+          if (
+            planReleaseOpportunity({ ...next, now: currentClock, publication: currentPublication })
+              .action !== "catalog-review-request"
+          )
+            throw new Error(
+              "retained Chameleon review request no longer has current scheduling eligibility",
+            );
+        }
         if (catalogCoordinatorMaintenanceIdentity(await readMaintenance()) !== stable)
           throw new Error("catalog maintenance changed before neutral request mutation");
         requireSelectedEnvironment();
