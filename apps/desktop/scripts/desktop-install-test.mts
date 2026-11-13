@@ -98,8 +98,12 @@ async function exists(candidate: string) {
   );
 }
 
-async function waitForFixture(predicate: () => boolean | undefined, message: string) {
-  const deadline = Date.now() + 10_000;
+async function waitForFixture(
+  predicate: () => boolean | undefined,
+  message: string,
+  budgetMs = 10_000,
+) {
+  const deadline = Date.now() + budgetMs;
   while (!predicate()) {
     if (Date.now() >= deadline) throw new Error(message);
     await new Promise((resolve) => setTimeout(resolve, 25));
@@ -632,11 +636,17 @@ export async function installScenarios({
       observations.retry_commands = observations.commands_after_retry.slice(
         observations.commands_before_retry.length,
       );
+      // A refreshed workspace also lets the open detail re-read its own
+      // read-only views; none of these can repeat the install.
       const retryAndBackgroundCommands = new Set([
         "get_activities",
         "get_workspace_changed",
         "get_workspace_snapshot",
         "discover_orphaned_operations",
+        "get_launch_failure",
+        "get_port_capabilities",
+        "get_mod_setups",
+        "get_backups",
       ]);
       assert.ok(observations.retry_commands.includes("get_workspace_snapshot"));
       assert.ok(
@@ -888,8 +898,23 @@ export async function installScenarios({
     let pendingGame: NativeManagedGame | undefined;
     let observationIndex = 0;
     const evidenceName = (name: string) => `acquisition-${name}-${++observationIndex}`;
-    const status = async () =>
-      required((await statuses()).find((item) => item.port_id === port.id));
+    // Timeout calibration (docs/QUALITY.md): on the hosted Windows debug build,
+    // get_statuses after the activating update exceeded the session's 15 s
+    // WebDriver script budget, which bounds the harness IPC bridge. This journey
+    // uses 60 s, reapplied after each application restart and restored at the
+    // end; product deadlines and assertions are unchanged. The slowest read is
+    // recorded so a pass under the larger budget stays visible as such.
+    const acquisitionScriptBudgetMs = 60_000;
+    const calibrateScriptBudget = () =>
+      browser.manage().setTimeouts({ script: acquisitionScriptBudgetMs });
+    let slowestStatusMs = 0;
+    const status = async () => {
+      const started = Date.now();
+      const current = required((await statuses()).find((item) => item.port_id === port.id));
+      slowestStatusMs = Math.max(slowestStatusMs, Date.now() - started);
+      observations.slowest_status_ms = slowestStatusMs;
+      return current;
+    };
     const bootstrap = async () =>
       transportValue("desktop_bootstrap_status", success(await invoke("get_bootstrap_status")));
     const visibleButton = async (label: string) => {
@@ -907,7 +932,17 @@ export async function installScenarios({
     };
     const click = async (label: string) => {
       const element = await visibleButton(label);
-      await browser.wait(until.elementIsEnabled(element), 15_000);
+      // Base UI keeps busy actions focusable: `disabled` stays false while
+      // aria-disabled/aria-busy mark them inert, and the busy layout can place a
+      // neighbouring control under the click point.
+      await browser.wait(
+        async () =>
+          (await element.isEnabled()) &&
+          (await element.getAttribute("aria-disabled")) !== "true" &&
+          (await element.getAttribute("aria-busy")) !== "true",
+        15_000,
+        `${label} did not become actionable`,
+      );
       await executeBrowserScript(
         browser,
         'arguments[0].scrollIntoView({block:"center"});',
@@ -1101,6 +1136,7 @@ export async function installScenarios({
           }),
         ),
       );
+    await calibrateScriptBudget();
     const first = await status();
     assert.ok(first.active, "Setup must install the owned executable fixture");
     assert.equal(first.staged, null);
@@ -1205,9 +1241,15 @@ export async function installScenarios({
       browser = await restartApplication(`acquisition-${version}`, async () => {
         assert.equal(liveGame, undefined, "No live game may survive fixture publication");
         for (const original of [ownedFixture.artifactPath, ownedFixture.catalogPath]) {
+          // Each publication replaces the ~2.9 MB fixture catalog. Its pre-publication
+          // copy stays bound by SHA-256 in the run's inputs, but takes a suffix outside
+          // the retained evidence extensions: three raw copies plus the journey's other
+          // ~7 MB of evidence would exceed the 12 MiB native evidence bound.
           const snapshot = path.join(
             output,
-            `acquisition-${version}-before-${path.basename(original)}`,
+            `acquisition-${version}-before-${path.basename(original)}${
+              original === ownedFixture.catalogPath ? ".hash-bound" : ""
+            }`,
           );
           await copyFile(original, snapshot);
           const index = inputs.findIndex((item) => item.path === original);
@@ -1225,13 +1267,21 @@ export async function installScenarios({
             inputs.push(await fileIdentity(file));
         }
       });
+      await calibrateScriptBudget();
       await rm(marker, { force: true });
       await openFixture(port, true);
       await revealDetailSection(browser, "Versions & updates");
+      const checkStarted = Date.now();
       await click("Check for updates");
+      // Calibrated from 15 s: on hosted Windows the debug build's v4 check was still
+      // busy at 15 s (status reads up to 16.6 s). The check's own deadlines are unchanged.
       await browser.wait(
         until.elementLocated(By.css('section[aria-label="Review game update"]')),
-        15_000,
+        acquisitionScriptBudgetMs,
+      );
+      observations.slowest_update_check_ms = Math.max(
+        Number(observations.slowest_update_check_ms ?? 0),
+        Date.now() - checkStarted,
       );
       const release = required(published);
       const gate = ownedFixture.holdArtifact(release.url);
@@ -1250,6 +1300,7 @@ export async function installScenarios({
       await browser.wait(until.elementLocated(By.css("[data-game-update-review]")), 15_000);
       await click("Download archive for later");
       const pathname = new URL(release.url).pathname;
+      const transferWaitStarted = Date.now();
       await waitForFixture(
         () =>
           ownedFixture.requests.some(
@@ -1257,6 +1308,13 @@ export async function installScenarios({
               request.request_path === pathname && request.bytes_sent > 0 && !request.completed,
           ),
         "Real acquisition did not enter the owned held HTTP transfer",
+        // Calibrated from 10 s: on hosted Windows (debug build, 16.5 s status reads)
+        // the v3 request reached the held fixture after the old window expired.
+        acquisitionScriptBudgetMs,
+      );
+      observations.slowest_transfer_start_ms = Math.max(
+        Number(observations.slowest_transfer_start_ms ?? 0),
+        Date.now() - transferWaitStarted,
       );
       const transferring = await browser.wait(async () => {
         const value = await status();
@@ -1295,11 +1353,11 @@ export async function installScenarios({
       await browser.wait(
         async () => {
           for (const section of await browser.findElements(
-            By.css('section[aria-label="Retained update archive"]'),
+            By.css('section[aria-label="Downloaded update"]'),
           ))
             if (
               (await section.isDisplayed()) &&
-              (await section.getText()).includes("Archive downloaded")
+              (await section.getText()).includes("Update downloaded, not installed")
             )
               return true;
           return false;
@@ -1322,17 +1380,26 @@ export async function installScenarios({
       return { acquired, archive };
     };
     const discardExact = async (acquisition: GameUpdateAcquisition) => {
-      await click("Discard archive…");
+      await click("Delete downloaded update…");
       const discard = await browser.wait(
         until.elementLocated(By.css("[data-game-update-discard-review]")),
         15_000,
+      );
+      // The exact identity sits in the review's collapsed technical details.
+      const technical = await discard.findElement(By.css("details"));
+      if ((await technical.getAttribute("open")) === null)
+        await clickVisible(browser, await technical.findElement(By.css("summary")));
+      await browser.wait(
+        async () => (await discard.getText()).includes(acquisition.release.asset.sha256),
+        15_000,
+        "Discard review technical details did not open",
       );
       const review = await discard.getText();
       assert.ok(
         review.includes(acquisition.id) && review.includes(acquisition.release.asset.sha256),
         "Discard review must name the retained exact ID and digest",
       );
-      await click("Discard archive");
+      await click("Delete download");
       await browser.wait(
         async () => !(await statuses()).find((item) => item.port_id === port.id)?.acquisition,
         15_000,
@@ -1365,6 +1432,17 @@ export async function installScenarios({
       const review = await browser.wait(
         until.elementLocated(By.css("[data-game-update-review]")),
         15_000,
+      );
+      // The exact archive identity sits in the review's collapsed download details.
+      const downloadDetails = await review.findElement(
+        By.xpath('.//details[summary[normalize-space(.)="Download details"]]'),
+      );
+      if ((await downloadDetails.getAttribute("open")) === null)
+        await clickVisible(browser, await downloadDetails.findElement(By.css("summary")));
+      await browser.wait(
+        async () => (await review.getText()).includes(release.sha256),
+        15_000,
+        "Update review download details did not open",
       );
       const reviewText = await review.getText();
       assert.ok(
@@ -1640,8 +1718,14 @@ export async function installScenarios({
       primaryFailure =
         error instanceof Error ? error : new Error(errorMessage(error), { cause: error });
       observations.failure = errorMessage(error);
+      // Harness-only locator for the failed step; no player data.
+      observations.failure_stack = primaryFailure.stack?.slice(0, 4000);
     } finally {
       for (const gate of gates) gate.release();
+      await browser
+        .manage()
+        .setTimeouts({ script: 15_000 })
+        .catch(() => undefined);
       try {
         await stopGame();
         observations.cleanup = {

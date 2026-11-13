@@ -1387,7 +1387,7 @@ void test("acquisition qualification is isolated, builds the owned probe and pas
   assert.equal(plan.fixtures.owned, true);
   assert.equal(plan.fixtures.completionJourney, false);
   assert.equal(plan.session.identityBoundSession, true);
-  assert.equal(desktopHarnessDeadlineMs(selection), 720_000);
+  assert.equal(desktopHarnessDeadlineMs(selection), 1_200_000);
   assert.ok(
     plan.receiptInputs.some(
       (input) =>

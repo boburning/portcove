@@ -224,6 +224,31 @@ acquisition, staged update composition, inert external-runtime registration,
 artwork picking, appearance restart/refresh recovery, and each of the three
 standalone startup-preferences/startup-library/library-switch recovery journeys.
 This preserves the planner's standalone and incompatible-fixture refusals.
+Public `windows-2022` registers WebView2 below the application's floor, so the
+application correctly refuses to start there. With owner approval (#4879: runtime
+provisioning 2026-11-12; the debugging-port policy and process auditing below
+2026-11-13), a group whose runtime is below the floor downloads Microsoft's Evergreen
+bootstrapper, requires a valid Microsoft Authenticode signature before running it,
+records its digest and the before/after runtime versions, and refuses to continue
+below the floor. Evergreen installs Microsoft's newest runtime, and driver
+bootstrap still requires the exactly matching `msedgedriver`. After Microsoft
+services WebView2 and before it publishes that driver, groups correctly refuse to
+start (run 43338537697: runtime 157.0.4341.57, driver 404); re-run once it is
+published. On the elevated runner
+WebView2 ignores the driver's `WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS`, so the
+step also sets the WebView2 `AdditionalBrowserArguments` machine policy for
+`portcove-desktop.exe` to `--remote-debugging-port=0`; without it no session can
+be created. Groups also enable process-creation auditing, and a failed group
+prints bounded startup diagnostics, scenario failures and its largest retained
+outputs. The acquisition journey calibrates its WebDriver script budget from 15 s
+to 60 s for the debug build's IPC status reads, and its wait for a held fixture
+transfer to start from 10 s to 60 s, and its wait for each update check's review from
+15 s to 60 s; it records the slowest of each. Its
+pre-publication catalog copies stay SHA-256 bound but their raw bytes are not
+retained: three ~2.9 MB copies plus the journey's other ~7 MB of evidence exceed
+the unchanged 12 MiB bound. This makes the fixture
+observable; Server 2022 with a provisioned runtime is not the Windows 11 26H2
+first-beta baseline.
 The update-acquisition group also observes #4879's automatic snapshot surfaces
 after its real activating update of a played fixture: the review and rollback
 copy, exactly one Core snapshot labelled with the from/to versions that holds the
