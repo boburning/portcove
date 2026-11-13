@@ -96,6 +96,39 @@ for identified consumers and retirement conditions. Preserve installed runtimes,
 originals, saves, settings, backups and recovery independently of whether the
 builder that created them remains an active feature.
 
+### Rights basis for upstream-hosted packages
+
+The owner adopted this rights policy on November 13, 2026 in
+[#1129](https://github.com/boburning/portcove/issues/1129). It decides which
+route a port may offer when its package is published by its own upstream but
+not every part of it carries an explicit licence grant, as is common for
+recompilations and decompilations of commercial games. Each tier applies only
+to what Portcove itself does; the player always supplies their own game.
+
+| Tier | Route                                                                                                                                                                    | Rights basis needed                                                                                                                                                                          |
+| ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1    | Discovery listing: name, summary and the upstream project link, with no download or install route                                                                        | An attributable public project; no package rights decision                                                                                                                                   |
+| 2    | Existing installation: the player obtains the package from upstream; Portcove registers it, verifies declared facts where bound, launches it and preserves external data | The player's own copy; Portcove neither hosts nor fetches the package                                                                                                                        |
+| 3    | Managed acquisition from the official upstream release: Portcove downloads the publisher's own release asset on the player's request, verifies it and installs it        | The package must come from the upstream's own release location, verified against its accepted identity, and must not bundle original game data or third-party assets under restrictive terms |
+| 4    | Re-hosting, mirroring or caching packages for redistribution                                                                                                             | Not offered                                                                                                                                                                                  |
+
+- **Inherited code without a grant.** A package whose own layer is licensed but
+  which compiles or links inherited decompiled or recompiled game code without
+  an explicit grant qualifies for tier 3. The missing grant is recorded as a
+  known limitation, not a hold.
+- **Bundled game data or restricted assets stay held.** A package that bundles
+  original game data (ROM or disc contents, extracted textures, models, audio
+  or music) or third-party assets under restrictive terms (for example a
+  non-commercial font) keeps its `download_block_reason`. Decompilation metadata
+  such as symbol names and offsets is code, not game data; contents the player's
+  original generates on first run are not bundled.
+- **Availability.** Tier 3 never copies or retains a package for others. When
+  the upstream release disappears, moves or is withdrawn, Portcove stops
+  offering fresh acquisition through the existing release resolution and
+  upstream observation; installed copies and player data stay as they are.
+- **Requests from upstream or rights holders** follow the route below; a
+  verified request to stop future acquisition withdraws tier 3 for that scope.
+
 ### Upstream listing and distribution requests
 
 Upstream maintainers and rights holders can open a

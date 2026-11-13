@@ -114,7 +114,8 @@
     "alexbeav-in-cold-blood-recomp-usa-psx",
     "alexbeav-koudelka-recomp-europe-psx",
     "alexbeav-final-fantasy-viii-recomp-usa-psx",
-    "alexbeav-final-fantasy-ix-recomp-usa-canada-rev-1-psx"
+    "alexbeav-final-fantasy-ix-recomp-usa-canada-rev-1-psx",
+    "goldeneye-007-ntsc-u-big-endian"
   ],
   "port_ids": [
     "snap64-recomp",
@@ -420,6 +421,7 @@
     "alexbeav-in-cold-blood-recomp",
     "alexbeav-koudelka-recomp",
     "alexbeav-final-fantasy-viii-recomp",
-    "alexbeav-final-fantasy-ix-recomp"
+    "alexbeav-final-fantasy-ix-recomp",
+    "goldeneye-007-n64-pc-port"
   ]
 }
