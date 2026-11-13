@@ -7,7 +7,7 @@ import { decodeDiscoverPortIds } from "./desktop-review-presentation.mts";
 import assert from "node:assert/strict";
 import { writeFile } from "node:fs/promises";
 import axe from "axe-core";
-import { By, Key, until, error as seleniumError } from "selenium-webdriver";
+import { By, Key, until } from "selenium-webdriver";
 
 /** Reveal the retained log through its real enclosing disclosure. */
 export async function preparationLogControl(browser: WebDriver, row: WebElement) {
@@ -104,7 +104,8 @@ export async function selectCatalogPort(browser: WebDriver, portId: string) {
     try {
       return await selectCatalogPortOnce(browser, portId);
     } catch (error) {
-      if (!(error instanceof seleniumError.StaleElementReferenceError) || attempt >= 3) throw error;
+      if (!(error instanceof Error && error.name === "StaleElementReferenceError") || attempt >= 3)
+        throw error;
       await new Promise((resolve) => setTimeout(resolve, 250));
     }
   }

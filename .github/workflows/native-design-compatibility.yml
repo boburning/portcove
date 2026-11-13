@@ -812,6 +812,7 @@ jobs:
       # driver-side evidence cannot observe.
       - name: Print application startup diagnostics after a failure
         if: failure()
+        timeout-minutes: 5
         shell: pwsh
         run: |
           $roots = @($env:PORTCOVE_OUTPUT_DIR, $env:PORTCOVE_TEMP_DIR, (Join-Path $env:LOCALAPPDATA 'Portcove')) |
@@ -820,9 +821,10 @@ jobs:
             Get-ChildItem -LiteralPath $root -Recurse -Directory -Filter diagnostics -ErrorAction SilentlyContinue |
               Select-Object -First 8 | ForEach-Object {
                 Get-ChildItem -LiteralPath $_.FullName -Recurse -File -ErrorAction SilentlyContinue |
-                  Where-Object Length -le 4MB | Select-Object -First 16 | ForEach-Object {
+                  Where-Object { $_.Length -le 4MB -and $_.Extension -in '.json', '.jsonl', '.log', '.txt' } |
+                  Select-Object -First 16 | ForEach-Object {
                     "==== $($_.FullName) ($($_.Length) bytes)"
-                    Get-Content -LiteralPath $_.FullName -Tail 200
+                    Get-Content -LiteralPath $_.FullName -Tail 200 | ForEach-Object { $_.Substring(0, [Math]::Min(2000, $_.Length)) }
                   }
               }
           }
@@ -847,7 +849,7 @@ jobs:
             "native evidence total bytes: $nativeTotal"
           }
           "==== DevToolsActivePort files written anywhere the WebView may have used"
-          @('D:\a', $env:LOCALAPPDATA, $env:TEMP, $env:RUNNER_TEMP) | Where-Object { $_ -and (Test-Path -LiteralPath $_) } | ForEach-Object {
+          @($env:PORTCOVE_OUTPUT_DIR, $env:PORTCOVE_TEMP_DIR, $env:LOCALAPPDATA, $env:RUNNER_TEMP) | Where-Object { $_ -and (Test-Path -LiteralPath $_) } | ForEach-Object {
             Get-ChildItem -LiteralPath $_ -Recurse -File -Filter DevToolsActivePort -Force -ErrorAction SilentlyContinue |
               Select-Object -First 10 | ForEach-Object { "$($_.FullName) $($_.LastWriteTimeUtc.ToString('o'))" }
           }
@@ -862,14 +864,15 @@ jobs:
           Get-WinEvent -FilterHashtable @{ LogName = 'Security'; Id = 4688; StartTime = (Get-Date).AddHours(-2) } -MaxEvents 4000 -ErrorAction SilentlyContinue |
             ForEach-Object {
               $data = @{}; ([xml]$_.ToXml()).Event.EventData.Data | ForEach-Object { $data[$_.Name] = $_.'#text' }
-              [pscustomobject]@{ Time = $_.TimeCreated.ToString('o'); Pid = [Convert]::ToInt32($data.NewProcessId, 16); ParentPid = [Convert]::ToInt32($data.ProcessId, 16); Image = $data.NewProcessName; Parent = $data.ParentProcessName; CommandLine = $data.CommandLine }
+              $toPid = { param($hex) try { [Convert]::ToInt32([string]$hex, 16) } catch { -1 } }
+              [pscustomobject]@{ Time = $_.TimeCreated.ToString('o'); Pid = (& $toPid $data.NewProcessId); ParentPid = (& $toPid $data.ProcessId); Image = $data.NewProcessName; Parent = $data.ParentProcessName; CommandLine = $data.CommandLine }
             } |
             Where-Object { "$($_.Image)|$($_.Parent)" -match '\\msedgewebview2\.exe|\\msedgedriver\.exe|tauri-driver|Portcove-Retained-Evidence' -and "$($_.Image)" -notmatch '\\conhost\.exe$' } |
             Sort-Object Time | Select-Object -Last 80 |
             ForEach-Object { "$($_.Time) pid=$($_.Pid) parent=$($_.ParentPid) $($_.Image) <- $($_.Parent)`n    $("$($_.CommandLine)".Substring(0, [Math]::Min(700, "$($_.CommandLine)".Length)))" }
           "==== Windows Application log errors since job start"
           Get-WinEvent -FilterHashtable @{ LogName = 'Application'; Level = 1, 2; StartTime = (Get-Date).AddHours(-2) } -MaxEvents 30 -ErrorAction SilentlyContinue |
-            Format-List TimeCreated, ProviderName, Id, Message
+            ForEach-Object { "$($_.TimeCreated.ToString('o')) $($_.ProviderName) $($_.Id)`n    $("$($_.Message)".Substring(0, [Math]::Min(1500, "$($_.Message)".Length)))" }
       - name: Require the isolated singleton Settings entry evidence
         if: matrix.selection == 'owned-steam'
         shell: pwsh

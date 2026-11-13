@@ -1243,8 +1243,8 @@ export async function installScenarios({
         for (const original of [ownedFixture.artifactPath, ownedFixture.catalogPath]) {
           // Each publication replaces the ~2.9 MB fixture catalog. Its pre-publication
           // copy stays bound by SHA-256 in the run's inputs, but takes a suffix outside
-          // the retained evidence extensions: three raw copies alone would exceed the
-          // 12 MiB native evidence bound, so a complete journey could never be retained.
+          // the retained evidence extensions: three raw copies plus the journey's other
+          // ~7 MB of evidence would exceed the 12 MiB native evidence bound.
           const snapshot = path.join(
             output,
             `acquisition-${version}-before-${path.basename(original)}${

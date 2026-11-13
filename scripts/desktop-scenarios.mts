@@ -983,7 +983,12 @@ export function desktopHarnessDeadlineMs(
   // keep every inner wait, identity check and cleanup unchanged.
   if (selection.selected_scenarios.includes("native-game-first-choice-and-restart")) return 600_000;
   // Three immutable upgrades, two owned live launches, reviews and positive exit joins.
-  if (selection.selected_scenarios.includes("native-update-acquisition-lifecycle")) return 720_000;
+  // Calibrated from 720 s (#4879): on hosted Windows the debug build reached the
+  // fourth of seven phases after ~6 min with 16.5 s status reads, and its inner
+  // script and held-transfer waits are now 60 s; inner failure and cleanup must
+  // finish first. Harness only; product deadlines are unchanged.
+  if (selection.selected_scenarios.includes("native-update-acquisition-lifecycle"))
+    return 1_200_000;
   // Five checkpoints, positive host/driver joins and fresh starts; harness only.
   if (selection.selected_scenarios.includes("native-host-publication-recovery")) return 720_000;
   // Includes source verification of the owned256MiB intervention fixture,
