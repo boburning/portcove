@@ -1845,7 +1845,7 @@ A reviewer told not to write is _instructed_ non-writing. A _technically
 restricted_ reviewer lacks write tools or runs in a read-only sandbox. Claude
 Code's read-only agent types (for example `Explore`) omit edit and write tools
 but keep a shell and may keep write-capable MCP tools, so they are restricted
-from editing tools, not sandboxed. They also start without project instructions,
+from editing tools, not sandboxed. The built-in `Explore` and `Plan` agents also start without project instructions,
 so give them the packet in full. Codex documentation describes subagents as
 inheriting the parent session's sandbox, with no separate read-only reviewer
 sandbox; a Codex reviewer in a writable session is therefore instructed
@@ -1861,8 +1861,9 @@ read-only reviewer sandbox, and neither was observed here; the post-review
 `git status` check covers that gap without new configuration. Claude Code reads
 `AGENTS.md` only when no `CLAUDE.md` applies: a `CLAUDE.md`, `.claude/CLAUDE.md`,
 personal `CLAUDE.local.md` or ancestor-directory `CLAUDE.md` suppresses it, as do
-instruction settings that select only `CLAUDE.md`. Any such file for Portcove
-must be the single line `@AGENTS.md`, not a second copy of the contract. Add native configuration only for a demonstrated gap that
+instruction settings that select only `CLAUDE.md`. A Portcove `CLAUDE.md` or
+`CLAUDE.local.md` must import `@AGENTS.md` rather than copy the contract; check
+that an ancestor or user-level file does not displace it. Add native configuration only for a demonstrated gap that
 Markdown cannot close, and record that gap with the change.
 
 ### Keeping recommendations current
