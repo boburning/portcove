@@ -6364,9 +6364,6 @@ impl PortcoveService {
         }
         let mut port =
             self.checked_installed_mutability_port(install, retained, Platform::current()?)?;
-        if has_retained_catalog {
-            Self::keep_retained_psx_scope(retained, &mut port);
-        }
         if crate::persistence::requires_restore_receipt(retained)
             && (!has_retained_catalog
                 || retained.persistent_paths != port.persistent_paths
@@ -6822,38 +6819,6 @@ impl PortcoveService {
         }
         self.record_psx_data_restored(port, &install_root)?;
         Ok(())
-    }
-
-    /// A managed PS1 installation keeps the persistent scope its data-restore
-    /// receipt was issued for when a newer definition only adds the
-    /// texture-pack folder that PSXRecomp `7192402` creates on every start.
-    /// Files there stay in that copy, unmanaged, exactly as before the folder
-    /// was declared. Installations created under the wider definition
-    /// retain it and synchronize the folder.
-    fn keep_retained_psx_scope(retained: &PortDefinition, port: &mut PortDefinition) {
-        let added = port
-            .persistent_paths
-            .iter()
-            .filter(|path| !retained.persistent_paths.contains(path))
-            .collect::<Vec<_>>();
-        if retained.adapter == AdapterKind::PsxRecompManaged
-            && retained.persistent_file_patterns == port.persistent_file_patterns
-            && !added.is_empty()
-            && added
-                .iter()
-                .all(|path| *path == crate::persistence::PSX_TEXTURE_PACKS)
-            && retained
-                .persistent_paths
-                .iter()
-                .all(|path| port.persistent_paths.contains(path))
-            && !retained.persistent_paths.iter().any(|path| {
-                let path = path.to_lowercase();
-                let added = crate::persistence::PSX_TEXTURE_PACKS;
-                Path::new(&path).starts_with(added) || Path::new(added).starts_with(&path)
-            })
-        {
-            port.persistent_paths.clone_from(&retained.persistent_paths);
-        }
     }
 
     fn persistence_root(&self, port: &PortDefinition, install_root: &Path) -> Result<PathBuf> {

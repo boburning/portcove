@@ -2164,9 +2164,10 @@ preflight covers inactive versions in read-only Restore review and again before
 canonical publication. Actual restore also checks mod conflicts at its existing
 mutation boundary. A managed PS1 installation is the one exception: when a
 newer definition only adds `mods/texture-packs`, which PSXRecomp `7192402`
-creates on every start, the installation keeps its retained scope. Files there
-stay in that copy unmanaged, as before the folder was declared, and are not
-collected, carried to another version or backed up. Installations created
+creates on every start, the installation keeps its retained definition. Files
+there stay in that copy unmanaged, exactly as before the folder was declared:
+verification reports them, and they are not collected, carried to another
+version or backed up. Installations created
 under the wider definition retain it and synchronize the folder.
 The original receipt, manifest and diagnostic-mutability
 behavior remain unchanged. Other existing integration interpretations, including

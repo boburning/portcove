@@ -35,13 +35,14 @@ Independent review blocked the first attempt at this change because of this.
 
 Core now keeps a managed PS1 installation's retained scope when the newer
 definition only adds `mods/texture-packs`, the persistent patterns are
-unchanged, and no retained path overlaps it. Collection, activation, backup
-and restore then use the retained scope, so the receipt stays the single scope
-authority.
+unchanged, and no retained path overlaps it. The rule applies where Core
+derives an installation's checked definition (`installed_mutability`), so
+verification, collection, activation, backup and restore all see the retained
+scope, and the receipt stays the single scope authority.
 
 - **Older copies:** texture files in an existing copy stay there unmanaged,
-  as they were before the folder was declared. They are not collected,
-  carried to another version or backed up, and they hold nothing.
+  exactly as before the folder was declared. Verification reports them, and
+  they are not collected, carried to another version or backed up.
   - **The first version:** it held every data operation when such files
     existed. That included Play for players already using texture packs,
     which a second independent review rejected as a regression.
@@ -65,8 +66,10 @@ in-game disc change was found by static review only.
 - **Scope rule:** host-portable Core tests, run on Linux, cover these cases.
   Without the rule, the first test fails with the original refusal.
   - an existing copy with the folder absent, then holding only empty folders,
-    then holding a file that stays in place and outside backups;
-  - another added path still refused;
+    then holding a file that stays in place, outside backups and reported by
+    verification;
+  - another added path, and the folder added to a whole-`mods` scope, still
+    refused;
   - a version created under the wider definition carrying texture data
     through activation and backup;
   - rollback to the older copy keeping canonical texture data and the older

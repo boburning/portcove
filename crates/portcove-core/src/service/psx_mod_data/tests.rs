@@ -1551,11 +1551,24 @@ mod retained_scope {
         assert!(backup.path.join("data/saves/card1.mcd").is_file());
 
         // Files there stay in this copy, unmanaged, and nothing is held.
+        // Verification still reports them, as before the folder was declared.
         let file = textures.join("replacements/tex.png");
         fs::write(&file, b"older copy texture").unwrap();
         let backup = service.create_backup(ID).unwrap();
         assert!(!backup.path.join("data").join(TEXTURES).exists());
         assert_eq!(fs::read(&file).unwrap(), b"older copy texture");
+        let verification = service.verify(ID).unwrap();
+        assert!(
+            verification
+                .failures
+                .iter()
+                .any(|failure| failure.contains("tex.png")),
+            "{:?}",
+            verification.failures
+        );
+        fs::remove_file(&file).unwrap();
+        assert!(service.verify(ID).unwrap().valid);
+        fs::write(&file, b"older copy texture").unwrap();
 
         // A version created under the wider definition keeps texture data.
         let new = register(&service, &wide, "v2", false);
@@ -1590,6 +1603,18 @@ mod retained_scope {
         );
         assert_eq!(fs::read(&file).unwrap(), b"older copy texture");
         service.create_backup(ID).unwrap();
+    }
+
+    #[test]
+    fn a_whole_mods_scope_does_not_take_the_texture_pack_exception() {
+        let temporary = tempfile::tempdir().unwrap();
+        let mut service =
+            PortcoveService::new(Library::open(temporary.path().join("library")).unwrap()).unwrap();
+        let whole = catalog(&["saves", "mods"]);
+        service.replace_catalog_for_test(whole.clone());
+        register(&service, &whole, "v1", true);
+        service.replace_catalog_for_test(catalog(&["saves", "mods", TEXTURES]));
+        assert_scope_refusal(&service.create_backup(ID).unwrap_err());
     }
 
     #[test]

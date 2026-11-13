@@ -13,6 +13,34 @@ pub(crate) const PSX_RETAINED_SCOPE_CAPABILITY: u32 = 3;
 /// The directory PSXRecomp `7192402` creates for player texture packs.
 pub(crate) const PSX_TEXTURE_PACKS: &str = "mods/texture-packs";
 
+/// A newer definition that only adds the texture-pack folder to a managed PS1
+/// installation's retained scope. The installation keeps its retained scope,
+/// so verification, collection and backup behave as before the folder was
+/// declared; installations created under the wider definition retain it.
+pub(crate) fn only_adds_psx_texture_packs(
+    retained: &PortDefinition,
+    current: &PortDefinition,
+) -> bool {
+    let added = current
+        .persistent_paths
+        .iter()
+        .filter(|path| !retained.persistent_paths.contains(path))
+        .collect::<Vec<_>>();
+    retained.adapter == crate::AdapterKind::PsxRecompManaged
+        && retained.persistent_file_patterns == current.persistent_file_patterns
+        && !added.is_empty()
+        && added.iter().all(|path| *path == PSX_TEXTURE_PACKS)
+        && retained
+            .persistent_paths
+            .iter()
+            .all(|path| current.persistent_paths.contains(path))
+        && !retained.persistent_paths.iter().any(|path| {
+            let path = path.to_lowercase();
+            Path::new(&path).starts_with(PSX_TEXTURE_PACKS)
+                || Path::new(PSX_TEXTURE_PACKS).starts_with(&path)
+        })
+}
+
 /// Entries declaring a path older managed PS1 readers would treat as a
 /// changed scope for existing installations.
 pub(crate) fn requires_psx_retained_scope(port: &PortDefinition) -> bool {
