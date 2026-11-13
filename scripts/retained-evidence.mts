@@ -81,31 +81,38 @@ const MAX_ADOPTION_DEPTH = 4;
 
 /**
  * True only when a directory without its own marker is empty or contains only
- * subdirectories and Portcove's own valid sub-store markers. Any other file,
- * link, or a tree beyond the bound is treated as unknown content.
+ * subdirectories and Portcove's own marked sub-stores (for example the
+ * namespaced `container-browser` store created before its parent). A
+ * subdirectory with a valid marker is an owned store and is not descended into.
+ * Any other file, link, an invalid marker, or a tree beyond the bound is treated
+ * as unknown content.
  */
 async function holdsOnlyOwnedEvidence(root: string): Promise<boolean> {
   let seen = 0;
+  const isOwnedStore = async (directory: string): Promise<boolean | undefined> => {
+    let text: string;
+    try {
+      text = await readFile(path.join(directory, MARKER_NAME), "utf8");
+    } catch (error) {
+      if (errorCode(error) === "ENOENT") return undefined;
+      return false;
+    }
+    try {
+      const record: unknown = JSON.parse(text);
+      return isRecord(record) && record.format_version === 1 && record.kind === "retained-evidence";
+    } catch {
+      return false;
+    }
+  };
   const walk = async (directory: string, depth: number): Promise<boolean> => {
     if (depth > MAX_ADOPTION_DEPTH) return false;
     for (const entry of await readdir(directory, { withFileTypes: true })) {
       if (++seen > MAX_ADOPTION_ENTRIES) return false;
+      if (!entry.isDirectory()) return false;
       const full = path.join(directory, entry.name);
-      if (entry.isDirectory()) {
-        if (!(await walk(full, depth + 1))) return false;
-      } else if (entry.isFile() && entry.name === MARKER_NAME && depth > 0) {
-        try {
-          const record: unknown = JSON.parse(await readFile(full, "utf8"));
-          if (
-            !isRecord(record) ||
-            record.format_version !== 1 ||
-            record.kind !== "retained-evidence"
-          )
-            return false;
-        } catch {
-          return false;
-        }
-      } else return false;
+      const owned = await isOwnedStore(full);
+      if (owned === false) return false;
+      if (owned === undefined && !(await walk(full, depth + 1))) return false;
     }
     return true;
   };

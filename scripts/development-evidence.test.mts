@@ -222,6 +222,31 @@ void test("an unmarked evidence directory is adopted only when it holds no forei
     JSON.stringify({ format_version: 1, kind: "retained-evidence" }),
   );
   assert.equal(await ensureRetainedEvidenceStore(namespaced), namespaced);
+  // A populated owned sub-store (marker plus evidence) must not block its parent.
+  const populated = path.join(directory, "populated");
+  await mkdir(path.join(populated, "container-browser", "runs"), { recursive: true, mode: 0o700 });
+  await chmod(populated, 0o700);
+  await writeFile(
+    path.join(populated, "container-browser", "retained-evidence.json"),
+    JSON.stringify({ format_version: 1, kind: "retained-evidence" }),
+  );
+  await writeFile(path.join(populated, "container-browser", "runs", "evidence.bin"), "bytes");
+  assert.equal(await ensureRetainedEvidenceStore(populated), populated);
+  // A sub-store with an invalid or foreign marker is unknown content.
+  const forged = path.join(directory, "forged");
+  await mkdir(path.join(forged, "other"), { recursive: true, mode: 0o700 });
+  await chmod(forged, 0o700);
+  await writeFile(
+    path.join(forged, "other", "retained-evidence.json"),
+    '{"kind":"something-else"}',
+  );
+  await assert.rejects(ensureRetainedEvidenceStore(forged), /no retained-evidence marker/u);
+  // A marker-named file directly in an unmarked root is not a sub-store.
+  const shallow = path.join(directory, "shallow");
+  await mkdir(shallow, { recursive: true, mode: 0o700 });
+  await chmod(shallow, 0o700);
+  await writeFile(path.join(shallow, "retained-evidence.json"), "{}");
+  await assert.rejects(ensureRetainedEvidenceStore(shallow), /refusing initialization/u);
   // Foreign content is never adopted and the refusal names the cause.
   const foreign = path.join(directory, "foreign");
   await mkdir(foreign, { recursive: true, mode: 0o700 });
