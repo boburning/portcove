@@ -155,7 +155,7 @@ export async function steamEntryScenario(context: SteamEntryContext) {
     const addActionStyles = await assertPrimaryReviewAction(
       browser,
       await browser.findElement(button("Add or repair shortcut")),
-      await browser.findElement(button("Review current state again")),
+      await browser.findElement(button("Check shortcuts again")),
     );
     const reviewed = await browser.findElement(dialog).getText();
     assert.ok(reviewed.includes(shortcuts));
@@ -230,7 +230,7 @@ export async function steamEntryScenario(context: SteamEntryContext) {
     const removeActionStyles = await assertDestructiveReviewAction(
       browser,
       await browser.findElement(button("Remove shortcut")),
-      await browser.findElement(button("Review current state again")),
+      await browser.findElement(button("Check shortcuts again")),
     );
     assert.ok((await browser.findElement(dialog).getText()).includes("remove"));
     assert.ok(
@@ -458,8 +458,12 @@ export async function steamEntryScenario(context: SteamEntryContext) {
     await click(button("Choose games for Steam…"));
     const dialog = By.css('[aria-labelledby="steam-batch-title"]');
     await browser.wait(until.elementLocated(dialog), 15_000);
+    // Game selection only: the dialog also offers an "Include artwork" checkbox.
+    // Base UI renders the fieldset legend as its first child div.
     const boxes = await browser.findElements(
-      By.css('[aria-labelledby="steam-batch-title"] [role="checkbox"]'),
+      By.xpath(
+        '//div[@aria-labelledby="steam-batch-title"]//fieldset[*[normalize-space(.)="Installed games"]]//*[@role="checkbox"]',
+      ),
     );
     assert.ok(boxes.length >= 2, "fixture should offer both installed target games");
     assert.equal(await browser.findElement(button("Review selected shortcuts")).isEnabled(), false);
