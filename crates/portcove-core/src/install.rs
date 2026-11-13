@@ -1284,6 +1284,15 @@ impl Installer {
                 ));
             }
             let platform = request.qualification.platform;
+            if !crate::native_external_profile::vcmi::matches_asset(
+                port,
+                platform,
+                &artifact.asset_name,
+            ) {
+                return Err(PortcoveError::verification(
+                    "VCMI archive differs from its retained Windows package selector",
+                ));
+            }
             let grant_before_layout =
                 crate::package_layout::grant_precedes_layout_check(port, platform);
             if grant_before_layout {

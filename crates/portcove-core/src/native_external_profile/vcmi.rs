@@ -2,10 +2,20 @@ use std::{fs, io::ErrorKind, path::Path};
 
 use crate::{LaunchSpec, Platform, PortDefinition, PortcoveError, Result};
 
+const ASSET: &str = "VCMI-Windows.zip";
+
+pub(crate) fn requires_archive(port: &PortDefinition, platform: Platform) -> bool {
+    port.external_profile_policy == Some(crate::ExternalProfilePolicy::VcmiWindowsV1)
+        && platform == Platform::WindowsX86_64
+}
+
+pub(crate) fn matches_asset(port: &PortDefinition, platform: Platform, name: &str) -> bool {
+    !requires_archive(port, platform) || name.eq_ignore_ascii_case(ASSET)
+}
+
 pub(super) fn validate(port: &PortDefinition) -> Result<()> {
     let windows = Platform::WindowsX86_64;
-    if port.release.asset_hints.get(&windows).map(Vec::as_slice)
-        != Some(&["VCMI-Windows.zip".to_owned()][..])
+    if port.release.asset_hints.get(&windows).map(Vec::as_slice) != Some(&[ASSET.to_owned()][..])
         || port.executable_hints.get(&windows).map(Vec::as_slice)
             != Some(&["VCMI_client.exe".to_owned()][..])
         || !port.reviewed_package_layouts.contains_key(&windows)
@@ -28,7 +38,16 @@ pub(super) fn require_default_paths(spec: &LaunchSpec) -> Result<()> {
             return Err(PortcoveError::launch("The VCMI runtime path is too long."));
         }
     }
-    require_no_path_overrides(&spec.working_directory)
+    let root = spec
+        .executable
+        .parent()
+        .ok_or_else(|| PortcoveError::launch("VCMI is missing its package directory."))?;
+    if root != spec.working_directory {
+        return Err(PortcoveError::launch(
+            "VCMI must start in its package directory.",
+        ));
+    }
+    require_no_path_overrides(root)
 }
 
 fn require_no_path_overrides(root: &Path) -> Result<()> {
@@ -73,6 +92,18 @@ pub(super) fn profile_root() -> Result<std::path::PathBuf> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn only_the_exact_windows_archive_matches_the_managed_route() {
+        let catalog = crate::Catalog::embedded().unwrap();
+        let port = catalog.port("vcmi-vcmi").unwrap();
+        assert!(matches_asset(port, Platform::WindowsX86_64, ASSET));
+        assert!(!matches_asset(
+            port,
+            Platform::WindowsX86_64,
+            "preview-VCMI-Windows.zip"
+        ));
+    }
 
     #[test]
     fn custom_directory_config_requires_a_separate_copy() {

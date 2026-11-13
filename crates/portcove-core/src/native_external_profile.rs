@@ -21,7 +21,7 @@ pub(crate) mod openomf;
 pub(crate) mod profile_siblings;
 pub(crate) mod quake_linux;
 pub(crate) mod recomp_direct;
-mod vcmi;
+pub(crate) mod vcmi;
 pub(crate) mod z2rs;
 
 pub(crate) const VCMI_WINDOWS_CAPABILITY: u32 = 31;
