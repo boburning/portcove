@@ -7,10 +7,10 @@ The fresh-acquisition hold recorded on October 25, 2026 was based only on the
 missing grant for inherited decompiled code that the port links. The owner's
 November 13 policy accepts that basis for managed acquisition from the official
 upstream release, so the held Windows integration is delivered with that limit
-recorded rather than as a hold. This record supersedes that hold. The October
-review is preserved at commit `fc4a1f98` in
-[`ready-archive-rollout-2026-10-25.md`](https://github.com/boburning/portcove/blob/fc4a1f98/docs/qualification/ready-archive-rollout-2026-10-25.md)
-and its observations JSON in the same directory.
+recorded rather than as a hold. This record supersedes the hold in the
+[October review](ready-archive-rollout-2026-10-25.md). The technical proposal it
+reviewed stays preserved at `fc4a1f98f7914aafc8111774d361f544dd3ceb20` on branch
+`feature/installation-ready-three-preserved-20261025`.
 
 ## Verified on 2026-11-13
 
