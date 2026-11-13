@@ -17,8 +17,11 @@ import vm from "node:vm";
 import { parse } from "yaml";
 import { postgresFixture, postgresServer } from "./fixtures/postgres-cluster.mts";
 import {
+  clockWindowCrossed,
+  coreReuseKey,
   deferralChanges,
   deliveryFacts,
+  planReassessment,
   reassessmentTriggers,
   subjectReassessment,
   sourceFreshness,
@@ -2194,7 +2197,12 @@ void test(
        INSERT INTO portcove_maintenance.operations (operation_id, kind, subject_key, fence_sequence, executor, created_at, updated_at)
          VALUES ('${legacyId}', 'handoff.${kind}', '${subject}', 1, 'upstream-observer', now(), now());`,
     );
-    assert.deepEqual(migrate(store.owner).newly_applied, [3]);
+    assert.deepEqual(
+      migrate(store.owner).newly_applied,
+      readMigrations()
+        .map(({ version }) => version)
+        .filter((version) => version > 2),
+    );
     assert.equal(
       runSql(
         store.owner,
@@ -3023,3 +3031,174 @@ void test("each subject names its assessment inputs, when they last changed and 
     "2026-11-12T00:00:00Z",
   );
 });
+
+void test("selective reassessment is planned only under the same verified Core semantics", () => {
+  const key = "k".repeat(64);
+  const now = new Date("2026-11-13T12:00:00Z");
+  const base = {
+    requested: "changed" as const,
+    reuseKey: key,
+    history: {
+      latest: { coverage: "complete", reuse_key: key },
+      full_started_at: "2026-11-12T12:00:00Z",
+    },
+    now,
+    clockCrossed: () => false,
+    subjects: [
+      { key: "port:a", catalogDigest: "1" },
+      { key: "port:b", catalogDigest: "2" },
+    ],
+    catalogMembers: new Map([
+      ["port:a", "1"],
+      ["port:b", "changed"],
+    ]),
+    coreMembers: new Map([
+      ["port:a", "x"],
+      ["port:b", "y"],
+    ]),
+  };
+  const selective = planReassessment(base);
+  assert.equal(selective.reassessment.mode, "selective");
+  // Only an unchanged catalog fact with a stored Core result is reused.
+  assert.deepEqual([...selective.reused], ["port:a"]);
+  for (const [override, reason] of [
+    [{ requested: "full" }, /requested/u],
+    [{ reuseKey: null }, /not verified/u],
+    [
+      { history: { ...base.history, latest: { coverage: "partial", reuse_key: key } } },
+      /complete read/u,
+    ],
+    [
+      { history: { ...base.history, latest: { coverage: "complete", reuse_key: "o".repeat(64) } } },
+      /same key/u,
+    ],
+    [{ history: { ...base.history, full_started_at: "2026-11-01T00:00:00Z" } }, /7 days/u],
+    [{ clockCrossed: () => true }, /clock-dated/u],
+    [{ coreMembers: new Map() }, /no subject is unchanged/u],
+  ] as const) {
+    const plan = planReassessment({ ...base, ...override });
+    assert.equal(plan.reassessment.mode, "full", String(reason));
+    assert.equal(plan.reused.size, 0);
+    assert.match(plan.reason, reason);
+  }
+  // The key ignores the binary and changes with any semantic input.
+  const producer = { features: [], embedded_catalog_sha256: "c", embedded_listings_sha256: "l" };
+  const keyed = (trees: Record<string, string>, platform = "linux-x86-64") =>
+    coreReuseKey({ trees, producer, apiSchema: 88, platform });
+  assert.equal(keyed({ crates: "t1" }), keyed({ crates: "t1" }));
+  assert.notEqual(keyed({ crates: "t1" }), keyed({ crates: "t2" }));
+  assert.notEqual(keyed({ crates: "t1" }), keyed({ crates: "t1" }, "windows-x86-64"));
+  // A clock-dated observation inside the window forces a full read.
+  const catalog = { ports: [{ observations: [{ observed_at: 150 }] }] };
+  assert.equal(clockWindowCrossed([catalog], 100, 200), true);
+  assert.equal(clockWindowCrossed([catalog], 150, 200), false);
+  assert.equal(clockWindowCrossed([catalog], 100, 140), false);
+});
+
+void test(
+  "a selective run reuses unchanged Core results without re-verifying them",
+  { skip: server.skip ?? false, timeout: 240_000 },
+  async (context) => {
+    const fixture = postgresFixture(context, server.directory!);
+    const store = fixture.start("selective");
+    migrate(store.owner);
+    const { cli, responses } = stubCli(fixture.root);
+    const head = execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim();
+    const producer = {
+      source_revision: head,
+      features: [],
+      embedded_catalog_sha256: "d".repeat(64),
+      embedded_listings_sha256: "e".repeat(64),
+      catalog_override: false,
+    };
+    const respond = (core: unknown) =>
+      writeFileSync(
+        responses,
+        JSON.stringify({
+          "2ship2harkinian": core,
+          "targets:not-a-catalog-port": "not_found",
+          producer,
+        }),
+      );
+    const run = (reassess: "full" | "changed") =>
+      collect({
+        cli,
+        all: true,
+        ports: ["2ship2harkinian"],
+        targets: true,
+        reassess,
+        environment: store.owner,
+        runner: "fixture",
+      });
+    const latestCore = () =>
+      JSON.parse(
+        runSql(
+          store.owner,
+          `SELECT row_to_json(r) FROM (SELECT coverage, reassessment, reuse_key, reused_count, observed_count, expected_count
+             FROM portcove_maintenance.collection_runs
+            WHERE run_id = portcove_maintenance.latest_run('core-port-capabilities-linux-x86-64')) r;`,
+        ),
+      ) as Record<string, unknown>;
+    const verified = () =>
+      runSql(
+        store.owner,
+        `SELECT verified_run_id || ' ' || verified_at FROM portcove_maintenance.subject_current
+          WHERE subject_key = 'port:2ship2harkinian@linux-x86-64';`,
+      ).trim();
+    respond(report("automatic"));
+    const first = await run("changed");
+    // No earlier read under this key: the first run is full and records the key.
+    assert.equal(first.reassessment.mode, "full");
+    assert.match(first.reassessment.reason, /same key/u);
+    if (first.reassessment.reuse_key === null) {
+      // Uncommitted Core sources here leave the binding unverified; reuse is refused.
+      assert.match((await run("changed")).reassessment.reason, /not verified/u);
+      context.skip("Core sources are not clean in this checkout, so reuse cannot be keyed");
+      return;
+    }
+    assert.deepEqual(latestCore(), {
+      coverage: "complete",
+      reassessment: "full",
+      reuse_key: first.reassessment.reuse_key,
+      reused_count: 0,
+      observed_count: 1,
+      expected_count: 1,
+    });
+    const verifiedBefore = verified();
+    // Core would now fail on this host; a reused subject is never sent to Core.
+    respond("network");
+    const second = await run("changed");
+    assert.deepEqual(
+      [second.reassessment.mode, second.reassessment.reused, second.core_gaps],
+      ["selective", 1, 0],
+    );
+    assert.deepEqual(latestCore(), {
+      coverage: "complete",
+      reassessment: "selective",
+      reuse_key: first.reassessment.reuse_key,
+      reused_count: 1,
+      observed_count: 1,
+      expected_count: 1,
+    });
+    assert.equal(verified(), verifiedBefore, "reuse never claims a fresh Core verification");
+    assert.match(renderHtml(buildReport(store.owner)), /selective: 1 unchanged subjects reused/u);
+    // A full read really calls Core: the same failure is now a gap (every subject: failed).
+    const third = await run("full");
+    assert.equal(third.core_gaps, 1);
+    assert.equal(latestCore().coverage, "failed");
+    // After a partial run, nothing is reused until a complete read.
+    assert.match((await run("changed")).reassessment.reason, /complete read/u);
+    // How a run was taken is fixed when it starts, even while it is in progress.
+    assert.throws(
+      () =>
+        runSql(
+          store.owner,
+          `INSERT INTO portcove_maintenance.collection_runs (run_id, source, runner, started_at, reassessment)
+             VALUES ('reassessment-fixed', 'reassessment-fixture', 'fixture', now(), 'full');
+           UPDATE portcove_maintenance.collection_runs SET reassessment = 'selective'
+            WHERE run_id = 'reassessment-fixed';`,
+        ),
+      /fixed when it starts/u,
+    );
+  },
+);

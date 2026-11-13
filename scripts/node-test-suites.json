@@ -1418,7 +1418,8 @@
             "current provenance refreshes quietly, stale collections replace nothing and sources fail alone",
             "migration 0003 binds existing state and handoff plans follow the applicable assessment",
             "Core per-target route offering is stored per port, reported and fails alone",
-            "typed reconsiderations follow complete owner reads, stay quiet and keep episodes"
+            "typed reconsiderations follow complete owner reads, stay quiet and keep episodes",
+            "a selective run reuses unchanged Core results without re-verifying them"
           ],
           "skip_reason_prefix": "PostgreSQL server prerequisite unavailable"
         }
