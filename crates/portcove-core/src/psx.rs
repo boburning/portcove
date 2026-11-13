@@ -1559,6 +1559,7 @@ fn run_cli(
         .env("TEMP", environment_root.join("temp"))
         .env("TMP", environment_root.join("temp"))
         .env("TMPDIR", environment_root.join("temp"));
+    refuse_builder_downloads(&mut command);
     if let Some((sdk, compiler_bin)) = apple_tools {
         command
             .env("CC", compiler_bin.join("clang"))
@@ -1619,6 +1620,22 @@ fn run_cli(
             .detail("output_tail", detail)
             .detail("output_truncated", truncated.to_string()),
     )
+}
+
+/// Closed local proxy for the managed builder. PSXRecomp `7192402` stages an
+/// overlay toolchain on every rebuild by fetching Python (and building tcc on
+/// Linux) through urllib, whatever `--no-toolchain-download` says. Core admits
+/// no executable it has not verified, so every such request is refused at
+/// once; the kit logs the failure, finishes the build and the player
+/// interprets overlays. Environment proxies also take precedence over a
+/// Windows system proxy.
+const BUILDER_REFUSED_PROXY: &str = "http://127.0.0.1:9";
+
+fn refuse_builder_downloads(command: &mut crate::process::NativeToolLaunchSpec) {
+    for name in ["HTTPS_PROXY", "HTTP_PROXY"] {
+        command.env(name, BUILDER_REFUSED_PROXY);
+    }
+    command.env_remove("NO_PROXY");
 }
 
 fn macos_toolchain_sdk(
@@ -2705,6 +2722,30 @@ mod tests {
     #[test]
     fn managed_builder_rebuild_observes_active_cancellation() {
         assert_builder_cancellation("rebuild");
+    }
+
+    #[test]
+    fn managed_builder_refuses_every_download_through_a_closed_local_proxy() {
+        let mut command = crate::process::ChildProcessPolicy::native_tool_spec(
+            crate::process::ChildProcessClass::ManagedBuilder,
+            "python",
+        )
+        .unwrap();
+        command
+            .env("HTTPS_PROXY", "http://proxy.invalid:8080")
+            .env("NO_PROXY", "*");
+        refuse_builder_downloads(&mut command);
+        let value = |name: &str| {
+            command
+                .environment
+                .iter()
+                .find(|(key, _)| key.as_os_str() == std::ffi::OsStr::new(name))
+                .map(|(_, value)| value.to_owned())
+        };
+        for name in ["HTTPS_PROXY", "HTTP_PROXY"] {
+            assert_eq!(value(name), Some(BUILDER_REFUSED_PROXY.into()), "{name}");
+        }
+        assert_eq!(value("NO_PROXY"), None);
     }
 
     #[test]

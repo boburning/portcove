@@ -779,8 +779,9 @@ root-state changes. Only the retained `packages` layout has package semantics;
 arbitrary historical `bundled` or `installed` folders are not reclassified.
 
 For a reviewed split layout, declare the exact player paths
-`mods/installed`, `mods/packages`, `mods/.staging`, `mods/state.toml` and
-`mods/state.toml.tmp`. The runtime build stages its own `mods/bundled` files
+`mods/installed`, `mods/packages`, `mods/.staging`, `mods/state.toml`,
+`mods/state.toml.tmp` and `mods/texture-packs`, where PSXRecomp `7192402`
+and later create HD texture replacements and dumps. The runtime build stages its own `mods/bundled` files
 and any bundled README. Those files belong to the verified runtime version.
 Core carries declared player paths through normal retained collection, restore
 and rollback. Upstream owns any legacy package migration within those paths.
@@ -2497,8 +2498,8 @@ Use `"bundled-openbios"` when the reviewed kit supplies and supports OpenBIOS.
 This projects the literal `--bios bios/openbios.bin` argument and rejects a
 retail BIOS profile. Use `"split-mods"` for the reviewed dual-platform kits
 with explicit retail SCPH-1001 or SCPH-5552 BIOS. Their player-owned mod paths
-are `mods/installed`, `mods/packages`, `mods/.staging`, `mods/state.toml` and
-`mods/state.toml.tmp`. Each verified runtime version keeps `mods/bundled` and
+are `mods/installed`, `mods/packages`, `mods/.staging`, `mods/state.toml`,
+`mods/state.toml.tmp` and `mods/texture-packs`. Each verified runtime version keeps `mods/bundled` and
 its other build-provided files. The existing whole-`mods` forms keep their
 original persistence scope. The split-mods form requires explicit selectors
 with the same title prefix and the platform-specific `-windows-x64.zip` and
@@ -2513,6 +2514,14 @@ writes the `build-portcove` working coordinates, `--no-launcher`, overlay
 environment, owned save/settings/mod paths, and disposable diagnostic paths.
 It refuses duplicate fields. A different writer layout or setup contract
 needs the explicit form and applicable qualification.
+
+Core's managed PS1 builder runs with `--no-toolchain-download` and with
+`HTTPS_PROXY` and `HTTP_PROXY` set to a closed local address. PSXRecomp
+`7192402` stages an overlay toolchain on every rebuild by downloading Python
+(and building tcc on Linux) whatever that flag says. Core admits no executable
+it has not verified, so those requests are refused at once, the kit logs the
+failure and finishes the build, and the player interprets overlays.
+[Framework review](qualification/psxrecomp-7192402-split-mods-2026-11-13.md).
 
 A `psx-raw-set` integration may declare `launch_disc_choice:
 "psx-settings-selected"` after source review shows that its runtime reads the
