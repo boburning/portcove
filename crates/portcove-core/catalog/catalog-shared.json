@@ -2353,6 +2353,16 @@
         "live_url": null
       },
       {
+        "id": "alexbeav-incredible-crisis-recomp-v011-static-contract",
+        "role": "upstream_support",
+        "authority": "alexbeavs-ps1-ports/incredible-crisis-recomp",
+        "authority_ref": "a9544abf52896804174ce35c26e2f6591d6e9294",
+        "reviewed_at": "2026-11-13",
+        "claim": "Exact v0.1.1 Windows (47713535 bytes, SHA-256 f0c5a8cd63560042c55c625f2ccbb5d656a99a3f500849ed812624fc29a73e2e) and Linux x64 (45604822 bytes, SHA-256 aa5fafafeec54ee7123dff0f12966fad88e4716883841350d62129cde6c35803) setup kits match the upstream SHA256SUMS.txt; the provider release digest was not read. Both pin PSXRecomp de7ad680fb0ed292de28ec224015c4208a4899ee and recomp-ui 14799da234db1436306636b64436233a3ec6885c; PSXRecomp de7ad680 descends linearly from the reviewed 7192402c283880e318c97732c9b733c4d1b144d0 and d5cae379db84bbce3696a61a89ed06989b18bed0 and changes only DMA emulation in runtime/src/dma.c and test-only CMake from d5cae379. Both carry the game.toml of this commit with SLUS-01225, 1 track, first data track SHA-1 024fc3ec2309809406b2663b753bf5c4f505cd5b, openbios false, bios_hle false and the psxrecomp/bios/SCPH1001.toml BIOS configuration; the project manifest and README-SETUP.txt require the player's own SCPH-1001 (USA) BIOS with SHA-256 71af94d1e47a68c11e8fdb9f8368040601514a42a5a399cda48c7d3bff1e99d3, the psx-scph-1001-bios profile. Against the bound v0.1.0 kits (PSXRecomp 5420458a), game.toml adds only the single-disc discs and disc_serials roster and bios_hle false, and CMakeLists.txt only forces the SCPH1001 BIOS stem and profile, as in the reviewed 7192402 split-mods kits. Against the reviewed d5cae379 Jade Cocoon v0.1.2 kits, the PSXRecomp file lists add only runtime/tests/test_dma_madr_mask.c and change only runtime/CMakeLists.txt, runtime/src/dma.c and, in the Windows kit, the prebuilt emitters at the same size; recomp-ui, mods and the top-level entries match apart from the player name and texture-pack serial. They keep the split mod layout with build-staged mods/bundled, mods/preloaded and empty mods/texture-packs folders, no flat mods/packages, no links and no case-colliding Linux paths, and build the generated player Incredible_Crisis. Native generation, gameplay, rendering and saves remain unobserved.",
+        "immutable_url": "https://github.com/alexbeavs-ps1-ports/incredible-crisis-recomp/blob/a9544abf52896804174ce35c26e2f6591d6e9294/game.toml",
+        "live_url": null
+      },
+      {
         "id": "alexbeav-incredible-crisis-recomp-redump-15512",
         "role": "byte_identity",
         "authority": "Redump disc database",
@@ -23042,6 +23052,7 @@
         "validator_contract_id": null,
         "evidence_ids": [
           "alexbeav-incredible-crisis-recomp-v010-static-contract",
+          "alexbeav-incredible-crisis-recomp-v011-static-contract",
           "alexbeav-incredible-crisis-recomp-redump-15512"
         ],
         "authority_ref": "1dba6057ceff844faaaf21d5952a449ddc2d1aa2",
@@ -23057,6 +23068,14 @@
           {
             "upstream_ref": "v0.1.0",
             "artifact_sha256": "fb52b31647ef0863056b2d1d45822e067f2f62a4d8325a647b9c477596707f84"
+          },
+          {
+            "upstream_ref": "v0.1.1",
+            "artifact_sha256": "f0c5a8cd63560042c55c625f2ccbb5d656a99a3f500849ed812624fc29a73e2e"
+          },
+          {
+            "upstream_ref": "v0.1.1",
+            "artifact_sha256": "aa5fafafeec54ee7123dff0f12966fad88e4716883841350d62129cde6c35803"
           }
         ],
         "aliases": [],
@@ -23073,7 +23092,8 @@
         ],
         "validator_contract_id": null,
         "evidence_ids": [
-          "alexbeav-incredible-crisis-recomp-v010-static-contract"
+          "alexbeav-incredible-crisis-recomp-v010-static-contract",
+          "alexbeav-incredible-crisis-recomp-v011-static-contract"
         ],
         "authority_ref": "1dba6057ceff844faaaf21d5952a449ddc2d1aa2",
         "reviewed_at": "2026-11-09",
@@ -23088,6 +23108,14 @@
           {
             "upstream_ref": "v0.1.0",
             "artifact_sha256": "fb52b31647ef0863056b2d1d45822e067f2f62a4d8325a647b9c477596707f84"
+          },
+          {
+            "upstream_ref": "v0.1.1",
+            "artifact_sha256": "f0c5a8cd63560042c55c625f2ccbb5d656a99a3f500849ed812624fc29a73e2e"
+          },
+          {
+            "upstream_ref": "v0.1.1",
+            "artifact_sha256": "aa5fafafeec54ee7123dff0f12966fad88e4716883841350d62129cde6c35803"
           }
         ],
         "aliases": [],
