@@ -5966,18 +5966,31 @@ mod tests {
             assert_eq!(contracts.len(), 2);
             for contract in contracts {
                 assert_eq!(contract["admission_mode"], "enforced");
-                assert_eq!(contract["authority_ref"], commit);
-                assert_eq!(
-                    contract["applicability"],
-                    serde_json::json!([
-                        { "upstream_ref": "v0.1.1", "artifact_sha256": sha256 },
-                        {
-                            "upstream_ref": "v0.1.1",
-                            "artifact_sha256": linux_sha256
-                        }
-                    ])
-                );
+                // The game contract keeps the reviewed v0.1.1 kits first and
+                // appends the v0.1.2 kits. The BIOS contract now names
+                // SCPH-1001, which only the v0.1.2 kits select, so it binds
+                // those kits alone.
+                let applicability = contract["applicability"].as_array().unwrap();
                 if contract["role"] == "game" {
+                    assert_eq!(applicability.len(), 4, "{id}");
+                    assert_eq!(
+                        serde_json::json!(applicability[..2]),
+                        serde_json::json!([
+                            { "upstream_ref": "v0.1.1", "artifact_sha256": sha256 },
+                            {
+                                "upstream_ref": "v0.1.1",
+                                "artifact_sha256": linux_sha256
+                            }
+                        ])
+                    );
+                } else {
+                    assert_eq!(applicability.len(), 2, "{id}");
+                }
+                for binding in &applicability[applicability.len() - 2..] {
+                    assert_eq!(binding["upstream_ref"], "v0.1.2");
+                }
+                if contract["role"] == "game" {
+                    assert_eq!(contract["authority_ref"], commit);
                     assert_eq!(contract["profile_id"], profile_id);
                     assert_eq!(
                         contract["supported_variant_ids"],
@@ -5985,10 +5998,11 @@ mod tests {
                     );
                 } else {
                     assert_eq!(contract["role"], "bios");
-                    assert_eq!(contract["profile_id"], "psx-scph-5552-bios");
+                    assert_ne!(contract["authority_ref"], commit);
+                    assert_eq!(contract["profile_id"], "psx-scph-1001-bios");
                     assert_eq!(
                         contract["supported_variant_ids"],
-                        serde_json::json!(["europe-v3-0"])
+                        serde_json::json!(["legacy-accepted"])
                     );
                 }
             }
@@ -6052,7 +6066,12 @@ mod tests {
                 "config.ini",
                 "disc.cfg",
                 "bios.cfg",
-                "mods",
+                "mods/installed",
+                "mods/packages",
+                "mods/.staging",
+                "mods/state.toml",
+                "mods/state.toml.tmp",
+                "mods/texture-packs",
                 "overlay-captures",
                 "overlay_captures.json",
                 "overlay_captures.json.d",
@@ -6061,6 +6080,8 @@ mod tests {
                 assert!(port.persistent_paths.iter().any(|p| p == owned));
                 assert!(!port.runtime_mutable_paths.iter().any(|p| p == owned));
             }
+            // Each runtime version keeps its own build-staged mods/bundled.
+            assert!(!port.persistent_paths.iter().any(|p| p == "mods"));
             assert!(port.runtime_mutable_paths.iter().any(|p| p == "cache"));
             let fallback_temp = port
                 .runtime_mutable_file_patterns
@@ -6081,7 +6102,7 @@ mod tests {
             assert!(port.runtime_source_materialization.is_none());
             assert_eq!(
                 port.bios_source_profile.as_deref(),
-                Some("psx-scph-5552-bios")
+                Some("psx-scph-1001-bios")
             );
         }
     }
@@ -6332,6 +6353,12 @@ mod tests {
                         applicability[3]["upstream_ref"]
                     );
                     assert_ne!(applicability[2]["upstream_ref"], version);
+                }
+                if contract["role"] == "bios" && applicability[0]["upstream_ref"] != version {
+                    // A BIOS contract retargeted to a later kit's retail BIOS
+                    // binds only that later pair (see the Dino Crisis test).
+                    assert_eq!(applicability.len(), 2, "{id}");
+                    continue;
                 }
                 assert_eq!(contract["applicability"][1]["artifact_sha256"], sha256);
                 assert!(

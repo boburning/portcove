@@ -2766,6 +2766,11 @@ struct ManagedPsxArchiveExpectation {
     crash_diagnostic: bool,
     #[serde(default)]
     split_mod_paths: bool,
+    /// The observed release ran with the kit's bundled OpenBIOS. Its game
+    /// evidence stays exact, but the retail BIOS contract is bound only to
+    /// the later reviewed kits that require that BIOS.
+    #[serde(default)]
+    retail_bios_from_later_release: bool,
     #[serde(default)]
     extra_persistent_paths: Vec<String>,
 }
@@ -2786,6 +2791,10 @@ impl ManagedPsxArchiveExpectation {
             .bios_profile
             .as_deref()
             .or((!self.openbios).then_some("psx-scph-1001-bios"));
+        assert!(
+            !self.retail_bios_from_later_release || (self.bios_profile.is_some() && !self.openbios),
+            "{id}: a later retail BIOS binding needs an explicit retail profile"
+        );
         assert_eq!(port.adapter, crate::AdapterKind::PsxRecompManaged, "{id}");
         assert_eq!(port.bios_source_profile.as_deref(), bios_id, "{id}");
         let executable = match platform {
@@ -2930,9 +2939,11 @@ impl ManagedPsxArchiveExpectation {
                 "{id}: {role:?}"
             );
             assert_eq!(contract.release_policy, None, "{id}: {role:?}");
+            let bound = observed_release
+                && !(role == crate::PortSourceRole::Bios && self.retail_bios_from_later_release);
             assert_eq!(
                 contract.applies_to_release(version, artifact_sha256),
-                observed_release,
+                bound,
                 "{id}: exact source evidence for {role:?} on {version}"
             );
         }

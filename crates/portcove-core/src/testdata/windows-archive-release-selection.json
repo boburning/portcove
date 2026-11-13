@@ -503,7 +503,9 @@
         "track_count": 19,
         "track_sha1": "d52c60282b7ae07639b8fd61b0ab8d35b28a3327",
         "generated_executable": "Destruction_Derby_2_Recompiled.exe",
-        "openbios": true
+        "retail_bios_from_later_release": true,
+        "bios_profile": "psx-scph-1001-bios",
+        "split_mod_paths": true
       }
     },
     "alexbeav-destruction-derby-raw-recomp": {
@@ -539,8 +541,10 @@
         "track_count": 1,
         "track_sha1": "20ad05be52317bce58b251be103f9add03c92609",
         "generated_executable": "Armored_Core_Recompiled.exe",
-        "openbios": true,
-        "crash_diagnostic": true
+        "crash_diagnostic": true,
+        "retail_bios_from_later_release": true,
+        "bios_profile": "psx-scph-5552-bios",
+        "split_mod_paths": true
       }
     },
     "alexbeav-blood-omen-legacy-of-kain-recomp": {
@@ -558,8 +562,10 @@
         "track_count": 1,
         "track_sha1": "774ff732cecd0937d052ffcdfb225a7d71d163aa",
         "generated_executable": "Blood_Omen__Legacy_of_Kain_Recompiled.exe",
-        "openbios": true,
-        "crash_diagnostic": true
+        "crash_diagnostic": true,
+        "retail_bios_from_later_release": true,
+        "bios_profile": "psx-scph-1001-bios",
+        "split_mod_paths": true
       }
     },
     "alexbeav-digimon-world-2003-recomp": {
@@ -577,8 +583,10 @@
         "track_count": 1,
         "track_sha1": "457cb233349ba841e03b33d8060f8fbcadd45cb3",
         "generated_executable": "Digimon_World_2003_Recompiled.exe",
-        "openbios": true,
-        "crash_diagnostic": true
+        "crash_diagnostic": true,
+        "retail_bios_from_later_release": true,
+        "bios_profile": "psx-scph-5552-bios",
+        "split_mod_paths": true
       }
     },
     "alexbeav-driver-recomp": {
@@ -596,8 +604,10 @@
         "track_count": 1,
         "track_sha1": "3df45bb77b9189258dc513d8b161b73bc0b06d6e",
         "generated_executable": "Driver_Recompiled.exe",
-        "openbios": true,
-        "crash_diagnostic": true
+        "crash_diagnostic": true,
+        "retail_bios_from_later_release": true,
+        "bios_profile": "psx-scph-1001-bios",
+        "split_mod_paths": true
       }
     },
     "alexbeav-duke-nukem-land-of-the-babes-recomp": {
@@ -615,8 +625,10 @@
         "track_count": 1,
         "track_sha1": "f57c49eac288225fe3602e279bc1379f72f7eea6",
         "generated_executable": "Duke_Nukem__Land_of_the_Babes_Recompiled.exe",
-        "openbios": true,
-        "crash_diagnostic": true
+        "crash_diagnostic": true,
+        "retail_bios_from_later_release": true,
+        "bios_profile": "psx-scph-1001-bios",
+        "split_mod_paths": true
       }
     },
     "alexbeav-duke-nukem-time-to-kill-recomp": {
@@ -634,8 +646,10 @@
         "track_count": 1,
         "track_sha1": "a782825520939da0560ef031daa78db8ef720957",
         "generated_executable": "Duke_Nukem__Time_to_Kill_Recompiled.exe",
-        "openbios": true,
-        "crash_diagnostic": true
+        "crash_diagnostic": true,
+        "retail_bios_from_later_release": true,
+        "bios_profile": "psx-scph-1001-bios",
+        "split_mod_paths": true
       }
     },
     "alexbeav-fade-to-black-recomp": {
@@ -653,8 +667,10 @@
         "track_count": 1,
         "track_sha1": "cdd0ddbe768bcd89a04132b08d050164b3f13794",
         "generated_executable": "Fade_to_Black_Recompiled.exe",
-        "openbios": true,
-        "crash_diagnostic": true
+        "crash_diagnostic": true,
+        "retail_bios_from_later_release": true,
+        "bios_profile": "psx-scph-1001-bios",
+        "split_mod_paths": true
       }
     },
     "alexbeav-ape-escape-recomp": {
@@ -672,10 +688,12 @@
         "track_count": 1,
         "track_sha1": "466cce4bcd6992f57227abd270323bcdad2fb7fc",
         "generated_executable": "Ape_Escape_Recompiled.exe",
-        "openbios": true,
         "crash_diagnostic": true,
         "revision": "Rev 0",
-        "track_sha256": "1ae17e78ebb8c782c7c1785b0a0bd7b0ee28235b8a0c83c8df887129899a852a"
+        "track_sha256": "1ae17e78ebb8c782c7c1785b0a0bd7b0ee28235b8a0c83c8df887129899a852a",
+        "retail_bios_from_later_release": true,
+        "bios_profile": "psx-scph-1001-bios",
+        "split_mod_paths": true
       }
     },
     "alexbeav-alundra-recomp": {
@@ -693,8 +711,10 @@
         "track_count": 1,
         "track_sha1": "de2bbc3185fa4ce01ad50bcda94899ccec7b7451",
         "generated_executable": "Alundra_Recompiled.exe",
-        "openbios": true,
-        "crash_diagnostic": true
+        "crash_diagnostic": true,
+        "retail_bios_from_later_release": true,
+        "bios_profile": "psx-scph-5552-bios",
+        "split_mod_paths": true
       }
     },
     "ace-combat-3-electrosphere-usa-ace-combat-3-usa-recomp": {
@@ -713,7 +733,9 @@
         "track_sha1": "9b690c02cdb7754f2fa478c4974ec69600f2f269",
         "generated_executable": "Ace_Combat_3__Electrosphere__USA__Recompiled.exe",
         "crash_diagnostic": true,
-        "openbios": true
+        "retail_bios_from_later_release": true,
+        "bios_profile": "psx-scph-1001-bios",
+        "split_mod_paths": true
       }
     },
     "xena-warrior-princess-xena-recomp": {
@@ -750,8 +772,10 @@
         "track_count": 2,
         "track_sha1": "4d595880ebb6c6f7a2b63d9503b733f44b1ef230",
         "generated_executable": "Colin_McRae_Rally_2_0_Recompiled.exe",
-        "openbios": true,
-        "crash_diagnostic": true
+        "crash_diagnostic": true,
+        "retail_bios_from_later_release": true,
+        "bios_profile": "psx-scph-1001-bios",
+        "split_mod_paths": true
       }
     },
     "alexbeav-die-hard-trilogy-recomp": {
@@ -769,9 +793,11 @@
         "track_count": 21,
         "track_sha1": "2d24572e92415e09c37b68c83ba8b8947aee1ce4",
         "generated_executable": "Die_Hard_Trilogy_Recompiled.exe",
-        "openbios": true,
         "crash_diagnostic": true,
-        "revision": "Rev 1"
+        "revision": "Rev 1",
+        "retail_bios_from_later_release": true,
+        "bios_profile": "psx-scph-1001-bios",
+        "split_mod_paths": true
       }
     },
     "alexbeav-kings-field-recomp": {
@@ -808,8 +834,10 @@
         "track_count": 1,
         "track_sha1": "0bf9fb06b73a9b5353cdcc371e188934369068da",
         "generated_executable": "Kula_World_Recompiled.exe",
-        "openbios": true,
-        "crash_diagnostic": true
+        "crash_diagnostic": true,
+        "retail_bios_from_later_release": true,
+        "bios_profile": "psx-scph-5552-bios",
+        "split_mod_paths": true
       }
     },
     "alexbeav-mega-man-legends-recomp": {
@@ -827,9 +855,11 @@
         "track_count": 2,
         "track_sha1": "cf24c99ad6586b1bcba7d67f5dc684864b5e1688",
         "generated_executable": "Mega_Man_Legends_Recompiled.exe",
-        "openbios": true,
         "crash_diagnostic": true,
-        "track_sha256": "91fc12e8ce4485285ab22fbe39a8c3b5a66cab7d129c69a5c22084adbf361391"
+        "track_sha256": "91fc12e8ce4485285ab22fbe39a8c3b5a66cab7d129c69a5c22084adbf361391",
+        "retail_bios_from_later_release": true,
+        "bios_profile": "psx-scph-5552-bios",
+        "split_mod_paths": true
       }
     },
     "alexbeav-men-in-black-the-game-recomp": {
@@ -847,8 +877,10 @@
         "track_count": 1,
         "track_sha1": "060496048fae53cf79706ab3ce611c07701d4814",
         "generated_executable": "Men_in_Black__The_Game_Recompiled.exe",
-        "openbios": true,
-        "crash_diagnostic": true
+        "crash_diagnostic": true,
+        "retail_bios_from_later_release": true,
+        "bios_profile": "psx-scph-5552-bios",
+        "split_mod_paths": true
       }
     },
     "alexbeav-the-lost-world-jurassic-park-special-edition-recomp": {
@@ -866,8 +898,10 @@
         "track_count": 3,
         "track_sha1": "1fac6ab6b0d7d3d8f5e70b40bb9fae1d2a2287bc",
         "generated_executable": "The_Lost_World__Jurassic_Park_Special_Edition_Recompiled.exe",
-        "openbios": true,
-        "crash_diagnostic": true
+        "crash_diagnostic": true,
+        "retail_bios_from_later_release": true,
+        "bios_profile": "psx-scph-1001-bios",
+        "split_mod_paths": true
       }
     },
     "alexbeav-the-mummy-recomp": {
@@ -885,8 +919,10 @@
         "track_count": 1,
         "track_sha1": "ef266fcac356f05950a81aaa350fbf211defcdd8",
         "generated_executable": "The_Mummy_Recompiled.exe",
-        "openbios": true,
-        "crash_diagnostic": true
+        "crash_diagnostic": true,
+        "retail_bios_from_later_release": true,
+        "bios_profile": "psx-scph-1001-bios",
+        "split_mod_paths": true
       }
     },
     "alexbeav-vampire-hunter-d-recomp": {
@@ -904,8 +940,10 @@
         "track_count": 1,
         "track_sha1": "a4b43839e2abd4ac626434c801fbea0a09ab3f88",
         "generated_executable": "Vampire_Hunter_D_Recompiled.exe",
-        "openbios": true,
-        "crash_diagnostic": true
+        "crash_diagnostic": true,
+        "retail_bios_from_later_release": true,
+        "bios_profile": "psx-scph-1001-bios",
+        "split_mod_paths": true
       }
     },
     "alexbeav-vigilante-8-recomp": {
@@ -923,9 +961,11 @@
         "track_count": 13,
         "track_sha1": "0a39394280555203bf29e33e95e561e4ff50edb1",
         "generated_executable": "Vigilante_8_Recompiled.exe",
-        "openbios": true,
         "crash_diagnostic": true,
-        "track_sha256": "0a303a0d19d2728f1e364afa4fb7ad8e6e5a04800236573e93417a5503fb201e"
+        "track_sha256": "0a303a0d19d2728f1e364afa4fb7ad8e6e5a04800236573e93417a5503fb201e",
+        "retail_bios_from_later_release": true,
+        "bios_profile": "psx-scph-5552-bios",
+        "split_mod_paths": true
       }
     },
     "alexbeav-alien-resurrection-recomp": {
@@ -1639,8 +1679,10 @@
         "track_sha256": null,
         "generated_executable": "Suikoden_Recompiled.exe",
         "track_count": 1,
-        "bios_profile": "psx-scph-5552-bios",
-        "crash_diagnostic": true
+        "bios_profile": "psx-scph-1001-bios",
+        "crash_diagnostic": true,
+        "split_mod_paths": true,
+        "retail_bios_from_later_release": true
       },
       "linux_selected_assets": [
         "suikoden-0.1.1-linux-x64.zip",
@@ -1681,8 +1723,10 @@
         "track_sha256": null,
         "generated_executable": "Mortal_Kombat_Trilogy_Recompiled.exe",
         "track_count": 30,
-        "bios_profile": "psx-scph-5552-bios",
-        "crash_diagnostic": true
+        "bios_profile": "psx-scph-1001-bios",
+        "crash_diagnostic": true,
+        "split_mod_paths": true,
+        "retail_bios_from_later_release": true
       },
       "linux_selected_assets": [
         "mortal-kombat-trilogy-0.1.1-linux-x64.zip",

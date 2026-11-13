@@ -3,7 +3,7 @@
   "listing": {
     "id": "alexbeav-suikoden-recomp",
     "name": "Suikoden / Alexbeav PSXRecomp",
-    "summary": "Build and play Suikoden on Windows or Linux with your own matching USA PlayStation disc and retail SCPH-5552 BIOS. You can also use a separately prepared upstream copy.",
+    "summary": "Build and play Suikoden on Windows or Linux with your own matching USA PlayStation disc and retail SCPH-1001 BIOS. You can also use a separately prepared upstream copy.",
     "original_game_title": "Suikoden",
     "project_url": "https://github.com/alexbeavs-ps1-ports/suikoden-recomp",
     "issue_number": 481,
@@ -52,7 +52,7 @@
     },
     "recommended_download_channel": "stable"
   },
-  "psx_managed_windows_v1": true,
+  "psx_managed_windows_v1": "split-mods",
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],
@@ -84,14 +84,14 @@
         },
         {
           "role": "bios",
-          "profile_id": "psx-scph-5552-bios",
-          "label": "PlayStation SCPH-5552 BIOS (Europe)",
+          "profile_id": "psx-scph-1001-bios",
+          "label": "PlayStation SCPH-1001 BIOS",
           "verification": "catalog-identity"
         }
       ],
       "saves_and_settings": "portcove-managed",
-      "manual_preparation": "Provide your own matching one-track USA CHD (SLUS-00292) and retail SCPH-5552 BIOS. Portcove verifies the data track and track count and builds privately with the registered toolchain. Play starts the generated runtime. Keep your original disc and BIOS separately. Windows and Linux package and source fit were statically inspected. Native build, gameplay and save compatibility remain unobserved."
+      "manual_preparation": "Provide your own matching one-track USA CHD (SLUS-00292) and retail SCPH-1001 BIOS. A copy built with the SCPH-5552 BIOS keeps it until you update; the update needs your SCPH-1001 BIOS. Portcove verifies the data track and track count and builds privately with the registered toolchain. Play starts the generated runtime. Keep your original disc and BIOS separately. Windows and Linux package and source fit were statically inspected. Native build, gameplay and save compatibility remain unobserved."
     },
-    "bios_source_profile": "psx-scph-5552-bios"
+    "bios_source_profile": "psx-scph-1001-bios"
   }
 }
