@@ -6874,7 +6874,7 @@
           },
           {
             "title": "Build and add the completed Mac player",
-            "instruction": "Run Final_Fantasy_IX_Recompiled from the kit folder, assign every disc in Disc Selection and choose Generate & rebuild. In Portcove, select build-release/Final_Fantasy_IX_Recompiled as the player and build-release as its start folder."
+            "instruction": "Run Final_Fantasy_IX_Recompiled from the kit folder, provide the discs as the kit's README-SETUP.txt describes and choose Generate & rebuild. In Portcove, select build-release/Final_Fantasy_IX_Recompiled as the player and build-release as its start folder."
           }
         ],
         "warnings": [
@@ -6950,7 +6950,7 @@
           },
           {
             "title": "Build and add the completed Mac player",
-            "instruction": "Run Final_Fantasy_VIII_Recompiled from the kit folder, assign every disc in Disc Selection and choose Generate & rebuild. In Portcove, select build-release/Final_Fantasy_VIII_Recompiled as the player and build-release as its start folder."
+            "instruction": "Run Final_Fantasy_VIII_Recompiled from the kit folder, provide the discs as the kit's README-SETUP.txt describes and choose Generate & rebuild. In Portcove, select build-release/Final_Fantasy_VIII_Recompiled as the player and build-release as its start folder."
           }
         ],
         "warnings": [
@@ -7394,7 +7394,7 @@
           },
           {
             "title": "Build and add the completed Mac player",
-            "instruction": "Run In_Cold_Blood_Recompiled from the kit folder, assign every disc in Disc Selection and choose Generate & rebuild. In Portcove, select build-release/In_Cold_Blood_Recompiled as the player and build-release as its start folder."
+            "instruction": "Run In_Cold_Blood_Recompiled from the kit folder, provide the discs as the kit's README-SETUP.txt describes and choose Generate & rebuild. In Portcove, select build-release/In_Cold_Blood_Recompiled as the player and build-release as its start folder."
           }
         ],
         "warnings": [
@@ -7841,7 +7841,7 @@
           },
           {
             "title": "Build and add the completed Mac player",
-            "instruction": "Run Koudelka_Recompiled from the kit folder, assign every disc in Disc Selection and choose Generate & rebuild. In Portcove, select build-release/Koudelka_Recompiled as the player and build-release as its start folder."
+            "instruction": "Run Koudelka_Recompiled from the kit folder, provide the discs as the kit's README-SETUP.txt describes and choose Generate & rebuild. In Portcove, select build-release/Koudelka_Recompiled as the player and build-release as its start folder."
           }
         ],
         "warnings": [

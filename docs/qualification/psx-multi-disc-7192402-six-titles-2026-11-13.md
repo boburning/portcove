@@ -11,8 +11,8 @@ original disc or BIOS was used.
 ## Inputs
 
 Each kit is the newest tag by `git ls-remote`. The kits were fetched from the
-release download URLs and gave the same SHA-256 on every download: three for
-the five admitted titles, two for Alone in the Dark. The release API is blocked
+release download URLs and gave the same SHA-256 on every download, at least
+two each. The release API is blocked
 by this session's proxy, so the provider digest and asset list were not read.
 The ten admitted kits passed `portcove catalog inspect-package-layout` with
 those bytes. No kit has a symlink, an absolute or `..` entry, and the Linux
@@ -101,12 +101,11 @@ override the selected disc; no kit ships one.
 Both European discs (SLES-02801, SLES-12801; Redump 892 and 893) have two
 tracks, and the kit's `[netplay]` gate requires both. Core's managed
 `psx-raw-set` materialization keeps only each disc's data track, and catalog
-validation admits a managed PS1 set only when every disc has a track count of
-
-1. The route cannot be expressed without a reviewed multi-track set form, so
-   the title stays listed only. Its `game.toml` also lists a third `known_sha1`
-   (`77bf47a7…`, 645,019,536 bytes) that matches no Redump track, and it sets no
-   `EXE_NAME`, so the player name is derived from the window title.
+validation admits a managed PS1 set only when every disc has a single track.
+The route cannot be expressed without a reviewed multi-track set form, so the
+title stays listed only. Its `game.toml` also lists a third `known_sha1`
+(`77bf47a7…`, 645,019,536 bytes) that matches no Redump track, and it sets no
+`EXE_NAME`, so the player name is derived from the window title.
 
 ## Not observed
 
