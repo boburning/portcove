@@ -30,7 +30,7 @@
         }
       ],
       "warnings": [
-        "The package includes recompiled game code that the project licence does not cover. Portcove downloads it only from the project’s own releases; you supply your own game.",
+        "The package includes recompiled game code that the project license does not cover. Portcove downloads it only from the project’s own releases. You need your own original game files.",
         "Keep the upstream folder outside the Portcove library. Close the game and its helpers before backing up or replacing the creating runtime and its data."
       ],
       "help_url": "https://github.com/darkuni/outrun-arcade-recomp/blob/e1c57e065b74e594d38778b05d13fdc895e90d4b/README.md"

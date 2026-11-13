@@ -2558,15 +2558,8 @@
         "windows-x86-64",
         "linux-x86-64"
       ],
-      "availability": "packages",
-      "release_url": "https://github.com/danielgomesvieira2000/wave-race-64-recomp/releases",
-      "download_asset_hints": {
-        "linux-x86-64": [
-          "WaveRace64Recomp-",
-          "-linux-x86_64.tar.gz"
-        ]
-      },
-      "recommended_download_channel": "stable"
+      "download_block_reason": "Fresh Portcove downloads are held for the selected packages while the applicable basis for translated title code and the component conditions in the bundled notices remain unresolved. The later GPLv3 grant covers the official frontend code; it does not resolve those separate conditions. Independently permitted copies retain their own setup route.",
+      "availability": "unknown"
     },
     {
       "id": "wave-race-64-racewave46",
@@ -19255,7 +19248,7 @@
           }
         ],
         "warnings": [
-          "The package includes recompiled game code that the project licence does not cover. Portcove downloads it only from the project’s own releases; you supply your own game.",
+          "The package includes recompiled game code that the project license does not cover. Portcove downloads it only from the project’s own releases. You need your own original game files.",
           "Keep the upstream folder outside the Portcove library. Close the game and its helpers before backing up or replacing the creating runtime and its data."
         ],
         "help_url": "https://github.com/darkuni/afterburner-climax-recomp/blob/9eeeb46030a2247e7b13b0f6241b42c4f32383b7/README.md"
@@ -19338,7 +19331,7 @@
           }
         ],
         "warnings": [
-          "The package includes recompiled game code that the project licence does not cover. Portcove downloads it only from the project’s own releases; you supply your own game.",
+          "The package includes recompiled game code that the project license does not cover. Portcove downloads it only from the project’s own releases. You need your own original game files.",
           "Keep the upstream folder outside the Portcove library. Close the game and its helpers before backing up or replacing the creating runtime and its data.",
           "The reviewed package README lists OutRun Online Arcade’s title ID in its export example. Use Lode Runner’s 5841085B title folder."
         ],
@@ -19459,7 +19452,7 @@
           }
         ],
         "warnings": [
-          "The package includes recompiled game code that the project licence does not cover. Portcove downloads it only from the project’s own releases; you supply your own game.",
+          "The package includes recompiled game code that the project license does not cover. Portcove downloads it only from the project’s own releases. You need your own original game files.",
           "Keep the upstream folder outside the Portcove library. Close the game and its helpers before backing up or replacing the creating runtime and its data."
         ],
         "help_url": "https://github.com/darkuni/outrun-arcade-recomp/blob/e1c57e065b74e594d38778b05d13fdc895e90d4b/README.md"
@@ -19505,7 +19498,7 @@
           }
         ],
         "warnings": [
-          "The package includes recompiled game code that the project licence does not cover. Portcove downloads it only from the project’s own releases; you supply your own game.",
+          "The package includes recompiled game code that the project license does not cover. Portcove downloads it only from the project’s own releases. You need your own original game files.",
           "Keep the upstream folder outside the Portcove library. Close the game and its helpers before backing up or replacing the creating runtime and its data."
         ],
         "help_url": "https://github.com/darkuni/poker-smash-recomp/blob/0465face8472373cac3283e13655206941310a62/README.md"
@@ -35806,7 +35799,7 @@
           }
         ],
         "warnings": [
-          "The package includes recompiled game code that the project licence does not cover. Portcove downloads it only from the project’s own releases; you supply your own game.",
+          "The package includes recompiled game code that the project license does not cover. Portcove downloads it only from the project’s own releases. You need your own original game files.",
           "Keep the upstream folder outside the Portcove library. Close the game and its helpers before backing up or replacing the creating runtime and its data.",
           "The upstream launcher owns the import and game handoff. Selecting the launcher or its script does not establish managed installation or save synchronization in Portcove."
         ],
@@ -42524,7 +42517,7 @@
           }
         ],
         "warnings": [
-          "The package includes recompiled game code that the project licence does not cover. Portcove downloads it only from the project’s own releases; you supply your own game.",
+          "The package includes recompiled game code that the project license does not cover. Portcove downloads it only from the project’s own releases. You need your own original game files.",
           "Keep the upstream folder outside the Portcove library. Close the game and its helpers before backing up or replacing the creating runtime and its data."
         ],
         "help_url": "https://github.com/danielgomesvieira2000/pilotwings-64-recomp/blob/ce3634ad4be6ee5666dec2cd0bbcc35c4571bf29/README.md"
@@ -56638,7 +56631,7 @@
         "steps": [
           {
             "title": "Use the complete upstream player",
-            "instruction": "Keep the complete downloaded or existing player together. Its BSD-3-Clause licence covers the project code, not the generated game code or your original files."
+            "instruction": "Keep the complete downloaded or existing player together. Its BSD-3-Clause license covers the project code, not the generated game code or your original files."
           },
           {
             "title": "Prepare your own supported original upstream",
@@ -56659,7 +56652,7 @@
         ],
         "warnings": [
           "Before changing versions, keep a copy of the complete working game, original files and every profile, save, cache, mod, backup, temporary file and custom data location. Another executable may use the same data. Portcove does not offer updates, backups, rollback, data migration or deletion for these external files.",
-          "The package includes recompiled game code that the project licence does not cover. Portcove downloads it only from the project’s own releases; you supply your own game.",
+          "The package includes recompiled game code that the project license does not cover. Portcove downloads it only from the project’s own releases. You need your own original game files.",
           "Upstream verifies Linux x86_64 as its main platform and macOS on Apple Silicon (heavy scenes are still slow). Windows is experimental: upstream has tested it only under Proton. Upstream warns uncapped cutscenes can run 3–5x speed; retain the default cap. Portcove has not run it."
         ],
         "references": [

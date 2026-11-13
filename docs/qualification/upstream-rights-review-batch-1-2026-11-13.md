@@ -11,7 +11,7 @@ unlicensed third-party components, explicit upstream prohibitions or other
 technical conditions and stay held until their own review.
 
 For each listing the latest published release asset was downloaded from the
-upstream's own release location, hashed and listed; licence, notice and readme
+upstream's own release location, hashed and listed; license, notice and readme
 files were read. Nothing was extracted into a runtime, executed or played. No
 publisher `.sha256` file exists for these assets; downloads keep the existing
 generic-download integrity rules.
@@ -43,8 +43,6 @@ data, and none of the upstreams forbids redistribution.
   SHA-256 `94453fb09ca4ef2a98f5f5addfa03385c3de96d89d2cecb21591f44c741b31e8`.
 - `pilotwings-64-dgv-recomp` (#1275), Linux: release v0.1.1, `Pilotwings64Recomp-0.1.1-linux-x86_64.tar.gz`,
   SHA-256 `b4849feb348f68918daaaefd226cb1824f4512eaf5140095e28e765807749492`.
-- `wave-race-64-recomp` (#553), Linux listing: release v1.0.2, `WaveRace64Recomp-1.0.2-linux-x86_64.tar.gz`,
-  SHA-256 `5ea07206731b1afde10f52909443a50b64b6ebd113634d383a5538f86437e60f`.
 
 Notes recorded with these packages:
 
@@ -53,19 +51,18 @@ Notes recorded with these packages:
   repository without a licence file; this is treated as the same author's code
   in an MIT package, not an unlicensed third-party fork. Their readmes point to
   a ReXGlue licence text that the packages do not include.
-- Pilotwings 64 and Wave Race 64 list open points in their own
+- Pilotwings 64 lists open points in its own
   `THIRD_PARTY_NOTICES.md`: the RecompFrontend base, now covered by the upstream
   GPLv3 grant for the pinned tree; Microsoft's DirectX Shader Compiler
   redistributable terms; and two RT64 shaders adapted from Shadertoy under CC
   BY-NC-SA 3.0. These are licensed code whose conditions apply to
-  redistributors; Portcove does not re-host, and the same RT64 code ships in
-  N64 recompilations Portcove already offers. Their fonts are Lato, Noto Emoji
-  and PromptFont under the OFL. Wave Race 64's unlicensed decompilation
-  supplies only names and layout, which the policy treats as code.
+  redistributors; Portcove does not re-host. The same RT64 renderer ships in
+  `body-harvest-recompiled`, which Portcove already offers from its upstream
+  releases on every desktop platform. Its fonts are Lato, Noto Emoji and
+  PromptFont under the OFL.
 - Tony Hawk's Project 8's readme asks players not to redistribute their own
   generated sources or game files; it does not restrict the publisher's own
   release archive.
-- Wave Race 64's Windows route stays its existing prepared-player integration.
 
 ## Platforms
 
@@ -73,26 +70,27 @@ Each offered listing names every desktop platform its upstream publishes a
 package for. Tony Hawk's Project 8 publishes Linux, macOS Apple Silicon and
 Windows packages with the same contents; upstream verifies Linux first and
 calls Windows experimental. Pilotwings 64 publishes Windows and Linux packages.
-Wave Race 64 supports macOS only as a source build. The four darkuni players
-and Fable II Pub Games publish Windows packages only. None of the eight release
+The four darkuni players and Fable II Pub Games publish Windows packages only.
+None of the seven release
 workflows or readmes publishes an Android package; Portcove's Android host
 remains [#410](https://github.com/boburning/portcove/issues/410).
 
 ## Still held
 
-| Listing                                                             | Basis kept                                                                                                                                    |
-| ------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
-| `darkuni-chocobo-dungeon-recomp` (#4131)                            | The executable embeds an icon of unknown origin that looks like game pixel art; the same icon is in the next three                            |
-| `darkuni-mylifedarklord-recomp` (#4121)                             | Same embedded icon                                                                                                                            |
-| `darkuni-mylifeking-recomp` (#4120)                                 | Same embedded icon                                                                                                                            |
-| `darkuni-target-terror-wii-recomp` (#4178)                          | Same embedded icon                                                                                                                            |
-| `eternal-darkness-sanity-s-requiem-eternal-darkness-recomp` (#2570) | Bundles a pipeline cache recorded from the game's rendering (`res/initial_pipeline_cache.db`)                                                 |
-| `sonic-free-riders-recompiled` (#1450)                              | Bundles shader packs taken from the game; upstream's packer says they are never distributed                                                   |
-| `blizz127-parasite-eve-decomp-port` (#1865)                         | Links code derived from Sony's Psy-Q SDK; upstream holds its own binaries for that reason                                                     |
-| `eandis-sdoj-recomp` (#1880)                                        | The port's own layer has no licence, and its icon appears to be game character art                                                            |
-| `nevercookfirst-dimensionsrecomp` (#1817)                           | Bundles game text tables, a game archive and modified game files, plus unlicensed tools                                                       |
-| `tekrantgaming-muppet-racemania-recompiled` (#4130)                 | The launcher embeds the game's logo, and the port's own layer has no licence                                                                  |
-| `elmasas-lcs-recomp` (#1836)                                        | Deferred: the content appears eligible, but the listing declares no platform and the latest release (v0.1.6) differs from the reviewed v0.1.7 |
+| Listing                                                             | Basis kept                                                                                                                                                                                                                                                                                                                                                                                |
+| ------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `darkuni-chocobo-dungeon-recomp` (#4131)                            | The executable embeds an icon of unknown origin that looks like game pixel art; the same icon is in the next three                                                                                                                                                                                                                                                                        |
+| `darkuni-mylifedarklord-recomp` (#4121)                             | Same embedded icon                                                                                                                                                                                                                                                                                                                                                                        |
+| `darkuni-mylifeking-recomp` (#4120)                                 | Same embedded icon                                                                                                                                                                                                                                                                                                                                                                        |
+| `darkuni-target-terror-wii-recomp` (#4178)                          | Same embedded icon                                                                                                                                                                                                                                                                                                                                                                        |
+| `eternal-darkness-sanity-s-requiem-eternal-darkness-recomp` (#2570) | Bundles a pipeline cache recorded from the game's rendering (`res/initial_pipeline_cache.db`)                                                                                                                                                                                                                                                                                             |
+| `sonic-free-riders-recompiled` (#1450)                              | Bundles shader packs taken from the game; upstream's packer says they are never distributed                                                                                                                                                                                                                                                                                               |
+| `blizz127-parasite-eve-decomp-port` (#1865)                         | Links code derived from Sony's Psy-Q SDK; upstream holds its own binaries for that reason                                                                                                                                                                                                                                                                                                 |
+| `eandis-sdoj-recomp` (#1880)                                        | The port's own layer has no licence, and its icon appears to be game character art                                                                                                                                                                                                                                                                                                        |
+| `nevercookfirst-dimensionsrecomp` (#1817)                           | Bundles game text tables, a game archive and modified game files, plus unlicensed tools                                                                                                                                                                                                                                                                                                   |
+| `tekrantgaming-muppet-racemania-recompiled` (#4130)                 | The launcher embeds the game's logo, and the port's own layer has no licence                                                                                                                                                                                                                                                                                                              |
+| `wave-race-64-recomp` (#553)                                        | Deferred: its Linux and Windows packages bundle only code (Windows v1.0.2 SHA-256 `8603e582e7a549f1f3a02c108d1453ad61e7f5df03b2f3232f9939323b044583`, Linux `5ea07206731b1afde10f52909443a50b64b6ebd113634d383a5538f86437e60f`), but lifting the listing hold would also offer a fresh Windows download beside its Windows prepared-player integration; that route needs its own decision |
+| `elmasas-lcs-recomp` (#1836)                                        | Deferred: the content appears eligible, but the listing declares no platform and the latest release (v0.1.6) differs from the reviewed v0.1.7                                                                                                                                                                                                                                             |
 
 Each held listing can be reconsidered when its upstream removes or licenses
 the named content.

@@ -26,7 +26,7 @@
         }
       ],
       "warnings": [
-        "The package includes recompiled game code that the project licence does not cover. Portcove downloads it only from the project’s own releases; you supply your own game.",
+        "The package includes recompiled game code that the project license does not cover. Portcove downloads it only from the project’s own releases. You need your own original game files.",
         "Keep the upstream folder outside the Portcove library. Close the game and its helpers before backing up or replacing the creating runtime and its data.",
         "The upstream launcher owns the import and game handoff. Selecting the launcher or its script does not establish managed installation or save synchronization in Portcove."
       ],

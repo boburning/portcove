@@ -29,7 +29,7 @@
       "steps": [
         {
           "title": "Use the complete upstream player",
-          "instruction": "Keep the complete downloaded or existing player together. Its BSD-3-Clause licence covers the project code, not the generated game code or your original files."
+          "instruction": "Keep the complete downloaded or existing player together. Its BSD-3-Clause license covers the project code, not the generated game code or your original files."
         },
         {
           "title": "Prepare your own supported original upstream",
@@ -50,7 +50,7 @@
       ],
       "warnings": [
         "Before changing versions, keep a copy of the complete working game, original files and every profile, save, cache, mod, backup, temporary file and custom data location. Another executable may use the same data. Portcove does not offer updates, backups, rollback, data migration or deletion for these external files.",
-        "The package includes recompiled game code that the project licence does not cover. Portcove downloads it only from the project’s own releases; you supply your own game.",
+        "The package includes recompiled game code that the project license does not cover. Portcove downloads it only from the project’s own releases. You need your own original game files.",
         "Upstream verifies Linux x86_64 as its main platform and macOS on Apple Silicon (heavy scenes are still slow). Windows is experimental: upstream has tested it only under Proton. Upstream warns uncapped cutscenes can run 3–5x speed; retain the default cap. Portcove has not run it."
       ],
       "references": [

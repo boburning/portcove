@@ -34,7 +34,7 @@
         }
       ],
       "warnings": [
-        "The package includes recompiled game code that the project licence does not cover. Portcove downloads it only from the project’s own releases; you supply your own game.",
+        "The package includes recompiled game code that the project license does not cover. Portcove downloads it only from the project’s own releases. You need your own original game files.",
         "Keep the upstream folder outside the Portcove library. Close the game and its helpers before backing up or replacing the creating runtime and its data."
       ],
       "help_url": "https://github.com/darkuni/afterburner-climax-recomp/blob/9eeeb46030a2247e7b13b0f6241b42c4f32383b7/README.md"
