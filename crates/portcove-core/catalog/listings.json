@@ -5373,7 +5373,7 @@
     {
       "id": "alexbeav-alone-in-the-dark-the-new-nightmare-recomp",
       "name": "Alone in the Dark: The New Nightmare / Alexbeav PSXRecomp",
-      "summary": "PlayStation port prepared with your own matching disc and any required BIOS. Complete setup with the project’s launcher; you manage this copy, its updates and your saved data.",
+      "summary": "Build and play Alone in the Dark: The New Nightmare on Windows or Linux with your own matching European two-disc set and retail SCPH-5552 BIOS. You can also use a separately prepared upstream copy.",
       "project_url": "https://github.com/alexbeavs-ps1-ports/alone-in-the-dark-the-new-nightmare-recomp",
       "issue_number": 426,
       "listed_at": "2026-10-23",
@@ -5396,31 +5396,37 @@
       "manual_setup": {
         "steps": [
           {
-            "title": "Download and unpack the setup kit",
-            "instruction": "Extract the complete official ZIP for your system into a separate writable folder. On Linux use your native C/C++ compiler, CMake, Ninja and Python 3. The packaged setup host needs glibc 2.29, GLIBCXX 3.4.26, OpenGL and zlib. On macOS 11 or later, choose the Intel or Apple Silicon archive and put the Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH."
+            "title": "Use the exact original files",
+            "instruction": "Use your own Alone in the Dark: The New Nightmare (Europe) two-disc set (SLES-02801, SLES-12801), each disc with its data track and its audio track, and your own retail SCPH-5552 BIOS."
           },
           {
-            "title": "Supply the matching originals in order",
-            "instruction": "Use your own European two-disc set SLES-02801 then SLES-12801. Keep each disc image and every referenced track together. Use your supported European retail SCPH-5552 BIOS for the player. The included OpenBIOS is a setup fallback. Follow the bundled setup guide for the image formats and BIOS selection."
+            "title": "Set up the managed Windows or Linux player",
+            "instruction": "In Portcove, select the complete matching CHD for every disc in order, and the BIOS. Keep the original files in place. Portcove builds the player with its registered toolchain. Choose the disc when you choose Play. To change discs, use the game's own disc change if it offers one, or quit and choose Play with the next disc."
           },
           {
-            "title": "Build and add the completed player",
-            "instruction": "Run the Alone_in_the_Dark__The_New_Nightmare setup host (with .exe on Windows), then use its Generate & rebuild wizard. Add the completed player from build-release with that folder as its start folder. Keep the whole creating folder and its runtime companions."
+            "title": "Prepare a separate Mac copy",
+            "instruction": "Choose the official Mac ZIP from the upstream releases: -macos-x64.zip for Intel or -macos-arm64.zip for Apple silicon, and extract it. Put Xcode Command Line Tools, CMake, Ninja and Python 3 on PATH. The Mac setup host requires macOS 11 or newer."
+          },
+          {
+            "title": "Build and add the completed Mac player",
+            "instruction": "Run Alone_in_the_Dark__The_New_Nightmare from the kit folder, provide the discs as the kit's README-SETUP.txt describes and choose Generate & rebuild. In Portcove, select build-release/Alone_in_the_Dark__The_New_Nightmare as the player and build-release as its start folder."
           }
         ],
         "warnings": [
-          "Portcove has not confirmed setup or gameplay for this package.",
-          "The guide covers upstream-owned setup and replacement. Preserve all discs, saves, settings and overlay captures. Disc changes during gameplay remain unobserved."
+          "Portcove checks each disc's data track and track count. Keep every disc intact, with both of its tracks.",
+          "Mac setup, replacement and backups belong to you and the upstream kit. Native setup, gameplay and populated-save behavior remain unverified."
         ],
         "help_url": "https://github.com/alexbeavs-ps1-ports/alone-in-the-dark-the-new-nightmare-recomp#readme",
         "references": [
           {
-            "title": "Updates and backups",
-            "instruction": "Keep a working copy and its data before changing versions. Use the project’s tools for updates and back up your original files, saves and settings yourself."
+            "title": "Keep the original files and your data",
+            "instruction": "Keep your discs and BIOS separately. For a Mac copy, close the game and back up the complete working folder and its saves, settings and installed mods before replacing the kit."
           }
         ]
       },
       "release_url": "https://github.com/alexbeavs-ps1-ports/alone-in-the-dark-the-new-nightmare-recomp/releases",
+      "recommended_download_channel": "stable",
+      "original_game_title": "Alone in the Dark: The New Nightmare",
       "download_asset_hints": {
         "linux-x86-64": [
           "Alone-in-the-Dark-The-New-Nightmare-Recompiled-",
@@ -5438,8 +5444,7 @@
           "Alone-in-the-Dark-The-New-Nightmare-Recompiled-",
           "-windows-x64.zip"
         ]
-      },
-      "recommended_download_channel": "stable"
+      }
     },
     {
       "id": "alexbeav-apocalypse-recomp",

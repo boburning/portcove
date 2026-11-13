@@ -408,6 +408,34 @@ impl Catalog {
             .ok_or_else(|| PortcoveError::not_found(format!("unknown source profile: {id}")))
     }
 
+    /// Each disc's one exact track count for a managed PS1 `psx-raw-set`
+    /// route, in disc order; `None` for every other route.
+    pub(crate) fn managed_psx_set_track_counts(&self, port: &PortDefinition) -> Option<Vec<u32>> {
+        if port.adapter != AdapterKind::PsxRecompManaged
+            || port.runtime_source_materialization != Some(RuntimeSourceMaterialization::PsxRawSet)
+        {
+            return None;
+        }
+        let profile = self.source_profile(port.source_profile.as_deref()?).ok()?;
+        profile
+            .disc
+            .as_ref()?
+            .discs
+            .iter()
+            .map(|disc| match disc.track_counts.as_slice() {
+                [count] if *count >= 1 => Some(*count),
+                _ => None,
+            })
+            .collect()
+    }
+
+    /// A managed PS1 disc set with an audio track needs a reader that keeps
+    /// every track; older readers refuse such a catalog only generically.
+    pub(crate) fn requires_psx_multi_track_set(&self, port: &PortDefinition) -> bool {
+        self.managed_psx_set_track_counts(port)
+            .is_some_and(|counts| counts.iter().any(|count| *count > 1))
+    }
+
     pub fn validate(&self) -> Result<()> {
         if !matches!(self.document.schema_version, 1..=3) {
             return Err(PortcoveError::unsupported(format!(
@@ -1445,12 +1473,16 @@ impl Catalog {
                                 profile.id == *profile_id
                                     && profile.kind == SourceKind::PsxDisc
                                     && profile.disc.as_ref().is_some_and(|disc| {
+                                        // Managed installation re-checks each
+                                        // extracted disc against one exact count.
                                         disc.discs.len() >= 2
                                             && (port.adapter != AdapterKind::PsxRecompManaged
-                                                || disc
-                                                    .discs
-                                                    .iter()
-                                                    .all(|identity| identity.track_counts == [1]))
+                                                || disc.discs.iter().all(|identity| {
+                                                    matches!(
+                                                        identity.track_counts.as_slice(),
+                                                        [count] if *count >= 1
+                                                    )
+                                                }))
                                     })
                             })
                         })
@@ -8121,6 +8153,7 @@ mod tests {
             declared,
             [
                 "alexbeav-ace-combat-3-electrosphere-recomp",
+                "alexbeav-alone-in-the-dark-the-new-nightmare-recomp",
                 "alexbeav-armored-core-master-of-arena-recomp",
                 "alexbeav-fear-effect-2-retro-helix-recomp",
                 "alexbeav-final-fantasy-ix-recomp",
@@ -8155,6 +8188,48 @@ mod tests {
                 error.to_string().contains("PS1 settings disc choice"),
                 "{id}: {error}"
             );
+        }
+    }
+
+    #[test]
+    fn managed_psx_sets_admit_one_exact_track_count_per_disc() {
+        let aitd = "alexbeav-alone-in-the-dark-the-new-nightmare-recomp";
+        let embedded = Catalog::embedded().unwrap();
+        let port = embedded.port(aitd).unwrap();
+        assert_eq!(port.adapter, AdapterKind::PsxRecompManaged);
+        assert_eq!(
+            embedded.managed_psx_set_track_counts(port),
+            Some(vec![2, 2])
+        );
+        assert!(embedded.requires_psx_multi_track_set(port));
+        let galerians = embedded.port("alexbeav-galerians-recomp").unwrap();
+        assert_eq!(
+            embedded.managed_psx_set_track_counts(galerians),
+            Some(vec![1, 1, 1])
+        );
+        assert!(!embedded.requires_psx_multi_track_set(galerians));
+        // A staged raw set keeps only data tracks and needs no new reader.
+        let severed = embedded.port("severed-chains").unwrap();
+        assert_eq!(embedded.managed_psx_set_track_counts(severed), None);
+
+        for (profile_id, counts, valid) in [
+            ("alexbeav-galerians-recomp-europe-psx", vec![2], true),
+            ("alexbeav-galerians-recomp-europe-psx", vec![1, 2], false),
+            ("alexbeav-galerians-recomp-europe-psx", vec![], false),
+            (
+                "alexbeav-alone-in-the-dark-the-new-nightmare-recomp-europe-psx",
+                vec![2, 1],
+                false,
+            ),
+        ] {
+            let mut catalog = Catalog::embedded().unwrap();
+            let profile = Arc::make_mut(&mut catalog.document)
+                .source_profiles
+                .iter_mut()
+                .find(|profile| profile.id == profile_id)
+                .unwrap();
+            profile.disc.as_mut().unwrap().discs[0].track_counts = counts.clone();
+            assert_eq!(catalog.validate().is_ok(), valid, "{profile_id} {counts:?}");
         }
     }
 

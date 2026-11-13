@@ -3928,11 +3928,21 @@ impl PortcoveService {
             == Some(crate::RuntimeSourceMaterialization::PsxRawSet))
         .then(|| port.runtime_source_filename.as_ref().map(PathBuf::from))
         .flatten();
+        let runtime_track_counts = if runtime_source_directory.is_some() {
+            self.catalog
+                .managed_psx_set_track_counts(port)
+                .ok_or_else(|| {
+                    PortcoveError::state("managed PS1 disc set has no exact track counts")
+                })?
+        } else {
+            Vec::new()
+        };
         Ok(Some(crate::PsxManagedPreparation {
             source,
             bios,
             source_paths,
             runtime_source_directory,
+            runtime_track_counts,
             toolchain_root,
             executable_basename,
             split_mod_packages: port

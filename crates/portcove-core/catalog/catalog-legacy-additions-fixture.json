@@ -115,7 +115,8 @@
     "alexbeav-koudelka-recomp-europe-psx",
     "alexbeav-final-fantasy-viii-recomp-usa-psx",
     "alexbeav-final-fantasy-ix-recomp-usa-canada-rev-1-psx",
-    "alexbeav-medievil-ii-recomp-usa-psx"
+    "alexbeav-medievil-ii-recomp-usa-psx",
+    "alexbeav-alone-in-the-dark-the-new-nightmare-recomp-europe-psx"
   ],
   "port_ids": [
     "snap64-recomp",
@@ -422,6 +423,7 @@
     "alexbeav-koudelka-recomp",
     "alexbeav-final-fantasy-viii-recomp",
     "alexbeav-final-fantasy-ix-recomp",
-    "alexbeav-medievil-ii-recomp-setup-kit"
+    "alexbeav-medievil-ii-recomp-setup-kit",
+    "alexbeav-alone-in-the-dark-the-new-nightmare-recomp"
   ]
 }

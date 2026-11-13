@@ -21,6 +21,9 @@ pub struct PsxManagedPreparation {
     pub bios: Option<SourceRecord>,
     pub source_paths: Vec<PathBuf>,
     pub runtime_source_directory: Option<PathBuf>,
+    /// Each disc's exact catalog track count, in disc order, for a
+    /// `runtime_source_directory` set; empty otherwise.
+    pub runtime_track_counts: Vec<u32>,
     pub toolchain_root: PathBuf,
     pub executable_basename: String,
     /// The route persists split player mod paths rather than all of `mods`.
@@ -31,6 +34,7 @@ struct PreparationConfiguration<'a> {
     primary_source: &'a Path,
     source_paths: &'a [PathBuf],
     runtime_source_directory: Option<&'a Path>,
+    runtime_track_counts: &'a [u32],
     executable_basename: &'a str,
 }
 
@@ -71,11 +75,20 @@ impl<'a> PreparationConfiguration<'a> {
                 )
                 .detail("preparation_field", "runtime_source_directory"));
             }
+            if preparation.runtime_track_counts.len() != preparation.source_paths.len()
+                || preparation.runtime_track_counts.contains(&0)
+            {
+                return Err(PortcoveError::verification(
+                    "managed PS1 runtime materialization requires one track count per disc",
+                )
+                .detail("preparation_field", "runtime_track_counts"));
+            }
         }
         Ok(Self {
             primary_source,
             source_paths: &preparation.source_paths,
             runtime_source_directory,
+            runtime_track_counts: &preparation.runtime_track_counts,
             executable_basename: &preparation.executable_basename,
         })
     }
@@ -711,6 +724,7 @@ fn prepare_install_inner(
             relative,
             &preparation.source,
             configuration.source_paths,
+            configuration.runtime_track_counts,
         )?
     } else {
         configuration.source_paths.to_vec()
@@ -1376,12 +1390,13 @@ fn materialize_runtime_raw_set(
     relative: &Path,
     source: &SourceRecord,
     source_paths: &[PathBuf],
+    track_counts: &[u32],
 ) -> Result<Vec<PathBuf>> {
     let relative_text = crate::path::unicode(relative, "managed PS1 runtime source")?;
     let normalized_relative = relative_text.replace('\\', "/");
     crate::archive::validate_relative_path(&normalized_relative, false)?;
     let destination = build_dir.join(relative);
-    crate::adapter::materialize_psx_cue_set(&source.path, &destination)?;
+    crate::adapter::materialize_psx_cue_set(&source.path, &destination, track_counts)?;
 
     let mut runtime_sources = Vec::with_capacity(source_paths.len());
     let mut hashes = Vec::with_capacity(source_paths.len());
@@ -1398,9 +1413,18 @@ fn materialize_runtime_raw_set(
         hashes.push(sha256);
         total_size = total_size.saturating_add(size);
         let cue_filename = format!("disc-{:02}.cue", index + 1);
-        if !destination.join(&cue_filename).is_file() {
+        let cue = destination.join(&cue_filename);
+        if !cue.is_file() {
             return Err(PortcoveError::verification(format!(
                 "managed PS1 runtime source is missing {cue_filename}"
+            )));
+        }
+        // Only the data track is hash-bound; the cue must still name it first
+        // and carry the disc's exact catalog track count.
+        let (track_count, data_track) = crate::adapter::inspect_psx_cue(&cue)?;
+        if Some(&track_count) != track_counts.get(index) || data_track != materialized {
+            return Err(PortcoveError::verification(format!(
+                "managed PS1 runtime source {cue_filename} does not match its catalog tracks"
             )));
         }
         runtime_sources.push(PathBuf::from(format!(
@@ -2560,6 +2584,7 @@ mod tests {
                 observed_identity: None,
             },
             bios: None,
+            runtime_track_counts: vec![1; source_paths.len()],
             source_paths,
             runtime_source_directory: None,
             toolchain_root: root.join("absent-owned-toolchain"),
@@ -2652,6 +2677,25 @@ mod tests {
                 &invalid,
                 "runtime_source_directory",
             );
+        }
+    }
+
+    #[test]
+    fn managed_preparation_requires_one_exact_track_count_per_runtime_disc() {
+        let temporary = tempfile::tempdir().unwrap();
+        let mut preparation = preparation_input_fixture(temporary.path(), true);
+        preparation.runtime_source_directory = Some("owned/discs".into());
+        preparation.runtime_track_counts = vec![2, 2];
+        assert_eq!(
+            PreparationConfiguration::from_preparation(&preparation)
+                .unwrap()
+                .runtime_track_counts,
+            [2, 2]
+        );
+        for counts in [vec![], vec![2], vec![2, 0], vec![1, 1, 1]] {
+            let mut invalid = preparation.clone();
+            invalid.runtime_track_counts = counts;
+            assert_invalid_preparation_input(temporary.path(), &invalid, "runtime_track_counts");
         }
     }
 

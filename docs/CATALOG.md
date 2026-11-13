@@ -2568,6 +2568,21 @@ leaves any file in `overlay_toolchain` or `.cache/overlay-toolchain` fails
 before anything is installed or changed.
 [Framework review](qualification/psxrecomp-7192402-builder-downloads-2026-11-13.md).
 
+A managed PS1 `psx-raw-set` source profile gives every disc exactly one
+positive track count; a disc that may have one or two tracks (`[1, 2]`) is
+refused. Like a single disc, each disc binds only its data-track SHA-1 and that
+exact count. Audio tracks are not hash-bound: the CHD storage identity is
+checked before and after extraction, and the installation manifest covers
+every file of the materialized set. Installation re-checks each extracted cue's
+TRACK count against its disc's count, keeps the data track as `disc-NN.bin`
+(the file the launch roster pairs with `disc-NN.cue`), names every other track
+`disc-NN-tTT.bin` and rewrites each FILE line in order, keeping INDEX, PREGAP
+and POSTGAP lines. A sheet whose FILE and TRACK entries do not pair one to one,
+or that names an unsafe or missing file, refuses before anything is activated.
+An indexed entry whose set has a disc with more than one track requires
+managed PS1 capability version 4.
+[Multi-track record](qualification/psx-multi-track-disc-sets-2026-11-13.md).
+
 A `psx-raw-set` integration may declare `launch_disc_choice:
 "psx-settings-selected"` after source review shows that its runtime reads the
 1-based `[disc] selected` entry of the `settings.toml` beside the player and

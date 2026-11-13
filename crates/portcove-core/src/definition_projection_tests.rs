@@ -824,3 +824,29 @@ fn generic_projection_source_mutations_fail_after_valid_entry_inspection() {
         );
     }
 }
+
+#[test]
+fn multi_track_psx_disc_sets_require_their_reader_capability() {
+    let document = projection();
+    let position = document["catalog"]["ports"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .position(|port| port["id"] == "alexbeav-alone-in-the-dark-the-new-nightmare-recomp")
+        .unwrap();
+    let contract = serde_json::to_vec(&document).unwrap();
+    let valid = entry(&document, &contract, position);
+    assert_eq!(
+        valid["required_capabilities"],
+        json!([{"template":"psx-recomp-managed","minimum_version":4,"maximum_version":4}])
+    );
+    inspect(&valid, &contract).unwrap();
+    // A retained-scope reader would accept the entry alone; the projection's
+    // source profile makes it refuse.
+    let mut stale = valid.clone();
+    stale["required_capabilities"][0]["minimum_version"] = json!(3);
+    stale["required_capabilities"][0]["maximum_version"] = json!(3);
+    let error = inspect(&stale, &contract).unwrap_err();
+    assert_eq!(error.code, crate::ErrorCode::Verification);
+    assert!(error.message.contains("capability version 4"), "{error:?}");
+}

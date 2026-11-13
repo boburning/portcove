@@ -122,6 +122,15 @@ pub(crate) fn definition_requirements(
     } else {
         default_version
     };
+    // Track counts live in the embedded source profile, not on the port.
+    let default_version = if port.adapter == crate::AdapterKind::PsxRecompManaged
+        && crate::Catalog::embedded()
+            .is_ok_and(|catalog| catalog.requires_psx_multi_track_set(port))
+    {
+        default_version.max(crate::adapter::PSX_MULTI_TRACK_SET_CAPABILITY)
+    } else {
+        default_version
+    };
     let mut requirements = vec![
         json!({"template":port.adapter,"minimum_version":default_version,"maximum_version":default_version}),
     ];
