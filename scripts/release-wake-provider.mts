@@ -1,3 +1,4 @@
+import { semanticReviewCheckName } from "./release-control-phases.mts";
 import { downloadGitHubArtifactArchive } from "./github-artifact-download.mts";
 import { createGitHubClient } from "./github-client.mts";
 import type { GitHubCredential, GitHubRequestPolicy } from "./github-client.mts";
@@ -16,6 +17,7 @@ export type WakeWorkflow =
   | "application-release.yml";
 export interface WakeProvider {
   repository(): Promise<unknown>;
+  applicationChecks?(sha: string): Promise<unknown>;
   run(id: string, retain?: RetainWakeResponse): Promise<unknown>;
   jobs(id: string, attempt?: number): Promise<unknown>;
   ref(name: string): Promise<unknown>;
@@ -46,15 +48,16 @@ export async function createWakeProvider(options: {
   now?: () => number;
 }): Promise<WakeProvider> {
   const credential = { ...options.credential };
-  const client = await createGitHubClient({
-    credential,
+  const clientOptions = {
     deadline: options.deadline,
     maxBytes: options.maxBytes,
     requestTimeoutMs: options.requestTimeoutMs ?? 10000,
     headers: { accept: "application/vnd.github+json", "X-GitHub-Api-Version": options.apiVersion },
     ...(options.fetch ? { fetch: options.fetch } : {}),
     ...(options.now ? { now: options.now } : {}),
-  });
+  };
+  const client = await createGitHubClient({ ...clientOptions, credential });
+  let publicChecks: ReturnType<typeof createGitHubClient> | undefined;
   let requests = 0;
   const chargeRequest = () => {
     if (++requests > (options.maxRequests ?? Infinity))
@@ -87,6 +90,28 @@ export async function createWakeProvider(options: {
   };
   return {
     repository: () => get("/repos/{owner}/{repo}", {}),
+    async applicationChecks(sha) {
+      if (!/^[a-f0-9]{40}$/u.test(sha)) throw new Error("wake requires an exact commit");
+      // This repository and its Checks are public. Preserve the appointed wake
+      // workflow and avoid sending its dispatch token to the routing reader.
+      const request = policy();
+      const reader = await (publicChecks ??= createGitHubClient({
+        ...clientOptions,
+        credential: { kind: "anonymous" },
+      }));
+      const response = await reader.request("GET /repos/{owner}/{repo}/commits/{ref}/check-runs", {
+        ...repository,
+        ref: sha,
+        app_id: 5555053,
+        check_name: semanticReviewCheckName,
+        filter: "all",
+        per_page: 100,
+        page: 1,
+        request: { portcove: request },
+      });
+      if (response.status !== 200) throw new Error("wake independent Check readback unavailable");
+      return response.data;
+    },
     run: (id, retain) => get("/repos/{owner}/{repo}/actions/runs/{run_id}", { run_id: id }, retain),
     jobs: (id, attempt = 1) =>
       get("/repos/{owner}/{repo}/actions/runs/{run_id}/attempts/{attempt_number}/jobs", {

@@ -1362,6 +1362,14 @@ for (const [file, tests] of [
       "scripts/release-controller-catalog-routing.test.mts",
     ],
   ],
+  [
+    "scripts/release-opportunity.mts",
+    ["scripts/release-coordinator.test.mts", "scripts/release-controller-wake.test.mts"],
+  ],
+  [
+    "scripts/release-semantic-review-evidence.mts",
+    ["scripts/release-semantic-review.test.mts", "scripts/release-controller-wake.test.mts"],
+  ],
   ["scripts/release-publication-result.mts", ["scripts/release-publication-result.test.mts"]],
   [
     "scripts/release-publication-result-artifact.mts",
