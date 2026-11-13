@@ -1069,8 +1069,11 @@ export function collectionSql(input: {
     const first = [...complete.values()][0];
     if (first) lines.push(...handoffCollectionSql({ retired: true, run: first.run }));
   }
-  // One query for the whole transaction: a remote host costs one round trip, not one per statement.
-  return batchedStatements(lines);
+  // The two session settings run as their own statements first: the server parses a
+  // batched query whole, so a setting inside it could not govern the literals after it.
+  // Everything else is one query, so a remote host costs one round trip, not one per statement.
+  const [isolation, quoting, ...statements] = lines;
+  return `${isolation}\n${quoting}\n${batchedStatements(statements)}`;
 }
 
 export const coreSourceName = (platform: string) => `${corePrefix}${platform}`;

@@ -203,9 +203,18 @@ const providerColumnOption =
   /^ALTER TABLE ONLY [a-z_][a-z0-9_]*\.[a-z_][a-z0-9_]* ALTER COLUMN [a-z_][a-z0-9_]* SET \(pg_attver=[0-9]+\);$/u;
 
 export function portableRestoreSql(sql: string) {
+  let copying = false;
   return sql
     .split("\n")
-    .filter((line) => !providerColumnOption.test(line))
+    .filter((line) => {
+      // COPY data passes through untouched, whatever it looks like.
+      if (copying) {
+        if (line === "\\.") copying = false;
+        return true;
+      }
+      if (/^COPY .* FROM stdin;$/u.test(line)) copying = true;
+      return !providerColumnOption.test(line);
+    })
     .join("\n");
 }
 

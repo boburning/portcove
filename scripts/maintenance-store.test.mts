@@ -75,9 +75,10 @@ void test("a large transaction is one query, and provider column options do not 
       "CREATE TABLE portcove_maintenance.assessments (assessment_id bigint);",
       "ALTER TABLE ONLY portcove_maintenance.assessments ALTER COLUMN assessment_id SET (n_distinct=1);",
       "COPY portcove_maintenance.assessments (assessment_id) FROM stdin;",
+      "ALTER TABLE ONLY portcove_maintenance.assessments ALTER COLUMN assessment_id SET (pg_attver=29006896);",
       "\\.",
     ].join("\n"),
-    "only the provider's exact column-version statements are dropped",
+    "only the provider's exact column-version statements are dropped; COPY data is kept",
   );
 });
 

@@ -1885,6 +1885,23 @@ void test(
       [1],
       "the earlier verified issue facts stay current",
     );
+
+    // Quoting never depends on server or role settings, even though the collection is batched.
+    runSql(
+      store.owner,
+      `DO $$ BEGIN EXECUTE format('ALTER DATABASE %I SET standard_conforming_strings = off', current_database()); END $$;`,
+    );
+    issuesFail = false;
+    respond({ ...report("automatic"), port_id: String.raw`back\slash "quoted" \n` });
+    await all({ issues });
+    assert.equal(
+      runSql(
+        store.owner,
+        `SELECT o.payload #>> '{report,port_id}' FROM portcove_maintenance.observations o
+           WHERE o.run_id = portcove_maintenance.latest_run('core-port-capabilities-${hostPlatform()}');`,
+      ).trim(),
+      String.raw`back\slash "quoted" \n`,
+    );
   },
 );
 
