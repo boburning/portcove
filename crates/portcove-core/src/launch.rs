@@ -536,7 +536,13 @@ pub(crate) mod child_diagnostic {
         Observe,
         MissingPending,
         MissingCompleted,
+        /// Missing identity whose completed exit is reapable only after a few
+        /// pending waits, as when macOS reports ESRCH mid-exit.
+        MissingBrieflyPending,
     }
+
+    /// Pending waits injected before `MissingBrieflyPending` reveals the exit.
+    const BRIEF_PENDING_WAITS: usize = 3;
 
     #[derive(Clone, Debug)]
     pub(crate) struct Event {
@@ -554,6 +560,7 @@ pub(crate) mod child_diagnostic {
         pid: Option<u32>,
         events: Vec<Event>,
         dropped: usize,
+        injected_pending: usize,
     }
 
     thread_local! { static TRACE: RefCell<Option<Trace>> = const { RefCell::new(None) }; }
@@ -570,6 +577,7 @@ pub(crate) mod child_diagnostic {
                     pid: None,
                     events: Vec::new(),
                     dropped: 0,
+                    injected_pending: 0,
                 });
             });
             Self(std::marker::PhantomData)
@@ -626,6 +634,20 @@ pub(crate) mod child_diagnostic {
             let Some(trace) = trace.as_mut().filter(|trace| trace.pid == Some(pid)) else {
                 return;
             };
+            // The bounded exit-reap loop repeats an identical pair of try_wait
+            // observations; keep one pair so the fixed trace retains the later
+            // kill and reap evidence.
+            if stage.starts_with("try_wait")
+                && trace.events.iter().rev().take(2).any(|event| {
+                    event.stage == stage
+                        && event.outcome == outcome
+                        && event.raw_error == raw_error
+                        && event.value == value
+                        && event.identity == identity
+                })
+            {
+                return;
+            }
             if trace.events.len() == MAX_EVENTS {
                 trace.dropped += 1;
                 return;
@@ -648,7 +670,10 @@ pub(crate) mod child_diagnostic {
             Some(trace.control)
         });
         record(child.id(), "spawn", "owned", None, None);
-        if control == Some(Control::MissingCompleted) {
+        if matches!(
+            control,
+            Some(Control::MissingCompleted | Control::MissingBrieflyPending)
+        ) {
             let result = child.wait();
             waited(child.id(), "control_wait", &result);
             if result.is_err() {
@@ -708,9 +733,21 @@ pub(crate) mod child_diagnostic {
                 None,
             ),
         }
-        let injected = TRACE.with_borrow(|trace| {
-            trace.as_ref().is_some_and(|trace| {
-                trace.pid == Some(pid) && trace.control == Control::MissingPending
+        let injected = TRACE.with_borrow_mut(|trace| {
+            trace.as_mut().is_some_and(|trace| {
+                if trace.pid != Some(pid) {
+                    return false;
+                }
+                match trace.control {
+                    Control::MissingPending => true,
+                    Control::MissingBrieflyPending
+                        if trace.injected_pending < BRIEF_PENDING_WAITS =>
+                    {
+                        trace.injected_pending += 1;
+                        true
+                    }
+                    _ => false,
+                }
             })
         });
         if injected {
