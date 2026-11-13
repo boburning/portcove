@@ -686,6 +686,8 @@ export async function main(argv = process.argv.slice(2)) {
   if (args.length)
     throw new MaintenanceStoreError(`Unexpected arguments: ${args.join(" ")}\n${usage}`);
   const environment = connectionFromEnvironment(environmentName);
+  // Child processes receive only the libpq translation, never the URL itself.
+  delete process.env[environmentName];
   let result: unknown;
   if (command === "status") result = migrationStatus(environment, directory);
   else if (command === "migrate") result = migrate(environment, directory);

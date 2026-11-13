@@ -223,6 +223,7 @@ jobs:
               "step_seconds": times,
               "files": digests(work / "maintenance-report") | digests(work / "maintenance-backup"),
           }
+          (work / "maintenance-report").mkdir(parents=True, exist_ok=True)
           (work / "maintenance-report/evidence.json").write_text(json.dumps(evidence, indent=2) + "\n")
           lines = ["## Maintenance inventory run evidence", "",
                    f"Run {evidence['run']['id']} attempt {evidence['run']['attempt']} ({evidence['run']['event']}) at `{evidence['run']['head_sha']}`.",

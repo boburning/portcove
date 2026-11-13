@@ -453,6 +453,9 @@ the previous 24 hours retained a snapshot. In scheduled runs 43058926577,
 records: compressed member exceeds reserved output envelope; checkpoints
 retained" (a 14.4 MB controller checkpoint, 27.3 MB decoded), so a live
 collection records a `failed` run until the producer retains a snapshot again.
+The owner-approved November 11 fresh baseline restored that chain on 2026-11-12:
+scheduled run 43152316761 initialized it and retained a checkpoint snapshot, so
+later collections read that snapshot.
 
 ### Hosted intake
 

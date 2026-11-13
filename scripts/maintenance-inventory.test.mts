@@ -116,16 +116,19 @@ void test("the issue collector reads only its own named credential and removes i
   assert.throws(() => takeIssueCredential("lower-case", {}), /must name an environment variable/u);
 
   const database = "PORTCOVE_MAINTENANCE_TEST_ISSUE_OPTION_URL";
-  process.env[database] = "postgresql://collector@127.0.0.1:9/unused";
   try {
     for (const argv of [
       ["collect", "--cli", "portcove", "--all", "--issues-token-env", "PROJECT_TOKEN"],
       ["report", "--output", "out", "--issues", "--issues-token-env", "PROJECT_TOKEN"],
-    ])
+    ]) {
+      process.env[database] = "postgresql://collector@127.0.0.1:9/unused";
       await assert.rejects(
         main([argv[0]!, "--database-env", database, ...argv.slice(1)]),
         /--issues-token-env applies only to collect --issues/u,
       );
+      // main consumes the URL so no child process can inherit it.
+      assert.equal(Object.hasOwn(process.env, database), false);
+    }
   } finally {
     delete process.env[database];
   }

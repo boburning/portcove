@@ -1861,9 +1861,10 @@ export async function main(argv = process.argv.slice(2)) {
     console.log(usage);
     return command ? 0 : 2;
   }
-  const environment = connectionFromEnvironment(
-    option(args, "--database-env") ?? defaultDatabaseEnvironment,
-  );
+  const databaseEnvironment = option(args, "--database-env") ?? defaultDatabaseEnvironment;
+  const environment = connectionFromEnvironment(databaseEnvironment);
+  // Core CLI, Git and libpq children receive only the libpq translation, never the URL.
+  delete process.env[databaseEnvironment];
   const cli = option(args, "--cli");
   const sample = option(args, "--sample");
   const output = option(args, "--output");
