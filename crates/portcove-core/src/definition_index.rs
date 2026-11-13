@@ -137,6 +137,13 @@ impl DefinitionContentIndex {
         &self.definitions
     }
 
+    /// The indexed SHA-256 and byte length of one content target.
+    pub fn content_digest(&self, target: &str) -> Option<(&str, u64)> {
+        self.contents
+            .get(target)
+            .map(|content| (content.sha256.as_str(), content.length))
+    }
+
     /// Give a transport the validated per-target read bound before acquisition.
     pub fn content_length(&self, target: &str) -> Result<u64> {
         Ok(self.content(target)?.length)

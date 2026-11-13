@@ -16,6 +16,8 @@ import test from "node:test";
 import { parse } from "yaml";
 import { postgresFixture, postgresServer } from "./fixtures/postgres-cluster.mts";
 import {
+  deliveryFacts,
+  publicationEntries,
   publicationFacts,
   acquireCollection,
   readTargetRoutes,
@@ -34,6 +36,7 @@ import {
   renderHtml,
   takeIssueCredential,
   writeReport,
+  type DefinitionDeliveryInspection,
   type InventoryReport,
 } from "./maintenance-inventory.mts";
 import type { UpstreamInput } from "./maintenance-upstream.mts";
@@ -228,6 +231,7 @@ void test("the hosted workflow runs daily on main with least privilege and a rea
     "--all",
     "--release-health",
     "--publication",
+    "--delivery",
     "--upstream",
     "--hosted-intake",
     "--targets",
@@ -239,7 +243,7 @@ void test("the hosted workflow runs daily on main with least privilege and a rea
   for (const upload of uploads) assert.equal(upload.with!["retention-days"], 30);
 });
 
-void test("definition publication compares main with the appointed location without claiming verification", () => {
+void test("main definitions come from the committed bundle and never from an HTTP status", () => {
   const inspection = {
     index_sha256: "f".repeat(64),
     definitions: [
@@ -251,30 +255,129 @@ void test("definition publication compares main with the appointed location with
       },
     ],
   };
-  const fact = (published_status: number | null) =>
-    publicationFacts({ inspection, published_status }).facts.get("definition:official/example") as
-      | { published: string; site: { status: string } }
-      | undefined;
-  assert.deepEqual([fact(404)?.published, fact(404)?.site.status], ["not-published", "absent"]);
-  // A present site says nothing about an individual definition.
-  assert.deepEqual(
-    [fact(200)?.published, fact(200)?.site.status],
-    ["unknown", "metadata-present-unverified"],
-  );
-  // Anything else is a gap, never a fact.
-  assert.equal(fact(503), undefined);
-  assert.deepEqual(
-    publicationFacts({ inspection, published_status: null }).gaps.map(({ code }) => code),
-    ["unreachable"],
-  );
-  assert.throws(() => publicationFacts({ inspection: {}, published_status: 404 }), /Unsupported/u);
+  assert.deepEqual(publicationFacts({ inspection }).facts.get("definition:official/example"), {
+    main: {
+      index_sha256: "f".repeat(64),
+      revision: 1,
+      definition_target: "sha256/x.json",
+      policy_target: null,
+      policy_revision: null,
+      launch_revision: null,
+    },
+  });
+  assert.throws(() => publicationFacts({ inspection: {} }), /Unsupported/u);
   assert.throws(
     () =>
       publicationFacts({
         inspection: { index_sha256: "f", definitions: [{ namespace: "../x", stable_id: "y" }] },
-        published_status: 404,
       }),
     /Unsupported definition identity/u,
+  );
+});
+
+const verifiedDelivery = (
+  definitions: { stable_id: string; revision: number; target: string }[],
+): DefinitionDeliveryInspection => ({
+  format_version: 1,
+  metadata_base_url: "https://example.test/metadata/",
+  serving: "verified",
+  reason: null,
+  provenance: { index_sha256: "e".repeat(64), timestamp_version: 7 },
+  definitions: definitions.map((definition) => ({
+    namespace: "official",
+    sha256: "d".repeat(64),
+    length: 10,
+    ...definition,
+  })),
+});
+
+const unverifiedDelivery = (
+  serving: "not_served" | "incomplete" | "unreachable" | "expired",
+): DefinitionDeliveryInspection => ({
+  format_version: 1,
+  metadata_base_url: "https://example.test/metadata/",
+  serving,
+  reason: "could not acquire authenticated definition repository",
+  provenance: null,
+  definitions: [],
+});
+
+void test("only Core-verified delivery records published definitions", () => {
+  const verified = deliveryFacts(
+    verifiedDelivery([{ stable_id: "example", revision: 2, target: "sha256/y.json" }]),
+  );
+  assert.equal(verified.gaps.length, 0);
+  assert.match(verified.revision, /serving=verified;index-sha256=e{64};timestamp=7$/u);
+  assert.deepEqual(verified.facts.get("definition:official/example"), {
+    published: { revision: 2, target: "sha256/y.json", sha256: "d".repeat(64), length: 10 },
+  });
+  // Not served, unreachable and expired are the run's gap, never "not published".
+  for (const serving of ["not_served", "incomplete", "unreachable", "expired"] as const) {
+    const outcome = deliveryFacts(unverifiedDelivery(serving));
+    assert.equal(outcome.facts.size, 0);
+    assert.equal(outcome.expected, null);
+    assert.deepEqual(
+      outcome.gaps.map(({ subject_key, code }) => [subject_key, code]),
+      [["source:definition-delivery", serving]],
+    );
+  }
+  // A claimed verification without provenance, or facts without verification, is refused.
+  assert.throws(() => deliveryFacts({ ...verifiedDelivery([]), provenance: null }), /Unsupported/u);
+  assert.throws(
+    () =>
+      deliveryFacts({
+        ...unverifiedDelivery("not_served"),
+        definitions: verifiedDelivery([{ stable_id: "x", revision: 1, target: "t" }]).definitions,
+      }),
+    /Unsupported/u,
+  );
+  assert.throws(
+    () =>
+      deliveryFacts(
+        verifiedDelivery([
+          { stable_id: "x", revision: 1, target: "a" },
+          { stable_id: "x", revision: 2, target: "b" },
+        ]),
+      ),
+    /Duplicate/u,
+  );
+});
+
+void test("publication entries compare main with the last verified publication by identity", () => {
+  const main = (id: string, revision: number, target: string) => ({
+    definition: `definition:official/${id}`,
+    facts: { main: { revision, definition_target: target } },
+  });
+  const published = (id: string, revision: number, target: string) => ({
+    definition: `definition:official/${id}`,
+    facts: { published: { revision, target } },
+  });
+  assert.deepEqual(
+    publicationEntries(
+      [main("same", 1, "a"), main("newer", 2, "c"), main("unpublished", 1, "e")],
+      [published("same", 1, "a"), published("newer", 1, "b"), published("withdrawn", 1, "f")],
+      true,
+    ).map(({ definition, comparison }) => [definition, comparison]),
+    [
+      ["definition:official/newer", "published-differs-from-main"],
+      ["definition:official/same", "published-matches-main"],
+      ["definition:official/unpublished", "never-verified-published"],
+      ["definition:official/withdrawn", "published-not-on-main"],
+    ],
+  );
+  assert.equal(
+    publicationEntries([], [published("only", 1, "a")], false)[0]?.comparison,
+    "main-unobserved",
+  );
+  const absent = (id: string) => ({
+    definition: `definition:official/${id}`,
+    facts: { absent: true },
+  });
+  assert.deepEqual(
+    publicationEntries([main("pulled", 1, "a")], [absent("pulled"), absent("gone")], true).map(
+      ({ definition, comparison, published: value }) => [definition, comparison, value],
+    ),
+    [["definition:official/pulled", "published-withdrawn", null]],
   );
 });
 
@@ -920,10 +1023,20 @@ void test(
         Promise.resolve({
           inspection: {
             index_sha256: "f".repeat(64),
-            definitions: [{ namespace: "official", stable_id: "example", revision: 1 }],
+            definitions: [
+              {
+                namespace: "official",
+                stable_id: "example",
+                revision: 1,
+                definition_target: "sha256/a.json",
+              },
+            ],
           },
-          published_status: 404,
         }),
+      delivery: () =>
+        Promise.resolve(
+          verifiedDelivery([{ stable_id: "example", revision: 1, target: "sha256/a.json" }]),
+        ),
       environment: store.owner,
       runner: "fixture",
     });
@@ -932,12 +1045,65 @@ void test(
     assert.ok(
       !inventory.unsupported_sources.some(({ source }) => source === "definition-publication"),
     );
-    assert.equal(inventory.publication.status, "observed");
-    assert.match(
-      inventory.publication.reason,
-      /definition:official\/example revision 1 on main; published: not-published \(appointed site absent\)/u,
+    assert.ok(
+      !inventory.unsupported_sources.some(({ source }) => source === "definition-delivery"),
     );
-    // An unclassifiable probe keeps the last known facts and records a failed run with a gap.
+    assert.equal(inventory.publication.status, "observed");
+    assert.equal(inventory.publication.serving?.status, "verified");
+    assert.deepEqual(
+      inventory.publication.definitions?.map(({ comparison }) => comparison),
+      ["published-matches-main"],
+    );
+    // Not served (HTTP 404 behind the client) and an outage erase no verified publication.
+    for (const serving of ["not_served", "unreachable"] as const) {
+      const outcome = await collect({
+        cli,
+        all: true,
+        ports: ["2ship2harkinian"],
+        delivery: () => Promise.resolve(unverifiedDelivery(serving)),
+        environment: store.owner,
+        runner: "fixture",
+      });
+      assert.deepEqual(outcome.delivery, { serving, published: 0 });
+      const afterOutage = buildReport(store.owner);
+      assert.equal(afterOutage.publication.serving?.status, serving);
+      assert.equal(
+        afterOutage.publication.serving?.last_verified_at,
+        inventory.publication.serving?.last_verified_at,
+      );
+      assert.deepEqual(
+        afterOutage.publication.definitions?.map(({ comparison, published }) => [
+          comparison,
+          published,
+        ]),
+        [
+          [
+            "published-matches-main",
+            {
+              published: {
+                revision: 1,
+                target: "sha256/a.json",
+                sha256: "d".repeat(64),
+                length: 10,
+              },
+            },
+          ],
+        ],
+      );
+      assert.match(
+        runSql(
+          store.owner,
+          `SELECT coverage || ':' || (gaps -> 0 ->> 'code') FROM portcove_maintenance.collection_runs
+            WHERE run_id = portcove_maintenance.latest_run('definition-delivery');`,
+        ),
+        new RegExp(`failed:${serving}`, "u"),
+      );
+    }
+    assert.match(
+      renderHtml(buildReport(store.owner)),
+      /Latest read: <span class="unknown">unreachable/u,
+    );
+    // A newer main revision is visible as different from what was last verified.
     await collect({
       cli,
       all: true,
@@ -946,22 +1112,39 @@ void test(
         Promise.resolve({
           inspection: {
             index_sha256: "f".repeat(64),
-            definitions: [{ namespace: "official", stable_id: "example", revision: 1 }],
+            definitions: [
+              {
+                namespace: "official",
+                stable_id: "example",
+                revision: 2,
+                definition_target: "sha256/b.json",
+              },
+            ],
           },
-          published_status: 503,
         }),
       environment: store.owner,
       runner: "fixture",
     });
-    const afterOutage = buildReport(store.owner);
-    assert.match(afterOutage.publication.reason, /published: not-published/u);
-    assert.match(
-      runSql(
-        store.owner,
-        "SELECT coverage || ':' || (gaps -> 0 ->> 'code') FROM portcove_maintenance.collection_runs WHERE source = 'definition-publication' ORDER BY started_at DESC LIMIT 1;",
-      ),
-      /failed:http-503/u,
+    assert.deepEqual(
+      buildReport(store.owner).publication.definitions?.map(({ comparison }) => comparison),
+      ["published-differs-from-main"],
     );
+    // A verified read that no longer indexes a definition withdraws it.
+    await collect({
+      cli,
+      all: true,
+      ports: ["2ship2harkinian"],
+      delivery: () => Promise.resolve(verifiedDelivery([])),
+      environment: store.owner,
+      runner: "fixture",
+    });
+    const withdrawn = buildReport(store.owner);
+    // The withdrawal stays visible; it is never relabelled as never published.
+    assert.deepEqual(
+      withdrawn.publication.definitions?.map(({ comparison }) => comparison),
+      ["published-withdrawn"],
+    );
+    assert.equal(withdrawn.publication.serving?.status, "verified");
     assert.match(renderHtml(inventory), /provider-redirect \(observe-availability\)/u);
 
     // A failed health read keeps the previous read's per-port gap and says it failed.
@@ -1004,7 +1187,10 @@ void test(
       runner: "fixture",
     });
     assert.deepEqual(bundleFailure.failed_sources, ["definition-publication"]);
-    assert.match(buildReport(store.owner).publication.reason, /published: not-published/u);
+    assert.match(
+      buildReport(store.owner).publication.reason,
+      /definition:official\/example: published-withdrawn \(main revision 2/u,
+    );
     assert.equal(
       runSql(
         store.owner,

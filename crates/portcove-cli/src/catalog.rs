@@ -96,6 +96,8 @@ pub(crate) enum CatalogCommand {
         #[arg(long)]
         repository_authoring: bool,
     },
+    /// Verify what the appointed official location serves, read-only, as a client would.
+    InspectDefinitionDelivery,
     /// Report catalog route offering per target platform for a fresh library.
     InspectTargets {
         /// Catalog port ID to inspect; repeat for several. Omitted, every listed port.
@@ -253,6 +255,7 @@ impl CatalogCommand {
             Self::CheckCapabilities { .. } => "catalog.check-capabilities",
             Self::InspectProposal { .. } => "catalog.inspect-proposal",
             Self::InspectTargets { .. } => "catalog.inspect-targets",
+            Self::InspectDefinitionDelivery => "catalog.inspect-definition-delivery",
             Self::InspectPackageLayout { .. } => "catalog.inspect-package-layout",
             Self::InspectSettingsQualification { .. } => "catalog.inspect-settings-qualification",
             Self::InspectListings { .. } => "catalog.inspect-listings",
@@ -455,6 +458,9 @@ pub(crate) async fn execute(
         }
         CatalogCommand::InspectTargets { .. } => {
             unreachable!("target inspection executes before opening a library")
+        }
+        CatalogCommand::InspectDefinitionDelivery => {
+            unreachable!("delivery inspection executes before opening a library")
         }
         CatalogCommand::InspectPackageLayout { .. } => {
             unreachable!("package layout inspection executes before opening a library")

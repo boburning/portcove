@@ -98,7 +98,11 @@ export const unsupportedSources = [
   ],
   [
     "definition-publication",
-    "No maintained comparison of main with the published definition site.",
+    "Not collected; collect --all --publication reads the definitions committed on main.",
+  ],
+  [
+    "definition-delivery",
+    "Not collected; collect --all --delivery verifies the appointed definition location through Core.",
   ],
 ] as const;
 
@@ -483,59 +487,36 @@ export const officialMetadataLocation = "https://boburning.github.io/portcove/ca
 export interface PublicationObservation {
   /** Core's inspection of the publication bundle exported from the pinned revision. */
   inspection: { index_sha256?: unknown; definitions?: unknown };
-  /** HTTP status of the appointed timestamp metadata, or null when unreachable. */
-  published_status: number | null;
 }
 
 const definitionIdentity = /^[a-z0-9][a-z0-9-]{0,63}$/u;
 
+function definitionKey(definition: Record<string, unknown>, origin: string) {
+  const namespace = definition.namespace;
+  const id = definition.stable_id;
+  if (
+    typeof namespace !== "string" ||
+    typeof id !== "string" ||
+    !definitionIdentity.test(namespace) ||
+    !definitionIdentity.test(id)
+  )
+    throw new MaintenanceStoreError(`Unsupported definition identity in the ${origin}`);
+  return `definition:${namespace}/${id}`;
+}
+
 /**
- * Main versus published facts per definition identity. One site probe says
- * nothing about an individual definition: an absent site (HTTP 404) means no
- * definition is published, and a present site leaves each definition unknown
- * until its published index is read and verified. Any other probe result is a
- * collection gap, never a fact.
+ * The definitions committed on main, per identity. What the appointed
+ * location serves is a separate source (`definition-delivery`), read only
+ * through Core's client verification: an HTTP status never says a definition
+ * is or is not published.
  */
 export function publicationFacts(observation: PublicationObservation) {
   const definitions = observation.inspection.definitions;
   if (!Array.isArray(definitions) || typeof observation.inspection.index_sha256 !== "string")
     throw new MaintenanceStoreError("Unsupported definition publication inspection");
-  const site =
-    observation.published_status === 404
-      ? "absent"
-      : observation.published_status === 200
-        ? "metadata-present-unverified"
-        : null;
-  if (site === null)
-    return {
-      facts: new Map<string, unknown>(),
-      gaps: [
-        {
-          subject_key: "site:official-metadata",
-          code:
-            observation.published_status === null
-              ? "unreachable"
-              : `http-${observation.published_status}`,
-          message:
-            "The appointed metadata location could not be classified; the last known facts stay current.",
-        },
-      ],
-      expected: definitions.length,
-    };
   const facts = new Map<string, unknown>();
-  for (const definition of definitions as Record<string, unknown>[]) {
-    const namespace = definition.namespace;
-    const id = definition.stable_id;
-    if (
-      typeof namespace !== "string" ||
-      typeof id !== "string" ||
-      !definitionIdentity.test(namespace) ||
-      !definitionIdentity.test(id)
-    )
-      throw new MaintenanceStoreError(
-        "Unsupported definition identity in the publication inspection",
-      );
-    facts.set(`definition:${namespace}/${id}`, {
+  for (const definition of definitions as Record<string, unknown>[])
+    facts.set(definitionKey(definition, "publication inspection"), {
       main: {
         index_sha256: observation.inspection.index_sha256,
         revision: definition.revision ?? null,
@@ -544,11 +525,127 @@ export function publicationFacts(observation: PublicationObservation) {
         policy_revision: definition.policy_revision ?? null,
         launch_revision: definition.launch_revision ?? null,
       },
-      site: { status: site, timestamp_http_status: observation.published_status },
-      published: site === "absent" ? "not-published" : "unknown",
+    });
+  return { facts, gaps: [] as SourceGap[], expected: definitions.length };
+}
+
+/** Core's read-only client verification of the appointed definition location. */
+export interface DefinitionDeliveryInspection {
+  format_version: 1;
+  metadata_base_url: string | null;
+  serving:
+    | "verified"
+    | "not_served"
+    | "incomplete"
+    | "unreachable"
+    | "expired"
+    | "verification_failed"
+    | "not_configured";
+  reason: string | null;
+  provenance: { index_sha256: string; timestamp_version: number } | null;
+  definitions: {
+    namespace: string;
+    stable_id: string;
+    revision: number;
+    target: string;
+    sha256: string | null;
+    length: number | null;
+  }[];
+}
+
+const deliveryServing = new Set([
+  "verified",
+  "not_served",
+  "incomplete",
+  "unreachable",
+  "expired",
+  "verification_failed",
+  "not_configured",
+]);
+
+function isDeliveryInspection(value: unknown): value is DefinitionDeliveryInspection {
+  if (!value || typeof value !== "object") return false;
+  const inspection = value as Record<string, unknown>;
+  const provenance = inspection.provenance as Record<string, unknown> | null;
+  return (
+    inspection.format_version === 1 &&
+    typeof inspection.serving === "string" &&
+    deliveryServing.has(inspection.serving) &&
+    (inspection.reason === null || typeof inspection.reason === "string") &&
+    Array.isArray(inspection.definitions) &&
+    (inspection.serving === "verified"
+      ? !!provenance &&
+        typeof provenance.index_sha256 === "string" &&
+        /^[0-9a-f]{64}$/u.test(provenance.index_sha256) &&
+        Number.isSafeInteger(provenance.timestamp_version)
+      : provenance === null && inspection.definitions.length === 0) &&
+    (inspection.definitions as Record<string, unknown>[]).every(
+      (definition) =>
+        Number.isSafeInteger(definition.revision) &&
+        typeof definition.target === "string" &&
+        definition.target.length <= 512 &&
+        (definition.sha256 === null ||
+          (typeof definition.sha256 === "string" && /^[0-9a-f]{64}$/u.test(definition.sha256))) &&
+        (definition.length === null || Number.isSafeInteger(definition.length)),
+    )
+  );
+}
+
+/** Reads what the appointed location serves through Core's client trust path. */
+export async function readDefinitionDelivery(cli: string): Promise<DefinitionDeliveryInspection> {
+  const envelope = await isolatedCli(cli, ["catalog", "inspect-definition-delivery"]);
+  if (!envelope.ok || !isDeliveryInspection(envelope.data))
+    throw new MaintenanceStoreError(
+      "Core could not inspect definition delivery, or used an unsupported format",
+    );
+  return envelope.data;
+}
+
+/**
+ * Verified published definitions per identity. Only a verified read records
+ * facts; any other serving status (not served, unreachable, expired, failed
+ * verification) is that run's gap, so the last verified publication stays
+ * current and is never erased by a 404 or an outage. A verified read is
+ * complete: a definition it no longer indexes is withdrawn.
+ */
+export function deliveryFacts(inspection: DefinitionDeliveryInspection) {
+  if (!isDeliveryInspection(inspection))
+    throw new MaintenanceStoreError("Unsupported definition delivery inspection");
+  if (inspection.serving !== "verified")
+    return {
+      revision: `definition-delivery;serving=${inspection.serving}`,
+      facts: new Map<string, unknown>(),
+      expected: null,
+      gaps: [
+        {
+          subject_key: "source:definition-delivery",
+          code: inspection.serving,
+          message:
+            `The appointed location was not verified; the last verified publication stays current. ${inspection.reason ?? ""}`
+              .trim()
+              .slice(0, 1000),
+        },
+      ] as SourceGap[],
+    };
+  const facts = new Map<string, unknown>();
+  for (const definition of inspection.definitions) {
+    const key = definitionKey(definition, "delivery inspection");
+    if (facts.has(key)) throw new MaintenanceStoreError(`Duplicate published definition ${key}`);
+    facts.set(key, {
+      published: {
+        revision: definition.revision,
+        target: definition.target,
+        sha256: definition.sha256,
+        length: definition.length,
+      },
     });
   }
-  return { facts, gaps: [], expected: definitions.length };
+  return {
+    revision: `definition-delivery;serving=verified;index-sha256=${inspection.provenance!.index_sha256};timestamp=${inspection.provenance!.timestamp_version}`,
+    facts,
+    expected: facts.size,
+    gaps: [] as SourceGap[],
+  };
 }
 
 /** One port's Core-owned route offering per target platform, for a fresh library. */
@@ -708,21 +805,8 @@ export async function readPublication(
     ]);
     if (!envelope.ok)
       throw new MaintenanceStoreError("Core could not inspect the publication bundle");
-    let status: number | null = null;
-    try {
-      // Node's fetch does not use HTTPS_PROXY; on proxy-only runners this probe is a gap.
-      const response = await fetch(`${officialMetadataLocation}timestamp.json`, {
-        method: "HEAD",
-        redirect: "manual",
-        signal: AbortSignal.timeout(20_000),
-      });
-      status = response.status;
-    } catch {
-      status = null;
-    }
     return {
       inspection: envelope.data as PublicationObservation["inspection"],
-      published_status: status,
     };
   } finally {
     rmSync(root, { recursive: true, force: true });
@@ -811,6 +895,7 @@ export function collectionSql(input: {
     upstream?: ReadonlyMap<string, string>;
     hostedIntake?: ReadonlyMap<string, string>;
     publication?: ReadonlyMap<string, string>;
+    delivery?: ReadonlyMap<string, string>;
     targets?: ReadonlyMap<string, string>;
   };
   /**
@@ -831,6 +916,14 @@ export function collectionSql(input: {
     facts: ReadonlyMap<string, unknown>;
     gaps: { subject_key: string; code: string; message: string }[];
     /** Null when the read failed before any definition was counted. */
+    expected: number | null;
+  };
+  /** Verified published definitions; any gap fails the run and keeps prior facts current. */
+  delivery?: {
+    revision: string;
+    location: string | null;
+    facts: ReadonlyMap<string, unknown>;
+    gaps: SourceGap[];
     expected: number | null;
   };
   releaseHealth?: {
@@ -900,6 +993,7 @@ export function collectionSql(input: {
            ...(input.upstream ? ["upstream-observations"] : []),
            ...(input.hostedIntake ? ["hosted-intake"] : []),
            ...(input.publication ? ["definition-publication"] : []),
+           ...(input.delivery ? ["definition-delivery"] : []),
            ...(input.targets ? ["core-target-routes"] : []),
          ]),
        ]
@@ -1149,7 +1243,7 @@ export function collectionSql(input: {
     for (const [key, payload] of input.publication.facts)
       publicationFactsByKey.set(key, {
         digest: sha256(canonicalJson(payload)),
-        scope: { source: "definition-publication", location: officialMetadataLocation },
+        scope: { source: "definition-publication", bundle: "release/catalog-publication/bundle" },
         revision: input.publication.revision,
         payload,
       });
@@ -1161,6 +1255,36 @@ export function collectionSql(input: {
       publicationFactsByKey,
       input.latest?.publication,
       input.publication.expected,
+    ]);
+  }
+  const deliveryRun = `definition-delivery:${token}`;
+  if (input.delivery) {
+    if (input.mode !== "all")
+      throw new MaintenanceStoreError("Definition-delivery collection requires --all");
+    lines.push(
+      `INSERT INTO portcove_maintenance.collection_runs (run_id, source, runner, source_revision, started_at, acquisition) VALUES
+        (${literal(deliveryRun)}, 'definition-delivery', ${literal(input.runner)}, ${literal(input.delivery.revision)}, ${literal(input.startedAt)}, ${acquisition});`,
+    );
+    const deliveryFactsByKey = new Map<string, Fact>();
+    for (const [key, payload] of input.delivery.facts)
+      deliveryFactsByKey.set(key, {
+        digest: sha256(canonicalJson(payload)),
+        scope: {
+          source: "definition-delivery",
+          location: input.delivery.location,
+          verification: "core-client",
+        },
+        revision: input.delivery.revision,
+        payload,
+      });
+    runs.push([
+      deliveryRun,
+      input.delivery.revision,
+      input.delivery.gaps.length ? "failed" : "complete",
+      input.delivery.gaps,
+      deliveryFactsByKey,
+      input.latest?.delivery,
+      input.delivery.gaps.length ? null : input.delivery.expected,
     ]);
   }
   const targetsRun = `core-target-routes:${input.cliSha256.slice(0, 12)}:${token}`;
@@ -1192,6 +1316,7 @@ export function collectionSql(input: {
   const sourceOf = new Map([
     [targetsRun, "core-target-routes"],
     [publicationRun, "definition-publication"],
+    [deliveryRun, "definition-delivery"],
     [catalogRun, "catalog-records"],
     [coreRun, coreSource],
     [issueRun, "issues-project"],
@@ -1345,6 +1470,8 @@ export async function collect(options: {
     | boolean
     | ((cli: string, revision: string) => Promise<PublicationObservation>)
     | undefined;
+  /** With `all`, also read what the appointed definition location serves, verified by Core. */
+  delivery?: boolean | ((cli: string) => Promise<DefinitionDeliveryInspection>) | undefined;
   /** With `all`, also collect Core's per-target route offering for the collected ports. */
   targets?:
     | boolean
@@ -1440,6 +1567,16 @@ export async function collect(options: {
         ),
       )
     : undefined;
+  if (options.delivery && !options.all)
+    throw new MaintenanceStoreError("Definition-delivery collection requires --all");
+  const deliveryRead = options.delivery
+    ? await sourceOutcome(async () => {
+        const inspection = await (
+          typeof options.delivery === "function" ? options.delivery : readDefinitionDelivery
+        )(options.cli);
+        return { location: inspection.metadata_base_url, ...deliveryFacts(inspection) };
+      })
+    : undefined;
   const record = (baseline?: Map<string, SourceBaseline>) => {
     const members = (source: string) => baseline?.get(source)?.members ?? new Map<string, string>();
     return collectionSql({
@@ -1499,7 +1636,7 @@ export async function collect(options: {
         ? {
             publication: publicationRead.ok
               ? {
-                  revision: `${revision}+published-status:${publicationRead.value.published_status ?? "unreachable"}`,
+                  revision,
                   ...publicationFacts(publicationRead.value),
                 }
               : {
@@ -1507,6 +1644,19 @@ export async function collect(options: {
                   facts: new Map(),
                   expected: null,
                   gaps: [failedSource("source:definition-publication", publicationRead.message)],
+                },
+          }
+        : {}),
+      ...(deliveryRead
+        ? {
+            delivery: deliveryRead.ok
+              ? deliveryRead.value
+              : {
+                  revision: "definition-delivery;inspection=unavailable",
+                  location: null,
+                  facts: new Map(),
+                  expected: null,
+                  gaps: [failedSource("source:definition-delivery", deliveryRead.message)],
                 },
           }
         : {}),
@@ -1521,6 +1671,7 @@ export async function collect(options: {
               ...(upstream ? { upstream: members("upstream-observations") } : {}),
               ...(hostedIntake ? { hostedIntake: members("hosted-intake") } : {}),
               ...(publicationRead ? { publication: members("definition-publication") } : {}),
+              ...(deliveryRead ? { delivery: members("definition-delivery") } : {}),
               ...(targetsRead ? { targets: members("core-target-routes") } : {}),
             },
           }
@@ -1535,6 +1686,7 @@ export async function collect(options: {
     ...(upstream ? ["upstream-observations"] : []),
     ...(hostedIntake ? ["hosted-intake"] : []),
     ...(publicationRead ? ["definition-publication"] : []),
+    ...(deliveryRead ? ["definition-delivery"] : []),
     ...(targetsRead ? ["core-target-routes"] : []),
   ];
   // A changes-only diff is exact only against the baseline the store still holds;
@@ -1570,8 +1722,18 @@ export async function collect(options: {
       ...(upstream?.failed ? ["upstream-observations"] : []),
       ...(hostedIntake?.failed ? ["hosted-intake"] : []),
       ...(publicationRead && !publicationRead.ok ? ["definition-publication"] : []),
+      ...(deliveryRead && !deliveryRead.ok ? ["definition-delivery"] : []),
       ...(targetsRead && !targetsRead.ok ? ["core-target-routes"] : []),
     ],
+    /** What the appointed location served this time; not served or an outage erases nothing. */
+    delivery: deliveryRead?.ok
+      ? {
+          serving: deliveryRead.value.gaps[0]?.code ?? "verified",
+          published: deliveryRead.value.facts.size,
+        }
+      : deliveryRead
+        ? { serving: "inspection-unavailable", published: 0 }
+        : null,
     upstream: upstream
       ? {
           revision: upstream.revision,
@@ -1688,6 +1850,20 @@ SELECT json_build_object(
               WHERE r.source = 'definition-publication' AND r.coverage <> 'in_progress'
               ORDER BY o.subject_key, r.acquisition DESC, o.observation_id DESC) p
       WHERE p.payload <> portcove_maintenance.absent_payload()),
+  -- Last verified publication only: a run that did not verify records no facts.
+  -- A withdrawal (absent after a verified read) stays visible as such.
+  'delivery', (SELECT coalesce(json_agg(json_build_object('definition', d.subject_key, 'facts', d.payload)
+        ORDER BY d.subject_key), '[]')
+      FROM (SELECT DISTINCT ON (o.subject_key) o.subject_key, o.payload
+              FROM portcove_maintenance.observations o
+              JOIN portcove_maintenance.collection_runs r ON r.run_id = o.run_id
+              WHERE r.source = 'definition-delivery' AND r.coverage = 'complete'
+              ORDER BY o.subject_key, r.acquisition DESC, o.observation_id DESC) d),
+  'delivery_verified', (SELECT json_build_object('run_id', run_id, 'source_revision', source_revision,
+        'completed_at', completed_at)
+      FROM portcove_maintenance.collection_runs
+      WHERE source = 'definition-delivery' AND coverage = 'complete'
+      ORDER BY acquisition DESC LIMIT 1),
   'universe_inputs', json_build_object(
     'records', (SELECT coalesce(json_agg(lc.payload -> 'authored_record' ORDER BY lc.subject_key), '[]')
                   FROM latest_catalog lc
@@ -1797,7 +1973,9 @@ export interface InventoryReport {
   publication: {
     status: "unknown" | "observed";
     reason: string;
-    definitions?: { definition: string; facts: unknown }[];
+    /** What the appointed location served at the latest read, separate from what was last verified. */
+    serving?: PublicationServing | null;
+    definitions?: PublicationEntry[];
   };
   unsupported_sources: { source: string; reason: string }[];
   runs: unknown[];
@@ -1807,6 +1985,72 @@ export interface InventoryReport {
   hosted_intake?: HostedIntakeEntry[];
   /** Open executor handoffs with their registry entry and newest open operation; dispatch is disabled. */
   handoffs?: OpenHandoff[];
+}
+
+export interface PublicationServing {
+  /** `verified`, or why the latest read did not verify (not served, unreachable, ...). */
+  status: string;
+  observed_at: string | null;
+  /** The latest run that verified the appointed location, if any ever did. */
+  last_verified_at: string | null;
+  last_verified_revision: string | null;
+}
+
+export interface PublicationEntry {
+  definition: string;
+  /** Main facts (`{ main }`) from the committed bundle, when observed. */
+  facts: unknown;
+  /** Last verified published facts; never cleared by a failed or unserved read. */
+  published: unknown;
+  comparison:
+    | "published-matches-main"
+    | "published-differs-from-main"
+    | "never-verified-published"
+    | "published-withdrawn"
+    | "published-not-on-main"
+    | "main-unobserved";
+}
+
+const revisionLabel = (value: unknown) =>
+  typeof value === "number" || typeof value === "string" ? String(value) : "none";
+
+type MainDefinition = { main?: { revision?: unknown; definition_target?: unknown } };
+type PublishedDefinitionFact = { published?: { revision?: unknown; target?: unknown } };
+
+/** Joins main and last verified publication per definition; titles never join. */
+export function publicationEntries(
+  main: readonly { definition: string; facts: unknown }[],
+  published: readonly { definition: string; facts: unknown }[],
+  mainObserved: boolean,
+): PublicationEntry[] {
+  const mainByKey = new Map(main.map(({ definition, facts }) => [definition, facts]));
+  const publishedByKey = new Map(published.map(({ definition, facts }) => [definition, facts]));
+  const withdrawn = (facts: unknown) =>
+    (facts as { absent?: unknown } | undefined)?.absent === true;
+  const entries: PublicationEntry[] = [];
+  for (const definition of [...new Set([...mainByKey.keys(), ...publishedByKey.keys()])].sort()) {
+    const onMain = mainByKey.get(definition) as MainDefinition | undefined;
+    const servedFacts = publishedByKey.get(definition);
+    // Gone from main and withdrawn from the location: nothing left to compare.
+    if (!onMain && withdrawn(servedFacts)) continue;
+    const served = withdrawn(servedFacts)
+      ? undefined
+      : (servedFacts as PublishedDefinitionFact | undefined);
+    const comparison: PublicationEntry["comparison"] = !onMain
+      ? mainObserved
+        ? "published-not-on-main"
+        : "main-unobserved"
+      : withdrawn(servedFacts)
+        ? "published-withdrawn"
+        : !served
+          ? "never-verified-published"
+          : onMain.main?.revision === served.published?.revision &&
+              onMain.main?.definition_target === served.published?.target
+            ? "published-matches-main"
+            : "published-differs-from-main";
+    entries.push({ definition, facts: onMain ?? null, published: served ?? null, comparison });
+  }
+  return entries;
 }
 
 export interface HostedIntakeEntry {
@@ -1829,6 +2073,8 @@ export function buildReport(environment: NodeJS.ProcessEnv, now = new Date()): I
     subjects: unknown[];
     unassessed_gaps: { subject_key: string; code: string; message: string }[];
     publication: { definition: string; facts: unknown }[];
+    delivery: { definition: string; facts: unknown }[];
+    delivery_verified: { run_id: string; source_revision: string; completed_at: string } | null;
     hosted_intake: HostedIntakeEntry[];
     handoffs: unknown;
   };
@@ -1858,19 +2104,43 @@ export function buildReport(environment: NodeJS.ProcessEnv, now = new Date()): I
   const issuesObserved = (data.runs as { source: string; coverage: string }[]).some(
     ({ source }) => source === "issues-project",
   );
-  // The last known facts stay current through a failed probe; the reason names that probe.
-  const latestPublicationRun = (
-    data.runs as { source: string; coverage: string; gaps?: { code: string }[] }[]
-  ).find(({ source }) => source === "definition-publication");
+  const latestRun = (source: string) =>
+    (
+      data.runs as {
+        source: string;
+        coverage: string;
+        completed_at: string | null;
+        gaps?: { code: string }[];
+      }[]
+    ).find((run) => run.source === source);
+  // A failed bundle read keeps the last main facts current; the reason names that read.
+  const latestPublicationRun = latestRun("definition-publication");
+  const latestDeliveryRun = latestRun("definition-delivery");
   // A complete run that found no committed definitions is an observation, not an unknown.
-  const publicationRun =
-    data.publication.length || latestPublicationRun?.coverage === "complete"
-      ? latestPublicationRun
-      : undefined;
-  const probeNote =
+  const mainObserved = !!(data.publication.length || latestPublicationRun?.coverage === "complete");
+  const serving: PublicationServing | null = latestDeliveryRun
+    ? {
+        status:
+          latestDeliveryRun.coverage === "complete"
+            ? "verified"
+            : (latestDeliveryRun.gaps?.map(({ code }) => code).join(", ") ?? "unknown"),
+        observed_at: latestDeliveryRun.completed_at,
+        last_verified_at: data.delivery_verified?.completed_at ?? null,
+        last_verified_revision: data.delivery_verified?.source_revision ?? null,
+      }
+    : null;
+  const publication = publicationEntries(data.publication, data.delivery, mainObserved);
+  const mainNote =
     latestPublicationRun && latestPublicationRun.coverage !== "complete"
-      ? ` (latest probe not classified: ${latestPublicationRun.gaps?.map(({ code }) => code).join(", ") ?? "unknown"})`
+      ? ` (latest main read failed: ${latestPublicationRun.gaps?.map(({ code }) => code).join(", ") ?? "unknown"})`
       : "";
+  const servingNote = serving
+    ? `; appointed location at the latest read: ${serving.status}${
+        serving.last_verified_at
+          ? `, last verified ${serving.last_verified_at}`
+          : ", never verified"
+      }`
+    : "; appointed location not read";
   const healthObserved = (data.runs as { source: string }[]).some(
     ({ source }) => source === "release-health",
   );
@@ -1890,37 +2160,41 @@ export function buildReport(environment: NodeJS.ProcessEnv, now = new Date()): I
       records: data.universe_inputs.records,
       issues: new Map(Object.entries(data.universe_inputs.issues)),
       intake: new Map(Object.entries(data.universe_inputs.intake)),
-      definitions: data.publication.map(({ definition }) => definition),
+      definitions: publication.map(({ definition }) => definition),
       catalogComplete: catalogScope === "complete-authored-catalog",
     }),
-    publication: publicationRun
-      ? {
-          status: "observed",
-          reason:
-            (data.publication.length
-              ? data.publication
-                  .map(({ definition, facts }) => {
-                    const value = facts as {
-                      main?: { revision?: unknown };
-                      site?: { status?: unknown };
-                      published?: unknown;
-                    };
-                    return `${definition} revision ${String(value.main?.revision)} on main; published: ${String(value.published)} (appointed site ${String(value.site?.status)})`;
-                  })
-                  .join("; ")
-              : "observed: no committed definitions") + probeNote,
-          definitions: data.publication,
-        }
-      : {
-          status: "unknown",
-          reason: unsupportedSources.find(([source]) => source === "definition-publication")![1],
-        },
+    publication:
+      mainObserved || serving
+        ? {
+            status: "observed",
+            reason:
+              (publication.length
+                ? publication
+                    .map(({ definition, facts, published, comparison }) => {
+                      const main = (facts as MainDefinition | null)?.main;
+                      const served = (published as PublishedDefinitionFact | null)?.published;
+                      return `${definition}: ${comparison} (main revision ${revisionLabel(main?.revision)}, last verified published revision ${revisionLabel(served?.revision)})`;
+                    })
+                    .join("; ")
+                : mainObserved
+                  ? "observed: no committed definitions"
+                  : "main not observed") +
+              mainNote +
+              servingNote,
+            serving,
+            definitions: publication,
+          }
+        : {
+            status: "unknown",
+            reason: unsupportedSources.find(([source]) => source === "definition-publication")![1],
+          },
     unsupported_sources: unsupportedSources
       .filter(([source]) => !(issuesObserved && (source === "issues" || source === "project")))
       .filter(([source]) => !(healthObserved && source === "release-health"))
       .filter(([source]) => !(upstreamObserved && source === "upstream-observations"))
       .filter(([source]) => !(hostedObserved && source === "hosted-intake"))
-      .filter(([source]) => !(publicationRun && source === "definition-publication"))
+      .filter(([source]) => !(mainObserved && source === "definition-publication"))
+      .filter(([source]) => !(serving && source === "definition-delivery"))
       .map(([source, reason]) => ({ source, reason })),
     runs: data.runs,
     subjects: subjects.map((subject) => {
@@ -1971,6 +2245,31 @@ function failedAttempt(report: InventoryReport, name: string) {
 }
 
 /** Hosted-intake requests with their linked work and the executor's own attention conditions. */
+function publicationSection(report: InventoryReport) {
+  const serving = report.publication.serving;
+  const definitions = report.publication.definitions ?? [];
+  if (!serving && !definitions.length) return "";
+  const target = (value: unknown, field: "main" | "published") => {
+    const facts = (value as Record<string, Record<string, unknown>> | null)?.[field];
+    if (!facts) return "none";
+    return `revision ${escapeHtml(revisionLabel(facts.revision))} <code>${escapeHtml(field === "main" ? facts.definition_target : facts.target)}</code>`;
+  };
+  return `<h2>Definition publication</h2>
+<p>Main is what the repository commits; published is the last content Core verified at the appointed location as a client would. ${
+    serving
+      ? `Latest read: <span class="${serving.status === "verified" ? "" : "unknown"}">${escapeHtml(serving.status)}</span> at ${escapeHtml(serving.observed_at ?? "unknown")}; last verified: ${escapeHtml(serving.last_verified_at ?? "never")}. A read that did not verify changes nothing published.`
+      : "The appointed location has not been read."
+  }</p>
+<table><thead><tr><th>Definition</th><th>Comparison</th><th>Main</th><th>Last verified published</th></tr></thead><tbody>
+${definitions
+  .map(
+    (entry) =>
+      `<tr><td>${escapeHtml(entry.definition)}</td><td>${escapeHtml(entry.comparison)}</td><td>${target(entry.facts, "main")}</td><td>${target(entry.published, "published")}</td></tr>`,
+  )
+  .join("\n")}
+</tbody></table>`;
+}
+
 function hostedIntakeSection(report: InventoryReport) {
   if (!report.hosted_intake) return "";
   const attempt = failedAttempt(report, "hosted-intake");
@@ -2145,6 +2444,7 @@ ${report.unsupported_sources
   )
   .join("\n")}
 </tbody></table>
+${publicationSection(report)}
 ${hostedIntakeSection(report)}
 <p>Next actions are executor handoffs. Disabled: ${escapeHtml(disabledCapabilities.join("; "))}.</p>
 <h2>Games and implementations</h2>
@@ -2356,7 +2656,11 @@ commands:
                                        push main run, bound by run, source and artifact digest;
                                        --hosted-intake (with --all) adds every #177 hosted-intake
                                        request through the executor's read-only status, bound by
-                                       the #177 revision and a digest of every comment
+                                       the #177 revision and a digest of every comment;
+                                       --publication (with --all) adds the definitions committed
+                                       on main; --delivery (with --all) adds what the appointed
+                                       definition location serves, verified by Core as a client
+                                       would (catalog inspect-definition-delivery)
   report --output DIR [--previous DIR]  write inventory.json and index.html to a new DIR; with
                                        --previous, refuse if that report reflects newer collections
   digest --output DIR                  write the pending changes-only digest (digest.json, digest.md)
@@ -2399,6 +2703,9 @@ export async function main(argv = process.argv.slice(2)) {
   const targetsIndex = args.indexOf("--targets");
   const targets = targetsIndex >= 0;
   if (targets) args.splice(targetsIndex, 1);
+  const deliveryIndex = args.indexOf("--delivery");
+  const delivery = deliveryIndex >= 0;
+  if (delivery) args.splice(deliveryIndex, 1);
   const publicationIndex = args.indexOf("--publication");
   const publication = publicationIndex >= 0;
   if (publication) args.splice(publicationIndex, 1);
@@ -2450,6 +2757,7 @@ export async function main(argv = process.argv.slice(2)) {
           upstream: upstreamSource ? () => readUpstreamObservations(committedBytes) : undefined,
           hostedIntake: hostedSource ? readHostedIntake : undefined,
           publication: publication || undefined,
+          delivery: delivery || undefined,
           targets: targets || undefined,
           environment,
         }),

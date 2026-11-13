@@ -235,3 +235,141 @@ pub(crate) fn enable_fixture(
         expected,
     )
 }
+
+/// What the appointed official location serves, verified as a client would.
+///
+/// Read-only maintenance evidence (#4129): it uses only the compiled trust root
+/// and the compiled locations, fetches through the client's own TUF path, and
+/// writes nothing — no trust, replay floor or selection. "Not served" and an
+/// outage are this request's serving status, never evidence that something
+/// published earlier was withdrawn.
+#[derive(Debug, Clone, Serialize, JsonSchema)]
+pub struct DefinitionDeliveryInspection {
+    pub format_version: u32,
+    pub scope: &'static str,
+    pub metadata_base_url: Option<String>,
+    pub targets_base_url: Option<String>,
+    pub serving: DefinitionDeliveryServing,
+    /// Why the request did not verify, when it did not.
+    pub reason: Option<String>,
+    /// Authenticated metadata identities; present only when verified.
+    pub provenance: Option<crate::AuthenticatedDefinitionProvenance>,
+    /// Every indexed definition with its exact target digest; empty unless verified.
+    pub definitions: Vec<PublishedDefinition>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum DefinitionDeliveryServing {
+    /// The appointed metadata and index verified against the compiled root.
+    Verified,
+    /// The appointed location serves no metadata: its timestamp is absent (HTTP 404 or 410).
+    NotServed,
+    /// Metadata is served, but a file it requires is absent: a partial publication.
+    Incomplete,
+    /// The location could not be reached, refused access (HTTP 403) or did not answer completely.
+    Unreachable,
+    /// Signed metadata was served but has expired.
+    Expired,
+    /// Something was served but did not authenticate.
+    VerificationFailed,
+    /// This build appoints no official catalog location.
+    NotConfigured,
+}
+
+impl DefinitionDeliveryServing {
+    /// The machine name, as serialized.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Verified => "verified",
+            Self::NotServed => "not_served",
+            Self::Incomplete => "incomplete",
+            Self::Unreachable => "unreachable",
+            Self::Expired => "expired",
+            Self::VerificationFailed => "verification_failed",
+            Self::NotConfigured => "not_configured",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, JsonSchema)]
+pub struct PublishedDefinition {
+    pub namespace: String,
+    pub stable_id: String,
+    pub revision: u64,
+    pub target: String,
+    pub sha256: Option<String>,
+    pub length: Option<u64>,
+}
+
+pub async fn inspect_official_definition_delivery() -> DefinitionDeliveryInspection {
+    let scope = "read-only client verification of the appointed official definition location against the compiled root; writes no trust, floor or selection";
+    let configured = configured_source(COMPILED_SOURCE).ok().flatten();
+    let mut report = DefinitionDeliveryInspection {
+        format_version: 1,
+        scope,
+        metadata_base_url: configured
+            .as_ref()
+            .map(|source| source.metadata_base_url.clone()),
+        targets_base_url: configured
+            .as_ref()
+            .map(|source| source.targets_base_url.clone()),
+        serving: DefinitionDeliveryServing::NotConfigured,
+        reason: None,
+        provenance: None,
+        definitions: Vec::new(),
+    };
+    let source = match official_repository_source() {
+        Ok(source) => source,
+        Err(error) => {
+            // Only a build without an appointed location is "not configured"; an
+            // invalid compiled location is a failure, never hidden as absent.
+            if configured.is_some() || error.code != crate::ErrorCode::Unsupported {
+                report.serving = DefinitionDeliveryServing::VerificationFailed;
+            }
+            report.reason = Some(error.message);
+            return report;
+        }
+    };
+    match crate::acquire_definition_candidate(&source, COMPILED_ROOT).await {
+        Ok(candidate) => {
+            report.serving = DefinitionDeliveryServing::Verified;
+            report.provenance = Some(candidate.provenance().clone());
+            let index = candidate.index();
+            report.definitions = index
+                .definitions()
+                .iter()
+                .map(|definition| {
+                    let digest = index.content_digest(definition.target());
+                    PublishedDefinition {
+                        namespace: definition.namespace().to_owned(),
+                        stable_id: definition.stable_id().to_owned(),
+                        revision: definition.revision(),
+                        target: definition.target().to_owned(),
+                        sha256: digest.map(|(sha256, _)| sha256.to_owned()),
+                        length: digest.map(|(_, length)| length),
+                    }
+                })
+                .collect();
+        }
+        Err(error) => {
+            report.serving = delivery_serving(&error);
+            report.reason = Some(error.message);
+        }
+    }
+    report
+}
+
+/// The serving status of a failed client acquisition.
+pub(crate) fn delivery_serving(error: &PortcoveError) -> DefinitionDeliveryServing {
+    match (
+        error.code,
+        error.details.get("delivery").map(String::as_str),
+    ) {
+        (_, Some("expired")) => DefinitionDeliveryServing::Expired,
+        (crate::ErrorCode::Network, Some("not_served")) => DefinitionDeliveryServing::NotServed,
+        (crate::ErrorCode::Network, Some("incomplete")) => DefinitionDeliveryServing::Incomplete,
+        (crate::ErrorCode::Network, _) => DefinitionDeliveryServing::Unreachable,
+        _ => DefinitionDeliveryServing::VerificationFailed,
+    }
+}
