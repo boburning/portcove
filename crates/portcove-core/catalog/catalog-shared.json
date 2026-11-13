@@ -3121,6 +3121,16 @@
         "immutable_url": "https://redump.info/disc/5029",
         "live_url": null,
         "claim": "Redump Final Fantasy IX (USA, Canada) (Disc 4) (Rev 1), SLUS-01297, has one data track: 688413936 bytes, SHA-1 ce78c21e3793e04e594429133b05ddf24ed3fc6b, MD5 5796b286ddd0335db2d9631701153a42 and CRC32 a4c892a4, which agree with the kit. Redump lists the Greatest Hits serial SLUS-01297GH for this Rev 1 dump. A Redump search for that SHA-1 resolves only to this disc."
+      },
+      {
+        "id": "goldeneye-007-source-sha1-5c43e69b",
+        "role": "upstream_support",
+        "authority": "jkdansereau/goldeneye-pc-port",
+        "authority_ref": "5c43e69b23f76d1ba30d1120dab427d09968a8c8",
+        "reviewed_at": "2026-10-25",
+        "claim": "Pinned upstream README, ge007.u.sha1 and converter agree on the exact NTSC-U USA big-endian GoldenEye 007 SHA-1. No other byte order, region, modified image, size or gameplay observation is asserted.",
+        "immutable_url": "https://github.com/jkdansereau/goldeneye-pc-port/blob/5c43e69b23f76d1ba30d1120dab427d09968a8c8/ge007.u.sha1",
+        "live_url": "https://github.com/jkdansereau/goldeneye-pc-port/blob/main/ge007.u.sha1"
       }
     ],
     "identities": [
@@ -14142,6 +14152,46 @@
         "aliases": [],
         "tombstones": [],
         "evidence_gap": null
+      },
+      {
+        "id": "goldeneye-007-ntsc-u-big-endian",
+        "label": "GoldenEye 007 NTSC-U USA big-endian original",
+        "kind": "file",
+        "variants": [
+          {
+            "id": "ntsc-u-usa",
+            "title": "GoldenEye 007",
+            "region": "USA",
+            "revision": "NTSC-U supported by pinned upstream",
+            "product_codes": [],
+            "representations": [
+              {
+                "id": "big-endian-z64",
+                "extensions": [
+                  "z64"
+                ],
+                "kind": "raw-file",
+                "identities": [
+                  {
+                    "scope": "original-file",
+                    "sha1": "abe01e4aeb033b6c0836819f549c791b26cfde83",
+                    "sha256": null,
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "goldeneye-007-source-sha1-5c43e69b"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "goldeneye-007-source-sha1-5c43e69b"
+            ]
+          }
+        ],
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null
       }
     ],
     "contracts": [
@@ -22734,6 +22784,33 @@
           {
             "upstream_ref": "v0.1.2",
             "artifact_sha256": "eedac0d09e8655bb376385ffe800e22531cca65132c3cdefc8cf61ba79431c65"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "goldeneye-007-n64-pc-port-game-source",
+        "port_id": "goldeneye-007-n64-pc-port",
+        "role": "game",
+        "profile_id": "goldeneye-007-ntsc-u-big-endian",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "ntsc-u-usa"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "goldeneye-007-source-sha1-5c43e69b"
+        ],
+        "authority_ref": "5c43e69b23f76d1ba30d1120dab427d09968a8c8",
+        "reviewed_at": "2026-10-25",
+        "immutable_review_url": "https://github.com/jkdansereau/goldeneye-pc-port/blob/5c43e69b23f76d1ba30d1120dab427d09968a8c8/README.md",
+        "live_review_url": "https://github.com/jkdansereau/goldeneye-pc-port/blob/main/README.md",
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.5.0",
+            "artifact_sha256": "b49bfb826566367a4d1af16466530f0fadd85e522b33859521d849c143a005ef"
           }
         ],
         "aliases": [],
