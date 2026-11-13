@@ -168,6 +168,13 @@ their own adapter requirement. Format-1 signed catalogs cannot deliver it, and
 a legacy installation without a retained definition cannot inherit it from the
 current catalog on Windows.
 
+Native portable version 29 is required by fresh indexed entries
+that combine a reviewed Unix package layout with
+`release.grant_declared_executable`. Core applies the verified grant to the
+declared program in private staging before comparing the executable inventory.
+Retained entries and Windows-only layout declarations can still use the
+earlier grant capability.
+
 Native portable version 18 binds `reviewed_package_layouts` in new
 independent entries. A reader without version 18 cannot accept a new
 entry that relies on the package-layout gate. Previously admitted

@@ -213,6 +213,7 @@ fn advertised_engine_templates_match_negotiation_and_exported_schemas() {
     assert!(expected.insert(("native-portable", 26)));
     assert!(expected.insert(("native-portable", 27)));
     assert!(expected.insert(("native-portable", 28)));
+    assert!(expected.insert(("native-portable", 29)));
     for retired in [6, 7, 9, 13, 14] {
         assert!(!pairs.contains(&("staged-source-portable", retired)));
     }

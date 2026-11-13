@@ -44579,6 +44579,12 @@
           "executables": [
             "openjazz.exe"
           ]
+        },
+        "linux-x86-64": {
+          "directories": [],
+          "executables": [
+            "openjazz"
+          ]
         }
       }
     },

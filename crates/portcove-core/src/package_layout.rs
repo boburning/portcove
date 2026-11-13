@@ -19,6 +19,26 @@ const MAXIMUM_ENTRIES: usize = 200_000;
 const MAXIMUM_REVIEWED_PATHS: usize = 4_096;
 const REPORTED_NAMES: usize = 3;
 pub(crate) const NATIVE_CAPABILITY: u32 = 18;
+pub(crate) const EXECUTABLE_GRANT_CAPABILITY: u32 = 29;
+
+pub(crate) fn native_executable_grant_capability(port: &PortDefinition) -> u32 {
+    if port
+        .platforms
+        .iter()
+        .any(|&platform| grant_precedes_layout_check(port, platform))
+    {
+        EXECUTABLE_GRANT_CAPABILITY
+    } else {
+        22
+    }
+}
+
+pub(crate) fn grant_precedes_layout_check(port: &PortDefinition, platform: Platform) -> bool {
+    port.adapter == crate::AdapterKind::NativePortable
+        && port.release.grant_declared_executable
+        && crate::permissions::platform_requires_executable(platform)
+        && port.reviewed_package_layouts.contains_key(&platform)
+}
 
 /// Inspect verified local archive bytes with the managed native layout rules.
 /// Unix inspection uses the extraction profile for a declared player executable.

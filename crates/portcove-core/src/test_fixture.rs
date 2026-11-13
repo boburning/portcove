@@ -77,7 +77,7 @@ pub(crate) fn grant_declared_executable_capability(port: &crate::PortDefinition)
     match port.adapter {
         crate::AdapterKind::LibultrashipPortable => 4,
         crate::AdapterKind::GeneratedCache => 2,
-        _ => 22,
+        _ => crate::package_layout::native_executable_grant_capability(port),
     }
 }
 
