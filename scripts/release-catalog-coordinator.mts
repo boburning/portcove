@@ -91,6 +91,7 @@ import {
   recoverRemoteCoordinator,
   readRemoteCoordinatorSnapshot,
   inspectRemoteCommitObject,
+  hydrateRetainedCoordinatorCheckpoint,
 } from "./release-coordinator-recovery.mts";
 import {
   inspectCoordinatorRemoteNamespace,
@@ -101,10 +102,13 @@ import {
   retainedCatalogForwardAdoptionClaim,
   retainedCatalogNativeAdoptionClaim,
   retainedCatalogV13AdoptionClaim,
+  selectRetainedChameleonReviewClaim,
 } from "./release-coordinator-checkpoint-authentication.mts";
 import {
   checkpointReleaseOpportunity,
   exportCoordinatorCheckpoint,
+  exportRetainedCoordinatorCheckpoint,
+  stageRetainedCoordinatorClaim,
 } from "./release-coordinator-state.mts";
 import { planReleaseOpportunity } from "./release-coordinator.mts";
 import { collectReleaseSourceChangesWithSdk } from "./release-source-changes.mts";
@@ -378,12 +382,8 @@ export async function runFixedCatalogCoordinatorConfiguration(
           throw new Error("catalog controls came from another job");
         return { controls, readMaintenance, observed, stable };
       };
-      const publishCheckpoint = async (
-        next: Record<string, unknown>,
-        checkpointControls: () => Promise<void>,
-        claimedChild?: string,
-      ) => {
-        const executor = await authenticateCapacityExecutor(
+      const authenticateCoordinatorExecutor = () =>
+        authenticateCapacityExecutor(
           "coordinator",
           {
             audience: "portcove-capacity-executor",
@@ -400,6 +400,12 @@ export async function runFixedCatalogCoordinatorConfiguration(
           directory,
           deadline,
         );
+      const publishCheckpoint = async (
+        next: Record<string, unknown>,
+        checkpointControls: () => Promise<void>,
+        claimedChild?: string,
+      ) => {
+        const executor = await authenticateCoordinatorExecutor();
         if (claimedChild !== undefined)
           await authenticateOwnedCheckpointJournalHistory(
             executor,
@@ -478,6 +484,11 @@ export async function runFixedCatalogCoordinatorConfiguration(
           throw new Error("catalog journal CAS readback differs; retain original");
         return readback;
       };
+      const reviewClaim = selectRetainedChameleonReviewClaim(
+        reader.admitted.execution_ref,
+        reader.admitted.run_attempt,
+        recovered.checkpoint,
+      );
       const adoptForward =
         isStandaloneBootstrapForwardPreimage(inspectPublishedMetadata(input.published_metadata)) &&
         !Object.hasOwn(input, "published_site") &&
@@ -506,6 +517,8 @@ export async function runFixedCatalogCoordinatorConfiguration(
           recovered.checkpoint,
           adoptNative ? "native" : adoptForward,
         );
+        if (reviewClaim)
+          throw new Error("Chameleon review recovery cannot adopt application metadata");
         if (claim) {
           const provider = await createReleaseCustodyProvider({
             token: readerToken,
@@ -649,6 +662,8 @@ export async function runFixedCatalogCoordinatorConfiguration(
           recovered.checkpoint,
           "existing application reservation or unresolved effect requires its existing recovery",
         );
+      if (reviewClaim && (pending || history || input.catalog_publication != null))
+        throw new Error("Chameleon review recovery requires the original idle catalog predecessor");
       if (input.catalog_publication != null)
         return continueActualCatalogPublication(
           tools,
@@ -690,7 +705,8 @@ export async function runFixedCatalogCoordinatorConfiguration(
           await sourceProvider.repository(deadline),
           await sourceProvider.mainRef(),
         );
-      const sourceCommit = pending?.opportunity.source_commit ?? (await mainHead());
+      const sourceCommit =
+        reviewClaim?.source ?? pending?.opportunity.source_commit ?? (await mainHead());
       stage = "fixed-inert-source-and-Core";
       const source = await materializeCatalogPublicationSource(
         sourceProvider,
@@ -698,6 +714,8 @@ export async function runFixedCatalogCoordinatorConfiguration(
         directory,
         deadline,
       );
+      if (reviewClaim && (!source.request || source.source.tree !== reviewClaim.source_tree))
+        throw new Error("Chameleon review claim authoring source differs");
       if (!source.request)
         return held(
           directory,
@@ -826,6 +844,8 @@ export async function runFixedCatalogCoordinatorConfiguration(
           recovered.checkpoint,
           "exact catalog negative result awaits authenticated retirement",
         );
+      if (reviewClaim && (matches.accepted.length || matches.negative.length))
+        throw new Error("unsettled Chameleon claim cannot consume an independent decision");
       if (matches.accepted.length === 1 && !replacement) {
         const preparation = await prepareActualCoordinatorCatalogSigning(
           parent,
@@ -853,7 +873,7 @@ export async function runFixedCatalogCoordinatorConfiguration(
       const tags = await publicationReader.tags();
       const releases = await publicationReader.releases();
       const { allocations } = await publicationReader.readAllocations(tags, authorities.namespace);
-      const now = new Date().toISOString(),
+      const now = reviewClaim?.clock ?? new Date().toISOString(),
         publication = deriveCoordinatorPublication(tags, releases, allocations, now);
       let frozen: NonNullable<ReturnType<typeof inspectCatalogReviewRequest>> | null = null,
         negativeReceipt: object | null = null,
@@ -905,7 +925,7 @@ export async function runFixedCatalogCoordinatorConfiguration(
             ? structuredClone(input.controller)
             : {
                 workflow: ".github/workflows/application-update-production.yml",
-                revision: reader.admitted.revision,
+                revision: reviewClaim?.original_revision ?? reader.admitted.revision,
                 publication_paused: observed.pause.publication_paused,
                 capacity_attempt: {
                   ...observed.capacity_source.capacity,
@@ -917,7 +937,10 @@ export async function runFixedCatalogCoordinatorConfiguration(
                 },
               },
         };
-        if (planReleaseOpportunity(next).action !== "catalog-review-request")
+        if (
+          planReleaseOpportunity({ ...next, now: new Date().toISOString() }).action !==
+          "catalog-review-request"
+        )
           return held(
             directory,
             recovered.checkpoint,
@@ -948,7 +971,7 @@ export async function runFixedCatalogCoordinatorConfiguration(
       const beforeMutation = async () => {
         check();
         requireSelectedEnvironment();
-        if (!pending && (await mainHead()) !== sourceCommit)
+        if (!pending && !reviewClaim && (await mainHead()) !== sourceCommit)
           throw new Error("catalog source/configuration changed before mutation");
         const currentTags = await publicationReader.tags(),
           currentReleases = await publicationReader.releases(),
@@ -956,12 +979,17 @@ export async function runFixedCatalogCoordinatorConfiguration(
             currentTags,
             authorities.namespace,
           );
+        // The signing exchange owns and verifies this predecessor's intent.
+        // Its creation must not invalidate the separate publication inventory.
+        const ownIntent = `${authorities.namespace}-checkpoint-intent/${recovered.checkpoint}`;
+        const publicationTags = (inventory: typeof tags) =>
+          inventory.filter(({ name }) => name !== ownIntent);
         if (
           capacityDigest({
-            tags: currentTags,
+            tags: publicationTags(currentTags),
             releases: currentReleases,
             allocations: currentAllocations,
-          }) !== capacityDigest({ tags, releases, allocations })
+          }) !== capacityDigest({ tags: publicationTags(tags), releases, allocations })
         )
           throw new Error(
             "publication inventory/allocations changed before catalog semantic mutation",
@@ -979,6 +1007,14 @@ export async function runFixedCatalogCoordinatorConfiguration(
           )
             throw new Error("catalog negative selected proof changed before mutation");
         }
+        if (
+          reviewClaim &&
+          planReleaseOpportunity({ ...next, now: new Date().toISOString() }).action !==
+            "catalog-review-request"
+        )
+          throw new Error(
+            "retained Chameleon review request no longer has current scheduling eligibility",
+          );
         if (catalogCoordinatorMaintenanceIdentity(await readMaintenance()) !== stable)
           throw new Error("catalog maintenance changed before neutral request mutation");
         requireSelectedEnvironment();
@@ -988,7 +1024,98 @@ export async function runFixedCatalogCoordinatorConfiguration(
         await beforeMutation();
       };
       if (negativeReceipt) await requireActualCatalogReviewDisposition(negativeReceipt, deadline);
-      const readback = await publishCheckpoint(next, checkpointControls);
+      let readback;
+      if (reviewClaim) {
+        stage = "retained-chameleon-review-claim";
+        const assertOriginalCustody = async () => {
+          const [intent, proof] = await Promise.all([
+            sourceProvider.versionTag(
+              `portcove-production-checkpoint-intent/${reviewClaim.previous}`,
+            ),
+            sourceProvider.versionTag(`portcove-production-checkpoint-proof/${reviewClaim.child}`),
+          ]);
+          if (
+            intent.kind !== "present" ||
+            !isRecord(intent.data) ||
+            intent.data.ref !==
+              `refs/tags/portcove-production-checkpoint-intent/${reviewClaim.previous}` ||
+            !isRecord(intent.data.object) ||
+            intent.data.object.type !== "commit" ||
+            intent.data.object.sha !== reviewClaim.child ||
+            proof.kind !== "absent"
+          )
+            throw new Error("retained Chameleon review intent or proof changed");
+        };
+        const [run, job] = await Promise.all([
+          sourceProvider.attempt(reviewClaim.original_run, 1),
+          sourceProvider.job(reviewClaim.original_job),
+        ]);
+        if (
+          !isRecord(run) ||
+          run.id !== Number(reviewClaim.original_run) ||
+          run.run_attempt !== 1 ||
+          run.event !== "workflow_dispatch" ||
+          run.path !== ".github/workflows/application-update-production.yml" ||
+          run.head_sha !== reviewClaim.original_revision ||
+          run.head_branch !== reviewClaim.original_ref.slice("refs/tags/".length) ||
+          run.status !== "completed" ||
+          run.conclusion !== "failure" ||
+          !isRecord(run.actor) ||
+          run.actor.id !== 41898282 ||
+          !isRecord(run.triggering_actor) ||
+          run.triggering_actor.id !== 41898282 ||
+          !isRecord(job) ||
+          job.id !== reviewClaim.original_job ||
+          job.run_id !== Number(reviewClaim.original_run) ||
+          job.run_attempt !== 1 ||
+          job.name !== "Coordinate application release" ||
+          job.head_sha !== reviewClaim.original_revision ||
+          job.status !== "completed" ||
+          job.conclusion !== "failure"
+        )
+          throw new Error("retained Chameleon review producer differs");
+        await assertOriginalCustody();
+        const retained = await hydrateRetainedCoordinatorCheckpoint(
+          recovered.repository,
+          reviewClaim.child,
+          { provider: sourceProvider },
+        );
+        const object = exportRetainedCoordinatorCheckpoint(recovered.repository, reviewClaim.child);
+        if (
+          object.previous !== reviewClaim.previous ||
+          object.tree.oid !== reviewClaim.tree ||
+          createHash("sha256").update(object.blob.contents).digest("hex") !==
+            reviewClaim.state_sha256 ||
+          frozen?.request_id !== reviewClaim.request_id ||
+          capacityDigest(retained.input) !== capacityDigest(next)
+        )
+          throw new Error("retained Chameleon review exact state or request differs");
+        const executor = await authenticateCoordinatorExecutor();
+        await authenticateOwnedCheckpointJournalHistory(
+          executor,
+          recovered.repository,
+          reviewClaim.previous,
+          reviewClaim.child,
+        );
+        await stageRetainedCoordinatorClaim(
+          recovered.repository,
+          reviewClaim.previous,
+          reviewClaim.child,
+        );
+        await publishOwnedSignedCoordinatorCheckpoint(
+          executor,
+          recovered.repository,
+          reviewClaim.child,
+          checkpointControls,
+        );
+        readback = await readRemoteCoordinatorSnapshot(directory, selected.remote_configuration, {
+          transport: journalTransport,
+        });
+        if (readback.checkpoint !== reviewClaim.child)
+          throw new Error("retained Chameleon review journal readback differs");
+      } else {
+        readback = await publishCheckpoint(next, checkpointControls);
+      }
       if (
         capacityDigest(inspectCatalogReviewRequest(readback.input.catalog_review_request)) !==
           capacityDigest(frozen) ||
@@ -1020,7 +1147,11 @@ export async function runFixedCatalogCoordinatorConfiguration(
     } catch (error) {
       let exchange;
       if (
-        stage === "standalone-application-bootstrap-CAS" &&
+        [
+          "standalone-application-bootstrap-CAS",
+          "retained-chameleon-review-claim",
+          "neutral-request-control-and-CAS",
+        ].includes(stage) &&
         error instanceof CoordinatorRemoteError &&
         isRecord(error.evidence)
       ) {

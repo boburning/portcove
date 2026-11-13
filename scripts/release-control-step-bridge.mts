@@ -50,6 +50,7 @@ const catalogRefusalStages = {
     "fixed-inert-source-and-Core",
     "selected-independent-Check",
     "neutral-request-control-and-CAS",
+    "retained-chameleon-review-claim",
   ],
 } as const;
 type CatalogRefusalLayer = keyof typeof catalogRefusalStages;
