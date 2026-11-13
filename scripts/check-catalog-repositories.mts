@@ -1491,7 +1491,9 @@ export async function collectRepositoryHealth(
       repository: record.repository,
       release_ref: record.release_ref ?? null,
       ...(record.reviewed_historical_release_ids && {
-        reviewed_historical_release_ids: record.reviewed_historical_release_ids.toSorted(),
+        reviewed_historical_release_ids: record.reviewed_historical_release_ids.toSorted(
+          (left, right) => left - right,
+        ),
       }),
       artifacts: [...(record.artifact_identities ?? [])].sort((a, b) =>
         observationHash(a).localeCompare(observationHash(b)),

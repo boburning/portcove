@@ -443,7 +443,12 @@ void test("historical version uses the exact reviewed GitHub tag and release ide
     [pin.platform, "a".repeat(64), pin.release_id, pin.sha256, originalVersion, "unknown"],
     ["linux-x86-64", pin.sha256, pin.release_id, pin.sha256, originalVersion, "unknown"],
   ] as const) {
-    const scope = {
+    const scope: {
+      port_id: string;
+      platform: string;
+      upstream_ref: string;
+      artifact_sha256: string;
+    } = {
       port_id: pin.port_id,
       platform,
       upstream_ref: originalVersion,
