@@ -5139,17 +5139,19 @@ fn one_match_too_large_to_store_is_reported_and_the_scan_goes_on() {
     let catalog = catalog(payload);
     let one_off = scan(&catalog, &request(&root)).unwrap();
     let size = |record: &crate::SourceRecord| serde_json::to_vec(record).unwrap().len();
+    // Scans report canonical paths (`\\?\` on Windows), so compare file names.
+    let is_long = |path: &Path| path.file_name() == long.file_name();
     let short = one_off
         .candidates
         .iter()
-        .filter(|record| record.path != long)
+        .filter(|record| !is_long(&record.path))
         .map(size)
         .max()
         .unwrap();
     let large = one_off
         .candidates
         .iter()
-        .filter(|record| record.path == long)
+        .filter(|record| is_long(&record.path))
         .map(size)
         .min()
         .unwrap();
@@ -5168,12 +5170,12 @@ fn one_match_too_large_to_store_is_reported_and_the_scan_goes_on() {
     );
     let kept = paged_exact_matches(&library, 64);
     assert_eq!(kept.len(), one_off.candidates.len() - 2);
-    assert!(kept.iter().all(|record| record.path != long));
+    assert!(kept.iter().all(|record| !is_long(&record.path)));
     let reported = snapshot
         .report
         .issues
         .iter()
-        .filter(|issue| issue.path.as_deref() == Some(long.as_path()))
+        .filter(|issue| issue.path.as_deref().is_some_and(is_long))
         .count();
     assert_eq!(reported, 2, "{:?}", snapshot.report.issues);
 }
