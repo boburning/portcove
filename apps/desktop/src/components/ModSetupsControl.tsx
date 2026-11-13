@@ -283,43 +283,19 @@ function BoundModSetupsControl({ portId, generation, busy }: Props) {
                   variant="outline"
                   disabled={locked || blocked}
                   onClick={() =>
-                    void (async () => {
-                      const path = await pickModPackagePath(view.package_types);
-                      // Closing the picker changes nothing and is not an error, and an
-                      // answer for a view that was replaced is dropped.
-                      if (typeof path !== "string" || !alive.current) return;
-                      let review: ModCodeReview | null;
-                      setWorking(true);
-                      try {
-                        review = await desktopApi.reviewModPackageCode(portId, path, generation);
-                      } catch (failure) {
-                        if (alive.current) setFailure({ text: errorText(failure) });
-                        return;
-                      } finally {
-                        if (alive.current) setWorking(false);
-                      }
-                      if (!alive.current) return;
-                      // Code the player has not allowed for these exact bytes waits for
-                      // an explicit choice; bytes allowed before install directly.
-                      if (review && !review.already_allowed) {
-                        setOutcome(undefined);
-                        setFailure(undefined);
-                        setCodeReview({ profileId: selected.profile.id, path, review });
-                        return;
-                      }
-                      await perform(
-                        () =>
-                          desktopApi.addModPackage(
-                            portId,
-                            selected.profile.id,
-                            path,
-                            selected.profile.current_revision,
-                            generation,
-                            review?.sha256 ?? null,
-                          ),
-                        t("mods.outcome.added", { name: selected.profile.display_name }),
-                      );
-                    })()
+                    void reviewSelectedModPackage({
+                      portId,
+                      generation,
+                      packageTypes: view.package_types,
+                      selected,
+                      alive,
+                      setWorking,
+                      setFailure,
+                      setOutcome,
+                      setCodeReview,
+                      perform,
+                      t,
+                    })
                   }
                 >
                   {t("mods.add")}
@@ -425,6 +401,68 @@ function BoundModSetupsControl({ portId, generation, busy }: Props) {
         </>
       )}
     </section>
+  );
+}
+
+async function reviewSelectedModPackage({
+  portId,
+  generation,
+  packageTypes,
+  selected,
+  alive,
+  setWorking,
+  setFailure,
+  setOutcome,
+  setCodeReview,
+  perform,
+  t,
+}: {
+  portId: string;
+  generation: number;
+  packageTypes: ModSetupsView["package_types"];
+  selected: ModSetupView;
+  alive: { current: boolean };
+  setWorking: (working: boolean) => void;
+  setFailure: (failure: { text: string } | undefined) => void;
+  setOutcome: (outcome: string | undefined) => void;
+  setCodeReview: (review: { profileId: string; path: string; review: ModCodeReview }) => void;
+  perform: (action: () => Promise<unknown>, success: string) => Promise<boolean>;
+  t: TFunction<"gameSettings">;
+}) {
+  const path = await pickModPackagePath(packageTypes);
+  // Closing the picker changes nothing and is not an error, and an
+  // answer for a view that was replaced is dropped.
+  if (typeof path !== "string" || !alive.current) return;
+  let review: ModCodeReview | null;
+  setWorking(true);
+  try {
+    review = await desktopApi.reviewModPackageCode(portId, path, generation);
+  } catch (failure) {
+    if (alive.current) setFailure({ text: errorText(failure) });
+    return;
+  } finally {
+    if (alive.current) setWorking(false);
+  }
+  if (!alive.current) return;
+  // Code the player has not allowed for these exact bytes waits for
+  // an explicit choice; bytes allowed before install directly.
+  if (review && !review.already_allowed) {
+    setOutcome(undefined);
+    setFailure(undefined);
+    setCodeReview({ profileId: selected.profile.id, path, review });
+    return;
+  }
+  await perform(
+    () =>
+      desktopApi.addModPackage(
+        portId,
+        selected.profile.id,
+        path,
+        selected.profile.current_revision,
+        generation,
+        review?.sha256 ?? null,
+      ),
+    t("mods.outcome.added", { name: selected.profile.display_name }),
   );
 }
 
