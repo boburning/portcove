@@ -2628,6 +2628,9 @@ and finishes the build, and the player interprets overlays. A build that still
 leaves any file in `overlay_toolchain` or `.cache/overlay-toolchain` fails
 before anything is installed or changed.
 [Framework review](qualification/psxrecomp-7192402-builder-downloads-2026-11-13.md).
+PSXRecomp `d5cae379` differs from `7192402` only in GPU rendering fixes and
+test-only build files, so the same builder rules apply to kits that pin it.
+[d5cae379 requalification](qualification/psxrecomp-d5cae379-requalification-2026-11-13.md).
 
 A managed PS1 `psx-raw-set` source profile gives every disc exactly one
 positive track count; a disc that may have one or two tracks (`[1, 2]`) is
