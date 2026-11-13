@@ -1,0 +1,335 @@
+name: Maintenance inventory
+
+# #4129 hosted operation: one unattended daily collection into the maintenance
+# store, a dated report and changes-only digest, a verified backup, and an
+# independent restore proof. See docs/MAINTENANCE-STORE.md#hosted-operation.
+# Nothing here dispatches an executor, posts a digest or publishes anything.
+
+on:
+  schedule:
+    - cron: "47 4 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# One store writer at a time; a queued run waits and never cancels a running one.
+concurrency:
+  group: maintenance-inventory
+  cancel-in-progress: false
+
+jobs:
+  collect:
+    if: github.repository == 'boburning/portcove' && github.ref == 'refs/heads/main'
+    permissions:
+      contents: read
+      actions: read
+      issues: read
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    outputs:
+      postgres_major: ${{ steps.postgres.outputs.major }}
+      backup_artifact: ${{ steps.backup.outputs.artifact }}
+    env:
+      PORTCOVE_STEP_TIMES: ${{ github.workspace }}/work/maintenance-evidence/step-times.tsv
+      PORTCOVE_MAINTENANCE_RUNNER: github-actions-ubuntu-latest
+    steps:
+      - name: Require hosted configuration without exposing credentials
+        env:
+          DATABASE_URL: ${{ secrets.PORTCOVE_DATABASE_URL }}
+          PROJECT_TOKEN: ${{ secrets.PORTCOVE_ROADMAP_TOKEN }}
+        run: |
+          missing=()
+          [[ -n "$DATABASE_URL" ]] || missing+=(PORTCOVE_DATABASE_URL)
+          [[ -n "$PROJECT_TOKEN" ]] || missing+=(PORTCOVE_ROADMAP_TOKEN)
+          if ((${#missing[@]})); then
+            {
+              echo '## Maintenance inventory not run: configuration error'
+              echo
+              echo "Repository secrets not set: ${missing[*]}."
+              echo 'Nothing was read or written. The store, the last report and the last backup are unchanged.'
+              echo 'Resume: an owner adds the secret; the next scheduled run continues.'
+            } >> "$GITHUB_STEP_SUMMARY"
+            echo "::error title=Maintenance inventory configuration::Repository secrets not set: ${missing[*]}"
+            exit 1
+          fi
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # Upstream snapshots are mapped at their producer's commit, which must be local.
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+        with:
+          package_json_file: package.json
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+      - name: Install locked collector dependencies before credentials
+        run: pnpm install --frozen-lockfile --ignore-scripts --ignore-pnpmfile
+      - uses: ./.github/actions/setup-rust
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+          # The observer builds the same debug CLI; sharing its cache adds no storage.
+          shared-key: upstream-observer-cli
+          cache-on-failure: true
+      - name: Build the Core CLI that assesses every port
+        timeout-minutes: 40
+        run: |
+          mkdir -p "$(dirname "$PORTCOVE_STEP_TIMES")"
+          started=$EPOCHSECONDS
+          cargo build --locked -p portcove-cli
+          printf 'build-cli\t%s\t%s\n' "$started" "$EPOCHSECONDS" >> "$PORTCOVE_STEP_TIMES"
+      - name: Use a PostgreSQL client of the server's major version
+        id: postgres
+        timeout-minutes: 10
+        env:
+          PORTCOVE_MAINTENANCE_DATABASE_URL: ${{ secrets.PORTCOVE_DATABASE_URL }}
+        run: |
+          started=$EPOCHSECONDS
+          major=$(node scripts/maintenance-store.mts server | jq -er '.server_major')
+          if ! [[ "$major" =~ ^[0-9]+$ ]] || ((major < 16)); then
+            echo "::error title=Maintenance inventory configuration::The store needs PostgreSQL 16 or newer"
+            echo '## Maintenance inventory not run: the database server is older than PostgreSQL 16' >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+          client="/usr/lib/postgresql/$major/bin"
+          if [[ ! -x "$client/pg_dump" ]]; then
+            # The runner image carries one major; others come from the PostgreSQL
+            # project's apt repository, configured by Ubuntu's own postgresql-common.
+            sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
+            sudo apt-get install -y --no-install-recommends "postgresql-client-$major"
+          fi
+          echo "PORTCOVE_POSTGRES_BIN=$client" >> "$GITHUB_ENV"
+          echo "major=$major" >> "$GITHUB_OUTPUT"
+          printf 'postgres-client\t%s\t%s\n' "$started" "$EPOCHSECONDS" >> "$PORTCOVE_STEP_TIMES"
+      - name: Migrate the store
+        id: migrate
+        timeout-minutes: 10
+        env:
+          PORTCOVE_MAINTENANCE_DATABASE_URL: ${{ secrets.PORTCOVE_DATABASE_URL }}
+        run: |
+          started=$EPOCHSECONDS
+          node scripts/maintenance-store.mts migrate > work/maintenance-evidence/migrate.json
+          printf 'migrate\t%s\t%s\n' "$started" "$EPOCHSECONDS" >> "$PORTCOVE_STEP_TIMES"
+      - name: Collect every declared source in one transaction
+        id: collect
+        timeout-minutes: 40
+        env:
+          PORTCOVE_MAINTENANCE_DATABASE_URL: ${{ secrets.PORTCOVE_DATABASE_URL }}
+          # Release health, upstream snapshots and hosted intake: this job's read-only token.
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Issues and Project only, read-only, through --issues-token-env.
+          PORTCOVE_ROADMAP_GH_TOKEN: ${{ secrets.PORTCOVE_ROADMAP_TOKEN }}
+        run: |
+          started=$EPOCHSECONDS
+          node scripts/maintenance-inventory.mts collect --all --cli target/debug/portcove \
+            --issues --issues-token-env PORTCOVE_ROADMAP_GH_TOKEN \
+            --release-health --publication --upstream --hosted-intake \
+            > work/maintenance-evidence/collect.json
+          printf 'collect\t%s\t%s\n' "$started" "$EPOCHSECONDS" >> "$PORTCOVE_STEP_TIMES"
+      # A failed collection committed nothing, so the steps below still report and
+      # back up the last committed state, visibly dated.
+      - name: Plan executor handoffs without dispatching
+        if: ${{ !cancelled() && steps.migrate.outcome == 'success' }}
+        timeout-minutes: 5
+        env:
+          PORTCOVE_MAINTENANCE_DATABASE_URL: ${{ secrets.PORTCOVE_DATABASE_URL }}
+        run: |
+          started=$EPOCHSECONDS
+          node scripts/maintenance-inventory.mts handoffs --record > work/maintenance-evidence/handoffs.json
+          printf 'handoffs\t%s\t%s\n' "$started" "$EPOCHSECONDS" >> "$PORTCOVE_STEP_TIMES"
+      - name: Write the report and changes-only digest
+        id: report
+        if: ${{ !cancelled() && steps.migrate.outcome == 'success' }}
+        timeout-minutes: 10
+        env:
+          PORTCOVE_MAINTENANCE_DATABASE_URL: ${{ secrets.PORTCOVE_DATABASE_URL }}
+        run: |
+          started=$EPOCHSECONDS
+          node scripts/maintenance-inventory.mts report --output work/maintenance-report/report
+          node scripts/maintenance-inventory.mts digest --output work/maintenance-report/digest
+          printf 'report\t%s\t%s\n' "$started" "$EPOCHSECONDS" >> "$PORTCOVE_STEP_TIMES"
+      - name: Back up the store from one snapshot
+        id: backup
+        if: ${{ !cancelled() && steps.migrate.outcome == 'success' }}
+        timeout-minutes: 15
+        env:
+          PORTCOVE_MAINTENANCE_DATABASE_URL: ${{ secrets.PORTCOVE_DATABASE_URL }}
+          ARTIFACT: maintenance-backup-${{ github.run_id }}-${{ github.run_attempt }}
+        run: |
+          started=$EPOCHSECONDS
+          node scripts/maintenance-store.mts backup --output work/maintenance-backup/store > /dev/null
+          node scripts/maintenance-store.mts server > work/maintenance-evidence/server.json
+          printf 'backup\t%s\t%s\n' "$started" "$EPOCHSECONDS" >> "$PORTCOVE_STEP_TIMES"
+          echo "artifact=$ARTIFACT" >> "$GITHUB_OUTPUT"
+      - name: Record run evidence
+        if: ${{ !cancelled() && steps.migrate.outcome == 'success' }}
+        timeout-minutes: 2
+        env:
+          COLLECT_OUTCOME: ${{ steps.collect.outcome }}
+          REPORT_OUTCOME: ${{ steps.report.outcome }}
+          BACKUP_OUTCOME: ${{ steps.backup.outcome }}
+          RUN_ID: ${{ github.run_id }}
+          RUN_ATTEMPT: ${{ github.run_attempt }}
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          python3 - <<'PY'
+          import datetime, hashlib, json, os, pathlib, subprocess
+          work = pathlib.Path("work")
+          evidence_dir = work / "maintenance-evidence"
+          def load(path):
+              try:
+                  return json.loads(path.read_text(encoding="utf-8"))
+              except (OSError, ValueError):
+                  return None
+          def digests(root):
+              if not root.is_dir():
+                  return {}
+              return {str(p.relative_to(work)): {"bytes": p.stat().st_size,
+                      "sha256": hashlib.sha256(p.read_bytes()).hexdigest()}
+                      for p in sorted(root.rglob("*")) if p.is_file()}
+          inventory = load(work / "maintenance-report/report/inventory.json") or {}
+          digest = load(work / "maintenance-report/digest/digest.json") or {}
+          manifest = load(work / "maintenance-backup/store/manifest.json") or {}
+          server = load(evidence_dir / "server.json") or {}
+          times = {}
+          if (evidence_dir / "step-times.tsv").is_file():
+              for line in (evidence_dir / "step-times.tsv").read_text().splitlines():
+                  name, start, end = line.split("\t")
+                  times[name] = int(end) - int(start)
+          sources = [{key: run.get(key) for key in ("source", "run_id", "coverage", "source_revision",
+                      "started_at", "completed_at", "expected_count", "observed_count")}
+                     | {"gaps": len(run.get("gaps") or [])} for run in inventory.get("runs", [])]
+          evidence = {
+              "format": "portcove-maintenance-hosted-evidence",
+              "format_version": 1,
+              "recorded_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+              "run": {"id": int(os.environ["RUN_ID"]), "attempt": int(os.environ["RUN_ATTEMPT"]),
+                      "event": os.environ["EVENT_NAME"],
+                      "head_sha": subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()},
+              "outcomes": {"collect": os.environ["COLLECT_OUTCOME"], "report": os.environ["REPORT_OUTCOME"],
+                           "backup": os.environ["BACKUP_OUTCOME"]},
+              "report_generated_at": inventory.get("generated_at"),
+              "report_scope": inventory.get("scope"),
+              "subjects": len(inventory.get("subjects", [])),
+              "pending_changes": len(digest.get("entries", [])),
+              "sources": sources,
+              "server_version_num": server.get("server_version_num"),
+              "database_size_bytes": server.get("database_size_bytes"),
+              "schema_version": manifest.get("schema_version"),
+              "backup_dump": manifest.get("dump"),
+              "table_rows": {table: value.get("rows") for table, value in (manifest.get("tables") or {}).items()},
+              "step_seconds": times,
+              "files": digests(work / "maintenance-report") | digests(work / "maintenance-backup"),
+          }
+          (work / "maintenance-report").mkdir(parents=True, exist_ok=True)
+          (work / "maintenance-report/evidence.json").write_text(json.dumps(evidence, indent=2) + "\n")
+          lines = ["## Maintenance inventory run evidence", "",
+                   f"Run {evidence['run']['id']} attempt {evidence['run']['attempt']} ({evidence['run']['event']}) at `{evidence['run']['head_sha']}`.",
+                   f"Collection: {evidence['outcomes']['collect']}. Report generated {evidence['report_generated_at']}; "
+                   f"{evidence['pending_changes']} pending changes.",
+                   f"Database size: {evidence['database_size_bytes']} bytes; server {evidence['server_version_num']}; "
+                   f"backup dump {(evidence['backup_dump'] or {}).get('bytes')} bytes.", "",
+                   "| Source | Coverage | Revision | Gaps |", "| --- | --- | --- | --- |"]
+          lines += [f"| {s['source']} | {s['coverage']} | `{s['source_revision']}` | {s['gaps']} |" for s in sources]
+          lines += ["", "| Step | Seconds |", "| --- | --- |"]
+          lines += [f"| {name} | {seconds} |" for name, seconds in times.items()]
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as summary:
+              summary.write("\n".join(lines) + "\n")
+          PY
+      - name: Retain the report, digest and evidence
+        if: ${{ !cancelled() && hashFiles('work/maintenance-report/**') != '' }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: maintenance-report-${{ github.run_id }}-${{ github.run_attempt }}
+          path: work/maintenance-report/
+          if-no-files-found: error
+          retention-days: 30
+      - name: Retain the verified backup
+        if: ${{ !cancelled() && steps.backup.outcome == 'success' }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ${{ steps.backup.outputs.artifact }}
+          path: work/maintenance-backup/store/
+          if-no-files-found: error
+          retention-days: 30
+
+  restore-proof:
+    needs: collect
+    # A failed collection still backs up the last committed state; prove that backup.
+    if: ${{ !cancelled() && needs.collect.outputs.backup_artifact != '' }}
+    permissions:
+      contents: read
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      MAJOR: ${{ needs.collect.outputs.postgres_major }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: ${{ needs.collect.outputs.backup_artifact }}
+          path: work/maintenance-restore/backup
+      - name: Start an independent PostgreSQL server of the same major version
+        timeout-minutes: 10
+        run: |
+          [[ "$MAJOR" =~ ^[0-9]+$ ]]
+          server="/usr/lib/postgresql/$MAJOR/bin"
+          if [[ ! -x "$server/initdb" ]]; then
+            sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
+            sudo apt-get install -y --no-install-recommends "postgresql-$MAJOR"
+          fi
+          data="$RUNNER_TEMP/maintenance-restore-data"
+          socket="$RUNNER_TEMP/maintenance-restore-socket"
+          mkdir -p "$socket"
+          "$server/initdb" --auth=trust --encoding=UTF8 --no-locale -D "$data" > /dev/null
+          "$server/pg_ctl" -D "$data" -l "$RUNNER_TEMP/maintenance-restore.log" -w \
+            -o "-c listen_addresses='' -k $socket" start
+          "$server/createdb" -h "$socket" maintenance_restore
+          {
+            echo "PORTCOVE_POSTGRES_BIN=$server"
+            echo "RESTORE_DATA=$data"
+            echo "PORTCOVE_MAINTENANCE_DATABASE_URL=postgresql://$USER@localhost/maintenance_restore?host=$socket"
+          } >> "$GITHUB_ENV"
+      - name: Restore and verify every table against the backup manifest
+        timeout-minutes: 10
+        run: |
+          mkdir -p work/maintenance-restore/evidence
+          started=$EPOCHSECONDS
+          node scripts/maintenance-store.mts restore --input work/maintenance-restore/backup \
+            > work/maintenance-restore/evidence/restore.json
+          seconds=$((EPOCHSECONDS - started))
+          node scripts/maintenance-store.mts server > work/maintenance-restore/evidence/server.json
+          jq -n --slurpfile restore work/maintenance-restore/evidence/restore.json \
+            --slurpfile server work/maintenance-restore/evidence/server.json \
+            --slurpfile manifest work/maintenance-restore/backup/manifest.json \
+            --arg dump "$(sha256sum work/maintenance-restore/backup/maintenance.dump | cut -d' ' -f1)" \
+            --argjson seconds "$seconds" --argjson run "$GITHUB_RUN_ID" --argjson attempt "$GITHUB_RUN_ATTEMPT" '{
+              format: "portcove-maintenance-restore-evidence", format_version: 1,
+              run: {id: $run, attempt: $attempt}, restore_seconds: $seconds,
+              verified: $restore[0].verified, source_server_version_num: $manifest[0].server_version_num,
+              target_server_version_num: $server[0].server_version_num,
+              dump_sha256: $dump, manifest_dump_sha256: $manifest[0].dump.sha256,
+              tables_match_manifest: ($restore[0].tables == $manifest[0].tables)}' \
+            > work/maintenance-restore/evidence/evidence.json
+          jq -e '.verified and .tables_match_manifest and .dump_sha256 == .manifest_dump_sha256' \
+            work/maintenance-restore/evidence/evidence.json > /dev/null
+          {
+            echo '## Maintenance backup restore proof'
+            echo
+            echo "Restored onto an independent PostgreSQL $MAJOR server in ${seconds}s; every table count and digest matches the manifest."
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Retain restore evidence
+        if: ${{ !cancelled() && hashFiles('work/maintenance-restore/evidence/*') != '' }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: maintenance-restore-proof-${{ github.run_id }}-${{ github.run_attempt }}
+          path: work/maintenance-restore/evidence/
+          if-no-files-found: error
+          retention-days: 30

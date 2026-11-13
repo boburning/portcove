@@ -16,6 +16,7 @@ import {
   readMigrations,
   restore,
   runSql,
+  serverInfo,
   storeDigest,
 } from "./maintenance-store.mts";
 
@@ -265,6 +266,11 @@ void test(
     const archive = path.join(root, "backup");
     const manifest = await backup(source.owner, archive);
     assert.deepEqual(manifest.tables, before);
+    const info = serverInfo(source.owner);
+    assert.equal(info.server_version_num, manifest.server_version_num);
+    assert.equal(info.server_major, Math.floor(manifest.server_version_num / 10_000));
+    assert.ok(info.server_major >= 16);
+    assert.ok(Number.isSafeInteger(info.database_size_bytes) && info.database_size_bytes > 0);
     assert.equal(manifest.schema_version, readMigrations().length);
     await assert.rejects(backup(source.owner, archive), /already exists/u);
     const altered = path.join(root, "altered");

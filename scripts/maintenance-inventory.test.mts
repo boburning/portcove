@@ -9,6 +9,7 @@ import {
 } from "node:fs";
 import path from "node:path";
 import test from "node:test";
+import { parse } from "yaml";
 import { postgresFixture, postgresServer } from "./fixtures/postgres-cluster.mts";
 import {
   publicationFacts,
@@ -21,8 +22,10 @@ import {
   canonicalJson,
   capabilityResult,
   collect,
+  main,
   readSample,
   renderHtml,
+  takeIssueCredential,
   writeReport,
   type InventoryReport,
 } from "./maintenance-inventory.mts";
@@ -90,6 +93,136 @@ void test("inventory facts hash canonically and Core reports are projected witho
     "unassessed.not_found",
   );
   assert.equal(readSample().format_version, 1);
+});
+
+void test("the issue collector reads only its own named credential and removes it from the environment", async () => {
+  const environment: NodeJS.ProcessEnv = {
+    GH_TOKEN: "workflow-token",
+    PORTCOVE_ROADMAP_GH_TOKEN: " project-token\n",
+  };
+  assert.deepEqual(takeIssueCredential("PORTCOVE_ROADMAP_GH_TOKEN", environment), {
+    kind: "explicit",
+    token: "project-token",
+  });
+  assert.deepEqual(environment, { GH_TOKEN: "workflow-token" }, "no child process inherits it");
+  // An explicit credential never falls back to the other sources' credential.
+  assert.throws(
+    () => takeIssueCredential("PORTCOVE_ROADMAP_GH_TOKEN", environment),
+    /Set PORTCOVE_ROADMAP_GH_TOKEN to the issue and Project read credential/u,
+  );
+  const empty: NodeJS.ProcessEnv = { GH_TOKEN: "workflow-token", PORTCOVE_ROADMAP_GH_TOKEN: "" };
+  assert.throws(() => takeIssueCredential("PORTCOVE_ROADMAP_GH_TOKEN", empty), /Set PORTCOVE/u);
+  assert.equal(Object.hasOwn(empty, "PORTCOVE_ROADMAP_GH_TOKEN"), false);
+  assert.throws(() => takeIssueCredential("lower-case", {}), /must name an environment variable/u);
+
+  const database = "PORTCOVE_MAINTENANCE_TEST_ISSUE_OPTION_URL";
+  try {
+    for (const argv of [
+      ["collect", "--cli", "portcove", "--all", "--issues-token-env", "PROJECT_TOKEN"],
+      ["report", "--output", "out", "--issues", "--issues-token-env", "PROJECT_TOKEN"],
+    ]) {
+      process.env[database] = "postgresql://collector@127.0.0.1:9/unused";
+      await assert.rejects(
+        main([argv[0]!, "--database-env", database, ...argv.slice(1)]),
+        /--issues-token-env applies only to collect --issues/u,
+      );
+      // main consumes the URL so no child process can inherit it.
+      assert.equal(Object.hasOwn(process.env, database), false);
+    }
+  } finally {
+    delete process.env[database];
+  }
+});
+
+void test("the hosted workflow runs daily on main with least privilege and a read-only Project credential", () => {
+  const source = readFileSync(
+    new URL("../.github/workflows/maintenance-inventory.yml", import.meta.url),
+    "utf8",
+  );
+  type Step = {
+    name?: string;
+    run?: string;
+    uses?: string;
+    env?: Record<string, string>;
+    with?: Record<string, unknown>;
+  };
+  type Job = {
+    if?: string;
+    permissions?: unknown;
+    "timeout-minutes"?: number;
+    steps: Step[];
+  };
+  const workflow = parse(source) as {
+    on: { schedule: { cron: string }[]; workflow_dispatch: unknown };
+    permissions: unknown;
+    concurrency: { "cancel-in-progress": boolean };
+    jobs: Record<string, Job>;
+  };
+  assert.deepEqual(workflow.on.schedule, [{ cron: "47 4 * * *" }]);
+  assert.equal(workflow.on.workflow_dispatch, null, "dispatch takes no inputs");
+  assert.equal(workflow.concurrency["cancel-in-progress"], false);
+  assert.deepEqual(workflow.permissions, { contents: "read" });
+  const { collect, "restore-proof": restoreProof } = workflow.jobs;
+  assert.deepEqual(Object.keys(workflow.jobs), ["collect", "restore-proof"]);
+  assert.equal(
+    collect!.if,
+    "github.repository == 'boburning/portcove' && github.ref == 'refs/heads/main'",
+  );
+  assert.deepEqual(collect!.permissions, { contents: "read", actions: "read", issues: "read" });
+  assert.deepEqual(restoreProof!.permissions, { contents: "read" });
+  for (const job of [collect!, restoreProof!]) assert.ok(job["timeout-minutes"]! > 0);
+  assert.doesNotMatch(source, /set -x|set -o xtrace/u);
+
+  // Secrets reach only step environments, never a command line or job-wide environment.
+  const steps = [...collect!.steps, ...restoreProof!.steps];
+  for (const step of steps) {
+    assert.doesNotMatch(step.run ?? "", /secrets\./u, String(step.name ?? step.uses));
+    assert.doesNotMatch(
+      JSON.stringify(step.with ?? {}),
+      /secrets\./u,
+      String(step.name ?? step.uses),
+    );
+  }
+  const using = (secret: string) =>
+    steps
+      .filter((step) =>
+        Object.values(step.env ?? {}).some((value) => value.includes(`secrets.${secret}`)),
+      )
+      .map((step) => step.name);
+  assert.deepEqual(using("PORTCOVE_ROADMAP_TOKEN"), [
+    "Require hosted configuration without exposing credentials",
+    "Collect every declared source in one transaction",
+  ]);
+  assert.ok(using("PORTCOVE_DATABASE_URL").length > 1);
+  // The secret is exposed to the store commands under their default variable name.
+  assert.ok(
+    steps.some((step) =>
+      (step.env?.PORTCOVE_MAINTENANCE_DATABASE_URL ?? "").includes("secrets.PORTCOVE_DATABASE_URL"),
+    ),
+  );
+  assert.equal(
+    restoreProof!.steps.some((step) => step.env),
+    false,
+    "the restore target is local",
+  );
+  const collection = collect!.steps.find(
+    (step) => step.name === "Collect every declared source in one transaction",
+  )!;
+  assert.equal(collection.env!.PORTCOVE_ROADMAP_GH_TOKEN, "${{ secrets.PORTCOVE_ROADMAP_TOKEN }}");
+  assert.equal(collection.env!.GH_TOKEN, "${{ secrets.GITHUB_TOKEN }}");
+  assert.match(collection.run!, /--issues --issues-token-env PORTCOVE_ROADMAP_GH_TOKEN/u);
+  for (const flag of [
+    "--all",
+    "--release-health",
+    "--publication",
+    "--upstream",
+    "--hosted-intake",
+  ])
+    assert.ok(collection.run!.includes(flag), flag);
+
+  const uploads = steps.filter((step) => step.uses?.startsWith("actions/upload-artifact@"));
+  assert.equal(uploads.length, 3);
+  for (const upload of uploads) assert.equal(upload.with!["retention-days"], 30);
 });
 
 void test("definition publication compares main with the appointed location without claiming verification", () => {
