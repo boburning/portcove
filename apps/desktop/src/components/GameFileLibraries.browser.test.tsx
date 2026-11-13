@@ -116,6 +116,7 @@ beforeEach(async () => {
   vi.spyOn(desktopApi, "scanGameFileRoots").mockResolvedValue(snapshot);
   vi.spyOn(desktopApi, "importSource");
   vi.spyOn(desktopApi, "rootSetupConsents").mockResolvedValue([]);
+  vi.spyOn(desktopApi, "gameFileRootMatchProfiles").mockResolvedValue([]);
   vi.mocked(picker.pickGameFileFolder).mockResolvedValue("E:/More Games");
   const host = document.createElement("div");
   document.body.append(host);
@@ -2055,6 +2056,45 @@ it("asks which game to set up when several games can use a folder's files", asyn
   expect(desktopApi.setRootSetupImplementation).toHaveBeenCalledWith(saved.id, "game", "second", 1);
 });
 
+it("offers a folder's game choice for files matched beyond the shown results", async () => {
+  const consent = {
+    format_version: 1,
+    root_id: saved.id,
+    enrollment: "existing_and_future" as const,
+    enabled_at: 2,
+    updated_at: 2,
+    existing_files: 0,
+  };
+  vi.mocked(desktopApi.rootSetupConsents).mockResolvedValue([consent]);
+  // The shown results hold none of this folder's shared files; Core reports them.
+  vi.mocked(desktopApi.gameFileScanSnapshot).mockResolvedValue({
+    ...snapshot,
+    report: { ...snapshot.report, candidates: [], limits_reached: [] },
+  });
+  vi.mocked(desktopApi.gameFileRootMatchProfiles).mockResolvedValue(["shared"]);
+  const first = { ...portDefinition(), id: "first", name: "First", source_profile: "shared" };
+  const second = { ...portDefinition(), id: "second", name: "Second", source_profile: "shared" };
+  await root.rerender(null);
+  await root.rerender(<GameFileLibraries generation={1} ports={[first, second]} profiles={[]} />);
+  await act(async () => {});
+  expect(desktopApi.gameFileRootMatchProfiles).toHaveBeenCalledWith(saved.id, 1);
+  const offered = () =>
+    [...document.querySelectorAll<HTMLSelectElement>("select")].some((item) =>
+      [...item.options].some((option) => option.value === "second"),
+    );
+  expect(offered()).toBe(true);
+  // A later scan no longer matches those files; the choice follows it even
+  // though the shown results did not change.
+  vi.mocked(desktopApi.gameFileRootMatchProfiles).mockResolvedValue([]);
+  vi.mocked(desktopApi.gameFileScanSnapshot).mockResolvedValue({
+    ...snapshot,
+    completed_at: 2,
+    report: { ...snapshot.report, candidates: [], limits_reached: [] },
+  });
+  await click("Refresh folders");
+  expect(offered()).toBe(false);
+});
+
 it("offers keeping a local copy only once automatic setup is on, and saves the choice", async () => {
   const consent = {
     format_version: 1,
@@ -2155,6 +2195,74 @@ it("counts every stored match and shows more of them a page at a time", async ()
     ),
   ).toBe(false);
   expect(desktopApi.importSource).not.toHaveBeenCalled();
+});
+
+it("reviews and adds games whose matches were shown beyond the scan preview", async () => {
+  const stored = storedMatchesSnapshot();
+  vi.mocked(desktopApi.gameFileScanSnapshot).mockResolvedValue(stored);
+  const paged: SourceRecord = {
+    ...savedCandidate,
+    profile_id: "paged",
+    path: "D:/Games/paged.z64",
+    sha256: "c".repeat(64),
+  };
+  vi.spyOn(desktopApi, "gameFileScanMatches").mockResolvedValue({
+    scan_id: stored.matches!.scan_id,
+    kind: "exact",
+    offset: 1,
+    total: 2,
+    candidates: [paged],
+    preliminary_selections: [],
+    next_offset: null,
+  });
+  vi.spyOn(desktopApi, "addGamesToLibrary").mockResolvedValue([]);
+  const port = {
+    ...portDefinition(),
+    id: "paged-port",
+    name: "Paged port",
+    source_profile: "paged",
+  };
+  const status = {
+    ...portStatus(),
+    port_id: port.id,
+    port_actions: [
+      {
+        action: "install" as const,
+        availability: "allowed" as const,
+        reason: "available" as const,
+      },
+    ],
+  };
+  await root.rerender(
+    <SetupReviewSelectionProvider>
+      <GameFileLibraries
+        generation={1}
+        ports={[port]}
+        profiles={[{ ...sourceProfile(), id: "paged" }]}
+        registeredSources={[paged]}
+        statuses={new Map([[port.id, status]])}
+        onOpenPort={vi.fn()}
+      />
+    </SetupReviewSelectionProvider>,
+  );
+  await click("Refresh folders");
+  expect(document.querySelectorAll("[data-setup-review-port]")).toHaveLength(0);
+  await click("Show more matches");
+  expect(document.querySelectorAll("[data-setup-review-port]")).toHaveLength(1);
+  await act(async () =>
+    document.querySelector<HTMLInputElement>("[data-setup-review-port]")!.click(),
+  );
+  await click("Add 1 selected to Library");
+  expect(desktopApi.addGamesToLibrary).toHaveBeenCalledWith(
+    [
+      {
+        port_id: port.id,
+        origin: "game_file_discovery",
+        sources: [{ profile_id: "paged", sha256: paged.sha256 }],
+      },
+    ],
+    1,
+  );
 });
 
 it("reloads the saved scan instead of mixing pages when a newer scan replaced it", async () => {

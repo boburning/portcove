@@ -1416,6 +1416,12 @@ pub(crate) enum GameFileRootCommand {
     Snapshot,
     /// Read the last scan's recorded matches one page at a time.
     Matches(GameFileRootMatchesArgs),
+    /// List the game-file profiles the last scan matched inside one saved folder.
+    Profiles {
+        /// Saved folder ID from `source roots list`.
+        #[arg(long = "root")]
+        root_id: String,
+    },
     /// Save one available folder; adding the same folder again is idempotent.
     Add {
         /// Available folder to remember for future scans; adding it does not register its files.

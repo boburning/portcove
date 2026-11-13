@@ -1401,6 +1401,32 @@ pub(crate) fn game_file_scan(snapshot: &GameFileScanSnapshot) -> String {
     output
 }
 
+pub(crate) fn game_file_root_match_profiles(
+    profiles: &[String],
+    catalog: &portcove_core::Catalog,
+) -> String {
+    if profiles.is_empty() {
+        return "The last scan matched no game files in this folder.".to_owned();
+    }
+    let mut lines = vec!["Game files the last scan matched in this folder:".to_owned()];
+    for profile in profiles {
+        let games = catalog
+            .ports()
+            .iter()
+            .filter(|port| port.source_profile.as_deref() == Some(profile.as_str()))
+            .count();
+        lines.push(if games > 1 {
+            format!(
+                "- {} ({games} games can use these files; choose one with games folder-setup-choose)",
+                profile_name(catalog, profile)
+            )
+        } else {
+            format!("- {}", profile_name(catalog, profile))
+        });
+    }
+    lines.join("\n")
+}
+
 pub(crate) fn game_file_scan_matches(
     page: &portcove_core::GameFileScanMatchPage,
     catalog: &portcove_core::Catalog,

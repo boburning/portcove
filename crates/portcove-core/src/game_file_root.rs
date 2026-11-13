@@ -535,7 +535,7 @@ impl Library {
             records.len()
         } else if let Some(snapshot) = snapshot {
             // Older reports keep every match inline.
-            let inside = |path: &Path| root.as_ref().is_none_or(|(root, _)| path.starts_with(root));
+            let inside = |path: &Path| root.as_ref().is_none_or(|(_, key)| key_inside(path, key));
             let start = query.offset as usize;
             let end = start.saturating_add(query.limit as usize);
             match query.kind {
@@ -569,6 +569,78 @@ impl Library {
         let next = query.offset as usize + returned;
         page.next_offset = (returned > 0 && next < page.total as usize).then_some(next as u32);
         Ok(page)
+    }
+
+    /// The source profiles of the current scan's exact matches inside one
+    /// saved folder, once each, in profile order. Read from one consistent
+    /// snapshot, so a folder's choices can be offered without paging every
+    /// match. Bounded by the catalog's profiles.
+    pub(crate) fn game_file_root_match_profiles(&self, root_id: &str) -> Result<Vec<String>> {
+        validate_id(root_id)?;
+        let mut connection = self.connection()?;
+        let transaction = connection.transaction()?;
+        let key: String = transaction
+            .query_row(
+                "SELECT path_key FROM game_file_roots WHERE id=?1",
+                [root_id],
+                |row| row.get(0),
+            )
+            .optional()?
+            .ok_or_else(|| {
+                PortcoveError::not_found("saved game-file folder does not exist")
+                    .detail("root_id", root_id)
+            })?;
+        let payload = transaction
+            .query_row(
+                "SELECT snapshot_json FROM game_file_scan_state WHERE singleton=1",
+                [],
+                |row| row.get::<_, String>(0),
+            )
+            .optional()?;
+        let Some(payload) = payload else {
+            return Ok(Vec::new());
+        };
+        if payload.len() > MAX_SCAN_SNAPSHOT_BYTES {
+            return Err(PortcoveError::state(
+                "stored game-file scan snapshot exceeds its storage limit",
+            ));
+        }
+        let snapshot = crate::source_discovery::decode_game_file_scan(&payload)?;
+        let profiles = match crate::source_discovery::scan_match_summary(&snapshot) {
+            Some(summary) => {
+                let separator = std::path::MAIN_SEPARATOR;
+                let prefix = format!("{}{separator}", key.trim_end_matches(separator));
+                let mut statement = transaction.prepare(
+                    "SELECT DISTINCT profile_id FROM game_file_scan_matches
+                     WHERE scan_id=?1 AND kind=?2
+                       AND (path_key=?3 OR substr(path_key,1,length(?4))=?4)
+                     ORDER BY profile_id",
+                )?;
+                statement
+                    .query_map(
+                        params![
+                            summary.scan_id,
+                            GameFileScanMatchKind::Exact.row_kind(),
+                            key,
+                            prefix
+                        ],
+                        |row| row.get::<_, String>(0),
+                    )?
+                    .collect::<std::result::Result<Vec<_>, _>>()?
+            }
+            // Older reports keep every match inline.
+            None => snapshot
+                .report
+                .candidates
+                .into_iter()
+                .filter(|record| key_inside(&record.path, &key))
+                .map(|record| record.profile_id)
+                .collect::<std::collections::BTreeSet<_>>()
+                .into_iter()
+                .collect(),
+        };
+        transaction.commit()?;
+        Ok(profiles)
     }
 
     #[cfg(test)]
@@ -768,6 +840,14 @@ fn require_available_root(path: &Path) -> Result<PathBuf> {
         );
     }
     Ok(path)
+}
+
+/// Whether `path` is the saved folder with this path key or inside it,
+/// compared as stored rows are (case-insensitively on Windows).
+fn key_inside(path: &Path, key: &str) -> bool {
+    let separator = std::path::MAIN_SEPARATOR;
+    let path = path_key(&path.to_string_lossy());
+    path == key || path.starts_with(&format!("{}{separator}", key.trim_end_matches(separator)))
 }
 
 pub(crate) fn path_key(path: &str) -> String {

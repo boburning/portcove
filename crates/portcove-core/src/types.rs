@@ -2432,6 +2432,7 @@ impl CapabilityDocument {
                 "source.roots".into(),
                 "source.roots.scan".into(),
                 "source.roots.matches".into(),
+                "source.roots.profiles".into(),
                 "source.query".into(),
                 "tool".into(),
                 "status".into(),

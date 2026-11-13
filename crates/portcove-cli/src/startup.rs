@@ -147,7 +147,8 @@ pub(super) fn startup_mode(command: &Commands) -> StartupMode {
             SourceCommand::Roots { command } => match command {
                 GameFileRootCommand::List
                 | GameFileRootCommand::Snapshot
-                | GameFileRootCommand::Matches(_) => ReadOnly,
+                | GameFileRootCommand::Matches(_)
+                | GameFileRootCommand::Profiles { .. } => ReadOnly,
                 GameFileRootCommand::Scan(_)
                 | GameFileRootCommand::Add { .. }
                 | GameFileRootCommand::Relink { .. }
@@ -417,6 +418,7 @@ mod tests {
             "source roots list",
             "source roots snapshot",
             "source roots matches",
+            "source roots profiles --root r",
             "external preview p dir",
             "external removal-preview p",
             "installation plan p",

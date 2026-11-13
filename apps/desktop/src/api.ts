@@ -909,6 +909,8 @@ export const desktopApi = {
     invoke<GameFileScanSnapshot | null>("get_game_file_scan_snapshot", { generation }),
   gameFileScanMatches: (query: GameFileScanMatchQuery, generation: number) =>
     invoke<GameFileScanMatchPage>("get_game_file_scan_matches", { query, generation }),
+  gameFileRootMatchProfiles: (rootId: string, generation: number) =>
+    invoke<string[]>("get_game_file_root_match_profiles", { rootId, generation }),
   refreshGameFileQuery: (
     request: GameFileQueryRefreshRequest,
     generation: number,

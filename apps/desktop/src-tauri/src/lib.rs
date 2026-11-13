@@ -1407,6 +1407,22 @@ async fn get_game_file_scan_matches(
     .await
 }
 
+/// The game-file profiles the current scan matched inside one saved folder,
+/// so its setup choices cover every match. Reads only.
+#[tauri::command]
+async fn get_game_file_root_match_profiles(
+    state: tauri::State<'_, DesktopState>,
+    generation: u64,
+    root_id: String,
+) -> DesktopResult<Vec<String>> {
+    blocking_service_at_generation(state.inner().clone(), generation, move |service| {
+        service
+            .game_file_root_match_profiles(&root_id)
+            .map_err(Into::into)
+    })
+    .await
+}
+
 #[tauri::command]
 async fn get_game_file_scan_snapshot(
     state: tauri::State<'_, DesktopState>,
@@ -3291,6 +3307,7 @@ pub fn run() -> std::process::ExitCode {
             scan_game_file_roots,
             get_game_file_scan_snapshot,
             get_game_file_scan_matches,
+            get_game_file_root_match_profiles,
             refresh_game_file_query,
             discover_sources,
             open_source_inbox,
