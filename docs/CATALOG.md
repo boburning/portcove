@@ -779,8 +779,9 @@ root-state changes. Only the retained `packages` layout has package semantics;
 arbitrary historical `bundled` or `installed` folders are not reclassified.
 
 For a reviewed split layout, declare the exact player paths
-`mods/installed`, `mods/packages`, `mods/.staging`, `mods/state.toml` and
-`mods/state.toml.tmp`. The runtime build stages its own `mods/bundled` files
+`mods/installed`, `mods/packages`, `mods/.staging`, `mods/state.toml`,
+`mods/state.toml.tmp` and `mods/texture-packs`, where PSXRecomp `7192402` and
+later create HD texture replacements and dumps. The runtime build stages its own `mods/bundled` files
 and any bundled README. Those files belong to the verified runtime version.
 Core carries declared player paths through normal retained collection, restore
 and rollback. Upstream owns any legacy package migration within those paths.
@@ -2161,7 +2162,13 @@ restoration when historical scope evidence is absent or interpreted persistence
 paths/patterns differ from their retained scope; the same persistence-authority
 preflight covers inactive versions in read-only Restore review and again before
 canonical publication. Actual restore also checks mod conflicts at its existing
-mutation boundary.
+mutation boundary. A managed PS1 installation is the one exception: when a
+newer definition only adds `mods/texture-packs`, which PSXRecomp `7192402`
+creates on every start, the installation keeps its retained definition. Files
+there stay in that copy unmanaged, exactly as before the folder was declared:
+verification reports them, and they are not collected, carried to another
+version or backed up. Installations created
+under the wider definition retain it and synchronize the folder.
 The original receipt, manifest and diagnostic-mutability
 behavior remain unchanged. Other existing integration interpretations, including
 the separately qualified Shipwright exception, retain their own boundaries.
@@ -2497,8 +2504,8 @@ Use `"bundled-openbios"` when the reviewed kit supplies and supports OpenBIOS.
 This projects the literal `--bios bios/openbios.bin` argument and rejects a
 retail BIOS profile. Use `"split-mods"` for the reviewed dual-platform kits
 with explicit retail SCPH-1001 or SCPH-5552 BIOS. Their player-owned mod paths
-are `mods/installed`, `mods/packages`, `mods/.staging`, `mods/state.toml` and
-`mods/state.toml.tmp`. Each verified runtime version keeps `mods/bundled` and
+are `mods/installed`, `mods/packages`, `mods/.staging`, `mods/state.toml`,
+`mods/state.toml.tmp` and `mods/texture-packs`. Each verified runtime version keeps `mods/bundled` and
 its other build-provided files. The existing whole-`mods` forms keep their
 original persistence scope. The split-mods form requires explicit selectors
 with the same title prefix and the platform-specific `-windows-x64.zip` and

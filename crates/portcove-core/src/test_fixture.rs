@@ -117,6 +117,11 @@ pub(crate) fn definition_requirements(
             json!({"template":port.adapter,"minimum_version":version,"maximum_version":version}),
         ];
     }
+    let default_version = if crate::persistence::requires_psx_retained_scope(port) {
+        default_version.max(crate::persistence::PSX_RETAINED_SCOPE_CAPABILITY)
+    } else {
+        default_version
+    };
     let mut requirements = vec![
         json!({"template":port.adapter,"minimum_version":default_version,"maximum_version":default_version}),
     ];
