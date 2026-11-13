@@ -809,7 +809,11 @@ mod tests {
         let id = "0f8fad5b-d9cb-469f-a165-70867728950e";
         let root = Path::new("/");
         for tracked in [None, Some(root)] {
-            let mut command = std::process::Command::new("/bin/sh");
+            let mut command = crate::process::ChildProcessPolicy::native_command(
+                crate::process::ChildProcessClass::HostTool,
+                "/bin/sh",
+            )
+            .unwrap();
             command.args(["-c", "exit 3"]);
             let (mut child, mut processes) =
                 spawn_supervised_game(&mut command, id, tracked).unwrap();
