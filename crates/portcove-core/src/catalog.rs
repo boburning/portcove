@@ -2024,11 +2024,16 @@ mod tests {
     #[test]
     fn windows_tracked_handoff_is_opt_in_and_requires_a_native_windows_executable() {
         let catalog = Catalog::embedded().unwrap();
-        assert!(
+        // Only reviewed routes opt in; every other embedded port keeps the
+        // original child as its whole session.
+        assert_eq!(
             catalog
                 .ports()
                 .iter()
-                .all(|port| !port.windows_tracked_handoff)
+                .filter(|port| port.windows_tracked_handoff)
+                .map(|port| port.id.as_str())
+                .collect::<Vec<_>>(),
+            ["monster-hunter-portable-3rd-hd-yakumo"]
         );
         let parse = |edit: &dyn Fn(&mut PortDefinition)| {
             let mut document = catalog.authoritative_document();

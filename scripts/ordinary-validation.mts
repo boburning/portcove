@@ -3230,6 +3230,8 @@ function classifyOnePath(
     selection.actionsLint = true;
     addNodeTest(selection, "scripts/ci-workflow.test.mts");
     addNodeTest(selection, "scripts/dependency-automation.test.mts");
+    // This test scans every workflow for GitHub CLI API calls, so any workflow change selects it.
+    addNodeTest(selection, "scripts/github-client.test.mts");
     for (const testFile of workflowTests.get(path.posix.basename(file)) ?? [])
       addNodeTest(selection, testFile);
     recognized = true;
@@ -3240,6 +3242,7 @@ function classifyOnePath(
     selection.actionsLint = true;
     addNodeTest(selection, "scripts/ci-workflow.test.mts");
     addNodeTest(selection, "scripts/dependency-automation.test.mts");
+    addNodeTest(selection, "scripts/github-client.test.mts");
     recognized = true;
   }
 

@@ -9,6 +9,7 @@ const DECLARED_PREPARED_ROUTE_TEST_IDS: &[&str] = &[
     "gothic-ii-night-of-the-raven-opengothic",
     "heroes-of-might-and-magic-ii-fheroes2",
     "jetforcegemini-recomp-vibintoast-jet-force-gemini",
+    "monster-hunter-portable-3rd-hd-yakumo",
     "mother-3-mother-3-recomp",
     "mstan-tetrisgbrecomp",
     "n64hub-rayman-2-recomp-n64-usa",
@@ -65,6 +66,11 @@ fn prepared_guide_adoption_declared_heroes_of_might_and_magic_ii_fheroes2() {
 #[test]
 fn prepared_guide_adoption_declared_jetforcegemini_recomp_vibintoast_jet_force_gemini() {
     assert_declarative_prepared_player_route("jetforcegemini-recomp-vibintoast-jet-force-gemini");
+}
+
+#[test]
+fn prepared_guide_adoption_declared_monster_hunter_portable_3rd_hd_yakumo() {
+    assert_declarative_prepared_player_route("monster-hunter-portable-3rd-hd-yakumo");
 }
 
 #[test]

@@ -32,34 +32,40 @@ jobs:
       statuses: write
     steps:
       - name: Post the ci status on the validated pull request head
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
-          GH_TOKEN: ${{ github.token }}
-          PORTCOVE_REPOSITORY: ${{ github.repository }}
           PORTCOVE_HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
           PORTCOVE_CONCLUSION: ${{ github.event.workflow_run.conclusion }}
           PORTCOVE_RUN_URL: ${{ github.event.workflow_run.html_url }}
           PORTCOVE_RUN_ATTEMPT: ${{ github.event.workflow_run.run_attempt }}
           PORTCOVE_RUN_ID: ${{ github.event.workflow_run.id }}
-        run: |
-          if [[ ! "$PORTCOVE_HEAD_SHA" =~ ^[0-9a-f]{40}$ ]]; then
-            echo "::error::CI run omitted a full head commit" >&2
-            exit 1
-          fi
-          # A re-run supersedes this attempt: its own completion posts, so a delayed older
-          # outcome never overwrites or pre-empts it. An unreadable run posts nothing.
-          current="$(gh api "repos/${PORTCOVE_REPOSITORY}/actions/runs/${PORTCOVE_RUN_ID}" --jq .run_attempt)"
-          if [[ "$current" != "$PORTCOVE_RUN_ATTEMPT" ]]; then
-            echo "Attempt ${PORTCOVE_RUN_ATTEMPT} is no longer current (now ${current}); posting nothing."
-            exit 0
-          fi
-          if [[ "$PORTCOVE_CONCLUSION" == "success" ]]; then
-            state=success
-            description="CI attempt ${PORTCOVE_RUN_ATTEMPT} passed"
-          else
-            state=failure
-            description="CI attempt ${PORTCOVE_RUN_ATTEMPT} ended as ${PORTCOVE_CONCLUSION}"
-          fi
-          gh api --method POST "repos/${PORTCOVE_REPOSITORY}/statuses/${PORTCOVE_HEAD_SHA}" \
-            -f state="$state" -f context=ci -f description="$description" -f target_url="$PORTCOVE_RUN_URL" \
-            --silent
-          echo "Posted ci=${state} on ${PORTCOVE_HEAD_SHA}"
+        with:
+          script: |
+            const sha = process.env.PORTCOVE_HEAD_SHA ?? "";
+            if (!/^[0-9a-f]{40}$/u.test(sha)) throw new Error("CI run omitted a full head commit");
+            const attempt = Number(process.env.PORTCOVE_RUN_ATTEMPT);
+            const runId = Number(process.env.PORTCOVE_RUN_ID);
+            if (!Number.isSafeInteger(attempt) || !Number.isSafeInteger(runId))
+              throw new Error("CI run omitted its integer identity");
+            // A re-run supersedes this attempt: its own completion posts, so a delayed older
+            // outcome never overwrites or pre-empts it. An unreadable run posts nothing.
+            const { data: run } = await github.rest.actions.getWorkflowRun({
+              ...context.repo,
+              run_id: runId,
+            });
+            if (run.run_attempt !== attempt) {
+              core.info(`Attempt ${attempt} is no longer current (now ${run.run_attempt}); posting nothing.`);
+              return;
+            }
+            const passed = process.env.PORTCOVE_CONCLUSION === "success";
+            await github.rest.repos.createCommitStatus({
+              ...context.repo,
+              sha,
+              state: passed ? "success" : "failure",
+              context: "ci",
+              description: passed
+                ? `CI attempt ${attempt} passed`
+                : `CI attempt ${attempt} ended as ${process.env.PORTCOVE_CONCLUSION}`,
+              target_url: process.env.PORTCOVE_RUN_URL,
+            });
+            core.info(`Posted ci=${passed ? "success" : "failure"} on ${sha}`);

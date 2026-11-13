@@ -355,9 +355,11 @@ async fn ordinary_refresh_uses_one_authenticated_snapshot_and_exact_retry_preser
         .unwrap();
     let mut baseline = crate::test_fixture::indexed_fixture_document(&Catalog::embedded().unwrap());
     // The legacy signature changes metadata. The reader supplies the
-    // independent working-directory authority compiled into the client.
+    // independent working-directory authority and tracked handoff compiled
+    // into the client; a legacy catalog cannot deliver either.
     for port in &mut baseline.ports {
         port.windows_shipwright_persistence = false;
+        port.windows_tracked_handoff = false;
     }
     baseline.ports[0].summary = "Changed independently signed baseline fixture".into();
     let now = Library::now();
