@@ -236,7 +236,8 @@ step also sets the WebView2 `AdditionalBrowserArguments` machine policy for
 be created. Groups also enable process-creation auditing, and a failed group
 prints bounded startup diagnostics, scenario failures and its largest retained
 outputs. The acquisition journey calibrates its WebDriver script budget from 15 s
-to 60 s for the debug build's IPC status reads and records the slowest read. Its
+to 60 s for the debug build's IPC status reads, and its wait for a held fixture
+transfer to start from 10 s to 60 s; it records the slowest of each. Its
 pre-publication catalog copies stay SHA-256 bound but are not retained, since
 three raw ~2.9 MB copies exceed the 12 MiB evidence bound. This makes the fixture
 observable; Server 2022 with a provisioned runtime is not the Windows 11 26H2

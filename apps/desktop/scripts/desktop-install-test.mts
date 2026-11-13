@@ -98,8 +98,12 @@ async function exists(candidate: string) {
   );
 }
 
-async function waitForFixture(predicate: () => boolean | undefined, message: string) {
-  const deadline = Date.now() + 10_000;
+async function waitForFixture(
+  predicate: () => boolean | undefined,
+  message: string,
+  budgetMs = 10_000,
+) {
+  const deadline = Date.now() + budgetMs;
   while (!predicate()) {
     if (Date.now() >= deadline) throw new Error(message);
     await new Promise((resolve) => setTimeout(resolve, 25));
@@ -1289,6 +1293,7 @@ export async function installScenarios({
       await browser.wait(until.elementLocated(By.css("[data-game-update-review]")), 15_000);
       await click("Download archive for later");
       const pathname = new URL(release.url).pathname;
+      const transferWaitStarted = Date.now();
       await waitForFixture(
         () =>
           ownedFixture.requests.some(
@@ -1296,6 +1301,13 @@ export async function installScenarios({
               request.request_path === pathname && request.bytes_sent > 0 && !request.completed,
           ),
         "Real acquisition did not enter the owned held HTTP transfer",
+        // Calibrated from 10 s: on hosted Windows (debug build, 16.5 s status reads)
+        // the v3 request reached the held fixture after the old window expired.
+        acquisitionScriptBudgetMs,
+      );
+      observations.slowest_transfer_start_ms = Math.max(
+        Number(observations.slowest_transfer_start_ms ?? 0),
+        Date.now() - transferWaitStarted,
       );
       const transferring = await browser.wait(async () => {
         const value = await status();
