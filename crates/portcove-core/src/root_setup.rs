@@ -261,6 +261,43 @@ impl Library {
         json.map(|json| decode(root_id, &json)).transpose()
     }
 
+    /// Where this folder's last pass stopped in `scan_id`'s matches; the first
+    /// match for any other scan.
+    fn root_setup_pass_offset(&self, root_id: &str, scan_id: Option<&str>) -> Result<u32> {
+        let stored: Option<(Option<String>, u32)> = self
+            .connection()?
+            .query_row(
+                "SELECT pass_scan_id,pass_offset FROM game_file_root_setup WHERE root_id=?1",
+                [root_id],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .optional()?;
+        Ok(match stored {
+            Some((Some(stored), offset)) if Some(stored.as_str()) == scan_id => offset,
+            _ => 0,
+        })
+    }
+
+    /// Remembers where the next pass continues. A choice turned off meanwhile
+    /// is left absent.
+    fn set_root_setup_pass_offset(
+        &self,
+        root_id: &str,
+        scan_id: Option<&str>,
+        offset: u32,
+    ) -> Result<()> {
+        let (scan_id, offset) = match scan_id {
+            Some(scan_id) => (Some(scan_id), offset),
+            // Older inline reports have no scan identity; they start over.
+            None => (None, 0),
+        };
+        self.connection()?.execute(
+            "UPDATE game_file_root_setup SET pass_scan_id=?2, pass_offset=?3 WHERE root_id=?1",
+            params![root_id, scan_id, offset],
+        )?;
+        Ok(())
+    }
+
     /// Whether any of `identities` is remembered, on one connection.
     fn root_setup_baseline_contains_any(
         &self,
@@ -312,7 +349,8 @@ impl Library {
         insert_baseline(&transaction, &consent.root_id, baseline)?;
         transaction.execute(
             "INSERT INTO game_file_root_setup(root_id,updated_at,record_json) VALUES (?1,?2,?3)
-             ON CONFLICT(root_id) DO UPDATE SET updated_at=excluded.updated_at, record_json=excluded.record_json",
+             ON CONFLICT(root_id) DO UPDATE SET updated_at=excluded.updated_at,
+               record_json=excluded.record_json, pass_scan_id=NULL, pass_offset=0",
             params![consent.root_id, consent.updated_at, encoded],
         )?;
         transaction.commit()?;
@@ -383,6 +421,8 @@ impl Library {
             }
             return Ok(());
         };
+        // The folder's matches change with its location; start over.
+        self.set_root_setup_pass_offset(root_id, None, 0)?;
         if consent.enrollment != RootSetupEnrollment::FutureOnly {
             return Ok(());
         }
@@ -609,8 +649,13 @@ impl PortcoveService {
                 continue;
             };
             // Matches are read in pages from the scan's rows, so a folder's
-            // match beyond the report preview is still reached.
-            let mut offset = Some(0);
+            // match beyond the report preview is still reached. Each pass
+            // continues where the last one stopped and starts over after the
+            // last match, so every match is reached however large the folder.
+            let resumed = self
+                .library
+                .root_setup_pass_offset(&root.id, scan_id.as_deref())?;
+            let mut offset = Some(resumed);
             while let Some(start) = offset {
                 let page = match self.game_file_scan_matches(&crate::GameFileScanMatchQuery {
                     scan_id: scan_id.clone(),
@@ -625,12 +670,17 @@ impl PortcoveService {
                     Err(error) => return Err(error),
                 };
                 offset = page.next_offset;
-                for candidate in &page.candidates {
+                for (position, candidate) in (start..).zip(&page.candidates) {
                     if started >= MAX_ROOT_SETUPS_PER_PASS
                         || considered >= MAX_ROOT_CANDIDATES_PER_PASS
                         || reads >= MAX_ROOT_BOUNDARY_READS_PER_PASS
                         || examined >= MAX_ROOT_MATCHES_EXAMINED_PER_PASS
                     {
+                        self.library.set_root_setup_pass_offset(
+                            &root.id,
+                            scan_id.as_deref(),
+                            position,
+                        )?;
                         return Ok(waiting);
                     }
                     if !candidate.path.starts_with(&root.path) {
@@ -693,6 +743,11 @@ impl PortcoveService {
                         RootSetupOutcome::Skipped => {}
                     }
                 }
+            }
+            // Every remaining match was reached; the next pass starts over.
+            if resumed != 0 {
+                self.library
+                    .set_root_setup_pass_offset(&root.id, scan_id.as_deref(), 0)?;
             }
         }
         Ok(waiting)
@@ -1323,6 +1378,35 @@ mod tests {
         let mut candidates = existing;
         candidates.push(later);
         folder.scanned(candidates);
+        assert_eq!(folder.pass().await.batches.len(), 1);
+        assert!(folder.installed());
+    }
+
+    #[tokio::test]
+    async fn later_passes_continue_where_the_last_one_stopped() {
+        let folder = folder();
+        // More earlier copies than one pass can look up, all before the new file.
+        let existing = (0..MAX_ROOT_MATCHES_EXAMINED_PER_PASS + 10)
+            .map(|index| SourceRecord {
+                path: folder.root.join(format!("a-old-{index:05}.z64")),
+                ..folder.file("a-old.z64", 'a')
+            })
+            .collect::<Vec<_>>();
+        folder.scanned(existing.clone());
+        folder.consent(RootSetupEnrollment::FutureOnly);
+        let later = folder.file("z-new.z64", 'b');
+        folder.in_use(&later);
+        let mut candidates = existing;
+        candidates.push(later);
+        let snapshot = crate::source_discovery::publish_test_game_file_scan_rows(
+            folder.service.catalog(),
+            folder.service.library(),
+            candidates,
+        );
+        assert!(snapshot.matches.is_some());
+        assert!(folder.pass().await.batches.is_empty());
+        assert!(!folder.installed());
+        // The next pass continues past the matches already looked at.
         assert_eq!(folder.pass().await.batches.len(), 1);
         assert!(folder.installed());
     }

@@ -13,7 +13,7 @@ use crate::{PortcoveError, Result};
 #[path = "database_concurrency_tests.rs"]
 mod concurrency_tests;
 
-pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 54;
+pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 55;
 
 struct Migration {
     version: i64,
@@ -347,7 +347,41 @@ const MIGRATIONS: &[Migration] = &[
         apply: migration_54,
         verify: verify_migration_54,
     },
+    Migration {
+        version: 55,
+        name: "folder setup pass position",
+        apply: migration_55,
+        verify: verify_migration_55,
+    },
 ];
+
+fn migration_55(transaction: &Transaction<'_>) -> Result<()> {
+    // Where a folder's automatic setup stopped in its scan's matches, so the
+    // next pass continues there. Bookkeeping only, never consent: a different
+    // scan or a new choice starts again from the first match.
+    transaction.execute_batch(
+        "ALTER TABLE game_file_root_setup
+            ADD COLUMN pass_scan_id TEXT CHECK(pass_scan_id IS NULL OR length(pass_scan_id)=36);
+        ALTER TABLE game_file_root_setup
+            ADD COLUMN pass_offset INTEGER NOT NULL DEFAULT 0
+            CHECK(pass_offset BETWEEN 0 AND 100000);",
+    )?;
+    verify_migration_55(transaction)
+}
+
+fn verify_migration_55(connection: &Connection) -> Result<()> {
+    require_columns(
+        connection,
+        "game_file_root_setup",
+        &[
+            "root_id",
+            "updated_at",
+            "record_json",
+            "pass_scan_id",
+            "pass_offset",
+        ],
+    )
+}
 
 fn migration_54(transaction: &Transaction<'_>) -> Result<()> {
     // Local, rebuildable evidence of one saved-folder scan's retained matches,
@@ -3170,6 +3204,43 @@ mod tests {
         insert(0, 1, "game-b", 2, &"x".repeat(262_144)).unwrap();
     }
 
+    #[test]
+    fn folder_setup_pass_position_migration_keeps_choices_and_bounds_positions() {
+        let temporary = tempdir().unwrap();
+        let root = temporary.path();
+        prepare_root(root);
+        migrate_to(root, 54).unwrap();
+        let connection = connect(root).unwrap();
+        connection
+            .execute(
+                "INSERT INTO game_file_root_setup(root_id,updated_at,record_json) VALUES ('root',1,'{}')",
+                [],
+            )
+            .unwrap();
+        drop(connection);
+        migrate(root).unwrap();
+        let connection = connect(root).unwrap();
+        verify_migration_55(&connection).unwrap();
+        let kept: (String, Option<String>, i64) = connection
+            .query_row(
+                "SELECT record_json,pass_scan_id,pass_offset FROM game_file_root_setup WHERE root_id='root'",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+            )
+            .unwrap();
+        assert_eq!(kept, ("{}".to_owned(), None, 0));
+        let set = |scan: &str, offset: i64| {
+            connection.execute(
+                "UPDATE game_file_root_setup SET pass_scan_id=?1, pass_offset=?2 WHERE root_id='root'",
+                rusqlite::params![scan, offset],
+            )
+        };
+        set("00000000-0000-4000-8000-000000000000", 100_000).unwrap();
+        assert!(set("short", 0).is_err());
+        assert!(set("00000000-0000-4000-8000-000000000000", 100_001).is_err());
+        assert!(set("00000000-0000-4000-8000-000000000000", -1).is_err());
+    }
+
     historical_schema_tests! {
         schema_0: 0,
         schema_1: 1,
@@ -3225,6 +3296,7 @@ mod tests {
         schema_51: 51,
         schema_52: 52,
         schema_53: 53,
+        schema_54: 54,
     }
 
     #[test]
