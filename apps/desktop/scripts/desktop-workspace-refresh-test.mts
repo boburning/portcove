@@ -263,6 +263,10 @@ export const releaseReconciliationSupportGate = () => {
   probe.releaseSupport?.();
 };
 
+// One 10 s visible idle refresh interval plus rendering margin; was 10 s, which
+// raced the interval itself on hosted Windows.
+const sourceFormatRefreshBudgetMs = 25_000;
+
 export const installSourceFormatProbe = (portId: string) => {
   const previous = window.fetch;
   const runtime = window as RefreshWindow;
@@ -686,10 +690,13 @@ export async function workspaceRefreshScenario({
         await executeBrowserScript(browser, installSourceFormatProbe, port.id);
         const expected =
           "This runtime requires an uncompressed .z64 game file. Select and validate that file before playing.";
+        // The probe rewrites only the next snapshot read, which a visible idle
+        // workspace makes once per 10 s refresh interval (see intervals_ms).
         await browser.wait(
           async () =>
             (await browser.findElement(By.css(".detail-panel")).getText()).includes(expected),
-          10_000,
+          sourceFormatRefreshBudgetMs,
+          "Injected source-format guidance did not render within one idle refresh",
         );
         const launchControls = await browser.findElements(
           By.xpath(
@@ -738,7 +745,8 @@ export async function workspaceRefreshScenario({
           !(await browser.findElement(By.css(".detail-panel")).getText()).includes(
             "This runtime requires an uncompressed .z64 game file.",
           ),
-        10_000,
+        sourceFormatRefreshBudgetMs,
+        "Restored Core status did not replace the injected guidance within one idle refresh",
       );
     } finally {
       const probe = await executeBrowserScript(browser, restoreExternalReconciliationProbe);
