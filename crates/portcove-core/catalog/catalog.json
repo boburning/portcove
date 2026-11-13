@@ -45169,6 +45169,12 @@
         }
       },
       "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [],
+          "executables": [
+            "reflectionhle.exe"
+          ]
+        },
         "macos-x86-64": {
           "directories": [
             "reflectionhle.app"
@@ -46633,6 +46639,12 @@
         }
       },
       "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [],
+          "executables": [
+            "reflectionhle.exe"
+          ]
+        },
         "macos-x86-64": {
           "directories": [
             "reflectionhle.app"
@@ -52327,6 +52339,12 @@
         }
       },
       "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [],
+          "executables": [
+            "reflectionhle.exe"
+          ]
+        },
         "macos-x86-64": {
           "directories": [
             "reflectionhle.app"
@@ -59066,6 +59084,12 @@
         }
       },
       "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [],
+          "executables": [
+            "reflectionhle.exe"
+          ]
+        },
         "macos-x86-64": {
           "directories": [
             "reflectionhle.app"
@@ -60342,6 +60366,12 @@
         }
       },
       "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [],
+          "executables": [
+            "reflectionhle.exe"
+          ]
+        },
         "macos-x86-64": {
           "directories": [
             "reflectionhle.app"
@@ -60922,6 +60952,12 @@
         }
       },
       "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [],
+          "executables": [
+            "reflectionhle.exe"
+          ]
+        },
         "macos-x86-64": {
           "directories": [
             "reflectionhle.app"
@@ -61240,6 +61276,12 @@
         }
       },
       "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [],
+          "executables": [
+            "reflectionhle.exe"
+          ]
+        },
         "macos-x86-64": {
           "directories": [
             "reflectionhle.app"
@@ -61558,6 +61600,12 @@
         }
       },
       "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [],
+          "executables": [
+            "reflectionhle.exe"
+          ]
+        },
         "macos-x86-64": {
           "directories": [
             "reflectionhle.app"
@@ -62675,6 +62723,12 @@
         }
       },
       "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [],
+          "executables": [
+            "reflectionhle.exe"
+          ]
+        },
         "macos-x86-64": {
           "directories": [
             "reflectionhle.app"
