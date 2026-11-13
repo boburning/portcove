@@ -1271,10 +1271,17 @@ export async function installScenarios({
       await rm(marker, { force: true });
       await openFixture(port, true);
       await revealDetailSection(browser, "Versions & updates");
+      const checkStarted = Date.now();
       await click("Check for updates");
+      // Calibrated from 15 s: on hosted Windows the debug build's v4 check was still
+      // busy at 15 s (status reads up to 16.6 s). The check's own deadlines are unchanged.
       await browser.wait(
         until.elementLocated(By.css('section[aria-label="Review game update"]')),
-        15_000,
+        acquisitionScriptBudgetMs,
+      );
+      observations.slowest_update_check_ms = Math.max(
+        Number(observations.slowest_update_check_ms ?? 0),
+        Date.now() - checkStarted,
       );
       const release = required(published);
       const gate = ownedFixture.holdArtifact(release.url);

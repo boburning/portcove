@@ -242,7 +242,8 @@ be created. Groups also enable process-creation auditing, and a failed group
 prints bounded startup diagnostics, scenario failures and its largest retained
 outputs. The acquisition journey calibrates its WebDriver script budget from 15 s
 to 60 s for the debug build's IPC status reads, and its wait for a held fixture
-transfer to start from 10 s to 60 s; it records the slowest of each. Its
+transfer to start from 10 s to 60 s, and its wait for each update check's review from
+15 s to 60 s; it records the slowest of each. Its
 pre-publication catalog copies stay SHA-256 bound but their raw bytes are not
 retained: three ~2.9 MB copies plus the journey's other ~7 MB of evidence exceed
 the unchanged 12 MiB bound. This makes the fixture
