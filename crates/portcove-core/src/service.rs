@@ -5539,10 +5539,22 @@ impl PortcoveService {
                     .wait_for_successors(&mut |members| self.note_waiting(&session.id, members))?;
                 (status, first_error)
             } else {
-                let observed_wait = child.try_wait();
-                #[cfg(test)]
-                let observed_wait =
-                    crate::launch::child_diagnostic::tried_wait(child_pid, observed_wait);
+                // A missing start identity means the child is exiting. On macOS
+                // proc_pidinfo can already report ESRCH while the exit is still in
+                // progress and waitpid(WNOHANG) has nothing to reap yet (ARM
+                // Qualification 43230875182 job 131227240528). Poll for a short,
+                // finite grace before treating the child as still running.
+                const EXIT_REAP_GRACE: std::time::Duration = std::time::Duration::from_secs(2);
+                let reap_deadline = std::time::Instant::now() + EXIT_REAP_GRACE;
+                let observed_wait = loop {
+                    let observed = child.try_wait();
+                    #[cfg(test)]
+                    let observed = crate::launch::child_diagnostic::tried_wait(child_pid, observed);
+                    if !matches!(observed, Ok(None)) || std::time::Instant::now() >= reap_deadline {
+                        break observed;
+                    }
+                    std::thread::sleep(std::time::Duration::from_millis(10));
+                };
                 let status = match observed_wait {
                     Ok(Some(status)) => status,
                     Ok(None) => {
@@ -19235,6 +19247,13 @@ fn main() {
     }
 
     #[test]
+    fn missing_child_identity_with_briefly_pending_exit_waits_and_collects_exact_result() {
+        assert_missing_child_identity_control(
+            crate::launch::child_diagnostic::Control::MissingBrieflyPending,
+        );
+    }
+
+    #[test]
     fn missing_child_identity_with_completed_exit_collects_exact_result() {
         assert_missing_child_identity_control(
             crate::launch::child_diagnostic::Control::MissingCompleted,
@@ -19322,6 +19341,12 @@ fn main() {
                 events
                     .iter()
                     .any(|event| event.stage == "try_wait_original" && event.outcome == "completed")
+            );
+            // A briefly pending exit is collected within the reap grace, not refused.
+            assert_eq!(
+                events.iter().any(|event| event.stage == "try_wait_control"
+                    && event.outcome == "injected_pending"),
+                control == Control::MissingBrieflyPending
             );
             assert!(!events.iter().any(|event| event.stage == "kill"));
         }
