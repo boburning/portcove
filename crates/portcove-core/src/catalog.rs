@@ -8162,12 +8162,16 @@ mod tests {
                 "alexbeav-ace-combat-3-electrosphere-recomp",
                 "alexbeav-alone-in-the-dark-the-new-nightmare-recomp",
                 "alexbeav-armored-core-master-of-arena-recomp",
+                "alexbeav-colony-wars-recomp",
                 "alexbeav-fear-effect-2-retro-helix-recomp",
+                "alexbeav-fear-effect-recomp",
                 "alexbeav-final-fantasy-ix-recomp",
                 "alexbeav-final-fantasy-viii-recomp",
+                "alexbeav-g-police-recomp",
                 "alexbeav-galerians-recomp",
                 "alexbeav-in-cold-blood-recomp",
                 "alexbeav-koudelka-recomp",
+                "alexbeav-metal-gear-solid-recomp",
                 "alexbeav-parasite-eve-recomp",
                 "alexbeav-valkyrie-profile-recomp",
             ]
@@ -8211,6 +8215,12 @@ mod tests {
             Some(vec![2, 2])
         );
         assert!(embedded.requires_psx_multi_track_set(port));
+        let colony_wars = embedded.port("alexbeav-colony-wars-recomp").unwrap();
+        assert_eq!(
+            embedded.managed_psx_set_track_counts(colony_wars),
+            Some(vec![2, 2])
+        );
+        assert!(embedded.requires_psx_multi_track_set(colony_wars));
         let galerians = embedded.port("alexbeav-galerians-recomp").unwrap();
         assert_eq!(
             embedded.managed_psx_set_track_counts(galerians),

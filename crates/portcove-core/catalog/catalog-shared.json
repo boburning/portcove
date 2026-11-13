@@ -3563,6 +3563,366 @@
         "claim": "Redump Alone in the Dark: The New Nightmare (Europe) (Disc 2), SLES-12801, has two tracks. Data track 1: 638403360 bytes, SHA-1 ab2cadfb095ee5980d99740ca584487e469668ba, MD5 81aeedeac7e806d878b4c9444026604f and CRC32 ff74942e, which agree with the kit. Audio track 2 has a 2-second pregap and 39701760 bytes, SHA-1 16772899aa261f293cac0eb42dda924837f48a87, identical on both discs. A Redump search for the data-track SHA-1 resolves only to this disc."
       },
       {
+        "id": "alexbeav-apocalypse-recomp-v013-static-contract",
+        "role": "upstream_support",
+        "authority": "alexbeavs-ps1-ports/apocalypse-recomp",
+        "authority_ref": "c2223f7bfc3e63f39e39cfe9010631cfe0fe1a86",
+        "reviewed_at": "2026-11-13",
+        "claim": "Exact v0.1.3 Windows x64 (47816582 bytes, SHA-256 d84758b0cadd183b35dee87f3e2f09066c160970d87a95a1f4f123ccaa36b435) and Linux x64 (45751002 bytes, SHA-256 de87f7e2e83248b564e3d7f6a407cbf616f0246c7cdf40ad32d947514d4f771e) setup kits match the upstream SHA256SUMS.txt; the provider release digest was not read. Both pin PSXRecomp d5cae379db84bbce3696a61a89ed06989b18bed0, which differs from reviewed 7192402 only in GPU rendering and runtime tests, and recomp-ui 14799da, and carry the tagged game.toml (SHA-256 3c4910b80cfb32f46574a48fe3472ea429e3d05d088b95de632e69347025c37d, the same bytes in both kits) with game id and disc serial SLES-00460, 2 required tracks, first data track 459223296 bytes with SHA-1 f0ee4a74b4d79d95cc52aa4651552ae1244edc84; its second known SHA-1 (5c105ed30a58f3ec0d4c25bbea51a8bf38f6620e, 491857296 bytes) is a merged single-image value that this route does not bind, and the psxrecomp/bios/SCPH5552.toml BIOS configuration with OpenBIOS and bios_hle off; CMakeLists.txt accepts only the SCPH5552 stem, and README-SETUP.txt requires the player's own SCPH-5552 (Europe) BIOS with SHA-256 1faaa18fa820a0225e488d9f086296b8e6c46df739666093987ff7d8fd352c09 (524288 bytes), the psx-scph-5552-bios profile. The kits use the split mod layout with 11 generic psx.* packages in mods/bundled, no mods/preloaded folder, empty mods/texture-packs/SLES-00460 folders, no flat mods/packages, no playtest diagnostics, no links, no unsafe or case-colliding paths, and build the generated player Apocalypse_Recompiled from EXE_NAME. Native generation, gameplay and saves remain unobserved.",
+        "immutable_url": "https://github.com/alexbeavs-ps1-ports/apocalypse-recomp/blob/c2223f7bfc3e63f39e39cfe9010631cfe0fe1a86/game.toml",
+        "live_url": null
+      },
+      {
+        "id": "alexbeav-apocalypse-recomp-redump-1679",
+        "role": "byte_identity",
+        "authority": "Redump disc database",
+        "authority_ref": "disc/1679; modified 2026-07-04 20:01 UTC",
+        "reviewed_at": "2026-11-13",
+        "claim": "Redump Apocalypse (Europe), SLES-00460, disc 1679, has 2 tracks. Track 1 is 459223296 bytes, SHA-1 f0ee4a74b4d79d95cc52aa4651552ae1244edc84, MD5 ba0fce10982da9313fa4cd8e211da637 and CRC32 745fa692, matching the kit's game.toml. Track 2 is audio. Its merged 491857296-byte image has CRC32 7ec6604b, the kit's other known CRC32. Core binds the data track and track count; the audio tracks and full TOC are not independently authenticated. A Redump search for that SHA-1 resolves only to this disc.",
+        "immutable_url": "https://redump.info/disc/1679",
+        "live_url": null
+      },
+      {
+        "id": "alexbeav-colony-wars-recomp-v013-static-contract",
+        "role": "upstream_support",
+        "authority": "alexbeavs-ps1-ports/colony-wars-recomp",
+        "authority_ref": "9b9f12555ab9e12c0e7670c15348b2930ff0f3d3",
+        "reviewed_at": "2026-11-13",
+        "claim": "Exact v0.1.3 Windows x64 (47814837 bytes, SHA-256 412c6cf6ffc7596f0ed0274b9b01e49d1ec76923ce7087dc5c99d27267077004) and Linux x64 (45748251 bytes, SHA-256 7dc07ebbd7d836cf8de7bae8717f03e601c310f5bff6b3756467ec2b40e6430e) setup kits match the upstream SHA256SUMS.txt; the provider release digest was not read. Both pin PSXRecomp d5cae379db84bbce3696a61a89ed06989b18bed0, which differs from reviewed 7192402 only in GPU rendering and runtime tests, and recomp-ui 14799da, and carry the tagged game.toml (SHA-256 fb19265f81ac50d6230c42942a3e48325bcc4a5c5c203ea56b31733d4d605384, the same bytes in both kits) with game id SLUS-00543, a 2-disc discs roster (SLUS-00543, SLUS-00554) whose known_sha1 lists each disc's data-track SHA-1 (5ad8f6a62f9772b0725477e365489f8efabc1371, 723491c2876588172e020f9b66c978f0d757ed57) plus a merged single-image value (192d078912de28b6f167b3c6e8740c1c71c8ea76, 559559616 bytes) that this route does not bind, 2 required tracks per disc, and the psxrecomp/bios/SCPH1001.toml BIOS configuration with OpenBIOS and bios_hle off; CMakeLists.txt accepts only the SCPH1001 stem, and README-SETUP.txt requires the player's own SCPH-1001 (USA) BIOS with SHA-256 71af94d1e47a68c11e8fdb9f8368040601514a42a5a399cda48c7d3bff1e99d3 (524288 bytes), the psx-scph-1001-bios profile. The kits use the split mod layout with 11 generic psx.* packages in mods/bundled, no mods/preloaded folder, empty mods/texture-packs/SLUS-00543 folders, no flat mods/packages, no playtest diagnostics, no links, no unsafe or case-colliding paths, and build the generated player Colony_Wars_Recompiled from EXE_NAME. The runtime mounts the disc named by the 1-based [disc] selected setting and its in-game menu can also change discs. Native generation, gameplay and saves remain unobserved.",
+        "immutable_url": "https://github.com/alexbeavs-ps1-ports/colony-wars-recomp/blob/9b9f12555ab9e12c0e7670c15348b2930ff0f3d3/game.toml",
+        "live_url": null
+      },
+      {
+        "id": "alexbeav-colony-wars-recomp-disc-1-redump-387",
+        "role": "byte_identity",
+        "authority": "Redump disc database",
+        "authority_ref": "disc/387; modified 2021-08-18 11:23 UTC",
+        "reviewed_at": "2026-11-13",
+        "claim": "Redump Colony Wars (USA) (Disc 1), SLUS-00543, disc 387, has 2 tracks. Track 1 is 525650832 bytes, SHA-1 5ad8f6a62f9772b0725477e365489f8efabc1371, MD5 3d2bf0efa439a02fe95520ebb0ec26ea and CRC32 01ca7e95, matching the kit's game.toml. Track 2 is audio. Its merged 559559616-byte image has CRC32 a7fb080f, the kit's other known CRC32. Core binds the data track and track count; the audio tracks and full TOC are not independently authenticated. A Redump search for that SHA-1 resolves only to this disc.",
+        "immutable_url": "https://redump.info/disc/387",
+        "live_url": null
+      },
+      {
+        "id": "alexbeav-colony-wars-recomp-disc-2-redump-388",
+        "role": "byte_identity",
+        "authority": "Redump disc database",
+        "authority_ref": "disc/388; modified 2023-11-09 10:05 UTC",
+        "reviewed_at": "2026-11-13",
+        "claim": "Redump Colony Wars (USA) (Disc 2), SLUS-00554, disc 388, has 2 tracks. Track 1 is 642091296 bytes, SHA-1 723491c2876588172e020f9b66c978f0d757ed57, MD5 924e924f15d94f609e10d34c36064ee9 and CRC32 54adbe0a, matching the kit's game.toml. Track 2 is audio. Core binds the data track and track count; the audio tracks and full TOC are not independently authenticated. A Redump search for that SHA-1 resolves only to this disc.",
+        "immutable_url": "https://redump.info/disc/388",
+        "live_url": null
+      },
+      {
+        "id": "alexbeav-crash-bandicoot-3-warped-recomp-v013-static-contract",
+        "role": "upstream_support",
+        "authority": "alexbeavs-ps1-ports/crash-bandicoot-3-warped-recomp",
+        "authority_ref": "a50db59d0e6f89001ae50857f46af3ec30c39e54",
+        "reviewed_at": "2026-11-13",
+        "claim": "Exact v0.1.3 Windows x64 (47814520 bytes, SHA-256 813baad56a50710a14a83bbd0003b50634f28fcd3322420122e16bacb059d2df) and Linux x64 (45747252 bytes, SHA-256 bd706cb8bfad7de08ac9bd2f947f0338d0bbd505b5aaf26391a4d7bcd4ca7d0b) setup kits match the upstream SHA256SUMS.txt; the provider release digest was not read. Both pin PSXRecomp d5cae379db84bbce3696a61a89ed06989b18bed0, which differs from reviewed 7192402 only in GPU rendering and runtime tests, and recomp-ui 14799da, and carry the tagged game.toml (SHA-256 eb78ca8e4700a1060ae38d209be52d44be899bd4d33ae7725434366998535e03, the same bytes in both kits) with game id and disc serial SCUS-94244, 1 required track, data track 285130608 bytes with SHA-1 ae57f60f577c610476c7b8885bd76a6bea20d9de, and the psxrecomp/bios/SCPH1001.toml BIOS configuration with OpenBIOS and bios_hle off; CMakeLists.txt accepts only the SCPH1001 stem, and README-SETUP.txt requires the player's own SCPH-1001 (USA) BIOS with SHA-256 71af94d1e47a68c11e8fdb9f8368040601514a42a5a399cda48c7d3bff1e99d3 (524288 bytes), the psx-scph-1001-bios profile. The kits use the split mod layout with 11 generic psx.* packages in mods/bundled, no mods/preloaded folder, empty mods/texture-packs/SCUS-94244 folders, no flat mods/packages, no playtest diagnostics, no links, no unsafe or case-colliding paths, and build the generated player Crash_Bandicoot_3__Warped_Recompiled from EXE_NAME. Native generation, gameplay and saves remain unobserved.",
+        "immutable_url": "https://github.com/alexbeavs-ps1-ports/crash-bandicoot-3-warped-recomp/blob/a50db59d0e6f89001ae50857f46af3ec30c39e54/game.toml",
+        "live_url": null
+      },
+      {
+        "id": "alexbeav-crash-bandicoot-3-warped-recomp-redump-5006",
+        "role": "byte_identity",
+        "authority": "Redump disc database",
+        "authority_ref": "disc/5006; modified 2025-11-05 05:11 UTC",
+        "reviewed_at": "2026-11-13",
+        "claim": "Redump Crash Bandicoot - Warped (USA), SCUS-94244, disc 5006, has one data track: 285130608 bytes, SHA-1 ae57f60f577c610476c7b8885bd76a6bea20d9de, MD5 a66777800f028b8443d8a5e278ba69bd and CRC32 05e3012b, which agree with the kit's game.toml. A Redump search for that SHA-1 resolves only to this disc.",
+        "immutable_url": "https://redump.info/disc/5006",
+        "live_url": null
+      },
+      {
+        "id": "alexbeav-fear-effect-recomp-v013-static-contract",
+        "role": "upstream_support",
+        "authority": "alexbeavs-ps1-ports/fear-effect-recomp",
+        "authority_ref": "4f2beedd2d4d0192f941525a034d6b9fb78b47cd",
+        "reviewed_at": "2026-11-13",
+        "claim": "Exact v0.1.3 Windows x64 (47817136 bytes, SHA-256 1c754aaa9a1cfc41a3d5c1591b1e200511c1624a653664ce745b980e2dd687fa) and Linux x64 (45750561 bytes, SHA-256 5bf9cec91c3ce7dfcaf1d6017e0d66f476a1c29963dc791bfab0a1f97e83fb31) setup kits match the upstream SHA256SUMS.txt; the provider release digest was not read. Both pin PSXRecomp d5cae379db84bbce3696a61a89ed06989b18bed0, which differs from reviewed 7192402 only in GPU rendering and runtime tests, and recomp-ui 14799da, and carry the tagged game.toml (SHA-256 09114638209b862cf7bd35cc1cf8384f7c5cfe0e95e60211431de4d2d43150b5, the same bytes in both kits) with game id SLUS-00920, a 4-disc discs roster (SLUS-00920, SLUS-01056, SLUS-01057, SLUS-01058) whose known_sha1 lists each disc's data-track SHA-1 (e96eb6d83dd890103b3d3511cb84da73adab2cde, 0c2ffb3dd07ffb628b1fa69ca841cec141da11dd, a4205816f6486d8d1f5b97195370fd402003f983, bc1762d51eb1e35b940ae304af6622e9d9eb989d), 1 required track per disc, and the psxrecomp/bios/SCPH1001.toml BIOS configuration with OpenBIOS and bios_hle off; CMakeLists.txt accepts only the SCPH1001 stem, and README-SETUP.txt requires the player's own SCPH-1001 (USA) BIOS with SHA-256 71af94d1e47a68c11e8fdb9f8368040601514a42a5a399cda48c7d3bff1e99d3 (524288 bytes), the psx-scph-1001-bios profile. The kits use the split mod layout with 11 generic psx.* packages in mods/bundled, no mods/preloaded folder, empty mods/texture-packs/SLUS-00920 folders, no flat mods/packages, no playtest diagnostics, no links, no unsafe or case-colliding paths, and build the generated player Fear_Effect_Recompiled from EXE_NAME. The runtime mounts the disc named by the 1-based [disc] selected setting and its in-game menu can also change discs. Native generation, gameplay and saves remain unobserved.",
+        "immutable_url": "https://github.com/alexbeavs-ps1-ports/fear-effect-recomp/blob/4f2beedd2d4d0192f941525a034d6b9fb78b47cd/game.toml",
+        "live_url": null
+      },
+      {
+        "id": "alexbeav-fear-effect-recomp-disc-1-redump-1267",
+        "role": "byte_identity",
+        "authority": "Redump disc database",
+        "authority_ref": "disc/1267; modified 2021-12-20 21:29 UTC",
+        "reviewed_at": "2026-11-13",
+        "claim": "Redump Fear Effect (USA) (Disc 1), SLUS-00920, disc 1267, has one data track: 487435536 bytes, SHA-1 e96eb6d83dd890103b3d3511cb84da73adab2cde, MD5 e08b3a0d9694decd3ef9bc41c212bf1b and CRC32 0044d5f7, which agree with the kit's game.toml. A Redump search for that SHA-1 resolves only to this disc.",
+        "immutable_url": "https://redump.info/disc/1267",
+        "live_url": null
+      },
+      {
+        "id": "alexbeav-fear-effect-recomp-disc-2-redump-1268",
+        "role": "byte_identity",
+        "authority": "Redump disc database",
+        "authority_ref": "disc/1268; modified 2021-12-20 21:31 UTC",
+        "reviewed_at": "2026-11-13",
+        "claim": "Redump Fear Effect (USA) (Disc 2), SLUS-01056, disc 1268, has one data track: 505757616 bytes, SHA-1 0c2ffb3dd07ffb628b1fa69ca841cec141da11dd, MD5 dff47ce1c1ec5a9c5a35820224486b22 and CRC32 cb8e774f, which agree with the kit's game.toml. A Redump search for that SHA-1 resolves only to this disc.",
+        "immutable_url": "https://redump.info/disc/1268",
+        "live_url": null
+      },
+      {
+        "id": "alexbeav-fear-effect-recomp-disc-3-redump-1269",
+        "role": "byte_identity",
+        "authority": "Redump disc database",
+        "authority_ref": "disc/1269; modified 2021-12-20 21:41 UTC",
+        "reviewed_at": "2026-11-13",
+        "claim": "Redump Fear Effect (USA) (Disc 3), SLUS-01057, disc 1269, has one data track: 451666320 bytes, SHA-1 a4205816f6486d8d1f5b97195370fd402003f983, MD5 cd6fc71e6f452e1b4027250dd7d6d65c and CRC32 fd0f561b, which agree with the kit's game.toml. A Redump search for that SHA-1 resolves only to this disc.",
+        "immutable_url": "https://redump.info/disc/1269",
+        "live_url": null
+      },
+      {
+        "id": "alexbeav-fear-effect-recomp-disc-4-redump-1270",
+        "role": "byte_identity",
+        "authority": "Redump disc database",
+        "authority_ref": "disc/1270; modified 2021-12-20 21:43 UTC",
+        "reviewed_at": "2026-11-13",
+        "claim": "Redump Fear Effect (USA) (Disc 4), SLUS-01058, disc 1270, has one data track: 509955936 bytes, SHA-1 bc1762d51eb1e35b940ae304af6622e9d9eb989d, MD5 e269350708617a92359ceef2d7838f3c and CRC32 9853995e, which agree with the kit's game.toml. A Redump search for that SHA-1 resolves only to this disc.",
+        "immutable_url": "https://redump.info/disc/1270",
+        "live_url": null
+      },
+      {
+        "id": "alexbeav-g-police-recomp-v013-static-contract",
+        "role": "upstream_support",
+        "authority": "alexbeavs-ps1-ports/g-police-recomp",
+        "authority_ref": "d9bd79f1fc02602d30af4cb5137790638acda454",
+        "reviewed_at": "2026-11-13",
+        "claim": "Exact v0.1.3 Windows x64 (47815834 bytes, SHA-256 25606e628ada9ef834bf9020a903b96b75bdec3e9712d7aa3d671007bd37a88c) and Linux x64 (45749262 bytes, SHA-256 4c84627e22c42dc5d35d71017842cf710da2751f4442b372f64fcb63603f19ab) setup kits match the upstream SHA256SUMS.txt; the provider release digest was not read. Both pin PSXRecomp d5cae379db84bbce3696a61a89ed06989b18bed0, which differs from reviewed 7192402 only in GPU rendering and runtime tests, and recomp-ui 14799da, and carry the tagged game.toml (SHA-256 26fc36c6c81dbe0e6cf9832713fe8bdda6ea64bb683256d52cc2b5d023ac5719, the same bytes in both kits) with game id SLUS-00544, a 2-disc discs roster (SLUS-00544, SLUS-00556) whose known_sha1 lists each disc's data-track SHA-1 (2161d2860914b21d2bee457b3eda9d8e816d04a2, 7f6ba87da62bbe565ba5603de462e3ed7c68429d), 1 required track per disc, and the psxrecomp/bios/SCPH1001.toml BIOS configuration with OpenBIOS and bios_hle off; CMakeLists.txt accepts only the SCPH1001 stem, and README-SETUP.txt requires the player's own SCPH-1001 (USA) BIOS with SHA-256 71af94d1e47a68c11e8fdb9f8368040601514a42a5a399cda48c7d3bff1e99d3 (524288 bytes), the psx-scph-1001-bios profile. The kits use the split mod layout with 11 generic psx.* packages in mods/bundled, no mods/preloaded folder, empty mods/texture-packs/SLUS-00544 folders, no flat mods/packages, no playtest diagnostics, no links, no unsafe or case-colliding paths, and build the generated player G_Police_Recompiled from EXE_NAME. The runtime mounts the disc named by the 1-based [disc] selected setting and its in-game menu can also change discs. Native generation, gameplay and saves remain unobserved.",
+        "immutable_url": "https://github.com/alexbeavs-ps1-ports/g-police-recomp/blob/d9bd79f1fc02602d30af4cb5137790638acda454/game.toml",
+        "live_url": null
+      },
+      {
+        "id": "alexbeav-g-police-recomp-disc-1-redump-7333",
+        "role": "byte_identity",
+        "authority": "Redump disc database",
+        "authority_ref": "disc/7333; modified 2022-01-08 15:52 UTC",
+        "reviewed_at": "2026-11-13",
+        "claim": "Redump G-Police (USA) (Disc 1), SLUS-00544, disc 7333, has one data track: 730742880 bytes, SHA-1 2161d2860914b21d2bee457b3eda9d8e816d04a2, MD5 3194807be261b7d6c06f3a9ae8052585 and CRC32 f43ae67c, which agree with the kit's game.toml. A Redump search for that SHA-1 resolves only to this disc.",
+        "immutable_url": "https://redump.info/disc/7333",
+        "live_url": null
+      },
+      {
+        "id": "alexbeav-g-police-recomp-disc-2-redump-1865",
+        "role": "byte_identity",
+        "authority": "Redump disc database",
+        "authority_ref": "disc/1865; modified 2022-01-08 15:54 UTC",
+        "reviewed_at": "2026-11-13",
+        "claim": "Redump G-Police (USA) (Disc 2), SLUS-00556, disc 1865, has one data track: 728964768 bytes, SHA-1 7f6ba87da62bbe565ba5603de462e3ed7c68429d, MD5 d2432e57bb30a2caf02255a418e0ef5e and CRC32 ef1a5c8b, which agree with the kit's game.toml. A Redump search for that SHA-1 resolves only to this disc.",
+        "immutable_url": "https://redump.info/disc/1865",
+        "live_url": null
+      },
+      {
+        "id": "alexbeav-ghost-in-the-shell-recomp-v013-static-contract",
+        "role": "upstream_support",
+        "authority": "alexbeavs-ps1-ports/ghost-in-the-shell-recomp",
+        "authority_ref": "f87a10922b1eeb537833961e6d37ec20cc445434",
+        "reviewed_at": "2026-11-13",
+        "claim": "Exact v0.1.3 Windows x64 (47813980 bytes, SHA-256 2bf2f49e99f8a76a1fcb11c0302dec83ae6f137d64717c55ee940a372f0fe590) and Linux x64 (45748468 bytes, SHA-256 3f9f66c3ce29422a4d5bad697edf287e08a0e2ce78eb99b57339c669b4441ced) setup kits match the upstream SHA256SUMS.txt; the provider release digest was not read. Both pin PSXRecomp d5cae379db84bbce3696a61a89ed06989b18bed0, which differs from reviewed 7192402 only in GPU rendering and runtime tests, and recomp-ui 14799da, and carry the tagged game.toml (SHA-256 41281acc3e18833f33016254d8d562a1e7f2060eaab4dda632baa8fec0308a0f, the same bytes in both kits) with game id and disc serial SCES-01050, 1 required track, data track 655620000 bytes with SHA-1 4d996a3b9b3fdd18053d3ec4fed232b8043580f1, and the psxrecomp/bios/SCPH5552.toml BIOS configuration with OpenBIOS and bios_hle off; CMakeLists.txt accepts only the SCPH5552 stem, and README-SETUP.txt requires the player's own SCPH-5552 (Europe) BIOS with SHA-256 1faaa18fa820a0225e488d9f086296b8e6c46df739666093987ff7d8fd352c09 (524288 bytes), the psx-scph-5552-bios profile. The kits use the split mod layout with 11 generic psx.* packages in mods/bundled, no mods/preloaded folder, empty mods/texture-packs/SCES-01050 folders, no flat mods/packages, no playtest diagnostics, no links, no unsafe or case-colliding paths, and build the generated player Ghost_in_the_Shell_Recompiled from EXE_NAME. Native generation, gameplay and saves remain unobserved.",
+        "immutable_url": "https://github.com/alexbeavs-ps1-ports/ghost-in-the-shell-recomp/blob/f87a10922b1eeb537833961e6d37ec20cc445434/game.toml",
+        "live_url": null
+      },
+      {
+        "id": "alexbeav-ghost-in-the-shell-recomp-redump-6179",
+        "role": "byte_identity",
+        "authority": "Redump disc database",
+        "authority_ref": "disc/6179; modified 2023-05-05 13:50 UTC",
+        "reviewed_at": "2026-11-13",
+        "claim": "Redump Ghost in the Shell (Europe), SCES-01050, disc 6179, has one data track: 655620000 bytes, SHA-1 4d996a3b9b3fdd18053d3ec4fed232b8043580f1, MD5 5e50049b82e6717c9b1118a3c6bf1de1 and CRC32 58db5d6f, which agree with the kit's game.toml. A Redump search for that SHA-1 resolves only to this disc.",
+        "immutable_url": "https://redump.info/disc/6179",
+        "live_url": null
+      },
+      {
+        "id": "alexbeav-martian-gothic-recomp-v013-static-contract",
+        "role": "upstream_support",
+        "authority": "alexbeavs-ps1-ports/martian-gothic-recomp",
+        "authority_ref": "0b35bcb542f19258f33a9601841e0ed358a60b38",
+        "reviewed_at": "2026-11-13",
+        "claim": "Exact v0.1.3 Windows x64 (47817423 bytes, SHA-256 3e08915caccbfbbcd9d74bc4db3133cad1fcb9d5376e86456117890556fa801d) and Linux x64 (45752433 bytes, SHA-256 d071cd785f6126d9ea3ea4e10c2b134a82bb205b6c49d5b4481598b92ad1358f) setup kits match the upstream SHA256SUMS.txt; the provider release digest was not read. Both pin PSXRecomp d5cae379db84bbce3696a61a89ed06989b18bed0, which differs from reviewed 7192402 only in GPU rendering and runtime tests, and recomp-ui 14799da, and carry the tagged game.toml (SHA-256 b264674510ec99d8731567d3ea4eeac25d318e9bb83fd3f1c46be47bca227427, the same bytes in both kits) with game id and disc serial SLES-01350, 1 required track, data track 660582720 bytes with SHA-1 7ac0f3769ec927e7d69b3d22e9c6b79e6804629e, and the psxrecomp/bios/SCPH5552.toml BIOS configuration with OpenBIOS and bios_hle off; CMakeLists.txt accepts only the SCPH5552 stem, and README-SETUP.txt requires the player's own SCPH-5552 (Europe) BIOS with SHA-256 1faaa18fa820a0225e488d9f086296b8e6c46df739666093987ff7d8fd352c09 (524288 bytes), the psx-scph-5552-bios profile. The kits use the split mod layout with 11 generic psx.* packages in mods/bundled, no mods/preloaded folder, empty mods/texture-packs/SLES-01350 folders, no flat mods/packages, no playtest diagnostics, no links, no unsafe or case-colliding paths, and build the generated player Martian_Gothic_Recompiled from EXE_NAME. Native generation, gameplay and saves remain unobserved.",
+        "immutable_url": "https://github.com/alexbeavs-ps1-ports/martian-gothic-recomp/blob/0b35bcb542f19258f33a9601841e0ed358a60b38/game.toml",
+        "live_url": null
+      },
+      {
+        "id": "alexbeav-martian-gothic-recomp-redump-1260",
+        "role": "byte_identity",
+        "authority": "Redump disc database",
+        "authority_ref": "disc/1260; modified 2017-07-03 22:35 UTC",
+        "reviewed_at": "2026-11-13",
+        "claim": "Redump Martian Gothic - Unification (Europe) (En,Fr,Es,It), SLES-01350, disc 1260, has one data track: 660582720 bytes, SHA-1 7ac0f3769ec927e7d69b3d22e9c6b79e6804629e, MD5 8d7ed70b84d1a39952d913caa3412a5f and CRC32 5ba9ffcc, which agree with the kit's game.toml. A Redump search for that SHA-1 resolves only to this disc.",
+        "immutable_url": "https://redump.info/disc/1260",
+        "live_url": null
+      },
+      {
+        "id": "alexbeav-metal-gear-solid-recomp-v013-static-contract",
+        "role": "upstream_support",
+        "authority": "alexbeavs-ps1-ports/metal-gear-solid-recomp",
+        "authority_ref": "5e655aa59c1506a96a6c7548087ad0c7e97574ed",
+        "reviewed_at": "2026-11-13",
+        "claim": "Exact v0.1.3 Windows x64 (47818931 bytes, SHA-256 96eaace9fc9dfd0b4786395380b2ab561ce425f8f4847e552f2f2b52f3f71224) and Linux x64 (45752342 bytes, SHA-256 24b28ad04e7d0c18ee2ca25376ab2d425dfcd8bd89d0253892dfaa8d3f2732e1) setup kits match the upstream SHA256SUMS.txt; the provider release digest was not read. Both pin PSXRecomp d5cae379db84bbce3696a61a89ed06989b18bed0, which differs from reviewed 7192402 only in GPU rendering and runtime tests, and recomp-ui 14799da, and carry the tagged game.toml (SHA-256 66d27ddc95b80c437b09e58ac9445b838fd8400477bd63677f0f9bbe450b4a00, the same bytes in both kits) with game id SLUS-00594, a 2-disc discs roster (SLUS-00594, SLUS-00776) whose known_sha1 lists each disc's data-track SHA-1 (37498e6598ce4eabf00630b6a9197b20861e55a0, d6edfd60a375c10087eacebd709419950c8995ad), 1 required track per disc, and the psxrecomp/bios/SCPH1001.toml BIOS configuration with OpenBIOS and bios_hle off; CMakeLists.txt accepts only the SCPH1001 stem, and README-SETUP.txt requires the player's own SCPH-1001 (USA) BIOS with SHA-256 71af94d1e47a68c11e8fdb9f8368040601514a42a5a399cda48c7d3bff1e99d3 (524288 bytes), the psx-scph-1001-bios profile. The kits use the split mod layout with 11 generic psx.* packages in mods/bundled, no mods/preloaded folder, empty mods/texture-packs/SLUS-00594 folders, no flat mods/packages, no playtest diagnostics, no links, no unsafe or case-colliding paths, and build the generated player Metal_Gear_Solid_Recompiled from EXE_NAME. The runtime mounts the disc named by the 1-based [disc] selected setting and its in-game menu can also change discs. Native generation, gameplay and saves remain unobserved.",
+        "immutable_url": "https://github.com/alexbeavs-ps1-ports/metal-gear-solid-recomp/blob/5e655aa59c1506a96a6c7548087ad0c7e97574ed/game.toml",
+        "live_url": null
+      },
+      {
+        "id": "alexbeav-metal-gear-solid-recomp-disc-1-redump-104",
+        "role": "byte_identity",
+        "authority": "Redump disc database",
+        "authority_ref": "disc/104; modified 2025-07-02 19:06 UTC",
+        "reviewed_at": "2026-11-13",
+        "claim": "Redump Metal Gear Solid (USA) (Disc 1) (Rev 1), SLUS-00594, disc 104, has one data track: 705614112 bytes, SHA-1 37498e6598ce4eabf00630b6a9197b20861e55a0, MD5 e31ce17570897c323b7a539a2c616c72 and CRC32 21b5d15d, which agree with the kit's game.toml. A Redump search for that SHA-1 resolves only to this disc.",
+        "immutable_url": "https://redump.info/disc/104",
+        "live_url": null
+      },
+      {
+        "id": "alexbeav-metal-gear-solid-recomp-disc-2-redump-105",
+        "role": "byte_identity",
+        "authority": "Redump disc database",
+        "authority_ref": "disc/105; modified 2025-07-02 19:07 UTC",
+        "reviewed_at": "2026-11-13",
+        "claim": "Redump Metal Gear Solid (USA) (Disc 2) (Rev 1), SLUS-00776, disc 105, has one data track: 731911824 bytes, SHA-1 d6edfd60a375c10087eacebd709419950c8995ad, MD5 d613f35103086eb3b4803469f73f6e59 and CRC32 a3f02c87, which agree with the kit's game.toml. A Redump search for that SHA-1 resolves only to this disc.",
+        "immutable_url": "https://redump.info/disc/105",
+        "live_url": null
+      },
+      {
+        "id": "alexbeav-monster-rancher-recomp-v013-static-contract",
+        "role": "upstream_support",
+        "authority": "alexbeavs-ps1-ports/monster-rancher-recomp",
+        "authority_ref": "ed5afdab813a1c9b3759adc7eb29229f7772203a",
+        "reviewed_at": "2026-11-13",
+        "claim": "Exact v0.1.3 Windows x64 (47817071 bytes, SHA-256 839901bc02269f16b53f7eac164fa617baac806ee52148103936d5b1c6455193) and Linux x64 (45749296 bytes, SHA-256 6ba2f6e6e15762725e6f3b97c091f20e550dd7c84ff19434612ebc6887d7b6df) setup kits match the upstream SHA256SUMS.txt; the provider release digest was not read. Both pin PSXRecomp d5cae379db84bbce3696a61a89ed06989b18bed0, which differs from reviewed 7192402 only in GPU rendering and runtime tests, and recomp-ui 14799da, and carry the tagged game.toml (SHA-256 558da806d722febe02169fe23c6776d6f34a0189504790f9521f386a996224ec, the same bytes in both kits) with game id and disc serial SLUS-00568, 2 required tracks, first data track 325022880 bytes with SHA-1 e79b66e3f41e345b0f5487103629ba93ca56ce03, and the psxrecomp/bios/SCPH1001.toml BIOS configuration with OpenBIOS and bios_hle off; CMakeLists.txt accepts only the SCPH1001 stem, and README-SETUP.txt requires the player's own SCPH-1001 (USA) BIOS with SHA-256 71af94d1e47a68c11e8fdb9f8368040601514a42a5a399cda48c7d3bff1e99d3 (524288 bytes), the psx-scph-1001-bios profile. The kits use the split mod layout with 11 generic psx.* packages in mods/bundled, no mods/preloaded folder, empty mods/texture-packs/SLUS-00568 folders, no flat mods/packages, no playtest diagnostics, no links, no unsafe or case-colliding paths, and build the generated player Monster_Rancher_Recompiled from EXE_NAME. Native generation, gameplay and saves remain unobserved.",
+        "immutable_url": "https://github.com/alexbeavs-ps1-ports/monster-rancher-recomp/blob/ed5afdab813a1c9b3759adc7eb29229f7772203a/game.toml",
+        "live_url": null
+      },
+      {
+        "id": "alexbeav-monster-rancher-recomp-redump-18824",
+        "role": "byte_identity",
+        "authority": "Redump disc database",
+        "authority_ref": "disc/18824; modified 2021-08-25 21:06 UTC",
+        "reviewed_at": "2026-11-13",
+        "claim": "Redump Monster Rancher (USA), SLUS-00568, disc 18824, has 2 tracks. Track 1 is 325022880 bytes, SHA-1 e79b66e3f41e345b0f5487103629ba93ca56ce03, MD5 818415b73c39255ae0294e24aa4e19d7 and CRC32 b1b85026, matching the kit's game.toml. Track 2 is audio. Core binds the data track and track count; the audio tracks and full TOC are not independently authenticated. A Redump search for that SHA-1 resolves only to this disc.",
+        "immutable_url": "https://redump.info/disc/18824",
+        "live_url": null
+      },
+      {
+        "id": "alexbeav-r-type-delta-recomp-v013-static-contract",
+        "role": "upstream_support",
+        "authority": "alexbeavs-ps1-ports/r-type-delta-recomp",
+        "authority_ref": "8a6874f81477756c44695c47722d7d5bfb0c5f78",
+        "reviewed_at": "2026-11-13",
+        "claim": "Exact v0.1.3 Windows x64 (47813394 bytes, SHA-256 e1b8edbca46980048216b001796fb3390a022298e5fc97470d9d315569b522ba) and Linux x64 (45746850 bytes, SHA-256 357dfe20d502eecd5dd9e217b4ef22deb5d68d9a17ec174b38e7c3a3e148d4cd) setup kits match the upstream SHA256SUMS.txt; the provider release digest was not read. Both pin PSXRecomp d5cae379db84bbce3696a61a89ed06989b18bed0, which differs from reviewed 7192402 only in GPU rendering and runtime tests, and recomp-ui 14799da, and carry the tagged game.toml (SHA-256 2ef6c064f9613fe03c4086d995e804b281adf1c651497ba7fa93013860fd5e52, the same bytes in both kits) with game id and disc serial SLUS-00877, 1 required track, data track 339381840 bytes with SHA-1 33bec6c0f13de97d1fd5d2a5a35c6fca86242575, and the psxrecomp/bios/SCPH1001.toml BIOS configuration with OpenBIOS and bios_hle off; CMakeLists.txt accepts only the SCPH1001 stem, and README-SETUP.txt requires the player's own SCPH-1001 (USA) BIOS with SHA-256 71af94d1e47a68c11e8fdb9f8368040601514a42a5a399cda48c7d3bff1e99d3 (524288 bytes), the psx-scph-1001-bios profile. The kits use the split mod layout with 11 generic psx.* packages in mods/bundled, no mods/preloaded folder, empty mods/texture-packs/SLUS-00877 folders, no flat mods/packages, no playtest diagnostics, no links, no unsafe or case-colliding paths, and build the generated player R_Type_Delta_Recompiled from EXE_NAME. Native generation, gameplay and saves remain unobserved.",
+        "immutable_url": "https://github.com/alexbeavs-ps1-ports/r-type-delta-recomp/blob/8a6874f81477756c44695c47722d7d5bfb0c5f78/game.toml",
+        "live_url": null
+      },
+      {
+        "id": "alexbeav-r-type-delta-recomp-redump-455",
+        "role": "byte_identity",
+        "authority": "Redump disc database",
+        "authority_ref": "disc/455; modified 2021-07-01 13:04 UTC",
+        "reviewed_at": "2026-11-13",
+        "claim": "Redump R-Type Delta (USA), SLUS-00877, disc 455, has one data track: 339381840 bytes, SHA-1 33bec6c0f13de97d1fd5d2a5a35c6fca86242575, MD5 37e64eafbf0a9bda92332d79f9a72e1e and CRC32 0f2e538a, which agree with the kit's game.toml. A Redump search for that SHA-1 resolves only to this disc.",
+        "immutable_url": "https://redump.info/disc/455",
+        "live_url": null
+      },
+      {
+        "id": "alexbeav-spider-man-recomp-v013-static-contract",
+        "role": "upstream_support",
+        "authority": "alexbeavs-ps1-ports/spider-man-recomp",
+        "authority_ref": "3e9f90c62638d9828c9c00dbcb8c6382173f8b83",
+        "reviewed_at": "2026-11-13",
+        "claim": "Exact v0.1.3 Windows x64 (47816507 bytes, SHA-256 825a3b6ac2219471107bdd81bd74e5f0811e6e3dd5052165d9768780e68bde85) and Linux x64 (45749927 bytes, SHA-256 7244c6950ffbb2b2099233ae69088d736ea68a7b28b8ae90f0f2672b74ec7a71) setup kits match the upstream SHA256SUMS.txt; the provider release digest was not read. Both pin PSXRecomp d5cae379db84bbce3696a61a89ed06989b18bed0, which differs from reviewed 7192402 only in GPU rendering and runtime tests, and recomp-ui 14799da, and carry the tagged game.toml (SHA-256 9ac021cc7cee0d9d86b6e3d8cafd7bdf0d602db74cbdbc3825a2c42da8e734ec, the same bytes in both kits) with game id and disc serial SLUS-00875, 1 required track, data track 729736224 bytes with SHA-1 65f186e0c8735f89768c6f782203882e95b02a29, and the psxrecomp/bios/SCPH1001.toml BIOS configuration with OpenBIOS and bios_hle off; CMakeLists.txt accepts only the SCPH1001 stem, and README-SETUP.txt requires the player's own SCPH-1001 (USA) BIOS with SHA-256 71af94d1e47a68c11e8fdb9f8368040601514a42a5a399cda48c7d3bff1e99d3 (524288 bytes), the psx-scph-1001-bios profile. The kits use the split mod layout with 11 generic psx.* packages in mods/bundled, no mods/preloaded folder, empty mods/texture-packs/SLUS-00875 folders, no flat mods/packages, no playtest diagnostics, no links, no unsafe or case-colliding paths, and build the generated player Spider_Man_Recompiled from EXE_NAME. Native generation, gameplay and saves remain unobserved.",
+        "immutable_url": "https://github.com/alexbeavs-ps1-ports/spider-man-recomp/blob/3e9f90c62638d9828c9c00dbcb8c6382173f8b83/game.toml",
+        "live_url": null
+      },
+      {
+        "id": "alexbeav-spider-man-recomp-redump-2324",
+        "role": "byte_identity",
+        "authority": "Redump disc database",
+        "authority_ref": "disc/2324; modified 2026-09-25 01:56 UTC",
+        "reviewed_at": "2026-11-13",
+        "claim": "Redump Spider-Man (USA), SLUS-00875, disc 2324, has one data track: 729736224 bytes, SHA-1 65f186e0c8735f89768c6f782203882e95b02a29, MD5 0885834dd8842a93b300609e06a5caa6 and CRC32 bf1c7eff, which agree with the kit's game.toml. A Redump search for that SHA-1 resolves only to this disc.",
+        "immutable_url": "https://redump.info/disc/2324",
+        "live_url": null
+      },
+      {
+        "id": "alexbeav-star-wars-episode-i-the-phantom-menace-recomp-v013-static-contract",
+        "role": "upstream_support",
+        "authority": "alexbeavs-ps1-ports/star-wars-episode-i-the-phantom-menace-recomp",
+        "authority_ref": "9921d6c10b0a9d3e928b22055a6ee1ab62f59571",
+        "reviewed_at": "2026-11-13",
+        "claim": "Exact v0.1.3 Windows x64 (47815898 bytes, SHA-256 e784073d951062878fa89aa222be2d8575a643509e1bb16ca9d3d7a1776c3ce8) and Linux x64 (45750548 bytes, SHA-256 57546b0e43a3d83352f5882ed811d4ccd63c9b4aa87876997eccc3b7cc1c2cdd) setup kits match the upstream SHA256SUMS.txt; the provider release digest was not read. Both pin PSXRecomp d5cae379db84bbce3696a61a89ed06989b18bed0, which differs from reviewed 7192402 only in GPU rendering and runtime tests, and recomp-ui 14799da, and carry the tagged game.toml (SHA-256 1971be047f4a4729a3abc9ad955cdc5e19d396b1509eea3e0c446d5744698d00, the same bytes in both kits) with game id and disc serial SLES-02034, 1 required track, data track 675430896 bytes with SHA-1 e811ef4d2d65fcaae4625c7721be1ae2ec813bf9, and the psxrecomp/bios/SCPH5552.toml BIOS configuration with OpenBIOS and bios_hle off; CMakeLists.txt accepts only the SCPH5552 stem, and README-SETUP.txt requires the player's own SCPH-5552 (Europe) BIOS with SHA-256 1faaa18fa820a0225e488d9f086296b8e6c46df739666093987ff7d8fd352c09 (524288 bytes), the psx-scph-5552-bios profile. The kits use the split mod layout with 11 generic psx.* packages in mods/bundled, no mods/preloaded folder, empty mods/texture-packs/SLES-02034 folders, no flat mods/packages, no playtest diagnostics, no links, no unsafe or case-colliding paths, and build the generated player Star_Wars_Episode_I__The_Phantom_Menace_Recompiled from EXE_NAME. Native generation, gameplay and saves remain unobserved.",
+        "immutable_url": "https://github.com/alexbeavs-ps1-ports/star-wars-episode-i-the-phantom-menace-recomp/blob/9921d6c10b0a9d3e928b22055a6ee1ab62f59571/game.toml",
+        "live_url": null
+      },
+      {
+        "id": "alexbeav-star-wars-episode-i-the-phantom-menace-recomp-redump-7233",
+        "role": "byte_identity",
+        "authority": "Redump disc database",
+        "authority_ref": "disc/7233; modified 2026-10-11 03:12 UTC",
+        "reviewed_at": "2026-11-13",
+        "claim": "Redump Star Wars - Episode I - The Phantom Menace (Europe), SLES-02034, disc 7233, has one data track: 675430896 bytes, SHA-1 e811ef4d2d65fcaae4625c7721be1ae2ec813bf9, MD5 42bee5c54967b84799674fdcb5b72294 and CRC32 7b7bbb11, which agree with the kit's game.toml. A Redump search for that SHA-1 resolves only to this disc.",
+        "immutable_url": "https://redump.info/disc/7233",
+        "live_url": null
+      },
+      {
+        "id": "alexbeav-the-fifth-element-recomp-v013-static-contract",
+        "role": "upstream_support",
+        "authority": "alexbeavs-ps1-ports/the-fifth-element-recomp",
+        "authority_ref": "a85e6d21d8aed95e6b5039896d61ce07397dc34f",
+        "reviewed_at": "2026-11-13",
+        "claim": "Exact v0.1.3 Windows x64 (47813441 bytes, SHA-256 04e13ecd88d1265f7aa1d2ec19aa1700534b45b8d36f41c6fe89e3842086d17d) and Linux x64 (45746986 bytes, SHA-256 4f507d44c960d7ba5db59a47208792285ea228e957b7ed192821404bb5eaa9f1) setup kits match the upstream SHA256SUMS.txt; the provider release digest was not read. Both pin PSXRecomp d5cae379db84bbce3696a61a89ed06989b18bed0, which differs from reviewed 7192402 only in GPU rendering and runtime tests, and recomp-ui 14799da, and carry the tagged game.toml (SHA-256 5f8d228d4239436bf7bfb3ff29e3a957d93c5e92957b675a50a4721bf5edabf1, the same bytes in both kits) with game id and disc serial SCES-01285, 10 required tracks, first data track 354378192 bytes with SHA-1 71d5d3ceecfe33d45f7ef789ff7bcd4df81044fc; its second known SHA-1 (c449beb473b81fae2f5a1d65c1a28f209963cbc1, 704221728 bytes) is a merged single-image value that this route does not bind, and the psxrecomp/bios/SCPH5552.toml BIOS configuration with OpenBIOS and bios_hle off; CMakeLists.txt accepts only the SCPH5552 stem, and README-SETUP.txt requires the player's own SCPH-5552 (Europe) BIOS with SHA-256 1faaa18fa820a0225e488d9f086296b8e6c46df739666093987ff7d8fd352c09 (524288 bytes), the psx-scph-5552-bios profile. The kits use the split mod layout with 11 generic psx.* packages in mods/bundled, no mods/preloaded folder, empty mods/texture-packs/SCES-01285 folders, no flat mods/packages, no playtest diagnostics, no links, no unsafe or case-colliding paths, and build the generated player The_Fifth_Element_Recompiled from EXE_NAME. Native generation, gameplay and saves remain unobserved.",
+        "immutable_url": "https://github.com/alexbeavs-ps1-ports/the-fifth-element-recomp/blob/a85e6d21d8aed95e6b5039896d61ce07397dc34f/game.toml",
+        "live_url": null
+      },
+      {
+        "id": "alexbeav-the-fifth-element-recomp-redump-1837",
+        "role": "byte_identity",
+        "authority": "Redump disc database",
+        "authority_ref": "disc/1837; modified 2019-10-31 05:33 UTC",
+        "reviewed_at": "2026-11-13",
+        "claim": "Redump Fifth Element, The (Europe) (En,Fr,De,Es,It), SCES-01285, disc 1837, has 10 tracks. Track 1 is 354378192 bytes, SHA-1 71d5d3ceecfe33d45f7ef789ff7bcd4df81044fc, MD5 573d0c845cf12e9c2024746b70c12597 and CRC32 f0313791, matching the kit's game.toml. Tracks 2 to 10 are audio. Its merged 704221728-byte image has CRC32 aaa3192a, the kit's other known CRC32. Core binds the data track and track count; the audio tracks and full TOC are not independently authenticated. A Redump search for that SHA-1 resolves only to this disc.",
+        "immutable_url": "https://redump.info/disc/1837",
+        "live_url": null
+      },
+      {
+        "id": "alexbeav-threads-of-fate-recomp-v013-static-contract",
+        "role": "upstream_support",
+        "authority": "alexbeavs-ps1-ports/threads-of-fate-recomp",
+        "authority_ref": "baaf87d810d216405850d323173eb4bd8e263ae0",
+        "reviewed_at": "2026-11-13",
+        "claim": "Exact v0.1.3 Windows x64 (47818216 bytes, SHA-256 22754eeffb5aa0a6742ec679e4b0f9ca81f827a35e7d36869155e292faac311c) and Linux x64 (45750448 bytes, SHA-256 29975320de240e1fafed3f0321116b0704459fa572815ba6805921cc40798cf9) setup kits match the upstream SHA256SUMS.txt; the provider release digest was not read. Both pin PSXRecomp d5cae379db84bbce3696a61a89ed06989b18bed0, which differs from reviewed 7192402 only in GPU rendering and runtime tests, and recomp-ui 14799da, and carry the tagged game.toml (SHA-256 b47abd41135ec00ff0133d468993308e26a74d6fb61d6ab8bdbafbba6ab5ed11, the same bytes in both kits) with game id and disc serial SLUS-01019, 1 required track, data track 357454608 bytes with SHA-1 375e4a344c4feef969bef6042ff1f90e350fa5d5, and the psxrecomp/bios/SCPH1001.toml BIOS configuration with OpenBIOS off and bios_hle on; that profile declares the deliver_event_ret and shell_entry_phys anchors, so the optional high-level tier runs over the recompiled retail BIOS, which stays a required build and launch input; CMakeLists.txt accepts only the SCPH1001 stem, and README-SETUP.txt requires the player's own SCPH-1001 (USA) BIOS with SHA-256 71af94d1e47a68c11e8fdb9f8368040601514a42a5a399cda48c7d3bff1e99d3 (524288 bytes), the psx-scph-1001-bios profile. The kits use the split mod layout with 11 generic psx.* packages in mods/bundled, no mods/preloaded folder, empty mods/texture-packs/SLUS-01019 folders, no flat mods/packages, no playtest diagnostics, no links, no unsafe or case-colliding paths, and build the generated player Threads_of_Fate_Recompiled from EXE_NAME. Native generation, gameplay and saves remain unobserved.",
+        "immutable_url": "https://github.com/alexbeavs-ps1-ports/threads-of-fate-recomp/blob/baaf87d810d216405850d323173eb4bd8e263ae0/game.toml",
+        "live_url": null
+      },
+      {
+        "id": "alexbeav-threads-of-fate-recomp-redump-158",
+        "role": "byte_identity",
+        "authority": "Redump disc database",
+        "authority_ref": "disc/158; modified 2025-07-10 21:45 UTC",
+        "reviewed_at": "2026-11-13",
+        "claim": "Redump Threads of Fate (USA, Canada), SLUS-01019, disc 158, has one data track: 357454608 bytes, SHA-1 375e4a344c4feef969bef6042ff1f90e350fa5d5, MD5 bf49e5e7a09acc46625b5ced33dd45f5 and CRC32 59b2f8a3, which agree with the kit's game.toml. A Redump search for that SHA-1 resolves only to this disc.",
+        "immutable_url": "https://redump.info/disc/158",
+        "live_url": null
+      },
+      {
+        "id": "alexbeav-tokyo-highway-battle-recomp-v013-static-contract",
+        "role": "upstream_support",
+        "authority": "alexbeavs-ps1-ports/tokyo-highway-battle-recomp",
+        "authority_ref": "3a76094ff17b13d70f4d89508b72875af799b7b1",
+        "reviewed_at": "2026-11-13",
+        "claim": "Exact v0.1.3 Windows x64 (47814699 bytes, SHA-256 451a1ca9be148f4f3c107098d1d1a90e8ba55a87e494fee15f5e371a2d9e892e) and Linux x64 (45746807 bytes, SHA-256 379b2d7cfbbc58c1b753450c50320f460c953c121140eba89084e2362ca4eeb5) setup kits match the upstream SHA256SUMS.txt; the provider release digest was not read. Both pin PSXRecomp d5cae379db84bbce3696a61a89ed06989b18bed0, which differs from reviewed 7192402 only in GPU rendering and runtime tests, and recomp-ui 14799da, and carry the tagged game.toml (SHA-256 e7f61b13577e59633f05e0ecf3ff48f2fe7cc51bc10adfa7b566945bf00774cd, the same bytes in both kits) with game id and disc serial SLUS-00229, 8 required tracks, first data track 220676400 bytes with SHA-1 580ab877da6230ace8451943e358521f957094d5, and the psxrecomp/bios/SCPH1001.toml BIOS configuration with OpenBIOS and bios_hle off; CMakeLists.txt accepts only the SCPH1001 stem, and README-SETUP.txt requires the player's own SCPH-1001 (USA) BIOS with SHA-256 71af94d1e47a68c11e8fdb9f8368040601514a42a5a399cda48c7d3bff1e99d3 (524288 bytes), the psx-scph-1001-bios profile. The kits use the split mod layout with 11 generic psx.* packages in mods/bundled, no mods/preloaded folder, empty mods/texture-packs/SLUS-00229 folders, no flat mods/packages, no playtest diagnostics, no links, no unsafe or case-colliding paths, and build the generated player Tokyo_Highway_Battle_Recompiled from EXE_NAME. Native generation, gameplay and saves remain unobserved.",
+        "immutable_url": "https://github.com/alexbeavs-ps1-ports/tokyo-highway-battle-recomp/blob/3a76094ff17b13d70f4d89508b72875af799b7b1/game.toml",
+        "live_url": null
+      },
+      {
+        "id": "alexbeav-tokyo-highway-battle-recomp-redump-7496",
+        "role": "byte_identity",
+        "authority": "Redump disc database",
+        "authority_ref": "disc/7496; modified 2025-11-04 11:36 UTC",
+        "reviewed_at": "2026-11-13",
+        "claim": "Redump Tokyo Highway Battle (USA), SLUS-00229, disc 7496, has 8 tracks. Track 1 is 220676400 bytes, SHA-1 580ab877da6230ace8451943e358521f957094d5, MD5 0a39ffb604009219dd7b9d702ea7d8c8 and CRC32 c5539286, matching the kit's game.toml. Tracks 2 to 8 are audio. Core binds the data track and track count; the audio tracks and full TOC are not independently authenticated. A Redump search for that SHA-1 resolves only to this disc.",
+        "immutable_url": "https://redump.info/disc/7496",
+        "live_url": null
+      },
+      {
         "id": "goldeneye-007-source-sha1-5c43e69b",
         "role": "upstream_support",
         "authority": "jkdansereau/goldeneye-pc-port",
@@ -14941,6 +15301,853 @@
         "evidence_gap": null
       },
       {
+        "id": "alexbeav-apocalypse-recomp-europe-psx",
+        "label": "Apocalypse (Europe) disc",
+        "kind": "optical-disc",
+        "variants": [
+          {
+            "id": "europe",
+            "title": "Apocalypse (Europe) disc",
+            "region": "Europe",
+            "revision": null,
+            "product_codes": [
+              "SLES-00460"
+            ],
+            "representations": [
+              {
+                "id": "normalized-track-set",
+                "extensions": [
+                  "chd"
+                ],
+                "kind": "optical-track-set",
+                "track_counts": [
+                  2
+                ],
+                "identities": [
+                  {
+                    "scope": "psx-normalized-track-set",
+                    "sha1": "f0ee4a74b4d79d95cc52aa4651552ae1244edc84",
+                    "sha256": null,
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "alexbeav-apocalypse-recomp-v013-static-contract",
+                  "alexbeav-apocalypse-recomp-redump-1679"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "alexbeav-apocalypse-recomp-v013-static-contract",
+              "alexbeav-apocalypse-recomp-redump-1679"
+            ]
+          }
+        ],
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null
+      },
+      {
+        "id": "alexbeav-colony-wars-recomp-usa-psx",
+        "label": "Colony Wars (USA) two-disc set",
+        "kind": "optical-disc",
+        "variants": [
+          {
+            "id": "usa",
+            "title": "Colony Wars (USA) two-disc set",
+            "region": "USA",
+            "revision": null,
+            "product_codes": [
+              "SLUS-00543",
+              "SLUS-00554"
+            ],
+            "representations": [
+              {
+                "id": "disc-set",
+                "extensions": [
+                  "chd"
+                ],
+                "kind": "multi-disc-set",
+                "discs": [
+                  {
+                    "id": "disc-1",
+                    "label": "Colony Wars Disc 1",
+                    "track_counts": [
+                      2
+                    ],
+                    "volume_ids": [],
+                    "identities": [
+                      {
+                        "scope": "disc-set-member",
+                        "sha1": "5ad8f6a62f9772b0725477e365489f8efabc1371",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "disc-2",
+                    "label": "Colony Wars Disc 2",
+                    "track_counts": [
+                      2
+                    ],
+                    "volume_ids": [],
+                    "identities": [
+                      {
+                        "scope": "disc-set-member",
+                        "sha1": "723491c2876588172e020f9b66c978f0d757ed57",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  }
+                ],
+                "evidence_ids": [
+                  "alexbeav-colony-wars-recomp-v013-static-contract",
+                  "alexbeav-colony-wars-recomp-disc-1-redump-387",
+                  "alexbeav-colony-wars-recomp-disc-2-redump-388"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "alexbeav-colony-wars-recomp-v013-static-contract",
+              "alexbeav-colony-wars-recomp-disc-1-redump-387",
+              "alexbeav-colony-wars-recomp-disc-2-redump-388"
+            ]
+          }
+        ],
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null
+      },
+      {
+        "id": "alexbeav-crash-bandicoot-3-warped-recomp-usa-psx",
+        "label": "Crash Bandicoot 3: Warped (USA) disc",
+        "kind": "optical-disc",
+        "variants": [
+          {
+            "id": "usa",
+            "title": "Crash Bandicoot 3: Warped (USA) disc",
+            "region": "USA",
+            "revision": null,
+            "product_codes": [
+              "SCUS-94244"
+            ],
+            "representations": [
+              {
+                "id": "normalized-track-set",
+                "extensions": [
+                  "chd"
+                ],
+                "kind": "optical-track-set",
+                "track_counts": [
+                  1
+                ],
+                "identities": [
+                  {
+                    "scope": "psx-normalized-track-set",
+                    "sha1": "ae57f60f577c610476c7b8885bd76a6bea20d9de",
+                    "sha256": null,
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "alexbeav-crash-bandicoot-3-warped-recomp-v013-static-contract",
+                  "alexbeav-crash-bandicoot-3-warped-recomp-redump-5006"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "alexbeav-crash-bandicoot-3-warped-recomp-v013-static-contract",
+              "alexbeav-crash-bandicoot-3-warped-recomp-redump-5006"
+            ]
+          }
+        ],
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null
+      },
+      {
+        "id": "alexbeav-fear-effect-recomp-usa-psx",
+        "label": "Fear Effect (USA) four-disc set",
+        "kind": "optical-disc",
+        "variants": [
+          {
+            "id": "usa",
+            "title": "Fear Effect (USA) four-disc set",
+            "region": "USA",
+            "revision": null,
+            "product_codes": [
+              "SLUS-00920",
+              "SLUS-01056",
+              "SLUS-01057",
+              "SLUS-01058"
+            ],
+            "representations": [
+              {
+                "id": "disc-set",
+                "extensions": [
+                  "chd"
+                ],
+                "kind": "multi-disc-set",
+                "discs": [
+                  {
+                    "id": "disc-1",
+                    "label": "Fear Effect Disc 1",
+                    "track_counts": [
+                      1
+                    ],
+                    "volume_ids": [],
+                    "identities": [
+                      {
+                        "scope": "disc-set-member",
+                        "sha1": "e96eb6d83dd890103b3d3511cb84da73adab2cde",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "disc-2",
+                    "label": "Fear Effect Disc 2",
+                    "track_counts": [
+                      1
+                    ],
+                    "volume_ids": [],
+                    "identities": [
+                      {
+                        "scope": "disc-set-member",
+                        "sha1": "0c2ffb3dd07ffb628b1fa69ca841cec141da11dd",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "disc-3",
+                    "label": "Fear Effect Disc 3",
+                    "track_counts": [
+                      1
+                    ],
+                    "volume_ids": [],
+                    "identities": [
+                      {
+                        "scope": "disc-set-member",
+                        "sha1": "a4205816f6486d8d1f5b97195370fd402003f983",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "disc-4",
+                    "label": "Fear Effect Disc 4",
+                    "track_counts": [
+                      1
+                    ],
+                    "volume_ids": [],
+                    "identities": [
+                      {
+                        "scope": "disc-set-member",
+                        "sha1": "bc1762d51eb1e35b940ae304af6622e9d9eb989d",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  }
+                ],
+                "evidence_ids": [
+                  "alexbeav-fear-effect-recomp-v013-static-contract",
+                  "alexbeav-fear-effect-recomp-disc-1-redump-1267",
+                  "alexbeav-fear-effect-recomp-disc-2-redump-1268",
+                  "alexbeav-fear-effect-recomp-disc-3-redump-1269",
+                  "alexbeav-fear-effect-recomp-disc-4-redump-1270"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "alexbeav-fear-effect-recomp-v013-static-contract",
+              "alexbeav-fear-effect-recomp-disc-1-redump-1267",
+              "alexbeav-fear-effect-recomp-disc-2-redump-1268",
+              "alexbeav-fear-effect-recomp-disc-3-redump-1269",
+              "alexbeav-fear-effect-recomp-disc-4-redump-1270"
+            ]
+          }
+        ],
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null
+      },
+      {
+        "id": "alexbeav-g-police-recomp-usa-psx",
+        "label": "G-Police (USA) two-disc set",
+        "kind": "optical-disc",
+        "variants": [
+          {
+            "id": "usa",
+            "title": "G-Police (USA) two-disc set",
+            "region": "USA",
+            "revision": null,
+            "product_codes": [
+              "SLUS-00544",
+              "SLUS-00556"
+            ],
+            "representations": [
+              {
+                "id": "disc-set",
+                "extensions": [
+                  "chd"
+                ],
+                "kind": "multi-disc-set",
+                "discs": [
+                  {
+                    "id": "disc-1",
+                    "label": "G-Police Disc 1",
+                    "track_counts": [
+                      1
+                    ],
+                    "volume_ids": [],
+                    "identities": [
+                      {
+                        "scope": "disc-set-member",
+                        "sha1": "2161d2860914b21d2bee457b3eda9d8e816d04a2",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "disc-2",
+                    "label": "G-Police Disc 2",
+                    "track_counts": [
+                      1
+                    ],
+                    "volume_ids": [],
+                    "identities": [
+                      {
+                        "scope": "disc-set-member",
+                        "sha1": "7f6ba87da62bbe565ba5603de462e3ed7c68429d",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  }
+                ],
+                "evidence_ids": [
+                  "alexbeav-g-police-recomp-v013-static-contract",
+                  "alexbeav-g-police-recomp-disc-1-redump-7333",
+                  "alexbeav-g-police-recomp-disc-2-redump-1865"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "alexbeav-g-police-recomp-v013-static-contract",
+              "alexbeav-g-police-recomp-disc-1-redump-7333",
+              "alexbeav-g-police-recomp-disc-2-redump-1865"
+            ]
+          }
+        ],
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null
+      },
+      {
+        "id": "alexbeav-ghost-in-the-shell-recomp-europe-psx",
+        "label": "Ghost in the Shell (Europe) disc",
+        "kind": "optical-disc",
+        "variants": [
+          {
+            "id": "europe",
+            "title": "Ghost in the Shell (Europe) disc",
+            "region": "Europe",
+            "revision": null,
+            "product_codes": [
+              "SCES-01050"
+            ],
+            "representations": [
+              {
+                "id": "normalized-track-set",
+                "extensions": [
+                  "chd"
+                ],
+                "kind": "optical-track-set",
+                "track_counts": [
+                  1
+                ],
+                "identities": [
+                  {
+                    "scope": "psx-normalized-track-set",
+                    "sha1": "4d996a3b9b3fdd18053d3ec4fed232b8043580f1",
+                    "sha256": null,
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "alexbeav-ghost-in-the-shell-recomp-v013-static-contract",
+                  "alexbeav-ghost-in-the-shell-recomp-redump-6179"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "alexbeav-ghost-in-the-shell-recomp-v013-static-contract",
+              "alexbeav-ghost-in-the-shell-recomp-redump-6179"
+            ]
+          }
+        ],
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null
+      },
+      {
+        "id": "alexbeav-martian-gothic-recomp-europe-psx",
+        "label": "Martian Gothic: Unification (Europe) disc",
+        "kind": "optical-disc",
+        "variants": [
+          {
+            "id": "europe",
+            "title": "Martian Gothic: Unification (Europe) disc",
+            "region": "Europe",
+            "revision": null,
+            "product_codes": [
+              "SLES-01350"
+            ],
+            "representations": [
+              {
+                "id": "normalized-track-set",
+                "extensions": [
+                  "chd"
+                ],
+                "kind": "optical-track-set",
+                "track_counts": [
+                  1
+                ],
+                "identities": [
+                  {
+                    "scope": "psx-normalized-track-set",
+                    "sha1": "7ac0f3769ec927e7d69b3d22e9c6b79e6804629e",
+                    "sha256": null,
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "alexbeav-martian-gothic-recomp-v013-static-contract",
+                  "alexbeav-martian-gothic-recomp-redump-1260"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "alexbeav-martian-gothic-recomp-v013-static-contract",
+              "alexbeav-martian-gothic-recomp-redump-1260"
+            ]
+          }
+        ],
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null
+      },
+      {
+        "id": "alexbeav-metal-gear-solid-recomp-usa-rev-1-psx",
+        "label": "Metal Gear Solid (USA) (Rev 1) two-disc set",
+        "kind": "optical-disc",
+        "variants": [
+          {
+            "id": "usa-rev-1",
+            "title": "Metal Gear Solid (USA) (Rev 1) two-disc set",
+            "region": "USA",
+            "revision": "Rev 1",
+            "product_codes": [
+              "SLUS-00594",
+              "SLUS-00776"
+            ],
+            "representations": [
+              {
+                "id": "disc-set",
+                "extensions": [
+                  "chd"
+                ],
+                "kind": "multi-disc-set",
+                "discs": [
+                  {
+                    "id": "disc-1",
+                    "label": "Metal Gear Solid Disc 1",
+                    "track_counts": [
+                      1
+                    ],
+                    "volume_ids": [],
+                    "identities": [
+                      {
+                        "scope": "disc-set-member",
+                        "sha1": "37498e6598ce4eabf00630b6a9197b20861e55a0",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "disc-2",
+                    "label": "Metal Gear Solid Disc 2",
+                    "track_counts": [
+                      1
+                    ],
+                    "volume_ids": [],
+                    "identities": [
+                      {
+                        "scope": "disc-set-member",
+                        "sha1": "d6edfd60a375c10087eacebd709419950c8995ad",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  }
+                ],
+                "evidence_ids": [
+                  "alexbeav-metal-gear-solid-recomp-v013-static-contract",
+                  "alexbeav-metal-gear-solid-recomp-disc-1-redump-104",
+                  "alexbeav-metal-gear-solid-recomp-disc-2-redump-105"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "alexbeav-metal-gear-solid-recomp-v013-static-contract",
+              "alexbeav-metal-gear-solid-recomp-disc-1-redump-104",
+              "alexbeav-metal-gear-solid-recomp-disc-2-redump-105"
+            ]
+          }
+        ],
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null
+      },
+      {
+        "id": "alexbeav-monster-rancher-recomp-usa-psx",
+        "label": "Monster Rancher (USA) disc",
+        "kind": "optical-disc",
+        "variants": [
+          {
+            "id": "usa",
+            "title": "Monster Rancher (USA) disc",
+            "region": "USA",
+            "revision": null,
+            "product_codes": [
+              "SLUS-00568"
+            ],
+            "representations": [
+              {
+                "id": "normalized-track-set",
+                "extensions": [
+                  "chd"
+                ],
+                "kind": "optical-track-set",
+                "track_counts": [
+                  2
+                ],
+                "identities": [
+                  {
+                    "scope": "psx-normalized-track-set",
+                    "sha1": "e79b66e3f41e345b0f5487103629ba93ca56ce03",
+                    "sha256": null,
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "alexbeav-monster-rancher-recomp-v013-static-contract",
+                  "alexbeav-monster-rancher-recomp-redump-18824"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "alexbeav-monster-rancher-recomp-v013-static-contract",
+              "alexbeav-monster-rancher-recomp-redump-18824"
+            ]
+          }
+        ],
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null
+      },
+      {
+        "id": "alexbeav-r-type-delta-recomp-usa-psx",
+        "label": "R-Type Delta (USA) disc",
+        "kind": "optical-disc",
+        "variants": [
+          {
+            "id": "usa",
+            "title": "R-Type Delta (USA) disc",
+            "region": "USA",
+            "revision": null,
+            "product_codes": [
+              "SLUS-00877"
+            ],
+            "representations": [
+              {
+                "id": "normalized-track-set",
+                "extensions": [
+                  "chd"
+                ],
+                "kind": "optical-track-set",
+                "track_counts": [
+                  1
+                ],
+                "identities": [
+                  {
+                    "scope": "psx-normalized-track-set",
+                    "sha1": "33bec6c0f13de97d1fd5d2a5a35c6fca86242575",
+                    "sha256": null,
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "alexbeav-r-type-delta-recomp-v013-static-contract",
+                  "alexbeav-r-type-delta-recomp-redump-455"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "alexbeav-r-type-delta-recomp-v013-static-contract",
+              "alexbeav-r-type-delta-recomp-redump-455"
+            ]
+          }
+        ],
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null
+      },
+      {
+        "id": "alexbeav-spider-man-recomp-usa-psx",
+        "label": "Spider-Man (USA) disc",
+        "kind": "optical-disc",
+        "variants": [
+          {
+            "id": "usa",
+            "title": "Spider-Man (USA) disc",
+            "region": "USA",
+            "revision": null,
+            "product_codes": [
+              "SLUS-00875"
+            ],
+            "representations": [
+              {
+                "id": "normalized-track-set",
+                "extensions": [
+                  "chd"
+                ],
+                "kind": "optical-track-set",
+                "track_counts": [
+                  1
+                ],
+                "identities": [
+                  {
+                    "scope": "psx-normalized-track-set",
+                    "sha1": "65f186e0c8735f89768c6f782203882e95b02a29",
+                    "sha256": null,
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "alexbeav-spider-man-recomp-v013-static-contract",
+                  "alexbeav-spider-man-recomp-redump-2324"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "alexbeav-spider-man-recomp-v013-static-contract",
+              "alexbeav-spider-man-recomp-redump-2324"
+            ]
+          }
+        ],
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null
+      },
+      {
+        "id": "alexbeav-star-wars-episode-i-the-phantom-menace-recomp-europe-psx",
+        "label": "Star Wars Episode I: The Phantom Menace (Europe) disc",
+        "kind": "optical-disc",
+        "variants": [
+          {
+            "id": "europe",
+            "title": "Star Wars Episode I: The Phantom Menace (Europe) disc",
+            "region": "Europe",
+            "revision": null,
+            "product_codes": [
+              "SLES-02034"
+            ],
+            "representations": [
+              {
+                "id": "normalized-track-set",
+                "extensions": [
+                  "chd"
+                ],
+                "kind": "optical-track-set",
+                "track_counts": [
+                  1
+                ],
+                "identities": [
+                  {
+                    "scope": "psx-normalized-track-set",
+                    "sha1": "e811ef4d2d65fcaae4625c7721be1ae2ec813bf9",
+                    "sha256": null,
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "alexbeav-star-wars-episode-i-the-phantom-menace-recomp-v013-static-contract",
+                  "alexbeav-star-wars-episode-i-the-phantom-menace-recomp-redump-7233"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "alexbeav-star-wars-episode-i-the-phantom-menace-recomp-v013-static-contract",
+              "alexbeav-star-wars-episode-i-the-phantom-menace-recomp-redump-7233"
+            ]
+          }
+        ],
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null
+      },
+      {
+        "id": "alexbeav-the-fifth-element-recomp-europe-psx",
+        "label": "The Fifth Element (Europe) disc",
+        "kind": "optical-disc",
+        "variants": [
+          {
+            "id": "europe",
+            "title": "The Fifth Element (Europe) disc",
+            "region": "Europe",
+            "revision": null,
+            "product_codes": [
+              "SCES-01285"
+            ],
+            "representations": [
+              {
+                "id": "normalized-track-set",
+                "extensions": [
+                  "chd"
+                ],
+                "kind": "optical-track-set",
+                "track_counts": [
+                  10
+                ],
+                "identities": [
+                  {
+                    "scope": "psx-normalized-track-set",
+                    "sha1": "71d5d3ceecfe33d45f7ef789ff7bcd4df81044fc",
+                    "sha256": null,
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "alexbeav-the-fifth-element-recomp-v013-static-contract",
+                  "alexbeav-the-fifth-element-recomp-redump-1837"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "alexbeav-the-fifth-element-recomp-v013-static-contract",
+              "alexbeav-the-fifth-element-recomp-redump-1837"
+            ]
+          }
+        ],
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null
+      },
+      {
+        "id": "alexbeav-threads-of-fate-recomp-usa-canada-psx",
+        "label": "Threads of Fate (USA, Canada) disc",
+        "kind": "optical-disc",
+        "variants": [
+          {
+            "id": "usa-canada",
+            "title": "Threads of Fate (USA, Canada) disc",
+            "region": "USA, Canada",
+            "revision": null,
+            "product_codes": [
+              "SLUS-01019"
+            ],
+            "representations": [
+              {
+                "id": "normalized-track-set",
+                "extensions": [
+                  "chd"
+                ],
+                "kind": "optical-track-set",
+                "track_counts": [
+                  1
+                ],
+                "identities": [
+                  {
+                    "scope": "psx-normalized-track-set",
+                    "sha1": "375e4a344c4feef969bef6042ff1f90e350fa5d5",
+                    "sha256": null,
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "alexbeav-threads-of-fate-recomp-v013-static-contract",
+                  "alexbeav-threads-of-fate-recomp-redump-158"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "alexbeav-threads-of-fate-recomp-v013-static-contract",
+              "alexbeav-threads-of-fate-recomp-redump-158"
+            ]
+          }
+        ],
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null
+      },
+      {
+        "id": "alexbeav-tokyo-highway-battle-recomp-usa-psx",
+        "label": "Tokyo Highway Battle (USA) disc",
+        "kind": "optical-disc",
+        "variants": [
+          {
+            "id": "usa",
+            "title": "Tokyo Highway Battle (USA) disc",
+            "region": "USA",
+            "revision": null,
+            "product_codes": [
+              "SLUS-00229"
+            ],
+            "representations": [
+              {
+                "id": "normalized-track-set",
+                "extensions": [
+                  "chd"
+                ],
+                "kind": "optical-track-set",
+                "track_counts": [
+                  8
+                ],
+                "identities": [
+                  {
+                    "scope": "psx-normalized-track-set",
+                    "sha1": "580ab877da6230ace8451943e358521f957094d5",
+                    "sha256": null,
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "alexbeav-tokyo-highway-battle-recomp-v013-static-contract",
+                  "alexbeav-tokyo-highway-battle-recomp-redump-7496"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "alexbeav-tokyo-highway-battle-recomp-v013-static-contract",
+              "alexbeav-tokyo-highway-battle-recomp-redump-7496"
+            ]
+          }
+        ],
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null
+      },
+      {
         "id": "goldeneye-007-ntsc-u-big-endian",
         "label": "GoldenEye 007 NTSC-U USA big-endian original",
         "kind": "file",
@@ -24582,6 +25789,957 @@
           {
             "upstream_ref": "v0.3.7",
             "artifact_sha256": "3ab2be5cbd868184a10cd090f8489565f4b6be25f083e968e2a975d39a5f40a2"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-apocalypse-recomp-game-source",
+        "port_id": "alexbeav-apocalypse-recomp",
+        "role": "game",
+        "profile_id": "alexbeav-apocalypse-recomp-europe-psx",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "europe"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-apocalypse-recomp-v013-static-contract",
+          "alexbeav-apocalypse-recomp-redump-1679"
+        ],
+        "authority_ref": "c2223f7bfc3e63f39e39cfe9010631cfe0fe1a86",
+        "reviewed_at": "2026-11-13",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/apocalypse-recomp/blob/c2223f7bfc3e63f39e39cfe9010631cfe0fe1a86/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.1.3",
+            "artifact_sha256": "d84758b0cadd183b35dee87f3e2f09066c160970d87a95a1f4f123ccaa36b435"
+          },
+          {
+            "upstream_ref": "v0.1.3",
+            "artifact_sha256": "de87f7e2e83248b564e3d7f6a407cbf616f0246c7cdf40ad32d947514d4f771e"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-apocalypse-recomp-bios-source",
+        "port_id": "alexbeav-apocalypse-recomp",
+        "role": "bios",
+        "profile_id": "psx-scph-5552-bios",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "europe-v3-0"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-apocalypse-recomp-v013-static-contract"
+        ],
+        "authority_ref": "c2223f7bfc3e63f39e39cfe9010631cfe0fe1a86",
+        "reviewed_at": "2026-11-13",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/apocalypse-recomp/blob/c2223f7bfc3e63f39e39cfe9010631cfe0fe1a86/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.1.3",
+            "artifact_sha256": "d84758b0cadd183b35dee87f3e2f09066c160970d87a95a1f4f123ccaa36b435"
+          },
+          {
+            "upstream_ref": "v0.1.3",
+            "artifact_sha256": "de87f7e2e83248b564e3d7f6a407cbf616f0246c7cdf40ad32d947514d4f771e"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-colony-wars-recomp-game-source",
+        "port_id": "alexbeav-colony-wars-recomp",
+        "role": "game",
+        "profile_id": "alexbeav-colony-wars-recomp-usa-psx",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "usa"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-colony-wars-recomp-v013-static-contract",
+          "alexbeav-colony-wars-recomp-disc-1-redump-387",
+          "alexbeav-colony-wars-recomp-disc-2-redump-388"
+        ],
+        "authority_ref": "9b9f12555ab9e12c0e7670c15348b2930ff0f3d3",
+        "reviewed_at": "2026-11-13",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/colony-wars-recomp/blob/9b9f12555ab9e12c0e7670c15348b2930ff0f3d3/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.1.3",
+            "artifact_sha256": "412c6cf6ffc7596f0ed0274b9b01e49d1ec76923ce7087dc5c99d27267077004"
+          },
+          {
+            "upstream_ref": "v0.1.3",
+            "artifact_sha256": "7dc07ebbd7d836cf8de7bae8717f03e601c310f5bff6b3756467ec2b40e6430e"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-colony-wars-recomp-bios-source",
+        "port_id": "alexbeav-colony-wars-recomp",
+        "role": "bios",
+        "profile_id": "psx-scph-1001-bios",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "legacy-accepted"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-colony-wars-recomp-v013-static-contract"
+        ],
+        "authority_ref": "9b9f12555ab9e12c0e7670c15348b2930ff0f3d3",
+        "reviewed_at": "2026-11-13",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/colony-wars-recomp/blob/9b9f12555ab9e12c0e7670c15348b2930ff0f3d3/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.1.3",
+            "artifact_sha256": "412c6cf6ffc7596f0ed0274b9b01e49d1ec76923ce7087dc5c99d27267077004"
+          },
+          {
+            "upstream_ref": "v0.1.3",
+            "artifact_sha256": "7dc07ebbd7d836cf8de7bae8717f03e601c310f5bff6b3756467ec2b40e6430e"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-crash-bandicoot-3-warped-recomp-game-source",
+        "port_id": "alexbeav-crash-bandicoot-3-warped-recomp",
+        "role": "game",
+        "profile_id": "alexbeav-crash-bandicoot-3-warped-recomp-usa-psx",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "usa"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-crash-bandicoot-3-warped-recomp-v013-static-contract",
+          "alexbeav-crash-bandicoot-3-warped-recomp-redump-5006"
+        ],
+        "authority_ref": "a50db59d0e6f89001ae50857f46af3ec30c39e54",
+        "reviewed_at": "2026-11-13",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/crash-bandicoot-3-warped-recomp/blob/a50db59d0e6f89001ae50857f46af3ec30c39e54/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.1.3",
+            "artifact_sha256": "813baad56a50710a14a83bbd0003b50634f28fcd3322420122e16bacb059d2df"
+          },
+          {
+            "upstream_ref": "v0.1.3",
+            "artifact_sha256": "bd706cb8bfad7de08ac9bd2f947f0338d0bbd505b5aaf26391a4d7bcd4ca7d0b"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-crash-bandicoot-3-warped-recomp-bios-source",
+        "port_id": "alexbeav-crash-bandicoot-3-warped-recomp",
+        "role": "bios",
+        "profile_id": "psx-scph-1001-bios",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "legacy-accepted"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-crash-bandicoot-3-warped-recomp-v013-static-contract"
+        ],
+        "authority_ref": "a50db59d0e6f89001ae50857f46af3ec30c39e54",
+        "reviewed_at": "2026-11-13",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/crash-bandicoot-3-warped-recomp/blob/a50db59d0e6f89001ae50857f46af3ec30c39e54/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.1.3",
+            "artifact_sha256": "813baad56a50710a14a83bbd0003b50634f28fcd3322420122e16bacb059d2df"
+          },
+          {
+            "upstream_ref": "v0.1.3",
+            "artifact_sha256": "bd706cb8bfad7de08ac9bd2f947f0338d0bbd505b5aaf26391a4d7bcd4ca7d0b"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-fear-effect-recomp-game-source",
+        "port_id": "alexbeav-fear-effect-recomp",
+        "role": "game",
+        "profile_id": "alexbeav-fear-effect-recomp-usa-psx",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "usa"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-fear-effect-recomp-v013-static-contract",
+          "alexbeav-fear-effect-recomp-disc-1-redump-1267",
+          "alexbeav-fear-effect-recomp-disc-2-redump-1268",
+          "alexbeav-fear-effect-recomp-disc-3-redump-1269",
+          "alexbeav-fear-effect-recomp-disc-4-redump-1270"
+        ],
+        "authority_ref": "4f2beedd2d4d0192f941525a034d6b9fb78b47cd",
+        "reviewed_at": "2026-11-13",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/fear-effect-recomp/blob/4f2beedd2d4d0192f941525a034d6b9fb78b47cd/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.1.3",
+            "artifact_sha256": "1c754aaa9a1cfc41a3d5c1591b1e200511c1624a653664ce745b980e2dd687fa"
+          },
+          {
+            "upstream_ref": "v0.1.3",
+            "artifact_sha256": "5bf9cec91c3ce7dfcaf1d6017e0d66f476a1c29963dc791bfab0a1f97e83fb31"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-fear-effect-recomp-bios-source",
+        "port_id": "alexbeav-fear-effect-recomp",
+        "role": "bios",
+        "profile_id": "psx-scph-1001-bios",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "legacy-accepted"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-fear-effect-recomp-v013-static-contract"
+        ],
+        "authority_ref": "4f2beedd2d4d0192f941525a034d6b9fb78b47cd",
+        "reviewed_at": "2026-11-13",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/fear-effect-recomp/blob/4f2beedd2d4d0192f941525a034d6b9fb78b47cd/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.1.3",
+            "artifact_sha256": "1c754aaa9a1cfc41a3d5c1591b1e200511c1624a653664ce745b980e2dd687fa"
+          },
+          {
+            "upstream_ref": "v0.1.3",
+            "artifact_sha256": "5bf9cec91c3ce7dfcaf1d6017e0d66f476a1c29963dc791bfab0a1f97e83fb31"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-g-police-recomp-game-source",
+        "port_id": "alexbeav-g-police-recomp",
+        "role": "game",
+        "profile_id": "alexbeav-g-police-recomp-usa-psx",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "usa"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-g-police-recomp-v013-static-contract",
+          "alexbeav-g-police-recomp-disc-1-redump-7333",
+          "alexbeav-g-police-recomp-disc-2-redump-1865"
+        ],
+        "authority_ref": "d9bd79f1fc02602d30af4cb5137790638acda454",
+        "reviewed_at": "2026-11-13",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/g-police-recomp/blob/d9bd79f1fc02602d30af4cb5137790638acda454/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.1.3",
+            "artifact_sha256": "25606e628ada9ef834bf9020a903b96b75bdec3e9712d7aa3d671007bd37a88c"
+          },
+          {
+            "upstream_ref": "v0.1.3",
+            "artifact_sha256": "4c84627e22c42dc5d35d71017842cf710da2751f4442b372f64fcb63603f19ab"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-g-police-recomp-bios-source",
+        "port_id": "alexbeav-g-police-recomp",
+        "role": "bios",
+        "profile_id": "psx-scph-1001-bios",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "legacy-accepted"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-g-police-recomp-v013-static-contract"
+        ],
+        "authority_ref": "d9bd79f1fc02602d30af4cb5137790638acda454",
+        "reviewed_at": "2026-11-13",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/g-police-recomp/blob/d9bd79f1fc02602d30af4cb5137790638acda454/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.1.3",
+            "artifact_sha256": "25606e628ada9ef834bf9020a903b96b75bdec3e9712d7aa3d671007bd37a88c"
+          },
+          {
+            "upstream_ref": "v0.1.3",
+            "artifact_sha256": "4c84627e22c42dc5d35d71017842cf710da2751f4442b372f64fcb63603f19ab"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-ghost-in-the-shell-recomp-game-source",
+        "port_id": "alexbeav-ghost-in-the-shell-recomp",
+        "role": "game",
+        "profile_id": "alexbeav-ghost-in-the-shell-recomp-europe-psx",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "europe"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-ghost-in-the-shell-recomp-v013-static-contract",
+          "alexbeav-ghost-in-the-shell-recomp-redump-6179"
+        ],
+        "authority_ref": "f87a10922b1eeb537833961e6d37ec20cc445434",
+        "reviewed_at": "2026-11-13",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/ghost-in-the-shell-recomp/blob/f87a10922b1eeb537833961e6d37ec20cc445434/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.1.3",
+            "artifact_sha256": "2bf2f49e99f8a76a1fcb11c0302dec83ae6f137d64717c55ee940a372f0fe590"
+          },
+          {
+            "upstream_ref": "v0.1.3",
+            "artifact_sha256": "3f9f66c3ce29422a4d5bad697edf287e08a0e2ce78eb99b57339c669b4441ced"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-ghost-in-the-shell-recomp-bios-source",
+        "port_id": "alexbeav-ghost-in-the-shell-recomp",
+        "role": "bios",
+        "profile_id": "psx-scph-5552-bios",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "europe-v3-0"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-ghost-in-the-shell-recomp-v013-static-contract"
+        ],
+        "authority_ref": "f87a10922b1eeb537833961e6d37ec20cc445434",
+        "reviewed_at": "2026-11-13",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/ghost-in-the-shell-recomp/blob/f87a10922b1eeb537833961e6d37ec20cc445434/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.1.3",
+            "artifact_sha256": "2bf2f49e99f8a76a1fcb11c0302dec83ae6f137d64717c55ee940a372f0fe590"
+          },
+          {
+            "upstream_ref": "v0.1.3",
+            "artifact_sha256": "3f9f66c3ce29422a4d5bad697edf287e08a0e2ce78eb99b57339c669b4441ced"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-martian-gothic-recomp-game-source",
+        "port_id": "alexbeav-martian-gothic-recomp",
+        "role": "game",
+        "profile_id": "alexbeav-martian-gothic-recomp-europe-psx",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "europe"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-martian-gothic-recomp-v013-static-contract",
+          "alexbeav-martian-gothic-recomp-redump-1260"
+        ],
+        "authority_ref": "0b35bcb542f19258f33a9601841e0ed358a60b38",
+        "reviewed_at": "2026-11-13",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/martian-gothic-recomp/blob/0b35bcb542f19258f33a9601841e0ed358a60b38/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.1.3",
+            "artifact_sha256": "3e08915caccbfbbcd9d74bc4db3133cad1fcb9d5376e86456117890556fa801d"
+          },
+          {
+            "upstream_ref": "v0.1.3",
+            "artifact_sha256": "d071cd785f6126d9ea3ea4e10c2b134a82bb205b6c49d5b4481598b92ad1358f"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-martian-gothic-recomp-bios-source",
+        "port_id": "alexbeav-martian-gothic-recomp",
+        "role": "bios",
+        "profile_id": "psx-scph-5552-bios",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "europe-v3-0"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-martian-gothic-recomp-v013-static-contract"
+        ],
+        "authority_ref": "0b35bcb542f19258f33a9601841e0ed358a60b38",
+        "reviewed_at": "2026-11-13",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/martian-gothic-recomp/blob/0b35bcb542f19258f33a9601841e0ed358a60b38/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.1.3",
+            "artifact_sha256": "3e08915caccbfbbcd9d74bc4db3133cad1fcb9d5376e86456117890556fa801d"
+          },
+          {
+            "upstream_ref": "v0.1.3",
+            "artifact_sha256": "d071cd785f6126d9ea3ea4e10c2b134a82bb205b6c49d5b4481598b92ad1358f"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-metal-gear-solid-recomp-game-source",
+        "port_id": "alexbeav-metal-gear-solid-recomp",
+        "role": "game",
+        "profile_id": "alexbeav-metal-gear-solid-recomp-usa-rev-1-psx",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "usa-rev-1"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-metal-gear-solid-recomp-v013-static-contract",
+          "alexbeav-metal-gear-solid-recomp-disc-1-redump-104",
+          "alexbeav-metal-gear-solid-recomp-disc-2-redump-105"
+        ],
+        "authority_ref": "5e655aa59c1506a96a6c7548087ad0c7e97574ed",
+        "reviewed_at": "2026-11-13",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/metal-gear-solid-recomp/blob/5e655aa59c1506a96a6c7548087ad0c7e97574ed/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.1.3",
+            "artifact_sha256": "96eaace9fc9dfd0b4786395380b2ab561ce425f8f4847e552f2f2b52f3f71224"
+          },
+          {
+            "upstream_ref": "v0.1.3",
+            "artifact_sha256": "24b28ad04e7d0c18ee2ca25376ab2d425dfcd8bd89d0253892dfaa8d3f2732e1"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-metal-gear-solid-recomp-bios-source",
+        "port_id": "alexbeav-metal-gear-solid-recomp",
+        "role": "bios",
+        "profile_id": "psx-scph-1001-bios",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "legacy-accepted"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-metal-gear-solid-recomp-v013-static-contract"
+        ],
+        "authority_ref": "5e655aa59c1506a96a6c7548087ad0c7e97574ed",
+        "reviewed_at": "2026-11-13",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/metal-gear-solid-recomp/blob/5e655aa59c1506a96a6c7548087ad0c7e97574ed/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.1.3",
+            "artifact_sha256": "96eaace9fc9dfd0b4786395380b2ab561ce425f8f4847e552f2f2b52f3f71224"
+          },
+          {
+            "upstream_ref": "v0.1.3",
+            "artifact_sha256": "24b28ad04e7d0c18ee2ca25376ab2d425dfcd8bd89d0253892dfaa8d3f2732e1"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-monster-rancher-recomp-game-source",
+        "port_id": "alexbeav-monster-rancher-recomp",
+        "role": "game",
+        "profile_id": "alexbeav-monster-rancher-recomp-usa-psx",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "usa"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-monster-rancher-recomp-v013-static-contract",
+          "alexbeav-monster-rancher-recomp-redump-18824"
+        ],
+        "authority_ref": "ed5afdab813a1c9b3759adc7eb29229f7772203a",
+        "reviewed_at": "2026-11-13",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/monster-rancher-recomp/blob/ed5afdab813a1c9b3759adc7eb29229f7772203a/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.1.3",
+            "artifact_sha256": "839901bc02269f16b53f7eac164fa617baac806ee52148103936d5b1c6455193"
+          },
+          {
+            "upstream_ref": "v0.1.3",
+            "artifact_sha256": "6ba2f6e6e15762725e6f3b97c091f20e550dd7c84ff19434612ebc6887d7b6df"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-monster-rancher-recomp-bios-source",
+        "port_id": "alexbeav-monster-rancher-recomp",
+        "role": "bios",
+        "profile_id": "psx-scph-1001-bios",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "legacy-accepted"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-monster-rancher-recomp-v013-static-contract"
+        ],
+        "authority_ref": "ed5afdab813a1c9b3759adc7eb29229f7772203a",
+        "reviewed_at": "2026-11-13",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/monster-rancher-recomp/blob/ed5afdab813a1c9b3759adc7eb29229f7772203a/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.1.3",
+            "artifact_sha256": "839901bc02269f16b53f7eac164fa617baac806ee52148103936d5b1c6455193"
+          },
+          {
+            "upstream_ref": "v0.1.3",
+            "artifact_sha256": "6ba2f6e6e15762725e6f3b97c091f20e550dd7c84ff19434612ebc6887d7b6df"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-r-type-delta-recomp-game-source",
+        "port_id": "alexbeav-r-type-delta-recomp",
+        "role": "game",
+        "profile_id": "alexbeav-r-type-delta-recomp-usa-psx",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "usa"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-r-type-delta-recomp-v013-static-contract",
+          "alexbeav-r-type-delta-recomp-redump-455"
+        ],
+        "authority_ref": "8a6874f81477756c44695c47722d7d5bfb0c5f78",
+        "reviewed_at": "2026-11-13",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/r-type-delta-recomp/blob/8a6874f81477756c44695c47722d7d5bfb0c5f78/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.1.3",
+            "artifact_sha256": "e1b8edbca46980048216b001796fb3390a022298e5fc97470d9d315569b522ba"
+          },
+          {
+            "upstream_ref": "v0.1.3",
+            "artifact_sha256": "357dfe20d502eecd5dd9e217b4ef22deb5d68d9a17ec174b38e7c3a3e148d4cd"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-r-type-delta-recomp-bios-source",
+        "port_id": "alexbeav-r-type-delta-recomp",
+        "role": "bios",
+        "profile_id": "psx-scph-1001-bios",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "legacy-accepted"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-r-type-delta-recomp-v013-static-contract"
+        ],
+        "authority_ref": "8a6874f81477756c44695c47722d7d5bfb0c5f78",
+        "reviewed_at": "2026-11-13",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/r-type-delta-recomp/blob/8a6874f81477756c44695c47722d7d5bfb0c5f78/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.1.3",
+            "artifact_sha256": "e1b8edbca46980048216b001796fb3390a022298e5fc97470d9d315569b522ba"
+          },
+          {
+            "upstream_ref": "v0.1.3",
+            "artifact_sha256": "357dfe20d502eecd5dd9e217b4ef22deb5d68d9a17ec174b38e7c3a3e148d4cd"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-spider-man-recomp-game-source",
+        "port_id": "alexbeav-spider-man-recomp",
+        "role": "game",
+        "profile_id": "alexbeav-spider-man-recomp-usa-psx",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "usa"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-spider-man-recomp-v013-static-contract",
+          "alexbeav-spider-man-recomp-redump-2324"
+        ],
+        "authority_ref": "3e9f90c62638d9828c9c00dbcb8c6382173f8b83",
+        "reviewed_at": "2026-11-13",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/spider-man-recomp/blob/3e9f90c62638d9828c9c00dbcb8c6382173f8b83/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.1.3",
+            "artifact_sha256": "825a3b6ac2219471107bdd81bd74e5f0811e6e3dd5052165d9768780e68bde85"
+          },
+          {
+            "upstream_ref": "v0.1.3",
+            "artifact_sha256": "7244c6950ffbb2b2099233ae69088d736ea68a7b28b8ae90f0f2672b74ec7a71"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-spider-man-recomp-bios-source",
+        "port_id": "alexbeav-spider-man-recomp",
+        "role": "bios",
+        "profile_id": "psx-scph-1001-bios",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "legacy-accepted"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-spider-man-recomp-v013-static-contract"
+        ],
+        "authority_ref": "3e9f90c62638d9828c9c00dbcb8c6382173f8b83",
+        "reviewed_at": "2026-11-13",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/spider-man-recomp/blob/3e9f90c62638d9828c9c00dbcb8c6382173f8b83/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.1.3",
+            "artifact_sha256": "825a3b6ac2219471107bdd81bd74e5f0811e6e3dd5052165d9768780e68bde85"
+          },
+          {
+            "upstream_ref": "v0.1.3",
+            "artifact_sha256": "7244c6950ffbb2b2099233ae69088d736ea68a7b28b8ae90f0f2672b74ec7a71"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-star-wars-episode-i-the-phantom-menace-recomp-game-source",
+        "port_id": "alexbeav-star-wars-episode-i-the-phantom-menace-recomp",
+        "role": "game",
+        "profile_id": "alexbeav-star-wars-episode-i-the-phantom-menace-recomp-europe-psx",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "europe"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-star-wars-episode-i-the-phantom-menace-recomp-v013-static-contract",
+          "alexbeav-star-wars-episode-i-the-phantom-menace-recomp-redump-7233"
+        ],
+        "authority_ref": "9921d6c10b0a9d3e928b22055a6ee1ab62f59571",
+        "reviewed_at": "2026-11-13",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/star-wars-episode-i-the-phantom-menace-recomp/blob/9921d6c10b0a9d3e928b22055a6ee1ab62f59571/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.1.3",
+            "artifact_sha256": "e784073d951062878fa89aa222be2d8575a643509e1bb16ca9d3d7a1776c3ce8"
+          },
+          {
+            "upstream_ref": "v0.1.3",
+            "artifact_sha256": "57546b0e43a3d83352f5882ed811d4ccd63c9b4aa87876997eccc3b7cc1c2cdd"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-star-wars-episode-i-the-phantom-menace-recomp-bios-source",
+        "port_id": "alexbeav-star-wars-episode-i-the-phantom-menace-recomp",
+        "role": "bios",
+        "profile_id": "psx-scph-5552-bios",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "europe-v3-0"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-star-wars-episode-i-the-phantom-menace-recomp-v013-static-contract"
+        ],
+        "authority_ref": "9921d6c10b0a9d3e928b22055a6ee1ab62f59571",
+        "reviewed_at": "2026-11-13",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/star-wars-episode-i-the-phantom-menace-recomp/blob/9921d6c10b0a9d3e928b22055a6ee1ab62f59571/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.1.3",
+            "artifact_sha256": "e784073d951062878fa89aa222be2d8575a643509e1bb16ca9d3d7a1776c3ce8"
+          },
+          {
+            "upstream_ref": "v0.1.3",
+            "artifact_sha256": "57546b0e43a3d83352f5882ed811d4ccd63c9b4aa87876997eccc3b7cc1c2cdd"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-the-fifth-element-recomp-game-source",
+        "port_id": "alexbeav-the-fifth-element-recomp",
+        "role": "game",
+        "profile_id": "alexbeav-the-fifth-element-recomp-europe-psx",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "europe"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-the-fifth-element-recomp-v013-static-contract",
+          "alexbeav-the-fifth-element-recomp-redump-1837"
+        ],
+        "authority_ref": "a85e6d21d8aed95e6b5039896d61ce07397dc34f",
+        "reviewed_at": "2026-11-13",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/the-fifth-element-recomp/blob/a85e6d21d8aed95e6b5039896d61ce07397dc34f/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.1.3",
+            "artifact_sha256": "04e13ecd88d1265f7aa1d2ec19aa1700534b45b8d36f41c6fe89e3842086d17d"
+          },
+          {
+            "upstream_ref": "v0.1.3",
+            "artifact_sha256": "4f507d44c960d7ba5db59a47208792285ea228e957b7ed192821404bb5eaa9f1"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-the-fifth-element-recomp-bios-source",
+        "port_id": "alexbeav-the-fifth-element-recomp",
+        "role": "bios",
+        "profile_id": "psx-scph-5552-bios",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "europe-v3-0"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-the-fifth-element-recomp-v013-static-contract"
+        ],
+        "authority_ref": "a85e6d21d8aed95e6b5039896d61ce07397dc34f",
+        "reviewed_at": "2026-11-13",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/the-fifth-element-recomp/blob/a85e6d21d8aed95e6b5039896d61ce07397dc34f/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.1.3",
+            "artifact_sha256": "04e13ecd88d1265f7aa1d2ec19aa1700534b45b8d36f41c6fe89e3842086d17d"
+          },
+          {
+            "upstream_ref": "v0.1.3",
+            "artifact_sha256": "4f507d44c960d7ba5db59a47208792285ea228e957b7ed192821404bb5eaa9f1"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-threads-of-fate-recomp-game-source",
+        "port_id": "alexbeav-threads-of-fate-recomp",
+        "role": "game",
+        "profile_id": "alexbeav-threads-of-fate-recomp-usa-canada-psx",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "usa-canada"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-threads-of-fate-recomp-v013-static-contract",
+          "alexbeav-threads-of-fate-recomp-redump-158"
+        ],
+        "authority_ref": "baaf87d810d216405850d323173eb4bd8e263ae0",
+        "reviewed_at": "2026-11-13",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/threads-of-fate-recomp/blob/baaf87d810d216405850d323173eb4bd8e263ae0/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.1.3",
+            "artifact_sha256": "22754eeffb5aa0a6742ec679e4b0f9ca81f827a35e7d36869155e292faac311c"
+          },
+          {
+            "upstream_ref": "v0.1.3",
+            "artifact_sha256": "29975320de240e1fafed3f0321116b0704459fa572815ba6805921cc40798cf9"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-threads-of-fate-recomp-bios-source",
+        "port_id": "alexbeav-threads-of-fate-recomp",
+        "role": "bios",
+        "profile_id": "psx-scph-1001-bios",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "legacy-accepted"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-threads-of-fate-recomp-v013-static-contract"
+        ],
+        "authority_ref": "baaf87d810d216405850d323173eb4bd8e263ae0",
+        "reviewed_at": "2026-11-13",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/threads-of-fate-recomp/blob/baaf87d810d216405850d323173eb4bd8e263ae0/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.1.3",
+            "artifact_sha256": "22754eeffb5aa0a6742ec679e4b0f9ca81f827a35e7d36869155e292faac311c"
+          },
+          {
+            "upstream_ref": "v0.1.3",
+            "artifact_sha256": "29975320de240e1fafed3f0321116b0704459fa572815ba6805921cc40798cf9"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-tokyo-highway-battle-recomp-game-source",
+        "port_id": "alexbeav-tokyo-highway-battle-recomp",
+        "role": "game",
+        "profile_id": "alexbeav-tokyo-highway-battle-recomp-usa-psx",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "usa"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-tokyo-highway-battle-recomp-v013-static-contract",
+          "alexbeav-tokyo-highway-battle-recomp-redump-7496"
+        ],
+        "authority_ref": "3a76094ff17b13d70f4d89508b72875af799b7b1",
+        "reviewed_at": "2026-11-13",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/tokyo-highway-battle-recomp/blob/3a76094ff17b13d70f4d89508b72875af799b7b1/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.1.3",
+            "artifact_sha256": "451a1ca9be148f4f3c107098d1d1a90e8ba55a87e494fee15f5e371a2d9e892e"
+          },
+          {
+            "upstream_ref": "v0.1.3",
+            "artifact_sha256": "379b2d7cfbbc58c1b753450c50320f460c953c121140eba89084e2362ca4eeb5"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-tokyo-highway-battle-recomp-bios-source",
+        "port_id": "alexbeav-tokyo-highway-battle-recomp",
+        "role": "bios",
+        "profile_id": "psx-scph-1001-bios",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "legacy-accepted"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-tokyo-highway-battle-recomp-v013-static-contract"
+        ],
+        "authority_ref": "3a76094ff17b13d70f4d89508b72875af799b7b1",
+        "reviewed_at": "2026-11-13",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/tokyo-highway-battle-recomp/blob/3a76094ff17b13d70f4d89508b72875af799b7b1/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.1.3",
+            "artifact_sha256": "451a1ca9be148f4f3c107098d1d1a90e8ba55a87e494fee15f5e371a2d9e892e"
+          },
+          {
+            "upstream_ref": "v0.1.3",
+            "artifact_sha256": "379b2d7cfbbc58c1b753450c50320f460c953c121140eba89084e2362ca4eeb5"
           }
         ],
         "aliases": [],
