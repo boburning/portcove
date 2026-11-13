@@ -821,7 +821,7 @@ export async function runFixedCatalogCoordinatorConfiguration(
         pending ??
         createCatalogReviewRequest({
           before_checkpoint: recovered.checkpoint,
-          requested_at: new Date().toISOString(),
+          requested_at: reviewClaim?.clock ?? new Date().toISOString(),
           opportunity,
           core_inspection: core,
         });
@@ -900,12 +900,14 @@ export async function runFixedCatalogCoordinatorConfiguration(
           throw new Error("catalog negative checkpoint differs");
         next = retirement.input;
       } else {
-        frozen = createCatalogReviewRequest({
-          before_checkpoint: recovered.checkpoint,
-          requested_at: now,
-          opportunity,
-          core_inspection: core,
-        });
+        frozen = reviewClaim
+          ? request
+          : createCatalogReviewRequest({
+              before_checkpoint: recovered.checkpoint,
+              requested_at: now,
+              opportunity,
+              core_inspection: core,
+            });
         if (
           !isRecord(input.controller) ||
           !isRecord(input.controller.capacity_attempt) ||
