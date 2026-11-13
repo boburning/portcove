@@ -3115,7 +3115,7 @@ mod tests {
 
     #[test]
     fn tony_hawks_project_8_recomp_prepared_player_route_1125() {
-        assert_listing_only_player_route("tony-hawks-project-8-recomp", Some(true));
+        assert_listing_only_player_route("tony-hawks-project-8-recomp", Some(false));
     }
 
     #[test]

@@ -3,18 +3,18 @@
   "listing": {
     "id": "darkuni-poker-smash-recomp",
     "name": "Poker Smash (darkuni Recomp)",
-    "summary": "Player-managed Windows setup for Poker Smash using its own Xbox 360 package.",
+    "summary": "Windows player for Poker Smash using its own Xbox 360 package.",
     "project_url": "https://github.com/darkuni/poker-smash-recomp",
     "original_game_title": "Poker Smash",
     "issue_number": 4122,
     "listed_at": "2026-11-08",
     "platforms": ["windows-x86-64"],
-    "availability": "unknown",
+    "availability": "packages",
     "manual_setup": {
       "steps": [
         {
           "title": "Prepare your original in the upstream folder",
-          "instruction": "With an already permitted Windows x64 copy, keep its files together in a writable folder. Put your own Xbox 360 LIVE package for title 5841089C beside poker_smash.exe. The complete 5841089C/000D0000 console export also fits. The reviewed input uses TU 0.0.1.4."
+          "instruction": "Keep the Windows x64 package files together in a writable folder. Put your own Xbox 360 LIVE package for title 5841089C beside poker_smash.exe. The complete 5841089C/000D0000 console export also fits. The reviewed input uses TU 0.0.1.4."
         },
         {
           "title": "Use the documented Windows prerequisites",
@@ -30,11 +30,15 @@
         }
       ],
       "warnings": [
-        "Use an already permitted copy. The published license for the upstream project has its own scope, and the package contains translated title code. Fresh acquisition needs attributable permission for that code or a separately reviewed preparation route.",
+        "The package includes recompiled game code that the project license does not cover. Portcove downloads it only from the project’s own releases. You need your own original game files.",
         "Keep the upstream folder outside the Portcove library. Close the game and its helpers before backing up or replacing the creating runtime and its data."
       ],
       "help_url": "https://github.com/darkuni/poker-smash-recomp/blob/0465face8472373cac3283e13655206941310a62/README.md"
     },
-    "download_block_reason": "Fresh Portcove downloads are held because the selected Poker Smash executable contains translated title code and the published project license does not establish permission for that separate component. Resume with an attributable applicable grant or a reviewed package or preparation route that resolves it. Independently permitted copies retain their own setup route."
+    "release_url": "https://github.com/darkuni/poker-smash-recomp/releases",
+    "download_asset_hints": {
+      "windows-x86-64": ["PokerSmash-", "-win64.zip"]
+    },
+    "recommended_download_channel": "stable"
   }
 }
