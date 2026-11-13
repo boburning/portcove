@@ -789,8 +789,9 @@ export async function* iterateGitHubPages(
     deadline?: number;
     reserve?: GitHubClientOptions["reserve"];
     /** Awaited before each request, including SDK-followed `Link` pages, so a
-     * domain owner can bind scope evidence before its synchronous admission. */
-    prepareRequest?: (url: string) => Promise<void>;
+     * domain owner can bind scope evidence before its synchronous admission. It
+     * may return an equivalent URL to request instead; admission still applies. */
+    prepareRequest?: (url: string) => Promise<string | undefined | void>;
   },
 ) {
   const { composePaginateRest } = await import("@octokit/plugin-paginate-rest");
@@ -804,9 +805,10 @@ export async function* iterateGitHubPages(
         if (seen.has(parameters.url))
           throw new GitHubApiError("invalid_response", "GitHub pagination did not advance");
         seen.add(parameters.url);
-        await options.prepareRequest?.(parameters.url);
+        const url = (await options.prepareRequest?.(parameters.url)) ?? parameters.url;
         const response = await client.request({
           ...parameters,
+          url,
           request: {
             ...(options.signal ? { signal: options.signal } : {}),
             portcove: {
