@@ -281,23 +281,30 @@ export async function selectPrimaryNavigation(
     `//nav[@aria-label="Primary navigation"]//button[.//span[normalize-space(.)="${label}"]]`,
   );
   const renderedDestination = async () => {
+    let rendered: WebElement | undefined;
     for (const candidate of await browser.findElements(locator)) {
       // A wide navigation item can be clipped by document scrolling. Choose its
       // rendered route before clickVisible reveals it; responsive display:none
       // destinations still require the shipping narrow sheet.
-      if (
-        await executeBrowserScript(
-          browser,
-          (element) =>
+      const state = await executeBrowserScript(
+        browser,
+        (element) => ({
+          rendered:
             element.getClientRects().length > 0 &&
             getComputedStyle(element).visibility !== "hidden" &&
             !element.closest("[hidden], [inert]"),
-          candidate,
-        )
-      )
-        return candidate;
+          inSheet: element.closest(".navigation-sheet") !== null,
+        }),
+        candidate,
+      );
+      if (!state.rendered) continue;
+      // Below 42rem the icon rail stays beside the sheet. An open sheet's modal
+      // overlay covers that rail, so its own destination is the one that can be
+      // clicked.
+      if (state.inSheet) return candidate;
+      rendered ??= candidate;
     }
-    return undefined;
+    return rendered;
   };
   await browser.wait(until.elementLocated(By.css('nav[aria-label="Primary navigation"]')), 15_000);
   let destination = await renderedDestination();

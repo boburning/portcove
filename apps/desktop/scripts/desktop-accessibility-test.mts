@@ -132,28 +132,43 @@ export async function accessibleNavigationScenario({
         "command-adopt",
         "Keyboard movement must skip an unavailable command",
       );
+      // Expand the visible copy the way a longer, accented translation would. React
+      // owns these nodes, so only each existing text node's value changes and the
+      // original values are restored right after measuring. Replacing textContent
+      // would swap nodes React holds and crash its next update (insertBefore).
       const expansion = await executeBrowserScript(browser, () => {
         document.documentElement.style.fontSize = "125%";
         const samples = [];
+        const restore: [Text, string][] = [];
         const vowels: Readonly<Record<string, string>> = { a: "á", e: "ë", i: "ï", o: "ö", u: "ü" };
         for (const element of document.querySelectorAll(
           ".palette-command strong, .palette-command small, .palette-footer span",
         )) {
-          const original = element.textContent;
-          if (!original) continue;
-          const expanded =
-            original.replace(
-              /[aeiou]/gi,
-              (letter: string) => vowels[letter.toLowerCase()] ?? letter,
-            ) +
-            " " +
-            "ľ".repeat(Math.max(0, Math.ceil(original.length * 0.35) - 1));
-          element.textContent = expanded;
-          samples.push({
-            original_length: original.length,
-            expanded_length: expanded.length,
-          });
+          const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
+          let originalLength = 0;
+          let expandedLength = 0;
+          for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+            const text = node as Text;
+            const original = text.data;
+            if (!original.trim()) continue;
+            const expanded =
+              original.replace(
+                /[aeiou]/gi,
+                (letter: string) => vowels[letter.toLowerCase()] ?? letter,
+              ) +
+              " " +
+              "ľ".repeat(Math.max(0, Math.ceil(original.length * 0.35) - 1));
+            restore.push([text, original]);
+            text.data = expanded;
+            originalLength += original.length;
+            expandedLength += expanded.length;
+          }
+          if (originalLength > 0)
+            samples.push({ original_length: originalLength, expanded_length: expandedLength });
         }
+        (window as unknown as { restoreExpandedText?: () => void }).restoreExpandedText = () => {
+          for (const [node, original] of restore) node.data = original;
+        };
         return samples;
       });
       await assertCompactReview(browser, ".command-palette");
@@ -182,13 +197,21 @@ export async function accessibleNavigationScenario({
         flag: "wx",
       });
       artifacts.push(screenshot);
-      await search.sendKeys("owned-no-matching-command");
+      await executeBrowserScript(browser, () =>
+        (window as unknown as { restoreExpandedText?: () => void }).restoreExpandedText?.(),
+      );
+      // The palette re-renders while the layout probes run, so the earlier input
+      // reference can be stale. Locate the current search field again.
+      const emptySearch = await browser.findElement(
+        By.css('.command-palette input[aria-label="Search commands"]'),
+      );
+      await emptySearch.sendKeys("owned-no-matching-command");
       await browser.wait(until.elementLocated(By.css(".palette-empty")), 5000);
       assert.equal(
         (await browser.findElements(By.css('.command-palette [role="listbox"]'))).length,
         0,
       );
-      assert.equal(await search.getAttribute("aria-expanded"), "false");
+      assert.equal(await emptySearch.getAttribute("aria-expanded"), "false");
       const emptyAccessibility = await observeAccessibility(browser);
       const emptyReport = path.join(output, "empty-command-search-accessibility.json");
       const serializedEmpty = JSON.stringify(emptyAccessibility, null, 2);
@@ -239,7 +262,22 @@ export async function accessibleNavigationScenario({
       );
       artifacts.push(evidence);
     } catch (error) {
-      failure = { error };
+      // A render crash replaces the page with the app's recovery screen, which
+      // turns every later lookup into "no such element". Keep the original cause.
+      const renderError = await executeBrowserScript(
+        browser,
+        () =>
+          document.querySelector<HTMLTextAreaElement>(".bootstrap-recovery-details textarea")
+            ?.value ?? null,
+      ).catch(() => null);
+      failure = {
+        error: renderError
+          ? new Error(
+              `${errorMessage(error)}; the app showed its render-error screen: ${renderError}`,
+              { cause: error },
+            )
+          : error,
+      };
       const screenshot = path.join(output, "expanded-navigation-failure-before-cleanup.png");
       await browser
         .takeScreenshot()

@@ -134,9 +134,13 @@ export async function controllerScenario({
     // Scope discovery and the resulting focus event may each inspect the modal.
     assert.ok(direction.fixture_container.getClientRects <= 2);
     assert.equal(direction.outside_fixture.getClientRects, 0);
-    assert.equal(direction.fixture_controls.getBoundingClientRect, result.control_count);
+    // Each control is measured once for direction scoring. The focus reveal's
+    // sub-pixel containment check (focus.ts containWithinScroller) adds a constant
+    // two reads per focus move: the revealed control and its scroller.
+    assert(typeof result.control_count === "number");
+    assert.equal(direction.fixture_controls.getBoundingClientRect, result.control_count + 1);
     assert.equal(result.control_count, 1000);
-    assert.equal(direction.fixture_container.getBoundingClientRect, 0);
+    assert.equal(direction.fixture_container.getBoundingClientRect, 1);
   });
 }
 
