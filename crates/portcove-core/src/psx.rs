@@ -2802,8 +2802,10 @@ mod tests {
         fs::remove_dir_all(build.join("overlay_toolchain")).unwrap();
         require_no_fetched_overlay_toolchain(root, &build).unwrap();
         for file in [
-            build.join("overlay_toolchain/compiler.txt"),
-            root.join(".cache/overlay-toolchain/python.zip"),
+            build.join("overlay_toolchain").join("compiler.txt"),
+            root.join(".cache")
+                .join("overlay-toolchain")
+                .join("python.zip"),
         ] {
             fs::create_dir_all(file.parent().unwrap()).unwrap();
             fs::write(&file, b"unverified").unwrap();
