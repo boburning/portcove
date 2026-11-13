@@ -29,6 +29,10 @@ export interface DesiredReconsideration {
   condition: Record<string, unknown> & { source: ReconsiderationSource };
 }
 
+/** Truncates by code point, so a cut never leaves a lone surrogate the database refuses. */
+export const truncateText = (value: string, length: number) =>
+  Array.from(value).slice(0, length).join("");
+
 // Conditions are built here with a fixed key order, so their JSON is stable.
 const sha12 = (value: unknown) =>
   createHash("sha256").update(JSON.stringify(value)).digest("hex").slice(0, 12);
@@ -44,7 +48,7 @@ function desired(
     base: `reconsider.${kind}.${subject}.${sha12({ kind, subject_key, condition })}`,
     subject_key,
     kind,
-    revisit_authority: revisit_authority.slice(0, 500),
+    revisit_authority: truncateText(revisit_authority, 500),
     condition,
   };
 }
@@ -52,21 +56,32 @@ function desired(
 interface IssueReconsiderationFact {
   number?: number;
   state?: string;
-  project?: { archived?: boolean; fields?: Record<string, string> }[];
+  project?: { project_id?: string; archived?: boolean; fields?: Record<string, string> }[];
   reconsideration?: { blocker: string | null; resume_condition: string } | null;
 }
 
-/** Conditions the complete issue and Project inventory records today. */
+/**
+ * Conditions the complete issue inventory records today in the roadmap
+ * Project, the single planning authority; other Projects' fields never count.
+ * Closed issues are returned separately: their pending conditions end as
+ * `issue-closed`, never as a lifted condition.
+ */
 export function issueReconsiderations(
   issues: ReadonlyMap<string, unknown>,
-): DesiredReconsideration[] {
+  roadmapProjectId: string,
+): { conditions: DesiredReconsideration[]; closed: string[] } {
   const result: DesiredReconsideration[] = [];
+  const closed: string[] = [];
   for (const [key, payload] of issues) {
     const fact = payload as IssueReconsiderationFact;
-    if (fact.state !== "OPEN" || typeof fact.number !== "number") continue;
+    if (typeof fact.number !== "number") continue;
+    if (fact.state !== "OPEN") {
+      closed.push(key);
+      continue;
+    }
     const statuses = new Set(
       (fact.project ?? [])
-        .filter(({ archived }) => !archived)
+        .filter(({ archived, project_id }) => !archived && project_id === roadmapProjectId)
         .map(({ fields }) => fields?.Status)
         .filter((status): status is string => typeof status === "string"),
     );
@@ -92,7 +107,7 @@ export function issueReconsiderations(
         }),
       );
   }
-  return result;
+  return { conditions: result, closed };
 }
 
 /** Reviewed acquisition holds Core reports for a fresh library. */
@@ -108,7 +123,7 @@ export function targetReconsiderations(
         "technical_hold",
         key,
         `Reviewed catalog acquisition hold of ${key.replace(/^port:/u, "")}`,
-        { source: "core-target-routes", acquisition_hold: hold.slice(0, 1000) },
+        { source: "core-target-routes", acquisition_hold: truncateText(hold, 1000) },
       ),
     );
   }
@@ -129,7 +144,10 @@ export function reconsiderationSql(input: {
   source: ReconsiderationSource;
   run: string;
   conditions: readonly DesiredReconsideration[];
+  /** Subjects that ended (a closed issue): their pending conditions are withdrawn as `issue-closed`. */
+  closed?: readonly string[];
 }): string[] {
+  const closed = literal(JSON.stringify(input.closed ?? []));
   const rows = JSON.stringify(
     input.conditions.map(({ base, subject_key, kind, revisit_authority, condition }) => ({
       base,
@@ -144,14 +162,16 @@ export function reconsiderationSql(input: {
       FROM jsonb_array_elements(${literal(rows)}::jsonb) d)`;
   return [
     `UPDATE portcove_maintenance.reconsiderations r
-        SET status = CASE WHEN EXISTS (SELECT 1 FROM ${desiredRows} d
+        SET status = CASE WHEN ${closed}::jsonb ? r.subject_key
+                            OR EXISTS (SELECT 1 FROM ${desiredRows} d
                                         WHERE d.subject_key = r.subject_key AND d.kind = r.kind)
                           THEN 'withdrawn' ELSE 'satisfied' END,
             resolved_at = clock_timestamp(),
             resolution = jsonb_build_object(
               'authority', r.revisit_authority,
               'observed_by', ${literal(input.run)},
-              'outcome', CASE WHEN EXISTS (SELECT 1 FROM ${desiredRows} d
+              'outcome', CASE WHEN ${closed}::jsonb ? r.subject_key THEN 'issue-closed'
+                              WHEN EXISTS (SELECT 1 FROM ${desiredRows} d
                                             WHERE d.subject_key = r.subject_key AND d.kind = r.kind)
                               THEN 'condition-changed' ELSE 'condition-lifted' END)
       WHERE r.status = 'pending' AND r.condition ->> 'source' = ${literal(input.source)}

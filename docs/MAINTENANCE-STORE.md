@@ -318,10 +318,11 @@ node scripts/maintenance-inventory.mts collect --cli target/release/portcove --a
     issue-side Project memberships (`RoadmapClient.repositoryIssues`), through a
     read-only request scope.
   - Each issue keeps its state, title, Project placement and field values, archive
-    state, blockers and canonical port markers. Bodies are not stored. When the
-    issue's dependencies section records explicit, substantive `Blocker:` and
-    `Resume condition:` fields (the doctor's shared parser), the issue also keeps
-    them as `reconsideration`; issues without them are unchanged.
+    state, blockers and canonical port markers. Bodies are not stored. When an
+    open issue's dependencies section records explicit, substantive `Blocker:`
+    and `Resume condition:` fields (the doctor's shared parser), the issue also
+    keeps them as `reconsideration`, truncated to 500 characters; other issues
+    are unchanged.
   - Port assessments stay Core-only, so issue activity never creates a false port
     transition. The report links each port to its work through the catalog's
     canonical `issue_number` and the issue's `portcove-catalog-id` marker.
@@ -675,17 +676,22 @@ nothing.
 
 | Kind                   | Owner and source                                                    | Revisit authority                         |
 | ---------------------- | ------------------------------------------------------------------- | ----------------------------------------- |
-| `intentional_deferral` | Open issue whose non-archived Project Status is `Deferred`          | The Project owner of that issue           |
-| `technical_hold`       | Open issue whose non-archived Project Status is `Blocked`           | The Project owner of that issue           |
+| `intentional_deferral` | Open issue whose non-archived roadmap Project Status is `Deferred`  | The Project owner of that issue           |
+| `technical_hold`       | Open issue whose non-archived roadmap Project Status is `Blocked`   | The Project owner of that issue           |
 | `technical_hold`       | A port's reviewed catalog acquisition hold, from Core target routes | The catalog review that recorded the hold |
 
+- Only the configured roadmap Project (`.github/roadmap.json`) counts; the
+  collector resolves its identity read-only on each issue read. Another
+  Project's Status fields never record a hold or deferral, and without the
+  roadmap identity no issue condition changes.
 - The condition records the source, the Project status or hold reason, and the
   issue's explicit blocker and resume condition when recorded (`null` otherwise).
 - A complete read that no longer records a pending condition resolves it under
   its recorded authority, naming the observing run: `satisfied`
   (`condition-lifted`) when the Status or hold is gone, or `withdrawn`
-  (`condition-changed`) when a changed condition replaces it. The store refuses
-  any other authority for a deferral.
+  (`condition-changed`) when a changed condition replaces it. A closed issue's
+  conditions end `withdrawn` (`issue-closed`), never as lifted. The store
+  refuses any other authority for a deferral.
 - Technical viability never resolves a deferral. For each pending deferral, the
   report lists the linked port assessments that changed after it was recorded,
   for its authority to reconsider.

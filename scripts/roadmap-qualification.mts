@@ -215,8 +215,16 @@ export function explicitBlockerFields(
   )
     return null;
   return {
-    blocker: blocker.length === 1 ? blockerFieldText(blocker[0]?.[2] ?? "").slice(0, 500) : null,
-    resume_condition: blockerFieldText(resume[0]?.[2] ?? "").slice(0, 500),
+    blocker:
+      blocker.length === 1
+        ? Array.from(blockerFieldText(blocker[0]?.[2] ?? ""))
+            .slice(0, 500)
+            .join("")
+        : null,
+    // Truncated by code point, so a cut never leaves a lone surrogate.
+    resume_condition: Array.from(blockerFieldText(resume[0]?.[2] ?? ""))
+      .slice(0, 500)
+      .join(""),
   };
 }
 

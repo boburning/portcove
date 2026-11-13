@@ -387,6 +387,8 @@ export interface IssueInventory {
     isArchived: boolean;
     fieldValues: unknown;
   }[];
+  /** The configured roadmap Project's node ID: the only Project whose Status records holds and deferrals. */
+  roadmap_project_id?: string | undefined;
 }
 
 /** Single-select Project field values by field name, as GitHub reports them. */
@@ -435,9 +437,9 @@ export function issueFacts(inventory: IssueInventory) {
             fields: projectFields(fieldValues),
           }))
           .sort((left, right) => (left.project_id < right.project_id ? -1 : 1)),
-        // Present only when the issue records explicit fields, so other issues' facts are unchanged.
+        // Present only on an open issue that records explicit fields, so other issues' facts are unchanged.
         ...(() => {
-          const fields = explicitBlockerFields(issue.body);
+          const fields = issue.state === "OPEN" ? explicitBlockerFields(issue.body) : null;
           return fields ? { reconsideration: fields } : {};
         })(),
       },
@@ -483,7 +485,9 @@ export async function readIssueInventory(credential?: GitHubCredential): Promise
     }),
   );
   const inventory = await client.repositoryIssues({ projectMemberships: true });
+  const roadmap = await client.resolveProject();
   return {
+    roadmap_project_id: roadmap.project.id,
     repository: inventory.repository,
     observed_at: inventory.observed_at,
     total: inventory.evidence.total ?? -1,
@@ -957,6 +961,8 @@ export function collectionSql(input: {
     repository: string;
     observedAt: string;
     facts: ReadonlyMap<string, unknown>;
+    /** The roadmap Project whose Status records holds and deferrals; without it none are derived. */
+    roadmapProjectId?: string | undefined;
     /** The inventory could not be read completely: a failed run, prior facts stay current. */
     failure?: SourceGap;
   };
@@ -1393,12 +1399,13 @@ export function collectionSql(input: {
     const first = [...complete.values()][0];
     if (first) lines.push(...handoffCollectionSql({ retired: true, run: first.run }));
     // Holds and deferrals follow only a complete read of their owning source.
-    if (input.issues && !input.issues.failure)
+    // Without the roadmap Project's identity no Status is attributable, so nothing changes.
+    if (input.issues && !input.issues.failure && input.issues.roadmapProjectId)
       lines.push(
         ...reconsiderationSql({
           source: "issues-project",
           run: issueRun,
-          conditions: issueReconsiderations(input.issues.facts),
+          ...issueReconsiderations(input.issues.facts, input.issues.roadmapProjectId),
         }),
       );
     if (input.targets && !input.targets.failure)
@@ -1624,6 +1631,7 @@ export async function collect(options: {
                   repository: issueRead.value.repository,
                   observedAt: issueRead.value.observed_at,
                   facts: issueFacts(issueRead.value),
+                  roadmapProjectId: issueRead.value.roadmap_project_id,
                 }
               : {
                   repository: "",

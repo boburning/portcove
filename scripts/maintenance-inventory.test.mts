@@ -2467,22 +2467,36 @@ void test("explicit blocker fields are read only when present and substantive", 
   assert.equal(explicitBlockerFields(body("Resume condition: TBD")), null);
   assert.equal(explicitBlockerFields(body("Waiting until upstream ships a player.")), null);
   assert.equal(explicitBlockerFields("no section"), null);
+  // A cut never splits an astral character into a lone surrogate.
+  const long = explicitBlockerFields(body(`Resume condition: ${"a".repeat(499)}🎮 and more text.`));
+  assert.equal(Array.from(long!.resume_condition).length, 500);
+  assert.ok(long!.resume_condition.endsWith("🎮"));
 });
 
 void test("holds and deferrals come only from their owners and episodes stay distinct", () => {
-  const issue = (number: number, status: string, state = "OPEN", archived = false) => [
+  const issue = (
+    number: number,
+    status: string,
+    state = "OPEN",
+    archived = false,
+    project_id = "PVT_roadmap",
+  ) => [
     `issue:${number}`,
-    { number, state, project: [{ archived, fields: { Status: status } }] },
+    { number, state, project: [{ project_id, archived, fields: { Status: status } }] },
   ];
-  const conditions = issueReconsiderations(
+  const { conditions, closed } = issueReconsiderations(
     new Map<string, unknown>([
       issue(1, "Deferred"),
       issue(2, "Blocked"),
       issue(3, "Ready"),
       issue(4, "Deferred", "CLOSED"),
       issue(5, "Deferred", "OPEN", true),
+      // Another Project's Status is not the planning authority.
+      issue(6, "Deferred", "OPEN", false, "PVT_other"),
     ] as [string, unknown][]),
+    "PVT_roadmap",
   );
+  assert.deepEqual(closed, ["issue:4"]);
   assert.deepEqual(
     conditions.map(({ subject_key, kind, revisit_authority }) => [
       subject_key,
@@ -2563,6 +2577,7 @@ void test(
     let status = "Deferred";
     let resume = "Resume condition: The owner reprioritizes native Linux packaging.";
     let issuesFail = false;
+    let issueState = "OPEN";
     let hold: string | null = "Held while upstream launcher updates are reviewed.";
     const issues = () =>
       issuesFail
@@ -2570,13 +2585,14 @@ void test(
         : Promise.resolve({
             repository: "boburning/portcove",
             observed_at: "2026-11-13T00:00:00Z",
+            roadmap_project_id: "P1",
             total: 1,
             issues: [
               {
                 id: "I1",
                 number: 1,
                 title: "Ship",
-                state: "OPEN",
+                state: issueState,
                 body: `<!-- portcove-catalog-id: 2ship2harkinian -->\n\n## Dependencies and blockers\n\nBlocker: Native packaging is deliberately deferred.\n${resume}\n`,
               },
             ],
@@ -2693,6 +2709,21 @@ void test(
         .map(({ status: value, outcome }) => [value, outcome]),
       [["satisfied", "condition-lifted"]],
     );
+    // Closing the issue ends its deferral as closed, never as lifted.
+    issueState = "CLOSED";
+    await run();
+    assert.deepEqual(
+      rows()
+        .filter(({ kind }) => kind === "intentional_deferral")
+        .map(({ status: value, outcome }) => [value, outcome]),
+      [
+        ["satisfied", "condition-lifted"],
+        ["withdrawn", "condition-changed"],
+        ["withdrawn", "issue-closed"],
+      ],
+    );
+    issueState = "OPEN";
+    await run();
     // Only the recorded authority may reconsider a deferral.
     assert.throws(
       () =>
