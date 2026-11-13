@@ -3269,6 +3269,8 @@ mod tests {
         );
         nookery.name = "Animal Crossing — Nookery".into();
         nookery.project_url = "https://github.com/flyngmt/Nookery".into();
+        assert_eq!(nookery.release.repository, "flyngmt/ACGC-PC-Port");
+        nookery.release.repository = "flyngmt/Nookery".into();
         let shipwright = expected_ports
             .iter_mut()
             .find(|port| port.id == "shipwright")

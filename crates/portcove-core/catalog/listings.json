@@ -13035,7 +13035,7 @@
       "id": "banjo-tooie-recompiled-some-scurvy-dog",
       "name": "Banjo-Tooie: Recompiled (some-scurvy-dog)",
       "summary": "Explore Banjo-Tooie: Recompiled (some-scurvy-dog) and follow the upstream project for requirements, downloads and setup.",
-      "project_url": "https://github.com/some-scurvy-dog/BanjoTooieRecompiled",
+      "project_url": "https://github.com/some-scurvy-dog/banjo-tooie-scurvy-dog-port",
       "issue_number": 1395,
       "listed_at": "2026-10-23",
       "availability": "packages",
@@ -34563,7 +34563,7 @@
       "id": "mdk-sdl-nemo22",
       "name": "MDK / SDL engine (nemo22)",
       "summary": "Explore MDK / SDL engine (nemo22) and follow the upstream project for requirements, downloads and setup.",
-      "project_url": "https://github.com/nemo22/mdk-sdl",
+      "project_url": "https://github.com/nautilusbits/mdk-sdl",
       "issue_number": 1775,
       "listed_at": "2026-10-23",
       "availability": "packages",
@@ -56726,12 +56726,12 @@
       "name": "Toy Story 2: Buzz Lightyear to the Rescue! (N64) (SpaceRanger)",
       "summary": "Play the Nintendo 64 version of Toy Story 2 with widescreen rendering and smoother motion.",
       "original_game_title": "Toy Story 2: Buzz Lightyear to the Rescue! (N64)",
-      "project_url": "https://github.com/Capridog/SpaceRanger",
+      "project_url": "https://github.com/woodys-workshop/SpaceRanger",
       "platforms": [
         "windows-x86-64"
       ],
       "availability": "unknown",
-      "setup_url": "https://github.com/Capridog/SpaceRanger",
+      "setup_url": "https://github.com/woodys-workshop/SpaceRanger",
       "issue_number": 2618,
       "listed_at": "2026-10-25",
       "manual_setup": {

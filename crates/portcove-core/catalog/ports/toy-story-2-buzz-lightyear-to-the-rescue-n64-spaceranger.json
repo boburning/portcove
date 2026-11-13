@@ -5,10 +5,10 @@
     "name": "Toy Story 2: Buzz Lightyear to the Rescue! (N64) (SpaceRanger)",
     "summary": "Play the Nintendo 64 version of Toy Story 2 with widescreen rendering and smoother motion.",
     "original_game_title": "Toy Story 2: Buzz Lightyear to the Rescue! (N64)",
-    "project_url": "https://github.com/Capridog/SpaceRanger",
+    "project_url": "https://github.com/woodys-workshop/SpaceRanger",
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/Capridog/SpaceRanger",
+    "setup_url": "https://github.com/woodys-workshop/SpaceRanger",
     "issue_number": 2618,
     "listed_at": "2026-10-25",
     "manual_setup": {
@@ -39,7 +39,49 @@
         "id": "1415549886"
       }
     },
-    "decisions": []
+    "decisions": [
+      {
+        "from": {
+          "project_url": "https://github.com/Capridog/SpaceRanger",
+          "repository": {
+            "host": "github.com",
+            "id": "1415549886"
+          }
+        },
+        "to": {
+          "project_url": "https://github.com/woodys-workshop/SpaceRanger",
+          "repository": {
+            "host": "github.com",
+            "id": "1415549886"
+          }
+        },
+        "relationship": "relocation",
+        "outcome": "accepted",
+        "rationale": "The retained origin already records this repository ID. The v0.1.0 tag still resolves to the exact reviewed source and its Windows ZIP remains asset 633915777 with its retained digest.",
+        "evidence": [
+          {
+            "kind": "supporting",
+            "reference": "https://github.com/woodys-workshop/SpaceRanger/releases/tag/v0.1.0",
+            "note": "The retained origin already records this repository ID. The v0.1.0 tag still resolves to the exact reviewed source and its Windows ZIP remains asset 633915777 with its retained digest."
+          },
+          {
+            "kind": "supporting",
+            "reference": "https://github.com/woodys-workshop/SpaceRanger/commit/0b7b3dd20d75441c40005ee468d375c230d431d0",
+            "note": "The release retains the reviewed project source revision."
+          },
+          {
+            "kind": "context",
+            "reference": "https://api.github.com/repositories/1415549886",
+            "note": "The former GitHub API URL returns HTTP 301 to this numeric endpoint and the canonical repository reports the same ID."
+          }
+        ],
+        "reconsider_when": "Reassess if the canonical repository ID, retained release identity or attributable project continuity changes.",
+        "review": {
+          "reference": "https://github.com/boburning/portcove/issues/4784#issuecomment-6840558886",
+          "decision_sha256": "694b25eb4041e7dbc43906fb7a65662c938872b11e3946e2a626dc3298e27391"
+        }
+      }
+    ]
   },
   "integration": {
     "support_tier": "beta",
