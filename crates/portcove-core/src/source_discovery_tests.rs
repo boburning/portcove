@@ -5126,6 +5126,59 @@ fn the_match_byte_ceiling_also_ends_coverage_as_limited() {
 }
 
 #[test]
+fn one_match_too_large_to_store_is_reported_and_the_scan_goes_on() {
+    let temporary = tempfile::tempdir().unwrap();
+    let root = temporary.path().join("selected");
+    fs::create_dir(&root).unwrap();
+    let payload = b"supported resumable source";
+    for game in 0..3 {
+        fs::write(root.join(format!("game-{game}.z64")), payload).unwrap();
+    }
+    let long = root.join(format!("game-{}.z64", "x".repeat(120)));
+    fs::write(&long, payload).unwrap();
+    let catalog = catalog(payload);
+    let one_off = scan(&catalog, &request(&root)).unwrap();
+    let size = |record: &crate::SourceRecord| serde_json::to_vec(record).unwrap().len();
+    let short = one_off
+        .candidates
+        .iter()
+        .filter(|record| record.path != long)
+        .map(size)
+        .max()
+        .unwrap();
+    let large = one_off
+        .candidates
+        .iter()
+        .filter(|record| record.path == long)
+        .map(size)
+        .min()
+        .unwrap();
+    assert!(short < large);
+    super::set_test_scan_match_limits(super::MAX_SCAN_MATCHES, super::MAX_SCAN_MATCH_BYTES, short);
+    let library = crate::Library::open(temporary.path().join("library")).unwrap();
+    library.add_game_file_root(&root).unwrap();
+    let (snapshot, _) = scan_to_end(&catalog, &library, &SourceDiscoveryLimits::default());
+    let coverage = snapshot.coverage.as_ref().unwrap();
+    assert!(coverage.frontier_exhausted && !coverage.restart_required);
+    assert!(
+        !snapshot
+            .report
+            .limits_reached
+            .contains(&SourceDiscoveryLimit::Candidates)
+    );
+    let kept = paged_exact_matches(&library, 64);
+    assert_eq!(kept.len(), one_off.candidates.len() - 2);
+    assert!(kept.iter().all(|record| record.path != long));
+    let reported = snapshot
+        .report
+        .issues
+        .iter()
+        .filter(|issue| issue.path.as_deref() == Some(long.as_path()))
+        .count();
+    assert_eq!(reported, 2, "{:?}", snapshot.report.issues);
+}
+
+#[test]
 fn a_large_tree_with_few_matches_ends_batches_before_checkpoint_storage_fills() {
     let temporary = tempfile::tempdir().unwrap();
     let root = temporary.path().join("selected");
