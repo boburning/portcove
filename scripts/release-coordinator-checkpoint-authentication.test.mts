@@ -1095,6 +1095,28 @@ void test("v13 withdrawal authenticates only the appointed request and signed ad
       "application",
     ),
   );
+  const retry = {
+    ...source,
+    execution_ref: "refs/tags/portcove-production-controller-windows-20261113-withdraw-29f33f57-r2",
+  };
+  assert.ok(
+    matchesRetainedV13ReviewWithdrawalHandoff(
+      checkpoint,
+      producer,
+      retry,
+      withdrawal,
+      "application",
+    ),
+  );
+  assert.ok(
+    !matchesRetainedV13ReviewWithdrawalHandoff(
+      checkpoint,
+      producer,
+      { ...retry, execution_ref: retry.execution_ref.replace(/r2$/u, "r3") },
+      withdrawal,
+      "application",
+    ),
+  );
   for (const purpose of ["catalog-publication", undefined] as const)
     assert.ok(
       !matchesRetainedV13ReviewWithdrawalHandoff(checkpoint, producer, source, withdrawal, purpose),
