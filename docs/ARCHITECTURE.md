@@ -769,9 +769,10 @@ Opening artwork makes no SteamGridDB request. The webview's content policy block
 remote images, so candidate previews come from Core: it fetches the thumbnail from
 the SteamGridDB CDN without the key (4 MiB, enforced while reading), decodes it with the shared limits and
 returns a small re-encoded PNG. Previews share the bounded remote-image admission used
-by catalog covers. A newer search or game choice supersedes older results, rate limits
-show their retry time with a manual retry, and a failed preview is not refetched while
-its list is shown. The source details credit the artist and link the SteamGridDB image.
+by catalog covers. A newer search or game choice supersedes older results.
+SteamGridDB's retry guidance disables search and retry until it passes and pauses
+further previews; loaded previews and, for five minutes, failed previews are reused
+across picker views. The source details credit the artist and link the SteamGridDB image.
 
 Core owns independent cover/detail choices, copied local originals, deterministic
 generated fallbacks, bounded raster decoding and disposable thumbnails. SQLite

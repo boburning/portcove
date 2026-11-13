@@ -291,7 +291,8 @@ function CandidateButton({
     if (entry?.failedAt !== undefined && now - entry.failedAt < FAILED_PREVIEW_MS) return;
     const live = { current: true };
     if (previewPause.until > now) {
-      rememberPreview(candidate.thumb, { failedAt: now });
+      // A paused preview is not a failure: it is not remembered, so it loads
+      // again once SteamGridDB's retry time has passed.
       void Promise.resolve().then(() => live.current && setFailed(true));
       return () => {
         live.current = false;
