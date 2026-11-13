@@ -41,6 +41,8 @@ pub const MAX_ROOT_SETUPS_PER_PASS: usize = 4;
 pub const MAX_ROOT_SETUP_BASELINE: usize = 200_000;
 /// Enrolled matches a pass plans for folder consent; later passes continue.
 const MAX_ROOT_CANDIDATES_PER_PASS: usize = 32;
+/// Matches a pass looks up in the library, including ones it settles at once.
+const MAX_ROOT_MATCHES_EXAMINED_PER_PASS: usize = 4096;
 /// Files and folder entries a pass reads to check the existing/future
 /// boundary. Matches the library already settles (installed, chosen or
 /// handled games) cost nothing, so they never use up the pass.
@@ -597,6 +599,7 @@ impl PortcoveService {
         let mut started = 0;
         let mut considered = 0;
         let mut reads = 0;
+        let mut examined = 0;
         for consent in consents {
             // An unavailable folder is not deleted content; it simply waits.
             let Some(root) = roots.iter().find(|root| {
@@ -626,6 +629,7 @@ impl PortcoveService {
                     if started >= MAX_ROOT_SETUPS_PER_PASS
                         || considered >= MAX_ROOT_CANDIDATES_PER_PASS
                         || reads >= MAX_ROOT_BOUNDARY_READS_PER_PASS
+                        || examined >= MAX_ROOT_MATCHES_EXAMINED_PER_PASS
                     {
                         return Ok(waiting);
                     }
@@ -633,8 +637,9 @@ impl PortcoveService {
                         continue;
                     }
                     // What the library already settles is decided first and
-                    // costs nothing, so installed or chosen games never starve
-                    // a new file further down the folder.
+                    // costs only a lookup, so installed or chosen games never
+                    // starve a new file further down the folder.
+                    examined += 1;
                     let planned = self.root_candidate(&consent, candidate, busy, handled);
                     if matches!(planned, RootCandidate::Skip) {
                         continue;
@@ -644,9 +649,10 @@ impl PortcoveService {
                     if !self.still_enrolled(&root.id, &root.path, candidate, &mut reads)? {
                         continue;
                     }
-                    considered += 1;
                     let port_id = match planned {
                         RootCandidate::Skip => continue,
+                        // Waiting for the player costs no planning, so it never
+                        // holds back other games in the folder.
                         RootCandidate::Waiting(item) => {
                             if waiting.len() < MAX_ROOT_SETUP_WAITING {
                                 waiting.push(item);
@@ -655,6 +661,7 @@ impl PortcoveService {
                         }
                         RootCandidate::Setup { port_id } => port_id,
                     };
+                    considered += 1;
                     let outcome = match self
                         .root_setup_one(&root.id, &root.path, candidate, &port_id, emit)
                         .await
