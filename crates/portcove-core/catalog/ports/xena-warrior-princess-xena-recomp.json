@@ -63,7 +63,7 @@
     "recommended_download_channel": "stable",
     "original_game_title": "Xena: Warrior Princess"
   },
-  "psx_managed_windows_v1": true,
+  "psx_managed_windows_v1": "split-mods",
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],

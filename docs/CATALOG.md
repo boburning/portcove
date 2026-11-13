@@ -781,7 +781,9 @@ arbitrary historical `bundled` or `installed` folders are not reclassified.
 For a reviewed split layout, declare the exact player paths
 `mods/installed`, `mods/packages`, `mods/.staging`, `mods/state.toml`,
 `mods/state.toml.tmp` and `mods/texture-packs`, where PSXRecomp `7192402` and
-later create HD texture replacements and dumps. The runtime build stages its own `mods/bundled` files
+later create HD texture replacements and dumps. A managed build for such a
+route that leaves any file in `mods/packages` is refused before anything is
+installed, because those files would be collected as player data. The runtime build stages its own `mods/bundled` files
 and any bundled README. Those files belong to the verified runtime version.
 Core carries declared player paths through normal retained collection, restore
 and rollback. Upstream owns any legacy package migration within those paths.

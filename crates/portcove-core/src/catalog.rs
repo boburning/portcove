@@ -6203,10 +6203,19 @@ mod tests {
             for contract in contracts {
                 assert_eq!(contract["admission_mode"], "enforced");
                 assert_eq!(contract["authority_ref"], commit);
-                // Historical release-specific source evidence stays exact;
-                // it does not pin the current provider's reusable selection.
+                // Historical release-specific source evidence stays exact and
+                // first; later reviewed releases are appended after it.
+                let applicability = contract["applicability"].as_array().unwrap();
+                assert!(matches!(applicability.len(), 2 | 4), "{id}");
+                if applicability.len() == 4 {
+                    assert_eq!(
+                        applicability[2]["upstream_ref"],
+                        applicability[3]["upstream_ref"]
+                    );
+                    assert_ne!(applicability[2]["upstream_ref"], version);
+                }
                 assert_eq!(
-                    contract["applicability"],
+                    serde_json::json!(applicability[..2]),
                     serde_json::json!([
                         { "upstream_ref": version, "artifact_sha256": digest },
                         {
@@ -6313,7 +6322,17 @@ mod tests {
                 .collect::<Vec<_>>();
             assert_eq!(contracts.len(), 2);
             for contract in contracts {
-                assert_eq!(contract["applicability"].as_array().unwrap().len(), 2);
+                // The historical pair, optionally followed by one reviewed
+                // successor's Windows and Linux kits.
+                let applicability = contract["applicability"].as_array().unwrap();
+                assert!(matches!(applicability.len(), 2 | 4), "{id}");
+                if applicability.len() == 4 {
+                    assert_eq!(
+                        applicability[2]["upstream_ref"],
+                        applicability[3]["upstream_ref"]
+                    );
+                    assert_ne!(applicability[2]["upstream_ref"], version);
+                }
                 assert_eq!(contract["applicability"][1]["artifact_sha256"], sha256);
                 assert!(
                     contract["evidence_ids"]

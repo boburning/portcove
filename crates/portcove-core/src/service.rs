@@ -3925,6 +3925,11 @@ impl PortcoveService {
             runtime_source_directory,
             toolchain_root,
             executable_basename,
+            split_mod_packages: port
+                .persistent_paths
+                .iter()
+                .any(|path| path == "mods/packages")
+                && !port.persistent_paths.iter().any(|path| path == "mods"),
         }))
     }
 
