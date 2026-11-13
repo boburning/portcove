@@ -6962,7 +6962,7 @@ mod tests {
         let temporary = tempfile::tempdir().unwrap();
         let library = Library::open(temporary.path().join("library")).unwrap();
         let server = Server::new();
-        let openx_files: &[(&str, &[u8])] = match id {
+        let package_files: &[(&str, &[u8])] = match id {
             "star-wars-x-wing-openxw" => &[
                 ("licenses/fixture.txt", b"fixture"),
                 ("resources/fixture.txt", b"fixture"),
@@ -6974,6 +6974,13 @@ mod tests {
                 ("licenses/fixture.txt", b"fixture"),
                 ("resources/fixture.txt", b"fixture"),
                 ("shaders/fixture.txt", b"fixture"),
+            ],
+            "jagged-alliance-2-ja2-stracciatella" => &[
+                ("externalized/fixture.txt", b"fixture"),
+                ("mods/fixture.txt", b"fixture"),
+                ("unittests/fixture.txt", b"fixture"),
+                ("ja2-launcher.exe", b"MZ"),
+                ("ja2-resource-pack.exe", b"MZ"),
             ],
             _ => &[],
         };
@@ -6988,8 +6995,8 @@ mod tests {
                 revision,
                 &folder,
                 executable,
-                openx_files,
-                openx_files.is_empty(),
+                package_files,
+                package_files.is_empty() && id != "gunstar-heroes-gunstars",
             );
             release.asset.name = asset_name.to_string();
             release

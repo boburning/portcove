@@ -79,6 +79,16 @@
       "source_requirements": [],
       "saves_and_settings": "external-user-owned",
       "manual_preparation": "On Play, use the upstream in-process library and original-data picker with your own supported Atlantis: The Lost Tales copy: the edition-matched atlantis.exe and BIGCD1.BIG through BIGCD4.BIG. Keep the complete original tree and supported language/build together; GOG and supported CD editions are alternatives, not interchangeable executables. Upstream can prepare your own discs/images; no game content is downloaded by this engine operation. This offer is Atlantis I only. Normal logs, games.txt, per-build players/checkpoints/settings live under the current account’s AppData/atlantis-native on Windows or XDG data home on Linux; when that location is unavailable the dedicated atlantis-native-data directory is relative to the creating runtime. Core preserves that declared local directory; it does not import or back up the shared external profile or originals. Preserve all actual original/profile roots and the compatible creating engine before changes. Normal start remains in one process; adding a second engine copy does not isolate shared profiles. The Linux x86-64 player requires glibc 2.35 or later and ALSA."
+    },
+    "reviewed_package_layouts": {
+      "windows-x86-64": {
+        "directories": [],
+        "executables": ["atlantis-native.exe"]
+      },
+      "linux-x86-64": {
+        "directories": [],
+        "executables": ["atlantis-native"]
+      }
     }
   }
 }

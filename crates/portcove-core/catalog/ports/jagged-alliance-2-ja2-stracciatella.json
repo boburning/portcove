@@ -77,6 +77,12 @@
       "source_requirements": [],
       "saves_and_settings": "external-user-owned",
       "manual_preparation": "Use your own complete original Jagged Alliance 2 installation and matching localization: Dutch, English, French, German, Italian, Polish, Russian BUKA Agonia Vlasty or Russian Gold. Keep the originals outside this engine package. Run the bundled ja2-launcher.exe upstream once to set JA2 Data Directory and localization, then use normal ja2.exe for Play. Alternatively let ja2.exe create ja2.json, close it, and configure game_dir and the supported localization upstream before Play. Missing configuration is not successful setup. The selected Windows source prefers the existing AppData/JA2 profile; if absent it retains an existing Documents/JA2 profile, otherwise it chooses AppData/JA2. The older README names only Documents/JA2. Preserve the actual selected home, ja2.json, SavedGames, mods and custom save_game_dir overrides; diagnostic logs use the account temporary directory. These external shared locations are not isolated by another engine copy and Core does not back them up, migrate or delete them. Core replaces only the official MSVC x64 portable engine and its packaged assets/dependencies, not the original game or optional original-game data. Keep the complete compatible old runtime and every effective profile/original/custom root before changes. Original SFI code, later contributions and bundled libraries retain distinct terms; public engine downloads do not grant original-game rights. No title, launcher, actual-save or backward-format qualification is claimed."
+    },
+    "reviewed_package_layouts": {
+      "windows-x86-64": {
+        "directories": ["externalized", "mods", "unittests"],
+        "executables": ["ja2-launcher.exe", "ja2-resource-pack.exe", "ja2.exe"]
+      }
     }
   }
 }

@@ -44664,6 +44664,20 @@
           "game_slug": "atlantis-the-lost-tales",
           "match_kind": "underlying-game"
         }
+      },
+      "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [],
+          "executables": [
+            "atlantis-native.exe"
+          ]
+        },
+        "linux-x86-64": {
+          "directories": [],
+          "executables": [
+            "atlantis-native"
+          ]
+        }
       }
     },
     {
@@ -50840,6 +50854,20 @@
           ],
           "help_url": "https://github.com/1nputs/gunstars/blob/bb41264b475c4adbda32d2b8d02fd3f1c4b20bec/README.md"
         }
+      },
+      "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [],
+          "executables": [
+            "gunstar.exe"
+          ]
+        },
+        "linux-x86-64": {
+          "directories": [],
+          "executables": [
+            "gunstar"
+          ]
+        }
       }
     },
     {
@@ -51989,6 +52017,20 @@
           "image_sha256": "109586380e0da3f1864eae530857f25cb828f4c74790171e47d4fe47e7fa129a",
           "game_slug": "jagged-alliance-2",
           "match_kind": "underlying-game"
+        }
+      },
+      "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [
+            "externalized",
+            "mods",
+            "unittests"
+          ],
+          "executables": [
+            "ja2-launcher.exe",
+            "ja2-resource-pack.exe",
+            "ja2.exe"
+          ]
         }
       }
     },
