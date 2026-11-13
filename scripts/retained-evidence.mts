@@ -58,7 +58,9 @@ $sid=[Security.Principal.WindowsIdentity]::GetCurrent().User
 $allowed=@($sid.Value,'S-1-5-18','S-1-5-32-544')
 if($env:PORTCOVE_PRIVATE_EVIDENCE_NEW -eq '1') {
   $acl=[Security.AccessControl.DirectorySecurity]::new()
-  $acl.SetOwner($sid)
+  # Writing the owner needs WRITE_OWNER, which a non-elevated account lacks even
+  # on a directory it already owns. Set it only when the creator is not the owner.
+  if([IO.FileSystemAclExtensions]::GetAccessControl($directory).GetOwner([Security.Principal.SecurityIdentifier]).Value -ne $sid.Value){$acl.SetOwner($sid)}
   $acl.SetAccessRuleProtection($true,$false)
   foreach($principal in $allowed) {
     $rule=[Security.AccessControl.FileSystemAccessRule]::new([Security.Principal.SecurityIdentifier]::new($principal),'FullControl','ContainerInherit,ObjectInherit','None','Allow')
