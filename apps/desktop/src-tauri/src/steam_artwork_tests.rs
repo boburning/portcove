@@ -100,7 +100,7 @@ fn available(bytes: &[u8]) -> SteamArtworkRoleContent {
 
 fn unprovided() -> SteamArtworkRoleContent {
     SteamArtworkRoleContent::Unavailable {
-        reason: DestinationArtworkUnavailableReason::RoleNotProvided,
+        reason: DestinationArtworkUnavailableReason::NoLocalOriginal,
     }
 }
 
@@ -143,7 +143,7 @@ fn update_fills_a_missing_portrait_and_reports_unprovided_roles() {
         assert_eq!(role.action, SteamArtworkRoleAction::Unavailable);
         assert_eq!(
             role.unavailable_reason,
-            Some(DestinationArtworkUnavailableReason::RoleNotProvided)
+            Some(DestinationArtworkUnavailableReason::NoLocalOriginal)
         );
     }
     let result = apply(&plan, &request);
@@ -569,4 +569,44 @@ fn hero_banner_is_published_under_its_own_steam_name() {
         b"portrait"
     );
     assert_eq!(read_ownership(&fixture.config).unwrap().1.len(), 2);
+}
+
+#[test]
+fn landscape_capsule_is_published_under_the_bare_app_id_and_kept_separate() {
+    let fixture = Fixture::new().with_owned_shortcut();
+    // An unowned capsule already present is preserved unless replacement is asked.
+    fs::create_dir_all(fixture.grid()).unwrap();
+    let capsule = fixture.grid().join(format!("{APP_ID}.png"));
+    fs::write(&capsule, b"player capsule").unwrap();
+    let mut request = fixture.update(false, b"portrait");
+    request.roles[1].1 = available(b"landscape capsule");
+    let plan = plan_steam_artwork(&request).unwrap();
+    assert_eq!(plan.roles[1].action, SteamArtworkRoleAction::Preserve);
+    apply(&plan, &request);
+    assert_eq!(fs::read(&capsule).unwrap(), b"player capsule");
+
+    fs::remove_file(&capsule).unwrap();
+    let plan = plan_steam_artwork(&request).unwrap();
+    assert_eq!(plan.roles[1].action, SteamArtworkRoleAction::Write);
+    assert_eq!(plan.roles[1].destination_path.as_ref(), Some(&capsule));
+    apply(&plan, &request);
+    assert_eq!(fs::read(&capsule).unwrap(), b"landscape capsule");
+    assert_eq!(
+        fs::read(fixture.grid().join(format!("{APP_ID}p.png"))).unwrap(),
+        b"portrait"
+    );
+    assert!(!fixture.grid().join(format!("{APP_ID}_hero.png")).exists());
+    let (_, records) = read_ownership(&fixture.config).unwrap();
+    assert!(
+        records
+            .iter()
+            .any(|record| record.file_name == format!("{APP_ID}.png"))
+    );
+
+    // Removing owned art removes the capsule Portcove wrote, and nothing else.
+    let remove = fixture.remove();
+    let plan = plan_steam_artwork(&remove).unwrap();
+    apply(&plan, &remove);
+    assert!(!capsule.exists());
+    assert!(!fixture.config.join(JOURNAL_FILE).exists());
 }

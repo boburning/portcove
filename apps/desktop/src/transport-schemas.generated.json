@@ -3508,11 +3508,20 @@
         ]
       },
       "ArtworkSlot": {
-        "enum": [
-          "cover",
-          "detail"
-        ],
-        "type": "string"
+        "oneOf": [
+          {
+            "enum": [
+              "cover",
+              "detail"
+            ],
+            "type": "string"
+          },
+          {
+            "const": "landscape",
+            "description": "A wide cover, separate from the detail image; Steam's library capsule.",
+            "type": "string"
+          }
+        ]
       },
       "DestinationArtworkRole": {
         "enum": [
@@ -10931,11 +10940,20 @@
         "type": "string"
       },
       "ArtworkSlot": {
-        "enum": [
-          "cover",
-          "detail"
-        ],
-        "type": "string"
+        "oneOf": [
+          {
+            "enum": [
+              "cover",
+              "detail"
+            ],
+            "type": "string"
+          },
+          {
+            "const": "landscape",
+            "description": "A wide cover, separate from the detail image; Steam's library capsule.",
+            "type": "string"
+          }
+        ]
       },
       "DestinationArtworkContent": {
         "oneOf": [
@@ -10977,7 +10995,7 @@
       },
       "DestinationArtworkHandoff": {
         "additionalProperties": false,
-        "description": "An observation, never provider permission, destination ownership or write consent.\nPortrait exposes the validated local cover original; hero banner exposes the\nvalidated local detail original only when it is wider than tall. Catalog\ndefaults and the landscape role remain explicit unavailable states; nothing is\nsynthesized, cropped or resized from another role or cache.",
+        "description": "An observation, never provider permission, destination ownership or write consent.\nPortrait exposes the validated local cover original; hero banner and landscape\ncover expose the validated local detail or landscape original only when it is\nwider than tall. Catalog defaults remain explicit unavailable states; nothing is\nsynthesized, cropped or resized from another role or cache.",
         "properties": {
           "attribution": {
             "description": "Provider credits for the selected local image, shown by a destination that\npresents the image; empty for a purely local import and every other source.",
@@ -11001,8 +11019,8 @@
           },
           "handoff_schema": {
             "format": "uint32",
-            "maximum": 3,
-            "minimum": 3,
+            "maximum": 4,
+            "minimum": 4,
             "type": "integer"
           },
           "library": {
@@ -11113,15 +11131,19 @@
         "oneOf": [
           {
             "enum": [
-              "role_not_provided",
               "no_local_original",
               "selected_original_unavailable"
             ],
             "type": "string"
           },
           {
+            "const": "role_not_provided",
+            "description": "Retired in handoff schema 4: no role reports it, and readers refuse it.",
+            "type": "string"
+          },
+          {
             "const": "selected_image_not_wide",
-            "description": "The selected detail import is not displayed wider than tall (including\nafter its embedded rotation), so it is not offered as a wide role; it is\nnever cropped, rotated or stretched to fit.",
+            "description": "The selected detail or landscape import is not displayed wider than tall\n(including after its embedded rotation), so it is not offered as a wide role; it is\nnever cropped, rotated or stretched to fit.",
             "type": "string"
           }
         ]
@@ -11354,11 +11376,20 @@
         "type": "string"
       },
       "ArtworkSlot": {
-        "enum": [
-          "cover",
-          "detail"
-        ],
-        "type": "string"
+        "oneOf": [
+          {
+            "enum": [
+              "cover",
+              "detail"
+            ],
+            "type": "string"
+          },
+          {
+            "const": "landscape",
+            "description": "A wide cover, separate from the detail image; Steam's library capsule.",
+            "type": "string"
+          }
+        ]
       },
       "DestinationArtworkContent": {
         "oneOf": [
@@ -11474,15 +11505,19 @@
         "oneOf": [
           {
             "enum": [
-              "role_not_provided",
               "no_local_original",
               "selected_original_unavailable"
             ],
             "type": "string"
           },
           {
+            "const": "role_not_provided",
+            "description": "Retired in handoff schema 4: no role reports it, and readers refuse it.",
+            "type": "string"
+          },
+          {
             "const": "selected_image_not_wide",
-            "description": "The selected detail import is not displayed wider than tall (including\nafter its embedded rotation), so it is not offered as a wide role; it is\nnever cropped, rotated or stretched to fit.",
+            "description": "The selected detail or landscape import is not displayed wider than tall\n(including after its embedded rotation), so it is not offered as a wide role; it is\nnever cropped, rotated or stretched to fit.",
             "type": "string"
           }
         ]
@@ -11596,7 +11631,7 @@
     },
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "additionalProperties": false,
-    "description": "An observation, never provider permission, destination ownership or write consent.\nPortrait exposes the validated local cover original; hero banner exposes the\nvalidated local detail original only when it is wider than tall. Catalog\ndefaults and the landscape role remain explicit unavailable states; nothing is\nsynthesized, cropped or resized from another role or cache.",
+    "description": "An observation, never provider permission, destination ownership or write consent.\nPortrait exposes the validated local cover original; hero banner and landscape\ncover expose the validated local detail or landscape original only when it is\nwider than tall. Catalog defaults remain explicit unavailable states; nothing is\nsynthesized, cropped or resized from another role or cache.",
     "properties": {
       "attribution": {
         "description": "Provider credits for the selected local image, shown by a destination that\npresents the image; empty for a purely local import and every other source.",
@@ -11620,8 +11655,8 @@
       },
       "handoff_schema": {
         "format": "uint32",
-        "maximum": 3,
-        "minimum": 3,
+        "maximum": 4,
+        "minimum": 4,
         "type": "integer"
       },
       "library": {
@@ -20337,11 +20372,20 @@
         "type": "object"
       },
       "ArtworkSlot": {
-        "enum": [
-          "cover",
-          "detail"
-        ],
-        "type": "string"
+        "oneOf": [
+          {
+            "enum": [
+              "cover",
+              "detail"
+            ],
+            "type": "string"
+          },
+          {
+            "const": "landscape",
+            "description": "A wide cover, separate from the detail image; Steam's library capsule.",
+            "type": "string"
+          }
+        ]
       },
       "AuthenticatedDefinitionProvenance": {
         "additionalProperties": false,
@@ -20692,7 +20736,7 @@
             "type": "array"
           },
           "library_memberships": {
-            "description": "Explicit add-only Library entries; present only under metadata schema 7 or 8,\nso an older reader refuses the export instead of silently dropping them.",
+            "description": "Explicit add-only Library entries; present only under metadata schema 7 or later,\nso an older reader refuses the export instead of silently dropping them.",
             "items": {
               "$ref": "#/$defs/LibraryMembership"
             },
@@ -21954,11 +21998,20 @@
         "type": "object"
       },
       "ArtworkSlot": {
-        "enum": [
-          "cover",
-          "detail"
-        ],
-        "type": "string"
+        "oneOf": [
+          {
+            "enum": [
+              "cover",
+              "detail"
+            ],
+            "type": "string"
+          },
+          {
+            "const": "landscape",
+            "description": "A wide cover, separate from the detail image; Steam's library capsule.",
+            "type": "string"
+          }
+        ]
       },
       "AuthenticatedDefinitionProvenance": {
         "additionalProperties": false,
@@ -23222,7 +23275,7 @@
         "type": "array"
       },
       "library_memberships": {
-        "description": "Explicit add-only Library entries; present only under metadata schema 7 or 8,\nso an older reader refuses the export instead of silently dropping them.",
+        "description": "Explicit add-only Library entries; present only under metadata schema 7 or later,\nso an older reader refuses the export instead of silently dropping them.",
         "items": {
           "$ref": "#/$defs/LibraryMembership"
         },
@@ -23548,11 +23601,20 @@
         "type": "object"
       },
       "ArtworkSlot": {
-        "enum": [
-          "cover",
-          "detail"
-        ],
-        "type": "string"
+        "oneOf": [
+          {
+            "enum": [
+              "cover",
+              "detail"
+            ],
+            "type": "string"
+          },
+          {
+            "const": "landscape",
+            "description": "A wide cover, separate from the detail image; Steam's library capsule.",
+            "type": "string"
+          }
+        ]
       },
       "AuthenticatedDefinitionProvenance": {
         "additionalProperties": false,
@@ -23903,7 +23965,7 @@
             "type": "array"
           },
           "library_memberships": {
-            "description": "Explicit add-only Library entries; present only under metadata schema 7 or 8,\nso an older reader refuses the export instead of silently dropping them.",
+            "description": "Explicit add-only Library entries; present only under metadata schema 7 or later,\nso an older reader refuses the export instead of silently dropping them.",
             "items": {
               "$ref": "#/$defs/LibraryMembership"
             },

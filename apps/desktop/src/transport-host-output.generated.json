@@ -15233,15 +15233,19 @@
         "oneOf": [
           {
             "enum": [
-              "role_not_provided",
               "no_local_original",
               "selected_original_unavailable"
             ],
             "type": "string"
           },
           {
+            "const": "role_not_provided",
+            "description": "Retired in handoff schema 4: no role reports it, and readers refuse it.",
+            "type": "string"
+          },
+          {
             "const": "selected_image_not_wide",
-            "description": "The selected detail import is not displayed wider than tall (including\nafter its embedded rotation), so it is not offered as a wide role; it is\nnever cropped, rotated or stretched to fit.",
+            "description": "The selected detail or landscape import is not displayed wider than tall\n(including after its embedded rotation), so it is not offered as a wide role; it is\nnever cropped, rotated or stretched to fit.",
             "type": "string"
           }
         ]
@@ -15363,15 +15367,19 @@
         "oneOf": [
           {
             "enum": [
-              "role_not_provided",
               "no_local_original",
               "selected_original_unavailable"
             ],
             "type": "string"
           },
           {
+            "const": "role_not_provided",
+            "description": "Retired in handoff schema 4: no role reports it, and readers refuse it.",
+            "type": "string"
+          },
+          {
             "const": "selected_image_not_wide",
-            "description": "The selected detail import is not displayed wider than tall (including\nafter its embedded rotation), so it is not offered as a wide role; it is\nnever cropped, rotated or stretched to fit.",
+            "description": "The selected detail or landscape import is not displayed wider than tall\n(including after its embedded rotation), so it is not offered as a wide role; it is\nnever cropped, rotated or stretched to fit.",
             "type": "string"
           }
         ]
@@ -15610,15 +15618,19 @@
         "oneOf": [
           {
             "enum": [
-              "role_not_provided",
               "no_local_original",
               "selected_original_unavailable"
             ],
             "type": "string"
           },
           {
+            "const": "role_not_provided",
+            "description": "Retired in handoff schema 4: no role reports it, and readers refuse it.",
+            "type": "string"
+          },
+          {
             "const": "selected_image_not_wide",
-            "description": "The selected detail import is not displayed wider than tall (including\nafter its embedded rotation), so it is not offered as a wide role; it is\nnever cropped, rotated or stretched to fit.",
+            "description": "The selected detail or landscape import is not displayed wider than tall\n(including after its embedded rotation), so it is not offered as a wide role; it is\nnever cropped, rotated or stretched to fit.",
             "type": "string"
           }
         ]
@@ -15893,15 +15905,19 @@
         "oneOf": [
           {
             "enum": [
-              "role_not_provided",
               "no_local_original",
               "selected_original_unavailable"
             ],
             "type": "string"
           },
           {
+            "const": "role_not_provided",
+            "description": "Retired in handoff schema 4: no role reports it, and readers refuse it.",
+            "type": "string"
+          },
+          {
             "const": "selected_image_not_wide",
-            "description": "The selected detail import is not displayed wider than tall (including\nafter its embedded rotation), so it is not offered as a wide role; it is\nnever cropped, rotated or stretched to fit.",
+            "description": "The selected detail or landscape import is not displayed wider than tall\n(including after its embedded rotation), so it is not offered as a wide role; it is\nnever cropped, rotated or stretched to fit.",
             "type": "string"
           }
         ]
@@ -16104,15 +16120,19 @@
         "oneOf": [
           {
             "enum": [
-              "role_not_provided",
               "no_local_original",
               "selected_original_unavailable"
             ],
             "type": "string"
           },
           {
+            "const": "role_not_provided",
+            "description": "Retired in handoff schema 4: no role reports it, and readers refuse it.",
+            "type": "string"
+          },
+          {
             "const": "selected_image_not_wide",
-            "description": "The selected detail import is not displayed wider than tall (including\nafter its embedded rotation), so it is not offered as a wide role; it is\nnever cropped, rotated or stretched to fit.",
+            "description": "The selected detail or landscape import is not displayed wider than tall\n(including after its embedded rotation), so it is not offered as a wide role; it is\nnever cropped, rotated or stretched to fit.",
             "type": "string"
           }
         ]

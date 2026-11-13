@@ -805,7 +805,7 @@ export function installInteractiveTransport(journey: Journey, refuse: (message: 
             (listing) => listing.id === args?.portId,
           )
         ) ||
-        !["cover", "detail"].includes(String(args?.slot))
+        !["cover", "detail", "landscape"].includes(String(args?.slot))
       )
         return unsupported("get_artwork");
       requireArgs("get_artwork", args, { portId: args?.portId, slot: args?.slot, generation });

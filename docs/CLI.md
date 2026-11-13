@@ -381,7 +381,7 @@ The CLI API schema version is independent of the Portcove release version.
 
 `port-capabilities PORT_ID` returns a format-1 read-only feature report for a
 current or retained listing. `capabilities` advertises `port_capability_schema`
-and `listing_formats` independently from API schema 89 and event schema 3.
+and `listing_formats` independently from API schema 90 and event schema 3.
 Clients may ignore these additive descriptive fields; missing reports never
 override operation assessments. Cheap reports on workspace `PortListingStatus` use
 already loaded status/action facts. The focused command additionally reads the
@@ -1307,7 +1307,7 @@ portcove --json artwork unused
 portcove --json --non-interactive artwork remove-unused <asset-sha256> --yes
 ```
 
-Slots are `cover` (default) and `detail`; their selections are independent. Read the
+Slots are `cover` (default), `detail` and `landscape`; their selections are independent. `landscape` is a wide cover, separate from the detail image, that Steam uses as its library capsule; it has no catalog default. Read the
 current choice revision before changing it. Omitted `--expected-revision` captures
 the current revision at command execution; interactive clients should pass their
 reviewed revision so stale selections fail explicitly. Reset increments the
@@ -1333,14 +1333,15 @@ a client. A reviewed catalog cover can resolve
 as the default for a mapped cover slot through the fixed IGDB image CDN path.
 The CLI does not search IGDB through these local-choice commands.
 
-API 67 also advertises optional `artwork_handoff_schema` (currently 2),
+API 67 also advertises optional `artwork_handoff_schema` (currently 4),
 `artwork.handoff` and `artwork.handoff-bytes`. These read-only destination observations export
 semantic role, exact library/port/choice revision, accepted source provenance and
 availability; the bytes route additionally requires the observed library ID,
 revision and asset digest. Validated durable local Cover originals provide
-portrait bytes, and a Detail original displayed wider than tall provides hero-banner
-bytes. Catalog defaults, a non-wide Detail image and the unprovided landscape role
-remain explicitly unavailable, without provider requests or disposable-cache export.
+portrait bytes, a Detail original displayed wider than tall provides hero-banner
+bytes, and a Landscape original displayed wider than tall provides landscape-cover
+bytes. Catalog defaults and a non-wide Detail or Landscape image remain explicitly
+unavailable, without provider requests or disposable-cache export.
 See the [destination contract](INTEGRATION-AUTHOR.md#destination-artwork-handoff)
 for commands, strict schemas, byte validation and destination preview obligations.
 
@@ -1373,7 +1374,7 @@ key or a rejected key is a usage error, and a missing game is not-found. Rate
 limiting reports `retry_after_seconds` when SteamGridDB provides it, and an
 unavailable service is a network error. Malformed responses fail verification.
 `choose` copies one listed image into your library for a port's `cover` (portrait
-images) or `detail` (hero images) slot and returns `artwork_state`. Core looks the image
+images), `detail` (hero images) or `landscape` (wide grid images) slot and returns `artwork_state`. Core looks the image
 up again with your key, downloads it from SteamGridDB's image server without your key,
 and keeps it only if it decodes as a static PNG or JPEG matching its listed type and
 size. The artist credit is stored with the copy and shown in `artwork_state.attribution`

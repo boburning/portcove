@@ -584,9 +584,10 @@ library and game's Portcove ownership marker and reads each role through Core's
 versioned destination handoff; the renderer supplies no bytes, paths or provider
 data. It publishes the selected imported cover original as
 `config/grid/<shortcut AppID>p.png` or `.jpg` and, when the selected detail image
-is displayed wider than tall, that original as `<shortcut AppID>_hero.png` or `.jpg`. The
-landscape role reports unavailable until #527 provides it, a detail image that is
-not wide is reported rather than cropped, and a catalog default or generated
+is displayed wider than tall, that original as `<shortcut AppID>_hero.png` or `.jpg`.
+When the selected landscape image is displayed wider than tall, it publishes that
+original as the library capsule `<shortcut AppID>.png` or `.jpg`. A detail or
+landscape image that is not wide is reported rather than cropped, and a catalog default or generated
 fallback is reported rather than copied. Existing art for a role is preserved by
 default. Replacement requires the explicit **Replace artwork already in Steam**
 choice, accepts exactly one readable existing file and keeps a content-addressed
@@ -631,7 +632,7 @@ naming is an official Valve interface.
 | Portcove writes in the selected profile's `config` folder                                                                                                                                                              | Purpose                                                                                                                      |
 | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
 | `shortcuts.vdf`                                                                                                                                                                                                        | Only entries carrying this library and game's Portcove ownership marker; unrelated entries and unknown fields are preserved. |
-| `grid/<AppID>p.png\|jpg`, `grid/<AppID>_hero.png\|jpg`                                                                                                                                                                 | Portrait and hero art for an owned shortcut, from the selected imported originals.                                           |
+| `grid/<AppID>p.png\|jpg`, `grid/<AppID>_hero.png\|jpg`, `grid/<AppID>.png\|jpg`                                                                                                                                        | Portrait, hero and landscape capsule art for an owned shortcut, from the selected imported originals.                        |
 | `portcove-steam-artwork.json`                                                                                                                                                                                          | Which art files Portcove wrote, so cleanup touches only unchanged Portcove art.                                              |
 | `shortcuts.vdf.portcove-backup-<sha256>`, `portcove-steam-artwork-backup-<sha256>.<ext>`                                                                                                                               | Content-addressed backups of every shortcut file and art file Portcove replaced or removed; Portcove never deletes them.     |
 | `shortcuts.vdf.portcove-lock`                                                                                                                                                                                          | Empty per-profile lock that serializes Portcove shortcut and artwork changes; it stays in place.                             |
@@ -641,8 +642,9 @@ naming is an official Valve interface.
 where `Exe` is the stored quoted CLI path. Steam ROM Manager uses the same value
 for the same grid names (`<id>p`, `<id>`, `<id>_hero`, `<id>_logo`, `<id>_icon`) and
 still reads and writes `shortcuts.vdf` directly through `steam-shortcut-editor`.
-Portcove takes neither project as a dependency. It does not yet write landscape
-art (`<AppID>.<ext>`, unavailable until #527), and it never writes logo, icon or
+Portcove takes neither project as a dependency. It writes the landscape capsule
+`<AppID>.<ext>` only from a wide Landscape image, preserving an existing capsule it
+did not write unless replacement is chosen, and it never writes logo, icon or
 `screenshots.vdf`.
 
 **Supported Steam versions:** none is qualified yet. All evidence so far uses

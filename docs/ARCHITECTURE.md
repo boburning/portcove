@@ -706,7 +706,7 @@ specifies request bounds, version semantics, and independent trust checks.
 
 ## Local artwork ownership
 
-The optional destination-artwork handoff (schema 3) is also Core-owned. Read-only
+The optional destination-artwork handoff (schema 4) is also Core-owned. Read-only
 CLI adapters export exact library/port/revision/asset bindings, accepted provenance
 and explicit static-role availability. Validated durable local Cover originals
 provide portrait bytes and a Detail original displayed wider than tall provides hero-banner
@@ -733,8 +733,8 @@ image; the shared decode refuses animated PNGs. Candidates are proposals with au
 attribution; they establish no game identity or Steam write. No project key exists.
 
 Choosing a SteamGridDB image goes through the same artwork store and ingestion path
-as a local import. Cover takes the portrait role and Detail the hero role; landscape
-has no slot. Core re-lists the game's first candidate page with the player's key and
+as a local import. Cover takes the portrait role, Detail the hero role and Landscape the
+landscape role. Core re-lists the game's first candidate page with the player's key and
 selects the requested image, so a client-supplied URL or author is never trusted, and
 an image that has left that page is reported as no longer listed. The image is then
 fetched from the CDN through a transport method that takes no key, with no redirects,
@@ -754,8 +754,8 @@ provider-first asset is named `steamgriddb-<image-id>.<png|jpg>`. Removing an un
 asset removes its provenance. Library metadata that carries provenance uses schema 8,
 which older readers refuse; a same-user export copies provider originals like every
 other original. `artwork_state` and the handoff expose the credits. Withdrawal
-handling (player-triggered, per the 2026-11-13 owner decision) and the landscape slot
-are later #527 slices. The CLI's `artwork steamgriddb` commands are thin adapters:
+handling (player-triggered, per the 2026-11-13 owner decision) is a later #527
+slice. The CLI's `artwork steamgriddb` commands are thin adapters:
 lookups run on a blocking task, and `choose` runs Core's fetch and ingestion in place
 on a runtime worker thread (`block_in_place`).
 
@@ -774,10 +774,11 @@ SteamGridDB's retry guidance disables search and retry until it passes and pause
 further previews; loaded previews and, for five minutes, failed previews are reused
 across picker views. The source details credit the artist and link the SteamGridDB image.
 
-Core owns independent cover/detail choices, copied local originals, deterministic
+Core owns independent cover, detail and landscape choices, copied local originals, deterministic
 generated fallbacks, bounded raster decoding and disposable thumbnails. SQLite
 schema 24 records assets and monotonic choice revisions; older writers refuse the
-upgraded library. API schema 44 exposes selection and integrity metadata through
+upgraded library. SQLite schema 57 rebuilds `artwork_choices` in place to admit the
+`landscape` slot, keeping every row, revision and constraint. API schema 44 exposes selection and integrity metadata through
 the CLI and Desktop. The schema-49 `artwork_state` object now includes an additive
 core-resolved source and generated-fallback provenance. Catalog and signed-envelope
 formats are unchanged. Local filenames, hashes and import times record local
