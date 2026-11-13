@@ -206,6 +206,11 @@
       "manual_preparation": "In ReflectionHLE, choose a supported game edition and the folder containing its matching original files. Keep originals in their existing location. New saves, configuration and original-location references stay private to this managed runtime. Existing DOS, AppData and other-player profiles remain separate; they are not imported or converted. Preserve the creating runtime with existing progress before older-version use. Runtime rollback does not establish save compatibility."
     },
     "reviewed_package_layouts": {
+      "linux-x86-64": {
+        "ignore_verified_unix_libraries": true,
+        "directories": [],
+        "executables": ["gpl-2.0.txt", "reflectionhle"]
+      },
       "windows-x86-64": {
         "directories": [],
         "executables": ["reflectionhle.exe"]

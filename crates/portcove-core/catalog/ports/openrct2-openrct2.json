@@ -84,6 +84,16 @@
       "linux-x86-64": {
         "directories": ["data", "doc"],
         "executables": ["openrct2", "openrct2-cli"]
+      },
+      "macos-x86-64": {
+        "ignore_verified_unix_libraries": true,
+        "directories": ["contents"],
+        "executables": ["contents/macos/openrct2"]
+      },
+      "macos-aarch64": {
+        "ignore_verified_unix_libraries": true,
+        "directories": ["contents"],
+        "executables": ["contents/macos/openrct2"]
       }
     }
   }

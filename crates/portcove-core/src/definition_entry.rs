@@ -168,17 +168,21 @@ impl DefinitionContentIndex {
             return Err(crate::cartridge_build::retired_creation());
         }
         let adapter = serde_json::to_value(port.adapter)?;
-        if !retained && !port.reviewed_package_layouts.is_empty() {
+        if (!retained && !port.reviewed_package_layouts.is_empty())
+            || crate::package_layout::layout_capability(&port)
+                == crate::package_layout::UNIX_PROGRAMS_CAPABILITY
+        {
+            let minimum = crate::package_layout::layout_capability(&port);
             crate::package_layout::validate(&port)?;
             if port.adapter != crate::AdapterKind::NativePortable
                 || !document.required_capabilities.iter().any(|requirement| {
                     requirement.template == "native-portable"
-                        && requirement.minimum_version >= crate::package_layout::NATIVE_CAPABILITY
+                        && requirement.minimum_version >= minimum
                 })
             {
-                return Err(PortcoveError::verification(
-                    "reviewed package layouts require native-portable capability version 18",
-                ));
+                return Err(PortcoveError::verification(format!(
+                    "reviewed package layouts require native-portable capability version {minimum}",
+                )));
             }
         }
         if crate::native_temp::has_sibling_platforms(&port)

@@ -8,7 +8,7 @@
 use std::{
     collections::BTreeSet,
     fs,
-    io::{self, Read},
+    io::{self, Read, Seek, SeekFrom},
     path::{Path, PathBuf},
 };
 
@@ -20,6 +20,19 @@ const MAXIMUM_REVIEWED_PATHS: usize = 4_096;
 const REPORTED_NAMES: usize = 3;
 pub(crate) const NATIVE_CAPABILITY: u32 = 18;
 pub(crate) const EXECUTABLE_GRANT_CAPABILITY: u32 = 29;
+pub(crate) const UNIX_PROGRAMS_CAPABILITY: u32 = 30;
+
+pub(crate) fn layout_capability(port: &PortDefinition) -> u32 {
+    if port
+        .reviewed_package_layouts
+        .values()
+        .any(|layout| layout.ignore_verified_unix_libraries)
+    {
+        UNIX_PROGRAMS_CAPABILITY
+    } else {
+        NATIVE_CAPABILITY
+    }
+}
 
 pub(crate) fn native_executable_grant_capability(port: &PortDefinition) -> u32 {
     if port
@@ -49,6 +62,28 @@ pub fn inspect_package_archive(
     expected_size: u64,
     expected_sha256: &str,
 ) -> Result<ReviewedPackageLayout> {
+    inspect_package_archive_with_program_filter(
+        source,
+        platform,
+        expected_size,
+        expected_sha256,
+        false,
+    )
+}
+
+/// Inspect a verified archive with the optional Unix program-only layout policy.
+pub fn inspect_package_archive_with_program_filter(
+    source: &Path,
+    platform: Platform,
+    expected_size: u64,
+    expected_sha256: &str,
+    ignore_verified_unix_libraries: bool,
+) -> Result<ReviewedPackageLayout> {
+    if ignore_verified_unix_libraries && platform == Platform::WindowsX86_64 {
+        return Err(PortcoveError::usage(
+            "the Unix program filter requires a Unix platform",
+        ));
+    }
     let name = source
         .file_name()
         .and_then(|name| name.to_str())
@@ -110,7 +145,11 @@ pub fn inspect_package_archive(
             &|| Ok(()),
         )?;
     }
-    let layout = observe(&payload, platform)?;
+    let layout = observe_root(
+        look_through_wrapper(&payload)?,
+        platform,
+        ignore_verified_unix_libraries,
+    )?;
     if !valid_layout(&layout) {
         return Err(PortcoveError::verification(
             "package layout cannot be represented by a bounded reviewed declaration",
@@ -136,7 +175,12 @@ fn valid_layout(layout: &ReviewedPackageLayout) -> bool {
 
 pub(crate) fn validate(port: &PortDefinition) -> Result<()> {
     for (platform, layout) in &port.reviewed_package_layouts {
-        if !port.platforms.contains(platform) || !valid_layout(layout) {
+        if !port.platforms.contains(platform)
+            || (layout.ignore_verified_unix_libraries
+                && (port.adapter != crate::AdapterKind::NativePortable
+                    || *platform == Platform::WindowsX86_64))
+            || !valid_layout(layout)
+        {
             return Err(PortcoveError::verification(format!(
                 "{} has an invalid reviewed package layout for {platform:?}",
                 port.id
@@ -154,19 +198,21 @@ pub(crate) fn require_reviewed_layout(
     let Some(reviewed) = port.reviewed_package_layouts.get(&platform) else {
         return Ok(());
     };
-    let observed = if crate::runtime::native_mac_bundle_tar_xz(port, platform) {
-        observe_root(payload_root.to_path_buf(), platform)?
+    let root = if crate::runtime::native_mac_bundle_tar_xz(port, platform) {
+        payload_root.to_path_buf()
     } else {
-        observe(payload_root, platform)?
+        look_through_wrapper(payload_root)?
     };
+    let observed = observe_root(root, platform, reviewed.ignore_verified_unix_libraries)?;
     match compare(reviewed, &observed) {
         None => Ok(()),
         Some(drift) => Err(PortcoveError::unsupported(drift.player_reason())),
     }
 }
 
-pub(crate) fn observe(root: &Path, platform: Platform) -> Result<ReviewedPackageLayout> {
-    observe_root(look_through_wrapper(root)?, platform)
+#[cfg(test)]
+fn observe(root: &Path, platform: Platform) -> Result<ReviewedPackageLayout> {
+    observe_root(look_through_wrapper(root)?, platform, false)
 }
 
 pub(crate) fn native_mac_bundle_root(
@@ -188,7 +234,11 @@ pub(crate) fn native_mac_bundle_root(
     }
 }
 
-fn observe_root(root: PathBuf, platform: Platform) -> Result<ReviewedPackageLayout> {
+fn observe_root(
+    root: PathBuf,
+    platform: Platform,
+    ignore_verified_unix_libraries: bool,
+) -> Result<ReviewedPackageLayout> {
     let mut directories = BTreeSet::new();
     for entry in fs::read_dir(&root)? {
         let entry = entry?;
@@ -212,7 +262,9 @@ fn observe_root(root: PathBuf, platform: Platform) -> Result<ReviewedPackageLayo
             let relative = format!("{prefix}{}", lowercase_name(&entry.file_name()));
             if file_type.is_dir() {
                 pending.push((entry.path(), format!("{relative}/")));
-            } else if file_type.is_file() && is_executable(&entry, platform)? {
+            } else if file_type.is_file()
+                && is_executable(&entry, platform, ignore_verified_unix_libraries)?
+            {
                 // Location matters: a launcher moved into a subfolder or a second
                 // program with the same name is a different layout.
                 executables.insert(relative);
@@ -220,6 +272,7 @@ fn observe_root(root: PathBuf, platform: Platform) -> Result<ReviewedPackageLayo
         }
     }
     Ok(ReviewedPackageLayout {
+        ignore_verified_unix_libraries,
         directories: directories.into_iter().collect(),
         executables: executables.into_iter().collect(),
     })
@@ -244,7 +297,11 @@ fn lowercase_name(name: &std::ffi::OsStr) -> String {
     name.to_string_lossy().to_ascii_lowercase()
 }
 
-fn is_executable(entry: &fs::DirEntry, platform: Platform) -> Result<bool> {
+fn is_executable(
+    entry: &fs::DirEntry,
+    platform: Platform,
+    ignore_verified_unix_libraries: bool,
+) -> Result<bool> {
     let name = lowercase_name(&entry.file_name());
     let extension = Path::new(&name)
         .extension()
@@ -255,16 +312,141 @@ fn is_executable(entry: &fs::DirEntry, platform: Platform) -> Result<bool> {
     ) {
         return Ok(true);
     }
-    #[cfg(unix)]
+    if platform == Platform::WindowsX86_64 || !crate::permissions::executable_intent(&entry.path())?
     {
-        use std::os::unix::fs::PermissionsExt;
-        // Windows packages extracted on Unix keep no meaningful mode bits.
-        if platform != Platform::WindowsX86_64 {
-            return Ok(entry.metadata()?.permissions().mode() & 0o111 != 0);
+        return Ok(false);
+    }
+    if !ignore_verified_unix_libraries {
+        return Ok(true);
+    }
+    let linux_library_name = name.rsplit_once(".so").is_some_and(|(base, suffix)| {
+        !base.is_empty()
+            && (suffix.is_empty()
+                || suffix.strip_prefix('.').is_some_and(|version| {
+                    version
+                        .split('.')
+                        .all(|part| !part.is_empty() && part.bytes().all(|b| b.is_ascii_digit()))
+                }))
+    });
+    let verified_library = match platform {
+        Platform::LinuxX86_64 if linux_library_name => {
+            let mut file = crate::external_runtime::open_single_link_file(&entry.path())?;
+            is_elf_library(&mut file)?
+        }
+        Platform::MacosX86_64 | Platform::MacosAarch64 if extension == Some("dylib") => {
+            let mut file = crate::external_runtime::open_single_link_file(&entry.path())?;
+            is_macho_library(&mut file)?
+        }
+        _ => false,
+    };
+    Ok(!verified_library)
+}
+
+fn read_header_at<const N: usize>(file: &mut fs::File, offset: u64) -> io::Result<Option<[u8; N]>> {
+    file.seek(SeekFrom::Start(offset))?;
+    let mut bytes = [0; N];
+    match file.read_exact(&mut bytes) {
+        Ok(()) => Ok(Some(bytes)),
+        Err(error) if error.kind() == io::ErrorKind::UnexpectedEof => Ok(None),
+        Err(error) => Err(error),
+    }
+}
+
+fn is_elf_library(file: &mut fs::File) -> io::Result<bool> {
+    let Some(header) = read_header_at::<64>(file, 0)? else {
+        return Ok(false);
+    };
+    if !header.starts_with(b"\x7fELF\x02\x01\x01") || header[16..20] != [3, 0, 62, 0] {
+        return Ok(false);
+    }
+    let word = |bytes: &[u8]| u64::from_le_bytes(bytes.try_into().unwrap());
+    let count = u16::from_le_bytes([header[56], header[57]]);
+    let start = word(&header[32..40]);
+    let length = file.metadata()?.len();
+    if !(1..=64).contains(&count)
+        || header[54..56] != [56, 0]
+        || start < 64
+        || start
+            .checked_add(u64::from(count) * 56)
+            .is_none_or(|end| end > length)
+    {
+        return Ok(false);
+    }
+    let mut dynamic = None;
+    for index in 0..u64::from(count) {
+        let Some(program) = read_header_at::<56>(file, start + index * 56)? else {
+            return Ok(false);
+        };
+        match u32::from_le_bytes(program[..4].try_into().unwrap()) {
+            3 => return Ok(false), // PT_INTERP identifies a program even if renamed.
+            2 if dynamic.is_none() => {
+                dynamic = Some((word(&program[8..16]), word(&program[32..40])))
+            }
+            2 => return Ok(false),
+            _ => {}
         }
     }
-    let _ = platform;
+    let Some((offset, size)) = dynamic else {
+        return Ok(false);
+    };
+    if !(16..=16 * 256).contains(&size)
+        || size % 16 != 0
+        || offset.checked_add(size).is_none_or(|end| end > length)
+    {
+        return Ok(false);
+    }
+    let mut soname = false;
+    for index in 0..size / 16 {
+        let Some(entry) = read_header_at::<16>(file, offset + index * 16)? else {
+            return Ok(false);
+        };
+        match word(&entry[..8]) {
+            0 => return Ok(soname),
+            14 => soname = true, // DT_SONAME describes a shared library.
+            0x6fff_fffb if word(&entry[8..]) & 0x0800_0000 != 0 => return Ok(false), // DF_1_PIE
+            _ => {}
+        }
+    }
     Ok(false)
+}
+
+fn is_macho_library(file: &mut fs::File) -> io::Result<bool> {
+    let Some(header) = read_header_at::<32>(file, 0)? else {
+        return Ok(false);
+    };
+    let dylib = |header: &[u8]| {
+        header.starts_with(&[0xcf, 0xfa, 0xed, 0xfe])
+            && matches!(&header[4..8], [7 | 12, 0, 0, 1])
+            && header[12..16] == [6, 0, 0, 0]
+    };
+    if dylib(&header) {
+        return Ok(true);
+    }
+    if header[..4] != [0xca, 0xfe, 0xba, 0xbe] {
+        return Ok(false);
+    }
+    let count = u64::from(u32::from_be_bytes(header[4..8].try_into().unwrap()));
+    if !(1..=8).contains(&count) {
+        return Ok(false);
+    }
+    let length = file.metadata()?.len();
+    for index in 0..count {
+        let Some(entry) = read_header_at::<20>(file, 8 + index * 20)? else {
+            return Ok(false);
+        };
+        let offset = u64::from(u32::from_be_bytes(entry[8..12].try_into().unwrap()));
+        let size = u64::from(u32::from_be_bytes(entry[12..16].try_into().unwrap()));
+        if offset < 8 + count * 20 || size < 32 || offset + size > length {
+            return Ok(false);
+        }
+        let Some(slice) = read_header_at::<32>(file, offset)? else {
+            return Ok(false);
+        };
+        if !dylib(&slice) || slice[4..8].iter().rev().ne(entry[..4].iter()) {
+            return Ok(false);
+        }
+    }
+    Ok(true)
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -369,6 +551,73 @@ mod tests {
     }
 
     #[test]
+    fn elf_library_requires_soname_without_program_flags() {
+        let temporary = tempfile::tempdir().unwrap();
+        let path = temporary.path().join("libgame.so.1");
+        let mut bytes = [0_u8; 208];
+        bytes[..7].copy_from_slice(b"\x7fELF\x02\x01\x01");
+        bytes[16..20].copy_from_slice(&[3, 0, 62, 0]);
+        bytes[32] = 64;
+        bytes[54] = 56;
+        bytes[56] = 2;
+        bytes[64] = 2;
+        bytes[72] = 176;
+        bytes[96] = 32;
+        bytes[176] = 14;
+        let check = |bytes: &[u8]| {
+            fs::write(&path, bytes).unwrap();
+            is_elf_library(&mut fs::File::open(&path).unwrap()).unwrap()
+        };
+        assert!(check(&bytes));
+        bytes[120] = 3; // PT_INTERP
+        assert!(!check(&bytes));
+        bytes[120] = 0;
+        bytes[176] = 0; // No DT_SONAME.
+        assert!(!check(&bytes));
+        bytes[176] = 14;
+        assert!(!check(&bytes[..200]));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn verified_unix_libraries_may_change_names_but_programs_still_drift() {
+        let package = tempfile::tempdir().unwrap();
+        let root = package.path().to_path_buf();
+        let platform = Platform::MacosAarch64;
+        let mut header = [0_u8; 32];
+        header[..8].copy_from_slice(&[0xcf, 0xfa, 0xed, 0xfe, 12, 0, 0, 1]);
+        let write_program = |name, file_type| {
+            let mut bytes = header;
+            bytes[12] = file_type;
+            let path = root.join(name);
+            fs::write(&path, bytes).unwrap();
+            crate::permissions::normalize_archive_entry(&path, false, true).unwrap();
+        };
+        write_program("Game", 2);
+        write_program("libGame.1.1.dylib", 6);
+        let reviewed = observe_root(root.clone(), platform, true).unwrap();
+        assert_eq!(reviewed.executables, ["game"]);
+        fs::rename(
+            root.join("libGame.1.1.dylib"),
+            root.join("libGame.1.2.dylib"),
+        )
+        .unwrap();
+        assert_eq!(
+            observe_root(root.clone(), platform, true).unwrap(),
+            reviewed
+        );
+        assert_eq!(
+            observe_root(root.clone(), platform, false)
+                .unwrap()
+                .executables,
+            ["game", "libgame.1.2.dylib"]
+        );
+        write_program("Updater.dylib", 2);
+        let drift = compare(&reviewed, &observe_root(root, platform, true).unwrap()).unwrap();
+        assert_eq!(drift.added_executables, ["updater.dylib"]);
+    }
+
+    #[test]
     fn archive_layout_inspection_verifies_bytes_before_staging() {
         use std::io::Write as _;
         let temporary = tempfile::tempdir().unwrap();
@@ -400,6 +649,7 @@ mod tests {
         assert_eq!(
             reviewed(),
             ReviewedPackageLayout {
+                ignore_verified_unix_libraries: false,
                 directories: vec!["data".to_owned(), "lib".to_owned()],
                 executables: vec!["game.exe".to_owned()],
             }

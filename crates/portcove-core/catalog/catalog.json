@@ -45623,6 +45623,14 @@
         }
       },
       "reviewed_package_layouts": {
+        "linux-x86-64": {
+          "ignore_verified_unix_libraries": true,
+          "directories": [],
+          "executables": [
+            "gpl-2.0.txt",
+            "reflectionhle"
+          ]
+        },
         "windows-x86-64": {
           "directories": [],
           "executables": [
@@ -47107,6 +47115,14 @@
         }
       },
       "reviewed_package_layouts": {
+        "linux-x86-64": {
+          "ignore_verified_unix_libraries": true,
+          "directories": [],
+          "executables": [
+            "gpl-2.0.txt",
+            "reflectionhle"
+          ]
+        },
         "windows-x86-64": {
           "directories": [],
           "executables": [
@@ -53146,6 +53162,14 @@
         }
       },
       "reviewed_package_layouts": {
+        "linux-x86-64": {
+          "ignore_verified_unix_libraries": true,
+          "directories": [],
+          "executables": [
+            "gpl-2.0.txt",
+            "reflectionhle"
+          ]
+        },
         "windows-x86-64": {
           "directories": [],
           "executables": [
@@ -56189,6 +56213,24 @@
           "executables": [
             "openrct2",
             "openrct2-cli"
+          ]
+        },
+        "macos-x86-64": {
+          "ignore_verified_unix_libraries": true,
+          "directories": [
+            "contents"
+          ],
+          "executables": [
+            "contents/macos/openrct2"
+          ]
+        },
+        "macos-aarch64": {
+          "ignore_verified_unix_libraries": true,
+          "directories": [
+            "contents"
+          ],
+          "executables": [
+            "contents/macos/openrct2"
           ]
         }
       }
@@ -60032,6 +60074,14 @@
         }
       },
       "reviewed_package_layouts": {
+        "linux-x86-64": {
+          "ignore_verified_unix_libraries": true,
+          "directories": [],
+          "executables": [
+            "gpl-2.0.txt",
+            "reflectionhle"
+          ]
+        },
         "windows-x86-64": {
           "directories": [],
           "executables": [
@@ -61366,6 +61416,14 @@
         }
       },
       "reviewed_package_layouts": {
+        "linux-x86-64": {
+          "ignore_verified_unix_libraries": true,
+          "directories": [],
+          "executables": [
+            "gpl-2.0.txt",
+            "reflectionhle"
+          ]
+        },
         "windows-x86-64": {
           "directories": [],
           "executables": [
@@ -61952,6 +62010,14 @@
         }
       },
       "reviewed_package_layouts": {
+        "linux-x86-64": {
+          "ignore_verified_unix_libraries": true,
+          "directories": [],
+          "executables": [
+            "gpl-2.0.txt",
+            "reflectionhle"
+          ]
+        },
         "windows-x86-64": {
           "directories": [],
           "executables": [
@@ -62276,6 +62342,14 @@
         }
       },
       "reviewed_package_layouts": {
+        "linux-x86-64": {
+          "ignore_verified_unix_libraries": true,
+          "directories": [],
+          "executables": [
+            "gpl-2.0.txt",
+            "reflectionhle"
+          ]
+        },
         "windows-x86-64": {
           "directories": [],
           "executables": [
@@ -62600,6 +62674,14 @@
         }
       },
       "reviewed_package_layouts": {
+        "linux-x86-64": {
+          "ignore_verified_unix_libraries": true,
+          "directories": [],
+          "executables": [
+            "gpl-2.0.txt",
+            "reflectionhle"
+          ]
+        },
         "windows-x86-64": {
           "directories": [],
           "executables": [
@@ -63737,6 +63819,14 @@
         }
       },
       "reviewed_package_layouts": {
+        "linux-x86-64": {
+          "ignore_verified_unix_libraries": true,
+          "directories": [],
+          "executables": [
+            "gpl-2.0.txt",
+            "reflectionhle"
+          ]
+        },
         "windows-x86-64": {
           "directories": [],
           "executables": [

@@ -394,6 +394,7 @@ async fn a_reviewed_layout_admits_compatible_releases_and_holds_drifted_ones() {
     port.reviewed_package_layouts.insert(
         Platform::LinuxX86_64,
         ReviewedPackageLayout {
+            ignore_verified_unix_libraries: false,
             directories: vec![],
             executables: vec!["openxw".to_owned()],
         },

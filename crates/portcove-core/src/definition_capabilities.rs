@@ -286,6 +286,10 @@ impl EngineTemplateCapability {
             template: AdapterKind::NativePortable,
             contract_version: crate::package_layout::EXECUTABLE_GRANT_CAPABILITY,
         });
+        supported.push(Self {
+            template: AdapterKind::NativePortable,
+            contract_version: crate::package_layout::UNIX_PROGRAMS_CAPABILITY,
+        });
         supported
     }
 }
