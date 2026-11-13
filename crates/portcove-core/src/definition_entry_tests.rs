@@ -381,8 +381,13 @@ fn openomf_appimage_requires_27_in_fresh_and_retained_readers() {
 #[test]
 fn native_mac_bundle_tar_xz_requires_version_26_and_reviewed_bundle() {
     let catalog = crate::Catalog::embedded().unwrap();
-    let port = catalog.port("wolfenstein-3d-reflectionhle").unwrap();
-    let mut entry = entry_for_port(port);
+    let mut port = catalog
+        .port("wolfenstein-3d-reflectionhle")
+        .unwrap()
+        .clone();
+    port.reviewed_package_layouts
+        .remove(&crate::Platform::LinuxX86_64);
+    let mut entry = entry_for_port(&port);
     for minimum in [25, 26] {
         entry["required_capabilities"][0]["minimum_version"] = json!(minimum);
         entry["required_capabilities"][0]["maximum_version"] = json!(minimum);

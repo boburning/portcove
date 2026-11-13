@@ -373,11 +373,17 @@ fn is_elf_library(file: &mut fs::File) -> io::Result<bool> {
         return Ok(false);
     }
     let mut dynamic = None;
+    let mut loads = Vec::new();
     for index in 0..u64::from(count) {
         let Some(program) = read_header_at::<56>(file, start + index * 56)? else {
             return Ok(false);
         };
         match u32::from_le_bytes(program[..4].try_into().unwrap()) {
+            1 => loads.push((
+                word(&program[16..24]),
+                word(&program[8..16]),
+                word(&program[32..40]),
+            )),
             3 => return Ok(false), // PT_INTERP identifies a program even if renamed.
             2 if dynamic.is_none() => {
                 dynamic = Some((word(&program[8..16]), word(&program[32..40])))
@@ -395,17 +401,53 @@ fn is_elf_library(file: &mut fs::File) -> io::Result<bool> {
     {
         return Ok(false);
     }
-    let mut soname = false;
+    let mut soname = None;
+    let mut strings = None;
+    let mut strings_size = None;
+    let mut terminated = false;
     for index in 0..size / 16 {
         let Some(entry) = read_header_at::<16>(file, offset + index * 16)? else {
             return Ok(false);
         };
         match word(&entry[..8]) {
-            0 => return Ok(soname),
-            14 => soname = true, // DT_SONAME describes a shared library.
+            0 => {
+                terminated = true;
+                break;
+            }
+            5 => strings = Some(word(&entry[8..])),
+            10 => strings_size = Some(word(&entry[8..])),
+            14 => soname = Some(word(&entry[8..])),
             0x6fff_fffb if word(&entry[8..]) & 0x0800_0000 != 0 => return Ok(false), // DF_1_PIE
             _ => {}
         }
+    }
+    let (true, Some(strings), Some(strings_size), Some(soname)) =
+        (terminated, strings, strings_size, soname)
+    else {
+        return Ok(false);
+    };
+    if soname == 0 || soname >= strings_size {
+        return Ok(false);
+    }
+    for (address, offset, size) in loads {
+        let Some(relative) = strings.checked_sub(address) else {
+            continue;
+        };
+        if relative
+            .checked_add(strings_size)
+            .is_none_or(|end| end > size)
+            || offset.checked_add(size).is_none_or(|end| end > length)
+        {
+            continue;
+        }
+        let count = (strings_size - soname).min(256) as usize;
+        let mut name = [0; 256];
+        file.seek(SeekFrom::Start(offset + relative + soname))?;
+        file.read_exact(&mut name[..count])?;
+        return Ok(name[..count]
+            .iter()
+            .position(|&byte| byte == 0)
+            .is_some_and(|end| end > 0));
     }
     Ok(false)
 }
@@ -420,7 +462,7 @@ fn is_macho_library(file: &mut fs::File) -> io::Result<bool> {
             && header[12..16] == [6, 0, 0, 0]
     };
     if dylib(&header) {
-        return Ok(true);
+        return macho_dylib_id(file, 0, file.metadata()?.len(), &header);
     }
     if header[..4] != [0xca, 0xfe, 0xba, 0xbe] {
         return Ok(false);
@@ -430,23 +472,90 @@ fn is_macho_library(file: &mut fs::File) -> io::Result<bool> {
         return Ok(false);
     }
     let length = file.metadata()?.len();
+    let mut ranges = Vec::new();
+    let mut architectures = BTreeSet::new();
     for index in 0..count {
         let Some(entry) = read_header_at::<20>(file, 8 + index * 20)? else {
             return Ok(false);
         };
         let offset = u64::from(u32::from_be_bytes(entry[8..12].try_into().unwrap()));
         let size = u64::from(u32::from_be_bytes(entry[12..16].try_into().unwrap()));
-        if offset < 8 + count * 20 || size < 32 || offset + size > length {
+        if offset < 8 + count * 20
+            || size < 32
+            || offset + size > length
+            || !architectures.insert(entry[..4].to_vec())
+            || ranges
+                .iter()
+                .any(|&(start, end)| offset < end && start < offset + size)
+        {
             return Ok(false);
         }
         let Some(slice) = read_header_at::<32>(file, offset)? else {
             return Ok(false);
         };
-        if !dylib(&slice) || slice[4..8].iter().rev().ne(entry[..4].iter()) {
+        ranges.push((offset, offset + size));
+        if !dylib(&slice)
+            || slice[4..8].iter().rev().ne(entry[..4].iter())
+            || !macho_dylib_id(file, offset, size, &slice)?
+        {
             return Ok(false);
         }
     }
     Ok(true)
+}
+
+fn macho_dylib_id(
+    file: &mut fs::File,
+    base: u64,
+    size: u64,
+    header: &[u8; 32],
+) -> io::Result<bool> {
+    let word = |bytes: &[u8]| u64::from(u32::from_le_bytes(bytes.try_into().unwrap()));
+    let count = word(&header[16..20]);
+    let end = 32 + word(&header[20..24]);
+    if !(1..=256).contains(&count) || end > size {
+        return Ok(false);
+    }
+    let mut position = 32;
+    let mut has_id = false;
+    for _ in 0..count {
+        if position + 8 > end {
+            return Ok(false);
+        }
+        let Some(command) = read_header_at::<8>(file, base + position)? else {
+            return Ok(false);
+        };
+        let length = word(&command[4..]);
+        if length < 8 || length % 8 != 0 || position + length > end {
+            return Ok(false);
+        }
+        if word(&command[..4]) == 0xd {
+            if has_id || length < 24 {
+                return Ok(false);
+            }
+            let Some(offset) = read_header_at::<4>(file, base + position + 8)? else {
+                return Ok(false);
+            };
+            let offset = word(&offset);
+            if !(24..length).contains(&offset) {
+                return Ok(false);
+            }
+            let count = (length - offset).min(1024) as usize;
+            let mut name = [0; 1024];
+            file.seek(SeekFrom::Start(base + position + offset))?;
+            file.read_exact(&mut name[..count])?;
+            if !name[..count]
+                .iter()
+                .position(|&byte| byte == 0)
+                .is_some_and(|end| end > 0)
+            {
+                return Ok(false);
+            }
+            has_id = true;
+        }
+        position += length;
+    }
+    Ok(has_id && position == end)
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -554,28 +663,36 @@ mod tests {
     fn elf_library_requires_soname_without_program_flags() {
         let temporary = tempfile::tempdir().unwrap();
         let path = temporary.path().join("libgame.so.1");
-        let mut bytes = [0_u8; 208];
+        let mut bytes = [0_u8; 320];
         bytes[..7].copy_from_slice(b"\x7fELF\x02\x01\x01");
         bytes[16..20].copy_from_slice(&[3, 0, 62, 0]);
         bytes[32] = 64;
         bytes[54] = 56;
-        bytes[56] = 2;
+        bytes[56] = 3;
         bytes[64] = 2;
-        bytes[72] = 176;
-        bytes[96] = 32;
-        bytes[176] = 14;
+        bytes[72] = 240;
+        bytes[96] = 64;
+        bytes[120] = 1;
+        bytes[152..160].copy_from_slice(&320_u64.to_le_bytes());
+        bytes[240] = 14;
+        bytes[248] = 1;
+        bytes[256..264].copy_from_slice(&5_u64.to_le_bytes());
+        bytes[264..272].copy_from_slice(&304_u64.to_le_bytes());
+        bytes[272..280].copy_from_slice(&10_u64.to_le_bytes());
+        bytes[280] = 16;
+        bytes[305..317].copy_from_slice(b"libgame.so.1");
         let check = |bytes: &[u8]| {
             fs::write(&path, bytes).unwrap();
             is_elf_library(&mut fs::File::open(&path).unwrap()).unwrap()
         };
         assert!(check(&bytes));
-        bytes[120] = 3; // PT_INTERP
+        bytes[176] = 3; // PT_INTERP
         assert!(!check(&bytes));
-        bytes[120] = 0;
-        bytes[176] = 0; // No DT_SONAME.
+        bytes[176] = 0;
+        bytes[248] = 0; // Empty SONAME.
         assert!(!check(&bytes));
-        bytes[176] = 14;
-        assert!(!check(&bytes[..200]));
+        bytes[248] = 1;
+        assert!(!check(&bytes[..300]));
     }
 
     #[cfg(unix)]
@@ -584,8 +701,14 @@ mod tests {
         let package = tempfile::tempdir().unwrap();
         let root = package.path().to_path_buf();
         let platform = Platform::MacosAarch64;
-        let mut header = [0_u8; 32];
+        let mut header = [0_u8; 72];
         header[..8].copy_from_slice(&[0xcf, 0xfa, 0xed, 0xfe, 12, 0, 0, 1]);
+        header[16] = 1;
+        header[20] = 40;
+        header[32] = 0xd;
+        header[36] = 40;
+        header[40] = 24;
+        header[56..69].copy_from_slice(b"libGame.dylib");
         let write_program = |name, file_type| {
             let mut bytes = header;
             bytes[12] = file_type;
