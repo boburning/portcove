@@ -251,7 +251,8 @@ export async function steamEntryScenario(context: SteamEntryContext) {
     assert.ok(removedPaths.length > 0);
     assert.equal(status(port.id).active, null);
     assert.deepEqual(sources(), sourcesBeforeUninstall);
-    assert.deepEqual(backups(port.id), backupsBeforeUninstall);
+    // Backups survive removal; the protection inventory's installation list does not.
+    assert.deepEqual(backups(port.id).backups, backupsBeforeUninstall.backups);
     assert.deepEqual(await fileIdentity(savedData), savedDataBefore);
     assert.deepEqual(await fileIdentity(shortcuts), added);
     await openCatalogPortAfterRefresh(browser, port, port.name);
@@ -304,7 +305,8 @@ export async function steamEntryScenario(context: SteamEntryContext) {
     assert.equal(absentValue.writes_required, false);
     assert.equal(status(port.id).active, null);
     assert.deepEqual(sources(), sourcesBeforeUninstall);
-    assert.deepEqual(backups(port.id), backupsBeforeUninstall);
+    // Backups survive removal; the protection inventory's installation list does not.
+    assert.deepEqual(backups(port.id).backups, backupsBeforeUninstall.backups);
     assert.deepEqual(await fileIdentity(savedData), savedDataBefore);
     const report = path.join(output, "steam-entry-result.json");
     await writeFile(
