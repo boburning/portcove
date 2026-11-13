@@ -6,8 +6,9 @@
  * Nothing is executed or installed; a finding is evidence for a reviewed hold.
  *
  * Usage: node scripts/release-content-scan.mts scan --listings <listings.json>
- *          --checkpoint <in.json|-> --output <report.json> [--max-assets N]
- *          [--max-asset-bytes N] [--max-total-bytes N]
+ *          --checkpoint <in.json|-> [--checkpoint-out <out.json>] --output <report.json>
+ *          [--max-assets N] [--max-asset-bytes N] [--max-total-bytes N] [--minutes N]
+ *        node scripts/release-content-scan.mts summary|annotations --report <report.json>
  */
 import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
@@ -131,9 +132,15 @@ export const assetKey = (target: ScanTarget, tag: string, asset: ReleaseAsset) =
 
 export interface ScanDependencies {
   releases(target: ScanTarget): Promise<UpstreamRelease[]>;
-  download(asset: ReleaseAsset, file: string, maxBytes: number): Promise<void>;
-  list(file: string, name: string): Promise<PackageEntry[]>;
-  heads(file: string, name: string, entries: PackageEntry[]): Promise<Map<string, Buffer>>;
+  /** `stopAt` is the run's deadline in epoch milliseconds; no call may outlive it. */
+  download(asset: ReleaseAsset, file: string, maxBytes: number, stopAt: number): Promise<void>;
+  list(file: string, name: string, stopAt: number): Promise<PackageEntry[]>;
+  heads(
+    file: string,
+    name: string,
+    entries: PackageEntry[],
+    stopAt: number,
+  ): Promise<Map<string, Buffer>>;
 }
 
 export async function scan(
@@ -198,22 +205,22 @@ export async function scan(
       continue;
     }
     if (asset.size !== null && (asset.size > maxAssetBytes || asset.size > budget)) {
-      skip(`asset ${asset.name} exceeds the byte budget`);
+      skip(`asset ${asset.name} exceeds the byte budget; retried when the budget allows`);
       continue;
     }
     attempts++;
     const dir = await mkdtemp(path.join(os.tmpdir(), "release-scan-"));
     const file = path.join(dir, "package");
     try {
-      await deps.download(asset, file, Math.max(1, Math.min(maxAssetBytes, budget)));
+      await deps.download(asset, file, Math.max(1, Math.min(maxAssetBytes, budget)), deadline);
       const bytes = await readFile(file);
       const sha256 = createHash("sha256").update(bytes).digest("hex");
       if (asset.digest?.startsWith("sha256:") && asset.digest !== `sha256:${sha256}`)
         throw new Error("downloaded bytes differ from the provider's published digest");
-      const entries = await deps.list(file, asset.name);
+      const entries = await deps.list(file, asset.name, deadline);
       const candidates = headCandidates(entries);
       const read = candidates.slice(0, 64);
-      const heads = await deps.heads(file, asset.name, read);
+      const heads = await deps.heads(file, asset.name, read, deadline);
       const record: ScanRecord = {
         key,
         id: target.id,
@@ -257,6 +264,13 @@ const run = (file: string, args: string[], options: RunOptions = {}) =>
     maxBuffer: 64 << 20,
     ...options,
   });
+
+/** A call's timeout: its own cap, never beyond the run's deadline. */
+export function callTimeout(cap: number, stopAt: number, now = Date.now()) {
+  const remaining = stopAt - now;
+  if (remaining <= 0) throw new Error("time budget reached");
+  return Math.min(cap, remaining);
+}
 
 /** Member names a lister could read as an option, list file or wildcard are not opened. */
 export const safeMember = (name: string) => !/^[-@]/.test(name) && !/[*?[\]]/.test(name);
@@ -310,7 +324,7 @@ export const hostedDependencies = (token?: string): ScanDependencies => ({
       })),
     }));
   },
-  async download(asset, file, maxBytes) {
+  async download(asset, file, maxBytes, stopAt) {
     await run(
       "curl",
       [
@@ -325,37 +339,46 @@ export const hostedDependencies = (token?: string): ScanDependencies => ({
         file,
         asset.url,
       ],
-      { timeout: 15 * 60_000 },
+      { timeout: callTimeout(15 * 60_000, stopAt) },
     );
   },
-  async list(file, name) {
+  async list(file, name, stopAt) {
     const lower = name.toLowerCase();
+    const timeout = callTimeout(TOOL_TIMEOUT_MS, stopAt);
     if (lower.endsWith(".appimage")) {
       const offset = await squashfsOffset(file);
-      const { stdout } = await run("unsquashfs", ["-o", String(offset), "-lls", file]);
+      const { stdout } = await run("unsquashfs", ["-o", String(offset), "-lls", file], {
+        timeout,
+      });
       return parseUnsquashfs(String(stdout));
     }
     if (/\.(tar\.gz|tgz|tar\.xz|txz)$/.test(lower)) {
-      const { stdout } = await run("tar", ["-tvf", file]);
+      const { stdout } = await run("tar", ["-tvf", file], { timeout });
       return parseTarVerbose(String(stdout));
     }
     // A dummy password makes encrypted archives fail instead of waiting for input.
-    const { stdout } = await run("7z", ["l", "-ba", "-slt", "-pportcove-scan", "--", file]);
+    const { stdout } = await run("7z", ["l", "-ba", "-slt", "-pportcove-scan", "--", file], {
+      timeout,
+    });
     return parse7zTechnical(String(stdout));
   },
-  async heads(file, name, entries) {
+  async heads(file, name, entries, stopAt) {
     const lower = name.toLowerCase();
     const heads = new Map<string, Buffer>();
     const offset = lower.endsWith(".appimage") ? String(await squashfsOffset(file)) : "";
     for (const entry of entries) {
+      if (Date.now() >= stopAt) break;
       const member = entry.member ?? entry.path;
       if (!safeMember(member)) continue;
       let args: [string, string[]];
-      if (/\.(tar\.gz|tgz|tar\.xz|txz)$/.test(lower)) args = ["tar", ["-xOf", file, "--", member]];
+      // --occurrence=1 stops at the member instead of decompressing the rest of the stream.
+      if (/\.(tar\.gz|tgz|tar\.xz|txz)$/.test(lower))
+        args = ["tar", ["-xOf", file, "--occurrence=1", "--", member]];
       else if (offset) args = ["unsquashfs", ["-o", offset, "-cat", file, member]];
       else args = ["7z", ["e", "-so", "-pportcove-scan", "--", file, member]];
       try {
         const { stdout } = await run(args[0], args[1], {
+          timeout: callTimeout(TOOL_TIMEOUT_MS, stopAt),
           encoding: "buffer",
           maxBuffer: Math.max(entry.size, HEAD_BYTES) + 1024,
         });
@@ -456,6 +479,10 @@ export function summaryMarkdown(report: ScanReport) {
   return `${lines.join("\n")}\n`;
 }
 
+/** Workflow-command data escaping, so upstream names cannot form commands. */
+export const escapeCommand = (text: string) =>
+  text.replaceAll("%", "%25").replaceAll("\r", "%0D").replaceAll("\n", "%0A");
+
 // ---- Command line -----------------------------------------------------------
 
 async function main(argv: string[]) {
@@ -472,13 +499,13 @@ async function main(argv: string[]) {
     const report = JSON.parse(await readFile(option("--report")!, "utf8")) as ScanReport;
     for (const finding of report.findings)
       process.stdout.write(
-        `::warning title=Release content scan::${finding.id} ${finding.tag} ${finding.asset}: ${finding.signals.map((signal) => signal.reason).join("; ")}\n`,
+        `::warning title=Release content scan::${escapeCommand(`${finding.id} ${finding.tag} ${finding.asset}: ${finding.signals.map((signal) => signal.reason).join("; ")}`)}\n`,
       );
     return;
   }
   if (argv[0] !== "scan" || !option("--listings") || !option("--output")) {
     process.stderr.write(
-      "Usage: node scripts/release-content-scan.mts scan --listings <listings.json> --checkpoint <file|-> --output <report.json>\n",
+      "Usage: node scripts/release-content-scan.mts scan --listings <listings.json> --checkpoint <file|-> [--checkpoint-out <file>] --output <report.json> [--max-assets N] [--max-asset-bytes N] [--max-total-bytes N] [--minutes N]\n       node scripts/release-content-scan.mts summary|annotations --report <report.json>\n",
     );
     process.exit(2);
   }
@@ -496,7 +523,13 @@ async function main(argv: string[]) {
       // A missing or unreadable checkpoint scans from scratch.
     }
   }
-  const numeric = (name: string) => (option(name) ? Number(option(name)) : undefined);
+  const numeric = (name: string) => {
+    const value = option(name);
+    if (value === undefined) return undefined;
+    const number = Number(value);
+    if (!Number.isFinite(number) || number <= 0) throw new Error(`${name} needs a positive number`);
+    return number;
+  };
   const { report, checkpoint } = await scan(
     targets,
     previous,
@@ -506,7 +539,7 @@ async function main(argv: string[]) {
       maxAssetBytes: numeric("--max-asset-bytes"),
       maxTotalBytes: numeric("--max-total-bytes"),
       // Leave time to write the report and checkpoint before the job timeout.
-      deadline: Date.now() + (numeric("--minutes") ?? 90) * 60_000,
+      deadline: Date.now() + (numeric("--minutes") ?? 75) * 60_000,
     },
   );
   await writeFile(option("--output")!, `${JSON.stringify(report, null, 2)}\n`);

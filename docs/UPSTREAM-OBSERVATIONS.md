@@ -1036,8 +1036,8 @@ every unheld GitHub or GitLab listing that offers a download, finds the newest
 release in the listing's recommended channel and the single asset each
 platform's hints select, and downloads each asset it has not scanned before.
 `scripts/release-content-scan.mts` lists the package with `7z`, `tar` or
-`unsquashfs` and inspects the first bytes of up to 64 small candidate files,
-decompressing at most 64 MiB of each. Nothing is extracted to run, executed or
+`unsquashfs` and inspects the first bytes of up to 64 candidate files of at
+most 64 MiB each; `tar` stops at the first matching member. Nothing is extracted to run, executed or
 installed. Member names that a lister could read as an option, list file or
 wildcard are never passed to it, every lister call has a hard timeout, and
 encrypted archives fail instead of waiting for a password. A provider-published
@@ -1053,10 +1053,13 @@ is review evidence, so a person confirms it and sets the listing's
 `download_block_reason` in a reviewed change.
 
 Each scanned asset is remembered in a cached checkpoint by rules version,
-provider, repository, tag, name and digest or size, so a successfully scanned
+provider, repository, tag, name and, where the provider gives them, digest or
+size, so a successfully scanned
 release is downloaded once; a rules change rescans. Each run has an asset
 budget that counts every attempt, a byte budget that counts failed transfers
-too, and a 90-minute time budget; the rest is reported as not scanned and
+too, and a 75-minute deadline that also caps every download, listing and
+file read, so a slow package cannot outlast the job; the rest is reported as
+not scanned and
 continues in a later run. Each record notes candidate files it could not read
 or did not reach. The job summary lists findings first, each finding is also a
 workflow warning, and the report artifact keeps every record for 30 days.

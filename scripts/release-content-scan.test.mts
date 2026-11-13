@@ -291,3 +291,11 @@ void test("records carry the rules version and partial reads", async () => {
   }
   assert.equal(report.scanned.find((record) => record.id === "code-only")?.heads_unread, 0);
 });
+
+void test("every external call is capped at the run's deadline", async () => {
+  const { callTimeout, escapeCommand } = await import("./release-content-scan.mts");
+  assert.equal(callTimeout(300_000, 1_000_000, 900_000), 100_000);
+  assert.equal(callTimeout(300_000, Number.POSITIVE_INFINITY, 0), 300_000);
+  assert.throws(() => callTimeout(300_000, 1000, 1000), /time budget reached/);
+  assert.equal(escapeCommand("a%b\r\n::stop-commands::x"), "a%25b%0D%0A::stop-commands::x");
+});

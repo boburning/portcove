@@ -53,7 +53,7 @@ jobs:
             --checkpoint work/release-content-scan/checkpoint.json \
             --checkpoint-out work/release-content-scan/checkpoint.next.json \
             --output work/release-content-scan/report.json \
-            --minutes 90
+            --minutes 75
           mv work/release-content-scan/checkpoint.next.json work/release-content-scan/checkpoint.json
           node scripts/release-content-scan.mts summary \
             --report work/release-content-scan/report.json >> "$GITHUB_STEP_SUMMARY"
