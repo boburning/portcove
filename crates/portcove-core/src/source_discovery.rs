@@ -32,8 +32,8 @@ const MAX_RESUME_CHECKS: u32 = 100_000;
 pub const MAX_SCAN_MATCHES: usize = 100_000;
 /// Safety ceiling for the stored bytes of one saved-folder scan's matches.
 pub const MAX_SCAN_MATCH_BYTES: u64 = 256 * 1024 * 1024;
-/// One stored match record. A larger record reaches the scan ceiling; it is
-/// never silently dropped.
+/// One stored match record. A larger match is skipped with a reported
+/// issue; it is never silently dropped.
 const MAX_SCAN_MATCH_RECORD_BYTES: usize = 256 * 1024;
 /// The snapshot keeps at most this preview of its matches inline.
 const MAX_SCAN_PREVIEW_MATCHES: usize = 512;
@@ -44,6 +44,7 @@ const EMPTY_MATCH_CHAIN: &str = "00000000000000000000000000000000000000000000000
 struct ScanMatchCeiling {
     matches: usize,
     bytes: u64,
+    record: usize,
 }
 
 #[cfg(test)]
@@ -56,7 +57,19 @@ thread_local! {
 /// reach it without 100,000 files.
 #[cfg(test)]
 fn set_test_scan_match_ceiling(matches: usize, bytes: u64) {
-    TEST_SCAN_MATCH_CEILING.with(|ceiling| ceiling.set(Some(ScanMatchCeiling { matches, bytes })));
+    set_test_scan_match_limits(matches, bytes, MAX_SCAN_MATCH_RECORD_BYTES);
+}
+
+/// Also lowers the size of one stored match record for this test thread.
+#[cfg(test)]
+fn set_test_scan_match_limits(matches: usize, bytes: u64, record: usize) {
+    TEST_SCAN_MATCH_CEILING.with(|ceiling| {
+        ceiling.set(Some(ScanMatchCeiling {
+            matches,
+            bytes,
+            record,
+        }))
+    });
 }
 
 fn scan_match_ceiling() -> ScanMatchCeiling {
@@ -67,6 +80,7 @@ fn scan_match_ceiling() -> ScanMatchCeiling {
     ScanMatchCeiling {
         matches: MAX_SCAN_MATCHES,
         bytes: MAX_SCAN_MATCH_BYTES,
+        record: MAX_SCAN_MATCH_RECORD_BYTES,
     }
 }
 
@@ -719,6 +733,8 @@ fn build_game_file_scan_with_registry_events(
         match validated {
             Ok(continuation) => Some(continuation),
             Err(error) if error.code == crate::ErrorCode::Cancelled => return Err(error),
+            // The saved scan stays resumable; nothing is published.
+            Err(error) if error.details.contains_key(RETRY_DETAIL) => return Err(error),
             Err(error) => {
                 let mut invalidated = snapshot.clone();
                 invalidated.continuation = None;
@@ -1282,6 +1298,28 @@ fn validate_continuation(
     Ok(cursor)
 }
 
+/// A busy or locked library database is a passing condition, not evidence
+/// that the stored matches changed, so the continuation is kept for the next
+/// attempt. Any other storage failure still restarts the scan, so a lasting
+/// fault can never block it.
+fn storage_read(error: rusqlite::Error) -> PortcoveError {
+    let busy = matches!(
+        error.sqlite_error_code(),
+        Some(rusqlite::ErrorCode::DatabaseBusy | rusqlite::ErrorCode::DatabaseLocked)
+    );
+    let converted = PortcoveError::from(error);
+    if busy {
+        PortcoveError::state("the library database is busy; scan again to continue")
+            .detail("cause", converted.message)
+            .detail(RETRY_DETAIL, "storage")
+    } else {
+        converted
+    }
+}
+
+/// Marks a validation failure that leaves the continuation in place.
+const RETRY_DETAIL: &str = "retry";
+
 /// The stored rows must be exactly the ones the continuation was published
 /// with: contiguous ordinals per kind, the recorded counts and bytes, and the
 /// chained digest. Anything else restarts the scan; the prior report and its
@@ -1294,22 +1332,26 @@ fn validate_match_rows(
     operation: &crate::OperationCoordinator,
 ) -> Result<()> {
     let connection = library.connection()?;
-    let foreign: i64 = connection.query_row(
-        "SELECT count(*) FROM game_file_scan_matches WHERE scan_id<>?1",
-        [&summary.scan_id],
-        |row| row.get(0),
-    )?;
-    let mut statement = connection.prepare(
-        "SELECT kind,ordinal,profile_id,path,path_key,batch,record_json
+    let foreign: i64 = connection
+        .query_row(
+            "SELECT count(*) FROM game_file_scan_matches WHERE scan_id<>?1",
+            [&summary.scan_id],
+            |row| row.get(0),
+        )
+        .map_err(storage_read)?;
+    let mut statement = connection
+        .prepare(
+            "SELECT kind,ordinal,profile_id,path,path_key,batch,record_json
          FROM game_file_scan_matches WHERE scan_id=?1 ORDER BY kind,ordinal",
-    )?;
-    let mut rows = statement.query([&summary.scan_id])?;
+        )
+        .map_err(storage_read)?;
+    let mut rows = statement.query([&summary.scan_id]).map_err(storage_read)?;
     let mut next = [0u32; 2];
     let mut bytes = 0u64;
     let mut chains = [EMPTY_MATCH_CHAIN.to_owned(), EMPTY_MATCH_CHAIN.to_owned()];
     let mut seen = 0u64;
     let mut valid = foreign == 0;
-    while valid && let Some(row) = rows.next()? {
+    while valid && let Some(row) = rows.next().map_err(storage_read)? {
         if seen.is_multiple_of(1024) {
             operation.checkpoint()?;
         }
@@ -2011,17 +2053,29 @@ impl Discovery<'_> {
         }
     }
 
-    /// The stored size of a new saved-scan match, or `None` when storing it
-    /// would pass the scan's safety ceiling (which then ends the scan).
-    fn admit_match_bytes(&mut self, record: &impl Serialize) -> Result<Option<u64>> {
+    /// The stored size of a new saved-scan match, or `None` when it is not
+    /// kept. One match too large to store is reported and skipped, so the
+    /// scan goes on; passing the scan's safety ceiling ends the scan.
+    fn admit_match_bytes(
+        &mut self,
+        record: &impl Serialize,
+        path: &Path,
+        profile_id: &str,
+    ) -> Result<Option<u64>> {
         if !self.resumable() {
             return Ok(Some(0));
         }
         let size = serde_json::to_vec(record)?.len();
+        if size > scan_match_ceiling().record {
+            self.issue(
+                Some(path.to_path_buf()),
+                Some(profile_id.to_owned()),
+                "This match's details are too large for a saved scan. Select the file directly to use it.".to_owned(),
+            );
+            return Ok(None);
+        }
         let prior = self.prior_matches.as_ref().map_or(0, |prior| prior.bytes);
-        if size > MAX_SCAN_MATCH_RECORD_BYTES
-            || prior + self.batch_match_bytes + size as u64 > scan_match_ceiling().bytes
-        {
+        if prior + self.batch_match_bytes + size as u64 > scan_match_ceiling().bytes {
             self.match_bytes_exhausted = true;
             self.candidates_exhausted();
             return Ok(None);
@@ -2119,7 +2173,9 @@ impl Discovery<'_> {
             self.candidates_exhausted();
             return Ok(());
         }
-        let Some(bytes) = self.admit_match_bytes(&candidate)? else {
+        let Some(bytes) =
+            self.admit_match_bytes(&candidate, &candidate.path, &candidate.profile_id)?
+        else {
             return Ok(());
         };
         let operation = self
@@ -2165,7 +2221,9 @@ impl Discovery<'_> {
             self.candidates_exhausted();
             return Ok(());
         }
-        let Some(bytes) = self.admit_match_bytes(&inspection)? else {
+        let Some(bytes) =
+            self.admit_match_bytes(&inspection, &inspection.path, &inspection.profile_id)?
+        else {
             return Ok(());
         };
         self.batch_match_bytes += bytes;

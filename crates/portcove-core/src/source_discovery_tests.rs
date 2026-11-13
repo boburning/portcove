@@ -5126,6 +5126,61 @@ fn the_match_byte_ceiling_also_ends_coverage_as_limited() {
 }
 
 #[test]
+fn one_match_too_large_to_store_is_reported_and_the_scan_goes_on() {
+    let temporary = tempfile::tempdir().unwrap();
+    let root = temporary.path().join("selected");
+    fs::create_dir(&root).unwrap();
+    let payload = b"supported resumable source";
+    for game in 0..3 {
+        fs::write(root.join(format!("game-{game}.z64")), payload).unwrap();
+    }
+    let long = root.join(format!("game-{}.z64", "x".repeat(120)));
+    fs::write(&long, payload).unwrap();
+    let catalog = catalog(payload);
+    let one_off = scan(&catalog, &request(&root)).unwrap();
+    let size = |record: &crate::SourceRecord| serde_json::to_vec(record).unwrap().len();
+    // Scans report canonical paths (`\\?\` on Windows), so compare file names.
+    let is_long = |path: &Path| path.file_name() == long.file_name();
+    let short = one_off
+        .candidates
+        .iter()
+        .filter(|record| !is_long(&record.path))
+        .map(size)
+        .max()
+        .unwrap();
+    let large = one_off
+        .candidates
+        .iter()
+        .filter(|record| is_long(&record.path))
+        .map(size)
+        .min()
+        .unwrap();
+    assert!(short < large);
+    super::set_test_scan_match_limits(super::MAX_SCAN_MATCHES, super::MAX_SCAN_MATCH_BYTES, short);
+    let library = crate::Library::open(temporary.path().join("library")).unwrap();
+    library.add_game_file_root(&root).unwrap();
+    let (snapshot, _) = scan_to_end(&catalog, &library, &SourceDiscoveryLimits::default());
+    let coverage = snapshot.coverage.as_ref().unwrap();
+    assert!(coverage.frontier_exhausted && !coverage.restart_required);
+    assert!(
+        !snapshot
+            .report
+            .limits_reached
+            .contains(&SourceDiscoveryLimit::Candidates)
+    );
+    let kept = paged_exact_matches(&library, 64);
+    assert_eq!(kept.len(), one_off.candidates.len() - 2);
+    assert!(kept.iter().all(|record| !is_long(&record.path)));
+    let reported = snapshot
+        .report
+        .issues
+        .iter()
+        .filter(|issue| issue.path.as_deref().is_some_and(is_long))
+        .count();
+    assert_eq!(reported, 2, "{:?}", snapshot.report.issues);
+}
+
+#[test]
 fn a_large_tree_with_few_matches_ends_batches_before_checkpoint_storage_fills() {
     let temporary = tempfile::tempdir().unwrap();
     let root = temporary.path().join("selected");
@@ -6740,4 +6795,31 @@ fn scan_matches_are_paged_in_order_by_folder_and_refuse_a_replaced_scan() {
         query(0, 10, None, Some(&scan_id)).unwrap_err().code,
         ErrorCode::Conflict
     );
+}
+
+#[test]
+fn a_busy_database_keeps_a_continuation_but_other_storage_faults_restart() {
+    let failure = |code: rusqlite::ffi::ErrorCode, extended: i32| {
+        rusqlite::Error::SqliteFailure(
+            rusqlite::ffi::Error {
+                code,
+                extended_code: extended,
+            },
+            None,
+        )
+    };
+    for (code, extended) in [
+        (rusqlite::ffi::ErrorCode::DatabaseBusy, 5),
+        (rusqlite::ffi::ErrorCode::DatabaseLocked, 6),
+    ] {
+        let error = super::storage_read(failure(code, extended));
+        assert_eq!(
+            error.details.get(super::RETRY_DETAIL).map(String::as_str),
+            Some("storage")
+        );
+    }
+    let corrupt = super::storage_read(failure(rusqlite::ffi::ErrorCode::DatabaseCorrupt, 11));
+    assert!(!corrupt.details.contains_key(super::RETRY_DETAIL));
+    let missing = super::storage_read(rusqlite::Error::QueryReturnedNoRows);
+    assert!(!missing.details.contains_key(super::RETRY_DETAIL));
 }
