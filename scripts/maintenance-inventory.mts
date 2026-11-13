@@ -304,6 +304,9 @@ interface Route {
   features: Feature[];
 }
 
+/** Bump when `capabilityResult` changes how a Core report becomes a state or explanation. */
+export const capabilityProjectionVersion = 1;
+
 /** Project Core's report without reinterpreting it: routes, features, modes and Core's own words. */
 export function capabilityResult(observation: CapabilityObservation) {
   if (!observation.ok)
@@ -568,10 +571,23 @@ export interface TargetRoutesFact {
  * exactly the collected ports. Core decides every route; this only keys the
  * result by `port:<id>` and keeps Core's own unknowns.
  */
-export async function readTargetRoutes(cli: string, ids: readonly string[]) {
+/** The producing Core's build identity, as Core reports it. */
+export interface CoreProducer {
+  source_revision: string | null;
+  features: string[];
+  embedded_catalog_sha256: string;
+  embedded_listings_sha256: string;
+  catalog_override: boolean;
+}
+
+export async function readTargetRoutes(
+  cli: string,
+  ids: readonly string[],
+): Promise<{ facts: Map<string, TargetRoutesFact>; producer: CoreProducer | null }> {
   const requested = [...new Set(ids)];
   const wanted = new Set(requested);
   const facts = new Map<string, TargetRoutesFact>();
+  let producer: CoreProducer | null = null;
   // Bounded batches keep every command line far below Windows' 32,767-character limit.
   for (let start = 0; start < requested.length; start += targetBatchSize) {
     const batch = requested.slice(start, start + targetBatchSize);
@@ -580,11 +596,24 @@ export async function readTargetRoutes(cli: string, ids: readonly string[]) {
       "inspect-targets",
       ...batch.flatMap((id) => ["--port", id]),
     ]);
-    const data = envelope.data as { format_version?: unknown; ports?: unknown } | undefined;
+    const data = envelope.data as
+      | { format_version?: unknown; ports?: unknown; producer?: unknown }
+      | undefined;
     if (!envelope.ok || data?.format_version !== 1 || !Array.isArray(data.ports))
       throw new MaintenanceStoreError(
         "Core target inspection is unavailable or uses an unsupported format",
       );
+    // One binary answers every batch; an older Core reports no producer. A recorded
+    // revision that is not a Git object ID is treated as unrecorded.
+    if (isCoreProducer(data.producer))
+      producer = {
+        ...data.producer,
+        source_revision:
+          data.producer.source_revision !== null &&
+          /^[0-9a-f]{40}(?:[0-9a-f]{24})?$/u.test(data.producer.source_revision)
+            ? data.producer.source_revision
+            : null,
+      };
     for (const entry of data.ports as unknown[]) {
       const { port_id, ...fact } = (entry ?? {}) as { port_id?: unknown };
       if (typeof port_id !== "string" || !wanted.has(port_id) || facts.has(`port:${port_id}`))
@@ -600,7 +629,22 @@ export async function readTargetRoutes(cli: string, ids: readonly string[]) {
   }
   if (facts.size !== wanted.size)
     throw new MaintenanceStoreError("Core target inspection did not cover every collected port");
-  return facts;
+  return { facts, producer };
+}
+
+function isCoreProducer(value: unknown): value is CoreProducer {
+  const producer = value as Partial<CoreProducer> | null;
+  return (
+    !!producer &&
+    (producer.source_revision === null || typeof producer.source_revision === "string") &&
+    Array.isArray(producer.features) &&
+    producer.features.every((feature) => typeof feature === "string") &&
+    typeof producer.embedded_catalog_sha256 === "string" &&
+    /^[0-9a-f]{64}$/u.test(producer.embedded_catalog_sha256) &&
+    typeof producer.embedded_listings_sha256 === "string" &&
+    /^[0-9a-f]{64}$/u.test(producer.embedded_listings_sha256) &&
+    typeof producer.catalog_override === "boolean"
+  );
 }
 
 /** Ports per Core call: at most ~200 short IDs, far below any platform's command-line limit. */
@@ -770,6 +814,14 @@ export function collectionSql(input: {
     targets?: ReadonlyMap<string, string>;
   };
   /**
+   * The producing Core's build identity. With it, assessments bind the source
+   * revision, compiled catalog and features, and the host assessment's source
+   * binding is verified only when that revision is the collected checkout.
+   */
+  producer?: CoreProducer | null;
+  /** Whether Core's sources (crates, Cargo manifest and lock) were clean in the checkout. */
+  coreSourceClean?: boolean;
+  /**
    * The latest finished run of each source when `latest` was read. The store
    * refuses the transaction if any of them changed, so the diff stays exact.
    */
@@ -811,8 +863,26 @@ export function collectionSql(input: {
   const coreSource = coreSourceName(input.platform);
   const catalogRun = `catalog-records:${input.revision.slice(0, 12)}:${token}`;
   const coreRun = `${coreSource}:${input.cliSha256.slice(0, 12)}:${token}`;
-  const coreRevision = `cli-sha256:${input.cliSha256}`;
-  const policy = `port-capabilities;api=${input.apiSchema};cli-sha256=${input.cliSha256}`;
+  // The binary and its recorded source bind through the verifying run's revision.
+  // The policy names only this projection of Core's report: the assessment input is
+  // Core's own output, so any change in Core behavior is a new input and a new
+  // assessment, while a rebuild with identical behavior writes no new rows.
+  // Verified only for a clean checkout's own revision, the compiled catalog and no
+  // behavior-changing features; otherwise the build's claim stays a claim. The run
+  // carries it, so the verifying run states it even when no observation changed.
+  const sourceBinding =
+    input.producer?.source_revision === input.revision &&
+    input.coreSourceClean === true &&
+    !input.producer.catalog_override &&
+    input.producer.features.length === 0
+      ? "verified"
+      : "unverified";
+  const coreRevision = `cli-sha256:${input.cliSha256}${
+    input.producer
+      ? `;source=${input.producer.source_revision ?? "unrecorded"};producer-sha256=${sha256(canonicalJson(input.producer)).slice(0, 16)};binding=${sourceBinding}`
+      : ""
+  }`;
+  const policy = `port-capabilities;api=${input.apiSchema};projection=${capabilityProjectionVersion}`;
   const lines = [
     // Freshness checks below must see runs committed while this transaction waited
     // for its locks, whatever the server or role default isolation is.
@@ -887,7 +957,7 @@ export function collectionSql(input: {
         source: coreSource,
         host_platform: input.platform,
         isolation: isolationScope,
-        cli_source_binding: "unverified",
+        cli_source_binding: sourceBinding,
       },
       revision: coreRevision,
       payload: capabilityFact,
@@ -1278,7 +1348,10 @@ export async function collect(options: {
   /** With `all`, also collect Core's per-target route offering for the collected ports. */
   targets?:
     | boolean
-    | ((cli: string, ids: readonly string[]) => Promise<ReadonlyMap<string, unknown>>)
+    | ((
+        cli: string,
+        ids: readonly string[],
+      ) => Promise<{ facts: ReadonlyMap<string, unknown>; producer: CoreProducer | null }>)
     | undefined;
   /** With `all`, also collect the latest scheduled release-health report. */
   releaseHealth?: (() => Promise<ReleaseHealthInput>) | undefined;
@@ -1310,6 +1383,8 @@ export async function collect(options: {
       "portcove capabilities are unavailable or use an unsupported port capability schema",
     );
   const apiSchema = capabilities.schema_version;
+  const coreSourceClean =
+    git(["status", "--porcelain", "--", "crates", "Cargo.toml", "Cargo.lock"]).trim() === "";
   const platform = options.platform ?? hostPlatform();
   if (!/^[a-z0-9]+(-[a-z0-9]+)*$/u.test(platform))
     throw new MaintenanceStoreError("Invalid platform label");
@@ -1408,10 +1483,11 @@ export async function collect(options: {
         : {}),
       ...(upstream ? { upstream } : {}),
       ...(hostedIntake ? { hostedIntake } : {}),
+      ...(targetsRead?.ok ? { producer: targetsRead.value.producer, coreSourceClean } : {}),
       ...(targetsRead
         ? {
             targets: targetsRead.ok
-              ? { facts: targetsRead.value, expected: targetsRead.value.size }
+              ? { facts: targetsRead.value.facts, expected: targetsRead.value.facts.size }
               : {
                   facts: new Map(),
                   expected: 0,
@@ -1638,6 +1714,9 @@ SELECT json_build_object(
         -- Last material transition, separate from the latest applicable assessment and verification.
         c.updated_at AS changed_at, c.updated_at, c.assessment_id AS transition_assessment_id,
         c.applicable_assessment_id AS assessment_id, c.verified_at, c.verified_run_id,
+        -- The binary, source and binding of the run that last verified this subject.
+        (SELECT r.source_revision FROM portcove_maintenance.collection_runs r
+          WHERE r.run_id = c.verified_run_id) AS verified_by,
         (SELECT json_agg(json_build_object('sequence', t.sequence, 'state', t.state, 'recorded_at', t.recorded_at,
                  'returns_to_earlier_result', t.returns_to_earlier_result) ORDER BY t.sequence)
            FROM portcove_maintenance.subject_transitions t WHERE t.subject_key = c.subject_key) AS history,

@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
 import {
   chmodSync,
   existsSync,
@@ -336,6 +337,7 @@ function stubCli(root: string) {
   } else if (args.includes("inspect-targets")) {
     const ids = args.flatMap((value, index) => (args[index - 1] === "--port" ? [value] : []));
     reply({ ok: true, error: null, data: { format_version: 1, scope: "fixture", platforms: ["linux-x86-64"],
+      producer: responses.producer ?? { source_revision: null, features: [], embedded_catalog_sha256: "c".repeat(64), embedded_listings_sha256: "e".repeat(64), catalog_override: false },
       ports: ids.map((id) => ({ port_id: id, presence: responses["targets:" + id] ?? "operational",
         declared_platforms: ["linux-x86-64"], acquisition_hold: null, download_restriction: null,
         targets: (responses["targets:" + id] ?? "operational") === "operational" ? [{ platform: "linux-x86-64",
@@ -1786,12 +1788,24 @@ void test(
     assert.ok(newInput.verified_at > first.verified_at);
     assert.deepEqual([newInput.transitions, newInput.notifications], [1, 0]);
 
-    // Same result, new policy (another Core binary): the same, without churn.
+    // A rebuilt Core binary with identical behavior writes no new assessment: the same
+    // projection of the same Core output is the same assessment, now verified by the
+    // new binary's run, which records its digest.
+    const assessmentsBefore = runSql(
+      store.owner,
+      "SELECT count(*) FROM portcove_maintenance.assessments;",
+    ).trim();
     writeFileSync(cli, `${readFileSync(cli, "utf8")}\n// rebuilt\n`);
     await all();
     const newPolicy = current();
-    assert.notEqual(newPolicy.policy, newInput.policy);
-    assert.notEqual(newPolicy.applicable, newInput.applicable);
+    assert.equal(newPolicy.policy, newInput.policy);
+    assert.equal(newPolicy.applicable, newInput.applicable);
+    assert.notEqual(newPolicy.verified_run, newInput.verified_run);
+    assert.equal(
+      runSql(store.owner, "SELECT count(*) FROM portcove_maintenance.assessments;").trim(),
+      assessmentsBefore,
+      "a rebuild with identical behavior adds no rows",
+    );
     assert.deepEqual(
       [newPolicy.sequence, newPolicy.transitions, newPolicy.notifications],
       [1, 1, 0],
@@ -2099,8 +2113,8 @@ void test(
     );
     assert.match(
       runs[0]!.revision,
-      /^cli-sha256:[0-9a-f]{64}$/u,
-      "bound to the assessing Core binary",
+      /^cli-sha256:[0-9a-f]{64};source=unrecorded;producer-sha256=[0-9a-f]{16};binding=unverified$/u,
+      "bound to the assessing Core binary, with its unrecorded source visible",
     );
     const inventory = buildReport(store.owner);
     const ship = (inventory.subjects as { port_key: string; target_routes: unknown }[]).find(
@@ -2121,6 +2135,101 @@ void test(
       }),
       "not found; no route offered",
     );
+    // The producing Core's identity binds every assessment's policy, quietly.
+    const head = execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim();
+    writeFileSync(
+      responses,
+      JSON.stringify({
+        "2ship2harkinian": report("automatic"),
+        "targets:not-a-catalog-port": "not_found",
+        producer: {
+          source_revision: head,
+          features: [],
+          embedded_catalog_sha256: "d".repeat(64),
+          embedded_listings_sha256: "e".repeat(64),
+          catalog_override: false,
+        },
+      }),
+    );
+    const transitions = () =>
+      runSql(store.owner, "SELECT count(*) FROM portcove_maintenance.subject_transitions;").trim();
+    const transitionsBefore = transitions();
+    await all(true);
+    assert.match(
+      runSql(
+        store.owner,
+        `SELECT a.policy_version FROM portcove_maintenance.subject_current c
+           JOIN portcove_maintenance.assessments a ON a.assessment_id = c.applicable_assessment_id
+          WHERE c.subject_key LIKE 'port:2ship2harkinian@%';`,
+      ).trim(),
+      /^port-capabilities;api=[0-9]+;projection=[0-9]+$/u,
+      "the policy names the projection, never the binary or its build",
+    );
+    assert.match(
+      runSql(
+        store.owner,
+        `SELECT source_revision FROM portcove_maintenance.collection_runs
+          WHERE run_id = portcove_maintenance.latest_run('core-port-capabilities-${hostPlatform()}');`,
+      ).trim(),
+      new RegExp(
+        `^cli-sha256:[0-9a-f]{64};source=${head};producer-sha256=[0-9a-f]{16};binding=(verified|unverified)$`,
+        "u",
+      ),
+    );
+    assert.equal(transitions(), transitionsBefore, "a new binding is not a material change");
+    // The source binding is verified only for a clean checkout's own revision, the
+    // compiled catalog and no behavior-changing features. A new Core payload stores
+    // a new observation, which carries the binding.
+    const clean =
+      execFileSync("git", ["status", "--porcelain", "--", "crates", "Cargo.toml", "Cargo.lock"], {
+        encoding: "utf8",
+      }).trim() === "";
+    const binding = async (producer: Record<string, unknown>, variant: string) => {
+      writeFileSync(
+        responses,
+        JSON.stringify({
+          "2ship2harkinian": { ...report("automatic"), port_id: variant },
+          "targets:not-a-catalog-port": "not_found",
+          producer: {
+            source_revision: head,
+            features: [],
+            embedded_catalog_sha256: "d".repeat(64),
+            embedded_listings_sha256: "e".repeat(64),
+            catalog_override: false,
+            ...producer,
+          },
+        }),
+      );
+      await all(true);
+      const row = runSql(
+        store.owner,
+        `SELECT json_build_object('binding', o.scope ->> 'cli_source_binding', 'revision', o.input_revision)
+             FROM portcove_maintenance.observations o
+            WHERE o.run_id = portcove_maintenance.latest_run('core-port-capabilities-${hostPlatform()}')
+              AND o.subject_key = 'port:2ship2harkinian';`,
+      ).trim();
+      return (row ? JSON.parse(row) : null) as { binding: string; revision: string } | null;
+    };
+    assert.equal((await binding({}, "a"))?.binding, clean ? "verified" : "unverified");
+    // The same output from a different build writes no observation; the verifying
+    // run still states that build's binding, and the report shows it.
+    await binding({ features: ["qualification-fixtures"] }, "a");
+    const verifiedBy = (
+      buildReport(store.owner).subjects as { port_key: string; verified_by: string }[]
+    ).find(({ port_key }) => port_key === "port:2ship2harkinian")?.verified_by;
+    assert.match(verifiedBy ?? "", /;binding=unverified$/u);
+    assert.equal((await binding({ catalog_override: true }, "b"))?.binding, "unverified");
+    assert.equal(
+      (await binding({ features: ["qualification-fixtures"] }, "c"))?.binding,
+      "unverified",
+    );
+    const malformed = await binding({ source_revision: "x".repeat(150) }, "d");
+    assert.equal(malformed?.binding, "unverified");
+    assert.match(
+      malformed?.revision ?? "",
+      /;source=unrecorded;producer-sha256=[0-9a-f]{16};binding=unverified$/u,
+      "an invalid revision is never stored",
+    );
     // A failed inspection is its own failed run; the earlier facts stay current.
     const failed = await all(() => Promise.reject(new Error("inspection refused")));
     assert.deepEqual(failed.failed_sources, ["core-target-routes"]);
@@ -2138,8 +2247,15 @@ void test("target routes are read in bounded batches and malformed entries are r
   const { cli, responses } = stubCli(root);
   const ids = Array.from({ length: 450 }, (_, index) => `port-${index}`);
   writeFileSync(responses, JSON.stringify({}));
-  const facts = await readTargetRoutes(cli, [...ids, ids[0]!]);
+  const { facts, producer } = await readTargetRoutes(cli, [...ids, ids[0]!]);
   assert.equal(facts.size, 450, "every requested port once, across three Core calls");
+  assert.deepEqual(producer, {
+    source_revision: null,
+    features: [],
+    embedded_catalog_sha256: "c".repeat(64),
+    embedded_listings_sha256: "e".repeat(64),
+    catalog_override: false,
+  });
   const calls = readFileSync(path.join(root, "isolation.log"), "utf8").trim().split("\n");
   assert.equal(calls.length, 3);
   writeFileSync(responses, JSON.stringify({ "targets:port-7": 5 }));

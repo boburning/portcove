@@ -265,10 +265,13 @@ node scripts/maintenance-inventory.mts report --output work/maintenance-report/2
 - Each source records a collection run. Its coverage is relative to the
   declared sample.
   The catalog observation is bound to the commit. The Core observation is bound
-  to the CLI binary SHA-256, the host platform and the isolation scope. The
-  binary's build source is not proven, so its binding is labelled `unverified`.
-  The assessment's policy version is the CLI API schema plus binary digest. Its
-  input digest covers both observations and the host platform. Everything is
+  to the CLI binary SHA-256, the host platform and the isolation scope. Each
+  Core run's revision records the binary digest and, with `--targets`, the
+  build's recorded source and its `verified` or `unverified` binding ([Core
+  target routes](#core-target-routes)). Without `--targets` no source is
+  recorded and the binding stays `unverified`. The assessment's policy version
+  is `port-capabilities;api=<n>;projection=<n>`. Its input digest covers both
+  observations and the host platform. Everything is
   written in one transaction with the collector role, with
   `standard_conforming_strings` pinned for quoting. A repeated pass with
   identical inputs adds no transition. A Git failure stops the collection; only
@@ -541,6 +544,33 @@ node scripts/maintenance-inventory.mts collect --cli target/release/portcove --a
   acquisition hold, download restriction, and per target platform whether the
   managed install and the external registration are offered to a fresh library,
   with Core's reason. The facts are stored changes-only as `port:<id>`.
+- **Producer binding:** the inspection names the producing Core: the source
+  revision its build recorded, compiled features, the compiled catalog and
+  listings digests, and whether a qualification override replaced the catalog.
+  The Core run's revision records the binary, the source, a short producer
+  digest and the binding
+  (`cli-sha256:<digest>;source=<revision|unrecorded>;producer-sha256=<16>;binding=<verified|unverified>`).
+  The report shows it for each subject as `verified_by`.
+  Each subject's current verification names that run, so every assessment is
+  bound to the exact binary and build that last verified it. A recorded
+  revision that is not a Git object ID is stored as `unrecorded`.
+  - The assessment policy names only how a Core report becomes a state
+    (`port-capabilities;api=<n>;projection=<n>`). The assessment input is Core's
+    own output, so any change in Core behavior is a new input and a new
+    assessment. A rebuild with identical behavior writes no rows: the hosted
+    store measured 1,441 rows per rebuild when the binary digest was in the
+    policy.
+  - A host assessment's `cli_source_binding` is `verified` only when the
+    recorded revision is the collected checkout, that checkout's Core sources
+    (`crates`, `Cargo.toml`, `Cargo.lock`) are clean, no catalog override is
+    active, and no behavior-changing feature is compiled in. It records that the
+    build claims the clean checked-out source; it does not rebuild to prove it.
+    The `cli-sha256` digest still pins the exact binary.
+  - The hosted workflow builds Core with `PORTCOVE_SOURCE_REVISION` set to the
+    run's commit, in the same job and checkout that collects.
+  - A new binding with an unchanged result refreshes current provenance quietly.
+    If the target inspection fails, that run's policy carries no producer, and
+    provenance reads as unbound until the next successful read.
 - **Unknowns:** definition trust eligibility and readiness stay Core's
   `unknown`. Collecting on one host never relabels that host's own assessment as
   another platform's offering. Platforms Core does not represent, such as
@@ -932,7 +962,9 @@ retained snapshot.
 stub Core CLI, using the collector and report roles. It checks:
 
 - repeated-pass convergence and A to B to A history;
-- quiet provenance refresh for the same result under new inputs and new policy,
+- quiet provenance refresh for the same result under new inputs, a rebuilt Core
+  binary that adds no assessment rows, and a verifying run that states its own
+  source binding,
   refusal of an older collection that finishes after a newer one, ticket rather
   than clock order, replayed, unissued and baseline-changed refusals, and
   failed issue and release-health reads that keep earlier facts;
