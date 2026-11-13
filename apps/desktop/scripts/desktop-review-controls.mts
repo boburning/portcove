@@ -430,6 +430,20 @@ export async function assertCompactReview(browser: WebDriver, selector: string) 
             )
             .slice(0, 30)
             .map(geometry),
+          // Outermost page elements past the viewport, outside the review, so a
+          // page-level reflow failure names its source.
+          pageOverflowing: [...document.body.querySelectorAll("*")]
+            .filter(
+              (element) =>
+                !review.contains(element) &&
+                element.getBoundingClientRect().right > window.innerWidth + 1 &&
+                !(
+                  element.parentElement &&
+                  element.parentElement.getBoundingClientRect().right > window.innerWidth + 1
+                ),
+            )
+            .slice(0, 10)
+            .map(geometry),
         },
       };
     },
@@ -537,7 +551,12 @@ export async function observeAccessibility(browser: WebDriver): Promise<unknown>
       typeof injected.run !== "function"
     )
       throw new Error("Accessibility engine was not injected");
-    const result: unknown = Reflect.apply(injected.run, injected, []);
+    // Full node detail only where a finding is reported: passing rules keep one
+    // example node each, so a whole-catalog page stays inside the evidence bound.
+    const result: unknown = Reflect.apply(injected.run, injected, [
+      document,
+      { resultTypes: ["violations", "incomplete"] },
+    ]);
     return Promise.resolve(result).then(done);
   });
 }
