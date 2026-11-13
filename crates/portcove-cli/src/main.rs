@@ -383,6 +383,29 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
         return Ok(ExitCode::SUCCESS);
     }
     if let Commands::Catalog {
+        command: CatalogCommand::InspectDefinitionDelivery,
+    } = &cli.command
+    {
+        render_read_success(
+            mode,
+            "catalog.inspect-definition-delivery",
+            portcove_core::inspect_official_definition_delivery().await,
+            |report| {
+                format!(
+                    "Official definition delivery: {:?}; {} verified definitions.{}",
+                    report.serving,
+                    report.definitions.len(),
+                    report
+                        .reason
+                        .as_deref()
+                        .map(|reason| format!(" {reason}"))
+                        .unwrap_or_default()
+                )
+            },
+        )?;
+        return Ok(ExitCode::SUCCESS);
+    }
+    if let Commands::Catalog {
         command: CatalogCommand::InspectTargets { ports, platforms },
     } = &cli.command
     {

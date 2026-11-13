@@ -74,7 +74,8 @@ requires a known denominator equal to that count with no gaps. `partial`,
 | Upstream observations               | `configured-upstream-observer.yml` checkpoint recovery snapshot (`observer-checkpoint-artifact.mts`) | Per port: every serving source completed with its policy      |
 | Release health                      | `scripts/upstream-health-monitor.mts` report and `work/upstream-health/checkpoint.json`              | Fresh complete, partial, stale and unmonitored port IDs       |
 | Hosted intake receipts              | `node scripts/hosted-discovery-intake.mts status --all --json` over the receipt comments on #177     | Every marker-bearing owner request in one drift-checked read  |
-| Definition publication              | `portcove --json catalog inspect-definition-publication DIR`; published site readback                | Index digest and per-target digests                           |
+| Definition publication              | `portcove --json catalog inspect-definition-publication DIR`                                         | Index digest and per-target digests on `main`                 |
+| Definition delivery                 | `portcove --json catalog inspect-definition-delivery`                                                | Serving status; verified published identities and targets     |
 
 Known gaps stay explicit until an owner exports the fact: there is no persisted
 export of full issue rows or Project field values, no catalog-wide capability or
@@ -423,36 +424,45 @@ A digest-verified report from scheduled run 43066038874 (2026-11-11) covered
 
 ### Definition publication
 
-`--publication` (with `--all`) adds the `definition-publication` source. It
-compares what `main` holds with what is published.
+Two sources keep three facts apart: what `main` holds, the content last
+verified as published, and what the appointed location serves right now.
 
-- **Main side:** the bundle is exported from the pinned revision with
-  `git archive`, so working-tree edits are never recorded. Core's maintained
-  `catalog inspect-definition-publication` then inspects that copy.
+- **Main (`--publication`, `definition-publication`).** The bundle is exported
+  from the pinned revision with `git archive`, so working-tree edits are never
+  recorded. Core's maintained `catalog inspect-definition-publication` then
+  inspects that copy.
   - It reports the index digest and, for each validated
     `definition:<namespace>/<stable_id>`, the revision, content-addressed
     definition target, policy revision and launch revision.
-- **Published side:** one bounded HTTPS `HEAD` of `timestamp.json` at the
-  appointed official metadata location.
-  - The result is recorded as a site-level fact: `absent` for HTTP 404, or
-    `metadata-present-unverified` for HTTP 200.
-  - Per definition, the source records `not-published` only when the site is
-    absent. When the site is present, each definition is `unknown` until its
-    published index is read and verified.
-  - Any other result, such as another status or an unreachable host, makes the
-    run `failed` with a gap. The last known facts stay current, and the report
-    names the failed probe.
-  - Node's `fetch` does not use `HTTPS_PROXY`, so on proxy-only runners the probe
-    is always a gap.
-  - During a probe gap the main-side inspection is not recorded either, so a
-    bundle change made during an outage appears once the site can be classified
-    again. A complete run over an empty bundle is reported as observed, with no
-    committed definitions.
-- **Authority:** this source grants no publication authority.
+  - A failed export or inspection makes the run `failed`; the last main facts
+    stay current.
+- **Published (`--delivery`, `definition-delivery`).** Core's
+  `catalog inspect-definition-delivery` reads the appointed official location
+  through the client's own trust path: the compiled root, TUF metadata and the
+  signed definition index. It writes no trust, replay floor or selection.
+  - Only a `verified` read records facts: per definition, the published
+    revision, target, target digest and length. The run's revision carries the
+    authenticated index digest and timestamp version, so routine metadata
+    refreshes record nothing new.
+  - A verified read is complete: a definition it no longer indexes is recorded
+    as withdrawn.
+  - Every other serving status is the run's gap code and makes the run `failed`:
+    `not_served` (the location answers 403, 404 or 410), `unreachable`,
+    `expired`, `verification_failed` or `not_configured`. An HTTP status alone
+    is never a publication fact, and neither a 404 nor an outage erases the
+    last verified publication.
+- **Report.** Per definition, the report compares `main` with the last verified
+  publication by identity: `published-matches-main` (same revision and
+  content-addressed target), `published-differs-from-main`,
+  `never-verified-published`, `published-not-on-main`, or `main-unobserved`.
+  Separately, it shows the latest read's serving status and when the location
+  last verified. A main-only target comparison does not cover the policy and
+  launch targets, which the published index does not list per definition.
+- **Authority:** neither source grants publication authority.
 
-On 2026-11-11, `main` held `official/chameleon-twist-jp-recompiled` revision 1
-(index `fd4e8154…`). The appointed site returned HTTP 404, so the definition was
-not published.
+On 2026-11-13, `main` held `official/chameleon-twist-jp-recompiled` revision 1
+(index `fd4e8154…`), and Core read the appointed location as `not_served`. No
+publication has been verified.
 
 ### Upstream observations
 
@@ -827,12 +837,12 @@ checkpoint 5 and is recorded there.
     `collect --issues-token-env`, which never falls back to another credential.
   - The collector removes that variable from its own environment once read, so
     Core, Git and `psql` do not inherit it.
-  - Definition publication needs no credential.
+  - Definition publication and delivery need no credential.
 - **Collect job.** It runs these steps in order:
   1. Build the debug Core CLI, sharing the observer's Rust cache.
   2. `migrate`.
   3. `collect --all` with `--issues`, `--release-health`, `--publication`,
-     `--upstream`, `--hosted-intake` and `--targets`. The collection transaction reaches the
+     `--delivery`, `--upstream`, `--hosted-intake` and `--targets`. The collection transaction reaches the
      server as one batched query (psql `\;`), so a remote host costs one round
      trip rather than one per statement. The isolation and quoting settings
      run first as their own statements, because a batched query is parsed whole

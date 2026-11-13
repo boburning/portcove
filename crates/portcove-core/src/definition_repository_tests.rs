@@ -1809,6 +1809,32 @@ async fn expired_metadata_is_refused_as_verification_failure() {
     let error = acquire(&fixture, &root).await.unwrap_err();
     assert_eq!(error.code, ErrorCode::Verification);
     assert!(error.message.contains("expired"));
+    // Delivery inspection reports expiry separately from a signature failure.
+    assert_eq!(
+        error.details.get("delivery").map(String::as_str),
+        Some("expired")
+    );
+}
+
+#[tokio::test]
+async fn metadata_that_is_not_served_is_distinguished_from_an_outage() {
+    let fixture = RepositoryFixture::new();
+    let targets = metadata_targets();
+    let root = fixture
+        .publish(&targets, true, &DEFINITION_ROLE_PATHS, later())
+        .await;
+    let timestamp = fixture
+        .metadata_url()
+        .to_file_path()
+        .unwrap()
+        .join("timestamp.json");
+    std::fs::remove_file(timestamp).unwrap();
+    let error = acquire(&fixture, &root).await.unwrap_err();
+    assert_eq!(error.code, ErrorCode::Network);
+    assert_eq!(
+        error.details.get("delivery").map(String::as_str),
+        Some("not_served")
+    );
 }
 
 #[tokio::test]

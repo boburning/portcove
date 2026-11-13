@@ -684,13 +684,22 @@ impl Transport for DefinitionHttpsTransport {
 fn map_tough_error(error: tough::error::Error) -> PortcoveError {
     let mut current: Option<&(dyn StdError + 'static)> = Some(&error);
     let mut network = false;
+    let mut not_published = false;
     while let Some(value) = current {
+        // A 403, 404 or 410 from the appointed location: nothing is served there.
+        if value
+            .downcast_ref::<TransportError>()
+            .is_some_and(|transport| transport.kind() == TransportErrorKind::FileNotFound)
+        {
+            not_published = true;
+        }
         if let Some(tough) = value.downcast_ref::<tough::error::Error>() {
             match tough {
                 tough::error::Error::ExpiredMetadata { .. } => {
                     return PortcoveError::verification(
                         "definition repository metadata is expired",
-                    );
+                    )
+                    .detail("delivery", "expired");
                 }
                 tough::error::Error::OlderMetadata { .. }
                 | tough::error::Error::OlderSnapshotInTimestamp { .. }
@@ -721,7 +730,12 @@ fn map_tough_error(error: tough::error::Error) -> PortcoveError {
         current = value.source();
     }
     if network {
-        PortcoveError::network("could not acquire authenticated definition repository")
+        let error = PortcoveError::network("could not acquire authenticated definition repository");
+        if not_published {
+            error.detail("delivery", "not_served")
+        } else {
+            error
+        }
     } else {
         PortcoveError::verification("definition repository authentication failed")
     }

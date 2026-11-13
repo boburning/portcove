@@ -218,10 +218,11 @@ pub use definition_repository::{
     acquire_definition_candidate,
     publisher_policy::{
         AuthenticatedDefinitionLaunchAssessment, AuthenticatedDefinitionPublisherPolicy,
-        DefinitionAuthorityProvisioning, DefinitionAuthorityReview, DefinitionRefresh,
-        DefinitionRefreshDisposition, OfficialCatalogReview, OfficialCatalogSetup,
-        OfficialCatalogSource, acquire_definition_launch_assessment,
-        acquire_definition_publisher_policy,
+        DefinitionAuthorityProvisioning, DefinitionAuthorityReview, DefinitionDeliveryInspection,
+        DefinitionDeliveryServing, DefinitionRefresh, DefinitionRefreshDisposition,
+        OfficialCatalogReview, OfficialCatalogSetup, OfficialCatalogSource, PublishedDefinition,
+        acquire_definition_launch_assessment, acquire_definition_publisher_policy,
+        inspect_official_definition_delivery,
     },
 };
 pub use error::{ErrorCode, PortcoveError, Result};

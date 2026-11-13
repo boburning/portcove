@@ -308,7 +308,7 @@ mod tests {
             .iter()
             .find(|listing| catalog.port(&listing.id).is_err())
         {
-            let report = inspect_targets(&catalog, &[listing.id.clone()], &[]).unwrap();
+            let report = inspect_targets(&catalog, std::slice::from_ref(&listing.id), &[]).unwrap();
             assert!(matches!(
                 report.ports[0].presence,
                 CatalogPresence::ListingOnly
@@ -327,7 +327,7 @@ mod tests {
         else {
             return;
         };
-        let report = inspect_targets(&catalog, &[port.id.clone()], &[]).unwrap();
+        let report = inspect_targets(&catalog, std::slice::from_ref(&port.id), &[]).unwrap();
         let inspected = &report.ports[0];
         assert!(inspected.acquisition_hold.is_some());
         for target in &inspected.targets {
