@@ -144,10 +144,14 @@ in this section runs unchanged against any PostgreSQL host and generic runner.
   (embedded catalog and listings, Core code, catalog-wide hold policy, the
   platform, or recommendation observations Core filters by the current time),
   or the assessment policy changes (API schema or projection version). Only a
-  changed result records a transition. Rebuilds, failed and partial runs record
-  neither. The report shows each subject's `reassessment`: what it depends on,
-  when its catalog fact and Core output last changed, since when its inputs are
-  unchanged and when it was last re-verified.
+  changed result records a transition. A rebuild with the same output, a failed
+  run, or a port Core could not read in a partial run records neither. The
+  report shows each subject's `reassessment`: what it depends on, when its
+  catalog fact and Core output last changed (their latest changes-only
+  observations from `--all` runs), since when its inputs are unchanged (the
+  latest of those and the assessment time, because assessments are deduplicated
+  by input and a return to earlier inputs reuses the older assessment) and when
+  it was last re-verified.
   - Selective reuse (skipping Core for unchanged inputs) is not built: Core is
     rebuilt from a new commit almost every day, its output depends on the
     current time, so no sound reuse key would match, and the full read fits the
@@ -306,7 +310,9 @@ node scripts/maintenance-inventory.mts report --output work/maintenance-report/2
     in the row, including linked work, upstream, offering, qualification,
     attention and next action. Filters narrow it by host platform, Core
     assessment, last change within 1, 7 or 30 days of the report's own
-    generation time, and "needs attention or has a next action". The page
+    generation time, and "needs attention or has a next action" (attention
+    conditions, this port's own health gap, a next action or a Core gap; a
+    source-wide failed read alone does not select every port). The page
     shows how many subjects match. Filtering only selects rows; it never
     changes a value. The filter is one plain-JavaScript function that the page
     embeds and the tests run unchanged.
@@ -314,7 +320,11 @@ node scripts/maintenance-inventory.mts report --output work/maintenance-report/2
     latest complete or partial read (`freshness`). A failed read is an attempt,
     never a refresh. The age of the last good read is measured against the
     report's own generation time; over 36 hours (the schedule is daily) or never
-    read is flagged stale. The page states the oldest data age, names stale
+    read is flagged stale. `definition-delivery` counts only a verified read as
+    good and records anything else (such as nothing served yet) as a failed
+    run, so its freshness is its latest attempt and the page says when no
+    verified read exists; the Definition publication section shows what was
+    last verified. The page states the oldest data age, names stale
     sources, and shows each source's age; stale facts stay current and visible,
     never treated as absent.
 

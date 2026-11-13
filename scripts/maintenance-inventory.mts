@@ -2129,7 +2129,8 @@ export function deferralChanges(
  * What a subject's Core assessment depends on and what would reassess it.
  * Every complete run re-reads Core for every port, but only a change in one of
  * these inputs records a new assessment; only a changed result records a
- * transition. Rebuilds, failed and partial runs record neither.
+ * transition. A rebuild with the same output, a failed run, or a port Core
+ * could not read in a partial run records neither.
  */
 export const reassessmentTriggers = [
   "its catalog fact changes (authored record, operational definition or scoped qualification at the pinned revision)",
@@ -2143,7 +2144,11 @@ export interface SubjectReassessment {
   catalog_changed_at: string | null;
   /** When Core's output for this port and platform last changed. */
   core_output_changed_at: string | null;
-  /** The applicable assessment's time: its inputs are unchanged since then. */
+  /**
+   * The latest of the catalog change, the Core output change and the
+   * assessment time. Assessments are deduplicated by input, so after inputs
+   * return to an earlier value the assessment time alone would be too early.
+   */
   inputs_unchanged_since: string | null;
   /** The latest Core run that re-read the subject and found the same inputs. */
   last_verified_at: string | null;
@@ -2164,13 +2169,27 @@ export function subjectReassessment(subject: {
     depends_on: ["catalog-records", ...(core ? [core] : []), "assessment policy"],
     catalog_changed_at: observed("catalog-records"),
     core_output_changed_at: core ? observed(core) : null,
-    inputs_unchanged_since: subject.assessed_at ?? null,
+    inputs_unchanged_since:
+      [observed("catalog-records"), core ? observed(core) : null, subject.assessed_at ?? null]
+        .filter(
+          (value): value is string => typeof value === "string" && !Number.isNaN(Date.parse(value)),
+        )
+        .sort((left, right) => Date.parse(left) - Date.parse(right))
+        .at(-1) ?? null,
     last_verified_at: subject.verified_at ?? null,
   };
 }
 
 /** A source older than this, relative to the report, is flagged stale (the schedule is daily). */
 export const staleSourceHours = 36;
+
+/**
+ * Sources whose only good read is a verified one: any other outcome (such as
+ * nothing served yet) is recorded as a failed run with its reason. Their
+ * freshness is the latest attempt; the source's own section shows what was
+ * last verified.
+ */
+const verifiedOnlySources = new Set(["definition-delivery"]);
 
 export interface SourceFreshness {
   source: string;
@@ -2179,6 +2198,10 @@ export interface SourceFreshness {
   last_good_at: string | null;
   /** Hours from the last good read to this report's generation; null when never read. */
   age_hours: number | null;
+  /** Hours from the latest attempt to this report's generation. */
+  attempt_age_hours: number | null;
+  /** Only a verified read counts as good; its freshness is the latest attempt. */
+  verified_only: boolean;
   stale: boolean;
 }
 
@@ -2187,17 +2210,25 @@ export function sourceFreshness(
   rows: readonly { source: string; attempted_at: string | null; last_good_at: string | null }[],
   generatedAt: Date,
 ): SourceFreshness[] {
-  return rows.map(({ source, attempted_at, last_good_at }) => {
-    const good = last_good_at === null ? Number.NaN : Date.parse(last_good_at);
-    const age_hours = Number.isFinite(good)
-      ? Math.max(0, Math.round(((generatedAt.getTime() - good) / 3_600_000) * 10) / 10)
+  const hours = (value: string | null) => {
+    const time = value === null ? Number.NaN : Date.parse(value);
+    return Number.isFinite(time)
+      ? Math.max(0, Math.round(((generatedAt.getTime() - time) / 3_600_000) * 10) / 10)
       : null;
+  };
+  return rows.map(({ source, attempted_at, last_good_at }) => {
+    const age_hours = hours(last_good_at);
+    const attempt_age_hours = hours(attempted_at);
+    const verified_only = verifiedOnlySources.has(source);
+    const freshest = verified_only ? attempt_age_hours : age_hours;
     return {
       source,
       attempted_at,
       last_good_at,
       age_hours,
-      stale: age_hours === null || age_hours > staleSourceHours,
+      attempt_age_hours,
+      verified_only,
+      stale: freshest === null || freshest > staleSourceHours,
     };
   });
 }
@@ -2471,6 +2502,8 @@ function failedAttempt(report: InventoryReport, name: string) {
 function sourceAge(report: InventoryReport, source: string) {
   const entry = report.freshness?.find((value) => value.source === source);
   if (!entry) return "";
+  if (entry.verified_only && entry.age_hours === null)
+    return `<span${entry.stale ? ' class="unknown"' : ""}>no verified read yet; latest attempt ${escapeHtml(entry.attempt_age_hours ?? "unknown")} h ago</span>`;
   if (entry.age_hours === null) return '<span class="unknown">never read successfully</span>';
   const age = `${entry.age_hours} h`;
   return entry.stale ? `<span class="unknown">${escapeHtml(age)} (stale)</span>` : escapeHtml(age);
@@ -2481,7 +2514,9 @@ function freshnessSummary(report: InventoryReport) {
   const entries = report.freshness ?? [];
   if (!entries.length) return "";
   const stale = entries.filter(({ stale: value }) => value).map(({ source }) => source);
-  const ages = entries.flatMap(({ age_hours }) => (age_hours === null ? [] : [age_hours]));
+  const ages = entries.flatMap(({ age_hours, verified_only }) =>
+    verified_only || age_hours === null ? [] : [age_hours],
+  );
   const oldest = ages.length ? Math.max(...ages) : null;
   return `<p>Data age: the oldest last good source read is ${
     oldest === null ? "unknown" : escapeHtml(`${oldest} h`)
@@ -2662,14 +2697,15 @@ export function qualificationSummary(fact: TargetRoutesFact | null | undefined) 
  */
 export const subjectFilterSource = `function subjectRowText(subject) {
   return [subject.subject_key, subject.name, subject.game, subject.target_key,
-    ...(subject.alternatives || []), subject.state, subject.verified_at, subject.changed_at,
+    ...(subject.alternatives || []), subject.state, String(subject.sequence ?? ""),
+    subject.verified_at, subject.changed_at, subject.latest_core_run,
     ...(subject.work || []), subject.inputs, subject.upstream, subject.offered, subject.qualified,
     subject.latest_health_gap, ...(subject.attention || []), ...(subject.next_actions || []),
     subject.latest_core_gap ? subject.latest_core_gap.code : ""]
     .filter((value) => typeof value === "string" && value).join(" ").toLowerCase();
 }
 function subjectNeedsAttention(subject) {
-  return Boolean((subject.attention || []).length || subject.latest_health_gap ||
+  return Boolean((subject.attention || []).length || subject.port_health_gap ||
     (subject.next_actions || []).length || subject.latest_core_gap);
 }
 function subjectMatches(subject, filters, generatedAt) {
@@ -2719,7 +2755,7 @@ export function renderHtml(report: InventoryReport) {
           return [
             `catalog fact changed ${value.catalog_changed_at ?? "never observed"}`,
             `Core output changed ${value.core_output_changed_at ?? "never observed"}`,
-            `assessed on these inputs ${value.inputs_unchanged_since ?? "never"}`,
+            `inputs unchanged since ${value.inputs_unchanged_since ?? "never"}`,
           ].join("; ");
         })(),
         offered: targetSummary(target_routes as TargetRoutesFact | null | undefined),
@@ -2741,6 +2777,8 @@ export function renderHtml(report: InventoryReport) {
             .filter(Boolean)
             .join("; ") || null,
         next_actions: nextActions(report, port_key, subject_key),
+        // A source-wide failed read is shown, but only a per-port gap needs this port's attention.
+        port_health_gap: typeof latest_health_gap === "string" ? latest_health_gap : null,
         upstream: upstreamSummary(upstream, latest_upstream_gap, upstreamAttempt),
         subject_key,
         name: (identity as { name?: string } | undefined)?.name ?? null,
@@ -2829,7 +2867,7 @@ ${hostedIntakeSection(report)}
 <input id="universe-search" type="search" placeholder="Name, game, port key or identity">
 <table><thead><tr><th>Identity</th><th>Kind</th><th>Name and game</th><th>Port keys</th><th>Related</th></tr></thead><tbody id="universe"></tbody></table>
 <h2>Subjects</h2>
-<p>Every complete run re-reads Core for every port. A port is reassessed, recording a new assessment, only when ${reassessmentTriggers.map(escapeHtml).join("; or ")}. Only a changed result records a change; rebuilds and failed or partial runs record nothing. "Last verified" is the latest run that re-read the port and found the same inputs.</p>
+<p>Every complete run re-reads Core for every port. A port is reassessed, recording a new assessment, only when ${reassessmentTriggers.map(escapeHtml).join("; or ")}. Only a changed result records a change; a rebuild with the same output, a failed run, or a port Core could not read in a partial run records nothing. "Last verified" is the latest run that re-read the port and found the same inputs.</p>
 <form id="filters" role="search" onsubmit="return false">
 <label for="search">Search every column</label>
 <input id="search" type="search" placeholder="Port, game, issue, upstream, offering, attention or action">

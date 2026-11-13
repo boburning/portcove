@@ -2893,6 +2893,19 @@ void test("the report page filters subjects by text, platform, state, attention 
   assert.deepEqual(shown({ platform: "windows-x86-64" }), ["Beta"]);
   assert.deepEqual(shown({ state: "managed-setup.automatic" }), ["Alpha"]);
   assert.deepEqual(shown({ attention: true }), ["Beta"]);
+  // A source-wide failed health read alone does not need every port's attention.
+  assert.equal(
+    subjectMatches(
+      { ...quiet, latest_health_gap: "latest read failed: unavailable" },
+      { attention: true },
+      generated,
+    ),
+    false,
+  );
+  assert.equal(
+    subjectMatches({ ...quiet, port_health_gap: "stale" }, { attention: true }, generated),
+    true,
+  );
   assert.deepEqual(shown({ changedWithinDays: 7 }), ["Beta"]);
   // An unparseable change time never counts as recent.
   assert.deepEqual(
@@ -2929,6 +2942,25 @@ void test("source freshness ages the last good read against the report and flags
       ["never", null, true],
     ],
   );
+  // A verified-only source with nothing served yet is as fresh as its latest attempt.
+  assert.deepEqual(
+    sourceFreshness(
+      [
+        {
+          source: "definition-delivery",
+          attempted_at: "2026-11-13T06:00:00.000Z",
+          last_good_at: null,
+        },
+      ],
+      now,
+    ).map(({ age_hours, attempt_age_hours, verified_only, stale }) => [
+      age_hours,
+      attempt_age_hours,
+      verified_only,
+      stale,
+    ]),
+    [[null, 6, true, false]],
+  );
 });
 
 void test("each subject names its assessment inputs, when they last changed and what reassesses it", () => {
@@ -2953,4 +2985,18 @@ void test("each subject names its assessment inputs, when they last changed and 
     },
   );
   assert.equal(reassessmentTriggers.length, 3);
+  // Inputs that returned to an earlier value reuse the older assessment: the
+  // latest input change, not the assessment time, bounds "unchanged since".
+  assert.equal(
+    subjectReassessment({
+      platform: "linux-x86-64",
+      assessed_at: "2026-11-01T00:00:00Z",
+      verified_at: "2026-11-13T00:00:00Z",
+      observations: [
+        { source: "catalog-records", observed_at: "2026-11-01T00:00:00Z" },
+        { source: "core-port-capabilities-linux-x86-64", observed_at: "2026-11-12T00:00:00Z" },
+      ],
+    }).inputs_unchanged_since,
+    "2026-11-12T00:00:00Z",
+  );
 });
