@@ -929,26 +929,3 @@ mod cd {
         assert_eq!(error.code, ErrorCode::Cancelled);
     }
 }
-
-#[test]
-#[ignore = "local only: a real CD-type CHD, its chdman cue and track"]
-fn real_cd_chd_matches_oracle() {
-    use crate::disc_filesystem::{cd_track_to_iso, chd_is_cd, first_cd_track};
-    let dir = std::path::PathBuf::from(std::env::var("PORTCOVE_CD_DIR").unwrap());
-    eprintln!("REAL is_cd={}", chd_is_cd(&dir.join("in.chd")).unwrap());
-    let (name, mode) =
-        first_cd_track(&std::fs::read_to_string(dir.join("disc.cue")).unwrap()).unwrap();
-    eprintln!("REAL track={name} mode={mode:?}");
-    let iso = dir.join("rust.iso");
-    cd_track_to_iso(&dir.join(name), mode, &iso, MAX_IMAGE_BYTES, &ok).unwrap();
-    let mut image = DiscImage::open(&iso, DiscImageFormat::Iso9660, MAX_IMAGE_BYTES).unwrap();
-    let code =
-        crate::disc_product::read_product_code(&mut image, DiscImageFormat::Iso9660, &ok).unwrap();
-    let plan = image.plan(&ok).unwrap();
-    eprintln!(
-        "REAL files={} dirs={} bytes={} product={code:?}",
-        plan.entries.iter().filter(|e| !e.directory).count(),
-        plan.entries.iter().filter(|e| e.directory).count(),
-        plan.expanded_bytes
-    );
-}
