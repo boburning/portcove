@@ -253,8 +253,13 @@ The update-acquisition group also observes #4879's automatic snapshot surfaces
 after its real activating update of a played fixture: the review and rollback
 copy, exactly one Core snapshot labelled with the from/to versions that holds the
 played save, its Automatic label in history and in a cancelled restore review,
-and the per-library Settings control round-tripping through Core. These are owned
-fixture observations, not real-save (#48) or human-comprehension acceptance.
+and the per-library Settings control round-tripping through Core. Right after
+those checks, and before the later acquisitions and reviewed uninstall, it presses
+a real Restore previous version, which must keep the saves and add exactly one
+snapshot labelled as a rollback with the reverse versions, labelled in history and
+holding the current saves. The fixture save does not change between the update and
+the rollback, so the snapshot's bytes alone do not distinguish it from the update
+snapshot; its distinct identity and rollback label do. These are owned fixture observations, not real-save (#48) or human-comprehension acceptance.
 
 These scenarios exercise real Core/native mutations in disposable first-party
 fixtures. Streamed installation/update bytes, owned process launch and native

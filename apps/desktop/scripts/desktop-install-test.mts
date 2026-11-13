@@ -1297,7 +1297,18 @@ export async function installScenarios({
       assert.equal(plan.activate, false);
       assert.equal(plan.plan.release.asset.sha256, release.sha256);
       await reviewGameUpdateDisposition(browser, "download");
-      await browser.wait(until.elementLocated(By.css("[data-game-update-review]")), 15_000);
+      // Calibrated from 15 s: on hosted Windows (debug build) the v3 download review
+      // opened after 15 s once (cause not diagnosed; 14.9 s in the passing run). It
+      // shares the acquisition budget.
+      const reviewWaitStarted = Date.now();
+      await browser.wait(
+        until.elementLocated(By.css("[data-game-update-review]")),
+        acquisitionScriptBudgetMs,
+      );
+      observations.slowest_download_review_ms = Math.max(
+        Number(observations.slowest_download_review_ms ?? 0),
+        Date.now() - reviewWaitStarted,
+      );
       await click("Download archive for later");
       const pathname = new URL(release.url).pathname;
       const transferWaitStarted = Date.now();
@@ -1567,6 +1578,66 @@ export async function installScenarios({
         first.active.version,
         required((await status()).active).version,
       );
+
+      // #4879: a real "Restore previous version" takes one automatic snapshot of the
+      // current saves first, labelled with the version change, and keeps saved data.
+      assert.equal(await snapshotsEnabled(), true);
+      const beforeRollback = await status();
+      const rollbackFrom = required(beforeRollback.active);
+      const rollbackTo = required(beforeRollback.previous);
+      const backupsBeforeRollback = new Set((await backups()).backups.map((item) => item.id));
+      const saveBeforeRollback = await readFile(save, "utf8");
+      await openFixture(port, true);
+      await revealDetailSection(browser, "Versions & updates");
+      await click("Restore previous version");
+      await browser.wait(
+        async () => (await status()).active?.id === rollbackTo.id,
+        acquisitionScriptBudgetMs,
+        "Restore previous version did not activate the previous installation",
+      );
+      const rollbackSnapshots = (await backups()).backups.filter(
+        (item) => item.automatic && !backupsBeforeRollback.has(item.id),
+      );
+      assert.equal(rollbackSnapshots.length, 1, "One rollback must keep one automatic snapshot");
+      const rollbackSnapshot = required(rollbackSnapshots[0]);
+      const rollbackLabel = required(rollbackSnapshot.automatic);
+      assert.equal(rollbackLabel.operation, "rollback");
+      assert.equal(rollbackLabel.from_version, rollbackFrom.version);
+      assert.equal(rollbackLabel.to_version, rollbackTo.version);
+      assert.equal(
+        await readFile(path.join(rollbackSnapshot.path, "data", path.basename(save)), "utf8"),
+        saveBeforeRollback,
+        "The rollback snapshot must hold the current saves (unchanged since the update snapshot)",
+      );
+      assert.equal(
+        await readFile(save, "utf8"),
+        saveBeforeRollback,
+        "Restore previous version keeps current saved data",
+      );
+      const rollbackHistoryText = `Automatic snapshot before restoring a previous version (${rollbackFrom.version} to ${rollbackTo.version})`;
+      await revealDetailSection(browser, "Saves & backups");
+      const rollbackHistory = await browser.wait(
+        until.elementLocated(
+          By.css(
+            `[aria-labelledby="detail-saves-and-storage"] [data-backup-id="${rollbackSnapshot.id}"] [data-automatic-snapshot]`,
+          ),
+        ),
+        15_000,
+      );
+      await browser.wait(
+        async () => (await rollbackHistory.getText()) === rollbackHistoryText,
+        15_000,
+        "Backup history must label the rollback snapshot with its version change",
+      );
+      await snapshotEvidence("native-automatic-snapshot-rollback-history", rollbackHistory);
+      observations.rollback_snapshot = {
+        from: rollbackFrom.version,
+        to: rollbackTo.version,
+        snapshot_id: rollbackSnapshot.id,
+        label: rollbackLabel,
+        history_label: rollbackHistoryText,
+        preserved_save: await fileIdentity(save),
+      };
 
       const v3 = await publish("3.0.0-acquisition", 0x7249b309);
       await play();
