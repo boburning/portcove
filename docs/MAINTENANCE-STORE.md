@@ -152,11 +152,32 @@ in this section runs unchanged against any PostgreSQL host and generic runner.
   latest of those and the assessment time, because assessments are deduplicated
   by input and a return to earlier inputs reuses the older assessment) and when
   it was last re-verified.
-  - Selective reuse (skipping Core for unchanged inputs) is not built: Core is
-    rebuilt from a new commit almost every day, its output depends on the
-    current time, so no sound reuse key would match, and the full read fits the
-    collection budget (about 350 s of a 40-minute step). Reconsider only if the
-    collection approaches its budget.
+  - **Selective reassessment (opt-in, migration 0004).** `collect --all
+    --targets --reassess changed` reuses a subject's stored Core result
+    without calling Core. Every condition must hold, otherwise the run is full
+    and `collect` reports why:
+    - The Core build's source binding is verified (built from this clean
+      checkout, compiled catalog, no features), so its semantics can be keyed.
+    - The reuse key matches the latest Core run of the source, which is
+      complete. The key is a digest of the Git object IDs of `crates`,
+      `Cargo.toml`, `Cargo.lock`, `rust-toolchain.toml` and `vendor`, the
+      producer's compiled catalog and listings digests and features, the API
+      schema, projection, platform and isolation; the binary digest is
+      excluded because every rebuild changes it.
+    - A full read under that key completed within 7 days.
+    - No catalog `observed_at` falls between that full read and now: Core
+      shows clock-dated observations only once their time has passed.
+    - The subject's catalog fact and stored Core result are unchanged members
+      of the baselines the decision read; if another collection finishes in
+      between, the run is refused whole.
+  - A reused subject is an unchanged member: no observation, assessment,
+    transition or verification, so its `verified_at` stays at the last real
+    Core read. The run records `reassessment` (`full` or `selective`),
+    `reuse_key` and `reused_count`, all fixed when it starts; full runs record
+    their key too, as later anchors. The report's Sources table shows a
+    selective run's reused count. Because the key covers the whole `crates`
+    tree, reuse applies only while no Core code or catalog file changed; at
+    today's commit rate most runs are full. The daily workflow stays full.
 - **Reconsiderations.** Typed as `technical_hold`, `intentional_deferral`,
   `upstream_change` or `evidence_refresh`, each with the owner or policy reference
   required to revisit it. Conditions are immutable, and an intentional deferral is

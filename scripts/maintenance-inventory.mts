@@ -365,7 +365,148 @@ export interface CollectedSubject {
   record: unknown;
   operational: boolean;
   qualification: unknown[];
-  capabilities: CapabilityObservation;
+  /** Null when a selective run reused the subject's unchanged Core result without calling Core. */
+  capabilities: CapabilityObservation | null;
+}
+
+/** A selective run must follow a full read under the same key no older than this. */
+export const fullReassessmentDays = 7;
+
+/** Repository paths whose content defines what Core computes (code, embedded catalog, toolchain). */
+export const coreSemanticPaths = [
+  "crates",
+  "Cargo.toml",
+  "Cargo.lock",
+  "rust-toolchain.toml",
+  "vendor",
+];
+
+/**
+ * The Core semantics a run reads under: the Git object IDs of everything the
+ * binary is built from, the producer's compiled catalog identity and
+ * features, the API schema, projection, platform and isolation. Equal keys
+ * mean the same code and data; the binary digest is deliberately excluded,
+ * because every rebuild changes it.
+ */
+export function coreReuseKey(input: {
+  trees: Readonly<Record<string, string>>;
+  producer: Pick<CoreProducer, "features" | "embedded_catalog_sha256" | "embedded_listings_sha256">;
+  apiSchema: number;
+  platform: string;
+}) {
+  return sha256(
+    canonicalJson({
+      trees: input.trees,
+      features: [...input.producer.features].sort(),
+      embedded_catalog_sha256: input.producer.embedded_catalog_sha256,
+      embedded_listings_sha256: input.producer.embedded_listings_sha256,
+      api: input.apiSchema,
+      projection: capabilityProjectionVersion,
+      platform: input.platform,
+      isolation: isolationScope,
+    }),
+  );
+}
+
+/**
+ * Whether a catalog observation became visible between two times: Core shows
+ * clock-dated observations only once their `observed_at` (seconds) has passed,
+ * so its output can change with no input changing. Any such value in the
+ * window forces a full read. Conservative: every `observed_at` counts.
+ */
+export function clockWindowCrossed(
+  documents: readonly unknown[],
+  afterSeconds: number,
+  nowSeconds: number,
+) {
+  const visit = (value: unknown): boolean => {
+    if (Array.isArray(value)) return value.some(visit);
+    if (value && typeof value === "object")
+      return Object.entries(value).some(
+        ([key, item]) =>
+          (key === "observed_at" &&
+            typeof item === "number" &&
+            item > afterSeconds &&
+            item <= nowSeconds) ||
+          visit(item),
+      );
+    return false;
+  };
+  return documents.some(visit);
+}
+
+/** The latest Core run of a source and the latest full read under a key, as the store holds them. */
+export interface ReuseHistory {
+  latest: { coverage: string; reuse_key: string | null } | null;
+  full_started_at: string | null;
+}
+
+/**
+ * Plans a Core run. Selective reuse needs every condition; otherwise the run
+ * is full and says why. A subject is reused only when its Core result and its
+ * catalog fact are unchanged members of the decided baselines.
+ */
+export function planReassessment(input: {
+  requested: "full" | "changed";
+  reuseKey: string | null;
+  history: ReuseHistory | null;
+  now: Date;
+  clockCrossed: (afterSeconds: number) => boolean;
+  subjects: readonly { key: string; catalogDigest: string }[];
+  catalogMembers: ReadonlyMap<string, string>;
+  coreMembers: ReadonlyMap<string, string>;
+}): { reassessment: Reassessment; reused: Set<string>; reason: string } {
+  const full = (reason: string) => ({
+    reassessment: { mode: "full" as const, reuseKey: input.reuseKey },
+    reused: new Set<string>(),
+    reason,
+  });
+  if (input.requested === "full") return full("full read requested");
+  if (input.reuseKey === null)
+    return full(
+      "the Core build's source binding is not verified, so its semantics cannot be keyed",
+    );
+  const latest = input.history?.latest;
+  if (!latest || latest.coverage !== "complete" || latest.reuse_key !== input.reuseKey)
+    return full("the latest Core run is not a complete read under the same key");
+  const fullAt = input.history?.full_started_at ? Date.parse(input.history.full_started_at) : NaN;
+  if (!Number.isFinite(fullAt) || input.now.getTime() - fullAt > fullReassessmentDays * 86_400_000)
+    return full(`no full read under this key within ${fullReassessmentDays} days`);
+  if (input.clockCrossed(Math.floor(fullAt / 1000)))
+    return full("a clock-dated catalog observation became visible since the last full read");
+  const reused = new Set(
+    input.subjects
+      .filter(
+        ({ key, catalogDigest }) =>
+          input.coreMembers.has(key) && input.catalogMembers.get(key) === catalogDigest,
+      )
+      .map(({ key }) => key),
+  );
+  return reused.size
+    ? {
+        reassessment: { mode: "selective", reuseKey: input.reuseKey },
+        reused,
+        reason: `${reused.size} unchanged subjects reused under the same Core semantics`,
+      }
+    : full("no subject is unchanged under the same key");
+}
+
+/** The authored catalog fact of one subject, as stored by `catalog-records`. */
+export function catalogFactOf(
+  subject: Pick<CollectedSubject, "record" | "operational" | "qualification">,
+) {
+  return {
+    authored_record: subject.record,
+    operational_definition: subject.operational,
+    scoped_qualification: subject.qualification,
+  };
+}
+
+/** A Core run's reassessment: every subject read, or unchanged subjects reused under one key. */
+export interface Reassessment {
+  mode: "full" | "selective";
+  /** The Core semantics this run read under; reuse is valid only under the same key. */
+  reuseKey: string | null;
 }
 
 /** The fields of the maintained issue inventory this source reads. */
@@ -878,6 +1019,23 @@ export interface SourceBaseline {
   members: ReadonlyMap<string, string>;
 }
 
+/** The latest Core run of a source and its latest full read under one reuse key. */
+function reuseHistory(environment: NodeJS.ProcessEnv, source: string, key: string): ReuseHistory {
+  return parseJson(
+    runSql(
+      environment,
+      `SELECT json_build_object(
+         'latest', (SELECT json_build_object('coverage', coverage, 'reuse_key', reuse_key)
+                      FROM portcove_maintenance.collection_runs
+                     WHERE run_id = portcove_maintenance.latest_run(${literal(source)})),
+         'full_started_at', (SELECT max(started_at) FROM portcove_maintenance.collection_runs
+                              WHERE source = ${literal(source)} AND coverage = 'complete'
+                                AND reassessment = 'full' AND reuse_key = ${literal(key)}));`,
+    ).trim(),
+    "maintenance reuse history",
+  ) as ReuseHistory;
+}
+
 /** Latest present content digest per subject, as of the source's latest finished run. */
 function latestMembers(environment: NodeJS.ProcessEnv, source: string): SourceBaseline {
   const value = parseJson(
@@ -933,6 +1091,8 @@ export function collectionSql(input: {
   acquisition?: number | undefined;
   platform: string;
   subjects: CollectedSubject[];
+  /** How the Core run was taken; full when omitted. */
+  reassessment?: Reassessment;
   latest?: {
     catalog: ReadonlyMap<string, string>;
     core: ReadonlyMap<string, string>;
@@ -1056,8 +1216,12 @@ export function collectionSql(input: {
           `SELECT portcove_maintenance.expect_baseline(${literal(source)}, ${run === null ? "NULL" : literal(run)});`,
       ),
     `INSERT INTO portcove_maintenance.collection_runs (run_id, source, runner, source_revision, started_at, acquisition) VALUES
-      (${literal(catalogRun)}, 'catalog-records', ${literal(input.runner)}, ${literal(input.revision)}, ${literal(input.startedAt)}, ${acquisition}),
-      (${literal(coreRun)}, ${literal(coreSource)}, ${literal(input.runner)}, ${literal(coreRevision)}, ${literal(input.startedAt)}, ${acquisition});`,
+      (${literal(catalogRun)}, 'catalog-records', ${literal(input.runner)}, ${literal(input.revision)}, ${literal(input.startedAt)}, ${acquisition});`,
+    `INSERT INTO portcove_maintenance.collection_runs (run_id, source, runner, source_revision, started_at, acquisition,
+        reassessment, reuse_key, reused_count) VALUES
+      (${literal(coreRun)}, ${literal(coreSource)}, ${literal(input.runner)}, ${literal(coreRevision)}, ${literal(input.startedAt)}, ${acquisition},
+       ${literal(input.reassessment?.mode ?? "full")}, ${input.reassessment?.reuseKey ? literal(input.reassessment.reuseKey) : "NULL"},
+       ${input.subjects.filter(({ capabilities }) => capabilities === null).length});`,
   ];
   const observe = (run: string, key: string, fact: Fact) =>
     lines.push(
@@ -1069,11 +1233,7 @@ export function collectionSql(input: {
   const gaps: { subject_key: string; code: string; message: string }[] = [];
   for (const subject of input.subjects) {
     const key = `port:${subject.id}`;
-    const catalogFact = {
-      authored_record: subject.record,
-      operational_definition: subject.operational,
-      scoped_qualification: subject.qualification,
-    };
+    const catalogFact = catalogFactOf(subject);
     const catalogDigest = sha256(canonicalJson(catalogFact));
     catalogFacts.set(key, {
       digest: catalogDigest,
@@ -1082,6 +1242,26 @@ export function collectionSql(input: {
       payload: catalogFact,
     });
     const capabilityFact = subject.capabilities;
+    if (capabilityFact === null) {
+      // Reused: an unchanged member under the same Core semantics and catalog fact.
+      // No observation, assessment, transition or verification; verified_at stays
+      // at the last real Core read.
+      const baseline = input.latest?.core.get(key);
+      if (
+        input.mode !== "all" ||
+        input.reassessment?.mode !== "selective" ||
+        baseline === undefined ||
+        input.latest?.catalog.get(key) !== catalogDigest
+      )
+        throw new MaintenanceStoreError(`The reuse decision for ${key} no longer holds; rerun`);
+      coreFacts.set(key, {
+        digest: baseline,
+        scope: { source: coreSource, reused: true },
+        revision: coreRevision,
+        payload: null,
+      });
+      continue;
+    }
     if (!capabilityFact.ok && !subjectScopedRefusals.has(capabilityFact.error?.code ?? "")) {
       // A host, network or lock failure says nothing about the port: no observation,
       // assessment or transition, and the Core run reports the gap.
@@ -1106,7 +1286,7 @@ export function collectionSql(input: {
     });
     // Core results are per host platform, so is the assessment history.
     const assessed = assessmentSubject(subject.id, input.platform);
-    const result = capabilityResult(subject.capabilities);
+    const result = capabilityResult(capabilityFact);
     const explanation = {
       ...result.explanation,
       host_platform: input.platform,
@@ -1538,6 +1718,11 @@ export async function collect(options: {
     | undefined;
   /** With `all`, also read what the appointed definition location serves, verified by Core. */
   delivery?: boolean | ((cli: string) => Promise<DefinitionDeliveryInspection>) | undefined;
+  /**
+   * `changed` (with `all` and `targets`) reuses subjects whose Core semantics and
+   * catalog fact are unchanged since a recent full read; `full` (default) reads all.
+   */
+  reassess?: "full" | "changed" | undefined;
   /** With `all`, also collect Core's per-target route offering for the collected ports. */
   targets?:
     | boolean
@@ -1584,13 +1769,94 @@ export async function collect(options: {
   // Freshness is the database's order of this ticket, never this runner's clock.
   const acquisition = acquireCollection(options.environment);
   const startedAt = new Date().toISOString();
-  const subjects = await mapBounded(ids, options.concurrency ?? 4, async (id) => ({
+  if (options.targets && !options.all)
+    throw new MaintenanceStoreError("Target-route collection requires --all");
+  // Read first: the producer identity keys any reuse of Core results.
+  const targetsRead = options.targets
+    ? await sourceOutcome(() =>
+        (typeof options.targets === "function" ? options.targets : readTargetRoutes)(
+          options.cli,
+          ids,
+        ),
+      )
+    : undefined;
+  const requested = options.reassess ?? "full";
+  if (requested === "changed" && (!options.all || !options.targets))
+    throw new MaintenanceStoreError("--reassess changed requires --all and --targets");
+  const authored = ids.map((id) => ({
     id,
     record: committedRecord(revision, id),
     operational: definitions.ids.has(id),
     qualification: definitions.qualification.filter((record) => record.scope?.port_id === id),
-    capabilities: await coreCapabilities(options.cli, id),
   }));
+  const producer = targetsRead?.ok ? targetsRead.value.producer : null;
+  const bindingVerified =
+    producer?.source_revision === revision &&
+    coreSourceClean &&
+    !producer.catalog_override &&
+    producer.features.length === 0;
+  const reuseKey =
+    producer && bindingVerified
+      ? coreReuseKey({
+          trees: Object.fromEntries(
+            coreSemanticPaths.map((entry) => {
+              const object = spawnSync(
+                "git",
+                ["rev-parse", "--verify", "--quiet", `${revision}:${entry}`],
+                {
+                  cwd: repositoryRoot,
+                  encoding: "utf8",
+                },
+              );
+              return [entry, object.status === 0 ? object.stdout.trim() : "absent"];
+            }),
+          ),
+          producer,
+          apiSchema,
+          platform,
+        })
+      : null;
+  const coreSource = coreSourceName(platform);
+  const decidedBaseline =
+    requested === "changed"
+      ? {
+          catalog: latestMembers(options.environment, "catalog-records"),
+          core: latestMembers(options.environment, coreSource),
+        }
+      : undefined;
+  const plan = planReassessment({
+    requested,
+    reuseKey,
+    history:
+      reuseKey === null || requested === "full"
+        ? null
+        : reuseHistory(options.environment, coreSource, reuseKey),
+    now: new Date(),
+    clockCrossed: (afterSeconds) =>
+      clockWindowCrossed(
+        ["catalog.json", "listings.json"].map((file): unknown =>
+          JSON.parse(git(["show", `${revision}:crates/portcove-core/catalog/${file}`])),
+        ),
+        afterSeconds,
+        Math.floor(Date.now() / 1000),
+      ),
+    subjects: authored.map((subject) => ({
+      key: `port:${subject.id}`,
+      catalogDigest: sha256(canonicalJson(catalogFactOf(subject))),
+    })),
+    catalogMembers: decidedBaseline?.catalog.members ?? new Map(),
+    coreMembers: decidedBaseline?.core.members ?? new Map(),
+  });
+  const subjects: CollectedSubject[] = await mapBounded(
+    authored,
+    options.concurrency ?? 4,
+    async (subject) => ({
+      ...subject,
+      capabilities: plan.reused.has(`port:${subject.id}`)
+        ? null
+        : await coreCapabilities(options.cli, subject.id),
+    }),
+  );
   const mode = options.all ? "all" : "sample";
   if (options.issues && !options.all)
     throw new MaintenanceStoreError("Issue collection requires --all");
@@ -1612,16 +1878,6 @@ export async function collect(options: {
     throw new MaintenanceStoreError("Hosted-intake collection requires --all");
   const hostedIntake = options.hostedIntake
     ? await hostedIntakeObservation(options.hostedIntake)
-    : undefined;
-  if (options.targets && !options.all)
-    throw new MaintenanceStoreError("Target-route collection requires --all");
-  const targetsRead = options.targets
-    ? await sourceOutcome(() =>
-        (typeof options.targets === "function" ? options.targets : readTargetRoutes)(
-          options.cli,
-          ids,
-        ),
-      )
     : undefined;
   if (options.publication && !options.all)
     throw new MaintenanceStoreError("Publication collection requires --all");
@@ -1655,6 +1911,7 @@ export async function collect(options: {
       startedAt,
       platform,
       subjects,
+      reassessment: plan.reassessment,
       ...(issueRead
         ? {
             issues: issueRead.ok
@@ -1763,6 +2020,15 @@ export async function collect(options: {
       mode === "all"
         ? new Map(sources.map((source) => [source, latestMembers(options.environment, source)]))
         : undefined;
+    // Reuse was decided against these baselines; another run in between voids it.
+    if (
+      plan.reused.size &&
+      (baseline?.get("catalog-records")?.run !== decidedBaseline?.catalog.run ||
+        baseline?.get(coreSource)?.run !== decidedBaseline?.core.run)
+    )
+      throw new MaintenanceStoreError(
+        "A newer maintenance collection finished while reuse was being decided; this one replaced nothing. Rerun.",
+      );
     try {
       runSql(options.environment, record(baseline), { timeoutMs: collectionTimeoutMs });
       break;
@@ -1779,6 +2045,13 @@ export async function collect(options: {
   return {
     mode,
     revision,
+    reassessment: {
+      requested,
+      mode: plan.reassessment.mode,
+      reuse_key: plan.reassessment.reuseKey,
+      reused: plan.reused.size,
+      reason: plan.reason,
+    },
     cli_sha256: cliSha256,
     subjects: subjects.length,
     issues: issueInventory?.issues.length ?? null,
@@ -1823,7 +2096,8 @@ export async function collect(options: {
         }
       : null,
     core_gaps: subjects.filter(
-      ({ capabilities: fact }) => !fact.ok && !subjectScopedRefusals.has(fact.error?.code ?? ""),
+      ({ capabilities: fact }) =>
+        fact !== null && !fact.ok && !subjectScopedRefusals.has(fact.error?.code ?? ""),
     ).length,
   };
 }
@@ -1967,6 +2241,7 @@ SELECT json_build_object(
       WHERE coverage <> 'in_progress'),
   'runs', (SELECT coalesce(json_agg(r ORDER BY r.source, r.acquisition DESC), '[]') FROM (
       SELECT DISTINCT ON (source) source, run_id, runner, source_revision, started_at, acquisition, completed_at, coverage,
+             reassessment, reused_count,
              expected_count, observed_count, gaps, member_count, member_digest
         FROM portcove_maintenance.collection_runs WHERE coverage <> 'in_progress' ORDER BY source, acquisition DESC) r),
   'unassessed_gaps', (SELECT coalesce(json_agg(json_build_object('subject_key', g.subject_key || '@' || g.platform,
@@ -2873,7 +3148,11 @@ ${freshnessSummary(report)}
 ${(report.runs as Record<string, unknown>[])
   .map(
     (run) =>
-      `<tr><td>${escapeHtml(run.source)}</td><td>${escapeHtml(run.coverage)}</td><td><code>${escapeHtml(run.source_revision)}</code></td><td>${escapeHtml(run.observed_count)} of ${escapeHtml(run.expected_count ?? "unknown")} declared</td><td>${escapeHtml(run.completed_at)}</td><td>${sourceAge(report, String(run.source))}</td><td>${(Array.isArray(run.gaps) ? (run.gaps as { subject_key: string; code: string }[]) : []).map((gap) => `${escapeHtml(gap.subject_key)}: ${escapeHtml(gap.code)}`).join("<br>")}</td></tr>`,
+      `<tr><td>${escapeHtml(run.source)}</td><td>${escapeHtml(run.coverage)}${
+        run.reassessment === "selective"
+          ? ` (selective: ${escapeHtml(run.reused_count)} unchanged subjects reused, not re-read by Core)`
+          : ""
+      }</td><td><code>${escapeHtml(run.source_revision)}</code></td><td>${escapeHtml(run.observed_count)} of ${escapeHtml(run.expected_count ?? "unknown")} declared</td><td>${escapeHtml(run.completed_at)}</td><td>${sourceAge(report, String(run.source))}</td><td>${(Array.isArray(run.gaps) ? (run.gaps as { subject_key: string; code: string }[]) : []).map((gap) => `${escapeHtml(gap.subject_key)}: ${escapeHtml(gap.code)}`).join("<br>")}</td></tr>`,
   )
   .join("\n")}
 ${report.unsupported_sources
@@ -3133,7 +3412,10 @@ commands:
                                        --publication (with --all) adds the definitions committed
                                        on main; --delivery (with --all) adds what the appointed
                                        definition location serves, verified by Core as a client
-                                       would (catalog inspect-definition-delivery)
+                                       would (catalog inspect-definition-delivery);
+                                       --reassess changed (with --all and --targets) reuses
+                                       unchanged Core results under the same Core semantics
+                                       after a full read within 7 days; full (default) reads all
   report --output DIR [--previous DIR]  write inventory.json and index.html to a new DIR; with
                                        --previous, refuse if that report reflects newer collections
   digest --output DIR                  write the pending changes-only digest (digest.json, digest.md)
@@ -3169,6 +3451,9 @@ export async function main(argv = process.argv.slice(2)) {
   const digestFile = option(args, "--digest");
   const receipt = option(args, "--receipt");
   const concurrency = option(args, "--concurrency");
+  const reassess = option(args, "--reassess");
+  if (reassess !== undefined && reassess !== "full" && reassess !== "changed")
+    throw new MaintenanceStoreError("--reassess must be full or changed");
   const issuesTokenEnvironment = option(args, "--issues-token-env");
   const allIndex = args.indexOf("--all");
   const all = allIndex >= 0;
@@ -3232,6 +3517,7 @@ export async function main(argv = process.argv.slice(2)) {
           publication: publication || undefined,
           delivery: delivery || undefined,
           targets: targets || undefined,
+          reassess,
           environment,
         }),
         null,
