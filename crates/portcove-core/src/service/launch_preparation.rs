@@ -19,6 +19,9 @@ pub(super) struct ManagedLaunchInputs {
     qualification: InstallQualification,
     source: Option<SourceRecord>,
     bios: Option<SourceRecord>,
+    /// A registered optional game source was changed or unreadable, so this launch
+    /// proceeds without it and unpacks nothing.
+    optional_source_skipped: bool,
 }
 
 impl PortcoveService {
@@ -78,6 +81,7 @@ impl PortcoveService {
         crate::runtime_path_policy::check_executable(port, Platform::current()?, &executable)?;
         checkpoint()?;
         let self_contained = crate::preparation::self_contained_launch(&self.library, port, active);
+        let mut optional_source_skipped = false;
         let source = if let Some(path) = source_override {
             let profile_id = port.source_profile.as_deref().ok_or_else(|| {
                 PortcoveError::usage(format!("{} does not accept a source override", port.name))
@@ -106,11 +110,25 @@ impl PortcoveService {
                 {
                     None
                 }
-                Some(_) => Some(self.verified_source_record_with_checkpoint(
-                    &catalog,
-                    profile,
-                    &checkpoint,
-                )?),
+                Some(_) => {
+                    match self.verified_source_record_with_checkpoint(
+                        &catalog,
+                        profile,
+                        &checkpoint,
+                    ) {
+                        Ok(record) => Some(record),
+                        // A cancelled launch stays cancelled; any other failure of an
+                        // optional source (changed, unreadable) only means it is not used.
+                        Err(error)
+                            if port.optional_game_source
+                                && error.code != crate::ErrorCode::Cancelled =>
+                        {
+                            optional_source_skipped = true;
+                            None
+                        }
+                        Err(error) => return Err(error),
+                    }
+                }
                 None => None,
             }
         } else {
@@ -165,6 +183,7 @@ impl PortcoveService {
             qualification,
             source,
             bios,
+            optional_source_skipped,
         })
     }
 
@@ -204,6 +223,7 @@ impl PortcoveService {
             qualification,
             source,
             bios,
+            optional_source_skipped,
         } = self.observe_managed_launch_inputs(port, active, source_override, operation)?;
         let port = catalog.port(&active.port_id)?;
         let checkpoint = || operation.map_or(Ok(()), OperationCoordinator::checkpoint);
@@ -225,6 +245,13 @@ impl PortcoveService {
         let selected_executable =
             Installer::new(self.library.clone())?.verify_critical(active, &qualification)?;
         checkpoint()?;
+        if let (true, Some(operation), Some(events)) = (optional_source_skipped, operation, events)
+        {
+            events(operation.message(
+                "warning",
+                "The saved game source changed or cannot be read, so Portcove is using the game files it already unpacked.",
+            ));
+        }
         let disc_reported = std::cell::Cell::new(false);
         let report_disc =
             |phase: crate::adapter::DiscUnpackPhase, completed: u64, total: Option<u64>| {

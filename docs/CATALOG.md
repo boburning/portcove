@@ -968,9 +968,11 @@ image. It is valid only on a `staged-source-portable` port that declares a
 - A registered source whose file has since gone (for example the image was deleted after
   unpacking) is treated as absent: Play is not blocked and the unpacked folder stays. Only
   "not found" counts as gone; a permission error or an unreachable location does not.
-- A registered source that later changed or became unreadable still holds Play until the
-  player registers it again or removes the registration. This is deliberate and fail-safe:
-  nothing is unpacked, replaced or removed in the meantime.
+- A registered source that later changed or became unreadable does not hold Play either:
+  Play launches with the files already unpacked, unpacks nothing and removes nothing, and
+  the launch reports a `warning` message that the saved source changed or cannot be read.
+  Registering the image again (or removing the registration) is what resumes unpacking.
+  Cancellation is never treated as a source failure.
 - Choosing a valid optional source is what makes Portcove unpack at the next launch, and
   that replaces the destination folder, which is the first time Portcove can replace a
   hand-extracted setup. Registering the source shows no separate confirmation of that, and
@@ -978,7 +980,8 @@ image. It is valid only on a `staged-source-portable` port that declares a
   happens, so the definition's player copy must say plainly that unpacking replaces the
   folder.
 - The install, setup and update paths follow the same rule: an optional source that was
-  never registered, or whose file has gone, is simply not used; it neither fails setup nor
+  never registered, whose file has gone, or that changed or cannot be read, is simply not
+  used; it neither fails setup nor
   holds the Install or Update action.
 - Every other port is unchanged: a required source still blocks while unregistered or
   missing, and the requirement serializes as before.
