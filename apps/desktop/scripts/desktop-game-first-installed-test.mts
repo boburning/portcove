@@ -412,7 +412,7 @@ export async function gameFirstInstalledScenario(context: GameFirstInstalledCont
         executableIdentity,
       };
       onManagedGame({ executable, installation: installed });
-      await click(button("Back to library"));
+      await click(button("Back to Library"));
       const libraryCard = `[data-detail-origin="library:card:${portId}"]`;
       const libraryView = async () => {
         await selectPrimaryNavigation(browser, "Library");
