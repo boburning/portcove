@@ -670,7 +670,7 @@ status owns count announcements. Clear filters and Reset view retain distinct
 scopes. Removal labels include the visible filter group and value for speech control. Empty/unavailable results retain accurate recovery; no-match headings use
 22px/1.35 with concise explicit reset scope and natural growth for longer text.
 
-Library starts with Runs on (including Available for this device, which states acquisition availability only), Original system and Update channels. Other real
+Library starts with Runs on (including Available for this device, which states acquisition availability only), Original system and Update channels. Runs on covers the managed definition's platforms plus any the accepted listing declares for its upstream download (that download can still be unavailable); a listing-only platform matches as the listing download and never as a managed setup or installation, and managed actions stay limited to the managed platforms. Other real
 groups remain in Advanced filters, which opens for restored advanced selections.
 The Library panel places heading/help in a compact row and keeps closed Advanced
 controls beside the footer where space allows. Explanations, unknown-context

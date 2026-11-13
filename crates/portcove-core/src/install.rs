@@ -993,6 +993,11 @@ impl Installer {
             request.qualification.platform,
             &request.release.asset.name,
         )?;
+        crate::native_external_profile::vcmi::require_archive(
+            port,
+            request.qualification.platform,
+            &request.release.asset.name,
+        )?;
         crate::installed_mutability::require_shipwright_release(
             port,
             request.qualification.platform,
@@ -3461,6 +3466,11 @@ fn write_manifest(
         qualification.platform,
         &artifact.asset_name,
     )?;
+    crate::native_external_profile::vcmi::require_archive(
+        catalog.port(port_id)?,
+        qualification.platform,
+        &artifact.asset_name,
+    )?;
     crate::managed_shared_preferences::require_artifact(
         catalog.port(port_id)?,
         version,
@@ -3918,6 +3928,13 @@ fn verified_manifest_with_budget(
     if let Some(contract) = &manifest.retained_contract {
         let catalog = contract.catalog(&install.port_id)?;
         crate::managed_runtime_policy::require_native_appimage_artifact(
+            catalog.port(&install.port_id)?,
+            manifest
+                .platform
+                .ok_or_else(|| PortcoveError::verification("retained manifest has no platform"))?,
+            &manifest.artifact.asset_name,
+        )?;
+        crate::native_external_profile::vcmi::require_archive(
             catalog.port(&install.port_id)?,
             manifest
                 .platform

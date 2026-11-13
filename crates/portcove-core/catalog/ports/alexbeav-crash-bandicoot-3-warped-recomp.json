@@ -3,11 +3,12 @@
   "listing": {
     "id": "alexbeav-crash-bandicoot-3-warped-recomp",
     "name": "Crash Bandicoot 3: Warped / Alexbeav PSXRecomp",
-    "summary": "PlayStation port prepared with your own matching disc and any required BIOS. Complete setup with the project’s launcher; you manage this copy, its updates and your saved data.",
+    "summary": "Build and play Crash Bandicoot 3: Warped on Windows or Linux with your own matching USA PlayStation disc and retail SCPH-1001 BIOS. You can also use a separately prepared upstream copy.",
+    "original_game_title": "Crash Bandicoot 3: Warped",
     "project_url": "https://github.com/alexbeavs-ps1-ports/crash-bandicoot-3-warped-recomp",
     "issue_number": 439,
     "listed_at": "2026-10-23",
-    "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
+    "platforms": ["macos-x86-64", "macos-aarch64"],
     "availability": "packages",
     "setup_url": "https://github.com/alexbeavs-ps1-ports/crash-bandicoot-3-warped-recomp#readme",
     "artwork": {
@@ -21,24 +22,31 @@
     "manual_setup": {
       "steps": [
         {
-          "title": "Download and unpack the setup kit",
-          "instruction": "Extract the complete official ZIP for your system into a separate writable folder. On Linux, follow the kit’s requirements for CMake, Ninja, Python 3 and a C/C++ compiler. Use Linux tools for the Linux build."
+          "title": "Use the exact original files",
+          "instruction": "Use your own Crash Bandicoot 3: Warped (USA) disc (SCUS-94244) with its single data track and your own retail SCPH-1001 BIOS."
         },
         {
-          "title": "Supply the matching original files",
-          "instruction": "Follow the upstream guide for the version you downloaded. Use your own original in its supported image representation, keeping a CUE and every referenced track together when required, and supply your own BIOS whenever that guide requires it. Preserve the exact edition, disc layout and BIOS requirements in that guide; an included setup BIOS does not establish game compatibility."
+          "title": "Set up the managed Windows or Linux player",
+          "instruction": "In Portcove, select the complete matching CHD and BIOS. Keep both original files in place. Portcove builds the player from the setup kit with its registered toolchain. Choose Play after the build finishes."
         },
         {
-          "title": "Build the game and add it to Portcove",
-          "instruction": "Open the project’s launcher and follow its build instructions. Keep the completed game with its required program and compiler files. In Portcove, select the completed program or supported launcher and its start folder. Save the details, then choose Play."
+          "title": "Prepare a separate Mac copy",
+          "instruction": "Choose the official Mac ZIP from the upstream releases. Use -macos-x64.zip for Intel or -macos-arm64.zip for Apple silicon. Extract the complete kit to a writable folder and follow its README-SETUP.txt, which asks for your own SCPH-1001 BIOS."
+        },
+        {
+          "title": "Build and add the completed Mac player",
+          "instruction": "Run Crash_Bandicoot_3__Warped_Recompiled from the kit folder and choose Generate & rebuild. Keep the CUE and every referenced BIN together if using CUE/BIN. In Portcove, select build-release/Crash_Bandicoot_3__Warped_Recompiled as the player and build-release as its start folder."
         }
       ],
-      "warnings": ["Portcove has not confirmed setup or gameplay for this package."],
+      "warnings": [
+        "Portcove checks the first data track and track count. Keep the complete disc intact.",
+        "Mac setup, replacement and backups belong to you and the upstream kit. Native setup, gameplay and populated-save behavior remain unverified."
+      ],
       "help_url": "https://github.com/alexbeavs-ps1-ports/crash-bandicoot-3-warped-recomp#readme",
       "references": [
         {
-          "title": "Updates and backups",
-          "instruction": "Keep a working copy and its data before changing versions. Use the project’s tools for updates and back up your original files, saves and settings yourself."
+          "title": "Keep the original files and your data",
+          "instruction": "Keep your disc and BIOS separately. For a Mac copy, close the game and back up the complete working folder and its saves, settings and installed mods before replacing the kit."
         }
       ]
     },
@@ -50,5 +58,47 @@
       "macos-aarch64": ["crash-bandicoot-3-warped-", "-macos-arm64.zip"]
     },
     "recommended_download_channel": "stable"
+  },
+  "psx_managed_windows_v1": "split-mods",
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64", "linux-x86-64"],
+    "automated_tested_platforms": [],
+    "manually_validated_platforms": [],
+    "adapter": "psx-recomp-managed",
+    "release": {
+      "provider": "github",
+      "repository": "alexbeavs-ps1-ports/crash-bandicoot-3-warped-recomp",
+      "asset_hints": {
+        "windows-x86-64": ["crash-bandicoot-3-warped-", "-windows-x64.zip"],
+        "linux-x86-64": ["crash-bandicoot-3-warped-", "-linux-x64.zip"]
+      }
+    },
+    "source_profile": "alexbeav-crash-bandicoot-3-warped-recomp-usa-psx",
+    "executable_hints": {
+      "windows-x86-64": ["Crash_Bandicoot_3__Warped_Recompiled.exe"],
+      "linux-x86-64": ["Crash_Bandicoot_3__Warped_Recompiled"]
+    },
+    "presentation": {
+      "installation_method": "managed-recompilation",
+      "source_requirements": [
+        {
+          "role": "game",
+          "profile_id": "alexbeav-crash-bandicoot-3-warped-recomp-usa-psx",
+          "label": "Crash Bandicoot 3: Warped (USA) disc",
+          "verification": "catalog-identity"
+        },
+        {
+          "role": "bios",
+          "profile_id": "psx-scph-1001-bios",
+          "label": "PlayStation SCPH-1001 BIOS",
+          "verification": "catalog-identity"
+        }
+      ],
+      "saves_and_settings": "portcove-managed",
+      "manual_preparation": "Select your own Crash Bandicoot 3: Warped (USA) complete CHD (SCUS-94244, 1 track) and retail SCPH-1001 BIOS. Portcove builds a private player from the upstream setup kit and retains its declared saves, settings and installed mods. Bundled mods belong to the runtime version. Runtime rollback carries the current player data. Mac setup is upstream-owned."
+    },
+    "bios_source_profile": "psx-scph-1001-bios"
   }
 }

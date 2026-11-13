@@ -181,6 +181,7 @@ impl ReleaseSelectionCacheKey {
                     port, platform,
                 )
                 || crate::native_external_profile::openjk::requires_archive(port, platform)
+                || crate::native_external_profile::vcmi::requires_archive(port, platform)
                 || crate::native_portable_data::directory_name(port, platform).is_some(),
             scope_binding: None,
             repository: port.release.repository.clone(),
@@ -2041,6 +2042,7 @@ fn choose_asset<'a>(
                     port, platform, &name,
                 )
                 || !crate::native_portable_data::matches_archive(port, platform, &name)
+                || !crate::native_external_profile::vcmi::matches_asset(port, platform, &name)
             {
                 return None;
             }

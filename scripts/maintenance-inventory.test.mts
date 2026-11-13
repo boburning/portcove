@@ -52,6 +52,7 @@ import {
 } from "./maintenance-inventory.mts";
 import type { UpstreamInput } from "./maintenance-upstream.mts";
 import { issueReconsiderations, targetReconsiderations } from "./maintenance-reconsiderations.mts";
+import { targetsDigest } from "./release-content-scan.mts";
 import { explicitBlockerFields } from "./roadmap-qualification.mts";
 import type { HostedRequestStatus, HostedStatusAll } from "./hosted-discovery-intake.mts";
 import { GitHubApiError } from "./github-operation.mts";
@@ -243,6 +244,7 @@ void test("the hosted workflow runs daily on main with least privilege and a rea
   for (const flag of [
     "--all",
     "--release-health",
+    "--release-content",
     "--publication",
     "--delivery",
     "--upstream",
@@ -435,6 +437,22 @@ void test("the static report escapes untrusted text and states unknown publicati
 });
 
 const server = postgresServer();
+
+/** A format-2 scan report whose declared targets are exactly its own entries. */
+function scanReport<T extends { scanned: object[]; reused_targets: object[]; unscanned: object[] }>(
+  lists: T,
+) {
+  const targets = [...lists.scanned, ...lists.reused_targets, ...lists.unscanned] as {
+    id: string;
+    platform: string;
+  }[];
+  return {
+    ...lists,
+    format_version: 2,
+    targets: targets.length,
+    targets_sha256: targetsDigest(targets),
+  };
+}
 
 /** A stub Core CLI answering from responses.json and logging its isolation paths. */
 function stubCli(root: string) {
@@ -1244,6 +1262,337 @@ void test(
       ).trim(),
       "failed:source:definition-publication",
     );
+  },
+);
+
+void test(
+  "release content shows findings from partial runs and opens handoffs only after complete runs",
+  { skip: server.skip ?? false, timeout: 240_000 },
+  async (context) => {
+    const fixture = postgresFixture(context, server.directory!);
+    const store = fixture.start("content");
+    migrate(store.owner);
+    const { cli, responses } = stubCli(fixture.root);
+    writeFileSync(responses, JSON.stringify({ "2ship2harkinian": report("automatic") }));
+    // Synthetic scan records only: no real package, file or game data.
+    const scanned = (id: string, tag: string, signals: unknown[] = []) => ({
+      key: `r2|github|up/${id}|${tag}|${id}.zip|10`,
+      id,
+      platform: "linux-x86-64",
+      repository: `up/${id}`,
+      tag,
+      asset: `${id}-${tag}.zip`,
+      sha256: "a".repeat(64),
+      entries: 2,
+      heads_unread: 0,
+      heads_truncated: false,
+      rules: 2,
+      signals,
+    });
+    const signal = {
+      path: "data/header.bin",
+      kind: "cartridge-header",
+      reason: "synthetic cartridge header",
+    };
+    const flagged = scanned("2ship2harkinian", "v1", [signal]);
+    let run = 0;
+    const scan =
+      (options: { ship?: "new" | "reused" | "deferred" | "held"; other?: "done" | "deferred" }) =>
+      () => {
+        const ship = options.ship ?? "new";
+        const other = options.other ?? "done";
+        return Promise.resolve({
+          revision: `release-content-scan-run:${++run}-1@${"c".repeat(40)}#sha256:${"d".repeat(64)}`,
+          report: scanReport({
+            scanned: [
+              ...(ship === "new" ? [flagged] : []),
+              ...(other === "done" ? [scanned("mdk-sdl-nemo22", "v3")] : []),
+            ],
+            reused: ship === "reused" ? 1 : 0,
+            reused_targets:
+              ship === "reused"
+                ? [{ id: "2ship2harkinian", platform: "linux-x86-64", key: flagged.key }]
+                : [],
+            findings: ship === "new" || ship === "reused" ? [flagged] : [],
+            unscanned: [
+              ...(ship === "deferred"
+                ? [
+                    {
+                      id: "2ship2harkinian",
+                      platform: "linux-x86-64",
+                      code: "asset-budget",
+                      reason: "asset or byte budget reached; scanned in a later run",
+                    },
+                  ]
+                : []),
+              ...(other === "deferred"
+                ? [
+                    {
+                      id: "mdk-sdl-nemo22",
+                      platform: "linux-x86-64",
+                      code: "time-budget",
+                      reason: "time budget reached; scanned in a later run",
+                    },
+                  ]
+                : []),
+            ],
+          }),
+        });
+      };
+    const collectWith = (releaseContent: () => Promise<{ revision: string; report: unknown }>) =>
+      collect({
+        cli,
+        all: true,
+        ports: ["2ship2harkinian"],
+        releaseContent,
+        environment: store.owner,
+        runner: "fixture",
+      });
+    const contentRuns = () =>
+      (
+        JSON.parse(
+          runSql(
+            store.owner,
+            `SELECT json_agg(json_build_object('coverage', coverage, 'expected', expected_count,
+               'rows', (SELECT count(*) FROM portcove_maintenance.observations o WHERE o.run_id = r.run_id),
+               'gaps', jsonb_array_length(gaps)) ORDER BY started_at)
+               FROM portcove_maintenance.collection_runs r WHERE source = 'release-content';`,
+          ),
+        ) as { coverage: string; expected: number; rows: number; gaps: number }[]
+      ).map(({ coverage, expected, rows, gaps }) => [coverage, expected, rows, gaps]);
+    const handoffStates = () =>
+      runSql(
+        store.owner,
+        `SELECT coalesce(string_agg(t.subject_key || '=' || t.state, ',' ORDER BY t.sequence), '')
+           FROM portcove_maintenance.subject_transitions t
+          WHERE starts_with(t.subject_key, 'handoff:release-content-finding:');`,
+      ).trim();
+    const ship = (inventory: InventoryReport) =>
+      (inventory.subjects as Record<string, unknown>[]).find(
+        ({ port_key }) => port_key === "port:2ship2harkinian",
+      )!;
+    const finding =
+      "release content: linux-x86-64 v1 2ship2harkinian-v1.zip (data/header.bin: synthetic cartridge header)";
+
+    // A flagged release on a fully scanned port is a stored fact even while
+    // another port's targets keep the run partial; no handoff is recorded yet.
+    await collectWith(scan({ other: "deferred" }));
+    let inventory = buildReport(store.owner);
+    assert.ok(!inventory.unsupported_sources.some(({ source }) => source === "release-content"));
+    assert.deepEqual(
+      (ship(inventory).release_content as { findings: { asset: string; sha256: string }[] })
+        .findings,
+      [
+        {
+          platform: "linux-x86-64",
+          repository: "up/2ship2harkinian",
+          tag: "v1",
+          asset: "2ship2harkinian-v1.zip",
+          sha256: "a".repeat(64),
+          rules: 2,
+          signals: [signal],
+        },
+      ],
+    );
+    let html = renderHtml(inventory);
+    assert.ok(html.includes(finding), "the finding is under Needs attention");
+    assert.match(html, /<h2>Release content findings<\/h2>/u);
+    assert.match(
+      html,
+      /<td>port:2ship2harkinian<br>2Ship2Harkinian<\/td><td>linux-x86-64: up\/2ship2harkinian v1<br><code>2ship2harkinian-v1\.zip<\/code><br>sha256 <code>a{64}<\/code> · rules 2<\/td><td><code>data\/header\.bin<\/code>: synthetic cartridge header \(cartridge-header\)<\/td><td>stored fact<\/td>/u,
+    );
+    assert.equal(handoffStates(), "", "a partial run records no handoff");
+
+    // The same package reused from the checkpoint is the same fact: nothing stored.
+    await collectWith(scan({ ship: "reused", other: "deferred" }));
+    // A deferred port keeps its stored finding; a finding is never cleared by a partial run.
+    await collectWith(scan({ ship: "deferred", other: "deferred" }));
+    assert.ok(renderHtml(buildReport(store.owner)).includes(finding));
+    // A complete run opens the routine handoff, named in the report and digest.
+    await collectWith(scan({ ship: "reused" }));
+    assert.deepEqual(contentRuns(), [
+      ["partial", 2, 1, 1],
+      ["partial", 2, 0, 1],
+      ["partial", 2, 0, 2],
+      ["complete", 2, 1, 0],
+    ]);
+    assert.equal(
+      handoffStates(),
+      "handoff:release-content-finding:port:2ship2harkinian=needs-attention",
+    );
+    inventory = buildReport(store.owner);
+    assert.deepEqual(
+      inventory.handoffs?.map(({ kind, source_subject, registry }) => [
+        kind,
+        source_subject,
+        registry?.authority,
+      ]),
+      [["release-content-finding", "port:2ship2harkinian", "routine"]],
+    );
+    html = renderHtml(inventory);
+    assert.match(html, /release-content-finding: A person confirms the flagged files/u);
+    assert.match(
+      renderDigestMarkdown(buildDigest(store.owner)),
+      /`handoff:release-content-finding:port:2ship2harkinian`: none → needs-attention; next action: A person confirms/u,
+    );
+
+    // A failed read keeps the stored finding visible and names the failure.
+    const failed = await collectWith(() => Promise.reject(new Error("artifact expired")));
+    assert.deepEqual(failed.failed_sources, ["release-content"]);
+    html = renderHtml(buildReport(store.owner));
+    assert.ok(html.includes(finding));
+    assert.match(html, /Latest read failed: unavailable; earlier facts stay current\./u);
+
+    // A held listing leaves the scan targets: the next complete run records its
+    // absence and clears the handoff.
+    await collectWith(scan({ ship: "held" }));
+    assert.equal(
+      handoffStates(),
+      "handoff:release-content-finding:port:2ship2harkinian=needs-attention,handoff:release-content-finding:port:2ship2harkinian=clear",
+    );
+    inventory = buildReport(store.owner);
+    assert.equal(ship(inventory).release_content, null);
+    html = renderHtml(inventory);
+    assert.ok(!html.includes(finding));
+    assert.match(html, /No flagged release packages\./u);
+  },
+);
+
+void test(
+  "packages the scan could not inspect are shown and open the release-content handoff",
+  { skip: server.skip ?? false, timeout: 240_000 },
+  async (context) => {
+    const fixture = postgresFixture(context, server.directory!);
+    const store = fixture.start("content-unscannable");
+    migrate(store.owner);
+    const { cli, responses } = stubCli(fixture.root);
+    writeFileSync(responses, JSON.stringify({ "2ship2harkinian": report("automatic") }));
+    const target = (platform: string, code: string) => ({
+      id: "2ship2harkinian",
+      platform,
+      code,
+      reason: `synthetic ${code}`,
+    });
+    await collect({
+      cli,
+      all: true,
+      ports: ["2ship2harkinian"],
+      releaseContent: () =>
+        Promise.resolve({
+          revision: `release-content-scan-run:1-1@${"c".repeat(40)}#sha256:${"d".repeat(64)}`,
+          report: scanReport({
+            scanned: [],
+            reused: 0,
+            reused_targets: [],
+            findings: [],
+            unscanned: [
+              target("linux-x86-64", "digest-mismatch"),
+              target("windows-x86-64", "no-single-asset"),
+            ],
+          }),
+        }),
+      environment: store.owner,
+      runner: "fixture",
+    });
+    const inventory = buildReport(store.owner);
+    assert.deepEqual(
+      inventory.handoffs?.map(({ kind, condition }) => [kind, condition]),
+      [
+        [
+          "release-content-finding",
+          { findings: [], unscannable: [{ platform: "linux-x86-64", code: "digest-mismatch" }] },
+        ],
+      ],
+    );
+    const html = renderHtml(inventory);
+    assert.ok(html.includes("release content not scannable: linux-x86-64 digest-mismatch"));
+    assert.ok(!html.includes("release content not scannable: windows-x86-64"));
+    assert.match(html, /<h3>Not scannable<\/h3>/u);
+    assert.match(
+      html,
+      /<td>linux-x86-64<\/td><td><code>digest-mismatch<\/code><\/td><td><span class="unknown">needs attention: a package exists that the scan could not inspect<\/span><\/td><td>release-content-finding: A person confirms/u,
+    );
+    assert.match(
+      html,
+      /<td>windows-x86-64<\/td><td><code>no-single-asset<\/code><\/td><td>coverage note: no package to scan<\/td><td><\/td>/u,
+    );
+  },
+);
+
+void test(
+  "a finding on a port with deferred targets is visible from the latest scan's gap",
+  { skip: server.skip ?? false, timeout: 240_000 },
+  async (context) => {
+    const fixture = postgresFixture(context, server.directory!);
+    const store = fixture.start("content-gap");
+    migrate(store.owner);
+    const { cli, responses } = stubCli(fixture.root);
+    writeFileSync(responses, JSON.stringify({ "2ship2harkinian": report("automatic") }));
+    const signal = { path: "game.iso", kind: "rom-or-disc-image", reason: "disc image" };
+    await collect({
+      cli,
+      all: true,
+      ports: ["2ship2harkinian"],
+      releaseContent: () =>
+        Promise.resolve({
+          revision: `release-content-scan-run:1-1@${"c".repeat(40)}#sha256:${"d".repeat(64)}`,
+          report: scanReport({
+            scanned: [
+              {
+                key: "k",
+                id: "2ship2harkinian",
+                platform: "linux-x86-64",
+                repository: "up/ship",
+                tag: "v2",
+                asset: "ship-linux.zip",
+                sha256: "e".repeat(64),
+                entries: 1,
+                heads_unread: 0,
+                heads_truncated: false,
+                rules: 2,
+                signals: [signal],
+              },
+            ],
+            reused: 0,
+            reused_targets: [],
+            findings: [
+              {
+                key: "k",
+                id: "2ship2harkinian",
+                platform: "linux-x86-64",
+                repository: "up/ship",
+                tag: "v2",
+                asset: "ship-linux.zip",
+                sha256: "e".repeat(64),
+                entries: 1,
+                heads_unread: 0,
+                heads_truncated: false,
+                rules: 2,
+                signals: [signal],
+              },
+            ],
+            unscanned: [
+              {
+                id: "2ship2harkinian",
+                platform: "windows-x86-64",
+                code: "scan-failed",
+                reason: "asset could not be scanned",
+              },
+            ],
+          }),
+        }),
+      environment: store.owner,
+      runner: "fixture",
+    });
+    const inventory = buildReport(store.owner);
+    const subject = (inventory.subjects as Record<string, unknown>[])[0]!;
+    assert.equal(subject.release_content, null, "no stored fact while a target is deferred");
+    assert.equal((subject.latest_content_gap as { code: string }).code, "release-content-deferred");
+    const html = renderHtml(inventory);
+    assert.ok(
+      html.includes("release content: linux-x86-64 v2 ship-linux.zip (game.iso: disc image)"),
+    );
+    assert.match(html, /latest scan; not every target of the listing scanned yet/u);
   },
 );
 

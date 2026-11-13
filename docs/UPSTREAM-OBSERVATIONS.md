@@ -717,7 +717,7 @@ The coordinator validates the complete inventory and accounting policy before
 network work. It selects ports oldest-attempt-first and admits at most one
 individually oversized port alongside normally fitting scopes. Within that
 scope, locations rotate fairly across owners and oldest actual attempts. Each
-operation permits at most **352 requests**, **512 newly assessed locations**,
+incremental operation permits at most **352 requests**, **512 newly assessed locations**,
 three minutes, fifteen seconds per request, one MiB per response and sixteen MiB
 consumed response bytes. Compatible completed locations may be replayed from the
 validated checkpoint without spending another operation slot or request; their
@@ -734,8 +734,15 @@ resumed invocations and defer related reads without
 blocking unrelated providers. Unknown capacity retains the finite request
 bootstrap. Failed reads are not retried within the same logical job.
 
-The standalone full collector keeps its strict preflight refusal when the
-selected logical inventory exceeds either historical ceiling. The maintained
+The standalone full collector, which the release workflow runs, is bounded by its
+own validated forecast instead of the 352-request ceiling: every request is
+admitted against that conservative plan, the provider quota reserve, the
+three-minute limit and the byte limits, so a larger request forecast never refuses
+the inventory. It still refuses before network work when the selected inventory
+exceeds the 512-location observation ceiling, which bounds one report. In observed release
+runs 34761853116, 34769169958, 34847939207 and 35158181486 (2026-09-13 to
+2026-09-16), the "Verify active catalog upstreams" step took 14–17 seconds; this is
+an observation of a smaller catalog, not a guarantee. Without provider quota headers, the forecast is the only request bound. The maintained
 workflow uses incremental admission instead: completed locations are checkpointed
 atomically after each operation, under the existing lock and 16 MiB envelope.
 Continuation binds the accounting policy and exact per-owner health contracts.
@@ -878,7 +885,7 @@ inventory, accepted artifact or exception to required hosted validation.
 ### Growing monitoring inventories
 
 The monitor retains fair oldest-attempt rotation across bounded collector runs.
-The collector's 352-request and 512-new-location envelopes bound one operation,
+The collector's 352-request and 512-new-location envelopes bound one monitor operation,
 not the logical catalog or retained cross-run history. Checkpoints use their
 existing 16 MiB physical envelope rather than separate 4,096-port, 8,192-record
 or 512-incident historical count ceilings. Input catalogs are bounded to 4 MiB,
@@ -1031,7 +1038,7 @@ Metroid's build-specific quickstates retain their pins.
 The [`release-content-scan.yml`](../.github/workflows/release-content-scan.yml)
 workflow applies the automated half of the
 [rights basis for upstream-hosted packages](CATALOG.md#rights-basis-for-upstream-hosted-packages)
-([#5353](https://github.com/boburning/portcove/issues/5353)). Once a day it reads
+([#5353](https://github.com/boburning/portcove/issues/5353)). Every six hours it reads
 every unheld GitHub or GitLab listing that offers a download, finds the newest
 release in the listing's recommended channel and the single asset each
 platform's hints select, and downloads each asset it has not scanned before.
@@ -1058,9 +1065,27 @@ size, so a successfully scanned
 release is downloaded once; a rules change rescans. Each run has an asset
 budget that counts every attempt, a byte budget that counts failed transfers
 too, and a 75-minute deadline that also caps every download, listing and
-file read, so a slow package cannot outlast the job; the rest is reported as
-not scanned and
-continues in a later run. Each record notes candidate files it could not read
+file read, so a slow package cannot outlast the job. Every target not scanned
+is reported with a stable code. Persistent targets are reported as not
+scannable: `no-release`,
+`no-single-asset`, `release-unavailable` (the release read answers with a
+redirect, 404 or 410, for example a renamed repository), `asset-too-large`
+(over the per-asset limit, also when a transfer of unknown size reaches it),
+`digest-mismatch`, `encrypted-archive` and `unlistable` (no lister can read
+the package). The checkpoint remembers `asset-too-large`, `digest-mismatch`
+and `encrypted-archive` for a downloaded asset, so it is not fetched again
+until its release, the rules or, for its size, the per-asset limit changes.
+`unlistable` is re-checked on every run, because a lister or environment fault
+can cause it too, and each retry spends the asset and byte budgets. The rest (`time-budget`,
+`asset-budget`, `time-cut`, `release-read-failed` and `scan-failed` for
+transient network, provider or tool failures) continues in a later run. The
+report (format 2) declares how many targets the listings produced and a digest
+of that list, and a run with no targets fails. Each record notes candidate files it could not read
 or did not reach. The job summary lists findings first, each finding is also a
 workflow warning, and the report artifact keeps every record for 30 days.
 Nested archives and installers are listed only at their outer level.
+Findings from the latest scheduled `main` report reach the
+[maintenance inventory](MAINTENANCE-STORE.md#release-content) with their
+listing and evidence, together with every target it could not scan. A
+`complete` report opens one routine handoff per port, carrying its findings and
+any package the scan could not inspect.

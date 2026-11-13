@@ -3,11 +3,11 @@
   "listing": {
     "id": "vcmi-vcmi",
     "name": "VCMI",
-    "summary": "Play Heroes of Might and Magic III with VCMI’s mods and modern systems support using your own game data.",
+    "summary": "Open-source Heroes III engine. Portcove can manage the official Windows x64 engine while you import your own game data with the upstream launcher. The shared profile remains yours.",
     "project_url": "https://github.com/vcmi/vcmi",
     "issue_number": 1902,
     "listed_at": "2026-10-23",
-    "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
+    "platforms": ["linux-x86-64", "macos-x86-64", "macos-aarch64"],
     "availability": "packages",
     "setup_url": "https://vcmi.eu/download/",
     "original_game_title": "Heroes of Might and Magic III",
@@ -69,6 +69,51 @@
       "linux-x86-64": ["VCMI-Linux-x64.AppImage"],
       "macos-x86-64": ["VCMI-macOS-intel.dmg"],
       "macos-aarch64": ["VCMI-macOS-arm.dmg"]
+    }
+  },
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64"],
+    "adapter": "native-portable",
+    "external_profile_policy": "vcmi-windows-v1",
+    "release": {
+      "provider": "github",
+      "repository": "vcmi/vcmi",
+      "asset_hints": {
+        "windows-x86-64": ["VCMI-Windows.zip"]
+      }
+    },
+    "executable_hints": {
+      "windows-x86-64": ["VCMI_client.exe"]
+    },
+    "persistent_paths": [],
+    "reviewed_package_layouts": {
+      "windows-x86-64": {
+        "directories": [
+          "ai",
+          "bearer",
+          "config",
+          "iconengines",
+          "imageformats",
+          "mods",
+          "platforms",
+          "styles",
+          "translations"
+        ],
+        "executables": [
+          "vcmi_client.exe",
+          "vcmi_launcher.exe",
+          "vcmi_mapeditor.exe",
+          "vcmi_server.exe"
+        ]
+      }
+    },
+    "presentation": {
+      "installation_method": "portable-package",
+      "source_requirements": [],
+      "saves_and_settings": "external-user-owned",
+      "manual_preparation": "Use a separate official VCMI launcher to import your own Heroes III Complete or Shadow of Death data into the default Windows profile under Documents/My Games/vcmi. Close the launcher before choosing Play. Portcove manages the official x64 engine and starts VCMI_client.exe. Your imported data, saves, settings and mods remain in the shared Windows profile. Back up that profile yourself before changing versions. Custom profile paths require a separate upstream copy. Keep a compatible runtime for unfinished games, since saves can differ across major versions."
     }
   }
 }

@@ -8,7 +8,12 @@ import type {
   PortStatus,
 } from "../../types";
 import { filterPorts } from "../../view-model";
-import { catalogEntries, usesSelfServiceDetail, listingAvailabilityLabel } from "./catalog-entry";
+import {
+  availablePlatforms,
+  catalogEntries,
+  usesSelfServiceDetail,
+  listingAvailabilityLabel,
+} from "./catalog-entry";
 import { evaluateCatalogQuery } from "./catalog-query";
 import { gameGroupId, originalSystems } from "./original-game";
 
@@ -307,6 +312,33 @@ describe("lightweight catalog entries", () => {
     expect(filtered.state).toBe("matched");
     expect(filtered.ports.map(({ id }) => id)).toEqual(["managed"]);
     expect(filtered.unavailablePortIds).toEqual([listing.id]);
+  });
+
+  it("offers a managed port on the extra platforms its listing downloads cover", () => {
+    const definition = {
+      ...portDefinition(),
+      id: listing.id,
+      platforms: ["windows-x86-64" as const],
+    };
+    const [entry] = catalogEntries(
+      { schema_version: 1, source_profiles: [], ports: [definition] },
+      directory,
+      [],
+      [],
+    );
+    // Managed actions keep the definition's platforms; browsing adds the listing's.
+    expect(entry!.platforms).toEqual(["windows-x86-64"]);
+    expect(availablePlatforms(entry!)).toEqual(["windows-x86-64", "linux-x86-64"]);
+    const linux = { devicePlatform: "linux-x86-64" as const };
+    expect(
+      evaluateCatalogQuery([entry!], { version: 1, platforms: ["linux-x86-64"] }, linux).ports,
+    ).toEqual([entry]);
+    expect(
+      evaluateCatalogQuery([entry!], { version: 1, platforms: ["this-device"] }, linux).ports,
+    ).toEqual([entry]);
+    expect(
+      evaluateCatalogQuery([entry!], { version: 1, platforms: ["macos-aarch64"] }).ports,
+    ).toEqual([]);
   });
 
   it("uses the observed external platform for combined membership filters", () => {

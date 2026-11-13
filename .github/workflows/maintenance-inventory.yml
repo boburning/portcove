@@ -120,7 +120,7 @@ jobs:
         timeout-minutes: 40
         env:
           PORTCOVE_MAINTENANCE_DATABASE_URL: ${{ secrets.PORTCOVE_DATABASE_URL }}
-          # Release health, upstream snapshots and hosted intake: this job's read-only token.
+          # Release health and content, upstream snapshots and hosted intake: this job's read-only token.
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # Issues and Project only, read-only, through --issues-token-env.
           PORTCOVE_ROADMAP_GH_TOKEN: ${{ secrets.PORTCOVE_ROADMAP_TOKEN }}
@@ -128,7 +128,8 @@ jobs:
           started=$EPOCHSECONDS
           node scripts/maintenance-inventory.mts collect --all --cli target/debug/portcove \
             --issues --issues-token-env PORTCOVE_ROADMAP_GH_TOKEN \
-            --release-health --publication --delivery --upstream --hosted-intake --targets \
+            --release-health --release-content --publication --delivery --upstream --hosted-intake \
+            --targets \
             > work/maintenance-evidence/collect.json
           printf 'collect\t%s\t%s\n' "$started" "$EPOCHSECONDS" >> "$PORTCOVE_STEP_TIMES"
       # A failed collection committed nothing, so the steps below still report and

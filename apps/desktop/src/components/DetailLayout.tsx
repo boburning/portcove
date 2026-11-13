@@ -22,6 +22,7 @@ import { IdentityIcon } from "../features/identity/IdentityIcon";
 import { identityLabel, identityStyle } from "../features/identity/identity-style";
 import { releaseChannelPresentation } from "../view-model";
 import type { PortDefinition, ReleaseChannel } from "../types";
+import { availablePlatforms, type CatalogEntry } from "../features/browsing/catalog-entry";
 import { Chip } from "./ui/chip";
 import { ExternalLink } from "./ExternalLink";
 import { Icon } from "./ui";
@@ -46,6 +47,7 @@ type Identity = PortIdentity & {
   id: string;
   platforms?: PortDefinition["platforms"] | undefined;
   channels?: PortDefinition["channels"] | undefined;
+  listing?: CatalogEntry["listing"];
 };
 export type RevealDetailSection = (
   section: DetailSection,
@@ -224,20 +226,25 @@ export function DetailLayout({
                   : identityLabel(system)}
               </Chip>
             ))}
-            {[...new Set(port.platforms?.map((platform) => platform.split("-")[0]!))].map(
-              (system) => {
-                return (
-                  <Chip
-                    key={`platform:${system}`}
-                    style={identityStyle(system)}
-                    title={t("identity.runsOn")}
-                  >
-                    <IdentityIcon name={system} />
-                    {identityLabel(system)}
-                  </Chip>
-                );
-              },
-            )}
+            {[
+              ...new Set(
+                (port.platforms
+                  ? availablePlatforms({ platforms: port.platforms, listing: port.listing })
+                  : []
+                ).map((platform) => platform.split("-")[0]!),
+              ),
+            ].map((system) => {
+              return (
+                <Chip
+                  key={`platform:${system}`}
+                  style={identityStyle(system)}
+                  title={t("identity.runsOn")}
+                >
+                  <IdentityIcon name={system} />
+                  {identityLabel(system)}
+                </Chip>
+              );
+            })}
             {(selectedChannel ? [selectedChannel] : port.channels)?.map((channel) => (
               <Chip
                 key={`channel:${channel}`}
