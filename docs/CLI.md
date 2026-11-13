@@ -681,6 +681,23 @@ PowerShell:
 Get-Content $tokenFile -Raw | portcove --non-interactive --json auth set-token --stdin
 ```
 
+#### When no secure credential store is available
+
+Saved GitHub credentials, the SteamGridDB key and the portability authority all use
+the operating-system secure credential store: Windows Credential Manager, the macOS
+Keychain, or a Secret Service provider such as GNOME Keyring or KWallet on Linux. If
+the host has no usable store, these commands fail with presentation key
+`credential_store_unavailable`; if the store is locked or refuses access, with
+`credential_store_locked`. `auth` and `artwork steamgriddb` commands reach the store
+before changing anything, so they report `mutation_state: no_changes` and offer no
+state review. `library import` and `library move` read the portability authority
+after copying files; there the state stays as their transfer journal records it, and
+the usual review of activity and resume or abort applies. `library export` may have
+prepared its lock before reaching the store, so it also keeps the review step. Unlock the store or allow
+access, or on Linux sign in to a desktop session that runs a keyring service, then
+try again. GitHub downloads can still use `PORTCOVE_GITHUB_TOKEN` for the current
+process.
+
 #### Inspect or remove credentials
 
 ```text
