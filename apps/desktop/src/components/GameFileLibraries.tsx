@@ -680,6 +680,84 @@ function useCompletedScanView(
   return viewCompletion;
 }
 
+function useSavedFolderFocus({
+  scanning,
+  snapshot,
+  viewCompletion,
+  completion,
+  plan,
+  busy,
+}: {
+  scanning: boolean;
+  snapshot: GameFileScanSnapshot | null | undefined;
+  viewCompletion: GameFileScan["completion"] | undefined;
+  completion: GameFileScan["completion"];
+  plan: SourceImportPlan | undefined;
+  busy: string;
+}) {
+  const heading = useRef<HTMLHeadingElement>(null);
+  const focusAfterScan = useRef<{ profile_id: string; path: string } | undefined>(undefined);
+  const reviewedCandidate = useRef<{ profile_id: string; path: string } | undefined>(undefined);
+  const focusAfterReview = useRef(false);
+  const focusToSetup = useRef(false);
+  useEffect(() => {
+    if (scanning || viewCompletion !== completion || !focusAfterScan.current) return;
+    const candidate = focusAfterScan.current;
+    focusAfterScan.current = undefined;
+    const scope = heading.current?.closest<HTMLElement>("[data-saved-folders-workspace]");
+    if (document.activeElement !== document.body || !scope?.getClientRects().length) return;
+    const row = [...scope.querySelectorAll<HTMLElement>("[data-completed-candidate]")].find(
+      (element) =>
+        element.dataset.profileId === candidate.profile_id &&
+        element.dataset.path === candidate.path,
+    );
+    (
+      row?.querySelector<HTMLButtonElement>("[data-candidate-review]:not(:disabled)") ??
+      heading.current
+    )?.focus();
+  }, [scanning, snapshot, viewCompletion, completion]);
+  useEffect(() => {
+    if (!plan || busy) return;
+    const scope = heading.current?.closest<HTMLElement>("[data-saved-folders-workspace]");
+    if (!scope?.getClientRects().length) return;
+    scope
+      .querySelector<HTMLButtonElement>('[aria-label="Source import review"] button:not(:disabled)')
+      ?.focus();
+  }, [plan, busy]);
+  useEffect(() => {
+    if (plan || busy || !focusAfterReview.current) return;
+    const scope = heading.current?.closest<HTMLElement>("[data-saved-folders-workspace]");
+    if (!scope?.getClientRects().length) return;
+    focusAfterReview.current = false;
+    if (focusToSetup.current) {
+      focusToSetup.current = false;
+      const setup = scope.querySelector<HTMLButtonElement>(
+        '[aria-label="Continue to a game"] button:not(:disabled)',
+      );
+      if (setup) {
+        setup.focus();
+        return;
+      }
+    }
+    const candidate = reviewedCandidate.current;
+    const rows = scope.querySelectorAll<HTMLElement>(
+      scanning
+        ? "[data-live-candidate], [data-preliminary-selection]"
+        : "[data-completed-candidate], [data-preliminary-selection]",
+    );
+    const row = [...rows].find(
+      (element) =>
+        element.dataset.profileId === candidate?.profile_id &&
+        element.dataset.path === candidate?.path,
+    );
+    (
+      row?.querySelector<HTMLButtonElement>("[data-candidate-review]:not(:disabled)") ??
+      heading.current
+    )?.focus();
+  }, [plan, busy, scanning, snapshot]);
+  return { heading, focusAfterScan, reviewedCandidate, focusAfterReview, focusToSetup };
+}
+
 export function GameFileLibraries({
   instanceId = "game-file-libraries",
   generation,
@@ -758,66 +836,15 @@ export function GameFileLibraries({
         source.sha256 === registeredSource.sha256,
     ),
   );
-  const heading = useRef<HTMLHeadingElement>(null);
-  const focusAfterScan = useRef<{ profile_id: string; path: string } | undefined>(undefined);
-  const reviewedCandidate = useRef<{ profile_id: string; path: string } | undefined>(undefined);
-  const focusAfterReview = useRef(false);
-  const focusToSetup = useRef(false);
-  useEffect(() => {
-    if (scanning || viewCompletion !== scanState.completion || !focusAfterScan.current) return;
-    const candidate = focusAfterScan.current;
-    focusAfterScan.current = undefined;
-    const scope = heading.current?.closest<HTMLElement>("[data-saved-folders-workspace]");
-    if (document.activeElement !== document.body || !scope?.getClientRects().length) return;
-    const row = [...scope.querySelectorAll<HTMLElement>("[data-completed-candidate]")].find(
-      (element) =>
-        element.dataset.profileId === candidate.profile_id &&
-        element.dataset.path === candidate.path,
-    );
-    (
-      row?.querySelector<HTMLButtonElement>("[data-candidate-review]:not(:disabled)") ??
-      heading.current
-    )?.focus();
-  }, [scanning, snapshot, viewCompletion, scanState.completion]);
-  useEffect(() => {
-    if (!plan || busy) return;
-    const scope = heading.current?.closest<HTMLElement>("[data-saved-folders-workspace]");
-    if (!scope?.getClientRects().length) return;
-    scope
-      .querySelector<HTMLButtonElement>('[aria-label="Source import review"] button:not(:disabled)')
-      ?.focus();
-  }, [plan, busy]);
-  useEffect(() => {
-    if (plan || busy || !focusAfterReview.current) return;
-    const scope = heading.current?.closest<HTMLElement>("[data-saved-folders-workspace]");
-    if (!scope?.getClientRects().length) return;
-    focusAfterReview.current = false;
-    if (focusToSetup.current) {
-      focusToSetup.current = false;
-      const setup = scope.querySelector<HTMLButtonElement>(
-        '[aria-label="Continue to a game"] button:not(:disabled)',
-      );
-      if (setup) {
-        setup.focus();
-        return;
-      }
-    }
-    const candidate = reviewedCandidate.current;
-    const rows = scope.querySelectorAll<HTMLElement>(
-      scanning
-        ? "[data-live-candidate], [data-preliminary-selection]"
-        : "[data-completed-candidate], [data-preliminary-selection]",
-    );
-    const row = [...rows].find(
-      (element) =>
-        element.dataset.profileId === candidate?.profile_id &&
-        element.dataset.path === candidate?.path,
-    );
-    (
-      row?.querySelector<HTMLButtonElement>("[data-candidate-review]:not(:disabled)") ??
-      heading.current
-    )?.focus();
-  }, [plan, busy, scanning, snapshot]);
+  const { heading, focusAfterScan, reviewedCandidate, focusAfterReview, focusToSetup } =
+    useSavedFolderFocus({
+      scanning,
+      snapshot,
+      viewCompletion,
+      completion: scanState.completion,
+      plan,
+      busy,
+    });
   const run = (
     label: string,
     task: () => Promise<void>,

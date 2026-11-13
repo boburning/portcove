@@ -219,10 +219,6 @@ export function GroupedDiscover({
                   // With one port there is nothing to compare an absence against; rows
                   // without a value are omitted. Several ports keep every row aligned.
                   const single = comparison.ports.length === 1;
-                  const setupLabel = installationMethodLabel(port);
-                  const setupKnown = setupLabel !== "Unavailable in this catalog";
-                  const filesListed = Boolean(port.presentation?.source_requirements?.length);
-                  const ownershipKnown = Boolean(status?.active || status?.external_runtime);
                   return (
                     <article
                       key={port.id}
@@ -251,32 +247,7 @@ export function GroupedDiscover({
                           </p>
                         )}
                       </header>
-                      {(!single || setupKnown) && (
-                        <div>
-                          <h4>{t("discover.compare.setup")}</h4>
-                          <p>{setupLabel}</p>
-                        </div>
-                      )}
-                      {(!single || filesListed) && (
-                        <div>
-                          <h4>{t("discover.compare.files")}</h4>
-                          {port.presentation?.source_requirements?.length ? (
-                            <ul>
-                              {port.presentation.source_requirements.map((requirement) => (
-                                <li key={requirement.profile_id}>{requirement.label}</li>
-                              ))}
-                            </ul>
-                          ) : (
-                            <p>{t("discover.compare.filesUnlisted")}</p>
-                          )}
-                        </div>
-                      )}
-                      {(!single || ownershipKnown) && (
-                        <div>
-                          <h4>{t("discover.compare.updates")}</h4>
-                          {renderComparisonOwnership(t, status)}
-                        </div>
-                      )}
+                      <ComparisonPortFacts port={port} status={status} single={single} />
                       <div className="min-w-0">
                         <GameComparisonEvidence
                           comparison={evidence}
@@ -340,6 +311,52 @@ export function GroupedDiscover({
           )}
         </DialogContent>
       </Dialog>
+    </>
+  );
+}
+
+function ComparisonPortFacts({
+  port,
+  status,
+  single,
+}: {
+  port: CatalogEntry;
+  status: PortStatus | undefined;
+  single: boolean;
+}) {
+  const { t } = useAppTranslation("browsing");
+  const setupLabel = installationMethodLabel(port);
+  const setupKnown = setupLabel !== "Unavailable in this catalog";
+  const filesListed = Boolean(port.presentation?.source_requirements?.length);
+  const ownershipKnown = Boolean(status?.active || status?.external_runtime);
+  return (
+    <>
+      {(!single || setupKnown) && (
+        <div>
+          <h4>{t("discover.compare.setup")}</h4>
+          <p>{setupLabel}</p>
+        </div>
+      )}
+      {(!single || filesListed) && (
+        <div>
+          <h4>{t("discover.compare.files")}</h4>
+          {port.presentation?.source_requirements?.length ? (
+            <ul>
+              {port.presentation.source_requirements.map((requirement) => (
+                <li key={requirement.profile_id}>{requirement.label}</li>
+              ))}
+            </ul>
+          ) : (
+            <p>{t("discover.compare.filesUnlisted")}</p>
+          )}
+        </div>
+      )}
+      {(!single || ownershipKnown) && (
+        <div>
+          <h4>{t("discover.compare.updates")}</h4>
+          {renderComparisonOwnership(t, status)}
+        </div>
+      )}
     </>
   );
 }
