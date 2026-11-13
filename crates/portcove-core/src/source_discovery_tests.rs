@@ -6510,7 +6510,9 @@ fn a_continuation_appends_rows_and_a_fresh_scan_replaces_them() {
 
 #[test]
 fn tampered_missing_or_extra_match_rows_restart_the_scan_and_keep_the_prior_report() {
-    for tamper in ["record", "path", "delete", "extra", "foreign", "batch"] {
+    // Owner decision: resume checks counts, order, batches and bytes, not each
+    // record's contents (see the next test).
+    for tamper in ["record", "delete", "extra", "foreign", "batch"] {
         let temporary = tempfile::tempdir().unwrap();
         let root = temporary.path().join("selected");
         fs::create_dir(&root).unwrap();
@@ -6532,9 +6534,6 @@ fn tampered_missing_or_extra_match_rows_restart_the_scan_and_keep_the_prior_repo
         let statement = match tamper {
             "record" => {
                 "UPDATE game_file_scan_matches SET record_json=record_json||' ' WHERE ordinal=1"
-            }
-            "path" => {
-                "UPDATE game_file_scan_matches SET path=path||'x', path_key=path_key||'x' WHERE ordinal=1"
             }
             "delete" => "DELETE FROM game_file_scan_matches WHERE ordinal=1",
             "extra" => {
@@ -6567,6 +6566,38 @@ fn tampered_missing_or_extra_match_rows_restart_the_scan_and_keep_the_prior_repo
         let restarted = publish_saved_batch(&catalog, &library, &limits).unwrap();
         assert_eq!(restarted.coverage.unwrap().batches, 1, "{tamper}");
     }
+}
+
+#[test]
+fn a_same_size_row_edit_does_not_stop_a_resume() {
+    let temporary = tempfile::tempdir().unwrap();
+    let root = temporary.path().join("selected");
+    fs::create_dir(&root).unwrap();
+    let payload = b"supported resumable source";
+    for name in ["one.z64", "two.z64"] {
+        fs::write(root.join(name), payload).unwrap();
+    }
+    let library = crate::Library::open(temporary.path().join("library")).unwrap();
+    library.add_game_file_root(&root).unwrap();
+    let catalog = catalog(payload);
+    let limits = SourceDiscoveryLimits {
+        max_entries: 1,
+        ..Default::default()
+    };
+    let first = publish_saved_batch(&catalog, &library, &limits).unwrap();
+    assert!(first.coverage.as_ref().unwrap().can_resume);
+    // Resume checks the rows' shape, not each record's contents; every stored
+    // match is re-verified from current bytes before it is used.
+    library
+        .connection()
+        .unwrap()
+        .execute(
+            "UPDATE game_file_scan_matches SET path=path||'x', path_key=path_key||'x' WHERE ordinal=1",
+            [],
+        )
+        .unwrap();
+    let resumed = publish_saved_batch(&catalog, &library, &limits).unwrap();
+    assert_eq!(resumed.coverage.unwrap().batches, 2);
 }
 
 #[test]

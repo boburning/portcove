@@ -187,7 +187,8 @@ struct ScanContinuation {
     observed: BTreeMap<PathBuf, Option<ScanEntryStamp>>,
     retained_bytes: usize,
     /// Rows stored for this scan so far, their record bytes and, per kind,
-    /// the chained digest of every row in ordinal order.
+    /// the chained digest of every row in ordinal order. Resume checks the
+    /// counts and bytes; the digest is recorded but not recomputed.
     match_count: u32,
     match_bytes: u64,
     matches_sha256: [String; 2],
@@ -1320,10 +1321,10 @@ fn storage_read(error: rusqlite::Error) -> PortcoveError {
 /// Marks a validation failure that leaves the continuation in place.
 const RETRY_DETAIL: &str = "retry";
 
-/// The stored rows must be exactly the ones the continuation was published
-/// with: contiguous ordinals per kind, the recorded counts and bytes, and the
-/// chained digest. Anything else restarts the scan; the prior report and its
-/// rows stay readable.
+/// The stored rows must have the shape the continuation was published with:
+/// contiguous ordinals per kind from earlier batches, and the recorded counts
+/// and bytes. Anything else restarts the scan; the prior report and its rows
+/// stay readable.
 fn validate_match_rows(
     library: &crate::Library,
     summary: &crate::GameFileScanMatchSummary,
@@ -1339,55 +1340,43 @@ fn validate_match_rows(
             |row| row.get(0),
         )
         .map_err(storage_read)?;
+    // Owner decision: resume checks the rows' shape with aggregates instead
+    // of re-reading every record. Edited record contents are caught when each
+    // match is re-verified from current bytes before use.
+    operation.checkpoint()?;
     let mut statement = connection
         .prepare(
-            "SELECT kind,ordinal,profile_id,path,path_key,batch,record_json
-         FROM game_file_scan_matches WHERE scan_id=?1 ORDER BY kind,ordinal",
+            "SELECT kind,count(*),min(ordinal),max(ordinal),min(batch),max(batch),
+                    sum(length(CAST(record_json AS BLOB)))
+             FROM game_file_scan_matches WHERE scan_id=?1 GROUP BY kind",
         )
         .map_err(storage_read)?;
     let mut rows = statement.query([&summary.scan_id]).map_err(storage_read)?;
-    let mut next = [0u32; 2];
-    let mut bytes = 0u64;
-    let mut chains = [EMPTY_MATCH_CHAIN.to_owned(), EMPTY_MATCH_CHAIN.to_owned()];
-    let mut seen = 0u64;
+    let mut counts = [0i64; 2];
+    let mut bytes = 0i64;
     let mut valid = foreign == 0;
     while valid && let Some(row) = rows.next().map_err(storage_read)? {
-        if seen.is_multiple_of(1024) {
-            operation.checkpoint()?;
-        }
-        seen += 1;
         let kind: i64 = row.get(0)?;
-        let batch: i64 = row.get(5)?;
-        let path_key: String = row.get(4)?;
-        let Some(kind) = u8::try_from(kind).ok().filter(|kind| *kind < 2) else {
+        let count: i64 = row.get(1)?;
+        let (first, last): (i64, i64) = (row.get(2)?, row.get(3)?);
+        let (earliest, latest): (i64, i64) = (row.get(4)?, row.get(5)?);
+        let Some(slot) = usize::try_from(kind).ok().filter(|kind| *kind < 2) else {
             valid = false;
             break;
         };
-        let stored = GameFileScanMatchRow {
-            kind,
-            ordinal: row.get(1)?,
-            profile_id: row.get(2)?,
-            path: row.get(3)?,
-            batch: u32::try_from(batch).unwrap_or(0),
-            record_json: row.get(6)?,
-        };
-        let slot = usize::from(kind);
-        if stored.ordinal != next[slot]
-            || stored.batch == 0
-            || stored.batch > batches
-            || path_key != crate::game_file_root::path_key(&stored.path)
-        {
-            valid = false;
-            break;
-        }
-        next[slot] += 1;
-        bytes += stored.record_json.len() as u64;
-        chains[slot] = chain_match_row(&chains[slot], &stored);
+        // Ordinals are unique per kind, so 0..count with these bounds is
+        // exactly the contiguous run the continuation recorded.
+        valid = first == 0 && last == count - 1 && earliest >= 1 && latest <= i64::from(batches);
+        counts[slot] = count;
+        bytes += row.get::<_, i64>(6)?;
     }
     if !valid
-        || next != [summary.exact_matches, summary.preliminary_selections]
-        || bytes != cursor.match_bytes
-        || chains != cursor.matches_sha256
+        || counts
+            != [
+                i64::from(summary.exact_matches),
+                i64::from(summary.preliminary_selections),
+            ]
+        || u64::try_from(bytes).ok() != Some(cursor.match_bytes)
     {
         return Err(PortcoveError::state(
             "saved scan matches no longer match their continuation",
