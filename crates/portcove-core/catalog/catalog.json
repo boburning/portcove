@@ -52881,7 +52881,7 @@
             }
           ],
           "warnings": [],
-          "help_url": "https://github.com/TheGh0stShip/BattleTanx-Global-Assault-PC-Port/blob/v0.2.5/README.md"
+          "help_url": "https://github.com/TheGh0stShip/BattleTanx-Global-Assault-PC-Port#readme"
         },
         "artwork": {
           "game_id": 47685,
@@ -53637,7 +53637,7 @@
             },
             {
               "title": "Use the complete Windows or Linux package",
-              "instruction": "The official v0.84 Windows ZIP and Linux x86-64 archive are experimental betas despite their stable release stream. Keep power-dozer.exe, its matching DLLs and notices together. Windows x64 needs SSSE3/SSE4.1, Vulkan drivers and the Microsoft Visual C++ x64 runtime linked in the packaged README. On Linux, keep power-dozer with its lib and licenses folders; it needs SSSE3/SSE4.1, glibc 2.38 or later, libz, Vulkan drivers, X11 or XWayland and a desktop file chooser. Portcove starts power-dozer directly, so the bundled Run Power Dozer.sh script is not needed. No game compiler or installer is required. Other platforms remain upstream-owned."
+              "instruction": "The official Windows ZIP and Linux x86-64 archive follow the project’s stable release stream. Check the release notes for its testing status. Keep power-dozer.exe, its matching DLLs and notices together. Windows x64 needs SSSE3/SSE4.1, Vulkan drivers and the Microsoft Visual C++ x64 runtime linked in the packaged README. On Linux, keep power-dozer with its lib and licenses folders; it needs SSSE3/SSE4.1, glibc 2.38 or later, libz, Vulkan drivers, X11 or XWayland and a desktop file chooser. Portcove starts power-dozer directly, so the bundled Run Power Dozer.sh script is not needed. No game compiler or installer is required. Other platforms remain upstream-owned."
             },
             {
               "title": "Preserve game data and external diagnostics",
@@ -53649,7 +53649,7 @@
             }
           ],
           "warnings": [],
-          "help_url": "https://github.com/djultra64/Power-Dozer/blob/a0ed0d5665c9cd181119125f3820bb9a008a912a/README.md"
+          "help_url": "https://github.com/djultra64/Power-Dozer#readme"
         },
         "artwork": {
           "game_id": 3424,
@@ -58518,7 +58518,7 @@
             "This project has not been verified for play through Portcove.",
             "You and upstream own the Mac setup, updates and preference files."
           ],
-          "help_url": "https://github.com/fragglet/sdl-sopwith/blob/sdl-sopwith-2.9.0/README.md"
+          "help_url": "https://fragglet.github.io/sdl-sopwith/"
         },
         "artwork": {
           "game_id": 24424,
@@ -66231,7 +66231,7 @@
             }
           ],
           "warnings": [],
-          "help_url": "https://github.com/lunarmeadow/barrett/blob/v1.3-beta/README.md"
+          "help_url": "https://github.com/lunarmeadow/barrett#readme"
         },
         "artwork": {
           "game_id": 2380,
