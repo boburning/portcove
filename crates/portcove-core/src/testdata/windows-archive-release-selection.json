@@ -1,5 +1,10 @@
 {
   "cases": {
+    "vcmi-vcmi": {
+      "inventory": "vcmi",
+      "repository_id": 18490421,
+      "selected_assets": ["VCMI-Windows.zip", "VCMI-Windows.zip"]
+    },
     "alexbeav-vib-ribbon-recomp": {
       "inventory": "alexbeav-vib-ribbon-recomp",
       "selected_assets": [
@@ -1808,6 +1813,145 @@
     }
   },
   "inventories": {
+    "vcmi": [
+      {
+        "id": 370777167,
+        "tag_name": "1.7.5",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-08-15T12:02:44Z",
+        "assets": [
+          {
+            "id": 514815392,
+            "name": "VCMI-Android-arm64-v8a.apk",
+            "browser_download_url": "https://github.com/vcmi/vcmi/releases/download/1.7.5/VCMI-Android-arm64-v8a.apk",
+            "size": 37320788,
+            "digest": "sha256:81738076e58c18b050d9b5f46b3dc1455e40afc112292ee439681572f633cbec"
+          },
+          {
+            "id": 514816211,
+            "name": "VCMI-Android-armeabi-v7a.apk",
+            "browser_download_url": "https://github.com/vcmi/vcmi/releases/download/1.7.5/VCMI-Android-armeabi-v7a.apk",
+            "size": 33618657,
+            "digest": "sha256:7ccec9f182fa23f86cf12942dec32dfbaacfbf749a039d635ac24cd0b392cf6f"
+          },
+          {
+            "id": 514817261,
+            "name": "VCMI-Android-x86_64.apk",
+            "browser_download_url": "https://github.com/vcmi/vcmi/releases/download/1.7.5/VCMI-Android-x86_64.apk",
+            "size": 39265370,
+            "digest": "sha256:f789e99dd9c1ada463583302753c18935dfab0a070e357985c14eef3920537cb"
+          },
+          {
+            "id": 514821256,
+            "name": "VCMI-Linux-arm64.AppImage",
+            "browser_download_url": "https://github.com/vcmi/vcmi/releases/download/1.7.5/VCMI-Linux-arm64.AppImage",
+            "size": 51034632,
+            "digest": "sha256:03761a9e9b13a7a4e5fe9cca577c4fb5ce5abba380a8ba2bf5a03a1393879346"
+          },
+          {
+            "id": 514822667,
+            "name": "VCMI-Linux-x64.AppImage",
+            "browser_download_url": "https://github.com/vcmi/vcmi/releases/download/1.7.5/VCMI-Linux-x64.AppImage",
+            "size": 53463544,
+            "digest": "sha256:a599ff80a83d0f533c41c810de2c20a657c6df20864f8ea8768796a6e8e918c3"
+          },
+          {
+            "id": 514810021,
+            "name": "VCMI-Sources.tar.gz",
+            "browser_download_url": "https://github.com/vcmi/vcmi/releases/download/1.7.5/VCMI-Sources.tar.gz",
+            "size": 19251683,
+            "digest": "sha256:e5822c193348534bb25d14e04ebec2d241058d12fa84beaa8234ee016710eb7a"
+          },
+          {
+            "id": 514824405,
+            "name": "VCMI-Windows-arm64.exe",
+            "browser_download_url": "https://github.com/vcmi/vcmi/releases/download/1.7.5/VCMI-Windows-arm64.exe",
+            "size": 36348093,
+            "digest": "sha256:26b694ae708876edffad5baf746d9978926463a35104530ad1bf6b4de0b495dd"
+          },
+          {
+            "id": 514825731,
+            "name": "VCMI-Windows-x64.exe",
+            "browser_download_url": "https://github.com/vcmi/vcmi/releases/download/1.7.5/VCMI-Windows-x64.exe",
+            "size": 34381177,
+            "digest": "sha256:3b5fe1fcf74732f22fb07330205b2f02c37333916fc5b01a18d6ed0d55019266"
+          },
+          {
+            "id": 514826676,
+            "name": "VCMI-Windows-x86.exe",
+            "browser_download_url": "https://github.com/vcmi/vcmi/releases/download/1.7.5/VCMI-Windows-x86.exe",
+            "size": 29912672,
+            "digest": "sha256:74c423a4eb33a4d52f8d9b612de0b905bc2aaaaa15f10c8a40aa1ede1f210c0d"
+          },
+          {
+            "id": 514813923,
+            "name": "VCMI-Windows.zip",
+            "browser_download_url": "https://github.com/vcmi/vcmi/releases/download/1.7.5/VCMI-Windows.zip",
+            "size": 48727777,
+            "digest": "sha256:0a530799085c1a135f9686d49d859beab8741869dcd9fe0877ef428ca0830d88"
+          },
+          {
+            "id": 514812161,
+            "name": "VCMI-iOS.ipa",
+            "browser_download_url": "https://github.com/vcmi/vcmi/releases/download/1.7.5/VCMI-iOS.ipa",
+            "size": 28187923,
+            "digest": "sha256:dd4313a76d79a125ed5405cd0603c34f8ed4155dba22695f1f24a39a7104875c"
+          },
+          {
+            "id": 514818881,
+            "name": "VCMI-macOS-arm.dmg",
+            "browser_download_url": "https://github.com/vcmi/vcmi/releases/download/1.7.5/VCMI-macOS-arm.dmg",
+            "size": 35462171,
+            "digest": "sha256:b56b55d0671ae604effb12d0394b74a552f203426cafa165f82488505fb465e3"
+          },
+          {
+            "id": 514820037,
+            "name": "VCMI-macOS-intel.dmg",
+            "browser_download_url": "https://github.com/vcmi/vcmi/releases/download/1.7.5/VCMI-macOS-intel.dmg",
+            "size": 38897972,
+            "digest": "sha256:613f7e9c2d515e10ff1eae77bab236308cf5bd08b68ff3d1b65cb7a16cde0ef6"
+          },
+          {
+            "id": 515876485,
+            "name": "pdb-arm64.zip",
+            "browser_download_url": "https://github.com/vcmi/vcmi/releases/download/1.7.5/pdb-arm64.zip",
+            "size": 340218247,
+            "digest": "sha256:89f0d64cc5832ed2a847333d028e2f11864c1418cf30f00c741b088de458ca71"
+          },
+          {
+            "id": 515883501,
+            "name": "pdb-x64.zip",
+            "browser_download_url": "https://github.com/vcmi/vcmi/releases/download/1.7.5/pdb-x64.zip",
+            "size": 299229022,
+            "digest": "sha256:d21eb8f4fd5cf74e177e5acea82f1d42973ef299e3aa027c03086e82f81b8896"
+          },
+          {
+            "id": 515880579,
+            "name": "pdb-x86.zip",
+            "browser_download_url": "https://github.com/vcmi/vcmi/releases/download/1.7.5/pdb-x86.zip",
+            "size": 296044441,
+            "digest": "sha256:d2068bbd09e02b142dffa48ec247865e0a3d9ad4b852a33f656b4105c1b584a5"
+          }
+        ]
+      },
+      {
+        "id": 999880030,
+        "tag_name": "9.99.99",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2027-01-01T00:00:00Z",
+        "assets": [
+          {
+            "id": 999880031,
+            "name": "VCMI-Windows.zip",
+            "browser_download_url": "https://downloads.example.invalid/VCMI-Windows.zip",
+            "size": 48727778,
+            "digest": "sha256:3333333333333333333333333333333333333333333333333333333333333333"
+          }
+        ]
+      }
+    ],
     "alexbeav-vib-ribbon-recomp": [
       {
         "id": 443996689,
@@ -10395,6 +10539,21 @@
     ]
   },
   "other_zip_assets": [
+    {
+      "inventory": "vcmi",
+      "release_index": 0,
+      "asset": "pdb-arm64.zip"
+    },
+    {
+      "inventory": "vcmi",
+      "release_index": 0,
+      "asset": "pdb-x64.zip"
+    },
+    {
+      "inventory": "vcmi",
+      "release_index": 0,
+      "asset": "pdb-x86.zip"
+    },
     {
       "inventory": "rewooled",
       "release_index": 0,

@@ -66444,6 +66444,116 @@
       }
     },
     {
+      "id": "vcmi-vcmi",
+      "name": "VCMI",
+      "summary": "Open-source Heroes III engine. Portcove can manage the official Windows x64 engine while you import your own game data with the upstream launcher. The shared profile remains yours.",
+      "project_url": "https://github.com/vcmi/vcmi",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "native-portable",
+      "external_profile_policy": "vcmi-windows-v1",
+      "release": {
+        "provider": "github",
+        "repository": "vcmi/vcmi",
+        "asset_hints": {
+          "windows-x86-64": [
+            "VCMI-Windows.zip"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "VCMI_client.exe"
+        ]
+      },
+      "persistent_paths": [],
+      "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [
+            "ai",
+            "bearer",
+            "config",
+            "iconengines",
+            "imageformats",
+            "mods",
+            "platforms",
+            "styles",
+            "translations"
+          ],
+          "executables": [
+            "vcmi_client.exe",
+            "vcmi_launcher.exe",
+            "vcmi_mapeditor.exe",
+            "vcmi_server.exe"
+          ]
+        }
+      },
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "Use a separate official VCMI launcher to import your own Heroes III Complete or Shadow of Death data into the default Windows profile under Documents/My Games/vcmi. Close the launcher before choosing Play. Portcove manages the official x64 engine and starts VCMI_client.exe. Your imported data, saves, settings and mods remain in the shared Windows profile. Back up that profile yourself before changing versions. Custom profile paths require a separate upstream copy. Keep a compatible runtime for unfinished games, since saves can differ across major versions.",
+        "original_game_title": "Heroes of Might and Magic III",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Choose the upstream package for your system",
+              "instruction": "On Windows, extract the portable ZIP or run the upstream x64 installer, then open VCMI_launcher.exe. On Linux x86-64, use the AppImage on a system with glibc 2.38 or newer, or follow the upstream Linux guide for a distribution package or Flatpak. On Mac, choose the Intel or Apple Silicon DMG, copy VCMI.app to Applications and use its launcher."
+            },
+            {
+              "title": "Import your Heroes III data",
+              "instruction": "In VCMI Launcher, import your GOG offline installer with its matching BIN file, or use a supported Heroes III Complete or Shadow of Death installation. Keep the launcher for data import and optional mods."
+            },
+            {
+              "title": "Choose the client after upstream setup",
+              "instruction": "On Windows, register VCMI_client.exe and its containing folder. For a native Linux distribution package, select the native vcmiclient executable and its containing folder. Use the upstream AppImage, Flatpak or Mac app through its own launcher."
+            }
+          ],
+          "warnings": [
+            "Heroes III Restoration of Erathia and the HD Edition are not supported; use Complete or Shadow of Death game data.",
+            "VCMI saves from different major versions are usually incompatible. Finish ongoing games or keep your current runtime and a profile backup before changing major versions.",
+            "Windows game data, saves and settings normally live in Documents/My Games/vcmi; keep that profile when updating the upstream runtime."
+          ],
+          "help_url": "https://vcmi.eu/download/",
+          "references": [
+            {
+              "title": "Preserve the profile for your installation",
+              "instruction": "Windows normally uses Documents/My Games/vcmi. Mac uses ~/Library/Application Support/vcmi. Linux normally uses ~/.local/share/vcmi, or ~/.var/app/eu.vcmi.VCMI/data/vcmi for Flatpak. Keep the actual data and settings folders, including any custom profile paths, when changing versions."
+            },
+            {
+              "title": "Linux setup guide",
+              "instruction": "https://vcmi.eu/players/Installation_Linux/"
+            },
+            {
+              "title": "ARM64 desktop packages",
+              "instruction": "For a native ARM64 Windows or Linux system, use the corresponding upstream Windows installer or Linux AppImage directly from VCMI Releases. Keep its profile with that installation."
+            },
+            {
+              "title": "Upstream Android setup",
+              "instruction": "Use the official Android setup guide for Google Play, F-Droid or the matching upstream APK (ARM64, ARMv7 or x86-64). Import your own Heroes III data in the app and keep your originals separately. Install and update through the same channel because Android checks package identity and signing. Preserve the app profile before removing it. Android guide at https://vcmi.eu/players/Installation_Android/."
+            },
+            {
+              "title": "Upstream iPhone and iPad setup",
+              "instruction": "Check the upstream iOS guide for the current system requirements. Use VCMI’s upstream TestFlight route when available, or provision the official IPA yourself through the upstream sideloading guide. In VCMI Launcher, select your owned Heroes III Complete GOG installer EXE and its matching BIN. Alternatively, copy owned Complete or Shadow of Death Data and Maps, plus optional Mp3, into the VCMI folder in Files. Keep the app’s Documents folder, including Saves and config, before changing its channel or identity. iOS guide at https://vcmi.eu/players/Installation_iOS/."
+            }
+          ]
+        },
+        "artwork": {
+          "game_id": 364,
+          "cover_id": 106423,
+          "image_id": "co2a47",
+          "image_sha256": "8140145877f727a95bf62cd94b9cb4b26a3148537c2225d90954256bd981b04c",
+          "game_slug": "heroes-of-might-and-magic-iii-the-restoration-of-erathia",
+          "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
       "id": "vyruz-destruction-of-the-untel-empire-openvyruz",
       "name": "Vyruz: Destruction of the Untel Empire (OpenVyruz)",
       "summary": "A native engine for Vyruz using the original game data from your own copy.",

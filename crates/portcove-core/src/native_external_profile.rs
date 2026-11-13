@@ -21,7 +21,10 @@ pub(crate) mod openomf;
 pub(crate) mod profile_siblings;
 pub(crate) mod quake_linux;
 pub(crate) mod recomp_direct;
+pub(crate) mod vcmi;
 pub(crate) mod z2rs;
+
+pub(crate) const VCMI_WINDOWS_CAPABILITY: u32 = 31;
 
 pub(crate) fn read_amd64_elf_header(executable: &Path) -> Result<[u8; 20]> {
     let mut file = crate::external_runtime::open_single_link_file(executable)?;
@@ -58,6 +61,7 @@ fn require_arm64_macho(executable: &Path, message: &str) -> Result<()> {
 pub(crate) fn minimum_capability(policy: ExternalProfilePolicy) -> u32 {
     match policy {
         ExternalProfilePolicy::OpenomfLinuxV1 => openomf::NATIVE_CAPABILITY,
+        ExternalProfilePolicy::VcmiWindowsV1 => VCMI_WINDOWS_CAPABILITY,
         ExternalProfilePolicy::Z2rsDesktopV1 => z2rs::NATIVE_CAPABILITY,
         ExternalProfilePolicy::RecompDirectV1 => recomp_direct::NATIVE_CAPABILITY,
         ExternalProfilePolicy::Doom3LinuxV1 => doom3_linux::NATIVE_CAPABILITY,
@@ -89,6 +93,7 @@ pub(crate) fn applies_to(policy: ExternalProfilePolicy, platform: Platform) -> b
             profile_siblings::applies_to(policy, platform)
         }
         ExternalProfilePolicy::OpenomfLinuxV1 => platform == Platform::LinuxX86_64,
+        ExternalProfilePolicy::VcmiWindowsV1 => platform == Platform::WindowsX86_64,
         ExternalProfilePolicy::JgrppLinuxV1 => platform == Platform::LinuxX86_64,
         ExternalProfilePolicy::RecompDirectV1 => {
             matches!(platform, Platform::WindowsX86_64 | Platform::LinuxX86_64)
@@ -107,6 +112,9 @@ pub(crate) fn validate(port: &PortDefinition) -> Result<()> {
 
 fn validate_layout(port: &PortDefinition, policy: ExternalProfilePolicy) -> Result<()> {
     let (identity, platforms): (_, &[_]) = match policy {
+        ExternalProfilePolicy::VcmiWindowsV1 => {
+            (Some(("vcmi-vcmi", "vcmi/vcmi")), &[Platform::WindowsX86_64])
+        }
         ExternalProfilePolicy::DuneDynastyAllegroV1 => (
             Some(("dune-ii-dune-dynasty", "gameflorist/dunedynasty")),
             &[Platform::WindowsX86_64, Platform::LinuxX86_64],
@@ -218,6 +226,9 @@ fn validate_layout(port: &PortDefinition, policy: ExternalProfilePolicy) -> Resu
         return Err(PortcoveError::verification(
             "external profiles require the reviewed upstream portable player and its external data layout",
         ));
+    }
+    if policy == ExternalProfilePolicy::VcmiWindowsV1 {
+        vcmi::validate(port)?;
     }
     if policy == ExternalProfilePolicy::RecompAppimageV1 {
         validate_recomp_appimage_layout(port)?;
@@ -391,7 +402,8 @@ fn linux_root(
         | ExternalProfilePolicy::RecompDirectV1
         | ExternalProfilePolicy::Doom3LinuxV1
         | ExternalProfilePolicy::OpenjkUnixV1
-        | ExternalProfilePolicy::OpenomfLinuxV1 => {
+        | ExternalProfilePolicy::OpenomfLinuxV1
+        | ExternalProfilePolicy::VcmiWindowsV1 => {
             return Err(PortcoveError::unsupported(
                 "this profile uses a different upstream layout",
             ));
@@ -489,6 +501,10 @@ fn roots(
             linux_root(command, policy, "XDG_CONFIG_HOME", ".config")?,
             linux_root(command, policy, "XDG_DATA_HOME", ".local/share")?,
         ]),
+        #[cfg(windows)]
+        (ExternalProfilePolicy::VcmiWindowsV1, Platform::WindowsX86_64) => {
+            Ok(vec![vcmi::profile_root()?])
+        }
         (ExternalProfilePolicy::Fheroes2V1, Platform::WindowsX86_64) => {
             if let Some(home) = environment(command, "HOME") {
                 return Ok(vec![
@@ -766,6 +782,9 @@ pub(crate) fn require_external_roots(
             Err(error) => return Err(error.into()),
         }
     }
+    if policy == ExternalProfilePolicy::VcmiWindowsV1 {
+        vcmi::require_default_paths(spec)?;
+    }
     if policy == ExternalProfilePolicy::OpenmohaaUnixV1 {
         openmohaa::require_launch_paths(spec)?;
     }
@@ -795,6 +814,7 @@ pub(crate) fn require_external_roots(
                         | ExternalProfilePolicy::Doom3LinuxV1
                         | ExternalProfilePolicy::OpenjkUnixV1
                         | ExternalProfilePolicy::OpenomfLinuxV1
+                        | ExternalProfilePolicy::VcmiWindowsV1
                 ))
             .then(|| library.root().to_path_buf()),
         )

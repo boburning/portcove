@@ -180,6 +180,11 @@ reviewed macOS package layouts. Fresh and retained entries using that option
 require version 30. Core still fingerprints launcher paths and any executable
 whose file kind cannot be established as a matching shared library.
 
+Native portable version 31 consumes `vcmi-windows-v1` for the official
+VCMI Windows ZIP. Fresh and retained indexed entries declaring it require
+version 31. The direct client uses its external Windows Documents profile.
+Core refuses the runtime-directory fallback and custom directory configuration.
+
 Native portable version 18 binds `reviewed_package_layouts` in new
 independent entries. A reader without version 18 cannot accept a new
 entry that relies on the package-layout gate. Previously admitted

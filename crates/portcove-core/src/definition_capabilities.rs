@@ -294,6 +294,10 @@ impl EngineTemplateCapability {
             template: AdapterKind::NativePortable,
             contract_version: crate::package_layout::MACOS_LIBRARY_FILTER_CAPABILITY,
         });
+        supported.push(Self {
+            template: AdapterKind::NativePortable,
+            contract_version: crate::native_external_profile::VCMI_WINDOWS_CAPABILITY,
+        });
         supported
     }
 }

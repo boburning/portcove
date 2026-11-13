@@ -739,6 +739,7 @@ pub enum ExternalProfilePolicy {
     Doom3LinuxV1,
     OpenjkUnixV1,
     OpenomfLinuxV1,
+    VcmiWindowsV1,
 }
 
 /// Preserve complete mod package versions without replacing packaged defaults.

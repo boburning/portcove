@@ -60004,7 +60004,7 @@
     {
       "id": "vcmi-vcmi",
       "name": "VCMI",
-      "summary": "Play Heroes of Might and Magic III with VCMI’s mods and modern systems support using your own game data.",
+      "summary": "Open-source Heroes III engine. Portcove can manage the official Windows x64 engine while you import your own game data with the upstream launcher. The shared profile remains yours.",
       "project_url": "https://github.com/vcmi/vcmi",
       "issue_number": 1902,
       "listed_at": "2026-10-23",
