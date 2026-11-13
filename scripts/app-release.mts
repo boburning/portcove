@@ -118,13 +118,26 @@ export function buildFeed(options: {
   return { version: options.version, notes: options.notes, pub_date: options.pubDate, platforms };
 }
 
-function git(args: string[]) {
-  return execFileSync("git", args, { encoding: "utf8" }).trim();
+export type Runner = (command: "git" | "gh", args: string[]) => string;
+
+const defaultRunner: Runner = (command, args) =>
+  execFileSync(command, args, { encoding: "utf8" }).trim();
+
+/** Refuses a version that is not newer than every existing release tag. */
+export function assertNewerThanTags(version: string, tags: readonly string[]) {
+  for (const tag of tags) {
+    if (tag === `v${version}`) continue;
+    const prior = tag.slice(1);
+    if (!tag.startsWith("v") || !semver.test(prior)) continue;
+    if (compareVersions(prior, version) >= 0)
+      throw new Error(`version ${version} must be greater than existing ${tag}`);
+  }
 }
 
 /** Local guarded tagging for owners and agents: `just release X.Y.Z`. */
-function tagRelease(version: string) {
+export function tagRelease(version: string, notesFile?: string, run: Runner = defaultRunner) {
   const release = classifyRelease(version);
+  const git = (args: string[]) => run("git", args);
   git(["fetch", "--quiet", "--tags", "origin", "main"]);
   const head = git(["rev-parse", "HEAD"]);
   if (head !== git(["rev-parse", "origin/main"]))
@@ -132,42 +145,35 @@ function tagRelease(version: string) {
   if (git(["status", "--porcelain", "--untracked-files=no"]) !== "")
     throw new Error("working tree has uncommitted changes");
   const tags = git(["tag", "--list", "v*"]).split("\n").filter(Boolean);
-  for (const tag of tags) {
-    const prior = tag.slice(1);
-    if (!semver.test(prior)) continue;
-    if (compareVersions(prior, version) >= 0)
-      throw new Error(`version ${version} must be greater than existing ${tag}`);
-  }
+  if (tags.includes(`v${version}`)) throw new Error(`tag v${version} already exists`);
+  assertNewerThanTags(version, tags);
   const runs = JSON.parse(
-    execFileSync(
-      "gh",
-      [
-        "run",
-        "list",
-        "--commit",
-        head,
-        "--workflow",
-        "CI",
-        "--event",
-        "push",
-        "--json",
-        "conclusion,status",
-      ],
-      { encoding: "utf8" },
-    ),
+    run("gh", [
+      "run",
+      "list",
+      "--commit",
+      head,
+      "--workflow",
+      "CI",
+      "--event",
+      "push",
+      "--json",
+      "conclusion,status",
+    ]),
   ) as { conclusion: string; status: string }[];
-  if (!runs.some((run) => run.status === "completed" && run.conclusion === "success"))
+  if (!runs.some((entry) => entry.status === "completed" && entry.conclusion === "success"))
     throw new Error(`CI has not succeeded on main commit ${head}; wait for it before releasing`);
-  const notes = process.env.PORTCOVE_RELEASE_NOTES_FILE;
+  // verbatim keeps Markdown headings ("## Fixes") that the default strip mode removes.
   git([
     "tag",
     "-a",
+    "--cleanup=verbatim",
     `v${version}`,
-    ...(notes ? ["-F", notes] : ["-m", `Portcove ${version}`]),
+    ...(notesFile ? ["-F", notesFile] : ["-m", `Portcove ${version}`]),
     head,
   ]);
   git(["push", "origin", `refs/tags/v${version}`]);
-  console.log(`tagged v${version} (${release.channel}) at ${head}`);
+  return { tag: `v${version}`, channel: release.channel, commit: head };
 }
 
 function main(argv: string[]) {
@@ -181,6 +187,13 @@ function main(argv: string[]) {
     const tag = flag("tag");
     if (!tag.startsWith("v")) throw new Error("release tags start with v");
     const release = classifyRelease(tag.slice(1));
+    // The workflow checks out full history, so every release tag is visible here.
+    assertNewerThanTags(
+      release.version,
+      execFileSync("git", ["tag", "--list", "v*"], { encoding: "utf8" })
+        .split("\n")
+        .filter(Boolean),
+    );
     console.log(`version=${release.version}`);
     console.log(`channel=${release.channel}`);
     console.log(`prerelease=${release.prerelease}`);
@@ -205,8 +218,13 @@ function main(argv: string[]) {
     // Exit 0 when --candidate is newer than --current (or no current feed exists).
     const current = rest.includes("--current") ? flag("current") : "";
     process.exitCode = current === "" || compareVersions(flag("candidate"), current) > 0 ? 0 : 1;
-  } else if (command === "tag") tagRelease(flag("version"));
-  else throw new Error("usage: app-release.mts plan|stamp|feed|compare|tag");
+  } else if (command === "tag") {
+    const result = tagRelease(
+      flag("version"),
+      process.env.PORTCOVE_RELEASE_NOTES_FILE || undefined,
+    );
+    console.log(`tagged ${result.tag} (${result.channel}) at ${result.commit}`);
+  } else throw new Error("usage: app-release.mts plan|stamp|feed|compare|tag");
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url))

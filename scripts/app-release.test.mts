@@ -3,7 +3,16 @@ import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
-import { buildFeed, classifyRelease, compareVersions, stampVersion } from "./app-release.mts";
+import { execFileSync } from "node:child_process";
+import {
+  assertNewerThanTags,
+  buildFeed,
+  classifyRelease,
+  compareVersions,
+  stampVersion,
+  tagRelease,
+  type Runner,
+} from "./app-release.mts";
 
 void test("tags map to the owner-approved channels and environments", () => {
   assert.deepEqual(classifyRelease("0.1.0-preview.1"), {
@@ -64,7 +73,10 @@ void test("stamping rewrites exactly the three build version sources", async (t)
   assert.match(cargo, /\[workspace\.package\]\nversion = "0\.1\.1"/u);
   assert.match(cargo, /x = \{ version = "1\.2\.3" \}/u);
   for (const file of ["apps/desktop/package.json", "apps/desktop/src-tauri/tauri.conf.json"])
-    assert.equal(JSON.parse(await readFile(path.join(root, file), "utf8")).version, "0.1.1");
+    assert.equal(
+      (JSON.parse(await readFile(path.join(root, file), "utf8")) as { version: string }).version,
+      "0.1.1",
+    );
   assert.throws(() => stampVersion(root, "not-a-version"));
 });
 
@@ -104,4 +116,116 @@ void test("the feed binds every platform to its signed asset and refuses a missi
     () => buildFeed({ version: v, notes: "n", pubDate: "x", assetsDir: dir, downloadBase: base }),
     /missing signed updater asset Portcove_0\.1\.0_amd64\.AppImage/u,
   );
+});
+
+void test("a release must be newer than every existing release tag, ignoring non-release tags", () => {
+  const tags = [
+    "v0.1.0-alpha.1",
+    "v0.1.0-alpha.2",
+    "v0.0.0-rehearsal.41788540335.1",
+    "vnot-semver",
+  ];
+  assertNewerThanTags("0.1.0-preview.1", tags);
+  assertNewerThanTags("0.1.0", [...tags, "v0.1.0"]);
+  assert.throws(
+    () => assertNewerThanTags("0.0.9", tags),
+    /greater than existing v0\.1\.0-alpha\.1/u,
+  );
+  assert.throws(() => assertNewerThanTags("0.1.5", [...tags, "v0.2.0"]), /v0\.2\.0/u);
+});
+
+function fakeRunner(state: {
+  head?: string;
+  main?: string;
+  dirty?: string;
+  tags?: string[];
+  ci?: { conclusion: string; status: string }[];
+}) {
+  const calls: string[][] = [];
+  const run: Runner = (command, args) => {
+    calls.push([command, ...args]);
+    if (command === "gh")
+      return JSON.stringify(state.ci ?? [{ status: "completed", conclusion: "success" }]);
+    if (args[0] === "rev-parse")
+      return args[1] === "HEAD" ? (state.head ?? "a".repeat(40)) : (state.main ?? "a".repeat(40));
+    if (args[0] === "status") return state.dirty ?? "";
+    if (args[0] === "tag" && args[1] === "--list")
+      return (state.tags ?? ["v0.1.0-alpha.2"]).join("\n");
+    return "";
+  };
+  return { run, calls };
+}
+
+void test("the release command tags and pushes only an exact, clean, CI-green main commit", () => {
+  const ok = fakeRunner({});
+  assert.deepEqual(tagRelease("0.1.0-preview.1", "notes.md", ok.run), {
+    tag: "v0.1.0-preview.1",
+    channel: "preview",
+    commit: "a".repeat(40),
+  });
+  const tagCall = ok.calls.find((call) => call[1] === "tag" && call[2] === "-a")!;
+  assert.deepEqual(tagCall.slice(1), [
+    "tag",
+    "-a",
+    "--cleanup=verbatim",
+    "v0.1.0-preview.1",
+    "-F",
+    "notes.md",
+    "a".repeat(40),
+  ]);
+  assert.deepEqual(ok.calls.at(-1), ["git", "push", "origin", "refs/tags/v0.1.0-preview.1"]);
+
+  const refusals: [Parameters<typeof fakeRunner>[0], RegExp][] = [
+    [{ main: "b".repeat(40) }, /HEAD must equal origin\/main/u],
+    [{ dirty: " M Cargo.toml" }, /uncommitted changes/u],
+    [{ tags: ["v0.1.0"] }, /greater than existing v0\.1\.0/u],
+    [{ tags: ["v0.1.0-preview.1"] }, /already exists/u],
+    [{ ci: [{ status: "in_progress", conclusion: "" }] }, /CI has not succeeded/u],
+    [{ ci: [{ status: "completed", conclusion: "failure" }] }, /CI has not succeeded/u],
+  ];
+  for (const [state, message] of refusals) {
+    const fake = fakeRunner(state);
+    assert.throws(() => tagRelease("0.1.0-preview.1", undefined, fake.run), message);
+    assert.ok(!fake.calls.some((call) => call[1] === "push"), "a refused release never pushes");
+  }
+});
+
+void test("verbatim tag cleanup keeps Markdown headings in the release notes", async (t) => {
+  const repo = await mkdtemp(path.join(os.tmpdir(), "app-release-notes-"));
+  t.after(() => rm(repo, { recursive: true, force: true }));
+  const git = (...args: string[]) =>
+    execFileSync(
+      "git",
+      ["-C", repo, "-c", "user.name=t", "-c", "user.email=t@example.invalid", ...args],
+      { encoding: "utf8" },
+    );
+  git("init", "--quiet");
+  git("commit", "--quiet", "--allow-empty", "-m", "base");
+  await writeFile(path.join(repo, "notes.md"), "Portcove 0.1.0\n\n## Fixes\n\n- Saves are kept\n");
+  git("tag", "-a", "--cleanup=verbatim", "v0.1.0", "-F", path.join(repo, "notes.md"));
+  const body = git(
+    "for-each-ref",
+    "refs/tags/v0.1.0",
+    "--format=%(contents:subject)%0a%0a%(contents:body)",
+  );
+  assert.match(body, /## Fixes/u);
+});
+
+void test("the compare command exits 0 only for a newer candidate or a missing feed", () => {
+  const compare = (...args: string[]) => {
+    try {
+      execFileSync(process.execPath, [
+        path.join(import.meta.dirname, "app-release.mts"),
+        "compare",
+        ...args,
+      ]);
+      return 0;
+    } catch (error) {
+      return (error as { status: number }).status;
+    }
+  };
+  assert.equal(compare("--candidate", "0.1.1"), 0);
+  assert.equal(compare("--candidate", "0.1.1", "--current", "0.1.0"), 0);
+  assert.equal(compare("--candidate", "0.1.0", "--current", "0.1.0"), 1);
+  assert.equal(compare("--candidate", "0.1.0-preview.3", "--current", "0.1.0"), 1);
 });

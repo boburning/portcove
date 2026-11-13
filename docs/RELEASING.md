@@ -50,6 +50,19 @@ physical first launch through System Settings → Privacy & Security → Open An
 Windows users see SmartScreen's "More info → Run anyway" step because the
 installers have no Authenticode signature yet.
 
+**What the Stable approval protects.** Both environments hold the same updater
+key, because installed clients trust exactly one key. Tag creation is not
+restricted, and a tag runs the workflow file at the tagged commit. So the
+`release-stable` approval is a process gate: it stops an accidental Stable
+release. It is not a key boundary against someone who can already push to the
+repository. Keep repository write access limited to the owner.
+
+**First release.** Tags cannot be deleted. Tag `v0.1.0-preview.1` first. That
+confirms every build, signing, asset-name and feed step before `0.1.0` itself
+is used. If a publish step fails after the GitHub Release exists, re-run the
+failed jobs. The publish job continues only when the release's asset set is
+identical.
+
 **Updater key.** Minisign key ID `F92BD3EA87BB77B0` is held in the `release`
 and `release-stable` environments, and the owner keeps an offline backup. If
 the key is lost, installed clients cannot be updated. Never rotate it without a

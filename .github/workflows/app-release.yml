@@ -43,6 +43,8 @@ jobs:
         run: |
           git fetch --quiet origin main
           git merge-base --is-ancestor "$GITHUB_SHA" origin/main
+      - name: Require the Pages feed branch before anything is published
+        run: git ls-remote --exit-code --heads origin gh-pages
       - name: Require successful CI on the tagged commit
         env:
           GH_TOKEN: ${{ github.token }}
@@ -175,16 +177,33 @@ jobs:
           set -euo pipefail
           (cd dist && sha256sum -- * > SHA256SUMS)
           git fetch --quiet --force origin "refs/tags/$GITHUB_REF_NAME:refs/tags/$GITHUB_REF_NAME"
-          notes=$(git for-each-ref "refs/tags/$GITHUB_REF_NAME" --format='%(contents)' | sed '/-----BEGIN PGP SIGNATURE-----/,$d')
+          # Subject and body exclude any tag signature block.
+          notes=$(git for-each-ref "refs/tags/$GITHUB_REF_NAME" --format='%(contents:subject)%0a%0a%(contents:body)')
           [ -n "$(echo "$notes" | tr -d '[:space:]')" ] || notes="Portcove $VERSION"
           printf '%s\n' "$notes" > notes.md
       - name: Publish the GitHub Release with all assets
         run: |
           set -euo pipefail
-          flags=()
-          [ "${{ needs.plan.outputs.prerelease }}" = true ] && flags+=(--prerelease)
-          gh release create "$GITHUB_REF_NAME" --verify-tag --draft --title "Portcove $VERSION" --notes-file notes.md "${flags[@]}" dist/*
-          gh release edit "$GITHUB_REF_NAME" --draft=false
+          expected=$(cd dist && ls -1 | sort)
+          state=$(gh release view "$GITHUB_REF_NAME" --json isDraft --jq 'if .isDraft then "draft" else "published" end' 2>/dev/null || echo missing)
+          if [ "$state" = missing ]; then
+            flags=()
+            [ "${{ needs.plan.outputs.prerelease }}" = true ] && flags+=(--prerelease)
+            gh release create "$GITHUB_REF_NAME" --verify-tag --draft --latest=false --title "Portcove $VERSION" --notes-file notes.md "${flags[@]}" dist/*
+            state=draft
+          elif [ "$state" = draft ]; then
+            gh release upload "$GITHUB_REF_NAME" --clobber dist/*
+          fi
+          # A re-run after a partial publish continues only with the identical asset set.
+          actual=$(gh release view "$GITHUB_REF_NAME" --json assets --jq '.assets[].name' | sort)
+          if [ "$actual" != "$expected" ]; then
+            echo "::error::Release assets differ from this run's build."; diff <(echo "$expected") <(echo "$actual") || true; exit 1
+          fi
+          if [ "$state" = draft ]; then
+            latest=false
+            [ "${{ needs.plan.outputs.prerelease }}" = true ] || latest=true
+            gh release edit "$GITHUB_REF_NAME" --draft=false --latest="$latest"
+          fi
       - name: Write the updater feed
         run: >-
           node scripts/app-release.mts feed --version "$VERSION" --notes-file notes.md
