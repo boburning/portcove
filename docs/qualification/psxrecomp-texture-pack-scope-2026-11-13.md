@@ -55,6 +55,17 @@ Delivered definitions that declare the folder need managed PS1 capability 3,
 which this engine advertises. An older reader therefore refuses the entry
 instead of treating existing installations as a changed scope.
 
+## v0.1.1 kits
+
+The game and BIOS source contracts of 20 split-mods routes now also apply to
+their v0.1.1 Windows and Linux kits. Each one has a new upstream evidence
+record built from the static kit check in the
+[builder downloads record](psxrecomp-7192402-builder-downloads-2026-11-13.md).
+That check found no change to disc identity, BIOS, player name or layout.
+Rival Schools is left at v0.1.0 because its v0.1.1 kit renames the player and
+was not built. Provider release digests were not read, because this session's
+proxy blocks the release API. The kits match their upstream `SHA256SUMS.txt`.
+
 ## Player copy
 
 The two multi-disc titles now say: to change discs, use the game's own disc
