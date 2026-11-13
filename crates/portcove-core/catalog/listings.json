@@ -13222,7 +13222,7 @@
         "steps": [
           {
             "title": "Select your original in the game",
-            "instruction": "Choose Play, then select your own BattleTanx: Global Assault USA Rev 0 big-endian .z64 dump when the game asks. This portable player validates and remembers that file without copying it. No build tool or installer is needed."
+            "instruction": "Choose Play, then select your own BattleTanx: Global Assault USA Rev 0 big-endian .z64 dump when the game asks. This portable player validates that file, remembers its location and keeps a copy in its own data folder. No build tool or installer is needed."
           }
         ],
         "warnings": [],
