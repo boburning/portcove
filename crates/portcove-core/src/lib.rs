@@ -162,10 +162,11 @@ pub use artwork::{
     DestinationArtworkContent, DestinationArtworkHandoff, DestinationArtworkRole,
     DestinationArtworkSource, DestinationArtworkUnavailableReason, GeneratedArtworkFallback,
     IGDB_ARTWORK_WORK_LIMIT, LocalArtworkAsset, STEAMGRIDDB_API_ORIGIN,
-    STEAMGRIDDB_KEY_PREFERENCES_URL, SteamGridDbAuthor, SteamGridDbCandidate, SteamGridDbFailure,
-    SteamGridDbGame, SteamGridDbKeyStatus, clear_steamgriddb_key, search_steamgriddb_games,
-    set_steamgriddb_key, steamgriddb_candidates, steamgriddb_credit_url, steamgriddb_key_status,
-    steamgriddb_preview,
+    STEAMGRIDDB_KEY_PREFERENCES_URL, SteamGridDbAuthor, SteamGridDbCandidate, SteamGridDbCheckStop,
+    SteamGridDbFailure, SteamGridDbGame, SteamGridDbImageCheck, SteamGridDbKeyStatus,
+    SteamGridDbListingReport, SteamGridDbListingStatus, SteamGridDbSourceStatus,
+    SteamGridDbUnknownReason, clear_steamgriddb_key, search_steamgriddb_games, set_steamgriddb_key,
+    steamgriddb_candidates, steamgriddb_credit_url, steamgriddb_key_status, steamgriddb_preview,
 };
 pub use auth::{
     GithubAuthSource, GithubAuthStatus, GithubDeviceLogin, GithubDeviceLoginResult,
@@ -456,7 +457,7 @@ pub use types::*;
 // library schema versions are independent and unchanged.
 // Public87 adds explicit compiled official-catalog setup for normal clients.
 // Its source-bound confirmation is separate from the unchanged CLI authority plan.
-pub const API_SCHEMA_VERSION: u32 = 90;
+pub const API_SCHEMA_VERSION: u32 = 91;
 /// Oldest library schema this build can read and migrate.
 pub const MIN_LIBRARY_SCHEMA_VERSION: u32 = 1;
 /// Library schema this build writes after opening a library.

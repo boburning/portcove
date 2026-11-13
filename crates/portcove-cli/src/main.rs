@@ -5274,6 +5274,7 @@ mod tests {
             "artwork.steamgriddb.search",
             "artwork.steamgriddb.candidates",
             "artwork.steamgriddb.choose",
+            "artwork.steamgriddb.check-listings",
             "saves",
             "saves.export-preview",
             "saves.export",

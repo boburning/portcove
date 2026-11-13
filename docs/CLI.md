@@ -381,7 +381,7 @@ The CLI API schema version is independent of the Portcove release version.
 
 `port-capabilities PORT_ID` returns a format-1 read-only feature report for a
 current or retained listing. `capabilities` advertises `port_capability_schema`
-and `listing_formats` independently from API schema 90 and event schema 3.
+and `listing_formats` independently from API schema 91 and event schema 3.
 Clients may ignore these additive descriptive fields; missing reports never
 override operation assessments. Cheap reports on workspace `PortListingStatus` use
 already loaded status/action facts. The focused command additionally reads the
@@ -1354,6 +1354,7 @@ portcove --json artwork steamgriddb status
 portcove --json artwork steamgriddb search "<game name>"
 portcove --json artwork steamgriddb candidates <game-id> --role portrait-cover
 portcove --json artwork steamgriddb choose <port-id> --slot cover --game <game-id> --candidate <image-id> --expected-revision <revision>
+portcove --json artwork steamgriddb check-listings
 portcove --json artwork steamgriddb clear-key
 ```
 
@@ -1384,6 +1385,26 @@ artwork is kept. The copy is library artwork like a local import: `reset` return
 the default and `remove-unused` deletes it once nothing selects it. Library exports
 that contain chosen SteamGridDB images use metadata schema 8.
 See [the provider client limits](ARCHITECTURE.md#local-artwork-ownership).
+
+`check-listings` reports, with your key, whether SteamGridDB still lists each
+SteamGridDB image in your library, and returns `steamgriddb_listing_report`. It only
+reports: every image, credit and choice is kept, nothing changes in Steam, and no
+artwork lock is held while it waits on the network. Each stored image is checked
+against its game's listing for the same role collection, stored size (when it is a
+size Portcove offers for the role) and format, with adult, humor and epilepsy flags
+set to `any`, so a re-tagged image or a later Portcove filter change never reads as
+missing. `listing` is `not_listed` only when every page echoes the requested `page`
+and `limit`, carries `data` and the same `total`, every entry has a readable ID, and
+the unique IDs seen equal `total`. Anything else is `unknown` with an
+`unknown_reason`: `incomplete_listing`, `too_many_images` (more than 1,000),
+`game_not_found` (a 404 is never read as a withdrawal), `request_limit`,
+`check_stopped`, `unavailable` or `invalid_response`. For `not_listed` and
+`game_not_found` images, `source` reports what the image server answers for the
+stored URL without your key: `served`, `gone` (404 or 410) or `unknown`. One check
+makes at most 120 SteamGridDB API requests and 60 image-server requests, spaced
+250 ms apart. A rate limit or a rejected key ends the check, reported in `stopped`;
+results already read are kept and the rest are `check_stopped`. A library with no
+SteamGridDB images makes no request and needs no key.
 
 ## Export and restore a library
 

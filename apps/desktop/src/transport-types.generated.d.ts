@@ -946,6 +946,33 @@ export type SourceInboxResolutionState =
 export type SourceReuseCompatibility = "listed_identity" | "potential" | "incompatible" | "unavailable";
 export type OutputSteamgriddbCandidates = SteamGridDbCandidate[];
 export type OutputSteamgriddbGames = SteamGridDbGame[];
+/**
+ * Whether SteamGridDB's own listing still includes a stored image.
+ */
+export type SteamGridDbListingStatus = "listed" | "not_listed" | "unknown";
+/**
+ * What SteamGridDB's image server answered for the stored source URL, without the key.
+ */
+export type SteamGridDbSourceStatus = "not_checked" | "served" | "gone" | "unknown";
+export type SteamGridDbUnknownReason =
+  | "incomplete_listing"
+  | "too_many_images"
+  | "game_not_found"
+  | "request_limit"
+  | "check_stopped"
+  | "unavailable"
+  | "invalid_response";
+/**
+ * Why a check ended before every group was read.
+ */
+export type SteamGridDbCheckStop =
+  | {
+      reason: "rate_limited";
+      retry_after_seconds: number | null;
+    }
+  | {
+      reason: "key_rejected";
+    };
 export type OutputDesktopAdoptionBatchResult = AdoptionBatchResult | null;
 export type OutputDesktopApplicationUpdateCheckPhase = "checking" | "acquiring-and-verifying" | "staged" | "complete";
 export type ApplicationChannel = "preview" | "stable";
@@ -1241,6 +1268,7 @@ export interface TransportOutputs {
   steamgriddb_candidates: OutputSteamgriddbCandidates;
   steamgriddb_games: OutputSteamgriddbGames;
   steamgriddb_key_status: OutputSteamgriddbKeyStatus;
+  steamgriddb_listing_report: OutputSteamgriddbListingReport;
   storage: StorageSummary;
   update_batch_outcome: OutputUpdateBatchOutcome;
   update_check: UpdateCheck;
@@ -5703,6 +5731,21 @@ export interface OutputSteamgriddbKeyStatus {
    */
   configured: boolean;
   [k: string]: unknown;
+}
+/**
+ * Report only: nothing in the library, its files or Steam changes.
+ */
+export interface OutputSteamgriddbListingReport {
+  checked_at: number;
+  images: SteamGridDbImageCheck[];
+  stopped: SteamGridDbCheckStop | null;
+}
+export interface SteamGridDbImageCheck {
+  asset_sha256: string;
+  attribution: ArtworkAttribution;
+  listing: SteamGridDbListingStatus;
+  source: SteamGridDbSourceStatus;
+  unknown_reason: SteamGridDbUnknownReason | null;
 }
 export interface OutputUpdateBatchOutcome {
   error: FailureReport | null;

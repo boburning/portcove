@@ -753,9 +753,21 @@ the provider-only marker, keeping the credit, first filename and import time. A
 provider-first asset is named `steamgriddb-<image-id>.<png|jpg>`. Removing an unused
 asset removes its provenance. Library metadata that carries provenance uses schema 8,
 which older readers refuse; a same-user export copies provider originals like every
-other original. `artwork_state` and the handoff expose the credits. Withdrawal
-handling (player-triggered, per the 2026-11-13 owner decision) is a later #527
-slice. The CLI's `artwork steamgriddb` commands are thin adapters:
+other original. `artwork_state` and the handoff expose the credits.
+
+Withdrawal handling is player-triggered (2026-11-13 owner decision). Its first slice,
+`check_steamgriddb_listings`, only reports. It snapshots the stored records without
+the artwork lock and groups them by game, role collection, stored size and format. It
+lists each group with every content flag set to `any`, so a re-tagged image or a later
+Portcove filter change never reads as missing. This listing is separate from the
+picker's lossy one and matches raw IDs only. It accepts absence only from a listing
+whose pages echo the request, carry `data` and a stable `total`, and whose unique IDs
+equal `total`. Everything else, including a game 404, is unknown. Absent images get a
+keyless image-server probe. Each check has a request budget (120 API, 60 image
+server), 250 ms spacing, and an early stop on a rate limit or a rejected key. Recording
+and eviction need two independent signals and come in a later #527 slice.
+
+The CLI's `artwork steamgriddb` commands are thin adapters:
 lookups run on a blocking task, and `choose` runs Core's fetch and ingestion in place
 on a runtime worker thread (`block_in_place`).
 

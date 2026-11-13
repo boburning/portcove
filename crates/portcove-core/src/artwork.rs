@@ -23,7 +23,9 @@ pub use destination::{
 pub use igdb_cache::IGDB_ARTWORK_WORK_LIMIT;
 pub use steamgriddb::{
     STEAMGRIDDB_API_ORIGIN, STEAMGRIDDB_KEY_PREFERENCES_URL, SteamGridDbAuthor,
-    SteamGridDbCandidate, SteamGridDbFailure, SteamGridDbGame, SteamGridDbKeyStatus,
+    SteamGridDbCandidate, SteamGridDbCheckStop, SteamGridDbFailure, SteamGridDbGame,
+    SteamGridDbImageCheck, SteamGridDbKeyStatus, SteamGridDbListingReport,
+    SteamGridDbListingStatus, SteamGridDbSourceStatus, SteamGridDbUnknownReason,
     clear_steamgriddb_key, search_steamgriddb_games, set_steamgriddb_key, steamgriddb_candidates,
     steamgriddb_credit_url, steamgriddb_key_status, steamgriddb_preview,
 };
@@ -452,6 +454,18 @@ impl PortcoveService {
         let fetched =
             steamgriddb::fetch_chosen_candidate(game_id, provider_role(slot), candidate_id)?;
         self.choose_fetched_artwork(&port, slot, game_id, fetched, expected_revision)
+    }
+
+    /// Report whether SteamGridDB still lists each stored SteamGridDB image,
+    /// using the player's key. Report only: the library, its files and Steam
+    /// are unchanged, and the artwork lock is never taken, so the network work
+    /// never blocks choosing or importing artwork.
+    pub fn check_steamgriddb_listings(&self) -> Result<steamgriddb::SteamGridDbListingReport> {
+        let metadata = {
+            let connection = self.library().connection()?;
+            crate::artwork_store::snapshot(&connection)?
+        };
+        steamgriddb::check_stored_listings(steamgriddb::check_subjects(&metadata), Library::now())
     }
 
     pub(crate) fn choose_fetched_artwork(
