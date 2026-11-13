@@ -32,7 +32,7 @@ impl Device {
     fn with_faults(version: &str, fault: Option<LifecycleFaultPoint>) -> Self {
         let temporary = tempfile::tempdir().unwrap();
         let library = Library::open(temporary.path().join("library")).unwrap();
-        let service = match fault {
+        let mut service = match fault {
             None => PortcoveService::new(library.clone()).unwrap(),
             Some(point) => PortcoveService::with_faults(
                 library.clone(),
@@ -43,6 +43,9 @@ impl Device {
             )
             .unwrap(),
         };
+        // Shipwright is the fixture shape; declare the host so these save
+        // contracts also run on macOS, where the real port does not ship.
+        declare_host(&mut service);
         register_install(&library, &service, version);
         Self {
             _temporary: temporary,
@@ -109,6 +112,11 @@ impl LifecycleFaultInjector for FailOnce {
         }
         Ok(())
     }
+}
+
+fn declare_host(service: &mut PortcoveService) {
+    let catalog = crate::test_fixture::host_declared_catalog(service.catalog(), &[PORT]);
+    service.replace_catalog_for_test(catalog);
 }
 
 fn register_install(library: &Library, service: &PortcoveService, version: &str) -> InstallRecord {
@@ -604,7 +612,8 @@ fn interrupted_publication_recovers_through_the_restore_journal() {
     let error = deck.import(&bundle, replace).unwrap_err();
     assert!(error.details.contains_key("imported_progress_snapshot"));
     // Restart: the existing lifecycle recovery finishes the journaled publication.
-    let restarted = PortcoveService::new(deck.library.clone()).unwrap();
+    let mut restarted = PortcoveService::new(deck.library.clone()).unwrap();
+    declare_host(&mut restarted);
     restarted.recover_pending_operations().unwrap();
     assert_eq!(
         deck.read("Save/file1.sav").unwrap(),
