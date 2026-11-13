@@ -26,6 +26,7 @@ import {
   authenticateFixedJobCoordinatorHistory,
   matchesRetainedCatalogBootstrapHandoff,
   matchesRetainedCatalogAdoptionWithdrawal,
+  matchesRetainedChameleonWithdrawalHandoff,
   matchesRetainedCatalogForwardAdoptionHandoff,
   matchesRetainedApplicationRenewalHandoff,
   matchesRetainedNativeAdoptionPredecessor,
@@ -1236,6 +1237,68 @@ void test("catalog adoption can authenticate only the exact settled r63 withdraw
         { ...producer, [field]: "0" },
         "catalog-publication",
       ),
+      false,
+    );
+});
+
+void test("the Chameleon coordinator can carry only the exact signed v13 withdrawal predecessor", () => {
+  const workflow = "ae780affa5cff58dd88250b3575d6948ed6608a47b3175492cf56fff3a5d90fb";
+  const checkpoint = {
+    checkpoint: "9d687629c60fc85c9a150a38eaf1dd8081934a87",
+    previous: "7b7388fe8eeb04fe11f4afd336f4ddb0359ef1b4",
+  };
+  const producer = {
+    controller_revision: "4cd5a0d9f9e3f3184bb680a298489a9db5dc18ba",
+    controller_ref:
+      "refs/tags/portcove-production-controller-windows-20261113-withdraw-29f33f57-r3",
+    workflow_sha256: workflow,
+    run_id: "43441976472",
+    run_attempt: 1,
+    job_id: "131944380144",
+    check_run_id: "131944380144",
+  };
+  const source = {
+    execution_ref: "refs/tags/portcove-production-controller-catalog-chameleon-canary",
+    workflow_sha256: workflow,
+  };
+  const purpose = "catalog-publication";
+  assert.equal(
+    matchesRetainedChameleonWithdrawalHandoff(checkpoint, producer, source, purpose),
+    true,
+  );
+  for (const key of Object.keys(checkpoint))
+    assert.equal(
+      matchesRetainedChameleonWithdrawalHandoff(
+        { ...checkpoint, [key]: "0".repeat(40) },
+        producer,
+        source,
+        purpose,
+      ),
+      false,
+    );
+  for (const key of Object.keys(producer))
+    assert.equal(
+      matchesRetainedChameleonWithdrawalHandoff(
+        checkpoint,
+        { ...producer, [key]: "0" },
+        source,
+        purpose,
+      ),
+      false,
+    );
+  for (const key of Object.keys(source))
+    assert.equal(
+      matchesRetainedChameleonWithdrawalHandoff(
+        checkpoint,
+        producer,
+        { ...source, [key]: "0" },
+        purpose,
+      ),
+      false,
+    );
+  for (const other of ["application", undefined] as const)
+    assert.equal(
+      matchesRetainedChameleonWithdrawalHandoff(checkpoint, producer, source, other),
       false,
     );
 });

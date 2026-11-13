@@ -235,6 +235,32 @@ export function matchesRetainedCatalogAdoptionWithdrawal(
   );
 }
 
+/** The Chameleon coordinator may authenticate the exact stopped application
+ * request's signed withdrawal as its idle predecessor. */
+export function matchesRetainedChameleonWithdrawalHandoff(
+  checkpoint: { checkpoint: string; previous: string | null },
+  producer: Record<string, unknown>,
+  source: { execution_ref: string; workflow_sha256: string },
+  purpose: "application" | "catalog-publication" | undefined,
+) {
+  const workflow = "ae780affa5cff58dd88250b3575d6948ed6608a47b3175492cf56fff3a5d90fb";
+  return (
+    purpose === "catalog-publication" &&
+    source.execution_ref === "refs/tags/portcove-production-controller-catalog-chameleon-canary" &&
+    source.workflow_sha256 === workflow &&
+    checkpoint.checkpoint === "9d687629c60fc85c9a150a38eaf1dd8081934a87" &&
+    checkpoint.previous === retainedCatalogV13AdoptionClaim.child &&
+    producer.controller_revision === "4cd5a0d9f9e3f3184bb680a298489a9db5dc18ba" &&
+    producer.controller_ref ===
+      "refs/tags/portcove-production-controller-windows-20261113-withdraw-29f33f57-r3" &&
+    producer.workflow_sha256 === workflow &&
+    producer.run_id === "43441976472" &&
+    producer.run_attempt === 1 &&
+    producer.job_id === "131944380144" &&
+    producer.check_run_id === "131944380144"
+  );
+}
+
 /** Carry the exact r66 adoption into the next separately admitted app or catalog operation. */
 export function matchesRetainedCatalogForwardAdoptionHandoff(
   checkpoint: { checkpoint: string; previous: string | null },
@@ -512,6 +538,7 @@ export async function authenticateFixedJobCoordinatorHistory(
         purpose,
       ) ||
       matchesRetainedCatalogAdoptionWithdrawal(checkpoint, producer, purpose) ||
+      matchesRetainedChameleonWithdrawalHandoff(checkpoint, producer, source, purpose) ||
       matchesRetainedCatalogForwardAdoptionHandoff(checkpoint, producer, source, purpose) ||
       matchesRetainedApplicationRenewalHandoff(checkpoint, producer, source, purpose) ||
       matchesRetainedNativeAdoptionPredecessor(checkpoint, producer, source, purpose));
