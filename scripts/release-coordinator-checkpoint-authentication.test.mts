@@ -1,4 +1,4 @@
-import { retainedCatalogReviewRecoveryResources } from "./release-capacity.mts";
+import { retainedCatalogReviewRecoveryResources } from "./release-retained-catalog-review-resources.mts";
 import { parseControllerWitnessedTime } from "./github-controller-attestation.mts";
 import assert from "node:assert/strict";
 import test from "node:test";

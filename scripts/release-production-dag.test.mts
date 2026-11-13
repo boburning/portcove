@@ -5,10 +5,8 @@ import { readFile } from "node:fs/promises";
 import { spawnSync, type SpawnSyncReturns } from "node:child_process";
 import { runInNewContext } from "node:vm";
 import { parse } from "yaml";
-import {
-  retainedCatalogReviewRecoveryResources,
-  slice4CapacityResources,
-} from "./release-capacity.mts";
+import { slice4CapacityResources } from "./release-capacity.mts";
+import { retainedCatalogReviewRecoveryResources } from "./release-retained-catalog-review-resources.mts";
 import { maximumProductionControllerWorkflowBytes } from "./production-controller-admission.mts";
 import { sharedProtectionOriginalJobDeadline } from "./release-signing-job-budget.mts";
 import { applicationProtectionObserver } from "./release-control-phases.mts";

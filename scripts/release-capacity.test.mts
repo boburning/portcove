@@ -7,7 +7,6 @@ import {
   inspectCapacityOperation,
   validateCapacityTransition,
   slice4CapacityResources,
-  retainedCatalogReviewRecoveryResources,
   capacityDigest,
   expectedCompactCapacityOperations,
   inspectCompactCapacityOperations,
@@ -16,6 +15,7 @@ import {
   inspectSitePublicationExpectation,
   assertPublicationResultDestination,
 } from "./release-capacity.mts";
+import { retainedCatalogReviewRecoveryResources } from "./release-retained-catalog-review-resources.mts";
 import { metadataFixture, metadataBootstrapFixture } from "./fixtures/release-metadata-fixture.mts";
 import {
   inspectMetadataRenewalDescriptor,

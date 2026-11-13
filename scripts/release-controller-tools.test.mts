@@ -45,7 +45,7 @@ import {
   type ControllerToolPlatform,
 } from "./release-controller-tools.mts";
 import { isRecord } from "./runtime-values.mts";
-import { retainedCatalogReviewRecoveryResources } from "./release-capacity.mts";
+import { retainedCatalogReviewRecoveryResources } from "./release-retained-catalog-review-resources.mts";
 import {
   compilerProducerPaths,
   inspectReleaseCompilerSourceClosure,

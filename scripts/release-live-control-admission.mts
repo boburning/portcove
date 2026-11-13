@@ -1,8 +1,5 @@
-import {
-  capacityDigest,
-  matchesRetainedCatalogReviewRecoverySource,
-  slice4CapacityResources,
-} from "./release-capacity.mts";
+import { capacityDigest, slice4CapacityResources } from "./release-capacity.mts";
+import { matchesRetainedCatalogReviewRecoverySource } from "./release-retained-catalog-review-resources.mts";
 import { isRecord } from "./runtime-values.mts";
 import {
   admitProductionInputReader,

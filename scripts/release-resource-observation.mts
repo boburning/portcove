@@ -5,11 +5,8 @@ import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { parseDocument } from "yaml";
-import {
-  retainedCatalogReviewRecoveryResources,
-  slice4CapacityResources,
-  slice4CapacityResourceDigest,
-} from "./release-capacity.mts";
+import { slice4CapacityResources, slice4CapacityResourceDigest } from "./release-capacity.mts";
+import { retainedCatalogReviewRecoveryResources } from "./release-retained-catalog-review-resources.mts";
 import { isRecord } from "./runtime-values.mts";
 
 export const catalogReaders = [

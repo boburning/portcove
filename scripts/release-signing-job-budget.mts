@@ -18,7 +18,7 @@ import { isRecord } from "./runtime-values.mts";
 import {
   matchesRetainedCatalogReviewRecoverySource,
   retainedCatalogReviewRecoveryResources,
-} from "./release-capacity.mts";
+} from "./release-retained-catalog-review-resources.mts";
 import { hostedNativeJobProfile } from "./assembler-job-identity.mts";
 import { assertTrustedDirectNode } from "./release-direct-node-transport.mts";
 import { fixedReleaseReaderToken } from "./release-readonly-child-environment.mts";

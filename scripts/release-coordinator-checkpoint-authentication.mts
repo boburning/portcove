@@ -33,12 +33,11 @@ import {
 } from "./assembler-job-identity.mts";
 import { inspectFixedJobJournalAuthorities } from "./release-authority-configuration.mts";
 import { releaseCanonicalDigest } from "./release-canonical.mts";
+import { assessBoundedCapacity, retainedRenewalCapacityRebind } from "./release-capacity.mts";
 import {
-  assessBoundedCapacity,
   matchesRetainedCatalogReviewRecoverySource,
   retainedCatalogReviewRecoveryResources,
-  retainedRenewalCapacityRebind,
-} from "./release-capacity.mts";
+} from "./release-retained-catalog-review-resources.mts";
 import { inspectReleaseReviewWithdrawal } from "./release-review-withdrawal.mts";
 
 // The original immutable r45 child survives its interrupted publication. A

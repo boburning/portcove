@@ -39,11 +39,8 @@ import {
   catalogProtectionEnvironments,
 } from "./release-input-protections.mts";
 import { catalogEnvironmentFixture } from "./fixtures/release-live-control-fixture.mts";
-import {
-  capacityDigest,
-  retainedCatalogReviewRecoveryResources,
-  slice4CapacityResources,
-} from "./release-capacity.mts";
+import { capacityDigest, slice4CapacityResources } from "./release-capacity.mts";
+import { retainedCatalogReviewRecoveryResources } from "./release-retained-catalog-review-resources.mts";
 import { maximumProductionControllerWorkflowBytes } from "./production-controller-admission.mts";
 import {
   isCatalogBootstrapRecoveryRef,
