@@ -588,6 +588,14 @@ mod host_gate_tests {
         crate::test_fixture::register_qualification_install(&library, &catalog, "shipwright");
         service.replace_catalog_for_test(catalog);
         let preview = service.preview_portable_save_export("shipwright").unwrap();
+        // The platform gate is only evaluated for an active install.
+        assert!(
+            !preview
+                .blockers
+                .contains(&PortableSaveBlocker::NotInstalled),
+            "{:?}",
+            preview.blockers
+        );
         let offered = crate::portable_saves::contract_for("shipwright")
             .unwrap()
             .platforms
