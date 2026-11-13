@@ -4,7 +4,11 @@ import test from "node:test";
 import {
   type ScanDependencies,
   type UpstreamRelease,
+  ScanError,
   channelRelease,
+  listerFailure,
+  permanentRelease,
+  targetsDigest,
   hintedAsset,
   parse7zTechnical,
   parseTarVerbose,
@@ -314,6 +318,175 @@ void test("a published digest that differs from the bytes is not scanned", async
   const result = await scan(scanTargets(listings), new Map(), mismatched);
   assert.equal(result.report.scanned.length, 0);
   assert.ok(result.report.unscanned.some((entry) => entry.reason.includes("published digest")));
+  // The same bytes would differ again: not retried.
+  assert.ok(result.report.unscanned.some(({ code }) => code === "digest-mismatch"));
+});
+
+void test("the report counts every target and binds the list by digest", async () => {
+  const targets = scanTargets(listings);
+  const { report } = await scan(targets, new Map(), fakes([]));
+  assert.equal(report.format_version, 2);
+  assert.equal(report.targets, 3);
+  assert.equal(report.targets_sha256, targetsDigest([...targets].reverse()));
+  assert.notEqual(report.targets_sha256, targetsDigest(targets.slice(1)));
+  assert.equal(
+    report.scanned.length + report.reused_targets.length + report.unscanned.length,
+    report.targets,
+  );
+  const empty = await scan([], new Map(), fakes([]));
+  assert.equal(empty.report.targets, 0);
+});
+
+void test("deterministic failures are persistent codes; transient ones stay deferred", async () => {
+  const deps = fakes([]);
+  const failing = (overrides: Partial<ScanDependencies>, options = {}) =>
+    scan(scanTargets(listings), new Map(), { ...deps, ...overrides }, options).then(({ report }) =>
+      report.unscanned.map(({ id, code }) => [id, code]),
+    );
+  // A redirect, 404 or 410 is the provider's answer for this release; 5xx and 403 may pass.
+  assert.deepEqual([301, 302, 404, 410].map(permanentRelease), [true, true, true, true]);
+  assert.deepEqual([200, 403, 429, 500, 503].map(permanentRelease), [
+    false,
+    false,
+    false,
+    false,
+    false,
+  ]);
+  assert.deepEqual(
+    await failing({
+      async releases(target) {
+        if (target.repository === "up/code")
+          throw new ScanError("release-unavailable", "301 from api.github.com");
+        if (target.repository === "up/header") throw new Error("fetch failed");
+        return deps.releases(target);
+      },
+    }),
+    [
+      ["code-only", "release-unavailable"],
+      ["header", "release-read-failed"],
+      ["gitlab", "no-single-asset"],
+    ],
+  );
+  // A transfer over the per-asset cap is final; one cut by a smaller remaining budget is retried.
+  const tooLarge: Partial<ScanDependencies> = {
+    async download(_asset, file, maxBytes) {
+      await writeFile(file, "x");
+      throw new ScanError("asset-too-large", `the transfer exceeds ${maxBytes} bytes`);
+    },
+  };
+  assert.deepEqual(await failing(tooLarge), [
+    ["code-only", "asset-too-large"],
+    ["header", "asset-too-large"],
+    ["gitlab", "no-single-asset"],
+  ]);
+  assert.deepEqual(
+    (await failing(tooLarge, { maxTotalBytes: 50, maxAssetBytes: 1000 })).map(([, code]) => code),
+    ["asset-budget", "asset-budget", "no-single-asset"],
+  );
+  for (const code of ["encrypted-archive", "unlistable"] as const)
+    assert.deepEqual(
+      await failing({
+        async list() {
+          throw new ScanError(code, "lister refused");
+        },
+      }),
+      [
+        ["code-only", code],
+        ["header", code],
+        ["gitlab", "no-single-asset"],
+      ],
+    );
+  assert.deepEqual(
+    (
+      await failing({
+        async list() {
+          throw new Error("unexpected");
+        },
+      })
+    ).map(([, code]) => code),
+    ["scan-failed", "scan-failed", "no-single-asset"],
+  );
+});
+
+void test("a persistent download failure is remembered and not fetched again for the same release", async () => {
+  const calls: string[] = [];
+  const deps = fakes(calls);
+  const encrypted: ScanDependencies = {
+    ...deps,
+    async list(file, name, stopAt) {
+      if (name === "release_Linux.zip") throw new ScanError("encrypted-archive", "password");
+      return deps.list(file, name, stopAt);
+    },
+  };
+  const targets = scanTargets(listings);
+  const first = await scan(targets, new Map(), encrypted);
+  assert.deepEqual(
+    [...first.failures.values()].map(({ code }) => code),
+    ["encrypted-archive"],
+  );
+  calls.length = 0;
+  const second = await scan(targets, first.checkpoint, encrypted, { failures: first.failures });
+  assert.ok(!calls.includes("download release_Linux.zip"), "not downloaded again");
+  assert.deepEqual(
+    second.report.unscanned.map(({ id, code }) => [id, code]),
+    [
+      ["header", "encrypted-archive"],
+      ["gitlab", "no-single-asset"],
+    ],
+  );
+  // A transient failure is never remembered.
+  const transient = await scan(targets, new Map(), {
+    ...deps,
+    async list() {
+      throw new Error("lister timed out");
+    },
+  });
+  assert.equal(transient.failures.size, 0);
+  // An asset over the per-asset limit is retried once the limit is raised.
+  const tooLarge = await scan(
+    targets,
+    new Map(),
+    {
+      ...deps,
+      async download(_asset, file) {
+        await writeFile(file, "x");
+        throw new ScanError("asset-too-large", "over the limit");
+      },
+    },
+    { maxAssetBytes: 100 },
+  );
+  calls.length = 0;
+  await scan(targets, new Map(), deps, { failures: tooLarge.failures, maxAssetBytes: 100 });
+  assert.ok(!calls.some((call) => call.startsWith("download")));
+  await scan(targets, new Map(), deps, { failures: tooLarge.failures, maxAssetBytes: 200 });
+  assert.ok(calls.some((call) => call.startsWith("download")));
+});
+
+void test("a lister that exits non-zero cannot read the archive; a timeout or missing tool is retried", () => {
+  const exited = (code: unknown, extra: Record<string, unknown> = {}) =>
+    Object.assign(new Error("Command failed"), { code, killed: false, signal: null, ...extra });
+  const codeOf = (error: unknown) => (error instanceof ScanError ? error.code : "deferred");
+  assert.equal(codeOf(listerFailure(exited(2))), "unlistable");
+  assert.equal(
+    codeOf(
+      listerFailure(
+        exited(2, { stderr: "ERROR: a.7z : Cannot open encrypted archive. Wrong password?" }),
+        true,
+      ),
+    ),
+    "encrypted-archive",
+  );
+  // Only 7z's own password message marks an archive encrypted.
+  assert.equal(
+    codeOf(listerFailure(exited(2, { stderr: "encrypted member" }), false)),
+    "unlistable",
+  );
+  assert.equal(
+    codeOf(listerFailure(exited(null, { killed: true, signal: "SIGKILL" }))),
+    "deferred",
+  );
+  assert.equal(codeOf(listerFailure(exited("ENOENT"))), "deferred");
+  assert.equal(codeOf(listerFailure(new Error("time budget reached"))), "deferred");
 });
 
 void test("records carry the rules version and partial reads", async () => {

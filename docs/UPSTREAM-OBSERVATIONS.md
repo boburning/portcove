@@ -1058,12 +1058,24 @@ size, so a successfully scanned
 release is downloaded once; a rules change rescans. Each run has an asset
 budget that counts every attempt, a byte budget that counts failed transfers
 too, and a 75-minute deadline that also caps every download, listing and
-file read, so a slow package cannot outlast the job; the rest is reported as
-not scanned and
-continues in a later run. Each record notes candidate files it could not read
+file read, so a slow package cannot outlast the job. Every target not scanned
+is reported with a stable code. Persistent targets are reported as not
+scannable and are not retried for the same release: `no-release`,
+`no-single-asset`, `release-unavailable` (the release read answers with a
+redirect, 404 or 410, for example a renamed repository), `asset-too-large`
+(over the per-asset limit, also when a transfer of unknown size reaches it),
+`digest-mismatch`, `encrypted-archive` and `unlistable` (no lister can read
+the package). A downloaded asset's persistent failure is kept in the
+checkpoint, so it is not fetched again until its release, the rules or, for
+its size, the per-asset limit changes. The rest (`time-budget`,
+`asset-budget`, `time-cut`, `release-read-failed` and `scan-failed` for
+transient network, provider or tool failures) continues in a later run. The
+report (format 2) declares how many targets the listings produced and a digest
+of that list, and a run with no targets fails. Each record notes candidate files it could not read
 or did not reach. The job summary lists findings first, each finding is also a
 workflow warning, and the report artifact keeps every record for 30 days.
 Nested archives and installers are listed only at their outer level.
 Findings from the latest scheduled `main` report reach the
 [maintenance inventory](MAINTENANCE-STORE.md#release-content) with their
-listing and evidence, and a `complete` report opens a routine handoff for each.
+listing and evidence, and a `complete` report opens one routine handoff per
+port, carrying its findings.

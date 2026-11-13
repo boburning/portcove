@@ -66,10 +66,15 @@ export interface ScanRecord {
 }
 
 /**
- * Why a target was not scanned. Deferred codes are retried by a later run;
- * the terminal codes mean the target offers nothing to scan, and
- * `asset-too-large` means the asset exceeds the per-asset limit, so no run
- * under the current limits scans it.
+ * Why a target was not scanned. Deferred codes (budgets, the deadline and
+ * transient network, provider or tool failures) are retried by a later run.
+ * Persistent codes are deterministic for the same release and limits, so a
+ * later run would only repeat them: nothing to download (`no-release`,
+ * `no-single-asset`), a release read the provider refuses for good
+ * (`release-unavailable`: a redirect, 404 or 410), an asset over the per-asset
+ * limit (`asset-too-large`), bytes that differ from the published digest
+ * (`digest-mismatch`), an archive whose listing needs a password
+ * (`encrypted-archive`), or one the listers cannot read (`unlistable`).
  */
 export const DEFERRED_UNSCANNED = [
   "time-budget",
@@ -78,13 +83,64 @@ export const DEFERRED_UNSCANNED = [
   "release-read-failed",
   "scan-failed",
 ] as const;
-export const PERSISTENT_UNSCANNED = ["no-release", "no-single-asset", "asset-too-large"] as const;
+export const PERSISTENT_UNSCANNED = [
+  "no-release",
+  "no-single-asset",
+  "release-unavailable",
+  "asset-too-large",
+  "digest-mismatch",
+  "encrypted-archive",
+  "unlistable",
+] as const;
 export type UnscannedCode =
   | (typeof DEFERRED_UNSCANNED)[number]
   | (typeof PERSISTENT_UNSCANNED)[number];
 
+/** A downloaded asset's persistent failure, kept in the checkpoint so it is not fetched again. */
+export interface ScanFailure {
+  key: string;
+  code: UnscannedCode;
+  /** The per-asset limit in force, so a raised limit retries an `asset-too-large` asset. */
+  max_asset_bytes: number;
+}
+
+const RECORDED_FAILURES: readonly UnscannedCode[] = [
+  "asset-too-large",
+  "digest-mismatch",
+  "encrypted-archive",
+  "unlistable",
+];
+
+/** A failure whose cause the scan knows; any other error is a deferred `scan-failed`. */
+export class ScanError extends Error {
+  readonly code: UnscannedCode;
+  constructor(code: UnscannedCode, message: string) {
+    super(message);
+    this.code = code;
+  }
+}
+
+/**
+ * The digest of a target list, independent of order: SHA-256 of the sorted
+ * `<id>\t<platform>` lines joined by newlines. A consumer recomputes it from
+ * the scanned, reused and not-scanned entries to prove they cover every target.
+ */
+export function targetsDigest(targets: readonly { id: string; platform: string }[]) {
+  return createHash("sha256")
+    .update(
+      targets
+        .map(({ id, platform }) => `${id}\t${platform}`)
+        .sort()
+        .join("\n"),
+    )
+    .digest("hex");
+}
+
 export interface ScanReport {
-  format_version: 1;
+  format_version: 2;
+  /** How many targets the listings produced, and their digest ({@link targetsDigest}). */
+  targets: number;
+  targets_sha256: string;
   scanned: ScanRecord[];
   /** Targets satisfied from the checkpoint; `reused` is their count. */
   reused: number;
@@ -173,11 +229,27 @@ export async function scan(
     maxTotalBytes = 12_000_000_000,
     deadline = Number.POSITIVE_INFINITY,
     clock = Date.now,
+    failures: knownFailures = new Map<string, ScanFailure>(),
+  }: {
+    maxAssets?: number | undefined;
+    maxAssetBytes?: number | undefined;
+    maxTotalBytes?: number | undefined;
+    deadline?: number;
+    clock?: () => number;
+    /** Persistent failures of downloaded assets from earlier runs, by asset key. */
+    failures?: ReadonlyMap<string, ScanFailure>;
   } = {},
-): Promise<{ report: ScanReport; checkpoint: Map<string, ScanRecord> }> {
+): Promise<{
+  report: ScanReport;
+  checkpoint: Map<string, ScanRecord>;
+  failures: Map<string, ScanFailure>;
+}> {
   const next = new Map(checkpoint);
+  const failures = new Map(knownFailures);
   const report: ScanReport = {
-    format_version: 1,
+    format_version: 2,
+    targets: targets.length,
+    targets_sha256: targetsDigest(targets),
     scanned: [],
     reused: 0,
     reused_targets: [],
@@ -200,7 +272,10 @@ export async function scan(
       if (!releaseCache.has(cacheKey)) releaseCache.set(cacheKey, deps.releases(target));
       releases = await releaseCache.get(cacheKey)!;
     } catch (error) {
-      skip("release-read-failed", `release read failed: ${(error as Error).message}`);
+      skip(
+        error instanceof ScanError ? error.code : "release-read-failed",
+        `release read failed: ${(error as Error).message}`,
+      );
       continue;
     }
     const release = channelRelease(releases, target.channel);
@@ -222,6 +297,16 @@ export async function scan(
         report.findings.push({ ...known, id: target.id, platform: target.platform });
       continue;
     }
+    // A downloaded asset that failed for a deterministic cause is not fetched again
+    // until its release, the rules or (for its size) the per-asset limit changes.
+    const failed = failures.get(key);
+    if (failed && (failed.code !== "asset-too-large" || maxAssetBytes <= failed.max_asset_bytes)) {
+      skip(
+        failed.code,
+        `asset ${asset.name}: ${failed.code} in an earlier run; not retried for this release`,
+      );
+      continue;
+    }
     if (attempts >= maxAssets || budget <= 0) {
       skip("asset-budget", "asset or byte budget reached; scanned in a later run");
       continue;
@@ -241,14 +326,18 @@ export async function scan(
       continue;
     }
     attempts++;
+    const limit = Math.max(1, Math.min(maxAssetBytes, budget));
     const dir = await mkdtemp(path.join(os.tmpdir(), "release-scan-"));
     const file = path.join(dir, "package");
     try {
-      await deps.download(asset, file, Math.max(1, Math.min(maxAssetBytes, budget)), deadline);
+      await deps.download(asset, file, limit, deadline);
       const bytes = await readFile(file);
       const sha256 = createHash("sha256").update(bytes).digest("hex");
       if (asset.digest?.startsWith("sha256:") && asset.digest !== `sha256:${sha256}`)
-        throw new Error("downloaded bytes differ from the provider's published digest");
+        throw new ScanError(
+          "digest-mismatch",
+          "downloaded bytes differ from the provider's published digest",
+        );
       const entries = await deps.list(file, asset.name, deadline);
       const candidates = headCandidates(entries);
       const read = candidates.slice(0, 64);
@@ -276,7 +365,12 @@ export async function scan(
       report.scanned.push(record);
       if (record.signals.length) report.findings.push(record);
     } catch (error) {
-      skip("scan-failed", `asset ${asset.name} could not be scanned: ${(error as Error).message}`);
+      let code: UnscannedCode = error instanceof ScanError ? error.code : "scan-failed";
+      // A transfer cut by a smaller remaining byte budget is retried; only the per-asset cap is final.
+      if (code === "asset-too-large" && limit < maxAssetBytes) code = "asset-budget";
+      if (RECORDED_FAILURES.includes(code))
+        failures.set(key, { key, code, max_asset_bytes: maxAssetBytes });
+      skip(code, `asset ${asset.name} could not be scanned: ${(error as Error).message}`);
     } finally {
       // Failed transfers spend the byte budget too, so a bad asset cannot repeat unbounded.
       budget -= await stat(file).then(
@@ -286,7 +380,7 @@ export async function scan(
       await rm(dir, { recursive: true, force: true });
     }
   }
-  return { report, checkpoint: next };
+  return { report, checkpoint: next, failures };
 }
 
 // ---- Hosted implementations -------------------------------------------------
@@ -319,10 +413,50 @@ async function json(url: string, token?: string) {
       "User-Agent": "portcove-release-scan",
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
-    redirect: "error",
+    // A redirect (for example a renamed repository) is reported, never followed.
+    redirect: "manual",
   });
-  if (!response.ok) throw new Error(`${response.status} from ${new URL(url).host}`);
+  if (!response.ok)
+    throw new ScanError(
+      permanentRelease(response.status) ? "release-unavailable" : "release-read-failed",
+      `${response.status} from ${new URL(url).host}`,
+    );
   return response.json();
+}
+
+/** Release-read statuses a retry would only repeat: a redirect, 404 or 410. */
+export const permanentRelease = (status: number) =>
+  (status >= 300 && status < 400) || status === 404 || status === 410;
+
+/** The fields of a child-process failure that say how it ended. */
+type ChildFailure = Error & {
+  code?: unknown;
+  killed?: boolean;
+  signal?: unknown;
+  stderr?: string | Buffer;
+};
+
+/** curl's exit status when a transfer exceeds `--max-filesize`. */
+const CURL_FILESIZE_EXCEEDED = 63;
+
+/**
+ * A lister that ran and exited non-zero cannot read the archive: `unlistable`,
+ * or `encrypted-archive` when 7z reports that the listing needs a password (7z
+ * gives that no exit status of its own, so its message decides). A timeout, a
+ * kill, a missing tool or the deadline stays a deferred `scan-failed`.
+ */
+export function listerFailure(error: unknown, sevenZip = false): unknown {
+  const failure = error as ChildFailure;
+  if (
+    !(error instanceof Error) ||
+    typeof failure.code !== "number" ||
+    failure.killed ||
+    failure.signal
+  )
+    return error;
+  return sevenZip && /wrong password|encrypted/iu.test((failure.stderr ?? "").toString())
+    ? new ScanError("encrypted-archive", "the archive listing needs a password")
+    : new ScanError("unlistable", `the lister exited with status ${failure.code}`);
 }
 
 export const hostedDependencies = (token?: string): ScanDependencies => ({
@@ -377,7 +511,12 @@ export const hostedDependencies = (token?: string): ScanDependencies => ({
         asset.url,
       ],
       { timeout: callTimeout(15 * 60_000, stopAt) },
-    );
+    ).catch((error: unknown) => {
+      const failure = error as ChildFailure;
+      throw failure.code === CURL_FILESIZE_EXCEEDED && !failure.killed && !failure.signal
+        ? new ScanError("asset-too-large", `the transfer exceeds ${maxBytes} bytes`)
+        : error;
+    });
   },
   async list(file, name, stopAt) {
     const lower = name.toLowerCase();
@@ -386,16 +525,22 @@ export const hostedDependencies = (token?: string): ScanDependencies => ({
       const offset = await squashfsOffset(file);
       const { stdout } = await run("unsquashfs", ["-o", String(offset), "-lls", file], {
         timeout,
+      }).catch((error: unknown) => {
+        throw listerFailure(error);
       });
       return parseUnsquashfs(String(stdout));
     }
     if (/\.(tar\.gz|tgz|tar\.xz|txz)$/.test(lower)) {
-      const { stdout } = await run("tar", ["-tvf", file], { timeout });
+      const { stdout } = await run("tar", ["-tvf", file], { timeout }).catch((error: unknown) => {
+        throw listerFailure(error);
+      });
       return parseTarVerbose(String(stdout));
     }
     // A dummy password makes encrypted archives fail instead of waiting for input.
     const { stdout } = await run("7z", ["l", "-ba", "-slt", "-pportcove-scan", "--", file], {
       timeout,
+    }).catch((error: unknown) => {
+      throw listerFailure(error, true);
     });
     return parse7zTechnical(String(stdout));
   },
@@ -435,12 +580,12 @@ export async function squashfsOffset(file: string) {
     const elf = Buffer.alloc(64);
     await handle.read(elf, 0, 64, 0);
     if (elf.readUInt32BE(0) !== 0x7f454c46 || elf[4] !== 2)
-      throw new Error("not a 64-bit ELF AppImage");
+      throw new ScanError("unlistable", "not a 64-bit ELF AppImage");
     const offset =
       Number(elf.readBigUInt64LE(0x28)) + elf.readUInt16LE(0x3a) * elf.readUInt16LE(0x3c);
     const magic = Buffer.alloc(4);
     await handle.read(magic, 0, 4, offset);
-    if (magic.toString("latin1") !== "hsqs") throw new Error("no SquashFS image");
+    if (magic.toString("latin1") !== "hsqs") throw new ScanError("unlistable", "no SquashFS image");
     return offset;
   } finally {
     await handle.close();
@@ -549,13 +694,23 @@ async function main(argv: string[]) {
   const targets = scanTargets(JSON.parse(await readFile(option("--listings")!, "utf8")));
   const checkpointPath = option("--checkpoint");
   const previous = new Map<string, ScanRecord>();
+  const failures = new Map<string, ScanFailure>();
   if (checkpointPath && checkpointPath !== "-") {
     try {
       const stored = JSON.parse(await readFile(checkpointPath, "utf8")) as {
         records?: ScanRecord[];
+        failures?: ScanFailure[];
       };
       for (const record of stored.records ?? [])
         if (record.rules === RULES_VERSION) previous.set(record.key, record);
+      for (const failure of stored.failures ?? [])
+        if (
+          typeof failure.key === "string" &&
+          failure.key.startsWith(`r${RULES_VERSION}|`) &&
+          RECORDED_FAILURES.includes(failure.code) &&
+          Number.isSafeInteger(failure.max_asset_bytes)
+        )
+          failures.set(failure.key, failure);
     } catch {
       // A missing or unreadable checkpoint scans from scratch.
     }
@@ -568,23 +723,25 @@ async function main(argv: string[]) {
       throw new Error(`${name} needs a positive whole number`);
     return number;
   };
-  const { report, checkpoint } = await scan(
-    targets,
-    previous,
-    hostedDependencies(process.env.GH_TOKEN),
-    {
-      maxAssets: numeric("--max-assets"),
-      maxAssetBytes: numeric("--max-asset-bytes"),
-      maxTotalBytes: numeric("--max-total-bytes"),
-      // Leave time to write the report and checkpoint before the job timeout.
-      deadline: Date.now() + (numeric("--minutes") ?? 75) * 60_000,
-    },
-  );
+  // A listings file without targets would read as a complete scan of nothing.
+  if (!targets.length) throw new Error("The listings offer no scan targets");
+  const {
+    report,
+    checkpoint,
+    failures: nextFailures,
+  } = await scan(targets, previous, hostedDependencies(process.env.GH_TOKEN), {
+    maxAssets: numeric("--max-assets"),
+    maxAssetBytes: numeric("--max-asset-bytes"),
+    maxTotalBytes: numeric("--max-total-bytes"),
+    // Leave time to write the report and checkpoint before the job timeout.
+    deadline: Date.now() + (numeric("--minutes") ?? 75) * 60_000,
+    failures,
+  });
   await writeFile(option("--output")!, `${JSON.stringify(report, null, 2)}\n`);
   if (option("--checkpoint-out"))
     await writeFile(
       option("--checkpoint-out")!,
-      `${JSON.stringify({ format_version: 1, records: [...checkpoint.values()] }, null, 2)}\n`,
+      `${JSON.stringify({ format_version: 1, records: [...checkpoint.values()], failures: [...nextFailures.values()] }, null, 2)}\n`,
     );
   process.stdout.write(
     `${JSON.stringify({ targets: targets.length, scanned: report.scanned.length, reused: report.reused, findings: report.findings.length, unscanned: report.unscanned.length })}\n`,

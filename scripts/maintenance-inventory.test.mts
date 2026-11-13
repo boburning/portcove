@@ -52,6 +52,7 @@ import {
 } from "./maintenance-inventory.mts";
 import type { UpstreamInput } from "./maintenance-upstream.mts";
 import { issueReconsiderations, targetReconsiderations } from "./maintenance-reconsiderations.mts";
+import { targetsDigest } from "./release-content-scan.mts";
 import { explicitBlockerFields } from "./roadmap-qualification.mts";
 import type { HostedRequestStatus, HostedStatusAll } from "./hosted-discovery-intake.mts";
 import { GitHubApiError } from "./github-operation.mts";
@@ -436,6 +437,22 @@ void test("the static report escapes untrusted text and states unknown publicati
 });
 
 const server = postgresServer();
+
+/** A format-2 scan report whose declared targets are exactly its own entries. */
+function scanReport<T extends { scanned: object[]; reused_targets: object[]; unscanned: object[] }>(
+  lists: T,
+) {
+  const targets = [...lists.scanned, ...lists.reused_targets, ...lists.unscanned] as {
+    id: string;
+    platform: string;
+  }[];
+  return {
+    ...lists,
+    format_version: 2,
+    targets: targets.length,
+    targets_sha256: targetsDigest(targets),
+  };
+}
 
 /** A stub Core CLI answering from responses.json and logging its isolation paths. */
 function stubCli(root: string) {
@@ -1286,8 +1303,7 @@ void test(
         const other = options.other ?? "done";
         return Promise.resolve({
           revision: `release-content-scan-run:${++run}-1@${"c".repeat(40)}#sha256:${"d".repeat(64)}`,
-          report: {
-            format_version: 1,
+          report: scanReport({
             scanned: [
               ...(ship === "new" ? [flagged] : []),
               ...(other === "done" ? [scanned("mdk-sdl-nemo22", "v3")] : []),
@@ -1320,7 +1336,7 @@ void test(
                   ]
                 : []),
             ],
-          },
+          }),
         });
       };
     const collectWith = (releaseContent: () => Promise<{ revision: string; report: unknown }>) =>
@@ -1459,8 +1475,7 @@ void test(
       releaseContent: () =>
         Promise.resolve({
           revision: `release-content-scan-run:1-1@${"c".repeat(40)}#sha256:${"d".repeat(64)}`,
-          report: {
-            format_version: 1,
+          report: scanReport({
             scanned: [
               {
                 key: "k",
@@ -1503,7 +1518,7 @@ void test(
                 reason: "asset could not be scanned",
               },
             ],
-          },
+          }),
         }),
       environment: store.owner,
       runner: "fixture",

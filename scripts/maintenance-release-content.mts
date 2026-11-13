@@ -10,6 +10,11 @@
 import { createHash } from "node:crypto";
 import { MaintenanceStoreError } from "./maintenance-store.mts";
 import { zipJsonEntry } from "./maintenance-release-health.mts";
+import {
+  DEFERRED_UNSCANNED,
+  PERSISTENT_UNSCANNED,
+  targetsDigest,
+} from "./release-content-scan.mts";
 
 const repository = "boburning/portcove";
 // The maintained in-memory artifact transfer accepts archives up to 8 MiB.
@@ -22,23 +27,12 @@ export interface ReleaseContentInput {
 }
 
 /**
- * The scan's not-scanned codes (`scripts/release-content-scan.mts`). Deferred
- * targets are retried by a later run, so their port is a coverage gap; a
- * persistent code means no run under the current limits scans the target, so
- * it is a stored fact of the port.
+ * The scan's own not-scanned codes. Deferred targets are retried by a later
+ * run, so their port is a coverage gap; a persistent code is deterministic for
+ * the same release and limits, so it is a stored fact of the port.
  */
-export const deferredCodes: readonly string[] = [
-  "time-budget",
-  "asset-budget",
-  "time-cut",
-  "release-read-failed",
-  "scan-failed",
-];
-export const persistentCodes: readonly string[] = [
-  "no-release",
-  "no-single-asset",
-  "asset-too-large",
-];
+const deferredCodes: readonly string[] = DEFERRED_UNSCANNED;
+const persistentCodes: readonly string[] = PERSISTENT_UNSCANNED;
 
 export interface ContentSignalFact {
   path: string;
@@ -128,8 +122,14 @@ const findingOrder = (left: ContentFinding, right: ContentFinding) =>
 /** Per-port release-content facts and coverage from one scan report. */
 export function releaseContentFacts(report: unknown) {
   const value = (report ?? {}) as Record<string, unknown>;
-  if (value.format_version !== 1 || !Number.isSafeInteger(value.reused))
+  if (value.format_version !== 2 || !Number.isSafeInteger(value.reused))
     throw unsupported("format_version or reused count");
+  // The denominator is the scan's own target count, never the lists it must cover.
+  const targets = value.targets;
+  if (!Number.isSafeInteger(targets) || (targets as number) < 1)
+    throw unsupported("the report declares no scan targets");
+  if (typeof value.targets_sha256 !== "string" || !/^[0-9a-f]{64}$/u.test(value.targets_sha256))
+    throw unsupported("the report does not bind its target list");
   const scanned = records(value.scanned, "scanned");
   const reused = records(value.reused_targets, "reused_targets");
   const unscanned = records(value.unscanned, "unscanned");
@@ -192,6 +192,13 @@ export function releaseContentFacts(report: unknown) {
       });
     else facts.set(`port:${id}`, { findings: found, unscannable: ordered(unscannable.get(id)) });
   }
+  const accounted = [...ports].flatMap(([id, platforms]) =>
+    [...platforms].map((platform) => ({ id, platform })),
+  );
+  if (accounted.length !== targets || targetsDigest(accounted) !== value.targets_sha256)
+    throw unsupported(
+      `scanned, reused and not-scanned entries cover ${accounted.length} of ${String(targets)} targets or differ from the target list`,
+    );
   return { expected: ports.size, facts, gaps };
 }
 

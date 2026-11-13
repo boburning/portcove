@@ -5,6 +5,7 @@ import {
   releaseContentFacts,
   releaseContentFindings,
 } from "./maintenance-release-content.mts";
+import { PERSISTENT_UNSCANNED, targetsDigest } from "./release-content-scan.mts";
 
 // Synthetic records only: no real package, file or game data.
 const sha = (digit: string) => digit.repeat(64);
@@ -42,8 +43,7 @@ function report() {
     sha256: sha("b"),
     signals: [{ ...signal, path: "z.bin" }, signal],
   });
-  return {
-    format_version: 1,
+  return bound({
     scanned: [flagged, record("alpha", "windows-x86-64")],
     reused: 2,
     reused_targets: [
@@ -58,6 +58,22 @@ function report() {
       unscanned("zeta", "linux-x86-64", "no-release"),
       unscanned("zeta", "windows-x86-64", "scan-failed"),
     ],
+  });
+}
+
+/** A format-2 report whose declared targets are exactly its own entries, as the scan writes it. */
+function bound<T extends { scanned: object[]; reused_targets: object[]; unscanned: object[] }>(
+  lists: T,
+) {
+  const targets = [...lists.scanned, ...lists.reused_targets, ...lists.unscanned] as {
+    id: string;
+    platform: string;
+  }[];
+  return {
+    ...lists,
+    format_version: 2,
+    targets: targets.length,
+    targets_sha256: targetsDigest(targets),
   };
 }
 
@@ -126,7 +142,7 @@ void test("the same targets in another order and run are the same facts", () => 
 void test("a finding on a deferred port stays visible from its gap", () => {
   const value = report();
   value.unscanned.push(unscanned("alpha", "macos-arm64", "release-read-failed"));
-  const { facts, gaps } = releaseContentFacts(value);
+  const { facts, gaps } = releaseContentFacts(bound(value));
   assert.equal(facts.has("port:alpha"), false);
   const gap = gaps.find(({ subject_key }) => subject_key === "port:alpha")!;
   assert.deepEqual(
@@ -145,6 +161,21 @@ void test("a finding on a deferred port stays visible from its gap", () => {
   assert.deepEqual(releaseContentAttention(null, null), []);
 });
 
+void test("every persistent scan code is a stored unscannable target", () => {
+  const value = report();
+  value.unscanned.splice(
+    0,
+    value.unscanned.length,
+    ...PERSISTENT_UNSCANNED.map((code, index) => unscanned("eta", `platform-${index}`, code)),
+  );
+  const { facts, gaps } = releaseContentFacts(bound(value));
+  assert.deepEqual(
+    facts.get("port:eta")?.unscannable.map(({ code }) => code),
+    [...PERSISTENT_UNSCANNED],
+  );
+  assert.ok(!gaps.some(({ subject_key }) => subject_key === "port:eta"));
+});
+
 void test("an unsupported or inconsistent report is refused", () => {
   const refused = (mutate: (value: ReturnType<typeof report>) => unknown) => {
     const value = report();
@@ -152,7 +183,22 @@ void test("an unsupported or inconsistent report is refused", () => {
     assert.throws(() => releaseContentFacts(changed), /Unsupported release-content report/u);
   };
   assert.throws(() => releaseContentFacts(null), /Unsupported release-content report/u);
-  refused((value) => ({ ...value, format_version: 2 }));
+  refused((value) => ({ ...value, format_version: 1 }));
+  // The denominator is the scan's own target count: an empty or truncated report
+  // can never pass as complete and erase stored facts.
+  refused(() => bound({ scanned: [], reused: 0, reused_targets: [], findings: [], unscanned: [] }));
+  refused((value) => {
+    value.unscanned.pop();
+  });
+  refused((value) => ({ ...value, targets: value.targets + 1 }));
+  refused((value) => {
+    const { targets: _omitted, ...rest } = value;
+    return rest;
+  });
+  refused((value) => {
+    value.unscanned[4] = { ...value.unscanned[4]!, id: "eta" };
+  });
+  refused((value) => ({ ...value, targets_sha256: "0".repeat(64) }));
   // A report from before reused targets were named cannot account for every target.
   refused((value) => {
     const { reused_targets: _omitted, ...rest } = value;

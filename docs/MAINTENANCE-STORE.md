@@ -518,15 +518,21 @@ A digest-verified report from scheduled run 43066038874 (2026-11-11) covered
   through the bounded, CRC-checked ZIP reader. A dispatched scan never counts.
   The run revision is
   `release-content-scan-run:<run>-<attempt>@<head_sha>#sha256:<artifact digest>`.
-- **Report shape:** every target the scan considered (one per unheld listing
-  and hinted platform) must be exactly one of `scanned`, `reused_targets` or
-  `unscanned`, and every finding must belong to a scanned or reused target.
-  Each not-scanned target carries a stable `code`. Deferred codes are retried
-  by a later run: `time-budget`, `asset-budget`, `time-cut`,
-  `release-read-failed` and `scan-failed`. Persistent codes are not:
-  `no-release` and `no-single-asset` (nothing to download) and
-  `asset-too-large` (over the per-asset limit, so no run under the current
-  limits scans it). Any other shape or code is unsupported and fails the read.
+- **Report shape:** the scan report (format 2) declares its own target count
+  (one target per unheld listing and hinted platform) and a SHA-256 of the
+  target list. Every target is counted against that declared count: the
+  `scanned`, `reused_targets` and `unscanned` entries must partition exactly
+  that list, so an empty or truncated report can never pass as complete and
+  record absences. A report with no targets is unsupported. Every finding must
+  belong to a scanned or reused target. Each not-scanned target carries a
+  stable `code`, and the consumer reads the scan's own code lists. Deferred
+  codes are retried by a later run: `time-budget`, `asset-budget`, `time-cut`,
+  `release-read-failed` and `scan-failed` (transient network, provider or tool
+  failures). Persistent codes are deterministic for the same release and
+  limits: `no-release` and `no-single-asset` (nothing to download),
+  `release-unavailable` (a redirect, 404 or 410), `asset-too-large`,
+  `digest-mismatch`, `encrypted-archive` and `unlistable`. Any other shape or
+  code is unsupported and fails the read.
 - **Stored facts:** a port is a `port:<id>` fact only when none of its targets
   is deferred. The fact keeps each finding's platform, repository, tag, asset,
   SHA-256, rules version and signals (path, kind and reason), sorted, plus each
