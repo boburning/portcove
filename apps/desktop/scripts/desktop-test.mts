@@ -883,10 +883,24 @@ async function verifySettingsRows() {
                 recommendationFits:
                   group !== "updates" ||
                   (() => {
-                    const label = document.querySelector(
-                      '[aria-label="Application update mode"] button small',
-                    );
+                    const modes = document.querySelector('[aria-label="Application update mode"]');
+                    const label = modes?.querySelector("button small");
                     const button = label?.closest("button");
+                    if (!label) {
+                      // A build that cannot update itself disables Automatic with a stated
+                      // reason and no Recommended tag (#5147). That state has no tag to fit.
+                      const automatic = modes?.querySelector("button");
+                      const reason = document.getElementById(
+                        "application-update-automatic-unavailable",
+                      );
+                      if (
+                        automatic instanceof HTMLButtonElement &&
+                        automatic.disabled &&
+                        reason instanceof HTMLElement &&
+                        reason.textContent?.trim()
+                      )
+                        return true;
+                    }
                     if (!(label instanceof HTMLElement) || !(button instanceof HTMLElement))
                       throw new Error("Recommended update-mode label is missing");
                     return (
@@ -962,12 +976,12 @@ interface SettingsRows {
 function assertSettingsRowGeometry(rows: SettingsRows, size: { width: number; height: number }) {
   const expectedRows: Record<string, number> = {
     appearance: 3,
-    "library-storage": 3,
+    "library-storage": 4,
     "game-files": 3,
-    updates: 2,
+    updates: 3,
     integrations: 2,
     controls: 2,
-    advanced: 3,
+    advanced: 4,
   };
   for (const [name, group] of Object.entries(rows.groups)) {
     assert.equal(group.rows.length, expectedRows[name], `${name} row count changed`);
@@ -1050,7 +1064,7 @@ async function verifyLongTitleCatalogDetail(theme: string) {
     assert.equal(layout.title, "Castlevania: Legacy of Darkness");
     assert.equal(layout.project, "Castlevania: Legacy of Darkness Recompiled");
     assert.equal(layout.titleFits, true, JSON.stringify(layout));
-    assert.equal(layout.action.label, "Finish setup");
+    assert.equal(layout.action.label, "Choose files");
     assert.equal(layout.horizontalOverflow, false);
     assert.ok(
       layout.action.top >= 0 &&
@@ -1391,13 +1405,13 @@ async function captureOutputDestinationReview(name: string) {
   );
   await browser.wait(
     async () =>
-      (await outputControl.findElements(By.css('[aria-label="Current output destination"] dl')))
+      (await outputControl.findElements(By.css('[aria-label="Current install folder"] dl')))
         .length === 1,
     15_000,
   );
   const outputLayout = await executeBrowserScript(browser, () => {
     const control = document.querySelector(".output-location-control");
-    const current = control?.querySelector('[aria-label="Current output destination"]');
+    const current = control?.querySelector('[aria-label="Current install folder"]');
     if (!(control instanceof HTMLElement) || !(current instanceof HTMLElement)) return null;
     const facts = current.querySelector("dl");
     const factValue = facts?.querySelector("dd");
@@ -1426,7 +1440,7 @@ async function captureOutputDestinationReview(name: string) {
   );
   await reviewOutput.click();
   const outputReview = await browser.wait(
-    until.elementLocated(By.css('[aria-label="Output destination review"]')),
+    until.elementLocated(By.css('[aria-label="Install folder review"]')),
     15_000,
   );
   assert.equal(
@@ -3447,7 +3461,7 @@ try {
       const label = channel === "beta" ? "Preview" : channel === "stable" ? "Stable" : "Rolling";
       return panel.findElement(
         By.xpath(
-          `.//fieldset[legend[normalize-space(.)="Release channels"]]//button[contains(normalize-space(.),"${label}")]`,
+          `.//fieldset[legend[normalize-space(.)="Update channels"]]//button[contains(normalize-space(.),"${label}")]`,
         ),
       );
     };
@@ -3711,30 +3725,38 @@ try {
     const futureFolderSummary = By.xpath(
       '//details[contains(@class,"future-setup-disclosure")]/summary[normalize-space(.)="Folder for a future install"]',
     );
-    const verifySidebarLabels = async () => {
-      const labels = await executeBrowserScript(browser, () =>
-        [...document.querySelectorAll('nav[aria-label="Primary navigation"] .nav-item')]
-          .filter((button) => button.getClientRects().length > 0)
-          .map((button) => {
-            const label = button.querySelector("span:not(.icon)");
-            if (!(button instanceof HTMLElement) || !(label instanceof HTMLElement))
-              throw new Error("Primary navigation label is missing");
-            const labelStyle = getComputedStyle(label);
-            const icon = button.querySelector(".icon");
-            const iconRect = icon?.getBoundingClientRect();
-            return {
-              text: label.textContent,
-              compactLabel:
-                labelStyle.position === "absolute" &&
-                labelStyle.clipPath === "inset(50%)" &&
-                label.clientWidth === 1 &&
-                label.clientHeight === 1,
-              iconVisible: Boolean(iconRect && iconRect.width > 0 && iconRect.height > 0),
-              widthFits: label.scrollWidth <= label.clientWidth + 1,
-              heightFits: label.scrollHeight <= label.clientHeight + 1,
-              buttonFits: button.scrollHeight <= button.clientHeight + 1,
-            };
-          }),
+    // The desktop navigation (full labels, or the icon rail below 42rem) and the
+    // navigation drawer are separate "Primary navigation" landmarks. Check each
+    // one on its own so an open drawer is not counted with the rail behind it.
+    const desktopNavigation = '.sidebar-desktop nav[aria-label="Primary navigation"]';
+    const drawerNavigation = '.navigation-sheet nav[aria-label="Primary navigation"]';
+    const verifySidebarLabels = async (scope: string = desktopNavigation) => {
+      const labels = await executeBrowserScript(
+        browser,
+        (scopeSelector: string) =>
+          [...document.querySelectorAll(`${scopeSelector} .nav-item`)]
+            .filter((button) => button.getClientRects().length > 0)
+            .map((button) => {
+              const label = button.querySelector("span:not(.icon)");
+              if (!(button instanceof HTMLElement) || !(label instanceof HTMLElement))
+                throw new Error("Primary navigation label is missing");
+              const labelStyle = getComputedStyle(label);
+              const icon = button.querySelector(".icon");
+              const iconRect = icon?.getBoundingClientRect();
+              return {
+                text: label.textContent,
+                compactLabel:
+                  labelStyle.position === "absolute" &&
+                  labelStyle.clipPath === "inset(50%)" &&
+                  label.clientWidth === 1 &&
+                  label.clientHeight === 1,
+                iconVisible: Boolean(iconRect && iconRect.width > 0 && iconRect.height > 0),
+                widthFits: label.scrollWidth <= label.clientWidth + 1,
+                heightFits: label.scrollHeight <= label.clientHeight + 1,
+                buttonFits: button.scrollHeight <= button.clientHeight + 1,
+              };
+            }),
+        scope,
       );
       assert.deepEqual(
         labels.map((label) => label.text),
@@ -3763,7 +3785,8 @@ try {
       ),
       5_000,
     );
-    await verifySidebarLabels();
+    await verifySidebarLabels(drawerNavigation);
+    await verifySidebarLabels(desktopNavigation);
     await selectPrimaryNavigation(browser, "Settings");
     await browser.wait(until.elementLocated(By.css('[data-settings-group="appearance"]')), 15_000);
     const visibleGroups: { name: string; columns: number }[] = [];
@@ -3950,12 +3973,12 @@ try {
     await clearCatalogFilters(browser);
     const filters = await openCatalogFilters(browser);
     const channelChoices = await filters.findElement(
-      By.css('button[aria-label="Release channels: All"]'),
+      By.css('button[aria-label="Update channels: All"]'),
     );
     await clickVisible(browser, channelChoices);
     const selectedFilter = await browser.wait(
       until.elementLocated(
-        By.css('fieldset[aria-label="Release channels"] [role="checkbox"][aria-label^="Stable ("]'),
+        By.css('fieldset[aria-label="Update channels"] [role="checkbox"][aria-label^="Stable ("]'),
       ),
       5_000,
     );
@@ -4120,7 +4143,7 @@ try {
         "Manage",
       ]);
       assert.equal(hierarchy.selected, "Game files");
-      assert.equal(hierarchy.action, "Finish setup");
+      assert.equal(hierarchy.action, "Choose files");
       assert.equal(hierarchy.actionInHero, true);
       assert.equal(hierarchy.titleFits, true);
       assert.equal(hierarchy.actionFits, true);
@@ -4170,8 +4193,13 @@ try {
     const outputDraft = await browser.wait(
       until.elementLocated(By.css('[id^="output-location-path-"]')),
       15_000,
+      "The output-folder path field did not appear in the opened disclosure",
     );
-    await browser.wait(async () => await outputDraft.isEnabled(), 15_000);
+    await browser.wait(
+      async () => await outputDraft.isEnabled(),
+      15_000,
+      "The output-folder path field stayed disabled (its location did not load or controls were busy)",
+    );
     await captureOutputDestinationReview("game-details");
     const draftPath = "C:\\Portcove-fixture\\Future-install";
     await outputDraft.sendKeys(Key.chord(Key.CONTROL, "a"), Key.BACK_SPACE, draftPath);

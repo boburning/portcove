@@ -82,6 +82,7 @@ import {
   reviewGameUpdateDisposition,
   clickVisible,
   selectCatalogPort,
+  selectPrimaryNavigation,
 } from "./desktop-review-controls.mts";
 import { By, Key, until } from "selenium-webdriver";
 import { fileIdentity } from "../../../scripts/development-evidence.mts";
@@ -475,11 +476,30 @@ export async function installScenarios({
     const invocation = await browser.findElement(
       By.css(`[data-invocation-id="${completedInvocationId}"]`),
     );
+    // A finished install that is ready to play offers Play and Dismiss, not an
+    // Activity link (#5226). The invocation-owned View in Activity route is
+    // therefore not exercised here; the Core activity is reached through primary
+    // navigation instead and matched by its independently known Core UUID.
+    assert.match(await invocation.getText(), /is ready to play\./u);
+    assert.equal(
+      (await invocation.findElements(By.xpath('.//button[normalize-space(.)="View in Activity"]')))
+        .length,
+      0,
+    );
+    await selectPrimaryNavigation(browser, "Activity");
+    // A completed record belongs to History, not the default Tasks section.
     await clickVisible(
       browser,
-      await invocation.findElement(By.xpath('.//button[normalize-space(.)="View in Activity"]')),
+      await browser.wait(
+        until.elementLocated(
+          By.xpath(
+            '//*[@aria-label="Activity sections"]//*[@role="tab" and starts-with(normalize-space(.), "History")]',
+          ),
+        ),
+        10_000,
+      ),
     );
-    await browser.wait(until.elementLocated(By.css('[data-activity-section="tasks"]')), 10_000);
+    await browser.wait(until.elementLocated(By.css('[data-activity-section="history"]')), 10_000);
     const destination = await browser.wait(
       until.elementLocated(By.css(`.activity-row[data-activity-id="${succeeded.id}"]`)),
       10_000,
@@ -508,7 +528,9 @@ export async function installScenarios({
           invocation_id: completedInvocationId,
           expected_core_activity_id: succeeded.id,
           actual_visible_activity_id: await destination.getAttribute("data-activity-id"),
-          selected_section: "tasks",
+          selected_section: await destination
+            .findElement(By.xpath("ancestor::*[@data-activity-section][1]"))
+            .getAttribute("data-activity-section"),
           protected_activity_ids: protectedIds,
           active_and_actionable_complete: destinationFeed.active_and_actionable_complete,
           core_operation: succeeded.operation,
@@ -519,7 +541,7 @@ export async function installScenarios({
             role: document.activeElement?.getAttribute("role"),
           })),
           scope:
-            "Actual invocation-owned View in Activity route; independently known Core UUID. Numeric invocation identity is not equated with a Core UUID.",
+            "Activity reached through primary navigation; independently known Core UUID. The invocation-owned View in Activity route is not exercised because a ready-to-play completion offers Play and Dismiss. Numeric invocation identity is not equated with a Core UUID.",
         },
         null,
         2,
