@@ -251,7 +251,8 @@ void test("fixed native product groups preserve owned lifecycle coverage and iso
   const job = workflowJob("product_workflows", source);
   const section = workflowJobSource(source, "product_workflows");
   assert.equal(job["runs-on"], "windows-2022");
-  assert.equal(job["timeout-minutes"], 60);
+  // Calibrated for hosted inventory, build, harness and driver-wait time (#4879).
+  assert.equal(job["timeout-minutes"], 90);
   assert.equal(
     job.if,
     "${{ inputs.operation == 'product-workflows' && inputs.runner == 'windows-2022' && !inputs.edge_driver_proof && github.repository == 'boburning/portcove' && github.event.repository.visibility == 'public' }}",
