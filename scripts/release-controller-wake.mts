@@ -143,7 +143,6 @@ export async function observeJobTokenDispatchRun(
     try {
       await api.run(expected.run_id, async (received) => {
         if (response) throw new Error("duplicate acknowledged-run response");
-        response = received;
         const oversized = Buffer.byteLength(JSON.stringify(received.body) ?? "null") > 64 * 1024;
         await record("dispatch-run-readback", {
           run_id: expected.run_id,
@@ -153,26 +152,37 @@ export async function observeJobTokenDispatchRun(
             ? { oversized: true, body_sha256: digest(received.body) }
             : { body: received.body }),
         });
+        response = received;
       });
-      if (!response) throw new Error("acknowledged run response evidence unavailable");
     } catch {
       if (!response)
         await record("dispatch-run-readback-unavailable", { run_id: expected.run_id, index });
+      if (response?.status !== 404)
+        throw new Error("acknowledged run readback unavailable; retain original run ID, no POST");
+    }
+    if (!response) {
+      await record("dispatch-run-readback-unavailable", { run_id: expected.run_id, index });
       throw new Error("acknowledged run readback unavailable; retain original run ID, no POST");
     }
     const oversized = Buffer.byteLength(JSON.stringify(response.body) ?? "null") > 64 * 1024;
     active();
-    if (response.status !== 200 || oversized)
+    if (oversized || (response.status !== 200 && response.status !== 404))
       throw new Error("acknowledged run readback unavailable or oversized; retain original run ID");
-    const run = inspectDispatchRunIdentity(response.body, expected);
-    if (run.display_title === expected.display_title) {
-      inspectJobTokenDispatchRun(run, expected);
-      return run;
+    // A newly acknowledged run can take time to appear at its exact GET URL.
+    if (response.status === 200) {
+      const run = inspectDispatchRunIdentity(response.body, expected);
+      if (run.display_title === expected.display_title) {
+        inspectJobTokenDispatchRun(run, expected);
+        return run;
+      }
+      if (
+        !["queued", "requested", "waiting", "pending", "in_progress"].includes(String(run.status))
+      )
+        throw new Error(
+          "acknowledged run correlation remains unproven; retain original run ID, no POST",
+        );
     }
-    if (
-      index === 4 ||
-      !["queued", "requested", "waiting", "pending", "in_progress"].includes(String(run.status))
-    )
+    if (index === 4)
       throw new Error(
         "acknowledged run correlation remains unproven; retain original run ID, no POST",
       );
