@@ -192,15 +192,13 @@ function BoundModSetupsControl({ portId, generation, busy }: Props) {
         {t("mods.heading")}
       </h3>
       <p className="text-sm text-pc-muted-foreground">{t("mods.intro")}</p>
-      {error && <p role="alert">{error}</p>}
-      {error && !fresh && !working && (
-        <ActionRow>
-          <Button variant="outline" onClick={reread}>
-            {t("mods.reread")}
-          </Button>
-        </ActionRow>
-      )}
-      {outcome && <p role="status">{outcome}</p>}
+      <ModSetupFeedback
+        error={error}
+        fresh={fresh}
+        working={working}
+        outcome={outcome}
+        reread={reread}
+      />
       {setups.length === 0 ? (
         <ActionRow>
           <p className="text-sm">{t("mods.none")}</p>
@@ -302,54 +300,27 @@ function BoundModSetupsControl({ portId, generation, busy }: Props) {
                 </Button>
               </ActionRow>
               {codeReview?.profileId === selected.profile.id && (
-                <Notice intent="warning">
-                  <div data-slot="notice-body" className="grid gap-2">
-                    <p>
-                      <Trans
-                        t={t}
-                        i18nKey="mods.code.intro"
-                        components={{
-                          name: <bdi>{codeReview.review.display_name}</bdi>,
-                          id: <code dir="ltr">{codeReview.review.native_id}</code>,
-                        }}
-                      />
-                    </p>
-                    <p>{t("mods.code.runs")}</p>
-                    <p className="[overflow-wrap:anywhere]">
-                      <Trans
-                        t={t}
-                        i18nKey="mods.code.digest"
-                        components={{ digest: <code dir="ltr">{codeReview.review.sha256}</code> }}
-                      />
-                    </p>
-                    <ActionRow>
-                      <Button
-                        disabled={locked}
-                        onClick={() => {
-                          const { path, review } = codeReview;
-                          setCodeReview(undefined);
-                          void perform(
-                            () =>
-                              desktopApi.addModPackage(
-                                portId,
-                                selected.profile.id,
-                                path,
-                                selected.profile.current_revision,
-                                generation,
-                                review.sha256,
-                              ),
-                            t("mods.outcome.added", { name: selected.profile.display_name }),
-                          );
-                        }}
-                      >
-                        {t("mods.code.allow")}
-                      </Button>
-                      <Button variant="outline" onClick={() => setCodeReview(undefined)}>
-                        {t("mods.code.cancel")}
-                      </Button>
-                    </ActionRow>
-                  </div>
-                </Notice>
+                <ModCodeConsent
+                  review={codeReview.review}
+                  locked={locked}
+                  allow={() => {
+                    const { path, review } = codeReview;
+                    setCodeReview(undefined);
+                    void perform(
+                      () =>
+                        desktopApi.addModPackage(
+                          portId,
+                          selected.profile.id,
+                          path,
+                          selected.profile.current_revision,
+                          generation,
+                          review.sha256,
+                        ),
+                      t("mods.outcome.added", { name: selected.profile.display_name }),
+                    );
+                  }}
+                  cancel={() => setCodeReview(undefined)}
+                />
               )}
               {view.provider && (
                 <ModProviderBrowser
@@ -401,6 +372,81 @@ function BoundModSetupsControl({ portId, generation, busy }: Props) {
         </>
       )}
     </section>
+  );
+}
+
+function ModCodeConsent({
+  review,
+  locked,
+  allow,
+  cancel,
+}: {
+  review: ModCodeReview;
+  locked: boolean;
+  allow: () => void;
+  cancel: () => void;
+}) {
+  const { t } = useAppTranslation("gameSettings");
+  return (
+    <Notice intent="warning">
+      <div data-slot="notice-body" className="grid gap-2">
+        <p>
+          <Trans
+            t={t}
+            i18nKey="mods.code.intro"
+            components={{
+              name: <bdi>{review.display_name}</bdi>,
+              id: <code dir="ltr">{review.native_id}</code>,
+            }}
+          />
+        </p>
+        <p>{t("mods.code.runs")}</p>
+        <p className="[overflow-wrap:anywhere]">
+          <Trans
+            t={t}
+            i18nKey="mods.code.digest"
+            components={{ digest: <code dir="ltr">{review.sha256}</code> }}
+          />
+        </p>
+        <ActionRow>
+          <Button disabled={locked} onClick={allow}>
+            {t("mods.code.allow")}
+          </Button>
+          <Button variant="outline" onClick={cancel}>
+            {t("mods.code.cancel")}
+          </Button>
+        </ActionRow>
+      </div>
+    </Notice>
+  );
+}
+
+function ModSetupFeedback({
+  error,
+  fresh,
+  working,
+  outcome,
+  reread,
+}: {
+  error: string | undefined;
+  fresh: boolean;
+  working: boolean;
+  outcome: string | undefined;
+  reread: () => void;
+}) {
+  const { t } = useAppTranslation("gameSettings");
+  return (
+    <>
+      {error && <p role="alert">{error}</p>}
+      {error && !fresh && !working && (
+        <ActionRow>
+          <Button variant="outline" onClick={reread}>
+            {t("mods.reread")}
+          </Button>
+        </ActionRow>
+      )}
+      {outcome && <p role="status">{outcome}</p>}
+    </>
   );
 }
 
