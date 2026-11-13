@@ -27,7 +27,9 @@ export function ReadyNoticesSetting({
     { action: "read" | "save"; summary: string | undefined } | undefined
   >();
   const { t } = useAppTranslation("gameFiles");
-  const [saving, setSaving] = useState(false);
+  // The generation a save is in flight for; a save for another library never disables this one.
+  const [savingGeneration, setSavingGeneration] = useState<number | undefined>();
+  const saving = savingGeneration === generation;
   const [attempt, setAttempt] = useState(0);
   const request = useRef(0);
   const controlId = useId();
@@ -52,7 +54,7 @@ export function ReadyNoticesSetting({
   const enabled = state?.generation === generation ? state.enabled : undefined;
   const change = async (next: boolean) => {
     const current = ++request.current;
-    setSaving(true);
+    setSavingGeneration(generation);
     setProblem(undefined);
     try {
       const stored = await save(next, generation);
@@ -64,7 +66,7 @@ export function ReadyNoticesSetting({
       if (request.current === current)
         setProblem({ action: "save", summary: failurePresentation(value)?.summary });
     } finally {
-      if (request.current === current) setSaving(false);
+      setSavingGeneration((value) => (value === generation ? undefined : value));
     }
   };
   return (
