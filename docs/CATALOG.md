@@ -1757,7 +1757,9 @@ compatible release; plain data files, documentation and libraries may change. A
 different layout is refused with a player-facing reason naming the new or missing
 programs and folders, leaves the installed copy untouched, and uses the existing
 unsupported-acquisition surface, not a new hold authority. Platforms without a
-fingerprint keep today's behavior. macOS layouts may opt into `ignore_verified_macos_libraries` when an upstream
+fingerprint keep today's behavior.
+
+macOS layouts may opt into `ignore_verified_macos_libraries` when an upstream
 archive stores patch-versioned shared libraries with execute permission. The
 classifier excludes a matching library filename only when bounded native header
 inspection identifies it as a shared library. Executable-mode files with an
@@ -1768,7 +1770,8 @@ rules. The matching authoring observation is `catalog inspect-package-layout
 
 Independent definitions using this gate
 require [NativePortable version 18](DEFINITION-DELIVERY.md) so readers that
-would ignore the field cannot accept them. A selected independent definition
+would ignore the field cannot accept them. The macOS library filter requires
+version 30. A selected independent definition
 may replace a fingerprint after review but cannot remove one. The fingerprint
 applies to staging and grants no
 qualification. Persistent-path anchors stay in the existing `persistent_paths`
