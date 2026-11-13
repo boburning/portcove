@@ -28,6 +28,7 @@ import {
 import type { PortDefinition, PortStatus } from "../../types";
 import { IdentityIcon } from "../identity/IdentityIcon";
 import { identityLabel, identityStyle } from "../identity/identity-style";
+import { availablePlatforms } from "./catalog-entry";
 import type { CatalogEntry } from "./catalog-entry";
 import type { NativeSourceDragState } from "../../native-source-drop";
 import { browsePortPresentation } from "../port-actions/browse-presentation";
@@ -54,7 +55,7 @@ export function IdentityChips({
             {identityLabel(system)}
           </Chip>
         ))}
-      {port.platforms.map((platform) => (
+      {availablePlatforms(port).map((platform) => (
         <Chip key={platform} title={t("discover.chip.platform")}>
           <IdentityIcon name={platform.split("-")[0]!} />
           {platformLabel(platform)}
@@ -555,8 +556,8 @@ function DiscoverGameMetadata({
       )}
       {exact &&
         devicePlatform &&
-        port.platforms.length > 0 &&
-        !port.platforms.includes(devicePlatform) && (
+        availablePlatforms(port).length > 0 &&
+        !availablePlatforms(port).includes(devicePlatform) && (
           <p className="m-0 text-xs text-pc-muted-foreground">
             {t("discover.unavailableFor", { platform: platformLabel(devicePlatform) })}
           </p>
