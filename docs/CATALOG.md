@@ -1838,7 +1838,10 @@ lifecycle results, hands-on observations, and known failures remain separate.
 The core derives an exact claim only when the whole requested scope matches;
 adding an artifact, variant, representation, platform, or check version cannot
 inherit an older result. Missing or not-run evidence remains distinct from a
-bounded failure and does not change source admission.
+bounded failure and does not change source admission. For a provider-resolved
+release, a contract's reviewed release binding qualifies only that exact
+release when the provider resolves it; `release_policy` widens source admission
+but never qualification (`catalog inspect-targets` reports both, per target).
 
 `automated_tested_platforms` and `manually_validated_platforms` are retained as
 legacy historical coverage. They identify a port/platform intersection but do

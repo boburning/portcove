@@ -106,6 +106,87 @@ pub struct TargetRoutes {
     pub definition_eligibility: Unassessed,
     /// Decided by an installation on a host, never by the catalog alone.
     pub readiness: Unassessed,
+    /// Recorded qualification matched to the artifact the catalog offers here.
+    pub qualification: TargetQualification,
+}
+
+/// Recorded Portcove qualification for one target, matched to the artifact the
+/// catalog offers there. Evidence never carries over to another artifact,
+/// source variant, platform or check version; check versions are reported,
+/// not ranked.
+#[derive(Debug, Clone, Serialize, JsonSchema)]
+pub struct TargetQualification {
+    pub state: TargetQualificationState,
+    /// A known failure is recorded for a scope that applies to what is offered.
+    pub known_failure: bool,
+    pub offered_artifact: OfferedArtifact,
+    pub scopes: Vec<TargetQualificationScope>,
+    /// Port-wide historical coverage; never bound to an artifact or source.
+    pub legacy_coverage: Vec<LegacyCoverage>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum TargetQualificationState {
+    /// Passed evidence for the exact artifact the catalog offers.
+    OfferedArtifactQualified,
+    /// Passed evidence for a reviewed release binding; it applies only when the
+    /// provider resolves exactly that release, which this report never does.
+    ReviewedBindingQualified,
+    /// Evidence exists, but none of it applies to what is offered.
+    HistoricalOnly,
+    Unqualified,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, JsonSchema)]
+#[serde(tag = "state", rename_all = "snake_case")]
+pub enum OfferedArtifact {
+    /// The catalog pins the artifact this route acquires or registers.
+    Fixed {
+        route: PortAction,
+        upstream_ref: String,
+        artifact_sha256: String,
+    },
+    /// The release is known only after provider resolution.
+    ProviderResolved {
+        route: PortAction,
+    },
+    /// The player selects the runtime; the catalog names no artifact.
+    UserSelected {
+        route: PortAction,
+    },
+    NoneOffered,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum ScopeApplicability {
+    OfferedArtifact,
+    OtherArtifact,
+    ReviewedReleaseBinding,
+    UnboundRelease,
+    NoCatalogArtifact,
+    RouteNotOffered,
+    SourceScopeWithdrawn,
+}
+
+#[derive(Debug, Clone, Serialize, JsonSchema)]
+pub struct TargetQualificationScope {
+    pub applicability: ScopeApplicability,
+    pub contract_id: String,
+    pub variant: Option<crate::SourceIdentity>,
+    pub upstream_ref: String,
+    pub artifact_sha256: String,
+    pub check_version: String,
+    pub assessment: crate::SourceQualificationAssessment,
+    pub evidence_ids: Vec<String>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum LegacyCoverage {
+    AutomatedTested,
+    ManuallyValidated,
 }
 
 #[derive(Debug, Clone, Serialize, JsonSchema)]
@@ -174,9 +255,9 @@ pub fn inspect_targets(
         .map(|id| inspect_port(catalog, id, &platforms))
         .collect();
     Ok(TargetInspection {
-        format_version: 1,
+        format_version: 2,
         producer: CoreProducer::current(),
-        scope: "catalog route offering per target for a fresh library; definition trust, installed state, readiness and native evidence are not assessed",
+        scope: "catalog route offering and recorded qualification matched to the catalog-offered artifact per target for a fresh library; providers are not resolved, and definition trust, installed state and readiness are not assessed",
         platforms,
         ports,
     })
@@ -208,9 +289,8 @@ fn inspect_port(
     let held = crate::managed_runtime_policy::acquisition_hold(catalog, &port_id).is_some();
     let targets = platforms
         .iter()
-        .map(|&platform| TargetRoutes {
-            platform,
-            routes: [PortAction::Install, PortAction::RegisterExternal]
+        .map(|&platform| {
+            let routes: Vec<TargetRoute> = [PortAction::Install, PortAction::RegisterExternal]
                 .into_iter()
                 .map(|action| {
                     // A reviewed acquisition hold withdraws fresh managed acquisition,
@@ -226,11 +306,17 @@ fn inspect_port(
                         reason,
                     }
                 })
-                .collect(),
-            provider_resolution_required:
-                crate::managed_runtime_policy::requires_provider_resolution_on(port, platform),
-            definition_eligibility: Unassessed::Unknown,
-            readiness: Unassessed::Unknown,
+                .collect();
+            let qualification = target_qualification(catalog, port, platform, &routes);
+            TargetRoutes {
+                platform,
+                routes,
+                provider_resolution_required:
+                    crate::managed_runtime_policy::requires_provider_resolution_on(port, platform),
+                definition_eligibility: Unassessed::Unknown,
+                readiness: Unassessed::Unknown,
+                qualification,
+            }
         })
         .collect();
     PortTargetInspection {
@@ -244,9 +330,394 @@ fn inspect_port(
     }
 }
 
+/// The artifact the catalog offers on this target, from the first offered route.
+fn offered_artifact(
+    port: &crate::PortDefinition,
+    platform: Platform,
+    routes: &[TargetRoute],
+) -> OfferedArtifact {
+    let offered = |action| {
+        routes
+            .iter()
+            .any(|route| route.action == action && route.offered)
+    };
+    if offered(PortAction::Install) {
+        return match port.release.provider {
+            crate::ReleaseSource::DirectManifest => {
+                match crate::providers::resolve_direct(
+                    port,
+                    crate::ReleaseChannel::Stable,
+                    platform,
+                ) {
+                    Ok(release) => OfferedArtifact::Fixed {
+                        route: PortAction::Install,
+                        upstream_ref: release.version,
+                        artifact_sha256: release.asset.sha256,
+                    },
+                    Err(_) => OfferedArtifact::NoneOffered,
+                }
+            }
+            crate::ReleaseSource::Github | crate::ReleaseSource::Gitlab => {
+                OfferedArtifact::ProviderResolved {
+                    route: PortAction::Install,
+                }
+            }
+            crate::ReleaseSource::UserPrepared => OfferedArtifact::NoneOffered,
+        };
+    }
+    if offered(PortAction::RegisterExternal)
+        && let Some(runtime) = port.release.user_prepared.get(&platform)
+    {
+        return if runtime.trust.is_accepted_package() {
+            OfferedArtifact::Fixed {
+                route: PortAction::RegisterExternal,
+                upstream_ref: runtime.version.clone(),
+                artifact_sha256: runtime.archive_sha256.to_ascii_lowercase(),
+            }
+        } else {
+            OfferedArtifact::UserSelected {
+                route: PortAction::RegisterExternal,
+            }
+        };
+    }
+    OfferedArtifact::NoneOffered
+}
+
+/// Matches each recorded qualification scope of this port and platform to the
+/// offered artifact, using Core's exact-scope rule and reviewed release bindings.
+fn target_qualification(
+    catalog: &Catalog,
+    port: &crate::PortDefinition,
+    platform: Platform,
+    routes: &[TargetRoute],
+) -> TargetQualification {
+    use crate::{QualificationEvidenceState as Evidence, SourceVariantScope};
+    let offered_artifact = offered_artifact(port, platform, routes);
+    let mut scopes: Vec<TargetQualificationScope> = Vec::new();
+    if let Some(source) = catalog.source_catalog() {
+        let mut distinct: Vec<&crate::SourceEvidenceScope> = Vec::new();
+        for record in source
+            .qualification
+            .iter()
+            .filter(|record| record.scope.port_id == port.id && record.scope.platform == platform)
+        {
+            if !distinct.contains(&&record.scope) {
+                distinct.push(&record.scope);
+            }
+        }
+        for scope in distinct {
+            let records: Vec<_> = source
+                .qualification
+                .iter()
+                .filter(|record| record.scope == *scope)
+                .collect();
+            let variant = match &scope.variant {
+                SourceVariantScope::Exact { identity } => Some(identity.clone()),
+                SourceVariantScope::Unspecified => None,
+            };
+            let contract = scope.contract_id.as_deref().and_then(|id| {
+                source
+                    .contracts
+                    .iter()
+                    .find(|contract| contract.id == id && contract.port_id == port.id)
+            });
+            let current = contract
+                .and_then(|contract| source.current_source_identities(contract).ok())
+                .zip(variant.as_ref())
+                .is_some_and(|(identities, variant)| identities.contains(variant));
+            let upstream_ref = scope.upstream_ref.clone().unwrap_or_default();
+            let artifact_sha256 = scope
+                .artifact_sha256
+                .clone()
+                .unwrap_or_default()
+                .to_ascii_lowercase();
+            let applicability = match (&offered_artifact, contract) {
+                (_, Some(_)) if !current => ScopeApplicability::SourceScopeWithdrawn,
+                (_, None) => ScopeApplicability::SourceScopeWithdrawn,
+                (OfferedArtifact::NoneOffered, _) => ScopeApplicability::RouteNotOffered,
+                (
+                    OfferedArtifact::Fixed {
+                        upstream_ref: offered_ref,
+                        artifact_sha256: offered_sha256,
+                        ..
+                    },
+                    _,
+                ) => {
+                    let candidate = crate::SourceEvidenceScope {
+                        upstream_ref: Some(offered_ref.clone()),
+                        artifact_sha256: Some(offered_sha256.clone()),
+                        ..scope.clone()
+                    };
+                    if records.iter().any(|record| record.applies_to(&candidate)) {
+                        ScopeApplicability::OfferedArtifact
+                    } else {
+                        ScopeApplicability::OtherArtifact
+                    }
+                }
+                (OfferedArtifact::UserSelected { .. }, _) => ScopeApplicability::NoCatalogArtifact,
+                (OfferedArtifact::ProviderResolved { .. }, Some(contract)) => {
+                    if contract.reviewed_binding_covers(&upstream_ref, &artifact_sha256) {
+                        ScopeApplicability::ReviewedReleaseBinding
+                    } else {
+                        ScopeApplicability::UnboundRelease
+                    }
+                }
+            };
+            let mut evidence_ids: Vec<String> = records
+                .iter()
+                .flat_map(|record| record.evidence_ids.iter().cloned())
+                .collect();
+            evidence_ids.sort();
+            evidence_ids.dedup();
+            scopes.push(TargetQualificationScope {
+                applicability,
+                contract_id: scope.contract_id.clone().unwrap_or_default(),
+                variant,
+                upstream_ref,
+                artifact_sha256,
+                check_version: scope.check_version.clone().unwrap_or_default(),
+                assessment: source.assess_qualification(scope),
+                evidence_ids,
+            });
+        }
+    }
+    let key = |scope: &TargetQualificationScope| {
+        (
+            scope.contract_id.clone(),
+            scope.variant.as_ref().map(|variant| {
+                (
+                    variant.game_id.clone(),
+                    variant.variant_id.clone(),
+                    variant.representation_id.clone(),
+                )
+            }),
+            scope.upstream_ref.clone(),
+            scope.artifact_sha256.clone(),
+            scope.check_version.clone(),
+        )
+    };
+    scopes.sort_by_key(key);
+    let passed = |scope: &&TargetQualificationScope| {
+        [
+            scope.assessment.structural_check,
+            scope.assessment.automated_lifecycle,
+            scope.assessment.hands_on,
+        ]
+        .contains(&Evidence::Passed)
+    };
+    let applicable = |scope: &&TargetQualificationScope| {
+        matches!(
+            scope.applicability,
+            ScopeApplicability::OfferedArtifact | ScopeApplicability::ReviewedReleaseBinding
+        )
+    };
+    let state = if scopes
+        .iter()
+        .filter(|scope| scope.applicability == ScopeApplicability::OfferedArtifact)
+        .any(|scope| passed(&scope))
+    {
+        TargetQualificationState::OfferedArtifactQualified
+    } else if scopes
+        .iter()
+        .filter(|scope| scope.applicability == ScopeApplicability::ReviewedReleaseBinding)
+        .any(|scope| passed(&scope))
+    {
+        TargetQualificationState::ReviewedBindingQualified
+    } else if scopes.is_empty() {
+        TargetQualificationState::Unqualified
+    } else {
+        TargetQualificationState::HistoricalOnly
+    };
+    let known_failure = scopes
+        .iter()
+        .filter(applicable)
+        .any(|scope| scope.assessment.known_failure == Evidence::Failed);
+    let mut legacy_coverage = Vec::new();
+    if port.automated_tested_platforms.contains(&platform) {
+        legacy_coverage.push(LegacyCoverage::AutomatedTested);
+    }
+    if port.manually_validated_platforms.contains(&platform) {
+        legacy_coverage.push(LegacyCoverage::ManuallyValidated);
+    }
+    TargetQualification {
+        state,
+        known_failure,
+        offered_artifact,
+        scopes,
+        legacy_coverage,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn windows_qualification(report: &TargetInspection, port: &str) -> TargetQualification {
+        report
+            .ports
+            .iter()
+            .find(|entry| entry.port_id == port)
+            .unwrap()
+            .targets
+            .iter()
+            .find(|target| target.platform == Platform::WindowsX86_64)
+            .unwrap()
+            .qualification
+            .clone()
+    }
+
+    #[test]
+    fn provider_ports_qualify_only_through_their_reviewed_release_bindings() {
+        let catalog = Catalog::embedded().unwrap();
+        let report = inspect_targets(
+            &catalog,
+            &["f-zero-snes-recomp".into(), "dkc3-recomp".into()],
+            &[Platform::WindowsX86_64, Platform::LinuxX86_64],
+        )
+        .unwrap();
+        assert_eq!(report.format_version, 2);
+        let fzero = windows_qualification(&report, "f-zero-snes-recomp");
+        assert_eq!(
+            fzero.offered_artifact,
+            OfferedArtifact::ProviderResolved {
+                route: PortAction::Install
+            }
+        );
+        assert_eq!(
+            fzero.state,
+            TargetQualificationState::ReviewedBindingQualified
+        );
+        assert!(!fzero.known_failure);
+        // Each check version is its own claim, reported side by side.
+        assert_eq!(
+            fzero
+                .scopes
+                .iter()
+                .map(|scope| (scope.applicability, scope.check_version.as_str()))
+                .collect::<Vec<_>>(),
+            [
+                (
+                    ScopeApplicability::ReviewedReleaseBinding,
+                    "fzero-managed-path-policy-startup-persistence-v2"
+                ),
+                (
+                    ScopeApplicability::ReviewedReleaseBinding,
+                    "fzero-managed-startup-persistence-v1"
+                ),
+            ]
+        );
+        let dkc3 = windows_qualification(&report, "dkc3-recomp");
+        assert_eq!(
+            dkc3.state,
+            TargetQualificationState::ReviewedBindingQualified
+        );
+        assert!(dkc3.known_failure);
+        // Another platform never inherits Windows evidence.
+        let linux = &report.ports[0]
+            .targets
+            .iter()
+            .find(|target| target.platform == Platform::LinuxX86_64)
+            .unwrap()
+            .qualification;
+        assert!(linux.scopes.is_empty());
+        assert_eq!(linux.state, TargetQualificationState::Unqualified);
+    }
+
+    #[test]
+    fn a_pinned_artifact_qualifies_only_with_evidence_for_that_exact_artifact() {
+        let catalog = Catalog::embedded().unwrap();
+        let source = catalog.source_catalog().unwrap();
+        let record = source
+            .qualification
+            .iter()
+            .find(|record| record.scope.port_id == "f-zero-snes-recomp")
+            .unwrap();
+        let mut port = catalog.port("f-zero-snes-recomp").unwrap().clone();
+        port.release.provider = crate::ReleaseSource::DirectManifest;
+        port.channels = vec![crate::ReleaseChannel::Stable];
+        let pin = |sha256: &str| crate::DirectReleaseSpec {
+            version: record.scope.upstream_ref.clone().unwrap(),
+            url: "https://example.invalid/f-zero.zip".into(),
+            size: 1,
+            sha256: sha256.to_ascii_uppercase(),
+            published_at: None,
+        };
+        let install = [TargetRoute {
+            action: PortAction::Install,
+            offered: true,
+            reason: None,
+        }];
+        port.release.direct.insert(
+            Platform::WindowsX86_64,
+            pin(record.scope.artifact_sha256.as_deref().unwrap()),
+        );
+        let exact = target_qualification(&catalog, &port, Platform::WindowsX86_64, &install);
+        assert_eq!(
+            exact.state,
+            TargetQualificationState::OfferedArtifactQualified
+        );
+        assert!(
+            exact
+                .scopes
+                .iter()
+                .all(|scope| scope.applicability == ScopeApplicability::OfferedArtifact)
+        );
+        // A different pinned artifact keeps the evidence visible but never qualified.
+        port.release
+            .direct
+            .insert(Platform::WindowsX86_64, pin(&"0".repeat(64)));
+        let other = target_qualification(&catalog, &port, Platform::WindowsX86_64, &install);
+        assert_eq!(other.state, TargetQualificationState::HistoricalOnly);
+        assert!(
+            other
+                .scopes
+                .iter()
+                .all(|scope| scope.applicability == ScopeApplicability::OtherArtifact)
+        );
+        // No offered route: the evidence applies to nothing offered.
+        let withdrawn = [TargetRoute {
+            action: PortAction::Install,
+            offered: false,
+            reason: Some(PortActionReason::RouteNotOffered),
+        }];
+        let none = target_qualification(&catalog, &port, Platform::WindowsX86_64, &withdrawn);
+        assert_eq!(none.offered_artifact, OfferedArtifact::NoneOffered);
+        assert_eq!(none.state, TargetQualificationState::HistoricalOnly);
+        // A release policy admits sources for any release, but qualifies none.
+        let contract = source
+            .contracts
+            .iter()
+            .find(|contract| Some(&contract.id) == record.scope.contract_id.as_ref())
+            .unwrap();
+        assert!(!contract.reviewed_binding_covers("unreviewed", &"0".repeat(64)));
+    }
+
+    #[test]
+    fn every_qualification_record_appears_once_and_the_report_is_deterministic() {
+        let catalog = Catalog::embedded().unwrap();
+        let first = inspect_targets(&catalog, &[], &[]).unwrap();
+        let second = inspect_targets(&catalog, &[], &[]).unwrap();
+        let first_json = serde_json::to_string(&first).unwrap();
+        assert_eq!(first_json, serde_json::to_string(&second).unwrap());
+        assert!(!first_json.contains("observed_at"));
+        let source = catalog.source_catalog().unwrap();
+        for record in &source.qualification {
+            let matches = first
+                .ports
+                .iter()
+                .filter(|port| port.port_id == record.scope.port_id)
+                .flat_map(|port| port.targets.iter())
+                .filter(|target| target.platform == record.scope.platform)
+                .flat_map(|target| target.qualification.scopes.iter())
+                .filter(|scope| {
+                    Some(&scope.contract_id) == record.scope.contract_id.as_ref()
+                        && Some(&scope.check_version) == record.scope.check_version.as_ref()
+                        && Some(&scope.upstream_ref) == record.scope.upstream_ref.as_ref()
+                })
+                .count();
+            assert!(matches >= 1, "{record:?} is reported");
+        }
+    }
 
     #[test]
     fn every_catalog_port_is_inspected_on_every_target_without_a_library() {

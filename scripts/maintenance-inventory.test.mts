@@ -18,6 +18,7 @@ import { postgresFixture, postgresServer } from "./fixtures/postgres-cluster.mts
 import {
   deferralChanges,
   deliveryFacts,
+  qualificationSummary,
   publicationEntries,
   publicationFacts,
   acquireCollection,
@@ -442,13 +443,15 @@ function stubCli(root: string) {
     reply({ ok: true, data: { schema_version: 88, port_capability_schema: 1 }, error: null });
   } else if (args.includes("inspect-targets")) {
     const ids = args.flatMap((value, index) => (args[index - 1] === "--port" ? [value] : []));
-    reply({ ok: true, error: null, data: { format_version: 1, scope: "fixture", platforms: ["linux-x86-64"],
+    reply({ ok: true, error: null, data: { format_version: responses.targetsFormat ?? 2, scope: "fixture", platforms: ["linux-x86-64"],
       producer: responses.producer ?? { source_revision: null, features: [], embedded_catalog_sha256: "c".repeat(64), embedded_listings_sha256: "e".repeat(64), catalog_override: false },
       ports: ids.map((id) => ({ port_id: id, presence: responses["targets:" + id] ?? "operational",
         declared_platforms: ["linux-x86-64"], acquisition_hold: null, download_restriction: null,
         targets: (responses["targets:" + id] ?? "operational") === "operational" ? [{ platform: "linux-x86-64",
           routes: [{ action: "install", offered: true, reason: null }, { action: "register_external", offered: false, reason: "route_not_offered" }],
-          provider_resolution_required: false, definition_eligibility: "unknown", readiness: "unknown" }] : [] })) } });
+          provider_resolution_required: false, definition_eligibility: "unknown", readiness: "unknown",
+          qualification: responses["qualification:" + id] ?? { state: "unqualified", known_failure: false,
+            offered_artifact: { state: "provider_resolved", route: "install" }, scopes: [], legacy_coverage: [] } }] : [] })) } });
   } else {
     const id = args.at(-1);
     const data = responses[id];
@@ -2313,6 +2316,18 @@ void test(
       targetSummary(ship?.target_routes as never) ?? "",
       /^managed install on linux-x86-64; trust eligibility and readiness not assessed$/u,
     );
+    assert.equal(qualificationSummary(ship?.target_routes as never), "no recorded qualification");
+    assert.match(renderHtml(inventory), /Qualification for the offered artifact \(Core\)/u);
+    // An older Core report format is refused, never stored partially.
+    writeFileSync(
+      responses,
+      JSON.stringify({
+        "2ship2harkinian": report("automatic"),
+        "targets:not-a-catalog-port": "not_found",
+        targetsFormat: 1,
+      }),
+    );
+    await assert.rejects(readTargetRoutes(cli, ["2ship2harkinian"]), /unsupported|format/iu);
     assert.match(renderHtml(inventory), /Offered for a fresh library/u);
     assert.equal(
       targetSummary({
@@ -2737,3 +2752,64 @@ void test(
     );
   },
 );
+
+void test("qualification is worded from Core's states without deciding applicability", () => {
+  const target = (qualification: Record<string, unknown>) => ({
+    presence: "operational",
+    declared_platforms: ["windows-x86-64"],
+    acquisition_hold: null,
+    download_restriction: null,
+    targets: [
+      {
+        platform: "windows-x86-64",
+        routes: [],
+        provider_resolution_required: false,
+        definition_eligibility: "unknown",
+        readiness: "unknown",
+        qualification: {
+          known_failure: false,
+          offered_artifact: { state: "provider_resolved", route: "install" },
+          scopes: [],
+          legacy_coverage: [],
+          ...qualification,
+        },
+      },
+    ],
+  });
+  assert.equal(
+    qualificationSummary(
+      target({
+        state: "reviewed_binding_qualified",
+        known_failure: true,
+        scopes: [
+          { applicability: "reviewed_release_binding", upstream_ref: "v1.8.3", check_version: "a" },
+          { applicability: "reviewed_release_binding", upstream_ref: "v1.8.3", check_version: "b" },
+        ],
+      }) as never,
+    ),
+    "qualified for reviewed release v1.8.3 on windows-x86-64 only if the provider resolves it; known failure recorded on windows-x86-64",
+  );
+  assert.equal(
+    qualificationSummary(
+      target({
+        state: "offered_artifact_qualified",
+        offered_artifact: { state: "fixed", route: "install", upstream_ref: "v2" },
+      }) as never,
+    ),
+    "qualified for the offered artifact v2 on windows-x86-64",
+  );
+  assert.equal(
+    qualificationSummary(
+      target({ state: "historical_only", legacy_coverage: ["automated_tested"] }) as never,
+    ),
+    "historical qualification only on windows-x86-64; legacy port-wide coverage (automated_tested) on windows-x86-64, not artifact-bound",
+  );
+  assert.equal(
+    qualificationSummary(target({ state: "future_state" }) as never),
+    "future_state on windows-x86-64",
+  );
+  assert.equal(
+    qualificationSummary(target({ state: "unqualified" }) as never),
+    "no recorded qualification",
+  );
+});

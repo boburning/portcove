@@ -679,6 +679,14 @@ export interface TargetRoutesFact {
     provider_resolution_required: boolean;
     definition_eligibility: string;
     readiness: string;
+    /** Core's match of recorded qualification to the catalog-offered artifact. */
+    qualification: {
+      state: string;
+      known_failure: boolean;
+      offered_artifact: { state: string; route?: string; upstream_ref?: string };
+      scopes: { applicability: string; upstream_ref: string; check_version: string }[];
+      legacy_coverage: string[];
+    };
   }[];
 }
 
@@ -715,7 +723,7 @@ export async function readTargetRoutes(
     const data = envelope.data as
       | { format_version?: unknown; ports?: unknown; producer?: unknown }
       | undefined;
-    if (!envelope.ok || data?.format_version !== 1 || !Array.isArray(data.ports))
+    if (!envelope.ok || data?.format_version !== 2 || !Array.isArray(data.ports))
       throw new MaintenanceStoreError(
         "Core target inspection is unavailable or uses an unsupported format",
       );
@@ -785,7 +793,19 @@ function isTargetRoutesFact(value: unknown): value is TargetRoutesFact {
             typeof route?.action === "string" &&
             typeof route.offered === "boolean" &&
             text(route.reason),
-        ),
+        ) &&
+        typeof target.qualification?.state === "string" &&
+        typeof target.qualification.known_failure === "boolean" &&
+        typeof target.qualification.offered_artifact?.state === "string" &&
+        Array.isArray(target.qualification.scopes) &&
+        target.qualification.scopes.every(
+          (scope) =>
+            typeof scope?.applicability === "string" &&
+            typeof scope.upstream_ref === "string" &&
+            typeof scope.check_version === "string",
+        ) &&
+        Array.isArray(target.qualification.legacy_coverage) &&
+        target.qualification.legacy_coverage.every((value) => typeof value === "string"),
     )
   );
 }
@@ -2473,6 +2493,42 @@ export function targetSummary(fact: TargetRoutesFact | null | undefined) {
     .join("; ");
 }
 
+/**
+ * Core's qualification state per target in words. Core decides every state
+ * and applicability; this only words them and keeps unknown codes verbatim.
+ */
+export function qualificationSummary(fact: TargetRoutesFact | null | undefined) {
+  if (!fact || fact.presence !== "operational") return null;
+  const parts: string[] = [];
+  for (const { platform, qualification } of fact.targets) {
+    if (!qualification) continue;
+    const refs = (applicability: string) => [
+      ...new Set(
+        qualification.scopes
+          .filter((scope) => scope.applicability === applicability)
+          .map(({ upstream_ref }) => upstream_ref),
+      ),
+    ];
+    const statement =
+      qualification.state === "offered_artifact_qualified"
+        ? `qualified for the offered artifact ${qualification.offered_artifact.upstream_ref ?? ""} on ${platform}`
+        : qualification.state === "reviewed_binding_qualified"
+          ? `qualified for reviewed release ${refs("reviewed_release_binding").join(", ")} on ${platform} only if the provider resolves it`
+          : qualification.state === "historical_only"
+            ? `historical qualification only on ${platform}`
+            : qualification.state === "unqualified"
+              ? ""
+              : `${qualification.state} on ${platform}`;
+    if (statement) parts.push(statement.replace(/ {2,}/gu, " "));
+    if (qualification.known_failure) parts.push(`known failure recorded on ${platform}`);
+    if (qualification.legacy_coverage.length)
+      parts.push(
+        `legacy port-wide coverage (${qualification.legacy_coverage.join(", ")}) on ${platform}, not artifact-bound`,
+      );
+  }
+  return parts.length ? parts.join("; ") : "no recorded qualification";
+}
+
 /** A self-contained, searchable page; data is embedded as escaped JSON, never as markup. */
 export function renderHtml(report: InventoryReport) {
   // The page embeds only what it renders; inventory.json keeps every explanation.
@@ -2499,6 +2555,7 @@ export function renderHtml(report: InventoryReport) {
         target_routes,
       }) => ({
         offered: targetSummary(target_routes as TargetRoutesFact | null | undefined),
+        qualified: qualificationSummary(target_routes as TargetRoutesFact | null | undefined),
         attention: [
           ...(attentionConditions(release_health) as { rule?: string; operation?: string }[]).map(
             ({ rule, operation }) => `${rule ?? "unknown"} (${operation ?? "unknown"})`,
@@ -2604,7 +2661,7 @@ ${hostedIntakeSection(report)}
 <h2>Subjects</h2>
 <label for="search">Search</label>
 <input id="search" type="search" placeholder="Port ID or state">
-<table><thead><tr><th>Subject</th><th>Name and game</th><th>Alternatives</th><th>Core assessment</th><th>Changes</th><th>Last verified</th><th>Last changed</th><th>Latest Core run</th><th>Work</th><th>Upstream</th><th>Offered for a fresh library</th><th>Needs attention</th><th>Next action</th></tr></thead><tbody id="subjects"></tbody></table>
+<table><thead><tr><th>Subject</th><th>Name and game</th><th>Alternatives</th><th>Core assessment</th><th>Changes</th><th>Last verified</th><th>Last changed</th><th>Latest Core run</th><th>Work</th><th>Upstream</th><th>Offered for a fresh library</th><th>Qualification for the offered artifact (Core)</th><th>Needs attention</th><th>Next action</th></tr></thead><tbody id="subjects"></tbody></table>
 <script id="inventory" type="application/json">${embedded}</script>
 <script>
 const report = JSON.parse(document.getElementById("inventory").textContent);
@@ -2619,7 +2676,7 @@ function render(filter) {
       ? "not assessed: " + subject.latest_core_gap.code
       : subject.latest_core_run === "assessed" ? "assessed"
       : subject.latest_core_run === "removed" ? "removed from the catalog" : "not in latest run";
-    for (const value of [subject.subject_key, [subject.name, subject.game].filter(Boolean).join(" — "), (subject.alternatives ?? []).join(", "), subject.state, String(subject.sequence), subject.verified_at, subject.changed_at, gap, (subject.work ?? []).join("; ") || "no linked issue observed", subject.upstream || "not observed", subject.offered || "not observed", [subject.latest_health_gap ? "health not fresh: " + subject.latest_health_gap : "", ...(subject.attention ?? [])].filter(Boolean).join("; "), (subject.next_actions ?? []).join("; ")])
+    for (const value of [subject.subject_key, [subject.name, subject.game].filter(Boolean).join(" — "), (subject.alternatives ?? []).join(", "), subject.state, String(subject.sequence), subject.verified_at, subject.changed_at, gap, (subject.work ?? []).join("; ") || "no linked issue observed", subject.upstream || "not observed", subject.offered || "not observed", subject.qualified || "not observed", [subject.latest_health_gap ? "health not fresh: " + subject.latest_health_gap : "", ...(subject.attention ?? [])].filter(Boolean).join("; "), (subject.next_actions ?? []).join("; ")])
       row.insertCell().textContent = value;
   }
 }
