@@ -3153,6 +3153,7 @@ void test(
     if (first.reassessment.reuse_key === null) {
       // Uncommitted Core sources here leave the binding unverified; reuse is refused.
       assert.match((await run("changed")).reassessment.reason, /not verified/u);
+      context.skip("Core sources are not clean in this checkout, so reuse cannot be keyed");
       return;
     }
     assert.deepEqual(latestCore(), {

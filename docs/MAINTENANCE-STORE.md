@@ -156,15 +156,20 @@ in this section runs unchanged against any PostgreSQL host and generic runner.
     --targets --reassess changed` reuses a subject's stored Core result
     without calling Core. Every condition must hold, otherwise the run is full
     and `collect` reports why:
-    - The Core build's source binding is verified (built from this clean
-      checkout, compiled catalog, no features), so its semantics can be keyed.
+    - The Core build's source binding is verified: its recorded source
+      revision is this checkout's, every keyed path is clean at collection
+      time, and it uses the compiled catalog with no features. The binding
+      trusts the build's recorded revision; the hosted workflow builds from the
+      checked-out commit. Build profile, flags and toolchain settings outside
+      the keyed files are assumed fixed.
     - The reuse key matches the latest Core run of the source, which is
       complete. The key is a digest of the Git object IDs of `crates`,
       `Cargo.toml`, `Cargo.lock`, `rust-toolchain.toml` and `vendor`, the
       producer's compiled catalog and listings digests and features, the API
       schema, projection, platform and isolation; the binary digest is
       excluded because every rebuild changes it.
-    - A full read under that key completed within 7 days.
+    - A full read under that key completed within 7 days (the latest full
+      read by store order, not by a runner's clock).
     - No catalog `observed_at` falls between that full read and now: Core
       shows clock-dated observations only once their time has passed.
     - The subject's catalog fact and stored Core result are unchanged members

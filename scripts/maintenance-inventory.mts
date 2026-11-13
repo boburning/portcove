@@ -369,6 +369,29 @@ export interface CollectedSubject {
   capabilities: CapabilityObservation | null;
 }
 
+/**
+ * Whether a Core build's claimed source can be trusted: its recorded revision is
+ * this checkout's, every path that defines Core is clean, and the compiled
+ * catalog and features are the ordinary ones. One rule for the run's stated
+ * binding and for keying its semantics.
+ */
+export function coreBindingVerified(
+  producer:
+    | Pick<CoreProducer, "source_revision" | "catalog_override" | "features">
+    | null
+    | undefined,
+  revision: string,
+  coreSourceClean: boolean | undefined,
+) {
+  return (
+    !!producer &&
+    producer.source_revision === revision &&
+    coreSourceClean === true &&
+    !producer.catalog_override &&
+    producer.features.length === 0
+  );
+}
+
 /** A selective run must follow a full read under the same key no older than this. */
 export const fullReassessmentDays = 7;
 
@@ -1028,9 +1051,10 @@ function reuseHistory(environment: NodeJS.ProcessEnv, source: string, key: strin
          'latest', (SELECT json_build_object('coverage', coverage, 'reuse_key', reuse_key)
                       FROM portcove_maintenance.collection_runs
                      WHERE run_id = portcove_maintenance.latest_run(${literal(source)})),
-         'full_started_at', (SELECT max(started_at) FROM portcove_maintenance.collection_runs
+         'full_started_at', (SELECT started_at FROM portcove_maintenance.collection_runs
                               WHERE source = ${literal(source)} AND coverage = 'complete'
-                                AND reassessment = 'full' AND reuse_key = ${literal(key)}));`,
+                                AND reassessment = 'full' AND reuse_key = ${literal(key)}
+                              ORDER BY acquisition DESC LIMIT 1));`,
     ).trim(),
     "maintenance reuse history",
   ) as ReuseHistory;
@@ -1171,13 +1195,9 @@ export function collectionSql(input: {
   // Verified only for a clean checkout's own revision, the compiled catalog and no
   // behavior-changing features; otherwise the build's claim stays a claim. The run
   // carries it, so the verifying run states it even when no observation changed.
-  const sourceBinding =
-    input.producer?.source_revision === input.revision &&
-    input.coreSourceClean === true &&
-    !input.producer.catalog_override &&
-    input.producer.features.length === 0
-      ? "verified"
-      : "unverified";
+  const sourceBinding = coreBindingVerified(input.producer, input.revision, input.coreSourceClean)
+    ? "verified"
+    : "unverified";
   const coreRevision = `cli-sha256:${input.cliSha256}${
     input.producer
       ? `;source=${input.producer.source_revision ?? "unrecorded"};producer-sha256=${sha256(canonicalJson(input.producer)).slice(0, 16)};binding=${sourceBinding}`
@@ -1761,8 +1781,7 @@ export async function collect(options: {
       "portcove capabilities are unavailable or use an unsupported port capability schema",
     );
   const apiSchema = capabilities.schema_version;
-  const coreSourceClean =
-    git(["status", "--porcelain", "--", "crates", "Cargo.toml", "Cargo.lock"]).trim() === "";
+  const coreSourceClean = git(["status", "--porcelain", "--", ...coreSemanticPaths]).trim() === "";
   const platform = options.platform ?? hostPlatform();
   if (!/^[a-z0-9]+(-[a-z0-9]+)*$/u.test(platform))
     throw new MaintenanceStoreError("Invalid platform label");
@@ -1790,11 +1809,7 @@ export async function collect(options: {
     qualification: definitions.qualification.filter((record) => record.scope?.port_id === id),
   }));
   const producer = targetsRead?.ok ? targetsRead.value.producer : null;
-  const bindingVerified =
-    producer?.source_revision === revision &&
-    coreSourceClean &&
-    !producer.catalog_override &&
-    producer.features.length === 0;
+  const bindingVerified = coreBindingVerified(producer, revision, coreSourceClean);
   const reuseKey =
     producer && bindingVerified
       ? coreReuseKey({
@@ -2407,7 +2422,8 @@ export function deferralChanges(
 
 /**
  * What a subject's Core assessment depends on and what would reassess it.
- * Every complete run re-reads Core for every port, but only a change in one of
+ * Every full run re-reads Core for every port (an opt-in selective run reuses
+ * unchanged results under the same Core semantics), but only a change in one of
  * these inputs records a new assessment; only a changed result records a
  * transition. A rebuild with the same output, a failed run, or a port Core
  * could not read in a partial run records neither.
@@ -3172,7 +3188,7 @@ ${hostedIntakeSection(report)}
 <input id="universe-search" type="search" placeholder="Name, game, port key or identity">
 <table><thead><tr><th>Identity</th><th>Kind</th><th>Name and game</th><th>Port keys</th><th>Related</th></tr></thead><tbody id="universe"></tbody></table>
 <h2>Subjects</h2>
-<p>Every complete run re-reads Core for every port. A port is reassessed, recording a new assessment, only when ${reassessmentTriggers.map(escapeHtml).join("; or ")}. Only a changed result records a change; a rebuild with the same output, a failed run, or a port Core could not read in a partial run records nothing. "Last verified" is the latest run that re-read the port and found the same inputs.</p>
+<p>Every full run re-reads Core for every port; an opt-in selective run (marked in Sources) reuses unchanged results under the same Core semantics without re-reading them, so their "Last verified" does not move. A port is reassessed, recording a new assessment, only when ${reassessmentTriggers.map(escapeHtml).join("; or ")}. Only a changed result records a change; a rebuild with the same output, a failed run, or a port Core could not read in a partial run records nothing. "Last verified" is the latest run that re-read the port and found the same inputs.</p>
 <form id="filters" role="search" onsubmit="return false">
 <label for="search">Search every column</label>
 <input id="search" type="search" placeholder="Port, game, issue, upstream, offering, attention or action">
