@@ -1283,12 +1283,14 @@ impl Installer {
                     "OpenJK or OpenJO archive differs from its retained Unix package selector",
                 ));
             }
-            crate::package_layout::require_reviewed_layout(
-                port,
-                request.qualification.platform,
-                &payload_root,
-            )?;
-            if port.release.grant_declared_executable {
+            let platform = request.qualification.platform;
+            let grant_before_layout =
+                crate::package_layout::grant_precedes_layout_check(port, platform);
+            if grant_before_layout {
+                grant_declared_executable(&payload_root, &request.qualification)?;
+            }
+            crate::package_layout::require_reviewed_layout(port, platform, &payload_root)?;
+            if port.release.grant_declared_executable && !grant_before_layout {
                 grant_declared_executable(&payload_root, &request.qualification)?;
             }
             if port.external_profile_policy == Some(crate::ExternalProfilePolicy::RecompDirectV1) {

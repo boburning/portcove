@@ -537,6 +537,28 @@ fn native_archive_file_links_require_version_14_in_fresh_and_retained_readers() 
 }
 
 #[test]
+fn reviewed_unix_layout_with_executable_grant_requires_version_29() {
+    let catalog = crate::Catalog::embedded().unwrap();
+    let port = catalog.port("alistert-openjazz").unwrap();
+    let mut entry = entry_for_port(port);
+    entry["required_capabilities"][0]["maximum_version"] = json!(29);
+    for minimum in [28, 29] {
+        entry["required_capabilities"][0]["minimum_version"] = json!(minimum);
+        let bytes = serde_json::to_vec(&entry).unwrap();
+        for result in [
+            inspect(&entry),
+            index(&bytes, &port.id).inspect_retained_entry("official", &port.id, &bytes),
+        ] {
+            if minimum == 29 {
+                assert!(result.unwrap().capabilities().compatible);
+            } else {
+                assert!(result.unwrap_err().message.contains("version 29"));
+            }
+        }
+    }
+}
+
+#[test]
 fn reviewed_package_layouts_require_a_capable_native_reader() {
     let mut port = fixture_catalog().ports()[0].clone();
     port.adapter = crate::AdapterKind::NativePortable;

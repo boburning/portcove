@@ -282,6 +282,10 @@ impl EngineTemplateCapability {
             template: AdapterKind::NativePortable,
             contract_version: crate::launch::TRACKED_HANDOFF_NATIVE_CAPABILITY,
         });
+        supported.push(Self {
+            template: AdapterKind::NativePortable,
+            contract_version: crate::package_layout::EXECUTABLE_GRANT_CAPABILITY,
+        });
         supported
     }
 }

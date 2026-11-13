@@ -276,7 +276,10 @@ impl DefinitionContentIndex {
         }
         if port.release.grant_declared_executable {
             let (template, minimum) = match port.adapter {
-                crate::AdapterKind::NativePortable => ("native-portable", 22),
+                crate::AdapterKind::NativePortable => (
+                    "native-portable",
+                    crate::package_layout::native_executable_grant_capability(&port),
+                ),
                 crate::AdapterKind::LibultrashipPortable => ("libultraship-portable", 4),
                 crate::AdapterKind::GeneratedCache => ("generated-cache", 2),
                 _ => {

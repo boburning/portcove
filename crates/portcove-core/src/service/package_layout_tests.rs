@@ -467,6 +467,70 @@ async fn a_reviewed_layout_admits_compatible_releases_and_holds_drifted_ones() {
 }
 
 #[tokio::test]
+async fn openjazz_linux_checks_the_layout_after_granting_the_declared_player() {
+    const ID: &str = "alistert-openjazz";
+    fn openjazz_zip(
+        version: &str,
+        include_updater: bool,
+    ) -> (ResolvedRelease, crate::test_http::HttpServer) {
+        let mut elf = [0_u8; 64];
+        elf[..4].copy_from_slice(b"\x7fELF");
+        elf[4] = 2;
+        elf[5] = 1;
+        elf[16] = 3;
+        elf[18] = 62;
+        let mut zip = zip::ZipWriter::new(std::io::Cursor::new(Vec::new()));
+        let options = zip::write::SimpleFileOptions::default();
+        zip.start_file(
+            format!("OJ-{version}/OpenJazz"),
+            options.unix_permissions(0o644),
+        )
+        .unwrap();
+        zip.write_all(&elf).unwrap();
+        if include_updater {
+            zip.start_file(
+                format!("OJ-{version}/Updater"),
+                options.unix_permissions(0o755),
+            )
+            .unwrap();
+            zip.write_all(&elf).unwrap();
+        }
+        serve_archive(
+            version,
+            "openjazz-linux-glibc2.35-x86_64.zip".into(),
+            zip.finish().unwrap().into_inner(),
+        )
+    }
+
+    let temporary = tempfile::tempdir().unwrap();
+    let library = Library::open(temporary.path().join("library")).unwrap();
+    let (first, first_server) = openjazz_zip("1.0.0", false);
+    let provider = Arc::new(Provider(Mutex::new(first)));
+    let service = PortcoveService::with_provider(library, provider.clone()).unwrap();
+    let installed = install(&service, ID).await;
+    first_server.join().unwrap();
+    assert!(
+        crate::permissions::executable_intent(&installed.path.join("OJ-1.0.0/OpenJazz")).unwrap()
+    );
+
+    let (compatible, compatible_server) = openjazz_zip("2.0.0", false);
+    *provider.0.lock().unwrap() = compatible;
+    let acquired = acquire(&service, ID).await;
+    compatible_server.join().unwrap();
+    let updated = apply_update(&service, ID).await.unwrap();
+    assert_eq!(updated.version, "2.0.0");
+    let _ = service.discard_game_update_acquisition(ID, &acquired);
+
+    let (drifted, drifted_server) = openjazz_zip("3.0.0", true);
+    *provider.0.lock().unwrap() = drifted;
+    acquire(&service, ID).await;
+    drifted_server.join().unwrap();
+    let error = apply_update(&service, ID).await.unwrap_err();
+    assert!(error.message.contains("new programs: updater"), "{error:?}");
+    assert_eq!(service.status(ID).unwrap().active.unwrap().id, updated.id);
+}
+
+#[tokio::test]
 async fn nhl94_linux_update_and_rollback_preserve_default_player_files() {
     const NHL: &str = "nhl-94-genesis-ninety-four";
     const DATA: [&str; 6] = [
