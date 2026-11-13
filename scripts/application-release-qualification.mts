@@ -37,6 +37,17 @@ const historicalWindowsQualifications = [
         "77ab2083dad7e277923c543dc0685502e531941cded966f68c71a458d4f75a76",
     } as Record<string, string>,
   },
+  {
+    source: "6de70052a7f3483657bfca27d02624657f3a5bf0",
+    run: 43389863363,
+    attempt: 1,
+    recipes: {
+      "ci.yml": "99a353dd273b56c8ab9d33f2dd536078bb3c824b9bdd60f8eaa98c01c777a88d",
+      "application-release.yml": "d43dc538ab58365734424e20e1ca230f08d4b152ba166753d3763cf3b6cf09be",
+      "application-release-package.yml":
+        "77ab2083dad7e277923c543dc0685502e531941cded966f68c71a458d4f75a76",
+    } as Record<string, string>,
+  },
 ];
 
 const sharedAndWindowsJobs = Object.freeze([
@@ -119,7 +130,6 @@ export function inspectWindowsApplicationQualification(
   }
   const requiredJobs = sharedAndWindowsJobs.map((name) => `qualify / ${name}`);
   if (run.path === ".github/workflows/application-release.yml") {
-    assert.equal(run.event, "workflow_dispatch");
     assert.equal(run.display_title, `Windows qualification ${source}`);
     assert.equal(plan.release_profile, "initial-beta-windows-x86_64-v1");
     assert.equal(run.conclusion, "success", "canonical Windows qualification did not succeed");
@@ -182,7 +192,7 @@ export function selectWindowsApplicationQualificationRun(raw: unknown, source: s
     assert.equal(run.head_sha, source);
     assert.equal(run.head_branch, "main");
     assert.equal(run.path, ".github/workflows/application-release.yml");
-    assert.equal(run.event, "workflow_dispatch");
+    assert.ok(run.event === "schedule" || run.event === "workflow_dispatch");
     assert.ok(isRecord(run.head_repository) && run.head_repository.id === 1354613114);
     assert.ok(isRecord(run.repository) && run.repository.id === 1354613114);
     const { id, run_attempt, created_at } = run;

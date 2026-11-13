@@ -1203,28 +1203,7 @@ function ActivityRow({
         {presentation.label}
       </span>
       {presentation.state === "unfinished" && (
-        <div className={activityDetailsClass}>
-          <p>
-            This task didn’t report whether it finished.{" "}
-            {activity.liveness !== "interrupted" && "It may still be running in another window. "}
-            {target.portId
-              ? "Check the game’s current state before trying again."
-              : "Review its details before trying again."}
-          </p>
-          {/* A read-only look at current state; it never repeats the task. */}
-          {target.portId && !activity.failure && (
-            <Button
-              data-focusable
-              variant="link"
-              size="sm"
-              aria-label={`Check game: ${target.label}`}
-              data-detail-origin={`updates:activity:${activity.id}:check`}
-              onClick={() => onSelect(target.portId!, `updates:activity:${activity.id}:check`)}
-            >
-              Check game
-            </Button>
-          )}
-        </div>
+        <UnfinishedActivity activity={activity} target={target} onSelect={onSelect} />
       )}
       {activity.status === "running" && operation && operation.type !== "finished" && (
         <div className={activityDetailsClass}>
@@ -1260,6 +1239,41 @@ function ActivityRow({
           />
         )}
       </details>
+    </div>
+  );
+}
+
+function UnfinishedActivity({
+  activity,
+  target,
+  onSelect,
+}: {
+  activity: ActivityRecord;
+  target: ReturnType<typeof activityTarget>;
+  onSelect: (portId: string, originKey?: string) => void;
+}) {
+  return (
+    <div className={activityDetailsClass}>
+      <p>
+        This task didn’t report whether it finished.{" "}
+        {activity.liveness !== "interrupted" && "It may still be running in another window. "}
+        {target.portId
+          ? "Check the game’s current state before trying again."
+          : "Review its details before trying again."}
+      </p>
+      {/* A read-only look at current state; it never repeats the task. */}
+      {target.portId && !activity.failure && (
+        <Button
+          data-focusable
+          variant="link"
+          size="sm"
+          aria-label={`Check game: ${target.label}`}
+          data-detail-origin={`updates:activity:${activity.id}:check`}
+          onClick={() => onSelect(target.portId!, `updates:activity:${activity.id}:check`)}
+        >
+          Check game
+        </Button>
+      )}
     </div>
   );
 }

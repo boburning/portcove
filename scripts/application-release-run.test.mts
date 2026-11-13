@@ -10,6 +10,7 @@ import {
   resumeR55MetadataDraft,
   retainedR55Renewal,
   retainedR56FeedRecovery,
+  retainedV13FeedRecovery,
   requireRetainedR56PreNativeEvidence,
   inspectBootstrapDraftRecovery,
   retainApplicationPreparation,
@@ -1630,35 +1631,40 @@ void test("fixed run registration uses the locked SDK for one-attempt drafts and
   }
 });
 
-void test("r57 accepts only the exact pre-native r56 Pages receipt", () => {
-  const evidence = {
-    schema_version: 1,
-    intent: {
-      repository_id: 1354613114,
-      site_url: "https://boburning.github.io/portcove/",
-      generation: "fa46b99d77acb7bcbd09a699884522cf6afec098692202e13ebd0b627827fada",
-      run_id: "42577153790",
-      run_attempt: 1,
-      artifact_id: 13655854560,
-      build_version: "54b124475a390a6813ab90b33b571711da54c626",
-    },
-    stage: "protection-policy",
-    prior_effect: null,
-    requests: [],
-  };
-  assert.equal(
-    createHash("sha256")
-      .update(JSON.stringify(evidence) + "\n")
-      .digest("hex"),
-    retainedR56FeedRecovery.evidence_sha256,
-  );
-  requireRetainedR56PreNativeEvidence(evidence);
-  for (const changed of [
-    { ...evidence, requests: [{ stage: "create", status: 500 }] },
-    { ...evidence, stage: "native-create" },
-    { ...evidence, prior_effect: { outcome: "unknown" } },
-    { ...evidence, intent: { ...evidence.intent, artifact_id: 1 } },
-    { ...evidence, intent: { ...evidence.intent, generation: "a".repeat(64) } },
-  ])
-    assert.throws(() => requireRetainedR56PreNativeEvidence(changed), /pre-native evidence/u);
-});
+for (const prior of [retainedR56FeedRecovery, retainedV13FeedRecovery]) {
+  void test(`accepts only the exact pre-native Pages receipt from ${prior.run_id}`, () => {
+    const evidence = {
+      schema_version: 1,
+      intent: {
+        repository_id: 1354613114,
+        site_url: "https://boburning.github.io/portcove/",
+        generation: prior.generation,
+        run_id: prior.run_id,
+        run_attempt: 1,
+        artifact_id: prior.pages_artifact_id,
+        build_version: prior.control_commit,
+      },
+      stage: "protection-policy",
+      prior_effect: null,
+      requests: [],
+    };
+    assert.equal(
+      createHash("sha256")
+        .update(JSON.stringify(evidence) + "\n")
+        .digest("hex"),
+      prior.evidence_sha256,
+    );
+    requireRetainedR56PreNativeEvidence(evidence, prior);
+    for (const changed of [
+      { ...evidence, requests: [{ stage: "create", status: 500 }] },
+      { ...evidence, stage: "native-create" },
+      { ...evidence, prior_effect: { outcome: "unknown" } },
+      { ...evidence, intent: { ...evidence.intent, artifact_id: 1 } },
+      { ...evidence, intent: { ...evidence.intent, generation: "a".repeat(64) } },
+    ])
+      assert.throws(
+        () => requireRetainedR56PreNativeEvidence(changed, prior),
+        /pre-native evidence/u,
+      );
+  });
+}

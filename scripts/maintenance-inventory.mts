@@ -24,11 +24,19 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   MaintenanceStoreError,
+  batchedStatements,
   connectionFromEnvironment,
   defaultDatabaseEnvironment,
   runSql,
 } from "./maintenance-store.mts";
 import { portCatalogMarkers, portKeyMarkers } from "./roadmap-issue.mts";
+import { explicitBlockerFields } from "./roadmap-qualification.mts";
+import {
+  issueReconsiderations,
+  reconsiderationSql,
+  targetReconsiderations,
+} from "./maintenance-reconsiderations.mts";
+import { buildUniverse, type UniverseEntry } from "./maintenance-universe.mts";
 import {
   attentionConditions,
   readReleaseHealth,
@@ -51,6 +59,7 @@ import {
   type HostedIntakeObservation,
 } from "./maintenance-hosted-intake.mts";
 import type { HostedStatusAll } from "./hosted-discovery-intake.mts";
+import type { GitHubCredential } from "./github-client.mts";
 import {
   disabledCapabilities,
   handoffCollectionSql,
@@ -95,7 +104,11 @@ export const unsupportedSources = [
   ],
   [
     "definition-publication",
-    "No maintained comparison of main with the published definition site.",
+    "Not collected; collect --all --publication reads the definitions committed on main.",
+  ],
+  [
+    "definition-delivery",
+    "Not collected; collect --all --delivery verifies the appointed definition location through Core.",
   ],
 ] as const;
 
@@ -301,6 +314,9 @@ interface Route {
   features: Feature[];
 }
 
+/** Bump when `capabilityResult` changes how a Core report becomes a state or explanation. */
+export const capabilityProjectionVersion = 1;
+
 /** Project Core's report without reinterpreting it: routes, features, modes and Core's own words. */
 export function capabilityResult(observation: CapabilityObservation) {
   if (!observation.ok)
@@ -371,6 +387,8 @@ export interface IssueInventory {
     isArchived: boolean;
     fieldValues: unknown;
   }[];
+  /** The configured roadmap Project's node ID: the only Project whose Status records holds and deferrals. */
+  roadmap_project_id?: string | undefined;
 }
 
 /** Single-select Project field values by field name, as GitHub reports them. */
@@ -419,13 +437,40 @@ export function issueFacts(inventory: IssueInventory) {
             fields: projectFields(fieldValues),
           }))
           .sort((left, right) => (left.project_id < right.project_id ? -1 : 1)),
+        // Present only on an open issue that records explicit fields, so other issues' facts are unchanged.
+        ...(() => {
+          const fields = issue.state === "OPEN" ? explicitBlockerFields(issue.body) : null;
+          return fields ? { reconsideration: fields } : {};
+        })(),
       },
     ]),
   );
 }
 
-/** The maintained, completeness-verified issue and Project inventory, read-only. */
-export async function readIssueInventory(): Promise<IssueInventory> {
+/**
+ * The issue and Project collector's own credential, read from the named variable so
+ * that it can differ from the credential the other sources read (`GH_TOKEN`). It never
+ * falls back to another credential. The variable is removed from this process's
+ * environment once read, so no child process (Core CLI, Git, psql) inherits it.
+ */
+export function takeIssueCredential(
+  name: string,
+  environment: NodeJS.ProcessEnv = process.env,
+): GitHubCredential {
+  if (!/^[A-Z_][A-Z0-9_]*$/u.test(name))
+    throw new MaintenanceStoreError("--issues-token-env must name an environment variable");
+  const token = environment[name]?.trim();
+  delete environment[name];
+  if (!token)
+    throw new MaintenanceStoreError(`Set ${name} to the issue and Project read credential`);
+  return { kind: "explicit", token };
+}
+
+/**
+ * The maintained, completeness-verified issue and Project inventory, read-only. Without
+ * an explicit credential it uses the local developer credential like the other sources.
+ */
+export async function readIssueInventory(credential?: GitHubCredential): Promise<IssueInventory> {
   const { RoadmapClient, validateConfig } = await import("./roadmap.mts");
   const { createRoadmapRequestScope } = await import("./roadmap-capacity-continuation.mts");
   const config = validateConfig(
@@ -435,11 +480,18 @@ export async function readIssueInventory(): Promise<IssueInventory> {
     config,
     createRoadmapRequestScope({
       allowMutations: false,
+      ...(credential ? { credential } : {}),
       ghCommand: process.env.PORTCOVE_ROADMAP_GH,
     }),
   );
   const inventory = await client.repositoryIssues({ projectMemberships: true });
+  // The configured Project number, as the roadmap doctor resolves it: one read,
+  // unaffected by other Projects the credential can see.
+  const roadmap = await client.projectDetails(client.projectNumber(undefined));
+  if (roadmap.title !== config.project.title)
+    throw new MaintenanceStoreError("The configured roadmap Project's identity did not match");
   return {
+    roadmap_project_id: roadmap.id,
     repository: inventory.repository,
     observed_at: inventory.observed_at,
     total: inventory.evidence.total ?? -1,
@@ -454,59 +506,36 @@ export const officialMetadataLocation = "https://boburning.github.io/portcove/ca
 export interface PublicationObservation {
   /** Core's inspection of the publication bundle exported from the pinned revision. */
   inspection: { index_sha256?: unknown; definitions?: unknown };
-  /** HTTP status of the appointed timestamp metadata, or null when unreachable. */
-  published_status: number | null;
 }
 
 const definitionIdentity = /^[a-z0-9][a-z0-9-]{0,63}$/u;
 
+function definitionKey(definition: Record<string, unknown>, origin: string) {
+  const namespace = definition.namespace;
+  const id = definition.stable_id;
+  if (
+    typeof namespace !== "string" ||
+    typeof id !== "string" ||
+    !definitionIdentity.test(namespace) ||
+    !definitionIdentity.test(id)
+  )
+    throw new MaintenanceStoreError(`Unsupported definition identity in the ${origin}`);
+  return `definition:${namespace}/${id}`;
+}
+
 /**
- * Main versus published facts per definition identity. One site probe says
- * nothing about an individual definition: an absent site (HTTP 404) means no
- * definition is published, and a present site leaves each definition unknown
- * until its published index is read and verified. Any other probe result is a
- * collection gap, never a fact.
+ * The definitions committed on main, per identity. What the appointed
+ * location serves is a separate source (`definition-delivery`), read only
+ * through Core's client verification: an HTTP status never says a definition
+ * is or is not published.
  */
 export function publicationFacts(observation: PublicationObservation) {
   const definitions = observation.inspection.definitions;
   if (!Array.isArray(definitions) || typeof observation.inspection.index_sha256 !== "string")
     throw new MaintenanceStoreError("Unsupported definition publication inspection");
-  const site =
-    observation.published_status === 404
-      ? "absent"
-      : observation.published_status === 200
-        ? "metadata-present-unverified"
-        : null;
-  if (site === null)
-    return {
-      facts: new Map<string, unknown>(),
-      gaps: [
-        {
-          subject_key: "site:official-metadata",
-          code:
-            observation.published_status === null
-              ? "unreachable"
-              : `http-${observation.published_status}`,
-          message:
-            "The appointed metadata location could not be classified; the last known facts stay current.",
-        },
-      ],
-      expected: definitions.length,
-    };
   const facts = new Map<string, unknown>();
-  for (const definition of definitions as Record<string, unknown>[]) {
-    const namespace = definition.namespace;
-    const id = definition.stable_id;
-    if (
-      typeof namespace !== "string" ||
-      typeof id !== "string" ||
-      !definitionIdentity.test(namespace) ||
-      !definitionIdentity.test(id)
-    )
-      throw new MaintenanceStoreError(
-        "Unsupported definition identity in the publication inspection",
-      );
-    facts.set(`definition:${namespace}/${id}`, {
+  for (const definition of definitions as Record<string, unknown>[])
+    facts.set(definitionKey(definition, "publication inspection"), {
       main: {
         index_sha256: observation.inspection.index_sha256,
         revision: definition.revision ?? null,
@@ -515,11 +544,277 @@ export function publicationFacts(observation: PublicationObservation) {
         policy_revision: definition.policy_revision ?? null,
         launch_revision: definition.launch_revision ?? null,
       },
-      site: { status: site, timestamp_http_status: observation.published_status },
-      published: site === "absent" ? "not-published" : "unknown",
+    });
+  return { facts, gaps: [] as SourceGap[], expected: definitions.length };
+}
+
+/** Core's read-only client verification of the appointed definition location. */
+export interface DefinitionDeliveryInspection {
+  format_version: 1;
+  metadata_base_url: string | null;
+  serving:
+    | "verified"
+    | "not_served"
+    | "incomplete"
+    | "unreachable"
+    | "expired"
+    | "verification_failed"
+    | "not_configured";
+  reason: string | null;
+  provenance: { index_sha256: string; timestamp_version: number } | null;
+  definitions: {
+    namespace: string;
+    stable_id: string;
+    revision: number;
+    target: string;
+    sha256: string | null;
+    length: number | null;
+  }[];
+}
+
+const deliveryServing = new Set([
+  "verified",
+  "not_served",
+  "incomplete",
+  "unreachable",
+  "expired",
+  "verification_failed",
+  "not_configured",
+]);
+
+function isDeliveryInspection(value: unknown): value is DefinitionDeliveryInspection {
+  if (!value || typeof value !== "object") return false;
+  const inspection = value as Record<string, unknown>;
+  const provenance = inspection.provenance as Record<string, unknown> | null;
+  return (
+    inspection.format_version === 1 &&
+    typeof inspection.serving === "string" &&
+    deliveryServing.has(inspection.serving) &&
+    (inspection.reason === null || typeof inspection.reason === "string") &&
+    Array.isArray(inspection.definitions) &&
+    (inspection.serving === "verified"
+      ? !!provenance &&
+        typeof provenance.index_sha256 === "string" &&
+        /^[0-9a-f]{64}$/u.test(provenance.index_sha256) &&
+        Number.isSafeInteger(provenance.timestamp_version)
+      : provenance === null && inspection.definitions.length === 0) &&
+    (inspection.definitions as Record<string, unknown>[]).every(
+      (definition) =>
+        Number.isSafeInteger(definition.revision) &&
+        typeof definition.target === "string" &&
+        definition.target.length <= 512 &&
+        (definition.sha256 === null ||
+          (typeof definition.sha256 === "string" && /^[0-9a-f]{64}$/u.test(definition.sha256))) &&
+        (definition.length === null || Number.isSafeInteger(definition.length)),
+    )
+  );
+}
+
+/** Reads what the appointed location serves through Core's client trust path. */
+export async function readDefinitionDelivery(cli: string): Promise<DefinitionDeliveryInspection> {
+  const envelope = await isolatedCli(cli, ["catalog", "inspect-definition-delivery"]);
+  if (!envelope.ok || !isDeliveryInspection(envelope.data))
+    throw new MaintenanceStoreError(
+      "Core could not inspect definition delivery, or used an unsupported format",
+    );
+  return envelope.data;
+}
+
+/**
+ * Verified published definitions per identity. Only a verified read records
+ * facts; any other serving status (not served, unreachable, expired, failed
+ * verification) is that run's gap, so the last verified publication stays
+ * current and is never erased by a 404 or an outage. A verified read is
+ * complete: a definition it no longer indexes is withdrawn.
+ */
+export function deliveryFacts(inspection: DefinitionDeliveryInspection) {
+  if (!isDeliveryInspection(inspection))
+    throw new MaintenanceStoreError("Unsupported definition delivery inspection");
+  if (inspection.serving !== "verified")
+    return {
+      revision: `definition-delivery;serving=${inspection.serving}`,
+      facts: new Map<string, unknown>(),
+      expected: null,
+      gaps: [
+        {
+          subject_key: "source:definition-delivery",
+          code: inspection.serving,
+          message:
+            `The appointed location was not verified; the last verified publication stays current. ${inspection.reason ?? ""}`
+              .trim()
+              .slice(0, 1000),
+        },
+      ] as SourceGap[],
+    };
+  const facts = new Map<string, unknown>();
+  for (const definition of inspection.definitions) {
+    const key = definitionKey(definition, "delivery inspection");
+    if (facts.has(key)) throw new MaintenanceStoreError(`Duplicate published definition ${key}`);
+    facts.set(key, {
+      published: {
+        revision: definition.revision,
+        target: definition.target,
+        sha256: definition.sha256,
+        length: definition.length,
+      },
     });
   }
-  return { facts, gaps: [], expected: definitions.length };
+  return {
+    revision: `definition-delivery;serving=verified;index-sha256=${inspection.provenance!.index_sha256};timestamp=${inspection.provenance!.timestamp_version}`,
+    facts,
+    expected: facts.size,
+    gaps: [] as SourceGap[],
+  };
+}
+
+/** One port's Core-owned route offering per target platform, for a fresh library. */
+export interface TargetRoutesFact {
+  presence: string;
+  declared_platforms: string[];
+  acquisition_hold: string | null;
+  download_restriction: string | null;
+  targets: {
+    platform: string;
+    routes: { action: string; offered: boolean; reason: string | null }[];
+    provider_resolution_required: boolean;
+    definition_eligibility: string;
+    readiness: string;
+    /** Core's match of recorded qualification to the catalog-offered artifact. */
+    qualification: {
+      state: string;
+      /** Upstream refs Core found qualified by applicable lifecycle or hands-on evidence. */
+      qualified_refs: string[];
+      /** Whether the evidence names the route it exercised; today always `unrecorded`. */
+      evidence_route: string;
+      known_failure: boolean;
+      offered_artifact: { state: string; route?: string; upstream_ref?: string };
+      scopes: { applicability: string; upstream_ref: string; check_version: string }[];
+      legacy_coverage: string[];
+    };
+  }[];
+}
+
+/**
+ * Core's library-free per-target inspection (`catalog inspect-targets`) for
+ * exactly the collected ports. Core decides every route; this only keys the
+ * result by `port:<id>` and keeps Core's own unknowns.
+ */
+/** The producing Core's build identity, as Core reports it. */
+export interface CoreProducer {
+  source_revision: string | null;
+  features: string[];
+  embedded_catalog_sha256: string;
+  embedded_listings_sha256: string;
+  catalog_override: boolean;
+}
+
+export async function readTargetRoutes(
+  cli: string,
+  ids: readonly string[],
+): Promise<{ facts: Map<string, TargetRoutesFact>; producer: CoreProducer | null }> {
+  const requested = [...new Set(ids)];
+  const wanted = new Set(requested);
+  const facts = new Map<string, TargetRoutesFact>();
+  let producer: CoreProducer | null = null;
+  // Bounded batches keep every command line far below Windows' 32,767-character limit.
+  for (let start = 0; start < requested.length; start += targetBatchSize) {
+    const batch = requested.slice(start, start + targetBatchSize);
+    const envelope = await isolatedCli(cli, [
+      "catalog",
+      "inspect-targets",
+      ...batch.flatMap((id) => ["--port", id]),
+    ]);
+    const data = envelope.data as
+      | { format_version?: unknown; ports?: unknown; producer?: unknown }
+      | undefined;
+    if (!envelope.ok || data?.format_version !== 2 || !Array.isArray(data.ports))
+      throw new MaintenanceStoreError(
+        "Core target inspection is unavailable or uses an unsupported format",
+      );
+    // One binary answers every batch; an older Core reports no producer. A recorded
+    // revision that is not a Git object ID is treated as unrecorded.
+    if (isCoreProducer(data.producer))
+      producer = {
+        ...data.producer,
+        source_revision:
+          data.producer.source_revision !== null &&
+          /^[0-9a-f]{40}(?:[0-9a-f]{24})?$/u.test(data.producer.source_revision)
+            ? data.producer.source_revision
+            : null,
+      };
+    for (const entry of data.ports as unknown[]) {
+      const { port_id, ...fact } = (entry ?? {}) as { port_id?: unknown };
+      if (typeof port_id !== "string" || !wanted.has(port_id) || facts.has(`port:${port_id}`))
+        throw new MaintenanceStoreError(
+          "Core target inspection returned a port that was not requested or was repeated",
+        );
+      if (!isTargetRoutesFact(fact))
+        throw new MaintenanceStoreError(
+          `Core target inspection returned an unsupported entry for ${port_id}`,
+        );
+      facts.set(`port:${port_id}`, fact);
+    }
+  }
+  if (facts.size !== wanted.size)
+    throw new MaintenanceStoreError("Core target inspection did not cover every collected port");
+  return { facts, producer };
+}
+
+function isCoreProducer(value: unknown): value is CoreProducer {
+  const producer = value as Partial<CoreProducer> | null;
+  return (
+    !!producer &&
+    (producer.source_revision === null || typeof producer.source_revision === "string") &&
+    Array.isArray(producer.features) &&
+    producer.features.every((feature) => typeof feature === "string") &&
+    typeof producer.embedded_catalog_sha256 === "string" &&
+    /^[0-9a-f]{64}$/u.test(producer.embedded_catalog_sha256) &&
+    typeof producer.embedded_listings_sha256 === "string" &&
+    /^[0-9a-f]{64}$/u.test(producer.embedded_listings_sha256) &&
+    typeof producer.catalog_override === "boolean"
+  );
+}
+
+/** Ports per Core call: at most ~200 short IDs, far below any platform's command-line limit. */
+const targetBatchSize = 200;
+
+function isTargetRoutesFact(value: unknown): value is TargetRoutesFact {
+  const fact = value as Partial<TargetRoutesFact>;
+  const text = (item: unknown) => item === null || typeof item === "string";
+  return (
+    typeof fact.presence === "string" &&
+    Array.isArray(fact.declared_platforms) &&
+    fact.declared_platforms.every((platform) => typeof platform === "string") &&
+    text(fact.acquisition_hold) &&
+    text(fact.download_restriction) &&
+    Array.isArray(fact.targets) &&
+    fact.targets.every(
+      (target) =>
+        typeof target?.platform === "string" &&
+        Array.isArray(target.routes) &&
+        target.routes.every(
+          (route) =>
+            typeof route?.action === "string" &&
+            typeof route.offered === "boolean" &&
+            text(route.reason),
+        ) &&
+        typeof target.qualification?.state === "string" &&
+        Array.isArray(target.qualification.qualified_refs) &&
+        target.qualification.qualified_refs.every((value) => typeof value === "string") &&
+        typeof target.qualification.evidence_route === "string" &&
+        typeof target.qualification.known_failure === "boolean" &&
+        typeof target.qualification.offered_artifact?.state === "string" &&
+        Array.isArray(target.qualification.scopes) &&
+        target.qualification.scopes.every(
+          (scope) =>
+            typeof scope?.applicability === "string" &&
+            typeof scope.upstream_ref === "string" &&
+            typeof scope.check_version === "string",
+        ) &&
+        Array.isArray(target.qualification.legacy_coverage) &&
+        target.qualification.legacy_coverage.every((value) => typeof value === "string"),
+    )
+  );
 }
 
 /** Inspect the bundle exactly as committed at the revision, and probe the appointed location. */
@@ -556,21 +851,8 @@ export async function readPublication(
     ]);
     if (!envelope.ok)
       throw new MaintenanceStoreError("Core could not inspect the publication bundle");
-    let status: number | null = null;
-    try {
-      // Node's fetch does not use HTTPS_PROXY; on proxy-only runners this probe is a gap.
-      const response = await fetch(`${officialMetadataLocation}timestamp.json`, {
-        method: "HEAD",
-        redirect: "manual",
-        signal: AbortSignal.timeout(20_000),
-      });
-      status = response.status;
-    } catch {
-      status = null;
-    }
     return {
       inspection: envelope.data as PublicationObservation["inspection"],
-      published_status: status,
     };
   } finally {
     rmSync(root, { recursive: true, force: true });
@@ -590,26 +872,50 @@ export function membershipDigest(members: ReadonlyMap<string, string>) {
   );
 }
 
-/** Latest present content digest per subject from finished runs of one source. */
-function latestMembers(environment: NodeJS.ProcessEnv, source: string, startedAt: string) {
-  const rows = parseJson(
+/** A source's changes-only baseline: its latest finished run and that run's present members. */
+export interface SourceBaseline {
+  run: string | null;
+  members: ReadonlyMap<string, string>;
+}
+
+/** Latest present content digest per subject, as of the source's latest finished run. */
+function latestMembers(environment: NodeJS.ProcessEnv, source: string): SourceBaseline {
+  const value = parseJson(
     runSql(
       environment,
-      `SELECT coalesce(json_agg(json_build_object('subject', subject_key, 'digest', content_sha256, 'absent', absent)), '[]')
-         FROM (SELECT DISTINCT ON (o.subject_key) o.subject_key, o.content_sha256,
-                      o.payload = portcove_maintenance.absent_payload() AS absent
-                 FROM portcove_maintenance.observations o
-                 JOIN portcove_maintenance.collection_runs r ON r.run_id = o.run_id
-                WHERE r.source = ${literal(source)} AND r.coverage <> 'in_progress'
-                  AND r.started_at <= ${literal(startedAt)}::timestamptz
-                ORDER BY o.subject_key, r.started_at DESC, o.observation_id DESC) latest;`,
+      `SELECT json_build_object('run', b.run, 'members', coalesce((
+           SELECT json_agg(json_build_object('subject', m.subject_key, 'digest', m.content_sha256))
+             FROM portcove_maintenance.run_members(b.run) m), '[]'))
+         FROM (SELECT portcove_maintenance.latest_run(${literal(source)}) AS run) b;`,
     ).trim(),
     "latest maintenance members",
-  ) as { subject: string; digest: string; absent: boolean }[];
-  return new Map(
-    rows.filter(({ absent }) => !absent).map(({ subject, digest }) => [subject, digest]),
-  );
+  ) as { run: string | null; members: { subject: string; digest: string }[] };
+  return {
+    run: value.run,
+    members: new Map(value.members.map(({ subject, digest }) => [subject, digest])),
+  };
 }
+
+/**
+ * The budget for the one collection transaction. A first complete collection
+ * against a remote host writes every subject; later changes-only runs are small.
+ */
+const collectionTimeoutMs = 15 * 60_000;
+
+/** A database-ordered ticket, taken before any external read of a collection. */
+export function acquireCollection(environment: NodeJS.ProcessEnv) {
+  const ticket = Number(
+    runSql(environment, "SELECT portcove_maintenance.acquire_collection();").trim(),
+  );
+  if (!Number.isSafeInteger(ticket) || ticket < 1)
+    throw new MaintenanceStoreError("The maintenance store issued no collection acquisition");
+  return ticket;
+}
+
+/** The store refused the collection: a newer collection of a source already finished. */
+export const staleCollectionPattern = /stale maintenance collection for /u;
+/** Another run finished after the changes-only baseline was read. */
+export const baselineChangedPattern = /maintenance baseline changed for /u;
 
 /**
  * One transaction: the catalog and Core runs, their observations, assessments and
@@ -623,6 +929,8 @@ export function collectionSql(input: {
   apiSchema: number;
   runner: string;
   startedAt: string;
+  /** The ticket taken before external reads; omitted, the store admits at insert time. */
+  acquisition?: number | undefined;
   platform: string;
   subjects: CollectedSubject[];
   latest?: {
@@ -633,30 +941,93 @@ export function collectionSql(input: {
     upstream?: ReadonlyMap<string, string>;
     hostedIntake?: ReadonlyMap<string, string>;
     publication?: ReadonlyMap<string, string>;
+    delivery?: ReadonlyMap<string, string>;
+    targets?: ReadonlyMap<string, string>;
   };
+  /**
+   * The producing Core's build identity. With it, assessments bind the source
+   * revision, compiled catalog and features, and the host assessment's source
+   * binding is verified only when that revision is the collected checkout.
+   */
+  producer?: CoreProducer | null;
+  /** Whether Core's sources (crates, Cargo manifest and lock) were clean in the checkout. */
+  coreSourceClean?: boolean;
+  /**
+   * The latest finished run of each source when `latest` was read. The store
+   * refuses the transaction if any of them changed, so the diff stays exact.
+   */
+  baseline?: Readonly<Record<string, string | null>>;
   publication?: {
     revision: string;
     facts: ReadonlyMap<string, unknown>;
     gaps: { subject_key: string; code: string; message: string }[];
-    expected: number;
+    /** Null when the read failed before any definition was counted. */
+    expected: number | null;
+  };
+  /** Verified published definitions; any gap fails the run and keeps prior facts current. */
+  delivery?: {
+    revision: string;
+    location: string | null;
+    facts: ReadonlyMap<string, unknown>;
+    gaps: SourceGap[];
+    expected: number | null;
   };
   releaseHealth?: {
     revision: string;
-    expected: number;
+    /** The report could not be read: a failed run, prior facts stay current. */
+    failed?: boolean;
+    expected: number | null;
     facts: ReadonlyMap<string, unknown>;
     gaps: { subject_key: string; code: string; message: string }[];
   };
   upstream?: UpstreamObservation;
   hostedIntake?: HostedIntakeObservation;
-  issues?: { repository: string; observedAt: string; facts: ReadonlyMap<string, unknown> };
+  /** Core's per-target route offering, bound to the same Core binary as the assessments. */
+  targets?: {
+    facts: ReadonlyMap<string, unknown>;
+    expected: number;
+    failure?: SourceGap;
+  };
+  issues?: {
+    repository: string;
+    observedAt: string;
+    facts: ReadonlyMap<string, unknown>;
+    /** The roadmap Project whose Status records holds and deferrals; without it none are derived. */
+    roadmapProjectId?: string | undefined;
+    /** The inventory could not be read completely: a failed run, prior facts stay current. */
+    failure?: SourceGap;
+  };
 }) {
   const token = randomUUID();
+  const acquisition =
+    input.acquisition === undefined ? "DEFAULT" : String(Math.trunc(input.acquisition));
   const coreSource = coreSourceName(input.platform);
   const catalogRun = `catalog-records:${input.revision.slice(0, 12)}:${token}`;
   const coreRun = `${coreSource}:${input.cliSha256.slice(0, 12)}:${token}`;
-  const coreRevision = `cli-sha256:${input.cliSha256}`;
-  const policy = `port-capabilities;api=${input.apiSchema};cli-sha256=${input.cliSha256}`;
+  // The binary and its recorded source bind through the verifying run's revision.
+  // The policy names only this projection of Core's report: the assessment input is
+  // Core's own output, so any change in Core behavior is a new input and a new
+  // assessment, while a rebuild with identical behavior writes no new rows.
+  // Verified only for a clean checkout's own revision, the compiled catalog and no
+  // behavior-changing features; otherwise the build's claim stays a claim. The run
+  // carries it, so the verifying run states it even when no observation changed.
+  const sourceBinding =
+    input.producer?.source_revision === input.revision &&
+    input.coreSourceClean === true &&
+    !input.producer.catalog_override &&
+    input.producer.features.length === 0
+      ? "verified"
+      : "unverified";
+  const coreRevision = `cli-sha256:${input.cliSha256}${
+    input.producer
+      ? `;source=${input.producer.source_revision ?? "unrecorded"};producer-sha256=${sha256(canonicalJson(input.producer)).slice(0, 16)};binding=${sourceBinding}`
+      : ""
+  }`;
+  const policy = `port-capabilities;api=${input.apiSchema};projection=${capabilityProjectionVersion}`;
   const lines = [
+    // Freshness checks below must see runs committed while this transaction waited
+    // for its locks, whatever the server or role default isolation is.
+    "SET TRANSACTION ISOLATION LEVEL READ COMMITTED;",
     // Quoting below must never depend on server or role settings.
     "SET LOCAL standard_conforming_strings = on;",
     // Collectors of the same source are serialized; locks are taken in one order.
@@ -670,14 +1041,23 @@ export function collectionSql(input: {
            ...(input.upstream ? ["upstream-observations"] : []),
            ...(input.hostedIntake ? ["hosted-intake"] : []),
            ...(input.publication ? ["definition-publication"] : []),
+           ...(input.delivery ? ["definition-delivery"] : []),
+           ...(input.targets ? ["core-target-routes"] : []),
          ]),
        ]
          .sort()
          .map(literal)
          .join(", ")}]) AS source ORDER BY source;`,
-    `INSERT INTO portcove_maintenance.collection_runs (run_id, source, runner, source_revision, started_at) VALUES
-      (${literal(catalogRun)}, 'catalog-records', ${literal(input.runner)}, ${literal(input.revision)}, ${literal(input.startedAt)}),
-      (${literal(coreRun)}, ${literal(coreSource)}, ${literal(input.runner)}, ${literal(coreRevision)}, ${literal(input.startedAt)});`,
+    // Under the locks: the changes-only diff still matches each source's latest run.
+    ...Object.entries(input.baseline ?? {})
+      .sort(([left], [right]) => (left < right ? -1 : left > right ? 1 : 0))
+      .map(
+        ([source, run]) =>
+          `SELECT portcove_maintenance.expect_baseline(${literal(source)}, ${run === null ? "NULL" : literal(run)});`,
+      ),
+    `INSERT INTO portcove_maintenance.collection_runs (run_id, source, runner, source_revision, started_at, acquisition) VALUES
+      (${literal(catalogRun)}, 'catalog-records', ${literal(input.runner)}, ${literal(input.revision)}, ${literal(input.startedAt)}, ${acquisition}),
+      (${literal(coreRun)}, ${literal(coreSource)}, ${literal(input.runner)}, ${literal(coreRevision)}, ${literal(input.startedAt)}, ${acquisition});`,
   ];
   const observe = (run: string, key: string, fact: Fact) =>
     lines.push(
@@ -719,7 +1099,7 @@ export function collectionSql(input: {
         source: coreSource,
         host_platform: input.platform,
         isolation: isolationScope,
-        cli_source_binding: "unverified",
+        cli_source_binding: sourceBinding,
       },
       revision: coreRevision,
       payload: capabilityFact,
@@ -741,12 +1121,20 @@ export function collectionSql(input: {
       `INSERT INTO portcove_maintenance.assessments (subject_key, policy_version, input_digest, state, result_digest, explanation, assessed_at, run_id)
         VALUES (${literal(assessed)}, ${literal(policy)}, ${literal(inputDigest)}, ${literal(result.state)}, ${literal(resultDigest)}, ${jsonLiteral(explanation)}, statement_timestamp(), ${literal(coreRun)})
         ON CONFLICT (subject_key, policy_version, input_digest) DO NOTHING;`,
-      `INSERT INTO portcove_maintenance.subject_transitions (subject_key, sequence, assessment_id)
-        SELECT a.subject_key, coalesce(c.sequence, 0) + 1, a.assessment_id
+      `INSERT INTO portcove_maintenance.subject_transitions (subject_key, sequence, assessment_id, verified_run_id)
+        SELECT a.subject_key, coalesce(c.sequence, 0) + 1, a.assessment_id, ${literal(coreRun)}
           FROM portcove_maintenance.assessments a
           LEFT JOIN portcove_maintenance.subject_current c ON c.subject_key = a.subject_key
           WHERE a.subject_key = ${literal(assessed)} AND a.policy_version = ${literal(policy)} AND a.input_digest = ${literal(inputDigest)}
             AND c.result_digest IS DISTINCT FROM a.result_digest;`,
+      // The same result under new policy or inputs: current provenance and verification
+      // move to this assessment and run, with no transition or notification.
+      `SELECT portcove_maintenance.verify_current(a.assessment_id, ${literal(coreRun)})
+          FROM portcove_maintenance.assessments a
+          JOIN portcove_maintenance.subject_current c ON c.subject_key = a.subject_key
+          WHERE a.subject_key = ${literal(assessed)} AND a.policy_version = ${literal(policy)} AND a.input_digest = ${literal(inputDigest)}
+            AND c.result_digest = a.result_digest
+            AND (c.applicable_assessment_id <> a.assessment_id OR c.verified_run_id IS DISTINCT FROM ${literal(coreRun)});`,
       // Changes-only: a transition after the subject's baseline is a pending notification.
       `INSERT INTO portcove_maintenance.notifications (notification_key, subject_key, transition_sequence, created_at)
         SELECT 'transition:' || replace(t.subject_key, '@', '.') || ':' || t.sequence, t.subject_key, t.sequence, statement_timestamp()
@@ -761,10 +1149,12 @@ export function collectionSql(input: {
   let issueRevision = "";
   if (input.issues) {
     if (input.mode !== "all") throw new MaintenanceStoreError("Issue collection requires --all");
-    issueRevision = `issues-sha256:${sha256(canonicalJson([...input.issues.facts]))}`;
+    issueRevision = input.issues.failure
+      ? "issues-project:unavailable"
+      : `issues-sha256:${sha256(canonicalJson([...input.issues.facts]))}`;
     lines.push(
-      `INSERT INTO portcove_maintenance.collection_runs (run_id, source, runner, source_revision, started_at) VALUES
-        (${literal(issueRun)}, 'issues-project', ${literal(input.runner)}, ${literal(issueRevision)}, ${literal(input.startedAt)});`,
+      `INSERT INTO portcove_maintenance.collection_runs (run_id, source, runner, source_revision, started_at, acquisition) VALUES
+        (${literal(issueRun)}, 'issues-project', ${literal(input.runner)}, ${literal(issueRevision)}, ${literal(input.startedAt)}, ${acquisition});`,
     );
     for (const [key, payload] of input.issues.facts)
       issueFactsByKey.set(key, {
@@ -784,8 +1174,8 @@ export function collectionSql(input: {
     if (input.mode !== "all")
       throw new MaintenanceStoreError("Release-health collection requires --all");
     lines.push(
-      `INSERT INTO portcove_maintenance.collection_runs (run_id, source, runner, source_revision, started_at) VALUES
-        (${literal(healthRun)}, 'release-health', ${literal(input.runner)}, ${literal(input.releaseHealth.revision)}, ${literal(input.startedAt)});`,
+      `INSERT INTO portcove_maintenance.collection_runs (run_id, source, runner, source_revision, started_at, acquisition) VALUES
+        (${literal(healthRun)}, 'release-health', ${literal(input.runner)}, ${literal(input.releaseHealth.revision)}, ${literal(input.startedAt)}, ${acquisition});`,
     );
     for (const [key, payload] of input.releaseHealth.facts)
       healthFacts.set(key, {
@@ -801,8 +1191,8 @@ export function collectionSql(input: {
     if (input.mode !== "all")
       throw new MaintenanceStoreError("Upstream-observation collection requires --all");
     lines.push(
-      `INSERT INTO portcove_maintenance.collection_runs (run_id, source, runner, source_revision, started_at) VALUES
-        (${literal(upstreamRun)}, 'upstream-observations', ${literal(input.runner)}, ${literal(input.upstream.revision)}, ${literal(input.startedAt)});`,
+      `INSERT INTO portcove_maintenance.collection_runs (run_id, source, runner, source_revision, started_at, acquisition) VALUES
+        (${literal(upstreamRun)}, 'upstream-observations', ${literal(input.runner)}, ${literal(input.upstream.revision)}, ${literal(input.startedAt)}, ${acquisition});`,
     );
     for (const [key, payload] of input.upstream.facts)
       upstreamFactsByKey.set(key, {
@@ -818,8 +1208,8 @@ export function collectionSql(input: {
     if (input.mode !== "all")
       throw new MaintenanceStoreError("Hosted-intake collection requires --all");
     lines.push(
-      `INSERT INTO portcove_maintenance.collection_runs (run_id, source, runner, source_revision, started_at) VALUES
-        (${literal(hostedRun)}, 'hosted-intake', ${literal(input.runner)}, ${literal(input.hostedIntake.revision)}, ${literal(input.startedAt)});`,
+      `INSERT INTO portcove_maintenance.collection_runs (run_id, source, runner, source_revision, started_at, acquisition) VALUES
+        (${literal(hostedRun)}, 'hosted-intake', ${literal(input.runner)}, ${literal(input.hostedIntake.revision)}, ${literal(input.startedAt)}, ${acquisition});`,
     );
     for (const [key, payload] of input.hostedIntake.facts)
       hostedFacts.set(key, {
@@ -847,17 +1237,21 @@ export function collectionSql(input: {
     runs.push([
       issueRun,
       issueRevision,
-      "complete",
-      [],
+      input.issues.failure ? "failed" : "complete",
+      input.issues.failure ? [input.issues.failure] : [],
       issueFactsByKey,
       input.latest?.issues,
-      issueFactsByKey.size,
+      input.issues.failure ? null : issueFactsByKey.size,
     ]);
   if (input.releaseHealth)
     runs.push([
       healthRun,
       input.releaseHealth.revision,
-      input.releaseHealth.gaps.length ? "partial" : "complete",
+      input.releaseHealth.failed
+        ? "failed"
+        : input.releaseHealth.gaps.length
+          ? "partial"
+          : "complete",
       input.releaseHealth.gaps,
       healthFacts,
       input.latest?.releaseHealth,
@@ -891,13 +1285,13 @@ export function collectionSql(input: {
   if (input.publication) {
     const publicationFactsByKey = new Map<string, Fact>();
     lines.push(
-      `INSERT INTO portcove_maintenance.collection_runs (run_id, source, runner, source_revision, started_at) VALUES
-        (${literal(publicationRun)}, 'definition-publication', ${literal(input.runner)}, ${literal(input.publication.revision)}, ${literal(input.startedAt)});`,
+      `INSERT INTO portcove_maintenance.collection_runs (run_id, source, runner, source_revision, started_at, acquisition) VALUES
+        (${literal(publicationRun)}, 'definition-publication', ${literal(input.runner)}, ${literal(input.publication.revision)}, ${literal(input.startedAt)}, ${acquisition});`,
     );
     for (const [key, payload] of input.publication.facts)
       publicationFactsByKey.set(key, {
         digest: sha256(canonicalJson(payload)),
-        scope: { source: "definition-publication", location: officialMetadataLocation },
+        scope: { source: "definition-publication", bundle: "release/catalog-publication/bundle" },
         revision: input.publication.revision,
         payload,
       });
@@ -911,8 +1305,66 @@ export function collectionSql(input: {
       input.publication.expected,
     ]);
   }
+  const deliveryRun = `definition-delivery:${token}`;
+  if (input.delivery) {
+    if (input.mode !== "all")
+      throw new MaintenanceStoreError("Definition-delivery collection requires --all");
+    lines.push(
+      `INSERT INTO portcove_maintenance.collection_runs (run_id, source, runner, source_revision, started_at, acquisition) VALUES
+        (${literal(deliveryRun)}, 'definition-delivery', ${literal(input.runner)}, ${literal(input.delivery.revision)}, ${literal(input.startedAt)}, ${acquisition});`,
+    );
+    const deliveryFactsByKey = new Map<string, Fact>();
+    for (const [key, payload] of input.delivery.facts)
+      deliveryFactsByKey.set(key, {
+        digest: sha256(canonicalJson(payload)),
+        scope: {
+          source: "definition-delivery",
+          location: input.delivery.location,
+          verification: "core-client",
+        },
+        revision: input.delivery.revision,
+        payload,
+      });
+    runs.push([
+      deliveryRun,
+      input.delivery.revision,
+      input.delivery.gaps.length ? "failed" : "complete",
+      input.delivery.gaps,
+      deliveryFactsByKey,
+      input.latest?.delivery,
+      input.delivery.gaps.length ? null : input.delivery.expected,
+    ]);
+  }
+  const targetsRun = `core-target-routes:${input.cliSha256.slice(0, 12)}:${token}`;
+  if (input.targets) {
+    if (input.mode !== "all")
+      throw new MaintenanceStoreError("Target-route collection requires --all");
+    lines.push(
+      `INSERT INTO portcove_maintenance.collection_runs (run_id, source, runner, source_revision, started_at, acquisition) VALUES
+        (${literal(targetsRun)}, 'core-target-routes', ${literal(input.runner)}, ${literal(coreRevision)}, ${literal(input.startedAt)}, ${acquisition});`,
+    );
+    const targetFacts = new Map<string, Fact>();
+    for (const [key, payload] of input.targets.facts)
+      targetFacts.set(key, {
+        digest: sha256(canonicalJson(payload)),
+        scope: { source: "core-target-routes", policy, isolation: "fresh-library" },
+        revision: coreRevision,
+        payload,
+      });
+    runs.push([
+      targetsRun,
+      coreRevision,
+      input.targets.failure ? "failed" : "complete",
+      input.targets.failure ? [input.targets.failure] : [],
+      targetFacts,
+      input.latest?.targets,
+      input.targets.failure ? null : input.targets.expected,
+    ]);
+  }
   const sourceOf = new Map([
+    [targetsRun, "core-target-routes"],
     [publicationRun, "definition-publication"],
+    [deliveryRun, "definition-delivery"],
     [catalogRun, "catalog-records"],
     [coreRun, coreSource],
     [issueRun, "issues-project"],
@@ -977,8 +1429,30 @@ export function collectionSql(input: {
     // A kind no longer in the registry clears on any complete handoff source run.
     const first = [...complete.values()][0];
     if (first) lines.push(...handoffCollectionSql({ retired: true, run: first.run }));
+    // Holds and deferrals follow only a complete read of their owning source.
+    // Without the roadmap Project's identity no Status is attributable, so nothing changes.
+    if (input.issues && !input.issues.failure && input.issues.roadmapProjectId)
+      lines.push(
+        ...reconsiderationSql({
+          source: "issues-project",
+          run: issueRun,
+          ...issueReconsiderations(input.issues.facts, input.issues.roadmapProjectId),
+        }),
+      );
+    if (input.targets && !input.targets.failure)
+      lines.push(
+        ...reconsiderationSql({
+          source: "core-target-routes",
+          run: targetsRun,
+          conditions: targetReconsiderations(input.targets.facts),
+        }),
+      );
   }
-  return lines.join("\n");
+  // The two session settings run as their own statements first: the server parses a
+  // batched query whole, so a setting inside it could not govern the literals after it.
+  // Everything else is one query, so a remote host costs one round trip, not one per statement.
+  const [isolation, quoting, ...statements] = lines;
+  return `${isolation}\n${quoting}\n${batchedStatements(statements)}`;
 }
 
 export const coreSourceName = (platform: string) => `${corePrefix}${platform}`;
@@ -1021,6 +1495,33 @@ async function mapBounded<T, R>(
   return results;
 }
 
+/** One source's per-subject or whole-source gap. */
+export interface SourceGap {
+  subject_key: string;
+  code: string;
+  message: string;
+}
+
+/** A source read as a typed outcome, so one source's failure cannot discard another's facts. */
+async function sourceOutcome<T>(
+  read: () => Promise<T>,
+): Promise<{ ok: true; value: T } | { ok: false; message: string }> {
+  try {
+    return { ok: true, value: await read() };
+  } catch (error) {
+    return { ok: false, message: error instanceof Error ? error.message : String(error) };
+  }
+}
+
+const failedSource = (subject_key: string, message: string): SourceGap => ({
+  subject_key,
+  code: "unavailable",
+  message: `The source could not be read completely; prior facts stay current. ${message}`.slice(
+    0,
+    1000,
+  ),
+});
+
 export async function collect(options: {
   cli: string;
   sample?: string | undefined;
@@ -1034,6 +1535,16 @@ export async function collect(options: {
   publication?:
     | boolean
     | ((cli: string, revision: string) => Promise<PublicationObservation>)
+    | undefined;
+  /** With `all`, also read what the appointed definition location serves, verified by Core. */
+  delivery?: boolean | ((cli: string) => Promise<DefinitionDeliveryInspection>) | undefined;
+  /** With `all`, also collect Core's per-target route offering for the collected ports. */
+  targets?:
+    | boolean
+    | ((
+        cli: string,
+        ids: readonly string[],
+      ) => Promise<{ facts: ReadonlyMap<string, unknown>; producer: CoreProducer | null }>)
     | undefined;
   /** With `all`, also collect the latest scheduled release-health report. */
   releaseHealth?: (() => Promise<ReleaseHealthInput>) | undefined;
@@ -1064,10 +1575,15 @@ export async function collect(options: {
     throw new MaintenanceStoreError(
       "portcove capabilities are unavailable or use an unsupported port capability schema",
     );
-  const startedAt = new Date().toISOString();
+  const apiSchema = capabilities.schema_version;
+  const coreSourceClean =
+    git(["status", "--porcelain", "--", "crates", "Cargo.toml", "Cargo.lock"]).trim() === "";
   const platform = options.platform ?? hostPlatform();
   if (!/^[a-z0-9]+(-[a-z0-9]+)*$/u.test(platform))
     throw new MaintenanceStoreError("Invalid platform label");
+  // Freshness is the database's order of this ticket, never this runner's clock.
+  const acquisition = acquireCollection(options.environment);
+  const startedAt = new Date().toISOString();
   const subjects = await mapBounded(ids, options.concurrency ?? 4, async (id) => ({
     id,
     record: committedRecord(revision, id),
@@ -1078,11 +1594,17 @@ export async function collect(options: {
   const mode = options.all ? "all" : "sample";
   if (options.issues && !options.all)
     throw new MaintenanceStoreError("Issue collection requires --all");
-  const issueInventory = options.issues ? await options.issues() : undefined;
+  // Each source fails alone: its run records the gap and every other source still lands.
+  const issueRead = options.issues ? await sourceOutcome(options.issues) : undefined;
+  const issueInventory = issueRead?.ok ? issueRead.value : undefined;
   if (options.releaseHealth && !options.all)
     throw new MaintenanceStoreError("Release-health collection requires --all");
-  const health = options.releaseHealth ? await options.releaseHealth() : undefined;
-  const healthFacts = health ? releaseHealthFacts(health.report) : undefined;
+  const healthRead = options.releaseHealth
+    ? await sourceOutcome(async () => {
+        const report = await options.releaseHealth!();
+        return { revision: report.revision, ...releaseHealthFacts(report.report) };
+      })
+    : undefined;
   if (options.upstream && !options.all)
     throw new MaintenanceStoreError("Upstream-observation collection requires --all");
   const upstream = options.upstream ? await upstreamObservation(options.upstream) : undefined;
@@ -1091,90 +1613,194 @@ export async function collect(options: {
   const hostedIntake = options.hostedIntake
     ? await hostedIntakeObservation(options.hostedIntake)
     : undefined;
-  if (options.publication && !options.all)
-    throw new MaintenanceStoreError("Publication collection requires --all");
-  const publicationObserved = options.publication
-    ? await (typeof options.publication === "function" ? options.publication : readPublication)(
-        options.cli,
-        revision,
+  if (options.targets && !options.all)
+    throw new MaintenanceStoreError("Target-route collection requires --all");
+  const targetsRead = options.targets
+    ? await sourceOutcome(() =>
+        (typeof options.targets === "function" ? options.targets : readTargetRoutes)(
+          options.cli,
+          ids,
+        ),
       )
     : undefined;
-  runSql(
-    options.environment,
-    collectionSql({
+  if (options.publication && !options.all)
+    throw new MaintenanceStoreError("Publication collection requires --all");
+  const publicationRead = options.publication
+    ? await sourceOutcome(() =>
+        (typeof options.publication === "function" ? options.publication : readPublication)(
+          options.cli,
+          revision,
+        ),
+      )
+    : undefined;
+  if (options.delivery && !options.all)
+    throw new MaintenanceStoreError("Definition-delivery collection requires --all");
+  const deliveryRead = options.delivery
+    ? await sourceOutcome(async () => {
+        const inspection = await (
+          typeof options.delivery === "function" ? options.delivery : readDefinitionDelivery
+        )(options.cli);
+        return { location: inspection.metadata_base_url, ...deliveryFacts(inspection) };
+      })
+    : undefined;
+  const record = (baseline?: Map<string, SourceBaseline>) => {
+    const members = (source: string) => baseline?.get(source)?.members ?? new Map<string, string>();
+    return collectionSql({
       mode,
+      acquisition,
       revision,
       cliSha256,
-      apiSchema: capabilities.schema_version,
+      apiSchema,
       runner: options.runner ?? process.env.PORTCOVE_MAINTENANCE_RUNNER?.trim() ?? "generic",
       startedAt,
       platform,
       subjects,
-      ...(issueInventory
+      ...(issueRead
         ? {
-            issues: {
-              repository: issueInventory.repository,
-              observedAt: issueInventory.observed_at,
-              facts: issueFacts(issueInventory),
-            },
+            issues: issueRead.ok
+              ? {
+                  repository: issueRead.value.repository,
+                  observedAt: issueRead.value.observed_at,
+                  facts: issueFacts(issueRead.value),
+                  roadmapProjectId: issueRead.value.roadmap_project_id,
+                }
+              : {
+                  repository: "",
+                  observedAt: "",
+                  facts: new Map(),
+                  failure: failedSource("source:issues-project", issueRead.message),
+                },
           }
         : {}),
-      ...(health && healthFacts
-        ? { releaseHealth: { revision: health.revision, ...healthFacts } }
+      ...(healthRead
+        ? {
+            releaseHealth: healthRead.ok
+              ? healthRead.value
+              : {
+                  revision: "release-health:unavailable",
+                  failed: true,
+                  expected: null,
+                  facts: new Map(),
+                  gaps: [failedSource("source:release-health-report", healthRead.message)],
+                },
+          }
         : {}),
       ...(upstream ? { upstream } : {}),
       ...(hostedIntake ? { hostedIntake } : {}),
-      ...(publicationObserved
+      ...(targetsRead?.ok ? { producer: targetsRead.value.producer, coreSourceClean } : {}),
+      ...(targetsRead
         ? {
-            publication: {
-              revision: `${revision}+published-status:${publicationObserved.published_status ?? "unreachable"}`,
-              ...publicationFacts(publicationObserved),
-            },
+            targets: targetsRead.ok
+              ? { facts: targetsRead.value.facts, expected: targetsRead.value.facts.size }
+              : {
+                  facts: new Map(),
+                  expected: 0,
+                  failure: failedSource("source:core-target-routes", targetsRead.message),
+                },
           }
         : {}),
-      ...(mode === "all"
+      ...(publicationRead
         ? {
+            publication: publicationRead.ok
+              ? {
+                  revision,
+                  ...publicationFacts(publicationRead.value),
+                }
+              : {
+                  revision: `${revision}+inspection:unavailable`,
+                  facts: new Map(),
+                  expected: null,
+                  gaps: [failedSource("source:definition-publication", publicationRead.message)],
+                },
+          }
+        : {}),
+      ...(deliveryRead
+        ? {
+            delivery: deliveryRead.ok
+              ? deliveryRead.value
+              : {
+                  revision: "definition-delivery;inspection=unavailable",
+                  location: null,
+                  facts: new Map(),
+                  expected: null,
+                  gaps: [failedSource("source:definition-delivery", deliveryRead.message)],
+                },
+          }
+        : {}),
+      ...(baseline
+        ? {
+            baseline: Object.fromEntries([...baseline].map(([source, { run }]) => [source, run])),
             latest: {
-              catalog: latestMembers(options.environment, "catalog-records", startedAt),
-              core: latestMembers(options.environment, coreSourceName(platform), startedAt),
-              ...(issueInventory
-                ? { issues: latestMembers(options.environment, "issues-project", startedAt) }
-                : {}),
-              ...(health
-                ? { releaseHealth: latestMembers(options.environment, "release-health", startedAt) }
-                : {}),
-              ...(upstream
-                ? {
-                    upstream: latestMembers(
-                      options.environment,
-                      "upstream-observations",
-                      startedAt,
-                    ),
-                  }
-                : {}),
-              ...(hostedIntake
-                ? { hostedIntake: latestMembers(options.environment, "hosted-intake", startedAt) }
-                : {}),
-              ...(publicationObserved
-                ? {
-                    publication: latestMembers(
-                      options.environment,
-                      "definition-publication",
-                      startedAt,
-                    ),
-                  }
-                : {}),
+              catalog: members("catalog-records"),
+              core: members(coreSourceName(platform)),
+              ...(issueRead ? { issues: members("issues-project") } : {}),
+              ...(healthRead ? { releaseHealth: members("release-health") } : {}),
+              ...(upstream ? { upstream: members("upstream-observations") } : {}),
+              ...(hostedIntake ? { hostedIntake: members("hosted-intake") } : {}),
+              ...(publicationRead ? { publication: members("definition-publication") } : {}),
+              ...(deliveryRead ? { delivery: members("definition-delivery") } : {}),
+              ...(targetsRead ? { targets: members("core-target-routes") } : {}),
             },
           }
         : {}),
-    }),
-  );
+    });
+  };
+  const sources = [
+    "catalog-records",
+    coreSourceName(platform),
+    ...(issueRead ? ["issues-project"] : []),
+    ...(healthRead ? ["release-health"] : []),
+    ...(upstream ? ["upstream-observations"] : []),
+    ...(hostedIntake ? ["hosted-intake"] : []),
+    ...(publicationRead ? ["definition-publication"] : []),
+    ...(deliveryRead ? ["definition-delivery"] : []),
+    ...(targetsRead ? ["core-target-routes"] : []),
+  ];
+  // A changes-only diff is exact only against the baseline the store still holds;
+  // if another run finished meanwhile, reread it. External reads are not repeated.
+  for (let attempt = 1; ; attempt++) {
+    const baseline =
+      mode === "all"
+        ? new Map(sources.map((source) => [source, latestMembers(options.environment, source)]))
+        : undefined;
+    try {
+      runSql(options.environment, record(baseline), { timeoutMs: collectionTimeoutMs });
+      break;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (staleCollectionPattern.test(message))
+        throw new MaintenanceStoreError(
+          `A newer maintenance collection finished first; this one replaced nothing. ${message.slice(0, 1000)}`,
+        );
+      if (attempt < 3 && baselineChangedPattern.test(message)) continue;
+      throw error;
+    }
+  }
   return {
     mode,
     revision,
     cli_sha256: cliSha256,
     subjects: subjects.length,
     issues: issueInventory?.issues.length ?? null,
+    /** Sources whose read failed alone; their runs record the gap and prior facts stay current. */
+    failed_sources: [
+      ...(issueRead && !issueRead.ok ? ["issues-project"] : []),
+      ...(healthRead && !healthRead.ok ? ["release-health"] : []),
+      ...(upstream?.failed ? ["upstream-observations"] : []),
+      ...(hostedIntake?.failed ? ["hosted-intake"] : []),
+      ...(publicationRead && !publicationRead.ok ? ["definition-publication"] : []),
+      ...(deliveryRead && !deliveryRead.ok ? ["definition-delivery"] : []),
+      ...(targetsRead && !targetsRead.ok ? ["core-target-routes"] : []),
+    ],
+    /** What the appointed location served this time; not served or an outage erases nothing. */
+    delivery: deliveryRead?.ok
+      ? {
+          serving: deliveryRead.value.gaps[0]?.code ?? "verified",
+          published: deliveryRead.value.facts.size,
+        }
+      : deliveryRead
+        ? { serving: "inspection-unavailable", published: 0 }
+        : null,
     upstream: upstream
       ? {
           revision: upstream.revision,
@@ -1209,7 +1835,7 @@ const reportQuery = `WITH latest_issue AS (
       FROM portcove_maintenance.observations o
       JOIN portcove_maintenance.collection_runs r ON r.run_id = o.run_id
       WHERE r.source = 'issues-project' AND r.coverage <> 'in_progress'
-      ORDER BY o.subject_key, r.started_at DESC, o.observation_id DESC
+      ORDER BY o.subject_key, r.acquisition DESC, o.observation_id DESC
   ), present_issue AS (
     SELECT payload FROM latest_issue WHERE payload <> portcove_maintenance.absent_payload()
   ), latest_health AS (
@@ -1217,32 +1843,38 @@ const reportQuery = `WITH latest_issue AS (
       FROM portcove_maintenance.observations o
       JOIN portcove_maintenance.collection_runs r ON r.run_id = o.run_id
       WHERE r.source = 'release-health' AND r.coverage <> 'in_progress'
-      ORDER BY o.subject_key, r.started_at DESC, o.observation_id DESC
+      ORDER BY o.subject_key, r.acquisition DESC, o.observation_id DESC
   ), latest_upstream AS (
     SELECT DISTINCT ON (o.subject_key) o.subject_key, o.payload
       FROM portcove_maintenance.observations o
       JOIN portcove_maintenance.collection_runs r ON r.run_id = o.run_id
       WHERE r.source = 'upstream-observations' AND r.coverage <> 'in_progress'
-      ORDER BY o.subject_key, r.started_at DESC, o.observation_id DESC
+      ORDER BY o.subject_key, r.acquisition DESC, o.observation_id DESC
+  ), latest_targets AS (
+    SELECT DISTINCT ON (o.subject_key) o.subject_key, o.payload
+      FROM portcove_maintenance.observations o
+      JOIN portcove_maintenance.collection_runs r ON r.run_id = o.run_id
+      WHERE r.source = 'core-target-routes' AND r.coverage <> 'in_progress'
+      ORDER BY o.subject_key, r.acquisition DESC, o.observation_id DESC
   ), latest_hosted AS (
     SELECT DISTINCT ON (o.subject_key) o.subject_key, o.payload
       FROM portcove_maintenance.observations o
       JOIN portcove_maintenance.collection_runs r ON r.run_id = o.run_id
       WHERE r.source = 'hosted-intake' AND r.coverage <> 'in_progress'
-      ORDER BY o.subject_key, r.started_at DESC, o.observation_id DESC
+      ORDER BY o.subject_key, r.acquisition DESC, o.observation_id DESC
   ), latest_catalog AS (
     SELECT DISTINCT ON (o.subject_key) o.subject_key, o.payload
       FROM portcove_maintenance.observations o
       JOIN portcove_maintenance.collection_runs r ON r.run_id = o.run_id
       WHERE r.source = 'catalog-records' AND r.coverage <> 'in_progress'
-      ORDER BY o.subject_key, r.started_at DESC, o.observation_id DESC
+      ORDER BY o.subject_key, r.acquisition DESC, o.observation_id DESC
   ), core_latest AS (
     -- The latest finished Core run of each host platform.
     SELECT DISTINCT ON (source) source, substring(source FROM ${corePrefix.length + 1}) AS platform,
            run_id, member_digest, gaps
       FROM portcove_maintenance.collection_runs
       WHERE source LIKE '${corePrefix}%' AND coverage <> 'in_progress'
-      ORDER BY source, started_at DESC
+      ORDER BY source, acquisition DESC
   ), core_member AS (
     SELECT cl.platform, m.subject_key
       FROM core_latest cl CROSS JOIN LATERAL portcove_maintenance.run_members(cl.run_id) m
@@ -1265,7 +1897,7 @@ SELECT json_build_object(
         'latest_gap', (SELECT g ->> 'code' FROM (
             SELECT gaps FROM portcove_maintenance.collection_runs
               WHERE source = 'hosted-intake' AND coverage NOT IN ('in_progress', 'failed')
-              ORDER BY started_at DESC LIMIT 1) hr
+              ORDER BY acquisition DESC LIMIT 1) hr
            CROSS JOIN LATERAL jsonb_array_elements(hr.gaps) g
            WHERE g ->> 'subject_key' = h.subject_key LIMIT 1),
         'issues', (SELECT coalesce(json_agg(json_build_object('number', (i.payload ->> 'number')::integer,
@@ -1283,20 +1915,74 @@ SELECT json_build_object(
               FROM portcove_maintenance.observations o
               JOIN portcove_maintenance.collection_runs r ON r.run_id = o.run_id
               WHERE r.source = 'definition-publication' AND r.coverage <> 'in_progress'
-              ORDER BY o.subject_key, r.started_at DESC, o.observation_id DESC) p
+              ORDER BY o.subject_key, r.acquisition DESC, o.observation_id DESC) p
       WHERE p.payload <> portcove_maintenance.absent_payload()),
-  'runs', (SELECT coalesce(json_agg(r ORDER BY r.source, r.started_at DESC), '[]') FROM (
-      SELECT DISTINCT ON (source) source, run_id, runner, source_revision, started_at, completed_at, coverage,
+  -- Last verified publication only: a run that did not verify records no facts.
+  -- A withdrawal (absent after a verified read) stays visible as such.
+  'delivery', (SELECT coalesce(json_agg(json_build_object('definition', d.subject_key, 'facts', d.payload)
+        ORDER BY d.subject_key), '[]')
+      FROM (SELECT DISTINCT ON (o.subject_key) o.subject_key, o.payload
+              FROM portcove_maintenance.observations o
+              JOIN portcove_maintenance.collection_runs r ON r.run_id = o.run_id
+              WHERE r.source = 'definition-delivery' AND r.coverage = 'complete'
+              ORDER BY o.subject_key, r.acquisition DESC, o.observation_id DESC) d),
+  'delivery_verified', (SELECT json_build_object('run_id', run_id, 'source_revision', source_revision,
+        'completed_at', completed_at)
+      FROM portcove_maintenance.collection_runs
+      WHERE source = 'definition-delivery' AND coverage = 'complete'
+      ORDER BY acquisition DESC LIMIT 1),
+  'universe_inputs', json_build_object(
+    'records', (SELECT coalesce(json_agg(lc.payload -> 'authored_record' ORDER BY lc.subject_key), '[]')
+                  FROM latest_catalog lc
+                 WHERE lc.payload <> portcove_maintenance.absent_payload()
+                   AND jsonb_typeof(lc.payload -> 'authored_record') = 'object'),
+    'issues', (SELECT coalesce(json_object_agg('issue:' || (i.payload ->> 'number'), i.payload), '{}')
+                 FROM present_issue i),
+    'intake', (SELECT coalesce(json_object_agg(h.subject_key, h.payload), '{}')
+                 FROM latest_hosted h WHERE h.payload <> portcove_maintenance.absent_payload())),
+  -- Every pending condition, and the most recent resolutions as history.
+  'reconsiderations', (SELECT coalesce(json_agg(x ORDER BY x.status <> 'pending', x.resolved_at DESC NULLS FIRST, x.reconsideration_id), '[]')
+      FROM (SELECT reconsideration_id, subject_key, kind, status, revisit_authority, condition, created_at,
+                   resolved_at, resolution
+              FROM portcove_maintenance.reconsiderations
+             WHERE status = 'pending'
+            UNION ALL
+            (SELECT reconsideration_id, subject_key, kind, status, revisit_authority, condition, created_at,
+                    resolved_at, resolution
+               FROM portcove_maintenance.reconsiderations
+              WHERE status <> 'pending' ORDER BY resolved_at DESC LIMIT 200)) x),
+  -- Per source: the latest attempt and the latest read that did not fail.
+  -- A serving observation (verified, or a typed not-served, incomplete or expired
+  -- result) observes the source; an outage or a failed tool does not.
+  'freshness', (SELECT coalesce(json_agg(json_build_object('source', f.source, 'attempted_at', f.attempted_at,
+        'last_good_at', f.last_good_at, 'observed_at', f.observed_at) ORDER BY f.source), '[]')
+      FROM (SELECT source, max(completed_at) AS attempted_at,
+                   max(completed_at) FILTER (WHERE coverage IN ('complete', 'partial')) AS last_good_at,
+                   max(completed_at) FILTER (WHERE coverage IN ('complete', 'partial')
+                     OR (coverage = 'failed' AND gaps -> 0 ->> 'code' IN ('not_served', 'incomplete', 'expired')))
+                     AS observed_at
+              FROM portcove_maintenance.collection_runs
+             WHERE coverage <> 'in_progress' GROUP BY source) f),
+  'generation', (SELECT coalesce(max(acquisition), 0) FROM portcove_maintenance.collection_runs
+      WHERE coverage <> 'in_progress'),
+  'runs', (SELECT coalesce(json_agg(r ORDER BY r.source, r.acquisition DESC), '[]') FROM (
+      SELECT DISTINCT ON (source) source, run_id, runner, source_revision, started_at, acquisition, completed_at, coverage,
              expected_count, observed_count, gaps, member_count, member_digest
-        FROM portcove_maintenance.collection_runs WHERE coverage <> 'in_progress' ORDER BY source, started_at DESC) r),
+        FROM portcove_maintenance.collection_runs WHERE coverage <> 'in_progress' ORDER BY source, acquisition DESC) r),
   'unassessed_gaps', (SELECT coalesce(json_agg(json_build_object('subject_key', g.subject_key || '@' || g.platform,
         'port_key', g.subject_key, 'platform', g.platform, 'code', g.code, 'message', g.message)
         ORDER BY g.platform, g.subject_key), '[]')
       FROM core_gap g
       WHERE NOT EXISTS (SELECT 1 FROM assessed a WHERE a.port_key = g.subject_key AND a.platform = g.platform)),
   'subjects', (SELECT coalesce(json_agg(s ORDER BY s.subject_key), '[]') FROM (
-      SELECT c.subject_key, c.port_key, c.platform, c.sequence, c.updated_at, a.state, a.policy_version, a.input_digest,
+      SELECT c.subject_key, c.port_key, c.platform, c.sequence, a.state, a.policy_version, a.input_digest,
         a.assessed_at, a.explanation,
+        -- Last material transition, separate from the latest applicable assessment and verification.
+        c.updated_at AS changed_at, c.updated_at, c.assessment_id AS transition_assessment_id,
+        c.applicable_assessment_id AS assessment_id, c.verified_at, c.verified_run_id,
+        -- The binary, source and binding of the run that last verified this subject.
+        (SELECT r.source_revision FROM portcove_maintenance.collection_runs r
+          WHERE r.run_id = c.verified_run_id) AS verified_by,
         (SELECT json_agg(json_build_object('sequence', t.sequence, 'state', t.state, 'recorded_at', t.recorded_at,
                  'returns_to_earlier_result', t.returns_to_earlier_result) ORDER BY t.sequence)
            FROM portcove_maintenance.subject_transitions t WHERE t.subject_key = c.subject_key) AS history,
@@ -1308,7 +1994,7 @@ SELECT json_build_object(
                    JOIN portcove_maintenance.collection_runs r ON r.run_id = ob.run_id
                    WHERE ob.subject_key = c.port_key AND r.coverage <> 'in_progress'
                      AND (r.source = 'catalog-records' OR r.source = '${corePrefix}' || c.platform)
-                   ORDER BY r.source, r.started_at DESC, ob.observation_id DESC) o) AS observations,
+                   ORDER BY r.source, r.acquisition DESC, ob.observation_id DESC) o) AS observations,
         EXISTS (SELECT 1 FROM core_member m WHERE m.platform = c.platform AND m.subject_key = c.port_key)
           AS in_latest_core_run,
         (SELECT json_build_object('code', g.code, 'message', g.message) FROM core_gap g
@@ -1318,16 +2004,18 @@ SELECT json_build_object(
            FROM latest_health h WHERE h.subject_key = c.port_key) AS release_health,
         (SELECT g ->> 'code' FROM (
             SELECT gaps FROM portcove_maintenance.collection_runs
-              WHERE source = 'release-health' AND coverage <> 'in_progress'
-              ORDER BY started_at DESC LIMIT 1) hr
+              WHERE source = 'release-health' AND coverage NOT IN ('in_progress', 'failed')
+              ORDER BY acquisition DESC LIMIT 1) hr
            CROSS JOIN LATERAL jsonb_array_elements(hr.gaps) g
            WHERE g ->> 'subject_key' = c.port_key LIMIT 1) AS latest_health_gap,
         (SELECT CASE WHEN u.payload = portcove_maintenance.absent_payload() THEN NULL ELSE u.payload END
            FROM latest_upstream u WHERE u.subject_key = c.port_key) AS upstream,
+        (SELECT CASE WHEN t.payload = portcove_maintenance.absent_payload() THEN NULL ELSE t.payload END
+           FROM latest_targets t WHERE t.subject_key = c.port_key) AS target_routes,
         (SELECT g FROM (
             SELECT gaps FROM portcove_maintenance.collection_runs
               WHERE source = 'upstream-observations' AND coverage NOT IN ('in_progress', 'failed')
-              ORDER BY started_at DESC LIMIT 1) ur
+              ORDER BY acquisition DESC LIMIT 1) ur
            CROSS JOIN LATERAL jsonb_array_elements(ur.gaps) g
            WHERE g ->> 'subject_key' = c.port_key LIMIT 1) AS latest_upstream_gap,
         json_build_object(
@@ -1353,7 +2041,7 @@ SELECT json_build_object(
            WHERE i.payload -> 'catalog_ids' ? substring(c.port_key FROM 6)
               OR (i.payload ->> 'number') = (lc.payload -> 'authored_record' -> 'listing' ->> 'issue_number')) AS work
         FROM assessed c
-        JOIN portcove_maintenance.assessments a ON a.assessment_id = c.assessment_id
+        JOIN portcove_maintenance.assessments a ON a.assessment_id = c.applicable_assessment_id
         LEFT JOIN latest_catalog lc ON lc.subject_key = c.port_key) s)
 );`;
 
@@ -1361,20 +2049,268 @@ export interface InventoryReport {
   format: "portcove-maintenance-inventory";
   format_version: typeof inventoryFormatVersion;
   generated_at: string;
+  /**
+   * The newest finished collection acquisition the report reflects. A report
+   * never replaces one with a greater generation, whatever the clocks say.
+   */
+  generation: number;
   scope: "declared-sample" | "complete-authored-catalog";
+  /**
+   * Every known game and implementation from canonical identities, with their
+   * relationships as edges. Absent from reports made before #4129's universe.
+   */
+  universe?: UniverseEntry[];
   publication: {
     status: "unknown" | "observed";
     reason: string;
-    definitions?: { definition: string; facts: unknown }[];
+    /** What the appointed location served at the latest read, separate from what was last verified. */
+    serving?: PublicationServing | null;
+    definitions?: PublicationEntry[];
   };
   unsupported_sources: { source: string; reason: string }[];
   runs: unknown[];
+  /** Per source: when it was last attempted and last read successfully, aged against this report. */
+  freshness?: SourceFreshness[];
   subjects: unknown[];
   unassessed_gaps?: { subject_key: string; code: string; message: string }[];
   /** Latest facts per `intake:<request>`, with linked issues joined to issue facts. */
   hosted_intake?: HostedIntakeEntry[];
   /** Open executor handoffs with their registry entry and newest open operation; dispatch is disabled. */
   handoffs?: OpenHandoff[];
+  /** Pending holds and deferrals with their revisit authority, then the latest resolutions. */
+  reconsiderations?: ReconsiderationEntry[];
+}
+
+export interface ReconsiderationEntry {
+  reconsideration_id: string;
+  subject_key: string;
+  kind: string;
+  status: "pending" | "satisfied" | "withdrawn";
+  revisit_authority: string;
+  condition: Record<string, unknown>;
+  created_at: string;
+  resolved_at: string | null;
+  resolution: Record<string, unknown> | null;
+  /**
+   * For a pending deferral: linked port assessments that changed since it was
+   * recorded. Shown for its authority to reconsider; never applied automatically.
+   */
+  technical_changes?: { subject_key: string; state: string; changed_at: string }[];
+}
+
+/** Adds, to each pending deferral, the linked assessments that changed after it. */
+export function deferralChanges(
+  entries: readonly ReconsiderationEntry[],
+  subjects: readonly {
+    subject_key: string;
+    state?: string;
+    changed_at?: string;
+    work?: { number?: number }[];
+  }[],
+): ReconsiderationEntry[] {
+  return entries.map((entry) => {
+    const issue = /^issue:([1-9][0-9]*)$/u.exec(entry.subject_key)?.[1];
+    if (entry.kind !== "intentional_deferral" || entry.status !== "pending" || !issue) return entry;
+    const since = Date.parse(entry.created_at);
+    return {
+      ...entry,
+      technical_changes: subjects
+        .filter(
+          (subject) =>
+            (subject.work ?? []).some(({ number }) => String(number) === issue) &&
+            typeof subject.changed_at === "string" &&
+            Date.parse(subject.changed_at) > since,
+        )
+        .map(({ subject_key, state, changed_at }) => ({
+          subject_key,
+          state: state ?? "unknown",
+          changed_at: changed_at!,
+        })),
+    };
+  });
+}
+
+/**
+ * What a subject's Core assessment depends on and what would reassess it.
+ * Every complete run re-reads Core for every port, but only a change in one of
+ * these inputs records a new assessment; only a changed result records a
+ * transition. A rebuild with the same output, a failed run, or a port Core
+ * could not read in a partial run records neither.
+ */
+export const reassessmentTriggers = [
+  "its catalog fact changes (authored record, operational definition or scoped qualification at the pinned revision)",
+  "Core's output for the port changes (embedded catalog and listings, Core code, catalog-wide hold policy, or clock-dated recommendation observations)",
+  "the assessment policy changes (Core API schema or projection version)",
+] as const;
+
+export interface SubjectReassessment {
+  depends_on: string[];
+  /** When the catalog fact last changed: its latest changes-only observation. */
+  catalog_changed_at: string | null;
+  /** When Core's output for this port and platform last changed. */
+  core_output_changed_at: string | null;
+  /**
+   * The latest of the catalog change, the Core output change and the
+   * assessment time. Assessments are deduplicated by input, so after inputs
+   * return to an earlier value the assessment time alone would be too early.
+   */
+  inputs_unchanged_since: string | null;
+  /** The latest Core run that re-read the subject and found the same inputs. */
+  last_verified_at: string | null;
+}
+
+/** Derives a subject's reassessment basis from its stored provenance and observations. */
+export function subjectReassessment(subject: {
+  platform?: string | null;
+  assessed_at?: string | null;
+  verified_at?: string | null;
+  observations?: { source: string; observed_at: string }[] | null;
+}): SubjectReassessment {
+  const observed = (source: string) =>
+    (subject.observations ?? []).find((observation) => observation.source === source)
+      ?.observed_at ?? null;
+  const core = subject.platform ? coreSourceName(subject.platform) : null;
+  return {
+    depends_on: ["catalog-records", ...(core ? [core] : []), "assessment policy"],
+    catalog_changed_at: observed("catalog-records"),
+    core_output_changed_at: core ? observed(core) : null,
+    inputs_unchanged_since:
+      [observed("catalog-records"), core ? observed(core) : null, subject.assessed_at ?? null]
+        .filter(
+          (value): value is string => typeof value === "string" && !Number.isNaN(Date.parse(value)),
+        )
+        .sort((left, right) => Date.parse(left) - Date.parse(right))
+        .at(-1) ?? null,
+    last_verified_at: subject.verified_at ?? null,
+  };
+}
+
+/** A source older than this, relative to the report, is flagged stale (the schedule is daily). */
+export const staleSourceHours = 36;
+
+/**
+ * Sources whose only good read is a verified one: any other outcome (such as
+ * nothing served yet) is recorded as a failed run with its reason. Their
+ * freshness is their latest serving observation (verified, not served,
+ * incomplete or expired); an outage or failed tool is not one. The source's own
+ * section shows what was last verified.
+ */
+const verifiedOnlySources = new Set(["definition-delivery"]);
+
+export interface SourceFreshness {
+  source: string;
+  attempted_at: string | null;
+  /** The latest complete or partial read; failed reads never refresh it. */
+  last_good_at: string | null;
+  /** Hours from the last good read to this report's generation; null when never read. */
+  age_hours: number | null;
+  /** The latest typed serving observation, for verified-only sources. */
+  observed_at: string | null;
+  /** Hours from that observation to this report's generation. */
+  observation_age_hours: number | null;
+  /** Only a verified read counts as good; freshness is the latest serving observation. */
+  verified_only: boolean;
+  stale: boolean;
+}
+
+/** Ages each source's last good read against the report's own generation time. */
+export function sourceFreshness(
+  rows: readonly {
+    source: string;
+    attempted_at: string | null;
+    last_good_at: string | null;
+    observed_at?: string | null;
+  }[],
+  generatedAt: Date,
+): SourceFreshness[] {
+  const hours = (value: string | null) => {
+    const time = value === null ? Number.NaN : Date.parse(value);
+    return Number.isFinite(time)
+      ? Math.max(0, Math.round(((generatedAt.getTime() - time) / 3_600_000) * 10) / 10)
+      : null;
+  };
+  return rows.map(({ source, attempted_at, last_good_at, observed_at = null }) => {
+    const age_hours = hours(last_good_at);
+    const observation_age_hours = hours(observed_at);
+    const verified_only = verifiedOnlySources.has(source);
+    const freshest = verified_only ? observation_age_hours : age_hours;
+    return {
+      source,
+      attempted_at,
+      last_good_at,
+      age_hours,
+      observed_at,
+      observation_age_hours,
+      verified_only,
+      stale: freshest === null || freshest > staleSourceHours,
+    };
+  });
+}
+
+export interface PublicationServing {
+  /** `verified`, or why the latest read did not verify (not served, unreachable, ...). */
+  status: string;
+  observed_at: string | null;
+  /** The latest run that verified the appointed location, if any ever did. */
+  last_verified_at: string | null;
+  last_verified_revision: string | null;
+}
+
+export interface PublicationEntry {
+  definition: string;
+  /** Main facts (`{ main }`) from the committed bundle, when observed. */
+  facts: unknown;
+  /** Last verified published facts; never cleared by a failed or unserved read. */
+  published: unknown;
+  comparison:
+    | "published-matches-main"
+    | "published-differs-from-main"
+    | "never-verified-published"
+    | "published-withdrawn"
+    | "published-not-on-main"
+    | "main-unobserved";
+}
+
+const revisionLabel = (value: unknown) =>
+  typeof value === "number" || typeof value === "string" ? String(value) : "none";
+
+type MainDefinition = { main?: { revision?: unknown; definition_target?: unknown } };
+type PublishedDefinitionFact = { published?: { revision?: unknown; target?: unknown } };
+
+/** Joins main and last verified publication per definition; titles never join. */
+export function publicationEntries(
+  main: readonly { definition: string; facts: unknown }[],
+  published: readonly { definition: string; facts: unknown }[],
+  mainObserved: boolean,
+): PublicationEntry[] {
+  const mainByKey = new Map(main.map(({ definition, facts }) => [definition, facts]));
+  const publishedByKey = new Map(published.map(({ definition, facts }) => [definition, facts]));
+  const withdrawn = (facts: unknown) =>
+    (facts as { absent?: unknown } | undefined)?.absent === true;
+  const entries: PublicationEntry[] = [];
+  for (const definition of [...new Set([...mainByKey.keys(), ...publishedByKey.keys()])].sort()) {
+    const onMain = mainByKey.get(definition) as MainDefinition | undefined;
+    const servedFacts = publishedByKey.get(definition);
+    // Gone from main and withdrawn from the location: nothing left to compare.
+    if (!onMain && withdrawn(servedFacts)) continue;
+    const served = withdrawn(servedFacts)
+      ? undefined
+      : (servedFacts as PublishedDefinitionFact | undefined);
+    const comparison: PublicationEntry["comparison"] = !onMain
+      ? mainObserved
+        ? "published-not-on-main"
+        : "main-unobserved"
+      : withdrawn(servedFacts)
+        ? "published-withdrawn"
+        : !served
+          ? "never-verified-published"
+          : onMain.main?.revision === served.published?.revision &&
+              onMain.main?.definition_target === served.published?.target
+            ? "published-matches-main"
+            : "published-differs-from-main";
+    entries.push({ definition, facts: onMain ?? null, published: served ?? null, comparison });
+  }
+  return entries;
 }
 
 export interface HostedIntakeEntry {
@@ -1387,12 +2323,27 @@ export interface HostedIntakeEntry {
 
 export function buildReport(environment: NodeJS.ProcessEnv, now = new Date()): InventoryReport {
   const data = JSON.parse(runSql(environment, reportQuery).trim()) as {
+    generation: number;
+    universe_inputs: {
+      records: Parameters<typeof buildUniverse>[0]["records"];
+      issues: Record<string, unknown>;
+      intake: Record<string, unknown>;
+    };
     runs: unknown[];
+    freshness: {
+      source: string;
+      attempted_at: string | null;
+      last_good_at: string | null;
+      observed_at: string | null;
+    }[];
     subjects: unknown[];
     unassessed_gaps: { subject_key: string; code: string; message: string }[];
     publication: { definition: string; facts: unknown }[];
+    delivery: { definition: string; facts: unknown }[];
+    delivery_verified: { run_id: string; source_revision: string; completed_at: string } | null;
     hosted_intake: HostedIntakeEntry[];
     handoffs: unknown;
+    reconsiderations: ReconsiderationEntry[];
   };
   // Membership-verified catalog runs cover every authored record at their revision.
   const catalogScope = (data.runs as { source: string; member_digest: string | null }[]).some(
@@ -1415,22 +2366,48 @@ export function buildReport(environment: NodeJS.ProcessEnv, now = new Date()): I
     if (target && !(byTarget.get(target) ?? []).includes(subject.port_key))
       byTarget.set(target, [...(byTarget.get(target) ?? []), subject.port_key]);
   }
+  // Once read, the source is observed: a later failed read shows as that run's gap,
+  // while the last verified facts stay current.
   const issuesObserved = (data.runs as { source: string; coverage: string }[]).some(
-    ({ source, coverage }) => source === "issues-project" && coverage === "complete",
+    ({ source }) => source === "issues-project",
   );
-  // The last known facts stay current through a failed probe; the reason names that probe.
-  const latestPublicationRun = (
-    data.runs as { source: string; coverage: string; gaps?: { code: string }[] }[]
-  ).find(({ source }) => source === "definition-publication");
+  const latestRun = (source: string) =>
+    (
+      data.runs as {
+        source: string;
+        coverage: string;
+        completed_at: string | null;
+        gaps?: { code: string }[];
+      }[]
+    ).find((run) => run.source === source);
+  // A failed bundle read keeps the last main facts current; the reason names that read.
+  const latestPublicationRun = latestRun("definition-publication");
+  const latestDeliveryRun = latestRun("definition-delivery");
   // A complete run that found no committed definitions is an observation, not an unknown.
-  const publicationRun =
-    data.publication.length || latestPublicationRun?.coverage === "complete"
-      ? latestPublicationRun
-      : undefined;
-  const probeNote =
+  const mainObserved = !!(data.publication.length || latestPublicationRun?.coverage === "complete");
+  const serving: PublicationServing | null = latestDeliveryRun
+    ? {
+        status:
+          latestDeliveryRun.coverage === "complete"
+            ? "verified"
+            : (latestDeliveryRun.gaps?.map(({ code }) => code).join(", ") ?? "unknown"),
+        observed_at: latestDeliveryRun.completed_at,
+        last_verified_at: data.delivery_verified?.completed_at ?? null,
+        last_verified_revision: data.delivery_verified?.source_revision ?? null,
+      }
+    : null;
+  const publication = publicationEntries(data.publication, data.delivery, mainObserved);
+  const mainNote =
     latestPublicationRun && latestPublicationRun.coverage !== "complete"
-      ? ` (latest probe not classified: ${latestPublicationRun.gaps?.map(({ code }) => code).join(", ") ?? "unknown"})`
+      ? ` (latest main read failed: ${latestPublicationRun.gaps?.map(({ code }) => code).join(", ") ?? "unknown"})`
       : "";
+  const servingNote = serving
+    ? `; appointed location at the latest read: ${serving.status}${
+        serving.last_verified_at
+          ? `, last verified ${serving.last_verified_at}`
+          : ", never verified"
+      }`
+    : "; appointed location not read";
   const healthObserved = (data.runs as { source: string }[]).some(
     ({ source }) => source === "release-health",
   );
@@ -1444,41 +2421,55 @@ export function buildReport(environment: NodeJS.ProcessEnv, now = new Date()): I
     format: "portcove-maintenance-inventory",
     format_version: inventoryFormatVersion,
     generated_at: now.toISOString(),
+    generation: data.generation,
     scope: catalogScope,
-    publication: publicationRun
-      ? {
-          status: "observed",
-          reason:
-            (data.publication.length
-              ? data.publication
-                  .map(({ definition, facts }) => {
-                    const value = facts as {
-                      main?: { revision?: unknown };
-                      site?: { status?: unknown };
-                      published?: unknown;
-                    };
-                    return `${definition} revision ${String(value.main?.revision)} on main; published: ${String(value.published)} (appointed site ${String(value.site?.status)})`;
-                  })
-                  .join("; ")
-              : "observed: no committed definitions") + probeNote,
-          definitions: data.publication,
-        }
-      : {
-          status: "unknown",
-          reason: unsupportedSources.find(([source]) => source === "definition-publication")![1],
-        },
+    universe: buildUniverse({
+      records: data.universe_inputs.records,
+      issues: new Map(Object.entries(data.universe_inputs.issues)),
+      intake: new Map(Object.entries(data.universe_inputs.intake)),
+      definitions: publication.map(({ definition }) => definition),
+      catalogComplete: catalogScope === "complete-authored-catalog",
+    }),
+    publication:
+      mainObserved || serving
+        ? {
+            status: "observed",
+            reason:
+              (publication.length
+                ? publication
+                    .map(({ definition, facts, published, comparison }) => {
+                      const main = (facts as MainDefinition | null)?.main;
+                      const served = (published as PublishedDefinitionFact | null)?.published;
+                      return `${definition}: ${comparison} (main revision ${revisionLabel(main?.revision)}, last verified published revision ${revisionLabel(served?.revision)})`;
+                    })
+                    .join("; ")
+                : mainObserved
+                  ? "observed: no committed definitions"
+                  : "main not observed") +
+              mainNote +
+              servingNote,
+            serving,
+            definitions: publication,
+          }
+        : {
+            status: "unknown",
+            reason: unsupportedSources.find(([source]) => source === "definition-publication")![1],
+          },
     unsupported_sources: unsupportedSources
       .filter(([source]) => !(issuesObserved && (source === "issues" || source === "project")))
       .filter(([source]) => !(healthObserved && source === "release-health"))
       .filter(([source]) => !(upstreamObserved && source === "upstream-observations"))
       .filter(([source]) => !(hostedObserved && source === "hosted-intake"))
-      .filter(([source]) => !(publicationRun && source === "definition-publication"))
+      .filter(([source]) => !(mainObserved && source === "definition-publication"))
+      .filter(([source]) => !(serving && source === "definition-delivery"))
       .map(([source, reason]) => ({ source, reason })),
     runs: data.runs,
+    freshness: sourceFreshness(data.freshness, now),
     subjects: subjects.map((subject) => {
       const target = subject.identity?.target_key;
       return {
         ...subject,
+        reassessment: subjectReassessment(subject as Parameters<typeof subjectReassessment>[0]),
         alternatives: target
           ? (byTarget.get(target) ?? []).filter((key) => key !== subject.port_key)
           : [],
@@ -1496,6 +2487,10 @@ export function buildReport(environment: NodeJS.ProcessEnv, now = new Date()): I
     unassessed_gaps: data.unassessed_gaps,
     ...(hostedObserved ? { hosted_intake: data.hosted_intake } : {}),
     handoffs: openHandoffs(data.handoffs),
+    reconsiderations: deferralChanges(
+      data.reconsiderations,
+      data.subjects as Parameters<typeof deferralChanges>[1],
+    ),
   };
 }
 
@@ -1523,6 +2518,107 @@ function failedAttempt(report: InventoryReport, name: string) {
 }
 
 /** Hosted-intake requests with their linked work and the executor's own attention conditions. */
+function sourceAge(report: InventoryReport, source: string) {
+  const entry = report.freshness?.find((value) => value.source === source);
+  if (!entry) return "";
+  if (entry.verified_only) {
+    const observed =
+      entry.observation_age_hours === null
+        ? "no serving observation yet"
+        : `latest serving observation ${entry.observation_age_hours} h ago`;
+    const verified =
+      entry.age_hours === null ? "no verified read yet" : `last verified ${entry.age_hours} h ago`;
+    return `<span${entry.stale ? ' class="unknown"' : ""}>${escapeHtml(`${verified}; ${observed}`)}${entry.stale ? " (stale)" : ""}</span>`;
+  }
+  if (entry.age_hours === null) return '<span class="unknown">never read successfully</span>';
+  const age = `${entry.age_hours} h`;
+  return entry.stale ? `<span class="unknown">${escapeHtml(age)} (stale)</span>` : escapeHtml(age);
+}
+
+/** Report and data age: when this report was made, and the oldest last good source read. */
+function freshnessSummary(report: InventoryReport) {
+  const entries = report.freshness ?? [];
+  if (!entries.length) return "";
+  const stale = entries.filter(({ stale: value }) => value).map(({ source }) => source);
+  const ages = entries.flatMap(({ age_hours, verified_only }) =>
+    verified_only || age_hours === null ? [] : [age_hours],
+  );
+  const oldest = ages.length ? Math.max(...ages) : null;
+  return `<p>Data age: the oldest last good source read (excluding verified-only sources such as definition-delivery, aged by their serving observation) is ${
+    oldest === null ? "unknown" : escapeHtml(`${oldest} h`)
+  } before this report. ${
+    stale.length
+      ? `<span class="unknown">Stale (over ${staleSourceHours} h, or never read): ${escapeHtml(stale.join(", "))}.</span> Their last known facts stay current.`
+      : `Every source was read within ${staleSourceHours} h.`
+  }</p>`;
+}
+
+function publicationSection(report: InventoryReport) {
+  const serving = report.publication.serving;
+  const definitions = report.publication.definitions ?? [];
+  if (!serving && !definitions.length) return "";
+  const target = (value: unknown, field: "main" | "published") => {
+    const facts = (value as Record<string, Record<string, unknown>> | null)?.[field];
+    if (!facts) return "none";
+    return `revision ${escapeHtml(revisionLabel(facts.revision))} <code>${escapeHtml(field === "main" ? facts.definition_target : facts.target)}</code>`;
+  };
+  return `<h2>Definition publication</h2>
+<p>Main is what the repository commits; published is the last content Core verified at the appointed location as a client would. ${
+    serving
+      ? `Latest read: <span class="${serving.status === "verified" ? "" : "unknown"}">${escapeHtml(serving.status)}</span> at ${escapeHtml(serving.observed_at ?? "unknown")}; last verified: ${escapeHtml(serving.last_verified_at ?? "never")}. A read that did not verify changes nothing published.`
+      : "The appointed location has not been read."
+  }</p>
+<table><thead><tr><th>Definition</th><th>Comparison</th><th>Main</th><th>Last verified published</th></tr></thead><tbody>
+${definitions
+  .map(
+    (entry) =>
+      `<tr><td>${escapeHtml(entry.definition)}</td><td>${escapeHtml(entry.comparison)}</td><td>${target(entry.facts, "main")}</td><td>${target(entry.published, "published")}</td></tr>`,
+  )
+  .join("\n")}
+</tbody></table>`;
+}
+
+function reconsiderationSection(report: InventoryReport) {
+  const entries = report.reconsiderations ?? [];
+  if (!entries.length) return "";
+  const condition = (entry: ReconsiderationEntry) => {
+    const value = entry.condition;
+    const resume =
+      typeof value.resume_condition === "string"
+        ? `Resume condition: ${value.resume_condition}`
+        : value.source === "issues-project"
+          ? "No explicit resume condition recorded on the issue."
+          : "";
+    const hold = typeof value.acquisition_hold === "string" ? value.acquisition_hold : "";
+    return [hold, typeof value.blocker === "string" ? `Blocker: ${value.blocker}` : "", resume]
+      .filter(Boolean)
+      .map(escapeHtml)
+      .join("<br>");
+  };
+  return `<h2>Holds and deferrals</h2>
+<p>Recorded by their owners: Project Status Deferred or Blocked on an open issue, and reviewed catalog acquisition holds. Only the named authority reconsiders a deferral; a technical change is shown for that authority and never lifts it.</p>
+<table><thead><tr><th>Subject</th><th>Kind</th><th>Status</th><th>Condition</th><th>Revisit authority</th><th>Since</th><th>Technical changes since</th></tr></thead><tbody>
+${entries
+  .map(
+    (entry) =>
+      `<tr><td>${escapeHtml(entry.subject_key)}</td><td>${escapeHtml(entry.kind)}</td><td>${escapeHtml(entry.status)}${
+        entry.resolved_at
+          ? ` ${escapeHtml(entry.resolved_at)} (${escapeHtml(entry.resolution?.outcome ?? "")})`
+          : ""
+      }</td><td>${condition(entry)}</td><td>${escapeHtml(entry.revisit_authority)}</td><td>${escapeHtml(entry.created_at)}</td><td>${
+        (entry.technical_changes ?? [])
+          .map(
+            (change) =>
+              `${escapeHtml(change.subject_key)}: ${escapeHtml(change.state)} at ${escapeHtml(change.changed_at)}`,
+          )
+          .join("<br>") ||
+        (entry.kind === "intentional_deferral" && entry.status === "pending" ? "none observed" : "")
+      }</td></tr>`,
+  )
+  .join("\n")}
+</tbody></table>`;
+}
+
 function hostedIntakeSection(report: InventoryReport) {
   if (!report.hosted_intake) return "";
   const attempt = failedAttempt(report, "hosted-intake");
@@ -1552,10 +2648,112 @@ ${report.hosted_intake
 </tbody></table>`;
 }
 
+/**
+ * Core's per-target offering in words: the managed or external route per
+ * platform, the reviewed hold or restriction, and Core's own unknowns.
+ */
+export function targetSummary(fact: TargetRoutesFact | null | undefined) {
+  if (!fact) return null;
+  if (fact.presence !== "operational")
+    return `${fact.presence.replaceAll("_", " ")}; no route offered`;
+  const offered = fact.targets.flatMap(({ platform, routes }) =>
+    routes
+      .filter(({ offered: yes }) => yes)
+      .map(
+        ({ action }) =>
+          `${action === "install" ? "managed install" : "external registration"} on ${platform}`,
+      ),
+  );
+  return [
+    offered.length ? offered.join(", ") : "no route offered on any inspected platform",
+    fact.acquisition_hold ? `held: ${fact.acquisition_hold}` : "",
+    fact.download_restriction ? `download restricted: ${fact.download_restriction}` : "",
+    "trust eligibility and readiness not assessed",
+  ]
+    .filter(Boolean)
+    .join("; ");
+}
+
+/**
+ * Core's qualification state per target in words. Core decides every state
+ * and applicability; this only words them and keeps unknown codes verbatim.
+ */
+export function qualificationSummary(fact: TargetRoutesFact | null | undefined) {
+  if (!fact || fact.presence !== "operational") return null;
+  const parts: string[] = [];
+  let routeUnrecorded = false;
+  for (const { platform, qualification } of fact.targets) {
+    if (!qualification) continue;
+    const refs = qualification.qualified_refs.join(", ");
+    const statement =
+      qualification.state === "offered_artifact_qualified"
+        ? `qualified for the offered artifact ${refs} on ${platform}`
+        : qualification.state === "reviewed_binding_qualified"
+          ? `qualified for reviewed release ${refs} on ${platform} only if the provider resolves it`
+          : qualification.state === "structural_only"
+            ? `structural checks only on ${platform}`
+            : qualification.state === "applicable_not_passed"
+              ? `evidence recorded for what is offered on ${platform}, none passed`
+              : qualification.state === "historical_only"
+                ? `historical qualification only on ${platform}`
+                : qualification.state === "unqualified"
+                  ? ""
+                  : `${qualification.state} on ${platform}`;
+    if (
+      statement &&
+      qualification.state !== "historical_only" &&
+      qualification.evidence_route === "unrecorded"
+    )
+      routeUnrecorded = true;
+    if (statement) parts.push(statement.replace(/ {2,}/gu, " "));
+    if (qualification.known_failure) parts.push(`known failure recorded on ${platform}`);
+    if (qualification.legacy_coverage.length)
+      parts.push(
+        `legacy port-wide coverage (${qualification.legacy_coverage.join(", ")}) on ${platform}, not artifact-bound`,
+      );
+  }
+  if (routeUnrecorded) parts.push("evidence does not record which route it exercised");
+  return parts.length ? parts.join("; ") : "no recorded qualification";
+}
+
+/**
+ * The report page's subject filter, as plain JavaScript source: the page embeds
+ * exactly this text, and tests evaluate the same text. It decides only what is
+ * shown; every value comes from the report.
+ */
+export const subjectFilterSource = `function subjectRowText(subject) {
+  return [subject.subject_key, subject.name, subject.game, subject.target_key,
+    ...(subject.alternatives || []), subject.state, String(subject.sequence ?? ""),
+    subject.verified_at, subject.changed_at, subject.latest_core_run,
+    ...(subject.work || []), subject.inputs, subject.upstream, subject.offered, subject.qualified,
+    subject.latest_health_gap, ...(subject.attention || []), ...(subject.next_actions || []),
+    subject.latest_core_gap ? subject.latest_core_gap.code : ""]
+    .filter((value) => typeof value === "string" && value).join(" ").toLowerCase();
+}
+function subjectNeedsAttention(subject) {
+  return Boolean((subject.attention || []).length || subject.port_health_gap ||
+    (subject.next_actions || []).length || subject.latest_core_gap);
+}
+function subjectMatches(subject, filters, generatedAt) {
+  const text = subjectRowText(subject);
+  for (const token of (filters.text || "").toLowerCase().split(/\\s+/u).filter(Boolean))
+    if (!text.includes(token)) return false;
+  if (filters.platform && !String(subject.subject_key).endsWith("@" + filters.platform)) return false;
+  if (filters.state && subject.state !== filters.state) return false;
+  if (filters.attention && !subjectNeedsAttention(subject)) return false;
+  if (filters.changedWithinDays) {
+    const changed = Date.parse(subject.changed_at);
+    const since = Date.parse(generatedAt) - filters.changedWithinDays * 86400000;
+    if (!(changed >= since)) return false;
+  }
+  return true;
+}`;
+
 /** A self-contained, searchable page; data is embedded as escaped JSON, never as markup. */
 export function renderHtml(report: InventoryReport) {
   // The page embeds only what it renders; inventory.json keeps every explanation.
   const upstreamAttempt = failedAttempt(report, "upstream-observations");
+  const healthAttempt = failedAttempt(report, "release-health");
   const view = {
     subjects: (report.subjects as Record<string, unknown>[]).map(
       ({
@@ -1563,7 +2761,8 @@ export function renderHtml(report: InventoryReport) {
         port_key,
         state,
         sequence,
-        assessed_at,
+        verified_at,
+        changed_at,
         latest_core_gap,
         latest_core_run,
         work,
@@ -1573,15 +2772,39 @@ export function renderHtml(report: InventoryReport) {
         latest_health_gap,
         upstream,
         latest_upstream_gap,
+        target_routes,
+        reassessment,
       }) => ({
+        inputs: (() => {
+          const value = reassessment as SubjectReassessment | undefined;
+          if (!value) return null;
+          return [
+            `catalog fact changed ${value.catalog_changed_at ?? "never observed"}`,
+            `Core output changed ${value.core_output_changed_at ?? "never observed"}`,
+            `inputs unchanged since ${value.inputs_unchanged_since ?? "never"}`,
+          ].join("; ");
+        })(),
+        offered: targetSummary(target_routes as TargetRoutesFact | null | undefined),
+        qualified: qualificationSummary(target_routes as TargetRoutesFact | null | undefined),
         attention: [
           ...(attentionConditions(release_health) as { rule?: string; operation?: string }[]).map(
             ({ rule, operation }) => `${rule ?? "unknown"} (${operation ?? "unknown"})`,
           ),
           ...upstreamAttention(upstream, latest_upstream_gap),
         ],
-        latest_health_gap,
+        // A failed latest read is visible; per-port gaps come from the latest read that did not fail.
+        latest_health_gap:
+          [
+            healthAttempt ? `latest read failed: ${healthAttempt}` : "",
+            typeof latest_health_gap === "string"
+              ? `${healthAttempt ? "previous read" : "latest read"}: ${latest_health_gap}`
+              : "",
+          ]
+            .filter(Boolean)
+            .join("; ") || null,
         next_actions: nextActions(report, port_key, subject_key),
+        // A source-wide failed read is shown, but only a per-port gap needs this port's attention.
+        port_health_gap: typeof latest_health_gap === "string" ? latest_health_gap : null,
         upstream: upstreamSummary(upstream, latest_upstream_gap, upstreamAttempt),
         subject_key,
         name: (identity as { name?: string } | undefined)?.name ?? null,
@@ -1590,7 +2813,8 @@ export function renderHtml(report: InventoryReport) {
         alternatives,
         state,
         sequence,
-        assessed_at,
+        verified_at,
+        changed_at,
         latest_core_gap,
         latest_core_run,
         work: Array.isArray(work)
@@ -1608,7 +2832,19 @@ export function renderHtml(report: InventoryReport) {
           : [],
       }),
     ),
+    generated_at: report.generated_at,
     unassessed_gaps: report.unassessed_gaps ?? [],
+    universe: (report.universe ?? []).map(
+      ({ key, kind, name, game, target_key, port_keys, relations, identity_gap }) => ({
+        key,
+        kind,
+        label: [name, game].filter(Boolean).join(" — "),
+        target_key,
+        port_keys,
+        relations: relations.map(({ type, key: related }) => `${type} ${related}`),
+        identity_gap,
+      }),
+    ),
   };
   const embedded = JSON.stringify(view).replace(/</gu, "\\u003c");
   return `<!doctype html>
@@ -1630,48 +2866,105 @@ input { width: 100%; padding: .5rem; font: inherit; }
 <h1>Portcove maintenance inventory</h1>
 <p>Generated ${escapeHtml(report.generated_at)}. Scope: ${escapeHtml(report.scope)} (not the complete inventory).
 Published delivery: <span class="unknown">${escapeHtml(report.publication.status)}</span> — ${escapeHtml(report.publication.reason)}</p>
-<p>Core assessments come from a fully isolated CLI run on the collecting host; the CLI binary is bound by digest and its build source is <span class="unknown">unverified</span>.</p>
+<p>Core assessments come from a fully isolated CLI run on the collecting host; the CLI binary is bound by digest, and each Core run's revision states whether its build source is verified (<code>binding=verified</code>) or only claimed.</p>
+${freshnessSummary(report)}
 <h2>Sources</h2>
-<table><thead><tr><th>Source</th><th>Coverage</th><th>Revision</th><th>Observed</th><th>Completed</th><th>Gaps</th></tr></thead><tbody>
+<table><thead><tr><th>Source</th><th>Coverage</th><th>Revision</th><th>Observed</th><th>Completed</th><th>Age of last good read</th><th>Gaps</th></tr></thead><tbody>
 ${(report.runs as Record<string, unknown>[])
   .map(
     (run) =>
-      `<tr><td>${escapeHtml(run.source)}</td><td>${escapeHtml(run.coverage)}</td><td><code>${escapeHtml(run.source_revision)}</code></td><td>${escapeHtml(run.observed_count)} of ${escapeHtml(run.expected_count ?? "unknown")} declared</td><td>${escapeHtml(run.completed_at)}</td><td>${(Array.isArray(run.gaps) ? (run.gaps as { subject_key: string; code: string }[]) : []).map((gap) => `${escapeHtml(gap.subject_key)}: ${escapeHtml(gap.code)}`).join("<br>")}</td></tr>`,
+      `<tr><td>${escapeHtml(run.source)}</td><td>${escapeHtml(run.coverage)}</td><td><code>${escapeHtml(run.source_revision)}</code></td><td>${escapeHtml(run.observed_count)} of ${escapeHtml(run.expected_count ?? "unknown")} declared</td><td>${escapeHtml(run.completed_at)}</td><td>${sourceAge(report, String(run.source))}</td><td>${(Array.isArray(run.gaps) ? (run.gaps as { subject_key: string; code: string }[]) : []).map((gap) => `${escapeHtml(gap.subject_key)}: ${escapeHtml(gap.code)}`).join("<br>")}</td></tr>`,
   )
   .join("\n")}
 ${report.unsupported_sources
   .map(
     (source) =>
-      `<tr><td>${escapeHtml(source.source)}</td><td class="unknown">unknown</td><td colspan="4">${escapeHtml(source.reason)}</td></tr>`,
+      `<tr><td>${escapeHtml(source.source)}</td><td class="unknown">unknown</td><td colspan="5">${escapeHtml(source.reason)}</td></tr>`,
   )
   .join("\n")}
 </tbody></table>
+${publicationSection(report)}
+${reconsiderationSection(report)}
 ${hostedIntakeSection(report)}
 <p>Next actions are executor handoffs. Disabled: ${escapeHtml(disabledCapabilities.join("; "))}.</p>
+<h2>Games and implementations</h2>
+<p>Every known port, implementation identity, issue-only implementation, intake request and definition. Related entries are linked, never merged; names are labels, not identity.</p>
+<label for="universe-search">Search games and implementations</label>
+<input id="universe-search" type="search" placeholder="Name, game, port key or identity">
+<table><thead><tr><th>Identity</th><th>Kind</th><th>Name and game</th><th>Port keys</th><th>Related</th></tr></thead><tbody id="universe"></tbody></table>
 <h2>Subjects</h2>
-<label for="search">Search</label>
-<input id="search" type="search" placeholder="Port ID or state">
-<table><thead><tr><th>Subject</th><th>Name and game</th><th>Alternatives</th><th>Core assessment</th><th>Changes</th><th>Assessed</th><th>Latest Core run</th><th>Work</th><th>Upstream</th><th>Needs attention</th><th>Next action</th></tr></thead><tbody id="subjects"></tbody></table>
+<p>Every complete run re-reads Core for every port. A port is reassessed, recording a new assessment, only when ${reassessmentTriggers.map(escapeHtml).join("; or ")}. Only a changed result records a change; a rebuild with the same output, a failed run, or a port Core could not read in a partial run records nothing. "Last verified" is the latest run that re-read the port and found the same inputs.</p>
+<form id="filters" role="search" onsubmit="return false">
+<label for="search">Search every column</label>
+<input id="search" type="search" placeholder="Port, game, issue, upstream, offering, attention or action">
+<label for="platform">Platform</label>
+<select id="platform"><option value="">All platforms</option></select>
+<label for="state">Core assessment</label>
+<select id="state"><option value="">All states</option></select>
+<label for="changed">Last changed</label>
+<select id="changed"><option value="">Any time</option><option value="1">Within a day of this report</option><option value="7">Within 7 days</option><option value="30">Within 30 days</option></select>
+<label><input id="attention" type="checkbox"> Needs attention or has a next action</label>
+</form>
+<p id="shown" aria-live="polite"></p>
+<table><thead><tr><th>Subject</th><th>Name and game</th><th>Alternatives</th><th>Core assessment</th><th>Changes</th><th>Last verified</th><th>Last changed</th><th>Inputs last changed</th><th>Latest Core run</th><th>Work</th><th>Upstream</th><th>Offered for a fresh library</th><th>Qualification for the offered artifact (Core)</th><th>Needs attention</th><th>Next action</th></tr></thead><tbody id="subjects"></tbody></table>
 <script id="inventory" type="application/json">${embedded}</script>
 <script>
 const report = JSON.parse(document.getElementById("inventory").textContent);
 const body = document.getElementById("subjects");
-function render(filter) {
+${subjectFilterSource}
+const allSubjects = [...report.subjects, ...(report.unassessed_gaps ?? []).map((gap) => ({ subject_key: gap.subject_key, state: "unknown", sequence: 0, verified_at: "never", changed_at: "never", latest_core_gap: gap }))];
+for (const [id, values] of [
+  ["platform", [...new Set(allSubjects.map((subject) => String(subject.subject_key).split("@")[1]).filter(Boolean))].sort()],
+  ["state", [...new Set(allSubjects.map((subject) => subject.state).filter(Boolean))].sort()],
+]) {
+  const select = document.getElementById(id);
+  for (const value of values) select.add(new Option(value, value));
+}
+function currentFilters() {
+  return {
+    text: document.getElementById("search").value.trim(),
+    platform: document.getElementById("platform").value,
+    state: document.getElementById("state").value,
+    changedWithinDays: Number(document.getElementById("changed").value) || 0,
+    attention: document.getElementById("attention").checked,
+  };
+}
+function render() {
   body.replaceChildren();
-  for (const subject of [...report.subjects, ...(report.unassessed_gaps ?? []).map((gap) => ({ subject_key: gap.subject_key, state: "unknown", sequence: 0, assessed_at: "never", latest_core_gap: gap }))]) {
-    const text = [subject.subject_key, subject.state, subject.name, subject.game, subject.target_key].join(" ").toLowerCase();
-    if (filter && !text.includes(filter)) continue;
+  const filters = currentFilters();
+  let shown = 0;
+  for (const subject of allSubjects) {
+    if (!subjectMatches(subject, filters, report.generated_at)) continue;
+    shown += 1;
     const row = body.insertRow();
     const gap = subject.latest_core_gap
       ? "not assessed: " + subject.latest_core_gap.code
       : subject.latest_core_run === "assessed" ? "assessed"
       : subject.latest_core_run === "removed" ? "removed from the catalog" : "not in latest run";
-    for (const value of [subject.subject_key, [subject.name, subject.game].filter(Boolean).join(" — "), (subject.alternatives ?? []).join(", "), subject.state, String(subject.sequence), subject.assessed_at, gap, (subject.work ?? []).join("; ") || "no linked issue observed", subject.upstream || "not observed", [subject.latest_health_gap ? "health not fresh: " + subject.latest_health_gap : "", ...(subject.attention ?? [])].filter(Boolean).join("; "), (subject.next_actions ?? []).join("; ")])
+    for (const value of [subject.subject_key, [subject.name, subject.game].filter(Boolean).join(" — "), (subject.alternatives ?? []).join(", "), subject.state, String(subject.sequence), subject.verified_at, subject.changed_at, subject.inputs || "not observed", gap, (subject.work ?? []).join("; ") || "no linked issue observed", subject.upstream || "not observed", subject.offered || "not observed", subject.qualified || "not observed", [subject.latest_health_gap ? "health not fresh: " + subject.latest_health_gap : "", ...(subject.attention ?? [])].filter(Boolean).join("; "), (subject.next_actions ?? []).join("; ")])
       row.insertCell().textContent = value;
   }
+  document.getElementById("shown").textContent = shown + " of " + allSubjects.length + " subjects shown.";
 }
-document.getElementById("search").addEventListener("input", (event) => render(event.target.value.trim().toLowerCase()));
-render("");
+document.getElementById("filters").addEventListener("input", render);
+document.getElementById("filters").addEventListener("change", render);
+render();
+const universe = document.getElementById("universe");
+function renderUniverse(filter) {
+  universe.replaceChildren();
+  const entries = report.universe ?? [];
+  for (const entry of entries) {
+    const text = [entry.key, entry.label, entry.target_key, entry.identity_gap, ...entry.port_keys, ...entry.relations].join(" ").toLowerCase();
+    if (filter && !text.includes(filter)) continue;
+    const row = universe.insertRow();
+    for (const value of [entry.key, entry.kind, entry.label || "unnamed", entry.port_keys.join(", "), [...entry.relations, ...(entry.identity_gap ? ["identity unknown: " + entry.identity_gap] : [])].join("; ")])
+      row.insertCell().textContent = value;
+  }
+  if (!entries.length) universe.insertRow().insertCell().textContent = "No identities observed yet.";
+  else if (!universe.rows.length) universe.insertRow().insertCell().textContent = "No identity matches this search.";
+}
+document.getElementById("universe-search").addEventListener("input", (event) => renderUniverse(event.target.value.trim().toLowerCase()));
+renderUniverse("");
 </script>
 </body>
 </html>
@@ -1679,9 +2972,30 @@ render("");
 }
 
 /** Writes inventory.json and index.html atomically into a new directory. */
-export function writeReport(report: InventoryReport, output: string) {
+export function writeReport(
+  report: InventoryReport,
+  output: string,
+  /** The report this one supersedes; a late producer of an older generation is refused. */
+  previous?: string,
+) {
   if (existsSync(output))
     throw new MaintenanceStoreError(`Report destination already exists: ${output}`);
+  if (previous) {
+    const priorFile = path.join(previous, "inventory.json");
+    if (!existsSync(priorFile))
+      throw new MaintenanceStoreError(`The previous report has no inventory.json: ${previous}`);
+    const prior = parseJson(readFileSync(priorFile, "utf8"), "previous maintenance report") as {
+      format?: unknown;
+      generation?: unknown;
+    };
+    if (prior.format !== "portcove-maintenance-inventory")
+      throw new MaintenanceStoreError("The previous report is not a maintenance inventory");
+    const generation = typeof prior.generation === "number" ? prior.generation : 0;
+    if (generation > report.generation)
+      throw new MaintenanceStoreError(
+        `The previous report reflects newer collections (generation ${generation} > ${report.generation}); it is kept`,
+      );
+  }
   mkdirSync(path.dirname(output), { recursive: true });
   const staging = mkdtempSync(`${output}.partial-`);
   try {
@@ -1804,6 +3118,10 @@ commands:
                                        assessment into the store; --all stores changes only;
                                        --issues (with --all) adds the verified issue and Project
                                        inventory through the maintained read-only roadmap collector;
+                                       --issues-token-env NAME (with --issues) reads that collector's
+                                       credential from NAME instead of GH_TOKEN, never falling back;
+                                       --targets (with --all) adds Core's per-target route
+                                       offering for a fresh library (catalog inspect-targets);
                                        --release-health (with --all) adds the latest scheduled
                                        main upstream-health report, bound by run and digest;
                                        --upstream (with --all) adds the newest retained upstream
@@ -1811,8 +3129,13 @@ commands:
                                        push main run, bound by run, source and artifact digest;
                                        --hosted-intake (with --all) adds every #177 hosted-intake
                                        request through the executor's read-only status, bound by
-                                       the #177 revision and a digest of every comment
-  report --output DIR                  write inventory.json and index.html to a new DIR
+                                       the #177 revision and a digest of every comment;
+                                       --publication (with --all) adds the definitions committed
+                                       on main; --delivery (with --all) adds what the appointed
+                                       definition location serves, verified by Core as a client
+                                       would (catalog inspect-definition-delivery)
+  report --output DIR [--previous DIR]  write inventory.json and index.html to a new DIR; with
+                                       --previous, refuse if that report reflects newer collections
   digest --output DIR                  write the pending changes-only digest (digest.json, digest.md)
   acknowledge --digest FILE --receipt REF
                                        record delivery of that digest's notifications against the
@@ -1835,18 +3158,27 @@ export async function main(argv = process.argv.slice(2)) {
     console.log(usage);
     return command ? 0 : 2;
   }
-  const environment = connectionFromEnvironment(
-    option(args, "--database-env") ?? defaultDatabaseEnvironment,
-  );
+  const databaseEnvironment = option(args, "--database-env") ?? defaultDatabaseEnvironment;
+  const environment = connectionFromEnvironment(databaseEnvironment);
+  // Core CLI, Git and libpq children receive only the libpq translation, never the URL.
+  delete process.env[databaseEnvironment];
   const cli = option(args, "--cli");
   const sample = option(args, "--sample");
   const output = option(args, "--output");
+  const previous = option(args, "--previous");
   const digestFile = option(args, "--digest");
   const receipt = option(args, "--receipt");
   const concurrency = option(args, "--concurrency");
+  const issuesTokenEnvironment = option(args, "--issues-token-env");
   const allIndex = args.indexOf("--all");
   const all = allIndex >= 0;
   if (all) args.splice(allIndex, 1);
+  const targetsIndex = args.indexOf("--targets");
+  const targets = targetsIndex >= 0;
+  if (targets) args.splice(targetsIndex, 1);
+  const deliveryIndex = args.indexOf("--delivery");
+  const delivery = deliveryIndex >= 0;
+  if (delivery) args.splice(deliveryIndex, 1);
   const publicationIndex = args.indexOf("--publication");
   const publication = publicationIndex >= 0;
   if (publication) args.splice(publicationIndex, 1);
@@ -1874,10 +3206,18 @@ export async function main(argv = process.argv.slice(2)) {
     throw new MaintenanceStoreError("--concurrency must be 1-99");
   if ((json || record) && command !== "handoffs")
     throw new MaintenanceStoreError("--json and --record apply only to handoffs");
+  if (issuesTokenEnvironment !== undefined && (!issues || command !== "collect"))
+    throw new MaintenanceStoreError("--issues-token-env applies only to collect --issues");
+  if (previous !== undefined && command !== "report")
+    throw new MaintenanceStoreError("--previous applies only to report");
   if (args.length)
     throw new MaintenanceStoreError(`Unexpected arguments: ${args.join(" ")}\n${usage}`);
   if (command === "collect") {
     if (!cli) throw new MaintenanceStoreError("collect requires --cli PATH");
+    const issueCredential =
+      issuesTokenEnvironment === undefined
+        ? undefined
+        : takeIssueCredential(issuesTokenEnvironment);
     console.log(
       JSON.stringify(
         await collect({
@@ -1885,11 +3225,13 @@ export async function main(argv = process.argv.slice(2)) {
           sample,
           all,
           concurrency: concurrency === undefined ? undefined : Number(concurrency),
-          issues: issues ? readIssueInventory : undefined,
+          issues: issues ? () => readIssueInventory(issueCredential) : undefined,
           releaseHealth: releaseHealth ? readReleaseHealth : undefined,
           upstream: upstreamSource ? () => readUpstreamObservations(committedBytes) : undefined,
           hostedIntake: hostedSource ? readHostedIntake : undefined,
           publication: publication || undefined,
+          delivery: delivery || undefined,
+          targets: targets || undefined,
           environment,
         }),
         null,
@@ -1899,7 +3241,7 @@ export async function main(argv = process.argv.slice(2)) {
   } else if (command === "report") {
     if (!output) throw new MaintenanceStoreError("report requires --output DIR");
     const report = buildReport(environment);
-    writeReport(report, path.resolve(output));
+    writeReport(report, path.resolve(output), previous ? path.resolve(previous) : undefined);
     console.log(
       JSON.stringify({ output: path.resolve(output), subjects: report.subjects.length }, null, 2),
     );

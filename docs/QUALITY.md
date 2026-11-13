@@ -78,39 +78,6 @@ heuristic: it never fails the job, selects no validation and is not a merge
 prerequisite. A new route shape or contract legitimately needs Rust; otherwise the
 named files show a test or code path that still keys on a specific port.
 
-### Single required status transition
-
-The five required contexts are jobs that must run even when their run is cancelled,
-so a superseded run keeps needing runners after it stops mattering. The replacement
-is one required commit status, `ci`, and it arrives in three steps so merge is never
-ungated.
-
-1. `.github/workflows/ci-required-status.yml` posts `ci` on the pull request head
-   when that head's `CI` run completes: `success` for a successful run, `failure`
-   for a failed, timed-out or unstartable one, and nothing for a cancelled one. It
-   runs the default branch's copy, checks out nothing and executes nothing from
-   the pull request; the pull request still supplies the `ci.yml` whose run is
-   judged, as it does for the aggregate jobs today. Only the run's current attempt
-   posts, and posts for one head run one at a time. While the five contexts remain
-   required, `ci` is informational.
-2. The owner changes the `main` ruleset to require `ci` in place of the five
-   contexts, together with `.github/repository-ruleset.json`, the protected-context
-   list in `.github/qualification-coverage.json` and the delivery readers that
-   consume them. This step needs explicit owner authority.
-3. The five aggregate jobs become one result job that a cancelled run skips, pull
-   request runs return to built-in per-pull-request cancellation, and the cancelling
-   half of the supersede workflow is removed.
-
-A later decided attempt on the same head replaces the status with its own outcome.
-A later attempt that is cancelled or still running leaves the earlier status, which
-that same head earned. A missing status blocks merge once `ci` is required; a
-skipped job cannot satisfy it.
-
-The run outcome is stricter than the five contexts in one place: no aggregate job
-needs `frontend-no-global (macos-arm64)`, so today its failure fails the run without
-failing a required context. Step two must either accept that job as required or
-exclude it from the run outcome.
-
 ### Review scope
 
 Independent non-writing review is required for substantive behavior and higher
@@ -388,6 +355,29 @@ defer is left to finish. The re-run is best effort; if it does not happen, use "
 all jobs" on the head's CI run; re-running only failed jobs keeps the draft
 classification. Push, qualification, release and reused plans never defer.
 
+A superseded pull request run stops taking runners before its cancellation arrives.
+The supersede workflow needs a runner of its own to cancel older runs, and under
+queue pressure that can take as long as any other job. The classifier and the fast
+Rust, frontend and catalog producers therefore run
+`.github/actions/stop-if-superseded` right after checkout: on a pull request event it
+reads `refs/pull/<number>/head` from the remote and fails the job with a "Superseded"
+error when that head differs from the head the run validates. The job has done no
+work for that head, so nothing is lost; the failure lands on a commit that is no
+longer that pull request's head and cannot satisfy a required context. CI health
+excludes such an attempt from the first-attempt pass rate, as it does a cancelled one.
+
+An unreadable or missing head keeps the job running. Push, qualification and release
+callers have no pull request and never stop. `windows-helper-contracts` keeps its
+fixed admitted step list and is left to the supersede workflow.
+
+A push run on `main` is not cancelled by a later merge. Shared Rust build caches are
+saved only from `main`, and a cancelled run validates nothing; while merges arrived
+faster than a run could finish, most `main` runs were cancelled and no Rust partition
+completed there. One later merge waits as the pending run and replaces any older
+pending one. Each `main` run still plans only its own push range, so a replaced
+pending run's changes are not planned on `main`, as when such runs were cancelled.
+Pull request runs keep their own per-run groups.
+
 Retain failures, diagnose the smallest useful reproduction, and repeat only
 invalidated obligations. Preserve assertions, coverage, cleanup and finite
 termination; an unchanged later pass does not establish a causal repair.
@@ -509,8 +499,11 @@ The payload replaces its shell with `exec` so runner cancellation reaches the
 supervised controller. GitHub may report the deadline as `cancelled`; the verifier
 requires its exact timeout annotation as well as the owned-process drain receipt.
 Main CI bounds metadata/aggregate jobs at 15 minutes, ordinary producers at
-45 minutes, and exhaustive producers at 120 minutes. Windows helpers retain
-10 minutes. The macOS no-global frontend route allows
+45 minutes, and exhaustive producers at 120 minutes. The Windows Rust build has
+60 minutes: with the optimized test profile a cold build took up to 37 minutes
+(run 43352622836) and a root-manifest edit forces one until `main` saves the cache. Windows helpers have
+15 minutes: run 43296962076 attempt 1 reached the earlier 10-minute limit in its last
+step on a slow runner and passed its one re-run in 8 minutes. The macOS no-global frontend route allows
 25 minutes for cold provider setup, its full browser stages and evidence retention;
 other portability probes retain 15 minutes. These generous outer
 envelopes include cold setup and evidence upload above the audit's sampled

@@ -464,6 +464,18 @@ pub(crate) fn document(contract: SchemaContract) -> serde_json::Value {
                 >(contract)),
             ),
             (
+                "game_file_scan_match_query",
+                serde_json::json!(
+                    schema_for_contract::<portcove_core::GameFileScanMatchQuery>(contract)
+                ),
+            ),
+            (
+                "game_file_scan_match_page",
+                serde_json::json!(schema_for_contract::<portcove_core::GameFileScanMatchPage>(
+                    contract
+                )),
+            ),
+            (
                 "source_discovery_limits",
                 serde_json::json!(schema_for_contract::<portcove_core::SourceDiscoveryLimits>(
                     contract

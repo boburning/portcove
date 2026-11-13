@@ -46,6 +46,100 @@ pub struct GameFileScanSnapshot {
     // Opaque, library-owned checkpoint data. Clients cannot submit it to a scan.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub continuation: Option<serde_json::Value>,
+    /// Where the scan's retained matches live. When present, the report's
+    /// `candidates` and `preliminary_selections` are only a bounded preview
+    /// and every match is read in pages. Absent means every match is inline
+    /// in the report (older formats).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub matches: Option<GameFileScanMatchSummary>,
+}
+
+/// Totals for one saved-folder scan's retained matches. The preview in the
+/// report holds the first matches in page order, exact matches first.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct GameFileScanMatchSummary {
+    pub scan_id: String,
+    pub exact_matches: u32,
+    pub preliminary_selections: u32,
+    /// Whether the report's preview holds every retained match.
+    pub preview_complete: bool,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum GameFileScanMatchKind {
+    Exact,
+    Preliminary,
+}
+
+impl GameFileScanMatchKind {
+    pub(crate) fn row_kind(self) -> u8 {
+        match self {
+            Self::Exact => 0,
+            Self::Preliminary => 1,
+        }
+    }
+}
+
+/// One page of the current saved-folder scan's retained matches.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct GameFileScanMatchQuery {
+    /// The scan the caller is paging; a different current scan is a conflict.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub scan_id: Option<String>,
+    pub kind: GameFileScanMatchKind,
+    #[serde(default)]
+    pub offset: u32,
+    /// 1 to 512 matches.
+    pub limit: u32,
+    /// Only matches inside this saved folder.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub root_id: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct GameFileScanMatchPage {
+    /// Absent when the current report keeps every match inline.
+    pub scan_id: Option<String>,
+    pub kind: GameFileScanMatchKind,
+    pub offset: u32,
+    /// Matches of this kind (inside `root_id`, when given).
+    pub total: u32,
+    pub candidates: Vec<crate::SourceRecord>,
+    pub preliminary_selections: Vec<crate::SourceInspection>,
+    pub next_offset: Option<u32>,
+}
+
+pub const MAX_GAME_FILE_SCAN_MATCH_PAGE: u32 = 512;
+
+/// One retained match row written with its scan snapshot.
+#[derive(Debug, Clone)]
+pub(crate) struct GameFileScanMatchRow {
+    pub kind: u8,
+    pub ordinal: u32,
+    pub profile_id: String,
+    pub path: String,
+    pub batch: u32,
+    pub record_json: String,
+}
+
+/// How a snapshot publication changes the retained match rows, inside the
+/// same transaction as the snapshot itself.
+#[derive(Debug, Clone)]
+pub(crate) enum GameFileScanMatchWrite {
+    /// Keep the rows; only the snapshot changes (an invalidated checkpoint).
+    Unchanged,
+    /// A new scan: every earlier row is removed first.
+    Fresh {
+        scan_id: String,
+        rows: Vec<GameFileScanMatchRow>,
+    },
+    /// A validated continuation adds its batch to the same scan.
+    Append {
+        scan_id: String,
+        expected_counts: [u32; 2],
+        rows: Vec<GameFileScanMatchRow>,
+    },
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
@@ -149,6 +243,27 @@ impl Library {
         )?;
         let rows = statement.query_map([], StoredGameFileRoot::from_row)?;
         rows.map(|row| row?.into_record()).collect()
+    }
+
+    /// The saved folder containing `path` when that folder is unavailable.
+    /// Only the containing folder is checked, so other disconnected network
+    /// folders never slow this down. Best effort: errors read as available.
+    pub(crate) fn unavailable_game_file_root_containing(&self, path: &Path) -> Option<PathBuf> {
+        let connection = self.connection().ok()?;
+        let mut statement = connection
+            .prepare("SELECT path FROM game_file_roots")
+            .ok()?;
+        let roots = statement
+            .query_map([], |row| row.get::<_, String>(0))
+            .ok()?
+            .filter_map(std::result::Result::ok)
+            .map(PathBuf::from)
+            .collect::<Vec<_>>();
+        let root = roots
+            .into_iter()
+            .filter(|root| path.starts_with(root))
+            .max_by_key(|root| root.components().count())?;
+        (!std::fs::metadata(&root).is_ok_and(|metadata| metadata.is_dir())).then_some(root)
     }
 
     pub fn relink_game_file_root(&self, id: &str, path: &Path) -> Result<GameFileRoot> {
@@ -256,6 +371,7 @@ impl Library {
         expected_outputs: &[crate::library::OutputRootRecord],
         expected_roots: &[GameFileRoot],
         expected_payload: Option<&str>,
+        matches: &GameFileScanMatchWrite,
     ) -> Result<()> {
         let payload = serde_json::to_string(snapshot)?;
         if payload.len() > MAX_SCAN_SNAPSHOT_BYTES {
@@ -293,6 +409,7 @@ impl Library {
                 "saved folders or scan checkpoint changed during the game-file scan; retry the scan",
             ));
         }
+        write_scan_matches(&transaction, matches)?;
         transaction.execute(
             "INSERT INTO game_file_scan_state(singleton,snapshot_json) VALUES (1,?1)
              ON CONFLICT(singleton) DO UPDATE SET snapshot_json=excluded.snapshot_json",
@@ -300,6 +417,230 @@ impl Library {
         )?;
         transaction.commit()?;
         Ok(())
+    }
+
+    /// One page of the current scan's matches. The snapshot and its rows are
+    /// read in one transaction, so a page never mixes two scans.
+    pub(crate) fn game_file_scan_match_page(
+        &self,
+        query: &GameFileScanMatchQuery,
+    ) -> Result<GameFileScanMatchPage> {
+        let mut connection = self.connection()?;
+        let transaction = connection.transaction()?;
+        let payload = transaction
+            .query_row(
+                "SELECT snapshot_json FROM game_file_scan_state WHERE singleton=1",
+                [],
+                |row| row.get::<_, String>(0),
+            )
+            .optional()?;
+        if payload
+            .as_ref()
+            .is_some_and(|payload| payload.len() > MAX_SCAN_SNAPSHOT_BYTES)
+        {
+            return Err(PortcoveError::state(
+                "stored game-file scan snapshot exceeds its storage limit",
+            ));
+        }
+        let root = query
+            .root_id
+            .as_deref()
+            .map(|id| {
+                validate_id(id)?;
+                transaction
+                    .query_row(
+                        "SELECT path,path_key FROM game_file_roots WHERE id=?1",
+                        [id],
+                        |row| {
+                            Ok((
+                                PathBuf::from(row.get::<_, String>(0)?),
+                                row.get::<_, String>(1)?,
+                            ))
+                        },
+                    )
+                    .optional()?
+                    .ok_or_else(|| {
+                        PortcoveError::not_found("saved game-file folder does not exist")
+                            .detail("root_id", id)
+                    })
+            })
+            .transpose()?;
+        let snapshot = payload
+            .as_deref()
+            .map(crate::source_discovery::decode_game_file_scan)
+            .transpose()?;
+        let summary = snapshot
+            .as_ref()
+            .and_then(crate::source_discovery::scan_match_summary);
+        let scan_id = summary.map(|summary| summary.scan_id.clone());
+        if let Some(expected) = &query.scan_id
+            && scan_id.as_ref() != Some(expected)
+        {
+            return Err(
+                PortcoveError::conflict("the saved scan changed; reload its matches")
+                    .detail("scan_id", scan_id.unwrap_or_default()),
+            );
+        }
+        let mut page = GameFileScanMatchPage {
+            scan_id: scan_id.clone(),
+            kind: query.kind,
+            offset: query.offset,
+            total: 0,
+            candidates: Vec::new(),
+            preliminary_selections: Vec::new(),
+            next_offset: None,
+        };
+        let returned = if let Some(scan_id) = scan_id {
+            let (key, prefix) = root
+                .map(|(_, key)| {
+                    let separator = std::path::MAIN_SEPARATOR;
+                    let prefix = format!("{}{separator}", key.trim_end_matches(separator));
+                    (Some(key), Some(prefix))
+                })
+                .unwrap_or_default();
+            let filter = "scan_id=?1 AND kind=?2
+                 AND (?3 IS NULL OR path_key=?3 OR substr(path_key,1,length(?4))=?4)";
+            let kind = query.kind.row_kind();
+            let total: i64 = transaction.query_row(
+                &format!("SELECT count(*) FROM game_file_scan_matches WHERE {filter}"),
+                params![scan_id, kind, key, prefix],
+                |row| row.get(0),
+            )?;
+            page.total = u32::try_from(total)
+                .map_err(|_| PortcoveError::state("stored scan match count is invalid"))?;
+            let mut statement = transaction.prepare(&format!(
+                "SELECT record_json FROM game_file_scan_matches WHERE {filter}
+                 ORDER BY ordinal LIMIT ?5 OFFSET ?6"
+            ))?;
+            let records = statement
+                .query_map(
+                    params![scan_id, kind, key, prefix, query.limit, query.offset],
+                    |row| row.get::<_, String>(0),
+                )?
+                .collect::<std::result::Result<Vec<_>, _>>()?;
+            let invalid = |error: serde_json::Error| {
+                PortcoveError::state("stored scan match is invalid")
+                    .detail("cause", error.to_string())
+            };
+            for record in &records {
+                match query.kind {
+                    GameFileScanMatchKind::Exact => page
+                        .candidates
+                        .push(serde_json::from_str(record).map_err(invalid)?),
+                    GameFileScanMatchKind::Preliminary => page
+                        .preliminary_selections
+                        .push(serde_json::from_str(record).map_err(invalid)?),
+                }
+            }
+            records.len()
+        } else if let Some(snapshot) = snapshot {
+            // Older reports keep every match inline.
+            let inside = |path: &Path| root.as_ref().is_none_or(|(_, key)| key_inside(path, key));
+            let start = query.offset as usize;
+            let end = start.saturating_add(query.limit as usize);
+            match query.kind {
+                GameFileScanMatchKind::Exact => {
+                    let all = snapshot
+                        .report
+                        .candidates
+                        .into_iter()
+                        .filter(|record| inside(&record.path))
+                        .collect::<Vec<_>>();
+                    page.total = all.len() as u32;
+                    page.candidates = all.into_iter().take(end).skip(start).collect();
+                    page.candidates.len()
+                }
+                GameFileScanMatchKind::Preliminary => {
+                    let all = snapshot
+                        .report
+                        .preliminary_selections
+                        .into_iter()
+                        .filter(|selection| inside(&selection.path))
+                        .collect::<Vec<_>>();
+                    page.total = all.len() as u32;
+                    page.preliminary_selections = all.into_iter().take(end).skip(start).collect();
+                    page.preliminary_selections.len()
+                }
+            }
+        } else {
+            0
+        };
+        transaction.commit()?;
+        let next = query.offset as usize + returned;
+        page.next_offset = (returned > 0 && next < page.total as usize).then_some(next as u32);
+        Ok(page)
+    }
+
+    /// The source profiles of the current scan's exact matches inside one
+    /// saved folder, once each, in profile order. Read from one consistent
+    /// snapshot, so a folder's choices can be offered without paging every
+    /// match. Bounded by the catalog's profiles.
+    pub(crate) fn game_file_root_match_profiles(&self, root_id: &str) -> Result<Vec<String>> {
+        validate_id(root_id)?;
+        let mut connection = self.connection()?;
+        let transaction = connection.transaction()?;
+        let key: String = transaction
+            .query_row(
+                "SELECT path_key FROM game_file_roots WHERE id=?1",
+                [root_id],
+                |row| row.get(0),
+            )
+            .optional()?
+            .ok_or_else(|| {
+                PortcoveError::not_found("saved game-file folder does not exist")
+                    .detail("root_id", root_id)
+            })?;
+        let payload = transaction
+            .query_row(
+                "SELECT snapshot_json FROM game_file_scan_state WHERE singleton=1",
+                [],
+                |row| row.get::<_, String>(0),
+            )
+            .optional()?;
+        let Some(payload) = payload else {
+            return Ok(Vec::new());
+        };
+        if payload.len() > MAX_SCAN_SNAPSHOT_BYTES {
+            return Err(PortcoveError::state(
+                "stored game-file scan snapshot exceeds its storage limit",
+            ));
+        }
+        let snapshot = crate::source_discovery::decode_game_file_scan(&payload)?;
+        let profiles = match crate::source_discovery::scan_match_summary(&snapshot) {
+            Some(summary) => {
+                let separator = std::path::MAIN_SEPARATOR;
+                let prefix = format!("{}{separator}", key.trim_end_matches(separator));
+                let mut statement = transaction.prepare(
+                    "SELECT DISTINCT profile_id FROM game_file_scan_matches
+                     WHERE scan_id=?1 AND kind=?2
+                       AND (path_key=?3 OR substr(path_key,1,length(?4))=?4)
+                     ORDER BY profile_id",
+                )?;
+                statement
+                    .query_map(
+                        params![
+                            summary.scan_id,
+                            GameFileScanMatchKind::Exact.row_kind(),
+                            key,
+                            prefix
+                        ],
+                        |row| row.get::<_, String>(0),
+                    )?
+                    .collect::<std::result::Result<Vec<_>, _>>()?
+            }
+            // Older reports keep every match inline.
+            None => snapshot
+                .report
+                .candidates
+                .into_iter()
+                .filter(|record| key_inside(&record.path, &key))
+                .map(|record| record.profile_id)
+                .collect::<std::collections::BTreeSet<_>>()
+                .into_iter()
+                .collect(),
+        };
+        transaction.commit()?;
+        Ok(profiles)
     }
 
     #[cfg(test)]
@@ -436,6 +777,55 @@ impl Library {
     }
 }
 
+fn write_scan_matches(
+    transaction: &rusqlite::Transaction<'_>,
+    matches: &GameFileScanMatchWrite,
+) -> Result<()> {
+    let (scan_id, rows) = match matches {
+        GameFileScanMatchWrite::Unchanged => return Ok(()),
+        GameFileScanMatchWrite::Fresh { scan_id, rows } => {
+            transaction.execute("DELETE FROM game_file_scan_matches", [])?;
+            (scan_id, rows)
+        }
+        GameFileScanMatchWrite::Append {
+            scan_id,
+            expected_counts,
+            rows,
+        } => {
+            for (kind, expected) in expected_counts.iter().enumerate() {
+                let count: i64 = transaction.query_row(
+                    "SELECT count(*) FROM game_file_scan_matches WHERE scan_id=?1 AND kind=?2",
+                    params![scan_id, kind as i64],
+                    |row| row.get(0),
+                )?;
+                if count != i64::from(*expected) {
+                    return Err(PortcoveError::conflict(
+                        "saved scan matches changed during the game-file scan; retry the scan",
+                    ));
+                }
+            }
+            (scan_id, rows)
+        }
+    };
+    let mut statement = transaction.prepare(
+        "INSERT INTO game_file_scan_matches(scan_id,kind,ordinal,profile_id,path,path_key,batch,record_json)
+         VALUES (?1,?2,?3,?4,?5,?6,?7,?8)",
+    )?;
+    for row in rows {
+        statement.execute(params![
+            scan_id,
+            row.kind,
+            row.ordinal,
+            row.profile_id,
+            row.path,
+            path_key(&row.path),
+            row.batch,
+            row.record_json,
+        ])?;
+    }
+    Ok(())
+}
+
 fn require_available_root(path: &Path) -> Result<PathBuf> {
     crate::path::unicode(path, "game-file root")?;
     let path = std::fs::canonicalize(path).map_err(|error| {
@@ -450,6 +840,14 @@ fn require_available_root(path: &Path) -> Result<PathBuf> {
         );
     }
     Ok(path)
+}
+
+/// Whether `path` is the saved folder with this path key or inside it,
+/// compared as stored rows are (case-insensitively on Windows).
+fn key_inside(path: &Path, key: &str) -> bool {
+    let separator = std::path::MAIN_SEPARATOR;
+    let path = path_key(&path.to_string_lossy());
+    path == key || path.starts_with(&format!("{}{separator}", key.trim_end_matches(separator)))
 }
 
 pub(crate) fn path_key(path: &str) -> String {

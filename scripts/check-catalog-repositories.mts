@@ -34,6 +34,7 @@ export interface ReviewedPin extends GithubPinScope {
   port_id: string;
   port_contract_sha256: string;
   platform: string;
+  historical_version?: string;
 }
 export interface ReviewedSourceArchive extends GithubSourceArchiveScope {
   port_id: string;
@@ -79,7 +80,11 @@ type HealthPort = Record<string, unknown> &
       direct?: Record<string, Pick<DirectReleaseSpec, "url" | "sha256" | "version" | "size">>;
     };
   };
-type HistoricalIdentity = Pick<SourceEvidenceScope, "port_id" | "upstream_ref" | "artifact_sha256">;
+type HistoricalIdentity = Pick<
+  SourceEvidenceScope,
+  "port_id" | "upstream_ref" | "artifact_sha256"
+> &
+  Partial<Pick<SourceEvidenceScope, "platform">>;
 type Qualification = Record<string, unknown> & { scope: HistoricalIdentity };
 interface HealthCatalog {
   ports: HealthPort[];
@@ -102,6 +107,7 @@ interface LocationRecord {
   release_ref?: string;
   artifact_identities?: ArtifactIdentity[];
   historical_artifact_identities?: HistoricalIdentity[];
+  reviewed_historical_release_ids?: number[];
 }
 type HealthReason = keyof typeof resume;
 type PinAssessment =
@@ -472,24 +478,30 @@ function assertHealthAccountingPolicy(policy: unknown): asserts policy is Health
   const identities = new Set();
   const pins: unknown[] = policy.pins;
   for (const pin of pins) {
+    const pinKeys = [
+      "port_id",
+      "port_contract_sha256",
+      "platform",
+      "repository",
+      "tag",
+      "name",
+      "url",
+      "size",
+      "sha256",
+      "repository_id",
+      "archived",
+      "release_id",
+      "release_facts_sha256",
+      "asset_id",
+      "asset_facts_sha256",
+    ];
     if (
-      !objectKeys(pin, [
-        "port_id",
-        "port_contract_sha256",
-        "platform",
-        "repository",
-        "tag",
-        "name",
-        "url",
-        "size",
-        "sha256",
-        "repository_id",
-        "archived",
-        "release_id",
-        "release_facts_sha256",
-        "asset_id",
-        "asset_facts_sha256",
-      ]) ||
+      !(
+        objectKeys(pin, pinKeys) ||
+        (version2 && objectKeys(pin, [...pinKeys, "historical_version"]))
+      ) ||
+      (Object.hasOwn(pin, "historical_version") &&
+        (!historyText(pin.historical_version, 200) || pin.historical_version === pin.tag)) ||
       !port(pin.port_id) ||
       !hash(pin.port_contract_sha256) ||
       !hash(pin.sha256) ||
@@ -873,7 +885,7 @@ function recordHistoricalScope(record: LocationRecord, scope: HistoricalIdentity
     requiredValue(record.historical_artifact_identities).push(scope);
 }
 
-function inventory(catalog: HealthCatalog) {
+function inventory(catalog: HealthCatalog, reviewedPins: readonly ReviewedPin[]) {
   const records = new Map<string, LocationRecord>();
   const directPorts = [];
   const ids = new Set();
@@ -1014,18 +1026,36 @@ function inventory(catalog: HealthCatalog) {
         recordHistoricalScope(record, scope);
       }
       for (const location of repositories) {
-        const key = `${location.provider}:${location.repository}:release:${scope.upstream_ref}`;
+        // Keep the retained version in evidence. Only a reviewed exact match
+        // can supply a different publisher tag for the provider request.
+        const matchingPins = reviewedPins.filter(
+          (pin) =>
+            location.provider === "github" &&
+            pin.port_id === scope.port_id &&
+            pin.platform === scope.platform &&
+            pin.repository === location.repository &&
+            pin.historical_version === scope.upstream_ref &&
+            pin.sha256 === scope.artifact_sha256,
+        );
+        const [matchingPin] = matchingPins;
+        const reviewedPin = matchingPins.length === 1 ? matchingPin : undefined;
+        const releaseRef = reviewedPin?.tag ?? scope.upstream_ref;
+        const key = `${location.provider}:${location.repository}:release:${releaseRef}`;
         if (!records.has(key))
           records.set(key, {
             provider: location.provider,
             repository: location.repository,
-            release_ref: scope.upstream_ref,
+            release_ref: releaseRef,
             historical_artifact_identities: [],
             port_ids: [],
             release_providers: location.release_providers,
           });
         const record = requiredValue(records.get(key));
         if (!record.port_ids.includes(port.id)) record.port_ids.push(port.id);
+        if (reviewedPin) {
+          const releaseIds = (record.reviewed_historical_release_ids ??= []);
+          if (!releaseIds.includes(reviewedPin.release_id)) releaseIds.push(reviewedPin.release_id);
+        }
         recordHistoricalScope(record, scope);
       }
     }
@@ -1115,7 +1145,7 @@ function prepareHealthInventory(input: unknown, accountingInput: unknown) {
   return {
     catalog,
     reviewedAccounting,
-    completeInventory: inventory(catalog),
+    completeInventory: inventory(catalog, reviewedAccounting.pins),
     portById: new Map(catalog.ports.map((port) => [port.id, port])),
   };
 }
@@ -1460,6 +1490,11 @@ export async function collectRepositoryHealth(
       provider: record.provider,
       repository: record.repository,
       release_ref: record.release_ref ?? null,
+      ...(record.reviewed_historical_release_ids && {
+        reviewed_historical_release_ids: record.reviewed_historical_release_ids.toSorted(
+          (left, right) => left - right,
+        ),
+      }),
       artifacts: [...(record.artifact_identities ?? [])].sort((a, b) =>
         observationHash(a).localeCompare(observationHash(b)),
       ),
@@ -2129,6 +2164,11 @@ export async function collectRepositoryHealth(
             : "unknown; provider supplied no digest";
           if (
             !assets.length ||
+            (record.reviewed_historical_release_ids?.some(
+              (id) => id !== result.observed_release_id,
+            ) ??
+              false) ||
+            (record.reviewed_historical_release_ids && !result.observed_asset_digests.length) ||
             (result.observed_asset_digests.length &&
               requiredValue(record.historical_artifact_identities).some(
                 (identity) =>

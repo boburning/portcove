@@ -346,6 +346,9 @@ function sampleCounts<T>(values: readonly T[], key: (value: T) => string): Recor
   }
   return Object.fromEntries(counts);
 }
+/** The ci.yml step that fails a job when its pull request moved to a newer head. */
+export const supersededStopStep = "Stop when a newer head superseded this run";
+
 export function summarizeHistory(attempts: readonly ReturnType<typeof summarizeAttempt>[]) {
   const successful = attempts.filter(
     (attempt) => attempt.status === "completed" && attempt.conclusion === "success",
@@ -454,10 +457,12 @@ export function summarizeHistory(attempts: readonly ReturnType<typeof summarizeA
       successful.filter((attempt) => attempt.attempt > 1).map((attempt) => attempt.seconds),
     ),
     firstAttemptPass: (() => {
-      // Cancelled attempts are superseded work, not evidence about correctness.
+      // Cancelled attempts are superseded work, not evidence about correctness. So is an attempt
+      // one of whose jobs stopped itself because the pull request already had a newer head.
       const decided = attempts.filter(
         (attempt) =>
           attempt.attempt === 1 &&
+          !attempt.failures.some((failure) => failure.steps.includes(supersededStopStep)) &&
           attempt.status === "completed" &&
           (attempt.conclusion === "success" ||
             attempt.conclusion === "failure" ||

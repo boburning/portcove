@@ -499,6 +499,56 @@
     "title": "GameFileQueryRefreshRequest",
     "type": "object"
   },
+  "game_file_scan_match_query": {
+    "$defs": {
+      "GameFileScanMatchKind": {
+        "enum": [
+          "exact",
+          "preliminary"
+        ],
+        "type": "string"
+      }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "description": "One page of the current saved-folder scan's retained matches.",
+    "properties": {
+      "kind": {
+        "$ref": "#/$defs/GameFileScanMatchKind"
+      },
+      "limit": {
+        "description": "1 to 512 matches.",
+        "format": "uint32",
+        "minimum": 0,
+        "type": "integer"
+      },
+      "offset": {
+        "default": 0,
+        "format": "uint32",
+        "minimum": 0,
+        "type": "integer"
+      },
+      "root_id": {
+        "description": "Only matches inside this saved folder.",
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "scan_id": {
+        "description": "The scan the caller is paging; a different current scan is a conflict.",
+        "type": [
+          "string",
+          "null"
+        ]
+      }
+    },
+    "required": [
+      "kind",
+      "limit"
+    ],
+    "title": "GameFileScanMatchQuery",
+    "type": "object"
+  },
   "install_batch_request_items": {
     "$defs": {
       "InstallBatchRequestItem": {

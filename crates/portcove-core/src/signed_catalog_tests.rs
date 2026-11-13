@@ -11,6 +11,7 @@ fn fixture(sequence: i64, now: i64) -> SignedCatalogPayload {
     let mut catalog = Catalog::embedded().unwrap().document().clone();
     for port in &mut catalog.ports {
         port.windows_shipwright_persistence = false;
+        port.windows_tracked_handoff = false;
         for pattern in &mut port.persistent_file_patterns {
             pattern.allow_empty_middle = false;
         }
@@ -994,13 +995,17 @@ fn legacy_signed_catalog_cannot_supply_a_windows_tracked_handoff() {
     .unwrap();
     let verified =
         signed_catalog::verify(&sign(&payload), std::slice::from_ref(&trust), now).unwrap();
-    assert!(
-        verified
-            .catalog
-            .ports()
-            .iter()
-            .all(|port| !port.windows_tracked_handoff)
-    );
+    // The payload cannot carry the field; each port keeps the compiled value.
+    let compiled = Catalog::embedded().unwrap();
+    for port in verified.catalog.ports() {
+        assert_eq!(
+            port.windows_tracked_handoff,
+            compiled.port(&port.id).unwrap().windows_tracked_handoff,
+            "{}",
+            port.id
+        );
+    }
+    assert!(!payload.catalog.ports[0].windows_tracked_handoff);
     payload.catalog.ports[0].windows_tracked_handoff = true;
     let result = signed_catalog::verify(&sign(&payload), &[trust], now);
     assert!(matches!(

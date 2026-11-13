@@ -125,30 +125,37 @@ export async function backupReviewScenario({
       });
       artifacts.push(screenshot);
     };
-    const protectionSelector = 'section[aria-label="Player-data protection"]';
+    // The panel is titled "Backups and updates" (backups.protection.title). It names
+    // installations by role and version, shows the managed folder path, and discloses
+    // the latest backup identifier on request.
+    const protectionSelector = 'section[aria-label="Backups and updates"]';
     const observeProtection = async (name: string) => {
       const currentInventory = inventory(port.id);
       const protection = currentInventory.protection;
       assert.ok(protection, "Core must expose protection facts for the owned library");
       assert.equal(protection.port_id, port.id);
       assert.ok(protection.installations.some((item) => item.install_id === install.id));
+      const complete = currentInventory.state === "healthy" && !currentInventory.problems.length;
       const expected = [
-        "Current Core snapshot",
-        protection.port_id,
+        "Latest backup information",
         protection.managed_data.path,
-        ...protection.installations.map((item) => item.install_id),
+        ...protection.installations.map((item) => item.version),
       ];
       if (protection.latest_completed_backup) expected.push(protection.latest_completed_backup.id);
-      if (currentInventory.state !== "healthy" || currentInventory.problems.length)
-        expected.push("Backup history is incomplete or needs attention");
+      if (!complete) expected.push("We couldn’t confirm");
       await browser.wait(
         async () => {
           const panel = await browser.findElement(By.css(protectionSelector));
+          // The backup identifier is disclosed on request; open it to observe it.
+          for (const summary of await panel.findElements(
+            By.xpath('.//details[not(@open)]/summary[normalize-space(.)="Backup identifier"]'),
+          ))
+            await executeBrowserScript(browser, "arguments[0].click();", summary);
           const rendered = await panel.getText();
           return expected.every((value) => rendered.includes(value));
         },
         15_000,
-        "Player-data protection did not settle on the current Core inventory",
+        "Backups and updates did not settle on the current Core inventory",
       );
       const observation = path.join(output, `${name}-core-inventory.json`);
       await writeFile(observation, JSON.stringify(currentInventory, null, 2), { flag: "wx" });
@@ -280,7 +287,10 @@ export async function backupReviewScenario({
       async () =>
         (await browser.findElements(By.css('[aria-labelledby="backup-review-title"]'))).length ===
         0,
-      15_000,
+      // Calibrated from 15 s: on hosted Windows (debug build) the confirmed restore was
+      // still running, with its safety backup already written, when 15 s expired.
+      60_000,
+      "Confirmed backup restore did not finish and close its review",
     );
     assert.equal(await readFile(save, "utf8"), "selected snapshot data");
     const afterRestore = list();

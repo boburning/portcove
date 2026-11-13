@@ -302,7 +302,8 @@
         "track_sha256": "7a69101183b76eadf02336963c6a89822b76aca2b3fa6537288d9f13bf6d16ed",
         "generated_executable": "Tony_Hawks_Pro_Skater_2_Recompiled.exe",
         "track_count": 1,
-        "crash_diagnostic": true
+        "crash_diagnostic": true,
+        "split_mod_paths": true
       },
       "linux_selected_assets": [
         "tony-hawk-s-pro-skater-2-recomp-0.1.3-linux-x64.zip",
@@ -321,7 +322,8 @@
         "track_sha256": "674ac2073877922e9a12dbf1117b80109d5a8c8e262075da60f21f4e861fc485",
         "generated_executable": "Tony_Hawks_Pro_Skater_3_Recompiled.exe",
         "track_count": 1,
-        "crash_diagnostic": true
+        "crash_diagnostic": true,
+        "split_mod_paths": true
       },
       "linux_selected_assets": [
         "tony-hawk-s-pro-skater-3-recomp-0.1.3-linux-x64.zip",
@@ -340,7 +342,8 @@
         "track_sha256": "c632a348d7013336c2c182f33ea86ac14a7bae0eba3892a7b5f14b9848ddab09",
         "generated_executable": "Tony_Hawks_Pro_Skater_4_Recompiled.exe",
         "track_count": 1,
-        "crash_diagnostic": true
+        "crash_diagnostic": true,
+        "split_mod_paths": true
       },
       "linux_selected_assets": [
         "tony-hawk-s-pro-skater-4-recomp-0.1.3-linux-x64.zip",
@@ -359,7 +362,8 @@
         "track_sha256": "f1398cd15138a947fb3d49e1d31c7fe2aae9436ec09e32df917c658ccac30da9",
         "generated_executable": "Tony_Hawks_Pro_Skater_Recompiled.exe",
         "track_count": 1,
-        "crash_diagnostic": true
+        "crash_diagnostic": true,
+        "split_mod_paths": true
       },
       "linux_selected_assets": [
         "tony-hawk-s-pro-skater-recomp-0.1.3-linux-x64.zip",
@@ -379,7 +383,8 @@
         "generated_executable": "Oddworld__Abe_s_Oddysee_Recompiled.exe",
         "revision": "Rev 2",
         "track_count": 1,
-        "crash_diagnostic": true
+        "crash_diagnostic": true,
+        "split_mod_paths": true
       },
       "linux_selected_assets": [
         "oddworld-abe-s-oddysee-recomp-0.1.3-linux-x64.zip",
@@ -398,7 +403,8 @@
         "track_sha256": "2c36429649e50036fd5c9187bdc3ff23e04039499e7cdf1aba5cfd5a3badcb38",
         "generated_executable": "Syphon_Filter_3_Recompiled.exe",
         "track_count": 1,
-        "crash_diagnostic": true
+        "crash_diagnostic": true,
+        "split_mod_paths": true
       },
       "linux_selected_assets": [
         "syphon-filter-3-recomp-0.1.3-linux-x64.zip",
@@ -418,7 +424,8 @@
         "generated_executable": "Tenchu_Stealth_Assassins_Recompiled.exe",
         "revision": "Rev 1",
         "track_count": 1,
-        "crash_diagnostic": true
+        "crash_diagnostic": true,
+        "split_mod_paths": true
       },
       "linux_selected_assets": [
         "tenchu-stealth-assassins-recomp-0.1.3-linux-x64.zip",
@@ -436,7 +443,8 @@
         "track_count": 1,
         "track_sha1": "e7418d1491e1809490b2e5fe20d738cb730e5e22",
         "generated_executable": "Monster_Rancher_2_Recompiled.exe",
-        "crash_diagnostic": true
+        "crash_diagnostic": true,
+        "split_mod_paths": true
       },
       "linux_selected_assets": [
         "monster-rancher-2-recomp-0.1.3-linux-x64.zip",
@@ -454,7 +462,8 @@
         "track_count": 26,
         "track_sha1": "67d9fb2ab81a54c1129a5a42ec0991c756a2f125",
         "generated_executable": "Nightmare_Creatures_Recompiled.exe",
-        "crash_diagnostic": true
+        "crash_diagnostic": true,
+        "split_mod_paths": true
       },
       "linux_selected_assets": [
         "nightmare-creatures-recomp-0.1.3-linux-x64.zip",
@@ -471,7 +480,8 @@
         "serial": "SCUS-94424",
         "track_count": 1,
         "track_sha1": "75a13364ae026fe555e9c666c7c3434e5b403cc8",
-        "generated_executable": "Bloody_Roar_II__Recompiled.exe"
+        "generated_executable": "Bloody_Roar_II__Recompiled.exe",
+        "split_mod_paths": true
       },
       "linux_selected_assets": [
         "bloody-roar-ii-recomp-0.1.2-linux-x64.zip",
@@ -493,7 +503,9 @@
         "track_count": 19,
         "track_sha1": "d52c60282b7ae07639b8fd61b0ab8d35b28a3327",
         "generated_executable": "Destruction_Derby_2_Recompiled.exe",
-        "openbios": true
+        "retail_bios_from_later_release": true,
+        "bios_profile": "psx-scph-1001-bios",
+        "split_mod_paths": true
       }
     },
     "alexbeav-destruction-derby-raw-recomp": {
@@ -510,7 +522,8 @@
         "serial": "SLUS-00912",
         "track_count": 13,
         "track_sha1": "131463c47379b9a38888f548a44f43dcc6e7f959",
-        "generated_executable": "Destruction_Derby_Raw.exe"
+        "generated_executable": "Destruction_Derby_Raw.exe",
+        "split_mod_paths": true
       }
     },
     "alexbeav-armored-core-recomp": {
@@ -528,8 +541,10 @@
         "track_count": 1,
         "track_sha1": "20ad05be52317bce58b251be103f9add03c92609",
         "generated_executable": "Armored_Core_Recompiled.exe",
-        "openbios": true,
-        "crash_diagnostic": true
+        "crash_diagnostic": true,
+        "retail_bios_from_later_release": true,
+        "bios_profile": "psx-scph-5552-bios",
+        "split_mod_paths": true
       }
     },
     "alexbeav-blood-omen-legacy-of-kain-recomp": {
@@ -547,8 +562,10 @@
         "track_count": 1,
         "track_sha1": "774ff732cecd0937d052ffcdfb225a7d71d163aa",
         "generated_executable": "Blood_Omen__Legacy_of_Kain_Recompiled.exe",
-        "openbios": true,
-        "crash_diagnostic": true
+        "crash_diagnostic": true,
+        "retail_bios_from_later_release": true,
+        "bios_profile": "psx-scph-1001-bios",
+        "split_mod_paths": true
       }
     },
     "alexbeav-digimon-world-2003-recomp": {
@@ -566,8 +583,10 @@
         "track_count": 1,
         "track_sha1": "457cb233349ba841e03b33d8060f8fbcadd45cb3",
         "generated_executable": "Digimon_World_2003_Recompiled.exe",
-        "openbios": true,
-        "crash_diagnostic": true
+        "crash_diagnostic": true,
+        "retail_bios_from_later_release": true,
+        "bios_profile": "psx-scph-5552-bios",
+        "split_mod_paths": true
       }
     },
     "alexbeav-driver-recomp": {
@@ -585,8 +604,10 @@
         "track_count": 1,
         "track_sha1": "3df45bb77b9189258dc513d8b161b73bc0b06d6e",
         "generated_executable": "Driver_Recompiled.exe",
-        "openbios": true,
-        "crash_diagnostic": true
+        "crash_diagnostic": true,
+        "retail_bios_from_later_release": true,
+        "bios_profile": "psx-scph-1001-bios",
+        "split_mod_paths": true
       }
     },
     "alexbeav-duke-nukem-land-of-the-babes-recomp": {
@@ -604,8 +625,10 @@
         "track_count": 1,
         "track_sha1": "f57c49eac288225fe3602e279bc1379f72f7eea6",
         "generated_executable": "Duke_Nukem__Land_of_the_Babes_Recompiled.exe",
-        "openbios": true,
-        "crash_diagnostic": true
+        "crash_diagnostic": true,
+        "retail_bios_from_later_release": true,
+        "bios_profile": "psx-scph-1001-bios",
+        "split_mod_paths": true
       }
     },
     "alexbeav-duke-nukem-time-to-kill-recomp": {
@@ -623,8 +646,10 @@
         "track_count": 1,
         "track_sha1": "a782825520939da0560ef031daa78db8ef720957",
         "generated_executable": "Duke_Nukem__Time_to_Kill_Recompiled.exe",
-        "openbios": true,
-        "crash_diagnostic": true
+        "crash_diagnostic": true,
+        "retail_bios_from_later_release": true,
+        "bios_profile": "psx-scph-1001-bios",
+        "split_mod_paths": true
       }
     },
     "alexbeav-fade-to-black-recomp": {
@@ -642,8 +667,10 @@
         "track_count": 1,
         "track_sha1": "cdd0ddbe768bcd89a04132b08d050164b3f13794",
         "generated_executable": "Fade_to_Black_Recompiled.exe",
-        "openbios": true,
-        "crash_diagnostic": true
+        "crash_diagnostic": true,
+        "retail_bios_from_later_release": true,
+        "bios_profile": "psx-scph-1001-bios",
+        "split_mod_paths": true
       }
     },
     "alexbeav-ape-escape-recomp": {
@@ -661,10 +688,12 @@
         "track_count": 1,
         "track_sha1": "466cce4bcd6992f57227abd270323bcdad2fb7fc",
         "generated_executable": "Ape_Escape_Recompiled.exe",
-        "openbios": true,
         "crash_diagnostic": true,
         "revision": "Rev 0",
-        "track_sha256": "1ae17e78ebb8c782c7c1785b0a0bd7b0ee28235b8a0c83c8df887129899a852a"
+        "track_sha256": "1ae17e78ebb8c782c7c1785b0a0bd7b0ee28235b8a0c83c8df887129899a852a",
+        "retail_bios_from_later_release": true,
+        "bios_profile": "psx-scph-1001-bios",
+        "split_mod_paths": true
       }
     },
     "alexbeav-alundra-recomp": {
@@ -682,8 +711,10 @@
         "track_count": 1,
         "track_sha1": "de2bbc3185fa4ce01ad50bcda94899ccec7b7451",
         "generated_executable": "Alundra_Recompiled.exe",
-        "openbios": true,
-        "crash_diagnostic": true
+        "crash_diagnostic": true,
+        "retail_bios_from_later_release": true,
+        "bios_profile": "psx-scph-5552-bios",
+        "split_mod_paths": true
       }
     },
     "ace-combat-3-electrosphere-usa-ace-combat-3-usa-recomp": {
@@ -702,7 +733,9 @@
         "track_sha1": "9b690c02cdb7754f2fa478c4974ec69600f2f269",
         "generated_executable": "Ace_Combat_3__Electrosphere__USA__Recompiled.exe",
         "crash_diagnostic": true,
-        "openbios": true
+        "retail_bios_from_later_release": true,
+        "bios_profile": "psx-scph-1001-bios",
+        "split_mod_paths": true
       }
     },
     "xena-warrior-princess-xena-recomp": {
@@ -720,7 +753,8 @@
         "track_count": 1,
         "track_sha1": "2f7ee5625aaa02c536938fb66fcf06d4d8f6b422",
         "generated_executable": "Xena__Warrior_Princess_Recompiled.exe",
-        "crash_diagnostic": true
+        "crash_diagnostic": true,
+        "split_mod_paths": true
       }
     },
     "alexbeav-colin-mcrae-rally-2-0-recomp": {
@@ -738,8 +772,10 @@
         "track_count": 2,
         "track_sha1": "4d595880ebb6c6f7a2b63d9503b733f44b1ef230",
         "generated_executable": "Colin_McRae_Rally_2_0_Recompiled.exe",
-        "openbios": true,
-        "crash_diagnostic": true
+        "crash_diagnostic": true,
+        "retail_bios_from_later_release": true,
+        "bios_profile": "psx-scph-1001-bios",
+        "split_mod_paths": true
       }
     },
     "alexbeav-die-hard-trilogy-recomp": {
@@ -757,9 +793,11 @@
         "track_count": 21,
         "track_sha1": "2d24572e92415e09c37b68c83ba8b8947aee1ce4",
         "generated_executable": "Die_Hard_Trilogy_Recompiled.exe",
-        "openbios": true,
         "crash_diagnostic": true,
-        "revision": "Rev 1"
+        "revision": "Rev 1",
+        "retail_bios_from_later_release": true,
+        "bios_profile": "psx-scph-1001-bios",
+        "split_mod_paths": true
       }
     },
     "alexbeav-kings-field-recomp": {
@@ -796,8 +834,10 @@
         "track_count": 1,
         "track_sha1": "0bf9fb06b73a9b5353cdcc371e188934369068da",
         "generated_executable": "Kula_World_Recompiled.exe",
-        "openbios": true,
-        "crash_diagnostic": true
+        "crash_diagnostic": true,
+        "retail_bios_from_later_release": true,
+        "bios_profile": "psx-scph-5552-bios",
+        "split_mod_paths": true
       }
     },
     "alexbeav-mega-man-legends-recomp": {
@@ -815,9 +855,11 @@
         "track_count": 2,
         "track_sha1": "cf24c99ad6586b1bcba7d67f5dc684864b5e1688",
         "generated_executable": "Mega_Man_Legends_Recompiled.exe",
-        "openbios": true,
         "crash_diagnostic": true,
-        "track_sha256": "91fc12e8ce4485285ab22fbe39a8c3b5a66cab7d129c69a5c22084adbf361391"
+        "track_sha256": "91fc12e8ce4485285ab22fbe39a8c3b5a66cab7d129c69a5c22084adbf361391",
+        "retail_bios_from_later_release": true,
+        "bios_profile": "psx-scph-5552-bios",
+        "split_mod_paths": true
       }
     },
     "alexbeav-men-in-black-the-game-recomp": {
@@ -835,8 +877,10 @@
         "track_count": 1,
         "track_sha1": "060496048fae53cf79706ab3ce611c07701d4814",
         "generated_executable": "Men_in_Black__The_Game_Recompiled.exe",
-        "openbios": true,
-        "crash_diagnostic": true
+        "crash_diagnostic": true,
+        "retail_bios_from_later_release": true,
+        "bios_profile": "psx-scph-5552-bios",
+        "split_mod_paths": true
       }
     },
     "alexbeav-the-lost-world-jurassic-park-special-edition-recomp": {
@@ -854,8 +898,10 @@
         "track_count": 3,
         "track_sha1": "1fac6ab6b0d7d3d8f5e70b40bb9fae1d2a2287bc",
         "generated_executable": "The_Lost_World__Jurassic_Park_Special_Edition_Recompiled.exe",
-        "openbios": true,
-        "crash_diagnostic": true
+        "crash_diagnostic": true,
+        "retail_bios_from_later_release": true,
+        "bios_profile": "psx-scph-1001-bios",
+        "split_mod_paths": true
       }
     },
     "alexbeav-the-mummy-recomp": {
@@ -873,8 +919,10 @@
         "track_count": 1,
         "track_sha1": "ef266fcac356f05950a81aaa350fbf211defcdd8",
         "generated_executable": "The_Mummy_Recompiled.exe",
-        "openbios": true,
-        "crash_diagnostic": true
+        "crash_diagnostic": true,
+        "retail_bios_from_later_release": true,
+        "bios_profile": "psx-scph-1001-bios",
+        "split_mod_paths": true
       }
     },
     "alexbeav-vampire-hunter-d-recomp": {
@@ -892,8 +940,10 @@
         "track_count": 1,
         "track_sha1": "a4b43839e2abd4ac626434c801fbea0a09ab3f88",
         "generated_executable": "Vampire_Hunter_D_Recompiled.exe",
-        "openbios": true,
-        "crash_diagnostic": true
+        "crash_diagnostic": true,
+        "retail_bios_from_later_release": true,
+        "bios_profile": "psx-scph-1001-bios",
+        "split_mod_paths": true
       }
     },
     "alexbeav-vigilante-8-recomp": {
@@ -911,9 +961,11 @@
         "track_count": 13,
         "track_sha1": "0a39394280555203bf29e33e95e561e4ff50edb1",
         "generated_executable": "Vigilante_8_Recompiled.exe",
-        "openbios": true,
         "crash_diagnostic": true,
-        "track_sha256": "0a303a0d19d2728f1e364afa4fb7ad8e6e5a04800236573e93417a5503fb201e"
+        "track_sha256": "0a303a0d19d2728f1e364afa4fb7ad8e6e5a04800236573e93417a5503fb201e",
+        "retail_bios_from_later_release": true,
+        "bios_profile": "psx-scph-5552-bios",
+        "split_mod_paths": true
       }
     },
     "alexbeav-alien-resurrection-recomp": {
@@ -933,7 +985,8 @@
         "track_sha256": "af3da8902c6d3f55aaeff960adbeda61c7a630e820e34bc133ffe972cd100237",
         "generated_executable": "Alien_Resurrection_Recompiled.exe",
         "bios_profile": "psx-scph-5552-bios",
-        "crash_diagnostic": true
+        "crash_diagnostic": true,
+        "split_mod_paths": true
       }
     },
     "alexbeav-diablo-recomp": {
@@ -953,7 +1006,8 @@
         "track_sha256": null,
         "generated_executable": "Diablo_Recompiled.exe",
         "bios_profile": "psx-scph-5552-bios",
-        "crash_diagnostic": true
+        "crash_diagnostic": true,
+        "split_mod_paths": true
       }
     },
     "alexbeav-legacy-of-kain-soul-reaver-recomp": {
@@ -973,7 +1027,8 @@
         "track_sha256": "9ac300d56b879699d15331aab395fa57a137752dfdc2aa5569874445a0b933df",
         "generated_executable": "Legacy_of_Kain__Soul_Reaver_Recompiled.exe",
         "bios_profile": "psx-scph-5552-bios",
-        "crash_diagnostic": true
+        "crash_diagnostic": true,
+        "split_mod_paths": true
       }
     },
     "alexbeav-mdk-recomp": {
@@ -993,7 +1048,8 @@
         "track_sha256": "29c584e75668153d48874efa2759e404374d2b48fc694b8ce4240755cb67a253",
         "generated_executable": "MDK_Recompiled.exe",
         "bios_profile": "psx-scph-5552-bios",
-        "crash_diagnostic": true
+        "crash_diagnostic": true,
+        "split_mod_paths": true
       }
     },
     "alexbeav-spyro-the-dragon-recomp": {
@@ -1013,7 +1069,8 @@
         "track_sha256": "dfba8b1c19f21ac235347d39b17b1be5633d8d00d57f6b0173caf7b04a21ff8b",
         "generated_executable": "Spyro_the_Dragon_Recompiled.exe",
         "bios_profile": "psx-scph-5552-bios",
-        "crash_diagnostic": true
+        "crash_diagnostic": true,
+        "split_mod_paths": true
       }
     },
     "alexbeav-wipeout-recomp": {
@@ -1033,7 +1090,8 @@
         "track_sha256": null,
         "generated_executable": "WipEout_Recompiled.exe",
         "bios_profile": "psx-scph-5552-bios",
-        "crash_diagnostic": true
+        "crash_diagnostic": true,
+        "split_mod_paths": true
       }
     },
     "alexbeav-armored-core-project-phantasma-recomp": {
@@ -1603,7 +1661,8 @@
         "track_sha256": null,
         "generated_executable": "Quake_II_Recompiled.exe",
         "track_count": 2,
-        "crash_diagnostic": true
+        "crash_diagnostic": true,
+        "split_mod_paths": true
       },
       "linux_selected_assets": [
         "quake-ii-recomp-0.1.2-linux-x64.zip",
@@ -1620,8 +1679,10 @@
         "track_sha256": null,
         "generated_executable": "Suikoden_Recompiled.exe",
         "track_count": 1,
-        "bios_profile": "psx-scph-5552-bios",
-        "crash_diagnostic": true
+        "bios_profile": "psx-scph-1001-bios",
+        "crash_diagnostic": true,
+        "split_mod_paths": true,
+        "retail_bios_from_later_release": true
       },
       "linux_selected_assets": [
         "suikoden-0.1.1-linux-x64.zip",
@@ -1641,7 +1702,8 @@
         "generated_executable": "Silent_Bomber_Recompiled.exe",
         "track_count": 1,
         "bios_profile": "psx-scph-5552-bios",
-        "crash_diagnostic": true
+        "crash_diagnostic": true,
+        "split_mod_paths": true
       },
       "linux_selected_assets": [
         "silent-bomber-0.1.1-linux-x64.zip",
@@ -1661,8 +1723,10 @@
         "track_sha256": null,
         "generated_executable": "Mortal_Kombat_Trilogy_Recompiled.exe",
         "track_count": 30,
-        "bios_profile": "psx-scph-5552-bios",
-        "crash_diagnostic": true
+        "bios_profile": "psx-scph-1001-bios",
+        "crash_diagnostic": true,
+        "split_mod_paths": true,
+        "retail_bios_from_later_release": true
       },
       "linux_selected_assets": [
         "mortal-kombat-trilogy-0.1.1-linux-x64.zip",
@@ -1688,6 +1752,14 @@
       "linux_selected_assets": [
         "wipeoutxl-0.2.0-linux-x64.zip",
         "wipeoutxl-999.123.456-linux-x64.zip"
+      ]
+    },
+    "monster-hunter-portable-3rd-hd-yakumo": {
+      "inventory": "yakumo",
+      "repository_id": 1375755928,
+      "selected_assets": [
+        "yakumo-0.7.5-windows-x86_64-portable.zip",
+        "yakumo-0.7.6-windows-x86_64-portable.zip"
       ]
     }
   },
@@ -9985,6 +10057,145 @@
           }
         ]
       }
+    ],
+    "yakumo": [
+      {
+        "id": 411105161,
+        "tag_name": "v0.7.5",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-10-13T03:23:39Z",
+        "assets": [
+          {
+            "id": 635739454,
+            "name": "SHA256SUMS",
+            "size": 777,
+            "digest": "sha256:638729c255a8a61e1d6cc8a370b01ac81deaa8bb9740799252e141427474ed39",
+            "browser_download_url": "https://github.com/TeamGDB/Yakumo/releases/download/v0.7.5/SHA256SUMS"
+          },
+          {
+            "id": 635557890,
+            "name": "SHA256SUMS-android.txt",
+            "size": 97,
+            "digest": "sha256:89f55e16b6d9e1241a3209dc393a65fb00b6c694276906952b91ba4d7e08b3f5",
+            "browser_download_url": "https://github.com/TeamGDB/Yakumo/releases/download/v0.7.5/SHA256SUMS-android.txt"
+          },
+          {
+            "id": 635509665,
+            "name": "SHA256SUMS-linux.txt",
+            "size": 285,
+            "digest": "sha256:385310564ca5cfec1422d03229ef002e77f8262b2013bbd8993ad410085b80c1",
+            "browser_download_url": "https://github.com/TeamGDB/Yakumo/releases/download/v0.7.5/SHA256SUMS-linux.txt"
+          },
+          {
+            "id": 635485787,
+            "name": "SHA256SUMS-macos.txt",
+            "size": 190,
+            "digest": "sha256:bd464fd54c88cfff9af48325ea04a7f3451380678daaf17ae6753f13ab0a1a49",
+            "browser_download_url": "https://github.com/TeamGDB/Yakumo/releases/download/v0.7.5/SHA256SUMS-macos.txt"
+          },
+          {
+            "id": 635479497,
+            "name": "SHA256SUMS-windows.txt",
+            "size": 207,
+            "digest": "sha256:07043ab18aeeedcb5065357c089fdb30d8417de5c024c106d81705009c8a7076",
+            "browser_download_url": "https://github.com/TeamGDB/Yakumo/releases/download/v0.7.5/SHA256SUMS-windows.txt"
+          },
+          {
+            "id": 635509567,
+            "name": "ffmpeg-7.1.5.tar.xz",
+            "size": 11050340,
+            "digest": "sha256:de668509caf9e35e3cd162473441fdb29538c6d96ed080292b3cf9e6fc5d558f",
+            "browser_download_url": "https://github.com/TeamGDB/Yakumo/releases/download/v0.7.5/ffmpeg-7.1.5.tar.xz"
+          },
+          {
+            "id": 635556983,
+            "name": "yakumo-0.7.5-android-arm64.apk",
+            "size": 203370327,
+            "digest": "sha256:75b90649a419336d1fa8d9b6d88c9f2226ab1506975f931dad5ac9d53c9bb7aa",
+            "browser_download_url": "https://github.com/TeamGDB/Yakumo/releases/download/v0.7.5/yakumo-0.7.5-android-arm64.apk"
+          },
+          {
+            "id": 635508988,
+            "name": "yakumo-0.7.5-linux-x86_64.flatpak",
+            "size": 100104488,
+            "digest": "sha256:9a048b957da2b60cada6591e7d02365ee432f6db015c4e435bf9b6d04498be62",
+            "browser_download_url": "https://github.com/TeamGDB/Yakumo/releases/download/v0.7.5/yakumo-0.7.5-linux-x86_64.flatpak"
+          },
+          {
+            "id": 635508010,
+            "name": "yakumo-0.7.5-linux-x86_64.tar.gz",
+            "size": 225155035,
+            "digest": "sha256:9c867fe280657dae757ebe2a7c6aa3f8d1989a4bb74ff3a1c29df6531ee406af",
+            "browser_download_url": "https://github.com/TeamGDB/Yakumo/releases/download/v0.7.5/yakumo-0.7.5-linux-x86_64.tar.gz"
+          },
+          {
+            "id": 635484019,
+            "name": "yakumo-0.7.5-macos-arm64.dmg",
+            "size": 111792623,
+            "digest": "sha256:dddf9eec6e208324066c4a2075d7c2a8364f27ea2992cb481dce434c74f86092",
+            "browser_download_url": "https://github.com/TeamGDB/Yakumo/releases/download/v0.7.5/yakumo-0.7.5-macos-arm64.dmg"
+          },
+          {
+            "id": 635484644,
+            "name": "yakumo-0.7.5-macos-arm64.zip",
+            "size": 202846463,
+            "digest": "sha256:28749ee93895a11d778107db74fc69818e474f409f4922f5c64009eec9c3641f",
+            "browser_download_url": "https://github.com/TeamGDB/Yakumo/releases/download/v0.7.5/yakumo-0.7.5-macos-arm64.zip"
+          },
+          {
+            "id": 635475842,
+            "name": "yakumo-0.7.5-windows-x86_64-portable.zip",
+            "size": 220399914,
+            "digest": "sha256:7927e3f1e30afcd6f908038ced4a9c99ca58c92510920ec9f36a7b2b1d2ed69c",
+            "browser_download_url": "https://github.com/TeamGDB/Yakumo/releases/download/v0.7.5/yakumo-0.7.5-windows-x86_64-portable.zip"
+          },
+          {
+            "id": 635477804,
+            "name": "yakumo-0.7.5-windows-x86_64.zip",
+            "size": 220392646,
+            "digest": "sha256:0b792af0fb627831da88a88d90c117fd15f59fb6d940e47054f6e83a703717dd",
+            "browser_download_url": "https://github.com/TeamGDB/Yakumo/releases/download/v0.7.5/yakumo-0.7.5-windows-x86_64.zip"
+          }
+        ]
+      },
+      {
+        "id": 999112000,
+        "tag_name": "v0.7.6",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-11-12T00:00:00Z",
+        "assets": [
+          {
+            "id": 999112001,
+            "name": "SHA256SUMS",
+            "browser_download_url": "https://downloads.example.invalid/SHA256SUMS",
+            "size": 220400000,
+            "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          },
+          {
+            "id": 999112002,
+            "name": "yakumo-0.7.6-linux-x86_64.tar.gz",
+            "browser_download_url": "https://downloads.example.invalid/yakumo-0.7.6-linux-x86_64.tar.gz",
+            "size": 220400001,
+            "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          },
+          {
+            "id": 999112003,
+            "name": "yakumo-0.7.6-windows-x86_64-portable.zip",
+            "browser_download_url": "https://downloads.example.invalid/yakumo-0.7.6-windows-x86_64-portable.zip",
+            "size": 220400002,
+            "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          },
+          {
+            "id": 999112004,
+            "name": "yakumo-0.7.6-windows-x86_64.zip",
+            "browser_download_url": "https://downloads.example.invalid/yakumo-0.7.6-windows-x86_64.zip",
+            "size": 220400003,
+            "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          }
+        ]
+      }
     ]
   },
   "other_zip_assets": [
@@ -11152,6 +11363,21 @@
       "inventory": "njh-1001-wipeout2k97xl",
       "release_index": 0,
       "asset": "wipeoutxl-0.2.0-macos-x64.zip"
+    },
+    {
+      "inventory": "yakumo",
+      "release_index": 0,
+      "asset": "yakumo-0.7.5-macos-arm64.zip"
+    },
+    {
+      "inventory": "yakumo",
+      "release_index": 0,
+      "asset": "yakumo-0.7.5-windows-x86_64.zip"
+    },
+    {
+      "inventory": "yakumo",
+      "release_index": 1,
+      "asset": "yakumo-0.7.6-windows-x86_64.zip"
     }
   ]
 }

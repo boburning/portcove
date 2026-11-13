@@ -329,6 +329,24 @@ must not hard-code usernames, Deck mount paths, versioned install directories,
 or assumptions shared only by similarly derived frontends. They do not mutate
 arbitrary third-party libraries, copy original game data, or bypass consent.
 
+## Automatic setup and frontend handoff
+
+Automatic game setup (a game's "set up when ready" choice or a folder's
+automatic setup) never writes to a frontend and never needs one. A prepared
+installation reaches a frontend only through that frontend's own authorization:
+
+- The Playnite library plugin reads Portcove's installed games through the
+  public CLI on Playnite's own library refresh, so a newly prepared game appears
+  there as installed on the next refresh. A game that is waiting or failed stays
+  uninstalled there; Portcove adds no unprepared entry.
+- Steam entries have no standing enablement: the Steam installation and
+  profile are chosen in each game's review, and every write needs the reviewed
+  plan, a closed Steam client and a separate native confirmation. Automatic setup
+  therefore never adds Steam shortcuts; a prepared game stays available for the
+  existing per-game Add to Steam review.
+
+A frontend that is unavailable or not set up never delays or blocks game setup.
+
 ## Steam and Steam Deck without Decky
 
 Steam integration puts Portcove-managed games in the Steam library. A Decky

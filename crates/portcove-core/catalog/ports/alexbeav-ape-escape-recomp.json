@@ -4,7 +4,7 @@
   "listing": {
     "id": "alexbeav-ape-escape-recomp",
     "name": "Ape Escape / Alexbeav PSXRecomp",
-    "summary": "Build and play Ape Escape on Windows or Linux with your own matching single-track USA PlayStation disc and bundled OpenBIOS. The Mac setup kit uses upstream preparation.",
+    "summary": "Build and play Ape Escape on Windows or Linux with your own matching single-track USA PlayStation disc and retail SCPH-1001 BIOS. The Mac setup kit uses upstream preparation.",
     "project_url": "https://github.com/Alexbeav/ape-escape-recomp",
     "original_game_title": "Ape Escape",
     "artwork": {
@@ -36,7 +36,7 @@
         },
         {
           "title": "Supply your original files",
-          "instruction": "Use your original single-track USA disc (SCUS-94423). Use the kit’s included OpenBIOS or follow its guide for a supported retail BIOS. Follow the kit’s README-SETUP.txt for the image format and BIOS options."
+          "instruction": "Use your original single-track USA disc (SCUS-94423). Follow the kit’s README-SETUP.txt for the image format and the BIOS it needs."
         },
         {
           "title": "Build and add the prepared player",
@@ -83,7 +83,12 @@
       "config.ini",
       "disc.cfg",
       "bios.cfg",
-      "mods",
+      "mods/installed",
+      "mods/packages",
+      "mods/.staging",
+      "mods/state.toml",
+      "mods/state.toml.tmp",
+      "mods/texture-packs",
       "overlay-captures"
     ],
     "runtime_mutable_paths": [
@@ -104,7 +109,7 @@
     "launch_environment": {
       "PSX_OVERLAY_CAPTURES": "build-portcove/overlay-captures/overlay_captures.json"
     },
-    "launch_arguments": ["--no-launcher", "--bios", "bios/openbios.bin"],
+    "launch_arguments": ["--no-launcher"],
     "runtime_subdirectory": "build-portcove",
     "presentation": {
       "installation_method": "managed-recompilation",
@@ -114,10 +119,17 @@
           "profile_id": "ape-escape-psx",
           "label": "Ape Escape (USA) disc",
           "verification": "catalog-identity"
+        },
+        {
+          "role": "bios",
+          "profile_id": "psx-scph-1001-bios",
+          "label": "PlayStation SCPH-1001 BIOS",
+          "verification": "catalog-identity"
         }
       ],
       "saves_and_settings": "portcove-managed",
-      "manual_preparation": "Provide your own matching single-disc CHD. The Windows and Linux v0.3.6 routes use bundled OpenBIOS and skip the setup launcher when playing. Generation, runtime, lifecycle and gameplay are untested. Preserve the title GPL, framework PolyForm Noncommercial and UI/OpenBIOS MIT terms; their notices grant no rights to retail game data or generated retail content."
-    }
+      "manual_preparation": "Provide your own matching single-disc CHD and retail SCPH-1001 BIOS. The managed Windows and Linux routes build with that BIOS and skip the setup launcher when playing. A copy installed with the bundled OpenBIOS keeps it until you update; the update needs your SCPH-1001 BIOS. Generation, runtime, lifecycle and gameplay are untested. Preserve the title GPL, framework PolyForm Noncommercial and UI/OpenBIOS MIT terms; their notices grant no rights to retail game data or generated retail content."
+    },
+    "bios_source_profile": "psx-scph-1001-bios"
   }
 }

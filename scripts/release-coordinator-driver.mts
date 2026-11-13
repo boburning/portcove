@@ -1,4 +1,5 @@
 import {
+  appendRetainedReviewWithdrawal,
   inspectReleaseReviewWithdrawal,
   matchesRetainedReviewWithdrawal,
   matchesWithdrawnReviewRequest,
@@ -3961,6 +3962,16 @@ async function requestTrustedSemanticReviewAt(
         { directory, budget, recovered },
       );
     }
+    if (
+      recovered.input.catalog_review_request != null ||
+      recovered.input.catalog_publication != null
+    )
+      return {
+        decision: "held-existing-catalog-operation",
+        directory,
+        checkpoint,
+        authority: "none",
+      };
     const token = fixedReleaseReaderToken();
     const requireDirect = readOnlyReleaseChildEnvironment() !== undefined;
     const guard = () => {
@@ -4569,7 +4580,7 @@ async function withdrawTrustedApplicationReview(
     ...input,
     controller: { ...input.controller, publication_paused: true },
     review_request: null,
-    review_withdrawal: withdrawal,
+    review_withdrawal: appendRetainedReviewWithdrawal(input.review_withdrawal, withdrawal),
   });
   reportStage("withdrawal-signed-checkpoint");
   await publish(saved.checkpoint);

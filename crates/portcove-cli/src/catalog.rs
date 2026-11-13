@@ -96,6 +96,18 @@ pub(crate) enum CatalogCommand {
         #[arg(long)]
         repository_authoring: bool,
     },
+    /// Verify what the appointed official location serves, read-only, as a client would.
+    InspectDefinitionDelivery,
+    /// Report catalog route offering per target platform for a fresh library.
+    InspectTargets {
+        /// Catalog port ID to inspect; repeat for several. Omitted, every listed port.
+        #[arg(long = "port")]
+        ports: Vec<String>,
+        /// Target platform (windows-x86-64, linux-x86-64, macos-x86-64, or macos-aarch64);
+        /// repeat for several. Omitted, every platform Core can represent.
+        #[arg(long = "platform")]
+        platforms: Vec<String>,
+    },
     /// Observe a verified local archive with the managed package layout rules.
     InspectPackageLayout {
         /// Local ZIP, TAR.GZ, or Linux x86-64 TAR.XZ package archive.
@@ -242,6 +254,8 @@ impl CatalogCommand {
             Self::Show { .. } => "catalog.show",
             Self::CheckCapabilities { .. } => "catalog.check-capabilities",
             Self::InspectProposal { .. } => "catalog.inspect-proposal",
+            Self::InspectTargets { .. } => "catalog.inspect-targets",
+            Self::InspectDefinitionDelivery => "catalog.inspect-definition-delivery",
             Self::InspectPackageLayout { .. } => "catalog.inspect-package-layout",
             Self::InspectSettingsQualification { .. } => "catalog.inspect-settings-qualification",
             Self::InspectListings { .. } => "catalog.inspect-listings",
@@ -441,6 +455,12 @@ pub(crate) async fn execute(
         }
         CatalogCommand::InspectProposal { .. } => {
             unreachable!("proposal inspection executes before opening a library")
+        }
+        CatalogCommand::InspectTargets { .. } => {
+            unreachable!("target inspection executes before opening a library")
+        }
+        CatalogCommand::InspectDefinitionDelivery => {
+            unreachable!("delivery inspection executes before opening a library")
         }
         CatalogCommand::InspectPackageLayout { .. } => {
             unreachable!("package layout inspection executes before opening a library")

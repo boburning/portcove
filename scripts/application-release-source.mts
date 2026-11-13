@@ -44,6 +44,7 @@ import {
   retainedV8ServedRenewal,
   retainedV8RenewalDraft,
   retainedR56FeedRecovery,
+  retainedV13FeedRecovery,
   immutableApplicationBootstrap,
   isEmptyApplicationBootstrapCustody,
   registerApplicationBudgetRun,
@@ -96,6 +97,7 @@ import {
   selectWindowsApplicationQualificationRun,
 } from "./application-release-qualification.mts";
 import {
+  inspectApplicationQualificationExecution,
   inspectApplicationReleaseExecution,
   applicationSourcePacketMaximumBytes,
   applicationReleaseMaximumMinutes,
@@ -233,11 +235,7 @@ export async function readCurrentApplicationWakeQualification() {
   const source = await main();
   const observe = async () =>
     selectWindowsApplicationQualificationRun(
-      await reader.runs(
-        "application-release.yml",
-        { branch: "main", event: "workflow_dispatch", head_sha: source },
-        1,
-      ),
+      await reader.runs("application-release.yml", { branch: "main", head_sha: source }, 1),
       source,
     );
   const selected = await observe();
@@ -273,12 +271,7 @@ function openApplicationSourcePublicationInventory(token = fixedReleaseReaderTok
 }
 
 async function selectForQualification() {
-  assert.equal(process.env.GITHUB_REPOSITORY, "boburning/portcove");
-  assert.equal(process.env.GITHUB_REPOSITORY_ID, "1354613114");
-  assert.equal(process.env.GITHUB_EVENT_NAME, "workflow_dispatch");
-  assert.equal(process.env.GITHUB_REF, "refs/heads/main");
-  const source = process.env.GITHUB_SHA ?? "";
-  assert.match(source, /^[a-f0-9]{40}$/u);
+  const { source } = inspectApplicationQualificationExecution(process.env);
   const token = fixedReleaseReaderToken();
   const commit = await (await openApplicationSourceMetadata(token)).commit(source);
   assert.ok(isRecord(commit) && isRecord(commit.tree) && typeof commit.tree.sha === "string");
@@ -1078,21 +1071,28 @@ async function recoverImmutableMetadataFeed() {
     notes && notes.custody.opportunity === opportunity && notes.custody.preparation === null,
   );
   const expected = { release_id: Number(release.id), custody: notes.custody };
-  const recovery = retainedR56FeedRecovery;
-  const recoverR56 = execution.ref === recovery.next_ref;
-  if (recoverR56) {
+  const v13 = execution.ref === retainedV13FeedRecovery.next_ref;
+  const recovery = v13 ? retainedV13FeedRecovery : retainedR56FeedRecovery;
+  const retainedRecovery = execution.ref === recovery.next_ref;
+  if (retainedRecovery) {
     assert.equal(execution.run_attempt, 1);
-    assert.equal(opportunity, retainedR55Renewal.opportunity);
-    assert.equal(expected.release_id, retainedR55Renewal.release_id);
+    assert.equal(
+      opportunity,
+      v13 ? retainedV8RenewalDraft.opportunity : retainedR55Renewal.opportunity,
+    );
+    assert.equal(
+      expected.release_id,
+      v13 ? retainedV8RenewalDraft.release_id : retainedR55Renewal.release_id,
+    );
     assert.ok(typeof release.body === "string");
     assert.equal(sha256(Buffer.from(release.body)), recovery.notes_sha256);
   }
   const prior = await readApplicationImmutableMetadata(expected, scratch);
-  if (recoverR56) {
+  if (retainedRecovery) {
     assert.deepEqual(prior.receipt.producer, {
       id: recovery.run_id,
       control_commit: recovery.control_commit,
-      control_ref: retainedR55Renewal.next_ref,
+      control_ref: v13 ? retainedV8ServedRenewal.next_ref : retainedR55Renewal.next_ref,
     });
     assert.equal(prior.receipt.producer_attempt, 1);
     assert.equal(prior.receipt.site.generation, recovery.generation);
@@ -1244,9 +1244,11 @@ async function prepareCompiler() {
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const command = process.argv[2];
   if (
-    [retainedServedRenewalFeed.next_ref, retainedR56FeedRecovery.next_ref].some(
-      (ref) => process.env.GITHUB_REF === ref,
-    )
+    [
+      retainedServedRenewalFeed.next_ref,
+      retainedR56FeedRecovery.next_ref,
+      retainedV13FeedRecovery.next_ref,
+    ].some((ref) => process.env.GITHUB_REF === ref)
   )
     assert.equal(
       command,

@@ -13,7 +13,7 @@ use crate::{PortcoveError, Result};
 #[path = "database_concurrency_tests.rs"]
 mod concurrency_tests;
 
-pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 54;
+pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 56;
 
 struct Migration {
     version: i64,
@@ -343,13 +343,25 @@ const MIGRATIONS: &[Migration] = &[
     },
     Migration {
         version: 54,
-        name: "ready notice preference",
+        name: "saved-folder scan match rows",
         apply: migration_54,
         verify: verify_migration_54,
     },
+    Migration {
+        version: 55,
+        name: "folder setup pass position",
+        apply: migration_55,
+        verify: verify_migration_55,
+    },
+    Migration {
+        version: 56,
+        name: "ready notice preference",
+        apply: migration_56,
+        verify: verify_migration_56,
+    },
 ];
 
-fn migration_54(transaction: &Transaction<'_>) -> Result<()> {
+fn migration_56(transaction: &Transaction<'_>) -> Result<()> {
     // One player preference: whether ready notices are shown. No row means
     // shown. It never records a game choice, consent or authorization.
     transaction.execute_batch(
@@ -359,15 +371,85 @@ fn migration_54(transaction: &Transaction<'_>) -> Result<()> {
             updated_at INTEGER NOT NULL
         );",
     )?;
+    verify_migration_56(transaction)
+}
+
+fn verify_migration_56(connection: &Connection) -> Result<()> {
+    require_columns(
+        connection,
+        "ready_notice_preference",
+        &["id", "enabled", "updated_at"],
+    )
+}
+
+fn migration_55(transaction: &Transaction<'_>) -> Result<()> {
+    // Where a folder's automatic setup stopped in its scan's matches, so the
+    // next pass continues there. Bookkeeping only, never consent: a different
+    // scan or a new choice starts again from the first match.
+    transaction.execute_batch(
+        "ALTER TABLE game_file_root_setup
+            ADD COLUMN pass_scan_id TEXT CHECK(pass_scan_id IS NULL OR length(pass_scan_id)=36);
+        ALTER TABLE game_file_root_setup
+            ADD COLUMN pass_offset INTEGER NOT NULL DEFAULT 0
+            CHECK(pass_offset BETWEEN 0 AND 100000);",
+    )?;
+    verify_migration_55(transaction)
+}
+
+fn verify_migration_55(connection: &Connection) -> Result<()> {
+    require_columns(
+        connection,
+        "game_file_root_setup",
+        &[
+            "root_id",
+            "updated_at",
+            "record_json",
+            "pass_scan_id",
+            "pass_offset",
+        ],
+    )
+}
+
+fn migration_54(transaction: &Transaction<'_>) -> Result<()> {
+    // Local, rebuildable evidence of one saved-folder scan's retained matches,
+    // bound to the published scan snapshot. A row is never admission: every
+    // match is re-verified from current bytes before registration or setup.
+    // Kind 0 is an exact source record; kind 1 a preliminary inspection.
+    transaction.execute_batch(
+        "CREATE TABLE game_file_scan_matches (
+            scan_id TEXT NOT NULL CHECK(length(scan_id)=36),
+            kind INTEGER NOT NULL CHECK(kind IN (0,1)),
+            ordinal INTEGER NOT NULL CHECK(ordinal BETWEEN 0 AND 99999),
+            profile_id TEXT NOT NULL CHECK(length(profile_id) BETWEEN 1 AND 256),
+            path TEXT NOT NULL CHECK(length(path) BETWEEN 1 AND 32768),
+            path_key TEXT NOT NULL CHECK(length(path_key) BETWEEN 1 AND 32768),
+            batch INTEGER NOT NULL CHECK(batch >= 1),
+            record_json TEXT NOT NULL CHECK(length(record_json) <= 262144),
+            PRIMARY KEY(scan_id, kind, ordinal),
+            UNIQUE(scan_id, kind, profile_id, path)
+        );
+        CREATE INDEX game_file_scan_matches_path
+            ON game_file_scan_matches(scan_id, path_key);",
+    )?;
     verify_migration_54(transaction)
 }
 
 fn verify_migration_54(connection: &Connection) -> Result<()> {
     require_columns(
         connection,
-        "ready_notice_preference",
-        &["id", "enabled", "updated_at"],
-    )
+        "game_file_scan_matches",
+        &[
+            "scan_id",
+            "kind",
+            "ordinal",
+            "profile_id",
+            "path",
+            "path_key",
+            "batch",
+            "record_json",
+        ],
+    )?;
+    require_index(connection, "game_file_scan_matches_path")
 }
 
 fn migration_53(transaction: &Transaction<'_>) -> Result<()> {
@@ -3104,6 +3186,88 @@ mod tests {
         };
     }
 
+    #[test]
+    fn scan_match_rows_migration_preserves_the_scan_snapshot_and_bounds_rows() {
+        let temporary = tempdir().unwrap();
+        let root = temporary.path();
+        prepare_root(root);
+        migrate_to(root, 53).unwrap();
+        let connection = connect(root).unwrap();
+        connection
+            .execute(
+                "INSERT INTO game_file_scan_state(singleton,snapshot_json) VALUES (1,'{\"kept\":true}')",
+                [],
+            )
+            .unwrap();
+        drop(connection);
+        migrate(root).unwrap();
+        let connection = connect(root).unwrap();
+        verify_migration_54(&connection).unwrap();
+        let kept: String = connection
+            .query_row(
+                "SELECT snapshot_json FROM game_file_scan_state WHERE singleton=1",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(kept, "{\"kept\":true}");
+        let scan = "00000000-0000-4000-8000-000000000000";
+        let insert = |kind: i64, ordinal: i64, path: &str, batch: i64, record: &str| {
+            connection.execute(
+                "INSERT INTO game_file_scan_matches(scan_id,kind,ordinal,profile_id,path,path_key,batch,record_json)
+                 VALUES (?1,?2,?3,'profile',?4,?4,?5,?6)",
+                rusqlite::params![scan, kind, ordinal, path, batch, record],
+            )
+        };
+        insert(0, 0, "game-a", 1, "{}").unwrap();
+        insert(1, 0, "game-a", 1, "{}").unwrap();
+        // The same profile and path is one row per kind and scan.
+        assert!(insert(0, 1, "game-a", 1, "{}").is_err());
+        assert!(insert(0, 0, "game-b", 1, "{}").is_err());
+        assert!(insert(2, 1, "game-b", 1, "{}").is_err());
+        assert!(insert(0, 100_000, "game-b", 1, "{}").is_err());
+        assert!(insert(0, 1, "game-b", 0, "{}").is_err());
+        assert!(insert(0, 1, "game-b", 1, &"x".repeat(262_145)).is_err());
+        insert(0, 1, "game-b", 2, &"x".repeat(262_144)).unwrap();
+    }
+
+    #[test]
+    fn folder_setup_pass_position_migration_keeps_choices_and_bounds_positions() {
+        let temporary = tempdir().unwrap();
+        let root = temporary.path();
+        prepare_root(root);
+        migrate_to(root, 54).unwrap();
+        let connection = connect(root).unwrap();
+        connection
+            .execute(
+                "INSERT INTO game_file_root_setup(root_id,updated_at,record_json) VALUES ('root',1,'{}')",
+                [],
+            )
+            .unwrap();
+        drop(connection);
+        migrate(root).unwrap();
+        let connection = connect(root).unwrap();
+        verify_migration_55(&connection).unwrap();
+        let kept: (String, Option<String>, i64) = connection
+            .query_row(
+                "SELECT record_json,pass_scan_id,pass_offset FROM game_file_root_setup WHERE root_id='root'",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+            )
+            .unwrap();
+        assert_eq!(kept, ("{}".to_owned(), None, 0));
+        let set = |scan: &str, offset: i64| {
+            connection.execute(
+                "UPDATE game_file_root_setup SET pass_scan_id=?1, pass_offset=?2 WHERE root_id='root'",
+                rusqlite::params![scan, offset],
+            )
+        };
+        set("00000000-0000-4000-8000-000000000000", 100_000).unwrap();
+        assert!(set("short", 0).is_err());
+        assert!(set("00000000-0000-4000-8000-000000000000", 100_001).is_err());
+        assert!(set("00000000-0000-4000-8000-000000000000", -1).is_err());
+    }
+
     historical_schema_tests! {
         schema_0: 0,
         schema_1: 1,
@@ -3159,6 +3323,8 @@ mod tests {
         schema_51: 51,
         schema_52: 52,
         schema_53: 53,
+        schema_54: 54,
+        schema_55: 55,
     }
 
     #[test]

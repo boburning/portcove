@@ -128,6 +128,14 @@ void test("subject keys and operation identities are deterministic and within th
     handoffOperationId("upstream-observer-exception", "port:alpha@linux-x86-64", 3),
     "handoff.upstream-observer-exception.port:alpha.linux-x86-64.3",
   );
+  assert.equal(
+    handoffOperationId("upstream-observer-exception", "port:alpha@linux-x86-64", 3, 41),
+    "handoff.upstream-observer-exception.port:alpha.linux-x86-64.3.a41",
+  );
+  assert.match(
+    handoffOperationId("release-health-condition", `port:${"a".repeat(190)}`, 12, 7),
+    /^handoff\.release-health-condition\.sha256-[0-9a-f]{40}\.12\.a7$/u,
+  );
   const long = handoffOperationId("release-health-condition", `port:${"a".repeat(190)}`, 12);
   assert.match(long, /^handoff\.release-health-condition\.sha256-[0-9a-f]{40}\.12$/u);
   assert.equal(long, handoffOperationId("release-health-condition", `port:${"a".repeat(190)}`, 12));
@@ -299,12 +307,14 @@ void test("open handoffs project onto the registry with their disabled dispatch 
     {
       subject_key: "handoff:hosted-intake-holds:intake:40",
       sequence: 2,
+      assessment_id: 9,
       updated_at: "2026-11-11T00:00:00Z",
       explanation: { condition: { request_comment: 40 } },
       operation: {
         operation_id: "handoff.hosted-intake-holds.intake:40.1",
         state: "planned",
         fence_sequence: 1,
+        fence_assessment_id: 4,
         revision: 1,
         executor: "hosted-discovery-intake.yml",
       },
@@ -312,6 +322,7 @@ void test("open handoffs project onto the registry with their disabled dispatch 
     {
       subject_key: "handoff:retired-kind:port:x",
       sequence: 1,
+      assessment_id: 5,
       updated_at: "2026-11-11T00:00:00Z",
       explanation: {},
       operation: null,
@@ -325,7 +336,7 @@ void test("open handoffs project onto the registry with their disabled dispatch 
   assert.match(text, /Resume: The owner delegates process dispatch/u);
   assert.match(
     text,
-    /operation handoff\.hosted-intake-holds\.intake:40\.1 planned at fence 1 \(stale; current 2\)/u,
+    /operation handoff\.hosted-intake-holds\.intake:40\.1 planned at fence 1 \(stale; current 2 on assessment 9\)/u,
   );
   assert.equal(unknown!.registry, null);
   assert.match(nextAction(unknown!), /Unregistered handoff kind retired-kind; dispatch disabled/u);

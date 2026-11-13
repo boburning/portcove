@@ -87,6 +87,7 @@ mod preparation;
 mod process;
 mod provider_observation;
 mod providers;
+mod target_inspection;
 pub use provider_observation::inspect_provider_observation;
 mod disc_filesystem;
 mod disc_product;
@@ -217,10 +218,11 @@ pub use definition_repository::{
     acquire_definition_candidate,
     publisher_policy::{
         AuthenticatedDefinitionLaunchAssessment, AuthenticatedDefinitionPublisherPolicy,
-        DefinitionAuthorityProvisioning, DefinitionAuthorityReview, DefinitionRefresh,
-        DefinitionRefreshDisposition, OfficialCatalogReview, OfficialCatalogSetup,
-        OfficialCatalogSource, acquire_definition_launch_assessment,
-        acquire_definition_publisher_policy,
+        DefinitionAuthorityProvisioning, DefinitionAuthorityReview, DefinitionDeliveryInspection,
+        DefinitionDeliveryServing, DefinitionRefresh, DefinitionRefreshDisposition,
+        OfficialCatalogReview, OfficialCatalogSetup, OfficialCatalogSource, PublishedDefinition,
+        acquire_definition_launch_assessment, acquire_definition_publisher_policy,
+        inspect_official_definition_delivery,
     },
 };
 pub use error::{ErrorCode, PortcoveError, Result};
@@ -240,7 +242,8 @@ pub use game_file_query::{
 };
 pub use game_file_root::{
     GameFileRoot, GameFileRootAvailability, GameFileScanCoverage, GameFileScanFreshness,
-    GameFileScanSnapshot,
+    GameFileScanMatchKind, GameFileScanMatchPage, GameFileScanMatchQuery, GameFileScanMatchSummary,
+    GameFileScanSnapshot, MAX_GAME_FILE_SCAN_MATCH_PAGE,
 };
 pub use game_recommendations::{
     ComparisonEdition, ComparisonFreshness, ComparisonPort, ComparisonRelease,
@@ -386,8 +389,8 @@ pub use source_batch::{
 };
 pub use source_catalog::*;
 pub use source_discovery::{
-    SourceDiscoveryIssue, SourceDiscoveryLimit, SourceDiscoveryLimits, SourceDiscoveryReport,
-    SourceDiscoveryRequest,
+    MAX_SCAN_MATCH_BYTES, MAX_SCAN_MATCHES, SourceDiscoveryIssue, SourceDiscoveryLimit,
+    SourceDiscoveryLimits, SourceDiscoveryReport, SourceDiscoveryRequest,
 };
 pub use source_import::{
     SourceImportMode, SourceImportOutcome, SourceImportPlan, SourceImportResult,
@@ -416,6 +419,12 @@ pub use support_bundle_export::{
     SupportBundleReason, SupportBundleRequest, SupportBundleScope, SupportBundleSection,
     SupportBundleSectionKind, SupportBundleSectionStatus, export_support_bundle,
     prepare_support_log_directory,
+};
+pub use target_inspection::{
+    CatalogPresence, CoreProducer, EvidenceRoute, INSPECTABLE_PLATFORMS, LegacyCoverage,
+    MAX_INSPECTED_PORTS, OfferedArtifact, PortTargetInspection, ScopeApplicability,
+    TargetInspection, TargetQualification, TargetQualificationScope, TargetQualificationState,
+    TargetRoute, TargetRoutes, Unassessed, inspect_targets,
 };
 pub use thunderstore::ThunderstoreClient;
 pub use types::*;

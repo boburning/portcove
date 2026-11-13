@@ -254,6 +254,7 @@ impl PortcoveService {
             preparation_mode: None,
             required_source_extension: None,
             source: None,
+            source_folder_unavailable: None,
             bios: None,
             source_assessment: None,
             bios_assessment: None,
@@ -3198,7 +3199,23 @@ mod tests {
 
     #[test]
     fn monster_hunter_portable_3rd_hd_yakumo_prepared_player_route_1120() {
-        assert_listing_only_player_route("monster-hunter-portable-3rd-hd-yakumo", Some(false));
+        // The managed Windows route keeps the independent prepared-copy route.
+        let id = "monster-hunter-portable-3rd-hd-yakumo";
+        let (temporary, mut service, executable, working) = fixture(id);
+        service.catalog = Catalog::embedded().unwrap();
+        let port = service.catalog.port(id).unwrap();
+        assert_eq!(port.adapter, crate::AdapterKind::NativePortable);
+        assert!(port.windows_tracked_handoff);
+        let listing = service.catalog.listing(id).unwrap();
+        assert!(listing.manual_setup.is_some());
+        assert!(listing.download_block_reason.is_none());
+        assert!(
+            service
+                .current_user_selected_definition(id)
+                .unwrap()
+                .is_none()
+        );
+        assert_selected_listing_lifecycle(temporary, service, executable, working, id);
     }
 
     #[test]

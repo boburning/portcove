@@ -108,9 +108,29 @@ pub(crate) fn definition_requirements(
             json!({"template":"staged-source-portable","minimum_version":11,"maximum_version":11}),
         ];
     }
-    vec![
+    // A Windows tracked handoff needs a native-portable reader that tracks
+    // successors whatever the adapter, listed beside the adapter's own floor.
+    let handoff = crate::launch::TRACKED_HANDOFF_NATIVE_CAPABILITY;
+    if port.windows_tracked_handoff && port.adapter == crate::AdapterKind::NativePortable {
+        let version = default_version.max(handoff);
+        return vec![
+            json!({"template":port.adapter,"minimum_version":version,"maximum_version":version}),
+        ];
+    }
+    let default_version = if crate::persistence::requires_psx_retained_scope(port) {
+        default_version.max(crate::persistence::PSX_RETAINED_SCOPE_CAPABILITY)
+    } else {
+        default_version
+    };
+    let mut requirements = vec![
         json!({"template":port.adapter,"minimum_version":default_version,"maximum_version":default_version}),
-    ]
+    ];
+    if port.windows_tracked_handoff {
+        requirements.push(
+            json!({"template":"native-portable","minimum_version":handoff,"maximum_version":handoff}),
+        );
+    }
+    requirements
 }
 
 /// Preserve the last entered test phase when nextest terminates a slow process.

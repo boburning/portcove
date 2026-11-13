@@ -1266,6 +1266,23 @@ async fn set_root_setup_implementation(
     .await
 }
 
+/// Chooses whether a folder's automatic setup keeps a local copy of each
+/// game's required files.
+#[tauri::command]
+async fn set_root_setup_local_copy(
+    state: tauri::State<'_, DesktopState>,
+    generation: u64,
+    root_id: String,
+    keep_local_copy: bool,
+) -> DesktopResult<portcove_core::RootSetupConsent> {
+    blocking_service_at_generation(state.inner().clone(), generation, move |service| {
+        service
+            .set_root_setup_local_copy(&root_id, keep_local_copy)
+            .map_err(Into::into)
+    })
+    .await
+}
+
 #[tauri::command]
 async fn get_root_setup_consents(
     state: tauri::State<'_, DesktopState>,
@@ -1372,6 +1389,36 @@ async fn scan_game_file_roots(
             .scan_game_file_roots_with_progress(&limits, |event| {
                 let _ = on_event.send(event);
             })
+            .map_err(Into::into)
+    })
+    .await
+}
+
+/// One page of the current saved-folder scan's recorded matches. Paging a
+/// scan that has since been replaced is a conflict, so the view reloads.
+#[tauri::command]
+async fn get_game_file_scan_matches(
+    state: tauri::State<'_, DesktopState>,
+    generation: u64,
+    query: portcove_core::GameFileScanMatchQuery,
+) -> DesktopResult<portcove_core::GameFileScanMatchPage> {
+    blocking_service_at_generation(state.inner().clone(), generation, move |service| {
+        service.game_file_scan_matches(&query).map_err(Into::into)
+    })
+    .await
+}
+
+/// The game-file profiles the current scan matched inside one saved folder,
+/// so its setup choices cover every match. Reads only.
+#[tauri::command]
+async fn get_game_file_root_match_profiles(
+    state: tauri::State<'_, DesktopState>,
+    generation: u64,
+    root_id: String,
+) -> DesktopResult<Vec<String>> {
+    blocking_service_at_generation(state.inner().clone(), generation, move |service| {
+        service
+            .game_file_root_match_profiles(&root_id)
             .map_err(Into::into)
     })
     .await
@@ -3251,6 +3298,7 @@ pub fn run() -> std::process::ExitCode {
             run_standing_setup,
             set_root_setup_consent,
             set_root_setup_implementation,
+            set_root_setup_local_copy,
             get_root_setup_consents,
             cancel_install_batch,
             get_install_batch,
@@ -3259,6 +3307,8 @@ pub fn run() -> std::process::ExitCode {
             remove_game_file_root,
             scan_game_file_roots,
             get_game_file_scan_snapshot,
+            get_game_file_scan_matches,
+            get_game_file_root_match_profiles,
             refresh_game_file_query,
             discover_sources,
             open_source_inbox,

@@ -97,6 +97,21 @@ async function catalogPortGroup(browser: WebDriver, portId: string): Promise<Web
 
 /** Use the real single-port action or comparison dialog, never a direct state change. */
 export async function selectCatalogPort(browser: WebDriver, portId: string) {
+  // Search and filter results re-render after input, which can replace the
+  // located group between lookup and click. Opening a port's detail is
+  // non-mutating, so re-locate a bounded number of times on a stale reference.
+  for (let attempt = 1; ; attempt++) {
+    try {
+      return await selectCatalogPortOnce(browser, portId);
+    } catch (error) {
+      if (!(error instanceof Error && error.name === "StaleElementReferenceError") || attempt >= 3)
+        throw error;
+      await new Promise((resolve) => setTimeout(resolve, 250));
+    }
+  }
+}
+
+async function selectCatalogPortOnce(browser: WebDriver, portId: string) {
   const group = await catalogPortGroup(browser, portId);
   const matching = decodeDiscoverPortIds(
     await group.getAttribute("data-discover-matching-port-ids"),
@@ -137,7 +152,7 @@ export async function catalogResultPortIds(browser: WebDriver): Promise<string[]
 
 export async function openCatalogFilters(browser: WebDriver) {
   const trigger = await browser.wait(
-    until.elementLocated(By.xpath('//button[starts-with(normalize-space(.),"Filters (")]')),
+    until.elementLocated(By.xpath('//button[starts-with(@aria-label,"Filters (")]')),
     15_000,
   );
   if ((await trigger.getAttribute("aria-expanded")) !== "true")

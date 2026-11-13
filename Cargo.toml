@@ -96,13 +96,20 @@ rpassword = "7.5.4"
 rustix = { version = "1.1.6", features = ["fs"] }
 same-file = "1.0.6"
 
-# Signed-catalog tests exercise real signatures repeatedly. Optimize the numeric
-# dependency work while keeping Portcove itself unoptimized with debug assertions.
-[profile.test.package.curve25519-dalek]
+# Test time, not compile time, bounds hosted validation: the Windows Rust test
+# partitions are most of a Rust run's runner minutes. Optimize every dependency
+# for tests (signatures, hashing, compression, JSON), and lightly optimize the
+# shared core, whose own generic code dominated CPU-bound cases: three such
+# cases went from 52-65s to 5-8s on Linux while an incremental rebuild stayed
+# near 30s. Debug assertions and overflow checks stay on; a cold non-incremental
+# core test build takes several minutes longer.
+[profile.test.package."*"]
 opt-level = 3
 
-[profile.test.package.ed25519-dalek]
-opt-level = 3
+[profile.test.package.portcove-core]
+opt-level = 1
+debug-assertions = true
+overflow-checks = true
 
 # Fixed controller helpers are not shipping packages. Bound their cold build
 # without changing the release profile, feature set or production job timeout.

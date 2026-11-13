@@ -383,6 +383,70 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
         return Ok(ExitCode::SUCCESS);
     }
     if let Commands::Catalog {
+        command: CatalogCommand::InspectDefinitionDelivery,
+    } = &cli.command
+    {
+        render_read_success(
+            mode,
+            "catalog.inspect-definition-delivery",
+            portcove_core::inspect_official_definition_delivery().await,
+            |report| {
+                format!(
+                    "Official definition delivery: {}; {} verified definitions.{}",
+                    report.serving.as_str(),
+                    report.definitions.len(),
+                    report
+                        .reason
+                        .as_deref()
+                        .map(|reason| format!(" {reason}"))
+                        .unwrap_or_default()
+                )
+            },
+        )?;
+        return Ok(ExitCode::SUCCESS);
+    }
+    if let Commands::Catalog {
+        command: CatalogCommand::InspectTargets { ports, platforms },
+    } = &cli.command
+    {
+        let platforms = platforms
+            .iter()
+            .map(|platform| {
+                serde_json::from_value::<portcove_core::Platform>(serde_json::Value::String(
+                    platform.clone(),
+                ))
+                .map_err(|_| {
+                    portcove_core::PortcoveError::usage(format!(
+                        "unknown target platform: {platform}"
+                    ))
+                })
+            })
+            .collect::<std::result::Result<Vec<_>, _>>()?;
+        render_read_success(
+            mode,
+            "catalog.inspect-targets",
+            portcove_core::inspect_targets(
+                &portcove_core::Catalog::embedded()?,
+                ports,
+                &platforms,
+            )?,
+            |report| {
+                let offered = report
+                    .ports
+                    .iter()
+                    .flat_map(|port| &port.targets)
+                    .filter(|target| target.routes.iter().any(|route| route.offered))
+                    .count();
+                format!(
+                    "Inspected {} ports on {} platforms; {offered} port-platform pairs offer a route for a fresh library. Trust eligibility, installed state and readiness are not assessed.",
+                    report.ports.len(),
+                    report.platforms.len()
+                )
+            },
+        )?;
+        return Ok(ExitCode::SUCCESS);
+    }
+    if let Commands::Catalog {
         command:
             CatalogCommand::InspectProposal {
                 file,
@@ -1257,6 +1321,18 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
                 service.game_file_scan_snapshot()?,
                 human::game_file_scan_snapshot,
             )?,
+            GameFileRootCommand::Matches(args) => render_read_success(
+                mode,
+                "source.roots.matches",
+                service.game_file_scan_matches(&args.query())?,
+                |page| human::game_file_scan_matches(page, service.catalog()),
+            )?,
+            GameFileRootCommand::Profiles { root_id } => render_read_success(
+                mode,
+                "source.roots.profiles",
+                service.game_file_root_match_profiles(&root_id)?,
+                |profiles| human::game_file_root_match_profiles(profiles, service.catalog()),
+            )?,
             GameFileRootCommand::Add { path } => render_read_success(
                 mode,
                 "source.roots.add",
@@ -1736,6 +1812,12 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
                 mode,
                 "games.folder-setup-choose",
                 Some(service.set_root_setup_implementation(&root_id, &profile_id, &port_id)?),
+                |value| human::root_setup_consent(value.as_ref()),
+            )?,
+            GamesCommand::FolderSetupCopy { root_id, copy } => render_read_success(
+                mode,
+                "games.folder-setup-copy",
+                Some(service.set_root_setup_local_copy(&root_id, copy == FolderSetupCopy::On)?),
                 |value| human::root_setup_consent(value.as_ref()),
             )?,
             GamesCommand::FolderSetups => render_read_success(
@@ -3661,6 +3743,8 @@ fn command_name(command: &Commands) -> &'static str {
                 GameFileRootCommand::List => "source.roots.list",
                 GameFileRootCommand::Scan(_) => "source.roots.scan",
                 GameFileRootCommand::Snapshot => "source.roots.snapshot",
+                GameFileRootCommand::Matches(_) => "source.roots.matches",
+                GameFileRootCommand::Profiles { .. } => "source.roots.profiles",
                 GameFileRootCommand::Add { .. } => "source.roots.add",
                 GameFileRootCommand::Relink { .. } => "source.roots.relink",
                 GameFileRootCommand::Remove { .. } => "source.roots.remove",
@@ -3703,6 +3787,7 @@ fn command_name(command: &Commands) -> &'static str {
             GamesCommand::SetupReady => "games.setup-ready",
             GamesCommand::FolderSetup { .. } => "games.folder-setup",
             GamesCommand::FolderSetupChoose { .. } => "games.folder-setup-choose",
+            GamesCommand::FolderSetupCopy { .. } => "games.folder-setup-copy",
             GamesCommand::FolderSetups => "games.folder-setups",
         },
         Commands::Launch { command } => match command {
@@ -5155,12 +5240,14 @@ mod tests {
             capabilities.schema_version,
             portcove_core::API_SCHEMA_VERSION
         );
-        assert!(
-            capabilities
-                .commands
-                .iter()
-                .any(|command| command == "source.roots")
-        );
+        for name in [
+            "source.roots",
+            "source.roots.scan",
+            "source.roots.matches",
+            "source.roots.profiles",
+        ] {
+            assert!(capabilities.commands.iter().any(|command| command == name));
+        }
         assert_eq!(
             capabilities.operation_event_schema_version,
             portcove_core::OPERATION_EVENT_SCHEMA_VERSION
@@ -5209,6 +5296,7 @@ mod tests {
             "games.setup-ready",
             "games.folder-setup",
             "games.folder-setup-choose",
+            "games.folder-setup-copy",
             "games.folder-setups",
         ] {
             assert!(capabilities.commands.iter().any(|command| command == name));

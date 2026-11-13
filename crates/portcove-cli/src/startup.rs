@@ -113,6 +113,8 @@ pub(super) fn startup_mode(command: &Commands) -> StartupMode {
             | CatalogCommand::Status
             | CatalogCommand::ListingStatus
             | CatalogCommand::InspectProposal { .. }
+            | CatalogCommand::InspectTargets { .. }
+            | CatalogCommand::InspectDefinitionDelivery
             | CatalogCommand::InspectPackageLayout { .. }
             | CatalogCommand::InspectSettingsQualification { .. } => ReadOnly,
             CatalogCommand::InspectDefinitionPublication { .. } => ReadOnly,
@@ -144,7 +146,10 @@ pub(super) fn startup_mode(command: &Commands) -> StartupMode {
                 SourceInboxCommand::Open { .. } | SourceInboxCommand::Scan(_) => Recovering,
             },
             SourceCommand::Roots { command } => match command {
-                GameFileRootCommand::List | GameFileRootCommand::Snapshot => ReadOnly,
+                GameFileRootCommand::List
+                | GameFileRootCommand::Snapshot
+                | GameFileRootCommand::Matches(_)
+                | GameFileRootCommand::Profiles { .. } => ReadOnly,
                 GameFileRootCommand::Scan(_)
                 | GameFileRootCommand::Add { .. }
                 | GameFileRootCommand::Relink { .. }
@@ -228,7 +233,8 @@ pub(super) fn startup_mode(command: &Commands) -> StartupMode {
             | GamesCommand::IntentsAcknowledge { .. }
             | GamesCommand::SetupReady
             | GamesCommand::FolderSetup { .. }
-            | GamesCommand::FolderSetupChoose { .. } => Recovering,
+            | GamesCommand::FolderSetupChoose { .. }
+            | GamesCommand::FolderSetupCopy { .. } => Recovering,
         },
         // These commands return before shared service construction. Preserve the
         // historical policy bit without moving their own dispatch/constructors.
@@ -414,6 +420,8 @@ mod tests {
             "source inbox import p file",
             "source roots list",
             "source roots snapshot",
+            "source roots matches",
+            "source roots profiles --root r",
             "external preview p dir",
             "external removal-preview p",
             "installation plan p",

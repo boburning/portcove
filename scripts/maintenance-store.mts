@@ -168,15 +168,54 @@ function runTool(
 const psqlBase = ["-X", "-q", "-v", "ON_ERROR_STOP=1"] as const;
 
 /** Run SQL in one transaction and return unaligned tuples-only output. */
-export function runSql(environment: NodeJS.ProcessEnv, sql: string) {
+export function runSql(
+  environment: NodeJS.ProcessEnv,
+  sql: string,
+  /** A longer budget for one known-large transaction; the default suits ordinary queries. */
+  options: { timeoutMs?: number } = {},
+) {
   return runTool(
     "psql",
     [...psqlBase, "-A", "-t", "--single-transaction", "-f", "-"],
     environment,
     {
       input: sql,
+      ...(options.timeoutMs === undefined ? {} : { timeoutMs: options.timeoutMs }),
     },
   );
+}
+
+/**
+ * Join statements with psql's `\;` so the whole list reaches the server as one
+ * query: one network round trip instead of one per statement. Each statement
+ * must be complete; the transaction still stops at the first error.
+ */
+export function batchedStatements(statements: readonly string[]) {
+  return `${statements.map((statement) => statement.trimEnd().replace(/;$/u, "")).join("\\;\n")};`;
+}
+
+/**
+ * Column attribute options that a managed provider adds to its own catalog and
+ * that standard PostgreSQL refuses (Neon's `pg_attver`). The store sets no
+ * column options, so the restore drops exactly these statements.
+ */
+const providerColumnOption =
+  /^ALTER TABLE ONLY [a-z_][a-z0-9_]*\.[a-z_][a-z0-9_]* ALTER COLUMN [a-z_][a-z0-9_]* SET \(pg_attver=[0-9]+\);$/u;
+
+export function portableRestoreSql(sql: string) {
+  let copying = false;
+  return sql
+    .split("\n")
+    .filter((line) => {
+      // COPY data passes through untouched, whatever it looks like.
+      if (copying) {
+        if (line === "\\.") copying = false;
+        return true;
+      }
+      if (/^COPY .* FROM stdin;$/u.test(line)) copying = true;
+      return !providerColumnOption.test(line);
+    })
+    .join("\n");
 }
 
 function queryJson(environment: NodeJS.ProcessEnv, sql: string): unknown {
@@ -330,6 +369,19 @@ export function migrate(environment: NodeJS.ProcessEnv, directory = defaultMigra
   }
   if (plan.applied.length || plan.pending.length) runSql(environment, roleContract());
   return { ...migrationStatus(environment, directory), newly_applied: applied };
+}
+
+/**
+ * The server's version and the current database's size, so an operator can pick a
+ * client of the matching major version and measure storage against provider limits.
+ */
+export function serverInfo(environment: NodeJS.ProcessEnv) {
+  const info = queryJson(
+    environment,
+    `SELECT json_build_object('server_version_num', current_setting('server_version_num')::integer,
+       'database_size_bytes', pg_catalog.pg_database_size(current_database()));`,
+  ) as { server_version_num: number; database_size_bytes: number };
+  return { ...info, server_major: Math.floor(info.server_version_num / 10_000) };
 }
 
 export type StoreDigest = Record<string, { rows: number; sha256: string }>;
@@ -599,6 +651,8 @@ export function restore(
       environment,
       { timeoutMs: dumpTimeoutMs },
     );
+    // A provider's own column options are not part of the store and do not restore elsewhere.
+    writeFileSync(script, portableRestoreSql(readFileSync(script, "utf8")));
     writeFileSync(roles, roleContract());
     writeFileSync(verification, restoreVerification(manifest.tables));
     // Verify against the backup's own schema, then bring it to this checkout's schema.
@@ -649,6 +703,7 @@ commands:
   status    report applied, pending and drifted migrations
   migrate   apply pending migrations and the limited-role contract
   digest    print per-table row counts and content digests
+  server    print the server version, its major version and the database size in bytes
   backup    --output DIR   write maintenance.dump and manifest.json to a new DIR
   restore   --input DIR    restore a backup into a database without maintenance schemas
 
@@ -672,10 +727,13 @@ export async function main(argv = process.argv.slice(2)) {
   if (args.length)
     throw new MaintenanceStoreError(`Unexpected arguments: ${args.join(" ")}\n${usage}`);
   const environment = connectionFromEnvironment(environmentName);
+  // Child processes receive only the libpq translation, never the URL itself.
+  delete process.env[environmentName];
   let result: unknown;
   if (command === "status") result = migrationStatus(environment, directory);
   else if (command === "migrate") result = migrate(environment, directory);
   else if (command === "digest") result = storeDigest(environment);
+  else if (command === "server") result = serverInfo(environment);
   else if (command === "backup") {
     if (!output) throw new MaintenanceStoreError("backup requires --output DIR");
     result = await backup(environment, path.resolve(output), directory);

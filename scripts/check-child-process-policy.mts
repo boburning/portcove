@@ -20,6 +20,8 @@ const ALLOWED_DIRECT_COMMAND_FILES = new Set([
   "crates/portcove-cli/tests/machine_contract/preparation.rs",
   "crates/portcove-cli/tests/machine_contract/self_service.rs",
   "crates/portcove-core/src/definition_publication_connected_tests.rs",
+  // Standalone game fixture starts its own successor to exercise the tracking policy.
+  "crates/portcove-core/tests/fixtures/windows-tracked-handoff-probe.rs",
   "crates/portcove-diagnostics/src/writer_tests.rs",
   // These integration tests invoke the Cargo-built release CLI as a separate process.
   "crates/portcove-release-tools/tests/cli.rs",

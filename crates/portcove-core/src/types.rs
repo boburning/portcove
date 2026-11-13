@@ -2141,6 +2141,11 @@ pub struct LaunchReadiness {
     pub required_source_extension: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub source: Option<SourceHealth>,
+    /// The saved game-file folder holding this game's missing or unreadable
+    /// original, when that folder is currently unavailable: reconnecting it is
+    /// the fix, and nothing was deleted.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub source_folder_unavailable: Option<std::path::PathBuf>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub bios: Option<SourceHealth>,
     /// Descriptive input evidence for this retained installed release. Missing
@@ -2426,6 +2431,8 @@ impl CapabilityDocument {
                 "source.reuse".into(),
                 "source.roots".into(),
                 "source.roots.scan".into(),
+                "source.roots.matches".into(),
+                "source.roots.profiles".into(),
                 "source.query".into(),
                 "tool".into(),
                 "status".into(),
@@ -2469,6 +2476,7 @@ impl CapabilityDocument {
                 "games.setup-ready".into(),
                 "games.folder-setup".into(),
                 "games.folder-setup-choose".into(),
+                "games.folder-setup-copy".into(),
                 "games.folder-setups".into(),
                 "ensure".into(),
                 "update".into(),

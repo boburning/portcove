@@ -123,6 +123,10 @@ impl EngineTemplateCapability {
             contract_version: 2,
         });
         supported.push(Self {
+            template: AdapterKind::PsxRecompManaged,
+            contract_version: crate::persistence::PSX_RETAINED_SCOPE_CAPABILITY,
+        });
+        supported.push(Self {
             template: AdapterKind::StagedSourcePortable,
             contract_version: 2,
         });
@@ -895,7 +899,9 @@ mod tests {
             (1, 1, true, 1),
             (2, 2, true, 2),
             (1, 2, true, 2),
-            (3, 3, false, 2),
+            (3, 3, true, 3),
+            (1, 3, true, 3),
+            (4, 4, false, 3),
         ] {
             let report =
                 check_definition_capabilities(&request("psx-recomp-managed", minimum, maximum))

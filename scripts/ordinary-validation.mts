@@ -1362,6 +1362,14 @@ for (const [file, tests] of [
       "scripts/release-controller-catalog-routing.test.mts",
     ],
   ],
+  [
+    "scripts/release-opportunity.mts",
+    ["scripts/release-coordinator.test.mts", "scripts/release-controller-wake.test.mts"],
+  ],
+  [
+    "scripts/release-semantic-review-evidence.mts",
+    ["scripts/release-semantic-review.test.mts", "scripts/release-controller-wake.test.mts"],
+  ],
   ["scripts/release-publication-result.mts", ["scripts/release-publication-result.test.mts"]],
   [
     "scripts/release-publication-result-artifact.mts",
@@ -2418,6 +2426,7 @@ const workflowTests = new Map([
   ["application-release-package.yml", applicationReleaseTests],
   ["application-release-private.yml", applicationReleaseTests],
   ["qualification.yml", ["scripts/qualification-coverage.test.mts"]],
+  ["maintenance-inventory.yml", ["scripts/maintenance-inventory.test.mts"]],
   [
     "configured-upstream-observer.yml",
     [
@@ -2437,7 +2446,6 @@ const workflowTests = new Map([
   ["pr-conventions.yml", ["scripts/pr-conventions.test.mts"]],
   ["closing-inventory.yml", ["scripts/pr-delivery.test.mts"]],
   ["ci-supersede.yml", ["scripts/ci-supersede.test.mts"]],
-  ["ci-required-status.yml", ["scripts/ci-supersede.test.mts"]],
 ]);
 
 for (const file of [
@@ -3230,6 +3238,8 @@ function classifyOnePath(
     selection.actionsLint = true;
     addNodeTest(selection, "scripts/ci-workflow.test.mts");
     addNodeTest(selection, "scripts/dependency-automation.test.mts");
+    // This test scans every workflow for GitHub CLI API calls, so any workflow change selects it.
+    addNodeTest(selection, "scripts/github-client.test.mts");
     for (const testFile of workflowTests.get(path.posix.basename(file)) ?? [])
       addNodeTest(selection, testFile);
     recognized = true;
@@ -3240,6 +3250,7 @@ function classifyOnePath(
     selection.actionsLint = true;
     addNodeTest(selection, "scripts/ci-workflow.test.mts");
     addNodeTest(selection, "scripts/dependency-automation.test.mts");
+    addNodeTest(selection, "scripts/github-client.test.mts");
     recognized = true;
   }
 

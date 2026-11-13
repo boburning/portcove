@@ -15,6 +15,7 @@ import {
 import { LatestRequestGeneration } from "../shared/concurrency-state";
 import type {
   GameFileRoot,
+  GameFileScanMatchPage,
   GameFileScanSnapshot,
   PortDefinition,
   PortStatus,
@@ -305,8 +306,189 @@ function CandidateRow({
   );
 }
 
+const matchPageSize = 64;
+
+/** Matches beyond the snapshot preview, read in pages for one recorded scan. */
+interface MoreMatches {
+  /** The snapshot the pages extend. A continued scan keeps its scan ID but
+   * can change its preview, so pages from before it are dropped. */
+  key: string;
+  candidates: GameFileScanMatchPage["candidates"];
+  preliminary: GameFileScanMatchPage["preliminary_selections"];
+}
+
+function isConflict(error: unknown) {
+  return (
+    typeof error === "object" && error !== null && "code" in error && error.code === "conflict"
+  );
+}
+
+function scanMatchIdentity(snapshot: GameFileScanSnapshot | null | undefined) {
+  const report = snapshot?.report;
+  const scanId = snapshot?.matches?.scan_id;
+  const key = scanId
+    ? [
+        scanId,
+        report?.candidates.length ?? 0,
+        report?.preliminary_selections?.length ?? 0,
+        snapshot?.matches?.exact_matches ?? 0,
+        snapshot?.matches?.preliminary_selections ?? 0,
+      ].join(":")
+    : undefined;
+  return { report, scanId, key };
+}
+
+function scanMatchCounts(
+  snapshot: GameFileScanSnapshot | null | undefined,
+  report: GameFileScanSnapshot["report"] | undefined,
+  current: MoreMatches | undefined,
+) {
+  const exactShown = (report?.candidates.length ?? 0) + (current?.candidates.length ?? 0);
+  const preliminaryShown =
+    (report?.preliminary_selections?.length ?? 0) + (current?.preliminary.length ?? 0);
+  const exactTotal = snapshot?.matches?.exact_matches ?? report?.candidates.length ?? 0;
+  const preliminaryTotal =
+    snapshot?.matches?.preliminary_selections ?? report?.preliminary_selections?.length ?? 0;
+  const remaining = exactTotal - exactShown + (preliminaryTotal - preliminaryShown);
+  return { exactShown, preliminaryShown, exactTotal, remaining };
+}
+
+function useMoreMatches(
+  snapshot: GameFileScanSnapshot | null | undefined,
+  generation: number,
+  onReload: () => void,
+) {
+  const [more, setMore] = useState<MoreMatches>();
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string>();
+  const { report, scanId, key } = scanMatchIdentity(snapshot);
+  const currentKey = useRef(key);
+  useLayoutEffect(() => {
+    currentKey.current = key;
+  }, [key]);
+  const current = more && more.key === key ? more : undefined;
+  const { exactShown, preliminaryShown, exactTotal, remaining } = scanMatchCounts(
+    snapshot,
+    report,
+    current,
+  );
+  const showMore = async () => {
+    if (!scanId || !key || loading) return;
+    const kind = exactShown < exactTotal ? "exact" : "preliminary";
+    setLoading(true);
+    setError(undefined);
+    try {
+      const page = await desktopApi.gameFileScanMatches(
+        {
+          scan_id: scanId,
+          kind,
+          offset: kind === "exact" ? exactShown : preliminaryShown,
+          limit: matchPageSize,
+        },
+        generation,
+      );
+      // The snapshot changed while this page loaded: its offsets no longer apply.
+      if (currentKey.current !== key) return;
+      setMore((previous) => {
+        const base = previous?.key === key ? previous : { key, candidates: [], preliminary: [] };
+        return {
+          key,
+          candidates: [...base.candidates, ...page.candidates],
+          preliminary: [...base.preliminary, ...page.preliminary_selections],
+        };
+      });
+    } catch (failure) {
+      // A newer scan replaced this one; show it instead of mixing two scans.
+      if (isConflict(failure)) {
+        setMore(undefined);
+        onReload();
+      } else setError(errorText(failure));
+    } finally {
+      setLoading(false);
+    }
+  };
+  return {
+    candidates: current?.candidates ?? [],
+    preliminary: current?.preliminary ?? [],
+    exactTotal,
+    remaining: scanId ? Math.max(remaining, 0) : 0,
+    loading,
+    error,
+    showMore,
+  };
+}
+
+type ShownMatches = ReturnType<typeof useMoreMatches>;
+
+function completedScanCoverage(
+  snapshot: GameFileScanSnapshot,
+  report: NonNullable<GameFileScanSnapshot["report"]>,
+  readConfirmed: boolean,
+) {
+  const coverage = snapshot.coverage;
+  const canContinue = savedScanAction(snapshot, readConfirmed) === "Continue scan";
+  const matchCeilingReached =
+    coverage !== undefined &&
+    coverage !== null &&
+    !coverage.can_resume &&
+    !coverage.frontier_exhausted &&
+    !coverage.restart_required &&
+    report.limits_reached.includes("candidates");
+  return { coverage, canContinue, matchCeilingReached };
+}
+
+function ScanCoverageNotice({
+  coverage,
+  canContinue,
+}: {
+  coverage: GameFileScanSnapshot["coverage"];
+  canContinue: boolean;
+}) {
+  if (!coverage) return null;
+  return (
+    <p>
+      {countMessage(coverage.batches, "scanBatches")}{" "}
+      {coverage.restart_required
+        ? "The saved scan cannot continue. Start a new scan to check the current folders."
+        : coverage.frontier_exhausted
+          ? "No more entries remain in this scan's folder list. Skipped files and search limits still apply."
+          : coverage.remaining_entries === null
+            ? "The number of remaining entries is unknown."
+            : countMessage(coverage.remaining_entries, "remainingEntries")}{" "}
+      {canContinue && "Continue the scan to check another bounded batch without moving your files."}
+    </p>
+  );
+}
+
+function ScanLimitNotices({
+  limits,
+  canContinue,
+  matchCeilingReached,
+}: {
+  limits: NonNullable<GameFileScanSnapshot["report"]>["limits_reached"];
+  canContinue: boolean;
+  matchCeilingReached: boolean;
+}) {
+  if (limits.length === 0) return null;
+  return (
+    <ul>
+      {limits.map((limit) => (
+        <li key={limit}>
+          {sourceDiscoveryLimitLabel(limit)}:{" "}
+          {(limit === "entries" || limit === "hash_bytes" || limit === "candidates") && canContinue
+            ? "Continue the scan to check the next batch. Earlier matches were kept."
+            : limit === "candidates" && matchCeilingReached
+              ? "This scan reached its safety limit for matches, so it stopped. The matches found so far were kept. Save narrower subfolders, then scan again to check the rest."
+              : savedRootLimitGuidance(limit)}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 function CompletedScan({
   snapshot,
+  more,
   readConfirmed,
   roots,
   ports,
@@ -320,6 +502,7 @@ function CompletedScan({
   review,
 }: {
   snapshot?: GameFileScanSnapshot | null | undefined;
+  more: ShownMatches;
   readConfirmed: boolean;
   roots?: GameFileRoot[] | undefined;
   ports: PortDefinition[];
@@ -334,8 +517,13 @@ function CompletedScan({
 }) {
   const report = snapshot?.report;
   if (!snapshot || !report) return null;
-  const coverage = snapshot.coverage;
-  const canContinue = savedScanAction(snapshot, readConfirmed) === "Continue scan";
+  const { coverage, canContinue, matchCeilingReached } = completedScanCoverage(
+    snapshot,
+    report,
+    readConfirmed,
+  );
+  const candidates = [...report.candidates, ...more.candidates];
+  const preliminarySelections = [...(report.preliminary_selections ?? []), ...more.preliminary];
   return (
     <section className="source-discovery-results" aria-label="Saved folder scan results">
       <h3>Last completed scan</h3>
@@ -346,42 +534,28 @@ function CompletedScan({
             ? "Saved roots and catalog match this snapshot. Files may have changed since the scan."
             : "Saved roots, availability, catalog, or search rules changed. Scan again before using these results."}
       </p>
-      {coverage && (
-        <p>
-          {countMessage(coverage.batches, "scanBatches")}{" "}
-          {coverage.restart_required
-            ? "The saved scan cannot continue. Start a new scan to check the current folders."
-            : coverage.frontier_exhausted
-              ? "No more entries remain in this scan's folder list. Skipped files and search limits still apply."
-              : coverage.remaining_entries === null
-                ? "The number of remaining entries is unknown."
-                : countMessage(coverage.remaining_entries, "remainingEntries")}{" "}
-          {canContinue &&
-            "Continue the scan to check another bounded batch without moving your files."}
-        </p>
-      )}
+      <ScanCoverageNotice coverage={coverage} canContinue={canContinue} />
       <p>
         Checked {report.entries_examined} entries in {report.searched_roots.length} available
-        folders. {countMessage(report.candidates.length, "exactMatches")} This scan does not assess
-        every source format or establish gameplay support.
+        folders. {countMessage(more.exactTotal, "exactMatches")} This scan does not assess every
+        source format or establish gameplay support.
       </p>
+      {more.remaining > 0 && (
+        <p data-match-preview-notice>
+          Showing {candidates.length + preliminarySelections.length} of{" "}
+          {candidates.length + preliminarySelections.length + more.remaining} matches. Show more to
+          see the rest.
+        </p>
+      )}
       {roots?.some((root) => root.availability === "unavailable") && (
         <p>Unavailable saved folders were not searched.</p>
       )}
-      {report.limits_reached.length > 0 && (
-        <ul>
-          {report.limits_reached.map((limit) => (
-            <li key={limit}>
-              {sourceDiscoveryLimitLabel(limit)}:{" "}
-              {(limit === "entries" || limit === "hash_bytes" || limit === "candidates") &&
-              canContinue
-                ? "Continue the scan to check the next batch. Earlier matches were kept."
-                : savedRootLimitGuidance(limit)}
-            </li>
-          ))}
-        </ul>
-      )}
-      {report.candidates.map((candidate) => (
+      <ScanLimitNotices
+        limits={report.limits_reached}
+        canContinue={canContinue}
+        matchCeilingReached={matchCeilingReached}
+      />
+      {candidates.map((candidate) => (
         <CandidateRow
           candidate={candidate}
           profiles={profiles}
@@ -406,7 +580,7 @@ function CompletedScan({
       ))}
       <PreliminarySourceSelections
         headingLevel={4}
-        selections={report.preliminary_selections}
+        selections={preliminarySelections}
         profiles={profiles}
         disabled={busy || !readConfirmed || snapshot.freshness !== "inputs_match"}
         onReview={review}
@@ -429,6 +603,17 @@ function CompletedScan({
           </>
         )}
       />
+      {more.remaining > 0 && (
+        <Button
+          type="button"
+          variant="outline"
+          disabled={more.loading}
+          onClick={() => void more.showMore()}
+        >
+          {more.loading ? "Loading matches…" : "Show more matches"}
+        </Button>
+      )}
+      {more.error && <p role="alert">{more.error}</p>}
       {report.issues.map((issue, index) => (
         <p key={`${issue.path}:${index}`}>
           {issue.message}{" "}
@@ -681,6 +866,98 @@ function useCompletedScanView(
   return viewCompletion;
 }
 
+function useSavedFolderFocus({
+  scanning,
+  snapshot,
+  viewCompletion,
+  completion,
+  plan,
+  busy,
+}: {
+  scanning: boolean;
+  snapshot: GameFileScanSnapshot | null | undefined;
+  viewCompletion: GameFileScan["completion"] | undefined;
+  completion: GameFileScan["completion"];
+  plan: SourceImportPlan | undefined;
+  busy: string;
+}) {
+  const heading = useRef<HTMLHeadingElement>(null);
+  const focusAfterScan = useRef<{ profile_id: string; path: string } | undefined>(undefined);
+  const reviewedCandidate = useRef<{ profile_id: string; path: string } | undefined>(undefined);
+  const focusAfterReview = useRef(false);
+  const focusToSetup = useRef(false);
+  useEffect(() => {
+    if (scanning || viewCompletion !== completion || !focusAfterScan.current) return;
+    const candidate = focusAfterScan.current;
+    focusAfterScan.current = undefined;
+    const scope = heading.current?.closest<HTMLElement>("[data-saved-folders-workspace]");
+    if (document.activeElement !== document.body || !scope?.getClientRects().length) return;
+    const row = [...scope.querySelectorAll<HTMLElement>("[data-completed-candidate]")].find(
+      (element) =>
+        element.dataset.profileId === candidate.profile_id &&
+        element.dataset.path === candidate.path,
+    );
+    (
+      row?.querySelector<HTMLButtonElement>("[data-candidate-review]:not(:disabled)") ??
+      heading.current
+    )?.focus();
+  }, [scanning, snapshot, viewCompletion, completion]);
+  useEffect(() => {
+    if (!plan || busy) return;
+    const scope = heading.current?.closest<HTMLElement>("[data-saved-folders-workspace]");
+    if (!scope?.getClientRects().length) return;
+    scope
+      .querySelector<HTMLButtonElement>('[aria-label="Source import review"] button:not(:disabled)')
+      ?.focus();
+  }, [plan, busy]);
+  useEffect(() => {
+    if (plan || busy || !focusAfterReview.current) return;
+    const scope = heading.current?.closest<HTMLElement>("[data-saved-folders-workspace]");
+    if (!scope?.getClientRects().length) return;
+    focusAfterReview.current = false;
+    if (focusToSetup.current) {
+      focusToSetup.current = false;
+      const setup = scope.querySelector<HTMLButtonElement>(
+        '[aria-label="Continue to a game"] button:not(:disabled)',
+      );
+      if (setup) {
+        setup.focus();
+        return;
+      }
+    }
+    const candidate = reviewedCandidate.current;
+    const rows = scope.querySelectorAll<HTMLElement>(
+      scanning
+        ? "[data-live-candidate], [data-preliminary-selection]"
+        : "[data-completed-candidate], [data-preliminary-selection]",
+    );
+    const row = [...rows].find(
+      (element) =>
+        element.dataset.profileId === candidate?.profile_id &&
+        element.dataset.path === candidate?.path,
+    );
+    (
+      row?.querySelector<HTMLButtonElement>("[data-candidate-review]:not(:disabled)") ??
+      heading.current
+    )?.focus();
+  }, [plan, busy, scanning, snapshot]);
+  return {
+    heading,
+    rememberScanCandidate: (candidate: Pick<SourceRecord, "profile_id" | "path">) => {
+      focusAfterScan.current = candidate;
+    },
+    rememberReviewedCandidate: (candidate: Pick<SourceRecord, "profile_id" | "path">) => {
+      reviewedCandidate.current = candidate;
+    },
+    restoreReviewFocus: () => {
+      focusAfterReview.current = true;
+    },
+    focusSetupAfterReview: () => {
+      focusToSetup.current = true;
+    },
+  };
+}
+
 export function GameFileLibraries({
   instanceId = "game-file-libraries",
   generation,
@@ -718,6 +995,13 @@ export function GameFileLibraries({
   const [error, setError] = useState<string>();
   const view = useSavedFolderView(generation, setError);
   const { roots, snapshot, readConfirmed, refresh, refreshRoots, acceptRootPreflight } = view;
+  // Every match the player has seen: the snapshot preview plus pages shown
+  // with Show more. Adding, setup reviews and folder choices use the same set.
+  const more = useMoreMatches(snapshot, generation, () => void refresh(true).catch(() => {}));
+  const shownCandidates = [...(snapshot?.report.candidates ?? []), ...more.candidates];
+  const shownPreliminary = snapshot
+    ? [...(snapshot.report.preliminary_selections ?? []), ...more.preliminary]
+    : undefined;
   const owner = useRef<number | undefined>(undefined);
   useLayoutEffect(() => {
     owner.current = generation;
@@ -759,66 +1043,20 @@ export function GameFileLibraries({
         source.sha256 === registeredSource.sha256,
     ),
   );
-  const heading = useRef<HTMLHeadingElement>(null);
-  const focusAfterScan = useRef<{ profile_id: string; path: string } | undefined>(undefined);
-  const reviewedCandidate = useRef<{ profile_id: string; path: string } | undefined>(undefined);
-  const focusAfterReview = useRef(false);
-  const focusToSetup = useRef(false);
-  useEffect(() => {
-    if (scanning || viewCompletion !== scanState.completion || !focusAfterScan.current) return;
-    const candidate = focusAfterScan.current;
-    focusAfterScan.current = undefined;
-    const scope = heading.current?.closest<HTMLElement>("[data-saved-folders-workspace]");
-    if (document.activeElement !== document.body || !scope?.getClientRects().length) return;
-    const row = [...scope.querySelectorAll<HTMLElement>("[data-completed-candidate]")].find(
-      (element) =>
-        element.dataset.profileId === candidate.profile_id &&
-        element.dataset.path === candidate.path,
-    );
-    (
-      row?.querySelector<HTMLButtonElement>("[data-candidate-review]:not(:disabled)") ??
-      heading.current
-    )?.focus();
-  }, [scanning, snapshot, viewCompletion, scanState.completion]);
-  useEffect(() => {
-    if (!plan || busy) return;
-    const scope = heading.current?.closest<HTMLElement>("[data-saved-folders-workspace]");
-    if (!scope?.getClientRects().length) return;
-    scope
-      .querySelector<HTMLButtonElement>('[aria-label="Source import review"] button:not(:disabled)')
-      ?.focus();
-  }, [plan, busy]);
-  useEffect(() => {
-    if (plan || busy || !focusAfterReview.current) return;
-    const scope = heading.current?.closest<HTMLElement>("[data-saved-folders-workspace]");
-    if (!scope?.getClientRects().length) return;
-    focusAfterReview.current = false;
-    if (focusToSetup.current) {
-      focusToSetup.current = false;
-      const setup = scope.querySelector<HTMLButtonElement>(
-        '[aria-label="Continue to a game"] button:not(:disabled)',
-      );
-      if (setup) {
-        setup.focus();
-        return;
-      }
-    }
-    const candidate = reviewedCandidate.current;
-    const rows = scope.querySelectorAll<HTMLElement>(
-      scanning
-        ? "[data-live-candidate], [data-preliminary-selection]"
-        : "[data-completed-candidate], [data-preliminary-selection]",
-    );
-    const row = [...rows].find(
-      (element) =>
-        element.dataset.profileId === candidate?.profile_id &&
-        element.dataset.path === candidate?.path,
-    );
-    (
-      row?.querySelector<HTMLButtonElement>("[data-candidate-review]:not(:disabled)") ??
-      heading.current
-    )?.focus();
-  }, [plan, busy, scanning, snapshot]);
+  const {
+    heading,
+    rememberScanCandidate,
+    rememberReviewedCandidate,
+    restoreReviewFocus,
+    focusSetupAfterReview,
+  } = useSavedFolderFocus({
+    scanning,
+    snapshot,
+    viewCompletion,
+    completion: scanState.completion,
+    plan,
+    busy,
+  });
   const run = (
     label: string,
     task: () => Promise<void>,
@@ -902,7 +1140,7 @@ export function GameFileLibraries({
     run(
       "Checking game files…",
       async () => {
-        reviewedCandidate.current = candidate;
+        rememberReviewedCandidate(candidate);
         setRegisteredSource(undefined);
         setPlan(undefined);
         const reviewed = await desktopApi.planSourceImport(
@@ -920,7 +1158,7 @@ export function GameFileLibraries({
     run("Adding to Library…", async () => {
       const requests = portIds.map((portId) => {
         const port = ports.find((candidate) => candidate.id === portId);
-        const reviewed = (snapshot?.report.candidates ?? []).filter(
+        const reviewed = shownCandidates.filter(
           (candidate) => port?.source_profile === candidate.profile_id,
         );
         return {
@@ -960,7 +1198,7 @@ export function GameFileLibraries({
           );
           return;
         }
-        focusAfterReview.current = true;
+        restoreReviewFocus();
         setPlan(undefined);
         setNotice(sourceImportNotice(result));
         setRefreshConfirmed(false);
@@ -968,7 +1206,7 @@ export function GameFileLibraries({
         try {
           await onAdded?.();
           setRefreshConfirmed(true);
-          focusToSetup.current = true;
+          focusSetupAfterReview();
         } catch {
           setNotice(sourceImportRefreshNotice(result));
         }
@@ -1056,6 +1294,7 @@ export function GameFileLibraries({
   const renderCompletedScan = () => (
     <CompletedScan
       snapshot={snapshot}
+      more={more}
       readConfirmed={readConfirmed}
       roots={roots}
       ports={ports}
@@ -1073,8 +1312,8 @@ export function GameFileLibraries({
     <GameFileSetupReviews
       ports={ports}
       statuses={statuses}
-      candidates={scanning ? liveCandidates : (snapshot?.report.candidates ?? [])}
-      preliminarySelections={scanning ? [] : snapshot?.report.preliminary_selections}
+      candidates={scanning ? liveCandidates : shownCandidates}
+      preliminarySelections={scanning ? [] : shownPreliminary}
       registeredSources={registeredSources}
       current={
         refreshConfirmed &&
@@ -1106,7 +1345,7 @@ export function GameFileLibraries({
       profiles={profiles}
       busy={Boolean(busy)}
       onCancel={() => {
-        focusAfterReview.current = true;
+        restoreReviewFocus();
         setPlan(undefined);
       }}
       onApply={apply}
@@ -1133,7 +1372,7 @@ export function GameFileLibraries({
       onFocusCapture={(event) => {
         const row = event.target.closest<HTMLElement>("[data-live-candidate]");
         if (row?.dataset.profileId && row.dataset.path) {
-          focusAfterScan.current = { profile_id: row.dataset.profileId, path: row.dataset.path };
+          rememberScanCandidate({ profile_id: row.dataset.profileId, path: row.dataset.path });
         }
       }}
     >
@@ -1162,9 +1401,10 @@ export function GameFileLibraries({
             root={root}
             generation={generation}
             ports={ports}
-            candidates={(snapshot?.report.candidates ?? []).filter((candidate) =>
+            candidates={shownCandidates.filter((candidate) =>
               isInsideFolder(candidate.path, root.path),
             )}
+            scanKey={snapshot ? `${snapshot.matches?.scan_id ?? ""}:${snapshot.completed_at}` : ""}
             disabled={Boolean(busy) || scanning}
           />
         )}

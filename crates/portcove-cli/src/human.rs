@@ -1216,6 +1216,12 @@ pub(crate) fn root_setup_consent(value: Option<&portcove_core::RootSetupConsent>
         "Automatic setup is on for folder {}: {scope}. Run `portcove games setup-ready` to set up what is ready now; no game is launched.",
         clean(&consent.root_id)
     )];
+    if consent.keep_local_copy {
+        lines.push(
+            "Each game's required files are copied into Portcove's game-file folder; originals stay in this folder."
+                .to_owned(),
+        );
+    }
     for choice in &consent.implementations {
         lines.push(format!(
             "{} files set up {}",
@@ -1278,6 +1284,18 @@ pub(crate) fn game_file_scan_snapshot(snapshot: &Option<GameFileScanSnapshot>) -
 }
 
 pub(crate) fn game_file_scan(snapshot: &GameFileScanSnapshot) -> String {
+    let (candidates, preliminary) = snapshot.matches.as_ref().map_or(
+        (
+            snapshot.report.candidates.len(),
+            snapshot.report.preliminary_selections.len(),
+        ),
+        |matches| {
+            (
+                matches.exact_matches as usize,
+                matches.preliminary_selections as usize,
+            )
+        },
+    );
     let mut output = format!(
         "Game-file folder scan\nFreshness: {}\nCompleted: {}\nFolders: {}\nCandidates: {}\nEntries examined: {}\nFiles hashed: {}",
         match snapshot.freshness {
@@ -1286,10 +1304,26 @@ pub(crate) fn game_file_scan(snapshot: &GameFileScanSnapshot) -> String {
         },
         utc_time(snapshot.completed_at),
         snapshot.roots.len(),
-        snapshot.report.candidates.len(),
+        candidates,
         snapshot.report.entries_examined,
         snapshot.report.files_hashed,
     );
+    if preliminary > 0 {
+        output.push_str(&format!(
+            "\nPreliminary selections: {preliminary}. These are not exact matches; validation has not run."
+        ));
+    }
+    if snapshot
+        .matches
+        .as_ref()
+        .is_some_and(|matches| !matches.preview_complete)
+    {
+        output.push_str(&format!(
+            "\nThe recorded scan shows the first {} of {} matches; use source roots matches to read every match.",
+            snapshot.report.candidates.len() + snapshot.report.preliminary_selections.len(),
+            candidates + preliminary,
+        ));
+    }
     output.push_str(match snapshot.freshness {
         portcove_core::GameFileScanFreshness::InputsMatch => {
             "\nRecorded inputs match; file contents were not revalidated by this readback."
@@ -1321,6 +1355,12 @@ pub(crate) fn game_file_scan(snapshot: &GameFileScanSnapshot) -> String {
             "\nRepeat source roots scan with the same limits to resume the saved checkpoint."
         } else if coverage.frontier_exhausted {
             "\nRecorded directory frontier exhausted; limits and issues may still leave coverage incomplete."
+        } else if snapshot
+            .report
+            .limits_reached
+            .contains(&portcove_core::SourceDiscoveryLimit::Candidates)
+        {
+            "\nScan stopped at its safety limit for retained matches; select narrower folders and scan again."
         } else {
             "\nScan stopped at a terminal safety limit; a new scan starts fresh."
         });
@@ -1369,6 +1409,90 @@ pub(crate) fn game_file_scan(snapshot: &GameFileScanSnapshot) -> String {
         output.push_str("\nUse --json source roots snapshot for recorded scan details.");
     }
     output
+}
+
+pub(crate) fn game_file_root_match_profiles(
+    profiles: &[String],
+    catalog: &portcove_core::Catalog,
+) -> String {
+    if profiles.is_empty() {
+        return "The last scan matched no game files in this folder.".to_owned();
+    }
+    let mut lines = vec!["Game files the last scan matched in this folder:".to_owned()];
+    for profile in profiles {
+        let games = catalog
+            .ports()
+            .iter()
+            .filter(|port| port.source_profile.as_deref() == Some(profile.as_str()))
+            .count();
+        lines.push(if games > 1 {
+            format!(
+                "- {} ({games} games can use these files; choose one with games folder-setup-choose)",
+                profile_name(catalog, profile)
+            )
+        } else {
+            format!("- {}", profile_name(catalog, profile))
+        });
+    }
+    lines.join("\n")
+}
+
+pub(crate) fn game_file_scan_matches(
+    page: &portcove_core::GameFileScanMatchPage,
+    catalog: &portcove_core::Catalog,
+) -> String {
+    let kind = match page.kind {
+        portcove_core::GameFileScanMatchKind::Exact => "Matching candidates",
+        portcove_core::GameFileScanMatchKind::Preliminary => "Preliminary selections",
+    };
+    let shown = page.candidates.len() + page.preliminary_selections.len();
+    let mut lines = vec![if shown == 0 {
+        format!("{kind}: none on this page ({} in total).", page.total)
+    } else {
+        format!(
+            "{kind} {}-{} of {}",
+            page.offset as usize + 1,
+            page.offset as usize + shown,
+            page.total
+        )
+    }];
+    for candidate in &page.candidates {
+        lines.extend([
+            format!(
+                "Candidate: {}",
+                profile_name(catalog, &candidate.profile_id)
+            ),
+            format!("Path: {}", clean(&candidate.path.display().to_string())),
+            format!("Content SHA-256: {}", clean(&candidate.sha256)),
+        ]);
+    }
+    for selection in &page.preliminary_selections {
+        lines.extend([
+            format!(
+                "Preliminary selection: {}",
+                profile_name(catalog, &selection.profile_id)
+            ),
+            format!("Path: {}", clean(&selection.path.display().to_string())),
+        ]);
+    }
+    if let Some(next) = page.next_offset {
+        // Repeat the page's own selection, so following the hint pages the same set.
+        let kind = match page.kind {
+            portcove_core::GameFileScanMatchKind::Exact => "exact",
+            portcove_core::GameFileScanMatchKind::Preliminary => "preliminary",
+        };
+        let scan = page
+            .scan_id
+            .as_deref()
+            .map_or_else(String::new, |id| format!(" --scan-id {}", clean(id)));
+        lines.push(format!(
+            "More matches remain; use source roots matches --kind {kind}{scan} --offset {next} (with the same --root, if any) for the next page."
+        ));
+    }
+    lines.push(
+        "Recorded matches are re-verified from current bytes before registration or setup.".into(),
+    );
+    lines.join("\n")
 }
 
 pub(crate) fn source_inspection(report: &SourceInspectionReport) -> String {
@@ -2771,6 +2895,13 @@ fn readiness(status: &PortStatus) -> String {
         })
         .collect::<Vec<_>>()
         .join(", ");
+    let blockers = match &readiness.source_folder_unavailable {
+        Some(folder) => format!(
+            "{blockers}; connect {} to play",
+            clean(&folder.display().to_string())
+        ),
+        None => blockers,
+    };
     match readiness.required_source_extension.as_deref() {
         Some(extension) => format!("{blockers}; requires uncompressed .{extension} original file"),
         None => blockers,
@@ -3231,7 +3362,66 @@ mod tests {
             freshness: GameFileScanFreshness::InputsMatch,
             coverage: None,
             continuation: None,
+            matches: None,
         }
+    }
+
+    #[test]
+    fn saved_scan_counts_every_stored_match_and_points_to_the_pages() {
+        let mut snapshot = scan_snapshot_fixture();
+        snapshot.matches = Some(portcove_core::GameFileScanMatchSummary {
+            scan_id: "00000000-0000-4000-8000-000000000000".into(),
+            exact_matches: 600,
+            preliminary_selections: 2,
+            preview_complete: false,
+        });
+        snapshot.coverage = Some(portcove_core::GameFileScanCoverage {
+            batches: 3,
+            ..Default::default()
+        });
+        snapshot.report.limits_reached = vec![portcove_core::SourceDiscoveryLimit::Candidates];
+        let output = super::game_file_scan(&snapshot);
+        assert!(output.contains("\nCandidates: 600\n"));
+        assert!(output.contains("Preliminary selections: 2."));
+        assert!(output.contains("shows the first 0 of 602 matches; use source roots matches"));
+        assert!(output.contains("safety limit for retained matches"));
+    }
+
+    #[test]
+    fn scan_match_pages_name_their_range_and_next_offset() {
+        let catalog = portcove_core::Catalog::embedded().unwrap();
+        let page = portcove_core::GameFileScanMatchPage {
+            scan_id: Some("00000000-0000-4000-8000-000000000000".into()),
+            kind: portcove_core::GameFileScanMatchKind::Exact,
+            offset: 64,
+            total: 130,
+            candidates: vec![portcove_core::SourceRecord {
+                profile_id: "fixture-profile".into(),
+                path: PathBuf::from("/games/fixture.z64"),
+                sha256: "b".repeat(64),
+                size: 4,
+                storage_sha256: "b".repeat(64),
+                storage_size: 4,
+                updated_at: 0,
+                observed_identity: None,
+            }],
+            preliminary_selections: Vec::new(),
+            next_offset: Some(65),
+        };
+        let output = super::game_file_scan_matches(&page, &catalog);
+        assert!(output.starts_with("Matching candidates 65-65 of 130"));
+        assert!(output.contains("Path: /games/fixture.z64"));
+        assert!(output.contains(
+            "source roots matches --kind exact --scan-id 00000000-0000-4000-8000-000000000000 --offset 65"
+        ));
+        let empty = portcove_core::GameFileScanMatchPage {
+            candidates: Vec::new(),
+            next_offset: None,
+            ..page
+        };
+        let output = super::game_file_scan_matches(&empty, &catalog);
+        assert!(output.starts_with("Matching candidates: none on this page (130 in total)."));
+        assert!(!output.contains("--offset"));
     }
 
     #[test]
@@ -4698,5 +4888,22 @@ mod catalog_detail_tests {
         assert_eq!(super::format_bytes(0), "0 B");
         assert_eq!(super::format_bytes(1), "1 B");
         assert_eq!(super::format_bytes(1024), "1.0 KiB");
+    }
+
+    #[test]
+    fn folder_setup_states_a_kept_local_copy() {
+        let consent = portcove_core::RootSetupConsent {
+            format_version: 1,
+            root_id: "root".into(),
+            enrollment: portcove_core::RootSetupEnrollment::ExistingAndFuture,
+            enabled_at: 1,
+            updated_at: 1,
+            existing_files: 0,
+            implementations: Vec::new(),
+            failures: Vec::new(),
+            keep_local_copy: true,
+        };
+        let text = super::root_setup_consent(Some(&consent));
+        assert!(text.contains("copied into Portcove's game-file folder; originals stay"));
     }
 }

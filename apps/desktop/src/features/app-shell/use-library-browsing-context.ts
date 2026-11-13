@@ -119,9 +119,14 @@ function writeBrowsingInputs(root: string, serializedInputs: string): void {
   window.localStorage.setItem(libraryBrowsingPreferenceKey(root), serialized);
 }
 
+/** A Windows path as the player knows it, without the `\\?\` verbatim prefix. */
+export function withoutVerbatimPrefix(path: string): string {
+  if (path.startsWith("\\\\?\\UNC\\")) return `\\\\${path.slice(8)}`;
+  return path.startsWith("\\\\?\\") ? path.slice(4) : path;
+}
+
 export function libraryBrowsingKey(root: string): string {
-  if (root.startsWith("\\\\?\\UNC\\")) return `\\\\${root.slice(8)}`;
-  return root.startsWith("\\\\?\\") ? root.slice(4) : root;
+  return withoutVerbatimPrefix(root);
 }
 
 export function useLibraryBrowsingContext({

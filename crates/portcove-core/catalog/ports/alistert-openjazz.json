@@ -23,10 +23,16 @@
         {
           "title": "Start the game",
           "instruction": "Before first Play, copy the files from your own original Jazz Jackrabbit game into a game-data folder beside the OpenJazz player. Keep the original source copy. The managed route selects this folder automatically. For external registration, use Change launch details to add game-data as a launch argument, or follow upstream instructions for your existing game folder. No compiler or installer is needed."
+        },
+        {
+          "title": "Set up OpenJazz on Android",
+          "instruction": "Unpack openjazz-android-debug.zip and install the enclosed APK on a compatible Android device. Copy the data files from your own Jazz Jackrabbit copy into OpenJazz’s app-specific external files folder. The package ID is eu.alister.openjazz. If your device does not give you access to that folder, this build has no verified folder picker or alternate import route. Keep a separate copy of your original game data."
         }
       ],
-      "warnings": [],
-      "help_url": "https://github.com/AlisterT/openjazz/blob/20260301/README.md"
+      "warnings": [
+        "On Android, use the upstream app. You manage its runtime updates and back up the game data it uses."
+      ],
+      "help_url": "https://github.com/AlisterT/openjazz#readme"
     },
     "original_game_title": "Jazz Jackrabbit"
   },
@@ -61,6 +67,12 @@
       "source_requirements": [],
       "saves_and_settings": "portcove-managed",
       "manual_preparation": "Before first Play, copy the files from your own original Jazz Jackrabbit game into a game-data folder beside OpenJazz.exe. The maintained launch arguments select that folder; no compiler or installer is needed. Keep the original source copy. Portcove retains game-data, openjazz.cfg, openjazz.log, the openjazz.tmp multiplayer transfer file and the reviewed scene diagnostics during compatible replacement. These are distinct from runtime files. Runtime rollback carries current declared data without rewinding progress. Custom launch paths or editions remain available through external registration. Existing external installations keep their files and runtime update owner. Gameplay, platform minimums and packaged Desktop acceptance remain separate observations. The offered Linux ZIP is the upstream glibc2.35 x86-64 build and requires system SDL2/C++ libraries. It uses the same supported game-data argument and declared in-folder fallbacks; upstream user-profile storage, when used, remains external. Core extraction, published SHA-256 comparison and ELF/dependency inspection passed on Windows. Linux execution, minimum-environment and gameplay observations remain Not run."
+    },
+    "reviewed_package_layouts": {
+      "windows-x86-64": {
+        "directories": [],
+        "executables": ["openjazz.exe"]
+      }
     }
   }
 }

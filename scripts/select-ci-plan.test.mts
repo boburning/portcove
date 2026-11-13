@@ -796,7 +796,7 @@ void test("release qualification profile connects bounded matrices and skips onl
     assert.match(body, /if: needs\.classify\.outputs\.mode == 'qualification'/);
 });
 
-void test("held application release can request only dispatched Windows qualification", () => {
+void test("application release accepts the fixed Windows profile on dispatch or schedule", () => {
   const options = {
     eventName: "workflow_dispatch",
     checkoutSha: "a".repeat(40),
@@ -806,8 +806,12 @@ void test("held application release can request only dispatched Windows qualific
     releaseProfile: "initial-beta-windows-x86_64-v1",
   };
   assert.equal(discoverCiPlan(options).release_profile, options.releaseProfile);
+  const scheduled = discoverCiPlan({ ...options, eventName: "schedule" });
+  assert.equal(scheduled.release_profile, options.releaseProfile);
+  assert.deepEqual(scheduled.platforms, ["windows-x86_64"]);
   for (const changed of [
     { eventName: "push" },
+    { eventName: "schedule", callerWorkflow: "qualification.yml" },
     { releaseProfile: "initial-beta-win-linux" },
     { forceQualification: false },
     { qualificationCaller: "schedule" },

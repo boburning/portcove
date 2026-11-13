@@ -45,12 +45,15 @@ const runtimeLayout = {
   runtime_subdirectory: "build-portcove",
 };
 
+// PSXRecomp 7192402 also creates the player's HD texture replacements and
+// dumps under mods/texture-packs/<game id> on every start.
 const splitModPaths = [
   "mods/installed",
   "mods/packages",
   "mods/.staging",
   "mods/state.toml",
   "mods/state.toml.tmp",
+  "mods/texture-packs",
 ];
 
 const explicitFields = new Set([

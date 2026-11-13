@@ -291,7 +291,7 @@ void test("prior discovery joins actual feed to one immutable native cohort and 
           exclusion,
           true,
         ),
-      /r56 pre-native failed Pages admission changed/u,
+      /retained pre-native failed Pages admission changed/u,
     );
   }
 

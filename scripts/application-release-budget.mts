@@ -18,6 +18,7 @@ import {
   retainedServedRenewalFeed,
   retainedV8RenewalContinuation,
   retainedV8ServedRenewal,
+  retainedV13FeedRecovery,
   retainedV8RenewalDraft,
   retainedR55Renewal,
   retainedR56FeedRecovery,
@@ -542,17 +543,20 @@ export function permitsRetainedV8SourceRefusalContinuation(
   const successor =
     execution.ref === retainedV8RenewalContinuation.next_ref ? retainedV8RenewalContinuation : null;
   const served = execution.ref === retainedV8ServedRenewal.next_ref;
-  const additional = served
-    ? [retainedV8RenewalContinuation, retainedV8ServedRenewal]
-    : successor
-      ? [successor]
-      : [];
+  const feed = execution.ref === retainedV13FeedRecovery.next_ref;
+  const additional = feed
+    ? [retainedV8RenewalContinuation, retainedV8ServedRenewal, retainedV13FeedRecovery]
+    : served
+      ? [retainedV8RenewalContinuation, retainedV8ServedRenewal]
+      : successor
+        ? [successor]
+        : [];
   const predecessors = [...retained.predecessors, ...additional.map((row) => row.predecessor)];
   const custody = owner?.custody;
   if (
     opportunity !== retained.opportunity ||
     purpose !== "metadata-renewal" ||
-    executionPath !== "metadata-maintenance" ||
+    executionPath !== (feed ? "metadata-recovery" : "metadata-maintenance") ||
     (execution.ref !== retained.next_ref && additional.length === 0) ||
     execution.run_attempt !== 1 ||
     owner?.release_id !== retained.release_id ||
@@ -573,7 +577,11 @@ export function permitsRetainedV8SourceRefusalContinuation(
   const observed = new Map(runs.map((row) => [row.id, row]));
   const prior = retained.predecessors.slice(0, 2);
   const registered = [...prior, ...additional.map((row) => row.predecessor)];
-  const contextSha256 = additional.at(-1)?.context_sha256 ?? retained.context_sha256;
+  const contextSha256 = feed
+    ? [...retainedV8ServedRenewal.context_sha256, retainedV13FeedRecovery.context_sha256]
+    : served
+      ? retainedV8ServedRenewal.context_sha256
+      : (successor?.context_sha256 ?? retained.context_sha256);
   const contexts = custody.metadata_contexts ?? [];
   const next = contexts[registered.length];
   const matches = (
@@ -613,7 +621,7 @@ export function permitsRetainedV8SourceRefusalContinuation(
         context.context_sha256 === contextSha256[index]
       );
     }) &&
-    contexts.length <= registered.length + 1 &&
+    contexts.length <= registered.length + (feed ? 0 : 1) &&
     (next === undefined ||
       (next.opportunity === opportunity &&
         next.run_id === current.id &&
@@ -820,9 +828,10 @@ export function assertRetainedR56FeedBudget(
   );
 }
 
-async function readActiveQueuedMaintenanceAttempt(
+async function readActiveQueuedMetadataAttempt(
   provider: Pick<Awaited<ReturnType<typeof createApplicationBudgetProvider>>, "attempt" | "jobs">,
   execution: ReturnType<typeof inspectApplicationReleaseExecution>,
+  executionPath: "metadata-maintenance" | "metadata-recovery",
 ) {
   const id = Number(execution.run_id);
   const [context, jobs] = await Promise.all([
@@ -842,7 +851,7 @@ async function readActiveQueuedMaintenanceAttempt(
       context.conclusion === null,
     "queued maintenance run has no matching current attempt",
   );
-  const ceilings = applicationReleaseRemainingMinutes("metadata-renewal", "metadata-maintenance");
+  const ceilings = applicationReleaseRemainingMinutes("metadata-renewal", executionPath);
   assert.ok(
     isRecord(jobs) &&
       Array.isArray(jobs.jobs) &&
@@ -914,18 +923,20 @@ export async function readApplicationJobBudget(
   const currentIndex = runs.findIndex((run) => run.id === currentId);
   assert.ok(currentIndex >= 0);
   const currentRun = runs[currentIndex]!;
-  let queuedObservation: Awaited<ReturnType<typeof readActiveQueuedMaintenanceAttempt>> | undefined;
+  let queuedObservation: Awaited<ReturnType<typeof readActiveQueuedMetadataAttempt>> | undefined;
   // GitHub can report a queued parent while its protected jobs are executing.
   // Use exact current job evidence for accounting and keep all other runs as reported.
   if (
-    executionPath === "metadata-maintenance" &&
+    (executionPath === "metadata-maintenance" ||
+      (executionPath === "metadata-recovery" &&
+        execution.ref === retainedV13FeedRecovery.next_ref)) &&
     currentRun.status === "queued" &&
     currentRun.conclusion === null &&
     currentRun.head_sha === execution.source &&
     currentRun.head_branch === execution.ref.slice("refs/tags/".length) &&
     currentRun.run_attempt === execution.run_attempt
   ) {
-    queuedObservation = await readActiveQueuedMaintenanceAttempt(provider, execution);
+    queuedObservation = await readActiveQueuedMetadataAttempt(provider, execution, executionPath);
     runs[currentIndex] = { ...currentRun, status: "in_progress" };
   }
   const recoverR56 = execution.ref === retainedR56FeedRecovery.next_ref;
@@ -1004,11 +1015,13 @@ export async function readApplicationJobBudget(
   const v8Successor =
     sourceRefusalContinuation && execution.ref === retainedV8RenewalContinuation.next_ref;
   const v8Served = sourceRefusalContinuation && execution.ref === retainedV8ServedRenewal.next_ref;
+  const v13Feed = sourceRefusalContinuation && execution.ref === retainedV13FeedRecovery.next_ref;
   assert.ok(
     Array.isArray(known) &&
       (known.length <= 3 ||
         (v8Successor && known.length === 4) ||
         (v8Served && known.length <= 5) ||
+        (v13Feed && known.length <= 6) ||
         budgetedBootstrap ||
         (servedRenewalContinuation && known.length <= servedRenewalPredecessors.length)) &&
       new Set(known).size === known.length,
@@ -1038,13 +1051,15 @@ export async function readApplicationJobBudget(
   );
   const maximumAttempts = servedRenewalContinuation
     ? servedRenewalPredecessors.length + 1
-    : v8Served
-      ? 6
-      : v8Successor
-        ? 5
-        : continuation || sourceRefusalContinuation
-          ? 4
-          : 3;
+    : v13Feed
+      ? 7
+      : v8Served
+        ? 6
+        : v8Successor
+          ? 5
+          : continuation || sourceRefusalContinuation
+            ? 4
+            : 3;
   const retainedDiagnostics =
     executionPath === "bootstrap-recovery" ? bootstrapDiagnosticCharges : [];
   const recoveryObservations =
@@ -1097,11 +1112,13 @@ export async function readApplicationJobBudget(
           },
         );
     const previousMaintenance = (
-      v8Served
-        ? [retainedV8RenewalContinuation, retainedV8ServedRenewal]
-        : v8Successor
-          ? [retainedV8RenewalContinuation]
-          : []
+      v13Feed
+        ? [retainedV8RenewalContinuation, retainedV8ServedRenewal, retainedV13FeedRecovery]
+        : v8Served
+          ? [retainedV8RenewalContinuation, retainedV8ServedRenewal]
+          : v8Successor
+            ? [retainedV8RenewalContinuation]
+            : []
     ).find(({ predecessor }) => predecessor.id === String(run.id));
     const result = inspectApplicationJobBudget(
       observations,
@@ -1109,8 +1126,8 @@ export async function readApplicationJobBudget(
       String(run.id),
       current,
       current || budgetedBootstrap || previousMaintenance ? purpose : "application-release",
-      current || previousMaintenance ? executionPath : "ordinary",
-      current && v8Served,
+      current ? executionPath : previousMaintenance ? "metadata-maintenance" : "ordinary",
+      (current && v8Served) || previousMaintenance === retainedV13FeedRecovery,
     );
     if (sourceRefusalContinuation && !current) {
       const prior = previousMaintenance
@@ -1118,7 +1135,20 @@ export async function readApplicationJobBudget(
         : retainedV8RenewalDraft.predecessors.find((actor) => actor.id === String(run.id));
       assert.ok(prior);
       assert.equal(result.actual_milliseconds, prior.milliseconds, "retained renewal cost changed");
-      assert.deepEqual(result.feed_executions, []);
+      assert.deepEqual(
+        result.feed_executions,
+        previousMaintenance === retainedV13FeedRecovery
+          ? [
+              {
+                job_id: retainedV13FeedRecovery.feed_job_id,
+                attempt: 1,
+                started_at: "2026-11-13T00:59:04Z",
+                completed_at: "2026-11-13T00:59:29Z",
+                conclusion: "failure",
+              },
+            ]
+          : [],
+      );
       if (previousMaintenance) {
         const jobs = observations[0]?.jobs;
         assert.ok(isRecord(jobs) && Array.isArray(jobs.jobs));

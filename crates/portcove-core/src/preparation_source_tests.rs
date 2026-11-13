@@ -418,6 +418,67 @@ async fn assert_source_only_install_survives_two_launches(zip_source: bool) {
     assert!(fixture.service.prepare_launch(PORT, None).is_err());
 }
 
+/// Owner decision on #966: a sealed install holds every game input, so it
+/// launches while its registered original is disconnected; the original is
+/// needed only to prepare or rebuild again.
+async fn assert_sealed_install_launches_without_its_original(zip_source: bool) {
+    let fixture = Fixture::new(zip_source);
+    let install = fixture.install(true).await;
+    let parked = fixture.source.path.with_extension("parked");
+    fs::rename(&fixture.source.path, &parked).unwrap();
+    let readiness = fixture.service.status(PORT).unwrap().readiness.unwrap();
+    assert!(
+        !readiness
+            .blockers
+            .contains(&crate::LaunchBlocker::MissingSource),
+        "{:?}",
+        readiness.blockers
+    );
+    let outcome = fixture
+        .service
+        .supervise_launch(
+            PORT,
+            None,
+            &["--observe-launch".into()],
+            LaunchStdio::Null,
+            |_| {},
+        )
+        .unwrap();
+    assert!(outcome.successful);
+    assert!(fixture.service.verify(PORT).unwrap().valid);
+    // Installed data is still the launch authority.
+    fs::write(install.path.join(FILES[0].0), b"modified sealed original").unwrap();
+    assert!(fixture.service.prepare_launch(PORT, None).is_err());
+    fs::rename(&parked, &fixture.source.path).unwrap();
+}
+
+#[tokio::test]
+async fn launch_that_would_still_consume_the_original_is_never_self_contained() {
+    let fixture = Fixture::new(false);
+    let install = fixture.install(true).await;
+    let library = fixture.service.library();
+    let port = fixture.service.catalog().port(PORT).unwrap().clone();
+    assert!(crate::preparation::self_contained_launch(
+        library, &port, &install
+    ));
+    // Exporting the original to the game keeps it required.
+    let mut exported = port.clone();
+    exported.source_environment = Some("GAME_ROM".into());
+    assert!(!crate::preparation::self_contained_launch(
+        library, &exported, &install
+    ));
+}
+
+#[tokio::test]
+async fn sealed_directory_install_launches_without_its_original() {
+    assert_sealed_install_launches_without_its_original(false).await;
+}
+
+#[tokio::test]
+async fn sealed_zip_install_launches_without_its_original() {
+    assert_sealed_install_launches_without_its_original(true).await;
+}
+
 #[tokio::test]
 async fn source_only_directory_install_survives_two_launches_and_full_verify() {
     assert_source_only_install_survives_two_launches(false).await;
@@ -986,7 +1047,9 @@ async fn native6_mixed_sets_and_same_profile_edition_replacement_cannot_reprepar
             .plan_preparation(NATIVE_PORT, fixture.options())
             .is_err()
     );
-    assert!(fixture.service.prepare_launch(NATIVE_PORT, None).is_err());
+    // The sealed installation, not the replaced original, is the launch
+    // authority (owner decision on #966); it still launches unchanged.
+    assert!(fixture.service.prepare_launch(NATIVE_PORT, None).is_ok());
     assert_eq!(
         crate::library_transfer::reviewed_tree(&install.path).unwrap(),
         before

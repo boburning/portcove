@@ -82,6 +82,20 @@ export const retainedCatalogNativeAdoptionClaim = {
   successor_ref: "refs/tags/portcove-production-controller-catalog-adoption-settle-20261111",
 } as const;
 
+/** The failed v13 adoption reserved this exact unsigned child before signing. */
+export const retainedCatalogV13AdoptionClaim = {
+  previous: "d23b4f108b03ecd81c1696a407c740ca24e5d705",
+  child: "7b7388fe8eeb04fe11f4afd336f4ddb0359ef1b4",
+  tree: "25833904b3e147808bb25fb9b7568d9ed94290e6",
+  state_sha256: "ad063814109d9b7da32334afe02530a403e11afcf0bc49f33fd04ef0e1d4628b",
+  clock: "2026-11-13T06:56:26.026Z",
+  original_source: "eb1e59a29c70ab1548eb2ffb6c126d9252fb9dd1",
+  original_ref: "portcove-production-controller-catalog-adoption-v13-proof",
+  original_run: "43381386061",
+  original_job: 131741624813,
+  successor_ref: "refs/tags/portcove-production-controller-catalog-adoption-v13-settle",
+} as const;
+
 /** The r52 application claim already exists, so r53 may only settle these bytes. */
 export const retainedApplicationReviewClaim = {
   previous: "565eb5b3ccf58d6f0654e99b8d3e0214987cd003",
@@ -159,6 +173,42 @@ export function matchesRetainedReviewWithdrawalHandoff(
     producer.workflow_sha256 === retained.successor_workflow_sha256 &&
     producer.run_id === retained.successor_run &&
     producer.job_id === retained.successor_job
+  );
+}
+
+/** The separately appointed withdrawal may authenticate the exact signed v13
+ * adoption. The provider job, signature and current mutation controls still apply. */
+export function matchesRetainedV13ReviewWithdrawalHandoff(
+  checkpoint: { checkpoint: string; previous: string | null },
+  producer: Record<string, unknown>,
+  source: { execution_ref: string; workflow_sha256: string },
+  rawWithdrawal: unknown,
+  purpose: "application" | "catalog-publication" | undefined,
+) {
+  const withdrawal = inspectReleaseReviewWithdrawal(rawWithdrawal);
+  const adoption = retainedCatalogV13AdoptionClaim;
+  const workflow = "ae780affa5cff58dd88250b3575d6948ed6608a47b3175492cf56fff3a5d90fb";
+  return (
+    purpose === "application" &&
+    source.execution_ref ===
+      "refs/tags/portcove-production-controller-windows-20261113-withdraw-29f33f57" &&
+    source.workflow_sha256 === workflow &&
+    withdrawal !== null &&
+    withdrawal.request_checkpoint === adoption.child &&
+    withdrawal.request_id === "87a32458456f8b24bfe545a89a98c93a2315af9e9e15f37e0c1e4b821f480176" &&
+    withdrawal.source_commit === "29f33f577dd08888daa308f6534e1ba2e0d10eaf" &&
+    withdrawal.source_tree === "e5f44b9f1c2b541fb2c932d6d203198c33ca2d57" &&
+    withdrawal.technical_stop_sha256 ===
+      "73704d29b23be7aeffcddf2776ce1598dbf3a1d2c76efac0e11fbc10d36d4be0" &&
+    checkpoint.checkpoint === adoption.child &&
+    checkpoint.previous === adoption.previous &&
+    producer.controller_revision === "dc5aee2e8cb67c92e36f1507a09b2a2b6a391372" &&
+    producer.controller_ref === adoption.successor_ref &&
+    producer.workflow_sha256 === workflow &&
+    producer.run_id === "43388566615" &&
+    producer.run_attempt === 1 &&
+    producer.job_id === "131764663738" &&
+    producer.check_run_id === "131764663738"
   );
 }
 
@@ -350,6 +400,21 @@ export function matchesRetainedNativeAdoptionPredecessor(
   source: { workflow_sha256: string },
   purpose: "application" | "catalog-publication" | undefined,
 ) {
+  const settled = retainedCatalogNativeAdoptionClaim;
+  if (checkpoint.checkpoint === settled.child) {
+    return (
+      purpose === "catalog-publication" &&
+      source.workflow_sha256 === retainedApplicationContextSettlement.workflow_sha256 &&
+      checkpoint.previous === settled.previous &&
+      producer.controller_revision === "d7f5e10b7644e9d2b8c8823c39c6175a9b3efdb3" &&
+      producer.controller_ref === settled.successor_ref &&
+      producer.workflow_sha256 === source.workflow_sha256 &&
+      producer.run_id === "43127719974" &&
+      producer.run_attempt === 1 &&
+      producer.job_id === "130886155058" &&
+      producer.check_run_id === "130886155058"
+    );
+  }
   return (
     purpose === "catalog-publication" &&
     source.workflow_sha256 === retainedApplicationContextSettlement.workflow_sha256 &&
@@ -436,6 +501,13 @@ export async function authenticateFixedJobCoordinatorHistory(
     producer !== null &&
     (matchesRetainedCatalogBootstrapHandoff(checkpoint, producer, source) ||
       matchesRetainedReviewWithdrawalHandoff(checkpoint, producer, withdrawal) ||
+      matchesRetainedV13ReviewWithdrawalHandoff(
+        checkpoint,
+        producer,
+        source,
+        withdrawal,
+        purpose,
+      ) ||
       matchesRetainedCatalogAdoptionWithdrawal(checkpoint, producer, purpose) ||
       matchesRetainedCatalogForwardAdoptionHandoff(checkpoint, producer, source, purpose) ||
       matchesRetainedApplicationRenewalHandoff(checkpoint, producer, source, purpose) ||

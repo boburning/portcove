@@ -582,7 +582,9 @@ function requiredFixture<T>(value: T | null | undefined): T {
         const tag=decodeURIComponent(ref);
         const ports=catalog.ports.filter(port=>port.release.repository===repository || port.project_url?.toLowerCase()==='https://github.com/'+repository.toLowerCase()).map(port=>port.id);
         const digests=catalog.source_catalog.qualification.filter(value=>ports.includes(value.scope.port_id)&&value.scope.upstream_ref===tag).map(value=>({digest:'sha256:'+value.scope.artifact_sha256}));
-        return new Response(JSON.stringify({id:2,tag_name:tag,assets:github?digests:{links:digests}}),{headers:{'content-type':'application/json'}});
+        const reviewed=github&&accounting.pins.find(pin=>pin.historical_version&&pin.repository===repository&&pin.tag===tag);
+        if(reviewed) digests.push({digest:'sha256:'+reviewed.sha256});
+        return new Response(JSON.stringify({id:reviewed?reviewed.release_id:2,tag_name:tag,assets:github?digests:{links:digests}}),{headers:{'content-type':'application/json'}});
       }
       const github=url.startsWith('https://api.github.com/');
       const repository=decodeURIComponent(github?url.split('/repos/')[1]:url.split('/projects/')[1]);

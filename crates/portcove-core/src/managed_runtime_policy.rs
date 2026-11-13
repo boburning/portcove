@@ -23,6 +23,16 @@ pub(crate) fn acquisition_hold_reason<'a>(
     acquisition_hold(catalog, port_id).map(|hold| hold.reason.as_str())
 }
 
+/// The routes a catalog acquisition hold withdraws: fresh managed acquisition,
+/// whether a first install or an update. Shared by a library's action table and
+/// library-free target inspection so both report the same offering.
+pub(crate) fn hold_withdraws(action: crate::PortAction) -> bool {
+    matches!(
+        action,
+        crate::PortAction::Install | crate::PortAction::Update
+    )
+}
+
 pub(crate) fn require_acquisition_available(catalog: &crate::Catalog, port_id: &str) -> Result<()> {
     match acquisition_hold_reason(catalog, port_id) {
         Some(reason) => Err(PortcoveError::unsupported(reason)),

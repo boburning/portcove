@@ -216,6 +216,13 @@ alive. On Linux and macOS an exec-based restart keeps the process ID, but a
 launcher that spawns a successor and exits is untracked there, so such a route
 stays non-owning on those platforms.
 
+Yakumo's official Windows ZIP is the first reviewed opt-in. Its menu restarts
+use `_wexecv` on its own executable, so the successor stays in the job and
+inside the installation. Its shipped `portable.txt` keeps settings, saves and
+the prepared game in the declared `data` folder. Prepared copies keep their
+non-owning registration, which does not track successors.
+[Yakumo qualification](qualification/yakumo-tracked-handoff-2026-11-12.md).
+
 Adding this route does not adopt an existing external registration. Players can
 review a separate managed copy while keeping the current copy usable. Core can
 switch a fitting fresh native-portable route after verified separate publication;
@@ -772,8 +779,11 @@ root-state changes. Only the retained `packages` layout has package semantics;
 arbitrary historical `bundled` or `installed` folders are not reclassified.
 
 For a reviewed split layout, declare the exact player paths
-`mods/installed`, `mods/packages`, `mods/.staging`, `mods/state.toml` and
-`mods/state.toml.tmp`. The runtime build stages its own `mods/bundled` files
+`mods/installed`, `mods/packages`, `mods/.staging`, `mods/state.toml`,
+`mods/state.toml.tmp` and `mods/texture-packs`, where PSXRecomp `7192402` and
+later create HD texture replacements and dumps. A managed build for such a
+route that leaves any file in `mods/packages` is refused before anything is
+installed, because those files would be collected as player data. The runtime build stages its own `mods/bundled` files
 and any bundled README. Those files belong to the verified runtime version.
 Core carries declared player paths through normal retained collection, restore
 and rollback. Upstream owns any legacy package migration within those paths.
@@ -1828,7 +1838,13 @@ lifecycle results, hands-on observations, and known failures remain separate.
 The core derives an exact claim only when the whole requested scope matches;
 adding an artifact, variant, representation, platform, or check version cannot
 inherit an older result. Missing or not-run evidence remains distinct from a
-bounded failure and does not change source admission.
+bounded failure and does not change source admission. For a provider-resolved
+release, a contract's reviewed release binding qualifies only that exact
+release when the provider resolves it; `release_policy` widens source admission
+but never qualification. `catalog inspect-targets` reports reviewed bindings
+per target, never policy-admitted releases. Scoped records do not record the
+route or operation they exercised; until a reviewed field does, the check
+version is the only operation discriminator.
 
 `automated_tested_platforms` and `manually_validated_platforms` are retained as
 legacy historical coverage. They identify a port/platform intersection but do
@@ -2154,7 +2170,13 @@ restoration when historical scope evidence is absent or interpreted persistence
 paths/patterns differ from their retained scope; the same persistence-authority
 preflight covers inactive versions in read-only Restore review and again before
 canonical publication. Actual restore also checks mod conflicts at its existing
-mutation boundary.
+mutation boundary. A managed PS1 installation is the one exception: when a
+newer definition only adds `mods/texture-packs`, which PSXRecomp `7192402`
+creates on every start, the installation keeps its retained definition. Files
+there stay in that copy unmanaged, exactly as before the folder was declared:
+verification reports them, and they are not collected, carried to another
+version or backed up. Installations created
+under the wider definition retain it and synchronize the folder.
 The original receipt, manifest and diagnostic-mutability
 behavior remain unchanged. Other existing integration interpretations, including
 the separately qualified Shipwright exception, retain their own boundaries.
@@ -2486,12 +2508,15 @@ as the example. Keep the release selector, generated executable basename,
 original-disc profile and source contract explicit. Set the value to
 `true` for a required retail SCPH-1001 or SCPH-5552 BIOS with its own profile
 and contract; the kit's `game.toml` names the BIOS configuration it builds with.
+When that configuration names SCPH-1001 or SCPH-5552 and the route registers the
+other retail profile, Core refuses the build before anything is installed,
+because older frameworks stage whichever image they are given.
 Use `"bundled-openbios"` when the reviewed kit supplies and supports OpenBIOS.
 This projects the literal `--bios bios/openbios.bin` argument and rejects a
 retail BIOS profile. Use `"split-mods"` for the reviewed dual-platform kits
 with explicit retail SCPH-1001 or SCPH-5552 BIOS. Their player-owned mod paths
-are `mods/installed`, `mods/packages`, `mods/.staging`, `mods/state.toml` and
-`mods/state.toml.tmp`. Each verified runtime version keeps `mods/bundled` and
+are `mods/installed`, `mods/packages`, `mods/.staging`, `mods/state.toml`,
+`mods/state.toml.tmp` and `mods/texture-packs`. Each verified runtime version keeps `mods/bundled` and
 its other build-provided files. The existing whole-`mods` forms keep their
 original persistence scope. The split-mods form requires explicit selectors
 with the same title prefix and the platform-specific `-windows-x64.zip` and
@@ -2506,6 +2531,16 @@ writes the `build-portcove` working coordinates, `--no-launcher`, overlay
 environment, owned save/settings/mod paths, and disposable diagnostic paths.
 It refuses duplicate fields. A different writer layout or setup contract
 needs the explicit form and applicable qualification.
+
+Core's managed PS1 builder runs with `--no-toolchain-download` and with
+`HTTPS_PROXY` and `HTTP_PROXY` set to a closed local address. PSXRecomp
+`7192402` stages an overlay toolchain on every rebuild by downloading Python
+(and building tcc on Linux) whatever that flag says. Core admits no executable
+it has not verified, so those requests are refused, the kit logs the failure
+and finishes the build, and the player interprets overlays. A build that still
+leaves any file in `overlay_toolchain` or `.cache/overlay-toolchain` fails
+before anything is installed or changed.
+[Framework review](qualification/psxrecomp-7192402-builder-downloads-2026-11-13.md).
 
 A `psx-raw-set` integration may declare `launch_disc_choice:
 "psx-settings-selected"` after source review shows that its runtime reads the

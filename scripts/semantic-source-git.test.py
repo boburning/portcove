@@ -98,7 +98,7 @@ class GitPolicy(unittest.TestCase):
         self.assertEqual([name for name, _ in calls], ["limit"] * 4 + ["alarm", "exec"])
         _, args, environment = calls[-1][1]
         self.assertIn("--filter=tree:0", args)
-        self.assertIn("--depth=3073", args)
+        self.assertIn("--depth=3201", args)
         self.assertIn("--no-write-fetch-head", args)
         self.assertIn("http.followRedirects=false", args)
         self.assertEqual(args[-4:], ["https://github.com/boburning/portcove.git", *commits])
@@ -136,7 +136,7 @@ class GitPolicy(unittest.TestCase):
                 if phase == "history":
                     self.assertIn("--max-count=2049", args)
                 if phase == "application-history":
-                    self.assertIn("--max-count=3073", args)
+                    self.assertIn("--max-count=3201", args)
                 if phase == "application-commit-batch":
                     self.assertIn("--batch", args)
                 self.assertIn("protocol.https.allow=never", args)

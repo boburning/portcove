@@ -109,6 +109,8 @@ import type {
   LibraryMembershipRequest,
   GameFileQueryRefreshRequest,
   GameFileQuerySnapshot,
+  GameFileScanMatchPage,
+  GameFileScanMatchQuery,
   GameFileScanSnapshot,
   HostToolProbeResult,
   HostToolStatus,
@@ -872,6 +874,12 @@ export const desktopApi = {
       portId,
       generation,
     }),
+  setRootSetupLocalCopy: (rootId: string, keepLocalCopy: boolean, generation: number) =>
+    invoke<RootSetupConsent>("set_root_setup_local_copy", {
+      rootId,
+      keepLocalCopy,
+      generation,
+    }),
   rootSetupConsents: (generation: number) =>
     invoke<RootSetupConsent[]>("get_root_setup_consents", { generation }),
   cancelInstallBatch: (batchId: string, generation: number) =>
@@ -899,6 +907,10 @@ export const desktopApi = {
   },
   gameFileScanSnapshot: (generation: number) =>
     invoke<GameFileScanSnapshot | null>("get_game_file_scan_snapshot", { generation }),
+  gameFileScanMatches: (query: GameFileScanMatchQuery, generation: number) =>
+    invoke<GameFileScanMatchPage>("get_game_file_scan_matches", { query, generation }),
+  gameFileRootMatchProfiles: (rootId: string, generation: number) =>
+    invoke<string[]>("get_game_file_root_match_profiles", { rootId, generation }),
   refreshGameFileQuery: (
     request: GameFileQueryRefreshRequest,
     generation: number,

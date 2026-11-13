@@ -497,6 +497,89 @@ Legacy parsing tolerates unknown fields: raw input hashes bind them, but typed
 port hashes and declaration checks do not validate discarded fields.
 Malformed/duplicate-key inputs and unsupported or unsafe declarations fail.
 
+### Catalog target inspection
+
+`portcove --json catalog inspect-targets [--port ID]... [--platform P]...`
+reports, for each requested port and explicit target platform, whether the
+managed `install` and the `register_external` routes are offered to a fresh
+library, with the reason when not. It runs before host preferences or a library
+are opened and uses the embedded catalog; a library whose catalog was updated
+since can differ.
+
+- Omitted `--port` inspects every catalog listing and operational port. Every
+  request covers at most 4,096 ports; repeated IDs are inspected once.
+- Omitted `--platform` inspects every platform Core represents:
+  `windows-x86-64`, `linux-x86-64`, `macos-x86-64` and `macos-aarch64`. Any
+  other platform is a usage error, not a guess.
+- Route offering uses the same predicate as a library's action table, and a
+  reviewed acquisition hold withdraws `install` (`route_not_offered`) exactly as
+  it does there. Each port
+  also reports its catalog presence (`operational`, `listing_only` or
+  `not_found`), declared platforms, the reviewed acquisition hold, the download
+  restriction, and whether the managed route must resolve a provider release on
+  that target.
+- The report names its `producer`: the source revision the build recorded
+  (`PORTCOVE_SOURCE_REVISION`, or `null` when none was recorded), the compiled
+  Cargo features that can change catalog or archive behavior, the SHA-256 of the
+  compiled `catalog.json` and of the compiled `listings.json` merged into it,
+  and `catalog_override` when a qualification build replaced that catalog at
+  runtime. The revision is the build's own record, not a proof. Maintenance
+  binds results to the producer.
+- Each target also reports `qualification`: the recorded Portcove
+  qualification matched to the artifact the catalog offers there.
+  - `offered_artifact` is `fixed` (a direct-manifest pin or an accepted
+    external package, with its upstream ref and SHA-256), `provider_resolved`
+    (known only after provider resolution, which this command never performs),
+    `user_selected` or `none_offered`. `provider_resolution_required` above is a
+    narrower acquisition fact, not this.
+  - Each recorded scope (contract, source variant, upstream ref, artifact and
+    check version) carries Core's exact-scope `assessment`, its evidence IDs and
+    an `applicability`: `offered_artifact`, `other_artifact`,
+    `reviewed_release_binding` (the contract's reviewed binding names that
+    release), `unbound_release`, `no_catalog_artifact`, `route_not_offered` or
+    `source_scope_withdrawn`. A contract's release policy admits sources for any
+    release but never qualifies one.
+  - `state` is `offered_artifact_qualified` or `reviewed_binding_qualified`
+    (passed automated-lifecycle or hands-on evidence; the latter applies only
+    if the provider resolves exactly that release), `structural_only` (only
+    structural checks passed), `applicable_not_passed` (evidence applies to what
+    is offered but none passed, such as only a known failure), `historical_only`
+    (no evidence applies to what is offered) or `unqualified`.
+    `qualified_refs` names the releases that qualify, and `known_failure`
+    covers applicable scopes only. Check versions are reported side by side,
+    not ranked.
+  - `evidence_route` is `unrecorded`: recorded scopes do not name the route or
+    operation that produced them, so the check version is the only operation
+    discriminator and a qualified state never says that the offered route
+    itself was exercised.
+  - `legacy_coverage` repeats the port-wide historical platform arrays, which
+    are never artifact-bound.
+- Definition trust eligibility and readiness are always `unknown`: a library
+  and an installation decide them. Another host's result is never relabelled as
+  this target's. The format-2 report is maintenance evidence (#4129), not an
+  admission or execution decision; format 1 lacked `qualification`.
+
+### Definition delivery inspection
+
+`portcove --json catalog inspect-definition-delivery` reads the appointed
+official definition location exactly as a client verifies it: the compiled
+root, signed TUF metadata and the signed definition index. It runs before host
+preferences or a library are opened and writes no trust, replay floor or
+selection.
+
+- `serving` is `verified`, `not_served` (the timestamp metadata is absent: HTTP
+  404 or 410), `incomplete` (metadata is served but a file it requires is
+  absent), `unreachable` (including HTTP 403), `expired`, `verification_failed`
+  or `not_configured` (this build appoints no location; an invalid compiled
+  location is `verification_failed`), with a `reason` when it did not verify.
+- Only a `verified` report carries `provenance` (the authenticated metadata
+  versions, digests, earliest expiration and index digest) and `definitions`:
+  each indexed definition's namespace, stable ID, revision, target, and the
+  target's SHA-256 and length.
+- The serving status describes this request only. `not_served` or an outage is
+  never evidence that something published earlier was withdrawn. The format-1
+  report is maintenance evidence (#4129), not trust or admission.
+
 ### Reviewed package layout inspection
 
 Run `portcove --json catalog inspect-package-layout ARCHIVE --platform PLATFORM --size BYTES --sha256 SHA256`
@@ -888,8 +971,13 @@ continue. For each matched file in the folder, Portcove:
   until you run `games folder-setup-choose ROOT_ID --files PROFILE_ID --game PORT_ID`.
   It never sets up every fork or switches implementations on its own;
 - registers a file that is not yet registered where it is, after checking its
-  current bytes, and only inside the folder. It never replaces a different copy
-  you already use;
+  current bytes, and only inside the folder. With `games folder-setup-copy
+  ROOT_ID on`, it instead copies only that game's required files (the exact
+  file, ZIP or file set the source contract admits) into Portcove's game-file
+  folder and registers the copy, so games that read their originals at launch
+  don't need this folder connected. Originals are never moved or deleted; the
+  choice is off by default, survives boundary changes and applies to later
+  registrations. It never replaces a different copy you already use;
 - then installs the game with an ordinary one-game batch that re-plans and
   freshly authorizes it. It never launches a game.
 
@@ -897,11 +985,45 @@ Problems that can pass on their own, such as being offline or the game being
 busy with another task, are reported as waiting and are not counted. A game
 whose files can't be registered or whose install fails is tried again only up
 to three times with the same plan or file; it becomes eligible again when that
-changes. Each pass checks or plans at most 32 folder files. Turning automatic
+changes. Each pass plans at most 32 folder files and looks up at most 4,096
+matches. Matches the library already settles, such as installed games or
+games waiting for the player's choice, cost no planning, so they don't hold
+back a new file elsewhere in the folder. Checking whether a file was already
+there reads at most about 8,192 files and folder entries per pass. Each available folder gets an equal share of
+these bounds, and each pass continues where that folder's last pass stopped. It
+starts over after the folder's last match, after a new scan, when automatic
+setup is turned on again or changes which files it includes, and after the
+folder is relinked, so every match is reached. Picking which game to set up
+keeps the position. Scans saved before format 13 have no stored matches and
+start from the first match each pass until the folders are scanned again.
+Turning automatic
 setup off takes effect before the next file is registered or installed, even
 during a pass. An unavailable folder waits and keeps its setting. Removing a folder ends its automatic setup.
+`source roots profiles --root ROOT_ID` lists the game-file profiles the last
+scan matched anywhere in that saved folder, including matches beyond the
+report preview, and marks the ones several games can use so you can choose one
+with `games folder-setup-choose`. It reads only.
 `games folder-setups` lists folders with automatic setup turned on, their
-implementation choices and recent failures, and changes nothing.
+implementation choices, local-copy choice and recent failures, and changes nothing.
+
+Automatic setup never writes to Steam or Playnite. Playnite shows a newly
+prepared game on its own next library refresh; adding it to Steam remains the
+separate per-game review described in
+[integrations](INTEGRATIONS.md#automatic-setup-and-frontend-handoff).
+
+A self-contained installation launches from its verified installed data
+without its registered original, which is then needed only to repair, rebuild
+or prepare again. Portcove decides this by what launch would still hand the
+game: an installation is never self-contained when launch exports the original
+(`source_environment`), copies it again (managed initialization, or a runtime
+source file or set that is not sealed or prepared) or passes it as an argument.
+In practice this covers sealed source-only preparations, prepared
+upstream/Libultraship installations with a prepared runtime input, managed PS1
+raw sets (the BIOS is still read at launch) and retained cartridge builds whose
+launch reads only installed files. Other games still need their original
+present and unchanged. When it is missing because its saved game-file folder
+is disconnected, readiness names that folder (`source_folder_unavailable`) and
+says to connect it.
 
 ### Register and inspect
 
@@ -965,6 +1087,7 @@ portcove --library <path> --json source roots relink <root-id> "E:\Games"
 portcove --library <path> --json source roots remove <root-id>
 portcove --library <path> --json source roots scan
 portcove --library <path> --json source roots snapshot
+portcove --library <path> --json source roots matches --kind exact --offset 0 --limit 64 --root <root-id> --scan-id <scan-id>
 ```
 
 Adding requires an available directory and returns the existing stable identity
@@ -975,6 +1098,12 @@ folder; it does not modify files, source registrations, or managed installs.
 Scan uses the shared bounded discovery limits described below, records their exact
 values with the resulting candidates, and replaces the prior snapshot only after
 success. Snapshot reads that evidence without scanning or registering candidates.
+Matches reads the recorded matches in pages of 1 to 512 (default 64), exact
+candidates or preliminary selections, in stored order, optionally only inside one
+saved folder. Each page names its `scan_id`, `total` and `next_offset`; passing
+`--scan-id` from an earlier page refuses with a conflict when a newer scan has
+replaced it, so pages never mix two scans. Older inline reports are paged from
+the report itself with a null `scan_id`.
 
 ### Disc formats and optional tools
 
@@ -1089,13 +1218,13 @@ portcove --json source add <profile-id> <candidate-path> --expected-sha256 <cand
 
 Discovery requires explicit roots and source profiles. It never registers a match automatically. Like saved-folder scans, one-off discovery refuses roots inside the selected Portcove library or its registered managed output and visibly skips those owned subtrees within a broader root before charging scan budgets. Explicit manual inspection and reviewed source registration retain their own validation paths. Defaults are 10,000 examined entries, six nested directory levels, 2 GiB per file, 16 GiB of hashing per saved batch, and 64 combined exact matches and preliminary selections. The corresponding `--max-entries`, `--max-depth`, `--max-file-bytes`, `--max-hash-bytes`, and `--max-candidates` flags can narrow these limits; core also enforces hard ceilings. The report identifies searched scope, validated candidates, hashed bytes, reached limits, and bounded per-path issues. A partial search is not evidence that every file was considered.
 
-Exact-hash original-file, cartridge-ZIP and complete schema-2 directory/ZIP-file-set profiles participate automatically. Directory sets use the shared inspector: every required member must resolve uniquely within one completely examined directory and match one coherent variant. Member hash work shares the request-wide budget with ordinary files; raw observations are reused without sharing admission. File-set ZIPs use the same exact matcher with unique safe top-level members, bounded entry inventory and expanded member sizes, and budgeted/cancellable member plus container hashing. Their facts are shared across file-set profiles without sharing admission; missing or ambiguous member inventories consume no hashing budget. Exact schema-2 uncompressed GameCube ISO/GCM sources use the same disc matcher and bounded raw-file reader, sharing one byte observation across applicable profiles. Exact STFS LIVE compound sources, including extensionless packages, use a bounded four-byte eligibility probe, one raw hashing pass shared across applicable profiles, and the existing structural validator only after an exact compound digest match. Probe, hashing and validation use one open handle with location, object and metadata checks; structural validation adds bounded reads beyond reported hash bytes. Unrelated files are not hashed by this probe. Compressed GameCube and PSX CHD contracts participate through the shared schema-2 disc matcher. CISO uses a bounded sparse normalized stream. Tool-based GCZ/RVZ/WIA/CHD inspection requires an admitted decoder and verified process-tree closure; this route is available on Windows and on Linux kernels permitting the decoder-only user/PID namespace supervisor. Linux launch requires clone3 with an atomic namespace-init pidfd, private startup acknowledgement, and terminal waitid(P_PIDFD) closure; unavailable kernel capabilities fail inspection without falling back to a process-group proof. Other platforms report these inputs as uninspected and explain the required normalized/direct-selection route. Complete PSX sets require the full ordered directory inventory, every member and fresh original-byte verification; partial or mixed sets do not become exact candidates. Decoding uses private local snapshots and outputs, never writes to connected folders, and never registers a source. Missing tools, unsafe metadata, resource limits, changed bytes and unknown closure remain explicit failures, not known mismatches. ZIP-wrapped STFS is not accepted. Extract and select or scan the original LIVE package. Pinned-validator disc profiles also participate through read-only preliminary selection using the shared inspector. These results appear separately in optional `preliminary_selections` as full inspection records with structural admission and validator `not_run`; they are not exact matches or proof of compatibility. The `candidates` collection and progressive `source_candidate` events keep their exact-match meaning. Both result collections share the candidate allowance and byte observations. One-off discovery applies that allowance to the whole request; a saved-folder scan applies it to each batch, checked between files or folders (one file's several matches are kept together), so a full batch continues instead of ending the scan, and a scan-wide safety ceiling of 512 retained matches ends coverage as explicitly limited, never as finished. Desktop offers a deliberate current-location review that rechecks the selected bytes; discovery never invokes the pinned validator. Old reports omit the advisory collection and remain readable as an empty collection. Scan format 12 marks older coverage stale while retaining readable versions 1–11. Other source contracts still require manual selection. A reached processing limit remains partial coverage. One-off `source discover` starts anew. Saved `source roots scan` requests with the same recorded inputs and limits resume entry- or hash-limited work, including after process restart. Each batch replenishes the entry, hash and candidate allowances; reported hash bytes remain cumulative, including repeated inspection work. An unfinished file or directory file set is retried from fresh bytes in the existing bounded cursor. Previously emitted identical candidates are not repeated, and different source/profile/representation facts remain distinct. If one indivisible inspection cannot fit a fresh hash allowance, coverage remains explicitly limited with guidance rather than offering a no-progress retry. The scan-wide match ceiling, checkpoint-storage, metadata-work, depth, file-size and archive/path/symlink safety limits remain cumulative or unchanged. Cancellation preserves the last published checkpoint. Scan format 12 invalidates earlier continuation semantics without discarding readable historical reports.
+Exact-hash original-file, cartridge-ZIP and complete schema-2 directory/ZIP-file-set profiles participate automatically. Directory sets use the shared inspector: every required member must resolve uniquely within one completely examined directory and match one coherent variant. Member hash work shares the request-wide budget with ordinary files; raw observations are reused without sharing admission. File-set ZIPs use the same exact matcher with unique safe top-level members, bounded entry inventory and expanded member sizes, and budgeted/cancellable member plus container hashing. Their facts are shared across file-set profiles without sharing admission; missing or ambiguous member inventories consume no hashing budget. Exact schema-2 uncompressed GameCube ISO/GCM sources use the same disc matcher and bounded raw-file reader, sharing one byte observation across applicable profiles. Exact STFS LIVE compound sources, including extensionless packages, use a bounded four-byte eligibility probe, one raw hashing pass shared across applicable profiles, and the existing structural validator only after an exact compound digest match. Probe, hashing and validation use one open handle with location, object and metadata checks; structural validation adds bounded reads beyond reported hash bytes. Unrelated files are not hashed by this probe. Compressed GameCube and PSX CHD contracts participate through the shared schema-2 disc matcher. CISO uses a bounded sparse normalized stream. Tool-based GCZ/RVZ/WIA/CHD inspection requires an admitted decoder and verified process-tree closure; this route is available on Windows and on Linux kernels permitting the decoder-only user/PID namespace supervisor. Linux launch requires clone3 with an atomic namespace-init pidfd, private startup acknowledgement, and terminal waitid(P_PIDFD) closure; unavailable kernel capabilities fail inspection without falling back to a process-group proof. Other platforms report these inputs as uninspected and explain the required normalized/direct-selection route. Complete PSX sets require the full ordered directory inventory, every member and fresh original-byte verification; partial or mixed sets do not become exact candidates. Decoding uses private local snapshots and outputs, never writes to connected folders, and never registers a source. Missing tools, unsafe metadata, resource limits, changed bytes and unknown closure remain explicit failures, not known mismatches. ZIP-wrapped STFS is not accepted. Extract and select or scan the original LIVE package. Pinned-validator disc profiles also participate through read-only preliminary selection using the shared inspector. These results appear separately in optional `preliminary_selections` as full inspection records with structural admission and validator `not_run`; they are not exact matches or proof of compatibility. The `candidates` collection and progressive `source_candidate` events keep their exact-match meaning. Both result collections share the candidate allowance and byte observations. One-off discovery applies that allowance to the whole request; a saved-folder scan applies it to each batch, checked between files or folders (one file's several matches are kept together), so a full batch continues instead of ending the scan. A saved scan stores its matches as local, rebuildable rows in the library database (schema 54) written in the same transaction as each batch's snapshot; rows are evidence of what was found, never admission. The snapshot's `report.candidates` and `report.preliminary_selections` then hold only a preview: the first matches in stored order, exact matches first, at most 512 combined and 2 MiB. Its `matches` summary gives the `scan_id`, the `exact_matches` and `preliminary_selections` totals and whether the preview is complete; read every match with `source roots matches`. A scan-wide safety ceiling of 100,000 retained matches or 256 MiB of stored match records ends coverage as explicitly limited with the `candidates` limit, never as finished. A single match whose stored record would exceed 256 KiB is skipped and reported as an issue, and the scan goes on; select that file directly to use it. Desktop offers a deliberate current-location review that rechecks the selected bytes; discovery never invokes the pinned validator. Old reports omit the advisory collection and remain readable as an empty collection. Scan format 13 marks older coverage stale while retaining readable versions 1–12, whose matches stay inline in the report without a `matches` summary. Other source contracts still require manual selection. A reached processing limit remains partial coverage. One-off `source discover` starts anew. Saved `source roots scan` requests with the same recorded inputs and limits resume entry- or hash-limited work, including after process restart. Each batch replenishes the entry, hash and candidate allowances; reported hash bytes remain cumulative, including repeated inspection work. An unfinished file or directory file set is retried from fresh bytes in the existing bounded cursor. Previously emitted identical candidates are not repeated, and different source/profile/representation facts remain distinct. If one indivisible inspection cannot fit a fresh hash allowance, coverage remains explicitly limited with guidance rather than offering a no-progress retry. The scan-wide match ceiling, checkpoint-storage, metadata-work, depth, file-size and archive/path/symlink safety limits remain cumulative or unchanged. Cancellation preserves the last published checkpoint. Scan format 13 invalidates earlier continuation semantics without discarding readable historical reports.
 
-Saved scan snapshots add optional `coverage` and opaque, internally validated `continuation` fields without changing API schema 57, request fields or discovery-report fields. Coverage reports cumulative batches, this batch's examined entries, re-listed entries, metadata checks, prior-batch file-set member rehashes, pending directories and whether continuation is available. Remaining entries are unknown until a frontier is exhausted without limits or issues; zero never promises coverage for unavailable or omitted inputs. Re-listing and metadata checks have a separate 100,000-work ceiling per batch. Continuations retain at most 16,384 observed paths and a conservative 4 MiB construction charge within the existing 8 MiB snapshot ceiling. After each validated batch the cursor keeps metadata only for the unfinished directory frontier, its listed entries and the retained match paths. A batch also ends, resumably, after a finished folder once the cursor passes half of either bound, so a large tree continues across batches; a single folder whose own entries exceed the bound remains terminal partial coverage; Reaching a continuation storage or work bound publishes the current report as terminal partial coverage, discards the cursor, and requires narrower folders for further progress. Prior file-set hashes are never persisted as admission authority: prior-batch members are rehashed against the current batch hash allowance when their directory completes.
+Saved scan snapshots add optional `coverage` and opaque, internally validated `continuation` fields without changing API schema 57, request fields or discovery-report fields. Coverage reports cumulative batches, this batch's examined entries, re-listed entries, metadata checks, prior-batch file-set member rehashes, pending directories and whether continuation is available. Remaining entries are unknown until a frontier is exhausted without limits or issues; zero never promises coverage for unavailable or omitted inputs. Re-listing and metadata checks have a separate 100,000-work ceiling per batch. Continuations retain at most 16,384 observed paths and a conservative 4 MiB construction charge within the existing 8 MiB snapshot ceiling. After each validated batch the cursor keeps metadata only for the unfinished directory frontier and its listed entries; matches live in rows, so their number never counts against these bounds. The cursor also records the stored match count, bytes and a chained SHA-256 per match kind; resuming streams the rows and refuses the continuation (`restart_required`, prior report and rows preserved) when any row is missing, extra, reordered or changed. A fresh scan replaces every earlier row; a continuation appends its batch after checking the earlier counts in the same transaction. A batch also ends, resumably, after a finished folder once the cursor passes half of either bound, so a large tree continues across batches; a single folder whose own entries exceed the bound remains terminal partial coverage; Reaching a continuation storage or work bound publishes the current report as terminal partial coverage, discards the cursor, and requires narrower folders for further progress. Prior file-set hashes are never persisted as admission authority: prior-batch members are rehashed against the current batch hash allowance when their directory completes.
 
 Saved-folder scans keep a local, rebuildable observation cache in the library database (schema 53). After hashing a regular file or ZIP selection, the scan records its identity facts under an exact metadata key: the representation (the profile extension group and the file-size limit), the identity inspector version, and the file's kind, size, modified and created times plus a platform change identity (device, inode and change time on Unix; volume serial, 128-bit file identifier and NTFS change time on Windows). It records only when that key did not change while the file was hashed, and never on a platform or filesystem without a change identity. A later saved scan reuses those facts instead of hashing only when every part of the key matches; any difference, an unreadable row or a newer inspector version inspects the file again. Reused facts only decide which candidates to show: matching still runs against the current catalog, so an unrelated catalog edit rehashes nothing, and every candidate is re-verified from current bytes before registration or setup. When that verification disagrees, the file's saved facts are forgotten so the next scan inspects it again. Files listed in the same batch, including complete file-set members, may use saved facts; prior-batch file-set members are still rehashed. Coverage reports `observations_reused`, one per reused file identity and representation. At the end of each scan, up to 20,000 saved files (oldest first) are checked: rows for files that no longer exist in an available saved folder are forgotten, an unavailable folder keeps its rows, and removing a saved folder forgets its rows. The cache is best effort: a full or unreadable store, or an oversized fact such as a very long ZIP member name, only means the file is hashed again, never a failed scan. One-off `source discover` neither reads nor writes the cache.
 
-Saved-folder records, catalog, limits, platform, output ownership, or recorded filesystem metadata changes refuse the continuation and preserve the prior report with `restart_required`; the next explicit scan starts fresh. Invalid cursor data follows the same refusal path. Snapshot publication compares the previous raw checkpoint, saved-root records and managed-output registry in one transaction, so concurrent writers cannot overwrite each other's progress. Metadata checks detect recorded changes to the frontier and to each retained match's own path (not the members of a finished file set); a finished non-matching entry that changes later is seen by the next scan, as after a completed scan, but neither continuation nor snapshot readback proves current file bytes; accepting a candidate still revalidates it through the normal source path. Symlinks and entries outside the selected canonical roots are skipped. Equal profile contracts share hashing; both normalized ZIP payload and original container bytes count toward the budget. Accepting a candidate with `--expected-sha256` checks the current profile and reviewed content under the normal source locks before registration. Settings → Sources → Find source files exposes the same search, cancellation, and explicit acceptance.
+Saved-folder records, catalog, limits, platform, output ownership, or recorded filesystem metadata changes refuse the continuation and preserve the prior report with `restart_required`; the next explicit scan starts fresh. Invalid cursor data follows the same refusal path. Snapshot publication compares the previous raw checkpoint, saved-root records and managed-output registry in one transaction, so concurrent writers cannot overwrite each other's progress. Metadata checks detect recorded changes to the unfinished frontier; a finished entry, matched or not, that changes later is seen by the next scan, as after a completed scan, and a recorded match from an earlier batch is not rechecked by the continuation. Neither continuation, recorded matches nor snapshot readback proves current file bytes; accepting a candidate still revalidates it through the normal source path. Symlinks and entries outside the selected canonical roots are skipped. Equal profile contracts share hashing; both normalized ZIP payload and original container bytes count toward the budget. Accepting a candidate with `--expected-sha256` checks the current profile and reviewed content under the normal source locks before registration. Settings → Sources → Find source files exposes the same search, cancellation, and explicit acceptance.
 
 ## Cancel work safely
 
@@ -1833,7 +1962,7 @@ For `exec`, a successfully started game returns its exit code when it fits the p
 - `PORTCOVE_GITHUB_CLIENT_ID`: public GitHub App client ID used by device login. It may be embedded at build time or provided at runtime; it is not a client secret.
 - `PORTCOVE_PORT_ID`: supplied to launched ports.
 - `PORTCOVE_USER_DATA`: stable per-port mutable-data directory.
-- `PORTCOVE_SOURCE`: registered source path when the port needs one.
+- `PORTCOVE_SOURCE`: registered source path when the port needs one; not supplied when a self-contained installation launches without its original.
 - `PORTCOVE_CACHE`: generated-cache location for applicable adapters.
 - `PORTCOVE_CHDMAN`: optional full path to `chdman`; an invalid explicit path fails closed instead of falling back to another copy.
 - `PORTCOVE_DOLPHIN_TOOL`: optional full path to `DolphinTool`; an invalid explicit path fails closed instead of falling back to another copy.

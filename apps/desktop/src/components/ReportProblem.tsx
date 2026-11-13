@@ -209,35 +209,7 @@ export function ReportProblem({
   const draft = phase.kind === "ready" || phase.kind === "opening" ? phase : undefined;
   const shown: ReportKind | undefined =
     phase.kind === "closed" || phase.kind === "choosing" ? report : (phase.report ?? report);
-  const title =
-    shown === "problem"
-      ? t("problem.title")
-      : shown === "feedback"
-        ? t("feedback.title")
-        : t("choice.title");
-  const description =
-    shown === "problem"
-      ? t("problem.description")
-      : shown === "feedback"
-        ? t("feedback.description")
-        : t("choice.description");
-  const copiedMessage = (kind: ReportKind, reason: CopyReason) =>
-    reason === "asked"
-      ? t("copy.copied")
-      : kind === "feedback"
-        ? t("feedback.copied")
-        : t("problem.copied");
-  const copyFailedMessage = (kind: ReportKind, reason: CopyReason) =>
-    reason === "asked"
-      ? t("copy.failed")
-      : kind === "feedback"
-        ? t("feedback.copyFailed")
-        : t("problem.copyFailed");
-  const finished =
-    phase.kind === "copied" ||
-    phase.kind === "copy_failed" ||
-    phase.kind === "failed" ||
-    phase.kind === "submitted";
+  const { title, description, finished } = reportPresentation(t, phase, shown);
   const edit = (id: string, value: string) => {
     if (!draft) return;
     const known = draft.fields.some((field) => field.id === id);
@@ -293,55 +265,17 @@ export function ReportProblem({
           )}
           {phase.kind === "loading" && <p role="status">{t("choice.preparing")}</p>}
           {draft && (
-            <div className="grid gap-3">
-              {draft.choices.map((choice) => (
-                <label key={choice.id} className="grid gap-1 text-sm font-semibold">
-                  {choice.label}
-                  <select
-                    className={selectClassName}
-                    value={valueOf(draft.fields, choice.id)}
-                    disabled={phase.kind === "opening"}
-                    onChange={(event) => edit(choice.id, event.target.value)}
-                  >
-                    <option value="">{t("send.choose")}</option>
-                    {choice.options.map((option) => (
-                      <option key={option} value={option}>
-                        {option}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              ))}
-              {draft.fields
-                .filter((field) => !draft.choices.some((choice) => choice.id === field.id))
-                .map((field) =>
-                  editableFields.has(field.id) ? (
-                    <label key={field.id} className="grid gap-1 text-sm font-semibold">
-                      {field.label}
-                      <textarea
-                        className={textareaClassName}
-                        value={field.value}
-                        disabled={phase.kind === "opening"}
-                        onChange={(event) => edit(field.id, event.target.value)}
-                      />
-                    </label>
-                  ) : (
-                    <p key={field.id} className="text-sm">
-                      <span className="font-semibold">{field.label}:</span> {field.value}
-                    </p>
-                  ),
-                )}
-            </div>
+            <ReportDraftFields draft={draft} opening={phase.kind === "opening"} edit={edit} />
           )}
           {phase.kind === "submitted" && (
             <p role="status">{t("send.done", { number: phase.issue.number })}</p>
           )}
           {phase.kind === "copied" && (
-            <p role="status">{copiedMessage(phase.report, phase.reason)}</p>
+            <p role="status">{copiedMessage(t, phase.report, phase.reason)}</p>
           )}
           {phase.kind === "copy_failed" && (
             <div className="grid gap-2">
-              <p role="alert">{copyFailedMessage(phase.report, phase.reason)}</p>
+              <p role="alert">{copyFailedMessage(t, phase.report, phase.reason)}</p>
               <textarea className={textareaClassName} readOnly value={phase.text} />
             </div>
           )}
@@ -395,5 +329,94 @@ export function ReportProblem({
         </DialogContent>
       </Dialog>
     </>
+  );
+}
+
+type ReportTranslation = ReturnType<typeof useAppTranslation<"report">>["t"];
+
+function reportPresentation(t: ReportTranslation, phase: Phase, shown: ReportKind | undefined) {
+  const title =
+    shown === "problem"
+      ? t("problem.title")
+      : shown === "feedback"
+        ? t("feedback.title")
+        : t("choice.title");
+  const description =
+    shown === "problem"
+      ? t("problem.description")
+      : shown === "feedback"
+        ? t("feedback.description")
+        : t("choice.description");
+  const finished =
+    phase.kind === "copied" ||
+    phase.kind === "copy_failed" ||
+    phase.kind === "failed" ||
+    phase.kind === "submitted";
+  return { title, description, finished };
+}
+
+const copiedMessage = (t: ReportTranslation, kind: ReportKind, reason: CopyReason) =>
+  reason === "asked"
+    ? t("copy.copied")
+    : kind === "feedback"
+      ? t("feedback.copied")
+      : t("problem.copied");
+const copyFailedMessage = (t: ReportTranslation, kind: ReportKind, reason: CopyReason) =>
+  reason === "asked"
+    ? t("copy.failed")
+    : kind === "feedback"
+      ? t("feedback.copyFailed")
+      : t("problem.copyFailed");
+
+function ReportDraftFields({
+  draft,
+  opening,
+  edit,
+}: {
+  draft: Extract<Phase, { kind: "ready" | "opening" }>;
+  opening: boolean;
+  edit: (id: string, value: string) => void;
+}) {
+  const { t } = useAppTranslation("report");
+  return (
+    <div className="grid gap-3">
+      {draft.choices.map((choice) => (
+        <label key={choice.id} className="grid gap-1 text-sm font-semibold">
+          {choice.label}
+          <select
+            className={selectClassName}
+            value={valueOf(draft.fields, choice.id)}
+            disabled={opening}
+            onChange={(event) => edit(choice.id, event.target.value)}
+          >
+            <option value="">{t("send.choose")}</option>
+            {choice.options.map((option) => (
+              <option key={option} value={option}>
+                {option}
+              </option>
+            ))}
+          </select>
+        </label>
+      ))}
+      {draft.fields
+        .filter((field) => !draft.choices.some((choice) => choice.id === field.id))
+        .map((field) =>
+          editableFields.has(field.id) ? (
+            <label key={field.id} className="grid gap-1 text-sm font-semibold">
+              {field.label}
+              <textarea
+                className={textareaClassName}
+                value={field.value}
+                disabled={opening}
+                onChange={(event) => edit(field.id, event.target.value)}
+              />
+            </label>
+          ) : (
+            <p key={field.id} className="text-sm">
+              <span className="font-semibold">{field.label}:</span> {field.value}
+            </p>
+          ),
+        )}
+    </div>
   );
 }

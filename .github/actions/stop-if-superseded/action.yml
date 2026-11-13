@@ -1,0 +1,35 @@
+name: Stop if superseded
+description: >-
+  Fail a pull request job at once when the pull request already has a newer head, so a
+  superseded run stops taking runners while its cancellation is still waiting for one.
+inputs:
+  pull-request:
+    description: Pull request number; empty outside pull request events, which never stop.
+    required: false
+    default: ""
+  head-sha:
+    description: The pull request head this run validates.
+    required: false
+    default: ""
+runs:
+  using: composite
+  steps:
+    - name: Stop when the pull request has a newer head
+      if: inputs.pull-request != '' && inputs.head-sha != ''
+      shell: bash
+      env:
+        PORTCOVE_PULL_REQUEST: ${{ inputs.pull-request }}
+        PORTCOVE_RUN_HEAD: ${{ inputs.head-sha }}
+        GIT_TERMINAL_PROMPT: "0"
+      run: |
+        # An unreadable or missing head keeps the job: only a proven newer head stops it.
+        current="$(git -c http.lowSpeedLimit=1000 -c http.lowSpeedTime=20 ls-remote origin "refs/pull/${PORTCOVE_PULL_REQUEST}/head" 2>/dev/null | cut -f1 || true)"
+        if [[ "$current" =~ ^[0-9a-f]{40}$ && "$current" != "$PORTCOVE_RUN_HEAD" ]]; then
+          echo "::error title=Superseded::Pull request #${PORTCOVE_PULL_REQUEST} moved to ${current}; this run validates ${PORTCOVE_RUN_HEAD}. Stopped to free the runner, not a test failure."
+          exit 1
+        fi
+        if [[ "$current" == "$PORTCOVE_RUN_HEAD" ]]; then
+          echo "Pull request #${PORTCOVE_PULL_REQUEST} is still at ${PORTCOVE_RUN_HEAD}; continuing."
+        else
+          echo "Could not read the head of pull request #${PORTCOVE_PULL_REQUEST}; continuing."
+        fi

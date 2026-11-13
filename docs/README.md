@@ -80,7 +80,7 @@ Project item until implemented; dated outcomes remain historical evidence.
 | Release, packaging, application signing, publication, or rollback | [Release process](RELEASING.md), [future delivery contract](DELIVERY.md), [application updater trust](UPDATER-TRUST.md), and [upgrading](UPGRADING.md) |
 | Daily port discovery and canonical intake                         | [Daily discovery](DAILY-PORT-DISCOVERY.md)                                                                                                             |
 | Observe upstream changes and retained release health              | [Upstream observations](UPSTREAM-OBSERVATIONS.md)                                                                                                      |
-| Maintenance inventory storage, backup and restore                 | [Maintenance inventory store](MAINTENANCE-STORE.md)                                                                                                    |
+| Maintenance inventory storage, backup, restore and daily run      | [Maintenance inventory store](MAINTENANCE-STORE.md)                                                                                                    |
 | Run explicit on-demand hosted native acceptance                   | [Hosted native acceptance](NATIVE-HOSTED-ACCEPTANCE.md)                                                                                                |
 
 Discovery and observation do not admit a port or confer support. Native acceptance

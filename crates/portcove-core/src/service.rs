@@ -1917,6 +1917,7 @@ impl PortcoveService {
                     preparation_mode: None,
                     required_source_extension: None,
                     source: None,
+                    source_folder_unavailable: None,
                     bios: None,
                     source_assessment: None,
                     bios_assessment: None,
@@ -1970,7 +1971,15 @@ impl PortcoveService {
         } else {
             source
         };
-        add_source_blocker(&mut blockers, source_blocking, false);
+        // A self-contained installation launches without its original, which
+        // only repair, rebuild or preparation needs (owner decision on #966).
+        let self_contained = match &status.active {
+            Some(active) => crate::preparation::self_contained_launch(&self.library, port, active),
+            None => false,
+        };
+        if !self_contained {
+            add_source_blocker(&mut blockers, source_blocking, false);
+        }
         add_source_blocker(&mut blockers, bios, true);
         let required_source_extension = if port.release.provider == ReleaseSource::UserPrepared {
             Platform::current().ok().and_then(|platform| {
@@ -2055,6 +2064,11 @@ impl PortcoveService {
                     .source_profile
                     .as_ref()
                     .and_then(|profile| registered_sources.get(profile));
+                let source = if self_contained {
+                    crate::preparation::ReceiptSource::NotConsulted
+                } else {
+                    source.into()
+                };
                 return self
                     .validate_preparation_receipt(port, active, source)
                     .is_err();
@@ -2141,6 +2155,22 @@ impl PortcoveService {
                 blockers.push(blocker);
             }
         }
+        let source_folder_unavailable = if blockers.iter().any(|blocker| {
+            matches!(
+                blocker,
+                LaunchBlocker::MissingSource | LaunchBlocker::UnreadableSource
+            )
+        }) {
+            port.source_profile
+                .as_ref()
+                .and_then(|profile| registered_sources.get(profile))
+                .and_then(|record| {
+                    self.library
+                        .unavailable_game_file_root_containing(&record.path)
+                })
+        } else {
+            None
+        };
         status.readiness = Some(LaunchReadiness {
             setup_contract: retained_catalog
                 .as_ref()
@@ -2184,6 +2214,7 @@ impl PortcoveService {
                 .and_then(|active| crate::preparation::managed_mode(port, active)),
             required_source_extension,
             source,
+            source_folder_unavailable,
             bios,
             source_assessment,
             bios_assessment,
@@ -2667,7 +2698,7 @@ impl PortcoveService {
         if crate::managed_runtime_policy::acquisition_hold(&self.catalog, &status.port_id).is_some()
         {
             for assessment in &mut status.port_actions {
-                if matches!(assessment.action, Action::Install | Action::Update) {
+                if crate::managed_runtime_policy::hold_withdraws(assessment.action) {
                     assessment.availability = Availability::Held;
                     assessment.reason = Reason::RouteNotOffered;
                     assessment.definition = None;
@@ -3894,6 +3925,11 @@ impl PortcoveService {
             runtime_source_directory,
             toolchain_root,
             executable_basename,
+            split_mod_packages: port
+                .persistent_paths
+                .iter()
+                .any(|path| path == "mods/packages")
+                && !port.persistent_paths.iter().any(|path| path == "mods"),
         }))
     }
 
@@ -12333,28 +12369,7 @@ fn main() {
             library,
             "v1",
             true,
-            r#"use std::{env, fs, path::Path, process, thread, time::{Duration, Instant}};
-fn main() {
-    let arguments = env::args().skip(1).collect::<Vec<_>>();
-    let markers = Path::new(&arguments[1]);
-    if arguments[0] == "original" {
-        process::Command::new(env::current_exe().unwrap())
-            .args(["successor", arguments[1].as_str()])
-            .spawn()
-            .unwrap();
-        process::exit(0);
-    }
-    fs::write(markers.join("successor-started"), b"started").unwrap();
-    let deadline = Instant::now() + Duration::from_secs(60);
-    while !markers.join("release").exists() {
-        if Instant::now() >= deadline {
-            process::exit(9);
-        }
-        thread::sleep(Duration::from_millis(10));
-    }
-    fs::write("general.json", b"successor-data").unwrap();
-}
-"#,
+            include_str!("../tests/fixtures/windows-tracked-handoff-probe.rs"),
             Some(&port),
         )
     }
@@ -15899,6 +15914,55 @@ fn main() {
         let activities = reopened.library().activities(5).unwrap();
         assert_eq!(activities[0].operation, ActivityOperation::CheckUpdate);
         assert_eq!(activities[0].status, ActivityStatus::Succeeded);
+    }
+
+    #[test]
+    fn a_missing_original_in_a_disconnected_saved_folder_names_that_folder() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let install = library.versions_dir().join("opengoal-jak1").join("v1");
+        fs::create_dir_all(&install).unwrap();
+        write_host_test_executable(&install, "opengoal-jak1");
+        register_existing_test_install(&library, "opengoal-jak1", "v1", &install, true);
+        let folder = temporary.path().join("nas");
+        fs::create_dir(&folder).unwrap();
+        let folder = library.add_game_file_root(&folder).unwrap().path;
+        let source_path = folder.join("jak1.iso");
+        fs::write(&source_path, b"registered source").unwrap();
+        let (storage_sha256, storage_size) = crate::adapter::hash_file(&source_path).unwrap();
+        library
+            .register_source(&SourceRecord {
+                profile_id: "opengoal-jak1-disc".into(),
+                path: source_path.clone(),
+                sha256: storage_sha256.clone(),
+                size: storage_size,
+                storage_sha256,
+                storage_size,
+                updated_at: Library::now(),
+                observed_identity: None,
+            })
+            .unwrap();
+        let service = PortcoveService::new(library.clone()).unwrap();
+        let connected = service.status("opengoal-jak1").unwrap().readiness.unwrap();
+        assert_eq!(connected.source_folder_unavailable, None);
+
+        // Unplugging the drive is not deletion: readiness names the folder.
+        let parked = temporary.path().join("parked");
+        fs::rename(&folder, &parked).unwrap();
+        let disconnected = service.status("opengoal-jak1").unwrap().readiness.unwrap();
+        assert!(
+            disconnected
+                .blockers
+                .contains(&LaunchBlocker::MissingSource)
+        );
+        assert_eq!(disconnected.source_folder_unavailable, Some(folder.clone()));
+
+        // A file deleted from a connected folder is not explained as a disconnect.
+        fs::rename(&parked, &folder).unwrap();
+        fs::remove_file(&source_path).unwrap();
+        let deleted = service.status("opengoal-jak1").unwrap().readiness.unwrap();
+        assert!(deleted.blockers.contains(&LaunchBlocker::MissingSource));
+        assert_eq!(deleted.source_folder_unavailable, None);
     }
 
     #[test]

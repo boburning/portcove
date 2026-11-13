@@ -84,25 +84,27 @@ function label(t: TFunction<"gameFiles">, group: Group, value: string) {
     return value === "available"
       ? t("filters.value.updateAvailable")
       : t("filters.value.updateStaged");
-  if (group === "attention") {
-    switch (value) {
-      case "missing-source":
-        return t("filters.value.missingSource");
-      case "missing-bios":
-        return t("filters.value.missingBios");
-      case "missing-runtime":
-        return t("filters.value.missingRuntime");
-      case "repair-needed":
-        return t("filters.value.repairNeeded");
-      case "finish-setup":
-        return t("filters.value.finishSetup");
-      default:
-        return undefined;
-    }
-  }
+  if (group === "attention") return attentionLabel(t, value);
   if (group === "membership")
     return value === "in-library" ? t("filters.value.inLibrary") : t("filters.value.notInLibrary");
   return group === "platforms" ? platformLabel(value) : releaseChannelPresentation(value).label;
+}
+
+function attentionLabel(t: TFunction<"gameFiles">, value: string) {
+  switch (value) {
+    case "missing-source":
+      return t("filters.value.missingSource");
+    case "missing-bios":
+      return t("filters.value.missingBios");
+    case "missing-runtime":
+      return t("filters.value.missingRuntime");
+    case "repair-needed":
+      return t("filters.value.repairNeeded");
+    case "finish-setup":
+      return t("filters.value.finishSetup");
+    default:
+      return undefined;
+  }
 }
 
 function groupLabel(t: TFunction<"gameFiles">, group: Group): string {
@@ -126,6 +128,76 @@ function groupLabel(t: TFunction<"gameFiles">, group: Group): string {
     case "attention":
       return t("filters.group.attention");
   }
+}
+
+function SelectedFilterChip({
+  group,
+  value,
+  groupLabel,
+  remove,
+  restoreFocus,
+}: {
+  group: Group;
+  value: string;
+  groupLabel: string;
+  remove: (group: Group, value: string) => void;
+  restoreFocus: () => void;
+}) {
+  const { t } = useAppTranslation("gameFiles");
+  const valueLabel = label(t, group, value) ?? value;
+  return (
+    <ChipButton
+      style={group === "platforms" ? undefined : identityStyle(value, group === "channels")}
+      data-focusable
+      size="sm"
+      variant="selected"
+      aria-label={t("filters.removeChip", { group: groupLabel, value: valueLabel })}
+      onClick={(event) => {
+        const ownedFocus = document.activeElement === event.currentTarget;
+        remove(group, value);
+        if (ownedFocus) restoreFocus();
+      }}
+    >
+      {["originalSystems", "platforms", "channels"].includes(group) && (
+        <IdentityIcon
+          name={group === "platforms" ? (value.split("-")[0] ?? value) : value}
+          channel={group === "channels"}
+        />
+      )}
+      {t("filters.chip", { group: groupLabel, value: valueLabel })} <X aria-hidden="true" />
+    </ChipButton>
+  );
+}
+
+function useFilterPanel() {
+  const [open, setOpen] = useState(false);
+  const panelId = useId();
+  const trigger = useRef<HTMLButtonElement>(null);
+  const heading = useRef<HTMLHeadingElement>(null);
+  const panel = useRef<HTMLElement>(null);
+  const close = useCallback(() => {
+    setOpen(false);
+    trigger.current?.focus();
+  }, []);
+  useEffect(() => {
+    if (!open) return;
+    heading.current?.focus();
+    const escape = (event: KeyboardEvent) => {
+      if (
+        event.key !== "Escape" ||
+        event.defaultPrevented ||
+        !(event.target instanceof Node) ||
+        !panel.current?.contains(event.target)
+      )
+        return;
+      event.preventDefault();
+      event.stopPropagation();
+      close();
+    };
+    document.addEventListener("keydown", escape);
+    return () => document.removeEventListener("keydown", escape);
+  }, [open, close]);
+  return { open, setOpen, panelId, trigger, heading, panel, close };
 }
 
 /** Presentation of declarations and Core observations; the evaluator owns matching/counts. */
@@ -168,33 +240,7 @@ export function CatalogFilters({
       values: filterOptionsFor(group.key, candidates ?? [], queryFromFilter(filter), context),
     })),
   ];
-  const [open, setOpen] = useState(false);
-  const panelId = useId();
-  const trigger = useRef<HTMLButtonElement>(null);
-  const heading = useRef<HTMLHeadingElement>(null);
-  const panel = useRef<HTMLElement>(null);
-  const close = useCallback(() => {
-    setOpen(false);
-    trigger.current?.focus();
-  }, []);
-  useEffect(() => {
-    if (!open) return;
-    heading.current?.focus();
-    const escape = (event: KeyboardEvent) => {
-      if (
-        event.key !== "Escape" ||
-        event.defaultPrevented ||
-        !(event.target instanceof Node) ||
-        !panel.current?.contains(event.target)
-      )
-        return;
-      event.preventDefault();
-      event.stopPropagation();
-      close();
-    };
-    document.addEventListener("keydown", escape);
-    return () => document.removeEventListener("keydown", escape);
-  }, [open, close]);
+  const { open, setOpen, panelId, trigger, heading, panel, close } = useFilterPanel();
   const query = queryFromFilter(filter);
   const result = evaluateCatalogQuery(candidates ?? [], query, context);
   const editable = result.state === "matched";
@@ -350,39 +396,16 @@ export function CatalogFilters({
               {t("filters.unknownFacts", { count: result.unavailablePortIds?.length ?? 0 })}
             </p>
           )}
-          {supported &&
-            selected.map(({ group, value }) => (
-              <ChipButton
-                style={
-                  group === "platforms" ? undefined : identityStyle(value, group === "channels")
-                }
-                key={`${group}:${value}`}
-                data-focusable
-                size="sm"
-                variant="selected"
-                aria-label={t("filters.removeChip", {
-                  group: groups.find((item) => item.key === group)?.label ?? "",
-                  value: label(t, group, value) ?? value,
-                })}
-                onClick={(event) => {
-                  const ownedFocus = document.activeElement === event.currentTarget;
-                  remove(group, value);
-                  if (ownedFocus) trigger.current?.focus();
-                }}
-              >
-                {["originalSystems", "platforms", "channels"].includes(group) && (
-                  <IdentityIcon
-                    name={group === "platforms" ? (value.split("-")[0] ?? value) : value}
-                    channel={group === "channels"}
-                  />
-                )}
-                {t("filters.chip", {
-                  group: groups.find((item) => item.key === group)?.label ?? "",
-                  value: label(t, group, value) ?? value,
-                })}{" "}
-                <X aria-hidden="true" />
-              </ChipButton>
-            ))}
+          {selected.map(({ group, value }) => (
+            <SelectedFilterChip
+              key={`${group}:${value}`}
+              group={group}
+              value={value}
+              groupLabel={groups.find((item) => item.key === group)?.label ?? ""}
+              remove={remove}
+              restoreFocus={() => trigger.current?.focus()}
+            />
+          ))}
           {!open && activeCount > 0 && (
             <Button
               data-focusable

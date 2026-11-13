@@ -4,7 +4,7 @@
     "id": "alexbeav-destruction-derby-2-recomp",
     "name": "Destruction Derby 2 / Alexbeav PSXRecomp",
     "original_game_title": "Destruction Derby 2",
-    "summary": "Build and play Destruction Derby 2 on Windows or Linux with your own matching USA disc. Portcove uses the kit’s bundled OpenBIOS. The upstream setup kit remains a separate route.",
+    "summary": "Build and play Destruction Derby 2 on Windows or Linux with your own matching USA disc and retail SCPH-1001 BIOS. The upstream setup kit remains a separate route.",
     "project_url": "https://github.com/alexbeavs-ps1-ports/destruction-derby-2-recomp",
     "issue_number": 438,
     "listed_at": "2026-10-23",
@@ -27,7 +27,7 @@
         },
         {
           "title": "Supply the matching original files",
-          "instruction": "Use your own Destruction Derby 2 (USA) disc (SCUS-94350) in a layout supported by the kit. The upstream wizard can use its included OpenBIOS or a compatible retail BIOS. Keep the CUE and every referenced track together if using a CUE/BIN copy. Follow the original-file instructions included with the kit you downloaded."
+          "instruction": "Use your own Destruction Derby 2 (USA) disc (SCUS-94350) in a layout supported by the kit. Supply the BIOS that the kit’s README-SETUP.txt names. Keep the CUE and every referenced track together if using a CUE/BIN copy. Follow the original-file instructions included with the kit you downloaded."
         },
         {
           "title": "Build the game and add it to Portcove",
@@ -81,7 +81,12 @@
       "config.ini",
       "disc.cfg",
       "bios.cfg",
-      "mods",
+      "mods/installed",
+      "mods/packages",
+      "mods/.staging",
+      "mods/state.toml",
+      "mods/state.toml.tmp",
+      "mods/texture-packs",
       "overlay-captures",
       "overlay_captures.json",
       "overlay_captures.json.d",
@@ -108,7 +113,7 @@
     "launch_environment": {
       "PSX_OVERLAY_CAPTURES": "build-portcove/overlay-captures/overlay_captures.json"
     },
-    "launch_arguments": ["--no-launcher", "--bios", "bios/openbios.bin"],
+    "launch_arguments": ["--no-launcher"],
     "runtime_subdirectory": "build-portcove",
     "presentation": {
       "installation_method": "managed-recompilation",
@@ -118,10 +123,17 @@
           "profile_id": "alexbeav-destruction-derby-2-recomp-usa-psx",
           "label": "Destruction Derby 2 (USA) disc",
           "verification": "catalog-identity"
+        },
+        {
+          "role": "bios",
+          "profile_id": "psx-scph-1001-bios",
+          "label": "PlayStation SCPH-1001 BIOS",
+          "verification": "catalog-identity"
         }
       ],
       "saves_and_settings": "portcove-managed",
-      "manual_preparation": "Provide your own complete matching 19-track USA CHD (SCUS-94350). Portcove checks track count and the first data-track SHA-1. Keep the complete disc, including its audio tracks. The other tracks and the complete TOC are not independently authenticated. The managed route uses the kit’s bundled OpenBIOS. Use the 19-track CHD from the correct complete USA disc. The merged-BIN digest is a separate upstream setup input. Portcove builds privately with the registered toolchain and launches the generated player. Native generation, gameplay and save compatibility remain unobserved."
-    }
+      "manual_preparation": "Provide your own complete matching 19-track USA CHD (SCUS-94350) and retail SCPH-1001 BIOS. A copy installed with the bundled OpenBIOS keeps it until you update; the update needs your SCPH-1001 BIOS. Portcove checks track count and the first data-track SHA-1. Keep the complete disc, including its audio tracks. The other tracks and the complete TOC are not independently authenticated. Use the 19-track CHD from the correct complete USA disc. The merged-BIN digest is a separate upstream setup input. Portcove builds privately with the registered toolchain and launches the generated player. Native generation, gameplay and save compatibility remain unobserved."
+    },
+    "bios_source_profile": "psx-scph-1001-bios"
   }
 }

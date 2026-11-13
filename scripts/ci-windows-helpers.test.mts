@@ -442,7 +442,7 @@ function assertWindowsHelperWorkflow(
   for (const step of steps)
     if (typeof step.run === "string") effectiveHelperShell(step, job, workflow, "pwsh");
   assert.equal(job["runs-on"], "windows-latest");
-  assert.equal(job["timeout-minutes"], 10);
+  assert.equal(job["timeout-minutes"], 15);
   assert.deepEqual(
     helperCondition(job.if),
     helperCondition("needs.classify.outputs.windows_helpers == 'true'"),

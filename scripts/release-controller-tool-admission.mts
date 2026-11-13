@@ -88,6 +88,28 @@ function predicateProfile(expected: ControllerToolArtifactExpected) {
     ? { schema_version: 2, platform: "windows-x86_64" }
     : { schema_version: 1 };
 }
+// An acknowledged upload can briefly be absent from the artifact REST API.
+async function readVisibleUpload<T>(
+  read: () => Promise<T>,
+  deadline: number,
+  waits: readonly number[],
+) {
+  for (const wait of waits) {
+    try {
+      return await read();
+    } catch (error) {
+      if (
+        !(error instanceof GitHubApiError) ||
+        error.status !== 404 ||
+        performance.now() + wait >= deadline
+      )
+        throw error;
+      await delay(wait);
+    }
+  }
+  return read();
+}
+
 function artifact(
   raw: unknown,
   expected: ControllerToolArtifactExpected,
@@ -238,25 +260,12 @@ export async function prepareControllerToolPredicate(
       const data = await metadata.artifact(expected.artifact_id);
       return artifact(data, expected, expected.artifact_id, expected.sha256);
     };
-    // The upload acknowledgment can precede visibility in the artifact REST API.
     const visibilityDeadline = deadline(15000);
-    const readVisibleUpload = async () => {
-      for (const wait of [500, 1500, 3000]) {
-        try {
-          return await read(visibilityDeadline);
-        } catch (error) {
-          if (
-            !(error instanceof GitHubApiError) ||
-            error.status !== 404 ||
-            performance.now() + wait >= visibilityDeadline
-          )
-            throw error;
-          await delay(wait);
-        }
-      }
-      return read(visibilityDeadline);
-    };
-    const before = await readVisibleUpload();
+    const before = await readVisibleUpload(
+      () => read(visibilityDeadline),
+      visibilityDeadline,
+      [500, 1500, 3000],
+    );
     await writeFile(path.join(attempt, "provider-before.json"), JSON.stringify(before), {
       flag: "wx",
       mode: 0o600,
@@ -487,7 +496,7 @@ export async function receiveControllerTools(
     let requests = 0;
     const get = async (read: () => Promise<unknown>) => {
       remaining(15000);
-      if (++requests > 12) throw new Error("bootstrap provider request bound exhausted");
+      if (++requests > 14) throw new Error("bootstrap provider request bound exhausted");
       const body = await read();
       remaining(15000);
       if (Buffer.byteLength(JSON.stringify(body)) > 128 * 1024)
@@ -505,7 +514,7 @@ export async function receiveControllerTools(
         throw new Error("bootstrap source tree differs from provider commit");
       return { commit: commit.sha, tree: commit.tree.sha };
     };
-    const snapshot = async () => ({
+    const snapshot = async (initial = false) => ({
       source: await sourceIdentity(),
       run: runIdentity(await get(() => metadata.run(expected.run_id)), expected),
       attempt: runIdentity(
@@ -519,14 +528,20 @@ export async function receiveControllerTools(
         expected.sha256,
       ),
       bundle: artifact(
-        await get(() => metadata.artifact(bundle.artifact_id)),
+        await (initial
+          ? readVisibleUpload(
+              () => get(() => metadata.artifact(bundle.artifact_id)),
+              Math.min(deadline ?? Infinity, performance.now() + 15000),
+              [500, 1500],
+            )
+          : get(() => metadata.artifact(bundle.artifact_id))),
         expected,
         bundle.artifact_id,
         bundle.sha256,
         true,
       ),
     });
-    const before = await snapshot();
+    const before = await snapshot(true);
     await writeFile(path.join(directory, "provider-before.json"), JSON.stringify(before), {
       flag: "wx",
       mode: 0o600,

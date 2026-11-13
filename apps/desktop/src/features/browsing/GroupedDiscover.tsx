@@ -219,10 +219,6 @@ export function GroupedDiscover({
                   // With one port there is nothing to compare an absence against; rows
                   // without a value are omitted. Several ports keep every row aligned.
                   const single = comparison.ports.length === 1;
-                  const setupLabel = installationMethodLabel(port);
-                  const setupKnown = setupLabel !== "Unavailable in this catalog";
-                  const filesListed = Boolean(port.presentation?.source_requirements?.length);
-                  const ownershipKnown = Boolean(status?.active || status?.external_runtime);
                   return (
                     <article
                       key={port.id}
@@ -251,32 +247,7 @@ export function GroupedDiscover({
                           </p>
                         )}
                       </header>
-                      {(!single || setupKnown) && (
-                        <div>
-                          <h4>{t("discover.compare.setup")}</h4>
-                          <p>{setupLabel}</p>
-                        </div>
-                      )}
-                      {(!single || filesListed) && (
-                        <div>
-                          <h4>{t("discover.compare.files")}</h4>
-                          {port.presentation?.source_requirements?.length ? (
-                            <ul>
-                              {port.presentation.source_requirements.map((requirement) => (
-                                <li key={requirement.profile_id}>{requirement.label}</li>
-                              ))}
-                            </ul>
-                          ) : (
-                            <p>{t("discover.compare.filesUnlisted")}</p>
-                          )}
-                        </div>
-                      )}
-                      {(!single || ownershipKnown) && (
-                        <div>
-                          <h4>{t("discover.compare.updates")}</h4>
-                          {renderComparisonOwnership(t, status)}
-                        </div>
-                      )}
+                      <ComparisonPortFacts port={port} status={status} single={single} />
                       <div className="min-w-0">
                         <GameComparisonEvidence
                           comparison={evidence}
@@ -340,6 +311,52 @@ export function GroupedDiscover({
           )}
         </DialogContent>
       </Dialog>
+    </>
+  );
+}
+
+function ComparisonPortFacts({
+  port,
+  status,
+  single,
+}: {
+  port: CatalogEntry;
+  status: PortStatus | undefined;
+  single: boolean;
+}) {
+  const { t } = useAppTranslation("browsing");
+  const setupLabel = installationMethodLabel(port);
+  const setupKnown = setupLabel !== "Unavailable in this catalog";
+  const filesListed = Boolean(port.presentation?.source_requirements?.length);
+  const ownershipKnown = Boolean(status?.active || status?.external_runtime);
+  return (
+    <>
+      {(!single || setupKnown) && (
+        <div>
+          <h4>{t("discover.compare.setup")}</h4>
+          <p>{setupLabel}</p>
+        </div>
+      )}
+      {(!single || filesListed) && (
+        <div>
+          <h4>{t("discover.compare.files")}</h4>
+          {port.presentation?.source_requirements?.length ? (
+            <ul>
+              {port.presentation.source_requirements.map((requirement) => (
+                <li key={requirement.profile_id}>{requirement.label}</li>
+              ))}
+            </ul>
+          ) : (
+            <p>{t("discover.compare.filesUnlisted")}</p>
+          )}
+        </div>
+      )}
+      {(!single || ownershipKnown) && (
+        <div>
+          <h4>{t("discover.compare.updates")}</h4>
+          {renderComparisonOwnership(t, status)}
+        </div>
+      )}
     </>
   );
 }
@@ -464,34 +481,13 @@ function DiscoverGameCard({
         {group.ports.length === 1 && favorite(first, true)}
         <SaveGameButton card port={first} groupPorts={group.ports} organization={organization} />
       </div>
-      <div className="discover-game-metadata grid content-start gap-2">
-        {artworkNotice && <p className="text-xs text-pc-muted-foreground">{artworkNotice}</p>}
-        {/* Most catalog ports offer only Stable; that chip does not help choose a game.
-            Preview, Rolling, mixed channels and a differing selected channel stay visible. */}
-        {/* On a known device, platform chips repeat on every card; show only the
-            exception. Without a known device, the platforms stay listed. */}
-        {exact && (
-          <IdentityChips
-            port={{
-              ...first,
-              ...(devicePlatform ? { platforms: [] } : {}),
-              ...(first.channels?.length === 1 &&
-              first.channels[0] === "stable" &&
-              (!status?.channel || status.channel === "stable")
-                ? { channels: [] }
-                : {}),
-            }}
-          />
-        )}
-        {exact &&
-          devicePlatform &&
-          first.platforms.length > 0 &&
-          !first.platforms.includes(devicePlatform) && (
-            <p className="m-0 text-xs text-pc-muted-foreground">
-              {t("discover.unavailableFor", { platform: platformLabel(devicePlatform) })}
-            </p>
-          )}
-      </div>
+      <DiscoverGameMetadata
+        port={first}
+        status={status}
+        exact={exact}
+        devicePlatform={devicePlatform}
+        artworkNotice={artworkNotice}
+      />
       <DiscoverGameObservation
         group={actionGroup}
         first={first}
@@ -520,6 +516,52 @@ function DiscoverGameCard({
         </div>
       )}
     </article>
+  );
+}
+
+function DiscoverGameMetadata({
+  port,
+  status,
+  exact,
+  devicePlatform,
+  artworkNotice,
+}: {
+  port: CatalogEntry;
+  status: PortStatus | undefined;
+  exact: boolean;
+  devicePlatform: PortDefinition["platforms"][number] | undefined;
+  artworkNotice: ReturnType<typeof artworkDisplayNotice>;
+}) {
+  const { t } = useAppTranslation("browsing");
+  return (
+    <div className="discover-game-metadata grid content-start gap-2">
+      {artworkNotice && <p className="text-xs text-pc-muted-foreground">{artworkNotice}</p>}
+      {/* Most catalog ports offer only Stable; that chip does not help choose a game.
+          Preview, Rolling, mixed channels and a differing selected channel stay visible. */}
+      {/* On a known device, platform chips repeat on every card; show only the
+          exception. Without a known device, the platforms stay listed. */}
+      {exact && (
+        <IdentityChips
+          port={{
+            ...port,
+            ...(devicePlatform ? { platforms: [] } : {}),
+            ...(port.channels?.length === 1 &&
+            port.channels[0] === "stable" &&
+            (!status?.channel || status.channel === "stable")
+              ? { channels: [] }
+              : {}),
+          }}
+        />
+      )}
+      {exact &&
+        devicePlatform &&
+        port.platforms.length > 0 &&
+        !port.platforms.includes(devicePlatform) && (
+          <p className="m-0 text-xs text-pc-muted-foreground">
+            {t("discover.unavailableFor", { platform: platformLabel(devicePlatform) })}
+          </p>
+        )}
+    </div>
   );
 }
 
