@@ -7,7 +7,10 @@ The fresh-acquisition hold recorded on October 25, 2026 was based only on the
 missing grant for inherited decompiled code that the port links. The owner's
 November 13 policy accepts that basis for managed acquisition from the official
 upstream release, so the held Windows integration is delivered with that limit
-recorded rather than as a hold.
+recorded rather than as a hold. This record supersedes that hold. The October
+review is preserved at commit `fc4a1f98` in
+[`ready-archive-rollout-2026-10-25.md`](https://github.com/boburning/portcove/blob/fc4a1f98/docs/qualification/ready-archive-rollout-2026-10-25.md)
+and its observations JSON in the same directory.
 
 ## Verified on 2026-11-13
 
@@ -43,3 +46,9 @@ No executable, converter or original was run, and no gameplay, save or
 installed-client observation was made. The integration, its persistence and
 mutable paths and its first-run preparation boundary are the ones reviewed on
 October 25, 2026 against the same `v0.5.0` artifact.
+
+## Resume condition
+
+The source contract binds only the `v0.5.0` artifact. When upstream publishes
+the `v0.6.0` release, or any later one, its Windows package must be verified and
+added to the contract's applicability; this delivery makes no claim about it.

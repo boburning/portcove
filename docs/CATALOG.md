@@ -115,7 +115,11 @@ to what Portcove itself does; the player always supplies their own game.
 - **Inherited code without a grant.** A package whose own layer is licensed but
   which compiles or links inherited decompiled or recompiled game code without
   an explicit grant qualifies for tier 3. The missing grant is recorded as a
-  known limitation, not a hold.
+  known limitation, not a hold. Statically recompiled or translated program
+  code counts as code, not game data.
+- **Explicit prohibitions stay held.** An upstream that forbids redistribution
+  or third-party acquisition of its package keeps its hold whatever the code
+  basis.
 - **Bundled game data or restricted assets stay held.** A package that bundles
   original game data (ROM or disc contents, extracted textures, models, audio
   or music) or third-party assets under restrictive terms (for example a
@@ -128,6 +132,8 @@ to what Portcove itself does; the player always supplies their own game.
   upstream observation; installed copies and player data stay as they are.
 - **Requests from upstream or rights holders** follow the route below; a
   verified request to stop future acquisition withdraws tier 3 for that scope.
+- **Existing holds** stay in force until each is re-reviewed against this
+  policy in its owning issue; the policy itself lifts no hold.
 
 ### Upstream listing and distribution requests
 
