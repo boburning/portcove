@@ -320,6 +320,9 @@ export const installSourceFormatProbe = (portId: string) => {
               source: "current",
               blockers: ["incompatible_source"],
               required_source_extension: "z64",
+              // A coherent injected state: setup is complete, only the file format
+              // blocks launch. Pending setup would correctly take precedence.
+              pending_setup: false,
             },
             port_actions: assessments.map((assessment) =>
               assessment.action === "launch"
