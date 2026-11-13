@@ -209,6 +209,101 @@ function browserResultCountLabel({
   return browserResultCount(view, visiblePorts.length);
 }
 
+function usePortBrowserFocus() {
+  const browserOwner = useRef({ closed: false });
+  const filterButton = useRef<HTMLButtonElement>(null);
+  const browserRoot = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const owner = { closed: false };
+    browserOwner.current = owner;
+    return () => {
+      owner.closed = true;
+    };
+  }, []);
+  const restoreAfter = useCallback(async (button: HTMLElement, action: () => Promise<boolean>) => {
+    const owner = browserOwner.current;
+    const ownedFocus = document.activeElement === button;
+    const accepted = await action();
+    if (!accepted || !ownedFocus) return;
+    window.requestAnimationFrame(() => {
+      if (
+        owner.closed ||
+        browserOwner.current !== owner ||
+        button.isConnected ||
+        document.activeElement !== document.body
+      )
+        return;
+      (
+        filterButton.current ??
+        browserRoot.current?.querySelector<HTMLButtonElement>("[data-focusable]:not([disabled])")
+      )?.focus();
+    });
+  }, []);
+  const prepareSearchFocusRestore = () => {
+    const owner = browserOwner.current;
+    const origin = document.activeElement;
+    return () =>
+      window.requestAnimationFrame(() => {
+        if (owner.closed || browserOwner.current !== owner) return;
+        if (document.activeElement !== origin && document.activeElement !== document.body) return;
+        (document.querySelector<HTMLInputElement>("#port-search") ?? filterButton.current)?.focus();
+      });
+  };
+  return { browserRoot, filterButton, restoreAfter, prepareSearchFocusRestore };
+}
+
+type BrowserQuickViewInputs = Pick<
+  Parameters<typeof usePortBrowser>[0],
+  "favorites" | "filter" | "organization" | "statuses" | "catalogUniverse" | "ports"
+> & {
+  queryContext: CatalogQueryContext | undefined;
+  libraryReadiness: string;
+  composedLibrary: boolean;
+  organizationView: string;
+  candidates: CatalogEntry[] | undefined;
+};
+
+function browserQuickViews({
+  favorites,
+  libraryReadiness,
+  filter,
+  composedLibrary,
+  organizationView,
+  organization,
+  candidates,
+  statuses,
+  queryContext,
+  catalogUniverse,
+  ports,
+}: BrowserQuickViewInputs) {
+  const activeQuickView = activeLibraryQuickView({
+    favoritesOnly: favorites?.only === true,
+    readiness: libraryReadiness,
+    filter,
+  });
+  const favoriteIds = favorites?.ids;
+  const quickViewCounts = libraryQuickViewCounts({
+    // An unread collection snapshot makes a selected collection's counts unknown.
+    base:
+      composedLibrary && (organizationView === "all" || organization?.snapshot)
+        ? candidates
+        : undefined,
+    filter,
+    readiness: libraryReadiness,
+    favoriteIds,
+    statuses,
+    // Match filterPorts: group facts use the full catalog, not the searched base.
+    context: {
+      ...queryContext,
+      catalogUniverse: queryContext?.catalogUniverse ?? catalogUniverse ?? candidates ?? [],
+    },
+    scope: (scoped) =>
+      organizedPorts(scoped, organization, organizationView, false, catalogUniverse ?? ports),
+  });
+
+  return { activeQuickView, quickViewCounts };
+}
+
 function usePortBrowser({
   organization,
   organizationSelection,
@@ -289,40 +384,13 @@ function usePortBrowser({
     if (organizationSelection) organizationSelection.onChange(value);
     else setOrganizationViews((current) => ({ ...current, [organizationKey]: value }));
   };
-  const browserOwner = useRef({ closed: false });
-  const filterButton = useRef<HTMLButtonElement>(null);
-  const browserRoot = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    const owner = { closed: false };
-    browserOwner.current = owner;
-    return () => {
-      owner.closed = true;
-    };
-  }, []);
+  const { browserRoot, filterButton, restoreAfter, prepareSearchFocusRestore } =
+    usePortBrowserFocus();
   // Card callbacks keep their identity across renders so memoized cards can skip
   // unrelated workspace updates; each call still uses the latest owner handler.
   const stableSelect = useLatestCallback(onSelect);
   const stableContinue = useLatestCallback(onContinue);
   const stableTask = useLatestCallback(onTask);
-  const restoreAfter = useCallback(async (button: HTMLElement, action: () => Promise<boolean>) => {
-    const owner = browserOwner.current;
-    const ownedFocus = document.activeElement === button;
-    const accepted = await action();
-    if (!accepted || !ownedFocus) return;
-    window.requestAnimationFrame(() => {
-      if (
-        owner.closed ||
-        browserOwner.current !== owner ||
-        button.isConnected ||
-        document.activeElement !== document.body
-      )
-        return;
-      (
-        filterButton.current ??
-        browserRoot.current?.querySelector<HTMLButtonElement>("[data-focusable]:not([disabled])")
-      )?.focus();
-    });
-  }, []);
   const onFavoriteToggle = useCallback(
     (portId: string, button: HTMLElement) => {
       if (favorites) void restoreAfter(button, () => favorites.toggle(portId));
@@ -362,29 +430,18 @@ function usePortBrowser({
     view === "catalog",
     catalogUniverse ?? ports,
   );
-  const activeQuickView = activeLibraryQuickView({
-    favoritesOnly: favorites?.only === true,
-    readiness: libraryReadiness,
+  const { activeQuickView, quickViewCounts } = browserQuickViews({
+    favorites,
+    libraryReadiness,
     filter,
-  });
-  const favoriteIds = favorites?.ids;
-  const quickViewCounts = libraryQuickViewCounts({
-    // An unread collection snapshot makes a selected collection's counts unknown.
-    base:
-      composedLibrary && (organizationView === "all" || organization?.snapshot)
-        ? candidates
-        : undefined,
-    filter,
-    readiness: libraryReadiness,
-    favoriteIds,
+    composedLibrary,
+    organizationView,
+    organization,
+    candidates,
     statuses,
-    // Match filterPorts: group facts use the full catalog, not the searched base.
-    context: {
-      ...queryContext,
-      catalogUniverse: queryContext?.catalogUniverse ?? catalogUniverse ?? candidates ?? [],
-    },
-    scope: (scoped) =>
-      organizedPorts(scoped, organization, organizationView, false, catalogUniverse ?? ports),
+    queryContext,
+    catalogUniverse,
+    ports,
   });
 
   const resultCount = browserResultCountLabel({
@@ -395,16 +452,11 @@ function usePortBrowser({
     declaredCandidates,
   });
   const reset = () => {
-    const owner = browserOwner.current;
-    const origin = document.activeElement;
+    const restoreSearch = prepareSearchFocusRestore();
     favorites?.setOnly(false);
     setOrganizationView("all");
     clearFilters?.();
-    window.requestAnimationFrame(() => {
-      if (owner.closed || browserOwner.current !== owner) return;
-      if (document.activeElement !== origin && document.activeElement !== document.body) return;
-      (document.querySelector<HTMLInputElement>("#port-search") ?? filterButton.current)?.focus();
-    });
+    restoreSearch();
   };
   const constrained =
     organizationView !== "all" ||
@@ -1884,29 +1936,13 @@ function CollectionResultSummary({
     | "overview"
   >;
 }) {
-  const constrainedLibrary =
-    model.view === "library" && (model.constrained || model.query.trim().length > 0);
-  const count = constrainedLibrary
-    ? libraryResultCount(model.visiblePorts.length, model.overview.installed)
-    : model.resultCount;
-  // The unfiltered library total already appears under the page heading.
-  const showCount = model.view !== "library" || constrainedLibrary || model.resultsUnavailable;
-  const hasContext =
-    model.organizationView !== "all" ||
-    (model.libraryReadiness !== "all" && model.view === "library") ||
-    Boolean(model.collectionLayoutFailure);
+  const { constrainedLibrary, count, showCount, hasContext } = collectionSummary(model);
   if (!showCount && !hasContext) return null;
   return (
     <div className="collection-result-summary">
       {showCount && <span>{model.resultsUnavailable ? "Ports unavailable" : count}</span>}
       {model.organizationView !== "all" && (
-        <span>
-          Collection:{" "}
-          {model.organizationView.startsWith("collection:")
-            ? (model.organization?.snapshot?.collections[model.organizationView.slice(11)]?.name ??
-              "Unavailable collection")
-            : model.organizationView}
-        </span>
+        <span>Collection: {collectionViewLabel(model.organizationView, model.organization)}</span>
       )}
       {model.libraryReadiness !== "all" && model.view === "library" && (
         <span>Readiness: {filterLabel(model.libraryReadiness as Filter)}</span>
@@ -1927,6 +1963,29 @@ function CollectionResultSummary({
       )}
     </div>
   );
+}
+
+function collectionSummary(model: Parameters<typeof CollectionResultSummary>[0]["model"]) {
+  const constrainedLibrary =
+    model.view === "library" && (model.constrained || model.query.trim().length > 0);
+  const count = constrainedLibrary
+    ? libraryResultCount(model.visiblePorts.length, model.overview.installed)
+    : model.resultCount;
+  // The unfiltered library total already appears under the page heading.
+  const showCount = model.view !== "library" || constrainedLibrary || model.resultsUnavailable;
+  const hasContext =
+    model.organizationView !== "all" ||
+    (model.libraryReadiness !== "all" && model.view === "library") ||
+    Boolean(model.collectionLayoutFailure);
+  return { constrainedLibrary, count, showCount, hasContext };
+}
+
+function collectionViewLabel(
+  view: ReturnType<typeof usePortBrowser>["organizationView"],
+  organization: ReturnType<typeof usePortBrowser>["organization"],
+) {
+  if (!view.startsWith("collection:")) return view;
+  return organization?.snapshot?.collections[view.slice(11)]?.name ?? "Unavailable collection";
 }
 
 function libraryResultCount(visible: number, installed: number) {
