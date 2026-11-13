@@ -38,13 +38,14 @@ fn extract(bytes: &[u8]) -> Result<tempfile::TempDir> {
     let temporary = tempfile::tempdir().unwrap();
     let source = write(temporary.path(), bytes);
     let destination = temporary.path().join("assets");
-    let result = extract_with_checkpoint(&source, &destination, None, &|| Ok(()));
+    let result =
+        extract_with_checkpoint(&source, &destination, None, HashPolicy::Enforce, &|| Ok(()));
     assert_eq!(
         std::fs::read(&source).unwrap(),
         bytes,
         "source is never changed"
     );
-    result.map(|()| temporary)
+    result.map(|_| temporary)
 }
 
 /// Validation and extraction refuse the bytes, and extraction leaves nothing behind.
@@ -52,8 +53,10 @@ fn assert_refused(bytes: &[u8]) -> PortcoveError {
     let temporary = tempfile::tempdir().unwrap();
     let source = write(temporary.path(), bytes);
     let destination = temporary.path().join("assets");
-    let error = extract_with_checkpoint(&source, &destination, None, &|| Ok(())).unwrap_err();
-    assert!(validate(&source, &|| Ok(())).is_err());
+    let error =
+        extract_with_checkpoint(&source, &destination, None, HashPolicy::Enforce, &|| Ok(()))
+            .unwrap_err();
+    assert!(validate(&source, HashPolicy::Enforce, &|| Ok(())).is_err());
     let names = std::fs::read_dir(temporary.path())
         .unwrap()
         .map(|entry| entry.unwrap().file_name().to_string_lossy().into_owned())
@@ -172,7 +175,7 @@ fn validates_level_two_trees_in_a_sparse_package() {
     assert!(u64::from(built.total_blocks) > 170 * 170);
     built.write_to(&source);
 
-    let summary = validate(&source, &|| Ok(())).unwrap();
+    let summary = validate(&source, HashPolicy::Enforce, &|| Ok(())).unwrap();
     assert_eq!(
         summary.file_sha256("default.xex").unwrap(),
         hex::encode(Sha256::digest(payload(2 * BLOCK, 1)))
@@ -185,7 +188,7 @@ fn validates_level_two_trees_in_a_sparse_package() {
     corrupt.seek(SeekFrom::Start(level1_offset(1) + 4)).unwrap();
     corrupt.write_all(&[0xaa]).unwrap();
     drop(corrupt);
-    let error = validate(&source, &|| Ok(())).unwrap_err();
+    let error = validate(&source, HashPolicy::Enforce, &|| Ok(())).unwrap_err();
     assert!(error.message.contains("level 1 hash table"), "{error:?}");
 }
 
@@ -196,7 +199,7 @@ fn reports_verified_header_facts_and_file_digests() {
     let summary = {
         let temporary = tempfile::tempdir().unwrap();
         let source = write(temporary.path(), &builder.bytes());
-        validate(&source, &|| Ok(())).unwrap()
+        validate(&source, HashPolicy::Enforce, &|| Ok(())).unwrap()
     };
     assert_eq!(summary.header.package_type, StfsPackageType::Pirs);
     assert_eq!(summary.header.title_id_hex(), "58410A6B");
@@ -227,7 +230,10 @@ fn reports_verified_header_facts_and_file_digests() {
     let other = builder.bytes();
     let temporary = tempfile::tempdir().unwrap();
     let source = write(temporary.path(), &other);
-    assert_eq!(validate(&source, &|| Ok(())).unwrap(), summary);
+    assert_eq!(
+        validate(&source, HashPolicy::Enforce, &|| Ok(())).unwrap(),
+        summary
+    );
 }
 
 #[test]
@@ -364,8 +370,11 @@ fn refuses_unsafe_and_duplicate_names_before_writing() {
         let temporary = tempfile::tempdir().unwrap();
         let source = write(temporary.path(), &live(items).bytes());
         let destination = temporary.path().join("assets");
-        assert!(extract_with_checkpoint(&source, &destination, None, &|| Ok(())).is_err());
-        assert!(validate(&source, &|| Ok(())).is_err());
+        assert!(
+            extract_with_checkpoint(&source, &destination, None, HashPolicy::Enforce, &|| Ok(()))
+                .is_err()
+        );
+        assert!(validate(&source, HashPolicy::Enforce, &|| Ok(())).is_err());
         assert!(!destination.exists());
     }
 }
@@ -405,10 +414,16 @@ fn binding_refuses_another_title_or_content_type_before_any_write() {
         let source = write(temporary.path(), &bytes);
         let destination = temporary.path().join("assets");
         let checkpoints = std::cell::Cell::new(0);
-        let error = extract_with_checkpoint(&source, &destination, Some(&profile), &|| {
-            checkpoints.set(checkpoints.get() + 1);
-            Ok(())
-        })
+        let error = extract_with_checkpoint(
+            &source,
+            &destination,
+            Some(&profile),
+            HashPolicy::Advisory,
+            &|| {
+                checkpoints.set(checkpoints.get() + 1);
+                Ok(())
+            },
+        )
         .unwrap_err();
         assert!(!destination.exists());
         assert_eq!(checkpoints.get(), 1, "refused before reading the package");
@@ -425,6 +440,7 @@ fn binding_refuses_another_title_or_content_type_before_any_write() {
         &source,
         &destination,
         Some(&binding(&["58410a6b"], &["000d0000"], size)),
+        HashPolicy::Enforce,
         &|| Ok(()),
     )
     .unwrap();
@@ -438,8 +454,10 @@ fn cancellation_before_extraction_creates_no_output() {
     let source = write(temporary.path(), &package);
     let destination = temporary.path().join("assets");
 
-    let error =
-        extract_with_checkpoint(&source, &destination, None, &|| Err(cancelled())).unwrap_err();
+    let error = extract_with_checkpoint(&source, &destination, None, HashPolicy::Enforce, &|| {
+        Err(cancelled())
+    })
+    .unwrap_err();
 
     assert_eq!(error.code, crate::ErrorCode::Cancelled);
     assert!(!destination.exists());
@@ -462,7 +480,14 @@ fn cancellation_after_a_copied_block_stops_before_the_remaining_payload() {
         }
     };
 
-    let error = extract_with_checkpoint(&source, &destination, None, &checkpoint).unwrap_err();
+    let error = extract_with_checkpoint(
+        &source,
+        &destination,
+        None,
+        HashPolicy::Enforce,
+        &checkpoint,
+    )
+    .unwrap_err();
 
     assert_eq!(error.code, crate::ErrorCode::Cancelled);
     // The adapter owns this private output's cleanup. The extractor must
@@ -486,7 +511,14 @@ fn cancellation_after_the_final_payload_block_does_not_report_success() {
         }
     };
 
-    let error = extract_with_checkpoint(&source, &destination, None, &checkpoint).unwrap_err();
+    let error = extract_with_checkpoint(
+        &source,
+        &destination,
+        None,
+        HashPolicy::Enforce,
+        &checkpoint,
+    )
+    .unwrap_err();
 
     assert_eq!(error.code, crate::ErrorCode::Cancelled);
     assert_eq!(std::fs::read(&output).unwrap(), b"XEX2");
@@ -499,7 +531,7 @@ fn validates_a_package_without_creating_output() {
     let package = single_file(b"XEX2");
     let source = write(temporary.path(), &package);
 
-    let summary = validate(&source, &|| Ok(())).unwrap();
+    let summary = validate(&source, HashPolicy::Enforce, &|| Ok(())).unwrap();
 
     assert_eq!(summary.files.len(), 1);
     assert_eq!(std::fs::read(&source).unwrap(), package);
@@ -512,4 +544,105 @@ fn the_historical_single_file_layout_is_preserved() {
     assert_eq!(package.len(), 0xe000);
     assert_eq!(&package[0xc000..0xc00b], b"default.xex");
     assert_eq!(&package[0xd000..0xd004], b"XEX2");
+}
+
+/// A valid package whose level-0 entry for one data block was deliberately changed.
+fn wrong_level0_hash() -> (Vec<u8>, Vec<u8>) {
+    let built = live(tree()).build();
+    let mut bytes = built.to_vec();
+    let block = built.file("Media/a.bin").blocks[0];
+    let slot = level0_offset(block) as usize + (block as usize % 170) * 0x18;
+    bytes[slot] ^= 0x01;
+    (bytes, payload(3000, 5))
+}
+
+#[test]
+fn an_advisory_read_reports_hash_mismatches_without_refusing() {
+    let (bytes, a_bin) = wrong_level0_hash();
+    let temporary = tempfile::tempdir().unwrap();
+    let source = write(temporary.path(), &bytes);
+
+    let summary = validate(&source, HashPolicy::Advisory, &|| Ok(())).unwrap();
+    assert!(
+        summary
+            .hash_advisories
+            .iter()
+            .any(|advisory| advisory.contains("level 0 hash table")),
+        "{:?}",
+        summary.hash_advisories
+    );
+    assert_eq!(
+        summary.file_sha256("Media/a.bin").unwrap(),
+        hex::encode(Sha256::digest(&a_bin))
+    );
+
+    let destination = temporary.path().join("assets");
+    let advisories = extract_with_checkpoint(
+        &source,
+        &destination,
+        None,
+        HashPolicy::Advisory,
+        &|| Ok(()),
+    )
+    .unwrap();
+    assert_eq!(advisories, summary.hash_advisories);
+    assert_tree(&destination);
+
+    // The same bytes are refused when the hash tree is what proves integrity.
+    assert!(
+        validate(&source, HashPolicy::Enforce, &|| Ok(()))
+            .unwrap_err()
+            .message
+            .contains("hash check")
+    );
+    let bound = temporary.path().join("bound");
+    let profile = binding(&["58410A6B"], &["000D0000"], bytes.len() as u64);
+    let error = extract_with_checkpoint(
+        &source,
+        &bound,
+        Some(&profile),
+        HashPolicy::Advisory,
+        &|| Ok(()),
+    )
+    .unwrap_err();
+    assert!(error.message.contains("hash check"), "{error:?}");
+}
+
+#[test]
+fn an_advisory_read_still_enforces_every_structural_bound() {
+    let built = live(tree()).build();
+    let blocks = built.file("default.xex").blocks.clone();
+    let mut cycle = built.to_vec();
+    set_next(&mut cycle, blocks[1], blocks[0], built.total_blocks);
+    let traversal = live(vec![dir("..", vec![file("escape.txt", b"x")])]).bytes();
+    let duplicate = live(vec![
+        file("default.xex", b"one"),
+        file("DEFAULT.XEX", b"two"),
+    ])
+    .bytes();
+    let oversized = with_entry(live(tree()), "Media/a.bin", |entry| {
+        entry[0x34..0x38].copy_from_slice(&u32::MAX.to_be_bytes());
+    });
+    let mut con = built.to_vec();
+    con[..4].copy_from_slice(b"CON ");
+    // Unsealed edits also leave hash mismatches, which must not mask the bound.
+    let mut unsealed_cycle = built.to_vec();
+    let slot = level0_offset(blocks[1]) as usize + (blocks[1] as usize % 170) * 0x18 + 20;
+    unsealed_cycle[slot..slot + 4].copy_from_slice(&(0x8000_0000 | blocks[0]).to_be_bytes());
+    for bytes in [cycle, traversal, duplicate, oversized, con, unsealed_cycle] {
+        let temporary = tempfile::tempdir().unwrap();
+        let source = write(temporary.path(), &bytes);
+        let destination = temporary.path().join("assets");
+        assert!(validate(&source, HashPolicy::Advisory, &|| Ok(())).is_err());
+        assert!(
+            extract_with_checkpoint(
+                &source,
+                &destination,
+                None,
+                HashPolicy::Advisory,
+                &|| Ok(())
+            )
+            .is_err()
+        );
+    }
 }

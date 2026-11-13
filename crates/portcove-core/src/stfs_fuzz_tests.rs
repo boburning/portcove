@@ -4,7 +4,7 @@ use proptest::{
     test_runner::{Config, RngAlgorithm, RngSeed, TestRunner},
 };
 
-use super::{extract_with_checkpoint, fixtures::*, validate};
+use super::{HashPolicy, extract_with_checkpoint, fixtures::*, validate};
 
 const SEED: u64 = 5360;
 const CASES: u32 = 192;
@@ -30,8 +30,10 @@ fn run(bytes: &[u8]) -> crate::Result<()> {
     let path = directory.path().join("package");
     std::fs::write(&path, bytes).unwrap();
     let staging = directory.path().join("staging");
-    let validated = validate(&path, &|| Ok(()));
-    let extracted = extract_with_checkpoint(&path, &staging, None, &|| Ok(()));
+    // An advisory read never panics or writes, whatever it reports.
+    let _ = validate(&path, HashPolicy::Advisory, &|| Ok(()));
+    let validated = validate(&path, HashPolicy::Enforce, &|| Ok(()));
+    let extracted = extract_with_checkpoint(&path, &staging, None, HashPolicy::Enforce, &|| Ok(()));
     let mut names = std::fs::read_dir(directory.path())
         .unwrap()
         .map(|entry| entry.unwrap().file_name().to_string_lossy().into_owned())
@@ -43,7 +45,7 @@ fn run(bytes: &[u8]) -> crate::Result<()> {
     );
     assert_eq!(validated.is_ok(), extracted.is_ok());
     assert_eq!(std::fs::read(&path).unwrap(), bytes);
-    extracted
+    extracted.map(|_| ())
 }
 
 fn runner() -> TestRunner {

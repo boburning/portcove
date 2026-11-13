@@ -1261,11 +1261,28 @@ fn materialize_stfs_directory(
         .ok_or_else(|| PortcoveError::state("STFS destination has no parent directory"))?;
     std::fs::create_dir_all(parent)?;
     let temporary = parent.join(format!(".portcove-stfs-{}", Uuid::new_v4()));
-    if let Err(error) =
-        crate::stfs::extract_with_checkpoint(source, &temporary, binding, checkpoint)
-            .and_then(|()| checkpoint())
-            .and_then(|()| verify_runtime_source_hashes(&temporary, required_hashes, checkpoint))
-            .and_then(|()| checkpoint())
+    // Without a binding the port admits only an exact whole-package digest, which
+    // already proves the bytes, so a hash-tree mismatch is an advisory there. A binding
+    // (and so every content identity) always enforces the tree inside the reader.
+    if let Err(error) = crate::stfs::extract_with_checkpoint(
+        source,
+        &temporary,
+        binding,
+        crate::stfs::HashPolicy::Advisory,
+        checkpoint,
+    )
+    .map(|advisories| {
+        if !advisories.is_empty() {
+            tracing::warn!(
+                source = %source.display(),
+                ?advisories,
+                "STFS package extracted with hash-tree advisories; its exact digest was verified"
+            );
+        }
+    })
+    .and_then(|()| checkpoint())
+    .and_then(|()| verify_runtime_source_hashes(&temporary, required_hashes, checkpoint))
+    .and_then(|()| checkpoint())
     {
         let _ = std::fs::remove_dir_all(&temporary);
         return Err(error);
@@ -4338,6 +4355,34 @@ mod tests {
         .unwrap();
         assert_eq!(std::fs::read(&marker).unwrap(), accepted_marker);
         assert_eq!(std::fs::read(&source).unwrap(), source_bytes);
+    }
+
+    #[test]
+    fn an_exact_digest_stfs_route_extracts_despite_a_hash_tree_advisory() {
+        let temporary = tempfile::tempdir().unwrap();
+        let source = temporary.path().join("source");
+        let mut package = crate::stfs::fixtures::single_file(b"XEX2");
+        // The level-0 entry of `default.xex` (block 1) no longer matches its block.
+        package[0xb000 + 0x18] ^= 0x01;
+        std::fs::write(&source, &package).unwrap();
+        let destination = temporary.path().join("assets");
+        let required =
+            BTreeMap::from([("default.xex".into(), hex::encode(Sha256::digest(b"XEX2")))]);
+
+        prepare_runtime_source(
+            &source,
+            &destination,
+            RuntimeSourceMaterialization::StfsDirectory,
+            &required,
+            &|| Ok(()),
+        )
+        .unwrap();
+
+        assert_eq!(
+            std::fs::read(destination.join("default.xex")).unwrap(),
+            b"XEX2"
+        );
+        assert_eq!(std::fs::read(&source).unwrap(), package);
     }
 
     #[test]

@@ -14774,6 +14774,13 @@
             },
             "type": "array"
           },
+          "integrity_advisories": {
+            "description": "Integrity checks that did not pass but did not decide admission, such as an STFS\nhash-tree mismatch on a package already proven by its exact whole-file digest.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
           "message": {
             "type": "string"
           },
@@ -15993,6 +16000,13 @@
             "default": [],
             "items": {
               "$ref": "#/$defs/ObservedSourceComponent"
+            },
+            "type": "array"
+          },
+          "integrity_advisories": {
+            "description": "Integrity checks that did not pass but did not decide admission, such as an STFS\nhash-tree mismatch on a package already proven by its exact whole-file digest.",
+            "items": {
+              "type": "string"
             },
             "type": "array"
           },
@@ -39083,6 +39097,13 @@
             },
             "type": "array"
           },
+          "integrity_advisories": {
+            "description": "Integrity checks that did not pass but did not decide admission, such as an STFS\nhash-tree mismatch on a package already proven by its exact whole-file digest.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
           "message": {
             "type": "string"
           },
@@ -52172,6 +52193,13 @@
             },
             "type": "array"
           },
+          "integrity_advisories": {
+            "description": "Integrity checks that did not pass but did not decide admission, such as an STFS\nhash-tree mismatch on a package already proven by its exact whole-file digest.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
           "message": {
             "type": "string"
           },
@@ -54829,6 +54857,13 @@
             },
             "type": "array"
           },
+          "integrity_advisories": {
+            "description": "Integrity checks that did not pass but did not decide admission, such as an STFS\nhash-tree mismatch on a package already proven by its exact whole-file digest.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
           "message": {
             "type": "string"
           },
@@ -56517,6 +56552,13 @@
             },
             "type": "array"
           },
+          "integrity_advisories": {
+            "description": "Integrity checks that did not pass but did not decide admission, such as an STFS\nhash-tree mismatch on a package already proven by its exact whole-file digest.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
           "message": {
             "type": "string"
           },
@@ -57707,6 +57749,13 @@
             "default": [],
             "items": {
               "$ref": "#/$defs/ObservedSourceComponent"
+            },
+            "type": "array"
+          },
+          "integrity_advisories": {
+            "description": "Integrity checks that did not pass but did not decide admission, such as an STFS\nhash-tree mismatch on a package already proven by its exact whole-file digest.",
+            "items": {
+              "type": "string"
             },
             "type": "array"
           },
@@ -59486,6 +59535,13 @@
             "default": [],
             "items": {
               "$ref": "#/$defs/ObservedSourceComponent"
+            },
+            "type": "array"
+          },
+          "integrity_advisories": {
+            "description": "Integrity checks that did not pass but did not decide admission, such as an STFS\nhash-tree mismatch on a package already proven by its exact whole-file digest.",
+            "items": {
+              "type": "string"
             },
             "type": "array"
           },
@@ -61843,6 +61899,13 @@
             },
             "type": "array"
           },
+          "integrity_advisories": {
+            "description": "Integrity checks that did not pass but did not decide admission, such as an STFS\nhash-tree mismatch on a package already proven by its exact whole-file digest.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
           "message": {
             "type": "string"
           },
@@ -63712,6 +63775,13 @@
             "default": [],
             "items": {
               "$ref": "#/$defs/ObservedSourceComponent"
+            },
+            "type": "array"
+          },
+          "integrity_advisories": {
+            "description": "Integrity checks that did not pass but did not decide admission, such as an STFS\nhash-tree mismatch on a package already proven by its exact whole-file digest.",
+            "items": {
+              "type": "string"
             },
             "type": "array"
           },

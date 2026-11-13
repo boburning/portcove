@@ -89,12 +89,31 @@ pub(crate) struct PackageFile {
     pub(crate) sha256: String,
 }
 
-/// The result of a complete read-only validation: verified header facts and every file.
+/// The result of a complete read-only validation: header facts, every file and any
+/// hash-tree mismatches that an [`HashPolicy::Advisory`] read reported instead of
+/// refusing. A summary with advisories is never a verified package.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct PackageSummary {
     pub(crate) header: Header,
     pub(crate) files: Vec<PackageFile>,
+    pub(crate) hash_advisories: Vec<String>,
 }
+
+/// What a hash-tree mismatch does. Structural parsing and every safety bound are
+/// enforced either way; only the SHA-1 header, table and block comparisons differ.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum HashPolicy {
+    /// Refuse the package. Used where the hash tree provides integrity: a content
+    /// identity, and any port that declares an STFS package binding.
+    Enforce,
+    /// Report the mismatch as an advisory. Used only where an exact whole-package
+    /// digest has already proven the bytes, so a disagreement with Portcove's reading of
+    /// the format must not refuse a known package.
+    Advisory,
+}
+
+/// At most this many distinct advisories are kept for one package.
+const MAX_ADVISORIES: usize = 16;
 
 impl PackageSummary {
     /// The SHA-256 of one extracted file, compared as a Windows path.
@@ -135,14 +154,17 @@ struct Entry {
     size: u64,
 }
 
-/// An opened package whose header hash and upper hash tables are verified. Level-0
-/// tables are verified against their recorded digests whenever they are read.
+/// An opened package whose header hash and upper hash tables are checked. Level-0
+/// tables are checked against their recorded digests whenever they are read; the policy
+/// decides whether a mismatch refuses the package or becomes an advisory.
 struct Package<'a> {
     input: &'a mut File,
     size: u64,
     info: Info,
     level0: Vec<[u8; 20]>,
     cached: Option<(u64, Box<[u8; BLOCK_SIZE as usize]>)>,
+    policy: HashPolicy,
+    advisories: Vec<String>,
 }
 
 fn unsupported(message: &str) -> PortcoveError {
@@ -201,12 +223,15 @@ pub(crate) fn read_header_from_path(source: &Path) -> Result<Header> {
     Ok(parse_info(&mut input, size)?.header)
 }
 
+/// Extract a package. A declared binding always enforces the hash tree; otherwise the
+/// caller's policy applies. Returns the hash advisories of an advisory read.
 pub(crate) fn extract_with_checkpoint(
     source: &Path,
     destination: &Path,
     binding: Option<&crate::StfsPackageProfile>,
+    policy: HashPolicy,
     checkpoint: &dyn Fn() -> Result<()>,
-) -> Result<()> {
+) -> Result<Vec<String>> {
     checkpoint()?;
     if destination.exists() {
         return Err(PortcoveError::state(
@@ -219,7 +244,12 @@ pub(crate) fn extract_with_checkpoint(
         let info = parse_info(&mut input, source_size)?;
         check_binding(&info.header, source_size, profile)?;
     }
-    let mut package = open(&mut input, source_size, checkpoint)?;
+    let policy = if binding.is_some() {
+        HashPolicy::Enforce
+    } else {
+        policy
+    };
+    let mut package = open(&mut input, source_size, policy, checkpoint)?;
     let entries = package.entries(checkpoint)?;
     let plans = plan_entries(&entries, source_size, checkpoint)?;
     let expanded = validate_expanded_size(&entries, source_size)?;
@@ -254,28 +284,31 @@ pub(crate) fn extract_with_checkpoint(
         checkpoint()?;
         output.sync_all()?;
     }
-    checkpoint()
+    checkpoint()?;
+    Ok(package.advisories)
 }
 
 /// Validate the same bounded package structure, hash tree and file-block chains used by
 /// extraction without creating destination files.
 pub(crate) fn validate(
     source: &Path,
+    policy: HashPolicy,
     checkpoint: &dyn Fn() -> Result<()>,
 ) -> Result<PackageSummary> {
     let source_size = std::fs::metadata(source)?.len();
     let mut input = File::open(source)?;
-    validate_reader(&mut input, source_size, checkpoint)
+    validate_reader(&mut input, source_size, policy, checkpoint)
 }
 
 /// Inspect a caller-owned handle without reopening its pathname.
 pub(crate) fn validate_reader(
     input: &mut File,
     source_size: u64,
+    policy: HashPolicy,
     checkpoint: &dyn Fn() -> Result<()>,
 ) -> Result<PackageSummary> {
     checkpoint()?;
-    let mut package = open(input, source_size, checkpoint)?;
+    let mut package = open(input, source_size, policy, checkpoint)?;
     checkpoint()?;
     let entries = package.entries(checkpoint)?;
     let plans = plan_entries(&entries, source_size, checkpoint)?;
@@ -300,6 +333,7 @@ pub(crate) fn validate_reader(
     Ok(PackageSummary {
         header: package.info.header,
         files,
+        hash_advisories: package.advisories,
     })
 }
 
@@ -403,6 +437,7 @@ fn parse_info(input: &mut File, source_size: u64) -> Result<Info> {
 fn open<'a>(
     input: &'a mut File,
     source_size: u64,
+    policy: HashPolicy,
     checkpoint: &dyn Fn() -> Result<()>,
 ) -> Result<Package<'a>> {
     let info = parse_info(input, source_size)?;
@@ -418,9 +453,7 @@ fn open<'a>(
         header_digest.update(&chunk[..count]);
         offset += count as u64;
     }
-    if header_digest.finalize().as_slice() != recorded {
-        return Err(hash_failure("the header does not match its recorded hash"));
-    }
+    let header_matches = header_digest.finalize().as_slice() == recorded;
     let total = u64::from(info.total_blocks);
     let level0_tables = total.div_ceil(ENTRIES_PER_TABLE);
     let mut package = Package {
@@ -429,7 +462,12 @@ fn open<'a>(
         info,
         level0: Vec::new(),
         cached: None,
+        policy,
+        advisories: Vec::new(),
     };
+    if !header_matches {
+        package.mismatch("the header does not match its recorded hash")?;
+    }
     let top_hash = package.info.top_hash;
     if total <= ENTRIES_PER_TABLE {
         package.level0.push(top_hash);
@@ -461,6 +499,21 @@ fn entry_hash(table: &[u8; BLOCK_SIZE as usize], index: u64) -> [u8; 20] {
 }
 
 impl Package<'_> {
+    /// Refuse a hash mismatch, or record it once under the advisory policy.
+    fn mismatch(&mut self, message: &str) -> Result<()> {
+        match self.policy {
+            HashPolicy::Enforce => Err(hash_failure(message)),
+            HashPolicy::Advisory => {
+                if self.advisories.len() < MAX_ADVISORIES
+                    && !self.advisories.iter().any(|known| known == message)
+                {
+                    self.advisories.push(message.to_owned());
+                }
+                Ok(())
+            }
+        }
+    }
+
     fn verified_table(
         &mut self,
         offset: u64,
@@ -470,9 +523,7 @@ impl Package<'_> {
         let mut table = Box::new([0_u8; BLOCK_SIZE as usize]);
         read_exact_at(self.input, self.size, offset, table.as_mut_slice())?;
         if Sha1::digest(table.as_slice()).as_slice() != expected {
-            return Err(hash_failure(&format!(
-                "a {level} hash table does not match its parent"
-            )));
+            self.mismatch(&format!("a {level} hash table does not match its parent"))?;
         }
         Ok(table)
     }
@@ -523,7 +574,7 @@ impl Package<'_> {
         bytes.fill(0);
         read_exact_at(self.input, self.size, offset, &mut bytes[..available])?;
         if Sha1::digest(bytes.as_slice()).as_slice() != &entry[..20] {
-            return Err(hash_failure("a data block does not match its level-0 hash"));
+            self.mismatch("a data block does not match its level-0 hash")?;
         }
         Ok(())
     }

@@ -185,6 +185,10 @@ pub struct SourceInspection {
     pub assessment: SourceAssessment,
     pub record: Option<SourceRecord>,
     pub message: String,
+    /// Integrity checks that did not pass but did not decide admission, such as an STFS
+    /// hash-tree mismatch on a package already proven by its exact whole-file digest.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub integrity_advisories: Vec<String>,
 }
 
 impl SourceInspection {
@@ -379,14 +383,30 @@ pub(crate) fn inspect_file(
     }
     let mut evidence = CompoundEvidence::default();
     if compound_format == Some(CompoundSourceFormat::StfsLive) || content {
-        // One complete structural and hash-tree pass serves both identity kinds.
-        evidence.stfs = Some(crate::stfs::validate(path, &|| {
-            budget.checkpoint()?;
-            Ok(())
-        })?);
+        // One complete structural and hash-tree pass serves both identity kinds. An exact
+        // whole-package digest already proves the bytes, so a hash-tree mismatch is only
+        // an advisory then; a content identity alone needs the tree to verify.
+        evidence.stfs = Some(crate::stfs::validate(
+            path,
+            stfs_hash_policy(compound_format),
+            &|| {
+                budget.checkpoint()?;
+                Ok(())
+            },
+        )?);
         evidence.exact = compound_format;
     }
     inspect_file_identity_with_compound(catalog, profile_id, path, &identity, &evidence)
+}
+
+/// The hash-tree policy for one structural pass: advisory only when an exact compound
+/// whole-file digest has matched, enforced otherwise.
+fn stfs_hash_policy(exact: Option<CompoundSourceFormat>) -> crate::stfs::HashPolicy {
+    if exact.is_some() {
+        crate::stfs::HashPolicy::Advisory
+    } else {
+        crate::stfs::HashPolicy::Enforce
+    }
 }
 
 /// Whether a schema-2 profile declares a content-based STFS identity. Such a profile is
@@ -425,7 +445,9 @@ fn stfs_content_matches(
     members: &[crate::StfsContentMember],
 ) -> bool {
     let header = &summary.header;
-    package_types.contains(&header.package_type)
+    // Only a fully verified hash tree proves a content identity.
+    summary.hash_advisories.is_empty()
+        && package_types.contains(&header.package_type)
         && title_ids
             .iter()
             .any(|title| title.eq_ignore_ascii_case(&header.title_id_hex()))
@@ -515,7 +537,12 @@ pub(crate) fn observe_compound_file(
         .iter()
         .find_map(|profile| matching_compound_format(catalog, &profile.id, &identity, &observed));
     let (validated, issue) = if format == Some(CompoundSourceFormat::StfsLive) || content {
-        match crate::stfs::validate_reader(&mut input, initial.len(), &checkpoint) {
+        match crate::stfs::validate_reader(
+            &mut input,
+            initial.len(),
+            stfs_hash_policy(format),
+            &checkpoint,
+        ) {
             Ok(summary) => (
                 CompoundEvidence {
                     exact: format,
@@ -748,6 +775,7 @@ fn inspect_pinned_validator_identity(
 
     let Some(source_catalog) = catalog.source_catalog() else {
         return Ok(SourceInspection {
+            integrity_advisories: Vec::new(),
             profile_id: profile_id.into(),
             path: path.into(),
             observed_digests,
@@ -851,6 +879,7 @@ fn inspect_pinned_validator_identity(
             ),
         };
     Ok(SourceInspection {
+        integrity_advisories: Vec::new(),
         profile_id: profile_id.into(),
         path: path.into(),
         observed_digests,
@@ -1052,6 +1081,7 @@ fn inspect_file_set_observations(
         ),
     };
     Ok(SourceInspection {
+        integrity_advisories: Vec::new(),
         profile_id: profile_id.into(),
         path: path.into(),
         observed_digests,
@@ -1219,6 +1249,7 @@ pub(crate) fn inspect_disc_observation(
         ),
     };
     Ok(SourceInspection {
+        integrity_advisories: Vec::new(),
         profile_id: profile_id.into(),
         path: path.into(),
         observed_digests,
@@ -1818,6 +1849,7 @@ pub(crate) fn inspect_file_identity_with_compound(
     if requires_n64_shape(catalog, profile_id, identity) && identity.canonical_n64_sha256.is_none()
     {
         return Ok(SourceInspection {
+            integrity_advisories: Vec::new(),
             profile_id: profile_id.into(),
             path: path.into(),
             observed_digests,
@@ -1859,6 +1891,7 @@ pub(crate) fn inspect_file_identity_with_compound(
             SourceAdmissionMode::ExactIdentity
         };
         return Ok(SourceInspection {
+            integrity_advisories: Vec::new(),
             profile_id: profile_id.into(),
             path: path.into(),
             observed_digests,
@@ -1946,6 +1979,17 @@ pub(crate) fn inspect_file_identity_with_compound(
     };
 
     Ok(SourceInspection {
+        integrity_advisories: evidence
+            .stfs
+            .as_ref()
+            .map(|summary| {
+                summary
+                    .hash_advisories
+                    .iter()
+                    .map(|advisory| format!("STFS hash tree: {advisory}"))
+                    .collect()
+            })
+            .unwrap_or_default(),
         profile_id: profile_id.into(),
         path: path.into(),
         observed_digests,
@@ -2572,8 +2616,16 @@ mod tests {
         fs::remove_file(&path).unwrap();
         fs::rename(replacement, &path).unwrap();
         // The validator reads the exact original handle, not the new pathname.
-        crate::stfs::validate_reader(&mut input, initial.len(), &|| Ok(())).unwrap();
-        assert!(crate::stfs::validate(&path, &|| Ok(())).is_err());
+        crate::stfs::validate_reader(
+            &mut input,
+            initial.len(),
+            crate::stfs::HashPolicy::Enforce,
+            &|| Ok(()),
+        )
+        .unwrap();
+        assert!(
+            crate::stfs::validate(&path, crate::stfs::HashPolicy::Enforce, &|| Ok(())).is_err()
+        );
         assert!(verify_open_source_location(&path, &input, &initial).is_err());
         assert_eq!(fs::read(path).unwrap(), vec![0_u8; package.len()]);
     }
@@ -4029,5 +4081,92 @@ mod tests {
             &exact.assessment.classification,
             SourceClassification::Recognized { identity } if identity.variant_id == "legacy-accepted"
         ));
+    }
+
+    /// A content package whose level-0 entry for its first data block was changed.
+    fn content_package_with_wrong_level0_hash() -> Vec<u8> {
+        use crate::stfs::fixtures::*;
+        let built = live(vec![
+            file("default.xex", b"XEX2 synthetic"),
+            dir("Data", vec![file("bundle.bin", &[7_u8; 5000])]),
+        ])
+        .build();
+        let mut bytes = built.to_vec();
+        let block = built.file("default.xex").blocks[0];
+        let slot = level0_offset(block) as usize + (block as usize % 170) * 0x18;
+        bytes[slot] ^= 0x01;
+        bytes
+    }
+
+    #[test]
+    fn an_exact_digest_admits_a_package_with_a_hash_tree_advisory() {
+        let temporary = tempfile::tempdir().unwrap();
+        let path = temporary.path().join("package");
+        let package = content_package_with_wrong_level0_hash();
+        fs::write(&path, &package).unwrap();
+        let digest = hex::encode(Sha256::digest(&package));
+        let exact = catalog_with_identity("sotn-xbla", |profile| {
+            let SourceRepresentationKind::Compound { identities, .. } =
+                &mut profile.variants[0].representations[0].kind
+            else {
+                panic!("SotN keeps its exact compound identity")
+            };
+            identities[0].sha256 = Some(digest.clone());
+        });
+
+        let admitted = inspect(&exact, "sotn-xbla", &path);
+
+        assert!(matches!(
+            admitted.assessment.admission,
+            SourceAdmission::Admitted {
+                mode: SourceAdmissionMode::ExactIdentity
+            }
+        ));
+        assert!(admitted.record.is_some());
+        assert!(
+            admitted
+                .integrity_advisories
+                .iter()
+                .any(|advisory| advisory.contains("level 0 hash table")),
+            "{:?}",
+            admitted.integrity_advisories
+        );
+        // A clean package reports no advisory.
+        let clean = stfs_fixture();
+        fs::write(&path, &clean).unwrap();
+        let clean_catalog = catalog_with_identity("sotn-xbla", |profile| {
+            let SourceRepresentationKind::Compound { identities, .. } =
+                &mut profile.variants[0].representations[0].kind
+            else {
+                unreachable!()
+            };
+            identities[0].sha256 = Some(hex::encode(Sha256::digest(&clean)));
+        });
+        assert!(
+            inspect(&clean_catalog, "sotn-xbla", &path)
+                .integrity_advisories
+                .is_empty()
+        );
+    }
+
+    #[test]
+    fn a_content_identity_refuses_the_same_package_with_a_wrong_level0_hash() {
+        let temporary = tempfile::tempdir().unwrap();
+        let path = temporary.path().join("package");
+        fs::write(&path, content_package_with_wrong_level0_hash()).unwrap();
+        let catalog = content_identity_catalog(
+            vec![crate::StfsPackageType::Live],
+            "58410A6B",
+            b"XEX2 synthetic",
+        );
+        let mut budget = HashBudget {
+            checkpoint: None,
+            operation: None,
+            limit: u64::MAX,
+            hashed: 0,
+            max_zip_entries: 4096,
+        };
+        let error = inspect_file(&catalog, "sotn-xbla", &path, u64::MAX, &mut budget).unwrap_err();
+        assert!(error.message.contains("hash check"), "{error:?}");
     }
 }

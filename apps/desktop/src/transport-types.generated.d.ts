@@ -3673,6 +3673,11 @@ export interface SourceInspection {
   archive_member_name?: string | null;
   assessment: SourceAssessment;
   components: ObservedSourceComponent[];
+  /**
+   * Integrity checks that did not pass but did not decide admission, such as an STFS
+   * hash-tree mismatch on a package already proven by its exact whole-file digest.
+   */
+  integrity_advisories?: string[];
   message: string;
   observed_digests: ObservedSourceDigest[];
   path: string;

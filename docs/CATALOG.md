@@ -963,12 +963,24 @@ first route.
 
 The reader accepts `LIVE` and `PIRS` packages in the single-table (read-only) STFS
 layout. Console-signed `CON` packages, two-table packages and SVOD volumes are
-refused, each with its own reason. Before any extracted byte is trusted, Core verifies:
+refused, each with its own reason. Core checks the package's SHA-1 hash tree:
 
 - the header SHA-1 at `0x32C`, which covers `0x344` up to the first hash table;
 - the top hash in the volume descriptor against the highest hash table;
 - each level-1 (and level-2) table against its parent;
 - each level-0 table, and each data block it reads, against its recorded SHA-1.
+
+Whether a mismatch refuses the package depends on what proves its integrity:
+
+- **Hash tree enforced.** A content identity, or any port that declares
+  `runtime_stfs_package`, relies on the tree, so any mismatch refuses the package.
+- **Advisory only.** A package admitted by an exact whole-package digest is already
+  proven by that digest. A mismatch is then reported, not refused: inspection lists
+  it in `integrity_advisories`, and extraction logs it as a warning. This keeps a
+  known package such as NocturneRecomp's working if Portcove's reading of the hash
+  format ever disagrees with a real package.
+
+Header parsing and every structural bound below are enforced for every package.
 
 The licence entries and the signature lie outside the header hash, so two owners'
 copies of one game can differ there while their verified content is identical. The
