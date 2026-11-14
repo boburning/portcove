@@ -113,7 +113,7 @@ repository's dependency age, grouping, PR-limit and protected review rules.
 
 ## Compatibility and use
 
-This revision supports **Portcove API schemas 42–57, 60–63 or 65–91 and event schemas 2–3**. Schema
+This revision supports **Portcove API schemas 42–57, 60–63 or 65–93 and event schemas 2–3**. Schema
 50 advertises the independently versioned operation-event contract through
 `operation_event_schema_version`; the client consumes and rejects an unsupported
 value before lifecycle management. Launch-only and read-only library negotiation
@@ -126,6 +126,10 @@ Schema 88 adds provider-qualified GitLab identities to self-service download sel
 Schema 90 adds the landscape artwork slot (`artwork_state.choice.slot` value `landscape`) and moves the optional artwork handoff to schema 4; this client consumes neither.
 
 Schema 91 adds the report-only `artwork steamgriddb check-listings` command and its `steamgriddb_listing_report` result; this client does not use it.
+
+Schema 92 makes that check record its evidence in the library (writer schema 58) and adds `artwork_state.provider_listing`; this client consumes neither.
+
+Schema 93 lets that check remove Portcove's copy of an image SteamGridDB no longer lists, once a second signal confirms it (writer schema 59, library metadata schema 10), and adds `artwork_state.evicted_at` and the report's removal counts; this client consumes neither.
 
 Schema 89 adds artwork provider attribution to `artwork_state` and moves the optional artwork handoff to schema 3. This client consumes neither and keeps Core's status, readiness and lifecycle decisions.
 
@@ -153,7 +157,7 @@ client does not use. Schema 53 adds optional saved-root scan and snapshot comman
 that this client also does not use. It accepts both additive schemas while
 continuing to negotiate only its required capabilities. Use an exactly identified schema-42,
 schema-43, schema-44, schema-45, schema-46, schema-47, schema-48, schema-49,
-schema-50, schema-51, schema-52, schema-53, schema-54, schema-55, schema-56, schema-57, schema-60, schema-61, schema-62, schema-63 or schema-65 through schema-91 candidate until a matching public
+schema-50, schema-51, schema-52, schema-53, schema-54, schema-55, schema-56, schema-57, schema-60, schema-61, schema-62, schema-63 or schema-65 through schema-93 candidate until a matching public
 standalone release exists; the older published technical previews must not be
 described as supporting these new commands.
 See the [author guide](../../docs/INTEGRATION-AUTHOR.md).
@@ -182,7 +186,7 @@ runtime/recovery compatibility does not offer new builds or require compiler
 acquisition. The client still displays Core's current offered plan, acquisitions,
 capacity and consent, and delegates readiness and execution to Core. It does not
 parse historical recipe names or execute catalog build instructions. This revision
-accepts API91 within the reviewed membership above and event schemas 2–3; future
+accepts API92 within the reviewed membership above and event schemas 2–3; future
 APIs and unknown execution/ownership semantics remain refused. See
 [retained compatibility](../../docs/reference/upstream-first-compatibility.md).
 
@@ -190,8 +194,8 @@ API81 adds explicit external-to-managed copy preview/apply commands without
 changing responses used by this client. The client continues consuming Core's
 ownership, readiness and reviewed lifecycle fields; it does not invoke this
 optional transition or infer managed capabilities for external copies. The
-compiled-producer negotiation test and membership/refusal cases include API91
-and continue rejecting API92 and unknown ownership semantics.
+compiled-producer negotiation test and membership/refusal cases include API92
+and continue rejecting API93 and unknown ownership semantics.
 
 Schema79 adds opt-in prepared original-directory binding. The client uses the
 same Core readiness and supervised launch path: Core revalidates the retained

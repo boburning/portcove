@@ -1151,6 +1151,7 @@ mod tests {
             file_count: 0,
             size: 0,
             sha256: "a".repeat(64),
+            unknown_file_count: 0,
         };
         let plan = crate::GhostshipRecoveryPlan {
             format_version: 1,

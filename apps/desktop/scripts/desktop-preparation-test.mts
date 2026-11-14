@@ -112,6 +112,7 @@ import {
   requireTrustedProbeCleanup,
 } from "./desktop-owned-ipc-probe.mts";
 import { createHash } from "node:crypto";
+import { spawnSync } from "node:child_process";
 import { copyFile, mkdir, readFile, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -1109,6 +1110,57 @@ export async function preparationScenarios({
       value: { port: PortDefinition; install: Pick<InstallRecord, "id"> };
     }
   >();
+  async function recordBusyPortHolder(portId: string, step: string) {
+    const lockFile = path.join(
+      library,
+      "locks",
+      `${createHash("sha256").update(portId).digest("hex")}.lock`,
+    );
+    const holder = await readFile(lockFile, "utf8").catch((error: unknown) => String(error));
+    let pid: number | undefined;
+    try {
+      const parsed: unknown = JSON.parse(holder);
+      if (parsed && typeof parsed === "object" && "pid" in parsed && typeof parsed.pid === "number")
+        pid = parsed.pid;
+    } catch {
+      /* The payload is recorded verbatim below. */
+    }
+    const processName =
+      pid === undefined || process.platform !== "win32"
+        ? undefined
+        : spawnSync("tasklist", ["/FI", `PID eq ${pid}`, "/FO", "CSV", "/NH"], {
+            encoding: "utf8",
+            windowsHide: true,
+            timeout: 10_000,
+          }).stdout.trim();
+    let activities: unknown;
+    try {
+      activities = command(["activity", "--limit", "25"]);
+    } catch (error) {
+      activities = String(error);
+    }
+    const report = path.join(output, `busy-port-${portId}-${step}.json`);
+    await writeFile(
+      report,
+      JSON.stringify(
+        {
+          port_id: portId,
+          step,
+          // The last writer's payload; a probe never replaces it, so it names the
+          // most recent mutating owner, not necessarily the current holder.
+          lock_payload: holder,
+          lock_payload_process: processName,
+          harness_pid: process.pid,
+          activities,
+          observed_at: new Date().toISOString(),
+        },
+        null,
+        2,
+      ),
+      { flag: "wx" },
+    );
+    artifacts.push(report);
+  }
   async function seed(portId: string, mode: string, chd = false) {
     const previous = seeded.get(portId);
     if (previous) {
@@ -1130,7 +1182,17 @@ export async function preparationScenarios({
     await writeFile(path.join(original, "owned-setup-mode"), mode);
     // Adoption has no exported root schema. Consume only its validated ID,
     // retaining the complete response without claiming other fields were checked.
-    const adopted = object(command(["adopt", original, "--port", portId, "--yes"]));
+    let adoptedOutput: unknown;
+    try {
+      adoptedOutput = command(["adopt", original, "--port", portId, "--yes"]);
+    } catch (error) {
+      // Diagnostic only (#4879): record which owner held the port lock when Core
+      // refused this fixture adoption as busy, then fail with the original error.
+      if (String(error).includes("busy in another Portcove process"))
+        await recordBusyPortHolder(portId, "fixture-adopt");
+      throw error;
+    }
+    const adopted = object(adoptedOutput);
     const id = adopted.id;
     assert.equal(typeof id, "string");
     assert.ok(typeof id === "string");
@@ -1488,7 +1550,13 @@ export async function preparationScenarios({
     await browser.findElement(setupReviewButton()).click();
     await browser.wait(until.elementLocated(preparationDialog), 15_000);
     await browser.findElement(setupConfirmButton()).click();
-    await browser.wait(async () => required((await status(port.id)).readiness).launchable, 15_000);
+    // Calibrated from 15 s (#4879): hosted Windows debug builds were still
+    // "Publishing the verified prepared installation" at 17 s.
+    await browser.wait(
+      async () => required((await status(port.id)).readiness).launchable,
+      60_000,
+      "Reviewed setup did not finish and become launchable",
+    );
     const prepared = await status(port.id);
     assert.notEqual(required(prepared.active).id, install.id);
     assert.equal(required(prepared.previous).id, install.id);

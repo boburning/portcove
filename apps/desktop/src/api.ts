@@ -6,6 +6,7 @@ import type {
   SteamGridDbCandidate,
   SteamGridDbGame,
   SteamGridDbKeyStatus,
+  SteamGridDbListingReport,
   ArtworkThumbnail,
   CliCommandContext,
   BackupAction,
@@ -104,6 +105,7 @@ import type {
   GameFileQueryRefreshRequest,
   GameFileQuerySnapshot,
   GameFileScanMatchPage,
+  StoreGameInstalls,
   GameFileScanMatchQuery,
   GameFileScanSnapshot,
   HostToolProbeResult,
@@ -250,6 +252,8 @@ export const desktopApi = {
     invoke<SteamGridDbCandidate[]>("get_steamgriddb_candidates", { gameId, role }),
   steamGridDbPreview: (url: string) =>
     invoke<{ png_base64: string }>("get_steamgriddb_preview", { url }),
+  checkSteamGridDbListings: (generation: number) =>
+    invoke<SteamGridDbListingReport>("check_steamgriddb_listings", { generation }),
   chooseSteamGridDbArtwork: (
     portId: string,
     slot: ArtworkSlot,
@@ -891,6 +895,8 @@ export const desktopApi = {
     invoke<GameFileScanMatchPage>("get_game_file_scan_matches", { query, generation }),
   gameFileRootMatchProfiles: (rootId: string, generation: number) =>
     invoke<string[]>("get_game_file_root_match_profiles", { rootId, generation }),
+  storeGameInstalls: (generation: number) =>
+    invoke<StoreGameInstalls>("get_store_game_installs", { generation }),
   refreshGameFileQuery: (
     request: GameFileQueryRefreshRequest,
     generation: number,
@@ -1211,6 +1217,8 @@ export const desktopApi = {
       arguments: [],
       disc: disc ?? null,
     }),
+  /** The jump-list play request this process started with, returned only once. */
+  takeStartupPlayRequest: () => invoke<string | null>("take_startup_play_request"),
   automaticSnapshots: (generation: number) =>
     invoke<boolean>("get_automatic_snapshots", { generation }),
   setAutomaticSnapshots: (enabled: boolean, generation: number) =>

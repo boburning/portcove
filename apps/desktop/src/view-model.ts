@@ -178,7 +178,7 @@ function operationPresentation(value: string): OperationPresentation {
     install: { label: "Installing game" },
     update: { label: "Updating game" },
     prepare: { label: "Preparing game" },
-    launch: { label: "Starting game" },
+    launch: { label: "Starting game", explanation: "Opening the game now." },
     verify: { label: "Checking files" },
     verify_install: { label: "Checking installed files" },
     verify_source: { label: "Checking game files" },
@@ -383,21 +383,31 @@ export function summarizeLibrary(
   };
 }
 
+/**
+ * Whether Play can start without first showing the game: Core reports the
+ * installed game launchable, with no blocker and no pending setup. The launch
+ * itself still rechecks everything.
+ */
+export function directlyPlayable(
+  port: CatalogEntry,
+  status: PortStatus | undefined,
+): status is PortStatus {
+  return Boolean(
+    (status?.active || status?.external_runtime) &&
+    !port.pendingSetup &&
+    status.readiness?.launchable === true &&
+    status.readiness.blockers.length === 0 &&
+    !portActionPresentation(status, "launch").blocked,
+  );
+}
+
 export function mostRecentPort(
   ports: CatalogEntry[],
   statuses: Map<string, PortStatus>,
 ): RecentPort | undefined {
   return ports.reduce<RecentPort | undefined>((recent, port) => {
     const status = statuses.get(port.id);
-    if (
-      (!status?.active && !status?.external_runtime) ||
-      !status.last_launched_at ||
-      port.pendingSetup ||
-      status.readiness?.launchable !== true ||
-      status.readiness.blockers.length > 0 ||
-      portActionPresentation(status, "launch").blocked
-    )
-      return recent;
+    if (!directlyPlayable(port, status) || !status.last_launched_at) return recent;
     if (!recent || status.last_launched_at > (recent.status.last_launched_at ?? 0))
       return { port, status };
     return recent;

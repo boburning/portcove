@@ -139,6 +139,14 @@ function BackupReviewDetails({ review }: { review: BackupReview }) {
       </p>
       <p>
         {t("details.summary", { count: backup.file_count, size: formatBytes(backup.size) })}
+        {(backup.unknown_file_count ?? 0) > 0 && (
+          <>
+            <br />
+            <small className="[overflow-wrap:anywhere]" data-unknown-files>
+              {t("details.unknownFiles", { total: backup.unknown_file_count ?? 0 })}
+            </small>
+          </>
+        )}
         {automaticLabel && (
           <>
             <br />

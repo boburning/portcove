@@ -224,12 +224,12 @@ package files at registration and launch; game-owned output remains outside
 Portcove backup and restore. Source files, when required, are registered
 separately through the accepted source profile.
 
-For Wave Race 64: Recompiled on Windows, extract the official v1.0.2 ZIP and
-create an **empty `portable.txt`** beside `WaveRace64Recomp.exe` before
-`external preview`. The marker is a player-created preparation step, not a file
-in the upstream ZIP. It is part of the exact accepted tree; without it, review
-fails. Portable mode keeps game-owned settings, the copied source, and saves
-beside the executable. Portcove does not back up, remove, or restore those files.
+Wave Race 64: Recompiled offered this route on Windows until November 13, 2026;
+its catalog now installs the same v1.0.2 package through `portcove install`,
+and Core creates its `portable.txt`. A copy registered earlier keeps its
+retained exact-tree contract, including the player-created empty `portable.txt`
+beside `WaveRace64Recomp.exe`, and continues to launch in place. Portcove does
+not back up, remove, or restore that copy's files.
 
 Human results lead with the task and its actual outcome, followed by relevant
 review fingerprints, retained locations and the next supported action. Ports
@@ -381,7 +381,7 @@ The CLI API schema version is independent of the Portcove release version.
 
 `port-capabilities PORT_ID` returns a format-1 read-only feature report for a
 current or retained listing. `capabilities` advertises `port_capability_schema`
-and `listing_formats` independently from API schema 91 and event schema 3.
+and `listing_formats` independently from API schema 93 and event schema 3.
 Clients may ignore these additive descriptive fields; missing reports never
 override operation assessments. Cheap reports on workspace `PortListingStatus` use
 already loaded status/action facts. The focused command additionally reads the
@@ -517,7 +517,10 @@ since can differ.
   also reports its catalog presence (`operational`, `listing_only` or
   `not_found`), declared platforms, the reviewed acquisition hold, the download
   restriction, and whether the managed route must resolve a provider release on
-  that target.
+  that target. A target where `install` is offered also reports
+  `listing_download_refusal: "managed-route"`: a fresh library offers Install
+  there instead of the upstream listing download. A library's own
+  registration, pending setup or definition hold can keep the download.
 - The report names its `producer`: the source revision the build recorded
   (`PORTCOVE_SOURCE_REVISION`, or `null` when none was recorded), the compiled
   Cargo features that can change catalog or archive behavior, the SHA-256 of the
@@ -1105,6 +1108,54 @@ saved folder. Each page names its `scan_id`, `total` and `next_offset`; passing
 replaced it, so pages never mix two scans. Older inline reports are paged from
 the report itself with a null `scan_id`.
 
+#### Games installed by Steam, GOG or Epic
+
+Engine remakes and source ports often need files from a PC original you
+installed through a game store. `source roots stores` lists the game folders
+those stores recorded on this computer so you can search one:
+
+```text
+portcove --library <path> --json source roots stores
+portcove --library <path> --json source discover --root "<store game folder>" --profile <profile-id>
+portcove --library <path> --json source roots add "<store game folder>"
+```
+
+Each entry gives the `store` (`steam`, `gog` or `epic`), the store's `title`,
+the canonical existing folder `path` and `saved_root_id` when that exact folder
+is already a saved game-file folder. `checked_stores` names the stores whose
+metadata this system can read; a store missing from it was not checked, which
+is different from having no games installed. Steam libraries come from the Steam
+client's `steamapps/libraryfolders.vdf` and each library's
+`appmanifest_*.acf` (`name`, `installdir`) on Windows (registry and Program
+Files locations), Linux (`~/.steam/steam`, `~/.local/share/Steam` and the
+Flatpak client) and macOS. A linked `steamapps` folder is read as the folder it
+resolves to. GOG installs come from the Windows `GOG.com\Games` registry
+entries and Epic installs from the Epic Games Launcher's `Manifests\*.item`
+files on Windows, so on Linux and macOS only Steam is checked. Heroic, Lutris
+and other launchers are not read.
+
+The list is a suggestion only: it never saves a folder, registers files,
+records setup intent or changes anything in a store's folder, and the store's
+title is a label, not an identity. Exact source checks decide whether any file
+matches. Store metadata files are read up to 1 MiB each, at most 64 Steam
+libraries and 4,096 games are listed, and these are skipped and counted in
+`skipped_entries`: an `installdir` that is not a single folder name, a library
+listed by Steam or a game location that is relative or missing, unreadable
+metadata, and a folder that is a filesystem root, your home folder or contains
+this Portcove library. `limited` reports a reached bound. A store that cannot be
+read leaves the list shorter rather than failing.
+
+Files inside a game a store installed can be copied into Portcove or used where
+they are, but not moved. A Move import is refused with a `conflict` error naming
+the store when its original is inside a listed game folder or a Steam library's
+`steamapps` folder, when it is a folder that contains one of those (a folder Move
+removes the whole folder at the end), or when any folder on its path is named
+`steamapps`, because the store's game would lose the files. Protection otherwise
+depends on the stores' metadata: a GOG or Epic game whose registry entry or
+manifest can't be read, a Steam library beyond the 64-library bound outside a
+`steamapps` folder, or an unlisted folder that merely holds such a game, is not
+recognized, so choose Copy for files from a store's folder.
+
 ### Disc formats and optional tools
 
 `tool list` identifies each fixed tool's purpose, effective resolution and
@@ -1218,7 +1269,7 @@ portcove --json source add <profile-id> <candidate-path> --expected-sha256 <cand
 
 Discovery requires explicit roots and source profiles. It never registers a match automatically. Like saved-folder scans, one-off discovery refuses roots inside the selected Portcove library or its registered managed output and visibly skips those owned subtrees within a broader root before charging scan budgets. Explicit manual inspection and reviewed source registration retain their own validation paths. Defaults are 10,000 examined entries, six nested directory levels, 2 GiB per file, 16 GiB of hashing per saved batch, and 64 combined exact matches and preliminary selections. The corresponding `--max-entries`, `--max-depth`, `--max-file-bytes`, `--max-hash-bytes`, and `--max-candidates` flags can narrow these limits; core also enforces hard ceilings. The report identifies searched scope, validated candidates, hashed bytes, reached limits, and bounded per-path issues. A partial search is not evidence that every file was considered.
 
-Exact-hash original-file, cartridge-ZIP and complete schema-2 directory/ZIP-file-set profiles participate automatically. Directory sets use the shared inspector: every required member must resolve uniquely within one completely examined directory and match one coherent variant. Member hash work shares the request-wide budget with ordinary files; raw observations are reused without sharing admission. File-set ZIPs use the same exact matcher with unique safe top-level members, bounded entry inventory and expanded member sizes, and budgeted/cancellable member plus container hashing. Their facts are shared across file-set profiles without sharing admission; missing or ambiguous member inventories consume no hashing budget. Exact schema-2 uncompressed GameCube ISO/GCM sources use the same disc matcher and bounded raw-file reader, sharing one byte observation across applicable profiles. Exact STFS LIVE compound sources, including extensionless packages, use a bounded four-byte eligibility probe, one raw hashing pass shared across applicable profiles, and the existing structural validator only after an exact compound digest match. Probe, hashing and validation use one open handle with location, object and metadata checks; structural validation adds bounded reads beyond reported hash bytes. Unrelated files are not hashed by this probe. Compressed GameCube and PSX CHD contracts participate through the shared schema-2 disc matcher. CISO uses a bounded sparse normalized stream. Tool-based GCZ/RVZ/WIA/CHD inspection requires an admitted decoder and verified process-tree closure; this route is available on Windows and on Linux kernels permitting the decoder-only user/PID namespace supervisor. Linux launch requires clone3 with an atomic namespace-init pidfd, private startup acknowledgement, and terminal waitid(P_PIDFD) closure; unavailable kernel capabilities fail inspection without falling back to a process-group proof. Other platforms report these inputs as uninspected and explain the required normalized/direct-selection route. Complete PSX sets require the full ordered directory inventory, every member and fresh original-byte verification; partial or mixed sets do not become exact candidates. Decoding uses private local snapshots and outputs, never writes to connected folders, and never registers a source. Missing tools, unsafe metadata, resource limits, changed bytes and unknown closure remain explicit failures, not known mismatches. ZIP-wrapped STFS is not accepted. Extract and select or scan the original LIVE package. Pinned-validator disc profiles also participate through read-only preliminary selection using the shared inspector. These results appear separately in optional `preliminary_selections` as full inspection records with structural admission and validator `not_run`; they are not exact matches or proof of compatibility. The `candidates` collection and progressive `source_candidate` events keep their exact-match meaning. Both result collections share the candidate allowance and byte observations. One-off discovery applies that allowance to the whole request; a saved-folder scan applies it to each batch, checked between files or folders (one file's several matches are kept together), so a full batch continues instead of ending the scan. A saved scan stores its matches as local, rebuildable rows in the library database (schema 54) written in the same transaction as each batch's snapshot; rows are evidence of what was found, never admission. The snapshot's `report.candidates` and `report.preliminary_selections` then hold only a preview: the first matches in stored order, exact matches first, at most 512 combined and 2 MiB. Its `matches` summary gives the `scan_id`, the `exact_matches` and `preliminary_selections` totals and whether the preview is complete; read every match with `source roots matches`. A scan-wide safety ceiling of 100,000 retained matches or 256 MiB of stored match records ends coverage as explicitly limited with the `candidates` limit, never as finished. A single match whose stored record would exceed 256 KiB is skipped and reported as an issue, and the scan goes on; select that file directly to use it. Desktop offers a deliberate current-location review that rechecks the selected bytes; discovery never invokes the pinned validator. Old reports omit the advisory collection and remain readable as an empty collection. Scan format 13 marks older coverage stale while retaining readable versions 1–12, whose matches stay inline in the report without a `matches` summary. Other source contracts still require manual selection. A reached processing limit remains partial coverage. One-off `source discover` starts anew. Saved `source roots scan` requests with the same recorded inputs and limits resume entry- or hash-limited work, including after process restart. Each batch replenishes the entry, hash and candidate allowances; reported hash bytes remain cumulative, including repeated inspection work. An unfinished file or directory file set is retried from fresh bytes in the existing bounded cursor. Previously emitted identical candidates are not repeated, and different source/profile/representation facts remain distinct. If one indivisible inspection cannot fit a fresh hash allowance, coverage remains explicitly limited with guidance rather than offering a no-progress retry. The scan-wide match ceiling, checkpoint-storage, metadata-work, depth, file-size and archive/path/symlink safety limits remain cumulative or unchanged. Cancellation preserves the last published checkpoint. Scan format 13 invalidates earlier continuation semantics without discarding readable historical reports.
+Exact-hash original-file, cartridge-ZIP and complete schema-2 directory/ZIP-file-set profiles participate automatically. Directory sets use the shared inspector: every required member must resolve uniquely within one completely examined directory and match one coherent variant. Member hash work shares the request-wide budget with ordinary files; raw observations are reused without sharing admission. File-set ZIPs use the same exact matcher with unique safe top-level members, bounded entry inventory and expanded member sizes, and budgeted/cancellable member plus container hashing. Their facts are shared across file-set profiles without sharing admission; missing or ambiguous member inventories consume no hashing budget. Exact schema-2 uncompressed GameCube ISO/GCM sources use the same disc matcher and bounded raw-file reader, sharing one byte observation across applicable profiles. Exact STFS LIVE compound sources, including extensionless packages, use a bounded four-byte eligibility probe, one raw hashing pass shared across applicable profiles, and the structural and hash-tree validator only after an exact compound digest match. Content-identified STFS profiles also probe PIRS packages and always run that validator, then match the verified header title ID, content type and member digests. Probe, hashing and validation use one open handle with location, object and metadata checks; structural validation adds bounded reads beyond reported hash bytes. Unrelated files are not hashed by this probe. Compressed GameCube and PSX CHD contracts participate through the shared schema-2 disc matcher. CISO uses a bounded sparse normalized stream. Tool-based GCZ/RVZ/WIA/CHD inspection requires an admitted decoder and verified process-tree closure; this route is available on Windows and on Linux kernels permitting the decoder-only user/PID namespace supervisor. Linux launch requires clone3 with an atomic namespace-init pidfd, private startup acknowledgement, and terminal waitid(P_PIDFD) closure; unavailable kernel capabilities fail inspection without falling back to a process-group proof. Other platforms report these inputs as uninspected and explain the required normalized/direct-selection route. Complete PSX sets require the full ordered directory inventory, every member and fresh original-byte verification; partial or mixed sets do not become exact candidates. Decoding uses private local snapshots and outputs, never writes to connected folders, and never registers a source. Missing tools, unsafe metadata, resource limits, changed bytes and unknown closure remain explicit failures, not known mismatches. ZIP-wrapped STFS is not accepted. Extract and select or scan the original LIVE package. Pinned-validator disc profiles also participate through read-only preliminary selection using the shared inspector. These results appear separately in optional `preliminary_selections` as full inspection records with structural admission and validator `not_run`; they are not exact matches or proof of compatibility. The `candidates` collection and progressive `source_candidate` events keep their exact-match meaning. Both result collections share the candidate allowance and byte observations. One-off discovery applies that allowance to the whole request; a saved-folder scan applies it to each batch, checked between files or folders (one file's several matches are kept together), so a full batch continues instead of ending the scan. A saved scan stores its matches as local, rebuildable rows in the library database (schema 54) written in the same transaction as each batch's snapshot; rows are evidence of what was found, never admission. The snapshot's `report.candidates` and `report.preliminary_selections` then hold only a preview: the first matches in stored order, exact matches first, at most 512 combined and 2 MiB. Its `matches` summary gives the `scan_id`, the `exact_matches` and `preliminary_selections` totals and whether the preview is complete; read every match with `source roots matches`. A scan-wide safety ceiling of 100,000 retained matches or 256 MiB of stored match records ends coverage as explicitly limited with the `candidates` limit, never as finished. A single match whose stored record would exceed 256 KiB is skipped and reported as an issue, and the scan goes on; select that file directly to use it. Desktop offers a deliberate current-location review that rechecks the selected bytes; discovery never invokes the pinned validator. Old reports omit the advisory collection and remain readable as an empty collection. Scan format 13 marks older coverage stale while retaining readable versions 1–12, whose matches stay inline in the report without a `matches` summary. Other source contracts still require manual selection. A reached processing limit remains partial coverage. One-off `source discover` starts anew. Saved `source roots scan` requests with the same recorded inputs and limits resume entry- or hash-limited work, including after process restart. Each batch replenishes the entry, hash and candidate allowances; reported hash bytes remain cumulative, including repeated inspection work. An unfinished file or directory file set is retried from fresh bytes in the existing bounded cursor. Previously emitted identical candidates are not repeated, and different source/profile/representation facts remain distinct. If one indivisible inspection cannot fit a fresh hash allowance, coverage remains explicitly limited with guidance rather than offering a no-progress retry. The scan-wide match ceiling, checkpoint-storage, metadata-work, depth, file-size and archive/path/symlink safety limits remain cumulative or unchanged. Cancellation preserves the last published checkpoint. Scan format 13 invalidates earlier continuation semantics without discarding readable historical reports.
 
 Saved scan snapshots add optional `coverage` and opaque, internally validated `continuation` fields without changing API schema 57, request fields or discovery-report fields. Coverage reports cumulative batches, this batch's examined entries, re-listed entries, metadata checks, prior-batch file-set member rehashes, pending directories and whether continuation is available. Remaining entries are unknown until a frontier is exhausted without limits or issues; zero never promises coverage for unavailable or omitted inputs. Re-listing and metadata checks have a separate 100,000-work ceiling per batch. Continuations retain at most 16,384 observed paths and a conservative 4 MiB construction charge within the existing 8 MiB snapshot ceiling. After each validated batch the cursor keeps metadata only for the unfinished directory frontier and its listed entries; matches live in rows, so their number never counts against these bounds. The cursor also records the stored match count, bytes and a chained SHA-256 per match kind; resuming checks each kind's row count, contiguous order, batches and total bytes, and refuses the continuation (`restart_required`, prior report and rows preserved) when any row is missing, extra, out of order, resized or from another scan. A row edited without changing its size is not caught at resume; every match is re-verified from current bytes before it is used. A fresh scan replaces every earlier row; a continuation appends its batch after checking the earlier counts in the same transaction. A batch also ends, resumably, after a finished folder once the cursor passes half of either bound, so a large tree continues across batches; a single folder whose own entries exceed the bound remains terminal partial coverage; Reaching a continuation storage or work bound publishes the current report as terminal partial coverage, discards the cursor, and requires narrower folders for further progress. Prior file-set hashes are never persisted as admission authority: prior-batch members are rehashed against the current batch hash allowance when their directory completes.
 
@@ -1383,33 +1434,74 @@ and the destination handoff. An image no longer on the game's first listing page
 not-found, and a changed choice revision is a conflict; in both cases the current
 artwork is kept. The copy is library artwork like a local import: `reset` returns to
 the default and `remove-unused` deletes it once nothing selects it. Library exports
-that contain chosen SteamGridDB images use metadata schema 8.
+that contain chosen SteamGridDB images use metadata schema 8, and schema 10 once a
+check has confirmed a withdrawal.
 See [the provider client limits](ARCHITECTURE.md#local-artwork-ownership).
 
-`check-listings` reports, with your key, whether SteamGridDB still lists each
-SteamGridDB image in your library, and returns `steamgriddb_listing_report`. It only
-reports: every image, credit and choice is kept, nothing changes in Steam, and no
-artwork lock is held while it waits on the network. Each stored image is checked
-against its game's listing for the same role collection, stored size (when it is a
-size Portcove offers for the role) and format, with adult, humor and epilepsy flags
-set to `any`, so a re-tagged image or a later Portcove filter change never reads as
-missing. `listing` is `not_listed` only when every page echoes the requested `page`
-and `limit`, carries `data` and the same `total`, every entry has a readable ID, and
-the unique IDs seen equal `total`. Anything else is `unknown` with an
-`unknown_reason`: `incomplete_listing`, `too_many_images` (more than 1,000),
-`game_not_found` (a 404 is never read as a withdrawal), `request_limit`,
-`check_stopped`, `unavailable` or `invalid_response`. Only a 404 for the first page
-is `game_not_found`; one for a later page is `incomplete_listing`. For `not_listed`
-and `game_not_found` images, `source` reports what the image server answers for the
-stored URL without your key: `served`, `gone` (404 or 410) or `unknown`. It is
-`not_checked` for listed images and for any image not probed before the check
-stopped. One check makes at most 120 SteamGridDB API requests and 60 image-server
-requests, spaced 250 ms apart. A rate limit, a rejected key, or two unreachable
-listings in a row end the check, reported in `stopped` as `rate_limited`,
-`key_rejected` or `unavailable`; results already read are kept and the rest are
-`check_stopped`. Groups are read in a fixed order, so a library with more than 120
-listings reports the same remainder as `request_limit` on every run. A library with no
-SteamGridDB images makes no request and needs no key.
+`check-listings` checks, with your key, whether SteamGridDB still lists each
+SteamGridDB image in your library, records what it finds beside each image's credit,
+and returns `steamgriddb_listing_report`. A check can remove Portcove's copy of an
+image SteamGridDB no longer lists, but only after a second signal confirms the first
+absence (see below); every choice and credit is kept, nothing changes in Steam, and
+no artwork lock is held while it waits on the network. Each stored image is checked against its game's listing for the same
+role collection, stored size (when it is a size Portcove offers for the role) and
+format, with adult, humor and epilepsy flags set to `any`, so a re-tagged image or a
+later Portcove filter change never reads as missing. An image seen on any listing page
+that echoes the request is `listed`. It is `not_listed` only when every page echoes
+the requested `page` and `limit`, carries `data` and the same `total`, every entry has
+a readable ID, and the unique IDs seen equal `total`. A narrowed listing with no images
+at all is checked again without the size and format filters; when that listing is
+also empty the result is `unknown` with `empty_listing`. Anything else is `unknown`
+with a `reason`: `incomplete_listing`, `too_many_images` (more than 1,000),
+`game_not_found` (only a first-page 404; never read as a withdrawal), `empty_listing`,
+`request_limit`, `check_stopped`, `unavailable` or `invalid_response`. For
+`not_listed`, `game_not_found` and `empty_listing` images, `source` reports what the
+image server answers for the stored URL without your key: `served`, `gone` (404 or 410) or `unknown`; it is `not_checked` otherwise. `attempted` says whether this run
+reached a conclusion for the image's listing, and `listing_total` is the `total`
+SteamGridDB reported.
+
+One check makes at most 120 SteamGridDB API requests and 60 image-server requests,
+spaced 250 ms apart, and stops after three minutes. It starts with the images checked
+longest ago, so a large library is covered across runs. A rate limit, a rejected key,
+two unreachable listings in a row, the time limit or cancellation end the check,
+reported in `stopped` as `rate_limited`, `key_rejected`, `unavailable`, `time_limit` or
+`cancelled`; results already read are kept and the rest are `check_stopped`. Only one
+check runs at a time in a library.
+
+Results for attempted images are recorded in one transaction. A choice or removal
+made while the check ran always wins, and choosing an image again marks it listed.
+`not_listed_since` is the first time a verified listing lacked the image; it is kept
+across later absences and unknown results and cleared only when the image is seen
+listed again. `recorded` is false when the check was cancelled or recording failed,
+in which case the results are shown but not kept. `artwork_state.provider_listing`
+shows the recorded evidence for the selected image. Library moves keep this evidence;
+library exports and imports do not carry it. A library with no SteamGridDB images
+makes no request and needs no key.
+
+A `not_listed` result is confirmed as a withdrawal when the image server answers
+`gone` in the same check, or when a later check at least 24 hours after the first
+absence still finds it `not_listed`, by both Portcove's clock and SteamGridDB's own
+`Date`. An `unknown` result, a `gone` answer from an earlier check, or a missing date
+never confirms one, and an image seen listed again clears it. When every SteamGridDB
+credit behind an image is confirmed and you never imported the same image yourself,
+Portcove removes its copy: the original and thumbnail are deleted, the slot shows the
+generated fallback with a reason, and the choice, its revision and the credit stay.
+`artwork_state.evicted_at` says when, and each `provider_listing` entry shows
+`withdrawn_at` and `withdrawal_signal`. Choosing the image again downloads it again and
+restores the copy. A copy you imported yourself is kept and only marked withdrawn.
+
+Each image's `effect` is what this check changed: `none`, `withdrawn` (confirmed,
+copy kept), `removed` (confirmed and the copy is removed) or `listed_again`. Its
+`withdrawn_at` and `evicted_at` show the library's state after the check, so an image
+confirmed or removed earlier reads as such. A check never confirms a withdrawal while
+the computer's clock reads before 2020 or after 2199. `skipped` counts results that
+could not be written and stay unrecorded. One check deletes at most 32 copies:
+`removed` counts deletions that finished, `removal_deferred` those left for the next
+check, export or move, and `removal_failed` those another program kept open. A
+removed copy is never shown or handed to Steam, even while its file waits for
+deletion. Library export and move finish any pending removals first, and stop with
+a next step if a removed copy still cannot be deleted. Exports record withdrawals
+and removed copies under metadata schema 10 and do not carry removed originals.
 
 ## Export and restore a library
 
@@ -1576,6 +1668,13 @@ Human task wording follows the [glossary](../GLOSSARY.md) and
 [content-design guidance](CONTENT-DESIGN.md). **Check installed files** (`verify`)
 compares the full recorded installation manifest; its report names that scope
 and the actual checked-file count. Launch-critical checks are separate.
+**Unrecognized files** are files the installation didn't ship that are not
+programs, scripts, libraries or links. The report lists them apart from its
+findings; JSON reports them as `unknown_file_count` and up to 64
+`unknown_files` paths, and `valid` stays false while any remain
+([#5359](https://github.com/boburning/portcove/issues/5359)). The removal review lists them the
+same way before consent, and backup lists add them to the file count as
+`unrecognized`; JSON reports `unknown_file_count` on both.
 **Update saved for later** names a retained staged version, and `activate` applies
 that version. A **saved-data backup** covers its declared player files, which can
 include more than progress saves; it is separate from original game files,

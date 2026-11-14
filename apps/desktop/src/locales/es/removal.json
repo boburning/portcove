@@ -41,5 +41,7 @@
     "unavailablePort": "Adaptación no disponible ({{id}})"
   },
   "title": "¿Desinstalar {{identity}}?",
-  "uninstallPort": "Desinstalar {{name}}"
+  "uninstallPort": "Desinstalar {{name}}",
+  "unknownFiles": "Archivos que Portcove no instaló: {{total, number}}. Es posible que el juego los haya creado, por ejemplo como ajustes. Portcove los copia en una copia de seguridad nueva antes de desinstalar. Restaurar una copia de seguridad no los devuelve.",
+  "unknownFilesUnlisted": "Archivos que no se muestran aquí: {{total, number}}"
 }

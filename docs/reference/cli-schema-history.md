@@ -24,7 +24,50 @@ renaming; this history does not deliver future commands or migrate stored data.
 | Manifest, retained-contract and library writer versions | Installed execution/persistence contracts and private durable state              | Older writers refuse unsupported upgraded state. External clients use public commands rather than interpreting SQLite or rewriting historical representations.                                                 |
 | Signed envelope format                                  | Optional signed catalog delivery                                                 | Implemented format 1 remains distinct from the successor definition-delivery work. Signature verification does not establish artifact, source or gameplay qualification.                                       |
 
+## Optional catalog-port fields
+
+Adding an optional field to a catalog port, or a new value to an existing
+materialization list, is recorded here and does not change `API_SCHEMA_VERSION`:
+an older reader sees the same document without the field, and nothing it relied
+on changes. A change that alters the meaning of an existing field, removes one,
+or makes one required is a catalog or API version change.
+
+The disc-image unpacking work added the optional port fields
+`runtime_disc_image` and `optional_game_source`, and the materializations
+`xdvdfs-directory` and `iso9660-directory`, under this rule. A reader that does
+not know them cannot offer or perform the unpacking, so a port that uses them
+is not usable there; the rest of the catalog is unaffected.
+
 ## Documented API changes
+
+API93 lets `artwork steamgriddb check-listings` confirm a withdrawal and remove
+Portcove's copy. A verified absence is confirmed by a `gone` answer from the image
+server in the same check, or by a second verified absence at least 24 hours later by
+both Portcove's clock and SteamGridDB's `Date`. A provider-only asset whose every
+record is confirmed is evicted: its original and thumbnail are deleted while the
+choice, revision and credit stay. The Library database moves to writer schema 59
+(`artwork_provider_withdrawals`, `artwork_evicted_assets`,
+`artwork_provider_listing_checks.not_listed_since_server`). Library metadata schema
+10 adds `artwork.withdrawals` and `artwork.evicted_assets`; evicted originals are
+not carried, and older readers refuse it. `steamgriddb_listing_report` images gain
+`effect` (`none`, `withdrawn`, `removed` or `listed_again`), `withdrawn_at` and
+`evicted_at`, and the report gains
+`skipped`, `removed`, `removal_deferred` and `removal_failed`. `artwork_state` gains
+`evicted_at`, and each `provider_listing` entry gains `withdrawn_at` and
+`withdrawal_signal`. An evicted selection is `unavailable`, and the destination
+handoff reports `selected_original_unavailable` without reading the file; handoff
+schema 4 and `ArtworkAttribution` are unchanged. Library export and move first
+finish pending removals and stop if a removed original cannot be deleted.
+
+API92 makes `artwork steamgriddb check-listings` record listing evidence: the
+Library database moves to writer schema 58 (`artwork_provider_listing_checks`), and
+older writers refuse the upgraded library. `steamgriddb_listing_report` images replace
+`listing`/`unknown_reason` with a tagged `listing` result (`listed`, `not_listed` or
+`unknown` with `reason`), and gain `attempted`, `listing_total` and `not_listed_since`;
+the report gains `recorded`; `unknown_reason` gains `empty_listing`; `stopped` gains
+`time_limit` and `cancelled`. `artwork_state` gains `provider_listing`. The command
+now records state, so it starts as a recovering command. Library metadata, the
+destination handoff and `ArtworkAttribution` are unchanged.
 
 API91 adds the report-only `artwork steamgriddb check-listings` command and its
 `steamgriddb_listing_report` result: for each stored SteamGridDB image, whether a

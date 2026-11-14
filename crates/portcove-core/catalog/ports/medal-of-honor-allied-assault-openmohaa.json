@@ -76,6 +76,18 @@
     "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
     "adapter": "native-portable",
     "reviewed_package_layouts": {
+      "linux-x86-64": {
+        "directories": [],
+        "executables": ["launch_openmohaa_base", "openmohaa"]
+      },
+      "macos-x86-64": {
+        "directories": [],
+        "executables": ["launch_openmohaa_base", "openmohaa"]
+      },
+      "macos-aarch64": {
+        "directories": [],
+        "executables": ["launch_openmohaa_base", "openmohaa"]
+      },
       "windows-x86-64": {
         "directories": [],
         "executables": [

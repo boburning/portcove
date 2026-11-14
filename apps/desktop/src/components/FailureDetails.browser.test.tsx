@@ -188,7 +188,7 @@ describe("diagnostic clipboard outcomes", () => {
   it.each([
     [
       "portable_runtime_modified",
-      "Portcove found changed runtime files or unrecognized additions and stopped this operation. Your existing files were preserved. Review the affected paths in technical details. Back up your changes outside the managed installation, then restore changed package files or move unrecognized additions before trying again.",
+      "Portcove found changed game files or unrecognized programs, scripts or libraries and stopped this operation. Your existing files were preserved. Review the affected paths in technical details. Back up your changes outside the managed installation, then restore changed game files or move the added programs, scripts or libraries before trying again.",
     ],
     [
       "portable_data_contract_changed",

@@ -1,0 +1,65 @@
+# Owner-only release withdrawal (#534). Records the version in
+# updates/withdrawn.json on gh-pages, repoints every feed that serves it to the
+# newest eligible release (or removes the feed), and marks the GitHub Release.
+# Tags, releases and assets are never deleted. Clients already on the version
+# move forward only through a newer release.
+name: Withdraw release
+run-name: Withdraw release ${{ inputs.version }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Version to withdraw, for example 0.1.1 (no leading v)
+        required: true
+        type: string
+      replacement_note:
+        description: Short note for the release page, for example which version to install instead
+        required: false
+        type: string
+        default: ""
+
+permissions:
+  contents: read
+
+concurrency:
+  group: withdraw-release
+  cancel-in-progress: false
+
+jobs:
+  withdraw:
+    # A process guard, not a security boundary: the owner's account (which agents
+    # acting as the owner use) starts and re-runs withdrawals. Repository writers
+    # can already edit releases and push gh-pages, and could run a changed copy of
+    # this file from a branch.
+    if: >-
+      github.actor_id == '43177418' && github.triggering_actor == 'boburning' &&
+      github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: main
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+        with:
+          package_json_file: package.json
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Withdraw the release from every feed
+        env:
+          GH_TOKEN: ${{ github.token }}
+          # Inputs reach the script only through the environment; it validates the version.
+          VERSION: ${{ inputs.version }}
+          PORTCOVE_WITHDRAW_NOTE: ${{ inputs.replacement_note }}
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          node scripts/app-release.mts withdraw --version "$VERSION"

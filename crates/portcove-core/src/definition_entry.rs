@@ -170,7 +170,7 @@ impl DefinitionContentIndex {
         let adapter = serde_json::to_value(port.adapter)?;
         if (!retained && !port.reviewed_package_layouts.is_empty())
             || crate::package_layout::layout_capability(&port)
-                == crate::package_layout::MACOS_LIBRARY_FILTER_CAPABILITY
+                > crate::package_layout::NATIVE_CAPABILITY
         {
             let minimum = crate::package_layout::layout_capability(&port);
             crate::package_layout::validate(&port)?;
@@ -339,6 +339,16 @@ impl DefinitionContentIndex {
         {
             return Err(PortcoveError::verification(
                 "disc-image unpacking requires staged-source capability version 30",
+            ));
+        }
+        if port.runtime_stfs_package.is_some()
+            && !document.required_capabilities.iter().any(|requirement| {
+                requirement.template == "staged-source-portable"
+                    && requirement.minimum_version >= crate::stfs::PACKAGE_BINDING_CAPABILITY
+            })
+        {
+            return Err(PortcoveError::verification(
+                "an STFS package binding requires staged-source capability version 32",
             ));
         }
         if port.optional_game_source

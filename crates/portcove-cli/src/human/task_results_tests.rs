@@ -11,6 +11,7 @@ fn backup() -> BackupRecord {
         file_count: 1,
         size: 1536,
         sha256: "f".repeat(64),
+        unknown_file_count: 0,
     }
 }
 
@@ -139,6 +140,8 @@ fn removal_review_keeps_exact_inventory_and_core_preservation_flag_without_claim
         ],
         persistent_data_path: "/library/セーブ\tsettings\u{1b}".into(),
         persistent_data_will_be_preserved: true,
+        unknown_file_count: 0,
+        unknown_files: Vec::new(),
         preview_sha256: "f".repeat(64),
     };
     for preserves_data in [true, false] {
@@ -171,6 +174,16 @@ fn removal_review_keeps_exact_inventory_and_core_preservation_flag_without_claim
         );
         assert_eq!(serde_json::to_value(&preview).unwrap(), before);
     }
+    assert!(!removal_preview(&preview, &catalog).contains("Unrecognized"));
+    preview.unknown_file_count = 2;
+    preview.unknown_files = vec!["player/settings.ini".into()];
+    let text = removal_preview(&preview, &catalog);
+    assert!(text.contains("Unrecognized files: 2."));
+    assert!(text.contains("Removal copies them to a new backup first"));
+    assert!(text.lines().any(|line| line == "  player/settings.ini"));
+    assert!(text.contains("1 more unrecognized file is not listed."));
+    let review = text.find("Review SHA-256").unwrap();
+    assert!(text.find("Unrecognized files").unwrap() < review);
     preview.managed_paths.clear();
     assert!(removal_preview(&preview, &catalog).contains("Managed locations to remove: 0"));
 }
@@ -345,6 +358,7 @@ fn installed_file_check_names_recorded_manifest_scope_without_gameplay_assurance
             } else {
                 vec!["changed: game.exe".into()]
             },
+            ..Default::default()
         };
         let text = verification_report(&report, "starship", &catalog);
         assert!(text.contains("Scope: All files in the recorded installation manifest; launch-critical checks are separate."));
@@ -356,7 +370,30 @@ fn installed_file_check_names_recorded_manifest_scope_without_gameplay_assurance
             assert!(text.contains("changed: game.exe"));
             assert!(text.contains("Preserve local files"));
         }
+        assert!(!text.contains("Unrecognized file"));
     }
+}
+
+#[test]
+fn installed_file_check_lists_unrecognized_files_separately_from_findings() {
+    let catalog = Catalog::embedded().unwrap();
+    let report = portcove_core::VerificationReport {
+        install_id: "retained-instance".into(),
+        checked_files: 3,
+        valid: false,
+        failures: vec![],
+        unknown_file_count: 3,
+        unknown_files: vec!["settings.ini".into(), "logs/run.txt".into()],
+    };
+    let text = verification_report(&report, "starship", &catalog);
+    assert!(text.contains("Result: Recorded file checks passed"));
+    assert!(!text.contains("Finding:"));
+    assert!(text.contains("Unrecognized files: 3."));
+    assert!(text.contains("Unrecognized file: settings.ini"));
+    assert!(text.contains("Unrecognized file: logs/run.txt"));
+    assert!(text.contains("1 more unrecognized file is not listed."));
+    assert!(text.contains("does not prove gameplay"));
+    assert!(!text.contains("Preserve local files"));
 }
 
 #[test]

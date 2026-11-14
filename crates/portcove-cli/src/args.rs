@@ -580,9 +580,9 @@ pub(crate) enum SteamGridDbCommand {
         #[arg(long)]
         expected_revision: Option<u64>,
     },
-    /// Report whether SteamGridDB still lists each SteamGridDB image in your library.
+    /// Check whether SteamGridDB still lists each SteamGridDB image in your library.
     #[command(
-        after_help = "Uses your own API key. The check only reports: it keeps every image, credit and choice, and changes nothing in Steam. An image counts as no longer listed only when SteamGridDB returns a complete listing for its game, role, size and format that leaves it out; anything less is reported as not confirmed."
+        after_help = "Uses your own API key. Portcove records what it finds beside each image's credit. An image counts as no longer listed only when SteamGridDB returns a complete listing for its game, role, size and format that leaves it out; anything less is reported as not confirmed. When SteamGridDB's image server also says the file is gone, or a check at least a day later still finds it missing, Portcove removes its copy of an image you didn't import yourself; your choice and the credit are kept, choosing the image again restores it, and nothing changes in Steam. Each run starts with the images checked longest ago and stops after three minutes."
     )]
     CheckListings,
     /// List proposed static images for one SteamGridDB game and destination role.
@@ -1443,6 +1443,11 @@ pub(crate) enum GameFileRootCommand {
         #[arg(long = "root")]
         root_id: String,
     },
+    /// List game folders Steam, GOG and Epic installed on this computer; reads only.
+    #[command(
+        after_help = "Search one with source discover --root PATH --profile PROFILE_ID, or save it with source roots add PATH. Listing never saves a folder, registers files or changes anything in a store's folder."
+    )]
+    Stores,
     /// Save one available folder; adding the same folder again is idempotent.
     Add {
         /// Available folder to remember for future scans; adding it does not register its files.

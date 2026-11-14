@@ -264,6 +264,33 @@ export type DestinationArtworkRole = "portrait_cover" | "landscape_cover" | "her
 export type ArtworkAvailability = "fallback" | "available" | "unavailable";
 export type ArtworkSlot = ("cover" | "detail") | "landscape";
 /**
+ * Whether SteamGridDB's own listing still includes a stored image.
+ */
+export type SteamGridDbListingResult =
+  | {
+      status: "listed";
+    }
+  | {
+      status: "not_listed";
+    }
+  | {
+      reason: SteamGridDbUnknownReason;
+      status: "unknown";
+    };
+export type SteamGridDbUnknownReason =
+  | "incomplete_listing"
+  | "too_many_images"
+  | "game_not_found"
+  | "empty_listing"
+  | "request_limit"
+  | "check_stopped"
+  | "unavailable"
+  | "invalid_response";
+/**
+ * The second signal that confirmed a withdrawal after a first absence.
+ */
+export type ArtworkWithdrawalSignal = "gone" | "absent_again";
+/**
  * The source core resolves for one slot before a client attempts to transport
  * or render it. A client can still display the generated fallback if a
  * resolved image cannot be retrieved, decoded or presented safely.
@@ -506,6 +533,14 @@ export type SourceRepresentation1 =
       [k: string]: unknown;
     }
   | {
+      content_types: string[];
+      kind: "stfs-content";
+      members: StfsContentMember[];
+      package_types: StfsPackageType[];
+      title_ids: string[];
+      [k: string]: unknown;
+    }
+  | {
       evidence_gap: string;
       kind: "informational-extension";
       [k: string]: unknown;
@@ -521,6 +556,10 @@ export type DigestScope =
   | "file-set-member"
   | "disc-set-member";
 export type CompoundSourceFormat = "stfs-live";
+/**
+ * The STFS container magic: `LIVE` or `PIRS`. `CON` is not read yet.
+ */
+export type StfsPackageType = "live" | "pirs";
 export type CatalogDownloadAssetId = number | CatalogForeignAssetId;
 export type CatalogForeignAssetId = {
   file_id: number;
@@ -535,6 +574,11 @@ export type CatalogForeignReleaseId = {
   provider: "gitlab";
   tag: string;
 };
+/**
+ * Why the upstream listing download is not this host's route. Each one leaves
+ * existing-installation registration and every installed copy unchanged.
+ */
+export type CatalogDownloadRefusal = "managed-route";
 export type ListingObservationStatus = "complete" | "incomplete" | "unavailable" | "failed";
 export type CatalogOrigin = "embedded" | "signed_active" | "signed_previous" | "definition_selected";
 export type CatalogUpdateSource =
@@ -948,21 +992,9 @@ export type SourceReuseCompatibility = "listed_identity" | "potential" | "incomp
 export type OutputSteamgriddbCandidates = SteamGridDbCandidate[];
 export type OutputSteamgriddbGames = SteamGridDbGame[];
 /**
- * Whether SteamGridDB's own listing still includes a stored image.
- */
-export type SteamGridDbListingStatus = "listed" | "not_listed" | "unknown";
-/**
  * What SteamGridDB's image server answered for the stored source URL, without the key.
  */
 export type SteamGridDbSourceStatus = "not_checked" | "served" | "gone" | "unknown";
-export type SteamGridDbUnknownReason =
-  | "incomplete_listing"
-  | "too_many_images"
-  | "game_not_found"
-  | "request_limit"
-  | "check_stopped"
-  | "unavailable"
-  | "invalid_response";
 /**
  * Why a check ended before every group was read.
  */
@@ -976,7 +1008,14 @@ export type SteamGridDbCheckStop =
     }
   | {
       reason: "unavailable";
+    }
+  | {
+      reason: "time_limit";
+    }
+  | {
+      reason: "cancelled";
     };
+export type GameStore = "steam" | "gog" | "epic";
 export type OutputDesktopAdoptionBatchResult = AdoptionBatchResult | null;
 /**
  * The application release feed a player follows. Beta is the default; Preview
@@ -1264,6 +1303,7 @@ export interface TransportOutputs {
   steamgriddb_key_status: OutputSteamgriddbKeyStatus;
   steamgriddb_listing_report: OutputSteamgriddbListingReport;
   storage: StorageSummary;
+  store_game_installs: OutputStoreGameInstalls;
   update_batch_outcome: OutputUpdateBatchOutcome;
   update_check: UpdateCheck;
   update_check_forecast: OutputUpdateCheckForecast;
@@ -1321,6 +1361,7 @@ export interface TransportOutputs {
   desktop_steam_entry_apply_result: OutputDesktopSteamEntryApplyResult;
   desktop_steam_entry_review: OutputDesktopSteamEntryReview;
   desktop_steam_profiles: OutputDesktopSteamProfiles;
+  desktop_store_game_installs: OutputStoreGameInstalls;
   desktop_submitted_report: OutputDesktopSubmittedReport;
   desktop_support_bundle_export: OutputDesktopSupportBundleExport;
   desktop_update_check_outcome: OutputCheckBatchOutcome;
@@ -1855,7 +1896,18 @@ export interface OutputArtworkState {
   attribution: ArtworkAttribution[];
   availability: ArtworkAvailability;
   choice: ArtworkChoice;
+  /**
+   * When Portcove removed the selected image's stored copy because every
+   * provider that supplied it confirmed a withdrawal. The choice and the
+   * credit stay; choosing the image again restores the copy.
+   */
+  evicted_at: number | null;
   generated_fallback: GeneratedArtworkFallback;
+  /**
+   * Recorded listing evidence for the credited images; empty until an image
+   * is chosen from a provider or checked.
+   */
+  provider_listing: ArtworkProviderListing[];
   reason: string | null;
   resolved_source: ArtworkResolvedSource;
   selection: LocalArtworkAsset | null;
@@ -1894,6 +1946,31 @@ export interface GeneratedArtworkFallback {
   style_version: number;
 }
 /**
+ * Recorded evidence of whether a provider still lists a credited image. A
+ * confirmed withdrawal (`withdrawn_at`) can remove a provider-only copy; see
+ * [`ArtworkState::evicted_at`].
+ */
+export interface ArtworkProviderListing {
+  asset_id: number;
+  /**
+   * When a check or a choice last established this evidence.
+   */
+  last_checked_at: number;
+  last_result: SteamGridDbListingResult;
+  /**
+   * When a verified listing first lacked the image; cleared only when it is
+   * seen listed again.
+   */
+  not_listed_since: number | null;
+  provider: ArtworkProvider;
+  withdrawal_signal: ArtworkWithdrawalSignal | null;
+  /**
+   * When a later check confirmed the withdrawal; cleared when the image is
+   * seen listed again or chosen again.
+   */
+  withdrawn_at: number | null;
+}
+/**
  * Maintainer-reviewed catalog mapping. These public IDs never contain Twitch
  * credentials; the image CDN can serve the mapped cover without an API token.
  */
@@ -1923,6 +2000,12 @@ export interface BackupRecord {
   port_id: string;
   sha256: string;
   size: number;
+  /**
+   * Unknown player-side files kept in the backup's separate area (#5359).
+   * They are not counted in `file_count`, and restore does not put them
+   * back. Omitted when zero.
+   */
+  unknown_file_count?: number;
   [k: string]: unknown;
 }
 /**
@@ -2199,6 +2282,11 @@ export interface PortDefinition {
   };
   runtime_source_materialization: RuntimeSourceMaterialization | null;
   runtime_source_set: RuntimeSourceTarget[];
+  /**
+   * Only valid with the `stfs-directory` materialization: accepted header title IDs
+   * and content types and a size bound, checked before extraction.
+   */
+  runtime_stfs_package?: StfsPackageProfile | null;
   runtime_subdirectory: string | null;
   /**
    * Per-platform runtime subdirectories for packages whose wrapper folder is named differently
@@ -2606,6 +2694,26 @@ export interface RuntimeSourceTarget {
   source_filenames: string[];
   [k: string]: unknown;
 }
+/**
+ * Port binding for an Xbox 360 STFS package that `stfs-directory` extracts. The
+ * header facts are compared before anything is extracted, so another game, a title
+ * update or downloadable content is refused first. Requires staged-source capability 32.
+ */
+export interface StfsPackageProfile {
+  /**
+   * Accepted header content types as eight uppercase hex digits; currently only
+   * `000D0000` (Xbox Live Arcade title).
+   */
+  content_types: string[];
+  /**
+   * Explicit bound on the selected package in bytes; at most 16 GiB.
+   */
+  max_package_bytes: number;
+  /**
+   * Accepted header title IDs as eight uppercase hex digits. At least one is required.
+   */
+  title_ids: string[];
+}
 export interface SourceCatalog {
   contracts: PortSourceContract[];
   evidence: CatalogEvidence[];
@@ -2710,6 +2818,16 @@ export interface SourceDiscIdentity {
   track_counts: number[];
   volume_ids: string[];
 }
+/**
+ * One extracted file of a content-identified STFS package.
+ */
+export interface StfsContentMember {
+  /**
+   * Relative path inside the package, compared without regard to ASCII case.
+   */
+  path: string;
+  sha256: string;
+}
 export interface SourceValidatorContract {
   evidence_ids: string[];
   id: string;
@@ -2762,6 +2880,11 @@ export interface OutputCatalogDownloadCandidates {
   reason: string | null;
   recommendation_reason: string;
   recommended_asset_id: CatalogDownloadAssetId | null;
+  /**
+   * Present when the listing download is refused because another route
+   * serves this host; `reason` carries the same player explanation.
+   */
+  refusal?: CatalogDownloadRefusal | null;
   releases: CatalogDownloadRelease[];
   selected_release_id: CatalogDownloadReleaseId | null;
   upstream_url: string;
@@ -3601,6 +3724,11 @@ export interface SourceInspection {
   archive_member_name?: string | null;
   assessment: SourceAssessment;
   components: ObservedSourceComponent[];
+  /**
+   * Integrity checks that did not pass but did not decide admission, such as an STFS
+   * hash-tree mismatch on a package already proven by its exact whole-file digest.
+   */
+  integrity_advisories?: string[];
   message: string;
   observed_digests: ObservedSourceDigest[];
   path: string;
@@ -4126,6 +4254,11 @@ export interface ArtworkMetadata {
   assets: LocalArtworkAsset[];
   choices: ArtworkChoice[];
   /**
+   * Provider-only assets whose originals Portcove removed after every record
+   * was withdrawn. Their files are not carried; schema 10.
+   */
+  evicted_assets?: ArtworkEvictedAsset[];
+  /**
    * Assets that exist only because a provider image was chosen; no local import
    * of the same bytes was made. Present only under library metadata schema 8.
    */
@@ -4134,10 +4267,25 @@ export interface ArtworkMetadata {
    * Provider provenance; present only under library metadata schema 8.
    */
   providers?: ArtworkProviderRecord[];
+  /**
+   * Confirmed withdrawals of provider records; library metadata schema 10.
+   */
+  withdrawals?: ArtworkWithdrawalRecord[];
+}
+export interface ArtworkEvictedAsset {
+  asset_sha256: string;
+  evicted_at: number;
 }
 export interface ArtworkProviderRecord {
   asset_sha256: string;
   attribution: ArtworkAttribution;
+}
+export interface ArtworkWithdrawalRecord {
+  asset_id: number;
+  asset_sha256: string;
+  provider: ArtworkProvider;
+  signal: ArtworkWithdrawalSignal;
+  withdrawn_at: number;
 }
 export interface LibraryContentRoot {
   kind: LibraryContentKind;
@@ -4759,6 +4907,16 @@ export interface OutputPortRemovalPreview {
   persistent_data_will_be_preserved: boolean;
   port_id: string;
   preview_sha256: string;
+  /**
+   * Unknown player-side files in the versions being removed (#5359).
+   * Removal copies them to a new backup's separate area before it deletes
+   * the version folders; restore does not put them back. Omitted when zero.
+   */
+  unknown_file_count?: number;
+  /**
+   * The first unknown file paths, each relative to its version folder.
+   */
+  unknown_files?: string[];
   [k: string]: unknown;
 }
 export interface OutputPortableSaveExportPreview {
@@ -4880,6 +5038,12 @@ export interface BackupRecord1 {
   port_id: string;
   sha256: string;
   size: number;
+  /**
+   * Unknown player-side files kept in the backup's separate area (#5359).
+   * They are not counted in `file_count`, and restore does not put them
+   * back. Omitted when zero.
+   */
+  unknown_file_count?: number;
   [k: string]: unknown;
 }
 /**
@@ -5721,20 +5885,106 @@ export interface OutputSteamgriddbKeyStatus {
   configured: boolean;
   [k: string]: unknown;
 }
-/**
- * Report only: nothing in the library, its files or Steam changes.
- */
 export interface OutputSteamgriddbListingReport {
   checked_at: number;
   images: SteamGridDbImageCheck[];
+  /**
+   * Whether these results were recorded in the library. A cancelled check, or
+   * one whose recording failed, still reports what it saw.
+   */
+  recorded: boolean;
+  /**
+   * Removals left for the next check, export or move because one check
+   * removes a bounded number while it holds the library.
+   */
+  removal_deferred: number;
+  /**
+   * Removals that failed, usually because another program holds the file.
+   * Portcove no longer shows or hands out these copies.
+   */
+  removal_failed: number;
+  /**
+   * Copies of withdrawn images removed from the library during this check,
+   * including removals left over from earlier checks.
+   */
+  removed: number;
+  /**
+   * Attempted results that could not be written and stay unrecorded; they are
+   * checked again first next time.
+   */
+  skipped: number;
   stopped: SteamGridDbCheckStop | null;
 }
 export interface SteamGridDbImageCheck {
   asset_sha256: string;
+  /**
+   * Whether this run requested the image's listing and reached a conclusion
+   * other than running out of budget; images not reached are `false`.
+   */
+  attempted: boolean;
   attribution: ArtworkAttribution;
-  listing: SteamGridDbListingStatus;
+  /**
+   * What recording this result changed; `none` when the check was not recorded.
+   */
+  effect: "none" | "withdrawn" | "removed" | "listed_again";
+  /**
+   * When Portcove removed the stored copy behind this record, as recorded
+   * after this check; choosing the image again restores it.
+   */
+  evicted_at: number | null;
+  listing: SteamGridDbListingResult;
+  /**
+   * The `total` SteamGridDB reported for the image's listing, when one was read.
+   */
+  listing_total: number | null;
+  /**
+   * When a verified listing first lacked this image, as recorded in the
+   * library after this check; cleared only by a later observed listing.
+   */
+  not_listed_since: number | null;
   source: SteamGridDbSourceStatus;
-  unknown_reason: SteamGridDbUnknownReason | null;
+  /**
+   * When a check confirmed this record withdrawn, as recorded after this
+   * check; cleared when it is seen listed again or chosen again.
+   */
+  withdrawn_at: number | null;
+}
+export interface OutputStoreGameInstalls {
+  /**
+   * The stores this host's metadata was read for. A store missing here was
+   * not checked, which is different from having no games installed.
+   */
+  checked_stores: GameStore[];
+  installs: StoreGameInstall[];
+  /**
+   * Whether a detection bound stopped the list early.
+   */
+  limited: boolean;
+  /**
+   * Store entries left out because their metadata was unreadable, malformed,
+   * unsafe or named a folder that does not exist.
+   */
+  skipped_entries: number;
+  [k: string]: unknown;
+}
+/**
+ * One game folder a store installed, as the store's own metadata records it.
+ */
+export interface StoreGameInstall {
+  /**
+   * Canonical existing folder.
+   */
+  path: string;
+  /**
+   * The saved game-file folder at exactly this path, when there is one.
+   */
+  saved_root_id: string | null;
+  store: GameStore;
+  /**
+   * The store's title for the game; a label, never an identity.
+   */
+  title: string;
+  [k: string]: unknown;
 }
 export interface OutputUpdateBatchOutcome {
   error: FailureReport | null;

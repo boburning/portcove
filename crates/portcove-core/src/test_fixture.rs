@@ -122,6 +122,12 @@ pub(crate) fn definition_requirements(
     } else {
         default_version
     };
+    // An STFS package binding needs staged-source capability 32 whatever chain matched.
+    let default_version = if port.runtime_stfs_package.is_some() {
+        default_version.max(crate::stfs::PACKAGE_BINDING_CAPABILITY)
+    } else {
+        default_version
+    };
     // Track counts live in the embedded source profile, not on the port.
     let default_version = if port.adapter == crate::AdapterKind::PsxRecompManaged
         && crate::Catalog::embedded()
@@ -339,9 +345,9 @@ impl<'a> IndexedCatalogFixture<'a> {
             // a later chain that matched first would silently skip the requirement.
             30
         } else if crate::package_layout::layout_capability(port)
-            == crate::package_layout::MACOS_LIBRARY_FILTER_CAPABILITY
+            > crate::package_layout::NATIVE_CAPABILITY
         {
-            crate::package_layout::MACOS_LIBRARY_FILTER_CAPABILITY
+            crate::package_layout::layout_capability(port)
         } else if port.linux_portable_data_directory.is_some() {
             crate::native_portable_data::NATIVE_CAPABILITY
         } else if !port.release.tar_xz_platforms.is_empty() {

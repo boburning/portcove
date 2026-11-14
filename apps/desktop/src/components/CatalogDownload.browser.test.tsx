@@ -206,6 +206,33 @@ it("shows Core's acquisition restriction without offering a download mutation", 
   expect(desktopApi.downloadCatalogPackage).not.toHaveBeenCalled();
 });
 
+it("explains a managed-route refusal instead of offering another check", async () => {
+  const reason =
+    "Portcove installs and updates this game on your system. Use Install instead of downloading the upstream package.";
+  vi.mocked(desktopApi.catalogDownloadCandidates).mockResolvedValue({
+    ...candidates,
+    allowed: false,
+    reason,
+    refusal: "managed-route",
+    candidates: [],
+    recommended_asset_id: null,
+    packages: [],
+    coverage: null,
+  });
+  await click("Check upstream downloads");
+  await expect.element(page.getByText(reason, { exact: true })).toBeVisible();
+  await expect
+    .element(page.getByRole("button", { name: "Check downloads again", exact: true }))
+    .not.toBeInTheDocument();
+  await expect
+    .element(page.getByRole("button", { name: "Review download", exact: true }))
+    .not.toBeInTheDocument();
+  await expect
+    .element(page.getByRole("link", { name: "View upstream releases" }))
+    .not.toBeInTheDocument();
+  expect(desktopApi.previewCatalogDownload).not.toHaveBeenCalled();
+});
+
 it("accepts Core's recommended package and location together without a folder decision", async () => {
   await click("Check upstream downloads");
   expect(document.querySelector('[role="combobox"]')).toBeNull();

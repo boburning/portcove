@@ -32,6 +32,7 @@
     },
     "compare": {
       "files": "Archivos necesarios",
+      "filesOptional": "Archivos opcionales",
       "filesUnlisted": "Los requisitos no figuran aquí. Consulta las instrucciones de configuración del proyecto.",
       "instructions": "Instrucciones del proyecto",
       "noChannel": "No figura ningún canal de actualización.",

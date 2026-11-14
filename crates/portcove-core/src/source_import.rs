@@ -275,6 +275,9 @@ impl PortcoveService {
                 .detail("profile_id", profile_id));
             }
         }
+        if mode == SourceImportMode::Move {
+            self.refuse_store_install_move(profile_id, &source_path)?;
+        }
         let guard = source_guard(&source_path)?;
         let inspection = crate::source_inspection::inspect_with_checkpoint(
             self.catalog(),

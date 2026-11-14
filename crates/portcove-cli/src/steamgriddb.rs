@@ -3,10 +3,11 @@
 //! reads a key without placing it in argv, and renders.
 use crate::*;
 use portcove_core::{
-    SteamGridDbCandidate, SteamGridDbCheckStop, SteamGridDbGame, SteamGridDbImageCheck,
-    SteamGridDbKeyStatus, SteamGridDbListingReport, SteamGridDbListingStatus,
-    SteamGridDbSourceStatus, SteamGridDbUnknownReason, clear_steamgriddb_key,
-    search_steamgriddb_games, set_steamgriddb_key, steamgriddb_candidates, steamgriddb_key_status,
+    SteamGridDbCandidate, SteamGridDbCheckEffect, SteamGridDbCheckStop, SteamGridDbGame,
+    SteamGridDbImageCheck, SteamGridDbKeyStatus, SteamGridDbListingReport,
+    SteamGridDbListingResult, SteamGridDbSourceStatus, SteamGridDbUnknownReason,
+    clear_steamgriddb_key, search_steamgriddb_games, set_steamgriddb_key, steamgriddb_candidates,
+    steamgriddb_key_status,
 };
 
 /// Core's client blocks on network and secure-store calls, so it runs off the
@@ -76,7 +77,7 @@ pub(crate) async fn execute(
             })
         }
         SteamGridDbCommand::CheckListings => {
-            // Report only; the borrowed service runs the bounded network check in place.
+            // The borrowed service runs the bounded network check and records it in place.
             let report = tokio::task::block_in_place(|| service.check_steamgriddb_listings())?;
             render_read_success(mode, name, report, listing_report)
         }
@@ -170,8 +171,9 @@ fn role_name(role: portcove_core::DestinationArtworkRole) -> &'static str {
 }
 
 fn image_finding(image: &SteamGridDbImageCheck) -> String {
-    use SteamGridDbListingStatus as Listing;
+    use SteamGridDbListingResult as Listing;
     use SteamGridDbSourceStatus as Source;
+    use SteamGridDbUnknownReason as Reason;
     let found = match (image.listing, image.source) {
         (Listing::Listed, _) => "still listed".to_owned(),
         (Listing::NotListed, Source::Gone) => {
@@ -181,26 +183,46 @@ fn image_finding(image: &SteamGridDbImageCheck) -> String {
             "no longer listed, but SteamGridDB still serves the file".to_owned()
         }
         (Listing::NotListed, _) => "no longer listed".to_owned(),
-        (Listing::Unknown, _) => {
-            let reason = match image.unknown_reason {
-                Some(SteamGridDbUnknownReason::GameNotFound) => "SteamGridDB did not find the game",
-                Some(SteamGridDbUnknownReason::TooManyImages) => {
-                    "the game has more images than one check reads"
+        (Listing::Unknown { .. }, _) if !image.attempted => "not reached this run".to_owned(),
+        (Listing::Unknown { reason }, _) => {
+            let reason = match reason {
+                Reason::GameNotFound => "SteamGridDB did not find the game",
+                Reason::EmptyListing => "SteamGridDB listed no images for this game and role",
+                Reason::TooManyImages => "the game has more images than one check reads",
+                Reason::RequestLimit => "this check reached its request limit",
+                Reason::CheckStopped => "the check stopped first",
+                Reason::Unavailable => "SteamGridDB could not be reached",
+                Reason::IncompleteListing | Reason::InvalidResponse => {
+                    "SteamGridDB did not return a complete listing"
                 }
-                Some(SteamGridDbUnknownReason::RequestLimit) => {
-                    "this check reached its request limit"
-                }
-                Some(SteamGridDbUnknownReason::CheckStopped) => "the check stopped first",
-                Some(SteamGridDbUnknownReason::Unavailable) => "SteamGridDB could not be reached",
-                Some(SteamGridDbUnknownReason::IncompleteListing)
-                | Some(SteamGridDbUnknownReason::InvalidResponse)
-                | None => "SteamGridDB did not return a complete listing",
             };
             format!("not confirmed ({reason})")
         }
     };
+    let noticed = image
+        .not_listed_since
+        .map(|since| format!("; first noticed missing {}", human::utc_time(since)))
+        .unwrap_or_default();
+    // The library's state after this check, so an image confirmed or removed
+    // earlier is described as it stands, not as a new finding.
+    let effect = match (image.evicted_at, image.withdrawn_at) {
+        (Some(_), _) if image.listing == Listing::Listed => {
+            ". Listed again; choose it again to restore Portcove's copy"
+        }
+        (Some(_), Some(_)) if image.effect == SteamGridDbCheckEffect::Removed => {
+            ". Confirmed, so Portcove removed its copy; your choice and the credit are kept"
+        }
+        (Some(_), _) => ". Portcove removed its copy earlier; your choice and the credit are kept",
+        (None, Some(_)) => {
+            ". Confirmed; Portcove kept its copy, because you imported this image yourself or another credit still lists it"
+        }
+        (None, None) if image.listing == Listing::NotListed => {
+            ". If SteamGridDB's image server reports the file gone, or a check at least a day later still finds it missing, Portcove removes its copy unless you imported it yourself"
+        }
+        (None, None) => "",
+    };
     format!(
-        "{}  {} by {} (game {}): {found}",
+        "{}  {} by {} (game {}): {found}{noticed}{effect}",
         image.attribution.asset_id,
         role_name(image.attribution.role),
         human::clean(&image.attribution.author_name),
@@ -228,13 +250,75 @@ pub(crate) fn listing_report(report: &SteamGridDbListingReport) -> String {
         Some(SteamGridDbCheckStop::RateLimited { .. }) => "\n\nSteamGridDB asked Portcove to slow down, so the check stopped early.\nNext step: Run the check again later.".into(),
         Some(SteamGridDbCheckStop::KeyRejected) => "\n\nSteamGridDB rejected your saved API key, so the check stopped early.\nNext step: Replace it with `portcove artwork steamgriddb set-key`.".into(),
         Some(SteamGridDbCheckStop::Unavailable) => "\n\nSteamGridDB could not be reached, so the check stopped early.\nNext step: Run the check again later.".into(),
+        Some(SteamGridDbCheckStop::TimeLimit) => "\n\nThe check reached its three-minute limit, so some images were not reached.\nNext step: Run the check again; it starts with the images checked longest ago.".into(),
+        Some(SteamGridDbCheckStop::Cancelled) => "\n\nThe check was cancelled.\nNext step: Run the check again when you are ready.".into(),
         None => String::new(),
     };
     let count = report.images.len();
     format!(
-        "SteamGridDB listing check: {count} {}\n\n{lines}\n\nThis check only reports. Every image, credit and choice was kept, and nothing changed in Steam.{stopped}",
-        if count == 1 { "image" } else { "images" }
+        "SteamGridDB listing check: {count} {}\n\n{lines}\n\n{}{}{stopped}",
+        if count == 1 { "image" } else { "images" },
+        if report.recorded {
+            "Portcove recorded what it found. "
+        } else {
+            "These results were not recorded; run the check again to record them. "
+        },
+        removal_summary(report),
     )
+}
+
+fn copies(count: u32) -> String {
+    format!("{count} {}", if count == 1 { "copy" } else { "copies" })
+}
+
+/// What the check removed, counting only deletions that finished.
+fn removal_summary(report: &SteamGridDbListingReport) -> String {
+    let removing = report.removal_deferred + report.removal_failed > 0
+        || report
+            .images
+            .iter()
+            .any(|image| image.effect == SteamGridDbCheckEffect::Removed);
+    let mut text = if report.removed == 0 && removing {
+        "No copy was deleted yet. Your choices and credits were kept, and nothing changed in Steam."
+            .to_owned()
+    } else if report.removed == 0 {
+        "Nothing was removed: every image, credit and choice was kept, and nothing changed in Steam.".to_owned()
+    } else {
+        format!(
+            "Removed {} of images SteamGridDB no longer lists. Your choices and credits were kept, and nothing changed in Steam.",
+            copies(report.removed)
+        )
+    };
+    if report.removal_deferred > 0 {
+        text.push_str(&format!(
+            "\n{} more {} will be removed by the next check, export or move.",
+            report.removal_deferred,
+            if report.removal_deferred == 1 {
+                "copy"
+            } else {
+                "copies"
+            }
+        ));
+    }
+    if report.removal_failed > 0 {
+        text.push_str(&format!(
+            "\nPortcove couldn't remove {}. {} no longer shown or used.\nNext step: Close any program that may be using Portcove's artwork folder, then run the check again.",
+            copies(report.removal_failed),
+            if report.removal_failed == 1 { "It is" } else { "They are" }
+        ));
+    }
+    if report.skipped > 0 {
+        text.push_str(&format!(
+            "\n{} {} could not be recorded and will be checked first next time.",
+            report.skipped,
+            if report.skipped == 1 {
+                "result"
+            } else {
+                "results"
+            }
+        ));
+    }
+    text
 }
 
 /// A Retry-After wait in the largest whole unit a player would read.
@@ -288,7 +372,7 @@ mod tests {
             (
                 "artwork steamgriddb check-listings",
                 "artwork.steamgriddb.check-listings",
-                crate::startup::StartupMode::ReadOnly,
+                crate::startup::StartupMode::Recovering,
             ),
         ] {
             let parsed = Cli::try_parse_from(
@@ -360,17 +444,19 @@ mod tests {
     }
 
     #[test]
-    fn listing_report_explains_each_outcome_and_that_nothing_changed() {
+    fn listing_report_explains_each_outcome_and_what_was_removed() {
         use portcove_core::{ArtworkAttribution, ArtworkProvider};
         assert!(
             listing_report(&SteamGridDbListingReport {
                 checked_at: 0,
                 images: Vec::new(),
                 stopped: None,
+                recorded: true,
+                ..SteamGridDbListingReport::default()
             })
             .contains("no SteamGridDB images")
         );
-        let image = |asset_id, listing, unknown_reason, source| SteamGridDbImageCheck {
+        let image = |asset_id, listing, attempted, source| SteamGridDbImageCheck {
             asset_sha256: "a".repeat(64),
             attribution: ArtworkAttribution {
                 provider: ArtworkProvider::Steamgriddb,
@@ -383,40 +469,49 @@ mod tests {
                 fetched_at: 0,
             },
             listing,
-            unknown_reason,
+            attempted,
+            listing_total: Some(1),
             source,
+            not_listed_since: None,
+            effect: SteamGridDbCheckEffect::None,
+            withdrawn_at: None,
+            evicted_at: None,
         };
         let text = listing_report(&SteamGridDbListingReport {
             checked_at: 0,
             images: vec![
                 image(
                     1,
-                    SteamGridDbListingStatus::Listed,
-                    None,
+                    SteamGridDbListingResult::Listed,
+                    true,
                     SteamGridDbSourceStatus::NotChecked,
                 ),
                 image(
                     2,
-                    SteamGridDbListingStatus::NotListed,
-                    None,
+                    SteamGridDbListingResult::NotListed,
+                    true,
                     SteamGridDbSourceStatus::Gone,
                 ),
                 image(
                     3,
-                    SteamGridDbListingStatus::NotListed,
-                    None,
+                    SteamGridDbListingResult::NotListed,
+                    true,
                     SteamGridDbSourceStatus::Served,
                 ),
                 image(
                     4,
-                    SteamGridDbListingStatus::Unknown,
-                    Some(SteamGridDbUnknownReason::GameNotFound),
+                    SteamGridDbListingResult::Unknown {
+                        reason: SteamGridDbUnknownReason::GameNotFound,
+                    },
+                    true,
                     SteamGridDbSourceStatus::Served,
                 ),
             ],
             stopped: Some(SteamGridDbCheckStop::RateLimited {
                 retry_after_seconds: Some(30),
             }),
+            recorded: true,
+            ..SteamGridDbListingReport::default()
         });
         assert!(text.contains("1  cover by Art"));
         assert!(!text.contains('\u{1b}'));
@@ -424,7 +519,7 @@ mod tests {
         assert!(text.contains("no longer listed, and SteamGridDB no longer serves the file"));
         assert!(text.contains("no longer listed, but SteamGridDB still serves the file"));
         assert!(text.contains("not confirmed (SteamGridDB did not find the game)"));
-        assert!(text.contains("Every image, credit and choice was kept"));
+        assert!(text.contains("Portcove recorded what it found. Nothing was removed"));
         assert!(text.contains("again in 30 seconds"));
         assert!(text.starts_with("SteamGridDB listing check: 4 images"));
         let one = |stopped| {
@@ -432,14 +527,81 @@ mod tests {
                 checked_at: 0,
                 images: vec![image(
                     5,
-                    SteamGridDbListingStatus::Unknown,
-                    Some(SteamGridDbUnknownReason::CheckStopped),
+                    SteamGridDbListingResult::Unknown {
+                        reason: SteamGridDbUnknownReason::CheckStopped,
+                    },
+                    false,
                     SteamGridDbSourceStatus::NotChecked,
                 )],
                 stopped,
+                recorded: true,
+                ..SteamGridDbListingReport::default()
             })
         };
         assert!(one(None).starts_with("SteamGridDB listing check: 1 image\n"));
+        let mut unrecorded = SteamGridDbListingReport {
+            checked_at: 0,
+            images: vec![image(
+                6,
+                SteamGridDbListingResult::NotListed,
+                true,
+                SteamGridDbSourceStatus::Served,
+            )],
+            stopped: None,
+            recorded: false,
+            ..SteamGridDbListingReport::default()
+        };
+        unrecorded.images[0].not_listed_since = Some(86_400);
+        let text = listing_report(&unrecorded);
+        assert!(text.contains("first noticed missing 1970-01-02T00:00:00Z"));
+        assert!(text.contains("or a check at least a day later still finds it missing"));
+        assert!(text.contains("These results were not recorded"));
+        // Confirmed withdrawals: only finished removals are counted as removed.
+        let mut removed = unrecorded.clone();
+        removed.recorded = true;
+        removed.images[0].effect = SteamGridDbCheckEffect::Removed;
+        removed.images[0].withdrawn_at = Some(5);
+        removed.images[0].evicted_at = Some(5);
+        removed.images.push(image(
+            7,
+            SteamGridDbListingResult::NotListed,
+            true,
+            SteamGridDbSourceStatus::Gone,
+        ));
+        removed.images[1].effect = SteamGridDbCheckEffect::Withdrawn;
+        removed.images[1].withdrawn_at = Some(5);
+        removed.images.push(image(
+            8,
+            SteamGridDbListingResult::Listed,
+            true,
+            SteamGridDbSourceStatus::NotChecked,
+        ));
+        removed.images[2].effect = SteamGridDbCheckEffect::ListedAgain;
+        removed.images[2].evicted_at = Some(5);
+        removed.removed = 1;
+        removed.removal_deferred = 2;
+        removed.removal_failed = 1;
+        removed.skipped = 1;
+        let text = listing_report(&removed);
+        assert!(text.contains("Confirmed, so Portcove removed its copy"));
+        assert!(text.contains(
+            "Portcove kept its copy, because you imported this image yourself or another credit still lists it"
+        ));
+        assert!(text.contains("Listed again; choose it again to restore Portcove's copy"));
+        assert!(text.contains("Removed 1 copy of images SteamGridDB no longer lists"));
+        assert!(text.contains("2 more copies will be removed by the next check"));
+        assert!(text.contains("couldn't remove 1 copy. It is no longer shown"));
+        // A removal that has not finished never reads as "nothing was removed".
+        removed.removed = 0;
+        let pending = listing_report(&removed);
+        assert!(pending.contains("No copy was deleted yet"));
+        assert!(!pending.contains("Nothing was removed"));
+        // An image removed by an earlier check is described as it stands.
+        removed.images[0].effect = SteamGridDbCheckEffect::None;
+        assert!(listing_report(&removed).contains("Portcove removed its copy earlier"));
+        assert!(text.contains("couldn't remove 1 copy"));
+        assert!(text.contains("1 result could not be recorded"));
+        assert!(!text.contains("Nothing was removed"));
         assert!(one(Some(SteamGridDbCheckStop::KeyRejected)).contains("set-key"));
         assert!(one(Some(SteamGridDbCheckStop::Unavailable)).contains("could not be reached"));
         assert!(
@@ -448,7 +610,9 @@ mod tests {
             }))
             .contains("again later")
         );
-        assert!(one(None).contains("not confirmed (the check stopped first)"));
+        assert!(one(None).contains("not reached this run"));
+        assert!(one(Some(SteamGridDbCheckStop::TimeLimit)).contains("three-minute limit"));
+        assert!(one(Some(SteamGridDbCheckStop::Cancelled)).contains("cancelled"));
         for (seconds, text) in [
             (0, "1 second"),
             (1, "1 second"),

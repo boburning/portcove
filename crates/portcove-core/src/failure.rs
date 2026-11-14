@@ -188,7 +188,13 @@ pub(crate) enum KnownFailureCause {
     ArchiveLimit,
     UnicodePath,
     RuntimePathRequirement,
+    /// The package is not a LIVE or PIRS package in the read-only STFS layout.
     UnsupportedStfs,
+    /// The STFS package is a different game or content type than the port requires.
+    StfsPackageMismatch {
+        found: String,
+        expected: Vec<String>,
+    },
     /// The selected file is not a disc image the read-only readers accept.
     UnsupportedDiscImage,
     /// A disc image exceeded a fixed unpacking safety limit.
@@ -302,7 +308,7 @@ impl KnownFailureCause {
                 return (
                     "portable_runtime_modified",
                     format!(
-                        "Package files changed, went missing, or unrecognized files were added. This operation stopped and preserved the current files. Back up your changes to a separate folder, then restore changed or missing package files from the accepted package and move unrecognized additions before reviewing and trying again. Declared player data is handled separately. A preserved unknown file is not automatically safe to add to a replacement.\nInstallation: {}\nAffected package paths:\n{}{}",
+                        "Package files changed or went missing, or unrecognized programs, scripts or libraries were added. This operation stopped and preserved the current files. Back up your changes to a separate folder, then restore changed or missing package files from the accepted package and move the added programs, scripts or libraries before reviewing and trying again. Declared player data is handled separately. A preserved unknown file is not automatically safe to add to a replacement.\nInstallation: {}\nAffected package paths:\n{}{}",
                         directory.display(),
                         paths,
                         if remainder > 0 {
@@ -376,8 +382,17 @@ impl KnownFailureCause {
             ),
             Self::UnsupportedStfs => (
                 "stfs_format_unsupported",
-                "This source is not a supported read-only Xbox LIVE STFS package. Select the required original package format and review the source again.",
+                "This source is not a supported Xbox 360 package. Select the original LIVE or PIRS package for this game and review the source again.",
             ),
+            Self::StfsPackageMismatch { found, expected } => {
+                return (
+                    "stfs_package_mismatch",
+                    format!(
+                        "This package is for a different game or is not the full game ({found}; needs {}). Select the original game package.",
+                        expected.join(" or ")
+                    ),
+                );
+            }
             Self::UnsupportedDiscImage => (
                 "disc_image_unsupported",
                 "Portcove can’t read this disc image safely. Select an unmodified original image in a supported format, then review the source again.",

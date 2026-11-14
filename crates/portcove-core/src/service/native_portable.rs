@@ -425,13 +425,26 @@ impl PortcoveService {
     }
 
     pub(super) fn require_portable_runtime_unchanged(&self, install: &InstallRecord) -> Result<()> {
+        self.portable_runtime_unknown_files(install).map(|_| ())
+    }
+
+    /// The one hazard/harmless split for managed portable runtimes (#5359
+    /// Tier 1). Changed or missing package files, unexpected programs, scripts
+    /// or libraries, and links or other unsafe objects hold the operation.
+    /// Other undeclared regular files are unknown player-side files: they stay
+    /// where they are and are returned so backups can copy them. More than the
+    /// unknown-file caps also holds, so nothing is silently left out.
+    pub(super) fn portable_runtime_unknown_files(
+        &self,
+        install: &InstallRecord,
+    ) -> Result<Vec<backups::UnknownRuntimeFile>> {
         let port = self.installed_port(install)?;
         if port.adapter != AdapterKind::NativePortable
             && port.adapter != AdapterKind::GeneratedCache
             && !crate::persistence::ready_staged_archive(&port)
             && !port.n64_runtime_at_executable_parent
         {
-            return Ok(());
+            return Ok(Vec::new());
         }
         if port.adapter == AdapterKind::GeneratedCache
             && Installer::new(self.library.clone())?
@@ -443,18 +456,18 @@ impl PortcoveService {
             ));
         }
         let qualification = self.installed_mutability_qualification(install)?;
-        let report =
-            Installer::new(self.library.clone())?.verify_managed(install, &qualification)?;
-        if !report.valid {
+        let (report, unknown) = Installer::new(self.library.clone())?
+            .verify_managed_with_unknown(install, &qualification)?;
+        if report.has_hazards() {
             return Err(PortcoveError::conflict(
-                "Portable runtime files changed or unrecognized files were added. Keep this version and move your additions to a backed-up location before updating, switching versions or removing it. Review the reported paths; Portcove will not overwrite or delete them.",
+                "Portable runtime files changed or unrecognized programs, scripts or libraries were added. Keep this version and move your additions to a backed-up location before updating, switching versions or removing it. Review the reported paths; Portcove will not overwrite or delete them.",
             ).detail("failures", serde_json::to_string(&report.failures)?)
                 .with_known_cause(crate::failure::KnownFailureCause::PortableRuntimeModified {
                     directory: install.path.clone(),
                     failures: report.failures,
                 }));
         }
-        Ok(())
+        backups::measure_unknown_files(install, unknown)
     }
 }
 
@@ -1230,7 +1243,7 @@ mod tests {
                 .require_portable_transition(&previous, &legacy)
                 .is_err()
         );
-        fs::write(first_root.join("unreviewed-addon.bin"), b"keep this copy").unwrap();
+        fs::write(first_root.join("unreviewed-addon.dll"), b"keep this copy").unwrap();
         let error = restarted
             .update(ID, None, None, true, |_| {})
             .await
@@ -1239,9 +1252,9 @@ mod tests {
             error.presentation().presentation_key,
             "portable_runtime_modified"
         );
-        assert!(error.details["failures"].contains("unreviewed-addon.bin"));
+        assert!(error.details["failures"].contains("unreviewed-addon.dll"));
         assert_eq!(
-            fs::read(first_root.join("unreviewed-addon.bin")).unwrap(),
+            fs::read(first_root.join("unreviewed-addon.dll")).unwrap(),
             b"keep this copy"
         );
         assert_eq!(restarted.status(ID).unwrap().active.unwrap().id, first.id);
@@ -1509,7 +1522,7 @@ mod tests {
         );
         fs::create_dir_all(previous.path.join("USA/.iu-install-partial")).unwrap();
         fs::write(
-            previous.path.join("USA/.iu-install-partial/recover"),
+            previous.path.join("USA/.iu-install-partial/recover.dll"),
             b"interrupted import",
         )
         .unwrap();
@@ -1521,10 +1534,10 @@ mod tests {
             error.presentation().presentation_key,
             "portable_runtime_modified"
         );
-        assert!(error.details["failures"].contains("USA/.iu-install-partial/recover"));
+        assert!(error.details["failures"].contains("USA/.iu-install-partial/recover.dll"));
         assert_eq!(service.status(ID).unwrap().active.unwrap().id, previous.id);
         assert_eq!(
-            fs::read(previous.path.join("USA/.iu-install-partial/recover")).unwrap(),
+            fs::read(previous.path.join("USA/.iu-install-partial/recover.dll")).unwrap(),
             b"interrupted import"
         );
         // No package executable, original media wizard or game is run.
@@ -1614,12 +1627,12 @@ mod tests {
         fs::write(root.join("SCREENSHOT.BMP"), b"owned capture").unwrap();
         fs::write(root.join("Crash Team Racing.log"), b"old log").unwrap();
         fs::create_dir_all(root.join("debug/states")).unwrap();
-        let state = root.join("debug/states/quick.ctrstates");
+        let state = root.join("debug/states/quick.dll");
         fs::write(&state, b"same-build memory snapshot").unwrap();
         let error = service
             .prepare_launch_for_install(&port, &first, None, None)
             .unwrap_err();
-        assert!(error.details["failures"].contains("debug/states/quick.ctrstates"));
+        assert!(error.details["failures"].contains("debug/states/quick.dll"));
         let error = service
             .update(ID, None, None, false, |_| {})
             .await
@@ -1628,7 +1641,7 @@ mod tests {
             error.presentation().presentation_key,
             "portable_runtime_modified"
         );
-        assert!(error.details["failures"].contains("debug/states/quick.ctrstates"));
+        assert!(error.details["failures"].contains("debug/states/quick.dll"));
         assert_eq!(service.status(ID).unwrap().active.unwrap().id, first.id);
         let preserved = temporary.path().join("preserved-same-build-state");
         fs::copy(&state, &preserved).unwrap();
@@ -1657,7 +1670,7 @@ mod tests {
             b"owned capture"
         );
         assert!(!next_root.join("Crash Team Racing.log").exists());
-        assert!(!next_root.join("debug/states/quick.ctrstates").exists());
+        assert!(!next_root.join("debug/states/quick.dll").exists());
         fs::write(
             next_root.join("memcards/slot0/normal-save"),
             b"newest progress",
@@ -2060,13 +2073,13 @@ mod tests {
             fs::read(root.join("data/textures/100.txm")).unwrap(),
             b"old generated texture cache"
         );
-        fs::write(root.join("unknown-player-file"), b"preserve separately").unwrap();
+        fs::write(root.join("unknown-player-file.dll"), b"preserve separately").unwrap();
         assert!(
             service
                 .preview_removal(ID)
                 .unwrap_err()
                 .message
-                .contains("unrecognized files")
+                .contains("unrecognized programs")
         );
         assert!(service.update(ID, None, None, true, |_| {}).await.is_err());
         eprintln!(
@@ -2075,7 +2088,7 @@ mod tests {
         );
         assert_eq!(service.status(ID).unwrap().active.unwrap().id, first.id);
         assert_eq!(
-            fs::read(root.join("unknown-player-file")).unwrap(),
+            fs::read(root.join("unknown-player-file.dll")).unwrap(),
             b"preserve separately"
         );
     }
@@ -3501,10 +3514,20 @@ mod tests {
             .prepare_launch_for_install(&retained, &previous, None, None)
             .unwrap();
         assert_eq!(spec.working_directory, previous.path.join(folder), "{id}");
-        // Unknown runtime additions remain review holds, never a wildcard data scope.
+        // An unknown runtime addition is never a wildcard data scope. It does
+        // not hold removal (#5359): the removal review lists it before consent.
         let unknown = spec.working_directory.join("unknown-player-addition");
         fs::write(&unknown, b"keep for review").unwrap();
-        assert!(restarted.preview_removal(id).is_err(), "{id}");
+        let listed = restarted.preview_removal(id).unwrap();
+        assert_eq!(listed.unknown_file_count, 1, "{id}");
+        assert!(
+            listed
+                .unknown_files
+                .iter()
+                .any(|path| path.ends_with("unknown-player-addition")),
+            "{id}: {:?}",
+            listed.unknown_files
+        );
         assert_eq!(fs::read(&unknown).unwrap(), b"keep for review");
         fs::rename(
             &unknown,
@@ -3789,12 +3812,12 @@ mod tests {
             .await
             .unwrap();
         *provider.0.lock().unwrap() = server.release("v2", 2);
-        fs::write(first.path.join("unknown-player-file"), b"keep").unwrap();
+        fs::write(first.path.join("unknown-player-file.dll"), b"keep").unwrap();
         let error = service
             .update("portable-fixture", None, None, true, |_| {})
             .await
             .unwrap_err();
-        assert!(error.message.contains("unrecognized files"));
+        assert!(error.message.contains("unrecognized programs"));
         assert_eq!(
             error.presentation().presentation_key,
             "portable_runtime_modified"
@@ -3811,7 +3834,7 @@ mod tests {
             first.id
         );
         fs::rename(
-            first.path.join("unknown-player-file"),
+            first.path.join("unknown-player-file.dll"),
             temporary.path().join("preserved-player-file"),
         )
         .unwrap();
@@ -4022,7 +4045,7 @@ mod tests {
             .unwrap();
         assert!(staged.staged);
         fs::write(
-            first.path.join("unknown-player-file"),
+            first.path.join("unknown-player-file.dll"),
             b"preserve this addition",
         )
         .unwrap();
@@ -4042,10 +4065,10 @@ mod tests {
         assert_eq!(state.active.unwrap().id, first.id);
         assert_eq!(state.staged.unwrap().id, staged.id);
         assert_eq!(
-            fs::read(first.path.join("unknown-player-file")).unwrap(),
+            fs::read(first.path.join("unknown-player-file.dll")).unwrap(),
             b"preserve this addition"
         );
-        fs::remove_file(first.path.join("unknown-player-file")).unwrap();
+        fs::remove_file(first.path.join("unknown-player-file.dll")).unwrap();
         let second = service.activate_staged("portable-fixture").unwrap();
         assert_eq!(second.id, staged.id);
         assert_eq!(
@@ -6985,6 +7008,7 @@ mod tests {
                 ("shaders/fixture.txt", b"fixture"),
             ],
             "elraro-atomic-bomberman" => &[("atomic_server.exe", b"MZ")],
+            "moshferatu-zombies-ate-my-neighbors-pc-port" => &[("zamn.exe", b"MZ")],
             "street-fighter-iii-3rd-strike-3sx" => &[
                 ("assets/fixture.txt", b"fixture"),
                 ("licenses/fixture.txt", b"fixture"),
@@ -7021,6 +7045,7 @@ mod tests {
                         id,
                         "gunstar-heroes-gunstars"
                             | "vyruz-destruction-of-the-untel-empire-openvyruz"
+                            | "kirby-letsgo-oracles-decomp"
                     ),
             );
             release.asset.name = asset_name.to_string();
@@ -7111,7 +7136,8 @@ mod tests {
             let consent = service
                 .authorize_removal(id, &preview.preview_sha256)
                 .unwrap();
-            let unknown = previous_root.join(name);
+            // Unknown player-side data no longer holds (#5359); a library does.
+            let unknown = previous_root.join(format!("{name}.dll"));
             fs::write(&unknown, b"unclaimed fallback pilot; preserve exact bytes").unwrap();
             let error = service
                 .update(id, None, None, true, |_| {})

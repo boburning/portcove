@@ -1340,6 +1340,12 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
                 service.game_file_root_match_profiles(&root_id)?,
                 |profiles| human::game_file_root_match_profiles(profiles, service.catalog()),
             )?,
+            GameFileRootCommand::Stores => render_read_success(
+                mode,
+                "source.roots.stores",
+                service.store_game_installs()?,
+                human::store_game_installs,
+            )?,
             GameFileRootCommand::Add { path } => render_read_success(
                 mode,
                 "source.roots.add",
@@ -3121,6 +3127,7 @@ fn execute_library(
                     human::library_metadata_file,
                 )?;
             } else {
+                service.finish_pending_artwork_removals()?;
                 render_read_success(
                     mode,
                     name,
@@ -3752,6 +3759,7 @@ fn command_name(command: &Commands) -> &'static str {
                 GameFileRootCommand::Snapshot => "source.roots.snapshot",
                 GameFileRootCommand::Matches(_) => "source.roots.matches",
                 GameFileRootCommand::Profiles { .. } => "source.roots.profiles",
+                GameFileRootCommand::Stores => "source.roots.stores",
                 GameFileRootCommand::Add { .. } => "source.roots.add",
                 GameFileRootCommand::Relink { .. } => "source.roots.relink",
                 GameFileRootCommand::Remove { .. } => "source.roots.remove",
@@ -5252,6 +5260,7 @@ mod tests {
             "source.roots.scan",
             "source.roots.matches",
             "source.roots.profiles",
+            "source.roots.stores",
         ] {
             assert!(capabilities.commands.iter().any(|command| command == name));
         }

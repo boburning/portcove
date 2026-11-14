@@ -13,6 +13,11 @@ import {
   hostedDependencies,
   main,
   readCheckpoint,
+  SIGNAL_CAP,
+  accountingFor,
+  cappedSignals,
+  readAccounting,
+  summaryMarkdown,
   channelRelease,
   listerFailure,
   permanentRelease,
@@ -171,6 +176,7 @@ void test("a scan flags copied headers, records coverage and reuses its checkpoi
     {
       id: "gitlab",
       platform: "windows-x86-64",
+      provider: "gitlab",
       code: "no-single-asset",
       reason: "hints select no single asset in v9",
     },
@@ -302,11 +308,21 @@ void test("failed downloads spend the asset and byte budgets and the deadline st
     bytes.report.unscanned.map(({ code }) => code),
     ["scan-failed", "asset-budget", "no-single-asset"],
   );
+  // The clock passes the deadline during the first download.
   let now = 0;
-  const late = await scan(scanTargets(listings), new Map(), fakes([]), {
-    deadline: 1,
-    clock: () => now++,
-  });
+  const slowDeps = fakes([]);
+  const late = await scan(
+    scanTargets(listings),
+    new Map(),
+    {
+      ...slowDeps,
+      async download(asset, file, maxBytes, stopAt) {
+        await slowDeps.download(asset, file, maxBytes, stopAt);
+        now = 5;
+      },
+    },
+    { deadline: 1, clock: () => now },
+  );
   assert.equal(late.report.scanned.length, 1);
   assert.ok(late.report.unscanned.every((entry) => entry.reason.startsWith("time budget")));
   assert.ok(late.report.unscanned.every(({ code }) => code === "time-budget"));
@@ -317,7 +333,7 @@ void test("a published digest that differs from the bytes is not scanned", async
   const mismatched: ScanDependencies = {
     ...deps,
     async releases(target) {
-      return (await deps.releases(target)).map((release) => ({
+      return (await deps.releases(target, Number.POSITIVE_INFINITY)).map((release) => ({
         ...release,
         assets: release.assets.map((asset) => ({ ...asset, digest: `sha256:${"0".repeat(64)}` })),
       }));
@@ -333,7 +349,7 @@ void test("a published digest that differs from the bytes is not scanned", async
 void test("the report counts every target and binds the list by digest", async () => {
   const targets = scanTargets(listings);
   const { report } = await scan(targets, new Map(), fakes([]));
-  assert.equal(report.format_version, 2);
+  assert.equal(report.format_version, 3);
   assert.equal(report.targets, 3);
   assert.equal(report.targets_sha256, targetsDigest([...targets].reverse()));
   assert.notEqual(report.targets_sha256, targetsDigest(targets.slice(1)));
@@ -366,7 +382,7 @@ void test("deterministic failures are persistent codes; transient ones stay defe
         if (target.repository === "up/code")
           throw new ScanError("release-unavailable", "301 from api.github.com");
         if (target.repository === "up/header") throw new Error("fetch failed");
-        return deps.releases(target);
+        return deps.releases(target, Number.POSITIVE_INFINITY);
       },
     }),
     [
@@ -442,34 +458,84 @@ void test("a persistent download failure is remembered and not fetched again for
       ["gitlab", "no-single-asset"],
     ],
   );
-  // An unlistable package is persistent for coverage but re-checked each run, since a
-  // lister or environment fault can cause it; each retry still spends the budgets.
+  // An unlistable package is persistent for coverage but remembered as a retry, since a
+  // lister or environment fault can cause it; re-checks spend only their own allowance.
   assert.deepEqual(
     [...RECORDED_FAILURES],
     ["asset-too-large", "digest-mismatch", "encrypted-archive"],
   );
+  let listable = false;
   const unlistable: ScanDependencies = {
     ...deps,
-    async list() {
-      throw new ScanError("unlistable", "lister exited with status 2");
+    async list(file, name, stopAt) {
+      if (name === "Code-1-windows-x64.zip" && !listable)
+        throw new ScanError("unlistable", "lister exited with status 2");
+      return deps.list(file, name, stopAt);
     },
   };
-  const firstUnlistable = await scan(targets, new Map(), unlistable);
+  const firstUnlistable = await scan(targets, new Map(), unlistable, { maxAssets: 1 });
   assert.equal(firstUnlistable.failures.size, 0);
-  calls.length = 0;
-  const again = await scan(targets, firstUnlistable.checkpoint, unlistable, {
-    failures: firstUnlistable.failures,
-    maxAssets: 1,
-  });
-  assert.ok(calls.includes("download Code-1-windows-x64.zip"), "downloaded again");
+  assert.equal(firstUnlistable.retries.size, 1);
   assert.deepEqual(
-    again.report.unscanned.map(({ id, code }) => [id, code]),
+    firstUnlistable.report.unscanned.map(({ id, code }) => [id, code]),
     [
       ["code-only", "unlistable"],
       ["header", "asset-budget"],
       ["gitlab", "no-single-asset"],
     ],
   );
+  calls.length = 0;
+  const again = await scan(targets, firstUnlistable.checkpoint, unlistable, {
+    failures: firstUnlistable.failures,
+    retries: firstUnlistable.retries,
+    maxAssets: 1,
+  });
+  assert.ok(calls.includes("download Code-1-windows-x64.zip"), "re-checked");
+  // The re-check never takes the main budget: the other target is scanned, not deferred.
+  assert.deepEqual(
+    again.report.scanned.map(({ id }) => id),
+    ["header"],
+  );
+  assert.deepEqual(
+    again.report.unscanned.map(({ id, code }) => [id, code]),
+    [
+      ["code-only", "unlistable"],
+      ["gitlab", "no-single-asset"],
+    ],
+  );
+  // The re-check is recorded against this retry run, so the rotation moves on.
+  assert.deepEqual([...firstUnlistable.retries.values()], [1]);
+  assert.deepEqual([...again.retries.keys()], [...firstUnlistable.retries.keys()]);
+  assert.deepEqual([...again.retries.values()], [2]);
+  // Outside the allowance a remembered retry keeps its persistent code: never a deferral.
+  const spentRetries = await scan(targets, new Map(), unlistable, {
+    retries: firstUnlistable.retries,
+    maxRetryAssets: 1,
+    maxRetryBytes: 5,
+  });
+  assert.deepEqual(
+    spentRetries.report.unscanned.map(({ id, code }) => [id, code]),
+    [
+      ["code-only", "unlistable"],
+      ["gitlab", "no-single-asset"],
+    ],
+  );
+  assert.deepEqual(
+    [...spentRetries.retries],
+    [...firstUnlistable.retries],
+    "still remembered, not re-checked",
+  );
+  // A re-check that now lists cleanly becomes an ordinary scanned record.
+  listable = true;
+  const fixed = await scan(targets, again.checkpoint, unlistable, {
+    retries: again.retries,
+    maxAssets: 0,
+  });
+  assert.deepEqual(
+    fixed.report.scanned.map(({ id }) => id),
+    ["code-only"],
+  );
+  assert.equal(fixed.retries.size, 0);
   // A transient failure is never remembered.
   const transient = await scan(targets, new Map(), {
     ...deps,
@@ -578,7 +644,7 @@ void test("the hosted release read reports a redirect, 404 or 410 as unavailable
   const gitlab = scanTargets(listings)[2]!;
   const outcome = async (target: typeof github) => {
     try {
-      await hostedDependencies("token").releases(target);
+      await hostedDependencies("token").releases(target, Date.now() + 60_000);
       return "ok";
     } catch (error) {
       return error instanceof ScanError ? error.code : "deferred";
@@ -635,8 +701,20 @@ void test("the CLI keeps only current, remembered failures and refuses a scan wi
     JSON.stringify({
       format_version: 1,
       records: [
-        { key: current, rules: RULES_VERSION, signals: [] },
+        {
+          key: current,
+          rules: RULES_VERSION,
+          signals: [],
+          accounted: { reason: "not from the reviewed file", evidence: "x" },
+        },
         { key: "r0|github|up/a|v1|a.zip|10", rules: 0, signals: [] },
+      ],
+      retries: [
+        { key: `${current}|r`, rules: RULES_VERSION },
+        { key: `${current}|t`, rules: RULES_VERSION, checked_at: 3 },
+        { key: `${current}|u`, rules: RULES_VERSION, checked_at: -1 },
+        { key: "r0|github|up/a|v1|a.zip|10", rules: 0 },
+        { key: `${current}|s`, rules: 0 },
       ],
       failures: [
         { key: current, code: "encrypted-archive", max_asset_bytes: 100 },
@@ -652,6 +730,31 @@ void test("the CLI keeps only current, remembered failures and refuses a scan wi
     [...loaded.failures.values()].map(({ key, code }) => [key, code]),
     [[current, "encrypted-archive"]],
   );
+  // A retry from before rotation, or with an invalid counter, counts as never re-checked.
+  assert.deepEqual(
+    [...loaded.retries],
+    [
+      [`${current}|r`, 0],
+      [`${current}|t`, 3],
+      [`${current}|u`, 0],
+    ],
+  );
+  // A cached record never carries accounting; only the reviewed file does.
+  assert.equal("accounted" in loaded.records.get(current)!, false);
+  // A checkpoint from before retries existed still loads.
+  const older = path.join(dir, "older.json");
+  await writeFile(
+    older,
+    JSON.stringify({
+      format_version: 1,
+      records: [{ key: current, rules: RULES_VERSION, signals: [] }],
+    }),
+  );
+  const fromOlder = await readCheckpoint(older);
+  assert.deepEqual(
+    [fromOlder.records.size, fromOlder.failures.size, fromOlder.retries.size],
+    [1, 0, 0],
+  );
   const missing = await readCheckpoint(path.join(dir, "absent.json"));
   assert.equal(missing.records.size + missing.failures.size, 0);
   assert.equal((await readCheckpoint("-")).records.size, 0);
@@ -664,4 +767,459 @@ void test("the CLI keeps only current, remembered failures and refuses a scan wi
     /The listings offer no scan targets/u,
   );
   assert.equal(existsSync(output), false, "no report is written");
+  // An invalid accounting file fails the scan before anything is read.
+  const accounting = path.join(dir, "accounting.json");
+  await writeFile(
+    accounting,
+    JSON.stringify({ format_version: 1, entries: [{ port_id: "absent" }] }),
+  );
+  await assert.rejects(
+    main([
+      "scan",
+      "--listings",
+      empty,
+      "--checkpoint",
+      "-",
+      "--output",
+      output,
+      "--accounting",
+      accounting,
+    ]),
+    /Invalid release-content accounting/u,
+  );
+  assert.equal(existsSync(output), false);
+});
+
+const accountingEntry = (overrides: Record<string, unknown> = {}) => ({
+  port_id: "header",
+  platform: "linux-x86-64",
+  sha256: "0".repeat(64),
+  rules: 2,
+  reason: "Synthetic homebrew test cartridge, reviewed as original code.",
+  evidence: "https://github.com/boburning/portcove/issues/1",
+  ...overrides,
+});
+
+void test("accounting entries are validated strictly against the listings", () => {
+  const valid = { format_version: 1, entries: [accountingEntry()] };
+  assert.equal(readAccounting(valid, listings).length, 1);
+  assert.deepEqual(readAccounting({ format_version: 1, entries: [] }, listings), []);
+  for (const [label, value] of [
+    ["no format", { entries: [] }],
+    [
+      "missing field",
+      { format_version: 1, entries: [{ ...accountingEntry(), reason: undefined }] },
+    ],
+    ["unknown field", { format_version: 1, entries: [{ ...accountingEntry(), note: "x" }] }],
+    ["unknown port", { format_version: 1, entries: [accountingEntry({ port_id: "absent" })] }],
+    [
+      "upper-case digest",
+      { format_version: 1, entries: [accountingEntry({ sha256: "A".repeat(64) })] },
+    ],
+    ["no rules", { format_version: 1, entries: [accountingEntry({ rules: 0 })] }],
+    ["short reason", { format_version: 1, entries: [accountingEntry({ reason: "fine" })] }],
+    [
+      "foreign evidence",
+      {
+        format_version: 1,
+        entries: [accountingEntry({ evidence: "https://github.com/other/repo/issues/1" })],
+      },
+    ],
+    [
+      "evidence not an issue or pull request",
+      {
+        format_version: 1,
+        entries: [accountingEntry({ evidence: "https://github.com/boburning/portcove/commit/1" })],
+      },
+    ],
+    ["duplicate", { format_version: 1, entries: [accountingEntry(), accountingEntry()] }],
+  ] as const)
+    assert.throws(
+      () => readAccounting(value, listings),
+      /Invalid release-content accounting/u,
+      label,
+    );
+});
+
+void test("the checked-in accounting file is valid against the catalog listings", async () => {
+  const { readFile } = await import("node:fs/promises");
+  const read = async (relative: string) =>
+    JSON.parse(await readFile(new URL(relative, import.meta.url), "utf8")) as unknown;
+  const entries = readAccounting(
+    await read("../.github/release-content-accounting.json"),
+    await read("../crates/portcove-core/catalog/listings.json"),
+  );
+  assert.ok(Array.isArray(entries));
+});
+
+void test("an accounted finding names its review and raises no warning; a new digest or rules version is not covered", async () => {
+  const { RULES_VERSION } = await import("./release-content-signals.mts");
+  const targets = scanTargets(listings);
+  const first = await scan(targets, new Map(), fakes([]));
+  const flagged = first.report.findings[0]!;
+  const entry = accountingEntry({ sha256: flagged.sha256, rules: RULES_VERSION });
+  const stale = accountingEntry({ sha256: "f".repeat(64), rules: RULES_VERSION });
+  const accounted = await scan(targets, new Map(), fakes([]), { accounting: [entry, stale] });
+  assert.deepEqual(accounted.report.findings[0]!.accounted, {
+    reason: entry.reason,
+    evidence: entry.evidence,
+  });
+  // The checkpoint keeps the plain record: accounting can change without a rescan.
+  assert.ok(![...accounted.checkpoint.values()].some((record) => "accounted" in record));
+  assert.deepEqual(accounted.report.accounting_unmatched, [
+    { port_id: "header", platform: "linux-x86-64", sha256: "f".repeat(64), rules: RULES_VERSION },
+  ]);
+  // Reused findings are matched too.
+  const reused = await scan(targets, accounted.checkpoint, fakes([]), { accounting: [entry] });
+  assert.equal(reused.report.findings[0]!.accounted?.evidence, entry.evidence);
+  assert.equal(accountingFor([{ ...entry, rules: RULES_VERSION + 1 }], flagged), undefined);
+  assert.equal(accountingFor([{ ...entry, platform: "windows-x86-64" }], flagged), undefined);
+  const text = summaryMarkdown(accounted.report);
+  assert.match(text, /No game-data signals to review\./u);
+  assert.match(text, /### Accounted signals \(reviewed false positives\)/u);
+  assert.match(text, /### Accounting entries no finding matched/u);
+  // Annotations skip accounted findings.
+  const dir = await mkdtemp(path.join(os.tmpdir(), "release-scan-annotations-"));
+  try {
+    const file = path.join(dir, "report.json");
+    await writeFile(file, JSON.stringify(accounted.report));
+    const written: string[] = [];
+    const original = process.stdout.write.bind(process.stdout);
+    process.stdout.write = (chunk: string) => (written.push(String(chunk)), true);
+    try {
+      await main(["annotations", "--report", file]);
+      await writeFile(file, JSON.stringify(first.report));
+      await main(["annotations", "--report", file]);
+    } finally {
+      process.stdout.write = original;
+    }
+    assert.equal(
+      written.filter((line) => line.startsWith("::warning")).length,
+      1,
+      "only the unaccounted run warns",
+    );
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+void test("each record keeps at most the signal cap, sorted, with the true count", async () => {
+  const many = Array.from({ length: SIGNAL_CAP + 5 }, (_, index) => ({
+    path: `rom-${String(SIGNAL_CAP + 5 - index).padStart(2, "0")}.z64`,
+    kind: "rom-or-disc-image" as const,
+    reason: "Nintendo 64 ROM image file",
+  }));
+  const capped = cappedSignals(many);
+  assert.equal(capped.signals.length, SIGNAL_CAP);
+  assert.equal(capped.signal_count, SIGNAL_CAP + 5);
+  assert.equal(capped.signals[0]!.path, "rom-01.z64");
+  assert.deepEqual(cappedSignals([...many].reverse()), capped, "deterministic");
+  const deps = fakes([]);
+  const { report, checkpoint } = await scan(scanTargets(listings), new Map(), {
+    ...deps,
+    async list(file, name, stopAt) {
+      return name === "Code-1-windows-x64.zip"
+        ? many.map(({ path: entry }) => ({ path: entry, size: 10 }))
+        : deps.list(file, name, stopAt);
+    },
+  });
+  const record = report.scanned.find(({ id }) => id === "code-only")!;
+  assert.equal(record.signals.length, SIGNAL_CAP);
+  assert.equal(record.signal_count, SIGNAL_CAP + 5);
+  assert.match(summaryMarkdown(report), /\(and 5 more\)/u);
+  // A record checkpointed before the cap is capped when reused.
+  const legacy = new Map(
+    [...checkpoint].map(([key, value]) => {
+      const { signal_count: _count, ...rest } = value;
+      return [key, { ...rest, signals: value.id === "code-only" ? many : value.signals }];
+    }),
+  ) as unknown as typeof checkpoint;
+  const again = await scan(scanTargets(listings), legacy, deps);
+  const reused = again.report.findings.find(({ id }) => id === "code-only")!;
+  assert.equal(reused.signals.length, SIGNAL_CAP);
+  assert.equal(reused.signal_count, SIGNAL_CAP + 5);
+  assert.deepEqual(
+    again.report.reused_targets.map(({ id, tag, asset }) => [id, tag, asset]),
+    [
+      ["code-only", "v1", "Code-1-windows-x64.zip"],
+      ["header", "v0.2", "release_Linux.zip"],
+    ],
+  );
+});
+
+void test("unlistable re-checks rotate: more retries than the allowance leave no gaps and each is re-checked", async () => {
+  // Seven listings, five of them persistently unlistable; the allowance re-checks four per run.
+  const many = {
+    listings: Array.from({ length: 7 }, (_, index) => ({
+      id: `p${index}`,
+      project_url: `https://github.com/up/p${index}`,
+      download_asset_hints: { "linux-x86-64": [`p${index}.zip`] },
+    })),
+  };
+  const targets = scanTargets(many);
+  const unlistable = new Set(["p0.zip", "p1.zip", "p2.zip", "p3.zip", "p4.zip"]);
+  const downloads: string[] = [];
+  const deps: ScanDependencies = {
+    async releases(target) {
+      const name = `${target.repository.split("/")[1]}.zip`;
+      return [
+        {
+          tag: "v1",
+          draft: false,
+          prerelease: false,
+          assets: [{ name, url: name, size: 10, digest: null }],
+        },
+      ];
+    },
+    async download(asset, file) {
+      downloads.push(asset.name);
+      await writeFile(file, asset.name);
+    },
+    async list(_file, name) {
+      if (unlistable.has(name)) throw new ScanError("unlistable", "lister exited with status 2");
+      return [{ path: "game.exe", size: 1 }];
+    },
+    async heads() {
+      return new Map();
+    },
+  };
+  const { DEFERRED_UNSCANNED } = await import("./release-content-scan.mts");
+  let checkpoint = new Map<
+    string,
+    Parameters<typeof scan>[1] extends ReadonlyMap<string, infer R> ? R : never
+  >();
+  let retries = new Map<string, number>();
+  const checkedIn = new Map<string, number[]>();
+  for (let run = 1; run <= 6; run++) {
+    downloads.length = 0;
+    const result = await scan(targets, checkpoint, deps, { retries, maxAssets: 40 });
+    checkpoint = result.checkpoint;
+    retries = result.retries;
+    // Retries are never a deferral, so no port becomes a coverage gap.
+    assert.deepEqual(
+      result.report.unscanned.filter(({ code }) =>
+        (DEFERRED_UNSCANNED as readonly string[]).includes(code),
+      ),
+      [],
+      `run ${run}`,
+    );
+    assert.deepEqual(
+      result.report.unscanned.map(({ id, code }) => [id, code]),
+      [...unlistable].map((name) => [name.slice(0, -4), "unlistable"]),
+      `run ${run}`,
+    );
+    for (const name of downloads) checkedIn.set(name, [...(checkedIn.get(name) ?? []), run]);
+    if (run > 1) assert.ok(downloads.filter((name) => unlistable.has(name)).length <= 4);
+  }
+  // Least recently checked first: every retry is re-checked within two runs of the last.
+  for (const name of unlistable) {
+    const runs = checkedIn.get(name) ?? [];
+    for (let run = 2; run <= 6; run++)
+      assert.ok(
+        runs.some((at) => at === run || at === run - 1),
+        `${name} re-checked by run ${run}: ${runs.join(", ")}`,
+      );
+  }
+  // A byte allowance that fits one package re-checks each in turn, never deferring.
+  const bytesChecked: string[][] = [];
+  let byteRetries = new Map([...retries].slice(0, 2));
+  for (let run = 0; run < 4; run++) {
+    downloads.length = 0;
+    const result = await scan(targets, checkpoint, deps, {
+      retries: byteRetries,
+      maxRetryBytes: 15,
+    });
+    byteRetries = new Map([...result.retries].filter(([key]) => byteRetries.has(key)));
+    const retried = new Set([...byteRetries.keys()].map((key) => key.split("|")[4]));
+    bytesChecked.push(downloads.filter((name) => retried.has(name)));
+    assert.ok(result.report.unscanned.every(({ code }) => code === "unlistable"));
+  }
+  assert.ok(bytesChecked.every((names) => names.length === 1));
+  assert.equal(new Set(bytesChecked.flat()).size, 2, "both are re-checked in turn");
+});
+
+void test("a cached record's own accounting is ignored without the reviewed file", async () => {
+  const first = await scan(scanTargets(listings), new Map(), fakes([]));
+  const tampered = new Map(
+    [...first.checkpoint].map(([key, record]) => [
+      key,
+      {
+        ...record,
+        accounted: {
+          reason: "Claimed in the cache, not reviewed.",
+          evidence: "https://github.com/boburning/portcove/issues/1",
+        },
+      },
+    ]),
+  );
+  const again = await scan(scanTargets(listings), tampered, fakes([]), { accounting: [] });
+  assert.ok(again.report.findings.length > 0);
+  assert.ok(again.report.findings.every((finding) => !("accounted" in finding)));
+});
+
+void test("release reads stop at the deadline and the rest of the targets wait for a later run", async () => {
+  const many = {
+    listings: Array.from({ length: 6 }, (_, index) => ({
+      id: `p${index}`,
+      project_url: `https://github.com/up/p${index}`,
+      download_asset_hints: { "linux-x86-64": [`p${index}.zip`] },
+    })),
+  };
+  let now = 0;
+  let reads = 0;
+  const stops: number[] = [];
+  const result = await scan(
+    scanTargets(many),
+    new Map(),
+    {
+      ...fakes([]),
+      async releases(_target, stopAt) {
+        stops.push(stopAt);
+        // The clock passes the deadline after the second read.
+        if (++reads === 2) now = 10;
+        return [];
+      },
+    },
+    { deadline: 5, clock: () => now },
+  );
+  assert.equal(reads, 2);
+  assert.deepEqual(stops, [5, 5], "each read is bounded by the run's deadline");
+  assert.deepEqual(
+    result.report.unscanned.map(({ code }) => code),
+    ["time-budget", "time-budget", "time-budget", "time-budget", "time-budget", "time-budget"],
+  );
+  // A read that fails because the deadline cut it is time-budget, not a release fault.
+  now = 0;
+  const cut = await scan(
+    scanTargets(many).slice(0, 1),
+    new Map(),
+    {
+      ...fakes([]),
+      async releases() {
+        now = 10;
+        throw new Error("The operation was aborted due to timeout");
+      },
+    },
+    { deadline: 5, clock: () => now },
+  );
+  assert.deepEqual(
+    cut.report.unscanned.map(({ code }) => code),
+    ["time-budget"],
+  );
+});
+
+void test("a hosted release read times out within the deadline as an ordinary deferred failure", async (context) => {
+  const signals: AbortSignal[] = [];
+  context.mock.method(globalThis, "fetch", (_url: unknown, init?: RequestInit) => {
+    signals.push(init!.signal!);
+    return new Promise((_resolve, reject) =>
+      init!.signal!.addEventListener("abort", () => reject(init!.signal!.reason)),
+    );
+  });
+  const target = scanTargets(listings)[0]!;
+  const started = Date.now();
+  // The deadline is closer than the per-read cap, so it bounds the read.
+  const failure = await hostedDependencies("token")
+    .releases(target, Date.now() + 50)
+    .then(
+      () => null,
+      (error: unknown) => error,
+    );
+  assert.ok(Date.now() - started < 5_000);
+  assert.ok(
+    failure instanceof Error && !(failure instanceof ScanError),
+    "deferred, not persistent",
+  );
+  assert.equal(signals.length, 1);
+  // Through the scan it is a deferred release-read failure while time remains.
+  const outcome = await scan(
+    [target],
+    new Map(),
+    {
+      ...fakes([]),
+      async releases() {
+        throw failure;
+      },
+    },
+    { deadline: Number.POSITIVE_INFINITY },
+  );
+  assert.deepEqual(
+    outcome.report.unscanned.map(({ code }) => code),
+    ["release-read-failed"],
+  );
+  // Past the deadline no read starts at all.
+  await assert.rejects(
+    hostedDependencies("token").releases(target, Date.now() - 1),
+    /time budget reached/u,
+  );
+  assert.equal(signals.length, 1);
+});
+
+void test("two targets sharing an unlistable package re-check it once in a run", async () => {
+  const shared = {
+    listings: ["a", "b"].map((id) => ({
+      id,
+      project_url: "https://github.com/up/shared",
+      download_asset_hints: { "linux-x86-64": ["shared.zip"] },
+    })),
+  };
+  const targets = scanTargets(shared);
+  let listable = false;
+  const downloads: string[] = [];
+  const deps: ScanDependencies = {
+    async releases() {
+      return [
+        {
+          tag: "v1",
+          draft: false,
+          prerelease: false,
+          assets: [{ name: "shared.zip", url: "u", size: 10, digest: null }],
+        },
+      ];
+    },
+    async download(asset, file) {
+      downloads.push(asset.name);
+      await writeFile(file, asset.name);
+    },
+    async list() {
+      if (!listable) throw new ScanError("unlistable", "lister exited with status 2");
+      return [{ path: "game.exe", size: 1 }];
+    },
+    async heads() {
+      return new Map();
+    },
+  };
+  const first = await scan(targets, new Map(), deps);
+  assert.deepEqual(downloads, ["shared.zip"], "the second target reuses the first outcome");
+  assert.deepEqual(
+    first.report.unscanned.map(({ id, code }) => [id, code]),
+    [
+      ["a", "unlistable"],
+      ["b", "unlistable"],
+    ],
+  );
+  downloads.length = 0;
+  const again = await scan(targets, first.checkpoint, deps, { retries: first.retries });
+  assert.deepEqual(downloads, ["shared.zip"], "one re-check for both targets");
+  assert.deepEqual(
+    again.report.unscanned.map(({ id, code }) => [id, code]),
+    [
+      ["a", "unlistable"],
+      ["b", "unlistable"],
+    ],
+  );
+  // Once it lists cleanly, the second target reuses the new record.
+  listable = true;
+  downloads.length = 0;
+  const fixed = await scan(targets, again.checkpoint, deps, { retries: again.retries });
+  assert.deepEqual(downloads, ["shared.zip"]);
+  assert.deepEqual(
+    fixed.report.scanned.map(({ id }) => id),
+    ["a"],
+  );
+  assert.deepEqual(
+    fixed.report.reused_targets.map(({ id }) => id),
+    ["b"],
+  );
+  assert.equal(fixed.retries.size, 0);
 });

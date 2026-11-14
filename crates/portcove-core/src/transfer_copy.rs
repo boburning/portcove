@@ -208,7 +208,13 @@ pub(crate) fn verify_destination(
     let catalogs =
         crate::library_import::PortabilityCatalogs::from_root(expected_metadata, destination_root)?;
     if let Some(artwork) = &expected_metadata.artwork {
-        for asset in &artwork.assets {
+        for asset in artwork.assets.iter().filter(|asset| {
+            // A removed original was not carried and must not be read.
+            !artwork
+                .evicted_assets
+                .iter()
+                .any(|evicted| evicted.asset_sha256 == asset.sha256)
+        }) {
             let bytes = crate::artwork::original_bytes(library, asset)?;
             let decoded = crate::artwork_image::decode(&bytes)?;
             if decoded.format != asset.format
@@ -253,7 +259,7 @@ pub(crate) fn verify_destination(
                 "copied application failed immutable manifest verification",
             )
             .detail("install_id", install.id)
-            .detail("failures", report.failures.join(", ")));
+            .detail("failures", report.findings().join(", ")));
         }
     }
     Ok(())
@@ -268,8 +274,8 @@ pub(crate) fn verify_metadata(
     metadata.original_root = expected.original_root.clone();
     metadata.exported_at = 0;
     expected.exported_at = 0;
-    if matches!(expected.schema_version, 5..=9) {
-        // Schema 5-9 can carry an empty set. A fresh export keeps using schema 3/4
+    if matches!(expected.schema_version, 5..=10) {
+        // Schema 5-10 can carry an empty set. A fresh export keeps using schema 3/4
         // when nothing requires the newer reader contract.
         metadata.schema_version = expected.schema_version;
     }

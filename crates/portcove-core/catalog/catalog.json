@@ -152,6 +152,16 @@
         "live_url": "https://github.com/JackandBeans/Snap64Recomp/blob/main/README.md"
       },
       {
+        "id": "snap64-recomp-1-1-7-source-contract",
+        "role": "upstream_support",
+        "authority": "JackandBeans/Snap64Recomp",
+        "authority_ref": "0525610a89fd3c960b5a3555fad63e20f0d97f64",
+        "reviewed_at": "2026-11-14",
+        "claim": "Exact v1.1.7 Windows x64 (18834158 bytes, SHA-256 fcf7950f200c3006557aa4c5c54a117552ea194674da5f4d710e704e2ce60c95), Linux x86-64 (9821880 bytes, SHA-256 d2ab64531be1b680c4bc995b7056c2e53914772ab0de2630ccf95513c6e5233d) and macOS universal (12752773 bytes, SHA-256 ad8c54692afbdc8b09d5860afcd34fddf523b11a35f064af9192a1c0c8ed9f50) packages match their published .sha256 files; the provider release digest was not read. The README still names the US cartridge SHA-1 edc7c49cc568c045fe48be0d18011c30f393cbaf, Snap64Recomp stays the only program at the same place, and src/paths.cpp still uses an absolute SNAP_DATA_DIR first on every platform, so the data folder is the Portcove user folder. Under the owner decision of November 14, 2026 the route sets SNAP_NO_STEAM_ART=1: src/steam_art.cpp with the switch read by read_launch, do_the_art returns before Steam discovery, any write into Steam's config/grid folder and any steam_art_done.txt read or append. The remaining new data-folder writers, snap64.running, snap64.gpu_failed and the Linux Mesa shader-cache fallback in cache, live in the user folder that backups capture whole; the fallback may instead use XDG_CACHE_HOME outside Portcove. Native execution, gameplay and saves remain unobserved for this release.",
+        "immutable_url": "https://github.com/JackandBeans/Snap64Recomp/blob/0525610a89fd3c960b5a3555fad63e20f0d97f64/src/steam_art.cpp",
+        "live_url": "https://github.com/JackandBeans/Snap64Recomp/blob/main/src/steam_art.cpp"
+      },
+      {
         "id": "ape-escape-recompiled-0-3-0-source-contract",
         "role": "upstream_support",
         "authority": "mstan/ApeEscapeRecomp",
@@ -222,6 +232,16 @@
         "live_url": "https://github.com/fliperama86/cvlod_recomp/blob/main/castlevania2.yaml"
       },
       {
+        "id": "cvlod-recomp-0-2-29-source-contract",
+        "role": "upstream_support",
+        "authority": "fliperama86/cvlod_recomp",
+        "authority_ref": "2be8acde176c21aecf05a35f1748a587be2e8381",
+        "reviewed_at": "2026-11-14",
+        "claim": "Exact v0.2.29 Windows x64 (29763505 bytes, SHA-256 68a2ae45bff297583a2e12d0beb41bf1212c98ff57105d6b4d1a31954d142b23), Linux x64 (55162656 bytes, SHA-256 0d9e54387efa82fa74ceaa588314596ac7ba77681e30b905dd89feb5f8943aad) and macOS arm64 (21232725 bytes, SHA-256 fdedea70286fff585ec671600ec3e863b8297b27281df44a1ff4b07c8798e1f8) packages match their published .sha256 files; the provider release digest was not read. At this tag castlevania2.yaml and include/lod/target_rom.hpp are byte-identical to v0.2.26 and keep the North American SHA-1 879ead98f197fd05edda867655da5b1ce25aa5b8. Against the bound v0.2.26 packages the Windows and Linux wrapper folder is named LodRecomp-ab942ba9-<platform> instead of LodRecomp-v0.2.26-<platform> and the file lists are otherwise identical, the macOS LodRecomp.app list is identical, and LodRecomp stays the only program. The tagged src/main/main.cpp keeps the portable.txt lookup and the rom.z64 default and writes only the declared graphics.json, audio.json, controls.json, rom_path.txt, cheats.cfg and LodRecomp.log. The known v0.2.26 Windows normal-close failure, native execution, gameplay and saves remain unobserved for this release.",
+        "immutable_url": "https://github.com/fliperama86/cvlod_recomp/blob/2be8acde176c21aecf05a35f1748a587be2e8381/castlevania2.yaml",
+        "live_url": "https://github.com/fliperama86/cvlod_recomp/blob/main/castlevania2.yaml"
+      },
+      {
         "id": "golden-balloon-1-7-0-source-contract",
         "role": "upstream_support",
         "authority": "akratch/goldenballoon",
@@ -229,6 +249,16 @@
         "reviewed_at": "2026-09-15",
         "claim": "Limits Golden Balloon 1.7.0 to verified US Rev 1 and European Rev 1 Diddy Kong Racing sources",
         "immutable_url": "https://github.com/akratch/goldenballoon/blob/106bad37244a2f8829bab21c655d25ff4b4dcdbf/platform/rom_validation.c",
+        "live_url": "https://github.com/akratch/goldenballoon/blob/main/platform/rom_validation.c"
+      },
+      {
+        "id": "golden-balloon-1-8-0-source-contract",
+        "role": "upstream_support",
+        "authority": "akratch/goldenballoon",
+        "authority_ref": "2b69e748ec04f87a4dc6f032c598726de1b0e813",
+        "reviewed_at": "2026-11-14",
+        "claim": "Exact v1.8.0 Windows x64 package (31898069 bytes, SHA-256 98ab31dd7108e478cc1469b3cbcce05e321b97b16a06035c2ea99c2122f2b0e1) matches its published .sha256 file and the reviewed game-settings artifact; the provider release digest was not read. At this tag platform/rom_validation.c is byte-identical to v1.7.0, so the US Rev 1 and European Rev 1 checks are unchanged. Against the bound v1.7.0 package the 38-entry GoldenBalloon folder lists the same paths, GoldenBalloon.exe and the three tools programs keep their paths, and only GoldenBalloon.exe, tools/mdkr-character-lod.exe, README.md and NativePhoneParty-NOTICES.txt changed by content. platform/user_paths.c adds only an opt-in MDKR_MODS_DIR override that Portcove does not set; platform/config_ini.c, platform/app/app_config.cpp and platform/app/arg_triage.h are byte-identical. Native execution, gameplay and saves remain unobserved for this release.",
+        "immutable_url": "https://github.com/akratch/goldenballoon/blob/2b69e748ec04f87a4dc6f032c598726de1b0e813/platform/rom_validation.c",
         "live_url": "https://github.com/akratch/goldenballoon/blob/main/platform/rom_validation.c"
       },
       {
@@ -409,6 +439,16 @@
         "claim": "The pinned v1.4.3 source hashes the entire canonical 32 MiB Road Rash 64 USA ROM and requires its exact SHA-256.",
         "immutable_url": "https://github.com/linkssy2/RoadRash64Recompiled/blob/42bf10065362daf91a77089a9f5c8147dae60de0/native/src/rr64_experimental_course.cpp",
         "live_url": "https://github.com/linkssy2/RoadRash64Recompiled/blob/main/native/src/rr64_experimental_course.cpp"
+      },
+      {
+        "id": "road-rash-64-v1-4-9-source-contract",
+        "role": "upstream_support",
+        "authority": "linkssy2/RoadRash64Recompiled",
+        "authority_ref": "37e33d4f832857a60a34f1369b83b32afe00d25d",
+        "reviewed_at": "2026-11-14",
+        "claim": "Exact v1.4.9 Win64 package (47342604 bytes, SHA-256 74948ebc0dbfd37c95ce5468b9b49dc277098c5141f66d44449ccb33d4b71594) matches the published SHA256SUMS.txt; the provider release digest was not read. Its docs/BUILD_INFO.json names source commit 37e33d4f832857a60a34f1369b83b32afe00d25d, the tag commit. At this tag docs/PROJECT_DETAILS.md declares the USA v1.0 normalized 32 MiB SHA-1 87727a298f583ec8325f5655088ff21e37b335b2, and native/src/rr64_experimental_course.cpp is byte-identical to v1.4.3 and requires SHA-256 74e49e863484b5d17dcbe3891b99f2cafe3cf7511aa1dc5427022f699301db73. The package keeps the 312 paths of the reviewed v1.4.8 executable-parent route and adds only six docs files to v1.4.3; RoadRash64Recompiled.exe, RoadRash64DirectStart.exe and the three importer programs keep their paths. Against v1.4.8 the published source adds no data filename, environment variable or network call; against v1.4.3 the player adds only the data file cpu-weapon-options.cfg, which the current definition declares, and two opt-in trace variables Portcove does not set. The historical v1.4.3 wrapper-prefixed contract and its held transition are unchanged. Native execution, gameplay and saves remain unobserved for this release.",
+        "immutable_url": "https://github.com/linkssy2/RoadRash64Recompiled/blob/37e33d4f832857a60a34f1369b83b32afe00d25d/docs/PROJECT_DETAILS.md",
+        "live_url": "https://github.com/linkssy2/RoadRash64Recompiled/blob/main/docs/PROJECT_DETAILS.md"
       },
       {
         "id": "dkc3-recomp-0-0-6-source-contract",
@@ -17935,7 +17975,8 @@
         ],
         "validator_contract_id": null,
         "evidence_ids": [
-          "snap64-recomp-1-0-5-source-contract"
+          "snap64-recomp-1-0-5-source-contract",
+          "snap64-recomp-1-1-7-source-contract"
         ],
         "authority_ref": "0b1a67eb4fd15ff3a87957110c428eb4905c36cc",
         "reviewed_at": "2026-09-13",
@@ -17946,6 +17987,18 @@
           {
             "upstream_ref": "v1.0.5",
             "artifact_sha256": "e3ab514df95d4a8133d2504ddc2ce43c12e376f5be74f076b3f90c09f8baf6b7"
+          },
+          {
+            "upstream_ref": "v1.1.7",
+            "artifact_sha256": "fcf7950f200c3006557aa4c5c54a117552ea194674da5f4d710e704e2ce60c95"
+          },
+          {
+            "upstream_ref": "v1.1.7",
+            "artifact_sha256": "d2ab64531be1b680c4bc995b7056c2e53914772ab0de2630ccf95513c6e5233d"
+          },
+          {
+            "upstream_ref": "v1.1.7",
+            "artifact_sha256": "ad8c54692afbdc8b09d5860afcd34fddf523b11a35f064af9192a1c0c8ed9f50"
           }
         ],
         "aliases": [],
@@ -17962,7 +18015,8 @@
         ],
         "validator_contract_id": null,
         "evidence_ids": [
-          "cvlod-recomp-0-2-26-source-contract"
+          "cvlod-recomp-0-2-26-source-contract",
+          "cvlod-recomp-0-2-29-source-contract"
         ],
         "authority_ref": "89566dd74781d39e19944c8ba29a116ee31b963e",
         "reviewed_at": "2026-09-14",
@@ -17981,6 +18035,18 @@
           {
             "upstream_ref": "v0.2.26",
             "artifact_sha256": "0086f1aae522d1934af20cba6d9037e27ed96cf81de93a4be352fcc11cdf1408"
+          },
+          {
+            "upstream_ref": "v0.2.29",
+            "artifact_sha256": "68a2ae45bff297583a2e12d0beb41bf1212c98ff57105d6b4d1a31954d142b23"
+          },
+          {
+            "upstream_ref": "v0.2.29",
+            "artifact_sha256": "0d9e54387efa82fa74ceaa588314596ac7ba77681e30b905dd89feb5f8943aad"
+          },
+          {
+            "upstream_ref": "v0.2.29",
+            "artifact_sha256": "fdedea70286fff585ec671600ec3e863b8297b27281df44a1ff4b07c8798e1f8"
           }
         ],
         "aliases": [],
@@ -17998,7 +18064,8 @@
         ],
         "validator_contract_id": null,
         "evidence_ids": [
-          "golden-balloon-1-7-0-source-contract"
+          "golden-balloon-1-7-0-source-contract",
+          "golden-balloon-1-8-0-source-contract"
         ],
         "authority_ref": "106bad37244a2f8829bab21c655d25ff4b4dcdbf",
         "reviewed_at": "2026-09-15",
@@ -18009,6 +18076,10 @@
           {
             "upstream_ref": "v1.7.0",
             "artifact_sha256": "23369d7b0b4c2a7794917c8d6205125d32cca53227695f42f0f091517732bba1"
+          },
+          {
+            "upstream_ref": "v1.8.0",
+            "artifact_sha256": "98ab31dd7108e478cc1469b3cbcce05e321b97b16a06035c2ea99c2122f2b0e1"
           }
         ],
         "aliases": [],
@@ -18216,7 +18287,8 @@
         "validator_contract_id": null,
         "evidence_ids": [
           "road-rash-64-v1-4-3-source-sha1",
-          "road-rash-64-v1-4-3-source-sha256"
+          "road-rash-64-v1-4-3-source-sha256",
+          "road-rash-64-v1-4-9-source-contract"
         ],
         "authority_ref": "42bf10065362daf91a77089a9f5c8147dae60de0",
         "reviewed_at": "2026-10-04",
@@ -18227,6 +18299,10 @@
           {
             "upstream_ref": "v1.4.3",
             "artifact_sha256": "4d2a8cf9f126050eab563c19278df9cb799425cebddde9674ef39fd0dc2c102f"
+          },
+          {
+            "upstream_ref": "v1.4.9",
+            "artifact_sha256": "74948ebc0dbfd37c95ce5468b9b49dc277098c5141f66d44449ccb33d4b71594"
           }
         ],
         "aliases": [],
@@ -34430,6 +34506,9 @@
       ],
       "portable_marker": true,
       "user_data_environment": "SNAP_DATA_DIR",
+      "launch_environment": {
+        "SNAP_NO_STEAM_ART": "1"
+      },
       "runtime_source_filename": "pokemonsnap.z64",
       "runtime_source_materialization": "n64-big-endian",
       "presentation": {
@@ -35218,7 +35297,7 @@
     {
       "id": "wave-race-64-recomp",
       "name": "Wave Race 64: Recompiled",
-      "summary": "Native Wave Race 64 recompilation.",
+      "summary": "Native Wave Race 64 recompilation. Portcove installs the official Windows package; on Linux, download the upstream package and maintain it yourself.",
       "project_url": "https://github.com/danielgomesvieira2000/wave-race-64-recomp",
       "support_tier": "beta",
       "channels": [
@@ -35231,38 +35310,13 @@
       "automated_tested_platforms": [],
       "manually_validated_platforms": [],
       "release": {
-        "provider": "user-prepared",
+        "provider": "github",
         "repository": "danielgomesvieira2000/wave-race-64-recomp",
-        "user_prepared": {
-          "windows-x86-64": {
-            "version": "v1.0.2",
-            "archive_name": "WaveRace64Recomp-1.0.2-windows-x64.zip",
-            "archive_size": 17397538,
-            "archive_sha256": "8603e582e7a549f1f3a02c108d1453ad61e7f5df03b2f3232f9939323b044583",
-            "executable": "WaveRace64Recomp.exe",
-            "immutable_tree_sha256": "099e36267d4c288d142d8e7ae0be0fa3f3d79756a8637bcde9a53af24b8856da",
-            "source_argument_extension": "z64",
-            "mutable_paths": [
-              "general.json",
-              "general.json.bak",
-              "graphics.json",
-              "graphics.json.bak",
-              "controls.json",
-              "controls.json.bak",
-              "sound.json",
-              "sound.json.bak",
-              "mods.json",
-              "mods.json.bak",
-              "hud.json",
-              "water.json",
-              "wr64.log",
-              "wr64.us.rev1.z64",
-              "saves",
-              "mods",
-              "mod_config",
-              "texture_packs"
-            ]
-          }
+        "asset_hints": {
+          "windows-x86-64": [
+            "WaveRace64Recomp-",
+            "-windows-x64.zip"
+          ]
         }
       },
       "source_profile": "wave-race-64",
@@ -35271,8 +35325,38 @@
           "WaveRace64Recomp.exe"
         ]
       },
+      "portable_marker": true,
+      "persistent_paths": [
+        "wr64.us.rev1.z64",
+        "saves",
+        "mods",
+        "mod_config",
+        "texture_packs",
+        "general.json",
+        "general.json.bak",
+        "graphics.json",
+        "graphics.json.bak",
+        "controls.json",
+        "controls.json.bak",
+        "sound.json",
+        "sound.json.bak",
+        "mods.json",
+        "mods.json.bak",
+        "hud.json",
+        "hud.json.bak",
+        "water.json",
+        "water.json.bak"
+      ],
+      "runtime_mutable_paths": [
+        "wr64.log"
+      ],
+      "runtime_source_filename": "wr64.us.rev1.z64",
+      "runtime_source_materialization": "n64-big-endian",
+      "runtime_source_hashes": {
+        "wr64.us.rev1.z64": "f35d2423ebcb86eaf86fa935b613c7532b123a7bc50fb74996984c3b02fc3999"
+      },
       "presentation": {
-        "installation_method": "user-prepared-runtime",
+        "installation_method": "portable-recompilation",
         "source_requirements": [
           {
             "role": "game",
@@ -35281,39 +35365,36 @@
             "verification": "catalog-identity"
           }
         ],
-        "saves_and_settings": "external-user-owned",
-        "manual_preparation": "Extract the official v1.0.2 Windows ZIP, then create an empty portable.txt beside WaveRace64Recomp.exe. The marker is not in the ZIP; it keeps game-owned saves and settings beside the executable. Choose that folder for Portcove's exact-file review.",
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "Choose your own Wave Race 64 (USA) (Rev A) original. Portcove installs the unchanged official v1.0.2 Windows package, prepares the original beside the game and creates portable.txt so saves, settings and mods stay with the managed copy. Choose Start Game in the launcher. Portcove has not tested gameplay.",
         "original_game_title": "Wave Race 64",
         "manual_setup": {
           "steps": [
             {
-              "title": "Extract the port",
-              "instruction": "Use an already permitted copy of the complete official v1.0.2 Windows ZIP. Extract it into a writable folder outside your Portcove library."
+              "title": "Windows: use a copy you already prepared",
+              "instruction": "On Windows, choose Install for the copy Portcove manages. To keep playing a copy you extracted yourself, select WaveRace64Recomp.exe with its folder as the working directory and leave arguments empty. You and upstream maintain that copy."
             },
             {
-              "title": "Keep saves beside the game",
-              "instruction": "Create an empty file named portable.txt beside WaveRace64Recomp.exe. It is not included in the download."
+              "title": "Linux: download and extract the package",
+              "instruction": "Download the official package ending in -linux-x86_64.tar.gz and extract the whole folder somewhere writable. Install the SDL2, GTK 3, FreeType and Vulkan packages named in its README-LINUX.txt. The inspected v1.0.2 program needs glibc 2.43 and libstdc++ with GLIBCXX_3.4.32."
             },
             {
-              "title": "Select your original game file",
-              "instruction": "Choose and check your own supported Wave Race 64 original in Portcove, then choose the extracted port folder for review."
+              "title": "Linux: choose your original game",
+              "instruction": "Run WaveRace64Recomp.sh, choose Load ROM and select your own Wave Race 64 (USA) (Rev A) original. You maintain this copy: replace it yourself when upstream publishes a new version."
             }
           ],
           "warnings": [
-            "Keep portable.txt when updating this folder so the game continues to use its local saves and settings."
+            "The package contains recompiled game code; some bundled components have their own notices. Use only your own original game."
           ],
+          "help_url": "https://github.com/danielgomesvieira2000/wave-race-64-recomp/blob/ac2a296530f957f128388a6fc18028529c7f2b40/README.md",
           "references": [
             {
-              "title": "Prepare a separate upstream Linux copy",
-              "instruction": "For an already permitted Linux x64 package, keep the files together in a writable folder. Install the system SDL2, GTK 3, FreeType and Vulkan dependencies named in its README. Run WaveRace64Recomp.sh and select your own Wave Race 64 USA Rev A original. The inspected Linux executable requires glibc 2.43 and libstdc++ with GLIBCXX_3.4.32."
+              "title": "Find your saves and settings",
+              "instruction": "A copy with an empty portable.txt beside the program keeps saves and settings in its own folder: the saves folder and the .json settings files. Without it, Windows uses %LOCALAPPDATA%\\WaveRace64Recomp and Linux uses $XDG_DATA_HOME/WaveRace64Recomp, usually ~/.local/share/WaveRace64Recomp. Back these up before replacing a copy you maintain."
             },
             {
-              "title": "Preserve the Linux profile",
-              "instruction": "Keep the creating runtime, original and actual profile. Linux uses XDG_DATA_HOME/WaveRace64Recomp, usually ~/.local/share/WaveRace64Recomp. A portable.txt beside the player instead keeps data there. This Linux setup stays under upstream and player ownership."
-            },
-            {
-              "title": "Keep upstream permission and registration separate",
-              "instruction": "The official frontend has since published a GPLv3 grant for the same code. The selected releases still have separate translated title code and component conditions. Use an independently permitted copy. Portcove’s Windows review accepts the existing player-owned folder."
+              "title": "Move from a Windows copy you added earlier",
+              "instruction": "A v1.0.2 folder you added to Portcove keeps working where it is. Portcove doesn't copy its saves or settings into a managed copy. To switch, close the game and back up that folder's saves folder and .json settings files. Remove the registration (your files stay in place) and choose Install, but don't start the game yet. Open its saved data folder from the game's details and copy the saves folder and .json files into it. Portcove adds them to the game the first time you start it. If you've already started the managed copy, its own saves replace files copied this way."
             }
           ]
         },
@@ -52835,6 +52916,16 @@
           "game_slug": "banjo-tooie",
           "match_kind": "underlying-game"
         }
+      },
+      "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [
+            "third_party"
+          ],
+          "executables": [
+            "banjotooiescurvydogport.exe"
+          ]
+        }
       }
     },
     {
@@ -53759,6 +53850,29 @@
           "image_sha256": "bb71a22c939edcee852d6a1cb5889136074087a694340b2f70594d6af9d57195",
           "game_slug": "brave-fencer-musashi",
           "match_kind": "underlying-game"
+        }
+      },
+      "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [
+            "licenses"
+          ],
+          "executables": [
+            "launch.cmd",
+            "musashi_native_boot.exe"
+          ]
+        },
+        "linux-x86-64": {
+          "directories": [
+            "lib",
+            "licenses"
+          ],
+          "executables": [
+            "launch.sh",
+            "lib/libmusashi_x11_nograb.so",
+            "musashi_native_boot",
+            "musashi_native_boot.x86-64-v3"
+          ]
         }
       }
     },
@@ -54737,6 +54851,26 @@
           "image_sha256": "a8d755f08d07c9f8409b7e3703a78faaad6454da05ba2903367cbb16282271a3",
           "game_slug": "doraemon-nobita-to-3-tsu-no-seireiseki",
           "match_kind": "underlying-game"
+        }
+      },
+      "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [
+            "assets",
+            "licenses"
+          ],
+          "executables": [
+            "dora64.exe"
+          ]
+        },
+        "linux-x86-64": {
+          "directories": [
+            "assets",
+            "licenses"
+          ],
+          "executables": [
+            "dora64"
+          ]
         }
       }
     },
@@ -56039,10 +56173,14 @@
             {
               "title": "Start with your original game",
               "instruction": "On first Play, select your own F-Zero USA ROM and press Play in the launcher. The package includes its native runtime and does not require generating or compiling game code. The launcher remembers the selected ROM path."
+            },
+            {
+              "title": "Set up the Apple Silicon app",
+              "instruction": "On Apple Silicon with macOS 13 or later, download the upstream arm64 ZIP and extract the complete app outside your Portcove library. Follow upstream’s first-launch instructions. Choose your own supported F-Zero USA ROM. Keep the actual FZeroRecomp profile under Library/Application Support and any custom save folder."
             }
           ],
           "warnings": [],
-          "help_url": "https://github.com/craigshaw/FZeroRecomp/blob/v0.6.0/README.md"
+          "help_url": "https://github.com/craigshaw/FZeroRecomp#readme"
         },
         "artwork": {
           "game_id": 3490,
@@ -56051,6 +56189,27 @@
           "image_sha256": "c504dbfa253882ca87b76d75a5cd290aef6b717a368617107d69e836bd651553",
           "game_slug": "f-zero",
           "match_kind": "underlying-game"
+        }
+      },
+      "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [
+            "assets",
+            "licenses"
+          ],
+          "executables": [
+            "fzero_recomp.exe"
+          ]
+        },
+        "linux-x86-64": {
+          "directories": [
+            "assets",
+            "lib",
+            "licenses"
+          ],
+          "executables": [
+            "fzero_recomp"
+          ]
         }
       }
     },
@@ -56731,6 +56890,10 @@
             {
               "title": "Choose your original disc on Play",
               "instruction": "Use your own USA PlayStation Alien Resurrection disc, SLUS-00633. The game launcher accepts its .cue, a .bin track or the containing folder and checks the edition."
+            },
+            {
+              "title": "Set up the universal Mac app",
+              "instruction": "On Intel or Apple Silicon with macOS 11 or later, extract the upstream macOS ZIP with the system archive tool and keep the complete app. If downloading through Portcove, clear “Extract the archive after downloading”. Follow upstream’s first-launch instructions. Use your own supported USA disc. Preserve the actual AlienResurrection profile under Library/Application Support or your custom save directory."
             }
           ],
           "warnings": [
@@ -56743,6 +56906,27 @@
               "title": "Preserve the profile before changing versions",
               "instruction": "Make an in-game memory-card save before updating, switching versions or rolling back. Quick saves are tied to the port version and have one slot. Keep the working runtime if your latest progress exists only in its quick save. Back up your actual profile: Windows normally uses AppData/Roaming/AlienResurrectionPort/AlienResurrection; Linux normally uses XDG_DATA_HOME/AlienResurrectionPort/AlienResurrection or ~/.local/share/AlienResurrectionPort/AlienResurrection. A custom --save-dir uses that chosen location."
             }
+          ]
+        }
+      },
+      "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [
+            "licenses",
+            "textures"
+          ],
+          "executables": [
+            "alienresurrection.exe"
+          ]
+        },
+        "linux-x86-64": {
+          "directories": [
+            "lib",
+            "licenses",
+            "textures"
+          ],
+          "executables": [
+            "alienresurrection"
           ]
         }
       }
@@ -56761,6 +56945,20 @@
         "linux-x86-64"
       ],
       "adapter": "native-portable",
+      "managed_acquisition_hold": {
+        "reason": "Blocksphere now uses an upstream installer. Managed Install and Update are on hold while Portcove checks how the new packages handle existing saves and settings.",
+        "activation_reason": "This staged Blocksphere package does not match a reviewed direct-player release. Keep your current installed copy.",
+        "reviewed_artifacts": [
+          {
+            "version": "v1.1.0",
+            "sha256": "7d30aacaabf4ef1e878d0a0481363bd46b5a894b21d46ed8486c537826d04c50"
+          },
+          {
+            "version": "v1.1.0",
+            "sha256": "02d1d2d456efd2c7a447a22de1ba417eaa457af4b97b58b3c28c3c7c0a9d2250"
+          }
+        ]
+      },
       "release": {
         "repository": "djultra64/Blocksphere",
         "asset_hints": {
@@ -56794,12 +56992,12 @@
         "manual_setup": {
           "steps": [
             {
-              "title": "Start with the required game files",
-              "instruction": "On first Play, choose your own Tetrisphere US NTPE revision 0 ROM in .z64, .v64, .n64 or ZIP form. The game validates and imports it; no separate installer or BIOS is required."
+              "title": "Set up a separate upstream copy",
+              "instruction": "Download the Windows or Linux package from upstream and run the Blocksphere launcher. Select your own Tetrisphere US NTPE revision 0 ROM or ZIP and choose a new, empty folder outside your Portcove library. The upstream launcher owns setup and updates for that copy."
             }
           ],
           "warnings": [],
-          "help_url": "https://github.com/djultra64/Blocksphere/blob/v1.1.0/README.md"
+          "help_url": "https://github.com/djultra64/Blocksphere#readme"
         },
         "artwork": {
           "game_id": 3612,
@@ -56850,10 +57048,14 @@
             {
               "title": "Select your original in the game",
               "instruction": "Choose Play, then select your own Donkey Kong Country USA v1.0 dump in the game’s picker. The published Windows player includes its optional Dixie companion and requires no compiler or separate installer. Follow the game’s own options for choosing that companion or an optional music pack. Follow the included upstream license terms, including its framework’s noncommercial-use limit."
+            },
+            {
+              "title": "Set up the Apple Silicon preview",
+              "instruction": "Use the upstream Apple Silicon HD Preview ZIP on macOS 26 or later. Extract the complete app outside your Portcove library and select your own clean Donkey Kong Country USA v1.0 ROM. The HD option covers Jungle Hijinxs and its connected rooms. Keep your existing Mac saves before replacing the app."
             }
           ],
           "warnings": [],
-          "help_url": "https://github.com/elliotttate/DKC1Recomp/blob/v0.0.17/README.md"
+          "help_url": "https://github.com/elliotttate/DKC1Recomp#readme"
         },
         "artwork": {
           "game_id": 1090,
@@ -56862,6 +57064,18 @@
           "image_sha256": "a348e97c032a181e95a9c4d1fb3cc43667fda92e39c994c6d3b24b2dce91cd6e",
           "game_slug": "donkey-kong-country",
           "match_kind": "underlying-game"
+        }
+      },
+      "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [
+            "docs",
+            "licenses"
+          ],
+          "executables": [
+            "dkc1_dixie_desktop.exe",
+            "dkc1recomp.exe"
+          ]
         }
       }
     },
@@ -58209,10 +58423,14 @@
             {
               "title": "Finish the game’s setup",
               "instruction": "On first Play, select your own North American v1.0 Donkey Kong Country 2 ROM in the launcher. It remembers that external path without copying the ROM. DKC2Recomp.exe is the upstream default; the bundled DKC2RecompSDL.exe remains an alternative through external registration. Character packs and MSU-1 audio are optional upstream-guided imports."
+            },
+            {
+              "title": "Set up the Apple Silicon app",
+              "instruction": "Use the upstream Apple Silicon ZIP on macOS 26 or later. Extract the complete app outside your Portcove library and follow upstream’s first-launch instructions for the unnotarized app. Select your own North American v1.0 ROM. Preserve the Flat2VR/DKC2Recomp profile under Library/Application Support."
             }
           ],
           "warnings": [],
-          "help_url": "https://github.com/elliotttate/DKC2Recomp/blob/v0.0.8/README.md"
+          "help_url": "https://github.com/elliotttate/DKC2Recomp#readme"
         },
         "artwork": {
           "game_id": 1092,
@@ -58221,6 +58439,21 @@
           "image_sha256": "14026039a1de169794ab52fb49d5b5675b059ab037ebccc8a4ce6891b31bcadd",
           "game_slug": "donkey-kong-country-2-diddy-s-kong-quest",
           "match_kind": "underlying-game"
+        }
+      },
+      "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [
+            "assets",
+            "docs",
+            "licenses",
+            "scripts",
+            "third_party"
+          ],
+          "executables": [
+            "dkc2recomp.exe",
+            "dkc2recompsdl.exe"
+          ]
         }
       }
     },
@@ -60126,6 +60359,16 @@
           "game_slug": "descent-3",
           "match_kind": "underlying-game"
         }
+      },
+      "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [
+            "online"
+          ],
+          "executables": [
+            "piccuengine.exe"
+          ]
+        }
       }
     },
     {
@@ -60870,7 +61113,35 @@
         "source_requirements": [],
         "saves_and_settings": "external-user-owned",
         "manual_preparation": "Use your own supported USA/Europe Oracle of Ages or Oracle of Seasons cartridge dump. Configure one own supported Ages or Seasons input first through Add ROM in the normal Oracles.exe menu. Keep each title and region separate; this engine route does not qualify linked-game saves, migrate a second title or establish an observed game session. Then keep source originals outside the engine directory and retain each game's data separately. Core does not acquire or authenticate originals, unpack user ROM archives or grant game rights. The Windows package is the native SDL desktop application; retain the complete package. Normal data uses SDL's oracles-decomp/oracles user profile. The optional upstream Portable setting creates portable.txt beside the player and uses oracles-data; its interrupted staging directory is oracles-data.part. Core preserves only those declared local paths; the normal external profile and any --cache override remain outside Core backup/removal. On a portable-mode switch, upstream copies the other profile only into an empty destination through .part staging, leaves the source copy and does not overwrite populated destinations; preserve both actual creating roots and unfinished staging before changing modes or versions. Data includes cached original-derived content, settings/window state, per-game SRAM and states, thumbnails, diagnostics and optional sync configuration. Keep credentials private; this route grants no cloud or credential authority and performs no profile migration. Windows update notices open the upstream download URL in the browser; Core remains the Windows engine replacement owner. Linux self-replacement is a separate unoffered platform. Preserve the complete compatible old runtime before updates or rollback; source/static package evidence is not real-save, linked-game, gameplay or installed acceptance.",
-        "original_game_title": "The Legend of Zelda: Oracle of Ages / Oracle of Seasons"
+        "original_game_title": "The Legend of Zelda: Oracle of Ages / Oracle of Seasons",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Set up a separate Linux copy",
+              "instruction": "Download the upstream Linux x86-64 AppImage, make it executable and run it outside your Portcove library. Use Add ROM with your own supported Oracle of Ages or Oracle of Seasons cartridge dump. The AppImage can update itself. Preserve the actual SDL profile or portable data next to the AppImage before replacing it."
+            },
+            {
+              "title": "Set up Oracles on Mac",
+              "instruction": "On Intel or Apple Silicon with macOS 11 or later, open the upstream disk image and copy Oracles.app to a writable location. Follow the upstream instructions for the unnotarized app. Use Add ROM with your own supported cartridge dump. Preserve the actual profile under Library/Application Support or the portable data beside the app."
+            },
+            {
+              "title": "Set up Oracles on Android",
+              "instruction": "Use the upstream arm64 APK on Android 8 or later. Install it using Android’s prompts, then use Add ROM to choose your own supported cartridge dump from Downloads. Preserve app data before uninstalling."
+            }
+          ],
+          "warnings": [
+            "You and upstream manage these Linux, Mac and Android copies."
+          ],
+          "help_url": "https://github.com/kirby-letsgo/oracles-decomp#readme"
+        }
+      },
+      "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [],
+          "executables": [
+            "oracles.exe"
+          ]
+        }
       }
     },
     {
@@ -61042,7 +61313,7 @@
             }
           ],
           "warnings": [],
-          "help_url": "https://github.com/LeithSilver/mgsm/releases/tag/v0.1",
+          "help_url": "https://github.com/LeithSilver/mgsm#readme",
           "references": [
             {
               "title": "Keep the Android app data",
@@ -61057,6 +61328,17 @@
           "image_sha256": "4280169241e02c28231d327b6edd95b208e804235d166540fd28f574f9b5df4b",
           "game_slug": "metal-gear-solid-mobile",
           "match_kind": "underlying-game"
+        }
+      },
+      "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [
+            "licenses",
+            "rom"
+          ],
+          "executables": [
+            "mgs_mobile.exe"
+          ]
         }
       }
     },
@@ -61739,6 +62021,27 @@
       ],
       "adapter": "native-portable",
       "reviewed_package_layouts": {
+        "linux-x86-64": {
+          "directories": [],
+          "executables": [
+            "launch_openmohaa_breakthrough",
+            "openmohaa"
+          ]
+        },
+        "macos-x86-64": {
+          "directories": [],
+          "executables": [
+            "launch_openmohaa_breakthrough",
+            "openmohaa"
+          ]
+        },
+        "macos-aarch64": {
+          "directories": [],
+          "executables": [
+            "launch_openmohaa_breakthrough",
+            "openmohaa"
+          ]
+        },
         "windows-x86-64": {
           "directories": [],
           "executables": [
@@ -61850,6 +62153,27 @@
       ],
       "adapter": "native-portable",
       "reviewed_package_layouts": {
+        "linux-x86-64": {
+          "directories": [],
+          "executables": [
+            "launch_openmohaa_base",
+            "openmohaa"
+          ]
+        },
+        "macos-x86-64": {
+          "directories": [],
+          "executables": [
+            "launch_openmohaa_base",
+            "openmohaa"
+          ]
+        },
+        "macos-aarch64": {
+          "directories": [],
+          "executables": [
+            "launch_openmohaa_base",
+            "openmohaa"
+          ]
+        },
         "windows-x86-64": {
           "directories": [],
           "executables": [
@@ -61968,6 +62292,27 @@
       ],
       "adapter": "native-portable",
       "reviewed_package_layouts": {
+        "linux-x86-64": {
+          "directories": [],
+          "executables": [
+            "launch_openmohaa_spearhead",
+            "openmohaa"
+          ]
+        },
+        "macos-x86-64": {
+          "directories": [],
+          "executables": [
+            "launch_openmohaa_spearhead",
+            "openmohaa"
+          ]
+        },
+        "macos-aarch64": {
+          "directories": [],
+          "executables": [
+            "launch_openmohaa_spearhead",
+            "openmohaa"
+          ]
+        },
         "windows-x86-64": {
           "directories": [],
           "executables": [
@@ -62253,6 +62598,24 @@
           "image_sha256": "a91a1393cd7f8423249a643e0fb984acb90c75660bdd13030e70ebab68a58045",
           "game_slug": "zombies-ate-my-neighbors",
           "match_kind": "underlying-game"
+        }
+      },
+      "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [],
+          "executables": [
+            "zamn.exe",
+            "zamn_launcher.exe"
+          ]
+        },
+        "linux-x86-64": {
+          "directories": [],
+          "executables": [
+            "lakesnes-license.txt",
+            "libsdl2-2.0.so.0",
+            "zamn",
+            "zamn_launcher"
+          ]
         }
       }
     },
@@ -63177,6 +63540,14 @@
       },
       "linux_portable_data_directory": "data",
       "reviewed_package_layouts": {
+        "linux-x86-64": {
+          "directories": [
+            "licenses"
+          ],
+          "executables": [
+            "opensc2k.x86_64"
+          ]
+        },
         "windows-x86-64": {
           "directories": [
             "data",
@@ -63383,6 +63754,29 @@
           "image_sha256": "14f29e308d8b2d3c5541b1b098a0d19cf7a3e74fe871f7d0ef511437eb83f756",
           "game_slug": "pilotwings-64",
           "match_kind": "underlying-game"
+        }
+      },
+      "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [
+            "licenses",
+            "toolchain"
+          ],
+          "executables": [
+            "birdman64.exe",
+            "toolchain/zig/zig.exe"
+          ]
+        },
+        "linux-x86-64": {
+          "directories": [
+            "licenses",
+            "toolchain"
+          ],
+          "executables": [
+            "apprun",
+            "birdman64",
+            "toolchain/zig/zig"
+          ]
         }
       }
     },

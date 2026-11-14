@@ -63,6 +63,12 @@
       "source_requirements": [],
       "saves_and_settings": "external-user-owned",
       "manual_preparation": "Choose Play, then select your own NTSC-U 1.0 big-endian .z64 Banjo-Tooie ROM when asked. The upstream player requires SHA-256 9ec37fba6890362eba86fb855697a9cff1519275531b172083a1a6a045483583 and stores its own profile copy. The Windows ZIP has no installer. If Windows reports a missing runtime DLL, use the Microsoft Visual C++ x64 Redistributable linked in the packaged README; no helper runs automatically. Portcove manages only the official Windows x64 runtime. The reviewed player writes its ROM, saves, settings, log, cache and mods to the external upstream profile rather than the runtime folder, so no in-folder persistent paths are declared. Portcove runtime backup does not back up that profile. Keep a separate backup of your saves/profile before updates or runtime rollback. Runtime rollback does not rewind that profile, synchronize old copies or guarantee save compatibility. Existing registrations retain their files and update owner. This is an upstream alpha: distant geometry, aspect sizing, shadows, animation and lost-focus controller behavior have documented limitations; the upstream has not verified the whole game. Portcove gameplay and populated save restoration remain unqualified."
+    },
+    "reviewed_package_layouts": {
+      "windows-x86-64": {
+        "directories": ["third_party"],
+        "executables": ["banjotooiescurvydogport.exe"]
+      }
     }
   },
   "upstream_lineage": {

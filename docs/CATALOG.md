@@ -133,6 +133,13 @@ upstream itself publishes and holds a package only for concrete reasons.
   as symbol names and offsets is code, not game data; contents the player's
   original generates on first run are not bundled. A package whose contents
   are unknown stays held until they are listed.
+- **Confirmed false positives.** When a person confirms that a
+  [release-content scan](UPSTREAM-OBSERVATIONS.md#release-content-scan)
+  finding is not game data, such as a homebrew test ROM, a reviewed entry in
+  `.github/release-content-accounting.json` is the counterpart to a hold. It
+  dismisses that exact package (port, platform, SHA-256 and scan rules version)
+  with its reason and the reviewed issue or pull request, and a new package or
+  rules version is reviewed again.
 - **Listing downloads.** For a listing without a managed integration, or a platform its managed
   integration does not cover, tier 3
   also covers the ordinary listing download from the upstream's own releases.
@@ -143,7 +150,18 @@ upstream itself publishes and holds a package only for concrete reasons.
   `download_block_reason`. A listing hold applies to every platform of the
   port, so a port keeps its hold while one platform's route, such as an
   existing non-owning integration, still needs a separate decision. The owner
-  confirmed this on November 13, 2026.
+  confirmed this on November 13, 2026. Core enforces one fresh route per host:
+  it refuses the listing download (`managed-route`) only where this library's
+  own Install assessment for the host is allowed or waiting for the player's
+  game files. A held definition, an acquisition hold, pending setup or an
+  existing registration leaves Install unusable, so the download stays offered.
+  `catalog inspect-targets` reports the same refusal per target for a fresh
+  library. Descriptive listing platforms never refuse
+  a host, so a newly published upstream package stays reachable before the
+  listing names it; registration still requires a native program. A
+  `user-prepared` integration offers no Install, so its download stays
+  available for preparing the reviewed copy. Registering an existing
+  installation remains available either way.
 - **Availability.** Tier 3 never copies or retains a package for others. When
   the upstream release disappears, moves or is withdrawn, Portcove stops
   offering fresh acquisition through the existing release resolution and
@@ -488,7 +506,7 @@ XDG_CONFIG_HOME on Linux, with the account home as the ordinary fallback.
 The managed offer covers the normal external profiles. Custom save,
 landscape, campaign and other locations stay with separately prepared
 copies. Keep those locations outside the library. The managed runtime
-inventory holds updates, switches and removal if unrecognized files appear.
+inventory holds updates, switches and removal if unrecognized programs appear.
 Windows creating contracts retain their previous rules.
 
 Native portable capability 17 covers the generic JGR Patch Pack Linux
@@ -749,10 +767,22 @@ marker can change storage behavior and needs its own upstream evidence. Keep
 distinct games sharing a repository separate. A reference catalog's release,
 checksum, scanner or verification label is not Portcove admission or qualification.
 
-Native portable runtimes use complete immutable-file verification. Changed package
-files or undeclared additions block update, version switching and managed removal
-with the current files preserved. The player can back up and relocate additions
-or retain an external installation. Updates extract into a new version, collect
+Native portable runtimes use complete immutable-file verification. Changed or
+missing package files, links, and undeclared code (programs, scripts, libraries,
+plugins, files with an executable signature, and any addition under an Electron
+package's `resources` folder) block
+launch, update, version switching, managed removal and backup with the current
+files preserved. The player can back up and relocate them or retain an external
+installation. Other undeclared regular files, such as settings a game writes
+beside itself, are unknown player-side files ([#5359](https://github.com/boburning/portcove/issues/5359)).
+They do not block those operations, and only a reviewed loader-read name
+beside the executable, such as `dinput8.ini`, `ReShade.ini`, `dxvk.conf` or
+`Game.exe.config`, blocks launch. Verification and the removal review list them,
+backups keep a separate copy that restore does not put back, and removal backs
+them up first. They are not declared player data and are not collected or
+carried forward. Past the unknown-file caps only a backup or removal is held;
+see the [architecture contract](ARCHITECTURE.md#unknown-player-side-files).
+Updates extract into a new version, collect
 declared data from the active version even before its first launch, restore it to
 the staged version, revalidate, then activate through the existing journal.
 Obsolete package files stay in retained versions, rather than surviving in the
@@ -941,6 +971,88 @@ bounded quick filter observations are distinct: the latter returns `NotChecked`
 for this shape. See [managed Dark Forces setup and recovery](reference/managed-tfe.md)
 for player workflow, persistence boundaries and the removal recovery hold.
 
+## STFS package extraction
+
+`stfs-directory` extracts a player's original Xbox 360 STFS package (an Xbox Live
+Arcade download) into the runtime directory named by `runtime_source_filename`.
+It is valid only on `staged-source-portable` ports whose destination has no
+extension and is listed in `runtime_mutable_paths`, with at least one
+`runtime_source_hashes` anchor such as `default.xex`. NocturneRecomp (#101) is the
+first route.
+
+The reader accepts `LIVE` and `PIRS` packages in the single-table (read-only) STFS
+layout. Console-signed `CON` packages, two-table packages and SVOD volumes are
+refused, each with its own reason. Core checks the package's SHA-1 hash tree:
+
+- the header SHA-1 at `0x32C`, which covers `0x344` up to the first hash table;
+- the top hash in the volume descriptor against the highest hash table;
+- each level-1 (and level-2) table against its parent;
+- each level-0 table, and each data block it reads, against its recorded SHA-1.
+
+The licence entries and the signature lie outside the header hash, so two owners'
+copies of one game can differ there while their verified content is identical. The
+RSA signature is not checked. A file entry with the contiguous flag reads sequential
+blocks; a recorded next pointer must then name the following block or be empty.
+
+Which checks refuse a package depends on what proves its integrity:
+
+| Check                                                                                                                                                                                                                                                                                | Enforced | Advisory                        |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------- | ------------------------------- |
+| Container kind and layout (`CON`, two-table, SVOD), table and block counts, data base inside the file, block numbers in range, block and parent cycles, traversal, reserved and case-colliding names, at most 16,384 entries and depth 64, expanded bytes, free space before writing | Refuses  | Refuses                         |
+| Header SHA-1, top hash, level-2/1/0 tables, data blocks, truncated hash tables                                                                                                                                                                                                       | Refuses  | Advisory                        |
+| A contiguous file whose recorded chain disagrees                                                                                                                                                                                                                                     | Refuses  | Advisory; the chain is followed |
+| 16 GiB package cap, descriptor length `0x24`, header at least `0x3AD` bytes, at most three hash levels, block count fitting in the file                                                                                                                                              | Refuses  | Advisory                        |
+
+- **Enforced.** A content identity relies on the hash tree, and so does any port
+  that declares `runtime_stfs_package`; inspection is enforced for every profile such
+  a port binds, so the refusal happens at registration rather than at preparation.
+- **Advisory.** Everywhere else, an `stfs-directory` port's source profile must carry
+  an exact whole-package SHA-256 (`accepted_sha256`), which registration verified. The
+  reader then accepts every package the earlier reader accepted: inspection lists
+  findings in `integrity_advisories` and extraction logs them as a warning. This keeps
+  a known package such as NocturneRecomp's working if Portcove's reading of the format
+  ever disagrees with a real package. Extraction selects the policy from the binding
+  alone, relying on that catalog rule.
+
+A port may declare `runtime_stfs_package`, which requires staged-source capability
+**32**:
+
+| Field               | Meaning                                                                                                  |
+| ------------------- | -------------------------------------------------------------------------------------------------------- |
+| `content_types`     | Accepted header content types as eight uppercase hex digits. Only `000D0000` (arcade title) is reviewed. |
+| `title_ids`         | One to sixteen accepted header title IDs as eight uppercase hex digits.                                  |
+| `max_package_bytes` | Explicit bound on the selected package, at most 16 GiB.                                                  |
+
+Core compares the header with this binding before reuse or extraction, so another
+game, a title update or downloadable content is refused first with
+`stfs_package_mismatch`. A binding without `stfs-directory` is invalid.
+
+### Package identity
+
+The `source_profile` of an `stfs-directory` port identifies the package in one of
+two ways, which may coexist as separate variants. When one package matches both, the
+exact whole-package identity is the one admitted:
+
+- **Whole package.** A `compound` representation with format `stfs-live` and an
+  exact whole-file digest. NocturneRecomp uses this form, and it keeps working
+  unchanged.
+- **Content.** An `stfs-content` representation that lists `package_types`
+  (`live`, `pirs`), `title_ids`, `content_types` (`000D0000`) and 1 to 16
+  `members`, each a safe relative `path` with its extracted `sha256`. A package
+  matches only when its complete hash tree verifies, its header values are listed
+  and every member digest is equal. The port must declare `runtime_stfs_package`
+  covering the same titles and content types.
+
+A content identity projects no whole-file digest into the schema-1 compatibility
+profile and never falls back to structural admission. Registration still records
+the owner's exact file bytes, so a later change to that file is detected as before.
+Launch-time reassessment does not reconstruct a content match from stored digests
+and reports it as not evaluated. Folder search probes `PIRS` files only when a
+selected profile declares a content identity. Title IDs, member digests and size
+bounds must come from owner-provided or upstream-published evidence; never infer
+them. No shipped port declares a binding or content identity yet. See the
+[2026-11-13 record](qualification/stfs-importer-pirs-hash-chain-2026-11-13.md).
+
 ## Disc-image unpacking
 
 `xdvdfs-directory` (Xbox and Xbox 360) and `iso9660-directory` (PlayStation 2 and
@@ -1054,6 +1166,8 @@ image. It is valid only on a `staged-source-portable` port that declares a
   Play launches with the files already unpacked, unpacks nothing and removes nothing, and
   the launch reports a `warning` message that the saved source changed or cannot be read.
   Registering the image again (or removing the registration) is what resumes unpacking.
+- The Game files summary states, before a player chooses an image, that unpacking replaces the
+  unpacked game folder and does not keep files added to it by hand.
   Cancellation is never treated as a source failure.
 - Choosing a valid optional source is what makes Portcove unpack at the next launch, and
   that replaces the destination folder, which is the first time Portcove can replace a
@@ -1508,8 +1622,10 @@ Only catalog entries that declare and qualify this route offer it. [#1169](https
 owns the first real-port qualification and its remaining end-to-end evidence.
 An optional `presentation.manual_preparation` gives the exact player-created
 steps for a user-prepared runtime; the short port summary remains an outcome
-description. The Wave Race pilot requires an empty `portable.txt` beside its
-executable, in addition to the extracted upstream ZIP files.
+description. Wave Race registrations made under the retired pilot keep their
+requirement for an empty `portable.txt` beside the executable, in addition to
+the extracted upstream ZIP files; its current catalog installs the same package
+as a managed route ([record](qualification/wave-race-64-recomp-managed-acquisition-2026-11-13.md)).
 Optional `presentation.manual_setup` supplies authored `steps` (one to eight
 objects with nonempty `title` and `instruction`), up to eight essential `warnings`,
 and an optional HTTPS `help_url` without credentials. Include `warnings: []`
@@ -1784,6 +1900,18 @@ different layout is refused with a player-facing reason naming the new or missin
 programs and folders, leaves the installed copy untouched, and uses the existing
 unsupported-acquisition surface, not a new hold authority. Platforms without a
 fingerprint keep today's behavior.
+
+For an official Linux archive with a dedicated portable-data directory, omit
+that directory from the reviewed layout. Core checks that the executable's
+declared data directory is absent or empty before comparing the package layout.
+An empty directory at the observed package root does not count as package drift.
+This combination requires native-portable version 32.
+
+For the official OpenMoHAA Unix ZIP routes, record the reviewed layout after
+Core verifies and grants execute permission to the title launcher and engine.
+The ordinary archive inspector reports publisher modes, so it cannot supply
+this prepared layout directly. This combination requires native-portable
+version 33.
 
 macOS layouts may opt into `ignore_verified_macos_libraries` when an upstream
 archive stores patch-versioned shared libraries with execute permission. The
@@ -2168,7 +2296,7 @@ This opt-in uses the existing staged lifecycle and conservative data-restore
 receipt. Declared data is collected before first Play, backup, replacement,
 rollback and removal. Without a matching restore receipt, conflicting runtime and
 canonical copies are preserved for explicit resolution. Full immutable verification
-holds modified runtime files and undeclared additions; current data crosses only
+holds modified runtime files and undeclared programs; current data crosses only
 compatible retained coordinates. Runtime rollback does not rewind saves.
 N64 engine capability 4 and retained-contract format 8 fence these semantics from
 older readers; omitted/false retains historical N64 coordinates and behavior.

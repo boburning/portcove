@@ -2653,3 +2653,82 @@ fn cancelled_recovery_retains_uncheckable_private_work_and_reports_pending_state
         ActivityStatus::Running
     );
 }
+
+struct SteamClientAt(PathBuf);
+
+impl crate::StoreInstallHost for SteamClientAt {
+    fn steam_client_roots(&self) -> Vec<PathBuf> {
+        vec![self.0.clone()]
+    }
+
+    fn gog_registered_installs(&self) -> Vec<crate::RegisteredStoreInstall> {
+        Vec::new()
+    }
+
+    fn epic_manifest_dirs(&self) -> Vec<PathBuf> {
+        Vec::new()
+    }
+}
+
+#[test]
+fn originals_inside_a_store_install_can_be_copied_or_used_but_never_moved() {
+    let (temporary, library, _) = library_fixture();
+    let client = temporary.path().join("Steam");
+    let game = client.join("steamapps").join("common").join("Game");
+    fs::create_dir_all(&game).unwrap();
+    fs::write(
+        client.join("steamapps").join("appmanifest_1.acf"),
+        "\"AppState\" { \"name\" \"Game\" \"installdir\" \"Game\" }",
+    )
+    .unwrap();
+    let source = game.join("disc.iso");
+    fs::write(&source, b"synthetic format-only disc source").unwrap();
+    let service = traced_service(library)
+        .unwrap()
+        .with_store_install_host(Arc::new(SteamClientAt(client)));
+
+    let error = service
+        .plan_source_import(PROFILE, &source, SourceImportMode::Move)
+        .unwrap_err();
+    assert_eq!(error.code, ErrorCode::Conflict);
+    assert_eq!(
+        error.details.get("store").map(String::as_str),
+        Some("Steam")
+    );
+    // Authorization and apply re-plan, so neither path can move the file.
+    let error = service
+        .authorize_source_move(PROFILE, &source, &"0".repeat(64))
+        .unwrap_err();
+    assert_eq!(error.code, ErrorCode::Conflict);
+    let error = service
+        .import_source(
+            PROFILE,
+            &source,
+            SourceImportMode::Move,
+            &"0".repeat(64),
+            None,
+        )
+        .unwrap_err();
+    assert_eq!(error.code, ErrorCode::Conflict);
+    // A folder Move removes the whole folder, so one holding the game is refused.
+    let error = service
+        .plan_source_import(
+            PROFILE,
+            &temporary.path().join("Steam"),
+            SourceImportMode::Move,
+        )
+        .unwrap_err();
+    assert_eq!(
+        error.details.get("store").map(String::as_str),
+        Some("Steam")
+    );
+    service
+        .plan_source_import(PROFILE, &source, SourceImportMode::UseCurrentLocation)
+        .unwrap();
+    let result = import(&service, &source, SourceImportMode::Copy);
+    assert!(!result.original_deleted);
+    assert_eq!(
+        fs::read(&source).unwrap(),
+        b"synthetic format-only disc source"
+    );
+}

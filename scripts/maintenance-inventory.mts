@@ -3105,15 +3105,28 @@ function releaseContentSection(report: InventoryReport) {
             (signal) =>
               `<code>${escapeHtml(signal.path)}</code>: ${escapeHtml(signal.reason)} (${escapeHtml(signal.kind)})`,
           )
-          .join("<br>")}</td><td>${
+          .join("<br>")}${
+          (entry.signal_count ?? entry.signals.length) > entry.signals.length
+            ? `<br>and ${escapeHtml((entry.signal_count ?? 0) - entry.signals.length)} more`
+            : ""
+        }</td><td>${[
+          entry.accounted
+            ? `accounted (${escapeHtml(entry.accounted.reason)}, <a href="${escapeHtml(entry.accounted.evidence)}">${escapeHtml(entry.accounted.evidence)}</a>)`
+            : "",
           stored.has(`${entry.platform}\t${entry.asset}\t${entry.sha256}`)
             ? "stored fact"
-            : '<span class="unknown">latest scan; not every target of the listing scanned yet</span>'
-        }</td><td>${escapeHtml(nextActions(report, port, subject.subject_key).join("; "))}</td></tr>`,
+            : '<span class="unknown">latest scan; not every target of the listing scanned yet</span>',
+        ]
+          .filter(Boolean)
+          .join("<br>")}</td><td>${
+          entry.accounted
+            ? ""
+            : escapeHtml(nextActions(report, port, subject.subject_key).join("; "))
+        }</td></tr>`,
       );
   }
   return `<h2>Release content findings</h2>
-<p>Game-data signals the scheduled release-content scan found in upstream release packages. A finding is review evidence: a person confirms it, and only a reviewed catalog change sets the listing's download hold.${
+<p>Game-data signals the scheduled release-content scan found in upstream release packages. A finding is review evidence: a person confirms it, and only a reviewed catalog change sets the listing's download hold. An accounted finding is a confirmed false positive dismissed by a reviewed entry in <code>.github/release-content-accounting.json</code>; it needs no attention.${
     attempt
       ? ` <span class="unknown">Latest read failed: ${escapeHtml(attempt)}; earlier facts stay current.</span>`
       : ""

@@ -65,11 +65,12 @@ pub(super) fn startup_mode(command: &Commands) -> StartupMode {
             ArtworkCommand::Steamgriddb { command } => match command {
                 SteamGridDbCommand::Status
                 | SteamGridDbCommand::Search { .. }
-                | SteamGridDbCommand::Candidates { .. }
-                | SteamGridDbCommand::CheckListings => ReadOnly,
+                | SteamGridDbCommand::Candidates { .. } => ReadOnly,
+                // The check records listing evidence in the library.
                 SteamGridDbCommand::SetKey { .. }
                 | SteamGridDbCommand::ClearKey
-                | SteamGridDbCommand::Choose { .. } => Recovering,
+                | SteamGridDbCommand::Choose { .. }
+                | SteamGridDbCommand::CheckListings => Recovering,
             },
             ArtworkCommand::Import { .. }
             | ArtworkCommand::Reset { .. }
@@ -150,7 +151,8 @@ pub(super) fn startup_mode(command: &Commands) -> StartupMode {
                 GameFileRootCommand::List
                 | GameFileRootCommand::Snapshot
                 | GameFileRootCommand::Matches(_)
-                | GameFileRootCommand::Profiles { .. } => ReadOnly,
+                | GameFileRootCommand::Profiles { .. }
+                | GameFileRootCommand::Stores => ReadOnly,
                 GameFileRootCommand::Scan(_)
                 | GameFileRootCommand::Add { .. }
                 | GameFileRootCommand::Relink { .. }
@@ -423,6 +425,7 @@ mod tests {
             "source roots snapshot",
             "source roots matches",
             "source roots profiles --root r",
+            "source roots stores",
             "external preview p dir",
             "external removal-preview p",
             "installation plan p",
@@ -449,6 +452,7 @@ mod tests {
             "artwork steamgriddb set-key --stdin",
             "artwork steamgriddb clear-key",
             "artwork steamgriddb choose p --game 1 --candidate 2",
+            "artwork steamgriddb check-listings",
             "auth login",
             "auth set-token --stdin",
             "auth logout",

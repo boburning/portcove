@@ -28,8 +28,8 @@ Keep that foreground session open
 through collection, research, delivery and explicit `finish`.
 Use the structured protocol and completion criteria in the contract; `status`
 reads the latest receipt. Recover retained candidate identities before new intake.
-`collect` includes complementary lead searches; use `discover` to inspect their
-retained queue and continuation. Research at least two distinct noncanonical
+`collect` includes curated list hints and complementary lead searches; use
+`discover` to inspect their retained queue and continuation. Research at least two distinct noncanonical
 queued upstreams (or all when fewer remain) before quiet `recheck`. Prioritize
 observed runtime packages and supported setup over source-only tooling. Finish
 with explicit `lead-dispose` reasons and resume conditions for held research;
