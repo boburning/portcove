@@ -61,6 +61,16 @@
       "source_requirements": [],
       "saves_and_settings": "portcove-managed",
       "manual_preparation": "Before first Play, copy your own supported original Japanese Doraemon: Nobita to 3tsu no Seireiseki .z64 ROM beside Dora64.exe and name that copy doraemon.n64.jp.z64. The game validates its identity before starting. This reviewed v1.0.4 release page contains the Windows package labeled 1.0.5; those upstream labels are retained. The named original ROM, saves folder, input/game/touch settings and named diagnostics live beside Dora64.exe and are declared for compatible updates and backup. Keep the source original elsewhere too. A differently named ROM or custom profile can use external registration. Runtime rollback carries current declared data without rewinding saves. Existing external copies keep their files and runtime owner. Gameplay, platform minimums and packaged Desktop acceptance remain separate observations. Linux uses the same fixed original ROM name and declared executable-adjacent settings/saves. The selected build needs system SDL2/GTK3 and their runtime dependencies. Keep the shipped assets beside Dora64; the package requires no setup compiler. Core extraction, published SHA-256 comparison and ELF/dependency inspection passed on Windows. Linux execution, minimum-environment and gameplay observations remain Not run."
+    },
+    "reviewed_package_layouts": {
+      "windows-x86-64": {
+        "directories": ["assets", "licenses"],
+        "executables": ["dora64.exe"]
+      },
+      "linux-x86-64": {
+        "directories": ["assets", "licenses"],
+        "executables": ["dora64"]
+      }
     }
   }
 }
