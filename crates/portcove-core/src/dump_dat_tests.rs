@@ -1,7 +1,8 @@
 use super::*;
 use crate::{
     Catalog, ObservedSourceComponent, ObservedSourceDigest, SourceAdmission, SourceAssessment,
-    SourceClassification, SourceContractResult, SourceHealth, SourceRejectionReason,
+    SourceClassification, SourceComponentKind, SourceContractResult, SourceHealth,
+    SourceRejectionReason,
 };
 use sha1::Sha1;
 
@@ -56,13 +57,13 @@ fn parses_logiqx_header_entries_and_files() {
 fn sanitizes_names_and_caps_stored_header_text() {
     let document = parse_dat(
         format!(
-            "<datafile><header><name>Evil\u{202E}Name&#7;</name><version>{}</version></header><game name=\"Bad\u{2066} Entry\u{0007}\"/></datafile>",
+            "<datafile><header><name>Evil\u{202E}Name&#7;\n\tSuffix</name><version>{}</version></header><game name=\"Bad\u{2066} Entry\u{0007}\"/></datafile>",
             "v".repeat(500)
         )
         .as_bytes(),
     )
     .unwrap();
-    assert_eq!(document.name, "EvilName");
+    assert_eq!(document.name, "EvilName  Suffix");
     assert_eq!(document.version.as_deref().map(str::len), Some(128));
     assert_eq!(document.entries[0].name, "Bad Entry");
 }
@@ -292,6 +293,50 @@ fn reference_count_is_bounded() {
 }
 
 #[test]
+fn over_limit_saved_entries_are_ignored_and_still_removable() {
+    let temporary = tempfile::tempdir().unwrap();
+    let preferences = store(temporary.path());
+    let path = temporary.path().join("example.dat");
+    std::fs::write(&path, sample()).unwrap();
+    let valid = |index: usize| {
+        serde_json::json!({
+            "id": format!("{index:016x}"), "path": path, "sha256": "f".repeat(64), "size": 1,
+            "name": "Example", "entry_count": 1, "file_count": 1
+        })
+    };
+    let mut entries: Vec<_> = (0..MAX_DAT_REFERENCES + 1).map(valid).collect();
+    let mut long = valid(99);
+    long["path"] = serde_json::json!(path.join("x".repeat(MAX_STORED_PATH_BYTES)));
+    entries.insert(0, long);
+    std::fs::write(
+        temporary.path().join("preferences.json"),
+        serde_json::to_vec(&serde_json::json!({
+            "format_version": 1, "library_root": null, "dat_references": entries
+        }))
+        .unwrap(),
+    )
+    .unwrap();
+
+    let listed = dat_reference_statuses(&preferences).unwrap();
+    assert_eq!(
+        listed.len(),
+        MAX_DAT_REFERENCES,
+        "invalid and extra entries are ignored"
+    );
+    assert!(
+        add_dat_reference(&preferences, &path).is_err(),
+        "the limit still applies"
+    );
+    for id in [99_usize, 0, 1] {
+        remove_dat_reference(&preferences, &format!("{id:016x}")).unwrap();
+    }
+    assert_eq!(
+        add_dat_reference(&preferences, &path).unwrap().state,
+        DatReferenceState::Ready
+    );
+}
+
+#[test]
 fn worst_case_references_leave_most_of_the_preference_budget() {
     // Backslashes double when JSON-escaped; four-byte characters fill the text caps.
     let temporary = std::env::temp_dir();
@@ -452,18 +497,24 @@ fn identifies_complete_partial_and_unlisted_selections() {
         "a DAT file without a size can't match"
     );
 
-    // A PSX disc exposes only its data track, so a multi-track entry stays partial.
+    // A single PSX disc is inspected as both the selection's own digest and a
+    // disc component, both covering only the data track, so a multi-track
+    // entry stays partial and says so.
     let mut track = disc("disc-1", SHA1_TRACK1, 2);
     track.digests[0].scope = DigestScope::PsxNormalizedTrackSet;
-    let partial = identify_with_references(&inspection(Vec::new(), vec![track]), &references);
+    let top_level = ObservedSourceDigest {
+        scope: DigestScope::PsxNormalizedTrackSet,
+        ..digest(SourceDigestAlgorithm::Sha1, SHA1_TRACK1, 8)
+    };
+    let partial = identify_with_references(&inspection(vec![top_level], vec![track]), &references);
     assert_eq!(partial.state_code, "partially_identified");
     assert_eq!(
         partial.summary,
         "1 of 2 files in “Disc Game (USA)” from Nintendo & Friends - Test match the selected files. Only the disc’s data track was checked."
     );
     assert_eq!(
-        partial.matches[0].matched_files[0].component_id.as_deref(),
-        Some("disc-1")
+        partial.matches[0].matched_files[0].scope,
+        DigestScope::PsxNormalizedTrackSet
     );
 
     let container_only = identify_with_references(

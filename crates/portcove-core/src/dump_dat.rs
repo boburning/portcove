@@ -15,7 +15,7 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
 use crate::{
-    DigestScope, HostPreferenceStore, PortcoveError, Result, SourceComponentKind, SourceInspection,
+    DigestScope, HostPreferenceStore, PortcoveError, Result, SourceInspection,
     SourceInspectionReport, SourceIntakeInspection, mod_provider::sanitize_text,
     source_inspection::SourceDigestAlgorithm,
 };
@@ -200,7 +200,10 @@ fn dat_error(message: &str) -> PortcoveError {
 /// Strip control and bidirectional characters and cap the length at a
 /// character boundary.
 fn display_text(value: &str, max_bytes: usize) -> String {
-    let mut text = sanitize_text(value);
+    // Line breaks and tabs separate words; keep them as spaces before control
+    // characters are stripped.
+    let spaced = value.replace(['\r', '\n', '\t'], " ");
+    let mut text = sanitize_text(&spaced);
     if text.len() > max_bytes {
         let mut end = max_bytes;
         while !text.is_char_boundary(end) {
@@ -692,12 +695,13 @@ pub(crate) fn identify_with_references(
                     ),
                 )
             } else {
+                // PSX disc digests cover the data track only, whether they
+                // arrive as the selection's own digest or a disc component.
                 let data_track_only = best.matched_files.iter().all(|file| {
-                    file.component_id.as_deref().is_some_and(|id| {
-                        inspection.components.iter().any(|component| {
-                            component.id == id && component.kind == SourceComponentKind::OpticalDisc
-                        })
-                    })
+                    matches!(
+                        file.scope,
+                        DigestScope::PsxNormalizedTrackSet | DigestScope::DiscSetMember
+                    )
                 });
                 let scope = if data_track_only {
                     " Only the disc’s data track was checked."

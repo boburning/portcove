@@ -31,22 +31,24 @@ impl HostPreferenceStore {
         self.publish(&preferences)
     }
 
-    /// Returns whether a reference with this ID existed. The DAT file itself is untouched.
+    /// Returns whether a reference with this ID existed. The DAT file itself is
+    /// untouched. Removal works on the saved entries as stored, so an entry that
+    /// no longer validates (for example from another build) can still be removed.
     pub(crate) fn remove_dat_reference(&self, id: &str) -> Result<bool> {
         let _lock = self.lock()?;
         let mut preferences = self.load()?;
-        let mut references = saved_dat_references(&preferences)?;
-        let before = references.len();
-        references.retain(|saved| saved.id != id);
-        if references.len() == before {
+        let mut entries = stored_entries(&preferences)?;
+        let before = entries.len();
+        entries.retain(|entry| entry.get("id").and_then(serde_json::Value::as_str) != Some(id));
+        if entries.len() == before {
             return Ok(false);
         }
-        if references.is_empty() {
+        if entries.is_empty() {
             preferences.extensions.remove(DAT_REFERENCES_KEY);
         } else {
             preferences.extensions.insert(
                 DAT_REFERENCES_KEY.to_owned(),
-                serde_json::to_value(references)?,
+                serde_json::Value::Array(entries),
             );
         }
         self.publish(&preferences)?;
@@ -54,19 +56,24 @@ impl HostPreferenceStore {
     }
 }
 
+fn stored_entries(preferences: &HostPreferences) -> Result<Vec<serde_json::Value>> {
+    match preferences.extensions.get(DAT_REFERENCES_KEY) {
+        None => Ok(Vec::new()),
+        Some(serde_json::Value::Array(entries)) => Ok(entries.clone()),
+        Some(_) => Err(PortcoveError::state(
+            "saved DAT files are malformed; repair or reset preferences",
+        )),
+    }
+}
+
+/// Valid entries, at most the supported count. Entries that don't validate
+/// or exceed the count (for example from another build) are ignored here and
+/// dropped by the next added reference; removal by ID still reaches them.
 fn saved_dat_references(preferences: &HostPreferences) -> Result<Vec<SavedDatReference>> {
-    let Some(value) = preferences.extensions.get(DAT_REFERENCES_KEY) else {
-        return Ok(Vec::new());
-    };
-    let references: Vec<SavedDatReference> =
-        serde_json::from_value(value.clone()).map_err(|_| {
-            PortcoveError::state("saved DAT files are malformed; repair or reset preferences")
-        })?;
-    if references.len() > MAX_DAT_REFERENCES {
-        return Err(PortcoveError::state("too many saved DAT files"));
-    }
-    for reference in &references {
-        reference.validate()?;
-    }
-    Ok(references)
+    Ok(stored_entries(preferences)?
+        .into_iter()
+        .filter_map(|entry| serde_json::from_value::<SavedDatReference>(entry).ok())
+        .filter(|reference| reference.validate().is_ok())
+        .take(MAX_DAT_REFERENCES)
+        .collect())
 }
