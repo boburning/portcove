@@ -2537,7 +2537,7 @@
           },
           {
             "title": "Move from a Windows copy you added earlier",
-            "instruction": "A v1.0.2 folder you added to Portcove keeps working where it is. Portcove doesn't copy its saves or settings into a managed copy. To switch, close the game and back up that folder's saves folder and .json settings files. Remove the registration (your files stay in place) and choose Install. Then, with the game closed, open the managed game's saved data folder from its details and copy the saves folder and .json files into it."
+            "instruction": "A v1.0.2 folder you added to Portcove keeps working where it is. Portcove doesn't copy its saves or settings into a managed copy. To switch, close the game and back up that folder's saves folder and .json settings files. Remove the registration (your files stay in place) and choose Install, but don't start the game yet. Open its saved data folder from the game's details and copy the saves folder and .json files into it. Portcove adds them to the game the first time you start it. If you've already started the managed copy, its own saves replace files copied this way."
           }
         ]
       },

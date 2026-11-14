@@ -84,7 +84,12 @@ change is limited to `native-portable`, so a registered player removes the
 registration (external files stay untouched) before choosing Install. Portcove
 does not copy saves or settings from that folder; the listing guide tells the
 player to copy the `saves` folder and `.json` settings files into the managed
-game's saved data with the game closed.
+game's saved data folder (`library.user_dir`, which Desktop's saved-data action
+opens) after Install and before the first start. The first launch restores that
+folder into the version folder. Once the managed copy has been started, each
+launch first collects the version folder's own files over the saved data
+(`launch_preparation.rs`), so files copied later are replaced; the guide says
+so.
 
 ## Known limits
 
