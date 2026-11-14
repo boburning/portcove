@@ -10624,7 +10624,7 @@
         "type": "string"
       },
       "name": {
-        "description": "Name from the DAT header, for example `Sony - PlayStation`.",
+        "description": "Sanitized name from the DAT header, for example `Sony - PlayStation`.",
         "type": "string"
       },
       "path": {
@@ -38216,7 +38216,7 @@
             "type": "string"
           },
           "name": {
-            "description": "Name from the DAT header, for example `Sony - PlayStation`.",
+            "description": "Sanitized name from the DAT header, for example `Sony - PlayStation`.",
             "type": "string"
           },
           "path": {
@@ -38345,17 +38345,17 @@
       "DumpMatch": {
         "properties": {
           "complete": {
-            "description": "True when every listed file other than a cue or gdi descriptor matched.",
+            "description": "True when every required file of the entry matched.",
             "type": "boolean"
           },
           "entry_file_count": {
-            "description": "Files in the entry other than cue or gdi descriptors.",
+            "description": "Required files: those with a SHA-1 or SHA-256 that aren't cue or gdi\ndescriptors. CRC32- or MD5-only files can't be compared and don't count.",
             "format": "uint32",
             "minimum": 0,
             "type": "integer"
           },
           "entry_name": {
-            "description": "The DAT entry name, for example `Final Fantasy VII (USA) (Disc 1)`.",
+            "description": "Sanitized DAT entry name, for example `Final Fantasy VII (USA) (Disc 1)`.",
             "type": "string"
           },
           "matched_files": {
@@ -38395,11 +38395,16 @@
           },
           "file_name": {
             "type": "string"
+          },
+          "scope": {
+            "$ref": "#/$defs/DigestScope",
+            "description": "The observed byte scope that matched, for example `canonical-n64-big-endian`."
           }
         },
         "required": [
           "file_name",
-          "algorithm"
+          "algorithm",
+          "scope"
         ],
         "type": "object"
       },
@@ -51587,7 +51592,7 @@
             "type": "string"
           },
           "name": {
-            "description": "Name from the DAT header, for example `Sony - PlayStation`.",
+            "description": "Sanitized name from the DAT header, for example `Sony - PlayStation`.",
             "type": "string"
           },
           "path": {
@@ -51716,17 +51721,17 @@
       "DumpMatch": {
         "properties": {
           "complete": {
-            "description": "True when every listed file other than a cue or gdi descriptor matched.",
+            "description": "True when every required file of the entry matched.",
             "type": "boolean"
           },
           "entry_file_count": {
-            "description": "Files in the entry other than cue or gdi descriptors.",
+            "description": "Required files: those with a SHA-1 or SHA-256 that aren't cue or gdi\ndescriptors. CRC32- or MD5-only files can't be compared and don't count.",
             "format": "uint32",
             "minimum": 0,
             "type": "integer"
           },
           "entry_name": {
-            "description": "The DAT entry name, for example `Final Fantasy VII (USA) (Disc 1)`.",
+            "description": "Sanitized DAT entry name, for example `Final Fantasy VII (USA) (Disc 1)`.",
             "type": "string"
           },
           "matched_files": {
@@ -51766,11 +51771,16 @@
           },
           "file_name": {
             "type": "string"
+          },
+          "scope": {
+            "$ref": "#/$defs/DigestScope",
+            "description": "The observed byte scope that matched, for example `canonical-n64-big-endian`."
           }
         },
         "required": [
           "file_name",
-          "algorithm"
+          "algorithm",
+          "scope"
         ],
         "type": "object"
       },
@@ -57482,7 +57492,7 @@
             "type": "string"
           },
           "name": {
-            "description": "Name from the DAT header, for example `Sony - PlayStation`.",
+            "description": "Sanitized name from the DAT header, for example `Sony - PlayStation`.",
             "type": "string"
           },
           "path": {
@@ -57611,17 +57621,17 @@
       "DumpMatch": {
         "properties": {
           "complete": {
-            "description": "True when every listed file other than a cue or gdi descriptor matched.",
+            "description": "True when every required file of the entry matched.",
             "type": "boolean"
           },
           "entry_file_count": {
-            "description": "Files in the entry other than cue or gdi descriptors.",
+            "description": "Required files: those with a SHA-1 or SHA-256 that aren't cue or gdi\ndescriptors. CRC32- or MD5-only files can't be compared and don't count.",
             "format": "uint32",
             "minimum": 0,
             "type": "integer"
           },
           "entry_name": {
-            "description": "The DAT entry name, for example `Final Fantasy VII (USA) (Disc 1)`.",
+            "description": "Sanitized DAT entry name, for example `Final Fantasy VII (USA) (Disc 1)`.",
             "type": "string"
           },
           "matched_files": {
@@ -57661,11 +57671,16 @@
           },
           "file_name": {
             "type": "string"
+          },
+          "scope": {
+            "$ref": "#/$defs/DigestScope",
+            "description": "The observed byte scope that matched, for example `canonical-n64-big-endian`."
           }
         },
         "required": [
           "file_name",
-          "algorithm"
+          "algorithm",
+          "scope"
         ],
         "type": "object"
       },
@@ -59458,7 +59473,7 @@
             "type": "string"
           },
           "name": {
-            "description": "Name from the DAT header, for example `Sony - PlayStation`.",
+            "description": "Sanitized name from the DAT header, for example `Sony - PlayStation`.",
             "type": "string"
           },
           "path": {
@@ -59587,17 +59602,17 @@
       "DumpMatch": {
         "properties": {
           "complete": {
-            "description": "True when every listed file other than a cue or gdi descriptor matched.",
+            "description": "True when every required file of the entry matched.",
             "type": "boolean"
           },
           "entry_file_count": {
-            "description": "Files in the entry other than cue or gdi descriptors.",
+            "description": "Required files: those with a SHA-1 or SHA-256 that aren't cue or gdi\ndescriptors. CRC32- or MD5-only files can't be compared and don't count.",
             "format": "uint32",
             "minimum": 0,
             "type": "integer"
           },
           "entry_name": {
-            "description": "The DAT entry name, for example `Final Fantasy VII (USA) (Disc 1)`.",
+            "description": "Sanitized DAT entry name, for example `Final Fantasy VII (USA) (Disc 1)`.",
             "type": "string"
           },
           "matched_files": {
@@ -59637,11 +59652,16 @@
           },
           "file_name": {
             "type": "string"
+          },
+          "scope": {
+            "$ref": "#/$defs/DigestScope",
+            "description": "The observed byte scope that matched, for example `canonical-n64-big-endian`."
           }
         },
         "required": [
           "file_name",
-          "algorithm"
+          "algorithm",
+          "scope"
         ],
         "type": "object"
       },
@@ -62009,7 +62029,7 @@
             "type": "string"
           },
           "name": {
-            "description": "Name from the DAT header, for example `Sony - PlayStation`.",
+            "description": "Sanitized name from the DAT header, for example `Sony - PlayStation`.",
             "type": "string"
           },
           "path": {
@@ -62138,17 +62158,17 @@
       "DumpMatch": {
         "properties": {
           "complete": {
-            "description": "True when every listed file other than a cue or gdi descriptor matched.",
+            "description": "True when every required file of the entry matched.",
             "type": "boolean"
           },
           "entry_file_count": {
-            "description": "Files in the entry other than cue or gdi descriptors.",
+            "description": "Required files: those with a SHA-1 or SHA-256 that aren't cue or gdi\ndescriptors. CRC32- or MD5-only files can't be compared and don't count.",
             "format": "uint32",
             "minimum": 0,
             "type": "integer"
           },
           "entry_name": {
-            "description": "The DAT entry name, for example `Final Fantasy VII (USA) (Disc 1)`.",
+            "description": "Sanitized DAT entry name, for example `Final Fantasy VII (USA) (Disc 1)`.",
             "type": "string"
           },
           "matched_files": {
@@ -62188,11 +62208,16 @@
           },
           "file_name": {
             "type": "string"
+          },
+          "scope": {
+            "$ref": "#/$defs/DigestScope",
+            "description": "The observed byte scope that matched, for example `canonical-n64-big-endian`."
           }
         },
         "required": [
           "file_name",
-          "algorithm"
+          "algorithm",
+          "scope"
         ],
         "type": "object"
       },
@@ -64078,7 +64103,7 @@
             "type": "string"
           },
           "name": {
-            "description": "Name from the DAT header, for example `Sony - PlayStation`.",
+            "description": "Sanitized name from the DAT header, for example `Sony - PlayStation`.",
             "type": "string"
           },
           "path": {
@@ -64207,17 +64232,17 @@
       "DumpMatch": {
         "properties": {
           "complete": {
-            "description": "True when every listed file other than a cue or gdi descriptor matched.",
+            "description": "True when every required file of the entry matched.",
             "type": "boolean"
           },
           "entry_file_count": {
-            "description": "Files in the entry other than cue or gdi descriptors.",
+            "description": "Required files: those with a SHA-1 or SHA-256 that aren't cue or gdi\ndescriptors. CRC32- or MD5-only files can't be compared and don't count.",
             "format": "uint32",
             "minimum": 0,
             "type": "integer"
           },
           "entry_name": {
-            "description": "The DAT entry name, for example `Final Fantasy VII (USA) (Disc 1)`.",
+            "description": "Sanitized DAT entry name, for example `Final Fantasy VII (USA) (Disc 1)`.",
             "type": "string"
           },
           "matched_files": {
@@ -64257,11 +64282,16 @@
           },
           "file_name": {
             "type": "string"
+          },
+          "scope": {
+            "$ref": "#/$defs/DigestScope",
+            "description": "The observed byte scope that matched, for example `canonical-n64-big-endian`."
           }
         },
         "required": [
           "file_name",
-          "algorithm"
+          "algorithm",
+          "scope"
         ],
         "type": "object"
       },

@@ -3131,7 +3131,7 @@ export interface DatReferenceStatus {
   id: string;
   message: string;
   /**
-   * Name from the DAT header, for example `Sony - PlayStation`.
+   * Sanitized name from the DAT header, for example `Sony - PlayStation`.
    */
   name: string;
   path: string;
@@ -5190,15 +5190,16 @@ export interface DumpIdentification {
 }
 export interface DumpMatch {
   /**
-   * True when every listed file other than a cue or gdi descriptor matched.
+   * True when every required file of the entry matched.
    */
   complete: boolean;
   /**
-   * Files in the entry other than cue or gdi descriptors.
+   * Required files: those with a SHA-1 or SHA-256 that aren't cue or gdi
+   * descriptors. CRC32- or MD5-only files can't be compared and don't count.
    */
   entry_file_count: number;
   /**
-   * The DAT entry name, for example `Final Fantasy VII (USA) (Disc 1)`.
+   * Sanitized DAT entry name, for example `Final Fantasy VII (USA) (Disc 1)`.
    */
   entry_name: string;
   matched_files: DumpMatchedFile[];
@@ -5214,6 +5215,19 @@ export interface DumpMatchedFile {
    */
   component_id?: string | null;
   file_name: string;
+  /**
+   * The observed byte scope that matched, for example `canonical-n64-big-endian`.
+   */
+  scope:
+    | "original-file"
+    | "original-container"
+    | "normalized-content"
+    | "canonical-n64-big-endian"
+    | "archive-member"
+    | "gamecube-normalized-iso"
+    | "psx-normalized-track-set"
+    | "file-set-member"
+    | "disc-set-member";
   [k: string]: unknown;
 }
 export interface SourceEvidenceLink {

@@ -226,16 +226,16 @@ function DumpIdentificationNote({ identification }: { identification: DumpIdenti
       </p>
       {others.length > 0 && (
         <ul className="m-0 grid list-none gap-0.5 p-0 text-[length:var(--text-xs)]">
-          {others.map((found) => (
-            <li key={`${found.reference_id}:${found.entry_name}`}>
+          {others.map((found, index) => (
+            <li key={`${found.reference_id}:${index}`}>
               {found.complete ? "Also matches" : "Partly matches"} “{found.entry_name}” in{" "}
               {found.reference_name}
             </li>
           ))}
         </ul>
       )}
-      {identification.unavailable_references.map((reference) => (
-        <p key={reference.id} className="m-0 text-[length:var(--text-xs)]">
+      {identification.unavailable_references.map((reference, index) => (
+        <p key={`${reference.id}:${index}`} className="m-0 text-[length:var(--text-xs)]">
           {reference.name}: {reference.message}
         </p>
       ))}

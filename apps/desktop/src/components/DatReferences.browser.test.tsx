@@ -14,7 +14,7 @@ const ready: DatReferenceStatus = {
   entry_count: 2,
   file_count: 2,
   state: "ready",
-  message: "Ready to name selected game files.",
+  message: "Ready to name selected original game files.",
 };
 
 describe("DAT files", () => {
@@ -63,11 +63,30 @@ describe("DAT files", () => {
 
     await act(async () =>
       host
-        .querySelector<HTMLButtonElement>("[aria-label='Remove DAT file Nintendo - Nintendo 64']")!
+        .querySelector<HTMLButtonElement>(
+          "[aria-label='Remove DAT file Nintendo - Nintendo 64 (20261113)']",
+        )!
         .click(),
     );
     expect(remove).toHaveBeenCalledWith(ready.id);
     expect(host.textContent).toContain("No DAT files added.");
+  });
+
+  it("holds the controls while the file picker is open", async () => {
+    let choose!: (path: string | null) => void;
+    const pick = () => new Promise<string | null>((resolve) => (choose = resolve));
+    const add = vi.fn();
+    await act(async () =>
+      root.rerender(<DatReferenceSettings load={async () => []} add={add} pick={pick} />),
+    );
+    const addButton = [...host.querySelectorAll("button")].find(
+      (button) => button.textContent === "Add DAT file",
+    )!;
+    await act(async () => addButton.click());
+    expect(addButton.disabled).toBe(true);
+    await act(async () => choose(null));
+    expect(addButton.disabled).toBe(false);
+    expect(add).not.toHaveBeenCalled();
   });
 
   it("shows why a saved DAT file is not used", async () => {
@@ -96,7 +115,7 @@ describe("DAT files", () => {
         state_code: "identified",
         summary: "Matches “Example (Europe)” in Nintendo - Nintendo 64.",
         limitation:
-          "DAT files only name the selected files. They don’t change which files this game accepts.",
+          "DAT files only name the selected original game files. They don’t change which files this game accepts.",
         checked_reference_count: 1,
         match_count: 2,
         matches: [
@@ -105,7 +124,9 @@ describe("DAT files", () => {
             reference_name: ready.name,
             entry_name: "Example (Europe)",
             complete: true,
-            matched_files: [{ file_name: "Example (Europe).z64", algorithm: "sha1" }],
+            matched_files: [
+              { file_name: "Example (Europe).z64", algorithm: "sha1", scope: "original-file" },
+            ],
             entry_file_count: 1,
           },
           {
@@ -113,7 +134,13 @@ describe("DAT files", () => {
             reference_name: ready.name,
             entry_name: "Example (Europe) (Rev 1)",
             complete: false,
-            matched_files: [{ file_name: "Example (Europe) (Rev 1).z64", algorithm: "sha1" }],
+            matched_files: [
+              {
+                file_name: "Example (Europe) (Rev 1).z64",
+                algorithm: "sha1",
+                scope: "original-file",
+              },
+            ],
             entry_file_count: 2,
           },
         ],
