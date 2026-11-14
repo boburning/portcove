@@ -342,6 +342,8 @@ fn a_steamapps_folder_is_protected_even_without_readable_metadata() {
         error.details.get("store").map(String::as_str),
         Some("Steam")
     );
+    // Only the folder name matched, so the message does not claim a Steam game.
+    assert!(error.message.contains("a folder named steamapps"));
 }
 
 #[cfg(unix)]

@@ -475,12 +475,8 @@ fn steamapps_ancestor(path: &Path) -> Option<PathBuf> {
 
 /// A suggested folder that would make a poor search root or contains this
 /// library: a filesystem root, the home folder, or an ancestor of `library`.
-fn unsuitable_suggestion(path: &Path, library: &Path) -> bool {
-    path.parent().is_none()
-        || directories::BaseDirs::new().is_some_and(|base| {
-            std::fs::canonicalize(base.home_dir()).is_ok_and(|home| home == path)
-        })
-        || inside(library, path)
+fn unsuitable_suggestion(path: &Path, library: &Path, home: Option<&Path>) -> bool {
+    path.parent().is_none() || home == Some(path) || inside(library, path)
 }
 
 impl PortcoveService {
@@ -490,10 +486,12 @@ impl PortcoveService {
         let mut report = detect(self.store_install_host()).report;
         let library = std::fs::canonicalize(self.library().root())
             .unwrap_or_else(|_| self.library().root().to_path_buf());
+        let home = directories::BaseDirs::new()
+            .and_then(|base| std::fs::canonicalize(base.home_dir()).ok());
         let before = report.installs.len();
         report
             .installs
-            .retain(|install| !unsuitable_suggestion(&install.path, &library));
+            .retain(|install| !unsuitable_suggestion(&install.path, &library, home.as_deref()));
         report.skipped_entries = report
             .skipped_entries
             .saturating_add(u32::try_from(before - report.installs.len()).unwrap_or(u32::MAX));
@@ -513,24 +511,29 @@ impl PortcoveService {
     /// canonical. Store folders whose metadata could not be read are only
     /// protected through the `steamapps` folder name.
     pub(crate) fn refuse_store_install_move(&self, profile_id: &str, path: &Path) -> Result<()> {
-        let found = steamapps_ancestor(path)
-            .map(|folder| (GameStore::Steam, folder))
-            .or_else(|| {
-                detect(self.store_install_host())
-                    .protected
-                    .into_iter()
-                    .find(|(_, folder)| inside(path, folder) || inside(folder, path))
-            });
-        let Some((store, folder)) = found else {
+        // A folder recognized only by its `steamapps` name may not be Steam's,
+        // so its message does not claim a Steam game.
+        let found = detect(self.store_install_host())
+            .protected
+            .into_iter()
+            .find(|(_, folder)| inside(path, folder) || inside(folder, path))
+            .map(|(store, folder)| (store, folder, true))
+            .or_else(|| steamapps_ancestor(path).map(|folder| (GameStore::Steam, folder, false)));
+        let Some((store, folder, detected)) = found else {
             return Ok(());
         };
         let store_name = store_name(store);
-        Err(PortcoveError::conflict(format!(
-            "These files are part of a game {store_name} installed. Moving them would break that game; copy them into Portcove or use them where they are."
-        ))
-        .detail("profile_id", profile_id)
-        .detail("store", store_name)
-        .detail("store_folder", folder.display().to_string()))
+        let message = if detected {
+            format!(
+                "These files are part of a game {store_name} installed. Moving them would break that game; copy them into Portcove or use them where they are."
+            )
+        } else {
+            "These files are in a folder named steamapps, where Steam keeps its games. Moving them could break a Steam game; copy them into Portcove or use them where they are.".to_owned()
+        };
+        Err(PortcoveError::conflict(message)
+            .detail("profile_id", profile_id)
+            .detail("store", store_name)
+            .detail("store_folder", folder.display().to_string()))
     }
 }
 
