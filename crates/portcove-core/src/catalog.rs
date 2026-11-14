@@ -3067,9 +3067,39 @@ mod tests {
             "sonic2-campaign.srm.bak",
             "sonic2-campaign.sav",
             "sonic2-campaign.sav.bak",
+            // v0.9.23's default-on replayable feedback writer.
+            "logs",
         ] {
             assert!(sonic2.persistent_paths.iter().any(|path| path == campaign));
         }
+        // The reviewed v0.8.3 package stays first; v0.9.23 is appended.
+        let sonic2_contract = catalog
+            .source_catalog()
+            .unwrap()
+            .contracts
+            .iter()
+            .find(|contract| contract.id == "sonic-the-hedgehog-2-recomp-game-source")
+            .unwrap();
+        assert_eq!(
+            sonic2_contract
+                .applicability
+                .iter()
+                .map(|binding| (
+                    binding.upstream_ref.as_str(),
+                    binding.artifact_sha256.as_deref().unwrap()
+                ))
+                .collect::<Vec<_>>(),
+            [
+                (
+                    "v0.8.3",
+                    "c526ad6fbdbcc83619e0daf8711a7c09699d63541003be4cc4bbdef11877901f"
+                ),
+                (
+                    "v0.9.23",
+                    "d6c19d29efa7578afd3468b61495f164358e5bf828ed09fb3e990c10518fd5dc"
+                ),
+            ]
+        );
         assert_eq!(
             serde_json::to_value(&sonic2.persistent_file_patterns).unwrap(),
             serde_json::json!([
@@ -8181,8 +8211,30 @@ mod tests {
         );
         assert!(port.persistent_paths.iter().any(|path| path == "saves"));
         assert!(!port.persistent_paths.iter().any(|path| path == "disc"));
+        // v0.5.7 stages its built-in mods in mods/bundled, which stays with
+        // each package; only the framework's player mod paths are carried.
+        // Installations created with whole-`mods` keep their definitions.
+        for path in [
+            "settings.toml.bad",
+            "config.ini",
+            "mods/installed",
+            "mods/packages",
+            "mods/.staging",
+            "mods/state.toml",
+            "mods/state.toml.tmp",
+            "mods/texture-packs",
+        ] {
+            assert!(port.persistent_paths.iter().any(|entry| entry == path));
+        }
+        assert!(
+            !port
+                .persistent_paths
+                .iter()
+                .any(|path| path == "mods" || path.starts_with("mods/bundled"))
+        );
         for path in [
             "cache",
+            "mods/cache",
             "disc",
             "overlay_captures.json",
             "overlay_captures.json.d",
@@ -8233,6 +8285,28 @@ mod tests {
         assert!(contract.evidence_ids.iter().any(|evidence_id| {
             evidence_id == "ape-escape-recompiled-windows-lifecycle-2026-09-16"
         }));
+        // The qualified v0.3.0 package stays first; the v0.5.7 package is
+        // appended after a static comparison under the split mod paths.
+        assert_eq!(
+            contract
+                .applicability
+                .iter()
+                .map(|binding| (
+                    binding.upstream_ref.as_str(),
+                    binding.artifact_sha256.as_deref().unwrap()
+                ))
+                .collect::<Vec<_>>(),
+            [
+                (
+                    "v0.3.0",
+                    "91e2cde5f16408ff51b4b822ebba8b811c4e591263170cb49f33a486606c58e9"
+                ),
+                (
+                    "v0.5.7",
+                    "d8b14cdc5c654556cf7235359f8450092d2c0946e93fd827c5d5c684a2f7621f"
+                ),
+            ]
+        );
 
         let scope = crate::SourceEvidenceScope {
             port_id: port.id.clone(),
