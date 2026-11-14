@@ -22,7 +22,9 @@ use crate::desktop_contract::{
     ApplicationUpdateAvailable, ApplicationUpdateChannel, ApplicationUpdatePreferences,
     ApplicationUpdateProgress, ApplicationUpdateStatus,
 };
-use crate::transport::{DESKTOP_EVENT_APPLICATION_UPDATE_NOTICE, emit_desktop_event};
+use crate::transport::{
+    DESKTOP_EVENT_APPLICATION_UPDATE_NOTICE, DESKTOP_EVENT_LIBRARY_CHANGED, emit_desktop_event,
+};
 use crate::{DesktopError, DesktopResult, DesktopState};
 
 const BETA_FEED: &str = "https://boburning.github.io/portcove/updates/beta/latest.json";
@@ -536,7 +538,7 @@ pub(crate) async fn install_application_update(
 
 /// Lets the renderer reload its library after a refused or failed install.
 fn announce_library_reopened(app: &AppHandle) {
-    let _ = emit_desktop_event::<()>(app, crate::transport::DESKTOP_EVENT_LIBRARY_CHANGED, ());
+    let _ = emit_desktop_event::<()>(app, DESKTOP_EVENT_LIBRARY_CHANGED, ());
 }
 
 /// Downloads the package with progress. The plugin verifies its signature
