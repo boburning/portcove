@@ -187,31 +187,6 @@
       }
     },
     {
-      "port_id": "sonic-the-hedgehog-recomp",
-      "platform": "windows-x86-64",
-      "version": "v0.7.3",
-      "sha256": "082cfb48e1d35a5ae05f054ad663e4eee46b21e5d920ec7e7d6628bce32a3fc8",
-      "derivation_inputs_sha256": "54f68930573b7d037990572bdae8e1ff6ba1b803375468fd3b63c4e9d4696564",
-      "size": 4750567,
-      "asset_name": "SonicTheHedgehogRecomp-windows-x64-v0.7.3.zip",
-      "reviewed_by": "applicability:sonic-the-hedgehog-recomp-game-source",
-      "shape": {
-        "programs": [
-          "sonicthehedgehogrecomp.exe"
-        ],
-        "top_directories": [
-          "assets",
-          "licenses"
-        ],
-        "persistent_parent_children": [],
-        "persistent_overlap": [],
-        "config_files": [
-          "build-info.json"
-        ],
-        "missing_persistent_parents": []
-      }
-    },
-    {
       "port_id": "super-mario-world-recomp",
       "platform": "windows-x86-64",
       "version": "v0.12.0",
@@ -312,5 +287,5 @@
       }
     }
   ],
-  "entries_sha256": "f15e90e317de8fbd90fd5b7f1504f7023699b888998ddec81dfa903b3f147bb5"
+  "entries_sha256": "b8c89eac867d1e52df0634a04146131ee1fe6caf9227a18babd32d297f1e50ac"
 }

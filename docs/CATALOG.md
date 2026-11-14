@@ -2633,6 +2633,68 @@ can keep conventional SRAM shared while isolating host snapshots and unknown
 sidecars. Changing the policy, source identity or persistence coordinates holds
 replacement; historical installed definitions do not acquire the new policy.
 
+One change is a reviewed successor rather than a migration: appending the same
+run of new conventional files to the end of both `persistent_paths` and
+`shared_paths`, in the same order, with every other hashed coordinate unchanged
+(port, `contract_id`, progress paths, source profile and original identity,
+and every existing path in order). Core derives the predecessor from the
+contract itself by removing that trailing run; no catalog record names it. At
+most 63 files can be appended across a lineage, because one of at most 64 shared
+paths must remain. Each appended path must be a file name with an extension,
+must not be an executable companion name (`.dll`, `.so`, `.dylib`, `.bat`,
+`.cmd`, `.ps1`, `.sh`, or `.exe` on Windows) on any declared platform, cannot be
+the verified original, and must not equal, contain or sit inside an existing
+persistent, shared or progress path. Removed, renamed, reordered, inserted or
+re-scoped paths, directories, an appended path that is not shared, and any other
+policy change remain refused migrations. Indexed definitions that append to a
+policy require staged-source capability 34, so an older reader refuses the
+entry instead of holding existing installations.
+
+Archive data stays under the namespace its first policy established, so a
+successor reads the predecessor's `<policy-sha256>` directory and older readers
+keep their coordinates; a fresh successor library creates its own namespace,
+which the predecessor does not read. Update, activation and reuse of a copy
+beside an existing predecessor accept the successor after two read-only checks
+against the active predecessor copy: its recorded package members and
+executable companions must not cover an appended path, and any appended file
+present both in its runtime and in canonical data must have identical bytes.
+Differing copies hold the update with the `appended_settings_diverged`
+failure, whose summary names the file and the installed and saved copies'
+exact paths so the player can delete the one they do not want.
+After the successor copy's ordinary data restore, an appended file the
+predecessor runtime already wrote and canonical data lacks is copied into the
+successor copy only. Canonical data gains it through that copy's later
+collection, so an activation that fails afterwards leaves no canonical change,
+and a retry keeps an identical earlier copy (different bytes hold). A non-file
+object at an appended path, or a file larger than 16 MiB there, holds with the
+`appended_settings_path_blocked` failure, which names the location. A successor package that itself ships a file
+at an appended path holds the same way when the predecessor runtime also has
+that file with different bytes. Rollback to a retained predecessor copy is
+accepted: the predecessor maps only its own paths, and the successor's files
+stay canonical and in the successor copy. Before the pointer moves, Core
+records `.portcove-archive-data-baseline.json` in the predecessor copy with the
+digests of its own files at the appended paths. A later forward switch treats
+files still matching that baseline as stale: canonical data wins without a hold
+and nothing is adopted. Only a file the predecessor changed after rollback can
+hold.
+
+Backups framed with a predecessor policy restore under any successor in its
+lineage. A backup's framing is its namespace coordinate, and a successor keeps
+the predecessor's namespace, so backups taken while the successor is active
+carry the predecessor framing too. An appended file absent from such a restored
+snapshot is therefore treated as outside its coverage: restore synchronization
+leaves that file in place in every installed copy whose contract declares it,
+instead of deleting it, and canonical data gains it again when the active
+successor copy is next collected. Appended files the snapshot does contain are
+restored normally. Before a
+successor owns them, files at appended paths are unknown runtime files of the
+predecessor copy: verification reports them and backups include them in their
+unknown-file area, but collection and restore do not move them. A historical
+`archive_data_transition_v1` predecessor first enters the lineage member whose
+scope matches its creating contract, then follows the same successor rule.
+Persistent file patterns are not available on partitioned routes, so only
+exact files can be appended.
+
 Common installation notices explain preservation, retained Versions and rollback.
 When build-specific progress exists, automatic maintenance stages the candidate
 for the player's activation decision without changing their update preference.

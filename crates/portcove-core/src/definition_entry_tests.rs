@@ -1111,8 +1111,8 @@ fn fresh_direct_entries_require_v26_without_reinterpreting_retained_or_exact_old
         entry["required_capabilities"][0]["minimum_version"] = json!(26);
         entry["required_capabilities"][0]["maximum_version"] = json!(26);
         assert!(inspect(&entry).unwrap().capabilities().compatible);
-        entry["required_capabilities"][0]["minimum_version"] = json!(34);
-        entry["required_capabilities"][0]["maximum_version"] = json!(34);
+        entry["required_capabilities"][0]["minimum_version"] = json!(35);
+        entry["required_capabilities"][0]["maximum_version"] = json!(35);
         assert!(!inspect(&entry).unwrap().capabilities().compatible);
         let old = packet["rows"]
             .as_array()
