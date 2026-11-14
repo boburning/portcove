@@ -1758,6 +1758,11 @@ fn preserved_resolution(
     record: &crate::curated_acquisition::CuratedAcquisitionRecord,
     scope: &crate::DefinitionAcquisitionScope,
 ) -> Result<ResolvedGithub> {
+    if let Some(hold) = &port.managed_acquisition_hold
+        && hold.excludes(&record.tag, &record.sha256)
+    {
+        return Err(PortcoveError::unsupported(hold.reason.clone()));
+    }
     scope.require_current()?;
     scope.require_port(port)?;
     crate::definition_repository::publisher_policy::require_curated_artifact_operation(
