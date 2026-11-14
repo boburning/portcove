@@ -52,8 +52,9 @@ installers have no Authenticode signature yet.
 
 **What the Stable approval protects.** Both environments hold the same updater
 key, because installed clients trust exactly one key. Rulesets let only the owner
-create Beta and Stable `v*` tags; GitHub Actions may also create
-`v*-preview.*` tags for nightly previews. No one can move or delete a `v*` tag.
+create Beta and Stable `v*` tags. Any repository writer, including GitHub Actions
+for nightly previews, can create `v*-preview.*` tags. No one can move or delete
+a `v*` tag.
 The `release-stable` approval therefore guards Stable against anything that is
 not the owner or acting as the owner. It is not a boundary against the owner's
 own account, which agents use.
