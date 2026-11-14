@@ -373,7 +373,10 @@ package manifest to permit the appended paths and its runtime and canonical
 copies of each appended file to agree. After the successor copy's ordinary
 restore, `prepare_retained_install_data` and rollback copy an appended file from
 the active predecessor runtime into that copy only when canonical data lacks it,
-so canonical data changes only through later collection. Restoring a snapshot
+so canonical data changes only through later collection; a retry keeps an
+identical earlier copy. Rollback records the predecessor copy's appended-file
+digests as a baseline, and a forward switch lets canonical data win silently
+for files still matching it. Restoring a snapshot
 framed by a strict predecessor policy keeps current appended files the snapshot
 lacks. Backup framing, fresh-beside and historical transition admission use
 the same lineage. See [CATALOG](CATALOG.md#adding-or-changing-a-port).

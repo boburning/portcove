@@ -333,9 +333,11 @@ fn interruption_after_complete_publication_retries_without_mixing_versions_or_st
 #[test]
 fn metadata_namespace_is_exact_and_bounded() {
     assert!(metadata_name(PSX_DATA_RECEIPT));
+    assert!(metadata_name(ARCHIVE_DATA_BASELINE));
     assert!(metadata_name(&format!("{PSX_DATA_WRITE_PREFIX}Abc12345")));
     for name in [
         format!("sub/{PSX_DATA_RECEIPT}"),
+        format!("sub/{ARCHIVE_DATA_BASELINE}"),
         format!("{PSX_DATA_WRITE_PREFIX}Abc123456"),
         format!("{PSX_DATA_WRITE_PREFIX}abc/1234"),
         format!("{PSX_DATA_RECEIPT}.other"),

@@ -118,8 +118,68 @@ pub(super) fn admitted_receipt(install: &InstallRecord) -> Result<Vec<u8>> {
     Ok(bytes)
 }
 
+/// Digests of a predecessor copy's runtime files at a successor's appended
+/// paths, recorded when that copy becomes active again by rollback.
+pub(crate) const ARCHIVE_DATA_BASELINE: &str = ".portcove-archive-data-baseline.json";
+
+#[derive(Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct AppendedBaseline {
+    schema_version: u32,
+    port_id: String,
+    install_id: String,
+    manifest_sha256: String,
+    files: BTreeMap<String, Option<String>>,
+}
+
+pub(super) fn record_appended_baseline(
+    install: &InstallRecord,
+    files: BTreeMap<String, Option<String>>,
+) -> Result<()> {
+    let path = install.path.join(ARCHIVE_DATA_BASELINE);
+    refuse_symlink_ancestors(&path)?;
+    crate::durability::write_bytes_atomically_with_prefix(
+        &path,
+        &serde_json::to_vec(&AppendedBaseline {
+            schema_version: 1,
+            port_id: install.port_id.clone(),
+            install_id: install.id.clone(),
+            manifest_sha256: install.manifest_sha256.clone(),
+            files,
+        })?,
+        true,
+        Some(PSX_DATA_WRITE_PREFIX),
+    )
+}
+
+/// The recorded baseline for this exact installation, if any. A baseline for
+/// another installation or manifest is ignored rather than trusted.
+pub(super) fn appended_baseline(
+    install: &InstallRecord,
+) -> Result<Option<BTreeMap<String, Option<String>>>> {
+    let path = install.path.join(ARCHIVE_DATA_BASELINE);
+    refuse_symlink_ancestors(&path)?;
+    if !path.try_exists()? {
+        return Ok(None);
+    }
+    let mut bytes = Vec::new();
+    crate::external_runtime::open_single_link_file(&path)?
+        .take(64 * 1024 + 1)
+        .read_to_end(&mut bytes)?;
+    let Ok(baseline) = serde_json::from_slice::<AppendedBaseline>(&bytes) else {
+        return Ok(None);
+    };
+    Ok((bytes.len() <= 64 * 1024
+        && baseline.schema_version == 1
+        && baseline.port_id == install.port_id
+        && baseline.install_id == install.id
+        && baseline.manifest_sha256 == install.manifest_sha256)
+        .then_some(baseline.files))
+}
+
 pub(crate) fn metadata_name(relative: &str) -> bool {
     relative == PSX_DATA_RECEIPT
+        || relative == ARCHIVE_DATA_BASELINE
         || relative
             .strip_prefix(PSX_DATA_WRITE_PREFIX)
             .is_some_and(|tail| tail.len() == 8 && tail.bytes().all(|b| b.is_ascii_alphanumeric()))
@@ -822,6 +882,8 @@ impl PortcoveService {
         self.restore_retained_user_data_to(install)?;
         if let Some(active) = &active {
             self.adopt_additive_archive_data(active, install)?;
+            self.record_additive_rollback_baseline(active, install)?;
+            self.faults.check(LifecycleFaultPoint::ArchiveDataAdopted)?;
             self.require_portable_target_transition(active, install)?;
         }
         Installer::new(self.library.clone())?.verify_critical(install, &qualification)?;

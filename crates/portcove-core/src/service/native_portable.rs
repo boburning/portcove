@@ -322,8 +322,33 @@ impl PortcoveService {
             to,
             &self.persistence_root(retained, &from.path)?,
             &self.library.user_dir(&to.id),
+            psx_mod_data::appended_baseline(from)?.as_ref(),
         )?;
         Ok(())
+    }
+
+    /// When rollback makes a predecessor copy active again, record its runtime
+    /// copies of the successor's appended files, so a later forward switch can
+    /// tell that copy's untouched stale files from changes made after rollback.
+    pub(super) fn record_additive_rollback_baseline(
+        &self,
+        active: &InstallRecord,
+        previous: &InstallRecord,
+    ) -> Result<()> {
+        if active.port_id != previous.port_id || active.id == previous.id {
+            return Ok(());
+        }
+        let wider = self.persistence_contract_for_install(active)?.port;
+        let narrower = self.persistence_contract_for_install(previous)?.port;
+        if crate::archive_data::added_paths(&narrower, &wider)?.is_none() {
+            return Ok(());
+        }
+        let digests = crate::archive_data::appended_digests(
+            &narrower,
+            &wider,
+            &self.persistence_root(&narrower, &previous.path)?,
+        )?;
+        psx_mod_data::record_appended_baseline(previous, digests)
     }
 
     /// After a structural additive data-policy successor's ordinary restore,
@@ -351,6 +376,7 @@ impl PortcoveService {
             &self.persistence_root(&from, &active.path)?,
             &self.library.user_dir(&to.id),
             &self.persistence_root(&to, &target.path)?,
+            psx_mod_data::appended_baseline(active)?.as_ref(),
         )?;
         Ok(())
     }
@@ -4696,6 +4722,28 @@ mod tests {
             "review must preserve the saved preference"
         );
         assert_eq!(service.status(id).unwrap().active.unwrap().id, first.id);
+        if !added.is_empty() {
+            // Interrupt after adoption, before the activation commits; the
+            // retry finds its identical earlier adoption and completes.
+            struct AfterAdoption;
+            impl LifecycleFaultInjector for AfterAdoption {
+                fn check(&self, point: LifecycleFaultPoint) -> Result<()> {
+                    if point == LifecycleFaultPoint::ArchiveDataAdopted {
+                        Err(PortcoveError::state("fixture interruption after adoption"))
+                    } else {
+                        Ok(())
+                    }
+                }
+            }
+            service.faults = Arc::new(AfterAdoption);
+            assert!(service.activate_staged(id).is_err());
+            assert_eq!(service.status(id).unwrap().active.unwrap().id, first.id);
+            for path in added {
+                assert!(!library.user_dir(id).join(path).exists());
+            }
+            service.faults = Arc::new(Trace(started));
+            service.recover_pending_operations().unwrap();
+        }
         let second = service.activate_staged(id).unwrap();
         if id == "retropulse03-winback-n64recomp" {
             assert_eq!(
@@ -4798,6 +4846,18 @@ mod tests {
                 fs::read(first.path.join(path)).unwrap(),
                 b"runtime-only settings"
             );
+        }
+        if !added.is_empty() {
+            // Rolling forward again: the older copy's untouched files lose to
+            // the newer saved settings without holding.
+            assert_eq!(service.rollback(id).unwrap().id, second.id);
+            for path in added {
+                assert_eq!(
+                    fs::read(second.path.join(path)).unwrap(),
+                    b"successor settings"
+                );
+            }
+            assert_eq!(service.rollback(id).unwrap().id, first.id);
         }
         assert_eq!(
             fs::read(first.path.join(state)).unwrap(),

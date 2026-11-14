@@ -399,29 +399,57 @@ fn appended_file(root: &Path, relative: &str) -> Result<Option<String>> {
     ))
 }
 
+/// Digests of the runtime's files at a successor's appended paths (absent
+/// files as `None`), recorded as a predecessor copy's rollback baseline.
+pub(crate) fn appended_digests(
+    predecessor: &PortDefinition,
+    successor: &PortDefinition,
+    runtime: &Path,
+) -> Result<BTreeMap<String, Option<String>>> {
+    let mut digests = BTreeMap::new();
+    for relative in added_paths(predecessor, successor)?.unwrap_or_default() {
+        let digest = appended_file(runtime, &relative)?;
+        digests.insert(relative, digest);
+    }
+    Ok(digests)
+}
+
 /// Read-only preflight for a successor's appended files. Returns the files the
-/// active predecessor runtime holds and canonical data lacks. When both hold a
-/// file with different bytes, the player must choose: that holds.
+/// active predecessor runtime holds and canonical data lacks.
+///
+/// `baseline` is the predecessor copy's runtime digests recorded when it last
+/// became active by rollback. A file unchanged since then is that copy's stale
+/// copy, so canonical data wins silently and nothing is adopted. A file the
+/// predecessor genuinely changed, whose bytes differ from canonical data,
+/// waits for the player to keep one of the two named copies.
 pub(crate) fn require_adoptable(
     predecessor: &PortDefinition,
     successor: &PortDefinition,
     runtime: &Path,
     user: &Path,
+    baseline: Option<&BTreeMap<String, Option<String>>>,
 ) -> Result<Vec<String>> {
     let Some(added) = added_paths(predecessor, successor)? else {
         return Ok(Vec::new());
     };
     let mut adoptable = Vec::new();
     for relative in added {
-        match (
-            appended_file(runtime, &relative)?,
-            appended_file(user, &relative)?,
-        ) {
+        let active = appended_file(runtime, &relative)?;
+        if baseline.is_some_and(|baseline| baseline.get(&relative) == Some(&active)) {
+            continue;
+        }
+        match (active, appended_file(user, &relative)?) {
             (Some(active), Some(canonical)) if active != canonical => {
-                return Err(held(
-                    "the current version and saved data hold different copies of a newly declared settings file; keep the one you want and review the update again",
-                )
-                .detail("path", relative.as_str()));
+                let installed = runtime.join(&relative);
+                let saved = user.join(&relative);
+                return Err(held(&format!(
+                    "This update would carry over {relative}, but the copy in the installed version ({}) differs from your saved copy ({}). Keep the one you want by deleting the other, then update again.",
+                    installed.display(),
+                    saved.display(),
+                ))
+                .detail("path", relative.as_str())
+                .detail("installed_copy", installed.display().to_string())
+                .detail("saved_copy", saved.display().to_string()));
             }
             (Some(_), None) => adoptable.push(relative),
             _ => {}
@@ -434,19 +462,25 @@ pub(crate) fn require_adoptable(
 /// initial content from the active predecessor runtime where canonical data
 /// has none. Only the successor copy is written: canonical data gains the files
 /// through the successor's own later collection, so an interrupted activation
-/// leaves no canonical change behind. Returns the adopted relative paths.
+/// leaves no canonical change behind. A retry finds an identical earlier
+/// adoption and keeps it; different bytes in the new copy hold. Returns the
+/// adopted relative paths.
 pub(crate) fn adopt_added_paths(
     predecessor: &PortDefinition,
     successor: &PortDefinition,
     runtime: &Path,
     user: &Path,
     target: &Path,
+    baseline: Option<&BTreeMap<String, Option<String>>>,
 ) -> Result<Vec<String>> {
-    let adoptable = require_adoptable(predecessor, successor, runtime, user)?;
+    let adoptable = require_adoptable(predecessor, successor, runtime, user, baseline)?;
     for relative in &adoptable {
-        if appended_file(target, relative)?.is_some() {
+        if let Some(existing) = appended_file(target, relative)? {
+            if Some(existing) == appended_file(runtime, relative)? {
+                continue;
+            }
             return Err(held(
-                "the new version already holds a newly declared settings file that saved data lacks; preserve it and review the update",
+                "the new version already holds a different copy of a newly declared settings file that saved data lacks; preserve it and review the update",
             )
             .detail("path", relative.as_str()));
         }
@@ -1079,7 +1113,7 @@ mod tests {
         // Adoption writes only the new copy, never canonical data, so an
         // activation that fails afterwards leaves no stale canonical snapshot.
         assert_eq!(
-            adopt_added_paths(&base, &next, &old_runtime, &user, &new_runtime)?,
+            adopt_added_paths(&base, &next, &old_runtime, &user, &new_runtime, None)?,
             ["sound.ini"]
         );
         assert_eq!(fs::read(new_runtime.join("sound.ini"))?, b"runtime choice");
@@ -1094,14 +1128,14 @@ mod tests {
         );
         // Equal copies need nothing; differing copies wait for the player.
         let elsewhere = directory.path().join("elsewhere");
-        assert!(adopt_added_paths(&base, &next, &old_runtime, &user, &elsewhere)?.is_empty());
+        assert!(adopt_added_paths(&base, &next, &old_runtime, &user, &elsewhere, None)?.is_empty());
         fs::write(old_runtime.join("sound.ini"), b"older runtime choice")?;
-        let held = require_adoptable(&base, &next, &old_runtime, &user).unwrap_err();
+        let held = require_adoptable(&base, &next, &old_runtime, &user, None).unwrap_err();
         assert_eq!(
             held.details.get("path").map(String::as_str),
             Some("sound.ini")
         );
-        assert!(adopt_added_paths(&base, &next, &old_runtime, &user, &elsewhere).is_err());
+        assert!(adopt_added_paths(&base, &next, &old_runtime, &user, &elsewhere, None).is_err());
         assert!(!elsewhere.exists());
         assert_eq!(fs::read(user.join("sound.ini"))?, b"runtime choice");
         // Rollback: the predecessor maps only its own coordinates and still
@@ -1147,11 +1181,71 @@ mod tests {
         let next = successor(&base, &["sound.ini"]);
         let target = directory.path().join("target");
         fs::create_dir_all(runtime.join("sound.ini"))?;
-        assert!(adopt_added_paths(&base, &next, &runtime, &user, &target).is_err());
+        assert!(adopt_added_paths(&base, &next, &runtime, &user, &target, None).is_err());
         assert!(!user.join("sound.ini").exists());
         assert!(!target.exists());
         // Unrelated policies adopt nothing.
-        assert!(adopt_added_paths(&next, &base, &runtime, &user, &target)?.is_empty());
+        assert!(adopt_added_paths(&next, &base, &runtime, &user, &target, None)?.is_empty());
+        Ok(())
+    }
+
+    #[test]
+    fn a_retried_adoption_keeps_its_identical_earlier_copy() -> Result<()> {
+        let directory = tempfile::tempdir()?;
+        let runtime = directory.path().join("old");
+        let target = directory.path().join("new");
+        let user = directory.path().join("user");
+        let base = port();
+        let next = successor(&base, &["sound.ini"]);
+        fs::create_dir_all(&runtime)?;
+        fs::write(runtime.join("sound.ini"), b"runtime choice")?;
+        // An interrupted activation left the adopted copy in the new version;
+        // canonical data was never written, so the retry adopts again.
+        adopt_added_paths(&base, &next, &runtime, &user, &target, None)?;
+        adopt_added_paths(&base, &next, &runtime, &user, &target, None)?;
+        assert_eq!(fs::read(target.join("sound.ini"))?, b"runtime choice");
+        assert!(!user.join("sound.ini").exists());
+        // Different bytes already in the new version still hold.
+        fs::write(target.join("sound.ini"), b"something else")?;
+        assert!(adopt_added_paths(&base, &next, &runtime, &user, &target, None).is_err());
+        assert_eq!(fs::read(target.join("sound.ini"))?, b"something else");
+        Ok(())
+    }
+
+    #[test]
+    fn a_rollback_baseline_lets_canonical_data_win_until_the_older_copy_changes() -> Result<()> {
+        let directory = tempfile::tempdir()?;
+        let runtime = directory.path().join("old");
+        let user = directory.path().join("user");
+        let base = port();
+        let next = successor(&base, &["sound.ini", "fixes.ini"]);
+        fs::create_dir_all(&runtime)?;
+        fs::create_dir_all(&user)?;
+        // The older copy keeps the value it had; the newer version changed it.
+        fs::write(runtime.join("sound.ini"), b"B")?;
+        fs::write(user.join("sound.ini"), b"A")?;
+        let baseline = appended_digests(&base, &next, &runtime)?;
+        assert_eq!(baseline.get("fixes.ini"), Some(&None));
+        assert!(require_adoptable(&base, &next, &runtime, &user, None).is_err());
+        assert!(require_adoptable(&base, &next, &runtime, &user, Some(&baseline))?.is_empty());
+        // A file the older copy creates after rollback is genuinely new.
+        fs::write(runtime.join("fixes.ini"), b"new after rollback")?;
+        assert_eq!(
+            require_adoptable(&base, &next, &runtime, &user, Some(&baseline))?,
+            ["fixes.ini"]
+        );
+        // A real change to the older copy after rollback waits for the player,
+        // naming both copies.
+        fs::write(runtime.join("sound.ini"), b"C")?;
+        let held = require_adoptable(&base, &next, &runtime, &user, Some(&baseline)).unwrap_err();
+        assert_eq!(
+            held.details.get("installed_copy").map(String::as_str),
+            Some(runtime.join("sound.ini").display().to_string().as_str())
+        );
+        assert_eq!(
+            held.details.get("saved_copy").map(String::as_str),
+            Some(user.join("sound.ini").display().to_string().as_str())
+        );
         Ok(())
     }
 

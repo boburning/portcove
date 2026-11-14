@@ -2658,21 +2658,33 @@ beside an existing predecessor accept the successor after two read-only checks
 against the active predecessor copy: its recorded package members and
 executable companions must not cover an appended path, and any appended file
 present both in its runtime and in canonical data must have identical bytes.
-Differing copies hold the update until the player keeps one of them. After the
-successor copy's ordinary data restore, an appended file the predecessor
-runtime already wrote and canonical data lacks is copied into the successor
-copy only. Canonical data gains it through that copy's later collection, so an
-activation that fails afterwards leaves no canonical change. A non-file object
-at an appended path holds. Rollback to a retained predecessor copy is accepted:
-the predecessor maps only its own paths, and the successor's files stay
-canonical and in the successor copy.
+Differing copies hold the update; the refusal names the installed copy's and
+the saved copy's exact paths so the player can delete the one they do not want.
+After the successor copy's ordinary data restore, an appended file the
+predecessor runtime already wrote and canonical data lacks is copied into the
+successor copy only. Canonical data gains it through that copy's later
+collection, so an activation that fails afterwards leaves no canonical change,
+and a retry keeps an identical earlier copy (different bytes hold). A non-file
+object at an appended path holds. A successor package that itself ships a file
+at an appended path holds the same way when the predecessor runtime also has
+that file with different bytes. Rollback to a retained predecessor copy is
+accepted: the predecessor maps only its own paths, and the successor's files
+stay canonical and in the successor copy. Before the pointer moves, Core
+records `.portcove-archive-data-baseline.json` in the predecessor copy with the
+digests of its own files at the appended paths. A later forward switch treats
+files still matching that baseline as stale: canonical data wins without a hold
+and nothing is adopted. Only a file the predecessor changed after rollback can
+hold.
 
 Backups framed with a predecessor policy restore under any successor in its
-lineage. Under the successor's shared namespace every backup carries that
-predecessor framing, so an appended file absent from the restored snapshot is
-treated as outside its coverage: the current file in each successor copy is
-kept rather than deleted, and the next collection makes it canonical again.
-Appended files the snapshot does contain are restored normally. Before a
+lineage. A backup's framing is its namespace coordinate, and a successor keeps
+the predecessor's namespace, so backups taken while the successor is active
+carry the predecessor framing too. An appended file absent from such a restored
+snapshot is therefore treated as outside its coverage: restore synchronization
+leaves that file in place in every installed copy whose contract declares it,
+instead of deleting it, and canonical data gains it again when the active
+successor copy is next collected. Appended files the snapshot does contain are
+restored normally. Before a
 successor owns them, files at appended paths are unknown runtime files of the
 predecessor copy: verification reports them and backups include them in their
 unknown-file area, but collection and restore do not move them. A historical
