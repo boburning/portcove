@@ -219,9 +219,7 @@ fn image_finding(image: &SteamGridDbImageCheck) -> String {
         (None, Some(_)) if image.effect == SteamGridDbCheckEffect::Withdrawn => {
             ". Confirmed; Portcove kept its copy, because you imported this image yourself or another credit still lists it"
         }
-        (None, Some(_)) => {
-            ". Confirmed earlier; Portcove kept its copy, because you imported this image yourself or another credit still lists it"
-        }
+        (None, Some(_)) => ". Confirmed earlier; Portcove has kept its copy",
         (None, None) if image.listing == Listing::NotListed => {
             ". If SteamGridDB's image server reports the file gone, or a check at least a day later still finds it missing, Portcove removes its copy unless you imported it yourself"
         }
@@ -608,7 +606,7 @@ mod tests {
         // A kept image confirmed earlier says so, and a listed result in a check
         // that was not recorded adds nothing about the stored confirmation.
         removed.images[1].effect = SteamGridDbCheckEffect::None;
-        assert!(listing_report(&removed).contains("Confirmed earlier; Portcove kept its copy"));
+        assert!(listing_report(&removed).contains("Confirmed earlier; Portcove has kept its copy"));
         removed.images[1].listing = SteamGridDbListingResult::Listed;
         assert!(!listing_report(&removed).contains("Portcove kept its copy"));
         assert!(text.contains("couldn't remove 1 copy"));

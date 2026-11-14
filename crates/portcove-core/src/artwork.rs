@@ -790,7 +790,10 @@ impl PortcoveService {
             connection.transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?;
         let mut skipped = 0;
         let mut effects = vec![Effect::None; report.images.len()];
-        let mut written_assets = std::collections::BTreeSet::new();
+        // Assets with a record newly confirmed withdrawn in this run.
+        let mut fresh_assets = std::collections::BTreeSet::new();
+        // Per image: written in this run as a verified absence.
+        let mut written_absent = vec![false; report.images.len()];
         // An asset with a record this run could not write may still carry a
         // withdrawal that the unwritten result would have cleared.
         let mut unwritten_assets = std::collections::BTreeSet::new();
@@ -842,12 +845,12 @@ impl PortcoveService {
             match applied {
                 Ok(applied) => {
                     savepoint.commit()?;
-                    if applied != Applied::Skipped {
-                        written_assets.insert(image.asset_sha256.clone());
-                    }
+                    written_absent[index] =
+                        applied != Applied::Skipped && image.listing == Listing::NotListed;
                     match applied {
                         Applied::Recorded(WithdrawalChange::Withdrawn) => {
                             effects[index] = Effect::Withdrawn;
+                            fresh_assets.insert(image.asset_sha256.clone());
                         }
                         Applied::Recorded(WithdrawalChange::Cleared) => {
                             effects[index] = Effect::ListedAgain;
@@ -862,12 +865,28 @@ impl PortcoveService {
             }
         }
         // After every record is applied, inside the same transaction: an asset
-        // is evicted only when every one of its records is withdrawn now. Every
-        // asset this check wrote is evaluated, so one held back by an earlier
-        // write failure is evicted once its records are written again.
-        for asset in written_assets.difference(&unwritten_assets) {
+        // is evicted only when every one of its records is withdrawn now. It is
+        // evaluated when a record was newly confirmed, or when every one of its
+        // records in this report was written as a verified absence, so an asset
+        // held back by an earlier write failure is evicted only once fresh
+        // evidence agrees with every stored withdrawal.
+        let mut candidates = fresh_assets.clone();
+        for image in &report.images {
+            if report
+                .images
+                .iter()
+                .enumerate()
+                .filter(|(_, other)| other.asset_sha256 == image.asset_sha256)
+                .all(|(index, _)| written_absent[index])
+            {
+                candidates.insert(image.asset_sha256.clone());
+            }
+        }
+        let mut newly_evicted = std::collections::BTreeSet::new();
+        for asset in candidates.difference(&unwritten_assets) {
             if crate::artwork_store::evictable(&transaction, asset)? {
                 crate::artwork_store::mark_evicted(&transaction, asset, report.checked_at)?;
+                newly_evicted.insert(asset.clone());
             }
         }
         // A withdrawal confirmed on an asset whose copy is removed, now or by an
@@ -880,7 +899,11 @@ impl PortcoveService {
         }
         transaction.commit()?;
         for (index, image) in report.images.iter_mut().enumerate() {
-            image.effect = if effects[index] == Effect::Withdrawn && removed[index] {
+            // This check removed the copy: its absences report removed, even
+            // when every withdrawal was confirmed by an earlier check.
+            let removed_now = newly_evicted.contains(&image.asset_sha256) && written_absent[index];
+            image.effect = if (effects[index] == Effect::Withdrawn && removed[index]) || removed_now
+            {
                 Effect::Removed
             } else {
                 effects[index]
