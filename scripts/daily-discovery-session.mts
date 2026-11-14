@@ -74,7 +74,21 @@ import {
   retainLeadResults,
   LeadSearchChanged,
   restartLeadSlice,
+  linkExternalHints,
+  resolveExternalHint,
 } from "./discovery-leads.mts";
+import type { ExternalResolution } from "./discovery-leads.mts";
+import {
+  externalHintSummary,
+  externalLeadLists,
+  externalListDue,
+  externalRepository,
+  leadPaths,
+  mergeExternalList,
+  parseExternalList,
+  selectExternalResolutions,
+} from "./discovery-external-lists.mts";
+import { assessUpstreamLineage } from "./upstream-lineage.mts";
 import type { LeadState } from "./discovery-leads.mts";
 import { ecosystemBursts } from "./discovery-ecosystems.mts";
 import { readCatalogSource } from "./catalog-authoring.mts";
@@ -292,6 +306,7 @@ export class DiscoverySession {
   deferredLeadFamilies = new Set<string>();
   researchedLeads = new Set<number>();
   leadCollectionAttempted = false;
+  externalCollectionAttempted = false;
   private constructor(stateDir: string, runDir: string, startedAt: string, head: string) {
     this.stateDir = stateDir;
     this.runDir = runDir;
@@ -754,8 +769,157 @@ export class DiscoverySession {
       next: pending?.slice(0, 12) ?? [],
       continuations: this.leads.slices,
       ecosystem_bursts: ecosystemBursts(Object.values(this.leads.records), this.journal.started_at),
+      external: this.leads.external
+        ? externalHintSummary(
+            this.leads.external,
+            this.inventory ? this.externalCovered() : undefined,
+            leadPaths(Object.values(this.leads.records)),
+            this.journal.started_at,
+          )
+        : null,
       scope: "Bounded GitHub lead searches; not complete community discovery",
     };
+  }
+  /** Canonical issue upstreams plus reviewed catalog lineage, as normalized hint keys. */
+  externalCovered() {
+    const covered = new Set<string>();
+    const add = (url: string) => {
+      const repository = externalRepository(url);
+      if (repository) covered.add(repository.key);
+    };
+    for (const url of this.knownLeadUrls()) add(url);
+    for (const record of (this.intakeRecords ??= readCatalogSource(
+      fileURLToPath(new URL("../crates/portcove-core/catalog", import.meta.url)),
+    ).records)) {
+      const lineage = assessUpstreamLineage(record);
+      for (const identity of [lineage.current, ...lineage.history]) add(identity.project_url);
+    }
+    return covered;
+  }
+  /** Curated community lists add lead hints only. Each due list is read once per run
+   * and a bounded number of uncovered GitHub hints is bound to primary repository IDs.
+   */
+  async collectExternalLists() {
+    if (this.externalCollectionAttempted) return this.leadSummary().external;
+    this.externalCollectionAttempted = true;
+    const at = this.journal.started_at;
+    const exhausted = (error: unknown) =>
+      error instanceof GitHubApiError && ["budget_exhausted", "rate_limited"].includes(error.code);
+    for (const list of externalLeadLists) {
+      if (!externalListDue(this.leads.external, list.id, at)) continue;
+      const left = this.budget.remaining();
+      if (left.requests < 18 || left.bytes < list.cap + 1024 * 1024) {
+        this.journal.notes.push({
+          phase: "external-list",
+          source: list.id,
+          status: "deferred",
+          resume: "Read this list on a later admitted run; retained hints are unchanged",
+        });
+        continue;
+      }
+      const name = `external-list-${list.id}`;
+      try {
+        const response = await this.source.http.request(
+          "GET",
+          list.url,
+          undefined,
+          false,
+          list.cap,
+        );
+        this.save(name, { url: list.url, ...response });
+        if (response.status !== 200)
+          throw new Error(`External list returned HTTP ${String(response.status)}`);
+        const parsed = parseExternalList(list.id, response.text);
+        this.leads = linkExternalHints(
+          {
+            ...this.leads,
+            external: mergeExternalList(
+              this.leads.external,
+              list.id,
+              parsed,
+              at,
+              path.join(this.runDir, `${name}.json`),
+            ),
+          },
+          at,
+        );
+      } catch (error) {
+        this.journal.notes.push({
+          phase: "external-list",
+          source: list.id,
+          status: "partial",
+          evidence: list.url,
+          error: errorMessage(error),
+          resume: "Retained hints and the last successful list clock are unchanged",
+        });
+        if (exhausted(error)) break;
+      }
+      this.persist();
+    }
+    const picks = this.leads.external
+      ? selectExternalResolutions(
+          this.leads.external,
+          this.externalCovered(),
+          leadPaths(Object.values(this.leads.records)),
+          at,
+        )
+      : [];
+    for (const pick of picks) {
+      // Keep the same capacity for two upstream investigations that lead searches keep.
+      if (this.budget.remaining().requests < 18 || this.budget.remaining().bytes < 1024 * 1024) {
+        this.journal.notes.push({
+          phase: "external-resolution",
+          status: "deferred",
+          next: pick.repository,
+          resume: "Resolve remaining curated-list hints on a later admitted run",
+        });
+        break;
+      }
+      const name = `external-resolution-${observationHash(pick.key).slice(0, 16)}`;
+      let outcome: ExternalResolution;
+      try {
+        await this.budget.admit(1, 1);
+        const response = await this.source.sdk.request({
+          method: "GET",
+          url: new URL(`repos/${repoName(pick.repository)}`, "https://api.github.com/").href,
+        });
+        this.save(name, response.data);
+        outcome = { status: "found", repository: response.data };
+      } catch (error) {
+        if (error instanceof GitHubApiError && error.status === 404)
+          outcome = { status: "unavailable", reason: "Repository metadata returned HTTP 404" };
+        else {
+          this.journal.notes.push({
+            phase: "external-resolution",
+            status: "partial",
+            next: pick.repository,
+            error: errorMessage(error),
+            resume: "Resolve this curated-list hint on a later admitted run",
+          });
+          break;
+        }
+      }
+      try {
+        this.leads = resolveExternalHint(
+          this.leads,
+          pick.key,
+          outcome,
+          at,
+          path.join(this.runDir, `${name}.json`),
+        );
+      } catch (error) {
+        this.journal.notes.push({
+          phase: "external-resolution",
+          status: "partial",
+          next: pick.repository,
+          error: errorMessage(error),
+          resume: "Malformed provider metadata; retry this hint on a later admitted run",
+        });
+      }
+      this.persist();
+    }
+    this.persist();
+    return this.leadSummary().external;
   }
   async discover() {
     if (this.leadCollectionAttempted) return this.leadSummary();
@@ -1382,6 +1546,7 @@ export class DiscoverySession {
   async collect() {
     if (this.journal.collection_done)
       throw new Error("Source collection already completed in this run");
+    await this.collectExternalLists();
     await this.discover();
     const reserve = this.budget.reserve;
     const pending = pendingLeads(this.leads, this.knownLeadUrls());

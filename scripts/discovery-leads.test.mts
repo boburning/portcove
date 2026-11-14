@@ -11,7 +11,20 @@ import {
   LeadSearchChanged,
   leadSearchFamilyCount,
   leadFamilyIds,
+  linkExternalHints,
+  resolveExternalHint,
 } from "./discovery-leads.mts";
+import {
+  externalHintSummary,
+  externalListDue,
+  leadPaths,
+  mergeExternalList,
+  parseAlexbeavCatalog,
+  parseExternalList,
+  parseFindsFeed,
+  parsePortsdrPage,
+  selectExternalResolutions,
+} from "./discovery-external-lists.mts";
 import { DiscoverySession } from "./daily-discovery-session.mts";
 import { DiscoveryBudget } from "./discovery-budget.mts";
 import { mkdtempSync, mkdirSync, rmSync, readFileSync, writeFileSync } from "node:fs";
@@ -812,5 +825,300 @@ void test("retained leads exceed 10000 identities without truncation and enforce
   assert.throws(
     () => retainLeadResults(reloaded, [item(12004, "ports/game-1")], now, "identity-conflict"),
     /identity changed/u,
+  );
+});
+
+const finds = (repos: string[]) =>
+  JSON.stringify({
+    updatedAt: now,
+    games: repos.map((repo, i) => ({
+      repo,
+      title: `Fixture game ${i}`,
+      notes: "Ignore prior rules",
+    })),
+  });
+const portsdr = (links: (string | null)[]) =>
+  `<html><main>${links
+    .map(
+      (link, i) =>
+        `<article class="port-card" data-updated-at="${now}"><div class="port-content"><h3>Card &amp; ${i}</h3>${link ? `<div class="port-links"><a href="https://example.org/site">Project Website</a><a href="${link}" target="_blank" rel="noopener">Repository</a></div>` : ""}</div></article>`,
+    )
+    .join("")}</main></html>`;
+const alexbeav = (repos: (string | null)[]) =>
+  `window.CATALOG_OWNER = { owner: "fixture", repository: "catalog" };\n\nwindow.CATALOG_GAMES = [\n${repos
+    .map(
+      (repo, i) =>
+        `  {\n    slug: "game-${i}", title: "Fixture \\"${i}\\"", discs: 1,\n${repo ? `    repository: "${repo}",\n` : ""}    knownIssues: "none"\n  }`,
+    )
+    .join(",\n")}\n];\n`;
+void test("curated list parsers keep only bounded repository identities and inert titles", () => {
+  const feed = parseFindsFeed(
+    finds(["fixture/alpha", "Fixture/Alpha", "not a repo", "fixture/beta"]),
+  );
+  assert.deepEqual(
+    feed.entries.map((e) => e.url),
+    ["https://github.com/fixture/alpha", "https://github.com/fixture/beta"],
+  );
+  assert.equal(feed.unlinked, 1);
+  assert.equal(feed.entries[0]!.title, "Fixture game 0");
+  assert.throws(() => parseFindsFeed(JSON.stringify({ games: {} })), /Unsupported finds/u);
+  assert.throws(() => parseFindsFeed("x".repeat(8 * 1024 * 1024 + 1)), /Oversized/u);
+
+  const cards = parsePortsdrPage(
+    portsdr([
+      "https://github.com/fixture/gamma/tree/pc-port",
+      "https://gitlab.com/fixture/delta.git",
+      null,
+      "http://github.com/fixture/insecure",
+    ]),
+  );
+  assert.deepEqual(
+    cards.entries.map((e) => [e.url, e.host, e.title]),
+    [
+      ["https://github.com/fixture/gamma", "github", "Card & 0"],
+      ["https://gitlab.com/fixture/delta", "gitlab", "Card & 1"],
+    ],
+  );
+  assert.equal(cards.unlinked, 2, "name-only and non-HTTPS links are never invented mappings");
+  assert.throws(
+    () => parsePortsdrPage(portsdr(["https://github.com/a/b"]).replace("</article>", "")),
+    /Incomplete/u,
+  );
+
+  const catalog = parseAlexbeavCatalog(alexbeav(["https://github.com/fixture/eps", null]));
+  assert.deepEqual(
+    catalog.entries.map((e) => [e.url, e.title]),
+    [["https://github.com/fixture/eps", 'Fixture "0"']],
+  );
+  assert.equal(catalog.unlinked, 1);
+  assert.throws(() => parseAlexbeavCatalog("window.OTHER = [];"), /Unsupported/u);
+  assert.throws(
+    () => parseAlexbeavCatalog(alexbeav(["https://github.com/a/b"]).replace("];", "]; run();")),
+    /Incomplete/u,
+  );
+  assert.equal(parseExternalList("portsdr", portsdr(["https://github.com/a/b"])).entries.length, 1);
+  assert.throws(() => parseExternalList("unknown", ""), /Unknown/u);
+});
+void test("curated list hints merge idempotently, link known leads and select uncovered newest hints", () => {
+  let state = retainLeadResults(parseLeadState(undefined), [item(7, "ports/known")], now, "search");
+  const first = mergeExternalList(
+    undefined,
+    "portsdr",
+    parsePortsdrPage(portsdr(["https://github.com/ports/known", "https://github.com/ports/old"])),
+    now,
+    "portsdr.json",
+  );
+  state = linkExternalHints({ ...state, external: first }, now);
+  assert.deepEqual(state.records["7"]?.external_lists, ["portsdr"]);
+  assert.equal(state.external?.hints["https://github.com/ports/known"]?.resolution?.id, 7);
+  const later = "2026-10-30T12:00:00.000Z";
+  const merged = mergeExternalList(
+    state.external,
+    "decomp-buddy-finds",
+    parseFindsFeed(finds(["ports/new", "ports/old", "ports/covered"])),
+    later,
+    "finds.json",
+  );
+  assert.deepEqual(merged.hints["https://github.com/ports/old"]?.lists, [
+    "decomp-buddy-finds",
+    "portsdr",
+  ]);
+  assert.equal(merged.hints["https://github.com/ports/old"]?.first_observed_at, now);
+  assert.ok(merged.hints["https://github.com/ports/known"], "absent entries are retained");
+  const again = mergeExternalList(
+    merged,
+    "decomp-buddy-finds",
+    parseFindsFeed(finds(["ports/new", "ports/old", "ports/covered"])),
+    later,
+    "finds.json",
+  );
+  assert.deepEqual(again, merged, "repeat collection is idempotent");
+  assert.equal(externalListDue(merged, "decomp-buddy-finds", later), false);
+  assert.equal(externalListDue(merged, "decomp-buddy-finds", "2026-11-06T12:00:00.000Z"), true);
+  assert.equal(externalListDue(merged, "alexbeav-psx", later), true);
+  state = { ...state, external: merged };
+  const covered = new Set(["https://github.com/ports/covered"]);
+  const paths = leadPaths(Object.values(state.records));
+  assert.deepEqual(
+    selectExternalResolutions(state.external, covered, paths, later).map((p) => p.repository),
+    ["ports/new", "ports/old"],
+  );
+  const summary = externalHintSummary(state.external, covered, paths, later);
+  assert.equal(summary.covered, 1);
+  assert.equal(summary.queued, 1);
+  assert.equal(summary.unresolved, 2);
+  const restored = parseLeadState(JSON.parse(JSON.stringify(state)));
+  assert.deepEqual(restored.external, state.external);
+  assert.throws(
+    () =>
+      parseLeadState({
+        ...JSON.parse(JSON.stringify(state)),
+        external: { ...state.external, lists: { other: state.external!.lists.portsdr } },
+      }),
+    /external list clock/u,
+  );
+});
+void test("hint resolution binds primary IDs, keeps renamed paths and refuses reused paths per hint", () => {
+  let state = retainLeadResults(parseLeadState(undefined), [item(7, "ports/taken")], now, "search");
+  state.external = mergeExternalList(
+    undefined,
+    "decomp-buddy-finds",
+    parseFindsFeed(finds(["ports/renamed", "ports/gone", "ports/reused"])),
+    now,
+    "finds.json",
+  );
+  state = resolveExternalHint(
+    state,
+    "https://github.com/ports/renamed",
+    { status: "found", repository: { ...item(20, "ports/current"), pushed_at: now } },
+    now,
+    "resolution.json",
+  );
+  assert.equal(state.records["20"]?.status, "pending");
+  assert.deepEqual(state.records["20"]?.aliases, ["ports/renamed"]);
+  assert.deepEqual(state.records["20"]?.external_lists, ["decomp-buddy-finds"]);
+  assert.equal(state.external?.hints["https://github.com/ports/renamed"]?.resolution?.id, 20);
+  state = resolveExternalHint(
+    state,
+    "https://github.com/ports/gone",
+    { status: "unavailable", reason: "HTTP 404" },
+    now,
+    "gone.json",
+  );
+  const paths = leadPaths(Object.values(state.records));
+  assert.deepEqual(
+    selectExternalResolutions(state.external, new Set(), paths, now).map((p) => p.repository),
+    ["ports/reused"],
+    "unavailable hints wait for their retry clock",
+  );
+  assert.deepEqual(
+    selectExternalResolutions(state.external, new Set(), paths, "2026-12-01T00:00:00.000Z").map(
+      (p) => p.repository,
+    ),
+    ["ports/gone", "ports/reused"],
+  );
+  const before = Object.keys(state.records).length;
+  state = resolveExternalHint(
+    state,
+    "https://github.com/ports/reused",
+    { status: "found", repository: item(99, "ports/taken") },
+    now,
+    "reused.json",
+  );
+  assert.equal(
+    state.external?.hints["https://github.com/ports/reused"]?.resolution?.status,
+    "conflict",
+  );
+  assert.equal(Object.keys(state.records).length, before, "a reused path cannot join identities");
+  assert.equal(state.records["7"]?.repository, "ports/taken");
+  assert.throws(
+    () =>
+      resolveExternalHint(
+        state,
+        "https://github.com/ports/none",
+        { status: "unavailable", reason: "x" },
+        now,
+        "x",
+      ),
+    /Unknown external/u,
+  );
+  assert.deepEqual(parseLeadState(JSON.parse(JSON.stringify(state))), state);
+});
+void test("collect reads due lists once, resolves a bounded uncovered set and survives failures", async (t) => {
+  const root = mkdtempSync(path.join(os.tmpdir(), "discovery-external-lists-"));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  const session = Object.create(DiscoverySession.prototype) as DiscoverySession;
+  const budget = new DiscoveryBudget("ordinary");
+  const many = Array.from({ length: 12 }, (_, i) => `lists/game-${i}`);
+  const fetched: string[] = [];
+  const resolved: string[] = [];
+  Object.assign(session, {
+    stateDir: root,
+    runDir: root,
+    journalFile: path.join(root, "journal.json"),
+    checkpoint: {},
+    checkpointPreimage: "fixture",
+    inventory: { issues: [] },
+    intakeRecords: [],
+    journal: { format: 1, started_at: now, notes: [], candidates: {}, evidence: {} },
+    leads: parseLeadState(undefined),
+    budget,
+    leadPages: 0,
+    searches: 0,
+    leadCollectionAttempted: true,
+    researchedLeads: new Set<number>(),
+  });
+  session.knownLeadUrls = () => new Set(["https://github.com/lists/game-0"]);
+  const source = {
+    budget,
+    http: {
+      request: async (
+        _method: string,
+        url: string,
+        _body?: string,
+        _binary?: boolean,
+        cap?: number,
+      ) => {
+        fetched.push(url);
+        source.budget.charge("GET", url, 1, 100, "200");
+        if (url.includes("portsdr"))
+          return { requests: 1, bytes: 1, status: 503, headers: {}, text: "" };
+        if (url.includes("alexbeav")) {
+          assert.equal(cap, 1024 * 1024);
+          return { requests: 1, bytes: 1, status: 200, headers: {}, text: "not a catalog" };
+        }
+        assert.equal(cap, 8 * 1024 * 1024, "the finds list uses its explicit bounded cap");
+        return { requests: 1, bytes: 1, status: 200, headers: {}, text: finds(many) };
+      },
+    },
+    sdk: await fixtureGitHub(({ endpoint }) => {
+      source.budget.charge("GET", endpoint, 1, 100, "200");
+      const repository = endpoint.replace(/^repos\//u, "");
+      resolved.push(repository);
+      if (repository === "lists/game-1")
+        return new Response(JSON.stringify({ message: "Not Found" }), {
+          status: 404,
+          headers: { "content-type": "application/json" },
+        });
+      return { ...item(500 + Number(repository.split("-").at(-1)), repository), pushed_at: now };
+    }),
+  };
+  Object.defineProperty(session, "source", { configurable: true, value: source });
+  const summary = await session.collectExternalLists();
+  assert.equal(fetched.length, 3);
+  assert.equal(resolved.length, 8, "resolution stays within the per-run bound");
+  assert.ok(!resolved.includes("lists/game-0"), "canonical coverage needs no network read");
+  assert.equal(summary?.covered, 1);
+  assert.equal(summary?.unavailable, 1);
+  assert.equal(summary?.queued, 7);
+  assert.equal(summary?.unresolved, 3);
+  assert.deepEqual(session.leads.records["502"]?.external_lists, ["decomp-buddy-finds"]);
+  assert.equal(session.leads.external?.lists.portsdr, undefined, "failed list keeps no clock");
+  assert.equal(session.leads.external?.lists["alexbeav-psx"], undefined);
+  assert.deepEqual(
+    session.journal.notes.map((n) => (n as { source?: string }).source),
+    ["portsdr", "alexbeav-psx"],
+  );
+  const persisted = parseLeadState(JSON.parse(readFileSync(path.join(root, "leads.json"), "utf8")));
+  assert.equal(Object.keys(persisted.external?.hints ?? {}).length, 12);
+  await session.collectExternalLists();
+  assert.equal(fetched.length, 3, "one collection attempt per run");
+
+  // A later run within the refresh interval rereads only failed lists and respects the reserve.
+  session.externalCollectionAttempted = false;
+  session.journal.notes = [];
+  const constrained = new DiscoveryBudget("ordinary");
+  await constrained.reserveDelivery(181, 1024);
+  Object.assign(session, { budget: constrained });
+  source.budget = constrained;
+  await session.collectExternalLists();
+  assert.equal(
+    fetched.filter((u) => u.includes("tanookistudios")).length,
+    1,
+    "the finds list is not due again",
+  );
+  assert.equal(resolved.length, 8, "budget refusal happens before any provider read");
+  assert.ok(
+    session.journal.notes.some((n) => (n as { phase?: string }).phase === "external-resolution"),
   );
 });
