@@ -8,10 +8,7 @@ use crate::{PortcoveError, Result};
 
 pub(crate) const MAX_INDEX_BYTES: usize = 4 * 1024 * 1024;
 const MAX_DEFINITIONS: usize = 4096;
-// One content target can carry the complete catalog projection, so it moves
-// with signed_catalog::MAX_CATALOG_BYTES (writer protocol 60). The index and
-// aggregate bounds are independent and unchanged.
-pub(crate) const MAX_CONTENT_BYTES: u64 = 16 * 1024 * 1024;
+pub(crate) const MAX_CONTENT_BYTES: u64 = 4 * 1024 * 1024;
 const MAX_TOTAL_BYTES: u64 = 32 * 1024 * 1024;
 
 #[derive(Debug, Deserialize)]
