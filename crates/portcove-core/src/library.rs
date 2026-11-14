@@ -1061,19 +1061,52 @@ impl Library {
             .detail("launch_session_id", session.id)
             .detail("launch_phase", session.phase.to_string()));
         }
+        let owner = serde_json::json!({
+            "operation": operation,
+            "pid": std::process::id(),
+            "port_id": port_id,
+            "started_at": Self::now(),
+        });
         file.set_len(0)?;
-        serde_json::to_writer(
-            &mut file,
-            &serde_json::json!({
-                "operation": operation,
-                "pid": std::process::id(),
-                "port_id": port_id,
-                "started_at": Self::now(),
-            }),
-        )?;
+        serde_json::to_writer(&mut file, &owner)?;
         file.write_all(b"\n")?;
         file.sync_data()?;
+        // Windows denies other processes reads of a locked file, so a refused
+        // writer could not name the owner. Publish the same record beside it.
+        self.publish_lock_owner(&key, &owner);
         Ok(PortOperationGuard { file })
+    }
+
+    /// Best effort: the owner record only explains a later busy refusal.
+    fn publish_lock_owner(&self, key: &str, owner: &serde_json::Value) {
+        let target = self.locks_dir().join(format!("{key}.owner"));
+        let staged = self
+            .locks_dir()
+            .join(format!("{key}.owner.{}.tmp", std::process::id()));
+        let written = OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&staged)
+            .and_then(|mut file| {
+                serde_json::to_writer(&mut file, owner)?;
+                file.sync_data()
+            });
+        if written.is_err() || std::fs::rename(&staged, &target).is_err() {
+            let _ = std::fs::remove_file(&staged);
+        }
+    }
+
+    /// The most recent mutating owner's record, when it is a small regular file.
+    fn last_lock_owner(&self, key: &str) -> Option<serde_json::Map<String, serde_json::Value>> {
+        let path = self.locks_dir().join(format!("{key}.owner"));
+        let metadata = std::fs::symlink_metadata(&path).ok()?;
+        if !metadata.is_file() || metadata.len() > 4096 {
+            return None;
+        }
+        match serde_json::from_slice(&std::fs::read(&path).ok()?).ok()? {
+            serde_json::Value::Object(owner) => Some(owner),
+            _ => None,
+        }
     }
 
     fn acquire_lock(&self, key: &str, target: &str, operation: &str) -> Result<File> {
@@ -1085,12 +1118,29 @@ impl Library {
             .open(self.locks_dir().join(format!("{key}.lock")))?;
         if let Err(error) = file.try_lock() {
             if matches!(error, std::fs::TryLockError::WouldBlock) {
-                return Err(PortcoveError::conflict(format!(
+                let mut refusal = PortcoveError::conflict(format!(
                     "{target} is busy in another Portcove process"
                 ))
                 .with_known_cause(crate::failure::KnownFailureCause::Busy)
                 .detail("resource_id", target)
-                .detail("operation", operation));
+                .detail("operation", operation);
+                // The last mutating owner; a read-only probe never replaces it.
+                if let Some(owner) = self.last_lock_owner(key) {
+                    for (field, detail) in [
+                        ("operation", "last_owner_operation"),
+                        ("pid", "last_owner_pid"),
+                        ("started_at", "last_owner_started_at"),
+                    ] {
+                        if let Some(value) = owner.get(field) {
+                            let value = value
+                                .as_str()
+                                .map(str::to_owned)
+                                .unwrap_or_else(|| value.to_string());
+                            refusal = refusal.detail(detail, value);
+                        }
+                    }
+                }
+                return Err(refusal);
             }
             return Err(std::io::Error::from(error).into());
         }
@@ -4694,5 +4744,41 @@ mod tests {
         drop(other);
         drop(lighthouse);
         second.try_lock_port("lighthouse", "update").unwrap();
+    }
+
+    #[test]
+    fn busy_port_refusal_names_the_last_mutating_owner() {
+        let temporary = tempdir().unwrap();
+        let first = Library::open(temporary.path()).unwrap();
+        let second = Library::open(temporary.path()).unwrap();
+        let held = first
+            .try_lock_port("lighthouse", "relocate-output")
+            .unwrap();
+
+        let conflict = second.try_lock_port("lighthouse", "adopt").unwrap_err();
+        assert_eq!(conflict.details["operation"], "adopt");
+        assert_eq!(conflict.details["last_owner_operation"], "relocate-output");
+        assert_eq!(
+            conflict.details["last_owner_pid"],
+            std::process::id().to_string()
+        );
+        assert!(conflict.details.contains_key("last_owner_started_at"));
+
+        // A read-only probe never replaces the record or adds one of its own.
+        drop(held);
+        let probe = second.try_probe_port_lock("starship").unwrap().unwrap();
+        let refused = first.try_lock_port("starship", "update").unwrap_err();
+        assert!(!refused.details.contains_key("last_owner_operation"));
+        drop(probe);
+
+        // A record that is not a regular file is ignored, not followed.
+        let key = hex::encode(Sha256::digest("lighthouse".as_bytes()));
+        let owner = temporary.path().join("locks").join(format!("{key}.owner"));
+        std::fs::remove_file(&owner).unwrap();
+        std::fs::create_dir(&owner).unwrap();
+        let held = first.try_lock_port("lighthouse", "launch").unwrap();
+        let refused = second.try_lock_port("lighthouse", "update").unwrap_err();
+        assert!(!refused.details.contains_key("last_owner_operation"));
+        drop(held);
     }
 }
