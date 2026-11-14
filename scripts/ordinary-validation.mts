@@ -1854,7 +1854,15 @@ for (const [file, tests] of [
     ["scripts/hosted-native-continuity.test.mts", "scripts/updater-artifact-inventory.test.mts"],
   ],
   ["scripts/package-local.ps1", ["scripts/repository-skills.test.mts"]],
-  ["scripts/release-preflight.ps1", ["scripts/repository-skills.test.mts"]],
+  [
+    "scripts/release-preflight.ps1",
+    [
+      "scripts/repository-skills.test.mts",
+      // Both run the real preflight script under fixtures on Windows.
+      "scripts/dev-storage.test.mts",
+      "scripts/windows-helper-checks.test.mts",
+    ],
+  ],
   [
     "scripts/roadmap.mts",
     [
