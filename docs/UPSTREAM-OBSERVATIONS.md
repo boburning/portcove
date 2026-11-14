@@ -1067,9 +1067,9 @@ is review evidence, so a person confirms it and sets the listing's
 Each scanned asset is remembered in a cached checkpoint by rules version,
 provider, repository, tag, name and, where the provider gives them, digest or
 size, so a successfully scanned
-release is downloaded once; a rules change rescans. Each run has an asset
-budget that counts every attempt, a byte budget that counts failed transfers
-too, and a 75-minute deadline that also caps every release read (each at
+release is downloaded once; a rules change rescans. Each scheduled run has an
+asset budget of 160 packages that counts every attempt, a 40 GB byte budget
+that counts failed transfers too, and a 75-minute deadline that also caps every release read (each at
 most one minute), download, listing and file read, so a slow provider or
 package cannot outlast the job. No release read starts after the deadline;
 those targets are reported as `time-budget`. Targets that share one package
