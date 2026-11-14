@@ -1466,10 +1466,12 @@ impl PortcoveService {
         if port.release.managed_build.contains_key(&platform) {
             return Err(crate::cartridge_build::retired_creation());
         }
-        let release = self
+        let resolution = self
             .resolve_release(port, selected_channel, platform)
-            .await?
-            .release;
+            .await?;
+        let release = resolution.release;
+        let mut preservation_notices = port.preservation_notices();
+        preservation_notices.extend(resolution.fallback_reason);
         let action = self.install_plan_action(&status, &release)?;
         let bundled_runtime = port.bundled_runtime.get(&platform).cloned();
         let auxiliary_downloads: Vec<crate::ReleaseAsset> = Vec::new();
@@ -1527,7 +1529,7 @@ impl PortcoveService {
             temporary_space,
             storage: self.library.storage_summary()?,
             output_location,
-            preservation_notices: port.preservation_notices(),
+            preservation_notices,
             shared_preferences,
         })
     }
@@ -2720,7 +2722,8 @@ impl PortcoveService {
             remove_external,
             update,
         ];
-        if crate::managed_runtime_policy::acquisition_hold(&self.catalog, &status.port_id).is_some()
+        if crate::managed_runtime_policy::acquisition_hold_reason(&self.catalog, &status.port_id)
+            .is_some()
         {
             for assessment in &mut status.port_actions {
                 if crate::managed_runtime_policy::hold_withdraws(assessment.action) {
@@ -3390,6 +3393,12 @@ impl PortcoveService {
             &output_location.effective_output_directory,
         )?;
         let release = resolution.release.clone();
+        crate::managed_runtime_policy::require_artifact_available(
+            &self.catalog,
+            &port.id,
+            &release.version,
+            &release.asset.sha256,
+        )?;
         crate::installed_mutability::require_shipwright_release(
             port,
             Platform::current()?,
@@ -8033,6 +8042,70 @@ mod tests {
             }
             Ok(resolved)
         }
+    }
+
+    #[test]
+    fn update_check_offers_reviewed_release_to_an_active_excluded_install() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let port_id = "super-metroid-recomp";
+        let service = PortcoveService::new(library.clone()).unwrap();
+        let hold = service
+            .catalog
+            .port(port_id)
+            .unwrap()
+            .managed_acquisition_hold
+            .as_ref()
+            .unwrap();
+        let excluded = &hold.excluded_artifacts[0];
+        let install = InstallRecord {
+            id: "excluded-install".into(),
+            port_id: port_id.into(),
+            version: excluded.version.clone(),
+            path: library
+                .versions_dir()
+                .join(port_id)
+                .join("excluded-install"),
+            channel: ReleaseChannel::Stable,
+            installed_at: 1,
+            verified: true,
+            staged: false,
+            artifact: ArtifactIdentity {
+                asset_name: "supermetroid-v0.4.6.zip".into(),
+                sha256: excluded.sha256.clone(),
+                size: 42,
+            },
+            manifest_sha256: String::new(),
+            selected_executable: PathBuf::new(),
+            runtime: None,
+        };
+        let reviewed = hold
+            .reviewed_artifacts
+            .iter()
+            .find(|artifact| artifact.version == "v0.4.5")
+            .unwrap();
+        let release = ResolvedRelease {
+            version: reviewed.version.clone(),
+            channel: ReleaseChannel::Stable,
+            published_at: None,
+            asset: crate::ReleaseAsset {
+                name: "supermetroid-v0.4.5.zip".into(),
+                url: "https://invalid.example/reviewed.zip".into(),
+                sha256: reviewed.sha256.clone(),
+                size: 42,
+            },
+        };
+        library.register_install(&install, true).unwrap();
+        let status = library.status(port_id, ReleaseChannel::Stable).unwrap();
+        let check = service
+            .record_update_check(port_id, &status, &release, None)
+            .unwrap();
+        assert!(check.update_available);
+        assert_eq!(check.installed_version.as_deref(), Some("v0.4.6"));
+        assert_eq!(check.release.version, "v0.4.5");
+        let after = library.status(port_id, ReleaseChannel::Stable).unwrap();
+        assert_eq!(after.active.unwrap().id, install.id);
+        assert!(after.staged.is_none());
     }
 
     #[tokio::test]

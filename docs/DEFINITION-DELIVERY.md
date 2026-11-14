@@ -606,6 +606,12 @@ require staged-source minimum version 33, so an older reader, which cannot apply
 refuses it instead of copying an unpatched file. The version adds no source, download,
 installation or publisher authority and does not change versions 2–32.
 
+Staged-source version 34 admits exact release exclusions in a managed
+acquisition hold. Indexed and retained definitions with `excluded_artifacts`
+must declare a staged-source minimum version of 34. Earlier readers reject
+the capability. Holds that omit this field keep their existing behavior and
+capability requirements. The new field grants no additional acquisition authority.
+
 ## Decision and threat model
 
 Use a catalog-specific TUF repository with maintained Rust `tough`, consistent

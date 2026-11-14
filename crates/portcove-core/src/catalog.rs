@@ -616,6 +616,7 @@ impl Catalog {
             }
         }
         for port in &self.document.ports {
+            crate::managed_runtime_policy::validate_exact_exclusions(port)?;
             crate::archive_data::validate(port)?;
             crate::native_temp::validate(port)?;
             validate_portable_marker_file(port)?;
@@ -3190,9 +3191,15 @@ mod tests {
                 ),
             ]
         );
-        // v0.4.6 relaunches the game in an untracked successor process, so the
-        // route is held and only the reviewed Windows packages may activate.
+        // The v0.4.6 artifacts are excluded because relaunch can create an
+        // untracked successor process.
         let hold = metroid.managed_acquisition_hold.as_ref().unwrap();
+        assert_eq!(hold.excluded_artifacts.len(), 4);
+        assert!(
+            hold.excluded_artifacts
+                .iter()
+                .all(|artifact| artifact.version == "v0.4.6")
+        );
         // The Windows packages plus each release's published Linux and Mac
         // siblings, all matching their release SHA256SUMS.
         assert_eq!(

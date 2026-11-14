@@ -85,10 +85,16 @@ fn validate_acquisition_hold_transition(
     };
     match hold(candidate, selected_port_id) {
         Some(candidate_hold)
-            if candidate_hold
-                .reviewed_artifacts
-                .iter()
-                .all(|artifact| baseline_hold.reviewed_artifacts.contains(artifact)) =>
+            if (candidate_hold.excluded_artifacts.is_empty()
+                || (!baseline_hold.excluded_artifacts.is_empty()
+                    && baseline_hold
+                        .excluded_artifacts
+                        .iter()
+                        .all(|artifact| candidate_hold.excluded_artifacts.contains(artifact))))
+                && candidate_hold
+                    .reviewed_artifacts
+                    .iter()
+                    .all(|artifact| baseline_hold.reviewed_artifacts.contains(artifact)) =>
         {
             Ok(())
         }
@@ -513,6 +519,22 @@ mod tests {
         });
         let error = validate_definition_transition(&baseline, &widened, port_id).unwrap_err();
         assert!(error.message.contains("unreviewed artifact"));
+    }
+
+    #[test]
+    fn a_selected_definition_cannot_drop_an_exact_artifact_exclusion() {
+        let baseline = Catalog::embedded().unwrap();
+        let port_id = "super-metroid-recomp";
+        let mut document = baseline.authoritative_document();
+        let port = document
+            .ports
+            .iter_mut()
+            .find(|port| port.id == port_id)
+            .unwrap();
+        let hold = port.managed_acquisition_hold.as_mut().unwrap();
+        assert!(hold.excluded_artifacts.len() > 1);
+        hold.excluded_artifacts.pop();
+        assert!(validate_definition_transition(&baseline, &rebuild(document), port_id).is_err());
     }
 
     #[test]

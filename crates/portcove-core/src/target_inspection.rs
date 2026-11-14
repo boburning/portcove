@@ -309,7 +309,7 @@ fn inspect_port(
             port_id,
         };
     };
-    let held = crate::managed_runtime_policy::acquisition_hold(catalog, &port_id).is_some();
+    let held = crate::managed_runtime_policy::acquisition_hold_reason(catalog, &port_id).is_some();
     let targets = platforms
         .iter()
         .map(|&platform| {
@@ -927,11 +927,9 @@ mod tests {
     #[test]
     fn a_catalog_acquisition_hold_withdraws_install_as_in_the_library() {
         let catalog = Catalog::embedded().unwrap();
-        let Some(port) = catalog
-            .ports()
-            .iter()
-            .find(|port| port.managed_acquisition_hold.is_some())
-        else {
+        let Some(port) = catalog.ports().iter().find(|port| {
+            crate::managed_runtime_policy::acquisition_hold_reason(&catalog, &port.id).is_some()
+        }) else {
             return;
         };
         let report = inspect_targets(&catalog, std::slice::from_ref(&port.id), &[]).unwrap();

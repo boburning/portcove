@@ -164,6 +164,7 @@ pub(crate) struct ReleaseSelectionCacheKey {
     rolling_tag: Option<String>,
     asset_hints: Vec<String>,
     scope_binding: Option<String>,
+    acquisition_policy: Option<crate::ManagedAcquisitionHold>,
 }
 
 impl ReleaseSelectionCacheKey {
@@ -198,6 +199,7 @@ impl ReleaseSelectionCacheKey {
                 || crate::native_external_profile::vcmi::requires_archive(port, platform)
                 || crate::native_portable_data::directory_name(port, platform).is_some(),
             scope_binding: None,
+            acquisition_policy: port.managed_acquisition_hold.clone(),
             repository: port.release.repository.clone(),
             channel,
             platform,
@@ -221,12 +223,14 @@ struct CachedRelease {
     stored_at: Instant,
     release: ResolvedRelease,
     identity: Option<crate::definition_acquisition::GithubArtifactIdentity>,
+    fallback_reason: Option<String>,
 }
 
 struct ResolvedGithub {
     release: ResolvedRelease,
     identity: Option<crate::definition_acquisition::GithubArtifactIdentity>,
     activity: Option<crate::UpstreamActivity>,
+    fallback_reason: Option<String>,
 }
 
 const RELEASE_CACHE_TTL: Duration = Duration::from_secs(5 * 60);
@@ -796,12 +800,13 @@ impl GithubReleaseProvider {
             release: entry.release.clone(),
             identity: entry.identity.clone(),
             activity: None,
+            fallback_reason: entry.fallback_reason.clone(),
         })
     }
 
     #[cfg(test)]
     async fn store_release(&self, key: ReleaseSelectionCacheKey, release: ResolvedRelease) {
-        self.store_selection(key, release, None).await;
+        self.store_selection(key, release, None, None).await;
     }
 
     async fn store_selection(
@@ -809,6 +814,7 @@ impl GithubReleaseProvider {
         key: ReleaseSelectionCacheKey,
         release: ResolvedRelease,
         identity: Option<crate::definition_acquisition::GithubArtifactIdentity>,
+        fallback_reason: Option<String>,
     ) {
         let mut cache = self.cache.write().await;
         cache.retain(|_, entry| entry.stored_at.elapsed() < RELEASE_CACHE_TTL);
@@ -827,6 +833,7 @@ impl GithubReleaseProvider {
                 stored_at: Instant::now(),
                 release,
                 identity,
+                fallback_reason,
             },
         );
     }
@@ -1327,6 +1334,7 @@ impl ReleaseProvider for GithubReleaseProvider {
         .for_selection(port, platform, channel)?;
         resolved.github_identity = selected.identity;
         resolved.upstream_activity = selected.activity;
+        resolved.fallback_reason = selected.fallback_reason;
         Ok(resolved)
     }
 
@@ -1467,6 +1475,35 @@ impl GithubReleaseProvider {
         }
     }
 
+    async fn observed_asset_digest(
+        &self,
+        port: &PortDefinition,
+        release: &GithubRelease,
+        asset: &GithubAsset,
+        scope: Option<&crate::DefinitionAcquisitionScope>,
+    ) -> Result<String> {
+        if let Some(scope) = scope {
+            scope.require_current()?;
+            scope.require_asset_url(&asset.browser_download_url)?;
+        }
+        if let Some(digest) = asset.digest.as_deref().and_then(parse_digest) {
+            return Ok(digest);
+        }
+        let digest = match scope {
+            Some(scope) => {
+                self.checksum_from_sidecar_scoped(&release.assets, asset, Some(scope))
+                    .await?
+            }
+            None => self.checksum_from_sidecar(&release.assets, asset).await?,
+        };
+        digest.ok_or_else(|| {
+            PortcoveError::verification(format!(
+                "{} does not publish a SHA-256 digest for {}",
+                port.name, asset.name
+            ))
+        })
+    }
+
     /// Fresh upstream observation. Every guard above has already passed.
     async fn resolve_observed(
         &self,
@@ -1554,20 +1591,53 @@ impl GithubReleaseProvider {
                 .with_upstream(Some(crate::failure::UpstreamObservation::Status(404))));
             }
         }
-        let release = select_channel_candidate(
-            &releases,
-            channel,
-            port.release.rolling_tag.as_deref(),
-            |release| !release.draft && native_release_applies_to_platform(port, platform, release),
-            is_beta_release,
-            |release| release.tag_name.as_str(),
-        )
-        .ok_or_else(|| {
+        let applies = |release: &GithubRelease| {
+            !release.draft && native_release_applies_to_platform(port, platform, release)
+        };
+        let select = |eligible: &dyn Fn(&GithubRelease) -> bool| {
+            select_channel_candidate(
+                &releases,
+                channel,
+                port.release.rolling_tag.as_deref(),
+                eligible,
+                is_beta_release,
+                |release| release.tag_name.as_str(),
+            )
+        };
+        let latest = select(&applies).ok_or_else(|| {
             PortcoveError::not_found(format!(
                 "no published {channel} release exists for {}",
                 port.name
             ))
         })?;
+        let mut observed_digest = None;
+        let mut fallback_reason = None;
+        let release = if let Some(hold) = port.managed_acquisition_hold.as_ref()
+            && curated.is_none()
+            && !hold.excluded_artifacts.is_empty()
+        {
+            let latest_asset = choose_asset(port, platform, &latest.assets)?;
+            let digest = self
+                .observed_asset_digest(port, latest, latest_asset, scope)
+                .await?;
+            if hold.excludes(&latest.tag_name, &digest) {
+                fallback_reason = Some(hold.reason.clone());
+                select(&|release| {
+                    applies(release)
+                        && choose_asset(port, platform, &release.assets)
+                            .ok()
+                            .is_some_and(|asset| {
+                                reviewed_fallback_digest(hold, release, asset).is_some()
+                            })
+                })
+                .ok_or_else(|| PortcoveError::unsupported(hold.reason.clone()))?
+            } else {
+                observed_digest = Some(digest);
+                latest
+            }
+        } else {
+            latest
+        };
         let asset = choose_asset(port, platform, &release.assets)?;
         if let Some(scope) = scope {
             scope.require_current()?;
@@ -1620,25 +1690,18 @@ impl GithubReleaseProvider {
                 size: asset.size,
                 publisher_sha256: publisher_digest.as_deref(),
             })?
+        } else if let Some(digest) = observed_digest {
+            digest
         } else {
-            match asset.digest.as_deref().and_then(parse_digest) {
-                Some(digest) => digest,
-                None => match scope {
-                    Some(scope) => {
-                        self.checksum_from_sidecar_scoped(&release.assets, asset, Some(scope))
-                            .await?
-                    }
-                    None => self.checksum_from_sidecar(&release.assets, asset).await?,
-                }
-                .ok_or_else(|| {
-                    PortcoveError::verification(format!(
-                        "{} does not publish a SHA-256 digest for {}",
-                        port.name, asset.name
-                    ))
-                })?,
-            }
+            self.observed_asset_digest(port, release, asset, scope)
+                .await?
         };
         let version = release_version(&release.tag_name);
+        if let Some(hold) = &port.managed_acquisition_hold
+            && hold.excludes(&version, &sha256)
+        {
+            return Err(PortcoveError::unsupported(hold.reason.clone()));
+        }
         let resolved = ResolvedRelease {
             version,
             channel,
@@ -1669,12 +1732,18 @@ impl GithubReleaseProvider {
             }
             _ => None,
         };
-        self.store_selection(cache_key, resolved.clone(), identity.clone())
-            .await;
+        self.store_selection(
+            cache_key,
+            resolved.clone(),
+            identity.clone(),
+            fallback_reason.clone(),
+        )
+        .await;
         Ok(ResolvedGithub {
             release: resolved,
             identity,
             activity,
+            fallback_reason,
         })
     }
 }
@@ -1722,6 +1791,7 @@ fn preserved_resolution(
         },
         identity: Some(identity),
         activity: None,
+        fallback_reason: None,
     })
 }
 
@@ -1799,6 +1869,20 @@ pub(crate) fn select_channel_candidate<'a, T>(
 
 fn release_version(tag: &str) -> String {
     tag.to_string()
+}
+
+fn reviewed_fallback_digest(
+    hold: &crate::ManagedAcquisitionHold,
+    release: &GithubRelease,
+    asset: &GithubAsset,
+) -> Option<String> {
+    asset
+        .digest
+        .as_deref()
+        .and_then(parse_digest)
+        .filter(|digest| {
+            !hold.excludes(&release.tag_name, digest) && hold.reviewed(&release.tag_name, digest)
+        })
 }
 
 fn same_origin(left: &str, right: &str) -> bool {
@@ -2416,6 +2500,100 @@ mod tests {
     };
 
     mod unchanged_definition;
+
+    #[tokio::test]
+    async fn exact_exclusion_uses_reviewed_fallback_and_allows_a_later_release() {
+        let catalog = crate::Catalog::embedded().unwrap();
+        let mut port = catalog.port("super-metroid-recomp").unwrap().clone();
+        let hold = port.managed_acquisition_hold.as_mut().unwrap();
+        hold.reviewed_artifacts = vec![crate::ReviewedHoldArtifact {
+            version: "v0.4.5".into(),
+            sha256: "a".repeat(64),
+        }];
+        hold.excluded_artifacts = vec![crate::ReviewedHoldArtifact {
+            version: "v0.4.6".into(),
+            sha256: "b".repeat(64),
+        }];
+
+        let response = |value: serde_json::Value| {
+            let body = value.to_string();
+            format!(
+                "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+                body.len()
+            )
+        };
+        let release = |id: u64, version: &str, digit: &str| {
+            let name = format!("supermetroid-{version}-windows-x64.zip");
+            serde_json::json!({
+                "id": id,
+                "tag_name": format!("v{version}"),
+                "draft": false,
+                "prerelease": false,
+                "assets": [{
+                    "id": id + 100,
+                    "name": name,
+                    "size": 42,
+                    "digest": format!("sha256:{}", digit.repeat(64)),
+                    "browser_download_url": format!(
+                        "https://github.com/mstan/SuperMetroidRecomp/releases/download/v{version}/{name}"
+                    ),
+                }],
+            })
+        };
+        let repository = || response(serde_json::json!({"id": 1}));
+        let reviewed = release(45, "0.4.5", "a");
+        let excluded = release(46, "0.4.6", "b");
+        let unreviewed = release(44, "0.4.4", "c");
+        let (origin, _, server) = serve_http(vec![
+            repository(),
+            response(serde_json::json!([
+                excluded.clone(),
+                reviewed,
+                unreviewed.clone()
+            ])),
+        ]);
+        let provider = GithubReleaseProvider::with_api_root(origin).unwrap();
+        let fallback = provider
+            .resolve_scoped(&port, ReleaseChannel::Stable, Platform::WindowsX86_64, None)
+            .await
+            .unwrap();
+        assert_eq!(fallback.release.version, "v0.4.5");
+        assert_eq!(fallback.release.asset.sha256, "a".repeat(64));
+        assert_eq!(
+            fallback.fallback_reason.as_deref(),
+            port.managed_acquisition_hold
+                .as_ref()
+                .map(|hold| hold.reason.as_str())
+        );
+        assert_eq!(fallback.github_identity.unwrap().asset_id, 145);
+        server.join().unwrap();
+
+        let (origin, _, server) = serve_http(vec![
+            repository(),
+            response(serde_json::json!([excluded.clone(), unreviewed])),
+        ]);
+        let provider = GithubReleaseProvider::with_api_root(origin).unwrap();
+        let refusal = provider
+            .resolve_scoped(&port, ReleaseChannel::Stable, Platform::WindowsX86_64, None)
+            .await
+            .unwrap_err();
+        assert_eq!(refusal.code, crate::ErrorCode::Unsupported);
+        server.join().unwrap();
+
+        let (origin, _, server) = serve_http(vec![
+            repository(),
+            response(serde_json::json!([release(47, "0.4.7", "d"), excluded])),
+        ]);
+        let provider = GithubReleaseProvider::with_api_root(origin).unwrap();
+        let later = provider
+            .resolve_scoped(&port, ReleaseChannel::Stable, Platform::WindowsX86_64, None)
+            .await
+            .unwrap();
+        assert_eq!(later.release.version, "v0.4.7");
+        assert!(later.fallback_reason.is_none());
+        assert_eq!(later.github_identity.unwrap().asset_id, 147);
+        server.join().unwrap();
+    }
 
     #[tokio::test]
     async fn github_selection_retains_exact_ids_through_cache_and_refuses_repository_rebinding() {

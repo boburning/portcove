@@ -2,6 +2,50 @@
 //! provider. Offline checks bind the hashed manifest to its registered artifact.
 use crate::{ArtifactIdentity, Platform, PortDefinition, PortcoveError, Result};
 
+pub(crate) const EXACT_EXCLUSION_STAGED_CAPABILITY: u32 = 34;
+
+pub(crate) fn has_exact_exclusions(port: &PortDefinition) -> bool {
+    port.managed_acquisition_hold
+        .as_ref()
+        .is_some_and(|hold| !hold.excluded_artifacts.is_empty())
+}
+
+pub(crate) fn validate_exact_exclusions(port: &PortDefinition) -> Result<()> {
+    let Some(hold) = port
+        .managed_acquisition_hold
+        .as_ref()
+        .filter(|_| has_exact_exclusions(port))
+    else {
+        return Ok(());
+    };
+    if port.adapter != crate::AdapterKind::StagedSourcePortable
+        || port.release.provider != crate::ReleaseSource::Github
+    {
+        return Err(PortcoveError::verification(format!(
+            "{} requires a GitHub staged-source release for exact exclusions",
+            port.id
+        )));
+    }
+    let mut seen = std::collections::HashSet::new();
+    for artifact in hold
+        .excluded_artifacts
+        .iter()
+        .chain(&hold.reviewed_artifacts)
+    {
+        if artifact.version.trim().is_empty()
+            || artifact.sha256.len() != 64
+            || !artifact.sha256.bytes().all(|byte| byte.is_ascii_hexdigit())
+            || !seen.insert((&artifact.version, artifact.sha256.to_ascii_lowercase()))
+        {
+            return Err(PortcoveError::verification(format!(
+                "{} has an invalid or duplicate exact hold artifact",
+                port.id
+            )));
+        }
+    }
+    Ok(())
+}
+
 /// Catalog-owned containment for a managed route whose upstream release still
 /// matches its selector but changed reviewed behavior. Ports absent from the
 /// catalog have no hold; their retained definitions keep their own checks.
@@ -20,7 +64,9 @@ pub(crate) fn acquisition_hold_reason<'a>(
     catalog: &'a crate::Catalog,
     port_id: &str,
 ) -> Option<&'a str> {
-    acquisition_hold(catalog, port_id).map(|hold| hold.reason.as_str())
+    acquisition_hold(catalog, port_id)
+        .filter(|hold| hold.excluded_artifacts.is_empty())
+        .map(|hold| hold.reason.as_str())
 }
 
 /// The routes a catalog acquisition hold withdraws: fresh managed acquisition,
@@ -40,6 +86,40 @@ pub(crate) fn require_acquisition_available(catalog: &crate::Catalog, port_id: &
     }
 }
 
+impl crate::ManagedAcquisitionHold {
+    pub(crate) fn excludes(&self, version: &str, sha256: &str) -> bool {
+        self.excluded_artifacts
+            .iter()
+            .any(|artifact| artifact.matches(version, sha256))
+    }
+
+    pub(crate) fn reviewed(&self, version: &str, sha256: &str) -> bool {
+        self.reviewed_artifacts
+            .iter()
+            .any(|artifact| artifact.matches(version, sha256))
+    }
+}
+
+impl crate::ReviewedHoldArtifact {
+    fn matches(&self, version: &str, sha256: &str) -> bool {
+        self.version == version && self.sha256.eq_ignore_ascii_case(sha256)
+    }
+}
+
+pub(crate) fn require_artifact_available(
+    catalog: &crate::Catalog,
+    port_id: &str,
+    version: &str,
+    sha256: &str,
+) -> Result<()> {
+    if let Some(hold) = acquisition_hold(catalog, port_id)
+        && hold.excludes(version, sha256)
+    {
+        return Err(PortcoveError::unsupported(hold.reason.clone()));
+    }
+    Ok(())
+}
+
 pub(crate) fn require_managed_activation_available(
     catalog: &crate::Catalog,
     install: &crate::InstallRecord,
@@ -47,12 +127,11 @@ pub(crate) fn require_managed_activation_available(
     let Some(hold) = acquisition_hold(catalog, &install.port_id) else {
         return Ok(());
     };
-    if hold.reviewed_artifacts.iter().any(|reviewed| {
-        reviewed.version == install.version
-            && reviewed
-                .sha256
-                .eq_ignore_ascii_case(&install.artifact.sha256)
-    }) {
+    let version = &install.version;
+    let sha256 = &install.artifact.sha256;
+    if !hold.excludes(version, sha256)
+        && (!hold.excluded_artifacts.is_empty() || hold.reviewed(version, sha256))
+    {
         return Ok(());
     }
     Err(PortcoveError::unsupported(hold.activation_reason.clone()))
@@ -291,6 +370,7 @@ mod tests {
         let hold = crate::ManagedAcquisitionHold {
             reason: "held for review".into(),
             activation_reason: "unreviewed package".into(),
+            excluded_artifacts: Vec::new(),
             reviewed_artifacts: vec![crate::ReviewedHoldArtifact {
                 version: "1.0.0".into(),
                 sha256: "b".repeat(64),
@@ -332,23 +412,32 @@ mod tests {
         install.version = "1.0.1".into();
         let refusal = require_managed_activation_available(&changed, &install).unwrap_err();
         assert!(refusal.message.contains("unreviewed package"));
+
+        let policy = document
+            .ports
+            .iter_mut()
+            .find(|port| port.id == other)
+            .unwrap()
+            .managed_acquisition_hold
+            .as_mut()
+            .unwrap();
+        policy.excluded_artifacts.push(crate::ReviewedHoldArtifact {
+            version: "1.0.1".into(),
+            sha256: "b".repeat(64),
+        });
+        let exact = crate::Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap();
+        assert!(require_acquisition_available(&exact, &other).is_ok());
+        assert!(require_artifact_available(&exact, &other, "1.0.1", &"B".repeat(64)).is_err());
+        assert!(require_managed_activation_available(&exact, &install).is_err());
+        install.version = "1.0.2".into();
+        assert!(require_managed_activation_available(&exact, &install).is_ok());
     }
 
     #[test]
-    fn super_metroid_hold_withdraws_acquisition_and_unreviewed_v0_4_6_activation() {
-        // v0.4.6's "Quit to launcher" restarts the game in a successor process
-        // the route does not track. The selector would offer it, so the route
-        // is held before provider contact; reviewed staged packages still activate.
+    fn super_metroid_excludes_v0_4_6_without_withdrawing_acquisition() {
         let catalog = crate::Catalog::embedded().unwrap();
         let id = "super-metroid-recomp";
-        let refusal = require_acquisition_available(&catalog, id).unwrap_err();
-        assert_eq!(refusal.code, crate::ErrorCode::Unsupported);
-        assert!(refusal.message.contains("can't follow"));
-        assert!(refusal.message.contains("Exit, not Quit to launcher"));
-        assert!(hold_withdraws(crate::PortAction::Install));
-        assert!(hold_withdraws(crate::PortAction::Update));
-        assert!(!hold_withdraws(crate::PortAction::Launch));
-        assert!(!hold_withdraws(crate::PortAction::BackupCreate));
+        assert!(require_acquisition_available(&catalog, id).is_ok());
 
         let staged = |version: &str, sha256: &str| crate::InstallRecord {
             id: "staged".into(),
@@ -400,11 +489,6 @@ mod tests {
         )
         .unwrap_err();
         assert!(refusal.message.contains("new window"));
-        // A reviewed tag carrying other bytes is not a reviewed package.
-        assert!(
-            require_managed_activation_available(&catalog, &staged("v0.4.5", &"c".repeat(64)))
-                .is_err()
-        );
     }
 
     const PORTS: [&str; 3] = [

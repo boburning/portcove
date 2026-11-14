@@ -432,6 +432,48 @@ fn project_channel(
             .push("authenticated-digest-requires-further-resolution".into());
         return output;
     };
+    let (candidate, asset, sha256) = if let Some(hold) = &port.managed_acquisition_hold
+        && hold.excludes(&candidate.provider.tag_name, &sha256)
+    {
+        let fallback = select_channel_candidate(
+            releases,
+            channel,
+            port.release.rolling_tag.as_deref(),
+            |release| {
+                !release.provider.draft
+                    && (covered_assets.is_some_and(|covered| !covered.contains(&release.id))
+                        || (super::native_release_applies_to_platform(
+                            port,
+                            platform,
+                            &release.provider,
+                        ) && choose_asset(port, platform, &release.provider.assets)
+                            .ok()
+                            .is_some_and(|asset| {
+                                super::reviewed_fallback_digest(hold, &release.provider, asset)
+                                    .is_some()
+                            })))
+            },
+            |release| is_beta_release(&release.provider),
+            |release| release.provider.tag_name.as_str(),
+        );
+        let Some(fallback) = fallback else {
+            output.hold_reasons.push("no-reviewed-fallback".into());
+            return output;
+        };
+        if covered_assets.is_some_and(|covered| !covered.contains(&fallback.id)) {
+            output
+                .hold_reasons
+                .push("release-asset-observation-incomplete".into());
+            return output;
+        }
+        let asset = choose_asset(port, platform, &fallback.provider.assets)
+            .expect("reviewed fallback has a selected asset");
+        let digest = super::reviewed_fallback_digest(hold, &fallback.provider, asset)
+            .expect("reviewed fallback has a publisher digest");
+        (fallback, asset, digest)
+    } else {
+        (candidate, asset, sha256)
+    };
     let raw = facts["releases"]
         .as_array()
         .expect("validated list")

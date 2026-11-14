@@ -12,7 +12,15 @@ fn cvlod_facts() -> Result<Value> {
 }
 
 fn inspect_cvlod(facts: Value) -> Result<UpstreamObservationReport> {
+    inspect_cvlod_with_hold(facts, None)
+}
+
+fn inspect_cvlod_with_hold(
+    facts: Value,
+    hold: Option<crate::ManagedAcquisitionHold>,
+) -> Result<UpstreamObservationReport> {
     let mut port = crate::Catalog::embedded()?.port("cvlod-recomp")?.clone();
+    port.managed_acquisition_hold = hold;
     // This proposal covers Windows metadata, not other-platform qualification.
     port.platforms = vec![Platform::WindowsX86_64];
     let repository_id = facts["repository"]["id"].as_u64().unwrap();
@@ -23,6 +31,52 @@ fn inspect_cvlod(facts: Value) -> Result<UpstreamObservationReport> {
     let path = directory.path().join("cvlod-observation.json");
     std::fs::write(&path, serde_json::to_vec(&document)?)?;
     inspect_upstream_observation(&port, repository_id, &path)
+}
+
+#[test]
+fn observation_keeps_the_excluded_candidate_distinct_from_the_reviewed_fallback() -> Result<()> {
+    let facts = cvlod_facts()?;
+    let artifact = |index: usize| {
+        let release = &facts["releases"][index];
+        let asset = release["assets"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|asset| {
+                asset["name"]
+                    .as_str()
+                    .unwrap()
+                    .ends_with("-windows-x64.zip")
+            })
+            .unwrap();
+        crate::ReviewedHoldArtifact {
+            version: release["tag_name"].as_str().unwrap().into(),
+            sha256: parse_digest(asset["digest"].as_str().unwrap()).unwrap(),
+        }
+    };
+    let excluded = artifact(0);
+    let reviewed = artifact(1);
+    let mut hold = crate::ManagedAcquisitionHold {
+        reason: "Excluded exact artifact".into(),
+        activation_reason: "Excluded staged artifact".into(),
+        excluded_artifacts: vec![excluded.clone()],
+        reviewed_artifacts: vec![reviewed.clone()],
+    };
+    let report = inspect_cvlod_with_hold(facts.clone(), Some(hold.clone()))?;
+    let projection = &report.projections[0];
+    assert_eq!(
+        projection.channel_candidate.as_ref().unwrap().tag,
+        excluded.version
+    );
+    let selected = &projection.latest_eligible.as_ref().unwrap().release;
+    assert_eq!(selected.version, reviewed.version);
+    assert_eq!(selected.asset.sha256, reviewed.sha256);
+
+    hold.reviewed_artifacts.clear();
+    let report = inspect_cvlod_with_hold(facts, Some(hold))?;
+    assert!(report.projections[0].latest_eligible.is_none());
+    assert_eq!(report.projections[0].hold_reasons, ["no-reviewed-fallback"]);
+    Ok(())
 }
 
 #[test]
