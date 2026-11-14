@@ -2015,6 +2015,11 @@ it("keeps automatic folder setup off until the player chooses its boundary", asy
   const futureOnly = document.querySelector<HTMLInputElement>(
     'input[type="radio"][value="future_only"]',
   );
+  expect(futureOnly?.closest("label")?.hasAttribute("aria-label")).toBe(false);
+  const nameId = futureOnly?.getAttribute("aria-labelledby") ?? "";
+  const descriptionId = futureOnly?.getAttribute("aria-describedby") ?? "";
+  expect(document.getElementById(nameId)?.textContent).toBe("Only set up games added later");
+  expect(document.getElementById(descriptionId)?.textContent).toBeTruthy();
   await act(async () => futureOnly?.click());
   expect(desktopApi.setRootSetupConsent).toHaveBeenCalledWith(saved.id, "future_only", 1);
   expect(
