@@ -295,6 +295,9 @@ pub struct ScopedResolvedRelease {
     pub(crate) scope: Option<DefinitionAcquisitionScope>,
     selection: Option<(serde_json::Value, crate::Platform, crate::ReleaseChannel)>,
     pub(crate) github_identity: Option<GithubArtifactIdentity>,
+    /// Repository maintenance facts read during this resolution, when the provider
+    /// read the repository. Never part of release authority.
+    pub(crate) upstream_activity: Option<crate::UpstreamActivity>,
 }
 
 impl ScopedResolvedRelease {
@@ -304,6 +307,7 @@ impl ScopedResolvedRelease {
             scope: None,
             selection: None,
             github_identity: None,
+            upstream_activity: None,
         }
     }
 
@@ -318,6 +322,7 @@ impl ScopedResolvedRelease {
             scope: Some(scope),
             selection: None,
             github_identity: None,
+            upstream_activity: None,
         })
     }
 

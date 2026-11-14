@@ -3368,6 +3368,15 @@ output and cannot suppress a missing artifact, new access/integrity failure,
 repository-name reuse or an unclassified shared location. An archived flag or
 bare 404 creates no such declaration.
 
+Players see these reviewed declarations, never this maintainer report. Separately,
+Core keeps the repository archive flag and latest push time that GitHub reported
+in the metadata it already reads to select a release (#5407). The update check
+records them as `upstream_activity`, and Desktop shows them in the port details:
+archived, no changes for two years before that observation, or the latest change
+month. This player fact is a dated provider observation with no catalog,
+admission, hold or update authority. Ports that were never checked, other
+providers and missing push times remain unknown.
+
 The format-2 `.github/upstream-health-accounting.json` preserves the reviewed
 monitoring dispositions and existing numeric release-pin identities. Versioned
 artifact bindings cover only the relevant port/platform/provider and exact

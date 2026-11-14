@@ -214,7 +214,7 @@ impl PortcoveService {
             let acquired = self.acquired_inputs(&reviewed, &operation)?;
             let status = self.status(port_id)?;
             operation.observe_release(&reviewed.plan.release.version, None);
-            self.record_update_check(port_id, &status, &reviewed.plan.release)?;
+            self.record_update_check(port_id, &status, &reviewed.plan.release, None)?;
             let mut reporter = OperationReporter {
                 operation: &operation,
                 emit: &mut emit,

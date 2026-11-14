@@ -159,5 +159,12 @@
     "discover": "Buscar en Descubrir",
     "library": "Buscar en tu biblioteca",
     "placeholder": "Nombre del juego o de la adaptación"
+  },
+  "upstreamActivity": {
+    "archived": "Sus autores archivaron el proyecto y ya no aceptan cambios, por lo que es poco probable que haya versiones nuevas.",
+    "checked": "Informado por el alojamiento del proyecto durante la comprobación de actualizaciones del {{date}}.",
+    "label": "Actividad en el origen",
+    "quiet": "Sin cambios en el origen desde {{date}}. Es poco probable que haya versiones nuevas salvo que se reanude el trabajo.",
+    "recent": "Último cambio en el origen: {{date}}."
   }
 }

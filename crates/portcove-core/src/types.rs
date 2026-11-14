@@ -2239,6 +2239,26 @@ pub struct UpdateCheck {
     pub required_runtime: Option<RuntimeIdentity>,
     pub update_available: bool,
     pub release: ResolvedRelease,
+    /// Repository maintenance facts from the provider's most recent observation of
+    /// this port. Absent means unknown, never active. It may be older than
+    /// `checked_at` when this check did not read the repository itself.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub upstream_activity: Option<UpstreamActivity>,
+}
+
+/// What the release provider reported about the upstream repository while Portcove
+/// was already reading it to select a release. A maintenance observation only: it
+/// grants or revokes no release, update, install or catalog authority, and it is
+/// not the catalog's reviewed `upstream_status` declaration.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct UpstreamActivity {
+    /// Unix seconds when the provider reported these facts.
+    pub observed_at: i64,
+    /// The repository owner archived the repository (read-only upstream).
+    pub archived: bool,
+    /// Unix seconds of the latest push the provider reported, when it reported one.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub last_change_at: Option<i64>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]

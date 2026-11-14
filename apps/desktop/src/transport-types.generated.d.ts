@@ -1699,6 +1699,28 @@ export interface UpdateCheck {
   release: ResolvedRelease;
   required_runtime: RuntimeIdentity | null;
   update_available: boolean;
+  /**
+   * Repository maintenance facts from the provider's most recent observation of this port. Absent means unknown, never active. It may be older than `checked_at` when this check did not read the repository itself.
+   */
+  upstream_activity?: UpstreamActivity | null;
+  [k: string]: unknown;
+}
+/**
+ * What the release provider reported about the upstream repository while Portcove was already reading it to select a release. A maintenance observation only: it grants or revokes no release, update, install or catalog authority, and it is not the catalog's reviewed `upstream_status` declaration.
+ */
+export interface UpstreamActivity {
+  /**
+   * The repository owner archived the repository (read-only upstream).
+   */
+  archived: boolean;
+  /**
+   * Unix seconds of the latest push the provider reported, when it reported one.
+   */
+  last_change_at?: number | null;
+  /**
+   * Unix seconds when the provider reported these facts.
+   */
+  observed_at: number;
   [k: string]: unknown;
 }
 export interface PortActionAssessment {

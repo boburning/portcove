@@ -4390,6 +4390,7 @@ mod tests {
                         sha256: "a".repeat(64),
                     },
                 },
+                upstream_activity: None,
             })
             .unwrap();
 

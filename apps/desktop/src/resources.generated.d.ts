@@ -541,6 +541,13 @@ export default interface Resources {
       "discover": "Search Discover",
       "library": "Search your library",
       "placeholder": "Game or port name"
+    },
+    "upstreamActivity": {
+      "archived": "The project's authors archived it and no longer accept changes, so new versions are unlikely.",
+      "checked": "Reported by the project's host during the update check on {{date}}.",
+      "label": "Upstream activity",
+      "quiet": "No upstream changes since {{date}}. New versions are unlikely unless work resumes.",
+      "recent": "Last upstream change: {{date}}."
     }
   },
   "catalogUpdates": {

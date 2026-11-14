@@ -38,6 +38,7 @@ export default defineConfig({
       "src/components/InvocationAnnouncements.tsx",
       "src/features/browsing/ImplementationChoice.tsx",
       "src/features/browsing/ListingMaintenanceFacts.tsx",
+      "src/features/browsing/UpstreamActivityFacts.tsx",
       "src/components/GameHero.tsx",
       "src/components/Brand.tsx",
       "src/features/identity/IdentityIcon.tsx",

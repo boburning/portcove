@@ -212,6 +212,7 @@ struct CachedRelease {
 struct ResolvedGithub {
     release: ResolvedRelease,
     identity: Option<crate::definition_acquisition::GithubArtifactIdentity>,
+    activity: Option<crate::UpstreamActivity>,
 }
 
 const RELEASE_CACHE_TTL: Duration = Duration::from_secs(5 * 60);
@@ -780,6 +781,7 @@ impl GithubReleaseProvider {
         cache.get(key).map(|entry| ResolvedGithub {
             release: entry.release.clone(),
             identity: entry.identity.clone(),
+            activity: None,
         })
     }
 
@@ -1310,6 +1312,7 @@ impl ReleaseProvider for GithubReleaseProvider {
         }?
         .for_selection(port, platform, channel)?;
         resolved.github_identity = selected.identity;
+        resolved.upstream_activity = selected.activity;
         Ok(resolved)
     }
 
@@ -1407,10 +1410,10 @@ impl GithubReleaseProvider {
                 "GitHub repository stable identity differs from its publisher grant",
             ));
         }
-        // Keep metadata validation before cached selection. Archive state is a
-        // maintenance fact; it neither revokes exact release authority nor
-        // replaces the artifact integrity checks below.
-        let _archived = repository.archived;
+        // Keep metadata validation before cached selection. Archive state and the
+        // latest push are maintenance facts reported to the player; they neither
+        // revoke exact release authority nor replace the integrity checks below.
+        let activity = Some(repository.activity());
         let mut cache_key = ReleaseSelectionCacheKey::new(port, channel, platform);
         cache_key.scope_binding = scope.map(|scope| {
             format!(
@@ -1422,7 +1425,7 @@ impl GithubReleaseProvider {
         // Curated selection revalidates mutable release, asset and tag identity;
         // only the separately verified byte cache may be reused.
         if curated.is_none()
-            && let Some(selection) = self.cached_selection(&cache_key).await
+            && let Some(mut selection) = self.cached_selection(&cache_key).await
         {
             if selection
                 .identity
@@ -1437,6 +1440,7 @@ impl GithubReleaseProvider {
                 scope.require_current()?;
                 scope.require_asset_url(&selection.release.asset.url)?;
             }
+            selection.activity = activity;
             return Ok(selection);
         }
         let releases = match scope {
@@ -1591,6 +1595,7 @@ impl GithubReleaseProvider {
         Ok(ResolvedGithub {
             release: resolved,
             identity,
+            activity,
         })
     }
 }
@@ -1637,6 +1642,7 @@ fn preserved_resolution(
             },
         },
         identity: Some(identity),
+        activity: None,
     })
 }
 
@@ -1880,6 +1886,30 @@ struct GithubRepository {
     #[serde(default)]
     id: Option<u64>,
     archived: bool,
+    /// Kept untyped so an unexpected value is an unknown fact, not a failed check.
+    #[serde(default)]
+    pushed_at: Option<serde_json::Value>,
+}
+
+impl GithubRepository {
+    fn activity(&self) -> crate::UpstreamActivity {
+        crate::UpstreamActivity {
+            observed_at: Library::now(),
+            archived: self.archived,
+            last_change_at: self
+                .pushed_at
+                .as_ref()
+                .and_then(serde_json::Value::as_str)
+                .and_then(|value| {
+                    time::OffsetDateTime::parse(
+                        value,
+                        &time::format_description::well_known::Rfc3339,
+                    )
+                    .ok()
+                })
+                .map(time::OffsetDateTime::unix_timestamp),
+        }
+    }
 }
 
 #[derive(Debug, Deserialize)]
@@ -2355,6 +2385,55 @@ mod tests {
                 .message
                 .contains("repository identity changed")
         );
+        server.join().unwrap();
+    }
+
+    #[tokio::test]
+    async fn github_selection_reports_repository_activity_from_existing_metadata() {
+        let port = crate::Catalog::embedded()
+            .unwrap()
+            .port("shipwright")
+            .unwrap()
+            .clone();
+        let response = |value: serde_json::Value| {
+            let body = value.to_string();
+            format!(
+                "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+                body.len()
+            )
+        };
+        let releases = serde_json::json!([{"id":2,"tag_name":"fixture-n","draft":false,"prerelease":false,
+            "assets":[{"id":3,"name":"game-windows.zip","size":42,"digest":format!("sha256:{}","a".repeat(64)),
+            "browser_download_url":"https://github.com/HarbourMasters/Shipwright/releases/download/fixture-n/game-windows.zip"}]}]);
+        // Two selections: the second is served from the selection cache, so the
+        // only provider reads are the two repository documents and one release list.
+        let (origin, _, server) = serve_http(vec![
+            response(serde_json::json!({
+                "id":1,"archived":true,"pushed_at":"2023-04-05T06:07:08Z"
+            })),
+            response(releases),
+            response(serde_json::json!({"id":1,"archived":false,"pushed_at":7})),
+        ]);
+        let provider = GithubReleaseProvider::with_api_root(origin).unwrap();
+        let before = Library::now();
+        let archived = provider
+            .resolve_scoped(&port, ReleaseChannel::Stable, Platform::WindowsX86_64, None)
+            .await
+            .unwrap()
+            .upstream_activity
+            .unwrap();
+        assert!(archived.archived);
+        assert_eq!(archived.last_change_at, Some(1_680_674_828));
+        assert!(archived.observed_at >= before);
+        // A malformed push time is an unknown fact, never a failed selection.
+        let cached = provider
+            .resolve_scoped(&port, ReleaseChannel::Stable, Platform::WindowsX86_64, None)
+            .await
+            .unwrap()
+            .upstream_activity
+            .unwrap();
+        assert!(!cached.archived);
+        assert_eq!(cached.last_change_at, None);
         server.join().unwrap();
     }
 
