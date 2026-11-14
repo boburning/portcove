@@ -572,7 +572,7 @@ void test("release ruleset migration expands live coverage before retiring equiv
   assert.notEqual(planReleaseRulesets(revised, refs, ruleset).observation, original.observation);
   assert.equal(original.count, 75);
   const actions: string[] = [];
-  for (let stage = 0; stage < 7; stage++) {
+  for (let stage = 0; stage < 9; stage++) {
     const { next } = planReleaseRulesets(inventory, refs, ruleset);
     assert.ok(next);
     actions.push(next.action);
@@ -588,15 +588,39 @@ void test("release ruleset migration expands live coverage before retiring equiv
       inventory = inventory.filter((row) => !deleted.has(Number(row.id)));
     }
   }
-  assert.deepEqual(actions, ["update", "delete", "update", "delete", "create", "create", "delete"]);
+  assert.deepEqual(actions, [
+    "update",
+    "delete",
+    "update",
+    "delete",
+    "create",
+    "create",
+    "delete",
+    "create",
+    "create",
+  ]);
   const final = planReleaseRulesets(inventory, refs, ruleset);
-  assert.equal(final.count, 7);
+  assert.equal(final.count, 9);
   assert.equal(final.next, null);
   assert.notEqual(final.observation, original.observation);
   assert.deepEqual(final.identities, original.identities);
   assert.deepEqual(final.stable.immutable?.bypass_actors, []);
   assert.deepEqual(final.stable.creator?.bypass_actors, [owner]);
   assert.deepEqual(final.stable.creator?.rules, [{ type: "creation" }]);
+  // Beta/Stable tags: owner only. Preview tags: owner and GitHub Actions (nightly).
+  assert.deepEqual(final.stable.versionCreator?.bypass_actors, [owner]);
+  assert.deepEqual(final.stable.versionCreator?.conditions, {
+    ref_name: { include: ["refs/tags/v*"], exclude: ["refs/tags/v*-preview.*"] },
+  });
+  assert.deepEqual(final.stable.previewCreator?.bypass_actors, [
+    owner,
+    { actor_id: 15368, actor_type: "Integration", bypass_mode: "always" },
+  ]);
+  assert.deepEqual(final.stable.previewCreator?.rules, [{ type: "creation" }]);
+  const widened = structuredClone(inventory);
+  const preview = widened.find((row) => row.name === "Portcove preview tag creation")!;
+  preview.conditions = { ref_name: { include: ["refs/tags/v*"], exclude: [] } };
+  assert.throws(() => planReleaseRulesets(widened, refs, ruleset), /Unexpected drift/u);
   for (const suffix of ["next-r1", "next-r2"]) {
     refs[`refs/tags/portcove-production-controller-${suffix}`] = "b".repeat(40);
     const successor = planReleaseRulesets(inventory, refs, ruleset);

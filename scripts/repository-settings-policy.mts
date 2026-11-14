@@ -481,6 +481,9 @@ export async function reconcileRepositorySettings(
   return { kind: "checked" as const, repository: repo };
 }
 
+const previewTagPattern = "refs/tags/v*-preview.*";
+const githubActionsBypass = { actor_id: 15368, actor_type: "Integration", bypass_mode: "always" };
+
 const releaseBranches = [
   "refs/heads/portcove-production-coordinator-state",
   "refs/heads/portcove-release-inputs",
@@ -493,13 +496,14 @@ function releaseRuleset(
   include: readonly string[],
   types: readonly string[],
   actors: readonly object[] = [],
+  exclude: readonly string[] = [],
 ) {
   return {
     name,
     target,
     enforcement: "active",
     bypass_actors: actors,
-    conditions: { ref_name: { include, exclude: [] } },
+    conditions: { ref_name: { include, exclude } },
     rules: types.map((type) => ({ type })),
   };
 }
@@ -534,6 +538,24 @@ const releaseRulesets = {
     controllerTagPatterns,
     ["creation"],
     [releaseOwner],
+  ),
+  // Owner decision on #534 (2026-11-13): only the owner (and agents acting as the
+  // owner) may create Beta/Stable version tags; nightly previews may also be
+  // created by GitHub Actions. Update and deletion stay forbidden for everyone.
+  versionCreator: releaseRuleset(
+    "Portcove release tag creation",
+    "tag",
+    ["refs/tags/v*"],
+    ["creation"],
+    [releaseOwner],
+    [previewTagPattern],
+  ),
+  previewCreator: releaseRuleset(
+    "Portcove preview tag creation",
+    "tag",
+    [previewTagPattern],
+    ["creation"],
+    [releaseOwner, githubActionsBypass],
   ),
 };
 
@@ -611,13 +633,16 @@ export function planReleaseRulesets(
       throw new Error(`Unexpected drift in ${desired.name}`);
     return matches[0];
   };
-  const { writer, retention, pause, immutable, creator } = releaseRulesets;
+  const { writer, retention, pause, immutable, creator, versionCreator, previewCreator } =
+    releaseRulesets;
   const stable = {
     writer: find(writer),
     retention: find(retention),
     pause: find(pause),
     immutable: find(immutable),
     creator: find(creator),
+    versionCreator: find(versionCreator),
+    previewCreator: find(previewCreator),
   };
   const main = details.filter((row) => row.name === "Protect main");
   const versionTags = find(
@@ -734,6 +759,8 @@ export function planReleaseRulesets(
       replacements: [stable.immutable.id, stable.creator.id],
     };
   }
+  if (!stable.versionCreator) next ??= { action: "create", payload: versionCreator };
+  else if (!stable.previewCreator) next ??= { action: "create", payload: previewCreator };
   if (next?.action === "create" && rows.length >= 75)
     throw new Error("No ruleset slot available after branch consolidation");
   return {

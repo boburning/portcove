@@ -51,11 +51,12 @@ Windows users see SmartScreen's "More info → Run anyway" step because the
 installers have no Authenticode signature yet.
 
 **What the Stable approval protects.** Both environments hold the same updater
-key, because installed clients trust exactly one key. Tag creation is not
-restricted, and a tag runs the workflow file at the tagged commit. So the
-`release-stable` approval is a process gate: it stops an accidental Stable
-release. It is not a key boundary against someone who can already push to the
-repository. Keep repository write access limited to the owner.
+key, because installed clients trust exactly one key. Rulesets let only the owner
+create Beta and Stable `v*` tags; GitHub Actions may also create
+`v*-preview.*` tags for nightly previews. No one can move or delete a `v*` tag.
+The `release-stable` approval therefore guards Stable against anything that is
+not the owner or acting as the owner. It is not a boundary against the owner's
+own account, which agents use.
 
 **First release.** Tags cannot be deleted. Tag `v0.1.0-preview.1` first. That
 confirms every build, signing, asset-name and feed step before `0.1.0` itself

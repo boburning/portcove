@@ -99,7 +99,7 @@ issue.
 
 ## Release controller ref protection
 
-The repository settings tool owns five release-controller policies. GitHub's
+The repository settings tool owns seven release policies. GitHub's
 [ref matching rules](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-rulesets/creating-rulesets-for-a-repository#using-fnmatch-syntax)
 match the three flat tag prefixes `portcove-production-controller-*`,
 `portcove-upstream-rehearsal-*`, and `portcove-controller-canary-*`.
@@ -111,8 +111,14 @@ match the three flat tag prefixes `portcove-production-controller-*`,
 | Portcove release state writer           | Allow updates to `portcove-release-inputs` and `portcove-production-coordinator-state` only to App `5632044`.             |
 | Portcove release branch retention       | Deny creation, deletion and non-fast-forward updates on both state branches and `portcove-release-pause`, with no bypass. |
 | Portcove publication pause owner update | Allow updates to `portcove-release-pause` only to the existing repository owner.                                          |
+| Portcove release tag creation           | Allow creation of `v*` tags, except `v*-preview.*`, only to the repository owner (Beta and Stable releases).              |
+| Portcove preview tag creation           | Allow creation of `v*-preview.*` tags to the repository owner and GitHub Actions (App `15368`) for nightly previews.      |
 
 Protect main and Protect release tags continue as separate repository policies.
+Protect release tags still denies updating or deleting any `v*` tag, with no
+bypass, so a published version never changes. The two creation policies come
+from the owner decision on #534 (2026-11-13). Agents acting through the owner's
+account share the owner's bypass.
 Release observers still bind complete inventory and branch observations.
 Protected environments and controller admission still require exact appointments
 and the original source and workflow identities.
