@@ -1443,6 +1443,11 @@ pub(crate) enum GameFileRootCommand {
         #[arg(long = "root")]
         root_id: String,
     },
+    /// List game folders Steam, GOG and Epic installed on this computer; reads only.
+    #[command(
+        after_help = "Search one with source discover --root PATH --profile PROFILE_ID, or save it with source roots add PATH. Listing never saves a folder, registers files or changes anything in a store's folder."
+    )]
+    Stores,
     /// Save one available folder; adding the same folder again is idempotent.
     Add {
         /// Available folder to remember for future scans; adding it does not register its files.

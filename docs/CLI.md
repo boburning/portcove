@@ -1108,6 +1108,43 @@ saved folder. Each page names its `scan_id`, `total` and `next_offset`; passing
 replaced it, so pages never mix two scans. Older inline reports are paged from
 the report itself with a null `scan_id`.
 
+#### Games installed by Steam, GOG or Epic
+
+Engine remakes and source ports often need files from a PC original you
+installed through a game store. `source roots stores` lists the game folders
+those stores recorded on this computer so you can search one:
+
+```text
+portcove --library <path> --json source roots stores
+portcove --library <path> --json source discover --root "<store game folder>" --profile <profile-id>
+portcove --library <path> --json source roots add "<store game folder>"
+```
+
+Each entry gives the `store` (`steam`, `gog` or `epic`), the store's `title`,
+the canonical existing folder `path` and `saved_root_id` when that exact folder
+is already a saved game-file folder. Steam libraries come from the Steam
+client's `steamapps/libraryfolders.vdf` and each library's
+`appmanifest_*.acf` (`name`, `installdir`) on Windows (registry and Program
+Files locations), Linux (`~/.steam/steam`, `~/.local/share/Steam` and the
+Flatpak client) and macOS. GOG installs come from the Windows
+`GOG.com\Games` registry entries and Epic installs from the Epic Games
+Launcher's `Manifests\*.item` files on Windows. Heroic, Lutris and other
+launchers are not read.
+
+The list is a suggestion only: it never saves a folder, registers files,
+records setup intent or changes anything in a store's folder, and the store's
+title is a label, not an identity. Exact source checks decide whether any file
+matches. Store metadata files are read up to 1 MiB each, at most 64 Steam
+libraries and 4,096 games are listed, and an `installdir` that is not a single
+folder name, a relative or missing folder, or unreadable metadata is skipped and
+counted in `skipped_entries`; `limited` reports a reached bound. A store that
+cannot be read leaves the list shorter rather than failing.
+
+Files inside a game a store installed can be copied into Portcove or used where
+they are, but not moved: a Move import whose original is inside a listed game
+folder, or anywhere in a Steam library's `steamapps` folder, is refused with a
+`conflict` error naming the store, because the store's game would lose the file.
+
 ### Disc formats and optional tools
 
 `tool list` identifies each fixed tool's purpose, effective resolution and

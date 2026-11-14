@@ -1276,6 +1276,47 @@ pub(crate) fn game_file_roots(roots: &[GameFileRoot]) -> String {
     )
 }
 
+pub(crate) fn store_game_installs(report: &portcove_core::StoreGameInstalls) -> String {
+    let mut output = if report.installs.is_empty() {
+        "No games installed by Steam, GOG or Epic were found on this computer.".to_owned()
+    } else {
+        let rows = report
+            .installs
+            .iter()
+            .map(|install| {
+                vec![
+                    match install.store {
+                        portcove_core::GameStore::Steam => "Steam",
+                        portcove_core::GameStore::Gog => "GOG",
+                        portcove_core::GameStore::Epic => "Epic",
+                    }
+                    .into(),
+                    install.title.clone(),
+                    install.saved_root_id.clone().unwrap_or_else(|| "-".into()),
+                    install.path.display().to_string(),
+                ]
+            })
+            .collect();
+        format!(
+            "Games installed by Steam, GOG or Epic ({})\n{}\nSearch one with source discover --root PATH --profile PROFILE_ID, or save it with source roots add PATH. Portcove only reads these folders.",
+            report.installs.len(),
+            table(&["STORE", "TITLE", "SAVED FOLDER", "PATH"], rows)
+        )
+    };
+    if report.limited {
+        output.push_str(
+            "\nThe list stopped at a safety limit, so some installed games may be missing.",
+        );
+    }
+    if report.skipped_entries > 0 {
+        output.push_str(&format!(
+            "\n{} store entries were skipped because their details couldn't be read or their folder is missing.",
+            report.skipped_entries
+        ));
+    }
+    output
+}
+
 pub(crate) fn game_file_scan_snapshot(snapshot: &Option<GameFileScanSnapshot>) -> String {
     let Some(snapshot) = snapshot else {
         return "No completed game-file folder scan is available.".into();

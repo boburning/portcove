@@ -982,6 +982,7 @@ export type SteamGridDbCheckStop =
   | {
       reason: "unavailable";
     };
+export type GameStore = "steam" | "gog" | "epic";
 export type OutputDesktopAdoptionBatchResult = AdoptionBatchResult | null;
 export type OutputDesktopApplicationUpdateCheckPhase = "checking" | "acquiring-and-verifying" | "staged" | "complete";
 export type ApplicationChannel = "preview" | "stable";
@@ -1279,6 +1280,7 @@ export interface TransportOutputs {
   steamgriddb_key_status: OutputSteamgriddbKeyStatus;
   steamgriddb_listing_report: OutputSteamgriddbListingReport;
   storage: StorageSummary;
+  store_game_installs: OutputStoreGameInstalls;
   update_batch_outcome: OutputUpdateBatchOutcome;
   update_check: UpdateCheck;
   update_check_forecast: OutputUpdateCheckForecast;
@@ -1341,6 +1343,7 @@ export interface TransportOutputs {
   desktop_steam_entry_apply_result: OutputDesktopSteamEntryApplyResult;
   desktop_steam_entry_review: OutputDesktopSteamEntryReview;
   desktop_steam_profiles: OutputDesktopSteamProfiles;
+  desktop_store_game_installs: OutputStoreGameInstalls;
   desktop_submitted_report: OutputDesktopSubmittedReport;
   desktop_support_bundle_export: OutputDesktopSupportBundleExport;
   desktop_update_check_outcome: OutputCheckBatchOutcome;
@@ -5760,6 +5763,38 @@ export interface SteamGridDbImageCheck {
   listing: SteamGridDbListingStatus;
   source: SteamGridDbSourceStatus;
   unknown_reason: SteamGridDbUnknownReason | null;
+}
+export interface OutputStoreGameInstalls {
+  installs: StoreGameInstall[];
+  /**
+   * Whether a detection bound stopped the list early.
+   */
+  limited: boolean;
+  /**
+   * Store entries left out because their metadata was unreadable, malformed,
+   * unsafe or named a folder that does not exist.
+   */
+  skipped_entries: number;
+  [k: string]: unknown;
+}
+/**
+ * One game folder a store installed, as the store's own metadata records it.
+ */
+export interface StoreGameInstall {
+  /**
+   * Canonical existing folder.
+   */
+  path: string;
+  /**
+   * The saved game-file folder at exactly this path, when there is one.
+   */
+  saved_root_id: string | null;
+  store: GameStore;
+  /**
+   * The store's title for the game; a label, never an identity.
+   */
+  title: string;
+  [k: string]: unknown;
 }
 export interface OutputUpdateBatchOutcome {
   error: FailureReport | null;

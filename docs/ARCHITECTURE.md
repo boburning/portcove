@@ -2891,6 +2891,24 @@ The existing 512-port selection bound and independent implementations apply;
 each selected port opens its fresh Core plan without automatic registration or
 installation.
 
+Core also lists game folders that Steam, GOG and Epic recorded on this host, so
+a player can choose the PC original a remake or source port needs. A
+`StoreInstallHost` seam supplies Steam client roots, GOG registry installs and
+Epic manifest folders; the production host reads default locations and the
+Windows registry, and tests use fixture folders. Core reads Steam
+`libraryfolders.vdf` and `appmanifest_*.acf` files and Epic `*.item` files with
+bounded regular-file reads, skips unsafe or missing locations, canonicalizes and
+deduplicates folders, and reports the matching saved game-file root identity.
+The result is a read-only suggestion: it adds no saved root, registration, setup
+intent or second scanner, and store titles never identify a source. Search and
+admission stay with the existing discovery and inspector. Source import refuses
+Move for an original inside a detected store game folder or a Steam library's
+`steamapps` folder, so Portcove never removes a store's files; Copy and Use
+current location are unchanged. CLI `source roots stores` and the Tauri
+`get_store_game_installs` command expose the same Core result, and Desktop **Find
+required files** loads it only when the player asks and uses a chosen folder as
+the ordinary search folder.
+
 ## Install transaction
 
 SQLite schema 28 adds a durable preparation-process quiescence fact. Core clears

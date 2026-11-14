@@ -482,6 +482,12 @@ pub(crate) fn document(contract: SchemaContract) -> serde_json::Value {
                 )),
             ),
             (
+                "store_game_installs",
+                serde_json::json!(schema_for_contract::<portcove_core::StoreGameInstalls>(
+                    contract
+                )),
+            ),
+            (
                 "source_discovery_limits",
                 serde_json::json!(schema_for_contract::<portcove_core::SourceDiscoveryLimits>(
                     contract

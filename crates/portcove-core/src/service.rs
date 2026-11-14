@@ -306,6 +306,7 @@ pub struct PortcoveService {
     pub(crate) library: Library,
     releases: Arc<dyn ReleaseProvider>,
     faults: Arc<dyn LifecycleFaultInjector>,
+    store_installs: Arc<dyn crate::StoreInstallHost>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -402,6 +403,7 @@ impl PortcoveService {
             library,
             releases,
             faults,
+            store_installs: Arc::new(crate::SystemStoreInstallHost),
         })
     }
 
@@ -429,7 +431,20 @@ impl PortcoveService {
             library,
             releases,
             faults,
+            store_installs: Arc::new(crate::SystemStoreInstallHost),
         })
+    }
+
+    /// Use other host facts for store install detection (tests and adapters
+    /// that already know the stores' locations).
+    #[must_use]
+    pub fn with_store_install_host(mut self, host: Arc<dyn crate::StoreInstallHost>) -> Self {
+        self.store_installs = host;
+        self
+    }
+
+    pub(crate) fn store_install_host(&self) -> &dyn crate::StoreInstallHost {
+        self.store_installs.as_ref()
     }
 
     /// Explicitly discover and retry orphaned work under its existing locks.
@@ -455,6 +470,7 @@ impl PortcoveService {
             library,
             releases,
             faults,
+            store_installs: Arc::new(crate::SystemStoreInstallHost),
         })
     }
 
@@ -473,6 +489,7 @@ impl PortcoveService {
             library,
             releases,
             faults,
+            store_installs: Arc::new(crate::SystemStoreInstallHost),
         })
     }
 

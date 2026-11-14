@@ -167,6 +167,7 @@ export type GameFileScanSnapshot = NonNullable<
   Generated.TransportOutputs["game_file_scan_snapshot"]
 >;
 export type GameFileScanMatchPage = Generated.TransportOutputs["desktop_game_file_scan_match_page"];
+export type StoreGameInstalls = Generated.TransportOutputs["desktop_store_game_installs"];
 export type GameFileScanMatchQuery = Requests.TransportInputs["desktop_game_file_scan_match_query"];
 
 export type { ObservedSourceDigest } from "./transport-types.generated";
