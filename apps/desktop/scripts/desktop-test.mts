@@ -4404,216 +4404,85 @@ try {
   });
   await scenario("native-application-update-preferences", async () => {
     const browser = driverBrowser();
-    const before = await invoke("get_application_update_preferences");
-    assert.ok(before.ok);
-    assert.equal(before.value.choice, null);
-    const initialStatus = await invoke("get_application_update_status");
-    assert.ok(initialStatus.ok);
-    assert.equal(initialStatus.value.staged, null);
-    assert.deepEqual(initialStatus.value.recovery_required, []);
+    assert.deepEqual(success(await invoke("get_application_update_preferences")), {
+      channel: "beta",
+      automatic_checks: true,
+    });
+    const initialStatus = success(await invoke("get_application_update_status"));
+    assert.equal(initialStatus.checking, false);
+    assert.equal(initialStatus.installing, false);
+    assert.equal(initialStatus.available, null);
     const activities = await invoke("get_activities");
     assert.ok(activities.ok);
 
-    const choicePrompt = By.xpath(
-      '//section[@role="status" and .//strong[normalize-space(.)="Choose how Portcove updates"]]',
+    await selectSettingsCategory("updates");
+    const channel = By.xpath(
+      '//*[@role="group" and @aria-labelledby="application-update-channel-label"]',
     );
-    await browser.wait(until.elementLocated(choicePrompt), 15_000);
-    await browser.findElement(By.xpath('//button[normalize-space(.)="Review options"]')).click();
-    const settings = By.css('article[aria-labelledby="application-update-settings-title"]');
-    await browser.wait(until.elementLocated(settings), 15_000);
-    try {
-      await browser.wait(
-        async () =>
-          await executeBrowserScript(
-            browser,
-            () =>
-              document.activeElement ===
-              document.querySelector(
-                '.application-update-settings [aria-label="Application update channel"] button:not(:disabled)',
-              ),
-          ),
-        15_000,
-      );
-    } catch (error) {
-      const focus = await executeBrowserScript(browser, () => ({
-        active: document.activeElement?.outerHTML,
-        firstControl: document.querySelector(
-          '.application-update-settings [aria-label="Application update channel"] button:not(:disabled)',
-        )?.outerHTML,
-      }));
-      throw new Error(`Review options focus: ${JSON.stringify(focus)}`, { cause: error });
-    }
-    const initialChoice = await browser.switchTo().activeElement();
-    await browser.actions().sendKeys(Key.ARROW_DOWN).perform();
-    await browser.wait(
-      async () =>
-        await executeBrowserScript(
-          browser,
-          (initial) =>
-            document.activeElement?.closest(".application-update-settings") !== null &&
-            document.activeElement !== initial,
-          initialChoice,
-        ),
-      5_000,
-      "Directional navigation left application update settings",
-    );
-    await browser.wait(
-      until.elementLocated(By.css('[aria-label="Application update channel"]')),
-      15_000,
-    );
-    assert.deepEqual(
-      await executeBrowserScript(browser, () =>
-        [...document.querySelectorAll(".application-update-settings button")]
-          .filter((button) => !button.hasAttribute("data-slot"))
-          .map((button) => button.textContent?.trim() ?? ""),
-      ),
-      [],
-    );
-    await browser
-      .findElement(
-        By.xpath(
-          '//*[@aria-label="Application update channel"]//button[normalize-space(.)="Stable"]',
-        ),
-      )
-      .click();
-    await browser
-      .findElement(
-        By.xpath('//*[@aria-label="Application update mode"]//button[normalize-space(.)="Manual"]'),
-      )
-      .click();
-    await browser
-      .findElement(By.css('[role="checkbox"][aria-labelledby="pause-application-updates-label"]'))
-      .click();
-
-    assert.equal(
-      success(await invoke("get_application_update_preferences")).choice,
-      null,
-      "editing application update settings is not saving",
-    );
-    await browser
-      .findElement(By.xpath('//button[normalize-space(.)="Save application update settings"]'))
-      .click();
-    await browser.wait(async () => {
-      const result = await invoke("get_application_update_preferences");
-      return (
-        result.ok &&
-        result.value.choice?.channel === "stable" &&
-        result.value.choice?.mode === "manual" &&
-        result.value.choice?.paused === true
-      );
-    }, 15_000);
-    assert.deepEqual(success(await invoke("get_activities")), activities.value);
-    await browser.wait(
-      until.elementLocated(
-        By.xpath(
-          '//p[@role="status" and contains(., "Saving these settings does not start an update.")]',
-        ),
-      ),
-      15_000,
-    );
-
-    await refreshSettings("updates");
-    await browser.wait(
-      until.elementLocated(By.css('[aria-label="Application update channel"]')),
-      15_000,
-    );
+    await browser.wait(until.elementLocated(channel), 15_000);
     assert.equal(
       await browser
         .findElement(
-          By.css('[aria-label="Application update channel"] button[aria-pressed="true"]'),
+          By.css(
+            '[aria-labelledby="application-update-channel-label"] button[aria-pressed="true"]',
+          ),
         )
         .getText(),
-      "Stable",
+      "Beta",
     );
+    // Choosing a channel or the automatic-check switch saves immediately and
+    // starts no check, download or install.
+    await browser
+      .findElement(
+        By.xpath(
+          '//*[@aria-labelledby="application-update-channel-label"]//button[normalize-space(.)="Preview"]',
+        ),
+      )
+      .click();
+    await browser.wait(
+      async () => success(await invoke("get_application_update_preferences")).channel === "preview",
+      15_000,
+      "choosing Preview did not save the channel",
+    );
+    await browser.findElement(By.id("application-update-automatic-checks")).click();
+    await browser.wait(
+      async () =>
+        success(await invoke("get_application_update_preferences")).automatic_checks === false,
+      15_000,
+      "turning off automatic checks was not saved",
+    );
+    assert.deepEqual(success(await invoke("get_activities")), activities.value);
+    assert.equal(success(await invoke("get_application_update_status")).available, null);
+
+    await refreshSettings("updates");
+    await browser.wait(until.elementLocated(channel), 15_000);
     assert.equal(
       await browser
-        .findElement(By.css('[aria-label="Application update mode"] button[aria-pressed="true"]'))
+        .findElement(
+          By.css(
+            '[aria-labelledby="application-update-channel-label"] button[aria-pressed="true"]',
+          ),
+        )
         .getText(),
-      "Manual",
+      "Preview",
     );
     assert.equal(
       await browser
-        .findElement(By.css('[role="checkbox"][aria-labelledby="pause-application-updates-label"]'))
+        .findElement(By.id("application-update-automatic-checks"))
         .getAttribute("aria-checked"),
-      "true",
+      "false",
     );
 
     await captureApplicationUpdateSettingsComparison();
 
-    await writeFile(path.join(runtimeRoot, "application-update-schedule.json"), "not-json\n", {
-      flag: "wx",
-    });
-    await browser
-      .findElement(By.xpath('//button[normalize-space(.)="Refresh update status"]'))
-      .click();
-    await browser.wait(
-      until.elementLocated(By.xpath('//button[normalize-space(.)="Reset update-check history"]')),
-      15_000,
-    );
-    assert.equal(
-      required(success(await invoke("get_application_update_status")).recovery_required[0]).area,
-      "schedule",
-    );
-    await executeBrowserScript(browser, () =>
-      document.querySelector(".application-update-recovery")?.scrollIntoView({ block: "center" }),
-    );
-    await captureScenarioScreenshot("application-update-recovery-light", true);
-    await browser
-      .findElement(By.xpath('//button[normalize-space(.)="Reset update-check history"]'))
-      .click();
-    await browser.wait(async () => {
-      const result = await invoke("get_application_update_status");
-      return result.ok && result.value.recovery_required.length === 0;
-    }, 15_000);
-    await browser.wait(
-      until.elementLocated(
-        By.xpath('//p[@role="status" and contains(., "Update-check history reset.")]'),
-      ),
-      15_000,
-    );
-    assert.deepEqual(success(await invoke("get_activities")), activities.value);
-
+    // A damaged preference file grants nothing and falls back to the defaults.
     await writeFile(path.join(runtimeRoot, "application-updates.json"), "not-json\n");
     await refreshSettings("updates");
-    await browser.wait(
-      until.elementLocated(By.xpath('//button[normalize-space(.)="Reset update settings"]')),
-      15_000,
-    );
-    await browser
-      .findElement(By.xpath('//button[normalize-space(.)="Reset update settings"]'))
-      .click();
-    await browser.wait(
-      async () => {
-        const result = await invoke("get_application_update_preferences");
-        return result.ok && result.value.choice === null && result.value.revision > 0;
-      },
-      15_000,
-      "recovered application update preferences were not published by the host",
-    );
-    await browser.wait(
-      until.elementLocated(choicePrompt),
-      15_000,
-      "application update choice prompt did not return after recovery",
-    );
-    await browser.findElement(By.xpath('//button[normalize-space(.)="Not now"]')).click();
-    await browser.wait(
-      async () => (await browser.findElements(choicePrompt)).length === 0,
-      15_000,
-      "application update choice prompt did not dismiss",
-    );
-    await browser.wait(
-      async () =>
-        (await executeBrowserScript(browser, () => document.activeElement?.tagName)) !== "BODY",
-      15_000,
-      "focus did not return after dismissing the application update choice prompt",
-    );
-    await browser.wait(
-      until.elementLocated(
-        By.xpath('//p[@role="status" and contains(., "Damaged update settings reset.")]'),
-      ),
-      15_000,
-      "application update recovery success notice did not remain visible",
-    );
+    await browser.wait(until.elementLocated(channel), 15_000);
+    assert.deepEqual(success(await invoke("get_application_update_preferences")), {
+      channel: "beta",
+      automatic_checks: true,
+    });
     assert.deepEqual(success(await invoke("get_activities")), activities.value);
     await browser.wait(
       () =>

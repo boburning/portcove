@@ -1145,31 +1145,12 @@ export async function preparationScenarios({
   }
   const button = (label: string) =>
     By.xpath(`//button[normalize-space(.)="${label}" and not(ancestor::*[@hidden or @inert])]`);
-  async function dismissApplicationUpdateChoice() {
-    const preferences = await invoke("get_application_update_preferences");
-    assert.equal(preferences.ok, true);
-    if (transportValue("desktop_application_update_preferences", preferences.value).choice !== null)
-      return;
-    const choice = By.xpath(
-      '//section[@role="status" and .//strong[normalize-space(.)="Choose how Portcove updates"]]',
-    );
-    await browser.wait(until.elementLocated(choice), 15_000);
-    await browser
-      .findElement(
-        By.xpath(
-          '//section[@role="status" and .//strong[normalize-space(.)="Choose how Portcove updates"]]//button[normalize-space(.)="Not now"]',
-        ),
-      )
-      .click();
-    await browser.wait(async () => (await browser.findElements(choice)).length === 0, 15_000);
-  }
   async function open(port: PortDefinition, waitForPreparation = true) {
     await browser.navigate().refresh();
     await browser.wait(
       until.elementLocated(By.css('nav[aria-label="Primary navigation"]')),
       15_000,
     );
-    await dismissApplicationUpdateChoice();
     await selectPrimaryNavigation(browser, "Library");
     const search = await browser.wait(until.elementLocated(By.id("port-search")), 15_000);
     await search.sendKeys(
@@ -1889,7 +1870,6 @@ export async function preparationScenarios({
       until.elementLocated(By.css('nav[aria-label="Primary navigation"]')),
       15_000,
     );
-    await dismissApplicationUpdateChoice();
     const originalWindow = await browser.manage().window().getRect();
     const modifier = process.platform === "darwin" ? Key.COMMAND : Key.CONTROL;
     const shortcut = (key: string) =>
@@ -2441,7 +2421,6 @@ export async function preparationScenarios({
       until.elementLocated(By.css('nav[aria-label="Primary navigation"]')),
       15_000,
     );
-    await dismissApplicationUpdateChoice();
     await selectPrimaryNavigation(browser, "Library");
     const originalWindow = await browser.manage().window().getRect();
     try {

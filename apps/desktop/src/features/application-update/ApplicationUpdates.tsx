@@ -38,7 +38,7 @@ export function ApplicationUpdateSettings({
       aria-labelledby="application-update-settings-title"
       aria-busy={busy !== undefined}
     >
-      <div className="flex items-start justify-between gap-4 max-[65rem]:flex-col">
+      <div className="application-update-heading flex items-start justify-between gap-4 max-[65rem]:flex-col">
         <h2 id="application-update-settings-title" tabIndex={-1}>
           {t("settings.title")}
         </h2>
