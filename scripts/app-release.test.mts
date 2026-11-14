@@ -896,6 +896,7 @@ type WorkflowStep = {
 type WorkflowJob = {
   if?: string;
   uses?: string;
+  secrets?: string | Record<string, string>;
   with?: Record<string, unknown>;
   env?: Record<string, unknown>;
   environment?: string | { name?: string; url?: string };
@@ -937,6 +938,10 @@ void test("release workflows keep the signing key behind owner tags and main", a
   assert.deepEqual(Object.keys(nightly.on).sort(), ["schedule", "workflow_dispatch"]);
   assert.equal(nightly.jobs.prepare!.if, "github.ref == 'refs/heads/main'");
   assert.equal(nightly.jobs.release!.uses, "./.github/workflows/app-release-build.yml");
+  // GitHub gives a called workflow its environment's secrets only when the
+  // caller passes them; without that the signing key is empty (v0.1.0-preview.1).
+  assert.equal(nightly.jobs.release!.secrets, "inherit");
+  assert.equal(release.jobs.release!.secrets, "inherit");
   assert.equal(nightly.jobs.release!.with!.environment, "release");
   assert.deepEqual(nightly.jobs.release!.permissions, { contents: "write" });
 
@@ -962,7 +967,7 @@ void test("release workflows keep the signing key behind owner tags and main", a
   ]);
   const withoutSigningEnv = structuredClone(build);
   delete withoutSigningEnv.jobs.build!.steps![sign]!.env;
-  assert.doesNotMatch(JSON.stringify(withoutSigningEnv), /secrets\./u);
+  assert.doesNotMatch(JSON.stringify(withoutSigningEnv), /\bsecrets\b/u);
   const buildSource = await readFile(
     path.join(workflowsDirectory, "app-release-build.yml"),
     "utf8",
