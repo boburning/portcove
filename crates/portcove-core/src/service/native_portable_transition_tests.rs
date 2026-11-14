@@ -4,10 +4,13 @@ fn transition_fixture_catalogs(
     original: &[u8],
     predecessor: &ResolvedRelease,
 ) -> (Catalog, Catalog) {
-    let target = compatible_archive_fixture_catalog(
-        Catalog::embedded().unwrap().port(id).unwrap().clone(),
-        original,
-    );
+    // These fixtures exercise the reviewed data transition against controlled
+    // loopback releases, not upstream availability. A route-wide acquisition
+    // hold (Super Metroid's v0.4.6 pause) is policy the hold tests cover; it
+    // would refuse the controlled install before the transition runs.
+    let mut port = Catalog::embedded().unwrap().port(id).unwrap().clone();
+    port.managed_acquisition_hold = None;
+    let target = compatible_archive_fixture_catalog(port, original);
     let mut old = crate::test_fixture::v26_diagnostic_port(id);
     old.runtime_source_hashes = target.port(id).unwrap().runtime_source_hashes.clone();
     let direct = old

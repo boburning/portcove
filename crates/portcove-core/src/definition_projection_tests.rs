@@ -449,7 +449,14 @@ fn every_current_port_retains_exact_bytes_and_complete_validated_source_graph() 
     println!("full catalog projection setup begin: {:?}", clock.elapsed());
     let document = projection();
     println!("full catalog projection loaded: {:?}", clock.elapsed());
-    let contract = serde_json::to_vec_pretty(&document).unwrap();
+    // The contract treats whitespace as immaterial, so measure the projected
+    // catalog's content bound with compact JSON rather than pretty printing.
+    let contract = serde_json::to_vec(&document).unwrap();
+    println!(
+        "full catalog projection contract bytes: {} of {}",
+        contract.len(),
+        crate::definition_index::MAX_CONTENT_BYTES
+    );
     let reference = target(&contract);
     let entries: Vec<_> = (0..document["catalog"]["ports"].as_array().unwrap().len())
         .map(|port_index| {
