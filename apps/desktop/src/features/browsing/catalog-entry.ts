@@ -17,6 +17,7 @@ export type CatalogEntry = Pick<PortDefinition, "id" | "name" | "summary" | "pla
       | "release"
       | "source_profile"
       | "bios_source_profile"
+      | "optional_game_source"
       | "upstream_status"
       | "adapter"
       | "project_url"

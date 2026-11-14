@@ -654,6 +654,25 @@ it("omits empty rows from a single-port review while a comparison keeps every ro
   await userEvent.keyboard("{Escape}");
   await expect.element(page.getByRole("dialog")).not.toBeInTheDocument();
 
+  // An optional game source is not listed under a heading that says "Required".
+  const optional = { ...described, optional_game_source: true };
+  await single.rerender(
+    <GroupedDiscover
+      all={[optional]}
+      matching={[optional]}
+      statuses={new Map([[optional.id, installedLaunchStatus()]])}
+      onSelect={vi.fn()}
+      onFavoriteToggle={vi.fn()}
+    />,
+  );
+  await page.getByRole("button", { name: "Why this port?", exact: true }).click();
+  await expect.element(page.getByRole("dialog")).toBeVisible();
+  expect(rows()).toContain("Optional files");
+  expect(rows()).not.toContain("Required files");
+  expect(dialogText()).toContain("Your fixture copy");
+  await userEvent.keyboard("{Escape}");
+  await expect.element(page.getByRole("dialog")).not.toBeInTheDocument();
+
   // Two ports keep every row, including the absences, so they line up for comparison.
   const other = { ...bare, id: "other-port", name: "Other project" };
   await single.rerender(
