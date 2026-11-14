@@ -871,7 +871,7 @@ async function assertReviewedUpdateOutcomes({
         assert.equal(await outcome.getAttribute("role"), cancelled ? "status" : "alert");
         const consequence =
           mutation === "committed"
-            ? "The change was saved"
+            ? "Your change was saved"
             : mutation === "unknown"
               ? "couldn't confirm whether anything changed"
               : "No files were changed";
@@ -4021,6 +4021,7 @@ export async function preparationScenarios({
   await scenario("native-release-channel-selection-and-restart", async () => {
     await browser.findElement(By.css(".detail-back")).click();
     await selectPrimaryNavigation(browser, "Discover");
+    const channelSection = 'section[aria-label="Game update channel"]';
     const openCatalogPort = async (id: string) => {
       const port = transportValue("port", command(["catalog", "show", id]));
       const search = await browser.findElement(By.id("port-search"));
@@ -4043,9 +4044,7 @@ export async function preparationScenarios({
           By.xpath('//summary[normalize-space(.)="Future update preferences"]'),
         ),
       );
-      const channel = await browser.findElement(
-        By.css('section[aria-label="Game release channel"]'),
-      );
+      const channel = await browser.findElement(By.css(channelSection));
       await browser.wait(
         until.elementIsVisible(channel),
         5_000,
@@ -4099,7 +4098,7 @@ export async function preparationScenarios({
       "release-channel popup did not close after Escape",
     );
     const releaseChannelTrigger = By.css(
-      'section[aria-label="Game release channel"] button[data-slot="select-trigger"]',
+      `${channelSection} button[data-slot="select-trigger"]`,
     );
     const restoredTrigger = await browser.wait(
       until.elementLocated(releaseChannelTrigger),
