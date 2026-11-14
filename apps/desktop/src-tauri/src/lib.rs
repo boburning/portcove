@@ -112,20 +112,26 @@ type LaunchObserver =
 const LAUNCH_ACCEPTANCE_POLL_INTERVAL: Duration = Duration::from_millis(25);
 
 /// A launch being followed: its library, request id, the last relayed progress sequence and the
-/// stamp (modification time, length) of the progress file when it was last read.
+/// stamp (modification time, length) of the progress file when it was last read, and whether
+/// recovery of its session was already started.
 type ObservedLaunch = (
     Library,
     String,
     std::cell::Cell<Option<u64>>,
     std::cell::Cell<Option<(std::time::SystemTime, u64)>>,
+    std::cell::Cell<bool>,
 );
 
 fn new_launch_observation(library: Library, request_id: String) -> ObservedLaunch {
+    // A supervisor already gone when observation begins (Desktop restarted mid-launch) is what
+    // startup recovery handles; only one that ends later is recovered by the observer.
+    let already_lost = library.launch_supervisor_lost(&request_id).unwrap_or(false);
     (
         library,
         request_id,
         std::cell::Cell::new(None),
         std::cell::Cell::new(None),
+        std::cell::Cell::new(already_lost),
     )
 }
 
@@ -1960,7 +1966,7 @@ fn observe_launch_completion(
                 }
                 let completed = retain_launch_observations(
                     &mut pending,
-                    |(library, request_id, last_sequence, last_stamp)| {
+                    |(library, request_id, last_sequence, last_stamp, recovery_started)| {
                         let progress = launch_progress_path(library.root(), request_id);
                         // Preparation progress (for example unpacking a disc image) is
                         // reported by the supervisor process; relay each newer step to
@@ -1979,6 +1985,15 @@ fn observe_launch_completion(
                         }
                         match library.launch_request(request_id) {
                             Ok(Some(request)) if request.outcome.is_none() => {
+                                // A supervisor that ended while Desktop was running never records
+                                // an outcome. Start the same recovery Desktop starts at launch,
+                                // once, and keep following until the outcome it records appears.
+                                if !recovery_started.get()
+                                    && library.launch_supervisor_lost(request_id).unwrap_or(false)
+                                {
+                                    recovery_started.set(true);
+                                    let _ = start_launch_recovery(library.root(), request_id);
+                                }
                                 LaunchObservationState::Active
                             }
                             Ok(_) => {
@@ -2568,28 +2583,30 @@ fn run_recovery_helper(library_root: &Path, session_id: &str) -> i32 {
 
 fn start_stale_launch_recovery(library: &Library) -> portcove_core::Result<()> {
     let sessions = PortcoveService::new(library.clone())?.stale_launch_sessions()?;
-    if sessions.is_empty() {
-        return Ok(());
-    }
-    let executable = std::env::current_exe()?;
     for session in sessions {
-        let mut command =
-            ChildProcessPolicy::native_command(ChildProcessClass::HostIntegration, &executable)?;
-        command
-            .arg("--portcove-recover")
-            .arg(library.root())
-            .arg(&session.id)
-            .stdin(Stdio::null())
-            .stdout(Stdio::null())
-            .stderr(Stdio::null());
-        configure_independent_process(&mut command);
-        command.spawn().map_err(|error| {
-            PortcoveError::state(format!(
-                "could not start recovery for launch session {}: {error}",
-                session.id
-            ))
-        })?;
+        start_launch_recovery(library.root(), &session.id)?;
     }
+    Ok(())
+}
+
+/// Starts the detached helper that recovers one launch session whose supervisor ended.
+fn start_launch_recovery(library_root: &Path, session_id: &str) -> portcove_core::Result<()> {
+    let executable = std::env::current_exe()?;
+    let mut command =
+        ChildProcessPolicy::native_command(ChildProcessClass::HostIntegration, &executable)?;
+    command
+        .arg("--portcove-recover")
+        .arg(library_root)
+        .arg(session_id)
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null());
+    configure_independent_process(&mut command);
+    command.spawn().map_err(|error| {
+        PortcoveError::state(format!(
+            "could not start recovery for launch session {session_id}: {error}"
+        ))
+    })?;
     Ok(())
 }
 

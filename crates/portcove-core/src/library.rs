@@ -1901,6 +1901,23 @@ impl Library {
         row.map(parse_launch_session).transpose()
     }
 
+    /// Whether the request is an active launch session whose recorded supervisor no longer
+    /// exists. Read-only: recovery stays an explicit action, and a session with no recorded
+    /// supervisor identity counts as lost, as it does for `stale_launch_sessions`. A request
+    /// that is unknown or already finished is not lost.
+    pub fn launch_supervisor_lost(&self, id: &str) -> Result<bool> {
+        let Some(session) = self.launch_request(id)? else {
+            return Ok(false);
+        };
+        if session.outcome.is_some() {
+            return Ok(false);
+        }
+        Ok(match session.supervisor_identity.as_deref() {
+            Some(identity) => !crate::launch::process_matches(session.supervisor_pid, identity)?,
+            None => true,
+        })
+    }
+
     /// The most recently finished launch session for a port, if any. Callers
     /// decide whether its outcome is worth showing.
     pub fn latest_finished_launch_session(
