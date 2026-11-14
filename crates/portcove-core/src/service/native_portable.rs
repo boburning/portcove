@@ -147,6 +147,14 @@ impl PortcoveService {
         let target = self.retained_archive_data_target(to, retained_rollback)?;
         let to = &target;
         let platform = Platform::current()?;
+        let additive = additive_archive_data_transition(
+            &retained,
+            to,
+            retained_rollback.is_some() || staged_target.is_some(),
+        )?;
+        if additive {
+            self.require_additive_adoption(from, &retained, to)?;
+        }
         if retained.adapter != AdapterKind::NativePortable
             && to.adapter != AdapterKind::NativePortable
             && !crate::persistence::ready_staged_archive(&retained)
@@ -163,7 +171,8 @@ impl PortcoveService {
             || crate::persistence::ready_staged_archive(&retained)
                 != crate::persistence::ready_staged_archive(to)
             || retained.mod_package_policy != to.mod_package_policy
-            || retained.archive_data_compatibility_v1 != to.archive_data_compatibility_v1
+            || (retained.archive_data_compatibility_v1 != to.archive_data_compatibility_v1
+                && !additive)
             || !Self::equivalent_native_player_root(from, &retained, to, retained_rollback)?
             || retained.windows_temp_directory != to.windows_temp_directory
             || crate::native_portable_data::directory_name(&retained, platform)
@@ -228,7 +237,9 @@ impl PortcoveService {
                 Some(previous),
             )?;
         }
-        if retained.persistent_paths != to.persistent_paths {
+        // An additive data-policy successor carries its own structural proof;
+        // its appended files are adopted, not required to be empty.
+        if retained.persistent_paths != to.persistent_paths && !additive {
             if let Some(previous) = retained_rollback
                 && to
                     .persistent_paths
@@ -269,9 +280,104 @@ impl PortcoveService {
         if crate::persistence::ready_staged_archive(&retained)
             && crate::persistence::ready_staged_archive(&to)
             && retained.persistent_paths != to.persistent_paths
+            && !additive_archive_data_transition(
+                &self.effective_archive_data_port(from)?,
+                &to,
+                true,
+            )?
         {
             self.require_empty_persistence_expansion(from, &to, Some(target))?;
         }
+        Ok(())
+    }
+
+    /// The active predecessor package must not ship or execute anything at a
+    /// successor's appended paths, and its runtime and canonical copies of an
+    /// appended file must not disagree. Read-only; a reverse switch is a no-op.
+    fn require_additive_adoption(
+        &self,
+        from: &InstallRecord,
+        retained: &PortDefinition,
+        to: &PortDefinition,
+    ) -> Result<()> {
+        let Some(added) = crate::archive_data::added_paths(retained, to)? else {
+            return Ok(());
+        };
+        let platform = Platform::current()?;
+        let installed = self.installed_port(from)?;
+        let original = InstallQualification::from_port(&installed, platform)?;
+        let mut expanded = installed.clone();
+        expanded.persistent_paths.extend(added.iter().cloned());
+        if let Some(policy) = expanded.archive_data_compatibility_v1.as_mut() {
+            policy.shared_paths.extend(added.iter().cloned());
+        }
+        let candidate = InstallQualification::from_port(&expanded, platform)?;
+        if !Installer::new(self.library.clone())?
+            .permits_additive_mutability(from, &original, &candidate)?
+        {
+            return Err(portable_data_change());
+        }
+        crate::archive_data::require_adoptable(
+            retained,
+            to,
+            &self.persistence_root(retained, &from.path)?,
+            &self.library.user_dir(&to.id),
+            psx_mod_data::appended_baseline(from)?.as_ref(),
+        )?;
+        Ok(())
+    }
+
+    /// When rollback makes a predecessor copy active again, record its runtime
+    /// copies of the successor's appended files, so a later forward switch can
+    /// tell that copy's untouched stale files from changes made after rollback.
+    pub(super) fn record_additive_rollback_baseline(
+        &self,
+        active: &InstallRecord,
+        previous: &InstallRecord,
+    ) -> Result<()> {
+        if active.port_id != previous.port_id || active.id == previous.id {
+            return Ok(());
+        }
+        let wider = self.persistence_contract_for_install(active)?.port;
+        let narrower = self.persistence_contract_for_install(previous)?.port;
+        if crate::archive_data::added_paths(&narrower, &wider)?.is_none() {
+            return Ok(());
+        }
+        let digests = crate::archive_data::appended_digests(
+            &narrower,
+            &wider,
+            &self.persistence_root(&narrower, &previous.path)?,
+        )?;
+        psx_mod_data::record_appended_baseline(previous, digests)
+    }
+
+    /// After a structural additive data-policy successor's ordinary restore,
+    /// give its appended settings files their initial content from the active
+    /// predecessor runtime. Only the successor copy is written; canonical data
+    /// is never replaced and gains the files through later collection.
+    pub(super) fn adopt_additive_archive_data(
+        &self,
+        active: &InstallRecord,
+        target: &InstallRecord,
+    ) -> Result<()> {
+        if active.port_id != target.port_id || active.id == target.id {
+            return Ok(());
+        }
+        let from = self.persistence_contract_for_install(active)?.port;
+        let to = self.persistence_contract_for_install(target)?.port;
+        if crate::archive_data::added_paths(&from, &to)?.is_none() {
+            return Ok(());
+        }
+        self.require_portable_runtime_unchanged(active)?;
+        self.require_additive_adoption(active, &from, &to)?;
+        crate::archive_data::adopt_added_paths(
+            &from,
+            &to,
+            &self.persistence_root(&from, &active.path)?,
+            &self.library.user_dir(&to.id),
+            &self.persistence_root(&to, &target.path)?,
+            psx_mod_data::appended_baseline(active)?.as_ref(),
+        )?;
         Ok(())
     }
 
@@ -490,6 +596,18 @@ fn pattern_names_added(narrow: &PortDefinition, broad: &PortDefinition) -> Optio
         }
     }
     (!names.is_empty()).then_some(names)
+}
+
+/// A structural additive data-policy successor of the retained contract. A
+/// retained target (rollback, or an existing copy) may also be its predecessor.
+/// Every other execution, source and data coordinate keeps its own guard.
+fn additive_archive_data_transition(
+    retained: &PortDefinition,
+    to: &PortDefinition,
+    retained_target: bool,
+) -> Result<bool> {
+    Ok(crate::archive_data::added_paths(retained, to)?.is_some()
+        || (retained_target && crate::archive_data::added_paths(to, retained)?.is_some()))
 }
 
 #[cfg(all(test, target_os = "linux", target_arch = "x86_64"))]
@@ -4280,6 +4398,7 @@ mod tests {
             "config.ini",
             "saves/save1.sav",
             None,
+            &[],
         )
         .await;
     }
@@ -4293,6 +4412,28 @@ mod tests {
             "settings.ini",
             "native_save_1.bin",
             None,
+            &[],
+        )
+        .await;
+    }
+
+    /// The current definition appends three settings files to the policy an
+    /// existing installation was created with. Update, rollback, restore and
+    /// a fresh copy beside it cross that additive successor transition.
+    #[tokio::test]
+    async fn compatible_archive_progression_sonic_additive_settings() {
+        assert_compatible_archive_progression(
+            "sonic-the-hedgehog-recomp",
+            "SonicTheHedgehogRecomp.exe",
+            "SonicTheHedgehogRecomp-windows-x64-",
+            "settings.ini",
+            "native_save_1.bin",
+            None,
+            &[
+                "sonic1-sound.ini",
+                "sonic1-bug-fixes.ini",
+                "sonic1-easy-access.ini",
+            ],
         )
         .await;
     }
@@ -4306,6 +4447,7 @@ mod tests {
             "config.ini",
             "saves/save1.sav",
             Some("saves/save.srm"),
+            &[],
         )
         .await;
     }
@@ -4319,6 +4461,7 @@ mod tests {
             "settings.json",
             "saves/checkpoints/mission-1.bin",
             Some("saves/controller_pak_1.bin"),
+            &[],
         )
         .await;
     }
@@ -4330,6 +4473,7 @@ mod tests {
         settings: &'static str,
         state: &'static str,
         sram: Option<&'static str>,
+        added: &'static [&'static str],
     ) {
         let client_path = std::env::current_exe().unwrap();
         let client_sha256 =
@@ -4358,6 +4502,35 @@ mod tests {
         };
         let definition = serde_json::to_vec(&fixed.authoritative_document()).unwrap();
         let definition_sha256 = hex::encode(Sha256::digest(&definition));
+        // The structural predecessor an existing installation was created with.
+        let predecessor = (!added.is_empty()).then(|| {
+            let current = fixed.port(id).unwrap();
+            let predecessor = crate::archive_data::additive_predecessors(current)
+                .into_iter()
+                .find(|p| p.persistent_paths.len() + added.len() == current.persistent_paths.len())
+                .expect("the current definition only appends these settings files");
+            assert_eq!(
+                crate::archive_data::added_paths(&predecessor, current)
+                    .unwrap()
+                    .unwrap(),
+                added
+            );
+            predecessor
+        });
+        let creating = match &predecessor {
+            Some(port) => {
+                let mut document = serde_json::to_value(fixed.authoritative_document()).unwrap();
+                let index = document["ports"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .position(|p| p["id"] == id)
+                    .unwrap();
+                document["ports"][index] = serde_json::to_value(port).unwrap();
+                Catalog::from_json(&document.to_string()).unwrap()
+            }
+            None => fixed.clone(),
+        };
         let package = |version: &str, revision| {
             let mut release = server.release_in_folder(version, revision, "", executable);
             release.asset.name = if id == "super-metroid-recomp" {
@@ -4421,7 +4594,7 @@ mod tests {
             Arc::new(crate::GithubReleaseProvider::with_api_root(api_root.clone()).unwrap());
         let mut service =
             PortcoveService::with_provider(library.clone(), provider.clone()).unwrap();
-        service.replace_catalog_for_test(fixed.clone());
+        service.replace_catalog_for_test(creating.clone());
         struct Trace(std::time::Instant);
         impl LifecycleFaultInjector for Trace {
             fn check(&self, point: LifecycleFaultPoint) -> Result<()> {
@@ -4457,7 +4630,47 @@ mod tests {
         if let Some(sram) = sram {
             fs::write(first.path.join(sram), b"conventional guest SRAM").unwrap();
         }
-        service.create_backup(id).unwrap();
+        let predecessor_backup = service.create_backup(id).unwrap();
+        // The predecessor runtime already wrote the newly declared settings
+        // file; its policy leaves it in this copy only.
+        for path in added {
+            fs::write(first.path.join(path), b"runtime-only settings").unwrap();
+        }
+        if !added.is_empty() {
+            let successor = fixed.port(id).unwrap();
+            let canonical = library.user_dir(id).join(added[0]);
+            // Differing runtime and canonical copies wait for the player.
+            fs::write(&canonical, b"a different saved copy").unwrap();
+            let held = service
+                .require_portable_transition(&first, successor)
+                .unwrap_err();
+            assert_eq!(held.details.get("path").map(String::as_str), Some(added[0]));
+            fs::remove_file(&canonical).unwrap();
+            service
+                .require_portable_transition(&first, successor)
+                .unwrap();
+            // A path the predecessor package ships is never adopted.
+            let mut member = successor.clone();
+            member.persistent_paths.push("package.txt".into());
+            member
+                .archive_data_compatibility_v1
+                .as_mut()
+                .unwrap()
+                .shared_paths
+                .push("package.txt".into());
+            assert!(
+                crate::archive_data::added_paths(successor, &member)
+                    .unwrap()
+                    .is_some()
+            );
+            assert!(
+                service
+                    .require_portable_transition(&first, &member)
+                    .is_err(),
+                "a predecessor package member cannot become shared data"
+            );
+            assert!(!library.user_dir(id).join("package.txt").exists());
+        }
         let next_release = package("fixture-next", 2);
         let next_metadata = release_metadata(&next_release, 2, true);
         let mut held = next_metadata.clone();
@@ -4512,6 +4725,28 @@ mod tests {
             "review must preserve the saved preference"
         );
         assert_eq!(service.status(id).unwrap().active.unwrap().id, first.id);
+        if !added.is_empty() {
+            // Interrupt after adoption, before the activation commits; the
+            // retry finds its identical earlier adoption and completes.
+            struct AfterAdoption;
+            impl LifecycleFaultInjector for AfterAdoption {
+                fn check(&self, point: LifecycleFaultPoint) -> Result<()> {
+                    if point == LifecycleFaultPoint::ArchiveDataAdopted {
+                        Err(PortcoveError::state("fixture interruption after adoption"))
+                    } else {
+                        Ok(())
+                    }
+                }
+            }
+            service.faults = Arc::new(AfterAdoption);
+            assert!(service.activate_staged(id).is_err());
+            assert_eq!(service.status(id).unwrap().active.unwrap().id, first.id);
+            for path in added {
+                assert!(!library.user_dir(id).join(path).exists());
+            }
+            service.faults = Arc::new(Trace(started));
+            service.recover_pending_operations().unwrap();
+        }
         let second = service.activate_staged(id).unwrap();
         if id == "retropulse03-winback-n64recomp" {
             assert_eq!(
@@ -4537,6 +4772,60 @@ mod tests {
                 b"conventional guest SRAM"
             );
         }
+        let namespace_policy = crate::archive_data::snapshot_policy(&library.user_dir(id))
+            .unwrap()
+            .unwrap();
+        if let Some(predecessor) = &predecessor {
+            // The successor adopted the runtime's settings and kept the
+            // predecessor's namespace, so older readers keep their coordinates.
+            assert_eq!(
+                namespace_policy,
+                crate::archive_data::policy_sha256(predecessor).unwrap()
+            );
+            for path in added {
+                assert_eq!(
+                    fs::read(second.path.join(path)).unwrap(),
+                    b"runtime-only settings"
+                );
+                // Activation writes only the new copy; canonical data gains
+                // the file through that copy's own collection.
+                assert!(!library.user_dir(id).join(path).exists());
+            }
+            service.collect_user_data(id).unwrap();
+            for path in added {
+                assert_eq!(
+                    fs::read(library.user_dir(id).join(path)).unwrap(),
+                    b"runtime-only settings"
+                );
+            }
+            // A backup taken under the predecessor restores under the successor.
+            let preview = service
+                .preview_backup_action(id, &predecessor_backup.id, crate::BackupAction::Restore)
+                .unwrap();
+            let consent = service
+                .authorize_backup_action(
+                    id,
+                    &predecessor_backup.id,
+                    crate::BackupAction::Restore,
+                    &preview.preview_sha256,
+                )
+                .unwrap();
+            service
+                .restore_backup(id, &predecessor_backup.id, &consent.token)
+                .unwrap();
+            assert_eq!(
+                fs::read(second.path.join(settings)).unwrap(),
+                b"player settings from N"
+            );
+            for path in added {
+                // The predecessor-era snapshot does not cover appended files.
+                assert_eq!(
+                    fs::read(second.path.join(path)).unwrap(),
+                    b"runtime-only settings"
+                );
+                fs::write(second.path.join(path), b"successor settings").unwrap();
+            }
+        }
         fs::write(second.path.join(settings), b"current conventional settings").unwrap();
         let backup = service.create_backup(id).unwrap();
         let manifest: serde_json::Value =
@@ -4544,10 +4833,35 @@ mod tests {
         assert_eq!(manifest["guarded_archive_v1"], second.artifact.sha256);
         assert_eq!(
             manifest["partitioned_data_v1"],
-            crate::archive_data::policy_sha256(fixed.port(id).unwrap()).unwrap()
+            crate::archive_data::policy_sha256(creating.port(id).unwrap()).unwrap()
         );
+        assert_eq!(manifest["partitioned_data_v1"], namespace_policy);
         let previous = service.rollback(id).unwrap();
         assert_eq!(previous.id, first.id);
+        for path in added {
+            // Rollback keeps the successor's settings canonical and leaves the
+            // predecessor runtime's own copy untouched.
+            assert_eq!(
+                fs::read(library.user_dir(id).join(path)).unwrap(),
+                b"successor settings"
+            );
+            assert_eq!(
+                fs::read(first.path.join(path)).unwrap(),
+                b"runtime-only settings"
+            );
+        }
+        if !added.is_empty() {
+            // Rolling forward again: the older copy's untouched files lose to
+            // the newer saved settings without holding.
+            assert_eq!(service.rollback(id).unwrap().id, second.id);
+            for path in added {
+                assert_eq!(
+                    fs::read(second.path.join(path)).unwrap(),
+                    b"successor settings"
+                );
+            }
+            assert_eq!(service.rollback(id).unwrap().id, first.id);
+        }
         assert_eq!(
             fs::read(first.path.join(state)).unwrap(),
             b"N-only host snapshot"

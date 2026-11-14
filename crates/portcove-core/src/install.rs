@@ -5035,7 +5035,7 @@ fn is_critical_companion_name(path: &Path, platform: Platform) -> bool {
         || matches!(extension.as_deref(), Some("toml" | "ini" | "cfg"))
 }
 
-fn is_executable_companion_name(path: &Path, platform: Platform) -> bool {
+pub(crate) fn is_executable_companion_name(path: &Path, platform: Platform) -> bool {
     let name = path
         .file_name()
         .and_then(|name| name.to_str())

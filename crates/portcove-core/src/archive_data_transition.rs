@@ -92,6 +92,15 @@ fn same_coordinates(old: &PortDefinition, new: &PortDefinition) -> bool {
         && old.mod_package_policy == new.mod_package_policy
 }
 
+/// The member of the target's additive data-policy lineage whose persistence
+/// scope is the creating contract's. A historical predecessor first enters
+/// the policy its scope was reviewed with; later appended settings files then
+/// follow the ordinary additive successor transition.
+pub(crate) fn data_target(creating: &PortDefinition, target: &PortDefinition) -> PortDefinition {
+    crate::archive_data::lineage_member_with_paths(target, &creating.persistent_paths)
+        .unwrap_or_else(|| target.clone())
+}
+
 pub(crate) fn require_predecessor(
     install: &InstallRecord,
     creating: &Catalog,
@@ -102,6 +111,7 @@ pub(crate) fn require_predecessor(
         .as_ref()
         .ok_or_else(|| held("this definition does not admit a populated predecessor"))?;
     let old = creating.port(&install.port_id)?;
+    let target = &data_target(old, target);
     if old.archive_data_compatibility_v1.is_some()
         || old.release.provider != crate::ReleaseSource::DirectManifest
         || install.artifact.sha256 != expected.predecessor_archive_sha256
@@ -135,7 +145,8 @@ pub(crate) fn effective_port(
     let target = authority.port(&install.port_id)?;
     require_predecessor(install, creating, target)?;
     let mut effective = creating.port(&install.port_id)?.clone();
-    effective.archive_data_compatibility_v1 = target.archive_data_compatibility_v1.clone();
+    effective.archive_data_compatibility_v1 =
+        data_target(&effective, target).archive_data_compatibility_v1;
     // Only the data mapping changes. Provider, original and execution fields stay exact.
     Ok(effective)
 }
@@ -237,6 +248,43 @@ mod tests {
         install.artifact.sha256 = "a".repeat(64);
         assert!(require_predecessor(&install, &creating, target).is_err());
     }
+    #[test]
+    fn historical_predecessor_enters_its_scope_policy_before_appended_settings() {
+        let current = Catalog::embedded().unwrap();
+        let id = "sonic-the-hedgehog-recomp";
+        let creating = historical(id);
+        let target = current.port(id).unwrap();
+        let install: InstallRecord = serde_json::from_value(serde_json::json!({
+            "id":"controlled-install","port_id":id,"version":"v0.8.3","path":"controlled-runtime",
+            "channel":"stable","installed_at":1,"verified":true,"staged":false,
+            "artifact":{"asset_name":"predecessor.zip",
+                "sha256":target.archive_data_transition_v1.as_ref().unwrap().predecessor_archive_sha256,
+                "size":1}
+        }))
+        .unwrap();
+        require_predecessor(&install, &creating, target).unwrap();
+        let admission = Admission {
+            operation_id: uuid::Uuid::new_v4().to_string(),
+            predecessor_manifest_sha256: "a".repeat(64),
+            authority: crate::installed_contract::InstalledContract::capture(&current, id).unwrap(),
+        };
+        let effective = effective_port(&install, &creating, &admission).unwrap();
+        let old = creating.port(id).unwrap();
+        assert_eq!(effective.persistent_paths, old.persistent_paths);
+        // The admitted policy is the target's lineage member for that scope,
+        // and the current definition is its additive successor.
+        assert_eq!(
+            crate::archive_data::added_paths(&effective, target)
+                .unwrap()
+                .unwrap(),
+            [
+                "sonic1-sound.ini",
+                "sonic1-bug-fixes.ini",
+                "sonic1-easy-access.ini"
+            ]
+        );
+    }
+
     #[test]
     fn admission_changes_only_data_and_rejects_foreign_archive_or_creating_contract() {
         let current = Catalog::embedded().unwrap();

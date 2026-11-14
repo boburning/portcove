@@ -362,6 +362,25 @@ return if the older runtime has created a changed path. Existing collection,
 backup/restore, interruption recovery and historical transfer authority remain in
 place; this grants no populated migration or save-format compatibility.
 
+An archive data-policy successor that only appends shared conventional files
+is a separate, structural exception to the empty-path proof. `archive_data`
+derives every predecessor from the current contract by removing a trailing run
+present in both the persistent and shared path lists, keeps the namespace the
+first policy established, and refuses every other policy difference. The update,
+activation and rollback guards accept that lineage (rollback in either direction
+only toward a retained copy). The forward guard also requires the predecessor's
+package manifest to permit the appended paths and its runtime and canonical
+copies of each appended file to agree. After the successor copy's ordinary
+restore, `prepare_retained_install_data` and rollback copy an appended file from
+the active predecessor runtime into that copy only when canonical data lacks it,
+so canonical data changes only through later collection; a retry keeps an
+identical earlier copy. Rollback records the predecessor copy's appended-file
+digests as a baseline, and a forward switch lets canonical data win silently
+for files still matching it. Restoring a snapshot
+framed by a strict predecessor policy keeps current appended files the snapshot
+lacks. Backup framing, fresh-beside and historical transition admission use
+the same lineage. See [CATALOG](CATALOG.md#adding-or-changing-a-port).
+
 Trusted verification projections keep the same exact root receipt-metadata
 exclusions as catalog-captured qualifications. Import still verifies each
 installation's retained scope, immutable identity and independent admission.
