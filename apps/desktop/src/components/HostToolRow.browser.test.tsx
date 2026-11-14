@@ -213,4 +213,55 @@ describe("host-tool row reflow", () => {
     expect(row.scrollWidth).toBeLessThanOrEqual(row.clientWidth);
     expect(container.scrollWidth).toBeLessThanOrEqual(164);
   });
+
+  it("keeps Settings disc tools inside the 160px column left beside the 400% navigation rail", async () => {
+    // Hosted owned-sources (run 43627494295) measured the Settings content
+    // column at 160 CSS px beside the navigation rail and the disc tools row at
+    // 169 px: the settings row's implicit track grew to its widest child.
+    container.style.width = "160px";
+    const tool = {
+      ...initial,
+      id: "dolphin-tool",
+      display_name: "DolphinTool",
+      state: "missing" as const,
+      path: null,
+      source: null,
+      purpose: "compressed GameCube validation and ISO materialization",
+    };
+    await root.rerender(
+      <article className="settings-row" data-testid="row">
+        <h2>Disc tools</h2>
+        <p className="host-summary mb-3 flex items-center justify-between gap-3">
+          <code className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap">
+            windows-x86_64
+          </code>
+          <span className="text-end text-xs">397 ports · 2 installed · 1 sources</span>
+        </p>
+        <div className="mb-4 grid grid-cols-1 gap-2">
+          <HostToolRow tool={tool} busy={false} actions={actions} />
+          <HostToolRow tool={{ ...initial }} busy={false} actions={actions} />
+        </div>
+      </article>,
+    );
+    const row = container.querySelector<HTMLElement>('[data-testid="row"]')!;
+    const widest = Math.max(
+      ...[...row.querySelectorAll<HTMLElement>("*")].map(
+        (element) => element.getBoundingClientRect().right,
+      ),
+    );
+    const offenders = [...row.querySelectorAll<HTMLElement>("*")]
+      .filter(
+        (element) =>
+          element.getBoundingClientRect().right - container.getBoundingClientRect().left > 160,
+      )
+      .map(
+        (element) =>
+          `${element.tagName}.${element.className.toString().slice(0, 60)}:${Math.round(element.getBoundingClientRect().width)}`,
+      );
+    expect(
+      Math.round(widest - container.getBoundingClientRect().left),
+      offenders.join(" | "),
+    ).toBeLessThanOrEqual(160);
+    expect(container.scrollWidth).toBeLessThanOrEqual(160);
+  });
 });

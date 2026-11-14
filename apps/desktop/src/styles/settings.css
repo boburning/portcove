@@ -1,6 +1,10 @@
 @layer components {
   .settings-row {
     display: grid;
+    /* A shrinkable track lets max-inline-size: 100% controls resolve against
+       the actual column; an implicit auto track grew to the widest label and
+       widened Settings past a 400% interface-size window. */
+    grid-template-columns: minmax(0, 1fr);
     min-inline-size: 0;
     align-content: start;
     gap: var(--space-3);
