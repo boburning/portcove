@@ -1583,6 +1583,33 @@ impl Library {
         Ok(())
     }
 
+    /// Successful-launch history, newest first, for ports that still have an
+    /// active Portcove-managed installation or a registered external runtime.
+    /// Ties order by port ID so the read is deterministic.
+    pub(crate) fn recently_played_installed_ports(
+        &self,
+        limit: usize,
+    ) -> Result<Vec<(String, i64)>> {
+        let limit = i64::try_from(limit).unwrap_or(i64::MAX);
+        let connection = self.connection()?;
+        let mut statement = connection.prepare(
+            "SELECT history.port_id, history.last_launched_at FROM launch_history AS history
+             WHERE EXISTS (
+                     SELECT 1 FROM port_settings AS settings
+                     WHERE settings.port_id = history.port_id
+                       AND settings.active_install_id IS NOT NULL
+                   )
+                OR EXISTS (
+                     SELECT 1 FROM external_runtime_registrations AS external
+                     WHERE external.port_id = history.port_id
+                   )
+             ORDER BY history.last_launched_at DESC, history.port_id
+             LIMIT ?1",
+        )?;
+        let rows = statement.query_map([limit], |row| Ok((row.get(0)?, row.get(1)?)))?;
+        rows.collect::<rusqlite::Result<_>>().map_err(Into::into)
+    }
+
     pub(crate) fn create_launch_session(&self, session: &LaunchSessionRecord) -> Result<()> {
         let install_root = crate::path::unicode(&session.install_root, "install")?;
         let mut connection = self.connection()?;
