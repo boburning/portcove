@@ -1471,15 +1471,15 @@ logged and never affect startup, play or a library change. Other platforms
 compile the refresh as a no-op.
 
 The jump list belongs to a taskbar identity. When the running executable is the
-registered current-version NSIS installation (the same evaluation update
-admission uses), Desktop sets its process AppUserModelID to the bundle
+registered current-version NSIS installation (the fail-closed check in
+`windows_installation`), Desktop sets its process AppUserModelID to the bundle
 identifier `io.github.portcove.portcove` before any window exists. That is the
 identity the installer stamps on its Start menu and desktop shortcuts and under
 which its uninstaller deletes the jump list. The list is then written under that
 ID and each entry carries it, so windows started from an entry group with the
 installed shortcuts. Development, fixture and portable runs keep the default
 per-executable identity and never write the installed application's list.
-Because the check is update admission's fail-closed test, an installed run that
+Because that check fails closed, an installed run that
 finds an ambiguous or stale second registration, a version mismatch, a reparse
 point or an unreadable or oversized Uninstall inventory also keeps the
 per-executable identity; that run's list then does not appear on the pinned

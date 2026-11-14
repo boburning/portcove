@@ -5,9 +5,10 @@
 //! identity. It was part of the removed custom updater's Windows adapter and is
 //! kept here because the jump list still needs it; the updater plugin owns
 //! installation itself.
-// Only Windows builds inspect the registry; other builds keep the pure checks
-// for their tests and the product identifier.
-#![cfg_attr(not(windows), allow(dead_code))]
+// Only Windows application builds inspect the registry; other builds and test
+// builds (where the jump-list caller is compiled out) keep the pure checks for
+// their tests and the product identifier.
+#![cfg_attr(any(not(windows), test), allow(dead_code))]
 
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -62,8 +63,9 @@ pub(crate) struct WindowsUninstallRegistration {
 }
 
 /// Whether this process is the executable of Portcove's single registered
-/// current-version NSIS installation, using the same evaluation as update
-/// admission. Development, fixture and portable runs answer `false`.
+/// current-version NSIS installation, using this module's fail-closed
+/// registered-installation check. Development, fixture and portable runs
+/// answer `false`.
 #[cfg(windows)]
 pub(crate) fn running_registered_installation() -> bool {
     // Only the failing stage is logged: errors can name private paths.
