@@ -210,11 +210,17 @@ fn image_finding(image: &SteamGridDbImageCheck) -> String {
             ". Listed again; choose it again to restore Portcove's copy"
         }
         (Some(_), Some(_)) if image.effect == SteamGridDbCheckEffect::Removed => {
-            ". Confirmed, so Portcove removed its copy; your choice and the credit are kept"
+            ". Confirmed, so Portcove is removing its copy; your choice and the credit are kept"
         }
         (Some(_), _) => ". Portcove removed its copy earlier; your choice and the credit are kept",
-        (None, Some(_)) => {
+        // Seen listed in a check that was not recorded: the stored withdrawal
+        // still stands, but this result says nothing more about it.
+        (None, Some(_)) if image.listing == Listing::Listed => "",
+        (None, Some(_)) if image.effect == SteamGridDbCheckEffect::Withdrawn => {
             ". Confirmed; Portcove kept its copy, because you imported this image yourself or another credit still lists it"
+        }
+        (None, Some(_)) => {
+            ". Confirmed earlier; Portcove kept its copy, because you imported this image yourself or another credit still lists it"
         }
         (None, None) if image.listing == Listing::NotListed => {
             ". If SteamGridDB's image server reports the file gone, or a check at least a day later still finds it missing, Portcove removes its copy unless you imported it yourself"
@@ -583,7 +589,7 @@ mod tests {
         removed.removal_failed = 1;
         removed.skipped = 1;
         let text = listing_report(&removed);
-        assert!(text.contains("Confirmed, so Portcove removed its copy"));
+        assert!(text.contains("Confirmed, so Portcove is removing its copy"));
         assert!(text.contains(
             "Portcove kept its copy, because you imported this image yourself or another credit still lists it"
         ));
@@ -599,6 +605,12 @@ mod tests {
         // An image removed by an earlier check is described as it stands.
         removed.images[0].effect = SteamGridDbCheckEffect::None;
         assert!(listing_report(&removed).contains("Portcove removed its copy earlier"));
+        // A kept image confirmed earlier says so, and a listed result in a check
+        // that was not recorded adds nothing about the stored confirmation.
+        removed.images[1].effect = SteamGridDbCheckEffect::None;
+        assert!(listing_report(&removed).contains("Confirmed earlier; Portcove kept its copy"));
+        removed.images[1].listing = SteamGridDbListingResult::Listed;
+        assert!(!listing_report(&removed).contains("Portcove kept its copy"));
         assert!(text.contains("couldn't remove 1 copy"));
         assert!(text.contains("1 result could not be recorded"));
         assert!(!text.contains("Nothing was removed"));

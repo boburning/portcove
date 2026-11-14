@@ -790,7 +790,7 @@ impl PortcoveService {
             connection.transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?;
         let mut skipped = 0;
         let mut effects = vec![Effect::None; report.images.len()];
-        let mut withdrawn_assets = std::collections::BTreeSet::new();
+        let mut written_assets = std::collections::BTreeSet::new();
         // An asset with a record this run could not write may still carry a
         // withdrawal that the unwritten result would have cleared.
         let mut unwritten_assets = std::collections::BTreeSet::new();
@@ -842,10 +842,12 @@ impl PortcoveService {
             match applied {
                 Ok(applied) => {
                     savepoint.commit()?;
+                    if applied != Applied::Skipped {
+                        written_assets.insert(image.asset_sha256.clone());
+                    }
                     match applied {
                         Applied::Recorded(WithdrawalChange::Withdrawn) => {
                             effects[index] = Effect::Withdrawn;
-                            withdrawn_assets.insert(image.asset_sha256.clone());
                         }
                         Applied::Recorded(WithdrawalChange::Cleared) => {
                             effects[index] = Effect::ListedAgain;
@@ -860,8 +862,10 @@ impl PortcoveService {
             }
         }
         // After every record is applied, inside the same transaction: an asset
-        // is evicted only when every one of its records is withdrawn now.
-        for asset in withdrawn_assets.difference(&unwritten_assets) {
+        // is evicted only when every one of its records is withdrawn now. Every
+        // asset this check wrote is evaluated, so one held back by an earlier
+        // write failure is evicted once its records are written again.
+        for asset in written_assets.difference(&unwritten_assets) {
             if crate::artwork_store::evictable(&transaction, asset)? {
                 crate::artwork_store::mark_evicted(&transaction, asset, report.checked_at)?;
             }
