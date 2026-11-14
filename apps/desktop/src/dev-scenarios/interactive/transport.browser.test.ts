@@ -23,27 +23,38 @@ it("refuses unknown and malformed commands visibly without forwarding IPC", asyn
   expect(refuse).toHaveBeenCalledTimes(3);
 });
 
-it("models metadata-only update queries while refusing consent or repository arguments", async () => {
+it("models application update settings while refusing extra or invalid arguments", async () => {
   const refuse = vi.fn();
   transport = installInteractiveTransport("library", refuse);
-  const before = await desktopApi.applicationUpdatePreferences();
-  const phases: string[] = [];
-  const checked = await desktopApi.checkApplicationUpdate((phase) => phases.push(phase), {
-    channel: "stable",
+  expect(await desktopApi.applicationUpdatePreferences()).toEqual({
+    channel: "beta",
+    automatic_checks: false,
   });
-  expect(checked.checked_channel).toBe("stable");
-  expect(checked.result.staged).toBe(false);
-  expect(phases).toEqual(["checking", "complete"]);
-  expect(await desktopApi.applicationUpdatePreferences()).toEqual(before);
-  await expect(
-    invoke("check_application_update", {
-      request: { channel: "stable", url: "https://invalid.example" },
+  const checked = await desktopApi.checkApplicationUpdate();
+  expect(checked.available).toBeNull();
+  expect(checked.last_checked_unix_seconds).toBe(1);
+  expect(
+    await desktopApi.setApplicationUpdatePreferences({
+      channel: "preview",
+      automatic_checks: true,
     }),
+  ).toEqual({ channel: "preview", automatic_checks: true });
+  expect(await desktopApi.applicationUpdatePreferences()).toEqual({
+    channel: "preview",
+    automatic_checks: true,
+  });
+  await expect(
+    invoke("check_application_update", { url: "https://invalid.example" }),
   ).rejects.toThrow("unexpected arguments");
   await expect(
-    invoke("check_application_update", { request: { channel: "nightly" } }),
-  ).rejects.toThrow("invalid channel");
-  expect(refuse).toHaveBeenCalledTimes(2);
+    invoke("set_application_update_preferences", {
+      preferences: { channel: "nightly", automatic_checks: true },
+    }),
+  ).rejects.toThrow("invalid preferences");
+  await expect(desktopApi.installApplicationUpdate("9.9.9", 1, () => {})).rejects.toThrow(
+    "Unsupported fixture action",
+  );
+  expect(refuse).toHaveBeenCalledTimes(3);
 });
 it("supports current read surfaces without hiding unsupported mutations", async () => {
   const refuse = vi.fn();
@@ -61,8 +72,9 @@ it("supports current read surfaces without hiding unsupported mutations", async 
     moves_existing_install: false,
   });
   expect(await desktopApi.applicationUpdateStatus()).toMatchObject({
-    install_eligibility: "not-configured",
-    staged: null,
+    checking: false,
+    installing: false,
+    available: null,
   });
   expect(await desktopApi.catalogStatus()).toMatchObject({
     provenance: { origin: "embedded" },

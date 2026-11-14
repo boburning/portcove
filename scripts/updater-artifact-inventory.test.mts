@@ -497,7 +497,7 @@ void test("rejects overlapping staging paths and version override inheritance", 
   );
 });
 
-void test("release-only overlay preserves ordinary secret-free builds and updater package baseline", async () => {
+void test("base configuration carries the updater plugin baseline and release overlay stays compatible", async () => {
   const base = object(
     JSON.parse(
       await readFile(new URL("../apps/desktop/src-tauri/tauri.conf.json", import.meta.url), "utf8"),
@@ -508,7 +508,18 @@ void test("release-only overlay preserves ordinary secret-free builds and update
       await readFile(new URL("../release/tauri.updater.conf.json", import.meta.url), "utf8"),
     ),
   );
-  assert.equal(object(base.bundle).createUpdaterArtifacts, false);
+  const updater = object(object(base.plugins).updater);
+  assert.equal(object(base.bundle).createUpdaterArtifacts, true);
+  assert.equal(object(object(object(base.bundle).windows).nsis).installMode, "currentUser");
+  assert.equal(object(object(base.bundle).macOS).signingIdentity, "-");
+  assert.equal(object(updater.windows).installMode, "passive");
+  assert.equal(
+    Buffer.from(String(updater.pubkey), "base64").toString("utf8"),
+    "untrusted comment: minisign public key: F92BD3EA87BB77B0\nRWSwd7uH6tMr+QTH3Ngrn9XASStbivNKxisuQq27Gt/RJoUedmbqiXuC\n",
+  );
+  // Feeds are chosen at runtime from the player's channel; none is compiled into the config.
+  assert.equal(updater.endpoints, undefined);
+  // The remaining release overlay may only repeat the base updater packaging settings.
   assert.equal(object(overlay.bundle).createUpdaterArtifacts, true);
   assert.equal(object(object(object(overlay.bundle).windows).nsis).installMode, "currentUser");
   assert.equal(object(object(overlay.bundle).macOS).signingIdentity, "-");
@@ -818,17 +829,6 @@ void test("manual rehearsal retains the complete matrix without production crede
   );
   assert.match(rehearsal, /Remove-Item -LiteralPath \(Join-Path \$fixtureRoot "private"\)/);
   assert.match(rehearsal, /Remove-Item -LiteralPath \$privateKey -Force/);
-  const windowsConsumerExample = await readFile(
-    new URL(
-      "../apps/desktop/src-tauri/examples/verify_packaged_application_update.rs",
-      import.meta.url,
-    ),
-    "utf8",
-  );
-  assert.match(windowsConsumerExample, /ApplicationUpdateStagingStore::new/);
-  assert.match(windowsConsumerExample, /store\.stage\(&mut payload, &candidate, &key\)\.await/);
-  assert.match(windowsConsumerExample, /rejected packaged payload retained staged authority/);
-  assert.match(windowsConsumerExample, /staged payload does not match the verified inventory/);
   const linuxConsumer = rehearsal.indexOf('Invoke-Checked "dbus-run-session"');
   const linuxPrivateKeyRemoval = rehearsal.lastIndexOf(
     "Remove-Item -LiteralPath $privateKey -Force",
@@ -1053,24 +1053,6 @@ void test("manual rehearsal retains the complete matrix without production crede
     ) < linuxHarness.indexOf("candidate-restart-complete"),
     "post-exchange interruption must precede candidate startup reconciliation",
   );
-  const linuxAdapter = await readFile(
-    new URL("../apps/desktop/src-tauri/src/application_update_linux.rs", import.meta.url),
-    "utf8",
-  );
-  const launch = linuxAdapter.slice(
-    linuxAdapter.indexOf("impl LinuxAppImageUpdateAdmission"),
-    linuxAdapter.indexOf("/// Adds direct, user-owned AppImage replacement authority"),
-  );
-  assert.ok(
-    launch.indexOf("sync_parent(&plan.source)") <
-      launch.indexOf("interrupt_qualification_after_exchange_sync()") &&
-      launch.indexOf("interrupt_qualification_after_exchange_sync()") <
-        launch.indexOf("launch.record_succeeded()"),
-    "post-exchange interruption must follow directory sync and precede journal success",
-  );
-  assert.match(linuxAdapter, /feature = "application-update-qualification"/);
-  assert.match(linuxAdapter, /Some\(std::ffi::OsStr::new\("after-exchange-sync"\)\)/);
-  assert.match(linuxAdapter, /std::process::exit\(87\)/);
   assert.match(rehearsal, /Invoke-Checked "dbus-run-session"/);
 });
 

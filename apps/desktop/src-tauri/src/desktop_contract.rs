@@ -106,205 +106,61 @@ pub(crate) struct LaunchResult {
     pub(crate) session_id: String,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
+/// The application release feed a player follows. Beta is the default; Preview
+/// is an opt-in feed that receives builds before Beta.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "lowercase")]
-pub enum ApplicationChannel {
+pub enum ApplicationUpdateChannel {
+    #[default]
+    Beta,
     Preview,
-    Stable,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
-#[serde(deny_unknown_fields)]
-pub struct ApplicationUpdateCandidateSummary {
-    pub version: String,
-    pub channel: ApplicationChannel,
-    pub bytes: u64,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, JsonSchema)]
-#[serde(rename_all = "kebab-case")]
-pub enum ApplicationUpdateCheckPhase {
-    Checking,
-    AcquiringAndVerifying,
-    Staged,
-    Complete,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, JsonSchema)]
-#[serde(rename_all = "kebab-case")]
-pub enum ApplicationUpdateCheckResultKind {
-    ConsentRequired,
-    Paused,
-    ManualMode,
-    Offline,
-    Metered,
-    MeteredStateUnknown,
-    StartupDelay,
-    Cadence,
-    Superseded,
-    Current,
-    UpdateAvailable,
-    Held,
-    Incompatible,
-    NoCandidate,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, JsonSchema)]
-pub struct ApplicationUpdateCheckResult {
-    pub kind: ApplicationUpdateCheckResultKind,
-    pub candidate: Option<ApplicationUpdateCandidateSummary>,
-    pub reasons: Vec<String>,
-    pub staged: bool,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize, JsonSchema)]
-#[serde(deny_unknown_fields)]
-pub struct ApplicationUpdateManualCheckRequest {
-    pub channel: Option<ApplicationChannel>,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, JsonSchema)]
-pub struct ApplicationUpdateManualCheckResult {
-    pub checked_channel: ApplicationChannel,
-    pub result: ApplicationUpdateCheckResult,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, JsonSchema)]
-pub struct ApplicationUpdateNotice {
-    pub preference_revision: u64,
-    pub result: ApplicationUpdateCheckResult,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, JsonSchema)]
-pub struct ApplicationUpdateNoticeSnapshot {
-    pub revision: u64,
-    pub notice: Option<ApplicationUpdateNotice>,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize, JsonSchema)]
-#[serde(deny_unknown_fields)]
-pub struct ApplicationUpdateDownloadRequest {
-    pub expected_preference_revision: u64,
-    pub expected_candidate: ApplicationUpdateCandidateSummary,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[serde(rename_all = "kebab-case")]
-pub enum ApplicationUpdateMode {
-    Automatic,
-    NotifyOnly,
-    Manual,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[serde(deny_unknown_fields)]
-pub struct ApplicationUpdateChoice {
-    pub channel: ApplicationChannel,
-    pub mode: ApplicationUpdateMode,
-    pub paused: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct ApplicationUpdatePreferences {
-    pub schema_version: u32,
-    pub revision: u64,
-    /// `None` means the user has not completed the one-time choice.
-    pub choice: Option<ApplicationUpdateChoice>,
+    pub channel: ApplicationUpdateChannel,
+    /// Check for updates at startup and periodically. A found update is only
+    /// announced; installing always needs the player's click.
+    pub automatic_checks: bool,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[serde(rename_all = "kebab-case")]
-pub enum ApplicationUpdateProductionDecision {
-    UseStable,
-    KeepPreview,
+impl Default for ApplicationUpdatePreferences {
+    fn default() -> Self {
+        Self {
+            channel: ApplicationUpdateChannel::Beta,
+            automatic_checks: true,
+        }
+    }
 }
 
+/// A newer signed release announced by the channel feed.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, JsonSchema)]
-pub struct ApplicationUpdateProductionTransition {
-    pub schema_version: u32,
-    pub preference_revision: u64,
-    pub offer_required: bool,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, JsonSchema)]
-pub struct ApplicationUpdateProductionTransitionResult {
-    pub preferences: ApplicationUpdatePreferences,
-    pub transition: ApplicationUpdateProductionTransition,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[serde(rename_all = "kebab-case")]
-pub enum ApplicationUpdateRecoveryArea {
-    Schedule,
-    Staging,
-    Apply,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, JsonSchema)]
-pub struct ApplicationUpdateRecoveryNotice {
-    pub area: ApplicationUpdateRecoveryArea,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, JsonSchema)]
-pub struct ApplicationUpdateScheduleSummary {
-    pub last_success_unix_seconds: Option<u64>,
-    pub consecutive_failures: u32,
-    pub next_automatic_check_unix_seconds: Option<u64>,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, JsonSchema)]
-#[serde(rename_all = "kebab-case")]
-pub enum ApplicationUpdateRequestedAction {
-    SafeExit,
-    RestartToApply,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, JsonSchema)]
-#[serde(rename_all = "kebab-case")]
-pub enum ApplicationUpdateObservedTermination {
-    NormalExit,
-    RestartToApply,
-    Crash,
-    OsShutdown,
-    SteamStop,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, JsonSchema)]
-#[serde(rename_all = "kebab-case")]
-pub enum ApplicationUpdateNativeLaunchSummary {
-    Starting,
-    Started,
-    Failed,
-    InstallerSucceeded,
-    InstallerFailed,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, JsonSchema)]
-pub struct ApplicationUpdateApplySummary {
-    pub revision: u64,
-    pub request: ApplicationUpdateRequestedAction,
-    pub termination: Option<ApplicationUpdateObservedTermination>,
-    pub native_launch: Option<ApplicationUpdateNativeLaunchSummary>,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, JsonSchema)]
-#[serde(rename_all = "kebab-case")]
-pub enum ApplicationUpdateInstallEligibility {
-    Eligible,
-    PackageManagedDeb,
-    PackageManagedRpm,
-    NotConfigured,
-    Unavailable,
+pub struct ApplicationUpdateAvailable {
+    pub version: String,
+    pub channel: ApplicationUpdateChannel,
+    pub notes: Option<String>,
+    /// Publication date as written in the feed (RFC 3339).
+    pub date: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, JsonSchema)]
 pub struct ApplicationUpdateStatus {
-    pub schedule: Option<ApplicationUpdateScheduleSummary>,
-    pub staged: Option<ApplicationUpdateCandidateSummary>,
-    pub apply: Option<ApplicationUpdateApplySummary>,
-    pub install_eligibility: ApplicationUpdateInstallEligibility,
-    pub recovery_required: Vec<ApplicationUpdateRecoveryNotice>,
+    pub current_version: String,
+    pub checking: bool,
+    pub installing: bool,
+    pub available: Option<ApplicationUpdateAvailable>,
+    pub last_checked_unix_seconds: Option<u64>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, JsonSchema)]
+#[serde(tag = "phase", rename_all = "kebab-case")]
+pub enum ApplicationUpdateProgress {
+    Downloading {
+        downloaded_bytes: u64,
+        total_bytes: Option<u64>,
+    },
+    Installing,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
@@ -543,7 +399,7 @@ pub fn export_transport_schemas() -> Value {
     let events = serde_json::Map::from_iter([
         (
             DESKTOP_EVENT_APPLICATION_UPDATE_NOTICE.to_owned(),
-            output::<ApplicationUpdateNoticeSnapshot>(),
+            output::<ApplicationUpdateStatus>(),
         ),
         (DESKTOP_EVENT_LIBRARY_CHANGED.to_owned(), output::<()>()),
         (
@@ -571,13 +427,8 @@ pub fn export_transport_schemas() -> Value {
             "bug_report_link": output::<portcove_core::BugReportLink>(),
             "submitted_report": output::<portcove_core::SubmittedReport>(),
             "application_update_preferences": output::<ApplicationUpdatePreferences>(),
-            "application_update_production_transition": output::<ApplicationUpdateProductionTransition>(),
-            "application_update_production_transition_result": output::<ApplicationUpdateProductionTransitionResult>(),
             "application_update_status": output::<ApplicationUpdateStatus>(),
-            "application_update_check_result": output::<ApplicationUpdateCheckResult>(),
-            "application_update_manual_check_result": output::<ApplicationUpdateManualCheckResult>(),
-            "application_update_check_phase": output::<ApplicationUpdateCheckPhase>(),
-            "application_update_notice": output::<ApplicationUpdateNoticeSnapshot>(),
+            "application_update_progress": output::<ApplicationUpdateProgress>(),
             "workspace_snapshot": output::<DesktopWorkspaceSnapshot>(),
             "game_file_roots": output::<Vec<portcove_core::GameFileRoot>>(),
             "library_memberships": output::<Vec<portcove_core::LibraryMembership>>(),
@@ -630,11 +481,7 @@ pub fn export_transport_schemas() -> Value {
             "root_setup_enrollment": schemars::schema_for!(Option<portcove_core::RootSetupEnrollment>),
             "game_file_scan_match_query": schemars::schema_for!(portcove_core::GameFileScanMatchQuery),
             "port_readiness_acknowledgements": schemars::schema_for!(Vec<portcove_core::PortReadinessAcknowledgement>),
-            "application_update_choice": schemars::schema_for!(ApplicationUpdateChoice),
-            "application_update_production_decision": schemars::schema_for!(ApplicationUpdateProductionDecision),
-            "application_update_recovery_area": schemars::schema_for!(ApplicationUpdateRecoveryArea),
-            "application_update_download_request": schemars::schema_for!(ApplicationUpdateDownloadRequest),
-            "application_update_manual_check_request": schemars::schema_for!(ApplicationUpdateManualCheckRequest),
+            "application_update_preferences": schemars::schema_for!(ApplicationUpdatePreferences),
             "steam_entry_selection": schemars::schema_for!(SteamEntrySelection),
             "steam_batch_selection": schemars::schema_for!(SteamBatchSelection),
             "steam_artwork_selection": schemars::schema_for!(SteamArtworkSelection),

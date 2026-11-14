@@ -157,8 +157,10 @@ void test("ratified public bytes materialize the existing compile inputs and upd
   const dev = jsonRecord(
     await readFile(path.join(project, "apps/desktop/src-tauri/tauri.conf.json"), "utf8"),
   );
-  assert.equal(record(dev.bundle).createUpdaterArtifacts, false);
-  assert.equal(dev.plugins, undefined);
+  // The base configuration now carries the updater plugin key; the generated
+  // overlay above remains a separate file that does not edit it.
+  assert.equal(record(dev.bundle).createUpdaterArtifacts, true);
+  assert.match(String(record(record(dev.plugins).updater).pubkey), /^[A-Za-z0-9+/]+=*$/u);
 });
 
 void test("public trust identities cannot be omitted, changed or replaced by a branch name", async (t) => {

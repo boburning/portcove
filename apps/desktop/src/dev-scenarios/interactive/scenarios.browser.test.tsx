@@ -278,13 +278,13 @@ it("opens current Settings read surfaces without fixture refusals", async () => 
   expect(document.querySelector(".scenario-fixture-actions [role=alert]")?.textContent).toBe("");
 });
 
-it("keeps unsaved update choices while switching Settings categories", async () => {
+it("keeps the chosen update channel while switching Settings categories", async () => {
   await mount("library");
   await navigateTo("Settings");
   const navigation = page.getByRole("navigation", { name: "Settings categories" });
   await navigation.getByRole("button", { name: "Updates", exact: true }).click();
   const preview = page
-    .getByRole("group", { name: "Application update channel" })
+    .getByRole("group", { name: "Update channel", exact: true })
     .getByRole("button", { name: "Preview", exact: true });
   await expect.element(preview).toBeEnabled();
   await preview.click();
@@ -323,17 +323,19 @@ it("opens About through Settings and keeps custom catalog trust under Advanced",
 });
 
 it("opens the Updates category before focusing an application-update notice", async () => {
-  vi.spyOn(desktopApi, "applicationUpdatePreferences").mockResolvedValue({
-    schema_version: 1,
-    revision: 1,
-    choice: null,
+  vi.spyOn(desktopApi, "applicationUpdateStatus").mockResolvedValue({
+    current_version: "0.1.0",
+    checking: false,
+    installing: false,
+    available: { version: "0.2.0", channel: "beta", notes: "Fixes.", date: null },
+    last_checked_unix_seconds: 1,
   });
   await mount("library");
   await navigateTo("Settings");
   await expect
     .element(page.getByRole("heading", { name: "Color theme", exact: true }))
     .toBeVisible();
-  await page.getByRole("button", { name: "Review options", exact: true }).click();
+  await page.getByRole("button", { name: "Review update", exact: true }).click();
   await expect
     .element(
       page
@@ -342,7 +344,7 @@ it("opens the Updates category before focusing an application-update notice", as
     )
     .toHaveAttribute("aria-current", "page");
   await vi.waitFor(() =>
-    expect(document.activeElement?.closest(".application-update-settings")).not.toBeNull(),
+    expect(document.activeElement?.id).toBe("application-update-available-title"),
   );
   expect(document.activeElement?.closest("[hidden]")).toBeNull();
 });
@@ -366,7 +368,7 @@ it("opens application updates from Activity without entering custom catalog sett
   expect(advanced && getComputedStyle(advanced).display).toBe("none");
 });
 
-it("checks a one-time update channel in actual Settings without saving consent", async () => {
+it("saves the update channel and checks for updates in actual Settings", async () => {
   const save = vi.spyOn(desktopApi, "setApplicationUpdatePreferences");
   await mount("library");
   await navigateTo("Settings");
@@ -375,22 +377,21 @@ it("checks a one-time update channel in actual Settings without saving consent",
     .getByRole("button", { name: "Updates", exact: true })
     .click();
   await page
-    .getByRole("group", { name: "One-time update channel", exact: true })
-    .getByRole("button", { name: "Stable", exact: true })
+    .getByRole("group", { name: "Update channel", exact: true })
+    .getByRole("button", { name: "Preview", exact: true })
     .click();
-  await page.getByRole("button", { name: "Check for updates", exact: true }).click();
-  await expect.element(page.getByText("One-time check · Stable", { exact: true })).toBeVisible();
+  await vi.waitFor(() =>
+    expect(save).toHaveBeenCalledExactlyOnceWith({ channel: "preview", automatic_checks: false }),
+  );
   await expect
     .element(
-      page.getByText("Renderer fixture only: no update service or native trust checks were run.", {
-        exact: true,
-      }),
+      page
+        .getByRole("group", { name: "Update channel", exact: true })
+        .getByRole("button", { name: "Preview", exact: true }),
     )
-    .toBeVisible();
-  await expect
-    .element(page.getByRole("button", { name: "Save application update settings", exact: true }))
-    .toBeDisabled();
-  expect(save).not.toHaveBeenCalled();
+    .toHaveAttribute("aria-pressed", "true");
+  await page.getByRole("button", { name: "Check for updates", exact: true }).click();
+  await expect.element(page.getByText(/Portcove is up to date/u)).toBeVisible();
   expect(document.querySelector(".scenario-fixture-actions [role=alert]")?.textContent).toBe("");
 });
 

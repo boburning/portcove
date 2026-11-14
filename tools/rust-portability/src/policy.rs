@@ -32,20 +32,8 @@ const SCOPED: &[(&str, &[&str])] = &[
         &["C:/Games/"],
     ),
     (
-        "apps/desktop/src-tauri/src/application_update_restart_tests.rs",
-        &["/owned host helpers/fusermount3"],
-    ),
-    (
         "apps/desktop/src-tauri/src/source_removal_tests.rs",
         &["D:/Original ü/game.iso"],
-    ),
-    (
-        "apps/desktop/src-tauri/src/application_update_process_environment_tests.rs",
-        &[
-            "/usr/bin/env",
-            "/owned host helpers/fusermount3",
-            "/owned library",
-        ],
     ),
     (
         "crates/portcove-release-tools/tests/tuf_repository/offline.rs",
