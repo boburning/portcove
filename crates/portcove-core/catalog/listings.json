@@ -4629,6 +4629,48 @@
       }
     },
     {
+      "id": "40-winks-faderz48",
+      "project_url": "https://github.com/Faderz48/40-Winks-PC-Port",
+      "name": "40 Winks / Faderz48",
+      "summary": "Build and play 40 Winks on Windows or Linux with upstream’s setup tools and your own clean USA Nintendo 64 ROM.",
+      "issue_number": 6006,
+      "listed_at": "2026-11-14",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
+      "availability": "packages",
+      "setup_url": "https://github.com/Faderz48/40-Winks-PC-Port/tree/v0.1.7-alpha#readme",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Get the upstream setup for your platform",
+            "instruction": "Open the v0.1.7-alpha release linked below and pick the Windows x64 setup EXE or Linux x86-64 AppImage. Check the file against its SHA-256 sidecar before opening it. Both paths need a clean big-endian USA .z64 from your own game. Setup checks SHA-256 057232ef7618e25f5645df50d3cd45f08cb5a2cccb3e2fdf48faa8755c4ddb1a. Keep that original available for later launches."
+          },
+          {
+            "title": "Build the playable copy once",
+            "instruction": "On Windows, open the upstream setup, select the matching ROM and choose a folder for the generated player. On Linux, install the development dependencies from the build guide, then open the upstream self-building AppImage, select the ROM and choose where to save the playable AppImage. First setup needs Internet access and builds locally. On later Windows launches open 40-Winks-PC-Port.exe from the output folder. On Linux reopen the original AppImage to start the locally built player."
+          }
+        ],
+        "warnings": [
+          "The Windows setup is unsigned. Follow your usual executable trust settings.",
+          "Keep the original outside the build and player folders. Replacement builds and player data are managed through upstream."
+        ],
+        "help_url": "https://github.com/Faderz48/40-Winks-PC-Port/releases/tag/v0.1.7-alpha",
+        "references": [
+          {
+            "title": "Keep Windows settings and Controller Pak saves",
+            "instruction": "Preserve %LOCALAPPDATA%\\40-winks-pc-port when changing the player. The separate %LOCALAPPDATA%\\40WinksBuild stores build tools and generated files."
+          },
+          {
+            "title": "Linux build requirements and launcher paths",
+            "instruction": "Follow the tagged build guide for Git, Python, CMake, a C++20 compiler, SDL2 development files, Vulkan and the runtime dependencies. The builder tracks the selected ROM and playable AppImage under the 40-winks-pc-port directory in XDG_CONFIG_HOME. The first-run launcher suggests ~/Applications/40-Winks-Recompiled-x86_64.AppImage for the playable copy. Its build cache is under XDG_CACHE_HOME. Preserve the game data under XDG_DATA_HOME/40-winks-pc-port (normally ~/.local/share/40-winks-pc-port), or the data directory you explicitly chose."
+          }
+        ]
+      },
+      "recommended_download_channel": "beta"
+    },
+    {
       "id": "abilliontokens-bustinout-recomp",
       "name": "The Sims: Bustin' Out — Original Xbox (The Sims: Bustin' Out - Static Recompilation)",
       "summary": "The project reports a playable Linux household in The Sims: Bustin’ Out, with experimental Hor+ widescreen. Physical gamepad use and visible save/reload are unconfirmed. Linux uses Vulkan/SDL3; Windows is intended to use Direct3D 12/XAudio2, but the README says it has never been compiled while a win64 ZIP is published. Windows play remains unconfirmed. Setup needs your own North American original-Xbox disc: default.xbe, 3211264 bytes, SHA-1 6feea04a12fb134253abe2b5662da634d0048232. Other regions and revisions need separate review. Generated game code stays local; no separate console BIOS requirement is stated. You and the project manage installation and version changes. Release files are not qualified packages in Portcove, and Portcove has not confirmed setup or gameplay.",
