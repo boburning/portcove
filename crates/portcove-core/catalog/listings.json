@@ -24751,7 +24751,7 @@
       ],
       "availability": "packages",
       "setup_url": "https://github.com/BeyondTomrrow/2K5Remade/blob/991cd02a30cfe451bcb678ff00128af6f3c4f9ce/README.md#install-and-play",
-      "download_block_reason": "Portcove downloads are on hold until the published installer contents can be verified. Use the upstream setup guide with a copy you have permission to use.",
+      "download_block_reason": "Portcove downloads are on hold pending review of whether the bundled in-game broadcast graphics reuse art from the original Xbox game. Use the upstream setup guide with a copy you have permission to use.",
       "manual_setup": {
         "steps": [
           {
