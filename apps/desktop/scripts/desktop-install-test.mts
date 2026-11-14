@@ -1763,6 +1763,18 @@ export async function installScenarios({
                 probe_scope:
                   "page get_backups reads issued from just before Restore previous version",
                 page: await backupReadDiagnostics(browser),
+                // A single fresh read while the page's reads are still pending
+                // distinguishes a stuck read from a uniformly slow one.
+                fresh_page_read: await (async () => {
+                  const started = Date.now();
+                  try {
+                    success(await invoke("get_backups", { portId: port.id }));
+                    return { ok: true, ms: Date.now() - started };
+                  } catch (failure) {
+                    return { ok: false, ms: Date.now() - started, error: String(failure) };
+                  }
+                })(),
+                page_after_fresh_read: await backupReadDiagnostics(browser),
                 activities: await invoke("get_activities"),
               },
               null,
