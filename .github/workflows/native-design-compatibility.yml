@@ -605,7 +605,11 @@ jobs:
     if: ${{ inputs.operation == 'product-workflows' && inputs.runner == 'windows-2022' && !inputs.edge_driver_proof && github.repository == 'boburning/portcove' && github.event.repository.visibility == 'public' }}
     name: native-product-workflows (${{ matrix.selection }})
     runs-on: windows-2022
-    timeout-minutes: 60
+    # Calibrated from 60 (#4879): hosted runs spend ~23 min in checkpoint-feature-inventory
+    # and ~7.5 min building, before a harness allowance of up to 20 min and a
+    # driver wait of up to 21 min; at 60 the job timeout cancelled update-acquisition
+    # (run 43513519698) mid-harness and discarded its own failure evidence.
+    timeout-minutes: 90
     strategy:
       fail-fast: false
       max-parallel: 4
@@ -791,17 +795,28 @@ jobs:
           $attempts = 0
           while ($true) {
             $attempts++
+            $transient = $null
             try {
               $status = (Invoke-WebRequest -Uri $url -Method Head -MaximumRedirection 0 -UseBasicParsing -TimeoutSec 30).StatusCode
             } catch {
               $response = $_.Exception.Response
-              if ($null -eq $response) { throw "msedgedriver $version availability check failed: $($_.Exception.Message)" }
-              $status = [int]$response.StatusCode
+              if ($null -eq $response) {
+                $status = 0
+                $transient = $_.Exception.Message
+              } else {
+                $status = [int]$response.StatusCode
+              }
             }
             if ($status -eq 200) { break }
-            if ($status -ne 404) { throw "msedgedriver $version availability check returned HTTP $status." }
+            # A missing driver (404), no response or a server error (5xx) is retried within
+            # the same bound; any other answer is not a publication window and stops now.
+            if ($status -ge 500) { $transient = "HTTP $status" }
+            if ($status -ne 404 -and $null -eq $transient) { throw "msedgedriver $version availability check returned HTTP $status." }
             # Decide before sleeping so the last check always ends inside the step timeout.
             if ((Get-Date).AddSeconds(60) -ge $deadline) {
+              if ($null -ne $transient) {
+                throw "msedgedriver $version availability could not be checked after $attempts attempts over 20 minutes: $transient. Re-run this job once msedgedriver.microsoft.com responds."
+              }
               throw "Microsoft has not made msedgedriver $version available for the serviced WebView2 $version after $attempts checks over 20 minutes. Re-run this job once it is available."
             }
             Start-Sleep -Seconds 60

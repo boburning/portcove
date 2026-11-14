@@ -326,7 +326,9 @@ function Get-OwnedConfirmationWindows {
     }
     return $ownedWindows
 }
-$deadline = [DateTime]::UtcNow.AddSeconds(10)
+# Calibrated from 10 s: on hosted Windows (debug build) the nested-discovery
+# folder picker had not appeared after 10 s. The poll returns once it appears.
+$deadline = [DateTime]::UtcNow.AddSeconds(30)
 $window = $null
 $children = @()
 while ([DateTime]::UtcNow -lt $deadline) {

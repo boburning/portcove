@@ -166,13 +166,13 @@ export async function adoptionReviewScenario({
     assert.ok(selectedText.includes(paths.user_data_root));
     await click(button("Continue to copy confirmation"));
     await confirmNative(
-      "Confirm existing installation copy",
+      "Copy existing installation?",
       "__observe__",
-      `catalog port ${port.id}?`,
+      `${port.id} into Portcove?`,
       "adoption-ambiguous-selected-before-consent",
     );
     await confirmNative(
-      "Confirm existing installation copy",
+      "Copy existing installation?",
       "Cancel",
       ambiguous,
       "adoption-ambiguous-cancelled",
@@ -217,7 +217,7 @@ export async function adoptionReviewScenario({
     await open();
     await click(button("Continue to copy confirmation"));
     await confirmNative(
-      "Confirm existing installation copy",
+      "Copy existing installation?",
       "__observe__",
       "Portcove does not create a backup before this copy.",
       "adoption-native-before-consent",
@@ -225,7 +225,7 @@ export async function adoptionReviewScenario({
     assert.equal(await readFile(current, "utf8"), "current settings");
     assert.equal(required(status(port.id).active).id, previous.id);
     await confirmNative(
-      "Confirm existing installation copy",
+      "Copy existing installation?",
       "Cancel",
       paths.user_data_root,
       "adoption-native-cancelled",
@@ -288,7 +288,7 @@ export async function adoptionReviewScenario({
     artifacts.push(screenshot);
     await click(button("Continue to copy confirmation"));
     await confirmNative(
-      "Confirm existing installation copy",
+      "Copy existing installation?",
       "Copy into Portcove",
       paths.user_data_root,
       "adoption-native-confirmed",

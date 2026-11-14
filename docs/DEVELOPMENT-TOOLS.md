@@ -2750,7 +2750,10 @@ the named runner to finish, and rerun the same exact scenario or profile. There 
 no lock override. A watchdog timeout after acquisition is a separate failed run
 and follows the retained-evidence diagnosis in the desktop-verification skill.
 
-Focused and small-profile runs retain the three-minute whole-harness watchdog.
+Focused and small-profile runs retain the three-minute whole-harness watchdog,
+except where `desktopHarnessDeadlineMs` records a measured allowance: library move
+(300 s), interrupted preparation recovery (420 s) and the Steam entry/batch
+journeys (600 s).
 The opt-in Windows `native-library-switch-recovery` scenario uses only owned
 libraries and saved preferences. Real folder selection and review first commit a
 recognizable SQLite library with a future schema; refusal retains the Core-owned

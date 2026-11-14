@@ -529,7 +529,7 @@ fn owned_preparation(args: &[String]) {
         let positions = args.iter().enumerate().filter(|(_, arg)| *arg == "--owned-fixture-mode").map(|(index, _)| index).collect::<Vec<_>>();
         assert_eq!(positions.len(), 1, "duplicate owned fixture mode");
         let mode = args.get(positions[0] + 1).expect("missing owned fixture mode");
-        assert!(["success", "missing-marker", "unowned-output", "save-change", "executable-change", "failure", "wait"].contains(&mode.as_str()), "unknown owned fixture mode");
+        assert!(["success", "missing-marker", "unowned-output", "save-change", "executable-change", "failure", "wait", "hold"].contains(&mode.as_str()), "unknown owned fixture mode");
         mode.clone()
     } else {
         let Ok(mode) = fs::read_to_string("owned-setup-mode") else {
@@ -559,6 +559,12 @@ fn owned_preparation(args: &[String]) {
         "wait" => {
             fs::write("data/out/setup-ready", b"ready").unwrap();
             std::thread::sleep(Duration::from_secs(30));
+        }
+        // Held for a scenario that cancels after slower native steps; a cancellation
+        // stops it long before it would finish.
+        "hold" => {
+            fs::write("data/out/setup-ready", b"ready").unwrap();
+            std::thread::sleep(Duration::from_secs(180));
         }
         _ => panic!("unknown owned fixture mode"),
     }

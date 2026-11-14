@@ -371,8 +371,8 @@ async function runRealRuntimeRoutes(context: RealContext, report: Record<string,
     await screenshot(`${port.id}-registration-review`);
     await current.control.click();
     await confirmNative(
-      "Confirm external runtime",
-      "Register runtime",
+      "Use this installation?",
+      "Add installation",
       port.id,
       `${port.id}-registration-consent`,
     );

@@ -636,7 +636,7 @@ export async function interruptedPreparationScenario({
       "Setup working folder to delete",
       privatePath,
       "Original installation preserved",
-      "Registered source preserved",
+      "Original game files preserved",
       "Saved data preserved",
       "Backups preserved",
       "Logs preserved",
@@ -686,14 +686,14 @@ export async function interruptedPreparationScenario({
       { dispatch: "dom" },
     );
     await confirmNative(
-      "Confirm retained preparation cleanup",
+      "Delete unfinished setup files?",
       "__observe__",
       required(privatePath),
       "preparation-cleanup-before-consent",
     );
     await access(required(privatePath));
     await confirmNative(
-      "Confirm retained preparation cleanup",
+      "Delete unfinished setup files?",
       "Cancel",
       required(privatePath),
       "preparation-cleanup-cancelled",
@@ -748,8 +748,8 @@ export async function interruptedPreparationScenario({
       { dispatch: "dom" },
     );
     await confirmNative(
-      "Confirm retained preparation cleanup",
-      "Remove reviewed private files",
+      "Delete unfinished setup files?",
+      "Delete setup working files",
       required(privatePath),
       "preparation-cleanup-confirmed",
     );
@@ -890,8 +890,8 @@ export async function interruptedPreparationScenario({
       { dispatch: "dom" },
     );
     await confirmNative(
-      "Confirm retained preparation cleanup",
-      "Remove empty private state",
+      "Delete unfinished setup files?",
+      "Remove empty setup record",
       required(journalOnlyPath),
       "journal-only-preparation-cleanup-confirmed",
     );
