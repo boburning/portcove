@@ -118,10 +118,10 @@ describe("backup history presentation", () => {
     const unknownRow = html.split('data-backup-id="unknown-only"')[1]?.split("data-backup-id=")[0];
     const savedRow = html.split('data-backup-id="saved-data"')[1]?.split("data-backup-id=")[0];
     expect(unknownRow).toMatch(
-      /<button(?=[^>]*data-backup-action="restore")(?=[^>]*disabled)[^>]*>/u,
+      /<button(?=[^>]*data-backup-action="restore")(?=[^>]*\sdisabled="")[^>]*>/u,
     );
     expect(savedRow).toMatch(
-      /<button(?=[^>]*data-backup-action="restore")(?![^>]*disabled)[^>]*>/u,
+      /<button(?=[^>]*data-backup-action="restore")(?![^>]*\sdisabled="")[^>]*>/u,
     );
   });
 
