@@ -569,6 +569,9 @@ fn artwork_consent(
     place: &str,
 ) -> (String, String, String) {
     let standard = "Steam must be closed. Portcove keeps a backup of any artwork it replaces or removes and rechecks the profile, shortcut and artwork before writing. The game and its saves are not affected.";
+    let removes = roles
+        .iter()
+        .any(|change| change.action == crate::desktop_contract::SteamArtworkRoleAction::Remove);
     let (title, action) = match operation {
         SteamArtworkOperation::Update {
             replace_existing: false,
@@ -582,15 +585,22 @@ fn artwork_consent(
             "Confirm Steam artwork replacement".to_owned(),
             "Replace artwork".to_owned(),
         ),
+        SteamArtworkOperation::RemoveOwned if !removes => {
+            return (
+                "Stop tracking changed artwork?".to_owned(),
+                "Stop tracking changed artwork".to_owned(),
+                format!(
+                    "Stop tracking changed artwork for {place}No Steam file changes: this artwork was changed or deleted outside Portcove, so Portcove only forgets that it added it. Steam must be closed. The game and its saves are not affected."
+                ),
+            );
+        }
         SteamArtworkOperation::RemoveOwned => (
             "Confirm Steam artwork removal".to_owned(),
             "Remove Portcove artwork".to_owned(),
         ),
         SteamArtworkOperation::RemoveOwnedRole { role } => {
             let name = artwork_role_name(role).to_lowercase();
-            if roles.iter().any(|change| {
-                change.action == crate::desktop_contract::SteamArtworkRoleAction::Remove
-            }) {
+            if removes {
                 (
                     format!("Remove the {name} from Steam?"),
                     format!("Remove {name} from Steam"),
@@ -1356,7 +1366,23 @@ mod consent_tests {
             assert!(message.contains("No Steam file changes"));
             assert!(!message.contains("removes"));
         }
-        let (title, _, _) = artwork_consent(SteamArtworkOperation::RemoveOwned, &[], "Game?\n\n");
-        assert_eq!(title, "Confirm Steam artwork removal");
+        let (title, action, _) = artwork_consent(
+            SteamArtworkOperation::RemoveOwned,
+            &[change(Action::Remove)],
+            "Game?\n\n",
+        );
+        assert_eq!(
+            (title.as_str(), action.as_str()),
+            ("Confirm Steam artwork removal", "Remove Portcove artwork")
+        );
+        // Only changed art: the all-roles consent matches the UI's label.
+        let (title, action, message) = artwork_consent(
+            SteamArtworkOperation::RemoveOwned,
+            &[change(Action::PreserveModified)],
+            "Game?\n\n",
+        );
+        assert_eq!(title, "Stop tracking changed artwork?");
+        assert_eq!(action, "Stop tracking changed artwork");
+        assert!(message.contains("No Steam file changes"));
     }
 }

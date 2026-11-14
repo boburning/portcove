@@ -859,6 +859,28 @@ fn an_interrupted_single_role_removal_settles_only_that_role() {
     let plan = plan_steam_artwork(&request).unwrap();
     let portrait_path = fixture.grid().join(format!("{APP_ID}p.png"));
     let landscape_path = fixture.grid().join(format!("{APP_ID}.png"));
+    // A crash before anything moved abandons only that role: both files and
+    // both records stay exactly as they were.
+    let before = read_ownership(&fixture.config).unwrap().1;
+    prepare_publication(&fixture.config, &plan, &request).unwrap();
+    let recovery = recover_steam_artwork(&fixture.steam_root, "12345")
+        .unwrap()
+        .unwrap();
+    assert_eq!(
+        recovery.abandoned,
+        vec![DestinationArtworkRole::PortraitCover]
+    );
+    assert_eq!(fs::read(&portrait_path).unwrap(), b"portrait art");
+    assert_eq!(fs::read(&landscape_path).unwrap(), b"wide art");
+    let sorted = |mut records: Vec<OwnershipRecord>| {
+        records.sort_by_key(|record| record.file_name.clone());
+        records
+    };
+    assert_eq!(
+        sorted(read_ownership(&fixture.config).unwrap().1),
+        sorted(before)
+    );
+    let plan = plan_steam_artwork(&request).unwrap();
     // Simulate a crash after the file was set aside but before the record was
     // written: the removal itself had happened, so recovery completes it.
     let journal = prepare_publication(&fixture.config, &plan, &request).unwrap();
