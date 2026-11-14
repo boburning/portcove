@@ -2209,6 +2209,7 @@ for (const [file, tests] of [
   ].map((file): [string, string[]] => [file, roadmapContractTests]),
   [".github/pr-conventions.json", ["scripts/pr-conventions.test.mts"]],
   [".github/viteplus-problem-matcher.json", ["scripts/ci-baseline.test.mts"]],
+  [".github/release-content-accounting.json", ["scripts/release-content-scan.test.mts"]],
   [
     ".github/upstream-health-accounting.json",
     [
@@ -3314,6 +3315,9 @@ function classifyOnePath(
     selection.scopes.add("tooling");
     for (const testFile of catalogGeneratorContractTests) addNodeTest(selection, testFile);
     addNodeTest(selection, "scripts/catalog-staged-check.test.mts");
+    // The release-content accounting is validated against the listings' port IDs.
+    if (file === "crates/portcove-core/catalog/listings.json")
+      addNodeTest(selection, "scripts/release-content-scan.test.mts");
     recognized = true;
   }
 

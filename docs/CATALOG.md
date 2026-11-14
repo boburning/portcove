@@ -133,6 +133,13 @@ upstream itself publishes and holds a package only for concrete reasons.
   as symbol names and offsets is code, not game data; contents the player's
   original generates on first run are not bundled. A package whose contents
   are unknown stays held until they are listed.
+- **Confirmed false positives.** When a person confirms that a
+  [release-content scan](UPSTREAM-OBSERVATIONS.md#release-content-scan)
+  finding is not game data, such as a homebrew test ROM, a reviewed entry in
+  `.github/release-content-accounting.json` is the counterpart to a hold. It
+  dismisses that exact package (port, platform, SHA-256 and scan rules version)
+  with its reason and the reviewed issue or pull request, and a new package or
+  rules version is reviewed again.
 - **Listing downloads.** For a listing without a managed integration, or a platform its managed
   integration does not cover, tier 3
   also covers the ordinary listing download from the upstream's own releases.
