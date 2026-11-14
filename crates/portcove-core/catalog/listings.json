@@ -21689,7 +21689,7 @@
       "issue_number": 1802,
       "listed_at": "2026-10-23",
       "availability": "packages",
-      "setup_url": "https://github.com/djultra64/Blocksphere/blob/v1.1.0/README.md",
+      "setup_url": "https://github.com/djultra64/Blocksphere#readme",
       "artwork": {
         "game_id": 3612,
         "cover_id": 154600,
@@ -21698,16 +21698,16 @@
         "game_slug": "tetrisphere",
         "match_kind": "underlying-game"
       },
-      "release_url": "https://github.com/djultra64/Blocksphere/releases/tag/v1.1.0",
+      "release_url": "https://github.com/djultra64/Blocksphere/releases",
       "manual_setup": {
         "steps": [
           {
-            "title": "Start with the required game files",
-            "instruction": "On first Play, choose your own Tetrisphere US NTPE revision 0 ROM in .z64, .v64, .n64 or ZIP form. The game validates and imports it; no separate installer or BIOS is required."
+            "title": "Set up a separate upstream copy",
+            "instruction": "Download the Windows or Linux package from upstream and run the Blocksphere launcher. Select your own Tetrisphere US NTPE revision 0 ROM or ZIP and choose a new, empty folder outside your Portcove library. The upstream launcher owns setup and updates for that copy."
           }
         ],
         "warnings": [],
-        "help_url": "https://github.com/djultra64/Blocksphere/blob/v1.1.0/README.md"
+        "help_url": "https://github.com/djultra64/Blocksphere#readme"
       },
       "original_game_title": "Tetrisphere",
       "platforms": [

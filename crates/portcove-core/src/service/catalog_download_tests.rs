@@ -2761,9 +2761,10 @@ fn managed_install_hosts_refuse_the_listing_download_and_others_keep_it() {
     // A prepared-player integration offers no Install, so it keeps the download.
     assert_eq!(refusal("dkc2-recomp"), None);
     // A reviewed acquisition hold withdraws Install; its own hold explains the download.
-    let held = "open-nectar-pikmin";
-    assert!(crate::managed_runtime_policy::acquisition_hold(&service.catalog, held).is_some());
-    assert_eq!(refusal(held), None);
+    for held in ["open-nectar-pikmin", "djultra64-blocksphere"] {
+        assert!(crate::managed_runtime_policy::acquisition_hold(&service.catalog, held).is_some());
+        assert_eq!(refusal(held), None);
+    }
     // Listing-only titles have no managed route.
     assert_eq!(refusal("exit-rexglue-exit-exit1"), None);
 }

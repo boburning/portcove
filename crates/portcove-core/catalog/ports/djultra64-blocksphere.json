@@ -8,7 +8,7 @@
     "issue_number": 1802,
     "listed_at": "2026-10-23",
     "availability": "packages",
-    "setup_url": "https://github.com/djultra64/Blocksphere/blob/v1.1.0/README.md",
+    "setup_url": "https://github.com/djultra64/Blocksphere#readme",
     "artwork": {
       "game_id": 3612,
       "cover_id": 154600,
@@ -17,16 +17,16 @@
       "game_slug": "tetrisphere",
       "match_kind": "underlying-game"
     },
-    "release_url": "https://github.com/djultra64/Blocksphere/releases/tag/v1.1.0",
+    "release_url": "https://github.com/djultra64/Blocksphere/releases",
     "manual_setup": {
       "steps": [
         {
-          "title": "Start with the required game files",
-          "instruction": "On first Play, choose your own Tetrisphere US NTPE revision 0 ROM in .z64, .v64, .n64 or ZIP form. The game validates and imports it; no separate installer or BIOS is required."
+          "title": "Set up a separate upstream copy",
+          "instruction": "Download the Windows or Linux package from upstream and run the Blocksphere launcher. Select your own Tetrisphere US NTPE revision 0 ROM or ZIP and choose a new, empty folder outside your Portcove library. The upstream launcher owns setup and updates for that copy."
         }
       ],
       "warnings": [],
-      "help_url": "https://github.com/djultra64/Blocksphere/blob/v1.1.0/README.md"
+      "help_url": "https://github.com/djultra64/Blocksphere#readme"
     },
     "original_game_title": "Tetrisphere"
   },
@@ -35,6 +35,20 @@
     "channels": ["stable"],
     "platforms": ["windows-x86-64", "linux-x86-64"],
     "adapter": "native-portable",
+    "managed_acquisition_hold": {
+      "reason": "Blocksphere now uses an upstream installer. Managed Install and Update are on hold while Portcove checks how the new packages handle existing saves and settings.",
+      "activation_reason": "This staged Blocksphere package does not match a reviewed direct-player release. Keep your current installed copy.",
+      "reviewed_artifacts": [
+        {
+          "version": "v1.1.0",
+          "sha256": "7d30aacaabf4ef1e878d0a0481363bd46b5a894b21d46ed8486c537826d04c50"
+        },
+        {
+          "version": "v1.1.0",
+          "sha256": "02d1d2d456efd2c7a447a22de1ba417eaa457af4b97b58b3c28c3c7c0a9d2250"
+        }
+      ]
+    },
     "release": {
       "repository": "djultra64/Blocksphere",
       "asset_hints": {
