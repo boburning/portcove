@@ -13,6 +13,11 @@ import {
   hostedDependencies,
   main,
   readCheckpoint,
+  SIGNAL_CAP,
+  accountingFor,
+  cappedSignals,
+  readAccounting,
+  summaryMarkdown,
   channelRelease,
   listerFailure,
   permanentRelease,
@@ -333,7 +338,7 @@ void test("a published digest that differs from the bytes is not scanned", async
 void test("the report counts every target and binds the list by digest", async () => {
   const targets = scanTargets(listings);
   const { report } = await scan(targets, new Map(), fakes([]));
-  assert.equal(report.format_version, 2);
+  assert.equal(report.format_version, 3);
   assert.equal(report.targets, 3);
   assert.equal(report.targets_sha256, targetsDigest([...targets].reverse()));
   assert.notEqual(report.targets_sha256, targetsDigest(targets.slice(1)));
@@ -442,34 +447,77 @@ void test("a persistent download failure is remembered and not fetched again for
       ["gitlab", "no-single-asset"],
     ],
   );
-  // An unlistable package is persistent for coverage but re-checked each run, since a
-  // lister or environment fault can cause it; each retry still spends the budgets.
+  // An unlistable package is persistent for coverage but remembered as a retry, since a
+  // lister or environment fault can cause it; re-checks spend only their own allowance.
   assert.deepEqual(
     [...RECORDED_FAILURES],
     ["asset-too-large", "digest-mismatch", "encrypted-archive"],
   );
+  let listable = false;
   const unlistable: ScanDependencies = {
     ...deps,
-    async list() {
-      throw new ScanError("unlistable", "lister exited with status 2");
+    async list(file, name, stopAt) {
+      if (name === "Code-1-windows-x64.zip" && !listable)
+        throw new ScanError("unlistable", "lister exited with status 2");
+      return deps.list(file, name, stopAt);
     },
   };
-  const firstUnlistable = await scan(targets, new Map(), unlistable);
+  const firstUnlistable = await scan(targets, new Map(), unlistable, { maxAssets: 1 });
   assert.equal(firstUnlistable.failures.size, 0);
-  calls.length = 0;
-  const again = await scan(targets, firstUnlistable.checkpoint, unlistable, {
-    failures: firstUnlistable.failures,
-    maxAssets: 1,
-  });
-  assert.ok(calls.includes("download Code-1-windows-x64.zip"), "downloaded again");
+  assert.equal(firstUnlistable.retries.size, 1);
   assert.deepEqual(
-    again.report.unscanned.map(({ id, code }) => [id, code]),
+    firstUnlistable.report.unscanned.map(({ id, code }) => [id, code]),
     [
       ["code-only", "unlistable"],
       ["header", "asset-budget"],
       ["gitlab", "no-single-asset"],
     ],
   );
+  calls.length = 0;
+  const again = await scan(targets, firstUnlistable.checkpoint, unlistable, {
+    failures: firstUnlistable.failures,
+    retries: firstUnlistable.retries,
+    maxAssets: 1,
+  });
+  assert.ok(calls.includes("download Code-1-windows-x64.zip"), "re-checked");
+  // The re-check never takes the main budget: the other target is scanned, not deferred.
+  assert.deepEqual(
+    again.report.scanned.map(({ id }) => id),
+    ["header"],
+  );
+  assert.deepEqual(
+    again.report.unscanned.map(({ id, code }) => [id, code]),
+    [
+      ["code-only", "unlistable"],
+      ["gitlab", "no-single-asset"],
+    ],
+  );
+  assert.deepEqual([...again.retries], [...firstUnlistable.retries]);
+  // A spent allowance defers only the re-check, with its own code.
+  const spentRetries = await scan(targets, new Map(), unlistable, {
+    retries: firstUnlistable.retries,
+    maxRetryAssets: 1,
+    maxRetryBytes: 5,
+  });
+  assert.deepEqual(
+    spentRetries.report.unscanned.map(({ id, code }) => [id, code]),
+    [
+      ["code-only", "retry-budget"],
+      ["gitlab", "no-single-asset"],
+    ],
+  );
+  assert.deepEqual([...spentRetries.retries], [...firstUnlistable.retries], "still remembered");
+  // A re-check that now lists cleanly becomes an ordinary scanned record.
+  listable = true;
+  const fixed = await scan(targets, again.checkpoint, unlistable, {
+    retries: again.retries,
+    maxAssets: 0,
+  });
+  assert.deepEqual(
+    fixed.report.scanned.map(({ id }) => id),
+    ["code-only"],
+  );
+  assert.equal(fixed.retries.size, 0);
   // A transient failure is never remembered.
   const transient = await scan(targets, new Map(), {
     ...deps,
@@ -638,6 +686,11 @@ void test("the CLI keeps only current, remembered failures and refuses a scan wi
         { key: current, rules: RULES_VERSION, signals: [] },
         { key: "r0|github|up/a|v1|a.zip|10", rules: 0, signals: [] },
       ],
+      retries: [
+        { key: `${current}|r`, rules: RULES_VERSION },
+        { key: "r0|github|up/a|v1|a.zip|10", rules: 0 },
+        { key: `${current}|s`, rules: 0 },
+      ],
       failures: [
         { key: current, code: "encrypted-archive", max_asset_bytes: 100 },
         { key: `${current}|b`, code: "unlistable", max_asset_bytes: 100 },
@@ -652,6 +705,21 @@ void test("the CLI keeps only current, remembered failures and refuses a scan wi
     [...loaded.failures.values()].map(({ key, code }) => [key, code]),
     [[current, "encrypted-archive"]],
   );
+  assert.deepEqual([...loaded.retries], [`${current}|r`]);
+  // A checkpoint from before retries existed still loads.
+  const older = path.join(dir, "older.json");
+  await writeFile(
+    older,
+    JSON.stringify({
+      format_version: 1,
+      records: [{ key: current, rules: RULES_VERSION, signals: [] }],
+    }),
+  );
+  const fromOlder = await readCheckpoint(older);
+  assert.deepEqual(
+    [fromOlder.records.size, fromOlder.failures.size, fromOlder.retries.size],
+    [1, 0, 0],
+  );
   const missing = await readCheckpoint(path.join(dir, "absent.json"));
   assert.equal(missing.records.size + missing.failures.size, 0);
   assert.equal((await readCheckpoint("-")).records.size, 0);
@@ -664,4 +732,182 @@ void test("the CLI keeps only current, remembered failures and refuses a scan wi
     /The listings offer no scan targets/u,
   );
   assert.equal(existsSync(output), false, "no report is written");
+  // An invalid accounting file fails the scan before anything is read.
+  const accounting = path.join(dir, "accounting.json");
+  await writeFile(
+    accounting,
+    JSON.stringify({ format_version: 1, entries: [{ port_id: "absent" }] }),
+  );
+  await assert.rejects(
+    main([
+      "scan",
+      "--listings",
+      empty,
+      "--checkpoint",
+      "-",
+      "--output",
+      output,
+      "--accounting",
+      accounting,
+    ]),
+    /Invalid release-content accounting/u,
+  );
+  assert.equal(existsSync(output), false);
+});
+
+const accountingEntry = (overrides: Record<string, unknown> = {}) => ({
+  port_id: "header",
+  platform: "linux-x86-64",
+  sha256: "0".repeat(64),
+  rules: 2,
+  reason: "Synthetic homebrew test cartridge, reviewed as original code.",
+  evidence: "https://github.com/boburning/portcove/issues/1",
+  ...overrides,
+});
+
+void test("accounting entries are validated strictly against the listings", () => {
+  const valid = { format_version: 1, entries: [accountingEntry()] };
+  assert.equal(readAccounting(valid, listings).length, 1);
+  assert.deepEqual(readAccounting({ format_version: 1, entries: [] }, listings), []);
+  for (const [label, value] of [
+    ["no format", { entries: [] }],
+    [
+      "missing field",
+      { format_version: 1, entries: [{ ...accountingEntry(), reason: undefined }] },
+    ],
+    ["unknown field", { format_version: 1, entries: [{ ...accountingEntry(), note: "x" }] }],
+    ["unknown port", { format_version: 1, entries: [accountingEntry({ port_id: "absent" })] }],
+    [
+      "upper-case digest",
+      { format_version: 1, entries: [accountingEntry({ sha256: "A".repeat(64) })] },
+    ],
+    ["no rules", { format_version: 1, entries: [accountingEntry({ rules: 0 })] }],
+    ["short reason", { format_version: 1, entries: [accountingEntry({ reason: "fine" })] }],
+    [
+      "foreign evidence",
+      {
+        format_version: 1,
+        entries: [accountingEntry({ evidence: "https://github.com/other/repo/issues/1" })],
+      },
+    ],
+    [
+      "evidence not an issue or pull request",
+      {
+        format_version: 1,
+        entries: [accountingEntry({ evidence: "https://github.com/boburning/portcove/commit/1" })],
+      },
+    ],
+    ["duplicate", { format_version: 1, entries: [accountingEntry(), accountingEntry()] }],
+  ] as const)
+    assert.throws(
+      () => readAccounting(value, listings),
+      /Invalid release-content accounting/u,
+      label,
+    );
+});
+
+void test("the checked-in accounting file is valid against the catalog listings", async () => {
+  const { readFile } = await import("node:fs/promises");
+  const read = async (relative: string) =>
+    JSON.parse(await readFile(new URL(relative, import.meta.url), "utf8")) as unknown;
+  const entries = readAccounting(
+    await read("../.github/release-content-accounting.json"),
+    await read("../crates/portcove-core/catalog/listings.json"),
+  );
+  assert.ok(Array.isArray(entries));
+});
+
+void test("an accounted finding names its review and raises no warning; a new digest or rules version is not covered", async () => {
+  const { RULES_VERSION } = await import("./release-content-signals.mts");
+  const targets = scanTargets(listings);
+  const first = await scan(targets, new Map(), fakes([]));
+  const flagged = first.report.findings[0]!;
+  const entry = accountingEntry({ sha256: flagged.sha256, rules: RULES_VERSION });
+  const stale = accountingEntry({ sha256: "f".repeat(64), rules: RULES_VERSION });
+  const accounted = await scan(targets, new Map(), fakes([]), { accounting: [entry, stale] });
+  assert.deepEqual(accounted.report.findings[0]!.accounted, {
+    reason: entry.reason,
+    evidence: entry.evidence,
+  });
+  // The checkpoint keeps the plain record: accounting can change without a rescan.
+  assert.ok(![...accounted.checkpoint.values()].some((record) => "accounted" in record));
+  assert.deepEqual(accounted.report.accounting_unmatched, [
+    { port_id: "header", platform: "linux-x86-64", sha256: "f".repeat(64), rules: RULES_VERSION },
+  ]);
+  // Reused findings are matched too.
+  const reused = await scan(targets, accounted.checkpoint, fakes([]), { accounting: [entry] });
+  assert.equal(reused.report.findings[0]!.accounted?.evidence, entry.evidence);
+  assert.equal(accountingFor([{ ...entry, rules: RULES_VERSION + 1 }], flagged), undefined);
+  assert.equal(accountingFor([{ ...entry, platform: "windows-x86-64" }], flagged), undefined);
+  const text = summaryMarkdown(accounted.report);
+  assert.match(text, /No game-data signals to review\./u);
+  assert.match(text, /### Accounted signals \(reviewed false positives\)/u);
+  assert.match(text, /### Accounting entries no finding matched/u);
+  // Annotations skip accounted findings.
+  const dir = await mkdtemp(path.join(os.tmpdir(), "release-scan-annotations-"));
+  try {
+    const file = path.join(dir, "report.json");
+    await writeFile(file, JSON.stringify(accounted.report));
+    const written: string[] = [];
+    const original = process.stdout.write.bind(process.stdout);
+    process.stdout.write = (chunk: string) => (written.push(String(chunk)), true);
+    try {
+      await main(["annotations", "--report", file]);
+      await writeFile(file, JSON.stringify(first.report));
+      await main(["annotations", "--report", file]);
+    } finally {
+      process.stdout.write = original;
+    }
+    assert.equal(
+      written.filter((line) => line.startsWith("::warning")).length,
+      1,
+      "only the unaccounted run warns",
+    );
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+void test("each record keeps at most the signal cap, sorted, with the true count", async () => {
+  const many = Array.from({ length: SIGNAL_CAP + 5 }, (_, index) => ({
+    path: `rom-${String(SIGNAL_CAP + 5 - index).padStart(2, "0")}.z64`,
+    kind: "rom-or-disc-image" as const,
+    reason: "Nintendo 64 ROM image file",
+  }));
+  const capped = cappedSignals(many);
+  assert.equal(capped.signals.length, SIGNAL_CAP);
+  assert.equal(capped.signal_count, SIGNAL_CAP + 5);
+  assert.equal(capped.signals[0]!.path, "rom-01.z64");
+  assert.deepEqual(cappedSignals([...many].reverse()), capped, "deterministic");
+  const deps = fakes([]);
+  const { report, checkpoint } = await scan(scanTargets(listings), new Map(), {
+    ...deps,
+    async list(file, name, stopAt) {
+      return name === "Code-1-windows-x64.zip"
+        ? many.map(({ path: entry }) => ({ path: entry, size: 10 }))
+        : deps.list(file, name, stopAt);
+    },
+  });
+  const record = report.scanned.find(({ id }) => id === "code-only")!;
+  assert.equal(record.signals.length, SIGNAL_CAP);
+  assert.equal(record.signal_count, SIGNAL_CAP + 5);
+  assert.match(summaryMarkdown(report), /\(and 5 more\)/u);
+  // A record checkpointed before the cap is capped when reused.
+  const legacy = new Map(
+    [...checkpoint].map(([key, value]) => {
+      const { signal_count: _count, ...rest } = value;
+      return [key, { ...rest, signals: value.id === "code-only" ? many : value.signals }];
+    }),
+  ) as unknown as typeof checkpoint;
+  const again = await scan(scanTargets(listings), legacy, deps);
+  const reused = again.report.findings.find(({ id }) => id === "code-only")!;
+  assert.equal(reused.signals.length, SIGNAL_CAP);
+  assert.equal(reused.signal_count, SIGNAL_CAP + 5);
+  assert.deepEqual(
+    again.report.reused_targets.map(({ id, tag, asset }) => [id, tag, asset]),
+    [
+      ["code-only", "v1", "Code-1-windows-x64.zip"],
+      ["header", "v0.2", "release_Linux.zip"],
+    ],
+  );
 });

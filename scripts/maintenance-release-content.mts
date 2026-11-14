@@ -12,7 +12,9 @@ import { MaintenanceStoreError } from "./maintenance-store.mts";
 import { zipJsonEntry } from "./maintenance-release-health.mts";
 import {
   DEFERRED_UNSCANNED,
+  EVIDENCE_URL,
   PERSISTENT_UNSCANNED,
+  SIGNAL_CAP,
   targetsDigest,
 } from "./release-content-scan.mts";
 
@@ -48,7 +50,11 @@ export interface ContentFinding {
   asset: string;
   sha256: string;
   rules: number;
+  /** At most the scan's signal cap, sorted; `signal_count` is the true total. */
   signals: ContentSignalFact[];
+  signal_count: number;
+  /** The reviewed accounting that dismisses this exact package, when one does. */
+  accounted?: { reason: string; evidence: string };
 }
 
 /** A stored `port:<id>` fact. */
@@ -86,6 +92,24 @@ const records = (value: unknown, field: string) => {
 
 function finding(record: Record<string, unknown>): ContentFinding {
   const signals = records(record.signals, "findings[].signals");
+  const count = record.signal_count;
+  if (
+    !Number.isSafeInteger(count) ||
+    (count as number) < signals.length ||
+    signals.length > SIGNAL_CAP ||
+    ((count as number) > signals.length && signals.length !== SIGNAL_CAP)
+  )
+    throw unsupported("a finding's signal count does not match its capped signals");
+  const accounted = record.accounted as Record<string, unknown> | undefined;
+  if (
+    accounted !== undefined &&
+    (!accounted ||
+      typeof accounted !== "object" ||
+      !text(accounted.reason) ||
+      typeof accounted.evidence !== "string" ||
+      !EVIDENCE_URL.test(accounted.evidence))
+  )
+    throw unsupported("a finding's accounting lacks its reason or reviewed evidence");
   if (
     !text(record.repository) ||
     !text(record.tag) ||
@@ -113,6 +137,10 @@ function finding(record: Record<string, unknown>): ContentFinding {
         reason: String(reason),
       }))
       .sort((left, right) => byText(left.path, right.path) || byText(left.kind, right.kind)),
+    signal_count: count as number,
+    ...(accounted
+      ? { accounted: { reason: String(accounted.reason), evidence: String(accounted.evidence) } }
+      : {}),
   };
 }
 
@@ -124,7 +152,7 @@ const findingOrder = (left: ContentFinding, right: ContentFinding) =>
 /** Per-port release-content facts and coverage from one scan report. */
 export function releaseContentFacts(report: unknown) {
   const value = (report ?? {}) as Record<string, unknown>;
-  if (value.format_version !== 2 || !Number.isSafeInteger(value.reused))
+  if (value.format_version !== 3 || !Number.isSafeInteger(value.reused))
     throw unsupported("format_version or reused count");
   // The denominator is the scan's own target count, never the lists it must cover.
   const targets = value.targets;
@@ -145,12 +173,36 @@ export function releaseContentFacts(report: unknown) {
       throw unsupported(`target ${target.id} (${target.platform}) is listed twice`);
     ports.set(target.id, platforms.add(target.platform));
   };
-  const covered = new Set<string>();
-  for (const record of [...scanned, ...reused]) {
-    const target = targetOf(record, "scanned or reused_targets");
-    account(target);
-    covered.add(`${target.id}\t${target.platform}`);
-  }
+  // Each scanned or reused package, so a finding must name exactly the package it flags.
+  const packages = new Map<
+    string,
+    { key: string; tag: string; asset: string; sha256: string; flagged: boolean | null }
+  >();
+  for (const [list, field] of [
+    [scanned, "scanned"],
+    [reused, "reused_targets"],
+  ] as const)
+    for (const record of list) {
+      const target = targetOf(record, field);
+      account(target);
+      if (
+        !text(record.key) ||
+        !text(record.tag) ||
+        !text(record.asset) ||
+        typeof record.sha256 !== "string" ||
+        !/^[0-9a-f]{64}$/u.test(record.sha256)
+      )
+        throw unsupported(`${field} entry lacks its package identity`);
+      if (field === "scanned" && !Array.isArray(record.signals))
+        throw unsupported("a scanned record has no signals list");
+      packages.set(`${target.id}\t${target.platform}`, {
+        key: record.key,
+        tag: record.tag,
+        asset: record.asset,
+        sha256: record.sha256,
+        flagged: field === "scanned" ? (record.signals as unknown[]).length > 0 : null,
+      });
+    }
   const deferred = new Map<string, { platform: string; code: string }[]>();
   const unscannable = new Map<string, { platform: string; code: string }[]>();
   for (const entry of unscanned) {
@@ -166,12 +218,32 @@ export function releaseContentFacts(report: unknown) {
     into.set(target.id, [...(into.get(target.id) ?? []), { platform: target.platform, code }]);
   }
   const findings = new Map<string, ContentFinding[]>();
+  const found = new Set<string>();
   for (const record of flagged) {
     const target = targetOf(record, "findings");
-    if (!covered.has(`${target.id}\t${target.platform}`))
+    const at = `${target.id}\t${target.platform}`;
+    const flaggedPackage = packages.get(at);
+    if (!flaggedPackage)
       throw unsupported(`finding for ${target.id} (${target.platform}) has no scanned target`);
+    if (found.has(at))
+      throw unsupported(`target ${target.id} (${target.platform}) has two findings`);
+    found.add(at);
+    if (
+      record.key !== flaggedPackage.key ||
+      record.tag !== flaggedPackage.tag ||
+      record.asset !== flaggedPackage.asset ||
+      record.sha256 !== flaggedPackage.sha256
+    )
+      throw unsupported(
+        `finding for ${target.id} (${target.platform}) differs from its scanned or reused package`,
+      );
+    if (flaggedPackage.flagged === false)
+      throw unsupported(`finding for ${target.id} (${target.platform}) has a clean scanned record`);
     findings.set(target.id, [...(findings.get(target.id) ?? []), finding(record)]);
   }
+  for (const [at, { flagged: hasSignals }] of packages)
+    if (hasSignals && !found.has(at))
+      throw unsupported(`scanned record ${at.replace("\t", " (")}) has signals but no finding`);
   const ordered = (list: { platform: string; code: string }[] = []) =>
     list
       .map(({ platform, code }) => ({ platform, code }))
@@ -179,7 +251,7 @@ export function releaseContentFacts(report: unknown) {
   const facts = new Map<string, ReleaseContentFact>();
   const gaps: ReleaseContentGap[] = [];
   for (const id of [...ports.keys()].sort(byText)) {
-    const found = (findings.get(id) ?? []).sort(findingOrder);
+    const portFindings = (findings.get(id) ?? []).sort(findingOrder);
     const pending = ordered(deferred.get(id));
     if (pending.length)
       // A finding stays visible from the gap; the port's stored fact waits for every target.
@@ -190,10 +262,14 @@ export function releaseContentFacts(report: unknown) {
           .map(({ platform, code }) => `${platform}: ${code}`)
           .join(", ")}); prior facts stay current.`,
         deferred: pending,
-        findings: found,
+        findings: portFindings,
         unscannable: ordered(unscannable.get(id)),
       });
-    else facts.set(`port:${id}`, { findings: found, unscannable: ordered(unscannable.get(id)) });
+    else
+      facts.set(`port:${id}`, {
+        findings: portFindings,
+        unscannable: ordered(unscannable.get(id)),
+      });
   }
   const accounted = [...ports].flatMap(([id, platforms]) =>
     [...platforms].map((platform) => ({ id, platform })),
@@ -339,15 +415,27 @@ export function releaseContentUnscannable(payload: unknown, gap?: unknown): Unsc
   });
 }
 
-/** "Needs attention" text for each flagged package and each package the scan could not inspect. */
+/** A finding's signals in words, with "N more" when the scan's cap cut them. */
+export function signalSummary(entry: Pick<ContentFinding, "signals" | "signal_count">) {
+  // Facts stored before the cap carry no count; every signal is then listed.
+  const total = entry.signal_count ?? entry.signals.length;
+  return `${entry.signals.map(({ path, reason }) => `${path}: ${reason}`).join("; ")}${
+    total > entry.signals.length ? `; and ${total - entry.signals.length} more` : ""
+  }`;
+}
+
+/**
+ * "Needs attention" text for each flagged package that no reviewed accounting
+ * dismisses, and each package the scan could not inspect.
+ */
 export function releaseContentAttention(payload: unknown, gap?: unknown) {
   return [
-    ...releaseContentFindings(payload, gap).map(
-      (entry) =>
-        `release content: ${entry.platform} ${entry.tag} ${entry.asset} (${entry.signals
-          .map(({ path, reason }) => `${path}: ${reason}`)
-          .join("; ")})`,
-    ),
+    ...releaseContentFindings(payload, gap)
+      .filter((entry) => !entry.accounted)
+      .map(
+        (entry) =>
+          `release content: ${entry.platform} ${entry.tag} ${entry.asset} (${signalSummary(entry)})`,
+      ),
     ...releaseContentUnscannable(payload, gap)
       .filter(({ attention }) => attention)
       .map(({ platform, code }) => `release content not scannable: ${platform} ${code}`),

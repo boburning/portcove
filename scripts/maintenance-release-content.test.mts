@@ -5,8 +5,9 @@ import {
   releaseContentFacts,
   releaseContentFindings,
   releaseContentUnscannable,
+  signalSummary,
 } from "./maintenance-release-content.mts";
-import { PERSISTENT_UNSCANNED, targetsDigest } from "./release-content-scan.mts";
+import { PERSISTENT_UNSCANNED, SIGNAL_CAP, targetsDigest } from "./release-content-scan.mts";
 
 // Synthetic records only: no real package, file or game data.
 const sha = (digit: string) => digit.repeat(64);
@@ -22,7 +23,8 @@ const record = (id: string, platform: string, overrides: Record<string, unknown>
   heads_unread: 0,
   heads_truncated: false,
   rules: 2,
-  signals: [],
+  signals: [] as unknown[],
+  signal_count: 0,
   ...overrides,
 });
 const signal = {
@@ -38,19 +40,17 @@ const unscanned = (id: string, platform: string, code: string) => ({
 });
 
 function report() {
-  const flagged = record("alpha", "linux-x86-64", { signals: [signal] });
+  const flagged = record("alpha", "linux-x86-64", { signals: [signal], signal_count: 1 });
   // A reused finding comes from the checkpoint with this run's target identity.
   const reusedFinding = record("beta", "windows-x86-64", {
     sha256: sha("b"),
     signals: [{ ...signal, path: "z.bin" }, signal],
+    signal_count: 2,
   });
   return bound({
     scanned: [flagged, record("alpha", "windows-x86-64")],
     reused: 2,
-    reused_targets: [
-      { id: "beta", platform: "windows-x86-64", key: reusedFinding.key },
-      { id: "gamma", platform: "linux-x86-64", key: "k" },
-    ],
+    reused_targets: [reusedTarget(reusedFinding), reusedTarget(record("gamma", "linux-x86-64"))],
     findings: [flagged, reusedFinding],
     unscanned: [
       unscanned("gamma", "windows-x86-64", "no-single-asset"),
@@ -62,7 +62,12 @@ function report() {
   });
 }
 
-/** A format-2 report whose declared targets are exactly its own entries, as the scan writes it. */
+/** A reused target as the scan names it: its target and the package it reuses. */
+function reusedTarget({ id, platform, key, tag, asset, sha256 }: ReturnType<typeof record>) {
+  return { id, platform, key, tag, asset, sha256 };
+}
+
+/** A format-3 report whose declared targets are exactly its own entries, as the scan writes it. */
 function bound<T extends { scanned: object[]; reused_targets: object[]; unscanned: object[] }>(
   lists: T,
 ) {
@@ -72,7 +77,7 @@ function bound<T extends { scanned: object[]; reused_targets: object[]; unscanne
   }[];
   return {
     ...lists,
-    format_version: 2,
+    format_version: 3,
     targets: targets.length,
     targets_sha256: targetsDigest(targets),
   };
@@ -92,6 +97,7 @@ void test("release-content facts keep findings and persistent unscannable target
         sha256: sha("a"),
         rules: 2,
         signals: [signal],
+        signal_count: 1,
       },
     ],
     unscannable: [],
@@ -209,6 +215,7 @@ void test("an unsupported or inconsistent report is refused", () => {
   };
   assert.throws(() => releaseContentFacts(null), /Unsupported release-content report/u);
   refused((value) => ({ ...value, format_version: 1 }));
+  refused((value) => ({ ...value, format_version: 2 }));
   // The denominator is the scan's own target count: an empty or truncated report
   // can never pass as complete and erase stored facts.
   refused(() => bound({ scanned: [], reused: 0, reused_targets: [], findings: [], unscanned: [] }));
@@ -253,4 +260,93 @@ void test("an unsupported or inconsistent report is refused", () => {
   refused((value) => {
     value.scanned[0] = { ...value.scanned[0]!, id: "Not A Port" };
   });
+});
+
+void test("findings must match their scanned or reused package exactly", () => {
+  const refused = (label: string, mutate: (value: ReturnType<typeof report>) => void) => {
+    const value = report();
+    mutate(value);
+    assert.throws(
+      () => releaseContentFacts(bound(value)),
+      /Unsupported release-content report/u,
+      label,
+    );
+  };
+  refused("a scanned record with signals has no finding", (value) => {
+    value.findings.shift();
+  });
+  refused("a clean scanned record has a finding", (value) => {
+    value.findings.push({ ...value.scanned[1]!, signals: [signal], signal_count: 1 });
+  });
+  refused("a duplicate finding", (value) => {
+    value.findings.push(value.findings[0]!);
+  });
+  for (const field of ["tag", "asset", "sha256", "key"] as const) {
+    refused(`a scanned finding's ${field} differs`, (value) => {
+      value.findings[0] = {
+        ...value.findings[0]!,
+        [field]: field === "sha256" ? sha("c") : "other",
+      };
+    });
+    refused(`a reused finding's ${field} differs`, (value) => {
+      value.findings[1] = {
+        ...value.findings[1]!,
+        [field]: field === "sha256" ? sha("c") : "other",
+      };
+    });
+  }
+  refused("a reused target lacks its package", (value) => {
+    const { sha256: _omitted, ...rest } = value.reused_targets[0]!;
+    value.reused_targets[0] = rest as (typeof value.reused_targets)[number];
+  });
+  refused("a signal count below the signals kept", (value) => {
+    value.findings[0] = { ...value.findings[0]!, signal_count: 0 };
+  });
+  refused("more signals than the cap", (value) => {
+    const many = Array.from({ length: SIGNAL_CAP + 1 }, (_, index) => ({
+      ...signal,
+      path: `${index}.z64`,
+    }));
+    value.scanned[0] = { ...value.scanned[0]!, signals: many, signal_count: many.length };
+    value.findings[0] = { ...value.findings[0]!, signals: many, signal_count: many.length };
+  });
+  refused("a cut count without a full cap", (value) => {
+    value.findings[0] = { ...value.findings[0]!, signal_count: 5 };
+  });
+  refused("an accounting without reviewed evidence", (value) => {
+    value.findings[0] = {
+      ...value.findings[0]!,
+      accounted: { reason: "reviewed", evidence: "https://example.invalid/1" },
+    } as (typeof value.findings)[number];
+  });
+});
+
+void test("an accounted finding is stored with its review but is not attention", () => {
+  const value = report();
+  const accounted = {
+    reason: "Synthetic homebrew test file",
+    evidence: "https://github.com/boburning/portcove/pull/7",
+  };
+  value.findings[0] = { ...value.findings[0]!, accounted } as (typeof value.findings)[number];
+  const { facts } = releaseContentFacts(bound(value));
+  const alpha = facts.get("port:alpha")!;
+  assert.deepEqual(alpha.findings[0]!.accounted, accounted);
+  assert.deepEqual(releaseContentAttention(alpha), []);
+  assert.equal(releaseContentFindings(alpha).length, 1, "still shown");
+  // A finding without accounting stores no accounting field, so its fact is unchanged.
+  assert.equal("accounted" in facts.get("port:beta")!.findings[0]!, false);
+});
+
+void test("signals cut by the scan's cap are counted in the inventory text", () => {
+  const many = Array.from({ length: SIGNAL_CAP }, (_, index) => ({
+    ...signal,
+    path: `${String(index).padStart(2, "0")}.z64`,
+  }));
+  const value = report();
+  value.scanned[0] = { ...value.scanned[0]!, signals: many, signal_count: SIGNAL_CAP + 3 };
+  value.findings[0] = { ...value.findings[0]!, signals: many, signal_count: SIGNAL_CAP + 3 };
+  const alpha = releaseContentFacts(bound(value)).facts.get("port:alpha")!;
+  assert.equal(alpha.findings[0]!.signal_count, SIGNAL_CAP + 3);
+  assert.match(signalSummary(alpha.findings[0]!), /; and 3 more$/u);
+  assert.match(releaseContentAttention(alpha)[0]!, /and 3 more\)$/u);
 });

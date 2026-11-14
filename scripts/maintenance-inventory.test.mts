@@ -448,7 +448,7 @@ function scanReport<T extends { scanned: object[]; reused_targets: object[]; uns
   }[];
   return {
     ...lists,
-    format_version: 2,
+    format_version: 3,
     targets: targets.length,
     targets_sha256: targetsDigest(targets),
   };
@@ -1288,6 +1288,7 @@ void test(
       heads_truncated: false,
       rules: 2,
       signals,
+      signal_count: signals.length,
     });
     const signal = {
       path: "data/header.bin",
@@ -1311,7 +1312,16 @@ void test(
             reused: ship === "reused" ? 1 : 0,
             reused_targets:
               ship === "reused"
-                ? [{ id: "2ship2harkinian", platform: "linux-x86-64", key: flagged.key }]
+                ? [
+                    {
+                      id: "2ship2harkinian",
+                      platform: "linux-x86-64",
+                      key: flagged.key,
+                      tag: flagged.tag,
+                      asset: flagged.asset,
+                      sha256: flagged.sha256,
+                    },
+                  ]
                 : [],
             findings: ship === "new" || ship === "reused" ? [flagged] : [],
             unscanned: [
@@ -1391,6 +1401,7 @@ void test(
           sha256: "a".repeat(64),
           rules: 2,
           signals: [signal],
+          signal_count: 1,
         },
       ],
     );
@@ -1459,6 +1470,112 @@ void test(
 );
 
 void test(
+  "a reviewed accounting dismisses a finding: shown as accounted, no attention, its handoff cleared",
+  { skip: server.skip ?? false, timeout: 240_000 },
+  async (context) => {
+    const fixture = postgresFixture(context, server.directory!);
+    const store = fixture.start("content-accounted");
+    migrate(store.owner);
+    const { cli, responses } = stubCli(fixture.root);
+    writeFileSync(responses, JSON.stringify({ "2ship2harkinian": report("automatic") }));
+    // Synthetic scan records only: no real package, file or game data.
+    const signal = { path: "test.gba", kind: "rom-or-disc-image", reason: "synthetic test ROM" };
+    const record = {
+      key: "r2|github|up/ship|v1|ship.zip|10",
+      id: "2ship2harkinian",
+      platform: "linux-x86-64",
+      repository: "up/ship",
+      tag: "v1",
+      asset: "ship.zip",
+      sha256: "b".repeat(64),
+      entries: 1,
+      heads_unread: 0,
+      heads_truncated: false,
+      rules: 2,
+      signals: [signal],
+      signal_count: 1,
+    };
+    const accounted = {
+      reason: "Synthetic homebrew test ROM shipped by upstream, reviewed as original code.",
+      evidence: "https://github.com/boburning/portcove/issues/9",
+    };
+    let run = 0;
+    const scanWith = (accounting?: typeof accounted) =>
+      collect({
+        cli,
+        all: true,
+        ports: ["2ship2harkinian"],
+        releaseContent: () =>
+          Promise.resolve({
+            revision: `release-content-scan-run:${++run}-1@${"c".repeat(40)}#sha256:${"d".repeat(64)}`,
+            report: scanReport({
+              scanned: [record],
+              reused: 0,
+              reused_targets: [],
+              findings: [accounting ? { ...record, accounted: accounting } : record],
+              unscanned: [],
+              accounting_unmatched: [],
+            }),
+          }),
+        environment: store.owner,
+        runner: "fixture",
+      });
+    const handoffStates = () =>
+      runSql(
+        store.owner,
+        `SELECT coalesce(string_agg(t.state, ',' ORDER BY t.sequence), '')
+           FROM portcove_maintenance.subject_transitions t
+          WHERE t.subject_key = 'handoff:release-content-finding:port:2ship2harkinian';`,
+      ).trim();
+    const attention = "release content: linux-x86-64 v1 ship.zip (test.gba: synthetic test ROM)";
+    await scanWith();
+    assert.equal(handoffStates(), "needs-attention");
+    assert.ok(renderHtml(buildReport(store.owner)).includes(attention));
+    // The reviewed entry lands: the open handoff clears on the next complete run.
+    await scanWith(accounted);
+    assert.equal(handoffStates(), "needs-attention,clear");
+    const inventory = buildReport(store.owner);
+    assert.deepEqual(inventory.handoffs, []);
+    const html = renderHtml(inventory);
+    assert.ok(!html.includes(attention), "an accounted finding is not attention");
+    assert.ok(
+      html.includes(
+        `accounted (${accounted.reason}, <a href="${accounted.evidence}">${accounted.evidence}</a>)`,
+      ),
+    );
+    // Accounted from the first complete run: no handoff is ever opened.
+    const fresh = fixture.start("content-accounted-fresh");
+    migrate(fresh.owner);
+    await collect({
+      cli,
+      all: true,
+      ports: ["2ship2harkinian"],
+      releaseContent: () =>
+        Promise.resolve({
+          revision: `release-content-scan-run:9-1@${"c".repeat(40)}#sha256:${"d".repeat(64)}`,
+          report: scanReport({
+            scanned: [record],
+            reused: 0,
+            reused_targets: [],
+            findings: [{ ...record, accounted }],
+            unscanned: [],
+            accounting_unmatched: [],
+          }),
+        }),
+      environment: fresh.owner,
+      runner: "fixture",
+    });
+    assert.equal(
+      runSql(
+        fresh.owner,
+        "SELECT count(*) FROM portcove_maintenance.subject_transitions WHERE starts_with(subject_key, 'handoff:');",
+      ).trim(),
+      "0",
+    );
+  },
+);
+
+void test(
   "packages the scan could not inspect are shown and open the release-content handoff",
   { skip: server.skip ?? false, timeout: 240_000 },
   async (context) => {
@@ -1510,7 +1627,7 @@ void test(
     assert.match(html, /<h3>Not scannable<\/h3>/u);
     assert.match(
       html,
-      /<td>linux-x86-64<\/td><td><code>digest-mismatch<\/code><\/td><td><span class="unknown">needs attention: a package exists that the scan could not inspect<\/span><\/td><td>release-content-finding: A person confirms/u,
+      /<td>linux-x86-64<\/td><td><code>digest-mismatch<\/code><\/td><td><span class="unknown">needs attention: a package exists that the scan could not inspect<\/span><\/td><td>release-content-finding: A person downloads and inspects by hand the package the scan could not read \(digest-mismatch\)/u,
     );
     assert.match(
       html,
@@ -1551,6 +1668,7 @@ void test(
                 heads_truncated: false,
                 rules: 2,
                 signals: [signal],
+                signal_count: 1,
               },
             ],
             reused: 0,
@@ -1569,6 +1687,7 @@ void test(
                 heads_truncated: false,
                 rules: 2,
                 signals: [signal],
+                signal_count: 1,
               },
             ],
             unscanned: [

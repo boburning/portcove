@@ -55,6 +55,7 @@ jobs:
             --checkpoint work/release-content-scan/checkpoint.json \
             --checkpoint-out work/release-content-scan/checkpoint.next.json \
             --output work/release-content-scan/report.json \
+            --accounting .github/release-content-accounting.json \
             --minutes 75
           mv work/release-content-scan/checkpoint.next.json work/release-content-scan/checkpoint.json
           node scripts/release-content-scan.mts summary \

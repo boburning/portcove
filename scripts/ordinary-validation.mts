@@ -2209,6 +2209,7 @@ for (const [file, tests] of [
   ].map((file): [string, string[]] => [file, roadmapContractTests]),
   [".github/pr-conventions.json", ["scripts/pr-conventions.test.mts"]],
   [".github/viteplus-problem-matcher.json", ["scripts/ci-baseline.test.mts"]],
+  [".github/release-content-accounting.json", ["scripts/release-content-scan.test.mts"]],
   [
     ".github/upstream-health-accounting.json",
     [

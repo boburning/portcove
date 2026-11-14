@@ -179,7 +179,7 @@ export const handoffRegistry: readonly HandoffEntry[] = [
     kind: "release-content-finding",
     source: "release-content",
     action:
-      "A person confirms the flagged files against the package, and inspects manually any package the scan could not read (digest mismatch, encrypted, unlistable, over the size limit or release unavailable). If it bundles original game data, a reviewed catalog change sets the listing's download_block_reason (docs/CATALOG.md#rights-basis-for-upstream-hosted-packages); the scan itself never writes a hold.",
+      "A person confirms the flagged files against the package, and inspects manually any package the scan could not read (digest mismatch, encrypted, unlistable or over the size limit); an unavailable release goes through the release-health relocation route first. If it bundles original game data, a reviewed catalog change sets the listing's download_block_reason (docs/CATALOG.md#rights-basis-for-upstream-hosted-packages); a confirmed false positive gets a reviewed .github/release-content-accounting.json entry instead. The scan itself never writes a hold.",
     invocation:
       "Review the finding's package entries in the scan report, or download and inspect the unscannable package, then a reviewed catalog PR setting download_block_reason when it is game data; the next scheduled run of release-content-scan.yml on main reports the result",
     authority: "routine",
@@ -378,7 +378,8 @@ export function hostedIntakeHandoffs(facts: ReadonlyMap<string, unknown>): Hando
 export function releaseContentHandoffs(facts: ReadonlyMap<string, unknown>): HandoffCondition[] {
   const result: HandoffCondition[] = [];
   for (const [source, payload] of facts) {
-    const findings = releaseContentFindings(payload);
+    // A finding dismissed by reviewed accounting is not attention.
+    const findings = releaseContentFindings(payload).filter((entry) => !entry.accounted);
     // Coverage notes (no release, no single asset) are not attention.
     const unscannable = releaseContentUnscannable(payload)
       .filter(({ attention }) => attention)
@@ -389,7 +390,7 @@ export function releaseContentHandoffs(facts: ReadonlyMap<string, unknown>): Han
         source,
         condition: {
           findings: findings.map(
-            ({ platform, repository, tag, asset, sha256, rules, signals }) => ({
+            ({ platform, repository, tag, asset, sha256, rules, signals, signal_count }) => ({
               platform,
               repository,
               tag,
@@ -397,6 +398,7 @@ export function releaseContentHandoffs(facts: ReadonlyMap<string, unknown>): Han
               sha256,
               rules,
               signals: signals.map(({ path, kind, reason }) => ({ path, kind, reason })),
+              signal_count: signal_count ?? signals.length,
             }),
           ),
           unscannable,
@@ -576,12 +578,22 @@ export function readOpenHandoffs(environment: NodeJS.ProcessEnv) {
  * evidence or accounting, so the monitor's own recorded `resume_condition`
  * replaces that prescription.
  */
-export function handoffGuidance(entry: HandoffEntry, condition: unknown) {
+/** The action, invocation, resume condition and receipt shown for one handoff. */
+export interface HandoffGuidance {
+  action: string;
+  invocation: string;
+  resume_condition: string;
+  receipt: string;
+}
+
+export function handoffGuidance(entry: HandoffEntry, condition: unknown): HandoffGuidance {
   const guidance = {
     action: entry.action,
     invocation: entry.invocation,
     resume_condition: entry.resume_condition,
+    receipt: entry.receipt,
   };
+  if (entry.kind === "release-content-finding") return releaseContentGuidance(guidance, condition);
   if (entry.kind !== "release-health-condition" && entry.kind !== "release-health-relocation")
     return guidance;
   const conditions = (condition as { conditions?: unknown } | null)?.conditions;
@@ -608,6 +620,54 @@ export function handoffGuidance(entry: HandoffEntry, condition: unknown) {
     invocation:
       "The condition's recorded resume_condition; the next scheduled run of upstream-health.yml on main reports the result",
     resume_condition: recorded,
+    receipt: entry.receipt,
+  };
+}
+
+/**
+ * The action and receipt for one release-content handoff, by what it holds:
+ * flagged files to confirm, packages to inspect by hand, and releases the scan
+ * cannot read, which go through the release-health relocation route before
+ * any package can be reviewed.
+ */
+function releaseContentGuidance(guidance: HandoffGuidance, condition: unknown): HandoffGuidance {
+  const value = isRecord(condition) ? condition : {};
+  const findings = Array.isArray(value.findings) ? value.findings.length : 0;
+  const codes = (Array.isArray(value.unscannable) ? value.unscannable : []).flatMap((target) =>
+    isRecord(target) && typeof target.code === "string" ? [target.code] : [],
+  );
+  const unavailable = codes.includes("release-unavailable");
+  const inspect = [...new Set(codes.filter((code) => code !== "release-unavailable"))];
+  const actions: string[] = [];
+  const receipts: string[] = [];
+  if (findings) {
+    actions.push("A person confirms the flagged files against the package.");
+    receipts.push("no longer reports the finding");
+  }
+  if (inspect.length) {
+    actions.push(
+      `A person downloads and inspects by hand the package the scan could not read (${inspect.join(", ")}).`,
+    );
+    receipts.push("no longer reports the not-scannable package");
+  }
+  if (findings || inspect.length)
+    actions.push(
+      "If it bundles original game data, a reviewed catalog change sets the listing's download_block_reason (docs/CATALOG.md#rights-basis-for-upstream-hosted-packages); a confirmed false positive gets a reviewed .github/release-content-accounting.json entry instead.",
+    );
+  if (unavailable) {
+    actions.push(
+      "The release read is redirected or gone: fix the listing's upstream location through the release-health relocation route (the release-health-relocation handoff for this port, if open) in a reviewed catalog change, so the next scan can read the release and review its package.",
+    );
+    receipts.push("reads the release (the target is no longer release-unavailable)");
+  }
+  if (!actions.length) return guidance;
+  return {
+    ...guidance,
+    action: `${actions.join(" ")} The scan itself never writes a hold.`,
+    invocation: unavailable
+      ? `${findings || inspect.length ? `${guidance.invocation}; for the unavailable release, ` : ""}the release-health-relocation route (upstream-relocation-evidence.yml), then a reviewed catalog change to the listing's location; the next scheduled run of release-content-scan.yml on main reports the result`
+      : guidance.invocation,
+    receipt: `The next scheduled main release-content scan report ${receipts.join(" and ")}; a held listing leaves the scan targets.`,
   };
 }
 
@@ -619,7 +679,7 @@ export function nextAction(handoff: OpenHandoff) {
     : `no operation recorded (fence ${handoff.sequence})`;
   if (!entry) return `Unregistered handoff kind ${handoff.kind}; dispatch disabled. ${operation}.`;
   const guidance = handoffGuidance(entry, handoff.condition);
-  return `${guidance.action} Invocation: ${guidance.invocation}. Authority: ${entry.authority}. Dispatch disabled: ${entry.disabled_reason} Resume: ${guidance.resume_condition} Receipt: ${entry.receipt} ${operation}.`;
+  return `${guidance.action} Invocation: ${guidance.invocation}. Authority: ${entry.authority}. Dispatch disabled: ${entry.disabled_reason} Resume: ${guidance.resume_condition} Receipt: ${guidance.receipt} ${operation}.`;
 }
 
 /**

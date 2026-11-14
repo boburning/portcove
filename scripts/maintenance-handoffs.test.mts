@@ -313,10 +313,23 @@ void test("release-content findings and uninspected packages become routine hand
     sha256: "a".repeat(64),
     rules: 2,
     signals: [{ path: "data/x.bin", kind: "cartridge-header", reason: "synthetic header" }],
+    signal_count: 1,
   });
+  const accounted = {
+    reason: "Synthetic homebrew test cartridge, reviewed.",
+    evidence: "https://github.com/boburning/portcove/issues/9",
+  };
   const handoffs = releaseContentHandoffs(
     new Map<string, unknown>([
-      ["port:alpha", { findings: [finding("linux-x86-64")], unscannable: [] }],
+      [
+        "port:alpha",
+        {
+          findings: [finding("linux-x86-64"), { ...finding("windows-x86-64"), accounted }],
+          unscannable: [],
+        },
+      ],
+      // A port whose only finding is accounted needs nothing.
+      ["port:delta", { findings: [{ ...finding("linux-x86-64"), accounted }], unscannable: [] }],
       // Coverage notes are facts, not attention.
       [
         "port:beta",
@@ -546,6 +559,7 @@ void test("accounted release-health conditions follow their recorded resume cond
     action: entry.action,
     invocation: entry.invocation,
     resume_condition: entry.resume_condition,
+    receipt: entry.receipt,
   });
   assert.deepEqual(
     handoffGuidance(handoffEntry("upstream-observer-exception")!, accounted.condition).action,
@@ -652,5 +666,61 @@ void test("accounted GitHub relocation conditions follow their reviewed resume c
     action: entry.action,
     invocation: entry.invocation,
     resume_condition: entry.resume_condition,
+    receipt: entry.receipt,
+  });
+});
+
+void test("release-content guidance follows what the handoff holds", () => {
+  const entry = handoffEntry("release-content-finding")!;
+  const finding = { platform: "linux-x86-64", asset: "a.zip", sha256: "a".repeat(64), signals: [] };
+  const guide = (condition: unknown) => handoffGuidance(entry, condition);
+  const flagged = guide({ findings: [finding], unscannable: [] });
+  assert.match(flagged.action, /^A person confirms the flagged files against the package\./u);
+  assert.doesNotMatch(flagged.action, /relocation/u);
+  assert.equal(
+    flagged.receipt,
+    "The next scheduled main release-content scan report no longer reports the finding; a held listing leaves the scan targets.",
+  );
+  const inspect = guide({
+    findings: [],
+    unscannable: [{ platform: "linux-x86-64", code: "digest-mismatch" }],
+  });
+  assert.match(
+    inspect.action,
+    /inspects by hand the package the scan could not read \(digest-mismatch\)/u,
+  );
+  assert.match(inspect.action, /release-content-accounting\.json/u);
+  assert.match(inspect.receipt, /no longer reports the not-scannable package/u);
+  // An unavailable release goes through the release-health relocation route.
+  const moved = guide({
+    findings: [],
+    unscannable: [{ platform: "linux-x86-64", code: "release-unavailable" }],
+  });
+  assert.match(
+    moved.action,
+    /fix the listing's upstream location through the release-health relocation route/u,
+  );
+  assert.match(moved.action, /release-health-relocation handoff for this port, if open/u);
+  assert.doesNotMatch(moved.action, /download_block_reason/u);
+  assert.match(
+    moved.invocation,
+    /^the release-health-relocation route \(upstream-relocation-evidence\.yml\)/u,
+  );
+  assert.equal(
+    moved.receipt,
+    "The next scheduled main release-content scan report reads the release (the target is no longer release-unavailable); a held listing leaves the scan targets.",
+  );
+  const both = guide({
+    findings: [finding],
+    unscannable: [{ platform: "windows-x86-64", code: "release-unavailable" }],
+  });
+  assert.match(both.action, /confirms the flagged files.*relocation route/u);
+  assert.match(both.receipt, /no longer reports the finding and reads the release/u);
+  // An unreadable condition keeps the registry entry.
+  assert.deepEqual(guide(null), {
+    action: entry.action,
+    invocation: entry.invocation,
+    resume_condition: entry.resume_condition,
+    receipt: entry.receipt,
   });
 });
