@@ -90,11 +90,14 @@ try {
     // minimatch 10 caps the expansion at braceExpandMax; minimatch 11 refuses
     // the pattern instead. Either outcome bounds the work.
     const eightSplits = Array<string>(8).fill("**/../a/b").join("/");
-    let capped: Minimatch | undefined;
+    let capped: Matcher | undefined;
     try {
       capped = new Minimatch(eightSplits, { optimizationLevel: 2, braceExpandMax: 8 });
     } catch (error) {
-      assert.ok(error instanceof RangeError && /too many patterns/u.test(error.message), error);
+      assert.ok(
+        error instanceof RangeError && /too many patterns/u.test(error.message),
+        `expected a bounded refusal, got ${String(error)}`,
+      );
     }
     if (capped) assert.ok(capped.set.length <= 8, `expanded to ${capped.set.length} patterns`);
 
