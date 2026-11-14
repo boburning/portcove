@@ -1143,6 +1143,16 @@
         "live_url": "https://github.com/mstan/SonicTheHedgehogRecomp/blob/main/game/sonic1_spec.c"
       },
       {
+        "id": "sonic-the-hedgehog-recomp-1-2-0-source-contract",
+        "role": "upstream_support",
+        "authority": "mstan/SonicTheHedgehogRecomp",
+        "authority_ref": "e82c95baa1ea8c53750fa9864f48dd45dc668b51",
+        "reviewed_at": "2026-11-14",
+        "claim": "Exact v1.2.0 Windows x64 package (5562704 bytes, SHA-256 fa01c42f2e04251e8fbce5c4bd2ec7ff75c2c8b8f3e01df1cf265b08c6c6c3c2); no publisher checksum file was found and the provider release digest was not read, so the digest is computed only. At this tag game/sonic1_spec.c keeps the 512KiB CRCF9394E97 JUE REV00 original, and the independently enforced exact-stock SHA-256 is unchanged. SonicTheHedgehogRecomp.exe keeps its path. Against v0.8.3 the package adds notices, release notes and tools/replay_diagnostic.py and drops licenses/; the replay writer stays under the declared logs. The game adds three default-off settings writers beside settings.ini through the engine's atomic store: sonic1-sound.ini, sonic1-bug-fixes.ini and sonic1-easy-access.ini, which the definition now declares as shared conventional data. Packaged build-info.json names game 0e6805c3, engine 7c067f95 and UI ff71584e. The repository's older tags were moved (v0.7.3 now resolves to 3f03256a, v0.8.3 to e0e9a78c), and the v0.8.3 download URL now serves different bytes (df79626e) from the bound 54c73309, so evidence binds commits and digests, not tag names. Native execution, gameplay, saves and settings migration remain unobserved for this release.",
+        "immutable_url": "https://github.com/mstan/SonicTheHedgehogRecomp/blob/e82c95baa1ea8c53750fa9864f48dd45dc668b51/game/sonic1_spec.c",
+        "live_url": "https://github.com/mstan/SonicTheHedgehogRecomp/blob/main/game/sonic1_spec.c"
+      },
+      {
         "id": "mega-man-x2-snes-recomp-0-2-2-source-contract",
         "role": "upstream_support",
         "authority": "mstan/MegaManX2Recomp",
@@ -19504,7 +19514,8 @@
           "sonic-genesis-jue-rev00-no-intro-byte-identity",
           "sonic-the-hedgehog-recomp-0-7-3-source-contract",
           "sonic-the-hedgehog-recomp-0-7-3-framework-input-contract",
-          "sonic-the-hedgehog-recomp-0-8-3-source-contract"
+          "sonic-the-hedgehog-recomp-0-8-3-source-contract",
+          "sonic-the-hedgehog-recomp-1-2-0-source-contract"
         ],
         "authority_ref": "5c165f6195a88b17d8da4ae619aec2b8f640d84f",
         "reviewed_at": "2026-10-29",
@@ -19523,6 +19534,10 @@
           {
             "upstream_ref": "v0.8.3",
             "artifact_sha256": "54c73309c7bda1d030e4e8d4f3ec2108763ed2c539e275688fcfa602b6ceec38"
+          },
+          {
+            "upstream_ref": "v1.2.0",
+            "artifact_sha256": "fa01c42f2e04251e8fbce5c4bd2ec7ff75c2c8b8f3e01df1cf265b08c6c6c3c2"
           }
         ],
         "aliases": [],

@@ -2808,6 +2808,64 @@ mod tests {
     }
 
     #[test]
+    fn sonic1_v120_settings_files_are_an_additive_data_policy_successor() {
+        let catalog = Catalog::embedded().unwrap();
+        let port = catalog.port("sonic-the-hedgehog-recomp").unwrap();
+        let added = [
+            "sonic1-sound.ini",
+            "sonic1-bug-fixes.ini",
+            "sonic1-easy-access.ini",
+        ];
+        // The settings files are appended, so existing installations keep
+        // their namespace and adopt the files from their active runtime.
+        let predecessor = crate::archive_data::lineage_member_with_paths(
+            port,
+            &port.persistent_paths[..port.persistent_paths.len() - added.len()],
+        )
+        .unwrap();
+        assert_eq!(
+            crate::archive_data::added_paths(&predecessor, port)
+                .unwrap()
+                .unwrap(),
+            added
+        );
+        assert_eq!(
+            predecessor
+                .archive_data_compatibility_v1
+                .as_ref()
+                .unwrap()
+                .shared_paths,
+            ["game.bin", "settings.ini", "rom-Sonic1.cfg"]
+        );
+        // The reviewed packages stay first; v1.2.0 is appended.
+        let contract = catalog
+            .source_catalog()
+            .unwrap()
+            .contracts
+            .iter()
+            .find(|contract| contract.id == "sonic-the-hedgehog-recomp-game-source")
+            .unwrap();
+        assert_eq!(
+            contract
+                .applicability
+                .iter()
+                .map(|binding| binding.upstream_ref.as_str())
+                .collect::<Vec<_>>(),
+            ["v0.6.0", "v0.7.3", "v0.8.3", "v1.2.0"]
+        );
+        assert_eq!(
+            contract.applicability[3].artifact_sha256.as_deref(),
+            Some("fa01c42f2e04251e8fbce5c4bd2ec7ff75c2c8b8f3e01df1cf265b08c6c6c3c2")
+        );
+        assert!(
+            contract
+                .evidence_ids
+                .iter()
+                .any(|id| id == "sonic-the-hedgehog-recomp-1-2-0-source-contract")
+        );
+    }
+
+    #[test]
     fn managed_snes_genesis_routes_pin_source_copies_without_inheriting_gameplay() {
         let catalog = Catalog::embedded().unwrap();
         for (id, filename, original_sha256) in [

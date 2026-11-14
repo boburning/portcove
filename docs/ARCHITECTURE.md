@@ -356,10 +356,27 @@ actual target. Read-only rollback assessment and locked execution share the
 predicate; execution repeats it after collecting current data, before restoring
 the target and switching the active pointer. Retained authority and receipt scope are
 not widened; ordinary restore completion keeps its existing behavior.
-Populated, mixed, aliased or incompatible changes remain held, including a later
-return if the older runtime has created a changed path. Existing collection,
+Once both retained copies completed their own data restore, the wider copy owns
+the added paths, so a switch in either direction no longer needs them empty: the
+narrower contract never receives them, collection keeps the wider copy's files
+canonical, and the narrower runtime's own objects stay in place. Such a switch
+still holds for aliases or links, for canonical-only content under a wider
+active copy, and for a wider destination's uncollected file that absent
+canonical data would replace. Mixed, aliased or incompatible changes, and
+switches involving a copy without a completed restore, remain held. Existing collection,
 backup/restore, interruption recovery and historical transfer authority remain in
 place; this grants no populated migration or save-format compatibility.
+
+An archive data-policy successor that only appends shared conventional files
+is a separate, structural exception to the empty-path proof. `archive_data`
+derives every predecessor from the current contract by removing a trailing run
+present in both the persistent and shared path lists, keeps the namespace the
+first policy established, and refuses every other policy difference. The update,
+activation and rollback guards accept that lineage (rollback in either direction
+only toward a retained copy); `prepare_retained_install_data` and rollback adopt
+an appended file from the active predecessor runtime only when canonical data
+lacks it. Backup framing, fresh-beside and historical transition admission use
+the same lineage. See [CATALOG](CATALOG.md#adding-or-changing-a-port).
 
 Trusted verification projections keep the same exact root receipt-metadata
 exclusions as catalog-captured qualifications. Import still verifies each

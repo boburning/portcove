@@ -4027,6 +4027,7 @@ impl PortcoveService {
                     &previous.version,
                     false,
                 )?;
+                self.adopt_additive_archive_data(active, &previous)?;
             }
             self.restore_user_data_to(&port, &previous.path)?;
             Installer::new(self.library.clone())?

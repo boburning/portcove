@@ -2395,13 +2395,18 @@ restoration when historical scope evidence is absent or interpreted persistence
 paths/patterns differ from their retained scope; the same persistence-authority
 preflight covers inactive versions in read-only Restore review and again before
 canonical publication. Actual restore also checks mod conflicts at its existing
-mutation boundary. A managed PS1 installation is the one exception: when a
-newer definition only adds `mods/texture-packs`, which PSXRecomp `7192402`
-creates on every start, the installation keeps its retained definition. Files
-there stay in that copy unmanaged, exactly as before the folder was declared:
-verification reports them, and they are not collected, carried to another
-version or backed up. Installations created
-under the wider definition retain it and synchronize the folder.
+mutation boundary. When a newer definition only appends persistent paths that
+are disjoint from every retained path (no nested or enclosing path, unchanged
+patterns), a receipt-governed installation (ready staged archive, managed PS1 or
+N64 executable-parent route) keeps its retained scope instead of being held.
+Managed PS1 `mods/texture-packs`, which PSXRecomp `7192402` creates on every
+start, was the first such case. Files at the added paths stay in that copy
+unmanaged, exactly as before they were declared: verification reports them,
+and they are not collected, carried to another version or restored. Widening
+happens only when a version change crosses it, through the empty-path proof
+below or an additive archive data-policy successor. Installations created
+under the wider definition retain it and synchronize those paths. Older readers
+without this rule hold such installations instead of granting a wider scope.
 The original receipt, manifest and diagnostic-mutability
 behavior remain unchanged. Other existing integration interpretations, including
 the separately qualified Shipwright exception, retain their own boundaries.
@@ -2444,9 +2449,14 @@ same compatible coordinates, patterns, immutable-member and companion checks.
 Status and execution share the guard; execution repeats it after collecting
 current data and before restoring the target or changing the active pointer.
 This permits returning from an empty expansion and back to its retained larger
-version. If either runtime later creates a changed path, or a path is populated,
-aliased, linked or otherwise uncertain, the switch stays held with the files and
-active copy preserved. Populated scope migration is not supplied by this exception.
+version. When both copies completed their own data restore, the larger copy
+owns the changed paths, so a path its runtime writes on every start (for example
+`mods/preloaded/state.toml`) does not hold the switch: the smaller copy never
+receives it and the file stays canonical for the return. A changed path that is
+aliased or linked, canonical-only under a larger active copy, or present only in
+a larger destination copy still holds the switch with the files and active copy
+preserved. A copy without a completed restore keeps the empty-path proof.
+Populated scope migration into a fresh copy is not supplied by this exception.
 
 A ready runtime-local GitHub archive may explicitly declare
 `archive_data_compatibility_v1` with a stable `contract_id`, disjoint bounded
@@ -2458,6 +2468,33 @@ and restored only to that archive under its retained contract. Mixed directories
 can keep conventional SRAM shared while isolating host snapshots and unknown
 sidecars. Changing the policy, source identity or persistence coordinates holds
 replacement; historical installed definitions do not acquire the new policy.
+
+One change is a reviewed successor rather than a migration: appending the same
+run of new conventional files to the end of both `persistent_paths` and
+`shared_paths`, in the same order, with every other hashed coordinate unchanged
+(port, `contract_id`, progress paths, source profile and original identity,
+and every existing path in order). Core derives the predecessor from the
+contract itself by removing that trailing run; no catalog record names it. An
+appended path must not equal, contain or sit inside an existing persistent or
+progress path, and cannot be the verified original. Removed, renamed,
+reordered, inserted or re-scoped paths, an appended path that is not shared, and
+any other policy change remain refused migrations. Archive data stays under the
+namespace its first policy established, so a successor reads the predecessor's
+`<policy-sha256>` directory and older readers keep their coordinates; a fresh
+successor library creates its own namespace, which the predecessor does not read.
+Update, activation and reuse of a copy beside an existing predecessor accept the
+successor. Before the successor's first restore, an appended file the active
+predecessor runtime already wrote becomes its initial canonical content;
+canonical content that already exists (for example from before a rollback) is
+kept, and a non-file object at that path holds. Rollback to a retained
+predecessor copy is accepted: the predecessor maps only its own paths, and the
+successor's files stay canonical and in its own copy. Backups framed with a
+predecessor policy restore under any successor in its lineage, with ordinary
+restore semantics for the appended files. A historical
+`archive_data_transition_v1` predecessor first enters the lineage member whose
+scope matches its creating contract, then follows the same successor rule.
+Persistent file patterns are not available on partitioned routes, so only
+exact files can be appended.
 
 Common installation notices explain preservation, retained Versions and rollback.
 When build-specific progress exists, automatic maintenance stages the candidate
