@@ -91,7 +91,7 @@ decisions, integration and delivery, including every wait for CI, review and
 merge. Delegate only bounded work worth its coordination cost: a research scout
 answers stated questions with evidence, sources and open uncertainty; a
 specialist takes a named hard problem; a visual helper inspects presentation;
-a reviewer reviews. Delegate implementation itself only when the requester
+a reviewer reviews. Delegate implementation itself only when the person who assigned the work
 explicitly asks for parallel delegated implementation. Every delegated
 assignment ends by returning its report, findings or pushed draft candidate; it
 never waits on CI, review or merge. Most issues need only some responsibilities.

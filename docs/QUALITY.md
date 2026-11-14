@@ -106,7 +106,7 @@ guarded merge, readback or targeted reconciliation.
 **Reviewer.** Use a fresh reviewer that did not help design or implement the
 candidate and does not write to it. Choose its capability by consequence. An
 independent reviewer covers substantive behavior. A critical reviewer is used
-from the start only for signing keys or update/catalog trust roots, credentials,
+from the start only for signing and update/catalog trust, credentials,
 irreversible user-data loss, and changes to required checks or merge authority.
 It is not used for every PR that merely touches such a subsystem.
 [Agent model selection](DEVELOPMENT-TOOLS.md#agent-model-selection) lists the

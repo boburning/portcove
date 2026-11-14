@@ -1844,14 +1844,13 @@ escalates or must transition.
 
 Delegated agents are short-lived. Each assignment states its end condition: a
 report, findings, or a pushed draft candidate. It never sleeps, polls or watches
-CI, review or merge. Prompt caches expire after a few idle minutes, so a waiting
-agent rewrites its whole context each time it resumes. After the 2026-11-13
-recommendations, 23 delegated agents ran for over an hour waiting on CI and
-review, and 79.5M of their 87.2M cache-write tokens followed more than five idle
-minutes. Only the main session waits, once, for all of its candidates. Resume a
+CI, review or merge. Prompt caches expire after short idle periods (five minutes by default for
+Claude), so a waiting agent rewrites its whole context each time it resumes;
+that was the main source of the usage increase after the 2026-11-13
+recommendations. Only the main session waits, once, for all of its candidates. Resume a
 reviewer for a repair delta only when it ended recently; otherwise give a fresh
-reviewer the delta packet. Parallel delegated implementation needs the
-requester's explicit request, because each delegated owner repeats the whole
+reviewer the delta packet. Parallel delegated implementation needs an
+explicit request from the person who assigned the work, not from a parent agent, because each delegated owner repeats the whole
 repository orientation.
 
 ### What instructions control
