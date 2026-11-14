@@ -681,6 +681,64 @@ fn only_official_runtime_download_pages_are_recognized() {
     assert_eq!(dotnet_download_page("weird"), DOTNET_DOWNLOAD_PAGE);
 }
 
+#[test]
+fn an_unfinished_working_directory_search_cannot_establish_a_missing_runtime() {
+    let host = FakeHost {
+        absent: [(WindowsArchitecture::X64, "vcruntime140.dll")].into(),
+        ..FakeHost::default()
+    };
+    let root = tempfile::tempdir().unwrap();
+    // Deeper than the walk's bound: the root is never reached.
+    let mut deep = root.path().to_path_buf();
+    for level in 0..=WORKING_FOLDER_LIMIT {
+        deep.push(format!("level{level}"));
+    }
+    fs::create_dir_all(&deep).unwrap();
+    fs::write(deep.join("game.exe"), pe(X64, &["vcruntime140.dll"])).unwrap();
+    // A program outside the installation root.
+    let elsewhere = game(&[("game.exe", pe(X64, &["vcruntime140.dll"]))]);
+    for (program, root) in [
+        (deep.join("game.exe"), root.path()),
+        (elsewhere.path().join("game.exe"), root.path()),
+    ] {
+        let report = assess_program_with(&program, Some(root), &host);
+        assert_eq!(report.inspection, RuntimeInspection::Partial, "{program:?}");
+        assert_eq!(report.requirements[0].presence, RuntimePresence::Unknown);
+        assert!(report.requirements[0].missing_files.is_empty());
+    }
+    // The program's own folder as the root is a complete search.
+    let report = assess_program_with(
+        &elsewhere.path().join("game.exe"),
+        Some(elsewhere.path()),
+        &host,
+    );
+    assert_eq!(report.inspection, RuntimeInspection::Complete);
+    assert_eq!(report.requirements[0].presence, RuntimePresence::Missing);
+}
+
+#[test]
+fn reported_roll_forward_is_the_framework_s_own_policy() {
+    let folder = runtime_config(
+        r#"{"runtimeOptions":{"rollForward":"Minor","frameworks":[
+            {"name":"Microsoft.NETCore.App","version":"8.0.0","rollForward":"Major"},
+            {"name":"Microsoft.WindowsDesktop.App","version":"8.0.0"}]}}"#,
+    );
+    let report = assess_program_with(&folder.path().join("Game.exe"), None, &FakeHost::default());
+    let policies = report
+        .requirements
+        .iter()
+        .map(|requirement| {
+            requirement
+                .framework
+                .as_ref()
+                .unwrap()
+                .roll_forward
+                .as_deref()
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(policies, [Some("Major"), Some("Minor")]);
+}
+
 const PORT: &str = "cvlod-recomp";
 
 fn library_with_install() -> (tempfile::TempDir, crate::Library) {

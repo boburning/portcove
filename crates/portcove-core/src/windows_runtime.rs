@@ -296,27 +296,32 @@ pub(crate) fn assess_program_with(
     };
     // Names in folders a launch may use as its working directory. Windows finds
     // their DLLs, but they are not read here.
+    // The search is complete only when every folder up to the root was listed;
+    // a program outside the root, or deeper than the walk's bound, leaves it
+    // incomplete. Without a root, the program's folder is the working directory.
     let mut working = HashSet::new();
-    let mut working_complete = true;
-    if let (Some(folder), Some(root)) = (program.parent(), root)
-        && folder.starts_with(root)
-    {
-        for ancestor in folder.ancestors().skip(1).take(WORKING_FOLDER_LIMIT) {
-            if !ancestor.starts_with(root) {
-                break;
-            }
-            match list_folder(ancestor) {
-                Ok(listed) => {
-                    working_complete &= listed.complete;
-                    working.extend(listed.files.into_keys().chain(listed.unread));
+    let working_complete = match (program.parent(), root) {
+        (Some(folder), Some(root)) if folder.starts_with(root) => {
+            let mut reached = folder == root;
+            let mut listed = true;
+            for ancestor in folder.ancestors().skip(1).take(WORKING_FOLDER_LIMIT) {
+                if reached || !ancestor.starts_with(root) {
+                    break;
                 }
-                Err(_) => working_complete = false,
+                match list_folder(ancestor) {
+                    Ok(folder) => {
+                        listed &= folder.complete;
+                        working.extend(folder.files.into_keys().chain(folder.unread));
+                    }
+                    Err(_) => listed = false,
+                }
+                reached = ancestor == root;
             }
-            if ancestor == root {
-                break;
-            }
+            reached && listed
         }
-    }
+        (_, None) => true,
+        _ => false,
+    };
     // Without every folder Windows would search, a runtime DLL the game ships may
     // be unlisted, so an absent system copy cannot establish that the game lacks it.
     let folders_complete = local.complete && working_complete;
@@ -859,7 +864,13 @@ fn read_frameworks(path: &Path) -> std::result::Result<Vec<(DotnetFramework, boo
                 DotnetFramework {
                     name: framework.name,
                     version: framework.version,
-                    roll_forward: options.roll_forward.clone(),
+                    // A framework's own policy overrides the top-level one.
+                    roll_forward: framework
+                        .roll_forward
+                        .as_ref()
+                        .and_then(serde_json::Value::as_str)
+                        .map(str::to_owned)
+                        .or_else(|| options.roll_forward.clone()),
                 },
                 evaluable,
             ))
