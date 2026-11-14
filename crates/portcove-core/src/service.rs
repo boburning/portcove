@@ -8035,6 +8035,19 @@ mod tests {
             last_change_at: None,
         };
         assert!(activity.describes(port));
+        let differently_cased = crate::UpstreamActivity {
+            repository: port.release.repository.to_ascii_uppercase(),
+            ..activity.clone()
+        };
+        assert!(differently_cased.describes(port));
+        // An observation stored without a repository loads, but describes no port.
+        let unbound: crate::UpstreamActivity = serde_json::from_value(serde_json::json!({
+            "observed_at": 1_000,
+            "archived": true
+        }))
+        .unwrap();
+        assert_eq!(unbound.repository, "");
+        assert!(!unbound.describes(port));
         let mut moved = port.clone();
         moved.release.repository = "Successor/zelda64-recomp".into();
         assert!(!activity.describes(&moved));

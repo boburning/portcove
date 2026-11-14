@@ -2254,6 +2254,8 @@ pub struct UpdateCheck {
 pub struct UpstreamActivity {
     /// The GitHub `owner/name` repository these facts describe. A port whose
     /// catalog provider or repository differs no longer owns this observation.
+    /// Empty (an observation without a recorded repository) describes no port.
+    #[serde(default)]
     pub repository: String,
     /// Unix seconds when the provider reported these facts.
     pub observed_at: i64,
@@ -2266,8 +2268,14 @@ pub struct UpstreamActivity {
 
 impl UpstreamActivity {
     /// Whether the port's current catalog definition still names this repository.
+    /// GitHub owner and repository names are case-insensitive.
     pub fn describes(&self, port: &PortDefinition) -> bool {
-        port.release.provider == ReleaseSource::Github && port.release.repository == self.repository
+        port.release.provider == ReleaseSource::Github
+            && !self.repository.is_empty()
+            && port
+                .release
+                .repository
+                .eq_ignore_ascii_case(&self.repository)
     }
 }
 

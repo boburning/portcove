@@ -26,7 +26,12 @@ export function currentUpstreamActivity(
 ): UpstreamActivity | undefined {
   const activity = status?.last_update_check?.check.upstream_activity;
   if (!activity) return undefined;
-  if (port.release.provider !== "github" || port.release.repository !== activity.repository)
+  // GitHub owner and repository names are case-insensitive; an empty name binds nothing.
+  if (
+    port.release.provider !== "github" ||
+    !activity.repository ||
+    port.release.repository.toLowerCase() !== activity.repository.toLowerCase()
+  )
     return undefined;
   return activity;
 }

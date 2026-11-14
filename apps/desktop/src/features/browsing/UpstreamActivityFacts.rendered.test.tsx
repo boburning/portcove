@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeAll, expect, it } from "vite-plus/test";
 import type { PortDefinition, PortStatus, UpstreamActivity } from "../../types";
@@ -20,10 +21,13 @@ function status(activity: Omit<UpstreamActivity, "repository"> | undefined) {
   } as unknown as PortStatus;
 }
 
-// Dates use the player's local time zone, like the other dated notices.
-const day = (seconds: number) => new Date(seconds * 1000).toLocaleDateString("en");
+// Dates use the player's local time zone and the active interface language.
+const day = (seconds: number) => new Date(seconds * 1000).toLocaleDateString(i18next.language);
 const month = (seconds: number) =>
-  new Date(seconds * 1000).toLocaleDateString("en", { year: "numeric", month: "long" });
+  new Date(seconds * 1000).toLocaleDateString(i18next.language, {
+    year: "numeric",
+    month: "long",
+  });
 
 beforeAll(async () => {
   const { initializeLocalization } = await import("../../localization");
@@ -58,6 +62,24 @@ it("hides an observation of another repository or provider", () => {
     const other = { release } as unknown as PortDefinition;
     expect(renderToStaticMarkup(<UpstreamActivityFacts port={other} status={archived} />)).toBe("");
   }
+  const unbound = {
+    last_update_check: { check: { upstream_activity: { observed_at: OBSERVED, archived: true } } },
+  } as unknown as PortStatus;
+  expect(renderToStaticMarkup(<UpstreamActivityFacts port={port} status={unbound} />)).toBe("");
+});
+
+it("matches the repository regardless of letter case, as GitHub does", () => {
+  const recased = {
+    release: { provider: "github", repository: REPOSITORY.toUpperCase() },
+  } as unknown as PortDefinition;
+  expect(
+    renderToStaticMarkup(
+      <UpstreamActivityFacts
+        port={recased}
+        status={status({ observed_at: OBSERVED, archived: true })}
+      />,
+    ),
+  ).toContain("Upstream activity on GitHub");
 });
 
 it("explains an archived upstream and names who reported it when", () => {

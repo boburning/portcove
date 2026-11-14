@@ -10658,6 +10658,7 @@
             "type": "integer"
           },
           "repository": {
+            "default": "",
             "description": "The GitHub `owner/name` repository these facts describe. A port whose\ncatalog provider or repository differs no longer owns this observation.",
             "type": "string"
           }
@@ -17092,6 +17093,7 @@
             "type": "integer"
           },
           "repository": {
+            "default": "",
             "description": "The GitHub `owner/name` repository these facts describe. A port whose\ncatalog provider or repository differs no longer owns this observation.",
             "type": "string"
           }
@@ -24066,6 +24068,7 @@
             "type": "integer"
           },
           "repository": {
+            "default": "",
             "description": "The GitHub `owner/name` repository these facts describe. A port whose\ncatalog provider or repository differs no longer owns this observation.",
             "type": "string"
           }
