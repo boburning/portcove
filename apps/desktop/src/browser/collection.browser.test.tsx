@@ -102,7 +102,7 @@ it.each([
   ["dark", 320],
   ["light", 320],
 ] as const)(
-  "prioritizes first-use actions with the update choice at %s/%ipx",
+  "prioritizes first-use actions with an update notice at %s/%ipx",
   async (theme, width) => {
     await page.viewport(width, 640);
     document.documentElement.dataset.theme = theme;
@@ -111,18 +111,7 @@ it.each([
     await render(
       <main style={{ width: width === 960 ? 768 : "100%", padding: 20, boxSizing: "border-box" }}>
         <h1>Your library</h1>
-        <ApplicationUpdateNotices
-          updateNotice={undefined}
-          updateChoiceRequired
-          productionTransitionRequired={false}
-          productionTransitionBusy={false}
-          reviewUpdate={() => {}}
-          dismissUpdate={async () => {}}
-          dismissUpdateChoice={() => {}}
-          useStable={() => {}}
-          keepPreview={() => {}}
-          dismissProductionTransition={() => {}}
-        />
+        <ApplicationUpdateNotices version="0.2.0" review={() => {}} dismiss={() => {}} />
         <PortBrowser
           view="library"
           ports={[]}

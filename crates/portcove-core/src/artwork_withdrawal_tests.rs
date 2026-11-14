@@ -195,6 +195,24 @@ fn a_withdrawal_needs_a_second_signal_from_the_observation_being_applied() {
         ),
         withdrawn
     );
+    // A clock outside any plausible range never confirms, even with `gone`.
+    connection
+        .execute("DELETE FROM artwork_provider_withdrawals", [])
+        .unwrap();
+    assert_eq!(
+        apply("listed", None, None, late + 2 * DAY),
+        Applied::Recorded(WithdrawalChange::Unchanged)
+    );
+    assert_eq!(apply("not_listed", Some("gone"), None, 1_000), unchanged);
+    assert_eq!(
+        apply("not_listed", Some("gone"), None, 8_000_000_000),
+        unchanged
+    );
+    assert!(
+        crate::artwork_store::asset_withdrawals(&connection, &sha)
+            .unwrap()
+            .is_empty()
+    );
 }
 
 #[test]
@@ -580,10 +598,10 @@ fn every_credit_must_be_withdrawn_before_a_copy_is_removed() {
     };
     assert!(image(&report, 7).withdrawn_at.is_some());
     assert_eq!(image(&report, 7).evicted_at, None);
-    // Both confirmed: the copy goes, and an earlier confirmation is not repeated.
+    // Both confirmed: this check removes the copy, so both absences say so.
     let report = check(&[9]);
     assert_eq!(effect(&report, 9), Effect::Removed);
-    assert_eq!(effect(&report, 7), Effect::None);
+    assert_eq!(effect(&report, 7), Effect::Removed);
     assert!(image(&report, 7).evicted_at.is_some());
     assert_eq!(report.removed, 1);
     assert_eq!(
@@ -741,6 +759,145 @@ fn removals_are_bounded_per_call_and_the_rest_are_deferred() {
 }
 
 #[test]
+fn an_asset_held_back_by_a_failed_write_is_evicted_once_its_records_are_written() {
+    let temp = tempfile::tempdir().unwrap();
+    let service = open_service(&temp.path().join("library"));
+    let chosen = choose_provider(&service, 0);
+    let port = service.artwork_port("zelda64-recomp").unwrap();
+    service
+        .choose_fetched_artwork(
+            &port,
+            ArtworkSlot::Cover,
+            42,
+            provider_candidate(
+                9,
+                Role::PortraitCover,
+                12,
+                24,
+                "image/png",
+                encoded(12, 24, image::ImageFormat::Png),
+            ),
+            chosen.choice.revision,
+        )
+        .unwrap();
+    let check = |gone: &[u64]| {
+        service
+            .run_listing_check(&|| false, |subjects, now| {
+                let mut report = prepared_report(&subjects, Listing::NotListed, true, now);
+                for image in &mut report.images {
+                    if gone.contains(&image.attribution.asset_id) {
+                        image.source = Source::Gone;
+                    }
+                }
+                Ok(report)
+            })
+            .unwrap()
+    };
+    // Credit 9 is confirmed first; credit 7 still stands behind the copy.
+    check(&[9]);
+    assert_eq!(cover(&service).evicted_at, None);
+    // Credit 7 is confirmed while credit 9's row cannot be written: the asset
+    // is held back, because the unwritten result might have cleared credit 9.
+    let connection = service.library().connection().unwrap();
+    connection
+        .execute_batch(
+            "CREATE TRIGGER hold_nine BEFORE UPDATE ON artwork_provider_listing_checks
+             WHEN NEW.asset_id=9 BEGIN SELECT RAISE(ABORT,'held'); END;",
+        )
+        .unwrap();
+    let report = check(&[7, 9]);
+    assert_eq!(report.skipped, 1);
+    assert_eq!(cover(&service).evicted_at, None);
+    // Once both are written again, nothing newly changes, yet the asset is
+    // evaluated and its copy removed.
+    connection.execute_batch("DROP TRIGGER hold_nine").unwrap();
+    let report = check(&[7, 9]);
+    assert_eq!(report.skipped, 0);
+    assert!(cover(&service).evicted_at.is_some());
+    assert_eq!(report.removed, 1);
+    // This check removed the copy, so both absences say so.
+    assert!(
+        report
+            .images
+            .iter()
+            .all(|image| image.effect == Effect::Removed)
+    );
+}
+
+#[test]
+fn a_held_back_asset_is_not_evicted_while_a_credit_lacks_fresh_evidence() {
+    let temp = tempfile::tempdir().unwrap();
+    let service = open_service(&temp.path().join("library"));
+    let chosen = choose_provider(&service, 0);
+    let port = service.artwork_port("zelda64-recomp").unwrap();
+    service
+        .choose_fetched_artwork(
+            &port,
+            ArtworkSlot::Cover,
+            42,
+            provider_candidate(
+                9,
+                Role::PortraitCover,
+                12,
+                24,
+                "image/png",
+                encoded(12, 24, image::ImageFormat::Png),
+            ),
+            chosen.choice.revision,
+        )
+        .unwrap();
+    let run = |results: &[(u64, Listing, Source)]| {
+        service
+            .run_listing_check(&|| false, |subjects, now| {
+                let mut report = prepared_report(&subjects, Listing::Listed, true, now);
+                for image in &mut report.images {
+                    let (_, listing, source) = results
+                        .iter()
+                        .find(|(id, _, _)| *id == image.attribution.asset_id)
+                        .copied()
+                        .unwrap();
+                    image.listing = listing;
+                    image.source = source;
+                }
+                Ok(report)
+            })
+            .unwrap()
+    };
+    run(&[
+        (9, Listing::NotListed, Source::Gone),
+        (7, Listing::Listed, Source::NotChecked),
+    ]);
+    let connection = service.library().connection().unwrap();
+    connection
+        .execute_batch(
+            "CREATE TRIGGER hold_nine BEFORE UPDATE ON artwork_provider_listing_checks
+             WHEN NEW.asset_id=9 BEGIN SELECT RAISE(ABORT,'held'); END;",
+        )
+        .unwrap();
+    // Credit 9 is seen listed, but that result cannot be written; credit 7 is
+    // confirmed. The asset is held back.
+    run(&[
+        (9, Listing::Listed, Source::NotChecked),
+        (7, Listing::NotListed, Source::Gone),
+    ]);
+    connection.execute_batch("DROP TRIGGER hold_nine").unwrap();
+    assert_eq!(cover(&service).evicted_at, None);
+    // Credit 9 is unknown next time: its stored withdrawal is not fresh
+    // evidence, so the copy stays.
+    let unknown = Listing::Unknown {
+        reason: crate::SteamGridDbUnknownReason::Unavailable,
+    };
+    let report = run(&[
+        (9, unknown, Source::NotChecked),
+        (7, Listing::NotListed, Source::Served),
+    ]);
+    assert_eq!(cover(&service).evicted_at, None);
+    assert!(
+        report
+            .images
+            .iter()
+            .all(|image| image.effect == Effect::None)
+    );
 fn evicted_sources_report_only_copies_portcove_removed() {
     let temp = tempfile::tempdir().unwrap();
     let service = open_service(&temp.path().join("library"));

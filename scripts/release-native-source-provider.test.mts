@@ -47,7 +47,7 @@ async function provider() {
     structuredClone(responses.get(pathname)!);
 }
 
-void test("provider source reads retain the exact four immutable inputs and refuse changed custody", async (t) => {
+void test("provider source reads retain the exact three immutable inputs and refuse changed custody", async (t) => {
   const directory = disposableDirectory(t, path.join(os.tmpdir(), "native-source-provider-"));
   const read = await provider(),
     seen: string[] = [];

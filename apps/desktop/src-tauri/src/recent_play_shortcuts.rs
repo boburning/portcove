@@ -24,7 +24,7 @@ const JUMP_LIST_ENTRIES: usize = 5;
 /// Start menu and desktop shortcuts and its uninstaller deletes the jump list
 /// under it. It is the configured bundle identifier (checked in tests).
 #[cfg_attr(not(all(windows, not(test))), allow(dead_code))]
-const APPLICATION_ID: &str = crate::application_update::APPLICATION_PRODUCT_ID;
+const APPLICATION_ID: &str = crate::windows_installation::APPLICATION_PRODUCT_ID;
 
 /// Whether this process uses [`APPLICATION_ID`]: decided once at startup.
 #[cfg(all(windows, not(test)))]
@@ -38,7 +38,7 @@ static INSTALLED_IDENTITY: std::sync::OnceLock<bool> = std::sync::OnceLock::new(
 pub(crate) fn adopt_installed_identity() {
     #[cfg(all(windows, not(test)))]
     {
-        let installed = crate::application_update_windows::running_registered_installation()
+        let installed = crate::windows_installation::running_registered_installation()
             && jump_list::set_process_identity().is_ok();
         let _ = INSTALLED_IDENTITY.set(installed);
     }

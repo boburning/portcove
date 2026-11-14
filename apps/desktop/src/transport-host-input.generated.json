@@ -26,20 +26,13 @@
     "title": "Array_of_AdoptionBatchItem",
     "type": "array"
   },
-  "application_update_choice": {
+  "application_update_preferences": {
     "$defs": {
-      "ApplicationChannel": {
+      "ApplicationUpdateChannel": {
+        "description": "The application release feed a player follows. Beta is the default; Preview\nis an opt-in feed that receives builds before Beta.",
         "enum": [
-          "preview",
-          "stable"
-        ],
-        "type": "string"
-      },
-      "ApplicationUpdateMode": {
-        "enum": [
-          "automatic",
-          "notify-only",
-          "manual"
+          "beta",
+          "preview"
         ],
         "type": "string"
       }
@@ -47,120 +40,20 @@
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "additionalProperties": false,
     "properties": {
-      "channel": {
-        "$ref": "#/$defs/ApplicationChannel"
-      },
-      "mode": {
-        "$ref": "#/$defs/ApplicationUpdateMode"
-      },
-      "paused": {
+      "automatic_checks": {
+        "description": "Check for updates at startup and periodically. A found update is only\nannounced; installing always needs the player's click.",
         "type": "boolean"
+      },
+      "channel": {
+        "$ref": "#/$defs/ApplicationUpdateChannel"
       }
     },
     "required": [
       "channel",
-      "mode",
-      "paused"
+      "automatic_checks"
     ],
-    "title": "ApplicationUpdateChoice",
+    "title": "ApplicationUpdatePreferences",
     "type": "object"
-  },
-  "application_update_download_request": {
-    "$defs": {
-      "ApplicationChannel": {
-        "enum": [
-          "preview",
-          "stable"
-        ],
-        "type": "string"
-      },
-      "ApplicationUpdateCandidateSummary": {
-        "additionalProperties": false,
-        "properties": {
-          "bytes": {
-            "format": "uint64",
-            "minimum": 0,
-            "type": "integer"
-          },
-          "channel": {
-            "$ref": "#/$defs/ApplicationChannel"
-          },
-          "version": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "version",
-          "channel",
-          "bytes"
-        ],
-        "type": "object"
-      }
-    },
-    "$schema": "https://json-schema.org/draft/2020-12/schema",
-    "additionalProperties": false,
-    "properties": {
-      "expected_candidate": {
-        "$ref": "#/$defs/ApplicationUpdateCandidateSummary"
-      },
-      "expected_preference_revision": {
-        "format": "uint64",
-        "minimum": 0,
-        "type": "integer"
-      }
-    },
-    "required": [
-      "expected_preference_revision",
-      "expected_candidate"
-    ],
-    "title": "ApplicationUpdateDownloadRequest",
-    "type": "object"
-  },
-  "application_update_manual_check_request": {
-    "$defs": {
-      "ApplicationChannel": {
-        "enum": [
-          "preview",
-          "stable"
-        ],
-        "type": "string"
-      }
-    },
-    "$schema": "https://json-schema.org/draft/2020-12/schema",
-    "additionalProperties": false,
-    "properties": {
-      "channel": {
-        "anyOf": [
-          {
-            "$ref": "#/$defs/ApplicationChannel"
-          },
-          {
-            "type": "null"
-          }
-        ]
-      }
-    },
-    "title": "ApplicationUpdateManualCheckRequest",
-    "type": "object"
-  },
-  "application_update_production_decision": {
-    "$schema": "https://json-schema.org/draft/2020-12/schema",
-    "enum": [
-      "use-stable",
-      "keep-preview"
-    ],
-    "title": "ApplicationUpdateProductionDecision",
-    "type": "string"
-  },
-  "application_update_recovery_area": {
-    "$schema": "https://json-schema.org/draft/2020-12/schema",
-    "enum": [
-      "schedule",
-      "staging",
-      "apply"
-    ],
-    "title": "ApplicationUpdateRecoveryArea",
-    "type": "string"
   },
   "bug_report_field": {
     "$schema": "https://json-schema.org/draft/2020-12/schema",

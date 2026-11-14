@@ -1071,8 +1071,11 @@ release is downloaded once; a rules change rescans. Each scheduled run has an
 asset budget of 160 packages that counts every attempt, a 40 GB byte budget
 that counts failed transfers too, and a 75-minute deadline that also caps every release read (each at
 most one minute), download, listing and file read, so a slow provider or
-package cannot outlast the job. No release read starts after the deadline;
-those targets are reported as `time-budget`. Targets that share one package
+package cannot outlast the job. No release read or download starts after the
+deadline; those targets are reported as `time-budget`. Targets that need no
+further I/O keep their outcome after the deadline: a resolved skip, a package
+reused from the checkpoint, a remembered failure, or a remembered unlistable
+retry, which stays `unlistable`. Targets that share one package
 re-check it once per run. Every target not scanned
 is reported with a stable code. Persistent targets are reported as not
 scannable: `no-release`,

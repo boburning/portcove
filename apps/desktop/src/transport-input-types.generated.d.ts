@@ -24,10 +24,11 @@ export type InputGameSettingChange =
       action: "reset";
     };
 export type InputDesktopAdoptionBatchItems = AdoptionBatchItem[];
-export type ApplicationChannel = "preview" | "stable";
-export type ApplicationUpdateMode = "automatic" | "notify-only" | "manual";
-export type InputDesktopApplicationUpdateProductionDecision = "use-stable" | "keep-preview";
-export type InputDesktopApplicationUpdateRecoveryArea = "schedule" | "staging" | "apply";
+/**
+ * The application release feed a player follows. Beta is the default; Preview
+ * is an opt-in feed that receives builds before Beta.
+ */
+export type ApplicationUpdateChannel = "beta" | "preview";
 export type CatalogDownloadAssetId = number | CatalogForeignAssetId;
 export type CatalogForeignAssetId = {
   file_id: number;
@@ -153,11 +154,7 @@ export interface TransportInputs {
   source_discovery_limits: SourceDiscoveryLimits;
   source_discovery_request: InputSourceDiscoveryRequest;
   desktop_adoption_batch_items: InputDesktopAdoptionBatchItems;
-  desktop_application_update_choice: InputDesktopApplicationUpdateChoice;
-  desktop_application_update_download_request: InputDesktopApplicationUpdateDownloadRequest;
-  desktop_application_update_manual_check_request: InputDesktopApplicationUpdateManualCheckRequest;
-  desktop_application_update_production_decision: InputDesktopApplicationUpdateProductionDecision;
-  desktop_application_update_recovery_area: InputDesktopApplicationUpdateRecoveryArea;
+  desktop_application_update_preferences: InputDesktopApplicationUpdatePreferences;
   desktop_bug_report_field: InputDesktopBugReportField;
   desktop_catalog_download_request: InputDesktopCatalogDownloadRequest;
   desktop_game_comparison_request: InputDesktopGameComparisonRequest;
@@ -239,22 +236,13 @@ export interface AdoptionBatchItem {
   source: string;
   [k: string]: unknown;
 }
-export interface InputDesktopApplicationUpdateChoice {
-  channel: ApplicationChannel;
-  mode: ApplicationUpdateMode;
-  paused: boolean;
-}
-export interface InputDesktopApplicationUpdateDownloadRequest {
-  expected_candidate: ApplicationUpdateCandidateSummary;
-  expected_preference_revision: number;
-}
-export interface ApplicationUpdateCandidateSummary {
-  bytes: number;
-  channel: ApplicationChannel;
-  version: string;
-}
-export interface InputDesktopApplicationUpdateManualCheckRequest {
-  channel?: ApplicationChannel | null;
+export interface InputDesktopApplicationUpdatePreferences {
+  /**
+   * Check for updates at startup and periodically. A found update is only
+   * announced; installing always needs the player's click.
+   */
+  automatic_checks: boolean;
+  channel: ApplicationUpdateChannel;
 }
 export interface InputDesktopBugReportField {
   id: string;

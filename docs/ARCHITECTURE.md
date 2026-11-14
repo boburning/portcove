@@ -1476,15 +1476,15 @@ logged and never affect startup, play or a library change. Other platforms
 compile the refresh as a no-op.
 
 The jump list belongs to a taskbar identity. When the running executable is the
-registered current-version NSIS installation (the same evaluation update
-admission uses), Desktop sets its process AppUserModelID to the bundle
+registered current-version NSIS installation (the fail-closed check in
+`windows_installation`), Desktop sets its process AppUserModelID to the bundle
 identifier `io.github.portcove.portcove` before any window exists. That is the
 identity the installer stamps on its Start menu and desktop shortcuts and under
 which its uninstaller deletes the jump list. The list is then written under that
 ID and each entry carries it, so windows started from an entry group with the
 installed shortcuts. Development, fixture and portable runs keep the default
 per-executable identity and never write the installed application's list.
-Because the check is update admission's fail-closed test, an installed run that
+Because that check fails closed, an installed run that
 finds an ambiguous or stale second registration, a version mismatch, a reparse
 point or an unreadable or oversized Uninstall inventory also keeps the
 per-executable identity; that run's list then does not appear on the pinned
@@ -1987,312 +1987,38 @@ cannot become a second domain authority or a runtime dependency. Disposable test
 Payload test signers are development dependencies only. TUF role credentials are
 external inputs and are never copied into repository output.
 
-The [application updater trust design](UPDATER-TRUST.md) assigns application
-replacement/trust state to the Tauri host; core retains library/game authority.
-The desktop executable also exposes a GUI-independent application-update recovery
-command. It reuses the same host stores and fixed-area `recover_invalid` methods,
-so it can inspect or clear malformed coordination state without adding network,
-download, installation, restart, consent, library, or native-prompt authority.
-The host's independent `application_update_preferences` store records the user's
-single explicit channel, update mode and pause choice outside every library. Reads
-do not create state, writers use optimistic revisions under path-keyed process and
-operating-system locks, and the shared durable-file helper publishes a flushed
-sibling atomically. Missing state means no consent; malformed or future state fails
-closed until an explicit reset clears the choice and advances its revision. These
-typed host commands only read or persist policy and cannot check, download, stage or
-apply an update.
-The sibling `application_update_schedule` store persists only successful-check
-cadence and bounded retry state. Its pure decision boundary combines that state
-with the explicit preference, a 30-second startup delay, and observable offline or
-metered status. Successful checks defer the next automatic check by at least 24
-hours. Failures use a 15-minute exponential retry with bounded jitter and a six-hour
-cap without shortening an existing hold. Each outcome binds the preference revision
-observed by its check, so a later channel or mode change ignores stale cadence.
-Manual checks bypass cadence, startup, pause, mode and metered holds but still refuse
-a known offline state. Unknown
-metered status holds automatic work so the user can choose manually. Strict parsing,
-compare-and-swap revisions, path-keyed process and OS locks, atomic durable writes,
-and explicit corrupt-state reset match the preference boundary. The module has no
-network, download, staging, application or persistent-device-identifier authority.
-The `application_update_coordinator` is the single host owner for manual and due
-automatic checks. It re-evaluates policy after acquiring one process and OS lock,
-awaits an injected authenticated checker off the startup path, and records success
-or failure only after completion against the schedule revision that admitted the
-check, so a concurrent explicit reset wins. Dropping a check releases ownership
-without inventing an outcome. An observed preference change during the check makes
-its result superseded; the coordinator records it against the old revision but
-returns no candidate for staging. A returned candidate carries the preference
-revision that downstream work must revalidate. Current policy ignores old cadence.
-The checker remains the existing authenticated repository boundary, so coordination
-adds no URL, key, network, staging or apply authority.
-Updater-enabled Desktop builds start one process-local background loop after Tauri
-setup returns control to the event loop. It waits through the same 30-second startup
-delay, observes the preferred machine connection on a blocking worker, and submits
-only an automatic request to the coordinator. The persisted schedule remains the
-authority for daily success cadence and retry jitter; the loop sleeps toward the
-returned due time with a one-day maximum and otherwise re-evaluates at a bounded
-one-minute interval. The cap prevents a damaged clock or extreme valid timestamp
-from creating an unbounded runtime timer without shortening the persisted hold.
-Preference changes and explicit recovery wake a cadence sleep so the coordinator can
-apply the new revision immediately. The task shares the manual-command activity guard
-and the cross-process coordinator lock, so it cannot overlap a renderer check,
-download, restart admission or another process. Shutdown drops the task; there is no
-daemon, service or persistent device identity.
+The [application updater design](UPDATER-TRUST.md) assigns application update
+trust and replacement to the Tauri host; core retains library/game authority.
+The host uses Tauri's updater plugin with the minisign public key compiled into
+`tauri.conf.json`. Its single `application_update` module owns the player's
+channel (Beta by default, Preview by choice) and automatic-check preference in a
+small JSON file beside host preferences, selects that channel's fixed
+`latest.json` feed at runtime, and keeps the plugin's last checked update in
+process memory. React receives only the version, notes, date, check/install
+state and download progress; no URL, signature, key or path crosses IPC.
 
-A successful due check that selects an eligible candidate also publishes a
-sanitized, process-local notice snapshot containing only the candidate summary,
-staging state and observed preference revision. The Tauri event and matching
-read command carry a monotonically increasing session revision; dismissal
-compares that revision so a late action cannot clear a newer result. Preference
-changes, recovery and successful manual update actions clear the notice. React
-presents it as a global accessible status and may reuse the already checked,
-preference-bound candidate for an explicit download from Settings. The notice is
-disposable presentation state: the durable schedule and staging journals remain
-the authorities across restarts, and no release URL, signature, key or path crosses
-the IPC boundary.
-
-While the host reports no saved application-update choice, React presents an
-accessible setup notice throughout the workspace. Deferring it records only the
-observed preference revision in renderer memory, so it returns after restart or
-after a newer no-choice state. Reviewing the notice moves focus to the Settings
-choice, whose existing explicit Save action remains the only way to record host
-consent; the notice itself cannot check, download, stage, install or restart.
-
-The first stable production build also asks an existing Preview user once whether
-to move to Stable or keep Preview. The host derives eligibility from its compiled
-semantic version and exact saved preference revision. Choosing Stable changes only
-the channel under the preference lock, preserving mode and pause; keeping Preview
-leaves the choice unchanged. Either explicit decision writes a fixed companion
-acknowledgement beside the unchanged schema-1 preference document. The marker binds
-the preference revision that completes the decision, so an interrupted Stable write
-reoffers rather than hiding an uncommitted choice. A missing, malformed or incomplete
-acknowledgement reoffers the choice, while Not now remains session-only.
-Stable selection may wake the existing scheduler for the new saved policy, but
-neither decision directly downloads, applies or restarts.
-
-On Windows, `application_update_connectivity` queries Network List Manager on a
-short-lived initialized COM worker. A reported offline connection blocks all checks.
-Unrestricted machine-wide cost permits automatic work; fixed, variable, roaming,
-congested, near-limit or over-limit cost holds it as metered. Observation or cost
-classification failure remains unknown and therefore holds automatic activity while
-the existing manual command remains available. Platforms without an implemented
-observer likewise remain unknown until their native apply and connection contracts
-are implemented.
-Immediately before a host application replacement, core's
-`ApplicationUpdateQuiescenceGuard` acquires the current library's
-exclusive lifetime lease. Every CLI and Desktop library instance already retains the
-shared side for its lifetime, so another process or previously dispatched operation
-prevents admission. After ownership, core requires the current schema and rejects any
-unfinished launch session or running activity until explicit recovery. The host
-retains the guard across its checks and replacement, preventing a new library
-operation from winning the recheck-to-apply interval. Relocated source roots are
-rejected in favor of their current destination. This proves current-library
-quiescence only; candidate freshness, executable ownership, permissions, consent and
-native replacement remain host checks.
-Independently, every normal CLI command, Desktop process, launch supervisor and
-recovery helper retains a shared `ApplicationRuntimeGuard` in the canonical user host
-directory for its full process operation. Update admission takes the exclusive
-side before the library guard, so a process using another library also blocks
-replacement and a new process cannot enter while replacement is admitted. The lock
-contains no state and does not enumerate libraries; per-library recovery and busy
-details remain owned by the library guard.
-The host's `application_update` module validates separately authenticated immutable
-release and channel records against installed identity and compatibility context,
-then selects by SemVer precedence. `application_update_repository` is the bounded
-bridge from TUF to that selector: it discovers the installed package's versioned
-promotions, requires separate direct release/channel delegation, rejects top-level
-or duplicate records and fully consumes authenticated streams before parsing. A
-sibling strict payload-key parser validates the offline-authorized top-level
-`keys/payload.json`, including the exact decoded public-key SHA-256 and minisign
-format, and the bridge returns only the selected release's Tauri-compatible key.
-`application_update_trust` wraps the maintained `tough` client with path-keyed
-process ownership plus one host OS lock, atomically persisted greatest accepted
-time, the latest verified root and explicit
-timestamp/snapshot/targets version and signed-body replay floors. After TUF
-authentication it enforces the host's delegated-role depth/count, global role-name,
-target-count, selector-count and bounded-name/path policy; unavailable delegated
-metadata fails closed, and rejected authenticated versions still advance replay floors.
-It supplies the latest persisted root on restart and retains verified root progress
-when later metadata fails. Disposable local-file repositories remain available to
-tests.
-
-`application_update_host` is the sole runtime constructor for that repository and
-selection path. Updater-enabled Desktop builds embed a bounded public TUF root and
-fixed metadata and target bases as one build-time configuration; partial input
-fails the build, and ordinary alpha builds remain unconfigured. Runtime environment
-variables and React cannot supply those authorities. The Windows context source
-proves the running package through the exact current-user NSIS registration and
-combines it with compiled target, API, catalog, library and lock compatibility plus
-the actual operating-system version. The provider serves both ordinary checks and
-fresh helper revalidation. A fixed manual-check command now invokes that provider,
-streams only checking, acquiring-and-verifying, staged and complete phases, and
-returns only candidate version/channel/size, policy reasons and staging outcome.
-One process-owned cancellation token prevents overlapping renderer requests and
-cooperatively stops the existing restart-reconcilable operation. The command is
-unavailable in ordinary unconfigured alpha builds, and the background loop exits
-before spawning there. No production root or origin is present, and no exit hook
-currently activates the provider.
-For notify-only and manual choices, a separate explicit download command accepts
-only the preference revision and sanitized version, channel and size shown by the
-preceding check. The host reauthenticates the repository, requires that exact summary
-and preference revision to remain current, refuses staging while paused, and sends
-only its newly selected candidate and payload key through the existing downloader,
-verifier and staging boundary. The renderer cannot turn those optimistic guards into
-a URL, key or alternate candidate, and a changed or withdrawn candidate requires a
-fresh visible check.
-The sibling payload boundary independently binds an already obtained stream to the
-selected release length, SHA-256 and exact registry key using bounded, prehashed
-Minisign verification. Only its Rust-only verified identity may cross into later
-staging work; it owns no download, eligibility, replacement or installation state.
-The host's private `application_update_staging` module tees that exact verification
-stream into a fixed incoming file, checks capacity for both the authenticated payload
-and native replacement workspace, and publishes one active candidate with durable
-staged, payload-verified and verified journal phases. Its path-keyed process and OS
-locks serialize writers. On restart it discards pre-verification bytes, restores the
-prior verified slot after an interrupted attempt, or completes publication only from
-the durable payload-verified phase. Corrupt or future journals require explicit
-bounded reset. A reconciled file is retained state rather than fresh eligibility or
-apply authority. The sibling payload downloader accepts only the authenticated
-Portcove GitHub release/version path, follows at most five redirects through the
-reviewed GitHub release-asset host, resolves and pins public addresses, bypasses
-ambient proxies and streams anonymously under connection, idle, total-time and
-authenticated-length bounds. It returns only a reader for the existing verifier and
-staging boundary and grants no replacement authority by itself.
-The sibling `application_update_apply` journal binds a requested safe exit or
-explicit one-restart action to the exact staged candidate, preference revision and
-choice, installed application context, and canonical current-library root. Its
-strict compare-and-swap revisions prevent a stale exit observer from changing a
-newer request, and a different candidate cannot replace an unfinished intent.
-Normal Exit and Restart to apply are distinct eligible observations; crash, OS
-shutdown, Steam Stop, missing hooks and mismatched observations remain held for
-next-launch reconciliation. Only a Portcove-owned installation can enter the
-journal. Even a matching observation permits only another revalidation attempt:
-the host locks the apply journal, preferences, staging slot, user-scoped application
-runtime and current library in that order, then requires the expected journal
-revision, matching termination,
-unchanged consent, exact verified staged candidate, exact freshly authenticated
-candidate and installed context, current compatibility and core quiescence. Those
-locks are retained together through final native admission and process creation.
-Executable ownership and permissions still require a platform proof before
-replacement. On Windows,
-`application_update_windows` adds that platform proof without accepting paths from
-IPC. It requires one exact HKCU Portcove uninstall registration, the registered
-version and install directory to own the running `portcove-desktop.exe` and direct
-`uninstall.exe`, a writable non-reparse install tree, and the locked staged payload
-to remain an exact Windows x64 Portcove NSIS candidate with PE bytes. It inventories
-both HKLM registry views and refuses system-wide, custom, ambiguous or identity-drifted
-installations. An admitted payload starts through the documented passive NSIS
-`/P /UPDATE` path and the reviewed host-integration child-process policy, with no
-relocation or elevation argument, while retaining the shared revalidation lease
-through process creation. Before creating the process, the apply journal records
-`starting`; a helper crash then remains an ambiguous attempt instead of silently
-starting the installer twice. The launch remains `starting` while every updater
-lock is retained and the helper observes the child. A zero exit records
-`installer-succeeded`
-but still requires installed-identity and application-health reconciliation before
-the request can clear. A proven pre-spawn failure records `failed`; a nonzero exit
-records `installer-failed`. Both are known to have no live child and are eligible
-only for an explicit retry. A legacy `started` state and any crash while `starting`
-remain ambiguous and held. Windows staging uses one fixed
-`.exe` payload slot so the operating system can execute the authenticated bytes;
-on Linux, `application_update_linux` admits only the freshly observed direct,
-current-user AppImage source and an exact x86_64 Type 2 AppImage payload from the locked staging
-slot. The helper records the source path, backup path, prior byte length and prior
-SHA-256 in the apply journal, copies and rehashes the candidate into a synchronized
-sibling file with the existing executable permissions, then uses Linux
-`RENAME_EXCHANGE`. The stable AppImage path therefore always names one complete
-image, and the previous image remains in the recorded sibling slot until the new
-exact candidate crosses healthy startup. The helper relaunches the stable AppImage
-source after clearing the old mount environment. Healthy startup rechecks the
-running source's candidate bytes, the recorded backup identity and both direct paths
-before retiring staging and the apply intent. A launch without AppImage identity can
-only classify ownership for guidance. The host queries fixed, root-owned DEB and RPM
-database tools with a clean environment, deadline and output bound, and accepts
-exactly one owner for package-specific guidance. This observation never enters
-replacement admission or mutates managed files. The recovery entry point's
-`eligibility` command exposes the same sanitized result without initializing Tauri or
-starting update work, so packaged qualification can exercise the installed binary
-without a display. A pre-exchange failure is retryable; a
-failure after the atomic exchange remains ambiguous and does not launch another
-process. A later launch of the candidate from the exact stable source can cross the
-normal health boundary, verify the retained predecessor backup, and retire the
-staging and apply records. Other platforms retain their inert generic slot until their own adapters
-define a format-specific replacement. The sibling `application_update_helper` defines the
-post-exit revalidation sequence for a dedicated process without accepting paths,
-repository locations, trust roots, candidates or keys in its request. It first
-requires the exact eligible apply-journal revision, then waits up to two minutes for
-the persistent user-scoped application-runtime lock to become exclusively available.
-Using the runtime lock avoids the process-ID race where a fast parent can disappear
-before a child opens its handle and also accounts for other Portcove processes.
-Packaged qualification first proves an unsupported future apply-journal schema, an
-update-state directory without owner write permission, a bounded update-state
-filesystem with zero available bytes, and a bounded stable-AppImage filesystem with
-zero available bytes each fail closed while the predecessor restarts. The state
-fixture leaves every pending byte unchanged. The AppImage fixture leaves the stable
-predecessor and staged candidate exact while advancing only its isolated apply copy
-to a failed launch with the exact attempted replacement identity. It then exercises
-the explicit retry transition, which clears that failed attempt while retaining the
-intent and staged candidate. Each full-filesystem fixture uses a disposable
-`tmpfs`, fills it to an independently measured zero-byte boundary, removes the
-bounded filler, proves writes recover, and unmounts it. It restores only the fixture
-schema or storage condition needed to continue. It then holds the shared lock in
-another process, verifies the helper leaves the stable AppImage and pending state
-unchanged while blocked, and releases the peer so the same helper can
-continue. The helper releases that probe, obtains a newly observed installed context
-and fresh authenticated selection through its host-owned Rust provider, and
-immediately acquires the canonical apply, preference, staging, application and
-library lease.
-The retained and newly observed installed contexts must match. A process that starts
-during the fresh check wins the shared runtime lock and safely defers replacement.
-The exact `--portcove-apply-update <revision>` helper mode is reachable only from
-the host-owned Restart to update command after the current library generation,
-verified staging, saved preference and installed package have been rebound into the
-durable journal. While holding the desktop's library-selection mutex, the parent blocks
-new backend workers and manual application-update checks, refuses workers already in
-flight, and preflights
-the same durable activity and launch-session idle conditions so the restart does not
-knowingly interrupt current-process work. The helper receives no path, URL,
-candidate or key. After the parent
-releases its runtime lease it repeats fresh repository, installed identity, consent,
-staging and quiescence checks, crosses Windows NSIS admission, and records the native
-outcome. It reopens the registered application after success or a failure proven to
-have no live installer, and only after proving that no Portcove runtime peer already
-exists. A child-observation failure remains ambiguous and starts no peer process. The
-later healthy startup remains the only authority that can clear a
-successful attempt. On a later Windows startup, reconciliation
-runs only after the new process holds the application runtime lease, initializes its
-selected library and diagnostics, creates the Tauri application, focuses the main
-window, and restores every retained launch-session observer. It then requires the
-compiled version to equal the retained candidate and one
-exact current-user NSIS registration to report that version and own the running
-executable and uninstaller. The host retires only that exact staged candidate under
-the apply-before-staging lock order; a newer staged candidate is preserved. It clears
-the apply request last, so interruption during cleanup remains restart-reconcilable.
-Installer exit status alone never grants this installed-identity or health proof.
-The adapter-local `application_update_status` command combines sanitized summaries
-of check cadence, a verified staged candidate, and any pending safe-exit or restart
-request. Its apply summary includes the durable `starting`, `started`, `failed`,
-`installer-succeeded` or `installer-failed`
-native-launch state so React can explain why another launch is held without receiving
-host paths or native authority. It never exposes authenticated URLs, signatures,
-payload keys, installed paths or library paths to React, and retained state is never
-described as fresh apply authority. Malformed or future schedule, staging and apply
-journals are reported independently so other readable state remains visible. Each
-fixed recovery action rechecks that its journal is still invalid under that store's
-lock before it clears only that domain; a stale UI action cannot discard state another
-process already repaired. Native automation redirects every updater journal into the
-run's fresh evidence directory.
-The Settings action appears only for a verified staged candidate with no conflicting
-or ambiguous apply attempt. It supplies the current library generation and can reopen
-only a proven `failed` or `installer-failed` attempt; `starting`, legacy `started` and
-`installer-succeeded` remain held for installed-identity reconciliation.
-For production metadata, a sibling host transport accepts only host-selected
-HTTPS bases with separate path prefixes on port 443, resolves and pins public DNS
-results, bypasses proxies, refuses redirects and enforces request, deadline, idle,
-per-role and aggregate byte limits. Its Rust-only request cannot be populated from
-frontend IPC. No production origin, updater check, publication or
-replacement is active. Existing architecture metadata rules continue to forbid
-independent catalog verification in adapters.
+Automatic checks run in release builds only: once shortly after startup and then
+every six hours while the preference is on. A found update is announced through
+the existing `application-update-notice` event and never installed without the
+player's explicit Download and restart request. That request downloads the
+announced package and lets the plugin verify its signature before any bytes are
+returned. Package-managed `.deb` and `.rpm` installations refuse checks and
+installs and point the player to their package manager. The idle preflight runs
+before the download. After verification, `application_update_admission` takes
+the library-selection mutex, blocks new backend workers (game launches included)
+and refuses if any are running, repeats the idle check, then swaps the open
+library for a placeholder, releasing this process's shared library lease, and
+trades its shared application runtime lease for Core's exclusive
+`ApplicationUpdateExclusivityGuard` and `ApplicationUpdateQuiescenceGuard` (the
+exclusive library lease with the idle check repeated under it). These guards are
+held across `Update::install`. Any refusal or install failure drops them,
+reacquires the shared runtime lease and reopens the same library. On Windows the
+plugin flushes diagnostics through `on_before_exit`, starts the per-user NSIS
+installer in passive mode and exits the process while the guards are held; on
+Linux (AppImage) and macOS the worker block stays committed and the library stays
+closed while the exclusive leases are released immediately before the host
+restarts into the replaced build, so no queued launch can run in the exiting
+process.
 
 Offline release tooling reconstructs the host's record inputs from complete raw
 qualified updater inventories, their signature files, frozen run/tree context,
@@ -2477,24 +2203,12 @@ a manual-refresh/polling fallback after setup failure, and keeps recovery outsid
 the query function. Other frontend read owners retain their existing boundaries;
 this integration does not imply a broader state migration.
 
-Application-update preferences use one app-session read owner in
-`features/application-update`. The global choice prompt, transition readback and
-Settings consume that owner; Settings keeps only its unsaved draft and operation
-presentation. Concurrent reads coalesce, Settings entry still refreshes external
-changes, and unchanged snapshots retain identity. Reads racing accepted mutations
-cannot replace them. Fresh host reads and explicit recovery can establish a new
-identity at a lower or equal revision after malformed-state repair; recovery
-invalidates old in-flight reads. Drafts and prompts bind to snapshot identity,
-not just the reusable revision number. Read failures disable preference-dependent controls until
-retry or a successful host mutation supplies current state. This small explicit
-owner does not need a second query cache. Host-side revision checks, trust and
-update eligibility remain authoritative; cached preferences never authorize an
-update. Status and notice streams retain their existing separate owners.
-The application-update Settings component, choice/transition/notice hooks and
-their tests are colocated with that read owner in `features/application-update`.
-App and the remaining legacy Settings composition import the feature directly;
-`use-portcove.ts` no longer owns or re-exports these hooks. The existing shared-to-
-feature import rule applies without adding a second boundary checker.
+Application-update presentation has one owner in `features/application-update`:
+`use-application-update.ts` mirrors the host status event and preferences and
+forwards explicit check, preference and install actions; the Settings section and
+global notice consume it. Hiding the notice is session-only presentation state.
+App imports the feature directly. Host-side feeds, signature checks and library
+admission remain authoritative.
 
 The essential workspace owner accepts catalog, status and source collections from
 one coherent backend snapshot. TanStack structural sharing retains unchanged
@@ -3289,7 +3003,7 @@ Restore consumes its one-use, action/target-bound authorization under the port l
 
 When an update resolves to an artifact already present in the managed library, Portcove compares the verified digest, asset name, and size rather than the display tag. A republished stable, beta, rolling, or direct-manifest tag therefore remains visibly the same version while becoming a distinct update and content-addressed install. Before active/staged/retained reuse, activation, rollback, recovery, or launch, Portcove validates the manifest identity and rehashes the selected executable plus immutable libraries and bootstrap configuration beside it. The same targeted check enumerates the executable directory and rejects new unmanifested libraries, launchers, scripts, reviewed loader-read configuration names, or symlinks before a child can be created. Catalog-declared mutable paths and exact generated metadata remain explicit exclusions; explicit full verification checks every other immutable file and rejects unexpected immutable additions. Managed operations and launch of full-integrity portable runtimes hold only on hazards and report other additions as [unknown player-side files](#unknown-player-side-files); new loader-read configuration beside the executable stays launch-sensitive.
 
-The desktop process shares one release provider across Tauri commands. Successful release and asset selections are cached in memory for five minutes, but every reuse first revalidates current GitHub or GitLab repository metadata; an observed archive rejects the cached selection, and a temporary network failure remains a network failure. Those selector caches retain at most 1,024 entries; a Core test keeps every platform's embedded provider selector slots within half of that bound. Provider JSON is streamed under a 4 MiB per-response limit and parsed before it may replace the library-scoped SQLite conditional cache, which opportunistically retains at most 512 response bodies, 64 MiB, and seven days. `ETag` and `Last-Modified` requests therefore reuse only the last semantically valid body on `304 Not Modified`. Metadata and authentication calls have ten-second connection, fifteen-second read-idle, and sixty-second overall bounds. Provider metadata redirects are rejected; unauthenticated checksum downloads may follow at most five redirects and are streamed under a 1 MiB limit. Checksum and artifact downloads have connection and read-idle protection but no short total deadline, so a progressing large transfer remains possible and cancellable. Within one artifact transfer, Core retries after a dropped response body (a reset or early close, or a partial body that ends cleanly short of its known length), never after a read-idle stall, an error status or a first request that fails before any body. At most five retries run with cancellable back-off from half a second to eight seconds; a reconnect that fails with a transport error other than a timeout consumes one of them. When retries run out, the error is the original body interruption with the retry count and last retry error as details, so that exhaustion path classifies for preserved-location failover exactly as it did before retries existed. A reconnect that instead fails fatally (a read-idle stall, or a status such as 404 or 410) returns that error with its own classification, so an unavailable answer on a reconnect can now trigger preserved-location failover. A retry continues with `Range` only when bytes were received, the first response carried a strong `ETag` (sent as `If-Range`) and the caller supplied an expected SHA-256; a non-empty expected digest is the caller's promise to verify the complete file against it (the catalog download uses the record digest or the known catalog artifact digest). Core appends only a `206` that echoes the same `ETag` and whose `Content-Range` and `Content-Length` continue from the received offset to the end of the same complete length and declared size. A `200` answer, a `416`, a missing or changed validator, an unusable range or a missing expected digest discards the received bytes, truncates the file, reports zero progress and downloads from the start, so different representations are never spliced. The caller's full-file size and SHA-256 verification remains the acceptance for every resumed file. Partial bytes live only in the operation's private download location (install lifecycle staging, the catalog `.portcove-download-*` temporary directory or the PSX toolchain operation root) and are discarded with it; resuming after restart belongs to the durable job authority in #248. GitHub and GitLab release discovery reads at most ten 100-item pages. GitLab package discovery reads the same maximum, then checks at most sixteen packages whose version matches the selected release, with four package-file list requests in flight and at most five 100-file pages per package. Equally scored runnable assets or package links fail as ambiguous, and an aggregate checksum file must name the exact selected asset; only its exact `.sha256` sidecar may contain a bare digest. Core bulk update checking admits at most four provider resolutions at once, returns results in the caller's order, records each activity independently, and never retries a rate-limited item implicitly; CLI and Tauri only translate those outcomes. React generation-gates overlapping refreshes and tracks pending commands independently, so reverse completion cannot replace newer data or clear an unrelated busy state. Gamepad navigation is scoped to the top modal and a single Back stack closes command palette, adoption, then port detail in visual order. A top-level render boundary reports the component failure to Tauri and presents a reload surface without claiming domain failure. Tauri creates the window before opening the library: a startup worker opens and migrates it, recovers pending work, builds the release providers, observes running launches and reconciles a pending application update, and only then publishes the library; automatic update checks start after publication. A panic on the worker publishes a failure instead of leaving the placeholder. Until publication, `get_bootstrap_status` waits, so React keeps its loading surface; domain commands return a `library_initializing` state refusal and library switches or transfers are refused. A selection that replaced the placeholder is never overwritten by the worker. If library opening, migration recovery, or release-provider construction fails, Tauri keeps a typed failed bootstrap state: every domain command returns that error and React shows a retry/recovery surface without exposing library actions.
+The desktop process shares one release provider across Tauri commands. Successful release and asset selections are cached in memory for five minutes, but every reuse first revalidates current GitHub or GitLab repository metadata; an observed archive rejects the cached selection, and a temporary network failure remains a network failure. Those selector caches retain at most 1,024 entries; a Core test keeps every platform's embedded provider selector slots within half of that bound. Provider JSON is streamed under a 4 MiB per-response limit and parsed before it may replace the library-scoped SQLite conditional cache, which opportunistically retains at most 512 response bodies, 64 MiB, and seven days. `ETag` and `Last-Modified` requests therefore reuse only the last semantically valid body on `304 Not Modified`. Metadata and authentication calls have ten-second connection, fifteen-second read-idle, and sixty-second overall bounds. Provider metadata redirects are rejected; unauthenticated checksum downloads may follow at most five redirects and are streamed under a 1 MiB limit. Checksum and artifact downloads have connection and read-idle protection but no short total deadline, so a progressing large transfer remains possible and cancellable. Within one artifact transfer, Core retries after a dropped response body (a reset or early close, or a partial body that ends cleanly short of its known length), never after a read-idle stall, an error status or a first request that fails before any body. At most five retries run with cancellable back-off from half a second to eight seconds; a reconnect that fails with a transport error other than a timeout consumes one of them. When retries run out, the error is the original body interruption with the retry count and last retry error as details, so that exhaustion path classifies for preserved-location failover exactly as it did before retries existed. A reconnect that instead fails fatally (a read-idle stall, or a status such as 404 or 410) returns that error with its own classification, so an unavailable answer on a reconnect can now trigger preserved-location failover. A retry continues with `Range` only when bytes were received, the first response carried a strong `ETag` (sent as `If-Range`) and the caller supplied an expected SHA-256; a non-empty expected digest is the caller's promise to verify the complete file against it (the catalog download uses the record digest or the known catalog artifact digest). Core appends only a `206` that echoes the same `ETag` and whose `Content-Range` and `Content-Length` continue from the received offset to the end of the same complete length and declared size. A `200` answer, a `416`, a missing or changed validator, an unusable range or a missing expected digest discards the received bytes, truncates the file, reports zero progress and downloads from the start, so different representations are never spliced. The caller's full-file size and SHA-256 verification remains the acceptance for every resumed file. Partial bytes live only in the operation's private download location (install lifecycle staging, the catalog `.portcove-download-*` temporary directory or the PSX toolchain operation root) and are discarded with it; resuming after restart belongs to the durable job authority in #248. GitHub and GitLab release discovery reads at most ten 100-item pages. GitLab package discovery reads the same maximum, then checks at most sixteen packages whose version matches the selected release, with four package-file list requests in flight and at most five 100-file pages per package. Equally scored runnable assets or package links fail as ambiguous, and an aggregate checksum file must name the exact selected asset; only its exact `.sha256` sidecar may contain a bare digest. Core bulk update checking admits at most four provider resolutions at once, returns results in the caller's order, records each activity independently, and never retries a rate-limited item implicitly; CLI and Tauri only translate those outcomes. React generation-gates overlapping refreshes and tracks pending commands independently, so reverse completion cannot replace newer data or clear an unrelated busy state. Gamepad navigation is scoped to the top modal and a single Back stack closes command palette, adoption, then port detail in visual order. A top-level render boundary reports the component failure to Tauri and presents a reload surface without claiming domain failure. Tauri creates the window before opening the library: a startup worker opens and migrates it, recovers pending work, builds the release providers and observes running launches, and only then publishes the library; automatic update checks start after publication. A panic on the worker publishes a failure instead of leaving the placeholder. Until publication, `get_bootstrap_status` waits, so React keeps its loading surface; domain commands return a `library_initializing` state refusal and library switches or transfers are refused. A selection that replaced the placeholder is never overwritten by the worker. If library opening, migration recovery, or release-provider construction fails, Tauri keeps a typed failed bootstrap state: every domain command returns that error and React shows a retry/recovery surface without exposing library actions.
 
 Anonymous update-check request cost (measured November 2026 by
 `release::tests::measure_the_request_cost_of_checking_a_library`, which drives the real
