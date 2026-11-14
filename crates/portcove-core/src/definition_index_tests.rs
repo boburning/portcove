@@ -172,7 +172,9 @@ fn enforces_schema_and_all_resource_bounds() {
 #[test]
 fn aggregate_bound_counts_unique_contracts_and_rejects_oversized_inventory() {
     let mut value = json!({"index_schema":1,"definitions":[],"contents":[]});
-    for n in 0..8 {
+    // Fill the aggregate bound exactly with maximum-size targets.
+    assert_eq!(MAX_TOTAL_BYTES % MAX_CONTENT_BYTES, 0);
+    for n in 0..MAX_TOTAL_BYTES / MAX_CONTENT_BYTES {
         let digest = format!("{n:064x}");
         value["contents"].as_array_mut().unwrap().push(json!({
             "target":format!("sha256/{digest}.json"),"sha256":digest,"length":MAX_CONTENT_BYTES
