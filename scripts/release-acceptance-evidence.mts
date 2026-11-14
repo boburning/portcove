@@ -100,6 +100,7 @@ export function inspectReleaseSpdx(value: unknown) {
       (creator) =>
         creator === "Tool: syft-1.54.1" ||
         creator === "Tool: syft-1.55.0" ||
+        creator === "Tool: syft-1.56.0" ||
         creator === reviewedSyftProducer,
     ) ||
     !Array.isArray(value.packages) ||
