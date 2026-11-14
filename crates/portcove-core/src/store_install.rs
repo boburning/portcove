@@ -211,7 +211,17 @@ fn detect_steam(host: &dyn StoreInstallHost, detection: &mut Detection) {
         }
         libraries.push(steamapps);
     };
+    // A client found through two locations (or a link) is read once, so its
+    // listed libraries are neither reread nor counted twice.
+    let mut client_keys = BTreeSet::new();
     for root in host.steam_client_roots() {
+        let key = std::fs::canonicalize(&root).map_or_else(
+            |_| path_key(&root.to_string_lossy()),
+            |canonical| path_key(&canonical.to_string_lossy()),
+        );
+        if !client_keys.insert(key) {
+            continue;
+        }
         push_library(&root, false, detection);
         let folders = root.join("steamapps").join("libraryfolders.vdf");
         if !folders.exists() {
