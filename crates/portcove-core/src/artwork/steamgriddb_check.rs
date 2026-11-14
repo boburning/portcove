@@ -93,6 +93,27 @@ pub struct SteamGridDbImageCheck {
     /// When a verified listing first lacked this image, as recorded in the
     /// library after this check; cleared only by a later observed listing.
     pub not_listed_since: Option<i64>,
+    /// What recording this result changed; `none` when the check was not recorded.
+    pub effect: SteamGridDbCheckEffect,
+}
+
+/// What recording one image's result changed in the library.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum SteamGridDbCheckEffect {
+    /// Nothing beyond the recorded evidence.
+    #[default]
+    None,
+    /// The image is now confirmed withdrawn: a second signal followed an
+    /// earlier absence. The stored copy is kept, because another credit or the
+    /// player's own import still stands behind it.
+    Withdrawn,
+    /// The image is confirmed withdrawn and Portcove removed its copy. The
+    /// choice and the credit are kept.
+    Removed,
+    /// The image was confirmed withdrawn before and is now listed again; a
+    /// removed copy comes back only when the player chooses it again.
+    ListedAgain,
 }
 
 /// Why a check ended before every group was read.
@@ -111,7 +132,7 @@ pub enum SteamGridDbCheckStop {
     Cancelled,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct SteamGridDbListingReport {
     pub checked_at: i64,
@@ -120,6 +141,18 @@ pub struct SteamGridDbListingReport {
     /// Whether these results were recorded in the library. A cancelled check, or
     /// one whose recording failed, still reports what it saw.
     pub recorded: bool,
+    /// Attempted results that could not be written and stay unrecorded; they are
+    /// checked again first next time.
+    pub skipped: u32,
+    /// Copies of withdrawn images removed from the library during this check,
+    /// including removals left over from earlier checks.
+    pub removed: u32,
+    /// Removals left for the next check, export or move because one check
+    /// removes a bounded number while it holds the library.
+    pub removal_deferred: u32,
+    /// Removals that failed, usually because another program holds the file.
+    /// Portcove no longer shows or hands out these copies.
+    pub removal_failed: u32,
 }
 
 /// One stored provider record and the decoded facts of its image.
@@ -166,17 +199,19 @@ pub(crate) fn check_stored_listings(
     subjects: Vec<CheckSubject>,
     now: i64,
     cancelled: &dyn Fn() -> bool,
-) -> Result<SteamGridDbListingReport> {
+) -> Result<ListingRun> {
     if subjects.is_empty() {
         return Ok(SteamGridDbListingReport {
             checked_at: now,
             images: Vec::new(),
             stopped: None,
             recorded: true,
-        });
+            ..SteamGridDbListingReport::default()
+        }
+        .into());
     }
     with_key(|key| {
-        Ok(check_listings(
+        Ok(check_listings_dated(
             &HttpTransport,
             key,
             subjects,
@@ -295,6 +330,45 @@ impl Budget<'_> {
     }
 }
 
+/// SteamGridDB's own `Date` across the responses one image's listing was read
+/// from. The withdrawal rule compares it with the stored first absence, so a
+/// local clock running ahead cannot shorten the 24-hour wait.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct ServerDates {
+    pub(crate) earliest: i64,
+    pub(crate) latest: i64,
+}
+
+impl ServerDates {
+    fn merge(left: Option<Self>, right: Option<Self>) -> Option<Self> {
+        match (left, right) {
+            (Some(left), Some(right)) => Some(Self {
+                earliest: left.earliest.min(right.earliest),
+                latest: left.latest.max(right.latest),
+            }),
+            (left, right) => left.or(right),
+        }
+    }
+}
+
+/// A check's report with the per-image server dates the recording step needs.
+/// The dates are internal: they never appear in the report a host shows.
+pub(crate) struct ListingRun {
+    pub(crate) report: SteamGridDbListingReport,
+    /// One entry per image, in report order.
+    pub(crate) server_dates: Vec<Option<ServerDates>>,
+}
+
+impl From<SteamGridDbListingReport> for ListingRun {
+    fn from(report: SteamGridDbListingReport) -> Self {
+        let server_dates = vec![None; report.images.len()];
+        Self {
+            report,
+            server_dates,
+        }
+    }
+}
+
 /// One group's listing as far as this run got.
 struct GroupListing {
     /// Every ID of a complete, verified listing, or why there is none.
@@ -302,6 +376,8 @@ struct GroupListing {
     /// IDs seen on pages that passed the envelope checks.
     observed: HashSet<u64>,
     total: Option<u64>,
+    /// SteamGridDB's `Date` on the answered pages, when it sent a readable one.
+    dates: Option<ServerDates>,
     /// Whether at least one request was issued for this listing.
     requested: bool,
     stop: Option<SteamGridDbCheckStop>,
@@ -315,6 +391,7 @@ impl GroupListing {
     }
 }
 
+#[cfg(test)]
 pub(crate) fn check_listings(
     transport: &impl SteamGridDbTransport,
     key: &str,
@@ -322,6 +399,16 @@ pub(crate) fn check_listings(
     control: CheckControl<'_>,
     now: i64,
 ) -> SteamGridDbListingReport {
+    check_listings_dated(transport, key, subjects, control, now).report
+}
+
+pub(crate) fn check_listings_dated(
+    transport: &impl SteamGridDbTransport,
+    key: &str,
+    subjects: Vec<CheckSubject>,
+    control: CheckControl<'_>,
+    now: i64,
+) -> ListingRun {
     use SteamGridDbListingResult as Result_;
     use SteamGridDbUnknownReason as Reason;
     let mut budget = Budget {
@@ -359,6 +446,7 @@ pub(crate) fn check_listings(
     ];
     let mut attempted = vec![false; subjects.len()];
     let mut totals = vec![None; subjects.len()];
+    let mut dates = vec![None; subjects.len()];
     let mut corroborations: HashMap<ListingQuery, GroupListing> = HashMap::new();
     let mut stopped = None;
     let mut unavailable = 0;
@@ -385,6 +473,8 @@ pub(crate) fn check_listings(
             let asset_id = subjects[index].attribution.asset_id;
             attempted[index] = listing.attempted() && !corroboration_cut_off;
             totals[index] = listing.total;
+            dates[index] =
+                ServerDates::merge(listing.dates, corroboration.and_then(|other| other.dates));
             let observed = listing.observed.contains(&asset_id)
                 || corroboration.is_some_and(|other| other.observed.contains(&asset_id));
             listings[index] = if observed {
@@ -422,30 +512,40 @@ pub(crate) fn check_listings(
         }
     }
     let mut sources = vec![SteamGridDbSourceStatus::NotChecked; subjects.len()];
-    'probes: for (_, members) in &ordered {
-        for &index in members.iter() {
-            if stopped.is_some() {
-                break 'probes;
-            }
-            let probe = matches!(
+    // A probe can confirm a withdrawal only beside a verified absence in the same
+    // report, so absences are probed first, stalest first; the rest only inform.
+    let mut probes: Vec<usize> = ordered
+        .iter()
+        .flat_map(|(_, members)| members.iter().copied())
+        .filter(|&index| {
+            matches!(
                 listings[index],
                 Result_::NotListed
                     | Result_::Unknown {
                         reason: Reason::GameNotFound | Reason::EmptyListing
                     }
-            );
-            if probe {
-                let (status, stop) = probe_source(
-                    transport,
-                    &subjects[index].attribution.source_url,
-                    &mut budget,
-                );
-                sources[index] = status;
-                stopped = stop;
-            }
+            )
+        })
+        .collect();
+    probes.sort_by_key(|&index| {
+        (
+            listings[index] != Result_::NotListed,
+            subjects[index].last_checked_at,
+        )
+    });
+    for index in probes {
+        if stopped.is_some() {
+            break;
         }
+        let (status, stop) = probe_source(
+            transport,
+            &subjects[index].attribution.source_url,
+            &mut budget,
+        );
+        sources[index] = status;
+        stopped = stop;
     }
-    SteamGridDbListingReport {
+    let report = SteamGridDbListingReport {
         checked_at: now,
         images: subjects
             .into_iter()
@@ -458,10 +558,16 @@ pub(crate) fn check_listings(
                 listing_total: totals[index],
                 source: sources[index],
                 not_listed_since: None,
+                effect: SteamGridDbCheckEffect::None,
             })
             .collect(),
         stopped,
         recorded: false,
+        ..SteamGridDbListingReport::default()
+    };
+    ListingRun {
+        report,
+        server_dates: dates,
     }
 }
 
@@ -476,6 +582,7 @@ fn verified_listing(
         outcome: Err(Reason::IncompleteListing),
         observed: HashSet::new(),
         total: None,
+        dates: None,
         requested: false,
         stop: None,
     };
@@ -515,6 +622,13 @@ fn verified_listing(
             500..=599 => return unknown(listing, Reason::Unavailable),
             _ => return unknown(listing, Reason::InvalidResponse),
         }
+        listing.dates = ServerDates::merge(
+            listing.dates,
+            server_date(response.date.as_deref()).map(|date| ServerDates {
+                earliest: date,
+                latest: date,
+            }),
+        );
         let Some(page_listing) = parse_page(&response.body, page) else {
             return unknown(listing, Reason::InvalidResponse);
         };

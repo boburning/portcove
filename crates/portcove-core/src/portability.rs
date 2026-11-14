@@ -107,6 +107,9 @@ impl PortcoveService {
         let parent = destination
             .parent()
             .ok_or_else(|| PortcoveError::usage("metadata export needs a filename"))?;
+        // Removed originals must not travel; any removal still pending is
+        // finished now, or the export stops with the next step.
+        crate::artwork_eviction::prepare_transfer(self.library())?;
         let bytes = serde_json::to_vec_pretty(&self.export_library_metadata()?)?;
         let mut temporary = tempfile::NamedTempFile::new_in(parent)?;
         temporary.write_all(&bytes)?;

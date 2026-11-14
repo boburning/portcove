@@ -277,7 +277,7 @@ internal static class ContractTests
             .Cast<string>().Concat(new[] { "artwork.handoff", "artwork.handoff-bytes" }).ToArray();
         ProtocolStream.Negotiate(artworkAdditive, ConsumerCapability.Library);
         Check(true, "existing library reader accepts optional artwork handoff without consuming it");
-        foreach (var publicSchema in new[] { 42, 57, 60, 63, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92 })
+        foreach (var publicSchema in new[] { 42, 57, 60, 63, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93 })
         {
             var supported = Json.Object(Json.Parse(Json.Print(Capabilities())));
             supported["schema_version"] = publicSchema;
@@ -285,7 +285,7 @@ internal static class ContractTests
             ProtocolStream.Negotiate(supported, ConsumerCapability.Library);
             Check(true, "public schema " + publicSchema + " negotiated");
         }
-        foreach (var publicSchema in new[] { 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92 })
+        foreach (var publicSchema in new[] { 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93 })
         {
             var relink = Json.Object(Json.Parse(Json.Print(Capabilities())));
             relink["schema_version"] = publicSchema;
@@ -359,6 +359,12 @@ internal static class ContractTests
         stream92.Line(Json.Print(result92));
         Check(Json.Array(stream92.Finish(0)).Length == 0,
             "schema 92 records SteamGridDB listing evidence without changing status semantics");
+        var result93 = Json.Object(Json.Parse(Result("status", new object[0])));
+        result93["schema_version"] = 93;
+        var stream93 = new ProtocolStream("status");
+        stream93.Line(Json.Print(result93));
+        Check(Json.Array(stream93.Finish(0)).Length == 0,
+            "schema 93 removes withdrawn SteamGridDB copies without changing status semantics");
         var descriptive88 = Json.Object(Json.Parse(Json.Print(Capabilities())));
         descriptive88["schema_version"] = 88;
         descriptive88["port_capability_schema"] = 1;
@@ -385,7 +391,7 @@ internal static class ContractTests
             "API83 is not an operation-event version");
         ProtocolStream.Negotiate(independent83, ConsumerCapability.Library);
         Check(true, "API83 library reader does not require an unused event channel or comparison command");
-        foreach (var privateSchema in new[] { 58, 59, 64, 93 })
+        foreach (var privateSchema in new[] { 58, 59, 64, 94 })
         {
             var unsupported = Json.Object(Json.Parse(Json.Print(Capabilities())));
             unsupported["schema_version"] = privateSchema;
@@ -582,7 +588,7 @@ internal static class ContractTests
         bad["schema_version"] = 80;
         ProtocolStream.Negotiate(bad, ConsumerCapability.LaunchOnly);
         Check(true, "explicit user-selected execution keeps launch decisions in Core");
-        bad["schema_version"] = 93;
+        bad["schema_version"] = 94;
         Reject(() => ProtocolStream.Negotiate(bad), "unknown schema beyond the supported execution contract rejected");
         bad["schema_version"] = 42; bad["commands"] = new object[0];
         Reject(() => ProtocolStream.Negotiate(bad), "missing command capability rejected");
@@ -677,7 +683,7 @@ internal static class ContractTests
         {
             var real = new PublicCli(args[0], args[1]); await real.Connect();
             var capabilities = await real.Read("capabilities", "capabilities");
-            Check(real.ApiSchemaVersion == 92 && Json.Array(Json.Field(capabilities, "engine_templates"))
+            Check(real.ApiSchemaVersion == 93 && Json.Array(Json.Field(capabilities, "engine_templates"))
                 .Any(template => Json.Text(template, "template") == "staged-source-portable"
                     && Json.Number(template, "contract_version") == 18),
                 "compiled API88 producer advertises the prepared directory contract through the actual client");
@@ -942,12 +948,12 @@ internal static class ContractTests
         capabilities["schema_version"] = 73;
         Check(ProtocolStream.SupportsReviewedExternal(capabilities), "shared-directory schema preserves reviewed external flow");
         capabilities["commands"] = new[] { "external", "external.review", "external.relink" };
-        foreach (var supportedRelinkSchema in new[] { 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92 })
+        foreach (var supportedRelinkSchema in new[] { 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93 })
         {
             capabilities["schema_version"] = supportedRelinkSchema;
             Check(ProtocolStream.SupportsExternalRelink(capabilities), "known relink schema preserves reviewed folder change");
         }
-        foreach (var unsupportedRelinkSchema in new[] { 71, 93 })
+        foreach (var unsupportedRelinkSchema in new[] { 71, 94 })
         {
             capabilities["schema_version"] = unsupportedRelinkSchema;
             Check(!ProtocolStream.SupportsExternalRelink(capabilities), "older and unknown relink schemas are refused");
@@ -987,7 +993,7 @@ internal static class ContractTests
         biosReadiness["blockers"] = new object[0];
         Reject(() => PortActions.ValidateStatus(biosStatus, 69), "legacy recovery schema independently rejects the new BIOS action reason");
         Reject(() => PortActions.ValidateStatus(biosStatus, 68), "schema68 rejects the new BIOS action reason even without new readiness fields");
-        foreach (var unsupported in new[] { 42, 57, 58, 59, 60, 63, 64, 65, 66, 93 })
+        foreach (var unsupported in new[] { 42, 57, 58, 59, 60, 63, 64, 65, 66, 94 })
         {
             capabilities["schema_version"] = unsupported;
             Check(!ProtocolStream.SupportsReviewedExternal(capabilities), "review capability cannot enable unsupported external contract " + unsupported);

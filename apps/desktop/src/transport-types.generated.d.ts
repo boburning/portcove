@@ -287,6 +287,10 @@ export type SteamGridDbUnknownReason =
   | "unavailable"
   | "invalid_response";
 /**
+ * The second signal that confirmed a withdrawal after a first absence.
+ */
+export type ArtworkWithdrawalSignal = "gone" | "absent_again";
+/**
  * The source core resolves for one slot before a client attempts to transport
  * or render it. A client can still display the generated fallback if a
  * resolved image cannot be retrieved, decoded or presented safely.
@@ -1904,6 +1908,12 @@ export interface OutputArtworkState {
   attribution: ArtworkAttribution[];
   availability: ArtworkAvailability;
   choice: ArtworkChoice;
+  /**
+   * When Portcove removed the selected image's stored copy because every
+   * provider that supplied it confirmed a withdrawal. The choice and the
+   * credit stay; choosing the image again restores the copy.
+   */
+  evicted_at: number | null;
   generated_fallback: GeneratedArtworkFallback;
   /**
    * Recorded listing evidence for the credited images; empty until an image
@@ -1948,8 +1958,9 @@ export interface GeneratedArtworkFallback {
   style_version: number;
 }
 /**
- * Recorded evidence of whether a provider still lists a credited image. It is
- * an observation, not an action: nothing is removed because of it.
+ * Recorded evidence of whether a provider still lists a credited image. A
+ * confirmed withdrawal (`withdrawn_at`) can remove a provider-only copy; see
+ * [`ArtworkState::evicted_at`].
  */
 export interface ArtworkProviderListing {
   asset_id: number;
@@ -1964,6 +1975,12 @@ export interface ArtworkProviderListing {
    */
   not_listed_since: number | null;
   provider: ArtworkProvider;
+  withdrawal_signal: ArtworkWithdrawalSignal | null;
+  /**
+   * When a later check confirmed the withdrawal; cleared when the image is
+   * seen listed again or chosen again.
+   */
+  withdrawn_at: number | null;
 }
 /**
  * Maintainer-reviewed catalog mapping. These public IDs never contain Twitch
@@ -4243,6 +4260,11 @@ export interface ArtworkMetadata {
   assets: LocalArtworkAsset[];
   choices: ArtworkChoice[];
   /**
+   * Provider-only assets whose originals Portcove removed after every record
+   * was withdrawn. Their files are not carried; schema 10.
+   */
+  evicted_assets?: ArtworkEvictedAsset[];
+  /**
    * Assets that exist only because a provider image was chosen; no local import
    * of the same bytes was made. Present only under library metadata schema 8.
    */
@@ -4251,10 +4273,25 @@ export interface ArtworkMetadata {
    * Provider provenance; present only under library metadata schema 8.
    */
   providers?: ArtworkProviderRecord[];
+  /**
+   * Confirmed withdrawals of provider records; library metadata schema 10.
+   */
+  withdrawals?: ArtworkWithdrawalRecord[];
+}
+export interface ArtworkEvictedAsset {
+  asset_sha256: string;
+  evicted_at: number;
 }
 export interface ArtworkProviderRecord {
   asset_sha256: string;
   attribution: ArtworkAttribution;
+}
+export interface ArtworkWithdrawalRecord {
+  asset_id: number;
+  asset_sha256: string;
+  provider: ArtworkProvider;
+  signal: ArtworkWithdrawalSignal;
+  withdrawn_at: number;
 }
 export interface LibraryContentRoot {
   kind: LibraryContentKind;
@@ -5846,6 +5883,26 @@ export interface OutputSteamgriddbListingReport {
    * one whose recording failed, still reports what it saw.
    */
   recorded: boolean;
+  /**
+   * Removals left for the next check, export or move because one check
+   * removes a bounded number while it holds the library.
+   */
+  removal_deferred: number;
+  /**
+   * Removals that failed, usually because another program holds the file.
+   * Portcove no longer shows or hands out these copies.
+   */
+  removal_failed: number;
+  /**
+   * Copies of withdrawn images removed from the library during this check,
+   * including removals left over from earlier checks.
+   */
+  removed: number;
+  /**
+   * Attempted results that could not be written and stay unrecorded; they are
+   * checked again first next time.
+   */
+  skipped: number;
   stopped: SteamGridDbCheckStop | null;
 }
 export interface SteamGridDbImageCheck {
@@ -5856,6 +5913,10 @@ export interface SteamGridDbImageCheck {
    */
   attempted: boolean;
   attribution: ArtworkAttribution;
+  /**
+   * What recording this result changed; `none` when the check was not recorded.
+   */
+  effect: "none" | "withdrawn" | "removed" | "listed_again";
   listing: SteamGridDbListingResult;
   /**
    * The `total` SteamGridDB reported for the image's listing, when one was read.

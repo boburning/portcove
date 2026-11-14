@@ -194,6 +194,79 @@ pub(crate) fn verify_listing_checks(connection: &Connection) -> Result<()> {
     Ok(())
 }
 
+/// Library migration 59: withdrawals and evictions. A withdrawal is decided only
+/// when a check applies its observation, and an applied listing deletes it, so the
+/// rows always follow the latest verified evidence. An eviction marker names an
+/// asset whose original Portcove removed; its record and choice stay.
+pub(crate) const WITHDRAWALS_TABLE: &str = "CREATE TABLE artwork_provider_withdrawals (
+            asset_sha256 TEXT NOT NULL,
+            provider TEXT NOT NULL CHECK(provider IN ('steamgriddb')),
+            asset_id INTEGER NOT NULL CHECK(asset_id>0),
+            withdrawn_at INTEGER NOT NULL CHECK(withdrawn_at>0),
+            signal TEXT NOT NULL CHECK(signal IN ('gone','absent_again')),
+            PRIMARY KEY(asset_sha256,provider,asset_id),
+            FOREIGN KEY(asset_sha256,provider,asset_id) REFERENCES artwork_asset_providers(asset_sha256,provider,asset_id) ON DELETE CASCADE
+        )";
+
+/// The marker requires the provider-only marker. The default `NO ACTION` keeps
+/// that enforced at statement end while staying deferrable for table rebuilds.
+pub(crate) const EVICTED_ASSETS_TABLE: &str = "CREATE TABLE artwork_evicted_assets (
+            asset_sha256 TEXT PRIMARY KEY NOT NULL,
+            evicted_at INTEGER NOT NULL CHECK(evicted_at>0),
+            FOREIGN KEY(asset_sha256) REFERENCES artwork_provider_only_assets(asset_sha256)
+        )";
+
+const SERVER_ABSENCE_COLUMN: &str = "not_listed_since_server INTEGER CHECK(not_listed_since_server IS NULL OR not_listed_since_server>0)";
+
+pub(crate) fn migrate_withdrawals(transaction: &Transaction<'_>) -> Result<()> {
+    transaction.execute_batch(WITHDRAWALS_TABLE)?;
+    transaction.execute_batch(EVICTED_ASSETS_TABLE)?;
+    transaction.execute_batch(&format!(
+        "ALTER TABLE artwork_provider_listing_checks ADD COLUMN {SERVER_ABSENCE_COLUMN}"
+    ))?;
+    Ok(())
+}
+
+fn table_definition(connection: &Connection, name: &str) -> Result<Option<String>> {
+    Ok(connection
+        .query_row(
+            "SELECT sql FROM sqlite_master WHERE type='table' AND name=?1",
+            [name],
+            |row| row.get(0),
+        )
+        .optional()?)
+}
+
+/// Checked on migration and every later open; definitions only, never data.
+pub(crate) fn verify_withdrawals(connection: &Connection) -> Result<()> {
+    let complete = |name: &str, required: &[&str]| -> Result<bool> {
+        Ok(table_definition(connection, name)?
+            .is_some_and(|sql| required.iter().all(|clause| sql.contains(clause))))
+    };
+    if !complete(
+        "artwork_provider_withdrawals",
+        &[
+            "PRIMARY KEY(asset_sha256,provider,asset_id)",
+            "FOREIGN KEY(asset_sha256,provider,asset_id) REFERENCES artwork_asset_providers(asset_sha256,provider,asset_id) ON DELETE CASCADE",
+            "CHECK(signal IN ('gone','absent_again'))",
+            "CHECK(withdrawn_at>0)",
+        ],
+    )? || !complete(
+        "artwork_evicted_assets",
+        &[
+            "asset_sha256 TEXT PRIMARY KEY NOT NULL",
+            "FOREIGN KEY(asset_sha256) REFERENCES artwork_provider_only_assets(asset_sha256)",
+            "CHECK(evicted_at>0)",
+        ],
+    )? || !complete("artwork_provider_listing_checks", &[SERVER_ABSENCE_COLUMN])?
+    {
+        return Err(PortcoveError::state(
+            "artwork withdrawals are missing or incomplete",
+        ));
+    }
+    Ok(())
+}
+
 /// One provider record's stored listing evidence.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct ListingCheckRow {
@@ -209,11 +282,15 @@ pub(crate) struct ListingCheckRow {
     /// The first verified absence, kept until an observed listing clears it.
     pub(crate) not_listed_since: Option<i64>,
     pub(crate) last_listing_total: Option<u64>,
-    /// `served`, `gone` or `unknown`; kept until a newer probe answers.
+    /// `served`, `gone` or `unknown`; kept until a newer probe answers. It is
+    /// informational: only a probe in the same check can confirm a withdrawal.
     pub(crate) last_source_status: Option<String>,
+    /// SteamGridDB's own `Date` for the first absence, so the 24-hour wait holds
+    /// by its clock as well as Portcove's.
+    pub(crate) not_listed_since_server: Option<i64>,
 }
 
-const LISTING_CHECK_COLUMNS: &str = "asset_sha256,asset_id,revision,last_checked_at,last_result,unknown_reason,not_listed_since,last_listing_total,last_source_status";
+const LISTING_CHECK_COLUMNS: &str = "asset_sha256,asset_id,revision,last_checked_at,last_result,unknown_reason,not_listed_since,last_listing_total,last_source_status,not_listed_since_server";
 
 fn listing_check_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<ListingCheckRow> {
     Ok(ListingCheckRow {
@@ -226,6 +303,7 @@ fn listing_check_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<ListingCheckRo
         not_listed_since: row.get(6)?,
         last_listing_total: row.get(7)?,
         last_source_status: row.get(8)?,
+        not_listed_since_server: row.get(9)?,
     })
 }
 
@@ -291,6 +369,7 @@ pub(crate) fn asset_listing_evidence(
                     not_listed_since: row.get(7)?,
                     last_listing_total: row.get(8)?,
                     last_source_status: row.get(9)?,
+                    not_listed_since_server: row.get(10)?,
                 },
             ))
         })?
@@ -300,6 +379,7 @@ pub(crate) fn asset_listing_evidence(
             "artwork asset has too many listing checks",
         ));
     }
+    let withdrawals = asset_withdrawals(connection, asset_sha256)?;
     rows.into_iter()
         .map(|(provider, row)| {
             let provider = match provider.as_str() {
@@ -327,12 +407,28 @@ pub(crate) fn asset_listing_evidence(
                     ));
                 }
             };
+            let withdrawal = withdrawals
+                .iter()
+                .find(|(key, withdrawal)| {
+                    key == provider.key() && withdrawal.asset_id == row.asset_id
+                })
+                .map(|(_, withdrawal)| withdrawal);
             Ok(crate::ArtworkProviderListing {
                 provider,
                 asset_id: row.asset_id,
                 last_checked_at: row.last_checked_at,
                 last_result,
                 not_listed_since: row.not_listed_since,
+                withdrawn_at: withdrawal.map(|withdrawal| withdrawal.withdrawn_at),
+                withdrawal_signal: withdrawal
+                    .map(|withdrawal| match withdrawal.signal.as_str() {
+                        "gone" => Ok(crate::ArtworkWithdrawalSignal::Gone),
+                        "absent_again" => Ok(crate::ArtworkWithdrawalSignal::AbsentAgain),
+                        _ => Err(PortcoveError::verification(
+                            "artwork withdrawal has an unknown signal",
+                        )),
+                    })
+                    .transpose()?,
             })
         })
         .collect()
@@ -359,8 +455,13 @@ pub(crate) fn mark_listed_on_choose(
             last_result='listed',
             unknown_reason=NULL,
             not_listed_since=NULL,
-            last_source_status=NULL",
+            last_source_status=NULL,
+            not_listed_since_server=NULL",
         params![asset_sha256, provider.key(), asset_id, now.max(1), revision],
+    )?;
+    connection.execute(
+        "DELETE FROM artwork_provider_withdrawals WHERE asset_sha256=?1 AND provider=?2 AND asset_id=?3",
+        params![asset_sha256, provider.key(), asset_id],
     )?;
     Ok(())
 }
@@ -373,13 +474,62 @@ pub(crate) struct ListingObservation<'a> {
     pub(crate) total: Option<u64>,
     /// `served`, `gone` or `unknown`; `None` when the source was not probed.
     pub(crate) source: Option<&'a str>,
+    /// SteamGridDB's `Date` across this listing's responses, when readable.
+    pub(crate) server_dates: Option<(i64, i64)>,
+}
+
+/// How long a first absence must stand, by both clocks, before a second
+/// verified absence confirms a withdrawal.
+pub(crate) const WITHDRAWAL_WAIT_SECONDS: i64 = 24 * 60 * 60;
+
+/// What applying one observation did.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Applied {
+    /// The record changed or was removed during the check; nothing was written.
+    Skipped,
+    Recorded(WithdrawalChange),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum WithdrawalChange {
+    Unchanged,
+    /// This observation confirmed the withdrawal.
+    Withdrawn,
+    /// An observed listing cleared an earlier withdrawal.
+    Cleared,
+}
+
+/// The withdrawal rule, decided only from the observation being applied:
+/// a verified absence (`not_listed`) plus either a `gone` answer from a probe
+/// in the same check, or an earlier absence that has stood for 24 hours by both
+/// Portcove's clock and SteamGridDB's `Date`. An unknown result, a probe from an
+/// earlier check, or a missing date can never confirm one.
+fn withdrawal_signal(
+    observation: &ListingObservation<'_>,
+    previous: Option<&ListingCheckRow>,
+    now: i64,
+) -> Option<&'static str> {
+    if observation.result != "not_listed" {
+        return None;
+    }
+    if observation.source == Some("gone") {
+        return Some("gone");
+    }
+    let first = previous?.not_listed_since?;
+    let first_server = previous?.not_listed_since_server?;
+    let (earliest, _) = observation.server_dates?;
+    (now.checked_sub(first)? >= WITHDRAWAL_WAIT_SECONDS
+        && earliest.checked_sub(first_server)? >= WITHDRAWAL_WAIT_SECONDS)
+        .then_some("absent_again")
 }
 
 /// Applies one observation only if the record still exists and its stored
 /// `revision` is still the one the check started from, so a choice,
-/// removal or concurrent check in between is never overwritten. Returns whether
-/// it applied. An absence keeps its first time; only an observed listing clears it;
-/// an unknown result never sets or clears it.
+/// removal or concurrent check in between is never overwritten. An absence keeps
+/// its first time; only an observed listing clears it; an unknown result never
+/// sets or clears it. A withdrawal is recorded only by [`withdrawal_signal`] and
+/// deleted by an observed listing, so stored withdrawals follow the latest
+/// verified evidence.
 pub(crate) fn apply_listing_check(
     connection: &Connection,
     provider: crate::ArtworkProvider,
@@ -388,28 +538,35 @@ pub(crate) fn apply_listing_check(
     expected_revision: Option<u64>,
     observation: &ListingObservation<'_>,
     now: i64,
-) -> Result<bool> {
+) -> Result<Applied> {
     let record_exists: bool = connection.query_row(
         "SELECT EXISTS(SELECT 1 FROM artwork_asset_providers WHERE asset_sha256=?1 AND provider=?2 AND asset_id=?3)",
         params![asset_sha256, provider.key(), asset_id],
         |row| row.get(0),
     )?;
     if !record_exists {
-        return Ok(false);
+        return Ok(Applied::Skipped);
     }
     let current = listing_check(connection, provider, asset_sha256, asset_id)?;
     if current.as_ref().map(|row| row.revision) != expected_revision {
-        return Ok(false);
+        return Ok(Applied::Skipped);
     }
     let previous_absence = current.as_ref().and_then(|row| row.not_listed_since);
-    let not_listed_since = match observation.result {
-        "listed" => None,
-        "not_listed" => Some(previous_absence.unwrap_or(now)),
-        "unknown" => previous_absence,
+    let previous_server = current.as_ref().and_then(|row| row.not_listed_since_server);
+    let (not_listed_since, not_listed_since_server) = match observation.result {
+        "listed" => (None, None),
+        // The server date is filled by the first absence that carries one, so
+        // a row without it (an older check, or no readable `Date`) catches up.
+        "not_listed" => (
+            Some(previous_absence.unwrap_or(now)),
+            previous_server.or(observation.server_dates.map(|(_, latest)| latest)),
+        ),
+        "unknown" => (previous_absence, previous_absence.and(previous_server)),
         _ => {
             return Err(PortcoveError::state("unknown artwork listing result"));
         }
     };
+    let signal = withdrawal_signal(observation, current.as_ref(), now);
     let source = match observation.source {
         // An observed listing supersedes any earlier source answer.
         _ if observation.result == "listed" => None,
@@ -429,8 +586,8 @@ pub(crate) fn apply_listing_check(
         .or_else(|| current.as_ref().and_then(|row| row.last_listing_total));
     let revision = next_listing_revision(connection)?;
     connection.execute(
-        "INSERT INTO artwork_provider_listing_checks(asset_sha256,provider,asset_id,revision,last_checked_at,last_result,unknown_reason,not_listed_since,last_listing_total,last_source_status)
-         VALUES (?1,?2,?3,?10,?4,?5,?6,?7,?8,?9)
+        "INSERT INTO artwork_provider_listing_checks(asset_sha256,provider,asset_id,revision,last_checked_at,last_result,unknown_reason,not_listed_since,last_listing_total,last_source_status,not_listed_since_server)
+         VALUES (?1,?2,?3,?10,?4,?5,?6,?7,?8,?9,?11)
          ON CONFLICT(asset_sha256,provider,asset_id) DO UPDATE SET
             revision=excluded.revision,
             last_checked_at=excluded.last_checked_at,
@@ -438,7 +595,8 @@ pub(crate) fn apply_listing_check(
             unknown_reason=excluded.unknown_reason,
             not_listed_since=excluded.not_listed_since,
             last_listing_total=excluded.last_listing_total,
-            last_source_status=excluded.last_source_status",
+            last_source_status=excluded.last_source_status,
+            not_listed_since_server=excluded.not_listed_since_server",
         params![
             asset_sha256,
             provider.key(),
@@ -450,9 +608,139 @@ pub(crate) fn apply_listing_check(
             total,
             source,
             revision,
+            not_listed_since_server,
         ],
     )?;
-    Ok(true)
+    let change = if observation.result == "listed" {
+        let cleared = connection.execute(
+            "DELETE FROM artwork_provider_withdrawals WHERE asset_sha256=?1 AND provider=?2 AND asset_id=?3",
+            params![asset_sha256, provider.key(), asset_id],
+        )?;
+        if cleared > 0 {
+            WithdrawalChange::Cleared
+        } else {
+            WithdrawalChange::Unchanged
+        }
+    } else if let Some(signal) = signal {
+        // An existing withdrawal keeps its first confirmation.
+        let inserted = connection.execute(
+            "INSERT INTO artwork_provider_withdrawals(asset_sha256,provider,asset_id,withdrawn_at,signal)
+             VALUES (?1,?2,?3,?4,?5) ON CONFLICT DO NOTHING",
+            params![asset_sha256, provider.key(), asset_id, now.max(1), signal],
+        )?;
+        if inserted > 0 {
+            WithdrawalChange::Withdrawn
+        } else {
+            WithdrawalChange::Unchanged
+        }
+    } else {
+        WithdrawalChange::Unchanged
+    };
+    Ok(Applied::Recorded(change))
+}
+
+/// One confirmed withdrawal of a provider record.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct WithdrawalRow {
+    pub(crate) asset_id: u64,
+    pub(crate) withdrawn_at: i64,
+    /// `gone` or `absent_again`.
+    pub(crate) signal: String,
+}
+
+pub(crate) fn asset_withdrawals(
+    connection: &Connection,
+    asset_sha256: &str,
+) -> Result<Vec<(String, WithdrawalRow)>> {
+    let mut statement = connection.prepare(&format!(
+        "SELECT provider,asset_id,withdrawn_at,signal FROM artwork_provider_withdrawals WHERE asset_sha256=?1 ORDER BY provider,asset_id LIMIT {}",
+        MAX_PROVIDER_RECORDS_PER_ASSET + 1
+    ))?;
+    let rows = statement
+        .query_map([asset_sha256], |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                WithdrawalRow {
+                    asset_id: row.get(1)?,
+                    withdrawn_at: row.get(2)?,
+                    signal: row.get(3)?,
+                },
+            ))
+        })?
+        .collect::<std::result::Result<Vec<_>, _>>()?;
+    if rows.len() > MAX_PROVIDER_RECORDS_PER_ASSET {
+        return Err(PortcoveError::verification(
+            "artwork asset has too many withdrawals",
+        ));
+    }
+    Ok(rows)
+}
+
+/// Whether an asset meets the eviction rule now: Portcove holds it only for
+/// provider records, it has at least one, and every one is withdrawn. A
+/// player's own import is never provider-only, so it is never evicted.
+pub(crate) fn evictable(connection: &Connection, asset_sha256: &str) -> Result<bool> {
+    Ok(connection.query_row(
+        "SELECT EXISTS(SELECT 1 FROM artwork_provider_only_assets p
+            WHERE p.asset_sha256=?1
+              AND NOT EXISTS(SELECT 1 FROM artwork_evicted_assets e WHERE e.asset_sha256=p.asset_sha256)
+              AND EXISTS(SELECT 1 FROM artwork_asset_providers r WHERE r.asset_sha256=p.asset_sha256)
+              AND NOT EXISTS(SELECT 1 FROM artwork_asset_providers r
+                    WHERE r.asset_sha256=p.asset_sha256
+                      AND NOT EXISTS(SELECT 1 FROM artwork_provider_withdrawals w
+                            WHERE w.asset_sha256=r.asset_sha256 AND w.provider=r.provider AND w.asset_id=r.asset_id)))",
+        [asset_sha256],
+        |row| row.get(0),
+    )?)
+}
+
+pub(crate) fn mark_evicted(connection: &Connection, asset_sha256: &str, now: i64) -> Result<()> {
+    validate_hash(asset_sha256)?;
+    connection.execute(
+        "INSERT INTO artwork_evicted_assets(asset_sha256,evicted_at) VALUES (?1,?2) ON CONFLICT DO NOTHING",
+        params![asset_sha256, now.max(1)],
+    )?;
+    Ok(())
+}
+
+/// When Portcove removed this asset's original, if it did. The marker is the
+/// authority for every reader: an evicted original is never read or handed out,
+/// even while its file is still waiting to be deleted.
+pub(crate) fn evicted_at(connection: &Connection, asset_sha256: &str) -> Result<Option<i64>> {
+    Ok(connection
+        .query_row(
+            "SELECT evicted_at FROM artwork_evicted_assets WHERE asset_sha256=?1",
+            [asset_sha256],
+            |row| row.get(0),
+        )
+        .optional()?)
+}
+
+/// Every evicted asset, bounded like the assets.
+pub(crate) fn evicted_assets(connection: &Connection) -> Result<Vec<(String, i64)>> {
+    let mut statement = connection.prepare(&format!(
+        "SELECT asset_sha256,evicted_at FROM artwork_evicted_assets ORDER BY asset_sha256 LIMIT {}",
+        MAX_ASSETS + 1
+    ))?;
+    let rows = statement
+        .query_map([], |row| Ok((row.get(0)?, row.get(1)?)))?
+        .collect::<std::result::Result<Vec<_>, _>>()?;
+    if rows.len() > MAX_ASSETS {
+        return Err(PortcoveError::verification(
+            "evicted artwork exceeds its limit",
+        ));
+    }
+    Ok(rows)
+}
+
+/// Restores an evicted asset after its original was published again: the
+/// marker goes first, so the provider-only marker it requires can follow.
+pub(crate) fn clear_eviction(connection: &Connection, asset_sha256: &str) -> Result<()> {
+    connection.execute(
+        "DELETE FROM artwork_evicted_assets WHERE asset_sha256=?1",
+        [asset_sha256],
+    )?;
+    Ok(())
 }
 
 pub(crate) fn validate_hash(id: &str) -> Result<()> {
@@ -558,15 +846,18 @@ pub(crate) fn check_capacity(connection: &Connection, proposed: &LocalArtworkAss
         [&proposed.sha256],
         |row| row.get(0),
     )?;
-    if exists {
+    // A removed original's bytes no longer count, so restoring one is checked
+    // like a new import.
+    let evicted = evicted_at(connection, &proposed.sha256)?.is_some();
+    if exists && !evicted {
         return Ok(());
     }
     let (count, bytes): (u64, u64) = connection.query_row(
-        "SELECT COUNT(*),COALESCE(SUM(byte_size),0) FROM artwork_assets",
+        "SELECT COUNT(*),COALESCE(SUM(CASE WHEN sha256 IN (SELECT asset_sha256 FROM artwork_evicted_assets) THEN 0 ELSE byte_size END),0) FROM artwork_assets",
         [],
         |row| Ok((row.get(0)?, row.get(1)?)),
     )?;
-    if count >= MAX_ASSETS as u64
+    if (!exists && count >= MAX_ASSETS as u64)
         || bytes
             .checked_add(proposed.byte_size)
             .is_none_or(|size| size > MAX_TOTAL_BYTES)
@@ -717,7 +1008,16 @@ pub(crate) fn provider_image_attributions(
 }
 
 pub(crate) fn remove_asset_provenance(connection: &Connection, id: &str) -> Result<()> {
-    // Explicit, so correctness never rests on the foreign-key pragma alone.
+    // Explicit, so correctness never rests on the foreign-key pragma alone. The
+    // eviction marker goes first because it requires the provider-only marker.
+    connection.execute(
+        "DELETE FROM artwork_evicted_assets WHERE asset_sha256=?1",
+        [id],
+    )?;
+    connection.execute(
+        "DELETE FROM artwork_provider_withdrawals WHERE asset_sha256=?1",
+        [id],
+    )?;
     connection.execute(
         "DELETE FROM artwork_provider_listing_checks WHERE asset_sha256=?1",
         [id],
@@ -835,11 +1135,61 @@ pub(crate) fn snapshot(connection: &Connection) -> Result<ArtworkMetadata> {
     let provider_only_assets = statement
         .query_map([], |row| row.get::<_, String>(0))?
         .collect::<std::result::Result<Vec<_>, _>>()?;
+    let mut statement = connection.prepare(&format!(
+        "SELECT asset_sha256,provider,asset_id,withdrawn_at,signal FROM artwork_provider_withdrawals ORDER BY asset_sha256,provider,asset_id LIMIT {}",
+        MAX_PROVIDER_RECORDS + 1
+    ))?;
+    let withdrawals = statement
+        .query_map([], |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, String>(1)?,
+                row.get::<_, u64>(2)?,
+                row.get::<_, i64>(3)?,
+                row.get::<_, String>(4)?,
+            ))
+        })?
+        .collect::<std::result::Result<Vec<_>, _>>()?
+        .into_iter()
+        .map(|(asset_sha256, provider, asset_id, withdrawn_at, signal)| {
+            Ok(crate::ArtworkWithdrawalRecord {
+                asset_sha256,
+                provider: match provider.as_str() {
+                    "steamgriddb" => crate::ArtworkProvider::Steamgriddb,
+                    _ => {
+                        return Err(PortcoveError::verification(
+                            "artwork withdrawal names an unknown provider",
+                        ));
+                    }
+                },
+                asset_id,
+                withdrawn_at,
+                signal: match signal.as_str() {
+                    "gone" => crate::ArtworkWithdrawalSignal::Gone,
+                    "absent_again" => crate::ArtworkWithdrawalSignal::AbsentAgain,
+                    _ => {
+                        return Err(PortcoveError::verification(
+                            "artwork withdrawal has an unknown signal",
+                        ));
+                    }
+                },
+            })
+        })
+        .collect::<Result<Vec<_>>>()?;
+    let evicted_assets = evicted_assets(connection)?
+        .into_iter()
+        .map(|(asset_sha256, evicted_at)| crate::ArtworkEvictedAsset {
+            asset_sha256,
+            evicted_at,
+        })
+        .collect();
     let metadata = ArtworkMetadata {
         assets,
         choices,
         providers,
         provider_only_assets,
+        withdrawals,
+        evicted_assets,
     };
     validate_provenance(&metadata, &ids.iter().collect())?;
     Ok(metadata)
@@ -894,7 +1244,52 @@ fn validate_provenance(metadata: &ArtworkMetadata, ids: &BTreeSet<&String>) -> R
             ));
         }
     }
+    // Withdrawals name stored records once each. An eviction needs only a
+    // provider-only asset: every record had to be withdrawn when it happened,
+    // but a record seen listed again since then no longer is.
+    if metadata.withdrawals.len() > MAX_PROVIDER_RECORDS
+        || metadata.evicted_assets.len() > MAX_ASSETS
+    {
+        return Err(PortcoveError::verification(
+            "artwork withdrawals exceed their record limit",
+        ));
+    }
+    let mut withdrawn = BTreeSet::new();
+    for withdrawal in &metadata.withdrawals {
+        if !valid_event_time(withdrawal.withdrawn_at)
+            || !records.contains(&(
+                &withdrawal.asset_sha256,
+                withdrawal.provider,
+                withdrawal.asset_id,
+            ))
+            || !withdrawn.insert((
+                &withdrawal.asset_sha256,
+                withdrawal.provider,
+                withdrawal.asset_id,
+            ))
+        {
+            return Err(PortcoveError::verification(
+                "artwork withdrawal is repeated, unbound or undated",
+            ));
+        }
+    }
+    let mut evicted = BTreeSet::new();
+    for asset in &metadata.evicted_assets {
+        if !valid_event_time(asset.evicted_at)
+            || !only.contains(&asset.asset_sha256)
+            || !evicted.insert(&asset.asset_sha256)
+        {
+            return Err(PortcoveError::verification(
+                "evicted artwork is repeated, undated or not provider-only",
+            ));
+        }
+    }
     Ok(())
+}
+
+/// A recorded withdrawal or eviction time: after 2020 and before 2200.
+fn valid_event_time(seconds: i64) -> bool {
+    (1_577_836_800..7_258_118_400).contains(&seconds)
 }
 
 pub(crate) fn validate_metadata_with(
@@ -908,12 +1303,21 @@ pub(crate) fn validate_metadata_with(
     }
     let mut ids = BTreeSet::new();
     let mut bytes = 0_u64;
+    // A removed original's bytes are no longer stored, as in the live library.
+    let evicted: BTreeSet<&String> = metadata
+        .evicted_assets
+        .iter()
+        .map(|asset| &asset.asset_sha256)
+        .collect();
     for asset in &metadata.assets {
         validate_asset(asset)?;
         if !ids.insert(&asset.sha256) {
             return Err(PortcoveError::verification(
                 "artwork metadata repeats an asset",
             ));
+        }
+        if evicted.contains(&asset.sha256) {
+            continue;
         }
         bytes = bytes
             .checked_add(asset.byte_size)
@@ -954,6 +1358,24 @@ pub(crate) fn restore(connection: &Connection, metadata: &ArtworkMetadata) -> Re
     for id in &metadata.provider_only_assets {
         mark_provider_only(connection, id)?;
     }
+    for withdrawal in &metadata.withdrawals {
+        connection.execute(
+            "INSERT INTO artwork_provider_withdrawals(asset_sha256,provider,asset_id,withdrawn_at,signal) VALUES (?1,?2,?3,?4,?5)",
+            params![
+                withdrawal.asset_sha256,
+                withdrawal.provider.key(),
+                withdrawal.asset_id,
+                withdrawal.withdrawn_at,
+                match withdrawal.signal {
+                    crate::ArtworkWithdrawalSignal::Gone => "gone",
+                    crate::ArtworkWithdrawalSignal::AbsentAgain => "absent_again",
+                },
+            ],
+        )?;
+    }
+    for asset in &metadata.evicted_assets {
+        mark_evicted(connection, &asset.asset_sha256, asset.evicted_at)?;
+    }
     for choice in &metadata.choices {
         write_choice(
             connection,
@@ -977,9 +1399,17 @@ pub(crate) fn validate_transfer_inventory(
         .iter()
         .find(|tree| tree.kind == crate::LibraryContentKind::LocalArtwork)
         .ok_or_else(|| PortcoveError::verification("artwork payload root is missing"))?;
+    // A removed original is not carried: the files are exactly the assets
+    // whose originals the library still holds.
+    let evicted = artwork
+        .evicted_assets
+        .iter()
+        .map(|asset| asset.asset_sha256.as_str())
+        .collect::<BTreeSet<_>>();
     let assets = artwork
         .assets
         .iter()
+        .filter(|asset| !evicted.contains(asset.sha256.as_str()))
         .map(|asset| (asset.sha256.as_str(), asset))
         .collect::<std::collections::BTreeMap<_, _>>();
     if !tree.copy.directories.is_empty()

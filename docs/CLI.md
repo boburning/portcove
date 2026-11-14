@@ -381,7 +381,7 @@ The CLI API schema version is independent of the Portcove release version.
 
 `port-capabilities PORT_ID` returns a format-1 read-only feature report for a
 current or retained listing. `capabilities` advertises `port_capability_schema`
-and `listing_formats` independently from API schema 92 and event schema 3.
+and `listing_formats` independently from API schema 93 and event schema 3.
 Clients may ignore these additive descriptive fields; missing reports never
 override operation assessments. Cheap reports on workspace `PortListingStatus` use
 already loaded status/action facts. The focused command additionally reads the
@@ -1386,14 +1386,16 @@ and the destination handoff. An image no longer on the game's first listing page
 not-found, and a changed choice revision is a conflict; in both cases the current
 artwork is kept. The copy is library artwork like a local import: `reset` returns to
 the default and `remove-unused` deletes it once nothing selects it. Library exports
-that contain chosen SteamGridDB images use metadata schema 8.
+that contain chosen SteamGridDB images use metadata schema 8, and schema 10 once a
+check has confirmed a withdrawal.
 See [the provider client limits](ARCHITECTURE.md#local-artwork-ownership).
 
 `check-listings` checks, with your key, whether SteamGridDB still lists each
 SteamGridDB image in your library, records what it finds beside each image's credit,
-and returns `steamgriddb_listing_report`. Nothing is removed: every image, credit and
-choice is kept, nothing changes in Steam, and no artwork lock is held while it waits
-on the network. Each stored image is checked against its game's listing for the same
+and returns `steamgriddb_listing_report`. A check can remove Portcove's copy of an
+image SteamGridDB no longer lists, but only after a second signal confirms the first
+absence (see below); every choice and credit is kept, nothing changes in Steam, and
+no artwork lock is held while it waits on the network. Each stored image is checked against its game's listing for the same
 role collection, stored size (when it is a size Portcove offers for the role) and
 format, with adult, humor and epilepsy flags set to `any`, so a re-tagged image or a
 later Portcove filter change never reads as missing. An image seen on any listing page
@@ -1427,6 +1429,28 @@ in which case the results are shown but not kept. `artwork_state.provider_listin
 shows the recorded evidence for the selected image. Library moves keep this evidence;
 library exports and imports do not carry it. A library with no SteamGridDB images
 makes no request and needs no key.
+
+A `not_listed` result is confirmed as a withdrawal when the image server answers
+`gone` in the same check, or when a later check at least 24 hours after the first
+absence still finds it `not_listed`, by both Portcove's clock and SteamGridDB's own
+`Date`. An `unknown` result, a `gone` answer from an earlier check, or a missing date
+never confirms one, and an image seen listed again clears it. When every SteamGridDB
+credit behind an image is confirmed and you never imported the same image yourself,
+Portcove removes its copy: the original and thumbnail are deleted, the slot shows the
+generated fallback with a reason, and the choice, its revision and the credit stay.
+`artwork_state.evicted_at` says when, and each `provider_listing` entry shows
+`withdrawn_at` and `withdrawal_signal`. Choosing the image again downloads it again and
+restores the copy. A copy you imported yourself is kept and only marked withdrawn.
+
+Each image's `effect` is `none`, `withdrawn` (confirmed, copy kept), `removed`
+(confirmed and the copy removed) or `listed_again`. `skipped` counts results that
+could not be written and stay unrecorded. One check deletes at most 32 copies:
+`removed` counts deletions that finished, `removal_deferred` those left for the next
+check, export or move, and `removal_failed` those another program kept open. A
+removed copy is never shown or handed to Steam, even while its file waits for
+deletion. Library export and move finish any pending removals first, and stop with
+a next step if a removed copy still cannot be deleted. Exports record withdrawals
+and removed copies under metadata schema 10 and do not carry removed originals.
 
 ## Export and restore a library
 

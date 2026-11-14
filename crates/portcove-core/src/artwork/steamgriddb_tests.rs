@@ -38,6 +38,7 @@ impl SteamGridDbTransport for Fixture {
         Ok(TransportResponse {
             status: self.status,
             retry_after: self.retry_after.map(str::to_owned),
+            date: None,
             body: self.body.clone().into_bytes(),
         })
     }
@@ -47,6 +48,7 @@ impl SteamGridDbTransport for Fixture {
         Ok(TransportResponse {
             status: self.image.0,
             retry_after: self.image.1.map(str::to_owned),
+            date: None,
             body: self.image.2.clone(),
         })
     }

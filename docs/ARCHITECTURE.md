@@ -763,8 +763,8 @@ asset removes its provenance. Library metadata that carries provenance uses sche
 which older readers refuse; a same-user export copies provider originals like every
 other original. `artwork_state` and the handoff expose the credits.
 
-Withdrawal handling is player-triggered (2026-11-13 owner decision) and is
-delivered in slices; none removes anything yet. `check_steamgriddb_listings` takes a
+Withdrawal handling is player-triggered (2026-11-13 owner decision).
+`check_steamgriddb_listings` takes a
 dedicated single-flight lock, then snapshots the stored records and their evidence in
 one read transaction, without the artwork lock. It groups the records by game, role
 collection, stored size and format and lists the stalest groups first, with every
@@ -791,8 +791,28 @@ snapshot, so a concurrent choice or removal always wins. Choosing an image marks
 listed in the same transaction as its provider record. `not_listed_since` keeps the
 first verified absence and is cleared only by an observed listing; unknown results
 never move it. A cancelled check records nothing. Evidence travels with a library
-move (the database is copied) but not with metadata export or import. Eviction, which
-needs two independent signals, is a later #527 slice.
+move (the database is copied) but not with metadata export or import.
+
+SQLite schema 59 adds withdrawals and evictions. A withdrawal is decided only when a
+result is applied, from that result alone: a verified absence plus either a `gone`
+probe answer in the same check, or an earlier absence that has stood for 24 hours by
+both Portcove's clock and SteamGridDB's `Date` (`not_listed_since_server`). An
+observed listing deletes the withdrawal, so `artwork_provider_withdrawals` always
+follows the latest verified evidence. In the same transaction, a provider-only asset
+whose every record is withdrawn gets an `artwork_evicted_assets` marker, which
+requires the provider-only marker. The marker is the authority for every reader:
+`artwork_state`, the destination handoff (`selected_original_unavailable`), handoff
+bytes and thumbnails never read an evicted original. The original, staged copy and
+thumbnail are deleted after the commit without reading them, at most 32 per check;
+the rest, and deletions another process refused, are finished at the next check's
+preparation, by every artwork-lock mutation and, without a bound, before an export or
+move plan, which stops if one still cannot be deleted. A player's own import is never
+provider-only and is never evicted. Restoring (choosing the image again, or importing
+the same bytes) publishes the original first; only then does the transaction that
+writes the choice clear the marker and record the provenance, so a failed restore
+changes nothing. Evicted bytes do not count toward artwork storage or the transfer
+byte limit. Library metadata schema 10 carries withdrawals and evicted assets;
+evicted originals are not part of the transfer inventory.
 
 The CLI's `artwork steamgriddb` commands are thin adapters:
 lookups run on a blocking task, and `choose` and `check-listings`, which borrow the
