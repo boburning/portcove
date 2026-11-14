@@ -61,6 +61,10 @@ successor transition adopts them.
 
 - Any launch, first-run file creation, actual write location or settings
   migration.
+- Whether v1.2.0's settings store rewrites these files on every start with
+  different bytes. If it does, an older copy left untouched after a rollback
+  still changes when it is launched on the old version, and the next update
+  then holds until the player keeps one copy.
 - An update, rollback or backup of a real installation under the new
   definition. The Core transition is covered by unit tests and a Windows-only
   service test, not by a native acceptance run.

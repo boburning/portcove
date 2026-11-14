@@ -2658,8 +2658,9 @@ beside an existing predecessor accept the successor after two read-only checks
 against the active predecessor copy: its recorded package members and
 executable companions must not cover an appended path, and any appended file
 present both in its runtime and in canonical data must have identical bytes.
-Differing copies hold the update; the refusal names the installed copy's and
-the saved copy's exact paths so the player can delete the one they do not want.
+Differing copies hold the update with the `appended_settings_diverged`
+failure, whose summary names the file and the installed and saved copies'
+exact paths so the player can delete the one they do not want.
 After the successor copy's ordinary data restore, an appended file the
 predecessor runtime already wrote and canonical data lacks is copied into the
 successor copy only. Canonical data gains it through that copy's later

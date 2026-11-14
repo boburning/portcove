@@ -173,6 +173,15 @@ pub(crate) enum KnownFailureCause {
         failures: Vec<String>,
     },
     PortableDataContractChanged,
+    /// Two copies of a settings file a newer version newly carries differ, so
+    /// Core cannot tell which to keep. `other` is the saved copy, or the new
+    /// version's copy when `other_is_saved` is false.
+    AppendedSettingsDiverged {
+        file: String,
+        installed: std::path::PathBuf,
+        other: std::path::PathBuf,
+        other_is_saved: bool,
+    },
     ManagedRouteCommitted {
         version: String,
         previous_path: std::path::PathBuf,
@@ -323,6 +332,26 @@ impl KnownFailureCause {
                 "portable_data_contract_changed",
                 "This package changes where player data is stored or how it is located. Portcove stopped the transition and kept the current installation and files. Keep using the current version; use upstream instructions until a compatible package or supported data migration is available.",
             ),
+            Self::AppendedSettingsDiverged {
+                file,
+                installed,
+                other,
+                other_is_saved,
+            } => {
+                let (where_other, other_label) = if *other_is_saved {
+                    ("your saved settings", "Saved copy")
+                } else {
+                    ("the new version", "New version's copy")
+                };
+                return (
+                    "appended_settings_diverged",
+                    format!(
+                        "The settings file {file} is different in the installed version and in {where_other}, so Portcove can't tell which one to keep. Both copies were kept. Delete the copy you don't want, then try again.\nInstalled version's copy: {}\n{other_label}: {}",
+                        installed.display(),
+                        other.display()
+                    ),
+                );
+            }
             Self::ManagedRouteCommitted {
                 version,
                 previous_path,

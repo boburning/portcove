@@ -194,6 +194,10 @@ describe("diagnostic clipboard outcomes", () => {
       "portable_data_contract_changed",
       "This package changes where player data is stored or how it is located. Portcove stopped the transition and kept the current installation and files. Keep using the current version; use upstream instructions until a compatible package or supported data migration is available.",
     ],
+    [
+      "appended_settings_diverged",
+      "The settings file sonic1-sound.ini is different in the installed version and in your saved settings, so Portcove can't tell which one to keep. Both copies were kept. Delete the copy you don't want, then try again.\nInstalled version's copy: C:\\Games\\Sonic\\v0.8.3\\sonic1-sound.ini\nSaved copy: C:\\Portcove\\user\\sonic1-sound.ini",
+    ],
   ])("shows %s recovery instructions before technical details", async (key, summary) => {
     const error = failureReport();
     error.code = "conflict";

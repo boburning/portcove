@@ -414,6 +414,32 @@ pub(crate) fn appended_digests(
     Ok(digests)
 }
 
+/// Two differing copies of an appended settings file: the player keeps one.
+fn diverged(
+    relative: &str,
+    installed_root: &Path,
+    other_root: &Path,
+    saved: bool,
+) -> PortcoveError {
+    let installed = installed_root.join(relative);
+    let other = other_root.join(relative);
+    PortcoveError::conflict(
+        "two copies of a newly declared settings file differ; preserve both and let the player keep one",
+    )
+    .detail("path", relative)
+    .detail("installed_copy", installed.display().to_string())
+    .detail(
+        if saved { "saved_copy" } else { "new_version_copy" },
+        other.display().to_string(),
+    )
+    .with_known_cause(crate::failure::KnownFailureCause::AppendedSettingsDiverged {
+        file: relative.into(),
+        installed,
+        other,
+        other_is_saved: saved,
+    })
+}
+
 /// Read-only preflight for a successor's appended files. Returns the files the
 /// active predecessor runtime holds and canonical data lacks.
 ///
@@ -440,16 +466,7 @@ pub(crate) fn require_adoptable(
         }
         match (active, appended_file(user, &relative)?) {
             (Some(active), Some(canonical)) if active != canonical => {
-                let installed = runtime.join(&relative);
-                let saved = user.join(&relative);
-                return Err(held(&format!(
-                    "This update would carry over {relative}, but the copy in the installed version ({}) differs from your saved copy ({}). Keep the one you want by deleting the other, then update again.",
-                    installed.display(),
-                    saved.display(),
-                ))
-                .detail("path", relative.as_str())
-                .detail("installed_copy", installed.display().to_string())
-                .detail("saved_copy", saved.display().to_string()));
+                return Err(diverged(&relative, runtime, user, true));
             }
             (Some(_), None) => adoptable.push(relative),
             _ => {}
@@ -479,10 +496,7 @@ pub(crate) fn adopt_added_paths(
             if Some(existing) == appended_file(runtime, relative)? {
                 continue;
             }
-            return Err(held(
-                "the new version already holds a different copy of a newly declared settings file that saved data lacks; preserve it and review the update",
-            )
-            .detail("path", relative.as_str()));
+            return Err(diverged(relative, runtime, target, false));
         }
         let destination = target.join(relative);
         if let Some(parent) = destination.parent() {
@@ -1205,9 +1219,17 @@ mod tests {
         adopt_added_paths(&base, &next, &runtime, &user, &target, None)?;
         assert_eq!(fs::read(target.join("sound.ini"))?, b"runtime choice");
         assert!(!user.join("sound.ini").exists());
-        // Different bytes already in the new version still hold.
+        // Different bytes already in the new version still hold, naming both.
         fs::write(target.join("sound.ini"), b"something else")?;
-        assert!(adopt_added_paths(&base, &next, &runtime, &user, &target, None).is_err());
+        let held = adopt_added_paths(&base, &next, &runtime, &user, &target, None).unwrap_err();
+        assert_eq!(
+            held.details.get("new_version_copy").map(String::as_str),
+            Some(target.join("sound.ini").display().to_string().as_str())
+        );
+        assert_eq!(
+            held.report().presentation.presentation_key,
+            "appended_settings_diverged"
+        );
         assert_eq!(fs::read(target.join("sound.ini"))?, b"something else");
         Ok(())
     }
@@ -1238,6 +1260,12 @@ mod tests {
         // naming both copies.
         fs::write(runtime.join("sound.ini"), b"C")?;
         let held = require_adoptable(&base, &next, &runtime, &user, Some(&baseline)).unwrap_err();
+        let report = held.report();
+        assert_eq!(
+            report.presentation.presentation_key,
+            "appended_settings_diverged"
+        );
+        assert!(report.presentation.summary.contains("sound.ini"));
         assert_eq!(
             held.details.get("installed_copy").map(String::as_str),
             Some(runtime.join("sound.ini").display().to_string().as_str())
