@@ -482,7 +482,6 @@ export async function reconcileRepositorySettings(
 }
 
 const previewTagPattern = "refs/tags/v*-preview.*";
-const githubActionsBypass = { actor_id: 15368, actor_type: "Integration", bypass_mode: "always" };
 
 const releaseBranches = [
   "refs/heads/portcove-production-coordinator-state",
@@ -540,8 +539,9 @@ const releaseRulesets = {
     [releaseOwner],
   ),
   // Owner decision on #534 (2026-11-13): only the owner (and agents acting as the
-  // owner) may create Beta/Stable version tags; nightly previews may also be
-  // created by GitHub Actions. Update and deletion stay forbidden for everyone.
+  // owner) may create Beta/Stable version tags. Preview tags are excluded so the
+  // nightly workflow can create them: GitHub refuses the Actions app as a bypass
+  // actor on a user-owned repository. Update and deletion stay forbidden for all.
   versionCreator: releaseRuleset(
     "Portcove release tag creation",
     "tag",
@@ -549,13 +549,6 @@ const releaseRulesets = {
     ["creation"],
     [releaseOwner],
     [previewTagPattern],
-  ),
-  previewCreator: releaseRuleset(
-    "Portcove preview tag creation",
-    "tag",
-    [previewTagPattern],
-    ["creation"],
-    [releaseOwner, githubActionsBypass],
   ),
 };
 
@@ -633,8 +626,7 @@ export function planReleaseRulesets(
       throw new Error(`Unexpected drift in ${desired.name}`);
     return matches[0];
   };
-  const { writer, retention, pause, immutable, creator, versionCreator, previewCreator } =
-    releaseRulesets;
+  const { writer, retention, pause, immutable, creator, versionCreator } = releaseRulesets;
   const stable = {
     writer: find(writer),
     retention: find(retention),
@@ -642,7 +634,6 @@ export function planReleaseRulesets(
     immutable: find(immutable),
     creator: find(creator),
     versionCreator: find(versionCreator),
-    previewCreator: find(previewCreator),
   };
   const main = details.filter((row) => row.name === "Protect main");
   const versionTags = find(
@@ -760,7 +751,6 @@ export function planReleaseRulesets(
     };
   }
   if (!stable.versionCreator) next ??= { action: "create", payload: versionCreator };
-  else if (!stable.previewCreator) next ??= { action: "create", payload: previewCreator };
   if (next?.action === "create" && rows.length >= 75)
     throw new Error("No ruleset slot available after branch consolidation");
   return {
