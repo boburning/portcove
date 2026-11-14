@@ -4,7 +4,7 @@
 use crate::*;
 use portcove_core::{
     SteamGridDbCandidate, SteamGridDbCheckStop, SteamGridDbGame, SteamGridDbImageCheck,
-    SteamGridDbKeyStatus, SteamGridDbListingReport, SteamGridDbListingStatus,
+    SteamGridDbKeyStatus, SteamGridDbListingReport, SteamGridDbListingResult,
     SteamGridDbSourceStatus, SteamGridDbUnknownReason, clear_steamgriddb_key,
     search_steamgriddb_games, set_steamgriddb_key, steamgriddb_candidates, steamgriddb_key_status,
 };
@@ -170,8 +170,9 @@ fn role_name(role: portcove_core::DestinationArtworkRole) -> &'static str {
 }
 
 fn image_finding(image: &SteamGridDbImageCheck) -> String {
-    use SteamGridDbListingStatus as Listing;
+    use SteamGridDbListingResult as Listing;
     use SteamGridDbSourceStatus as Source;
+    use SteamGridDbUnknownReason as Reason;
     let found = match (image.listing, image.source) {
         (Listing::Listed, _) => "still listed".to_owned(),
         (Listing::NotListed, Source::Gone) => {
@@ -181,20 +182,18 @@ fn image_finding(image: &SteamGridDbImageCheck) -> String {
             "no longer listed, but SteamGridDB still serves the file".to_owned()
         }
         (Listing::NotListed, _) => "no longer listed".to_owned(),
-        (Listing::Unknown, _) => {
-            let reason = match image.unknown_reason {
-                Some(SteamGridDbUnknownReason::GameNotFound) => "SteamGridDB did not find the game",
-                Some(SteamGridDbUnknownReason::TooManyImages) => {
-                    "the game has more images than one check reads"
+        (Listing::Unknown { .. }, _) if !image.attempted => "not reached this run".to_owned(),
+        (Listing::Unknown { reason }, _) => {
+            let reason = match reason {
+                Reason::GameNotFound => "SteamGridDB did not find the game",
+                Reason::EmptyListing => "SteamGridDB listed no images for this game and role",
+                Reason::TooManyImages => "the game has more images than one check reads",
+                Reason::RequestLimit => "this check reached its request limit",
+                Reason::CheckStopped => "the check stopped first",
+                Reason::Unavailable => "SteamGridDB could not be reached",
+                Reason::IncompleteListing | Reason::InvalidResponse => {
+                    "SteamGridDB did not return a complete listing"
                 }
-                Some(SteamGridDbUnknownReason::RequestLimit) => {
-                    "this check reached its request limit"
-                }
-                Some(SteamGridDbUnknownReason::CheckStopped) => "the check stopped first",
-                Some(SteamGridDbUnknownReason::Unavailable) => "SteamGridDB could not be reached",
-                Some(SteamGridDbUnknownReason::IncompleteListing)
-                | Some(SteamGridDbUnknownReason::InvalidResponse)
-                | None => "SteamGridDB did not return a complete listing",
             };
             format!("not confirmed ({reason})")
         }
@@ -228,6 +227,8 @@ pub(crate) fn listing_report(report: &SteamGridDbListingReport) -> String {
         Some(SteamGridDbCheckStop::RateLimited { .. }) => "\n\nSteamGridDB asked Portcove to slow down, so the check stopped early.\nNext step: Run the check again later.".into(),
         Some(SteamGridDbCheckStop::KeyRejected) => "\n\nSteamGridDB rejected your saved API key, so the check stopped early.\nNext step: Replace it with `portcove artwork steamgriddb set-key`.".into(),
         Some(SteamGridDbCheckStop::Unavailable) => "\n\nSteamGridDB could not be reached, so the check stopped early.\nNext step: Run the check again later.".into(),
+        Some(SteamGridDbCheckStop::TimeLimit) => "\n\nThe check reached its three-minute limit, so some images were not reached.\nNext step: Run the check again; it starts with the images checked longest ago.".into(),
+        Some(SteamGridDbCheckStop::Cancelled) => "\n\nThe check was cancelled.\nNext step: Run the check again when you are ready.".into(),
         None => String::new(),
     };
     let count = report.images.len();
@@ -370,7 +371,7 @@ mod tests {
             })
             .contains("no SteamGridDB images")
         );
-        let image = |asset_id, listing, unknown_reason, source| SteamGridDbImageCheck {
+        let image = |asset_id, listing, attempted, source| SteamGridDbImageCheck {
             asset_sha256: "a".repeat(64),
             attribution: ArtworkAttribution {
                 provider: ArtworkProvider::Steamgriddb,
@@ -383,7 +384,8 @@ mod tests {
                 fetched_at: 0,
             },
             listing,
-            unknown_reason,
+            attempted,
+            listing_total: Some(1),
             source,
         };
         let text = listing_report(&SteamGridDbListingReport {
@@ -391,26 +393,28 @@ mod tests {
             images: vec![
                 image(
                     1,
-                    SteamGridDbListingStatus::Listed,
-                    None,
+                    SteamGridDbListingResult::Listed,
+                    true,
                     SteamGridDbSourceStatus::NotChecked,
                 ),
                 image(
                     2,
-                    SteamGridDbListingStatus::NotListed,
-                    None,
+                    SteamGridDbListingResult::NotListed,
+                    true,
                     SteamGridDbSourceStatus::Gone,
                 ),
                 image(
                     3,
-                    SteamGridDbListingStatus::NotListed,
-                    None,
+                    SteamGridDbListingResult::NotListed,
+                    true,
                     SteamGridDbSourceStatus::Served,
                 ),
                 image(
                     4,
-                    SteamGridDbListingStatus::Unknown,
-                    Some(SteamGridDbUnknownReason::GameNotFound),
+                    SteamGridDbListingResult::Unknown {
+                        reason: SteamGridDbUnknownReason::GameNotFound,
+                    },
+                    true,
                     SteamGridDbSourceStatus::Served,
                 ),
             ],
@@ -432,8 +436,10 @@ mod tests {
                 checked_at: 0,
                 images: vec![image(
                     5,
-                    SteamGridDbListingStatus::Unknown,
-                    Some(SteamGridDbUnknownReason::CheckStopped),
+                    SteamGridDbListingResult::Unknown {
+                        reason: SteamGridDbUnknownReason::CheckStopped,
+                    },
+                    false,
                     SteamGridDbSourceStatus::NotChecked,
                 )],
                 stopped,
@@ -448,7 +454,9 @@ mod tests {
             }))
             .contains("again later")
         );
-        assert!(one(None).contains("not confirmed (the check stopped first)"));
+        assert!(one(None).contains("not reached this run"));
+        assert!(one(Some(SteamGridDbCheckStop::TimeLimit)).contains("three-minute limit"));
+        assert!(one(Some(SteamGridDbCheckStop::Cancelled)).contains("cancelled"));
         for (seconds, text) in [
             (0, "1 second"),
             (1, "1 second"),

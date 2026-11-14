@@ -25,7 +25,7 @@ pub use steamgriddb::{
     STEAMGRIDDB_API_ORIGIN, STEAMGRIDDB_KEY_PREFERENCES_URL, SteamGridDbAuthor,
     SteamGridDbCandidate, SteamGridDbCheckStop, SteamGridDbFailure, SteamGridDbGame,
     SteamGridDbImageCheck, SteamGridDbKeyStatus, SteamGridDbListingReport,
-    SteamGridDbListingStatus, SteamGridDbSourceStatus, SteamGridDbUnknownReason,
+    SteamGridDbListingResult, SteamGridDbSourceStatus, SteamGridDbUnknownReason,
     clear_steamgriddb_key, search_steamgriddb_games, set_steamgriddb_key, steamgriddb_candidates,
     steamgriddb_credit_url, steamgriddb_key_status, steamgriddb_preview,
 };
@@ -470,7 +470,11 @@ impl PortcoveService {
             transaction.commit()?;
             metadata
         };
-        steamgriddb::check_stored_listings(steamgriddb::check_subjects(&metadata), Library::now())
+        steamgriddb::check_stored_listings(
+            steamgriddb::check_subjects(&metadata, |_, _| None),
+            Library::now(),
+            &|| false,
+        )
     }
 
     pub(crate) fn choose_fetched_artwork(

@@ -2985,7 +2985,7 @@ fn listing_check_subjects_carry_the_stored_image_facts() {
     let transaction = connection.transaction().unwrap();
     let metadata = crate::artwork_store::snapshot(&transaction).unwrap();
     transaction.commit().unwrap();
-    let mut subjects: Vec<_> = crate::artwork::steamgriddb::check_subjects(&metadata)
+    let mut subjects: Vec<_> = crate::artwork::steamgriddb::check_subjects(&metadata, |_, _| None)
         .into_iter()
         .map(|subject| {
             (

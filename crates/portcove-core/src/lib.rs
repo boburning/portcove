@@ -164,7 +164,7 @@ pub use artwork::{
     IGDB_ARTWORK_WORK_LIMIT, LocalArtworkAsset, STEAMGRIDDB_API_ORIGIN,
     STEAMGRIDDB_KEY_PREFERENCES_URL, SteamGridDbAuthor, SteamGridDbCandidate, SteamGridDbCheckStop,
     SteamGridDbFailure, SteamGridDbGame, SteamGridDbImageCheck, SteamGridDbKeyStatus,
-    SteamGridDbListingReport, SteamGridDbListingStatus, SteamGridDbSourceStatus,
+    SteamGridDbListingReport, SteamGridDbListingResult, SteamGridDbSourceStatus,
     SteamGridDbUnknownReason, clear_steamgriddb_key, search_steamgriddb_games, set_steamgriddb_key,
     steamgriddb_candidates, steamgriddb_credit_url, steamgriddb_key_status, steamgriddb_preview,
 };
