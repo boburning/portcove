@@ -208,7 +208,10 @@ standard public Windows setup and native runner as `presentation`. A source-owne
 matrix contains fixed scenario arrays; no dispatch input supplies commands,
 scenario names or alternate source. Each group receives a fresh hosted machine
 and output/temp roots. At most four groups run concurrently, each with a finite
-60-minute outer allowance and unchanged native child deadlines.
+90-minute outer allowance (calibrated from 60 under #4879: about 23 minutes of
+checkpoint inventory and 7.5 minutes of builds precede the harness allowance and
+the driver-availability wait; run 43513519698 lost `update-acquisition` evidence
+at 60) and unchanged product deadlines.
 
 Six bounded groups retain the entire maintained `owned-lifecycle` selection and
 its dependency closure: ready/return/preferences, preparation recovery,
