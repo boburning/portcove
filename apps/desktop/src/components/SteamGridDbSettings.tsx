@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { desktopApi } from "../api";
-import type { SteamGridDbKeyStatus } from "../types";
+import type { SteamGridDbKeyStatus, SteamGridDbListingReport } from "../types";
 import { steamGridDbErrorText as errorText } from "./SteamGridDbPicker";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
@@ -12,12 +12,60 @@ import { ExternalLink } from "./ExternalLink";
  * secure-store entry; the renderer never receives it back, and setting it up
  * starts no lookups on its own.
  */
-export function SteamGridDbSettings() {
+const plural = (count: number, one: string, many: string) => `${count} ${count === 1 ? one : many}`;
+
+/** Player-facing summary of one listing check. Nothing in it is removed. */
+export function listingSummary(report: SteamGridDbListingReport): string[] {
+  if (report.images.length === 0)
+    return ["Your library has no SteamGridDB images to check. Nothing was changed."];
+  let listed = 0;
+  let missing = 0;
+  let unconfirmed = 0;
+  let unreached = 0;
+  for (const image of report.images) {
+    if (image.listing.status === "listed") listed += 1;
+    else if (image.listing.status === "not_listed") missing += 1;
+    else if (image.attempted) unconfirmed += 1;
+    else unreached += 1;
+  }
+  const lines = [
+    `Checked ${plural(report.images.length, "SteamGridDB image", "SteamGridDB images")}: ${listed} still listed, ${missing} not in SteamGridDB's list when checked, ${unconfirmed} not confirmed.`,
+  ];
+  if (unreached > 0)
+    lines.push(
+      `${plural(unreached, "image was", "images were")} not reached this run. Checking again starts with them.`,
+    );
+  const stop = report.stopped;
+  if (stop?.reason === "rate_limited")
+    lines.push(
+      stop.retry_after_seconds
+        ? `SteamGridDB asked Portcove to slow down. Check again in ${plural(Math.max(1, Math.ceil(stop.retry_after_seconds / 60)), "minute", "minutes")}.`
+        : "SteamGridDB asked Portcove to slow down. Check again later.",
+    );
+  else if (stop?.reason === "key_rejected")
+    lines.push("SteamGridDB rejected your saved key. Replace it above, then check again.");
+  else if (stop?.reason === "unavailable")
+    lines.push("SteamGridDB could not be reached. Check again later.");
+  else if (stop?.reason === "time_limit")
+    lines.push("The check reached its three-minute limit. Check again to continue.");
+  else if (stop?.reason === "cancelled")
+    lines.push("The check stopped because the library changed. Check again when you are ready.");
+  lines.push(
+    report.recorded
+      ? "Portcove recorded what it found. Nothing was removed."
+      : "These results were not recorded. Nothing was removed; check again to record them.",
+  );
+  return lines;
+}
+
+export function SteamGridDbSettings({ generation }: { generation: number }) {
   const [status, setStatus] = useState<SteamGridDbKeyStatus>();
   const [key, setKey] = useState("");
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string>();
   const [error, setError] = useState<string>();
+  const [checking, setChecking] = useState(false);
+  const [summary, setSummary] = useState<string[]>();
   const mounted = useRef(true);
   // Saving or removing replaces the focused control; focus follows the change.
   const keyInput = useRef<HTMLInputElement>(null);
@@ -53,6 +101,19 @@ export function SteamGridDbSettings() {
       if (mounted.current) setError(errorText(value));
     } finally {
       if (mounted.current) setBusy(false);
+    }
+  };
+  const check = async () => {
+    setChecking(true);
+    setSummary(undefined);
+    setError(undefined);
+    try {
+      const report = await desktopApi.checkSteamGridDbListings(generation);
+      if (mounted.current) setSummary(listingSummary(report));
+    } catch (value) {
+      if (mounted.current) setError(errorText(value));
+    } finally {
+      if (mounted.current) setChecking(false);
     }
   };
   return (
@@ -127,12 +188,37 @@ export function SteamGridDbSettings() {
           Remove key
         </Button>
       )}
+      {status?.configured && (
+        <div>
+          <Button
+            type="button"
+            variant="secondary"
+            disabled={busy || checking}
+            onClick={() => void check()}
+          >
+            {checking ? "Checking SteamGridDB images…" : "Check SteamGridDB images"}
+          </Button>
+          <p className="text-[length:var(--text-sm)] text-[var(--color-text-muted)]">
+            Checks whether SteamGridDB still lists the images you chose from it and records what it
+            finds. Nothing is removed. A check takes up to three minutes and starts with the images
+            checked longest ago.
+          </p>
+          {summary && (
+            <div role="status">
+              {summary.map((line) => (
+                <p key={line}>{line}</p>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
       <p className="text-[length:var(--text-sm)] text-[var(--color-text-muted)]">
-        Portcove contacts SteamGridDB only when you use Find on SteamGridDB: to search, list a
-        game's images, show their previews or download the image you choose. Those requests send the
-        name you search for, SteamGridDB game and image IDs, and ordinary connection details such as
-        your IP address. Your key goes only to SteamGridDB's API, never to its image server. Your
-        files, game paths and library stay on this device.
+        Portcove contacts SteamGridDB only when you use Find on SteamGridDB, or when you choose
+        Check SteamGridDB images: to search, list a game's images, show their previews, download the
+        image you choose, or check whether your chosen images are still listed. Those requests send
+        the name you search for, SteamGridDB game and image IDs, and ordinary connection details
+        such as your IP address. Your key goes only to SteamGridDB's API, never to its image server.
+        Your files, game paths and library stay on this device.
       </p>
       {message && <p role="status">{message}</p>}
       {error && <p role="alert">{error}</p>}

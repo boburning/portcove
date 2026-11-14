@@ -6,6 +6,7 @@ import type {
   SteamGridDbCandidate,
   SteamGridDbGame,
   SteamGridDbKeyStatus,
+  SteamGridDbListingReport,
   ArtworkThumbnail,
   CliCommandContext,
   BackupAction,
@@ -300,6 +301,8 @@ export const desktopApi = {
     invoke<SteamGridDbCandidate[]>("get_steamgriddb_candidates", { gameId, role }),
   steamGridDbPreview: (url: string) =>
     invoke<{ png_base64: string }>("get_steamgriddb_preview", { url }),
+  checkSteamGridDbListings: (generation: number) =>
+    invoke<SteamGridDbListingReport>("check_steamgriddb_listings", { generation }),
   chooseSteamGridDbArtwork: (
     portId: string,
     slot: ArtworkSlot,

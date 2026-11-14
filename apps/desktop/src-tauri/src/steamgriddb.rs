@@ -6,7 +6,7 @@ use crate::{DesktopResult, DesktopState, blocking_worker, service_at_generation}
 use base64::Engine as _;
 use portcove_core::{
     ArtworkSlot, ArtworkState, DestinationArtworkRole, SteamGridDbCandidate, SteamGridDbGame,
-    SteamGridDbKeyStatus,
+    SteamGridDbKeyStatus, SteamGridDbListingReport,
 };
 use serde::Serialize;
 
@@ -63,6 +63,25 @@ pub(crate) async fn get_steamgriddb_preview(
             })
         },
     )
+    .await
+}
+
+/// Checks whether SteamGridDB still lists the library's SteamGridDB images and
+/// records the evidence. It stops before the next request, and records nothing,
+/// once the library generation changes.
+#[tauri::command]
+pub(crate) async fn check_steamgriddb_listings(
+    state: tauri::State<'_, DesktopState>,
+    generation: u64,
+) -> DesktopResult<SteamGridDbListingReport> {
+    let state = state.inner().clone();
+    blocking_worker(move || {
+        let service = service_at_generation(&state, generation)?;
+        let cancelled = || crate::state_generation(&state) != generation;
+        service
+            .check_steamgriddb_listings_until(&cancelled)
+            .map_err(Into::into)
+    })
     .await
 }
 
