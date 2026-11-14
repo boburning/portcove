@@ -734,15 +734,20 @@ resumed invocations and defer related reads without
 blocking unrelated providers. Unknown capacity retains the finite request
 bootstrap. Failed reads are not retried within the same logical job.
 
-The standalone full collector, which the release workflow runs, is bounded by its
-own validated forecast instead of the 352-request ceiling: every request is
-admitted against that conservative plan, the provider quota reserve, the
-three-minute limit and the byte limits, so a larger request forecast never refuses
-the inventory. It still refuses before network work when the selected inventory
-exceeds the 512-location observation ceiling, which bounds one report. In observed release
-runs 34761853116, 34769169958, 34847939207 and 35158181486 (2026-09-13 to
-2026-09-16), the "Verify active catalog upstreams" step took 14–17 seconds; this is
-an observation of a smaller catalog, not a guarantee. Without provider quota headers, the forecast is the only request bound. The maintained
+The standalone full collector, which the release workflow and the local release
+preflight run, is never refused by inventory size. The 352-request and
+512-location ceilings size scheduled monitor operations only; a plan above the
+location ceiling still reports `request_plan.status: "overflow"` so the monitor's
+planner splits it, but a full collection attempts it. Every request is admitted
+against the collection's own conservative forecast, the provider quota reserve,
+the three-minute limit and the byte limits. Locations the time or byte limits
+leave unattempted are reported as `budget`, and the collection is `partial`. In
+observed release runs 34761853116, 34769169958, 34847939207 and 35158181486
+(2026-09-13 to 2026-09-16), the "Verify active catalog upstreams" step took 14–17
+seconds; this is an observation of a smaller catalog, not a guarantee. Without
+provider quota headers, the forecast is the only request bound, so the local
+preflight requires a GitHub token. Catalog edits run the real-catalog collector
+test, so growth that breaks it fails on the pull request. The maintained
 workflow uses incremental admission instead: completed locations are checkpointed
 atomically after each operation, under the existing lock and 16 MiB envelope.
 Continuation binds the accounting policy and exact per-owner health contracts.

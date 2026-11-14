@@ -1964,7 +1964,13 @@ for (const [file, tests] of [
   ],
   [
     "crates/portcove-core/catalog/catalog.json",
-    [...catalogGeneratorContractTests, "scripts/repository-skills.test.mts"],
+    [
+      ...catalogGeneratorContractTests,
+      "scripts/repository-skills.test.mts",
+      // Runs the real catalog through the upstream health collector, so catalog
+      // growth that breaks it is caught on the pull request rather than on main.
+      "scripts/check-catalog-repositories.test.mts",
+    ],
   ],
   ["crates/portcove-core/src/catalog.rs", ["scripts/repository-skills.test.mts"]],
   [

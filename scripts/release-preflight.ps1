@@ -50,6 +50,22 @@ $storageEnvironment = @{
 }
 $previousEnvironment = @{}
 
+# The catalog repository check makes several hundred GitHub API requests, which
+# exceeds GitHub's anonymous limit of 60 an hour. Use GITHUB_TOKEN, or else the
+# signed-in GitHub CLI's token; the token is never printed.
+function Resolve-PortcoveGithubToken {
+    if ($env:GITHUB_TOKEN) { return $env:GITHUB_TOKEN }
+    if (Get-Command gh -ErrorAction SilentlyContinue) {
+        $token = (& gh auth token 2>$null | Out-String).Trim()
+        $global:LASTEXITCODE = 0
+        if ($token) { return $token }
+    }
+    return $null
+}
+if (-not (Resolve-PortcoveGithubToken)) {
+    Write-Warning "No GitHub token found. The catalog repository check later in this preflight will stop unless you run 'gh auth login' or set GITHUB_TOKEN first."
+}
+
 Push-Location $projectRoot
 try {
     foreach ($name in $storageEnvironment.Keys) {
@@ -83,8 +99,18 @@ try {
     & just audit --fresh
     if ($LASTEXITCODE -ne 0) { throw "Repository quality audit failed with exit code $LASTEXITCODE. Command: just audit --fresh. See the failing phase and retained log/report paths above." }
 
-    & node (Join-Path $PSScriptRoot "check-catalog-repositories.mts")
-    if ($LASTEXITCODE -ne 0) { throw "Catalog repository check failed with exit code $LASTEXITCODE. Command: node scripts/check-catalog-repositories.mts. See the repository failures above." }
+    $catalogToken = Resolve-PortcoveGithubToken
+    if (-not $catalogToken) { throw "The catalog repository check needs a GitHub token: it makes several hundred GitHub API requests and anonymous access allows 60 an hour. Run 'gh auth login' or set GITHUB_TOKEN, then rerun the preflight. Command: node scripts/check-catalog-repositories.mts." }
+    $previousGithubToken = $env:GITHUB_TOKEN
+    $env:GITHUB_TOKEN = $catalogToken
+    try {
+        & node (Join-Path $PSScriptRoot "check-catalog-repositories.mts")
+        $catalogExit = $LASTEXITCODE
+    }
+    finally {
+        $env:GITHUB_TOKEN = $previousGithubToken
+    }
+    if ($catalogExit -ne 0) { throw "Catalog repository check failed with exit code $catalogExit. Command: node scripts/check-catalog-repositories.mts. See the repository failures above." }
     & node (Join-Path $PSScriptRoot "check-retcomm-upstreams.mts")
     if ($LASTEXITCODE -ne 0) { throw "PlayStation upstream ownership check failed with exit code $LASTEXITCODE. Command: node scripts/check-retcomm-upstreams.mts. See the upstream failures above." }
 
